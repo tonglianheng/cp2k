@@ -1,0 +1,123 @@
+libsmm: a library for small matrix multiplies.
+
+in order to deal efficiently with small matrix multiplies,
+often involving 'special' matrix dimensions such as 5,13,17,22, 
+a dedicated matrix library can be generated that outperforms (or matches)
+general purpose (optimized) blas libraries.
+
+Generation requires extensive compilation and timing runs, and is machine specific, 
+i.e. the library should be constructed on the architecture it is supposed to run.
+
+Users can modify the values inside the file config.in to set which kind of library
+they want to generate. Furthermore, they can modify (or add) the files inside
+the config directory to set the compiler options used to build the
+library. They can use the existing files as template.
+
+There are several options for building the library. Run ./generate -h to see them.
+Below you can find the detailed instructions for some examples.
+
+====================================================================================================================
+a) How to generate the library running several jobs in a cluster, where each
+   computer allows for both execution and compilation. 
+   For this example we will use a CRAY system with GNU compiler and PBS.
+   Run "./generate -h" to see the meaning of the options.
+
+   1) Run: ./generate -c config/cray.gnu -j 100 -t 16 -w slurm tiny1
+      This command submits 100 jobs in batch. Wait until their completion.
+
+   2) Run: ./generate -c config/cray.gnu tiny2
+      This command collects all results produced in the tiny1 phase and it
+      generates a file tiny_gen_optimal_dnn_cray.gnu.out
+
+   3) As done in 1) and 2), run: ./generate -c config/cray.gnu -j 20 -t 16 -w slurm small1
+      This command submits 20 jobs in batch. Wait until their completion.
+      Then run: ./generate -c config/cray.gnu small2
+      This command collects all results produced in the small1 phase and it
+      generates a file small_gen_optimal_dnn_cray.gnu.out
+      
+   4) Run: ./generate -c config/cray.gnu -t 16 -w slurm lib
+      This commman submit in batch a single job that compiles the library.
+      At the end the library is produced inside the directory lib/
+      (libsmm_dnn_cray.gnu.a). 
+
+   5) It is highly recommended to run the final test to check the correctness of the library.
+      Run: ./generate -c config/cray.gnu -j 20 -w slurm check1
+      After the batch jobs completion, run: ./generate -c config/cray.gnu -j 20 check2
+      Note that it is important to use the same number of jobs specified in
+      check1 phase. Finally check test_smm_dnn_cray.gnu.out for performance and correctness.
+
+   6) Intermediate files (but not some key output and the library itself)
+      might be removed using ./generate clean
+
+
+====================================================================================================================
+b) How to generate the library for the Intel Xeon Phi in batch mode
+   For this example we will use a cluster with PBS, where each node has a MIC card.
+   Run "./generate -h" to see the meaning of the options.
+   We use the config file mic.intel (inside the directory config).
+   Check if all options are OK for your case, in particular:
+    - the target_compile variable with the flag -mmic, e.g.:
+      target_compile="ifort -O2 -funroll-loops -vec-report2 -warn -mmic -fno-inline-functions -nogen-interfaces -openmp"
+    - the variable MICFS to the exported directory between host and Intel Xeon Phi, 
+      e.g. MICFS=~/.mic_exported_directory. Note that the directory is created if doesn't exist.
+    - the variable MIC_LD_LIBRARY_PATH where to find the Intel Xeon Phi library on the card
+    - the variable ssh_mic_cmd, e.g ssh_mic_cmd="ssh mic0"
+    - the variable SINK_LD_LIBRARY_PATH, i.e. where to find the Intel Xeon Phi library on the host
+    - the variable mic_cmd, which by default is mic_cmd="/opt/intel/mic/bin/micnativeloadex"
+   
+   1) Run: ./generate -c config/mic.intel -j 100 -t 40 -w slurm tiny1
+      This command submits 100 jobs in batch. Each job offloads executions
+      to the MIC card. Wait until completion of all jobs.
+
+   2) Run: ./generate -c config/mic.intel tiny2
+      This command collects all results of the tiny1 phase and it generates
+      the file tiny_gen_optimal_dnn_mic.intel.out.
+
+   3) As done in 1) and 2), run: ./generate -c config/mic.intel -j 200 -t 10 -w slurm small1
+      This command submits 200 jobs in batch, where each job offloads
+      executions to the MIC card. Note that the maximum number of threads is 10.
+      Wait until their completion. Then run: ./generate -c config/mic.intel small2
+      This command collects all results produced in the small1 phase and it
+      generates a file small_gen_optimal_dnn_mic.intel.out
+
+   4) Run: ./generate -c config/mic.intel -t 16 -w slurm lib
+      This commman submit in batch a single job that compiles the library.
+      At the end the library is produced inside the directory lib/
+      (libsmm_dnn_mic.intel.a). 
+
+   5) It is highly recommended to run the final test to check the correctness of the library.
+      Run: ./generate -c config/mic.intel -j 200 -w slurm check1
+      After the batch jobs completion, run: ./generate -c config/mic.intel -j 200 check2
+      Note that it is important to use the same number of jobs specified in
+      check1 phase. Finally check test_smm_dnn_mic.intel.out for performance and correctness.
+
+   6) Intermediate files (but not some key output and the library itself)
+      might be removed using ./generate clean
+
+
+The following copyright covers code and generated library
+!====================================================================================================================
+! * Copyright (c) 2013 Joost VandeVondele and Alfio Lazzaro
+! * All rights reserved.
+! *
+! * Redistribution and use in source and binary forms, with or without
+! * modification, are permitted provided that the following conditions are met:
+! *     * Redistributions of source code must retain the above copyright
+! *       notice, this list of conditions and the following disclaimer.
+! *     * Redistributions in binary form must reproduce the above copyright
+! *       notice, this list of conditions and the following disclaimer in the
+! *       documentation and/or other materials provided with the distribution.
+! *
+! * THIS SOFTWARE IS PROVIDED BY Joost VandeVondele ''AS IS'' AND ANY
+! * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+! * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+! * DISCLAIMED. IN NO EVENT SHALL Joost VandeVondele BE LIABLE FOR ANY
+! * DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+! * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+! * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
+! * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+! * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+! * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+! *
+!====================================================================================================================
+

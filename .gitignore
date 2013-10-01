@@ -1,0 +1,3 @@
+*.o
+cp2k/exe
+.svn
