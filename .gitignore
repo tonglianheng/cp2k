@@ -2,3 +2,4 @@
 cp2k/exe
 cp2k/obj
 .svn
+cp2k/arch/phpc63-intel.psmp
