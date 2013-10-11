@@ -1,0 +1,20 @@
+#
+# gfortran arch file, recommended to use gfortran >= 4.6
+# building libraries (fftw3, libint, libxc, scalapack, smm) is needed to use this arch file, mkl is assumed but can be replaced by standard blas/lapack/scalapack (see pdbg)
+# popt is intended for production using MPI parallelism
+#
+CC       = mpicc
+CPP      = 
+
+FC       = mpif90 
+LD       = mpif90
+
+AR       = ar -r
+
+CPPFLAGS = 
+DFLAGS   = -D__GFORTRAN -D__FFTSG -D__LIBINT -D__FFTW3 -D__parallel -D__SCALAPACK -D__BLACS -D__HAS_smm_dnn -D__LIBXC2 -D__NO_MPI_THREAD_SUPPORT_CHECK
+FCFLAGS  = -O3 -march=native -ffast-math -funroll-loops -g -ffree-form $(DFLAGS) -I${FFTW3_INCLUDE} -I${LIBINT_INCLUDE} -I${LIBXC_INCLUDE} -I${MKL_INCLUDE} -fopenmp
+LDFLAGS  = $(FCFLAGS) -L${MKL_LIB} -L${FFTW3_LIB} -L${LIBXC_LIB} -L${LIBINT_LIB} -L${LIBSMM_LIB}
+LIBS     = -lderiv -lint -lstdc++ -lfftw3 -lfftw3_omp  -lmkl_gf_lp64 -lmkl_scalapack_lp64 -lmkl_blacs_openmpi_lp64 -lmkl_sequential -lmkl_core -lsmm_dnn -lxc
+
+OBJECTS_ARCHITECTURE = machine_gfortran.o
