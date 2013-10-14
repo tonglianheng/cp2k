@@ -1,4 +1,11 @@
 
+_el_typename__list_types.template,88
+!>    |  _ \  ___  _ __ ( ) |_  |  \/  | ___   __| (_)/ _|_   _  |_   _| |__ __10,577
+
+_lib__array__nametype1__sort.template,36
+      j 136,5334
+      k 137,5394
+
 admm_methods.F,1164
   SUBROUTINE admm_calculate_density_matrix(108,5706
   SUBROUTINE admm_merge_mo_derivs(175,8759
@@ -157,7 +164,7 @@ al_system_dynamics.F,145
   SUBROUTINE al_particles(43,1954
    SUBROUTINE dump_vel(114,5602
   SUBROUTINE al_OU_step(144,7120
-  SUBROUTINE al_NH_quarter_step(233,11254
+  SUBROUTINE al_NH_quarter_step(239,11721
 
 al_system_init.F,114
   SUBROUTINE initialize_al_part 41,1878
@@ -187,10 +194,10 @@ atom_electronic_structure.F,137
   SUBROUTINE calculate_atom_unrestricted(361,14363
 
 atom_energy.F,153
-  SUBROUTINE atom_energy_opt(68,3504
-  SUBROUTINE atom_response_basis(363,17151
-  SUBROUTINE atom_write_upf(494,22146
-  SUBROUTINE compose(754,32323
+  SUBROUTINE atom_energy_opt(69,3555
+  SUBROUTINE atom_response_basis(408,19970
+  SUBROUTINE atom_write_upf(539,24965
+  SUBROUTINE compose(799,35142
 
 atom_fit.F,336
   SUBROUTINE atom_fit_density 59,2888
@@ -558,6 +565,19 @@ cg_utils.F,440
   FUNCTION FindMin(994,43036
   SUBROUTINE get_conjugate_direction(1074,46263
 
+colloc_int_body.f90,351
+SUBROUTINE j_loop588,21902
+SUBROUTINE k_loop(713,26161
+    SUBROUTINE kloop1735,26532
+    SUBROUTINE kloop2739,26647
+    SUBROUTINE kloop3743,26762
+    SUBROUTINE kloop4747,26877
+    SUBROUTINE kloop5751,26992
+    SUBROUTINE kloop6755,27107
+    SUBROUTINE kloop7759,27222
+    SUBROUTINE kloop8763,27337
+    SUBROUTINE kloopdefault767,27452
+
 colvar_methods.F,1636
   RECURSIVE SUBROUTINE colvar_read(124,6722
   SUBROUTINE colvar_eval_mol_f(1396,79060
@@ -743,6 +763,13 @@ cp2k_shell.F,165
  SUBROUTINE print_v_info(501,22030
   FUNCTION get_eof_stat(544,23815
 
+cp_array__nametype1__utils.template,179
+SUBROUTINE cp_1d_[cp_1d_118,4904
+SUBROUTINE cp_2d_[cp_2d_176,7185
+  SUBROUTINE cp_1d_[cp_1d_228,9202
+  SUBROUTINE cp_2d_[cp_2d_277,11280
+FUNCTION cp_1d_[cp_1d_326,13435
+
 cp_array_i4_sort.F,82
 SUBROUTINE cp_1d_i4_sort(53,1945
 RECURSIVE SUBROUTINE cp_1d_i4_sort_low(91,3308
@@ -831,6 +858,38 @@ cp_cfm_types.F,356
   SUBROUTINE cp_cfm_get_info(383,14749
   SUBROUTINE cp_cfm_to_cfm(482,18657
 
+cp_common_uses.h,1010
+#define CP_PREP_GLOBALS_H8,165
+#define CPSourceFileRef 26,964
+#define CPSourceFileRef 28,1058
+#define CPPrecondition(41,1497
+#define CPPostcondition(46,1744
+#define CPInvariant(51,1975
+#define CPAssert(56,2198
+#define CPErrorMessage(60,2388
+#define CPPreconditionNoFail(63,2525
+#define CPPostconditionNoFail(68,2747
+#define CPInvariantNoFail(73,2968
+#define CPAssertNoFail(78,3181
+#define CPPreconditionNoErr(83,3362
+#define CPPostconditionNoErr(87,3537
+#define CPInvariantNoErr(91,3715
+#define CPAssertNoErr(96,3915
+#define CPPrecondition(104,4213
+#define CPPostcondition(106,4344
+#define CPInvariant(108,4476
+#define CPAssert(110,4604
+#define CPErrorMessage(112,4729
+#define CPPreconditionNoFail(114,4828
+#define CPPostconditionNoFail(116,4949
+#define CPInvariantNoFail(118,5071
+#define CPAssertNoFail(120,5189
+#define CPPreconditionNoErr(122,5304
+#define CPPostconditionNoErr(124,5414
+#define CPInvariantNoErr(126,5526
+#define CPAssertNoErr(128,5633
+#define CPAAssert(133,5744
+
 cp_control_types.F,1441
   SUBROUTINE mulliken_control_create(442,22686
   SUBROUTINE mulliken_control_release(470,23889
@@ -892,147 +951,147 @@ cp_dbcsr_diag.F,151
   SUBROUTINE cp_dbcsr_syevr(177,8031
   SUBROUTINE cp_dbcsr_heevd(220,9902
 
-cp_dbcsr_interface.F,6504
-  FUNCTION make_conformant_scalar_r 315,14037
-  FUNCTION make_conformant_scalar_d 330,14830
-  FUNCTION make_conformant_scalar_c 345,15623
-  FUNCTION make_conformant_scalar_z 369,16842
-  SUBROUTINE cp_dbcsr_init_lib 394,17986
-  SUBROUTINE cp_dbcsr_finalize_lib 409,18579
-  SUBROUTINE cp_dbcsr_config(425,19241
-  SUBROUTINE cp_dbcsr_print_config(503,23207
-  FUNCTION int2str_r(611,28353
-  FUNCTION l2str_r(619,28626
-  FUNCTION cp_dbcsr_name 635,29253
-  FUNCTION cp_dbcsr_gershgorin_norm(643,29479
-  FUNCTION cp_dbcsr_frobenius_norm(663,30057
-  FUNCTION cp_dbcsr_maxabs(683,30698
-  SUBROUTINE cp_dbcsr_complete_redistribute(704,31241
-  SUBROUTINE cp_dbcsr_reserve_block2d_d(725,32004
-  SUBROUTINE cp_dbcsr_reserve_block2d_s(745,32767
-  SUBROUTINE cp_dbcsr_reserve_block2d_z(765,33530
-  SUBROUTINE cp_dbcsr_reserve_block2d_c(785,34296
-  SUBROUTINE cp_dbcsr_reserve_blocks(805,35062
-  PURE FUNCTION cp_dbcsr_get_data_type 822,35725
-  PURE FUNCTION cp_dbcsr_valid_index 833,36113
-  SUBROUTINE cp_dbcsr_get_stored_coordinates(844,36498
-  PURE FUNCTION cp_dbcsr_get_num_blocks 858,37089
-  FUNCTION cp_dbcsr_get_data_size 869,37484
-  PURE FUNCTION cp_dbcsr_get_matrix_type 886,37984
-  FUNCTION cp_dbcsr_get_occupation 897,38386
-  FUNCTION cp_dbcsr_nblkrows_total(915,38895
-  FUNCTION cp_dbcsr_nblkcols_total(931,39412
-  FUNCTION cp_dbcsr_nfullrows_total(946,39928
-  FUNCTION cp_dbcsr_nfullcols_total(962,40452
-  FUNCTION cp_dbcsr_nblkrows_local(977,40975
-  FUNCTION cp_dbcsr_nblkcols_local(991,41490
-  FUNCTION cp_dbcsr_nfullrows_local(1005,42005
-  FUNCTION cp_dbcsr_nfullcols_local(1021,42529
-  FUNCTION cp_dbcsr_max_row_size(1038,43054
-  FUNCTION cp_dbcsr_max_col_size(1053,43556
-  FUNCTION cp_dbcsr_distribution 1068,44058
-  SUBROUTINE cp_create_bl_distribution 1083,44562
-  SUBROUTINE cp_dbcsr_distribution_release(1101,45176
-  PURE FUNCTION cp_dbcsr_iterator_blocks_left 1117,45652
-  SUBROUTINE cp_dbcsr_mp_release(1129,46081
-  SUBROUTINE cp_dbcsr_mp_new(1143,46479
-  SUBROUTINE cp_iterator_next_block_index 1163,47172
-  SUBROUTINE cp_iterator_next_2d_block_d 1180,47937
-  SUBROUTINE cp_iterator_next_1d_block_d 1204,49016
-  SUBROUTINE cp_iterator_next_2d_block_s 1225,50037
-  SUBROUTINE cp_iterator_next_1d_block_s 1249,51116
-  SUBROUTINE cp_iterator_next_2d_block_z 1270,52137
-  SUBROUTINE cp_iterator_next_1d_block_z 1294,53219
-  SUBROUTINE cp_iterator_next_2d_block_c 1316,54282
-  SUBROUTINE cp_iterator_next_1d_block_c 1340,55364
-  SUBROUTINE cp_dbcsr_iterator_stop 1362,56427
-  SUBROUTINE cp_dbcsr_iterator_start 1376,56845
-  SUBROUTINE cp_dbcsr_put_block2d_d(1398,57788
-  SUBROUTINE cp_dbcsr_put_block2d_s(1418,58538
-  SUBROUTINE cp_dbcsr_put_block2d_z(1438,59288
-  SUBROUTINE cp_dbcsr_put_block2d_c(1459,60081
-  SUBROUTINE cp_dbcsr_put_block_d(1480,60874
-  SUBROUTINE cp_dbcsr_put_block_s(1500,61615
-  SUBROUTINE cp_dbcsr_put_block_z(1520,62356
-  SUBROUTINE cp_dbcsr_put_block_c(1541,63140
-  SUBROUTINE cp_dbcsr_get_block_d(1562,63924
-  SUBROUTINE cp_dbcsr_get_block_s(1584,64737
-  SUBROUTINE cp_dbcsr_get_block_c(1606,65550
-  SUBROUTINE cp_dbcsr_get_block_z(1628,66366
-  SUBROUTINE cp_dbcsr_get_2d_block_d(1650,67182
-  SUBROUTINE cp_dbcsr_get_2d_block_s(1669,67893
-  SUBROUTINE cp_dbcsr_get_2d_block_c(1688,68604
-  SUBROUTINE cp_dbcsr_get_2d_block_z(1707,69318
-  SUBROUTINE cp_dbcsr_get_2d_block_p_d(1726,70032
-  SUBROUTINE cp_dbcsr_get_2d_block_p_s(1748,70903
-  SUBROUTINE cp_dbcsr_get_2d_block_p_c(1771,71848
-  SUBROUTINE cp_dbcsr_get_2d_block_p_z(1794,72796
-  SUBROUTINE cp_dbcsr_get_block_p_d(1818,73745
-  SUBROUTINE cp_dbcsr_get_block_p_s(1840,74639
-  SUBROUTINE cp_dbcsr_get_block_p_c(1862,75533
-  SUBROUTINE cp_dbcsr_get_block_p_z(1885,76469
-  SUBROUTINE cp_dbcsr_get_info(1909,77406
-  SUBROUTINE cp_dbcsr_norm(1954,79487
-  SUBROUTINE cp_dbcsr_replicate_all(1986,80719
-  SUBROUTINE cp_dbcsr_replicate(2001,81269
-  SUBROUTINE cp_dbcsr_distribute(2021,82121
-  SUBROUTINE cp_dbcsr_release_p 2038,82725
-  SUBROUTINE cp_dbcsr_release 2057,83262
-  SUBROUTINE cp_dbcsr_init 2074,83720
-  SUBROUTINE cp_dbcsr_init_p 2092,84190
-  SUBROUTINE cp_dbcsr_print(2115,84779
-  SUBROUTINE cp_dbcsr_trace_a_d(2135,85581
-  SUBROUTINE cp_dbcsr_trace_a_s(2155,86447
-  SUBROUTINE cp_dbcsr_trace_ab_d(2171,87073
-  SUBROUTINE cp_dbcsr_trace_ab_s(2189,87920
-  FUNCTION cp_dbcsr_checksum(2207,88767
-  SUBROUTINE cp_dbcsr_sum_replicated 2225,89482
-  SUBROUTINE cp_dbcsr_btriu(2240,90038
-  SUBROUTINE cp_dbcsr_verify_matrix(2259,90790
-  SUBROUTINE cp_dbcsr_finalize(2278,91468
-  SUBROUTINE cp_dbcsr_work_create(2294,92130
-  SUBROUTINE cp_dbcsr_create_new(2314,92923
-  SUBROUTINE cp_dbcsr_create_template(2346,94260
-  SUBROUTINE cp_dbcsr_filter(2383,95871
-  SUBROUTINE cp_dbcsr_set_diag(2411,97007
-  SUBROUTINE cp_dbcsr_get_diag(2427,97624
-  SUBROUTINE cp_dbcsr_get_block_diag(2444,98242
-  SUBROUTINE cp_dbcsr_add_on_diag(2464,99019
-  SUBROUTINE cp_dbcsr_binary_write(2483,99843
-  SUBROUTINE cp_dbcsr_binary_read(2500,100489
-  SUBROUTINE cp_dbcsr_copy(2519,101306
-  SUBROUTINE cp_dbcsr_copy_into_existing(2548,102618
-  SUBROUTINE cp_dbcsr_desymmetrize(2569,103435
-  SUBROUTINE cp_dbcsr_multiply_s(2594,104428
-  SUBROUTINE cp_dbcsr_multiply_d(2643,106704
-  SUBROUTINE cp_dbcsr_multiply_c(2721,110141
-  SUBROUTINE cp_dbcsr_multiply_z(2771,112425
-  SUBROUTINE cp_dbcsr_transposed 2829,115145
-  SUBROUTINE cp_dbcsr_hadamard_product(2865,116947
-  SUBROUTINE cp_dbcsr_scale_by_vector_d(2882,117659
-  SUBROUTINE cp_dbcsr_scale_by_vector_s(2900,118430
-  SUBROUTINE cp_dbcsr_scale_by_vector_z(2918,119201
-  SUBROUTINE cp_dbcsr_scale_by_vector_c(2936,119963
-  SUBROUTINE cp_dbcsr_scale_d(2954,120725
-  SUBROUTINE cp_dbcsr_scale_s(2971,121452
-  SUBROUTINE cp_dbcsr_scale_z(2988,122179
-  SUBROUTINE cp_dbcsr_scale_c(3005,122906
-  SUBROUTINE cp_dbcsr_scale_d_m(3023,123634
-  SUBROUTINE cp_dbcsr_scale_s_m(3045,124534
-  SUBROUTINE cp_dbcsr_scale_z_m(3067,125434
-  SUBROUTINE cp_dbcsr_scale_c_m(3089,126337
-  SUBROUTINE cp_dbcsr_set_d(3112,127241
-  SUBROUTINE cp_dbcsr_set_s(3128,127888
-  SUBROUTINE cp_dbcsr_set_z(3144,128535
-  SUBROUTINE cp_dbcsr_set_c(3160,129182
-  SUBROUTINE cp_dbcsr_add_d(3176,129829
-  SUBROUTINE cp_dbcsr_add_s(3193,130585
-  SUBROUTINE cp_dbcsr_add_z(3210,131341
-  SUBROUTINE cp_dbcsr_add_c(3227,132097
-  SUBROUTINE cp_dbcsr_untranspose_blocks(3245,132902
-  SUBROUTINE fill_sizes 3262,133501
-  SUBROUTINE matrix_match_sizes 3300,135096
-  SUBROUTINE match_1_dist 3480,142894
+cp_dbcsr_interface.F,6505
+  FUNCTION make_conformant_scalar_r 316,14076
+  FUNCTION make_conformant_scalar_d 331,14869
+  FUNCTION make_conformant_scalar_c 346,15662
+  FUNCTION make_conformant_scalar_z 370,16881
+  SUBROUTINE cp_dbcsr_init_lib 395,18025
+  SUBROUTINE cp_dbcsr_finalize_lib 410,18618
+  SUBROUTINE cp_dbcsr_config(426,19280
+  SUBROUTINE cp_dbcsr_print_config(508,23499
+  FUNCTION int2str_r(616,28647
+  FUNCTION l2str_r(624,28920
+  FUNCTION cp_dbcsr_name 640,29547
+  FUNCTION cp_dbcsr_gershgorin_norm(648,29773
+  FUNCTION cp_dbcsr_frobenius_norm(668,30351
+  FUNCTION cp_dbcsr_maxabs(688,30992
+  SUBROUTINE cp_dbcsr_complete_redistribute(709,31535
+  SUBROUTINE cp_dbcsr_reserve_block2d_d(730,32298
+  SUBROUTINE cp_dbcsr_reserve_block2d_s(750,33061
+  SUBROUTINE cp_dbcsr_reserve_block2d_z(770,33824
+  SUBROUTINE cp_dbcsr_reserve_block2d_c(790,34590
+  SUBROUTINE cp_dbcsr_reserve_blocks(810,35356
+  PURE FUNCTION cp_dbcsr_get_data_type 827,36019
+  PURE FUNCTION cp_dbcsr_valid_index 838,36407
+  SUBROUTINE cp_dbcsr_get_stored_coordinates(849,36792
+  PURE FUNCTION cp_dbcsr_get_num_blocks 863,37383
+  FUNCTION cp_dbcsr_get_data_size 874,37778
+  PURE FUNCTION cp_dbcsr_get_matrix_type 891,38278
+  FUNCTION cp_dbcsr_get_occupation 902,38680
+  FUNCTION cp_dbcsr_nblkrows_total(920,39189
+  FUNCTION cp_dbcsr_nblkcols_total(936,39706
+  FUNCTION cp_dbcsr_nfullrows_total(951,40222
+  FUNCTION cp_dbcsr_nfullcols_total(967,40746
+  FUNCTION cp_dbcsr_nblkrows_local(982,41269
+  FUNCTION cp_dbcsr_nblkcols_local(996,41784
+  FUNCTION cp_dbcsr_nfullrows_local(1010,42299
+  FUNCTION cp_dbcsr_nfullcols_local(1026,42823
+  FUNCTION cp_dbcsr_max_row_size(1043,43348
+  FUNCTION cp_dbcsr_max_col_size(1058,43850
+  FUNCTION cp_dbcsr_distribution 1073,44352
+  SUBROUTINE cp_create_bl_distribution 1088,44856
+  SUBROUTINE cp_dbcsr_distribution_release(1106,45470
+  PURE FUNCTION cp_dbcsr_iterator_blocks_left 1122,45946
+  SUBROUTINE cp_dbcsr_mp_release(1134,46375
+  SUBROUTINE cp_dbcsr_mp_new(1148,46773
+  SUBROUTINE cp_iterator_next_block_index 1168,47466
+  SUBROUTINE cp_iterator_next_2d_block_d 1185,48231
+  SUBROUTINE cp_iterator_next_1d_block_d 1209,49310
+  SUBROUTINE cp_iterator_next_2d_block_s 1230,50331
+  SUBROUTINE cp_iterator_next_1d_block_s 1254,51410
+  SUBROUTINE cp_iterator_next_2d_block_z 1275,52431
+  SUBROUTINE cp_iterator_next_1d_block_z 1299,53513
+  SUBROUTINE cp_iterator_next_2d_block_c 1321,54576
+  SUBROUTINE cp_iterator_next_1d_block_c 1345,55658
+  SUBROUTINE cp_dbcsr_iterator_stop 1367,56721
+  SUBROUTINE cp_dbcsr_iterator_start 1381,57139
+  SUBROUTINE cp_dbcsr_put_block2d_d(1403,58082
+  SUBROUTINE cp_dbcsr_put_block2d_s(1423,58832
+  SUBROUTINE cp_dbcsr_put_block2d_z(1443,59582
+  SUBROUTINE cp_dbcsr_put_block2d_c(1464,60375
+  SUBROUTINE cp_dbcsr_put_block_d(1485,61168
+  SUBROUTINE cp_dbcsr_put_block_s(1505,61909
+  SUBROUTINE cp_dbcsr_put_block_z(1525,62650
+  SUBROUTINE cp_dbcsr_put_block_c(1546,63434
+  SUBROUTINE cp_dbcsr_get_block_d(1567,64218
+  SUBROUTINE cp_dbcsr_get_block_s(1589,65031
+  SUBROUTINE cp_dbcsr_get_block_c(1611,65844
+  SUBROUTINE cp_dbcsr_get_block_z(1633,66660
+  SUBROUTINE cp_dbcsr_get_2d_block_d(1655,67476
+  SUBROUTINE cp_dbcsr_get_2d_block_s(1674,68187
+  SUBROUTINE cp_dbcsr_get_2d_block_c(1693,68898
+  SUBROUTINE cp_dbcsr_get_2d_block_z(1712,69612
+  SUBROUTINE cp_dbcsr_get_2d_block_p_d(1731,70326
+  SUBROUTINE cp_dbcsr_get_2d_block_p_s(1753,71197
+  SUBROUTINE cp_dbcsr_get_2d_block_p_c(1776,72142
+  SUBROUTINE cp_dbcsr_get_2d_block_p_z(1799,73090
+  SUBROUTINE cp_dbcsr_get_block_p_d(1823,74039
+  SUBROUTINE cp_dbcsr_get_block_p_s(1845,74933
+  SUBROUTINE cp_dbcsr_get_block_p_c(1867,75827
+  SUBROUTINE cp_dbcsr_get_block_p_z(1890,76763
+  SUBROUTINE cp_dbcsr_get_info(1914,77700
+  SUBROUTINE cp_dbcsr_norm(1959,79781
+  SUBROUTINE cp_dbcsr_replicate_all(1991,81013
+  SUBROUTINE cp_dbcsr_replicate(2006,81563
+  SUBROUTINE cp_dbcsr_distribute(2026,82415
+  SUBROUTINE cp_dbcsr_release_p 2043,83019
+  SUBROUTINE cp_dbcsr_release 2062,83556
+  SUBROUTINE cp_dbcsr_init 2079,84014
+  SUBROUTINE cp_dbcsr_init_p 2097,84484
+  SUBROUTINE cp_dbcsr_print(2120,85073
+  SUBROUTINE cp_dbcsr_trace_a_d(2140,85875
+  SUBROUTINE cp_dbcsr_trace_a_s(2160,86741
+  SUBROUTINE cp_dbcsr_trace_ab_d(2176,87367
+  SUBROUTINE cp_dbcsr_trace_ab_s(2194,88214
+  FUNCTION cp_dbcsr_checksum(2212,89061
+  SUBROUTINE cp_dbcsr_sum_replicated 2230,89776
+  SUBROUTINE cp_dbcsr_btriu(2245,90332
+  SUBROUTINE cp_dbcsr_verify_matrix(2264,91084
+  SUBROUTINE cp_dbcsr_finalize(2283,91762
+  SUBROUTINE cp_dbcsr_work_create(2299,92424
+  SUBROUTINE cp_dbcsr_create_new(2319,93217
+  SUBROUTINE cp_dbcsr_create_template(2351,94554
+  SUBROUTINE cp_dbcsr_filter(2388,96165
+  SUBROUTINE cp_dbcsr_set_diag(2416,97301
+  SUBROUTINE cp_dbcsr_get_diag(2432,97918
+  SUBROUTINE cp_dbcsr_get_block_diag(2449,98536
+  SUBROUTINE cp_dbcsr_add_on_diag(2469,99313
+  SUBROUTINE cp_dbcsr_binary_write(2488,100137
+  SUBROUTINE cp_dbcsr_binary_read(2505,100783
+  SUBROUTINE cp_dbcsr_copy(2524,101600
+  SUBROUTINE cp_dbcsr_copy_into_existing(2553,102912
+  SUBROUTINE cp_dbcsr_desymmetrize(2574,103729
+  SUBROUTINE cp_dbcsr_multiply_s(2599,104722
+  SUBROUTINE cp_dbcsr_multiply_d(2648,106998
+  SUBROUTINE cp_dbcsr_multiply_c(2726,110435
+  SUBROUTINE cp_dbcsr_multiply_z(2776,112719
+  SUBROUTINE cp_dbcsr_transposed 2834,115439
+  SUBROUTINE cp_dbcsr_hadamard_product(2870,117241
+  SUBROUTINE cp_dbcsr_scale_by_vector_d(2887,117953
+  SUBROUTINE cp_dbcsr_scale_by_vector_s(2905,118724
+  SUBROUTINE cp_dbcsr_scale_by_vector_z(2923,119495
+  SUBROUTINE cp_dbcsr_scale_by_vector_c(2941,120257
+  SUBROUTINE cp_dbcsr_scale_d(2959,121019
+  SUBROUTINE cp_dbcsr_scale_s(2976,121746
+  SUBROUTINE cp_dbcsr_scale_z(2993,122473
+  SUBROUTINE cp_dbcsr_scale_c(3010,123200
+  SUBROUTINE cp_dbcsr_scale_d_m(3028,123928
+  SUBROUTINE cp_dbcsr_scale_s_m(3050,124828
+  SUBROUTINE cp_dbcsr_scale_z_m(3072,125728
+  SUBROUTINE cp_dbcsr_scale_c_m(3094,126631
+  SUBROUTINE cp_dbcsr_set_d(3117,127535
+  SUBROUTINE cp_dbcsr_set_s(3133,128182
+  SUBROUTINE cp_dbcsr_set_z(3149,128829
+  SUBROUTINE cp_dbcsr_set_c(3165,129476
+  SUBROUTINE cp_dbcsr_add_d(3181,130123
+  SUBROUTINE cp_dbcsr_add_s(3198,130879
+  SUBROUTINE cp_dbcsr_add_z(3215,131635
+  SUBROUTINE cp_dbcsr_add_c(3232,132391
+  SUBROUTINE cp_dbcsr_untranspose_blocks(3250,133196
+  SUBROUTINE fill_sizes 3267,133795
+  SUBROUTINE matrix_match_sizes 3305,135390
+  SUBROUTINE match_1_dist 3485,143188
 
 cp_dbcsr_methods.F,184
   FUNCTION cp_dbcsr_row_block_sizes 35,1140
@@ -1298,6 +1357,16 @@ cp_lbfgs.F,821
 cp_lbfgs_geo.F,45
   RECURSIVE SUBROUTINE geoopt_lbfgs(57,2705
 
+cp_lbfgs_optimizer__nametype1_.template,314
+  SUBROUTINE cp_opt_[cp_opt_219,10408
+SUBROUTINE cp_opt_[cp_opt_333,15675
+SUBROUTINE cp_opt_[cp_opt_360,16781
+  SUBROUTINE cp_opt_[cp_opt_433,19909
+  SUBROUTINE cp_opt_[cp_opt_524,24328
+  SUBROUTINE cp_opt_[cp_opt_786,36877
+  FUNCTION cp_opt_[cp_opt_833,38859
+  SUBROUTINE cp_opt_[cp_opt_880,40754
+
 cp_lbfgs_optimizer_gopt.F,352
   SUBROUTINE cp_opt_gopt_create(209,9725
 SUBROUTINE cp_opt_gopt_retain(326,15223
@@ -1334,6 +1403,36 @@ SUBROUTINE cp_sll_3d_r_insert_ordered2(1005,38195
 FUNCTION cp_sll_3d_r_contains(1090,41455
 FUNCTION cp_sll_3d_r_contains2(1147,43639
      FUNCTION compare_function(1154,43963
+
+cp_linked_list__nametype1_.instantiation,39
+function cp_sll_deriv_less_q(201,5325
+
+cp_linked_list__nametype1_.template,974
+  SUBROUTINE cp_sll_[cp_sll_213,8765
+  SUBROUTINE cp_sll_[cp_sll_252,10201
+  SUBROUTINE cp_sll_[cp_sll_272,10991
+  SUBROUTINE cp_sll_[cp_sll_300,12199
+  SUBROUTINE cp_sll_[cp_sll_334,13594
+  FUNCTION cp_sll_[cp_sll_369,15071
+  FUNCTION cp_sll_[cp_sll_399,16241
+  FUNCTION cp_sll_[cp_sll_449,17939
+  FUNCTION cp_sll_[cp_sll_472,18788
+  FUNCTION cp_sll_[cp_sll_506,19911
+  SUBROUTINE cp_sll_[cp_sll_545,21392
+  FUNCTION cp_sll_[cp_sll_580,22783
+  SUBROUTINE cp_sll_[cp_sll_614,23983
+  SUBROUTINE cp_sll_[cp_sll_642,24996
+  SUBROUTINE cp_sll_[cp_sll_677,26338
+  SUBROUTINE cp_sll_[cp_sll_716,27840
+  SUBROUTINE cp_sll_[cp_sll_755,29331
+FUNCTION cp_sll_[cp_sll_784,30459
+FUNCTION cp_sll_[cp_sll_819,31816
+SUBROUTINE cp_sll_[cp_sll_861,33392
+SUBROUTINE cp_sll_[cp_sll_930,36341
+     FUNCTION compare_function(936,36612
+FUNCTION cp_sll_[cp_sll_1010,39343
+FUNCTION cp_sll_[cp_sll_1063,41280
+     FUNCTION compare_function(1070,41549
 
 cp_linked_list_char.F,1146
 SUBROUTINE write_string(202,7985
@@ -1944,6 +2043,21 @@ SUBROUTINE dg_int_patch_simple_1d 922,33831
 SUBROUTINE dg_int_patch_folded_3d 948,34592
 SUBROUTINE dg_int_patch_folded_1d 978,35570
 
+dict__keytype___valuetype_.template,442
+FUNCTION hash_str(93,3380
+SUBROUTINE dict_[dict_118,4452
+FUNCTION dict_[dict_144,5440
+SUBROUTINE dict_[dict_159,6160
+SUBROUTINE dict_[dict_187,7124
+RECURSIVE SUBROUTINE set_hashed(206,7998
+RECURSIVE SUBROUTINE change_capacity(252,9657
+FUNCTION dict_[dict_297,11450
+SUBROUTINE dict_[dict_339,13100
+FUNCTION dict_[dict_380,14710
+FUNCTION dict_[dict_397,15360
+FUNCTION dict_[dict_436,16836
+SUBROUTINE dict_[dict_474,18310
+
 dict_i4tuple_callstat.F,600
 FUNCTION hash_str(95,3520
 SUBROUTINE dict_i4tuple_callstat_init(122,4590
@@ -2009,13 +2123,13 @@ SUBROUTINE distribution_2d_destroy_gdist(511,23557
 SUBROUTINE distribution_2d_write(555,25550
 SUBROUTINE distribution_2d_get(743,34076
 
-distribution_methods.F,300
-  SUBROUTINE distribute_molecules_1d(94,4744
-  SUBROUTINE distribute_molecules_2d(486,20796
-  SUBROUTINE distribute_2d_cost_model(969,42305
-  SUBROUTINE make_basic_distribution 1127,49300
-  SUBROUTINE make_basic_spatial_distribution 1198,52926
-  RECURSIVE SUBROUTINE spatial_recurse(1241,54574
+distribution_methods.F,301
+  SUBROUTINE distribute_molecules_1d(98,5013
+  SUBROUTINE distribute_molecules_2d(534,23044
+  SUBROUTINE distribute_2d_cost_model(1017,44553
+  SUBROUTINE make_basic_distribution 1175,51548
+  SUBROUTINE make_basic_spatial_distribution 1246,55174
+  RECURSIVE SUBROUTINE spatial_recurse(1289,56822
 
 distribution_optimize.F,262
   SUBROUTINE distribute_2d_monte_carlo(65,3191
@@ -2161,15 +2275,15 @@ eip_silicon.F,628
         SUBROUTINE splint(2858,98288
 
 environment.F,352
-  SUBROUTINE cp2k_init(117,6265
-  SUBROUTINE echo_all_hosts(202,9388
-  SUBROUTINE echo_all_process_host(259,11491
-  SUBROUTINE cp2k_read(336,14283
-  SUBROUTINE cp2k_setup(401,17002
-  SUBROUTINE read_global_section(477,19841
-  SUBROUTINE read_cp2k_section(830,37358
-  SUBROUTINE cp2k_get_walltime(937,41665
-  SUBROUTINE cp2k_finalize(986,43815
+  SUBROUTINE cp2k_init(120,6447
+  SUBROUTINE echo_all_hosts(205,9570
+  SUBROUTINE echo_all_process_host(262,11673
+  SUBROUTINE cp2k_read(339,14465
+  SUBROUTINE cp2k_setup(404,17184
+  SUBROUTINE read_global_section(480,20023
+  SUBROUTINE read_cp2k_section(833,37540
+  SUBROUTINE cp2k_get_walltime(940,41847
+  SUBROUTINE cp2k_finalize(989,43997
 
 ep_methods.F,595
   SUBROUTINE print_qs_energies(182,10698
@@ -2796,6 +2910,9 @@ f77_blas_poison.F,4100
  FUNCTION LSAME(511,20066
  FUNCTION SCABS1(515,20195
 
+f77_int.h,30
+SUBROUTINE cp_init_cp2k(3,11
+
 f77_int_low.F,945
 SUBROUTINE cp_init_cp2k(19,997
 SUBROUTINE cp_finalize_cp2k(29,1293
@@ -2867,30 +2984,30 @@ fermi_utils.F,98
  SUBROUTINE FermiFixedDeriv(199,7203
 
 fft_tools.F,963
-  SUBROUTINE init_fft 187,8570
-  SUBROUTINE finalize_fft(255,11511
-  SUBROUTINE fft_radix_operations 290,12820
-  SUBROUTINE fft3d_s 383,15621
-  SUBROUTINE fft3d_ps 500,19672
-  SUBROUTINE fft3d_pb 952,35399
-  SUBROUTINE x_to_yz 1379,50437
-  SUBROUTINE yz_to_x 1483,54017
-  SUBROUTINE yz_to_xz 1588,57604
-  SUBROUTINE xz_to_yz 1790,64529
-  SUBROUTINE cube_transpose_1 1982,71082
-  SUBROUTINE cube_transpose_2 2069,74261
-  SUBROUTINE cube_transpose_3 2154,77343
-  SUBROUTINE cube_transpose_4 2256,81086
-  SUBROUTINE cube_transpose_5 2354,84636
-  SUBROUTINE cube_transpose_6 2447,87952
-  SUBROUTINE init_fft_scratch_pool(2535,91084
-  SUBROUTINE deallocate_fft_scratch_type(2603,94502
-  SUBROUTINE release_fft_scratch_pool(2829,103769
-  SUBROUTINE resize_fft_scratch_pool(2867,105022
-  SUBROUTINE get_fft_scratch(2938,107857
-  SUBROUTINE release_fft_scratch(3413,136426
- SUBROUTINE sparse_alltoall 3448,137620
-  SUBROUTINE is_equal(3498,139441
+  SUBROUTINE init_fft 188,8625
+  SUBROUTINE finalize_fft(289,12591
+  SUBROUTINE fft_radix_operations 324,13900
+  SUBROUTINE fft3d_s 417,16701
+  SUBROUTINE fft3d_ps 534,20752
+  SUBROUTINE fft3d_pb 986,36479
+  SUBROUTINE x_to_yz 1413,51517
+  SUBROUTINE yz_to_x 1517,55097
+  SUBROUTINE yz_to_xz 1622,58684
+  SUBROUTINE xz_to_yz 1824,65609
+  SUBROUTINE cube_transpose_1 2016,72162
+  SUBROUTINE cube_transpose_2 2103,75341
+  SUBROUTINE cube_transpose_3 2188,78423
+  SUBROUTINE cube_transpose_4 2290,82166
+  SUBROUTINE cube_transpose_5 2388,85716
+  SUBROUTINE cube_transpose_6 2481,89032
+  SUBROUTINE init_fft_scratch_pool(2569,92164
+  SUBROUTINE deallocate_fft_scratch_type(2637,95582
+  SUBROUTINE release_fft_scratch_pool(2863,104849
+  SUBROUTINE resize_fft_scratch_pool(2901,106102
+  SUBROUTINE get_fft_scratch(2972,108937
+  SUBROUTINE release_fft_scratch(3447,137457
+ SUBROUTINE sparse_alltoall 3482,138651
+  SUBROUTINE is_equal(3532,140472
 
 fist_energy_types.F,127
   SUBROUTINE allocate_fist_energy(49,1733
@@ -2899,7 +3016,7 @@ fist_energy_types.F,127
 
 fist_environment.F,73
   SUBROUTINE fist_init 98,5542
-  SUBROUTINE fist_init_subsys 251,13629
+  SUBROUTINE fist_init_subsys 252,13714
 
 fist_environment_types.F,232
   SUBROUTINE fist_env_get(135,6590
@@ -2918,7 +3035,7 @@ fist_intra_force.F,42
   SUBROUTINE force_intra_control(52,2326
 
 fist_main.F,44
-  SUBROUTINE fist_create_force_env 56,2426
+  SUBROUTINE fist_create_force_env 57,2486
 
 fist_neighbor_list_control.F,35
   SUBROUTINE list_control 63,2919
@@ -2962,7 +3079,7 @@ force_env_methods.F,362
   SUBROUTINE ep_create_force_env(875,43565
   RECURSIVE SUBROUTINE qmmm_energy_and_forces(912,45124
   RECURSIVE SUBROUTINE qmmm_energy_and_forces_low(1088,54328
-  SUBROUTINE mixed_energy_forces(1270,63508
+  SUBROUTINE mixed_energy_forces(1279,63925
 
 force_env_types.F,487
   SUBROUTINE force_env_retain(200,10059
@@ -3193,6 +3310,11 @@ SUBROUTINE globenv_release(163,6599
 
 gopt_f77_methods.F,43
   RECURSIVE SUBROUTINE cp_eval_at(20,1078
+
+gopt_f77_methods.h,169
+!> \param error variable to control error logging,13,719
+!> \param error variable to control error logging, stopping,13,719
+  RECURSIVE SUBROUTINE cp_eval_at(21,1014
 
 gopt_f_methods.F,615
   SUBROUTINE gopt_f_create_x0(86,4613
@@ -4616,6 +4738,9 @@ hfx_energy_potential.F,165
   PURE FUNCTION get_1D_idx(2324,109927
   SUBROUTINE update_fock_matrix(2354,111182
 
+hfx_get_pmax_val.f90,39
+  PURE SUBROUTINE get_pmax_val(15,791
+
 hfx_helpers.F,214
   FUNCTION FNV64(48,1956
    FUNCTION count_cells(72,2878
@@ -4699,54 +4824,54 @@ hfx_screening_methods.F,237
   PURE FUNCTION get_1D_idx(890,35728
 
 hfx_types.F,713
-  SUBROUTINE hfx_create(454,23461
-  SUBROUTINE erfc_cutoff(880,46031
-    SUBROUTINE eval_transc_func(913,47099
-  SUBROUTINE hfx_create_basis_types(926,47716
-  SUBROUTINE hfx_release_basis_types(1072,53975
-  SUBROUTINE parse_memory_section(1103,55191
-  SUBROUTINE hfx_release(1205,59869
-  SUBROUTINE hfx_create_neighbor_cells(1373,68126
-  FUNCTION point_is_in_quadrilateral(1774,87022
-  SUBROUTINE hfx_init_container(1852,89460
-  SUBROUTINE hfx_set_distr_energy(1909,91593
-  SUBROUTINE hfx_set_distr_forces(1941,93012
-  SUBROUTINE hfx_reset_memory_usage_counter(1974,94479
-  SUBROUTINE hfx_print_info(2003,95710
-  SUBROUTINE dealloc_containers(2112,101465
-  SUBROUTINE alloc_containers(2182,104673
+  SUBROUTINE hfx_create(455,23511
+  SUBROUTINE erfc_cutoff(881,46081
+    SUBROUTINE eval_transc_func(914,47149
+  SUBROUTINE hfx_create_basis_types(927,47766
+  SUBROUTINE hfx_release_basis_types(1073,54025
+  SUBROUTINE parse_memory_section(1104,55241
+  SUBROUTINE hfx_release(1206,59919
+  SUBROUTINE hfx_create_neighbor_cells(1374,68176
+  FUNCTION point_is_in_quadrilateral(1775,87072
+  SUBROUTINE hfx_init_container(1853,89510
+  SUBROUTINE hfx_set_distr_energy(1910,91643
+  SUBROUTINE hfx_set_distr_forces(1942,93062
+  SUBROUTINE hfx_reset_memory_usage_counter(1975,94529
+  SUBROUTINE hfx_print_info(2004,95760
+  SUBROUTINE dealloc_containers(2113,101515
+  SUBROUTINE alloc_containers(2183,104723
 
-input_cp2k.F,817
-  FUNCTION create_cp2k_input_reading(85,4455
-  SUBROUTINE create_cp2k_root_section(125,6435
-  FUNCTION parsed_cp2k_input(206,9946
-  SUBROUTINE create_global_section(243,11538
-  SUBROUTINE create_march_section(667,36850
-  SUBROUTINE create_dbcsr_section(804,42859
-  SUBROUTINE create_test_section(1008,51867
-  SUBROUTINE create_rs_pw_transfer_section(1134,57957
-  SUBROUTINE create_pw_transfer_section(1192,60532
-  SUBROUTINE create_cp_fm_gemm_section(1275,64628
-  SUBROUTINE create_eigensolver_section(1367,69007
-  SUBROUTINE create_cp_dbcsr_section(1431,71880
-  SUBROUTINE create_debug_section(1605,79798
-  SUBROUTINE create_multi_force_section(1657,82182
-  SUBROUTINE create_ext_restart_section(1702,84523
-  SUBROUTINE create_farming_section(1941,99667
-  SUBROUTINE create_cpot_section(2098,108416
+input_cp2k.F,818
+  FUNCTION create_cp2k_input_reading(86,4494
+  SUBROUTINE create_cp2k_root_section(126,6474
+  FUNCTION parsed_cp2k_input(207,9985
+  SUBROUTINE create_global_section(244,11577
+  SUBROUTINE create_march_section(668,36889
+  SUBROUTINE create_dbcsr_section(805,42898
+  SUBROUTINE create_test_section(1016,52275
+  SUBROUTINE create_rs_pw_transfer_section(1142,58365
+  SUBROUTINE create_pw_transfer_section(1200,60940
+  SUBROUTINE create_cp_fm_gemm_section(1283,65036
+  SUBROUTINE create_eigensolver_section(1375,69415
+  SUBROUTINE create_cp_dbcsr_section(1439,72288
+  SUBROUTINE create_debug_section(1613,80206
+  SUBROUTINE create_multi_force_section(1665,82590
+  SUBROUTINE create_ext_restart_section(1710,84931
+  SUBROUTINE create_farming_section(1949,100075
+  SUBROUTINE create_cpot_section(2106,108824
 
 input_cp2k_atom.F,533
   SUBROUTINE create_atom_section(50,2271
   SUBROUTINE create_atom_print_section(187,9051
-  SUBROUTINE create_atom_aebasis_section(313,15262
-  SUBROUTINE create_atom_ppbasis_section(343,16463
-  SUBROUTINE atom_basis_section(373,17659
-  SUBROUTINE create_atom_method_section(534,25754
-  SUBROUTINE create_optimization_section(605,29198
-  SUBROUTINE create_potential_section(670,32141
-  SUBROUTINE create_gthpotential_section(741,35318
-  SUBROUTINE create_basis_section(774,36745
-  SUBROUTINE create_powell_section(807,38149
+  SUBROUTINE create_atom_aebasis_section(322,15766
+  SUBROUTINE create_atom_ppbasis_section(352,16967
+  SUBROUTINE atom_basis_section(382,18163
+  SUBROUTINE create_atom_method_section(543,26258
+  SUBROUTINE create_optimization_section(614,29702
+  SUBROUTINE create_potential_section(679,32645
+  SUBROUTINE create_gthpotential_section(750,35822
+  SUBROUTINE create_basis_section(783,37249
+  SUBROUTINE create_powell_section(816,38653
 
 input_cp2k_atprop.F,44
   SUBROUTINE create_atprop_section(43,1807
@@ -5430,6 +5555,21 @@ SUBROUTINE ch_inv_pdsym 45,1633
 SUBROUTINE ch_inv_pdher 84,3024
 SUBROUTINE solve_system 124,4441
 
+list__valuetype_.template,426
+FUNCTION list_[list_78,2493
+SUBROUTINE list_[list_94,3233
+SUBROUTINE list_[list_123,4457
+SUBROUTINE list_[list_146,5343
+SUBROUTINE list_[list_164,6107
+SUBROUTINE list_[list_189,7212
+FUNCTION list_[list_221,8427
+FUNCTION list_[list_244,9313
+SUBROUTINE list_[list_266,10099
+FUNCTION list_[list_288,10817
+SUBROUTINE list_[list_310,11670
+FUNCTION list_[list_335,12508
+SUBROUTINE change_capacity(352,13103
+
 list_callstackentry.F,587
 FUNCTION list_callstackentry_isready(78,2614
 SUBROUTINE list_callstackentry_init(96,3403
@@ -5502,10 +5642,12 @@ lri_environment_types.F,570
   SUBROUTINE deallocate_harmonics(1170,51647
   SUBROUTINE write_lripaw_basis_sets(1204,52952
 
-machine.F,88
-SUBROUTINE m_flush(141,6375
-FUNCTION m_walltime(155,6977
-SUBROUTINE m_datum(201,8665
+machine.F,148
+SUBROUTINE m_flush(141,6392
+FUNCTION m_walltime(155,6994
+FUNCTION m_energy(204,8830
+FUNCTION read_energy(225,9536
+SUBROUTINE m_datum(254,10507
 
 machine_absoft.F,508
   SUBROUTINE m_memory_details(34,1469
@@ -6071,6 +6213,311 @@ memory_utilities.F,714
   SUBROUTINE reallocate_ss1(460,18724
   SUBROUTINE reallocate_ls1(487,19828
 
+message__nametype1__passing.template,2772
+  SUBROUTINE mp_shift_[mp_shift_12,607
+  SUBROUTINE mp_shift_[mp_shift_72,2869
+  SUBROUTINE mp_alltoall_[mp_alltoall_139,5557
+  SUBROUTINE mp_alltoall_[mp_alltoall_182,7174
+  SUBROUTINE mp_alltoall_[mp_alltoall_234,9160
+  SUBROUTINE mp_alltoall_[mp_alltoall_273,10514
+  SUBROUTINE mp_alltoall_[mp_alltoall_312,11879
+  SUBROUTINE mp_alltoall_[mp_alltoall_352,13238
+  SUBROUTINE mp_alltoall_[mp_alltoall_394,14718
+  SUBROUTINE mp_alltoall_[mp_alltoall_434,16159
+  SUBROUTINE mp_alltoall_[mp_alltoall_474,17620
+  SUBROUTINE mp_send_[mp_send_519,19216
+  SUBROUTINE mp_send_[mp_send_552,20342
+  SUBROUTINE mp_recv_[mp_recv_588,21689
+  SUBROUTINE mp_recv_[mp_recv_626,23077
+  SUBROUTINE mp_bcast_[mp_bcast_666,24588
+  SUBROUTINE mp_bcast_[mp_bcast_697,25713
+  SUBROUTINE mp_bcast_[mp_bcast_728,26854
+  SUBROUTINE mp_bcast_[mp_bcast_759,27988
+  SUBROUTINE mp_sum_[mp_sum_793,29268
+  SUBROUTINE mp_sum_[mp_sum_827,30469
+  SUBROUTINE mp_sum_[mp_sum_866,31847
+  SUBROUTINE mp_sum_[mp_sum_906,33276
+  SUBROUTINE mp_sum_[mp_sum_948,34792
+  SUBROUTINE mp_sum_[mp_sum_991,36342
+  SUBROUTINE mp_sum_[mp_sum_1035,37926
+  SUBROUTINE mp_sum_root_[mp_sum_root_1085,39729
+  SUBROUTINE mp_sum_root_[mp_sum_root_1132,41488
+  SUBROUTINE mp_max_[mp_max_1181,43318
+  SUBROUTINE mp_max_[mp_max_1216,44621
+  SUBROUTINE mp_min_[mp_min_1256,46129
+  SUBROUTINE mp_min_[mp_min_1293,47472
+  SUBROUTINE mp_scatter_[mp_scatter_1334,49005
+  SUBROUTINE mp_gather_[mp_gather_1373,50495
+  SUBROUTINE mp_gather_[mp_gather_1412,51862
+  SUBROUTINE mp_gather_[mp_gather_1451,53245
+  SUBROUTINE mp_gatherv_[mp_gatherv_1496,54972
+  SUBROUTINE mp_allgather_[mp_allgather_1544,56649
+  SUBROUTINE mp_allgather_[mp_allgather_1587,58138
+  SUBROUTINE mp_allgather_[mp_allgather_1623,59426
+  SUBROUTINE mp_allgather_[mp_allgather_1659,60725
+  SUBROUTINE mp_allgatherv_[mp_allgatherv_1706,62457
+  SUBROUTINE mp_sum_scatter_[mp_sum_scatter_1743,63903
+  SUBROUTINE mp_sendrecv_[mp_sendrecv_1784,65381
+  SUBROUTINE mp_sendrecv_[mp_sendrecv_1829,67182
+  SUBROUTINE mp_sendrecv_[mp_sendrecv_1874,69025
+  SUBROUTINE mp_isendrecv_[mp_isendrecv_1932,71559
+  SUBROUTINE mp_isendrecv_[mp_isendrecv_2002,74013
+  SUBROUTINE mp_isend_[mp_isend_2076,76595
+  SUBROUTINE mp_isend_[mp_isend_2133,78521
+  SUBROUTINE mp_isend_[mp_isend_2192,80638
+  SUBROUTINE mp_irecv_[mp_irecv_2251,82707
+  SUBROUTINE mp_irecv_[mp_irecv_2307,84635
+  SUBROUTINE mp_irecv_[mp_irecv_2365,86759
+  SUBROUTINE mp_win_create_[mp_win_create_2420,88766
+  SUBROUTINE mp_rma_get_[mp_rma_get_2476,90997
+  SUBROUTINE mp_rma_put_[mp_rma_put_2518,92736
+  SUBROUTINE mp_allocate_[mp_allocate_2560,94480
+  SUBROUTINE mp_deallocate_[mp_deallocate_2602,95911
+
+message_c_passing.f90,2234
+  SUBROUTINE mp_shift_cm(12,607
+  SUBROUTINE mp_shift_c(72,2859
+  SUBROUTINE mp_alltoall_c11v 139,5537
+  SUBROUTINE mp_alltoall_c22v 182,7147
+  SUBROUTINE mp_alltoall_c 234,9136
+  SUBROUTINE mp_alltoall_c22 273,10483
+  SUBROUTINE mp_alltoall_c33 312,11841
+  SUBROUTINE mp_alltoall_c44 352,13193
+  SUBROUTINE mp_alltoall_c45 394,14666
+  SUBROUTINE mp_alltoall_c34 434,16100
+  SUBROUTINE mp_alltoall_c54 474,17554
+  SUBROUTINE mp_send_c(519,19153
+  SUBROUTINE mp_send_cv(552,20259
+  SUBROUTINE mp_recv_c(588,21596
+  SUBROUTINE mp_recv_cv(626,22964
+  SUBROUTINE mp_bcast_c(666,24465
+  SUBROUTINE mp_bcast_cv(697,25570
+  SUBROUTINE mp_bcast_cm(728,26691
+  SUBROUTINE mp_bcast_c3(759,27815
+  SUBROUTINE mp_sum_c(793,29085
+  SUBROUTINE mp_sum_cv(827,30279
+  SUBROUTINE mp_sum_cm(866,31650
+  SUBROUTINE mp_sum_cm3(906,33072
+  SUBROUTINE mp_sum_cm4(948,34581
+  SUBROUTINE mp_sum_cm5(991,36124
+  SUBROUTINE mp_sum_cm6(1035,37701
+  SUBROUTINE mp_sum_root_cv(1085,39507
+  SUBROUTINE mp_sum_root_cm(1132,41259
+  SUBROUTINE mp_max_c(1181,43102
+  SUBROUTINE mp_max_cv(1216,44398
+  SUBROUTINE mp_min_c(1256,45909
+  SUBROUTINE mp_min_cv(1293,47245
+  SUBROUTINE mp_scatter_cv(1334,48781
+  SUBROUTINE mp_gather_c(1373,50274
+  SUBROUTINE mp_gather_cv(1412,51634
+  SUBROUTINE mp_gather_cm(1451,53010
+  SUBROUTINE mp_gatherv_cv(1496,54740
+  SUBROUTINE mp_allgather_c(1544,56420
+  SUBROUTINE mp_allgather_c12(1587,57905
+  SUBROUTINE mp_allgather_c23(1623,59179
+  SUBROUTINE mp_allgather_c34(1659,60464
+  SUBROUTINE mp_allgatherv_cv(1706,62192
+  SUBROUTINE mp_sum_scatter_cv(1743,63634
+  SUBROUTINE mp_sendrecv_cv(1784,65115
+  SUBROUTINE mp_sendrecv_cm2(1829,66909
+  SUBROUTINE mp_sendrecv_cm3(1874,68745
+  SUBROUTINE mp_isendrecv_cv(1932,71282
+  SUBROUTINE mp_isendrecv_cm2(2002,73742
+  SUBROUTINE mp_isend_cv(2076,76330
+  SUBROUTINE mp_isend_cm2(2133,78239
+  SUBROUTINE mp_isend_cm3(2192,80339
+  SUBROUTINE mp_irecv_cv(2251,82401
+  SUBROUTINE mp_irecv_cm2(2307,84312
+  SUBROUTINE mp_irecv_cm3(2365,86419
+  SUBROUTINE mp_win_create_c(2420,88429
+  SUBROUTINE mp_rma_get_c(2476,90633
+  SUBROUTINE mp_rma_put_c(2518,92352
+  SUBROUTINE mp_allocate_c(2560,94089
+  SUBROUTINE mp_deallocate_c(2602,95503
+
+message_d_passing.f90,2234
+  SUBROUTINE mp_shift_dm(12,607
+  SUBROUTINE mp_shift_d(72,2861
+  SUBROUTINE mp_alltoall_d11v 139,5541
+  SUBROUTINE mp_alltoall_d22v 182,7159
+  SUBROUTINE mp_alltoall_d 234,9156
+  SUBROUTINE mp_alltoall_d22 273,10511
+  SUBROUTINE mp_alltoall_d33 312,11877
+  SUBROUTINE mp_alltoall_d44 352,13237
+  SUBROUTINE mp_alltoall_d45 394,14718
+  SUBROUTINE mp_alltoall_d34 434,16160
+  SUBROUTINE mp_alltoall_d54 474,17622
+  SUBROUTINE mp_send_d(519,19229
+  SUBROUTINE mp_send_dv(552,20337
+  SUBROUTINE mp_recv_d(588,21676
+  SUBROUTINE mp_recv_dv(626,23046
+  SUBROUTINE mp_bcast_d(666,24549
+  SUBROUTINE mp_bcast_dv(697,25656
+  SUBROUTINE mp_bcast_dm(728,26779
+  SUBROUTINE mp_bcast_d3(759,27905
+  SUBROUTINE mp_sum_d(793,29177
+  SUBROUTINE mp_sum_dv(827,30370
+  SUBROUTINE mp_sum_dm(866,31740
+  SUBROUTINE mp_sum_dm3(906,33161
+  SUBROUTINE mp_sum_dm4(948,34669
+  SUBROUTINE mp_sum_dm5(991,36211
+  SUBROUTINE mp_sum_dm6(1035,37787
+  SUBROUTINE mp_sum_root_dv(1085,39592
+  SUBROUTINE mp_sum_root_dm(1132,41343
+  SUBROUTINE mp_max_d(1181,43185
+  SUBROUTINE mp_max_dv(1216,44480
+  SUBROUTINE mp_min_d(1256,45990
+  SUBROUTINE mp_min_dv(1293,47325
+  SUBROUTINE mp_scatter_dv(1334,48860
+  SUBROUTINE mp_gather_d(1373,50361
+  SUBROUTINE mp_gather_dv(1412,51729
+  SUBROUTINE mp_gather_dm(1451,53113
+  SUBROUTINE mp_gatherv_dv(1496,54851
+  SUBROUTINE mp_allgather_d(1544,56539
+  SUBROUTINE mp_allgather_d12(1587,58036
+  SUBROUTINE mp_allgather_d23(1623,59322
+  SUBROUTINE mp_allgather_d34(1659,60619
+  SUBROUTINE mp_allgatherv_dv(1706,62359
+  SUBROUTINE mp_sum_scatter_dv(1743,63813
+  SUBROUTINE mp_sendrecv_dv(1784,65293
+  SUBROUTINE mp_sendrecv_dm2(1829,67095
+  SUBROUTINE mp_sendrecv_dm3(1874,68939
+  SUBROUTINE mp_isendrecv_dv(1932,71484
+  SUBROUTINE mp_isendrecv_dm2(2002,73967
+  SUBROUTINE mp_isend_dv(2076,76578
+  SUBROUTINE mp_isend_dm2(2133,78495
+  SUBROUTINE mp_isend_dm3(2192,80603
+  SUBROUTINE mp_irecv_dv(2251,82673
+  SUBROUTINE mp_irecv_dm2(2307,84592
+  SUBROUTINE mp_irecv_dm3(2365,86707
+  SUBROUTINE mp_win_create_d(2420,88725
+  SUBROUTINE mp_rma_get_d(2476,90935
+  SUBROUTINE mp_rma_put_d(2518,92665
+  SUBROUTINE mp_allocate_d(2560,94410
+  SUBROUTINE mp_deallocate_d(2602,95821
+
+message_i_passing.f90,2234
+  SUBROUTINE mp_shift_im(12,607
+  SUBROUTINE mp_shift_i(72,2853
+  SUBROUTINE mp_alltoall_i11v 139,5525
+  SUBROUTINE mp_alltoall_i22v 182,7128
+  SUBROUTINE mp_alltoall_i 234,9110
+  SUBROUTINE mp_alltoall_i22 273,10450
+  SUBROUTINE mp_alltoall_i33 312,11801
+  SUBROUTINE mp_alltoall_i44 352,13146
+  SUBROUTINE mp_alltoall_i45 394,14612
+  SUBROUTINE mp_alltoall_i34 434,16039
+  SUBROUTINE mp_alltoall_i54 474,17486
+  SUBROUTINE mp_send_i(519,19078
+  SUBROUTINE mp_send_iv(552,20178
+  SUBROUTINE mp_recv_i(588,21509
+  SUBROUTINE mp_recv_iv(626,22871
+  SUBROUTINE mp_bcast_i(666,24366
+  SUBROUTINE mp_bcast_iv(697,25465
+  SUBROUTINE mp_bcast_im(728,26580
+  SUBROUTINE mp_bcast_i3(759,27698
+  SUBROUTINE mp_sum_i(793,28962
+  SUBROUTINE mp_sum_iv(827,30149
+  SUBROUTINE mp_sum_im(866,31513
+  SUBROUTINE mp_sum_im3(906,32928
+  SUBROUTINE mp_sum_im4(948,34430
+  SUBROUTINE mp_sum_im5(991,35966
+  SUBROUTINE mp_sum_im6(1035,37536
+  SUBROUTINE mp_sum_root_iv(1085,39335
+  SUBROUTINE mp_sum_root_im(1132,41080
+  SUBROUTINE mp_max_i(1181,42916
+  SUBROUTINE mp_max_iv(1216,44205
+  SUBROUTINE mp_min_i(1256,45709
+  SUBROUTINE mp_min_iv(1293,47038
+  SUBROUTINE mp_scatter_iv(1334,48567
+  SUBROUTINE mp_gather_i(1373,50053
+  SUBROUTINE mp_gather_iv(1412,51406
+  SUBROUTINE mp_gather_im(1451,52775
+  SUBROUTINE mp_gatherv_iv(1496,54498
+  SUBROUTINE mp_allgather_i(1544,56171
+  SUBROUTINE mp_allgather_i12(1587,57654
+  SUBROUTINE mp_allgather_i23(1623,58926
+  SUBROUTINE mp_allgather_i34(1659,60209
+  SUBROUTINE mp_allgatherv_iv(1706,61935
+  SUBROUTINE mp_sum_scatter_iv(1743,63375
+  SUBROUTINE mp_sendrecv_iv(1784,64849
+  SUBROUTINE mp_sendrecv_im2(1829,66636
+  SUBROUTINE mp_sendrecv_im3(1874,68465
+  SUBROUTINE mp_isendrecv_iv(1932,70995
+  SUBROUTINE mp_isendrecv_im2(2002,73447
+  SUBROUTINE mp_isend_iv(2076,76027
+  SUBROUTINE mp_isend_im2(2133,77929
+  SUBROUTINE mp_isend_im3(2192,80022
+  SUBROUTINE mp_irecv_iv(2251,82077
+  SUBROUTINE mp_irecv_im2(2307,83981
+  SUBROUTINE mp_irecv_im3(2365,86081
+  SUBROUTINE mp_win_create_i(2420,88084
+  SUBROUTINE mp_rma_get_i(2476,90287
+  SUBROUTINE mp_rma_put_i(2518,92000
+  SUBROUTINE mp_allocate_i(2560,93730
+  SUBROUTINE mp_deallocate_i(2602,95143
+
+message_l_passing.f90,2234
+  SUBROUTINE mp_shift_lm(12,607
+  SUBROUTINE mp_shift_l(72,2854
+  SUBROUTINE mp_alltoall_l11v 139,5527
+  SUBROUTINE mp_alltoall_l22v 182,7132
+  SUBROUTINE mp_alltoall_l 234,9116
+  SUBROUTINE mp_alltoall_l22 273,10458
+  SUBROUTINE mp_alltoall_l33 312,11811
+  SUBROUTINE mp_alltoall_l44 352,13158
+  SUBROUTINE mp_alltoall_l45 394,14626
+  SUBROUTINE mp_alltoall_l34 434,16055
+  SUBROUTINE mp_alltoall_l54 474,17504
+  SUBROUTINE mp_send_l(519,19098
+  SUBROUTINE mp_send_lv(552,20199
+  SUBROUTINE mp_recv_l(588,21531
+  SUBROUTINE mp_recv_lv(626,22894
+  SUBROUTINE mp_bcast_l(666,24390
+  SUBROUTINE mp_bcast_lv(697,25490
+  SUBROUTINE mp_bcast_lm(728,26606
+  SUBROUTINE mp_bcast_l3(759,27725
+  SUBROUTINE mp_sum_l(793,28990
+  SUBROUTINE mp_sum_lv(827,30178
+  SUBROUTINE mp_sum_lm(866,31543
+  SUBROUTINE mp_sum_lm3(906,32959
+  SUBROUTINE mp_sum_lm4(948,34462
+  SUBROUTINE mp_sum_lm5(991,35999
+  SUBROUTINE mp_sum_lm6(1035,37570
+  SUBROUTINE mp_sum_root_lv(1085,39370
+  SUBROUTINE mp_sum_root_lm(1132,41116
+  SUBROUTINE mp_max_l(1181,42953
+  SUBROUTINE mp_max_lv(1216,44243
+  SUBROUTINE mp_min_l(1256,45748
+  SUBROUTINE mp_min_lv(1293,47078
+  SUBROUTINE mp_scatter_lv(1334,48608
+  SUBROUTINE mp_gather_l(1373,50096
+  SUBROUTINE mp_gather_lv(1412,51451
+  SUBROUTINE mp_gather_lm(1451,52822
+  SUBROUTINE mp_gatherv_lv(1496,54547
+  SUBROUTINE mp_allgather_l(1544,56222
+  SUBROUTINE mp_allgather_l12(1587,57707
+  SUBROUTINE mp_allgather_l23(1623,58981
+  SUBROUTINE mp_allgather_l34(1659,60266
+  SUBROUTINE mp_allgatherv_lv(1706,61994
+  SUBROUTINE mp_sum_scatter_lv(1743,63436
+  SUBROUTINE mp_sendrecv_lv(1784,64911
+  SUBROUTINE mp_sendrecv_lm2(1829,66700
+  SUBROUTINE mp_sendrecv_lm3(1874,68531
+  SUBROUTINE mp_isendrecv_lv(1932,71063
+  SUBROUTINE mp_isendrecv_lm2(2002,73519
+  SUBROUTINE mp_isend_lv(2076,76103
+  SUBROUTINE mp_isend_lm2(2133,78007
+  SUBROUTINE mp_isend_lm3(2192,80102
+  SUBROUTINE mp_irecv_lv(2251,82159
+  SUBROUTINE mp_irecv_lm2(2307,84065
+  SUBROUTINE mp_irecv_lm3(2365,86167
+  SUBROUTINE mp_win_create_l(2420,88172
+  SUBROUTINE mp_rma_get_l(2476,90376
+  SUBROUTINE mp_rma_put_l(2518,92091
+  SUBROUTINE mp_allocate_l(2560,93823
+  SUBROUTINE mp_deallocate_l(2602,95236
+
 message_passing.F,2122
   SUBROUTINE mp_world_init(456,18066
   SUBROUTINE mp_reordering(508,20123
@@ -6127,6 +6574,128 @@ message_passing.F,2122
   SUBROUTINE mp_maxloc_rv(2382,87348
   SUBROUTINE mp_bcast_z1_t3e(2424,88767
   SUBROUTINE mp_bcast_zv_t3e(2468,90371
+
+message_r_passing.f90,2234
+  SUBROUTINE mp_shift_rm(12,607
+  SUBROUTINE mp_shift_r(72,2849
+  SUBROUTINE mp_alltoall_r11v 139,5517
+  SUBROUTINE mp_alltoall_r22v 182,7111
+  SUBROUTINE mp_alltoall_r 234,9084
+  SUBROUTINE mp_alltoall_r22 273,10415
+  SUBROUTINE mp_alltoall_r33 312,11757
+  SUBROUTINE mp_alltoall_r44 352,13093
+  SUBROUTINE mp_alltoall_r45 394,14550
+  SUBROUTINE mp_alltoall_r34 434,15968
+  SUBROUTINE mp_alltoall_r54 474,17406
+  SUBROUTINE mp_send_r(519,18989
+  SUBROUTINE mp_send_rv(552,20085
+  SUBROUTINE mp_recv_r(588,21412
+  SUBROUTINE mp_recv_rv(626,22770
+  SUBROUTINE mp_bcast_r(666,24261
+  SUBROUTINE mp_bcast_rv(697,25356
+  SUBROUTINE mp_bcast_rm(728,26467
+  SUBROUTINE mp_bcast_r3(759,27581
+  SUBROUTINE mp_sum_r(793,28841
+  SUBROUTINE mp_sum_rv(827,30022
+  SUBROUTINE mp_sum_rm(866,31380
+  SUBROUTINE mp_sum_rm3(906,32789
+  SUBROUTINE mp_sum_rm4(948,34285
+  SUBROUTINE mp_sum_rm5(991,35815
+  SUBROUTINE mp_sum_rm6(1035,37379
+  SUBROUTINE mp_sum_root_rv(1085,39172
+  SUBROUTINE mp_sum_root_rm(1132,40911
+  SUBROUTINE mp_max_r(1181,42741
+  SUBROUTINE mp_max_rv(1216,44024
+  SUBROUTINE mp_min_r(1256,45522
+  SUBROUTINE mp_min_rv(1293,46845
+  SUBROUTINE mp_scatter_rv(1334,48368
+  SUBROUTINE mp_gather_r(1373,49845
+  SUBROUTINE mp_gather_rv(1412,51189
+  SUBROUTINE mp_gather_rm(1451,52549
+  SUBROUTINE mp_gatherv_rv(1496,54263
+  SUBROUTINE mp_allgather_r(1544,55927
+  SUBROUTINE mp_allgather_r12(1587,57400
+  SUBROUTINE mp_allgather_r23(1623,58662
+  SUBROUTINE mp_allgather_r34(1659,59935
+  SUBROUTINE mp_allgatherv_rv(1706,61651
+  SUBROUTINE mp_sum_scatter_rv(1743,63081
+  SUBROUTINE mp_sendrecv_rv(1784,64549
+  SUBROUTINE mp_sendrecv_rm2(1829,66327
+  SUBROUTINE mp_sendrecv_rm3(1874,68147
+  SUBROUTINE mp_isendrecv_rv(1932,70668
+  SUBROUTINE mp_isendrecv_rm2(2002,73103
+  SUBROUTINE mp_isend_rv(2076,75666
+  SUBROUTINE mp_isend_rm2(2133,77559
+  SUBROUTINE mp_isend_rm3(2192,79643
+  SUBROUTINE mp_irecv_rv(2251,81689
+  SUBROUTINE mp_irecv_rm2(2307,83584
+  SUBROUTINE mp_irecv_rm3(2365,85675
+  SUBROUTINE mp_win_create_r(2420,87669
+  SUBROUTINE mp_rma_get_r(2476,89867
+  SUBROUTINE mp_rma_put_r(2518,91573
+  SUBROUTINE mp_allocate_r(2560,93294
+  SUBROUTINE mp_deallocate_r(2602,94705
+
+message_z_passing.f90,2234
+  SUBROUTINE mp_shift_zm(12,607
+  SUBROUTINE mp_shift_z(72,2866
+  SUBROUTINE mp_alltoall_z11v 139,5551
+  SUBROUTINE mp_alltoall_z22v 182,7175
+  SUBROUTINE mp_alltoall_z 234,9178
+  SUBROUTINE mp_alltoall_z22 273,10539
+  SUBROUTINE mp_alltoall_z33 312,11911
+  SUBROUTINE mp_alltoall_z44 352,13277
+  SUBROUTINE mp_alltoall_z45 394,14764
+  SUBROUTINE mp_alltoall_z34 434,16212
+  SUBROUTINE mp_alltoall_z54 474,17680
+  SUBROUTINE mp_send_z(519,19293
+  SUBROUTINE mp_send_zv(552,20406
+  SUBROUTINE mp_recv_z(588,21750
+  SUBROUTINE mp_recv_zv(626,23125
+  SUBROUTINE mp_bcast_z(666,24633
+  SUBROUTINE mp_bcast_zv(697,25745
+  SUBROUTINE mp_bcast_zm(728,26873
+  SUBROUTINE mp_bcast_z3(759,28004
+  SUBROUTINE mp_sum_z(793,29281
+  SUBROUTINE mp_sum_zv(827,30482
+  SUBROUTINE mp_sum_zm(866,31860
+  SUBROUTINE mp_sum_zm3(906,33289
+  SUBROUTINE mp_sum_zm4(948,34805
+  SUBROUTINE mp_sum_zm5(991,36355
+  SUBROUTINE mp_sum_zm6(1035,37939
+  SUBROUTINE mp_sum_root_zv(1085,39752
+  SUBROUTINE mp_sum_root_zm(1132,41511
+  SUBROUTINE mp_max_z(1181,43361
+  SUBROUTINE mp_max_zv(1216,44664
+  SUBROUTINE mp_min_z(1256,46182
+  SUBROUTINE mp_min_zv(1293,47525
+  SUBROUTINE mp_scatter_zv(1334,49068
+  SUBROUTINE mp_gather_z(1373,50575
+  SUBROUTINE mp_gather_zv(1412,51949
+  SUBROUTINE mp_gather_zm(1451,53339
+  SUBROUTINE mp_gatherv_zv(1496,55083
+  SUBROUTINE mp_allgather_z(1544,56777
+  SUBROUTINE mp_allgather_z12(1587,58276
+  SUBROUTINE mp_allgather_z23(1623,59564
+  SUBROUTINE mp_allgather_z34(1659,60863
+  SUBROUTINE mp_allgatherv_zv(1706,62605
+  SUBROUTINE mp_sum_scatter_zv(1743,64061
+  SUBROUTINE mp_sendrecv_zv(1784,65549
+  SUBROUTINE mp_sendrecv_zm2(1829,67357
+  SUBROUTINE mp_sendrecv_zm3(1874,69207
+  SUBROUTINE mp_isendrecv_zv(1932,71758
+  SUBROUTINE mp_isendrecv_zm2(2002,74246
+  SUBROUTINE mp_isend_zv(2076,76862
+  SUBROUTINE mp_isend_zm2(2133,78785
+  SUBROUTINE mp_isend_zm3(2192,80899
+  SUBROUTINE mp_irecv_zv(2251,82975
+  SUBROUTINE mp_irecv_zm2(2307,84900
+  SUBROUTINE mp_irecv_zm3(2365,87021
+  SUBROUTINE mp_win_create_z(2420,89045
+  SUBROUTINE mp_rma_get_z(2476,91256
+  SUBROUTINE mp_rma_put_z(2518,92989
+  SUBROUTINE mp_allocate_z(2560,94740
+  SUBROUTINE mp_deallocate_z(2602,96154
 
 metadynamics.F,252
   SUBROUTINE metadyn_integrator(75,3842
@@ -6659,8 +7228,9 @@ physcon.F,74
   SUBROUTINE init_physcon(105,5048
   SUBROUTINE write_physcon(333,10551
 
-pilaenv_hack.F,32
-INTEGER FUNCTION PILAENV(7,336
+pilaenv_hack.F,61
+INTEGER FUNCTION PILAENV 7,336
+SUBROUTINE NAG_dummy(15,484
 
 pint_gle.F,115
   SUBROUTINE pint_calc_gle_energy(34,1321
@@ -6884,29 +7454,29 @@ pw_grid_info.F,237
   FUNCTION pw_find_cutoff 280,11732
 
 pw_grids.F,906
-  SUBROUTINE pw_grid_create 98,4188
-  FUNCTION pw_grid_compare 172,6919
-  SUBROUTINE get_pw_grid_info(195,7731
-  SUBROUTINE set_pw_grid_info(245,9937
-  SUBROUTINE pw_grid_setup 301,12069
-  SUBROUTINE pw_grid_create_ghatmap 421,16706
-  SUBROUTINE pw_grid_setup_internal 529,21151
-  SUBROUTINE create_gvectors(633,25638
-  SUBROUTINE pw_grid_print 685,27683
-  SUBROUTINE pw_grid_distribute 801,33188
-  SUBROUTINE pre_tag 1157,48289
-  SUBROUTINE order_mask 1222,50970
-  SUBROUTINE pw_grid_count 1358,55178
-  SUBROUTINE pw_grid_assign 1450,58534
-  SUBROUTINE pw_grid_set_maps 1663,66525
-  SUBROUTINE pw_grid_allocate 1729,68459
-  SUBROUTINE pw_grid_sort 1827,72914
-  SUBROUTINE sort_shells 2016,81089
-  SUBROUTINE redist 2061,82418
-  SUBROUTINE pw_grid_remap 2114,84259
-  SUBROUTINE pw_grid_change 2191,86852
-  SUBROUTINE pw_grid_retain(2248,89361
-  SUBROUTINE pw_grid_release(2277,90433
+  SUBROUTINE pw_grid_create 99,4244
+  FUNCTION pw_grid_compare 173,6975
+  SUBROUTINE get_pw_grid_info(196,7787
+  SUBROUTINE set_pw_grid_info(246,9993
+  SUBROUTINE pw_grid_setup 302,12125
+  SUBROUTINE pw_grid_create_ghatmap 422,16762
+  SUBROUTINE pw_grid_setup_internal 530,21207
+  SUBROUTINE create_gvectors(634,25694
+  SUBROUTINE pw_grid_print 686,27739
+  SUBROUTINE pw_grid_distribute 802,33244
+  SUBROUTINE pre_tag 1158,48345
+  SUBROUTINE order_mask 1223,51026
+  SUBROUTINE pw_grid_count 1359,55234
+  SUBROUTINE pw_grid_assign 1451,58590
+  SUBROUTINE pw_grid_set_maps 1664,66581
+  SUBROUTINE pw_grid_allocate 1730,68515
+  SUBROUTINE pw_grid_sort 1828,72969
+  SUBROUTINE sort_shells 2017,81144
+  SUBROUTINE redist 2062,82473
+  SUBROUTINE pw_grid_remap 2115,84314
+  SUBROUTINE pw_grid_change 2192,86907
+  SUBROUTINE pw_grid_retain(2249,89416
+  SUBROUTINE pw_grid_release(2278,90488
 
 pw_methods.F,962
   SUBROUTINE pw_zero 84,3541
@@ -7113,10 +7683,10 @@ qmmm_links_methods.F,182
   SUBROUTINE qmmm_added_chrg_forces(191,8658
 
 qmmm_main.F,207
-  SUBROUTINE  qmmm_create_force_env(107,5680
-  SUBROUTINE qmmm_update_force_mixing_env(189,10010
-  SUBROUTINE qmmm_update_force_mixing_env_low(219,11289
-  SUBROUTINE  qmmm_create_force_env_low(337,18025
+  SUBROUTINE  qmmm_create_force_env(107,5691
+  SUBROUTINE qmmm_update_force_mixing_env(189,10045
+  SUBROUTINE qmmm_update_force_mixing_env_low(219,11324
+  SUBROUTINE  qmmm_create_force_env_low(342,18315
 
 qmmm_per_elpot.F,95
   SUBROUTINE qmmm_per_potential_init(54,2531
@@ -7128,11 +7698,11 @@ qmmm_pw_grid.F,90
 
 qmmm_se_energy.F,92
   SUBROUTINE build_se_qmmm_matrix(79,4234
-  SUBROUTINE build_se_qmmm_matrix_low(255,13258
+  SUBROUTINE build_se_qmmm_matrix_low(261,13521
 
 qmmm_se_forces.F,92
   SUBROUTINE deriv_se_qmmm_matrix(68,3533
-  SUBROUTINE deriv_se_qmmm_matrix_low(245,12868
+  SUBROUTINE deriv_se_qmmm_matrix_low(251,13143
 
 qmmm_topology_util.F,95
   SUBROUTINE qmmm_coordinate_control(43,1938
@@ -7372,7 +7942,7 @@ qs_fermi_contact.F,49
 
 qs_force.F,70
   SUBROUTINE qs_forces(108,5680
-  SUBROUTINE write_forces(489,22919
+  SUBROUTINE write_forces(492,23104
 
 qs_force_types.F,164
   SUBROUTINE allocate_qs_force(66,2669
@@ -8039,17 +8609,17 @@ SUBROUTINE diag_subspace_allocate(462,20768
   SUBROUTINE do_block_davidson_diag 1230,52079
 
 qs_scf_initialization.F,526
-  SUBROUTINE qs_scf_env_initialize(135,7999
-  SUBROUTINE qs_scf_ensure_scf_env(185,10288
-   SUBROUTINE qs_scf_ensure_outer_loop_vars(219,12006
-  SUBROUTINE qs_scf_ensure_mixing_store(251,13612
-  SUBROUTINE qs_scf_ensure_work_matrices(286,15075
-  SUBROUTINE qs_scf_ensure_mos(385,19446
-  SUBROUTINE qs_scf_ensure_mixing(534,26572
-  SUBROUTINE qs_scf_ensure_diagonalization(601,29530
- SUBROUTINE qs_scf_compute_properties(704,34886
-  SUBROUTINE init_scf_run(738,36351
-  SUBROUTINE scf_env_initial_rho_setup(916,44080
+  SUBROUTINE qs_scf_env_initialize(136,8071
+  SUBROUTINE qs_scf_ensure_scf_env(186,10360
+   SUBROUTINE qs_scf_ensure_outer_loop_vars(220,12078
+  SUBROUTINE qs_scf_ensure_mixing_store(252,13684
+  SUBROUTINE qs_scf_ensure_work_matrices(287,15147
+  SUBROUTINE qs_scf_ensure_mos(386,19518
+  SUBROUTINE qs_scf_ensure_mixing(535,26644
+  SUBROUTINE qs_scf_ensure_diagonalization(602,29602
+ SUBROUTINE qs_scf_compute_properties(705,34958
+  SUBROUTINE init_scf_run(739,36479
+  SUBROUTINE scf_env_initial_rho_setup(917,44208
 
 qs_scf_lanczos.F,131
   SUBROUTINE krylov_space_allocate(58,2723
@@ -8116,6 +8686,10 @@ qs_scf_post_gpw.F,1007
   SUBROUTINE write_mo_free_results(2325,114763
   SUBROUTINE project_function_a(2887,146165
   SUBROUTINE project_function_b(2921,147419
+
+qs_scf_post_scptb.F,99
+  SUBROUTINE scf_post_calculation_scptb(62,3146
+  SUBROUTINE write_scptb_mo_free_results(88,4223
 
 qs_scf_post_se.F,471
   SUBROUTINE scf_post_calculation_se(126,7268
@@ -8684,6 +9258,9 @@ semi_empirical_int_ana.F,552
   SUBROUTINE dterep_sp_ana 1710,79767
   SUBROUTINE dterep_d_ana 1777,82603
 
+semi_empirical_int_args.h,25
+#define CPPint_args 1,0
+
 semi_empirical_int_arrays.F,206
   SUBROUTINE init_se_intd_array(141,6819
   SUBROUTINE setup_index_array(160,7527
@@ -8701,6 +9278,9 @@ SUBROUTINE check_drotnuc_ana(367,14403
 SUBROUTINE check_dcorecore_ana(465,18190
 SUBROUTINE check_dterep_ana 522,20681
 SUBROUTINE check_rotint_ana(586,23218
+
+semi_empirical_int_debug.h,39
+   SUBROUTINE check_rotmat_der(13,657
 
 semi_empirical_int_gks.F,439
   SUBROUTINE rotnuc_gks 53,2633
@@ -9129,21 +9709,21 @@ thermostat_utils.F,1067
   SUBROUTINE communication_thermo_low2(1892,93942
 
 timings.F,410
-  SUBROUTINE add_timer_env(71,3446
-  SUBROUTINE timer_env_create(89,4198
-  SUBROUTINE rm_timer_env(113,5156
-  FUNCTION get_timer_env(125,5654
-  SUBROUTINE timer_env_retain(136,6088
-  SUBROUTINE timer_env_release(149,6682
-  SUBROUTINE timeset(189,8075
-  SUBROUTINE timestop(260,10690
-  SUBROUTINE timings_setup_tracing 362,15034
-  SUBROUTINE print_stack(395,16320
- FUNCTION routine_name2id(418,17391
+  SUBROUTINE add_timer_env(72,3502
+  SUBROUTINE timer_env_create(90,4254
+  SUBROUTINE rm_timer_env(114,5212
+  FUNCTION get_timer_env(126,5710
+  SUBROUTINE timer_env_retain(137,6144
+  SUBROUTINE timer_env_release(150,6738
+  SUBROUTINE timeset(190,8131
+  SUBROUTINE timestop(262,10785
+  SUBROUTINE timings_setup_tracing 372,15609
+  SUBROUTINE print_stack(405,16895
+ FUNCTION routine_name2id(428,17966
 
 timings_report.F,90
-  SUBROUTINE timings_report_print(52,2536
- SUBROUTINE timings_report_callgraph(200,8738
+  SUBROUTINE timings_report_print(54,2541
+ SUBROUTINE timings_report_callgraph(229,9432
 
 tmc_analysis.F,905
   SUBROUTINE tmc_read_ana_input(86,4569
@@ -9183,20 +9763,20 @@ tmc_analysis_types.F,645
   SUBROUTINE tmc_ana_displacement_release(585,24406
 
 tmc_calculations.F,555
-  SUBROUTINE calc_potential_energy(69,3181
-  FUNCTION check_distances(169,7204
-  SUBROUTINE get_scaled_cell(215,9209
-  SUBROUTINE get_cell_scaling(274,11645
-  FUNCTION nearest_distance(310,13122
-  SUBROUTINE geometrical_center(354,15053
-  SUBROUTINE center_of_mass(390,16423
-  SUBROUTINE init_vel(441,18587
-  FUNCTION calc_e_kin(484,20492
-  SUBROUTINE three_point_extrapolate(517,21877
-     SUBROUTINE swap(564,23794
-  FUNCTION compute_prob(595,25120
-  FUNCTION compute_estimated_prob(632,27089
-  SUBROUTINE get_subtree_efficiency(721,32150
+  SUBROUTINE calc_potential_energy(70,3231
+  FUNCTION check_distances(170,7254
+  SUBROUTINE get_scaled_cell(216,9259
+  SUBROUTINE get_cell_scaling(275,11695
+  FUNCTION nearest_distance(311,13172
+  SUBROUTINE geometrical_center(355,15103
+  SUBROUTINE center_of_mass(391,16473
+  SUBROUTINE init_vel(442,18637
+  FUNCTION calc_e_kin(485,20542
+  SUBROUTINE three_point_extrapolate(518,21927
+     SUBROUTINE swap(565,23844
+  FUNCTION compute_prob(596,25170
+  FUNCTION compute_estimated_prob(633,27139
+  SUBROUTINE get_subtree_efficiency(722,32200
 
 tmc_cancelation.F,89
   SUBROUTINE add_to_canceling_list(57,2690
@@ -9543,9 +10123,10 @@ whittaker.F,107
   SUBROUTINE whittaker_c0 98,3510
   SUBROUTINE whittaker_ci 321,9503
 
-wiener_process.F,92
-  SUBROUTINE create_wiener_process(58,2669
-  SUBROUTINE create_wiener_process_cv(173,7629
+wiener_process.F,135
+  SUBROUTINE create_wiener_process(60,2799
+  SUBROUTINE create_wiener_process_cv(175,7759
+  SUBROUTINE copy_wiener_process(225,9577
 
 xas_control.F,210
   SUBROUTINE read_xas_control(80,3580
@@ -10056,387 +10637,19 @@ xray_diffraction.F,101
   SUBROUTINE xray_diffraction_spectrum(84,4142
   SUBROUTINE calculate_rhotot_elec_gspace(522,20284
 
-colloc_int_body.f90,351
-SUBROUTINE j_loop588,21902
-SUBROUTINE k_loop(713,26161
-    SUBROUTINE kloop1735,26532
-    SUBROUTINE kloop2739,26647
-    SUBROUTINE kloop3743,26762
-    SUBROUTINE kloop4747,26877
-    SUBROUTINE kloop5751,26992
-    SUBROUTINE kloop6755,27107
-    SUBROUTINE kloop7759,27222
-    SUBROUTINE kloop8763,27337
-    SUBROUTINE kloopdefault767,27452
+xc_f90_types_m.F,0
 
-hfx_get_pmax_val.f90,39
-  PURE SUBROUTINE get_pmax_val(15,791
+wannier_states_types.F,0
 
-message_c_passing.f90,2234
-  SUBROUTINE mp_shift_cm(12,607
-  SUBROUTINE mp_shift_c(72,2859
-  SUBROUTINE mp_alltoall_c11v 139,5537
-  SUBROUTINE mp_alltoall_c22v 182,7147
-  SUBROUTINE mp_alltoall_c 234,9136
-  SUBROUTINE mp_alltoall_c22 273,10483
-  SUBROUTINE mp_alltoall_c33 312,11841
-  SUBROUTINE mp_alltoall_c44 352,13193
-  SUBROUTINE mp_alltoall_c45 394,14666
-  SUBROUTINE mp_alltoall_c34 434,16100
-  SUBROUTINE mp_alltoall_c54 474,17554
-  SUBROUTINE mp_send_c(519,19153
-  SUBROUTINE mp_send_cv(552,20259
-  SUBROUTINE mp_recv_c(588,21596
-  SUBROUTINE mp_recv_cv(626,22964
-  SUBROUTINE mp_bcast_c(666,24465
-  SUBROUTINE mp_bcast_cv(697,25570
-  SUBROUTINE mp_bcast_cm(728,26691
-  SUBROUTINE mp_bcast_c3(759,27815
-  SUBROUTINE mp_sum_c(793,29085
-  SUBROUTINE mp_sum_cv(827,30279
-  SUBROUTINE mp_sum_cm(866,31650
-  SUBROUTINE mp_sum_cm3(906,33072
-  SUBROUTINE mp_sum_cm4(948,34581
-  SUBROUTINE mp_sum_cm5(991,36124
-  SUBROUTINE mp_sum_cm6(1035,37701
-  SUBROUTINE mp_sum_root_cv(1085,39507
-  SUBROUTINE mp_sum_root_cm(1132,41259
-  SUBROUTINE mp_max_c(1181,43102
-  SUBROUTINE mp_max_cv(1216,44398
-  SUBROUTINE mp_min_c(1256,45909
-  SUBROUTINE mp_min_cv(1293,47245
-  SUBROUTINE mp_scatter_cv(1334,48781
-  SUBROUTINE mp_gather_c(1373,50274
-  SUBROUTINE mp_gather_cv(1412,51634
-  SUBROUTINE mp_gather_cm(1451,53010
-  SUBROUTINE mp_gatherv_cv(1496,54740
-  SUBROUTINE mp_allgather_c(1544,56420
-  SUBROUTINE mp_allgather_c12(1587,57905
-  SUBROUTINE mp_allgather_c23(1623,59179
-  SUBROUTINE mp_allgather_c34(1659,60464
-  SUBROUTINE mp_allgatherv_cv(1706,62192
-  SUBROUTINE mp_sum_scatter_cv(1743,63634
-  SUBROUTINE mp_sendrecv_cv(1784,65115
-  SUBROUTINE mp_sendrecv_cm2(1829,66909
-  SUBROUTINE mp_sendrecv_cm3(1874,68745
-  SUBROUTINE mp_isendrecv_cv(1932,71282
-  SUBROUTINE mp_isendrecv_cm2(2002,73742
-  SUBROUTINE mp_isend_cv(2076,76330
-  SUBROUTINE mp_isend_cm2(2133,78239
-  SUBROUTINE mp_isend_cm3(2192,80339
-  SUBROUTINE mp_irecv_cv(2251,82401
-  SUBROUTINE mp_irecv_cm2(2307,84312
-  SUBROUTINE mp_irecv_cm3(2365,86419
-  SUBROUTINE mp_win_create_c(2420,88429
-  SUBROUTINE mp_rma_get_c(2476,90633
-  SUBROUTINE mp_rma_put_c(2518,92352
-  SUBROUTINE mp_allocate_c(2560,94089
-  SUBROUTINE mp_deallocate_c(2602,95503
+tmc_utils.F,0
 
-message_d_passing.f90,2234
-  SUBROUTINE mp_shift_dm(12,607
-  SUBROUTINE mp_shift_d(72,2861
-  SUBROUTINE mp_alltoall_d11v 139,5541
-  SUBROUTINE mp_alltoall_d22v 182,7159
-  SUBROUTINE mp_alltoall_d 234,9156
-  SUBROUTINE mp_alltoall_d22 273,10511
-  SUBROUTINE mp_alltoall_d33 312,11877
-  SUBROUTINE mp_alltoall_d44 352,13237
-  SUBROUTINE mp_alltoall_d45 394,14718
-  SUBROUTINE mp_alltoall_d34 434,16160
-  SUBROUTINE mp_alltoall_d54 474,17622
-  SUBROUTINE mp_send_d(519,19229
-  SUBROUTINE mp_send_dv(552,20337
-  SUBROUTINE mp_recv_d(588,21676
-  SUBROUTINE mp_recv_dv(626,23046
-  SUBROUTINE mp_bcast_d(666,24549
-  SUBROUTINE mp_bcast_dv(697,25656
-  SUBROUTINE mp_bcast_dm(728,26779
-  SUBROUTINE mp_bcast_d3(759,27905
-  SUBROUTINE mp_sum_d(793,29177
-  SUBROUTINE mp_sum_dv(827,30370
-  SUBROUTINE mp_sum_dm(866,31740
-  SUBROUTINE mp_sum_dm3(906,33161
-  SUBROUTINE mp_sum_dm4(948,34669
-  SUBROUTINE mp_sum_dm5(991,36211
-  SUBROUTINE mp_sum_dm6(1035,37787
-  SUBROUTINE mp_sum_root_dv(1085,39592
-  SUBROUTINE mp_sum_root_dm(1132,41343
-  SUBROUTINE mp_max_d(1181,43185
-  SUBROUTINE mp_max_dv(1216,44480
-  SUBROUTINE mp_min_d(1256,45990
-  SUBROUTINE mp_min_dv(1293,47325
-  SUBROUTINE mp_scatter_dv(1334,48860
-  SUBROUTINE mp_gather_d(1373,50361
-  SUBROUTINE mp_gather_dv(1412,51729
-  SUBROUTINE mp_gather_dm(1451,53113
-  SUBROUTINE mp_gatherv_dv(1496,54851
-  SUBROUTINE mp_allgather_d(1544,56539
-  SUBROUTINE mp_allgather_d12(1587,58036
-  SUBROUTINE mp_allgather_d23(1623,59322
-  SUBROUTINE mp_allgather_d34(1659,60619
-  SUBROUTINE mp_allgatherv_dv(1706,62359
-  SUBROUTINE mp_sum_scatter_dv(1743,63813
-  SUBROUTINE mp_sendrecv_dv(1784,65293
-  SUBROUTINE mp_sendrecv_dm2(1829,67095
-  SUBROUTINE mp_sendrecv_dm3(1874,68939
-  SUBROUTINE mp_isendrecv_dv(1932,71484
-  SUBROUTINE mp_isendrecv_dm2(2002,73967
-  SUBROUTINE mp_isend_dv(2076,76578
-  SUBROUTINE mp_isend_dm2(2133,78495
-  SUBROUTINE mp_isend_dm3(2192,80603
-  SUBROUTINE mp_irecv_dv(2251,82673
-  SUBROUTINE mp_irecv_dm2(2307,84592
-  SUBROUTINE mp_irecv_dm3(2365,86707
-  SUBROUTINE mp_win_create_d(2420,88725
-  SUBROUTINE mp_rma_get_d(2476,90935
-  SUBROUTINE mp_rma_put_d(2518,92665
-  SUBROUTINE mp_allocate_d(2560,94410
-  SUBROUTINE mp_deallocate_d(2602,95821
+tmc_stati.F,0
 
-message_i_passing.f90,2234
-  SUBROUTINE mp_shift_im(12,607
-  SUBROUTINE mp_shift_i(72,2853
-  SUBROUTINE mp_alltoall_i11v 139,5525
-  SUBROUTINE mp_alltoall_i22v 182,7128
-  SUBROUTINE mp_alltoall_i 234,9110
-  SUBROUTINE mp_alltoall_i22 273,10450
-  SUBROUTINE mp_alltoall_i33 312,11801
-  SUBROUTINE mp_alltoall_i44 352,13146
-  SUBROUTINE mp_alltoall_i45 394,14612
-  SUBROUTINE mp_alltoall_i34 434,16039
-  SUBROUTINE mp_alltoall_i54 474,17486
-  SUBROUTINE mp_send_i(519,19078
-  SUBROUTINE mp_send_iv(552,20178
-  SUBROUTINE mp_recv_i(588,21509
-  SUBROUTINE mp_recv_iv(626,22871
-  SUBROUTINE mp_bcast_i(666,24366
-  SUBROUTINE mp_bcast_iv(697,25465
-  SUBROUTINE mp_bcast_im(728,26580
-  SUBROUTINE mp_bcast_i3(759,27698
-  SUBROUTINE mp_sum_i(793,28962
-  SUBROUTINE mp_sum_iv(827,30149
-  SUBROUTINE mp_sum_im(866,31513
-  SUBROUTINE mp_sum_im3(906,32928
-  SUBROUTINE mp_sum_im4(948,34430
-  SUBROUTINE mp_sum_im5(991,35966
-  SUBROUTINE mp_sum_im6(1035,37536
-  SUBROUTINE mp_sum_root_iv(1085,39335
-  SUBROUTINE mp_sum_root_im(1132,41080
-  SUBROUTINE mp_max_i(1181,42916
-  SUBROUTINE mp_max_iv(1216,44205
-  SUBROUTINE mp_min_i(1256,45709
-  SUBROUTINE mp_min_iv(1293,47038
-  SUBROUTINE mp_scatter_iv(1334,48567
-  SUBROUTINE mp_gather_i(1373,50053
-  SUBROUTINE mp_gather_iv(1412,51406
-  SUBROUTINE mp_gather_im(1451,52775
-  SUBROUTINE mp_gatherv_iv(1496,54498
-  SUBROUTINE mp_allgather_i(1544,56171
-  SUBROUTINE mp_allgather_i12(1587,57654
-  SUBROUTINE mp_allgather_i23(1623,58926
-  SUBROUTINE mp_allgather_i34(1659,60209
-  SUBROUTINE mp_allgatherv_iv(1706,61935
-  SUBROUTINE mp_sum_scatter_iv(1743,63375
-  SUBROUTINE mp_sendrecv_iv(1784,64849
-  SUBROUTINE mp_sendrecv_im2(1829,66636
-  SUBROUTINE mp_sendrecv_im3(1874,68465
-  SUBROUTINE mp_isendrecv_iv(1932,70995
-  SUBROUTINE mp_isendrecv_im2(2002,73447
-  SUBROUTINE mp_isend_iv(2076,76027
-  SUBROUTINE mp_isend_im2(2133,77929
-  SUBROUTINE mp_isend_im3(2192,80022
-  SUBROUTINE mp_irecv_iv(2251,82077
-  SUBROUTINE mp_irecv_im2(2307,83981
-  SUBROUTINE mp_irecv_im3(2365,86081
-  SUBROUTINE mp_win_create_i(2420,88084
-  SUBROUTINE mp_rma_get_i(2476,90287
-  SUBROUTINE mp_rma_put_i(2518,92000
-  SUBROUTINE mp_allocate_i(2560,93730
-  SUBROUTINE mp_deallocate_i(2602,95143
+timings_types.F,0
 
-message_l_passing.f90,2234
-  SUBROUTINE mp_shift_lm(12,607
-  SUBROUTINE mp_shift_l(72,2854
-  SUBROUTINE mp_alltoall_l11v 139,5527
-  SUBROUTINE mp_alltoall_l22v 182,7132
-  SUBROUTINE mp_alltoall_l 234,9116
-  SUBROUTINE mp_alltoall_l22 273,10458
-  SUBROUTINE mp_alltoall_l33 312,11811
-  SUBROUTINE mp_alltoall_l44 352,13158
-  SUBROUTINE mp_alltoall_l45 394,14626
-  SUBROUTINE mp_alltoall_l34 434,16055
-  SUBROUTINE mp_alltoall_l54 474,17504
-  SUBROUTINE mp_send_l(519,19098
-  SUBROUTINE mp_send_lv(552,20199
-  SUBROUTINE mp_recv_l(588,21531
-  SUBROUTINE mp_recv_lv(626,22894
-  SUBROUTINE mp_bcast_l(666,24390
-  SUBROUTINE mp_bcast_lv(697,25490
-  SUBROUTINE mp_bcast_lm(728,26606
-  SUBROUTINE mp_bcast_l3(759,27725
-  SUBROUTINE mp_sum_l(793,28990
-  SUBROUTINE mp_sum_lv(827,30178
-  SUBROUTINE mp_sum_lm(866,31543
-  SUBROUTINE mp_sum_lm3(906,32959
-  SUBROUTINE mp_sum_lm4(948,34462
-  SUBROUTINE mp_sum_lm5(991,35999
-  SUBROUTINE mp_sum_lm6(1035,37570
-  SUBROUTINE mp_sum_root_lv(1085,39370
-  SUBROUTINE mp_sum_root_lm(1132,41116
-  SUBROUTINE mp_max_l(1181,42953
-  SUBROUTINE mp_max_lv(1216,44243
-  SUBROUTINE mp_min_l(1256,45748
-  SUBROUTINE mp_min_lv(1293,47078
-  SUBROUTINE mp_scatter_lv(1334,48608
-  SUBROUTINE mp_gather_l(1373,50096
-  SUBROUTINE mp_gather_lv(1412,51451
-  SUBROUTINE mp_gather_lm(1451,52822
-  SUBROUTINE mp_gatherv_lv(1496,54547
-  SUBROUTINE mp_allgather_l(1544,56222
-  SUBROUTINE mp_allgather_l12(1587,57707
-  SUBROUTINE mp_allgather_l23(1623,58981
-  SUBROUTINE mp_allgather_l34(1659,60266
-  SUBROUTINE mp_allgatherv_lv(1706,61994
-  SUBROUTINE mp_sum_scatter_lv(1743,63436
-  SUBROUTINE mp_sendrecv_lv(1784,64911
-  SUBROUTINE mp_sendrecv_lm2(1829,66700
-  SUBROUTINE mp_sendrecv_lm3(1874,68531
-  SUBROUTINE mp_isendrecv_lv(1932,71063
-  SUBROUTINE mp_isendrecv_lm2(2002,73519
-  SUBROUTINE mp_isend_lv(2076,76103
-  SUBROUTINE mp_isend_lm2(2133,78007
-  SUBROUTINE mp_isend_lm3(2192,80102
-  SUBROUTINE mp_irecv_lv(2251,82159
-  SUBROUTINE mp_irecv_lm2(2307,84065
-  SUBROUTINE mp_irecv_lm3(2365,86167
-  SUBROUTINE mp_win_create_l(2420,88172
-  SUBROUTINE mp_rma_get_l(2476,90376
-  SUBROUTINE mp_rma_put_l(2518,92091
-  SUBROUTINE mp_allocate_l(2560,93823
-  SUBROUTINE mp_deallocate_l(2602,95236
+timings_base_type.F,0
 
-message_r_passing.f90,2234
-  SUBROUTINE mp_shift_rm(12,607
-  SUBROUTINE mp_shift_r(72,2849
-  SUBROUTINE mp_alltoall_r11v 139,5517
-  SUBROUTINE mp_alltoall_r22v 182,7111
-  SUBROUTINE mp_alltoall_r 234,9084
-  SUBROUTINE mp_alltoall_r22 273,10415
-  SUBROUTINE mp_alltoall_r33 312,11757
-  SUBROUTINE mp_alltoall_r44 352,13093
-  SUBROUTINE mp_alltoall_r45 394,14550
-  SUBROUTINE mp_alltoall_r34 434,15968
-  SUBROUTINE mp_alltoall_r54 474,17406
-  SUBROUTINE mp_send_r(519,18989
-  SUBROUTINE mp_send_rv(552,20085
-  SUBROUTINE mp_recv_r(588,21412
-  SUBROUTINE mp_recv_rv(626,22770
-  SUBROUTINE mp_bcast_r(666,24261
-  SUBROUTINE mp_bcast_rv(697,25356
-  SUBROUTINE mp_bcast_rm(728,26467
-  SUBROUTINE mp_bcast_r3(759,27581
-  SUBROUTINE mp_sum_r(793,28841
-  SUBROUTINE mp_sum_rv(827,30022
-  SUBROUTINE mp_sum_rm(866,31380
-  SUBROUTINE mp_sum_rm3(906,32789
-  SUBROUTINE mp_sum_rm4(948,34285
-  SUBROUTINE mp_sum_rm5(991,35815
-  SUBROUTINE mp_sum_rm6(1035,37379
-  SUBROUTINE mp_sum_root_rv(1085,39172
-  SUBROUTINE mp_sum_root_rm(1132,40911
-  SUBROUTINE mp_max_r(1181,42741
-  SUBROUTINE mp_max_rv(1216,44024
-  SUBROUTINE mp_min_r(1256,45522
-  SUBROUTINE mp_min_rv(1293,46845
-  SUBROUTINE mp_scatter_rv(1334,48368
-  SUBROUTINE mp_gather_r(1373,49845
-  SUBROUTINE mp_gather_rv(1412,51189
-  SUBROUTINE mp_gather_rm(1451,52549
-  SUBROUTINE mp_gatherv_rv(1496,54263
-  SUBROUTINE mp_allgather_r(1544,55927
-  SUBROUTINE mp_allgather_r12(1587,57400
-  SUBROUTINE mp_allgather_r23(1623,58662
-  SUBROUTINE mp_allgather_r34(1659,59935
-  SUBROUTINE mp_allgatherv_rv(1706,61651
-  SUBROUTINE mp_sum_scatter_rv(1743,63081
-  SUBROUTINE mp_sendrecv_rv(1784,64549
-  SUBROUTINE mp_sendrecv_rm2(1829,66327
-  SUBROUTINE mp_sendrecv_rm3(1874,68147
-  SUBROUTINE mp_isendrecv_rv(1932,70668
-  SUBROUTINE mp_isendrecv_rm2(2002,73103
-  SUBROUTINE mp_isend_rv(2076,75666
-  SUBROUTINE mp_isend_rm2(2133,77559
-  SUBROUTINE mp_isend_rm3(2192,79643
-  SUBROUTINE mp_irecv_rv(2251,81689
-  SUBROUTINE mp_irecv_rm2(2307,83584
-  SUBROUTINE mp_irecv_rm3(2365,85675
-  SUBROUTINE mp_win_create_r(2420,87669
-  SUBROUTINE mp_rma_get_r(2476,89867
-  SUBROUTINE mp_rma_put_r(2518,91573
-  SUBROUTINE mp_allocate_r(2560,93294
-  SUBROUTINE mp_deallocate_r(2602,94705
-
-message_z_passing.f90,2234
-  SUBROUTINE mp_shift_zm(12,607
-  SUBROUTINE mp_shift_z(72,2866
-  SUBROUTINE mp_alltoall_z11v 139,5551
-  SUBROUTINE mp_alltoall_z22v 182,7175
-  SUBROUTINE mp_alltoall_z 234,9178
-  SUBROUTINE mp_alltoall_z22 273,10539
-  SUBROUTINE mp_alltoall_z33 312,11911
-  SUBROUTINE mp_alltoall_z44 352,13277
-  SUBROUTINE mp_alltoall_z45 394,14764
-  SUBROUTINE mp_alltoall_z34 434,16212
-  SUBROUTINE mp_alltoall_z54 474,17680
-  SUBROUTINE mp_send_z(519,19293
-  SUBROUTINE mp_send_zv(552,20406
-  SUBROUTINE mp_recv_z(588,21750
-  SUBROUTINE mp_recv_zv(626,23125
-  SUBROUTINE mp_bcast_z(666,24633
-  SUBROUTINE mp_bcast_zv(697,25745
-  SUBROUTINE mp_bcast_zm(728,26873
-  SUBROUTINE mp_bcast_z3(759,28004
-  SUBROUTINE mp_sum_z(793,29281
-  SUBROUTINE mp_sum_zv(827,30482
-  SUBROUTINE mp_sum_zm(866,31860
-  SUBROUTINE mp_sum_zm3(906,33289
-  SUBROUTINE mp_sum_zm4(948,34805
-  SUBROUTINE mp_sum_zm5(991,36355
-  SUBROUTINE mp_sum_zm6(1035,37939
-  SUBROUTINE mp_sum_root_zv(1085,39752
-  SUBROUTINE mp_sum_root_zm(1132,41511
-  SUBROUTINE mp_max_z(1181,43361
-  SUBROUTINE mp_max_zv(1216,44664
-  SUBROUTINE mp_min_z(1256,46182
-  SUBROUTINE mp_min_zv(1293,47525
-  SUBROUTINE mp_scatter_zv(1334,49068
-  SUBROUTINE mp_gather_z(1373,50575
-  SUBROUTINE mp_gather_zv(1412,51949
-  SUBROUTINE mp_gather_zm(1451,53339
-  SUBROUTINE mp_gatherv_zv(1496,55083
-  SUBROUTINE mp_allgather_z(1544,56777
-  SUBROUTINE mp_allgather_z12(1587,58276
-  SUBROUTINE mp_allgather_z23(1623,59564
-  SUBROUTINE mp_allgather_z34(1659,60863
-  SUBROUTINE mp_allgatherv_zv(1706,62605
-  SUBROUTINE mp_sum_scatter_zv(1743,64061
-  SUBROUTINE mp_sendrecv_zv(1784,65549
-  SUBROUTINE mp_sendrecv_zm2(1829,67357
-  SUBROUTINE mp_sendrecv_zm3(1874,69207
-  SUBROUTINE mp_isendrecv_zv(1932,71758
-  SUBROUTINE mp_isendrecv_zm2(2002,74246
-  SUBROUTINE mp_isend_zv(2076,76862
-  SUBROUTINE mp_isend_zm2(2133,78785
-  SUBROUTINE mp_isend_zm3(2192,80899
-  SUBROUTINE mp_irecv_zv(2251,82975
-  SUBROUTINE mp_irecv_zm2(2307,84900
-  SUBROUTINE mp_irecv_zm3(2365,87021
-  SUBROUTINE mp_win_create_z(2420,89045
-  SUBROUTINE mp_rma_get_z(2476,91256
-  SUBROUTINE mp_rma_put_z(2518,92989
-  SUBROUTINE mp_allocate_z(2560,94740
-  SUBROUTINE mp_deallocate_z(2602,96154
+structure_factor_types.F,0
 
 sort_m.f90,0
 
@@ -10452,9 +10665,61 @@ reallocate_1.f90,0
 
 rd_amber_section_1.f90,0
 
+qs_dispersion_types.F,0
+
+qmmm_gaussian_types.F,0
+
+qmmm_gaussian_data.F,0
+
+pw_grid_types.F,0
+
 prep.f90,0
 
+pint_types.F,0
+
+mod.header,0
+
+message__nametype1__passing.instantiation,0
+
+mathconstants.F,0
+
+list__valuetype_.instantiation,0
+
+list.F,0
+
+libxc_funcs_m.F,0
+
+input_constants.F,0
+
+hfx_libint_wrapper_types.F,0
+
+helium_types.F,0
+
+f77_blas.F,0
+
 ewalds_multipole_sr.f90,0
+
+ewalds_multipole_debug.h,0
+
+dict__keytype___valuetype_.instantiation,0
+
+dict.F,0
+
+cp_para_types.F,0
+
+cp_lbfgs_optimizer__nametype1_.instantiation,0
+
+cp_dbcsr_types.F,0
+
+cp_array_utils.F,0
+
+cp_array__nametype1__utils.instantiation,0
+
+cp__el_name__pool_types.template,0
+
+cp__el_name__pool_types.instantiation,0
+
+cp2k.F,0
 
 colloc_int_kloop8.f90,0
 
@@ -10480,52 +10745,8 @@ call_collocate_omp.f90,0
 
 call_collocate.f90,0
 
-xc_f90_types_m.F,0
-
-wannier_states_types.F,0
-
-tmc_utils.F,0
-
-tmc_stati.F,0
-
-timings_types.F,0
-
-timings_base_type.F,0
-
-structure_factor_types.F,0
-
-qs_dispersion_types.F,0
-
-qmmm_gaussian_types.F,0
-
-qmmm_gaussian_data.F,0
-
-pw_grid_types.F,0
-
-pint_types.F,0
-
-mathconstants.F,0
-
-list.F,0
-
-libxc_funcs_m.F,0
-
-input_constants.F,0
-
-hfx_libint_wrapper_types.F,0
-
-helium_types.F,0
-
-f77_blas.F,0
-
-dict.F,0
-
-cp_para_types.F,0
-
-cp_dbcsr_types.F,0
-
-cp_array_utils.F,0
-
-cp2k.F,0
-
 block_p_types.F,0
+
+_lib__array__nametype1__sort.instantiation,0
+
+_el_typename__list_types.instantiation,0
