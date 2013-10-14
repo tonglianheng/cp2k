@@ -1,5 +1,7 @@
+*~
 *.o
 cp2k/exe
 cp2k/obj
+cp2k/lib
+cp2k/tools/build_libsmm/lib
 .svn
-cp2k/arch/phpc63-intel.psmp
