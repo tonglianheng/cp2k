@@ -4,4 +4,6 @@ cp2k/exe
 cp2k/obj
 cp2k/lib
 cp2k/tools/build_libsmm/lib
+cp2k/tools/build_libsmm/*.mod
+cp2k/tools/build_libsmm/*.x
 .svn
