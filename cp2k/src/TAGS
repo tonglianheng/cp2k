@@ -33,7 +33,11 @@ admm_methods.F,1164
   FUNCTION delta(2412,110890
   FUNCTION Heaviside(2424,111126
 
-admm_types.F,127
+admm_types.F,236
+  TYPE eigvals_type44,2136
+  TYPE eigvals_p_type48,2221
+  TYPE admm_block52,2311
+  TYPE admm_type83,3681
   SUBROUTINE admm_env_create(154,7028
   SUBROUTINE admm_env_release(349,18596
   SUBROUTINE admm_create_block_list(469,25319
@@ -175,7 +179,9 @@ al_system_mapping.F,88
   SUBROUTINE al_to_particle_mapping 49,2247
   SUBROUTINE setup_al_thermostat 130,6153
 
-al_system_types.F,144
+al_system_types.F,204
+  TYPE al_thermo_type33,1478
+  TYPE al_system_type42,1897
   SUBROUTINE al_init(61,2743
   SUBROUTINE al_thermo_create(89,3888
   SUBROUTINE al_dealloc 122,5276
@@ -230,7 +236,9 @@ atom_operators.F,508
   SUBROUTINE ipack(1116,45926
   SUBROUTINE iunpack(1133,46304
 
-atom_optimization.F,158
+atom_optimization.F,215
+  TYPE hmat_type22,866
+  TYPE atom_history_type27,1005
   SUBROUTINE atom_history_init 45,1723
   SUBROUTINE atom_history_update 87,3339
   SUBROUTINE atom_history_release 110,4113
@@ -252,7 +260,20 @@ atom_output.F,481
 atom_pseudo.F,38
   SUBROUTINE atom_pseudo_opt(59,3005
 
-atom_types.F,700
+atom_types.F,1091
+  TYPE atom_basis_type65,3304
+  TYPE atom_gthpot_type84,4461
+  TYPE atom_potential_type116,6065
+  TYPE atom_state127,6620
+  TYPE eri141,7326
+  TYPE atom_integrals145,7410
+  TYPE atom_orbitals166,8571
+  TYPE opmat_type179,9273
+  TYPE opgrid_type186,9523
+  TYPE atom_energy_type193,9776
+  TYPE atom_optimization_type211,10726
+  TYPE atom_type221,11226
+  TYPE atom_p_type240,12357
   SUBROUTINE init_atom_basis(286,15231
   SUBROUTINE release_atom_basis(648,31249
   SUBROUTINE create_atom_type(690,32776
@@ -314,12 +335,17 @@ atomic_charges.F,83
   SUBROUTINE print_atomic_charges(42,1840
   SUBROUTINE print_multipoles(123,5069
 
-atomic_kind_list_types.F,136
+atomic_kind_list_types.F,212
+  TYPE atomic_kind_list_type67,3345
+  TYPE atomic_kind_list_p_type80,3844
 SUBROUTINE atomic_kind_list_create(101,4709
 SUBROUTINE atomic_kind_list_retain(157,6822
 SUBROUTINE atomic_kind_list_release(184,7866
 
-atomic_kind_types.F,720
+atomic_kind_types.F,820
+  TYPE dft_plus_u_type108,5820
+  TYPE atomic_kind_type122,6541
+  TYPE atomic_kind_p_type176,9792
   SUBROUTINE allocate_atomic_kind_set(210,10837
   SUBROUTINE deallocate_atomic_kind_set(292,14523
   SUBROUTINE get_atomic_kind(425,21299
@@ -341,7 +367,8 @@ atoms_input.F,86
   SUBROUTINE read_atoms_input 63,3274
   SUBROUTINE read_shell_coord_input 265,12882
 
-atprop_types.F,231
+atprop_types.F,256
+TYPE atprop_type30,1170
   SUBROUTINE atprop_create(47,1903
   SUBROUTINE atprop_init(69,2723
   SUBROUTINE atprop_array_init(106,4124
@@ -349,7 +376,8 @@ atprop_types.F,231
   SUBROUTINE atprop_array_add(149,5505
 SUBROUTINE atprop_release(174,6414
 
-averages_types.F,277
+averages_types.F,316
+  TYPE average_quantities_type38,1969
   SUBROUTINE create_averages(75,3797
   SUBROUTINE retain_averages(149,6900
   SUBROUTINE release_averages(171,7798
@@ -358,7 +386,8 @@ averages_types.F,277
   SUBROUTINE get_averages_rv(469,24591
   SUBROUTINE get_averages_rm(494,25666
 
-barostat_types.F,132
+barostat_types.F,161
+  TYPE barostat_type42,2105
   SUBROUTINE create_barostat_type(64,2947
   SUBROUTINE retain_barostat_type(136,6346
   SUBROUTINE release_barostat_type(162,7303
@@ -367,7 +396,13 @@ barostat_utils.F,84
   SUBROUTINE get_baro_energies 48,2249
   SUBROUTINE print_barostat_status 91,4181
 
-basis_set_types.F,1311
+basis_set_types.F,1532
+  TYPE gto_basis_set_type67,3340
+  TYPE gto_basis_set_p_type85,4274
+  TYPE sto_basis_set_type92,4522
+  TYPE sto_basis_set_p_type101,4880
+  TYPE geminal_basis_set_type108,5116
+  TYPE geminal_basis_set_p_type127,6141
   SUBROUTINE allocate_gto_basis_set(172,7540
   SUBROUTINE deallocate_gto_basis_set(223,9258
   SUBROUTINE copy_gto_basis_set(300,13262
@@ -458,6 +493,9 @@ bfgs_optimizer.F,477
 bibliography.F,41
   SUBROUTINE add_all_references(77,4313
 
+block_p_types.F,27
+  TYPE block_p_type21,859
+
 bsse.F,460
   SUBROUTINE do_bsse_calculation(72,3688
   SUBROUTINE eval_bsse_energy(160,8154
@@ -507,7 +545,8 @@ cell_opt.F,74
    SUBROUTINE cp_cell_opt(55,2812
   SUBROUTINE cp_cell_opt_low(110,5607
 
-cell_opt_types.F,129
+cell_opt_types.F,162
+  TYPE cell_opt_env_type48,2255
   SUBROUTINE cell_opt_env_create(67,3087
   SUBROUTINE cell_opt_env_retain(123,5783
   SUBROUTINE cell_opt_env_release(145,6683
@@ -519,7 +558,9 @@ cell_opt_utils.F,215
   SUBROUTINE read_external_press_tensor(190,9506
   SUBROUTINE get_dg_dh(252,11860
 
-cell_types.F,876
+cell_types.F,928
+  TYPE cell_type70,3699
+  TYPE cell_p_type79,4052
   FUNCTION compare_cells 102,4740
   SUBROUTINE cell_clone 127,5778
   SUBROUTINE cell_copy 154,6783
@@ -619,7 +660,34 @@ colvar_methods.F,1636
   SUBROUTINE Wc_colvar(5141,230425
   SUBROUTINE HBP_colvar(5252,234756
 
-colvar_types.F,543
+colvar_types.F,1512
+  TYPE dist_colvar_type112,5181
+  TYPE coord_colvar_type117,5356
+ TYPE population_colvar_type137,6432
+  TYPE gyration_colvar_type152,7204
+  TYPE torsion_colvar_type160,7564
+  TYPE plane_distance_colvar_type166,7796
+  TYPE plane_def_type173,8059
+  TYPE plane_plane_angle_colvar_type179,8246
+  TYPE angle_colvar_type184,8456
+  TYPE rotation_colvar_type189,8632
+  TYPE dfunct_colvar_type197,8891
+  TYPE qparm_colvar_type204,9168
+  TYPE hydronium_colvar_type214,9603
+  TYPE reaction_path_colvar_type225,10121
+  TYPE combine_colvar_type239,10894
+  TYPE rmsd_colvar_type249,11442
+  TYPE point_type258,11881
+  TYPE xyz_diag_colvar_type266,12189
+  TYPE xyz_outerdiag_colvar_type274,12554
+  TYPE u_colvar_type282,12931
+  TYPE Wc_colvar_type288,13156
+  TYPE HBP_colvar_type295,13464
+  TYPE ring_puckering_colvar_type305,14107
+  TYPE mindist_colvar_type312,14395
+  TYPE colvar_type331,15403
+  TYPE colvar_p_type365,17535
+  TYPE colvar_counters370,17704
   SUBROUTINE colvar_create(404,18714
   SUBROUTINE  colvar_check_points(540,24953
   SUBROUTINE colvar_setup(620,29023
@@ -763,7 +831,14 @@ cp2k_shell.F,165
  SUBROUTINE print_v_info(501,22030
   FUNCTION get_eof_stat(544,23815
 
-cp_array__nametype1__utils.template,179
+cp__el_name__pool_types.template,38
+  TYPE cp_77,4183
+  TYPE cp_92,4707
+
+cp_array__nametype1__utils.template,245
+  type cp_1d_79,3397
+  type cp_2d_89,3780
+  type cp_3d_99,4165
 SUBROUTINE cp_1d_[cp_1d_118,4904
 SUBROUTINE cp_2d_[cp_2d_176,7185
   SUBROUTINE cp_1d_[cp_1d_228,9202
@@ -782,14 +857,20 @@ cp_array_i_sort.F,80
 SUBROUTINE cp_1d_i_sort(53,1896
 RECURSIVE SUBROUTINE cp_1d_i_sort_low(88,3124
 
-cp_array_i_utils.F,199
+cp_array_i_utils.F,289
+  TYPE cp_1d_i_p_type78,3269
+  TYPE cp_2d_i_p_type88,3632
+  TYPE cp_3d_i_p_type98,3997
 SUBROUTINE cp_1d_i_write(117,4716
 SUBROUTINE cp_2d_i_write(175,7043
   SUBROUTINE cp_1d_i_guarantee_size(228,9154
   SUBROUTINE cp_2d_i_guarantee_size(279,11320
 FUNCTION cp_1d_i_bsearch(330,13561
 
-cp_array_logical_utils.F,229
+cp_array_logical_utils.F,337
+  TYPE cp_1d_logical_p_type78,3350
+  TYPE cp_2d_logical_p_type88,3725
+  TYPE cp_3d_logical_p_type98,4102
 SUBROUTINE cp_1d_logical_write(117,4833
 SUBROUTINE cp_2d_logical_write(175,7178
   SUBROUTINE cp_1d_logical_guarantee_size(228,9307
@@ -800,7 +881,10 @@ cp_array_r_sort.F,80
 SUBROUTINE cp_1d_r_sort(53,1939
 RECURSIVE SUBROUTINE cp_1d_r_sort_low(90,3251
 
-cp_array_r_utils.F,199
+cp_array_r_utils.F,289
+  TYPE cp_1d_r_p_type79,3317
+  TYPE cp_2d_r_p_type89,3686
+  TYPE cp_3d_r_p_type99,4057
 SUBROUTINE cp_1d_r_write(118,4782
 SUBROUTINE cp_2d_r_write(176,7113
   SUBROUTINE cp_1d_r_guarantee_size(230,9266
@@ -847,7 +931,9 @@ SUBROUTINE cp_cfm_triangular_multiply(540,20797
 cp_cfm_diag.F,35
   SUBROUTINE cp_cfm_heevd(39,1680
 
-cp_cfm_types.F,356
+cp_cfm_types.F,412
+  TYPE cp_cfm_type52,2579
+  TYPE cp_cfm_p_type64,3088
   SUBROUTINE cp_cfm_create(79,3647
   SUBROUTINE cp_cfm_retain(142,6067
   SUBROUTINE cp_cfm_release(166,7012
@@ -890,7 +976,27 @@ cp_common_uses.h,1010
 #define CPAssertNoErr(128,5633
 #define CPAAssert(133,5744
 
-cp_control_types.F,1441
+cp_control_types.F,2139
+  TYPE pw_grid_option31,1516
+  TYPE scp_control_type41,1900
+  TYPE rtp_control_type49,2293
+  TYPE dftb_control_type71,3535
+  TYPE scptb_control_type88,4423
+  TYPE semi_empirical_control_type105,5302
+  TYPE gapw_control_type133,6921
+  TYPE lripaw_control_type155,8087
+  TYPE efield_type164,8528
+  TYPE efield_p_type177,9058
+  TYPE period_efield_type183,9390
+  TYPE mulliken_restraint_type191,9771
+  TYPE ddapc_restraint_type202,10285
+  TYPE ddapc_restraint_p_type217,11014
+  TYPE becke_restraint_type224,11358
+  TYPE s2_restraint_type241,12170
+  TYPE admm_control_type252,12701
+  TYPE qs_control_type264,13374
+  TYPE tddfpt_control_type332,17685
+  TYPE dft_control_type357,19142
   SUBROUTINE mulliken_control_create(442,22686
   SUBROUTINE mulliken_control_release(470,23889
   SUBROUTINE mulliken_control_retain(499,25285
@@ -1144,6 +1250,10 @@ cp_dbcsr_output.F,282
   SUBROUTINE write_matrix_gen(457,17994
   SUBROUTINE cp_dbcsr_write_matrix_dist(535,20829
 
+cp_dbcsr_types.F,60
+  TYPE cp_dbcsr_p_type35,1158
+  TYPE cp_dbcsr_type39,1253
+
 cp_dbcsr_util.F,128
   SUBROUTINE lanczos_alg_serial(53,2432
   SUBROUTINE lanczos_alg_serial_d(95,4086
@@ -1175,7 +1285,9 @@ cp_ddapc_methods.F,439
   RECURSIVE SUBROUTINE ewald_ddapc_pot(647,29189
   SUBROUTINE solvation_ddapc_pot(838,37398
 
-cp_ddapc_types.F,242
+cp_ddapc_types.F,306
+  TYPE cp_ddapc_type52,2792
+  TYPE cp_ddapc_ewald_type65,3420
   SUBROUTINE cp_ddapc_create(83,4355
   SUBROUTINE cp_ddapc_retain(180,8833
   SUBROUTINE cp_ddapc_release(202,9707
@@ -1192,7 +1304,8 @@ SUBROUTINE restraint_functional_potential(560,29080
   SUBROUTINE debug_der_A_matrix(799,39918
   SUBROUTINE debug_charge(887,44182
 
-cp_error_handling.F,831
+cp_error_handling.F,861
+  TYPE cp_error_type116,5332
   SUBROUTINE cp_error_init(148,6631
   SUBROUTINE cp_error_reset(196,8486
   SUBROUTINE cp_error_set(223,9556
@@ -1219,7 +1332,8 @@ cp_external_control.F,120
   SUBROUTINE get_external_comm(84,3617
   SUBROUTINE external_control(109,4838
 
-cp_files.F,289
+cp_files.F,323
+  TYPE preconnection_type36,1326
   SUBROUTINE assign_preconnection(52,1888
   SUBROUTINE close_file(114,4077
   SUBROUTINE delete_preconnection(198,7653
@@ -1264,7 +1378,9 @@ cp_fm_diag.F,303
   SUBROUTINE cp_fm_power(902,33406
   SUBROUTINE cp_fm_block_jacobi(1074,39285
 
-cp_fm_pool_types.F,597
+cp_fm_pool_types.F,661
+  TYPE cp_fm_pool_type80,4177
+  TYPE cp_fm_pool_p_type95,4668
   SUBROUTINE fm_pool_create(112,5273
   SUBROUTINE fm_pool_retain(148,6580
   SUBROUTINE fm_pool_flush_cache(176,7597
@@ -1280,7 +1396,9 @@ SUBROUTINE fm_pools_flush_cache(544,22071
 SUBROUTINE fm_pools_create_fm_vect(576,23313
 SUBROUTINE fm_pools_give_back_fm_vect(631,25278
 
-cp_fm_struct.F,336
+cp_fm_struct.F,404
+  TYPE cp_fm_struct_type84,4188
+  TYPE cp_fm_struct_p_type95,4727
 SUBROUTINE cp_fm_struct_create(121,6024
 SUBROUTINE cp_fm_struct_retain(325,14923
 SUBROUTINE cp_fm_struct_release(352,15970
@@ -1290,7 +1408,9 @@ SUBROUTINE cp_fm_struct_write(483,21738
 SUBROUTINE cp_fm_struct_get(595,26798
 SUBROUTINE cp_fm_struct_double(709,31500
 
-cp_fm_types.F,1031
+cp_fm_types.F,1087
+  TYPE cp_fm_type109,5445
+  TYPE cp_fm_p_type126,6100
   SUBROUTINE cp_fm_create(144,6729
   SUBROUTINE cp_fm_retain(232,9997
   SUBROUTINE cp_fm_release(260,11013
@@ -1323,7 +1443,8 @@ SUBROUTINE cp_fm_vect_copy(74,2951
    SUBROUTINE cp_fm_vect_write(115,4547
 SUBROUTINE cp_fm_vect_set_all(165,6666
 
-cp_iter_types.F,195
+cp_iter_types.F,233
+  TYPE cp_iteration_info_type71,3738
   SUBROUTINE cp_iteration_info_create(89,4546
   SUBROUTINE cp_iteration_info_retain(133,6447
   SUBROUTINE cp_iteration_info_release(153,7322
@@ -1357,7 +1478,8 @@ cp_lbfgs.F,821
 cp_lbfgs_geo.F,45
   RECURSIVE SUBROUTINE geoopt_lbfgs(57,2705
 
-cp_lbfgs_optimizer__nametype1_.template,314
+cp_lbfgs_optimizer__nametype1_.template,344
+  TYPE cp_lbfgs_opt_191,9227
   SUBROUTINE cp_opt_[cp_opt_219,10408
 SUBROUTINE cp_opt_[cp_opt_333,15675
 SUBROUTINE cp_opt_[cp_opt_360,16781
@@ -1367,7 +1489,8 @@ SUBROUTINE cp_opt_[cp_opt_360,16781
   FUNCTION cp_opt_[cp_opt_833,38859
   SUBROUTINE cp_opt_[cp_opt_880,40754
 
-cp_lbfgs_optimizer_gopt.F,352
+cp_lbfgs_optimizer_gopt.F,391
+  TYPE cp_lbfgs_opt_gopt_type181,8548
   SUBROUTINE cp_opt_gopt_create(209,9725
 SUBROUTINE cp_opt_gopt_retain(326,15223
 SUBROUTINE cp_opt_gopt_release(354,16355
@@ -1377,7 +1500,9 @@ SUBROUTINE cp_opt_gopt_release(354,16355
   RECURSIVE FUNCTION cp_opt_gopt_next(825,38602
   SUBROUTINE cp_opt_gopt_stop(872,40570
 
-cp_linked_list_3d_r.F,1112
+cp_linked_list_3d_r.F,1180
+  TYPE cp_sll_3d_r_type186,7520
+  TYPE cp_sll_3d_r_p_type198,7991
   SUBROUTINE cp_sll_3d_r_create(218,8691
   SUBROUTINE cp_sll_3d_r_dealloc(262,10293
   SUBROUTINE cp_sll_3d_r_dealloc_node(283,11081
@@ -1407,7 +1532,9 @@ FUNCTION cp_sll_3d_r_contains2(1147,43639
 cp_linked_list__nametype1_.instantiation,39
 function cp_sll_deriv_less_q(201,5325
 
-cp_linked_list__nametype1_.template,974
+cp_linked_list__nametype1_.template,1022
+  TYPE cp_sll_181,7565
+  TYPE cp_sll_193,8026
   SUBROUTINE cp_sll_[cp_sll_213,8765
   SUBROUTINE cp_sll_[cp_sll_252,10201
   SUBROUTINE cp_sll_[cp_sll_272,10991
@@ -1434,7 +1561,9 @@ FUNCTION cp_sll_[cp_sll_1010,39343
 FUNCTION cp_sll_[cp_sll_1063,41280
      FUNCTION compare_function(1070,41549
 
-cp_linked_list_char.F,1146
+cp_linked_list_char.F,1214
+  TYPE cp_sll_char_type184,7404
+  TYPE cp_sll_char_p_type196,7873
 SUBROUTINE write_string(202,7985
   SUBROUTINE cp_sll_char_create(223,8852
   SUBROUTINE cp_sll_char_dealloc(267,10456
@@ -1462,7 +1591,9 @@ FUNCTION cp_sll_char_contains(1092,41524
 FUNCTION cp_sll_char_contains2(1148,43670
      FUNCTION compare_function(1155,43997
 
-cp_linked_list_fm.F,1064
+cp_linked_list_fm.F,1128
+  TYPE cp_sll_fm_type187,7468
+  TYPE cp_sll_fm_p_type199,7919
   SUBROUTINE cp_sll_fm_create(219,8613
   SUBROUTINE cp_sll_fm_dealloc(261,10128
   SUBROUTINE cp_sll_fm_dealloc_node(282,10908
@@ -1489,7 +1620,9 @@ FUNCTION cp_sll_fm_contains(1075,40530
 FUNCTION cp_sll_fm_contains2(1130,42625
      FUNCTION compare_function(1136,42906
 
-cp_linked_list_int.F,1086
+cp_linked_list_int.F,1152
+  TYPE cp_sll_int_type183,7291
+  TYPE cp_sll_int_p_type195,7728
   SUBROUTINE cp_sll_int_create(215,8425
   SUBROUTINE cp_sll_int_dealloc(257,9942
   SUBROUTINE cp_sll_int_dealloc_node(278,10726
@@ -1516,7 +1649,9 @@ FUNCTION cp_sll_int_contains(1066,40158
 FUNCTION cp_sll_int_contains2(1121,42255
      FUNCTION compare_function(1127,42537
 
-cp_linked_list_logical.F,1179
+cp_linked_list_logical.F,1253
+  TYPE cp_sll_logical_type183,7483
+  TYPE cp_sll_logical_p_type195,7932
   SUBROUTINE cp_sll_logical_create(215,8641
   SUBROUTINE cp_sll_logical_dealloc(258,10213
   SUBROUTINE cp_sll_logical_dealloc_node(279,11013
@@ -1543,7 +1678,9 @@ FUNCTION cp_sll_logical_contains(1075,41079
 FUNCTION cp_sll_logical_contains2(1129,43149
      FUNCTION compare_function(1135,43435
 
-cp_linked_list_pw.F,1064
+cp_linked_list_pw.F,1128
+  TYPE cp_sll_pw_type188,7517
+  TYPE cp_sll_pw_p_type200,7965
   SUBROUTINE cp_sll_pw_create(220,8659
   SUBROUTINE cp_sll_pw_dealloc(262,10174
   SUBROUTINE cp_sll_pw_dealloc_node(283,10954
@@ -1570,7 +1707,9 @@ FUNCTION cp_sll_pw_contains(1076,40540
 FUNCTION cp_sll_pw_contains2(1131,42635
      FUNCTION compare_function(1137,42916
 
-cp_linked_list_real.F,1110
+cp_linked_list_real.F,1178
+  TYPE cp_sll_real_type184,7385
+  TYPE cp_sll_real_p_type196,7831
   SUBROUTINE cp_sll_real_create(216,8531
   SUBROUTINE cp_sll_real_dealloc(259,10091
   SUBROUTINE cp_sll_real_dealloc_node(280,10879
@@ -1597,7 +1736,9 @@ FUNCTION cp_sll_real_contains(1074,40677
 FUNCTION cp_sll_real_contains2(1129,42779
      FUNCTION compare_function(1135,43062
 
-cp_linked_list_rs.F,1065
+cp_linked_list_rs.F,1129
+  TYPE cp_sll_rs_type187,7482
+  TYPE cp_sll_rs_p_type199,7942
   SUBROUTINE cp_sll_rs_create(219,8636
   SUBROUTINE cp_sll_rs_dealloc(262,10194
   SUBROUTINE cp_sll_rs_dealloc_node(283,10974
@@ -1624,7 +1765,9 @@ FUNCTION cp_sll_rs_contains(1079,40754
 FUNCTION cp_sll_rs_contains2(1134,42849
      FUNCTION compare_function(1140,43130
 
-cp_linked_list_val.F,1087
+cp_linked_list_val.F,1153
+  TYPE cp_sll_val_type185,7425
+  TYPE cp_sll_val_p_type197,7877
   SUBROUTINE cp_sll_val_create(217,8574
   SUBROUTINE cp_sll_val_dealloc(259,10092
   SUBROUTINE cp_sll_val_dealloc_node(280,10876
@@ -1651,7 +1794,9 @@ FUNCTION cp_sll_val_contains(1071,40516
 FUNCTION cp_sll_val_contains2(1126,42619
      FUNCTION compare_function(1132,42901
 
-cp_linked_list_xc_deriv.F,1243
+cp_linked_list_xc_deriv.F,1319
+  TYPE cp_sll_xc_deriv_type186,7740
+  TYPE cp_sll_xc_deriv_p_type198,8217
 FUNCTION cp_sll_deriv_less_q(205,8367
   SUBROUTINE cp_sll_xc_deriv_create(234,9736
   SUBROUTINE cp_sll_xc_deriv_dealloc(278,11355
@@ -1679,7 +1824,9 @@ FUNCTION cp_sll_xc_deriv_contains(1101,42654
 FUNCTION cp_sll_xc_deriv_contains2(1156,44788
      FUNCTION compare_function(1162,45075
 
-cp_log_handling.F,902
+cp_log_handling.F,975
+  TYPE cp_logger_type146,7154
+  TYPE default_logger_stack_type159,7737
   FUNCTION cp_default_logger_stack_size(176,8412
   SUBROUTINE cp_add_default_logger(193,9086
   SUBROUTINE cp_rm_default_logger(218,10039
@@ -1724,7 +1871,8 @@ SUBROUTINE cp_ma_net_affinity(141,6170
   SUBROUTINE cp_ma_default_affinity(824,31333
   SUBROUTINE cp_ma_finalize_lib 836,31777
 
-cp_output_handling.F,529
+cp_output_handling.F,563
+  TYPE cp_out_flags_type128,7035
   SUBROUTINE cp_print_key_section_create(154,8198
   FUNCTION cp_print_key_should_output(336,18513
   FUNCTION cp_printkey_is_on(435,22538
@@ -1751,7 +1899,14 @@ SUBROUTINE cp_cart_release(356,14628
 SUBROUTINE cp_cart_retain(391,15953
 SUBROUTINE cp_cart_write(417,16972
 
-cp_parser_buffer_types.F,231
+cp_para_types.F,133
+  TYPE cp_para_env_type43,1853
+  TYPE cp_para_env_p_type56,2354
+  TYPE cp_para_cart_type77,3286
+  TYPE cp_blacs_env_type102,4496
+
+cp_parser_buffer_types.F,258
+  TYPE buffer_type24,1086
   SUBROUTINE create_buffer_type(47,2152
   RECURSIVE SUBROUTINE release_buffer_type(79,3568
   RECURSIVE SUBROUTINE copy_buffer_type(107,4818
@@ -1763,7 +1918,8 @@ cp_parser_ilist_methods.F,103
   SUBROUTINE ilist_update(65,2772
   SUBROUTINE ilist_reset(87,3621
 
-cp_parser_ilist_types.F,81
+cp_parser_ilist_types.F,106
+  TYPE ilist_type22,910
   SUBROUTINE create_ilist_type(39,1595
   SUBROUTINE release_ilist_type(66,2634
 
@@ -1774,7 +1930,8 @@ cp_parser_inpp_methods.F,217
   FUNCTION inpp_find_variable(508,21094
   SUBROUTINE inpp_list_variables(532,21921
 
-cp_parser_inpp_types.F,79
+cp_parser_inpp_types.F,103
+  TYPE inpp_type23,974
   SUBROUTINE create_inpp_type(52,2192
   SUBROUTINE release_inpp_type(95,3930
 
@@ -1802,11 +1959,13 @@ cp_parser_methods.F,932
   SUBROUTINE read_float_object(1315,53907
   SUBROUTINE read_integer_object(1380,56091
 
-cp_parser_status_types.F,83
+cp_parser_status_types.F,109
+  TYPE status_type22,968
   SUBROUTINE create_status_type(43,1938
   SUBROUTINE release_status_type(72,3167
 
-cp_parser_types.F,149
+cp_parser_types.F,179
+  TYPE cp_parser_type78,4051
   SUBROUTINE parser_retain(107,5693
   SUBROUTINE parser_release(130,6546
   SUBROUTINE parser_create(167,8146
@@ -1821,7 +1980,11 @@ cp_result_methods.F,265
   SUBROUTINE cp_results_erase(354,14947
   SUBROUTINE cp_results_mp_bcast(433,18459
 
-cp_result_types.F,435
+cp_result_types.F,571
+  TYPE cp_result_value_type55,2263
+  TYPE cp_result_value_p_type63,2696
+  TYPE cp_result_type75,3303
+  TYPE cp_result_p_type83,3708
   SUBROUTINE cp_result_create(96,4167
   SUBROUTINE cp_result_release(126,5393
   SUBROUTINE cp_result_clean(166,7097
@@ -1837,7 +2000,9 @@ cp_subsys_methods.F,87
   SUBROUTINE cp_subsys_read_colvar(72,3722
   SUBROUTINE create_small_subsys(111,5439
 
-cp_subsys_types.F,291
+cp_subsys_types.F,354
+  TYPE cp_subsys_type80,4058
+  TYPE cp_subsys_p_type108,5413
   SUBROUTINE cp_subsys_create(124,5998
   SUBROUTINE cp_subsys_retain(163,7583
   SUBROUTINE cp_subsys_release(190,8637
@@ -1849,7 +2014,10 @@ cp_subsys_types.F,291
 cp_symmetry.F,37
   SUBROUTINE write_symmetry(57,2480
 
-cp_units.F,742
+cp_units.F,835
+  TYPE cp_unit_type122,5534
+  TYPE cp_unit_p_type132,5974
+  TYPE cp_unit_set_type140,6287
   SUBROUTINE cp_unit_create(155,6870
   SUBROUTINE cp_unit_create2(446,17442
   SUBROUTINE cp_unit_retain(553,21542
@@ -1869,7 +2037,8 @@ cp_units.F,742
   SUBROUTINE print_all_units(1543,63082
   SUBROUTINE print_section_unit(1602,66813
 
-cpot_types.F,132
+cpot_types.F,155
+TYPE cpot_type39,1727
   SUBROUTINE cpot_create(58,2403
 SUBROUTINE cpot_retain(118,5019
 SUBROUTINE cpot_release(142,5966
@@ -1894,7 +2063,9 @@ csvr_system_mapping.F,186
   SUBROUTINE setup_csvr_thermostat 184,8347
   SUBROUTINE csvr_to_shell_mapping(236,10831
 
-csvr_system_types.F,152
+csvr_system_types.F,216
+  TYPE csvr_thermo_type39,1847
+  TYPE csvr_system_type48,2299
   SUBROUTINE csvr_init(66,3135
   SUBROUTINE csvr_thermo_create(96,4455
   SUBROUTINE csvr_dealloc 151,6927
@@ -1986,7 +2157,10 @@ SUBROUTINE poly_derive3(1702,67043
 SUBROUTINE poly_cp2k2d3(1786,70398
 SUBROUTINE poly_d32cp2k(1839,72364
 
-damping_dipole_types.F,115
+damping_dipole_types.F,206
+  TYPE damping_info_type30,1096
+  TYPE damping_type37,1458
+  TYPE damping_p_type43,1574
   SUBROUTINE damping_p_create(63,2181
   SUBROUTINE damping_p_release(92,3392
   SUBROUTINE init_damping(116,4250
@@ -2001,7 +2175,8 @@ dft_plus_u.F,136
   SUBROUTINE mulliken(900,38044
   SUBROUTINE mulliken_charges(1581,65642
 
-dg_rho0_types.F,260
+dg_rho0_types.F,288
+  TYPE dg_rho0_type43,1911
   SUBROUTINE dg_rho0_set 60,2449
   SUBROUTINE dg_rho0_get 86,3626
   SUBROUTINE dg_rho0_create 110,4756
@@ -2010,7 +2185,9 @@ dg_rho0_types.F,260
   SUBROUTINE dg_rho0_init 209,8484
   SUBROUTINE dg_rho0_pme_gauss 232,9524
 
-dg_types.F,157
+dg_types.F,204
+  TYPE dg_type23,964
+  TYPE dg_p_type31,1195
   SUBROUTINE dg_get 49,1711
   SUBROUTINE dg_create 67,2443
   SUBROUTINE dg_retain 99,3546
@@ -2043,7 +2220,11 @@ SUBROUTINE dg_int_patch_simple_1d 922,33831
 SUBROUTINE dg_int_patch_folded_3d 948,34592
 SUBROUTINE dg_int_patch_folded_1d 978,35570
 
-dict__keytype___valuetype_.template,442
+dict__keytype___valuetype_.template,552
+  TYPE private_item_type38,1322
+  TYPE private_item_p_type47,1648
+  TYPE dict_53,1842
+  TYPE dict_60,2148
 FUNCTION hash_str(93,3380
 SUBROUTINE dict_[dict_118,4452
 FUNCTION dict_[dict_144,5440
@@ -2058,7 +2239,11 @@ FUNCTION dict_[dict_397,15360
 FUNCTION dict_[dict_436,16836
 SUBROUTINE dict_[dict_474,18310
 
-dict_i4tuple_callstat.F,600
+dict_i4tuple_callstat.F,757
+  TYPE private_item_type40,1478
+  TYPE private_item_p_type49,1836
+  TYPE dict_i4tuple_callstat_type55,2030
+  TYPE dict_i4tuple_callstat_item_type62,2326
 FUNCTION hash_str(95,3520
 SUBROUTINE dict_i4tuple_callstat_init(122,4590
 FUNCTION dict_i4tuple_callstat_isready(150,5602
@@ -2073,7 +2258,11 @@ FUNCTION dict_i4tuple_callstat_haskey(426,15708
 FUNCTION dict_i4tuple_callstat_items(467,17131
 SUBROUTINE dict_i4tuple_callstat_update(507,18641
 
-dict_str_i4.F,500
+dict_str_i4.F,637
+  TYPE private_item_type38,1438
+  TYPE private_item_p_type47,1789
+  TYPE dict_str_i4_type53,1983
+  TYPE dict_str_i4_item_type60,2259
 FUNCTION hash_str(93,3306
 SUBROUTINE dict_str_i4_init(120,4376
 FUNCTION dict_str_i4_isready(147,5308
@@ -2093,7 +2282,11 @@ dimer_methods.F,142
   SUBROUTINE  remove_rot_transl_component 192,9403
   SUBROUTINE  cp_eval_at_ts_low 251,12055
 
-dimer_types.F,121
+dimer_types.F,261
+  TYPE dimer_rotational_type45,1983
+  TYPE dimer_translational_type59,2708
+  TYPE dimer_cg_rot_type70,3165
+  TYPE dimer_env_type81,3692
   SUBROUTINE dimer_env_create(97,4358
   SUBROUTINE dimer_env_retain(199,9252
   SUBROUTINE dimer_env_release(222,10148
@@ -2103,7 +2296,10 @@ dimer_utils.F,107
   SUBROUTINE update_dimer_vec(73,3139
   SUBROUTINE get_theta(122,5375
 
-distribution_1d_types.F,423
+distribution_1d_types.F,532
+  TYPE local_particle_type58,2897
+  TYPE distribution_1d_type81,3992
+  TYPE distribution_1d_p_type97,4712
 SUBROUTINE distribution_1d_create(117,5553
 SUBROUTINE distribution_1d_retain(188,8268
 SUBROUTINE distribution_1d_release(215,9372
@@ -2114,7 +2310,8 @@ SUBROUTINE distribution_1d_build_gdist(460,20318
 SUBROUTINE distribution_1d_destroy_gdist(616,26815
 SUBROUTINE distribution_1d_write(656,28512
 
-distribution_2d_types.F,322
+distribution_2d_types.F,358
+  TYPE distribution_2d_type68,3264
 SUBROUTINE distribution_2d_create(94,4457
 SUBROUTINE distribution_2d_retain(241,11772
 SUBROUTINE distribution_2d_release(259,12522
@@ -2227,7 +2424,12 @@ dm_ls_scf_qs.F,291
   SUBROUTINE ls_scf_dm_to_ks(473,21141
   SUBROUTINE write_matrix_to_cube(507,22435
 
-dm_ls_scf_types.F,38
+dm_ls_scf_types.F,198
+  TYPE ls_mstruct_type36,1632
+  TYPE ls_mat_history_type42,1789
+  TYPE ls_scf_curvy_type47,1922
+  TYPE chebyshev_type71,3293
+  TYPE ls_scf_env_type81,3676
   SUBROUTINE ls_scf_release(138,5610
 
 efield_utils.F,119
@@ -2246,7 +2448,9 @@ eip_environment.F,109
   SUBROUTINE eip_init_subsys(194,9777
   SUBROUTINE eip_init_model(291,14137
 
-eip_environment_types.F,226
+eip_environment_types.F,301
+  TYPE eip_environment_type91,4568
+  TYPE eip_environment_p_type120,6245
   SUBROUTINE eip_env_retain(135,6864
   SUBROUTINE eip_env_release(165,8072
   SUBROUTINE eip_env_get(253,11956
@@ -2304,12 +2508,18 @@ ep_methods.F,595
 ep_qs_methods.F,33
 SUBROUTINE ep_qs_create(39,1549
 
-ep_qs_types.F,98
+ep_qs_types.F,148
+TYPE ep_qs_type38,1618
+TYPE ep_qs_p_type50,2107
 SUBROUTINE ep_qs_retain(63,2559
 SUBROUTINE ep_qs_release(88,3528
 SUBROUTINE ep_qs_set(124,5009
 
-ep_types.F,511
+ep_types.F,628
+  TYPE ep_energy_type64,3312
+  TYPE ep_force_type74,3747
+  TYPE ep_env_type110,5586
+  TYPE ep_env_p_type137,6888
   SUBROUTINE ep_energy_zero(152,7414
   SUBROUTINE ep_env_retain(174,8261
   SUBROUTINE ep_env_release(201,9316
@@ -2335,13 +2545,16 @@ et_coupling.F,115
   SUBROUTINE becke_restraint(290,11739
   SUBROUTINE becke_force(458,19264
 
-et_coupling_types.F,178
+et_coupling_types.F,210
+  TYPE et_coupling_type40,1383
     SUBROUTINE et_coupling_create(51,1859
     SUBROUTINE get_et_coupling_type(77,2748
     SUBROUTINE set_et_coupling_type(94,3503
     SUBROUTINE et_coupling_release(111,4261
 
-ewald_environment_types.F,288
+ewald_environment_types.F,366
+  TYPE ewald_environment_type50,2566
+  TYPE ewald_environment_p_type80,4304
   SUBROUTINE ewald_env_get(108,5194
   SUBROUTINE ewald_env_set(168,8171
   SUBROUTINE ewald_env_create 226,10857
@@ -2354,7 +2567,8 @@ ewald_pw_methods.F,82
 SUBROUTINE ewald_pw_grid_change 61,2795
 SUBROUTINE ewald_pw_rho0_setup 143,6625
 
-ewald_pw_types.F,228
+ewald_pw_types.F,257
+  TYPE ewald_pw_type68,3599
   SUBROUTINE ewald_pw_retain(83,4191
   SUBROUTINE ewald_pw_create 104,5025
   SUBROUTINE ewald_pw_release 142,6613
@@ -2383,8 +2597,10 @@ ewalds_multipole.F,371
   SUBROUTINE ewald_multipole_self 1050,50201
   SUBROUTINE ewald_multipole_print(1203,57339
 
-ewalds_multipole_debug.F,329
+ewalds_multipole_debug.F,394
 SUBROUTINE debug_ewald_multipoles(11,608
+  TYPE charge_mono_type35,1974
+  TYPE multi_charge_type41,2201
   SUBROUTINE debug_ewald_multipole_low(349,15272
   SUBROUTINE create_multi_type(477,21269
   SUBROUTINE release_multi_type(602,27573
@@ -2392,7 +2608,8 @@ SUBROUTINE debug_ewald_multipoles(11,608
 SUBROUTINE debug_ewald_multipoles_fields(709,32550
 SUBROUTINE debug_ewald_multipoles_fields2(904,41415
 
-exclusion_types.F,39
+exclusion_types.F,68
+  TYPE exclusion_type19,869
  SUBROUTINE exclusion_release(38,1515
 
 extended_system_dynamics.F,224
@@ -2425,7 +2642,12 @@ extended_system_mapping.F,339
   SUBROUTINE setup_nhc_thermostat 480,21110
   SUBROUTINE nhc_to_shell_mapping(539,23742
 
-extended_system_types.F,157
+extended_system_types.F,311
+  TYPE npt_info_type43,1794
+  TYPE nhc_info_type51,2026
+  TYPE point_info_type61,2327
+  TYPE map_info_type66,2496
+  TYPE lnhc_parameters_type76,3013
   SUBROUTINE lnhc_init(94,3864
   SUBROUTINE create_map_info_type(123,5078
   SUBROUTINE release_map_info_type(150,6138
@@ -2434,7 +2656,12 @@ extended_system_types.F,157
 external_potential_methods.F,45
   SUBROUTINE add_external_potential(51,2481
 
-external_potential_types.F,938
+external_potential_types.F,1116
+  TYPE all_potential_type74,3667
+  TYPE fist_potential_type89,4425
+  TYPE gth_potential_type109,5224
+  TYPE all_potential_p_type151,7242
+  TYPE gth_potential_p_type155,7368
   SUBROUTINE allocate_all_potential(226,9435
   SUBROUTINE allocate_fist_potential(254,10536
   SUBROUTINE allocate_gth_potential(287,11716
@@ -2939,7 +3166,9 @@ RECURSIVE SUBROUTINE cp_ep_init(245,8549
 RECURSIVE SUBROUTINE cp_ep_calc_e_f(254,8827
 SUBROUTINE cp_do_shake(263,9140
 
-f77_interface.F,1063
+f77_interface.F,1119
+  TYPE f_env_p_type127,7125
+  TYPE f_env_type132,7290
  SUBROUTINE init_f77_default(163,8658
   FUNCTION get_pos_of_env(176,9190
   SUBROUTINE init_cp2k(198,10029
@@ -2972,7 +3201,9 @@ farming_methods.F,78
   SUBROUTINE get_next_job(40,1897
   SUBROUTINE farming_parse_input(104,4128
 
-farming_types.F,168
+farming_types.F,223
+  TYPE job_type21,861
+  TYPE farming_env_type31,1518
 SUBROUTINE init_farming_env(59,3040
 ELEMENTAL SUBROUTINE init_job_type(85,4119
 SUBROUTINE deallocate_job_type(102,4644
@@ -2983,7 +3214,10 @@ fermi_utils.F,98
  SUBROUTINE FermiFixed(119,4522
  SUBROUTINE FermiFixedDeriv(199,7203
 
-fft_tools.F,963
+fft_tools.F,1066
+  TYPE fft_scratch_sizes60,2924
+  TYPE fft_scratch_type75,3751
+  TYPE fft_scratch_pool_type118,5965
   SUBROUTINE init_fft 188,8625
   SUBROUTINE finalize_fft(289,12591
   SUBROUTINE fft_radix_operations 324,13900
@@ -3009,7 +3243,8 @@ fft_tools.F,963
  SUBROUTINE sparse_alltoall 3482,138651
   SUBROUTINE is_equal(3532,140472
 
-fist_energy_types.F,127
+fist_energy_types.F,159
+  TYPE fist_energy_type26,1062
   SUBROUTINE allocate_fist_energy(49,1733
   SUBROUTINE deallocate_fist_energy(73,2581
   SUBROUTINE init_fist_energy(98,3528
@@ -3018,7 +3253,9 @@ fist_environment.F,73
   SUBROUTINE fist_init 98,5542
   SUBROUTINE fist_init_subsys 252,13714
 
-fist_environment_types.F,232
+fist_environment_types.F,309
+  TYPE fist_environment_type78,4396
+  TYPE fist_environment_p_type104,5697
   SUBROUTINE fist_env_get(135,6590
   SUBROUTINE init_fist_env 233,11963
   SUBROUTINE fist_env_set(270,13325
@@ -3026,7 +3263,8 @@ fist_environment_types.F,232
   SUBROUTINE fist_env_retain(454,21351
   SUBROUTINE fist_env_release(480,22426
 
-fist_force.F,113
+fist_force.F,149
+  TYPE debug_variables_type85,4733
   SUBROUTINE fist_force_control(113,6293
   SUBROUTINE print_fist(900,44699
   SUBROUTINE fist_dipole(938,46659
@@ -3040,18 +3278,24 @@ fist_main.F,44
 fist_neighbor_list_control.F,35
   SUBROUTINE list_control 63,2919
 
-fist_neighbor_list_types.F,131
+fist_neighbor_list_types.F,205
+  TYPE neighbor_kind_pairs_type27,1206
+  TYPE fist_neighbor_type49,2535
   SUBROUTINE fist_neighbor_deallocate(69,3265
   SUBROUTINE fist_neighbor_init(132,6720
   SUBROUTINE fist_neighbor_add(259,13664
 
-fist_neighbor_lists.F,182
+fist_neighbor_lists.F,214
+  TYPE local_atoms_type68,3566
   SUBROUTINE build_fist_neighbor_lists(85,4166
   SUBROUTINE build_neighbor_lists(268,11725
   SUBROUTINE write_neighbor_lists(658,29770
   SUBROUTINE sort_neighbor_lists(747,33832
 
-fist_nonbond_env_types.F,278
+fist_nonbond_env_types.F,363
+  TYPE pos_type36,1736
+  TYPE eam_type40,1791
+  TYPE fist_nonbond_env_type45,1934
   SUBROUTINE fist_nonbond_env_get(75,3473
   SUBROUTINE fist_nonbond_env_set(150,7805
   SUBROUTINE fist_nonbond_env_create(221,11935
@@ -3081,7 +3325,9 @@ force_env_methods.F,362
   RECURSIVE SUBROUTINE qmmm_energy_and_forces_low(1088,54328
   SUBROUTINE mixed_energy_forces(1279,63925
 
-force_env_types.F,487
+force_env_types.F,551
+  TYPE force_env_type153,7712
+  TYPE force_env_p_type183,9480
   SUBROUTINE force_env_retain(200,10059
   RECURSIVE SUBROUTINE force_env_release(229,11163
   RECURSIVE SUBROUTINE force_env_get(315,15501
@@ -3101,7 +3347,18 @@ force_env_utils.F,199
   SUBROUTINE write_stress_tensor(433,19603
   SUBROUTINE write_forces(512,23150
 
-force_field_types.F,944
+force_field_types.F,1291
+  TYPE bond_kind_type36,1559
+  TYPE bend_kind_type43,1836
+  TYPE ub_kind_type51,2179
+  TYPE torsion_kind_type58,2449
+  TYPE impr_kind_type67,2822
+  TYPE opbend_kind_type74,3095
+  TYPE input_info_type81,3372
+  TYPE charmm_info_type141,7172
+  TYPE amber_info_type178,9480
+  TYPE gromos_info_type201,10872
+  TYPE force_field_type223,12231
   SUBROUTINE allocate_bend_kind_set(282,14593
   SUBROUTINE allocate_bond_kind_set(318,16065
   SUBROUTINE allocate_torsion_kind_set(349,17310
@@ -3201,14 +3458,16 @@ fp_methods.F,66
   SUBROUTINE fp_eval(51,2226
   SUBROUTINE smooth_count(222,9255
 
-fp_types.F,181
+fp_types.F,204
+  TYPE fp_type36,1656
   SUBROUTINE fp_env_create(64,2783
   SUBROUTINE fp_env_release(91,3702
   SUBROUTINE fp_env_retain(120,4815
   SUBROUTINE fp_env_read(140,5604
   SUBROUTINE fp_env_write(186,7848
 
-fparser.F,725
+fparser.F,746
+  TYPE tComp84,5573
   SUBROUTINE finalizef(99,6206
   SUBROUTINE initf 131,7528
   SUBROUTINE parsef 149,8201
@@ -3246,11 +3505,16 @@ free_energy_methods.F,535
   SUBROUTINE eval_cov_matrix(732,32736
   SUBROUTINE dump_ac_info(798,35814
 
-free_energy_types.F,74
+free_energy_types.F,193
+  TYPE ui_var_type38,1515
+  TYPE ui_conv_type44,1759
+  TYPE statistical_type58,2521
+  TYPE free_energy_type65,2810
   SUBROUTINE fe_env_create(88,3858
   SUBROUTINE fe_env_release(167,8067
 
-ga_environment_types.F,142
+ga_environment_types.F,176
+  TYPE ga_environment_type27,965
   SUBROUTINE init_ga_env 50,1746
   SUBROUTINE ga_env_release 87,2933
   SUBROUTINE ga_env_retain 114,3962
@@ -3276,7 +3540,8 @@ SUBROUTINE integrateGaussFull(504,21230
 SUBROUTINE integrateGaussFullFlat(540,22913
 SUBROUTINE collocGauss_safe(576,24610
 
-gaussian_gridlevels.F,135
+gaussian_gridlevels.F,170
+  TYPE gridlevel_info_type32,1481
   SUBROUTINE init_gaussian_gridlevel(49,2105
   SUBROUTINE destroy_gaussian_gridlevel(73,3170
   FUNCTION gaussian_gridlevel(132,5765
@@ -3295,7 +3560,9 @@ gle_system_dynamics.F,287
   SUBROUTINE restart_gle(397,16775
   SUBROUTINE init_gle_variables 495,20818
 
-gle_system_types.F,107
+gle_system_types.F,162
+  TYPE gle_thermo_type38,1652
+  TYPE gle_type46,2051
   SUBROUTINE gle_init(65,2857
   SUBROUTINE gle_thermo_create(170,6351
   SUBROUTINE gle_dealloc 236,9132
@@ -3303,7 +3570,8 @@ gle_system_types.F,107
 glob_matching.F,41
 RECURSIVE FUNCTION string_match(39,1070
 
-global_types.F,111
+global_types.F,150
+  TYPE global_environment_type75,2869
   SUBROUTINE globenv_create(101,4135
 SUBROUTINE globenv_retain(138,5621
 SUBROUTINE globenv_release(163,6599
@@ -3333,18 +3601,25 @@ gopt_f_methods.F,615
   SUBROUTINE geo_opt_io(816,37255
   SUBROUTINE apply_cell_change(873,39826
 
-gopt_f_types.F,132
+gopt_f_types.F,159
+  TYPE gopt_f_type59,3223
   RECURSIVE SUBROUTINE gopt_f_create(87,4697
   SUBROUTINE gopt_f_retain(189,9942
   RECURSIVE SUBROUTINE gopt_f_release(214,10927
 
-gopt_param_types.F,163
+gopt_param_types.F,226
+  TYPE cg_ls_param_type49,2344
+  TYPE gopt_param_type56,2630
   SUBROUTINE gopt_param_create(81,3743
   SUBROUTINE gopt_param_read(111,4842
   SUBROUTINE gopt_param_retain(190,9275
   SUBROUTINE gopt_param_release(215,10286
 
-graphcon.F,332
+graphcon.F,435
+    TYPE graph_type35,1695
+    TYPE vertex40,1872
+    TYPE class46,2059
+    TYPE superclass57,2436
     SUBROUTINE hash_molecule(77,3359
     SUBROUTINE reorder_graph(130,5745
     RECURSIVE SUBROUTINE spread_superclass(327,13669
@@ -3354,7 +3629,9 @@ graphcon.F,332
   FUNCTION joaat_hash_i(454,19255
         SUBROUTINE all_permutations(497,21344
 
-harris_energy_types.F,260
+harris_energy_types.F,330
+  TYPE harris_energy_type56,2323
+  TYPE harris_energy_p_type82,3832
   SUBROUTINE harris_energy_retain(99,4546
   SUBROUTINE harris_energy_release(131,5903
   SUBROUTINE harris_energy_get(180,8020
@@ -3362,7 +3639,9 @@ harris_energy_types.F,260
   SUBROUTINE harris_energy_clear(308,14051
   SUBROUTINE harris_energy_create(352,15823
 
-harris_env_types.F,242
+harris_env_types.F,306
+  TYPE harris_env_type60,2568
+  TYPE harris_env_p_type79,3539
   SUBROUTINE harris_env_retain(96,4236
   SUBROUTINE harris_env_release(128,5560
   SUBROUTINE harris_env_get(183,7844
@@ -3378,7 +3657,9 @@ harris_force.F,295
   SUBROUTINE harris_force_test_rho_elec(1364,60289
   SUBROUTINE harris_force_test_integral_vxc(1458,64262
 
-harris_force_types.F,256
+harris_force_types.F,324
+  TYPE harris_force_type64,2978
+  TYPE harris_force_p_type95,4806
   SUBROUTINE harris_force_retain(112,5513
   SUBROUTINE harris_force_release(144,6857
   SUBROUTINE harris_force_get(274,13255
@@ -3401,7 +3682,9 @@ hartree_local_methods.F,258
   SUBROUTINE Vh_1c_atom_energy(518,20883
   SUBROUTINE Vh_1c_atom_integrals(588,23822
 
-hartree_local_types.F,337
+hartree_local_types.F,404
+  TYPE ecoul_1center_type23,836
+  TYPE hartree_local_type30,1148
   SUBROUTINE  allocate_ecoul_1center(49,1677
   SUBROUTINE  deallocate_ecoul_1center(81,2860
   SUBROUTINE get_ecoul_1c(118,4241
@@ -3503,6 +3786,9 @@ helium_sampling.F,253
   SUBROUTINE helium_try_permutations(324,14113
   FUNCTION helium_slice_metro_cyclic(386,16470
   FUNCTION helium_select_permutation(810,31611
+
+helium_types.F,36
+  TYPE helium_solvent_type132,7471
 
 hfx_admm_utils.F,111
   SUBROUTINE  admm_density_matrix(91,4529
@@ -4779,6 +5065,14 @@ hfx_libint_wrapper.F,752
   SUBROUTINE get_eris(329,12247
   SUBROUTINE get_derivs(338,12633
 
+hfx_libint_wrapper_types.F,152
+  TYPE prim_data106,3446
+  TYPE lib_int122,3890
+  TYPE lib_deriv131,4168
+  TYPE prim_data146,4718
+  TYPE lib_int162,5162
+  TYPE lib_deriv171,5440
+
 hfx_load_balance_methods.F,570
   SUBROUTINE hfx_load_balance(130,7716
 SUBROUTINE hfx_recursive_load_balance(920,42165
@@ -4823,7 +5117,33 @@ hfx_screening_methods.F,237
   SUBROUTINE optimize_it(817,33284
   PURE FUNCTION get_1D_idx(890,35728
 
-hfx_types.F,713
+hfx_types.F,1597
+  TYPE hfx_potential_type112,6047
+  TYPE hfx_screening_type123,6810
+  TYPE hfx_memory_type131,7278
+  TYPE hfx_periodic_type152,8615
+  TYPE hfx_load_balance_type162,9202
+  TYPE hfx_general_type172,9685
+  TYPE hfx_cell_type178,9955
+  TYPE hfx_distribution184,10182
+  TYPE pair_list_element_type195,10724
+  TYPE pair_set_list_type204,11047
+  TYPE pair_list_type209,11201
+  TYPE hfx_compression_type215,11430
+  TYPE hfx_cache_type222,11738
+  TYPE hfx_container_node228,11969
+  TYPE hfx_container_type234,12199
+  TYPE hfx_basis_type244,12668
+  TYPE hfx_basis_info_type265,13708
+  TYPE hfx_screen_coeff_type272,13994
+  TYPE hfx_p_kind277,14168
+  TYPE hfx_2D_map282,14333
+  TYPE hfx_pgf_image288,14561
+  TYPE hfx_pgf_list298,15001
+  TYPE hfx_pgf_product_list309,15509
+  TYPE hfx_block_range_type319,16019
+  TYPE hfx_task_list_type325,16200
+  TYPE hfx_type366,18603
   SUBROUTINE hfx_create(455,23511
   SUBROUTINE erfc_cutoff(881,46081
     SUBROUTINE eval_transc_func(914,47149
@@ -5270,14 +5590,17 @@ input_cp2k_xc.F,287
   SUBROUTINE create_xc_section(1021,55188
   SUBROUTINE create_adiabatic_section(1149,61498
 
-input_enumeration_types.F,155
+input_enumeration_types.F,187
+  TYPE enumeration_type38,1689
 SUBROUTINE enum_create(59,2528
 SUBROUTINE enum_retain(121,5008
 SUBROUTINE enum_release(145,5946
 FUNCTION enum_i2c(181,7438
 FUNCTION enum_c2i(231,9184
 
-input_keyword_types.F,326
+input_keyword_types.F,384
+  TYPE keyword_p_type58,2904
+  TYPE keyword_type91,4566
   SUBROUTINE keyword_create(115,5560
   SUBROUTINE keyword_retain(408,19562
   SUBROUTINE keyword_release(432,20570
@@ -5303,7 +5626,11 @@ input_parsing.F,128
   SUBROUTINE val_create_parsing(389,20070
   SUBROUTINE get_r_val(743,37335
 
-input_section_types.F,1926
+input_section_types.F,2055
+  TYPE section_p_type83,4193
+  TYPE section_type106,5270
+  TYPE section_vals_p_type121,6056
+  TYPE section_vals_type129,6387
   SUBROUTINE section_create(152,7474
   SUBROUTINE section_retain(231,10781
   RECURSIVE SUBROUTINE section_release(256,11791
@@ -5345,7 +5672,9 @@ input_section_types.F,1926
   SUBROUTINE section_vals_duplicate(2343,108881
   RECURSIVE SUBROUTINE section_vals_copy(2376,110429
 
-input_val_types.F,239
+input_val_types.F,289
+  TYPE val_p_type51,2256
+  TYPE val_type65,2942
 SUBROUTINE val_create(92,4210
 SUBROUTINE val_release(293,12420
 SUBROUTINE val_retain(341,14242
@@ -5367,7 +5696,9 @@ integrator.F,371
   SUBROUTINE npt_f 2194,99908
   SUBROUTINE nve_respa 2516,114569
 
-integrator_utils.F,784
+integrator_utils.F,852
+  TYPE old_variables_type57,3053
+  TYPE tmp_variables_type66,3435
   SUBROUTINE allocate_old 107,4888
   SUBROUTINE deallocate_old 150,6629
   SUBROUTINE allocate_tmp 195,8387
@@ -5397,7 +5728,8 @@ iterate_matrix.F,272
   SUBROUTINE purify_mcweeny_orth(578,24860
   SUBROUTINE purify_mcweeny_nonorth(635,27473
 
-k290.F,663
+k290.F,688
+  TYPE csym_type47,2088
   SUBROUTINE release_csym_type(117,6277
   SUBROUTINE kp_sym_gen(145,7286
   SUBROUTINE print_crys_symmetry(276,12259
@@ -5460,10 +5792,15 @@ kg_environment.F,241
   SUBROUTINE write_to_file(434,18250
   SUBROUTINE kg_build_subsets(496,20007
 
-kg_environment_types.F,37
+kg_environment_types.F,99
+  TYPE subset_type33,1396
+  TYPE kg_environment_type52,2364
   SUBROUTINE kg_env_release(69,3180
 
-kg_min_heap.F,781
+kg_min_heap.F,852
+  TYPE heap_node20,688
+  TYPE heap_node_e25,791
+  TYPE heap_t29,863
   ELEMENTAL FUNCTION get_parent(47,1234
   ELEMENTAL FUNCTION get_left_child(54,1440
   ELEMENTAL FUNCTION get_right_child(61,1646
@@ -5485,7 +5822,9 @@ kg_min_heap.F,781
   SUBROUTINE bubble_up 354,10525
   SUBROUTINE heap_check 394,11789
 
-kg_vertex_coloring_methods.F,585
+kg_vertex_coloring_methods.F,636
+  TYPE vertex41,2023
+  TYPE vertex_p_type49,2265
   SUBROUTINE kg_create_graph(59,2475
   SUBROUTINE color_graph_greedy(146,5046
   SUBROUTINE print_subsets(194,6543
@@ -5523,13 +5862,16 @@ lapack.F,417
 lazy.F,34
   SUBROUTINE lazy_arrays(33,1082
 
-lebedev.F,177
+lebedev.F,200
+  TYPE oh_grid81,3626
   FUNCTION get_number_of_lebedev_grid(112,4701
   SUBROUTINE load_sub_grid(157,6398
   SUBROUTINE deallocate_lebedev_grids(323,12209
   SUBROUTINE init_lebedev_grids(340,12752
 
-lgrid_types.F,142
+lgrid_types.F,196
+  TYPE lgrid_type30,1251
+  TYPE lgrid_p_type35,1366
 SUBROUTINE lgrid_create(52,2011
 SUBROUTINE lgrid_retain(92,3466
 SUBROUTINE lgrid_release(119,4494
@@ -5555,7 +5897,10 @@ SUBROUTINE ch_inv_pdsym 45,1633
 SUBROUTINE ch_inv_pdher 84,3024
 SUBROUTINE solve_system 124,4441
 
-list__valuetype_.template,426
+list__valuetype_.template,515
+  TYPE private_item_type35,1195
+  TYPE private_item_p_type41,1339
+  TYPE list_47,1525
 FUNCTION list_[list_78,2493
 SUBROUTINE list_[list_94,3233
 SUBROUTINE list_[list_123,4457
@@ -5570,7 +5915,10 @@ SUBROUTINE list_[list_310,11670
 FUNCTION list_[list_335,12508
 SUBROUTINE change_capacity(352,13103
 
-list_callstackentry.F,587
+list_callstackentry.F,695
+  TYPE private_item_type35,1260
+  TYPE private_item_p_type41,1415
+  TYPE list_callstackentry_type47,1601
 FUNCTION list_callstackentry_isready(78,2614
 SUBROUTINE list_callstackentry_init(96,3403
 SUBROUTINE list_callstackentry_destroy(126,4618
@@ -5585,7 +5933,10 @@ SUBROUTINE list_callstackentry_del(327,12395
 FUNCTION list_callstackentry_size(354,13334
 SUBROUTINE change_capacity(372,14002
 
-list_routinestat.F,551
+list_routinestat.F,656
+  TYPE private_item_type35,1251
+  TYPE private_item_p_type41,1412
+  TYPE list_routinestat_type47,1598
 FUNCTION list_routinestat_isready(78,2566
 SUBROUTINE list_routinestat_init(96,3343
 SUBROUTINE list_routinestat_destroy(126,4540
@@ -5600,7 +5951,10 @@ SUBROUTINE list_routinestat_del(330,12308
 FUNCTION list_routinestat_size(357,13229
 SUBROUTINE change_capacity(375,13885
 
-list_timerenv.F,515
+list_timerenv.F,617
+  TYPE private_item_type35,1242
+  TYPE private_item_p_type41,1400
+  TYPE list_timerenv_type47,1586
 FUNCTION list_timerenv_isready(78,2509
 SUBROUTINE list_timerenv_init(95,3242
 SUBROUTINE list_timerenv_destroy(124,4389
@@ -5626,7 +5980,22 @@ lri_environment_methods.F,363
   SUBROUTINE ricontract(1034,44951
   SUBROUTINE ocontract(1079,46529
 
-lri_environment_types.F,570
+lri_environment_types.F,1047
+  TYPE lri_rhoab_type65,3651
+  TYPE lri_int_type84,4556
+  TYPE lri_paw_type111,5797
+  TYPE lri_int_node120,6272
+  TYPE lri_int_atom129,6745
+  TYPE lri_int_list134,6933
+  TYPE lri_int_p_list139,7121
+  TYPE lri_bas_norm143,7322
+  TYPE lri_bas_overlap146,7435
+  TYPE harmonics_info_type149,7554
+  TYPE lri_atom_info158,8031
+  TYPE lri_environment_type165,8361
+  TYPE lri_environment_p_type188,9631
+  TYPE lri_density_type192,9826
+  TYPE lri_density_p_type203,10363
   SUBROUTINE lri_env_create 230,11495
   SUBROUTINE lri_env_release(275,12814
   SUBROUTINE lri_density_create 392,17643
@@ -6067,7 +6436,9 @@ mc_ensembles.F,82
   SUBROUTINE mc_run_ensemble 115,6109
   SUBROUTINE mc_compute_virial 1217,53473
 
-mc_environment_types.F,174
+mc_environment_types.F,245
+  TYPE mc_environment_type21,872
+  TYPE mc_environment_p_type28,1151
   SUBROUTINE mc_env_create 51,1930
   SUBROUTINE set_mc_env 84,3081
   SUBROUTINE get_mc_env 110,4096
@@ -6110,7 +6481,17 @@ mc_run.F,87
   SUBROUTINE do_mon_car 106,4983
     SUBROUTINE equilize_mc_sim_parameters(392,17384
 
-mc_types.F,590
+mc_types.F,929
+  TYPE mc_simpar_type84,4219
+  TYPE mc_ekin_type148,6727
+  TYPE mc_input_file_type153,6959
+  TYPE mc_molecule_info_type166,7643
+  TYPE mc_simulation_parameters_p_type181,8359
+  TYPE mc_averages_type187,8599
+  TYPE mc_averages_p_type196,8952
+  TYPE mc_moves_type201,9139
+  TYPE accattempt226,10281
+  TYPE mc_moves_p_type233,10483
  SUBROUTINE get_mc_input_file 249,11010
  SUBROUTINE get_mc_par 288,13401
  SUBROUTINE get_mc_molecule_info 442,21965
@@ -6136,7 +6517,8 @@ md_conserved_quantities.F,330
   SUBROUTINE get_econs_nph_uniaxial 379,17499
   SUBROUTINE get_part_ke 404,18626
 
-md_ener_types.F,150
+md_ener_types.F,177
+  TYPE md_ener_type20,826
   SUBROUTINE create_md_ener(67,2772
   SUBROUTINE retain_md_ener(106,4150
   SUBROUTINE release_md_ener(133,5159
@@ -6150,7 +6532,8 @@ md_energies.F,237
   SUBROUTINE md_write_output(307,14140
   SUBROUTINE md_write_info_low(641,30837
 
-md_environment_types.F,234
+md_environment_types.F,269
+  TYPE md_environment_type58,3172
   SUBROUTINE md_env_create(101,5269
   SUBROUTINE md_env_retain(168,7934
   SUBROUTINE md_env_release(197,9004
@@ -6518,7 +6901,11 @@ message_l_passing.f90,2234
   SUBROUTINE mp_allocate_l(2560,93823
   SUBROUTINE mp_deallocate_l(2602,95236
 
-message_passing.F,2122
+message_passing.F,2254
+  TYPE mp_window_type384,15095
+  TYPE mp_perf_type400,15739
+  TYPE mp_perf_env_type410,16017
+  TYPE mp_perf_env_p_type417,16254
   SUBROUTINE mp_world_init(456,18066
   SUBROUTINE mp_reordering(508,20123
   SUBROUTINE mp_world_finalize(550,21715
@@ -6705,7 +7092,12 @@ metadynamics.F,252
   SUBROUTINE metadyn_write_colvar(533,23486
   SUBROUTINE hills(634,27995
 
-metadynamics_types.F,198
+metadynamics_types.F,347
+  TYPE hills_env_type44,1844
+  TYPE wall_type63,2853
+  TYPE metavar_type72,3340
+  TYPE multiple_walkers_type85,4062
+  TYPE meta_env_type98,4749
   SUBROUTINE metadyn_create(148,7540
   SUBROUTINE set_meta_env(259,12429
   SUBROUTINE meta_env_retain(284,13351
@@ -6757,7 +7149,9 @@ minimax.F,1491
    SUBROUTINE get_fit_coef_k15_mi(7750,404638
    SUBROUTINE get_fit_coef_k15_lo(8150,426035
 
-mixed_energy_types.F,130
+mixed_energy_types.F,194
+  TYPE mixed_energy_type22,874
+  TYPE mixed_force_type28,1071
   SUBROUTINE allocate_mixed_energy(49,1688
   SUBROUTINE deallocate_mixed_energy(73,2621
   SUBROUTINE init_mixed_energy(91,3328
@@ -6766,7 +7160,9 @@ mixed_environment.F,74
   SUBROUTINE mixed_init 70,3635
   SUBROUTINE mixed_init_subsys 162,8015
 
-mixed_environment_types.F,237
+mixed_environment_types.F,315
+  TYPE mixed_environment_type63,3516
+  TYPE mixed_environment_p_type92,5074
   SUBROUTINE get_mixed_env(119,5907
   SUBROUTINE init_mixed_env 188,9522
   SUBROUTINE set_mixed_env(219,10729
@@ -6785,11 +7181,13 @@ mm_collocate_potential.F,97
   SUBROUTINE collocate_gf_rspace_NoPBC(43,1772
   SUBROUTINE integrate_gf_rspace_NoPBC(155,6593
 
-mm_mapping_library.F,74
+mm_mapping_library.F,101
+  TYPE ff_map_type27,1214
   SUBROUTINE create_ff_map(49,2096
   SUBROUTINE destroy_ff_map(151,7068
 
-mode_selective.F,340
+mode_selective.F,367
+  TYPE ms_vib_type55,2890
   SUBROUTINE ms_vb_anal(84,4282
   SUBROUTINE MS_initial_moves(261,12036
   SUBROUTINE bfgs_guess(456,20641
@@ -6810,12 +7208,16 @@ mol_force.F,299
   SUBROUTINE get_pv_bend(495,20030
   SUBROUTINE get_pv_torsion(531,21521
 
-mol_kind_new_list_types.F,139
+mol_kind_new_list_types.F,217
+  TYPE mol_kind_new_list_type67,3357
+  TYPE mol_kind_new_list_p_type80,3860
 SUBROUTINE mol_kind_new_list_create(101,4728
 SUBROUTINE mol_kind_new_list_retain(157,6850
 SUBROUTINE mol_kind_new_list_release(184,7897
 
-mol_new_list_types.F,124
+mol_new_list_types.F,192
+  TYPE mol_new_list_type67,3307
+  TYPE mol_new_list_p_type80,3795
 SUBROUTINE mol_new_list_create(101,4648
 SUBROUTINE mol_new_list_retain(157,6730
 SUBROUTINE mol_new_list_release(184,7762
@@ -6826,7 +7228,23 @@ molden_utils.F,33
 molecular_states.F,49
   SUBROUTINE construct_molecular_states(78,3870
 
-molecule_kind_types.F,420
+molecule_kind_types.F,923
+  TYPE atom_type61,3153
+  TYPE shell_type67,3346
+  TYPE bond_type74,3583
+  TYPE bend_type81,3798
+  TYPE ub_type88,4015
+  TYPE torsion_type95,4224
+  TYPE impr_type102,4455
+  TYPE opbend_type109,4674
+  TYPE restraint_type116,4901
+  TYPE colvar_constraint_type122,5084
+  TYPE g3x3_constraint_type133,5594
+  TYPE g4x6_constraint_type140,5880
+  TYPE vsite_constraint_type147,6180
+  TYPE fixd_constraint_type154,6467
+  TYPE local_fixd_constraint_type161,6753
+  TYPE molecule_kind_type166,6964
   SUBROUTINE setup_colvar_counters(240,10697
   SUBROUTINE allocate_molecule_kind_set(338,14398
   SUBROUTINE deallocate_molecule_kind_set(413,18151
@@ -6837,7 +7255,14 @@ molecule_kind_types.F,420
   SUBROUTINE write_molecule_kind(1003,47991
   SUBROUTINE write_molecule_kind_set(1084,51711
 
-molecule_types_new.F,248
+molecule_types_new.F,516
+  TYPE local_colvar_constraint_type42,1915
+  TYPE local_g3x3_constraint_type50,2261
+  TYPE local_g4x6_constraint_type61,2845
+  TYPE local_molecule_type74,3604
+  TYPE local_constraint_type80,3910
+  TYPE global_constraint_type87,4281
+  TYPE molecule_type104,5345
   SUBROUTINE allocate_molecule_set(141,6829
   SUBROUTINE deallocate_molecule_set(177,8222
   SUBROUTINE get_molecule(247,11658
@@ -6845,7 +7270,8 @@ molecule_types_new.F,248
   SUBROUTINE set_molecule_set(377,16626
   SUBROUTINE molecule_of_atom(430,18361
 
-molsym.F,1035
+molsym.F,1062
+  TYPE molsym_type94,4953
   SUBROUTINE create_molsym(122,6478
   SUBROUTINE release_molsym(149,7583
   SUBROUTINE addsec(205,9745
@@ -6938,7 +7364,18 @@ mp2_ri_libint.F,162
 mp2_setup.F,39
   SUBROUTINE read_mp2_section(40,1737
 
-mp2_types.F,77
+mp2_types.F,411
+  TYPE mp2_biel_type57,2316
+  TYPE mp2_laplace_type61,2419
+  TYPE mp2_direct_type68,2598
+  TYPE mp2_potential_type72,2658
+  TYPE mp2_gpw_type78,2950
+  TYPE ri_mp2_type85,3191
+  TYPE ri_rpa_type89,3268
+  TYPE ri_basis_opt96,3504
+  TYPE mp2_type103,3709
+  TYPE integ_mat_buffer_type123,4422
+  TYPE pair_list_type_mp2129,4555
   SUBROUTINE mp2_env_release(136,4719
   SUBROUTINE mp2_env_create(164,5575
 
@@ -6960,7 +7397,8 @@ SUBROUTINE rf_deriv_check(227,9739
   SUBROUTINE multipoles_a(570,24248
   SUBROUTINE multipoles_b(618,26077
 
-multipole_types.F,136
+multipole_types.F,166
+  TYPE multipole_type45,2227
   SUBROUTINE create_multipole_type(65,3032
   SUBROUTINE release_multipole_type(176,8494
   SUBROUTINE retain_multipole_type(220,10494
@@ -6989,7 +7427,9 @@ neb_opt_utils.F,111
   FUNCTION check_diis_solution(249,11552
   SUBROUTINE  neb_ls(327,15552
 
-neb_types.F,76
+neb_types.F,128
+  TYPE neb_type38,1700
+  TYPE neb_var_type63,2745
   SUBROUTINE neb_var_create(75,3249
   SUBROUTINE neb_var_release(128,5669
 
@@ -7032,7 +7472,15 @@ optimize_basis.F,452
     SUBROUTINE init_subset_freevars(503,23174
    SUBROUTINE  output_opt_info(548,24904
 
-optimize_basis_types.F,105
+optimize_basis_types.F,363
+  TYPE exp_constraint_type23,1093
+  TYPE subset_type33,1561
+  TYPE flex_basis_type48,2355
+  TYPE use_contr_type56,2698
+  TYPE derived_basis_info61,2867
+  TYPE kind_basis_type75,3600
+  TYPE comp_group_type84,4051
+  TYPE basis_optimization_type92,4410
    SUBROUTINE deallocate_basis_optimization_type(124,5848
    SUBROUTINE deallocate_kind_basis(162,7507
 
@@ -7060,7 +7508,10 @@ optimize_basis_utils.F,1005
    SUBROUTINE parse_subset(1080,51567
    SUBROUTINE init_powell_var(1153,54645
 
-optimize_input.F,160
+optimize_input.F,243
+  TYPE fm_env_type61,3342
+  TYPE variable_type77,3850
+  TYPE oi_env_type83,4036
   SUBROUTINE run_optimize_input(104,4815
   SUBROUTINE force_matching(158,7003
   SUBROUTINE read_reference_data(509,23817
@@ -7075,7 +7526,8 @@ orbital_symbols.F,63
   FUNCTION cgf_symbol(40,1555
   FUNCTION sgf_symbol(105,3671
 
-orbital_transformation_matrices.F,190
+orbital_transformation_matrices.F,220
+  TYPE orbtramat_type46,2129
   SUBROUTINE create_spherical_harmonics(78,3103
   SUBROUTINE deallocate_spherical_harmonics(287,10080
   SUBROUTINE init_spherical_harmonics(344,11799
@@ -7093,7 +7545,24 @@ pair_potential.F,289
 pair_potential_coulomb.F,38
   FUNCTION potential_coulomb(28,1042
 
-pair_potential_types.F,3174
+pair_potential_types.F,3737
+  TYPE ipbv_pot_type112,4941
+  TYPE lj_pot_type120,5190
+  TYPE ft_pot_type127,5405
+  TYPE ftd_pot_type135,5628
+  TYPE williams_pot_type144,5879
+  TYPE goodwin_pot_type151,6089
+  TYPE eam_pot_type158,6307
+  TYPE buck4ran_pot_type167,6765
+  TYPE buckmorse_pot_type180,7176
+  TYPE gp_pot_type193,7547
+  TYPE tersoff_pot_type203,8016
+  TYPE siepmann_pot_type222,8707
+  TYPE pot_set_type233,9029
+  TYPE pair_potential_single_type250,9831
+  TYPE pair_potential_type273,10829
+  TYPE pair_potential_p_type278,11031
+  TYPE pair_potential_pp_type283,11237
   SUBROUTINE compare_pot(293,11617
   SUBROUTINE pair_potential_single_create(401,18040
   SUBROUTINE pair_potential_single_clean(451,20171
@@ -7162,7 +7631,9 @@ pair_potential_util.F,157
     SUBROUTINE zbl_matching_polinomial(192,8737
     SUBROUTINE compute_polinomial_5th(235,10745
 
-parallel_rng_types.F,1082
+parallel_rng_types.F,1148
+  TYPE rng_stream_type100,4494
+  TYPE rng_stream_p_type112,4989
   SUBROUTINE advance_rng_state(170,6536
   SUBROUTINE check_rng(242,8531
   SUBROUTINE check_seed(430,15055
@@ -7191,12 +7662,15 @@ parallel_rng_types.F,1082
   SUBROUTINE write_rng_matrices(1412,47409
   SUBROUTINE write_rng_stream(1452,48721
 
-particle_list_types.F,127
+particle_list_types.F,197
+  TYPE particle_list_type67,3315
+  TYPE particle_list_p_type80,3805
 SUBROUTINE particle_list_create(101,4661
 SUBROUTINE particle_list_retain(157,6750
 SUBROUTINE particle_list_release(184,7785
 
-particle_types.F,577
+particle_types.F,606
+  TYPE particle_type69,3478
   SUBROUTINE allocate_particle_set(106,4739
   SUBROUTINE deallocate_particle_set(143,6165
   SUBROUTINE get_particle_set(175,7412
@@ -7210,7 +7684,8 @@ particle_types.F,577
   FUNCTION get_particle_pos_or_vel(1121,47854
   SUBROUTINE update_particle_pos_or_vel(1155,49312
 
-paw_proj_set_types.F,248
+paw_proj_set_types.F,281
+  TYPE paw_proj_set_type51,2237
   SUBROUTINE allocate_paw_proj_set(95,4416
   SUBROUTINE deallocate_paw_proj_set(148,6216
   SUBROUTINE projectors(221,10044
@@ -7218,7 +7693,8 @@ paw_proj_set_types.F,248
   SUBROUTINE get_paw_proj_set(838,35991
   SUBROUTINE set_paw_proj_set(900,39110
 
-periodic_table.F,152
+periodic_table.F,172
+  TYPE atom32,1199
   SUBROUTINE get_ptable_info(65,2609
   SUBROUTINE init_periodic_table(120,4708
   SUBROUTINE init_eheat1431,49841
@@ -7297,6 +7773,11 @@ pint_transformations.F,95
   SUBROUTINE pint_u2x(88,3718
   SUBROUTINE pint_f2uf(137,5760
 
+pint_types.F,98
+  TYPE pint_env_type94,4555
+  TYPE normalmode_env_type132,6639
+  TYPE staging_env_type152,7311
+
 pme.F,109
   SUBROUTINE pme_evaluate 81,4128
   SUBROUTINE get_patch 421,19767
@@ -7312,7 +7793,8 @@ population_analyses.F,139
   SUBROUTINE mulliken_population_analysis(245,10698
   SUBROUTINE write_orbpop(433,18164
 
-powell.F,329
+powell.F,358
+  TYPE opt_state_type18,731
   SUBROUTINE powell_optimize 44,1760
   SUBROUTINE newuoa 91,3159
   SUBROUTINE newuob 179,7039
@@ -7356,7 +7838,9 @@ SUBROUTINE make_full_all_ortho(1608,73442
   SUBROUTINE restart_preconditioner(2648,120310
   SUBROUTINE prepare_preconditioner(2699,122609
 
-preconditioner_types.F,129
+preconditioner_types.F,201
+  TYPE preconditioner_type42,1963
+  TYPE preconditioner_p_type55,2536
   FUNCTION preconditioner_in_use(63,2748
   SUBROUTINE init_preconditioner(71,3092
   SUBROUTINE destroy_preconditioner(94,4072
@@ -7418,7 +7902,8 @@ SUBROUTINE back_trans(218,6749
 SUBROUTINE ftest(265,8159
 SUBROUTINE scf_recurs(316,9810
 
-ps_wavelet_types.F,280
+ps_wavelet_types.F,311
+  TYPE ps_wavelet_type59,2623
   SUBROUTINE ps_wavelet_create(80,3683
   SUBROUTINE ps_wavelet_release(165,7052
   SUBROUTINE RS_z_slice_distribution(188,7818
@@ -7439,7 +7924,8 @@ SUBROUTINE pw_env_rebuild(150,7454
 SUBROUTINE compute_max_radius(605,26576
   SUBROUTINE setup_super_ref_grid(810,35851
 
-pw_env_types.F,143
+pw_env_types.F,170
+  TYPE pw_env_type72,3579
 SUBROUTINE pw_env_get(98,4695
 SUBROUTINE pw_env_retain(164,7815
 SUBROUTINE pw_env_release(191,8853
@@ -7452,6 +7938,11 @@ pw_grid_info.F,237
   FUNCTION pw_grid_n_from_cutoff 219,9391
   FUNCTION pw_grid_bounds_from_n(255,10723
   FUNCTION pw_find_cutoff 280,11732
+
+pw_grid_types.F,78
+  TYPE map_pn33,1422
+  TYPE pw_para_type40,1685
+  TYPE pw_grid_type62,3145
 
 pw_grids.F,906
   SUBROUTINE pw_grid_create 99,4244
@@ -7535,7 +8026,9 @@ pw_poisson_methods.F,203
   SUBROUTINE pw_poisson_solve 251,12183
   SUBROUTINE pw_poisson_set 475,22767
 
-pw_poisson_types.F,369
+pw_poisson_types.F,430
+  TYPE pw_poisson_type78,3926
+  TYPE greens_fn_type96,4685
   SUBROUTINE pw_green_create 126,5752
   SUBROUTINE pw_green_retain(398,17075
   SUBROUTINE pw_green_release 423,17979
@@ -7546,7 +8039,9 @@ SUBROUTINE calc_p3m_charge 542,22974
   SUBROUTINE pw_poisson_release 642,26680
 SUBROUTINE spme_coeff_calculate 680,28286
 
-pw_pool_types.F,604
+pw_pool_types.F,663
+  TYPE pw_pool_type90,4624
+  TYPE pw_pool_p_type105,5201
   SUBROUTINE pw_pool_create(121,5763
   SUBROUTINE pw_pool_retain(167,7719
   SUBROUTINE pw_pool_flush_cache(203,9154
@@ -7563,7 +8058,8 @@ SUBROUTINE pw_pools_dealloc(878,38346
 SUBROUTINE pw_pools_flush_cache(910,39478
 SUBROUTINE pw_pool_write(939,40537
 
-pw_spline_utils.F,1374
+pw_spline_utils.F,1413
+  TYPE pw_spline_precond_type123,6030
   SUBROUTINE pw_spline2_interpolate_values_g(146,6964
   SUBROUTINE pw_spline3_interpolate_values_g(229,10275
   SUBROUTINE pw_spline2_evaluate_values_g(316,13844
@@ -7596,7 +8092,9 @@ SUBROUTINE pw_nn_compose_r(1290,50405
   FUNCTION Eval_Interp_Spl3_pbc(4017,178624
   FUNCTION Eval_d_Interp_Spl3_pbc(4174,185228
 
-pw_types.F,95
+pw_types.F,143
+  TYPE pw_type38,1691
+  TYPE pw_p_type53,2330
   SUBROUTINE pw_retain(85,3488
 SUBROUTINE pw_release(114,4500
 SUBROUTINE pw_create(175,6949
@@ -7624,6 +8122,10 @@ qmmm_gaussian_input.F,131
   SUBROUTINE read_mm_potential(53,2310
   SUBROUTINE set_mm_potential_erf(174,7840
   SUBROUTINE set_mm_potential_swave(619,32527
+
+qmmm_gaussian_types.F,70
+  TYPE qmmm_gaussian_type25,1002
+  TYPE qmmm_gaussian_p_type40,1713
 
 qmmm_gpw_energy.F,242
   SUBROUTINE  qmmm_el_coupling(89,4702
@@ -7708,7 +8210,22 @@ qmmm_topology_util.F,95
   SUBROUTINE qmmm_coordinate_control(43,1938
   SUBROUTINE qmmm_connectivity_control(106,5007
 
-qmmm_types.F,597
+qmmm_types.F,1106
+  TYPE gridlevel_info_type68,3621
+  TYPE qmmm_pot_type76,3945
+  TYPE qmmm_pot_p_type84,4258
+  TYPE qmmm_per_pot_type91,4460
+  TYPE qmmm_per_pot_p_type102,4936
+  TYPE qmmm_imomm_link_type110,5147
+  TYPE qmmm_imomm_link_p_type116,5352
+  TYPE qmmm_pseudo_link_type121,5556
+  TYPE qmmm_pseudo_link_p_type126,5735
+  TYPE qmmm_links_type133,5960
+  TYPE add_env_type139,6226
+  TYPE add_set_type145,6416
+  TYPE image_charge_type159,7315
+  TYPE qmmm_env_qm_type171,7945
+  TYPE qmmm_env_mm_type207,10552
   SUBROUTINE qmmm_env_mm_create(228,11732
   SUBROUTINE qmmm_env_mm_retain(266,13358
   SUBROUTINE qmmm_env_mm_release(292,14415
@@ -7733,13 +8250,15 @@ qmmm_util.F,339
   SUBROUTINE spherical_cutoff_factor(519,25769
   RECURSIVE FUNCTION qmmm_force_mixing_active(536,26442
 
-qs_block_davidson_types.F,190
+qs_block_davidson_types.F,219
+  TYPE davidson_type40,1952
   SUBROUTINE block_davidson_env_create(52,2396
   SUBROUTINE block_davidson_allocate(106,4962
   SUBROUTINE block_davidson_deallocate(148,6894
   SUBROUTINE block_davidson_release(180,7933
 
-qs_charges_types.F,117
+qs_charges_types.F,148
+  TYPE qs_charges_type39,1600
 SUBROUTINE qs_charges_create(60,2455
 SUBROUTINE qs_charges_retain(108,4568
 SUBROUTINE qs_charges_release(135,5658
@@ -7783,7 +8302,9 @@ qs_core_hamiltonian.F,148
   SUBROUTINE build_atomic_relmat(464,21098
   SUBROUTINE dump_info_core_hamiltonian(512,23194
 
-qs_density_mixing_types.F,89
+qs_density_mixing_types.F,154
+  TYPE cp_1d_z_p_type35,1541
+  TYPE mixing_storage_type40,1637
   SUBROUTINE mixing_storage_create(71,3264
  SUBROUTINE mixing_storage_release(176,8035
 
@@ -7817,7 +8338,9 @@ qs_dftb_parameters.F,75
   SUBROUTINE qs_dftb_param_init 65,3050
   SUBROUTINE skreorder(724,30590
 
-qs_dftb_types.F,135
+qs_dftb_types.F,203
+  TYPE qs_dftb_atom_type26,948
+  TYPE qs_dftb_pairpot_type45,2102
   SUBROUTINE qs_dftb_pairpot_init(77,4092
   SUBROUTINE qs_dftb_pairpot_create(99,4819
   SUBROUTINE qs_dftb_pairpot_release(130,5929
@@ -7835,7 +8358,9 @@ qs_diis.F,164
   SUBROUTINE qs_diis_b_step(226,9718
   SUBROUTINE qs_diis_b_clear(548,21513
 
-qs_diis_types.F,75
+qs_diis_types.F,147
+  TYPE qs_diis_buffer_type34,1358
+  TYPE qs_diis_buffer_p_type48,1974
 SUBROUTINE qs_diis_b_retain(63,2538
 SUBROUTINE qs_diis_b_release(90,3615
 
@@ -7853,7 +8378,8 @@ qs_dispersion_nonloc.F,549
   SUBROUTINE interpolate_kernel(1149,52216
   SUBROUTINE interpolate_dkernel_dk(1213,55109
 
-qs_dispersion_pairpot.F,580
+qs_dispersion_pairpot.F,606
+  TYPE dcnum_type89,4860
   SUBROUTINE qs_dispersion_pairpot_init(101,5286
   SUBROUTINE qs_scaling_init(324,16162
   SUBROUTINE qs_scaling_dftd3(367,17564
@@ -7869,6 +8395,12 @@ qs_dispersion_pairpot.F,580
   SUBROUTINE damping_d3(2529,132095
   SUBROUTINE getc6(2567,133135
   SUBROUTINE dcnum_distribute(2626,134892
+
+qs_dispersion_types.F,129
+  TYPE qs_dispersion_type26,1046
+  TYPE qs_atom_dispersion_type83,5070
+  TYPE cn_kind_list90,5394
+  TYPE cn_atom_list94,5540
 
 qs_efield_berry.F,215
   SUBROUTINE qs_efield_berry_phase(101,5364
@@ -7890,7 +8422,8 @@ qs_energy.F,112
   SUBROUTINE qs_energies_scf 104,4537
   SUBROUTINE qs_energies_rtp(181,7527
 
-qs_energy_types.F,204
+qs_energy_types.F,234
+  TYPE qs_energy_type31,1261
   SUBROUTINE allocate_qs_energy(87,3149
   SUBROUTINE deallocate_qs_energy(115,4092
   SUBROUTINE init_qs_energy(145,5289
@@ -7920,7 +8453,9 @@ SUBROUTINE qs_env_rebuild_pw_env(475,21748
   SUBROUTINE has_nlcc(633,28784
 SUBROUTINE qs_env_rebuild_rho(680,30796
 
-qs_environment_types.F,280
+qs_environment_types.F,356
+  TYPE qs_environment_type322,19277
+  TYPE qs_environment_p_type448,27337
   SUBROUTINE get_qs_env(460,27717
   SUBROUTINE init_qs_env(803,46795
   SUBROUTINE set_qs_env(956,51874
@@ -7944,7 +8479,8 @@ qs_force.F,70
   SUBROUTINE qs_forces(108,5680
   SUBROUTINE write_forces(492,23104
 
-qs_force_types.F,164
+qs_force_types.F,193
+  TYPE qs_force_type26,1038
   SUBROUTINE allocate_qs_force(66,2669
   SUBROUTINE deallocate_qs_force(211,8571
   SUBROUTINE zero_qs_force(397,14937
@@ -7963,7 +8499,8 @@ qs_geminals.F,361
   SUBROUTINE gemgau_integral_atom(1059,48020
   SUBROUTINE gemgau_integral_atom_calc(1179,53784
 
-qs_grid_atom.F,160
+qs_grid_atom.F,190
+  TYPE grid_atom_type27,1113
   SUBROUTINE allocate_grid_atom(55,1926
   SUBROUTINE deallocate_grid_atom(97,3300
   SUBROUTINE create_grid_atom(195,6919
@@ -7981,7 +8518,8 @@ qs_gspace_mixing.F,410
  SUBROUTINE mixing_allocate(1778,73617
  SUBROUTINE mixing_init(2015,84198
 
-qs_harmonics_atom.F,262
+qs_harmonics_atom.F,297
+  TYPE harmonics_atom_type34,1501
   SUBROUTINE allocate_harmonics_atom(66,2779
   SUBROUTINE deallocate_harmonics_atom(106,4106
   SUBROUTINE create_harmonics_atom(176,6630
@@ -7989,7 +8527,8 @@ qs_harmonics_atom.F,262
   SUBROUTINE get_none0_cg_list4(553,20245
   SUBROUTINE get_none0_cg_list3(606,22563
 
-qs_initial_guess.F,148
+qs_initial_guess.F,181
+  TYPE atom_matrix_type103,5971
   SUBROUTINE calculate_first_density_matrix(119,6607
   SUBROUTINE calculate_atomic_block_dm(962,46517
   SUBROUTINE calculate_mopac_dm(1066,50774
@@ -8039,7 +8578,9 @@ qs_kpp1_env_methods.F,245
   SUBROUTINE kpp1_did_change(770,35003
   SUBROUTINE print_densities(839,38017
 
-qs_kpp1_env_types.F,105
+qs_kpp1_env_types.F,171
+  TYPE qs_kpp1_env_type67,3588
+  TYPE qs_kpp1_env_p_type86,4446
   SUBROUTINE kpp1_release(101,5010
   SUBROUTINE kpp1_retain(173,8158
   SUBROUTINE kpp1_write(205,9459
@@ -8054,7 +8595,8 @@ qs_ks_atom.F,118
   SUBROUTINE add_vhxca_to_ks(427,19619
   SUBROUTINE add_vhxca_forces(557,26238
 
-qs_ks_methods.F,410
+qs_ks_methods.F,445
+  TYPE qs_potential_type181,10329
   SUBROUTINE qs_ks_create(202,11261
   SUBROUTINE qs_ks_build_kohn_sham_matrix(288,15000
   SUBROUTINE calc_rho_tot_gspace(959,46598
@@ -8071,7 +8613,9 @@ qs_ks_qmmm_methods.F,174
   SUBROUTINE qmmm_calculate_energy(160,6981
   SUBROUTINE qmmm_modify_hartree_pot(218,9452
 
-qs_ks_qmmm_types.F,80
+qs_ks_qmmm_types.F,152
+  TYPE qs_ks_qmmm_env_type46,2142
+  TYPE qs_ks_qmmm_env_p_type65,2926
   SUBROUTINE qs_ks_qmmm_release(79,3506
 SUBROUTINE qs_ks_qmmm_retain(126,5545
 
@@ -8083,11 +8627,15 @@ qs_ks_scp_methods.F,264
 SUBROUTINE qs_ks_scp_did_change(232,10103
 SUBROUTINE qs_ks_scp_update 271,11719
 
-qs_ks_scp_types.F,78
+qs_ks_scp_types.F,148
+  TYPE qs_ks_scp_env_type37,1571
+  TYPE qs_ks_scp_env_p_type52,2160
   SUBROUTINE qs_ks_scp_release(66,2719
 SUBROUTINE qs_ks_scp_retain(103,4156
 
-qs_ks_types.F,70
+qs_ks_types.F,132
+  TYPE qs_ks_env_type44,2009
+  TYPE qs_ks_env_p_type65,2785
   SUBROUTINE qs_ks_release(79,3334
 SUBROUTINE qs_ks_retain(115,4719
 
@@ -8108,7 +8656,8 @@ qs_linres_atom_current.F,227
     SUBROUTINE get_gauge(1276,66287
   SUBROUTINE calculate_jrho_atom(1323,67976
 
-qs_linres_current.F,497
+qs_linres_current.F,522
+  TYPE box_type151,8738
   SUBROUTINE current_build_current(186,10605
   SUBROUTINE calculate_jrho_resp(605,30839
   SUBROUTINE current_set_gauge(1348,63282
@@ -8191,7 +8740,16 @@ qs_linres_op.F,253
   SUBROUTINE set_vecp_rev(722,32041
   SUBROUTINE fm_scale_by_pbc_AC(743,32594
 
-qs_linres_types.F,1118
+qs_linres_types.F,1410
+  TYPE linres_control_type52,2726
+  TYPE realspaces_grid_p_type95,5262
+  TYPE current_env_type99,5389
+  TYPE issc_env_type122,6966
+  TYPE nmr_env_type136,7811
+  TYPE epr_env_type149,8591
+  TYPE nablavks_atom_type162,9415
+  TYPE jrho_atom_p_type169,9740
+  TYPE jrho_atom_type174,9927
   SUBROUTINE linres_control_create(221,12208
   SUBROUTINE linres_control_release(257,13723
   SUBROUTINE linres_control_retain(285,14828
@@ -8238,7 +8796,9 @@ qs_loc_methods.F,346
 qs_loc_molecules.F,38
   SUBROUTINE wfc_to_molecule(57,2807
 
-qs_loc_types.F,407
+qs_loc_types.F,485
+  TYPE qs_loc_env_new_type83,4621
+  TYPE localized_wfn_control_type126,6735
   SUBROUTINE qs_loc_env_create(168,8700
   SUBROUTINE qs_loc_env_destroy(209,10052
   SUBROUTINE qs_loc_env_release(275,12772
@@ -8266,7 +8826,9 @@ qs_loc_utils.F,629
   SUBROUTINE set_loc_centers(1697,76439
   SUBROUTINE set_loc_wfn_lists(1725,77564
 
-qs_local_rho_types.F,276
+qs_local_rho_types.F,332
+  TYPE  rhoz_type37,1626
+  TYPE local_rho_type45,1958
   SUBROUTINE allocate_rhoz(64,2697
   SUBROUTINE calculate_rhoz(91,3529
   SUBROUTINE deallocate_rhoz(140,5300
@@ -8275,7 +8837,9 @@ qs_local_rho_types.F,276
   SUBROUTINE local_rho_set_release(216,8261
   SUBROUTINE set_local_rho(250,9410
 
-qs_localization_methods.F,622
+qs_localization_methods.F,682
+   TYPE set_c_1d_type73,3946
+   TYPE set_c_2d_type76,4036
   SUBROUTINE approx_l1_norm_sd(82,4218
   SUBROUTINE initialize_weights 254,11405
   SUBROUTINE jacobi_rotations(278,12340
@@ -8296,7 +8860,8 @@ qs_localization_methods.F,622
 qs_main.F,49
   SUBROUTINE quickstep_create_force_env(56,2482
 
-qs_matrix_pools.F,216
+qs_matrix_pools.F,252
+  TYPE qs_matrix_pools_type70,3400
 SUBROUTINE mpools_retain(89,4214
 SUBROUTINE mpools_release(116,5219
 SUBROUTINE mpools_set(156,6829
@@ -8318,7 +8883,9 @@ qs_mo_methods.F,526
   SUBROUTINE calculate_magnitude(872,40087
   SUBROUTINE make_mo_eig(922,42256
 
-qs_mo_types.F,835
+qs_mo_types.F,892
+  TYPE mo_set_type86,4723
+  TYPE mo_set_p_type117,6324
    SUBROUTINE set_mo_occupation_3(163,7616
   SUBROUTINE set_mo_occupation_2(298,12701
   SUBROUTINE duplicate_mo_set(467,19971
@@ -8362,7 +8929,15 @@ qs_moments.F,383
   SUBROUTINE set_label(1480,61202
   SUBROUTINE print_moments(1500,61725
 
-qs_neighbor_list_types.F,754
+qs_neighbor_list_types.F,1056
+  TYPE neighbor_node_type34,1401
+  TYPE neighbor_list_type43,1749
+  TYPE neighbor_list_set_type52,2133
+  TYPE neighbor_list_p_type64,2654
+  TYPE neighbor_list_set_p_type69,2850
+  TYPE list_search_type74,3062
+  TYPE neighbor_list_iterator_type86,3567
+  TYPE neighbor_list_iterator_p_type99,4140
   SUBROUTINE neighbor_list_iterator_create(140,5439
   SUBROUTINE neighbor_list_iterator_release(241,9585
   SUBROUTINE nl_set_sub_iterator(284,11569
@@ -8381,11 +8956,13 @@ qs_neighbor_list_types.F,754
   SUBROUTINE get_neighbor_node(937,33629
   SUBROUTINE init_neighbor_list_set(972,34885
 
-qs_neighbor_lists.F,348
+qs_neighbor_lists.F,411
+  TYPE local_atoms_type92,5142
   SUBROUTINE atom2d_cleanup(117,6300
   SUBROUTINE atom2d_build(161,8226
   SUBROUTINE build_qs_neighbor_lists(327,15267
   SUBROUTINE build_neighbor_lists(911,44002
+    TYPE local_lists934,45185
   SUBROUTINE combine_lists(1306,60267
   SUBROUTINE pair_radius_setup(1358,61785
   SUBROUTINE write_neighbor_distribution(1389,62856
@@ -8399,7 +8976,9 @@ qs_oce_methods.F,231
   SUBROUTINE prj_gather(660,28357
   SUBROUTINE prj_scatter(692,29527
 
-qs_oce_types.F,118
+qs_oce_types.F,174
+  TYPE qlist_type26,993
+  TYPE oce_matrix_type35,1386
   SUBROUTINE allocate_oce_set(55,1934
   SUBROUTINE create_oce_set(79,2806
   SUBROUTINE deallocate_oce_set(104,3622
@@ -8467,7 +9046,9 @@ qs_ot_scf.F,150
   SUBROUTINE ot_scf_init 396,19627
   SUBROUTINE ot_scf_destroy(546,26375
 
-qs_ot_types.F,200
+qs_ot_types.F,262
+  TYPE qs_ot_settings_type85,4604
+  TYPE qs_ot_type123,6490
   SUBROUTINE qs_ot_settings_init(255,12162
   SUBROUTINE qs_ot_init(293,13542
   SUBROUTINE qs_ot_allocate(353,15790
@@ -8497,28 +9078,40 @@ SUBROUTINE p_env_did_change(390,17076
   SUBROUTINE p_postortho(1013,43250
   SUBROUTINE p_op_l2_fawzi(1133,48304
 
-qs_p_env_types.F,107
+qs_p_env_types.F,168
+  TYPE qs_p_env_type62,3231
+  TYPE qs_p_env_p_type102,4806
 SUBROUTINE p_env_retain(117,5349
   SUBROUTINE p_env_release(144,6380
    SUBROUTINE p_env_write(219,9613
 
-qs_p_sparse_psi.F,194
+qs_p_sparse_psi.F,268
+  TYPE qs_p_projection_type47,2148
+  TYPE qs_p_projection_p_type60,2686
 SUBROUTINE p_proj_create(81,3614
 SUBROUTINE p_proj_retain(164,7179
 SUBROUTINE p_proj_release(194,8339
 SUBROUTINE p_proj_transfer_blacs_to_f(239,10208
 SUBROUTINE p_proj_restrain_f(329,14129
 
-qs_pdos.F,91
+qs_pdos.F,201
+  TYPE ldos_type91,4772
+  TYPE r_ldos_type99,5033
+  TYPE ldos_p_type109,5454
+  TYPE r_ldos_p_type113,5535
   SUBROUTINE calculate_projected_dos(129,5971
   SUBROUTINE generate_virtual_mo 955,42421
 
-qs_period_efield_types.F,128
+qs_period_efield_types.F,189
+  TYPE deriv_p_type29,1068
+  TYPE efield_berry_type33,1168
   SUBROUTINE init_efield_matrices(43,1506
   SUBROUTINE set_efield_matrices(65,2224
   SUBROUTINE efield_berry_release(84,2966
 
-qs_resp.F,668
+qs_resp.F,721
+  TYPE resp_type96,5044
+  TYPE resp_p_type115,6048
   SUBROUTINE resp_fit(122,6235
   SUBROUTINE create_resp_type(245,11973
   SUBROUTINE resp_dealloc(291,13491
@@ -8546,7 +9139,11 @@ qs_rho0_methods.F,165
   SUBROUTINE init_rho0(336,13661
   SUBROUTINE interaction_radii_g0(545,22031
 
-qs_rho0_types.F,514
+qs_rho0_types.F,639
+  TYPE  mpole_rho_atom39,1675
+  TYPE mpole_gau_overlap48,2107
+  TYPE rho0_mpole_type55,2431
+  TYPE rho0_atom_type70,3230
   SUBROUTINE allocate_multipoles(91,3896
   SUBROUTINE allocate_rho0_atom(139,5429
   SUBROUTINE allocate_rho0_atom_rad(166,6289
@@ -8568,7 +9165,10 @@ qs_rho_atom_methods.F,274
   SUBROUTINE allocate_rho_atom_rad(1129,50210
   SUBROUTINE set2zero_rho_atom_rad(1189,53114
 
-qs_rho_atom_types.F,127
+qs_rho_atom_types.F,215
+  TYPE rho_atom_coeff21,792
+  TYPE rho_atom_type25,889
+  TYPE rho_atom_p_type51,2068
   SUBROUTINE allocate_rho_atom_set(64,2420
   SUBROUTINE deallocate_rho_atom_set(105,3869
   SUBROUTINE get_rho_atom(242,9047
@@ -8580,7 +9180,9 @@ SUBROUTINE qs_rho_update_rho(351,15245
   SUBROUTINE diff_rho_type(719,30781
   SUBROUTINE copy_rho_type(959,41141
 
-qs_rho_types.F,150
+qs_rho_types.F,206
+  TYPE qs_rho_type55,2596
+  TYPE qs_rho_p_type74,3280
   SUBROUTINE qs_rho_retain(90,3895
   SUBROUTINE qs_rho_release(119,5088
   SUBROUTINE qs_rho_did_change(211,9147
@@ -8704,7 +9306,11 @@ qs_scf_post_se.F,471
   SUBROUTINE qs_scf_post_et(809,43166
   SUBROUTINE write_available_results(839,44563
 
-qs_scf_types.F,342
+qs_scf_types.F,471
+  TYPE qs_outer_scf_type68,3317
+  TYPE krylov_space_type83,3848
+  TYPE subspace_env_type95,4496
+TYPE qs_scf_env_type106,4916
   SUBROUTINE scf_env_create(137,6424
   SUBROUTINE scf_env_retain(205,8753
   SUBROUTINE scf_env_did_change(232,9796
@@ -8727,11 +9333,13 @@ qs_tddfpt_module.F,94
   SUBROUTINE tddfpt_calculation(59,3112
   SUBROUTINE orbital_eigenvalue_correction(119,5238
 
-qs_tddfpt_types.F,86
+qs_tddfpt_types.F,117
+  TYPE tddfpt_env_type30,1534
   SUBROUTINE tddfpt_env_allocate(51,2274
   SUBROUTINE tddfpt_env_deallocate(99,4379
 
-qs_tddfpt_utils.F,268
+qs_tddfpt_utils.F,306
+  TYPE simple_solution_sorter51,2731
   SUBROUTINE tddfpt_init(78,3693
   SUBROUTINE tddfpt_env_init(106,4730
   SUBROUTINE tddfpt_cleanup(129,5626
@@ -8775,7 +9383,11 @@ FUNCTION wfi_get_method_label(543,24209
 SUBROUTINE wfi_update(1097,52096
 SUBROUTINE wfi_change_memory_depth(1135,53756
 
-qs_wf_history_types.F,207
+qs_wf_history_types.F,351
+  TYPE qs_wf_snapshot_type59,2654
+  TYPE qs_wf_snapshot_p_type77,3387
+  TYPE qs_wf_history_type100,4446
+  TYPE qs_wf_history_p_type113,5091
 SUBROUTINE wfs_retain(128,5664
 SUBROUTINE wfs_release(155,6665
 SUBROUTINE wfi_retain(205,8699
@@ -8786,7 +9398,12 @@ SUBROUTINE wfi_clear_history(312,12914
 realspace_grid_cube.F,33
   SUBROUTINE pw_to_cube 35,1396
 
-realspace_grid_types.F,779
+realspace_grid_types.F,977
+  TYPE realspace_grid_input_type81,3505
+  TYPE realspace_grid_desc_type91,3889
+  TYPE realspace_grid_type140,6287
+  TYPE realspace_grid_p_type160,7176
+  TYPE realspace_grid_desc_p_type164,7290
   SUBROUTINE init_input_type(179,7936
   FUNCTION rs_grid_locate_rank(241,11099
   SUBROUTINE rs_grid_create_descriptor 261,12202
@@ -8806,7 +9423,9 @@ SUBROUTINE rs_grid_mult_and_add 1991,89092
   SUBROUTINE cart_shift 2215,98711
   FUNCTION rs_grid_max_ngpts(2241,100042
 
-reference_manager.F,665
+reference_manager.F,727
+  TYPE reference_type47,1939
+  TYPE reference_p_type61,2633
   SUBROUTINE cite_reference(81,3360
   SUBROUTINE add_reference(103,4349
   SUBROUTINE remove_all_references(170,6651
@@ -8826,7 +9445,10 @@ reference_manager.F,665
   FUNCTION get_citation_key(643,23049
   FUNCTION get_epoch(655,23485
 
-reftraj_types.F,114
+reftraj_types.F,207
+  TYPE reftraj_info_type36,1616
+  TYPE reftraj_msd_type48,2231
+  TYPE reftraj_type62,3075
   SUBROUTINE create_reftraj(79,3796
   SUBROUTINE retain_reftraj(137,6379
   SUBROUTINE release_reftraj(163,7244
@@ -8837,7 +9459,8 @@ reftraj_util.F,176
   SUBROUTINE compute_msd_reftraj(335,14802
   SUBROUTINE write_output_reftraj(513,23090
 
-rel_control_types.F,153
+rel_control_types.F,185
+  TYPE rel_control_type55,2269
   SUBROUTINE rel_c_create(77,3276
   SUBROUTINE rel_c_retain(119,4709
   SUBROUTINE rel_c_release(152,5923
@@ -8850,7 +9473,9 @@ replica_methods.F,218
   SUBROUTINE rep_env_calc_e_f_int(345,16259
   RECURSIVE SUBROUTINE rep_env_calc_e_f_low(435,20363
 
-replica_types.F,452
+replica_types.F,520
+  TYPE replica_env_type105,5663
+  TYPE replica_env_p_type130,7195
   SUBROUTINE rep_env_create(154,8375
   SUBROUTINE rep_env_release(370,18607
   SUBROUTINE rep_env_retain(447,22240
@@ -8875,7 +9500,11 @@ restraint.F,421
   SUBROUTINE restraint_4x6_low(505,23223
   SUBROUTINE restraint_colv_low(582,27044
 
-ri_environment_types.F,511
+ri_environment_types.F,648
+  TYPE ri_kind_vector_type24,1089
+  TYPE ri_vector_type30,1337
+  TYPE ri_environment_type35,1520
+  TYPE ri_environment_p_type49,2317
   SUBROUTINE ri_env_create 77,3403
   SUBROUTINE set_ri_env 114,4550
   SUBROUTINE get_ri_env 151,6400
@@ -8948,7 +9577,9 @@ rt_propagation_output.F,162
  SUBROUTINE rt_convergence(252,11012
   SUBROUTINE make_moment(370,15433
 
-rt_propagation_types.F,197
+rt_propagation_types.F,255
+ TYPE rt_prop_type52,2529
+ TYPE rtp_history_type77,3970
   SUBROUTINE rt_prop_create(100,4539
   SUBROUTINE get_rtp(250,10220
   SUBROUTINE rt_prop_release(301,12282
@@ -8984,14 +9615,21 @@ s_square_methods.F,77
    SUBROUTINE compute_s_square(64,2875
    SUBROUTINE s2_restraint(171,8752
 
-sap_kind_types.F,190
+sap_kind_types.F,269
+  TYPE clist_type23,894
+  TYPE alist_type34,1426
+  TYPE sap_int_type40,1642
   SUBROUTINE release_sap_int(55,2213
   SUBROUTINE get_alist(113,4523
   SUBROUTINE alist_pre_align_blk(141,5355
   SUBROUTINE alist_post_align_blk(172,6400
   SUBROUTINE sap_sort(203,7532
 
-scf_control_types.F,325
+scf_control_types.F,460
+  TYPE outer_scf_control_type97,4426
+  TYPE smear_type108,4767
+  TYPE diagonalization_type119,5101
+  TYPE scf_control_type129,5420
   SUBROUTINE scf_c_create(161,7151
   SUBROUTINE scf_c_retain(286,11690
   SUBROUTINE scf_c_release(318,12835
@@ -9001,7 +9639,11 @@ scf_control_types.F,325
   SUBROUTINE scf_c_write_parameters(616,27955
   SUBROUTINE ot_diag_read_input(796,37292
 
-scp_coeff_types.F,524
+scp_coeff_types.F,656
+  TYPE aux_coeff_set_type45,2050
+  TYPE aux_coeff_set_p_type55,2453
+  TYPE aux_coeff_type60,2648
+  TYPE aux_coeff_p_type68,2904
   SUBROUTINE aux_coeff_set_create(88,3570
   SUBROUTINE aux_coeff_set_retain(148,6293
   SUBROUTINE aux_coeff_zero_fc 169,7047
@@ -9023,7 +9665,8 @@ scp_density_methods.F,130
   SUBROUTINE collocate_scp_density(154,7864
   SUBROUTINE integrate_rhoscp_vrspace 365,16515
 
-scp_diis_utils.F,180
+scp_diis_utils.F,210
+  TYPE diis_info_type29,1289
   SUBROUTINE diis_info_create(41,1693
   SUBROUTINE diis_info_destroy(94,4019
   SUBROUTINE do_diis_step 124,5159
@@ -9039,7 +9682,8 @@ scp_dispersion.F,157
 scp_energy.F,38
   SUBROUTINE scp_qs_energies 56,2757
 
-scp_energy_types.F,124
+scp_energy_types.F,154
+  TYPE scp_energy_type18,811
   SUBROUTINE allocate_scp_energy(37,1326
   SUBROUTINE deallocate_scp_energy(57,1970
   SUBROUTINE init_scp_energy(78,2721
@@ -9051,7 +9695,8 @@ scp_environment.F,72
 scp_environment_methods.F,39
   SUBROUTINE scp_qs_env_setup(46,2097
 
-scp_environment_types.F,217
+scp_environment_types.F,253
+  TYPE scp_environment_type50,2732
   SUBROUTINE get_scp_env(87,4241
   SUBROUTINE init_scp_env 144,7060
   SUBROUTINE set_scp_env(174,8000
@@ -9067,7 +9712,8 @@ scp_fock_matrix_integrals.F,190
   SUBROUTINE scp2C(322,13209
   SUBROUTINE dscp2C(408,16625
 
-scp_force_types.F,122
+scp_force_types.F,151
+  TYPE scp_force_type25,966
   SUBROUTINE allocate_scp_force(41,1447
   SUBROUTINE deallocate_scp_force(92,3145
   SUBROUTINE init_scp_force(145,4892
@@ -9087,7 +9733,8 @@ scp_restarts.F,84
 scp_rho_methods.F,35
 SUBROUTINE scp_rho_create(38,1570
 
-scp_rho_types.F,105
+scp_rho_types.F,133
+  TYPE scp_rho_type27,1112
 SUBROUTINE scp_rho_get(36,1390
 SUBROUTINE scp_rho_retain(57,2199
   SUBROUTINE scp_rho_release(78,3024
@@ -9097,7 +9744,8 @@ SUBROUTINE scp_rspw_create(44,2168
 SUBROUTINE maxradius_scp_init 74,3259
   SUBROUTINE scp_qs_rspw_rebuild(150,7065
 
-scp_rspw_types.F,108
+scp_rspw_types.F,137
+  TYPE scp_rspw_type26,1124
 SUBROUTINE scp_rspw_get(34,1356
 SUBROUTINE scp_rspw_retain(54,2122
   SUBROUTINE scp_rspw_release(75,2958
@@ -9123,7 +9771,12 @@ scptb_ks_matrix.F,332
 scptb_parameters.F,46
   SUBROUTINE scptb_default_parameter 44,1867
 
-scptb_types.F,674
+scptb_types.F,848
+  TYPE scptb_parameter_type33,1392
+  TYPE scptb_parameter_p_type56,2921
+  TYPE scp_kind_vector_type62,3126
+  TYPE scp_vector_type68,3379
+  TYPE scp_vector_p_type73,3566
   SUBROUTINE allocate_scptb_parameter(107,4606
   SUBROUTINE deallocate_scptb_parameter(147,6036
   SUBROUTINE get_scptb_parameter(165,6777
@@ -9233,7 +9886,9 @@ semi_empirical_expns3_methods.F,87
   SUBROUTINE semi_empirical_expns3_setup(41,1961
   SUBROUTINE setup_c3_coeff(97,4543
 
-semi_empirical_expns3_types.F,103
+semi_empirical_expns3_types.F,188
+  TYPE semi_empirical_expns3_type22,990
+  TYPE semi_empirical_expns3_p_type32,1503
   SUBROUTINE semi_empirical_expns3_create(50,2194
   SUBROUTINE semi_empirical_expns3_release(75,3254
 
@@ -9345,7 +10000,10 @@ semi_empirical_mpole_methods.F,138
   SUBROUTINE quadrupole_sph_to_cart(238,9695
   SUBROUTINE nddo_mpole_setup(275,11071
 
-semi_empirical_mpole_types.F,292
+semi_empirical_mpole_types.F,407
+  TYPE semi_empirical_mpole_type27,1168
+  TYPE semi_empirical_mpole_p_type44,2140
+  TYPE nddo_mpole_type52,2542
   SUBROUTINE semi_empirical_mpole_p_create(73,3343
   SUBROUTINE semi_empirical_mpole_p_release(101,4514
   SUBROUTINE semi_empirical_mpole_create(128,5571
@@ -9384,13 +10042,21 @@ semi_empirical_parameters.F,473
   SUBROUTINE pdg_default_parameter 3871,156684
   SUBROUTINE init_pm6_pair_params(4241,172409
 
-semi_empirical_store_int_types.F,199
+semi_empirical_store_int_types.F,237
+  TYPE semi_empirical_si_type42,1980
   SUBROUTINE semi_empirical_si_create(67,3077
   SUBROUTINE semi_empirical_si_release(135,6540
   SUBROUTINE semi_empirical_si_initialize(185,8928
   SUBROUTINE semi_empirical_si_finalize(241,11478
 
-semi_empirical_types.F,451
+semi_empirical_types.F,683
+  TYPE semi_empirical_type51,2686
+  TYPE semi_empirical_p_type97,5052
+  TYPE rotmat_type105,5427
+  TYPE ewald_gks_type124,6327
+  TYPE se_int_control_type130,6540
+  TYPE se_int_screen_type144,7308
+  TYPE se_taper_type151,7638
   SUBROUTINE semi_empirical_create(183,8745
   SUBROUTINE semi_empirical_release(214,10026
   SUBROUTINE zero_se_param(261,11941
@@ -9415,7 +10081,9 @@ shell_opt.F,90
   SUBROUTINE optimize_shell_core(57,2775
  SUBROUTINE check_shell_core_distance(182,8254
 
-shell_potential_types.F,217
+shell_potential_types.F,276
+  TYPE shell_kind_type27,1039
+  TYPE shell_p_type40,1700
   SUBROUTINE get_shell(57,2143
   SUBROUTINE shell_create(84,3403
   SUBROUTINE shell_p_create(104,4111
@@ -9427,7 +10095,8 @@ simpar_methods.F,74
   SUBROUTINE read_md_section(58,2990
   SUBROUTINE read_md_low(265,13795
 
-simpar_types.F,85
+simpar_types.F,112
+  TYPE simpar_type28,1190
   SUBROUTINE create_simpar_type(100,3655
   SUBROUTINE release_simpar_type(122,4613
 
@@ -9466,7 +10135,12 @@ splines_methods.F,138
   FUNCTION potential_s 173,7052
   FUNCTION spline_value 226,9442
 
-splines_types.F,560
+splines_types.F,734
+  TYPE spline_data_type43,1964
+  TYPE spline_data_p_type58,2791
+  TYPE spline_data_pp_type63,2983
+  TYPE spline_environment_type68,3188
+  TYPE spline_factor_type75,3490
   SUBROUTINE spline_env_release(88,3961
   SUBROUTINE spline_data_release 127,5605
   SUBROUTINE spline_data_p_release 163,7091
@@ -9503,7 +10177,8 @@ stm_images.F,69
 sto_ng.F,31
 SUBROUTINE get_sto_ng 39,1476
 
-string_table.F,204
+string_table.F,237
+  TYPE hash_element_type47,1977
   FUNCTION str2id(68,2843
   FUNCTION id2str(110,4307
   FUNCTION s2s(135,5133
@@ -9567,13 +10242,17 @@ string_utilities.F,1868
   FUNCTION str_search(1028,47837
   FUNCTION is_whitespace(1050,48578
 
+structure_factor_types.F,36
+  TYPE structure_factor_type22,775
+
 structure_factors.F,191
   SUBROUTINE structure_factor_init(31,1177
   SUBROUTINE structure_factor_deallocate 44,1707
   SUBROUTINE structure_factor_allocate 93,3999
   SUBROUTINE structure_factor_evaluate 177,7919
 
-subcell_types.F,166
+subcell_types.F,194
+  TYPE subcell_type26,1067
   SUBROUTINE allocate_subcell(48,1880
   SUBROUTINE deallocate_subcell(124,4891
   SUBROUTINE reorder_atoms_subcell(163,6249
@@ -9603,7 +10282,8 @@ SUBROUTINE metadyn_write_colvar_header(1339,63284
   SUBROUTINE metadyn_write_colvar(1418,66191
   SUBROUTINE setup_velocities_z(1497,69545
 
-taper_types.F,135
+taper_types.F,161
+  TYPE taper_type26,1024
   SUBROUTINE taper_create(38,1457
   SUBROUTINE taper_release(67,2604
   FUNCTION taper_eval 87,3360
@@ -9634,7 +10314,8 @@ SUBROUTINE rs_distribute_matrix(2091,90343
   FUNCTION decode_rank 2613,110682
   FUNCTION decode_level 2623,110965
 
-task_list_types.F,80
+task_list_types.F,109
+  TYPE task_list_type25,988
 SUBROUTINE allocate_task_list(46,1832
 SUBROUTINE deallocate_task_list(74,2866
 
@@ -9647,7 +10328,9 @@ termination.F,256
   SUBROUTINE stop_read(353,12035
   SUBROUTINE stop_write(400,14053
 
-thermal_region_types.F,138
+thermal_region_types.F,208
+  TYPE thermal_regions_type26,978
+  TYPE thermal_region_type34,1275
   SUBROUTINE allocate_thermal_regions(47,1776
   SUBROUTINE retain_thermal_regions(72,2794
   SUBROUTINE release_thermal_regions(96,3668
@@ -9674,7 +10357,10 @@ thermostat_methods.F,278
   SUBROUTINE apply_thermostat_particles(567,33031
   SUBROUTINE apply_thermostat_shells(626,36422
 
-thermostat_types.F,312
+thermostat_types.F,411
+  TYPE thermostats_type60,2916
+  TYPE thermostat_type78,3753
+  TYPE thermostat_info_type90,4250
   SUBROUTINE allocate_thermostats(110,5086
   SUBROUTINE retain_thermostats(164,7283
   SUBROUTINE release_thermostats(191,8253
@@ -9721,9 +10407,17 @@ timings.F,410
   SUBROUTINE print_stack(405,16895
  FUNCTION routine_name2id(428,17966
 
+timings_base_type.F,99
+  TYPE routine_stat_type23,1055
+  TYPE call_stat_type36,1494
+  TYPE callstack_entry_type43,1660
+
 timings_report.F,90
   SUBROUTINE timings_report_print(54,2541
  SUBROUTINE timings_report_callgraph(229,9432
+
+timings_types.F,30
+  TYPE timer_env_type24,1131
 
 tmc_analysis.F,905
   SUBROUTINE tmc_read_ana_input(86,4569
@@ -9747,7 +10441,15 @@ tmc_analysis.F,905
   SUBROUTINE calc_displacement(1594,73180
   SUBROUTINE print_average_displacement(1655,75751
 
-tmc_analysis_types.F,645
+tmc_analysis_types.F,910
+  TYPE tmc_ana_list_type48,2041
+  TYPE tmc_analysis_env52,2164
+  TYPE density_3d_type79,3757
+  TYPE pair_correl_type88,4204
+  TYPE atom_pairs_type96,4565
+  TYPE dipole_moment_type102,4804
+  TYPE dipole_analysis_type110,5193
+  TYPE displacement_type123,5810
   SUBROUTINE tmc_ana_env_create(138,6477
   SUBROUTINE tmc_ana_env_release(191,8334
   SUBROUTINE tmc_ana_density_create(238,10175
@@ -9817,7 +10519,8 @@ tmc_master.F,167
   SUBROUTINE do_tmc_master(232,10957
   SUBROUTINE set_walltime_delay(979,49392
 
-tmc_messages.F,1143
+tmc_messages.F,1171
+  TYPE message_send72,3613
   FUNCTION check_if_group_master(91,4403
   SUBROUTINE tmc_message(125,6024
   SUBROUTINE create_status_message(415,19384
@@ -9852,7 +10555,9 @@ tmc_move_handle.F,330
   FUNCTION select_random_move_type(600,29834
   FUNCTION select_random_NMC_move_type(639,31516
 
-tmc_move_types.F,82
+tmc_move_types.F,148
+  TYPE tmc_move_type39,2153
+  TYPE moves_init_sizes_type68,3956
   SUBROUTINE move_types_create(84,4647
   SUBROUTINE move_types_release(119,6227
 
@@ -9932,7 +10637,12 @@ tmc_tree_search.F,728
   RECURSIVE SUBROUTINE count_nodes_in_global_tree(802,34873
   RECURSIVE SUBROUTINE count_nodes_in_tree(832,36134
 
-tmc_tree_types.F,276
+tmc_tree_types.F,431
+  TYPE tree_type73,3256
+  TYPE gt_elem_list_type115,6064
+  TYPE elem_list_type120,6250
+  TYPE elem_array_type128,6531
+  TYPE global_tree_type136,6805
   SUBROUTINE add_to_list(176,9243
   SUBROUTINE clean_list(226,10791
   SUBROUTINE write_subtree_elem_unformated(251,11661
@@ -9940,7 +10650,14 @@ tmc_tree_types.F,276
   SUBROUTINE write_subtree_elem_darray(318,14627
   SUBROUTINE read_subtree_elem_darray(333,15155
 
-tmc_types.F,360
+tmc_types.F,592
+  TYPE tmc_env_type64,2995
+  TYPE tmc_comp_set_type76,3674
+  TYPE tmc_param_type92,4546
+  TYPE tmc_atom_type127,6662
+  TYPE prior_estimate_acceptance_type134,6886
+  TYPE master_env_type140,7056
+  TYPE worker_env_type167,8722
   SUBROUTINE tmc_env_create(182,9381
   SUBROUTINE tmc_env_release(261,12534
   SUBROUTINE tmc_master_env_create(316,14898
@@ -10049,14 +10766,21 @@ topology_psf.F,158
   SUBROUTINE  idm_psf(578,26387
   SUBROUTINE write_topology_psf 745,34577
 
-topology_types.F,210
+topology_types.F,389
+  TYPE atom_info_type34,1723
+  TYPE connectivity_info_type52,2667
+  TYPE constraint_info_type63,3251
+  TYPE topology_parameters_type141,9127
+  TYPE constr_list_type178,11354
   SUBROUTINE init_topology 202,12044
   SUBROUTINE init_constraint(312,16826
   SUBROUTINE deallocate_topology 403,20587
   SUBROUTINE deallocate_constraint(608,30407
   SUBROUTINE pre_read_topology 891,44853
 
-topology_util.F,688
+topology_util.F,752
+  TYPE array1_list_type48,2564
+  TYPE array2_list_type53,2753
   SUBROUTINE topology_reorder_atoms(81,3659
   SUBROUTINE setup_graph_set(523,25933
   SUBROUTINE allocate_graph_set(563,27729
@@ -10105,7 +10829,9 @@ virial_methods.F,115
   SUBROUTINE virial_evaluate 71,3073
   SUBROUTINE virial_pair_force 133,5565
 
-virial_types.F,281
+virial_types.F,337
+  TYPE virial_type25,1020
+  TYPE virial_p_type40,1765
   SUBROUTINE cp_virial 50,2091
   SUBROUTINE sym_virial 73,3096
   SUBROUTINE zero_virial 109,4634
@@ -10118,6 +10844,9 @@ virial_types.F,281
 wannier_states.F,47
   SUBROUTINE construct_wannier_states(60,2799
 
+wannier_states_types.F,35
+  TYPE wannier_centres_type19,747
+
 whittaker.F,107
   SUBROUTINE whittaker_c0a 43,1573
   SUBROUTINE whittaker_c0 98,3510
@@ -10128,14 +10857,16 @@ wiener_process.F,135
   SUBROUTINE create_wiener_process_cv(175,7759
   SUBROUTINE copy_wiener_process(225,9577
 
-xas_control.F,210
+xas_control.F,242
+  TYPE xas_control_type36,1772
   SUBROUTINE read_xas_control(80,3580
   SUBROUTINE write_xas_control(187,7346
   SUBROUTINE xas_control_create(250,10107
   SUBROUTINE xas_control_release(286,11353
   SUBROUTINE xas_control_retain(318,12638
 
-xas_env_types.F,189
+xas_env_types.F,225
+  TYPE xas_environment_type70,3497
   SUBROUTINE get_xas_env(109,5326
   SUBROUTINE set_xas_env(202,10578
   SUBROUTINE xas_env_create(251,12734
@@ -10216,14 +10947,17 @@ xc_derivative_desc.F,101
  SUBROUTINE standardize_derivative_desc(56,2375
   SUBROUTINE create_split_derivative_desc(106,4221
 
-xc_derivative_set_types.F,196
+xc_derivative_set_types.F,234
+  TYPE xc_derivative_set_type51,2554
   FUNCTION xc_dset_get_derivative(68,3348
   SUBROUTINE xc_dset_create(125,5852
   SUBROUTINE xc_dset_release(178,8172
 SUBROUTINE xc_dset_retain(225,10052
 SUBROUTINE xc_dset_zero_all(244,10745
 
-xc_derivative_types.F,169
+xc_derivative_types.F,239
+  TYPE xc_derivative_type36,1627
+  TYPE xc_derivative_p_type50,2294
   SUBROUTINE xc_derivative_create(65,2969
 SUBROUTINE xc_derivative_retain(107,4604
   SUBROUTINE xc_derivative_release(133,5711
@@ -10290,6 +11024,9 @@ xc_f90_lib_m.F,1712
     SUBROUTINE xc_f90_mgga_vxc(435,14202
     SUBROUTINE xc_f90_mgga_fxc(444,14597
     SUBROUTINE xc_f90_mgga_x_tb09_set_par(459,15189
+
+xc_f90_types_m.F,32
+  TYPE xc_f90_pointer_t27,1018
 
 xc_functionals_utilities.F,440
     SUBROUTINE set_util(50,1816
@@ -10428,7 +11165,8 @@ xc_pot_saop.F,303
   FUNCTION calc_expbe_u(1232,57503
   FUNCTION calc_expbe_r(1245,57904
 
-xc_rho_cflags_types.F,251
+xc_rho_cflags_types.F,285
+  TYPE xc_rho_cflags_type49,2277
   SUBROUTINE xc_rho_cflags_setall(64,2899
   SUBROUTINE xc_rho_cflags_or(97,4111
   SUBROUTINE xc_rho_cflags_and(133,5761
@@ -10436,7 +11174,8 @@ xc_rho_cflags_types.F,251
   FUNCTION xc_rho_cflags_contain(204,9093
   SUBROUTINE xc_rho_cflags_write(243,10867
 
-xc_rho_set_types.F,246
+xc_rho_set_types.F,277
+  TYPE xc_rho_set_type94,4866
   SUBROUTINE xc_rho_set_create(123,6321
   SUBROUTINE xc_rho_set_retain(177,8710
   SUBROUTINE xc_rho_set_release(201,9736
@@ -10608,7 +11347,8 @@ xc_xwpbe.F,921
   FUNCTION d2exeindrhondrho(5687,259132
   FUNCTION d2exerndrhondrho(5696,259594
 
-xml_parser.F,922
+xml_parser.F,948
+   TYPE XML_PARSE59,2003
 SUBROUTINE xml_report_details_int_(119,4305
 SUBROUTINE xml_report_details_string_(138,4858
 SUBROUTINE xml_report_errors_int_(158,5469
@@ -10637,19 +11377,9 @@ xray_diffraction.F,101
   SUBROUTINE xray_diffraction_spectrum(84,4142
   SUBROUTINE calculate_rhotot_elec_gspace(522,20284
 
-xc_f90_types_m.F,0
-
-wannier_states_types.F,0
-
 tmc_utils.F,0
 
 tmc_stati.F,0
-
-timings_types.F,0
-
-timings_base_type.F,0
-
-structure_factor_types.F,0
 
 sort_m.f90,0
 
@@ -10665,17 +11395,9 @@ reallocate_1.f90,0
 
 rd_amber_section_1.f90,0
 
-qs_dispersion_types.F,0
-
-qmmm_gaussian_types.F,0
-
 qmmm_gaussian_data.F,0
 
-pw_grid_types.F,0
-
 prep.f90,0
-
-pint_types.F,0
 
 mod.header,0
 
@@ -10691,10 +11413,6 @@ libxc_funcs_m.F,0
 
 input_constants.F,0
 
-hfx_libint_wrapper_types.F,0
-
-helium_types.F,0
-
 f77_blas.F,0
 
 ewalds_multipole_sr.f90,0
@@ -10705,17 +11423,11 @@ dict__keytype___valuetype_.instantiation,0
 
 dict.F,0
 
-cp_para_types.F,0
-
 cp_lbfgs_optimizer__nametype1_.instantiation,0
-
-cp_dbcsr_types.F,0
 
 cp_array_utils.F,0
 
 cp_array__nametype1__utils.instantiation,0
-
-cp__el_name__pool_types.template,0
 
 cp__el_name__pool_types.instantiation,0
 
@@ -10744,8 +11456,6 @@ call_integrate.f90,0
 call_collocate_omp.f90,0
 
 call_collocate.f90,0
-
-block_p_types.F,0
 
 _lib__array__nametype1__sort.instantiation,0
 
