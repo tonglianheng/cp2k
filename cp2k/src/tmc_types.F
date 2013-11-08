@@ -38,8 +38,7 @@ MODULE tmc_types
   USE parallel_rng_types,              ONLY: rng_stream_type
   USE timings,                         ONLY: timeset,&
                                              timestop
-  USE tmc_move_types,                  ONLY: moves_init_sizes_type,&
-                                             tmc_move_type
+  USE tmc_move_types,                  ONLY: tmc_move_type
   USE tmc_stati,                       ONLY: task_type_MC
   USE tmc_tree_types,                  ONLY: clean_list,&
                                              elem_array_type,&
@@ -92,8 +91,6 @@ MODULE tmc_types
   TYPE tmc_param_type
     INTEGER                                       :: task_type
     INTEGER                                       :: dim_per_elem
-    INTEGER                                       :: elem_per_struct
-    INTEGER                                       :: nr_NMC_steps
     INTEGER                                       :: nr_temp
     REAL(KIND=dp), DIMENSION(:), POINTER          :: Temp
     TYPE(cell_type), POINTER                      :: cell
@@ -101,8 +98,8 @@ MODULE tmc_types
     TYPE(tmc_atom_type), DIMENSION(:), POINTER    :: atoms
     
     INTEGER                                       :: nr_elem_mv
-    TYPE(moves_init_sizes_type), POINTER          :: moves_init_sizes
     TYPE(tmc_move_type), POINTER                  :: move_types
+    TYPE(tmc_move_type), POINTER                  :: nmc_move_types
     REAL(KIND=dp)                                 :: pressure
     LOGICAL                                       :: v_isotropic
     LOGICAL                                       :: esimate_acc_prob
@@ -226,10 +223,6 @@ CONTAINS
     !  I used it originally for the n dimension oscillator, 
     !  where each dimension is a single position
     tmc_env%params%dim_per_elem = 3 
-    !TODO elem_per_struct sould be variable, to handle different molecules, get from somewhere 
-    !  up to now it is 3, to simulate H2O molecules
-    tmc_env%params%elem_per_struct = 3
-    tmc_env%params%nr_NMC_steps = -1
     tmc_env%params%nr_elem_mv = -1
     tmc_env%params%nr_temp = -1 
     ALLOCATE(tmc_env%params%sub_box_size(tmc_env%params%dim_per_elem))
@@ -243,9 +236,10 @@ CONTAINS
     tmc_env%params%print_dipole = .FALSE.
     tmc_env%params%print_forces = .FALSE.
     tmc_env%params%print_cell = .FALSE.
-    NULLIFY(tmc_env%params%Temp, tmc_env%params%moves_init_sizes, &
-            tmc_env%params%move_types, tmc_env%params%prior_NMC_acc,&
-            tmc_env%params%atoms, tmc_env%params%cell)
+    NULLIFY(tmc_env%params%Temp, tmc_env%params%nmc_move_types, &
+            tmc_env%params%move_types, &
+            tmc_env%params%prior_NMC_acc, tmc_env%params%atoms, &
+            tmc_env%params%cell)
 
     CALL timestop(handle)
 
@@ -278,8 +272,6 @@ CONTAINS
     DEALLOCATE(tmc_env%params%sub_box_size)
     IF(ASSOCIATED(tmc_env%params%Temp)) &
       DEALLOCATE(tmc_env%params%Temp)
-    IF(ASSOCIATED(tmc_env%params%moves_init_sizes)) &
-      DEALLOCATE(tmc_env%params%moves_init_sizes)
     IF(ASSOCIATED(tmc_env%params%cell)) &
       DEALLOCATE(tmc_env%params%cell)
     IF(ASSOCIATED(tmc_env%params%atoms)) &

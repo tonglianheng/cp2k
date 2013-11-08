@@ -15,6 +15,8 @@ MODULE tmc_analysis
   USE cell_types,                      ONLY: cell_type,&
                                              get_cell,&
                                              pbc
+  USE cp_files,                        ONLY: close_file,&
+                                             open_file
   USE force_fields_input,              ONLY: read_chrg_section
   USE input_section_types,             ONLY: section_vals_get,&
                                              section_vals_get_subs_vals,&
@@ -113,6 +115,13 @@ CONTAINS
       CALL tmc_ana_env_create(tmc_ana=tmc_ana, error=error)
       ! restarting
       CALL section_vals_val_get(tmc_ana_section,"RESTART",l_val=tmc_ana%restart,error=error)
+      ! file name prefix
+      CALL section_vals_val_get(tmc_ana_section,"PREFIX_ANA_FILES",&
+             c_val=tmc_ana%out_file_prefix, error=error)
+      IF(tmc_ana%out_file_prefix .NE. "")THEN
+        tmc_ana%out_file_prefix = TRIM(tmc_ana%out_file_prefix)//"_"
+      END IF
+
       ! density calculation
       CALL section_vals_val_get(tmc_ana_section,"DENSITY" ,explicit=explicit_key,error=error)
       IF(explicit_key)THEN
@@ -298,6 +307,7 @@ CONTAINS
 
     CHARACTER(LEN=default_path_length)       :: file_name, file_name_tmp, &
                                                 restart_file_name
+    INTEGER                                  :: file_ptr
     LOGICAL                                  :: failure, l_tmp
 
     failure = .FALSE.
@@ -307,61 +317,80 @@ CONTAINS
 
     WRITE(file_name, FMT='(I9.9)') ana_env%last_elem%nr
     file_name_tmp = TRIM(expand_file_name_temp(expand_file_name_char(&
+                             TRIM(ana_env%out_file_prefix)//&
                              tmc_default_restart_out_file_name,&
                              "ana",error), ana_env%temperature, error))
     restart_file_name = expand_file_name_char(file_name_tmp, &
-                                             file_name, error)
-    OPEN(46, FILE=restart_file_name, FORM="UNFORMATTED")
-      WRITE(46) ana_env%temperature
-      CALL write_subtree_elem_unformated(ana_env%last_elem, 46, error)
+                                              file_name, error)
+    CALL open_file(file_name=restart_file_name, file_status="REPLACE", &
+                   file_action="WRITE", file_form="UNFORMATTED", &
+                   unit_number=file_ptr)
+    WRITE(file_ptr) ana_env%temperature
+    CALL write_subtree_elem_unformated(ana_env%last_elem, file_ptr, error)
 
-      ! first mention the different kind of anlysis types initialized
-      ! then the variables for each calculation type
-      l_tmp = ASSOCIATED(ana_env%density_3d)
-      WRITE(46) l_tmp
-      IF(l_tmp)THEN
-        WRITE(46)ana_env%density_3d%conf_counter, &
-                 ana_env%density_3d%nr_bins, &
-                 ana_env%density_3d%sum_density, &
-                 ana_env%density_3d%sum_dens2
-      END IF
+    ! first mention the different kind of anlysis types initialized
+    ! then the variables for each calculation type
+    l_tmp = ASSOCIATED(ana_env%density_3d)
+    WRITE(file_ptr) l_tmp
+    IF(l_tmp)THEN
+      WRITE(file_ptr)ana_env%density_3d%conf_counter, &
+               ana_env%density_3d%nr_bins, &
+               ana_env%density_3d%sum_vol, &
+               ana_env%density_3d%sum_vol2, &
+               ana_env%density_3d%sum_box_length, &
+               ana_env%density_3d%sum_box_length2, &
+               ana_env%density_3d%sum_density, &
+               ana_env%density_3d%sum_dens2
+    END IF
 
-      l_tmp = ASSOCIATED(ana_env%pair_correl)
-      WRITE(46) l_tmp
-      IF(l_tmp)THEN
-        WRITE(46)ana_env%pair_correl%conf_counter, &
-                 ana_env%pair_correl%nr_bins, &
-                 ana_env%pair_correl%step_lenght, &
-                 ana_env%pair_correl%pairs, &
-                 ana_env%pair_correl%g_r
-      END IF
+    l_tmp = ASSOCIATED(ana_env%pair_correl)
+    WRITE(file_ptr) l_tmp
+    IF(l_tmp)THEN
+      WRITE(file_ptr)ana_env%pair_correl%conf_counter, &
+               ana_env%pair_correl%nr_bins, &
+               ana_env%pair_correl%step_lenght, &
+               ana_env%pair_correl%pairs, &
+               ana_env%pair_correl%g_r
+    END IF
 
-      l_tmp = ASSOCIATED(ana_env%dip_mom)
-      WRITE(46) l_tmp
-      IF(l_tmp)THEN
-        WRITE(46)ana_env%dip_mom%conf_counter, &
-                 ana_env%dip_mom%charges, &
-                 ana_env%dip_mom%last_dip_cl
-      END IF
+    l_tmp = ASSOCIATED(ana_env%dip_mom)
+    WRITE(file_ptr) l_tmp
+    IF(l_tmp)THEN
+      WRITE(file_ptr)ana_env%dip_mom%conf_counter, &
+               ana_env%dip_mom%charges, &
+               ana_env%dip_mom%last_dip_cl
+    END IF
 
-      l_tmp = ASSOCIATED(ana_env%dip_ana)
-      WRITE(46) l_tmp
-      IF(l_tmp)THEN
-        WRITE(46)ana_env%dip_ana%conf_counter, &
-                 ana_env%dip_ana%mu2_pv_s, &
-                 ana_env%dip_ana%mu_psv, &
-                 ana_env%dip_ana%mu_pv, &
-                 ana_env%dip_ana%mu2_pv_mat
-      END IF
-    CLOSE(46)
+    l_tmp = ASSOCIATED(ana_env%dip_ana)
+    WRITE(file_ptr) l_tmp
+    IF(l_tmp)THEN
+      WRITE(file_ptr)ana_env%dip_ana%conf_counter, &
+               ana_env%dip_ana%ana_type,&
+               ana_env%dip_ana%mu2_pv_s, &
+               ana_env%dip_ana%mu_psv, &
+               ana_env%dip_ana%mu_pv, &
+               ana_env%dip_ana%mu2_pv_mat, &
+               ana_env%dip_ana%mu2_pv_mat
+    END IF
 
-    file_name_tmp = expand_file_name_char(tmc_default_restart_in_file_name,&
-                                          "ana",error)
+    l_tmp = ASSOCIATED(ana_env%displace)
+    WRITE(file_ptr) l_tmp
+    IF(l_tmp)THEN
+      WRITE(file_ptr)ana_env%displace%conf_counter, &
+               ana_env%displace%disp
+    END IF
+
+    CALL close_file(unit_number=file_ptr)
+
+    file_name_tmp = expand_file_name_char(TRIM(ana_env%out_file_prefix)//&
+                      tmc_default_restart_in_file_name, "ana",error)
     file_name = expand_file_name_temp(file_name_tmp, &
                       ana_env%temperature, error)
-    OPEN(46, FILE=file_name)
-       WRITE(46,*)TRIM(restart_file_name)
-    CLOSE(46)
+    CALL open_file(file_name=file_name, &
+                   file_action="WRITE", file_status="REPLACE", &
+                   unit_number=file_ptr)
+    WRITE(file_ptr,*)TRIM(restart_file_name)
+    CALL close_file(unit_number=file_ptr)
   END SUBROUTINE analysis_restart_print
 
 ! *****************************************************************************
@@ -380,6 +409,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=default_path_length)       :: file_name, file_name_tmp
+    INTEGER                                  :: file_ptr
     LOGICAL                                  :: failure, l_tmp
     REAL(KIND=dp)                            :: temp
 
@@ -388,61 +418,77 @@ CONTAINS
     CPPrecondition(ASSOCIATED(elem),cp_failure_level,routineP,error,failure)   
     IF(.NOT.ana_env%restart) RETURN
  
-    file_name_tmp = expand_file_name_char(tmc_default_restart_in_file_name,&
-                                          "ana",error)
+    file_name_tmp = expand_file_name_char(TRIM(ana_env%out_file_prefix)//&
+                      tmc_default_restart_in_file_name, "ana",error)
     file_name = expand_file_name_temp(file_name_tmp, &
                       ana_env%temperature, error)
     INQUIRE(FILE=file_name, EXIST=l_tmp)
     IF(l_tmp) THEN
-      OPEN(46, FILE=file_name, STATUS='OLD')
-      READ(46,*) file_name_tmp
-      CLOSE(46)
-  
-      OPEN(46, FILE=file_name_tmp, FORM="UNFORMATTED", STATUS='OLD', ACTION="READ")
-      READ(46) temp
+      CALL open_file(file_name=file_name, file_status="OLD", &
+                     file_action="READ", unit_number=file_ptr)
+      READ(file_ptr,*) file_name_tmp
+      CALL close_file(unit_number=file_ptr)
+
+      CALL open_file(file_name=file_name_tmp, file_status="OLD", file_form="UNFORMATTED", &
+                   file_action="READ", unit_number=file_ptr) 
+      READ(file_ptr) temp
       CPPrecondition(ana_env%temperature.EQ.temp,cp_failure_level,routineP,error,failure)
       ana_env%last_elem => elem
-      CALL read_subtree_elem_unformated(elem, 46, error)
+      CALL read_subtree_elem_unformated(elem, file_ptr, error)
 
       ! first mention the different kind of anlysis types initialized
       ! then the variables for each calculation type
-      READ(46) l_tmp
+      READ(file_ptr) l_tmp
       CPPrecondition(ASSOCIATED(ana_env%density_3d).EQV.l_tmp,cp_failure_level,routineP,error,failure)
       IF(l_tmp)THEN
-        READ(46) ana_env%density_3d%conf_counter, &
-                 ana_env%density_3d%nr_bins, &
-                 ana_env%density_3d%sum_density, &
-                 ana_env%density_3d%sum_dens2
+        READ(file_ptr) ana_env%density_3d%conf_counter, &
+               ana_env%density_3d%nr_bins, &
+               ana_env%density_3d%sum_vol, &
+               ana_env%density_3d%sum_vol2, &
+               ana_env%density_3d%sum_box_length, &
+               ana_env%density_3d%sum_box_length2, &
+               ana_env%density_3d%sum_density, &
+               ana_env%density_3d%sum_dens2
       END IF
   
-      READ(46) l_tmp
+      READ(file_ptr) l_tmp
       CPPrecondition(ASSOCIATED(ana_env%pair_correl).EQV.l_tmp,cp_failure_level,routineP,error,failure)
       IF(l_tmp)THEN
-        READ(46) ana_env%pair_correl%conf_counter, &
+        READ(file_ptr) ana_env%pair_correl%conf_counter, &
                  ana_env%pair_correl%nr_bins, &
                  ana_env%pair_correl%step_lenght, &
                  ana_env%pair_correl%pairs, &
                  ana_env%pair_correl%g_r
       END IF
   
-      READ(46) l_tmp
+      READ(file_ptr) l_tmp
       CPPrecondition(ASSOCIATED(ana_env%dip_mom).EQV.l_tmp,cp_failure_level,routineP,error,failure)
       IF(l_tmp)THEN
-        READ(46) ana_env%dip_mom%conf_counter, &
+        READ(file_ptr) ana_env%dip_mom%conf_counter, &
                  ana_env%dip_mom%charges, &
                  ana_env%dip_mom%last_dip_cl
       END IF
 
-      READ(46) l_tmp
+      READ(file_ptr) l_tmp
       CPPrecondition(ASSOCIATED(ana_env%dip_ana).EQV.l_tmp,cp_failure_level,routineP,error,failure)
       IF(l_tmp)THEN
-        READ(46) ana_env%dip_ana%conf_counter, &
+        READ(file_ptr) ana_env%dip_ana%conf_counter, &
+                 ana_env%dip_ana%ana_type,&
                  ana_env%dip_ana%mu2_pv_s, &
                  ana_env%dip_ana%mu_psv, &
                  ana_env%dip_ana%mu_pv, &
+                 ana_env%dip_ana%mu2_pv_mat, &
                  ana_env%dip_ana%mu2_pv_mat
       END IF
-      CLOSE(46)
+
+      READ(file_ptr) l_tmp
+      CPPrecondition(ASSOCIATED(ana_env%displace).EQV.l_tmp,cp_failure_level,routineP,error,failure)
+      IF(l_tmp)THEN
+        READ(file_ptr)ana_env%displace%conf_counter, &
+                ana_env%displace%disp
+      END IF
+
+      CALL close_file(unit_number=file_ptr)
       elem => NULL()
     END IF
   END SUBROUTINE analysis_restart_read
@@ -740,7 +786,7 @@ CONTAINS
 
     CHARACTER(LEN=default_path_length)       :: file_name, file_name_tmp
     INTEGER                                  :: atom, bin_x, bin_y, bin_z, &
-                                                handle
+                                                file_ptr, handle
     LOGICAL                                  :: failure, flag
     REAL(KIND=dp)                            :: mass_total, r_tmp, vol_cell, &
                                                 vol_sub_box
@@ -783,8 +829,14 @@ CONTAINS
     ! volume summed over configurations for average volume [A]
     ana_env%density_3d%sum_vol = ana_env%density_3d%sum_vol + &
                                    vol_cell*(au2a)**3 *weight
+    ana_env%density_3d%sum_vol2 = ana_env%density_3d%sum_vol2 + &
+                                   (vol_cell*(au2a)**3)**2 *weight
+
     ana_env%density_3d%sum_box_length(:) = ana_env%density_3d%sum_box_length(:)&
                                           + cell_size(:)*(au2a)*weight
+    ana_env%density_3d%sum_box_length2(:) = ana_env%density_3d%sum_box_length2(:)&
+                                          + (cell_size(:)*(au2a))**2 *weight
+
     ! sub interval length
     interval_size(1) = cell_size(1)/REAL(bin_x,dp)
     interval_size(2) = cell_size(2)/REAL(bin_y,dp)
@@ -841,19 +893,23 @@ CONTAINS
 
     ! print out the actual and average density in file
     IF(ana_env%density_3d%print_dens) THEN
-      file_name_tmp = expand_file_name_temp(tmc_default_trajectory_file_name, &
-                    ana_env%temperature, error)
+      file_name_tmp = expand_file_name_temp(TRIM(ana_env%out_file_prefix)//&
+                        tmc_default_trajectory_file_name, &
+                        ana_env%temperature, error)
       file_name = TRIM(expand_file_name_char(file_name_tmp,&
                        "dens",error))
       INQUIRE(FILE=file_name, EXIST=flag)
-      OPEN(19,FILE=file_name, POSITION="APPEND")
+      CALL open_file(file_name=file_name, file_status="UNKNOWN", &
+                     file_action="WRITE", file_position="APPEND", &
+                     unit_number=file_ptr)
       IF(.NOT.flag) &
-        WRITE(19,FMT='(A8,7A20)')"# conf_nr","dens_act[g/cm^3]",&
+        WRITE(file_ptr,FMT='(A8,11A20)')"# conf_nr","dens_act[g/cm^3]",&
                    "dens_average[g/cm^3]","density_variance", &
-                   "average_volume", "box_lenth_x", "box_lenth_y","box_lenth_z"
-      WRITE(19,FMT="(I8,7F20.10)") ana_env%density_3d%conf_counter+1-weight, &
+                   "averages:volume", "box_lenth_x", "box_lenth_y","box_lenth_z", &
+                   "variances:volume", "box_lenth_x", "box_lenth_y","box_lenth_z"
+      WRITE(file_ptr,FMT="(I8,11F20.10)") ana_env%density_3d%conf_counter+1-weight, &
         SUM(mass_bin(:,:,:))/vol_sub_box/SIZE(mass_bin(:,:,:)), &
-         SUM(ana_env%density_3d%sum_density(:,:,:))/&
+        SUM(ana_env%density_3d%sum_density(:,:,:))/&
          SIZE(ana_env%density_3d%sum_density(:,:,:))/&
          REAL(ana_env%density_3d%conf_counter, KIND=dp), &
         SUM(ana_env%density_3d%sum_dens2(:,:,:))/&
@@ -865,8 +921,16 @@ CONTAINS
         ana_env%density_3d%sum_vol/&
          REAL(ana_env%density_3d%conf_counter, KIND=dp),&
         ana_env%density_3d%sum_box_length(:)/&
-         REAL(ana_env%density_3d%conf_counter, KIND=dp)
-      CLOSE(19)
+         REAL(ana_env%density_3d%conf_counter, KIND=dp),&
+        ana_env%density_3d%sum_vol2/&
+         REAL(ana_env%density_3d%conf_counter, KIND=dp) - &
+         (ana_env%density_3d%sum_vol/&
+         REAL(ana_env%density_3d%conf_counter, KIND=dp))**2,&
+        ana_env%density_3d%sum_box_length2(:)/&
+         REAL(ana_env%density_3d%conf_counter, KIND=dp) - &
+         (ana_env%density_3d%sum_box_length(:)/&
+         REAL(ana_env%density_3d%conf_counter, KIND=dp))**2
+      CALL close_file(unit_number=file_ptr)
     END IF
     
     DEALLOCATE(mass_bin)
@@ -891,8 +955,9 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=default_path_length)       :: file_name, file_name_vari
-    INTEGER                                  :: bin_x, bin_y, bin_z, handle, &
-                                                i, j, k
+    INTEGER                                  :: bin_x, bin_y, bin_z, &
+                                                file_ptr_dens, file_ptr_vari, &
+                                                handle, i, j, k
     LOGICAL                                  :: failure
     REAL(KIND=dp), DIMENSION(3)              :: cell_size, interval_size
 
@@ -916,37 +981,44 @@ CONTAINS
     interval_size(3) = cell_size(3)/REAL(bin_z,KIND=dp)*au2a 
     
 
-    file_name = expand_file_name_temp(tmc_ana_density_file_name, &
+    file_name = expand_file_name_temp(TRIM(ana_env%out_file_prefix)//&
+                  tmc_ana_density_file_name, &
                   ana_env%temperature, error)
-    OPEN(18,FILE=file_name)
+    CALL open_file(file_name=file_name, file_status="REPLACE", &
+                   file_action="WRITE", file_position="APPEND", &
+                   unit_number=file_ptr_dens)
+    WRITE(file_ptr_dens,FMT='(A,1X,I0,1X,A,3(I0,1X),1X,A,1X,3F10.5)')&
+      "# configurations", ana_env%density_3d%conf_counter, "bins", &
+      ana_env%density_3d%nr_bins, "interval size", interval_size(:)
+    WRITE(file_ptr_dens,FMT='(A,3A10,A20)')"#"," x [A] "," y [A] "," z [A] "," density [g/cm^3] "
+
     file_name_vari = expand_file_name_temp(expand_file_name_char(&
-                         tmc_ana_density_file_name,"vari",error),&
+                       TRIM(ana_env%out_file_prefix)//&
+                       tmc_ana_density_file_name,"vari",error),&
                        ana_env%temperature, error)
-    OPEN(19,FILE=file_name_vari)
-    WRITE(18,FMT='(A,1X,I0,1X,A,3(I0,1X),1X,A,1X,3F10.5)')&
-     "# configurations", ana_env%density_3d%conf_counter, "bins", &
-     ana_env%density_3d%nr_bins, "interval size", interval_size(:)
-    WRITE(19,FMT='(A,1X,I0,1X,A,3(I0,1X),1X,A,1X,3F10.5)')&
-     "# configurations", ana_env%density_3d%conf_counter, "bins", &
-     ana_env%density_3d%nr_bins, "interval size", interval_size(:)
-    WRITE(18,FMT='(A,3A10,A20)')"#"," x [A] "," y [A] "," z [A] "," density [g/cm^3] "
-    WRITE(19,FMT='(A,3A10,A20)')"#"," x [A] "," y [A] "," z [A] "," variance"
+    CALL open_file(file_name=file_name_vari, file_status="REPLACE", &
+                   file_action="WRITE", file_position="APPEND", &
+                   unit_number=file_ptr_vari)
+    WRITE(file_ptr_vari,FMT='(A,1X,I0,1X,A,3(I0,1X),1X,A,1X,3F10.5)')&
+      "# configurations", ana_env%density_3d%conf_counter, "bins", &
+      ana_env%density_3d%nr_bins, "interval size", interval_size(:)
+    WRITE(file_ptr_vari,FMT='(A,3A10,A20)')"#"," x [A] "," y [A] "," z [A] "," variance"
 
     DO i=1, SIZE(ana_env%density_3d%sum_density(:,1,1))
        DO j=1, SIZE(ana_env%density_3d%sum_density(1,:,1))
           DO k=1, SIZE(ana_env%density_3d%sum_density(1,1,:))
-             WRITE(18,FMT='(3F10.2,F20.10)') &
+             WRITE(file_ptr_dens,FMT='(3F10.2,F20.10)') &
                (i-0.5_dp)*interval_size(1), (j-0.5_dp)*interval_size(2), (k-0.5_dp)*interval_size(3), &
                ana_env%density_3d%sum_density(i,j,k)/REAL(ana_env%density_3d%conf_counter, KIND=dp)
-             WRITE(19,FMT='(3F10.2,F20.10)') &
+             WRITE(file_ptr_vari,FMT='(3F10.2,F20.10)') &
                (i-0.5_dp)*interval_size(1), (j-0.5_dp)*interval_size(2), (k-0.5_dp)*interval_size(3), &
                ana_env%density_3d%sum_dens2(i,j,k)/REAL(ana_env%density_3d%conf_counter, KIND=dp)-&
                (ana_env%density_3d%sum_density(i,j,k)/REAL(ana_env%density_3d%conf_counter, KIND=dp))**2
           END DO
         END DO
     END DO
-    CLOSE(18)
-    CLOSE(19)
+    CALL close_file(unit_number=file_ptr_dens)
+    CALL close_file(unit_number=file_ptr_vari)
 
     WRITE(ana_env%io_unit,FMT="(/,T2,A)") REPEAT("-",79)
     WRITE(ana_env%io_unit,FMT="(T2,A,T35,A,T80,A)")"-","density calculation","-"
@@ -969,7 +1041,7 @@ CONTAINS
          REAL(ana_env%density_3d%conf_counter, KIND=dp))**2)
     WRITE(ana_env%io_unit,FMT="(/,T2,A)") REPEAT("-",79)
     IF(ana_env%print_test_output) &
-      WRITE(*,*)"TMC|ANALYSIS_CELL_DENSITY_X= ", &
+      WRITE(ana_env%io_unit,*)"TMC|ANALYSIS_CELL_DENSITY_X= ", &
         SUM(ana_env%density_3d%sum_density(:,:,:))/&
         SIZE(ana_env%density_3d%sum_density(:,:,:))/&
         REAL(ana_env%density_3d%conf_counter, KIND=dp)
@@ -1138,7 +1210,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=default_path_length)       :: file_name
-    INTEGER                                  :: bin, handle, pair
+    INTEGER                                  :: bin, file_ptr, handle, pair
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: vol, voldr
     REAL(KIND=dp), DIMENSION(3)              :: cell_size
@@ -1155,27 +1227,33 @@ CONTAINS
     vol = cell_size(1)*cell_size(2)*cell_size(3)
 
     DO pair=1, SIZE(ana_env%pair_correl%pairs)
-      file_name = expand_file_name_temp(tmc_ana_pair_correl_file_name, &
+      file_name = expand_file_name_temp(TRIM(ana_env%out_file_prefix)//&
+                    tmc_ana_pair_correl_file_name, &
                     ana_env%temperature, error)
-      OPEN(18,FILE=TRIM(expand_file_name_char(expand_file_name_char(file_name,&
-                           ana_env%pair_correl%pairs(pair)%f_n,error),&
-                        ana_env%pair_correl%pairs(pair)%s_n, error)))
-      WRITE(18,*)"# radial distribution function of "//&
+      CALL open_file(file_name=expand_file_name_char(&
+                                expand_file_name_char(file_name,&
+                                 ana_env%pair_correl%pairs(pair)%f_n,error),&
+                                 ana_env%pair_correl%pairs(pair)%s_n, error),&
+                     file_status="REPLACE", &
+                     file_action="WRITE", file_position="APPEND", &
+                     unit_number=file_ptr)
+      WRITE(file_ptr,*)"# radial distribution function of "//&
                  TRIM(ana_env%pair_correl%pairs(pair)%f_n)//" and "//&
                  TRIM(ana_env%pair_correl%pairs(pair)%s_n)//" of ",&
                  ana_env%pair_correl%conf_counter," configurations"
-      WRITE(18,*)"# using a bin size of ",&
+      WRITE(file_ptr,*)"# using a bin size of ",&
         ana_env%pair_correl%step_lenght*au2a,&
         "[A] (for Vol changes: refering to the reference cell)"
       DO bin=1, ana_env%pair_correl%nr_bins
         voldr = 4.0/3.0* PI* ana_env%pair_correl%step_lenght**3 * &
                   (REAL(bin,KIND=dp)**3-REAL(bin-1,KIND=dp)**3)
-        WRITE(18,*) (bin-0.5)*ana_env%pair_correl%step_lenght*au2a , &
+        WRITE(file_ptr,*) (bin-0.5)*ana_env%pair_correl%step_lenght*au2a , &
                     ana_env%pair_correl%g_r(pair,bin)/&
                     ((ana_env%pair_correl%pairs(pair)%pair_count/vol)*&
                     voldr*ana_env%pair_correl%conf_counter)
       END DO
-      CLOSE(18)
+      CALL close_file(unit_number=file_ptr)
+
       IF(ana_env%print_test_output) &
         WRITE(*,*)"TMC|ANALYSIS_G_R_"//&
           TRIM(ana_env%pair_correl%pairs(pair)%f_n)//"_"//&
@@ -1407,7 +1485,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=default_path_length)       :: file_name, file_name_tmp
-    INTEGER                                  :: counter_tmp
+    INTEGER                                  :: counter_tmp, file_ptr
     LOGICAL                                  :: failure, flag
     REAL(KIND=dp)                            :: diel_const, diel_const_norm, &
                                                 diel_const_sym, e0, kB
@@ -1420,14 +1498,16 @@ CONTAINS
     e0 = 0.07957747154594767_dp !e^2*a0*me*hbar^-2
     diel_const_norm = 1/(3.0_dp*e0*kB*ana_env%temperature)
 
-    file_name = expand_file_name_temp(tmc_default_trajectory_file_name, &
+    file_name = expand_file_name_temp(TRIM(ana_env%out_file_prefix)//&
+                    tmc_default_trajectory_file_name, &
                     ana_env%temperature, error)
     CALL write_dipoles_in_file(file_name=file_name, &
            conf_nr=INT(ana_env%dip_ana%conf_counter)+1, dip=elem%dipole, &
            file_ext="dip_folded", error=error)
 
     ! set ouput file name
-    file_name_tmp = expand_file_name_temp(tmc_default_trajectory_file_name, &
+    file_name_tmp = expand_file_name_temp(TRIM(ana_env%out_file_prefix)//&
+                        tmc_default_trajectory_file_name, &
                         ana_env%temperature, error)
 
     SELECT CASE (ana_env%dip_ana%ana_type)
@@ -1462,34 +1542,38 @@ CONTAINS
     ! print dielectric constant trajectory
     !  if szmetry used print only every 8th configuration, hence every different (not mirrowed)
     INQUIRE(FILE=file_name, EXIST=flag)
-    OPEN(19,FILE=file_name, POSITION="APPEND")
+    CALL open_file(file_name=file_name, file_status="UNKNOWN", &
+                     file_action="WRITE", file_position="APPEND", &
+                     unit_number=file_ptr)
     IF(.NOT.flag) THEN
-      WRITE(19,FMT='(A8,5A20)')"# conf", "diel_const", &
+      WRITE(file_ptr,FMT='(A8,5A20)')"# conf", "diel_const", &
                                "diel_const_sym", "diel_const_sym_x", &
                                "diel_const_sym_y", "diel_const_sym_z"
     END IF
-    WRITE(19,FMT="(I8,10F20.10)") counter_tmp, diel_const,&
+    WRITE(file_ptr,FMT="(I8,10F20.10)") counter_tmp, diel_const,&
       diel_const_sym, &
       4.0_dp*PI/(kB*ana_env%temperature) * &
       ana_env%dip_ana%mu2_pv(:)/REAL(ana_env%dip_ana%conf_counter, KIND=dp)
-    CLOSE(19)
+    CALL close_file(unit_number=file_ptr)
+
     ! print dielectric constant tensor trajectory
     INQUIRE(FILE=file_name_tmp, EXIST=flag)
-    OPEN(19,FILE=file_name_tmp, POSITION="APPEND")
+    CALL open_file(file_name=file_name_tmp, file_status="UNKNOWN", &
+                     file_action="WRITE", file_position="APPEND", &
+                     unit_number=file_ptr)
     IF(.NOT.flag) THEN
-      WRITE(19,FMT='(A8,9A20)')"# conf", "xx", "xy", "xz", &
+      WRITE(file_ptr,FMT='(A8,9A20)')"# conf", "xx", "xy", "xz", &
                                "yx", "yy", "yz", &
                                "zx", "zy", "zz"
     END IF
     tmp_dip(:,:) = 0.0_dp
     tmp_dip(:,1) = ana_env%dip_ana%mu_psv(:)/REAL(ana_env%dip_ana%conf_counter, KIND=dp)
 
-    WRITE(19,FMT="(I8,10F20.10)") counter_tmp, &
+    WRITE(file_ptr,FMT="(I8,10F20.10)") counter_tmp, &
       4.0_dp*PI/(kB*ana_env%temperature)*&
       (ana_env%dip_ana%mu2_pv_mat(:,:)/REAL(ana_env%dip_ana%conf_counter, KIND=dp) - &
       MATMUL(tmp_dip(:,:), TRANSPOSE(tmp_dip(:,:))))
-
-    CLOSE(19)
+    CALL close_file(unit_number=file_ptr)
   END SUBROUTINE print_act_dipole_analysis
 
 ! *****************************************************************************
@@ -1600,7 +1684,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=default_path_length)       :: file_name, file_name_tmp
-    INTEGER                                  :: handle, ind
+    INTEGER                                  :: file_ptr, handle, ind
     LOGICAL                                  :: failure, flag
     REAL(KIND=dp)                            :: disp
     REAL(KIND=dp), DIMENSION(3)              :: atom_disp
@@ -1628,16 +1712,19 @@ CONTAINS
     ana_env%displace%conf_counter = ana_env%displace%conf_counter +1
 
    IF(ana_env%displace%print_disp) THEN
-      file_name_tmp = expand_file_name_temp(tmc_default_trajectory_file_name, &
+      file_name_tmp = expand_file_name_temp(TRIM(ana_env%out_file_prefix)//&
+                        tmc_default_trajectory_file_name, &
                         ana_env%temperature, error)
       file_name = TRIM(expand_file_name_char(file_name_tmp,&
                           "devi",error))
       INQUIRE(FILE=file_name, EXIST=flag)
-      OPEN(19,FILE=file_name, POSITION="APPEND")
+      CALL open_file(file_name=file_name, file_status="UNKNOWN", &
+                     file_action="WRITE", file_position="APPEND", &
+                     unit_number=file_ptr)
       IF(.NOT.flag) &
-        WRITE(19,*) "# conf     squared deviation of the cell"
-      WRITE(19,*) elem%nr, disp
-      CLOSE(19)
+        WRITE(file_ptr,*) "# conf     squared deviation of the cell"
+      WRITE(file_ptr,*) elem%nr, disp
+      CALL close_file(unit_number=file_ptr)
     END IF
 
     ! end the timing

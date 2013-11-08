@@ -27,7 +27,8 @@ MODULE tmc_setup
                                              section_vals_get_subs_vals,&
                                              section_vals_type,&
                                              section_vals_val_get
-  USE kinds,                           ONLY: default_string_length,&
+  USE kinds,                           ONLY: default_path_length,&
+                                             default_string_length,&
                                              dp
   USE machine,                         ONLY: default_output_unit,&
                                              m_flush
@@ -51,16 +52,14 @@ MODULE tmc_setup
                                              tmc_ana_list_type
   USE tmc_file_io,                     ONLY: expand_file_name_int
   USE tmc_master,                      ONLY: do_tmc_master
-  USE tmc_move_handle,                 ONLY: init_move_types,&
-                                             print_move_types
-  USE tmc_move_types,                  ONLY: move_types_release
-  USE tmc_stati,                       ONLY: tmc_NMC_worker_out_file_name,&
-                                             tmc_ana_out_file_name,&
-                                             tmc_default_restart_in_file_name,&
-                                             tmc_default_restart_out_file_name,&
-                                             tmc_default_unspecified_name,&
-                                             tmc_energy_worker_out_file_name,&
-                                             tmc_master_out_file_name
+  USE tmc_move_handle,                 ONLY: finalize_mv_types,&
+                                             print_move_types,&
+                                             read_init_move_types
+  USE tmc_stati,                       ONLY: &
+       task_type_MC, task_type_ideal_gas, tmc_NMC_worker_out_file_name, &
+       tmc_ana_out_file_name, tmc_default_restart_in_file_name, &
+       tmc_default_restart_out_file_name, tmc_default_unspecified_name, &
+       tmc_energy_worker_out_file_name, tmc_master_out_file_name
   USE tmc_tree_build,                  ONLY: allocate_new_sub_tree_node,&
                                              deallocate_sub_tree_node
   USE tmc_tree_types,                  ONLY: tree_type
@@ -131,6 +130,14 @@ CONTAINS
     ENDIF
     ! ugly, we need to know the output unit on source, everywhere, in particular
     ! the tmc master
+    IF (output_unit .NE. default_output_unit .AND. output_unit .GT.0) THEN
+      WRITE (UNIT=output_unit,FMT="(/,T2,A)") REPEAT("-",79)
+      WRITE (UNIT=output_unit,FMT="(/,T2,A)") "The TMC output files are:"
+      WRITE (UNIT=output_unit,FMT="(/,T2,A)") "tmc_master.out           the TMC master"
+      WRITE (UNIT=output_unit,FMT="(/,T2,A)") "tmc_E_worker_*.out       the worker outputs (energy calculations etc.)"
+      WRITE (UNIT=output_unit,FMT="(/,T2,A)") "tmc_ana.out              the analysis output"
+      WRITE (UNIT=output_unit,FMT="(/,T2,A)") REPEAT("-",79)
+    END IF
     bcast_output_unit=output_unit
     CALL mp_bcast(bcast_output_unit,para_env%source,para_env%group)
 
@@ -194,6 +201,7 @@ CONTAINS
           CALL open_file(file_name=tmc_master_out_file_name,file_status="UNKNOWN",&
                file_action="WRITE", file_position="APPEND",&
                unit_number=tmc_env%m_env%io_unit)
+          CALL tmc_header(tmc_env%m_env%io_unit)
         ENDIF
         ! print the intresting parameters and starting values
         CALL tmc_print_params(tmc_env, error_sub)
@@ -252,8 +260,6 @@ CONTAINS
           CALL destroy_force_env(tmc_env%w_env%env_id_approx, ierr)
   
         CALL cp_error_dealloc_ref(error_sub,error=error)
-        !MK TODO: The following line is just a workaround to fix memory leaks
-        logger_sub%ref_count = logger_sub%ref_count - 1
         CALL cp_logger_release(logger_sub)
 
       ! the analysis group
@@ -275,6 +281,7 @@ CONTAINS
           CALL open_file(file_name=tmc_ana_out_file_name,file_status="UNKNOWN",&
                file_action="WRITE", file_position="APPEND",&
                unit_number=output_unit)
+          CALL tmc_ana_header(output_unit)
         ENDIF
 
         ALLOCATE(tmc_ana_env_list(tmc_env%params%nr_temp))
@@ -299,7 +306,7 @@ CONTAINS
       CALL delete_rng_stream(tmc_env%rng_stream,error=error)
 
       ! deallocate the move types
-      CALL move_types_release(tmc_env%params%move_types, error)
+      CALL finalize_mv_types(tmc_env%params, error)
  
       ! finalize master and worker environment
       IF(tmc_env%tmc_comp_set%group_nr.EQ.0) THEN
@@ -590,8 +597,9 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'tmc_preread_input', &
       routineP = moduleN//':'//routineN
 
+    CHARACTER(LEN=default_path_length)       :: c_tmp
     INTEGER                                  :: itmp
-    LOGICAL                                  :: failure, flag
+    LOGICAL                                  :: explicit_key, failure, flag
     REAL(KIND=dp)                            :: tmax, tmin
     REAL(KIND=dp), DIMENSION(:), POINTER     :: inp_Temp
     TYPE(section_vals_type), POINTER         :: tmc_section
@@ -634,7 +642,7 @@ CONTAINS
     CALL section_vals_val_get(tmc_section,"NR_TEMPERATURE",i_val=tmc_env%params%nr_temp,error=error)
 
     ! stuff everyone needs to know
-    CALL section_vals_val_get(tmc_section,"NMC_FILE_NAME",c_val=tmc_env%params%NMC_inp_file,error=error)
+    CALL section_vals_val_get(tmc_section,"NMC_MOVES%NMC_FILE_NAME",c_val=tmc_env%params%NMC_inp_file,error=error)
     IF(tmc_env%params%NMC_inp_file.EQ.tmc_default_unspecified_name)THEN
     ! file name keyword without file name
       CALL cp_assert(.FALSE.,&
@@ -657,6 +665,7 @@ CONTAINS
                      "a valid NMC input file has to be specified ",&
                      error, failure=flag, only_ionode=.TRUE.)
     END IF
+
     CALL section_vals_val_get(tmc_section,"TEMPERATURE",r_vals=inp_Temp,error=error)
     CALL cp_assert(.NOT.((tmc_env%params%nr_temp .GT. 1).AND.(SIZE(inp_Temp).NE.2)),&
                      cp_failure_level,cp_assertion_failed,routineP,&
@@ -680,6 +689,25 @@ CONTAINS
                    "TEMPERATURE {T_min} {T_max} and NR_TEMPERATURE {#temperatures}",&
                    error, failure=flag, only_ionode=.TRUE.)
     END IF
+
+    CALL section_vals_val_get(tmc_section,"TASK_TYPE" ,explicit=explicit_key,error=error)
+    IF(explicit_key)THEN
+      CALL section_vals_val_get(tmc_section,"TASK_TYPE",c_val=c_tmp,error=error)
+      SELECT CASE (TRIM(c_tmp))
+      CASE (TRIM(tmc_default_unspecified_name))
+        tmc_env%params%task_type = task_type_MC
+      CASE ("IDEAL_GAS")
+        tmc_env%params%task_type = task_type_ideal_gas
+      CASE DEFAULT
+        CALL cp_assert(.FALSE.,&
+               cp_warning_level,cp_assertion_failed,routineP,&
+               'unknown TMC task type "'//TRIM(c_tmp)//'" specified. '//&
+               " Set to default.",&
+               error, failure=flag, only_ionode=.TRUE.)
+        tmc_env%params%task_type = task_type_MC
+      END SELECT
+    END IF
+
   END SUBROUTINE tmc_preread_input
 
 
@@ -750,7 +778,6 @@ CONTAINS
 
     ! stuff everyone needs to know
 
-    ALLOCATE(tmc_env%params%moves_init_sizes)
     ! the NMC_FILE_NAME is already read in tmc_preread_input
     CALL section_vals_val_get(tmc_section,"ENERGY_FILE_NAME",c_val=tmc_env%params%energy_inp_file,error=error)
     ! file name keyword without file name
@@ -766,25 +793,7 @@ CONTAINS
                    TRIM(tmc_env%params%energy_inp_file)//" does not exist.",&
                    error, failure=flag, only_ionode=.TRUE.)
 
-    CALL section_vals_val_get(tmc_section,"START_ACC_PROB",r_val=tmc_env%params%moves_init_sizes%start_acc_prob,error=error)
     CALL section_vals_val_get(tmc_section,"NUM_MV_ELEM_IN_CELL",i_val=tmc_env%params%nr_elem_mv,error=error)    
-    CALL section_vals_val_get(tmc_section,"NR_NMC_STEPS",i_val=tmc_env%params%nr_NMC_steps,error=error)
-    CALL cp_assert(.NOT.(tmc_env%params%NMC_inp_file.NE."".AND.tmc_env%params%nr_NMC_steps.LE.0),&
-                     cp_failure_level,cp_assertion_failed,routineP,&
-                     "Please specify a valid amount of NMC steps (NR_NMC_STEPS {INTEGER}).",&
-                     error, failure=flag, only_ionode=.TRUE.)
-    CALL section_vals_val_get(tmc_section,"MOVE_TYPES",i_vals=tmc_env%params%moves_init_sizes%mv_types,error=error)
-    CALL section_vals_val_get(tmc_section,"MOVE_SIZES",r_vals=tmc_env%params%moves_init_sizes%mv_sizes,error=error)
-    CALL section_vals_val_get(tmc_section,"MOVE_PROBS",r_vals=tmc_env%params%moves_init_sizes%mv_probs,error=error)
-    CALL cp_assert((SIZE(tmc_env%params%moves_init_sizes%mv_types).EQ.SIZE(tmc_env%params%moves_init_sizes%mv_sizes)),&
-                     cp_failure_level,cp_assertion_failed,routineP,&
-                     "The entered move sizes does not fit in the amount to the entered move types.",&
-                     error, failure=flag, only_ionode=.TRUE.)
-    CALL cp_assert((SIZE(tmc_env%params%moves_init_sizes%mv_probs).EQ.1.OR.&
-                   SIZE(tmc_env%params%moves_init_sizes%mv_probs).EQ.SIZE(tmc_env%params%moves_init_sizes%mv_types)),&
-                     cp_failure_level,cp_assertion_failed,routineP,&
-                     "The entered move probabilities does not fit in the amount to the entered move types.",&
-                     error, failure=flag, only_ionode=.TRUE.)
 
     CALL section_vals_val_get(tmc_section,"VOLUME_ISOTROPIC",l_val=tmc_env%params%v_isotropic,error=error)
     CALL section_vals_val_get(tmc_section,"PRESSURE",r_val=tmc_env%params%pressure,error=error)
@@ -808,8 +817,9 @@ CONTAINS
       tmc_env%params%sub_box_size(:) = r_tmp
     END IF
 
-    ! init the move types (set all move sizes and weights)
-    CALL init_move_types(tmc_params=tmc_env%params, error=error)
+    ! read all the distinct moves
+    CALL read_init_move_types(tmc_params=tmc_env%params, &
+                              tmc_section=tmc_section, error=error)
 
     CALL section_vals_val_get(tmc_section,"ESIMATE_ACC_PROB",l_val=tmc_env%params%esimate_acc_prob,error=error)
     CALL section_vals_val_get(tmc_section,"SPECULATIVE_CANCELING",l_val=tmc_env%params%SPECULATIVE_CANCELING,error=error)

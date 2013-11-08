@@ -668,7 +668,7 @@ CONTAINS
     CPPrecondition(.NOT.ALLOCATED(m_send%task_char),cp_failure_level,routineP,error,failure)
 
     counter = 1
-    msg_size_int = 1+SIZE(tmc_params%cell%perd) +1+1 +1 +1
+    msg_size_int = 1+SIZE(tmc_params%cell%perd) +1+1 +1 +1+SIZE(elem%mol) +1
     IF(msg_type.EQ.TMC_STAT_INIT_ANALYSIS) THEN
       CPPrecondition(PRESENT(result_count),cp_failure_level,routineP,error,failure)
       CPPrecondition(ASSOCIATED(result_count),cp_failure_level,routineP,error,failure)
@@ -683,6 +683,9 @@ CONTAINS
     m_send%task_int(counter+2) = 0
     IF(tmc_params%cell%orthorhombic) m_send%task_int(counter+2) = 1
     counter = counter +3
+    m_send%task_int(counter) = SIZE(elem%mol)
+    m_send%task_int(counter+1:counter+m_send%task_int(counter)) = elem%mol(:)
+    counter = counter +1+m_send%task_int(counter)
     IF(msg_type.EQ.TMC_STAT_INIT_ANALYSIS) THEN
       m_send%task_int(counter) = SIZE(result_count(1:))
       m_send%task_int(counter+1:counter+m_send%task_int(counter)) = &
@@ -762,6 +765,8 @@ CONTAINS
     tmc_params%cell%orthorhombic = .FALSE.
     IF(m_send%task_int(counter+2).EQ.1) tmc_params%cell%orthorhombic = .TRUE.
     counter = counter +3
+    elem%mol(:) = m_send%task_int(counter+1:counter+m_send%task_int(counter))
+    counter = counter +1+m_send%task_int(counter)
     IF(msg_type.EQ.TMC_STAT_INIT_ANALYSIS) THEN
       CPPrecondition(PRESENT(result_count),cp_failure_level,routineP,error,failure)
       CPPrecondition(.NOT.ASSOCIATED(result_count),cp_failure_level,routineP,error,failure)
@@ -1180,14 +1185,17 @@ CONTAINS
     CPPrecondition(ASSOCIATED(tmc_params),cp_failure_level,routineP,error,failure)
 
     counter = 0
-    !first integer array with element status, and move type, sub tree, element nr, temp index
-    msg_size_int = 1+SIZE(elem%elem_stat) +1+1 +1+1 +1+1 +1+1 +1
+    !first integer array with element status,mol_info, move type, sub tree, element nr, temp index
+    msg_size_int = 1+SIZE(elem%elem_stat) +1+SIZE(elem%mol) +1+1 +1+1 +1+1 +1+1 +1
 
     ALLOCATE(m_send%task_int(msg_size_int))
     ! element status
     m_send%task_int(1) = SIZE(elem%elem_stat)
     counter = 2 + m_send%task_int(1)
     m_send%task_int(2:counter-1) = elem%elem_stat
+    m_send%task_int(counter) = SIZE(elem%mol)
+    m_send%task_int(counter+1:counter+m_send%task_int(counter)) = elem%mol(:)
+    counter = counter +1+m_send%task_int(counter)
     ! element move type
     m_send%task_int(counter) = 1
     m_send%task_int(counter+1) = elem%move_type
@@ -1204,7 +1212,7 @@ CONTAINS
 
     counter = 0
     !then float array with pos, (vel), random number seed, subbox_center
-    msg_size_real = 1+SIZE(elem%pos)                   +1+SIZE(elem%rng_seed) +1+SIZE(elem%subbox_center(:)) +1
+    msg_size_real = 1+SIZE(elem%pos) +1+SIZE(elem%rng_seed) +1+SIZE(elem%subbox_center(:)) +1
     IF(msg_type.EQ.TMC_STAT_MD_REQUEST.OR.msg_type.EQ.TMC_STAT_MD_BROADCAST) &
        msg_size_real = msg_size_real +1+SIZE(elem%vel)                                ! the velocities
     IF(tmc_params%pressure.GE.0.0_dp) msg_size_real = msg_size_real+ 1+SIZE(elem%box_scale(:)) ! box size for NpT
@@ -1282,6 +1290,8 @@ CONTAINS
     ! element status
     counter = 2 + m_send%task_int(1)
     elem%elem_stat = m_send%task_int(2:counter-1)
+    elem%mol(:) = m_send%task_int(counter+1:counter+m_send%task_int(counter))
+    counter = counter +1+m_send%task_int(counter)
     ! element move type
     elem%move_type = m_send%task_int(counter+1)
     counter = counter +2
@@ -1357,12 +1367,13 @@ CONTAINS
     CPPrecondition(ASSOCIATED(tmc_params),cp_failure_level,routineP,error,failure)
 
     !first integer array with status, nmc_acc_counts, subbox_acc_count and (subbox rejectance)
-    msg_size_int = 1+SIZE(tmc_params%move_types%mv_count) &
-                  +1+SIZE(tmc_params%move_types%acc_count) +1
+    msg_size_int = 1+SIZE(elem%mol) &
+                  +1+SIZE(tmc_params%nmc_move_types%mv_count) &
+                  +1+SIZE(tmc_params%nmc_move_types%acc_count) +1
     IF(DEBUG.GT.0) msg_size_int = msg_size_int + 1+1 +1+1
     IF(.NOT.ANY(tmc_params%sub_box_size.LE.0.1_dp)) &
-       msg_size_int = msg_size_int +1+SIZE(tmc_params%move_types%subbox_count) &
-                      +1+SIZE(tmc_params%move_types%subbox_acc_count)
+       msg_size_int = msg_size_int +1+SIZE(tmc_params%nmc_move_types%subbox_count) &
+                      +1+SIZE(tmc_params%nmc_move_types%subbox_acc_count)
 
     ALLOCATE(m_send%task_int(msg_size_int))
     counter = 1
@@ -1375,29 +1386,33 @@ CONTAINS
        m_send%task_int(counter+1) = elem%nr
        counter = counter +1 +m_send%task_int(counter)
     END IF
+    ! the molecule information
+    m_send%task_int(counter) = SIZE(elem%mol)
+    m_send%task_int(counter+1:counter+m_send%task_int(counter)) = elem%mol(:)
+    counter = counter +1+m_send%task_int(counter)
     ! the counters for each move type 
-    m_send%task_int(counter) = SIZE(tmc_params%move_types%mv_count)
+    m_send%task_int(counter) = SIZE(tmc_params%nmc_move_types%mv_count)
     m_send%task_int(counter+1:counter+m_send%task_int(counter)) = &
-       RESHAPE(tmc_params%move_types%mv_count(:,:),&
-               (/SIZE(tmc_params%move_types%mv_count)/))
+       RESHAPE(tmc_params%nmc_move_types%mv_count(:,:),&
+               (/SIZE(tmc_params%nmc_move_types%mv_count)/))
     counter = counter +1 +m_send%task_int(counter)
     ! the counter for the accepted moves
-    m_send%task_int(counter) = SIZE(tmc_params%move_types%acc_count)
+    m_send%task_int(counter) = SIZE(tmc_params%nmc_move_types%acc_count)
     m_send%task_int(counter+1:counter+m_send%task_int(counter)) = &
-       RESHAPE(tmc_params%move_types%acc_count(:,:),&
-               (/SIZE(tmc_params%move_types%acc_count)/))
+       RESHAPE(tmc_params%nmc_move_types%acc_count(:,:),&
+               (/SIZE(tmc_params%nmc_move_types%acc_count)/))
     counter = counter +1 +m_send%task_int(counter)
     ! amount of rejected subbox moves
     IF(.NOT.ANY(tmc_params%sub_box_size.LE.0.1_dp)) THEN
-       m_send%task_int(counter) = SIZE(tmc_params%move_types%subbox_count)
+       m_send%task_int(counter) = SIZE(tmc_params%nmc_move_types%subbox_count)
        m_send%task_int(counter+1:counter+m_send%task_int(counter)) = &
-          RESHAPE(tmc_params%move_types%subbox_count(:,:),&
-                  (/SIZE(tmc_params%move_types%subbox_count)/))
+          RESHAPE(tmc_params%nmc_move_types%subbox_count(:,:),&
+                  (/SIZE(tmc_params%nmc_move_types%subbox_count)/))
        counter = counter +1 +m_send%task_int(counter)
-       m_send%task_int(counter) = SIZE(tmc_params%move_types%subbox_acc_count)
+       m_send%task_int(counter) = SIZE(tmc_params%nmc_move_types%subbox_acc_count)
        m_send%task_int(counter+1:counter+m_send%task_int(counter)) = &
-          RESHAPE(tmc_params%move_types%subbox_acc_count(:,:),&
-                  (/SIZE(tmc_params%move_types%subbox_acc_count)/))
+          RESHAPE(tmc_params%nmc_move_types%subbox_acc_count(:,:),&
+                  (/SIZE(tmc_params%nmc_move_types%subbox_acc_count)/))
        counter = counter +1 +m_send%task_int(counter)
     END IF
     m_send%task_int(counter) = message_end_flag ! message end
@@ -1497,33 +1512,36 @@ CONTAINS
           STOP "read_NMC_result_massage: got result of wrong element"
        counter = counter + 2+2
     END IF
+    ! the molecule information
+    elem%mol(:) = m_send%task_int(counter+1:counter+m_send%task_int(counter))
+    counter = counter +1+m_send%task_int(counter)
     ! the counters for each move type
-    ALLOCATE(mv_counter(0:SIZE(tmc_params%move_types%mv_count(:,1))-1,&
-             SIZE(tmc_params%move_types%mv_count(1,:))))
+    ALLOCATE(mv_counter(0:SIZE(tmc_params%nmc_move_types%mv_count(:,1))-1,&
+             SIZE(tmc_params%nmc_move_types%mv_count(1,:))))
     mv_counter(:,:) = RESHAPE(m_send%task_int(counter+1:counter+m_send%task_int(counter)), &
-       (/SIZE(tmc_params%move_types%mv_count(:,1)), &
-        SIZE(tmc_params%move_types%mv_count(1,:))/))
+       (/SIZE(tmc_params%nmc_move_types%mv_count(:,1)), &
+        SIZE(tmc_params%nmc_move_types%mv_count(1,:))/))
     counter = counter +1 +m_send%task_int(counter)
     ! the counter for the accepted moves
-    ALLOCATE(acc_counter(0:SIZE(tmc_params%move_types%acc_count(:,1))-1,&
-             SIZE(tmc_params%move_types%acc_count(1,:))))
+    ALLOCATE(acc_counter(0:SIZE(tmc_params%nmc_move_types%acc_count(:,1))-1,&
+             SIZE(tmc_params%nmc_move_types%acc_count(1,:))))
     acc_counter(:,:) = RESHAPE(m_send%task_int(counter+1:counter+m_send%task_int(counter)), &
-       (/SIZE(tmc_params%move_types%acc_count(:,1)), &
-         SIZE(tmc_params%move_types%acc_count(1,:))/))
+       (/SIZE(tmc_params%nmc_move_types%acc_count(:,1)), &
+         SIZE(tmc_params%nmc_move_types%acc_count(1,:))/))
     counter = counter +1 +m_send%task_int(counter)
     ! amount of rejected subbox moves
     IF(.NOT.ANY(tmc_params%sub_box_size.LE.0.1_dp)) THEN
-       ALLOCATE(subbox_counter(SIZE(tmc_params%move_types%subbox_count(:,1)), &
-                SIZE(tmc_params%move_types%subbox_count(1,:))))
+       ALLOCATE(subbox_counter(SIZE(tmc_params%nmc_move_types%subbox_count(:,1)), &
+                SIZE(tmc_params%nmc_move_types%subbox_count(1,:))))
        subbox_counter(:,:) = RESHAPE(m_send%task_int(counter+1:counter+m_send%task_int(counter)), &
-          (/SIZE(tmc_params%move_types%subbox_count(:,1)), &
-            SIZE(tmc_params%move_types%subbox_count(1,:))/))
+          (/SIZE(tmc_params%nmc_move_types%subbox_count(:,1)), &
+            SIZE(tmc_params%nmc_move_types%subbox_count(1,:))/))
        counter = counter +1 +m_send%task_int(counter)
-       ALLOCATE(subbox_acc_counter(SIZE(tmc_params%move_types%subbox_acc_count(:,1)), &
-                SIZE(tmc_params%move_types%subbox_acc_count(1,:))))
+       ALLOCATE(subbox_acc_counter(SIZE(tmc_params%nmc_move_types%subbox_acc_count(:,1)), &
+                SIZE(tmc_params%nmc_move_types%subbox_acc_count(1,:))))
        subbox_acc_counter(:,:) = RESHAPE(m_send%task_int(counter+1:counter+m_send%task_int(counter)), &
-          (/SIZE(tmc_params%move_types%subbox_acc_count(:,1)), &
-            SIZE(tmc_params%move_types%subbox_acc_count(1,:))/))
+          (/SIZE(tmc_params%nmc_move_types%subbox_acc_count(:,1)), &
+            SIZE(tmc_params%nmc_move_types%subbox_acc_count(1,:))/))
        counter = counter +1 +m_send%task_int(counter)   
     END IF
     CPPostcondition(counter.EQ.m_send%info(2),cp_failure_level,routineP,error, failure)
@@ -1555,10 +1573,10 @@ CONTAINS
        counter = counter+2
     END IF
 
-    CALL add_mv_prob(move_types=tmc_params%move_types, prob_opt=tmc_params%esimate_acc_prob, &
+    CALL add_mv_prob(move_types=tmc_params%nmc_move_types, prob_opt=tmc_params%esimate_acc_prob, &
                      mv_counter=mv_counter,acc_counter=acc_counter, error=error)
     IF(.NOT.ANY(tmc_params%sub_box_size.LE.0.1_dp)) THEN
-      CALL add_mv_prob(move_types=tmc_params%move_types, prob_opt=tmc_params%esimate_acc_prob, &
+      CALL add_mv_prob(move_types=tmc_params%nmc_move_types, prob_opt=tmc_params%esimate_acc_prob, &
                        subbox_counter=subbox_counter, subbox_acc_counter=subbox_acc_counter, error=error)
     END IF
 

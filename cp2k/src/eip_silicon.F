@@ -28,7 +28,6 @@ MODULE eip_silicon
   USE eip_environment_types,           ONLY: eip_env_get,&
                                              eip_environment_type
   USE f77_blas
-!IMPLICIT NONE
   USE force_env_types,                 ONLY: force_env_get,&
                                              force_env_type
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
@@ -44,6 +43,7 @@ MODULE eip_silicon
   !$ USE OMP_LIB
 #include "cp_common_uses.h"
 
+  IMPLICIT NONE
   PRIVATE
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'eip_silicon'
@@ -674,7 +674,10 @@ CONTAINS
     SUBROUTINE eip_bazant_silicon(nat,alat,rxyz0,fxyz,ener,coord,ener_var,&
                                   coord_var,count)
 
-        IMPLICIT REAL(KIND=dp) (a-h,o-z)
+    INTEGER                                  :: nat
+    REAL(KIND=dp)                            :: alat, rxyz0, fxyz, ener, &
+                                                coord, ener_var, coord_var, &
+                                                count
 
         DIMENSION rxyz0(3,nat),fxyz(3,nat),alat(3)
         REAL(KIND=dp), ALLOCATABLE, DIMENSION(:,:) :: rxyz
@@ -686,6 +689,12 @@ CONTAINS
         REAL(KIND=dp), ALLOCATABLE, DIMENSION(:,:) :: txyz
         REAL(KIND=dp), ALLOCATABLE, DIMENSION(:,:) :: s2,s3,sz
         INTEGER, ALLOCATABLE, DIMENSION(:)         :: num2,num3,numz
+
+        REAL(KIND=dp) :: coord2, cut, cut2, ener2, rlc1i, rlc2i, rlc3i, tcoord, &
+                         tcoord2, tener, tener2
+        INTEGER       :: iam, iat, iat1, iat2, ii, i, il, in, indlst, indlstx, istop, &
+                         istopg, l2, l3, laymx, ll1, ll2, ll3, lot, max_nbrs, myspace, &
+                         l1, myspaceout, ncx, nn, nnbrx, npr
 
 !        cut=par_a
         cut= 3.1213820e0_dp + 1.e-14_dp
@@ -1706,9 +1715,18 @@ CONTAINS
                    rxyz,icell,lstb,lay,rel,cut2,indlst)
 ! finds the neighbours of atom iat (specified by lsta and lstb) and and
 ! the relative position rel of iat with respect to these neighbours
-        IMPLICIT REAL(KIND=dp) (a-h,o-z)
+    INTEGER                                  :: iat, nn, ncx, ll1, ll2, ll3, &
+                                                l1, l2, l3, myspace
+    REAL(KIND=dp)                            :: rxyz
+    INTEGER                                  :: icell, lstb, lay
+    REAL(KIND=dp)                            :: rel, cut2
+    INTEGER                                  :: indlst
+
         DIMENSION rxyz(3,nn),lay(nn),icell(0:ncx,-1:ll1,-1:ll2,-1:ll3), &
                   lstb(0:myspace-1),rel(5,0:myspace-1)
+
+        INTEGER       :: jat, k1, k2, k3, jj
+        REAL(KIND=dp) :: rr2, tt, tti, xrel, yrel, zrel, coord2, cut
 
         DO 6003,k3=l3-1,l3+1
         DO 6002,k2=l2-1,l2+1
@@ -1770,7 +1788,10 @@ CONTAINS
     SUBROUTINE eip_lenosky_silicon(nat,alat,rxyz0,fxyz,ener,coord,ener_var,&
                                    coord_var,count)
 
-        IMPLICIT REAL(KIND=dp) (a-h,o-z)
+    INTEGER                                  :: nat
+    REAL(KIND=dp)                            :: alat, rxyz0, fxyz, ener, &
+                                                coord, ener_var, coord_var, &
+                                                count
 
         DIMENSION rxyz0(3,nat),fxyz(3,nat),alat(3)
         REAL(KIND=dp), ALLOCATABLE, DIMENSION(:,:) :: rxyz
@@ -1781,6 +1802,13 @@ CONTAINS
         REAL(KIND=dp), ALLOCATABLE, DIMENSION(:,:) :: rel
         REAL(KIND=dp), ALLOCATABLE, DIMENSION(:,:) :: txyz
         REAL(KIND=dp), ALLOCATABLE, DIMENSION(:,:) :: f2ij,f3ij,f3ik
+
+        REAL(KIND=dp) :: coord2, cut, cut2, ener2, tcoord, &
+                         tcoord2, tener, tener2
+        INTEGER       :: i, iam, iat, iat1, iat2, ii, il, in, indlst, indlstx,&
+                         istop, istopg, l1, l2, l3, ll1, ll2, ll3, lot, ncx, nn, &
+                         nnbrx, npjkx, npjx, laymx, npr, rlc1i, rlc2i, rlc3i, jat, &
+                         jj, myspace, myspaceout
 
 !        tmax_phi= 0.4500000e+01_dp
 !        cut=tmax_phi
@@ -2412,92 +2440,117 @@ CONTAINS
 ! with them and their contribution to the energy (tener).
 ! In addition the coordination number tcoord and the second moment of the
 ! local energy tener2 and coordination number tcoord2 are returned
-        IMPLICIT REAL(KIND=dp) (a-h,o-z)
+    INTEGER                                  :: iat1, iat2, nat, lsta, lstb
+    REAL(KIND=dp)                            :: rel, tener, tener2, tcoord, &
+                                                tcoord2
+    INTEGER                                  :: nnbrx
+    REAL(KIND=dp)                            :: txyz, f2ij
+    INTEGER                                  :: npjx
+    REAL(KIND=dp)                            :: f3ij
+    INTEGER                                  :: npjkx
+    REAL(KIND=dp)                            :: f3ik
+    INTEGER                                  :: istop
+
         DIMENSION lsta(2,nat),lstb(nnbrx*nat),rel(5,nnbrx*nat),txyz(3,nat)
         DIMENSION f2ij(3,npjx),f3ij(3,npjkx),f3ik(3,npjkx)
-        REAL(KIND=dp) :: tmin_phi= 0.1500000e+01_dp
-        REAL(KIND=dp) :: tmax_phi= 0.4500000e+01_dp
-        REAL(KIND=dp) :: hi_phi= 3.00000000000e0_dp
-        REAL(KIND=dp) :: hsixth_phi=5.55555555555556e-002_dp
-        REAL(KIND=dp) :: h2sixth_phi=1.85185185185185e-002_dp
-        REAL(KIND=dp), DIMENSION(0:9) :: cof_phi  = &
+        REAL(KIND=dp), PARAMETER :: tmin_phi= 0.1500000e+01_dp
+        REAL(KIND=dp), PARAMETER :: tmax_phi= 0.4500000e+01_dp
+        REAL(KIND=dp), PARAMETER :: hi_phi= 3.00000000000e0_dp
+        REAL(KIND=dp), PARAMETER :: hsixth_phi=5.55555555555556e-002_dp
+        REAL(KIND=dp), PARAMETER :: h2sixth_phi=1.85185185185185e-002_dp
+        REAL(KIND=dp), PARAMETER, DIMENSION(0:9) :: cof_phi  = &
                      (/ 0.69299400000000e+01_dp, -0.43995000000000e+00_dp, &
                        -0.17012300000000e+01_dp, -0.16247300000000e+01_dp, &
                        -0.99696000000000e+00_dp, -0.27391000000000e+00_dp, &
                        -0.24990000000000e-01_dp, -0.17840000000000e-01_dp, &
                        -0.96100000000000e-02_dp,  0.00000000000000e+00_dp /)
-        REAL(KIND=dp), DIMENSION(0:9) :: dof_phi  = &
+        REAL(KIND=dp), PARAMETER, DIMENSION(0:9) :: dof_phi  = &
                      (/ 0.16533229480429e+03_dp,  0.39415410391417e+02_dp, &
                         0.68710036300407e+01_dp,  0.53406950884203e+01_dp, &
                         0.15347960162782e+01_dp, -0.63347591535331e+01_dp, &
                        -0.17987794021458e+01_dp,  0.47429676211617e+00_dp, &
                        -0.40087646318907e-01_dp, -0.23942617684055e+00_dp /)
-        REAL(KIND=dp) :: tmin_rho= 0.1500000e+01_dp
-        REAL(KIND=dp) :: tmax_rho= 0.3500000e+01_dp
-        REAL(KIND=dp) :: hi_rho= 5.00000000000e0_dp
-        REAL(KIND=dp) :: hsixth_rho=3.33333333333333e-002_dp
-        REAL(KIND=dp) :: h2sixth_rho=6.66666666666667e-003_dp
-        REAL(KIND=dp), DIMENSION(0:10) :: cof_rho =  &
+        REAL(KIND=dp), PARAMETER :: tmin_rho= 0.1500000e+01_dp
+        REAL(KIND=dp), PARAMETER :: tmax_rho= 0.3500000e+01_dp
+        REAL(KIND=dp), PARAMETER :: hi_rho= 5.00000000000e0_dp
+        REAL(KIND=dp), PARAMETER :: hsixth_rho=3.33333333333333e-002_dp
+        REAL(KIND=dp), PARAMETER :: h2sixth_rho=6.66666666666667e-003_dp
+        REAL(KIND=dp), PARAMETER, DIMENSION(0:10) :: cof_rho =  &
                      (/ 0.13747000000000e+00_dp, -0.14831000000000e+00_dp, &
                        -0.55972000000000e+00_dp, -0.73110000000000e+00_dp, &
                        -0.76283000000000e+00_dp, -0.72918000000000e+00_dp, &
                        -0.66620000000000e+00_dp, -0.57328000000000e+00_dp, &
                        -0.40690000000000e+00_dp, -0.16662000000000e+00_dp, &
                         0.00000000000000e+00_dp /)
-        REAL(KIND=dp), DIMENSION(0:10) :: dof_rho =  &
+        REAL(KIND=dp), PARAMETER, DIMENSION(0:10) :: dof_rho =  &
                     (/ -0.32275496741918e+01_dp, -0.64119006516165e+01_dp, &
                         0.10030652280658e+02_dp,  0.22937915289857e+01_dp, &
                         0.17416816033995e+01_dp,  0.54648205741626e+00_dp, &
                         0.47189016693543e+00_dp,  0.20569572748420e+01_dp, &
                         0.23192807336964e+01_dp, -0.24908020962757e+00_dp, &
                        -0.12371959895186e+02_dp /)
-        REAL(KIND=dp) :: tmin_fff= 0.1500000e+01_dp
-        REAL(KIND=dp) :: tmax_fff= 0.3500000e+01_dp
-        REAL(KIND=dp) :: hi_fff= 4.50000000000e0_dp
-        REAL(KIND=dp) :: hsixth_fff=3.70370370370370e-002_dp
-        REAL(KIND=dp) :: h2sixth_fff=8.23045267489712e-003_dp
-        REAL(KIND=dp), DIMENSION(0:9) :: cof_fff  = &
+        REAL(KIND=dp), PARAMETER :: tmin_fff= 0.1500000e+01_dp
+        REAL(KIND=dp), PARAMETER :: tmax_fff= 0.3500000e+01_dp
+        REAL(KIND=dp), PARAMETER :: hi_fff= 4.50000000000e0_dp
+        REAL(KIND=dp), PARAMETER :: hsixth_fff=3.70370370370370e-002_dp
+        REAL(KIND=dp), PARAMETER :: h2sixth_fff=8.23045267489712e-003_dp
+        REAL(KIND=dp), PARAMETER, DIMENSION(0:9) :: cof_fff  = &
                      (/ 0.12503100000000e+01_dp,  0.86821000000000e+00_dp, &
                         0.60846000000000e+00_dp,  0.48756000000000e+00_dp, &
                         0.44163000000000e+00_dp,  0.37610000000000e+00_dp, &
                         0.27145000000000e+00_dp,  0.14814000000000e+00_dp, &
                         0.48550000000000e-01_dp,  0.00000000000000e+00_dp /)
-        REAL(KIND=dp), DIMENSION(0:9) :: dof_fff  = &
+        REAL(KIND=dp), PARAMETER, DIMENSION(0:9) :: dof_fff  = &
                      (/ 0.27904652711432e+02_dp, -0.45230754228635e+01_dp, &
                         0.50531739800222e+01_dp,  0.11806545027747e+01_dp, &
                        -0.66693699112098e+00_dp, -0.89430653829079e+00_dp, &
                        -0.50891685571587e+00_dp,  0.66278396115427e+00_dp, &
                         0.73976101109878e+00_dp,  0.25795319944506e+01_dp /)
-        REAL(KIND=dp) :: tmin_uuu= -0.1770930e+01_dp
-        REAL(KIND=dp) :: tmax_uuu= 0.7908520e+01_dp
-        REAL(KIND=dp) :: hi_uuu= 0.723181585730594e0_dp
-        REAL(KIND=dp) :: hsixth_uuu=0.230463095238095e0_dp
-        REAL(KIND=dp) :: h2sixth_uuu=0.318679429600340e0_dp
-        REAL(KIND=dp), DIMENSION(0:7) :: cof_uuu  = &
+        REAL(KIND=dp), PARAMETER :: tmin_uuu= -0.1770930e+01_dp
+        REAL(KIND=dp), PARAMETER :: tmax_uuu= 0.7908520e+01_dp
+        REAL(KIND=dp), PARAMETER :: hi_uuu= 0.723181585730594e0_dp
+        REAL(KIND=dp), PARAMETER :: hsixth_uuu=0.230463095238095e0_dp
+        REAL(KIND=dp), PARAMETER :: h2sixth_uuu=0.318679429600340e0_dp
+        REAL(KIND=dp), PARAMETER, DIMENSION(0:7) :: cof_uuu  = &
                     (/ -0.10749300000000e+01_dp, -0.20045000000000e+00_dp, &
                         0.41422000000000e+00_dp,  0.87939000000000e+00_dp, &
                         0.12668900000000e+01_dp,  0.16299800000000e+01_dp, &
                         0.19773800000000e+01_dp,  0.23961800000000e+01_dp /)
-        REAL(KIND=dp), DIMENSION(0:7) :: dof_uuu  = &
+        REAL(KIND=dp), PARAMETER, DIMENSION(0:7) :: dof_uuu  = &
                     (/ -0.14827125747284e+00_dp, -0.14922155328475e+00_dp, &
                        -0.70113224223509e-01_dp, -0.39449020349230e-01_dp, &
                        -0.15815242579643e-01_dp,  0.26112640061855e-01_dp, &
                        -0.13786974745095e+00_dp,  0.74941595372657e+00_dp /)
-        REAL(KIND=dp) :: tmin_ggg= -0.1000000e+01_dp
-        REAL(KIND=dp) :: tmax_ggg= 0.8001400e+00_dp
-        REAL(KIND=dp) :: hi_ggg= 3.88858644327663e0_dp
-        REAL(KIND=dp) :: hsixth_ggg=4.28604761904762e-002_dp
-        REAL(KIND=dp) :: h2sixth_ggg=1.10221225156463e-002_dp
-        REAL(KIND=dp), DIMENSION(0:7) :: cof_ggg  = &
+        REAL(KIND=dp), PARAMETER :: tmin_ggg= -0.1000000e+01_dp
+        REAL(KIND=dp), PARAMETER :: tmax_ggg= 0.8001400e+00_dp
+        REAL(KIND=dp), PARAMETER :: hi_ggg= 3.88858644327663e0_dp
+        REAL(KIND=dp), PARAMETER :: hsixth_ggg=4.28604761904762e-002_dp
+        REAL(KIND=dp), PARAMETER :: h2sixth_ggg=1.10221225156463e-002_dp
+        REAL(KIND=dp), PARAMETER, DIMENSION(0:7) :: cof_ggg  = &
                      (/ 0.52541600000000e+01_dp,  0.23591500000000e+01_dp, &
                         0.11959500000000e+01_dp,  0.12299500000000e+01_dp, &
                         0.20356500000000e+01_dp,  0.34247400000000e+01_dp, &
                         0.49485900000000e+01_dp,  0.56179900000000e+01_dp /)
-        REAL(KIND=dp), DIMENSION(0:7) :: dof_ggg  = &
+        REAL(KIND=dp), PARAMETER, DIMENSION(0:7) :: dof_ggg  = &
                      (/ 0.15826876132396e+02_dp,  0.31176239377907e+02_dp, &
                         0.16589446539683e+02_dp,  0.11083892500520e+02_dp, &
                         0.90887216383860e+01_dp,  0.54902279653967e+01_dp, &
                        -0.18823313223755e+02_dp, -0.77183416481005e+01_dp /)
+
+       REAL(KIND=dp) :: a2_fff, a2_ggg, a_fff, a_ggg, b2_fff, b2_ggg, b_fff,&
+                        b_ggg, cof1_fff, cof1_ggg, cof2_fff, cof2_ggg,cof3_fff,&
+                        cof3_ggg, cof4_fff, cof4_ggg, cof_fff_khi, cof_fff_klo, &
+                        cof_ggg_khi, cof_ggg_klo, coord_iat, costheta, dens, &
+                        dens2, dens3, dof_fff_khi, dof_fff_klo, dof_ggg_khi, &
+                        dof_ggg_klo, e_phi, e_uuu, ener_iat, ep_phi, ep_uuu, &
+                        fij, fijp, fik, fikp, fxij, fxik, fyij, fyik, fzij, fzik,&
+                        gjik, gjikp, rho, rhop, rij, rik, sij, sik, t1, t2, t3, t4, &
+                        tt, tt_fff, tt_ggg, xarg, ypt1_fff, ypt1_ggg, ypt2_fff,&
+                        ypt2_ggg, yt1_fff, yt1_ggg, yt2_fff, yt2_ggg
+
+       INTEGER       :: iat, jat, jbr, jcnt, jkcnt, kat, kbr, khi_fff, khi_ggg,&
+                        klo_fff, klo_ggg
+
 
 ! initialize temporary private scalars for reduction sum on energies and
 ! private workarray txyz for forces forces
@@ -2819,9 +2872,18 @@ CONTAINS
                    rxyz,icell,lstb,lay,rel,cut2,indlst)
 ! finds the neighbours of atom iat (specified by lsta and lstb) and and
 ! the relative position rel of iat with respect to these neighbours
-        IMPLICIT REAL(KIND=dp) (a-h,o-z)
+    INTEGER                                  :: iat, nn, ncx, ll1, ll2, ll3, &
+                                                l1, l2, l3, myspace
+    REAL(KIND=dp)                            :: rxyz
+    INTEGER                                  :: icell, lstb, lay
+    REAL(KIND=dp)                            :: rel, cut2
+    INTEGER                                  :: indlst
+
         DIMENSION rxyz(3,nn),lay(nn),icell(0:ncx,-1:ll1,-1:ll2,-1:ll3), &
                   lstb(0:myspace-1),rel(5,0:myspace-1)
+
+        INTEGER       :: jat,jj,k1,k2,k3
+        REAL(KIND=dp) :: rr2,tt,xrel,yrel,zrel,tti
 
         DO 6363,k3=l3-1,l3+1
         DO 6364,k2=l2-1,l2+1
@@ -2856,8 +2918,15 @@ CONTAINS
 
 ! *****************************************************************************
         SUBROUTINE splint(ya,y2a,tmin,tmax,hsixth,h2sixth,hi,n,x,y,yp)
-        IMPLICIT REAL(KIND=dp) (a-h,o-z)
+    REAL(KIND=dp)                            :: ya, y2a, tmin, tmax, hsixth, &
+                                                h2sixth, hi
+    INTEGER                                  :: n
+    REAL(KIND=dp)                            :: x, y, yp
+
         DIMENSION y2a(0:n-1),ya(0:n-1)
+        REAL(KIND=dp) :: a,a2,b,b2,cof1,cof2,cof3,cof4,tt,&
+          y2a_khi,ya_klo,y2a_klo,ya_khi,ypt1,ypt2,yt1,yt2
+        INTEGER :: klo,khi
 
 ! interpolate if the argument is outside the cubic spline interval [tmin,tmax]
         tt=(x-tmin)*hi

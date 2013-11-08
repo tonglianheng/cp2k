@@ -9,10 +9,10 @@ H+.TI.inp          1
 He2H-.inp          1
 # Bloechl decoupling technique
 H+-bloechl.inp       1
-He2H-bloechl-md.inp  1
-He2H-bloechl.inp     1
+He2H-bloechl-md.inp               1     7e-12
+He2H-bloechl.inp                  1     4e-12
 H2O-bloechl.inp                   1     2e-14
-H2O-bloechl-Spl.inp  1
+H2O-bloechl-Spl.inp               1     2e-14
 H2O-bloechl-restraint.inp         1     3e-12
 # S**2
 CN.inp             4
@@ -54,7 +54,7 @@ rsgrid-dist-2.inp  1
 rsgrid-dist-3.inp  1
 # ghost atom dynamics at high cutoff highlights problems
 dynamics-2.inp       1
-ghost_overlap.inp 1
+ghost_overlap.inp                 1     2e-14
 ghost_overlap_vdw.inp 1
 # Population analyses
 NO2-mulliken.inp 41

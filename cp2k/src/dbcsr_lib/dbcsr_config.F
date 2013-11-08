@@ -18,6 +18,9 @@ MODULE dbcsr_config
        dbcsr_error_type, dbcsr_fatal_level, dbcsr_wrong_args_error, &
        external_timeset, external_timestop, timeset_interface, &
        timestop_interface
+  USE dbcsr_kinds,                     ONLY: dp
+
+!$ USE OMP_LIB
 
   IMPLICIT NONE
 
@@ -67,18 +70,23 @@ MODULE dbcsr_config
             mm_name_smm,&
             mm_name_plasma,&
             mm_name_cuda
-  PUBLIC :: nm_stacks, nn_stacks, nk_stacks, nstackbuffers
+  PUBLIC :: nm_stacks, nn_stacks, nk_stacks
   PUBLIC :: use_comm_thread, comm_thread_load
-  PUBLIC :: dbcsr_set_conf_nbuffers, dbcsr_get_conf_nbuffers
   PUBLIC :: max_elements_per_block
   !
   PUBLIC :: is_initialized
 
-  PUBLIC :: cudadrv_avoid_after_busy, cudadrv_min_flop_process,&
+  PUBLIC :: cudadrv_nbuffers,&
+            cudadrv_avoid_after_busy, cudadrv_min_flop_process,&
             cudadrv_min_flop_sort, cudadrv_do_inhomogenous, &
             cudadrv_binning_nbins, cudadrv_binning_binsize
 
+
+  PUBLIC :: multrec_limit
+  PUBLIC :: default_resize_factor
+
   ! First the constants are declared.
+  REAL(KIND=dp), PARAMETER             :: default_resize_factor = 1.2_dp
 
   ! Possible drivers to use for matrix multiplications
   INTEGER, PARAMETER :: mm_driver_matmul     = 1
@@ -165,7 +173,6 @@ MODULE dbcsr_config
   INTEGER, SAVE :: nm_stacks = 3
   INTEGER, SAVE :: nn_stacks = 3
   INTEGER, SAVE :: nk_stacks = 3
-  INTEGER, SAVE :: nstackbuffers = 1
 
   ! Configuration of an MPI progress thread
   LOGICAL, SAVE :: use_comm_thread = .TRUE.
@@ -173,6 +180,7 @@ MODULE dbcsr_config
 
   LOGICAL, SAVE :: is_initialized = .FALSE.
 
+  INTEGER, SAVE :: cudadrv_nbuffers = 8
   LOGICAL, SAVE :: cudadrv_avoid_after_busy = .FALSE.
   INTEGER, SAVE :: cudadrv_min_flop_process = 0
   INTEGER, SAVE :: cudadrv_min_flop_sort = 4000
@@ -180,6 +188,9 @@ MODULE dbcsr_config
 
   INTEGER, SAVE :: cudadrv_binning_nbins = 4096
   INTEGER, SAVE :: cudadrv_binning_binsize = 16
+
+  INTEGER, SAVE :: multrec_limit = 512
+
 CONTAINS
 
   SUBROUTINE dbcsr_set_conf_mm_driver (driver, error)
@@ -198,14 +209,12 @@ CONTAINS
     nm_stacks = 3
     nn_stacks = 3
     nk_stacks = 3
-    nstackbuffers = 0
 
     IF(has_smm_vec) THEN
       mm_stack_size = 30000
       nm_stacks = 3
       nn_stacks = 3
       nk_stacks = 3
-      nstackbuffers = 0
     ENDIF
 
     CALL dbcsr_error_set(routineN, error_handle, error)
@@ -233,7 +242,6 @@ CONTAINS
        nm_stacks = 3
        nn_stacks = 3
        nk_stacks = 3
-       nstackbuffers = 8
     END SELECT
     mm_async = driver_is_async (mm_driver)
     IF (mm_async) THEN
@@ -409,20 +417,6 @@ CONTAINS
     CALL dbcsr_error_stop(error_handle, error)
   END SUBROUTINE dbcsr_get_conf_nstacks
 
-  SUBROUTINE dbcsr_set_conf_nbuffers(nbuffers, error)
-    INTEGER, INTENT(IN)                      :: nbuffers
-    TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
-
-    nstackbuffers    = nbuffers
-  END SUBROUTINE dbcsr_set_conf_nbuffers
-
-  SUBROUTINE dbcsr_get_conf_nbuffers(nbuffers, error)
-    INTEGER, INTENT(OUT)                     :: nbuffers
-    TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
-
-    nbuffers   = nstackbuffers
-  END SUBROUTINE dbcsr_get_conf_nbuffers
-
   SUBROUTINE dbcsr_set_conf_use_comm_thread (comm_thread, error)
     LOGICAL, INTENT(IN)                      :: comm_thread
     TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
@@ -457,10 +451,14 @@ CONTAINS
       routineN = 'dbcsr_set_conf_comm_thread_load', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: error_handle
+    INTEGER                                  :: error_handle, nthreads
 
     CALL dbcsr_error_set(routineN, error_handle, error)
-    comm_thread_load = load
+    nthreads = 1
+    !$ nthreads = OMP_GET_MAX_THREADS()
+    comm_thread_load = MAX(0,90-(30*nthreads)/8)
+    IF(load >= 0)&
+       comm_thread_load = load
     CALL dbcsr_error_stop(error_handle, error)
   END SUBROUTINE dbcsr_set_conf_comm_thread_load
 

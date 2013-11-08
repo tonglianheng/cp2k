@@ -15,11 +15,12 @@
 !>               dbcsr_mm_methods.
 !>  - 2013-01    extensive refactoring (Ole Schuett)
 ! *****************************************************************************
-	
+
 MODULE dbcsr_mm_multrec
 
   USE array_types,                     ONLY: array_data,&
                                              array_equality
+  USE dbcsr_config,                    ONLY: multrec_limit
   USE dbcsr_error_handling
   USE dbcsr_kinds,                     ONLY: int_8,&
                                              real_8,&
@@ -533,7 +534,6 @@ MODULE dbcsr_mm_multrec
 
     CHARACTER(len=*), PARAMETER :: routineN = 'sparse_multrec', &
       routineP = moduleN//':'//routineN
-    INTEGER, PARAMETER                       :: norec = 512
     LOGICAL, PARAMETER                       :: careful = careful_mod, &
                                                 dbg = .FALSE.
 
@@ -551,7 +551,7 @@ MODULE dbcsr_mm_multrec
        ENDIF
     ENDIF
 
-    IF (af-ai+1 <= norec .AND. bf-bi+1 <= norec) THEN
+    IF (af-ai+1 <= multrec_limit .AND. bf-bi+1 <= multrec_limit) THEN
         IF (af-ai+1 .GT. 0 .AND. bf-bi+1 .GT. 0) &
         CALL dbcsr_mm_csr_multiply(this%csr, left, right, &
            mi=mi, mf=mf,ni=ni, nf=nf, ki=ki, kf=kf,&

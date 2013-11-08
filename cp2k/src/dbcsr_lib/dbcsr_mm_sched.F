@@ -23,11 +23,11 @@ MODULE dbcsr_mm_sched
   USE dbcsr_config,                    ONLY: cudadrv_avoid_after_busy,&
                                              cudadrv_do_inhomogenous,&
                                              cudadrv_min_flop_process,&
+                                             default_resize_factor,&
                                              mm_driver,&
                                              mm_driver_cuda
   USE dbcsr_data_methods,              ONLY: dbcsr_data_ensure_size,&
-                                             dbcsr_data_get_size,&
-                                             dbcsr_data_get_type
+                                             dbcsr_data_get_size
   USE dbcsr_error_handling
   USE dbcsr_kinds,                     ONLY: int_4,&
                                              int_8
@@ -75,9 +75,11 @@ MODULE dbcsr_mm_sched
   TYPE dbcsr_mm_sched_type
     PRIVATE
     TYPE(dbcsr_work_type), POINTER  :: product_wm
-    TYPE(dbcsr_mm_cudadrv_type) :: cudadrv
-    TYPE(dbcsr_mm_hostdrv_type) :: hostdrv
-    LOGICAL                     :: avoid_cudadrv = .FALSE.
+    TYPE(dbcsr_mm_cudadrv_type)     :: cudadrv
+    TYPE(dbcsr_mm_hostdrv_type)     :: hostdrv
+    LOGICAL                         :: avoid_cudadrv = .FALSE.
+    LOGICAL                         :: product_wm_cleared = .FALSE.
+    INTEGER                         :: product_wm_orig_datasize = -1
   END TYPE dbcsr_mm_sched_type
 
   ! *****************************************************************************
@@ -152,6 +154,29 @@ MODULE dbcsr_mm_sched
 
 
 
+! *****************************************************************************
+!> \brief Makes sure that the product_wm is cleared.
+!> \author Ole Schuett
+! *****************************************************************************
+  SUBROUTINE ensure_product_wm_cleared(this)
+    TYPE(dbcsr_mm_sched_type), INTENT(INOUT) :: this
+
+    INTEGER                                  :: allocated_datasize, &
+                                                used_datasize
+
+    IF(this%product_wm_cleared) RETURN
+
+    ! The product's data_area could already contain some data.
+    ! ( see: keep_product_data in dbcsr_operations.F )
+    ! But this data might not occupy all the allocated memory in the data_area.
+    ! Since, we don't want to keep track of unitialized memory we just zero it now.
+
+    used_datasize = this%product_wm_orig_datasize
+    allocated_datasize = dbcsr_data_get_size(this%product_wm%data_area)
+    CALL dbcsr_data_clear(this%product_wm%data_area, lb=used_datasize+1, ub=allocated_datasize)
+    this%product_wm_cleared = .TRUE.
+  END SUBROUTINE ensure_product_wm_cleared
+
 
 ! *****************************************************************************
 !> \brief Initializes a multiplication cycle for new set of C-blocks.
@@ -166,28 +191,16 @@ MODULE dbcsr_mm_sched
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_mm_sched_init', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: allocated_datasize, &
-                                                data_type, error_handler, &
-                                                ithread, nthreads, &
-                                                used_datasize
+    INTEGER                                  :: error_handler
 
     CALL dbcsr_error_set(routineN, error_handler, error)
 
-
-    nthreads = 1; ithread = 0
-    !$ nthreads = OMP_GET_NUM_THREADS () ; ithread = OMP_GET_THREAD_NUM ()
-
-    data_type = dbcsr_data_get_type(left%data_area)
-
     this%product_wm => product_wm
-    used_datasize = this%product_wm%datasize
-    allocated_datasize = dbcsr_data_get_size(this%product_wm%data_area)
 
-    ! The product's data_area could already contain some data.
-    ! ( see: keep_product_data in dbcsr_operations.F )
-    ! But this data might not occupy all the allocated memory in the data_area.
-    ! Since, we don't want to keep track of unitialized memory we just zero it now.
-    CALL dbcsr_data_clear(this%product_wm%data_area, lb=used_datasize+1, ub=allocated_datasize)
+    ! Clearing the product_wm takes too long, we gonna do it later and
+    ! return now to allow for MPI to progress.
+    ! We just have to remeber its datasize, in case it already contains data.
+    this%product_wm_orig_datasize = this%product_wm%datasize
 
     CALL dbcsr_mm_hostdrv_init(this%hostdrv, left, right, product_wm, error)
 
@@ -213,6 +226,9 @@ MODULE dbcsr_mm_sched
     INTEGER                                  :: error_handler
 
     CALL dbcsr_error_set(routineN, error_handler, error)
+
+    ! Just in case dbcsr_mm_sched_process was never called (really needed?)
+    CALL ensure_product_wm_cleared(this)
 
     CALL dbcsr_mm_hostdrv_finalize(this%hostdrv, error)
     IF (mm_driver == mm_driver_cuda) &
@@ -258,17 +274,17 @@ MODULE dbcsr_mm_sched
     TYPE(stack_descriptor_type), INTENT(IN)  :: stack_descr
     TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
 
-    REAL, PARAMETER                          :: resize_factor = 1.618034
-
     INTEGER                                  :: sp, stacked_datasize
     INTEGER(kind=int_8)                      :: flop_per_entry, total_flop
     LOGICAL                                  :: success
 
     IF(stack_fillcount <= 0) CALL mp_abort("dbcsr_mm_sched_process: got empty stack")
 
+    CALL ensure_product_wm_cleared(this)
+
     stacked_datasize   = this%product_wm%datasize
     CALL dbcsr_data_ensure_size(this%product_wm%data_area, stacked_datasize, &
-                    factor=resize_factor, zero_pad=.TRUE., error=error)
+                    factor=default_resize_factor, zero_pad=.TRUE., error=error)
 
      !!From here on there is no boundary checking due to assumed-SIZE-arguments.
      !!This is usefull to check stack parameters, BUT it works only for kind=dp
@@ -518,16 +534,16 @@ MODULE dbcsr_mm_sched
 
     DO i=1, SIZE(sort_idx)
      j = sort_idx(i)+1
-     percent = 100*REAL(stats_num_mnk_stacks(j,5))/REAL(MAX(INT(1,KIND=4),SUM(stats_num_mnk_stacks(j,4:5))))
+     percent = 100*REAL(stats_num_mnk_stacks(j,5))/REAL(MAX(INT(1,KIND=int_8),SUM(stats_num_mnk_stacks(j,4:5))))
      WRITE (output_unit,"(A,I4,' x ',I4,' x ',I4,T30,I20,1X,I20,T76,F5.1)") &
        " matmuls",stats_num_mnk_stacks(j,:), percent
     END DO
 
-    percent = 100*REAL(SUM(stats_num_mnk_stacks(:,5)))/REAL(MAX(INT(1,KIND=4),SUM(stats_num_mnk_stacks(:,4:5))))
+    percent = 100*REAL(SUM(stats_num_mnk_stacks(:,5)))/REAL(MAX(INT(1,KIND=int_8),SUM(stats_num_mnk_stacks(:,4:5))))
     WRITE (output_unit,'(A,T30,I20,1X,I20,T76,F5.1)') " matmuls total",&
        SUM(stats_num_mnk_stacks(:,4)), SUM(stats_num_mnk_stacks(:,5)), percent
 
-    percent = 100*REAL(report%gpu_flop)/REAL(MAX(INT(1,KIND=4),report%cpu_flop+report%gpu_flop))
+    percent = 100*REAL(report%gpu_flop)/REAL(MAX(INT(1,KIND=int_8),report%cpu_flop+report%gpu_flop))
     WRITE (output_unit,'(A,T30,I20,1X,I20,T76,F5.1)') " flops total",&
        report%cpu_flop, report%gpu_flop, percent
 

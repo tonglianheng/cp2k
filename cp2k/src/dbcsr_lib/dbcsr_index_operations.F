@@ -16,6 +16,7 @@ MODULE dbcsr_index_operations
 
   USE array_types,                     ONLY: array_data,&
                                              array_size
+  USE dbcsr_config,                    ONLY: default_resize_factor
   USE dbcsr_dist_operations,           ONLY: get_stored_canonical
   USE dbcsr_error_handling
   USE dbcsr_kinds,                     ONLY: int_4,&
@@ -27,8 +28,7 @@ MODULE dbcsr_index_operations
        dbcsr_distribution_nrows, dbcsr_distribution_thread_dist, &
        dbcsr_get_index_memory_type, dbcsr_nblkcols_total, &
        dbcsr_nblkrows_total, dbcsr_wm_use_mutable
-  USE dbcsr_ptr_util,                  ONLY: default_resize_factor,&
-                                             ensure_array_size,&
+  USE dbcsr_ptr_util,                  ONLY: ensure_array_size,&
                                              memory_allocate,&
                                              memory_deallocate
   USE dbcsr_toollib,                   ONLY: joaat_hash,&
@@ -229,16 +229,19 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Collapses a row_p index
 ! *****************************************************************************
-  PURE SUBROUTINE dbcsr_make_dbcsr_index (row_p, row_i, nrows, nblks)
+  SUBROUTINE dbcsr_make_dbcsr_index (row_p, row_i, nrows, nblks)
     INTEGER, INTENT(in)                      :: nrows, nblks
     INTEGER, DIMENSION(1:nrows+1), &
       INTENT(out)                            :: row_p
     INTEGER, DIMENSION(1:nblks), INTENT(in)  :: row_i
 
-    INTEGER                                  :: blk, row
+    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_make_dbcsr_index', &
+      routineP = moduleN//':'//routineN
 
-!
-!
+    INTEGER                                  :: blk, error_handle, row
+    TYPE(dbcsr_error_type)                   :: error
+
+    CALL dbcsr_error_set(routineN, error_handle, error)
 
     row_p(1) = 0
     row_p(nrows+1) = nblks
@@ -257,6 +260,9 @@ CONTAINS
        row_p(row+1) = blk-1
        row = row+1
     ENDDO
+
+    CALL dbcsr_error_stop(error_handle, error)
+
   END SUBROUTINE dbcsr_make_dbcsr_index
 
 ! *****************************************************************************
@@ -625,8 +631,8 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE dbcsr_sort_indices(n, row_i, col_i, blk_p, blk_d)
     INTEGER, INTENT(IN)                      :: n
-    INTEGER, DIMENSION(1:n), INTENT(INOUT)   :: row_i, col_i
-    INTEGER, DIMENSION(1:n), INTENT(INOUT), &
+    INTEGER, DIMENSION(1:), INTENT(INOUT)    :: row_i, col_i
+    INTEGER, DIMENSION(1:), INTENT(INOUT), &
       OPTIONAL                               :: blk_p, blk_d
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_sort_indices', &
@@ -670,7 +676,7 @@ CONTAINS
     CALL dbcsr_assert (stat, "EQ", 0, dbcsr_fatal_level, dbcsr_internal_error,&
          routineN, "Could not allocate memory for sorting buffer.", __LINE__,&
          error=error)
-    sort_keys(:) = IOR (ISHFT(INT(row_i(:),int_8), 32), INT(col_i(:),int_8))
+    sort_keys(:) = IOR (ISHFT(INT(row_i(1:n),int_8), 32), INT(col_i(1:n),int_8))
     IF (PRESENT (blk_p)) col_i(1:n) = (/ (i, i=1,n) /)
     !> Now do a nice quicksort.
     CALL sort(sort_keys, n, col_i)

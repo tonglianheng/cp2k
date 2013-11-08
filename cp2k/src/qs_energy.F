@@ -10,15 +10,11 @@
 !> \author MK (29.10.2002)
 ! *****************************************************************************
 MODULE qs_energy
+  USE almo_scf,                        ONLY: almo_entry_scf
   USE cp_control_types,                ONLY: dft_control_type
-  USE cp_dbcsr_interface,              ONLY: cp_dbcsr_copy,&
-                                             cp_dbcsr_init,&
-                                             cp_dbcsr_set
-  USE cp_dbcsr_operations,             ONLY: cp_dbcsr_allocate_matrix_set
   USE cp_dbcsr_types,                  ONLY: cp_dbcsr_p_type
   USE cp_fm_types,                     ONLY: cp_fm_p_type,&
                                              cp_fm_to_fm
-  USE cp_para_types,                   ONLY: cp_para_env_type
   USE dm_ls_scf,                       ONLY: ls_scf
   USE f77_blas
   USE input_constants,                 ONLY: do_diag,&
@@ -30,10 +26,8 @@ MODULE qs_energy
                                              qs_energies_mp2,&
                                              qs_energies_properties
   USE qs_environment_types,            ONLY: get_qs_env,&
-                                             qs_environment_type,&
-                                             set_qs_env
+                                             qs_environment_type
   USE qs_ks_methods,                   ONLY: qs_ks_update_qs_env
-  USE qs_ks_scp_methods,               ONLY: qs_ks_scp_update
   USE qs_ks_types,                     ONLY: qs_ks_env_type
   USE qs_scf,                          ONLY: scf
   USE rt_propagation_methods,          ONLY: propagation_step,&
@@ -111,38 +105,22 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'qs_energies_scf', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, ispin
-    LOGICAL                                  :: has_unit_metric
-    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_s, matrix_w
-    TYPE(cp_para_env_type), POINTER          :: para_env
+    INTEGER                                  :: handle
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(qs_ks_env_type), POINTER            :: ks_env
 
     CALL timeset(routineN,handle)
 
-    para_env=>qs_env%para_env
 
     CALL qs_energies_init(qs_env, calc_forces, error)
 
-    CALL get_qs_env(qs_env=qs_env, matrix_s=matrix_s, matrix_w=matrix_w, &
-         dft_control=dft_control, has_unit_metric=has_unit_metric, error=error)
-
-    IF (calc_forces.AND..NOT.has_unit_metric) THEN
-       CALL cp_dbcsr_allocate_matrix_set(matrix_w,dft_control%nspins,error=error)
-       DO ispin=1,dft_control%nspins
-          ALLOCATE(matrix_w(ispin)%matrix)
-          CALL cp_dbcsr_init(matrix_w(ispin)%matrix,error=error)
-          CALL cp_dbcsr_copy(matrix_w(ispin)%matrix,matrix_s(1)%matrix,&
-               name="W MATRIX",error=error)
-          CALL cp_dbcsr_set(matrix_w(ispin)%matrix,0.0_dp,error=error)
-       END DO
-       CALL set_qs_env(qs_env=qs_env,matrix_w=matrix_w,error=error)
-    ENDIF
+    CALL get_qs_env(qs_env=qs_env, dft_control=dft_control, error=error)
 
     ! *** Perform a SCF run ***
     IF (dft_control%qs_control%do_ls_scf) THEN
       CALL ls_scf(qs_env=qs_env, error=error)
+    ELSE IF (qs_env%dft_control%qs_control%do_almo_scf) THEN
+      CALL almo_entry_scf(qs_env=qs_env, calc_forces=calc_forces, error=error)
     ELSE
       CALL scf(qs_env=qs_env, error=error)
 
@@ -156,9 +134,6 @@ CONTAINS
 
     IF (PRESENT(consistent_energies)) THEN
       IF (consistent_energies) THEN
-        IF ( dft_control%scp ) THEN
-           CALL qs_ks_scp_update ( qs_env, just_energy=.TRUE., error=error )
-        END IF
         CALL qs_ks_update_qs_env(ks_env=qs_env%ks_env, &
                                  qs_env=qs_env, &
                                  calculate_forces=.FALSE., &

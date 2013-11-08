@@ -31,10 +31,11 @@ MODULE tmc_worker
                                              init_cell
   USE cp_external_control,             ONLY: set_external_comm
   USE cp_para_types,                   ONLY: cp_para_env_type
+  USE cp_result_methods,               ONLY: cp_results_erase,&
+                                             put_results
   USE cp_subsys_types,                 ONLY: cp_subsys_get,&
                                              cp_subsys_type
-  USE f77_interface,                   ONLY: f_env_add_defaults,&
-                                             f_env_rm_defaults,&
+  USE f77_interface,                   ONLY: f_env_get_from_id,&
                                              f_env_type,&
                                              get_natom,&
                                              get_pos,&
@@ -43,6 +44,7 @@ MODULE tmc_worker
                                              force_env_get_natom
   USE kinds,                           ONLY: default_string_length,&
                                              dp
+  USE mol_new_list_types,              ONLY: mol_new_list_type
   USE parallel_rng_types,              ONLY: get_rng_stream,&
                                              next_random_number,&
                                              set_rng_stream
@@ -67,8 +69,9 @@ MODULE tmc_worker
                                              tmc_message
   USE tmc_move_handle,                 ONLY: clear_move_probs,&
                                              prob_update,&
-                                             select_random_NMC_move_type
-  USE tmc_move_types,                  ONLY: mv_type_MD
+                                             select_random_move_type
+  USE tmc_move_types,                  ONLY: mv_type_MD,&
+                                             mv_type_NMC_moves
   USE tmc_moves,                       ONLY: change_pos
   USE tmc_stati,                       ONLY: &
        TMC_CANCELING_MESSAGE, TMC_CANCELING_RECEIPT, TMC_STATUS_CALCULATING, &
@@ -166,13 +169,16 @@ CONTAINS
       IF(master) THEN
         ! NOT the analysis group
         IF(tmc_env%tmc_comp_set%group_nr.GT.0) THEN
+          IF(tmc_env%w_env%env_id_ener.GT.0) THEN
+            itmp = tmc_env%w_env%env_id_ener
+          ELSE
+            itmp = tmc_env%w_env%env_id_approx
+          END IF
           ! set the communicator in the external control for receiving exit tags 
           !  and sending additional information (e.g. the intermediate scf energies)
           IF(tmc_env%params%use_scf_energy_info) &
-            CALL set_external_comm(comm=tmc_env%tmc_comp_set%para_env_m_w%group, &
-                   in_external_master_id=MASTER_COMM_ID, &
-                   in_scf_energy_message_tag=TMC_STAT_SCF_STEP_ENER_RECEIVE, &
-                   error=error)
+            CALL set_inermediate_info_comm(env_id=itmp, &
+                  comm=tmc_env%tmc_comp_set%para_env_m_w%group, error=error)
           IF(tmc_env%params%SPECULATIVE_CANCELING) &
             CALL set_external_comm(comm=tmc_env%tmc_comp_set%para_env_m_w%group, &
                    in_external_master_id=MASTER_COMM_ID, &
@@ -264,7 +270,7 @@ CONTAINS
                              error=error)
           ! -- Nested Monte Carlo routines
           CASE(TMC_STAT_MD_REQUEST, TMC_STAT_NMC_REQUEST)
-            CALL clear_move_probs(tmc_env%params%move_types, error)
+            CALL clear_move_probs(tmc_env%params%nmc_move_types, error)
             itmp = bcast_group
             CALL tmc_message(msg_type=work_stat, send_recv=send_msg, &
                              dest=itmp, &
@@ -357,10 +363,16 @@ CONTAINS
                 !-- if nessesary get the exact dipoles (for e.g. quantum potential)
                 IF(tmc_env%params%print_dipole) THEN
                   c_tmp = "[DIPOLE]"
-                  CALL get_result_r1(tmc_env%w_env%env_id_ener, c_tmp,&
-                                        3, conf%dipole, ierr)
+                  CALL get_result_r1(env_id=tmc_env%w_env%env_id_ener, &
+                                     description=c_tmp,N=3, RESULT=conf%dipole,&
+                                     res_exist=flag, ierr=ierr)
+                  IF(.NOT.flag) tmc_env%params%print_dipole = .FALSE.
+                  ! TODO maybe let run with the changed option, but inform user properly
+                  CALL cp_assert(flag, cp_failure_level,cp_assertion_failed,&
+                       routineP,&
+                       "TMC: The requested dipoles are not porvided by the "//&
+                       "force environment.", error)
                 END IF
-
               CASE DEFAULT
                 CALL cp_assert(.FALSE., cp_failure_level,cp_assertion_failed,&
                        routineP,&
@@ -403,7 +415,7 @@ CONTAINS
               ana_list(itmp)%temp%temperature = tmc_env%params%Temp(itmp)
               ana_list(itmp)%temp%atoms       => tmc_env%params%atoms 
               ana_list(itmp)%temp%cell        => tmc_env%params%cell
-              ana_list(itmp)%temp%io_unit     = tmc_env%w_env%io_unit
+!              ana_list(itmp)%temp%io_unit     = tmc_env%w_env%io_unit
               
               CALL analysis_init(ana_env=ana_list(itmp)%temp, nr_dim=num_dim,& 
                                  error=error)
@@ -579,6 +591,19 @@ CONTAINS
       !-- stopping and finalizing
       ! sending back receipt for stopping
       IF(master) THEN
+        ! NOT the analysis group
+        IF(tmc_env%tmc_comp_set%group_nr.GT.0) THEN
+          ! remove the communicator in the external control for receiving exit tags 
+          !  and sending additional information (e.g. the intermediate scf energies)
+          IF(tmc_env%params%use_scf_energy_info) THEN
+            IF(tmc_env%w_env%env_id_ener.GT.0) THEN
+              itmp = tmc_env%w_env%env_id_ener
+            ELSE
+              itmp = tmc_env%w_env%env_id_approx
+            END IF
+            CALL remove_inermediate_info_comm(env_id=itmp, error=error)
+          END IF
+        END IF
         IF(ASSOCIATED(tmc_env%tmc_comp_set%para_env_sub_group)) &
           CALL stop_whole_group(para_env=tmc_env%tmc_comp_set%para_env_sub_group,&
                                 tmc_params=tmc_env%params, error=error)
@@ -666,7 +691,7 @@ CONTAINS
            env_id=tmc_env%w_env%env_id_approx,exact_approx_pot=.FALSE.,&
            tmc_env=tmc_env, error=error)
 
-    NMC_steps: DO substeps=1, tmc_env%params%nr_NMC_steps
+    NMC_steps: DO substeps=1, INT(tmc_env%params%move_types%mv_size(mv_type_NMC_moves,1))
       ! check for canceling message
       IF(ASSOCIATED(tmc_env%tmc_comp_set%para_env_m_w))THEN
         flag = .FALSE.
@@ -699,8 +724,8 @@ CONTAINS
       CALL set_rng_stream(rng_stream=tmc_env%rng_stream,&
              bg=conf%rng_seed(:,:,1), cg=conf%rng_seed(:,:,2),&
              ig=conf%rng_seed(:,:,3), error=error)
-      conf%move_type = select_random_NMC_move_type(&
-                         move_types=tmc_env%params%move_types, &
+      conf%move_type = select_random_move_type(&
+                         move_types=tmc_env%params%nmc_move_types, &
                          rnd=next_random_number(tmc_env%rng_stream, &
                                                 error=error), &
                          error=error)
@@ -709,7 +734,9 @@ CONTAINS
              ig=conf%rng_seed(:,:,3), error=error)
 
       ! do move
-      CALL change_pos(tmc_params=tmc_env%params,rng_stream=tmc_env%rng_stream,&
+      CALL change_pos(tmc_params=tmc_env%params, &
+                      move_types=tmc_env%params%nmc_move_types, &
+                      rng_stream=tmc_env%rng_stream,&
                       elem=conf, mv_conf=1, new_subbox=.FALSE., &
                       move_rejected=change_rejected, error=error)
       ! for Hybrid MC the change_pos is only velocity change, 
@@ -725,7 +752,7 @@ CONTAINS
       END IF
 
       ! update the subbox acceptance probabilities
-      CALL prob_update(move_types=tmc_env%params%move_types, elem=conf, &
+      CALL prob_update(move_types=tmc_env%params%nmc_move_types, elem=conf, &
                        acc=.NOT.change_rejected, subbox=.TRUE., &
                        prob_opt=tmc_env%params%esimate_acc_prob, error=error)
 
@@ -753,12 +780,11 @@ CONTAINS
                temperature=tmc_env%params%Temp(conf%temp_created), &
                diff_pot_check=.FALSE.,&
                accept=accept, approx_ener=.TRUE., rnd_nr=rnd_nr, error=error)
-
-        ! update the NMC accpetance per move
-        CALL prob_update(move_types=tmc_env%params%move_types, elem=conf, &
-               acc=accept, prob_opt=tmc_env%params%esimate_acc_prob, &
-               error=error)
       END IF
+      ! update the NMC accpetance per move
+      CALL prob_update(move_types=tmc_env%params%nmc_move_types, elem=conf, &
+             acc=accept, prob_opt=tmc_env%params%esimate_acc_prob, &
+             error=error)
 
       ! update last accepted configuration or actual configuration
       IF(accept.AND.(.NOT.change_rejected))THEN
@@ -808,8 +834,12 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'get_initial_conf', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, ierr, ndim, nr_atoms
+    INTEGER                                  :: handle, ierr, mol, ndim, &
+                                                nr_atoms
     LOGICAL                                  :: failure
+    TYPE(cp_subsys_type), POINTER            :: subsys
+    TYPE(f_env_type), POINTER                :: f_env
+    TYPE(mol_new_list_type), POINTER         :: molecule_new
 
     failure = .FALSE.
     CPPrecondition(.NOT.ASSOCIATED(init_conf),cp_failure_level,routineP,error,failure)
@@ -826,6 +856,19 @@ CONTAINS
                                     error=error)
     CALL get_pos(env_id=env_id, pos=init_conf%pos, n_el=SIZE(init_conf%pos), &
                  ierr=ierr)
+
+    ! get the molecule info 
+    CALL f_env_get_from_id(env_id,f_env,error)
+    IF (.NOT.failure) THEN
+      CALL force_env_get(f_env%force_env,subsys=subsys,error=error)
+
+      CALL cp_subsys_get(subsys=subsys, molecules_new=molecule_new,&
+                         error=error)
+      loop_mol: DO mol=1, SIZE(molecule_new%els(:))
+        init_conf%mol(molecule_new%els(mol)%first_atom:&
+                      molecule_new%els(mol)%last_atom) = mol
+      END DO loop_mol
+    END IF
 
     ! end the timing
     CALL timestop(handle)
@@ -850,7 +893,7 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'get_atom_kinds_and_cell', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: ierr, iparticle, nr_atoms, &
+    INTEGER                                  :: iparticle, nr_atoms, &
                                                 nunits_tot
     LOGICAL                                  :: failure
     TYPE(cell_type), POINTER                 :: cell_tmp
@@ -866,7 +909,7 @@ CONTAINS
     CPPrecondition(.NOT.ASSOCIATED(atoms),cp_failure_level,routineP,error,failure)
     CPPrecondition(.NOT.ASSOCIATED(cell),cp_failure_level,routineP,error,failure)
 
-    CALL f_env_add_defaults(env_id,f_env,error,failure)
+    CALL f_env_get_from_id(env_id,f_env,error)
     IF (.NOT.failure) THEN
       nr_atoms = force_env_get_natom(f_env%force_env,error=error)
       CALL force_env_get(f_env%force_env,subsys=subsys,cell=cell_tmp,error=error)
@@ -884,9 +927,96 @@ CONTAINS
          END DO
          CPPostcondition(iparticle-1.EQ.nr_atoms,cp_failure_level,routineP,error,failure)
       ENDIF
-    CALL f_env_rm_defaults(f_env,error,ierr)
     END IF
   END SUBROUTINE get_atom_kinds_and_cell
+
+! *****************************************************************************
+!> \brief set the communicator in the SCF environment 
+!>        to receive the intermediate energies on the (global) master side
+!> \param comm the master-worker communicator
+!> \param env_id the ID of the related force environment
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \author Mandes 10.2013
+! *****************************************************************************
+  SUBROUTINE set_inermediate_info_comm(comm, env_id, error)
+    INTEGER, INTENT(IN)                      :: comm
+    INTEGER                                  :: env_id
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'set_inermediate_info_comm', &
+      routineP = moduleN//':'//routineN
+
+    CHARACTER(LEN=default_string_length)     :: description
+    LOGICAL                                  :: failure
+    REAL(KIND=dp), DIMENSION(3)              :: values
+    TYPE(f_env_type), POINTER                :: f_env
+
+    failure = .FALSE.
+
+    CPPrecondition(env_id.GT.0,cp_failure_level,routineP,error,failure)
+
+    CALL f_env_get_from_id(env_id,f_env,error)
+
+    CPPostcondition(ASSOCIATED(f_env),cp_failure_level,routineP,error,failure)
+    CPPostcondition(ASSOCIATED(f_env%force_env),cp_failure_level,routineP,error,failure)
+    CALL cp_assert(ASSOCIATED(f_env%force_env%qs_env), &
+                   cp_failure_level,cp_assertion_failed,routineP,&
+                   "the intermediate SCF energy request can not be set "//&
+                   "employing this force environment! ", error) 
+
+    ! set the information
+    values(1) = REAL(comm, KIND=dp)
+    values(2) = REAL(MASTER_COMM_ID, KIND=dp)
+    values(3) = REAL(TMC_STAT_SCF_STEP_ENER_RECEIVE, KIND=dp)
+    description = "[EXT_SCF_ENER_COMM]"
+
+    ! set the communicator information in the qs_env result container
+    CALL put_results(results=f_env%force_env%qs_env%results, &
+                     description=description, values=values, &
+                     error=error)
+  END SUBROUTINE set_inermediate_info_comm
+
+! *****************************************************************************
+!> \brief set the communicator in the SCF environment 
+!>        to receive the intermediate energies on the (global) master side
+!> \param comm the master-worker communicator
+!> \param env_id the ID of the related force environment
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \author Mandes 10.2013
+! *****************************************************************************
+  SUBROUTINE remove_inermediate_info_comm(env_id, error)
+    INTEGER                                  :: env_id
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'remove_inermediate_info_comm', &
+      routineP = moduleN//':'//routineN
+
+    CHARACTER(LEN=default_string_length)     :: description
+    LOGICAL                                  :: failure
+    TYPE(f_env_type), POINTER                :: f_env
+
+    failure = .FALSE.
+
+    CPPrecondition(env_id.GT.0,cp_failure_level,routineP,error,failure)
+
+    CALL f_env_get_from_id(env_id,f_env,error)
+
+    CPPostcondition(ASSOCIATED(f_env),cp_failure_level,routineP,error,failure)
+    CPPostcondition(ASSOCIATED(f_env%force_env),cp_failure_level,routineP,error,failure)
+    CALL cp_assert(ASSOCIATED(f_env%force_env%qs_env), &
+                   cp_failure_level,cp_assertion_failed,routineP,&
+                   "the SCF intermediate energy communicator can not be "//&
+                   "removed! ", error)
+
+    description = "[EXT_SCF_ENER_COMM]"
+
+    ! set the communicator information in the qs_env result container
+    CALL cp_results_erase(results=f_env%force_env%qs_env%results, &
+                          description=description, error=error)
+  END SUBROUTINE remove_inermediate_info_comm
+
 
 !! *****************************************************************************
 !!> \brief get the pointer to the minimal distances 
@@ -911,7 +1041,7 @@ CONTAINS
 !    CPPrecondition(env_id.GT.0,cp_failure_level,routineP,error,failure)
 !    CPPrecondition(.NOT.ASSOCIATED(rlist_lowsq),cp_failure_level,routineP,error,failure)
 !
-!    CALL f_env_add_defaults(env_id,f_env,error,failure)
+!    CALL f_env_get_from_id(env_id,f_env,error)
 !    IF (.NOT.failure) THEN
 !      IF(ASSOCIATED(f_env%force_env)) THEN
 !        IF(ASSOCIATED(f_env%force_env%fist_env)) THEN

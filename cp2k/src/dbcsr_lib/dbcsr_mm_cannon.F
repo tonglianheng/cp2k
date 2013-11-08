@@ -27,14 +27,18 @@ MODULE dbcsr_mm_cannon
                                              dbcsr_block_real_neg,&
                                              dbcsr_block_scale,&
                                              dbcsr_block_transpose
-  USE dbcsr_config,                    ONLY: mm_async,&
+  USE dbcsr_config,                    ONLY: default_resize_factor,&
+                                             mm_async,&
                                              mm_driver,&
                                              mm_driver_blas,&
                                              mm_driver_cuda,&
                                              mm_driver_plasma,&
                                              use_combined_types,&
                                              use_comm_thread
-  USE dbcsr_cuda_event,                ONLY: dbcsr_cuda_event_synchronize
+  USE dbcsr_cuda_event,                ONLY: dbcsr_cuda_event_record,&
+                                             dbcsr_cuda_event_synchronize,&
+                                             dbcsr_cuda_stream_wait_event
+  USE dbcsr_cuda_operations,           ONLY: dbcsr_cuda_transpose
   USE dbcsr_data_methods,              ONLY: &
        dbcsr_data_clear_pointer, dbcsr_data_ensure_size, dbcsr_data_get_size, &
        dbcsr_data_get_size_referenced, dbcsr_data_hold, dbcsr_data_host2dev, &
@@ -66,14 +70,9 @@ MODULE dbcsr_mm_cannon
                                              dbcsr_iterator_next_block,&
                                              dbcsr_iterator_start,&
                                              dbcsr_iterator_stop
-  USE dbcsr_kinds,                     ONLY: dp,&
-                                             int_4,&
-                                             int_8,&
-                                             real_4,&
-                                             real_4_size,&
-                                             real_8,&
-                                             real_8_size,&
-                                             sp
+  USE dbcsr_kinds,                     ONLY: &
+       default_string_length, dp, int_4, int_8, real_4, real_4_size, real_8, &
+       real_8_size, sp
   USE dbcsr_machine,                   ONLY: default_output_unit,&
                                              m_flush
   USE dbcsr_mem_methods,               ONLY: dbcsr_mempool_destruct,&
@@ -139,7 +138,8 @@ MODULE dbcsr_mm_cannon
        dbcsr_slot_home_rowi, dbcsr_slot_home_vpcol, dbcsr_slot_home_vprow, &
        dbcsr_slot_size, dbcsr_transpose, dbcsr_type, &
        dbcsr_type_antisymmetric, dbcsr_type_complex_4, dbcsr_type_complex_8, &
-       dbcsr_type_no_symmetry, dbcsr_type_real_4, dbcsr_type_real_8
+       dbcsr_type_int_4, dbcsr_type_no_symmetry, dbcsr_type_real_4, &
+       dbcsr_type_real_8
   USE dbcsr_util,                      ONLY: count_bins,&
                                              dbcsr_checksum,&
                                              dbcsr_verify_matrix
@@ -160,7 +160,11 @@ MODULE dbcsr_mm_cannon
   LOGICAL, PARAMETER :: debug_mod  = .FALSE.
   LOGICAL, PARAMETER :: careful_mod = .FALSE.
 
-  TYPE(dbcsr_memtype_type), PRIVATE, SAVE :: memtype_abbuffer
+  TYPE(dbcsr_memtype_type), PRIVATE, SAVE :: memtype_abbuffer, memtype_trsbuffer
+  TYPE(dbcsr_memtype_type), PRIVATE, SAVE :: memtype_product_wm
+  !$OMP THREADPRIVATE(memtype_product_wm)
+
+  INTEGER(KIND=int_8), PRIVATE, SAVE      :: marketing_flops = 0
 
   PUBLIC :: dbcsr_mm_cannon_lib_init, dbcsr_mm_cannon_lib_finalize
   PUBLIC :: dbcsr_mm_cannon_multiply
@@ -175,6 +179,7 @@ MODULE dbcsr_mm_cannon
     TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
 
     CALL dbcsr_mm_multrec_lib_init(error)
+    marketing_flops = 0
   END SUBROUTINE
 
 
@@ -188,9 +193,16 @@ MODULE dbcsr_mm_cannon
 
      CALL dbcsr_mm_multrec_lib_finalize(group, output_unit, error)
 
+     IF (ASSOCIATED(memtype_product_wm%pool)) &
+        CALL dbcsr_mempool_destruct(memtype_product_wm%pool, error)
+
      !$omp master
+     IF(output_unit>0) &
+       WRITE (output_unit,'(A,T30,I20)') " marketing flops", marketing_flops
      IF (ASSOCIATED(memtype_abbuffer%pool)) &
         CALL dbcsr_mempool_destruct(memtype_abbuffer%pool, error)
+     IF (ASSOCIATED(memtype_trsbuffer%pool)) &
+        CALL dbcsr_mempool_destruct(memtype_trsbuffer%pool, error)
      !$omp end master
   END SUBROUTINE
 
@@ -275,8 +287,9 @@ MODULE dbcsr_mm_cannon
     REAL(real_8), PARAMETER                  :: make_dense_occ_thresh = 1.0_dp
 
     CHARACTER                                :: transa_l, transb_l
+    CHARACTER(len=default_string_length)     :: poolname
     INTEGER :: comm, error_handler, error_handler2, f_col, f_k, f_row, i, &
-      l_col, l_k, l_row, numnodes, output_unit
+      ithread, l_col, l_k, l_row, numnodes, output_unit
     INTEGER(KIND=int_8)                      :: my_flop
     LOGICAL :: ab_dense, keep_product_data, keep_sparsity, new_left, &
       new_right, plasma_is_set, product_reindex, release_tdist, &
@@ -298,14 +311,28 @@ MODULE dbcsr_mm_cannon
 
     CALL dbcsr_error_set(routineN, error_handler, error)
 
+    ithread = 0
+    !$ ithread = OMP_GET_THREAD_NUM ()
+
+    ! setup memory-types and their memory-pools --------------------------------
+    ! Each thread has its own working-matrix and its own mempool
+    WRITE (poolname, "(A,I4,A)") "cannon_product_wm (thread=", ithread,")"
+    CALL dbcsr_memtype_setup(memtype_product_wm, pool_capacity=1, pool_name=poolname, error=error)
+
+    ! the ab_buffers are shared by all threads
     IF (mm_driver==mm_driver_cuda) THEN
-       CALL dbcsr_memtype_setup(memtype_abbuffer, cuda_hostalloc=.TRUE., cuda_devalloc=.TRUE.,&
-            mpi=.TRUE., pool_capacity=6, pool_name="cannon_ab_buffers", error=error)
+       CALL dbcsr_memtype_setup(memtype_abbuffer, cuda_hostalloc=.TRUE., &
+            cuda_devalloc=.TRUE., mpi=.TRUE., pool_capacity=6, &
+            oversize_factor=default_resize_factor,&
+            pool_name="cannon_ab_buffers", error=error)
+       CALL dbcsr_memtype_setup(memtype_trsbuffer, cuda_hostalloc=.TRUE., cuda_devalloc=.TRUE.,&
+            pool_capacity=2, pool_name="cannon_trs_buffers", error=error)
     ELSE
        CALL dbcsr_memtype_setup(memtype_abbuffer, mpi=.TRUE., error=error)
     ENDIF
 
-    ! check parameters
+
+    ! check parameters ---------------------------------------------------------
     transa_l = transa
     transb_l = transb
     CALL uppercase(transa_l)
@@ -440,8 +467,8 @@ MODULE dbcsr_mm_cannon
     l_row = dbcsr_nfullrows_total(matrix_c)
     f_col = 1
     l_col = dbcsr_nfullcols_total(matrix_c)
-    f_k = 0
-    l_k = 0
+    f_k = 1
+    l_k = dbcsr_nfullcols_total(matrix_left)
     IF (PRESENT (first_row)) THEN
        CALL dbcsr_assert(first_row .GE. 1&
             .AND. first_row .LE. dbcsr_nfullrows_total(matrix_c),&
@@ -492,6 +519,12 @@ MODULE dbcsr_mm_cannon
             "Invalid last k specified (A)", __LINE__, error)
        l_k = last_k
     ENDIF
+
+    ! update statistics
+    marketing_flops = marketing_flops + 2_int_8*INT(l_row-f_row+1, int_8) &
+                                               *INT(l_col-f_col+1, int_8) &
+                                               *INT(l_k-f_k+1,     int_8)
+
     !
     ! Now optimize the default submatrix selection values away
     IF (f_row .EQ. 1) f_row = 0
@@ -676,7 +709,8 @@ MODULE dbcsr_mm_cannon
 !$omp end parallel
     ELSE
        !$omp parallel if (.NOT. use_plasma)
-       CALL dbcsr_work_create(product_matrix, work_mutable=.FALSE., error=error)
+       CALL dbcsr_work_create(product_matrix, work_mutable=.FALSE., &
+               memory_type=memtype_product_wm, error=error)
        !$omp end parallel
     ENDIF
     product_matrix%m%nze = 0
@@ -1810,6 +1844,9 @@ MODULE dbcsr_mm_cannon
       left_buffer_comm, right_buffer_2, right_buffer_calc, right_buffer_comm
     TYPE(dbcsr_data_obj)                     :: left_data_rp, left_data_sp, &
                                                 right_data_rp, right_data_sp
+    TYPE(dbcsr_data_obj), POINTER            :: trs_stackbuf_calc, &
+                                                trs_stackbuf_comm
+    TYPE(dbcsr_data_obj), TARGET             :: trs_stackbuf_1, trs_stackbuf_2
     TYPE(dbcsr_error_type)                   :: t_error
     TYPE(dbcsr_mm_multrec_type), SAVE        :: multrec
     TYPE(dbcsr_mp_obj)                       :: left_mp_obj, product_mp_obj, &
@@ -1831,6 +1868,7 @@ MODULE dbcsr_mm_cannon
 !   ---------------------------------------------------------------------------
 
     CALL dbcsr_error_set(routineN, error_handler, error)
+    NULLIFY(trs_stackbuf_calc, trs_stackbuf_comm)
     !
     ALLOCATE (left_buffer_2, right_buffer_2)
     mult_id=mult_id+1
@@ -2179,9 +2217,7 @@ MODULE dbcsr_mm_cannon
           WRITE(*,'(1X,A,2(1X,F12.3))')routineN//" fill orig =",&
                left_fill, right_fill
        ENDIF
-       ! Old guess: fill_guess = 7 * MAX(left_fill,right_fill)
-       fill_guess = 7 * MAX(left_fill,right_fill)
-       ! New guess: fill_guess = 2.4_real_8 * MAX(left_fill,right_fill)
+       fill_guess = 2.0_real_8 * MAX(left_fill,right_fill)
        fill_guess = MIN (1.0_real_8, MAX (0.0_real_8, fill_guess))
        IF (nthreads .GT. 1) THEN
           fill_guess = fill_guess * 3.0_real_8 / REAL(2*nthreads, KIND=real_8)
@@ -2311,6 +2347,17 @@ MODULE dbcsr_mm_cannon
     CALL dbcsr_data_new(left_data_rp, data_type)
     CALL dbcsr_data_new(right_data_sp, data_type)
     CALL dbcsr_data_new(right_data_rp, data_type)
+
+    ! Setup transpose stackbuffers
+    IF (mm_driver==mm_driver_cuda) THEN
+       CALL dbcsr_data_init(trs_stackbuf_1)
+       CALL dbcsr_data_init(trs_stackbuf_2)
+       CALL dbcsr_data_new(trs_stackbuf_1, data_type=dbcsr_type_int_4, data_size=1000, memory_type=memtype_trsbuffer)
+       CALL dbcsr_data_new(trs_stackbuf_2, data_type=dbcsr_type_int_4, data_size=1000, memory_type=memtype_trsbuffer)
+       trs_stackbuf_calc => trs_stackbuf_1
+       trs_stackbuf_comm => trs_stackbuf_2
+    ENDIF
+
     !
     ! Here is the main loop.
     !
@@ -2655,6 +2702,13 @@ MODULE dbcsr_mm_cannon
                 CALL dbcsr_reset_vlocals (left_buffer_calc%mats(1, v_ki+1),&
                      left_set%image_dist, error=error)
              ENDIF
+
+             IF (mm_driver==mm_driver_cuda) THEN
+               CALL dbcsr_data_host2dev(left_buffer_calc%mats(1, v_ki+1)%m%data_area, error)
+               CALL dbcsr_data_host2dev(right_buffer_calc%mats(v_ki+1, 1)%m%data_area, error)
+               CALL cuda_transpose_blocks(right_buffer_calc%mats(v_ki+1, 1), trs_stackbuf_calc, error)
+             END IF
+
              ! Sets the local right-matrix columns
              IF (otf_filtering) THEN
                 left_norms(:) = HUGE(left_norms(1))
@@ -2668,8 +2722,6 @@ MODULE dbcsr_mm_cannon
              flop_single = 0
              threads_finished = 0
 
-             CALL dbcsr_data_host2dev(left_buffer_calc%mats(1, v_ki+1)%m%data_area, error)
-             CALL dbcsr_data_host2dev(right_buffer_calc%mats(v_ki+1, 1)%m%data_area, error)
 
 !$omp parallel if( .NOT. my_use_plasma ) &
 !$omp default (none) &
@@ -2740,8 +2792,15 @@ MODULE dbcsr_mm_cannon
        ENDIF calc_case_left
        CALL dbcsr_switch_sets (left_buffer_calc, left_buffer_comm)
        CALL dbcsr_switch_sets (right_buffer_calc, right_buffer_comm)
+       CALL dbcsr_switch_d_ptrs(trs_stackbuf_calc, trs_stackbuf_comm)
+
     ENDDO grouped_k_index
     IF (excessive_output) CALL m_flush(1000000+mynode)
+
+    IF (mm_driver==mm_driver_cuda) THEN
+       CALL dbcsr_data_release(trs_stackbuf_1)
+       CALL dbcsr_data_release(trs_stackbuf_2)
+    END IF
 
     IF (ALLOCATED (right_norms)) THEN
        DEALLOCATE (right_norms, stat=stat)
@@ -3187,6 +3246,19 @@ MODULE dbcsr_mm_cannon
     set2p => tmp_set
   END SUBROUTINE dbcsr_switch_sets
 
+! *****************************************************************************
+!> \brief Switches pointers between two data areas
+!> \author Ole Schuett
+! *****************************************************************************
+  SUBROUTINE dbcsr_switch_d_ptrs (area1p, area2p)
+    TYPE(dbcsr_data_obj), POINTER            :: area1p, area2p
+
+    TYPE(dbcsr_data_obj), POINTER            :: tmp_p
+
+    tmp_p  => area1p
+    area1p => area2p
+    area2p => tmp_p
+  END SUBROUTINE dbcsr_switch_d_ptrs
 
 ! *****************************************************************************
 !> \brief Makes an MPI tag
@@ -3390,6 +3462,170 @@ MODULE dbcsr_mm_cannon
        !
     CALL dbcsr_error_stop(error_handle, error)
   END SUBROUTINE calculate_norms
+
+
+! *****************************************************************************
+!> \brief write out a stack for transposing the blocks
+!>  \author Ole Schuett
+! *****************************************************************************
+  SUBROUTINE cuda_transpose_blocks(matrix, trs_stackbuf, error)
+    TYPE(dbcsr_obj), INTENT(IN)              :: matrix
+    TYPE(dbcsr_data_obj), INTENT(INOUT)      :: trs_stackbuf
+    TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'cuda_transpose_blocks', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: blk_p, col, error_handle, i, &
+                                                m, mi, mi_max, n, nblks, ni, &
+                                                ni_max, offset, row, x
+    INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: counters, filled, offsets
+    LOGICAL                                  :: local
+    INTEGER, DIMENSION(:), POINTER :: blk_index, col_blk_sizes, &
+      col_blk_sizes2enum, enum2col_blk_sizes, enum2row_blk_sizes, &
+      local2global_cols, local2global_rows, row_blk_sizes, &
+      row_blk_sizes2enum, trs_stack
+    INTEGER, DIMENSION(3, matrix%m%nblks)    :: tmp_stack
+
+    CALL dbcsr_error_set(routineN, error_handle, error)
+
+    NULLIFY(row_blk_sizes2enum, enum2row_blk_sizes)
+    NULLIFY(col_blk_sizes2enum, enum2col_blk_sizes)
+    NULLIFY(local2global_rows, local2global_cols, trs_stack)
+
+    IF (.NOT. matrix%m%list_indexing) STOP "build_trs_stack: only list_indexing supported."
+    IF (trs_stackbuf%d%data_type /= dbcsr_type_int_4) STOP "build_trs_stack: stac_buf has wrong datatype"
+    blk_index => matrix%m%coo_l
+    row_blk_sizes => array_data (matrix%m%row_blk_size)
+    col_blk_sizes => array_data (matrix%m%col_blk_size)
+    local = matrix%m%local_indexing
+    local2global_rows => array_data (matrix%m%local_rows)
+    local2global_cols => array_data (matrix%m%local_cols)
+    nblks = matrix%m%nblks
+
+    ! enumerate the blocksizes to keep the following 2D-arrays small.
+    CALL enumerate_blk_sizes(row_blk_sizes, row_blk_sizes2enum, enum2row_blk_sizes)
+    CALL enumerate_blk_sizes(col_blk_sizes, col_blk_sizes2enum, enum2col_blk_sizes)
+    mi_max = SIZE(enum2row_blk_sizes); ni_max = SIZE(enum2col_blk_sizes)
+    ALLOCATE(counters(mi_max, ni_max), offsets(mi_max, ni_max), filled(mi_max, ni_max))
+    counters(:,:)=0;  offsets(:,:)=0; filled(:,:)=0
+
+    ! make sure buffer from previous cannon-tick was uploaded
+    CALL dbcsr_cuda_event_synchronize(trs_stackbuf%d%cuda_ready, error)
+
+    CALL dbcsr_data_ensure_size(trs_stackbuf, data_size=nblks, nocopy=.TRUE., error=error)
+    trs_stack => trs_stackbuf%d%i4
+
+    ! collect block addresses and dimensions in a temporary stack
+    ! while doing so, also count number of blocks per block-dimensions
+    DO i = 1, nblks
+       row   = blk_index(3*(i-1) + 1)
+       col   = blk_index(3*(i-1) + 2)
+       blk_p = blk_index(3*(i-1) + 3)
+       IF (blk_p == 0) CYCLE
+       IF (local) THEN
+          row = local2global_rows(row)
+          col = local2global_cols(col)
+       ENDIF
+       m = row_blk_sizes(row)
+       n = col_blk_sizes(col)
+       mi = row_blk_sizes2enum(m)
+       ni = col_blk_sizes2enum(n)
+       tmp_stack(1, i) = mi
+       tmp_stack(2, i) = ni
+       tmp_stack(3, i) = blk_p - 1
+       counters(mi,ni) = counters(mi,ni) + 1
+    ENDDO
+
+    ! calculate offsets for first element of each sub-stack
+    offset = 0
+    DO mi=1, mi_max
+      DO ni=1, ni_max
+        offsets(mi, ni) = offset
+        offset = offset + counters(mi, ni)
+      ENDDO
+    ENDDO
+
+    ! write all sub-stacks into the host-pinned buffer
+    DO i=1, nblks
+      mi     = tmp_stack(1, i)
+      ni     = tmp_stack(2, i)
+      blk_p  = tmp_stack(3, i)
+      x = offsets(mi,ni) + filled(mi,ni) + 1
+      trs_stack(x) = blk_p
+      filled(mi,ni) = filled(mi,ni) + 1
+    ENDDO
+
+    !sanity check
+    DO mi=1, mi_max
+      DO ni=1, ni_max
+         IF(filled(mi,ni) /= counters(mi,ni)) STOP "cuda_transpose_blocks: bug"
+      END DO
+    END DO
+
+    !transfer all stacks
+    CALL dbcsr_data_host2dev(trs_stackbuf, error)
+
+    ! make sure block-buffer is uploaded befor running the kernels
+    CALL dbcsr_cuda_stream_wait_event(trs_stackbuf%d%cuda_stream, matrix%m%data_area%d%cuda_ready, error)
+
+    ! launch kernels
+    DO mi=1, mi_max
+      DO ni=1, ni_max
+        IF(counters(mi, ni) > 0) THEN
+          m = enum2row_blk_sizes(mi)
+          n = enum2col_blk_sizes(ni)
+          CALL dbcsr_cuda_transpose( &
+            trs_stack=trs_stackbuf%d%cuda_devmem,&
+            offset=offsets(mi, ni), nblks=counters(mi, ni),&
+            buffer=matrix%m%data_area%d%cuda_devmem,&
+            m=m, n=n,&
+            stream=trs_stackbuf%d%cuda_stream, error=error)
+        END IF
+      ENDDO
+    ENDDO
+
+    ! make sure block-buffer are not used until transpose kernels finnished
+    CALL dbcsr_cuda_event_record(trs_stackbuf%d%cuda_ready, trs_stackbuf%d%cuda_stream, error)
+    CALL dbcsr_cuda_stream_wait_event(matrix%m%data_area%d%cuda_stream, trs_stackbuf%d%cuda_ready,  error)
+    CALL dbcsr_cuda_event_record(matrix%m%data_area%d%cuda_ready, matrix%m%data_area%d%cuda_stream, error)
+
+    DEALLOCATE(row_blk_sizes2enum, enum2row_blk_sizes)
+    DEALLOCATE(col_blk_sizes2enum, enum2col_blk_sizes)
+    CALL dbcsr_error_stop(error_handle, error)
+  END SUBROUTINE cuda_transpose_blocks
+
+
+! *****************************************************************************
+!> \brief Enumerate all occuring blocksizes
+!>  \author Ole Schuett
+! *****************************************************************************
+  SUBROUTINE enumerate_blk_sizes(blk_sizes, enum, rev_enum)
+    INTEGER, DIMENSION(:), POINTER           :: blk_sizes, enum, rev_enum
+
+    INTEGER                                  :: i, n
+
+     n = MAXVAL(blk_sizes)
+     ALLOCATE(enum(0:n))
+     enum(:) = 0
+
+     DO i=1, SIZE(blk_sizes)
+       enum(blk_sizes(i)) = 1
+     ENDDO
+
+     n = SUM(enum)
+     ALLOCATE(rev_enum(n))
+
+     n = 0
+     DO i=0, SIZE(enum)-1
+       IF(enum(i) > 0) THEN
+           n = n + 1
+           enum(i) = n
+           rev_enum(n) = i
+       END IF
+     ENDDO
+  END SUBROUTINE enumerate_blk_sizes
+
 
 #include "dbcsr_mm_cannon_d.F"
 #include "dbcsr_mm_cannon_z.F"

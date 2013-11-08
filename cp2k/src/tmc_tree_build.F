@@ -48,7 +48,7 @@ MODULE tmc_tree_build
                                              write_result_list_element
   USE tmc_move_handle,                 ONLY: select_random_move_type
   USE tmc_move_types,                  ONLY: &
-       mv_type_MD, mv_type_NMC_moves, mv_type_atom_trans, &
+       mv_type_MD, mv_type_NMC_moves, mv_type_atom_swap, mv_type_atom_trans, &
        mv_type_gausian_adapt, mv_type_mol_rot, mv_type_mol_trans, &
        mv_type_none, mv_type_proton_reorder, mv_type_swap_conf, &
        mv_type_volume_move
@@ -193,12 +193,14 @@ CONTAINS
     CALL timeset(routineN,handle)
 
     ALLOCATE(next_el)
-    NULLIFY(next_el%subbox_center, next_el%pos, next_el%vel, next_el%frc, &
-            next_el%dipole, next_el%elem_stat, next_el%gt_nodes_references)
+    NULLIFY(next_el%subbox_center, next_el%pos, next_el%mol, next_el%vel, &
+            next_el%frc, next_el%dipole, next_el%elem_stat, &
+            next_el%gt_nodes_references)
 
     next_el%scf_energies(:) = HUGE(next_el%scf_energies)
     next_el%scf_energies_count = 0
     ALLOCATE(next_el%pos(nr_dim))
+    ALLOCATE(next_el%mol(nr_dim/tmc_params%dim_per_elem))
     ALLOCATE(next_el%vel(nr_dim))
     IF(tmc_params%print_dipole) ALLOCATE(next_el%dipole(tmc_params%dim_per_elem))
     ALLOCATE(next_el%elem_stat(nr_dim))
@@ -213,6 +215,8 @@ CONTAINS
        next_el%frc = 0.0_dp
     END IF
     ALLOCATE(next_el%box_scale(3))
+    next_el%pos(:) = -1.0_dp
+    next_el%mol(:) = -1
     next_el%box_scale(:) = 1.0_dp
     next_el%scf_energies(:) = 0.0_dp
     next_el%e_pot_approx = 0.0_dp
@@ -264,6 +268,7 @@ CONTAINS
     IF(ASSOCIATED(tree_elem%elem_stat)) DEALLOCATE(tree_elem%elem_stat)
     IF(ASSOCIATED(tree_elem%dipole)) DEALLOCATE(tree_elem%dipole)
     IF(ASSOCIATED(tree_elem%vel)) DEALLOCATE(tree_elem%vel)
+    IF(ASSOCIATED(tree_elem%mol)) DEALLOCATE(tree_elem%mol)
     IF(ASSOCIATED(tree_elem%pos)) DEALLOCATE(tree_elem%pos)
 
     DEALLOCATE(tree_elem)
@@ -334,6 +339,7 @@ CONTAINS
        global_tree%conf(i)%elem%sub_tree_nr   = i
        global_tree%conf(i)%elem%elem_stat     = status_ok
        global_tree%conf(i)%elem%pos           = start_elem%pos
+       global_tree%conf(i)%elem%mol           = start_elem%mol
        global_tree%conf(i)%elem%e_pot_approx  = start_elem%e_pot_approx
        global_tree%conf(i)%elem%temp_created  = i
        global_tree%conf(i)%elem%stat          = status_calculate_energy
@@ -719,7 +725,7 @@ CONTAINS
         ! swap moves are not part of the subtree structure, 
         !  because exisiting elements from DIFFERENT subtrees are swaped
         ! -- do swap ?!
-        IF(1-tmc_env%params%move_types%mv_weight(mv_type_swap_conf).LT.rnd)THEN
+        IF(tmc_env%params%move_types%mv_weight(mv_type_swap_conf).GE.rnd)THEN
           ! set the index for the swaping element 
           !  and the conf to move in next move
           new_elem%mv_next_conf = new_elem%mv_conf
@@ -889,11 +895,10 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: conf, handle, itmp
-    LOGICAL                                  :: failure, mv_rejected
+    LOGICAL                                  :: failure, mv_rejected, &
+                                                new_subbox
     REAL(KIND=dp)                            :: rnd
     TYPE(tree_type), POINTER                 :: new_elem, parent_elem
-
-! for selecting volume moves
 
     failure = .FALSE.
     NULLIFY(new_elem, parent_elem)
@@ -920,6 +925,32 @@ CONTAINS
     new_elem%nr = parent_elem%next_elem_nr
     new_elem%rng_seed = parent_elem%rng_seed
 
+    !-- change to real parent element
+    IF(act_gt_el%conf_n_acc(act_gt_el%conf(act_gt_el%mv_conf)%elem%sub_tree_nr))THEN
+      parent_elem%acc  => new_elem
+    ELSE
+      parent_elem%nacc => new_elem
+    END IF
+
+    !-- real parent node (taking the configuration from)
+    ! search parent
+    parent_elem => search_parent_element(current=new_elem, error=error)
+    new_elem%pos(:)       = parent_elem%pos(:)
+    new_elem%mol(:)       = parent_elem%mol(:)
+    new_elem%vel(:)       = parent_elem%vel(:)
+    new_elem%ekin         = parent_elem%ekin
+    new_elem%e_pot_approx = parent_elem%e_pot_approx
+    new_elem%next_elem_nr => parent_elem%next_elem_nr
+    new_elem%sub_tree_nr  = parent_elem%sub_tree_nr
+    new_elem%box_scale    = parent_elem%box_scale
+    IF(tmc_env%params%task_type.EQ.task_type_gaussian_adaptation)THEN
+      new_elem%frc(:)         = parent_elem%frc(:)
+      new_elem%potential      = parent_elem%potential
+      new_elem%ekin_before_md = parent_elem%ekin_before_md
+    ELSE
+      new_elem%potential    = 97589.0_dp
+    END IF
+
     ! set new substream of random number generator
     CALL set_rng_stream(rng_stream=tmc_env%rng_stream, &
                         bg=new_elem%rng_seed(:,:,1), &
@@ -936,127 +967,74 @@ CONTAINS
       new_elem%temp_created = act_gt_el%mv_conf
     END IF
 
-    ! rnd nr for selecting volume moves
+    ! rnd nr for selecting move
     rnd= next_random_number(tmc_env%rng_stream, error=error)
+    !-- set move type
+    new_elem%move_type = select_random_move_type(&
+                           move_types=tmc_env%params%move_types, &
+                           rnd=rnd, error=error)
     CALL get_rng_stream(rng_stream=tmc_env%rng_stream, &
                         bg=new_elem%rng_seed(:,:,1), &
                         cg=new_elem%rng_seed(:,:,2), &
                         ig=new_elem%rng_seed(:,:,3), &
                         error=error)
 
-    !-- change to real parent element
-    IF(act_gt_el%conf_n_acc(act_gt_el%conf(act_gt_el%mv_conf)%elem%sub_tree_nr))THEN
-      parent_elem%acc  => new_elem
-    ELSE
-      parent_elem%nacc => new_elem
-    END IF
-
-    !-- real parent node (taking the configuration from)
-    ! search parent
-    parent_elem => search_parent_element(current=new_elem, error=error)
-    new_elem%pos(:)       = parent_elem%pos(:)
-    new_elem%vel(:)       = parent_elem%vel(:)
-    new_elem%ekin         = parent_elem%ekin
-    new_elem%e_pot_approx = parent_elem%e_pot_approx
-    new_elem%next_elem_nr => parent_elem%next_elem_nr
-    new_elem%sub_tree_nr  = parent_elem%sub_tree_nr
-    new_elem%box_scale    = parent_elem%box_scale
-    IF(tmc_env%params%task_type.EQ.task_type_gaussian_adaptation)THEN
-      new_elem%frc(:)         = parent_elem%frc(:)
-      new_elem%potential      = parent_elem%potential
-      new_elem%ekin_before_md = parent_elem%ekin_before_md
-    ELSE
-      new_elem%potential    = 97589.0_dp
-    END IF
-
-    !-- set the subbox (elements in subbox)
-    CALL elements_in_new_subbox(tmc_params=tmc_env%params, &
-           rng_stream=tmc_env%rng_stream, elem=new_elem, &
-           nr_of_sub_box_elements=itmp, error=error)
-
-    !-- set move type
-    ! we treat the volume moves seperate (we don't want to mix with NMC)
-    IF(1-tmc_env%params%move_types%mv_weight(mv_type_volume_move).LT.rnd) THEN
-      new_elem%move_type = mv_type_volume_move
-      ! do volume move
-      CALL change_pos(tmc_params=tmc_env%params, rng_stream=tmc_env%rng_stream, &
-                      elem=new_elem, mv_conf=conf, new_subbox=.FALSE., &
-                      move_rejected=mv_rejected, error=error)
-      ! move done, now calculate the energy
-      new_elem%stat = status_created
-      ! first calculate the approximate energy 
-      !  in case of following 2 potential moves
-      IF(tmc_env%params%NMC_inp_file.NE."") &
-        new_elem%stat = status_calc_approx_ener
-
-    ! Nested Monte Carlo moves are done (on worker), 
-    !  the move types are selected on the worker
-    ELSE IF(tmc_env%params%NMC_inp_file.NE."") THEN
-      !-- NMC moves are done in the configurational change workers
-      new_elem%move_type = mv_type_NMC_moves
+    ! move is only done by the master, 
+    !  when standard MC moves with single potential are done
+    ! the Nested Monte Carlo routine needs the old configuration 
+    !  to see if change is accepted
+    SELECT CASE (new_elem%move_type)
+    CASE(mv_type_MD)
+      ! velocity change have to be done on workers, 
+      !  because of velocity change for NMC acceptance check
+      new_elem%stat = status_calculate_MD
+      ! set the temperature for creating MD 
+      new_elem%temp_created = act_gt_el%mv_conf
+      !-- set the subbox (elements in subbox)
+      CALL elements_in_new_subbox(tmc_params=tmc_env%params, &
+             rng_stream=tmc_env%rng_stream, elem=new_elem, &
+             nr_of_sub_box_elements=itmp, error=error)
+      ! the move is performed on a worker group
+    CASE(mv_type_NMC_moves)
       new_elem%stat = status_calculate_NMC_steps
-    ELSE
-      CALL set_rng_stream(rng_stream=tmc_env%rng_stream, &
-                          bg=new_elem%rng_seed(:,:,1), &
-                          cg=new_elem%rng_seed(:,:,2), &
-                          ig=new_elem%rng_seed(:,:,3), &
-                          error=error)
-      new_elem%move_type = &
-        select_random_move_type(move_types=tmc_env%params%move_types, &
-         rnd=next_random_number(tmc_env%rng_stream, error=error), error=error)
-      CALL get_rng_stream(rng_stream=tmc_env%rng_stream, &
-                          bg=new_elem%rng_seed(:,:,1), &
-                          cg=new_elem%rng_seed(:,:,2), &
-                          ig=new_elem%rng_seed(:,:,3), &
-                          error=error)
-
-      ! move is only done by the master, 
-      !  when standard MC moves with single potential are done
-      ! the Nested Monte Carlo routine needs the old configuration 
-      !  to see if change is accepted
-      SELECT CASE (new_elem%move_type)
-      CASE(mv_type_MD)
-        ! velocity change have to be done on workers, 
-        !  because of velocity change for NMC acceptance check
-        new_elem%stat = status_calculate_MD
-        ! set the temperature for creating MD 
-        new_elem%temp_created = act_gt_el%mv_conf
-      CASE(mv_type_atom_trans, mv_type_mol_trans, mv_type_mol_rot, &
-           mv_type_proton_reorder, mv_type_gausian_adapt)
-        IF(tmc_env%params%task_type .EQ. task_type_gaussian_adaptation) THEN
-          CALL change_pos(tmc_params=tmc_env%params, &
-                 rng_stream=tmc_env%rng_stream, elem=new_elem, &
-                 mv_conf=conf, new_subbox=.TRUE., &
-                 move_rejected=mv_rejected, &
-                 last_acc_elem=search_parent_element(current=new_elem, &
-                   error=error), error=error)
-        ELSE
-          CALL change_pos(tmc_params=tmc_env%params, &
-                 rng_stream=tmc_env%rng_stream, elem=new_elem, &
-                 mv_conf=conf, new_subbox=.TRUE., &
-                 move_rejected=mv_rejected, error=error)
-        END IF
-        IF(mv_rejected) THEN
-          new_elem%potential = HUGE(new_elem%potential)
-          new_elem%e_pot_approx = HUGE(new_elem%e_pot_approx)
-          new_elem%stat = status_calculated
-        ELSE
-          new_elem%stat = status_created
-        END IF
-      ! NMC is set before for different input files
-      CASE(mv_type_NMC_moves)
-      CASE DEFAULT
-        CALL cp_assert(.FALSE.,&
-                    cp_failure_level,cp_assertion_failed,routineP,&
-                    "unknown move type, while creating subtree element.",&
-                    error)
-      END SELECT
-    END IF
+      !-- set the subbox (elements in subbox)
+      CALL elements_in_new_subbox(tmc_params=tmc_env%params, &
+             rng_stream=tmc_env%rng_stream, elem=new_elem, &
+             nr_of_sub_box_elements=itmp, error=error)
+       ! the move is performed on a worker group
+    ! the following moves new no force_env and can be performed on the master directly
+    CASE(mv_type_atom_trans, mv_type_atom_swap, mv_type_mol_trans, &
+         mv_type_mol_rot, mv_type_proton_reorder, &
+         mv_type_volume_move)
+        new_subbox = .TRUE.
+      ! volume move on whole cell
+      IF(new_elem%move_type.EQ.mv_type_volume_move) THEN
+        new_subbox = .FALSE.
+      END IF
+      CALL change_pos(tmc_params=tmc_env%params, &
+             move_types=tmc_env%params%move_types, &
+             rng_stream=tmc_env%rng_stream, elem=new_elem, &
+             mv_conf=conf, new_subbox=new_subbox, &
+             move_rejected=mv_rejected, error=error)
+      IF(mv_rejected) THEN
+        new_elem%potential = HUGE(new_elem%potential)
+        new_elem%e_pot_approx = HUGE(new_elem%e_pot_approx)
+        new_elem%stat = status_calculated
+      ELSE
+        new_elem%stat = status_created
+        IF(tmc_env%params%NMC_inp_file.NE."") &
+          new_elem%stat = status_calc_approx_ener
+      END IF
+    CASE(mv_type_gausian_adapt)
+      ! still could be implemented
+    CASE DEFAULT
+      CALL cp_assert(.FALSE.,&
+                  cp_failure_level,cp_assertion_failed,routineP,&
+                  "unknown move type ("//cp_to_string(new_elem%move_type)//&
+                  "), while creating subtree element.",&
+                  error)
+    END SELECT
     act_gt_el%conf(act_gt_el%mv_conf)%elem => new_elem
-    !IF(DEBUG.GE.12) WRITE(tmc_out_file_nr,*)"master: tree ",conf," new element ", &
-    !                  new_elem%nr,", created on ", new_elem%parent%nr,", side",&
-    !                  act_gt_el%conf_n_acc(act_gt_el%conf(act_gt_el%mv_conf)%elem%sub_tree_nr),&
-    !                  " on basis of ", parent_elem%nr
 
     ! end the timing
     CALL timestop(handle)

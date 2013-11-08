@@ -36,6 +36,7 @@ MODULE dbcsr_work_operations
                                              block_copy_z,&
                                              dbcsr_data_copy,&
                                              dbcsr_data_set
+  USE dbcsr_config,                    ONLY: default_resize_factor
   USE dbcsr_data_methods,              ONLY: &
        dbcsr_data_clear_pointer, dbcsr_data_ensure_size, &
        dbcsr_data_get_memory_type, dbcsr_data_get_size, &
@@ -109,7 +110,6 @@ MODULE dbcsr_work_operations
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'dbcsr_work_operations'
 
-  REAL, PARAMETER                      :: default_resize_factor = 1.618034
   LOGICAL, PARAMETER :: careful_mod = .FALSE.
 
 
@@ -525,10 +525,12 @@ CONTAINS
 !> \param[in] nblks_guess     (optional) estimated number of blocks
 !> \param[in] sizedata_guess  (optional) estimated size of data
 ! *****************************************************************************
-  SUBROUTINE dbcsr_init_wm (wm, data_type, nblks_guess, sizedata_guess, error)
+  SUBROUTINE dbcsr_init_wm (wm, data_type, nblks_guess, sizedata_guess, memory_type, error)
     TYPE(dbcsr_work_type), INTENT(OUT)       :: wm
     INTEGER, INTENT(IN)                      :: data_type
     INTEGER, INTENT(IN), OPTIONAL            :: nblks_guess, sizedata_guess
+    TYPE(dbcsr_memtype_type), INTENT(IN), &
+      OPTIONAL                               :: memory_type
     TYPE(dbcsr_error_type), INTENT(inout)    :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_init_wm', &
@@ -571,9 +573,9 @@ CONTAINS
             dbcsr_wrong_args_error, routineN,&
             "Can not have negative data size.", __LINE__, error=error)
        CALL dbcsr_data_new (wm%data_area, data_type,&
-            data_size=sizedata_guess)
+            data_size=sizedata_guess, memory_type=memory_type)
     ELSE
-       CALL dbcsr_data_new (wm%data_area, data_type)
+       CALL dbcsr_data_new (wm%data_area, data_type, memory_type=memory_type)
     ENDIF
     CALL dbcsr_mutable_init (wm%mutable)
     IF(careful_mod) CALL dbcsr_error_stop(error_handler, error)
@@ -592,10 +594,12 @@ CONTAINS
 !> \param[in,out] error       cp2k error
 ! *****************************************************************************
   SUBROUTINE dbcsr_work_create(matrix, nblks_guess, sizedata_guess, n,&
-       work_mutable, error)
+       work_mutable, memory_type, error)
     TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix
     INTEGER, INTENT(IN), OPTIONAL            :: nblks_guess, sizedata_guess, n
     LOGICAL, INTENT(in), OPTIONAL            :: work_mutable
+    TYPE(dbcsr_memtype_type), INTENT(IN), &
+      OPTIONAL                               :: memory_type
     TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_work_create', &
@@ -642,7 +646,8 @@ CONTAINS
        matrix%m%wms => wms
        DO iw = ow+1, nw
           CALL dbcsr_init_wm (matrix%m%wms(iw), matrix%m%data_type,&
-               nblks_guess=nblks_guess, sizedata_guess=sizedata_guess, error=error)
+               nblks_guess=nblks_guess, sizedata_guess=sizedata_guess,&
+               memory_type=memory_type, error=error)
           IF (matrix%m%work_mutable) &
                CALL dbcsr_mutable_new (matrix%m%wms(iw)%mutable,&
                dbcsr_get_data_type (matrix))
@@ -652,7 +657,8 @@ CONTAINS
        ALLOCATE (matrix%m%wms(nw))
        DO iw = 1, nw
           CALL dbcsr_init_wm (matrix%m%wms(iw), matrix%m%data_type,&
-               nblks_guess=nblks_guess, sizedata_guess=sizedata_guess, error=error)
+               nblks_guess=nblks_guess, sizedata_guess=sizedata_guess,&
+               memory_type=memory_type, error=error)
           IF (matrix%m%work_mutable) &
                CALL dbcsr_mutable_new (matrix%m%wms(iw)%mutable,&
                dbcsr_get_data_type (matrix))
@@ -1126,8 +1132,10 @@ CONTAINS
     !$OMP BARRIER
     !$OMP MASTER
     IF (.NOT. ASSOCIATED (matrix%m%wms)) THEN
-       CALL dbcsr_work_create (matrix, matrix%m%nblks, matrix%m%nze, n=nwms,&
-            work_mutable=.FALSE., error=error)
+       CALL dbcsr_work_create (matrix, &
+              INT(matrix%m%nblks * default_resize_factor / nwms), &
+              INT(matrix%m%nze * default_resize_factor / nwms), &
+              n=nwms, work_mutable=.FALSE., error=error)
     ENDIF
     !$OMP END MASTER
     !$OMP BARRIER
@@ -1233,7 +1241,7 @@ CONTAINS
           IF (.not.mutable) THEN
              CALL add_work_coordinate (wm(which_wm), row, col, wblk_p, error=error)
              CALL dbcsr_data_ensure_size (wm(which_wm)%data_area,&
-                  ABS(wblk_p)+nze-1, error=error)
+                  ABS(wblk_p)+nze-1,factor=default_resize_factor, error=error)
              CALL dbcsr_data_set_size_referenced (wm(which_wm)%data_area,&
                   ABS(wblk_p) + nze - 1)
              CALL dbcsr_data_set (wm(which_wm)%data_area,&

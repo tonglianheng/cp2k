@@ -26,6 +26,13 @@ OBJECTS_GENERIC =\
  al_system_init.o\
  al_system_mapping.o\
  al_system_types.o\
+ almo_scf.o\
+ almo_scf_aux_types.o\
+ almo_scf_aux2_types.o\
+ almo_scf_aux2_methods.o\
+ almo_scf_methods.o\
+ almo_scf_special.o\
+ almo_scf_types.o\
  atom_basis.o\
  atom_electronic_structure.o\
  atom_energy.o\
@@ -296,6 +303,7 @@ OBJECTS_GENERIC =\
  hfx_screening_methods.o\
  hfx_types.o\
  input_constants.o\
+ input_cp2k_almo.o\
  input_cp2k_atom.o\
  input_cp2k_atprop.o\
  input_cp2k_barostats.o\
@@ -544,8 +552,6 @@ OBJECTS_GENERIC =\
  qs_ks_methods.o\
  qs_ks_qmmm_methods.o\
  qs_ks_qmmm_types.o\
- qs_ks_scp_methods.o\
- qs_ks_scp_types.o\
  qs_ks_types.o\
  qs_ks_utils.o\
  qs_linres_atom_current.o\
@@ -561,6 +567,7 @@ OBJECTS_GENERIC =\
  qs_linres_nmr_shift.o\
  qs_linres_nmr_utils.o\
  qs_linres_op.o\
+qs_linres_polar_utils.o\
  qs_linres_types.o\
  qs_localization_methods.o\
  qs_local_rho_types.o\
@@ -648,24 +655,14 @@ OBJECTS_GENERIC =\
  scf_control_types.o\
  scp_coeff_types.o\
  scp_delta_fock_matrix.o\
- scp_density_methods.o\
- scp_density_methods.o\
  scp_diis_utils.o\
  scp_dispersion.o\
- scp_energy.o\
  scp_energy_types.o\
- scp_environment_methods.o\
  scp_environment.o\
  scp_environment_types.o\
  scp_fock_matrix_integrals.o\
  scp_force_types.o\
- scp_hartree_1center.o\
  scp_nddo_utils.o\
- scp_restarts.o\
- scp_rho_methods.o\
- scp_rho_types.o\
- scp_rspw_methods.o\
- scp_rspw_types.o\
  scptb_core_interactions.o\
  scptb_core_matrix.o\
  scptb_ks_matrix.o\

@@ -53,6 +53,7 @@ MODULE tmc_analysis_types
     INTEGER                                       :: io_unit
     CHARACTER(len=default_string_length), &
       DIMENSION(:), POINTER                       :: dirs
+    CHARACTER(LEN= default_path_length )          :: out_file_prefix
     INTEGER                                       :: conf_offset
     TYPE(cell_type), POINTER                      :: cell
     TYPE(tmc_atom_type), DIMENSION(:), POINTER    :: atoms
@@ -66,7 +67,7 @@ MODULE tmc_analysis_types
     CHARACTER(LEN= default_path_length )          :: costum_pos_file_name 
     CHARACTER(LEN= default_path_length )          :: costum_dip_file_name
     CHARACTER(LEN= default_path_length )          :: costum_cell_file_name
-    LOGICAL                                       :: restart
+    LOGICAL                                       :: restart, restarted
     LOGICAL                                       :: print_test_output
 
     TYPE(density_3d_type), POINTER                :: density_3d
@@ -80,7 +81,9 @@ MODULE tmc_analysis_types
     INTEGER                                       :: conf_counter
     INTEGER, DIMENSION(3)                         :: nr_bins
     REAL(KIND=dp)                                 :: sum_vol
+    REAL(KIND=dp)                                 :: sum_vol2
     REAL(KIND=dp), DIMENSION(3)                   :: sum_box_length
+    REAL(KIND=dp), DIMENSION(3)                   :: sum_box_length2
     REAL(KIND=dp), DIMENSION(:,:,:), POINTER      :: sum_density, sum_dens2
     LOGICAL                                       :: print_dens
   END TYPE density_3d_type
@@ -169,10 +172,12 @@ CONTAINS
     tmc_ana%lc_dip  = 0
     tmc_ana%lc_ener = 0
     ! file names
+    tmc_ana%out_file_prefix       = ""
     tmc_ana%costum_pos_file_name  = ""
     tmc_ana%costum_dip_file_name  = ""
     tmc_ana%costum_cell_file_name = ""
     tmc_ana%restart               = .TRUE.
+    tmc_ana%restarted             = .FALSE.
     tmc_ana%print_test_output     = .FALSE.
 
     ! configuration control
@@ -259,6 +264,8 @@ CONTAINS
     ana_dens%conf_counter = 0
     ana_dens%sum_vol      = 0.0_dp
     ana_dens%sum_box_length(:) = 0.0_dp
+    ana_dens%sum_vol2     = 0.0_dp
+    ana_dens%sum_box_length2(:) = 0.0_dp
 
     ALLOCATE(ana_dens%sum_density(nr_bins(1), nr_bins(2), nr_bins(3)))
     ALLOCATE(ana_dens%sum_dens2(nr_bins(1), nr_bins(2), nr_bins(3)))

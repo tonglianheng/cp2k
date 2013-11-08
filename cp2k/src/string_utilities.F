@@ -24,6 +24,7 @@ MODULE string_utilities
   CHARACTER(LEN=1), PARAMETER :: backslash = '\\'
   CHARACTER(LEN=1), PARAMETER :: star      = '*'
   CHARACTER(LEN=1), PARAMETER :: question  = '?'
+  CHARACTER(LEN=1), PARAMETER :: newline   = ACHAR(10)
 
   INTEGER, PARAMETER :: maxlen_entity_name = 10
   CHARACTER(LEN=maxlen_entity_name), DIMENSION(252), PARAMETER :: html_entity_table =&
@@ -61,12 +62,12 @@ MODULE string_utilities
      "&lang;    ","&#9001;   ","&rang;    ","&#9002;   "/)
 
   INTEGER, PARAMETER :: maxlen_tag_name = 10
-  CHARACTER(LEN=maxlen_tag_name), DIMENSION(37), PARAMETER :: html_tag_table =&
+  CHARACTER(LEN=maxlen_tag_name), DIMENSION(38), PARAMETER :: html_tag_table =&
    (/"a         ","b         ","big       ","blockquote","br/       ","code      ","dd        ","del       ",&
      "div       ","dl        ","dt        ","em        ","h1        ","h2        ","h3        ","h4        ",&
      "h5        ","h6        ","hr        ","i         ","ins       ","li        ","ol        ","p         ",&
      "span      ","sub       ","sup       ","table     ","tbody     ","td        ","tfoot     ","th        ",&
-     "thead     ","tr        ","tt        ","u         ","ul        "/)
+     "thead     ","tr        ","tt        ","u         ","ul        ","pre       "/)
 
   PUBLIC :: ascii_to_string,&
             compress,&
@@ -76,7 +77,7 @@ MODULE string_utilities
             make_tuple,&
             pattern_match,&
             remove_word,&
-            s2a,&
+            s2a,a2s,&
             str_comp,&
             str_search,&
             string_to_ascii,&
@@ -89,7 +90,8 @@ MODULE string_utilities
   PUBLIC :: backslash,&
             html_entity_table,&
             star,&
-            question
+            question,&
+            newline
 
   INTERFACE s2a
      MODULE PROCEDURE s2a_1,s2a_2,s2a_3, s2a_4,  s2a_5,  s2a_6,  s2a_7,  s2a_8,  s2a_9, &
@@ -148,6 +150,24 @@ CONTAINS
     ENDDO
 
   END FUNCTION typo_match
+
+
+! *****************************************************************************
+!> \brief Converts a character-array into a string
+!> \par History
+!>      10.2013 created [Ole Schuett]
+! *****************************************************************************
+  PURE FUNCTION a2s(array) RESULT(string)
+    CHARACTER, DIMENSION(:), INTENT(IN)      :: array
+    CHARACTER(LEN=SIZE(array))               :: string
+
+    INTEGER                                  :: i
+
+    DO i=1,SIZE(array)
+      string(i:i) = array(i)
+    ENDDO
+  END FUNCTION a2s
+
 
 ! *****************************************************************************
 !> \brief converts a bunch of strings of different length to an array of
@@ -768,11 +788,11 @@ CONTAINS
 !> \par History
 !>      - Enable the use of HTML entity names (06.03.13,MK)
 ! *****************************************************************************
-  SUBROUTINE substitute_special_xml_tokens(inp_string,out_string,ltu)
+  FUNCTION substitute_special_xml_tokens(inp_string,ltu) RESULT(out_string)
 
     CHARACTER(LEN=*), INTENT(IN)             :: inp_string
-    CHARACTER(LEN=*), INTENT(OUT)            :: out_string
     LOGICAL, INTENT(IN), OPTIONAL            :: ltu
+    CHARACTER(LEN=2*LEN(inp_string))         :: out_string
 
     CHARACTER(LEN=LEN(inp_string))           :: string
     CHARACTER(LEN=maxlen_entity_name)        :: entity_name
@@ -855,7 +875,7 @@ CONTAINS
        END IF
     END DO string_loop
 
-  END SUBROUTINE substitute_special_xml_tokens
+  END  FUNCTION substitute_special_xml_tokens
 
 ! *****************************************************************************
 !> \brief   Write the HTML entity and HTML tag table to unit output_unit

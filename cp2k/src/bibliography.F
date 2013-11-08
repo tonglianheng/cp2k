@@ -60,7 +60,8 @@ MODULE bibliography
              Ceriotti2009,ceriotti2009b,Guidon2009,BarducBus2008,Grimme2010,Guidon2010,&
              Marques2012, Jones2011, Bernstein2009, Bernstein2012, Dick1958,&
              Mitchell1993, Devynck2012, VandeVondele2012, Niklasson2003, Shao2003, VandeVondele2002,&
-             Dion2004, Romanperez2009, DelBen2012, Sabatini2013, DelBen2013
+             Dion2004, Romanperez2009, DelBen2012, Sabatini2013, DelBen2013, Kikuchi2009, Putrino2000, &
+             Putrino2002, Sebastiani2001, Weber2009, Tran2013 
 
 CONTAINS
 
@@ -2266,6 +2267,138 @@ CONTAINS
          "UT WOS:000320484500014",&
          "ER"),&
          DOI="10.1021/ct4002202")
+
+    CALL add_reference(key=Kikuchi2009, ISI_record=s2a(&
+         "PT J",&
+         "AU Kikuchi, Y",&
+         "   Imamura, Y",&
+         "   Nakai, H",&
+         "AF Kikuchi, Yasuaki",&
+         "   Imamura, Yutaka",&
+         "   Nakai, Hiromi",&
+         "TI One-Body Energy Decomposition Schemes Revisited: Assessment of",&
+         "   Mulliken-, Grid-, and Conventional Energy Density Analyses",&
+         "SO INTERNATIONAL JOURNAL OF QUANTUM CHEMISTRY",&
+         "TC 3",&
+         "Z9 3",&
+         "SN 0020-7608",&
+         "PD SEP",&
+         "PY 2009",&
+         "VL 109",&
+         "IS 11",&
+         "BP 2464",&
+         "EP 2473",&
+         "DI 10.1002/qua.22017",&
+         "ER"),&
+         DOI="10.1002/qua.22017")
+
+    CALL add_reference(key=Putrino2000, ISI_record=s2a(&
+         "PT J",&
+         "AU Putrino, A",&
+         "   Sebastiani, D",&
+         "   Parrinello, M",&
+         "AF Putrino, Anna",&
+         "   Sebastiani, Daniel",&
+         "   Parrinello, Michele",&
+         "TI Generalized Variational Density Functional Perturbation Theory",&
+         "SO JOURNAL OF CHEMICAL PHYSICS",&
+         "SN 0021-9606",&
+         "PD NOV",&
+         "PY 2000",&
+         "VL 113",&
+         "IS 17",&
+         "BP 7102",&
+         "EP 7109",&
+         "DI 10.1063/1.1312830",&
+         "ER"),&
+         DOI="10.1063/1.1312830")
+
+    CALL add_reference(key=Tran2013, ISI_record=s2a(&
+         "PT J",&
+         "AU Tran, F",&
+         "   Hutter, J",&
+         "AF Tran, Fabien",&
+         "   Hutter, Juerg",&
+         "TI Nonlocal van der Waals functionals: The case of rare-gas dimers and",&
+         "   solids",&
+         "SO JOURNAL OF CHEMICAL PHYSICS",&
+         "TC 2",&
+         "Z9 2",&
+         "SN 0021-9606",&
+         "PD MAY 28",&
+         "PY 2013",&
+         "VL 138",&
+         "IS 20",&
+         "AR 204103",&
+         "DI 10.1063/1.4807332",&
+         "UT WOS:000320131100005",&
+         "ER"),&
+         DOI="10.1063/1.4807332")
+
+    CALL add_reference(key=Putrino2002, ISI_record=s2a(&
+         "PT J",&
+         "AU Putrino, A",&
+         "   Parrinello, M",&
+         "AF Putrino, Anna",&
+         "   Parrinello, Michele",&
+         "TI Anharmonic Raman Spectra in High-Pressure Ice from Ab Initio Simulations",&
+         "SO PHYSICAL REVIEW LETTERS",&
+         "SN 0031-9007",&
+         "PD APR 29",&
+         "PY 2002",&
+         "VL 88",&
+         "IS 17",&
+         "AR 176401",&
+         "DI 10.1103/PhysRevLett.88.176401",&
+         "ER"),&
+         DOI="10.1103/PhysRevLett.88.176401")
+
+    CALL add_reference(key=Sebastiani2001, ISI_record=s2a(&
+         "PT J",&
+         "AU Sebastiani, D",&
+         "   Parrinello, M",&
+         "AF Sebastiani, Daniel",&
+         "   Parrinello, Michele",&
+         "TI A New Ab Initio Approach for NMR Chemical Shifts in Periodic Systems",&
+         "SO THE JOURNAL OF PHYSICAL CHEMISTRY A",&
+         "PD MAR",&
+         "PY 2001",&
+         "VL 105",&
+         "IS 10",&
+         "BP 1951",&
+         "EP 1958",&
+         "DI 10.1021/jp002807j",&
+         "ER"),&
+         DOI="10.1021/jp002807j")
+
+
+    CALL add_reference(key=Weber2009, ISI_record=s2a(&
+         "PT J",&
+         "AU Weber, V",&
+         "   Iannuzzi, M",&
+         "   Giani, S",&
+         "   Hutter, S",&
+         "   Declerck, R",&
+         "   Waroduier, M",&
+         "AF Weber, Valery",&
+         "   Iannuzzi, Marcella",&
+         "   Giani, Samuele",&
+         "   Hutter, Juerg",&
+         "   Declerck, Reinout",&
+         "   Waroduier, Michel",&
+         "TI Magnetic Linear Response Properties Calculations with the ",&
+         "   Gaussian and Augmanted-Plane-Wave Method",&
+         "SO THE JOURNAL OF CHEMICAL PHYSICS",&
+         "SN 0021-9606",&
+         "PD JUL 7",&
+         "PY 2009",&
+         "VL 131",&
+         "IS 1",&
+         "AR 014106",&
+         "DI 10.1063/1.3156803",&
+         "ER"),&
+         DOI="10.1063/1.3156803")
+
 
   END SUBROUTINE add_all_references
 

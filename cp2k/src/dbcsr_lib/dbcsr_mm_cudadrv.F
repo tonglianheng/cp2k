@@ -24,7 +24,8 @@ MODULE dbcsr_mm_cudadrv
   USE dbcsr_config,                    ONLY: cudadrv_binning_binsize,&
                                              cudadrv_binning_nbins,&
                                              cudadrv_min_flop_sort,&
-                                             dbcsr_get_conf_nbuffers,&
+                                             cudadrv_nbuffers,&
+                                             default_resize_factor,&
                                              mm_stack_size
   USE dbcsr_cuda_device,               ONLY: cudaSharedMemBankSizeEightByte,&
                                              dbcsr_cuda_set_shared_mem_config
@@ -165,7 +166,7 @@ MODULE dbcsr_mm_cudadrv
 
     CHARACTER(len=default_string_length)     :: poolname
     INTEGER                                  :: error_handler, i, ithread, &
-                                                n_stack_buffers, nthreads
+                                                nthreads
     TYPE(dbcsr_data_obj)                     :: c_area
 
     CALL dbcsr_error_set(routineN, error_handler, error)
@@ -181,15 +182,14 @@ MODULE dbcsr_mm_cudadrv
           cuda_devalloc=.TRUE., pool_capacity=1, pool_name=poolname, error=error)
 
     ! Allocate the buffers for transfering the stack_data
-    CALL dbcsr_get_conf_nbuffers(n_stack_buffers, error)
     IF(ALLOCATED(stack_buffers)) THEN
-       IF(SIZE(stack_buffers)/=n_stack_buffers) &
+       IF(SIZE(stack_buffers)/=cudadrv_nbuffers) &
           CALL deallocate_stackbuffers(error)
     ENDIF
 
     IF(.NOT.ALLOCATED(stack_buffers)) THEN
-       ALLOCATE(stack_buffers(n_stack_buffers))
-       DO i=1, n_stack_buffers
+       ALLOCATE(stack_buffers(cudadrv_nbuffers))
+       DO i=1, cudadrv_nbuffers
           CALL dbcsr_cuda_devmem_allocate(stack_buffers(i)%devmem,&
                    dbcsr_type_int_4, dbcsr_ps_width*mm_stack_size, error)
           CALL dbcsr_cuda_hostmem_allocate(stack_buffers(i)%hostmem, &
@@ -350,7 +350,6 @@ MODULE dbcsr_mm_cudadrv
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_mm_cudadrv_process', &
       routineP = moduleN//':'//routineN
-    REAL, PARAMETER                          :: resize_factor = 1.618034
 
     INTEGER :: error_handle, error_handle2, flop_per_entry, &
       next_stack_buffer_idx, stacked_datasize
@@ -372,12 +371,12 @@ MODULE dbcsr_mm_cudadrv
     CALL dbcsr_error_set (routineN, error_handle, error)
     stacked_datasize   = this%product_wm%datasize
     CALL dbcsr_data_ensure_size(this%c_buffer, stacked_datasize, &
-                     factor=resize_factor, zero_pad=.TRUE., error=error)
+                     factor=default_resize_factor, zero_pad=.TRUE., error=error)
 
     !===========================================================================
     ! sort the stack. Since this costs CPU time, only a good idea if the CPUs
     ! are not too busy, or GPU gain is very large
-    IF (careful_mod) CALL dbcsr_error_set (routineN//"_sort", error_handle2, error)
+    CALL dbcsr_error_set (routineN//"_sort", error_handle2, error)
     flop_per_entry = 2*stack_descr%max_m*stack_descr%max_n*stack_descr%max_k
 
     IF(flop_per_entry > cudadrv_min_flop_sort) THEN
@@ -386,7 +385,7 @@ MODULE dbcsr_mm_cudadrv
        CALL stack_binning(params, stackbuf%hostmem, stack_size)
     ENDIF
 
-    IF (careful_mod) CALL dbcsr_error_stop (error_handle2, error)
+    CALL dbcsr_error_stop (error_handle2, error)
 
 
     CALL dbcsr_cuda_devmem_host2dev(stackbuf%devmem, hostmem=stackbuf%hostmem, stream=stackbuf%stream, error=error)

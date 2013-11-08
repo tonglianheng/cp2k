@@ -13,7 +13,8 @@ MODULE input_cp2k_xc
   USE bibliography,                    ONLY: &
        Becke1988, Becke1997, BeckeRoussel1989, Goedecker1996, Grimme2006, &
        Grimme2010, Heyd2004, Lee1988, Marques2012, Ortiz1994, Perdew1981, &
-       Perdew1996, Perdew2008, Proynov2007, Tao2003, Vosko1980, Zhang1998
+       Perdew1996, Perdew2008, Proynov2007, Tao2003, Tran2013, Vosko1980, &
+       Zhang1998
   USE cp_output_handling,              ONLY: cp_print_key_section_create
   USE f77_blas
   USE input_constants
@@ -74,7 +75,7 @@ CONTAINS
 
        NULLIFY(subsection,keyword)
        CALL keyword_create(keyword,name="_SECTION_PARAMETERS_",&
-            description="shorcut for the most commont functionals combinations",&
+            description="Shortcut for the most common functional combinations.",&
             usage="&xc_functional BLYP",&
             enum_c_vals=s2a("B3LYP","PBE0","BLYP","BP","PADE","PBE","TPSS","HCTH120","OLYP","NO_SHORTCUT","NONE"),&
             enum_i_vals=(/xc_funct_b3lyp,xc_funct_pbe0,xc_funct_blyp,xc_funct_bp,xc_funct_pade,xc_funct_pbe,&
@@ -299,7 +300,9 @@ CONTAINS
 
        CALL section_create(subsection,name="KE_GGA",&
             description="Uses one of the KE_GGA functionals (optimized versions of "//&
-            "some of these functionals might be available outside this section).",&
+            "some of these functionals might be available outside this section). "//&
+            "These functionals are needed for the computation of the kinetic "//&
+            "energy in the Kim-Gordon method.",&
             n_keywords=1, n_subsections=0, repeats=.TRUE., required=.TRUE.,&
             error=error)
        CALL keyword_create(keyword,"_SECTION_PARAMETERS_",&
@@ -829,7 +832,7 @@ CONTAINS
             description="This section combines all possible additional dispersion "//&
             "corrections to the normal XC functionals. This can be more functionals "//&
             "or simple empirical pair potentials. ",&
-            citations=(/grimme2006/),&
+            citations=(/grimme2006,Tran2013/),&
             n_keywords=1, n_subsections=1, repeats=.FALSE., required=.FALSE.,&
             error=error)
 
@@ -970,10 +973,12 @@ CONTAINS
             error=error)
 
        CALL keyword_create(keyword,name="TYPE",&
-            description="Type of functional (the corresponding kernel data file should be selected).",&
+            description="Type of functional (the corresponding kernel data file should be selected)."//&
+                        "Allows for common forms such as vdW-DF, vdW-DF2, optB88-vdW, rVV10.",&
             usage="TYPE DRSLL", &
             enum_c_vals=s2a("DRSLL","LMKLL","RVV10"),&
             enum_i_vals=(/ vdw_nl_DRSLL, vdw_nl_LMKLL, vdw_nl_RVV10 /),&
+            citations=(/Tran2013/),&
             default_i_val=vdw_nl_DRSLL, error=error)
        CALL section_add_keyword(subsection,keyword,error=error)
        CALL keyword_release(keyword,error=error)

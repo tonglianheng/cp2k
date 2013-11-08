@@ -100,7 +100,7 @@ CONTAINS
     CALL section_add_keyword(section,keyword,error=error)
     CALL keyword_release(keyword,error=error)
 
-    CALL keyword_create(keyword, name="stress_tensor",&
+    CALL keyword_create(keyword, name="STRESS_TENSOR",&
          description="Controls the calculation of the stress tensor. The combinations defined below"//&
          " are not implemented for all methods.",&
          usage="stress_tensor (NONE|ANALYTICAL|NUMERICAL|DIAGONAL_ANA|DIAGONAL_NUM)", &
@@ -375,7 +375,7 @@ CONTAINS
 
        CALL cp_print_key_section_create(print_key,"STRESS_TENSOR",&
             description="Controls the printing of the stress tensor",&
-            print_level=medium_print_level, filename="__STD_OUT__",error=error)
+            print_level=high_print_level, filename="__STD_OUT__",error=error)
        CALL keyword_create(keyword=keyword,&
                            name="NDIGITS",&
                            description="Specifies the number of digits used "//&

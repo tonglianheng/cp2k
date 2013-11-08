@@ -23,6 +23,8 @@ MODULE dbcsr_types
   USE dbcsr_cuda_stream,               ONLY: dbcsr_cuda_stream_type
   USE dbcsr_kinds,                     ONLY: default_string_length,&
                                              dp,&
+                                             int_4,&
+                                             int_8,&
                                              real_4,&
                                              real_8
   USE dbcsr_message_passing,           ONLY: mp_window_type
@@ -98,6 +100,16 @@ MODULE dbcsr_types
   PUBLIC :: dbcsr_filter_frobenius
   PUBLIC :: dbcsr_norm_frobenius, dbcsr_norm_maxabsnorm,&
             dbcsr_norm_gershgorin, dbcsr_norm_column
+
+  PUBLIC :: dbcsr_func_inverse, dbcsr_func_tanh, dbcsr_func_dtanh,&
+            dbcsr_func_ddtanh, dbcsr_func_artanh, dbcsr_func_inverse_special,&
+            dbcsr_func_spread_from_zero,&
+            dbcsr_func_sin,&
+            dbcsr_func_dsin,&
+            dbcsr_func_ddsin,&
+            dbcsr_func_asin,&
+            dbcsr_func_truncate,&
+            dbcsr_func_cos
 
 ! *****************************************************************************
 !> \brief A processor (process) grid distribution
@@ -256,6 +268,7 @@ MODULE dbcsr_types
      LOGICAL                           :: cuda_hostalloc = .FALSE.
      LOGICAL                           :: cuda_devalloc = .FALSE.
      TYPE(dbcsr_mempool_type), POINTER :: pool => Null()
+     REAL(KIND=dp)                     :: oversize_factor = 1.0
   END TYPE dbcsr_memtype_type
 
   !providing pool=Null() explicitly to circumvent bug in ifort 12.1
@@ -274,6 +287,8 @@ MODULE dbcsr_types
 !> \var data_type   which of the data types is actually used
 ! *****************************************************************************
   TYPE dbcsr_data_area_type
+     INTEGER(KIND=int_4), DIMENSION(:), POINTER    :: i4    => Null()
+     INTEGER(KIND=int_8), DIMENSION(:), POINTER    :: i8    => Null()
      REAL(KIND=real_4), DIMENSION(:), POINTER      :: r_sp  => Null()
      REAL(KIND=real_8), DIMENSION(:), POINTER      :: r_dp  => Null()
      COMPLEX(KIND=real_4), DIMENSION(:), POINTER   :: c_sp  => Null()
@@ -562,6 +577,22 @@ MODULE dbcsr_types
   CHARACTER, PARAMETER        :: dbcsr_repl_row = 'R'
   CHARACTER, PARAMETER        :: dbcsr_repl_col = 'C'
   CHARACTER, PARAMETER        :: dbcsr_repl_full = 'A'
+
+  ! 
+  ! Function types 
+  INTEGER, PARAMETER          :: dbcsr_func_inverse = 0 
+  INTEGER, PARAMETER          :: dbcsr_func_tanh = 1 
+  INTEGER, PARAMETER          :: dbcsr_func_dtanh = 2 
+  INTEGER, PARAMETER          :: dbcsr_func_ddtanh = 3 
+  INTEGER, PARAMETER          :: dbcsr_func_artanh = 4 
+  INTEGER, PARAMETER          :: dbcsr_func_inverse_special = 5 
+  INTEGER, PARAMETER          :: dbcsr_func_spread_from_zero = 6 
+  INTEGER, PARAMETER          :: dbcsr_func_sin = 7  
+  INTEGER, PARAMETER          :: dbcsr_func_dsin = 8 
+  INTEGER, PARAMETER          :: dbcsr_func_ddsin = 9 
+  INTEGER, PARAMETER          :: dbcsr_func_asin = 10 
+  INTEGER, PARAMETER          :: dbcsr_func_cos = 11 
+  INTEGER, PARAMETER          :: dbcsr_func_truncate = 12 
 
 
 ! *****************************************************************************

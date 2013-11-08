@@ -10,7 +10,7 @@
 !> \param[out] view      new pointer
 ! *****************************************************************************
   FUNCTION pointer_view_i (original, lb, ub) RESULT (view)
-    INTEGER, DIMENSION(:), POINTER :: original, view
+    INTEGER(kind=int_4), DIMENSION(:), POINTER :: original, view
     INTEGER, INTENT(IN)                  :: lb, ub
     view => original(lb:ub)
   END FUNCTION pointer_view_i
@@ -31,10 +31,10 @@
 ! *****************************************************************************
   SUBROUTINE ensure_array_size_i(array, lb, ub, factor,&
        nocopy, memory_type, zero_pad, error)
-    INTEGER, DIMENSION(:), POINTER                 :: array
+    INTEGER(kind=int_4), DIMENSION(:), POINTER                 :: array
     INTEGER, INTENT(IN), OPTIONAL                  :: lb
     INTEGER, INTENT(IN)                            :: ub
-    REAL, INTENT(IN), OPTIONAL                     :: factor
+    REAL(KIND=dp), INTENT(IN), OPTIONAL            :: factor
     LOGICAL, INTENT(IN), OPTIONAL                  :: nocopy, zero_pad
     TYPE(dbcsr_memtype_type), INTENT(IN), OPTIONAL :: memory_type
     TYPE(dbcsr_error_type), INTENT(inout)          :: error
@@ -48,7 +48,7 @@
     TYPE(dbcsr_memtype_type)                 :: mem_type
     LOGICAL                                  :: dbg, docopy, &
                                                 pad
-    INTEGER, DIMENSION(:), POINTER           :: newarray
+    INTEGER(kind=int_4), DIMENSION(:), POINTER           :: newarray
 
 !   ---------------------------------------------------------------------------
     !CALL dbcsr_error_set(routineN, error_handler, error)
@@ -93,8 +93,8 @@
     IF (lb_orig.GT.lb_new) THEN
        IF (PRESENT(factor)) THEN
           size_increase = lb_orig - lb_new
-          size_increase = MAX (NINT(REAL(size_increase)*factor),&
-                               NINT(REAL(old_size)*factor))
+          size_increase = MAX (NINT(size_increase*factor),&
+                               NINT(old_size*(factor-1)),0)
           lb_new = MIN (lb_orig, lb_new - size_increase)
        ELSE
           lb_new = lb_orig
@@ -103,8 +103,8 @@
     IF (ub_orig.LT.ub) THEN
        IF (PRESENT(factor)) THEN
           size_increase = ub - ub_orig
-          size_increase = MAX (NINT(REAL(size_increase)*factor),&
-                               NINT(REAL(old_size)*factor))
+          size_increase = MAX (NINT(size_increase*factor),&
+                               NINT(old_size*(factor-1)),0)
           ub_new = MAX (ub_orig, ub + size_increase)
        ELSE
           ub_new = ub
@@ -143,7 +143,7 @@
        ENDIF
        CALL mem_dealloc_i (array, mem_type=mem_type, error=error)
     ELSEIF (pad) THEN
-       !newarray(:) = 1
+       !newarray(:) = 0
        CALL mem_zero_i (newarray, SIZE(newarray))
     ENDIF
     array => newarray
@@ -159,8 +159,8 @@
 ! *****************************************************************************
   SUBROUTINE mem_copy_i (dst, src, n)
     INTEGER, INTENT(IN) :: n
-    INTEGER, DIMENSION(1:n), INTENT(OUT) :: dst
-    INTEGER, DIMENSION(1:n), INTENT(IN) :: src
+    INTEGER(kind=int_4), DIMENSION(1:n), INTENT(OUT) :: dst
+    INTEGER(kind=int_4), DIMENSION(1:n), INTENT(IN) :: src
     dst(:) = src(:)
   END SUBROUTINE mem_copy_i
 
@@ -171,8 +171,8 @@
 ! *****************************************************************************
   SUBROUTINE mem_zero_i (dst, n)
     INTEGER, INTENT(IN) :: n
-    INTEGER, DIMENSION(1:n), INTENT(OUT) :: dst
-    dst(:) = 1
+    INTEGER(kind=int_4), DIMENSION(1:n), INTENT(OUT) :: dst
+    dst(:) = 0
   END SUBROUTINE mem_zero_i
 
 
@@ -184,7 +184,7 @@
 !> \param[in,out] error   error
 ! *****************************************************************************
   SUBROUTINE mem_alloc_i (mem, n, mem_type, error)
-    INTEGER, DIMENSION(:), POINTER        :: mem
+    INTEGER(kind=int_4), DIMENSION(:), POINTER        :: mem
     INTEGER, INTENT(IN)                   :: n
     TYPE(dbcsr_memtype_type), INTENT(IN)  :: mem_type
     TYPE(dbcsr_error_type), INTENT(INOUT) :: error
@@ -217,7 +217,7 @@
 !> \param[in,out] error   error
 ! *****************************************************************************
   SUBROUTINE mem_alloc_i_2d (mem, sizes, mem_type, error)
-    INTEGER, DIMENSION(:,:), POINTER      :: mem
+    INTEGER(kind=int_4), DIMENSION(:,:), POINTER      :: mem
     INTEGER, DIMENSION(2), INTENT(IN)     :: sizes
     TYPE(dbcsr_memtype_type), INTENT(IN)  :: mem_type
     TYPE(dbcsr_error_type), INTENT(INOUT) :: error
@@ -254,7 +254,7 @@
 !> \param[in,out] error   error
 ! *****************************************************************************
   SUBROUTINE mem_dealloc_i (mem, mem_type, error)
-    INTEGER, DIMENSION(:), POINTER        :: mem
+    INTEGER(kind=int_4), DIMENSION(:), POINTER        :: mem
     TYPE(dbcsr_memtype_type), INTENT(IN)  :: mem_type
     TYPE(dbcsr_error_type), INTENT(INOUT) :: error
     CHARACTER(len=*), PARAMETER :: routineN = 'mem_dealloc_i', &
@@ -286,7 +286,7 @@
 !> \param[in,out] error   error
 ! *****************************************************************************
   SUBROUTINE mem_dealloc_i_2d (mem, mem_type, error)
-    INTEGER, DIMENSION(:,:), POINTER      :: mem
+    INTEGER(kind=int_4), DIMENSION(:,:), POINTER      :: mem
     TYPE(dbcsr_memtype_type), INTENT(IN)  :: mem_type
     TYPE(dbcsr_error_type), INTENT(INOUT) :: error
     CHARACTER(len=*), PARAMETER :: routineN = 'mem_dealloc_i', &
@@ -321,9 +321,9 @@
 ! *****************************************************************************
   SUBROUTINE pointer_i_rank_remap2 (r2p, d1, d2, r1p)
     INTEGER, INTENT(IN)                      :: d1, d2
-    INTEGER, DIMENSION(:, :), &
+    INTEGER(kind=int_4), DIMENSION(:, :), &
       POINTER                                :: r2p
-    INTEGER, DIMENSION(:), &
+    INTEGER(kind=int_4), DIMENSION(:), &
       POINTER                                :: r1p
 
     r2p(1:d1,1:d2) => r1p(1:d1*d2)
@@ -335,9 +335,9 @@
 ! *****************************************************************************
   SUBROUTINE pointer_i_rank_remap2 (r2p, d1, d2, r1p)
     INTEGER, INTENT(IN)                      :: d1, d2
-    INTEGER, DIMENSION(:, :), &
+    INTEGER(kind=int_4), DIMENSION(:, :), &
       POINTER                                :: r2p
-    INTEGER, DIMENSION(:), &
+    INTEGER(kind=int_4), DIMENSION(:), &
       POINTER                                :: r1p
     TYPE(C_PTR)                              :: fe_loc
 
@@ -353,10 +353,10 @@
 !> \brief Sets a rank-2 pointer to rank-1 data using ugly hacks.
 ! *****************************************************************************
   SUBROUTINE pointer_i_rank_remap2 (r2p, d1, d2, r1p)
-    INTEGER, DIMENSION(:, :), &
+    INTEGER(kind=int_4), DIMENSION(:, :), &
       POINTER                                :: r2p
     INTEGER, INTENT(IN)                      :: d1, d2
-    INTEGER, DIMENSION(d1, *), &
+    INTEGER(kind=int_4), DIMENSION(d1, *), &
       TARGET                                 :: r1p
 
     r2p => r1p(1:d1, 1:d2)
@@ -367,9 +367,9 @@
 ! *****************************************************************************
   SUBROUTINE pointer_i_rank_remap2 (r2p, d1, d2, r1p)
     INTEGER, INTENT(IN)                      :: d1, d2
-    INTEGER, DIMENSION(:, :), &
+    INTEGER(kind=int_4), DIMENSION(:, :), &
       POINTER                                :: r2p
-    INTEGER, DIMENSION(d1*d2), &
+    INTEGER(kind=int_4), DIMENSION(d1*d2), &
       TARGET                                 :: r1p
 
 !    r2p(1:d1,1:d2) => r1p(1:d1*d2)

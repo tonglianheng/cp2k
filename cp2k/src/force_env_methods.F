@@ -170,12 +170,12 @@ CONTAINS
 ! *****************************************************************************
   RECURSIVE SUBROUTINE force_env_calc_energy_force ( force_env, calc_force, &
        consistent_energies, skip_external_control, eval_energy_forces, &
-       require_consistent_energy_force, error)
+       require_consistent_energy_force, linres, error)
 
     TYPE(force_env_type), POINTER            :: force_env
     LOGICAL, INTENT(IN), OPTIONAL :: calc_force, consistent_energies, &
       skip_external_control, eval_energy_forces, &
-      require_consistent_energy_force
+      require_consistent_energy_force, linres
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'force_env_calc_energy_force', &
@@ -187,7 +187,7 @@ CONTAINS
                                                 stat
     LOGICAL                                  :: calculate_forces, &
                                                 energy_consistency, eval_ef, &
-                                                failure, my_skip
+                                                failure, linres_run, my_skip
     REAL(KIND=dp)                            :: checksum, e_pot, sum_energy, &
                                                 sum_pv_virial, &
                                                 sum_stress_tensor
@@ -211,10 +211,12 @@ CONTAINS
     my_skip = .FALSE.
     calculate_forces = .TRUE.
     energy_consistency = .FALSE.
+    linres_run = .FALSE.
     IF (PRESENT(eval_energy_forces)) eval_ef = eval_energy_forces
     IF (PRESENT(skip_external_control)) my_skip = skip_external_control
     IF (PRESENT(calc_force)) calculate_forces = calc_force
     IF (PRESENT(consistent_energies)) energy_consistency = consistent_energies
+    IF (PRESENT(linres)) linres_run = linres
 
     CPPrecondition(ASSOCIATED(force_env),cp_failure_level,routineP,error,failure)
     IF (.NOT.failure) THEN
@@ -241,6 +243,7 @@ CONTAINS
              CALL ep_env_calc_e_f(force_env%ep_env,calculate_forces,error=error)
           CASE ( use_qs_force )
              CALL set_qs_env(qs_env=force_env%qs_env,atprop=atprop_env,error=error)
+             force_env%qs_env%linres_run = linres_run
              IF (.NOT.calculate_forces) THEN
                 CALL qs_energies(qs_env=force_env%qs_env, consistent_energies=energy_consistency, &
                      calc_forces=calculate_forces, error=error)
@@ -258,7 +261,7 @@ CONTAINS
              END IF
           CASE ( use_qmmm )
              CALL qmmm_energy_and_forces(force_env,calculate_forces,require_consistent_energy_force,&
-                  error=error)
+                  linres=linres_run,error=error)
           CASE ( use_mixed_force )
              CALL mixed_energy_forces(force_env,calculate_forces,error=error)
           CASE default
@@ -274,6 +277,11 @@ CONTAINS
              ! Symmetrize analytical stress tensor
              CALL sym_virial(virial, error)
           END IF
+       ELSE IF (virial%pv_availability.AND. .NOT. calculate_forces) THEN
+       ! Warning
+          CALL cp_assert(.FALSE.,cp_warning_level,-300,routineP,&
+                  'The calculation of stress tensor requires the calculation of forces',&
+                  error=error,only_ionode=.TRUE.)
        END IF
        ! Some additional tasks..
        IF (.NOT.my_skip) THEN
@@ -369,6 +377,16 @@ CONTAINS
        ELSE
           CALL zero_virial(virial,reset=.FALSE.)
        END IF
+    ELSE
+       output_unit = cp_print_key_unit_nr(logger,force_env%force_env_section,"PRINT%STRESS_TENSOR",&
+                                             extension=".stress_tensor",error=error)
+       IF(output_unit > 0) THEN
+         CALL cp_assert(.FALSE.,cp_warning_level,-300,routineP,&
+                'To print STRESS_TENSOR switch on the virial evaluation with the keyword: STRESS_TENSOR.', &
+                error=error,only_ionode=.TRUE.)
+       END IF
+       CALL cp_print_key_finished_output(output_unit,logger,force_env%force_env_section,&
+                                            "PRINT%STRESS_TENSOR",error=error)
     END IF
 
     ! Atomic properties
@@ -909,10 +927,11 @@ CONTAINS
 !>      05.2004 created [fawzi]
 !> \author Fawzi Mohamed
 ! *****************************************************************************
-  RECURSIVE SUBROUTINE qmmm_energy_and_forces(force_env,calc_force,require_consistent_energy_force,error)
+  RECURSIVE SUBROUTINE qmmm_energy_and_forces(force_env,calc_force,&
+         require_consistent_energy_force,linres,error)
     TYPE(force_env_type), POINTER            :: force_env
     LOGICAL, INTENT(IN), OPTIONAL :: calc_force, &
-      require_consistent_energy_force
+      require_consistent_energy_force, linres
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'qmmm_energy_and_forces', &
@@ -950,8 +969,7 @@ CPSourceFileRef,&
           error,failure)
     ENDIF
 
-! Possibly translate the system
-
+    ! Possibly translate the system
     CALL apply_qmmm_translate(force_env, error)
 
     DO isubf=1, SIZE(force_env%sub_force_env)
@@ -973,7 +991,7 @@ CPSourceFileRef,&
         ENDIF
 
         CALL qmmm_energy_and_forces_low(force_env%sub_force_env(isubf)%force_env,&
-             calc_force,error)
+             calc_force,linres,error)
 
         IF (SIZE(force_env%sub_force_env) > 1) THEN ! undo rewrite of restart file name
            CALL section_vals_val_set(force_env_section, "DFT%SCF%PRINT%RESTART%FILENAME", &
@@ -1085,21 +1103,20 @@ CPSourceFileRef,&
 !>      05.2004 created [fawzi]
 !> \author Fawzi Mohamed
 ! *****************************************************************************
-  RECURSIVE SUBROUTINE qmmm_energy_and_forces_low(force_env,calc_force,error)
+  RECURSIVE SUBROUTINE qmmm_energy_and_forces_low(force_env,calc_force,linres,error)
 
     TYPE(force_env_type), POINTER            :: force_env
-    LOGICAL, INTENT(IN), OPTIONAL            :: calc_force
+    LOGICAL, INTENT(IN), OPTIONAL            :: calc_force, linres
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'qmmm_energy_and_forces_low', &
       routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=default_string_length)     :: description, iter
-    INTEGER                                  :: ip, nres, output_unit
+    INTEGER                                  :: ip, j, nres, output_unit
     INTEGER, DIMENSION(:), POINTER           :: qm_atom_index
-    LOGICAL                                  :: calculate_forces, check, &
-                                                failure, qmmm_added_chrg, &
-                                                qmmm_link, qmmm_link_imomm
+    LOGICAL :: calculate_forces, check, failure, linres_run, qmmm_added_chrg, &
+      qmmm_link, qmmm_link_imomm
     REAL(KIND=dp)                            :: energy_mm, energy_qm
     REAL(KIND=dp), DIMENSION(3)              :: dip_mm, dip_qm, dip_qmmm, &
                                                 max_coord, min_coord
@@ -1117,11 +1134,13 @@ CPSourceFileRef,&
     max_coord        = -HUGE(0.0_dp)
     failure          = .FALSE.
     calculate_forces = .TRUE.
+    linres_run = .FALSE.
     qmmm_link        = .FALSE.
     qmmm_link_imomm  = .FALSE.
     qmmm_added_chrg  = .FALSE.
     logger => cp_error_get_logger(error)
     IF (PRESENT(calc_force)) calculate_forces = calc_force
+    IF (PRESENT(linres)) linres_run = linres
     NULLIFY(subsys_mm, subsys_qm, qm_atom_index,particles_mm,particles_qm, qm_cell, mm_cell)
     NULLIFY(force_env_section, print_key, results_qmmm, results_qm, results_mm)
     force_env_section => force_env%sub_force_env(qs_subsys)%force_env%force_env_section
@@ -1148,13 +1167,17 @@ CPSourceFileRef,&
     particles_mm => subsys_mm%particles%els
     particles_qm => subsys_qm%particles%els
     
-    DO ip=1, SIZE(particles_qm)
-      check = ALL(MATMUL(qm_cell%h_inv,particles_qm(ip)%r) >= 0.0) .AND. &
-              ALL(MATMUL(qm_cell%h_inv,particles_qm(ip)%r) <= 1.0)
-      CALL cp_assert(check, cp_failure_level, cp_assertion_failed, routinep,&
-           "QM atoms must be fully contained in the QM box - No wrapping of coordinates is allowed! "//&
- CPSourceFileRef,&
+    DO j=1,3
+       IF (qm_cell%perd(j)==1) CYCLE
+       DO ip=1, SIZE(particles_qm)
+          check = (DOT_PRODUCT(qm_cell%h_inv(j,:),particles_qm(ip)%r) >= 0.0) .AND. &
+                  (DOT_PRODUCT(qm_cell%h_inv(j,:),particles_qm(ip)%r) <= 1.0)
+          CALL cp_assert(check, cp_failure_level, cp_assertion_failed, routinep,&
+                  "QM/MM QM atoms must be fully contained in the same image of the QM box "//&
+                  "- No wrapping of coordinates is allowed! "//&
+CPSourceFileRef,&
            error)
+       END DO
     END DO
 
     ! If present QM/MM links (just IMOMM) correct the position of the qm-link atom
@@ -1185,7 +1208,7 @@ CPSourceFileRef,&
                        error=error)
     ! QS
     CALL force_env_calc_energy_force(force_env%sub_force_env(qs_subsys)%force_env,&
-         calc_force=calculate_forces,skip_external_control=.TRUE.,error=error)
+         calc_force=calculate_forces,skip_external_control=.TRUE.,linres=linres_run,error=error)
 
     ! QM/MM Interaction Potential forces
     CALL qmmm_forces(force_env%sub_force_env(qs_subsys)%force_env%qs_env,&

@@ -11,7 +11,8 @@
 ! *****************************************************************************
 
 MODULE tmc_move_types
-  USE kinds,                           ONLY: dp
+  USE kinds,                           ONLY: default_string_length,&
+                                             dp
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -22,19 +23,19 @@ MODULE tmc_move_types
 
   !-- list of available move types
   INTEGER, PARAMETER, PUBLIC :: mv_type_none           = 0
-  INTEGER, PARAMETER, PUBLIC :: mv_type_atom_trans     = 1 ! atom translation (done in every posible direction)
-  INTEGER, PARAMETER, PUBLIC :: mv_type_mol_trans      = 2 ! molecule translation (done in every posible direction)
-  INTEGER, PARAMETER, PUBLIC :: mv_type_mol_rot        = 3 ! molecule rotation
-  INTEGER, PARAMETER, PUBLIC :: mv_type_proton_reorder = 4 ! reordering the protons within a chain of molecules
-  INTEGER, PARAMETER, PUBLIC :: mv_type_MD             = 5 ! certain amount of MD steps
-  INTEGER, PARAMETER, PUBLIC :: mv_type_swap_conf      = 6 ! swapping of 2 configurations of different temperature
-  INTEGER, PARAMETER, PUBLIC :: mv_type_volume_move    = 7 ! volume move for NPT simulations
-  INTEGER, PARAMETER, PUBLIC :: mv_type_gausian_adapt  = 8 ! gaussian adaptation
-  INTEGER, PARAMETER, PUBLIC :: mv_type_NMC_moves      = 9 ! indentifies the Nested Monte Carlo move for master
-  INTEGER, PARAMETER, PUBLIC :: nr_mv_types            = 9 !-- allways update the number of possible types!!
-  INTEGER, PARAMETER, PUBLIC :: nr_nmc_mv_types        = 4 ! the first n move types are used in the NMC algorithm
+  INTEGER, PARAMETER, PUBLIC :: mv_type_swap_conf      = 1 ! swapping of 2 configurations of different temperature
+  INTEGER, PARAMETER, PUBLIC :: mv_type_atom_trans     = 2 ! atom translation (done in every posible direction)
+  INTEGER, PARAMETER, PUBLIC :: mv_type_mol_trans      = 3 ! molecule translation (done in every posible direction)
+  INTEGER, PARAMETER, PUBLIC :: mv_type_mol_rot        = 4 ! molecule rotation
+  INTEGER, PARAMETER, PUBLIC :: mv_type_proton_reorder = 5 ! reordering the protons within a chain of molecules
+  INTEGER, PARAMETER, PUBLIC :: mv_type_atom_swap      = 6 ! swaps two atoms of different type
+  INTEGER, PARAMETER, PUBLIC :: mv_type_MD             = 7 ! certain amount of MD steps
+  INTEGER, PARAMETER, PUBLIC :: mv_type_volume_move    = 8 ! volume move for NPT simulations
+  INTEGER, PARAMETER, PUBLIC :: mv_type_gausian_adapt  = 9 ! gaussian adaptation
+  INTEGER, PARAMETER, PUBLIC :: mv_type_NMC_moves      = 10! indentifies the Nested Monte Carlo move for master
+  INTEGER, PARAMETER, PUBLIC :: nr_mv_types            = 10!-- allways update the number of possible types!!
 
-  PUBLIC :: tmc_move_type, moves_init_sizes_type, move_types_create, move_types_release
+  PUBLIC :: tmc_move_type, move_types_create, move_types_release
 
   TYPE tmc_move_type
      !-- mv_type, handling indeces to move type (are equal for all several configurations/temperatures)
@@ -57,6 +58,7 @@ MODULE tmc_move_types
      !   1st dimension are the different move types
      INTEGER, DIMENSION(:,:), ALLOCATABLE :: subbox_acc_count
      INTEGER, DIMENSION(:,:), ALLOCATABLE :: subbox_count
+     TYPE(list_atoms), DIMENSION(:), POINTER :: atom_lists
 
      !-- nmc_acc_prob, probability of acceptance of a certain move type,
      !   done in Nested Monte Carlo routine, for different potential
@@ -65,12 +67,10 @@ MODULE tmc_move_types
 !     INTEGER, DIMENSION(:), ALLOCATABLE :: nmc_count
   END TYPE tmc_move_type
 
-  TYPE moves_init_sizes_type
-    INTEGER, DIMENSION(:), POINTER       :: mv_types
-    REAL(KIND=dp), DIMENSION(:),POINTER  :: mv_sizes, mv_probs
-    REAL(KIND=dp)                        :: start_acc_prob
-  END TYPE moves_init_sizes_type
-
+  TYPE list_atoms
+    CHARACTER(LEN=default_string_length), &
+      DIMENSION(:), POINTER                  :: atoms
+  END TYPE list_atoms
 CONTAINS
 
 ! *****************************************************************************
@@ -93,7 +93,7 @@ CONTAINS
 
     ALLOCATE(move_types)
     ALLOCATE(move_types%mv_weight(nr_mv_types))
-    move_types%mv_weight(:) = 0
+    move_types%mv_weight(:) = 0.0_dp
     ALLOCATE(move_types%mv_size(nr_mv_types,nr_temp))
     move_types%mv_size(:,:) = 0.0_dp
     ALLOCATE(move_types%acc_prob(0:nr_mv_types,nr_temp))
@@ -106,6 +106,7 @@ CONTAINS
     move_types%subbox_acc_count(:,:) = 0
     ALLOCATE(move_types%subbox_count(nr_mv_types,nr_temp))
     move_types%subbox_count(:,:) = 0
+    NULLIFY(move_types%atom_lists)
   END SUBROUTINE move_types_create
 
 ! *****************************************************************************
@@ -124,6 +125,8 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     CPPreconditionNoFail(ASSOCIATED(move_types),cp_failure_level,routineP,error)
+
+    IF(ASSOCIATED(move_types%atom_lists)) DEALLOCATE(move_types%atom_lists)
     DEALLOCATE(move_types%mv_weight)
     DEALLOCATE(move_types%mv_size)
     DEALLOCATE(move_types%acc_prob)
@@ -131,7 +134,7 @@ CONTAINS
     DEALLOCATE(move_types%acc_count)
     DEALLOCATE(move_types%subbox_acc_count)
     DEALLOCATE(move_types%subbox_count)
-    DEALLOCATE(move_types)
+    DEALLOCATE(move_types)    
   END SUBROUTINE move_types_release
 
 END MODULE tmc_move_types

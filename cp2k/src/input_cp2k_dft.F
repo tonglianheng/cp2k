@@ -23,6 +23,7 @@ MODULE input_cp2k_dft
   USE cp_units,                        ONLY: cp_unit_to_cp2k
   USE f77_blas
   USE input_constants
+  USE input_cp2k_almo,                 ONLY: create_almo_scf_section
   USE input_cp2k_atom,                 ONLY: create_powell_section
   USE input_cp2k_distribution,         ONLY: create_distribution_section
   USE input_cp2k_ls,                   ONLY: create_ls_scf_section
@@ -395,11 +396,11 @@ CONTAINS
     CALL section_add_subsection(section, subsection, error=error)
     CALL section_release(subsection,error=error)
 
-    CALL create_kg_section(subsection,error)
+    CALL create_almo_scf_section(subsection,error)
     CALL section_add_subsection(section, subsection, error=error)
     CALL section_release(subsection,error=error)
 
-    CALL create_scp_section(subsection,error)
+    CALL create_kg_section(subsection,error)
     CALL section_add_subsection(section, subsection, error=error)
     CALL section_release(subsection,error=error)
 
@@ -2327,7 +2328,7 @@ CONTAINS
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="EPS_KG_ORB",&
-            description="Sets precision used in coloring the subsets. Overrides SQRT(EPS_DEFAULT) value",&
+            description="Sets precision used in coloring the subsets for the Kim-Gordon method. Overrides SQRT(EPS_DEFAULT) value",&
             usage="EPS_KG_ORB 1.0E-8",&
             type_of_var=real_t, error=error)
        CALL section_add_keyword(section,keyword,error=error)
@@ -2463,6 +2464,13 @@ CONTAINS
        CALL keyword_create(keyword, name="LS_SCF",&
             description="Perform a linear scaling SCF",&
             usage="LS_SCF",lone_keyword_l_val=.TRUE.,&
+            default_l_val=.FALSE.,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="ALMO_SCF",&
+            description="Perform ALMO SCF",&
+            usage="ALMO_SCF",lone_keyword_l_val=.TRUE.,&
             default_l_val=.FALSE.,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
@@ -2687,53 +2695,6 @@ CONTAINS
     END IF
 
   END SUBROUTINE create_qs_section
-
-! *****************************************************************************
-  SUBROUTINE create_scp_section(section,error)
-    TYPE(section_type), POINTER              :: section
-    TYPE(cp_error_type), INTENT(inout)       :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'create_scp_section', &
-      routineP = moduleN//':'//routineN
-
-    LOGICAL                                  :: failure
-    TYPE(keyword_type), POINTER              :: keyword
-    TYPE(section_type), POINTER              :: print_key
-
-    failure=.FALSE.
-    NULLIFY(keyword)
-    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
-    IF (.NOT. failure) THEN
-       CALL section_create(section,"SCP",&
-            description="Parameters needed to set up the SCP-DFT method",&
-            n_keywords=4, n_subsections=4, repeats=.FALSE., required=.FALSE.,&
-            error=error)
-
-       CALL keyword_create(keyword, name="_SECTION_PARAMETERS_",&
-            description="controls the activation of the SCP method",&
-            usage="&SCP T",&
-            default_l_val=.FALSE.,&
-            lone_keyword_l_val=.TRUE.,&
-            error=error)
-       CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-
-       CALL keyword_create(keyword, name="DISPERSION",&
-            description="Use dispersion correction through SCP method",&
-            usage="DISPERSION",default_l_val=.FALSE., error=error)
-       CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-
-       NULLIFY(print_key)
-       CALL cp_print_key_section_create(print_key,"program_run_info",&
-            description="Controls the printing of basic information during the run", &
-            print_level=high_print_level,add_last=add_last_numeric,filename="__STD_OUT__",&
-            error=error)
-       CALL section_add_subsection(section,print_key,error=error)
-       CALL section_release(print_key,error=error)
-
-    END IF
-  END SUBROUTINE create_scp_section
 
 ! *****************************************************************************
   SUBROUTINE create_dftb_control_section(section,error)
@@ -4279,7 +4240,7 @@ CONTAINS
             description="Change the initial guess for the wavefunction.",&
             usage="SCF_GUESS RESTART", default_i_val=atomic_guess,&
             enum_c_vals=s2a("ATOMIC","RESTART","RANDOM","CORE","DENSITIES",&
-            "HISTORY_RESTART","MOPAC","SPARSE","NONE"),&
+            "HISTORY_RESTART","MOPAC","SPARSE","ALMO_SCF","NONE"),&
             enum_desc=s2a("Generate an atomic density using the atomic code", &
             "Use the RESTART file as an initial guess (and ATOMIC if not present).", &
             "Use random wavefunction coefficients.", &
@@ -4288,9 +4249,10 @@ CONTAINS
             "Extrapolated from previous RESTART files.", &
             "Use same guess as MOPAC for semi-empirical methods or a simple diagonal density matrix for other methods", &
             "Generate a sparse wavefunction using the atomic code (for OT based methods)", &
+            "Accurate guess for molecular systems based on ALMO methods", &
             "Skip initial guess (only for NON-SCC DFTB)."), &
             enum_i_vals=(/atomic_guess,restart_guess,random_guess,core_guess,&
-            densities_guess,history_guess,mopac_guess,sparse_guess,no_guess/),&
+            densities_guess,history_guess,mopac_guess,sparse_guess,almo_scf_guess,no_guess/),&
             error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
@@ -5845,14 +5807,6 @@ CONTAINS
             " a rotation of the occupied subspace such as non-singlet restricted calculations "//&
             " or fractional occupations.",&
             usage="ROTATION",lone_keyword_l_val=.TRUE.,&
-            default_l_val=.FALSE.,error=error)
-       CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-
-       CALL keyword_create(keyword, name="SCP_DFT",&
-            description="Introduce additional self-consistent polarization through"//&
-            " additional response basis functions (read in through AUX_BASIS.)",&
-            usage="SCP_DFT",lone_keyword_l_val=.TRUE.,&
             default_l_val=.FALSE.,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
