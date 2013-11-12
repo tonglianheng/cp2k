@@ -7,3 +7,4 @@ cp2k/tools/build_libsmm/lib
 cp2k/tools/build_libsmm/*.mod
 cp2k/tools/build_libsmm/*.x
 .svn
+TAGS

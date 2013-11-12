@@ -11,6 +11,7 @@
 !>        the neighborlist sab_orb for the current value of EPS_DEFAULT)
 !> \par History
 !>       2012.07 created [Martin Haeufel]
+!>	 2013.11 Added pair switching and revised Dsatur [Samuel Andermatt]
 !> \author Martin Haeufel
 ! *****************************************************************************
 MODULE kg_vertex_coloring_methods
@@ -46,7 +47,7 @@ MODULE kg_vertex_coloring_methods
     LOGICAL, ALLOCATABLE, DIMENSION(:)       :: color_present ! the colors present on neighbors
     TYPE (vertex_p_type), DIMENSION(:), POINTER :: neighbors => NULL()
   END TYPE vertex
- 
+
   TYPE vertex_p_type
     TYPE (vertex), POINTER :: vertex
   END TYPE vertex_p_type
@@ -56,7 +57,6 @@ MODULE kg_vertex_coloring_methods
   PUBLIC :: kg_vertex_coloring
 
 CONTAINS
-  
   SUBROUTINE kg_create_graph(kg_env, pairs, graph)
     TYPE(kg_environment_type), POINTER       :: kg_env
     INTEGER(KIND=int_4), ALLOCATABLE, &
@@ -120,7 +120,7 @@ CONTAINS
     END IF
 
     kg_env%maxdegree=maxdegree
-    
+
     ! there can be now some nodes that have no neighbors, thus vertex%neighbors
     ! is NOT ASSOCIATED
 
@@ -138,7 +138,7 @@ CONTAINS
       kmol = pairs(2,i)
       graph(imol)%vertex%neighbors(ineighbor)%vertex => graph(kmol)%vertex
     END DO
-    
+
     DO i=1,SIZE(graph)
       IF(graph(i)%vertex%degree>0) THEN
         ALLOCATE(graph(i)%vertex%color_present(100))
@@ -217,7 +217,7 @@ CONTAINS
       WRITE(unit_nr,'(T2,A,T10,A)') "Color |", "Molecules in this subset (IDs start from 0)"
 
       nnodes = SIZE(graph)
- 
+
       DO i=1,ncolors
         WRITE(unit_nr,'(T2,I5,1X,A)', ADVANCE='NO') i,"|"
         counter=0
@@ -235,7 +235,7 @@ CONTAINS
         WRITE(unit_nr,'()')
       END DO
 
-    END IF 
+    END IF
 
     CALL timestop(handle)
 
@@ -287,7 +287,7 @@ CONTAINS
 
     failure = .FALSE.
 
-    nnodes = SIZE(graph) 
+    nnodes = SIZE(graph)
 
     ALLOCATE (values(nnodes))
 
@@ -355,7 +355,7 @@ CONTAINS
     CALL cp_assert (.NOT. heap_error, cp_warning_level, cp_internal_error,&
          routineP, "Error changing value of heap element.", error=error)
 
-  END SUBROUTINE 
+  END SUBROUTINE
 
   SUBROUTINE kg_update_node(heap, node, error)
     TYPE(heap_t)                             :: heap
@@ -375,10 +375,10 @@ CONTAINS
 
       degree = node%degree
       dsat = node%dsat
-  
+
       value = kg_get_value(dsat, degree)
-  
-      CALL kg_heap_reset_node(heap, id, value, error)  
+
+      CALL kg_heap_reset_node(heap, id, value, error)
 
     END IF
 
@@ -423,20 +423,20 @@ CONTAINS
         ! only one color needed to color the graph
         graph(i)%vertex%color=1
       END DO
-      
+
     ELSE
 
       ! allocate and fill the heap
       CALL kg_heap_new(heap, nnodes, error)
 
-      CALL kg_heap_fill(heap, graph, error) 
-  
-      DO WHILE (heap%n>0)  
+      CALL kg_heap_fill(heap, graph, error)
+
+      DO WHILE (heap%n>0)
 
         CALL kg_heap_pop(heap, key, error)
 
-        this => graph(key)%vertex  
- 
+        this => graph(key)%vertex
+
         nneighbors=0
 
         IF (ASSOCIATED(this%neighbors)) THEN
@@ -451,18 +451,16 @@ CONTAINS
             EXIT
           END IF
         END DO
- 
         IF (this%color.GT.ncolors) ncolors=this%color
 
         ! update all neighboring nodes
         DO i=1,nneighbors
-  
           neighbor => this%neighbors(i)%vertex
-            IF(neighbor%color_present(this%color)) CYCLE
+          IF(neighbor%color_present(this%color)) CYCLE
           neighbor%color_present(this%color)=.TRUE.
           neighbor%dsat = neighbor%dsat + 1
           IF(neighbor%color/=0) CYCLE
-          CALL kg_update_node(heap, neighbor, error) 
+          CALL kg_update_node(heap, neighbor, error)
 
         END DO
 
@@ -480,20 +478,138 @@ CONTAINS
               graph(i)%vertex%color_present(j)=.FALSE.
             END DO
           END DO
-          DEALLOCATE(color_present) 
+          DEALLOCATE(color_present)
           color_limit=color_limit*2
         END IF
 
       END DO
- 
+
       ! release the heap
-      CALL kg_heap_release(heap, error)      
+      CALL kg_heap_release(heap, error)
 
     END IF
 
     CALL timestop(handle)
 
   END SUBROUTINE
+
+! *****************************************************************************
+!> \brief Checks if the color of two nodes can be exchanged legally
+!> \par History
+!>       2013.11 created [Samuel Andermatt]
+!> \author Samuel Andermatt
+! *****************************************************************************
+  SUBROUTINE kg_check_switch(graph, this, neighbor, low_col, switchable, ncolors, color_present)
+
+    TYPE(vertex_p_type), DIMENSION(:), &
+      POINTER                                :: graph
+    TYPE(vertex), POINTER                    :: this, neighbor
+    INTEGER, INTENT(OUT)                     :: low_col
+    LOGICAL                                  :: switchable
+    INTEGER                                  :: ncolors
+    LOGICAL, ALLOCATABLE, DIMENSION(:)       :: color_present
+
+    INTEGER                                  :: i
+
+    switchable = .TRUE.
+    low_col = ncolors + 1
+
+    DO i = 1, this%degree
+      IF(this%neighbors(i)%vertex%id==neighbor%id) CYCLE
+      IF (this%neighbors(i)%vertex%color==neighbor%color) THEN
+        switchable=.FALSE.
+        EXIT
+      END IF
+    END DO
+    IF(.NOT.switchable) RETURN
+
+    color_present(:) = .FALSE.
+    color_present(neighbor%color) = .TRUE.
+    DO i=1,neighbor%degree
+      IF (neighbor%neighbors(i)%vertex%id==this%id) CYCLE
+      color_present(neighbor%neighbors(i)%vertex%color)=.TRUE.
+    END DO
+    DO i=1,this%color
+      IF(.NOT.color_present(i)) THEN
+        low_col=i
+        EXIT
+      END IF
+    END DO
+
+  END SUBROUTINE
+
+! *****************************************************************************
+!> \brief An algorithm that works on an already colored graph and tries to
+!          reduce the amount of colors by switching the colors of
+!          neighboring vertices
+!> \par History
+!>       2013.11 created [Samuel Andermatt]
+!> \author Samuel Andermatt
+! *****************************************************************************
+  SUBROUTINE kg_pair_switching(graph, ncolors)
+    TYPE(vertex_p_type), DIMENSION(:), &
+      POINTER                                :: graph
+    INTEGER                                  :: ncolors
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'kg_pair_switching', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: depth, handle, i, iter, j, &
+                                                low_col, low_col_neigh, &
+                                                maxdepth, maxiterations, &
+                                                nnodes, partner
+    LOGICAL                                  :: switchable
+    LOGICAL, ALLOCATABLE, DIMENSION(:)       :: color_present
+    TYPE(vertex), POINTER                    :: neighbor, this
+
+    CALL timeset(routineN, handle)
+    nnodes=SIZE(graph)
+    ALLOCATE(color_present(ncolors))
+
+    !Some default values that should work well
+    maxdepth = 4
+    maxiterations = 20
+
+    DO iter = 1, maxiterations
+      DO depth = 1, maxdepth !First the nodes with larges colors are attempted to be switched and reduced
+        !Go trough all nodes and try if you can reduce their color by switching with a neighbour
+        DO i = 1, nnodes
+          this => graph(i)%vertex
+          IF (.NOT.ASSOCIATED(this%neighbors)) CYCLE
+          IF(graph(i)%vertex%color<ncolors-depth+1) CYCLE !Node already has a low color
+
+          partner=0
+          low_col=this%color+1
+
+          DO j=1,this%degree
+            neighbor => this%neighbors(j)%vertex
+            IF(neighbor%color>this%color) CYCLE
+            CALL kg_check_switch(graph, this, neighbor, low_col_neigh, switchable, ncolors, color_present)
+            IF(switchable .AND. low_col_neigh<low_col) THEN
+              partner=j
+              low_col=low_col_neigh
+            END IF
+          END DO
+          IF(partner==0) CYCLE !Cannot switch favourably with anybody
+          !Switch the nodes
+          this%color=this%neighbors(partner)%vertex%color
+          this%neighbors(partner)%vertex%color = low_col
+        END DO
+
+        ncolors=0
+        DO j=1,nnodes
+          IF (graph(j)%vertex%color>ncolors) THEN
+            ncolors=graph(j)%vertex%color
+          END IF
+        END DO
+      END DO
+    END DO
+
+    DEALLOCATE(color_present)
+    CALL timestop(handle)
+
+  END SUBROUTINE
+
 
   SUBROUTINE check_coloring(graph, valid)
     TYPE(vertex_p_type), DIMENSION(:), &
@@ -529,7 +645,7 @@ CONTAINS
     CALL timestop(handle)
 
   END SUBROUTINE
- 
+
   SUBROUTINE deallocate_graph(graph)
     TYPE(vertex_p_type), DIMENSION(:), &
       POINTER                                :: graph
@@ -591,6 +707,8 @@ CONTAINS
        CALL cp_assert (.FALSE., cp_fatal_level, cp_internal_error,&
             routineP, "Coloring method not known.", error=error)
     END SELECT
+
+    CALL kg_pair_switching(graph,ncolors)
 
     valid=.FALSE.
     CALL check_coloring(graph, valid)
