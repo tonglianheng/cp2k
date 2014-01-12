@@ -18,6 +18,7 @@
 !>                                       a temporary type)
 !>      Teodoro Laino [tlaino] 02.2008 - Splitting integrator module and keeping in
 !>                                       integrator only the INTEGRATORS
+!>      Lianheng Tong [LT]     12.2013 - Added regions to Langevin MD
 !> \author CJM
 ! *****************************************************************************
 MODULE integrator
@@ -86,6 +87,7 @@ MODULE integrator
   USE shell_opt,                       ONLY: optimize_shell_core
   USE simpar_types,                    ONLY: simpar_type
   USE termination,                     ONLY: stop_program
+  USE thermal_region_types,            ONLY: thermal_regions_type
   USE thermostat_methods,              ONLY: apply_thermostat_baro,&
                                              apply_thermostat_particles,&
                                              apply_thermostat_shells
@@ -112,6 +114,8 @@ CONTAINS
 !>      - A. Ricci and G. Ciccotti, Mol. Phys. 101, 1927-1931 (2003)
 !> \par History
 !>      - Created (01.07.2005,MK)
+!>      - Added support for only performing Langevin MD on a region of atoms
+!>        (01.12.2013, LT)
 !> \author Matthias Krack
 ! *****************************************************************************
   SUBROUTINE langevin(md_env,error)
@@ -151,16 +155,19 @@ CONTAINS
       POINTER                                :: particle_set
     TYPE(rng_stream_type), POINTER           :: rng_stream
     TYPE(simpar_type), POINTER               :: simpar
+    TYPE(thermal_regions_type), POINTER      :: thermal_regions
     TYPE(virial_type), POINTER               :: virial
+    LOGICAL, DIMENSION(:), ALLOCATABLE       :: do_langevin
 
     failure = .FALSE.
 
     NULLIFY (cell, para_env, gci, force_env)
     NULLIFY (atomic_kinds, local_particles,subsys,local_molecules,molecule_kinds,molecules)
     NULLIFY (molecule_kind_set,molecule_set,particles,particle_set,rng_stream,simpar,virial)
+    NULLIFY (thermal_regions)
 
     CALL get_md_env(md_env=md_env, simpar=simpar, force_env=force_env,&
-         para_env=para_env, error=error)
+         para_env=para_env, thermal_regions=thermal_regions, error=error)
 
     dt = simpar%dt
     gam = simpar%gamma+simpar%shadow_gamma
@@ -194,6 +201,17 @@ CONTAINS
     particle_set => particles%els
     molecule_set => molecules%els
 
+    ! Setup the langevin regions information
+    ALLOCATE (do_langevin(nparticle), STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    IF (simpar%do_thermal_region) THEN
+       DO iparticle = 1, nparticle
+          do_langevin(iparticle) = thermal_regions%do_langevin(iparticle)
+       END DO
+    ELSE
+       do_langevin(1:nparticle) = .TRUE.
+    END IF
+
     ! Allocate work storage
     ALLOCATE (pos(3,nparticle),STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -218,11 +236,13 @@ CONTAINS
        sigma = simpar%var_w*mass
        DO iparticle_local=1,nparticle_local
           iparticle = local_particles%list(iparticle_kind)%array(iparticle_local)
-          rng_stream => local_particles%local_particle_set(iparticle_kind)%&
-               &rng(iparticle_local)%stream
-          w(1,iparticle) = next_random_number(rng_stream,variance=sigma,error=error)
-          w(2,iparticle) = next_random_number(rng_stream,variance=sigma,error=error)
-          w(3,iparticle) = next_random_number(rng_stream,variance=sigma,error=error)
+          IF (do_langevin(iparticle)) THEN
+             rng_stream => local_particles%local_particle_set(iparticle_kind)%&
+                  &rng(iparticle_local)%stream
+             w(1,iparticle) = next_random_number(rng_stream,variance=sigma,error=error)
+             w(2,iparticle) = next_random_number(rng_stream,variance=sigma,error=error)
+             w(3,iparticle) = next_random_number(rng_stream,variance=sigma,error=error)
+          END IF
        END DO
     END DO
 
@@ -243,12 +263,20 @@ CONTAINS
        c3 = dm/c2
        DO iparticle_local=1,nparticle_local
           iparticle = local_particles%list(iparticle_kind)%array(iparticle_local)
-          vel(:,iparticle) = particle_set(iparticle)%v(:) +&
-               c3*particle_set(iparticle)%f(:)
-          pos(:,iparticle) = particle_set(iparticle)%r(:) +&
-               c1*particle_set(iparticle)%v(:) +&
-               c*dm*(dt*particle_set(iparticle)%f(:) +&
-               w(:,iparticle))
+          IF (do_langevin(iparticle)) THEN
+             vel(:,iparticle) = particle_set(iparticle)%v(:) +&
+                  c3*particle_set(iparticle)%f(:)
+             pos(:,iparticle) = particle_set(iparticle)%r(:) +&
+                  c1*particle_set(iparticle)%v(:) +&
+                  c*dm*(dt*particle_set(iparticle)%f(:) +&
+                  w(:,iparticle))
+          ELSE
+             vel(:,iparticle) = particle_set(iparticle)%v(:) +&
+                  dm*particle_set(iparticle)%f(:)
+             pos(:,iparticle) = particle_set(iparticle)%r(:) +&
+                  dt*particle_set(iparticle)%v(:) +&
+                  dm*dt*particle_set(iparticle)%f(:)
+          END IF
        END DO
     END DO
 
@@ -284,12 +312,18 @@ CONTAINS
        nparticle_local = local_particles%n_el(iparticle_kind)
        DO iparticle_local=1,nparticle_local
           iparticle = local_particles%list(iparticle_kind)%array(iparticle_local)
-          vel(1,iparticle) = vel(1,iparticle) + c3*particle_set(iparticle)%f(1)
-          vel(2,iparticle) = vel(2,iparticle) + c3*particle_set(iparticle)%f(2)
-          vel(3,iparticle) = vel(3,iparticle) + c3*particle_set(iparticle)%f(3)
-          vel(1,iparticle) = c4*vel(1,iparticle) + c2*w(1,iparticle)/mass
-          vel(2,iparticle) = c4*vel(2,iparticle) + c2*w(2,iparticle)/mass
-          vel(3,iparticle) = c4*vel(3,iparticle) + c2*w(3,iparticle)/mass
+          IF (do_langevin(iparticle)) THEN
+             vel(1,iparticle) = vel(1,iparticle) + c3*particle_set(iparticle)%f(1)
+             vel(2,iparticle) = vel(2,iparticle) + c3*particle_set(iparticle)%f(2)
+             vel(3,iparticle) = vel(3,iparticle) + c3*particle_set(iparticle)%f(3)
+             vel(1,iparticle) = c4*vel(1,iparticle) + c2*w(1,iparticle)/mass
+             vel(2,iparticle) = c4*vel(2,iparticle) + c2*w(2,iparticle)/mass
+             vel(3,iparticle) = c4*vel(3,iparticle) + c2*w(3,iparticle)/mass
+          ELSE
+             vel(1,iparticle) = vel(1,iparticle) + dm*particle_set(iparticle)%f(1)
+             vel(2,iparticle) = vel(2,iparticle) + dm*particle_set(iparticle)%f(2)
+             vel(3,iparticle) = vel(3,iparticle) + dm*particle_set(iparticle)%f(3)
+          END IF
        END DO
     END DO
 
@@ -307,6 +341,9 @@ CONTAINS
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
     DEALLOCATE (w,STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+
+    DEALLOCATE (do_langevin,STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
     ! Update virial
