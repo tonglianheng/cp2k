@@ -36,6 +36,7 @@ MODULE dbcsr_mm_multrec
                                              dbcsr_mm_csr_lib_finalize,&
                                              dbcsr_mm_csr_lib_init,&
                                              dbcsr_mm_csr_multiply,&
+                                             dbcsr_mm_csr_phaseout,&
                                              dbcsr_mm_csr_purge_stacks,&
                                              dbcsr_mm_csr_type
   USE dbcsr_ptr_util,                  ONLY: ensure_array_size
@@ -130,6 +131,7 @@ MODULE dbcsr_mm_multrec
  ! *****************************************************************************
   PUBLIC :: dbcsr_mm_multrec_type
   PUBLIC :: dbcsr_mm_multrec_lib_init, dbcsr_mm_multrec_lib_finalize
+  PUBLIC :: dbcsr_mm_multrec_phaseout
   PUBLIC :: dbcsr_mm_multrec_init, dbcsr_mm_multrec_finalize
   PUBLIC :: dbcsr_mm_multrec_multiply
 
@@ -169,14 +171,13 @@ MODULE dbcsr_mm_multrec
 !> \param[in] eps             (optional) on-the-fly filtering epsilon
 ! *****************************************************************************
   SUBROUTINE dbcsr_mm_multrec_init(this, left, right, product, &
-       keep_sparsity, eps, row_max_epss, fill_guess, error)
+       keep_sparsity, eps, row_max_epss, error)
     TYPE(dbcsr_mm_multrec_type), INTENT(out) :: this
     TYPE(dbcsr_type), INTENT(IN)             :: left, right
     TYPE(dbcsr_type), INTENT(INOUT)          :: product
     LOGICAL, INTENT(IN)                      :: keep_sparsity
     REAL(kind=real_8), INTENT(in), OPTIONAL  :: eps
     REAL(kind=sp), DIMENSION(:), INTENT(IN)  :: row_max_epss
-    REAL(KIND=real_8)                        :: fill_guess
     TYPE(dbcsr_error_type), INTENT(inout)    :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_mm_multrec_init', &
@@ -347,7 +348,7 @@ MODULE dbcsr_mm_multrec
 
     !TODO: should we move this up?
     CALL dbcsr_mm_csr_init(this%csr, &
-       left=left, right=right, product=product, fill_guess=fill_guess,&
+       left=left, right=right, product=product, &
        m_sizes=this%m_sizes, n_sizes=this%n_sizes,& 
        k_sizes=this%k_sizes, error=error)
 
@@ -453,6 +454,19 @@ MODULE dbcsr_mm_multrec
          DEALLOCATE (this%k_sizes)
 
   END SUBROUTINE dbcsr_mm_multrec_multiply
+
+
+! *****************************************************************************
+! \brief Signal approaching end of multiplication
+! \author Ole Schuett
+! *****************************************************************************
+  SUBROUTINE dbcsr_mm_multrec_phaseout(this, error)
+    TYPE(dbcsr_mm_multrec_type), &
+      INTENT(INOUT)                          :: this
+    TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
+
+    CALL dbcsr_mm_csr_phaseout(this%csr, error)
+  END SUBROUTINE dbcsr_mm_multrec_phaseout
 
 
 ! *****************************************************************************
