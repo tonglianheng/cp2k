@@ -5,6 +5,8 @@
 
 ! *****************************************************************************
 !> \brief Setup of regions with different temperature
+!> \history
+!>   - Added support for Langevin regions (2014/01/08, LT)
 !> \author MI
 ! *****************************************************************************
 MODULE thermal_region_utils
@@ -46,6 +48,8 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief create thermal_regions
+!> \history
+!>   - Added support for Langevin regions (2014/01/08, LT)
 !> \author
 ! *****************************************************************************
   SUBROUTINE create_thermal_regions(thermal_regions, md_section, simpar, force_env, error)
@@ -59,7 +63,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i, il, ipart, ireg, nlist, &
-                                                nregions
+                                                nregions, stat
     INTEGER, DIMENSION(:), POINTER           :: tmplist
     LOGICAL                                  :: apply_thermostat, explicit, &
                                                 failure
@@ -102,9 +106,15 @@ CPSourceFileRef,&
        IF(nregions>0)THEN
          thermal_regions%nregions = nregions
          thermal_regions%section => thermal_region_section
-         ALLOCATE(thermal_regions%thermal_region(nregions))
+         ALLOCATE(thermal_regions%thermal_region(nregions), STAT=stat)
+         CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
          CALL force_env_get(force_env, subsys=subsys,error=error)
          CALL cp_subsys_get(subsys, particles=particles,error=error)
+         IF (simpar%ensemble == langevin_ensemble) THEN
+            ALLOCATE(thermal_regions%do_langevin(particles%n_els), STAT=stat)
+            CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
+            thermal_regions%do_langevin = .FALSE.
+         END IF
          DO  ireg = 1,nregions
            NULLIFY(t_region)
            t_region => thermal_regions%thermal_region(ireg)
@@ -121,6 +131,9 @@ CPSourceFileRef,&
                t_region%npart = t_region%npart + 1
                t_region%part_index(t_region%npart) = ipart
                particles%els(ipart)%t_region_index = ireg
+               IF (simpar%ensemble == langevin_ensemble) THEN
+                  thermal_regions%do_langevin(ipart) = .TRUE.
+               END IF
              END DO
            END DO
            CALL section_vals_val_get(region_sections,"TEMPERATURE",&
