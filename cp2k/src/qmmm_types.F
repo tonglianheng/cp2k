@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2013  CP2K developers group                          !
+!   Copyright (C) 2000 - 2014  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -172,6 +172,8 @@ MODULE qmmm_types
      INTEGER :: ref_count, id_nr
      LOGICAL                                                 :: center_qm_subsys
      LOGICAL                                                 :: center_qm_subsys0, do_translate
+     LOGICAL                                                 :: center_qm_subsys_pbc_aware
+     LOGICAL                                                 :: do_force_mixing
      LOGICAL                                                 :: compatibility
      LOGICAL                                                 :: qmmm_link
      LOGICAL                                                 :: move_mm_charges
@@ -369,6 +371,8 @@ SUBROUTINE qmmm_env_qm_create(qmmm_env, error)
      qmmm_env%do_translate     = .TRUE.
      qmmm_env%center_qm_subsys = .TRUE.
      qmmm_env%center_qm_subsys0= .TRUE.
+     qmmm_env%center_qm_subsys_pbc_aware = .FALSE.
+     qmmm_env%do_force_mixing   = .FALSE.
      qmmm_env%compatibility    = .TRUE.
      qmmm_env%qmmm_link        = .FALSE.
      qmmm_env%add_mm_charges   = .FALSE.

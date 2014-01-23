@@ -32,14 +32,14 @@
       ALPHA0_H     10
      &END
     &MGRID
-      CUTOFF       50
-      NGRIDS        1
+      CUTOFF       150
+      NGRIDS        4
     &END
     &SCF
       SCF_GUESS ATOMIC
-      EPS_SCF 5.E-7
+      EPS_SCF 5.E-6
       EPS_DIIS 0.4
-      MAX_SCF 10
+      MAX_SCF 100
        
       ADDED_MOS  1 1
       &OT OFF

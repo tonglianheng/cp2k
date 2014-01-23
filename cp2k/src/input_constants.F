@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2013  CP2K developers group                          !
+!   Copyright (C) 2000 - 2014  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -31,7 +31,8 @@ MODULE input_constants
                                               do_optimize_input=5,&
                                               do_opt_basis=6,&
                                               do_tree_mc=7,&
-                                              do_tree_mc_ana=8
+                                              do_tree_mc_ana=8,&
+                                              do_swarm=9
 
   INTEGER, PARAMETER, PUBLIC               :: opt_force_matching=1
 
@@ -138,7 +139,8 @@ MODULE input_constants
                                               real_time_propagation=15,&
                                               ehrenfest=16, &
                                               do_tamc=17, &
-                                              tree_mc_run=18
+                                              tree_mc_run=18,&
+                                              driver_run=19
 
   ! Run Types of Atom Code
   INTEGER, PARAMETER, PUBLIC               :: atom_no_run=1,&
@@ -263,6 +265,13 @@ MODULE input_constants
 
   INTEGER, PARAMETER, PUBLIC               :: do_par_atom=0,&
                                               do_par_grid=1
+
+  INTEGER, PARAMETER, PUBLIC               :: do_qmmm_center_every_step=0,&
+                                              do_qmmm_center_setup_only=1,&
+                                              do_qmmm_center_never=2
+
+  INTEGER, PARAMETER, PUBLIC                    :: do_qmmm_center_max_minus_min=0,&
+                                              do_qmmm_center_pbc_aware=1
   ! Thermostats
   INTEGER, PARAMETER, PUBLIC               :: do_thermo_no_communication=0,&
                                               do_thermo_communication=1,&
@@ -306,8 +315,8 @@ MODULE input_constants
                                               do_qmmm_link_imomm=1,&
                                               do_qmmm_link_gho=2,&
                                               do_qmmm_link_pseudo=3,&
-                                              do_center_none=0,&
-                                              do_center_grid=1,&
+                                              do_qmmm_center_none=0,&
+                                              do_qmmm_center_grid=1,&
                                               do_qmmm_wall_none=0,&
                                               do_qmmm_wall_reflective=1,&
                                               do_qmmm_wall_quadratic=2,&
@@ -844,6 +853,11 @@ MODULE input_constants
                                               broy_mix_new=5,&
                                               multisec_mix=6
 
+  ! DIAGONALIZATION library 
+  INTEGER, PARAMETER, PUBLIC               :: do_diag_sl=1,&
+                                              do_diag_sl2=2,&
+                                              do_diag_elpa=3
+
   ! FFT library
   ! these might need sync with fft_lib.F
   INTEGER, PARAMETER, PUBLIC               :: do_fft_sg=1,&
@@ -897,6 +911,10 @@ MODULE input_constants
 
   INTEGER, PARAMETER, PUBLIC               :: ls_scf_line_search_3point=3,&
                                               ls_scf_line_search_3point_2d=6
+  ! some ZMP paramenters
+  INTEGER, PARAMETER, PUBLIC               :: use_coulomb = 1,&
+                                              use_diff  = 2,&
+                                              use_no  = 3
 
   ! parameters for ALMO methods
   INTEGER, PARAMETER, PUBLIC   :: almo_domain_layout_orbital=1, &
@@ -968,7 +986,7 @@ MODULE input_constants
   INTEGER, PARAMETER, PUBLIC               :: callgraph_none=0,&
                                               callgraph_master=1,&
                                               callgraph_all=2 
-                                            
+
   ! Impose cell symmetry
   INTEGER, PARAMETER, PUBLIC               :: cell_sym_none=0,&
                                               cell_sym_triclinic=1,&
@@ -984,5 +1002,12 @@ MODULE input_constants
   ! kg coloring parameters
   INTEGER, PARAMETER, PUBLIC               :: kg_color_dsatur=0,&
                                               kg_color_greedy=1
+
+  ! swarm parameters
+  INTEGER, PARAMETER, PUBLIC               :: swarm_do_glbopt=1
+
+! global opt parameters
+  INTEGER, PARAMETER, PUBLIC               :: glbopt_do_minhop  =1,&
+                                              glbopt_do_mincrawl=2
 
 END MODULE input_constants

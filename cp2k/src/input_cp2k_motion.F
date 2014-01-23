@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2013  CP2K developers group                          !
+!   Copyright (C) 2000 - 2014  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -10,9 +10,9 @@
 ! *****************************************************************************
 MODULE input_cp2k_motion
   USE bibliography,                    ONLY: &
-       Byrd1995, Elber1987, Evans1983, Henkelman1999, Jonsson1998, &
-       Jonsson2000_1, Jonsson2000_2, Kolafa2004, Kuhne2007, Minary2003, &
-       Ricci2003, VandeVondele2002, Wales2004
+       Byrd1995, Elber1987, Evans1983, Guidon2008, Henkelman1999, &
+       Jonsson1998, Jonsson2000_1, Jonsson2000_2, Kolafa2004, Kuhne2007, &
+       Minary2003, Ricci2003, Tuckerman1992, VandeVondele2002, Wales2004
   USE cp_output_handling,              ONLY: cp_print_key_section_create
   USE cp_units,                        ONLY: cp_unit_to_cp2k
   USE f77_blas
@@ -101,6 +101,10 @@ CONTAINS
        CALL section_release(subsection,error=error)
 
        CALL create_md_section(subsection,error=error)
+       CALL section_add_subsection(section,subsection,error=error)
+       CALL section_release(subsection,error=error)
+
+       CALL create_driver_section(subsection,error=error)
        CALL section_add_subsection(section,subsection,error=error)
        CALL section_release(subsection,error=error)
 
@@ -1382,7 +1386,7 @@ CONTAINS
             error=error)
        CALL keyword_create(keyword, name="_DEFAULT_KEYWORD_",&
             description="Specify on each line the components of the dimer vector.",repeats=.TRUE.,&
-            usage="<REAL> <REAL> <REAL>", type_of_var=real_t, n_var=-1, error=error)
+            usage="{Real} {Real} {Real}", type_of_var=real_t, n_var=-1, error=error)
        CALL section_add_keyword(subsection2,keyword,error=error)
        CALL keyword_release(keyword,error=error)
        CALL section_add_subsection(subsection,subsection2,error=error)
@@ -1433,8 +1437,8 @@ CONTAINS
        CALL keyword_create(keyword, name="USE_MODEL_HESSIAN",&
             description="Uses a model Hessian as initial guess instead of a unit matrix."//&
             " Should lead in general to improved convergence might be switched off for exotic cases",&
-            usage="USE_RAT_FUN_OPT",&
-            default_l_val=.TRUE.,lone_keyword_l_val=.FALSE.,error=error)
+            usage="USE_MODEL_HESSIAN",&
+            default_l_val=.TRUE.,lone_keyword_l_val=.TRUE.,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
@@ -2019,6 +2023,58 @@ CONTAINS
   END SUBROUTINE create_md_section
 
 ! *****************************************************************************
+!> \param section will contain the driver section
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \author mceriotti
+! *****************************************************************************
+  SUBROUTINE create_driver_section(section,error)
+    TYPE(section_type), POINTER              :: section
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'create_driver_section', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+    TYPE(keyword_type), POINTER              :: keyword
+
+    failure=.FALSE.
+
+    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
+    IF (.NOT. failure) THEN
+       CALL section_create(section,name="DRIVER",&
+            description="This section defines the parameters needed to run in i-PI driver mode.",&
+            n_keywords=3, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
+            error=error)
+
+       NULLIFY(keyword)
+       CALL keyword_create(keyword, name="unix",&
+            description="Use a UNIX socket rather than an INET socket.",&
+            usage="unix LOGICAL",&
+            default_l_val=.FALSE., lone_keyword_l_val=.TRUE., error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="port",&
+            description="Port number for the i-PI server.",&
+            usage="port <INTEGER>",&
+            default_i_val=12345, error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)       
+
+
+       CALL keyword_create(keyword, name="host",&
+            description="Host name for the i-PI server.",&
+            usage="host <HOSTNAME>",&
+            default_c_val="localhost", error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)  
+
+    END IF
+
+  END SUBROUTINE create_driver_section
+
+! *****************************************************************************
 !> \brief Defines AVERAGES section
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
@@ -2452,8 +2508,10 @@ CONTAINS
             " In this case the order of the force_eval maps "//&
             " the order of the respa shells from the slowest to the fastest force evaluation."//&
             " If force_evals share the same subsys, it's enough then to specify the "//&
-            " subsys in the force_eval corresponding at the first index in the multiple_force_eval list",&
+            " subsys in the force_eval corresponding at the first index in the multiple_force_eval list."//&
+            " Can be used to speedup classical and ab initio MD simulations.",&
             n_keywords=1, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
+            citations=(/Tuckerman1992,Guidon2008/),&
             error=error)
 
        NULLIFY(keyword)
@@ -3270,7 +3328,7 @@ CONTAINS
          error=error)
     CALL keyword_create(keyword, name="_DEFAULT_KEYWORD_",&
          description="Cubefile data", &
-         repeats=.TRUE., usage="<REAL> <REAL> .. <REAL>",&
+         repeats=.TRUE., usage="{Real} ...",&
          type_of_var=real_t, n_var=-1, error=error)
     CALL section_add_keyword(subsubsection,keyword,error=error)
     CALL keyword_release(keyword,error=error)
@@ -3291,7 +3349,7 @@ CONTAINS
          error=error)
     CALL keyword_create(keyword, name="_DEFAULT_KEYWORD_",&
          description="Specify particle index permutation for every "// &
-         "helium atom",repeats=.TRUE.,usage="<INT> <INT> .. <INT>",&
+         "helium atom",repeats=.TRUE.,usage="{Integer} ...",&
          type_of_var=integer_t, n_var=-1, error=error)
     CALL section_add_keyword(subsection,keyword,error=error)
     CALL keyword_release(keyword,error=error)
@@ -3306,7 +3364,7 @@ CONTAINS
     CALL keyword_create(keyword, name="_DEFAULT_KEYWORD_", &
          description="Number of real values should be 3 * "//&
          "<num_solute_atoms> * <num_solute_beads>", repeats=.TRUE., &
-         usage="<REAL> <REAL> .. <REAL>", type_of_var=real_t, &
+         usage="{Real} ...", type_of_var=real_t, &
          n_var=-1, error=error)
     CALL section_add_keyword(subsection,keyword,error=error)
     CALL keyword_release(keyword,error=error)
@@ -4106,7 +4164,7 @@ CONTAINS
          //"is slightly displaced from the current positions x in the direction "&
          //"of the original velocities v. The velocities are then updated with "&
          //"the force component F_t, which is perpendicular to N. "&
-         //"N = v / |v|;  y = x + delta * N;  F_t = F(y) - <F(y) | N> * N;  "&
+         //"N = v / |v|;  y = x + delta * N;  F_t = F(y) - &lang; F(y) | N &rang; * N; "&
          //"v' = v + alpha * F_t", error=error)
 
     NULLIFY(keyword)
@@ -4363,8 +4421,10 @@ CONTAINS
                            description="Defines the list of atoms for which the velocities are modified. "//&
                                        "Each record consists of the atomic index, the velocity vector, and "//&
                                        "a weight to define which fraction of the total energy is assigned "//&
-                                       "to the current atom.",&
-                           usage="Atomic index   v(x) v(y) v(z)   weight",&
+                                       "to the current atom:"//&
+                                       "<p><tt><big>Atomic_index v<sub>x</sub> v<sub>y</sub> v<sub>x</sub> "//&
+                                       "Weight</big></tt></p>",&
+                           usage="{{Integer} {Real} {Real} {Real} {Real}}",&
                            repeats=.TRUE.,&
                            required=.FALSE.,&
                            type_of_var=lchar_t,&
@@ -4378,7 +4438,5 @@ CONTAINS
     END IF
 
   END SUBROUTINE create_cascade_section
-
-
 
 END MODULE input_cp2k_motion

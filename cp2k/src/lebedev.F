@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2013  CP2K developers group                          !
+!   Copyright (C) 2000 - 2014  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -80,8 +80,8 @@ MODULE lebedev
 ! *****************************************************************************
   TYPE oh_grid
     INTEGER                           :: l,n
-    REAL(KIND = dp), DIMENSION(:), POINTER   :: w
-    REAL(KIND = dp), DIMENSION(:,:), POINTER :: r
+    REAL(KIND = dp), DIMENSION(:), POINTER   :: w => NULL()
+    REAL(KIND = dp), DIMENSION(:,:), POINTER :: r => NULL()
   END TYPE oh_grid
 
   TYPE(oh_grid), DIMENSION(nlg), TARGET :: lebedev_grid

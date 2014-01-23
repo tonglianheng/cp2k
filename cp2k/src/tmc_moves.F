@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2012  CP2K developers group                          !
+!   Copyright (C) 2000 - 2014  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -125,7 +125,6 @@ CONTAINS
     ELSE
       act_nr_elem_mv = tmc_params%nr_elem_mv
     END IF
-
     !-- select the type of move (looked up in list, using the move type index)
     !-- for each move type exist single moves of certain number of elements 
     !-- or move of all elements
@@ -217,6 +216,9 @@ CONTAINS
           END IF
           CALL get_mol_indeces(tmc_params=tmc_params, mol_arr=elem%mol, mol=m, &
                                start_ind=ind, end_ind=ind_e, error=error)
+          ! when "molecule" is single atom, search a new one
+          IF(ind .EQ. ind_e) CYCLE move_molecule_loop
+
           ! calculate displacement
           !  move only molecules, with geom. center in subbox
           IF(mol_in_sb(m) .EQ. status_ok) THEN
@@ -288,6 +290,9 @@ CONTAINS
           END IF
           CALL get_mol_indeces(tmc_params=tmc_params, mol_arr=elem%mol, mol=m, &
                                start_ind=ind, end_ind=ind_e, error=error)
+          ! when "molecule" is single atom, search a new one
+          IF(ind .EQ. ind_e) CYCLE rot_molecule_loop
+
           ! apply move
           IF(mol_in_sb(m).EQ.status_ok)THEN
             CALL do_mol_rot(pos=elem%pos, ind_start=ind, ind_end=ind_e, &
@@ -347,7 +352,7 @@ CONTAINS
     CASE(mv_type_volume_move)
       CALL change_volume(conf=elem, T_ind=mv_conf, move_types=move_types, &
                          rng_stream=rng_stream, tmc_params=tmc_params, &
-                         error=error)
+                         mv_cen_of_mass=tmc_params%mv_cen_of_mass, error=error)
 
     !-- atom swap
     ! two atoms of different types are swapped
@@ -1182,12 +1187,13 @@ CONTAINS
 !> \author Mandes 11.2012
 ! *****************************************************************************
   SUBROUTINE change_volume(conf, T_ind, move_types, rng_stream, tmc_params, &
-                           error)
+                           mv_cen_of_mass, error)
     TYPE(tree_type), POINTER                 :: conf
     INTEGER                                  :: T_ind
     TYPE(tmc_move_type), POINTER             :: move_types
     TYPE(rng_stream_type), POINTER           :: rng_stream
     TYPE(tmc_param_type), POINTER            :: tmc_params
+    LOGICAL                                  :: mv_cen_of_mass
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'change_volume', &
@@ -1272,7 +1278,7 @@ CONTAINS
     scaling(:) = conf%box_scale(:)/box_scale_old(:)
 
 
-    IF(move_types%mv_weight(mv_type_atom_trans).GT.0) THEN
+    IF(mv_cen_of_mass .EQV. .FALSE.) THEN
        ! homogene scaling of atomic coordinates
        DO atom=1, SIZE(conf%pos), tmc_params%dim_per_elem
           conf%pos(atom:atom+tmc_params%dim_per_elem-1) = &

@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2013  CP2K developers group                          !
+!   Copyright (C) 2000 - 2014  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -190,7 +190,10 @@ MODULE dbcsr_mm_cannon
     TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
 
     CALL dbcsr_mm_multrec_lib_init(error)
+
+    !$OMP MASTER
     marketing_flops = 0
+    !$OMP END MASTER
 
     ! Each thread has its own working-matrix and its own mempool
     CALL dbcsr_memtype_setup(memtype_product_wm, has_pool=.TRUE., error=error)
@@ -1864,7 +1867,8 @@ MODULE dbcsr_mm_cannon
       right_send_irow, right_send_p, right_send_pcol, right_send_prow, &
       right_send_vcol, right_send_vrow, right_src_icol, right_src_irow, &
       right_src_p, right_src_pcol, right_src_prow, right_src_vcol, &
-      right_src_vrow, row, size_guess, stat, threads_finished, v_k, v_ki
+      right_src_vrow, row, size_guess, stat, threads_finished, &
+      threads_finished_read, v_k, v_ki
     INTEGER(KIND=int_8)                      :: flop_single, flop_total, size8
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: row_counts, total_row_counts
     INTEGER, ALLOCATABLE, DIMENSION(:, :, :) :: left_sizes, my_sizes, &
@@ -2750,7 +2754,7 @@ MODULE dbcsr_mm_cannon
 !$omp         right_data_sr, right_data_rr, right_index_sr, right_index_rr, &
 !$omp         left_data_sr, left_data_rr, left_index_sr, left_index_rr, &
 !$omp         use_comm_thread,error_handler2, error_handler4) &
-!$omp private (ithread,nthreads, t_error) &
+!$omp private (ithread,nthreads, t_error, threads_finished_read) &
 !$omp firstprivate (metronome, nsteps_k, min_nimages) &
 !$omp reduction (+: flop_single)
              ithread = 0; nthreads = 1
@@ -2779,7 +2783,13 @@ MODULE dbcsr_mm_cannon
 !$omp atomic
              threads_finished = threads_finished + 1
              IF (use_comm_thread .AND. (ithread .EQ. 0)) THEN
-               DO WHILE (threads_finished .NE. nthreads)
+               DO 
+! requires OMP 3.1 (e.g. gcc >=4.7), for correctness, otherwise we keep fingers crossed
+#if defined _OPENMP && _OPENMP >= 200711
+               !$OMP ATOMIC READ
+#endif
+               threads_finished_read=threads_finished
+                  IF (threads_finished_read .EQ. nthreads) EXIT
                   CALL mp_testany(right_data_sr)
                   CALL mp_testany(right_data_rr)
                   CALL mp_testany(left_data_sr)
@@ -2788,7 +2798,6 @@ MODULE dbcsr_mm_cannon
                   CALL mp_testany(right_index_rr)
                   CALL mp_testany(left_index_sr)
                   CALL mp_testany(left_index_rr)
-!$omp flush (threads_finished)
                END DO
              END IF
              !$OMP BARRIER

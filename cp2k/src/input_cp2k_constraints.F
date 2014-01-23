@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2013  CP2K developers group                          !
+!   Copyright (C) 2000 - 2014  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -180,7 +180,7 @@ CONTAINS
             description="The restarting values for COLVAR restraints."//&
             " The order is an internal order. So if you decide to modify these values by hand"//&
             " first think what you're doing!",repeats=.TRUE.,&
-            usage="<REAL>", type_of_var=real_t, n_var=1, error=error)
+            usage="{Real}", type_of_var=real_t, n_var=1, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
@@ -220,7 +220,7 @@ CONTAINS
             description="The restarting position of fixed atoms for restraints."//&
             " The order is an internal order. So if you decide to modify these values by hand"//&
             " first think what you're doing!",repeats=.TRUE.,&
-            usage="<REAL> <REAL> <REAL>", type_of_var=real_t, n_var=-1, error=error)
+            usage="{Real} ...", type_of_var=real_t, n_var=-1, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 

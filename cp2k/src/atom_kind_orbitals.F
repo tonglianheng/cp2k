@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2013  CP2K developers group                          !
+!   Copyright (C) 2000 - 2014  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -130,6 +130,9 @@ CONTAINS
     atom%z = z
     CALL set_atom(atom,&
                   pp_calc=ASSOCIATED(gth_potential),&
+                  do_zmp=.FALSE., &
+                  doread=.FALSE., &
+                  read_vxc=.FALSE., &
                   method_type=do_rks_atom,&
                   relativistic=do_nonrel_atom,&
                   coulomb_integral_type=do_numeric,&

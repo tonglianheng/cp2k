@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2013  CP2K developers group                          !
+!   Copyright (C) 2000 - 2014  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -249,7 +249,7 @@ CONTAINS
           !
           ! if we are within tol of the optimal cost, stop optimizing, or cost model is certainly not that good
           !
-          IF (REAL((max_cost-cost_optimal))/cost_optimal.LT.tol) EXIT
+          IF (REAL(max_cost-cost_optimal,KIND=dp)/cost_optimal.LT.tol) EXIT
           ! write(iw,*) best_iac,best_max_cost, T
        ENDIF
 

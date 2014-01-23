@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2013  CP2K developers group                          !
+!   Copyright (C) 2000 - 2014  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -557,7 +557,7 @@ CONTAINS
          WRITE(unit_nr,&
                       '(T6,A,I3,1X,F10.8,E12.3,F12.3,F13.3,E12.3)') "TRS4 it ", &
                       i, occ_matrix, ABS(trace_gx), t2-t1,&
-                      (flop1+flop2)/(1.0E6_dp*(t2-t1)), current_threshold
+                      (flop1+flop2)/(1.0E6_dp*MAX(t2-t1,0.001_dp)), current_threshold
          CALL m_flush(unit_nr)
       ENDIF
 

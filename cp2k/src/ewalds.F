@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2013  CP2K developers group                          !
+!   Copyright (C) 2000 - 2014  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -207,7 +207,7 @@ CONTAINS
        IF ( pw_grid % gsq ( gpt ) <= 1.0E-10_dp ) CYCLE
 
        gauss = ( rho0 ( lp, mp, np ) * pw_grid % vol ) ** 2 / pw_grid % gsq ( gpt )
-       factor = gauss * REAL ( summe ( gpt ) * CONJG ( summe ( gpt ) ) )
+       factor = gauss * REAL ( summe ( gpt ) * CONJG ( summe ( gpt ) ), KIND=dp )
        vg_coulomb = vg_coulomb + factor
 
        ! atomic energies
@@ -216,7 +216,7 @@ CONTAINS
              snode = CONJG ( exp_igr % ex ( lp, node ) &
                            * exp_igr % ey ( mp, node ) &
                            * exp_igr % ez ( np, node ) )
-             e_coulomb(node) = e_coulomb(node) + gauss*charge(node)*REAL(summe(gpt)*snode)
+             e_coulomb(node) = e_coulomb(node) + gauss*charge(node)*REAL(summe(gpt)*snode, KIND=dp)
           END DO
        END IF
 

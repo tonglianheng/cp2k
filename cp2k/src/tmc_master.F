@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2012  CP2K developers group                          !
+!   Copyright (C) 2000 - 2014  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -337,10 +337,12 @@ CONTAINS
 
     ! check the configuration consitency with selected moves
     CALL check_moves(tmc_params=tmc_env%params, &
-           move_types=tmc_env%params%move_types, error=error)
+           move_types=tmc_env%params%move_types, &
+           mol_array=init_conf%mol, error=error)
     IF(ASSOCIATED(tmc_env%params%nmc_move_types)) &
       CALL check_moves(tmc_params=tmc_env%params, &
-             move_types=tmc_env%params%nmc_move_types, error=error)
+             move_types=tmc_env%params%nmc_move_types, &
+             mol_array=init_conf%mol, error=error)
 
     ! set initial configuration 
     ! set initial random number generator seed (rng seed)
@@ -351,8 +353,10 @@ CONTAINS
                        worker_timings=worker_timings_aver, error=error)
 
     ! init restart counter (espacially for restart case)
-    restart_count = INT(tmc_env%m_env%result_count(0)/&
-                      REAL(tmc_env%m_env%restart_out_step, KIND=dp))+1
+    IF(tmc_env%m_env%restart_out_step .NE. 0) THEN
+      restart_count = INT(tmc_env%m_env%result_count(0)/&
+                          REAL(tmc_env%m_env%restart_out_step, KIND=dp))+1
+    END IF
     restarted_elem_nr = tmc_env%m_env%result_count(0)
 
 !TODO check conf and cell of both input files (cell has to be equal, 

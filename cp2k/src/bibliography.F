@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2013  CP2K developers group                          !
+!   Copyright (C) 2000 - 2014  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -61,7 +61,8 @@ MODULE bibliography
              Marques2012, Jones2011, Bernstein2009, Bernstein2012, Dick1958,&
              Mitchell1993, Devynck2012, VandeVondele2012, Niklasson2003, Shao2003, VandeVondele2002,&
              Dion2004, Romanperez2009, DelBen2012, Sabatini2013, DelBen2013, Kikuchi2009, Putrino2000, &
-             Putrino2002, Sebastiani2001, Weber2009, Tran2013 
+             Putrino2002, Sebastiani2001, Weber2009, Tran2013, Golze2013, Tuckerman1992,  Zhao1994, Tozer1996, &
+             Goedecker2004,Khaliullin2013,Hutter2014
 
 CONTAINS
 
@@ -152,6 +153,42 @@ CONTAINS
          "UT ISI:000247573600013",&
          "ER"),&
          DOI="10.1021/jp070308d")
+
+    CALL add_reference(key=Zhao1994, ISI_record=s2a(&
+         "AU ZHAO, QS",&
+         "   MORRISON, RC",&
+         "   PARR, RG",&
+         "TI FOR ELECTRON DENSITIES TO KHON-SHAM KINETIC ENERGIES, ORBITAL ENERGIES.",&
+         "   EXCHANGE-CORRELATION POTENTIALS, AND EXCHANGE-CORRELATION ENERGIES",&
+         "SO PHYSICAL REVIEW A",&
+         "SN 1050-2947",&
+         "PD SEP 1",&
+         "PY 1994",&
+         "VL 50",&
+         "IS 3",&
+         "BP 2138",&
+         "EP 2142",&
+         "UT WOS:A1994PG80900023",&
+         "ER"),&
+         DOI="10.1103/PhysRevA.50.2138")
+
+    CALL add_reference(key=Tozer1996, ISI_record=s2a(&
+         "AU TOZER, DJ",&
+         "   INGAMELLS, VE",&
+         "   HANDY, NC",&
+         "TI EXCHANGE-CORRELATION POTENTIALS",&
+         "SO JOURNAL OF CHEMICAL PHYSICS",&
+         "SN 0021-9606",&
+         "PD NOV 22",&
+         "PY 1996",&
+         "VL 105",&
+         "IS 20",&
+         "BP 9200",&
+         "EP 9213",&
+         "UT WOS:A1996VV04900024",&
+         "ER"),&
+         DOI="10.1063/1.472753")
+
 
     CALL add_reference(key=Blochl1995, ISI_record=s2a(&
          "AU BLOCHL, PE",&
@@ -2399,6 +2436,115 @@ CONTAINS
          "ER"),&
          DOI="10.1063/1.3156803")
 
+    CALL add_reference(key=Golze2013, ISI_record=s2a(&
+         "PT J",&
+         "AU Golze, D",&
+         "   Iannuzzi, M",&
+         "   Nguyen, M-T",&
+         "   Passerone, D",&
+         "   Hutter, J",&
+         "AF Golze, Dorothea",&
+         "   Iannuzzi, Marcella",&
+         "   Nguyen, Manh-Thuong",&
+         "   Passerone, Daniele",&
+         "   Hutter, Juerg",&
+         "TI Simulation of Adsorption Processes at Metallic Interfaces:",&
+         "   An Image Charge Augmented QM/MM Approach",&
+         "SO Journal of Chemical Theory and Computation",&
+         "SN 1549-9618^",&
+         "PD NOV 12",&
+         "PY 2013",&
+         "VL 9",&
+         "IS 11",&
+         "BP 5086",&
+         "EP 5097",&
+         "DI 10.1021/ct400698y",&
+         "ER"),&
+         DOI="10.1021/ct400698y")
+
+    CALL add_reference(key=Tuckerman1992, ISI_record=s2a(&
+         "PT J",&
+         "AU TUCKERMAN, M",&
+         "   BERNE, BJ",&
+         "   MARTYNA, GJ",&
+         "AF TUCKERMAN, M",&
+         "   BERNE, BJ",&
+         "   MARTYNA, GJ",&
+         "TI REVERSIBLE MULTIPLE TIME SCALE MOLECULAR-DYNAMICS",&
+         "SO JOURNAL OF CHEMICAL PHYSICS",&
+         "SN 0021-9606",&
+         "PD AUG 1",&
+         "PY 1992",&
+         "VL 97",&
+         "IS 3",&
+         "BP 1990",&
+         "EP 2001",&
+         "DI 10.1063/1.463137",&
+         "UT WOS:A1992JE89100044",&
+         "ER"),&
+         DOI="10.1063/1.463137")
+
+    CALL add_reference(key=Goedecker2004, ISI_record=s2a(&
+         "PT J",&
+         "AU Goedecker, S",&
+         "AF Goedecker, Stefan",&
+         "TI Minima hopping: An efficient search method for the global minimum",&
+         "   of the potential energy surface of complex molecular systems",&
+         "SO Journal of Chemical Physics",&
+         "PY 2004",&
+         "VL 120",&
+         "IS 21",&
+         "BP 9911",&
+         "EP 9917",&
+         "DI 10.1063/1.1724816",&
+         "ER"),&
+         DOI="10.1063/1.1724816")
+
+    CALL add_reference(key=Khaliullin2013, ISI_record=s2a(&
+         "PT J",&
+         "AU Khaliullin, RZ",&
+         "   VandeVondele, J",&
+         "   Hutter, J",&
+         "AF Khaliullin, Rustam Z.",&
+         "   VandeVondele, Joost",&
+         "   Hutter, Juerg",&
+         "TI Efficient Linear-Scaling Density Functional Theory for Molecular Systems",&
+         "SO JOURNAL OF CHEMICAL THEORY AND COMPUTATION",&
+         "SN 1549-9618",&
+         "PD OCT",&
+         "PY 2013",&
+         "VL 9",&
+         "IS 10",&
+         "BP 4421",&
+         "EP 4427",&
+         "DI 10.1021/ct400595k",&
+         "UT WOS:000326355100014",&
+         "ER"),&
+         DOI="10.1021/ct400595k")
+
+    CALL add_reference(key=Hutter2014, ISI_record=s2a(&
+         "PT J",&
+         "AU Hutter, J",&
+         "   Iannuzzi, M",&
+         "   Schiffmann, F",&
+         "   VandeVondele, J",&
+         "AF Hutter, Juerg",&
+         "   Iannuzzi, Marcella",&
+         "   Schiffmann, Florian",&
+         "   VandeVondele, Joost",&
+         "TI CP2K: atomistic simulations of condensed matter systems",&
+         "SO WILEY INTERDISCIPLINARY REVIEWS-COMPUTATIONAL MOLECULAR SCIENCE",&
+         "SN 1759-0876",&
+         "PD JAN",&
+         "PY 2014",&
+         "VL 4",&
+         "IS 1",&
+         "BP 15",&
+         "EP 25",&
+         "DI 10.1002/wcms.1159",&
+         "UT WOS:000328646100002",&
+         "ER"),&
+         DOI="10.1002/wcms.1159")
 
   END SUBROUTINE add_all_references
 

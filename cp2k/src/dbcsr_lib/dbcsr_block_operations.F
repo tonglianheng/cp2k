@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2013  CP2K developers group                          !
+!   Copyright (C) 2000 - 2014  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -1108,12 +1108,11 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_data_clear0', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: error_handler, l, l2, u, u2
+    INTEGER                                  :: l, l2, u, u2
     TYPE(dbcsr_error_type)                   :: error
 
 !   ---------------------------------------------------------------------------
-
-    CALL dbcsr_error_set(routineN, error_handler, error)
+! CALL dbcsr_error_set(routineN, error_handler, error)
 
     CALL dbcsr_assert (ASSOCIATED(area%d),&
          dbcsr_fatal_level, dbcsr_caller_error, routineN,&
@@ -1327,7 +1326,7 @@ CONTAINS
             routineN, "Invalid or unsupported data type.",__LINE__,error)
     END SELECT
 
-    CALL dbcsr_error_stop(error_handler, error)
+    ! CALL dbcsr_error_stop(error_handler, error)
 
   END SUBROUTINE dbcsr_data_clear0
 

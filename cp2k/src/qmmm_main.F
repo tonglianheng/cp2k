@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2013  CP2K developers group                          !
+!   Copyright (C) 2000 - 2014  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -11,7 +11,8 @@
 ! *****************************************************************************
 MODULE qmmm_main
   USE atomic_kind_list_types,          ONLY: atomic_kind_list_type
-  USE bibliography,                    ONLY: Laino2005,&
+  USE bibliography,                    ONLY: Golze2013,&
+                                             Laino2005,&
                                              Laino2006,&
                                              cite_reference
   USE cell_types,                      ONLY: cell_clone,&
@@ -43,6 +44,10 @@ MODULE qmmm_main
   USE header,                          ONLY: qmmm_header
   USE input_constants,                 ONLY: do_fist,&
                                              do_qmmm,&
+                                             do_qmmm_center_every_step,&
+                                             do_qmmm_center_never,&
+                                             do_qmmm_center_pbc_aware,&
+                                             do_qmmm_center_setup_only,&
                                              do_qmmm_none,&
                                              do_qs
   USE input_cp2k_restarts,             ONLY: update_input
@@ -141,7 +146,8 @@ CONTAINS
         ELSE
           CALL qmmm_create_force_env_low(use_dummy_force_env, &
             root_section, para_env, globenv,&
-            force_env_section, qmmm_section, subsys_section, use_motion_section, error=error)
+            force_env_section, qmmm_section, subsys_section, use_motion_section, &
+            ignore_outside_box = .TRUE., error=error)
         ENDIF
         CALL force_env_get(use_dummy_force_env, subsys=subsys, error=error)
 
@@ -158,11 +164,13 @@ CONTAINS
         NULLIFY(sub_force_env(force_mixing_core_subsys)%force_env)
         CALL qmmm_create_force_env_low(sub_force_env(force_mixing_core_subsys)%force_env, &
           root_section, para_env, globenv,&
-          force_env_section, qmmm_core_section, subsys_section, use_motion_section, error=error)
+          force_env_section, qmmm_core_section, subsys_section, use_motion_section, &
+          ignore_outside_box = .TRUE., error=error)
         NULLIFY(sub_force_env(force_mixing_extended_subsys)%force_env)
         CALL qmmm_create_force_env_low(sub_force_env(force_mixing_extended_subsys)%force_env, &
           root_section, para_env, globenv,&
-          force_env_section, qmmm_extended_section, subsys_section, use_motion_section, error=error)
+          force_env_section, qmmm_extended_section, subsys_section, use_motion_section, &
+          ignore_outside_box = .TRUE., error=error)
 
         CALL section_vals_release(qmmm_core_section, error=error)
         CALL section_vals_release(qmmm_extended_section, error=error)
@@ -183,6 +191,10 @@ CONTAINS
           qmmm_env=qmmm_env_qm, &
           para_env=para_env, globenv=globenv, force_env_section= force_env_section,&
           error=error)
+
+     ! set a flag to identify when force mixing is active
+     CALL force_env_get(force_env,qmmm_env=qmmm_env_qm,error=error)
+     qmmm_env_qm%do_force_mixing = force_mixing_active
 
   END SUBROUTINE qmmm_create_force_env
 
@@ -275,12 +287,12 @@ CPSourceFileRef,&
         CALL qmmm_create_force_env_low(sub_force_env(force_mixing_core_subsys)%force_env, &
           force_env%root_section, force_env%para_env, force_env%globenv,&
           force_env%force_env_section, qmmm_core_section, subsys_section, use_motion_section=.TRUE., &
-          prev_subsys=subsys, error=error)
+          prev_subsys=subsys, ignore_outside_box = .TRUE., error=error)
         NULLIFY(sub_force_env(force_mixing_extended_subsys)%force_env)
         CALL qmmm_create_force_env_low(sub_force_env(force_mixing_extended_subsys)%force_env, &
           force_env%root_section, force_env%para_env, force_env%globenv,&
           force_env%force_env_section, qmmm_extended_section, subsys_section, use_motion_section=.TRUE., &
-          prev_subsys=subsys, error=error)
+          prev_subsys=subsys, ignore_outside_box = .TRUE., error=error)
 
         !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
         ! [NB] need to copy wiener process data, since it's not recreated when
@@ -328,6 +340,9 @@ CPSourceFileRef,&
         force_env%subsys => sub_force_env(primary_subsys)%force_env%subsys
         CALL cp_subsys_retain(force_env%subsys, error=error)
 
+        ! set a flag to identify when force mixing is active
+        force_env%qmmm_env%do_force_mixing = .TRUE.
+
       ENDIF
 
   END SUBROUTINE qmmm_update_force_mixing_env_low
@@ -339,8 +354,9 @@ CPSourceFileRef,&
 !>      05.2004 created [fawzi]
 !> \author Fawzi Mohamed
 ! *****************************************************************************
-  SUBROUTINE  qmmm_create_force_env_low(force_env, root_section, para_env, globenv,&
-       force_env_section, qmmm_section, subsys_section, use_motion_section, prev_subsys, error)
+  SUBROUTINE qmmm_create_force_env_low(force_env, root_section, para_env, globenv,&
+       force_env_section, qmmm_section, subsys_section, use_motion_section, prev_subsys, &
+       ignore_outside_box, error)
     TYPE(force_env_type), POINTER            :: force_env
     TYPE(section_vals_type), POINTER         :: root_section
     TYPE(cp_para_env_type), POINTER          :: para_env
@@ -349,6 +365,7 @@ CPSourceFileRef,&
                                                 qmmm_section, subsys_section
     LOGICAL, INTENT(IN)                      :: use_motion_section
     TYPE(cp_subsys_type), OPTIONAL, POINTER  :: prev_subsys
+    LOGICAL, INTENT(in), OPTIONAL            :: ignore_outside_box
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'qmmm_create_force_env_low', &
@@ -356,12 +373,13 @@ CPSourceFileRef,&
 
     CHARACTER(len=default_string_length), &
       DIMENSION(:), POINTER                  :: qm_atom_type
-    INTEGER                                  :: delta_charge, handle, isubf, &
-                                                iw, iw2, orig_charge, &
-                                                qmmm_coupl_type, stat
+    INTEGER                                  :: center_i, delta_charge, &
+                                                handle, isubf, iw, iw2, &
+                                                orig_charge, qmmm_coupl_type, &
+                                                stat
     INTEGER, DIMENSION(:), POINTER           :: mm_atom_index, mm_link_atoms, &
                                                 qm_atom_index
-    LOGICAL :: add_mm_charges, explicit, failure, move_mm_charges, nocenter, &
+    LOGICAL :: add_mm_charges, explicit, failure, move_mm_charges, &
       nocompatibility, qmmm_link, qmmm_link_Imomm
     REAL(dp), DIMENSION(:), POINTER          :: mm_atom_chrg, &
                                                 mm_el_pot_radius, &
@@ -436,11 +454,25 @@ CPSourceFileRef,&
        qmmm_env_mm%qmmm_coupl_type        =  qmmm_coupl_type
        qmmm_env_mm%qmmm_link              =  qmmm_link
        ! Center the qm subsys into the qm box
-       CALL section_vals_val_get(qmmm_section,"NOCENTER",l_val=nocenter,error=error)
-       qmmm_env_qm%center_qm_subsys  = .NOT.nocenter
+       CALL section_vals_val_get(qmmm_section,"CENTER",i_val=center_i,error=error)
+       IF (center_i == do_qmmm_center_never) THEN
+          qmmm_env_qm%center_qm_subsys  = .FALSE.
+          qmmm_env_qm%center_qm_subsys0  = .FALSE.
+       ELSE IF (center_i == do_qmmm_center_setup_only) THEN
+          qmmm_env_qm%center_qm_subsys  = .FALSE.
+          qmmm_env_qm%center_qm_subsys0  = .TRUE.
+       ELSE IF (center_i == do_qmmm_center_every_step) THEN
+          qmmm_env_qm%center_qm_subsys  = .TRUE.
+          qmmm_env_qm%center_qm_subsys0  = .TRUE.
+       ELSE
+          CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
+               "Unknown type of CENTER! "//&
+CPSourceFileRef,&
+               only_ionode=.TRUE.)
+       ENDIF
 
-       CALL section_vals_val_get(qmmm_section,"NOCENTER0",l_val=nocenter,error=error)
-       qmmm_env_qm%center_qm_subsys0 = .NOT.nocenter
+       CALL section_vals_val_get(qmmm_section,"CENTER_TYPE",i_val=center_i,error=error)
+       qmmm_env_qm%center_qm_subsys_pbc_aware = (center_i == do_qmmm_center_pbc_aware)
 
        ! Compatibility with the QM/MM in CPMD code
        CALL section_vals_val_get(qmmm_section,"NOCOMPATIBILITY",l_val=nocompatibility,error=error)
@@ -498,6 +530,7 @@ CPSourceFileRef,&
        qmmm_env_qm%num_mm_atoms = SIZE(mm_atom_index)
        IF(qmmm_env_qm%image_charge) THEN
          qmmm_env_qm%num_image_mm_atoms = SIZE(qmmm_env_qm%image_charge_pot%image_mm_list)
+         CALL cite_reference(Golze2013) 
        END IF
 
        ! Duplicate structure for link atoms
@@ -588,7 +621,8 @@ CPSourceFileRef,&
             big_subsys=subsys_mm,small_para_env=para_env,&
             small_cell=qm_cell_small,sub_atom_index=qm_atom_index,&
             sub_atom_kind_name=qm_atom_type, para_env=para_env, &
-            force_env_section=force_env_section, subsys_section=subsys_section,error=error)
+            force_env_section=force_env_section, subsys_section=subsys_section, &
+            ignore_outside_box=ignore_outside_box, error=error)
        IF (qmmm_link_imomm) CALL qmmm_link_Imomm_coord(qmmm_links, subsys_qm%particles%els,&
             qm_atom_index, error)
        CALL quickstep_create_force_env(sub_force_env(qs_subsys)%force_env,root_section,para_env,&

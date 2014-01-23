@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2013  CP2K developers group                          !
+!   Copyright (C) 2000 - 2014  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -434,6 +434,7 @@ MODULE hfx_types
      TYPE(lib_deriv)                          :: lib_deriv
      REAL(dp), DIMENSION(:,:), POINTER        :: pmax_block
      LOGICAL, DIMENSION(:,:), POINTER         :: atomic_pair_list
+     LOGICAL, DIMENSION(:,:), POINTER         :: atomic_pair_list_forces
   END TYPE hfx_type
 
   CONTAINS
@@ -734,6 +735,8 @@ MODULE hfx_types
         actual_x_data%memory_parameter%size_p_screen = 0_int_8
         IF( i_thread == 1 ) THEN
           ALLOCATE(actual_x_data%atomic_pair_list(natom,natom),STAT=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          ALLOCATE(actual_x_data%atomic_pair_list_forces(natom,natom),STAT=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
         END IF
 
@@ -1250,6 +1253,8 @@ MODULE hfx_types
 
         IF( i_thread == 1 ) THEN
           DEALLOCATE(actual_x_data%atomic_pair_list, STAT=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          DEALLOCATE(actual_x_data%atomic_pair_list_forces, STAT=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
         END IF
 
@@ -1772,9 +1777,12 @@ MODULE hfx_types
 
   END SUBROUTINE hfx_create_neighbor_cells
 
+  ! performs a fuzzy check of being in a quadrilateral
   FUNCTION point_is_in_quadrilateral(A,B,C,D,P)
     REAL(dp)                                 :: A(3), B(3), C(3), D(3), P(3)
     LOGICAL                                  :: point_is_in_quadrilateral
+
+    REAL(dp), PARAMETER :: fuzzy = 1000.0_dp*EPSILON(1.0_dp)
 
     REAL(dp)                                 :: dot00, dot01, dot02, dot11, &
                                                 dot12, invDenom, u, v, v0(3), &
@@ -1811,7 +1819,7 @@ MODULE hfx_types
     u = (dot11 * dot02 - dot01 * dot12) * invDenom
     v = (dot00 * dot12 - dot01 * dot02) * invDenom
     ! ** Check if point is in triangle
-    IF ( (u >= 0) .AND.  (v >= 0) .AND. (u + v <= 1) ) THEN
+    IF ( (u >= 0-fuzzy) .AND.  (v >= 0-fuzzy) .AND. (u + v <= 1+fuzzy) ) THEN
       point_is_in_quadrilateral = .TRUE.
       RETURN
     END IF
@@ -1832,7 +1840,7 @@ MODULE hfx_types
     v = (dot00 * dot12 - dot01 * dot02) * invDenom
 
     ! ** Check if point is in triangle
-    IF ( (u >= 0) .AND.  (v >= 0) .AND. (u + v <= 1) ) THEN
+    IF ( (u >= 0-fuzzy) .AND.  (v >= 0-fuzzy) .AND. (u + v <= 1+fuzzy) ) THEN
       point_is_in_quadrilateral = .TRUE.
       RETURN
     END IF
