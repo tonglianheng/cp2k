@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2013  CP2K developers group                          !
+!   Copyright (C) 2000 - 2014  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -376,7 +376,8 @@ CONTAINS
     LOGICAL :: deallocate_vel, ehrenfest_md, failure, shell_adiabatic, &
       shell_check_distance, shell_present
     REAL(KIND=dp)                            :: dt
-    REAL, ALLOCATABLE, DIMENSION(:, :)       :: v_old
+    REAL(KIND=dp), ALLOCATABLE, &
+      DIMENSION(:, :)                        :: v_old
     TYPE(atomic_kind_list_type), POINTER     :: atomic_kinds
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set

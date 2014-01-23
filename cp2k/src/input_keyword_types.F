@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2013  CP2K developers group                          !
+!   Copyright (C) 2000 - 2014  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -952,7 +952,7 @@ CONTAINS
             REPEAT(" ",l1)//"</DATA_TYPE>"
 
        WRITE (UNIT=unit_number,FMT="(A)") REPEAT(" ",l1)//"<USAGE>"//&
-            TRIM(substitute_special_xml_tokens(keyword%usage,ltu=.TRUE.))&
+            TRIM(substitute_special_xml_tokens(keyword%usage))&
             //"</USAGE>"
 
        WRITE (UNIT=unit_number,FMT="(A)") REPEAT(" ",l1)//"<DESCRIPTION>"//&

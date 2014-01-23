@@ -1,6 +1,7 @@
 # Author: Alfio Lazzaro, alazzaro@cray.com (2013)
 
 # Use: module load PrgEnv-intel
+# Remember to remove any module specific for GPU, e.g. module unload craype-accel-nvidia35 cudatoolkit
 
 #
 # target compiler... these are the options used for building the library.

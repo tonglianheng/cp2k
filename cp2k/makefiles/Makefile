@@ -17,7 +17,6 @@ LIB1      = cp2k_base_lib
 LIB2      = cp2k_fft_lib
 LIB3      = cp2k_dbcsr_lib
 LIB4      = cp2k_ma_lib
-LIB5      = cp2k_elpa_lib
 LIBCP2K   = cp2k_lib
 
 export VERSION=sopt
@@ -35,7 +34,7 @@ TOOLDIR               = $(OBJDIR)/tools
 TOOLSRC               = $(CP2KHOME)/tools
 SRCDIR                = $(CP2KHOME)/src
 LIBCUSMM_DIR          = $(CP2KHOME)/cuda_tools/libcusmm
-SRCDIRS               = $(SRCDIR):$(SRCDIR)/lib:$(SRCDIR)/arch_lib:$(SRCDIR)/dbcsr_lib:$(SRCDIR)/fft_lib:$(SRCDIR)/elpa_lib:$(TOOLSRC)/metadyn:$(CP2KHOME)/cuda_tools:$(LIBCUSMM_DIR):$(CP2KHOME)/cuda_tools/dbcsr_kernels:$(CP2KHOME)/machine
+SRCDIRS               = $(SRCDIR):$(SRCDIR)/lib:$(SRCDIR)/arch_lib:$(SRCDIR)/dbcsr_lib:$(SRCDIR)/fft_lib:$(TOOLSRC)/metadyn:$(CP2KHOME)/cuda_tools:$(LIBCUSMM_DIR):$(CP2KHOME)/cuda_tools/dbcsr_kernels:$(CP2KHOME)/machine
 MAKEFILE              = $(CP2KHOME)/makefiles/Makefile
 MACHINEDEFS           = $(ARCHDIR)/$(ARCH).$(VERSION)
 PROG                  = $(EXEDIR)/cp2k.$(VERSION)
@@ -49,7 +48,6 @@ LIB1_OBJECTDEFS       = $(SRCDIR)/lib/OBJECTDEFS
 LIB2_OBJECTDEFS       = $(SRCDIR)/dbcsr_lib/OBJECTDEFS
 LIB3_OBJECTDEFS       = $(SRCDIR)/fft_lib/OBJECTDEFS
 LIB4_OBJECTDEFS       = $(SRCDIR)/arch_lib/OBJECTDEFS
-LIB5_OBJECTDEFS       = $(SRCDIR)/elpa_lib/OBJECTDEFS
 LIBNVOBJECTDEFS       = $(CP2KHOME)/cuda_tools/NVOBJECTDEFS
 LIBMA_OBJECTDEFS      = $(CP2KHOME)/machine/LIBMA_OBJECTDEFS
 LIBCUDA_DEPENDENCIES  = $(CP2KHOME)/cuda_tools/LIBCUDA_DEPENDENCIES
@@ -59,7 +57,6 @@ LIB1_ARCHIVE          = $(LIBDIR)/$(VERSION)/lib$(LIB1).a
 LIB2_ARCHIVE          = $(LIBDIR)/$(VERSION)/lib$(LIB2).a
 LIB3_ARCHIVE          = $(LIBDIR)/$(VERSION)/lib$(LIB3).a
 LIB4_ARCHIVE          = $(LIBDIR)/$(VERSION)/lib$(LIB4).a
-LIB5_ARCHIVE          = $(LIBDIR)/$(VERSION)/lib$(LIB5).a
 LIB_CP2K_ARCHIVE      = $(LIBDIR)/$(VERSION)/lib$(LIBCP2K).a
 SVN_ENTRY             = $(wildcard $(SRCDIR)/.svn/entries*)
 GIT_HEAD              = $(wildcard $(CP2KHOME)/../.git/HEAD*)
@@ -107,7 +104,7 @@ CLEAN_TARGETS = $(addsuffix /clean ,$(VERSION_TARGETS)) $(addsuffix /realclean ,
 build: dirs deptool libcusmm
 	+$(MAKE) -C $(SRCDIR) -f $(MAKEFILE) all.dep
 	+cp $(LIBCUDA_DEPENDENCIES) $(OBJDIR)/$(VERSION)/libc_cuda.dep
-	+if [ -a $(LIBCUSMM_DEPENDENCIES) ]; then \
+	+if [ -e $(LIBCUSMM_DEPENDENCIES) ]; then \
 	  cp $(LIBCUSMM_DEPENDENCIES) $(OBJDIR)/$(VERSION)/libc_cusmm.dep; \
 	fi
 	+cp $(LIBMA_DEPENDENCIES) $(OBJDIR)/$(VERSION)/libc_ma.dep
@@ -132,7 +129,6 @@ pretty: dirs
 	+$(MAKE) -C $(SRCDIR)/fft_lib   -f $(MAKEFILE) _pretty_lib2
 	+$(MAKE) -C $(SRCDIR)/dbcsr_lib -f $(MAKEFILE) _pretty_lib3
 	+$(MAKE) -C $(SRCDIR)/arch_lib  -f $(MAKEFILE) _pretty_lib4
-	+$(MAKE) -C $(SRCDIR)/elpa_lib  -f $(MAKEFILE) _pretty_lib5
 
 deptool: dirs
 	+$(MAKE) LDFLAGS=$(MAKDEPF90_LDFLAGS) -C $(TOOLDIR) -f $(MAKEFILE) makedepf90
@@ -178,7 +174,6 @@ include $(LIB1_OBJECTDEFS)
 include $(LIB2_OBJECTDEFS)
 include $(LIB3_OBJECTDEFS)
 include $(LIB4_OBJECTDEFS)
-include $(LIB5_OBJECTDEFS)
 include $(FESOBJECTDEFS)
 include $(MACHINEDEFS)
 include $(LIBNVOBJECTDEFS)
@@ -226,8 +221,8 @@ endif
 
 
 # Define the whole bunch of libraries needed
-ALL_LIB =  $(LIB_CP2K_ARCHIVE) $(LIB3_ARCHIVE) $(LIB2_ARCHIVE) $(LIB1_ARCHIVE) $(LIB4_ARCHIVE) $(LIB5_ARCHIVE) $(LIBMA_ARCHIVE) $(LIBNV_ARCHIVE) $(LIBCUSMM_ARCHIVE)
-ALL_SOURCE_FILES=$(notdir $(OBJECTS:.o=.F) $(LIB1_OBJECTS:.o=.F) $(LIB2_OBJECTS:.o=.F) $(LIB4_OBJECTS:.o=.F) $(LIB3_OBJECTS:.o=.F) $(LIB5_OBJECTS:.o=.F) cp_common_uses.h cp2k.F cp2k_shell.F)
+ALL_LIB =  $(LIB_CP2K_ARCHIVE) $(LIB3_ARCHIVE) $(LIB2_ARCHIVE) $(LIB1_ARCHIVE) $(LIB4_ARCHIVE) $(LIBMA_ARCHIVE) $(LIBNV_ARCHIVE) $(LIBCUSMM_ARCHIVE)
+ALL_SOURCE_FILES=$(notdir $(OBJECTS:.o=.F) $(LIB1_OBJECTS:.o=.F) $(LIB2_OBJECTS:.o=.F) $(LIB4_OBJECTS:.o=.F) $(LIB3_OBJECTS:.o=.F) cp_common_uses.h cp2k.F cp2k_shell.F)
 
 #
 # some practical variables for the build
@@ -301,7 +296,7 @@ endif
 fes.dep: $(FESOBJS:.o=.F) 
 	$(TOOLDIR)/makedepf90 -I$(SRCDIR) -b. $(MODSTRING)  -free $^ > $(OBJDIR)/$(VERSION)/fes.dep || ( rm -f $(OBJDIR)/$(VERSION)/fes.dep  ; exit 1 )
 
-plumed.dep: $(OBJECTS:.o=.F) $(LIB1_OBJECTS:.o=.F) $(LIB2_OBJECTS:.o=.F) $(LIB4_OBJECTS:.o=.F) $(LIB3_OBJECTS:.o=.F) $(LIB5_OBJECTS:.o=.F) cp_common_uses.h src-plumed/metadyn.h cp2k.F 
+plumed.dep: $(OBJECTS:.o=.F) $(LIB1_OBJECTS:.o=.F) $(LIB2_OBJECTS:.o=.F) $(LIB4_OBJECTS:.o=.F) $(LIB3_OBJECTS:.o=.F) cp_common_uses.h src-plumed/metadyn.h cp2k.F 
 
 #ifeq ($(HACKDEP),yes)
 #	echo $^ | awk '{for (i=1;i<=NF;i++) {obj=$$(i) ; sub(".F",".o",obj); if ($$(i)!=obj) print obj,":",$$(i) }}' > $(OBJDIR)/$(VERSION)/plumed.dep
@@ -327,7 +322,6 @@ _pretty_lib1:$(LIB1_OBJECTS:.o=.pretty)
 _pretty_lib2:$(LIB2_OBJECTS:.o=.pretty)
 _pretty_lib3:$(LIB3_OBJECTS:.o=.pretty)
 _pretty_lib4:$(LIB4_OBJECTS:.o=.pretty)
-_pretty_lib5:$(LIB5_OBJECTS:.o=.pretty)
 
 
 $(LIB1_ARCHIVE): $(LIB1_OBJECTS)
@@ -354,23 +348,17 @@ ifneq ($(RANLIB),)
 	$(RANLIB) $(LIB4_ARCHIVE)
 endif
 
-$(LIB5_ARCHIVE): $(LIB5_OBJECTS)
-	$(AR) $(LIB5_ARCHIVE) $?
-ifneq ($(RANLIB),)
-	$(RANLIB) $(LIB5_ARCHIVE)
-endif
-
 #
 # a hack to first compile the src/lib/ stuff before files from src/
 # otherwise we have missing dependencies
 #
 ifneq ($(HACKLIBDEP),yes)
-LIB_OBJECTS = $(LIB5_ARCHIVE) $(LIB4_ARCHIVE) $(LIB3_ARCHIVE) $(LIB2_ARCHIVE) $(LIB1_ARCHIVE)
+LIB_OBJECTS = $(LIB4_ARCHIVE) $(LIB3_ARCHIVE) $(LIB2_ARCHIVE) $(LIB1_ARCHIVE)
 else
 LIB_OBJECTS =
 endif
 
-$(LIB_CP2K_ARCHIVE): $(OBJECTS)
+$(LIB_CP2K_ARCHIVE): $(OBJECTS) sockets.o
 	$(AR) $(LIB_CP2K_ARCHIVE) $?
 ifneq ($(RANLIB),)
 	$(RANLIB) $(LIB_CP2K_ARCHIVE)
@@ -517,7 +505,6 @@ realclean: clean
 	-rm -f $(LIB2_ARCHIVE)
 	-rm -f $(LIB3_ARCHIVE)
 	-rm -f $(LIB4_ARCHIVE)
-	-rm -f $(LIB5_ARCHIVE)
 	-rm -f $(LIB_CP2K_ARCHIVE)
 	-rm -f $(LIBCUSMM_FILES)
 
@@ -561,7 +548,6 @@ doxygen: doxygen/clean
 	{ cd $(SRCDIR)/fft_lib ; for f in $(LIB2_OBJECTS:.o=) ; do cp $${f}.F $(DOXYGENDIR)/$${f}.f90; done ; }
 	{ cd $(SRCDIR)/dbcsr_lib ; for f in $(LIB3_OBJECTS:.o=) ; do cp $${f}.F $(DOXYGENDIR)/$${f}.f90; done ; }
 	{ cd $(SRCDIR)/arch_lib ; for f in $(LIB4_OBJECTS:.o=) ; do cp $${f}.F $(DOXYGENDIR)/$${f}.f90; done ; }
-	{ cd $(SRCDIR)/elpa_lib ; for f in $(LIB5_OBJECTS:.o=) ; do cp $${f}.F $(DOXYGENDIR)/$${f}.f90; done ; }
 	{ cd $(DOCDIR) ; sed "s/#revision#/`$(TOOLSRC)/get_revision_number $(CP2KHOME)`/" Doxyfile.template >Doxyfile ; }
 	{ cd $(DOXYGENDIR) ; doxygen $(DOCDIR)/Doxyfile ; }
 # 

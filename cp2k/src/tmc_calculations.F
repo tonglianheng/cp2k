@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2012  CP2K developers group                          !
+!   Copyright (C) 2000 - 2014  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -405,7 +405,7 @@ flag = .TRUE.
 
     failure = .FALSE.
     CPPrecondition(ASSOCIATED(center),cp_failure_level,routineP,error,failure)
-    CPPrecondition(SIZE(pos).GT.SIZE(center),cp_failure_level,routineP,error,failure)
+    CPPrecondition(SIZE(pos).GE.SIZE(center),cp_failure_level,routineP,error,failure)
 
     ! start the timing
     CALL timeset(routineN,handle)

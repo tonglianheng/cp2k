@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2013  CP2K developers group                          !
+!   Copyright (C) 2000 - 2014  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -316,6 +316,14 @@ CPSourceFileRef,&
     tmp_section => section_vals_get_subs_vals(dft_section,"EXTERNAL_POTENTIAL",error=error)
     CALL section_vals_get(tmp_section,explicit=dft_control%apply_external_potential,error=error)
 
+! ZMP added input sections 
+    ! Read the external density input section
+    tmp_section => section_vals_get_subs_vals(dft_section,"EXTERNAL_DENSITY",error=error)
+    CALL section_vals_get(tmp_section,explicit=dft_control%apply_external_density,error=error)
+
+    ! Read the external vxc input section
+    tmp_section => section_vals_get_subs_vals(dft_section,"EXTERNAL_VXC",error=error)
+    CALL section_vals_get(tmp_section,explicit=dft_control%apply_external_vxc,error=error)
   END SUBROUTINE read_dft_control
 
 ! *****************************************************************************

@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2013  CP2K developers group                          !
+!   Copyright (C) 2000 - 2014  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -940,7 +940,7 @@ CONTAINS
        NULLIFY(keyword)
        CALL keyword_create(keyword, name="_DEFAULT_KEYWORD_",&
             description="Value of the charge for the individual atom. Order MUST reflect"//&
-            " the one specified for the geometry.", repeats=.TRUE., usage="0.3", &
+            " the one specified for the geometry.", repeats=.TRUE., usage="{Real}", &
             type_of_var=real_t, required=.TRUE., error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
@@ -2158,10 +2158,13 @@ CONTAINS
     CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
     IF (.NOT. failure) THEN
        CALL section_create(section,name="BUCK4RANGES",&
-            description="This section specifies the input parameters for Buckingham 4"//&
-            " ranges potential type."//&
-            "Functional form: (r<r1) V(r) = A* EXP(-B*r); (r1<r<r2) V(r) = SUM_n POLY1(n)*R^n;"//&
-            "(r2<r<r3) V(r) = SUM_n POLY2(n)*R^n; (r>r3) V(r) = -C/r^6",&
+            description="This section specifies the input parameters for the Buckingham 4-ranges"//&
+            " potential type."//&
+            " Functional form:<ul>"//&
+            "<li>V(r) = A*EXP(-B*r) for r &lt; r<sub>1</sub></li>"//&
+            "<li>V(r) = Sum_n POLY1(n)*r<sup>n</sup> for r<sub>1</sub> &le; r &lt; r<sub>2</sub></li>"//&
+            "<li>V(r) = Sum_n POLY2(n)*r<sup>n</sup> for r<sub>2</sub> &le; r &lt; r<sub>3</sub></li>"//&
+            "<li>V(r) = -C/r<sup>6</sup> for r &ge; r<sub>3</sub></li></ul>",&
             n_keywords=1, n_subsections=0, repeats=.TRUE., required=.TRUE.,&
             error=error)
 

@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2013  CP2K developers group                          !
+!   Copyright (C) 2000 - 2014  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -251,10 +251,10 @@ CONTAINS
 
     IF(.NOT. ASSOCIATED(area%d)) THEN
        ALLOCATE(area%d)
-       !$OMP ATOMIC
+       !$OMP CRITICAL (crit_area_id)
        id = id + 1
-       !$OMP FLUSH (id)
        area%d%id = id
+       !$OMP END CRITICAL (crit_area_id)
        area%d%refcount = 1
        area%d%memory_type = my_memory_type
        area%d%data_type = data_type

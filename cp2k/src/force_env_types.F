@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2013  CP2K developers group                          !
+!   Copyright (C) 2000 - 2014  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -446,11 +446,11 @@ CONTAINS
                  ! for conventional QM/MM, and force-mixing knows to put relevant energy there.
                  IF (SIZE(force_env%sub_force_env) == 1) THEN
                    cur_subsys = primary_subsys
-                 ELSE IF (SIZE(force_env%sub_force_env) == 2) THEN
+                 ELSE IF (force_env%qmmm_env%do_force_mixing .AND. SIZE(force_env%sub_force_env) == 2) THEN ! force mixing
                    cur_subsys = force_mixing_extended_subsys
                  ELSE
                     CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
-                         routineP,"bad number of sub_force_envs getting qmmm potential energy "//&
+                         routineP,"bad number of sub_force_envs (or do_force_mixing setting) getting qmmm potential energy "//&
                          CPSourceFileRef,&
                          error,failure)
                  ENDIF

@@ -1,12 +1,13 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2013  CP2K developers group                          !
+!   Copyright (C) 2000 - 2014  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
 MODULE cp2k_runs
-
   USE atom,                            ONLY: atom_code
+  USE bibliography,                    ONLY: Hutter2014,&
+                                             cite_reference
   USE bsse,                            ONLY: do_bsse_calculation
   USE cell_opt,                        ONLY: cp_cell_opt
   USE cp2k_debug,                      ONLY: cp2k_debug_energy_and_forces
@@ -72,10 +73,11 @@ MODULE cp2k_runs
   USE input_constants,                 ONLY: &
        bsse_run, cell_opt_run, debug_run, do_atom, do_band, do_cp2k, do_ep, &
        do_farming, do_fist, do_mixed, do_opt_basis, do_optimize_input, &
-       do_qmmm, do_qs, do_tamc, do_test, do_tree_mc, do_tree_mc_ana, &
-       ehrenfest, electronic_spectra_run, energy_force_run, energy_run, &
-       geo_opt_run, linear_response_run, mol_dyn_run, mon_car_run, none_run, &
-       pint_run, real_time_propagation, tree_mc_run, vib_anal
+       do_qmmm, do_qs, do_swarm, do_tamc, do_test, do_tree_mc, &
+       do_tree_mc_ana, driver_run, ehrenfest, electronic_spectra_run, &
+       energy_force_run, energy_run, geo_opt_run, linear_response_run, &
+       mol_dyn_run, mon_car_run, none_run, pint_run, real_time_propagation, &
+       tree_mc_run, vib_anal
   USE input_cp2k,                      ONLY: create_cp2k_input_reading,&
                                              create_cp2k_root_section,&
                                              create_global_section,&
@@ -89,6 +91,7 @@ MODULE cp2k_runs
        section_vals_get_subs_vals, section_vals_release, section_vals_retain, &
        section_vals_type, section_vals_val_get, section_vals_write, &
        write_section_xml
+  USE ipi_driver,                      ONLY: run_driver
   USE kinds,                           ONLY: default_path_length,&
                                              default_string_length,&
                                              dp
@@ -113,6 +116,7 @@ MODULE cp2k_runs
   USE rt_propagation,                  ONLY: rt_prop_setup
   USE string_utilities,                ONLY: html_entity_table,&
                                              write_html_tables
+  USE swarm,                           ONLY: run_swarm
   USE tamc_run,                        ONLY: qs_tamc
   USE timings,                         ONLY: timeset,&
                                              timestop
@@ -191,6 +195,8 @@ CONTAINS
     NULLIFY(globenv, force_env)
 
     CALL cp_error_init(error, stop_level=cp_fatal_level)
+
+    CALL cite_reference(Hutter2014)
 
     ! parse the input
     input_file => create_cp2k_input_reading(input_file_name,initial_variables=empty_initial_variables, &
@@ -307,6 +313,8 @@ CONTAINS
              CALL atom_code(root_section,suberror)
           CASE (do_optimize_input)
              CALL run_optimize_input(root_section, para_env, suberror)
+          CASE (do_swarm)
+             CALL run_swarm(root_section, para_env, globenv, input_file_name, suberror)
           CASE (do_farming)
              ! Hack: DBCSR should be uninitialized when entering farming.
              ! But, we don't want to change the public f77_interface.
@@ -346,6 +354,8 @@ CONTAINS
              CALL do_pint_run( para_env, root_section, globenv, error=suberror )
           CASE (none_run, tree_mc_run)
              ! do nothing
+          CASE (driver_run)
+             CALL run_driver (force_env, globenv, error=suberror)
           CASE (energy_run, energy_force_run)
              IF(  method_name_id /= do_qs .AND.&
                   method_name_id /= do_qmmm .AND.&

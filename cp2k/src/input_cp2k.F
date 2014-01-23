@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2013  CP2K developers group                          !
+!   Copyright (C) 2000 - 2014  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -61,7 +61,9 @@ MODULE input_cp2k
                                              logical_t,&
                                              real_t
   USE kinds,                           ONLY: dp
-  USE string_utilities,                ONLY: s2a
+  USE string_utilities,                ONLY: newline,&
+                                             s2a
+  USE swarm_input,                     ONLY: create_swarm_section
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "cp_common_uses.h"
@@ -182,6 +184,10 @@ CONTAINS
        CALL section_add_subsection(root_section,section,error=error)
        CALL section_release(section,error=error)
 
+       CALL create_swarm_section(section,error=error)
+       CALL section_add_subsection(root_section,section,error=error)
+       CALL section_release(section,error=error)
+
        CALL create_ext_restart_section(section,error=error)
        CALL section_add_subsection(root_section,section,error=error)
        CALL section_release(section,error=error)
@@ -281,6 +287,18 @@ CONTAINS
          default_l_val=.FALSE.,lone_keyword_l_val=.TRUE.,error=error)
     CALL section_add_keyword(section,keyword,error=error)
     CALL keyword_release(keyword,error=error)
+
+    CALL keyword_create(keyword, name="PREFERRED_DIAG_LIBRARY",&
+         description="Specifies the DIAGONALIZATION library. If not availabe ....",&
+         usage="PREFERRED_DIAG_LIBRARY ELPA",&
+         default_i_val=do_diag_sl, &
+         enum_i_vals=(/do_diag_sl,do_diag_sl2,do_diag_elpa/),&
+         enum_c_vals=s2a("SL","SL2","ELPA"),&
+         enum_desc=s2a("Standard scalapack: syevd","Scalapack 2.0: syevr","ELPA"),&
+         supported_feature=.TRUE.,error=error)
+    CALL section_add_keyword(section,keyword,error=error)
+    CALL keyword_release(keyword,error=error)
+
 
     CALL keyword_create(keyword, name="PREFERRED_FFT_LIBRARY",&
          description="Specifies the FFT library which should be preferred. "//&
@@ -386,7 +404,7 @@ CONTAINS
          variants=(/"PROGRAM"/),&
          description="Which program should be run",&
          usage="PROGRAM_NAME <STRING>",&
-         enum_c_vals=s2a("ATOM","FARMING","TEST","CP2K","OPTIMIZE_INPUT","OPTIMIZE_BASIS", "TMC","MC_ANALYSIS"),&
+         enum_c_vals=s2a("ATOM","FARMING","TEST","CP2K","OPTIMIZE_INPUT","OPTIMIZE_BASIS", "TMC","MC_ANALYSIS","SWARM"),&
          enum_desc=s2a("Runs single atom calculations",&
                        "Runs N independent jobs in a single run",&
                        "Do some benchmarking and testing",&
@@ -395,8 +413,10 @@ CONTAINS
                        "A tool to create a MOLOPT or ADMM basis for a given set"//&
                        " of training structures",&
                        "Runs Tree Monte Carlo algorithm using additional input file(s)", &
-                       "Runs (Tree) Monte Carlo trajectory file analysis"),&
-         enum_i_vals=(/do_atom, do_farming, do_test, do_cp2k, do_optimize_input, do_opt_basis, do_tree_mc, do_tree_mc_ana/),&
+                       "Runs (Tree) Monte Carlo trajectory file analysis",&
+                       "Runs swarm based calculation"),&
+         enum_i_vals=(/do_atom, do_farming, do_test, do_cp2k, do_optimize_input,&
+                       do_opt_basis, do_tree_mc, do_tree_mc_ana, do_swarm/),&
          default_i_val=do_cp2k, supported_feature=.TRUE., error=error)
     CALL section_add_keyword(section,keyword,error=error)
     CALL keyword_release(keyword,error=error)
@@ -428,13 +448,13 @@ CONTAINS
          "BAND", "CELL_OPT", "WFN_OPT", "WAVEFUNCTION_OPTIMIZATION",&
          "MOLECULAR_DYNAMICS", "GEOMETRY_OPTIMIZATION", "MONTECARLO",&
          "ELECTRONIC_SPECTRA", "LINEAR_RESPONSE", "NORMAL_MODES","RT_PROPAGATION",&
-         "EHRENFEST_DYN","TAMC","TMC"),&
+         "EHRENFEST_DYN","TAMC","TMC","DRIVER"),&
          enum_i_vals=(/ none_run, energy_run, energy_force_run, mol_dyn_run,&
           geo_opt_run, mon_car_run, electronic_spectra_run, debug_run,&
           bsse_run, linear_response_run, pint_run, vib_anal,do_band,&
           cell_opt_run, energy_run, energy_run, mol_dyn_run, geo_opt_run,&
           mon_car_run, electronic_spectra_run, linear_response_run,&
-          vib_anal,real_time_propagation,ehrenfest,do_tamc, tree_mc_run/),&
+          vib_anal,real_time_propagation,ehrenfest,do_tamc, tree_mc_run,driver_run/),&
          enum_desc=s2a("Perform no tasks", "Computes energy","Computes energy and forces",&
          "Molecular Dynamics","Geometry Optimization","Monte Carlo", "Computes absorption Spectra",&
          "Performs a Debug analysis","Basis set superposition error","Linear Response",&
@@ -443,7 +463,7 @@ CONTAINS
          "Alias for MC","Alias for SPECTRA","Alias for LR","Alias for VIBRATIONAL_ANALYSIS",&
          "Real Time propagation run (fixed ionic positions)",&
          "Ehrenfest dynamics (using real time propagation of the wavefunction)",&
-         "TAMC", "TreeMonteCarlo (TMC), a pre sampling MC algorithm"),&
+         "TAMC", "TreeMonteCarlo (TMC), a pre sampling MC algorithma","i-PI driver mode"),&
          supported_feature=.TRUE.,error=error)
     CALL section_add_keyword(section,keyword,error=error)
     CALL keyword_release(keyword,error=error)
@@ -558,7 +578,7 @@ CONTAINS
          supported_feature=.TRUE.,error=error)
     CALL keyword_create(keyword,name="THRESHOLD",&
          description="Specify % of CPUTIME above which the contribution will be inserted in the"//&
-         " final timing report",&
+         " final timing report (e.g. 0.02 = 2%)",&
          usage="THRESHOLD <real>",&
          default_r_val=0.02_dp, supported_feature=.TRUE.,error=error)
     CALL section_add_keyword(print_key,keyword,error=error)
@@ -1645,34 +1665,51 @@ CONTAINS
     TYPE(keyword_type), POINTER              :: keyword
     TYPE(section_type), POINTER              :: print_key
 
-    CALL section_create(section,name="debug",&
+    CALL section_create(section,name="DEBUG",&
          description="Section to setup parameters for debug runs.",&
          n_keywords=7, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
          error=error)
 
-    NULLIFY(keyword, print_key)
+    NULLIFY (keyword,print_key)
+
     CALL keyword_create(keyword, name="DEBUG_FORCES",&
-         description="Enables  the debug of the forces.",&
-         usage="DEBUG_FORCES <LOGICAL>",default_l_val=.TRUE.,&
+         description="Activates the debugging of the atomic forces",&
+         usage="DEBUG_FORCES {LOGICAL}",default_l_val=.TRUE.,&
          lone_keyword_l_val=.TRUE.,error=error)
     CALL section_add_keyword(section,keyword,error=error)
     CALL keyword_release(keyword,error=error)
 
     CALL keyword_create(keyword, name="DEBUG_STRESS_TENSOR",&
-         description="Enables the debug of the stress tensor",&
-         usage="DEBUG_STRESS_TENSOR <LOGICAL>",default_l_val=.TRUE.,&
+         description="Activates the debugging of the stress tensor",&
+         usage="DEBUG_STRESS_TENSOR {LOGICAL}",default_l_val=.TRUE.,&
          lone_keyword_l_val=.TRUE.,error=error)
     CALL section_add_keyword(section,keyword,error=error)
     CALL keyword_release(keyword,error=error)
 
     CALL keyword_create(keyword, name="DX",&
-         description=" Setup the DX parameter to evaluate numerical derivatives",&
-         usage="DX <REAL>",default_r_val=0.001_dp,error=error)
+         description="Increment for the calculation of the numerical derivatives",&
+         usage="DX {REAL}",default_r_val=0.001_dp,error=error)
+    CALL section_add_keyword(section,keyword,error=error)
+    CALL keyword_release(keyword,error=error)
+
+    CALL keyword_create(keyword, name="EPS_NO_ERROR_CHECK",&
+         description="The mismatch between the numerical and the "//&
+                     "analytical value is not checked for numerical "//&
+                     "values smaller than this threshold value",&
+         usage="EPS_NO_ERROR_CHECK {REAL}",default_r_val=1.0E-6_dp,error=error)
+    CALL section_add_keyword(section,keyword,error=error)
+    CALL keyword_release(keyword,error=error)
+
+    CALL keyword_create(keyword, name="STOP_ON_MISMATCH",&
+         description="Stop the debug run when a mismatch between the numerical and "//&
+                     "the analytical value is detected",&
+         usage="STOP_ON_MISMATCH {LOGICAL}",default_l_val=.TRUE.,&
+         lone_keyword_l_val=.TRUE.,error=error)
     CALL section_add_keyword(section,keyword,error=error)
     CALL keyword_release(keyword,error=error)
 
     CALL cp_print_key_section_create(print_key,"PROGRAM_RUN_INFO",&
-         description="controls the printing of DEBUG specific output",&
+         description="Controls the printing of the DEBUG specific output",&
          print_level=low_print_level,add_last=add_last_numeric,filename="__STD_OUT__",&
          error=error)
     CALL section_add_subsection(section,print_key,error=error)
@@ -1986,7 +2023,9 @@ CONTAINS
 
     CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
     CALL section_create(section,name="farming",&
-         description="describes a farming job, in which multiple inputs are executed",&
+         description="Describes a farming job, in which multiple inputs are executed."//newline//&
+         "The RUN_TYPE in the global section has to be set to NONE for FARMING."//newline//&
+         "The different groups are executed in parallel. The jobs inside the same groups in series.",&
          repeats=.FALSE., required=.TRUE., supported_feature=.TRUE.,error=error)
     NULLIFY(keyword, print_key)
 

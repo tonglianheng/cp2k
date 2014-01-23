@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2013  CP2K developers group                          !
+!   Copyright (C) 2000 - 2014  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -245,7 +245,12 @@ MODULE hfx_load_balance_methods
       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
       pmax_blocks = 0.0_dp
-      atomic_pair_list => x_data%atomic_pair_list
+      SELECT CASE(eval_type)
+      CASE (hfx_do_eval_energy)
+        atomic_pair_list => x_data%atomic_pair_list
+      CASE (hfx_do_eval_forces)
+        atomic_pair_list => x_data%atomic_pair_list_forces
+      END SELECT
       atomic_pair_list = .TRUE.
       CALL init_blocks(nkind, para_env, natom,block_size,INT(nblocks),blocks_guess,&
                        list_ij, list_kl, set_list_ij, set_list_kl, &
@@ -463,7 +468,12 @@ MODULE hfx_load_balance_methods
       END DO
     END IF
 
-    atomic_pair_list => x_data%atomic_pair_list
+    SELECT CASE(eval_type)
+      CASE (hfx_do_eval_energy)
+        atomic_pair_list => x_data%atomic_pair_list
+      CASE (hfx_do_eval_forces)
+        atomic_pair_list => x_data%atomic_pair_list_forces
+    END SELECT
     CALL build_atomic_pair_list(natom, atomic_pair_list, kind_of,basis_parameter,particle_set, &
                                 do_periodic,coeffs_kind,coeffs_kind_max0,log10_eps_schwarz,cell,&
                                 x_data%blocks)
@@ -1159,10 +1169,10 @@ END SUBROUTINE hfx_recursive_load_balance
     REAL(dp)                                 :: sqN
 
     k=2
-    sqN = SQRT(REAL(N))
+    sqN = SQRT(REAL(N,KIND=dp))
     p = 1
 
-    DO WHILE (REAL(k) <= sqN)
+    DO WHILE (REAL(k,KIND=dp) <= sqN)
         IF (MODULO(N,k) == 0) THEN
             p = k
         END IF

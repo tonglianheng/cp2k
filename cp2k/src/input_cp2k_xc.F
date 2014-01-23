@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2013  CP2K developers group                          !
+!   Copyright (C) 2000 - 2014  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -1187,7 +1187,7 @@ CONTAINS
        CALL keyword_create(&
             keyword=keyword,&
             name="LAMBDA",&
-            description="The point to be used along the adiabatic curve (0<lambda<1)",&
+            description="The point to be used along the adiabatic curve (0 &lt; &lambda; &lt; 1)",&
             usage="LAMBDA 0.71",&
             default_r_val=0.71_dp, error=error)
        CALL section_add_keyword(section,keyword,error=error)
