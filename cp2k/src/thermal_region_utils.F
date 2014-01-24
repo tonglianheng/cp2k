@@ -21,7 +21,8 @@ MODULE thermal_region_utils
                                              force_env_type
   USE input_constants,                 ONLY: npt_f_ensemble,&
                                              npt_i_ensemble,&
-                                             nvt_ensemble
+                                             nvt_ensemble,&
+                                             langevin_ensemble
   USE input_section_types,             ONLY: section_vals_get,&
                                              section_vals_get_subs_vals,&
                                              section_vals_type,&
