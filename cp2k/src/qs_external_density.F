@@ -24,8 +24,18 @@ MODULE qs_external_density
                                              mp_sync
   USE pw_env_types,                    ONLY: pw_env_get,&
                                              pw_env_type
-  USE pw_methods,                      ONLY: pw_integrate_function
-  USE pw_types,                        ONLY: pw_p_type
+  USE pw_methods,                      ONLY: pw_integrate_function, pw_transfer,&
+                                             pw_copy, pw_axpy, pw_scale
+  USE pw_types,                        ONLY: COMPLEXDATA1D,&
+                                             REALDATA3D,&
+                                             REALSPACE,&
+                                             RECIPROCALSPACE,&
+                                             pw_p_type,&
+                                             pw_type
+  USE pw_pool_types,                   ONLY: pw_pool_create_pw,&
+                                             pw_pool_give_back_pw,&
+                                             pw_pool_p_type,&
+                                             pw_pool_type
   USE qs_collocate_density,            ONLY: density_rs2pw
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
@@ -44,7 +54,7 @@ MODULE qs_external_density
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_external_density'
 
-  PUBLIC :: external_read_density, external_read_vxc
+  PUBLIC :: external_read_density, external_read_vxc, cube_to_pw
 
 CONTAINS
 
@@ -291,6 +301,217 @@ CONTAINS
     END IF
     CALL timestop(handle)
   END SUBROUTINE external_read_vxc
+
+! *****************************************************************************
+!> \brief  Computes the external density on the grid 
+!>         hacked from external_read_density
+!> \author M.Watkins
+!> \date   01.2014
+! *****************************************************************************
+  SUBROUTINE cube_to_pw(qs_env, nspin, error)
+
+    TYPE(qs_environment_type), POINTER       :: qs_env
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'external_read_density', &
+      routineP = moduleN//':'//routineN
+
+    CHARACTER(LEN=default_string_length)     :: filename
+    INTEGER                                  :: extunit, gid, handle, i, &
+                                                igrid_level, ip, j, k, &
+                                                master, my_rank, nat, ndum, &
+                                                num_pe, stat, tag, ispin, nspin
+    INTEGER, DIMENSION(3)                    :: lbounds, lbounds_local, &
+                                                npoints, npoints_local, &
+                                                ubounds, ubounds_local
+    LOGICAL                                  :: failure
+    REAL(kind=dp), ALLOCATABLE, DIMENSION(:) :: buffer
+    REAL(kind=dp), DIMENSION(3)              :: dr, rdum
+    TYPE(cell_type), POINTER                 :: cell
+    TYPE(gridlevel_info_type), POINTER       :: gridlevel_info
+    TYPE(pw_env_type), POINTER               :: pw_env
+    TYPE(qs_rho_type), POINTER               :: rho
+    TYPE(realspace_grid_desc_p_type), &
+      DIMENSION(:), POINTER                  :: rs_descs
+    TYPE(realspace_grid_p_type), &
+      DIMENSION(:), POINTER                  :: rs_rho_ext, rs_rho
+    TYPE(section_vals_type), POINTER         :: ext_den_section, input, &
+                                                interp_section
+    TYPE(pw_pool_p_type), DIMENSION(:), &
+      POINTER                                :: pw_pools
+    TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
+    TYPE(pw_p_type)                          :: total_elec_rspace,spin_elec_rspace
+
+
+    failure=.FALSE.
+    CALL timeset(routineN,handle)
+
+    DO ispin=1,nspin
+       
+       NULLIFY(cell, rs_rho_ext, input, ext_den_section, rs_descs)
+
+       CALL get_qs_env(qs_env,cell=cell,rho=rho,input=input,&
+            pw_env=pw_env,error=error)
+
+       gridlevel_info=>pw_env%gridlevel_info
+
+       CALL pw_env_get(pw_env, rs_descs=rs_descs, error=error, rs_grids=rs_rho)
+
+       ALLOCATE (rs_rho_ext(gridlevel_info%ngrid_levels),STAT=stat)
+
+       ext_den_section => section_vals_get_subs_vals(input,"DFT%READ_DENSITY",&
+            error=error)
+       IF (ispin.EQ.1) THEN
+          CALL section_vals_val_get(ext_den_section,"ELEC_DENSITY",c_val=filename,error=error)
+       ELSE
+          CALL section_vals_val_get(ext_den_section,"SPIN_DENSITY",c_val=filename,error=error)
+       ENDIF
+
+       gid     = rho%rho_r(1)%pw%pw_grid%para%group
+       my_rank = rho%rho_r(1)%pw%pw_grid%para%my_pos
+       num_pe  = rho%rho_r(1)%pw%pw_grid%para%group_size   
+       tag     = 1
+
+       DO i =1,3
+          igrid_level = 1
+          dr(i) = rs_descs(igrid_level)%rs_desc%dh(i,i)  
+       END DO
+       npoints = rs_descs(igrid_level)%rs_desc%npts
+       lbounds = rs_descs(igrid_level)%rs_desc%lb
+       ubounds = rs_descs(igrid_level)%rs_desc%ub
+
+       npoints_local = rho%rho_r(1)%pw%pw_grid%npts_local  
+       lbounds_local = rho%rho_r(1)%pw%pw_grid%bounds_local(1,:)
+       ubounds_local = rho%rho_r(1)%pw%pw_grid%bounds_local(2,:)
+
+       ALLOCATE(buffer(lbounds_local(3):ubounds_local(3)))
+
+       IF ( my_rank == 0 ) THEN
+          WRITE (*,FMT="(/,/,T2,A)") "Restart from density"
+          WRITE(*,FMT="(/,(T3,A,T61,A30))")"Restart from density| Reading the target density:     ",filename
+
+          CALL open_file(file_name=filename,&
+               file_status="OLD",&
+               file_form="FORMATTED",&
+               file_action="READ", &
+               unit_number=extunit)
+
+          DO i =1,2
+             READ(extunit,*) 
+          ENDDO
+          READ(extunit,*) nat,rdum
+          DO i=1,3
+             READ(extunit,*) ndum,rdum
+             IF (ndum/=npoints(i).OR.(ABS(rdum(i)-dr(i)) > 1e-4 )) THEN   
+                WRITE(*,*) "Restart from density | ERROR! | CUBE FILE NOT COINCIDENT WITH INTERNAL GRID ", i
+                WRITE(*,*) "Restart from density | ",ndum," DIFFERS FROM ", npoints(i) 
+                WRITE(*,*) "Restart from density | ",rdum," DIFFERS FROM ", dr(i)
+             ENDIF
+          ENDDO
+          DO i =1,nat
+             READ(extunit,*)
+          ENDDO
+       ENDIF
+
+
+       DO i=lbounds(1),ubounds(1)
+          DO j=lbounds(2),ubounds(2) 
+             IF ( my_rank .EQ. 0 ) THEN 
+                READ(extunit,*) (buffer(k),k=lbounds(3),ubounds(3))   
+                IF ( num_pe .GT. 1 ) THEN 
+                   DO ip=1,num_pe-1
+                      CALL mp_send(buffer(lbounds(3):ubounds(3)),ip,tag,gid)
+                      !                  WRITE(*,*) my_rank," sending to : ",ip
+                   ENDDO
+                   !                CALL mp_sync(gid)
+                ENDIF
+             ELSE
+                master=0  
+                CALL mp_recv(buffer(lbounds(3):ubounds(3)),master,tag,gid)
+                !               WRITE(*,*) my_rank," recieving from master"
+             ENDIF
+             CALL mp_sync(gid)
+
+             IF ( (lbounds_local(1).le.i).AND.(i.le.ubounds_local(1)).AND.(lbounds_local(2).le.j)&
+                  .AND.(j.le.ubounds_local(2)) ) THEN
+                rho%rho_r(ispin)%pw%cr3d(i,j,lbounds(3):ubounds(3)) = buffer(lbounds(3):ubounds(3)) 
+             ENDIF
+
+          ENDDO
+       ENDDO
+       IF (my_rank == 0) CALL close_file(unit_number=extunit)
+       CALL pw_transfer(rho%rho_r(ispin)%pw,rho%rho_g(ispin)%pw,debug=.FALSE.,error=error)
+
+       interp_section => section_vals_get_subs_vals(input,"DFT%MGRID%INTERPOLATOR",&
+            error=error)
+
+       rho%tot_rho_r(ispin) = pw_integrate_function(rho%rho_r(ispin)%pw,&
+            isign=-1,error=error)
+
+       IF (my_rank == 0) THEN
+          IF (ispin .EQ. 1) THEN
+             WRITE(*,FMT="(T3,A,T61,F20.10)") "Restart from density| Total charge read in:                    ",&
+               rho%tot_rho_r(ispin)
+          ELSE
+             WRITE(*,FMT="(T3,A,T61,F20.10)") "Restart from density| Total spin density read in:               ",&
+               -rho%tot_rho_r(ispin)
+          END IF
+       ENDIF
+       DEALLOCATE(buffer,rs_rho_ext)
+       CALL mp_sync(gid)
+
+       qs_env%rho%rho_r_valid = .TRUE.
+       qs_env%rho%rho_g_valid = .TRUE.
+
+    END DO
+
+    IF (nspin .EQ. 2) THEN
+       !construct alpha and beta densities
+       CALL pw_env_get(pw_env=pw_env,&
+            auxbas_pw_pool=auxbas_pw_pool,&
+            pw_pools=pw_pools,&
+            error=error)
+       CALL pw_pool_create_pw(pool=auxbas_pw_pool,&
+            pw=spin_elec_rspace%pw,&
+            use_data=REALDATA3D,&
+            in_space=REALSPACE,&
+            error=error)
+       CALL pw_pool_create_pw(pool=auxbas_pw_pool,&
+            pw=total_elec_rspace%pw,&
+            use_data=REALDATA3D,&
+            in_space=REALSPACE,&
+            error=error)
+
+       CALL pw_copy(rho%rho_r(1)%pw,total_elec_rspace%pw, error=error)
+       CALL pw_copy(rho%rho_r(2)%pw,spin_elec_rspace%pw, error=error)
+
+       CALL pw_axpy(spin_elec_rspace%pw, rho%rho_r(1)%pw, error=error)
+       CALL pw_scale(rho%rho_r(1)%pw, 0.5_dp,error=error)
+       CALL pw_axpy(rho%rho_r(1)%pw,total_elec_rspace%pw,alpha=-1.0_dp, error=error)
+       CALL pw_copy(total_elec_rspace%pw, rho%rho_r(2)%pw, error=error)
+
+       CALL pw_pool_give_back_pw(auxbas_pw_pool,spin_elec_rspace%pw,error=error)
+       CALL pw_pool_give_back_pw(auxbas_pw_pool,total_elec_rspace%pw,error=error)
+
+       rho%tot_rho_r(1) = pw_integrate_function(rho%rho_r(1)%pw,&
+            isign=-1,error=error)
+       CALL pw_transfer(rho%rho_r(1)%pw,rho%rho_g(1)%pw,debug=.FALSE.,error=error)
+
+       rho%tot_rho_r(2) = pw_integrate_function(rho%rho_r(2)%pw,&
+            isign=-1,error=error)
+       CALL pw_transfer(rho%rho_r(2)%pw,rho%rho_g(2)%pw,debug=.FALSE.,error=error)
+
+       IF (my_rank == 0) THEN
+          WRITE(*,FMT="(T3,A,T61,F20.10)") "Restart from density| Total Alpha charge:                    ",&
+               rho%tot_rho_r(1)
+          WRITE(*,FMT="(T3,A,T61,F20.10)") "Restart from density| Total Beta charge:                    ",&
+               rho%tot_rho_r(2)
+       END IF
+    END IF
+
+    CALL timestop(handle)
+    
+  END SUBROUTINE cube_to_pw
 
 END MODULE qs_external_density
 

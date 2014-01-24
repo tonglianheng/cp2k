@@ -385,6 +385,8 @@ MODULE cp_control_types
                                           low_spin_roks,&
                                           apply_external_density,&
                                           read_external_density,&
+                                          read_density,&
+                                          apply_read_density,&
                                           apply_external_vxc,&
                                           read_external_vxc
 

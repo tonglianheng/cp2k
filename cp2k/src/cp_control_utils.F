@@ -324,6 +324,11 @@ CPSourceFileRef,&
     ! Read the external vxc input section
     tmp_section => section_vals_get_subs_vals(dft_section,"EXTERNAL_VXC",error=error)
     CALL section_vals_get(tmp_section,explicit=dft_control%apply_external_vxc,error=error)
+
+    ! Read the external density input section
+    tmp_section => section_vals_get_subs_vals(dft_section,"READ_DENSITY",error=error)
+    CALL section_vals_get(tmp_section,explicit=dft_control%read_external_density,error=error)
+
   END SUBROUTINE read_dft_control
 
 ! *****************************************************************************

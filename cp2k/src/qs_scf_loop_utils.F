@@ -472,6 +472,11 @@ CONTAINS
 
      CALL external_control(should_stop,"SCF",target_time=qs_env%target_time, &
           start_time=qs_env%start_time,error=error)
+
+     IF (scf_env%iter_count < 2 ) THEN 
+           scf_env%iter_delta = 0.1
+     END IF
+
      IF (scf_env%iter_delta < scf_control%eps_scf) THEN
         IF (output_unit>0) THEN
            WRITE(UNIT=output_unit,FMT="(/,T3,A,I5,A/)")&

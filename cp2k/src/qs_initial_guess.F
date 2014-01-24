@@ -26,7 +26,8 @@ MODULE qs_initial_guess
        cp_dbcsr_iterator_next_block, cp_dbcsr_iterator_start, &
        cp_dbcsr_iterator_stop, cp_dbcsr_multiply, cp_dbcsr_nfullrows_total, &
        cp_dbcsr_release, cp_dbcsr_row_block_sizes, cp_dbcsr_scale, &
-       cp_dbcsr_set, cp_dbcsr_set_diag, cp_dbcsr_trace, cp_dbcsr_verify_matrix
+       cp_dbcsr_set, cp_dbcsr_set_diag, cp_dbcsr_trace, cp_dbcsr_verify_matrix,&
+       cp_dbcsr_trace
   USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
                                              copy_fm_to_dbcsr,&
                                              cp_dbcsr_from_fm,&
@@ -65,6 +66,8 @@ MODULE qs_initial_guess
   USE qs_dftb_utils,                   ONLY: get_dftb_atom_param
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
+  USE qs_external_density,             ONLY: cube_to_pw
+  USE qs_integrate_potential,          ONLY: integrate_v_rspace
   USE qs_ks_methods,                   ONLY: qs_ks_did_change,&
                                              qs_ks_update_qs_env
   USE qs_mo_methods,                   ONLY: calculate_density_matrix,&
@@ -143,7 +146,8 @@ CONTAINS
     REAL(dp), ALLOCATABLE, DIMENSION(:, :)   :: buff, buff2
     REAL(dp), DIMENSION(:, :), POINTER       :: DATA
     REAL(KIND=dp)                            :: checksum, eps, maxocc, occ, &
-                                                scale, total_rho, trps1, zeff
+                                                scale, total_rho, trps1, zeff,&
+                                                trace_tmp, trace
     REAL(KIND=dp), DIMENSION(0:3)            :: edftb
     TYPE(array_i1d_obj)                      :: col_blk_size, col_dist
     TYPE(atom_matrix_type), DIMENSION(:), &
@@ -216,6 +220,7 @@ CONTAINS
     IF (scf_control%use_ot.AND.&
         (.NOT.((density_guess == random_guess).OR.&
                (density_guess == atomic_guess).OR.&
+               (density_guess == densities_guess).OR.&
                (density_guess == mopac_guess).OR.&
                (density_guess == sparse_guess).OR.&
                (density_guess == almo_scf_guess).OR.&
@@ -916,17 +921,15 @@ CALL copy_fm_to_dbcsr(mo_array(ispin)%mo_set%mo_coeff,mo_array(ispin)%mo_set%mo_
     IF (density_guess == densities_guess) THEN
 
        ! Collocation of the density into the PW-grid
-       CALL collocate_atomic_charge_density(total_rho=total_rho, qs_env=qs_env, error=error)
+       !CALL collocate_atomic_charge_density(total_rho=total_rho, qs_env=qs_env, error=error)
 
-       ! do some assertions here on these matrices having the same structure,
-       ! as is currently required
-       ! end sparsity check
+       CALL cube_to_pw(qs_env,qs_env%dft_control%nspins,error)
 
-       qs_env%scf_env%iter_count = 1
+       qs_env%scf_env%iter_count = 0
 
        CALL qs_ks_did_change(ks_env=qs_env%ks_env, rho_changed=.TRUE., error=error)
 
-       CALL qs_ks_update_qs_env(ks_env=qs_env%ks_env, qs_env=qs_env, calculate_forces=.TRUE.,&
+       CALL qs_ks_update_qs_env(ks_env=qs_env%ks_env, qs_env=qs_env, calculate_forces=.FALSE.,&
             just_energy=.FALSE., error=error)
 
        ! diagonalization
@@ -937,7 +940,7 @@ CALL copy_fm_to_dbcsr(mo_array(ispin)%mo_set%mo_coeff,mo_array(ispin)%mo_set%mo_
        END DO
 
        qs_env%scf_env%iter_method = "Mixing/Diag"
-       qs_env%scf_env%iter_delta = 0.0_dp
+       qs_env%scf_env%iter_delta = 1.0_dp
 
        DO ispin = 1,qs_env%dft_control%nspins
          CALL eigensolver(matrix_ks=qs_env%scf_env%scf_work1(ispin)%matrix, &
@@ -959,7 +962,8 @@ CALL copy_fm_to_dbcsr(mo_array(ispin)%mo_set%mo_coeff,mo_array(ispin)%mo_set%mo_
        END DO
 
        did_guess = .TRUE.
-    END IF
+ 
+   END IF
     IF (density_guess == no_guess) THEN
        did_guess = .TRUE.
     END IF

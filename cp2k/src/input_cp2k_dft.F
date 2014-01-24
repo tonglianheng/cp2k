@@ -452,6 +452,10 @@ CONTAINS
     CALL section_add_subsection(section, subsection, error=error)
     CALL section_release(subsection,error=error)
 
+    CALL create_read_den_section(subsection,error)
+    CALL section_add_subsection(section, subsection, error=error)
+    CALL section_release(subsection,error=error)
+
     CALL create_ext_vxc_section(subsection,error)
     CALL section_add_subsection(section, subsection, error=error)
     CALL section_release(subsection,error=error)
@@ -5434,6 +5438,52 @@ CONTAINS
 
     END IF
   END SUBROUTINE create_ext_den_section
+
+  SUBROUTINE create_read_den_section(section,error)
+    TYPE(section_type), POINTER              :: section
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'create_ext_den_section', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+    TYPE(keyword_type), POINTER              :: keyword
+
+    failure=.FALSE.
+
+    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
+    IF (.NOT. failure) THEN
+       CALL section_create(section,name="READ_DENSITY",&
+            description="Restart from density file",&
+            n_keywords=2, n_subsections=0, repeats=.FALSE., required=.FALSE.,&
+            error=error)
+       NULLIFY(keyword)
+
+       CALL keyword_create(keyword, name="ELEC_DENSITY",&
+            description="Specifies the filename containing the target density in *.cube format."//&
+                        "In the MGRID section it must be imposed NGRID 1, as it works with only"//&
+                        "one grid. The number of points in each direction, and the spacing must"//&
+                        "be previously defined choosing the plane waves cut-off in section MGRID"//& 
+                        "keyword CUTOFF, and the cube dimention in section SUBSYS / CELL / keyword ABC",&
+            usage="DENSITY_FILE_NAME <FILENAME>",&
+            type_of_var=char_t,default_c_val="e_density.cube", n_var=-1, error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="SPIN_DENSITY",&
+            description="Specifies the filename containing the target density in *.cube format."//&
+                        "In the MGRID section it must be imposed NGRID 1, as it works with only"//&
+                        "one grid. The number of points in each direction, and the spacing must"//&
+                        "be previously defined choosing the plane waves cut-off in section MGRID"//& 
+                        "keyword CUTOFF, and the cube dimention in section SUBSYS / CELL / keyword ABC",&
+            usage="DENSITY_FILE_NAME <FILENAME>",&
+            type_of_var=char_t,default_c_val="spin_density.cube", n_var=-1, error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+    END IF
+  END SUBROUTINE create_read_den_section
+
 
 ! *****************************************************************************
 !> \brief ZMP Creates the section for creating the external v_xc 
