@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2013  CP2K developers group                          !
+!   Copyright (C) 2000 - 2014  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -70,7 +70,8 @@ MODULE dm_ls_scf
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type,&
                                              set_qs_env
-  USE qs_scf_post_gpw,                 ONLY: write_mo_free_results
+  USE qs_scf_post_gpw,                 ONLY: qs_scf_post_moments,&
+                                             write_mo_free_results
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "cp_common_uses.h"
@@ -990,6 +991,7 @@ CONTAINS
 
     IF (.TRUE.) CALL post_scf_experiment(ls_scf_env,error)
 
+    CALL qs_scf_post_moments(qs_env%input, logger, qs_env, unit_nr, error=error)
 
     ! clean up used data
 

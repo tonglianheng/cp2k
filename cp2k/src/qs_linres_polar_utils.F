@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2012  CP2K developers group                          !
+!   Copyright (C) 2000 - 2014  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -37,7 +37,8 @@ MODULE qs_linres_polar_utils
                                              put_results
   USE f77_blas
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
-                                             section_vals_type
+                                             section_vals_type,&
+                                             section_vals_val_get
   USE kinds,                           ONLY: default_string_length,&
                                              dp
   USE mathconstants,                   ONLY: twopi
@@ -198,9 +199,9 @@ CONTAINS
 
     !
     ! print the checksum
-    IF(output_unit>0) THEN
-       WRITE(output_unit,'(T2,A,E23.16)') 'polar| response: CheckSum =',chk
-    ENDIF
+ !   IF(output_unit>0) THEN
+ !      WRITE(output_unit,'(T2,A,E23.16)') 'polar| response: CheckSum =',chk
+ !   ENDIF
     !
     !
     ! clean up
@@ -348,45 +349,47 @@ CONTAINS
                    dft_control=dft_control, para_env=para_env, error=error)
 
 
-    !
-    IF(BTEST(cp_print_key_should_output(logger%iter_info,qs_env%input,&
-             "DFT%PRINT%LINRES",error=error),cp_p_file)) THEN
+    IF(do_raman)  THEN
+      IF(BTEST(cp_print_key_should_output(logger%iter_info,polar_section,&
+             "PRINT%POLAR_MATRIX",error=error),cp_p_file)) THEN
 
-       unit_p=cp_print_key_unit_nr(logger,qs_env%input,"DFT%PRINT%LINRES",&
+        unit_p=cp_print_key_unit_nr(logger,polar_section,"PRINT%POLAR_MATRIX",&
                   extension=".data",middle_name="raman",log_filename=.FALSE.,&
                   error=error)
-      IF(unit_p>1) THEN 
-         WRITE(unit_p,*)
-         WRITE (unit_p,*) 'POLARIZABILITY TENSOR (atomic units):'
-         WRITE (unit_p,'(A,3F15.5)')"xx,yy,zz", polar(1,1),polar(2,2),polar(3,3)
-         WRITE (unit_p,'(A,3F15.5)')"xy,xz,yz",polar(1,2),polar(1,3),polar(2,3)
-         WRITE (unit_p,'(A,3F15.5)')"yx,zx,zy",polar(2,1),polar(3,1),polar(3,2)
-         WRITE (unit_p,*) 'POLARIZABILITY TENSOR (Angstrom^3):'
-         WRITE (unit_p,'(A,3F15.5)')"xx,yy,zz", polar(1,1)*angstrom**3,polar(2,2)*angstrom**3,&
-                        polar(3,3)*angstrom**3
-         WRITE (unit_p,'(A,3F15.5)')"xy,xz,yz",polar(1,2)*angstrom**3,polar(1,3)*angstrom**3,&
-                        polar(2,3)*angstrom**3
-         WRITE (unit_p,'(A,3F15.5)')"yx,zx,zy",polar(2,1)*angstrom**3,polar(3,1)*angstrom**3,&
-                        polar(3,2)*angstrom**3
-       CALL cp_print_key_finished_output(unit_p,logger,qs_env%input,"DFT%PRINT%LINRES",error=error)
+        IF(unit_p>0) THEN 
+          IF(unit_p/=output_unit) THEN 
+              WRITE(unit_p,*)
+              WRITE (unit_p,'(T10,A)') 'POLARIZABILITY TENSOR (atomic units):'
+              WRITE (unit_p,'(T10,A,3F15.5)')"xx,yy,zz", polar(1,1),polar(2,2),polar(3,3)
+              WRITE (unit_p,'(T10,A,3F15.5)')"xy,xz,yz",polar(1,2),polar(1,3),polar(2,3)
+              WRITE (unit_p,'(T10,A,3F15.5)')"yx,zx,zy",polar(2,1),polar(3,1),polar(3,2)
+              WRITE (unit_p,'(T10,A)') 'POLARIZABILITY TENSOR (Angstrom^3):'
+              WRITE (unit_p,'(T10,A,3F15.5)')"xx,yy,zz", polar(1,1)*angstrom**3,&
+                      polar(2,2)*angstrom**3,polar(3,3)*angstrom**3
+              WRITE (unit_p,'(T10,A,3F15.5)')"xy,xz,yz",polar(1,2)*angstrom**3,& 
+                      polar(1,3)*angstrom**3,polar(2,3)*angstrom**3
+              WRITE (unit_p,'(T10,A,3F15.5)')"yx,zx,zy",polar(2,1)*angstrom**3,& 
+                      polar(3,1)*angstrom**3,polar(3,2)*angstrom**3
+            CALL cp_print_key_finished_output(unit_p,logger,polar_section, & 
+                "PRINT%POLAR_MATRIX",error=error)
+          ENDIF
+        ENDIF
       ENDIF
-    ENDIF
-    IF(do_raman)  THEN
-         WRITE (*,*)
-         WRITE (*,*) 'POLARIZABILITY TENSOR (atomic units):'
-         WRITE (*,*)"xx,yy,zz", polar(1,1),polar(2,2),polar(3,3)
-         WRITE (*,*)"xy,xz,yz",polar(1,2),polar(1,3),polar(2,3)
-         WRITE (*,'(A,3F15.5)')"xx,yy,zz", polar(1,1),polar(2,2),polar(3,3)
-         WRITE (*,'(A,3F15.5)')"xy,xz,yz",polar(1,2),polar(1,3),polar(2,3)
-         WRITE (*,'(A,3F15.5)')"yx,zx,zy",polar(2,1),polar(3,1),polar(3,2)
-         WRITE (*,*) 'POLARIZABILITY TENSOR (Angstrom^3):'
-         WRITE (*,'(A,3F15.5)')"xx,yy,zz", polar(1,1)*angstrom**3 ,&
-                 polar(2,2)*angstrom**3 ,polar(3,3)*angstrom**3 
-         WRITE (*,'(A,3F15.5)')"xy,xz,yz",polar(1,2)*angstrom**3 ,&
-                 polar(1,3)*angstrom**3 ,polar(2,3 )*angstrom**3
-         WRITE (*,'(A,3F15.5)')"yx,zx,zy",polar(2,1)*angstrom**3 ,&
-                 polar(3,1)*angstrom**3 ,polar(3,2 )*angstrom**3
-     END IF
+      IF(output_unit >0) THEN 
+        WRITE (output_unit,*)
+        WRITE (output_unit,'(T10,A)') 'POLARIZABILITY TENSOR (atomic units):'
+        WRITE (output_unit,'(T10,A,3F15.5)')"xx,yy,zz", polar(1,1),polar(2,2),polar(3,3)
+        WRITE (output_unit,'(T10,A,3F15.5)')"xy,xz,yz",polar(1,2),polar(1,3),polar(2,3)
+        WRITE (output_unit,'(T10,A,3F15.5)')"yx,zx,zy",polar(2,1),polar(3,1),polar(3,2)
+        WRITE (output_unit,'(T10,A)') 'POLARIZABILITY TENSOR (Angstrom^3):'
+        WRITE (output_unit,'(T10,A,3F15.5)')"xx,yy,zz", polar(1,1)*angstrom**3 ,&
+                polar(2,2)*angstrom**3 ,polar(3,3)*angstrom**3 
+        WRITE (output_unit,'(T10,A,3F15.5)')"xy,xz,yz",polar(1,2)*angstrom**3 ,&
+                polar(1,3)*angstrom**3 ,polar(2,3 )*angstrom**3
+        WRITE (output_unit,'(T10,A,3F15.5)')"yx,zx,zy",polar(2,1)*angstrom**3 ,&
+                polar(3,1)*angstrom**3 ,polar(3,2 )*angstrom**3
+      END IF
+    END IF
     !
     !
   END SUBROUTINE polar_print
@@ -459,7 +462,7 @@ CONTAINS
    !
     nspins = dft_control%nspins
    !
-!    CALL section_vals_val_get(polar_section,"DO_RAMAN",l_val=polar_env%do_raman,error=error)
+    CALL section_vals_val_get(polar_section,"DO_RAMAN",l_val=polar_env%do_raman,error=error)
    !
    !
    !
@@ -543,7 +546,6 @@ CONTAINS
        IF(ASSOCIATED(polar_env%psi1_dBerry)) THEN
           DO idir = 1,SIZE(polar_env%psi1_dBerry,1)
              DO ispin = 1,SIZE(polar_env%psi1_dBerry,2)
-            WRITE(*,*)'release it'
                 CALL cp_fm_release(polar_env%psi1_dBerry(idir,ispin)%matrix,error=error)
              ENDDO
           ENDDO

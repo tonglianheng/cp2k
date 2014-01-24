@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2013  CP2K developers group                          !
+!   Copyright (C) 2000 - 2014  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 MODULE optimize_basis_types
   USE f77_blas
@@ -34,10 +34,10 @@ MODULE optimize_basis_types
      INTEGER                                    :: lmin,lmax,nexp
      INTEGER                                    :: n, ncon_tot, nl
      INTEGER,DIMENSION(:),ALLOCATABLE           :: l
-     REAL,DIMENSION(:,:),ALLOCATABLE            :: coeff
+     REAL(KIND=dp),DIMENSION(:,:),ALLOCATABLE   :: coeff
      LOGICAL,DIMENSION(:,:),ALLOCATABLE         :: opt_coeff
      INTEGER,DIMENSION(:,:),ALLOCATABLE         :: coeff_x_ind
-     REAL,DIMENSION(:),ALLOCATABLE              :: exps
+     REAL(KIND=dp),DIMENSION(:),ALLOCATABLE     :: exps
      LOGICAL,DIMENSION(:),ALLOCATABLE           :: opt_exps
      INTEGER,DIMENSION(:),ALLOCATABLE           :: exp_x_ind
      LOGICAL,DIMENSION(:),ALLOCATABLE           :: exp_has_const

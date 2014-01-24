@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2013  CP2K developers group                          !
+!   Copyright (C) 2000 - 2014  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -19,9 +19,11 @@ MODULE termination
 
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE f77_blas
-  USE kinds,                           ONLY: default_path_length
+  USE kinds,                           ONLY: default_path_length,&
+                                             int_8
   USE machine,                         ONLY: default_output_unit,&
-                                             m_flush_internal
+                                             m_flush_internal,&
+                                             m_memory
   USE message_passing,                 ONLY: mp_abort
   USE timings,                         ONLY: print_stack
 
@@ -34,6 +36,7 @@ MODULE termination
   INTEGER :: error_unit = default_output_unit
 
   PUBLIC :: print_message,&
+            print_warning,&
             set_error_unit,&
             stop_memory,&
             stop_program,&
@@ -199,6 +202,44 @@ CONTAINS
   END SUBROUTINE print_message
 
 ! *****************************************************************************
+!> \brief Print warning message
+!> \author Matthias Krack (MK)
+!> \note
+!>      routine: Name of the calling routine
+!> \par History
+!>      - Creation (20.11.2013,MK)
+! *****************************************************************************
+  SUBROUTINE print_warning(routineN,moduleN,line_number,warning_message,&
+                           para_env)
+
+    CHARACTER(LEN=*), INTENT(IN)             :: routineN, moduleN
+    INTEGER, INTENT(IN)                      :: line_number
+    CHARACTER(LEN=*), INTENT(IN)             :: warning_message
+    TYPE(cp_para_env_type), OPTIONAL, &
+      POINTER                                :: para_env
+
+    CHARACTER(LEN=3*default_path_length)     :: message
+    LOGICAL                                  :: ionode
+
+    IF (PRESENT(para_env)) THEN
+      ionode = para_env%ionode
+    ELSE
+      ionode = .TRUE.
+    END IF
+
+    ! Print the warning message
+    IF (ionode) THEN
+      message = "WARNING in "//TRIM(routineN)//&
+                " (MODULE "//TRIM(moduleN)//")"
+      CALL print_message(message,error_unit,2,2,0)
+      CALL print_message(warning_message,error_unit,1,1,0)
+      CALL m_flush_internal(default_output_unit)
+      CALL m_flush_internal(error_unit)
+    END IF
+
+  END SUBROUTINE print_warning
+
+! *****************************************************************************
 !> \brief Initialise the output unit number for error messages.
 !> \par History
 !>      none
@@ -239,14 +280,23 @@ CONTAINS
       POINTER                                :: para_env
 
     CHARACTER(LEN=default_path_length)       :: message
+    INTEGER(KIND=int_8)                      :: total_memory
+
+    total_memory = m_memory()/1024
 
     IF (memory == 0) THEN
       message = "The memory allocation for the data object <"//TRIM(object)//&
-                "> failed"
+                "> failed."
     ELSE
       WRITE (message,"(A,I0,A)")&
         "The memory allocation for the data object <"//TRIM(object)//&
-        "> failed. The requested memory size is ",memory/1024," KB"
+        "> failed. The requested memory size is ",memory/1024," KB."
+    END IF
+
+    IF (total_memory > 0) THEN
+      WRITE (message,"(A,I0,A)")&
+        TRIM(message)//" The current total memory allocated by CP2K is ",&
+        total_memory," KB."
     END IF
 
     IF (PRESENT(para_env)) THEN

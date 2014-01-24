@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2013  CP2K developers group                          !
+!   Copyright (C) 2000 - 2014  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -272,7 +272,7 @@ CONTAINS
                           "Damped Gaussian potential: exp(-omega^2*r^2)",&
                           "Mix Gaussian and longrange potential: erf(omega*r)/r + exp(-omega^2*r^2)",&
                           "Overlap",&
-                          "Truncated coulomb potential: if(r<R_c) 1/r else 0",&
+                          "Truncated coulomb potential: if (r &lt; R_c) 1/r else 0",&
                           "Truncated Mix coulomb and longrange potential, assumes/requires that the erf has fully decayed at R_c"),&
             default_i_val=do_hfx_potential_coulomb, error=error)
        CALL section_add_keyword(section,keyword,error=error)

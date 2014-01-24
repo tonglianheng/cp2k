@@ -22,17 +22,17 @@ OBJECTS_GENERIC =\
  ai_overlap_ppl.o\
  ai_spin_orbit.o\
  ai_verfc.o\
+ almo_scf_aux2_methods.o\
+ almo_scf_aux2_types.o\
+ almo_scf_aux_types.o\
+ almo_scf_methods.o\
+ almo_scf.o\
+ almo_scf_special.o\
+ almo_scf_types.o\
  al_system_dynamics.o\
  al_system_init.o\
  al_system_mapping.o\
  al_system_types.o\
- almo_scf.o\
- almo_scf_aux_types.o\
- almo_scf_aux2_types.o\
- almo_scf_aux2_methods.o\
- almo_scf_methods.o\
- almo_scf_special.o\
- almo_scf_types.o\
  atom_basis.o\
  atom_electronic_structure.o\
  atom_energy.o\
@@ -261,6 +261,14 @@ OBJECTS_GENERIC =\
  gauss_colloc.o\
  gaussian_gridlevels.o\
  geo_opt.o\
+ glbopt_callback.o\
+ glbopt_history.o\
+ glbopt_input.o\
+ glbopt_master.o\
+ glbopt_mincrawl.o\
+ glbopt_minhop.o\
+ glbopt_types.o\
+ glbopt_worker.o\
  gle_system_dynamics.o\
  gle_system_types.o\
  global_types.o\
@@ -343,6 +351,7 @@ OBJECTS_GENERIC =\
  input_val_types.o\
  integrator.o\
  integrator_utils.o\
+ ipi_driver.o\
  iterate_matrix.o\
  k290.o\
  kahan_sum.o\
@@ -361,6 +370,7 @@ OBJECTS_GENERIC =\
  linear_systems.o\
  list_callstackentry.o\
  list.o\
+ list_routinereport.o\
  list_routinestat.o\
  list_timerenv.o\
  lri_environment_methods.o\
@@ -383,6 +393,8 @@ OBJECTS_GENERIC =\
  mc_run.o\
  mc_types.o\
  md_conserved_quantities.o\
+ mdctrl_methods.o\
+ mdctrl_types.o\
  md_energies.o\
  md_ener_types.o\
  md_environment_types.o\
@@ -417,11 +429,14 @@ OBJECTS_GENERIC =\
  mp2_gpw.o\
  mp2_laplace.o\
  mp2.o\
- mp2_ri_gpw.o\
  mp2_optimize_ri_basis.o\
+ mp2_ri_gpw.o\
  mp2_ri_libint.o\
  mp2_setup.o\
  mp2_types.o\
+ mp2_cphf.o\
+ mp2_ri_grad.o\
+ mp2_ri_grad_util.o\
  mt_util.o\
  mulliken.o\
  multipole_types.o\
@@ -531,6 +546,7 @@ OBJECTS_GENERIC =\
  qs_environment.o\
  qs_environment_types.o\
  qs_epr_hyp.o\
+ qs_external_density.o\
  qs_external_potential.o\
  qs_fermi_contact.o\
  qs_force.o\
@@ -567,7 +583,7 @@ OBJECTS_GENERIC =\
  qs_linres_nmr_shift.o\
  qs_linres_nmr_utils.o\
  qs_linres_op.o\
-qs_linres_polar_utils.o\
+ qs_linres_polar_utils.o\
  qs_linres_types.o\
  qs_localization_methods.o\
  qs_local_rho_types.o\
@@ -610,15 +626,15 @@ qs_linres_polar_utils.o\
  qs_scf_diagonalization.o\
  qs_scf_initialization.o\
  qs_scf_lanczos.o\
+ qs_scf_loop_utils.o\
  qs_scf_methods.o\
  qs_scf.o\
+ qs_scf_output.o\
  qs_scf_post_dftb.o\
  qs_scf_post_gpw.o\
- qs_scf_post_se.o\
  qs_scf_post_scptb.o\
+ qs_scf_post_se.o\
  qs_scf_types.o\
- qs_scf_loop_utils.o\
- qs_scf_output.o\
  qs_spin_orbit.o\
  qs_tddfpt_eigensolver.o\
  qs_tddfpt_module.o\
@@ -715,6 +731,12 @@ qs_linres_polar_utils.o\
  structure_factors.o\
  structure_factor_types.o\
  subcell_types.o\
+ swarm_input.o\
+ swarm_master.o\
+ swarm_message.o\
+ swarm_mpi.o\
+ swarm.o\
+ swarm_worker.o\
  tamc_run.o\
  taper_types.o\
  task_list_methods.o\

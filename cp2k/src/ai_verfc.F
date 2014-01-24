@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2013  CP2K developers group                          !
+!   Copyright (C) 2000 - 2014  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -134,11 +134,8 @@ CONTAINS
       la_max, la_min, la_start, lb, lb_max, lb_min, maxder_local, n, na, nap, &
       nb, nmax, nxx, nxy, nxz, nyx, nyy, nyz, nzx, nzy, nzz, pVpa, pVpb
     LOGICAL                                  :: do_dkh
-    REAL                                     :: fax, fay, faz, fbx, fby, fbz, &
-                                                ftaz, ftbz
-    REAL(KIND=dp)                            :: dab, dac, dbc, f0, f1, f2, &
-                                                f3, f4, ferf, fnuc, fx, fy, &
-                                                fz, rcp2, t, zetp, zetq, zetw
+    REAL(KIND=dp) :: dab, dac, dbc, f0, f1, f2, f3, f4, fax, fay, faz, fbx, &
+      fby, fbz, ferf, fnuc, ftaz, ftbz, fx, fy, fz, rcp2, t, zetp, zetq, zetw
     REAL(KIND=dp), DIMENSION(3)              :: rap, rbp, rcp, rpw
 
 !   ---------------------------------------------------------------------------

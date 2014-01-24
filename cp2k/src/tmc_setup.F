@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2012  CP2K developers group                          !
+!   Copyright (C) 2000 - 2014  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -765,6 +765,14 @@ CONTAINS
         tmc_env%m_env%restart_out_file_name = tmc_default_restart_out_file_name
         tmc_env%m_env%restart_out_step = HUGE(tmc_env%m_env%restart_out_step)
       END IF
+      CALL cp_assert(tmc_env%m_env%restart_out_step.GE.0,&
+                   cp_failure_level,cp_assertion_failed,routineP,&
+                   "Please specify a valid value for the frequency "//&
+                   "to write restart files (RESTART_OUT #). "//&
+                   "# > 0 to define the amount of Markov chain elements in between, "//&
+                   "or 0 to deactivate the restart file writing. "//&
+                   "Lonely keyword writes restart file only at the end of the run.",&
+                   error, failure=flag, only_ionode=.TRUE.)
  
       CALL section_vals_val_get(tmc_section,"INFO_OUT_STEP_SIZE",i_val=tmc_env%m_env%info_out_step_size,error=error)
       CALL section_vals_val_get(tmc_section,"DOT_TREE",c_val=tmc_env%params%dot_file_name,error=error)
@@ -798,6 +806,7 @@ CONTAINS
     CALL section_vals_val_get(tmc_section,"VOLUME_ISOTROPIC",l_val=tmc_env%params%v_isotropic,error=error)
     CALL section_vals_val_get(tmc_section,"PRESSURE",r_val=tmc_env%params%pressure,error=error)
     tmc_env%params%pressure = tmc_env%params%pressure/au2bar
+    CALL section_vals_val_get(tmc_section,"MOVE_CENTER_OF_MASS",l_val=tmc_env%params%mv_cen_of_mass,error=error)
 
     CALL section_vals_val_get(tmc_section,"SUB_BOX",r_vals=r_arr_tmp,error=error)
     IF(SIZE(r_arr_tmp).GT.1) THEN

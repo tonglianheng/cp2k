@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2013  CP2K developers group                          !
+!   Copyright (C) 2000 - 2014  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -8,10 +8,7 @@
 !> \author Rustam Khaliullin
 ! *****************************************************************************
 MODULE input_cp2k_almo
-  !USE bibliography,                    ONLY: Khaliullin2006,&
-  !                                           KhaliullinEDA2007,&
-  !                                           KhaliullinCTA2007,&
-  !                                           Khaliullin2013
+  USE bibliography,                    ONLY: Khaliullin2013
   USE f77_blas
   USE input_constants
   USE input_keyword_types,             ONLY: keyword_create,&
@@ -57,6 +54,7 @@ SUBROUTINE create_almo_scf_section(section,error)
             description="Settings for methods based on absolutely localized orbitals"//&
             " (ALMOs). Restricted to closed-shell molecular systems.",&
             n_keywords=11, n_subsections=0, repeats=.FALSE.,&
+            citations=(/Khaliullin2013/),&
             required=.FALSE., error=error)
 
        NULLIFY (keyword)

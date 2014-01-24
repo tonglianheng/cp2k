@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2013  CP2K developers group                          !
+!   Copyright (C) 2000 - 2014  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -204,6 +204,14 @@ CONTAINS
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
+       CALL keyword_create(keyword=keyword,&
+            name="MOVE_CENTER_OF_MASS",&
+            description="Moves the center of mass of defined molecules (in volume moves)", &
+            usage="MOVE_CENTER_OF_MASS {LOGICAL}",&
+            default_l_val=.FALSE., lone_keyword_l_val=.TRUE., error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
        CALL keyword_create(keyword, &
             name="ESIMATE_ACC_PROB",&
             description="set the estimation of the acceptance probability using run time information of the energy", &
@@ -257,7 +265,12 @@ CONTAINS
 
        CALL keyword_create(keyword=keyword,&
             name="RESTART_OUT",&
-            description="if existing write restart file at the end or after each XXX result configurations", &
+            description="Defines the frequency to write restart files. "//&
+                        "If no frequency is specified (lone keyword) "//&
+                        "the restart file is written at the end (only). "//&
+                        "If the value is 0, no restart file is written at all. "//&
+                        "The frequency specifies is related "//&
+                        "to the calculated Markov chain elements",&
             usage="RESTART or RESTART {INTEGER}",&
             default_i_val=-1, lone_keyword_i_val=-9,&
             error=error)
@@ -514,6 +527,7 @@ CONTAINS
             n_var=-1, repeats=.TRUE., error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
+
     END IF
     
 

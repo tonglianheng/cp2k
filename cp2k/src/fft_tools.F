@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2013  CP2K developers group                          !
+!   Copyright (C) 2000 - 2014  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -1727,7 +1727,7 @@ CONTAINS
          IF ( rcount(ip) /= 0 ) icrs = icrs +1
       END DO
       CALL mp_sum(icrs,group)
-      fft_scratch%rsratio = REAL(icrs)/REAL(2*np*np)
+      fft_scratch%rsratio = REAL(icrs,KIND=dp)/(REAL(2*np,KIND=dp)*REAL(np,KIND=dp))
 
       fft_scratch%in = 1
     ELSE
@@ -1917,7 +1917,7 @@ CONTAINS
           IF ( rcount(ip) /= 0 ) icrs = icrs +1
        END DO
        CALL mp_sum(icrs,group)
-       fft_scratch%rsratio = REAL(icrs)/REAL(2*np*np)
+       fft_scratch%rsratio = REAL(icrs,KIND=dp)/(REAL(2*np,KIND=dp)*REAL(np,KIND=dp))
 
        fft_scratch%in = 1
     ELSE

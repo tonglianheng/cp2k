@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2013  CP2K developers group                          !
+!   Copyright (C) 2000 - 2014  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -45,7 +45,7 @@ MODULE cp2k_info
 #endif
 
   CHARACTER(LEN=*), PARAMETER :: version_nr      = "2.5"
-  CHARACTER(LEN=*), PARAMETER :: cp2k_year       = "2013"
+  CHARACTER(LEN=*), PARAMETER :: cp2k_year       = "2014"
   CHARACTER(LEN=*), PARAMETER :: cp2k_version    = "CP2K version "//TRIM(version_nr)
   CHARACTER(LEN=*), PARAMETER :: cp2k_home       = "http://www.cp2k.org/"
 

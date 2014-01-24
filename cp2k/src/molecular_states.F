@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2013  CP2K developers group                          !
+!   Copyright (C) 2000 - 2014  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -256,7 +256,7 @@ CONTAINS
        CALL cp_fm_gemm('T','N',ns,ns,nrow_global,1.0_dp, &
             b,c,0.0_dp,d,error=error)
 
-       CALL choose_eigv_solver( d, e_vectors, evals ,error=error)
+       CALL choose_eigv_solver( d, e_vectors, evals , error=error)
 
        IF (output_unit>0) WRITE(output_unit,*)""
        IF (output_unit>0) WRITE(output_unit,*)"MOLECULE ",imol

@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2012  CP2K developers group                          !
+!   Copyright (C) 2000 - 2014  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -95,7 +95,7 @@ CONTAINS
     delta_x         = 0.0_dp
     nmc_prob        = 0.0_dp
     mv_prob         = 0.0_dp
-    nmc_prob         = 0.0_dp
+    nmc_prob        = 0.0_dp
     mv_prob_sum     = 0.0_dp
     nmc_prob_sum    = 0.0_dp
     prob_ex         = 0.0_dp
@@ -365,9 +365,10 @@ CONTAINS
 !>        see module cp_error_handling
 !> \author Mandes 10.2013
 ! *****************************************************************************
-  SUBROUTINE check_moves(tmc_params, move_types, error)
+  SUBROUTINE check_moves(tmc_params, move_types, mol_array, error)
     TYPE(tmc_param_type), POINTER            :: tmc_params
     TYPE(tmc_move_type), POINTER             :: move_types
+    INTEGER, DIMENSION(:), POINTER           :: mol_array
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'check_moves', &
@@ -378,6 +379,20 @@ CONTAINS
 
     CPPreconditionNoFail(ASSOCIATED(tmc_params),cp_failure_level,routineP,error)
     CPPreconditionNoFail(ASSOCIATED(move_types),cp_failure_level,routineP,error)
+
+    ! molecule moves need molecule info
+    IF(move_types%mv_weight(mv_type_mol_trans).GT.0.0_dp .OR. &
+       move_types%mv_weight(mv_type_mol_rot).GT.0.0_dp ) THEN
+      ! if there is no molecule information available, 
+      !   molecules moves can not be performed
+      IF(mol_array(SIZE(mol_array)).EQ.SIZE(mol_array)) &
+        CALL cp_assert(.FALSE., &
+                       cp_failure_level,cp_assertion_failed,&
+                       routineP, "molecule move: there is no molecule "//&
+                       "information available. Please specify molecules when "//&
+                       "using molecule moves.", &
+                       error)
+    END IF
 
     ! for the atom swap move
     IF(move_types%mv_weight(mv_type_atom_swap).GT.0.0_dp) THEN
@@ -650,7 +665,7 @@ CONTAINS
                        move_types%mv_size(typ,temper)/(PI/180.0_dp)
                    END IF
                 CASE(mv_type_MD)
-CALL cp_assert(.TRUE.,&
+CALL cp_assert(.FALSE.,&
 cp_warning_level,cp_assertion_failed,routineP,&
 "md_time_step and nr md_steps not implemented...",&
 error)
