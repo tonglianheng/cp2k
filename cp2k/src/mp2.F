@@ -231,12 +231,6 @@ MODULE mp2
                      CPSourceFileRef, only_ionode=.TRUE.)
     END IF
 
-    IF(qs_env%virial%pv_availability) THEN
-      CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
-                     "MP2 stress not implemented."//&
-                     CPSourceFileRef, only_ionode=.TRUE.)
-    END IF
-
     natom = SIZE(particle_set,1)
 
     ALLOCATE(kind_of(natom),STAT=stat)
@@ -365,6 +359,11 @@ MODULE mp2
     IF (ASSOCIATED(qs_env%x_data)) THEN
       free_hfx_buffer=.TRUE.
       IF(calc_forces.AND.(.NOT.mp2_env%ri_mp2%free_hfx_buffer)) free_hfx_buffer=.FALSE.
+    END IF
+    IF(qs_env%virial%pv_numer) THEN
+      ! in the case of numerical stress we don't have to free the HFX integrals
+      free_hfx_buffer=.FALSE.
+      mp2_env%ri_mp2%free_hfx_buffer=.FALSE.
     END IF
     IF(free_hfx_buffer) THEN
       CALL timeset(routineN//"_free_hfx",handle2)
