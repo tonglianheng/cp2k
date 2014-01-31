@@ -8,3 +8,6 @@ cp2k/tools/build_libsmm/*.mod
 cp2k/tools/build_libsmm/*.x
 .svn
 TAGS
+cp2k/web/manual/*.html
+cp2k/web/manual/CP2K_INPUT
+cp2k/web/manual/cp2k_input.xml
