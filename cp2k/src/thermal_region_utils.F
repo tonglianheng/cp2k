@@ -7,6 +7,9 @@
 !> \brief Setup of regions with different temperature
 !> \history
 !>   - Added support for Langevin regions (2014/01/08, LT)
+!>   - Added print subroutine for langevin regions (2014/02/04, LT)
+!>   - Changed print_thermal_regions to print_thermal_regions_temperature
+!>     (2014/02/04, LT)
 !> \author MI
 ! *****************************************************************************
 MODULE thermal_region_utils
@@ -41,7 +44,9 @@ MODULE thermal_region_utils
   IMPLICIT NONE
 
   PRIVATE
-  PUBLIC :: create_thermal_regions, print_thermal_regions
+  PUBLIC :: create_thermal_regions, &
+            print_thermal_regions_temperature, &
+            print_thermal_regions_langevin
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'thermal_region_utils'
 
@@ -49,8 +54,8 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief create thermal_regions
-!> \history
-!>   - Added support for Langevin regions (2014/01/08, LT)
+!> \par History
+!>      - Added support for Langevin regions (2014/01/08, LT)
 !> \author
 ! *****************************************************************************
   SUBROUTINE create_thermal_regions(thermal_regions, md_section, simpar, force_env, error)
@@ -67,7 +72,8 @@ CONTAINS
                                                 nregions, stat
     INTEGER, DIMENSION(:), POINTER           :: tmplist
     LOGICAL                                  :: apply_thermostat, explicit, &
-                                                failure
+                                                failure, do_langevin_default, &
+                                                do_langevin
     REAL(KIND=dp)                            :: temp, temp_tol
     TYPE(cp_subsys_type), POINTER            :: subsys
     TYPE(particle_list_type), POINTER        :: particles
@@ -81,30 +87,32 @@ CONTAINS
     CALL allocate_thermal_regions(thermal_regions,error)
     thermal_region_section =>  section_vals_get_subs_vals(md_section,"THERMAL_REGION",error=error)
     CALL section_vals_get(thermal_region_section, explicit=explicit, error=error)
-    IF (explicit)THEN
+    IF (explicit) THEN
        apply_thermostat =(simpar%ensemble == nvt_ensemble)  .OR.&
                          (simpar%ensemble == npt_f_ensemble).OR.&
                          (simpar%ensemble == npt_i_ensemble)
-       IF(apply_thermostat) THEN
-         CALL cp_assert(.FALSE.,cp_warning_level,cp_assertion_failed,routineP,&
-             "With the chosen ensemble the temperature is "//&
-             "controlled by thermostats. The definition of different thermal "//&
-             "regions might result inconsistent with the presence of thermostats."//&
-CPSourceFileRef,&
-             only_ionode=.TRUE.)
+       IF (apply_thermostat) THEN
+          CALL cp_assert(.FALSE.,cp_warning_level,cp_assertion_failed,routineP,&
+               "With the chosen ensemble the temperature is "//&
+               "controlled by thermostats. The definition of different thermal "//&
+               "regions might result inconsistent with the presence of thermostats."//&
+               CPSourceFileRef,&
+               only_ionode=.TRUE.)
        END IF
-       IF(simpar%temp_tol>0.0_dp) THEN
-         CALL cp_assert(.FALSE.,cp_warning_level,cp_assertion_failed,routineP,&
-             "Control of the global temperature by rescaling of the velocity"//&
-             "is not consistent with the presence of different thermal regions."//&
-             "The temperature of different regions is rescaled separatedly."//&
-CPSourceFileRef,&
-             only_ionode=.TRUE.)
+       IF (simpar%temp_tol > 0.0_dp) THEN
+          CALL cp_assert(.FALSE.,cp_warning_level,cp_assertion_failed,routineP,&
+               "Control of the global temperature by rescaling of the velocity"//&
+               "is not consistent with the presence of different thermal regions."//&
+               "The temperature of different regions is rescaled separatedly."//&
+               CPSourceFileRef,&
+               only_ionode=.TRUE.)
        END IF
-       CALL section_vals_val_get(thermal_region_section,"FORCE_RESCALING",l_val=thermal_regions%force_rescaling , error=error)
-       region_sections =>  section_vals_get_subs_vals(thermal_region_section,"DEFINE_REGION",error=error)
+       CALL section_vals_val_get(thermal_region_section, "FORCE_RESCALING", &
+                                 l_val=thermal_regions%force_rescaling, error=error)
+       region_sections => section_vals_get_subs_vals(thermal_region_section, &
+                                                     "DEFINE_REGION", error=error)
        CALL section_vals_get(region_sections, n_repetition=nregions, error=error)
-       IF(nregions>0)THEN
+       IF (nregions>0) THEN
          thermal_regions%nregions = nregions
          thermal_regions%section => thermal_region_section
          ALLOCATE(thermal_regions%thermal_region(nregions), STAT=stat)
@@ -112,36 +120,44 @@ CPSourceFileRef,&
          CALL force_env_get(force_env, subsys=subsys,error=error)
          CALL cp_subsys_get(subsys, particles=particles,error=error)
          IF (simpar%ensemble == langevin_ensemble) THEN
+            CALL section_vals_val_get(thermal_region_section, "DO_LANGEVIN_DEFAULT", &
+                                      l_val=do_langevin_default, error=error)
             ALLOCATE(thermal_regions%do_langevin(particles%n_els), STAT=stat)
             CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
-            thermal_regions%do_langevin = .FALSE.
+            thermal_regions%do_langevin = do_langevin_default
          END IF
-         DO  ireg = 1,nregions
+         DO ireg = 1,nregions
            NULLIFY(t_region)
            t_region => thermal_regions%thermal_region(ireg)
-           CALL section_vals_val_get(region_sections,"LIST",i_rep_section=ireg,n_rep_val=nlist,error=error)
+           CALL section_vals_val_get(region_sections,"LIST", &
+                                     i_rep_section=ireg, n_rep_val=nlist, error=error)
            NULLIFY(t_region%part_index)
            t_region%npart = 0
-           DO il = 1,nlist
-
-             CALL section_vals_val_get(region_sections,"LIST", i_rep_section=ireg,i_rep_val=il,i_vals=tmplist, error=error)
-             CALL reallocate(t_region%part_index,1,t_region%npart+SIZE(tmplist))
-             DO i =1,SIZE(tmplist)
-               ipart = tmplist(i)
-               CPPostcondition(((ipart>0).AND.(ipart<=particles%n_els)),cp_failure_level,routineP,error,failure)
-               t_region%npart = t_region%npart + 1
-               t_region%part_index(t_region%npart) = ipart
-               particles%els(ipart)%t_region_index = ireg
-               IF (simpar%ensemble == langevin_ensemble) THEN
-                  thermal_regions%do_langevin(ipart) = .TRUE.
-               END IF
-             END DO
+           IF (simpar%ensemble == langevin_ensemble) THEN
+              CALL section_vals_val_get(region_sections, "DO_LANGEVIN", &
+                                        i_rep_section=ireg, l_val=do_langevin, error=error)
+           END IF
+           DO il = 1, nlist
+              CALL section_vals_val_get(region_sections, "LIST", i_rep_section=ireg, &
+                                        i_rep_val=il, i_vals=tmplist, error=error)
+              CALL reallocate(t_region%part_index,1,t_region%npart+SIZE(tmplist))
+              DO i = 1, SIZE(tmplist)
+                 ipart = tmplist(i)
+                 CPPostcondition(((ipart>0).AND.(ipart<=particles%n_els)), &
+                                 cp_failure_level, routineP, error, failure)
+                 t_region%npart = t_region%npart + 1
+                 t_region%part_index(t_region%npart) = ipart
+                 particles%els(ipart)%t_region_index = ireg
+                 IF (simpar%ensemble == langevin_ensemble) THEN
+                    thermal_regions%do_langevin(ipart) = do_langevin
+                 END IF
+              END DO
            END DO
-           CALL section_vals_val_get(region_sections,"TEMPERATURE",&
-               i_rep_section=ireg,r_val=temp , error=error)
+           CALL section_vals_val_get(region_sections, "TEMPERATURE", i_rep_section=ireg, &
+                                     r_val=temp, error=error)
            t_region%temp_expected = temp
-           CALL section_vals_val_get(region_sections,"TEMP_TOL", &
-               i_rep_section=ireg,r_val=temp_tol , error=error)
+           CALL section_vals_val_get(region_sections, "TEMP_TOL", i_rep_section=ireg, &
+                                     r_val=temp_tol , error=error)
            t_region%temp_tol = temp_tol
          END DO
          simpar%do_thermal_region = .TRUE.
@@ -157,10 +173,21 @@ CPSourceFileRef,&
   END SUBROUTINE create_thermal_regions
 
 ! *****************************************************************************
-!> \brief create thermal_regions
+!> \brief print_thermal_regions_temperature
+!> \param thermal_regions : thermal regions type contains information 
+!>                          about the regions
+!> \param itimes          : iteration number of the time step
+!> \param time            : simulation time of the time step
+!> \param pos             : file position
+!> \param act             : file action
+!> \param error           : wrapper for errors
+!> \par History
+!>      - 2014/02/04 added doxygen header and changed subroutine name from
+!>                   print_thermal_regions to print_thermal_regions_temperature
+!>                   [LT]
 !> \author
 ! *****************************************************************************
-  SUBROUTINE print_thermal_regions(thermal_regions, itimes, time, pos, act , error)
+  SUBROUTINE print_thermal_regions_temperature(thermal_regions, itimes, time, pos, act, error)
     TYPE(thermal_regions_type), POINTER      :: thermal_regions
     INTEGER, INTENT(IN)                      :: itimes
     REAL(KIND=dp), INTENT(IN)                :: time
@@ -181,7 +208,7 @@ CPSourceFileRef,&
     NULLIFY(logger)
     logger => cp_error_get_logger(error)
 
-    IF(ASSOCIATED(thermal_regions)) THEN
+    IF (ASSOCIATED(thermal_regions)) THEN
       print_key => section_vals_get_subs_vals(thermal_regions%section,"PRINT%TEMPERATURE",error=error)
       IF (BTEST(cp_print_key_should_output(logger%iter_info,print_key,error=error),cp_p_file)) THEN
           unit = cp_print_key_unit_nr(logger,thermal_regions%section,"PRINT%TEMPERATURE",&
@@ -207,8 +234,74 @@ CPSourceFileRef,&
             CPPrecondition(istat==0,cp_fatal_level,routineP,error,failure)
           END IF
           CALL cp_print_key_finished_output(unit,logger,thermal_regions%section,"PRINT%TEMPERATURE", error=error)
-      END IF
+       END IF
+       ! print langevin_regions information
+       CALL print_thermal_regions_langevin(thermal_regions, pos, act, error)
     END IF
-  END SUBROUTINE print_thermal_regions
+  END SUBROUTINE print_thermal_regions_temperature
+
+
+! *****************************************************************************
+!> \brief print out information regarding to langevin regions defined in 
+!>        thermal_regions section
+!> \param thermal_regions : thermal regions type containing the relevant
+!>                          langevin regions information
+!> \param pos             : file position
+!> \param act             : file action
+!> \param error           : wrapper for errors
+!> \par History
+!>      - 2014/02/02 created [LT]
+!> \author Lianheng Tong [LT] (tonglianheng@gmail.com)
+! *****************************************************************************
+  SUBROUTINE print_thermal_regions_langevin(thermal_regions, pos, act, error)
+    TYPE(thermal_regions_type), POINTER  :: thermal_regions
+    CHARACTER(LEN=default_string_length) :: pos, act
+    TYPE(cp_error_type), INTENT(INOUT)   :: error
+
+    CHARACTER(len=*), PARAMETER          :: routineN = 'print_thermal_regions_langevin', &
+                                            routineP = moduleN//":"//routineN
+
+    LOGICAL                              :: failure, new_file
+    TYPE(cp_logger_type), POINTER        :: logger
+    INTEGER                              :: ipart, print_unit, natoms
+    TYPE(section_vals_type), POINTER     :: print_key
+
+    failure = .FALSE.
+    NULLIFY(logger)
+    logger => cp_error_get_logger(error)
+    
+    IF (ASSOCIATED(thermal_regions)) THEN
+       IF (ASSOCIATED(thermal_regions%do_langevin)) THEN
+          print_key => section_vals_get_subs_vals(thermal_regions%section, &
+                                                  "PRINT%LANGEVIN_REGIONS", &
+                                                  error=error)
+          IF (BTEST(cp_print_key_should_output(logger%iter_info, print_key, error=error), &
+                    cp_p_file)) THEN
+             print_unit = cp_print_key_unit_nr(logger, thermal_regions%section, &
+                                               "PRINT%LANGEVIN_REGIONS", &
+                                               extension=".lgv_regions", &
+                                               file_position=pos, file_action=act, &
+                                               is_new_file=new_file, error=error)
+             IF (pring_unit > 0) THEN
+                IF (new_file) THEN
+                   WRITE (print_unit, '(A)') "# Atoms Undergoing Langevin MD"
+                   WRITE (print_unit, '(A,3X,A,3X,A)') "#" "Atom ID" "Langevin(L)/NVE(N)"
+                END IF
+                natoms = LEN(thermal_regions%do_langevin)
+                DO ipart = 1, natoms
+                   WRITE (print_unit, '(I10,2X)', advance='no') ipart
+                   IF (thermal_regions%do_langevin(ipart)) THEN
+                      WRITE (print_unit, '(A)') "L"
+                   ELSE
+                      WRITE (print_unit, '(A)') "N"
+                   END IF
+                END DO
+             END IF
+             CALL cp_print_key_finished_output(print_unit, logger, thermal_regions%section, &
+                                               "PRINT%LANGEVIN_REGIONS", error=error)
+          END IF
+       END IF
+    END IF
+  END SUBROUTINE print_thermal_regions_langevin
 
 END MODULE thermal_region_utils

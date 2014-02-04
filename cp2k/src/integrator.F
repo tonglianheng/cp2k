@@ -112,6 +112,9 @@ CONTAINS
 !> \brief Langevin integrator for particle positions & momenta (Brownian dynamics)
 !> \par Literature
 !>      - A. Ricci and G. Ciccotti, Mol. Phys. 101, 1927-1931 (2003)
+!>      - For langevin regions:
+!>        - L. Kantorovich, Phys. Rev. B 78, 094304 (2008)
+!>        - L. Kantorovich and N. Rompotis, Phys. Rev. B 78, 094305 (2008)
 !> \par History
 !>      - Created (01.07.2005,MK)
 !>      - Added support for only performing Langevin MD on a region of atoms

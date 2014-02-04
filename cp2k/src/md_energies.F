@@ -73,7 +73,7 @@ MODULE md_energies
   USE reftraj_types,                   ONLY: reftraj_type
   USE simpar_types,                    ONLY: simpar_type
   USE thermal_region_types,            ONLY: thermal_regions_type
-  USE thermal_region_utils,            ONLY: print_thermal_regions
+  USE thermal_region_utils,            ONLY: print_thermal_regions_temperature
   USE thermostat_types,                ONLY: thermostats_type
   USE thermostat_utils,                ONLY: print_thermostats_status
   USE timings,                         ONLY: timeset,&
@@ -556,7 +556,7 @@ CPSourceFileRef,&
                only_ionode=.TRUE.)
        END IF
        !Thermal Region
-       CALL print_thermal_regions(thermal_regions,itimes,time*femtoseconds,my_pos,my_act,error)
+       CALL print_thermal_regions_termperature(thermal_regions,itimes,time*femtoseconds,my_pos,my_act,error)
 
        ! Core/Shell Model
        IF(shell_present) THEN

@@ -44,7 +44,8 @@ MODULE md_run
                                              nph_uniaxial_ensemble,&
                                              npt_f_ensemble,&
                                              npt_i_ensemble,&
-                                             reftraj_ensemble
+                                             reftraj_ensemble,&
+                                             langevin_ensemble
   USE input_cp2k_check,                ONLY: remove_restart_info
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_remove_values,&
@@ -91,7 +92,8 @@ MODULE md_run
                                              simpar_type
   USE thermal_region_types,            ONLY: release_thermal_regions,&
                                              thermal_regions_type
-  USE thermal_region_utils,            ONLY: create_thermal_regions
+  USE thermal_region_utils,            ONLY: create_thermal_regions,&
+                                             print_thermal_regions_langevin
   USE thermostat_methods,              ONLY: create_thermostats
   USE thermostat_types,                ONLY: release_thermostats,&
                                              thermostats_type
@@ -165,7 +167,8 @@ CONTAINS
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 !> \par History
-!>      Cleaning (09.2007) Teodoro Laino [tlaino] - University of Zurich
+!>      - Cleaning (09.2007) Teodoro Laino [tlaino] - University of Zurich
+!>      - Added lines to print out langevin regions (2014/02/04, LT)
 !> \author Creation (07.11.2002,MK)
 ! *****************************************************************************
   SUBROUTINE qs_mol_dyn_low(md_env, md_section, motion_section, force_env, globenv, hmc_ekin, mdctrl, error)
@@ -262,6 +265,11 @@ CONTAINS
 
     ! If requested setup different thermal regions
     CALL create_thermal_regions(thermal_regions,  md_section, simpar, force_env, error )
+    
+    ! If doing langevin_ensemble, then print out langevin_regions information upon request
+    IF (simpar%ensemble == langevin_ensemble) THEN
+       CALL print_thermal_regions_langevin(thermal_regions, pos="REWIND", act="WRITE", error)
+    END IF
 
     CALL set_md_env(md_env, thermostats=thermostats, barostat=barostat, thermal_regions=thermal_regions,error=error)
 
