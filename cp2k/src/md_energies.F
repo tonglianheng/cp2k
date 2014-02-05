@@ -556,7 +556,7 @@ CPSourceFileRef,&
                only_ionode=.TRUE.)
        END IF
        !Thermal Region
-       CALL print_thermal_regions_termperature(thermal_regions,itimes,time*femtoseconds,my_pos,my_act,error)
+       CALL print_thermal_regions_temperature(thermal_regions,itimes,time*femtoseconds,my_pos,my_act,error)
 
        ! Core/Shell Model
        IF(shell_present) THEN

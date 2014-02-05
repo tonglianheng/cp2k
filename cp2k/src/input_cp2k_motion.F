@@ -798,7 +798,7 @@ CONTAINS
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
-  
+
     END IF
   END SUBROUTINE create_box_prob_section
 
@@ -846,7 +846,7 @@ CONTAINS
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
-  
+
     END IF
   END SUBROUTINE create_update_section
 
@@ -994,7 +994,7 @@ CONTAINS
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
-  
+
     END IF
   END SUBROUTINE create_box_disp_section
 
@@ -2060,7 +2060,7 @@ CONTAINS
             usage="port <INTEGER>",&
             default_i_val=12345, error=error)
        CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)       
+       CALL keyword_release(keyword,error=error)
 
 
        CALL keyword_create(keyword, name="host",&
@@ -2068,7 +2068,7 @@ CONTAINS
             usage="host <HOSTNAME>",&
             default_c_val="localhost", error=error)
        CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)  
+       CALL keyword_release(keyword,error=error)
 
     END IF
 
@@ -4295,128 +4295,94 @@ CONTAINS
     IF (.NOT. failure) THEN
 
        CALL section_create(section,name="thermal_region", &
-                           description="Define regions where &
-                           &different initialization and control of &
-                           &the temperature is used. When MOTION%MD%&
-                           &ENSEMBLE is set to LANGEVIN, this section &
-                           &controls if the atoms defined inside and &
-                           &outside the thermal regions should &
-                           &undergo Langevin MD or NVE Born-&
-                           &Oppenheimer MD. The theory behind &
-                           &Langevin MD using different regions can &
-                           &be found in articles by Kantorovitch et &
-                           &al. listed below.", &
-                           citations=\(Kantorovitch2008, Kantorovitch2008a\), &
-                           n_keywords=0, n_subsections=1, &
-                           repeats=.FALSE., required=.FALSE., error=error)
-
+            description="Define regions where different initialization and control "\\&
+            "of the temperature is used. When MOTION%MD%ENSEMBLE is set to LANGEVIN, "\\&
+            "this section controls if the atoms defined inside and outside the "\\&
+            "thermal regions should undergo Langevin MD or NVE Born-Oppenheimer "\\&
+            "MD. The theory behind Langevin MD using different regions can be found "\\&
+            "in articles by Kantorovitch et al. listed below.", &
+            citations=\(Kantorovitch2008, Kantorovitch2008a\), &
+            n_keywords=0, n_subsections=1, repeats=.FALSE., required=.FALSE., error=error)
 
        NULLIFY(region_section)
        NULLIFY(keyword,subsection)
 
        CALL keyword_create(keyword=keyword,name="force_rescaling", &
-                           description="Control the rescaling ot the &
-                           &velocities in all the regions, according &
-                           &to the temperature assigned to each &
-                           &reagion, when RESTART_VELOCITY in &
-                           &EXT_RESTART is active.", &
-                           default_l_val=.FALSE., &
-                           lone_keyword_l_val=.TRUE., &
-                           error=error)
+            description="Control the rescaling ot the velocities in all the regions, "\\&
+            "according to the temperature assigned to each reagion, when "\\&
+            "RESTART_VELOCITY in EXT_RESTART is active.", &
+            default_l_val=.FALSE., lone_keyword_l_val=.TRUE., error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword=keyword, name="do_langevin_default", &
-                           description="If ENSEMBLE is set to &
-                           &LANGEVIN, controls whether the atoms NOT &
-                           &defined in the thermal regions to undergo &
-                           &langevin MD or not. If not, then the &
-                           &atoms will undergo NVE Born-Oppenheimer &
-                           &MD.", &
-                           usage="do_langevin_default .FALSE.", &
-                           default_l_val=.FALSE., &
-                           lone_keyword_l_val=.TRUE., &
-                           error=error)
+            description="If ENSEMBLE is set to LANGEVIN, controls whether the "\\&
+            "atoms NOT defined in the thermal regions to undergo langevin MD "\\&
+            "or not. If not, then the atoms will undergo NVE Born-Oppenheimer MD.", &
+            usage="do_langevin_default .FALSE.", &
+            default_l_val=.FALSE., lone_keyword_l_val=.TRUE., error=error)
        CALL section_add_keyword(section, keyword, error=error)
        CALL keyword_release(keyword, error=error)
-       
 
        CALL section_create(region_section,name="DEFINE_REGION",&
-                           description="This section provides the &
-                           &possibility to define arbitrary region ", &
-                           n_keywords=3, n_subsections=0, &
-                           repeats=.TRUE., required=.TRUE., error=error)
+            description="This section provides the possibility to define arbitrary region ", &
+            n_keywords=3, n_subsections=0, repeats=.TRUE., required=.TRUE., error=error)
 
        NULLIFY(keyword)
        CALL keyword_create(keyword, name="LIST",&
-                           description="Specifies a list of atoms belonging to the region.",&
-                           usage="LIST {integer} {integer} .. {integer}", &
-                           required=.TRUE., repeats=.TRUE., &
-                           n_var=-1, type_of_var=integer_t, error=error)
+            description="Specifies a list of atoms belonging to the region.",&
+            usage="LIST {integer} {integer} .. {integer}", &
+            required=.TRUE., repeats=.TRUE., n_var=-1, type_of_var=integer_t, error=error)
        CALL section_add_keyword(region_section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
-
        CALL keyword_create(keyword=keyword,name="temperature",&
-                           description="The temperature in K used to &
-                           &initialize the velocities of the atoms in &
-                           &this region ", &
-                           usage="temperature 5.0", &
-                           default_r_val=cp_unit_to_cp2k(value=0.0_dp,unit_str="K",error=error), &
-                           unit_str="K", error=error)
+            description="The temperature in K used to initialize the velocities "\\&
+            "of the atoms in this region ", &
+            usage="temperature 5.0", &
+            default_r_val=cp_unit_to_cp2k(value=0.0_dp,unit_str="K",error=error), &
+            unit_str="K", error=error)
        CALL section_add_keyword(region_section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="temp_tol",&
-                           description="Maximum accepted  temperature &
-                           &deviation from the expected value for &
-                           &this region. If temp_tol=0 no rescaling &
-                           &is performed", &
-                           usage="temp_tol 0.0", &
-                           default_r_val=0.0_dp, &
-                           unit_str='K', error=error)
+            description="Maximum accepted temperature deviation from the expected "\\&
+            "value for this region. If temp_tol=0 no rescaling is performed", &
+            usage="temp_tol 0.0", &
+            default_r_val=0.0_dp, unit_str='K', error=error)
        CALL section_add_keyword(region_section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_section(keyword, name="do_langevin", &
-                            description="When ENSEMBLE is set to &
-                            &LANGEVIN, Controls whether the atoms in &
-                            &the thermal region should undergo &
-                            &Langevin MD. If not, then they will &
-                            &undergo NVE Born-Oppenheimer MD.", &
-                            usage="do_langevin .TRUE.", &
-                            default_l_val=.TRUE., &
-                            lone_keyword_l_val=.TRUE., &
-                            error=error)
+            description="When ENSEMBLE is set to LANGEVIN, Controls whether "\\&
+            "the atoms in the thermal region should undergo Langevin MD. If "\\&
+            "not, then they will undergo NVE Born-Oppenheimer MD.", &
+            usage="do_langevin .TRUE.",&
+            default_l_val=.TRUE., lone_keyword_l_val=.TRUE., error=error)
        CALL section_add_keyword(region_section, keyword, error=error)
        CALL keyword_release(keyword, error=error)
 
        CALL section_add_subsection(section, region_section, error=error)
        CALL section_release(region_section,error=error)
 
-
        NULLIFY(print_key)
        CALL section_create(subsection,name="PRINT",&
-                           description="Collects all print_keys for thermal_regions",&
-                           n_keywords=1, n_subsections=0, repeats=.FALSE., &
-                           required=.TRUE., error=error)
+            description="Collects all print_keys for thermal_regions",&
+            n_keywords=1, n_subsections=0, repeats=.FALSE., &
+            required=.TRUE., error=error)
 
        CALL cp_print_key_section_create(print_key,"TEMPERATURE",&
-                                        description="Controls output of temperature per region.", &
-                                        print_level=high_print_level, &
-                                        common_iter_levels=1,&
-                                        filename="", error=error)
+            description="Controls output of temperature per region.", &
+            print_level=high_print_level, common_iter_levels=1, &
+            filename="", error=error)
        CALL section_add_subsection(subsection,print_key, error=error)
        CALL section_release(print_key,error=error)
-       
+
        CALL cp_print_key_section_create(print_key,"LAGEVIN_REGIONS",&
-                                        description="Controls output &
-                                        &of information on which &
-                                        &atoms underwent Langevin MD &
-                                        &and which atoms did not.", &
-                                        print_level=high_print_level, &
-                                        filename="", &
-                                        error=error)
+            description="Controls output of information on which atoms "\\&
+            "underwent Langevin MD and which atoms did not.", &
+            print_level=high_print_level, &
+            filename="", error=error)
        CALL section_add_subsection(subsection, print_key, error=error)
        CALL section_release(print_key, error=error)
 

@@ -174,7 +174,7 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief print_thermal_regions_temperature
-!> \param thermal_regions : thermal regions type contains information 
+!> \param thermal_regions : thermal regions type contains information
 !>                          about the regions
 !> \param itimes          : iteration number of the time step
 !> \param time            : simulation time of the time step
@@ -194,8 +194,8 @@ CONTAINS
     CHARACTER(LEN=default_string_length)     :: pos, act
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'print_thermal_regions', &
-      routineP = moduleN//':'//routineN
+    CHARACTER(len=*), PARAMETER :: routineN = 'print_thermal_regions_temperature', &
+                                   routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=default_string_length)     :: fmd
     INTEGER                                  :: ireg, istat, nregions, unit
@@ -235,14 +235,12 @@ CONTAINS
           END IF
           CALL cp_print_key_finished_output(unit,logger,thermal_regions%section,"PRINT%TEMPERATURE", error=error)
        END IF
-       ! print langevin_regions information
-       CALL print_thermal_regions_langevin(thermal_regions, pos, act, error)
     END IF
   END SUBROUTINE print_thermal_regions_temperature
 
 
 ! *****************************************************************************
-!> \brief print out information regarding to langevin regions defined in 
+!> \brief print out information regarding to langevin regions defined in
 !>        thermal_regions section
 !> \param thermal_regions : thermal regions type containing the relevant
 !>                          langevin regions information
@@ -269,7 +267,7 @@ CONTAINS
     failure = .FALSE.
     NULLIFY(logger)
     logger => cp_error_get_logger(error)
-    
+
     IF (ASSOCIATED(thermal_regions)) THEN
        IF (ASSOCIATED(thermal_regions%do_langevin)) THEN
           print_key => section_vals_get_subs_vals(thermal_regions%section, &
