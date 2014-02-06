@@ -14,6 +14,7 @@
 ! *****************************************************************************
 MODULE thermal_region_utils
 
+  USE bibliography,                    ONLY: Kantorovich2008, Kantorovich2008a
   USE cp_output_handling,              ONLY: cp_p_file,&
                                              cp_print_key_finished_output,&
                                              cp_print_key_should_output,&
@@ -120,6 +121,8 @@ CONTAINS
          CALL force_env_get(force_env, subsys=subsys,error=error)
          CALL cp_subsys_get(subsys, particles=particles,error=error)
          IF (simpar%ensemble == langevin_ensemble) THEN
+            CALL cite_reference(Kantorovich2008)
+            CALL cite_reference(Kantorovich2008a)
             CALL section_vals_val_get(thermal_region_section, "DO_LANGEVIN_DEFAULT", &
                                       l_val=do_langevin_default, error=error)
             ALLOCATE(thermal_regions%do_langevin(particles%n_els), STAT=stat)
