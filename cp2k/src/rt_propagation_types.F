@@ -33,8 +33,7 @@ MODULE rt_propagation_types
                                              cp_fm_release,&
                                              cp_fm_type
   USE cp_fm_vect,                      ONLY: cp_fm_vect_dealloc
-  USE input_constants,                 ONLY: do_diag,&
-                                             do_taylor
+  USE input_constants,                 ONLY: do_taylor
   USE kinds,                           ONLY: dp
   USE qs_matrix_pools,                 ONLY: mpools_get,&
                                              qs_matrix_pools_type
@@ -52,33 +51,38 @@ MODULE rt_propagation_types
  TYPE rt_prop_type
     TYPE(cp_fm_p_type),POINTER  ,DIMENSION(:)                  :: exp_H_old
     TYPE(cp_fm_p_type),POINTER  ,DIMENSION(:)                  :: exp_H_new
+    TYPE(cp_fm_p_type),POINTER  ,DIMENSION(:)                  :: propagator_matrix
     TYPE(cp_fm_type),POINTER                                   :: S_inv
-    TYPE(cp_fm_type),POINTER                                   :: S_half
-    TYPE(cp_fm_type),POINTER                                   :: S_minus_half
     TYPE(cp_fm_type),POINTER                                   :: B_mat
     TYPE(cp_fm_p_type),POINTER,DIMENSION(:)     :: C_mat
     TYPE(cp_fm_p_type),POINTER,DIMENSION(:)     :: S_der
     TYPE(cp_fm_p_type),POINTER,DIMENSION(:)     :: SinvH
     TYPE(cp_fm_type),POINTER                    :: SinvB
-    TYPE(cp_fm_p_type),POINTER,DIMENSION(:)     :: mos_new
-    TYPE(cp_fm_p_type),POINTER,DIMENSION(:)     :: mos_old
-    TYPE(cp_fm_p_type),POINTER,DIMENSION(:)     :: mos_next
-    TYPE(cp_fm_p_type),POINTER,DIMENSION(:)     :: admm_mos
+    TYPE(rtp_mos_type),POINTER                  :: mos
     REAL(KIND=dp)                               :: energy_old
     REAL(KIND=dp)                               :: energy_new
     REAL(KIND=dp)                               :: dt
+    REAL(KIND=dp)                               :: delta_iter
     INTEGER,DIMENSION(:,:),ALLOCATABLE          :: orders
     INTEGER                                     :: nsteps,istep,i_start
     INTEGER                                     :: iter
     LOGICAL                                     :: converged
+    LOGICAL                                     :: matrix_update
     TYPE(rtp_history_type),POINTER              :: history
  END TYPE rt_prop_type
+
+ TYPE rtp_mos_type
+    TYPE(cp_fm_p_type),POINTER,DIMENSION(:)     :: new
+    TYPE(cp_fm_p_type),POINTER,DIMENSION(:)     :: old
+    TYPE(cp_fm_p_type),POINTER,DIMENSION(:)     :: next
+    TYPE(cp_fm_p_type),POINTER,DIMENSION(:)     :: admm
+ END TYPE rtp_mos_type
 
  TYPE rtp_history_type
     TYPE(cp_fm_p_type),POINTER  ,DIMENSION(:,:)                :: mo_history
     TYPE(cp_fm_p_type),POINTER  ,DIMENSION(:,:)                :: exp_history
     INTEGER                                                    :: mos_or_H
-    TYPE(cp_dbcsr_p_type),POINTER,DIMENSION(:)              :: s_history
+    TYPE(cp_dbcsr_p_type),POINTER,DIMENSION(:)                 :: s_history
  END TYPE rtp_history_type
 
 ! *** Public data types ***
@@ -119,7 +123,7 @@ CONTAINS
     failure=.FALSE.
     CALL cite_reference(Kunert2003)
 
-    NULLIFY(rtp_control,rtp%admm_mos)
+    NULLIFY(rtp_control)
 
     rtp_control => dft_control%rtp_control
 
@@ -137,33 +141,39 @@ CONTAINS
          nrow_global=nao, ncol_global=nao,&
          template_fmstruct=ao_mo_fmstruct, error=error)
 
-
+    NULLIFY(rtp%mos)
+    ALLOCATE(rtp%mos,stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    NULLIFY(rtp%mos%admm)
+    ALLOCATE(rtp%propagator_matrix(2*SIZE(mos)),stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     ALLOCATE(rtp%exp_H_old(2*SIZE(mos)),stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     ALLOCATE(rtp%exp_H_new(2*SIZE(mos)),stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    ALLOCATE(rtp%mos_old(2*SIZE(mos)),stat=stat)
+    ALLOCATE(rtp%mos%old(2*SIZE(mos)),stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    ALLOCATE(rtp%mos_new(2*SIZE(mos)),stat=stat)
+    ALLOCATE(rtp%mos%new(2*SIZE(mos)),stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    ALLOCATE(rtp%mos_next(2*SIZE(mos)),stat=stat)
+    ALLOCATE(rtp%mos%next(2*SIZE(mos)),stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     DO i=1,SIZE(mos)
        DO j=1,2
-          NULLIFY(rtp%mos_old(2*(i-1)+j)%matrix)
-          NULLIFY(rtp%mos_new(2*(i-1)+j)%matrix)
+          NULLIFY(rtp%propagator_matrix(2*(i-1)+j)%matrix)
+          NULLIFY(rtp%mos%old(2*(i-1)+j)%matrix)
+          NULLIFY(rtp%mos%new(2*(i-1)+j)%matrix)
           NULLIFY(rtp%exp_H_old(2*(i-1)+j)%matrix)
           NULLIFY(rtp%exp_H_new(2*(i-1)+j)%matrix)
-          NULLIFY(rtp%mos_next(2*(i-1)+j)%matrix)
-          CALL cp_fm_create(rtp%mos_old(2*(i-1)+j)%matrix,&
+          NULLIFY(rtp%mos%next(2*(i-1)+j)%matrix)
+          CALL cp_fm_create(rtp%mos%old(2*(i-1)+j)%matrix,&
                matrix_struct=mos(i)%mo_set%mo_coeff%matrix_struct,&
                name="mos_old"//TRIM(ADJUSTL(cp_to_string(2*(i-1)+j))),&
                error=error)
-          CALL cp_fm_create(rtp%mos_new(2*(i-1)+j)%matrix,&
+          CALL cp_fm_create(rtp%mos%new(2*(i-1)+j)%matrix,&
                matrix_struct=mos(i)%mo_set%mo_coeff%matrix_struct,&
                name="mos_new"//TRIM(ADJUSTL(cp_to_string(2*(i-1)+j))),&
                error=error)
-          CALL cp_fm_create(rtp%mos_next(2*(i-1)+j)%matrix,&
+          CALL cp_fm_create(rtp%mos%next(2*(i-1)+j)%matrix,&
                matrix_struct=mos(i)%mo_set%mo_coeff%matrix_struct,&
                name="mos_next"//TRIM(ADJUSTL(cp_to_string(2*(i-1)+j))),&
                error=error)
@@ -175,6 +185,10 @@ CONTAINS
                matrix_struct=ao_ao_fmstruct,&
                name="exp_H_new"//TRIM(ADJUSTL(cp_to_string(2*(i-1)+j))),&
                error=error)
+          CALL cp_fm_create(rtp%propagator_matrix(2*(i-1)+j)%matrix,&
+               matrix_struct=ao_ao_fmstruct,&
+               name="prop_mat"//TRIM(ADJUSTL(cp_to_string(2*(i-1)+j))),&
+               error=error)
        END DO
     END DO
     NULLIFY(rtp%S_inv)
@@ -183,19 +197,8 @@ CONTAINS
          name="S_inv",&
          error=error)
 
-    NULLIFY(rtp%S_half)
-    NULLIFY(rtp%S_minus_half)
     SELECT CASE(rtp_control%mat_exp)
     CASE(do_taylor)
-    CASE(do_diag)
-       CALL cp_fm_create(rtp%S_half,&
-            matrix_struct=ao_ao_fmstruct,&
-            name="S_half",&
-            error=error)
-       CALL cp_fm_create(rtp%S_minus_half,&
-            matrix_struct=ao_ao_fmstruct,&
-            name="S_minus_half",&
-            error=error)
     END SELECT
 
     NULLIFY(rtp%B_mat)
@@ -240,6 +243,7 @@ CONTAINS
     ALLOCATE(rtp%orders(2,SIZE(mos)),stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     rtp_control%converged=.FALSE.
+    rtp%matrix_update=.TRUE.
     rtp%istep=0
     rtp%iter=0
     CALL cp_fm_struct_release(ao_ao_fmstruct,error)
@@ -247,18 +251,20 @@ CONTAINS
   END SUBROUTINE rt_prop_create
 
 
-  SUBROUTINE get_rtp(rtp,exp_H_old,exp_H_new,mos_new,mos_old,mos_next,&
-                     S_inv,S_half,S_minus_half,B_mat,C_mat,&
+  SUBROUTINE get_rtp(rtp,exp_H_old,exp_H_new,mos,mos_new,mos_old,mos_next,&
+                     S_inv,B_mat,C_mat,propagator_matrix,&
                      S_der,dt,nsteps,SinvH,SinvB,admm_mos,error)
 
     TYPE(rt_prop_type), POINTER              :: rtp
     TYPE(cp_fm_p_type), DIMENSION(:), &
-      OPTIONAL, POINTER                      :: exp_H_old, exp_H_new, &
-                                                mos_new, mos_old, mos_next
-    TYPE(cp_fm_type), OPTIONAL, POINTER      :: S_inv, S_half, S_minus_half, &
-                                                B_mat
+      OPTIONAL, POINTER                      :: exp_H_old, exp_H_new
+    TYPE(rtp_mos_type), OPTIONAL, POINTER    :: mos
     TYPE(cp_fm_p_type), DIMENSION(:), &
-      OPTIONAL, POINTER                      :: C_mat, S_der
+      OPTIONAL, POINTER                      :: mos_new, mos_old, mos_next
+    TYPE(cp_fm_type), OPTIONAL, POINTER      :: S_inv, B_mat
+    TYPE(cp_fm_p_type), DIMENSION(:), &
+      OPTIONAL, POINTER                      :: C_mat, propagator_matrix, &
+                                                S_der
     REAL(dp), OPTIONAL                       :: dt
     INTEGER, OPTIONAL                        :: nsteps
     TYPE(cp_fm_p_type), DIMENSION(:), &
@@ -278,15 +284,15 @@ CONTAINS
     CPPrecondition(ASSOCIATED(rtp),cp_failure_level,routineP,error,failure)
     IF (PRESENT(exp_H_old))exp_H_old=>rtp%exp_H_old
     IF (PRESENT(exp_H_new))exp_H_new=>rtp%exp_H_new
+    IF (PRESENT(propagator_matrix))propagator_matrix=>rtp%propagator_matrix
 
-    IF (PRESENT(mos_old))mos_old=>rtp%mos_old
-    IF (PRESENT(mos_new))mos_new=>rtp%mos_new
-    IF (PRESENT(mos_next))mos_next=>rtp%mos_next
-    IF (PRESENT(admm_mos))admm_mos=>rtp%admm_mos
+    IF (PRESENT(mos))mos=>rtp%mos
+    IF (PRESENT(mos_old))mos_old=>rtp%mos%old
+    IF (PRESENT(mos_new))mos_new=>rtp%mos%new
+    IF (PRESENT(mos_next))mos_next=>rtp%mos%next
+    IF (PRESENT(admm_mos))admm_mos=>rtp%mos%admm
 
     IF(PRESENT(S_inv))S_inv=>rtp%S_inv
-    IF(PRESENT(S_half))S_half=>rtp%S_half
-    IF(PRESENT(S_minus_half))S_minus_half=>rtp%S_minus_half
     IF(PRESENT(B_mat))B_mat=>rtp%B_mat
     IF(PRESENT(C_mat))C_mat=>rtp%C_mat
     IF(PRESENT(SinvH))SinvH=>rtp%SinvH
@@ -305,17 +311,27 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'rt_prop_release', &
       routineP = moduleN//':'//routineN
 
+    INTEGER                                  :: stat
+    LOGICAL                                  :: failure
+
+    failure=.FALSE.
+
     CALL cp_fm_vect_dealloc(rtp%exp_H_old,error)
+    CALL cp_fm_vect_dealloc(rtp%propagator_matrix,error)
     CALL cp_fm_vect_dealloc(rtp%exp_H_new,error)
-    CALL cp_fm_vect_dealloc(rtp%mos_old,error)
-    CALL cp_fm_vect_dealloc(rtp%mos_new,error)
-    CALL cp_fm_vect_dealloc(rtp%mos_next,error)
-    CALL cp_fm_vect_dealloc(rtp%admm_mos,error)
+    IF(ASSOCIATED(rtp%mos)) THEN
+      IF(ASSOCIATED(rtp%mos%old))&
+         CALL cp_fm_vect_dealloc(rtp%mos%old,error)
+      IF(ASSOCIATED(rtp%mos%new))&
+         CALL cp_fm_vect_dealloc(rtp%mos%new,error)
+      IF(ASSOCIATED(rtp%mos%next))&
+         CALL cp_fm_vect_dealloc(rtp%mos%next,error)
+      IF(ASSOCIATED(rtp%mos%admm))&
+         CALL cp_fm_vect_dealloc(rtp%mos%admm,error)
+      DEALLOCATE(rtp%mos,stat=stat)
+      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    END IF
     CALL cp_fm_release(rtp%S_inv,error)
-    IF(ASSOCIATED(rtp%S_half))&
-         CALL cp_fm_release(rtp%S_half,error)
-    IF(ASSOCIATED(rtp%S_minus_half))&
-         CALL cp_fm_release(rtp%S_minus_half,error)
     IF(ASSOCIATED(rtp%B_mat))&
          CALL cp_fm_release(rtp%B_mat,error)
     IF(ASSOCIATED(rtp%C_mat))&
@@ -328,7 +344,8 @@ CONTAINS
          CALL cp_fm_release(rtp%SinvB,error)
     IF(ASSOCIATED(rtp%history))&
          CALL rtp_history_release(rtp,error)
-    DEALLOCATE(rtp%orders)
+    DEALLOCATE(rtp%orders,stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
   END SUBROUTINE rt_prop_release
 
   SUBROUTINE rtp_history_create(rtp,extrap_H,aspc_order,error)
@@ -369,14 +386,14 @@ CONTAINS
           END DO
        ELSE
           history%mos_or_H=1
-          nmat=SIZE(rtp%mos_old)
+          nmat=SIZE(rtp%mos%old)
           ALLOCATE(history%mo_history(nmat,aspc_order),stat=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
           DO i=1,nmat
              DO j=1,aspc_order
                 NULLIFY(history%mo_history(i,j)%matrix)
                 CALL cp_fm_create(history%mo_history(i,j)%matrix,&
-                     matrix_struct=rtp%mos_new(i)%matrix%matrix_struct,&
+                     matrix_struct=rtp%mos%new(i)%matrix%matrix_struct,&
                      name="mo_hist"//TRIM(ADJUSTL(cp_to_string(i))),&
                      error=error)
              END DO

@@ -42,14 +42,15 @@ MODULE qs_loc_methods
                                              cp_print_key_should_output,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
+  USE cp_realspace_grid_cube,          ONLY: cp_pw_to_cube
   USE cp_subsys_types,                 ONLY: cp_subsys_get,&
                                              cp_subsys_type
   USE cp_units,                        ONLY: cp_unit_from_cp2k
   USE f77_blas
   USE input_constants,                 ONLY: &
        do_loc_crazy, do_loc_direct, do_loc_jacobi, do_loc_l1_norm_sd, &
-       do_loc_none, dump_dcd, dump_xmol, op_loc_berry, op_loc_boys, &
-       op_loc_pipek, state_loc_list
+       do_loc_none, dump_dcd, dump_dcd_aligned_cell, dump_xmol, op_loc_berry, &
+       op_loc_boys, op_loc_pipek, state_loc_list
   USE input_section_types,             ONLY: section_get_ival,&
                                              section_get_ivals,&
                                              section_get_lval,&
@@ -95,7 +96,6 @@ MODULE qs_loc_methods
   USE qs_matrix_pools,                 ONLY: mpools_get
   USE qs_mo_types,                     ONLY: get_mo_set,&
                                              mo_set_p_type
-  USE realspace_grid_cube,             ONLY: pw_to_cube
   USE string_utilities,                ONLY: xstring
   USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
@@ -981,7 +981,7 @@ CONTAINS
           WRITE(title,'(A7,I5.5,A1,I1.1,A1,3F10.4)') "WFN ",ivector,"_s",my_ispin," ",&
                centers(1:3,istate)*angstrom
        END IF
-       CALL pw_to_cube(wf_r%pw,unit_out_c,title,&
+       CALL cp_pw_to_cube(wf_r%pw,unit_out_c,title,&
             particles=particles,&
             stride=section_get_ivals(print_key,"STRIDE",error=error),error=error)
        CALL cp_print_key_finished_output(unit_out_c,logger,print_key,"",error=error)
@@ -1102,7 +1102,8 @@ CONTAINS
     CALL section_vals_val_get(print_key,"FORMAT",i_val=outformat,error=error)
 
     ! Header file
-    IF(outformat==dump_dcd) THEN
+    SELECT CASE (outformat)
+    CASE (dump_dcd,dump_dcd_aligned_cell)
        IF ( init_traj ) THEN
           !Lets write the header for the coordinate dcd
           ! Note (TL) : even the new DCD format is unfortunately too poor
@@ -1119,13 +1120,13 @@ CONTAINS
           WRITE(iunit) 2,remark1,remark2
           WRITE(iunit) ntot
           CALL m_flush(iunit)
-       ENDIF
-    ELSEIF(outformat==dump_xmol) THEN
+       END IF
+    CASE (dump_xmol)
        iter = cp_iter_string(logger%iter_info,error=error)
        WRITE (UNIT=title,FMT="(A)")" Particles+Wannier centers. Iteration:"//TRIM(iter)
-    ELSE
+    CASE DEFAULT
        title = ""
-    END IF
+    END SELECT
     CALL write_particle_coordinates(particle_set,iunit,outformat,"POS",title,qs_loc_env%cell,&
          unit_conv=unit_conv, error=error)
     CALL m_flush(iunit)

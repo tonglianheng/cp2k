@@ -11,6 +11,9 @@
 ! *****************************************************************************
 MODULE input_cp2k
   USE bibliography,                    ONLY: Frigo2005
+  USE cp_blacs_env,                    ONLY: BLACS_GRID_COL,&
+                                             BLACS_GRID_ROW,&
+                                             BLACS_GRID_SQUARE
   USE cp_output_handling,              ONLY: cp_print_key_section_create
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_parser_types,                 ONLY: cp_parser_type,&
@@ -61,6 +64,9 @@ MODULE input_cp2k
                                              logical_t,&
                                              real_t
   USE kinds,                           ONLY: dp
+  USE pw_grids,                        ONLY: do_pw_grid_blocked_false,&
+                                             do_pw_grid_blocked_free,&
+                                             do_pw_grid_blocked_true
   USE string_utilities,                ONLY: newline,&
                                              s2a
   USE swarm_input,                     ONLY: create_swarm_section
@@ -660,18 +666,7 @@ CONTAINS
     CALL keyword_release(keyword,error=error)
     CALL section_add_subsection(section,print_key,error=error)
     CALL section_release(print_key,error=error)
-! input for CUDA support
     NULLIFY(sub_section)
-    CALL section_create(sub_section,name="CUDA",&
-         description="For CUDA support related input",&
-         repeats=.FALSE., required=.FALSE., supported_feature=.TRUE.,error=error)
-    CALL keyword_create(keyword, name="MEMORY",&
-         description="Allocates this much device memory (in kB)",&
-         usage="MEMORY 10",default_i_val=-1,error=error)
-    CALL section_add_keyword(sub_section,keyword,error=error)
-    CALL keyword_release(keyword,error=error)
-    CALL section_add_subsection(section,sub_section,error=error)
-    CALL section_release(sub_section,error=error)
     ! Machine arch
     CALL create_march_section(sub_section,error)
     CALL section_add_subsection(section,sub_section,error=error)
@@ -1694,9 +1689,9 @@ CONTAINS
 
     CALL keyword_create(keyword, name="EPS_NO_ERROR_CHECK",&
          description="The mismatch between the numerical and the "//&
-                     "analytical value is not checked for numerical "//&
+                     "analytical value is not checked for analytical "//&
                      "values smaller than this threshold value",&
-         usage="EPS_NO_ERROR_CHECK {REAL}",default_r_val=1.0E-6_dp,error=error)
+         usage="EPS_NO_ERROR_CHECK {REAL}",default_r_val=1.0E-5_dp,error=error)
     CALL section_add_keyword(section,keyword,error=error)
     CALL keyword_release(keyword,error=error)
 

@@ -13,14 +13,12 @@
 !> - Created 2011
 ! *****************************************************************************
 MODULE cp_ma_interface
-  USE cp2k_info,                       ONLY: r_pid
   USE cp_error_handling
   USE cp_log_handling,                 ONLY: cp_logger_get_default_io_unit,&
                                              cp_logger_type,&
                                              cp_logger_would_log,&
                                              cp_note_level,&
                                              cp_warning_level
-  USE cp_output_handling
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE dbcsr_config,                    ONLY: dbcsr_get_conf_use_comm_thread
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
@@ -30,6 +28,7 @@ MODULE cp_ma_interface
   USE ma_config
   USE ma_process_mapping,              ONLY: ma_mpi_reordering
   USE ma_topology,                     ONLY: ma_destroy_topology
+  USE machine,                         ONLY: m_getpid
   USE machine_architecture,            ONLY: &
        ma_finalize_machine, ma_get_nnodes, ma_hwloc, ma_init_machine, &
        ma_int_hwloc, ma_int_libnuma, ma_int_none, ma_interface, ma_libnuma, &
@@ -346,11 +345,14 @@ END SUBROUTINE cp_ma_net_affinity
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_ma_set_neighbors', &
       routineP = moduleN//':'//routineN
 
+    INTEGER                                  :: pid
     TYPE(ma_mp_type)                         :: ma_env
+
+    CALL m_getpid(pid)
 
     ma_env%numproc = para_env%num_pe
     ma_env%mp_group = para_env%group
-    ma_env%myid = r_pid
+    ma_env%myid = pid
     ma_env%myproc = para_env%mepos
 
     IF ( has_ma ) THEN
@@ -755,7 +757,8 @@ END SUBROUTINE cp_ma_net_affinity
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: core, istat, mynode, node, &
-                                                num_threads, numnode, unit_num
+                                                num_threads, numnode, pid, &
+                                                unit_num
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(ma_mp_type)                         :: ma_env
 
@@ -777,17 +780,18 @@ END SUBROUTINE cp_ma_net_affinity
 !$ num_threads = omp_get_num_threads()
 !$omp end parallel
 
+      CALL m_getpid(pid)
       CALL mp_environ(numnode, mynode, group)
       IF(init_mpi) THEN
         ma_env%numproc = numnode
         ma_env%mp_group = group
-        ma_env%myid = r_pid
+        ma_env%myid = pid
         ma_env%myproc = mynode
         ma_env%all_proc = .TRUE.
       ELSE ! the communicator is not usefull
         ma_env%numproc = numnode
         ma_env%mp_group = group
-        ma_env%myid = r_pid
+        ma_env%myid = pid
         ma_env%myproc = mynode
         ma_env%all_proc = .FALSE.
       ENDIF

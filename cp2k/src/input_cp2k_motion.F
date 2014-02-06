@@ -1234,14 +1234,14 @@ CONTAINS
     CALL keyword_create(keyword, name="KEEP_ANGLES",&
          description="Keep angles between the cell vectors constant, but allow the lenghts of the"//&
                      " cell vectors to change independently."//&
-                     " For example, a cubic cell might become orthorhombic, but not triclinic.",&
+                     " Albeit general, this is most useful for triclinic cells, to enforce higher symmetry, see KEEP_SYMMETRY.",&
          usage="KEEP_ANGLES TRUE",default_l_val=.FALSE.,lone_keyword_l_val=.TRUE.,error=error)
     CALL section_add_keyword(section,keyword,error=error)
     CALL keyword_release(keyword,error=error)
 
     CALL keyword_create(keyword, name="KEEP_SYMMETRY",&
          description="Keep the requested initial cell symmetry (e.g. during a cell optimisation). "//&
-                     "See cell section for how to impose a cell symmetry.",&
+                     "The initial symmetry must be specified in the &CELL section.",&
          usage="KEEP_SYMMETRY yes",default_l_val=.FALSE.,lone_keyword_l_val=.TRUE.,error=error)
     CALL section_add_keyword(section,keyword,error=error)
     CALL keyword_release(keyword,error=error)
@@ -3535,10 +3535,13 @@ CONTAINS
        CALL keyword_create(keyword, name="FORMAT",&
             description=description,usage="FORMAT (ATOMIC|DCD|PDB|XMOL|XYZ)",&
             default_i_val=dump_xmol,&
-            enum_c_vals=s2a("ATOMIC","DCD","PDB","XMOL","XYZ"),&
-            enum_i_vals= (/dump_atomic,dump_dcd,dump_pdb,dump_xmol,dump_xmol/),&
+            enum_c_vals=s2a("ATOMIC","DCD","DCD_ALIGNED_CELL","PDB","XMOL","XYZ"),&
+            enum_i_vals= (/dump_atomic,dump_dcd,dump_dcd_aligned_cell,dump_pdb,dump_xmol,dump_xmol/),&
             enum_desc=s2a("Write only the coordinates X,Y,Z without element symbols to a formatted file",&
                           "Write the coordinates (no element labels) and the cell information to a binary file",&
+                          "Like DCD, but the dumped coordinates refer to an aligned cell following the common convention: "//&
+                          "the cell vector <b>a</b> is aligned with the <i>x</i> axis and the cell vector <b>b</b> lies in "//&
+                          "the <i>xy</i> plane. This allows the reconstruction of scaled coordinates from the DCD data only.",&
                           "Write the atomic information in PDB format to a formatted file",&
                           "Mostly known as XYZ format, provides in a formatted file: element_symbol X Y Z",&
                           "Alias name for XMOL"),&

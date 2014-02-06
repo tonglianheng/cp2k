@@ -70,7 +70,7 @@ MODULE cell_types
   TYPE cell_type
      INTEGER                           :: ref_count,id_nr
      INTEGER                           :: symmetry_id
-     LOGICAL                           :: orthorhombic
+     LOGICAL                           :: orthorhombic ! actually means a diagonal hmat
      REAL(KIND = dp)                   :: deth
      INTEGER, DIMENSION(3)             :: perd
      REAL(KIND = dp), DIMENSION(3,3)   :: hmat,h_inv
@@ -365,6 +365,7 @@ CONTAINS
 
     CHARACTER(len=*), PARAMETER :: routineN = 'init_cell', &
       routineP = moduleN//':'//routineN
+    REAL(KIND=dp), PARAMETER                 :: eps_hmat = 1.0E-14_dp
 
     INTEGER                                  :: dim
     REAL(KIND=dp)                            :: a, acosa, acosah, alpha, &
@@ -450,16 +451,28 @@ CONTAINS
        ! Nothing to do
     END SELECT
 
-    IF ((cell%hmat(1,2) == 0.0_dp).AND.(cell%hmat(1,3) == 0.0_dp).AND.&
-        (cell%hmat(2,1) == 0.0_dp).AND.(cell%hmat(2,3) == 0.0_dp).AND.&
-        (cell%hmat(3,1) == 0.0_dp).AND.(cell%hmat(3,2) == 0.0_dp)) THEN
+    ! Do we have an (almost) orthorhombic cell?
+    IF ((ABS(cell%hmat(1,2)) < eps_hmat).AND.(ABS(cell%hmat(1,3)) < eps_hmat).AND.&
+        (ABS(cell%hmat(2,1)) < eps_hmat).AND.(ABS(cell%hmat(2,3)) < eps_hmat).AND.&
+        (ABS(cell%hmat(3,1)) < eps_hmat).AND.(ABS(cell%hmat(3,2)) < eps_hmat)) THEN
        cell%orthorhombic = .TRUE.
     ELSE
        cell%orthorhombic = .FALSE.
     END IF
 
+    ! Retain an exact orthorhombic cell
+    ! (off-diagonal elements must remain zero identically to keep QS fast)
+    IF (cell%orthorhombic) THEN
+       cell%hmat(1,2) = 0.0_dp
+       cell%hmat(1,3) = 0.0_dp
+       cell%hmat(2,1) = 0.0_dp
+       cell%hmat(2,3) = 0.0_dp
+       cell%hmat(3,1) = 0.0_dp
+       cell%hmat(3,2) = 0.0_dp
+    END IF
+
     dim = COUNT(cell%perd == 1)
-    IF ((dim /= 3).AND.(.NOT.cell%orthorhombic)) THEN
+    IF ((dim == 1).AND.(.NOT.cell%orthorhombic)) THEN
        CALL stop_program(routineN,moduleN,__LINE__,&
                          "Non-orthorhombic and not periodic")
     END IF
@@ -1009,14 +1022,13 @@ CPSourceFileRef,&
             TRIM(my_label)//" Requested initial symmetry: ",&
             ADJUSTR(TRIM(enum_i2c(enum,cell%symmetry_id,error=error)))
            CALL section_release(section,error=error)
+        END IF
+        IF (cell%orthorhombic) THEN
+           WRITE (UNIT=output_unit,FMT="(T2,A,T78,A3)")&
+            TRIM(my_label)//" Numerically orthorhombic: ","YES"
         ELSE
-           IF (cell%orthorhombic) THEN
-              WRITE (UNIT=output_unit,FMT="(T2,A,T78,A3)")&
-               TRIM(my_label)//" Orthorhombic: ","YES"
-           ELSE
-              WRITE (UNIT=output_unit,FMT="(T2,A,T78,A3)")&
-               TRIM(my_label)//" Orthorhombic: "," NO"
-           END IF
+           WRITE (UNIT=output_unit,FMT="(T2,A,T78,A3)")&
+            TRIM(my_label)//" Numerically orthorhombic: "," NO"
         END IF
     END IF
     CALL cp_print_key_finished_output(output_unit,logger,subsys_section,&

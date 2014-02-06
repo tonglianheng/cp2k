@@ -64,23 +64,12 @@ MODULE input_constants
   INTEGER, PARAMETER, PUBLIC               :: weight_type_unit=0,&
                                               weight_type_mass=1
 
-  ! Blacs type of distribution
-  INTEGER, PARAMETER, PUBLIC               :: BLACS_GRID_SQUARE = 1,&
-                                              BLACS_GRID_ROW    = 2,&
-                                              BLACS_GRID_COL    = 3
-
   ! diag methods
   INTEGER, PARAMETER, PUBLIC               :: do_diag_syevd = 1,&
                                               do_diag_syevx = 2
   ! initial matrix methods methods
   INTEGER, PARAMETER, PUBLIC               :: do_mat_random = 1,&
                                               do_mat_read = 2
-
-  ! EWALD methods
-  INTEGER, PARAMETER, PUBLIC               :: do_ewald_none=1,&
-                                              do_ewald_ewald=2,&
-                                              do_ewald_pme=3,&
-                                              do_ewald_spme=4
 
   INTEGER, PARAMETER, PUBLIC               :: do_constr_none=1,&
                                               do_constr_atomic=2,&
@@ -259,10 +248,6 @@ MODULE input_constants
                                               do_se_lr_ewald_r3=2,&
                                               do_se_lr_ewald_gks=3
 
-  INTEGER, PARAMETER, PUBLIC               :: rsgrid_distributed=0,&
-                                              rsgrid_replicated=1,&
-                                              rsgrid_automatic=2
-
   INTEGER, PARAMETER, PUBLIC               :: do_par_atom=0,&
                                               do_par_grid=1
 
@@ -303,7 +288,8 @@ MODULE input_constants
   INTEGER, PARAMETER, PUBLIC               :: dump_atomic=1,&
                                               dump_xmol=2,&
                                               dump_dcd=3,&
-                                              dump_pdb=4
+                                              dump_pdb=4,&
+                                              dump_dcd_aligned_cell=5
 
   INTEGER, PARAMETER, PUBLIC               :: fmt_id_xyz=1,&
                                               fmt_id_pdb=2
@@ -561,42 +547,6 @@ MODULE input_constants
   INTEGER, PARAMETER, PUBLIC               :: do_add=1,&
                                               do_remove=2
 
-  INTEGER, PARAMETER, PUBLIC               :: no_precond=0,&
-                                              precond_spl3_aint=1,&
-                                              precond_spl3_1=2,&
-                                              precond_spl3_aint2=3,&
-                                              precond_spl3_2=4,&
-                                              precond_spl3_3=5
-
-  INTEGER, PARAMETER, PUBLIC               :: PERIODIC3D = 1000,&
-                                              ANALYTIC2D = 1001,&
-                                              ANALYTIC1D = 1002,&
-                                              ANALYTIC0D = 1003,&
-                                              MT2D = 1101,&
-                                              MT1D = 1102,&
-                                              MT0D = 1103,&
-                                              HOCKNEY2D = 1201,&
-                                              HOCKNEY1D = 1202,&
-                                              HOCKNEY0D = 1203,&
-                                              MULTIPOLE2D = 1301,&
-                                              MULTIPOLE1D = 1302,&
-                                              MULTIPOLE0D = 1303,&
-                                              WAVELET3D = 1400,&
-                                              WAVELET2D = 1401,&
-                                              WAVELET1D = 1402,&
-                                              WAVELET0D = 1403
-
-  INTEGER, PARAMETER, PUBLIC               :: use_none=0,&
-                                              use_periodic = 1,&
-                                              use_analytic = 2,&
-                                              use_mt=3,&
-                                              use_hockney=5,&
-                                              use_multipole=4,&
-                                              use_wavelet=6
-
-  INTEGER, PARAMETER, PUBLIC               :: use_rs_grid=0,&
-                                              use_gs_grid = 1
-
   INTEGER, PARAMETER, PUBLIC               :: xgga_b88=101,&
                                               xgga_b88x=102,&
                                               xgga_pw86=103,&
@@ -832,13 +782,7 @@ MODULE input_constants
                                               plus_u_mulliken=2,&
                                               plus_u_mulliken_charges=3
 
-  ! Distribution in g-space can be
-  INTEGER, PARAMETER, PUBLIC               :: do_pw_grid_blocked_false=0,&
-                                              do_pw_grid_blocked_true=1,&
-                                              do_pw_grid_blocked_free=2
-
   ! Define identifier codes for smearing method
-
   INTEGER, PARAMETER, PUBLIC               :: smear_energy_window=1,&
                                               smear_fermi_dirac=2,&
                                               smear_list=3

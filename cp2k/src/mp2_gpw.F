@@ -15,19 +15,20 @@ MODULE mp2_gpw
                                              array_release
   USE atomic_kind_types,               ONLY: atomic_kind_type
   USE cell_types,                      ONLY: cell_type
-  USE cp_blacs_env,                    ONLY: cp_blacs_env_create,&
+  USE cp_blacs_env,                    ONLY: BLACS_GRID_SQUARE,&
+                                             cp_blacs_env_create,&
                                              cp_blacs_env_release
   USE cp_control_types,                ONLY: dft_control_type
+  USE cp_dbcsr_cp2k_link,              ONLY: cp_dbcsr_alloc_block_from_nbl
   USE cp_dbcsr_interface,              ONLY: &
-       cp_create_bl_distribution, cp_dbcsr_copy, cp_dbcsr_create, &
-       cp_dbcsr_distribution, cp_dbcsr_distribution_release, cp_dbcsr_filter, &
-       cp_dbcsr_get_info, cp_dbcsr_init, cp_dbcsr_init_p, &
+       cp_create_bl_distribution, cp_dbcsr_clear_mempools, cp_dbcsr_copy, &
+       cp_dbcsr_create, cp_dbcsr_distribution, cp_dbcsr_distribution_release, &
+       cp_dbcsr_filter, cp_dbcsr_get_info, cp_dbcsr_init, cp_dbcsr_init_p, &
        cp_dbcsr_iterator_blocks_left, cp_dbcsr_iterator_next_block, &
        cp_dbcsr_iterator_start, cp_dbcsr_iterator_stop, cp_dbcsr_multiply, &
        cp_dbcsr_release, cp_dbcsr_row_block_sizes, cp_dbcsr_set
   USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
                                              copy_fm_to_dbcsr,&
-                                             cp_dbcsr_alloc_block_from_nbl,&
                                              cp_dbcsr_dist2d_to_dist
   USE cp_dbcsr_types,                  ONLY: cp_dbcsr_iterator,&
                                              cp_dbcsr_p_type,&
@@ -61,8 +62,7 @@ MODULE mp2_gpw
   USE distribution_methods,            ONLY: distribute_molecules_1d,&
                                              distribute_molecules_2d
   USE f77_blas
-  USE input_constants,                 ONLY: BLACS_GRID_SQUARE,&
-                                             use_orb_basis_set
+  USE input_constants,                 ONLY: use_orb_basis_set
   USE input_section_types,             ONLY: section_vals_val_get
   USE kinds,                           ONLY: dp
   USE machine,                         ONLY: default_output_unit,&
@@ -502,6 +502,10 @@ MODULE mp2_gpw
     CALL pw_pool_give_back_pw(auxbas_pw_pool,rho_r%pw,error=error_sub)
     CALL pw_pool_give_back_pw(auxbas_pw_pool,rho_g%pw,error=error_sub)
     CALL pw_pool_give_back_pw(auxbas_pw_pool,pot_g%pw,error=error_sub)
+
+    ! Free possibly large buffers allocated by dbcsr on the GPU,
+    ! large hybrid dgemm/pdgemm's coming later will need the space.
+    CALL cp_dbcsr_clear_mempools(error_sub)
 
     ! moved down
     ! CALL deallocate_task_list(task_list_sub,error=error_sub)

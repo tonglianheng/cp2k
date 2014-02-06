@@ -47,6 +47,15 @@ MODULE input_cp2k_dft
                                              logical_t,&
                                              real_t
   USE kinds,                           ONLY: dp
+  USE pw_grids,                        ONLY: do_pw_grid_blocked_false,&
+                                             do_pw_grid_blocked_free,&
+                                             do_pw_grid_blocked_true
+  USE pw_spline_utils,                 ONLY: no_precond,&
+                                             precond_spl3_1,&
+                                             precond_spl3_2,&
+                                             precond_spl3_3,&
+                                             precond_spl3_aint,&
+                                             precond_spl3_aint2
   USE string_utilities,                ONLY: s2a
 #include "cp_common_uses.h"
 
@@ -7155,11 +7164,10 @@ CONTAINS
             " in the propagator. For Ehrenfest MD only the Taylor method works, "//&
             "for real time propagation diagonalization works as well.",&
             usage="MAT_EXP TAYLOR",default_i_val=do_arnoldi, &
-            enum_c_vals=s2a("TAYLOR","DIAG","PADE","ARNOLDI"),&
-            enum_i_vals=(/do_taylor,do_diag,do_pade,do_arnoldi/),&
+            enum_c_vals=s2a("TAYLOR","PADE","ARNOLDI"),&
+            enum_i_vals=(/do_taylor,do_pade,do_arnoldi/),&
             enum_desc=s2a("exponential is evaluated using scaling and squaring in combination"//&
             " with a taylor expansion of the exponential.",&
-            "uses the eigenvalues and eigenvectors to calculate the exponential.",&
             "uses scaling and squaring together with the pade approximation",&
             "uses arnoldi subspace algorithm to compute exp(H)*MO directly, can't be used in "//&
             "combination with Crank Nicholson"),&
