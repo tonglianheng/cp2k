@@ -14,22 +14,10 @@
 !> \author Fawzi Mohamed
 ! *****************************************************************************
 MODULE pw_spline_utils
-  USE cell_types,                      ONLY: cell_type
-  USE cp_output_handling,              ONLY: cp_add_iter_level,&
-                                             cp_iterate,&
-                                             cp_rm_iter_level
-  USE input_constants,                 ONLY: no_precond,&
-                                             precond_spl3_1,&
-                                             precond_spl3_2,&
-                                             precond_spl3_3,&
-                                             precond_spl3_aint,&
-                                             precond_spl3_aint2,&
-                                             spline3_nopbc_interp,&
-                                             spline3_pbc_interp
-  USE input_section_types,             ONLY: section_vals_type,&
-                                             section_vals_val_get
   USE kinds,                           ONLY: dp
   USE mathconstants,                   ONLY: twopi
+  USE mathlib,                         ONLY: det_3x3,&
+                                             inv_3x3
   USE message_passing,                 ONLY: mp_alltoall,&
                                              mp_comm_compare,&
                                              mp_sendrecv,&
@@ -53,6 +41,7 @@ MODULE pw_spline_utils
                                              SQUARE,&
                                              pw_p_type,&
                                              pw_type
+  USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "cp_common_uses.h"
@@ -62,6 +51,13 @@ MODULE pw_spline_utils
 
   LOGICAL, PRIVATE, PARAMETER :: debug_this_module=.TRUE.
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'pw_spline_utils'
+
+  INTEGER, PARAMETER, PUBLIC               :: no_precond=0,&
+                                              precond_spl3_aint=1,&
+                                              precond_spl3_1=2,&
+                                              precond_spl3_aint2=3,&
+                                              precond_spl3_2=4,&
+                                              precond_spl3_3=5
 
     REAL ( KIND = dp ), PUBLIC, PARAMETER, DIMENSION(4) :: nn10_coeffs=&
          (/ 125._dp/216._dp, 25._dp/432._dp, 5._dp/864._dp, 1._dp/1728._dp /),&
@@ -102,9 +98,9 @@ MODULE pw_spline_utils
   PUBLIC :: pw_spline_scale_deriv, pw_nn_smear_g
   PUBLIC :: pw_spline2_interpolate_values_g, pw_spline2_evaluate_values_g,&
        pw_spline2_deriv_g
-  PUBLIC :: pw_nn_compose_r, pw_nn_smear_r, pw_nn_deriv_r, pw_prolongate_s3,&
-       pw_restrict_s3, spl3_nopbc, spl3_pbc, pw_nn_compose_r_no_pbc, spl3_nopbct
-  PUBLIC :: add_fine2coarse
+  PUBLIC :: pw_nn_compose_r, pw_nn_smear_r, pw_nn_deriv_r, &
+            spl3_nopbc, spl3_pbc, pw_nn_compose_r_no_pbc, spl3_nopbct
+  PUBLIC :: add_fine2coarse, add_coarse2fine
   PUBLIC :: pw_spline_precond_create,&
             pw_spline_do_precond,&
             pw_spline_precond_set_kind,&
@@ -113,6 +109,7 @@ MODULE pw_spline_utils
             pw_spline_precond_type,&
             Eval_Interp_Spl3_pbc,&
             Eval_d_Interp_Spl3_pbc
+
 !***
 
 ! *****************************************************************************
@@ -575,9 +572,10 @@ CONTAINS
 !>      06.2003 created [fawzi]
 !> \author Fawzi Mohamed
 ! *****************************************************************************
-  SUBROUTINE pw_spline_scale_deriv(deriv_vals_r,cell,transpose,scale,error)
+  SUBROUTINE pw_spline_scale_deriv(deriv_vals_r,cell_hmat,transpose,scale,error)
     TYPE(pw_p_type), DIMENSION(3)            :: deriv_vals_r
-    TYPE(cell_type), POINTER                 :: cell
+    REAL(KIND=dp), DIMENSION(3, 3), &
+      INTENT(IN)                             :: cell_hmat
     LOGICAL, INTENT(in), OPTIONAL            :: transpose
     REAL(KIND=dp), INTENT(in), OPTIONAL      :: scale
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -589,15 +587,23 @@ CONTAINS
     INTEGER, DIMENSION(2, 3)                 :: bo
     INTEGER, DIMENSION(3)                    :: n_tot
     LOGICAL                                  :: diag, failure, my_transpose
-    REAL(KIND=dp)                            :: dVal1, dVal2, dVal3, &
-                                                my_scale, scalef
-    REAL(KIND=dp), DIMENSION(3, 3)           :: h_grid
+    REAL(KIND=dp)                            :: cell_deth, dVal1, dVal2, &
+                                                dVal3, my_scale, scalef
+    REAL(KIND=dp), DIMENSION(3, 3)           :: cell_h_inv, h_grid
     REAL(kind=dp), DIMENSION(:, :, :), &
       POINTER                                :: ddata, ddata2, ddata3
 
 ! sun does not like that its components are modified
 
     CALL timeset(routineN,handle)
+
+    cell_deth = ABS(det_3x3(cell_hmat))
+    IF (cell_deth < 1.0E-10_dp) THEN
+       CALL stop_program(routineN,moduleN,__LINE__,&
+                         "An invalid set of cell vectors was specified. "//&
+                         "The determinant det(h) is too small")
+    END IF
+    cell_h_inv = inv_3x3(cell_hmat)
 
     failure=.FALSE.
     my_transpose=.FALSE.
@@ -607,21 +613,19 @@ CONTAINS
     n_tot(1:3) = deriv_vals_r(1)%pw%pw_grid%npts (1:3)
     bo = deriv_vals_r(1)%pw%pw_grid%bounds_local
 
-    CPPrecondition(ASSOCIATED(cell),cp_failure_level,routineP,error,failure)
-
     ! map grid to real derivative
     diag=.TRUE.
     IF (my_transpose) THEN
        DO j=1,3
           DO i=1,3
-             h_grid(j,i)=my_scale*REAL(n_tot(i),dp)*cell%h_inv(i,j)
+             h_grid(j,i)=my_scale*REAL(n_tot(i),dp)*cell_h_inv(i,j)
              IF (i/=j.AND.h_grid(j,i)/=0.0_dp) diag=.FALSE.
           END DO
        END DO
     ELSE
        DO j=1,3
           DO i=1,3
-             h_grid(i,j)=my_scale*REAL(n_tot(i),dp)*cell%h_inv(i,j)
+             h_grid(i,j)=my_scale*REAL(n_tot(i),dp)*cell_h_inv(i,j)
              IF (i/=j.AND.h_grid(i,j)/=0.0_dp) diag=.FALSE.
           END DO
        END DO
@@ -3347,7 +3351,7 @@ CPSourceFileRef,&
        CALL pw_pool_create_pw(pool,Ap,use_data=REALDATA3D,in_space=REALSPACE,&
             error=error)
 
-       CALL cp_add_iter_level(logger%iter_info,level_name="SPLINE_FIND_COEFFS",error=error)
+       !CALL cp_add_iter_level(logger%iter_info,level_name="SPLINE_FIND_COEFFS",error=error)
        ext_do:DO iiter=1,max_iter,10
           CALL pw_zero(r,error=error)
           CALL linOp(pw_in=coeffs,pw_out=r,error=error)
@@ -3372,7 +3376,7 @@ CPSourceFileRef,&
                 eps_x_att=alpha*SQRT(pw_integral_aa_fast(p,SQUARE,error=error)) ! try to spare if unneded?
                 IF (eps_r_att<eps_r .AND. eps_x_att<eps_x) last=.TRUE.
              END IF
-             CALL cp_iterate(logger%iter_info,last=last,error=error)
+             !CALL cp_iterate(logger%iter_info,last=last,error=error)
              IF (last) THEN
                 res=.TRUE.
                 EXIT ext_do
@@ -3397,7 +3401,7 @@ CPSourceFileRef,&
 
           END DO
        END DO ext_do
-       CALL cp_rm_iter_level(logger%iter_info,level_name="SPLINE_FIND_COEFFS",error=error)
+       !CALL cp_rm_iter_level(logger%iter_info,level_name="SPLINE_FIND_COEFFS",error=error)
 
        CALL pw_pool_give_back_pw(pool,r,error=error)
        CALL pw_pool_give_back_pw(pool,z,error=error)
@@ -3406,216 +3410,6 @@ CPSourceFileRef,&
     END IF
   END FUNCTION find_coeffs
 
-! *****************************************************************************
-!> \brief restricts the function from a fine grid to a coarse one
-!> \param pw_fine_in the fine grid
-!> \param pw_coarse_out the coarse grid
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
-!> \note
-!>      extremely slow (but correct) version
-!> \author fawzi
-! *****************************************************************************
-  SUBROUTINE pw_restrict_s3(pw_fine_in,pw_coarse_out,coarse_pool,param_section,&
-       error)
-    TYPE(pw_type), POINTER                   :: pw_fine_in, pw_coarse_out
-    TYPE(pw_pool_type), POINTER              :: coarse_pool
-    TYPE(section_vals_type), POINTER         :: param_section
-    TYPE(cp_error_type), INTENT(inout)       :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'pw_restrict_s3', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: aint_precond, handle, &
-                                                interp_kind, max_iter, &
-                                                precond_kind
-    INTEGER, DIMENSION(2, 3)                 :: bo
-    INTEGER, SAVE                            :: ifile = 0
-    LOGICAL                                  :: failure, pbc, &
-                                                safe_computation, success
-    REAL(kind=dp)                            :: eps_r, eps_x
-    TYPE(pw_spline_precond_type), POINTER    :: precond
-    TYPE(pw_type), POINTER                   :: coeffs, values
-
-    failure=.FALSE.
-    ifile=ifile+1
-    CALL timeset(routineN,handle)
-    IF (.NOT. failure) THEN
-       CALL section_vals_val_get(param_section,"safe_computation", &
-            l_val=safe_computation, error=error)
-       CALL section_vals_val_get(param_section,"aint_precond", &
-            i_val=aint_precond, error=error)
-       CALL section_vals_val_get(param_section,"precond", &
-            i_val=precond_kind, error=error)
-       CALL section_vals_val_get(param_section,"max_iter", &
-            i_val=max_iter, error=error)
-       CALL section_vals_val_get(param_section,"eps_r", &
-            r_val=eps_r, error=error)
-       CALL section_vals_val_get(param_section,"eps_x", &
-            r_val=eps_x, error=error)
-       CALL section_vals_val_get(param_section,"kind",&
-            i_val=interp_kind, error=error)
-
-       pbc=(interp_kind==spline3_pbc_interp)
-       CPPrecondition(pbc.OR.interp_kind==spline3_nopbc_interp,cp_failure_level,routineP,error,failure)
-       bo=pw_coarse_out%pw_grid%bounds_local
-       NULLIFY(values,coeffs)
-       CALL pw_pool_create_pw(coarse_pool,values, use_data=REALDATA3D,&
-            in_space=REALSPACE,error=error)
-       CALL pw_zero(values,error=error)
-
-!FM       nullify(tst_pw)
-!FM       CALL pw_pool_create_pw(coarse_pool,tst_pw, use_data=REALDATA3D,&
-!FM            in_space=REALSPACE,error=error)
-!FM       call pw_copy(values,tst_pw,error=error)
-!FM       call add_fine2coarse(fine_values_pw=pw_fine_in,&
-!FM            coarse_coeffs_pw=tst_pw,&
-!FM            weights_1d=spl3_1d_transf_coeffs/2._dp, w_border0=0.5_dp,&
-!FM            w_border1=spl3_1d_transf_border1/2._dp,pbc=pbc,&
-!FM            safe_computation=.false.,error=error)
-
-       CALL add_fine2coarse(fine_values_pw=pw_fine_in,&
-            coarse_coeffs_pw=values,&
-            weights_1d=spl3_1d_transf_coeffs/2._dp, w_border0=0.5_dp,&
-            w_border1=spl3_1d_transf_border1/2._dp,pbc=pbc,&
-            safe_computation=safe_computation,error=error)
-
-!FM       CALL pw_compare_debug(tst_pw,values,max_diff,error=error)
-!FM       WRITE(cp_logger_get_default_unit_nr(logger,.TRUE.),*)"f2cmax_diff=",max_diff
-!FM       CALL pw_pool_give_back_pw(coarse_pool,tst_pw,error=error)
-
-       CALL pw_pool_create_pw(coarse_pool,coeffs, use_data=REALDATA3D,&
-            in_space=REALSPACE,error=error)
-       NULLIFY(precond)
-       CALL pw_spline_precond_create(precond,precond_kind=aint_precond,&
-            pool=coarse_pool,pbc=pbc,transpose=.TRUE.,error=error)
-       CALL pw_spline_do_precond(precond,values,coeffs,error=error)
-       CALL pw_spline_precond_set_kind(precond,precond_kind,error=error)
-       IF (pbc) THEN
-          success=find_coeffs(values=values,coeffs=coeffs,&
-               linOp=spl3_pbc,preconditioner=precond, pool=coarse_pool, &
-               eps_r=eps_r,eps_x=eps_x, max_iter=max_iter,error=error)
-       ELSE
-          success=find_coeffs(values=values,coeffs=coeffs,&
-               linOp=spl3_nopbct,preconditioner=precond, pool=coarse_pool, &
-               eps_r=eps_r,eps_x=eps_x, max_iter=max_iter,error=error)
-       END IF
-       CALL pw_spline_precond_release(precond,error=error)
-
-       CALL pw_zero(pw_coarse_out,error=error)
-       CALL pw_axpy(coeffs,pw_coarse_out,error=error)
-
-       CALL pw_pool_give_back_pw(coarse_pool,values,error=error)
-       CALL pw_pool_give_back_pw(coarse_pool,coeffs,error=error)
-    END IF
-    CALL timestop(handle)
-  END SUBROUTINE pw_restrict_s3
-
-! *****************************************************************************
-!> \brief prolongates a function from a coarse grid into a fine one
-!> \param pw_fine_in the fine grid
-!> \param pw_coarse_out the coarse grid
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
-!> \note
-!>      extremely slow (but correct) version
-!> \author fawzi
-! *****************************************************************************
-  SUBROUTINE pw_prolongate_s3(pw_coarse_in,pw_fine_out,coarse_pool,&
-       param_section,error)
-    TYPE(pw_type), POINTER                   :: pw_coarse_in, pw_fine_out
-    TYPE(pw_pool_type), POINTER              :: coarse_pool
-    TYPE(section_vals_type), POINTER         :: param_section
-    TYPE(cp_error_type), INTENT(inout)       :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'pw_prolongate_s3', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: aint_precond, handle, &
-                                                interp_kind, max_iter, &
-                                                precond_kind
-    INTEGER, DIMENSION(2, 3)                 :: bo
-    INTEGER, SAVE                            :: ifile = 0
-    LOGICAL                                  :: failure, pbc, &
-                                                safe_computation, success
-    REAL(kind=dp)                            :: eps_r, eps_x
-    TYPE(pw_spline_precond_type), POINTER    :: precond
-    TYPE(pw_type), POINTER                   :: coeffs
-
-    failure=.FALSE.
-
-    ifile=ifile+1
-    CALL timeset(routineN,handle)
-    IF (.NOT. failure) THEN
-       NULLIFY(coeffs)
-       CALL pw_pool_create_pw(coarse_pool,coeffs, use_data=REALDATA3D,&
-            in_space=REALSPACE,error=error)
-       bo=pw_coarse_in%pw_grid%bounds_local
-       CALL section_vals_val_get(param_section,"safe_computation", &
-            l_val=safe_computation, error=error)
-       CALL section_vals_val_get(param_section,"aint_precond", &
-            i_val=aint_precond, error=error)
-       CALL section_vals_val_get(param_section,"precond", &
-            i_val=precond_kind, error=error)
-       CALL section_vals_val_get(param_section,"max_iter", &
-            i_val=max_iter, error=error)
-       CALL section_vals_val_get(param_section,"eps_r", &
-            r_val=eps_r, error=error)
-       CALL section_vals_val_get(param_section,"eps_x", &
-            r_val=eps_x, error=error)
-       CALL section_vals_val_get(param_section,"kind",&
-            i_val=interp_kind,error=error)
-
-       pbc=(interp_kind==spline3_pbc_interp)
-       CPPrecondition(pbc.OR.interp_kind==spline3_nopbc_interp,cp_failure_level,routineP,error,failure)
-       NULLIFY(precond)
-       CALL pw_spline_precond_create(precond,precond_kind=aint_precond,&
-            pool=coarse_pool,pbc=pbc,transpose=.FALSE.,error=error)
-       CALL pw_spline_do_precond(precond,pw_coarse_in,coeffs,error=error)
-       CALL pw_spline_precond_set_kind(precond,precond_kind,error=error)
-       IF (pbc) THEN
-          success=find_coeffs(values=pw_coarse_in,coeffs=coeffs,&
-               linOp=spl3_pbc,preconditioner=precond, pool=coarse_pool, &
-               eps_r=eps_r,eps_x=eps_x,&
-               max_iter=max_iter,error=error)
-       ELSE
-          success=find_coeffs(values=pw_coarse_in,coeffs=coeffs,&
-               linOp=spl3_nopbc,preconditioner=precond, pool=coarse_pool, &
-               eps_r=eps_r,eps_x=eps_x,&
-               max_iter=max_iter,error=error)
-       END IF
-       CPPostconditionNoFail(success,cp_warning_level,routineP,error)
-       CALL pw_spline_precond_release(precond,error=error)
-
-!FM       nullify(tst_pw)
-!FM       call pw_create(tst_pw, pw_fine_out%pw_grid, use_data=REALDATA3D,&
-!FM            in_space=REALSPACE, error=error)
-!FM       call pw_copy(pw_fine_out,tst_pw,error=error)
-!FM       CALL add_coarse2fine(coarse_coeffs_pw=coeffs,&
-!FM            fine_values_pw=tst_pw,&
-!FM            weights_1d=spl3_1d_transf_coeffs,&
-!FM            w_border0=1._dp,&
-!FM            w_border1=spl3_1d_transf_border1,&
-!FM            pbc=pbc,safe_computation=.false.,&
-!FM            error=error)
-
-       CALL add_coarse2fine(coarse_coeffs_pw=coeffs,&
-            fine_values_pw=pw_fine_out,&
-            weights_1d=spl3_1d_transf_coeffs,&
-            w_border0=1._dp,&
-            w_border1=spl3_1d_transf_border1,&
-            pbc=pbc,safe_computation=safe_computation,&
-            error=error)
-
-!FM       CALL pw_compare_debug(tst_pw,pw_fine_out,max_diff,error=error)
-!FM       WRITE(cp_logger_get_default_unit_nr(logger,.TRUE.),*)"c2fmax_diff=",max_diff
-!FM       CALL pw_release(tst_pw,error=error)
-
-       CALL pw_pool_give_back_pw(coarse_pool,coeffs,error=error)
-
-    END IF
-    CALL timestop(handle)
-  END SUBROUTINE pw_prolongate_s3
 
 ! *****************************************************************************
 !> \brief adds to pw_out pw_in composed with the weights
