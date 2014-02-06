@@ -2571,7 +2571,8 @@ CONTAINS
          "PT J",&
          "AU Kantorovich, L",&
          "AF Kantorovich, Lev",&
-         "TI Generalized Langevin equation for solids. I. Rigorous derivation and main properties",&
+         "TI Generalized Langevin equation for solids. I. ",&
+         "   Rigorous derivation and main properties",&
          "SO PHYSICAL REVIEW B",&
          "SN 1098-0121",&
          "PD SEP",&
@@ -2586,10 +2587,11 @@ CONTAINS
     CALL add_reference(key=Kantorovich2008a, ISI_record=s2a(&
          "PT J",&
          "AU Kantorovich, L",&
-         "   Rompotis, N"
+         "   Rompotis, N",&
          "AF Kantorovich, Lev",&
-         "   Rompotis, N"
-         "Generalized Langevin equation for solids. II. Stochastic boundary conditions for nonequilibrium molecular dynamics simulations",&
+         "   Rompotis, N",&
+         "TI Generalized Langevin equation for solids. II. ",&
+         "   Stochastic boundary conditions for nonequilibrium molecular dynamics simulations",&
          "SO PHYSICAL REVIEW B",&
          "SN 1098-0121",&
          "PD SEP",&

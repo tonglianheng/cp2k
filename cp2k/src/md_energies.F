@@ -9,7 +9,7 @@
 !> \author Joost VandeVondele (copy from md_fist_energies)
 !>
 !> \par History
-!>      - New MD data are appended to the old data (15.09.2003,MK)
+!>   - New MD data are appended to the old data (15.09.2003,MK)
 ! *****************************************************************************
 MODULE md_energies
   USE atomic_kind_list_types,          ONLY: atomic_kind_list_type
@@ -98,7 +98,7 @@ CONTAINS
 
 ! *****************************************************************************
 !> \par History
-!>      -10-2007 created
+!>   - 10-2007 created
 !> \author MI
 ! *****************************************************************************
   SUBROUTINE initialize_md_ener(md_ener,force_env,simpar,error)
@@ -224,7 +224,7 @@ CPSourceFileRef,&
 
 ! *****************************************************************************
 !> \par History
-!>      -10-2007 created
+!>   - 10-2007 created
 !> \author MI
 ! *****************************************************************************
   SUBROUTINE md_energy(md_env, md_ener, error)
@@ -274,7 +274,7 @@ CPSourceFileRef,&
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 !> \par History
-!>      10.2007 created
+!>   - 10.2007 created
 !> \author MI
 ! *****************************************************************************
   SUBROUTINE md_ener_reftraj(md_env,md_ener,error)
@@ -304,9 +304,9 @@ CPSourceFileRef,&
 !> \brief This routine computes the conserved quantity, temperature
 !>      and things like that and prints them out
 !> \par History
-!>      - New MD data are appended to the old data (15.09.2003,MK)
-!>      - 02.2008 - Teodoro Laino [tlaino] - University of Zurich
-!>                  Cleaning code and collecting the many commons routines..
+!>   - New MD data are appended to the old data (15.09.2003,MK)
+!>   - 02.2008 - Teodoro Laino [tlaino] - University of Zurich
+!>               Cleaning code and collecting the many commons routines..
 !> \author CJM
 ! *****************************************************************************
   SUBROUTINE md_write_output(md_env, error)
@@ -638,9 +638,9 @@ CPSourceFileRef,&
 ! *****************************************************************************
 !> \brief This routine prints all basic information during MD steps
 !> \par History
-!>      - 10.2008 - Teodoro Laino [tlaino] - University of Zurich
-!>                  Refactoring: split into an independent routine.
-!>                  All output on screen must be included in this function!
+!>   - 10.2008 - Teodoro Laino [tlaino] - University of Zurich
+!>               Refactoring: split into an independent routine.
+!>               All output on screen must be included in this function!
 !> \author CJM
 ! *****************************************************************************
   SUBROUTINE md_write_info_low(simpar, md_ener, qmmm, virial, reftraj, cell,&

@@ -6,7 +6,7 @@
 ! *****************************************************************************
 !> \brief Perform a molecular dynamics (MD) run using QUICKSTEP
 !> \par History
-!>      none
+!>   - Added support for Langevin regions (2014/02/05, LT)
 !> \author Matthias Krack (07.11.2002)
 ! *****************************************************************************
 MODULE md_run
@@ -51,7 +51,7 @@ MODULE md_run
                                              section_vals_remove_values,&
                                              section_vals_type,&
                                              section_vals_val_get
-  USE kinds,                           ONLY: dp
+  USE kinds,                           ONLY: dp, default_string_length
   USE machine,                         ONLY: m_walltime
   USE mc_types,                        ONLY: mc_ekin_type
   USE md_ener_types,                   ONLY: create_md_ener,&
@@ -167,8 +167,8 @@ CONTAINS
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 !> \par History
-!>      - Cleaning (09.2007) Teodoro Laino [tlaino] - University of Zurich
-!>      - Added lines to print out langevin regions (2014/02/04, LT)
+!>   - Cleaning (09.2007) Teodoro Laino [tlaino] - University of Zurich
+!>   - Added lines to print out langevin regions (2014/02/04, LT)
 !> \author Creation (07.11.2002,MK)
 ! *****************************************************************************
   SUBROUTINE qs_mol_dyn_low(md_env, md_section, motion_section, force_env, globenv, hmc_ekin, mdctrl, error)
@@ -214,6 +214,7 @@ CONTAINS
     TYPE(simpar_type), POINTER               :: simpar
     TYPE(thermal_regions_type), POINTER      :: thermal_regions
     TYPE(thermostats_type), POINTER          :: thermostats
+    CHARACTER(LEN=default_string_length)     :: my_act, my_pos
 
     CALL timeset(routineN,handle)
     CPPrecondition(ASSOCIATED(globenv),cp_failure_level,routineP,error,failure)
@@ -265,10 +266,12 @@ CONTAINS
 
     ! If requested setup different thermal regions
     CALL create_thermal_regions(thermal_regions,  md_section, simpar, force_env, error )
-    
+
     ! If doing langevin_ensemble, then print out langevin_regions information upon request
     IF (simpar%ensemble == langevin_ensemble) THEN
-       CALL print_thermal_regions_langevin(thermal_regions, pos="REWIND", act="WRITE", error)
+       my_pos = "REWIND"
+       my_act = "WRITE"
+       CALL print_thermal_regions_langevin(thermal_regions, pos=my_pos, act=my_act, error=error)
     END IF
 
     CALL set_md_env(md_env, thermostats=thermostats, barostat=barostat, thermal_regions=thermal_regions,error=error)

@@ -5,7 +5,7 @@
 
 ! *****************************************************************************
 !> \brief Setup of regions with different temperature
-!> \history
+!> \par History
 !>   - Added support for Langevin regions (2014/01/08, LT)
 !>   - Added print subroutine for langevin regions (2014/02/04, LT)
 !>   - Changed print_thermal_regions to print_thermal_regions_temperature
@@ -55,7 +55,7 @@ CONTAINS
 ! *****************************************************************************
 !> \brief create thermal_regions
 !> \par History
-!>      - Added support for Langevin regions (2014/01/08, LT)
+!>   - Added support for Langevin regions (2014/01/08, LT)
 !> \author
 ! *****************************************************************************
   SUBROUTINE create_thermal_regions(thermal_regions, md_section, simpar, force_env, error)
@@ -143,8 +143,7 @@ CONTAINS
               CALL reallocate(t_region%part_index,1,t_region%npart+SIZE(tmplist))
               DO i = 1, SIZE(tmplist)
                  ipart = tmplist(i)
-                 CPPostcondition(((ipart>0).AND.(ipart<=particles%n_els)), &
-                                 cp_failure_level, routineP, error, failure)
+                 CPPostcondition(((ipart>0).AND.(ipart<=particles%n_els)),cp_failure_level,routineP,error,failure)
                  t_region%npart = t_region%npart + 1
                  t_region%part_index(t_region%npart) = ipart
                  particles%els(ipart)%t_region_index = ireg
@@ -182,9 +181,9 @@ CONTAINS
 !> \param act             : file action
 !> \param error           : wrapper for errors
 !> \par History
-!>      - 2014/02/04 added doxygen header and changed subroutine name from
-!>                   print_thermal_regions to print_thermal_regions_temperature
-!>                   [LT]
+!>   - added doxygen header and changed subroutine name from
+!>     print_thermal_regions to print_thermal_regions_temperature
+!>     (2014/02/04, LT)
 !> \author
 ! *****************************************************************************
   SUBROUTINE print_thermal_regions_temperature(thermal_regions, itimes, time, pos, act, error)
@@ -248,7 +247,7 @@ CONTAINS
 !> \param act             : file action
 !> \param error           : wrapper for errors
 !> \par History
-!>      - 2014/02/02 created [LT]
+!>   - created (2014/02/02, LT)
 !> \author Lianheng Tong [LT] (tonglianheng@gmail.com)
 ! *****************************************************************************
   SUBROUTINE print_thermal_regions_langevin(thermal_regions, pos, act, error)
@@ -280,14 +279,14 @@ CONTAINS
                                                extension=".lgv_regions", &
                                                file_position=pos, file_action=act, &
                                                is_new_file=new_file, error=error)
-             IF (pring_unit > 0) THEN
+             IF (print_unit > 0) THEN
                 IF (new_file) THEN
                    WRITE (print_unit, '(A)') "# Atoms Undergoing Langevin MD"
-                   WRITE (print_unit, '(A,3X,A,3X,A)') "#" "Atom ID" "Langevin(L)/NVE(N)"
+                   WRITE (print_unit, '(A,3X,A,3X,A)') "#", "Atom ID", "Langevin(L)/NVE(N)"
                 END IF
-                natoms = LEN(thermal_regions%do_langevin)
+                natoms = SIZE(thermal_regions%do_langevin)
                 DO ipart = 1, natoms
-                   WRITE (print_unit, '(I10,2X)', advance='no') ipart
+                   WRITE (print_unit, '(1X,I10,3X)', advance='no') ipart
                    IF (thermal_regions%do_langevin(ipart)) THEN
                       WRITE (print_unit, '(A)') "L"
                    ELSE

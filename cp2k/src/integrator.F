@@ -116,9 +116,9 @@ CONTAINS
 !>        - L. Kantorovich, Phys. Rev. B 78, 094304 (2008)
 !>        - L. Kantorovich and N. Rompotis, Phys. Rev. B 78, 094305 (2008)
 !> \par History
-!>      - Created (01.07.2005,MK)
-!>      - Added support for only performing Langevin MD on a region of atoms
-!>        (01.12.2013, LT)
+!>   - Created (01.07.2005,MK)
+!>   - Added support for only performing Langevin MD on a region of atoms
+!>     (01.12.2013, LT)
 !> \author Matthias Krack
 ! *****************************************************************************
   SUBROUTINE langevin(md_env,error)
@@ -361,8 +361,8 @@ CONTAINS
 ! *****************************************************************************
 !> \brief nve integrator for particle positions & momenta
 !> \par History
-!>      - the local particle lists are used instead of pnode (Sep. 2003,MK)
-!>      - usage of fragments retrieved from the force environment (Oct. 2003,MK)
+!>   - the local particle lists are used instead of pnode (Sep. 2003,MK)
+!>   - usage of fragments retrieved from the force environment (Oct. 2003,MK)
 !> \author CJM
 ! *****************************************************************************
   SUBROUTINE nve ( md_env, globenv, error)
@@ -584,7 +584,7 @@ CONTAINS
 !>         - Zhang F. , JCP 106, 6102 (1997)
 !>         - Minary P. et al, JCP 118, 2510 (2003)
 !> \par History
-!>      - Created [2004-07]
+!>   - Created [2004-07]
 !> \author Joost VandeVondele
 ! *****************************************************************************
   SUBROUTINE isokin ( md_env, error )
@@ -709,8 +709,8 @@ CONTAINS
 ! *****************************************************************************
 !> \brief nvt adiabatic integrator for particle positions & momenta
 !> \par History
-!>      - the local particle lists are used instead of pnode (Sep. 2003,MK)
-!>      - usage of fragments retrieved from the force environment (Oct. 2003,MK)
+!>   - the local particle lists are used instead of pnode (Sep. 2003,MK)
+!>   - usage of fragments retrieved from the force environment (Oct. 2003,MK)
 !> \author CJM
 ! *****************************************************************************
   SUBROUTINE nvt_adiabatic ( md_env, globenv, error)
@@ -938,8 +938,8 @@ CONTAINS
 ! *****************************************************************************
 !> \brief nvt integrator for particle positions & momenta
 !> \par History
-!>      - the local particle lists are used instead of pnode (Sep. 2003,MK)
-!>      - usage of fragments retrieved from the force environment (Oct. 2003,MK)
+!>   - the local particle lists are used instead of pnode (Sep. 2003,MK)
+!>   - usage of fragments retrieved from the force environment (Oct. 2003,MK)
 !> \author CJM
 ! *****************************************************************************
   SUBROUTINE nvt ( md_env, globenv, error)
@@ -1553,8 +1553,8 @@ CONTAINS
 !> \note
 !>     it can be used to compute some properties on already available trajectories
 !> \par History
-!>      - 04.2005 created [Joost VandeVondele]
-!>      - modified to make it more general [MI]
+!>   - 04.2005 created [Joost VandeVondele]
+!>   - modified to make it more general [MI]
 ! *****************************************************************************
   SUBROUTINE reftraj ( md_env, error )
     TYPE(md_environment_type), POINTER       :: md_env
@@ -2739,4 +2739,3 @@ CPSourceFileRef,&
   END SUBROUTINE nve_respa
 
 END MODULE integrator
-

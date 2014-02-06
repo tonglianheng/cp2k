@@ -6,8 +6,8 @@
 ! *****************************************************************************
 !> \brief Thermal regions type: to initialize and control the temperature of
 !>        different regions
-!> \history
-!>   Added support for langevin regions (2014/01/08, LT)
+!> \par History
+!>   - Added support for langevin regions (2014/01/08, LT)
 !> \author MI
 ! *****************************************************************************
 MODULE thermal_region_types
