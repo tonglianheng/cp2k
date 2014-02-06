@@ -14,7 +14,8 @@
 ! *****************************************************************************
 MODULE thermal_region_utils
 
-  USE bibliography,                    ONLY: Kantorovich2008, Kantorovich2008a
+  USE bibliography,                    ONLY: cite_reference, &
+                                             Kantorovich2008, Kantorovich2008a
   USE cp_output_handling,              ONLY: cp_p_file,&
                                              cp_print_key_finished_output,&
                                              cp_print_key_should_output,&
