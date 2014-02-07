@@ -1,5 +1,5 @@
 &GLOBAL
-  PROJECT langevin_regions-1
+  PROJECT langevin_regions-2
   RUN_TYPE MD
   PRINT_LEVEL LOW
 &END GLOBAL
