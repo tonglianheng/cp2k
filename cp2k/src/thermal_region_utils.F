@@ -36,6 +36,7 @@ MODULE thermal_region_utils
                                              dp
   USE memory_utilities,                ONLY: reallocate
   USE particle_list_types,             ONLY: particle_list_type
+  USE physcon,                         ONLY: kelvin
   USE simpar_types,                    ONLY: simpar_type
   USE thermal_region_types,            ONLY: allocate_thermal_regions,&
                                              release_thermal_regions,&
@@ -133,6 +134,7 @@ CONTAINS
          DO ireg = 1,nregions
            NULLIFY(t_region)
            t_region => thermal_regions%thermal_region(ireg)
+           t_region%region_index = ireg
            CALL section_vals_val_get(region_sections,"LIST", &
                                      i_rep_section=ireg, n_rep_val=nlist, error=error)
            NULLIFY(t_region%part_index)
@@ -247,6 +249,7 @@ CONTAINS
 !>        thermal_regions section
 !> \param thermal_regions : thermal regions type containing the relevant
 !>                          langevin regions information
+!> \param simpar          : wrapper for simulation parameters
 !> \param pos             : file position
 !> \param act             : file action
 !> \param error           : wrapper for errors
@@ -254,18 +257,21 @@ CONTAINS
 !>   - created (2014/02/02, LT)
 !> \author Lianheng Tong [LT] (tonglianheng@gmail.com)
 ! *****************************************************************************
-  SUBROUTINE print_thermal_regions_langevin(thermal_regions, pos, act, error)
-    TYPE(thermal_regions_type), POINTER  :: thermal_regions
-    CHARACTER(LEN=default_string_length) :: pos, act
-    TYPE(cp_error_type), INTENT(INOUT)   :: error
+  SUBROUTINE print_thermal_regions_langevin(thermal_regions, simpar, pos, act, error)
+    TYPE(thermal_regions_type), POINTER      :: thermal_regions
+    TYPE(simpar_type), POINTER               :: simpar
+    CHARACTER(LEN=default_string_length)     :: pos, act
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
-    CHARACTER(len=*), PARAMETER          :: routineN = 'print_thermal_regions_langevin', &
-                                            routineP = moduleN//":"//routineN
+    CHARACTER(len=*), PARAMETER              :: routineN = 'print_thermal_regions_langevin', &
+                                                routineP = moduleN//":"//routineN
 
-    LOGICAL                              :: failure, new_file
-    TYPE(cp_logger_type), POINTER        :: logger
-    INTEGER                              :: ipart, print_unit, natoms
-    TYPE(section_vals_type), POINTER     :: print_key
+    LOGICAL                                  :: failure, new_file
+    TYPE(cp_logger_type), POINTER            :: logger
+    INTEGER                                  :: ipart, ipart_reg, ireg, print_unit, natoms, stat
+    TYPE(section_vals_type), POINTER         :: print_key
+    REAL(KIND=dp), DIMENSION(:), ALLOCATABLE :: temperature
+    INTEGER, DIMENSION(:), ALLOCATABLE       :: region_id
 
     failure = .FALSE.
     NULLIFY(logger)
@@ -286,17 +292,38 @@ CONTAINS
              IF (print_unit > 0) THEN
                 IF (new_file) THEN
                    WRITE (print_unit, '(A)') "# Atoms Undergoing Langevin MD"
-                   WRITE (print_unit, '(A,3X,A,3X,A)') "#", "Atom ID", "Langevin(L)/NVE(N)"
+                   WRITE (print_unit, '(A,3X,A,3X,A,3X,A,3X,A)') &
+                        "#", "Atom_ID", "Region_ID", "Langevin(L)/NVE(N)", "Expected_Temperature[K]"
                 END IF
                 natoms = SIZE(thermal_regions%do_langevin)
+                ALLOCATE(temperature(natoms), STAT=stat)
+                CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
+                ALLOCATE(region_id(natoms), STAT=stat)
+                CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
+                temperature(:) = simpar%temp_ext
+                region_id(:) = 0
+                DO ireg = 1, thermal_regions%nregions
+                   DO ipart_reg = 1, thermal_regions%thermal_region(ireg)%npart
+                      ipart = thermal_regions%thermal_region(ireg)%part_index(ipart_reg)
+                      temperature(ipart) = thermal_regions%thermal_region(ireg)%temp_expected
+                      region_id(ipart) = thermal_regions%thermal_region(ireg)%region_index
+                   END DO
+                END DO
                 DO ipart = 1, natoms
                    WRITE (print_unit, '(1X,I10,3X)', advance='no') ipart
+                   WRITE (print_unit, '(I10,3X)', advance='no') region_id(ipart)
                    IF (thermal_regions%do_langevin(ipart)) THEN
-                      WRITE (print_unit, '(A)') "L"
+                      WRITE (print_unit, '(A,3X)', advance='no') "L"
+                      WRITE (print_unit, '(F20.3)') temperature(ipart) * kelvin
                    ELSE
-                      WRITE (print_unit, '(A)') "N"
+                      WRITE (print_unit, '(A,3X)', advance='no') "N"
+                      WRITE (print_unit, '(18X,A)') "--"
                    END IF
                 END DO
+                DEALLOCATE(region_id, STAT=stat)
+                CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
+                DEALLOCATE(temperature, STAT=stat)
+                CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
              END IF
              CALL cp_print_key_finished_output(print_unit, logger, thermal_regions%section, &
                                                "PRINT%LANGEVIN_REGIONS", error=error)
