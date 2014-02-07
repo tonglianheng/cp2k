@@ -271,7 +271,8 @@ CONTAINS
     IF (simpar%ensemble == langevin_ensemble) THEN
        my_pos = "REWIND"
        my_act = "WRITE"
-       CALL print_thermal_regions_langevin(thermal_regions, pos=my_pos, act=my_act, error=error)
+       CALL print_thermal_regions_langevin(thermal_regions, simpar, &
+                                           pos=my_pos, act=my_act, error=error)
     END IF
 
     CALL set_md_env(md_env, thermostats=thermostats, barostat=barostat, thermal_regions=thermal_regions,error=error)
