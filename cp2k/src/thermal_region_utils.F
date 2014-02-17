@@ -14,8 +14,9 @@
 ! *****************************************************************************
 MODULE thermal_region_utils
 
-  USE bibliography,                    ONLY: cite_reference, &
-                                             Kantorovich2008, Kantorovich2008a
+  USE bibliography,                    ONLY: Kantorovich2008,&
+                                             Kantorovich2008a,&
+                                             cite_reference
   USE cp_output_handling,              ONLY: cp_p_file,&
                                              cp_print_key_finished_output,&
                                              cp_print_key_should_output,&
@@ -24,10 +25,10 @@ MODULE thermal_region_utils
                                              cp_subsys_type
   USE force_env_types,                 ONLY: force_env_get,&
                                              force_env_type
-  USE input_constants,                 ONLY: npt_f_ensemble,&
+  USE input_constants,                 ONLY: langevin_ensemble,&
+                                             npt_f_ensemble,&
                                              npt_i_ensemble,&
-                                             nvt_ensemble,&
-                                             langevin_ensemble
+                                             nvt_ensemble
   USE input_section_types,             ONLY: section_vals_get,&
                                              section_vals_get_subs_vals,&
                                              section_vals_type,&
@@ -74,9 +75,10 @@ CONTAINS
     INTEGER                                  :: i, il, ipart, ireg, nlist, &
                                                 nregions, stat
     INTEGER, DIMENSION(:), POINTER           :: tmplist
-    LOGICAL                                  :: apply_thermostat, explicit, &
-                                                failure, do_langevin_default, &
-                                                do_langevin
+    LOGICAL                                  :: apply_thermostat, &
+                                                do_langevin, &
+                                                do_langevin_default, &
+                                                explicit, failure
     REAL(KIND=dp)                            :: temp, temp_tol
     TYPE(cp_subsys_type), POINTER            :: subsys
     TYPE(particle_list_type), POINTER        :: particles
@@ -199,8 +201,9 @@ CONTAINS
     CHARACTER(LEN=default_string_length)     :: pos, act
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'print_thermal_regions_temperature', &
-                                   routineP = moduleN//':'//routineN
+    CHARACTER(len=*), PARAMETER :: &
+      routineN = 'print_thermal_regions_temperature', &
+      routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=default_string_length)     :: fmd
     INTEGER                                  :: ireg, istat, nregions, unit
@@ -263,15 +266,17 @@ CONTAINS
     CHARACTER(LEN=default_string_length)     :: pos, act
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
-    CHARACTER(len=*), PARAMETER              :: routineN = 'print_thermal_regions_langevin', &
-                                                routineP = moduleN//":"//routineN
+    CHARACTER(len=*), PARAMETER :: &
+      routineN = 'print_thermal_regions_langevin', &
+      routineP = moduleN//':'//routineN
 
+    INTEGER                                  :: ipart, ipart_reg, ireg, &
+                                                natoms, print_unit, stat
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: region_id
     LOGICAL                                  :: failure, new_file
+    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: temperature
     TYPE(cp_logger_type), POINTER            :: logger
-    INTEGER                                  :: ipart, ipart_reg, ireg, print_unit, natoms, stat
     TYPE(section_vals_type), POINTER         :: print_key
-    REAL(KIND=dp), DIMENSION(:), ALLOCATABLE :: temperature
-    INTEGER, DIMENSION(:), ALLOCATABLE       :: region_id
 
     failure = .FALSE.
     NULLIFY(logger)

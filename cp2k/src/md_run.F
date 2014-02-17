@@ -37,21 +37,17 @@ MODULE md_run
   USE free_energy_types,               ONLY: fe_env_create,&
                                              free_energy_type
   USE global_types,                    ONLY: global_environment_type
-  USE input_constants,                 ONLY: ehrenfest,&
-                                             npe_f_ensemble,&
-                                             npe_i_ensemble,&
-                                             nph_uniaxial_damped_ensemble,&
-                                             nph_uniaxial_ensemble,&
-                                             npt_f_ensemble,&
-                                             npt_i_ensemble,&
-                                             reftraj_ensemble,&
-                                             langevin_ensemble
+  USE input_constants,                 ONLY: &
+       ehrenfest, langevin_ensemble, npe_f_ensemble, npe_i_ensemble, &
+       nph_uniaxial_damped_ensemble, nph_uniaxial_ensemble, npt_f_ensemble, &
+       npt_i_ensemble, reftraj_ensemble
   USE input_cp2k_check,                ONLY: remove_restart_info
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_remove_values,&
                                              section_vals_type,&
                                              section_vals_val_get
-  USE kinds,                           ONLY: dp, default_string_length
+  USE kinds,                           ONLY: default_string_length,&
+                                             dp
   USE machine,                         ONLY: m_walltime
   USE mc_types,                        ONLY: mc_ekin_type
   USE md_ener_types,                   ONLY: create_md_ener,&
@@ -184,6 +180,7 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'qs_mol_dyn_low', &
       routineP = moduleN//':'//routineN
 
+    CHARACTER(LEN=default_string_length)     :: my_act, my_pos
     INTEGER                                  :: handle, i, i_kinds, istep, &
                                                 md_stride, natom_plumed, &
                                                 nsp_plumed, run_type_id
@@ -214,7 +211,6 @@ CONTAINS
     TYPE(simpar_type), POINTER               :: simpar
     TYPE(thermal_regions_type), POINTER      :: thermal_regions
     TYPE(thermostats_type), POINTER          :: thermostats
-    CHARACTER(LEN=default_string_length)     :: my_act, my_pos
 
     CALL timeset(routineN,handle)
     CPPrecondition(ASSOCIATED(globenv),cp_failure_level,routineP,error,failure)

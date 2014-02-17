@@ -87,8 +87,8 @@ MODULE integrator
   USE shell_opt,                       ONLY: optimize_shell_core
   USE simpar_types,                    ONLY: simpar_type
   USE termination,                     ONLY: stop_program
-  USE thermal_region_types,            ONLY: thermal_regions_type,&
-                                             thermal_region_type
+  USE thermal_region_types,            ONLY: thermal_region_type,&
+                                             thermal_regions_type
   USE thermostat_methods,              ONLY: apply_thermostat_baro,&
                                              apply_thermostat_particles,&
                                              apply_thermostat_shells
@@ -130,11 +130,13 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'langevin', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: iparticle, iparticle_kind, iparticle_local, nparticle, &
-      nparticle_kind, nparticle_local, nshell, ireg, iparticle_reg, stat
+    INTEGER :: iparticle, iparticle_kind, iparticle_local, iparticle_reg, &
+      ireg, nparticle, nparticle_kind, nparticle_local, nshell, stat
     LOGICAL                                  :: failure
+    LOGICAL, ALLOCATABLE, DIMENSION(:)       :: do_langevin
     REAL(KIND=dp)                            :: c, c1, c2, c3, c4, dm, dt, &
-                                                gam, mass, sigma, reg_temp
+                                                gam, mass, reg_temp, sigma
+    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: var_w
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: pos, vel, w
     TYPE(atomic_kind_list_type), POINTER     :: atomic_kinds
@@ -162,8 +164,6 @@ CONTAINS
     TYPE(thermal_region_type), POINTER       :: thermal_region
     TYPE(thermal_regions_type), POINTER      :: thermal_regions
     TYPE(virial_type), POINTER               :: virial
-    LOGICAL, DIMENSION(:), ALLOCATABLE       :: do_langevin
-    REAL(KIND=dp), DIMENSION(:), ALLOCATABLE :: var_w
 
     failure = .FALSE.
 

@@ -33,8 +33,8 @@ PRETTYOBJDIR          = $(CP2KHOME)/obj/prettified
 TOOLDIR               = $(OBJDIR)/tools
 TOOLSRC               = $(CP2KHOME)/tools
 SRCDIR                = $(CP2KHOME)/src
-LIBCUSMM_DIR          = $(CP2KHOME)/cuda_tools/libcusmm
-SRCDIRS               = $(SRCDIR):$(SRCDIR)/lib:$(SRCDIR)/arch_lib:$(SRCDIR)/dbcsr_lib:$(SRCDIR)/fft_lib:$(TOOLSRC)/metadyn:$(CP2KHOME)/cuda_tools:$(LIBCUSMM_DIR):$(CP2KHOME)/cuda_tools/dbcsr_kernels:$(CP2KHOME)/machine
+LIBCUSMM_DIR          = $(SRCDIR)/dbcsr_lib/cuda/libcusmm
+SRCDIRS               = $(SRCDIR):$(SRCDIR)/lib:$(SRCDIR)/arch_lib:$(SRCDIR)/dbcsr_lib:$(SRCDIR)/dbcsr_lib/cuda:$(SRCDIR)/fft_lib:$(SRCDIR)/metadyn_tools:$(SRCDIR)/cuda:$(LIBCUSMM_DIR):$(SRCDIR)/machine
 MAKEFILE              = $(CP2KHOME)/makefiles/Makefile
 MACHINEDEFS           = $(ARCHDIR)/$(ARCH).$(VERSION)
 PROG                  = $(EXEDIR)/cp2k.$(VERSION)
@@ -46,13 +46,15 @@ OBJDIR                = $(MAINOBJDIR)/$(ARCH)
 OBJECTDEFS            = $(SRCDIR)/OBJECTDEFS
 LIB1_OBJECTDEFS       = $(SRCDIR)/lib/OBJECTDEFS
 LIB2_OBJECTDEFS       = $(SRCDIR)/dbcsr_lib/OBJECTDEFS
+LIB2CUDA_OBJECTDEFS   = $(SRCDIR)/dbcsr_lib/cuda/OBJECTDEFS
+LIB2CUDA_DEPENDENCIES = $(SRCDIR)/dbcsr_lib/cuda/DEPENDENCIES
 LIB3_OBJECTDEFS       = $(SRCDIR)/fft_lib/OBJECTDEFS
 LIB4_OBJECTDEFS       = $(SRCDIR)/arch_lib/OBJECTDEFS
-LIBNVOBJECTDEFS       = $(CP2KHOME)/cuda_tools/NVOBJECTDEFS
-LIBMA_OBJECTDEFS      = $(CP2KHOME)/machine/LIBMA_OBJECTDEFS
-LIBCUDA_DEPENDENCIES  = $(CP2KHOME)/cuda_tools/LIBCUDA_DEPENDENCIES
+LIBNVOBJECTDEFS       = $(SRCDIR)/cuda/NVOBJECTDEFS
+LIBMA_OBJECTDEFS      = $(SRCDIR)/machine/LIBMA_OBJECTDEFS
+LIBCUDA_DEPENDENCIES  = $(SRCDIR)/cuda/LIBCUDA_DEPENDENCIES
 LIBCUSMM_DEPENDENCIES = $(LIBCUSMM_DIR)/LIBCUSMM_DEPENDENCIES
-LIBMA_DEPENDENCIES    = $(CP2KHOME)/machine/LIBMA_DEPENDENCIES
+LIBMA_DEPENDENCIES    = $(SRCDIR)/machine/LIBMA_DEPENDENCIES
 LIB1_ARCHIVE          = $(LIBDIR)/$(VERSION)/lib$(LIB1).a
 LIB2_ARCHIVE          = $(LIBDIR)/$(VERSION)/lib$(LIB2).a
 LIB3_ARCHIVE          = $(LIBDIR)/$(VERSION)/lib$(LIB3).a
@@ -60,7 +62,7 @@ LIB4_ARCHIVE          = $(LIBDIR)/$(VERSION)/lib$(LIB4).a
 LIB_CP2K_ARCHIVE      = $(LIBDIR)/$(VERSION)/lib$(LIBCP2K).a
 SVN_ENTRY             = $(wildcard $(SRCDIR)/.svn/entries*)
 GIT_HEAD              = $(wildcard $(CP2KHOME)/../.git/HEAD*)
-FESOBJECTDEFS         = $(TOOLSRC)/metadyn/OBJECTDEFS
+FESOBJECTDEFS         = $(SRCDIR)/metadyn_tools/OBJECTDEFS
 DOXYGENDIR            = $(DOCDIR)/doxygen
 DBCSR_TEST_PROG       = $(EXEDIR)/dbcsr_test_driver.$(VERSION)
 DBCSR_PERF_PROG       = $(EXEDIR)/dbcsr_performance_driver.$(VERSION)
@@ -111,7 +113,7 @@ build: dirs deptool libcusmm
 	+$(MAKE) -C $(OBJDIR)/$(VERSION) -f $(MAKEFILE) $(WHAT)
 
 fes: dirs deptool
-	+$(MAKE) -C $(TOOLSRC)/metadyn/  -f $(MAKEFILE) fes.dep
+	+$(MAKE) -C $(SRCDIR)/metadyn_tools/  -f $(MAKEFILE) fes.dep
 	+$(MAKE) -C $(OBJDIR)/$(VERSION) -f $(MAKEFILE) HACKLIBDEP=yes VERSION=$(VERSION) $(FES) 
 
 dirs:
@@ -178,6 +180,8 @@ include $(FESOBJECTDEFS)
 include $(MACHINEDEFS)
 include $(LIBNVOBJECTDEFS)
 include $(LIBMA_OBJECTDEFS)
+include $(LIB2CUDA_OBJECTDEFS)
+include $(LIB2CUDA_DEPENDENCIES)
 
 OBJECTS = $(OBJECTS_GENERIC) $(OBJECTS_ARCHITECTURE)
 FESOBJS = $(FESOBJ) $(OBJECTS_ARCHITECTURE)
@@ -186,6 +190,7 @@ FESOBJS = $(FESOBJ) $(OBJECTS_ARCHITECTURE)
 ifneq ($(NVCC),)
   LIBNV_ARCHIVE= $(LIBDIR)/$(VERSION)/libcp2k_cuda.a
   LIBCUSMM_ARCHIVE = $(LIBDIR)/$(VERSION)/libcusmm.a
+  LIB2CUDA_ARCHIVE = $(LIBDIR)/$(VERSION)/libdbcsr_cuda.a
 endif
 
 
@@ -221,7 +226,7 @@ endif
 
 
 # Define the whole bunch of libraries needed
-ALL_LIB =  $(LIB_CP2K_ARCHIVE) $(LIB3_ARCHIVE) $(LIB2_ARCHIVE) $(LIB1_ARCHIVE) $(LIB4_ARCHIVE) $(LIBMA_ARCHIVE) $(LIBNV_ARCHIVE) $(LIBCUSMM_ARCHIVE)
+ALL_LIB =  $(LIB_CP2K_ARCHIVE) $(LIB3_ARCHIVE) $(LIB2_ARCHIVE) $(LIB1_ARCHIVE) $(LIB4_ARCHIVE) $(LIBMA_ARCHIVE) $(LIBNV_ARCHIVE) $(LIB2CUDA_ARCHIVE) $(LIBCUSMM_ARCHIVE)
 ALL_SOURCE_FILES=$(notdir $(OBJECTS:.o=.F) $(LIB1_OBJECTS:.o=.F) $(LIB2_OBJECTS:.o=.F) $(LIB4_OBJECTS:.o=.F) $(LIB3_OBJECTS:.o=.F) cp_common_uses.h cp2k.F cp2k_shell.F)
 
 #
@@ -369,6 +374,8 @@ ifneq ($(NVCC),)
 	$(AR) $(LIBNV_ARCHIVE) $?
  $(LIBCUSMM_ARCHIVE): libcusmm.o
 	$(AR) $(LIBCUSMM_ARCHIVE) $?
+ $(LIB2CUDA_ARCHIVE): $(DBCSR_CUDA_OBJECTS)
+	$(AR) $(LIB2CUDA_ARCHIVE) $?
 endif
 
 ifneq ($(HWTOPO),)
@@ -400,7 +407,7 @@ endif
 DBCSR_STANDALONE_DEPS += $(LIB_CP2K_ARCHIVE)
 
 ifneq ($(NVCC),)
-DBCSR_STANDALONE_DEPS += $(LIBNV_ARCHIVE)
+DBCSR_STANDALONE_DEPS += $(LIB2CUDA_ARCHIVE)
 endif
 
 
@@ -543,6 +550,8 @@ doxygen/clean:
 #
 doxygen: doxygen/clean
 	@mkdir -p $(DOXYGENDIR)
+	@mkdir -p $(DOXYGENDIR)/html
+	@echo "<html><body>Sorry, the Doxygen documentation is currently being updated. Please try again in a few minutes.</body></html>" > $(DOXYGENDIR)/html/index.html 
 	{ cd $(SRCDIR) ; cp *.f90 *.h $(DOXYGENDIR) ; for f in $(OBJECTS:.o=) ; do cp $${f}.F $(DOXYGENDIR)/$${f}.f90; done ; }
 	{ cd $(SRCDIR)/lib ; for f in $(LIB1_OBJECTS:.o=) ; do cp $${f}.F $(DOXYGENDIR)/$${f}.f90; done ; }
 	{ cd $(SRCDIR)/fft_lib ; for f in $(LIB2_OBJECTS:.o=) ; do cp $${f}.F $(DOXYGENDIR)/$${f}.f90; done ; }

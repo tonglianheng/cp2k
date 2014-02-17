@@ -652,14 +652,14 @@ CONTAINS
     DO i=1,natoms
        DO ix=1,3
           xat(i,ix)=xat(i,ix)+rt(ix)-delta(ix)
-          IF (xat(i,ix) .LT. 0.0)         xat(i,ix)=xat(i,ix)+cell(ix,ix)
-          IF (xat(i,ix) .GT. cell(ix,ix)) xat(i,ix)=xat(i,ix)-cell(ix,ix)
+          IF (xat(i,ix) .LT.  rt(ix)) xat(i,ix)=xat(i,ix)+cell(ix,ix)
+          IF (xat(i,ix) .GT. -rt(ix)) xat(i,ix)=xat(i,ix)-cell(ix,ix)
        END DO
     END DO
     
     WRITE(123,*) "FES on CUBE"
     WRITE(123,*) "created by fes in CP2K"
-    WRITE(123,'(i5,4f12.6)') natoms, 0.0,0.0,0.0
+    WRITE(123,'(i5,3f12.6)') natoms, rt(1:3)*bohr
 
     DO ix=1,3
        ii = ngrid(ix)
