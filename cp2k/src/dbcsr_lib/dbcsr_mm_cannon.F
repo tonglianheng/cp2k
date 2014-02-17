@@ -24,6 +24,7 @@ MODULE dbcsr_mm_cannon
                                              array_release
   USE dbcsr_block_access,              ONLY: dbcsr_access_flush
   USE dbcsr_block_operations,          ONLY: dbcsr_block_conjg,&
+                                             dbcsr_block_copy,&
                                              dbcsr_block_real_neg,&
                                              dbcsr_block_scale,&
                                              dbcsr_block_transpose
@@ -1126,16 +1127,16 @@ MODULE dbcsr_mm_cannon
 
     CHARACTER(len=*), PARAMETER :: routineN = 'make_images', &
       routineP = moduleN//':'//routineN
-    INTEGER, PARAMETER                       :: debug_level = 0, metalen = 5
+    INTEGER, PARAMETER                       :: metalen = 5
     LOGICAL, PARAMETER                       :: dbg = .FALSE.
 
     CHARACTER                                :: predist_type, predist_type_fwd
     INTEGER :: blk, blk_l, blk_p, bp, col, col_img, col_size, data_p, &
-      data_type, dst_p, error_handler, error_handler2, i, icol, irow, &
-      ithread, j, mp_group, ncol_images, nrow_images, nsymmetries, nthreads, &
-      numproc, nze, pcol, prev_blk_p, prev_dst_p, prow, row, row_img, &
-      row_size, sd_pos, sm_pos, src_p, stored_blk_p, stored_col, stored_row, &
-      symmetry_i, t, vcol, vrow
+      data_type, dst_p, error_handler, error_handler2, i, ithread, j, &
+      mp_group, ncol_images, nrow_images, nsymmetries, nthreads, numproc, &
+      nze, pcol, prev_blk_p, prev_dst_p, prow, row, row_img, row_size, &
+      sd_pos, sm_pos, src_p, stored_blk_p, stored_col, stored_row, &
+      symmetry_i, t, tr_col_size, tr_row_size, vcol, vrow
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: lsdp, lsmp, rd_disp, &
                                                 recv_meta, rm_disp, sd_disp, &
                                                 sdp, send_meta, sm_disp, smp
@@ -1274,6 +1275,7 @@ MODULE dbcsr_mm_cannon
 !$omp          prev_dst_p, dst_p, same_dst_p, &
 !$omp          row, col, blk, symmetry_i, stored_row, stored_col, &
 !$omp          row_size, col_size, &
+!$omp          tr_row_size, tr_col_size, &
 !$omp          prev_blk_p, blk_p, tr, data_p, stored_blk_p, &
 !$omp          prow, pcol, vcol, vrow, i, j, nze, bp, sm_pos, sd_pos,&
 !$omp          lsmp, lsdp, t) &
@@ -1480,9 +1482,11 @@ MODULE dbcsr_mm_cannon
        DO symmetry_i = 1, nsymmetries
           IF (symmetry_i .EQ. 1) THEN
              stored_row = row ; stored_col = col; tr = blk_p .LT. 0
+             tr_row_size = col_size; tr_col_size = row_size
           ELSE
              IF (row .EQ. col) CYCLE
              stored_row = col ; stored_col = row; tr = blk_p .GT. 0
+             tr_row_size = row_size; tr_col_size = col_size
           ENDIF
           ! Where do we send this block?
           row_img = 1
@@ -1508,83 +1512,46 @@ MODULE dbcsr_mm_cannon
           lsmp(dst_p) = lsmp(dst_p) + metalen
           send_meta(sm_pos) = stored_row
           IF (.NOT. same_dst_p ) THEN
-           nze = row_blk_size(stored_row) * col_blk_size(stored_col)
-           sd_pos = lsdp(dst_p)
-           lsdp(dst_p) = lsdp(dst_p) + nze
-           IF ( symmetry_i .GT. 1 ) THEN
-              ! transpose variant
-             SELECT CASE (send_data_area%d%data_type)
-              CASE (dbcsr_type_real_4)
-                CALL dbcsr_block_transpose(send_data_area%d%r_sp(sd_pos:lsdp(dst_p)-1),&
-                sm%data_area%d%r_sp(ABS(blk_p):ABS(blk_p)+nze-1), row_size, col_size)
-              CASE (dbcsr_type_real_8)
-                CALL dbcsr_block_transpose(send_data_area%d%r_dp(sd_pos:lsdp(dst_p)-1),&
-                sm%data_area%d%r_dp(ABS(blk_p):ABS(blk_p)+nze-1), row_size, col_size)
-              CASE (dbcsr_type_complex_4)
-                CALL dbcsr_block_transpose(send_data_area%d%c_sp(sd_pos:lsdp(dst_p)-1),&
-                sm%data_area%d%c_sp(ABS(blk_p):ABS(blk_p)+nze-1), row_size, col_size)
-              CASE (dbcsr_type_complex_8)
-                CALL dbcsr_block_transpose(send_data_area%d%c_dp(sd_pos:lsdp(dst_p)-1),&
-                sm%data_area%d%c_dp(ABS(blk_p):ABS(blk_p)+nze-1), row_size, col_size)
-              CASE default
-                CALL dbcsr_assert (.FALSE., dbcsr_fatal_level, dbcsr_wrong_args_error,&
-                   routineN, "Invalid data type.",__LINE__,error)
-             END SELECT
-           ELSE   ! normal variant
-             SELECT CASE (send_data_area%d%data_type)
-              CASE (dbcsr_type_real_4)
-                IF ( blk_p .LT. 0 ) THEN
-                  DO icol=0,col_size -1 ; DO irow=0,row_size-1
-                   send_data_area%d%r_sp(sd_pos+irow + icol*row_size) &
-                   = sm%data_area%d%r_sp(bp+icol+(irow*col_size))
-                  ENDDO ; ENDDO
-                ELSE
-                  DO icol=0,col_size -1 ; DO irow=0,row_size-1
-                   send_data_area%d%r_sp(sd_pos+irow + icol*row_size) &
-                    = sm%data_area%d%r_sp(bp+irow+icol*row_size)
-                  ENDDO ; ENDDO
-                END IF
-              CASE (dbcsr_type_real_8)
-                IF ( blk_p .LT. 0 ) THEN
-                  DO icol=0,col_size -1 ; DO irow=0,row_size-1
-                   send_data_area%d%r_dp(sd_pos+irow + icol*row_size) &
-                   = sm%data_area%d%r_dp(bp+icol+(irow*col_size))
-                  ENDDO ; ENDDO
-                ELSE
-                  DO icol=0,col_size -1 ; DO irow=0,row_size-1
-                   send_data_area%d%r_dp(sd_pos+irow + icol*row_size) &
-                    = sm%data_area%d%r_dp(bp+irow+icol*row_size)
-                  ENDDO ; ENDDO
-                END IF
-              CASE (dbcsr_type_complex_4)
-                IF ( blk_p .LT. 0 ) THEN
-                  DO icol=0,col_size -1 ; DO irow=0,row_size-1
-                   send_data_area%d%c_sp(sd_pos+irow + icol*row_size) &
-                   = sm%data_area%d%c_sp(bp+icol+(irow*col_size))
-                  ENDDO ; ENDDO
-                ELSE
-                  DO icol=0,col_size -1 ; DO irow=0,row_size-1
-                   send_data_area%d%c_sp(sd_pos+irow + icol*row_size) &
-                    = sm%data_area%d%c_sp(bp+irow+icol*row_size)
-                  ENDDO ; ENDDO
-                END IF
-              CASE (dbcsr_type_complex_8)
-                IF ( blk_p .LT. 0 ) THEN
-                  DO icol=0,col_size -1 ; DO irow=0,row_size-1
-                   send_data_area%d%c_dp(sd_pos+irow + icol*row_size) &
-                   = sm%data_area%d%c_dp(bp+icol+(irow*col_size))
-                  ENDDO ; ENDDO
-                ELSE
-                  DO icol=0,col_size -1 ; DO irow=0,row_size-1
-                   send_data_area%d%c_dp(sd_pos+irow + icol*row_size) &
-                    = sm%data_area%d%c_dp(bp+irow+icol*row_size)
-                  ENDDO ; ENDDO
-                END IF
-               CASE DEFAULT
-                CALL dbcsr_assert (.FALSE., dbcsr_fatal_level, dbcsr_wrong_args_error,&
-                   routineN, "Invalid data type.",__LINE__,error)
-              END SELECT
-           ENDIF
+             nze = row_blk_size(stored_row) * col_blk_size(stored_col)
+             sd_pos = lsdp(dst_p)
+             lsdp(dst_p) = lsdp(dst_p) + nze
+             IF ( tr )  THEN
+                SELECT CASE (send_data_area%d%data_type)
+                 CASE (dbcsr_type_real_4)
+                     CALL dbcsr_block_transpose(send_data_area%d%r_sp(sd_pos:lsdp(dst_p)-1),&
+                     sm%data_area%d%r_sp(bp:bp+nze-1), tr_row_size, tr_col_size)
+                 CASE (dbcsr_type_real_8)
+                     CALL dbcsr_block_transpose(send_data_area%d%r_dp(sd_pos:lsdp(dst_p)-1),&
+                     sm%data_area%d%r_dp(bp:bp+nze-1), tr_row_size, tr_col_size)
+                 CASE (dbcsr_type_complex_4)
+                     CALL dbcsr_block_transpose(send_data_area%d%c_sp(sd_pos:lsdp(dst_p)-1),&
+                     sm%data_area%d%c_sp(bp:bp+nze-1), tr_row_size, tr_col_size)
+                 CASE (dbcsr_type_complex_8)
+                     CALL dbcsr_block_transpose(send_data_area%d%c_dp(sd_pos:lsdp(dst_p)-1),&
+                     sm%data_area%d%c_dp(bp:bp+nze-1), tr_row_size, tr_col_size)
+                 CASE default
+                   CALL dbcsr_assert (.FALSE., dbcsr_fatal_level, dbcsr_wrong_args_error,&
+                      routineN, "Invalid data type.",__LINE__,error)
+                END SELECT
+             ELSE
+                SELECT CASE (send_data_area%d%data_type)
+                 CASE (dbcsr_type_real_4)
+                     CALL dbcsr_block_copy(send_data_area%d%r_sp(sd_pos:lsdp(dst_p)-1),&
+                     sm%data_area%d%r_sp(bp:bp+nze-1), row_size, col_size)
+                 CASE (dbcsr_type_real_8)
+                     CALL dbcsr_block_copy(send_data_area%d%r_dp(sd_pos:lsdp(dst_p)-1),&
+                     sm%data_area%d%r_dp(bp:bp+nze-1), row_size, col_size)
+                 CASE (dbcsr_type_complex_4)
+                     CALL dbcsr_block_copy(send_data_area%d%c_sp(sd_pos:lsdp(dst_p)-1),&
+                     sm%data_area%d%c_sp(bp:bp+nze-1), row_size, col_size)
+                 CASE (dbcsr_type_complex_8)
+                     CALL dbcsr_block_copy(send_data_area%d%c_dp(sd_pos:lsdp(dst_p)-1),&
+                     sm%data_area%d%c_dp(bp:bp+nze-1), row_size, col_size)
+                 CASE default
+                   CALL dbcsr_assert (.FALSE., dbcsr_fatal_level, dbcsr_wrong_args_error,&
+                      routineN, "Invalid data type.",__LINE__,error)
+                END SELECT
+             END IF
              IF (PRESENT (scale_value)) THEN
                 CALL dbcsr_block_scale (send_data_area, scale=scale_value,&
                      row_size=nze, col_size=1, lb=sd_pos, error=error)
@@ -1872,37 +1839,37 @@ MODULE dbcsr_mm_cannon
       iright = 2, M_L = 2, M_P = 1, M_R = 3, RC_C = 2, RC_R = 1
     LOGICAL, PARAMETER                       :: excessive_output = .FALSE.
 
-    INTEGER :: data_size, data_type, error_handler, error_handler2, &
-      error_handler3, error_handler4, flop_metronome, grp, i, ithread, &
-      left_col_image, left_col_mult, left_col_nimages, left_data_recv_size, &
-      left_data_send_size, left_dst_icol, left_dst_irow, left_dst_p, &
-      left_dst_pcol, left_dst_prow, left_dst_vcol, left_dst_vrow, &
-      left_index_recv_size, left_index_send_size, left_max_nblks, &
-      left_max_nze, left_myfirstvcol, left_myfirstvrow, left_mypcol, &
-      left_myprow, left_npcols, left_nprows, left_recv_icol, left_recv_irow, &
-      left_recv_p, left_recv_pcol, left_recv_prow, left_recv_vcol, &
-      left_recv_vrow, left_row_image, left_row_mult
-    INTEGER :: left_row_nimages, left_send_icol, left_send_irow, left_send_p, &
-      left_send_pcol, left_send_prow, left_send_vcol, left_send_vrow, &
-      left_src_icol, left_src_irow, left_src_p, left_src_pcol, left_src_prow, &
-      left_src_vcol, left_src_vrow, metronome, min_nimages, mp_group, mynode, &
+    INTEGER :: data_type, error_handler, error_handler2, error_handler3, &
+      error_handler4, grp, i, ithread, left_col_image, left_col_mult, &
+      left_col_nimages, left_data_recv_size, left_data_send_size, &
+      left_dst_icol, left_dst_irow, left_dst_p, left_dst_pcol, left_dst_prow, &
+      left_dst_vcol, left_dst_vrow, left_index_recv_size, &
+      left_index_send_size, left_max_nblks, left_max_nze, left_myfirstvcol, &
+      left_myfirstvrow, left_mypcol, left_myprow, left_npcols, left_nprows, &
+      left_recv_icol, left_recv_irow, left_recv_p, left_recv_pcol, &
+      left_recv_prow, left_recv_vcol, left_recv_vrow, left_row_image, &
+      left_row_mult, left_row_nimages
+    INTEGER :: left_send_icol, left_send_irow, left_send_p, left_send_pcol, &
+      left_send_prow, left_send_vcol, left_send_vrow, left_src_icol, &
+      left_src_irow, left_src_p, left_src_pcol, left_src_prow, left_src_vcol, &
+      left_src_vrow, metronome, min_nimages, mp_group, mynode, &
       nblkrows_total, nblkrows_used, nsteps_k, nthreads, numnodes, nvirt_k, &
       output_unit, right_col_image, right_col_mult, right_col_nimages, &
       right_data_recv_size, right_data_send_size, right_dst_icol, &
       right_dst_irow, right_dst_p, right_dst_pcol, right_dst_prow, &
       right_dst_vcol, right_dst_vrow, right_index_recv_size, &
-      right_index_send_size
-    INTEGER :: right_max_nblks, right_max_nze, right_myfirstvcol, &
-      right_myfirstvrow, right_mypcol, right_myprow, right_npcols, &
-      right_nprows, right_recv_icol, right_recv_irow, right_recv_p, &
-      right_recv_pcol, right_recv_prow, right_recv_vcol, right_recv_vrow, &
-      right_row_image, right_row_mult, right_row_nimages, right_send_icol, &
-      right_send_irow, right_send_p, right_send_pcol, right_send_prow, &
-      right_send_vcol, right_send_vrow, right_src_icol, right_src_irow, &
-      right_src_p, right_src_pcol, right_src_prow, right_src_vcol, &
-      right_src_vrow, row, size_guess, stat, threads_finished, &
-      threads_finished_read, v_k, v_ki
-    INTEGER(KIND=int_8)                      :: flop_single, flop_total, size8
+      right_index_send_size, right_max_nblks
+    INTEGER :: right_max_nze, right_myfirstvcol, right_myfirstvrow, &
+      right_mypcol, right_myprow, right_npcols, right_nprows, &
+      right_recv_icol, right_recv_irow, right_recv_p, right_recv_pcol, &
+      right_recv_prow, right_recv_vcol, right_recv_vrow, right_row_image, &
+      right_row_mult, right_row_nimages, right_send_icol, right_send_irow, &
+      right_send_p, right_send_pcol, right_send_prow, right_send_vcol, &
+      right_send_vrow, right_src_icol, right_src_irow, right_src_p, &
+      right_src_pcol, right_src_prow, right_src_vcol, right_src_vrow, row, &
+      size_guess, stat, threads_finished, threads_finished_read, v_k, v_ki
+    INTEGER(KIND=int_8)                      :: flop_metronome, flop_single, &
+                                                flop_total
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: row_counts, total_row_counts
     INTEGER, ALLOCATABLE, DIMENSION(:, :, :) :: left_sizes, my_sizes, &
                                                 right_sizes
@@ -2268,7 +2235,7 @@ MODULE dbcsr_mm_cannon
     !!
     ithread = 0
 !$omp parallel default(none) &
-!$omp          private (i, size_guess, size8, &
+!$omp          private (i, size_guess, &
 !$omp                   left_fill, right_fill, ithread) &
 !$omp          shared (product_matrix, left_max_nze, right_max_nze) &
 !$omp          shared (left_set, right_set, &
@@ -3215,7 +3182,7 @@ MODULE dbcsr_mm_cannon
     N = nf-ni+1
     IF (M > N) THEN
        half = M/2
-       CALL rec_split (nele, a, tmp, 1, nlow, mi, mf, half)
+       CALL rec_split (nele, a, tmp, 1, nlow, mi, half)
        a = tmp
        DEALLOCATE (tmp)
        IF (nlow .GT. 1) THEN
@@ -3226,7 +3193,7 @@ MODULE dbcsr_mm_cannon
        ENDIF
     ELSE
        half = N/2
-       CALL rec_split (nele, a, tmp, 2, nlow, ni, nf, half)
+       CALL rec_split (nele, a, tmp, 2, nlow, ni, half)
        a = tmp
        DEALLOCATE (tmp)
        IF (nlow .GT. 1) THEN
@@ -3239,13 +3206,13 @@ MODULE dbcsr_mm_cannon
   END SUBROUTINE rec_sort_index
 
 
-  SUBROUTINE rec_split (nele, a, split, row_or_col, nlow, mi, mf, half)
+  SUBROUTINE rec_split (nele, a, split, row_or_col, nlow, mi, half)
     INTEGER, INTENT(IN)                      :: nele
     INTEGER, DIMENSION(3, nele), INTENT(IN)  :: a
     INTEGER, DIMENSION(3, nele), INTENT(OUT) :: split
     INTEGER, INTENT(IN)                      :: row_or_col
     INTEGER, INTENT(OUT)                     :: nlow
-    INTEGER, INTENT(IN)                      :: mi, mf, half
+    INTEGER, INTENT(IN)                      :: mi, half
 
     INTEGER                                  :: el, half_m, p_high, p_low
 
@@ -3415,7 +3382,7 @@ MODULE dbcsr_mm_cannon
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: data_type, error_handle, &
-                                                nblks, nrows, row
+                                                nblks, nrows
     INTEGER, DIMENSION(1), TARGET            :: tmp
     INTEGER, DIMENSION(:), POINTER           :: local_cols, local_rows
 
@@ -3690,9 +3657,9 @@ MODULE dbcsr_mm_cannon
   END SUBROUTINE enumerate_blk_sizes
 
 
-#include "dbcsr_mm_cannon_d.F"
-#include "dbcsr_mm_cannon_z.F"
-#include "dbcsr_mm_cannon_s.F"
-#include "dbcsr_mm_cannon_c.F"
+#include "dbcsr_mm_cannon_d.f90"
+#include "dbcsr_mm_cannon_z.f90"
+#include "dbcsr_mm_cannon_s.f90"
+#include "dbcsr_mm_cannon_c.f90"
 
 END MODULE dbcsr_mm_cannon

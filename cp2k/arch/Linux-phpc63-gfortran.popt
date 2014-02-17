@@ -1,20 +1,17 @@
-#
-# gfortran arch file, recommended to use gfortran >= 4.6
-# building libraries (fftw3, libint, libxc, scalapack, smm) is needed to use this arch file, mkl is assumed but can be replaced by standard blas/lapack/scalapack (see pdbg)
-# popt is intended for production using MPI parallelism
-#
+# -*- mode: makefile -*-
+
 CC       = mpicc
-CPP      = 
-
-FC       = mpif90 
+CPP      =
+FC       = mpif90
 LD       = mpif90
-
 AR       = ar -r
 
-CPPFLAGS = 
-DFLAGS   = -D__GFORTRAN -D__FFTSG -D__LIBINT -D__FFTW3 -D__parallel -D__SCALAPACK -D__BLACS -D__HAS_smm_dnn -D__LIBXC2
-FCFLAGS  = -O3 -march=native -ffast-math -funroll-loops -g -ffree-form $(DFLAGS) -I${FFTW3_INCLUDE} -I${LIBINT_INCLUDE} -I${LIBXC_INCLUDE} -I${MKL_INCLUDE}
+CPPFLAGS =
+DFLAGS   = -D__GFORTRAN -D__FFTSG -D__FFTW3 -D__LIBINT -D__LIBXC2 -D__HAS_smm_dnn \
+           -D__LIBINT_MAX_AM=7 -D__LIBDERIV_MAX_AM1=6 -D__MAX_CONTR=4 \
+           -D__parallel -D__BLACS -D__SCALAPACK
+FCFLAGS  = -O2 -g -march=native -ffree-form -ffree-line-length-none \
+           -ffast-math -ftree-vectorize -funroll-loops \
+           $(DFLAGS) -I${FFTW3_INCLUDE} -I${LIBINT_INCLUDE} -I${LIBXC_INCLUDE} -I${MKL_INCLUDE}
 LDFLAGS  = $(FCFLAGS) -L${MKL_LIB} -L${FFTW3_LIB} -L${LIBXC_LIB} -L${LIBINT_LIB} -L${LIBSMM_LIB}
 LIBS     = -lderiv -lint -lstdc++ -lfftw3 -lmkl_gf_lp64 -lmkl_scalapack_lp64 -lmkl_blacs_openmpi_lp64 -lmkl_sequential -lmkl_core -lsmm_dnn -lxc
-
-OBJECTS_ARCHITECTURE = machine_gfortran.o
