@@ -31,10 +31,10 @@ MODULE atom_operators
        do_dkh0_atom, do_dkh1_atom, do_dkh2_atom, do_dkh3_atom, do_dkh4_atom, &
        do_dkh5_atom, do_nonrel_atom, do_sczoramp_atom, do_zoramp_atom
   USE kinds,                           ONLY: dp
-  USE lapack,                          ONLY: lapack_sgesv,&
-                                             lapack_ssyev
+  USE lapack,                          ONLY: lapack_sgesv
   USE mathconstants,                   ONLY: gamma1,&
                                              sqrt2
+  USE mathlib,                         ONLY: jacobi
   USE periodic_table,                  ONLY: ptable
   USE physcon,                         ONLY: a_fine
   USE qs_grid_atom,                    ONLY: grid_atom_type
@@ -76,7 +76,7 @@ CONTAINS
     LOGICAL                                  :: failure
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: w, work
     REAL(KIND=dp), ALLOCATABLE, &
-      DIMENSION(:, :)                        :: omat
+      DIMENSION(:, :)                        :: omat, vmat
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: eri
 
     failure = .FALSE.
@@ -301,14 +301,14 @@ CONTAINS
       integrals%uptrans = 0._dp
       integrals%nne = integrals%n
       lwork = 10*n
-      ALLOCATE(omat(n,n),w(n),work(lwork),STAT=ierr)
+      ALLOCATE(omat(n,n),w(n),vmat(n,n),work(lwork),STAT=ierr)
       CPPostcondition(ierr==0,cp_failure_level,routineP,error,failure)
       DO l = 0, 3
         n = integrals%n(l)
         IF ( n > 0 ) THEN
           omat(1:n,1:n) = integrals%ovlp(1:n,1:n,l)
-          CALL lapack_ssyev ( "V", "U", n, omat(1:n,1:n), n, w(1:n), work, lwork, info )
-          CPPostcondition(info==0,cp_failure_level,routineP,error,failure)
+          CALL jacobi(omat(1:n,1:n),w(1:n),vmat(1:n,1:n))
+          omat(1:n,1:n) = vmat(1:n,1:n)
           ii = 0
           DO i=1,n
             IF (w(i) > basis%eps_eig) THEN
@@ -325,7 +325,7 @@ CONTAINS
           CPPostcondition(info==0,cp_failure_level,routineP,error,failure)
         END IF
       END DO
-      DEALLOCATE(omat,w,work,STAT=ierr)
+      DEALLOCATE(omat,vmat,w,work,STAT=ierr)
       CPPostcondition(ierr==0,cp_failure_level,routineP,error,failure)
 
     END IF
