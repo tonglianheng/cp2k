@@ -9,9 +9,9 @@
 !>                   parent element
 !>                      /      \
 !>      accepted (acc) /        \  not accepted (nacc)
-!>                    /          \  
+!>                    /          \
 !>                  child       child
-!>                   / \         / \ 
+!>                   / \         / \
 !>     
 !>      tree creation assuming acceptance (acc) AND rejectance (nacc) 
 !>        of configuration
@@ -29,7 +29,7 @@
 
 MODULE tmc_tree_types
   USE kinds,                           ONLY: dp
-#include "cp_common_uses.h"
+#include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
 

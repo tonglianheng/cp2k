@@ -222,7 +222,7 @@ MODULE input_constants
                                               do_method_gapw=1,&
                                               do_method_gapw_xc=2,&
                                               do_method_gpw=3,&
-                                              do_method_lripaw=4,&
+                                              do_method_lrigpw=4,&
                                               do_method_mndo=7,&
                                               do_method_am1=8,&
                                               do_method_pm3=9,&
@@ -816,9 +816,9 @@ MODULE input_constants
                                               copy_fcoeff=2
   !real time propagation
   INTEGER, PARAMETER, PUBLIC               :: do_taylor=1,  &
-                                              do_diag=2,&
-                                              do_pade=3,&
-                                              do_arnoldi=4
+                                              do_pade=2,&
+                                              do_arnoldi=3,&
+                                              do_bch=4
 
   INTEGER, PARAMETER, PUBLIC               :: extr_mos=1,&
                                               extr_s_ks=2

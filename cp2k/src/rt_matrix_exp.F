@@ -41,7 +41,7 @@ MODULE rt_matrix_exp
                                              mp_sum
   USE timings,                         ONLY: timeset,&
                                              timestop
-#include "cp_common_uses.h"
+#include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
 
@@ -530,7 +530,7 @@ CONTAINS
     q=npade !p==q seems to be neccesary for the rest of the code
 
     CALL cp_fm_get_info(im_part,local_data=local_data_im,ncol_local=ldim,nrow_global=ndim,error=error)
-    square_fac=2.0_dp**REAL(nsquare,dp)
+    square_fac=1/(2.0_dp**REAL(nsquare,dp))
     ALLOCATE(cmult_p(2))
 
     CALL cp_cfm_create(Dpq,&
@@ -1164,8 +1164,6 @@ CONTAINS
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     CALL timestop(handle)
   END SUBROUTINE arnoldi
-
-
 
 
 END MODULE rt_matrix_exp

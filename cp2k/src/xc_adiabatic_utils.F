@@ -35,7 +35,7 @@ MODULE xc_adiabatic_utils
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE xc_adiabatic_methods,            ONLY: rescale_MCY3_pade
-#include "cp_common_uses.h"
+#include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
 
@@ -130,9 +130,9 @@ CONTAINS
           IF( calculate_forces ) THEN
              CPPrecondition(.NOT.use_virial,cp_failure_level,routineP,error,failure)
              !! we also have to scale the forces!!!!
-             CALL derivatives_four_center(qs_env, rho, hfx_sections, para_env, 1, use_virial, &
+             CALL derivatives_four_center(qs_env, rho%rho_ao, hfx_sections, para_env, 1, use_virial, &
                                           adiabatic_rescale_factor=scale_dEx1, error=error)
-             CALL derivatives_four_center(qs_env, rho, hfx_sections, para_env, 2, use_virial, &
+             CALL derivatives_four_center(qs_env, rho%rho_ao, hfx_sections, para_env, 2, use_virial, &
                                           adiabatic_rescale_factor=scale_dEx2, error=error)
           END IF
 

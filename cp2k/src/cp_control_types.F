@@ -19,7 +19,7 @@ MODULE cp_control_types
   USE xas_control,                     ONLY: xas_control_create,&
                                              xas_control_release,&
                                              xas_control_type
-#include "cp_common_uses.h"
+#include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
 
@@ -54,6 +54,7 @@ MODULE cp_control_types
      INTEGER                              :: sc_check_start
      LOGICAL                              :: apply_delta_pulse
      LOGICAL                              :: periodic
+     LOGICAL                              :: linear_scaling
      INTEGER, DIMENSION(3)                :: delta_pulse_direction
      REAL(KIND=dp)                        :: delta_pulse_scale
   END TYPE rtp_control_type
@@ -141,15 +142,6 @@ MODULE cp_control_types
     REAL(KIND = dp)                 :: alpha0_hard
     REAL(KIND = dp)                 :: max_rad_local
   END TYPE gapw_control_type
-! *****************************************************************************
-! \brief Control parameters for LRIPAW method within QUICKSTEP ***
-! *****************************************************************************
-  TYPE lripaw_control_type
-    REAL(KIND = dp)                 :: eps_fit
-    INTEGER                         :: quadrature
-    REAL(KIND = dp)                 :: alpha0
-  END TYPE lripaw_control_type
-
 ! *****************************************************************************
 ! \brief parameters for calculations involving a time dependent electric field
 ! *****************************************************************************
@@ -274,7 +266,7 @@ MODULE cp_control_types
     LOGICAL                                       :: realspace_mgrids
     LOGICAL                                       :: map_consistent
     LOGICAL                                       :: gapw,gapw_xc,gpw,pao
-    LOGICAL                                       :: lripaw
+    LOGICAL                                       :: lrigpw
     LOGICAL                                       :: ofgpw
     LOGICAL                                       :: dftb
     LOGICAL                                       :: scptb
@@ -299,7 +291,6 @@ MODULE cp_control_types
     TYPE (scptb_control_type),POINTER             :: scptb_control
     TYPE (semi_empirical_control_type),POINTER    :: se_control
     TYPE (gapw_control_type), POINTER             :: gapw_control
-    TYPE (lripaw_control_type), POINTER           :: lripaw_control
     TYPE (pw_grid_option)                         :: pw_grid_opt
     LOGICAL                                       :: check_bcsr_code
     INTEGER                                       :: bcsr_code
@@ -400,7 +391,6 @@ MODULE cp_control_types
   PUBLIC :: dft_control_type,&
             qs_control_type,&
             gapw_control_type,&
-            lripaw_control_type,&
             tddfpt_control_type,&
             efield_type,&
             period_efield_type,&
@@ -869,24 +859,6 @@ CONTAINS
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     END IF
   END SUBROUTINE gapw_control_create
-! *****************************************************************************
-  SUBROUTINE lripaw_control_create(lripaw_control, error)
-    TYPE(lripaw_control_type), POINTER       :: lripaw_control
-    TYPE(cp_error_type), INTENT(inout)       :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'lripaw_control_create', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: stat
-    LOGICAL                                  :: failure
-
-    failure=.FALSE.
-    CPPrecondition(.NOT.ASSOCIATED(lripaw_control),cp_failure_level,routineP,error,failure)
-    IF (.NOT. failure) THEN
-       ALLOCATE (lripaw_control,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    END IF
-  END SUBROUTINE lripaw_control_create
 
 ! *****************************************************************************
   SUBROUTINE qs_control_create(qs_control, error)
@@ -907,7 +879,6 @@ CONTAINS
 
        NULLIFY(qs_control%e_cutoff)
        NULLIFY(qs_control%gapw_control)
-       NULLIFY(qs_control%lripaw_control)
        NULLIFY(qs_control%mulliken_restraint_control)
        NULLIFY(qs_control%ddapc_restraint_control)
        NULLIFY(qs_control%s2_restraint_control)
@@ -921,7 +892,6 @@ CONTAINS
        CALL becke_control_create(qs_control%becke_control,error=error)
        CALL s2_control_create(qs_control%s2_restraint_control,error=error)
        CALL gapw_control_create(qs_control%gapw_control, error=error)
-       CALL lripaw_control_create(qs_control%lripaw_control, error=error)
        CALL se_control_create(qs_control%se_control,error=error)
        CALL dftb_control_create(qs_control%dftb_control,error=error)
        CALL scptb_control_create(qs_control%scptb_control,error=error)
@@ -954,10 +924,6 @@ CONTAINS
        END IF
        IF (ASSOCIATED(qs_control%gapw_control))THEN
           DEALLOCATE(qs_control%gapw_control,stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       END IF
-       IF (ASSOCIATED(qs_control%lripaw_control))THEN
-          DEALLOCATE(qs_control%lripaw_control,stat=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        END IF
        IF(ASSOCIATED(qs_control%ddapc_restraint_control))THEN

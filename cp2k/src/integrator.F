@@ -95,7 +95,7 @@ MODULE integrator
   USE thermostat_types,                ONLY: thermostat_type
   USE virial_methods,                  ONLY: virial_evaluate
   USE virial_types,                    ONLY: virial_type
-#include "cp_common_uses.h"
+#include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
 
@@ -523,6 +523,8 @@ CONTAINS
     ! In case of ehrenfest dynamics, velocities need to be iterated
     IF(ehrenfest_md)THEN
        v_old=tmp%vel
+       CALL vv_second(tmp, atomic_kind_set, local_particles, particle_set, &
+            core_particle_set, shell_particle_set, nparticle_kind, shell_adiabatic, dt, error=error )
        CALL update_dealloc_tmp ( tmp, particle_set, shell_particle_set, &
             core_particle_set, para_env, shell_adiabatic, vel=.TRUE.,&
             should_deall_vel=.FALSE.,error=error )
@@ -583,7 +585,7 @@ CONTAINS
           !  will be handled better in the next step of the implementation
           IF(i_iter==n_iter)&
              CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
-                 routineP,"EMD did not converge, either increase MAX_ITER"//&
+                 routineP,"EMD did not converge, either increase MAX_ITER "//&
                  "or use a smaller TIMESTEP",&
                  error,failure)
        END IF

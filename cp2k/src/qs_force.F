@@ -72,6 +72,7 @@ MODULE qs_force
   USE qs_rho_methods,                  ONLY: qs_rho_update_rho
   USE qs_rho_types,                    ONLY: qs_rho_type
   USE rt_propagation_utils,            ONLY: calc_c_mat_force
+  USE rtp_admm_methods,                ONLY: rt_admm_force
   USE scf_control_types,               ONLY: scf_control_type
   USE scptb_core_interactions,         ONLY: scptb_core_interaction
   USE scptb_core_matrix,               ONLY: build_scptb_core_matrix
@@ -82,7 +83,7 @@ MODULE qs_force
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE virial_types,                    ONLY: virial_type
-#include "cp_common_uses.h"
+#include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
 
@@ -248,6 +249,8 @@ CONTAINS
        CALL set_qs_env(qs_env=qs_env,matrix_w=matrix_w,error=error)
 
        CALL calc_c_mat_force(qs_env,dp_imag,error)
+       IF(qs_env%dft_control%do_admm)&
+          CALL rt_admm_force(qs_env,error)
     END IF
 
     IF (.NOT.has_unit_metric) THEN
@@ -302,11 +305,11 @@ CONTAINS
           CALL external_e_potential(qs_env,error)
        END IF
 
-       ! Compute grid-based forces
-       CALL qs_ks_update_qs_env(ks_env=ks_env,&
-                                qs_env=qs_env,&
-                                calculate_forces=.TRUE.,error=error)
-
+          ! Compute grid-based forces
+          CALL qs_ks_update_qs_env(ks_env=ks_env,&
+                                   qs_env=qs_env,&
+                                   calculate_forces=.TRUE.,error=error)
+   
        IF(ASSOCIATED(qs_env%mp2_env)) THEN
          ! with MP2 we have to recalculate the SCF energy with the
          ! correct density
@@ -326,8 +329,7 @@ CONTAINS
        END IF
 
        ! Add forces resulting from wavefunction fitting
-
-       IF (dft_control%do_admm ) THEN
+       IF (dft_control%do_admm.AND..NOT.qs_env%run_rtp ) THEN
           CALL get_qs_env(qs_env=qs_env,&
                matrix_s_aux_fit=matrix_s_aux_fit,&
                matrix_s_aux_fit_vs_orb=matrix_s_aux_fit_vs_orb,&
@@ -337,7 +339,6 @@ CONTAINS
           DO ispin=1,nspin             
              mo_set => mos(ispin)%mo_set
              CALL get_mo_set(mo_set=mo_set,mo_coeff=mo_coeff)
-
              ! if no purification we need to calculate the H matrix for forces
              IF (admm_env%purification_method==do_admm_purify_none) THEN
                 CALL get_qs_env(qs_env, mos_aux_fit=mos_aux_fit,&
