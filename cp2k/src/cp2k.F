@@ -4,7 +4,7 @@
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
-!> \brief starts the program
+!> \brief Main program of CP2K
 !> \par Copyright
 !>    CP2K: A general program to perform molecular dynamics simulations
 !>    Copyright (C) 2000, 2001, 2002, 2003  CP2K developers group
@@ -59,7 +59,7 @@ PROGRAM cp2k
                                              m_iargc
   USE message_passing,                 ONLY: mp_abort,&
                                              mp_max
-#include "cp_common_uses.h"
+#include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
 #if defined(__USE_PAT)

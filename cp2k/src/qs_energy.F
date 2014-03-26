@@ -35,7 +35,7 @@ MODULE qs_energy
   USE rt_propagator_init,              ONLY: init_emd_propagators
   USE timings,                         ONLY: timeset,&
                                              timestop
-#include "cp_common_uses.h"
+#include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
 
@@ -175,10 +175,11 @@ CONTAINS
     ELSE
        IF(qs_env%rtp%iter==1)THEN
           CALL qs_energies_init(qs_env, .FALSE. , error)
+          CALL get_qs_env(qs_env=qs_env,rtp=rtp,matrix_s=s_mat,error=error)
+          CALL s_matrices_create (s_mat,rtp,error)
        END IF
        CALL get_qs_env(qs_env=qs_env,rtp=rtp,matrix_s=s_mat,error=error)
 
-       CALL s_matrices_create (s_mat,rtp,error)
        CALL calc_S_derivs(qs_env,error)
 
        eps_ener=qs_env%dft_control%rtp_control%eps_ener

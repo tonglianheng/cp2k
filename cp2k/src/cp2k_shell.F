@@ -4,7 +4,7 @@
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
-!> \brief starts the program
+!> \brief Interactive shell of CP2K
 !> \note
 !>       sample of a simple runner that uses the f77_interface
 !>       it can beused to connect c programs, communicating through std-in/ std-out
@@ -54,7 +54,7 @@ PROGRAM cp2k_shell
                                              evolt
   USE string_utilities,                ONLY: compress,&
                                              uppercase
-#include "cp_common_uses.h"
+#include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
 

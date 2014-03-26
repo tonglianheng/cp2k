@@ -93,7 +93,7 @@ MODULE atomic_kind_types
   USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
-#include "cp_common_uses.h"
+#include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
 
@@ -2963,6 +2963,8 @@ CONTAINS
                   output_unit,"Auxiliary Basis Set",error)
              CALL write_gto_basis_set(atomic_kind_set(ikind)%aux_fit_basis_set,&
                   output_unit,"Auxiliary Fit Basis Set",error)
+             CALL write_gto_basis_set(atomic_kind_set(ikind)%lri_basis_set,&
+                  output_unit,"LRI Basis Set",error)
              CALL write_gto_basis_set(atomic_kind_set(ikind)%ri_aux_basis_set,&
                   output_unit,"RI Auxiliary Fit Basis Set",error)
           END DO

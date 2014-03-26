@@ -43,7 +43,7 @@ MODULE cp_control_utils
   USE xc_derivatives,                  ONLY: xc_functional_get_info,&
                                              xc_functionals_get_needs
   USE xc_rho_cflags_types,             ONLY: xc_rho_cflags_type
-#include "cp_common_uses.h"
+#include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
 
@@ -577,11 +577,6 @@ CPSourceFileRef,&
     CALL section_vals_val_get(qs_section,"LADDN0",i_val=qs_control%gapw_control%ladd_rho0,error=error)
     CALL section_vals_val_get(qs_section,"QUADRATURE",i_val=qs_control%gapw_control%quadrature,error=error)
 
-    ! LRIPAW
-    CALL section_vals_val_get(qs_section,"QUADRATURE",i_val=qs_control%lripaw_control%quadrature,error=error)
-    CALL section_vals_val_get(qs_section,"EPSFIT",r_val=qs_control%lripaw_control%eps_fit,error=error)
-    CALL section_vals_val_get(qs_section,"ALPHA0_HARD",r_val=qs_control%lripaw_control%alpha0,error=error)
-
     ! Integers grids
     CALL section_vals_val_get(qs_section,"PW_GRID",i_val=itmp,error=error)
     SELECT CASE (itmp)
@@ -624,7 +619,7 @@ CPSourceFileRef,&
     qs_control%scptb          = .FALSE.
     qs_control%semi_empirical = .FALSE.
     qs_control%ofgpw          = .FALSE.
-    qs_control%lripaw         = .FALSE.
+    qs_control%lrigpw         = .FALSE.
     SELECT CASE (qs_control%method_id)
     CASE (do_method_gapw)
        CALL cite_reference(Lippert1999)
@@ -638,8 +633,8 @@ CPSourceFileRef,&
        qs_control%gpw = .TRUE.
     CASE (do_method_ofgpw)
        qs_control%ofgpw = .TRUE.
-    CASE (do_method_lripaw)
-       qs_control%lripaw = .TRUE.
+    CASE (do_method_lrigpw)
+       qs_control%lrigpw = .TRUE.
     CASE (do_method_dftb)
        qs_control%dftb = .TRUE.
        CALL cite_reference(Porezag1995)
@@ -1783,6 +1778,8 @@ CPSourceFileRef,&
       l_val=dft_control%rtp_control%apply_delta_pulse,error=error)
     CALL section_vals_val_get(rtp_section,"PERIODIC",&
       l_val=dft_control%rtp_control%periodic,error=error)
+    CALL section_vals_val_get(rtp_section,"DENSITY_PROPAGATION",&
+      l_val=dft_control%rtp_control%linear_scaling,error=error)
     CALL section_vals_val_get(rtp_section,"DELTA_PULSE_SCALE",&
       r_val=dft_control%rtp_control%delta_pulse_scale,error=error)
     CALL section_vals_val_get(rtp_section,"DELTA_PULSE_DIRECTION",&
