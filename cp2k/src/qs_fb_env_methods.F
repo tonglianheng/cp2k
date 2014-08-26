@@ -114,9 +114,9 @@ CONTAINS
 
     LOGICAL                            :: failure
     INTEGER                            :: stat
-    
+
     failure = .FALSE.
-    CPPrecondition(.NOT. ASSOCIATED(fb_env), cp_failure_level, routineP, error, failure)    
+    CPPrecondition(.NOT. ASSOCIATED(fb_env), cp_failure_level, routineP, error, failure)
     IF (.NOT. failure) THEN
        ALLOCATE(fb_env, STAT=stat)
        CPPostconditionNoFail(stat==0, cp_failure_level, routineP, error)
@@ -159,7 +159,7 @@ CONTAINS
     REAL(kind=dp), DIMENSION(:), POINTER, OPTIONAL :: rcut
     TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER, OPTIONAL :: filter_matrix
     REAL(kind_dp), OPTIONAL :: filter_temperature
-    TYPE(fb_atomic_halo_set_type), POINTER, OPTIONAL :: atomic_halos    
+    TYPE(fb_atomic_halo_set_type), POINTER, OPTIONAL :: atomic_halos
     TYPE(cp_error_type), INTENT(inout) :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'fb_env_get', &
@@ -239,5 +239,5 @@ CONTAINS
        END IF
     END IF
   END SUBROUTINE fb_env_set
-  
+
 END MODULE qs_fb_env_methods
