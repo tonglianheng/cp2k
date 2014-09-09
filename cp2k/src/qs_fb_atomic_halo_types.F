@@ -1,6 +1,7 @@
 MODULE qs_fb_atomic_halo_types
 
-  USE kinds,               ONLY: default_string_length
+  USE kinds,               ONLY: dp, &
+                                 default_string_length
   USE qs_fb_env_types,     ONLY: fb_env_type, &
                                  fb_env_get
   USE input_section_types, ONLY: section_vals_type
@@ -10,6 +11,9 @@ MODULE qs_fb_atomic_halo_types
                                  cp_print_key_unit_nr
   USE cp_para_types,       ONLY: cp_para_env_type
   USE string_utilities,    ONLY: compress
+  USE particle_types,      ONLY: particle_type
+  USE atomic_kind_types,   ONLY: atomic_kind_type, &
+                                 get_atomic_kind
 
 #include "./common/cp_common_uses.f90"
 
@@ -30,6 +34,7 @@ MODULE qs_fb_atomic_halo_types
             fb_atomic_halo_init, &
             fb_atomic_halo_get, &
             fb_atomic_halo_set, &
+            fb_atomic_halo_nelectrons_estimate_Z, &
             fb_atomic_halo_list_retain, &
             fb_atomic_halo_list_release, &
             fb_atomic_halo_list_nullify, &
@@ -53,6 +58,7 @@ MODULE qs_fb_atomic_halo_types
   !> \param ref_count  : reference count on the object
   !> \param atom_id    : global atomic id of the atom this halo belongs to
   !> \param natoms     : number of atoms in the halo
+  !> \param nelectrons : estimate of total number of electrons in halo
   !> \param halo_atoms : the list of global id of atoms in the halo
   !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
   !**********************************************************************
@@ -60,6 +66,7 @@ MODULE qs_fb_atomic_halo_types
      INTEGER :: id_nr, ref_count
      INTEGER :: atom_id
      INTEGER :: natoms
+     INTEGER :: nelectrons
      INTEGER, DIMENSION(:), POINTER :: halo_atoms
   END TYPE fb_atomic_halo_data
 
@@ -246,12 +253,14 @@ CONTAINS
        CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
        atomic_halo%obj%atom_id = 0
        atomic_halo%obj%natoms = 0
+       atomic_halo%obj%nelectrons = 0
        NULLIFY(atomic_halo%obj%halo_atoms)
        atomic_halo%obj%ref_count = 1
        atomic_halo%obj%id_nr = last_fb_atomic_halo_id + 1
        last_fb_atomic_halo_id = atomic_halo%obj%id_nr
     END IF
   END SUBROUTINE fb_atomic_halo_create
+
 
   ! **********************************************************************
   !> \brief Initialises an fb_atomic_halo object, and makes it empty
@@ -281,6 +290,7 @@ CONTAINS
        END IF
        atomic_halo%obj%atom_id = 0
        atomic_halo%obj%natoms = 0
+       atomic_halo%obj%nelectrons = 0
     END IF
   END SUBROUTINE fb_atomic_halo_init
 
@@ -298,11 +308,17 @@ CONTAINS
   !> \param error: CP2K data container for error logging
   !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
   ! **********************************************************************
-  SUBROUTINE fb_atomic_halo_get(atomic_halo, atom_id, natoms, halo_atoms, error)
+  SUBROUTINE fb_atomic_halo_get(atomic_halo, &
+                                atom_id, &
+                                natoms, &
+                                nelectrons, &
+                                halo_atoms, &
+                                error)
     TYPE(fb_atomic_halo_obj), INTENT(in) :: atomic_halo
     TYPE(cp_error_type), INTENT(inout) :: error
     INTEGER, INTENT(out), OPTIONAL :: atom_id
     INTEGER, INTENT(out), OPTIONAL :: natoms
+    INTEGER, INTENT(out), OPTIONAL :: nelectrons
     INTEGER, DIMENSION(:), POINTER, OPTIONAL :: halo_atoms
 
     CHARACTER(len=*), PARAMETER :: routineN = 'fb_atomic_halo_get', &
@@ -315,6 +331,7 @@ CONTAINS
     IF (.NOT. failure) THEN
        IF (PRESENT(atom_id)) atom_id = atomic_halo%obj%atom_id
        IF (PRESENT(natoms)) natoms = atomic_halo%obj%natoms
+       IF (PRESENT(nelectrons)) nelectrons = atomic_halo%obj%nelectrons
        IF (PRESENT(halo_atoms)) halo_atoms => atomic_halo%obj%halo_atoms
     END IF
   END SUBROUTINE fb_atomic_halo_get
@@ -334,11 +351,17 @@ CONTAINS
   !> \param error: CP2K data container for error logging
   !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
   ! **********************************************************************
-  SUBROUTINE fb_atomic_halo_set(atomic_halo, atom_id, natoms, halo_atoms, error)
+  SUBROUTINE fb_atomic_halo_set(atomic_halo, &
+                                atom_id, &
+                                natoms, &
+                                nelectrons, &
+                                halo_atoms, &
+                                error)
     TYPE(fb_atomic_halo_obj), INTENT(in) :: atomic_halo
     TYPE(cp_error_type), INTENT(inout) :: error
     INTEGER, INTENT(in), OPTIONAL :: atom_id
     INTEGER, INTENT(in), OPTIONAL :: natoms
+    INTEGER, INTENT(in), OPTIONAL :: nelectrons
     INTEGER, DIMENSION(:), POINTER, OPTIONAL :: halo_atoms
 
     CHARACTER(len=*), PARAMETER :: routineN = 'fb_atomic_halo_get', &
@@ -353,6 +376,7 @@ CONTAINS
     IF (.NOT. failure) THEN
        IF (PRESENT(atom_id)) atomic_halo%obj%atom_id = atom_id
        IF (PRESENT(natoms)) atomic_halo%obj%natoms = natoms
+       IF (PRESENT(nelectrons)) atomic_halo%obj%nelectrons = nelectrons
        IF (PRESENT(halo_atoms)) THEN
           IF (ASSOCIATED(atomic_halo%obj%halo_atoms)) THEN
              DEALLOCATE(atomic_halo%obj%halo_atoms, STAT=stat)
@@ -362,6 +386,42 @@ CONTAINS
        END IF
     END IF
   END SUBROUTINE fb_atomic_halo_set
+
+
+  ! **********************************************************************
+  !> \brief Estimates the total number of electrons in a halo using atomic
+  !>        numbers
+  !> \param atomic_halo:  the atomic_halo object
+  !> \param particle_set:  an array of cp2k particle set objects (this
+  !>                       gives atomic information)
+  !> \param RESULT: estimate of electron number (real)
+  !> \param error: CP2K data container for error logging
+  !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
+  ! **********************************************************************
+  FUNCTION fb_atomic_halo_nelectrons_estimate_Z(atomic_halo, particle_set) RESULT(nelectrons)
+    TYPE(fb_atomic_halo_obj), INTENT(in) :: atomic_halo
+    TYPE(particle_type), DIMENSION(:), INTENT(in) :: particle_set
+    REAL(KIND=dp) :: nelectrons
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'fb_atomic_halo_nelectrons_estimate_Z', &
+                                   routineP = moduleN//':'//routineN
+
+    TYPE(atomic_kind_type), POINTER :: atomic_kind
+    LOGICAL :: failure
+    INTEGER :: iatom_halo, iatom_global, z
+
+    failure = .FALSE.
+    nelectrons = 0
+    IF (ASSOCIATED(atomic_halo)) THEN
+       DO iatom_halo = 1, atomic_halo%natoms
+          iatom_global = atomic_halo%halo_atoms(iatom_halo)
+          atomic_kind => particle_set(iatom_global)%atomic_kind
+          CALL get_atomic_kind(atomic_kind=atomic_kind, &
+                               z=z)
+          nelectrons = nelectrons + REAL(z, KIND=dp)
+       END DO
+    END IF
+  END FUNCTION fb_atomic_halo_nelectrons_estimate_Z
 
 
   ! **********************************************************************
