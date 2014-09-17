@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2013  CP2K developers group                          !
+!   Copyright (C) 2000 - 2014  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -27,7 +27,7 @@ MODULE qmmm_types
                                              pw_pools_dealloc
   USE pw_types,                        ONLY: pw_type
   USE qmmm_gaussian_types,             ONLY: qmmm_gaussian_p_type
-#include "cp_common_uses.h"
+#include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
   PRIVATE
@@ -49,13 +49,12 @@ MODULE qmmm_types
                                 force_mixing_label_buffer           = 5,&
                                 force_mixing_label_termination      = 4
 
-  PUBLIC :: qmmm_env_qm_type, gridlevel_info_type, qmmm_pot_type, qmmm_pot_p_type
+  PUBLIC :: qmmm_env_qm_type, qmmm_pot_type, qmmm_pot_p_type
   PUBLIC :: qmmm_env_qm_retain, qmmm_env_qm_release, qmmm_env_qm_create
   PUBLIC :: qmmm_env_mm_type, qmmm_env_mm_create, qmmm_env_mm_retain, qmmm_env_mm_release
-  PUBLIC :: qmmm_imomm_link_type, qmmm_imomm_link_p_type, qmmm_links_type
-  PUBLIC :: qmmm_pseudo_link_type, qmmm_pseudo_link_p_type
-  PUBLIC :: add_env_type, add_set_type, add_set_release, create_add_set_type
-  PUBLIC :: qmmm_per_pot_type, qmmm_per_pot_p_type, image_charge_type
+  PUBLIC :: qmmm_imomm_link_type, qmmm_links_type
+  PUBLIC :: add_set_type, add_set_release, create_add_set_type
+  PUBLIC :: qmmm_per_pot_type, qmmm_per_pot_p_type
 !***
 
 ! *****************************************************************************
@@ -172,11 +171,14 @@ MODULE qmmm_types
      INTEGER :: ref_count, id_nr
      LOGICAL                                                 :: center_qm_subsys
      LOGICAL                                                 :: center_qm_subsys0, do_translate
+     LOGICAL                                                 :: center_qm_subsys_pbc_aware
+     LOGICAL                                                 :: do_force_mixing
      LOGICAL                                                 :: compatibility
      LOGICAL                                                 :: qmmm_link
      LOGICAL                                                 :: move_mm_charges
      LOGICAL                                                 :: add_mm_charges
      LOGICAL                                                 :: periodic
+     LOGICAL                                                 :: multipole
      LOGICAL                                                 :: image_charge
      INTEGER                                                 :: par_scheme
      INTEGER                                                 :: qmmm_coupl_type
@@ -221,6 +223,8 @@ MODULE qmmm_types
 CONTAINS
 
 ! *****************************************************************************
+!> \brief ...
+!> \param qmmm_env ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 !> \author Teodoro Laino
@@ -259,6 +263,8 @@ CONTAINS
   END SUBROUTINE qmmm_env_mm_create
 
 ! *****************************************************************************
+!> \brief ...
+!> \param qmmm_env ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 !> \author Teodoro Laino
@@ -338,6 +344,8 @@ CONTAINS
   END SUBROUTINE qmmm_env_mm_release
 
 ! *****************************************************************************
+!> \brief ...
+!> \param qmmm_env ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 !> \author Fawzi Mohamed
@@ -369,11 +377,14 @@ SUBROUTINE qmmm_env_qm_create(qmmm_env, error)
      qmmm_env%do_translate     = .TRUE.
      qmmm_env%center_qm_subsys = .TRUE.
      qmmm_env%center_qm_subsys0= .TRUE.
+     qmmm_env%center_qm_subsys_pbc_aware = .FALSE.
+     qmmm_env%do_force_mixing   = .FALSE.
      qmmm_env%compatibility    = .TRUE.
      qmmm_env%qmmm_link        = .FALSE.
      qmmm_env%add_mm_charges   = .FALSE.
      qmmm_env%move_mm_charges  = .FALSE.
      qmmm_env%periodic         = .FALSE.
+     qmmm_env%multipole        = .FALSE.
      qmmm_env%image_charge     = .FALSE.
      qmmm_env%qmmm_coupl_type=do_qmmm_none
      qmmm_env%num_qm_atoms=0
@@ -498,6 +509,7 @@ END SUBROUTINE qmmm_env_qm_release
 
 ! *****************************************************************************
 !> \brief deallocates the pgfs type
+!> \param pgfs ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 !> \author Teodoro Laino
@@ -538,6 +550,7 @@ END SUBROUTINE pgfs_release
 
 ! *****************************************************************************
 !> \brief deallocates the qmmm_links structure
+!> \param qmmm_links ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 !> \author Teodoro Laino
@@ -573,6 +586,7 @@ END SUBROUTINE qmmm_links_dealloc
 
 ! ****************************************************************************
 !> \brief deallocates the image_charge_pot structure
+!> \param image_charge_pot ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 !> \author Dorothea Golze
@@ -606,7 +620,7 @@ END SUBROUTINE qmmm_image_charge_dealloc
 
 ! *****************************************************************************
 !> \brief deallocates the qmmm_pot_type structure
-!> \param qmmm_env the object to release
+!> \param Potentials ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 !> \author Teodoro Laino
@@ -641,7 +655,7 @@ END SUBROUTINE qmmm_pot_type_dealloc
 ! *****************************************************************************
 !> \brief deallocates the qmmm_per_pot_type structure
 !>      for QM/MM periodic boundary conditions
-!> \param qmmm_env the object to release
+!> \param Per_Potentials ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 !> \author Teodoro Laino
@@ -698,6 +712,7 @@ END SUBROUTINE qmmm_per_pot_type_dealloc
 
 ! *****************************************************************************
 !> \brief deallocates the add_set_release
+!> \param added_charges ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 !> \author Teodoro Laino
@@ -757,6 +772,8 @@ END SUBROUTINE add_set_release
 
 ! *****************************************************************************
 !> \brief creates the add_set_type structure
+!> \param added_charges ...
+!> \param ndim ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 !> \author Teodoro Laino
@@ -810,6 +827,7 @@ END SUBROUTINE create_add_set_type
 
 ! *****************************************************************************
 !> \brief creates the image_charge_type structure
+!> \param image_charge_pot ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 !> \author Dorothea Golze

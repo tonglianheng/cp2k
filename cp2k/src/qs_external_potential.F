@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2013  CP2K developers group                          !
+!   Copyright (C) 2000 - 2014  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -10,7 +10,7 @@
 MODULE qs_external_potential
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind
-  USE cell_types,                      ONLY: cell_type,&
+  USE cell_methods,                    ONLY: cell_type,&
                                              pbc
   USE cp_subsys_types,                 ONLY: cp_subsys_get
   USE f77_blas
@@ -33,10 +33,12 @@ MODULE qs_external_potential
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
   USE qs_force_types,                  ONLY: qs_force_type
+  USE qs_kind_types,                   ONLY: get_qs_kind,&
+                                             qs_kind_type
   USE string_utilities,                ONLY: compress
   USE timings,                         ONLY: timeset,&
                                              timestop
-#include "cp_common_uses.h"
+#include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
 
@@ -52,8 +54,10 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief  Computes the external potential on the grid
-!> \author Teodoro Laino [tlaino]
+!> \param qs_env ...
+!> \param error ...
 !> \date   12.2009
+!> \author Teodoro Laino [tlaino]
 ! *****************************************************************************
   SUBROUTINE external_e_potential(qs_env,error)
 
@@ -109,8 +113,11 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief  Computes the force and the energy due to the external potential on the cores
-!> \author Teodoro Laino [tlaino]
+!> \param qs_env ...
+!> \param calculate_forces ...
+!> \param error ...
 !> \date   12.2009
+!> \author Teodoro Laino [tlaino]
 ! *****************************************************************************
   SUBROUTINE external_c_potential(qs_env,calculate_forces,error)
 
@@ -129,13 +136,14 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(3)              :: dfunc, r
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
-    TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(cell_type), POINTER                 :: cell
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(qs_energy_type), POINTER            :: energy
     TYPE(qs_force_type), DIMENSION(:), &
       POINTER                                :: force
+    TYPE(qs_kind_type), DIMENSION(:), &
+      POINTER                                :: qs_kind_set
     TYPE(section_vals_type), POINTER         :: ext_pot_section, input
 
     failure=.FALSE.
@@ -146,6 +154,7 @@ CONTAINS
 
        CALL get_qs_env(qs_env=qs_env,&
                        atomic_kind_set=atomic_kind_set,&
+                       qs_kind_set=qs_kind_set,&
                        energy=energy,&
                        particle_set=particle_set,&
                        input=input,&
@@ -156,11 +165,8 @@ CONTAINS
        nkind = SIZE(atomic_kind_set)
 
        DO ikind=1,SIZE(atomic_kind_set)
-          atomic_kind => atomic_kind_set(ikind)
-          CALL get_atomic_kind(atomic_kind=atomic_kind,&
-               atom_list=list,&
-               natom=natom,&
-               zeff=zeff)
+          CALL get_atomic_kind(atomic_kind_set(ikind), atom_list=list,natom=natom)
+          CALL get_qs_kind(qs_kind_set(ikind), zeff=zeff)
 
           natom = SIZE(list)
           DO iatom=1,natom
@@ -182,8 +188,14 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief  Low level function for computing the potential and the derivatives
-!> \author Teodoro Laino [tlaino]
+!> \param r ...
+!> \param ext_pot_section ...
+!> \param func ...
+!> \param dfunc ...
+!> \param calc_derivatives ...
+!> \param error ...
 !> \date   12.2009
+!> \author Teodoro Laino [tlaino]
 ! *****************************************************************************
   SUBROUTINE get_external_potential(r, ext_pot_section, func, dfunc, calc_derivatives, error)
     REAL(KIND=dp), DIMENSION(3), INTENT(IN)  :: r

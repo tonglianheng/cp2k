@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2013  CP2K developers group                          !
+!   Copyright (C) 2000 - 2014  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -8,7 +8,7 @@
 !> \author Teodoro Laino
 ! *****************************************************************************
 MODULE cp_ddapc_types
-  USE cell_types,                      ONLY: cell_release,&
+  USE cell_methods,                    ONLY: cell_release,&
                                              cell_type,&
                                              read_cell
   USE cp_ddapc_methods,                ONLY: ddapc_eval_AmI,&
@@ -19,7 +19,6 @@ MODULE cp_ddapc_types
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE ewald_spline_util,               ONLY: Setup_Ewald_Spline
   USE f77_blas
-  USE input_constants,                 ONLY: use_multipole
   USE input_section_types,             ONLY: section_vals_get,&
                                              section_vals_get_subs_vals,&
                                              section_vals_type,&
@@ -29,13 +28,14 @@ MODULE cp_ddapc_types
   USE particle_types,                  ONLY: particle_type
   USE pw_grid_types,                   ONLY: pw_grid_type
   USE pw_grids,                        ONLY: pw_grid_release
+  USE pw_poisson_types,                ONLY: pw_poisson_multipole
   USE pw_pool_types,                   ONLY: pw_pool_give_back_pw,&
                                              pw_pool_release,&
                                              pw_pool_type
   USE pw_types,                        ONLY: pw_type
   USE timings,                         ONLY: timeset,&
                                              timestop
-#include "cp_common_uses.h"
+#include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
   PRIVATE
@@ -64,7 +64,7 @@ MODULE cp_ddapc_types
 ! *****************************************************************************
   TYPE cp_ddapc_ewald_type
      LOGICAL                                    :: do_decoupling
-     LOGICAL                                    :: do_qmmm_periodic
+     LOGICAL                                    :: do_qmmm_periodic_decpl
      LOGICAL                                    :: do_solvation
      LOGICAL                                    :: do_property
      LOGICAL                                    :: do_restraint
@@ -77,9 +77,23 @@ MODULE cp_ddapc_types
 CONTAINS
 
 ! *****************************************************************************
+!> \brief ...
+!> \param cp_para_env ...
+!> \param cp_ddapc_env ...
+!> \param cp_ddapc_ewald ...
+!> \param particle_set ...
+!> \param radii ...
+!> \param cell ...
+!> \param super_cell ...
+!> \param rho_tot_g ...
+!> \param gcut ...
+!> \param iw2 ...
+!> \param Vol ...
+!> \param force_env_section ...
+!> \param error ...
 !> \author Tedoro Laino
+!> \note NB receive cp_para_env to pass down to parallelized ewald_ddapc_pot()
 ! *****************************************************************************
-  !NB receive cp_para_env to pass down to parallelized ewald_ddapc_pot()
   SUBROUTINE cp_ddapc_create(cp_para_env, cp_ddapc_env, cp_ddapc_ewald, &
        particle_set, radii, cell, super_cell, rho_tot_g, gcut, iw2, Vol,  &
        force_env_section, error)
@@ -132,7 +146,7 @@ CONTAINS
                            radii,&
                            iw2,&
                            Vol, error)
-       IF ( cp_ddapc_ewald%do_qmmm_periodic.OR.&
+       IF ( cp_ddapc_ewald%do_qmmm_periodic_decpl.OR.&
             cp_ddapc_ewald%do_decoupling) THEN
           !
           ! Evaluate the matrix for the Classical contribution to the coupling/decoupling scheme
@@ -146,7 +160,7 @@ CONTAINS
                                particle_set,&
                                cp_ddapc_env%Md,&
                                radii, error)
-          IF ( cp_ddapc_ewald%do_qmmm_periodic.OR.cp_ddapc_ewald%do_decoupling) THEN
+          IF ( cp_ddapc_ewald%do_qmmm_periodic_decpl.OR.cp_ddapc_ewald%do_decoupling) THEN
              ALLOCATE(cp_ddapc_env%Mt(SIZE(cp_ddapc_env%Md,1),SIZE(cp_ddapc_env%Md,2)),stat=stat)
              CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
              IF ( cp_ddapc_ewald%do_decoupling) THEN
@@ -173,6 +187,9 @@ CONTAINS
   END SUBROUTINE cp_ddapc_create
 
 ! *****************************************************************************
+!> \brief ...
+!> \param cp_ddapc_env ...
+!> \param error ...
 !> \par History
 !>      none
 !> \author Teodoro Laino - [tlaino]
@@ -195,6 +212,9 @@ CONTAINS
   END SUBROUTINE cp_ddapc_retain
 
 ! *****************************************************************************
+!> \brief ...
+!> \param cp_ddapc_env ...
+!> \param error ...
 !> \par History
 !>      none
 !> \author Teodoro Laino - [tlaino]
@@ -256,14 +276,26 @@ CONTAINS
   END SUBROUTINE cp_ddapc_release
 
 ! *****************************************************************************
+!> \brief ...
+!> \param cp_ddapc_ewald ...
+!> \param qmmm ...
+!> \param qmmm_periodic ...
+!> \param qmmm_multipole ...
+!> \param qm_cell ...
+!> \param force_env_section ...
+!> \param subsys_section ...
+!> \param para_env ...
+!> \param error ...
 !> \par History
 !>      none
 !> \author Teodoro Laino - [tlaino]
 ! *****************************************************************************
-  SUBROUTINE cp_ddapc_ewald_create(cp_ddapc_ewald, qmmm, qmmm_periodic,qm_cell,&
-       force_env_section, subsys_section, para_env, error)
+  SUBROUTINE cp_ddapc_ewald_create(cp_ddapc_ewald, qmmm, qmmm_periodic,&
+             qmmm_multipole, qm_cell, force_env_section, subsys_section, para_env,&
+             error)
     TYPE(cp_ddapc_ewald_type), POINTER       :: cp_ddapc_ewald
-    LOGICAL, INTENT(IN)                      :: qmmm, qmmm_periodic
+    LOGICAL, INTENT(IN)                      :: qmmm, qmmm_periodic, &
+                                                qmmm_multipole
     TYPE(cell_type), POINTER                 :: qm_cell
     TYPE(section_vals_type), POINTER         :: force_env_section, &
                                                 subsys_section
@@ -276,7 +308,7 @@ CONTAINS
     INTEGER                                  :: my_val, npts(3), output_unit, &
                                                 stat
     INTEGER, DIMENSION(:), POINTER           :: ngrids
-    LOGICAL :: analyt, decoupling, do_qmmm_periodic, do_restraint, &
+    LOGICAL :: analyt, decoupling, do_qmmm_periodic_decpl, do_restraint, &
       do_restraintB, do_solvation, failure
     REAL(KIND=dp)                            :: hmat(3,3)
     REAL(KIND=dp), DIMENSION(:), POINTER     :: gx, gy, gz, LG
@@ -312,13 +344,13 @@ CONTAINS
     CALL section_vals_get(poisson_section,explicit=decoupling, error=error)
     CALL section_vals_get(restraint_section,explicit=do_restraint, error=error)
     CALL section_vals_get(restraint_sectionB,explicit=do_restraintB, error=error)
-    do_qmmm_periodic                = qmmm_periodic.AND.qmmm
-    cp_ddapc_ewald%do_solvation     = do_solvation
-    cp_ddapc_ewald%do_qmmm_periodic = do_qmmm_periodic
-    cp_ddapc_ewald%do_property      = cp_printkey_is_on(logger%iter_info,printC_section,error)
-    cp_ddapc_ewald%do_restraint     = do_restraint.OR.do_restraintB
+    do_qmmm_periodic_decpl                = qmmm_periodic.AND.qmmm.AND.qmmm_multipole
+    cp_ddapc_ewald%do_solvation           = do_solvation
+    cp_ddapc_ewald%do_qmmm_periodic_decpl = do_qmmm_periodic_decpl
+    cp_ddapc_ewald%do_property            = cp_printkey_is_on(logger%iter_info,printC_section,error)
+    cp_ddapc_ewald%do_restraint           = do_restraint.OR.do_restraintB
     ! Determining the tasks and further check
-    IF (do_qmmm_periodic.AND.decoupling) THEN
+    IF (do_qmmm_periodic_decpl.AND.decoupling) THEN
        ! Check than an additional POISSON section has not been defined. In case write a warning
        IF (output_unit>0) &
           WRITE(output_unit,'(T2,"WARNING",A)')&
@@ -331,19 +363,19 @@ CONTAINS
        ! Simple decoupling technique
        CALL section_vals_val_get(poisson_section,"POISSON_SOLVER",i_val=my_val,error=error)
        SELECT CASE (my_val)
-       CASE (use_multipole)
+       CASE (pw_poisson_multipole)
           multipole_section => section_vals_get_subs_vals(poisson_section,"MULTIPOLE", error=error)
        CASE DEFAULT
           decoupling = .FALSE.
        END SELECT
     END IF
     cp_ddapc_ewald%do_decoupling    = decoupling
-    IF (cp_ddapc_ewald%do_qmmm_periodic) THEN
+    IF (cp_ddapc_ewald%do_qmmm_periodic_decpl) THEN
        ! QMMM periodic
        multipole_section => section_vals_get_subs_vals(qmmm_per_section,"MULTIPOLE", error=error)
     END IF
     cp_ddapc_ewald%ewald_section => multipole_section
-    IF (cp_ddapc_ewald%do_decoupling.OR.cp_ddapc_ewald%do_qmmm_periodic) THEN
+    IF (cp_ddapc_ewald%do_decoupling.OR.cp_ddapc_ewald%do_qmmm_periodic_decpl) THEN
        ! Do we do the calculation analytically or interpolating the g-space factor?
        CALL section_vals_val_get(multipole_section,"ANALYTICAL_GTERM",l_val=analyt,error=error)
        IF (.NOT.analyt) THEN
@@ -366,7 +398,7 @@ CONTAINS
           DEALLOCATE(gz, stat=stat)
           CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
           NULLIFY(LG, gx, gy, gz)
-          IF (cp_ddapc_ewald%do_qmmm_periodic) THEN
+          IF (cp_ddapc_ewald%do_qmmm_periodic_decpl) THEN
              NULLIFY(mm_cell, dummy_cell)
              cell_section => section_vals_get_subs_vals(subsys_section,"CELL",error=error)
              CALL read_cell(mm_cell, dummy_cell, cell_section=cell_section, para_env=para_env, error=error)
@@ -394,6 +426,15 @@ CONTAINS
   END SUBROUTINE cp_ddapc_ewald_create
 
 ! *****************************************************************************
+!> \brief ...
+!> \param multipole_section ...
+!> \param hmat ...
+!> \param deth ...
+!> \param LG ...
+!> \param gx ...
+!> \param gy ...
+!> \param gz ...
+!> \param error ...
 !> \par History
 !>      none
 !> \author Teodoro Laino - [tlaino]
@@ -459,6 +500,9 @@ CONTAINS
   END SUBROUTINE eval_lg
 
 ! *****************************************************************************
+!> \brief ...
+!> \param cp_ddapc_ewald ...
+!> \param error ...
 !> \par History
 !>      none
 !> \author Teodoro Laino - [tlaino]

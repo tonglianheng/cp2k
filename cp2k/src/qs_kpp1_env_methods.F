@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2013  CP2K developers group                          !
+!   Copyright (C) 2000 - 2014  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -11,15 +11,14 @@
 !> \author Fawzi Mohamed
 ! *****************************************************************************
 MODULE qs_kpp1_env_methods
-  USE cell_types,                      ONLY: cell_type
   USE cp_dbcsr_interface,              ONLY: cp_dbcsr_add,&
+                                             cp_dbcsr_allocate_matrix_set,&
                                              cp_dbcsr_copy,&
+                                             cp_dbcsr_deallocate_matrix_set,&
                                              cp_dbcsr_init,&
+                                             cp_dbcsr_p_type,&
                                              cp_dbcsr_scale,&
                                              cp_dbcsr_set
-  USE cp_dbcsr_operations,             ONLY: cp_dbcsr_allocate_matrix_set,&
-                                             cp_dbcsr_deallocate_matrix_set
-  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_p_type
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_should_output,&
                                              cp_print_key_unit_nr
@@ -85,7 +84,7 @@ MODULE qs_kpp1_env_methods
                                              xc_rho_set_release,&
                                              xc_rho_set_type,&
                                              xc_rho_set_update
-#include "cp_common_uses.h"
+#include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
 
@@ -104,7 +103,7 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief allocates and initializes a kpp1_env
-!> \param kpp 1_env: the environement to initialize
+!> \param kpp1_env the environement to initialize
 !> \param qs_env the qs environment in which this environment lives
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
@@ -142,13 +141,15 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief calcualtes the k_p_p1 kernel of the pertubation theory
-!> \param kpp 1_env: the kpp1 environement in which perform the calculation
+!> \param kpp1_env the kpp1 environement in which perform the calculation
+!> \param p_env ...
 !> \param qs_env kpp1's qs_env
-!> \param k_p_p 1: the sparse matrix that will contain the kernel k_p_p1
+!> \param k_p_p1 the sparse matrix that will contain the kernel k_p_p1
 !> \param rho the density where to evaluate the derivatives (i.e. p along
 !>        with with its grid representations, that must be valid)
-!> \param rho 1: the density that represent the first direction along which
+!> \param rho1 the density that represent the first direction along which
 !>        you should evaluate the derivatives
+!> \param rho1_xc ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 ! *****************************************************************************
@@ -175,7 +176,6 @@ CONTAINS
                                                 lsd_singlets
     REAL(KIND=dp)                            :: energy_hartree, &
                                                 energy_hartree_1c, fac
-    TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(pw_env_type), POINTER               :: pw_env
     TYPE(pw_p_type)                          :: rho1_tot_gspace, &
@@ -196,7 +196,7 @@ CONTAINS
     failure=.FALSE.
 
     NULLIFY(auxbas_pw_pool, pw_pools, pw_env, v_rspace_new, &
-            rho1_r, rho1_g_pw, tau_pw, cell, v_xc, rho1_set,&
+            rho1_r, rho1_g_pw, tau_pw, v_xc, rho1_set,&
             poisson_env, input, scf_section)
     logger => cp_error_get_logger(error)
     ionode = logger%para_env%mepos==logger%para_env%source
@@ -211,7 +211,6 @@ CONTAINS
        CALL kpp1_check_i_alloc(kpp1_env,qs_env=qs_env,error=error)
        CALL get_qs_env(qs_env=qs_env,&
             pw_env=pw_env,&
-            cell=cell,&
             input=input,&
             error=error)
 
@@ -352,7 +351,7 @@ CONTAINS
        CALL xc_rho_set_update(rho1_set, rho1_r_pw, rho1_g_pw, tau_pw, needs,&
                              section_get_ival(xc_section,"XC_GRID%XC_DERIV",error=error),&
                              section_get_ival(xc_section,"XC_GRID%XC_SMOOTH_RHO",error=error),&
-                             cell, auxbas_pw_pool,  error)
+                             auxbas_pw_pool,  error)
 
        ALLOCATE(v_xc(nspins),stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -521,22 +520,22 @@ CONTAINS
 ! *****************************************************************************
 !> \brief calcualtes the k_p_p1 kernel of the pertubation theory with finite
 !>      differences
-!> \param kpp 1_env: the kpp1 environement in which perform the calculation
+!> \param kpp1_env the kpp1 environement in which perform the calculation
 !> \param qs_env kpp1's qs_env
-!> \param k_p_p 1: the sparse matrix that will contain the kernel k_p_p1
+!> \param k_p_p1 the sparse matrix that will contain the kernel k_p_p1
 !> \param rho the density where to evaluate the derivatives (i.e. p along
 !>        with with its grid representations, that must be valid)
-!> \param rho 1: the density that represent the first direction along which
+!> \param rho1 the density that represent the first direction along which
 !>        you should evaluate the derivatives
 !> \param diff the amount of the finite difference step
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
-!> \note
-!>      useful for testing purposes.
-!>      rescale my_diff depending on the norm of rho1?
 !> \par History
 !>      01.2003 created [fawzi]
 !> \author Fawzi Mohamed
+!> \note
+!>      useful for testing purposes.
+!>      rescale my_diff depending on the norm of rho1?
 ! *****************************************************************************
   SUBROUTINE kpp1_calc_k_p_p1_fdiff(kpp1_env,qs_env,k_p_p1,rho,rho1,&
        diff, error)
@@ -631,13 +630,13 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief checks that the intenal storage is allocated, and allocs it if needed
-!> \param kpp 1_env: the environment to check
+!> \param kpp1_env the environment to check
 !> \param qs_env the qs environment this kpp1_env lives in
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
+!> \author Fawzi Mohamed
 !> \note
 !>      private routine
-!> \author Fawzi Mohamed
 ! *****************************************************************************
   SUBROUTINE kpp1_check_i_alloc(kpp1_env, qs_env, error)
 
@@ -652,7 +651,6 @@ CONTAINS
                                                 res_etype, stat
     LOGICAL                                  :: explicit, failure, &
                                                 lsd_singlets
-    TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: matrix_s
     TYPE(pw_env_type), POINTER               :: pw_env
@@ -672,7 +670,7 @@ CONTAINS
     IF (.NOT. failure) THEN
 
        CALL get_qs_env(qs_env, pw_env=pw_env,&
-                       matrix_s=matrix_s, cell=cell, input=input, error=error, rho=rho)
+                       matrix_s=matrix_s, input=input, error=error, rho=rho)
 
        CALL qs_rho_get(rho, rho_r=rho_r, error=error)
        nspins=SIZE(rho_r)
@@ -742,7 +740,7 @@ CONTAINS
 
           CALL xc_prep_2nd_deriv(kpp1_env%deriv_set, kpp1_env%rho_set, &
                my_rho_r, auxbas_pw_pool, &
-               xc_section=xc_section, cell=cell, error=error)
+               xc_section=xc_section, error=error)
 
           DO ispin=1,SIZE(my_rho_r)
              CALL pw_release(my_rho_r(ispin)%pw,error=error)
@@ -757,10 +755,10 @@ CONTAINS
 ! *****************************************************************************
 !> \brief function to advise of changes either in the grids or in the the
 !>      matrix structure (to update kpp1_env internal cache)
-!> \param kpp 1_env: the kpp1_env
-!> \param grid_changed true if the grids have changed and have to be rebuilt
+!> \param kpp1_env the kpp1_env
 !> \param s_struct_changed true if the structure of the s matrix has changed
-!> \param psi 0_changed: true if the value of psi0 (qs_env%rho) has changed
+!> \param grid_changed true if the grids have changed and have to be rebuilt
+!> \param psi0_changed true if the value of psi0 (qs_env%rho) has changed
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 !> \par History
@@ -835,6 +833,13 @@ CONTAINS
     END IF
   END SUBROUTINE kpp1_did_change
 
+! *****************************************************************************
+!> \brief ...
+!> \param kpp1_env ...
+!> \param rho1 ...
+!> \param rho1_tot_gspace ...
+!> \param output_unit ...
+!> \param error ...
 ! *****************************************************************************
   SUBROUTINE print_densities(kpp1_env, rho1, rho1_tot_gspace, output_unit, error)
 

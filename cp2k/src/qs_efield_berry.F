@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2013  CP2K developers group                          !
+!   Copyright (C) 2000 - 2014  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -18,7 +18,7 @@ MODULE qs_efield_berry
   USE basis_set_types,                 ONLY: gto_basis_set_p_type,&
                                              gto_basis_set_type
   USE block_p_types,                   ONLY: block_p_type
-  USE cell_types,                      ONLY: cell_type,&
+  USE cell_methods,                    ONLY: cell_type,&
                                              pbc
   USE cp_cfm_basic_linalg,             ONLY: cp_cfm_solve
   USE cp_cfm_types,                    ONLY: cp_cfm_create,&
@@ -27,20 +27,15 @@ MODULE qs_efield_berry
                                              cp_cfm_release,&
                                              cp_cfm_set_all
   USE cp_control_types,                ONLY: dft_control_type
-  USE cp_dbcsr_interface,              ONLY: cp_dbcsr_create,&
-                                             cp_dbcsr_finalize,&
-                                             cp_dbcsr_get_block_p,&
-                                             cp_dbcsr_init,&
-                                             cp_dbcsr_set
+  USE cp_dbcsr_cp2k_link,              ONLY: cp_dbcsr_alloc_block_from_nbl
+  USE cp_dbcsr_interface,              ONLY: &
+       cp_dbcsr_allocate_matrix_set, cp_dbcsr_create, cp_dbcsr_finalize, &
+       cp_dbcsr_get_block_p, cp_dbcsr_init, cp_dbcsr_p_type, cp_dbcsr_set, &
+       cp_dbcsr_type, dbcsr_type_no_symmetry
   USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
                                              copy_fm_to_dbcsr,&
-                                             cp_dbcsr_alloc_block_from_nbl,&
-                                             cp_dbcsr_allocate_matrix_set,&
                                              cp_dbcsr_sm_fm_multiply
-  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_p_type,&
-                                             cp_dbcsr_type
-  USE cp_fm_basic_linalg,              ONLY: cp_fm_gemm,&
-                                             cp_fm_transpose
+  USE cp_fm_basic_linalg,              ONLY: cp_fm_transpose
   USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                              cp_fm_struct_release,&
                                              cp_fm_struct_type
@@ -49,8 +44,8 @@ MODULE qs_efield_berry
                                              cp_fm_p_type,&
                                              cp_fm_release,&
                                              cp_fm_type
+  USE cp_gemm_interface,               ONLY: cp_gemm
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE dbcsr_types,                     ONLY: dbcsr_type_no_symmetry
   USE distribution_1d_types,           ONLY: distribution_1d_type
   USE kinds,                           ONLY: default_string_length,&
                                              dp
@@ -66,6 +61,9 @@ MODULE qs_efield_berry
                                              qs_environment_type,&
                                              set_qs_env
   USE qs_force_types,                  ONLY: qs_force_type
+  USE qs_kind_types,                   ONLY: get_qs_kind,&
+                                             get_qs_kind_set,&
+                                             qs_kind_type
   USE qs_ks_types,                     ONLY: qs_ks_env_type
   USE qs_mo_types,                     ONLY: get_mo_set,&
                                              mo_set_p_type
@@ -82,7 +80,7 @@ MODULE qs_efield_berry
                                              uppercase
   USE timings,                         ONLY: timeset,&
                                              timestop
-#include "cp_common_uses.h"
+#include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
 
@@ -98,6 +96,13 @@ CONTAINS
 
   ! *****************************************************************************
 
+! *****************************************************************************
+!> \brief ...
+!> \param ks_env ...
+!> \param qs_env ...
+!> \param calculate_forces ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE qs_efield_berry_phase(ks_env,qs_env,calculate_forces,error)
 
     TYPE(qs_ks_env_type), POINTER            :: ks_env
@@ -119,6 +124,12 @@ CONTAINS
     CALL timestop(handle)
   END SUBROUTINE qs_efield_berry_phase
   ! *****************************************************************************
+! *****************************************************************************
+!> \brief ...
+!> \param qs_env ...
+!> \param calculate_forces ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE qs_efield_integrals (qs_env,calculate_forces,error)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
@@ -192,6 +203,12 @@ CONTAINS
 
   ! *****************************************************************************
 
+! *****************************************************************************
+!> \brief ...
+!> \param qs_env ...
+!> \param calculate_forces ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE qs_efield_mo_derivatives(qs_env,calculate_forces,error)
     TYPE(qs_environment_type), POINTER       :: qs_env
     LOGICAL                                  :: calculate_forces
@@ -220,7 +237,6 @@ CONTAINS
     REAL(dp), DIMENSION(3)                   :: kvec, rcc, ria
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
-    TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_cfm_p_type), DIMENSION(:), &
       POINTER                                :: eigrmat, inv_mat
@@ -247,6 +263,8 @@ CONTAINS
     TYPE(qs_energy_type), POINTER            :: energy
     TYPE(qs_force_type), DIMENSION(:), &
       POINTER                                :: force
+    TYPE(qs_kind_type), DIMENSION(:), &
+      POINTER                                :: qs_kind_set
 
     CALL timeset(routineN,handle)
     NULLIFY ( dft_control, cell, particle_set )
@@ -256,6 +274,8 @@ CONTAINS
     CALL get_qs_env ( qs_env, local_particles=local_particles, error=error)
     NULLIFY ( matrix_s, mos )
     CALL get_qs_env(qs_env=qs_env, matrix_s=matrix_s, mos=mos,para_env=para_env, error=error)
+    NULLIFY ( qs_kind_set )
+    CALL get_qs_env(qs_env=qs_env, qs_kind_set=qs_kind_set, error=error)
 
     fieldpol=dft_control%period_efield%polarisation
     fieldpol=fieldpol/SQRT(DOT_PRODUCT(fieldpol,fieldpol))
@@ -278,8 +298,8 @@ CONTAINS
 
     zi(:) = CMPLX ( 1._dp, 0._dp, dp )
     DO ia = 1,SIZE(particle_set)
-       atomic_kind => particle_set(ia)%atomic_kind
-       CALL get_atomic_kind(atomic_kind=atomic_kind,core_charge=charge)
+       CALL get_atomic_kind(particle_set(ia)%atomic_kind, kind_number=ikind)
+       CALL get_qs_kind(qs_kind_set(ikind), core_charge=charge)
        ria = particle_set(ia)%r
        ria = pbc(ria,cell)
        DO i = 1, 3
@@ -301,11 +321,8 @@ CONTAINS
        nkind=SIZE(atomic_kind_set)
        kkk=1
        DO ikind=1,SIZE(atomic_kind_set)
-          atomic_kind => atomic_kind_set(ikind)
-          CALL get_atomic_kind(atomic_kind=atomic_kind,&
-               atom_list=atom_list,&
-               natom=natom,&
-               zeff=charge)
+          CALL get_atomic_kind(atomic_kind_set(ikind), atom_list=atom_list, natom=natom)
+          CALL get_qs_kind(qs_kind_set(ikind), zeff=charge)
           natom = SIZE(atom_list)
           DO iatom=1,natom
              DO idir=1,3
@@ -389,7 +406,7 @@ CONTAINS
        ALLOCATE (last_sgf(natom),STAT=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
-       CALL get_particle_set(particle_set=particle_set,first_sgf=first_sgf,last_sgf=last_sgf,&
+       CALL get_particle_set(particle_set, qs_kind_set, first_sgf=first_sgf,last_sgf=last_sgf,&
             error=error)
        CALL cp_fm_get_info(dcos_full,ncol_local=ncol_local,nrow_local=nrow_local,&
             row_indices=row_indices, col_indices=col_indices, error=error)
@@ -442,10 +459,10 @@ CONTAINS
                 CALL get_mo_set(mo_set=mos(ispin)%mo_set,nao=nao,mo_coeff=mo_coeff_tmp(ispin)%matrix,nmo=nmo)
              END IF
              CALL cp_dbcsr_sm_fm_multiply(cosmat, mo_coeff_tmp(ispin)%matrix, opvec(1,ispin)%matrix, ncol=nmo, error=error)
-             CALL cp_fm_gemm("T","N",nmo,nmo,nao,1.0_dp,mo_coeff_tmp(ispin)%matrix,opvec(1,ispin)%matrix,0.0_dp,&
+             CALL cp_gemm("T","N",nmo,nmo,nao,1.0_dp,mo_coeff_tmp(ispin)%matrix,opvec(1,ispin)%matrix,0.0_dp,&
                   op_fm_set(1,ispin)%matrix,error=error)
              CALL cp_dbcsr_sm_fm_multiply(sinmat, mo_coeff_tmp(ispin)%matrix, opvec(2,ispin)%matrix, ncol=nmo, error=error)
-             CALL cp_fm_gemm("T","N",nmo,nmo,nao,1.0_dp,mo_coeff_tmp(ispin)%matrix,opvec(2,ispin)%matrix,0.0_dp,&
+             CALL cp_gemm("T","N",nmo,nmo,nao,1.0_dp,mo_coeff_tmp(ispin)%matrix,opvec(2,ispin)%matrix,0.0_dp,&
                   op_fm_set(2,ispin)%matrix,error=error)
           ENDDO
           !second step invert C^T S_berry C
@@ -476,9 +493,9 @@ CONTAINS
                 inv_work(1,ispin)%matrix%local_data(:,icol_local)=REAL(inv_mat(ispin)%matrix%local_data(:,icol_local),dp)
                 inv_work(2,ispin)%matrix%local_data(:,icol_local)=AIMAG(inv_mat(ispin)%matrix%local_data(:,icol_local))
              END DO
-             CALL cp_fm_gemm("N","N",nao,nmo,nmo,fieldfac(idir)/(occ),opvec(1,ispin)%matrix,inv_work(2,ispin)%matrix,&
+             CALL cp_gemm("N","N",nao,nmo,nmo,fieldfac(idir)/(occ),opvec(1,ispin)%matrix,inv_work(2,ispin)%matrix,&
                   1.0_dp,mo_derivs_tmp(ispin)%matrix,error)
-             CALL cp_fm_gemm("N","N",nao,nmo,nmo,-fieldfac(idir)/(occ),opvec(2,ispin)%matrix,inv_work(1,ispin)%matrix,&
+             CALL cp_gemm("N","N",nao,nmo,nmo,-fieldfac(idir)/(occ),opvec(2,ispin)%matrix,inv_work(1,ispin)%matrix,&
                   1.0_dp,mo_derivs_tmp(ispin)%matrix,error)
 
           END DO
@@ -490,13 +507,13 @@ CONTAINS
                 CALL cp_fm_get_info(dcos_full,ncol_local=ncol_local,nrow_local=nrow_local,&
                       row_indices=row_indices, col_indices=col_indices,error=error)
                 CALL get_mo_set(mo_set=mos(ispin)%mo_set,nao=nao,nmo=nmo)
-                CALL cp_fm_gemm("N","N",nao,nmo,nmo,1.0_dp,mo_coeff_tmp(ispin)%matrix,inv_work(1,ispin)%matrix,0.0_dp,&
+                CALL cp_gemm("N","N",nao,nmo,nmo,1.0_dp,mo_coeff_tmp(ispin)%matrix,inv_work(1,ispin)%matrix,0.0_dp,&
                      opvec(1,ispin)%matrix,error=error)
-                CALL cp_fm_gemm("N","N",nao,nmo,nmo,1.0_dp,mo_coeff_tmp(ispin)%matrix,inv_work(2,ispin)%matrix,0.0_dp,&
+                CALL cp_gemm("N","N",nao,nmo,nmo,1.0_dp,mo_coeff_tmp(ispin)%matrix,inv_work(2,ispin)%matrix,0.0_dp,&
                      opvec(2,ispin)%matrix,error=error)
-                CALL cp_fm_gemm("N","T",nao,nao,nmo,1.0_dp,opvec(1,ispin)%matrix,mo_coeff_tmp(ispin)%matrix,0.0_dp,&
+                CALL cp_gemm("N","T",nao,nao,nmo,1.0_dp,opvec(1,ispin)%matrix,mo_coeff_tmp(ispin)%matrix,0.0_dp,&
                      tmp_re,error=error)
-                CALL cp_fm_gemm("N","T",nao,nao,nmo,1.0_dp,opvec(2,ispin)%matrix,mo_coeff_tmp(ispin)%matrix,0.0_dp,&
+                CALL cp_gemm("N","T",nao,nao,nmo,1.0_dp,opvec(2,ispin)%matrix,mo_coeff_tmp(ispin)%matrix,0.0_dp,&
                      tmp_im,error=error)
                 myfac=-0.25_dp*SQRT(DOT_PRODUCT(cell%hmat(idir,:),cell%hmat(idir,:)))/twopi*fieldfac(idir)
                 DO fdir=1,3
@@ -591,6 +608,17 @@ CONTAINS
 
 
 
+! *****************************************************************************
+!> \brief ...
+!> \param qs_env ...
+!> \param cosmat ...
+!> \param sinmat ...
+!> \param kvec ...
+!> \param calculate_forces ...
+!> \param dcosmat ...
+!> \param dsinmat ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE berry_mat_derivs(qs_env,cosmat,sinmat,kvec,calculate_forces,dcosmat,dsinmat,error)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
@@ -608,7 +636,7 @@ CONTAINS
     CHARACTER(LEN=default_string_length)     :: name
     INTEGER :: handle, iatom, icol, ikind, inode, irow, iset, istat, j, &
       jatom, jkind, jset, ldab, ldsa, ldsb, ldwork, m, natom, ncoa, ncob, &
-      nkind, nseta, nsetb, sgfa, sgfb, stat
+      nkind, nseta, nsetb, sgfa, sgfb
     INTEGER, DIMENSION(:), POINTER           :: la_max, la_min, lb_max, &
                                                 lb_min, npgfa, npgfb, nsgfa, &
                                                 nsgfb
@@ -622,9 +650,6 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:), POINTER     :: set_radius_a, set_radius_b
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: rpgfa, rpgfb, sphi_a, sphi_b, &
                                                 zeta, zetb
-    TYPE(atomic_kind_type), DIMENSION(:), &
-      POINTER                                :: atomic_kind_set
-    TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(block_p_type), DIMENSION(3)         :: cost, sint
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
@@ -638,21 +663,23 @@ CONTAINS
       DIMENSION(:), POINTER                  :: sab_all, sab_orb
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
+    TYPE(qs_kind_type), DIMENSION(:), &
+      POINTER                                :: qs_kind_set
 
     CALL timeset(routineN,handle)
 
     failure = .FALSE.
 
-    NULLIFY (atomic_kind_set, particle_set, sab_orb, sab_all, cell)
+    NULLIFY (qs_kind_set, particle_set, sab_orb, sab_all, cell)
     CALL get_qs_env(qs_env=qs_env,&
-         atomic_kind_set=atomic_kind_set,&
+         qs_kind_set=qs_kind_set,&
          particle_set=particle_set,cell=cell,&
          sab_orb=sab_orb,sab_all=sab_all,matrix_s=matrix_s, error=error)
 
     CALL cp_dbcsr_set(sinmat,0.0_dp,error=error)
     CALL cp_dbcsr_set(cosmat,0.0_dp,error=error)
 
-    CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set, maxco=ldwork )
+    CALL get_qs_kind_set(qs_kind_set, maxco=ldwork )
     ldab = ldwork
     ALLOCATE(cosab(ldab,ldab),STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
@@ -669,7 +696,7 @@ CONTAINS
        CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
     END IF
 
-    nkind = SIZE(atomic_kind_set)
+    nkind = SIZE(qs_kind_set)
     natom = SIZE(particle_set)
 
     ALLOCATE (basis_set_list(nkind),STAT=istat)
@@ -706,8 +733,7 @@ CONTAINS
     END IF
 
     DO ikind=1,nkind
-       atomic_kind => atomic_kind_set(ikind)
-       CALL get_atomic_kind(atomic_kind=atomic_kind,orb_basis_set=basis_set_a)
+       CALL get_qs_kind(qs_kind_set(ikind),orb_basis_set=basis_set_a)
        IF (ASSOCIATED(basis_set_a)) THEN
           basis_set_list(ikind)%gto_basis_set => basis_set_a
        ELSE
@@ -851,6 +877,28 @@ CONTAINS
 
   END SUBROUTINE berry_mat_derivs
 
+! *****************************************************************************
+!> \brief ...
+!> \param cos_block ...
+!> \param sin_block ...
+!> \param iatom ...
+!> \param ncoa ...
+!> \param nsgfa ...
+!> \param sgfa ...
+!> \param sphi_a ...
+!> \param ldsa ...
+!> \param jatom ...
+!> \param ncob ...
+!> \param nsgfb ...
+!> \param sgfb ...
+!> \param sphi_b ...
+!> \param ldsb ...
+!> \param cosab ...
+!> \param sinab ...
+!> \param ldab ...
+!> \param work ...
+!> \param ldwork ...
+! *****************************************************************************
   SUBROUTINE contract_all(cos_block, sin_block,&
        iatom,ncoa,nsgfa,sgfa,sphi_a,ldsa,&
        jatom,ncob,nsgfb,sgfb,sphi_b,ldsb,&

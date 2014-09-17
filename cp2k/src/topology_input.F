@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2013  CP2K developers group                          !
+!   Copyright (C) 2000 - 2014  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -31,7 +31,7 @@ MODULE topology_input
                                              timestop
   USE topology_types,                  ONLY: constraint_info_type,&
                                              topology_parameters_type
-#include "cp_common_uses.h"
+#include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
 
@@ -44,6 +44,9 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief reads the input section topology
+!> \param topology ...
+!> \param topology_section ...
+!> \param error ...
 !> \par History
 !>      none
 !> \author JGH (26-01-2002)
@@ -101,6 +104,10 @@ END SUBROUTINE read_topology_section
 ! *****************************************************************************
 !> \brief Read all the distance parameters. Put them in the
 !>      constraint_distance array.
+!> \param topology ...
+!> \param colvar_p ...
+!> \param constraint_section ...
+!> \param error ...
 !> \par History
 !>      JGH (26-01-2002) Distance parameters are now stored in tables. The position
 !>         within the table is used as handle for the topology
@@ -655,6 +662,12 @@ END SUBROUTINE read_constraints_section
 
 ! *****************************************************************************
 !> \brief Reads input and decides if apply restraints instead of constraints
+!> \param cons_section ...
+!> \param is_restraint ...
+!> \param k0 ...
+!> \param i_rep_section ...
+!> \param label ...
+!> \param error ...
 !> \author teo
 ! *****************************************************************************
 SUBROUTINE check_restraint(cons_section, is_restraint, k0, i_rep_section, label, error)

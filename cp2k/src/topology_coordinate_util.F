@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2013  CP2K developers group                          !
+!   Copyright (C) 2000 - 2014  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -9,8 +9,7 @@
 !>     jgh (23-05-2004) Last atom of molecule information added
 ! *****************************************************************************
 MODULE topology_coordinate_util
-  USE atomic_kind_types,               ONLY: allocate_atomic_kind_set,&
-                                             atomic_kind_type,&
+  USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind,&
                                              set_atomic_kind
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
@@ -52,7 +51,7 @@ MODULE topology_coordinate_util
                                              topology_parameters_type
   USE topology_util,                   ONLY: array1_list_type,&
                                              reorder_structure
-#include "cp_common_uses.h"
+#include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
 
@@ -66,13 +65,25 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Take info readin from different file format and stuff it into
 !>      compatible data structure in cp2k
+!> \param particle_set ...
+!> \param atomic_kind_set ...
+!> \param molecule_kind_set ...
+!> \param molecule_set ...
+!> \param topology ...
+!> \param qmmm ...
+!> \param qmmm_env ...
+!> \param subsys_section ...
+!> \param force_env_section ...
+!> \param exclusions ...
+!> \param ignore_outside_box ...
+!> \param error ...
 !> \par History
 !>      Teodoro Laino - modified in order to optimize the list of molecules
 !>                      to build the exclusion lists
 ! *****************************************************************************
   SUBROUTINE topology_coordinate_pack (particle_set,atomic_kind_set,&
        molecule_kind_set,molecule_set,topology,qmmm,qmmm_env,&
-       subsys_section,force_env_section,exclusions,error)
+       subsys_section,force_env_section,exclusions,ignore_outside_box,error)
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(atomic_kind_type), DIMENSION(:), &
@@ -90,6 +101,7 @@ CONTAINS
                                                 force_env_section
     TYPE(exclusion_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: exclusions
+    LOGICAL, INTENT(IN), OPTIONAL            :: ignore_outside_box
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'topology_coordinate_pack', &
@@ -105,8 +117,8 @@ CONTAINS
                                                 natom_of_kind, wlist
     INTEGER, DIMENSION(:, :), POINTER        :: pairs
     LOGICAL :: autogen, check, disable_exclusion_lists, do_center, explicit, &
-      failure, found, my_qmmm, present_12_excl_ei_list, &
-      present_12_excl_vdw_list
+      failure, found, my_ignore_outside_box, my_qmmm, &
+      present_12_excl_ei_list, present_12_excl_vdw_list
     REAL(KIND=dp)                            :: bounds(2,3), cdims(3), &
                                                 dims(3), qeff, vec(3)
     REAL(KIND=dp), DIMENSION(:), POINTER     :: charge, cpoint, mass
@@ -215,7 +227,7 @@ CONTAINS
     !-----------------------------------------------------------------------------
     CALL timeset(routineN//'_2',handle2)
     NULLIFY(atomic_kind_set)
-    CALL allocate_atomic_kind_set(atomic_kind_set,topology%natom_type,error)
+    ALLOCATE(atomic_kind_set(topology%natom_type))
     CALL timestop(handle2)
 
     !-----------------------------------------------------------------------------
@@ -347,7 +359,9 @@ CONTAINS
          check = check.AND.(dims(i)<cdims(i))
        END IF
     END DO
-    CALL cp_assert(check,cp_failure_level,cp_assertion_failed,routineP,&
+    my_ignore_outside_box = .FALSE.
+    IF (PRESENT(ignore_outside_box)) my_ignore_outside_box = ignore_outside_box
+    CALL cp_assert(my_ignore_outside_box .OR. check,cp_failure_level,cp_assertion_failed,routineP,&
          "A non-periodic calculation has been requested but the system size "//&
          "exceeds the cell size in at least one of the non-periodic directions! "//&
 CPSourceFileRef,&
@@ -796,6 +810,12 @@ CPSourceFileRef,&
 ! *****************************************************************************
 !> \brief Builds the exclusion list for VDW and EI if an explicit list of terms
 !>        is provided by the user. Otherwise all possibilities are excluded
+!> \param exclude_section ...
+!> \param keyword ...
+!> \param ex_bond_list ...
+!> \param ex_bond_list_w ...
+!> \param particle_set ...
+!> \param error ...
 !> \par History
 !>      Teodoro Laino [tlaino] - 12.2009
 ! *****************************************************************************

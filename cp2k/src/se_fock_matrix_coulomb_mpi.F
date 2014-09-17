@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2013  CP2K developers group                          !
+!   Copyright (C) 2000 - 2014  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -16,22 +16,16 @@
 ! *****************************************************************************
 MODULE se_fock_matrix_coulomb_mpi
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
-                                             get_atomic_kind,&
                                              get_atomic_kind_set
   USE cell_types,                      ONLY: cell_type
   USE cp_control_types,                ONLY: dft_control_type,&
                                              semi_empirical_control_type
-  USE cp_dbcsr_interface,              ONLY: cp_dbcsr_add,&
-                                             cp_dbcsr_distribute,&
-                                             cp_dbcsr_get_block_diag,&
-                                             cp_dbcsr_get_block_p,&
-                                             cp_dbcsr_init,&
-                                             cp_dbcsr_replicate_all,&
-                                             cp_dbcsr_set,&
-                                             cp_dbcsr_sum_replicated
-  USE cp_dbcsr_operations,             ONLY: cp_dbcsr_allocate_matrix_set,&
-                                             cp_dbcsr_deallocate_matrix_set
-  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_p_type
+  USE cp_dbcsr_interface,              ONLY: &
+       cp_dbcsr_add, cp_dbcsr_allocate_matrix_set, &
+       cp_dbcsr_deallocate_matrix_set, cp_dbcsr_distribute, &
+       cp_dbcsr_get_block_diag, cp_dbcsr_get_block_p, cp_dbcsr_init, &
+       cp_dbcsr_p_type, cp_dbcsr_replicate_all, cp_dbcsr_set, &
+       cp_dbcsr_sum_replicated
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
@@ -45,19 +39,22 @@ MODULE se_fock_matrix_coulomb_mpi
   USE fist_neighbor_list_control,      ONLY: list_control
   USE fist_nonbond_env_types,          ONLY: fist_nonbond_env_type
   USE input_constants,                 ONLY: &
-       do_ewald_ewald, do_method_am1, do_method_mndo, do_method_mndod, &
-       do_method_pdg, do_method_pm3, do_method_pm6, do_method_pnnl, &
-       do_method_rm1, do_multipole_charge, do_multipole_dipole, &
-       do_multipole_none, do_multipole_quadrupole, do_se_IS_slater
+       do_method_am1, do_method_mndo, do_method_mndod, do_method_pdg, &
+       do_method_pm3, do_method_pm6, do_method_pnnl, do_method_rm1, &
+       do_multipole_charge, do_multipole_dipole, do_multipole_none, &
+       do_multipole_quadrupole, do_se_IS_slater
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type
   USE kinds,                           ONLY: dp
   USE message_passing,                 ONLY: mp_sum
   USE particle_types,                  ONLY: particle_type
+  USE pw_poisson_types,                ONLY: do_ewald_ewald
   USE qs_energy_types,                 ONLY: qs_energy_type
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
   USE qs_force_types,                  ONLY: qs_force_type
+  USE qs_kind_types,                   ONLY: get_qs_kind,&
+                                             qs_kind_type
   USE qs_neighbor_list_types,          ONLY: get_iterator_info,&
                                              neighbor_list_iterate,&
                                              neighbor_list_iterator_create,&
@@ -89,7 +86,7 @@ MODULE se_fock_matrix_coulomb_mpi
                                              timestop
   USE virial_methods,                  ONLY: virial_pair_force
   USE virial_types,                    ONLY: virial_type
-#include "cp_common_uses.h"
+#include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
   PRIVATE
@@ -104,6 +101,13 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Construction of the Coulomb part of the Fock matrix
+!> \param qs_env ...
+!> \param ks_matrix ...
+!> \param matrix_p ...
+!> \param energy ...
+!> \param calculate_forces ...
+!> \param store_int_env ...
+!> \param error ...
 !> \author JGH
 ! *****************************************************************************
   SUBROUTINE build_fock_matrix_coulomb (qs_env,ks_matrix,matrix_p,energy,calculate_forces,&
@@ -138,7 +142,6 @@ CONTAINS
       ksb_block_a, ksb_block_b, pa_block_a, pa_block_b, pb_block_a, pb_block_b
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
-    TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: diagmat_ks, diagmat_p
@@ -154,6 +157,8 @@ CONTAINS
       POINTER                                :: particle_set
     TYPE(qs_force_type), DIMENSION(:), &
       POINTER                                :: force
+    TYPE(qs_kind_type), DIMENSION(:), &
+      POINTER                                :: qs_kind_set
     TYPE(se_int_control_type)                :: se_int_control
     TYPE(se_taper_type), POINTER             :: se_taper
     TYPE(semi_empirical_control_type), &
@@ -171,8 +176,8 @@ CONTAINS
                se_control,se_taper)
 
        CALL get_qs_env(qs_env=qs_env, dft_control=dft_control, cell=cell, se_taper=se_taper,&
-            para_env=para_env, sab_se=sab_se, atomic_kind_set=atomic_kind_set, &
-            particle_set=particle_set, virial=virial, error=error)
+            para_env=para_env, sab_se=sab_se, atomic_kind_set=atomic_kind_set,&
+            qs_kind_set=qs_kind_set, particle_set=particle_set, virial=virial, error=error)
 
        ! Parameters
        CALL initialize_se_taper(se_taper,coulomb=.TRUE.,error=error)
@@ -227,8 +232,7 @@ CONTAINS
        ALLOCATE (se_defined(nkind),se_kind_list(nkind),se_natorb(nkind),STAT=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        DO ikind=1,nkind
-          atomic_kind => atomic_kind_set(ikind)
-          CALL get_atomic_kind(atomic_kind=atomic_kind,se_parameter=se_kind_a)
+          CALL get_qs_kind(qs_kind_set(ikind), se_parameter=se_kind_a)
           se_kind_list(ikind)%se_param => se_kind_a
           CALL get_se_param(se_kind_a,defined=defined,natorb=natorb_a)
           se_defined(ikind) = (defined .AND. natorb_a >= 1)
@@ -486,8 +490,15 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief  Long-Range part for SE Coulomb interactions
-!> \author Teodoro Laino [tlaino] - University of Zurich
+!> \param qs_env ...
+!> \param ks_matrix ...
+!> \param matrix_p ...
+!> \param energy ...
+!> \param calculate_forces ...
+!> \param store_int_env ...
+!> \param error ...
 !> \date   08.2008 [created]
+!> \author Teodoro Laino [tlaino] - University of Zurich
 ! *****************************************************************************
   SUBROUTINE build_fock_matrix_coulomb_lr (qs_env, ks_matrix, matrix_p, energy,&
        calculate_forces, store_int_env, error)
@@ -520,7 +531,6 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: ksa_block_a, pa_block_a
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
-    TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: diagmat_ks, diagmat_p
@@ -536,6 +546,8 @@ CONTAINS
       POINTER                                :: particle_set
     TYPE(qs_force_type), DIMENSION(:), &
       POINTER                                :: force
+    TYPE(qs_kind_type), DIMENSION(:), &
+      POINTER                                :: qs_kind_set
     TYPE(section_vals_type), POINTER         :: se_section
     TYPE(semi_empirical_control_type), &
       POINTER                                :: se_control
@@ -553,7 +565,8 @@ CONTAINS
 
        logger => cp_error_get_logger(error)
        CALL get_qs_env(qs_env=qs_env, dft_control=dft_control, cell=cell, para_env=para_env,&
-            atomic_kind_set=atomic_kind_set, particle_set=particle_set, ewald_env=ewald_env,&
+            atomic_kind_set=atomic_kind_set, qs_kind_set=qs_kind_set, particle_set=particle_set,&
+            ewald_env=ewald_env,&
             local_particles=local_particles, ewald_pw=ewald_pw, se_nddo_mpole=se_nddo_mpole,&
             se_nonbond_env=se_nonbond_env,  virial=virial, &
             error=error)
@@ -639,8 +652,7 @@ CONTAINS
        DO ispin = 1, nspins
           ! Compute the NDDO mpole expansion
           DO ikind=1,nkind
-             atomic_kind => atomic_kind_set(ikind)
-             CALL get_atomic_kind(atomic_kind=atomic_kind,se_parameter=se_kind_a)
+             CALL get_qs_kind(qs_kind_set(ikind), se_parameter=se_kind_a)
              CALL get_se_param(se_kind_a,defined=defined,natorb=natorb_a)
 
              IF (.NOT.defined .OR. natorb_a < 1) CYCLE
@@ -762,8 +774,7 @@ CONTAINS
        ! Modify the KS matrix and possibly compute derivatives
        node = 0
        DO ikind=1,nkind
-          atomic_kind => atomic_kind_set(ikind)
-          CALL get_atomic_kind(atomic_kind=atomic_kind,se_parameter=se_kind_a)
+          CALL get_qs_kind(qs_kind_set(ikind), se_parameter=se_kind_a)
           CALL get_se_param(se_kind_a,defined=defined,natorb=natorb_a)
 
           IF (.NOT.defined .OR. natorb_a < 1) CYCLE
@@ -856,6 +867,19 @@ CONTAINS
 !> \brief When doing long-range SE calculation, this module computes the correction
 !>        between the mismatch of point-like multipoles and multipoles represented
 !>        with charges
+!> \param qs_env ...
+!> \param ks_matrix ...
+!> \param matrix_p ...
+!> \param energy ...
+!> \param calculate_forces ...
+!> \param store_int_env ...
+!> \param se_nddo_mpole ...
+!> \param task ...
+!> \param diagmat_p ...
+!> \param diagmat_ks ...
+!> \param virial ...
+!> \param pv_glob ...
+!> \param error ...
 !> \author Teodoro Laino [tlaino] - 05.2009
 ! *****************************************************************************
   SUBROUTINE build_fock_matrix_coul_lrc (qs_env,ks_matrix,matrix_p,energy,&
@@ -901,7 +925,6 @@ CONTAINS
       pb_block_a, pb_block_b
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
-    TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(dft_control_type), POINTER          :: dft_control
@@ -913,6 +936,8 @@ CONTAINS
       POINTER                                :: particle_set
     TYPE(qs_force_type), DIMENSION(:), &
       POINTER                                :: force
+    TYPE(qs_kind_type), DIMENSION(:), &
+      POINTER                                :: qs_kind_set
     TYPE(se_int_control_type)                :: se_int_control
     TYPE(se_taper_type), POINTER             :: se_taper
     TYPE(semi_empirical_control_type), &
@@ -929,7 +954,7 @@ CONTAINS
 
        CALL get_qs_env(qs_env=qs_env, dft_control=dft_control, cell=cell, se_taper=se_taper,&
             para_env=para_env, sab_lrc=sab_lrc, atomic_kind_set=atomic_kind_set, &
-            particle_set=particle_set, error=error)
+            qs_kind_set=qs_kind_set, particle_set=particle_set, error=error)
 
        ! Parameters
        CALL initialize_se_taper(se_taper,lr_corr=.TRUE.,error=error)
@@ -991,8 +1016,7 @@ CONTAINS
        ALLOCATE (se_defined(nkind),se_kind_list(nkind),se_natorb(nkind),STAT=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        DO ikind=1,nkind
-          atomic_kind => atomic_kind_set(ikind)
-          CALL get_atomic_kind(atomic_kind=atomic_kind,se_parameter=se_kind_a)
+          CALL get_qs_kind(qs_kind_set(ikind), se_parameter=se_kind_a)
           se_kind_list(ikind)%se_param => se_kind_a
           CALL get_se_param(se_kind_a,defined=defined,natorb=natorb_a)
           se_defined(ikind) = (defined .AND. natorb_a >= 1)
@@ -1255,6 +1279,12 @@ CONTAINS
 !>        term of the Fock matrix
 !>        The 1/R^3 correction works in real-space strictly on the zero-cell,
 !>        in order to avoid more parameters to be provided in the input..
+!> \param qs_env ...
+!> \param ks_matrix ...
+!> \param matrix_p ...
+!> \param energy ...
+!> \param calculate_forces ...
+!> \param error ...
 !> \author Teodoro Laino [tlaino] - 12.2008
 ! *****************************************************************************
   SUBROUTINE build_fock_matrix_coul_lr_r3(qs_env,ks_matrix,matrix_p,energy,calculate_forces,error)
@@ -1286,7 +1316,6 @@ CONTAINS
       ksb_block_a, ksb_block_b, pa_block_a, pa_block_b, pb_block_a, pb_block_b
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
-    TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: diagmat_ks, diagmat_p
@@ -1306,6 +1335,8 @@ CONTAINS
       POINTER                                :: particle_set
     TYPE(qs_force_type), DIMENSION(:), &
       POINTER                                :: force
+    TYPE(qs_kind_type), DIMENSION(:), &
+      POINTER                                :: qs_kind_set
     TYPE(section_vals_type), POINTER         :: se_section
     TYPE(semi_empirical_control_type), &
       POINTER                                :: se_control
@@ -1325,7 +1356,8 @@ CONTAINS
 
        logger => cp_error_get_logger(error)
        CALL get_qs_env(qs_env=qs_env, dft_control=dft_control, cell=cell, para_env=para_env,&
-            atomic_kind_set=atomic_kind_set, particle_set=particle_set, ewald_env=ewald_env,&
+            atomic_kind_set=atomic_kind_set, qs_kind_set=qs_kind_set, particle_set=particle_set,&
+            ewald_env=ewald_env,&
             local_particles=local_particles, ewald_pw=ewald_pw, se_nddo_mpole=se_nddo_mpole,&
             se_nonbond_env=se_nonbond_env, sab_orb=sab_orb, error=error)
 
@@ -1381,8 +1413,7 @@ CONTAINS
        ALLOCATE (se_defined(nkind),se_kind_list(nkind),se_natorb(nkind),STAT=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        DO ikind=1,nkind
-          atomic_kind => atomic_kind_set(ikind)
-          CALL get_atomic_kind(atomic_kind=atomic_kind,se_parameter=se_kind_a)
+          CALL get_qs_kind(qs_kind_set(ikind), se_parameter=se_kind_a)
           se_kind_list(ikind)%se_param => se_kind_a
           CALL get_se_param(se_kind_a,defined=defined,natorb=natorb_a)
           se_defined(ikind) = (defined .AND. natorb_a >= 1)

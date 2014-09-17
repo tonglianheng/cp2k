@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2013  CP2K developers group                          !
+!   Copyright (C) 2000 - 2014  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -13,7 +13,7 @@ MODULE rmsd
   USE mathlib,                         ONLY: diamat_all,&
                                              matvec_3x3
   USE particle_types,                  ONLY: particle_type
-#include "cp_common_uses.h"
+#include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
   PRIVATE
@@ -27,6 +27,18 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Computes the RMSD in 3D. Provides also derivatives.
+!> \param particle_set ...
+!> \param r ...
+!> \param r0 ...
+!> \param output_unit ...
+!> \param weights ...
+!> \param my_val ...
+!> \param rotate ...
+!> \param transl ...
+!> \param rot ...
+!> \param drmsd3 ...
+!> \param error ...
+!> \author Teodoro Laino 08.2006
 !> \note
 !>      Optional arguments:
 !>          my_val -> gives back the value of the RMSD
@@ -35,7 +47,6 @@ CONTAINS
 !>                    in order to minimize the RMSD3
 !>          rot    -> provides the rotational matrix
 !>          drmsd3 -> derivatives of RMSD3 w.r.t. atomic positions
-!> \author Teodoro Laino 08.2006
 ! *****************************************************************************
   SUBROUTINE rmsd3( particle_set, r, r0, output_unit, weights, my_val,&
        rotate, transl, rot, drmsd3, error)
@@ -74,7 +85,7 @@ CONTAINS
        ALLOCATE(w(natom),stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        IF (PRESENT(weights)) THEN
-          w = weights
+          w(:) = weights
        ELSE
           ! All atoms have a weight proportional to their mass in the RMSD unless
           ! differently requested

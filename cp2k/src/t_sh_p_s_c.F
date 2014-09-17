@@ -29,7 +29,7 @@ MODULE t_sh_p_s_c
 
  IMPLICIT NONE
  PRIVATE
- PUBLIC :: trunc_CS_poly_n20, init, free
+ PUBLIC :: trunc_CS_poly_n20, init, free_C0
  REAL(KIND=dp), DIMENSION(:,:), ALLOCATABLE,  SAVE :: C0
  INTEGER, PARAMETER :: degree=15
  REAL(KIND=dp), PARAMETER :: target_error=      0.100000E-08
@@ -37,6 +37,13 @@ MODULE t_sh_p_s_c
  INTEGER, SAVE      :: nderiv_init=-1
  INTEGER, SAVE      :: patches=-1
 CONTAINS
+! *****************************************************************************
+!> \brief ...
+!> \param RES ...
+!> \param R ...
+!> \param T ...
+!> \param NDERIV ...
+! *****************************************************************************
 SUBROUTINE trunc_CS_poly_n20(RES,R,T,NDERIV)
     REAL(KIND=dp), INTENT(OUT)               :: RES(*)
     REAL(KIND=dp), INTENT(IN)                :: R, T
@@ -1080,6 +1087,13 @@ END SUBROUTINE trunc_CS_poly_n20
 
 ! iunit contains the data file to initialize the table
 ! Nder is the number of derivatives that will actually be used
+! *****************************************************************************
+!> \brief ...
+!> \param Nder ...
+!> \param iunit ...
+!> \param mepos ...
+!> \param group ...
+! *****************************************************************************
 SUBROUTINE INIT(Nder,iunit,mepos,group)
     INTEGER, INTENT(IN)                      :: Nder, iunit, mepos, group
 
@@ -1104,10 +1118,21 @@ SUBROUTINE INIT(Nder,iunit,mepos,group)
 END SUBROUTINE INIT
 
 
-SUBROUTINE FREE()
+! *****************************************************************************
+!> \brief ...
+! *****************************************************************************
+SUBROUTINE free_C0()
   IF(ALLOCATED(C0)) DEALLOCATE(C0)
   nderiv_init=-1
-END SUBROUTINE FREE
+END SUBROUTINE free_C0
+! *****************************************************************************
+!> \brief ...
+!> \param RES ...
+!> \param NDERIV ...
+!> \param TG1 ...
+!> \param TG2 ...
+!> \param C0 ...
+! *****************************************************************************
 SUBROUTINE PD2VAL(RES,NDERIV,TG1,TG2,C0)
     REAL(KIND=dp), INTENT(OUT)               :: res(*)
     INTEGER, INTENT(IN)                      :: NDERIV

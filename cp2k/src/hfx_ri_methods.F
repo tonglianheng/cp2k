@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2013  CP2K developers group                          !
+!   Copyright (C) 2000 - 2014  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -9,8 +9,7 @@
 ! *****************************************************************************
 MODULE hfx_ri_methods
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
-                                             get_atomic_kind,&
-                                             get_atomic_kind_set
+                                             get_atomic_kind
   USE basis_set_types,                 ONLY: geminal_basis_set_type,&
                                              get_geminal_basis_set,&
                                              write_geminal_basis_set
@@ -28,6 +27,9 @@ MODULE hfx_ri_methods
                                              geminal_coulomb,&
                                              geminal_coulomb_diaginv,&
                                              geminal_gto_coulomb
+  USE qs_kind_types,                   ONLY: get_qs_kind,&
+                                             get_qs_kind_set,&
+                                             qs_kind_type
   USE qs_ks_types,                     ONLY: qs_ks_env_type
   USE ri_environment_types,            ONLY: &
        get_ri_env, ri_env_create, ri_environment_type, ri_vector_add, &
@@ -40,7 +42,7 @@ MODULE hfx_ri_methods
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE virial_types,                    ONLY: virial_type
-#include "cp_common_uses.h"
+#include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
 
@@ -58,8 +60,8 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief creates and initializes an ri_env
-!> \param ri_env the ri_environment you want to create
-!>
+!> \param qs_env ...
+!> \param error ...
 !> \author JGH
 ! *****************************************************************************
   SUBROUTINE hfx_ri_env_create (qs_env,error)
@@ -75,9 +77,10 @@ CONTAINS
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: natoms, nbasis
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
-    TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(geminal_basis_set_type), POINTER    :: geminal_basis_set
+    TYPE(qs_kind_type), DIMENSION(:), &
+      POINTER                                :: qs_kind_set
     TYPE(ri_environment_type), POINTER       :: ri_env
     TYPE(ri_vector_type), POINTER            :: ri_coeff, ri_rhs
     TYPE(section_vals_type), POINTER         :: hfx_section
@@ -90,16 +93,16 @@ CONTAINS
 
     CALL ri_env_create(ri_env,error)
 
-    CALL get_qs_env(qs_env=qs_env,atomic_kind_set=atomic_kind_set,error=error)
-    nkind = SIZE(atomic_kind_set)
+    CALL get_qs_env(qs_env=qs_env,atomic_kind_set=atomic_kind_set,qs_kind_set=qs_kind_set,error=error)
+    nkind = SIZE(qs_kind_set)
     ALLOCATE(nbasis(nkind),natoms(nkind),stat=istat)
     CPPostconditionNoFail(istat==0,cp_warning_level,routineP,error)
     nbasis=0
     natoms=0
     DO ikind=1,nkind
-       atomic_kind => atomic_kind_set(ikind)
        NULLIFY(geminal_basis_set)
-       CALL get_atomic_kind(atomic_kind=atomic_kind,natom=nat,geminal_basis_set=geminal_basis_set)
+       CALL get_atomic_kind(atomic_kind_set(ikind), natom=nat)
+       CALL get_qs_kind(qs_kind_set(ikind), geminal_basis_set=geminal_basis_set)
        IF (.NOT.ASSOCIATED(geminal_basis_set)) CYCLE
        CALL get_geminal_basis_set(geminal_basis_set=geminal_basis_set,ngeminals=ngem)
        natoms(ikind) = nat
@@ -137,9 +140,8 @@ CONTAINS
          extension=".RILog",error=error)
     IF ( output_unit > 0 ) THEN
        DO ikind=1,nkind
-          atomic_kind => atomic_kind_set(ikind)
           NULLIFY(geminal_basis_set)
-          CALL get_atomic_kind(atomic_kind=atomic_kind,geminal_basis_set=geminal_basis_set)
+          CALL get_qs_kind(qs_kind_set(ikind), geminal_basis_set=geminal_basis_set)
           IF (.NOT.ASSOCIATED(geminal_basis_set)) CYCLE
           CALL write_geminal_basis_set(geminal_basis_set,output_unit,error)
        END DO
@@ -147,7 +149,7 @@ CONTAINS
 
     output_unit = cp_logger_get_default_io_unit(logger)
     IF ( output_unit > 0 ) THEN
-       CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,maxlgem=maxlgem)
+       CALL get_qs_kind_set(qs_kind_set=qs_kind_set,maxlgem=maxlgem)
        ngem=0
        DO ikind=1,nkind
          ngem = ngem + nbasis(ikind)*natoms(ikind)
@@ -170,6 +172,9 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Calculate energy and potential for the HFX RI approximation
 !>
+!> \param qs_env ...
+!> \param calculate_force ...
+!> \param error ...
 !> \author JGH
 ! *****************************************************************************
   SUBROUTINE hfx_ri_energy_potential (qs_env,calculate_force,error)
@@ -222,6 +227,8 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief calculates the HFX energy in RI approximation
+!> \param qs_env ...
+!> \param error ...
 !> \author JGH
 ! *****************************************************************************
   SUBROUTINE hfx_ri_energy (qs_env,error)
@@ -247,6 +254,13 @@ CONTAINS
 
 ! *****************************************************************************
 
+! *****************************************************************************
+!> \brief ...
+!> \param qs_env ...
+!> \param s_mstruct_changed ...
+!> \param print_on ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE optimize_ri_coeff (qs_env,s_mstruct_changed,print_on,error)
     TYPE(qs_environment_type), POINTER       :: qs_env
     LOGICAL, INTENT(IN)                      :: s_mstruct_changed, print_on
@@ -346,7 +360,7 @@ CONTAINS
        CALL ri_vector_norm(rnorm, ri_res, error)
 
        IF ( output_unit > 0 .AND. print_on ) THEN
-          WRITE(6,'(T15,A,T25,A,T35,i4,T50,A,T61,F20.10)') "HFX_RI|","Iteration :",iter,"Residual=",rnorm
+          WRITE(*,'(T15,A,T25,A,T35,i4,T50,A,T61,F20.10)') "HFX_RI|","Iteration :",iter,"Residual=",rnorm
        END IF
 
        IF ( rnorm < eps_ri ) THEN
@@ -389,6 +403,15 @@ CONTAINS
 
 ! *****************************************************************************
 
+! *****************************************************************************
+!> \brief ...
+!> \param qs_env ...
+!> \param calculate_energy ...
+!> \param calculate_fock ...
+!> \param calculate_force ...
+!> \param calculate_virial ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE ri_energy_potential (qs_env,calculate_energy,calculate_fock,&
                                   calculate_force,calculate_virial,error)
     TYPE(qs_environment_type), POINTER       :: qs_env

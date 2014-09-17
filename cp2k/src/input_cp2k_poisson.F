@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2013  CP2K developers group                          !
+!   Copyright (C) 2000 - 2014  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -16,7 +16,12 @@ MODULE input_cp2k_poisson
   USE cp_output_handling,              ONLY: cp_print_key_section_create
   USE cp_units,                        ONLY: cp_unit_to_cp2k
   USE f77_blas
-  USE input_constants
+  USE input_constants,                 ONLY: &
+       add_last_numeric, do_fist_pol_cg, do_fist_pol_none, do_fist_pol_sc, &
+       do_multipole_charge, do_multipole_dipole, do_multipole_none, &
+       do_multipole_quadrupole, low_print_level, medium_print_level, &
+       use_perd_none, use_perd_x, use_perd_xy, use_perd_xyz, use_perd_xz, &
+       use_perd_y, use_perd_yz, use_perd_z
   USE input_cp2k_rsgrid,               ONLY: create_rsgrid_section
   USE input_keyword_types,             ONLY: keyword_create,&
                                              keyword_release,&
@@ -30,8 +35,18 @@ MODULE input_cp2k_poisson
                                              integer_t,&
                                              real_t
   USE kinds,                           ONLY: dp
+  USE pw_poisson_types,                ONLY: &
+       do_ewald_ewald, do_ewald_none, do_ewald_pme, do_ewald_spme, &
+       pw_poisson_analytic, pw_poisson_mt, pw_poisson_multipole, &
+       pw_poisson_periodic, pw_poisson_wavelet
+  USE pw_spline_utils,                 ONLY: no_precond,&
+                                             precond_spl3_1,&
+                                             precond_spl3_2,&
+                                             precond_spl3_3,&
+                                             precond_spl3_aint,&
+                                             precond_spl3_aint2
   USE string_utilities,                ONLY: s2a
-#include "cp_common_uses.h"
+#include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
   PRIVATE
@@ -41,7 +56,6 @@ MODULE input_cp2k_poisson
 
   PUBLIC :: create_poisson_section,&
             create_gspace_interp_section,&
-            create_multipole_section,&
             create_ewald_section
 !***
 CONTAINS
@@ -79,9 +93,9 @@ CONTAINS
             description="Specify which kind of solver to use to solve the Poisson equation.",&
             usage="POISSON_SOLVER char",&
             enum_c_vals=s2a( "PERIODIC", "ANALYTIC", "MT", "MULTIPOLE","WAVELET"),&
-            enum_i_vals=(/ use_periodic, use_analytic, use_mt, use_multipole,use_wavelet/),&
+            enum_i_vals=(/ pw_poisson_periodic, pw_poisson_analytic, pw_poisson_mt, pw_poisson_multipole,pw_poisson_wavelet/),&
             citations=(/Blochl1995,Martyna1999,Genovese2006,Genovese2007/),&
-            default_i_val=use_periodic, error=error)
+            default_i_val=pw_poisson_periodic, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
@@ -250,6 +264,7 @@ CONTAINS
   END SUBROUTINE create_mt_section
 
 ! *****************************************************************************
+!> \brief ...
 !> \param section will contain the ewald section
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
@@ -443,6 +458,7 @@ END SUBROUTINE create_ewald_section
 
 ! *****************************************************************************
 !> \brief creates the interpolation section for the periodic QM/MM
+!> \param section ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 !> \author tlaino
@@ -532,9 +548,9 @@ END SUBROUTINE create_ewald_section
 !> \param section the section to create
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
+!> \author fschiff
 !> \note
 !>      this approach is based on the development of T. Deutsch and S. Goedecker
-!> \author fschiff
 ! *****************************************************************************
   SUBROUTINE create_wavelet_section(section,error)
     TYPE(section_type), POINTER              :: section

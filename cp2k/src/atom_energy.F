@@ -1,12 +1,13 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2013  CP2K developers group                          !
+!   Copyright (C) 2000 - 2014  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
 MODULE atom_energy
   USE atom_electronic_structure,       ONLY: calculate_atom
-  USE atom_fit,                        ONLY: atom_fit_density
+  USE atom_fit,                        ONLY: atom_fit_density,&
+                                             atom_fit_kgpot
   USE atom_operators,                  ONLY: atom_int_release,&
                                              atom_int_setup,&
                                              atom_ppint_release,&
@@ -26,13 +27,15 @@ MODULE atom_energy
        create_atom_type, init_atom_basis, init_atom_potential, &
        read_atom_opt_section, release_atom_basis, release_atom_potential, &
        release_atom_type, set_atom
-  USE atom_utils,                      ONLY: atom_consistent_method,&
-                                             atom_core_density,&
-                                             atom_density,&
-                                             atom_local_potential,&
-                                             atom_set_occupation,&
-                                             get_maxl_occ,&
-                                             get_maxn_occ
+! ZMP added atom_read_external_density atom_read_external_vxc to atom_utiles
+  USE atom_utils,                      ONLY: &
+       atom_consistent_method, atom_core_density, atom_density, &
+       atom_local_potential, atom_read_external_density, &
+       atom_read_external_vxc, atom_set_occupation, atom_write_zmp_restart, &
+       get_maxl_occ, get_maxn_occ
+! ZMP added atom_xc module
+  USE atom_xc,                         ONLY: calculate_atom_ext_vxc,&
+                                             calculate_atom_zmp
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
   USE f77_blas
@@ -52,7 +55,7 @@ MODULE atom_energy
   USE physcon,                         ONLY: evolt
   USE timings,                         ONLY: timeset,&
                                              timestop
-#include "cp_common_uses.h"
+#include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
   PRIVATE
@@ -66,6 +69,11 @@ CONTAINS
 
 ! *****************************************************************************
 
+! *****************************************************************************
+!> \brief ...
+!> \param atom_section ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE atom_energy_opt(atom_section,error)
     TYPE(section_vals_type), POINTER         :: atom_section
     TYPE(cp_error_type), INTENT(INOUT)       :: error
@@ -74,15 +82,19 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=2)                         :: elem
+    CHARACTER(LEN=default_string_length)     :: filename
     CHARACTER(LEN=default_string_length), &
       DIMENSION(:), POINTER                  :: tmpstringlist
     INTEGER :: do_eric, do_erie, handle, i, ierr, im, in, iw, k, l, maxl, mb, &
-      method, mo, n, n_meth, n_rep, nder, num_gto, reltyp, zcore, zval, zz
+      method, mo, n, n_meth, n_rep, nder, num_gau, num_gto, num_pol, reltyp, &
+      zcore, zval, zz
     INTEGER, DIMENSION(0:3)                  :: maxn
     INTEGER, DIMENSION(:), POINTER           :: cn
-    LOGICAL                                  :: eri_c, eri_e, failure, &
-                                                had_ae, had_pp, pp_calc
-    REAL(KIND=dp)                            :: delta
+    LOGICAL                                  :: dm, do_zmp, doread, eri_c, &
+                                                eri_e, failure, had_ae, &
+                                                had_pp, pp_calc, read_vxc
+    REAL(KIND=dp)                            :: delta, lambda
+    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: ext_density, ext_vxc
     REAL(KIND=dp), DIMENSION(0:3, 10)        :: pocc
     TYPE(atom_basis_type), POINTER           :: ae_basis, pp_basis
     TYPE(atom_integrals), POINTER            :: ae_int, pp_int
@@ -93,8 +105,9 @@ CONTAINS
     TYPE(atom_potential_type), POINTER       :: ae_pot, p_pot
     TYPE(atom_state), POINTER                :: state
     TYPE(cp_logger_type), POINTER            :: logger
-    TYPE(section_vals_type), POINTER :: basis_section, method_section, &
-      opt_section, potential_section, powell_section, xc_section
+    TYPE(section_vals_type), POINTER :: basis_section, external_vxc_section, &
+      method_section, opt_section, potential_section, powell_section, &
+      xc_section, zmp_restart_section, zmp_section
 
     failure = .FALSE.
 
@@ -194,6 +207,38 @@ CONTAINS
         xc_section => section_vals_get_subs_vals(method_section,"XC",i_rep_section=im,error=error)
         atom_info(in,im)%atom%xc_section => xc_section
 
+        ! ZMP Reading input sections if they are found initialize everything
+        do_zmp=.FALSE.
+        doread=.FALSE.
+        read_vxc=.FALSE.
+
+        zmp_section => section_vals_get_subs_vals(method_section,"ZMP",error=error)
+        CALL section_vals_get(zmp_section,explicit=do_zmp,error=error)
+        atom_info(in,im)%atom%do_zmp=do_zmp
+        CALL section_vals_val_get(zmp_section,"FILE_DENSITY",c_val=filename,error=error)
+        atom_info(in,im)%atom%ext_file=filename
+        CALL section_vals_val_get(zmp_section,"GRID_TOL",&
+             r_val= atom_info(in,im)%atom%zmpgrid_tol,error=error)
+        CALL section_vals_val_get(zmp_section,"LAMBDA",r_val=lambda,error=error)
+        atom_info(in,im)%atom%lambda=lambda
+        CALL section_vals_val_get(zmp_section,"DM",l_val=dm,error=error)
+        atom_info(in,im)%atom%dm=dm
+
+        zmp_restart_section => section_vals_get_subs_vals(zmp_section,"RESTART",error=error)
+        CALL section_vals_get(zmp_restart_section,explicit=doread,error=error)
+        atom_info(in,im)%atom%doread=doread
+        CALL section_vals_val_get(zmp_restart_section,"FILE_RESTART",c_val=filename,error=error)
+        atom_info(in,im)%atom%zmp_restart_file=filename
+
+        ! ZMP Reading external vxc section, if found initialize
+        external_vxc_section => section_vals_get_subs_vals(method_section,"EXTERNAL_VXC",error=error)
+        CALL section_vals_get(external_vxc_section,explicit=read_vxc,error=error)
+        atom_info(in,im)%atom%read_vxc=read_vxc
+        CALL section_vals_val_get(external_vxc_section,"FILE_VXC",c_val=filename,error=error)
+        atom_info(in,im)%atom%ext_vxc_file=filename
+        CALL section_vals_val_get(external_vxc_section,"GRID_TOL",&
+             r_val= atom_info(in,im)%atom%zmpvxcgrid_tol,error=error)
+
         ALLOCATE(state,STAT=ierr)
         CPPostcondition(ierr==0, cp_failure_level, routineP, error, failure)
 
@@ -291,6 +336,29 @@ CONTAINS
           CALL calculate_atom(atom_info(in,im)%atom,iw,error=error)
           CALL cp_print_key_finished_output(iw,logger,atom_section,"PRINT%SCF_INFO",error=error)
 
+          ! ZMP If we have the external density do zmp
+          IF (atom_info(in,im)%atom%do_zmp) THEN
+            CALL atom_write_zmp_restart(atom_info(in,im)%atom) 
+
+            ALLOCATE(ext_density(atom_info(in,im)%atom%basis%grid%nr))
+            ext_density=0._dp
+            CALL atom_read_external_density(ext_density, atom_info(in,im)%atom,iw)
+            CALL calculate_atom_zmp(ext_density=ext_density, &
+                                    atom=atom_info(in,im)%atom, &
+                                    lprint=.TRUE.,error=error)
+            DEALLOCATE(ext_density)
+          ENDIF
+          ! ZMP If we have the external v_xc calculate KS quantities
+          IF (atom_info(in,im)%atom%read_vxc) THEN
+            ALLOCATE(ext_vxc(atom_info(in,im)%atom%basis%grid%nr))
+            ext_vxc=0._dp
+            CALL atom_read_external_vxc(ext_vxc, atom_info(in,im)%atom,iw)
+            CALL calculate_atom_ext_vxc(vxc=ext_vxc, &
+                                        atom=atom_info(in,im)%atom, &
+                                        lprint=.TRUE.,error=error)
+            DEALLOCATE(ext_vxc)
+          ENDIF
+
           ! rk: Print out the energies needed for the scptb parametrization
           ! (Orbital energies minus Kinetic, etc)
           iw = cp_print_key_unit_nr(logger,atom_section,"PRINT%ENERGIES_MINUS_KINETIC",extension=".log",error=error)
@@ -347,9 +415,19 @@ CONTAINS
           IF (iw>0) THEN
             CALL section_vals_val_get(atom_section,"PRINT%FIT_DENSITY%NUM_GTO", i_val=num_gto, error=error)
             powell_section => section_vals_get_subs_vals(atom_section,"POWELL",error=error)
-            CALL atom_fit_density(atom_info(in,im)%atom,0,num_gto,iw,powell_section=powell_section,error=error)
+            CALL atom_fit_density(atom_info(in,im)%atom,num_gto,0,iw,powell_section=powell_section,error=error)
           END IF
           CALL cp_print_key_finished_output(iw,logger,atom_section,"PRINT%FIT_DENSITY",error=error)
+
+          ! Optimize a local potential for the non-additive kinetic energy term in KG
+          iw = cp_print_key_unit_nr(logger,atom_section,"PRINT%FIT_KGPOT",extension=".log",error=error)
+          IF (iw>0) THEN
+            CALL section_vals_val_get(atom_section,"PRINT%FIT_KGPOT%NUM_GAUSSIAN", i_val=num_gau, error=error)
+            CALL section_vals_val_get(atom_section,"PRINT%FIT_KGPOT%NUM_POLYNOM", i_val=num_pol, error=error)
+            powell_section => section_vals_get_subs_vals(atom_section,"POWELL",error=error)
+            CALL atom_fit_kgpot(atom_info(in,im)%atom,num_gau,num_pol,iw,powell_section=powell_section,error=error)
+          END IF
+          CALL cp_print_key_finished_output(iw,logger,atom_section,"PRINT%FIT_KGPOT",error=error)
 
           ! generate a response basis
           iw = cp_print_key_unit_nr(logger,atom_section,"PRINT%RESPONSE_BASIS",extension=".log",error=error)
@@ -404,6 +482,13 @@ CONTAINS
 
   END SUBROUTINE atom_energy_opt
 
+! *****************************************************************************
+!> \brief ...
+!> \param atom ...
+!> \param delta ...
+!> \param nder ...
+!> \param iw ...
+!> \param error ...
 ! *****************************************************************************
   SUBROUTINE atom_response_basis(atom,delta,nder,iw,error)
 
@@ -535,6 +620,11 @@ CONTAINS
     WRITE(iw,'(" ",79("*"))')
 
   END SUBROUTINE atom_response_basis
+! *****************************************************************************
+!> \brief ...
+!> \param atom ...
+!> \param iw ...
+!> \param error ...
 ! *****************************************************************************
   SUBROUTINE atom_write_upf(atom,iw,error)
 
@@ -693,13 +783,13 @@ CONTAINS
     DO l=0,3
        IF(pot%nl(l) == 0) CYCLE
        rl = pot%rcnl(l)
-       rp = atom%basis%grid%rad
-       ef = EXP(-0.5_dp*rp*rp/(rl*rl))
+       rp(:) = atom%basis%grid%rad
+       ef(:) = EXP(-0.5_dp*rp*rp/(rl*rl))
        DO i=1,pot%nl(l)
           pf = rl**(l+0.5_dp*(4._dp*i-1._dp))
           j = l + 2*i - 1
           pf = SQRT(2._dp) / (pf * SQRT(gamma1(j)))
-          beta = pf * rp**(l+2*i-2) * ef
+          beta(:) = pf * rp**(l+2*i-2) * ef
           ibeta=ibeta+1
           CALL compose(string,"<PP_BETA",counter=ibeta)
           WRITE(iw,'(T8,A)') TRIM(string)
@@ -709,7 +799,7 @@ CONTAINS
           CALL compose(string,"size",ival=nr)
           WRITE(iw,'(T12,A)') TRIM(string)
           WRITE(iw,'(T12,A)') 'columns="4">'
-          beta = beta*rp
+          beta(:) = beta*rp
           IF(up) THEN
              WRITE(iw,'(T12,4ES25.12E3)') (2._dp*beta(j),j=1,nr)
           ELSE
@@ -761,7 +851,7 @@ CONTAINS
           DO k=1,atom%basis%nbas(l)
              beta(:) = beta(:) + atom%orbitals%wfn(k,i,l)*atom%basis%bf(:,k,l)
           END DO
-          beta = beta*atom%basis%grid%rad
+          beta(:) = beta*atom%basis%grid%rad
           IF(up) THEN
              WRITE(iw,'(T12,4ES25.12E3)') (beta(j)*atom%basis%grid%rad(j),j=1,nr)
           ELSE
@@ -796,6 +886,16 @@ CONTAINS
     WRITE(iw,'(A)') '</UPF>'
 
   END SUBROUTINE atom_write_upf
+! *****************************************************************************
+!> \brief ...
+!> \param string ...
+!> \param tag ...
+!> \param counter ...
+!> \param rval ...
+!> \param ival ...
+!> \param cval ...
+!> \param isfinal ...
+! *****************************************************************************
   SUBROUTINE compose(string,tag,counter,rval,ival,cval,isfinal)
     CHARACTER(len=*)                         :: string, tag
     INTEGER, OPTIONAL                        :: counter

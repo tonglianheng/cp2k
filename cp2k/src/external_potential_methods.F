@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2013  CP2K developers group                          !
+!   Copyright (C) 2000 - 2014  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -33,7 +33,7 @@ MODULE external_potential_methods
   USE string_utilities,                ONLY: compress
   USE timings,                         ONLY: timeset,&
                                              timestop
-#include "cp_common_uses.h"
+#include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
 
@@ -44,9 +44,11 @@ MODULE external_potential_methods
 CONTAINS
 
 ! *****************************************************************************
-!> \brief
-!> \author Teodoro Laino - University of Zurich [tlaino]
+!> \brief ...
+!> \param force_env ...
+!> \param error ...
 !> \date 03.2008
+!> \author Teodoro Laino - University of Zurich [tlaino]
 ! *****************************************************************************
   SUBROUTINE add_external_potential(force_env, error)
     TYPE(force_env_type), POINTER            :: force_env

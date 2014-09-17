@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2012  CP2K developers group                          !
+!   Copyright (C) 2000 - 2014  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -11,13 +11,13 @@
 INTERFACE
   SUBROUTINE debug_ewald_multipoles(ewald_env, ewald_pw, nonbond_env, cell, &
        particle_set, local_particles, iw, debug_r_space, error )
-    USE cell_types,                      ONLY: cell_type
+    USE cell_methods,                      ONLY: cell_type
     USE distribution_1d_types,           ONLY: distribution_1d_type
     USE ewald_environment_types,         ONLY: ewald_environment_type
     USE ewald_pw_types,                  ONLY: ewald_pw_type
     USE fist_nonbond_env_types,          ONLY: fist_nonbond_env_type
     USE particle_types,                  ONLY: particle_type
-#include "cp_common_uses.h"
+#include "./common/cp_common_uses.f90"
     TYPE(ewald_environment_type), POINTER    :: ewald_env
     TYPE(ewald_pw_type), POINTER             :: ewald_pw
     TYPE(fist_nonbond_env_type), POINTER     :: nonbond_env
@@ -37,7 +37,7 @@ INTERFACE
        particle_set, local_particles, radii, charges, dipoles, quadrupoles, task, iw,&
        atomic_kind_set, force_env_section, error)
     USE atomic_kind_types,               ONLY: atomic_kind_type
-    USE cell_types,                      ONLY: cell_type
+    USE cell_methods,                      ONLY: cell_type
     USE distribution_1d_types,           ONLY: distribution_1d_type
     USE ewald_environment_types,         ONLY: ewald_environment_type
     USE ewald_pw_types,                  ONLY: ewald_pw_type
@@ -45,7 +45,7 @@ INTERFACE
     USE input_section_types,             ONLY: section_vals_type
     USE kinds,                           ONLY: dp
     USE particle_types,                  ONLY: particle_type
-#include "cp_common_uses.h"
+#include "./common/cp_common_uses.f90"
     TYPE(ewald_environment_type), POINTER    :: ewald_env
     TYPE(ewald_pw_type), POINTER             :: ewald_pw
     TYPE(fist_nonbond_env_type), POINTER     :: nonbond_env
@@ -71,14 +71,14 @@ INTERFACE
   SUBROUTINE debug_ewald_multipoles_fields2(ewald_env, ewald_pw, nonbond_env, cell,&
        particle_set, local_particles, radii, charges, dipoles, quadrupoles, task, iw,&
        error)
-    USE cell_types,                      ONLY: cell_type
+    USE cell_methods,                      ONLY: cell_type
     USE distribution_1d_types,           ONLY: distribution_1d_type
     USE ewald_environment_types,         ONLY: ewald_environment_type
     USE ewald_pw_types,                  ONLY: ewald_pw_type
     USE fist_nonbond_env_types,          ONLY: fist_nonbond_env_type
     USE kinds,                           ONLY: dp
     USE particle_types,                  ONLY: particle_type
-#include "cp_common_uses.h"
+#include "./common/cp_common_uses.f90"
     TYPE(ewald_environment_type), POINTER    :: ewald_env
     TYPE(ewald_pw_type), POINTER             :: ewald_pw
     TYPE(fist_nonbond_env_type), POINTER     :: nonbond_env

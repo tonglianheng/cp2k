@@ -1,16 +1,25 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2013  CP2K developers group                          !
+!   Copyright (C) 2000 - 2014  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
 !> \brief  Debug routines for multipoles
-!> \author Teodoro Laino [tlaino] - University of Zurich - 05.2008
+!> \param ewald_env ...
+!> \param ewald_pw ...
+!> \param nonbond_env ...
+!> \param cell ...
+!> \param particle_set ...
+!> \param local_particles ...
+!> \param iw ...
+!> \param debug_r_space ...
+!> \param error ...
 !> \date   05.2008
+!> \author Teodoro Laino [tlaino] - University of Zurich - 05.2008
 ! *****************************************************************************
 SUBROUTINE debug_ewald_multipoles(ewald_env, ewald_pw, nonbond_env, cell, &
      particle_set, local_particles, iw, debug_r_space, error )
-  USE cell_types,                      ONLY: cell_type
+  USE cell_methods,                      ONLY: cell_type
   USE distribution_1d_types,           ONLY: distribution_1d_type
   USE ewald_environment_types,         ONLY: ewald_environment_type
   USE ewald_pw_types,                  ONLY: ewald_pw_type
@@ -29,7 +38,7 @@ SUBROUTINE debug_ewald_multipoles(ewald_env, ewald_pw, nonbond_env, cell, &
                                              random_numbers
   USE particle_types,                  ONLY: particle_type
   USE ewalds_multipole,                ONLY: ewald_multipole_evaluate
-#include "cp_common_uses.h"
+#include "./common/cp_common_uses.f90"
   IMPLICIT NONE
 
   TYPE charge_mono_type
@@ -56,7 +65,7 @@ SUBROUTINE debug_ewald_multipoles(ewald_env, ewald_pw, nonbond_env, cell, &
   CHARACTER(len=*), PARAMETER :: routineN = 'debug_ewald_multipoles', &
        routineP = "ewalds_multipole_debug"//':'//routineN
 
-  INTEGER                                  :: i, ind, nparticles, stat
+  INTEGER                                  :: nparticles, stat
   LOGICAL                                  :: failure
   LOGICAL, DIMENSION(3)                    :: task
   REAL(KIND=dp)                            :: e_neut, e_self, g_energy, &
@@ -343,8 +352,15 @@ SUBROUTINE debug_ewald_multipoles(ewald_env, ewald_pw, nonbond_env, cell, &
 CONTAINS
 ! *****************************************************************************
 !> \brief  Debug routines for multipoles - low level - charge interactions
-!> \author Teodoro Laino [tlaino] - University of Zurich - 05.2008
+!> \param particle_set ...
+!> \param cell ...
+!> \param nonbond_env ...
+!> \param multipoles ...
+!> \param energy ...
+!> \param debug_r_space ...
+!> \param error ...
 !> \date   05.2008
+!> \author Teodoro Laino [tlaino] - University of Zurich - 05.2008
 ! *****************************************************************************
   SUBROUTINE debug_ewald_multipole_low(particle_set, cell, nonbond_env, multipoles,&
        energy, debug_r_space, error)
@@ -471,8 +487,20 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief  create multi_type for multipoles
-!> \author Teodoro Laino [tlaino] - University of Zurich - 05.2008
+!> \param multipoles ...
+!> \param idim ...
+!> \param istart ...
+!> \param iend ...
+!> \param label ...
+!> \param echarge ...
+!> \param random_stream ...
+!> \param particle_set ...
+!> \param charges ...
+!> \param dipoles ...
+!> \param quadrupoles ...
+!> \param error ...
 !> \date   05.2008
+!> \author Teodoro Laino [tlaino] - University of Zurich - 05.2008
 ! *****************************************************************************
   SUBROUTINE create_multi_type(multipoles, idim, istart, iend, label, echarge,&
        random_stream, particle_set, charges, dipoles, quadrupoles, error)
@@ -596,8 +624,10 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief  release multi_type for multipoles
-!> \author Teodoro Laino [tlaino] - University of Zurich - 05.2008
+!> \param multipoles ...
+!> \param error ...
 !> \date   05.2008
+!> \author Teodoro Laino [tlaino] - University of Zurich - 05.2008
 ! *****************************************************************************
   SUBROUTINE release_multi_type(multipoles, error)
     IMPLICIT NONE
@@ -628,8 +658,12 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief  reallocates multi_type for multipoles
-!> \author Teodoro Laino [tlaino] - University of Zurich - 05.2008
+!> \param charge_typ ...
+!> \param istart ...
+!> \param iend ...
+!> \param error ...
 !> \date   05.2008
+!> \author Teodoro Laino [tlaino] - University of Zurich - 05.2008
 ! *****************************************************************************
   SUBROUTINE reallocate_charge_type(charge_typ, istart, iend, error)
     IMPLICIT NONE
@@ -703,14 +737,29 @@ END SUBROUTINE debug_ewald_multipoles
 
 ! *****************************************************************************
 !> \brief  Routine to debug potential, field and electric field gradients
-!> \author Teodoro Laino [tlaino] - University of Zurich - 05.2008
+!> \param ewald_env ...
+!> \param ewald_pw ...
+!> \param nonbond_env ...
+!> \param cell ...
+!> \param particle_set ...
+!> \param local_particles ...
+!> \param radii ...
+!> \param charges ...
+!> \param dipoles ...
+!> \param quadrupoles ...
+!> \param task ...
+!> \param iw ...
+!> \param atomic_kind_set ...
+!> \param mm_section ...
+!> \param error ...
 !> \date   05.2008
+!> \author Teodoro Laino [tlaino] - University of Zurich - 05.2008
 ! *****************************************************************************
 SUBROUTINE debug_ewald_multipoles_fields(ewald_env, ewald_pw, nonbond_env, cell,&
      particle_set, local_particles, radii, charges, dipoles, quadrupoles, task, iw, &
      atomic_kind_set, mm_section, error )
   USE atomic_kind_types,               ONLY: atomic_kind_type
-  USE cell_types,                      ONLY: cell_type
+  USE cell_methods,                      ONLY: cell_type
   USE distribution_1d_types,           ONLY: distribution_1d_type
   USE ewald_environment_types,         ONLY: ewald_environment_type
   USE ewald_pw_types,                  ONLY: ewald_pw_type
@@ -724,7 +773,7 @@ SUBROUTINE debug_ewald_multipoles_fields(ewald_env, ewald_pw, nonbond_env, cell,
   USE particle_types,                  ONLY: particle_type
   USE ewalds_multipole,                ONLY: ewald_multipole_evaluate
   USE fist_neighbor_list_control,      ONLY: list_control
-#include "cp_common_uses.h"
+#include "./common/cp_common_uses.f90"
   IMPLICIT NONE
   TYPE(ewald_environment_type), POINTER    :: ewald_env
   TYPE(ewald_pw_type), POINTER             :: ewald_pw
@@ -750,12 +799,12 @@ SUBROUTINE debug_ewald_multipoles_fields(ewald_env, ewald_pw, nonbond_env, cell,
   REAL(KIND=dp), POINTER, DIMENSION(:)     :: lcharges, efield0
   REAL(KIND=dp), POINTER, DIMENSION(:,:)   :: ldipoles
   REAL(KIND=dp), POINTER, DIMENSION(:,:)   :: lquadrupoles
-  REAL(KIND=dp)                            :: dq, dr, energy_local, energy_glob, e_neut,&
+  REAL(KIND=dp)                            :: dq, energy_local, energy_glob, e_neut,&
        e_self, pv_local(3,3), pv_glob(3,3), ene(2), pot, coord(3), efield1n(3), tot_ene,&
        o_tot_ene, enev(3,2), efield2n(3,3)
   REAL(KIND=dp), DIMENSION(:,:), ALLOCATABLE&
                                            :: forces_local, forces_glob, efield1, efield2
-  INTEGER :: nparticles,i,k,j,nparticle_local, ind, iparticle_kind
+  INTEGER :: nparticles,i,k,j,nparticle_local, iparticle_kind
   TYPE(particle_type), POINTER, DIMENSION(:) :: shell_particle_set, core_particle_set
   TYPE(cp_logger_type), POINTER              :: logger
 
@@ -898,13 +947,26 @@ END SUBROUTINE debug_ewald_multipoles_fields
 
 ! *****************************************************************************
 !> \brief  Routine to debug potential, field and electric field gradients
-!> \author Teodoro Laino [tlaino] - University of Zurich - 05.2008
+!> \param ewald_env ...
+!> \param ewald_pw ...
+!> \param nonbond_env ...
+!> \param cell ...
+!> \param particle_set ...
+!> \param local_particles ...
+!> \param radii ...
+!> \param charges ...
+!> \param dipoles ...
+!> \param quadrupoles ...
+!> \param task ...
+!> \param iw ...
+!> \param error ...
 !> \date   05.2008
+!> \author Teodoro Laino [tlaino] - University of Zurich - 05.2008
 ! *****************************************************************************
 SUBROUTINE debug_ewald_multipoles_fields2(ewald_env, ewald_pw, nonbond_env, cell,&
      particle_set, local_particles, radii, charges, dipoles, quadrupoles, task, iw, &
      error )
-  USE cell_types,                      ONLY: cell_type
+  USE cell_methods,                      ONLY: cell_type
   USE distribution_1d_types,           ONLY: distribution_1d_type
   USE ewald_environment_types,         ONLY: ewald_environment_type
   USE ewald_pw_types,                  ONLY: ewald_pw_type
@@ -917,7 +979,7 @@ SUBROUTINE debug_ewald_multipoles_fields2(ewald_env, ewald_pw, nonbond_env, cell
   USE particle_types,                  ONLY: particle_type
   USE ewalds_multipole,                ONLY: ewald_multipole_evaluate
   USE fist_neighbor_list_control,      ONLY: list_control
-#include "cp_common_uses.h"
+#include "./common/cp_common_uses.f90"
   IMPLICIT NONE
   TYPE(ewald_environment_type), POINTER    :: ewald_env
   TYPE(ewald_pw_type), POINTER             :: ewald_pw
@@ -941,9 +1003,8 @@ SUBROUTINE debug_ewald_multipoles_fields2(ewald_env, ewald_pw, nonbond_env, cell
   REAL(KIND=dp), POINTER, DIMENSION(:)     :: efield0
   REAL(KIND=dp), POINTER, DIMENSION(:,:)   :: ldipoles
   REAL(KIND=dp), POINTER, DIMENSION(:,:)   :: lquadrupoles
-  REAL(KIND=dp)                            :: dq, dr, energy_local, energy_glob, e_neut,&
-       e_self, pv_local(3,3), pv_glob(3,3), ene(2), pot, coord(3), efield1n(3), tot_ene,&
-       o_tot_ene, enev(3,2), efield2n(3,3), prod
+  REAL(KIND=dp)                            :: energy_local, energy_glob, e_neut,&
+       e_self, pv_local(3,3), pv_glob(3,3), tot_ene, o_tot_ene, prod
   REAL(KIND=dp), DIMENSION(:,:), ALLOCATABLE&
                                            :: forces_local, forces_glob, efield1, efield2
   INTEGER :: nparticles,i,k,j,nparticle_local,iparticle_kind,ind

@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2013  CP2K developers group                          !
+!   Copyright (C) 2000 - 2014  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -12,7 +12,7 @@
 MODULE qs_charges_types
   USE f77_blas
   USE kinds,                           ONLY: dp
-#include "cp_common_uses.h"
+#include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
   PRIVATE
@@ -51,6 +51,9 @@ CONTAINS
 ! *****************************************************************************
 !> \brief creates a charges object
 !> \param qs_charges the charges object to create
+!> \param nspins ...
+!> \param total_rho_core_rspace ...
+!> \param total_rho_gspace ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 !> \par History

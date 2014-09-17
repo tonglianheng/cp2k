@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2013  CP2K developers group                          !
+!   Copyright (C) 2000 - 2014  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -36,7 +36,7 @@ MODULE mol_kind_new_list_types
   USE f77_blas
   USE molecule_kind_types,             ONLY: deallocate_molecule_kind_set,&
                                              molecule_kind_type
-#include "cp_common_uses.h"
+#include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
   PRIVATE
@@ -45,9 +45,10 @@ MODULE mol_kind_new_list_types
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'mol_kind_new_list_types'
   INTEGER, PRIVATE, SAVE :: last_mol_kind_new_list_id=0
 
-  PUBLIC :: mol_kind_new_list_type, mol_kind_new_list_p_type
-  PUBLIC :: mol_kind_new_list_create, mol_kind_new_list_retain,&
-       mol_kind_new_list_release
+  !API
+  PUBLIC :: mol_kind_new_list_type, mol_kind_new_list_p_type,&
+            mol_kind_new_list_create, mol_kind_new_list_retain,&
+            mol_kind_new_list_release
 
 !***
 

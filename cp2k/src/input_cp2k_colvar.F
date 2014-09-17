@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2013  CP2K developers group                          !
+!   Copyright (C) 2000 - 2014  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -12,7 +12,11 @@ MODULE input_cp2k_colvar
   USE bibliography,                    ONLY: Branduardi2007
   USE cp_output_handling,              ONLY: cp_print_key_section_create
   USE f77_blas
-  USE input_constants
+  USE input_constants,                 ONLY: &
+       add_last_numeric, do_clv_fix_point, do_clv_geo_center, do_clv_x, &
+       do_clv_xy, do_clv_xyz, do_clv_xz, do_clv_y, do_clv_yz, do_clv_z, &
+       gaussian, high_print_level, low_print_level, numerical, &
+       plane_def_atoms, plane_def_vec, rmsd_all, rmsd_list, rmsd_weightlist
   USE input_keyword_types,             ONLY: keyword_create,&
                                              keyword_release,&
                                              keyword_type
@@ -27,7 +31,7 @@ MODULE input_cp2k_colvar
                                              real_t
   USE kinds,                           ONLY: dp
   USE string_utilities,                ONLY: s2a
-#include "cp_common_uses.h"
+#include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
   PRIVATE
@@ -44,6 +48,7 @@ CONTAINS
 ! *****************************************************************************
 !> \brief creates the colvar section
 !> \param section the section to be created
+!> \param skip_recursive_colvar ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 !> \author teo
@@ -127,7 +132,7 @@ CONTAINS
             description="Colvar function data."//&
             " The order is an internal order. So if you decide to edit/modify/add these values by hand"//&
             " you should know very well what you are doing.!",repeats=.TRUE.,&
-            usage="<REAL> <REAL> <REAL> ...", type_of_var=real_t, n_var=-1, error=error)
+            usage="{Real} ...", type_of_var=real_t, n_var=-1, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
@@ -137,7 +142,9 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief creates the collective variables for the colvar section
+!> \param subsection ...
 !> \param section the section to be created
+!> \param skip_recursive_colvar ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 !> \author teo
@@ -396,6 +403,11 @@ CONTAINS
 
 
 
+! *****************************************************************************
+!> \brief ...
+!> \param section ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE create_colvar_cond_dist_section(section,error)
     TYPE(section_type), POINTER              :: section
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -509,8 +521,8 @@ CONTAINS
 !> \param section the section to be created
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
-!> \author Fabio Sterpone
 !> \date  01.2009
+!> \author Fabio Sterpone
 ! *****************************************************************************
   SUBROUTINE create_colvar_pop_section(section,error)
     TYPE(section_type), POINTER              :: section
@@ -615,6 +627,11 @@ CONTAINS
   END SUBROUTINE create_colvar_pop_section
 
 
+! *****************************************************************************
+!> \brief ...
+!> \param section ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE create_colvar_gyr_section(section,error)
     TYPE(section_type), POINTER              :: section
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -964,7 +981,9 @@ CONTAINS
        CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
        CALL section_create(section,name="XYZ_DIAG",&
             description="Section to define the distance of an atom from its starting "//&
-            "position (X-X(0)^2+Y-Y(0)^2+Z-Z(0)^2) or part of its components as a collective variable.",&
+            "position ((X-X(0))^2+(Y-Y(0))^2+(Z-Z(0))^2) or part of its components as a collective variable."//&
+            "If absolute_position is specified, instead the CV is represented by the "//&
+            "instantaneous position of the atom (only available for X, Y or Z components).",&
             n_keywords=1, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
             error=error)
        NULLIFY(keyword, subsection)
@@ -992,6 +1011,13 @@ CONTAINS
             "atomic position before computing the colvar or not.",&
             usage="PBC",&
             default_l_val=.TRUE.,lone_keyword_l_val=.TRUE.,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="ABSOLUTE_POSITION",&
+            description="If enabled, the absolute position of the atoms will be used. ",&
+            usage="ABSOLUTE_POSITION",&
+            default_l_val=.FALSE.,lone_keyword_l_val=.TRUE.,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
@@ -1586,6 +1612,9 @@ CONTAINS
   END SUBROUTINE create_colvar_hydronium_section
 
 ! *****************************************************************************
+!> \brief ...
+!> \param section ...
+!> \param error ...
 ! *****************************************************************************
   SUBROUTINE create_colvar_rmsd_section(section,error)
     TYPE(section_type), POINTER              :: section
@@ -1916,6 +1945,15 @@ CONTAINS
 
        CALL keyword_create(keyword, name="FUNCTION",&
             description="Specifies the function used to combine different COLVARs into one.",&
+! *****************************************************************************
+!> \brief ...
+!> \param CV1^2 ...
+!> \param CV2^2 ...
+!> \param " ...
+!> \param type_of_var=lchar_t ...
+!> \param n_var=1 ...
+!> \param error=error ...
+! *****************************************************************************
             usage="FUNCTION SQRT(CV1^2+CV2^2)", type_of_var=lchar_t,&
             n_var=1, error=error)
        CALL section_add_keyword(section,keyword,error=error)
@@ -1963,6 +2001,7 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Creates the coord section
 !> \param section the section to create
+!> \param name ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 !> \author teo
@@ -1990,7 +2029,7 @@ CONTAINS
 
        CALL keyword_create(keyword, name="_DEFAULT_KEYWORD_",&
             description="Specify positions of the system",repeats=.TRUE.,&
-            usage="<REAL> <REAL> .. <REAL>", type_of_var=real_t, n_var=-1, error=error)
+            usage="{Real} ...", type_of_var=real_t, n_var=-1, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 

@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2013  CP2K developers group                          !
+!   Copyright (C) 2000 - 2014  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -15,29 +15,29 @@ MODULE qs_energy_utils
   USE cp_control_types,                ONLY: dft_control_type
   USE cp_control_utils,                ONLY: read_becke_section,&
                                              read_ddapc_section
-  USE cp_dbcsr_interface,              ONLY: cp_dbcsr_get_block_p,&
-                                             cp_dbcsr_get_info,&
-                                             cp_dbcsr_iterator_blocks_left,&
-                                             cp_dbcsr_iterator_next_block,&
-                                             cp_dbcsr_iterator_start,&
-                                             cp_dbcsr_iterator_stop,&
-                                             cp_dbcsr_set
-  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_iterator,&
-                                             cp_dbcsr_p_type,&
-                                             cp_dbcsr_type
+  USE cp_dbcsr_interface,              ONLY: &
+       cp_dbcsr_add, cp_dbcsr_allocate_matrix_set, cp_dbcsr_copy, &
+       cp_dbcsr_get_block_p, cp_dbcsr_get_info, cp_dbcsr_init, &
+       cp_dbcsr_iterator, cp_dbcsr_iterator_blocks_left, &
+       cp_dbcsr_iterator_next_block, cp_dbcsr_iterator_start, &
+       cp_dbcsr_iterator_stop, cp_dbcsr_p_type, cp_dbcsr_set, cp_dbcsr_type
   USE cp_external_control,             ONLY: external_control
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE efield_utils,                    ONLY: calculate_ecore_efield
   USE et_coupling,                     ONLY: calc_et_coupling
   USE f77_blas
+  USE input_constants,                 ONLY: kg_tnadd_atomic,&
+                                             kg_tnadd_embed
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type
   USE kg_environment,                  ONLY: kg_build_neighborlist,&
                                              kg_build_subsets
   USE kinds,                           ONLY: dp
+  USE kpoint_methods,                  ONLY: kpoint_init_cell_index
+  USE kpoint_types,                    ONLY: kpoint_type
   USE molecule_types_new,              ONLY: molecule_of_atom,&
                                              molecule_type
-  USE mp2
+  USE mp2,                             ONLY: mp2_main
   USE pw_env_types,                    ONLY: pw_env_get
   USE pw_pool_types,                   ONLY: pw_pool_give_back_pw,&
                                              pw_pool_type
@@ -47,9 +47,13 @@ MODULE qs_energy_utils
   USE qs_dftb_dispersion,              ONLY: calculate_dftb_dispersion
   USE qs_dftb_matrices,                ONLY: build_dftb_matrices
   USE qs_dispersion_pairpot,           ONLY: calculate_dispersion_pairpot
+  USE qs_dispersion_types,             ONLY: qs_dispersion_type
+  USE qs_energy_types,                 ONLY: qs_energy_type
   USE qs_environment_methods,          ONLY: qs_env_update_s_mstruct
   USE qs_environment_types,            ONLY: get_qs_env,&
-                                             qs_environment_type
+                                             qs_environment_type,&
+                                             set_qs_env
+  USE qs_external_density,             ONLY: external_read_density
   USE qs_external_potential,           ONLY: external_c_potential,&
                                              external_e_potential
   USE qs_integrate_potential,          ONLY: integrate_v_core_rspace
@@ -58,23 +62,25 @@ MODULE qs_energy_utils
                                              qs_ks_allocate_basics,&
                                              qs_ks_update_qs_env
   USE qs_ks_types,                     ONLY: qs_ks_env_type
+  USE qs_linres_module,                ONLY: linres_calculation_low
   USE qs_mo_types,                     ONLY: mo_set_p_type,&
                                              mo_set_type
+  USE qs_neighbor_list_types,          ONLY: neighbor_list_set_p_type
   USE qs_neighbor_lists,               ONLY: build_qs_neighbor_lists
   USE qs_rho_types,                    ONLY: qs_rho_type
   USE qs_scf,                          ONLY: scf
   USE scf_control_types,               ONLY: scf_control_type
-  USE scp_dispersion,                  ONLY: scp_nddo_dispersion,&
-                                             scp_qs_dispersion
+  USE scp_dispersion,                  ONLY: scp_nddo_dispersion
   USE scptb_core_interactions,         ONLY: scptb_core_interaction
-  USE scptb_core_matrix,               ONLY: build_scptb_core_matrix
+  USE scptb_core_matrix,               ONLY: build_scptb_core_matrix,&
+                                             build_scptb_core_matrix_kp
   USE se_core_core,                    ONLY: se_core_core_interaction
   USE se_core_matrix,                  ONLY: build_se_core_matrix
   USE se_ga_tools,                     ONLY: se_ga_initialize
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE xas_methods,                     ONLY: xas
-#include "cp_common_uses.h"
+#include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
 
@@ -94,6 +100,9 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Refactoring of qs_energies_scf. Driver routine for the initial 
 !>        setup and calculations for a qs energy calculation
+!> \param qs_env ...
+!> \param calc_forces ...
+!> \param error ...
 !> \par History
 !>      05.2013 created [Florian Schiffmann]
 ! *****************************************************************************
@@ -106,7 +115,15 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'qs_energies_init', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: molecule_only
+    INTEGER                                  :: ispin, stat
+    LOGICAL                                  :: do_kpoints, failure, &
+                                                has_unit_metric, molecule_only
+    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+      POINTER                                :: matrix_s, matrix_w, &
+                                                matrix_w_mp2
+    TYPE(dft_control_type), POINTER          :: dft_control
+
+    failure = .FALSE.
 
     CALL qs_energies_init_kg(qs_env,molecule_only,error)
 
@@ -114,11 +131,50 @@ CONTAINS
 
     CALL qs_ks_allocate_basics(qs_env,error)
 
+    ! need forces ?
+    CALL get_qs_env(qs_env=qs_env, has_unit_metric=has_unit_metric, error=error)
+    IF (calc_forces.AND..NOT.has_unit_metric) THEN
+       CALL get_qs_env(qs_env=qs_env, do_kpoints=do_kpoints, error=error)
+       IF(do_kpoints) THEN
+          CPPostcondition(.FALSE.,cp_warning_level,routineP,error,failure)
+       ELSE
+          CALL get_qs_env(qs_env=qs_env, matrix_w=matrix_w, matrix_s=matrix_s, &
+               dft_control=dft_control, error=error)
+          CALL cp_dbcsr_allocate_matrix_set(matrix_w,dft_control%nspins,error=error)
+          DO ispin=1,dft_control%nspins
+             ALLOCATE(matrix_w(ispin)%matrix,STAT=stat)
+             CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
+             CALL cp_dbcsr_init(matrix_w(ispin)%matrix,error=error)
+             CALL cp_dbcsr_copy(matrix_w(ispin)%matrix,matrix_s(1)%matrix,&
+                  name="W MATRIX",error=error)
+             CALL cp_dbcsr_set(matrix_w(ispin)%matrix,0.0_dp,error=error)
+          END DO
+          CALL set_qs_env(qs_env=qs_env,matrix_w=matrix_w,error=error)
+          IF (ASSOCIATED(qs_env%mp2_env)) THEN
+             ! create the MP2 energy weighted density matrix
+             NULLIFY(matrix_w_mp2)
+             CALL cp_dbcsr_allocate_matrix_set(matrix_w_mp2,dft_control%nspins,error=error)
+             DO ispin=1,dft_control%nspins
+                ALLOCATE(matrix_w_mp2(ispin)%matrix,STAT=stat)
+                CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
+                CALL cp_dbcsr_init(matrix_w_mp2(ispin)%matrix,error=error)
+                CALL cp_dbcsr_copy(matrix_w_mp2(ispin)%matrix,matrix_s(1)%matrix,&
+                     name="W MATRIX MP2",error=error)
+                CALL cp_dbcsr_set(matrix_w_mp2(ispin)%matrix,0.0_dp,error=error)
+             END DO
+             CALL set_qs_env(qs_env=qs_env,matrix_w_mp2=matrix_w_mp2,error=error)
+          END IF
+       ENDIF
+    ENDIF
+
   END SUBROUTINE qs_energies_init
 
 ! *****************************************************************************
 !> \brief Refactoring of qs_energies_scf. Puts initialization of the Kim-Gordon
 !>        settings into separate subroutine
+!> \param qs_env ...
+!> \param molecule_only ...
+!> \param error ...
 !> \par History
 !>      05.2013 created [Florian Schiffmann]
 ! *****************************************************************************
@@ -153,10 +209,7 @@ CONTAINS
       qs_env%kg_env%molecule_set => molecule_set
 
       ! build the (new) full neighborlist
-      CALL kg_build_neighborlist(qs_env%kg_env, qs_env, qs_env%kg_env%sab_orb_full, error=error)
-
-      ! allocate the subset list
-      IF (.NOT.ASSOCIATED(qs_env%kg_env%subset_of_mol)) ALLOCATE(qs_env%kg_env%subset_of_mol(SIZE(molecule_set)))
+      CALL kg_build_neighborlist(qs_env%kg_env, qs_env, sab_orb=qs_env%kg_env%sab_orb_full, error=error)
 
       IF (.NOT.ALLOCATED(qs_env%kg_env%atom_to_molecule)) THEN
         ALLOCATE(qs_env%kg_env%atom_to_molecule(natom))
@@ -164,16 +217,24 @@ CONTAINS
         ! get the mapping from atoms to molecules
         CALL molecule_of_atom(molecule_set, atom_to_mol=qs_env%kg_env%atom_to_molecule, error=error)
       END IF
+      
+      IF (qs_env%kg_env%tnadd_method == kg_tnadd_embed) THEN
+         ! allocate the subset list
+         IF (.NOT.ASSOCIATED(qs_env%kg_env%subset_of_mol)) ALLOCATE(qs_env%kg_env%subset_of_mol(SIZE(molecule_set)))
 
-      CALL kg_build_subsets(qs_env%kg_env, qs_env%para_env, error)
+         CALL kg_build_subsets(qs_env%kg_env, qs_env%para_env, error)
 
-      DO isubset=1,qs_env%kg_env%nsubsets
-
-        ! build the (new) molecular neighborlist of the current subset
-        CALL kg_build_neighborlist(qs_env%kg_env, qs_env, &
-                                   qs_env%kg_env%subset(isubset)%sab_orb, molecular=.TRUE., &
-                                   subset_of_mol=qs_env%kg_env%subset_of_mol, current_subset=isubset, error=error)
-      END DO
+         DO isubset=1,qs_env%kg_env%nsubsets
+           ! build the (new) molecular neighborlist of the current subset
+           CALL kg_build_neighborlist(qs_env%kg_env, qs_env, &
+                                      sab_orb=qs_env%kg_env%subset(isubset)%sab_orb, molecular=.TRUE., &
+                                      subset_of_mol=qs_env%kg_env%subset_of_mol, current_subset=isubset, error=error)
+         END DO
+      ELSE IF (qs_env%kg_env%tnadd_method == kg_tnadd_atomic) THEN
+         ! build the A-C list for the nonadditive kinetic energy potential
+         CALL kg_build_neighborlist(qs_env%kg_env, qs_env, &
+                                    sac_kin=qs_env%kg_env%sac_kin, error=error)
+      END IF
 
     END IF
     CALL timestop(handle)
@@ -183,8 +244,13 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Refactoring of qs_energies_scf. Moves computation of the different
 !>        core hamiltonians into separate subroutine
+!> \param qs_env        QS environment
+!> \param calc_forces   Calculate forces
+!> \param molecule_only restrict neighbor list to molecules
+!> \param error         CP2K error handling
 !> \par History
 !>      05.2013 created [Florian Schiffmann]
+!>      08.2014 Kpoints [JGH]
 ! *****************************************************************************
 
   SUBROUTINE qs_energies_init_hamiltonians(qs_env,calc_forces,molecule_only,error)
@@ -198,43 +264,81 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle
+    LOGICAL                                  :: do_kpoints, failure
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(dft_control_type), POINTER          :: dft_control
+    TYPE(kpoint_type), POINTER               :: kpoints
+    TYPE(neighbor_list_set_p_type), &
+      DIMENSION(:), POINTER                  :: sab_nl
+    TYPE(qs_dispersion_type), POINTER        :: dispersion_env
+    TYPE(qs_energy_type), POINTER            :: energy
     TYPE(section_vals_type), POINTER         :: input
 
     CALL timeset(routineN,handle)
 
-    para_env=>qs_env%para_env
-    CALL get_qs_env(qs_env=qs_env,input=input, dft_control=dft_control, error=error)
+    failure = .FALSE.
+    CALL get_qs_env(qs_env=qs_env,input=input,dft_control=dft_control,&
+                    para_env=para_env,kpoints=kpoints,do_kpoints=do_kpoints,error=error)
 
     ! create neighbor lists for standard use in QS
-    CALL build_qs_neighbor_lists(qs_env,para_env,molecular=molecule_only,force_env_section=input,error=error)
+    CALL build_qs_neighbor_lists(qs_env,para_env,molecular=molecule_only,&
+                                 force_env_section=input,error=error)
     qs_env%dft_control%qs_control%becke_control%need_pot=.TRUE.
 
     ! *** Calculate the overlap and the core Hamiltonian integral matrix ***
     IF ( dft_control%qs_control%semi_empirical ) THEN
-       CALL build_se_core_matrix(qs_env=qs_env, para_env=para_env,&
-                                 calculate_forces=.FALSE.,error=error)
+       IF(do_kpoints) THEN
+          CALL get_qs_env(qs_env=qs_env,sab_orb=sab_nl,error=error)
+          CALL kpoint_init_cell_index(kpoints, sab_nl, para_env, error)
+          CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
+            "Kpoints not available with Semi-Empirical methods",error)
+       ELSE
+          CALL build_se_core_matrix(qs_env=qs_env, para_env=para_env,&
+                                    calculate_forces=.FALSE.,error=error)
+       END IF
        CALL qs_env_update_s_mstruct(qs_env,error=error)
        CALL se_core_core_interaction(qs_env, para_env, calculate_forces=.FALSE., error=error)
        IF ( dft_control%qs_control%se_control%scp ) THEN
           CALL scp_nddo_dispersion (qs_env,calc_forces,error)
        END IF
-    ! GA option
+       CALL get_qs_env(qs_env=qs_env,dispersion_env=dispersion_env,energy=energy,error=error)
+       CALL calculate_dispersion_pairpot(qs_env,dispersion_env,energy%dispersion,calc_forces,error)
+       ! GA option
        CALL se_ga_initialize ( qs_env, error )
     ELSEIF ( dft_control%qs_control%dftb ) THEN
-       CALL build_dftb_matrices(qs_env=qs_env, para_env=para_env,&
-                              calculate_forces=.FALSE.,error=error)
+       IF(do_kpoints) THEN
+          CALL get_qs_env(qs_env=qs_env,sab_orb=sab_nl,error=error)
+          CALL kpoint_init_cell_index(kpoints, sab_nl, para_env, error)
+          CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
+            "Kpoints not available with DFTB",error)
+       ELSE
+          CALL build_dftb_matrices(qs_env=qs_env, para_env=para_env,&
+                                   calculate_forces=.FALSE.,error=error)
+       END IF
        CALL calculate_dftb_dispersion(qs_env=qs_env, para_env=para_env,&
                               calculate_forces=.FALSE.,error=error)
        CALL qs_env_update_s_mstruct(qs_env,error=error)
     ELSEIF ( dft_control%qs_control%scptb ) THEN
-       CALL build_scptb_core_matrix(qs_env=qs_env,calculate_forces=.FALSE.,error=error)
+       IF(do_kpoints) THEN
+          CALL get_qs_env(qs_env=qs_env,sab_orb=sab_nl,error=error)
+          CALL kpoint_init_cell_index(kpoints, sab_nl, para_env, error)
+          CALL build_scptb_core_matrix_kp(qs_env=qs_env,calculate_forces=.FALSE.,error=error)
+       ELSE
+          CALL build_scptb_core_matrix(qs_env=qs_env,calculate_forces=.FALSE.,error=error)
+       END IF
        CALL qs_env_update_s_mstruct(qs_env,error=error)
        CALL scptb_core_interaction(qs_env,calculate_forces=.FALSE.,error=error)
-       CALL calculate_dispersion_pairpot(qs_env,calc_forces,error)
+       CALL get_qs_env(qs_env=qs_env,dispersion_env=dispersion_env,energy=energy,error=error)
+       CALL calculate_dispersion_pairpot(qs_env,dispersion_env,energy%dispersion,calc_forces,error)
     ELSE
-       CALL build_core_hamiltonian_matrix(qs_env=qs_env,calculate_forces=.FALSE.,error=error)
+       IF(do_kpoints) THEN
+          CALL get_qs_env(qs_env=qs_env,sab_orb=sab_nl,error=error)
+          CALL kpoint_init_cell_index(kpoints, sab_nl, para_env, error)
+          CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
+            "Kpoints not available with GPW/GAPW/QUICKSTEP",error)
+       ELSE
+          CALL build_core_hamiltonian_matrix(qs_env=qs_env,calculate_forces=.FALSE.,error=error)
+       END IF
 
        CALL qs_env_update_s_mstruct(qs_env,error=error)
        CALL calculate_ecore_self(qs_env,error=error)
@@ -243,15 +347,13 @@ CONTAINS
        CALL external_c_potential(qs_env,calculate_forces=.FALSE.,error=error)
        CALL external_e_potential(qs_env,error=error)
 
-       IF ( dft_control%scp ) THEN
-          IF(dft_control%scp_control%dispersion ) THEN
-             CALL scp_qs_dispersion ( qs_env, calc_forces, error )
-          END IF
-       ELSE
-          ! Add possible pair potential dispersion energy - Evaluate first so we can print
-          ! energy info at the end of the SCF
-          CALL calculate_dispersion_pairpot(qs_env,calc_forces,error)
-       END IF
+       ! ZMP addition to read external density
+       CALL external_read_density(qs_env,error)
+
+       ! Add possible pair potential dispersion energy - Evaluate first so we can print
+       ! energy info at the end of the SCF
+       CALL get_qs_env(qs_env=qs_env,dispersion_env=dispersion_env,energy=energy,error=error)
+       CALL calculate_dispersion_pairpot(qs_env,dispersion_env,energy%dispersion,calc_forces,error)
 
     END IF
 
@@ -262,6 +364,9 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Refactoring of qs_energies_scf. Moves computation of matrix_w
 !>        into separate subroutine
+!> \param qs_env ...
+!> \param calc_forces ...
+!> \param error ...
 !> \par History
 !>      05.2013 created [Florian Schiffmann]
 ! *****************************************************************************
@@ -326,6 +431,10 @@ CONTAINS
                 CALL calculate_w_matrix(mo_set,matrix_w(ispin)%matrix,error=error)
              END IF
           END IF
+          ! if MP2 time to update the W matrix with the MP2 contribution
+          IF(ASSOCIATED(qs_env%mp2_env)) THEN
+            CALL cp_dbcsr_add(matrix_w(ispin)%matrix, qs_env%matrix_w_mp2(ispin)%matrix, 1.0_dp, -1.0_dp, error)
+          END IF
        END DO
     END IF
 
@@ -336,6 +445,8 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Refactoring of qs_energies_scf. Moves computation of properties
 !>        into separate subroutine
+!> \param qs_env ...
+!> \param error ...
 !> \par History
 !>      05.2013 created [Florian Schiffmann]
 ! *****************************************************************************
@@ -352,7 +463,6 @@ CONTAINS
     TYPE(atprop_type), POINTER               :: atprop
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
-    TYPE(qs_ks_env_type), POINTER            :: ks_env
     TYPE(section_vals_type), POINTER         :: input, rest_b_section
 
     CALL timeset(routineN,handle)
@@ -422,6 +532,12 @@ CONTAINS
       CALL xas(qs_env, dft_control, error=error)
     END IF
 
+    ! Compute Linear Response properties as post-scf
+    IF(.NOT. qs_env%linres_run) THEN
+       CALL linres_calculation_low(qs_env, error=error)
+    END IF
+
+
     CALL timestop(handle)
 
   END SUBROUTINE qs_energies_properties 
@@ -429,8 +545,10 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief   Use a simple Mulliken-like energy decomposition
-!> \author  JHU
+!> \param qs_env ...
+!> \param error ...
 !> \date    07.2011
+!> \author  JHU
 !> \version 1.0
 ! *****************************************************************************
   SUBROUTINE qs_energies_mulliken(qs_env,error)
@@ -466,12 +584,15 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Compute partial trace of product of two matrices
-!> \param amat, bmat
-!> \param charges previously allocated with the right size (natom,nspin)
-!> \note
-!>      charges are computed per spin in the LSD case
+!> \param amat ...
+!> \param bmat ...
+!> \param factor ...
+!> \param atrace ...
+!> \param error ...
 !> \par History
 !>      06.2004 created [Joost VandeVondele]
+!> \note
+!>      charges are computed per spin in the LSD case
 ! *****************************************************************************
   SUBROUTINE atom_trace(amat,bmat,factor,atrace,error)
     TYPE(cp_dbcsr_type), POINTER             :: amat, bmat
@@ -517,6 +638,9 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Enters the mp2 part of cp2k
+!> \param qs_env ...
+!> \param calc_forces ...
+!> \param error ...
 ! *****************************************************************************
 
   SUBROUTINE qs_energies_mp2(qs_env,calc_forces,error)
@@ -536,14 +660,14 @@ CONTAINS
        CALL external_control(should_stop,"MP2",target_time=qs_env%target_time, &
        start_time = qs_env%start_time,error=error)
 
-       CALL mp2_main(qs_env=qs_env,error=error)
+       CALL mp2_main(qs_env=qs_env,calc_forces=calc_forces,error=error)
 
        ! no forces so far with MP2 (except one electron systems ;-)
-       IF (qs_env%energy%mp2.NE.0.0_dp .AND. calc_forces) THEN
-          CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
-               " No forces/gradients with MP2.... yet(?!) "//&
-                CPSourceFileRef, only_ionode=.TRUE.)
-       ENDIF
+       ! IF (qs_env%energy%mp2.NE.0.0_dp .AND. calc_forces) THEN
+       !    CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
+       !         " No forces/gradients with MP2.... yet(?!) "//&
+       !          CPSourceFileRef, only_ionode=.TRUE.)
+       ! ENDIF
     ENDIF
 
   END SUBROUTINE qs_energies_mp2

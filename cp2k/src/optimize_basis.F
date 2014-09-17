@@ -1,9 +1,9 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2013  CP2K developers group                          !
+!   Copyright (C) 2000 - 2014  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 MODULE optimize_basis
-  USE admm_methods,                    ONLY: fit_mo_coeffs_diag
+  USE admm_methods,                    ONLY: admm_fit_mo_coeffs
   USE cp_fm_types,                     ONLY: cp_fm_p_type,&
                                              cp_fm_release
   USE cp_para_env,                     ONLY: cp_para_env_create,&
@@ -18,9 +18,10 @@ MODULE optimize_basis
                                              f_env_type
   USE force_env_types,                 ONLY: force_env_get,&
                                              force_env_type
-  USE input_cp2k,                      ONLY: create_cp2k_input_reading,&
-                                             empty_initial_variables
-  USE input_section_types,             ONLY: section_vals_release,&
+  USE input_cp2k_read,                 ONLY: empty_initial_variables,&
+                                             read_input
+  USE input_section_types,             ONLY: section_type,&
+                                             section_vals_release,&
                                              section_vals_type
   USE kinds,                           ONLY: default_path_length,&
                                              dp
@@ -53,7 +54,7 @@ MODULE optimize_basis
   USE qs_neighbor_lists,               ONLY: build_qs_neighbor_lists
   USE timings,                         ONLY: timeset,&
                                              timestop
-#include "cp_common_uses.h"
+#include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
   PRIVATE
@@ -66,9 +67,14 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief main entry point for methods aimed at optimizing basis sets
+!> \param input_declaration ...
+!> \param root_section ...
+!> \param para_env ...
+!> \param error ...
 !> \author Florian Schiffmann
 ! *****************************************************************************
-  SUBROUTINE run_optimize_basis(root_section,para_env,error)
+  SUBROUTINE run_optimize_basis(input_declaration,root_section,para_env,error)
+    TYPE(section_type), POINTER              :: input_declaration
     TYPE(section_vals_type), POINTER         :: root_section
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cp_error_type), INTENT(INOUT)       :: error
@@ -86,22 +92,27 @@ CONTAINS
 
     CALL optimize_basis_init_read_input(opt_bas,root_section,para_env,error)
 
-    CALL driver_para_opt_basis(opt_bas,para_env,error)
+    CALL driver_para_opt_basis(opt_bas,input_declaration,para_env,error)
 
     CALL deallocate_basis_optimization_type(opt_bas)
-    CALL cp_error_dealloc_ref(error)  
+    CALL cp_error_dealloc_ref(error)
     CALL timestop(handle)
-     
+
 
   END SUBROUTINE run_optimize_basis
 
 ! *****************************************************************************
 !> \brief driver routine for the parallel part of the method
+!> \param opt_bas ...
+!> \param input_declaration ...
+!> \param para_env ...
+!> \param error ...
 !> \author Florian Schiffmann
 ! *****************************************************************************
 
-  SUBROUTINE driver_para_opt_basis(opt_bas,para_env,error)
+  SUBROUTINE driver_para_opt_basis(opt_bas,input_declaration,para_env,error)
     TYPE(basis_optimization_type)            :: opt_bas
+    TYPE(section_type), POINTER              :: input_declaration
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
@@ -119,8 +130,8 @@ CONTAINS
     CALL mp_comm_split(para_env%group, opt_group, n_groups_created, group_distribution_p,&
          n_subgroups=SIZE(opt_bas%group_partition),group_partition=opt_bas%group_partition)
     opt_bas%opt_id = group_distribution(para_env%mepos)+1
-    
-    CALL driver_optimization_para_low(opt_bas,para_env,opt_group,error)
+
+    CALL driver_optimization_para_low(opt_bas,input_declaration,para_env,opt_group,error)
 
     CALL mp_comm_free(opt_group)
     CALL timestop(handle)
@@ -130,11 +141,17 @@ CONTAINS
 ! *****************************************************************************
 !> \brief low level optimization routine includes initialization of the subsytems
 !>        powell optimizer and deallocation of the various force envs
+!> \param opt_bas ...
+!> \param input_declaration ...
+!> \param para_env_top ...
+!> \param mpi_comm_opt ...
+!> \param top_error ...
 !> \author Florian Schiffmann
 ! *****************************************************************************
 
-  SUBROUTINE driver_optimization_para_low(opt_bas,para_env_top,mpi_comm_opt,top_error)
+  SUBROUTINE driver_optimization_para_low(opt_bas,input_declaration,para_env_top,mpi_comm_opt,top_error)
     TYPE(basis_optimization_type)            :: opt_bas
+    TYPE(section_type), POINTER              :: input_declaration
     TYPE(cp_para_env_type), POINTER          :: para_env_top
     INTEGER                                  :: mpi_comm_opt
     TYPE(cp_error_type), INTENT(INOUT)       :: top_error
@@ -170,7 +187,7 @@ CONTAINS
          owns_group=.FALSE.,error=error)
 
 
-    CALL init_training_force_envs(opt_bas,f_env_id,matrix_s_inv,para_env,mpi_comm_opt,error)
+    CALL init_training_force_envs(opt_bas,f_env_id,input_declaration,matrix_s_inv,para_env,mpi_comm_opt,error)
  
     CALL init_free_vars(opt_bas,error)
     tot_time=0.0_dp
@@ -221,6 +238,15 @@ CONTAINS
 !> \brief compute all ingredients for powell optimizer. Rho_diff,
 !>        condition number, energy,... for all ttraining sets in 
 !>        the computational group
+!> \param opt_bas ...
+!> \param f_env_id ...
+!> \param matrix_S_inv ...
+!> \param tot_time ...
+!> \param para_env_top ...
+!> \param para_env ...
+!> \param iopt ...
+!> \param error ...
+!> \param top_error ...
 !>\author Florian Schiffmann
 ! *****************************************************************************
 
@@ -266,8 +292,9 @@ CONTAINS
         CALL update_basis_set(opt_bas,set_id,bas_id,qs_env,error)
         CALL build_qs_neighbor_lists(qs_env,para_env,molecular=.FALSE.,force_env_section=qs_env%input,error=error)
         CALL calculate_overlap(qs_env,"S_AB_AUX",error)
-        CALL fit_mo_coeffs_diag(qs_env, qs_env%admm_env, qs_env%para_env, qs_env%matrix_s_aux_fit,&
-                             qs_env%matrix_s_aux_fit_vs_orb, qs_env%mos, qs_env%mos_aux_fit, .TRUE. , error)
+        CALL admm_fit_mo_coeffs(qs_env, qs_env%admm_env, qs_env%para_env, qs_env%matrix_s_aux_fit,&
+                                qs_env%matrix_s_aux_fit_vs_orb, qs_env%mos, qs_env%mos_aux_fit,&
+                                geometry_did_change=.TRUE. , error=error)
         CALL evaluate_fval(qs_env%mos,qs_env%mos_aux_fit,qs_env%matrix_s_aux_fit_vs_orb(1)%matrix,&
                          qs_env%matrix_s_aux_fit(1)%matrix,qs_env%admm_env,f_vec(my_id),cond_vec(my_id),error)
         CALL evaluate_energy(qs_env%mos_aux_fit,qs_env%matrix_ks,matrix_s_inv(icalc)%matrix,qs_env%admm_env%Q,&
@@ -304,13 +331,21 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief create the force_envs for every input in the computational group
+!> \param opt_bas ...
+!> \param f_env_id ...
+!> \param input_declaration ...
+!> \param matrix_s_inv ...
+!> \param para_env ...
+!> \param mpi_comm_opt ...
+!> \param error ...
 !>\author Florian Schiffmann
 ! *****************************************************************************
 
-  SUBROUTINE init_training_force_envs(opt_bas,f_env_id,matrix_s_inv,para_env,mpi_comm_opt,error)
+  SUBROUTINE init_training_force_envs(opt_bas,f_env_id,input_declaration,matrix_s_inv,para_env,mpi_comm_opt,error)
 
     TYPE(basis_optimization_type)            :: opt_bas
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: f_env_id
+    TYPE(section_type), POINTER              :: input_declaration
     TYPE(cp_fm_p_type), DIMENSION(:)         :: matrix_S_inv
     TYPE(cp_para_env_type), POINTER          :: para_env
     INTEGER                                  :: mpi_comm_opt
@@ -343,13 +378,15 @@ CONTAINS
        CALL get_set_and_basis_id(opt_bas%comp_group(mp_id)%member_list(icalc),opt_bas,set_id,bas_id)
        CALL m_chdir(TRIM(opt_bas%training_dir(set_id)),ierr)
        CPPostcondition(ierr==0,cp_failure_level,routineP,error,failure)
-       input_file => create_cp2k_input_reading(opt_bas%training_input(set_id),&
-                                               initial_variables=empty_initial_variables, &
-                                               para_env=para_env,error=error)
+       input_file => read_input(input_declaration,&
+                                opt_bas%training_input(set_id),&
+                                initial_variables=empty_initial_variables, &
+                                para_env=para_env,error=error)
        CALL cp_error_check(error,failure)
 
        CALL modify_input_settings(opt_bas,bas_id,input_file,error)
        CALL create_force_env(f_env_id(icalc), &
+                             input_declaration=input_declaration,&
                              input_path=opt_bas%training_input(set_id),&
                              input=input_file, &
                              output_path="scrap_information", &
@@ -385,6 +422,8 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief variable update from the powell vector for all sets
+!> \param opt_bas ...
+!> \param error ...
 !> \author Florian Schiffmann
 ! *****************************************************************************
 
@@ -410,6 +449,10 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief low level update for the basis sets. Exponents are transformed according to constraint
+!> \param subset ...
+!> \param ix ...
+!> \param x ...
+!> \param error ...
 !> \author Florian Schiffmann
 ! *****************************************************************************
 
@@ -471,6 +514,8 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief variable initialization for the powell vector for all sets
+!> \param opt_bas ...
+!> \param error ...
 !> \author Florian Schiffmann
 ! *****************************************************************************
 
@@ -497,6 +542,10 @@ CONTAINS
 ! *****************************************************************************
 !> \brief variable initialization for the powell vector from low level informations
 !>        constraint exponents will be mapped on a fermi function 
+!> \param subset ...
+!> \param ix ...
+!> \param x ...
+!> \param error ...
 !> \author Florian Schiffmann
 ! *****************************************************************************
 
@@ -542,6 +591,14 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief commuticates all info to the master and assembles the output
+!> \param f_vec ...
+!> \param cond_vec ...
+!> \param my_time ...
+!> \param tot_time ...
+!> \param opt_bas ...
+!> \param iopt ...
+!> \param para_env_top ...
+!> \param error ...
 !> \author Florian Schiffmann
 ! *****************************************************************************
 

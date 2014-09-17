@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2013  CP2K developers group                          !
+!   Copyright (C) 2000 - 2014  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -14,7 +14,7 @@
 !> \author CJM & JGH
 ! *****************************************************************************
 MODULE topology_types
-  USE cell_types,                      ONLY: cell_release,&
+  USE cell_methods,                    ONLY: cell_release,&
                                              cell_type
   USE colvar_types,                    ONLY: colvar_p_type,&
                                              colvar_release
@@ -26,7 +26,7 @@ MODULE topology_types
   USE kinds,                           ONLY: default_path_length,&
                                              default_string_length,&
                                              dp
-#include "cp_common_uses.h"
+#include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
 
@@ -196,6 +196,8 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief 1. Just NULLIFY and zero all the stuff
+!> \param topology ...
+!> \param error ...
 !> \par History
 !>      none
 ! *****************************************************************************
@@ -306,6 +308,8 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief 1. Just NULLIFY and zero all the stuff
+!> \param constraint_info ...
+!> \param error ...
 !> \par History
 !>      none
 ! *****************************************************************************
@@ -397,6 +401,8 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief 1. Just DEALLOCATE all the stuff
+!> \param topology ...
+!> \param error ...
 !> \par History
 !>      none
 ! *****************************************************************************
@@ -602,6 +608,8 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief 1. Just DEALLOCATE all the stuff
+!> \param constraint_info ...
+!> \param error ...
 !> \par History
 !>      none
 ! *****************************************************************************
@@ -885,6 +893,8 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Deallocate possibly allocated arrays before reading topology
+!> \param topology ...
+!> \param error ...
 !> \par History
 !>      none
 ! *****************************************************************************

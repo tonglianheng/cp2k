@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2013  CP2K developers group                          !
+!   Copyright (C) 2000 - 2014  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -22,7 +22,7 @@ MODULE eip_main
   USE input_section_types,             ONLY: section_vals_type
   USE timings,                         ONLY: timeset,&
                                              timestop
-#include "cp_common_uses.h"
+#include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
   PRIVATE
@@ -37,6 +37,15 @@ MODULE eip_main
 CONTAINS
 
 ! *****************************************************************************
+!> \brief ...
+!> \param force_env ...
+!> \param root_section ...
+!> \param para_env ...
+!> \param globenv ...
+!> \param force_env_section ...
+!> \param subsys_section ...
+!> \param use_motion_section ...
+!> \param error ...
 !> \par History
 !>      03.2006 initial create [tdk]
 !> \author Thomas D. Kuehne (tkuehne@phys.chem.ethz.ch)

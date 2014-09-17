@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2013  CP2K developers group                          !
+!   Copyright (C) 2000 - 2014  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -12,15 +12,16 @@
 ! *****************************************************************************
 MODULE ga_environment_types
   USE kinds,                           ONLY: dp
-#include "cp_common_uses.h"
+#include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
   PRIVATE
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'ga_environment_types'
 
+#ifdef _USE_GA
   INTEGER, PRIVATE, SAVE :: last_ga_env_id_nr=0
-
+#endif
 
   ! Data types
 ! *****************************************************************************
@@ -45,6 +46,8 @@ MODULE ga_environment_types
 CONTAINS
 ! *****************************************************************************
 !> \brief Specific GA tool interfaces for the semi-empirical code
+!> \param ga_env ...
+!> \param error ...
 !> \author CJM
 ! *****************************************************************************
   SUBROUTINE init_ga_env ( ga_env, error )
@@ -82,6 +85,8 @@ CONTAINS
   END SUBROUTINE init_ga_env
 ! *****************************************************************************
 !> \brief Specific GA tool interfaces for the semi-empirical code
+!> \param ga_env ...
+!> \param error ...
 !> \author CJM
 ! *****************************************************************************
   SUBROUTINE ga_env_release ( ga_env, error )
@@ -109,6 +114,8 @@ CONTAINS
   END SUBROUTINE ga_env_release
 ! *****************************************************************************
 !> \brief Specific GA tool interfaces for the semi-empirical code
+!> \param ga_env ...
+!> \param error ...
 !> \author CJM
 ! *****************************************************************************
   SUBROUTINE ga_env_retain ( ga_env, error )
@@ -134,6 +141,23 @@ CONTAINS
   END SUBROUTINE ga_env_retain
 ! *****************************************************************************
 !> \brief Specific GA tool interfaces for the semi-empirical code
+!> \param ga_env ...
+!> \param g_cnt ...
+!> \param g_count ...
+!> \param g_cellnum ...
+!> \param g_offset ...
+!> \param g_atoms ...
+!> \param g_pair_list ...
+!> \param g_ks ...
+!> \param g_d_info ...
+!> \param ncells ...
+!> \param npairs ...
+!> \param se_dims ...
+!> \param rcoul ...
+!> \param pdx ...
+!> \param pdy ...
+!> \param pdz ...
+!> \param error ...
 !> \author CJM
 ! *****************************************************************************
   SUBROUTINE get_ga_env ( ga_env, g_cnt, g_count, g_cellnum, g_offset, g_atoms, &

@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2013  CP2K developers group                          !
+!   Copyright (C) 2000 - 2014  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -14,17 +14,16 @@
 ! *****************************************************************************
 MODULE qs_scf_methods
 
-  USE cp_dbcsr_interface,              ONLY: cp_dbcsr_add,&
-                                             cp_dbcsr_get_block_p,&
-                                             cp_dbcsr_iterator_blocks_left,&
-                                             cp_dbcsr_iterator_next_block,&
-                                             cp_dbcsr_iterator_start,&
-                                             cp_dbcsr_iterator_stop
-  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_iterator,&
-                                             cp_dbcsr_p_type,&
-                                             cp_dbcsr_type
-  USE cp_fm_basic_linalg,              ONLY: cp_fm_gemm,&
-                                             cp_fm_symm,&
+  USE cp_dbcsr_interface,              ONLY: &
+       cp_dbcsr_add, cp_dbcsr_desymmetrize, cp_dbcsr_get_block_p, &
+       cp_dbcsr_iterator, cp_dbcsr_iterator_blocks_left, &
+       cp_dbcsr_iterator_next_block, cp_dbcsr_iterator_start, &
+       cp_dbcsr_iterator_stop, cp_dbcsr_multiply, cp_dbcsr_p_type, &
+       cp_dbcsr_type
+  USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
+                                             cp_dbcsr_sm_fm_multiply
+  USE cp_fm_basic_linalg,              ONLY: cp_fm_symm,&
+                                             cp_fm_triangular_multiply,&
                                              cp_fm_upper_to_full
   USE cp_fm_cholesky,                  ONLY: cp_fm_cholesky_reduce,&
                                              cp_fm_cholesky_restore
@@ -37,6 +36,7 @@ MODULE qs_scf_methods
                                              cp_fm_set_element,&
                                              cp_fm_to_fm,&
                                              cp_fm_type
+  USE cp_gemm_interface,               ONLY: cp_gemm
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE f77_blas
   USE input_constants,                 ONLY: cholesky_inverse,&
@@ -49,10 +49,9 @@ MODULE qs_scf_methods
   USE qs_mo_types,                     ONLY: correct_mo_eigenvalues,&
                                              get_mo_set,&
                                              mo_set_type
-  USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
-#include "cp_common_uses.h"
+#include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
 
@@ -64,8 +63,11 @@ MODULE qs_scf_methods
   PUBLIC :: combine_ks_matrices,&
             cp_sm_mix,&
             eigensolver,&
-            scf_env_density_mixing,&
-            simple_eigensolver
+            eigensolver_dbcsr,&
+            eigensolver_symm,&
+            eigensolver_simple,&
+            scf_env_density_mixing_kp,&
+            scf_env_density_mixing
 
   INTERFACE combine_ks_matrices
     MODULE PROCEDURE combine_ks_matrices_1,&
@@ -76,14 +78,22 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief perform (if requested) a density mixing
+!> \param p_mix_new ...
+!> \param mixing_store ...
+!> \param rho_ao ...
+!> \param para_env ...
+!> \param iter_delta ...
+!> \param iter_count ...
+!> \param diis ...
+!> \param invert ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 !> \par History
 !>      02.2003 created [fawzi]
 !> \author fawzi
 ! *****************************************************************************
-  SUBROUTINE scf_env_density_mixing(p_mix_new,mixing_store, rho_ao, para_env, iter_delta,&
-                                    iter_count,diis,invert,error)
+  SUBROUTINE scf_env_density_mixing(p_mix_new,mixing_store,rho_ao,para_env,&
+             iter_delta,iter_count,diis,invert,error)
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: p_mix_new
     TYPE(mixing_storage_type), POINTER       :: mixing_store
@@ -144,26 +154,249 @@ CONTAINS
   END SUBROUTINE scf_env_density_mixing
 
 ! *****************************************************************************
+!> \brief perform (if requested) a density mixing
+!> \param p_mix_new    New density matrices
+!> \param mixing_store ...
+!> \param rho_ao       Density environment
+!> \param para_env ...
+!> \param iter_delta ...
+!> \param iter_count ...
+!> \param diis ...
+!> \param invert       Invert mixing
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \par History
+!>      02.2003 created [fawzi] 
+!>      08.2014 adapted for kpoints [JGH]
+!> \author fawzi
+! *****************************************************************************
+  SUBROUTINE scf_env_density_mixing_kp(p_mix_new,mixing_store,rho_ao,para_env,&
+             iter_delta,iter_count,diis,invert,error)
+    TYPE(cp_dbcsr_p_type), DIMENSION(:, :), &
+      POINTER                                :: p_mix_new
+    TYPE(mixing_storage_type), POINTER       :: mixing_store
+    TYPE(cp_dbcsr_p_type), DIMENSION(:, :), &
+      POINTER                                :: rho_ao
+    TYPE(cp_para_env_type), POINTER          :: para_env
+    REAL(KIND=dp), INTENT(INOUT)             :: iter_delta
+    INTEGER, INTENT(IN)                      :: iter_count
+    LOGICAL, INTENT(in), OPTIONAL            :: diis, invert
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'scf_env_density_mixing_kp', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, ic, ispin
+    LOGICAL                                  :: failure, my_diis, my_invert
+    REAL(KIND=dp)                            :: my_p_mix, tmp
+
+    CALL timeset(routineN,handle)
+
+    failure=.FALSE.
+    my_diis=.FALSE.
+    IF (PRESENT(diis)) my_diis=diis
+    my_invert=.FALSE.
+    IF (PRESENT(invert)) my_invert=invert
+    my_p_mix = mixing_store%alpha
+    IF (my_diis .OR. iter_count<mixing_store%nskip_mixing) THEN
+        my_p_mix = 1.0_dp
+    END IF
+
+    iter_delta = 0.0_dp
+    IF (.NOT.failure) THEN
+       CPPrecondition(ASSOCIATED(p_mix_new),cp_failure_level,routineP,error,failure)
+       DO ic=1,SIZE(p_mix_new,2)
+          DO ispin=1,SIZE(p_mix_new,1)
+             IF (my_invert) THEN
+                CPPrecondition(my_p_mix/=0.0_dp,cp_failure_level,routineP,error,failure)
+                IF (my_p_mix/=1.0_dp) THEN
+                   CALL cp_dbcsr_add(matrix_a=p_mix_new(ispin,ic)%matrix,&
+                        alpha_scalar=1.0_dp/my_p_mix,&
+                        matrix_b=rho_ao(ispin,ic)%matrix,&
+                        beta_scalar=(my_p_mix-1.0_dp)/my_p_mix,&
+                        error=error)
+                END IF
+             ELSE
+                CALL cp_sm_mix(m1=p_mix_new(ispin,ic)%matrix,&
+                     m2=rho_ao(ispin,ic)%matrix,&
+                     p_mix=my_p_mix,&
+                     delta=tmp,&
+                     para_env=para_env,&
+                     error=error)
+                iter_delta=MAX(iter_delta,tmp)
+             END IF
+          END DO
+       END DO
+    END IF
+
+    CALL timestop(handle)
+
+  END SUBROUTINE scf_env_density_mixing_kp
+
+! *****************************************************************************
 !> \brief   Diagonalise the Kohn-Sham matrix to get a new set of MO eigen-
 !>          vectors and MO eigenvalues. ks will be modified
-!> \author  Matthias Krack
+!> \param matrix_ks_fm ...
+!> \param mo_set ...
+!> \param ortho ...
+!> \param work ...
+!> \param cholesky_method ...
+!> \param use_jacobi ...
+!> \param error ...
 !> \date    01.05.2001
+!> \author  Matthias Krack
 !> \version 1.0
 ! *****************************************************************************
-  SUBROUTINE eigensolver(matrix_ks,mo_set,ortho,work,do_level_shift,&
-                         level_shift,cholesky_method,use_jacobi,&
+  SUBROUTINE eigensolver(matrix_ks_fm,mo_set,ortho,work,&
+                         cholesky_method,use_jacobi,&
+                         error)
+    TYPE(cp_fm_type), POINTER                :: matrix_ks_fm
+    TYPE(mo_set_type), POINTER               :: mo_set
+    TYPE(cp_fm_type), POINTER                :: ortho, work
+    INTEGER, INTENT(INout)                   :: cholesky_method
+    LOGICAL, INTENT(IN)                      :: use_jacobi
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'eigensolver', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, homo, nao, nmo
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: mo_eigenvalues
+    TYPE(cp_fm_type), POINTER                :: mo_coeff
+
+    CALL timeset(routineN,handle)
+
+    NULLIFY (mo_coeff)
+    NULLIFY (mo_eigenvalues)
+
+
+    ! Diagonalise the Kohn-Sham matrix
+
+    CALL get_mo_set(mo_set=mo_set,&
+                    nao=nao,&
+                    nmo=nmo,&
+                    homo=homo, &
+                    eigenvalues=mo_eigenvalues,&
+                    mo_coeff=mo_coeff)
+
+       SELECT CASE(cholesky_method)
+       CASE(cholesky_reduce)
+         CALL cp_fm_cholesky_reduce(matrix_ks_fm,ortho,error=error)
+         CALL choose_eigv_solver(matrix_ks_fm,work,mo_eigenvalues,error=error)
+         CALL cp_fm_cholesky_restore(work,nmo,ortho,mo_coeff,"SOLVE",error=error)
+       CASE(cholesky_restore)
+         CALL cp_fm_upper_to_full(matrix_ks_fm,work,error=error)
+         CALL cp_fm_cholesky_restore(matrix_ks_fm,nao,ortho,work,&
+                "SOLVE",pos="RIGHT",error=error)
+         CALL cp_fm_cholesky_restore(work,nao,ortho,matrix_ks_fm,&
+               "SOLVE",pos="LEFT",transa="T",error=error)
+         CALL choose_eigv_solver(matrix_ks_fm,work,mo_eigenvalues,error=error)
+         CALL cp_fm_cholesky_restore(work,nmo,ortho,mo_coeff,"SOLVE",error=error)
+       CASE(cholesky_inverse)
+         CALL cp_fm_upper_to_full(matrix_ks_fm,work,error=error)
+
+         CALL cp_fm_triangular_multiply(ortho,matrix_ks_fm ,side="R",transpose_tr=.FALSE.,&
+               invert_tr=.FALSE., uplo_tr="U",n_rows=nao,n_cols=nao,alpha=1.0_dp,error=error)
+         CALL cp_fm_triangular_multiply(ortho, matrix_ks_fm,side="L",transpose_tr=.TRUE.,&
+               invert_tr=.FALSE., uplo_tr="U",n_rows=nao,n_cols=nao,alpha=1.0_dp,error=error)
+         CALL choose_eigv_solver(matrix_ks_fm,work,mo_eigenvalues,error=error)
+         CALL cp_fm_triangular_multiply(ortho,work,side="L",transpose_tr=.FALSE.,&
+              invert_tr=.FALSE., uplo_tr="U",n_rows=nao,n_cols=nmo,alpha=1.0_dp,error=error)
+         CALL cp_fm_to_fm(work,mo_coeff,nmo,1,1)
+
+       END SELECT
+
+       IF (use_jacobi) THEN
+          CALL cp_fm_to_fm(mo_coeff,ortho,error=error)
+          cholesky_method = cholesky_off
+       END IF
+
+    CALL timestop(handle)
+
+  END SUBROUTINE eigensolver
+
+! *****************************************************************************
+!> \brief ...
+!> \param matrix_ks ...
+!> \param matrix_ks_fm ...
+!> \param mo_set ...
+!> \param ortho_dbcsr ...
+!> \param ksbuf1 ...
+!> \param ksbuf2 ...
+!> \param work ...
+!> \param error ...
+! *****************************************************************************
+  SUBROUTINE eigensolver_dbcsr(matrix_ks,matrix_ks_fm,mo_set,ortho_dbcsr,ksbuf1,ksbuf2,work,&
+                         error)
+    TYPE(cp_dbcsr_type), POINTER             :: matrix_ks
+    TYPE(cp_fm_type), POINTER                :: matrix_ks_fm
+    TYPE(mo_set_type), POINTER               :: mo_set
+    TYPE(cp_dbcsr_type), POINTER             :: ortho_dbcsr, ksbuf1, ksbuf2
+    TYPE(cp_fm_type), POINTER                :: work
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'eigensolver_dbcsr', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, nao, nmo
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: mo_eigenvalues
+    TYPE(cp_fm_type), POINTER                :: mo_coeff
+
+    CALL timeset(routineN,handle)
+
+    NULLIFY (mo_coeff)
+    NULLIFY (mo_eigenvalues)
+
+    CALL get_mo_set(mo_set=mo_set,&
+                    nao=nao,&
+                    nmo=nmo,&
+                    eigenvalues=mo_eigenvalues,&
+                    mo_coeff=mo_coeff)
+
+!    Reduce KS matrix
+      CALL cp_dbcsr_desymmetrize(matrix_ks,ksbuf2,error=error)
+      CALL cp_dbcsr_multiply('N','N',1.0_dp,ksbuf2,ortho_dbcsr,0.0_dp,ksbuf1,error=error)
+      CALL cp_dbcsr_multiply('T','N',1.0_dp,ortho_dbcsr,ksbuf1,0.0_dp,ksbuf2,error=error)
+
+!    Solve the eigenvalue problem
+      CALL copy_dbcsr_to_fm(ksbuf2, matrix_ks_fm, error=error)
+      CALL choose_eigv_solver(matrix_ks_fm,work,mo_eigenvalues,error=error)
+
+!    Restore the eigenvector of the general eig. problem
+      CALL cp_dbcsr_sm_fm_multiply(ortho_dbcsr,work,mo_coeff,nmo, error=error)
+
+
+
+    CALL timestop(handle)
+
+  END SUBROUTINE eigensolver_dbcsr
+
+
+! *****************************************************************************
+!> \brief ...
+!> \param matrix_ks_fm ...
+!> \param mo_set ...
+!> \param ortho ...
+!> \param work ...
+!> \param do_level_shift ...
+!> \param level_shift ...
+!> \param use_jacobi ...
+!> \param jacobi_threshold ...
+!> \param error ...
+! *****************************************************************************
+  SUBROUTINE eigensolver_symm(matrix_ks_fm,mo_set,ortho,work,do_level_shift,&
+                         level_shift,use_jacobi,&
                          jacobi_threshold,error)
-    TYPE(cp_fm_type), POINTER                :: matrix_ks
+    TYPE(cp_fm_type), POINTER                :: matrix_ks_fm
     TYPE(mo_set_type), POINTER               :: mo_set
     TYPE(cp_fm_type), POINTER                :: ortho, work
     LOGICAL, INTENT(IN)                      :: do_level_shift
     REAL(KIND=dp), INTENT(IN)                :: level_shift
-    INTEGER, INTENT(INout)                   :: cholesky_method
     LOGICAL, INTENT(IN)                      :: use_jacobi
     REAL(KIND=dp), INTENT(IN)                :: jacobi_threshold
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'eigensolver', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'eigensolver_symm', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, homo, imo, nao, &
@@ -188,70 +421,33 @@ CONTAINS
                     eigenvalues=mo_eigenvalues,&
                     mo_coeff=mo_coeff)
 
-    IF (do_level_shift) THEN
-       IF (cholesky_method>cholesky_off) THEN
-          CALL stop_program(routineN,moduleN,__LINE__,"Level shift not implemented")
-       ENDIF
-    ENDIF
+    IF (use_jacobi) THEN
 
-    IF (cholesky_method>cholesky_off) THEN
-       SELECT CASE(cholesky_method)
-       CASE(cholesky_reduce)
-         CALL cp_fm_cholesky_reduce(matrix_ks,ortho,error=error)
-       CASE(cholesky_restore)
-         CALL cp_fm_upper_to_full(matrix_ks,work,error=error)
-         CALL cp_fm_cholesky_restore(matrix_ks,nao,ortho,work,&
-                "SOLVE",pos="RIGHT",error=error)
-         CALL cp_fm_cholesky_restore(work,nao,ortho,matrix_ks,&
-               "SOLVE",pos="LEFT",transa="T",error=error)
-       CASE(cholesky_inverse)
-         CALL cp_fm_upper_to_full(matrix_ks,work,error=error)
-         CALL cp_fm_cholesky_restore(matrix_ks,nao,ortho,work,&
-                "MULTIPLY",pos="RIGHT",error=error)
-         CALL cp_fm_cholesky_restore(work,nao,ortho,matrix_ks,&
-               "MULTIPLY",pos="LEFT",transa="T",error=error)
-       END SELECT
-
-       CALL choose_eigv_solver(matrix_ks,work,mo_eigenvalues,error=error)
-
-       IF(cholesky_method==cholesky_inverse) THEN
-          CALL cp_fm_cholesky_restore(work,nmo,ortho,mo_coeff,"MULTIPLY",error=error)
-       ELSE
-          CALL cp_fm_cholesky_restore(work,nmo,ortho,mo_coeff,"SOLVE",error=error)
-       END IF
-       IF (use_jacobi) THEN
-          CALL cp_fm_to_fm(mo_coeff,ortho,error=error)
-          cholesky_method = cholesky_off
-       END IF
-
-    ELSE IF (use_jacobi) THEN
-
-       CALL cp_fm_symm("L","U",nao,homo,1.0_dp,matrix_ks,mo_coeff,0.0_dp,work,error=error)
-       CALL cp_fm_gemm("T","N",homo,nao-homo,nao,1.0_dp,work,mo_coeff,&
-                       0.0_dp,matrix_ks,b_first_col=homo+1,c_first_col=homo+1,error=error)
+       CALL cp_fm_symm("L","U",nao,homo,1.0_dp,matrix_ks_fm,mo_coeff,0.0_dp,work,error=error)
+       CALL cp_gemm("T","N",homo,nao-homo,nao,1.0_dp,work,mo_coeff,&
+                       0.0_dp,matrix_ks_fm,b_first_col=homo+1,c_first_col=homo+1,error=error)
 
        ! Block Jacobi (pseudo-diagonalization, only one sweep)
-
-       CALL cp_fm_block_jacobi(matrix_ks,mo_coeff,mo_eigenvalues,&
+       CALL cp_fm_block_jacobi(matrix_ks_fm,mo_coeff,mo_eigenvalues,&
                                jacobi_threshold,homo+1)
 
     ELSE ! full S^(-1/2) has been computed
 
-       CALL cp_fm_symm("L","U",nao,nao,1.0_dp,matrix_ks,ortho,0.0_dp,work,error=error)
-       CALL cp_fm_gemm("T","N",nao,nao,nao,1.0_dp,ortho,work,0.0_dp,matrix_ks,error=error)
+       CALL cp_fm_symm("L","U",nao,nao,1.0_dp,matrix_ks_fm,ortho,0.0_dp,work,error=error)
+       CALL cp_gemm("T","N",nao,nao,nao,1.0_dp,ortho,work,0.0_dp,matrix_ks_fm,error=error)
 
        IF (do_level_shift) THEN
           DO imo=homo+1,nmo
              ! now unnecessary broadcast of element
-             CALL cp_fm_get_element(matrix_ks,imo,imo,alpha)
+             CALL cp_fm_get_element(matrix_ks_fm,imo,imo,alpha)
              alpha=alpha+level_shift
-             CALL cp_fm_set_element(matrix_ks,imo,imo,alpha,error=error)
+             CALL cp_fm_set_element(matrix_ks_fm,imo,imo,alpha,error=error)
           END DO
        END IF
 
-       CALL choose_eigv_solver(matrix_ks,work,mo_eigenvalues,error=error)
+       CALL choose_eigv_solver(matrix_ks_fm,work,mo_eigenvalues,error=error)
 
-       CALL cp_fm_gemm("N","N",nao,nmo,nao,1.0_dp,ortho,work,0.0_dp,&
+       CALL cp_gemm("N","N",nao,nmo,nao,1.0_dp,ortho,work,0.0_dp,&
                        mo_coeff,error=error)
 
        IF (do_level_shift) THEN
@@ -260,13 +456,27 @@ CONTAINS
 
     END IF
 
+
     CALL timestop(handle)
 
-  END SUBROUTINE eigensolver
+  END SUBROUTINE eigensolver_symm
 
 
 ! *****************************************************************************
-  SUBROUTINE simple_eigensolver(matrix_ks,mo_set,work,do_level_shift,&
+
+
+! *****************************************************************************
+!> \brief ...
+!> \param matrix_ks ...
+!> \param mo_set ...
+!> \param work ...
+!> \param do_level_shift ...
+!> \param level_shift ...
+!> \param use_jacobi ...
+!> \param jacobi_threshold ...
+!> \param error ...
+! *****************************************************************************
+  SUBROUTINE eigensolver_simple(matrix_ks,mo_set,work,do_level_shift,&
                                 level_shift,use_jacobi,jacobi_threshold,error)
 
     TYPE(cp_fm_type), POINTER                :: matrix_ks
@@ -278,7 +488,7 @@ CONTAINS
     REAL(KIND=dp), INTENT(IN)                :: jacobi_threshold
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'simple_eigensolver', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'eigensolver_simple', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, homo, imo, nao, &
@@ -312,7 +522,7 @@ CONTAINS
 
     IF ( use_jacobi ) THEN
        CALL cp_fm_symm("L","U",nao,homo,1.0_dp,matrix_ks,mo_coeff,0.0_dp,work,error=error)
-       CALL cp_fm_gemm("T","N",homo,nao-homo,nao,1.0_dp,work,mo_coeff,&
+       CALL cp_gemm("T","N",homo,nao-homo,nao,1.0_dp,work,mo_coeff,&
                        0.0_dp,matrix_ks,b_first_col=homo+1,c_first_col=homo+1,error=error)
        ! Block Jacobi (pseudo-diagonalization, only one sweep)
        CALL cp_fm_block_jacobi(matrix_ks,mo_coeff,mo_eigenvalues,jacobi_threshold,homo+1)
@@ -330,24 +540,26 @@ CONTAINS
 
     CALL timestop(handle)
 
-  END SUBROUTINE simple_eigensolver
+  END SUBROUTINE eigensolver_simple
 
 ! *****************************************************************************
 !> \brief Perform a mixing of the given matrixes into the first matrix
 !>      m1 = m2 + p_mix (m1-m2)
-!> \param m 1: first (new) matrix, is modified
-!> \param m 2: the second (old) matrix
+!> \param m1 first (new) matrix, is modified
+!> \param m2 the second (old) matrix
 !> \param p_mix how much m1 is conserved (0: none, 1: all)
 !> \param delta maximum norm of m1-m2
+!> \param para_env ...
+!> \param m3 ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
+!> \par History
+!>      02.2003 rewamped [fawzi]
+!> \author fawzi
 !> \note
 !>      if you what to store the result in m2 swap m1 and m2 an use
 !>      (1-pmix) as pmix
 !>      para_env should be removed (embedded in matrix)
-!> \par History
-!>      02.2003 rewamped [fawzi]
-!> \author fawzi
 ! *****************************************************************************
   SUBROUTINE cp_sm_mix(m1,m2,p_mix,delta,para_env,m3,error)
 
@@ -407,6 +619,14 @@ CONTAINS
 
   END SUBROUTINE cp_sm_mix
 
+! *****************************************************************************
+!> \brief ...
+!> \param ksa ...
+!> \param ksb ...
+!> \param occa ...
+!> \param occb ...
+!> \param roks_parameter ...
+!> \param error ...
 ! *****************************************************************************
   SUBROUTINE combine_ks_matrices_1(ksa,ksb,occa,occb,roks_parameter,error)
 
@@ -481,6 +701,16 @@ CONTAINS
 
   END SUBROUTINE combine_ks_matrices_1
 
+! *****************************************************************************
+!> \brief ...
+!> \param ksa ...
+!> \param ksb ...
+!> \param occa ...
+!> \param occb ...
+!> \param f ...
+!> \param nalpha ...
+!> \param nbeta ...
+!> \param error ...
 ! *****************************************************************************
   SUBROUTINE combine_ks_matrices_2(ksa,ksb,occa,occb,f,nalpha,nbeta,error)
 

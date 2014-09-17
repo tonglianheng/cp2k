@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2013  CP2K developers group                          !
+!   Copyright (C) 2000 - 2014  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -22,7 +22,7 @@ MODULE qs_tddfpt_types
   USE qs_matrix_pools,                 ONLY: mpools_get
   USE qs_p_env_types,                  ONLY: qs_p_env_type
   USE termination,                     ONLY: stop_memory
-#include "cp_common_uses.h"
+#include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
 
@@ -47,6 +47,12 @@ MODULE qs_tddfpt_types
 
 CONTAINS
 
+! *****************************************************************************
+!> \brief ...
+!> \param t_env ...
+!> \param p_env ...
+!> \param qs_env ...
+!> \param error ...
 ! *****************************************************************************
   SUBROUTINE tddfpt_env_allocate(t_env, p_env, qs_env, error)
 
@@ -95,6 +101,10 @@ CONTAINS
 
   END SUBROUTINE tddfpt_env_allocate
 
+! *****************************************************************************
+!> \brief ...
+!> \param t_env ...
+!> \param error ...
 ! *****************************************************************************
   SUBROUTINE tddfpt_env_deallocate(t_env,error)
 

@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2013  CP2K developers group                          !
+!   Copyright (C) 2000 - 2014  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -17,17 +17,17 @@
 ! *****************************************************************************
 MODULE xas_restart
 
+  USE cp_dbcsr_interface,              ONLY: cp_dbcsr_p_type
   USE cp_dbcsr_operations,             ONLY: cp_dbcsr_sm_fm_multiply
-  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_p_type
   USE cp_files,                        ONLY: close_file,&
                                              open_file
-  USE cp_fm_basic_linalg,              ONLY: cp_fm_gemm
   USE cp_fm_types,                     ONLY: cp_fm_get_info,&
                                              cp_fm_get_submatrix,&
                                              cp_fm_set_all,&
                                              cp_fm_set_submatrix,&
                                              cp_fm_type,&
                                              cp_fm_write_unformatted
+  USE cp_gemm_interface,               ONLY: cp_gemm
   USE cp_output_handling,              ONLY: cp_p_file,&
                                              cp_print_key_finished_output,&
                                              cp_print_key_generate_filename,&
@@ -43,11 +43,11 @@ MODULE xas_restart
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
   USE qs_gspace_mixing,                ONLY: mixing_init
+  USE qs_mo_io,                        ONLY: wfn_restart_file_name
   USE qs_mo_methods,                   ONLY: calculate_density_matrix
   USE qs_mo_types,                     ONLY: get_mo_set,&
                                              mo_set_p_type,&
-                                             set_mo_occupation,&
-                                             wfn_restart_file_name
+                                             set_mo_occupation
   USE qs_rho_atom_types,               ONLY: rho_atom_type
   USE qs_rho_methods,                  ONLY: qs_rho_update_rho
   USE qs_rho_types,                    ONLY: qs_rho_type
@@ -57,7 +57,7 @@ MODULE xas_restart
   USE xas_env_types,                   ONLY: get_xas_env,&
                                              set_xas_env,&
                                              xas_environment_type
-#include "cp_common_uses.h"
+#include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
   PRIVATE
@@ -75,11 +75,15 @@ CONTAINS
 !>      corresponing to the excitation of iatom
 !>      If the corresponding restart file does not exist
 !>      the GS orbitals are used as initial guess
+!> \param xas_env ...
 !> \param xas_section input section for XAS calculations
 !>      qs_env:
+!> \param qs_env ...
+!> \param xas_method ...
 !> \param iatom index of the absorbing atom
 !> \param estate index of the core-hole orbital
 !>      error:
+!> \param error ...
 !> \par History
 !>      09.2006 created [MI]
 !> \author MI
@@ -270,6 +274,14 @@ CPSourceFileRef,&
   END SUBROUTINE xas_read_restart
 
 ! *****************************************************************************
+!> \brief ...
+!> \param xas_env ...
+!> \param xas_section ...
+!> \param qs_env ...
+!> \param xas_method ...
+!> \param iatom ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE xas_write_restart(xas_env,xas_section,qs_env,xas_method,iatom,error)
 
     TYPE(xas_environment_type), POINTER      :: xas_env
@@ -362,6 +374,8 @@ CPSourceFileRef,&
 ! *****************************************************************************
 !> \brief Once the mos and the occupation numbers are initialized
 !>      the electronic density of the excited state can be calclated
+!> \param qs_env ...
+!> \param error ...
 !> \par History
 !>      09-2006 MI created
 !> \author MI
@@ -418,6 +432,10 @@ CPSourceFileRef,&
 
 ! *****************************************************************************
 !> \brief Find the index of the core orbital that has been excited by XAS
+!> \param xas_env ...
+!> \param mos ...
+!> \param matrix_s ...
+!> \param error ...
 !> \par History
 !>      03-2010 MI created
 !> \author MI
@@ -467,7 +485,7 @@ CPSourceFileRef,&
 
   ! ** use the maximum overlap criterion to find the index of the excited orbital
     CALL cp_dbcsr_sm_fm_multiply(matrix_s(1)%matrix,mo_coeff,fm_work,ncol=nmo,error=error)
-    CALL cp_fm_gemm("T","N",1,xas_env%nexc_search,nao,1.0_dp,excvec_coeff,&
+    CALL cp_gemm("T","N",1,xas_env%nexc_search,nao,1.0_dp,excvec_coeff,&
          fm_work,0.0_dp,excvec_overlap,b_first_col=1,error=error)
     CALL cp_fm_get_info ( matrix=excvec_overlap, col_indices = col_indices,&
          nrow_global = m, ncol_global = n ,error=error)

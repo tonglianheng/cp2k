@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2013  CP2K developers group                          !
+!   Copyright (C) 2000 - 2014  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -45,7 +45,7 @@ MODULE atom_types
                                              grid_atom_type
   USE string_utilities,                ONLY: remove_word,&
                                              uppercase
-#include "cp_common_uses.h"
+#include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
 
@@ -118,7 +118,7 @@ MODULE atom_types
     LOGICAL                                       :: confinement
     REAL(dp)                                      :: acon
     REAL(dp)                                      :: rcon
-    INTEGER                                       :: ncon
+    REAL(dp)                                      :: scon
     TYPE(atom_gthpot_type)                        :: gth_pot
   END TYPE atom_potential_type
 
@@ -222,11 +222,18 @@ MODULE atom_types
     INTEGER                                       :: z
     INTEGER                                       :: zcore
     LOGICAL                                       :: pp_calc
+! ZMP adding in type some variables
+    LOGICAL                                       :: do_zmp, doread, read_vxc, dm
+    CHARACTER(LEN=default_string_length)          :: ext_file, ext_vxc_file, &
+                                                     zmp_restart_file
     INTEGER                                       :: method_type
     INTEGER                                       :: relativistic
     INTEGER                                       :: coulomb_integral_type
     INTEGER                                       :: exchange_integral_type
-    REAL(KIND=dp)                                 :: weight
+! ZMP
+    REAL(KIND=dp)                                 :: lambda
+    REAL(KIND=dp)                                 :: rho_diff_integral
+    REAL(KIND=dp)                                 :: weight, zmpgrid_tol, zmpvxcgrid_tol
     TYPE(atom_basis_type), POINTER                :: basis
     TYPE(atom_potential_type), POINTER            :: potential
     TYPE(atom_state), POINTER                     :: state
@@ -234,7 +241,7 @@ MODULE atom_types
     TYPE(atom_orbitals), POINTER                  :: orbitals
     TYPE(atom_energy_type)                        :: energy
     TYPE(atom_optimization_type)                  :: optimization
-    TYPE(section_vals_type), POINTER              :: xc_section
+    TYPE(section_vals_type), POINTER              :: xc_section, zmp_section
   END TYPE atom_type
 ! *****************************************************************************
   TYPE atom_p_type
@@ -242,10 +249,10 @@ MODULE atom_types
   END TYPE atom_p_type
 
   PUBLIC :: atom_p_type, atom_type, atom_basis_type, atom_state, atom_integrals
-  PUBLIC :: atom_orbitals, atom_energy_type, eri, atom_potential_type, atom_gthpot_type
+  PUBLIC :: atom_orbitals, eri, atom_potential_type, atom_gthpot_type
   PUBLIC :: atom_optimization_type
   PUBLIC :: create_atom_type, release_atom_type, set_atom
-  PUBLIC :: create_atom_orbs, release_atom_orbs
+  PUBLIC :: create_atom_orbs
   PUBLIC :: init_atom_basis, release_atom_basis
   PUBLIC :: init_atom_potential, release_atom_potential
   PUBLIC :: read_atom_opt_section
@@ -261,6 +268,11 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Initialize the basis for the atomic code
+!> \param basis ...
+!> \param basis_section ...
+!> \param zval ...
+!> \param btyp ...
+!> \param error ...
 !> \note  Highly accurate relativistic universal Gaussian basis set: Dirac-Fock-Coulomb calculations
 !>        for atomic systems up to nobelium
 !>        J. Chem. Phys. 101, 6829 (1994); DOI:10.1063/1.468311
@@ -296,9 +308,9 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(nua), PARAMETER :: ugbs = (/0.007299_dp,&
       0.013705_dp, 0.025733_dp, 0.048316_dp, 0.090718_dp, 0.170333_dp,&
       0.319819_dp, 0.600496_dp, 1.127497_dp, 2.117000_dp, 3.974902_dp,&
-      7.463317_dp,14.013204_dp, 26.311339_dp, 49.402449_dp, 92.758561_dp,&
-      174.164456_dp, 327.013024_dp,614.003114_dp, 1152.858743_dp,&
-      2164.619772_dp, 4064.312984_dp, 7631.197056_dp,14328.416324_dp,&
+      7.463317_dp, 14.013204_dp, 26.311339_dp, 49.402449_dp, 92.758561_dp,&
+      174.164456_dp, 327.013024_dp, 614.003114_dp, 1152.858743_dp,&
+      2164.619772_dp, 4064.312984_dp, 7631.197056_dp, 14328.416324_dp,&
       26903.186074_dp, 50513.706789_dp, 94845.070265_dp, 178082.107320_dp,&
       334368.848683_dp, 627814.487663_dp, 1178791.123851_dp, 2213310.684886_dp&
       ,4155735.557141_dp,7802853.046713_dp, 14650719.428954_dp,&
@@ -645,6 +657,11 @@ CONTAINS
 
   END SUBROUTINE init_atom_basis
 
+! *****************************************************************************
+!> \brief ...
+!> \param basis ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE release_atom_basis(basis,error)
     TYPE(atom_basis_type), INTENT(INOUT)     :: basis
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -687,6 +704,11 @@ CONTAINS
   END SUBROUTINE release_atom_basis
 ! *****************************************************************************
 
+! *****************************************************************************
+!> \brief ...
+!> \param atom ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE create_atom_type(atom,error)
     TYPE(atom_type), POINTER                 :: atom
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -704,10 +726,20 @@ CONTAINS
     ALLOCATE(atom,STAT=ierr)
     CPPostcondition(ierr==0, cp_failure_level, routineP, error, failure)
 
+    NULLIFY(atom%zmp_section)
     NULLIFY(atom%xc_section)
+    atom%do_zmp = .FALSE.  
+    atom%doread = .FALSE. 
+    atom%read_vxc = .FALSE.
+    atom%dm = .FALSE. 
 
   END SUBROUTINE create_atom_type
 
+! *****************************************************************************
+!> \brief ...
+!> \param atom ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE release_atom_type(atom,error)
     TYPE(atom_type), POINTER                 :: atom
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -739,8 +771,28 @@ CONTAINS
 
   END SUBROUTINE release_atom_type
 
-  SUBROUTINE set_atom(atom,basis,state,integrals,orbitals,potential,zcore,pp_calc,&
-    method_type,relativistic,coulomb_integral_type,exchange_integral_type,error)
+! ZMP adding input variables in subroutine do_zmp,doread,read_vxc,method_type
+! *****************************************************************************
+!> \brief ...
+!> \param atom ...
+!> \param basis ...
+!> \param state ...
+!> \param integrals ...
+!> \param orbitals ...
+!> \param potential ...
+!> \param zcore ...
+!> \param pp_calc ...
+!> \param do_zmp ...
+!> \param doread ...
+!> \param read_vxc ...
+!> \param method_type ...
+!> \param relativistic ...
+!> \param coulomb_integral_type ...
+!> \param exchange_integral_type ...
+!> \param error ...
+! *****************************************************************************
+  SUBROUTINE set_atom(atom,basis,state,integrals,orbitals,potential,zcore,pp_calc,do_zmp,doread,&
+    read_vxc,method_type,relativistic,coulomb_integral_type,exchange_integral_type,error)
     TYPE(atom_type), POINTER                 :: atom
     TYPE(atom_basis_type), OPTIONAL, POINTER :: basis
     TYPE(atom_state), OPTIONAL, POINTER      :: state
@@ -749,7 +801,8 @@ CONTAINS
     TYPE(atom_potential_type), OPTIONAL, &
       POINTER                                :: potential
     INTEGER, INTENT(IN), OPTIONAL            :: zcore
-    LOGICAL, INTENT(IN), OPTIONAL            :: pp_calc
+    LOGICAL, INTENT(IN), OPTIONAL            :: pp_calc, do_zmp, doread, &
+                                                read_vxc
     INTEGER, INTENT(IN), OPTIONAL            :: method_type, relativistic, &
                                                 coulomb_integral_type, &
                                                 exchange_integral_type
@@ -772,6 +825,11 @@ CONTAINS
       IF(PRESENT(potential)) atom%potential => potential
       IF(PRESENT(zcore)) atom%zcore = zcore
       IF(PRESENT(pp_calc)) atom%pp_calc = pp_calc
+! ZMP assigning variable values if present
+      IF(PRESENT(do_zmp)) atom%do_zmp = do_zmp
+      IF(PRESENT(doread)) atom%doread = doread
+      IF(PRESENT(read_vxc)) atom%read_vxc = read_vxc
+ 
       IF(PRESENT(method_type)) atom%method_type = method_type
       IF(PRESENT(relativistic)) atom%relativistic = relativistic
       IF(PRESENT(coulomb_integral_type)) atom%coulomb_integral_type = coulomb_integral_type
@@ -780,6 +838,12 @@ CONTAINS
 
   END SUBROUTINE set_atom
 
+! *****************************************************************************
+!> \brief ...
+!> \param orbs ...
+!> \param mbas ...
+!> \param mo ...
+!> \param error ...
 ! *****************************************************************************
   SUBROUTINE create_atom_orbs(orbs,mbas,mo,error)
     TYPE(atom_orbitals), POINTER             :: orbs
@@ -841,6 +905,11 @@ CONTAINS
 
   END SUBROUTINE create_atom_orbs
 
+! *****************************************************************************
+!> \brief ...
+!> \param orbs ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE release_atom_orbs(orbs,error)
     TYPE(atom_orbitals), POINTER             :: orbs
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -933,6 +1002,11 @@ CONTAINS
   END SUBROUTINE release_atom_orbs
 
 ! *****************************************************************************
+!> \brief ...
+!> \param opmat ...
+!> \param n ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE create_opmat(opmat,n,error)
     TYPE(opmat_type), POINTER                :: opmat
     INTEGER, DIMENSION(0:3), INTENT(IN)      :: n
@@ -959,6 +1033,11 @@ CONTAINS
 
   END SUBROUTINE create_opmat
 
+! *****************************************************************************
+!> \brief ...
+!> \param opmat ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE release_opmat(opmat,error)
     TYPE(opmat_type), POINTER                :: opmat
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -981,6 +1060,11 @@ CONTAINS
 
   END SUBROUTINE release_opmat
 
+! *****************************************************************************
+!> \brief ...
+!> \param opgrid ...
+!> \param grid ...
+!> \param error ...
 ! *****************************************************************************
   SUBROUTINE create_opgrid(opgrid,grid,error)
     TYPE(opgrid_type), POINTER               :: opgrid
@@ -1009,6 +1093,11 @@ CONTAINS
 
   END SUBROUTINE create_opgrid
 
+! *****************************************************************************
+!> \brief ...
+!> \param opgrid ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE release_opgrid(opgrid,error)
     TYPE(opgrid_type), POINTER               :: opgrid
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -1031,6 +1120,14 @@ CONTAINS
 
   END SUBROUTINE release_opgrid
 
+! *****************************************************************************
+!> \brief ...
+!> \param zval ...
+!> \param cval ...
+!> \param aval ...
+!> \param ngto ...
+!> \param ival ...
+!> \param error ...
 ! *****************************************************************************
   SUBROUTINE Clementi_geobas(zval,cval,aval,ngto,ival,error)
     INTEGER, INTENT(IN)                      :: zval
@@ -1789,6 +1886,14 @@ CONTAINS
 
   END SUBROUTINE Clementi_geobas
 ! *****************************************************************************
+!> \brief ...
+!> \param element_symbol ...
+!> \param basis ...
+!> \param basis_set_name ...
+!> \param basis_set_file ...
+!> \param basis_section ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE read_basis_set(element_symbol,basis,basis_set_name,basis_set_file,&
                             basis_section,error)
 
@@ -2004,6 +2109,11 @@ CONTAINS
   END SUBROUTINE read_basis_set
 
 ! *****************************************************************************
+!> \brief ...
+!> \param optimization ...
+!> \param opt_section ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE read_atom_opt_section(optimization,opt_section,error)
     TYPE(atom_optimization_type), &
       INTENT(INOUT)                          :: optimization
@@ -2029,6 +2139,12 @@ CONTAINS
     optimization%damping  = damp
 
   END SUBROUTINE read_atom_opt_section
+! *****************************************************************************
+!> \brief ...
+!> \param potential ...
+!> \param potential_section ...
+!> \param zval ...
+!> \param error ...
 ! *****************************************************************************
   SUBROUTINE init_atom_potential(potential,potential_section,zval,error)
     TYPE(atom_potential_type), INTENT(INOUT) :: potential
@@ -2069,18 +2185,18 @@ CONTAINS
     NULLIFY(convals)
     CALL section_vals_val_get(potential_section,"CONFINEMENT",r_vals=convals,error=error)
     IF ( SIZE (convals) >= 1 ) THEN
-      IF ( convals(1) > 0._dp ) THEN
+      IF ( convals(1) > 0.0_dp ) THEN
         potential%confinement = .TRUE.
         potential%acon = convals(1)
         IF ( SIZE (convals) >= 2 ) THEN
           potential%rcon = convals(2)
         ELSE
-          potential%rcon = 4._dp
+          potential%rcon = 4.0_dp
         END IF
         IF ( SIZE (convals) >= 3 ) THEN
-          potential%ncon = NINT(convals(3))
+          potential%scon = convals(3)
         ELSE
-          potential%ncon = 2
+          potential%scon = 2.0_dp
         END IF
       ELSE
         potential%confinement = .FALSE.
@@ -2090,6 +2206,10 @@ CONTAINS
     END IF
 
   END SUBROUTINE init_atom_potential
+! *****************************************************************************
+!> \brief ...
+!> \param potential ...
+!> \param error ...
 ! *****************************************************************************
   SUBROUTINE release_atom_potential(potential,error)
     TYPE(atom_potential_type), INTENT(INOUT) :: potential
@@ -2101,6 +2221,14 @@ CONTAINS
     potential%confinement = .FALSE.
 
   END SUBROUTINE release_atom_potential
+! *****************************************************************************
+!> \brief ...
+!> \param element_symbol ...
+!> \param potential ...
+!> \param pseudo_name ...
+!> \param pseudo_file ...
+!> \param potential_section ...
+!> \param error ...
 ! *****************************************************************************
   SUBROUTINE read_gth_potential(element_symbol,potential,pseudo_name,pseudo_file,&
                             potential_section,error)

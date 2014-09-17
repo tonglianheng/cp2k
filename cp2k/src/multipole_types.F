@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2013  CP2K developers group                          !
+!   Copyright (C) 2000 - 2014  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -24,7 +24,7 @@ MODULE multipole_types
                                              section_vals_val_get
   USE kinds,                           ONLY: dp
   USE particle_types,                  ONLY: particle_type
-#include "cp_common_uses.h"
+#include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
 
@@ -58,6 +58,11 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Create a multipole type
+!> \param multipoles ...
+!> \param particle_set ...
+!> \param subsys_section ...
+!> \param ewald_env ...
+!> \param error ...
 !> \par History
 !>      12.2007 created [tlaino] - Teodoro Laino - University of Zurich
 !> \author Teodoro Laino
@@ -167,6 +172,8 @@ CONTAINS
   END SUBROUTINE create_multipole_type
 
 ! *****************************************************************************
+!> \brief ...
+!> \param multipoles ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 !> \par History
@@ -211,6 +218,8 @@ CONTAINS
   END SUBROUTINE release_multipole_type
 
 ! *****************************************************************************
+!> \brief ...
+!> \param multipoles ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 !> \par History

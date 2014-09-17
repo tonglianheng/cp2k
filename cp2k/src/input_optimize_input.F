@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2013  CP2K developers group                          !
+!   Copyright (C) 2000 - 2014  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -26,7 +26,7 @@ MODULE input_optimize_input
                                              real_t
   USE kinds,                           ONLY: dp
   USE string_utilities,                ONLY: s2a
-#include "cp_common_uses.h"
+#include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
   PRIVATE
@@ -38,6 +38,8 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief creates the optimize_input section
+!> \param section ...
+!> \param error ...
 !> \author Joost VandeVondele
 ! *****************************************************************************
   SUBROUTINE create_optimize_input_section(section,error)

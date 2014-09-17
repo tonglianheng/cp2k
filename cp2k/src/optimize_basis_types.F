@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2013  CP2K developers group                          !
+!   Copyright (C) 2000 - 2014  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 MODULE optimize_basis_types
   USE f77_blas
@@ -8,15 +8,15 @@ MODULE optimize_basis_types
                                              default_string_length,&
                                              dp
   USE powell,                          ONLY: opt_state_type
-#include "cp_common_uses.h"
+#include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
   PRIVATE
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'optimize_basis_types'
 
-  PUBLIC :: basis_optimization_type, exp_constraint_type, subset_type, flex_basis_type,&
-            use_contr_type, derived_basis_info, kind_basis_type, comp_group_type, deallocate_basis_optimization_type
+  PUBLIC :: basis_optimization_type, subset_type, flex_basis_type,&
+            derived_basis_info, deallocate_basis_optimization_type
 
   ! constraint information for a single constraing. boundary is translateed into a fermi function
   ! like setting as for variational limited case
@@ -34,10 +34,10 @@ MODULE optimize_basis_types
      INTEGER                                    :: lmin,lmax,nexp
      INTEGER                                    :: n, ncon_tot, nl
      INTEGER,DIMENSION(:),ALLOCATABLE           :: l
-     REAL,DIMENSION(:,:),ALLOCATABLE            :: coeff
+     REAL(KIND=dp),DIMENSION(:,:),ALLOCATABLE   :: coeff
      LOGICAL,DIMENSION(:,:),ALLOCATABLE         :: opt_coeff
      INTEGER,DIMENSION(:,:),ALLOCATABLE         :: coeff_x_ind
-     REAL,DIMENSION(:),ALLOCATABLE              :: exps
+     REAL(KIND=dp),DIMENSION(:),ALLOCATABLE     :: exps
      LOGICAL,DIMENSION(:),ALLOCATABLE           :: opt_exps
      INTEGER,DIMENSION(:),ALLOCATABLE           :: exp_x_ind
      LOGICAL,DIMENSION(:),ALLOCATABLE           :: exp_has_const
@@ -118,6 +118,7 @@ CONTAINS
 !> \brief Deallocate everything which was allocated before.
 !>        Note not all arrays are used depending on the type of basis
 !>        i.e derived or reference basis set
+!> \param opt_bas ...
 !> \author Florian Schiffmann
 ! *****************************************************************************
 
@@ -156,6 +157,7 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Some more deallocation of the subtypes of optimize_absis type
+!> \param kind ...
 !> \author Florian Schiffmann
 ! *****************************************************************************
 

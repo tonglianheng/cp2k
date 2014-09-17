@@ -1,13 +1,19 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2013  CP2K developers group                          !
+!   Copyright (C) 2000 - 2014  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
 !> \brief Debug the derivatives of the the rotational matrices
 !>
-!> \author Teodoro Laino [tlaino] - University of Zurich
+!> \param sepi ...
+!> \param sepj ...
+!> \param rjiv ...
+!> \param ij_matrix ...
+!> \param do_invert ...
+!> \param error ...
 !> \date 04.2008 [tlaino]
+!> \author Teodoro Laino [tlaino] - University of Zurich
 ! *****************************************************************************
 SUBROUTINE check_rotmat_der( sepi, sepj, rjiv, ij_matrix, do_invert, error)
   USE f77_blas
@@ -18,7 +24,7 @@ SUBROUTINE check_rotmat_der( sepi, sepj, rjiv, ij_matrix, do_invert, error)
                                              rotmat_type,&
                                              semi_empirical_type,&
                                              se_int_control_type
-#include "cp_common_uses.h"
+#include "./common/cp_common_uses.f90"
   IMPLICIT NONE
   TYPE(semi_empirical_type), POINTER       :: sepi, sepj
   REAL(KIND=dp), DIMENSION(3), INTENT(IN)  :: rjiv
@@ -129,11 +135,21 @@ END SUBROUTINE check_rotmat_der
 
 ! *****************************************************************************
 !> \brief Check Numerical Vs Analytical
-!> \note
-!>      Debug routine
+!> \param sepi ...
+!> \param sepj ...
+!> \param rijv ...
+!> \param se_int_control ...
+!> \param se_taper ...
+!> \param invert ...
+!> \param ii ...
+!> \param kk ...
+!> \param v_d ...
+!> \param error ...
 !> \par History
 !>      04.2008 created [tlaino]
 !> \author Teodoro Laino - Zurich University
+!> \note
+!>      Debug routine
 ! *****************************************************************************
 SUBROUTINE rot_2el_2c_first_debug(sepi, sepj, rijv, se_int_control, se_taper, invert, ii, kk, v_d, error)
   USE f77_blas
@@ -148,7 +164,7 @@ SUBROUTINE rot_2el_2c_first_debug(sepi, sepj, rijv, se_int_control, se_taper, in
                                              se_int_control_type,&
                                              se_taper_type
   USE semi_empirical_int_utils,        ONLY: rot_2el_2c_first
-#include "cp_common_uses.h"
+#include "./common/cp_common_uses.f90"
   IMPLICIT NONE
   TYPE(semi_empirical_type), POINTER       :: sepi, sepj
   REAL(KIND=dp), DIMENSION(3), INTENT(IN)  :: rijv
@@ -226,11 +242,19 @@ END SUBROUTINE rot_2el_2c_first_debug
 
 ! *****************************************************************************
 !> \brief Check Numerical Vs Analytical ssss
-!> \note
-!>      Debug routine
+!> \param sepi ...
+!> \param sepj ...
+!> \param r ...
+!> \param dssss ...
+!> \param itype ...
+!> \param se_int_control ...
+!> \param se_taper ...
+!> \param error ...
 !> \par History
 !>      04.2008 created [tlaino]
 !> \author Teodoro Laino - Zurich University
+!> \note
+!>      Debug routine
 ! *****************************************************************************
 SUBROUTINE check_dssss_nucint_ana (sepi,sepj,r,dssss,itype,se_int_control,se_taper,error)
   USE f77_blas
@@ -239,7 +263,7 @@ SUBROUTINE check_dssss_nucint_ana (sepi,sepj,r,dssss,itype,se_int_control,se_tap
   USE semi_empirical_types,            ONLY: semi_empirical_type,&
                                              se_int_control_type,&
                                              se_taper_type
-#include "cp_common_uses.h"
+#include "./common/cp_common_uses.f90"
   IMPLICIT NONE
   TYPE(semi_empirical_type), POINTER       :: sepi, sepj
   REAL(dp), INTENT(IN)                     :: r
@@ -272,11 +296,19 @@ END SUBROUTINE check_dssss_nucint_ana
 
 ! *****************************************************************************
 !> \brief Check Numerical Vs Analytical core
-!> \note
-!>      Debug routine
+!> \param sepi ...
+!> \param sepj ...
+!> \param r ...
+!> \param dcore ...
+!> \param itype ...
+!> \param se_int_control ...
+!> \param se_taper ...
+!> \param error ...
 !> \par History
 !>      04.2008 created [tlaino]
 !> \author Teodoro Laino - Zurich University
+!> \note
+!>      Debug routine
 ! *****************************************************************************
 SUBROUTINE check_dcore_nucint_ana (sepi,sepj,r,dcore,itype,se_int_control,se_taper,error)
   USE f77_blas
@@ -285,7 +317,7 @@ SUBROUTINE check_dcore_nucint_ana (sepi,sepj,r,dcore,itype,se_int_control,se_tap
   USE semi_empirical_types,            ONLY: semi_empirical_type,&
                                              se_int_control_type,&
                                              se_taper_type
-#include "cp_common_uses.h"
+#include "./common/cp_common_uses.f90"
   IMPLICIT NONE
   TYPE(semi_empirical_type), POINTER       :: sepi, sepj
   REAL(dp), INTENT(IN)                     :: r
@@ -324,11 +356,16 @@ END SUBROUTINE check_dcore_nucint_ana
 
 ! *****************************************************************************
 !> \brief Low level comparison function between numberical and analytical values
-!> \note
-!>      Debug routine
+!> \param num ...
+!> \param ana ...
+!> \param minval ...
+!> \param thrs ...
+!> \retval passed ...
 !> \par History
 !>      04.2008 created [tlaino]
 !> \author Teodoro Laino - Zurich University
+!> \note
+!>      Debug routine
 ! *****************************************************************************
 FUNCTION check_value(num, ana, minval, thrs) RESULT(passed)
   USE kinds,                           ONLY: dp
@@ -358,11 +395,22 @@ END FUNCTION check_value
 
 ! *****************************************************************************
 !> \brief Check Numerical Vs Analytical
-!> \note
-!>      Debug routine
+!> \param sepi ...
+!> \param sepj ...
+!> \param rijv ...
+!> \param itype ...
+!> \param se_int_control ...
+!> \param se_taper ...
+!> \param e1b ...
+!> \param e2a ...
+!> \param de1b ...
+!> \param de2a ...
+!> \param error ...
 !> \par History
 !>      04.2008 created [tlaino]
 !> \author Teodoro Laino - Zurich University
+!> \note
+!>      Debug routine
 ! *****************************************************************************
 SUBROUTINE check_drotnuc_ana(sepi, sepj, rijv, itype, se_int_control, se_taper, e1b, e2a, de1b, de2a, error)
   USE f77_blas
@@ -372,7 +420,7 @@ SUBROUTINE check_drotnuc_ana(sepi, sepj, rijv, itype, se_int_control, se_taper, 
   USE semi_empirical_types,            ONLY: semi_empirical_type,&
                                              se_int_control_type,&
                                              se_taper_type
-#include "cp_common_uses.h"
+#include "./common/cp_common_uses.f90"
   IMPLICIT NONE
   TYPE(semi_empirical_type), POINTER       :: sepi, sepj
   REAL(dp), DIMENSION(3), INTENT(IN)       :: rijv
@@ -456,11 +504,20 @@ END SUBROUTINE check_drotnuc_ana
 
 ! *****************************************************************************
 !> \brief Check Numerical Vs Analytical CORE-CORE
-!> \note
-!>      Debug routine
+!> \param sepi ...
+!> \param sepj ...
+!> \param rijv ...
+!> \param itype ...
+!> \param se_int_control ...
+!> \param se_taper ...
+!> \param enuc ...
+!> \param denuc ...
+!> \param error ...
 !> \par History
 !>      04.2007 created [tlaino]
 !> \author Teodoro Laino - Zurich University
+!> \note
+!>      Debug routine
 ! *****************************************************************************
 SUBROUTINE check_dcorecore_ana(sepi, sepj, rijv, itype,se_int_control, se_taper, enuc, denuc, error)
   USE f77_blas
@@ -470,7 +527,7 @@ SUBROUTINE check_dcorecore_ana(sepi, sepj, rijv, itype,se_int_control, se_taper,
   USE semi_empirical_types,            ONLY: semi_empirical_type,&
                                              se_int_control_type,&
                                              se_taper_type
-#include "cp_common_uses.h"
+#include "./common/cp_common_uses.f90"
   IMPLICIT NONE
   TYPE(semi_empirical_type), POINTER       :: sepi, sepj
   REAL(dp), DIMENSION(3), INTENT(IN)       :: rijv
@@ -513,11 +570,20 @@ END SUBROUTINE check_dcorecore_ana
 
 ! *****************************************************************************
 !> \brief Check Numerical Vs Analytical DTEREP_ANA
-!> \note
-!>      Debug routine
+!> \param sepi ...
+!> \param sepj ...
+!> \param r ...
+!> \param ri ...
+!> \param dri ...
+!> \param se_int_control ...
+!> \param se_taper ...
+!> \param lgrad ...
+!> \param error ...
 !> \par History
 !>      04.2007 created [tlaino]
 !> \author Teodoro Laino - Zurich University
+!> \note
+!>      Debug routine
 ! *****************************************************************************
 SUBROUTINE check_dterep_ana (sepi,sepj,r,ri,dri,se_int_control,se_taper,lgrad,error)
   USE f77_blas
@@ -526,7 +592,7 @@ SUBROUTINE check_dterep_ana (sepi,sepj,r,ri,dri,se_int_control,se_taper,lgrad,er
   USE semi_empirical_types,            ONLY: semi_empirical_type,&
                                              se_int_control_type,&
                                              se_taper_type
-#include "cp_common_uses.h"
+#include "./common/cp_common_uses.f90"
   IMPLICIT NONE
   TYPE(semi_empirical_type), POINTER       :: sepi, sepj
   REAL(dp), INTENT(IN)                     :: r
@@ -577,11 +643,19 @@ END SUBROUTINE check_dterep_ana
 
 ! *****************************************************************************
 !> \brief Check Numerical Vs Analytical ROTINT_ANA
-!> \note
-!>      Debug routine
+!> \param sepi ...
+!> \param sepj ...
+!> \param rijv ...
+!> \param w ...
+!> \param dw ...
+!> \param se_int_control ...
+!> \param se_taper ...
+!> \param error ...
 !> \par History
 !>      04.2008 created [tlaino]
 !> \author Teodoro Laino - Zurich University
+!> \note
+!>      Debug routine
 ! *****************************************************************************
 SUBROUTINE check_rotint_ana(sepi,sepj,rijv,w,dw,se_int_control,se_taper,error)
   USE f77_blas
@@ -591,7 +665,7 @@ SUBROUTINE check_rotint_ana(sepi,sepj,rijv,w,dw,se_int_control,se_taper,error)
   USE semi_empirical_types,            ONLY: semi_empirical_type,&
                                              se_int_control_type,&
                                              se_taper_type
-#include "cp_common_uses.h"
+#include "./common/cp_common_uses.f90"
   IMPLICIT NONE
   TYPE(semi_empirical_type), POINTER       :: sepi, sepj
   REAL(dp), DIMENSION(3), INTENT(IN)       :: rijv

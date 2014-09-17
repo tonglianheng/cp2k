@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2013  CP2K developers group                          !
+!   Copyright (C) 2000 - 2014  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -14,7 +14,13 @@ MODULE input_cp2k_mp2
                                              DelBen2013
   USE cp_output_handling,              ONLY: cp_print_key_section_create
   USE f77_blas
-  USE input_constants
+  USE input_constants,                 ONLY: &
+       add_last_numeric, debug_print_level, do_hfx_potential_coulomb, &
+       do_mp2_potential_tshpsc, gaussian, high_print_level, low_print_level, &
+       medium_print_level, mp2_method_direct, mp2_method_gpw, &
+       mp2_method_none, mp2_ri_optimize_basis, numerical, ri_mp2_laplace, &
+       ri_mp2_method_gpw, ri_rpa_method_gpw, silent_print_level, &
+       wfc_mm_style_gemm, wfc_mm_style_syrk
   USE input_cp2k_hfx,                  ONLY: create_hfx_section
   USE input_keyword_types,             ONLY: keyword_create,&
                                              keyword_release,&
@@ -24,10 +30,11 @@ MODULE input_cp2k_mp2
                                              section_create,&
                                              section_release,&
                                              section_type
-  USE input_val_types,                 ONLY: real_t
+  USE input_val_types,                 ONLY: integer_t,&
+                                             real_t
   USE kinds,                           ONLY: dp
   USE string_utilities,                ONLY: s2a
-#include "cp_common_uses.h"
+#include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
   PRIVATE
@@ -74,7 +81,8 @@ CONTAINS
             citations=(/DelBen2012/),&
             description="Which method should be used to compute the MP2 energy",&
             usage="METHOD MP2_GPW",&
-            enum_c_vals=s2a("NONE","DIRECT_CANONICAL","MP2_GPW","RI_MP2_GPW","RI_RPA_GPW","RI_SOS_LAPLACE","OPTIMIZE_RI_BASIS"),&
+            enum_c_vals=s2a("NONE","DIRECT_CANONICAL","MP2_GPW","RI_MP2_GPW","RI_RPA_GPW","RI_SOS_LAPLACE",&
+                            "OPTIMIZE_RI_BASIS"),&
             enum_i_vals=(/mp2_method_none,mp2_method_direct,mp2_method_gpw,ri_mp2_method_gpw,&
                           ri_rpa_method_gpw,ri_mp2_laplace,mp2_ri_optimize_basis/),&
             enum_desc=s2a("Skip MP2 calculation",&
@@ -200,6 +208,10 @@ CONTAINS
        CALL section_add_subsection(section,subsection,error=error)
        CALL section_release(subsection,error=error)
 
+       CALL create_cphf(subsection,error)
+       CALL section_add_subsection(section,subsection,error=error)
+       CALL section_release(subsection,error=error)
+
        CALL create_mp2_potential(subsection,error)
        CALL section_add_subsection(section,subsection,error=error)
        CALL section_release(subsection,error=error)
@@ -208,6 +220,11 @@ CONTAINS
 
   END SUBROUTINE create_mp2_section
 
+! *****************************************************************************
+!> \brief ...
+!> \param section ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE create_mp2_direct(section,error)
     TYPE(section_type), POINTER              :: section
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -244,6 +261,11 @@ CONTAINS
 
   END SUBROUTINE create_mp2_direct
 
+! *****************************************************************************
+!> \brief ...
+!> \param section ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE create_ri_mp2(section,error)
     TYPE(section_type), POINTER              :: section
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -260,7 +282,7 @@ CONTAINS
     IF (.NOT. failure) THEN
        CALL section_create(section,"RI_MP2",&
             description="Parameters influencing the RI MP2 method",&
-            n_keywords=1, n_subsections=0, repeats=.FALSE., required=.FALSE.,&
+            n_keywords=3, n_subsections=0, repeats=.FALSE., required=.FALSE.,&
             citations=(/DelBen2013/),&
             error=error)
 
@@ -276,10 +298,38 @@ CONTAINS
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
+       CALL keyword_create(keyword, name="EPS_CANONICAL",&
+            description="Threshold for discriminate if a given ij pairs "//&
+                        "of the unrelaxed MP2 density matrix has to be "//&
+                        "calculated with a canonical reformulation based "//&
+                        "on the occupied eigenvalues differences.",&
+            usage="EPS_CANONICAL 1.0E-8",required=.FALSE.,type_of_var=real_t,&
+            default_r_val=1.0E-7_dp, error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(&
+            keyword=keyword,&
+            name="FREE_HFX_BUFFER",&
+            description="Free the buffer containing the 4 center integrals used in the Hartree-Fock exchange calculation. "//&
+                        "This will be effective only for gradients calculations, since for the energy only "//&
+                        "case, the buffers are released by default. (Right now debugging only).",&
+            usage="FREE_HFX_BUFFER",&
+            default_l_val=.TRUE.,&
+            lone_keyword_l_val=.TRUE.,&
+            error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
     END IF
 
   END SUBROUTINE create_ri_mp2
 
+! *****************************************************************************
+!> \brief ...
+!> \param section ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE create_opt_ri_basis(section,error)
     TYPE(section_type), POINTER              :: section
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -298,7 +348,7 @@ CONTAINS
             description="Parameters influencing the optimization of the RI MP2 basis. "//&
                         "Only exponents of non-contracted auxiliary basis can be optimized. "//&
                         "An initial RI auxiliary basis has to be specified.",&
-            n_keywords=4, n_subsections=0, repeats=.FALSE., required=.FALSE.,&
+            n_keywords=6, n_subsections=0, repeats=.FALSE., required=.FALSE.,&
             citations=(/DelBen2013/),&
             error=error)
 
@@ -331,7 +381,7 @@ CONTAINS
                         "The change in the exponent a_i employed for the numerical evaluation "//&
                         "is defined as h_i=EPS_DERIV*a_i.",&
             usage="EPS_DERIV  1.0E-3_dp",&
-            default_r_val=1.0E-2_dp,&
+            default_r_val=1.0E-3_dp,&
             error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
@@ -345,10 +395,35 @@ CONTAINS
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
+       CALL keyword_create(keyword, name="NUM_FUNC",&
+            description="Specifies the number of function, for each angular momentum (s, p, d ...), "//&
+                        "employed in the automatically generated initial guess. "//&
+                        "This will be effective only if RI_AUX_BASIS_SET in the KIND section is not specified.",&
+            usage="NUM_FUNC {number of s func.} {number of p func.} ...", &
+            n_var=-1, default_i_vals=(/-1/), type_of_var=integer_t, error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword=keyword,name="BASIS_SIZE",&
+            description="Specifies the size of the auxiliary basis set automatically "//&
+                        "generated as initial guess. This will be effective only if RI_AUX_BASIS_SET "//&
+                        "in the KIND section and NUM_FUNC are not specified.",&
+            usage="BASIS_SIZE  MEDIUM",&
+            enum_c_vals=s2a("MEDIUM","LARGE","VERY_LARGE"),&
+            enum_i_vals=(/0,1,2/),&
+            default_i_val=0, error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
     END IF
 
   END SUBROUTINE create_opt_ri_basis
 
+! *****************************************************************************
+!> \brief ...
+!> \param section ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE create_ri_laplace(section,error)
     TYPE(section_type), POINTER              :: section
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -396,6 +471,11 @@ CONTAINS
 
   END SUBROUTINE create_ri_laplace
 
+! *****************************************************************************
+!> \brief ...
+!> \param section ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE create_ri_rpa(section,error)
     TYPE(section_type), POINTER              :: section
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -440,6 +520,31 @@ CONTAINS
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
+       CALL keyword_create(keyword,&
+            name="MM_STYLE",&
+            description="Matrix multiplication style for the Q matrix.",&
+            usage="MM_STYLE GEMM",&
+            enum_c_vals=s2a("GEMM","SYRK"),&
+            enum_i_vals=(/wfc_mm_style_gemm,wfc_mm_style_syrk/),&
+            enum_desc=s2a("Use pdgemm: more flops, maybe faster.",&
+                          "Use pdysrk: fewer flops, maybe slower."),&
+            default_i_val=wfc_mm_style_gemm, error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(&
+            keyword=keyword,&
+            name="MINIMAX_QUADRATURE",&
+            variants=(/"MINIMAX"/),&
+            description="Use the Minimax quadrature scheme for performing the numerical integration. "//&
+                        "Maximum number of quadrature point limited to 20.",&
+            usage="MINIMAX_QUADRATURE",&
+            default_l_val=.FALSE.,&
+            lone_keyword_l_val=.TRUE.,&
+            error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
        ! here we generate a hfx subsection to use in the case EXX has to be computed after RPA
        CALL create_hfx_section(subsection,error)
        CALL section_add_subsection(section,subsection,error=error)
@@ -449,6 +554,11 @@ CONTAINS
 
   END SUBROUTINE create_ri_rpa
 
+! *****************************************************************************
+!> \brief ...
+!> \param section ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE create_wfc_gpw(section,error)
     TYPE(section_type), POINTER              :: section
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -516,7 +626,60 @@ CONTAINS
 
   END SUBROUTINE create_wfc_gpw
 
+! *****************************************************************************
+!> \brief ...
+!> \param section ...
+!> \param error ...
+! *****************************************************************************
+  SUBROUTINE create_cphf(section,error)
+    TYPE(section_type), POINTER              :: section
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
+    CHARACTER(len=*), PARAMETER :: routineN = 'create_cphf', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+    TYPE(keyword_type), POINTER              :: keyword
+
+    failure=.FALSE.
+
+    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
+    IF (.NOT. failure) THEN
+       CALL section_create(section,"CPHF",&
+            description="Parameters influencing the solution of the Z-vector equations in MP2 gradients calculations.",&
+            n_keywords=2, n_subsections=0, repeats=.FALSE., required=.FALSE.,&
+            citations=(/DelBen2013/),&
+            error=error)
+
+       NULLIFY(keyword)
+
+       CALL keyword_create(keyword, name="MAX_ITER",&
+            variants=(/"MAX_NUM_ITER"/),&
+            description="Maximum number of iterations allowed for the solution of the Z-vector equations.",&
+            usage="MAX_ITER  50",&
+            default_i_val=30,&
+            error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="EPS_CONV",&
+            description="Convergence threshold for the solution of the Z-vector equations. "//&
+                        "The Z-vector equations have the form of a linear system of equations Ax=b, "//&
+                        "convergence is achieved when |Ax-b|<=EPS_CONV.",&
+            usage="EPS_CONV 1.0E-6",required=.FALSE.,type_of_var=real_t,&
+            default_r_val=1.0E-4_dp, error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+    END IF
+
+  END SUBROUTINE create_cphf
+
+! *****************************************************************************
+!> \brief ...
+!> \param section ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE create_mp2_potential(section,error)
     TYPE(section_type), POINTER              :: section
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -547,13 +710,12 @@ CONTAINS
             enum_i_vals=(/do_hfx_potential_coulomb,&
                           do_mp2_potential_TShPSC/),&
             enum_desc=s2a("Coulomb potential: 1/r", &
-                          "TShPSC: 1/x - s/Rc  ->  for x<=Rc "//&
-                          "(1-s)/Rc - "//&
-                          "(x-Rc)/Rc^2 + "//&
-                          "(x-Rc)^2/Rc^3 - "//&
-                          "(2*n^2-7*n+9-4*s)*(x-Rc)^3/(Rc^4*(n^2-2*n+1)*(n-1)) + "//&
-                          "(6-3*s-4*n+n^2)*(x-Rc)^4/(Rc^5*(n^4-4*n^3+6*n^2-4*n+1))   -> for Rc<x<=n*Rc (4th order polynomial) "//&
-                          " 0  -> for x>n*Rc"),&
+                          "TShPSC:<ul><li>1/x - s/Rc for x &le; Rc</li>"//&
+                          "<li>(1 - s)/Rc - (x - Rc)/Rc^2 + (x - Rc)^2/Rc^3 - "//&
+                          "(2*n^2 - 7*n + 9 - 4*s)*(x - Rc)^3/(Rc^4*(n^2 - 2*n + 1)*(n - 1)) + "//&
+                          "(6-3*s - 4*n + n^2)*(x - Rc)^4/(Rc^5*(n^4 - 4*n^3 + 6*n^2 - 4*n + 1)) "//&
+                          "for Rc &lt; x &le; n*Rc (4th order polynomial)</li>"//&
+                          "<li>0 for x &gt; n*Rc</li></ul>"),&
             default_i_val=do_hfx_potential_coulomb, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)

@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2013  CP2K developers group                          !
+!   Copyright (C) 2000 - 2014  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -16,7 +16,7 @@ MODULE semi_empirical_int_arrays
 
   USE f77_blas
   USE kinds,                           ONLY: dp
-#include "cp_common_uses.h"
+#include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
 
@@ -135,8 +135,9 @@ CONTAINS
 ! *****************************************************************************
 !> \brief  Initialize all arrays used for the evaluation of the integrals
 !>
-!> \author Teodoro Laino [tlaino] - University of Zurich
+!> \param error ...
 !> \date   04.2008 [tlaino]
+!> \author Teodoro Laino [tlaino] - University of Zurich
 ! *****************************************************************************
   SUBROUTINE init_se_intd_array(error)
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -154,8 +155,9 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Fills in array for the diagonal storage of the ij and kl multipoles term
 !>
-!> \author Teodoro Laino [tlaino] - University of Zurich
+!> \param error ...
 !> \date   03.2008 [tlaino]
+!> \author Teodoro Laino [tlaino] - University of Zurich
 ! *****************************************************************************
   SUBROUTINE setup_index_array(error)
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -202,8 +204,9 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Fills in array for the rotation of the integrals
 !>
-!> \author Teodoro Laino [tlaino] - University of Zurich
+!> \param error ...
 !> \date   04.2008 [tlaino]
+!> \author Teodoro Laino [tlaino] - University of Zurich
 ! *****************************************************************************
   SUBROUTINE setup_indrot_array(error)
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -272,8 +275,9 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Fills in Clm coefficients (see Table [2] of TCA)
 !>
-!> \author Teodoro Laino [tlaino] - University of Zurich
+!> \param error ...
 !> \date   03.2008 [tlaino]
+!> \author Teodoro Laino [tlaino] - University of Zurich
 ! *****************************************************************************
   SUBROUTINE setup_clm_array(error)
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -485,8 +489,9 @@ CONTAINS
 !> \brief Fills in the index number for the <ij|kl> integral as well as the
 !>        symmetry index
 !>
-!> \author Teodoro Laino [tlaino] - University of Zurich
+!> \param error ...
 !> \date   03.2008 [tlaino]
+!> \author Teodoro Laino [tlaino] - University of Zurich
 ! *****************************************************************************
   SUBROUTINE setup_ijkl_array(error)
     TYPE(cp_error_type), INTENT(inout)       :: error

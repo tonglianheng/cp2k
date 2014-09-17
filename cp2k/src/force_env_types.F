@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2013  CP2K developers group                          !
+!   Copyright (C) 2000 - 2014  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -26,13 +26,12 @@ MODULE force_env_types
                                              cp_subsys_release,&
                                              cp_subsys_type,&
                                              pack_subsys_particles
-  USE cpot_types,                      ONLY: cpot_release,&
-                                             cpot_type
   USE eip_environment_types,           ONLY: eip_env_get,&
                                              eip_env_release,&
                                              eip_environment_type
-  USE ep_types,                        ONLY: ep_env_release,&
-                                             ep_env_type
+  USE ep_f77,                          ONLY: ep_f77_get_energy,&
+                                             ep_f77_get_main_qs_env,&
+                                             ep_f77_release
   USE ewald_environment_types,         ONLY: ewald_environment_type
   USE ewald_pw_methods,                ONLY: ewald_pw_grid_change
   USE ewald_pw_types,                  ONLY: ewald_pw_type
@@ -73,19 +72,14 @@ MODULE force_env_types
                                              qs_environment_type,&
                                              set_qs_env
   USE qs_ks_methods,                   ONLY: qs_ks_create
-  USE qs_ks_scp_methods,               ONLY: qs_ks_scp_create
-  USE qs_ks_scp_types,                 ONLY: qs_ks_scp_env_type,&
-                                             qs_ks_scp_release
   USE qs_ks_types,                     ONLY: qs_ks_env_type,&
                                              qs_ks_release
-  USE scp_environment_types,           ONLY: set_scp_env
-  USE scp_rspw_methods,                ONLY: scp_qs_rspw_rebuild
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE virial_types,                    ONLY: virial_release,&
                                              virial_retain,&
                                              virial_type
-#include "cp_common_uses.h"
+#include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
 
@@ -139,7 +133,7 @@ MODULE force_env_types
 !> \param fp_env the flexible partitioning environment
 !>      read-only attributes (get them *only* through force_env_get):
 !> \param subsys the fragments that build up the actual system.
-!> \param ep_env environment for an ep calculation
+!> \param ep_env_id environment for an ep calculation
 !> \param cell the cell of the actual system
 !> \note
 !>      as always direct manipulation of these attributes can have very
@@ -164,11 +158,10 @@ MODULE force_env_types
      TYPE ( force_env_p_type ), DIMENSION(:), POINTER    :: sub_force_env
      TYPE ( qmmm_env_qm_type ), POINTER                  :: qmmm_env
      TYPE ( virial_type  ), POINTER                      :: virial
-     TYPE ( ep_env_type ), POINTER                       :: ep_env
+     INTEGER, POINTER                                    :: ep_env_id
      TYPE ( mixed_environment_type ), POINTER            :: mixed_env
      TYPE ( section_vals_type), POINTER                  :: force_env_section
      TYPE ( section_vals_type), POINTER                  :: root_section
-     TYPE ( cpot_type), POINTER                          :: cpot_env
      TYPE ( atprop_type), POINTER                        :: atprop_env
      TYPE ( cp_result_type), POINTER                     :: results
   END TYPE force_env_type
@@ -191,11 +184,11 @@ CONTAINS
 !> \param force_env the force environment to retain
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
-!> \note
-!>      see doc/ReferenceCounting.html
 !> \par History
 !>      04.2003 created [fawzi]
 !> \author fawzi
+!> \note
+!>      see doc/ReferenceCounting.html
 ! *****************************************************************************
   SUBROUTINE force_env_retain(force_env, error)
     TYPE(force_env_type), POINTER            :: force_env
@@ -220,11 +213,11 @@ CONTAINS
 !> \param force_env the force environment to release
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
-!> \note
-!>      see doc/ReferenceCounting.html
 !> \par History
 !>      04.2003 created [fawzi]
 !> \author fawzi
+!> \note
+!>      see doc/ReferenceCounting.html
 ! *****************************************************************************
   RECURSIVE SUBROUTINE force_env_release(force_env, error)
     TYPE(force_env_type), POINTER            :: force_env
@@ -273,12 +266,11 @@ CONTAINS
           CASE ( use_eip_force )
              CALL eip_env_release(force_env%eip_env, error=error)
           CASE ( use_ep_force )
-             CALL ep_env_release(force_env%ep_env, error=error)
+             CALL ep_f77_release(force_env%ep_env_id, error=error)
           CASE (use_mixed_force)
              CALL mixed_env_release(force_env%mixed_env,error=error)
           END SELECT
           CALL cp_result_release(results=force_env%results,error=error)
-          CALL cpot_release(force_env%cpot_env,error=error)
           CALL atprop_release(force_env%atprop_env,error=error)
           CALL globenv_release(force_env%globenv,error=error)
           CALL cp_para_env_release(force_env%para_env,error=error)
@@ -286,7 +278,7 @@ CONTAINS
           CPAssert(.NOT.ASSOCIATED(force_env%fist_env),cp_warning_level,routineP,error,failure)
           CPAssert(.NOT.ASSOCIATED(force_env%qs_env),cp_warning_level,routineP,error,failure)
           CPAssert(.NOT.ASSOCIATED(force_env%eip_env),cp_warning_level,routineP,error,failure)
-          CPAssert(.NOT.ASSOCIATED(force_env%ep_env),cp_warning_level,routineP,error,failure)
+          CPAssert(.NOT.ASSOCIATED(force_env%ep_env_id),cp_warning_level,routineP,error,failure)
           CPAssert(.NOT.ASSOCIATED(force_env%mixed_env),cp_warning_level,routineP,error,failure)
           CALL meta_env_release(force_env%meta_env,error=error)
           CALL fp_env_release(force_env%fp_env,error=error)
@@ -305,6 +297,34 @@ CONTAINS
 ! *****************************************************************************
 !> \brief returns various attributes about the force environment
 !> \param force_env the force environment you what informations about
+!> \param in_use ...
+!> \param fist_env ...
+!> \param qs_env ...
+!> \param meta_env ...
+!> \param fp_env ...
+!> \param atprop_env ...
+!> \param subsys ...
+!> \param para_env ...
+!> \param potential_energy ...
+!> \param additional_potential ...
+!> \param kinetic_energy ...
+!> \param harmonic_shell ...
+!> \param kinetic_shell ...
+!> \param cell ...
+!> \param cell_ref ...
+!> \param sub_force_env ...
+!> \param qmmm_env ...
+!> \param eip_env ...
+!> \param virial ...
+!> \param use_ref_cell ...
+!> \param globenv ...
+!> \param input ...
+!> \param ep_env_id ...
+!> \param force_env_section ...
+!> \param method_name_id ...
+!> \param root_section ...
+!> \param mixed_env ...
+!> \param results ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 !>      for the orther arguments see the attributes of force_env_type
@@ -315,7 +335,7 @@ CONTAINS
   RECURSIVE SUBROUTINE force_env_get(force_env, in_use, fist_env, qs_env, &
        meta_env, fp_env, atprop_env, subsys, para_env, potential_energy, additional_potential, &
        kinetic_energy, harmonic_shell, kinetic_shell, cell, cell_ref, sub_force_env,&
-       qmmm_env, eip_env, virial, use_ref_cell, globenv, input, ep_env, force_env_section, &
+       qmmm_env, eip_env, virial, use_ref_cell, globenv, input, ep_env_id, force_env_section, &
        method_name_id, root_section, mixed_env, results, error)
 
     TYPE(force_env_type), POINTER            :: force_env
@@ -345,7 +365,7 @@ CONTAINS
       OPTIONAL, POINTER                      :: globenv
     TYPE(section_vals_type), OPTIONAL, &
       POINTER                                :: input
-    TYPE(ep_env_type), OPTIONAL, POINTER     :: ep_env
+    INTEGER, OPTIONAL, POINTER               :: ep_env_id
     TYPE(section_vals_type), OPTIONAL, &
       POINTER                                :: force_env_section
     INTEGER, INTENT(out), OPTIONAL           :: method_name_id
@@ -367,6 +387,9 @@ CONTAINS
     TYPE(fist_energy_type), POINTER          :: thermo
     TYPE(mixed_energy_type), POINTER         :: mixed_energy
     TYPE(qs_energy_type), POINTER            :: qs_energy
+    TYPE(qs_environment_type), POINTER       :: ep_main_qs_env
+
+    NULLIFY(ep_main_qs_env)
 
     failure=.FALSE.
 
@@ -376,14 +399,16 @@ CONTAINS
 
        SELECT CASE(force_env%in_use)
        CASE(use_ep_force)
-          CPPrecondition(ASSOCIATED(force_env%ep_env),cp_failure_level,routineP,error,failure)
-          CALL get_qs_env(force_env%ep_env%main_qs_env,&
+          CPPrecondition(ASSOCIATED(force_env%ep_env_id),cp_failure_level,routineP,error,failure)
+          CALL ep_f77_get_main_qs_env(force_env%ep_env_id, ep_main_qs_env)
+          CALL get_qs_env(ep_main_qs_env,&
                           cell=cell,&
                           cell_ref=cell_ref,&
                           use_ref_cell=use_ref_cell,&
                           input=input,&
                           error=error)
-          IF (PRESENT(potential_energy)) potential_energy = force_env%ep_env%energy%e_tot
+          NULLIFY(ep_main_qs_env)
+          IF (PRESENT(potential_energy)) potential_energy = ep_f77_get_energy(force_env%ep_env_id)
           CPPrecondition(.NOT.PRESENT(kinetic_energy),cp_failure_level,routineP,error,failure)
        CASE (use_qs_force)
           CPPrecondition(ASSOCIATED(force_env%qs_env),cp_failure_level,routineP,error,failure)
@@ -451,11 +476,11 @@ CONTAINS
                  ! for conventional QM/MM, and force-mixing knows to put relevant energy there.
                  IF (SIZE(force_env%sub_force_env) == 1) THEN
                    cur_subsys = primary_subsys
-                 ELSE IF (SIZE(force_env%sub_force_env) == 2) THEN
+                 ELSE IF (force_env%qmmm_env%do_force_mixing .AND. SIZE(force_env%sub_force_env) == 2) THEN ! force mixing
                    cur_subsys = force_mixing_extended_subsys
                  ELSE
                     CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
-                         routineP,"bad number of sub_force_envs getting qmmm potential energy "//&
+                         routineP,"bad number of sub_force_envs (or do_force_mixing setting) getting qmmm potential energy "//&
                          CPSourceFileRef,&
                          error,failure)
                  ENDIF
@@ -535,7 +560,7 @@ CONTAINS
        IF (PRESENT(virial))        virial        => force_env%virial
        IF (PRESENT(globenv))       globenv       => force_env%globenv
        IF (PRESENT(root_section))  root_section  => force_env%root_section
-       IF (PRESENT(ep_env))        ep_env        => force_env%ep_env
+       IF (PRESENT(ep_env_id))     ep_env_id        => force_env%ep_env_id
     END IF
 
   END SUBROUTINE force_env_get
@@ -543,11 +568,11 @@ CONTAINS
 ! *****************************************************************************
 !> \brief returns the number of atoms
 !> \param force_env the force_env you what information about
-!> \param natom the number of atoms
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
-!> \author fawzi
+!> \retval n_atom the number of atoms
 !> \date   22.11.2010 updated (MK)
+!> \author fawzi
 ! *****************************************************************************
   FUNCTION force_env_get_natom(force_env,error) RESULT(n_atom)
 
@@ -575,11 +600,11 @@ CONTAINS
 ! *****************************************************************************
 !> \brief returns the number of particles in a force environment
 !> \param force_env the force_env you what information about
-!> \param nparticles the number of particles
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
-!> \author Matthias Krack
+!> \retval n_particle the number of particles
 !> \date   22.11.2010 (MK)
+!> \author Matthias Krack
 ! *****************************************************************************
   FUNCTION force_env_get_nparticle(force_env,error) RESULT(n_particle)
 
@@ -608,10 +633,11 @@ CONTAINS
 !> \brief returns the particle forces in a dimension(*) array
 !> \param force_env the force_env you want to get the forces
 !> \param frc the array of the forces
+!> \param n ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
-!> \author Matthias Krack
 !> \date   22.11.2010 Creation
+!> \author Matthias Krack
 ! *****************************************************************************
   SUBROUTINE force_env_get_frc(force_env,frc,n,error)
 
@@ -644,10 +670,11 @@ CONTAINS
 !> \brief returns the particle positions in a dimension(*) array
 !> \param force_env the force_env you want to get the positions
 !> \param pos the array of the positions
+!> \param n ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
-!> \author fawzi
 !> \date   22.11.2010 updated (MK)
+!> \author fawzi
 ! *****************************************************************************
   SUBROUTINE force_env_get_pos(force_env,pos,n,error)
 
@@ -680,10 +707,11 @@ CONTAINS
 !> \brief returns the particle velocities in a dimension(*) array
 !> \param force_env the force_env you want to get the velocities
 !> \param vel the array of the velocities
+!> \param n ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
-!> \author Matthias Krack
 !> \date   22.11.2010 Creation (MK)
+!> \author Matthias Krack
 ! *****************************************************************************
   SUBROUTINE force_env_get_vel(force_env,vel,n,error)
 
@@ -716,6 +744,12 @@ CONTAINS
 !> \brief changes some attributes of the force_env
 !> \param force_env the force environment where the cell should be changed
 !> \param meta_env the new meta environment
+!> \param fp_env ...
+!> \param virial ...
+!> \param force_env_section ...
+!> \param method_name_id ...
+!> \param additional_potential ...
+!> \param results ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 !> \par History
@@ -796,12 +830,12 @@ CONTAINS
 !> \param cell the new cell
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
-!> \note
-!>      for future use, each method should make the changes that it needs
-!>      to cope with the new cell
 !> \par History
 !>      09.2003 created [fawzi]
 !> \author Fawzi Mohamed
+!> \note
+!>      for future use, each method should make the changes that it needs
+!>      to cope with the new cell
 ! *****************************************************************************
   RECURSIVE SUBROUTINE force_env_set_cell(force_env, cell, error)
 
@@ -818,8 +852,10 @@ CONTAINS
     TYPE(cp_error_type)                      :: my_error
     TYPE(ewald_environment_type), POINTER    :: ewald_env
     TYPE(ewald_pw_type), POINTER             :: ewald_pw
+    TYPE(qs_environment_type), POINTER       :: ep_main_qs_env
     TYPE(qs_ks_env_type), POINTER            :: new_ks_env
-    TYPE(qs_ks_scp_env_type), POINTER        :: new_ks_scp_env
+
+    NULLIFY(ep_main_qs_env)
 
     failure=.FALSE.
     CPPrecondition(ASSOCIATED(force_env),cp_failure_level,routineP,error,failure)
@@ -836,26 +872,16 @@ CONTAINS
           CALL qs_ks_create ( new_ks_env,  force_env % qs_env ,error = error )
           CALL set_qs_env( force_env % qs_env, ks_env=new_ks_env ,error=error)
           CALL qs_ks_release ( new_ks_env ,error=error)
-          IF ( force_env % qs_env % dft_control % scp ) THEN
-             ! initialize the SCP env to the qs env
-             CALL scp_qs_rspw_rebuild (force_env%qs_env%scp_env%rspw,  &
-                                       qs_env = force_env % qs_env, &
-                                       error = error)
-             ! update the ks_scp_environment
-             CALL qs_ks_scp_create (new_ks_scp_env, force_env % qs_env, error )
-             CALL set_scp_env (force_env % qs_env % scp_env,  &
-                               ks_scp_env = new_ks_scp_env,   &
-                               error = error )
-             CALL qs_ks_scp_release ( new_ks_scp_env, error=error )
-          ENDIF
        CASE (use_ep_force)
           NULLIFY ( new_ks_env )
-          CPPrecondition(ASSOCIATED(force_env%ep_env),cp_failure_level,routineP,error,failure)
-          CALL set_qs_env(force_env%ep_env%main_qs_env,cell=cell,error=error)
-          CALL qs_env_rebuild_pw_env( force_env % ep_env%main_qs_env, error=error)
+          CPPrecondition(ASSOCIATED(force_env%ep_env_id),cp_failure_level,routineP,error,failure)
+          CALL ep_f77_get_main_qs_env(force_env%ep_env_id, ep_main_qs_env)
+          CALL set_qs_env(ep_main_qs_env,cell=cell,error=error)
+          CALL qs_env_rebuild_pw_env(ep_main_qs_env, error=error)
           CALL qs_ks_create ( new_ks_env,  force_env % qs_env ,error=error)
-          CALL set_qs_env( force_env % ep_env%main_qs_env, ks_env=new_ks_env ,error=error)
+          CALL set_qs_env(ep_main_qs_env, ks_env=new_ks_env ,error=error)
           CALL qs_ks_release ( new_ks_env ,error=error)
+          NULLIFY(ep_main_qs_env)
        CASE (use_fist_force)
           CPPrecondition(ASSOCIATED(force_env%fist_env),cp_failure_level,routineP,error,failure)
           CALL fist_env_get ( force_env%fist_env, ewald_pw = ewald_pw,  &
@@ -887,8 +913,10 @@ CPSourceFileRef,&
 
 ! *****************************************************************************
 !> \brief returns the order of the multiple force_env
-!> \param force_env the force_env you what information about
-!> \param natom the numer of atoms
+!> \param force_env_sections ...
+!> \param root_section ...
+!> \param i_force_eval ...
+!> \param nforce_eval ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 !> \author teo

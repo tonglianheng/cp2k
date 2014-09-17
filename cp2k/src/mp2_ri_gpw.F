@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2013  CP2K developers group                          !
+!   Copyright (C) 2000 - 2014  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -9,28 +9,26 @@
 !>      06.2012 created [Mauro Del Ben]
 ! *****************************************************************************
 MODULE mp2_ri_gpw
-  USE bibliography,                    ONLY: DelBen2013,&
-                                             cite_reference
-  USE array_types,                     ONLY: array_i1d_obj,&
-                                             array_release
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind_set
-  USE basis_set_types,                 ONLY: gto_basis_set_type,& 
-                                             init_orb_basis_set
-  USE cell_types,                      ONLY: cell_type,&
+  USE basis_set_types,                 ONLY: gto_basis_set_type
+  USE bibliography,                    ONLY: DelBen2013,&
+                                             cite_reference
+  USE cell_methods,                    ONLY: cell_type,&
                                              pbc
   USE cp_blacs_env,                    ONLY: cp_blacs_env_create,&
-                                             cp_blacs_env_release
+                                             cp_blacs_env_release,&
+                                             cp_blacs_env_type
   USE cp_control_types,                ONLY: dft_control_type
   USE cp_dbcsr_interface,              ONLY: &
-       cp_create_bl_distribution, cp_dbcsr_create, cp_dbcsr_distribution, &
-       cp_dbcsr_distribution_release, cp_dbcsr_get_info, cp_dbcsr_init, &
-       cp_dbcsr_multiply, cp_dbcsr_release, cp_dbcsr_set
+       array_i1d_obj, array_release, cp_create_bl_distribution, &
+       cp_dbcsr_create, cp_dbcsr_distribution, cp_dbcsr_distribution_release, &
+       cp_dbcsr_get_info, cp_dbcsr_init, cp_dbcsr_multiply, cp_dbcsr_p_type, &
+       cp_dbcsr_release, cp_dbcsr_set, cp_dbcsr_type, dbcsr_distribution_mp, &
+       dbcsr_distribution_new, dbcsr_distribution_obj, dbcsr_mp_npcols, &
+       dbcsr_mp_nprows, dbcsr_type_no_symmetry, dbcsr_type_real_default
   USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm
-  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_p_type,&
-                                             cp_dbcsr_type
   USE cp_fm_basic_linalg,              ONLY: cp_fm_triangular_invert
-! USE f77_blas
   USE cp_fm_cholesky,                  ONLY: cp_fm_cholesky_decompose
   USE cp_fm_diag,                      ONLY: cp_fm_syevx
   USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
@@ -41,25 +39,14 @@ MODULE mp2_ri_gpw
                                              cp_fm_release,&
                                              cp_fm_set_all,&
                                              cp_fm_to_fm,&
-                                             cp_fm_get_diag,&
                                              cp_fm_type
   USE cp_para_env,                     ONLY: cp_para_env_create,&
                                              cp_para_env_release
-  USE cp_para_types,                   ONLY: cp_blacs_env_type,&
-                                             cp_para_env_type
+  USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_subsys_types,                 ONLY: cp_subsys_type
-  USE dbcsr_methods,                   ONLY: dbcsr_distribution_mp,&
-                                             dbcsr_distribution_new,&
-                                             dbcsr_mp_npcols,&
-                                             dbcsr_mp_nprows
-  USE dbcsr_types,                     ONLY: dbcsr_distribution_obj,&
-                                             dbcsr_type_no_symmetry,&
-                                             dbcsr_type_real_default
   USE gaussian_gridlevels,             ONLY: gaussian_gridlevel
   USE input_constants,                 ONLY: use_orb_basis_set,&
                                              use_ri_aux_basis_set
-  USE input_section_types,             ONLY: section_vals_get_subs_vals,&
-                                             section_vals_type
   USE kinds,                           ONLY: dp
   USE machine,                         ONLY: m_flush,&
                                              m_memory,&
@@ -69,9 +56,11 @@ MODULE mp2_ri_gpw
                                              mp_max,&
                                              mp_min,&
                                              mp_sendrecv,&
-                                             mp_sum
+                                             mp_sum,&
+                                             mp_sync
   USE molecule_kind_types,             ONLY: molecule_kind_type
   USE molecule_types_new,              ONLY: molecule_type
+  USE mp2_ri_grad_util,                ONLY: complete_gamma
   USE mp2_types,                       ONLY: mp2_type
   USE orbital_pointers,                ONLY: ncoset
   USE particle_types,                  ONLY: particle_type
@@ -90,25 +79,20 @@ MODULE mp2_ri_gpw
   USE qs_collocate_density,            ONLY: calculate_wavefunction
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
-  USE qs_integrate_potential,          ONLY: integrate_v_rspace,&
-                                             potential_pw2rs
-  USE qs_integrate_potential_low,      ONLY: integrate_pgf_product_rspace
+  USE qs_integrate_potential,          ONLY: integrate_pgf_product_rspace,&
+                                             integrate_v_rspace
+  USE qs_kind_types,                   ONLY: qs_kind_type
   USE qs_neighbor_list_types,          ONLY: neighbor_list_set_p_type
   USE realspace_grid_types,            ONLY: realspace_grid_desc_p_type,&
                                              realspace_grid_p_type,&
                                              rs_grid_release,&
                                              rs_grid_retain
+  USE rs_pw_interface,                 ONLY: potential_pw2rs
   USE task_list_types,                 ONLY: task_list_type
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE util,                            ONLY: get_limit
-#include "cp_common_uses.h"
-
-#if defined(__HAVE_CUBLAS)
-#define ACC_DGEMM cublas_dgemm
-#else
-#define ACC_DGEMM dgemm
-#endif
+#include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
 
@@ -117,22 +101,67 @@ MODULE mp2_ri_gpw
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'mp2_ri_gpw'
 
   PUBLIC :: mp2_ri_gpw_compute_in,&
-            mp2_ri_gpw_compute_en,&
-            replicate_iaK_2intgroup
+            mp2_ri_gpw_compute_en
 
 
   CONTAINS
 
 ! *****************************************************************************
 !> \brief with ri mp2 gpw
+!> \param BIb_C ...
+!> \param ends_array ...
+!> \param ends_B_virtual ...
+!> \param sizes_array ...
+!> \param sizes_B_virtual ...
+!> \param starts_array ...
+!> \param starts_B_virtual ...
+!> \param dimen_RI ...
+!> \param qs_env ...
+!> \param para_env ...
+!> \param para_env_sub ...
+!> \param color_sub ...
+!> \param dft_control ...
+!> \param cell ...
+!> \param particle_set ...
+!> \param atomic_kind_set ...
+!> \param qs_kind_set ...
+!> \param mo_coeff ...
+!> \param nmo ...
+!> \param homo ...
+!> \param rho_r ...
+!> \param rho_g ...
+!> \param pot_g ...
+!> \param mat_munu ...
+!> \param sab_orb_sub ...
+!> \param pw_env_sub ...
+!> \param poisson_env ...
+!> \param auxbas_pw_pool ...
+!> \param task_list_sub ...
+!> \param mo_coeff_o ...
+!> \param mo_coeff_v ...
+!> \param eps_filter ...
+!> \param unit_nr ...
+!> \param mp2_memory ...
+!> \param calc_PQ_cond_num ...
+!> \param calc_forces ...
+!> \param error ...
+!> \param blacs_env_sub ...
+!> \param error_sub ...
+!> \param BIb_C_beta ...
+!> \param ends_B_virtual_beta ...
+!> \param sizes_B_virtual_beta ...
+!> \param starts_B_virtual_beta ...
+!> \param homo_beta ...
+!> \param mo_coeff_o_beta ...
+!> \param mo_coeff_v_beta ...
 !> \author Mauro Del Ben 
 ! *****************************************************************************
   SUBROUTINE mp2_ri_gpw_compute_in(BIb_C,ends_array,ends_B_virtual,sizes_array,sizes_B_virtual,starts_array,starts_B_virtual,&
                                    dimen_RI,qs_env,para_env,para_env_sub,color_sub,dft_control,&
-                                   cell,particle_set,atomic_kind_set,mo_coeff,nmo,homo,&
+                                   cell,particle_set,atomic_kind_set,qs_kind_set,mo_coeff,nmo,homo,&
                                    rho_r,rho_g,pot_g,mat_munu,sab_orb_sub,pw_env_sub,&
                                    poisson_env,auxbas_pw_pool,task_list_sub,mo_coeff_o,mo_coeff_v,eps_filter,unit_nr,&
-                                   mp2_memory,calc_PQ_cond_num,calc_ex,error,blacs_env_sub,error_sub,&
+                                   mp2_memory,calc_PQ_cond_num,calc_forces,error,blacs_env_sub,error_sub,&
                                    BIb_C_beta,ends_B_virtual_beta,sizes_B_virtual_beta,starts_B_virtual_beta,&
                                    homo_beta,mo_coeff_o_beta,mo_coeff_v_beta)
     REAL(KIND=dp), ALLOCATABLE, &
@@ -149,6 +178,8 @@ MODULE mp2_ri_gpw
       POINTER                                :: particle_set
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
+    TYPE(qs_kind_type), DIMENSION(:), &
+      POINTER                                :: qs_kind_set
     TYPE(cp_fm_type), POINTER                :: mo_coeff
     INTEGER                                  :: nmo, homo
     TYPE(pw_p_type)                          :: rho_r, rho_g, pot_g
@@ -163,7 +194,7 @@ MODULE mp2_ri_gpw
     REAL(KIND=dp)                            :: eps_filter
     INTEGER                                  :: unit_nr
     REAL(KIND=dp)                            :: mp2_memory
-    LOGICAL                                  :: calc_PQ_cond_num, calc_ex
+    LOGICAL                                  :: calc_PQ_cond_num, calc_forces
     TYPE(cp_error_type), INTENT(inout)       :: error
     TYPE(cp_blacs_env_type), POINTER         :: blacs_env_sub
     TYPE(cp_error_type), INTENT(inout)       :: error_sub
@@ -180,13 +211,12 @@ MODULE mp2_ri_gpw
     CHARACTER(LEN=*), PARAMETER :: routineN = 'mp2_ri_gpw_compute_in', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: a, handle, handle2, handle3, i, i_counter, iproc, itmp(2), &
-      LLL, max_row_col_local, max_row_col_local_beta, my_B_size, &
-      my_B_size_beta, my_B_virtual_end, my_B_virtual_end_beta, &
-      my_B_virtual_start, my_B_virtual_start_beta, my_group_L_end, &
-      my_group_L_size, my_group_L_start, ncol_local, nfullcols_total, &
-      nfullrows_total, ngroup, nrow_local, num_small_eigen, stat, virtual, &
-      virtual_beta
+    INTEGER :: handle, handle2, handle3, i, i_counter, iproc, itmp(2), LLL, &
+      max_row_col_local, max_row_col_local_beta, my_B_size, my_B_size_beta, &
+      my_B_virtual_end, my_B_virtual_end_beta, my_B_virtual_start, &
+      my_B_virtual_start_beta, my_group_L_end, my_group_L_size, &
+      my_group_L_start, ncol_local, nfullcols_total, nfullrows_total, ngroup, &
+      nrow_local, num_small_eigen, stat, virtual, virtual_beta
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: sub_proc_map
     INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: local_col_row_info, &
                                                 local_col_row_info_beta
@@ -428,8 +458,20 @@ MODULE mp2_ri_gpw
     CALL cp_fm_release(fm_matrix_L, error=error)
     CALL cp_para_env_release(para_env_L,error=error_sub)
 
+    IF(calc_forces) THEN
+      ! we need (P|Q)^(-1/2) for future use, just save it
+      ! in a fully (home made) distributed way 
+      itmp=get_limit(dimen_RI,para_env_sub%num_pe,para_env_sub%mepos)
+      lll=itmp(2)-itmp(1)+1
+      ALLOCATE(qs_env%mp2_env%ri_grad%PQ_half(lll,my_group_L_size),STAT=stat)
+      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+      qs_env%mp2_env%ri_grad%PQ_half=my_Lrows(itmp(1):itmp(2),1:my_group_L_size)
+    END IF
+
     IF (unit_nr>0) THEN
       WRITE (UNIT=unit_nr,FMT="(T3,A,T75,i6)")&
+               "RI_INFO| Occupied  basis set size:", homo,&
+               "RI_INFO| Virtual   basis set size:", virtual,&
                "RI_INFO| Auxiliary basis set size:", dimen_RI 
 
       mem_for_iaK=dimen_RI*REAL(homo,KIND=dp)*virtual*8.0_dp/(1024_dp**2)
@@ -441,6 +483,8 @@ MODULE mp2_ri_gpw
       CALL m_flush(unit_nr)
     ENDIF
 
+    CALL timeset(routineN//"_alloc",handle2)
+    CALL mp_sync(para_env%group) ! sync to see memory output
 
     ! array that will store the (ia|K) integrals
     ALLOCATE(BIb_C(my_group_L_size,my_B_size,homo),STAT=stat)
@@ -453,14 +497,16 @@ MODULE mp2_ri_gpw
       BIb_C_beta=0.0_dp
     END IF
 
+    CALL timestop(handle2)
+
     CALL timeset(routineN//"_loop",handle2)
     i_counter=0
     DO LLL=my_group_L_start, my_group_L_end
       i_counter=i_counter+1
 
       ! pseudo psi_L
-      CALL calculate_wavefunction(mo_coeff,1,psi_L,rho_g, &
-                                  atomic_kind_set,cell,dft_control,particle_set, &
+      CALL calculate_wavefunction(mo_coeff,1,psi_L,rho_g, atomic_kind_set, &
+                                  qs_kind_set,cell,dft_control,particle_set, &
                                   pw_env_sub,basis_set_id=use_ri_aux_basis_set,&
                                   external_vector=my_Lrows(:,LLL-my_group_L_start+1),&
                                   error=error_sub)
@@ -542,6 +588,38 @@ MODULE mp2_ri_gpw
 
   END SUBROUTINE mp2_ri_gpw_compute_in
 
+! *****************************************************************************
+!> \brief ...
+!> \param qs_env ...
+!> \param para_env ...
+!> \param para_env_sub ...
+!> \param para_env_L ...
+!> \param mp2_memory ...
+!> \param eps_filter ...
+!> \param fm_matrix_L ...
+!> \param ngroup ...
+!> \param color_sub ...
+!> \param dimen_RI ...
+!> \param mo_coeff ...
+!> \param dft_control ...
+!> \param psi_L ...
+!> \param rho_r ...
+!> \param rho_g ...
+!> \param pot_g ...
+!> \param pw_env_sub ...
+!> \param poisson_env ...
+!> \param my_group_L_size ...
+!> \param my_group_L_start ...
+!> \param my_group_L_end ...
+!> \param sizes_array ...
+!> \param starts_array ...
+!> \param ends_array ...
+!> \param calc_PQ_cond_num ...
+!> \param cond_num ...
+!> \param num_small_eigen ...
+!> \param error_sub ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE calculate_Lmin1(qs_env,para_env,para_env_sub,para_env_L,mp2_memory,&
                              eps_filter,fm_matrix_L,ngroup,color_sub,dimen_RI,&
                              mo_coeff,dft_control,psi_L,rho_r,rho_g,pot_g,pw_env_sub,poisson_env,&
@@ -584,8 +662,7 @@ MODULE mp2_ri_gpw
                                                 sub_sizes_array, &
                                                 sub_starts_array
     INTEGER, DIMENSION(:), POINTER           :: col_indices, la_max, la_min, &
-                                                lb_max, lb_min, npgfa, nsgfa, &
-                                                row_indices
+                                                npgfa, nsgfa, row_indices
     INTEGER, DIMENSION(:, :), POINTER        :: first_sgfa
     LOGICAL                                  :: failure, map_it_here
     REAL(KIND=dp)                            :: min_mem_for_QK, pair_energy, &
@@ -596,8 +673,7 @@ MODULE mp2_ri_gpw
                                                 L_local_col
     REAL(KIND=dp), DIMENSION(3)              :: ra, rab
     REAL(KIND=dp), DIMENSION(:), POINTER     :: set_radius_a
-    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: I_tmp2, rpgfa, sphi_a, zeta, &
-                                                zetb
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: I_tmp2, rpgfa, sphi_a, zeta
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(cell_type), POINTER                 :: cell
@@ -613,11 +689,12 @@ MODULE mp2_ri_gpw
       POINTER                                :: molecule_set
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
+    TYPE(qs_kind_type), DIMENSION(:), &
+      POINTER                                :: qs_kind_set
     TYPE(realspace_grid_desc_p_type), &
       DIMENSION(:), POINTER                  :: rs_descs
     TYPE(realspace_grid_p_type), &
       DIMENSION(:), POINTER                  :: rs_v
-    TYPE(section_vals_type), POINTER         :: input, interp_section
 
     CALL timeset(routineN,handle)
     failure=.FALSE.
@@ -626,30 +703,30 @@ MODULE mp2_ri_gpw
     ! get stuff
     subsys=>qs_env%subsys
     particle_set => subsys%particles%els
-    atomic_kind_set => subsys%atomic_kinds%els
+    CALL get_qs_env(qs_env, atomic_kind_set=atomic_kind_set, qs_kind_set=qs_kind_set, error=error)
     molecule_set => subsys%molecules_new%els
     molecule_kind_set => subsys%molecule_kinds_new%els
     ! blacs_env => qs_env%blacs_env
     cell=>qs_env%cell
 
-    nkind = SIZE(atomic_kind_set)
+    nkind = SIZE(qs_kind_set)
     natom = SIZE(particle_set)
 
     ALLOCATE (kind_of(natom),STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
 
-    CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,kind_of=kind_of)
+    CALL get_atomic_kind_set(atomic_kind_set,kind_of=kind_of)
 
     DO ikind=1, nkind
-      CPPrecondition(ASSOCIATED(atomic_kind_set(ikind)%ri_aux_basis_set),cp_failure_level,routineP,error,failure)
-      ! atomic_kind_set(ikind)%ri_aux_basis_set%norm_type=2
-      ! CALL init_orb_basis_set(atomic_kind_set(ikind)%ri_aux_basis_set,error)
+      CPPrecondition(ASSOCIATED(qs_kind_set(ikind)%ri_aux_basis_set),cp_failure_level,routineP,error,failure)
+      ! qs_kind_set(ikind)%ri_aux_basis_set%norm_type=2
+      ! CALL init_orb_basis_set(qs_kind_set(ikind)%ri_aux_basis_set,error)
     END DO
 
     dimen_RI=0
     DO iatom=1, natom
       ikind=kind_of(iatom)
-      dimen_RI=dimen_RI+atomic_kind_set(ikind)%ri_aux_basis_set%nsgf
+      dimen_RI=dimen_RI+qs_kind_set(ikind)%ri_aux_basis_set%nsgf
     END DO
 
     ! calculate wich rows of L^{-1} to have
@@ -682,8 +759,6 @@ MODULE mp2_ri_gpw
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     L_local_col=0.0_dp
 
-    CALL get_qs_env(qs_env=qs_env,input=input,error=error)
-
     i_counter=0
     DO LLL=my_group_L_start, my_group_L_end
       i_counter=i_counter+1
@@ -691,8 +766,8 @@ MODULE mp2_ri_gpw
       wf_vector=0.0_dp
       wf_vector(LLL)=1.0_dp
       ! pseudo psi_L
-      CALL calculate_wavefunction(mo_coeff,1,psi_L,rho_g, &
-                                  atomic_kind_set,cell,dft_control,particle_set, &
+      CALL calculate_wavefunction(mo_coeff,1,psi_L,rho_g, atomic_kind_set,&
+                                  qs_kind_set,cell,dft_control,particle_set, &
                                   pw_env_sub,basis_set_id=use_ri_aux_basis_set,&
                                   external_vector=wf_vector,&
                                   error=error_sub)
@@ -710,9 +785,7 @@ MODULE mp2_ri_gpw
       DO i=1,SIZE(rs_v)
         CALL rs_grid_retain(rs_v(i)%rs_grid,error=error_sub)
       END DO
-      interp_section => section_vals_get_subs_vals(input,"DFT%MGRID%INTERPOLATOR",&
-           error=error_sub)
-      CALL potential_pw2rs(rs_v,rho_r,pw_env_sub,interp_section,error_sub)
+      CALL potential_pw2rs(rs_v,rho_r,pw_env_sub,error_sub)
 
       CALL timestop(handle3)
  
@@ -720,7 +793,7 @@ MODULE mp2_ri_gpw
       offset=0
       DO iatom=1, natom
         ikind=kind_of(iatom)
-        basis_set_a => atomic_kind_set(ikind)%ri_aux_basis_set
+        basis_set_a => qs_kind_set(ikind)%ri_aux_basis_set
 
         first_sgfa   =>  basis_set_a%first_sgf
         la_max       =>  basis_set_a%lmax
@@ -943,7 +1016,7 @@ MODULE mp2_ri_gpw
       DEALLOCATE(L_local_col)
       ALLOCATE(L_local_col(dimen_RI,rec_L_size),STAT=stat)
       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-      L_local_col=L_external_col
+      L_local_col(:,:)=L_external_col
 
       DEALLOCATE(L_external_col)
 
@@ -1031,6 +1104,18 @@ MODULE mp2_ri_gpw
 
   END SUBROUTINE calculate_Lmin1
 
+! *****************************************************************************
+!> \brief ...
+!> \param qs_env ...
+!> \param para_env ...
+!> \param dimen_RI ...
+!> \param fm_matrix_L ...
+!> \param my_group_L_start ...
+!> \param my_group_L_end ...
+!> \param my_group_L_size ...
+!> \param my_Lrows ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE grep_Lcols(qs_env,para_env,dimen_RI,fm_matrix_L,&
                         my_group_L_start,my_group_L_end,my_group_L_size,my_Lrows,&
                         error)
@@ -1048,9 +1133,10 @@ MODULE mp2_ri_gpw
     CHARACTER(LEN=*), PARAMETER :: routineN = 'grep_Lcols', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: handle, i_global, iiB, j_global, jjB, max_row_col_local, &
-      ncol_local, ncol_rec, nrow_local, nrow_rec, proc_receive, &
-      proc_receive_static, proc_send, proc_send_static, proc_shift, stat
+    INTEGER :: handle, handle2, i_global, iiB, j_global, jjB, &
+      max_row_col_local, ncol_local, ncol_rec, nrow_local, nrow_rec, &
+      proc_receive, proc_receive_static, proc_send, proc_send_static, &
+      proc_shift, stat
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: proc_map
     INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: local_col_row_info, &
                                                 rec_col_row_info
@@ -1120,6 +1206,8 @@ MODULE mp2_ri_gpw
     proc_send_static=proc_map(para_env%mepos+1)
     proc_receive_static=proc_map(para_env%mepos-1)
 
+    CALL timeset(routineN//"_comm",handle2)
+
     DO proc_shift=1, para_env%num_pe-1
       proc_send=proc_map(para_env%mepos+proc_shift)
       proc_receive=proc_map(para_env%mepos-proc_shift)
@@ -1156,7 +1244,7 @@ MODULE mp2_ri_gpw
         END IF
       END DO
 
-      local_col_row_info=rec_col_row_info
+      local_col_row_info(:,:)=rec_col_row_info
       DEALLOCATE(local_L)
       ALLOCATE(local_L(nrow_rec,ncol_rec),STAT=stat)
       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -1166,6 +1254,7 @@ MODULE mp2_ri_gpw
       DEALLOCATE(row_indices_rec)
       DEALLOCATE(rec_L)
     END DO
+    CALL timestop(handle2)
 
     DEALLOCATE(local_col_row_info)
     DEALLOCATE(rec_col_row_info)
@@ -1176,6 +1265,21 @@ MODULE mp2_ri_gpw
 
   END SUBROUTINE
 
+! *****************************************************************************
+!> \brief ...
+!> \param para_env_sub ...
+!> \param fm_BIb_jb ...
+!> \param BIb_jb ...
+!> \param max_row_col_local ...
+!> \param homo ...
+!> \param virtual ...
+!> \param proc_map ...
+!> \param local_col_row_info ...
+!> \param my_B_virtual_end ...
+!> \param my_B_virtual_start ...
+!> \param my_B_size ...
+!> \param error_sub ...
+! *****************************************************************************
   SUBROUTINE grep_my_integrals(para_env_sub,fm_BIb_jb,BIb_jb,max_row_col_local,&
                                homo,virtual,proc_map,local_col_row_info,&
                                my_B_virtual_end,my_B_virtual_start,my_B_size,&
@@ -1209,7 +1313,7 @@ MODULE mp2_ri_gpw
     ALLOCATE(rec_col_row_info(0:max_row_col_local,2),STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error_sub,failure)
 
-    rec_col_row_info=local_col_row_info
+    rec_col_row_info(:,:)=local_col_row_info
 
     nrow_rec=rec_col_row_info(0,1)
     ncol_rec=rec_col_row_info(0,2)
@@ -1288,9 +1392,43 @@ MODULE mp2_ri_gpw
 
   END SUBROUTINE grep_my_integrals
 
+! *****************************************************************************
+!> \brief ...
+!> \param Emp2 ...
+!> \param Emp2_Cou ...
+!> \param Emp2_EX ...
+!> \param BIb_C ...
+!> \param qs_env ...
+!> \param mp2_env ...
+!> \param para_env ...
+!> \param para_env_sub ...
+!> \param color_sub ...
+!> \param ends_array ...
+!> \param ends_B_virtual ...
+!> \param sizes_array ...
+!> \param sizes_B_virtual ...
+!> \param starts_array ...
+!> \param starts_B_virtual ...
+!> \param Eigenval ...
+!> \param nmo ...
+!> \param homo ...
+!> \param dimen_RI ...
+!> \param unit_nr ...
+!> \param calc_forces ...
+!> \param calc_ex ...
+!> \param error ...
+!> \param error_sub ...
+!> \param open_shell_SS ...
+!> \param BIb_C_beta ...
+!> \param homo_beta ...
+!> \param Eigenval_beta ...
+!> \param ends_B_virtual_beta ...
+!> \param sizes_B_virtual_beta ...
+!> \param starts_B_virtual_beta ...
+! *****************************************************************************
   SUBROUTINE mp2_ri_gpw_compute_en(Emp2,Emp2_Cou,Emp2_EX,BIb_C,qs_env,mp2_env,para_env,para_env_sub,color_sub,&
                                    ends_array,ends_B_virtual,sizes_array,sizes_B_virtual,starts_array,starts_B_virtual,&
-                                   Eigenval,nmo,homo,dimen_RI,unit_nr,calc_ex,error,error_sub,&
+                                   Eigenval,nmo,homo,dimen_RI,unit_nr,calc_forces,calc_ex,error,error_sub,&
                                    open_shell_SS,BIb_C_beta,homo_beta,Eigenval_beta,&
                                    ends_B_virtual_beta,sizes_B_virtual_beta, starts_B_virtual_beta)
     REAL(KIND=dp)                            :: Emp2, Emp2_Cou, Emp2_EX
@@ -1304,6 +1442,7 @@ MODULE mp2_ri_gpw
       sizes_array, sizes_B_virtual, starts_array, starts_B_virtual
     REAL(KIND=dp), DIMENSION(:)              :: Eigenval
     INTEGER                                  :: nmo, homo, dimen_RI, unit_nr
+    LOGICAL, INTENT(IN)                      :: calc_forces
     LOGICAL                                  :: calc_ex
     TYPE(cp_error_type), INTENT(inout)       :: error, error_sub
     LOGICAL, OPTIONAL                        :: open_shell_SS
@@ -1320,40 +1459,45 @@ MODULE mp2_ri_gpw
       routineP = moduleN//':'//routineN
 
     INTEGER :: a, a_global, assigned_blocks, b, b_global, best_block_size, &
-      best_integ_group_size, block_size, comm_exchange, end_point, &
-      first_I_block, first_J_block, handle, handle2, handle3, i, iiB, &
-      ij_block_counter, ij_counter, ij_counter_send, ij_index, &
-      integ_group_size, irep, jjB, last_I_block, last_J_block, Lend_pos, &
-      Lstart_pos, max_ij_pairs, min_integ_group_size, my_B_size, &
+      best_integ_group_size, block_size, comm_exchange, comm_P, end_point, &
+      first_I_block, first_J_block, handle, handle2, handle3, handle4, i, &
+      iiB, ij_block_counter, ij_counter, ij_counter_rec, ij_counter_send, &
+      ij_index, ijk_counter, ijk_counter_send, ijk_index, integ_group_size, &
+      irep, jjB, kkB, kkk, last_I_block, last_J_block, Lend_pos, lll, &
+      Lstart_pos, max_ij_pairs, max_ijk, min_integ_group_size, my_B_size, &
       my_B_size_beta, my_B_virtual_end, my_B_virtual_end_beta, &
-      my_B_virtual_start, my_B_virtual_start_beta, my_block_size, &
-      my_group_L_end, my_group_L_size, my_group_L_start, my_homo_beta, my_i, &
-      my_ij_pairs, my_j, my_new_group_L_size, my_num_dgemm_call
-    INTEGER :: ngroup, num_block_per_group, num_IJ_blocks, num_integ_group, &
-      pos_integ_group, proc_receive, proc_send, proc_shift, rec_B_size, &
-      rec_B_virtual_end, rec_B_virtual_start, rec_L_size, send_B_size, &
-      send_B_virtual_end, send_B_virtual_start, send_block_size, send_i, &
-      send_ij_index, send_j, start_point, stat, sub_sub_color, &
-      total_ij_block, total_ij_pairs, total_ij_pairs_blocks, virtual, &
-      virtual_beta
-    INTEGER, ALLOCATABLE, DIMENSION(:)       :: integ_group_pos2color_sub, &
-                                                new_sizes_array, &
-                                                num_ij_pairs, proc_map, &
-                                                sub_proc_map
-    INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: ij_map, ij_marker
+      my_B_virtual_start, my_B_virtual_start_beta, my_block_size
+    INTEGER :: my_group_L_end, my_group_L_size, my_group_L_size_orig, &
+      my_group_L_start, my_homo_beta, my_i, my_ij_pairs, my_ijk, my_j, my_k, &
+      my_new_group_L_size, my_num_dgemm_call, ngroup, num_block_per_group, &
+      num_IJ_blocks, num_integ_group, num_sing_ij, pos_integ_group, &
+      proc_receive, proc_send, proc_shift, rec_B_size, rec_B_virtual_end, &
+      rec_B_virtual_start, rec_block_size, rec_i, rec_ij_index, rec_j, &
+      rec_L_size, send_B_size, send_B_virtual_end, send_B_virtual_start, &
+      send_block_size, send_i, send_ij_index, send_ijk_index, send_j, send_k, &
+      send_L_size, start_point, stat, sub_P_color, sub_sub_color
+    INTEGER :: total_ij_block, total_ij_pairs, total_ij_pairs_blocks, &
+      total_ijk, virtual, virtual_beta
+    INTEGER, ALLOCATABLE, DIMENSION(:) :: integ_group_pos2color_sub, &
+      new_sizes_array, num_ij_pairs, num_ijk, proc_map, proc_map_rep, &
+      sizes_array_orig, sub_proc_map
+    INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: ij_map, ij_marker, ijk_map
     INTEGER, ALLOCATABLE, DIMENSION(:, :, :) :: ranges_info_array
     LOGICAL                                  :: failure, my_alpha_beta_case, &
                                                 my_open_shell_SS
     REAL(KIND=dp) :: actual_flop_rate, mem_for_aK, mem_for_comm, mem_for_iaK, &
       mem_for_rep, mem_min, mem_per_group, mem_real, my_flop_rate, &
-      null_mat_rec(2,2,2), null_mat_send(2,2,2), sym_fac, t_end, t_start
+      null_mat_rec(2,2,2), null_mat_send(2,2,2), P_ij_diag, P_ij_elem, &
+      sym_fac, t_end, t_start
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: external_ab, external_i_aL, &
-                                                local_ab
+                                                local_ab, send_ab, t_ab
     REAL(KIND=dp), ALLOCATABLE, &
-      DIMENSION(:, :, :)                     :: BI_C_rec, local_i_aL, &
-                                                local_j_aL
-    TYPE(cp_para_env_type), POINTER          :: para_env_exchange
+      DIMENSION(:, :, :)                     :: B_ia_Q, BI_C_rec, BI_C_send, &
+                                                local_i_aL, local_j_aL, &
+                                                local_k_aL, Y_i_aP, Y_j_aP
+    TYPE(cp_para_env_type), POINTER          :: para_env_exchange, &
+                                                para_env_P, para_env_rep
 
     CALL timeset(routineN,handle)
     failure=.FALSE.
@@ -1504,8 +1648,8 @@ MODULE mp2_ri_gpw
       sub_proc_map(para_env_sub%num_pe+i)=i
     END DO
 
-    CALL replicate_iaK_2intgroup(BIb_C,para_env,para_env_sub,para_env_exchange,ngroup,integ_group_size,num_integ_group,&
-                                 homo,proc_map,&
+    CALL replicate_iaK_2intgroup(BIb_C,para_env,para_env_sub,para_env_exchange,para_env_rep,&
+                                 ngroup,integ_group_size,num_integ_group,homo,proc_map,proc_map_rep,&
                                  ends_array,ends_B_virtual,sizes_array,sizes_B_virtual,starts_array,starts_B_virtual,&
                                  my_B_size,my_B_virtual_start,my_B_virtual_end,&
                                  my_group_L_size,my_group_L_start,my_group_L_end,&
@@ -1518,18 +1662,29 @@ MODULE mp2_ri_gpw
     integ_group_pos2color_sub(para_env_exchange%mepos)=color_sub
     CALL mp_sum(integ_group_pos2color_sub,para_env_exchange%group)
 
+    IF(calc_forces) THEN
+      iiB=SIZE(sizes_array)
+      ALLOCATE(sizes_array_orig(0:iiB-1),STAT=stat)
+      CPPostcondition(stat==0,cp_failure_level,routineP,error_sub,failure)
+      sizes_array_orig(:)=sizes_array
+    END IF  
+ 
+    my_group_L_size_orig=my_group_L_size
     my_group_L_size=my_new_group_L_size
     DEALLOCATE(sizes_array)
-    IF(.NOT.my_open_shell_SS) THEN 
-      ! in the open shell case we need to keep the information on the data structure
-      DEALLOCATE(starts_array)
-      DEALLOCATE(ends_array)
-    END IF
+    ! IF(.NOT.my_open_shell_SS) THEN 
+    !   ! in the open shell case we need to keep the information on the data structure
+    !   ! also if forces are required
+    !   IF(.NOT.calc_forces) THEN
+    !     DEALLOCATE(starts_array)
+    !     DEALLOCATE(ends_array)
+    !   END IF
+    ! END IF
 
     ALLOCATE(sizes_array(0:integ_group_size-1),STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error_sub,failure)
-    sizes_array=new_sizes_array
-
+    sizes_array(:)=new_sizes_array
+      
     DEALLOCATE(new_sizes_array)
 
     ! *****************************************************************
@@ -1643,6 +1798,24 @@ MODULE mp2_ri_gpw
     CPPostcondition(stat==0,cp_failure_level,routineP,error_sub,failure)
     ALLOCATE(local_ab(virtual,my_B_size_beta),STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error_sub,failure)
+
+    IF(calc_forces) THEN
+      ALLOCATE(mp2_env%ri_grad%P_ij(homo,homo),STAT=stat)
+      CPPostcondition(stat==0,cp_failure_level,routineP,error_sub,failure)
+      ALLOCATE(mp2_env%ri_grad%P_ab(my_B_size,virtual),STAT=stat)
+      CPPostcondition(stat==0,cp_failure_level,routineP,error_sub,failure)
+      ALLOCATE(mp2_env%ri_grad%Gamma_P_ia(homo,my_B_size,my_group_L_size),STAT=stat)
+      CPPostcondition(stat==0,cp_failure_level,routineP,error_sub,failure)
+      mp2_env%ri_grad%P_ij=0.0_dp
+      mp2_env%ri_grad%P_ab=0.0_dp
+      mp2_env%ri_grad%Gamma_P_ia=0.0_dp
+      ALLOCATE(Y_i_aP(my_B_size,dimen_RI,block_size),STAT=stat)
+      CPPostcondition(stat==0,cp_failure_level,routineP,error_sub,failure)
+      ALLOCATE(Y_j_aP(my_B_size,dimen_RI,block_size),STAT=stat)
+      CPPostcondition(stat==0,cp_failure_level,routineP,error_sub,failure)
+      ALLOCATE(t_ab(virtual,my_B_size_beta),STAT=stat)
+      CPPostcondition(stat==0,cp_failure_level,routineP,error_sub,failure)
+    END IF
 
     CALL timeset(routineN//"_RI_loop",handle2)
     null_mat_rec=0.0_dp
@@ -1806,6 +1979,11 @@ MODULE mp2_ri_gpw
 
         END DO
         CALL timestop(handle3)
+ 
+        IF(calc_forces) THEN
+          Y_i_aP=0.0_dp
+          Y_j_aP=0.0_dp
+        END IF
 
         ! loop over the block elements
         DO iiB=1, my_block_size
@@ -1814,7 +1992,7 @@ MODULE mp2_ri_gpw
             ! calculate the integrals (ia|jb) stratibg from my local data ...
             local_ab=0.0_dp
             t_start=m_walltime()
-            CALL ACC_DGEMM('T','N',my_B_size,my_B_size_beta,dimen_RI,1.0_dp,&
+            CALL dgemm('T','N',my_B_size,my_B_size_beta,dimen_RI,1.0_dp,&
                        local_i_aL(:,:,iiB),dimen_RI,local_j_aL(:,:,jjB),dimen_RI,&
                        0.0_dp,local_ab(my_B_virtual_start:my_B_virtual_end,1:my_B_size_beta),my_B_size)
             t_end=m_walltime()
@@ -1840,7 +2018,7 @@ MODULE mp2_ri_gpw
 
               ! local_ab(rec_B_virtual_start:rec_B_virtual_end,1:my_B_size)=MATMUL(TRANSPOSE(external_i_aL),local_j_aL)
               t_start=m_walltime()
-              CALL ACC_DGEMM('T','N',rec_B_size,my_B_size_beta,dimen_RI,1.0_dp,&
+              CALL dgemm('T','N',rec_B_size,my_B_size_beta,dimen_RI,1.0_dp,&
                          external_i_aL,dimen_RI,local_j_aL(:,:,jjB),dimen_RI,&
                          0.0_dp,local_ab(rec_B_virtual_start:rec_B_virtual_end,1:my_B_size_beta),rec_B_size)
               t_end=m_walltime()
@@ -1879,12 +2057,15 @@ MODULE mp2_ri_gpw
               ! contract integrals with orbital energies for exchange MP2 energy
               ! starting with local ...
               ! IF(my_open_shell_SS) sym_fac=sym_fac*2.0_dp
+              IF(calc_forces) t_ab=0.0_dp
               DO b=1, my_B_size
                 b_global=b+my_B_virtual_start-1
                 DO a=1, my_B_size
                   a_global=a+my_B_virtual_start-1
                   Emp2_Ex=Emp2_Ex+sym_fac*local_ab(a_global,b)*local_ab(b_global,a)/&
                             (Eigenval(homo+a_global)+Eigenval(homo+b_global)-Eigenval(my_i+iiB-1)-Eigenval(my_j+jjB-1))
+                  IF(calc_forces) t_ab(a_global,b)=-(2.0_dp*local_ab(a_global,b)-local_ab(b_global,a))/&
+                                  (Eigenval(homo+a_global)+Eigenval(homo+b_global)-Eigenval(my_i+iiB-1)-Eigenval(my_j+jjB-1))
                 END DO
               END DO
               ! ... and then with external data
@@ -1914,7 +2095,8 @@ MODULE mp2_ri_gpw
                     a_global=a+rec_B_virtual_start-1
                     Emp2_Ex=Emp2_Ex+sym_fac*local_ab(a_global,b)*external_ab(b,a)/&
                             (Eigenval(homo+a_global)+Eigenval(homo+b_global)-Eigenval(my_i+iiB-1)-Eigenval(my_j+jjB-1))
-
+                    IF(calc_forces) t_ab(a_global,b)=-(2.0_dp*local_ab(a_global,b)-external_ab(b,a))/&
+                                    (Eigenval(homo+a_global)+Eigenval(homo+b_global)-Eigenval(my_i+iiB-1)-Eigenval(my_j+jjB-1))
                   END DO
                 END DO
 
@@ -1922,6 +2104,168 @@ MODULE mp2_ri_gpw
               END DO
             END IF
             CALL timestop(handle3)
+
+            IF(calc_forces) THEN
+              ! update P_ab, Gamma_P_ia
+              CALL timeset(routineN//"_Pia",handle3)
+              ! divide the (ia|jb) integrals by Delta_ij^ab
+              DO b=1, my_B_size
+                b_global=b+my_B_virtual_start-1
+                DO a=1, virtual
+                  local_ab(a,b)=-local_ab(a,b)/&
+                                (Eigenval(homo+a)+Eigenval(homo+b_global)-Eigenval(my_i+iiB-1)-Eigenval(my_j+jjB-1))
+                END DO
+              END DO
+              CALL dgemm('T','N',my_B_size,my_B_size,virtual,1.0_dp,&
+                             t_ab(:,:),virtual,local_ab(:,:),virtual,&
+                             1.0_dp,mp2_env%ri_grad%P_ab(1:my_B_size,my_B_virtual_start:my_B_virtual_end),my_B_size)
+              ! update diagonal part of P_ij
+              P_ij_diag=-SUM(local_ab*t_ab)*2.0_dp
+              mp2_env%ri_grad%P_ij(my_i+iiB-1,my_i+iiB-1)=mp2_env%ri_grad%P_ij(my_i+iiB-1,my_i+iiB-1)+P_ij_diag
+              IF(my_i/=my_j) THEN
+                ! CALL dgemm('N','T',virtual,virtual,my_B_size,1.0_dp,&
+                !                t_ab(:,:),virtual,local_ab(:,:),virtual,&
+                !                1.0_dp,mp2_env%ri_grad%P_ab(:,:),virtual)
+                CALL dgemm('N','T',my_B_size,virtual,my_B_size,1.0_dp,&
+                               t_ab(my_B_virtual_start:my_B_virtual_end,1:my_B_size),my_B_size,&
+                               local_ab(:,:),virtual,&
+                               1.0_dp,mp2_env%ri_grad%P_ab(1:my_B_size,1:virtual),my_B_size)
+                ! CHECK CORRECTNESS IF BLOCK SIZE greater than 1
+                mp2_env%ri_grad%P_ij(my_j+jjB-1,my_j+jjB-1)=mp2_env%ri_grad%P_ij(my_j+jjB-1,my_j+jjB-1)+P_ij_diag
+              END IF
+              DO proc_shift=1, para_env_sub%num_pe-1
+                proc_send=sub_proc_map(para_env_sub%mepos+proc_shift)
+                proc_receive=sub_proc_map(para_env_sub%mepos-proc_shift)
+
+                rec_B_size=sizes_B_virtual(proc_receive)
+                rec_B_virtual_end=ends_B_virtual(proc_receive)
+                rec_B_virtual_start=starts_B_virtual(proc_receive)
+
+                send_B_size=sizes_B_virtual(proc_send)
+                send_B_virtual_end=ends_B_virtual(proc_send)
+                send_B_virtual_start=starts_B_virtual(proc_send)
+
+                ALLOCATE(external_ab(virtual,rec_B_size),STAT=stat)
+                CPPostcondition(stat==0,cp_failure_level,routineP,error_sub,failure)
+                external_ab=0.0_dp
+
+                CALL  mp_sendrecv(local_ab(1:virtual,1:my_B_size),proc_send,&
+                                  external_ab(1:virtual,1:rec_B_size),proc_receive,&
+                                  para_env_sub%group)
+
+                CALL dgemm('T','N',my_B_size,rec_B_size,virtual,1.0_dp,&
+                               t_ab(:,:),virtual,external_ab(:,:),virtual,&
+                               1.0_dp,mp2_env%ri_grad%P_ab(1:my_B_size,rec_B_virtual_start:rec_B_virtual_end),my_B_size)
+
+                DEALLOCATE(external_ab)
+
+                IF(my_i/=my_j) THEN
+                  ALLOCATE(external_ab(my_B_size,virtual),STAT=stat)
+                  CPPostcondition(stat==0,cp_failure_level,routineP,error_sub,failure)
+                  external_ab=0.0_dp
+                  
+                  ALLOCATE(send_ab(send_B_size,virtual),STAT=stat)
+                  CPPostcondition(stat==0,cp_failure_level,routineP,error_sub,failure)
+                  send_ab=0.0_dp                
+
+                  CALL dgemm('N','T',send_B_size,virtual,my_B_size,1.0_dp,&
+                                 t_ab(send_B_virtual_start:send_B_virtual_end,1:my_B_size),send_B_size,&
+                                 local_ab(:,:),virtual,&
+                                 0.0_dp,send_ab(1:send_B_size,1:virtual),send_B_size)
+
+                  CALL  mp_sendrecv(send_ab,proc_send,&
+                                    external_ab,proc_receive,&
+                                    para_env_sub%group)
+
+                  mp2_env%ri_grad%P_ab(:,:)=mp2_env%ri_grad%P_ab+external_ab
+
+                  DEALLOCATE(external_ab)
+                  DEALLOCATE(send_ab)
+                END IF
+
+              END DO
+              CALL timestop(handle3)
+              CALL timeset(routineN//"_Gamma",handle3)
+              ! CALL dgemm('T','N',my_B_size,my_B_size_beta,dimen_RI,1.0_dp,&
+              !                local_i_aL(:,:,iiB),dimen_RI,local_j_aL(:,:,jjB),dimen_RI,&
+              !                0.0_dp,local_ab(my_B_virtual_start:my_B_virtual_end,1:my_B_size_beta),my_B_size)
+              
+              CALL dgemm('N','T',my_B_size,dimen_RI,my_B_size,1.0_dp,&
+                             t_ab(my_B_virtual_start:my_B_virtual_end,1:my_B_size),my_B_size,&
+                             local_j_aL(1:dimen_RI,1:my_B_size,jjB),dimen_RI,&
+                             1.0_dp,Y_i_aP(1:my_B_size,1:dimen_RI,iiB),my_B_size)
+
+              ALLOCATE(external_ab(my_B_size,dimen_RI),STAT=stat)
+              CPPostcondition(stat==0,cp_failure_level,routineP,error_sub,failure)
+              external_ab=0.0_dp
+              DO proc_shift=1, para_env_sub%num_pe-1
+                proc_send=sub_proc_map(para_env_sub%mepos+proc_shift)
+                proc_receive=sub_proc_map(para_env_sub%mepos-proc_shift)
+
+                rec_B_size=sizes_B_virtual(proc_receive)
+                rec_B_virtual_end=ends_B_virtual(proc_receive)
+                rec_B_virtual_start=starts_B_virtual(proc_receive)
+
+                send_B_size=sizes_B_virtual(proc_send)
+                send_B_virtual_end=ends_B_virtual(proc_send)
+                send_B_virtual_start=starts_B_virtual(proc_send)
+
+                ALLOCATE(send_ab(send_B_size,dimen_RI),STAT=stat)
+                CPPostcondition(stat==0,cp_failure_level,routineP,error_sub,failure)
+                send_ab=0.0_dp
+
+                CALL dgemm('N','T',send_B_size,dimen_RI,my_B_size,1.0_dp,&
+                               t_ab(send_B_virtual_start:send_B_virtual_end,1:my_B_size),send_B_size,&
+                               local_j_aL(1:dimen_RI,1:my_B_size,jjB),dimen_RI,&
+                               0.0_dp,send_ab(1:send_B_size,1:dimen_RI),send_B_size)
+
+                CALL  mp_sendrecv(send_ab,proc_send,&
+                                  external_ab,proc_receive,&
+                                  para_env_sub%group)
+
+                Y_i_aP(1:my_B_size,1:dimen_RI,iiB)=Y_i_aP(1:my_B_size,1:dimen_RI,iiB)+external_ab
+
+                DEALLOCATE(send_ab)
+              END DO 
+              DEALLOCATE(external_ab)
+ 
+
+              IF(my_i/=my_j) THEN
+                CALL dgemm('T','T',my_B_size,dimen_RI,my_B_size,1.0_dp,&
+                               t_ab(my_B_virtual_start:my_B_virtual_end,1:my_B_size),my_B_size,&
+                               local_i_aL(1:dimen_RI,1:my_B_size,iiB),dimen_RI,&
+                               1.0_dp,Y_j_aP(1:my_B_size,1:dimen_RI,jjB),my_B_size)
+
+                DO proc_shift=1, para_env_sub%num_pe-1
+                  proc_send=sub_proc_map(para_env_sub%mepos+proc_shift)
+                  proc_receive=sub_proc_map(para_env_sub%mepos-proc_shift)
+
+                  rec_B_size=sizes_B_virtual(proc_receive)
+                  rec_B_virtual_end=ends_B_virtual(proc_receive)
+                  rec_B_virtual_start=starts_B_virtual(proc_receive)
+
+                  ALLOCATE(external_ab(dimen_RI,rec_B_size),STAT=stat)
+                  CPPostcondition(stat==0,cp_failure_level,routineP,error_sub,failure)
+                  external_ab=0.0_dp
+
+                  CALL  mp_sendrecv(local_i_aL(1:dimen_RI,1:my_B_size,iiB),proc_send,&
+                                    external_ab,proc_receive,&
+                                    para_env_sub%group)
+
+                  CALL dgemm('T','T',my_B_size,dimen_RI,rec_B_size,1.0_dp,&
+                                 t_ab(rec_B_virtual_start:rec_B_virtual_end,1:my_B_size),rec_B_size,&
+                                 external_ab(1:dimen_RI,1:rec_B_size),dimen_RI,&
+                                 1.0_dp,Y_j_aP(1:my_B_size,1:dimen_RI,jjB),my_B_size)
+
+                  DEALLOCATE(external_ab)
+                END DO
+              END IF
+              
+              ! Y_i_aP=0.0_dp
+              ! Y_j_aP=0.0_dp
+
+              CALL timestop(handle3)
+            END IF
 
           END DO ! jjB
         END DO ! iiB
@@ -1973,6 +2317,257 @@ MODULE mp2_ri_gpw
         END DO
       END IF
 
+      ! redistribute gamma
+      IF(calc_forces) THEN
+        CALL timeset(routineN//"_comm2",handle3)
+        IF(ij_index<=my_ij_pairs) THEN
+          ! somethig to send
+          ! start with myself
+          CALL timeset(routineN//"_comm2_w",handle4)
+          DO irep=0, num_integ_group-1
+            Lstart_pos=ranges_info_array(1,irep,para_env_exchange%mepos)
+            Lend_pos=ranges_info_array(2,irep,para_env_exchange%mepos)
+            start_point=ranges_info_array(3,irep,para_env_exchange%mepos)
+            end_point=ranges_info_array(4,irep,para_env_exchange%mepos)
+            DO iiB=1, my_block_size
+              !$OMP PARALLEL DO DEFAULT(NONE) PRIVATE(kkk,lll) &
+              !$OMP                           SHARED(start_point,end_point,Lstart_pos,Lend_pos,&
+              !$OMP                                  mp2_env,my_i,iiB,my_B_size,Y_i_aP)
+              DO kkk=start_point, end_point
+                lll=kkk-start_point+Lstart_pos
+                mp2_env%ri_grad%Gamma_P_ia(my_i+iiB-1,1:my_B_size,kkk)=&
+                mp2_env%ri_grad%Gamma_P_ia(my_i+iiB-1,1:my_B_size,kkk)+&
+                Y_i_aP(1:my_B_size,lll,iiB)
+              END DO
+              !$OMP END PARALLEL DO
+            END DO
+            DO jjB=1, my_block_size
+              !$OMP PARALLEL DO DEFAULT(NONE) PRIVATE(kkk,lll) &
+              !$OMP                           SHARED(start_point,end_point,Lstart_pos,Lend_pos,&
+              !$OMP                                  mp2_env,my_j,jjB,my_B_size,Y_j_aP)
+              DO kkk=start_point, end_point
+                lll=kkk-start_point+Lstart_pos
+                mp2_env%ri_grad%Gamma_P_ia(my_j+jjB-1,1:my_B_size,kkk)=&
+                mp2_env%ri_grad%Gamma_P_ia(my_j+jjB-1,1:my_B_size,kkk)+&
+                Y_j_aP(1:my_B_size,lll,jjB)
+              END DO
+              !$OMP END PARALLEL DO
+            END DO
+            ! DO iiB=1, my_block_size
+            !   mp2_env%ri_grad%Gamma_P_ia(my_i+iiB-1,1:my_B_size,start_point:end_point)=&
+            !   mp2_env%ri_grad%Gamma_P_ia(my_i+iiB-1,1:my_B_size,start_point:end_point)+&
+            !   Y_i_aP(1:my_B_size,Lstart_pos:Lend_pos,iiB)
+            ! END DO
+            ! DO jjB=1, my_block_size
+            !   mp2_env%ri_grad%Gamma_P_ia(my_j+jjB-1,1:my_B_size,start_point:end_point)=&
+            !   mp2_env%ri_grad%Gamma_P_ia(my_j+jjB-1,1:my_B_size,start_point:end_point)+&
+            !   Y_j_aP(1:my_B_size,Lstart_pos:Lend_pos,jjB)
+            ! END DO
+          END DO
+          CALL timestop(handle4)
+
+          ! Y_i_aP(my_B_size,dimen_RI,block_size)
+
+          DO proc_shift=1, para_env_exchange%num_pe-1
+            proc_send=proc_map(para_env_exchange%mepos+proc_shift)
+            proc_receive=proc_map(para_env_exchange%mepos-proc_shift)
+
+            send_L_size=sizes_array(proc_send)
+
+            ALLOCATE(BI_C_send(2*my_block_size,my_B_size,send_L_size),STAT=stat)
+            CPPostcondition(stat==0,cp_failure_level,routineP,error_sub,failure)
+            CALL timeset(routineN//"_comm2_w",handle4)
+            BI_C_send=0.0_dp
+            DO irep=0, num_integ_group-1
+              Lstart_pos=ranges_info_array(1,irep,proc_send)
+              Lend_pos=ranges_info_array(2,irep,proc_send)
+              start_point=ranges_info_array(3,irep,proc_send)
+              end_point=ranges_info_array(4,irep,proc_send)
+              DO iiB=1, my_block_size
+                !$OMP PARALLEL DO DEFAULT(NONE) PRIVATE(kkk,lll) &
+                !$OMP                           SHARED(start_point,end_point,Lstart_pos,Lend_pos,&
+                !$OMP                                  BI_C_send,iiB,my_B_size,Y_i_aP)
+                DO kkk=start_point, end_point
+                  lll=kkk-start_point+Lstart_pos
+                  BI_C_send(iiB,1:my_B_size,kkk)=Y_i_aP(1:my_B_size,lll,iiB)
+                END DO
+                !$OMP END PARALLEL DO
+              END DO
+              DO jjB=1, my_block_size
+                !$OMP PARALLEL DO DEFAULT(NONE) PRIVATE(kkk,lll) &
+                !$OMP                           SHARED(start_point,end_point,Lstart_pos,Lend_pos,my_block_size,&
+                !$OMP                                  BI_C_send,jjB,my_B_size,Y_j_aP)
+                DO kkk=start_point, end_point
+                  lll=kkk-start_point+Lstart_pos
+                  BI_C_send(jjB+my_block_size,1:my_B_size,kkk)=Y_j_aP(1:my_B_size,lll,jjB)
+                END DO
+                !$OMP END PARALLEL DO
+              END DO
+              ! DO iiB=1, my_block_size
+              !   BI_C_send(iiB,1:my_B_size,start_point:end_point)=&
+              !      Y_i_aP(1:my_B_size,Lstart_pos:Lend_pos,iiB)
+              ! END DO
+              ! DO jjB=1, my_block_size
+              !   BI_C_send(jjB+my_block_size,1:my_B_size,start_point:end_point)=&
+              !      Y_j_aP(1:my_B_size,Lstart_pos:Lend_pos,jjB)
+              ! END DO
+            END DO
+            CALL timestop(handle4)
+
+            rec_ij_index=num_ij_pairs(proc_receive)
+
+            IF(ij_index<=rec_ij_index) THEN
+              ! we know that proc_receive has something to send for us, let's see what
+              ij_counter_rec=&
+              (ij_index-MIN(1,integ_group_pos2color_sub(proc_receive)))*ngroup+integ_group_pos2color_sub(proc_receive)
+
+              rec_i=ij_map(ij_counter_rec,1)
+              rec_j=ij_map(ij_counter_rec,2)
+              rec_block_size=ij_map(ij_counter_rec,3)
+
+              ALLOCATE(BI_C_rec(2*rec_block_size,my_B_size,my_group_L_size),STAT=stat)
+              CPPostcondition(stat==0,cp_failure_level,routineP,error_sub,failure)
+              BI_C_rec=0.0_dp
+
+              CALL  mp_sendrecv(BI_C_send,proc_send,&
+                                BI_C_rec,proc_receive,&
+                                para_env_exchange%group)
+
+              CALL timeset(routineN//"_comm2_w",handle4)
+              DO irep=0, num_integ_group-1
+                Lstart_pos=ranges_info_array(1,irep,para_env_exchange%mepos)
+                Lend_pos=ranges_info_array(2,irep,para_env_exchange%mepos)
+                start_point=ranges_info_array(3,irep,para_env_exchange%mepos)
+                end_point=ranges_info_array(4,irep,para_env_exchange%mepos)
+                DO iiB=1, rec_block_size
+                  !$OMP PARALLEL DO DEFAULT(NONE) PRIVATE(kkk) &
+                  !$OMP                           SHARED(start_point,end_point,&
+                  !$OMP                                  mp2_env,rec_i,iiB,my_B_size,BI_C_rec)
+                  DO kkk=start_point, end_point
+                    mp2_env%ri_grad%Gamma_P_ia(rec_i+iiB-1,1:my_B_size,kkk)=&
+                    mp2_env%ri_grad%Gamma_P_ia(rec_i+iiB-1,1:my_B_size,kkk)+&
+                    BI_C_rec(iiB,1:my_B_size,kkk)
+                  END DO
+                  !$OMP END PARALLEL DO
+                END DO
+                DO jjB=1, rec_block_size
+                  !$OMP PARALLEL DO DEFAULT(NONE) PRIVATE(kkk) &
+                  !$OMP                           SHARED(start_point,end_point,rec_block_size,&
+                  !$OMP                                  mp2_env,rec_j,jjB,my_B_size,BI_C_rec)
+                  DO kkk=start_point, end_point
+                    mp2_env%ri_grad%Gamma_P_ia(rec_j+jjB-1,1:my_B_size,kkk)=&
+                    mp2_env%ri_grad%Gamma_P_ia(rec_j+jjB-1,1:my_B_size,kkk)+&
+                    BI_C_rec(jjB+rec_block_size,1:my_B_size,kkk)
+                  END DO
+                  !$OMP END PARALLEL DO
+                END DO
+                ! DO iiB=1, rec_block_size
+                !   mp2_env%ri_grad%Gamma_P_ia(rec_i+iiB-1,1:my_B_size,start_point:end_point)=&
+                !   mp2_env%ri_grad%Gamma_P_ia(rec_i+iiB-1,1:my_B_size,start_point:end_point)+&
+                !   BI_C_rec(iiB,1:my_B_size,start_point:end_point)
+                ! END DO
+                ! DO jjB=1, rec_block_size
+                !   mp2_env%ri_grad%Gamma_P_ia(rec_j+jjB-1,1:my_B_size,start_point:end_point)=&
+                !   mp2_env%ri_grad%Gamma_P_ia(rec_j+jjB-1,1:my_B_size,start_point:end_point)+&
+                !   BI_C_rec(jjB+rec_block_size,1:my_B_size,start_point:end_point)
+                ! END DO
+              END DO
+              CALL timestop(handle4)
+
+              DEALLOCATE(BI_C_rec)
+
+            ELSE
+              ! we have something to send but nothing to receive
+
+              CALL  mp_sendrecv(BI_C_send,proc_send,&
+                                null_mat_rec,proc_receive,&
+                                para_env_exchange%group)
+
+            END IF
+
+            DEALLOCATE(BI_C_send)
+          END DO   
+
+        ELSE
+          ! noting to send check if we have to receive
+          DO proc_shift=1, para_env_exchange%num_pe-1
+            proc_send=proc_map(para_env_exchange%mepos+proc_shift)
+            proc_receive=proc_map(para_env_exchange%mepos-proc_shift)
+            rec_ij_index=num_ij_pairs(proc_receive)
+
+            IF(ij_index<=rec_ij_index) THEN
+              ! we know that proc_receive has something to send for us, let's see what
+              ij_counter_rec=&
+              (ij_index-MIN(1,integ_group_pos2color_sub(proc_receive)))*ngroup+integ_group_pos2color_sub(proc_receive)
+
+              rec_i=ij_map(ij_counter_rec,1)
+              rec_j=ij_map(ij_counter_rec,2)
+              rec_block_size=ij_map(ij_counter_rec,3)
+
+              ALLOCATE(BI_C_rec(2*rec_block_size,my_B_size,my_group_L_size),STAT=stat)
+              CPPostcondition(stat==0,cp_failure_level,routineP,error_sub,failure)
+              BI_C_rec=0.0_dp
+
+              CALL  mp_sendrecv(null_mat_send,proc_send,&
+                                BI_C_rec,proc_receive,&
+                                para_env_exchange%group)
+
+              CALL timeset(routineN//"_comm2_w",handle4)
+              DO irep=0, num_integ_group-1
+                Lstart_pos=ranges_info_array(1,irep,para_env_exchange%mepos)
+                Lend_pos=ranges_info_array(2,irep,para_env_exchange%mepos)
+                start_point=ranges_info_array(3,irep,para_env_exchange%mepos)
+                end_point=ranges_info_array(4,irep,para_env_exchange%mepos)
+                DO iiB=1, rec_block_size
+                  !$OMP PARALLEL DO DEFAULT(NONE) PRIVATE(kkk) &
+                  !$OMP                           SHARED(start_point,end_point,&
+                  !$OMP                                  mp2_env,rec_i,iiB,my_B_size,BI_C_rec)
+                  DO kkk=start_point, end_point
+                    mp2_env%ri_grad%Gamma_P_ia(rec_i+iiB-1,1:my_B_size,kkk)=&
+                    mp2_env%ri_grad%Gamma_P_ia(rec_i+iiB-1,1:my_B_size,kkk)+&
+                    BI_C_rec(iiB,1:my_B_size,kkk)
+                  END DO
+                  !$OMP END PARALLEL DO
+                END DO
+                DO jjB=1, rec_block_size
+                  !$OMP PARALLEL DO DEFAULT(NONE) PRIVATE(kkk) &
+                  !$OMP                           SHARED(start_point,end_point,rec_block_size,&
+                  !$OMP                                  mp2_env,rec_j,jjB,my_B_size,BI_C_rec)
+                  DO kkk=start_point, end_point
+                    mp2_env%ri_grad%Gamma_P_ia(rec_j+jjB-1,1:my_B_size,kkk)=&
+                    mp2_env%ri_grad%Gamma_P_ia(rec_j+jjB-1,1:my_B_size,kkk)+&
+                    BI_C_rec(jjB+rec_block_size,1:my_B_size,kkk)
+                  END DO
+                  !$OMP END PARALLEL DO
+                END DO
+                ! DO iiB=1, rec_block_size
+                !   mp2_env%ri_grad%Gamma_P_ia(rec_i+iiB-1,1:my_B_size,start_point:end_point)=&
+                !   mp2_env%ri_grad%Gamma_P_ia(rec_i+iiB-1,1:my_B_size,start_point:end_point)+&
+                !   BI_C_rec(iiB,1:my_B_size,start_point:end_point)
+                ! END DO
+                ! DO jjB=1, rec_block_size
+                !   mp2_env%ri_grad%Gamma_P_ia(rec_j+jjB-1,1:my_B_size,start_point:end_point)=&
+                !   mp2_env%ri_grad%Gamma_P_ia(rec_j+jjB-1,1:my_B_size,start_point:end_point)+&
+                !   BI_C_rec(jjB+rec_block_size,1:my_B_size,start_point:end_point)
+                ! END DO
+              END DO
+              CALL timestop(handle4)
+
+              DEALLOCATE(BI_C_rec)
+
+            ELSE
+              ! nothing to send nothing to receive
+              CALL  mp_sendrecv(null_mat_send,proc_send,&
+                                null_mat_rec,proc_receive,&
+                                para_env_exchange%group)
+
+            END IF
+          END DO
+
+        END IF
+        CALL timestop(handle3)
+      END IF
+
     END DO
     CALL timestop(handle2)   
 
@@ -1981,21 +2576,458 @@ MODULE mp2_ri_gpw
     DEALLOCATE(ij_map)
     DEALLOCATE(num_ij_pairs)
 
+    IF(calc_forces) THEN
+      DEALLOCATE(Y_i_aP, Y_j_aP, t_ab, STAT=stat)
+      CPPostcondition(stat==0,cp_failure_level,routineP,error_sub,failure)
+
+      CALL timeset(routineN//"_ij_sing",handle2)
+      ! here we check if there are almost degenerate ij
+      ! pairs and we update P_ij with these contribution.
+      ! If all pairs are degenerate with each other this step will scale O(N^6),
+      ! if the number of degenerate pairs scales linearly with the system size
+      ! this step will scale O(N^5).
+      ! Start counting the number of almost degenerate ij pairs according
+      ! to eps_canonical
+      num_sing_ij=0
+      DO iiB=1, homo
+        ! diagonal elements already updated
+        DO jjB=iiB+1, homo
+          IF(ABS(Eigenval(jjB)-Eigenval(iiB))<mp2_env%ri_mp2%eps_canonical) num_sing_ij=num_sing_ij+1
+        END DO
+      END DO
+
+      IF (unit_nr>0) THEN
+         WRITE (UNIT=unit_nr,FMT="(T3,A,T75,i6)")&
+                                 "MO_INFO| Number of ij pairs below EPS_CANONICAL:",num_sing_ij
+      END IF
+
+      ! total number of elemets that have to be computed
+      total_ijk=homo*num_sing_ij
+      ALLOCATE(ijk_map(total_ijk,3),STAT=stat)
+      CPPostcondition(stat==0,cp_failure_level,routineP,error_sub,failure)
+      ijk_map=0
+      my_ijk=0
+      ijk_counter=0
+      DO iiB=1, homo
+        ! diagonal elements already updated
+        DO jjB=iiB+1, homo
+          IF(ABS(Eigenval(jjB)-Eigenval(iiB))>=mp2_env%ri_mp2%eps_canonical) CYCLE
+          DO kkB=1, homo
+            ijk_counter=ijk_counter+1
+            ijk_map(ijk_counter,1)=iiB
+            ijk_map(ijk_counter,2)=jjB
+            ijk_map(ijk_counter,3)=kkB
+            IF (MOD(ijk_counter,ngroup)==color_sub) my_ijk=my_ijk+1
+          END DO
+        END DO
+      END DO
+
+      ALLOCATE(num_ijk(0:para_env_exchange%num_pe-1),STAT=stat)
+      CPPostcondition(stat==0,cp_failure_level,routineP,error_sub,failure)
+      num_ijk=0
+      num_ijk(para_env_exchange%mepos)=my_ijk
+      CALL mp_sum(num_ijk,para_env_exchange%group)
+      max_ijk=MAXVAL(num_ijk)
+
+      ALLOCATE(local_i_aL(dimen_RI,my_B_size,1),STAT=stat)
+      CPPostcondition(stat==0,cp_failure_level,routineP,error_sub,failure)
+      ALLOCATE(local_j_aL(dimen_RI,my_B_size,1),STAT=stat)
+      CPPostcondition(stat==0,cp_failure_level,routineP,error_sub,failure)
+      ALLOCATE(local_k_aL(dimen_RI,my_B_size,1),STAT=stat)
+      CPPostcondition(stat==0,cp_failure_level,routineP,error_sub,failure)
+      ALLOCATE(t_ab(virtual,my_B_size),STAT=stat)
+      CPPostcondition(stat==0,cp_failure_level,routineP,error_sub,failure)
+
+      DO ijk_index=1, max_ijk
+
+        IF(ijk_index<=my_ijk) THEN
+          ! work to be done
+          ijk_counter=(ijk_index-MIN(1,color_sub))*ngroup+color_sub
+          my_i=ijk_map(ijk_counter,1)
+          my_j=ijk_map(ijk_counter,2)
+          my_k=ijk_map(ijk_counter,3)
+
+          local_i_aL=0.0_dp
+          local_j_al=0.0_dp
+          local_k_al=0.0_dp
+          DO irep=0, num_integ_group-1
+            Lstart_pos=ranges_info_array(1,irep,para_env_exchange%mepos)
+            Lend_pos=ranges_info_array(2,irep,para_env_exchange%mepos)
+            start_point=ranges_info_array(3,irep,para_env_exchange%mepos)
+            end_point=ranges_info_array(4,irep,para_env_exchange%mepos)
+
+            local_i_aL(Lstart_pos:Lend_pos,1:my_B_size,1)=BIb_C(start_point:end_point,1:my_B_size,my_i)
+            local_j_aL(Lstart_pos:Lend_pos,1:my_B_size,1)=BIb_C(start_point:end_point,1:my_B_size,my_j)
+            local_k_aL(Lstart_pos:Lend_pos,1:my_B_size,1)=BIb_C(start_point:end_point,1:my_B_size,my_k)
+          END DO
+
+          DO proc_shift=1, para_env_exchange%num_pe-1
+            proc_send=proc_map(para_env_exchange%mepos+proc_shift)
+            proc_receive=proc_map(para_env_exchange%mepos-proc_shift)
+
+            send_ijk_index=num_ijk(proc_send)
+
+            rec_L_size=sizes_array(proc_receive)
+            ALLOCATE(BI_C_rec(rec_L_size,my_B_size,1),STAT=stat)
+            CPPostcondition(stat==0,cp_failure_level,routineP,error_sub,failure)
+
+            IF(ijk_index<=send_ijk_index) THEN
+              ! something to send
+              ijk_counter_send=(ijk_index-MIN(1,integ_group_pos2color_sub(proc_send)))*ngroup+integ_group_pos2color_sub(proc_send)
+              send_i=ijk_map(ijk_counter_send,1)
+              send_j=ijk_map(ijk_counter_send,2)
+              send_k=ijk_map(ijk_counter_send,3)
+            END IF
+
+            ! occupied i
+            BI_C_rec=0.0_dp
+            IF(ijk_index<=send_ijk_index) THEN
+              CALL  mp_sendrecv(BIb_C(1:my_group_L_size,1:my_B_size,send_i),proc_send,&
+                                BI_C_rec(1:rec_L_size,1:my_B_size,1),proc_receive,&
+                                para_env_exchange%group)
+            ELSE
+              ! nothing to send
+              CALL  mp_sendrecv(null_mat_send,proc_send,&
+                                BI_C_rec(1:rec_L_size,1:my_B_size,1:1),proc_receive,&
+                                para_env_exchange%group)
+            END IF
+            DO irep=0, num_integ_group-1
+              Lstart_pos=ranges_info_array(1,irep,proc_receive)
+              Lend_pos=ranges_info_array(2,irep,proc_receive)
+              start_point=ranges_info_array(3,irep,proc_receive)
+              end_point=ranges_info_array(4,irep,proc_receive)
+
+              local_i_aL(Lstart_pos:Lend_pos,1:my_B_size,1)=BI_C_rec(start_point:end_point,1:my_B_size,1)
+            END DO
+
+            ! occupied j
+            BI_C_rec=0.0_dp
+            IF(ijk_index<=send_ijk_index) THEN
+              CALL  mp_sendrecv(BIb_C(1:my_group_L_size,1:my_B_size,send_j),proc_send,&
+                                BI_C_rec(1:rec_L_size,1:my_B_size,1),proc_receive,&
+                                para_env_exchange%group)
+            ELSE
+              ! nothing to send
+              CALL  mp_sendrecv(null_mat_send,proc_send,&
+                                BI_C_rec(1:rec_L_size,1:my_B_size,1:1),proc_receive,&
+                                para_env_exchange%group)
+            END IF
+            DO irep=0, num_integ_group-1
+              Lstart_pos=ranges_info_array(1,irep,proc_receive)
+              Lend_pos=ranges_info_array(2,irep,proc_receive)
+              start_point=ranges_info_array(3,irep,proc_receive)
+              end_point=ranges_info_array(4,irep,proc_receive)
+
+              local_j_aL(Lstart_pos:Lend_pos,1:my_B_size,1)=BI_C_rec(start_point:end_point,1:my_B_size,1)
+            END DO
+
+            ! occupied k
+            BI_C_rec=0.0_dp
+            IF(ijk_index<=send_ijk_index) THEN
+              CALL  mp_sendrecv(BIb_C(1:my_group_L_size,1:my_B_size,send_k),proc_send,&
+                                BI_C_rec(1:rec_L_size,1:my_B_size,1),proc_receive,&
+                                para_env_exchange%group)
+            ELSE
+              ! nothing to send
+              CALL  mp_sendrecv(null_mat_send,proc_send,&
+                                BI_C_rec(1:rec_L_size,1:my_B_size,1:1),proc_receive,&
+                                para_env_exchange%group)
+            END IF
+            DO irep=0, num_integ_group-1
+              Lstart_pos=ranges_info_array(1,irep,proc_receive)
+              Lend_pos=ranges_info_array(2,irep,proc_receive)
+              start_point=ranges_info_array(3,irep,proc_receive)
+              end_point=ranges_info_array(4,irep,proc_receive)
+
+              local_k_aL(Lstart_pos:Lend_pos,1:my_B_size,1)=BI_C_rec(start_point:end_point,1:my_B_size,1)
+            END DO
+
+            DEALLOCATE(BI_C_rec)
+          END DO
+
+          ! expand integrals
+          CALL timeset(routineN//"_exp_ik",handle3)
+          local_ab=0.0_dp
+          CALL dgemm('T','N',my_B_size,my_B_size,dimen_RI,1.0_dp,&
+                         local_i_aL(:,:,1),dimen_RI,local_k_aL(:,:,1),dimen_RI,&
+                         0.0_dp,local_ab(my_B_virtual_start:my_B_virtual_end,1:my_B_size),my_B_size)
+          DO proc_shift=1, para_env_sub%num_pe-1
+            proc_send=sub_proc_map(para_env_sub%mepos+proc_shift)
+            proc_receive=sub_proc_map(para_env_sub%mepos-proc_shift)
+
+            rec_B_size=sizes_B_virtual(proc_receive)
+            rec_B_virtual_end=ends_B_virtual(proc_receive)
+            rec_B_virtual_start=starts_B_virtual(proc_receive)
+
+            ALLOCATE(external_i_aL(dimen_RI,rec_B_size),STAT=stat)
+            CPPostcondition(stat==0,cp_failure_level,routineP,error_sub,failure)
+            external_i_aL=0.0_dp
+
+            CALL  mp_sendrecv(local_i_aL(:,:,1),proc_send,&
+                              external_i_aL,proc_receive,&
+                              para_env_sub%group)
+
+            CALL dgemm('T','N',rec_B_size,my_B_size,dimen_RI,1.0_dp,&
+                           external_i_aL,dimen_RI,local_k_aL(:,:,1),dimen_RI,&
+                           0.0_dp,local_ab(rec_B_virtual_start:rec_B_virtual_end,1:my_B_size),rec_B_size)
+
+            DEALLOCATE(external_i_aL)
+          END DO
+          CALL timestop(handle3)
+
+          CALL timeset(routineN//"_tab",handle3)
+          t_ab=0.0_dp
+          DO b=1, my_B_size
+            b_global=b+my_B_virtual_start-1
+            DO a=1, my_B_size
+              a_global=a+my_B_virtual_start-1
+              t_ab(a_global,b)=(2.0_dp*local_ab(a_global,b)-local_ab(b_global,a))/&
+                               (Eigenval(my_i)+Eigenval(my_k)-Eigenval(homo+a_global)-Eigenval(homo+b_global))
+            END DO
+          END DO
+          DO proc_shift=1, para_env_sub%num_pe-1
+            proc_send=sub_proc_map(para_env_sub%mepos+proc_shift)
+            proc_receive=sub_proc_map(para_env_sub%mepos-proc_shift)
+
+            rec_B_size=sizes_B_virtual(proc_receive)
+            rec_B_virtual_end=ends_B_virtual(proc_receive)
+            rec_B_virtual_start=starts_B_virtual(proc_receive)
+
+            send_B_size=sizes_B_virtual(proc_send)
+            send_B_virtual_end=ends_B_virtual(proc_send)
+            send_B_virtual_start=starts_B_virtual(proc_send)
+
+            ALLOCATE(external_ab(my_B_size,rec_B_size),STAT=stat)
+            CPPostcondition(stat==0,cp_failure_level,routineP,error_sub,failure)
+            external_ab=0.0_dp
+
+            CALL  mp_sendrecv(local_ab(send_B_virtual_start:send_B_virtual_end,1:my_B_size),proc_send,&
+                              external_ab(1:my_B_size,1:rec_B_size),proc_receive,&
+                              para_env_sub%group)
+
+            DO b=1, my_B_size
+              b_global=b+my_B_virtual_start-1
+              DO a=1, rec_B_size
+                a_global=a+rec_B_virtual_start-1
+                t_ab(a_global,b)=(2.0_dp*local_ab(a_global,b)-external_ab(b,a))/&
+                                 (Eigenval(my_i)+Eigenval(my_k)-Eigenval(homo+a_global)-Eigenval(homo+b_global))
+              END DO
+            END DO
+
+            DEALLOCATE(external_ab)
+          END DO
+          CALL timestop(handle3)
+
+          CALL timeset(routineN//"_exp_jk",handle3)
+          local_ab=0.0_dp
+          CALL dgemm('T','N',my_B_size,my_B_size,dimen_RI,1.0_dp,&
+                         local_j_aL(:,:,1),dimen_RI,local_k_aL(:,:,1),dimen_RI,&
+                         0.0_dp,local_ab(my_B_virtual_start:my_B_virtual_end,1:my_B_size),my_B_size)
+          DO proc_shift=1, para_env_sub%num_pe-1
+            proc_send=sub_proc_map(para_env_sub%mepos+proc_shift)
+            proc_receive=sub_proc_map(para_env_sub%mepos-proc_shift)
+
+            rec_B_size=sizes_B_virtual(proc_receive)
+            rec_B_virtual_end=ends_B_virtual(proc_receive)
+            rec_B_virtual_start=starts_B_virtual(proc_receive)
+
+            ALLOCATE(external_i_aL(dimen_RI,rec_B_size),STAT=stat)
+            CPPostcondition(stat==0,cp_failure_level,routineP,error_sub,failure)
+            external_i_aL=0.0_dp
+
+            CALL  mp_sendrecv(local_j_aL(:,:,1),proc_send,&
+                              external_i_aL,proc_receive,&
+                              para_env_sub%group)
+
+            CALL dgemm('T','N',rec_B_size,my_B_size,dimen_RI,1.0_dp,&
+                           external_i_aL,dimen_RI,local_k_aL(:,:,1),dimen_RI,&
+                           0.0_dp,local_ab(rec_B_virtual_start:rec_B_virtual_end,1:my_B_size),rec_B_size)
+
+            DEALLOCATE(external_i_aL)
+          END DO
+          CALL timestop(handle3)
+
+          CALL timeset(routineN//"_Pij",handle3)
+          DO b=1, my_B_size
+            b_global=b+my_B_virtual_start-1
+            DO a=1, virtual
+              local_ab(a,b)=local_ab(a,b)/&
+                            (Eigenval(my_j)+Eigenval(my_k)-Eigenval(homo+a)-Eigenval(homo+b_global))
+            END DO
+          END DO
+          P_ij_elem=SUM(local_ab*t_ab)*2.0_dp
+          mp2_env%ri_grad%P_ij(my_i,my_j)=mp2_env%ri_grad%P_ij(my_i,my_j)-P_ij_elem
+          mp2_env%ri_grad%P_ij(my_j,my_i)=mp2_env%ri_grad%P_ij(my_j,my_i)-P_ij_elem
+          CALL timestop(handle3)
+
+        ELSE
+          ! no work to be done, possible messeges to be exchanged
+          DO proc_shift=1, para_env_exchange%num_pe-1
+            proc_send=proc_map(para_env_exchange%mepos+proc_shift)
+            proc_receive=proc_map(para_env_exchange%mepos-proc_shift)
+
+            send_ijk_index=num_ijk(proc_send)
+
+            IF(ijk_index<=send_ijk_index) THEN
+              ! somethig to send 
+              ijk_counter_send=(ijk_index-MIN(1,integ_group_pos2color_sub(proc_send)))*ngroup+integ_group_pos2color_sub(proc_send)
+              send_i=ijk_map(ijk_counter_send,1)
+              send_j=ijk_map(ijk_counter_send,2)
+              send_k=ijk_map(ijk_counter_send,3)
+              ! occupied i
+              CALL  mp_sendrecv(BIb_C(1:my_group_L_size,1:my_B_size,send_i:send_i),proc_send,&
+                                null_mat_rec,proc_receive,&
+                                para_env_exchange%group)
+              ! occupied j
+              CALL  mp_sendrecv(BIb_C(1:my_group_L_size,1:my_B_size,send_j:send_j),proc_send,&
+                                null_mat_rec,proc_receive,&
+                                para_env_exchange%group)
+              ! occupied k
+              CALL  mp_sendrecv(BIb_C(1:my_group_L_size,1:my_B_size,send_k:send_k),proc_send,&
+                                null_mat_rec,proc_receive,&
+                                para_env_exchange%group)
+            ELSE
+              ! nothing to send 
+              ! occupied i
+              CALL  mp_sendrecv(null_mat_send,proc_send,&
+                                null_mat_rec,proc_receive,&
+                                para_env_exchange%group)
+              ! occupied j
+              CALL  mp_sendrecv(null_mat_send,proc_send,&
+                                null_mat_rec,proc_receive,&
+                                para_env_exchange%group)
+              ! occupied k
+              CALL  mp_sendrecv(null_mat_send,proc_send,&
+                                null_mat_rec,proc_receive,&
+                                para_env_exchange%group)
+            END IF
+
+          END DO ! proc loop
+        END IF
+      END DO ! ijk_index loop
+      CALL timestop(handle2)
+
+      DEALLOCATE(local_i_aL, local_j_aL, local_k_aL)
+      DEALLOCATE(ijk_map)
+      DEALLOCATE(num_ijk)
+      DEALLOCATE(t_ab)
+
+    END IF
+
     DEALLOCATE(integ_group_pos2color_sub)
+    DEALLOCATE(local_ab)
 
     CALL mp_sum(Emp2_Cou,para_env%group)
     CALL mp_sum(Emp2_Ex,para_env%group)
   
+    IF(calc_forces) THEN
+      ! sum P_ab
+      mp2_env%ri_grad%P_ab=mp2_env%ri_grad%P_ab*2.0_dp
+      sub_P_color=para_env_sub%mepos
+      CALL mp_comm_split_direct(para_env%group,comm_P,sub_P_color)
+      NULLIFY(para_env_P)
+      CALL cp_para_env_create(para_env_P,comm_P,error=error_sub)
+      CALL mp_sum(mp2_env%ri_grad%P_ab,para_env_P%group)
+      ! release para_env_P
+      CALL cp_para_env_release(para_env_P,error=error_sub)
+     
+      ! sum P_ij (later)
+      ! mp2_env%ri_grad%P_ij=mp2_env%ri_grad%P_ij*2.0_dp
+      ! CALL mp_sum(mp2_env%ri_grad%P_ij,para_env%group)
+      ! WRITE(*,*) mp2_env%ri_mp2%eps_canonical
+
+      ! XXXXXXXXXXXXXX
+      ! Write P_ab
+      ! ALLOCATE(external_ab(virtual,virtual))
+      ! external_ab=0.0_dp
+      ! external_ab(my_B_virtual_start:my_B_virtual_end,1:virtual)=mp2_env%ri_grad%P_ab
+      ! CALL mp_sum(external_ab,para_env_sub%group)
+      ! IF(para_env%mepos==0) CALL write_array(external_ab)
+      ! DEALLOCATE(external_ab) 
+      ! ! Write P_ij
+      ! IF(para_env%mepos==0) CALL write_array(mp2_env%ri_grad%P_ij)
+      ! XXXXXXXXXXXXXX
+
+      ! recover original information (before replication)
+      DEALLOCATE(sizes_array)
+      iiB=SIZE(sizes_array_orig)
+      ALLOCATE(sizes_array(0:iiB-1),STAT=stat)
+      CPPostcondition(stat==0,cp_failure_level,routineP,error_sub,failure)
+      sizes_array(:)=sizes_array_orig
+      DEALLOCATE(sizes_array_orig)
+
+      ! make a copy of the original integrals (ia|Q)
+      my_group_L_size=my_group_L_size_orig
+      ALLOCATE(B_ia_Q(homo,my_B_size,my_group_L_size))
+      B_ia_Q=0.0_dp
+      DO jjB=1, homo
+        DO iiB=1, my_B_size
+          B_ia_Q(jjB,iiB,1:my_group_L_size)=BIb_C(1:my_group_L_size,iiB,jjB)
+        END DO
+      END DO
+      DEALLOCATE(BIb_C)
+
+      ! sum Gamma and dereplicate
+      ALLOCATE(BIb_C(homo,my_B_size,my_group_L_size))
+      DO proc_shift=1, para_env_rep%num_pe-1
+        ! invert order
+        proc_send=proc_map_rep(para_env_rep%mepos-proc_shift)
+        proc_receive=proc_map_rep(para_env_rep%mepos+proc_shift)
+
+        start_point=ranges_info_array(3,proc_shift,para_env_exchange%mepos)
+        end_point=ranges_info_array(4,proc_shift,para_env_exchange%mepos)
+
+        BIb_C=0.0_dp
+
+        CALL  mp_sendrecv(mp2_env%ri_grad%Gamma_P_ia(1:homo,1:my_B_size,start_point:end_point),proc_send,&
+                          BIb_C,proc_receive,&
+                          para_env_rep%group)
+
+        mp2_env%ri_grad%Gamma_P_ia(1:homo,1:my_B_size,1:my_group_L_size)=&
+                                    mp2_env%ri_grad%Gamma_P_ia(1:homo,1:my_B_size,1:my_group_L_size)+BIb_C
+
+      END DO
+      BIb_C(:,:,:)=mp2_env%ri_grad%Gamma_P_ia(1:homo,1:my_B_size,1:my_group_L_size)
+      DEALLOCATE(mp2_env%ri_grad%Gamma_P_ia)
+      ALLOCATE(mp2_env%ri_grad%Gamma_P_ia(homo,my_B_size,my_group_L_size),STAT=stat)
+      CPPostcondition(stat==0,cp_failure_level,routineP,error_sub,failure)
+      mp2_env%ri_grad%Gamma_P_ia(:,:,:)=BIb_C
+      DEALLOCATE(BIb_C)
+
+      CALL complete_gamma(mp2_env,B_ia_Q,dimen_RI,homo,virtual,para_env,para_env_sub,ngroup,color_sub,&
+                          my_group_L_size,my_group_L_start,my_group_L_end,&
+                          my_B_size,my_B_virtual_start,my_B_virtual_end,&
+                          ends_array,ends_B_virtual,sizes_array,sizes_B_virtual,starts_array,starts_B_virtual,&     
+                          sub_proc_map,error,error_sub)                   
+
+      ! ALLOCATE(Y_i_aP(homo,virtual,dimen_RI))
+      ! Y_i_aP=0.0_dp
+      ! Y_i_aP(1:homo,my_B_virtual_start:my_B_virtual_end,my_group_L_start:my_group_L_end)=mp2_env%ri_grad%Gamma_P_ia
+      ! CALL mp_sum(Y_i_aP,para_env%group)
+      ! IF(para_env%mepos==0) THEN
+      !   DO iiB=1, dimen_RI
+      !     WRITE(*,*) iiB
+      !     CALL write_array(Y_i_aP(1:homo,1:virtual,iiB))
+      !     WRITE(*,*) 
+      !   END DO
+      ! END IF
+      ! DEALLOCATE(Y_i_aP)
+
+    END IF
+
     Emp2=Emp2_Cou+Emp2_EX
 
     DEALLOCATE(proc_map)
-    DEALLOCATE(sub_proc_map)
+    DEALLOCATE(sub_proc_map) 
+    DEALLOCATE(proc_map_rep)
     DEALLOCATE(ranges_info_array)
 
     IF(.NOT.my_open_shell_SS) THEN
       ! keep the array for the next calculations
-      DEALLOCATE(BIb_C)
+      IF(ALLOCATED(BIb_C)) DEALLOCATE(BIb_C)
       DEALLOCATE(sizes_array)
+      DEALLOCATE(starts_array)
+      DEALLOCATE(ends_array)
       DEALLOCATE(starts_B_virtual)
       DEALLOCATE(ends_B_virtual)
       DEALLOCATE(sizes_B_virtual)
@@ -2008,6 +3040,7 @@ MODULE mp2_ri_gpw
     END IF
 
     CALL cp_para_env_release(para_env_exchange,error=error_sub)
+    CALL cp_para_env_release(para_env_rep,error=error_sub)
 
     my_flop_rate=my_flop_rate/REAL(MAX(my_num_dgemm_call,1),KIND=dp)/1.0E9_dp
     CALL mp_sum(my_flop_rate,para_env%group)
@@ -2019,8 +3052,38 @@ MODULE mp2_ri_gpw
 
     END SUBROUTINE mp2_ri_gpw_compute_en
 
-    SUBROUTINE replicate_iaK_2intgroup(BIb_C,para_env,para_env_sub,para_env_exchange,ngroup,integ_group_size,num_integ_group,&
-                                       homo,proc_map,&
+! *****************************************************************************
+!> \brief ...
+!> \param BIb_C ...
+!> \param para_env ...
+!> \param para_env_sub ...
+!> \param para_env_exchange ...
+!> \param para_env_rep ...
+!> \param ngroup ...
+!> \param integ_group_size ...
+!> \param num_integ_group ...
+!> \param homo ...
+!> \param proc_map ...
+!> \param proc_map_rep ...
+!> \param ends_array ...
+!> \param ends_B_virtual ...
+!> \param sizes_array ...
+!> \param sizes_B_virtual ...
+!> \param starts_array ...
+!> \param starts_B_virtual ...
+!> \param my_B_size ...
+!> \param my_B_virtual_start ...
+!> \param my_B_virtual_end ...
+!> \param my_group_L_size ...
+!> \param my_group_L_start ...
+!> \param my_group_L_end ...
+!> \param my_new_group_L_size ...
+!> \param new_sizes_array ...
+!> \param ranges_info_array ...
+!> \param error_sub ...
+! *****************************************************************************
+    SUBROUTINE replicate_iaK_2intgroup(BIb_C,para_env,para_env_sub,para_env_exchange,para_env_rep,&
+                                       ngroup,integ_group_size,num_integ_group,homo,proc_map,proc_map_rep,&
                                        ends_array,ends_B_virtual,sizes_array,sizes_B_virtual,starts_array,starts_B_virtual,&
                                        my_B_size,my_B_virtual_start,my_B_virtual_end,&
                                        my_group_L_size,my_group_L_start,my_group_L_end,&
@@ -2029,10 +3092,11 @@ MODULE mp2_ri_gpw
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :, :)                     :: BIb_C
     TYPE(cp_para_env_type), POINTER          :: para_env, para_env_sub, &
-                                                para_env_exchange
+                                                para_env_exchange, &
+                                                para_env_rep
     INTEGER                                  :: ngroup, integ_group_size, &
                                                 num_integ_group, homo
-    INTEGER, ALLOCATABLE, DIMENSION(:) :: proc_map, ends_array, &
+    INTEGER, ALLOCATABLE, DIMENSION(:) :: proc_map, proc_map_rep, ends_array, &
       ends_B_virtual, sizes_array, sizes_B_virtual, starts_array, &
       starts_B_virtual
     INTEGER :: my_B_size, my_B_virtual_start, my_B_virtual_end, &
@@ -2046,7 +3110,7 @@ MODULE mp2_ri_gpw
 
     INTEGER :: comm_rep, end_point, handle, i, max_L_size, proc_receive, &
       proc_send, proc_shift, start_point, stat, sub_sub_color
-    INTEGER, ALLOCATABLE, DIMENSION(:)       :: proc_map_rep, rep_ends_array, &
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: rep_ends_array, &
                                                 rep_sizes_array, &
                                                 rep_starts_array
     LOGICAL                                  :: failure
@@ -2054,7 +3118,6 @@ MODULE mp2_ri_gpw
       DIMENSION(:, :, :)                     :: BIb_C_copy
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :, :, :)                  :: BIb_C_gather
-    TYPE(cp_para_env_type), POINTER          :: para_env_rep
 
     CALL timeset(routineN,handle)
     failure=.FALSE.                                      
@@ -2129,7 +3192,7 @@ MODULE mp2_ri_gpw
       ! replication scheme using mp_sendrecv
       ALLOCATE(BIb_C_copy(my_group_L_size,my_B_size,homo),STAT=stat)
       CPPostcondition(stat==0,cp_failure_level,routineP,error_sub,failure)
-      BIb_C_copy=BIb_C
+      BIb_C_copy(:,:,:)=BIb_C
 
       DEALLOCATE(BIb_C)
 
@@ -2198,16 +3261,34 @@ MODULE mp2_ri_gpw
 
     END IF
 
-    DEALLOCATE(proc_map_rep)
+    ! DEALLOCATE(proc_map_rep)
     DEALLOCATE(rep_sizes_array)
     DEALLOCATE(rep_starts_array)
     DEALLOCATE(rep_ends_array)
 
-    CALL  cp_para_env_release(para_env_rep,error=error_sub)
+    ! CALL  cp_para_env_release(para_env_rep,error=error_sub)
 
     CALL timestop(handle)
 
     END SUBROUTINE replicate_iaK_2intgroup
 
+! *****************************************************************************
+!> \brief ...
+!> \param mat ...
+! *****************************************************************************
+      SUBROUTINE write_array(mat)
+    REAL(KIND=dp), DIMENSION(:, :)           :: mat
+
+    INTEGER                                  :: iii, jjj
+
+      WRITE(*,*)
+      DO iii=1, SIZE(mat,1)
+        DO jjj=1, SIZE(mat,2), 20
+          WRITE(*,'(1000F10.5)') mat(iii,jjj:MIN(SIZE(mat,2),jjj+19))
+        END DO
+        WRITE(*,*)
+      END DO
+      WRITE(*,*)
+     END SUBROUTINE
 
 END MODULE mp2_ri_gpw

@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2013  CP2K developers group                          !
+!   Copyright (C) 2000 - 2014  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -12,9 +12,9 @@
 !> \author fawzi
 ! *****************************************************************************
 MODULE qs_wf_history_types
-  USE cp_dbcsr_operations,             ONLY: cp_dbcsr_deallocate_matrix,&
-                                             cp_dbcsr_deallocate_matrix_set
-  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_p_type,&
+  USE cp_dbcsr_interface,              ONLY: cp_dbcsr_deallocate_matrix,&
+                                             cp_dbcsr_deallocate_matrix_set,&
+                                             cp_dbcsr_p_type,&
                                              cp_dbcsr_type
   USE cp_fm_types,                     ONLY: cp_fm_p_type,&
                                              cp_fm_release
@@ -23,7 +23,7 @@ MODULE qs_wf_history_types
   USE pw_types,                        ONLY: pw_p_type
   USE qs_rho_types,                    ONLY: qs_rho_release,&
                                              qs_rho_type
-#include "cp_common_uses.h"
+#include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
   PRIVATE
@@ -31,10 +31,9 @@ MODULE qs_wf_history_types
   LOGICAL, PRIVATE, PARAMETER :: debug_this_module=.TRUE.
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_wf_history_types'
 
-  PUBLIC :: qs_wf_snapshot_type, qs_wf_snapshot_p_type, &
+  PUBLIC :: qs_wf_snapshot_type, qs_wf_snapshot_p_type,&
             qs_wf_history_type, qs_wf_history_p_type
-  PUBLIC :: wfs_retain, wfs_release, wfi_retain, wfi_release, wfi_get_snapshot, &
-            wfi_clear_history
+  PUBLIC :: wfs_release, wfi_retain, wfi_release, wfi_get_snapshot
 
 ! *****************************************************************************
 !> \brief represent a past snapshot of the wavefunction.
@@ -266,6 +265,7 @@ END SUBROUTINE wfi_release
 !> \param index the index of the snapshot you want
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
+!> \retval res ...
 !> \par History
 !>      12.2002 created [fawzi]
 !> \author fawzi

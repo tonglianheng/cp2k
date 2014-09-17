@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2013  CP2K developers group                          !
+!   Copyright (C) 2000 - 2014  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -20,6 +20,9 @@ MODULE environment
        r_host_name, r_pid, r_user_name
   USE cp_files,                        ONLY: close_file,&
                                              open_file
+  USE cp_fm_diag,                      ONLY: diag_init
+  USE cp_fm_struct,                    ONLY: cp_fm_struct_config
+  USE cp_fm_types,                     ONLY: cp_fm_setup
   USE cp_ma_interface,                 ONLY: &
        cp_ma_config, cp_ma_current_thread_run, cp_ma_mempol, cp_ma_mpi_sched, &
        cp_ma_print_machine, cp_ma_print_strategy, cp_ma_run_on, &
@@ -37,11 +40,12 @@ MODULE environment
   USE header,                          ONLY: cp2k_footer,&
                                              cp2k_header
   USE input_constants,                 ONLY: &
-       callgraph_all, callgraph_none, debug_print_level, do_cp2k, do_eip, &
-       do_farming, do_fft_fftw3, do_fft_sg, do_fist, do_qs, do_test, &
-       energy_run, high_print_level, id_development_version, low_print_level, &
+       callgraph_all, callgraph_none, debug_print_level, do_cp2k, &
+       do_diag_elpa, do_diag_sl, do_diag_sl2, do_eip, do_farming, &
+       do_fft_fftw3, do_fft_sg, do_fist, do_qs, do_test, energy_run, &
+       high_print_level, id_development_version, low_print_level, &
        medium_print_level, mol_dyn_run, none_run, silent_print_level
-  USE input_cp2k,                      ONLY: create_global_section
+  USE input_cp2k_global,               ONLY: create_global_section
   USE input_enumeration_types,         ONLY: enum_i2c,&
                                              enumeration_type
   USE input_keyword_types,             ONLY: keyword_get,&
@@ -62,7 +66,10 @@ MODULE environment
                                              m_flush_internal,&
                                              m_memory_details,&
                                              m_procrun
-  USE machine_architecture_types
+  USE machine_architecture_types,      ONLY: group,&
+                                             has_ma,&
+                                             local,&
+                                             threads
   USE message_passing,                 ONLY: add_mp_perf_env,&
                                              describe_mp_perf_env,&
                                              mp_max,&
@@ -77,7 +84,8 @@ MODULE environment
                                              write_rng_matrices,&
                                              write_rng_stream
   USE physcon,                         ONLY: write_physcon
-  USE reference_manager,               ONLY: print_all_references,&
+  USE reference_manager,               ONLY: collect_citations_from_ranks,&
+                                             print_all_references,&
                                              print_format_journal
   USE string_utilities,                ONLY: ascii_to_string,&
                                              integer_to_string,&
@@ -90,13 +98,13 @@ MODULE environment
                                              timeset,&
                                              timestop,&
                                              timings_setup_tracing
-  USE timings_report,                  ONLY: accu_type_energy,&
-                                             accu_type_time,&
+  USE timings_report,                  ONLY: cost_type_energy,&
+                                             cost_type_time,&
                                              timings_report_callgraph,&
                                              timings_report_print
 
   !$ USE OMP_LIB
-#include "cp_common_uses.h"
+#include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
 
@@ -111,6 +119,11 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Initializes a CP2K run (setting of the global environment variables)
+!> \param para_env ...
+!> \param output_unit ...
+!> \param globenv ...
+!> \param input_file_name ...
+!> \param wdir ...
 !> \par History
 !>      JGH (28.11.2001) : default for pp_library_path
 !>      - print keys added (17.01.2002, MK)
@@ -129,7 +142,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=default_string_length)     :: dev_flag
-    INTEGER                                  :: ipe, my_output_unit
+    INTEGER                                  :: my_output_unit
     TYPE(cp_logger_type), POINTER            :: logger
 #if defined(__HPM)
 #include "f_hpm.h"
@@ -201,6 +214,8 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief echos the list of host names and pids
+!> \param para_env ...
+!> \param output_unit ...
 ! *****************************************************************************
   SUBROUTINE echo_all_hosts(para_env,output_unit)
     TYPE(cp_para_env_type), POINTER          :: para_env
@@ -258,6 +273,8 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief echos the list the number of process per host
+!> \param para_env ...
+!> \param output_unit ...
 ! *****************************************************************************
   SUBROUTINE echo_all_process_host(para_env,output_unit)
     TYPE(cp_para_env_type), POINTER          :: para_env
@@ -327,14 +344,17 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief read part of cp2k_init
+!> \param root_section ...
+!> \param para_env ...
 !> \param globenv the globenv
+!> \param error ...
+!> \author fawzi
 !> \note
 !>      The following routines need to be synchronized wrt. adding/removing
 !>      of the default environments (logging, perormance,error):
 !>      environment:cp2k_init, environment:cp2k_finalize,
 !>      f77_interface:f_env_add_defaults, f77_interface:f_env_rm_defaults,
 !>      f77_interface:create_force_env, f77_interface:destroy_force_env
-!> \author fawzi
 ! *****************************************************************************
   SUBROUTINE cp2k_read(root_section,para_env,globenv,error)
 
@@ -393,13 +413,15 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief globenv initializations that need the input and error
+!> \param root_section ...
+!> \param para_env ...
 !> \param globenv the global environment to initialize
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
+!> \author fawzi
 !> \note
 !>      if possible do the initializations here as the environement
 !>      (error,...) is setup, instaed of cp2k_init
-!> \author fawzi
 ! *****************************************************************************
   SUBROUTINE cp2k_setup(root_section,para_env,globenv,error)
 
@@ -470,12 +492,16 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief read the global sectionof new input
-!> \note
-!>      Should not be required anymore once everything is converted
-!>      to get information directly from the input structure
+!> \param root_section ...
+!> \param para_env ...
+!> \param globenv ...
+!> \param error ...
 !> \par History
 !>      06-2005 [created]
 !> \author MI
+!> \note
+!>      Should not be required anymore once everything is converted
+!>      to get information directly from the input structure
 ! *****************************************************************************
   SUBROUTINE read_global_section(root_section,para_env,globenv,error)
 
@@ -495,8 +521,10 @@ CONTAINS
     CHARACTER(len=default_string_length)     :: env_num, project_name
     CHARACTER(LEN=default_string_length), &
       DIMENSION(:), POINTER                  :: trace_routines
-    INTEGER :: i_fft, iforce_eval, method_name_id, n_rep_val, nforce_eval, &
-      nid, num_threads, output_unit, print_level, trace_max, unit_nr
+    INTEGER :: i_diag, i_fft, iforce_eval, method_name_id, n_rep_val, &
+      nforce_eval, num_threads, output_unit, print_level, trace_max, unit_nr
+
+!$  INTEGER :: nid
     INTEGER(kind=int_8) :: Buffers, Buffers_avr, Buffers_max, Buffers_min, &
       Cached, Cached_avr, Cached_max, Cached_min, MemFree, MemFree_avr, &
       MemFree_max, MemFree_min, MemLikelyFree, MemLikelyFree_avr, &
@@ -522,6 +550,7 @@ CONTAINS
     global_section => section_vals_get_subs_vals(root_section,"GLOBAL",error=error)
     CALL section_vals_val_get(global_section,"BLACS_GRID",i_val=globenv%blacs_grid_layout,error=error)
     CALL section_vals_val_get(global_section,"BLACS_REPEATABLE",l_val=globenv%blacs_repeatable,error=error)
+    CALL section_vals_val_get(global_section,"PREFERRED_DIAG_LIBRARY",i_val=i_diag,error=error)
     CALL section_vals_val_get(global_section,"PREFERRED_FFT_LIBRARY",i_val=i_fft,error=error)
 
     CALL section_vals_val_get(global_section,"PRINT_LEVEL",i_val=print_level,error=error)
@@ -549,7 +578,9 @@ CONTAINS
     logger=>cp_error_get_logger(error)
     output_unit=cp_print_key_unit_nr(logger,global_section,"PROGRAM_RUN_INFO",&
          extension=".log",error=error)
-         
+    
+    CALL fm_setup(global_section,error)
+     
     IF(trace .AND. (.NOT. trace_master .OR. para_env%mepos==0)) THEN
        unit_nr = -1
        IF (logger%para_env%mepos==logger%para_env%source .OR. .NOT. trace_master) &
@@ -561,6 +592,18 @@ CONTAINS
           CALL timings_setup_tracing(trace_max, unit_nr, tracing_string)
        END IF
     ENDIF 
+
+    SELECT CASE(i_diag)
+    CASE(do_diag_sl)
+       globenv%diag_library="SL" 
+    CASE(do_diag_sl2)
+       globenv%diag_library="SL2" 
+    CASE(do_diag_elpa)
+       globenv%diag_library="ELPA" 
+    CASE DEFAULT
+       CALL stop_program(routineN,moduleN,__LINE__,&
+                         "Unknown DIAG type",para_env)
+    END SELECT
 
     SELECT CASE(i_fft)
     CASE(do_fft_sg)
@@ -739,6 +782,8 @@ CONTAINS
             ADJUSTR(project_name(:40)),&
             start_section_label//"| Preferred FFT library",&
             ADJUSTR(globenv%default_fft_library(:40)),&
+            start_section_label//"| Preferred diagonalization lib.",&
+            ADJUSTR(globenv%diag_library(:40)),&
             start_section_label//"| Run type",&
             ADJUSTR(TRIM(enum_i2c(enum2,globenv%run_type_id,error=error)))
 
@@ -826,6 +871,11 @@ CONTAINS
   END SUBROUTINE read_global_section
 
 ! *****************************************************************************
+!> \brief ...
+!> \param root_section ...
+!> \param para_env ...
+!> \param globenv ...
+!> \param error ...
 !> \par History
 !>      2-Dec-2000 (JGH) added default fft library
 !> \author JGH,MK
@@ -840,10 +890,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'read_cp2k_section', &
       routineP = moduleN//':'//routineN, start_section_label = "CP2K"
 
-    COMPLEX(KIND=dp), DIMENSION(4, 4, 4)     :: zz
-    INTEGER                                  :: output_unit, stat
-    INTEGER, DIMENSION(3)                    :: n
-    LOGICAL                                  :: try_fftw
+    INTEGER                                  :: output_unit
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(section_vals_type), POINTER         :: global_section
 
@@ -852,6 +899,44 @@ CONTAINS
     logger => cp_error_get_logger(error)
     output_unit=cp_print_key_unit_nr(logger,global_section,"PROGRAM_RUN_INFO",&
          extension=".log",error=error)
+
+    CALL fft_setup_library(globenv, para_env, global_section, output_unit,error=error)
+    CALL diag_setup_library(globenv, output_unit,error=error)
+
+    CALL cp_print_key_finished_output(output_unit,logger,global_section,&
+         "PROGRAM_RUN_INFO", error=error)
+
+  END SUBROUTINE read_cp2k_section
+
+! *****************************************************************************
+!> \brief check FFT preferred library availability, if not switch
+!> \param globenv ...
+!> \param para_env ...
+!> \param global_section ...
+!> \param output_unit ...
+!> \param error ...
+!> \par History
+!>      2-Dec-2000 (JGH) added default fft library
+!>      Nov-2013 (MI) refactoring
+!> \author JGH,MK
+! *****************************************************************************
+
+
+  SUBROUTINE fft_setup_library(globenv, para_env,global_section, output_unit,error)
+
+    TYPE(global_environment_type), POINTER   :: globenv
+    TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(section_vals_type), POINTER         :: global_section
+    INTEGER, INTENT(IN)                      :: output_unit
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'fft_setup_library', &
+      routineP = moduleN//':'//routineN
+
+    COMPLEX(KIND=dp), DIMENSION(4, 4, 4)     :: zz
+    INTEGER                                  :: stat
+    INTEGER, DIMENSION(3)                    :: n
+    LOGICAL                                  :: try_fftw
 
     n(:) = 4
     zz(:,:,:) = 0.0_dp
@@ -926,13 +1011,78 @@ CONTAINS
 
     END IF
 
-    CALL cp_print_key_finished_output(output_unit,logger,global_section,&
-         "PROGRAM_RUN_INFO", error=error)
-
-  END SUBROUTINE read_cp2k_section
+  END SUBROUTINE fft_setup_library
 
 ! *****************************************************************************
+!> \brief availability diagonalizatioon library
+!>
+!> \param globenv ...
+!> \param output_unit ...
+!> \param error ...
+!> \author MI
+! *****************************************************************************
+  SUBROUTINE diag_setup_library(globenv, output_unit,error)
+    TYPE(global_environment_type), POINTER   :: globenv
+    INTEGER, INTENT(IN)                      :: output_unit
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'diag_setup_library', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: switched
+
+    switched = .FALSE.
+  
+    CALL diag_init(diag_lib=TRIM(globenv%diag_library), switched=switched,error=error)
+  
+    IF(switched) THEN
+  
+          IF (output_unit > 0) THEN
+             WRITE(output_unit,'(A,A,T55,A)') &
+                  " WARNING : DIAGONALIZATION library "//TRIM(globenv%diag_library)//&
+                  " is not available "," Trying SCALAPACK"
+          ENDIF
+  
+    END IF
+  
+  END SUBROUTINE diag_setup_library
+
+! *****************************************************************************
+!> \brief ...
+!> \param glob_section ...
+!> \param error ...
+! *****************************************************************************
+  SUBROUTINE fm_setup(glob_section,error)
+    TYPE(section_vals_type), POINTER         :: glob_section
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'fm_setup', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: multiplication_type, ncb, nrb
+    LOGICAL                                  :: force_me
+    TYPE(section_vals_type), POINTER         :: fm_section
+
+    fm_section => section_vals_get_subs_vals(glob_section,"FM",error=error)
+
+    CALL section_vals_val_get(fm_section,"NROW_BLOCKS",i_val=nrb,error=error)
+    CALL section_vals_val_get(fm_section,"NCOL_BLOCKS",i_val=ncb,error=error)
+    CALL section_vals_val_get(fm_section,"FORCE_BLOCK_SIZE",l_val=force_me,error=error)
+
+    CALL cp_fm_struct_config(nrow_block=nrb,ncol_block=ncb,force_block=force_me)
+
+    CALL section_vals_val_get(fm_section,"TYPE_OF_MATRIX_MULTIPLICATION",&
+                              i_val=multiplication_type,error=error)
+
+    CALL cp_fm_setup(multiplication_type)
+
+  END SUBROUTINE fm_setup
+! *****************************************************************************
 !> \brief reads the Walltime also in format HH:MM:SS
+!> \param section ...
+!> \param keyword_name ...
+!> \param walltime ...
+!> \param error ...
 !> \par History
 !>      none
 !> \author Mandes
@@ -976,15 +1126,20 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Writes final timings and banner for CP2K
+!> \param root_section ...
+!> \param para_env ...
+!> \param globenv ...
+!> \param wdir ...
+!> \param error ...
+!> \par History
+!>      none
+!> \author JGH,MK
 !> \note
 !>      The following routines need to be synchronized wrt. adding/removing
 !>      of the default environments (logging, perormance,error):
 !>      environment:cp2k_init, environment:cp2k_finalize,
 !>      f77_interface:f_env_add_defaults, f77_interface:f_env_rm_defaults,
 !>      f77_interface:create_force_env, f77_interface:destroy_force_env
-!> \par History
-!>      none
-!> \author JGH,MK
 ! *****************************************************************************
   SUBROUTINE cp2k_finalize(root_section,para_env,globenv,wdir,error)
 
@@ -1025,8 +1180,8 @@ CONTAINS
     CALL deallocate_orbital_pointers()
     CALL deallocate_md_ftable()
 
-    ! finalize the fft (i.e. writes the wisdom)
-    CALL finalize_fft(para_env,error)
+    ! finalize the fft (i.e. writes the wisdom if FFTW3 )
+    CALL finalize_fft(para_env,globenv%fftw_wisdom_file_name, error)
 
     ! Write message passing performance info
 
@@ -1047,6 +1202,7 @@ CONTAINS
 #endif
 
     IF (.NOT. failure) THEN
+       CALL collect_citations_from_ranks(para_env)
        iw = cp_print_key_unit_nr(logger,root_section,"GLOBAL%REFERENCES",&
             extension=".Log",error=error)
        IF (iw>0) THEN
@@ -1075,9 +1231,9 @@ CONTAINS
        r_timings = section_get_rval(root_section,"GLOBAL%TIMINGS%THRESHOLD",error)
        sort_by_self_time = section_get_lval(root_section,"GLOBAL%TIMINGS%SORT_BY_SELF_TIME",error)
        IF (m_energy().NE.0.0_dp) THEN
-          CALL timings_report_print(iw,r_timings,sort_by_self_time,accu_type_energy,para_env)
+          CALL timings_report_print(iw,r_timings,sort_by_self_time,cost_type_energy,para_env)
        ENDIF
-       CALL timings_report_print(iw,r_timings,sort_by_self_time,accu_type_time,para_env)
+       CALL timings_report_print(iw,r_timings,sort_by_self_time,cost_type_time,para_env)
     
        !Write the callgraph, if desired by user
        CALL section_vals_val_get(root_section,"GLOBAL%CALLGRAPH",i_val=cg_mode,error=error)

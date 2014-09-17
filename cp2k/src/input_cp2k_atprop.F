@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2013  CP2K developers group                          !
+!   Copyright (C) 2000 - 2014  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -10,9 +10,11 @@
 !> \author JHU
 ! *****************************************************************************
 MODULE input_cp2k_atprop
+  USE bibliography,                    ONLY: Kikuchi2009
   USE cp_output_handling,              ONLY: cp_print_key_section_create
   USE f77_blas
-  USE input_constants
+  USE input_constants,                 ONLY: add_last_numeric,&
+                                             low_print_level
   USE input_keyword_types,             ONLY: keyword_create,&
                                              keyword_release,&
                                              keyword_type
@@ -21,7 +23,7 @@ MODULE input_cp2k_atprop
                                              section_create,&
                                              section_release,&
                                              section_type
-#include "cp_common_uses.h"
+#include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
   PRIVATE
@@ -58,6 +60,7 @@ CONTAINS
        CALL section_create(section,name="ATOMIC",&
             description="Controls the calculation and printing of atomic properties ",&
             repeats=.FALSE., required=.FALSE.,&
+            citations=(/Kikuchi2009/),&
             error=error)
 
        NULLIFY(keyword)

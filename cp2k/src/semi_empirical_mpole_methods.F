@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2013  CP2K developers group                          !
+!   Copyright (C) 2000 - 2014  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -25,7 +25,7 @@ MODULE semi_empirical_mpole_methods
   USE semi_empirical_types,            ONLY: semi_empirical_type
   USE timings,                         ONLY: timeset,&
                                              timestop
-#include "cp_common_uses.h"
+#include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
 
@@ -46,8 +46,12 @@ CONTAINS
 !>        This function setup for each semi-empirical type a structure containing
 !>        the multipolar expansion for all possible combination on-site of atomic
 !>        orbitals ( \mu \nu |
-!> \author Teodoro Laino [tlaino] - University of Zurich
+!> \param mpoles ...
+!> \param se_parameter ...
+!> \param method ...
+!> \param error ...
 !> \date   09.2008
+!> \author Teodoro Laino [tlaino] - University of Zurich
 ! *****************************************************************************
   SUBROUTINE semi_empirical_mpole_p_setup(mpoles, se_parameter, method, error)
     TYPE(semi_empirical_mpole_p_type), &
@@ -232,8 +236,11 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief  Transforms the quadrupole components from sphericals to cartesians
-!> \author Teodoro Laino [tlaino] - University of Zurich
+!> \param qcart ...
+!> \param qsph ...
+!> \param error ...
 !> \date   09.2008
+!> \author Teodoro Laino [tlaino] - University of Zurich
 ! *****************************************************************************
   SUBROUTINE quadrupole_sph_to_cart(qcart, qsph, error)
     REAL(KIND=dp), DIMENSION(3, 3), &
@@ -269,8 +276,11 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Setup NDDO multipole type
-!> \author Teodoro Laino [tlaino] - University of Zurich
+!> \param nddo_mpole ...
+!> \param natom ...
+!> \param error ...
 !> \date   09.2008
+!> \author Teodoro Laino [tlaino] - University of Zurich
 ! *****************************************************************************
   SUBROUTINE nddo_mpole_setup(nddo_mpole, natom, error)
     TYPE(nddo_mpole_type), POINTER           :: nddo_mpole

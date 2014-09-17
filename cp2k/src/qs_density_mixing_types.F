@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2013  CP2K developers group                          !
+!   Copyright (C) 2000 - 2014  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -11,12 +11,12 @@
 ! *****************************************************************************
 MODULE qs_density_mixing_types
 
+  USE ao_util,                         ONLY: exp_radius
   USE input_section_types,             ONLY: section_vals_type,&
                                              section_vals_val_get
   USE kinds,                           ONLY: dp
   USE qs_rho_atom_types,               ONLY: rho_atom_coeff
-  USE qs_util,                         ONLY: exp_radius
-#include "cp_common_uses.h"
+#include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
   PRIVATE
@@ -64,6 +64,11 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief creates a mixing_storage
+!> \param mixing_store ...
+!> \param mixing_section ...
+!> \param mixing_method ...
+!> \param ecut ...
+!> \param error ...
 !> \par History
 !>      05.2009 created [MI]
 !> \author [MI]
@@ -169,6 +174,8 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief releases a mixing_storage
+!> \param mixing_store ...
+!> \param error ...
 !> \par History
 !>      05.2009 created [MI]
 !> \author [MI]

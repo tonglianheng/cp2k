@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2013  CP2K developers group                          !
+!   Copyright (C) 2000 - 2014  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -28,14 +28,14 @@ MODULE cp2k_info
 
   PUBLIC :: cp2k_year,cp2k_version,cp2k_home,id_cp2k_version
   PUBLIC :: compile_arch,compile_date,compile_host,compile_revision
-  PUBLIC :: print_cp2k_license, get_runtime_info
+  PUBLIC :: print_cp2k_license, get_runtime_info, write_restart_header
 
   ! the version string of CP2K intended to be adjust after releases and branches
-  LOGICAL, PARAMETER, PUBLIC  :: enable_color_tags=.FALSE.
 #if defined(__RELEASE_VERSION)
   INTEGER, PARAMETER          :: id_cp2k_version = id_release_version     ! (Uncomment for release     version)
 #else
   INTEGER, PARAMETER          :: id_cp2k_version = id_development_version ! (Uncomment for development version)
+! INTEGER, PARAMETER          :: id_cp2k_version = 2                      ! (Uncomment for branch      version)
 #endif
 
 #if defined(__COMPILE_REVISION)
@@ -44,8 +44,8 @@ MODULE cp2k_info
   CHARACTER(LEN=*), PARAMETER :: compile_revision = "unknown"
 #endif
 
-  CHARACTER(LEN=*), PARAMETER :: version_nr      = "2.5"
-  CHARACTER(LEN=*), PARAMETER :: cp2k_year       = "2013"
+  CHARACTER(LEN=*), PARAMETER :: version_nr      = "2.6"
+  CHARACTER(LEN=*), PARAMETER :: cp2k_year       = "2014"
   CHARACTER(LEN=*), PARAMETER :: cp2k_version    = "CP2K version "//TRIM(version_nr)
   CHARACTER(LEN=*), PARAMETER :: cp2k_home       = "http://www.cp2k.org/"
 
@@ -78,6 +78,9 @@ MODULE cp2k_info
 CONTAINS
 
 ! *****************************************************************************
+!> \brief ...
+!> \param iunit ...
+! *****************************************************************************
   SUBROUTINE print_cp2k_license(iunit)
     INTEGER                                  :: iunit
 
@@ -87,7 +90,7 @@ CONTAINS
      WRITE(iunit,'(T2,A)') '!   Copyright (C) 2000, 2001, 2002, 2003  CP2K developers group               !'
      WRITE(iunit,'(T2,A)') '!   Copyright (C) 2004, 2005, 2006, 2007  CP2K developers group               !'
      WRITE(iunit,'(T2,A)') '!   Copyright (C) 2008, 2009, 2010, 2011  CP2K developers group               !'
-     WRITE(iunit,'(T2,A)') '!   Copyright (C) 2012, 2013              CP2K developers group               !'
+     WRITE(iunit,'(T2,A)') '!   Copyright (C) 2012, 2013, 2014        CP2K developers group               !'
      WRITE(iunit,'(T2,A)') '!                                                                             !'
      WRITE(iunit,'(T2,A)') '!   This program is free software; you can redistribute it and/or modify      !'
      WRITE(iunit,'(T2,A)') '!   it under the terms of the GNU General Public License as published by      !'
@@ -114,6 +117,8 @@ CONTAINS
   END SUBROUTINE print_cp2k_license
 
 ! *****************************************************************************
+!> \brief ...
+! *****************************************************************************
   SUBROUTINE get_runtime_info
 
     r_datx = ""
@@ -128,7 +133,46 @@ CONTAINS
     CALL m_datum(r_datx)
     CALL m_getcwd(r_cwd)
 
-  END SUBROUTINE get_runtime_info
+  END SUBROUTINE
+
+
+! *****************************************************************************
+!> \brief Writes the header for the restart file
+!> \param iunit ...
+!> \par History
+!>      01.2008 [created] - Splitted from write_restart
+!> \author Teodoro Laino - University of Zurich - 01.2008
+! *****************************************************************************
+  SUBROUTINE write_restart_header(iunit)
+    INTEGER, INTENT(IN)                      :: iunit
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'write_restart_header', &
+      routineP = moduleN//':'//routineN
+
+    CHARACTER(LEN=256)                       :: cwd, datx
+
+    CALL m_datum(datx)
+    CALL m_getcwd(cwd)
+
+    WRITE (UNIT=iunit,FMT="(T2,A)") "# Version information for this restart file "
+    WRITE (UNIT=iunit,FMT="(T2,A)") "# current date "//TRIM(datx)
+    WRITE (UNIT=iunit,FMT="(T2,A)") "# current working dir "//TRIM(cwd)
+
+    WRITE (UNIT=iunit,FMT="(T2,A,T31,A50)")&
+         "# Program compiled at",&
+         ADJUSTR(compile_date(1:MIN(50,LEN(compile_date))))
+    WRITE (UNIT=iunit,FMT="(T2,A,T31,A50)")&
+         "# Program compiled on",&
+         ADJUSTR(compile_host(1:MIN(50,LEN(compile_host))))
+    WRITE (UNIT=iunit,FMT="(T2,A,T31,A50)")&
+         "# Program compiled for",&
+         ADJUSTR(compile_arch(1:MIN(50,LEN(compile_arch))))
+    WRITE (UNIT=iunit,FMT="(T2,A,T31,A50)")&
+         "# Source code revision number",&
+         ADJUSTR(compile_revision)
+
+  END SUBROUTINE write_restart_header
+
 
 END MODULE cp2k_info
 

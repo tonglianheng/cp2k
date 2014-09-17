@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2013  CP2K developers group                          !
+!   Copyright (C) 2000 - 2014  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -12,7 +12,14 @@
 MODULE input_cp2k_mixed
   USE cp_output_handling,              ONLY: cp_print_key_section_create
   USE f77_blas
-  USE input_constants
+  USE input_constants,                 ONLY: add_last_numeric,&
+                                             low_print_level,&
+                                             medium_print_level,&
+                                             mix_coupled,&
+                                             mix_generic,&
+                                             mix_linear_combination,&
+                                             mix_minimum,&
+                                             mix_restrained
   USE input_keyword_types,             ONLY: keyword_create,&
                                              keyword_release,&
                                              keyword_type
@@ -27,7 +34,7 @@ MODULE input_cp2k_mixed
                                              real_t
   USE kinds,                           ONLY: dp
   USE string_utilities,                ONLY: s2a
-#include "cp_common_uses.h"
+#include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
   PRIVATE
@@ -241,7 +248,7 @@ CONTAINS
 
        CALL keyword_create(keyword, name="_DEFAULT_KEYWORD_",&
             description="Starting and ending atomic index defining one fragment must be provided",&
-            usage="<INTEGER> <INTEGER>", type_of_var=integer_t, n_var=2, repeats=.TRUE.,&
+            usage="{Integer} {Integer}", type_of_var=integer_t, n_var=2, repeats=.TRUE.,&
             required=.TRUE.,error=error)
        CALL section_add_keyword(sub3section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
@@ -287,7 +294,7 @@ CONTAINS
 
        CALL keyword_create(keyword, name="_DEFAULT_KEYWORD_",&
             description="Starting and ending atomic index defining one fragment must be provided",&
-            usage="<INTEGER> <INTEGER>", type_of_var=integer_t, n_var=2, repeats=.FALSE.,&
+            usage="{Integer} {Integer}", type_of_var=integer_t, n_var=2, repeats=.FALSE.,&
             required=.TRUE.,error=error)
        CALL section_add_keyword(sub3section,keyword,error=error)
        CALL keyword_release(keyword,error=error)

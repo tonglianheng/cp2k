@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2013  CP2K developers group                          !
+!   Copyright (C) 2000 - 2014  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 ! *****************************************************************************
 MODULE qs_oce_types
@@ -10,7 +10,7 @@ MODULE qs_oce_types
   USE sap_kind_types,                  ONLY: release_sap_int,&
                                              sap_int_type
   USE termination,                     ONLY: stop_memory
-#include "cp_common_uses.h"
+#include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
 
@@ -38,11 +38,11 @@ MODULE qs_oce_types
 
 ! *** Public data types ***
 
-  PUBLIC :: oce_matrix_type, qlist_type
+  PUBLIC :: oce_matrix_type
 
 ! *** Public subroutines ***
 
-  PUBLIC :: allocate_oce_set, &
+  PUBLIC :: allocate_oce_set,&
             create_oce_set,&
             deallocate_oce_set
 
@@ -50,6 +50,11 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief   Allocate and initialize the matrix set of oce coefficients.
+!> \param oce_set ...
+!> \param natom ...
+!> \param nkind ...
+!> \param ndim ...
+!> \param error ...
 !> \version 1.0
 ! *****************************************************************************
   SUBROUTINE allocate_oce_set(oce_set,natom,nkind,ndim,error)
@@ -76,6 +81,10 @@ CONTAINS
   END SUBROUTINE allocate_oce_set
 
 ! *****************************************************************************
+!> \brief ...
+!> \param oce_set ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE create_oce_set(oce_set,error)
 
     TYPE(oce_matrix_type), POINTER           :: oce_set
@@ -97,8 +106,10 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief  Deallocate the matrix set of oce coefficients
-!> \author
+!> \param oce_set ...
+!> \param error ...
 !> \date
+!> \author
 !> \version 1.0
 ! *****************************************************************************
   SUBROUTINE deallocate_oce_set(oce_set,error)

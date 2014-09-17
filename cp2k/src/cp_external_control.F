@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2013  CP2K developers group                          !
+!   Copyright (C) 2000 - 2014  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -23,7 +23,7 @@ MODULE cp_external_control
                                              mp_probe
   USE timings,                         ONLY: timeset,&
                                              timestop
-#include "cp_common_uses.h"
+#include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
 
@@ -31,10 +31,8 @@ MODULE cp_external_control
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cp_external_control'
 
-  INTEGER :: error_unit
-
   PUBLIC :: external_control
-  PUBLIC :: get_external_comm, set_external_comm
+  PUBLIC :: set_external_comm
 
   INTEGER, SAVE :: external_comm = -1
   INTEGER, SAVE :: external_master_id = -1
@@ -47,6 +45,11 @@ CONTAINS
 !> \brief set the communicator to an external source or destination, 
 !>        to send messages (e.g. intermediate energies during scf) or
 !>        reveive commands (e.g. aborting the calculation)
+!> \param comm ...
+!> \param in_external_master_id ...
+!> \param in_scf_energy_message_tag ...
+!> \param in_exit_tag ...
+!> \param error ...
 !> \author Mandes 02.2013
 ! *****************************************************************************
   SUBROUTINE set_external_comm(comm, in_external_master_id, &
@@ -76,34 +79,17 @@ CONTAINS
   END SUBROUTINE set_external_comm
 
 ! *****************************************************************************
-!> \brief gets the external communicator and the different defined tags 
-!>        to send messages (e.g. intermediate energies during scf) or
-!>        reveive commands (e.g. aborting the calculation)
-!> \author Mandes 02.2013
-! *****************************************************************************
-  SUBROUTINE get_external_comm(comm, out_external_master_id, &
-                               out_scf_energy_message_tag, error)
-    INTEGER, INTENT(OUT)                     :: comm, out_external_master_id
-    INTEGER, INTENT(OUT), OPTIONAL           :: out_scf_energy_message_tag
-    TYPE(cp_error_type), INTENT(inout)       :: error
-
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'get_external_comm', &
-      routineP = moduleN//':'//routineN
-
-    comm = external_comm
-    out_external_master_id = external_master_id
-
-    IF(PRESENT(out_scf_energy_message_tag)) &
-      out_scf_energy_message_tag = scf_energy_message_tag
-  END SUBROUTINE get_external_comm
-
-
-! *****************************************************************************
 !> \brief External manipulations during a run : when the <PROJECT_NAME>.EXIT_$runtype
 !>      command is sent the program stops at the level of $runtype
 !>      when a general <PROJECT_NAME>.EXIT command is sent the program is stopped
 !>      at all levels (at least those that call this function)
 !>      if the file WAIT exists, the program waits here till it disappears
+!> \param should_stop ...
+!> \param flag ...
+!> \param globenv ...
+!> \param target_time ...
+!> \param start_time ...
+!> \param error ...
 !> \author MI (10.03.2005)
 ! *****************************************************************************
   SUBROUTINE external_control(should_stop,flag,globenv,target_time,start_time,error)

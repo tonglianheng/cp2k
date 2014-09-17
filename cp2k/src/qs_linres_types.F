@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2013  CP2K developers group                          !
+!   Copyright (C) 2000 - 2014  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -15,12 +15,14 @@ MODULE qs_linres_types
                                              gto_basis_set_type
   USE cp_array_i_utils,                ONLY: cp_2d_i_p_type
   USE cp_array_r_utils,                ONLY: cp_2d_r_p_type
-  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_p_type
+  USE cp_dbcsr_interface,              ONLY: cp_dbcsr_p_type
   USE cp_fm_types,                     ONLY: cp_fm_p_type
   USE f77_blas
   USE kinds,                           ONLY: dp
   USE qs_grid_atom,                    ONLY: grid_atom_type
   USE qs_harmonics_atom,               ONLY: harmonics_atom_type
+  USE qs_kind_types,                   ONLY: get_qs_kind,&
+                                             qs_kind_type
   USE qs_loc_types,                    ONLY: qs_loc_env_new_type,&
                                              qs_loc_env_release
   USE qs_rho_atom_types,               ONLY: rho_atom_coeff,&
@@ -30,7 +32,7 @@ MODULE qs_linres_types
   USE realspace_grid_types,            ONLY: realspace_grid_p_type
   USE timings,                         ONLY: timeset,&
                                              timestop
-#include "cp_common_uses.h"
+#include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
 
@@ -119,6 +121,17 @@ MODULE qs_linres_types
      TYPE(cp_fm_p_type)  , DIMENSION(:), POINTER :: psi0_order
   END TYPE current_env_type
 
+!*********************************************************************************************************
+! \param type for polarizability calculation using Berry operator
+
+  TYPE polar_env_type
+     INTEGER                             :: ref_count
+     LOGICAL                             :: do_raman
+     REAL(dp), DIMENSION(:,:), POINTER :: polar
+     TYPE(cp_fm_p_type), DIMENSION(:,:), POINTER :: psi1_dBerry,dBerry_psi0,mo_derivs
+  END TYPE polar_env_type
+! ************************************************************************************
+
   TYPE issc_env_type
      INTEGER                             :: ref_count
      INTEGER                             :: issc_natms
@@ -133,23 +146,24 @@ MODULE qs_linres_types
      TYPE(cp_dbcsr_p_type),DIMENSION(:  ), POINTER :: matrix_efg,matrix_pso,matrix_dso,matrix_fc
   END TYPE issc_env_type
 
+! ************************************************************************************
   TYPE nmr_env_type
      INTEGER                             :: ref_count, n_nics
      INTEGER, DIMENSION(:), POINTER      :: cs_atom_list
      INTEGER, DIMENSION(:), POINTER      :: do_calc_cs_atom
      LOGICAL                             :: do_nics,interpolate_shift
      REAL(dp)                            :: shift_gapw_radius,shift_factor, shift_factor_gapw, chi_factor, &
-          &                                 chi_SI2shiftppm, chi_SI2ppmcgs
+                                            chi_SI2shiftppm, chi_SI2ppmcgs
      REAL(dp), DIMENSION(:,:  ), POINTER :: r_nics
      REAL(dp), DIMENSION(:,:,:), POINTER :: chemical_shift, chemical_shift_loc, &
-          &                                 chemical_shift_nics_loc, chemical_shift_nics
+                                            chemical_shift_nics_loc, chemical_shift_nics
   END TYPE nmr_env_type
 
 ! *****************************************************************************
   TYPE epr_env_type
      INTEGER                                     :: ref_count
      REAL(dp)                                    :: g_free_factor, g_soo_chicorr_factor, g_soo_factor,&
-          &                                         g_so_factor, g_so_factor_gapw, g_zke_factor, g_zke
+                                                    g_so_factor, g_so_factor_gapw, g_zke_factor, g_zke
      REAL(dp), DIMENSION(:,:), POINTER           :: g_total, g_so, g_soo
      TYPE(qs_rho_p_type),      DIMENSION(:,:), POINTER :: nablavks_set
      TYPE(nablavks_atom_type), DIMENSION(:  ), POINTER :: nablavks_atom_set
@@ -201,22 +215,30 @@ MODULE qs_linres_types
 
 ! *** Public data types ***
 
-  PUBLIC ::  allocate_jrho_atom_rad, deallocate_jrho_atom_set, get_nmr_env, &
-             get_current_env, allocate_jrho_coeff, deallocate_jrho_coeff, &
-             init_jrho_atom_set, linres_control_type, init_nablavks_atom_set, &
-             nmr_env_type, issc_env_type, jrho_atom_type, set_nmr_env, &
-             set2zero_jrho_atom_rad, get_epr_env, epr_env_type, set_epr_env, &
-             nablavks_atom_type, deallocate_nablavks_atom_set, current_env_type, &
-             set_current_env, realspaces_grid_p_type, get_issc_env, set_issc_env, &
-             issc_env_create
+  PUBLIC :: linres_control_type,&
+            nmr_env_type, issc_env_type, jrho_atom_type,&
+            epr_env_type,&
+            nablavks_atom_type, current_env_type,&
+            realspaces_grid_p_type, polar_env_type
 
 ! *** Public subroutines ***
 
-  PUBLIC :: linres_control_create, linres_control_retain, linres_control_release,&
-            nmr_env_create, epr_env_create, current_env_create
+  PUBLIC :: allocate_jrho_atom_rad, deallocate_jrho_atom_set, get_nmr_env,&
+            get_current_env, allocate_jrho_coeff,&
+            init_jrho_atom_set, init_nablavks_atom_set, linres_control_create,&
+            linres_control_retain, linres_control_release,&
+            set_epr_env, deallocate_nablavks_atom_set,&
+            set2zero_jrho_atom_rad, get_epr_env,&
+            nmr_env_create, epr_env_create, current_env_create, get_issc_env,&
+            set_current_env, issc_env_create, get_polar_env,&
+            polar_env_create
 
 CONTAINS
 
+! *****************************************************************************
+!> \brief ...
+!> \param linres_control ...
+!> \param error ...
 ! *****************************************************************************
   SUBROUTINE linres_control_create(linres_control,error)
 
@@ -254,6 +276,10 @@ CONTAINS
   END SUBROUTINE linres_control_create
 
 ! *****************************************************************************
+!> \brief ...
+!> \param linres_control ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE linres_control_release(linres_control,error)
 
     TYPE(linres_control_type), POINTER       :: linres_control
@@ -282,6 +308,10 @@ CONTAINS
   END SUBROUTINE linres_control_release
 
 ! *****************************************************************************
+!> \brief ...
+!> \param linres_control ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE linres_control_retain(linres_control,error)
 
     TYPE(linres_control_type), POINTER       :: linres_control
@@ -302,6 +332,10 @@ CONTAINS
 
   END SUBROUTINE linres_control_retain
 
+! *****************************************************************************
+!> \brief ...
+!> \param current_env ...
+!> \param error ...
 ! *****************************************************************************
   SUBROUTINE current_env_create(current_env,error)
 
@@ -348,6 +382,10 @@ CONTAINS
 
   END SUBROUTINE current_env_create
 ! *****************************************************************************
+!> \brief ...
+!> \param nmr_env ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE nmr_env_create(nmr_env,error)
 
     TYPE(nmr_env_type)                       :: nmr_env
@@ -374,6 +412,10 @@ CONTAINS
 
   END SUBROUTINE nmr_env_create
 
+! *****************************************************************************
+!> \brief ...
+!> \param issc_env ...
+!> \param error ...
 ! *****************************************************************************
   SUBROUTINE issc_env_create(issc_env,error)
 
@@ -409,6 +451,10 @@ CONTAINS
    END SUBROUTINE issc_env_create
 
 ! *****************************************************************************
+!> \brief ...
+!> \param epr_env ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE epr_env_create(epr_env,error)
 
     TYPE(epr_env_type)                       :: epr_env
@@ -437,12 +483,45 @@ CONTAINS
 
   END SUBROUTINE epr_env_create
 
+! *****************************************************************************
+!> \brief ...
+!> \param current_env ...
+!> \param simple_done ...
+!> \param simple_converged ...
+!> \param full_done ...
+!> \param ref_count ...
+!> \param nao ...
+!> \param nstates ...
+!> \param gauge ...
+!> \param list_cubes ...
+!> \param statetrueindex ...
+!> \param gauge_name ...
+!> \param basisfun_center ...
+!> \param nbr_center ...
+!> \param center_list ...
+!> \param centers_set ...
+!> \param psi1_p ...
+!> \param psi1_rxp ...
+!> \param psi1_D ...
+!> \param p_psi0 ...
+!> \param rxp_psi0 ...
+!> \param jrho1_atom_set ...
+!> \param jrho1_set ...
+!> \param chi_tensor ...
+!> \param chi_tensor_loc ...
+!> \param gauge_atom_radius ...
+!> \param rs_gauge ...
+!> \param use_old_gauge_atom ...
+!> \param chi_pbc ...
+!> \param psi0_order ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE get_current_env(current_env,simple_done,simple_converged,full_done,ref_count,nao,&
-       &                     nstates,gauge,list_cubes,statetrueindex,gauge_name,basisfun_center,&
-       &                     nbr_center,center_list,centers_set,psi1_p,psi1_rxp,psi1_D,p_psi0,&
-       &                     rxp_psi0,jrho1_atom_set,jrho1_set,chi_tensor,&
-       &                     chi_tensor_loc,gauge_atom_radius,rs_gauge,use_old_gauge_atom,&
-       &                     chi_pbc,psi0_order,error)
+                             nstates,gauge,list_cubes,statetrueindex,gauge_name,basisfun_center,&
+                             nbr_center,center_list,centers_set,psi1_p,psi1_rxp,psi1_D,p_psi0,&
+                             rxp_psi0,jrho1_atom_set,jrho1_set,chi_tensor,&
+                             chi_tensor_loc,gauge_atom_radius,rs_gauge,use_old_gauge_atom,&
+                             chi_pbc,psi0_order,error)
 
     TYPE(current_env_type), OPTIONAL         :: current_env
     LOGICAL, OPTIONAL                        :: simple_done(6), &
@@ -525,6 +604,21 @@ CONTAINS
   END SUBROUTINE get_current_env
 
 ! *****************************************************************************
+!> \brief ...
+!> \param nmr_env ...
+!> \param n_nics ...
+!> \param cs_atom_list ...
+!> \param do_calc_cs_atom ...
+!> \param r_nics ...
+!> \param chemical_shift ...
+!> \param chemical_shift_loc ...
+!> \param chemical_shift_nics_loc ...
+!> \param chemical_shift_nics ...
+!> \param shift_gapw_radius ...
+!> \param do_nics ...
+!> \param interpolate_shift ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE get_nmr_env(nmr_env, n_nics, cs_atom_list, do_calc_cs_atom, &
                          r_nics, chemical_shift,chemical_shift_loc, &
                          chemical_shift_nics_loc, chemical_shift_nics, &
@@ -567,6 +661,31 @@ CONTAINS
 
   END SUBROUTINE get_nmr_env
 
+! *****************************************************************************
+!> \brief ...
+!> \param issc_env ...
+!> \param issc_on_atom_list ...
+!> \param issc_gapw_radius ...
+!> \param issc_loc ...
+!> \param do_fc ...
+!> \param do_sd ...
+!> \param do_pso ...
+!> \param do_dso ...
+!> \param issc ...
+!> \param interpolate_issc ...
+!> \param psi1_efg ...
+!> \param psi1_pso ...
+!> \param psi1_dso ...
+!> \param psi1_fc ...
+!> \param efg_psi0 ...
+!> \param pso_psi0 ...
+!> \param dso_psi0 ...
+!> \param fc_psi0 ...
+!> \param matrix_efg ...
+!> \param matrix_pso ...
+!> \param matrix_dso ...
+!> \param matrix_fc ...
+!> \param error ...
 ! *****************************************************************************
   SUBROUTINE get_issc_env(issc_env,issc_on_atom_list,issc_gapw_radius,issc_loc,&
        do_fc,do_sd,do_pso,do_dso,&
@@ -629,6 +748,12 @@ CONTAINS
   END SUBROUTINE get_issc_env
 
 ! *****************************************************************************
+!> \brief ...
+!> \param current_env ...
+!> \param jrho1_atom_set ...
+!> \param jrho1_set ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE set_current_env(current_env,jrho1_atom_set,jrho1_set,error)
 
     TYPE(current_env_type)                   :: current_env
@@ -669,6 +794,14 @@ CONTAINS
 
   END SUBROUTINE set_current_env
 ! *****************************************************************************
+!> \brief ...
+!> \param nmr_env ...
+!> \param shift_factor ...
+!> \param chi_factor ...
+!> \param chi_SI2shiftppm ...
+!> \param chi_SI2ppmcgs ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE set_nmr_env(nmr_env,shift_factor,chi_factor,chi_SI2shiftppm,chi_SI2ppmcgs,&
                          error)
 
@@ -693,6 +826,10 @@ CONTAINS
 
   END SUBROUTINE set_nmr_env
 ! *****************************************************************************
+!> \brief ...
+!> \param issc_env ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE set_issc_env(issc_env,error)
 
     TYPE(issc_env_type)                      :: issc_env
@@ -709,6 +846,17 @@ CONTAINS
 
   END SUBROUTINE set_issc_env
 
+! *****************************************************************************
+!> \brief ...
+!> \param epr_env ...
+!> \param g_total ...
+!> \param g_so ...
+!> \param g_soo ...
+!> \param nablavks_set ...
+!> \param nablavks_atom_set ...
+!> \param bind_set ...
+!> \param bind_atom_set ...
+!> \param error ...
 ! *****************************************************************************
   SUBROUTINE get_epr_env(epr_env, g_total, g_so, g_soo, nablavks_set, nablavks_atom_set, &
        bind_set, bind_atom_set, error)
@@ -746,6 +894,18 @@ CONTAINS
 
   END SUBROUTINE get_epr_env
 
+! *****************************************************************************
+!> \brief ...
+!> \param epr_env ...
+!> \param g_free_factor ...
+!> \param g_soo_chicorr_factor ...
+!> \param g_soo_factor ...
+!> \param g_so_factor ...
+!> \param g_so_factor_gapw ...
+!> \param g_zke_factor ...
+!> \param nablavks_set ...
+!> \param nablavks_atom_set ...
+!> \param error ...
 ! *****************************************************************************
   SUBROUTINE set_epr_env(epr_env,g_free_factor,g_soo_chicorr_factor,&
                          g_soo_factor,g_so_factor,g_so_factor_gapw,&
@@ -800,6 +960,11 @@ CONTAINS
   END SUBROUTINE set_epr_env
 
 ! *****************************************************************************
+!> \brief ...
+!> \param nablavks_atom_set ...
+!> \param natom ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE allocate_nablavks_atom_set(nablavks_atom_set,natom,error)
 
     TYPE(nablavks_atom_type), DIMENSION(:), &
@@ -825,6 +990,10 @@ CONTAINS
     ENDDO
   END SUBROUTINE allocate_nablavks_atom_set
 
+! *****************************************************************************
+!> \brief ...
+!> \param nablavks_atom_set ...
+!> \param error ...
 ! *****************************************************************************
   SUBROUTINE deallocate_nablavks_atom_set(nablavks_atom_set,error)
 
@@ -867,6 +1036,11 @@ CONTAINS
     CPPrecondition(istat==0, cp_failure_level,routineP,error,failure)
   END SUBROUTINE deallocate_nablavks_atom_set
 
+! *****************************************************************************
+!> \brief ...
+!> \param jrho_atom_set ...
+!> \param natom ...
+!> \param error ...
 ! *****************************************************************************
   SUBROUTINE allocate_jrho_atom_set(jrho_atom_set,natom,error)
 
@@ -915,6 +1089,10 @@ CONTAINS
   END SUBROUTINE allocate_jrho_atom_set
 
 ! *****************************************************************************
+!> \brief ...
+!> \param jrho_atom_set ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE deallocate_jrho_atom_set(jrho_atom_set,error)
 
     TYPE(jrho_atom_type), DIMENSION(:), &
@@ -940,26 +1118,26 @@ CONTAINS
                 !
                 ! size = (nsotot,nsotot) replicated
                 DEALLOCATE(jrho_atom_set(iat)%cjc0_h(i)%r_coef,&
-                     &     jrho_atom_set(iat)%cjc0_s(i)%r_coef,&
-                     &     jrho_atom_set(iat)%cjc_h(i)%r_coef,&
-                     &     jrho_atom_set(iat)%cjc_s(i)%r_coef,&
-                     &     jrho_atom_set(iat)%cjc_ii_h(i)%r_coef,&
-                     &     jrho_atom_set(iat)%cjc_ii_s(i)%r_coef,&
-                     &     jrho_atom_set(iat)%cjc_iii_h(i)%r_coef,&
-                     &     jrho_atom_set(iat)%cjc_iii_s(i)%r_coef,&
-                     &     STAT=istat)
+                           jrho_atom_set(iat)%cjc0_s(i)%r_coef,&
+                           jrho_atom_set(iat)%cjc_h(i)%r_coef,&
+                           jrho_atom_set(iat)%cjc_s(i)%r_coef,&
+                           jrho_atom_set(iat)%cjc_ii_h(i)%r_coef,&
+                           jrho_atom_set(iat)%cjc_ii_s(i)%r_coef,&
+                           jrho_atom_set(iat)%cjc_iii_h(i)%r_coef,&
+                           jrho_atom_set(iat)%cjc_iii_s(i)%r_coef,&
+                           STAT=istat)
                 CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
              END DO
           END IF
           DEALLOCATE(jrho_atom_set(iat)%cjc0_h,&
-               &     jrho_atom_set(iat)%cjc0_s,&
-               &     jrho_atom_set(iat)%cjc_h,&
-               &     jrho_atom_set(iat)%cjc_s,&
-               &     jrho_atom_set(iat)%cjc_ii_h,&
-               &     jrho_atom_set(iat)%cjc_ii_s,&
-               &     jrho_atom_set(iat)%cjc_iii_h,&
-               &     jrho_atom_set(iat)%cjc_iii_s,&
-               &     STAT=istat)
+                     jrho_atom_set(iat)%cjc0_s,&
+                     jrho_atom_set(iat)%cjc_h,&
+                     jrho_atom_set(iat)%cjc_s,&
+                     jrho_atom_set(iat)%cjc_ii_h,&
+                     jrho_atom_set(iat)%cjc_ii_s,&
+                     jrho_atom_set(iat)%cjc_iii_h,&
+                     jrho_atom_set(iat)%cjc_iii_s,&
+                     STAT=istat)
           CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
        END IF
 
@@ -970,38 +1148,38 @@ CONTAINS
                 !
                 ! size = (nr,max_iso_not0) distributed
                 DEALLOCATE(jrho_atom_set(iat)%jrho_h(i)%r_coef,&
-                     &     jrho_atom_set(iat)%jrho_s(i)%r_coef,&
-                     &     jrho_atom_set(iat)%jrho_a_h(i)%r_coef,&
-                     &     jrho_atom_set(iat)%jrho_a_s(i)%r_coef,&
-                     &     jrho_atom_set(iat)%jrho_b_h(i)%r_coef,&
-                     &     jrho_atom_set(iat)%jrho_b_s(i)%r_coef,&
-                     &     jrho_atom_set(iat)%jrho_a_h_ii(i)%r_coef,&
-                     &     jrho_atom_set(iat)%jrho_a_s_ii(i)%r_coef,&
-                     &     jrho_atom_set(iat)%jrho_b_h_ii(i)%r_coef,&
-                     &     jrho_atom_set(iat)%jrho_b_s_ii(i)%r_coef,&
-                     &     jrho_atom_set(iat)%jrho_a_h_iii(i)%r_coef,&
-                     &     jrho_atom_set(iat)%jrho_a_s_iii(i)%r_coef,&
-                     &     jrho_atom_set(iat)%jrho_b_h_iii(i)%r_coef,&
-                     &     jrho_atom_set(iat)%jrho_b_s_iii(i)%r_coef,&
-                     &     STAT=istat)
+                           jrho_atom_set(iat)%jrho_s(i)%r_coef,&
+                           jrho_atom_set(iat)%jrho_a_h(i)%r_coef,&
+                           jrho_atom_set(iat)%jrho_a_s(i)%r_coef,&
+                           jrho_atom_set(iat)%jrho_b_h(i)%r_coef,&
+                           jrho_atom_set(iat)%jrho_b_s(i)%r_coef,&
+                           jrho_atom_set(iat)%jrho_a_h_ii(i)%r_coef,&
+                           jrho_atom_set(iat)%jrho_a_s_ii(i)%r_coef,&
+                           jrho_atom_set(iat)%jrho_b_h_ii(i)%r_coef,&
+                           jrho_atom_set(iat)%jrho_b_s_ii(i)%r_coef,&
+                           jrho_atom_set(iat)%jrho_a_h_iii(i)%r_coef,&
+                           jrho_atom_set(iat)%jrho_a_s_iii(i)%r_coef,&
+                           jrho_atom_set(iat)%jrho_b_h_iii(i)%r_coef,&
+                           jrho_atom_set(iat)%jrho_b_s_iii(i)%r_coef,&
+                           STAT=istat)
                 CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
              END DO
           END IF
           DEALLOCATE(jrho_atom_set(iat)%jrho_h,&
-               &     jrho_atom_set(iat)%jrho_s,&
-               &     jrho_atom_set(iat)%jrho_a_h,&
-               &     jrho_atom_set(iat)%jrho_a_s,&
-               &     jrho_atom_set(iat)%jrho_b_h,&
-               &     jrho_atom_set(iat)%jrho_b_s,&
-               &     jrho_atom_set(iat)%jrho_a_h_ii,&
-               &     jrho_atom_set(iat)%jrho_a_s_ii,&
-               &     jrho_atom_set(iat)%jrho_b_h_ii,&
-               &     jrho_atom_set(iat)%jrho_b_s_ii,&
-               &     jrho_atom_set(iat)%jrho_a_h_iii,&
-               &     jrho_atom_set(iat)%jrho_a_s_iii,&
-               &     jrho_atom_set(iat)%jrho_b_h_iii,&
-               &     jrho_atom_set(iat)%jrho_b_s_iii,&
-               &     STAT=istat)
+                     jrho_atom_set(iat)%jrho_s,&
+                     jrho_atom_set(iat)%jrho_a_h,&
+                     jrho_atom_set(iat)%jrho_a_s,&
+                     jrho_atom_set(iat)%jrho_b_h,&
+                     jrho_atom_set(iat)%jrho_b_s,&
+                     jrho_atom_set(iat)%jrho_a_h_ii,&
+                     jrho_atom_set(iat)%jrho_a_s_ii,&
+                     jrho_atom_set(iat)%jrho_b_h_ii,&
+                     jrho_atom_set(iat)%jrho_b_s_ii,&
+                     jrho_atom_set(iat)%jrho_a_h_iii,&
+                     jrho_atom_set(iat)%jrho_a_s_iii,&
+                     jrho_atom_set(iat)%jrho_b_h_iii,&
+                     jrho_atom_set(iat)%jrho_b_s_iii,&
+                     STAT=istat)
           CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
        END IF
 
@@ -1013,15 +1191,15 @@ CONTAINS
                    !
                    ! size =(nr,na) distributed
                    DEALLOCATE(jrho_atom_set(iat)%jrho_vec_rad_h(idir,i)%r_coef,&
-                        &     jrho_atom_set(iat)%jrho_vec_rad_s(idir,i)%r_coef,&
-                        &     STAT=istat)
+                              jrho_atom_set(iat)%jrho_vec_rad_s(idir,i)%r_coef,&
+                              STAT=istat)
                    CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
                 END DO
              END DO
           ENDIF
           DEALLOCATE(jrho_atom_set(iat)%jrho_vec_rad_h,&
-               &     jrho_atom_set(iat)%jrho_vec_rad_s,&
-               &     STAT=istat)
+                     jrho_atom_set(iat)%jrho_vec_rad_s,&
+                     STAT=istat)
           CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
        END IF
     END DO
@@ -1030,6 +1208,14 @@ CONTAINS
 
   END SUBROUTINE deallocate_jrho_atom_set
 
+! *****************************************************************************
+!> \brief ...
+!> \param jrho1_atom ...
+!> \param ispin ...
+!> \param nr ...
+!> \param na ...
+!> \param max_iso_not0 ...
+!> \param error ...
 ! *****************************************************************************
   SUBROUTINE  allocate_jrho_atom_rad(jrho1_atom,ispin,nr,na,max_iso_not0,error)
 
@@ -1053,28 +1239,28 @@ CONTAINS
 
        DO idir = 1,3
           ALLOCATE(jrho1_atom%jrho_vec_rad_h(idir,ispin)%r_coef(nr,na),&
-               &   jrho1_atom%jrho_vec_rad_s(idir,ispin)%r_coef(nr,na),&
-               &   STAT=istat)
+                   jrho1_atom%jrho_vec_rad_s(idir,ispin)%r_coef(nr,na),&
+                   STAT=istat)
           CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
           jrho1_atom%jrho_vec_rad_h(idir,ispin)%r_coef = 0.0_dp
           jrho1_atom%jrho_vec_rad_s(idir,ispin)%r_coef = 0.0_dp
        ENDDO
 
        ALLOCATE(jrho1_atom%jrho_h(ispin)%r_coef(nr,max_iso_not0),&
-            &   jrho1_atom%jrho_s(ispin)%r_coef(nr,max_iso_not0),&
-            &   jrho1_atom%jrho_a_h(ispin)%r_coef(nr,max_iso_not0),&
-            &   jrho1_atom%jrho_a_s(ispin)%r_coef(nr,max_iso_not0),&
-            &   jrho1_atom%jrho_b_h(ispin)%r_coef(nr,max_iso_not0),&
-            &   jrho1_atom%jrho_b_s(ispin)%r_coef(nr,max_iso_not0),&
-            &   jrho1_atom%jrho_a_h_ii(ispin)%r_coef(nr,max_iso_not0),&
-            &   jrho1_atom%jrho_a_s_ii(ispin)%r_coef(nr,max_iso_not0),&
-            &   jrho1_atom%jrho_b_h_ii(ispin)%r_coef(nr,max_iso_not0),&
-            &   jrho1_atom%jrho_b_s_ii(ispin)%r_coef(nr,max_iso_not0),&
-            &   jrho1_atom%jrho_a_h_iii(ispin)%r_coef(nr,max_iso_not0),&
-            &   jrho1_atom%jrho_a_s_iii(ispin)%r_coef(nr,max_iso_not0),&
-            &   jrho1_atom%jrho_b_h_iii(ispin)%r_coef(nr,max_iso_not0),&
-            &   jrho1_atom%jrho_b_s_iii(ispin)%r_coef(nr,max_iso_not0),&
-            &   STAT=istat)
+                jrho1_atom%jrho_s(ispin)%r_coef(nr,max_iso_not0),&
+                jrho1_atom%jrho_a_h(ispin)%r_coef(nr,max_iso_not0),&
+                jrho1_atom%jrho_a_s(ispin)%r_coef(nr,max_iso_not0),&
+                jrho1_atom%jrho_b_h(ispin)%r_coef(nr,max_iso_not0),&
+                jrho1_atom%jrho_b_s(ispin)%r_coef(nr,max_iso_not0),&
+                jrho1_atom%jrho_a_h_ii(ispin)%r_coef(nr,max_iso_not0),&
+                jrho1_atom%jrho_a_s_ii(ispin)%r_coef(nr,max_iso_not0),&
+                jrho1_atom%jrho_b_h_ii(ispin)%r_coef(nr,max_iso_not0),&
+                jrho1_atom%jrho_b_s_ii(ispin)%r_coef(nr,max_iso_not0),&
+                jrho1_atom%jrho_a_h_iii(ispin)%r_coef(nr,max_iso_not0),&
+                jrho1_atom%jrho_a_s_iii(ispin)%r_coef(nr,max_iso_not0),&
+                jrho1_atom%jrho_b_h_iii(ispin)%r_coef(nr,max_iso_not0),&
+                jrho1_atom%jrho_b_s_iii(ispin)%r_coef(nr,max_iso_not0),&
+                STAT=istat)
        CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
        !
        jrho1_atom%jrho_h(ispin)%r_coef = 0.0_dp
@@ -1096,6 +1282,11 @@ CONTAINS
 
   END SUBROUTINE allocate_jrho_atom_rad
 
+! *****************************************************************************
+!> \brief ...
+!> \param jrho1_atom ...
+!> \param ispin ...
+!> \param error ...
 ! *****************************************************************************
   SUBROUTINE set2zero_jrho_atom_rad(jrho1_atom,ispin,error)
     !
@@ -1136,6 +1327,13 @@ CONTAINS
 
 ! *****************************************************************************
 
+! *****************************************************************************
+!> \brief ...
+!> \param jrho1_atom_set ...
+!> \param iatom ...
+!> \param nsotot ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE allocate_jrho_coeff(jrho1_atom_set,iatom,nsotot,error)
 
     TYPE(jrho_atom_type), DIMENSION(:), &
@@ -1155,14 +1353,14 @@ CONTAINS
     IF(.NOT.failure) THEN
        DO i = 1,SIZE(jrho1_atom_set(iatom)%cjc0_h,1)
           ALLOCATE(jrho1_atom_set(iatom)%cjc0_h(i)%r_coef(nsotot,nsotot),&
-               &   jrho1_atom_set(iatom)%cjc0_s(i)%r_coef(nsotot,nsotot),&
-               &   jrho1_atom_set(iatom)%cjc_h(i)%r_coef(nsotot,nsotot),&
-               &   jrho1_atom_set(iatom)%cjc_s(i)%r_coef(nsotot,nsotot),&
-               &   jrho1_atom_set(iatom)%cjc_ii_h(i)%r_coef(nsotot,nsotot),&
-               &   jrho1_atom_set(iatom)%cjc_ii_s(i)%r_coef(nsotot,nsotot),&
-               &   jrho1_atom_set(iatom)%cjc_iii_h(i)%r_coef(nsotot,nsotot),&
-               &   jrho1_atom_set(iatom)%cjc_iii_s(i)%r_coef(nsotot,nsotot),&
-               &   STAT=istat)
+                   jrho1_atom_set(iatom)%cjc0_s(i)%r_coef(nsotot,nsotot),&
+                   jrho1_atom_set(iatom)%cjc_h(i)%r_coef(nsotot,nsotot),&
+                   jrho1_atom_set(iatom)%cjc_s(i)%r_coef(nsotot,nsotot),&
+                   jrho1_atom_set(iatom)%cjc_ii_h(i)%r_coef(nsotot,nsotot),&
+                   jrho1_atom_set(iatom)%cjc_ii_s(i)%r_coef(nsotot,nsotot),&
+                   jrho1_atom_set(iatom)%cjc_iii_h(i)%r_coef(nsotot,nsotot),&
+                   jrho1_atom_set(iatom)%cjc_iii_s(i)%r_coef(nsotot,nsotot),&
+                   STAT=istat)
           CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
           jrho1_atom_set(iatom)%cjc0_h(i)%r_coef = 0.0_dp
           jrho1_atom_set(iatom)%cjc0_s(i)%r_coef = 0.0_dp
@@ -1179,6 +1377,12 @@ CONTAINS
 
 ! *****************************************************************************
 
+! *****************************************************************************
+!> \brief ...
+!> \param jrho1_atom_set ...
+!> \param iatom ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE deallocate_jrho_coeff(jrho1_atom_set,iatom,error)
 
     TYPE(jrho_atom_type), DIMENSION(:), &
@@ -1198,14 +1402,14 @@ CONTAINS
     IF(.NOT.failure) THEN
        DO i = 1,SIZE(jrho1_atom_set(iatom)%cjc0_h,1)
           DEALLOCATE(jrho1_atom_set(iatom)%cjc0_h(i)%r_coef,&
-               &     jrho1_atom_set(iatom)%cjc0_s(i)%r_coef,&
-               &     jrho1_atom_set(iatom)%cjc_h(i)%r_coef,&
-               &     jrho1_atom_set(iatom)%cjc_s(i)%r_coef,&
-               &     jrho1_atom_set(iatom)%cjc_ii_h(i)%r_coef,&
-               &     jrho1_atom_set(iatom)%cjc_ii_s(i)%r_coef,&
-               &     jrho1_atom_set(iatom)%cjc_iii_h(i)%r_coef,&
-               &     jrho1_atom_set(iatom)%cjc_iii_s(i)%r_coef,&
-               &     STAT=istat)
+                     jrho1_atom_set(iatom)%cjc0_s(i)%r_coef,&
+                     jrho1_atom_set(iatom)%cjc_h(i)%r_coef,&
+                     jrho1_atom_set(iatom)%cjc_s(i)%r_coef,&
+                     jrho1_atom_set(iatom)%cjc_ii_h(i)%r_coef,&
+                     jrho1_atom_set(iatom)%cjc_ii_s(i)%r_coef,&
+                     jrho1_atom_set(iatom)%cjc_iii_h(i)%r_coef,&
+                     jrho1_atom_set(iatom)%cjc_iii_s(i)%r_coef,&
+                     STAT=istat)
           CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
        ENDDO
     ENDIF
@@ -1214,6 +1418,20 @@ CONTAINS
 
 ! *****************************************************************************
 
+! *****************************************************************************
+!> \brief ...
+!> \param jrho1_atom_set ...
+!> \param iatom ...
+!> \param cjc_h ...
+!> \param cjc_s ...
+!> \param cjc_ii_h ...
+!> \param cjc_ii_s ...
+!> \param cjc_iii_h ...
+!> \param cjc_iii_s ...
+!> \param jrho_vec_rad_h ...
+!> \param jrho_vec_rad_s ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE get_jrho_atom(jrho1_atom_set,iatom,cjc_h,cjc_s,cjc_ii_h,cjc_ii_s,&
              cjc_iii_h,cjc_iii_s,jrho_vec_rad_h,jrho_vec_rad_s,error)
 
@@ -1250,6 +1468,12 @@ CONTAINS
   END SUBROUTINE get_jrho_atom
 
 ! *****************************************************************************
+!> \brief ...
+!> \param jrho1_atom_set ...
+!> \param atomic_kind_set ...
+!> \param nspins ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE init_jrho_atom_set(jrho1_atom_set,atomic_kind_set,nspins,error)
     TYPE(jrho_atom_type), DIMENSION(:), &
       POINTER                                :: jrho1_atom_set
@@ -1266,7 +1490,6 @@ CONTAINS
                                                 natom, nkind
     INTEGER, DIMENSION(:), POINTER           :: atom_list
     LOGICAL                                  :: failure
-    TYPE(atomic_kind_type), POINTER          :: atomic_kind
 
     CALL timeset(routineN,handle)
 
@@ -1278,8 +1501,7 @@ CONTAINS
        CALL deallocate_jrho_atom_set(jrho1_atom_set,error=error)
     END IF
 
-    CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
-                             natom = natom)
+    CALL get_atomic_kind_set(atomic_kind_set, natom = natom)
 
     CALL allocate_jrho_atom_set(jrho1_atom_set,natom,error=error)
 
@@ -1287,39 +1509,37 @@ CONTAINS
 
     DO ikind = 1,nkind
 
-       atomic_kind => atomic_kind_set(ikind)
-       CALL get_atomic_kind(atomic_kind=atomic_kind,&
-                            atom_list=atom_list,natom=nat)
+       CALL get_atomic_kind(atomic_kind_set(ikind), atom_list=atom_list, natom=nat)
 
        DO iat = 1,nat
           iatom = atom_list(iat)
 
           !*** allocate the radial density for each LM,for each atom ***
           ALLOCATE(jrho1_atom_set(iatom)%jrho_vec_rad_h(3,nspins),&
-               &   jrho1_atom_set(iatom)%jrho_vec_rad_s(3,nspins),&
-               &   jrho1_atom_set(iatom)%jrho_h(nspins),&
-               &   jrho1_atom_set(iatom)%jrho_s(nspins),&
-               &   jrho1_atom_set(iatom)%jrho_a_h(nspins),&
-               &   jrho1_atom_set(iatom)%jrho_a_s(nspins),&
-               &   jrho1_atom_set(iatom)%jrho_b_h(nspins),&
-               &   jrho1_atom_set(iatom)%jrho_b_s(nspins),&
-               &   jrho1_atom_set(iatom)%jrho_a_h_ii(nspins),&
-               &   jrho1_atom_set(iatom)%jrho_a_s_ii(nspins),&
-               &   jrho1_atom_set(iatom)%jrho_b_s_ii(nspins),&
-               &   jrho1_atom_set(iatom)%jrho_b_h_ii(nspins),&
-               &   jrho1_atom_set(iatom)%jrho_a_h_iii(nspins),&
-               &   jrho1_atom_set(iatom)%jrho_a_s_iii(nspins),&
-               &   jrho1_atom_set(iatom)%jrho_b_s_iii(nspins),&
-               &   jrho1_atom_set(iatom)%jrho_b_h_iii(nspins),&
-               &   jrho1_atom_set(iatom)%cjc0_h(nspins),&
-               &   jrho1_atom_set(iatom)%cjc0_s(nspins),&
-               &   jrho1_atom_set(iatom)%cjc_h(nspins),&
-               &   jrho1_atom_set(iatom)%cjc_s(nspins),&
-               &   jrho1_atom_set(iatom)%cjc_ii_h(nspins),&
-               &   jrho1_atom_set(iatom)%cjc_ii_s(nspins),&
-               &   jrho1_atom_set(iatom)%cjc_iii_h(nspins),&
-               &   jrho1_atom_set(iatom)%cjc_iii_s(nspins),&
-               &   STAT=istat)
+                   jrho1_atom_set(iatom)%jrho_vec_rad_s(3,nspins),&
+                   jrho1_atom_set(iatom)%jrho_h(nspins),&
+                   jrho1_atom_set(iatom)%jrho_s(nspins),&
+                   jrho1_atom_set(iatom)%jrho_a_h(nspins),&
+                   jrho1_atom_set(iatom)%jrho_a_s(nspins),&
+                   jrho1_atom_set(iatom)%jrho_b_h(nspins),&
+                   jrho1_atom_set(iatom)%jrho_b_s(nspins),&
+                   jrho1_atom_set(iatom)%jrho_a_h_ii(nspins),&
+                   jrho1_atom_set(iatom)%jrho_a_s_ii(nspins),&
+                   jrho1_atom_set(iatom)%jrho_b_s_ii(nspins),&
+                   jrho1_atom_set(iatom)%jrho_b_h_ii(nspins),&
+                   jrho1_atom_set(iatom)%jrho_a_h_iii(nspins),&
+                   jrho1_atom_set(iatom)%jrho_a_s_iii(nspins),&
+                   jrho1_atom_set(iatom)%jrho_b_s_iii(nspins),&
+                   jrho1_atom_set(iatom)%jrho_b_h_iii(nspins),&
+                   jrho1_atom_set(iatom)%cjc0_h(nspins),&
+                   jrho1_atom_set(iatom)%cjc0_s(nspins),&
+                   jrho1_atom_set(iatom)%cjc_h(nspins),&
+                   jrho1_atom_set(iatom)%cjc_s(nspins),&
+                   jrho1_atom_set(iatom)%cjc_ii_h(nspins),&
+                   jrho1_atom_set(iatom)%cjc_ii_s(nspins),&
+                   jrho1_atom_set(iatom)%cjc_iii_h(nspins),&
+                   jrho1_atom_set(iatom)%cjc_iii_s(nspins),&
+                   STAT=istat)
           CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
 
           DO ispin = 1,nspins
@@ -1361,12 +1581,21 @@ CONTAINS
   END SUBROUTINE init_jrho_atom_set
 
 ! *****************************************************************************
-  SUBROUTINE init_nablavks_atom_set(nablavks_atom_set,atomic_kind_set,nspins,error)
+!> \brief ...
+!> \param nablavks_atom_set ...
+!> \param atomic_kind_set ...
+!> \param qs_kind_set ...
+!> \param nspins ...
+!> \param error ...
+! *****************************************************************************
+  SUBROUTINE init_nablavks_atom_set(nablavks_atom_set,atomic_kind_set,qs_kind_set,nspins,error)
 
     TYPE(nablavks_atom_type), DIMENSION(:), &
       POINTER                                :: nablavks_atom_set
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
+    TYPE(qs_kind_type), DIMENSION(:), &
+      POINTER                                :: qs_kind_set
     INTEGER, INTENT(IN)                      :: nspins
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
@@ -1378,7 +1607,6 @@ CONTAINS
       maxso, na, nat, natom, nkind, nr, nset, nsotot
     INTEGER, DIMENSION(:), POINTER           :: atom_list
     LOGICAL                                  :: failure
-    TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(grid_atom_type), POINTER            :: grid_atom
     TYPE(gto_basis_set_type), POINTER        :: orb_basis_set
     TYPE(harmonics_atom_type), POINTER       :: harmonics
@@ -1387,27 +1615,24 @@ CONTAINS
 
     failure = .FALSE.
 
-    CPPrecondition(ASSOCIATED(atomic_kind_set),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(qs_kind_set),cp_failure_level,routineP,error,failure)
 
     IF(ASSOCIATED(nablavks_atom_set)) THEN
       CALL deallocate_nablavks_atom_set(nablavks_atom_set,error=error)
     END IF
 
-    CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
-                             natom = natom)
+    CALL get_atomic_kind_set(atomic_kind_set, natom=natom)
 
     CALL allocate_nablavks_atom_set(nablavks_atom_set,natom,error=error)
 
     nkind = SIZE(atomic_kind_set)
 
     DO ikind = 1,nkind
-
-       atomic_kind => atomic_kind_set(ikind)
-       CALL get_atomic_kind(atomic_kind=atomic_kind,&
-                            orb_basis_set=orb_basis_set, &
-                            atom_list=atom_list,natom=nat, &
-                            harmonics=harmonics,&
-                            grid_atom=grid_atom)
+       CALL get_atomic_kind(atomic_kind_set(ikind), atom_list=atom_list,natom=nat)
+       CALL get_qs_kind(qs_kind_set(ikind),&
+                        orb_basis_set=orb_basis_set, &
+                        harmonics=harmonics,&
+                        grid_atom=grid_atom)
 
        na = grid_atom%ng_sphere
        nr = grid_atom%nr
@@ -1441,6 +1666,99 @@ CONTAINS
     CALL timestop(handle)
 
   END SUBROUTINE init_nablavks_atom_set
+! *****************************************************************************
+!> \brief ...
+!> \param polar_env ...
+!> \param error ...
+! *****************************************************************************
+  SUBROUTINE polar_env_create(polar_env,error)
+
+    TYPE(polar_env_type)                     :: polar_env
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'polar_env_create', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+
+     failure =.FALSE.
+
+     CPPrecondition(polar_env%ref_count==0, cp_failure_level,routineP,error,failure)
+     IF(.NOT. failure) THEN
+        polar_env%ref_count = 1
+!        polar_env%do_raman=.FALSE.
+        NULLIFY(polar_env%polar)
+        NULLIFY(polar_env%psi1_dBerry)
+        NULLIFY(polar_env%dBerry_psi0)
+        NULLIFY(polar_env%mo_derivs)
+     ENDIF
+
+   END SUBROUTINE polar_env_create
+
+! *****************************************************************************
+!> \brief ...
+!> \param polar_env ...
+!> \param do_raman ...
+!> \param dBerry_psi0 ...
+!> \param polar ...
+!> \param psi1_dBerry ...
+!> \param mo_derivs ...
+!> \param error ...
+! *****************************************************************************
+  SUBROUTINE get_polar_env(polar_env,do_raman,dBerry_psi0, polar, &
+       psi1_dBerry,mo_derivs,error)
+
+    TYPE(polar_env_type)                     :: polar_env
+    LOGICAL, OPTIONAL                        :: do_raman
+    TYPE(cp_fm_p_type), DIMENSION(:, :), &
+      OPTIONAL, POINTER                      :: dBerry_psi0
+    REAL(dp), DIMENSION(:, :), OPTIONAL, &
+      POINTER                                :: polar
+    TYPE(cp_fm_p_type), DIMENSION(:, :), &
+      OPTIONAL, POINTER                      :: psi1_dBerry, mo_derivs
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'get_polar_env', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+
+    failure =.FALSE.
+
+    CPPrecondition(polar_env%ref_count>0,cp_failure_level,routineP,error,failure)
+
+    IF(PRESENT(polar))             polar => polar_env%polar
+    IF(PRESENT(psi1_dBerry )) psi1_dBerry => polar_env%psi1_dBerry
+    IF(PRESENT(dBerry_psi0)) dBerry_psi0          => polar_env%dBerry_psi0
+    IF(PRESENT(mo_derivs            )) mo_derivs             => polar_env%mo_derivs
+    IF(PRESENT(do_raman           )) do_raman            =  polar_env%do_raman
+  END SUBROUTINE get_polar_env
+
+! *****************************************************************************
+
+! *****************************************************************************
+!> \brief ...
+!> \param polar_env ...
+!> \param error ...
+! *****************************************************************************
+  SUBROUTINE set_polar_env(polar_env,error)
+
+    TYPE(polar_env_type)                     :: polar_env
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'set_polar_env', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+
+    failure =.FALSE.
+
+    CPPrecondition(polar_env%ref_count>0, cp_failure_level,routineP,error,failure)
+
+  END SUBROUTINE set_polar_env
+! *****************************************************************************
+
+
 
 END MODULE qs_linres_types
 

@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2013  CP2K developers group                          !
+!   Copyright (C) 2000 - 2014  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -25,7 +25,7 @@ MODULE mp2_setup
                                              ri_rpa_method_gpw
   USE timings,                         ONLY: timeset,&
                                              timestop
-#include "cp_common_uses.h"
+#include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
 
@@ -37,6 +37,12 @@ MODULE mp2_setup
 
 CONTAINS
 
+! *****************************************************************************
+!> \brief ...
+!> \param input ...
+!> \param mp2_env ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE read_mp2_section(input,mp2_env,error)
     TYPE(section_vals_type), POINTER         :: input
     TYPE(mp2_type), INTENT(INOUT)            :: mp2_env
@@ -45,7 +51,8 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'read_mp2_section', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, unit_nr
+    INTEGER                                  :: handle, ival, unit_nr
+    INTEGER, DIMENSION(:), POINTER           :: tmplist
     LOGICAL                                  :: failure
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(section_vals_type), POINTER         :: mp2_section
@@ -90,6 +97,10 @@ CONTAINS
                               i_val=mp2_env%ri_rpa%rpa_num_quad_points, error=error)
     CALL section_vals_val_get(mp2_section,"RI_RPA%SIZE_FREQ_INTEG_GROUP",&
                               i_val=mp2_env%ri_rpa%rpa_integ_group_size, error=error)
+    CALL section_vals_val_get(mp2_section,"RI_RPA%MM_STYLE",&
+                              i_val=mp2_env%ri_rpa%mm_style, error=error)
+    CALL section_vals_val_get(mp2_section,"RI_RPA%MINIMAX_QUADRATURE",&
+                              l_val=mp2_env%ri_rpa%minimax_quad, error=error)
 
     CALL section_vals_val_get(mp2_section,"RI_LAPLACE%QUADRATURE_POINTS",&
                               i_val=mp2_env%ri_laplace%n_quadrature, error=error)
@@ -98,6 +109,15 @@ CONTAINS
 
     CALL section_vals_val_get(mp2_section,"RI_MP2%BLOCK_SIZE",&
                               i_val=mp2_env%ri_mp2%block_size, error=error)
+    CALL section_vals_val_get(mp2_section,"RI_MP2%EPS_CANONICAL",&
+                              r_val=mp2_env%ri_mp2%eps_canonical, error=error)
+    CALL section_vals_val_get(mp2_section,"RI_MP2%FREE_HFX_BUFFER",&
+                              l_val=mp2_env%ri_mp2%free_hfx_buffer, error=error)
+
+    CALL section_vals_val_get(mp2_section,"CPHF%MAX_ITER",&
+                              i_val=mp2_env%ri_grad%cphf_max_num_iter, error=error)
+    CALL section_vals_val_get(mp2_section,"CPHF%EPS_CONV",&
+                              r_val=mp2_env%ri_grad%cphf_eps_conv, error=error)
 
     CALL section_vals_val_get(mp2_section,"OPT_RI_BASIS%DELTA_I_REL",&
                               r_val=mp2_env%ri_opt_param%DI_rel, error=error)
@@ -107,6 +127,18 @@ CONTAINS
                               r_val=mp2_env%ri_opt_param%eps_step, error=error)
     CALL section_vals_val_get(mp2_section,"OPT_RI_BASIS%MAX_ITER",&
                               i_val=mp2_env%ri_opt_param%max_num_iter, error=error)
+    CALL section_vals_val_get(mp2_section,"OPT_RI_BASIS%BASIS_SIZE",&
+                              i_val=mp2_env%ri_opt_param%basis_quality, error=error)
+    NULLIFY(tmplist)
+    CALL section_vals_val_get(mp2_section,"OPT_RI_BASIS%NUM_FUNC",&
+                              i_vals=tmplist, error=error)
+    IF(tmplist(1)>0) THEN
+      ALLOCATE(mp2_env%ri_opt_param%RI_nset_per_l(0:SIZE(tmplist)-1))
+      mp2_env%ri_opt_param%RI_nset_per_l=0
+      DO ival=1, SIZE(tmplist)
+        mp2_env%ri_opt_param%RI_nset_per_l(ival-1)=tmplist(ival)
+      END DO
+    END IF
 
     ! print some info about the MP2 parameters
     unit_nr = cp_print_key_unit_nr(logger,mp2_section,"MP2_INFO",&

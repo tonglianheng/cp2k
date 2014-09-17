@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2013  CP2K developers group                          !
+!   Copyright (C) 2000 - 2014  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 ! *****************************************************************************
 MODULE qs_local_rho_types
@@ -21,7 +21,7 @@ MODULE qs_local_rho_types
   USE qs_rho_atom_types,               ONLY: deallocate_rho_atom_set,&
                                              rho_atom_type
   USE termination,                     ONLY: stop_memory
-#include "cp_common_uses.h"
+#include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
 
@@ -51,15 +51,19 @@ MODULE qs_local_rho_types
   END TYPE local_rho_type
 
 ! Public Types
-  PUBLIC ::  local_rho_type, rhoz_type
+  PUBLIC :: local_rho_type, rhoz_type
 
 ! Public Subroutine
-  PUBLIC :: allocate_rhoz, calculate_rhoz, deallocate_rhoz,&
-            get_local_rho, local_rho_set_create, &
+  PUBLIC :: allocate_rhoz, calculate_rhoz,&
+            get_local_rho, local_rho_set_create,&
             local_rho_set_release, set_local_rho
 
   CONTAINS
 
+! *****************************************************************************
+!> \brief ...
+!> \param rhoz_set ...
+!> \param nkind ...
 ! *****************************************************************************
   SUBROUTINE allocate_rhoz(rhoz_set,nkind)
 
@@ -87,6 +91,15 @@ MODULE qs_local_rho_types
 
   END SUBROUTINE allocate_rhoz
 
+! *****************************************************************************
+!> \brief ...
+!> \param rhoz ...
+!> \param grid_atom ...
+!> \param alpha ...
+!> \param zeff ...
+!> \param natom ...
+!> \param rhoz_tot ...
+!> \param harmonics ...
 ! *****************************************************************************
   SUBROUTINE calculate_rhoz(rhoz,grid_atom,alpha,zeff,natom,rhoz_tot,harmonics)
 
@@ -137,6 +150,9 @@ MODULE qs_local_rho_types
   END SUBROUTINE calculate_rhoz
 
 ! *****************************************************************************
+!> \brief ...
+!> \param rhoz_set ...
+! *****************************************************************************
   SUBROUTINE deallocate_rhoz(rhoz_set)
 
     TYPE(rhoz_type), DIMENSION(:), POINTER   :: rhoz_set
@@ -167,6 +183,13 @@ MODULE qs_local_rho_types
   END SUBROUTINE  deallocate_rhoz
 
 ! *****************************************************************************
+!> \brief ...
+!> \param local_rho_set ...
+!> \param rho_atom_set ...
+!> \param rho0_atom_set ...
+!> \param rho0_mpole ...
+!> \param rhoz_set ...
+! *****************************************************************************
   SUBROUTINE  get_local_rho(local_rho_set,rho_atom_set,rho0_atom_set,rho0_mpole,rhoz_set)
 
     TYPE(local_rho_type), POINTER            :: local_rho_set
@@ -188,6 +211,10 @@ MODULE qs_local_rho_types
 
   END SUBROUTINE get_local_rho
 
+! *****************************************************************************
+!> \brief ...
+!> \param local_rho_set ...
+!> \param error ...
 ! *****************************************************************************
   SUBROUTINE local_rho_set_create(local_rho_set, error)
 
@@ -212,6 +239,10 @@ MODULE qs_local_rho_types
 
   END SUBROUTINE local_rho_set_create
 
+! *****************************************************************************
+!> \brief ...
+!> \param local_rho_set ...
+!> \param error ...
 ! *****************************************************************************
   SUBROUTINE local_rho_set_release(local_rho_set,error)
 
@@ -246,6 +277,14 @@ MODULE qs_local_rho_types
 
   END SUBROUTINE local_rho_set_release
 
+! *****************************************************************************
+!> \brief ...
+!> \param local_rho_set ...
+!> \param rho_atom_set ...
+!> \param rho0_atom_set ...
+!> \param rho0_mpole ...
+!> \param rhoz_set ...
+!> \param error ...
 ! *****************************************************************************
   SUBROUTINE set_local_rho(local_rho_set,rho_atom_set,rho0_atom_set,rho0_mpole,&
        rhoz_set, error)

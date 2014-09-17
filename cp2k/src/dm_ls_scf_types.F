@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2013  CP2K developers group                          !
+!   Copyright (C) 2000 - 2014  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -11,8 +11,8 @@
 !> \author Joost VandeVondele
 ! *****************************************************************************
 MODULE dm_ls_scf_types
-  USE cp_dbcsr_interface,              ONLY: cp_dbcsr_release
-  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_type
+  USE cp_dbcsr_interface,              ONLY: cp_dbcsr_release,&
+                                             cp_dbcsr_type
   USE cp_para_env,                     ONLY: cp_para_env_release
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE input_constants,                 ONLY: ls_cluster_atomic,&
@@ -22,7 +22,7 @@ MODULE dm_ls_scf_types
   USE kinds,                           ONLY: dp
   USE timings,                         ONLY: timeset,&
                                              timestop
-#include "cp_common_uses.h"
+#include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
 
@@ -30,8 +30,8 @@ MODULE dm_ls_scf_types
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'dm_ls_scf_types'
 
-  PUBLIC :: ls_scf_env_type, ls_mstruct_type, ls_cluster_atomic, ls_cluster_molecular, &
-            ls_mat_history_type, ls_scf_curvy_type
+  PUBLIC :: ls_scf_env_type, ls_mstruct_type, ls_cluster_atomic, ls_cluster_molecular,&
+            ls_scf_curvy_type
 
   TYPE ls_mstruct_type
      INTEGER :: cluster_type
@@ -98,7 +98,7 @@ MODULE dm_ls_scf_types
      INTEGER :: sign_sqrt_order
 
      LOGICAL               :: needs_s_inv, has_s_preconditioner, fixed_mu, dynamic_threshold
-     LOGICAL               :: restart_read, restart_write
+     LOGICAL               :: restart_read, restart_write, non_monotonic
      REAL(KIND=dp)         :: eps_filter, eps_scf
 
      REAL(KIND=dp)         :: eps_lanczos
@@ -131,6 +131,8 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief release the LS type.
+!> \param ls_scf_env ...
+!> \param error ...
 !> \par History
 !>       2012.11 created [Joost VandeVondele]
 !> \author Joost VandeVondele

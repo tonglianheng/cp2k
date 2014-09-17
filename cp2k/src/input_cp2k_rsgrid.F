@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2013  CP2K developers group                          !
+!   Copyright (C) 2000 - 2014  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -10,7 +10,6 @@
 ! *****************************************************************************
 MODULE input_cp2k_rsgrid
   USE f77_blas
-  USE input_constants
   USE input_keyword_types,             ONLY: keyword_create,&
                                              keyword_release,&
                                              keyword_type
@@ -18,8 +17,11 @@ MODULE input_cp2k_rsgrid
                                              section_create,&
                                              section_type
   USE kinds,                           ONLY: dp
+  USE realspace_grid_types,            ONLY: rsgrid_automatic,&
+                                             rsgrid_distributed,&
+                                             rsgrid_replicated
   USE string_utilities,                ONLY: s2a
-#include "cp_common_uses.h"
+#include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
   PRIVATE
@@ -32,6 +34,9 @@ PUBLIC :: create_rsgrid_section
 CONTAINS
 
 ! *****************************************************************************
+!> \brief ...
+!> \param section ...
+!> \param error ...
 !> \author Joost
 ! *****************************************************************************
   SUBROUTINE create_rsgrid_section(section, error)

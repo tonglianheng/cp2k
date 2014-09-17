@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2013  CP2K developers group                          !
+!   Copyright (C) 2000 - 2014  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -13,28 +13,28 @@ MODULE qs_kpp1_env_types
   USE cp_array_i_utils,                ONLY: cp_2d_i_write
   USE cp_array_logical_utils,          ONLY: cp_1d_logical_write,&
                                              cp_2d_logical_write
-  USE cp_dbcsr_operations,             ONLY: cp_dbcsr_deallocate_matrix
-  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_p_type
+  USE cp_dbcsr_interface,              ONLY: cp_dbcsr_deallocate_matrix,&
+                                             cp_dbcsr_p_type
   USE cp_files,                        ONLY: close_file,&
                                              open_file
   USE cp_para_types,                   ONLY: cp_para_env_type
+  USE cp_realspace_grid_cube,          ONLY: cp_pw_to_cube
   USE f77_blas
   USE kinds,                           ONLY: default_path_length
   USE particle_list_types,             ONLY: particle_list_type
   USE pw_types,                        ONLY: pw_p_type,&
                                              pw_release
-  USE realspace_grid_cube,             ONLY: pw_to_cube
   USE string_utilities,                ONLY: compress
   USE xc_derivative_set_types,         ONLY: xc_derivative_set_type,&
                                              xc_dset_release
   USE xc_rho_set_types,                ONLY: xc_rho_set_release,&
                                              xc_rho_set_type
-#include "cp_common_uses.h"
+#include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
   PRIVATE
-  PUBLIC :: qs_kpp1_env_type, qs_kpp1_env_p_type
-  PUBLIC :: kpp1_release, kpp1_retain, kpp1_write
+  PUBLIC :: qs_kpp1_env_type
+  PUBLIC :: kpp1_release
 
   LOGICAL, PRIVATE, PARAMETER :: debug_this_module=.TRUE.
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_kpp1_env_types'
@@ -91,7 +91,7 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief releases a kpp1_env (see doc/ReferenceCounting.html)
-!> \param kpp 1_env: the environement to release
+!> \param kpp1_env the environement to release
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 !> \par History
@@ -163,7 +163,7 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief retains a kpp1_env (see doc/ReferenceCounting.html)
-!> \param kpp 1_env: the environement to retain
+!> \param kpp1_env the environement to retain
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 !> \par History
@@ -190,7 +190,8 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief writes the content of the kpp1_env to the given output unit
-!> \param kpp 1_env: the kpp1_env to output
+!> \param kpp1_env the kpp1_env to output
+!> \param particles ...
 !> \param unit_nr the unit where to output
 !> \param long_description if a long description should be written
 !>        (defaults to false)
@@ -261,7 +262,7 @@ CONTAINS
                         local=my_local)
                    CALL open_file(file_name=TRIM(filename),file_status="UNKNOWN",&
                         file_action="WRITE",unit_number=file_unit)
-                   CALL pw_to_cube ( kpp1_env%v_rspace(ispin)%pw,&
+                   CALL cp_pw_to_cube ( kpp1_env%v_rspace(ispin)%pw,&
                         unit_nr=file_unit,&
                         particles=particles,&
                         title="v_rspace",error=error)
@@ -310,7 +311,7 @@ CONTAINS
                       CALL open_file(file_name=TRIM(filename),&
                            file_status="UNKNOWN",&
                            file_action="WRITE",unit_number=file_unit)
-                      CALL pw_to_cube ( kpp1_env%v_rspace(ispin)%pw,&
+                      CALL cp_pw_to_cube ( kpp1_env%v_rspace(ispin)%pw,&
                            unit_nr=file_unit,&
                            particles=particles,&
                            title="drho_r",error=error)

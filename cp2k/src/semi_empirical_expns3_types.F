@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2013  CP2K developers group                          !
+!   Copyright (C) 2000 - 2014  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -10,7 +10,7 @@
 MODULE semi_empirical_expns3_types
   USE f77_blas
   USE kinds,                           ONLY: dp
-#include "cp_common_uses.h"
+#include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
   PRIVATE
@@ -36,8 +36,7 @@ MODULE semi_empirical_expns3_types
   ! *** Global parameters ***
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'semi_empirical_expns3_types'
 
-  PUBLIC :: semi_empirical_expns3_type,&
-            semi_empirical_expns3_p_type,&
+  PUBLIC :: semi_empirical_expns3_p_type,&
             semi_empirical_expns3_create,&
             semi_empirical_expns3_release
 
@@ -45,6 +44,8 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Allocate semi-empirical 1/R^3 expansion type
+!> \param expns3 ...
+!> \param error ...
 !> \author Teodoro Laino [tlaino] - 12.2008
 ! *****************************************************************************
   SUBROUTINE semi_empirical_expns3_create(expns3, error)
@@ -70,6 +71,8 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Deallocate the semi-empirical type
+!> \param expns3 ...
+!> \param error ...
 !> \author Teodoro Laino [tlaino] - 12.2008
 ! *****************************************************************************
   SUBROUTINE semi_empirical_expns3_release(expns3, error)

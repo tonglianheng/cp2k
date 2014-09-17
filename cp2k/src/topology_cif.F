@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2013  CP2K developers group                          !
+!   Copyright (C) 2000 - 2014  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -9,7 +9,7 @@
 !> \date   12.2008
 ! *****************************************************************************
 MODULE topology_cif
-  USE cell_types,                      ONLY: cell_create,&
+  USE cell_methods,                    ONLY: cell_create,&
                                              cell_release,&
                                              cell_type,&
                                              pbc,&
@@ -45,7 +45,7 @@ MODULE topology_cif
                                              timestop
   USE topology_types,                  ONLY: atom_info_type,&
                                              topology_parameters_type
-#include "cp_common_uses.h"
+#include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
 
@@ -59,6 +59,11 @@ CONTAINS
 ! *****************************************************************************
 !> \brief  Performs the real task of reading the proper information from the CIF
 !>         file
+!> \param topology ...
+!> \param para_env ...
+!> \param subsys_section ...
+!> \param error ...
+!> \date   12.2008
 !> \par    Format Information implemented:
 !>            _chemical_name
 !>            _chemical_formula_sum
@@ -77,7 +82,6 @@ CONTAINS
 !>            _atom_site_fract_z
 !>
 !> \author Teodoro Laino [tlaino]
-!> \date   12.2008
 ! *****************************************************************************
   SUBROUTINE read_coordinate_cif (topology,para_env,subsys_section,error)
     TYPE(topology_parameters_type)           :: topology
@@ -409,8 +413,11 @@ CPSourceFileRef,&
 ! *****************************************************************************
 !> \brief  Reads REAL from the CIF file.. This wrapper is needed in order to
 !>         treat properly the accuracy specified in the CIF file, i.e. 3.45(6)
-!> \author Teodoro Laino [tlaino]
+!> \param parser ...
+!> \param r ...
+!> \param error ...
 !> \date   12.2008
+!> \author Teodoro Laino [tlaino]
 ! *****************************************************************************
   SUBROUTINE cif_get_real(parser, r, error)
     TYPE(cp_parser_type), POINTER            :: parser

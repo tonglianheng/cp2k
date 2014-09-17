@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2013  CP2K developers group                          !
+!   Copyright (C) 2000 - 2014  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -52,10 +52,11 @@ MODULE cp_ddapc_util
   USE qs_charges_types,                ONLY: qs_charges_type
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
+  USE qs_kind_types,                   ONLY: qs_kind_type
   USE qs_rho_types,                    ONLY: qs_rho_type
   USE timings,                         ONLY: timeset,&
                                              timestop
-#include "cp_common_uses.h"
+#include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
   PRIVATE
@@ -71,6 +72,8 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Initialize the cp_ddapc_environment
+!> \param qs_env ...
+!> \param error ...
 !> \par History
 !>      08.2005 created [tlaino]
 !> \author Teodoro Laino
@@ -107,7 +110,7 @@ CONTAINS
     NULLIFY(dft_control, rho, rho_tot_g, rho_core, rho0_s_gs, pw_env,&
             radii, inp_radii, particle_set, qs_charges)
     allocate_ddapc_env = qs_env%cp_ddapc_ewald%do_solvation.OR.&
-                         qs_env%cp_ddapc_ewald%do_qmmm_periodic.OR.&
+                         qs_env%cp_ddapc_ewald%do_qmmm_periodic_decpl.OR.&
                          qs_env%cp_ddapc_ewald%do_decoupling.OR.&
                          qs_env%cp_ddapc_ewald%do_restraint
     unimplemented =      qs_env%dft_control%qs_control%semi_empirical.OR.&
@@ -193,6 +196,18 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Computes the Density Derived Atomic Point Charges
+!> \param qs_env ...
+!> \param calc_force ...
+!> \param density_fit_section ...
+!> \param density_type ...
+!> \param qout1 ...
+!> \param qout2 ...
+!> \param out_radii ...
+!> \param dq_out ...
+!> \param ext_rho_tot_g ...
+!> \param Itype_of_density ...
+!> \param iwc ...
+!> \param error ...
 !> \par History
 !>      08.2005 created [tlaino]
 !> \author Teodoro Laino
@@ -242,6 +257,8 @@ CONTAINS
     TYPE(pw_pool_type), POINTER              :: auxbas_pool
     TYPE(pw_type), POINTER                   :: rho_tot_g
     TYPE(qs_charges_type), POINTER           :: qs_charges
+    TYPE(qs_kind_type), DIMENSION(:), &
+      POINTER                                :: qs_kind_set
     TYPE(qs_rho_type), POINTER               :: rho
 
 !NB variables for doing build_der_A_matrix_rows in blocks
@@ -256,7 +273,7 @@ CONTAINS
     IF (PRESENT(calc_force))  need_f      = calc_force
     logger => cp_error_get_logger(error)
     NULLIFY(dft_control, rho, rho_tot_g, rho_core, rho0_s_gs, pw_env,&
-            radii, inp_radii, particle_set, qs_charges, cp_ddapc_env)
+            radii, inp_radii, particle_set, qs_kind_set, qs_charges, cp_ddapc_env)
     IF (.NOT.failure) THEN
        CALL get_qs_env(qs_env=qs_env,&
                        dft_control=dft_control,&
@@ -266,6 +283,7 @@ CONTAINS
                        pw_env=pw_env,&
                        qs_charges=qs_charges,&
                        particle_set=particle_set,&
+                       qs_kind_set=qs_kind_set,&
                        cell=cell,&
                        super_cell=super_cell,&
                        error=error)
@@ -364,7 +382,7 @@ CONTAINS
        CALL mp_sum(bv,rho_tot_g%pw_grid%para%group)
        c1 = DOT_PRODUCT(cv,MATMUL(cp_ddapc_env%AmI,bv))-ch_dens
        c1 = c1 / cp_ddapc_env%c0
-       qv = - MATMUL(cp_ddapc_env%AmI,(bv-c1*cv))
+       qv(:) = - MATMUL(cp_ddapc_env%AmI,(bv-c1*cv))
        j  = 0
        qtot = 0.0_dp
        DO i = 1, ndim, num_gauss
@@ -391,7 +409,7 @@ CONTAINS
           END IF
           qout2 = qtot
        END IF
-       CALL print_atomic_charges(particle_set,iw,title=" DDAP "//&
+       CALL print_atomic_charges(particle_set,qs_kind_set, iw,title=" DDAP "//&
             TRIM(type_of_density)//" charges:",atomic_charges=qtot)
        CALL timestop(handle2)
        !
@@ -417,15 +435,16 @@ CONTAINS
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
           ALLOCATE(AmI_cv(ndim), stat=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-          cvT_AmI = MATMUL(cv, cp_ddapc_env%AmI)
-          AmI_cv = MATMUL(cp_ddapc_env%AmI,cv)
+          cvT_AmI(:) = MATMUL(cv, cp_ddapc_env%AmI)
+          AmI_cv(:) = MATMUL(cp_ddapc_env%AmI,cv)
           ALLOCATE(dAmj_qv(ndim), stat=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
           ALLOCATE(AmI_bv(ndim), stat=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-          AmI_bv = MATMUL(cp_ddapc_env%AmI,bv)
+          AmI_bv(:) = MATMUL(cp_ddapc_env%AmI,bv)
 
-          !NB call routine to precompute sin(g.r) and cos(g.r), so it doesn't have to be done for each r_i-r_j pair in build_der_A_matrix_rows()
+          !NB call routine to precompute sin(g.r) and cos(g.r),
+          ! so it doesn't have to be done for each r_i-r_j pair in build_der_A_matrix_rows()
           CALL prep_g_dot_rvec_sin_cos(rho_tot_g, particle_set, gcut, g_dot_rvec_sin, g_dot_rvec_cos, error)
           !NB do build_der_A_matrix_rows in blocks, for more efficient use of DGEMM
 #define NPSET 100
@@ -491,7 +510,8 @@ CONTAINS
                      cp_ddapc_env%AmI,SIZE(cp_ddapc_env%AmI,1),tv,SIZE(tv,1),0.0_dp,dqv,SIZE(dqv,1))
           !NB deallocate g_dot_rvec_sin and g_dot_rvec_cos
           CALL cleanup_g_dot_rvec_sin_cos(g_dot_rvec_sin, g_dot_rvec_cos, error)
-          !NB moved reduction out to where dqv is used to compute a force contribution (smaller array to reduce, just size(particle_set) x 3)
+          !NB moved reduction out to where dqv is used to compute
+          !NB  a force contribution (smaller array to reduce, just size(particle_set) x 3)
           !NB namely ewald_ddapc_force(), cp_decl_ddapc_forces(), restraint_functional_force()
           CPPostcondition(PRESENT(dq_out),cp_failure_level,routineP,error,failure)
           IF (.NOT.ASSOCIATED(dq_out)) THEN
@@ -554,6 +574,15 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief modify hartree potential to handle restraints in DDAPC scheme
+!> \param v_hartree_gspace ...
+!> \param density_fit_section ...
+!> \param particle_set ...
+!> \param AmI ...
+!> \param radii ...
+!> \param charges ...
+!> \param ddapc_restraint_control ...
+!> \param energy_res ...
+!> \param error ...
 !> \par History
 !>      02.2006  modified [Teo]
 ! *****************************************************************************
@@ -606,8 +635,8 @@ SUBROUTINE restraint_functional_potential(v_hartree_gspace,&
        sfac = -1.0_dp/Vol
        fac  = DOT_PRODUCT(cv, MATMUL(AmI,cv))
        fac2 = DOT_PRODUCT(cv, MATMUL(AmI,uv))
-       cv   = uv - cv * fac2/fac
-       cv   = MATMUL(AmI,cv)
+       cv(:) = uv - cv * fac2/fac
+       cv(:) = MATMUL(AmI,cv)
        IF (g_hartree%pw_grid%have_g0) g_hartree%cc(1) = g_hartree%cc(1) + sfac*fac2/fac
        DO ig = g_hartree % pw_grid % first_gne0, g_hartree % pw_grid % ngpts_cut_local
           g2 = g_hartree % pw_grid % gsq ( ig )
@@ -637,6 +666,14 @@ SUBROUTINE restraint_functional_potential(v_hartree_gspace,&
 
 ! *****************************************************************************
 !> \brief Modify the Hartree potential
+!> \param v_hartree_gspace ...
+!> \param density_fit_section ...
+!> \param particle_set ...
+!> \param M ...
+!> \param AmI ...
+!> \param radii ...
+!> \param charges ...
+!> \param error ...
 !> \par History
 !>      08.2005 created [tlaino]
 !> \author Teodoro Laino
@@ -677,12 +714,12 @@ SUBROUTINE restraint_functional_potential(v_hartree_gspace,&
        ALLOCATE(uv(SIZE(M,1)), stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        cv   = 1.0_dp/Vol
-       uv   = MATMUL(M,charges)
+       uv(:)   = MATMUL(M,charges)
        sfac = -1.0_dp/Vol
        fac  = DOT_PRODUCT(cv, MATMUL(AmI,cv))
        fac2 = DOT_PRODUCT(cv, MATMUL(AmI,uv))
-       cv   = uv - cv * fac2/fac
-       cv   = MATMUL(AmI,cv)
+       cv(:)   = uv - cv * fac2/fac
+       cv(:)   = MATMUL(AmI,cv)
        IF (g_hartree%pw_grid%have_g0) g_hartree%cc(1) = g_hartree%cc(1) + sfac*fac2/fac
        DO ig = g_hartree % pw_grid % first_gne0, g_hartree % pw_grid % ngpts_cut_local
           g2 = g_hartree % pw_grid % gsq ( ig )
@@ -713,6 +750,15 @@ SUBROUTINE restraint_functional_potential(v_hartree_gspace,&
 ! *****************************************************************************
 !> \brief To Debug the derivative of the B vector for the solution of the
 !>      linear system
+!> \param dbv ...
+!> \param particle_set ...
+!> \param radii ...
+!> \param rho_tot_g ...
+!> \param gcut ...
+!> \param iparticle ...
+!> \param Vol ...
+!> \param qs_env ...
+!> \param error ...
 !> \par History
 !>      08.2005 created [tlaino]
 !> \author Teodoro Laino
@@ -765,7 +811,7 @@ SUBROUTINE restraint_functional_potential(v_hartree_gspace,&
           CALL build_b_vector(bv2, cp_ddapc_env%gfunc, cp_ddapc_env%w,&
                particle_set, radii, rho_tot_g, gcut, error);  bv2 = bv2 / Vol
           CALL mp_sum(bv2,rho_tot_g%pw_grid%para%group)
-          ddbv = (bv1 - bv2)/(2.0_dp*dx)
+          ddbv(:) = (bv1 - bv2)/(2.0_dp*dx)
           DO kk = 1, SIZE(ddbv)
              IF (ddbv(kk).GT.1.0E-8_dp) THEN
                 v0 = ABS(dbv(kk,i)-ddbv(kk))/ddbv(kk)*100.0_dp
@@ -792,6 +838,15 @@ SUBROUTINE restraint_functional_potential(v_hartree_gspace,&
 ! *****************************************************************************
 !> \brief To Debug the derivative of the A matrix for the solution of the
 !>      linear system
+!> \param dAm ...
+!> \param particle_set ...
+!> \param radii ...
+!> \param rho_tot_g ...
+!> \param gcut ...
+!> \param iparticle ...
+!> \param Vol ...
+!> \param qs_env ...
+!> \param error ...
 !> \par History
 !>      08.2005 created [tlaino]
 !> \author Teodoro Laino
@@ -851,7 +906,7 @@ SUBROUTINE restraint_functional_potential(v_hartree_gspace,&
                particle_set, radii, rho_tot_g, gcut, g_dot_rvec_sin, g_dot_rvec_cos, &
                error);  Am2 = Am2 /(Vol*Vol)
           CALL mp_sum(Am2,rho_tot_g%pw_grid%para%group)
-          ddAm = (Am1 - Am2)/(2.0_dp*dx)
+          ddAm(:,:) = (Am1 - Am2)/(2.0_dp*dx)
           DO kk = 1, SIZE(ddAm,1)
              DO ll = 1, SIZE(ddAm,2)
                 IF (ddAm(kk,ll).GT.1.0E-8_dp) THEN
@@ -880,6 +935,14 @@ SUBROUTINE restraint_functional_potential(v_hartree_gspace,&
 
 ! *****************************************************************************
 !> \brief To Debug the fitted charges
+!> \param dqv ...
+!> \param qs_env ...
+!> \param density_fit_section ...
+!> \param particle_set ...
+!> \param radii ...
+!> \param rho_tot_g ...
+!> \param type_of_density ...
+!> \param error ...
 !> \par History
 !>      08.2005 created [tlaino]
 !> \author Teodoro Laino
@@ -930,7 +993,7 @@ SUBROUTINE restraint_functional_potential(v_hartree_gspace,&
              particle_set(iparticle)%r(i) = rvec(i) - dx
              CALL get_ddapc(qs_env,.FALSE.,density_fit_section, qout1=qtot2,&
                   ext_rho_tot_g=rho_tot_g,Itype_of_density=type_of_density,error=error)
-             ddqv = (qtot1 - qtot2)/(2.0_dp*dx)
+             ddqv(:) = (qtot1 - qtot2)/(2.0_dp*dx)
              DO kk = 1, SIZE(qtot1)-1, SIZE(radii)
                 IF (ANY(ddqv(kk:kk+2).GT.1.0E-8_dp)) THEN
                    WRITE(*,'(A,2F12.6,F12.2)')"Error :",SUM(dqv(kk:kk+2,iparticle,i)),SUM(ddqv(kk:kk+2)),&

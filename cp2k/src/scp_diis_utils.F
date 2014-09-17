@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2013  CP2K developers group                          !
+!   Copyright (C) 2000 - 2014  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -18,7 +18,7 @@ MODULE scp_diis_utils
   USE scp_environment_types,           ONLY: get_scp_env,&
                                              scp_environment_type
   USE termination,                     ONLY: stop_memory
-#include "cp_common_uses.h"
+#include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
 
@@ -33,10 +33,14 @@ MODULE scp_diis_utils
     REAL (KIND=dp), DIMENSION(:), POINTER :: hess
   END TYPE diis_info_type
 
-  PUBLIC :: do_diis_step, diis_info_type, diis_info_create, diis_info_destroy
 
 CONTAINS
 
+! *****************************************************************************
+!> \brief ...
+!> \param diis_info ...
+!> \param nhist ...
+!> \param aux_coeff_set ...
 ! *****************************************************************************
   SUBROUTINE diis_info_create(diis_info,nhist,aux_coeff_set)
 
@@ -91,6 +95,9 @@ CONTAINS
   END SUBROUTINE diis_info_create
 
 ! *****************************************************************************
+!> \brief ...
+!> \param diis_info ...
+! *****************************************************************************
   SUBROUTINE diis_info_destroy(diis_info)
 
     TYPE(diis_info_type), POINTER            :: diis_info
@@ -120,6 +127,13 @@ CONTAINS
 
   END SUBROUTINE diis_info_destroy
 
+! *****************************************************************************
+!> \brief ...
+!> \param scp_env ...
+!> \param atomic_kind_set ...
+!> \param diis_info ...
+!> \param maxerr ...
+!> \param error ...
 ! *****************************************************************************
   SUBROUTINE do_diis_step ( scp_env, atomic_kind_set, diis_info, maxerr, error)
 
@@ -257,6 +271,15 @@ CONTAINS
   END SUBROUTINE do_diis_step
 
 ! *****************************************************************************
+!> \brief ...
+!> \param c_forces ...
+!> \param cg ...
+!> \param e_hist ...
+!> \param c_hist ...
+!> \param hess ...
+!> \param nhist ...
+!> \param ihist ...
+! *****************************************************************************
   SUBROUTINE STORE_HIST(c_forces,cg,e_hist,c_hist,hess,nhist,ihist)
 
     REAL(KIND=dp), DIMENSION(:), &
@@ -295,6 +318,12 @@ CONTAINS
 
   END SUBROUTINE store_hist
 
+! *****************************************************************************
+!> \brief ...
+!> \param dcg ...
+!> \param e_hist ...
+!> \param ihist ...
+!> \param ncoef ...
 ! *****************************************************************************
   SUBROUTINE SOLVE(dcg,e_hist,ihist,ncoef)
     REAL(KIND=dp), INTENT(INOUT)             :: dcg(:)

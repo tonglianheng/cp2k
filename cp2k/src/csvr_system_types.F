@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2013  CP2K developers group                          !
+!   Copyright (C) 2000 - 2014  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -24,13 +24,12 @@ MODULE csvr_system_types
                                              rng_stream_type
   USE simpar_types,                    ONLY: simpar_type
   USE string_utilities,                ONLY: compress
-#include "cp_common_uses.h"
+#include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
 
   PRIVATE
   PUBLIC :: csvr_system_type,&
-            csvr_thermo_type,&
             csvr_init,&
             csvr_dealloc,&
             csvr_thermo_create
@@ -59,6 +58,9 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Initialize type for Canonical Sampling through Velocity Rescaling (CSVR)
+!> \param csvr ...
+!> \param simpar ...
+!> \param section ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 !> \author Teodoro Laino [tlaino] 10.2007- University of Zurich
@@ -89,6 +91,7 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Initialize NVT type for CSVR thermostat
+!> \param csvr ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 !> \author Teodoro Laino [tlaino] 10.2007- University of Zurich
@@ -144,6 +147,7 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Deallocate type for CSVR thermostat
+!> \param csvr ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 !> \author Teodoro Laino [tlaino] 10.2007- University of Zurich
@@ -170,6 +174,7 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Deallocate NVT type for CSVR thermostat
+!> \param nvt ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 !> \author Teodoro Laino [tlaino] 10.2007- University of Zurich

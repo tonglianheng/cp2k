@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2013  CP2K developers group                          !
+!   Copyright (C) 2000 - 2014  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -24,7 +24,7 @@ MODULE semi_empirical_store_int_types
                                              section_vals_val_get
   USE kinds,                           ONLY: dp
   USE memory_utilities,                ONLY: reallocate
-#include "cp_common_uses.h"
+#include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
 
@@ -61,8 +61,12 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Allocate semi-empirical store integrals type
-!> \author Teodoro Laino [tlaino] - University of Zurich
+!> \param store_int_env ...
+!> \param se_section ...
+!> \param compression ...
+!> \param error ...
 !> \date   05.2008
+!> \author Teodoro Laino [tlaino] - University of Zurich
 ! *****************************************************************************
   SUBROUTINE semi_empirical_si_create(store_int_env, se_section, compression, error)
     TYPE(semi_empirical_si_type), POINTER    :: store_int_env
@@ -129,8 +133,10 @@ CPSourceFileRef,&
 
 ! *****************************************************************************
 !> \brief Deallocate the semi-empirical store integrals type
-!> \author Teodoro Laino [tlaino] - University of Zurich
+!> \param store_int_env ...
+!> \param error ...
 !> \date   05.2008
+!> \author Teodoro Laino [tlaino] - University of Zurich
 ! *****************************************************************************
   SUBROUTINE semi_empirical_si_release(store_int_env, error)
     TYPE(semi_empirical_si_type), POINTER    :: store_int_env
@@ -179,8 +185,11 @@ CPSourceFileRef,&
 
 ! *****************************************************************************
 !> \brief Deallocate the semi-empirical store integrals type
-!> \author Teodoro Laino [tlaino] - University of Zurich
+!> \param store_int_env ...
+!> \param geometry_did_change ...
+!> \param error ...
 !> \date   05.2008
+!> \author Teodoro Laino [tlaino] - University of Zurich
 ! *****************************************************************************
   SUBROUTINE semi_empirical_si_initialize(store_int_env, geometry_did_change, error)
     TYPE(semi_empirical_si_type), POINTER    :: store_int_env
@@ -235,8 +244,11 @@ CPSourceFileRef,&
 
 ! *****************************************************************************
 !> \brief Deallocate the semi-empirical store integrals type
-!> \author Teodoro Laino [tlaino] - University of Zurich
+!> \param store_int_env ...
+!> \param geometry_did_change ...
+!> \param error ...
 !> \date   05.2008
+!> \author Teodoro Laino [tlaino] - University of Zurich
 ! *****************************************************************************
   SUBROUTINE semi_empirical_si_finalize(store_int_env, geometry_did_change, error)
     TYPE(semi_empirical_si_type), POINTER    :: store_int_env

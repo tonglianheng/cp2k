@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2013  CP2K developers group                          !
+!   Copyright (C) 2000 - 2014  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -13,10 +13,19 @@ MODULE input_cp2k_xc
   USE bibliography,                    ONLY: &
        Becke1988, Becke1997, BeckeRoussel1989, Goedecker1996, Grimme2006, &
        Grimme2010, Heyd2004, Lee1988, Marques2012, Ortiz1994, Perdew1981, &
-       Perdew1996, Perdew2008, Proynov2007, Tao2003, Vosko1980, Zhang1998
+       Perdew1996, Perdew2008, Proynov2007, Tao2003, Tran2013, Vosko1980, &
+       Wellendorff2012, Zhang1998
   USE cp_output_handling,              ONLY: cp_print_key_section_create
   USE f77_blas
-  USE input_constants
+  USE input_constants,                 ONLY: &
+       add_last_numeric, do_adiabatic_hybrid_mcy3, do_adiabatic_model_pade, &
+       gaussian, high_print_level, slater, vdw_nl_drsll, vdw_nl_lmkll, &
+       vdw_nl_rvv10, vdw_pairpot_dftd2, vdw_pairpot_dftd3, xc_funct_b3lyp, &
+       xc_funct_beefvdw, xc_funct_blyp, xc_funct_bp, xc_funct_hcth120, &
+       xc_funct_no_shortcut, xc_funct_olyp, xc_funct_pade, xc_funct_pbe, &
+       xc_funct_pbe0, xc_funct_tpss, xc_none, xc_pot_energy_none, &
+       xc_pot_energy_sum_eigenvalues, xc_pot_energy_xc_functional, &
+       xc_vdw_fun_none, xc_vdw_fun_nonloc, xc_vdw_fun_pairpot
   USE input_cp2k_hfx,                  ONLY: create_hfx_section
   USE input_cp2k_mp2,                  ONLY: create_mp2_section
   USE input_keyword_types,             ONLY: keyword_create,&
@@ -31,7 +40,19 @@ MODULE input_cp2k_xc
                                              real_t
   USE kinds,                           ONLY: dp
   USE string_utilities,                ONLY: s2a
-#include "cp_common_uses.h"
+  USE xc_input_constants,              ONLY: &
+       c_pw92, c_pw92dmc, c_pw92vmc, c_pz, c_pzdmc, c_pzvmc, do_vwn3, &
+       do_vwn5, ke_lc, ke_llp, ke_ol1, ke_ol2, ke_pbe, ke_pw86, ke_pw91, &
+       ke_t92, pz_orig, xalpha, xc_b97_grimme, xc_b97_mardirossian, &
+       xc_b97_orig, xc_debug_new_routine, xc_deriv_collocate, &
+       xc_deriv_nn10_smooth, xc_deriv_nn50_smooth, xc_deriv_pw, &
+       xc_deriv_spline2, xc_deriv_spline2_smooth, xc_deriv_spline3, &
+       xc_deriv_spline3_smooth, xc_new_f_routine, xc_old_f_routine, &
+       xc_pbe_orig, xc_pbe_rev, xc_pbe_sol, xc_rho_nn10, xc_rho_nn50, &
+       xc_rho_no_smooth, xc_rho_spline2_smooth, xc_rho_spline3_smooth, &
+       xc_test_lsd_f_routine, xgga_b88x, xgga_ev93, xgga_opt, xgga_pbex, &
+       xgga_pw86, xgga_pw91, xgga_revpbe
+#include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
   PRIVATE
@@ -69,17 +90,21 @@ CONTAINS
             description="The xc functional to use",&
             n_keywords=0, n_subsections=4, repeats=.FALSE., required=.FALSE.,&
             citations=(/Ortiz1994,Becke1988,Perdew1996,Zhang1998,Lee1988, &
-                        Heyd2004,Vosko1980, Goedecker1996,Perdew1981,Tao2003/),&
+                        Heyd2004,Vosko1980, Goedecker1996,Perdew1981,&
+                        Tao2003,Wellendorff2012/),&
             error=error)
 
        NULLIFY(subsection,keyword)
        CALL keyword_create(keyword,name="_SECTION_PARAMETERS_",&
-            description="shorcut for the most commont functionals combinations",&
+            description="Shortcut for the most common functional combinations.",&
             usage="&xc_functional BLYP",&
-            enum_c_vals=s2a("B3LYP","PBE0","BLYP","BP","PADE","PBE","TPSS","HCTH120","OLYP","NO_SHORTCUT","NONE"),&
-            enum_i_vals=(/xc_funct_b3lyp,xc_funct_pbe0,xc_funct_blyp,xc_funct_bp,xc_funct_pade,xc_funct_pbe,&
-            xc_funct_tpss,xc_funct_hcth120,xc_funct_olyp,xc_funct_no_shortcut,xc_none/),&
-            default_i_val=xc_funct_no_shortcut,lone_keyword_i_val=xc_funct_no_shortcut,&
+            enum_c_vals=s2a("B3LYP","PBE0","BLYP","BP","PADE","LDA","PBE","TPSS","HCTH120","OLYP","BEEFVDW","NO_SHORTCUT","NONE"),&
+            enum_i_vals=(/xc_funct_b3lyp,xc_funct_pbe0,xc_funct_blyp,xc_funct_bp,xc_funct_pade,xc_funct_pade,xc_funct_pbe,&
+            xc_funct_tpss,xc_funct_hcth120,xc_funct_olyp,xc_funct_beefvdw,xc_funct_no_shortcut,xc_none/),&
+            enum_desc=s2a("B3LYP","PBE0","BLYP","BP","PADE","Alias for PADE","PBE","TPSS","HCTH120","OLYP",&
+                          "BEEFVDW","NO_SHORTCUT","NONE"),&
+            default_i_val=xc_funct_no_shortcut,&
+            lone_keyword_i_val=xc_funct_no_shortcut,&
             error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
@@ -299,7 +324,9 @@ CONTAINS
 
        CALL section_create(subsection,name="KE_GGA",&
             description="Uses one of the KE_GGA functionals (optimized versions of "//&
-            "some of these functionals might be available outside this section).",&
+            "some of these functionals might be available outside this section). "//&
+            "These functionals are needed for the computation of the kinetic "//&
+            "energy in the Kim-Gordon method.",&
             n_keywords=1, n_subsections=0, repeats=.TRUE., required=.TRUE.,&
             error=error)
        CALL keyword_create(keyword,"_SECTION_PARAMETERS_",&
@@ -575,8 +602,8 @@ CONTAINS
        CALL keyword_release(keyword,error=error)
        CALL keyword_create(keyword,"parametrization",&
             description="switches between the B97 and Grimme parametrization ",&
-            enum_i_vals=(/xc_b97_orig,xc_b97_grimme,xc_b97_grimme /),&
-            enum_c_vals=(/"ORIG      ","B97GRIMME ","B97_GRIMME"/),&
+            enum_i_vals=(/xc_b97_orig,xc_b97_grimme,xc_b97_grimme,xc_b97_mardirossian/),&
+            enum_c_vals=(/"ORIG      ","B97GRIMME ","B97_GRIMME","wB97X-V   "/),&
             default_i_val=xc_b97_orig,error=error)
        CALL section_add_keyword(subsection,keyword,error=error)
        CALL keyword_release(keyword,error=error)
@@ -685,9 +712,35 @@ CONTAINS
        CALL keyword_release(keyword,error=error)
        CALL section_add_subsection(section,subsection,error=error)
        CALL section_release(subsection,error=error)
+
+      CALL section_create(subsection,name="BEEF",& !rk: BEEF Exchange
+            description="Uses the BEEFvdW exchange functional",&
+            n_keywords=0, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
+            citations=(/Wellendorff2012/),&
+            error=error)
+       CALL keyword_create(keyword,"_SECTION_PARAMETERS_",&
+            description="activates the functional",&
+            lone_keyword_l_val=.TRUE.,default_l_val=.FALSE.,error=error)
+       CALL section_add_keyword(subsection,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+       CALL keyword_create(keyword,"scale_x",&
+            description="scales the exchange part of the functional",&
+            default_r_val=1._dp,error=error)
+       CALL section_add_keyword(subsection,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+       CALL section_add_subsection(section,subsection,error=error)
+       CALL section_release(subsection,error=error)
     END IF
   END SUBROUTINE create_xc_fun_section
 
+! *****************************************************************************
+!> \brief ...
+!> \param section ...
+!> \param name ...
+!> \param description ...
+!> \param usage ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE create_libxc_section(section,name,description,usage,error)
     TYPE(section_type), POINTER              :: section
     CHARACTER(len=*), INTENT(in)             :: name, description, usage
@@ -829,7 +882,7 @@ CONTAINS
             description="This section combines all possible additional dispersion "//&
             "corrections to the normal XC functionals. This can be more functionals "//&
             "or simple empirical pair potentials. ",&
-            citations=(/grimme2006/),&
+            citations=(/grimme2006,Tran2013/),&
             n_keywords=1, n_subsections=1, repeats=.FALSE., required=.FALSE.,&
             error=error)
 
@@ -837,9 +890,12 @@ CONTAINS
        CALL keyword_create(keyword, name="POTENTIAL_TYPE",&
             variants=s2a("DISPERSION_FUNCTIONAL"),&
             description="Type of dispersion/vdW functional or potential to use",&
-            usage="POTENTIAL_TYPE PAIR_POTENTIAL",&
+            usage="POTENTIAL_TYPE (NONE|PAIR_POTENTIAL|NON_LOCAL)",&
             enum_c_vals=s2a("NONE","PAIR_POTENTIAL","NON_LOCAL"),&
             enum_i_vals=(/ xc_vdw_fun_none, xc_vdw_fun_pairpot, xc_vdw_fun_nonloc /),&
+            enum_desc=s2a("No dispersion/van der Waals functional",&
+                          "Pair potential van der Waals density functional",&
+                          "Nonlocal van der Waals density functional"),&
             default_i_val=xc_vdw_fun_none, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
@@ -855,12 +911,13 @@ CONTAINS
        CALL section_add_keyword(subsection,keyword,error=error)
        CALL keyword_release(keyword,error=error)
        CALL keyword_create(keyword,name="TYPE",&
-            description="Type of potential:<ul><li>DFTD2 &rarr; Grimme D2 method</li>"//&
-                                              "<li>DFTD3 &rarr; Grimme D3 method</li></ul>",&
+            description="Type of potential",&
             citations=(/grimme2006,grimme2010/),&
-            usage="TYPE DFTD2", &
+            usage="TYPE (DFTD2|DFTD3)", &
             enum_c_vals=s2a("DFTD2","DFTD3"),&
             enum_i_vals=(/ vdw_pairpot_dftd2, vdw_pairpot_dftd3 /),&
+            enum_desc=s2a("Grimme D2 method",&
+                            "Grimme D3 method"),&
             default_i_val=vdw_pairpot_dftd3, error=error)
        CALL section_add_keyword(subsection,keyword,error=error)
        CALL keyword_release(keyword,error=error)
@@ -970,10 +1027,15 @@ CONTAINS
             error=error)
 
        CALL keyword_create(keyword,name="TYPE",&
-            description="Type of functional (the corresponding kernel data file should be selected).",&
+            description="Type of functional (the corresponding kernel data file should be selected)."//&
+                        "Allows for common forms such as vdW-DF, vdW-DF2, optB88-vdW, rVV10.",&
             usage="TYPE DRSLL", &
             enum_c_vals=s2a("DRSLL","LMKLL","RVV10"),&
             enum_i_vals=(/ vdw_nl_DRSLL, vdw_nl_LMKLL, vdw_nl_RVV10 /),&
+            enum_desc=s2a("Dion-Rydberg-Schroeder-Langreth-Lundqvist nonlocal van der Waals density functional",&
+                          "Lee-Murray-Kong-Lundqvist-Langreth nonlocal van der Waals density functional",&
+                          "Revised Vydrov-van Voorhis nonlocal van der Waals density functional"),&
+            citations=(/Tran2013/),&
             default_i_val=vdw_nl_DRSLL, error=error)
        CALL section_add_keyword(subsection,keyword,error=error)
        CALL keyword_release(keyword,error=error)
@@ -1068,10 +1130,16 @@ CONTAINS
 
        CALL keyword_create(keyword, name="FUNCTIONAL_ROUTINE",&
             description="Select the code for xc calculation",&
-            usage="FUNCTIONAL_ROUTINE NEW", default_i_val=xc_new_f_routine,&
+            usage="FUNCTIONAL_ROUTINE (NEW|OLD|TEST_LSD|DEBUG)",&
+            default_i_val=xc_new_f_routine,&
             enum_c_vals=s2a("NEW","OLD","TEST_LSD","DEBUG"),&
             enum_i_vals=(/ xc_new_f_routine, xc_old_f_routine, &
-            xc_test_lsd_f_routine, xc_debug_new_routine/),error=error)
+            xc_test_lsd_f_routine, xc_debug_new_routine/),&
+            enum_desc=s2a("Use new code for exchange-correlation functional calculation",&
+                          "Use old code for exchange-correlation functional calculation",&
+                          "Use test local-spin-density approximation code for exchange-correlation functional calculation",&
+                          "Use debug new code for exchange-correlation functional calculation"),&
+            error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
@@ -1142,6 +1210,7 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief creates the section for adiabatic hybrid functionals
+!> \param section ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 !> \author Manuel Guidon
@@ -1182,7 +1251,7 @@ CONTAINS
        CALL keyword_create(&
             keyword=keyword,&
             name="LAMBDA",&
-            description="The point to be used along the adiabatic curve (0<lambda<1)",&
+            description="The point to be used along the adiabatic curve (0 &lt; &lambda; &lt; 1)",&
             usage="LAMBDA 0.71",&
             default_r_val=0.71_dp, error=error)
        CALL section_add_keyword(section,keyword,error=error)

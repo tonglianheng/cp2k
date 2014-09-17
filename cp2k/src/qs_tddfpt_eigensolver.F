@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2013  CP2K developers group                          !
+!   Copyright (C) 2000 - 2014  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -41,14 +41,14 @@ MODULE qs_tddfpt_eigensolver
                                              p_postortho,&
                                              p_preortho
   USE qs_p_env_types,                  ONLY: qs_p_env_type
-  USE qs_tddfpt_types
+  USE qs_tddfpt_types,                 ONLY: tddfpt_env_type
   USE qs_tddfpt_utils,                 ONLY: co_initial_guess,&
                                              normalize,&
                                              reorthogonalize
   USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
-#include "cp_common_uses.h"
+#include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
 
@@ -56,10 +56,16 @@ MODULE qs_tddfpt_eigensolver
 
   PRIVATE
 
-  PUBLIC :: apply_op, eigensolver
+  PUBLIC :: eigensolver
 
 CONTAINS
 
+! *****************************************************************************
+!> \brief ...
+!> \param p_env ...
+!> \param qs_env ...
+!> \param t_env ...
+!> \param error ...
 ! *****************************************************************************
   SUBROUTINE eigensolver(p_env, qs_env, t_env, error)
 
@@ -150,6 +156,15 @@ CONTAINS
   !
   ! res       : the function will return wheter the eigenvalues are converged or not
 
+! *****************************************************************************
+!> \brief ...
+!> \param in_evals ...
+!> \param t_env ...
+!> \param p_env ...
+!> \param qs_env ...
+!> \param out_evals ...
+!> \param error ...
+!> \retval res ...
 ! *****************************************************************************
   FUNCTION iterative_solver(in_evals, &
                             t_env, p_env, qs_env, &
@@ -422,7 +437,7 @@ CONTAINS
        evals_difference =  1.0_dp
        IF (iter/=1) THEN
 
-          evals_difference = ABS((evals(1:n_ev,iter-1)-evals(1:n_ev,iter)))
+          evals_difference(:) = ABS((evals(1:n_ev,iter-1)-evals(1:n_ev,iter)))
           ! For debugging
           IF (output_unit>0) THEN
              WRITE (output_unit,*)
@@ -528,6 +543,14 @@ CONTAINS
   ! qs_env   : info about a quickstep ground state calculation
 
 ! *****************************************************************************
+!> \brief ...
+!> \param X ...
+!> \param R ...
+!> \param p_env ...
+!> \param qs_env ...
+!> \param do_kernel ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE apply_op(X, R,  p_env, qs_env, do_kernel, error)
 
     TYPE(cp_fm_p_type), DIMENSION(:)         :: X, R
@@ -586,6 +609,15 @@ CONTAINS
 
   END SUBROUTINE apply_op
 
+! *****************************************************************************
+!> \brief ...
+!> \param vectors ...
+!> \param vectors_name ...
+!> \param startv ...
+!> \param n_v ...
+!> \param nspins ...
+!> \param fm_struct ...
+!> \param error ...
 ! *****************************************************************************
   SUBROUTINE allocate_krylov_vectors(vectors, vectors_name, &
                                      startv, n_v, nspins, fm_struct, error)

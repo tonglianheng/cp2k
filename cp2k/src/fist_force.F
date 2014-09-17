@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2013  CP2K developers group                          !
+!   Copyright (C) 2000 - 2014  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -15,7 +15,7 @@ MODULE fist_force
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind
   USE atprop_types,                    ONLY: atprop_type
-  USE cell_types,                      ONLY: cell_type,&
+  USE cell_methods,                    ONLY: cell_type,&
                                              pbc
   USE cp_output_handling,              ONLY: cp_p_file,&
                                              cp_print_key_finished_output,&
@@ -46,11 +46,7 @@ MODULE fist_force
   USE fist_nonbond_force,              ONLY: bonded_correct_gaussian,&
                                              force_nonbond
   USE fist_pol_scf,                    ONLY: fist_pol_evaluate
-  USE input_constants,                 ONLY: do_ewald_ewald,&
-                                             do_ewald_none,&
-                                             do_ewald_pme,&
-                                             do_ewald_spme,&
-                                             do_fist_pol_none
+  USE input_constants,                 ONLY: do_fist_pol_none
   USE input_section_types,             ONLY: section_get_ival,&
                                              section_vals_get_subs_vals,&
                                              section_vals_type,&
@@ -69,16 +65,20 @@ MODULE fist_force
   USE particle_types,                  ONLY: particle_type
   USE physcon,                         ONLY: debye
   USE pme,                             ONLY: pme_evaluate
+  USE pw_poisson_types,                ONLY: do_ewald_ewald,&
+                                             do_ewald_none,&
+                                             do_ewald_pme,&
+                                             do_ewald_spme
   USE shell_potential_types,           ONLY: shell_kind_type
   USE spme,                            ONLY: spme_evaluate
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE virial_types,                    ONLY: virial_type
-#include "cp_common_uses.h"
+#include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
   PRIVATE
-  PUBLIC :: fist_force_control, debug_variables_type
+  PUBLIC :: fist_force_control
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'fist_force'
 
 ! *****************************************************************************
@@ -100,6 +100,13 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Calculates the total potential energy, total force, and the
 !>      total pressure tensor from the potentials
+!> \param fist_env ...
+!> \param virial ...
+!> \param atprop_env ...
+!> \param para_env ...
+!> \param debug ...
+!> \param force_env_section ...
+!> \param error ...
 !> \par History
 !>      Harald Forbert(Dec-2000): Changes for multiple linked lists
 !>      cjm, 20-Feb-2001: box_ref used to initialize ewald.  Now
@@ -893,6 +900,12 @@ END SUBROUTINE fist_force_control
 
 ! *****************************************************************************
 !> \brief Print properties number according the requests in input file
+!> \param fist_env ...
+!> \param print_section ...
+!> \param atomic_kind_set ...
+!> \param particle_set ...
+!> \param cell ...
+!> \param error ...
 !> \par History
 !>      [01.2006] created
 !> \author Teodoro Laino
@@ -930,6 +943,14 @@ END SUBROUTINE fist_force_control
 ! *****************************************************************************
 !> \brief Evaluates the Dipole of a classical charge distribution(point-like)
 !>      possibly using the berry phase formalism
+!> \param fist_env ...
+!> \param print_section ...
+!> \param atomic_kind_set ...
+!> \param particle_set ...
+!> \param cell ...
+!> \param unit_nr ...
+!> \param charges ...
+!> \param error ...
 !> \par History
 !>      [01.2006] created
 !>      [12.2007] tlaino - University of Zurich - debug and extended

@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2013  CP2K developers group                          !
+!   Copyright (C) 2000 - 2014  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -14,7 +14,11 @@ MODULE input_cp2k_free_energy
   USE cp_output_handling,              ONLY: cp_print_key_section_create
   USE cp_units,                        ONLY: cp_unit_to_cp2k
   USE f77_blas
-  USE input_constants
+  USE input_constants,                 ONLY: &
+       add_last_numeric, do_fe_ac, do_fe_meta, do_fe_ui, do_wall_gaussian, &
+       do_wall_m, do_wall_none, do_wall_p, do_wall_quadratic, &
+       do_wall_quartic, do_wall_reflective, gaussian, high_print_level, &
+       low_print_level
   USE input_keyword_types,             ONLY: keyword_create,&
                                              keyword_release,&
                                              keyword_type
@@ -29,7 +33,7 @@ MODULE input_cp2k_free_energy
                                              real_t
   USE kinds,                           ONLY: dp
   USE string_utilities,                ONLY: s2a
-#include "cp_common_uses.h"
+#include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
   PRIVATE
@@ -460,7 +464,7 @@ CONTAINS
             error=error)
        CALL keyword_create(keyword, name="_DEFAULT_KEYWORD_",&
             description="Specified the communication filename for each walker.",repeats=.TRUE.,&
-            usage="<STRING>", type_of_var=lchar_t, n_var=1, error=error)
+            usage="{String}", type_of_var=lchar_t, n_var=1, error=error)
        CALL section_add_keyword(subsection,keyword,error=error)
        CALL keyword_release(keyword,error=error)
        CALL section_add_subsection(section, subsection, error=error)
@@ -568,6 +572,7 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Creates the velocity section
 !> \param section the section to create
+!> \param metadyn_section ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 !> \author teo
@@ -594,7 +599,7 @@ CONTAINS
        NULLIFY(keyword)
        CALL keyword_create(keyword, name="_DEFAULT_KEYWORD_",&
             description="Specify the spawned hills",repeats=.TRUE.,&
-            usage="<REAL> <REAL> .. <REAL>", type_of_var=real_t, n_var=-1, error=error)
+            usage="{Real} ...", type_of_var=real_t, n_var=-1, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
        CALL section_add_subsection(metadyn_section, section, error=error)
@@ -612,7 +617,7 @@ CONTAINS
        NULLIFY(keyword)
        CALL keyword_create(keyword, name="_DEFAULT_KEYWORD_",&
             description="Specify the spawned hills",repeats=.TRUE.,&
-            usage="<REAL> <REAL> .. <REAL>", type_of_var=real_t, n_var=-1, error=error)
+            usage="{Real} ...", type_of_var=real_t, n_var=-1, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
        CALL section_add_subsection(metadyn_section, section, error=error)
@@ -626,7 +631,7 @@ CONTAINS
        NULLIFY(keyword)
        CALL keyword_create(keyword, name="_DEFAULT_KEYWORD_",&
             description="Specify the spawned hills",repeats=.TRUE.,&
-            usage="<REAL>", type_of_var=real_t, n_var=1, error=error)
+            usage="{Real}", type_of_var=real_t, n_var=1, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
        CALL section_add_subsection(metadyn_section, section, error=error)
@@ -640,7 +645,7 @@ CONTAINS
        NULLIFY(keyword)
        CALL keyword_create(keyword, name="_DEFAULT_KEYWORD_",&
             description="Specify the spawned hills",repeats=.TRUE.,&
-            usage="<REAL>", type_of_var=real_t, n_var=1, error=error)
+            usage="{Real}", type_of_var=real_t, n_var=1, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
        CALL section_add_subsection(metadyn_section, section, error=error)
@@ -656,7 +661,7 @@ CONTAINS
        NULLIFY(keyword)
        CALL keyword_create(keyword, name="_DEFAULT_KEYWORD_",&
             description="Specified the positions",repeats=.TRUE.,&
-            usage="<REAL>", type_of_var=real_t, n_var=1, error=error)
+            usage="{Real}", type_of_var=real_t, n_var=1, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
        CALL section_add_subsection(metadyn_section, section, error=error)
@@ -670,7 +675,7 @@ CONTAINS
        NULLIFY(keyword)
        CALL keyword_create(keyword, name="_DEFAULT_KEYWORD_",&
             description="Specified the velocities",repeats=.TRUE.,&
-            usage="<REAL>", type_of_var=real_t, n_var=1, error=error)
+            usage="{Real}", type_of_var=real_t, n_var=1, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
        CALL section_add_subsection(metadyn_section, section, error=error)
@@ -684,7 +689,7 @@ CONTAINS
        NULLIFY(keyword)
        CALL keyword_create(keyword, name="_DEFAULT_KEYWORD_",&
             description="Specified the theta",repeats=.TRUE.,&
-            usage="<REAL>", type_of_var=real_t, n_var=1, error=error)
+            usage="{Real}", type_of_var=real_t, n_var=1, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
        CALL section_add_subsection(metadyn_section, section, error=error)
@@ -698,7 +703,7 @@ CONTAINS
        NULLIFY(keyword)
        CALL keyword_create(keyword, name="_DEFAULT_KEYWORD_",&
             description="Specified the theta",repeats=.TRUE.,&
-            usage="<REAL>", type_of_var=real_t, n_var=1, error=error)
+            usage="{Real}", type_of_var=real_t, n_var=1, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
        CALL section_add_subsection(metadyn_section, section, error=error)

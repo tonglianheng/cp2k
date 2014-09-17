@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2013  CP2K developers group                          !
+!   Copyright (C) 2000 - 2014  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -41,7 +41,7 @@ MODULE atom_fit
                                              evolt
   USE powell,                          ONLY: opt_state_type,&
                                              powell_optimize
-#include "cp_common_uses.h"
+#include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
 
@@ -49,12 +49,21 @@ MODULE atom_fit
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'atom_fit'
 
-  PUBLIC :: atom_fit_density, atom_fit_basis, atom_fit_pseudo
+  PUBLIC :: atom_fit_density, atom_fit_basis, atom_fit_pseudo, atom_fit_kgpot
 
 ! *****************************************************************************
 
 CONTAINS
 
+! *****************************************************************************
+!> \brief ...
+!> \param atom ...
+!> \param num_gto ...
+!> \param norder ...
+!> \param iunit ...
+!> \param powell_section ...
+!> \param results ...
+!> \param error ...
 ! *****************************************************************************
   SUBROUTINE atom_fit_density (atom,num_gto,norder,iunit,powell_section,results,error)
     TYPE(atom_type), POINTER                 :: atom
@@ -135,7 +144,7 @@ CONTAINS
 
     IF ( iunit > 0 ) THEN
       WRITE(iunit,'(" POWELL| Number of function evaluations",T71,I10)') ostate%nf
-      WRITE(iunit,'(" POWELL| Final value of function",T61,G20.10)') ostate%f
+      WRITE(iunit,'(" POWELL| Final value of function",T61,G20.10)') ostate%fopt
       WRITE(iunit,'(" Optimized representation of density using a Geometrical Gaussian basis")')
       WRITE(iunit,'(A,I3,/,T10,A,F10.6,T48,A,F10.6)') " Number of Gaussians:",num_gto,&
              "Starting exponent:",x(1),"Proportionality factor:",x(2)
@@ -154,6 +163,15 @@ CONTAINS
     CPPostcondition(ierr==0, cp_failure_level, routineP, error, failure)
 
   END SUBROUTINE atom_fit_density
+! *****************************************************************************
+!> \brief ...
+!> \param atom_info ...
+!> \param basis ...
+!> \param pptype ...
+!> \param iunit ...
+!> \param iw ...
+!> \param powell_section ...
+!> \param error ...
 ! *****************************************************************************
   SUBROUTINE atom_fit_basis (atom_info,basis,pptype,iunit,iw,powell_section,&
                              error)
@@ -353,7 +371,7 @@ CONTAINS
                 END DO
               END DO
          END SELECT
-         CALL basis_fit (atom_info,basis,pptype,ostate%f,iw,error)
+         CALL basis_fit (atom_info,basis,pptype,ostate%f,0,error)
          fopt = MIN(fopt,ostate%f)
       END IF
 
@@ -451,6 +469,15 @@ CONTAINS
     END IF
 
   END SUBROUTINE atom_fit_basis
+! *****************************************************************************
+!> \brief ...
+!> \param atom_info ...
+!> \param atom_refs ...
+!> \param ppot ...
+!> \param iunit ...
+!> \param pseudo_section ...
+!> \param powell_section ...
+!> \param error ...
 ! *****************************************************************************
   SUBROUTINE atom_fit_pseudo (atom_info,atom_refs,ppot,iunit,&
                               pseudo_section,powell_section,error)
@@ -750,7 +777,7 @@ CONTAINS
 
     IF ( iunit > 0 ) THEN
       WRITE(iunit,'(" POWELL| Number of function evaluations",T71,I10)') ostate%nf
-      WRITE(iunit,'(" POWELL| Final value of function",T61,F20.10)') ostate%f
+      WRITE(iunit,'(" POWELL| Final value of function",T61,F20.10)') ostate%fopt
 
       CALL put_pseudo_param(x,ppot%gth_pot,error)
       CALL pseudo_fit(atom_info,ppot,ostate%f,pval,error)
@@ -841,6 +868,16 @@ CONTAINS
 
   END SUBROUTINE atom_fit_pseudo
 ! *****************************************************************************
+!> \brief ...
+!> \param density ...
+!> \param atom ...
+!> \param n ...
+!> \param aval ...
+!> \param cval ...
+!> \param co ...
+!> \param aerr ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE density_fit (density,atom,n,aval,cval,co,aerr,error)
     TYPE(opgrid_type), POINTER               :: density
     TYPE(atom_type), POINTER                 :: atom
@@ -861,7 +898,6 @@ CONTAINS
     REAL(dp), ALLOCATABLE, DIMENSION(:, :)   :: bf, smat, tval
 
     failure = .FALSE.
-! create basis
 
     ALLOCATE(pe(n),STAT=ierr)
     CPPostcondition(ierr==0, cp_failure_level, routineP, error, failure)
@@ -921,6 +957,14 @@ CONTAINS
 
   END SUBROUTINE density_fit
 ! *****************************************************************************
+!> \brief ...
+!> \param atom_info ...
+!> \param basis ...
+!> \param pptype ...
+!> \param afun ...
+!> \param iw ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE basis_fit (atom_info,basis,pptype,afun,iw,error)
     TYPE(atom_p_type), DIMENSION(:, :), &
       POINTER                                :: atom_info
@@ -941,7 +985,6 @@ CONTAINS
     TYPE(atom_type), POINTER                 :: atom
 
     failure = .FALSE.
-! integrals
 
     ALLOCATE(atint,STAT=ierr)
     CPPostcondition(ierr==0, cp_failure_level, routineP, error, failure)
@@ -1005,6 +1048,13 @@ CONTAINS
     CPPostcondition(ierr==0, cp_failure_level, routineP, error, failure)
 
   END SUBROUTINE basis_fit
+! *****************************************************************************
+!> \brief ...
+!> \param atom_info ...
+!> \param ppot ...
+!> \param afun ...
+!> \param pval ...
+!> \param error ...
 ! *****************************************************************************
   SUBROUTINE pseudo_fit (atom_info,ppot,afun,pval,error)
     TYPE(atom_p_type), DIMENSION(:, :), &
@@ -1123,6 +1173,12 @@ CONTAINS
 
   END SUBROUTINE pseudo_fit
 ! *****************************************************************************
+!> \brief ...
+!> \param pvec ...
+!> \param nval ...
+!> \param gthpot ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE get_pseudo_param (pvec,nval,gthpot,error)
     REAL(KIND=dp), DIMENSION(:), INTENT(out) :: pvec
     INTEGER, INTENT(out)                     :: nval
@@ -1195,6 +1251,12 @@ CONTAINS
 
   END SUBROUTINE get_pseudo_param
 
+! *****************************************************************************
+!> \brief ...
+!> \param pvec ...
+!> \param gthpot ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE put_pseudo_param (pvec,gthpot,error)
     REAL(KIND=dp), DIMENSION(:), INTENT(in)  :: pvec
     TYPE(atom_gthpot_type), INTENT(inout)    :: gthpot
@@ -1263,6 +1325,12 @@ CONTAINS
 
   END SUBROUTINE put_pseudo_param
 
+! *****************************************************************************
+!> \brief ...
+!> \param id ...
+!> \param xval ...
+!> \retval yval ...
+! *****************************************************************************
   FUNCTION rcpro(id,xval) RESULT(yval)
     INTEGER, INTENT(IN)                      :: id
     REAL(dp), INTENT(IN)                     :: xval
@@ -1282,6 +1350,236 @@ CONTAINS
     END IF
   END FUNCTION rcpro
 
+! *****************************************************************************
+!> \brief ...
+!> \param atom ...
+!> \param num_gau ...
+!> \param num_pol ...
+!> \param iunit ...
+!> \param powell_section ...
+!> \param results ...
+!> \param error ...
+! *****************************************************************************
+  SUBROUTINE atom_fit_kgpot (atom,num_gau,num_pol,iunit,powell_section,results,error)
+    TYPE(atom_type), POINTER                 :: atom
+    INTEGER, INTENT(IN)                      :: num_gau, num_pol, iunit
+    TYPE(section_vals_type), OPTIONAL, &
+      POINTER                                :: powell_section
+    REAL(KIND=dp), DIMENSION(:), OPTIONAL    :: results
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'atom_fit_kgpot', &
+      routineP = moduleN//':'//routineN
+    REAL(KIND=dp), PARAMETER                 :: t23 = 2._dp/3._dp
+
+    INTEGER                                  :: i, ierr, ig, ip, iw, j, n10
+    LOGICAL                                  :: failure
+    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: x
+    REAL(KIND=dp), ALLOCATABLE, &
+      DIMENSION(:, :)                        :: co
+    TYPE(opgrid_type), POINTER               :: density
+    TYPE(opt_state_type)                     :: ostate
+
+    failure = .FALSE.
+    ! at least one parameter to be optimized
+    CPPrecondition(num_pol*num_gau > 0, cp_failure_level, routineP, error, failure)
+
+    ALLOCATE(co(num_pol+1,num_gau),x(num_pol*num_gau+num_gau),STAT=ierr)
+    CPPostcondition(ierr==0, cp_failure_level, routineP, error, failure)
+    co = 0._dp
+
+    ! calculate density
+    NULLIFY(density)
+    CALL create_opgrid(density,atom%basis%grid,error)
+    CALL atom_denmat(atom%orbitals%pmat,atom%orbitals%wfn,atom%basis%nbas,atom%state%occupation,&
+                     atom%state%maxl_occ,atom%state%maxn_occ,error)
+    CALL atom_density(density%op,atom%orbitals%pmat,atom%basis,atom%state%maxl_occ,typ="RHO",error=error)
+    ! target functional 
+    density%op = t23*(0.3_dp*(3.0_dp*pi*pi)**t23)*density%op**t23
+
+    ! initiallize parameter
+    ostate%nf = 0
+    ostate%nvar = num_pol*num_gau + num_gau
+    DO i=1,num_gau
+       co(1,i) = 0.5_dp + REAL(i-1,KIND=dp)
+       co(2,i) = 1.0_dp
+       DO j=3,num_pol+1
+          co(j,i) = 0.1_dp
+       END DO
+    END DO
+   CALL putvar(x,co,num_pol,num_gau)
+
+    IF(PRESENT(powell_section)) THEN
+       CALL section_vals_val_get(powell_section,"ACCURACY", r_val=ostate%rhoend, error=error)
+       CALL section_vals_val_get(powell_section,"STEP_SIZE", r_val=ostate%rhobeg, error=error)
+       CALL section_vals_val_get(powell_section,"MAX_FUN", i_val=ostate%maxfun, error=error)
+    ELSE
+       ostate%rhoend = 1.e-8_dp
+       ostate%rhobeg = 5.e-2_dp
+       ostate%maxfun = 1000
+    END IF
+    ostate%iprint = 1
+    ostate%unit  = iunit
+
+    ostate%state = 0
+    IF ( iunit > 0 ) THEN
+      WRITE(iunit,'(/," ",13("*")," Approximated Nonadditive Kinetic Energy Functional ",14("*"))')
+      WRITE(iunit,'(" POWELL| Start optimization procedure")')
+    END IF
+    n10 = 50
+
+    DO
+
+      IF ( ostate%state == 2 ) THEN
+         CALL getvar(x,co,num_pol,num_gau)
+         CALL kgpot_fit (density,num_gau,num_pol,co,ostate%f,error)
+      END IF
+
+      IF ( ostate%state == -1 ) EXIT
+
+      CALL powell_optimize (ostate%nvar, x, ostate)
+
+      IF ( MOD(ostate%nf,n10) == 0 .AND. iunit > 0 ) THEN
+        WRITE(iunit,'(" POWELL| Reached",i4,"% of maximal function calls",T66,G15.7)') &
+              INT(REAL(ostate%nf,dp)/REAL(ostate%maxfun,dp)*100._dp),ostate%fopt
+      END IF
+
+    END DO
+
+    ostate%state = 8
+    CALL powell_optimize (ostate%nvar, x, ostate)
+    CALL getvar(x,co,num_pol,num_gau)
+
+    CALL release_opgrid(density,error)
+
+    IF ( iunit > 0 ) THEN
+      WRITE(iunit,'(" POWELL| Number of function evaluations",T71,I10)') ostate%nf
+      WRITE(iunit,'(" POWELL| Final value of function",T61,G20.10)') ostate%fopt
+      WRITE(iunit,'(" Optimized local potential of approximated nonadditive kinetic energy functional")')
+      DO ig=1,num_gau
+         WRITE(iunit,'(I2,T15,"Gaussian polynomial expansion",T66,"Rc=",F12.4)') ig,co(1,ig)
+         WRITE(iunit,'(T15,"Coefficients",T33,4F12.4)') (co(1+ip,ig),ip=1,num_pol)
+      END DO
+    END IF
+
+    CALL open_file(file_name="FIT_RESULT",file_status="UNKNOWN",file_action="WRITE",unit_number=iw)
+    WRITE(iw,*) ptable(atom%z)%symbol
+    WRITE(iw,*) num_gau, num_pol
+    DO ig=1,num_gau
+      WRITE(iw,'(T10,F12.4,6X,4F12.4)') (co(ip,ig),ip=1,num_pol+1)
+    END DO
+    CALL close_file(unit_number=iw)
+
+    IF(PRESENT(results)) THEN
+      CPPrecondition(SIZE(results)>=SIZE(x), cp_failure_level, routineP, error, failure)
+      results = x
+    END IF
+
+    DEALLOCATE(co,x,STAT=ierr)
+    CPPostcondition(ierr==0, cp_failure_level, routineP, error, failure)
+
+  END SUBROUTINE atom_fit_kgpot
+
+! *****************************************************************************
+!> \brief ...
+!> \param kgpot ...
+!> \param ng ...
+!> \param np ...
+!> \param cval ...
+!> \param aerr ...
+!> \param error ...
+! *****************************************************************************
+  SUBROUTINE kgpot_fit (kgpot,ng,np,cval,aerr,error)
+    TYPE(opgrid_type), POINTER               :: kgpot
+    INTEGER, INTENT(IN)                      :: ng, np
+    REAL(dp), DIMENSION(:, :), INTENT(INOUT) :: cval
+    REAL(dp), INTENT(OUT)                    :: aerr
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'kgpot_fit', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: i, ierr, ig, ip, n
+    LOGICAL                                  :: failure
+    REAL(KIND=dp)                            :: pc, rc
+    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: pval
+
+    n = kgpot%grid%nr
+    ALLOCATE(pval(n),STAT=ierr)
+    CPPostcondition(ierr==0, cp_failure_level, routineP, error, failure)
+    pval = 0.0_dp
+    DO i=1,n
+       DO ig=1,ng
+          rc = kgpot%grid%rad(i)/cval(1,ig)
+          pc = 0.0_dp
+          DO ip=1,np
+             pc = pc + cval(ip+1,ig)*rc**(2*ip-2)
+          END DO
+          pval(i) = pval(i) + pc*EXP(-0.5_dp*rc*rc)
+       END DO
+    END DO
+    pval(1:n) = (pval(1:n) - kgpot%op(1:n))**2
+    aerr = fourpi*SUM(pval(1:n)*kgpot%grid%wr(1:n))
+
+    DEALLOCATE(pval,STAT=ierr)
+    CPPostcondition(ierr==0, cp_failure_level, routineP, error, failure)
+
+  END SUBROUTINE kgpot_fit 
+
+! *****************************************************************************
+!> \brief ...
+!> \param xvar ...
+!> \param cvar ...
+!> \param np ...
+!> \param ng ...
+! *****************************************************************************
+  SUBROUTINE getvar(xvar,cvar,np,ng)
+    REAL(KIND=dp), DIMENSION(:), INTENT(in)  :: xvar
+    REAL(KIND=dp), DIMENSION(:, :), &
+      INTENT(inout)                          :: cvar
+    INTEGER                                  :: np, ng
+
+    INTEGER                                  :: ig, ii, ip
+
+    ii = 0
+    DO ig=1,ng
+       ii=ii+1
+       cvar(1,ig) = xvar(ii)
+       DO ip=1,np
+          ii=ii+1
+          cvar(ip+1,ig) = xvar(ii)**2
+       END DO
+    END DO
+
+  END SUBROUTINE getvar
+
+! *****************************************************************************
+!> \brief ...
+!> \param xvar ...
+!> \param cvar ...
+!> \param np ...
+!> \param ng ...
+! *****************************************************************************
+  SUBROUTINE putvar(xvar,cvar,np,ng)
+    REAL(KIND=dp), DIMENSION(:), &
+      INTENT(inout)                          :: xvar
+    REAL(KIND=dp), DIMENSION(:, :), &
+      INTENT(in)                             :: cvar
+    INTEGER                                  :: np, ng
+
+    INTEGER                                  :: ig, ii, ip
+
+    ii = 0
+    DO ig=1,ng
+       ii=ii+1
+       xvar(ii) = cvar(1,ig)
+       DO ip=1,np
+          ii=ii+1
+          xvar(ii) = SQRT(ABS(cvar(ip+1,ig)))
+       END DO
+    END DO
+
+  END SUBROUTINE putvar
 ! *****************************************************************************
 
 END MODULE atom_fit

@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2013  CP2K developers group                          !
+!   Copyright (C) 2000 - 2014  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -11,11 +11,10 @@ MODULE molden_utils
   USE atomic_kind_types,               ONLY: get_atomic_kind
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
-  USE input_constants
   USE input_section_types,             ONLY: section_vals_type
   USE kinds,                           ONLY: dp
   USE particle_types,                  ONLY: particle_type
-#include "cp_common_uses.h"
+#include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
 
@@ -28,6 +27,14 @@ MODULE molden_utils
 CONTAINS
 ! *****************************************************************************
 !> \brief writes the output for vibrational analysis in MOLDEN format
+!> \param input ...
+!> \param particles ...
+!> \param freq ...
+!> \param eigen_vec ...
+!> \param intensities ...
+!> \param calc_intens ...
+!> \param dump_only_positive ...
+!> \param error ...
 !> \author Florian Schiffmann 11.2007
 ! *****************************************************************************
   SUBROUTINE molden_out(input,particles,freq,eigen_vec,intensities,calc_intens,&

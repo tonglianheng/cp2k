@@ -1,25 +1,23 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2013  CP2K developers group                          !
+!   Copyright (C) 2000 - 2014  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
 !> \brief Calculate the saop potential
 ! *****************************************************************************
 MODULE xc_pot_saop
-
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind
-  USE cell_types,                      ONLY: cell_type
   USE cp_array_r_utils,                ONLY: cp_1d_r_p_type
-  USE cp_dbcsr_interface,              ONLY: cp_dbcsr_copy,&
-                                             cp_dbcsr_init,&
-                                             cp_dbcsr_set
-  USE cp_dbcsr_operations,             ONLY: cp_dbcsr_allocate_matrix_set,&
+  USE cp_dbcsr_interface,              ONLY: cp_dbcsr_allocate_matrix_set,&
+                                             cp_dbcsr_copy,&
                                              cp_dbcsr_deallocate_matrix,&
                                              cp_dbcsr_deallocate_matrix_set,&
-                                             cp_dbcsr_plus_fm_fm_t
-  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_p_type
+                                             cp_dbcsr_init,&
+                                             cp_dbcsr_p_type,&
+                                             cp_dbcsr_set
+  USE cp_dbcsr_operations,             ONLY: cp_dbcsr_plus_fm_fm_t
   USE cp_fm_types,                     ONLY: cp_fm_create,&
                                              cp_fm_get_info,&
                                              cp_fm_get_submatrix,&
@@ -60,6 +58,8 @@ MODULE xc_pot_saop
   USE qs_grid_atom,                    ONLY: grid_atom_type
   USE qs_harmonics_atom,               ONLY: harmonics_atom_type
   USE qs_integrate_potential,          ONLY: integrate_v_rspace
+  USE qs_kind_types,                   ONLY: get_qs_kind,&
+                                             qs_kind_type
   USE qs_ks_atom,                      ONLY: update_ks_atom
   USE qs_local_rho_types,              ONLY: local_rho_set_create,&
                                              local_rho_set_release,&
@@ -75,6 +75,7 @@ MODULE xc_pot_saop
   USE qs_vxc_atom,                     ONLY: calc_rho_angular,&
                                              gaVxcgb_noGC
   USE util,                            ONLY: get_limit
+  USE virial_types,                    ONLY: virial_type
   USE xc,                              ONLY: xc_vxc_pw_create
   USE xc_atom,                         ONLY: fill_rho_set,&
                                              vxc_of_r_new,&
@@ -95,7 +96,7 @@ MODULE xc_pot_saop
                                              xc_rho_set_update
   USE xc_xbecke88,                     ONLY: xb88_lda_info,&
                                              xb88_lsd_info
-#include "cp_common_uses.h"
+#include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
 
@@ -112,6 +113,12 @@ MODULE xc_pot_saop
 
 CONTAINS
 
+! *****************************************************************************
+!> \brief ...
+!> \param ks_matrix ...
+!> \param qs_env ...
+!> \param oe_corr ...
+!> \param error ...
 ! *****************************************************************************
   SUBROUTINE add_saop_pot(ks_matrix, qs_env, oe_corr, error)
 
@@ -130,17 +137,18 @@ CONTAINS
                                                 xc_rho_smooth_id
     INTEGER, DIMENSION(2)                    :: ncol, nrow
     INTEGER, DIMENSION(2, 3)                 :: bo
-    LOGICAL                                  :: failure, gapw, ionode, lsd
+    LOGICAL                                  :: compute_virial, failure, &
+                                                gapw, ionode, lsd
     REAL(KIND=dp)                            :: density_cut, efac, &
                                                 gradient_cut, tau_cut, &
                                                 tot_rho_psi, we_GLLB, we_LB, &
                                                 xc_energy
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: coeff_col
+    REAL(KIND=dp), DIMENSION(3, 3)           :: virial_xc_tmp
     REAL(KIND=dp), DIMENSION(:), POINTER     :: mo_eigenvalues
     REAL(KIND=dp), DIMENSION(:, :, :), &
       POINTER                                :: dummy, e_uniform
-    TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: orbital_density_matrix
     TYPE(cp_fm_p_type), DIMENSION(:), &
@@ -160,6 +168,7 @@ CONTAINS
                                                 xc_fun_section_tmp, &
                                                 xc_section_orig, &
                                                 xc_section_tmp
+    TYPE(virial_type), POINTER               :: virial
     TYPE(xc_derivative_set_type), POINTER    :: deriv_set
     TYPE(xc_derivative_type), POINTER        :: deriv
     TYPE(xc_rho_cflags_type)                 :: needs
@@ -180,9 +189,10 @@ CONTAINS
     CALL get_qs_env(qs_env=qs_env,&
                     rho=rho_struct,&
                     pw_env=pw_env,&
-                    cell=cell,&
                     input=input,&
+                    virial=virial,&
                     mos=molecular_orbitals,error=error)
+    compute_virial=virial%pv_calculate.AND.(.NOT.virial%pv_numer)
     CALL section_vals_val_get(input,"DFT%QS%METHOD",i_val=dft_method_id,error=error)
     gapw = (dft_method_id==do_method_gapw)
 
@@ -240,7 +250,7 @@ CONTAINS
     CALL xc_rho_set_update(rho_set, rho_r, rho_g, tau, needs, &
                            xc_deriv_method_id,&
                            xc_rho_smooth_id,&
-                           cell, auxbas_pw_pool, error)
+                           auxbas_pw_pool, error)
 
     !----------------------------------------!
     ! Construct the LB94 potential in vxc_LB !
@@ -256,18 +266,21 @@ CONTAINS
     CALL section_vals_set_subs_vals(xc_section_tmp,"XC_FUNCTIONAL",&
          xc_fun_section_tmp,error=error)
 
+    CPPostcondition(.NOT.compute_virial,cp_failure_level,routineP,error,failure)
     CALL xc_vxc_pw_create(vxc_tmp, vxc_tau, xc_energy, rho_r, rho_g, tau,&
-                          xc_section_tmp, cell, auxbas_pw_pool,  &
-                          error)
+                          xc_section_tmp, auxbas_pw_pool,  &
+                          error,compute_virial=.FALSE.,virial_xc=virial_xc_tmp)
 
     CALL section_vals_val_set(xc_fun_section_tmp,"XALPHA%_SECTION_PARAMETERS_",&
          l_val=.FALSE.,error=error)
     CALL section_vals_val_set(xc_fun_section_tmp,"PZ81%_SECTION_PARAMETERS_",&
          l_val=.TRUE.,error=error)
 
+    CPPostcondition(.NOT.compute_virial,cp_failure_level,routineP,error,failure)
     CALL xc_vxc_pw_create(vxc_LB, vxc_tau, xc_energy, rho_r, rho_g, tau,&
-                          xc_section_tmp, cell, auxbas_pw_pool, &
-                          error)
+                          xc_section_tmp, auxbas_pw_pool, &
+                          compute_virial=.FALSE.,virial_xc=virial_xc_tmp,&
+                          error=error)
 
     DO ispin=1, nspins
        vxc_LB(ispin)%pw%cr3d = vxc_LB(ispin)%pw%cr3d + alpha*vxc_tmp(ispin)%pw%cr3d
@@ -502,6 +515,11 @@ CONTAINS
   END SUBROUTINE add_saop_pot
 
 ! *****************************************************************************
+!> \brief ...
+!> \param qs_env ...
+!> \param oe_corr ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE gapw_add_atomic_saop_pot(qs_env, oe_corr, error)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
@@ -532,7 +550,6 @@ CONTAINS
       POINTER                                :: drho_h, drho_s, vxg
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
-    TYPE(atomic_kind_type), POINTER          :: atom_kind
     TYPE(cp_1d_r_p_type), DIMENSION(:), &
       POINTER                                :: mo_eigenvalues
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
@@ -544,6 +561,8 @@ CONTAINS
     TYPE(local_rho_type), POINTER            :: local_rho_set
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: molecular_orbitals
+    TYPE(qs_kind_type), DIMENSION(:), &
+      POINTER                                :: qs_kind_set
     TYPE(qs_rho_type), POINTER               :: rho_structure
     TYPE(rho_atom_coeff), DIMENSION(:), &
       POINTER                                :: dr_h, dr_s, r_h, r_s
@@ -566,7 +585,7 @@ CONTAINS
 
     NULLIFY(weight, rho_h, rho_s, vxc_LB_h, vxc_LB_s, vxc_GLLB_h, vxc_GLLB_s, &
             vxc_tmp_h, vxc_tmp_s, vtau, dummy, e_uniform, drho_h, drho_s, vxg, atom_list, &
-            atom_kind, atomic_kind_set,  deriv_set, deriv, atomic_grid, &
+            atomic_kind_set, qs_kind_set,  deriv_set, deriv, atomic_grid, &
             harmonics, molecular_orbitals, rho_structure, r_h, r_s, dr_h, dr_s, &
             r_h_d, r_s_d, rho_atom_set, rho_atom, rho_set_h, rho_set_s, &
             mo_coeff, single_mo_coeff, mo_eigenvalues, local_rho_set, &
@@ -579,6 +598,7 @@ CONTAINS
                             rho=rho_structure, &
                             mos=molecular_orbitals, &
                             atomic_kind_set=atomic_kind_set, &
+                            qs_kind_set=qs_kind_set, &
                             rho_atom_set=rho_atom_set,error=error)
 
     xc_section_orig => section_vals_get_subs_vals(input,"DFT%XC",error=error)
@@ -629,12 +649,10 @@ CONTAINS
     CALL allocate_rho_atom_internals(qs_env, local_rho_set%rho_atom_set,error=error)
 
     DO ikind=1, SIZE(atomic_kind_set)
+       CALL get_atomic_kind(atomic_kind_set(ikind), atom_list=atom_list, natom=natom)
 
-       atom_kind => atomic_kind_set(ikind)
-       CALL get_atomic_kind(atomic_kind=atom_kind, atom_list=atom_list,&
-                            natom=natom, paw_atom=paw_atom,&
+       CALL get_qs_kind(qs_kind_set(ikind), paw_atom=paw_atom,&
                             harmonics=harmonics, grid_atom=atomic_grid)
-
        IF(.NOT. paw_atom) CYCLE
 
        nr = atomic_grid%nr
@@ -1012,14 +1030,13 @@ CONTAINS
           END IF
 
           rho_atom => rho_atom_set(iatom)
-          atom_kind => atomic_kind_set(ikind)
           SELECT CASE (oe_corr)
           CASE(oe_lb)
-             CALL gaVxcgb_noGC(vxc_LB_h,vxc_LB_s,atom_kind,rho_atom,nspins,error=error)
+             CALL gaVxcgb_noGC(vxc_LB_h,vxc_LB_s,qs_kind_set(ikind),rho_atom,nspins,error=error)
           CASE (oe_gllb)
-             CALL gaVxcgb_noGC(vxc_GLLB_h,vxc_GLLB_s,atom_kind,rho_atom,nspins,error=error)
+             CALL gaVxcgb_noGC(vxc_GLLB_h,vxc_GLLB_s,qs_kind_set(ikind),rho_atom,nspins,error=error)
           CASE (oe_saop)
-             CALL gaVxcgb_noGC(vxc_SAOP_h,vxc_SAOP_s,atom_kind,rho_atom,nspins,error=error)
+             CALL gaVxcgb_noGC(vxc_SAOP_h,vxc_SAOP_s,qs_kind_set(ikind),rho_atom,nspins,error=error)
           CASE default
              CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
           END SELECT
@@ -1066,6 +1083,13 @@ CONTAINS
 
   END SUBROUTINE gapw_add_atomic_saop_pot
 
+! *****************************************************************************
+!> \brief ...
+!> \param pot ...
+!> \param rho_set ...
+!> \param lsd ...
+!> \param spin ...
+!> \param error ...
 ! *****************************************************************************
   SUBROUTINE add_lb_pot(pot, rho_set, lsd, spin, error)
 
@@ -1118,6 +1142,12 @@ CONTAINS
 
   END SUBROUTINE add_lb_pot
 
+! *****************************************************************************
+!> \brief ...
+!> \param pot ...
+!> \param rho_set ...
+!> \param e_uniform ...
+!> \param lsd ...
 ! *****************************************************************************
   SUBROUTINE calc_2excpbe(pot, rho_set, e_uniform, lsd)
 
@@ -1173,6 +1203,15 @@ CONTAINS
   END SUBROUTINE calc_2excpbe
 
 ! *****************************************************************************
+!> \brief ...
+!> \param ra ...
+!> \param rb ...
+!> \param ngr ...
+!> \param ec_unif ...
+!> \param rc ...
+!> \param ngrc ...
+!> \retval res ...
+! *****************************************************************************
   FUNCTION calc_ecpbe_u(ra, rb, ngr, ec_unif, rc, ngrc) RESULT(res)
 
     REAL(kind=dp), INTENT(in)                :: ra, rb, ngr, ec_unif, rc, ngrc
@@ -1205,6 +1244,14 @@ CONTAINS
   END FUNCTION calc_ecpbe_u
 
 ! *****************************************************************************
+!> \brief ...
+!> \param r ...
+!> \param ngr ...
+!> \param ec_unif ...
+!> \param rc ...
+!> \param ngrc ...
+!> \retval res ...
+! *****************************************************************************
   FUNCTION calc_ecpbe_r(r, ngr, ec_unif, rc, ngrc) RESULT(res)
 
     REAL(kind=dp), INTENT(in)                :: r, ngr, ec_unif, rc, ngrc
@@ -1229,6 +1276,14 @@ CONTAINS
   END FUNCTION calc_ecpbe_r
 
 ! *****************************************************************************
+!> \brief ...
+!> \param ra ...
+!> \param rb ...
+!> \param ngr ...
+!> \param rc ...
+!> \param ngrc ...
+!> \retval res ...
+! *****************************************************************************
   FUNCTION calc_expbe_u(ra, rb, ngr, rc, ngrc) RESULT(res)
 
     REAL(kind=dp), INTENT(in)                :: ra, rb, ngr, rc, ngrc
@@ -1241,6 +1296,13 @@ CONTAINS
 
   END FUNCTION calc_expbe_u
 
+! *****************************************************************************
+!> \brief ...
+!> \param r ...
+!> \param ngr ...
+!> \param rc ...
+!> \param ngrc ...
+!> \retval res ...
 ! *****************************************************************************
   FUNCTION calc_expbe_r(r, ngr, rc, ngrc) RESULT(res)
 

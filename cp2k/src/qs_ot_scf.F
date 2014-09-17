@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2013  CP2K developers group                          !
+!   Copyright (C) 2000 - 2014  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -10,29 +10,22 @@
 !> \author Joost VandeVondele (25.08.2002)
 ! *****************************************************************************
 MODULE qs_ot_scf
-  USE array_types,                     ONLY: array_i1d_obj,&
-                                             array_release
   USE cp_array_r_utils,                ONLY: cp_1d_r_p_type
   USE cp_dbcsr_interface,              ONLY: &
-       cp_create_bl_distribution, cp_dbcsr_copy, cp_dbcsr_create, &
-       cp_dbcsr_distribution, cp_dbcsr_distribution_release, &
-       cp_dbcsr_get_diag, cp_dbcsr_get_info, cp_dbcsr_init, cp_dbcsr_init_p, &
-       cp_dbcsr_multiply, cp_dbcsr_release, cp_dbcsr_replicate, &
-       cp_dbcsr_row_block_sizes, cp_dbcsr_scale_by_vector, cp_dbcsr_set, &
-       cp_dbcsr_set_diag, cp_dbcsr_trace
+       array_i1d_obj, array_release, cp_create_bl_distribution, &
+       cp_dbcsr_copy, cp_dbcsr_create, cp_dbcsr_distribution, &
+       cp_dbcsr_distribution_release, cp_dbcsr_get_diag, cp_dbcsr_get_info, &
+       cp_dbcsr_init, cp_dbcsr_init_p, cp_dbcsr_multiply, cp_dbcsr_p_type, &
+       cp_dbcsr_release, cp_dbcsr_replicate, cp_dbcsr_row_block_sizes, &
+       cp_dbcsr_scale_by_vector, cp_dbcsr_set, cp_dbcsr_set_diag, &
+       cp_dbcsr_trace, cp_dbcsr_type, dbcsr_distribution_mp, &
+       dbcsr_distribution_new, dbcsr_distribution_obj, &
+       dbcsr_distribution_row_dist, dbcsr_mp_npcols, dbcsr_type_no_symmetry, &
+       dbcsr_type_real_default
   USE cp_dbcsr_operations,             ONLY: copy_fm_to_dbcsr
-  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_p_type,&
-                                             cp_dbcsr_type
   USE cp_fm_types,                     ONLY: cp_fm_type
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
-  USE dbcsr_methods,                   ONLY: dbcsr_distribution_mp,&
-                                             dbcsr_distribution_new,&
-                                             dbcsr_distribution_row_dist,&
-                                             dbcsr_mp_npcols
-  USE dbcsr_types,                     ONLY: dbcsr_distribution_obj,&
-                                             dbcsr_type_no_symmetry,&
-                                             dbcsr_type_real_default
   USE f77_blas
   USE input_section_types,             ONLY: section_vals_get,&
                                              section_vals_get_subs_vals,&
@@ -45,7 +38,6 @@ MODULE qs_ot_scf
   USE qs_ot,                           ONLY: qs_ot_get_orbitals,&
                                              qs_ot_get_orbitals_ref,&
                                              qs_ot_get_p,&
-                                             qs_ot_get_scp_dft_coeffs,&
                                              qs_ot_get_scp_nddo_coeffs
   USE qs_ot_minimizer,                 ONLY: ot_mini
   USE qs_ot_types,                     ONLY: ot_readwrite_input,&
@@ -55,13 +47,11 @@ MODULE qs_ot_scf
                                              qs_ot_settings_init,&
                                              qs_ot_type
   USE scf_control_types,               ONLY: smear_type
-  USE scp_coeff_types,                 ONLY: aux_coeff_set_type,&
-                                             aux_coeff_type,&
-                                             get_aux_coeff
+  USE scp_coeff_types,                 ONLY: aux_coeff_set_type
   USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
-#include "cp_common_uses.h"
+#include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
 
@@ -77,6 +67,11 @@ MODULE qs_ot_scf
 
 CONTAINS
 
+! *****************************************************************************
+!> \brief ...
+!> \param qs_ot_env ...
+!> \param scf_section ...
+!> \param error ...
 ! *****************************************************************************
   SUBROUTINE ot_scf_read_input(qs_ot_env,scf_section,error)
     TYPE(qs_ot_type), DIMENSION(:), POINTER  :: qs_ot_env
@@ -129,6 +124,21 @@ CONTAINS
   ! a null pointer for matrix_s implies that matrix_s is the unit matrix
   !
   !
+! *****************************************************************************
+!> \brief ...
+!> \param mo_array ...
+!> \param matrix_dedc ...
+!> \param smear ...
+!> \param matrix_s ...
+!> \param energy ...
+!> \param aux_coeff_set ...
+!> \param pscp ...
+!> \param fscp ...
+!> \param energy_only ...
+!> \param delta ...
+!> \param qs_ot_env ...
+!> \param input ...
+!> \param error ...
 ! *****************************************************************************
   SUBROUTINE ot_scf_mini(mo_array,matrix_dedc,smear,matrix_s,energy, &
        aux_coeff_set, pscp, fscp, energy_only, delta, qs_ot_env, input,error)
@@ -344,7 +354,6 @@ CONTAINS
     ENDIF
     ! **** SCP
     ! generate the SCP aux coeffs using the new x
-    IF (qs_ot_env(1)%settings%scp_dft) CALL qs_ot_get_scp_dft_coeffs ( qs_ot_env ( 1 ), aux_coeff_set, error )
     IF (qs_ot_env(1)%settings%scp_nddo) CALL qs_ot_get_scp_nddo_coeffs ( qs_ot_env ( 1 ), pscp, error )
     ! **** SCP
 
@@ -393,6 +402,17 @@ CONTAINS
   ! and that the mimizization can be started.
   !
 ! *****************************************************************************
+!> \brief ...
+!> \param mo_array ...
+!> \param matrix_s ...
+!> \param aux_coeff_set ...
+!> \param pscp ...
+!> \param fscp ...
+!> \param qs_ot_env ...
+!> \param matrix_ks ...
+!> \param broyden_adaptive_sigma ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE ot_scf_init ( mo_array, matrix_s, aux_coeff_set, pscp, fscp, qs_ot_env, matrix_ks, broyden_adaptive_sigma, error )
 
     TYPE(mo_set_p_type), DIMENSION(:), &
@@ -409,13 +429,9 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'ot_scf_init', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, i, icoef, icoef_atom, &
-                                                ikind, ispin, k, n, n_els, &
-                                                ncoef_atom, nkind, nspin
+    INTEGER                                  :: handle, ispin, k, n, nspin
     LOGICAL                                  :: failure, is_equal
-    REAL(dp), DIMENSION(:, :), POINTER       :: c, fc
     TYPE(array_i1d_obj)                      :: col_blk_size, col_dist
-    TYPE(aux_coeff_type), POINTER            :: local_coeffs
     TYPE(cp_dbcsr_type), POINTER             :: mo_coeff
     TYPE(cp_fm_type), POINTER                :: mo_coeff_fm
     TYPE(dbcsr_distribution_obj)             :: dist
@@ -448,7 +464,6 @@ CONTAINS
     ENDDO
 
     ! **** SCP
-    NULLIFY ( local_coeffs, c, fc )
     ! **** SCP
     ! adapted for work with the restricted keyword
     nspin=SIZE(qs_ot_env)
@@ -487,9 +502,6 @@ CONTAINS
           CALL cp_dbcsr_set(qs_ot_env(ispin)%rot_mat_x,0.0_dp,error=error)
        ENDIF
 !********** PERHAPS ONLY ALLOCATE spin=1 for SCP ???????
-       IF (qs_ot_env(ispin)%settings%scp_dft) THEN
-          qs_ot_env ( ispin ) % x ( : ) = 0.0_dp
-       ENDIF
        IF (qs_ot_env(ispin)%settings%scp_nddo) THEN
           CALL cp_dbcsr_set ( qs_ot_env ( ispin ) % xmat, 0.0_dp, error=error )
        ENDIF
@@ -513,25 +525,6 @@ CONTAINS
 !!!  CAN WE REPLACE WITH THE CALL TO QS_OT_GET_SCP_*_DERIVATIVE???????
        ! **** SCP
        ! set c = qs_ot_env % x and -fc = qs_ot_env % gx  for SCP
-       IF (qs_ot_env(1)%settings%scp_dft .AND. ispin == 1) THEN
-          icoef = 0
-          nkind = SIZE ( aux_coeff_set % coeffs_of_kind )
-          DO ikind = 1, nkind
-             local_coeffs => aux_coeff_set % coeffs_of_kind ( ikind ) % coeffs
-             IF ( ASSOCIATED ( local_coeffs ) ) THEN
-                CALL get_aux_coeff ( coeffs = local_coeffs, c = c, fc = fc,  &
-                     n_els = n_els, ncoef_atom = ncoef_atom, &
-                     error = error  )
-                DO i = 1, n_els
-                   DO icoef_atom = 1, ncoef_atom
-                      icoef = icoef + 1
-                      qs_ot_env ( 1 ) % x ( icoef ) = c ( i, icoef_atom )
-                      qs_ot_env ( 1 ) % gx ( icoef ) = -fc ( i, icoef_atom )
-                   END DO
-                END DO
-             END IF
-          END DO
-       END IF
        IF (qs_ot_env(1)%settings%scp_nddo .AND. ispin == 1) THEN
          CALL cp_dbcsr_copy ( qs_ot_env(1)%xmat, pscp, error=error )
          CALL cp_dbcsr_copy ( qs_ot_env(1)%gxmat, fscp, error=error )
@@ -542,6 +535,10 @@ CONTAINS
     CALL timestop(handle)
   END SUBROUTINE ot_scf_init
 
+! *****************************************************************************
+!> \brief ...
+!> \param qs_ot_env ...
+!> \param error ...
 ! *****************************************************************************
   SUBROUTINE ot_scf_destroy(qs_ot_env,error)
 

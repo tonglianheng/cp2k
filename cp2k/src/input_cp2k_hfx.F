@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2013  CP2K developers group                          !
+!   Copyright (C) 2000 - 2014  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -14,7 +14,12 @@ MODULE input_cp2k_hfx
                                              Guidon2009
   USE cp_output_handling,              ONLY: cp_print_key_section_create
   USE f77_blas
-  USE input_constants
+  USE input_constants,                 ONLY: &
+       add_last_numeric, do_hfx_potential_coulomb, do_hfx_potential_gaussian, &
+       do_hfx_potential_id, do_hfx_potential_long, do_hfx_potential_mix_cl, &
+       do_hfx_potential_mix_cl_trunc, do_hfx_potential_mix_lg, &
+       do_hfx_potential_short, do_hfx_potential_truncated, ehrenfest, &
+       gaussian, high_print_level, medium_print_level
   USE input_keyword_types,             ONLY: keyword_create,&
                                              keyword_release,&
                                              keyword_type
@@ -26,7 +31,7 @@ MODULE input_cp2k_hfx
   USE input_val_types,                 ONLY: real_t
   USE kinds,                           ONLY: dp
   USE string_utilities,                ONLY: s2a
-#include "cp_common_uses.h"
+#include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
   PRIVATE
@@ -272,7 +277,7 @@ CONTAINS
                           "Damped Gaussian potential: exp(-omega^2*r^2)",&
                           "Mix Gaussian and longrange potential: erf(omega*r)/r + exp(-omega^2*r^2)",&
                           "Overlap",&
-                          "Truncated coulomb potential: if(r<R_c) 1/r else 0",&
+                          "Truncated coulomb potential: if (r &lt; R_c) 1/r else 0",&
                           "Truncated Mix coulomb and longrange potential, assumes/requires that the erf has fully decayed at R_c"),&
             default_i_val=do_hfx_potential_coulomb, error=error)
        CALL section_add_keyword(section,keyword,error=error)
@@ -514,7 +519,7 @@ CONTAINS
                         "What remains will be used for storage of integrals. NOTE: This number "//&
                         "is assumed to represent the memory available to one MPI process. "//&
                         "When running a threaded version, cp2k automatically takes care of "//&
-                        "distributing the memory among all involved sub-processes.",&
+                        "distributing the memory among all the threads within a process.",&
             usage="MAX_MEMORY 256",&
             default_i_val=512,&
             error=error)

@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2013  CP2K developers group                          !
+!   Copyright (C) 2000 - 2014  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -14,7 +14,7 @@ MODULE fist_neighbor_list_control
 
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind_set
-  USE cell_types,                      ONLY: cell_clone,&
+  USE cell_methods,                    ONLY: cell_clone,&
                                              cell_create,&
                                              cell_release,&
                                              cell_type
@@ -40,7 +40,7 @@ MODULE fist_neighbor_list_control
   USE particle_types,                  ONLY: particle_type
   USE timings,                         ONLY: timeset,&
                                              timestop
-#include "cp_common_uses.h"
+#include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
 
@@ -59,6 +59,20 @@ CONTAINS
 ! if any particle has moved by 0.5*verlet_skin from the previous
 ! list update, then the list routine is called.
 
+! *****************************************************************************
+!> \brief ...
+!> \param atomic_kind_set ...
+!> \param particle_set ...
+!> \param local_particles ...
+!> \param cell ...
+!> \param fist_nonbond_env ...
+!> \param para_env ...
+!> \param mm_section ...
+!> \param shell_particle_set ...
+!> \param core_particle_set ...
+!> \param force_update ...
+!> \param exclusions ...
+!> \param error ...
 ! *****************************************************************************
   SUBROUTINE list_control ( atomic_kind_set, particle_set, local_particles, &
        cell, fist_nonbond_env, para_env, mm_section,shell_particle_set,&

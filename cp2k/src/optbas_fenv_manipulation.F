@@ -1,18 +1,20 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2013  CP2K developers group                          !
+!   Copyright (C) 2000 - 2014  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 MODULE optbas_fenv_manipulation
   USE admm_types,                      ONLY: admm_env_create,&
                                              admm_type
-  USE atomic_kind_types,               ONLY: atomic_kind_type
+  USE atomic_kind_types,               ONLY: atomic_kind_type,&
+                                             get_atomic_kind
   USE basis_set_types,                 ONLY: gto_basis_set_type,&
                                              init_orb_basis_set
+  USE cp_blacs_env,                    ONLY: cp_blacs_env_type
   USE cp_control_types,                ONLY: dft_control_type
-  USE cp_dbcsr_interface,              ONLY: cp_dbcsr_get_info
-  USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm
-  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_p_type,&
+  USE cp_dbcsr_interface,              ONLY: cp_dbcsr_get_info,&
+                                             cp_dbcsr_p_type,&
                                              cp_dbcsr_type
+  USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm
   USE cp_fm_basic_linalg,              ONLY: cp_fm_upper_to_full
   USE cp_fm_cholesky,                  ONLY: cp_fm_cholesky_decompose,&
                                              cp_fm_cholesky_invert
@@ -23,11 +25,10 @@ MODULE optbas_fenv_manipulation
   USE cp_fm_types,                     ONLY: cp_fm_create,&
                                              cp_fm_release,&
                                              cp_fm_type
-  USE cp_para_types,                   ONLY: cp_blacs_env_type,&
-                                             cp_para_env_type
+  USE cp_para_types,                   ONLY: cp_para_env_type
   USE f77_blas
   USE input_constants,                 ONLY: debug_print_level,&
-                                             do_admm_basis_set_projection,&
+                                             do_admm_basis_projection,&
                                              do_admm_purify_mo_diag,&
                                              use_aux_fit_basis_set,&
                                              use_orb_basis_set
@@ -46,19 +47,20 @@ MODULE optbas_fenv_manipulation
                                              qs_environment_type,&
                                              set_qs_env
   USE qs_interactions,                 ONLY: init_interaction_radii
+  USE qs_kind_types,                   ONLY: qs_kind_type
   USE qs_ks_methods,                   ONLY: qs_ks_did_change,&
                                              qs_ks_update_qs_env
   USE qs_matrix_pools,                 ONLY: mpools_get
+  USE qs_mo_io,                        ONLY: read_mo_set
   USE qs_mo_methods,                   ONLY: calculate_density_matrix
   USE qs_mo_types,                     ONLY: init_mo_set,&
-                                             mo_set_p_type,&
-                                             read_mo_set
+                                             mo_set_p_type
   USE qs_neighbor_list_types,          ONLY: neighbor_list_set_p_type
   USE qs_overlap,                      ONLY: build_overlap_matrix
   USE qs_rho_methods,                  ONLY: qs_rho_update_rho
   USE scf_control_types,               ONLY: scf_control_type
   USE string_utilities,                ONLY: uppercase
-#include "cp_common_uses.h"
+#include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
   PRIVATE
@@ -78,6 +80,10 @@ CONTAINS
 ! *****************************************************************************
 !> \brief change settings in the training input files to initialize
 !>        all needed structures and adjust settings to basis optimization
+!> \param basis_optimization ...
+!> \param bas_id ...
+!> \param input_file ...
+!> \param error ...
 !> \author Florian Schiffmann
 ! *****************************************************************************
   SUBROUTINE modify_input_settings(basis_optimization,bas_id,input_file,error)
@@ -112,7 +118,7 @@ CONTAINS
      CALL section_vals_add_values(admm_section,error)
      CALL section_vals_val_set(admm_section,"ADMM_PURIFICATION_METHOD",&
                                i_val=do_admm_purify_mo_diag,error=error)
-     CALL section_vals_val_set(admm_section,"METHOD",i_val=do_admm_basis_set_projection,error=error)
+     CALL section_vals_val_set(admm_section,"METHOD",i_val=do_admm_basis_projection,error=error)
 
      ! add the new basis file containing the templates to the basis file list 
      CALL section_vals_val_get(dft_section,"BASIS_SET_FILE_NAME",n_rep_val=nbasis,error=error)
@@ -144,6 +150,11 @@ CONTAINS
 
   END SUBROUTINE modify_input_settings
 
+! *****************************************************************************
+!> \brief ...
+!> \param qs_env ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE allocate_mo_sets(qs_env,error)
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(cp_error_type), INTENT(INOUT)       :: error
@@ -156,7 +167,7 @@ CONTAINS
     LOGICAL                                  :: natom_mismatch
     TYPE(admm_type), POINTER                 :: admm_env
     TYPE(atomic_kind_type), DIMENSION(:), &
-      POINTER                                :: atomic_kind
+      POINTER                                :: atomic_kind_set
     TYPE(cp_fm_pool_p_type), DIMENSION(:), &
       POINTER                                :: ao_mo_fm_pools, &
                                                 ao_mo_fm_pools_aux_fit
@@ -165,13 +176,16 @@ CONTAINS
       POINTER                                :: mos, mos_aux_fit
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
+    TYPE(qs_kind_type), DIMENSION(:), &
+      POINTER                                :: qs_kind_set
     TYPE(scf_control_type), POINTER          :: scf_control
     TYPE(section_vals_type), POINTER         :: dft_section
 
     CALL get_qs_env(qs_env=qs_env,dft_control=dft_control,&
                     mos=mos,nelectron_spin=nelectron_spin,&
                     mos_aux_fit=mos_aux_fit,&
-                    atomic_kind_set=atomic_kind,&
+                    atomic_kind_set=atomic_kind_set,&
+                    qs_kind_set=qs_kind_set,&
                     scf_control=scf_control,&
                    particle_set=particle_set,&
 !                   matrix_s=matrix_s,&
@@ -191,9 +205,9 @@ CONTAINS
        END IF
     END DO
  
-    CALL read_mo_set(mos,atomic_kind,particle_set,qs_env%para_env,&
+    CALL read_mo_set(mos,atomic_kind_set,qs_kind_set,particle_set,qs_env%para_env,&
       id_nr=0,multiplicity=dft_control%multiplicity,dft_section=dft_section,&
-      scp=dft_control%scp, scp_env=qs_env%scp_env, natom_mismatch=natom_mismatch,error=error)
+      natom_mismatch=natom_mismatch,error=error)
    
     CALL mpools_get(qs_env%mpools_aux_fit, ao_mo_fm_pools=ao_mo_fm_pools_aux_fit,&
            error=error)
@@ -209,6 +223,11 @@ CONTAINS
     
    END SUBROUTINE allocate_mo_sets
 
+! *****************************************************************************
+!> \brief ...
+!> \param qs_env ...
+!> \param error ...
+! *****************************************************************************
    SUBROUTINE calculate_ks_matrix(qs_env,error)
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(cp_error_type), INTENT(INOUT)       :: error
@@ -232,6 +251,14 @@ CONTAINS
 
    END SUBROUTINE calculate_ks_matrix
 
+! *****************************************************************************
+!> \brief ...
+!> \param matrix_s ...
+!> \param matrix_s_inv ...
+!> \param para_env ...
+!> \param context ...
+!> \param error ...
+! *****************************************************************************
    SUBROUTINE calculate_overlap_inverse(matrix_s,matrix_s_inv,para_env,context,error)
     TYPE(cp_dbcsr_type), POINTER             :: matrix_s
     TYPE(cp_fm_type), POINTER                :: matrix_s_inv
@@ -262,6 +289,12 @@ CONTAINS
 
    END SUBROUTINE calculate_overlap_inverse
 
+! *****************************************************************************
+!> \brief ...
+!> \param qs_env ...
+!> \param S_type ...
+!> \param error ...
+! *****************************************************************************
    SUBROUTINE calculate_overlap(qs_env,S_type,error)
     TYPE(qs_environment_type), POINTER       :: qs_env
     CHARACTER(LEN=*)                         :: S_type
@@ -312,6 +345,11 @@ CONTAINS
 
   END SUBROUTINE calculate_overlap
 
+! *****************************************************************************
+!> \brief ...
+!> \param qs_env ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE create_opt_admm_env(qs_env,error)
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(cp_error_type), INTENT(INOUT)       :: error
@@ -319,23 +357,31 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'create_opt_admm_env', &
       routineP = moduleN//':'//routineN
 
+    INTEGER                                  :: natoms
     TYPE(admm_type), POINTER                 :: admm_env
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mos, mos_aux_fit
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: particle_set
 
+    NULLIFY(admm_env, dft_control, mos, mos_aux_fit, particle_set)
     CALL get_qs_env(qs_env=qs_env, admm_env=admm_env, dft_control=dft_control,&
-                    mos=mos,mos_aux_fit=mos_aux_fit,error=error)
- 
-    CALL admm_env_create(mos, mos_aux_fit, qs_env%para_env, qs_env%admm_env, error)
-    NULLIFY(qs_env%admm_env%xc_section_primary,qs_env%admm_env%xc_section_aux)
-    qs_env%admm_env%method_id = dft_control%admm_control%method_id
-    qs_env%admm_env%purification_method = dft_control%admm_control%purification_method
-    qs_env%admm_env%block_purification_method = dft_control%admm_control%block_purification_method
-    qs_env%admm_env%block_projection_method = dft_control%admm_control%block_projection_method
-  
+                    mos=mos,mos_aux_fit=mos_aux_fit, particle_set=particle_set, error=error)
+    natoms = SIZE(particle_set,1)
+    CALL admm_env_create(qs_env%admm_env, dft_control%admm_control, mos, mos_aux_fit,&
+                         qs_env%para_env, natoms, error)
+
   END SUBROUTINE create_opt_admm_env
 
+! *****************************************************************************
+!> \brief ...
+!> \param opt_bas ...
+!> \param set_id ...
+!> \param bas_id ...
+!> \param qs_env ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE update_basis_set(opt_bas,set_id,bas_id,qs_env,error)
     TYPE(basis_optimization_type)            :: opt_bas
     INTEGER                                  :: set_id, bas_id
@@ -348,27 +394,36 @@ CONTAINS
     CHARACTER(default_string_length)         :: elem
     INTEGER                                  :: ibasis, ikind, jkind
     TYPE(atomic_kind_type), DIMENSION(:), &
-      POINTER                                :: atomic_kind
+      POINTER                                :: atomic_kind_set
     TYPE(dft_control_type), POINTER          :: dft_control
+    TYPE(qs_kind_type), DIMENSION(:), &
+      POINTER                                :: qs_kind_set
 
-    CALL get_qs_env(qs_env=qs_env,atomic_kind_set=atomic_kind,dft_control=dft_control,error=error)
-    DO ikind=1,SIZE(atomic_kind)
+    CALL get_qs_env(qs_env=qs_env,dft_control=dft_control,&
+         atomic_kind_set=atomic_kind_set, qs_kind_set=qs_kind_set,error=error)
+    DO ikind=1,SIZE(qs_kind_set)
        DO jkind=1,opt_bas%nkind
-           elem=atomic_kind(ikind)%name
+           CALL get_atomic_kind(atomic_kind_set(ikind), name=elem)
            CALL uppercase(elem)
            IF(elem==opt_bas%kind_basis(jkind)%element)THEN
               ibasis=opt_bas%combination(bas_id,jkind)
-              CALL transfer_data_to_gto(atomic_kind(ikind)%aux_fit_basis_set,&
+              CALL transfer_data_to_gto(qs_kind_set(ikind)%aux_fit_basis_set,&
                                         opt_bas%kind_basis(jkind)%flex_basis(ibasis),error)
-              CALL init_orb_basis_set(atomic_kind(ikind)%aux_fit_basis_set,error)
+              CALL init_orb_basis_set(qs_kind_set(ikind)%aux_fit_basis_set,error)
            END IF
        END DO
     END DO
 
-    CALL init_interaction_radii(dft_control%qs_control,atomic_kind,error)
+    CALL init_interaction_radii(dft_control%qs_control,atomic_kind_set,qs_kind_set,error)
 
    END SUBROUTINE update_basis_set
 
+! *****************************************************************************
+!> \brief ...
+!> \param gto_basis ...
+!> \param basis ...
+!> \param error ...
+! *****************************************************************************
    SUBROUTINE transfer_data_to_gto(gto_basis,basis,error)
     TYPE(gto_basis_set_type), POINTER        :: gto_basis
     TYPE(flex_basis_type)                    :: basis

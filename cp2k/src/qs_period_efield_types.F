@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2013  CP2K developers group                          !
+!   Copyright (C) 2000 - 2014  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -13,9 +13,9 @@
 
 MODULE qs_period_efield_types
 
-  USE cp_dbcsr_operations,             ONLY: cp_dbcsr_deallocate_matrix_set
-  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_p_type
-#include "cp_common_uses.h"
+  USE cp_dbcsr_interface,              ONLY: cp_dbcsr_deallocate_matrix_set,&
+                                             cp_dbcsr_p_type
+#include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
 
@@ -23,8 +23,8 @@ MODULE qs_period_efield_types
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_period_efield_types'
 
-  PUBLIC:: efield_berry_type, efield_berry_release, init_efield_matrices, &
-           set_efield_matrices,deriv_p_type
+  PUBLIC :: efield_berry_type, efield_berry_release, init_efield_matrices,&
+            set_efield_matrices
 
   TYPE deriv_p_type
      TYPE(cp_dbcsr_p_type),DIMENSION(:), POINTER           :: deriv
@@ -40,6 +40,11 @@ MODULE qs_period_efield_types
 CONTAINS
 
 
+! *****************************************************************************
+!> \brief ...
+!> \param efield ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE init_efield_matrices(efield,error)
     TYPE(efield_berry_type), POINTER         :: efield
     TYPE(cp_error_type), INTENT(INOUT)       :: error
@@ -62,6 +67,15 @@ CONTAINS
 
   END SUBROUTINE init_efield_matrices
 
+! *****************************************************************************
+!> \brief ...
+!> \param efield ...
+!> \param sinmat ...
+!> \param cosmat ...
+!> \param dsinmat ...
+!> \param dcosmat ...
+!> \param fielddir ...
+! *****************************************************************************
   SUBROUTINE set_efield_matrices(efield,sinmat,cosmat,dsinmat,dcosmat,fielddir)
 
     TYPE(efield_berry_type), POINTER         :: efield
@@ -81,6 +95,11 @@ CONTAINS
 
   END SUBROUTINE set_efield_matrices
 
+! *****************************************************************************
+!> \brief ...
+!> \param efield ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE efield_berry_release(efield,error)
     TYPE(efield_berry_type), POINTER         :: efield
     TYPE(cp_error_type), INTENT(INOUT)       :: error

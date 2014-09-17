@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2013  CP2K developers group                          !
+!   Copyright (C) 2000 - 2014  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -18,7 +18,12 @@ MODULE input_cp2k_thermostats
   USE cp_output_handling,              ONLY: cp_print_key_section_create
   USE cp_units,                        ONLY: cp_unit_to_cp2k
   USE f77_blas
-  USE input_constants
+  USE input_constants,                 ONLY: &
+       do_constr_atomic, do_constr_molec, do_constr_none, do_region_defined, &
+       do_region_global, do_region_massive, do_region_molecule, &
+       do_region_none, do_thermo_al, do_thermo_csvr, do_thermo_gle, &
+       do_thermo_nose, do_thermo_same_as_part, high_print_level, &
+       low_print_level
   USE input_cp2k_subsys,               ONLY: create_rng_section
   USE input_keyword_types,             ONLY: keyword_create,&
                                              keyword_release,&
@@ -33,7 +38,7 @@ MODULE input_cp2k_thermostats
                                              real_t
   USE kinds,                           ONLY: dp
   USE string_utilities,                ONLY: s2a
-#include "cp_common_uses.h"
+#include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
   PRIVATE
@@ -55,6 +60,7 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Specifies parameter for thermostat for constant temperature ensembles
 !> \param section will contain the coeff section
+!> \param coupled_thermostat ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 !> \author teo [tlaino] - University of Zurich - 09.2007
@@ -140,6 +146,7 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Specifies parameter for thermostat for constant temperature ensembles
 !> \param section will contain the coeff section
+!> \param coupled_thermostat ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 !> \author teo [tlaino] - University of Zurich - 09.2007
@@ -226,6 +233,7 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Specifies parameter for thermostat for constant temperature ensembles
 !> \param section will contain the coeff section
+!> \param coupled_thermostat ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 !> \author teo [tlaino] - University of Zurich - 09.2007
@@ -328,6 +336,8 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Creates print section for thermostat section
+!> \param section ...
+!> \param error ...
 !> \author teo [tlaino] - University of Zurich - 02.2008
 ! *****************************************************************************
   SUBROUTINE create_print_section(section, error)
@@ -377,6 +387,7 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Creates a section to arbitrary define a region to thermostat
 !> \param section will contain the coeff section
+!> \param label ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 !> \author teo
@@ -448,7 +459,9 @@ CONTAINS
   END SUBROUTINE create_region_section
 
 ! *****************************************************************************
+!> \brief ...
 !> \param section will contain the ewald section
+!> \param coupled_thermostat ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 !> \author gloria
@@ -482,7 +495,7 @@ CONTAINS
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="Yoshida",&
-            description="order of the yoshida integretor usef for the thermostat",&
+            description="order of the yoshida integretor used for the thermostat",&
             usage="Yoshida integer", &
             default_i_val=3,&
             error=error)
@@ -528,6 +541,9 @@ CONTAINS
 
 
 ! *****************************************************************************
+!> \brief ...
+!> \param section ...
+!> \param error ...
 !> \param
 !> \author
 ! *****************************************************************************
@@ -548,7 +564,7 @@ CONTAINS
     IF (.NOT. failure) THEN
        CALL section_create(section,name="GLE",&
             description="paramameters of the gle thermostat. This section can be generated "//&
-                        " from http://gle4md.berlios.de/compose.php?page=matrix ",&
+                        " from https://epfl-cosmo.github.io/gle4md/index.html?page=matrix ",&
             citations=(/Ceriotti2009,Ceriotti2009b/),required=.FALSE.,error=error)
 
        NULLIFY(keyword, subsection)
@@ -573,11 +589,11 @@ CONTAINS
              type_of_var=real_t, unit_str="internal_cp2k",&
              n_var=-1, repeats=.TRUE., required=.FALSE., &
 !             default_r_vals=(/ &
-!       1.859575861256e+2_dp,     2.726385349840e-1_dp,     1.152610045461e+1_dp,    -3.641457826260e+1_dp,     2.317337581602e+2_dp, &
-!      -2.780952471206e-1_dp,     8.595159180871e-5_dp,     7.218904801765e-1_dp,    -1.984453934386e-1_dp,     4.240925758342e-1_dp, &
-!      -1.482580813121e+1_dp,    -7.218904801765e-1_dp,     1.359090212128e+0_dp,     5.149889628035e+0_dp,    -9.994926845099e+0_dp, &
-!      -1.037218912688e+1_dp,     1.984453934386e-1_dp,    -5.149889628035e+0_dp,     2.666191089117e+1_dp,     1.150771549531e+1_dp, &
-!       2.180134636042e+2_dp,    -4.240925758342e-1_dp,     9.994926845099e+0_dp,    -1.150771549531e+1_dp,     3.095839456559e+2_dp /), &
+!    1.859575861256e+2_dp,  2.726385349840e-1_dp,  1.152610045461e+1_dp, -3.641457826260e+1_dp,  2.317337581602e+2_dp, &
+!   -2.780952471206e-1_dp,  8.595159180871e-5_dp,  7.218904801765e-1_dp, -1.984453934386e-1_dp,  4.240925758342e-1_dp, &
+!   -1.482580813121e+1_dp, -7.218904801765e-1_dp,  1.359090212128e+0_dp,  5.149889628035e+0_dp, -9.994926845099e+0_dp, &
+!   -1.037218912688e+1_dp,  1.984453934386e-1_dp, -5.149889628035e+0_dp,  2.666191089117e+1_dp,  1.150771549531e+1_dp, &
+!    2.180134636042e+2_dp, -4.240925758342e-1_dp,  9.994926845099e+0_dp, -1.150771549531e+1_dp,  3.095839456559e+2_dp /), &
              error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
@@ -635,7 +651,7 @@ CONTAINS
 
        CALL keyword_create(keyword, name="_DEFAULT_KEYWORD_",&
             description="Specify s variable for GLE thermostat ",repeats=.FALSE.,&
-            usage="<REAL> <REAL> .. <REAL>", type_of_var=real_t, n_var=-1, error=error)
+            usage="{Real} ...", type_of_var=real_t, n_var=-1, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
@@ -643,7 +659,9 @@ CONTAINS
   END SUBROUTINE create_gles_section
 
 ! *****************************************************************************
+!> \brief ...
 !> \param section will contain the ewald section
+!> \param coupled_thermostat ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 !> \author teo [tlaino] - University of Zurich - 09.2007
@@ -693,6 +711,7 @@ CONTAINS
   END SUBROUTINE create_csvr_section
 
 ! *****************************************************************************
+!> \brief ...
 !> \param section will contain the adaptive langevin section 
 !> \param error variable to control error logging, stopping,... 
 !>        see module cp_error_handling 
@@ -756,6 +775,7 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Creates the thermostat chi restarting section
 !> \param section the section to create
+!> \param sec_name ...
 !> \param error variable to control error logging, stopping,... 
 !>        see module cp_error_handling 
 !> \author teo
@@ -783,7 +803,8 @@ CONTAINS
        NULLIFY(keyword)
 
        CALL keyword_create(keyword, name="_DEFAULT_KEYWORD_",&
-            description="Specify an initial thermostat DOF "//TRIM(sec_name)//" for Ad-Langevin thermostat.",repeats=.TRUE.,&
+            description="Specify an initial thermostat DOF "//TRIM(sec_name)//&
+                        " for Ad-Langevin thermostat.",repeats=.TRUE.,&
             unit_str="fs^-1",type_of_var=real_t, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
@@ -819,8 +840,8 @@ CONTAINS
        NULLIFY(keyword)
 
        CALL keyword_create(keyword, name="_DEFAULT_KEYWORD_",&
-            description="Specify an initial thermostat energy  for CSVR thermostat.",repeats=.TRUE.,&
-            unit_str="internal_cp2k",type_of_var=real_t, error=error)
+            description="Specify an initial thermostat energy for CSVR thermostat.",&
+            repeats=.TRUE., unit_str="internal_cp2k",type_of_var=real_t, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
@@ -830,6 +851,7 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Creates the mass section
 !> \param section the section to create
+!> \param name ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 !> \author teo
@@ -857,7 +879,7 @@ CONTAINS
 
        CALL keyword_create(keyword, name="_DEFAULT_KEYWORD_",&
             description="Specify masses of the system",repeats=.FALSE.,&
-            usage="<REAL> <REAL> .. <REAL>", type_of_var=real_t, n_var=-1, error=error)
+            usage="{Real} ...", type_of_var=real_t, n_var=-1, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
@@ -867,6 +889,7 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Creates the mass section
 !> \param section the section to create
+!> \param name ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 !> \author teo
@@ -894,7 +917,7 @@ CONTAINS
 
        CALL keyword_create(keyword, name="_DEFAULT_KEYWORD_",&
             description="Specify masses of the system",repeats=.FALSE.,&
-            usage="<REAL> <REAL> .. <REAL>", type_of_var=real_t, n_var=-1, error=error)
+            usage="{Real} ...", type_of_var=real_t, n_var=-1, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
@@ -904,6 +927,7 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Creates the velocity section
 !> \param section the section to create
+!> \param name ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 !> \author teo
@@ -931,7 +955,7 @@ CONTAINS
 
        CALL keyword_create(keyword, name="_DEFAULT_KEYWORD_",&
             description="Specify velocities of the system",repeats=.TRUE.,&
-            usage="<REAL> <REAL> .. <REAL>", type_of_var=real_t, n_var=-1, error=error)
+            usage="{Real} ...", type_of_var=real_t, n_var=-1, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
@@ -941,6 +965,7 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Creates the coord section
 !> \param section the section to create
+!> \param name ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 !> \author teo
@@ -968,7 +993,7 @@ CONTAINS
 
        CALL keyword_create(keyword, name="_DEFAULT_KEYWORD_",&
             description="Specify positions of the system",repeats=.TRUE.,&
-            usage="<REAL> <REAL> .. <REAL>", type_of_var=real_t, n_var=-1, error=error)
+            usage="{Real} ...", type_of_var=real_t, n_var=-1, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 

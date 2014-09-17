@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2013  CP2K developers group                          !
+!   Copyright (C) 2000 - 2014  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 ! *****************************************************************************
 !> \brief Routines useful for iterative matrix calculations
@@ -13,10 +13,10 @@ MODULE iterate_matrix
        cp_dbcsr_add, cp_dbcsr_add_on_diag, cp_dbcsr_copy, cp_dbcsr_create, &
        cp_dbcsr_filter, cp_dbcsr_frobenius_norm, cp_dbcsr_gershgorin_norm, &
        cp_dbcsr_get_occupation, cp_dbcsr_init, cp_dbcsr_multiply, &
-       cp_dbcsr_release, cp_dbcsr_scale, cp_dbcsr_set, cp_dbcsr_transposed
-  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_type
+       cp_dbcsr_norm, cp_dbcsr_release, cp_dbcsr_scale, cp_dbcsr_set, &
+       cp_dbcsr_transposed, cp_dbcsr_type, dbcsr_norm_maxabsnorm, &
+       dbcsr_type_no_symmetry
   USE cp_dbcsr_util,                   ONLY: lanczos_alg_serial
-  USE dbcsr_types,                     ONLY: dbcsr_type_no_symmetry
   USE f77_blas
   USE kinds,                           ONLY: dp,&
                                              int_8
@@ -25,7 +25,7 @@ MODULE iterate_matrix
   USE mathconstants,                   ONLY: ifac
   USE timings,                         ONLY: timeset,&
                                              timestop
-#include "cp_common_uses.h"
+#include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
 
@@ -37,22 +37,29 @@ MODULE iterate_matrix
      MODULE PROCEDURE purify_mcweeny_orth, purify_mcweeny_nonorth
   END INTERFACE
 
-  PUBLIC ::  invert_Hotelling, matrix_sign_Newton_Schulz, matrix_sqrt_Newton_Schulz,&
-             matrix_exponential, purify_mcweeny
+  PUBLIC :: invert_Hotelling, matrix_sign_Newton_Schulz, matrix_sqrt_Newton_Schulz,&
+            purify_mcweeny
 
 CONTAINS
 
 ! *****************************************************************************
 !> \brief invert a symmetric positive definite matrix by Hotelling's method
 !>        explicit symmetrization makes this code not suitable for other matrix types
+!> \param matrix_inverse ...
+!> \param matrix ...
+!> \param threshold ...
+!> \param use_inv_as_guess ...
+!> \param error ...
 !> \par History
 !>       2010.10 created [Joost VandeVondele]
+!>       2011.10 guess option added [Rustam Z Khaliullin]
 !> \author Joost VandeVondele
 ! *****************************************************************************
-  SUBROUTINE invert_Hotelling(matrix_inverse,matrix,threshold,error)
+  SUBROUTINE invert_Hotelling(matrix_inverse,matrix,threshold,use_inv_as_guess,error)
 
     TYPE(cp_dbcsr_type), INTENT(INOUT)       :: matrix_inverse, matrix
     REAL(KIND=dp), INTENT(IN)                :: threshold
+    LOGICAL, INTENT(IN), OPTIONAL            :: use_inv_as_guess
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'invert_Hotelling', &
@@ -60,9 +67,9 @@ CONTAINS
 
     INTEGER                                  :: handle, i, unit_nr
     INTEGER(KIND=int_8)                      :: flop1, flop2
-    REAL(KIND=dp)                            :: frob_matrix, &
-                                                frob_matrix_base, &
-                                                gershgorin_norm, occ_matrix, &
+    LOGICAL                                  :: prepare_to_exit, use_inv_guess
+    REAL(KIND=dp)                            :: frob_matrix, gershgorin_norm, &
+                                                maxnorm_matrix, occ_matrix, &
                                                 t1, t2
     TYPE(cp_dbcsr_type)                      :: tmp1, tmp2
     TYPE(cp_logger_type), POINTER            :: logger
@@ -78,10 +85,17 @@ CONTAINS
        unit_nr=-1
     ENDIF
 
-    gershgorin_norm=cp_dbcsr_gershgorin_norm(matrix)
-    frob_matrix=cp_dbcsr_frobenius_norm(matrix)
-    CALL cp_dbcsr_set(matrix_inverse,0.0_dp,error=error)
-    CALL cp_dbcsr_add_on_diag(matrix_inverse,1/MIN(gershgorin_norm,frob_matrix),error=error)
+    use_inv_guess=.FALSE.
+    IF (PRESENT(use_inv_as_guess)) THEN
+       use_inv_guess=use_inv_as_guess
+    ENDIF
+
+    IF (.NOT.use_inv_guess) THEN
+       gershgorin_norm=cp_dbcsr_gershgorin_norm(matrix)
+       frob_matrix=cp_dbcsr_frobenius_norm(matrix)
+       CALL cp_dbcsr_set(matrix_inverse,0.0_dp,error=error)
+       CALL cp_dbcsr_add_on_diag(matrix_inverse,1/MIN(gershgorin_norm,frob_matrix),error=error)
+    ENDIF
 
     CALL cp_dbcsr_init(tmp1,error=error)
     CALL cp_dbcsr_create(tmp1,template=matrix_inverse,error=error)
@@ -89,6 +103,8 @@ CONTAINS
     CALL cp_dbcsr_create(tmp2,template=matrix_inverse,error=error)
 
     IF (unit_nr>0) WRITE(unit_nr,*)
+
+    prepare_to_exit=.FALSE.
 
     DO i=1,100
 
@@ -98,9 +114,12 @@ CONTAINS
                               0.0_dp, tmp1,flop=flop1, error=error)
 
        ! for the convergence check
-       frob_matrix_base=cp_dbcsr_frobenius_norm(tmp1)
+       !frob_matrix_base=cp_dbcsr_frobenius_norm(tmp1)
        CALL cp_dbcsr_add_on_diag(tmp1,-1.0_dp,error=error)
-       frob_matrix=cp_dbcsr_frobenius_norm(tmp1)
+       !frob_matrix=cp_dbcsr_frobenius_norm(tmp1)
+       CALL cp_dbcsr_norm(tmp1,&
+               dbcsr_norm_maxabsnorm, norm_scalar=maxnorm_matrix, error=error)
+
        CALL cp_dbcsr_add_on_diag(tmp1,+1.0_dp,error=error)
        occ_matrix=cp_dbcsr_get_occupation(matrix_inverse)
 
@@ -115,25 +134,29 @@ CONTAINS
 
        IF (unit_nr>0) THEN
           WRITE(unit_nr,'(T6,A,1X,I3,1X,F10.8,E12.3,F12.3,F13.3)') "Hotelling iter",i,occ_matrix, &
-                                                             frob_matrix/frob_matrix_base,t2-t1,&
-                                                                    (flop1+flop2)/(1.0E6_dp*(t2-t1))
+                                                             maxnorm_matrix,t2-t1,&
+                                                                    (flop1+flop2)/(1.0E6_dp*MAX(0.001_dp,t2-t1))
           CALL m_flush(unit_nr)
        ENDIF
 
-       ! convergence.... convergence is quadratic, so the current iteration made is below the threshold
-       IF (frob_matrix/frob_matrix_base<SQRT(threshold)) EXIT
+       
+       ! use max_norm 
+       IF (maxnorm_matrix<threshold) EXIT 
 
     ENDDO
 
-    ! this check is not really needed
-    CALL cp_dbcsr_multiply("N", "N", 1.0_dp, matrix_inverse, matrix, 0.0_dp, tmp1,error=error)
-    frob_matrix_base=cp_dbcsr_frobenius_norm(tmp1)
-    CALL cp_dbcsr_add_on_diag(tmp1,-1.0_dp,error=error)
-    frob_matrix=cp_dbcsr_frobenius_norm(tmp1)
-    occ_matrix=cp_dbcsr_get_occupation(matrix_inverse)
+    !! this check is not really needed
+    !CALL cp_dbcsr_multiply("N", "N", 1.0_dp, matrix_inverse, matrix, 0.0_dp, tmp1,error=error)
+    !!frob_matrix_base=cp_dbcsr_frobenius_norm(tmp1)
+    !CALL cp_dbcsr_add_on_diag(tmp1,-1.0_dp,error=error)
+    !!frob_matrix=cp_dbcsr_frobenius_norm(tmp1)
+    !CALL cp_dbcsr_norm(tmp1,&
+    !        dbcsr_norm_maxabsnorm, norm_scalar=maxnorm_matrix, error=error)
+    !occ_matrix=cp_dbcsr_get_occupation(matrix_inverse)
     IF (unit_nr>0) THEN
-       WRITE(unit_nr,'(T6,A,1X,I3,1X,F10.8,E12.3)') "Final Hotelling ",i,occ_matrix,frob_matrix/frob_matrix_base
-
+    !   WRITE(unit_nr,'(T6,A,1X,I3,1X,F10.8,E12.3)') "Final Hotelling ",i,occ_matrix,&
+    !      !frob_matrix/frob_matrix_base
+    !      maxnorm_matrix
        WRITE(unit_nr,'()')
        CALL m_flush(unit_nr)
     ENDIF
@@ -147,6 +170,10 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief compute the sign a matrix using Newton-Schulz iterations
+!> \param matrix_sign ...
+!> \param matrix ...
+!> \param threshold ...
+!> \param error ...
 !> \par History
 !>       2010.10 created [Joost VandeVondele]
 !> \author Joost VandeVondele
@@ -223,7 +250,7 @@ CONTAINS
        IF (unit_nr>0) THEN
           WRITE(unit_nr,'(T6,A,1X,I3,1X,F10.8,E12.3,F12.3,F13.3)') "NS sign iter ",i,occ_matrix,&
                                                                     frob_matrix/frob_matrix_base,t2-t1,&
-                                                                    (flop1+flop2)/(1.0E6_dp*(t2-t1))
+                                                                    (flop1+flop2)/(1.0E6_dp*MAX(0.001_dp,t2-t1))
           CALL m_flush(unit_nr)
        ENDIF
 
@@ -255,6 +282,14 @@ CONTAINS
 ! *****************************************************************************
 !> \brief compute the sqrt of a matrix via the sign function and the corresponding Newton-Schulz iterations
 !>        the order of the algorithm should be 2..5, 3 or 5 is recommended
+!> \param matrix_sqrt ...
+!> \param matrix_sqrt_inv ...
+!> \param matrix ...
+!> \param threshold ...
+!> \param order ...
+!> \param eps_lanczos ...
+!> \param max_iter_lanczos ...
+!> \param error ...
 !> \par History
 !>       2010.10 created [Joost VandeVondele]
 !> \author Joost VandeVondele
@@ -272,7 +307,7 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'matrix_sqrt_Newton_Schulz', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, i, max_iter, unit_nr
+    INTEGER                                  :: handle, i, unit_nr
     INTEGER(KIND=int_8)                      :: flop1, flop2, flop3, flop4, &
                                                 flop5
     LOGICAL                                  :: converged, failure
@@ -420,7 +455,7 @@ CONTAINS
        IF (unit_nr>0) THEN
           WRITE(unit_nr,'(T6,A,1X,I3,1X,F10.8,E12.3,F12.3,F13.3)') "NS sqrt iter ",i,occ_matrix,&
                                                              frob_matrix/frob_matrix_base,t2-t1,&
-                                                 (flop1+flop2+flop3+flop4+flop5)/(1.0E6_dp*(t2-t1))
+                                                 (flop1+flop2+flop3+flop4+flop5)/(1.0E6_dp*MAX(0.001_dp,t2-t1))
           CALL m_flush(unit_nr)
        ENDIF
 
@@ -462,6 +497,15 @@ CONTAINS
 
   END SUBROUTINE matrix_sqrt_Newton_Schulz
 
+! *****************************************************************************
+!> \brief ...
+!> \param matrix_exp ...
+!> \param matrix ...
+!> \param omega ...
+!> \param alpha ...
+!> \param threshold ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE matrix_exponential(matrix_exp,matrix,omega,alpha,threshold,error)
     ! compute matrix_exp=omega*exp(alpha*matrix)
     TYPE(cp_dbcsr_type), INTENT(INOUT)       :: matrix_exp, matrix
@@ -562,19 +606,23 @@ CONTAINS
 
     ! scale matrix_exp by omega, matrix_exp=omega*B_square
     CALL cp_dbcsr_scale(matrix_exp, alpha_scalar=omega, error=error)
-    ! write(6,*) alpha,omega
+    ! write(*,*) alpha,omega
 
     CALL timestop(handle)
 
   END SUBROUTINE matrix_exponential
 
 ! *****************************************************************************
-!> \brief mc_weeny purification of a matrix in the orthonormal basis
+!> \brief McWeeny purification of a matrix in the orthonormal basis
+!> \param matrix_p Matrix to purify (needs to be almost idempotent already)
+!> \param threshold Threshold used as filter_eps and convergence criteria
+!> \param max_steps Max number of iterations
+!> \param error The error-handler
 !> \par History
 !>       2013.01 created [Florian Schiffmann]
+!>       2014.07 slightly refactored [Ole Schuett]
 !> \author Florian Schiffmann
 ! *****************************************************************************
-
   SUBROUTINE purify_mcweeny_orth(matrix_p,threshold,max_steps,error)
     TYPE(cp_dbcsr_type), DIMENSION(:)        :: matrix_p
     REAL(KIND=dp)                            :: threshold
@@ -586,52 +634,53 @@ CONTAINS
 
     INTEGER                                  :: handle, i, ispin, unit_nr
     REAL(KIND=dp)                            :: frob_norm
-    TYPE(cp_dbcsr_type)                      :: matrix, matrix_tmp
-    TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(cp_dbcsr_type)                      :: matrix_pp, matrix_tmp
 
     CALL timeset(routineN,handle)
-    logger => cp_error_get_logger(error)
-    IF (logger%para_env%mepos==logger%para_env%source) THEN
-       unit_nr=cp_logger_get_default_unit_nr(logger,local=.TRUE.)
-    ELSE
-      unit_nr=-1
-    ENDIF
+    unit_nr = cp_logger_get_default_unit_nr()
 
+    CALL cp_dbcsr_init(matrix_pp,error=error)
+    CALL cp_dbcsr_create(matrix_pp,template=matrix_p(1),matrix_type=dbcsr_type_no_symmetry,error=error)
     CALL cp_dbcsr_init(matrix_tmp,error=error)
     CALL cp_dbcsr_create(matrix_tmp,template=matrix_p(1),matrix_type=dbcsr_type_no_symmetry,error=error)
-    CALL cp_dbcsr_init(matrix,error=error)
-    CALL cp_dbcsr_create(matrix,template=matrix_p(1),matrix_type=dbcsr_type_no_symmetry,error=error)
+
     DO ispin=1,SIZE(matrix_p)
        DO i=1,max_steps
-           CALL cp_dbcsr_multiply("N", "N", 1.0_dp, matrix_p(ispin),matrix_p(ispin),&
-                0.0_dp, matrix_tmp, filter_eps=threshold,error=error)
-           CALL cp_dbcsr_copy(matrix,matrix_tmp,error=error)
-           CALL cp_dbcsr_add(matrix_tmp,matrix_p(ispin),1.0_dp,-1.0_dp,error=error)
-           frob_norm=cp_dbcsr_frobenius_norm(matrix_tmp)
-           IF(unit_nr.gt.0)WRITE(unit_nr,'(t3,a,f16.8)')"McWeeny: Deviation of idempotency",frob_norm
-           IF(frob_norm.gt.1000_dp*threshold.OR.i==1)THEN
-              CALL cp_dbcsr_copy(matrix_tmp,matrix,error=error)
-              CALL cp_dbcsr_multiply("N", "N", -2.0_dp, matrix,matrix_p(ispin),&
-                   3.0_dp, matrix_tmp, filter_eps=threshold,error=error)
-              CALL cp_dbcsr_copy(matrix_p(ispin),matrix_tmp,error=error)
-           ELSE
-              EXIT
-           END IF
+           CALL cp_dbcsr_multiply("N", "N", 1.0_dp, matrix_p(ispin), matrix_p(ispin),&
+                0.0_dp, matrix_pp, filter_eps=threshold, error=error)
+
+           ! test convergence
+           CALL cp_dbcsr_copy(matrix_tmp, matrix_pp, error=error)
+           CALL cp_dbcsr_add(matrix_tmp, matrix_p(ispin), 1.0_dp, -1.0_dp, error=error)
+           frob_norm = cp_dbcsr_frobenius_norm(matrix_tmp) ! tmp = PP - P
+           IF(unit_nr > 0) WRITE(unit_nr,'(t3,a,f16.8)')"McWeeny: Deviation of idempotency",frob_norm
+           IF(frob_norm<1000_dp*threshold .AND. i>1) EXIT
+
+           ! construct new P
+           CALL cp_dbcsr_copy(matrix_tmp, matrix_pp, error=error)
+           CALL cp_dbcsr_multiply("N", "N", -2.0_dp, matrix_pp, matrix_p(ispin),&
+                3.0_dp, matrix_tmp, filter_eps=threshold, error=error)
+           CALL cp_dbcsr_copy(matrix_p(ispin), matrix_tmp, error=error) ! tmp = 3PP - 2PPP
        END DO
     END DO
 
+    CALL cp_dbcsr_release(matrix_pp,error)
     CALL cp_dbcsr_release(matrix_tmp,error)
-    CALL cp_dbcsr_release(matrix,error)
     CALL timestop(handle)
   END SUBROUTINE purify_mcweeny_orth
 
 ! *****************************************************************************
-!> \brief mc_weeny purification of a matrix in the nonorthonormal basis
+!> \brief McWeeny purification of a matrix in the non-orthonormal basis
+!> \param matrix_p Matrix to purify (needs to be almost idempotent already)
+!> \param matrix_s Overlap-Matrix
+!> \param threshold Threshold used as filter_eps and convergence criteria
+!> \param max_steps Max number of iterations
+!> \param error The error-handler
 !> \par History
 !>       2013.01 created [Florian Schiffmann]
+!>       2014.07 slightly refactored [Ole Schuett]
 !> \author Florian Schiffmann
 ! *****************************************************************************
-
   SUBROUTINE purify_mcweeny_nonorth(matrix_p,matrix_s,threshold,max_steps,error)
     TYPE(cp_dbcsr_type), DIMENSION(:)        :: matrix_p
     TYPE(cp_dbcsr_type)                      :: matrix_s
@@ -644,48 +693,43 @@ CONTAINS
 
     INTEGER                                  :: handle, i, ispin, unit_nr
     REAL(KIND=dp)                            :: frob_norm
-    TYPE(cp_dbcsr_type)                      :: matrix, matrix_tmp, &
-                                                matrix_tmp1
-    TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(cp_dbcsr_type)                      :: matrix_ps, matrix_psp, &
+                                                matrix_test
 
     CALL timeset(routineN,handle)
-    logger => cp_error_get_logger(error)
-    IF (logger%para_env%mepos==logger%para_env%source) THEN
-       unit_nr=cp_logger_get_default_unit_nr(logger,local=.TRUE.)
-    ELSE
-      unit_nr=-1
-    ENDIF
+    unit_nr = cp_logger_get_default_unit_nr()
 
-    CALL cp_dbcsr_init(matrix_tmp,error=error)
-    CALL cp_dbcsr_create(matrix_tmp,template=matrix_p(1),matrix_type=dbcsr_type_no_symmetry,error=error)
-    CALL cp_dbcsr_init(matrix_tmp1,error=error)
-    CALL cp_dbcsr_create(matrix_tmp1,template=matrix_p(1),matrix_type=dbcsr_type_no_symmetry,error=error)
-    CALL cp_dbcsr_init(matrix,error=error)
-    CALL cp_dbcsr_create(matrix,template=matrix_p(1),matrix_type=dbcsr_type_no_symmetry,error=error)
+    CALL cp_dbcsr_init(matrix_ps,error=error)
+    CALL cp_dbcsr_create(matrix_ps,template=matrix_p(1),matrix_type=dbcsr_type_no_symmetry,error=error)
+    CALL cp_dbcsr_init(matrix_psp,error=error)
+    CALL cp_dbcsr_create(matrix_psp,template=matrix_p(1),matrix_type=dbcsr_type_no_symmetry,error=error)
+    CALL cp_dbcsr_init(matrix_test,error=error)
+    CALL cp_dbcsr_create(matrix_test,template=matrix_p(1),matrix_type=dbcsr_type_no_symmetry,error=error)
+
     DO ispin=1,SIZE(matrix_p)
        DO i=1,max_steps
-           CALL cp_dbcsr_multiply("N", "N", 1.0_dp, matrix_p(ispin),matrix_s,&
-                0.0_dp, matrix_tmp1, filter_eps=threshold,error=error)
-           CALL cp_dbcsr_multiply("N", "N", 1.0_dp, matrix_tmp1,matrix_p(ispin),&
-                0.0_dp, matrix_tmp, filter_eps=threshold,error=error)
-           CALL cp_dbcsr_copy(matrix,matrix_tmp,error=error)
-           CALL cp_dbcsr_add(matrix_tmp,matrix_p(ispin),1.0_dp,-1.0_dp,error=error)
-           frob_norm=cp_dbcsr_frobenius_norm(matrix_tmp)
-           IF(unit_nr.gt.0)WRITE(unit_nr,'(t3,a,2f16.8)')"McWeeny: Deviation of idempotency",frob_norm
-           IF(frob_norm.gt.1000_dp*threshold.OR.i==1)THEN
-              CALL cp_dbcsr_copy(matrix_tmp,matrix,error=error)
-              CALL cp_dbcsr_multiply("N", "N", -2.0_dp, matrix_tmp1,matrix,&
-                   3.0_dp, matrix_tmp, filter_eps=threshold,error=error)
-              CALL cp_dbcsr_copy(matrix_p(ispin),matrix_tmp,error=error)
-           ELSE
-              EXIT
-           END IF
+           CALL cp_dbcsr_multiply("N", "N", 1.0_dp, matrix_p(ispin), matrix_s,&
+                0.0_dp, matrix_ps, filter_eps=threshold,error=error)
+           CALL cp_dbcsr_multiply("N", "N", 1.0_dp, matrix_ps, matrix_p(ispin),&
+                0.0_dp, matrix_psp, filter_eps=threshold,error=error)
+
+           ! test convergence
+           CALL cp_dbcsr_copy(matrix_test, matrix_psp, error=error)
+           CALL cp_dbcsr_add(matrix_test, matrix_p(ispin), 1.0_dp,-1.0_dp, error=error)
+           frob_norm = cp_dbcsr_frobenius_norm(matrix_test) ! test = PSP - P
+           IF(unit_nr>0) WRITE(unit_nr,'(t3,a,2f16.8)')"McWeeny: Deviation of idempotency",frob_norm
+           IF(frob_norm<1000_dp*threshold .AND. i>1) EXIT
+
+           ! construct new P
+           CALL cp_dbcsr_copy(matrix_p(ispin), matrix_psp, error=error)
+           CALL cp_dbcsr_multiply("N", "N", -2.0_dp, matrix_ps, matrix_psp,&
+                3.0_dp, matrix_p(ispin), filter_eps=threshold, error=error)
        END DO
     END DO
 
-    CALL cp_dbcsr_release(matrix_tmp,error)
-    CALL cp_dbcsr_release(matrix_tmp1,error)
-    CALL cp_dbcsr_release(matrix,error)
+    CALL cp_dbcsr_release(matrix_ps,error)
+    CALL cp_dbcsr_release(matrix_psp,error)
+    CALL cp_dbcsr_release(matrix_test,error)
     CALL timestop(handle)
   END SUBROUTINE purify_mcweeny_nonorth
 

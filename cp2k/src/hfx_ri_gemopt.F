@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2013  CP2K developers group                          !
+!   Copyright (C) 2000 - 2014  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -8,8 +8,6 @@
 !> \author JGH October 2009
 ! *****************************************************************************
 MODULE hfx_ri_gemopt
-  USE atomic_kind_types,               ONLY: atomic_kind_type,&
-                                             get_atomic_kind
   USE basis_set_types,                 ONLY: geminal_basis_set_type,&
                                              get_geminal_basis_set,&
                                              write_geminal_basis_set
@@ -28,13 +26,15 @@ MODULE hfx_ri_gemopt
   USE qs_energy_types,                 ONLY: qs_energy_type
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
+  USE qs_kind_types,                   ONLY: get_qs_kind,&
+                                             qs_kind_type
   USE ri_environment_types,            ONLY: get_ri_env,&
                                              ri_environment_type,&
                                              ri_vector_set,&
                                              ri_vector_type
   USE timings,                         ONLY: timeset,&
                                              timestop
-#include "cp_common_uses.h"
+#include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
 
@@ -53,6 +53,10 @@ CONTAINS
 ! *****************************************************************************
 !> \brief optimizer for geminal bsis sets
 !>
+!> \param qs_env ...
+!> \param print_key ...
+!> \param iunit ...
+!> \param error ...
 !> \author JGH
 ! *****************************************************************************
   SUBROUTINE geminal_optimize (qs_env,print_key,iunit,error)
@@ -158,6 +162,11 @@ CONTAINS
   END SUBROUTINE geminal_optimize
 
 ! *****************************************************************************
+!> \brief ...
+!> \param qs_env ...
+!> \param x ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE get_geminfo (qs_env,x,error)
     TYPE(qs_environment_type), POINTER       :: qs_env
     REAL(KIND=dp), DIMENSION(:), POINTER     :: x
@@ -174,22 +183,20 @@ CONTAINS
     REAL(KIND=dp)                            :: a, b, c
     REAL(KIND=dp), DIMENSION(:, :, :, :), &
       POINTER                                :: zet
-    TYPE(atomic_kind_type), DIMENSION(:), &
-      POINTER                                :: atomic_kind_set
-    TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(geminal_basis_set_type), POINTER    :: geminal_basis_set
+    TYPE(qs_kind_type), DIMENSION(:), &
+      POINTER                                :: qs_kind_set
 
     failure = .FALSE.
-    NULLIFY(atomic_kind_set)
+    NULLIFY(qs_kind_set)
 
-    CALL get_qs_env(qs_env=qs_env,atomic_kind_set=atomic_kind_set,error=error)
-    nkind = SIZE(atomic_kind_set)
+    CALL get_qs_env(qs_env=qs_env,qs_kind_set=qs_kind_set,error=error)
+    nkind = SIZE(qs_kind_set)
 
     nopt = 0
     DO ikind = 1,nkind
-       atomic_kind => atomic_kind_set(ikind)
        NULLIFY(geminal_basis_set)
-       CALL get_atomic_kind(atomic_kind=atomic_kind,no_optimize=noopt,&
+       CALL get_qs_kind(qs_kind_set(ikind),no_optimize=noopt,&
                             geminal_basis_set=geminal_basis_set)
        IF ( noopt ) CYCLE
        IF ( .NOT.ASSOCIATED(geminal_basis_set) ) CYCLE
@@ -209,9 +216,8 @@ CONTAINS
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
     nopt = 0
     DO ikind = 1,nkind
-       atomic_kind => atomic_kind_set(ikind)
        NULLIFY(geminal_basis_set)
-       CALL get_atomic_kind(atomic_kind=atomic_kind,no_optimize=noopt,&
+       CALL get_qs_kind(qs_kind_set(ikind),no_optimize=noopt,&
                             geminal_basis_set=geminal_basis_set)
        IF ( noopt ) CYCLE
        IF ( .NOT.ASSOCIATED(geminal_basis_set) ) CYCLE
@@ -248,6 +254,11 @@ CONTAINS
 
   END SUBROUTINE get_geminfo
 ! *****************************************************************************
+!> \brief ...
+!> \param qs_env ...
+!> \param x ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE set_geminfo (qs_env,x,error)
     TYPE(qs_environment_type), POINTER       :: qs_env
     REAL(KIND=dp), DIMENSION(:), POINTER     :: x
@@ -262,22 +273,20 @@ CONTAINS
     REAL(KIND=dp)                            :: a, b, c
     REAL(KIND=dp), DIMENSION(:, :, :, :), &
       POINTER                                :: zet, zeth
-    TYPE(atomic_kind_type), DIMENSION(:), &
-      POINTER                                :: atomic_kind_set
-    TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(geminal_basis_set_type), POINTER    :: geminal_basis_set
+    TYPE(qs_kind_type), DIMENSION(:), &
+      POINTER                                :: qs_kind_set
 
     failure = .FALSE.
-    NULLIFY(atomic_kind_set)
+    NULLIFY(qs_kind_set)
 
-    CALL get_qs_env(qs_env=qs_env,atomic_kind_set=atomic_kind_set,error=error)
-    nkind = SIZE(atomic_kind_set)
+    CALL get_qs_env(qs_env=qs_env,qs_kind_set=qs_kind_set,error=error)
+    nkind = SIZE(qs_kind_set)
 
     nopt = 0
     DO ikind = 1,nkind
-       atomic_kind => atomic_kind_set(ikind)
        NULLIFY(geminal_basis_set)
-       CALL get_atomic_kind(atomic_kind=atomic_kind,no_optimize=noopt,&
+       CALL get_qs_kind(qs_kind_set(ikind),no_optimize=noopt,&
                             geminal_basis_set=geminal_basis_set)
        IF ( noopt ) CYCLE
        IF ( .NOT.ASSOCIATED(geminal_basis_set) ) CYCLE
@@ -345,6 +354,11 @@ CONTAINS
 
   END SUBROUTINE set_geminfo
 ! *****************************************************************************
+!> \brief ...
+!> \param qs_env ...
+!> \param iunit ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE write_geminfo (qs_env,iunit,error)
     TYPE(qs_environment_type), POINTER       :: qs_env
     INTEGER, INTENT(IN)                      :: iunit
@@ -355,20 +369,18 @@ CONTAINS
 
     INTEGER                                  :: ikind, nkind
     LOGICAL                                  :: noopt
-    TYPE(atomic_kind_type), DIMENSION(:), &
-      POINTER                                :: atomic_kind_set
-    TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(geminal_basis_set_type), POINTER    :: geminal_basis_set
+    TYPE(qs_kind_type), DIMENSION(:), &
+      POINTER                                :: qs_kind_set
 
-    NULLIFY(atomic_kind_set)
+    NULLIFY(qs_kind_set)
 
-    CALL get_qs_env(qs_env=qs_env,atomic_kind_set=atomic_kind_set,error=error)
-    nkind = SIZE(atomic_kind_set)
+    CALL get_qs_env(qs_env=qs_env,qs_kind_set=qs_kind_set,error=error)
+    nkind = SIZE(qs_kind_set)
 
     DO ikind = 1,nkind
-       atomic_kind => atomic_kind_set(ikind)
        NULLIFY(geminal_basis_set)
-       CALL get_atomic_kind(atomic_kind=atomic_kind,no_optimize=noopt,&
+       CALL get_qs_kind(qs_kind_set(ikind),no_optimize=noopt,&
                             geminal_basis_set=geminal_basis_set)
        IF ( noopt ) CYCLE
        IF ( .NOT.ASSOCIATED(geminal_basis_set) ) CYCLE
@@ -377,6 +389,11 @@ CONTAINS
     END DO
 
   END SUBROUTINE write_geminfo
+! *****************************************************************************
+!> \brief ...
+!> \param ostate ...
+!> \param x ...
+!> \param error ...
 ! *****************************************************************************
   SUBROUTINE write_gemprog (ostate,x,error)
     TYPE(opt_state_type), INTENT(IN)         :: ostate

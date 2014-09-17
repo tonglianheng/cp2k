@@ -1,13 +1,13 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2013  CP2K developers group                          !
+!   Copyright (C) 2000 - 2014  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 ! *****************************************************************************
 !> \brief an exclusion type
 ! *****************************************************************************
 MODULE exclusion_types
 
-#include "cp_common_uses.h"
+#include "./common/cp_common_uses.f90"
   IMPLICIT NONE
   PRIVATE
 
@@ -31,6 +31,8 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Release exclusion type
+!> \param exclusions ...
+!> \param error ...
 !> \par History
 !>      12.2010 created [Teodoro Laino] - teodoro.laino@gmail.com
 !> \author teo

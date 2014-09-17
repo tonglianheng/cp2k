@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2013  CP2K developers group                          !
+!   Copyright (C) 2000 - 2014  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -14,23 +14,32 @@ MODULE pme_tools
 
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind
-  USE cell_types,                      ONLY: cell_type,&
+  USE cell_methods,                    ONLY: cell_type,&
                                              real_to_scaled
   USE f77_blas
   USE kinds,                           ONLY: dp
   USE particle_types,                  ONLY: particle_type
   USE realspace_grid_types,            ONLY: realspace_grid_type
-#include "cp_common_uses.h"
+#include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
 
   PRIVATE
-  PUBLIC :: get_center, in_slice, set_list
+  PUBLIC :: get_center, set_list
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'pme_tools'
 
 CONTAINS
 
+! *****************************************************************************
+!> \brief ...
+!> \param part ...
+!> \param npart ...
+!> \param center ...
+!> \param p1 ...
+!> \param rs ...
+!> \param ipart ...
+!> \param core_center ...
 ! *****************************************************************************
   SUBROUTINE set_list ( part, npart, center, p1, rs, ipart, core_center )
 
@@ -91,6 +100,11 @@ CONTAINS
   END SUBROUTINE set_list
 
 ! *****************************************************************************
+!> \brief ...
+!> \param pos ...
+!> \param lb ...
+!> \param ub ...
+! *****************************************************************************
   FUNCTION in_slice ( pos, lb, ub ) RESULT ( internal )
 
     INTEGER, DIMENSION(3), INTENT(IN)        :: pos, lb, ub
@@ -104,6 +118,13 @@ CONTAINS
 
   END FUNCTION in_slice
 
+! *****************************************************************************
+!> \brief ...
+!> \param part ...
+!> \param box ...
+!> \param center ...
+!> \param npts ...
+!> \param n ...
 ! *****************************************************************************
   SUBROUTINE get_center ( part, box, center, npts, n )
 

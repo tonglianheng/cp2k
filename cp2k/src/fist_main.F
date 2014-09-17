@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2013  CP2K developers group                          !
+!   Copyright (C) 2000 - 2014  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -27,7 +27,7 @@ MODULE fist_main
   USE qmmm_types,                      ONLY: qmmm_env_mm_type
   USE timings,                         ONLY: timeset,&
                                              timestop
-#include "cp_common_uses.h"
+#include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
 
@@ -37,7 +37,6 @@ MODULE fist_main
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'fist_main'
 
 ! *** Global variables ***
-  TYPE(fist_environment_type), POINTER :: fist_env
   PUBLIC :: fist_create_force_env
 
 !!-----------------------------------------------------------------------------!
@@ -50,6 +49,17 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Controls program flow for classical MD and path-integrals
+!> \param force_env ...
+!> \param root_section ...
+!> \param para_env ...
+!> \param globenv ...
+!> \param qmmm ...
+!> \param qmmm_env ...
+!> \param force_env_section ...
+!> \param subsys_section ...
+!> \param use_motion_section ...
+!> \param prev_subsys ...
+!> \param error ...
 !> \par Used By
 !>      cp2k
 !> \author CJM

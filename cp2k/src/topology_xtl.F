@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2013  CP2K developers group                          !
+!   Copyright (C) 2000 - 2014  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -9,7 +9,7 @@
 !> \date   05.2009
 ! *****************************************************************************
 MODULE topology_xtl
-  USE cell_types,                      ONLY: cell_create,&
+  USE cell_methods,                    ONLY: cell_create,&
                                              cell_release,&
                                              cell_type,&
                                              pbc,&
@@ -40,7 +40,7 @@ MODULE topology_xtl
                                              timestop
   USE topology_types,                  ONLY: atom_info_type,&
                                              topology_parameters_type
-#include "cp_common_uses.h"
+#include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
 
@@ -54,6 +54,11 @@ CONTAINS
 ! *****************************************************************************
 !> \brief  Performs the real task of reading the proper information from the XTL
 !>         file
+!> \param topology ...
+!> \param para_env ...
+!> \param subsys_section ...
+!> \param error ...
+!> \date   05.2009
 !> \par    Format Information implemented:
 !>            TITLE
 !>            DIMENSION
@@ -64,7 +69,6 @@ CONTAINS
 !>            EOF
 !>
 !> \author Teodoro Laino [tlaino]
-!> \date   05.2009
 ! *****************************************************************************
   SUBROUTINE read_coordinate_xtl (topology,para_env,subsys_section,error)
     TYPE(topology_parameters_type)           :: topology

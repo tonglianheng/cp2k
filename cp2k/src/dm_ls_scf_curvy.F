@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2013  CP2K developers group                          !
+!   Copyright (C) 2000 - 2014  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -17,9 +17,8 @@ MODULE dm_ls_scf_curvy
        cp_dbcsr_add, cp_dbcsr_copy, cp_dbcsr_create, cp_dbcsr_filter, &
        cp_dbcsr_frobenius_norm, cp_dbcsr_init, cp_dbcsr_multiply, &
        cp_dbcsr_norm, cp_dbcsr_release, cp_dbcsr_scale, cp_dbcsr_set, &
-       cp_dbcsr_trace, cp_dbcsr_transposed
-  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_type
-  USE dbcsr_types,                     ONLY: dbcsr_type_no_symmetry
+       cp_dbcsr_trace, cp_dbcsr_transposed, cp_dbcsr_type, &
+       dbcsr_type_no_symmetry
   USE dm_ls_scf_types,                 ONLY: ls_scf_curvy_type,&
                                              ls_scf_env_type
   USE f77_blas
@@ -32,7 +31,7 @@ MODULE dm_ls_scf_curvy
   USE mathlib,                         ONLY: invmat
   USE timings,                         ONLY: timeset,&
                                              timestop
-#include "cp_common_uses.h"
+#include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
 
@@ -51,6 +50,13 @@ CONTAINS
   !> \author Florian Schiffmann
   ! *****************************************************************************
 
+! *****************************************************************************
+!> \brief ...
+!> \param ls_scf_env ...
+!> \param energy ...
+!> \param check_conv ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE dm_ls_curvy_optimization(ls_scf_env,energy,check_conv,error)
     TYPE(ls_scf_env_type)                    :: ls_scf_env
     REAL(KIND=dp)                            :: energy
@@ -67,10 +73,7 @@ CONTAINS
 
     CALL cite_reference(Shao2003)
 
-! Check that the transformation matrices into orthonormal basis are present
     failure=.FALSE.
-    CPPrecondition(ls_scf_env%matrix_s_sqrt_inv%ref_count/=0,cp_failure_level,routineP,error,failure)
-    CPPrecondition(ls_scf_env%matrix_s_sqrt%ref_count/=0,cp_failure_level,routineP,error,failure)
 
 ! Upon first call initialize all matrices needed curing optimization
 ! In addtion transform P into orthonormal basis. Will be scaled by 0.5 in closed shell case
@@ -152,6 +155,12 @@ CONTAINS
   !> \author Florian Schiffmann
   ! *****************************************************************************
 
+! *****************************************************************************
+!> \brief ...
+!> \param curvy_data ...
+!> \param ls_scf_env ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE optimization_step(curvy_data,ls_scf_env,error)
     TYPE(ls_scf_curvy_type)                  :: curvy_data
     TYPE(ls_scf_env_type)                    :: ls_scf_env
@@ -222,6 +231,12 @@ CONTAINS
   ! *****************************************************************************
 
 
+! *****************************************************************************
+!> \brief ...
+!> \param energies ...
+!> \param step_size ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE line_search_2d(energies,step_size,error)
     REAL(KIND=dp)                            :: energies(6), step_size(2)
     TYPE(cp_error_type), INTENT(INOUT)       :: error
@@ -230,9 +245,9 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: info, unit_nr
-    REAL(KIND=dp)                            :: a, e_pred, param(6), s1, &
-                                                s1sq, s2, s2sq, &
-                                                sys_lin_eq(6,6), tmp_e, v1, v2
+    REAL(KIND=dp)                            :: e_pred, param(6), s1, s1sq, &
+                                                s2, s2sq, sys_lin_eq(6,6), &
+                                                tmp_e, v1, v2
     TYPE(cp_logger_type), POINTER            :: logger
 
     logger => cp_error_get_logger(error)
@@ -278,6 +293,12 @@ CONTAINS
   !>       2012.05 created [Florian Schiffmann]
   !> \author Florian Schiffmann
   ! *****************************************************************************
+! *****************************************************************************
+!> \brief ...
+!> \param energies ...
+!> \param step_size ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE line_search_3pnt(energies,step_size,error)
     REAL(KIND=dp)                            :: energies(3), step_size(2)
     TYPE(cp_error_type), INTENT(INOUT)       :: error
@@ -329,6 +350,19 @@ CONTAINS
   !> \author Florian Schiffmann
   ! *****************************************************************************
 
+! *****************************************************************************
+!> \brief ...
+!> \param matrix_p ...
+!> \param matrix_ks ...
+!> \param matrix_dp ...
+!> \param eps_filter ...
+!> \param fix_shift ...
+!> \param curvy_shift ...
+!> \param cg_numer ...
+!> \param cg_denom ...
+!> \param min_shift ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE compute_direction_newton(matrix_p,matrix_ks,matrix_dp,eps_filter,fix_shift,&
                                       curvy_shift,cg_numer,cg_denom,min_shift,error)
     TYPE(cp_dbcsr_type), DIMENSION(:)        :: matrix_p, matrix_ks, matrix_dp
@@ -481,6 +515,18 @@ CONTAINS
   !> \author Florian Schiffmann
   ! *****************************************************************************
 
+! *****************************************************************************
+!> \brief ...
+!> \param Ax ...
+!> \param res ...
+!> \param cg ...
+!> \param deltp ...
+!> \param tmp ...
+!> \param eps_filter ...
+!> \param at_limit ...
+!> \param unit_nr ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE compute_cg_matrices(Ax,res,cg,deltp,tmp,eps_filter,at_limit,unit_nr,error)          
     TYPE(cp_dbcsr_type)                      :: Ax, res, cg, deltp, tmp
     REAL(KIND=dp)                            :: eps_filter
@@ -545,6 +591,14 @@ CONTAINS
   ! *****************************************************************************
      
 
+! *****************************************************************************
+!> \brief ...
+!> \param matrix_p ...
+!> \param matrix_psave ...
+!> \param lsstep ...
+!> \param DOUBLE ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE new_p_from_save(matrix_p,matrix_psave,lsstep,DOUBLE,error)
     TYPE(cp_dbcsr_type), DIMENSION(:)        :: matrix_p
     TYPE(cp_dbcsr_type), DIMENSION(:, :)     :: matrix_psave
@@ -587,6 +641,15 @@ CONTAINS
   !> \author Florian Schiffmann
   ! *****************************************************************************
  
+! *****************************************************************************
+!> \brief ...
+!> \param a ...
+!> \param b ...
+!> \param res ...
+!> \param eps_filter ...
+!> \param prefac ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE commutator_symm(a,b,res,eps_filter,prefac,error)
     TYPE(cp_dbcsr_type)                      :: a, b, res
     REAL(KIND=dp)                            :: eps_filter, prefac
@@ -622,6 +685,18 @@ CONTAINS
   ! *****************************************************************************
  
 
+! *****************************************************************************
+!> \brief ...
+!> \param matrix_p_in ...
+!> \param matrix_p_out ...
+!> \param matrix_dp ...
+!> \param matrix_BCH ...
+!> \param threshold ...
+!> \param step_size ...
+!> \param BCH_saved ...
+!> \param n_bch_hist ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE update_p_exp(matrix_p_in,matrix_p_out,matrix_dp,matrix_BCH,threshold,step_size,&
                           BCH_saved,n_bch_hist,error)
     TYPE(cp_dbcsr_type), DIMENSION(:)        :: matrix_p_in, matrix_p_out, &
@@ -731,6 +806,13 @@ CONTAINS
   !> \author Florian Schiffmann
   ! *****************************************************************************
 
+! *****************************************************************************
+!> \brief ...
+!> \param matrix ...
+!> \param matrix_trafo ...
+!> \param eps_filter ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE transform_matrix_orth(matrix,matrix_trafo,eps_filter,error)
     TYPE(cp_dbcsr_type), DIMENSION(:)        :: matrix
     TYPE(cp_dbcsr_type)                      :: matrix_trafo
@@ -767,6 +849,11 @@ CONTAINS
 
   END SUBROUTINE
        
+! *****************************************************************************
+!> \brief ...
+!> \param curvy_data ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE deallocate_curvy_data(curvy_data,error)
     TYPE(ls_scf_curvy_type)                  :: curvy_data
     TYPE(cp_error_type), INTENT(INOUT)       :: error
@@ -778,8 +865,9 @@ CONTAINS
 
     CALL release_dbcsr_array(curvy_data%matrix_dp,error)
     CALL release_dbcsr_array(curvy_data%matrix_p,error)
+
     IF(ALLOCATED(curvy_data%matrix_psave))THEN
-       DO i=1,SIZE(curvy_data%matrix_p)
+       DO i=1,SIZE(curvy_data%matrix_psave,1)
           DO j=1,3
              CALL cp_dbcsr_release(curvy_data%matrix_psave(i,j),error)  
           END DO
@@ -787,7 +875,7 @@ CONTAINS
        DEALLOCATE(curvy_data%matrix_psave)
     END IF
     IF(ALLOCATED(curvy_data%matrix_BCH))THEN
-       DO i=1,SIZE(curvy_data%matrix_p)
+       DO i=1,SIZE(curvy_data%matrix_BCH,1)
           DO j=1,7
              CALL cp_dbcsr_release(curvy_data%matrix_BCH(i,j),error)  
           END DO
@@ -796,6 +884,11 @@ CONTAINS
     END IF
   END SUBROUTINE deallocate_curvy_data
 
+! *****************************************************************************
+!> \brief ...
+!> \param matrix ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE release_dbcsr_array(matrix,error)
     TYPE(cp_dbcsr_type), ALLOCATABLE, &
       DIMENSION(:)                           :: matrix
@@ -816,6 +909,13 @@ CONTAINS
 
 
 
+! *****************************************************************************
+!> \brief ...
+!> \param curvy_data ...
+!> \param matrix_s ...
+!> \param nspins ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE init_curvy(curvy_data,matrix_s,nspins,error)
     TYPE(ls_scf_curvy_type)                  :: curvy_data
     TYPE(cp_dbcsr_type)                      :: matrix_s

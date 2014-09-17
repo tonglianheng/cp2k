@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2013  CP2K developers group                          !
+!   Copyright (C) 2000 - 2014  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -19,7 +19,20 @@ MODULE input_cp2k_subsys
   USE cp_output_handling,              ONLY: cp_print_key_section_create
   USE cp_units,                        ONLY: cp_unit_to_cp2k
   USE f77_blas
-  USE input_constants
+  USE input_constants,                 ONLY: &
+       cell_sym_cubic, cell_sym_hexagonal, cell_sym_monoclinic, &
+       cell_sym_none, cell_sym_orthorhombic, cell_sym_rhombohedral, &
+       cell_sym_tetragonal_ab, cell_sym_tetragonal_ac, &
+       cell_sym_tetragonal_bc, cell_sym_triclinic, debug_print_level, do_add, &
+       do_bondparm_covalent, do_bondparm_vdw, do_cell_cp2k, do_cell_xsc, &
+       do_conn_amb7, do_conn_g87, do_conn_g96, do_conn_generate, &
+       do_conn_mol_set, do_conn_off, do_conn_psf, do_conn_psf_u, &
+       do_conn_user, do_coord_cif, do_coord_cp2k, do_coord_crd, do_coord_g96, &
+       do_coord_off, do_coord_pdb, do_coord_xtl, do_coord_xyz, do_remove, &
+       do_skip_11, do_skip_12, do_skip_13, do_skip_14, dump_pdb, gaussian, &
+       high_print_level, medium_print_level, use_perd_none, use_perd_x, &
+       use_perd_xy, use_perd_xyz, use_perd_xz, use_perd_y, use_perd_yz, &
+       use_perd_z
   USE input_cp2k_colvar,               ONLY: create_colvar_section
   USE input_cp2k_mm,                   ONLY: create_neighbor_lists_section
   USE input_keyword_types,             ONLY: keyword_create,&
@@ -37,8 +50,9 @@ MODULE input_cp2k_subsys
   USE kinds,                           ONLY: default_string_length,&
                                              dp
   USE physcon,                         ONLY: bohr
-  USE string_utilities,                ONLY: s2a
-#include "cp_common_uses.h"
+  USE string_utilities,                ONLY: newline,&
+                                             s2a
+#include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
   PRIVATE
@@ -55,6 +69,9 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief creates the cell section
+!> \param section ...
+!> \param periodic ...
+!> \param label ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 !> \author teo
@@ -239,8 +256,8 @@ CONTAINS
        NULLIFY(keyword)
 
        CALL keyword_create(keyword, name="_DEFAULT_KEYWORD_",&
-            description="Specify an initial RNG stream",repeats=.TRUE.,&
-            type_of_var=lchar_t, error=error)
+            description="Specify an initial RNG stream record",repeats=.TRUE.,&
+            usage="{RNG record string}",type_of_var=lchar_t, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
@@ -616,8 +633,10 @@ CONTAINS
             n_keywords=1, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
             error=error)
        CALL keyword_create(keyword, name="_DEFAULT_KEYWORD_",&
-            description="The dipole components for each atom.",repeats=.TRUE.,&
-            usage="dx dy dz", type_of_var=real_t, n_var=3, error=error)
+            description="The dipole components for each atom in the format:"//&
+            "<p><tt><big>D<sub>x</sub> D<sub>y</sub> D<sub>z</sub></big></tt></p>",&
+            repeats=.TRUE., usage="{Real} {Real} {Real}",&
+            type_of_var=real_t, n_var=3, error=error)
        CALL section_add_keyword(subsection,keyword,error=error)
        CALL keyword_release(keyword,error=error)
        CALL section_add_subsection(section,subsection,error=error)
@@ -628,8 +647,11 @@ CONTAINS
             n_keywords=1, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
             error=error)
        CALL keyword_create(keyword, name="_DEFAULT_KEYWORD_",&
-            description="The quadrupole components for each atom.",repeats=.TRUE.,&
-            usage="qxx qxy qxz qyy qyz qzz", type_of_var=real_t, n_var=6, error=error)
+            description="The quadrupole components for each atom in the format:"//&
+            "<p><big><tt>Q<sub>xx</sub> Q<sub>xy</sub> Q<sub>xz</sub> Q<sub>yy</sub> "//&
+            "Q<sub>yz</sub> Q<sub>zz</sub></big></tt></p>",&
+            repeats=.TRUE., usage="{Real} {Real} {Real} {Real} {Real} {Real}",&
+            type_of_var=real_t, n_var=6, error=error)
        CALL section_add_keyword(subsection,keyword,error=error)
        CALL keyword_release(keyword,error=error)
        CALL section_add_subsection(section,subsection,error=error)
@@ -641,7 +663,7 @@ CONTAINS
 ! *****************************************************************************
 !> \brief creates structure data section for output.. both subsys  (for initialization)
 !>      and motion section..
-!> \param section the section to create
+!> \param print_key ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 ! *****************************************************************************
@@ -748,13 +770,16 @@ CONTAINS
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="_DEFAULT_KEYWORD_",&
-            description="The atoms velocities in xyz format. The same order as"//&
-            " the atom's order is assumed.",repeats=.TRUE.,required=.TRUE.,&
-            usage="<REAL> <REAL> <REAL>", type_of_var=real_t, n_var=3, error=error)
+            description="The atomic velocities in the format:"//&
+            "<p><tt><big>v<sub>x</sub> v<sub>y</sub> v<sub>z</sub></big></tt></p>"//&
+            "The same order as for the atomic coordinates is assumed.",&
+            repeats=.TRUE.,required=.TRUE., usage="{Real} {Real} {Real}",&
+            type_of_var=real_t, n_var=3, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
     END IF
+
   END SUBROUTINE create_velocity_section
 
 ! *****************************************************************************
@@ -786,13 +811,16 @@ CONTAINS
        NULLIFY(keyword)
 
        CALL keyword_create(keyword, name="_DEFAULT_KEYWORD_",&
-            description="The shell velocities in xyz format. The same order as"//&
-            " the shell coordinate is assumed.",repeats=.TRUE.,required=.TRUE.,&
-            usage="<REAL> <REAL> <REAL> ", type_of_var=real_t, n_var=3, error=error)
+            description="The shell particle velocities in the format:"//&
+            "<p><tt><big>v<sub>x</sub> v<sub>y</sub> v<sub>z</sub></big></tt></p>"//&
+            "The same order as for the shell particle coordinates is assumed.",&
+            repeats=.TRUE.,required=.TRUE., usage="{Real} {Real} {Real}",&
+            type_of_var=real_t, n_var=3, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
     END IF
+
   END SUBROUTINE create_shell_vel_section
 
 ! *****************************************************************************
@@ -824,13 +852,16 @@ CONTAINS
        NULLIFY(keyword)
 
        CALL keyword_create(keyword, name="_DEFAULT_KEYWORD_",&
-            description="The core velocities in xyz format. The same order as"//&
-            " the shell coordinate is assumed.",repeats=.TRUE.,required=.TRUE.,&
-            usage="<REAL> <REAL> <REAL> ", type_of_var=real_t, n_var=3, error=error)
+            description="The core particle velocities in the format:"//&
+            "<p><tt><big>v<sub>x</sub> v<sub>y</sub> v<sub>z</sub></big></tt></p>"//&
+            "The same order as for the core particle coordinates is assumed.",&
+            repeats=.TRUE.,required=.TRUE., usage="{Real} {Real} {Real}",&
+            type_of_var=real_t, n_var=3, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
     END IF
+
   END SUBROUTINE create_core_vel_section
 
 ! *****************************************************************************
@@ -859,12 +890,47 @@ CONTAINS
             error=error)
        NULLIFY(keyword)
        CALL keyword_create(keyword, name="_DEFAULT_KEYWORD_",&
-            description="CP2K Pseudo Potential Standard Format (GTH, ALL or KG)",&
+            description="CP2K Pseudo Potential Standard Format (GTH, ALL)",&
             repeats=.TRUE.,type_of_var=lchar_t, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
     END IF
+
   END SUBROUTINE create_potential_section
+
+! *****************************************************************************
+!> \brief Creates the &KG_POTENTIAL section
+!> \param section the section to create
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \author JGH
+! *****************************************************************************
+  SUBROUTINE create_kgpot_section(section,error)
+    TYPE(section_type), POINTER              :: section
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'create_kgpot_section', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+    TYPE(keyword_type), POINTER              :: keyword
+
+    failure=.FALSE.
+
+    IF (.NOT. failure) THEN
+       CALL section_create(section,name="kg_potential",&
+            description="Section used to specify KG Potentials.",&
+            n_keywords=1, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
+            error=error)
+       NULLIFY(keyword)
+       CALL keyword_create(keyword, name="_DEFAULT_KEYWORD_",&
+            description="CP2K KG TNADD Potential Standard Format (TNADD)",&
+            repeats=.TRUE.,type_of_var=lchar_t, error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+    END IF
+
+  END SUBROUTINE create_kgpot_section
 
 ! *****************************************************************************
 !> \brief Creates the &BASIS section
@@ -892,11 +958,34 @@ CONTAINS
             error=error)
        NULLIFY(keyword)
        CALL keyword_create(keyword, name="_DEFAULT_KEYWORD_",&
-            description="CP2K Basis Set Standard Format",repeats=.TRUE.,&
-            type_of_var=lchar_t, error=error)
+        repeats=.TRUE., type_of_var=lchar_t, error=error,&
+         description="<u>CP2K Basis Set Standard Format</u>"//newline//&
+        "<pre>"//newline//&
+        "Element symbol  Name of the basis set  Alias names"//newline//&
+        "nset (repeat the following block of lines nset times)"//newline//&
+        "n lmin lmax nexp nshell(lmin) nshell(lmin+1) ... nshell(lmax-1) nshell(lmax)"//newline//&
+        "a(1)      c(1,l,1)      c(1,l,2) ...      c(1,l,nshell(l)-1)      c(1,l,nshell(l)), l=lmin,lmax"//newline//&
+        "a(2)      c(2,l,1)      c(2,l,2) ...      c(2,l,nshell(l)-1)      c(2,l,nshell(l)), l=lmin,lmax"//newline//&
+        " .         .             .                 .                       ."//newline//&
+        " .         .             .                 .                       ."//newline//&
+        " .         .             .                 .                       ."//newline//&
+        "a(nexp-1) c(nexp-1,l,1) c(nexp-1,l,2) ... c(nexp-1,l,nshell(l)-1) c(nexp-1,l,nshell(l)), l=lmin,lmax"//newline//&
+        "a(nexp)   c(nexp,l,1)   c(nexp,l,2)   ... c(nexp,l,nshell(l)-1)   c(nexp,l,nshell(l)), l=lmin,lmax"//newline//&
+        newline//&
+        newline//&
+        "nset     : Number of exponent sets"//newline//&
+        "n        : Principle quantum number (only for orbital label printing)"//newline//&
+        "lmax     : Maximum angular momentum quantum number l"//newline//&
+        "lmin     : Minimum angular momentum quantum number l"//newline//&
+        "nshell(l): Number of shells for angular momentum quantum number l"//newline//&
+        "a        : Exponent"//newline//&
+        "c        : Contraction coefficient"//newline//&
+        "</pre>"//newline//&
+        "Source: ftp://ftp.aip.org/epaps/journ_chem_phys/E-JCPSA6-127-308733/BASIS_MOLOPT_JCP.txt")
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
     END IF
+
   END SUBROUTINE create_basis_section
 
 ! *****************************************************************************
@@ -976,10 +1065,12 @@ CONTAINS
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="_DEFAULT_KEYWORD_",&
-            description="ATOM_KIND  X  Y  Z  <MOLNAME>. MOLNAME is optional. "//&
-            "If not provided the molecule name is internally created. All other "//&
-            "fields after MOLNAME are simply ignored.",repeats=.TRUE.,&
-            usage="H 0.7 0.3 0.3", type_of_var=lchar_t, error=error)
+            description="The atomic coordinates in the format:"//&
+            "<p><tt>ATOMIC_KIND  X Y Z  MOLNAME</tt></p>"//&
+            "The <tt>MOLNAME</tt> is optional. If not provided the molecule name "//&
+            "is internally created. All other fields after <tt>MOLNAME</tt> are simply ignored.",&
+            repeats=.TRUE., usage="{{String} {Real} {Real} {Real} {String}}",&
+            type_of_var=lchar_t, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
     END IF
@@ -1028,12 +1119,16 @@ CONTAINS
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="_DEFAULT_KEYWORD_",&
-            description="The shell coordinates in xyz format.",repeats=.TRUE.,&
-            usage="at_name rx ry rz at_index", type_of_var=lchar_t, error=error)
+            description="The shell particle coordinates in the format:"//&
+            "<p><tt>ATOMIC_KIND  X Y Z  ATOMIC_INDEX</tt></p>"//&
+            "The <tt>ATOMIC_INDEX</tt> refers to the atom the shell particle belongs to.",&
+            repeats=.TRUE., usage="{{String} {Real} {Real} {Real} {Integer}}",&
+            type_of_var=lchar_t, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
     END IF
+
   END SUBROUTINE create_shell_coord_section
 
 ! *****************************************************************************
@@ -1079,12 +1174,16 @@ CONTAINS
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="_DEFAULT_KEYWORD_",&
-            description="The core coordinates in xyz format.",repeats=.TRUE.,&
-            usage="at_name rx ry rz at_index", type_of_var=lchar_t, error=error)
+            description="The core particle coordinates in the format:"//&
+            "<p><tt>ATOMIC_KIND  X Y Z  ATOMIC_INDEX</tt></p>"//&
+            "The <tt>ATOMIC_INDEX</tt> refers to the atom the core particle belongs to.",&
+            repeats=.TRUE., usage="{{String} {Real} {Real} {Real} {Integer}}",&
+            type_of_var=lchar_t, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
     END IF
+
   END SUBROUTINE create_core_coord_section
 
 ! *****************************************************************************
@@ -1247,6 +1346,14 @@ CONTAINS
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
+       CALL keyword_create(keyword, name="KG_POTENTIAL",&
+            variants=(/ "KG_POT" /),&
+            description="The name of the non-additive atomic kinetic energy potential.",&
+            usage="KG_POTENTIAL <TNADD-POTENTIAL-NAME>", default_c_val="NONE", n_var=1,&
+            error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
        CALL keyword_create(keyword, name="HARD_EXP_RADIUS",&
             description="The region where the hard density is supposed to be confined"//&
                         "(GAPW)(in Bohr, default is 1.2 for H and 1.512 otherwise)",&
@@ -1319,6 +1426,13 @@ CONTAINS
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
+       CALL keyword_create(keyword, name="DFTB3_PARAM",&
+            description="The third order parameter (derivative of hardness) used in "//&
+            "diagonal DFTB3 correction.",&
+            usage="DFTB3_PARAM 0.2", default_r_val=0.0_dp,&
+            error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
 
        ! Logicals
        CALL keyword_create(keyword, name="SE_P_ORBITALS_ON_H",&
@@ -1373,6 +1487,10 @@ CONTAINS
        CALL section_add_subsection(section, subsection, error=error)
        CALL section_release(subsection,error=error)
 
+       CALL create_kgpot_section(subsection, error)
+       CALL section_add_subsection(section, subsection, error=error)
+       CALL section_release(subsection,error=error)
+
        CALL create_dft_plus_u_section(subsection,error)
        CALL section_add_subsection(section,subsection,error=error)
        CALL section_release(subsection,error=error)
@@ -1389,8 +1507,10 @@ CONTAINS
 !> \brief      Create CP2K input section for BS method: imposing atomic orbital occupation
 !>             different from default in initialization of the density  matrix
 !>             it works only with GUESS ATOMIC
-!> \author     MI
+!> \param section ...
+!> \param error ...
 !> \date       05.08.2009
+!> \author     MI
 !> \version    1.0
 ! *****************************************************************************
   SUBROUTINE create_bs_section(section,error)
@@ -1787,6 +1907,7 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Setup a list of fine exclusion elements
 !> \param section the section to create
+!> \param header ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 !> \author Teodoro Laino [tlaino] - 12.2009
@@ -1927,7 +2048,7 @@ CONTAINS
             description="Two integer indexes per line defining the new bond."//&
             " Indexes must be relative to the full system and not to the single molecules",&
             repeats=.TRUE.,required=.TRUE.,&
-            usage="<INTEGER> <INTEGER>", type_of_var=integer_t, n_var=2, error=error)
+            usage="{Integer} {Integer}", type_of_var=integer_t, n_var=2, error=error)
        CALL section_add_keyword(subsubsection,keyword,error=error)
        CALL keyword_release(keyword,error=error)
        CALL section_add_subsection(subsection, subsubsection, error=error)
@@ -1939,7 +2060,7 @@ CONTAINS
        CALL keyword_create(keyword, name="_DEFAULT_KEYWORD_",&
             description="Three integer indexes per line defining the new angle"//&
             " Indexes must be relative to the full system and not to the single molecules",repeats=.TRUE.,&
-            usage="<INTEGER> <INTEGER> <INTEGER>", type_of_var=integer_t, n_var=3, error=error)
+            usage="{Integer} {Integer} {Integer}", type_of_var=integer_t, n_var=3, error=error)
        CALL section_add_keyword(subsubsection,keyword,error=error)
        CALL keyword_release(keyword,error=error)
        CALL section_add_subsection(subsection, subsubsection, error=error)
@@ -1951,7 +2072,7 @@ CONTAINS
        CALL keyword_create(keyword, name="_DEFAULT_KEYWORD_",&
             description="Four integer indexes per line defining the new torsion"//&
             " Indexes must be relative to the full system and not to the single molecules",repeats=.TRUE.,&
-            usage="<INTEGER> <INTEGER> <INTEGER> <INTEGER>", type_of_var=integer_t, n_var=4, error=error)
+            usage="{Integer} {Integer} {Integer} {Integer}", type_of_var=integer_t, n_var=4, error=error)
        CALL section_add_keyword(subsubsection,keyword,error=error)
        CALL keyword_release(keyword,error=error)
        CALL section_add_subsection(subsection, subsubsection, error=error)
@@ -1963,7 +2084,7 @@ CONTAINS
        CALL keyword_create(keyword, name="_DEFAULT_KEYWORD_",&
             description="Four integer indexes per line defining the new improper"//&
             " Indexes must be relative to the full system and not to the single molecules",repeats=.TRUE.,&
-            usage="<INTEGER> <INTEGER> <INTEGER> <INTEGER>", type_of_var=integer_t, n_var=4, error=error)
+            usage="{Integer} {Integer} {Integer} {Integer}", type_of_var=integer_t, n_var=4, error=error)
        CALL section_add_keyword(subsubsection,keyword,error=error)
        CALL keyword_release(keyword,error=error)
        CALL section_add_subsection(subsection, subsubsection, error=error)
@@ -1973,6 +2094,7 @@ CONTAINS
        CALL section_release(subsection,error=error)
 
     END IF
+
   END SUBROUTINE create_molset_section
 
 ! *****************************************************************************
@@ -2234,6 +2356,7 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Specify keywords used to define connectivity
 !> \param section the section to create
+!> \param default ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 !> \author teo
@@ -2295,8 +2418,10 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief      Create CP2K input section for the DFT+U method parameters
-!> \author     Matthias Krack (MK)
+!> \param section ...
+!> \param error ...
 !> \date       01.11.2007
+!> \author     Matthias Krack (MK)
 !> \version    1.0
 ! *****************************************************************************
   SUBROUTINE create_dft_plus_u_section(section,error)

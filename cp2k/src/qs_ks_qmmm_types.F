@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2013  CP2K developers group                          !
+!   Copyright (C) 2000 - 2014  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -9,8 +9,8 @@
 !> \author Teodoro Laino
 ! *****************************************************************************
 MODULE qs_ks_qmmm_types
-  USE cp_dbcsr_operations,             ONLY: cp_dbcsr_deallocate_matrix_set
-  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_p_type
+  USE cp_dbcsr_interface,              ONLY: cp_dbcsr_deallocate_matrix_set,&
+                                             cp_dbcsr_p_type
   USE cube_utils,                      ONLY: cube_info_type,&
                                              destroy_cube_info
   USE f77_blas
@@ -20,7 +20,7 @@ MODULE qs_ks_qmmm_types
   USE pw_pool_types,                   ONLY: pw_pool_give_back_pw,&
                                              pw_pool_type
   USE pw_types,                        ONLY: pw_p_type
-#include "cp_common_uses.h"
+#include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
   PRIVATE
@@ -28,7 +28,7 @@ MODULE qs_ks_qmmm_types
   LOGICAL, PRIVATE, PARAMETER :: debug_this_module=.TRUE.
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_ks_qmmm_types'
 
-  PUBLIC :: qs_ks_qmmm_env_type, qs_ks_qmmm_env_p_type
+  PUBLIC :: qs_ks_qmmm_env_type
   PUBLIC :: qs_ks_qmmm_release, qs_ks_qmmm_retain
 
 ! *****************************************************************************

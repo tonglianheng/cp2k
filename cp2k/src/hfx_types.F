@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2013  CP2K developers group                          !
+!   Copyright (C) 2000 - 2014  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -18,7 +18,7 @@ MODULE hfx_types
   USE bibliography,                    ONLY: cite_reference,&
                                              guidon2008,&
                                              guidon2009
-  USE cell_types,                      ONLY: cell_type,&
+  USE cell_methods,                    ONLY: cell_type,&
                                              get_cell,&
                                              plane_distance,&
                                              scaled_to_real
@@ -57,31 +57,35 @@ MODULE hfx_types
   USE machine,                         ONLY: m_chdir,&
                                              m_getcwd
   USE mathconstants,                   ONLY: pi
-  USE orbital_pointers
+  USE orbital_pointers,                ONLY: nco,&
+                                             ncoset,&
+                                             nso
+  USE qs_kind_types,                   ONLY: get_qs_kind,&
+                                             get_qs_kind_set,&
+                                             qs_kind_type
   USE string_utilities,                ONLY: compress
-  USE t_c_g0,                          ONLY: free
+  USE t_c_g0,                          ONLY: free_C0
   USE timings,                         ONLY: timeset,&
                                              timestop
-#include "cp_common_uses.h"
+#include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
   PRIVATE
-  PUBLIC  hfx_type, hfx_create, hfx_release,&
-          hfx_set_distr_energy, &
-          hfx_set_distr_forces, &
-          hfx_cell_type, hfx_distribution, &
-          hfx_potential_type, hfx_screening_type, hfx_periodic_type,&
-          hfx_memory_type, hfx_load_balance_type, hfx_general_type,&
-          hfx_compression_type,&
-          hfx_container_type, hfx_container_node, hfx_cache_type, &
-          hfx_basis_type, parse_memory_section, &
-          hfx_init_container,&
-          hfx_basis_info_type, hfx_screen_coeff_type,&
-          hfx_reset_memory_usage_counter, pair_list_type, pair_list_element_type, &
-          pair_set_list_type, hfx_p_kind, hfx_2D_map, hfx_pgf_list, &
-          hfx_pgf_image, hfx_pgf_product_list, hfx_block_range_type, &
-          alloc_containers, dealloc_containers, hfx_task_list_type, init_t_c_g0_lmax, &
-          hfx_create_neighbor_cells, hfx_create_basis_types, hfx_release_basis_types
+  PUBLIC :: hfx_type, hfx_create, hfx_release,&
+            hfx_set_distr_energy,&
+            hfx_set_distr_forces,&
+            hfx_cell_type, hfx_distribution,&
+            hfx_potential_type, hfx_screening_type,&
+            hfx_memory_type, hfx_load_balance_type, hfx_general_type,&
+            hfx_container_type, hfx_cache_type,&
+            hfx_basis_type, parse_memory_section,&
+            hfx_init_container,&
+            hfx_basis_info_type, hfx_screen_coeff_type,&
+            hfx_reset_memory_usage_counter, pair_list_type, pair_list_element_type,&
+            pair_set_list_type, hfx_p_kind, hfx_2D_map, hfx_pgf_list,&
+            hfx_pgf_product_list, hfx_block_range_type,&
+            alloc_containers, dealloc_containers, hfx_task_list_type, init_t_c_g0_lmax,&
+            hfx_create_neighbor_cells, hfx_create_basis_types, hfx_release_basis_types
 
 #define CACHE_SIZE 1024
 #define BITS_MAX_VAL 6
@@ -434,6 +438,7 @@ MODULE hfx_types
      TYPE(lib_deriv)                          :: lib_deriv
      REAL(dp), DIMENSION(:,:), POINTER        :: pmax_block
      LOGICAL, DIMENSION(:,:), POINTER         :: atomic_pair_list
+     LOGICAL, DIMENSION(:,:), POINTER         :: atomic_pair_list_forces
   END TYPE hfx_type
 
   CONTAINS
@@ -441,18 +446,23 @@ MODULE hfx_types
 ! *****************************************************************************
 !> \brief - This routine allocates and initializes all types in hfx_data
 !> \param x_data contains all relevant data structures for hfx runs
+!> \param para_env ...
 !> \param hfx_section input section
 !> \param natom , max_set: quantities that define some array sizes
+!> \param atomic_kind_set ...
+!> \param qs_kind_set ...
+!> \param dft_control ...
+!> \param cell ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
-!> \note
-!>      - All POINTERS and ALLOCATABLES are allocated, even if their size is
-!>        unknown at invocation time
 !> \par History
 !>      09.2007 created [Manuel Guidon]
 !> \author Manuel Guidon
+!> \note
+!>      - All POINTERS and ALLOCATABLES are allocated, even if their size is
+!>        unknown at invocation time
 ! *****************************************************************************
-  SUBROUTINE hfx_create(x_data,para_env, hfx_section,natom,atomic_kind_set, &
+  SUBROUTINE hfx_create(x_data,para_env, hfx_section,natom,atomic_kind_set, qs_kind_set, &
                         dft_control, cell, error)
     TYPE(hfx_type), DIMENSION(:, :), POINTER :: x_data
     TYPE(cp_para_env_type)                   :: para_env
@@ -460,6 +470,8 @@ MODULE hfx_types
     INTEGER, INTENT(IN)                      :: natom
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
+    TYPE(qs_kind_type), DIMENSION(:), &
+      POINTER                                :: qs_kind_set
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -475,7 +487,6 @@ MODULE hfx_types
     INTEGER, DIMENSION(:), POINTER           :: atom2kind, kind_of
     LOGICAL                                  :: exist, failure, logic_val
     REAL(dp)                                 :: real_val
-    TYPE(atomic_kind_type), POINTER          :: atom_kind
     TYPE(hfx_type), POINTER                  :: actual_x_data
     TYPE(section_vals_type), POINTER         :: hf_pbc_section, hf_sub_section
 
@@ -597,7 +608,7 @@ MODULE hfx_types
         ! at least 1 atom per block, and avoid overly large blocks
         actual_x_data%load_balance_parameter%block_size = MIN(max_atom_block, MAX(1, int_val))
 
-        CALL hfx_create_basis_types(actual_x_data%basis_parameter,actual_x_data%basis_info, atomic_kind_set,&
+        CALL hfx_create_basis_types(actual_x_data%basis_parameter,actual_x_data%basis_info, qs_kind_set,&
                         dft_control%do_admm, error) 
 
 !!**************************************************************************************************
@@ -711,7 +722,7 @@ MODULE hfx_types
           actual_x_data%periodic_parameter%R_max_stress = 1.0_dp
         END IF
 
-        nkind = SIZE(atomic_kind_set,1)
+        nkind = SIZE(qs_kind_set,1)
         max_set=actual_x_data%basis_info%max_set
 
         !! ** This guy is allocated on the master thread only
@@ -735,6 +746,8 @@ MODULE hfx_types
         IF( i_thread == 1 ) THEN
           ALLOCATE(actual_x_data%atomic_pair_list(natom,natom),STAT=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          ALLOCATE(actual_x_data%atomic_pair_list_forces(natom,natom),STAT=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
         END IF
 
         IF(actual_x_data%screening_parameter%do_initial_p_screening .OR. &
@@ -747,16 +760,10 @@ MODULE hfx_types
             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
             i = 1
             DO ikind=1,nkind
-              NULLIFY(atom_kind)
-              atom_kind => atomic_kind_set(ikind)
-              CALL get_atomic_kind(atomic_kind=atom_kind,&
-                                   natom=natom_a)
+              CALL get_atomic_kind(atomic_kind_set(ikind), natom=natom_a)
               nseta=actual_x_data%basis_parameter(ikind)%nset
               DO jkind=ikind,nkind
-                NULLIFY(atom_kind)
-                atom_kind => atomic_kind_set(jkind)
-                CALL get_atomic_kind(atomic_kind=atom_kind,&
-                                     natom=natom_b)
+                CALL get_atomic_kind(atomic_kind_set(jkind), natom=natom_b)
                 nsetb=actual_x_data%basis_parameter(jkind)%nset
                 ALLOCATE(actual_x_data%initial_p(i)%p_kind(nseta, nsetb, natom_a, natom_b),STAT=stat)
                 CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -773,16 +780,10 @@ MODULE hfx_types
               CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
               i = 1
               DO ikind=1,nkind
-                NULLIFY(atom_kind)
-                atom_kind => atomic_kind_set(ikind)
-                CALL get_atomic_kind(atomic_kind=atom_kind,&
-                                     natom=natom_a)
+                CALL get_atomic_kind(atomic_kind_set(ikind), natom=natom_a)
                 nseta=actual_x_data%basis_parameter(ikind)%nset
                 DO jkind=ikind,nkind
-                  NULLIFY(atom_kind)
-                  atom_kind => atomic_kind_set(jkind)
-                  CALL get_atomic_kind(atomic_kind=atom_kind,&
-                                       natom=natom_b)
+                  CALL get_atomic_kind(atomic_kind_set(jkind), natom=natom_b)
                   nsetb=actual_x_data%basis_parameter(jkind)%nset
                   ALLOCATE(actual_x_data%initial_p_forces(i)%p_kind(nseta, nsetb, natom_a, natom_b),STAT=stat)
                   CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -799,8 +800,7 @@ MODULE hfx_types
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
           ALLOCATE (atom2kind(nkind),STAT=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-          CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
-                                   kind_of=kind_of)
+          CALL get_atomic_kind_set(atomic_kind_set, kind_of=kind_of)
 
           atom2kind = 0
           DO iatom=1,natom
@@ -872,8 +872,9 @@ MODULE hfx_types
 ! *****************************************************************************
 !> \brief - compute a truncation radius for the shortrange operator
 !> \param eps target accuracy
-!> \param omega screening parameter
+!> \param omg screening parameter
 !> \param r_cutoff cutoff radius 
+!> \param error ...
 !> \par History
 !>      10.2012 created [Hossein Banihashemian]
 !> \author Hossein Banihashemian
@@ -911,6 +912,14 @@ MODULE hfx_types
 
     CALL timestop(handle)
   CONTAINS
+! *****************************************************************************
+!> \brief ...
+!> \param r ...
+!> \param eps ...
+!> \param omega ...
+!> \param fn ...
+!> \param df ...
+! *****************************************************************************
     SUBROUTINE eval_transc_func(r,eps,omega,fn,df)
     REAL(dp), INTENT(in)                     :: r, eps, omega
     REAL(dp), INTENT(out)                    :: fn, df
@@ -921,15 +930,20 @@ MODULE hfx_types
   END SUBROUTINE erfc_cutoff
 ! *****************************************************************************
 !> \brief - This routine allocates and initializes the basis_info and basis_parameter types
+!> \param basis_parameter ...
+!> \param basis_info ...
+!> \param qs_kind_set ...
+!> \param do_admm ...
+!> \param error ...
 !> \par History
 !>      07.2011 refactored
 ! *****************************************************************************
-  SUBROUTINE hfx_create_basis_types(basis_parameter,basis_info, atomic_kind_set, do_admm, error)
+  SUBROUTINE hfx_create_basis_types(basis_parameter,basis_info, qs_kind_set, do_admm, error)
     TYPE(hfx_basis_type), DIMENSION(:), &
       POINTER                                :: basis_parameter
     TYPE(hfx_basis_info_type)                :: basis_info
-    TYPE(atomic_kind_type), DIMENSION(:), &
-      POINTER                                :: atomic_kind_set
+    TYPE(qs_kind_type), DIMENSION(:), &
+      POINTER                                :: qs_kind_set
     LOGICAL                                  :: do_admm
     TYPE(cp_error_type), INTENT(inout)       :: error
 
@@ -944,7 +958,6 @@ MODULE hfx_types
     INTEGER, DIMENSION(:, :), POINTER        :: first_sgfa, nl_a
     LOGICAL                                  :: failure
     REAL(dp), DIMENSION(:, :), POINTER       :: sphi_a
-    TYPE(atomic_kind_type), POINTER          :: atom_kind
     TYPE(gto_basis_set_type), POINTER        :: orb_basis_a
 
     CALL timeset(routineN,handle)
@@ -952,29 +965,25 @@ MODULE hfx_types
     failure = .FALSE.
 
     !! BASIS parameter
-    nkind = SIZE(atomic_kind_set,1)
+    nkind = SIZE(qs_kind_set,1)
     ALLOCATE(basis_parameter(nkind), STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     max_set = 0
     DO ikind = 1,nkind
-        NULLIFY(atom_kind)
-        atom_kind => atomic_kind_set(ikind)
         IF( .NOT. do_admm ) THEN
-          CALL get_atomic_kind(atomic_kind=atom_kind,&
-                               orb_basis_set=orb_basis_a)
-          CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
-                                   maxsgf=basis_info%max_sgf,&
-                                   maxnset=basis_info%max_set,&
-                                   maxlgto=basis_info%max_am)
+          CALL get_qs_kind(qs_kind_set(ikind), orb_basis_set=orb_basis_a)
+          CALL get_qs_kind_set(qs_kind_set,&
+                               maxsgf=basis_info%max_sgf,&
+                               maxnset=basis_info%max_set,&
+                               maxlgto=basis_info%max_am)
 
         ELSE
-          CALL get_atomic_kind(atomic_kind=atom_kind,&
-                               aux_fit_basis_set=orb_basis_a)
-          CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
-                                   maxsgf=basis_info%max_sgf,&
-                                   maxnset=basis_info%max_set,&
-                                   maxlgto=basis_info%max_am,&
-                                   basis_set_id=use_aux_fit_basis_set)
+          CALL get_qs_kind(qs_kind_set(ikind), aux_fit_basis_set=orb_basis_a)
+          CALL get_qs_kind_set(qs_kind_set,&
+                               maxsgf=basis_info%max_sgf,&
+                               maxnset=basis_info%max_set,&
+                               maxlgto=basis_info%max_am,&
+                               basis_set_id=use_aux_fit_basis_set)
         END IF
         IF (basis_info%max_set<max_set) STOP "UNEXPECTED MAX_SET"
         max_set = MAX(max_set,basis_info%max_set)
@@ -1070,6 +1079,11 @@ MODULE hfx_types
   END SUBROUTINE hfx_create_basis_types
 
 
+! *****************************************************************************
+!> \brief ...
+!> \param basis_parameter ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE hfx_release_basis_types(basis_parameter,error)
     TYPE(hfx_basis_type), DIMENSION(:), &
       POINTER                                :: basis_parameter
@@ -1100,6 +1114,16 @@ MODULE hfx_types
 
 ! *****************************************************************************
 !> \brief - Parses the memory section
+!> \param memory_parameter ...
+!> \param hf_sub_section ...
+!> \param storage_id ...
+!> \param i_thread ...
+!> \param n_threads ...
+!> \param para_env ...
+!> \param irep ...
+!> \param skip_disk ...
+!> \param skip_in_core_forces ...
+!> \param error ...
 ! *****************************************************************************
   SUBROUTINE parse_memory_section(memory_parameter, hf_sub_section, storage_id,&
        i_thread, n_threads, para_env, irep, skip_disk, skip_in_core_forces, error)
@@ -1227,7 +1251,7 @@ MODULE hfx_types
     IF(x_data(1,1)%potential_parameter%potential_type == do_hfx_potential_truncated .OR. &
        x_data(1,1)%potential_parameter%potential_type == do_hfx_potential_mix_cl_trunc ) THEN
       init_t_c_g0_lmax = -1
-      CALL free()
+      CALL free_C0()
     END IF
     DO i_thread= 1,n_threads
       DO irep=1,n_rep_hf
@@ -1250,6 +1274,8 @@ MODULE hfx_types
 
         IF( i_thread == 1 ) THEN
           DEALLOCATE(actual_x_data%atomic_pair_list, STAT=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          DEALLOCATE(actual_x_data%atomic_pair_list_forces, STAT=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
         END IF
 
@@ -1363,7 +1389,6 @@ MODULE hfx_types
 !> \param x_data contains all relevant data structures for hfx runs
 !> \param pbc_shells number of shells taken into account
 !> \param cell cell
-!> \param hfx_section HFX input section
 !> \param i_thread current thread ID
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
@@ -1772,9 +1797,20 @@ MODULE hfx_types
 
   END SUBROUTINE hfx_create_neighbor_cells
 
+  ! performs a fuzzy check of being in a quadrilateral
+! *****************************************************************************
+!> \brief ...
+!> \param A ...
+!> \param B ...
+!> \param C ...
+!> \param D ...
+!> \param P ...
+! *****************************************************************************
   FUNCTION point_is_in_quadrilateral(A,B,C,D,P)
     REAL(dp)                                 :: A(3), B(3), C(3), D(3), P(3)
     LOGICAL                                  :: point_is_in_quadrilateral
+
+    REAL(dp), PARAMETER :: fuzzy = 1000.0_dp*EPSILON(1.0_dp)
 
     REAL(dp)                                 :: dot00, dot01, dot02, dot11, &
                                                 dot12, invDenom, u, v, v0(3), &
@@ -1811,7 +1847,7 @@ MODULE hfx_types
     u = (dot11 * dot02 - dot01 * dot12) * invDenom
     v = (dot00 * dot12 - dot01 * dot02) * invDenom
     ! ** Check if point is in triangle
-    IF ( (u >= 0) .AND.  (v >= 0) .AND. (u + v <= 1) ) THEN
+    IF ( (u >= 0-fuzzy) .AND.  (v >= 0-fuzzy) .AND. (u + v <= 1+fuzzy) ) THEN
       point_is_in_quadrilateral = .TRUE.
       RETURN
     END IF
@@ -1832,7 +1868,7 @@ MODULE hfx_types
     v = (dot00 * dot12 - dot01 * dot02) * invDenom
 
     ! ** Check if point is in triangle
-    IF ( (u >= 0) .AND.  (v >= 0) .AND. (u + v <= 1) ) THEN
+    IF ( (u >= 0-fuzzy) .AND.  (v >= 0-fuzzy) .AND. (u + v <= 1+fuzzy) ) THEN
       point_is_in_quadrilateral = .TRUE.
       RETURN
     END IF
@@ -1844,6 +1880,8 @@ MODULE hfx_types
 !> \brief - This routine deletes all list entries in a container in order to
 !>        deallocate the memory.
 !> \param container container that contains the compressed elements
+!> \param memory_usage ...
+!> \param do_disk_storage ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 !> \par History
@@ -1899,7 +1937,7 @@ MODULE hfx_types
 ! *****************************************************************************
 !> \brief - This routine stores the data obtained from the load balance routine
 !>        for the energy
-!> \param ptr_to_distr_energy contains data to store
+!> \param ptr_to_distr contains data to store
 !> \param x_data contains all relevant data structures for hfx runs
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
@@ -1931,7 +1969,7 @@ MODULE hfx_types
 ! *****************************************************************************
 !> \brief - This routine stores the data obtained from the load balance routine
 !>        for the forces
-!> \param ptr_to_distr_energy contains data to store
+!> \param ptr_to_distr contains data to store
 !> \param x_data contains all relevant data structures for hfx runs
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
@@ -1966,8 +2004,6 @@ MODULE hfx_types
 !>          safety margin
 !> \param memory_parameter Memory information
 !> \param subtr_size_mb size of buffers in MB
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \par History
 !>      02.2009 created [Manuel Guidon]
 !> \author Manuel Guidon
@@ -2110,6 +2146,12 @@ MODULE hfx_types
                                      "HF_INFO", error=error)
   END SUBROUTINE hfx_print_info
 
+! *****************************************************************************
+!> \brief ...
+!> \param x_data ...
+!> \param eval_type ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE dealloc_containers(x_data, eval_type, error)
     TYPE(hfx_type), POINTER                  :: x_data
     INTEGER, INTENT(IN)                      :: eval_type
@@ -2180,6 +2222,13 @@ MODULE hfx_types
 
   END SUBROUTINE dealloc_containers
 
+! *****************************************************************************
+!> \brief ...
+!> \param x_data ...
+!> \param bin_size ...
+!> \param eval_type ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE alloc_containers(x_data, bin_size, eval_type, error)
     TYPE(hfx_type), POINTER                  :: x_data
     INTEGER, INTENT(IN)                      :: bin_size, eval_type

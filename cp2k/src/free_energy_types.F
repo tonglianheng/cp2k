@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2013  CP2K developers group                          !
+!   Copyright (C) 2000 - 2014  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -18,7 +18,7 @@ MODULE free_energy_types
                                              section_vals_val_get
   USE kinds,                           ONLY: default_string_length,&
                                              dp
-#include "cp_common_uses.h"
+#include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
 
@@ -29,9 +29,7 @@ MODULE free_energy_types
   PUBLIC :: free_energy_type,&
             fe_env_release,&
             fe_env_create,&
-            ui_var_type,&
-            ui_conv_type,&
-            statistical_type
+            ui_var_type
 
 
 ! *****************************************************************************
@@ -81,6 +79,8 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief creates the fe_env
+!> \param fe_env ...
+!> \param fe_section ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 !> \author Teodoro Laino 01.2007
@@ -160,6 +160,7 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief releases the fe_env
+!> \param fe_env ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 !> \author Laino Teodoro 01.2007

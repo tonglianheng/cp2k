@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2013  CP2K developers group                          !
+!   Copyright (C) 2000 - 2014  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -16,11 +16,19 @@ MODULE atom_utils
                                              atom_basis_type,&
                                              atom_gthpot_type,&
                                              atom_state,&
+                                             atom_type,&
                                              eri
   USE basis_set_types,                 ONLY: srules
+  USE cp_files,                        ONLY: close_file,&
+                                             get_unit_number,&
+                                             open_file
   USE erf_fn,                          ONLY: erf
   USE f77_blas
-  USE input_constants
+  USE input_constants,                 ONLY: do_rhf_atom,&
+                                             do_rks_atom,&
+                                             do_rohf_atom,&
+                                             do_uhf_atom,&
+                                             do_uks_atom
   USE kinds,                           ONLY: default_string_length,&
                                              dp
   USE lapack
@@ -33,7 +41,7 @@ MODULE atom_utils
                                              ptable
   USE qs_grid_atom,                    ONLY: grid_atom_type
   USE string_utilities,                ONLY: uppercase
-#include "cp_common_uses.h"
+#include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
 
@@ -43,13 +51,18 @@ MODULE atom_utils
 
   PUBLIC :: atom_set_occupation, get_maxl_occ, get_maxn_occ
   PUBLIC :: atom_denmat, atom_density, atom_core_density
-  PUBLIC :: prune_grid, integrate_grid, atom_trace, atom_solve
+  PUBLIC :: integrate_grid, atom_trace, atom_solve
   PUBLIC :: coulomb_potential_numeric, coulomb_potential_analytic
   PUBLIC :: exchange_numeric, exchange_semi_analytic
   PUBLIC :: numpot_matrix, ceri_contract, eeri_contract, err_matrix
   PUBLIC :: slater_density, wigner_slater_functional, atom_local_potential
   PUBLIC :: atom_orbital_charge, atom_orbital_nodes, atom_consistent_method
   PUBLIC :: atom_orbital_max, atom_wfnr0
+! ZMP added public subroutines
+  PUBLIC :: atom_read_external_density
+  PUBLIC :: atom_read_external_vxc
+  PUBLIC :: atom_read_zmp_restart
+  PUBLIC :: atom_write_zmp_restart
 
 !-----------------------------------------------------------------------------!
 
@@ -64,6 +77,13 @@ MODULE atom_utils
 
 CONTAINS
 
+! *****************************************************************************
+!> \brief ...
+!> \param ostring ...
+!> \param occupation ...
+!> \param wfnocc ...
+!> \param multiplicity ...
+!> \param error ...
 ! *****************************************************************************
   SUBROUTINE atom_set_occupation(ostring,occupation,wfnocc,multiplicity,error)
     CHARACTER(LEN=default_string_length), &
@@ -243,6 +263,11 @@ CONTAINS
 
   END SUBROUTINE atom_set_occupation
 
+! *****************************************************************************
+!> \brief ...
+!> \param occupation ...
+!> \retval maxl ...
+! *****************************************************************************
   FUNCTION get_maxl_occ(occupation) RESULT(maxl)
     REAL(Kind=dp), DIMENSION(0:3, 10)        :: occupation
     INTEGER                                  :: maxl
@@ -256,6 +281,11 @@ CONTAINS
 
   END FUNCTION get_maxl_occ
 
+! *****************************************************************************
+!> \brief ...
+!> \param occupation ...
+!> \retval maxn ...
+! *****************************************************************************
   FUNCTION get_maxn_occ(occupation) RESULT(maxn)
     REAL(Kind=dp), DIMENSION(0:3, 10)        :: occupation
     INTEGER, DIMENSION(0:3)                  :: maxn
@@ -271,6 +301,15 @@ CONTAINS
 
   END FUNCTION get_maxn_occ
 
+! *****************************************************************************
+!> \brief ...
+!> \param pmat ...
+!> \param wfn ...
+!> \param nbas ...
+!> \param occ ...
+!> \param maxl ...
+!> \param maxn ...
+!> \param error ...
 ! *****************************************************************************
   SUBROUTINE atom_denmat(pmat,wfn,nbas,occ,maxl,maxn,error)
     REAL(KIND=dp), DIMENSION(:, :, 0:), &
@@ -302,6 +341,15 @@ CONTAINS
     END DO
 
   END SUBROUTINE atom_denmat
+! *****************************************************************************
+!> \brief ...
+!> \param density ...
+!> \param pmat ...
+!> \param basis ...
+!> \param maxl ...
+!> \param typ ...
+!> \param rr ...
+!> \param error ...
 ! *****************************************************************************
   SUBROUTINE atom_density(density,pmat,basis,maxl,typ,rr,error)
     REAL(KIND=dp), DIMENSION(:), INTENT(OUT) :: density
@@ -356,6 +404,258 @@ CONTAINS
 
   END SUBROUTINE atom_density
 ! *****************************************************************************
+!> \brief   ZMP subroutine to write external restart file 
+!>          
+!> \param atom ...
+!> \date    07.10.2013
+!> \author  D. Varsano [daniele.varsano@nano.cnr.it]
+!> \version 1.0
+! *****************************************************************************
+  SUBROUTINE atom_write_zmp_restart(atom)
+    TYPE(atom_type), INTENT(IN)              :: atom
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'atom_write_zmp_restart', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: extunit, i, k, l, n
+
+    extunit=get_unit_number()
+    CALL open_file(file_name=atom%zmp_restart_file,file_status="UNKNOWN",&
+                   file_form="FORMATTED", file_action="WRITE",&
+                   unit_number=extunit)
+
+    n = SIZE(atom%orbitals%wfn,2)
+    WRITE(extunit,*) atom%basis%nbas
+    DO l=0,atom%state%maxl_occ
+      DO i=1,MIN(n,atom%state%maxn_occ(l))
+        DO k=1,atom%basis%nbas(l)
+          WRITE(extunit,*) atom%orbitals%wfn(k,i,l)
+        END DO
+      END DO
+    END DO
+
+    CALL close_file(unit_number=extunit)
+
+  END SUBROUTINE atom_write_zmp_restart
+
+! *****************************************************************************
+!> \brief   ZMP subroutine to read external restart file 
+!>          
+!> \param atom ...
+!> \param doguess ...
+!> \param iw ...
+!> \date    07.10.2013
+!> \author  D. Varsano [daniele.varsano@nano.cnr.it]
+!> \version 1.0
+! *****************************************************************************
+  SUBROUTINE atom_read_zmp_restart(atom,doguess,iw)
+    TYPE(atom_type), INTENT(INOUT)           :: atom
+    LOGICAL, INTENT(INOUT)                   :: doguess
+    INTEGER, INTENT(IN)                      :: iw
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'atom_read_zmp_restart', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: er, extunit, i, k, l, maxl, n
+    INTEGER, DIMENSION(0:3)                  :: maxn, nbas
+
+    INQUIRE(file=atom%zmp_restart_file,exist=atom%doread)
+
+    IF (atom%doread) THEN
+      WRITE(iw,fmt="(' ZMP       | Restart file found')")
+      extunit=get_unit_number()
+      CALL open_file(file_name=atom%zmp_restart_file,file_status="OLD",&
+                     file_form="FORMATTED", file_action="READ",&
+                     unit_number=extunit)
+
+      READ(extunit,*,IOSTAT=er) nbas
+
+      IF ( er .NE. 0 ) THEN
+        WRITE(iw,fmt="(' ZMP       | ERROR! Restart file unreadable')")
+        WRITE(iw,fmt="(' ZMP       | ERROR! Starting ZMP calculation form initial atomic guess')") 
+        doguess=.TRUE.
+        atom%doread =.FALSE.
+      ELSE IF ( nbas(1).NE.atom%basis%nbas(1) ) THEN
+        WRITE(iw,fmt="(' ZMP       | ERROR! Restart file contains a different basis set')")
+        WRITE(iw,fmt="(' ZMP       | ERROR! Starting ZMP calculation form initial atomic guess')")
+        doguess=.TRUE.
+        atom%doread =.FALSE.
+      ELSE
+        nbas=atom%basis%nbas
+        maxl=atom%state%maxl_occ
+        maxn=atom%state%maxn_occ
+        n = SIZE(atom%orbitals%wfn,2)
+        DO l=0,atom%state%maxl_occ
+          DO i=1,MIN(n,atom%state%maxn_occ(l))
+            DO k=1,atom%basis%nbas(l)
+              READ(extunit,*) atom%orbitals%wfn(k,i,l)
+            END DO
+          END DO
+        END DO
+        doguess=.FALSE.
+      END IF
+      CALL close_file(unit_number=extunit)
+    ELSE
+      WRITE(iw,fmt="(' ZMP       | WARNING! Restart file not found')")
+      WRITE(iw,fmt="(' ZMP       | WARNING! Starting ZMP calculation form initial atomic guess')")
+    ENDIF
+  END SUBROUTINE atom_read_zmp_restart
+! *****************************************************************************
+!> \brief   ZMP subroutine to read external density from linear grid of 
+!>          density matrix. 
+!> \param density ...
+!> \param atom ...
+!> \param iw ...
+!> \date    07.10.2013
+!> \author  D. Varsano [daniele.varsano@nano.cnr.it]
+!> \version 1.0
+! *****************************************************************************
+  SUBROUTINE atom_read_external_density(density,atom,iw)
+    REAL(KIND=dp), DIMENSION(:), INTENT(OUT) :: density
+    TYPE(atom_type), INTENT(INOUT)           :: atom
+    INTEGER, INTENT(IN)                      :: iw
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'atom_read_external_density', &
+      routineP = moduleN//':'//routineN
+
+    CHARACTER(LEN=default_string_length)     :: filename
+    INTEGER                                  :: extunit, ir, j, k, l, &
+                                                maxl_occ, maxnbas, nbas, nr
+    LOGICAL                                  :: ldm
+    REAL(KIND=dp)                            :: rr
+    REAL(KIND=dp), ALLOCATABLE               :: pmatread(:,:,:)
+    TYPE(cp_error_type)                      :: error
+
+    filename=atom%ext_file
+    ldm=atom%dm
+    extunit=get_unit_number()
+
+    CALL open_file(file_name=filename,file_status="OLD",&
+                   file_form="FORMATTED", file_action="READ",&
+                   unit_number=extunit)
+
+    IF (.not.ldm) THEN
+      READ(extunit,*) nr
+
+      IF (nr.ne.atom%basis%grid%nr) THEN
+        IF (iw > 0 ) WRITE(iw,fmt="(' ZMP       | ERROR! External grid dimension ',I4,' differs from internal grid ',I4)")&
+                                                                                    nr, atom%basis%grid%nr
+        IF (iw > 0 ) WRITE(iw,fmt="(' ZMP       | ERROR! Stopping ZMP calculation')")
+        STOP
+      ENDIF
+
+      DO ir=1,nr
+        READ(extunit,*) rr,density(ir)
+        IF (ABS(rr-atom%basis%grid%rad(ir)).GT. atom%zmpgrid_tol) THEN
+          IF (iw > 0 ) WRITE(iw,fmt="(' ZMP       | ERROR! Grid points do not coincide: ')")
+          IF (iw > 0 ) WRITE(iw,fmt='(" ZMP       |",T20,"R_out[bohr]",T36,"R_in[bohr]",T61,"R_diff[bohr]")')
+          IF (iw > 0 ) WRITE(iw,fmt='(" ZMP       |",T14,E24.15,T39,E24.15,T64,E24.15)') &
+                     rr, atom%basis%grid%rad(ir), ABS(rr-atom%basis%grid%rad(ir))
+          STOP
+        ENDIF
+      ENDDO
+      CALL close_file(unit_number=extunit)
+    ELSE
+      READ(extunit,*) maxl_occ
+      maxnbas=MAXVAL(atom%basis%nbas)
+      ALLOCATE(pmatread(maxnbas,maxnbas,0:maxl_occ))
+      pmatread=0.0
+      DO l=0,maxl_occ
+        nbas=atom%basis%nbas(l)
+        READ(extunit,*) ! Read empty line 
+        DO k=1,nbas
+          READ(extunit,*) (pmatread(j,k,l),j=1,k)
+          DO j=1,k
+            pmatread(k,j,l)=pmatread(j,k,l)
+          ENDDO
+        ENDDO
+      ENDDO
+
+      CALL close_file(unit_number=extunit)
+  
+      CALL atom_density(density,pmatread,atom%basis,maxl_occ,typ="RHO",error=error)
+
+      extunit=get_unit_number()
+      CALL open_file(file_name="rho_target.dat",file_status="UNKNOWN",&
+                     file_form="FORMATTED", file_action="WRITE", unit_number=extunit)
+
+      IF (iw > 0 ) WRITE(iw,fmt="(' ZMP       | Writing target density from density matrix')")
+
+      WRITE(extunit,fmt='("# Target density built from density matrix : ",A20)') filename
+      WRITE(extunit,fmt='("#",T10,"R[bohr]",T36,"Rho[au]")')
+
+      nr=atom%basis%grid%nr
+
+      DO ir=1,nr
+        WRITE(extunit,fmt='(T1,E24.15,T26,E24.15)') &
+                            atom%basis%grid%rad(ir), density(ir) 
+      ENDDO
+      DEALLOCATE(pmatread)
+
+      CALL close_file(unit_number=extunit) 
+
+    ENDIF
+
+  END SUBROUTINE atom_read_external_density
+
+! *****************************************************************************
+!> \brief ZMP subroutine to read external v_xc in the atomic code
+!>
+!> \param vxc ...
+!> \param atom ...
+!> \param iw ...
+!> \author D. Varsano [daniele.varsano@nano.cnr.it]
+! *****************************************************************************
+  SUBROUTINE atom_read_external_vxc(vxc,atom,iw)
+    REAL(KIND=dp), DIMENSION(:), INTENT(OUT) :: vxc
+    TYPE(atom_type), INTENT(INOUT)           :: atom
+    INTEGER, INTENT(IN)                      :: iw
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'atom_read_external_vxc', &
+      routineP = moduleN//':'//routineN
+
+    CHARACTER(LEN=default_string_length)     :: adum, filename
+    INTEGER                                  :: extunit, ir, nr
+    REAL(KIND=dp)                            :: rr
+
+    filename=atom%ext_vxc_file
+    extunit=get_unit_number()
+
+    CALL open_file(file_name=filename,file_status="OLD",&
+                   file_form="FORMATTED", file_action="READ",&
+                   unit_number=extunit)
+
+    READ(extunit,*)
+    READ(extunit,*) adum, nr
+
+    IF (nr.ne.atom%basis%grid%nr) THEN
+      IF (iw > 0 ) WRITE(iw,fmt="(' ZMP       | ERROR! External grid dimension ',I4,' differs from internal grid ',I4)")&
+                                                                                  nr, atom%basis%grid%nr
+      IF (iw > 0 ) WRITE(iw,fmt="(' ZMP       | ERROR! Stopping ZMP calculation')")
+      STOP
+    ENDIF
+    DO ir=1,nr
+      READ(extunit,*) rr,vxc(ir)
+      IF (ABS(rr-atom%basis%grid%rad(ir)).GT. atom%zmpvxcgrid_tol) THEN
+        IF (iw > 0 ) WRITE(iw,fmt="(' ZMP       | ERROR! Grid points do not coincide: ')")
+        IF (iw > 0 ) WRITE(iw,fmt='(" ZMP       |",T20,"R_out[bohr]",T36,"R_in[bohr]",T61,"R_diff[bohr]")')
+        IF (iw > 0 ) WRITE(iw,fmt='(" ZMP       |",T14,E24.15,T39,E24.15,T64,E24.15)')  &
+                      rr, atom%basis%grid%rad(ir), ABS(rr-atom%basis%grid%rad(ir))
+        STOP
+      ENDIF
+    ENDDO
+
+  END SUBROUTINE atom_read_external_vxc
+
+! *****************************************************************************
+!> \brief ...
+!> \param charge ...
+!> \param wfn ...
+!> \param rcov ...
+!> \param l ...
+!> \param basis ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE atom_orbital_charge(charge,wfn,rcov,l,basis,error)
     REAL(KIND=dp), INTENT(OUT)               :: charge
     REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: wfn
@@ -393,6 +693,13 @@ CONTAINS
     CPPostcondition(ierr==0,cp_failure_level,routineP,error,failure)
 
   END SUBROUTINE atom_orbital_charge
+! *****************************************************************************
+!> \brief ...
+!> \param corden ...
+!> \param gthpot ...
+!> \param typ ...
+!> \param rr ...
+!> \param error ...
 ! *****************************************************************************
   SUBROUTINE atom_core_density(corden,gthpot,typ,rr,error)
     REAL(KIND=dp), DIMENSION(:), &
@@ -444,6 +751,12 @@ CONTAINS
 
   END SUBROUTINE atom_core_density
 ! *****************************************************************************
+!> \brief ...
+!> \param locpot ...
+!> \param gthpot ...
+!> \param rr ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE atom_local_potential(locpot,gthpot,rr,error)
     REAL(KIND=dp), DIMENSION(:), &
       INTENT(INOUT)                          :: locpot
@@ -488,6 +801,14 @@ CONTAINS
 
   END SUBROUTINE atom_local_potential
 ! *****************************************************************************
+!> \brief ...
+!> \param rmax ...
+!> \param wfn ...
+!> \param rcov ...
+!> \param l ...
+!> \param basis ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE atom_orbital_max(rmax,wfn,rcov,l,basis,error)
     REAL(KIND=dp), INTENT(OUT)               :: rmax
     REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: wfn
@@ -527,6 +848,14 @@ CONTAINS
 
   END SUBROUTINE atom_orbital_max
 ! *****************************************************************************
+!> \brief ...
+!> \param node ...
+!> \param wfn ...
+!> \param rcov ...
+!> \param l ...
+!> \param basis ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE atom_orbital_nodes(node,wfn,rcov,l,basis,error)
     INTEGER, INTENT(OUT)                     :: node
     REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: wfn
@@ -564,6 +893,12 @@ CONTAINS
 
   END SUBROUTINE atom_orbital_nodes
 ! *****************************************************************************
+!> \brief ...
+!> \param value ...
+!> \param wfn ...
+!> \param basis ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE atom_wfnr0(value,wfn,basis,error)
     REAL(KIND=dp), INTENT(OUT)               :: value
     REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: wfn
@@ -582,6 +917,16 @@ CONTAINS
       value = value + wfn(i)*basis%bf(m,i,0)
     END DO
   END SUBROUTINE atom_wfnr0
+! *****************************************************************************
+!> \brief ...
+!> \param hmat ...
+!> \param umat ...
+!> \param orb ...
+!> \param ener ...
+!> \param nb ...
+!> \param nv ...
+!> \param maxl ...
+!> \param error ...
 ! *****************************************************************************
   SUBROUTINE atom_solve(hmat,umat,orb,ener,nb,nv,maxl,error)
     REAL(KIND=dp), DIMENSION(:, :, 0:), &
@@ -629,6 +974,11 @@ CONTAINS
 
   END SUBROUTINE atom_solve
 ! *****************************************************************************
+!> \brief ...
+!> \param fun ...
+!> \param deps ...
+!> \retval nc ...
+! *****************************************************************************
   FUNCTION prune_grid ( fun, deps ) RESULT(nc)
     REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: fun
     REAL(KIND=dp), INTENT(IN), OPTIONAL      :: deps
@@ -651,6 +1001,11 @@ CONTAINS
 
   END FUNCTION prune_grid
 ! *****************************************************************************
+!> \brief ...
+!> \param fun ...
+!> \param grid ...
+!> \retval integral ...
+! *****************************************************************************
   FUNCTION integrate_grid_function1 ( fun, grid ) RESULT(integral)
     REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: fun
     TYPE(grid_atom_type)                     :: grid
@@ -663,6 +1018,13 @@ CONTAINS
 
   END FUNCTION integrate_grid_function1
 
+! *****************************************************************************
+!> \brief ...
+!> \param fun1 ...
+!> \param fun2 ...
+!> \param grid ...
+!> \retval integral ...
+! *****************************************************************************
   FUNCTION integrate_grid_function2 ( fun1, fun2, grid ) RESULT(integral)
     REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: fun1, fun2
     TYPE(grid_atom_type)                     :: grid
@@ -675,6 +1037,14 @@ CONTAINS
 
   END FUNCTION integrate_grid_function2
 
+! *****************************************************************************
+!> \brief ...
+!> \param fun1 ...
+!> \param fun2 ...
+!> \param fun3 ...
+!> \param grid ...
+!> \retval integral ...
+! *****************************************************************************
   FUNCTION integrate_grid_function3 ( fun1, fun2, fun3, grid ) RESULT(integral)
     REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: fun1, fun2, fun3
     TYPE(grid_atom_type)                     :: grid
@@ -686,6 +1056,12 @@ CONTAINS
     integral = SUM ( fun1(1:nc) * fun2(1:nc) * fun3(1:nc) * grid%wr(1:nc) )
 
   END FUNCTION integrate_grid_function3
+! *****************************************************************************
+!> \brief ...
+!> \param cpot ...
+!> \param density ...
+!> \param grid ...
+!> \param error ...
 ! *****************************************************************************
   SUBROUTINE coulomb_potential_numeric ( cpot, density, grid, error )
     REAL(KIND=dp), DIMENSION(:), &
@@ -723,6 +1099,15 @@ CONTAINS
 
 ! *****************************************************************************
 
+! *****************************************************************************
+!> \brief ...
+!> \param cpot ...
+!> \param pmat ...
+!> \param basis ...
+!> \param grid ...
+!> \param maxl ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE coulomb_potential_analytic ( cpot, pmat, basis, grid, maxl, error )
     REAL(KIND=dp), DIMENSION(:), &
       INTENT(INOUT)                          :: cpot
@@ -832,6 +1217,15 @@ CONTAINS
 
 ! *****************************************************************************
 
+! *****************************************************************************
+!> \brief ...
+!> \param kmat ...
+!> \param state ...
+!> \param occ ...
+!> \param wfn ...
+!> \param basis ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE exchange_numeric ( kmat, state, occ, wfn, basis, error )
     REAL(KIND=dp), DIMENSION(:, :, 0:), &
       INTENT(INOUT)                          :: kmat
@@ -909,6 +1303,15 @@ CONTAINS
 
 ! *****************************************************************************
 
+! *****************************************************************************
+!> \brief ...
+!> \param kmat ...
+!> \param state ...
+!> \param occ ...
+!> \param wfn ...
+!> \param basis ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE exchange_semi_analytic ( kmat, state, occ, wfn, basis, error )
     REAL(KIND=dp), DIMENSION(:, :, 0:), &
       INTENT(INOUT)                          :: kmat
@@ -995,6 +1398,13 @@ CONTAINS
   END SUBROUTINE exchange_semi_analytic
 
 ! *****************************************************************************
+!> \brief ...
+!> \param cpot ...
+!> \param density ...
+!> \param nu ...
+!> \param grid ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE potential_numeric ( cpot, density, nu, grid, error )
     REAL(KIND=dp), DIMENSION(:), &
       INTENT(INOUT)                          :: cpot
@@ -1029,6 +1439,14 @@ CONTAINS
     END DO
 
   END SUBROUTINE potential_numeric
+! *****************************************************************************
+!> \brief ...
+!> \param cpot ...
+!> \param la ...
+!> \param lb ...
+!> \param nu ...
+!> \param basis ...
+!> \param error ...
 ! *****************************************************************************
   SUBROUTINE potential_analytic ( cpot, la, lb, nu, basis, error )
     REAL(KIND=dp), DIMENSION(:, :, :), &
@@ -1230,6 +1648,13 @@ CONTAINS
   END SUBROUTINE potential_analytic
 ! *****************************************************************************
 
+! *****************************************************************************
+!> \brief ...
+!> \param opmat ...
+!> \param pmat ...
+!> \param error ...
+!> \retval trace ...
+! *****************************************************************************
   FUNCTION atom_trace(opmat,pmat,error) RESULT(trace)
     REAL(KIND=dp), DIMENSION(:, :, 0:), &
       INTENT(IN)                             :: opmat, pmat
@@ -1243,6 +1668,13 @@ CONTAINS
 
   END FUNCTION atom_trace
 
+! *****************************************************************************
+!> \brief ...
+!> \param imat ...
+!> \param cpot ...
+!> \param basis ...
+!> \param derivatives ...
+!> \param error ...
 ! *****************************************************************************
   SUBROUTINE numpot_matrix(imat,cpot,basis,derivatives,error)
     REAL(KIND=dp), DIMENSION(:, :, 0:), &
@@ -1301,6 +1733,14 @@ CONTAINS
     END SELECT
 
   END SUBROUTINE numpot_matrix
+! *****************************************************************************
+!> \brief ...
+!> \param jmat ...
+!> \param erint ...
+!> \param pmat ...
+!> \param nsize ...
+!> \param all_nu ...
+!> \param error ...
 ! *****************************************************************************
   SUBROUTINE ceri_contract(jmat,erint,pmat,nsize,all_nu,error)
     REAL(KIND=dp), DIMENSION(:, :, 0:), &
@@ -1373,6 +1813,13 @@ CONTAINS
     END DO
 
   END SUBROUTINE ceri_contract
+! *****************************************************************************
+!> \brief ...
+!> \param kmat ...
+!> \param erint ...
+!> \param pmat ...
+!> \param nsize ...
+!> \param error ...
 ! *****************************************************************************
   SUBROUTINE eeri_contract(kmat,erint,pmat,nsize,error)
     REAL(KIND=dp), DIMENSION(:, :, 0:), &
@@ -1447,6 +1894,17 @@ CONTAINS
 
   END SUBROUTINE eeri_contract
 ! *****************************************************************************
+!> \brief ...
+!> \param emat ...
+!> \param demax ...
+!> \param kmat ...
+!> \param pmat ...
+!> \param umat ...
+!> \param upmat ...
+!> \param nval ...
+!> \param nbs ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE err_matrix(emat,demax,kmat,pmat,umat,upmat,nval,nbs,error)
     REAL(KIND=dp), DIMENSION(:, :, 0:), &
       INTENT(OUT)                            :: emat
@@ -1488,6 +1946,14 @@ CONTAINS
 
   END SUBROUTINE err_matrix
 ! *****************************************************************************
+!> \brief ...
+!> \param density1 ...
+!> \param density2 ...
+!> \param zcore ...
+!> \param state ...
+!> \param grid ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE slater_density(density1,density2,zcore,state,grid,error)
     REAL(KIND=dp), DIMENSION(:), INTENT(OUT) :: density1, density2
     INTEGER, INTENT(IN)                      :: zcore
@@ -1523,6 +1989,11 @@ CONTAINS
 
   END SUBROUTINE slater_density
 ! *****************************************************************************
+!> \brief ...
+!> \param rho ...
+!> \param vxc ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE wigner_slater_functional(rho,vxc,error)
     REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: rho
     REAL(KIND=dp), DIMENSION(:), INTENT(OUT) :: vxc
@@ -1547,6 +2018,11 @@ CONTAINS
     END DO
 
   END SUBROUTINE wigner_slater_functional
+! *****************************************************************************
+!> \brief ...
+!> \param method ...
+!> \param multiplicity ...
+!> \retval consistent ...
 ! *****************************************************************************
   FUNCTION atom_consistent_method(method,multiplicity) RESULT(consistent)
     INTEGER, INTENT(IN)                      :: method, multiplicity

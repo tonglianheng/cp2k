@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2013  CP2K developers group                          !
+!   Copyright (C) 2000 - 2014  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -8,12 +8,12 @@
 !> \author Teodoro Laino (12.2008) [tlaino]
 ! *****************************************************************************
 MODULE semi_empirical_expns3_methods
-  USE atomic_kind_types,               ONLY: atomic_kind_type,&
-                                             get_atomic_kind
   USE cp_control_types,                ONLY: semi_empirical_control_type
   USE f77_blas
   USE input_constants,                 ONLY: do_method_undef
   USE kinds,                           ONLY: dp
+  USE qs_kind_types,                   ONLY: get_qs_kind,&
+                                             qs_kind_type
   USE semi_empirical_expns3_types,     ONLY: semi_empirical_expns3_create
   USE semi_empirical_int3_utils,       ONLY: coeff_int_3,&
                                              ijkl_low_3
@@ -21,7 +21,7 @@ MODULE semi_empirical_expns3_methods
                                              l_index
   USE semi_empirical_types,            ONLY: semi_empirical_type
   USE semi_empirical_utils,            ONLY: get_se_type
-#include "cp_common_uses.h"
+#include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
   PRIVATE
@@ -35,12 +35,16 @@ CONTAINS
 !> \brief Setup the quantity necessary to handle the slowly convergent
 !>        residual integral term 1/R^3
 !>
-!> \author Teodoro Laino [tlaino]
+!> \param qs_kind_set ...
+!> \param se_control ...
+!> \param method_id ...
+!> \param error ...
 !> \date 12.2008 [tlaino]
+!> \author Teodoro Laino [tlaino]
 ! *****************************************************************************
-  SUBROUTINE semi_empirical_expns3_setup(atomic_kind_set, se_control, method_id, error)
-    TYPE(atomic_kind_type), DIMENSION(:), &
-      POINTER                                :: atomic_kind_set
+  SUBROUTINE semi_empirical_expns3_setup(qs_kind_set, se_control, method_id, error)
+    TYPE(qs_kind_type), DIMENSION(:), &
+      POINTER                                :: qs_kind_set
     TYPE(semi_empirical_control_type), &
       POINTER                                :: se_control
     INTEGER, INTENT(IN)                      :: method_id
@@ -51,16 +55,14 @@ CONTAINS
 
     INTEGER                                  :: i, itype, j, nkinds, stat
     LOGICAL                                  :: check, failure
-    TYPE(atomic_kind_type), POINTER          :: atomic_kind_i, atomic_kind_j
     TYPE(semi_empirical_type), POINTER       :: sepi, sepj
 
     failure     = .FALSE.
     IF (se_control%do_ewald_r3) THEN
-       NULLIFY(sepi, sepj, atomic_kind_i, atomic_kind_j)
-       nkinds  = SIZE(atomic_kind_set)
+       NULLIFY(sepi, sepj)
+       nkinds  = SIZE(qs_kind_set)
        DO i = 1, nkinds
-          atomic_kind_i => atomic_kind_set(i)
-          CALL get_atomic_kind(atomic_kind_i, se_parameter=sepi)
+          CALL get_qs_kind(qs_kind_set(i), se_parameter=sepi)
           check = .NOT.ASSOCIATED(sepi%expns3_int)
           CPPostcondition(check,cp_failure_level,routineP,error,failure)
           ALLOCATE(sepi%expns3_int(nkinds),stat=stat)
@@ -73,11 +75,9 @@ CONTAINS
 
        itype = get_se_type(method_id)
        DO i = 1, nkinds
-          atomic_kind_i => atomic_kind_set(i)
-          CALL get_atomic_kind(atomic_kind_i, se_parameter=sepi)
+          CALL get_qs_kind(qs_kind_set(i), se_parameter=sepi)
           DO j = 1, nkinds
-             atomic_kind_j => atomic_kind_set(j)
-             CALL get_atomic_kind(atomic_kind_j, se_parameter=sepj)
+             CALL get_qs_kind(qs_kind_set(j), se_parameter=sepj)
              CALL setup_c3_coeff(sepi, sepj, i, j, itype, error)
           END DO
        END DO
@@ -91,8 +91,14 @@ CONTAINS
 !>        separability. It is, therefore, mandatory to compute this coefficient
 !>        as a pair term, instead of as an atomic quantity.
 !>
-!> \author Teodoro Laino [tlaino]
+!> \param sepi ...
+!> \param sepj ...
+!> \param ikind ...
+!> \param jkind ...
+!> \param itype ...
+!> \param error ...
 !> \date 12.2008 [tlaino]
+!> \author Teodoro Laino [tlaino]
 ! *****************************************************************************
   SUBROUTINE setup_c3_coeff(sepi, sepj, ikind, jkind, itype, error)
     TYPE(semi_empirical_type), POINTER       :: sepi, sepj

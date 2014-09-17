@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2013  CP2K developers group                          !
+!   Copyright (C) 2000 - 2014  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -23,11 +23,12 @@ MODULE molecule_types_new
                                              fixd_constraint_type,&
                                              g3x3_constraint_type,&
                                              g4x6_constraint_type,&
+                                             get_molecule_kind,&
                                              molecule_kind_type,&
                                              vsite_constraint_type
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
-#include "cp_common_uses.h"
+#include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
 
@@ -123,19 +124,79 @@ MODULE molecule_types_new
 
 ! *** Public subroutines ***
 
-  PUBLIC :: allocate_molecule_set,&
+  PUBLIC :: deallocate_global_constraint,&
+            allocate_molecule_set,&
             deallocate_molecule_set,&
             get_molecule,&
             set_molecule,&
             set_molecule_set,&
-            molecule_of_atom
+            molecule_of_atom,&
+            get_molecule_set_info
 
 CONTAINS
 
+
+! *****************************************************************************
+!> \brief   Deallocate a global constraint.
+!> \param gci ...
+!> \param error ...
+!> \par History
+!>      07.2003 created [fawzi]
+!>      01.2014 moved from cp_subsys_release() into separate routine.
+!> \author  Ole Schuett
+! *****************************************************************************
+  SUBROUTINE deallocate_global_constraint(gci, error)
+    TYPE(global_constraint_type), POINTER    :: gci
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    INTEGER                                  :: i
+
+    IF (ASSOCIATED(gci)) THEN
+       ! List of constraints
+       IF (ASSOCIATED(gci%colv_list)) THEN
+          DO i=1, SIZE(gci%colv_list)
+             DEALLOCATE (gci%colv_list(i)%i_atoms)
+          END DO
+          DEALLOCATE (gci%colv_list)
+       END IF
+
+       IF (ASSOCIATED(gci%g3x3_list)) &
+          DEALLOCATE (gci%g3x3_list)
+
+       IF (ASSOCIATED(gci%g4x6_list)) &
+          DEALLOCATE (gci%g4x6_list)
+
+       ! Local information
+       IF (ASSOCIATED(gci%lcolv)) THEN
+          DO i=1, SIZE(gci%lcolv)
+             CALL colvar_release(gci%lcolv(i)%colvar,error=error)
+             CALL colvar_release(gci%lcolv(i)%colvar_old,error=error)
+             NULLIFY(gci%lcolv(i)%colvar, gci%lcolv(i)%colvar_old)
+          END DO
+          DEALLOCATE (gci%lcolv)
+       ENDIF
+
+       IF (ASSOCIATED(gci%lg3x3)) &
+          DEALLOCATE (gci%lg3x3)
+
+       IF (ASSOCIATED(gci%lg4x6)) &
+          DEALLOCATE (gci%lg4x6)
+
+       IF (ASSOCIATED(gci%fixd_list)) &
+          DEALLOCATE (gci%fixd_list)
+
+       DEALLOCATE (gci)
+    ENDIF
+  END SUBROUTINE deallocate_global_constraint
+
+
 ! *****************************************************************************
 !> \brief   Allocate a molecule set.
-!> \author  MK
+!> \param molecule_set ...
+!> \param nmolecule ...
+!> \param error ...
 !> \date    29.08.2003
+!> \author  MK
 !> \version 1.0
 ! *****************************************************************************
   SUBROUTINE allocate_molecule_set(molecule_set,nmolecule,error)
@@ -170,8 +231,10 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief   Deallocate a molecule set.
-!> \author  MK
+!> \param molecule_set ...
+!> \param error ...
 !> \date    29.08.2003
+!> \author  MK
 !> \version 1.0
 ! *****************************************************************************
   SUBROUTINE deallocate_molecule_set(molecule_set,error)
@@ -240,11 +303,22 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief   Get components from a molecule data set.
-!> \author  MK
+!> \param molecule ...
+!> \param molecule_kind ...
+!> \param lmi ...
+!> \param lci ...
+!> \param lg3x3 ...
+!> \param lg4x6 ...
+!> \param lcolv ...
+!> \param first_atom ...
+!> \param last_atom ...
+!> \param first_shell ...
+!> \param last_shell ...
 !> \date    29.08.2003
+!> \author  MK
 !> \version 1.0
 ! *****************************************************************************
-  SUBROUTINE get_molecule(molecule,molecule_kind,lmi,lg3x3,lg4x6,lcolv,&
+  SUBROUTINE get_molecule(molecule,molecule_kind,lmi,lci,lg3x3,lg4x6,lcolv,&
        first_atom,last_atom,first_shell,last_shell)
 
     TYPE(molecule_type), POINTER             :: molecule
@@ -252,6 +326,8 @@ CONTAINS
       POINTER                                :: molecule_kind
     TYPE(local_molecule_type), OPTIONAL, &
       POINTER                                :: lmi
+    TYPE(local_constraint_type), OPTIONAL, &
+      POINTER                                :: lci
     TYPE(local_g3x3_constraint_type), &
       OPTIONAL, POINTER                      :: lg3x3( : )
     TYPE(local_g4x6_constraint_type), &
@@ -272,6 +348,7 @@ CONTAINS
       IF (PRESENT(last_shell)) last_shell = molecule%last_shell
       IF (PRESENT(molecule_kind)) molecule_kind => molecule%molecule_kind
       IF (PRESENT(lmi))           lmi           => molecule%lmi
+      IF (PRESENT(lci))           lci           => molecule%lci
       IF ( PRESENT ( lcolv ) ) THEN
          IF ( ASSOCIATED ( molecule%lci ) ) THEN
            lcolv => molecule%lci%lcolv
@@ -308,8 +385,15 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief   Set a molecule data set.
-!> \author  MK
+!> \param molecule ...
+!> \param molecule_kind ...
+!> \param lmi ...
+!> \param lci ...
+!> \param lcolv ...
+!> \param lg3x3 ...
+!> \param lg4x6 ...
 !> \date    29.08.2003
+!> \author  MK
 !> \version 1.0
 ! *****************************************************************************
   SUBROUTINE set_molecule(molecule,molecule_kind,lmi,lci,lcolv,lg3x3,lg4x6)
@@ -370,8 +454,11 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief   Set a molecule data set.
-!> \author  MK
+!> \param molecule_set ...
+!> \param first_atom ...
+!> \param last_atom ...
 !> \date    29.08.2003
+!> \author  MK
 !> \version 1.0
 ! *****************************************************************************
   SUBROUTINE set_molecule_set(molecule_set,first_atom,last_atom)
@@ -426,6 +513,9 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief   finds for each atom the molecule it belongs to
+!> \param molecule_set ...
+!> \param atom_to_mol ...
+!> \param error ...
 ! *****************************************************************************
   SUBROUTINE molecule_of_atom(molecule_set,atom_to_mol,error)
     TYPE(molecule_type), DIMENSION(:), &
@@ -449,5 +539,84 @@ CONTAINS
     END DO  ! imol
 
   END SUBROUTINE molecule_of_atom
+
+! *****************************************************************************
+!> \brief returns information about molecules in the set.
+!> \param molecule_set ...
+!> \param atom_to_mol ...
+!> \param mol_to_first_atom ...
+!> \param mol_to_last_atom ...
+!> \param mol_to_nelectrons ...
+!> \param mol_to_nbasis ...
+!> \param error ...
+!> \par History
+!>       2011.06 created [Rustam Z Khaliullin]
+!> \author Rustam Z Khaliullin
+! *****************************************************************************
+  SUBROUTINE get_molecule_set_info(molecule_set,atom_to_mol,mol_to_first_atom,&
+    mol_to_last_atom,mol_to_nelectrons,mol_to_nbasis,error)
+
+    TYPE(molecule_type), DIMENSION(:), &
+      POINTER                                :: molecule_set
+    INTEGER, DIMENSION(:), INTENT(OUT), &
+      OPTIONAL                               :: atom_to_mol, &
+                                                mol_to_first_atom, &
+                                                mol_to_last_atom
+    INTEGER, DIMENSION(:, :), INTENT(OUT), &
+      OPTIONAL                               :: mol_to_nelectrons
+    INTEGER, DIMENSION(:), INTENT(OUT), &
+      OPTIONAL                               :: mol_to_nbasis
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'get_molecule_set_info', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: first_atom, iatom, imol, &
+                                                last_atom, nbasis, nelec
+    LOGICAL                                  :: failure
+    TYPE(molecule_kind_type), POINTER        :: my_molecule_kind
+    TYPE(molecule_type), POINTER             :: molecule
+
+    failure=.FALSE.
+
+    DO imol = 1,SIZE(molecule_set)
+
+       molecule => molecule_set(imol)
+       CALL get_molecule( molecule=molecule,molecule_kind=my_molecule_kind,&
+                           first_atom = first_atom,last_atom = last_atom )
+
+       IF (PRESENT(mol_to_nelectrons)) THEN
+         CALL get_molecule_kind(my_molecule_kind,nelectron=nelec)
+         IF (MOD(nelec,2).ne.0) THEN
+           CALL stop_program(routineN,moduleN,__LINE__,&
+                        "ODD NUMBER OF ELECTRONS ON A MOLECULE")
+         ELSE
+           !ZZZlater number of beta? 
+           mol_to_nelectrons(imol,1)=nelec/2
+         ENDIF
+       ENDIF
+
+       IF (PRESENT(mol_to_nbasis)) THEN
+         CALL get_molecule_kind(my_molecule_kind,nsgf=nbasis)
+         mol_to_nbasis(imol)=nbasis
+       ENDIF
+
+       IF (PRESENT(mol_to_first_atom)) THEN
+         mol_to_first_atom(imol)=first_atom
+       ENDIF
+
+       IF (PRESENT(mol_to_last_atom)) THEN
+         mol_to_last_atom(imol)=last_atom
+       ENDIF
+
+       IF (PRESENT(atom_to_mol)) THEN
+         DO iatom = first_atom, last_atom
+            atom_to_mol(iatom)=imol
+         ENDDO  ! iatom
+       ENDIF
+
+    END DO  ! imol
+
+  END SUBROUTINE get_molecule_set_info 
 
 END MODULE molecule_types_new

@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2013  CP2K developers group                          !
+!   Copyright (C) 2000 - 2014  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -22,7 +22,7 @@ MODULE topology_multiple_unit_cell
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE topology_types,                  ONLY: topology_parameters_type
-#include "cp_common_uses.h"
+#include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
 
@@ -37,6 +37,9 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Handles the multiple_unit_cell for the atomic coordinates..
+!> \param topology ...
+!> \param subsys_section ...
+!> \param error ...
 !> \author Teodoro Laino [tlaino] - 05.2009
 ! *****************************************************************************
   SUBROUTINE topology_muc(topology, subsys_section, error)

@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2013  CP2K developers group                          !
+!   Copyright (C) 2000 - 2014  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -24,7 +24,7 @@ MODULE atom
                                              ptable
   USE timings,                         ONLY: timeset,&
                                              timestop
-#include "cp_common_uses.h"
+#include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
   PRIVATE
@@ -36,6 +36,10 @@ MODULE atom
 
 CONTAINS
 
+! *****************************************************************************
+!> \brief ...
+!> \param root_section ...
+!> \param error ...
 ! *****************************************************************************
   SUBROUTINE atom_code(root_section,error)
     TYPE(section_vals_type), POINTER         :: root_section
@@ -85,6 +89,11 @@ CONTAINS
 
   END SUBROUTINE atom_code
 
+! *****************************************************************************
+!> \brief ...
+!> \param atom_section ...
+!> \param iw ...
+!> \param error ...
 ! *****************************************************************************
   SUBROUTINE atom_test(atom_section,iw,error)
     TYPE(section_vals_type), POINTER         :: atom_section

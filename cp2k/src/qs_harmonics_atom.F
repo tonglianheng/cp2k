@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2013  CP2K developers group                          !
+!   Copyright (C) 2000 - 2014  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 ! *****************************************************************************
 MODULE qs_harmonics_atom
@@ -23,7 +23,7 @@ MODULE qs_harmonics_atom
   USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
-#include "cp_common_uses.h"
+#include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
 
@@ -37,7 +37,7 @@ MODULE qs_harmonics_atom
                                                dmax_iso_not0, &
                                                damax_iso_not0, &
                                                ngrid
-     REAL(dp), DIMENSION(:,:),    POINTER   :: a, slm
+     REAL(dp), DIMENSION(:,:),    POINTER   :: a, slm, dmslm
      REAL(dp), DIMENSION(:,:,:),  POINTER   :: dslm, dslm_dxyz
      REAL(dp), DIMENSION(:,:,:),  POINTER   :: my_CG, my_dCG
      REAL(dp), DIMENSION(:,:,:,:),  POINTER :: my_CG_dxyz
@@ -61,6 +61,8 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief   Allocate a spherical harmonics set for the atom grid.
+!> \param harmonics ...
+!> \param error ...
 !> \version 1.0
 ! *****************************************************************************
   SUBROUTINE allocate_harmonics_atom(harmonics,error)
@@ -88,6 +90,7 @@ CONTAINS
     harmonics%ngrid=0
 
     NULLIFY(harmonics%slm)
+    NULLIFY(harmonics%dmslm)
     NULLIFY(harmonics%dslm)
     NULLIFY(harmonics%dslm_dxyz)
     NULLIFY(harmonics%slm_int)
@@ -101,6 +104,8 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief   Deallocate the spherical harmonics set for the atom grid.
+!> \param harmonics ...
+!> \param error ...
 !> \version 1.0
 ! *****************************************************************************
   SUBROUTINE deallocate_harmonics_atom(harmonics,error)
@@ -119,6 +124,11 @@ CONTAINS
 
        IF(ASSOCIATED(harmonics%slm)) THEN
           DEALLOCATE (harmonics%slm,STAT=stat)
+          CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+       ENDIF
+
+       IF(ASSOCIATED(harmonics%dmslm)) THEN
+          DEALLOCATE (harmonics%dmslm,STAT=stat)
           CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
        ENDIF
 
@@ -173,6 +183,22 @@ CONTAINS
   END SUBROUTINE deallocate_harmonics_atom
 
 ! *****************************************************************************
+!> \brief ...
+!> \param harmonics ...
+!> \param my_CG ...
+!> \param na ...
+!> \param llmax ...
+!> \param maxs ...
+!> \param max_s_harm ...
+!> \param ll ...
+!> \param wa ...
+!> \param azi ...
+!> \param cos_azi ...
+!> \param pol ...
+!> \param cos_pol ...
+!> \param cotan_azi ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE create_harmonics_atom(harmonics,my_CG,na,&
        llmax,maxs,max_s_harm,ll,wa,azi,cos_azi,pol,cos_pol,cotan_azi,error)
 
@@ -224,6 +250,7 @@ CONTAINS
     !   *** allocate and calculate the spherical harmonics LM for this grid ***
     !       and their derivatives
     CALL reallocate(harmonics%slm,1,na,1,max_s_harm)
+    CALL reallocate(harmonics%dmslm,1,na,1,max_s_harm)
     CALL reallocate(harmonics%dslm,1,2,1,na,1,max_s_harm)
     CALL reallocate(harmonics%dslm_dxyz,1,3,1,na,1,max_s_harm)
     CALL reallocate(harmonics%a,1,3,1,na)
@@ -398,8 +425,8 @@ CONTAINS
     END DO  ! iso1
 
     ! Calculate the derivatives of the harmonics with respect of the 2 angles
-    ! the first angle is acos(lebedev_grid(ll)%r(3))
-    ! the second angle is atan(lebedev_grid(ll)%r(2)/lebedev_grid(ll)%r(1))
+    ! the first angle (polar) is acos(lebedev_grid(ll)%r(3)) 
+    ! the second angle (azimutal) is atan(lebedev_grid(ll)%r(2)/lebedev_grid(ll)%r(1))
     DO iso = 1,max_s_harm
 
        l = indso(1,iso)
@@ -407,7 +434,7 @@ CONTAINS
        l_r = REAL(l,dp)
        m_r = REAL(m,dp)
 
-       !  Derivative with respect to the polar angle
+       ! Derivative with respect to the azimuthal angle
        IF(m==0) THEN
           harmonics%dslm(2,1:na,iso) = 0.0_dp
        ELSE
@@ -415,7 +442,7 @@ CONTAINS
           harmonics%dslm(2,1:na,iso) = - m_r * harmonics%slm(1:na,iso_mm)
        END IF
 
-       ! Derivative with respect to the azimuthal angle
+       !  Derivative with respect to the polar angle
        IF(m > 0) THEN
 
           DO ia = 1,na
@@ -471,7 +498,7 @@ CONTAINS
 
     END DO
 
-    ! expansion coefficients of product of theta derivatives (dslm(1...)) in
+    ! expansion coefficients of product of polar angle derivatives (dslm(1...)) in
     ! spherical harmonics (used for tau functionals)
     CALL reallocate(harmonics%my_dCG,1,maxs,1,maxs,1,max_s_harm)
     DO is1=1,maxs
@@ -498,6 +525,15 @@ CONTAINS
 
 ! *****************************************************************************
 
+! *****************************************************************************
+!> \brief ...
+!> \param harmonics ...
+!> \param orb_basis ...
+!> \param my_CG ...
+!> \param llmax ...
+!> \param max_s_harm ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE get_maxl_CG(harmonics,orb_basis,my_CG,llmax,max_s_harm,error)
 
     TYPE(harmonics_atom_type), POINTER       :: harmonics
@@ -550,6 +586,20 @@ CONTAINS
 
   END SUBROUTINE  get_maxl_CG
 
+! *****************************************************************************
+!> \brief ...
+!> \param cgc ...
+!> \param lmin1 ...
+!> \param lmax1 ...
+!> \param lmin2 ...
+!> \param lmax2 ...
+!> \param max_s_harm ...
+!> \param llmax ...
+!> \param list ...
+!> \param n_list ...
+!> \param max_iso_not0 ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE get_none0_cg_list4(cgc,lmin1,lmax1,lmin2,lmax2,max_s_harm,llmax,&
                                 list,n_list,max_iso_not0,error)
 
@@ -603,6 +653,20 @@ CONTAINS
     ENDDO
   END SUBROUTINE get_none0_cg_list4
 
+! *****************************************************************************
+!> \brief ...
+!> \param cgc ...
+!> \param lmin1 ...
+!> \param lmax1 ...
+!> \param lmin2 ...
+!> \param lmax2 ...
+!> \param max_s_harm ...
+!> \param llmax ...
+!> \param list ...
+!> \param n_list ...
+!> \param max_iso_not0 ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE get_none0_cg_list3(cgc,lmin1,lmax1,lmin2,lmax2,max_s_harm,llmax,&
                                 list,n_list,max_iso_not0,error)
 

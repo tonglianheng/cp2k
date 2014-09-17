@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2013  CP2K developers group                          !
+!   Copyright (C) 2000 - 2014  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -15,13 +15,14 @@ MODULE qs_force
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind_set
   USE cp_control_types,                ONLY: dft_control_type
-  USE cp_dbcsr_interface,              ONLY: cp_dbcsr_copy,&
+  USE cp_dbcsr_interface,              ONLY: cp_dbcsr_add,&
+                                             cp_dbcsr_allocate_matrix_set,&
+                                             cp_dbcsr_copy,&
+                                             cp_dbcsr_deallocate_matrix_set,&
                                              cp_dbcsr_init,&
+                                             cp_dbcsr_p_type,&
                                              cp_dbcsr_set
-  USE cp_dbcsr_operations,             ONLY: cp_dbcsr_allocate_matrix_set,&
-                                             cp_dbcsr_deallocate_matrix_set
   USE cp_dbcsr_output,                 ONLY: cp_dbcsr_write_sparse_matrix
-  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_p_type
   USE cp_fm_types,                     ONLY: cp_fm_type,&
                                              cp_fm_write
   USE cp_output_handling,              ONLY: cp_p_file,&
@@ -62,18 +63,17 @@ MODULE qs_force
   USE qs_force_types,                  ONLY: allocate_qs_force,&
                                              qs_force_type,&
                                              zero_qs_force
-  USE qs_ks_methods,                   ONLY: qs_ks_update_qs_env
-  USE qs_ks_scp_methods,               ONLY: qs_ks_scp_update
+  USE qs_ks_methods,                   ONLY: qs_ks_did_change,&
+                                             qs_ks_update_qs_env
   USE qs_ks_types,                     ONLY: qs_ks_env_type
   USE qs_mo_types,                     ONLY: get_mo_set,&
                                              mo_set_p_type,&
                                              mo_set_type
+  USE qs_rho_methods,                  ONLY: qs_rho_update_rho
   USE qs_rho_types,                    ONLY: qs_rho_type
   USE rt_propagation_utils,            ONLY: calc_c_mat_force
+  USE rtp_admm_methods,                ONLY: rt_admm_force
   USE scf_control_types,               ONLY: scf_control_type
-  USE scp_environment_types,           ONLY: get_scp_env,&
-                                             scp_environment_type
-  USE scp_force_types,                 ONLY: scp_force_type
   USE scptb_core_interactions,         ONLY: scptb_core_interaction
   USE scptb_core_matrix,               ONLY: build_scptb_core_matrix
   USE se_core_core,                    ONLY: se_core_core_interaction
@@ -83,7 +83,7 @@ MODULE qs_force
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE virial_types,                    ONLY: virial_type
-#include "cp_common_uses.h"
+#include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
 
@@ -101,8 +101,11 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief   Calculate the Quickstep forces.
-!> \author  MK
+!> \param qs_env ...
+!> \param globenv ...
+!> \param error ...
 !> \date    29.10.2002
+!> \author  MK
 !> \version 1.0
 ! *****************************************************************************
   SUBROUTINE qs_forces(qs_env,globenv,error)
@@ -129,8 +132,7 @@ CONTAINS
                                                 matrix_s_aux_fit, &
                                                 matrix_s_aux_fit_vs_orb, &
                                                 matrix_w, mo_derivs
-    TYPE(cp_fm_type), POINTER                :: dp_imag, mo_coeff, &
-                                                mo_coeff_aux_fit
+    TYPE(cp_fm_type), POINTER                :: mo_coeff, mo_coeff_aux_fit
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(dft_control_type), POINTER          :: dft_control
@@ -147,8 +149,6 @@ CONTAINS
     TYPE(qs_ks_env_type), POINTER            :: ks_env
     TYPE(qs_rho_type), POINTER               :: rho
     TYPE(scf_control_type), POINTER          :: scf_control
-    TYPE(scp_environment_type), POINTER      :: scp_env
-    TYPE(scp_force_type), POINTER            :: scp_force( : )
     TYPE(section_vals_type), POINTER         :: print_section
     TYPE(virial_type), POINTER               :: virial
 
@@ -170,7 +170,6 @@ CONTAINS
     NULLIFY (particle_set)
     NULLIFY (rho)
     NULLIFY (scf_control)
-    NULLIFY ( scp_env, scp_force )
     NULLIFY (admm_env)
     NULLIFY (matrix_s_aux_fit_vs_orb)
 
@@ -213,7 +212,7 @@ CONTAINS
        CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
        CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
             natom_of_kind=natom_of_kind)
-       CALL allocate_qs_force(force,natom_of_kind)
+       CALL allocate_qs_force(force,natom_of_kind,error)
        DEALLOCATE (natom_of_kind,STAT=istat)
        CPPostconditionNoFail(istat==0,cp_warning_level,routineP,error)
        CALL set_qs_env(qs_env,force=force,error=error)
@@ -223,7 +222,7 @@ CONTAINS
           CALL harris_env_set(harris_env=harris_env, harris_force=harris_force, error=error)
        END IF
     END IF
-    CALL zero_qs_force(force)
+    CALL zero_qs_force(force,error)
 
     CALL get_qs_env(qs_env=qs_env,&
          matrix_s=matrix_s,&
@@ -251,7 +250,9 @@ CONTAINS
        END DO
        CALL set_qs_env(qs_env=qs_env,matrix_w=matrix_w,error=error)
 
-       CALL calc_c_mat_force(qs_env,dp_imag,error)
+       CALL calc_c_mat_force(qs_env,error)
+       IF(qs_env%dft_control%do_admm)&
+          CALL rt_admm_force(qs_env,error)
     END IF
 
     IF (.NOT.has_unit_metric) THEN
@@ -306,18 +307,31 @@ CONTAINS
           CALL external_e_potential(qs_env,error)
        END IF
 
-       IF ( dft_control%scp ) CALL qs_ks_scp_update ( qs_env, error = error )
-
-       ! Compute grid-based forces
-
-       IF (.NOT.qs_env%run_rtp)&
-           CALL qs_ks_update_qs_env(ks_env=ks_env,&
-                     qs_env=qs_env,&
-                     calculate_forces=.TRUE.,error=error)
+          ! Compute grid-based forces
+          CALL qs_ks_update_qs_env(ks_env=ks_env,&
+                                   qs_env=qs_env,&
+                                   calculate_forces=.TRUE.,error=error)
+   
+       IF(ASSOCIATED(qs_env%mp2_env)) THEN
+         ! with MP2 we have to recalculate the SCF energy with the
+         ! correct density
+         DO ispin=1, qs_env%dft_control%nspins
+           CALL cp_dbcsr_add(qs_env%rho%rho_ao(ispin)%matrix, qs_env%matrix_p_mp2(ispin)%matrix, 1.0_dp,  -1.0_dp, error)
+         END DO
+         CALL qs_rho_update_rho(qs_env%rho, qs_env=qs_env, error=error)
+         CALL qs_ks_did_change(ks_env,rho_changed=.TRUE.,&
+                               s_mstruct_changed=qs_env%mp2_env%ri_mp2%free_hfx_buffer,&
+                               error=error)
+         CALL qs_ks_update_qs_env(ks_env=ks_env,&
+                                  qs_env=qs_env,&
+                                  just_energy=.TRUE.,error=error)
+         energy%total = energy%total + energy%mp2
+         ! deallocate mp2_W 
+         CALL cp_dbcsr_deallocate_matrix_set(qs_env%matrix_w_mp2,error=error)
+       END IF
 
        ! Add forces resulting from wavefunction fitting
-
-       IF (dft_control%do_admm ) THEN
+       IF (dft_control%do_admm.AND..NOT.qs_env%run_rtp ) THEN
           CALL get_qs_env(qs_env=qs_env,&
                matrix_s_aux_fit=matrix_s_aux_fit,&
                matrix_s_aux_fit_vs_orb=matrix_s_aux_fit_vs_orb,&
@@ -327,7 +341,6 @@ CONTAINS
           DO ispin=1,nspin             
              mo_set => mos(ispin)%mo_set
              CALL get_mo_set(mo_set=mo_set,mo_coeff=mo_coeff)
-
              ! if no purification we need to calculate the H matrix for forces
              IF (admm_env%purification_method==do_admm_purify_none) THEN
                 CALL get_qs_env(qs_env, mos_aux_fit=mos_aux_fit,&
@@ -359,9 +372,12 @@ CONTAINS
           CALL mp_sum(force(ikind)%core_overlap,para_env%group)
           CALL mp_sum(force(ikind)%rho_core,para_env%group)
           CALL mp_sum(force(ikind)%rho_elec,para_env%group)
+          CALL mp_sum(force(ikind)%rho_lri_elec,para_env%group)
           CALL mp_sum(force(ikind)%vhxc_atom,para_env%group)
           CALL mp_sum(force(ikind)%g0s_Vh_elec,para_env%group)
           CALL mp_sum(force(ikind)%fock_4c,para_env%group)
+          CALL mp_sum(force(ikind)%mp2_non_sep,para_env%group)
+          CALL mp_sum(force(ikind)%mp2_sep,para_env%group)
           CALL mp_sum(force(ikind)%hfx_ri,para_env%group)
           CALL mp_sum(force(ikind)%repulsive,para_env%group)
           CALL mp_sum(force(ikind)%dispersion,para_env%group)
@@ -378,9 +394,12 @@ CONTAINS
                force(ikind)%overlap_admm(:,:) +&
                force(ikind)%rho_core(:,:) +&
                force(ikind)%rho_elec(:,:) +&
+               force(ikind)%rho_lri_elec(:,:) +&
                force(ikind)%vhxc_atom(:,:) +&
                force(ikind)%g0s_Vh_elec(:,:) +&
                force(ikind)%fock_4c(:,:) +&
+               force(ikind)%mp2_non_sep(:,:) +&
+               force(ikind)%mp2_sep(:,:) +&
                force(ikind)%hfx_ri(:,:) +&
                force(ikind)%repulsive(:,:)  +&
                force(ikind)%dispersion(:,:) +&
@@ -388,20 +407,6 @@ CONTAINS
                force(ikind)%efield(:,:)+&
                force(ikind)%eev(:,:)
 
-          ! **** SCP
-          IF ( dft_control%scp ) THEN
-             CALL get_qs_env(qs_env=qs_env, scp_env=scp_env, error=error)
-             CALL get_scp_env ( scp_env = scp_env, force = scp_force, error = error )
-             ! The minus is because in SCP the forces are really -dE/dR ( search for "XXXX" below )
-             CALL mp_sum ( scp_force ( ikind )%f_scp, para_env % group )
-             force(ikind)%total(:,:) = force(ikind)%total(:,:) - scp_force ( ikind ) % f_scp ( :, : )
-             ! Add dispersion if it is activated
-             IF (dft_control%scp_control%dispersion) THEN
-                CALL mp_sum ( scp_force ( ikind )%f_scp_disp, para_env % group )
-                force(ikind)%total(:,:) = force(ikind)%total(:,:) - scp_force ( ikind ) % f_scp_disp ( :, : )
-             ENDIF
-          END IF
-          ! **** SCP
        END DO
 
 
@@ -485,8 +490,14 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief   Write a Quickstep force data structure to output unit
-!> \author  MK
+!> \param qs_force ...
+!> \param atomic_kind_set ...
+!> \param ftype ...
+!> \param output_unit ...
+!> \param print_section ...
+!> \param error ...
 !> \date    05.06.2002
+!> \author  MK
 !> \version 1.0
 ! *****************************************************************************
   SUBROUTINE write_forces(qs_force,atomic_kind_set,ftype,output_unit,&
@@ -584,6 +595,7 @@ CONTAINS
                   iatom,ikind,"  core_overlap",qs_force(ikind)%core_overlap(1:3,i),&
                   iatom,ikind,"      rho_core",qs_force(ikind)%rho_core(1:3,i),&
                   iatom,ikind,"      rho_elec",qs_force(ikind)%rho_elec(1:3,i),&
+                  iatom,ikind,"      rho_lri_elec",qs_force(ikind)%rho_lri_elec(1:3,i),&
                   iatom,ikind,"      ch_pulay",qs_force(ikind)%ch_pulay(1:3,i),&
                   iatom,ikind,"    dispersion",qs_force(ikind)%dispersion(1:3,i),&
                   iatom,ikind,"         other",qs_force(ikind)%other(1:3,i),&
@@ -592,6 +604,8 @@ CONTAINS
                   iatom,ikind,"     ehrenfest",qs_force(ikind)%ehrenfest(1:3,i),&
                   iatom,ikind,"        efield",qs_force(ikind)%efield(1:3,i),&
                   iatom,ikind,"           eev",qs_force(ikind)%eev(1:3,i),&
+                  iatom,ikind,"   mp2_non_sep",qs_force(ikind)%mp2_non_sep(1:3,i),&
+                  iatom,ikind,"       mp2_sep",qs_force(ikind)%mp2_sep(1:3,i),&
                   iatom,ikind,"         total",qs_force(ikind)%total(1:3,i)
              grand_total(1:3) = grand_total(1:3) + qs_force(ikind)%total(1:3,i)
           END DO
@@ -610,6 +624,7 @@ CONTAINS
                   iatom,ikind,"  core_overlap",qs_force(ikind)%core_overlap(1:3,i),&
                   iatom,ikind,"      rho_core",qs_force(ikind)%rho_core(1:3,i),&
                   iatom,ikind,"      rho_elec",qs_force(ikind)%rho_elec(1:3,i),&
+                  iatom,ikind,"      rho_lri_elec",qs_force(ikind)%rho_lri_elec(1:3,i),&
                   iatom,ikind,"     vhxc_atom",qs_force(ikind)%vhxc_atom(1:3,i),&
                   iatom,ikind,"   g0s_Vh_elec",qs_force(ikind)%g0s_Vh_elec(1:3,i),&
                   iatom,ikind,"      ch_pulay",qs_force(ikind)%ch_pulay(1:3,i),&
@@ -618,6 +633,8 @@ CONTAINS
                   iatom,ikind,"        hfx_ri",qs_force(ikind)%hfx_ri(1:3,i),&
                   iatom,ikind,"        efield",qs_force(ikind)%efield(1:3,i),&
                   iatom,ikind,"           eev",qs_force(ikind)%eev(1:3,i),&
+                  iatom,ikind,"   mp2_non_sep",qs_force(ikind)%mp2_non_sep(1:3,i),&
+                  iatom,ikind,"       mp2_sep",qs_force(ikind)%mp2_sep(1:3,i),&
                   iatom,ikind,"         total",qs_force(ikind)%total(1:3,i)
              grand_total(1:3) = grand_total(1:3) + qs_force(ikind)%total(1:3,i)
           END DO
@@ -628,6 +645,7 @@ CONTAINS
              WRITE (UNIT=output_unit,FMT=fmtstr2)&
                   iatom,ikind," all_potential",qs_force(ikind)%all_potential(1:3,i),&
                   iatom,ikind,"      rho_elec",qs_force(ikind)%rho_elec(1:3,i),&
+                  iatom,ikind,"      rho_lri_elec",qs_force(ikind)%rho_lri_elec(1:3,i),&
                   iatom,ikind,"         total",qs_force(ikind)%total(1:3,i)
              grand_total(1:3) = grand_total(1:3) + qs_force(ikind)%total(1:3,i)
           END DO
@@ -645,9 +663,12 @@ CONTAINS
                   iatom,ikind,"   core_overlap",qs_force(ikind)%core_overlap(1:3,i),&
                   iatom,ikind,"       rho_core",qs_force(ikind)%rho_core(1:3,i),&
                   iatom,ikind,"       rho_elec",qs_force(ikind)%rho_elec(1:3,i),&
+                  iatom,ikind,"       rho_lri_elec",qs_force(ikind)%rho_lri_elec(1:3,i),&
                   iatom,ikind,"       ch_pulay",qs_force(ikind)%ch_pulay(1:3,i),&
                   iatom,ikind,"        fock_4c",qs_force(ikind)%fock_4c(1:3,i),&
                   iatom,ikind,"        hfx_ri",qs_force(ikind)%hfx_ri(1:3,i),&
+                  iatom,ikind,"   mp2_non_sep",qs_force(ikind)%mp2_non_sep(1:3,i),&
+                  iatom,ikind,"       mp2_sep",qs_force(ikind)%mp2_sep(1:3,i),&
                   iatom,ikind,"          total",qs_force(ikind)%total(1:3,i)
              grand_total(1:3) = grand_total(1:3) + qs_force(ikind)%total(1:3,i)
           END DO
@@ -660,8 +681,10 @@ CONTAINS
                   iatom,ikind,"        overlap",qs_force(ikind)%overlap(1:3,i),&
                   iatom,ikind,"   overlap_admm",qs_force(ikind)%overlap_admm(1:3,i),&
                   iatom,ikind,"       rho_elec",qs_force(ikind)%rho_elec(1:3,i),&
+                  iatom,ikind,"       rho_lri_elec",qs_force(ikind)%rho_lri_elec(1:3,i),&
                   iatom,ikind,"      repulsive",qs_force(ikind)%repulsive(1:3,i),&
                   iatom,ikind,"     dispersion",qs_force(ikind)%dispersion(1:3,i),&
+                  iatom,ikind,"     ehrenfest",qs_force(ikind)%ehrenfest(1:3,i),&
                   iatom,ikind,"          total",qs_force(ikind)%total(1:3,i)
              grand_total(1:3) = grand_total(1:3) + qs_force(ikind)%total(1:3,i)
           END DO
@@ -673,6 +696,7 @@ CONTAINS
                   iatom,ikind,"       overlap",qs_force(ikind)%overlap(1:3,i),&
                   iatom,ikind,"       kinetic",qs_force(ikind)%kinetic(1:3,i),&
                   iatom,ikind,"      rho_elec",qs_force(ikind)%rho_elec(1:3,i),&
+                  iatom,ikind,"      rho_lri_elec",qs_force(ikind)%rho_lri_elec(1:3,i),&
                   iatom,ikind,"    dispersion",qs_force(ikind)%dispersion(1:3,i),&
                   iatom,ikind," all potential",qs_force(ikind)%all_potential(1:3,i),&
                   iatom,ikind,"         other",qs_force(ikind)%other(1:3,i),&

@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2013  CP2K developers group                          !
+!   Copyright (C) 2000 - 2014  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -21,8 +21,8 @@ MODULE se_fock_matrix_mpi
                                              cp_dbcsr_copy,&
                                              cp_dbcsr_get_info,&
                                              cp_dbcsr_multiply,&
-                                             cp_dbcsr_trace
-  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_p_type,&
+                                             cp_dbcsr_p_type,&
+                                             cp_dbcsr_trace,&
                                              cp_dbcsr_type
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
@@ -61,7 +61,7 @@ MODULE se_fock_matrix_mpi
                                              semi_empirical_si_type
   USE timings,                         ONLY: timeset,&
                                              timestop
-#include "cp_common_uses.h"
+#include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
   PRIVATE
@@ -70,17 +70,25 @@ MODULE se_fock_matrix_mpi
   LOGICAL, PARAMETER, PRIVATE          :: debug_this_module       = .FALSE.
   LOGICAL, PARAMETER, PRIVATE          :: debug_energy_coulomb_lr = .FALSE.
 
-  PUBLIC :: build_se_fock_matrix
+  PUBLIC :: build_se_fock_matrix_mpi
 
 CONTAINS
 
 ! *****************************************************************************
 !> \brief Construction of the Fock matrix for NDDO methods
-!> \author JGH
+!> \param ks_env ...
+!> \param qs_env ...
+!> \param ks_matrix ...
+!> \param rho ...
+!> \param energy ...
+!> \param calculate_forces ...
+!> \param just_energy ...
+!> \param error ...
 !> \par History
 !>         - Teodoro Laino [tlaino] (05.2009) - Split and module reorganization
+!> \author JGH
 ! *****************************************************************************
-  SUBROUTINE build_se_fock_matrix (ks_env,qs_env,ks_matrix,rho,energy,&
+  SUBROUTINE build_se_fock_matrix_mpi (ks_env,qs_env,ks_matrix,rho,energy,&
        calculate_forces,just_energy,error)
 
     TYPE(qs_ks_env_type), POINTER            :: ks_env
@@ -92,7 +100,7 @@ CONTAINS
     LOGICAL, INTENT(in)                      :: calculate_forces, just_energy
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'build_se_fock_matrix', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'build_se_fock_matrix_mpi', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, ispin, natom, &
@@ -248,6 +256,7 @@ CONTAINS
                          energy%core_overlap +&
                          0.5_dp*energy%hartree + &
                          energy%qmmm_el +&
+                         energy%dispersion +&
                          energy%mulliken
 !      WRITE ( *, * ) ' AFTER TOTAL', energy%total
 
@@ -296,7 +305,7 @@ CONTAINS
 
     CALL timestop(handle)
 
-  END SUBROUTINE build_se_fock_matrix
+  END SUBROUTINE build_se_fock_matrix_mpi
 
 END MODULE se_fock_matrix_mpi
 

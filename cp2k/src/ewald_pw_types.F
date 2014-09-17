@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2013  CP2K developers group                          !
+!   Copyright (C) 2000 - 2014  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -8,10 +8,12 @@
 !> \author CJM
 ! *****************************************************************************
 MODULE ewald_pw_types
+  USE ao_util,                         ONLY: exp_radius
   USE cell_types,                      ONLY: cell_type
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
+  USE cp_realspace_grid_init,          ONLY: init_input_type
   USE dg_types,                        ONLY: dg_create,&
                                              dg_release,&
                                              dg_retain,&
@@ -20,10 +22,6 @@ MODULE ewald_pw_types
   USE ewald_environment_types,         ONLY: ewald_env_get,&
                                              ewald_environment_type
   USE f77_blas
-  USE input_constants,                 ONLY: do_ewald_ewald,&
-                                             do_ewald_none,&
-                                             do_ewald_pme,&
-                                             do_ewald_spme
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type
   USE kinds,                           ONLY: dp
@@ -35,25 +33,25 @@ MODULE ewald_pw_types
                                              pw_grid_release,&
                                              pw_grid_setup
   USE pw_poisson_methods,              ONLY: pw_poisson_set
-  USE pw_poisson_types,                ONLY: pw_poisson_create,&
-                                             pw_poisson_release,&
-                                             pw_poisson_retain,&
-                                             pw_poisson_type
+  USE pw_poisson_read_input,           ONLY: pw_poisson_read_parameters
+  USE pw_poisson_types,                ONLY: &
+       do_ewald_ewald, do_ewald_none, do_ewald_pme, do_ewald_spme, &
+       pw_poisson_create, pw_poisson_parameter_type, pw_poisson_release, &
+       pw_poisson_retain, pw_poisson_type
   USE pw_pool_types,                   ONLY: pw_pool_create,&
                                              pw_pool_p_type,&
                                              pw_pool_release,&
                                              pw_pool_retain,&
                                              pw_pool_type
-  USE qs_util,                         ONLY: exp_radius
   USE realspace_grid_types,            ONLY: &
-       init_input_type, realspace_grid_desc_type, realspace_grid_input_type, &
+       realspace_grid_desc_type, realspace_grid_input_type, &
        realspace_grid_type, rs_grid_create, rs_grid_create_descriptor, &
        rs_grid_print, rs_grid_release, rs_grid_release_descriptor, &
        rs_grid_retain_descriptor
   USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
-#include "cp_common_uses.h"
+#include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
 
@@ -79,6 +77,8 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief retains the structure ewald_pw_type
+!> \param ewald_pw ...
+!> \param error ...
 ! *****************************************************************************
   SUBROUTINE ewald_pw_retain(ewald_pw,error)
     TYPE(ewald_pw_type), POINTER             :: ewald_pw
@@ -100,6 +100,12 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief creates the structure ewald_pw_type
+!> \param ewald_pw ...
+!> \param ewald_env ...
+!> \param cell ...
+!> \param cell_ref ...
+!> \param print_section ...
+!> \param error ...
 ! *****************************************************************************
   SUBROUTINE ewald_pw_create ( ewald_pw, ewald_env, cell, cell_ref, print_section, error )
     TYPE(ewald_pw_type), POINTER             :: ewald_pw
@@ -138,6 +144,8 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief releases the memory used by the ewald_pw
+!> \param ewald_pw ...
+!> \param error ...
 ! *****************************************************************************
   SUBROUTINE ewald_pw_release ( ewald_pw, error )
     TYPE(ewald_pw_type), POINTER             :: ewald_pw
@@ -171,6 +179,13 @@ CONTAINS
 !****** ewald_pw_types/ewald_pw_init [1.0] *
 
 ! *****************************************************************************
+!> \brief ...
+!> \param ewald_pw ...
+!> \param ewald_env ...
+!> \param cell ...
+!> \param cell_ref ...
+!> \param print_section ...
+!> \param error ...
 !> \par History
 !>      JGH (12-Jan-2001): Added SPME part
 !>      JGH (15-Mar-2001): Work newly distributed between initialize, setup,
@@ -196,6 +211,7 @@ CONTAINS
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(pw_grid_type), POINTER              :: pw_big_grid, pw_small_grid
+    TYPE(pw_poisson_parameter_type)          :: poisson_params
     TYPE(pw_pool_p_type), DIMENSION(:), &
       POINTER                                :: pw_pools
     TYPE(pw_pool_type), POINTER              :: pw_pool
@@ -239,7 +255,7 @@ CONTAINS
           END IF
           bo ( 1, : ) = -gmax / 2
           bo ( 2, : ) = +gmax / 2
-          CALL pw_grid_setup ( cell_ref, pw_big_grid, grid_span=HALFSPACE, bounds=bo, spherical=.TRUE., &
+          CALL pw_grid_setup ( cell_ref%hmat, pw_big_grid, grid_span=HALFSPACE, bounds=bo, spherical=.TRUE., &
                                 fft_usage=.FALSE., iounit=output_unit, error=error)
           NULLIFY ( pw_pool )
           CALL pw_pool_create ( pw_pool, pw_grid = pw_big_grid ,error=error)
@@ -267,7 +283,7 @@ CONTAINS
           norm = ( 2.0_dp * alphasq / pi ) ** ( 1.5_dp )
           cutoff_radius = exp_radius ( 0, 2.0_dp * alphasq, epsilon , norm )
 
-          CALL dg_pme_grid_setup ( cell_ref, npts_s, cutoff_radius,   &
+          CALL dg_pme_grid_setup ( cell_ref%hmat, npts_s, cutoff_radius,   &
                pw_small_grid, pw_big_grid, rs_dims=(/para_env%num_pe,1/),&
                iounit=output_unit, fft_usage=.TRUE., error=error )
           ! Write some useful info
@@ -322,7 +338,7 @@ CONTAINS
           END IF
           CALL pw_grid_create( pw_big_grid, para_env%group ,error=error)
           npts_s = gmax
-          CALL pw_grid_setup ( cell_ref, pw_big_grid, grid_span=HALFSPACE, npts=npts_s, spherical=.TRUE.,&
+          CALL pw_grid_setup ( cell_ref%hmat, pw_big_grid, grid_span=HALFSPACE, npts=npts_s, spherical=.TRUE.,&
                rs_dims=(/para_env%num_pe,1/), iounit=output_unit, fft_usage=.TRUE., error=error)
 
           ! pw pools initialized
@@ -359,7 +375,8 @@ CONTAINS
           ALLOCATE(pw_pools(1),stat=stat)
           CPPostcondition(stat==0,cp_fatal_level,routineP,error,failure)
           pw_pools(1)%pool => ewald_pw%pw_big_pool
-          CALL pw_poisson_set(ewald_pw%poisson_env,cell=cell,parameters=poisson_section,&
+          CALL pw_poisson_read_parameters(poisson_section, poisson_params, error)
+          CALL pw_poisson_set(ewald_pw%poisson_env,cell_hmat=cell%hmat,parameters=poisson_params,&
                use_level=1,pw_pools=pw_pools,error=error)
           DEALLOCATE(pw_pools,stat=stat)
           CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
@@ -372,6 +389,12 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief get the ewald_pw environment to the correct program.
+!> \param ewald_pw ...
+!> \param pw_big_pool ...
+!> \param pw_small_pool ...
+!> \param rs_desc ...
+!> \param poisson_env ...
+!> \param dg ...
 !> \author CJM
 ! *****************************************************************************
   SUBROUTINE ewald_pw_get (ewald_pw, pw_big_pool, pw_small_pool, rs_desc, poisson_env, dg )
@@ -398,6 +421,13 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief set the ewald_pw environment to the correct program.
+!> \param ewald_pw ...
+!> \param pw_big_pool ...
+!> \param pw_small_pool ...
+!> \param rs_desc ...
+!> \param dg ...
+!> \param poisson_env ...
+!> \param error ...
 !> \author CJM
 ! *****************************************************************************
   SUBROUTINE ewald_pw_set (ewald_pw, pw_big_pool, pw_small_pool, rs_desc, dg,&

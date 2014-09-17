@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2013  CP2K developers group                          !
+!   Copyright (C) 2000 - 2014  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -17,7 +17,7 @@ MODULE qmmm_links_methods
                                              qmmm_env_qm_type,&
                                              qmmm_imomm_link_type,&
                                              qmmm_links_type
-#include "cp_common_uses.h"
+#include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
   PRIVATE
@@ -33,6 +33,9 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief correct the position for qm/mm IMOMM link type
+!> \param qmmm_links ...
+!> \param particles ...
+!> \param qm_atom_index ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 !> \par History
@@ -90,6 +93,9 @@ CPSourceFileRef,&
 
 ! *****************************************************************************
 !> \brief correct the forces for qm/mm IMOMM link type
+!> \param qmmm_links ...
+!> \param particles_qm ...
+!> \param qm_atom_index ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 !> \par History
@@ -148,6 +154,8 @@ CPSourceFileRef,&
 
 ! *****************************************************************************
 !> \brief correct the position for added charges in qm/mm link scheme
+!> \param qmmm_env ...
+!> \param particles ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 !> \par History
@@ -182,6 +190,8 @@ CPSourceFileRef,&
 
 ! *****************************************************************************
 !> \brief correct the forces due to the  added charges in qm/mm link scheme
+!> \param qmmm_env ...
+!> \param particles ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 !> \par History

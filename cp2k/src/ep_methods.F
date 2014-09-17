@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2013  CP2K developers group                          !
+!   Copyright (C) 2000 - 2014  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -16,21 +16,21 @@
 MODULE ep_methods
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind_set
-  USE cp_array_utils,                  ONLY: cp_2d_r_p_type
+  USE cp_array_r_utils,                ONLY: cp_2d_r_p_type
+  USE cp_blacs_env,                    ONLY: cp_blacs_env_type
   USE cp_control_types,                ONLY: dft_control_type
-  USE cp_dbcsr_interface,              ONLY: cp_dbcsr_copy,&
+  USE cp_dbcsr_interface,              ONLY: cp_dbcsr_allocate_matrix_set,&
+                                             cp_dbcsr_copy,&
+                                             cp_dbcsr_deallocate_matrix_set,&
                                              cp_dbcsr_init,&
+                                             cp_dbcsr_p_type,&
                                              cp_dbcsr_scale,&
                                              cp_dbcsr_set
-  USE cp_dbcsr_operations,             ONLY: cp_dbcsr_allocate_matrix_set,&
-                                             cp_dbcsr_deallocate_matrix_set,&
-                                             cp_dbcsr_plus_fm_fm_t,&
+  USE cp_dbcsr_operations,             ONLY: cp_dbcsr_plus_fm_fm_t,&
                                              cp_dbcsr_sm_fm_multiply
-  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_p_type
   USE cp_files,                        ONLY: close_file,&
                                              open_file
-  USE cp_fm_basic_linalg,              ONLY: cp_fm_gemm,&
-                                             cp_fm_scale_and_add,&
+  USE cp_fm_basic_linalg,              ONLY: cp_fm_scale_and_add,&
                                              cp_fm_symm,&
                                              cp_fm_trace
   USE cp_fm_pool_types,                ONLY: cp_fm_pool_p_type,&
@@ -47,50 +47,51 @@ MODULE ep_methods
                                              cp_fm_set_submatrix,&
                                              cp_fm_type,&
                                              cp_fm_write
-  USE cp_fm_vect,                      ONLY: cp_fm_vect_set_all,&
+  USE cp_fm_vect,                      ONLY: cp_fm_vect_dealloc,&
+                                             cp_fm_vect_set_all,&
                                              cp_fm_vect_write
+  USE cp_gemm_interface,               ONLY: cp_gemm
   USE cp_output_handling,              ONLY: &
        cp_add_iter_level, cp_iter_string, cp_iterate, cp_p_file, cp_p_store, &
        cp_print_key_finished_output, cp_print_key_log, &
        cp_print_key_should_output, cp_print_key_unit_nr, cp_rm_iter_level
   USE cp_para_env,                     ONLY: cp_para_env_release,&
                                              cp_para_env_retain
-  USE cp_para_types,                   ONLY: cp_blacs_env_type,&
-                                             cp_para_env_type
+  USE cp_para_types,                   ONLY: cp_para_env_type
+  USE cp_realspace_grid_cube,          ONLY: cp_pw_to_cube
   USE cp_subsys_types,                 ONLY: cp_subsys_get,&
                                              cp_subsys_type
   USE ep_qs_methods,                   ONLY: ep_qs_create
   USE ep_qs_types,                     ONLY: ep_qs_release,&
                                              ep_qs_type
-  USE ep_types,                        ONLY: ep_energy_zero,&
-                                             ep_env_get,&
+  USE ep_types,                        ONLY: ep_energy_type,&
+                                             ep_env_p_type,&
                                              ep_env_type,&
-                                             ep_envs_get_ep_env,&
-                                             ep_force_create,&
-                                             ep_force_zero
+                                             ep_force_type
   USE f77_interface,                   ONLY: calc_energy,&
                                              calc_energy_force,&
                                              create_force_env,&
+                                             destroy_force_env,&
                                              f_env_add_defaults,&
                                              f_env_rm_defaults,&
-                                             f_env_type
+                                             f_env_type,&
+                                             get_natom
   USE force_env_types,                 ONLY: force_env_get
-  USE global_types,                    ONLY: global_environment_type
+  USE global_types,                    ONLY: global_environment_type,&
+                                             globenv_release,&
+                                             globenv_retain
   USE input_constants,                 ONLY: do_ep,&
                                              do_qs,&
                                              ot_precond_full_kinetic,&
                                              ot_precond_solver_default,&
                                              wfi_use_prev_wf_method_nr
-  USE input_cp2k,                      ONLY: create_cp2k_input_reading,&
-                                             empty_initial_variables
-  USE input_section_types,             ONLY: section_get_ivals,&
-                                             section_vals_get_subs_vals,&
-                                             section_vals_release,&
-                                             section_vals_retain,&
-                                             section_vals_type,&
-                                             section_vals_val_get,&
-                                             section_vals_val_set,&
-                                             section_vals_write
+  USE input_cp2k_read,                 ONLY: empty_initial_variables,&
+                                             read_input
+  USE input_section_types,             ONLY: &
+       section_get_ivals, section_type, section_vals_get_subs_vals, &
+       section_vals_release, section_vals_retain, section_vals_type, &
+       section_vals_val_get, section_vals_val_set, section_vals_write
+  USE iso_c_binding
   USE kahan_sum,                       ONLY: accurate_sum
   USE kinds,                           ONLY: default_path_length,&
                                              default_string_length,&
@@ -104,7 +105,8 @@ MODULE ep_methods
   USE preconditioner,                  ONLY: apply_preconditioner,&
                                              make_preconditioner
   USE preconditioner_types,            ONLY: destroy_preconditioner,&
-                                             init_preconditioner
+                                             init_preconditioner,&
+                                             preconditioner_p_type
   USE qs_charges_types,                ONLY: qs_charges_type
   USE qs_core_energies,                ONLY: calculate_ecore_overlap,&
                                              calculate_ecore_self
@@ -112,6 +114,7 @@ MODULE ep_methods
   USE qs_energy_types,                 ONLY: qs_energy_type
   USE qs_environment_methods,          ONLY: qs_env_update_s_mstruct
   USE qs_environment_types,            ONLY: get_qs_env,&
+                                             qs_env_release,&
                                              qs_env_retain,&
                                              qs_environment_type,&
                                              set_qs_env
@@ -119,6 +122,8 @@ MODULE ep_methods
   USE qs_force_types,                  ONLY: allocate_qs_force,&
                                              qs_force_type,&
                                              zero_qs_force
+  USE qs_kind_types,                   ONLY: get_qs_kind_set,&
+                                             qs_kind_type
   USE qs_ks_methods,                   ONLY: qs_ks_create,&
                                              qs_ks_did_change,&
                                              qs_ks_update_qs_env
@@ -137,8 +142,10 @@ MODULE ep_methods
                                              p_op_l2_fawzi,&
                                              p_postortho,&
                                              p_preortho
-  USE qs_p_env_types,                  ONLY: qs_p_env_type
+  USE qs_p_env_types,                  ONLY: p_env_release,&
+                                             qs_p_env_type
   USE qs_p_sparse_psi,                 ONLY: p_proj_create,&
+                                             p_proj_release,&
                                              qs_p_projection_p_type,&
                                              qs_p_projection_type
   USE qs_rho_methods,                  ONLY: qs_rho_update_rho
@@ -151,30 +158,36 @@ MODULE ep_methods
                                              wfi_get_snapshot,&
                                              wfi_release,&
                                              wfs_release
-  USE realspace_grid_cube,             ONLY: pw_to_cube
-  USE replica_types,                   ONLY: rep_env_calc_e_f,&
-                                             rep_env_create,&
-                                             rep_env_local_index,&
+  USE replica_methods,                 ONLY: rep_env_calc_e_f,&
+                                             rep_env_create
+  USE replica_types,                   ONLY: rep_env_local_index,&
+                                             rep_env_release,&
                                              replica_env_type
   USE scf_control_types,               ONLY: scf_control_type
   USE timings,                         ONLY: timeset,&
                                              timestop
-#include "cp_common_uses.h"
+#include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
   PRIVATE
 
   LOGICAL, PRIVATE, PARAMETER :: debug_this_module=.TRUE.
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'ep_methods'
-  INTEGER, PRIVATE, SAVE :: last_ep_env_id=0
+  INTEGER, SAVE :: last_ep_env_id=0, last_force_id=0
+  LOGICAL, SAVE, PRIVATE :: module_initialized=.FALSE.
 
-  PUBLIC :: ep_env_init_low, ep_env_transfer_psi0, &
-       ep_env_localize_matrix, ep_env_calc_e_f_low
+  TYPE(ep_env_p_type), DIMENSION(:), POINTER, PRIVATE :: ep_envs
 
+  PUBLIC :: ep_env_create
+
+  PUBLIC :: ep_env_retain, ep_env_release
+  PUBLIC :: ep_envs_get_ep_env, ep_env_calc_e_f
 CONTAINS
 
 ! *****************************************************************************
 !> \brief writes out the qs energies
+!> \param qs_env ...
+!> \param output_unit ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 !> \author fawzi
@@ -235,8 +248,9 @@ CONTAINS
 ! *****************************************************************************
 !> \brief calculates c0 for a single molecule
 !> \param ep_env the ep_env with all the
-!> \param main_qs_env the qs_env of the full system
-!> \param projections the projections into the subsystems
+!> \param mol_pos ...
+!> \param new_c ...
+!> \param imol ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 !> \author Clotilde Cucinotta
@@ -271,22 +285,89 @@ CONTAINS
     END DO
   END SUBROUTINE calc_c0_tilde
 
+
 ! *****************************************************************************
 !> \brief creates the environement to perform an ep perturbation
 !> \param ep_env the ep_env env to create
-!> \param main_qs_env the qs_env of the full system
-!> \param projections the projections into the subsystems
+!> \param root_section ...
+!> \param input_declaration ...
+!> \param para_env ...
+!> \param globenv ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
-!> \note
-!>      Could take more advantage of what is calculated in main_qs_env
-!>      (for example the S matrix)
 !> \par History
 !>      11.2002 created [fawzi]
 !> \author Fawzi Mohamed
+!> \note
+!>      Could take more advantage of what is calculated in main_qs_env
+!>      (for example the S matrix)
 ! *****************************************************************************
-  SUBROUTINE ep_env_init_low(ep_env_id,ierr)
+  SUBROUTINE ep_env_create(ep_env,root_section,input_declaration,para_env,globenv, error)
+    TYPE(ep_env_type), POINTER               :: ep_env
+    TYPE(section_vals_type), POINTER         :: root_section
+    TYPE(section_type), POINTER              :: input_declaration
+    TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(global_environment_type), POINTER   :: globenv
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'ep_env_create', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, ierr, stat
+    LOGICAL                                  :: failure
+
+    failure=.FALSE.
+    CALL timeset(routineN,handle)
+    CPPrecondition(.NOT.ASSOCIATED(ep_env),cp_failure_level,routineP,error,failure)
+    IF (.NOT.failure) THEN
+       ALLOCATE(ep_env,stat=stat)
+       CPPostcondition(stat==0,cp_fatal_level,routineP,error,failure)
+
+       last_ep_env_id=last_ep_env_id+1
+       ep_env%id_nr=last_ep_env_id
+       ep_env%ref_count=1
+       ep_env%f_env_id=-1
+       ep_env%nspins=-1
+       ep_env%nat=-1
+       ep_env%nat_per_mol=-1
+       ep_env%nmol=-1
+       NULLIFY(ep_env%mol_envs,ep_env%sub_proj,ep_env%main_qs_env,&
+            ep_env%main_p_env,ep_env%sub_p_env,ep_env%m_pi_Hrho_psi0d,&
+            ep_env%psi1, ep_env%precond,ep_env%sub_nmo,ep_env%sub_nao,&
+            ep_env%full_nmo,ep_env%full_nao,ep_env%input,ep_env%at2sub,&
+            ep_env%force,ep_env%root_section,ep_env%base_C0)
+       CALL ep_energy_zero(ep_env%energy,error=error)
+       ep_env%root_section => root_section
+       CALL section_vals_retain(root_section,error)
+       ep_env%globenv => globenv
+       CALL globenv_retain(globenv,error=error)
+       ep_env%para_env=>para_env
+       CALL cp_para_env_retain(ep_env%para_env,error=error)
+
+       CALL ep_envs_add_ep_env(ep_env,error=error)
+       CALL ep_env_init_low(ep_env%id_nr,input_declaration,ierr)
+
+       CPAssert(ierr==0,cp_failure_level,routineP,error,failure)
+    END IF
+    CALL timestop(handle)
+  END SUBROUTINE ep_env_create
+
+
+! *****************************************************************************
+!> \brief creates the environement to perform an ep perturbation
+!> \param ep_env_id ...
+!> \param input_declaration ...
+!> \param ierr ...
+!> \par History
+!>      11.2002 created [fawzi]
+!> \author Fawzi Mohamed
+!> \note
+!>      Could take more advantage of what is calculated in main_qs_env
+!>      (for example the S matrix)
+! *****************************************************************************
+  SUBROUTINE ep_env_init_low(ep_env_id,input_declaration,ierr)
     INTEGER, INTENT(in)                      :: ep_env_id
+    TYPE(section_type), POINTER              :: input_declaration
     INTEGER, INTENT(out)                     :: ierr
 
     CHARACTER(len=*), PARAMETER :: routineN = 'ep_env_init_low', &
@@ -315,6 +396,8 @@ CONTAINS
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(qs_environment_type), POINTER       :: sub_qs_env
+    TYPE(qs_kind_type), DIMENSION(:), &
+      POINTER                                :: qs_kind_set
     TYPE(qs_matrix_pools_type), POINTER      :: mpools
     TYPE(qs_p_projection_p_type), &
       DIMENSION(:), POINTER                  :: sub_proj
@@ -327,7 +410,7 @@ CONTAINS
     CALL timeset(routineN,handle)
     failure=.FALSE.
     ep_env => ep_envs_get_ep_env(ep_env_id)
-    NULLIFY(particle_set)
+    NULLIFY(particle_set, qs_kind_set)
     CALL cp_error_init(error)
     CPPrecondition(ASSOCIATED(ep_env),cp_failure_level,routineP,error,failure)
     IF (.NOT.failure) THEN
@@ -357,7 +440,8 @@ CONTAINS
        CALL section_vals_val_set(input,"FORCE_EVAL%METHOD",&
             i_val=do_ep,error=error)
 
-       CALL create_force_env(ep_env%f_env_id,TRIM(project_name)//"_mainQS.inp",&
+       CALL create_force_env(ep_env%f_env_id,input_declaration,&
+            TRIM(project_name)//"_mainQS.inp",&
             TRIM(project_name)//"_mainQS.out",para_env%group,ierr=ierr)
        CPAssert(ierr==0,cp_failure_level,routineP,error,failure)
        globenv => ep_env%globenv
@@ -403,8 +487,8 @@ CONTAINS
             stat=stat)
        CPPostcondition(stat==0,cp_fatal_level,routineP,error,failure)
        NULLIFY(full_mos)
-       CALL get_qs_env(ep_env%main_qs_env,mos=full_mos,&
-            particle_set=particle_set,mpools=mpools,error=new_error)
+       CALL get_qs_env(ep_env%main_qs_env,mos=full_mos, particle_set=particle_set,&
+                       qs_kind_set=qs_kind_set, mpools=mpools,error=new_error)
        DO ispin=1,ep_env%nspins
           CALL get_mo_set(full_mos(ispin)%mo_set,nao=ep_env%full_nao(ispin),&
                nmo=ep_env%full_nmo(ispin))
@@ -426,7 +510,7 @@ CONTAINS
        CALL cp_print_key_log(logger,ep_env%input,"PRINT%RUN_INFO",&
             extension=".epLog",message=routineP//&
             " creating mol_envs",error=error)
-       CALL cp_get_natom(ep_env%f_env_id,nat,ierr)
+       CALL get_natom(ep_env%f_env_id,nat,ierr)
        CALL section_vals_val_get(input,"FORCE_EVAL%EP%AT_PER_MOL",&
             i_val=at_per_mol,error=error)
        nmol=nat/at_per_mol
@@ -437,10 +521,11 @@ CONTAINS
        CALL ep_force_create(ep_env%force,nat=nat,error=error)
        CALL section_vals_val_get(input,"FORCE_EVAL%EP%COMP_INPUT",&
             c_val=comp_path,error=error)
-       comp_input => create_cp2k_input_reading(comp_path, initial_variables=empty_initial_variables, &
-                                               para_env=para_env,error=error)
+       comp_input => read_input(input_declaration, comp_path, &
+                                initial_variables=empty_initial_variables, &
+                                para_env=para_env,error=error)
        CALL rep_env_create(ep_env%mol_envs, para_env=para_env, input=comp_input,&
-            nrep=nmol, prep=1,keep_wf_history=.TRUE.,error=error)
+            input_declaration=input_declaration,nrep=nmol, prep=1,keep_wf_history=.TRUE.,error=error)
        CALL cp_assert(ASSOCIATED(ep_env%mol_envs),cp_failure_level,&
             cp_assertion_failed,routineP,"ep not implemented for a number of"//&
             " processors bigger than the number of molecules",error,failure)
@@ -518,7 +603,7 @@ CONTAINS
              ep_env%at2sub(iat)=imol
           END DO
           CALL p_proj_create(sub_proj(imol)%projection, atoms=atoms,&
-               particle_set=particle_set, error=error)
+               particle_set=particle_set,qs_kind_set=qs_kind_set, error=error)
        END DO
        DEALLOCATE(atoms,stat=stat)
        CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
@@ -826,15 +911,15 @@ CONTAINS
 !> \param eps_r wanted residual error
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
+!> \par History
+!>      12.2002 created [fawzi]
+!> \author fawzi
 !> \note
 !>      The linear solver should go in another module, this is a quick and
 !>      dirty implementation.
 !>      A: postortho (p_op_l1+p_op_l2) preortho
 !>      x: ep_env%psi1
 !>      ugly scaling of p (to avoid cutoff of small values on the grids)
-!> \par History
-!>      12.2002 created [fawzi]
-!> \author fawzi
 ! *****************************************************************************
   SUBROUTINE stupid_solve(ep_env,eps_r,error)
     TYPE(ep_env_type), POINTER               :: ep_env
@@ -1077,11 +1162,11 @@ CONTAINS
 !> \param v the matrix to operate on (must be orthogonal to the psi0)
 !> \param res the result
 !> \param error error handling object (optional)
-!> \note
-!>      no preorthogonalization, thus v must be orthogonal to the psi0
 !> \par History
 !>      12.2002 created [fawzi]
 !> \author fawzi
+!> \note
+!>      no preorthogonalization, thus v must be orthogonal to the psi0
 ! *****************************************************************************
   SUBROUTINE p_op_ep(p_env, qs_env, v, res, error)
     TYPE(qs_p_env_type), POINTER             :: p_env
@@ -1235,6 +1320,8 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief localizes the wavefunction matrix, restraining it the the subsystem
+!> \param ep_env ...
+!> \param wf_coeff ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 !> \par History
@@ -1343,8 +1430,6 @@ CONTAINS
     LOGICAL                                  :: failure, &
                                                 gth_potential_present, &
                                                 uniform_occupation
-    TYPE(atomic_kind_type), DIMENSION(:), &
-      POINTER                                :: atomic_kind_set
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: matrix_ks, matrix_s
     TYPE(cp_fm_pool_p_type), DIMENSION(:), &
@@ -1354,6 +1439,8 @@ CONTAINS
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mos
+    TYPE(qs_kind_type), DIMENSION(:), &
+      POINTER                                :: qs_kind_set
     TYPE(qs_ks_env_type), POINTER            :: ks_env
 
 !                                                my_transition_potential, &
@@ -1362,7 +1449,7 @@ CONTAINS
 
     NULLIFY(matrix_ks, ao_mo_fm_pools, matrix_s, dft_control, mos, &
          ks_env)
-    NULLIFY(atomic_kind_set, mo_coeff)
+    NULLIFY(qs_kind_set, mo_coeff)
     logger => cp_error_get_logger(error)
     failure=.FALSE.
 
@@ -1374,10 +1461,9 @@ CONTAINS
          mos=mos,&
          matrix_ks=matrix_ks,&
          ks_env=ks_env,&
-         atomic_kind_set=atomic_kind_set,&
+         qs_kind_set=qs_kind_set,&
          matrix_s=matrix_s,error=error)
-    CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
-         gth_potential_present=gth_potential_present)
+    CALL get_qs_kind_set(qs_kind_set, gth_potential_present=gth_potential_present)
     CALL mpools_get(qs_env%mpools, ao_mo_fm_pools=ao_mo_fm_pools,&
          error=error)
 
@@ -1459,6 +1545,8 @@ CONTAINS
   END SUBROUTINE qs_check_i_alloc
 
 ! *****************************************************************************
+!> \brief ...
+!> \param ep_env ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 !> \author fawzi
@@ -1574,12 +1662,12 @@ CONTAINS
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
             natom_of_kind=natom_of_kind)
-       CALL allocate_qs_force(force,natom_of_kind)
+       CALL allocate_qs_force(force,natom_of_kind,error)
        DEALLOCATE (natom_of_kind,STAT=stat)
        CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
        CALL set_qs_env(qs_env,force=force,error=error)
     END IF
-    CALL zero_qs_force(force)
+    CALL zero_qs_force(force,error)
     CALL ep_force_zero(ep_env%force,error=error)
 
     ! !!!!! qs energy
@@ -1831,7 +1919,7 @@ CONTAINS
                 unit_nr=cp_print_key_unit_nr(logger,ep_env%input,"PRINT%EP_RHO_CUBE/RHO1",&
                      extension=".cube",middle_name="rho1_"//TRIM(ADJUSTL(cp_to_string(ispin))),&
                      log_filename=.FALSE.,error=error)
-                CALL pw_to_cube ( ep_env%main_p_env%rho1%rho_r(1)%pw, unit_nr=unit_nr,&
+                CALL cp_pw_to_cube ( ep_env%main_p_env%rho1%rho_r(1)%pw, unit_nr=unit_nr,&
                      title="rho1_"//TRIM(ADJUSTL(cp_to_string(ispin))),&
                      particles=particles,&
                      stride=section_get_ivals(ep_env%input,"PRINT%EP_RHO_CUBE%STRIDE",error=error),&
@@ -1850,7 +1938,7 @@ CONTAINS
           unit_nr=cp_print_key_unit_nr(logger,ep_env%input,"PRINT%EP_RHO_CUBE/RHO0",&
                extension=".cube",middle_name="rho0_"//TRIM(ADJUSTL(cp_to_string(ispin))),&
                log_filename=.FALSE.,error=error)
-          CALL pw_to_cube ( ep_env%main_qs_env%rho%rho_r(1)%pw, unit_nr=unit_nr,&
+          CALL cp_pw_to_cube ( ep_env%main_qs_env%rho%rho_r(1)%pw, unit_nr=unit_nr,&
                title="rho0_"//TRIM(ADJUSTL(cp_to_string(ispin))),&
                particles=particles,&
                stride=section_get_ivals(ep_env%input,"PRINT%EP_RHO_CUBE%STRIDE",error=error),&
@@ -2082,9 +2170,9 @@ CONTAINS
 !> \param idir direction to derive
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
+!> \author fawzi
 !> \note
 !>      for debugging purposes only, non symmetric derivative
-!> \author fawzi
 ! *****************************************************************************
   SUBROUTINE ep_calc_dc_dr_fdiff(ep_env,dc_dr,imol,iat,idir,error)
     TYPE(ep_env_type), POINTER               :: ep_env
@@ -2177,7 +2265,7 @@ CONTAINS
                 CALL cp_dbcsr_sm_fm_multiply(snapshot%overlap,&
                      tmp_snap%wf(ispin)%matrix,dc_dr(ispin)%matrix,&
                      ncol=ep_env%sub_nmo(ispin),error=new_error)
-                CALL cp_fm_gemm(transa='T',transb='N',m=ep_env%sub_nmo(ispin),&
+                CALL cp_gemm(transa='T',transb='N',m=ep_env%sub_nmo(ispin),&
                      n=ep_env%sub_nmo(ispin),k=ep_env%sub_nao(ispin),alpha=1.0_dp,&
                      matrix_a=snapshot%wf(ispin)%matrix,&
                      matrix_b=dc_dr(ispin)%matrix,beta=0._dp,&
@@ -2185,7 +2273,7 @@ CONTAINS
                 CALL cp_fm_scale_and_add(matrix_a=dc_dr(ispin)%matrix,&
                      matrix_b=tmp_snap%wf(ispin)%matrix,alpha=0.0_dp,beta=1.0_dp,&
                      error=new_error)
-                CALL cp_fm_gemm(transa='N',transb='N',m=ep_env%sub_nao(ispin),&
+                CALL cp_gemm(transa='N',transb='N',m=ep_env%sub_nao(ispin),&
                      n=ep_env%sub_nmo(ispin),k=ep_env%sub_nmo(ispin),alpha=-1.0_dp/dr,&
                      matrix_a=snapshot%wf(ispin)%matrix,&
                      matrix_b=mo_mo_m(ispin)%matrix,beta=1._dp/dr,&
@@ -2202,453 +2290,478 @@ CONTAINS
   END SUBROUTINE ep_calc_dc_dr_fdiff
 
 ! *****************************************************************************
+!> \brief zeroes out the energies
+!> \param ep_energy the energy object to zero out
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \author fawzi
+! *****************************************************************************
+  SUBROUTINE ep_energy_zero(ep_energy,error)
+    TYPE(ep_energy_type), INTENT(out)        :: ep_energy
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'ep_energy_zero', &
+      routineP = moduleN//':'//routineN
+
+    ep_energy%e_no_int=0._dp
+    ep_energy%e0=0._dp
+    ep_energy%e1=0._dp
+    ep_energy%e_tot=0._dp
+  END SUBROUTINE ep_energy_zero
+
+! *****************************************************************************
+!> \brief retains an ep environment (see doc/ReferenceCounting.html)
+!> \param ep_env the environment to retain
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \par History
+!>      11.2002 created [fawzi]
+!> \author Fawzi Mohamed
+! *****************************************************************************
+  SUBROUTINE ep_env_retain(ep_env, error)
+    TYPE(ep_env_type), POINTER               :: ep_env
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'ep_env_retain', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+
+    failure=.FALSE.
+
+    CPPrecondition(ASSOCIATED(ep_env),cp_failure_level,routineP,error,failure)
+    IF (.NOT. failure) THEN
+       CPPrecondition(ep_env%ref_count>0,cp_failure_level,routineP,error,failure)
+       ep_env%ref_count=ep_env%ref_count+1
+    END IF
+  END SUBROUTINE ep_env_retain
+
+! *****************************************************************************
+!> \brief releases the given ep_env (see doc/ReferenceCounting.html)
+!> \param ep_env the ep_env to release
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \par History
+!>      11.2002 created [fawzi]
+!> \author Fawzi Mohamed
+! *****************************************************************************
+  SUBROUTINE ep_env_release(ep_env, error)
+    TYPE(ep_env_type), POINTER               :: ep_env
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'ep_env_release', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: i, ierr, stat
+    LOGICAL                                  :: failure
+
+    failure=.FALSE.
+
+    IF (ASSOCIATED(ep_env)) THEN
+       CPPrecondition(ep_env%ref_count>0,cp_failure_level,routineP,error,failure)
+       ep_env%ref_count=ep_env%ref_count-1
+       IF (ep_env%ref_count<1) THEN
+          CALL rep_env_release(ep_env%mol_envs,error=error)
+          IF (ASSOCIATED(ep_env%sub_proj)) THEN
+             DO i=1,SIZE(ep_env%sub_proj)
+                CALL p_proj_release(ep_env%sub_proj(i)%projection,error=error)
+             END DO
+             DEALLOCATE(ep_env%sub_proj,stat=stat)
+             CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+          END IF
+          CALL qs_env_release(ep_env%main_qs_env,error=error)
+          CALL p_env_release(ep_env%main_p_env,error=error)
+          CALL p_env_release(ep_env%sub_p_env,error=error)
+          CALL cp_fm_vect_dealloc(ep_env%m_pi_Hrho_psi0d,error=error)
+          CALL cp_fm_vect_dealloc(ep_env%psi1,error=error)
+          CALL destroy_force_env(ep_env%f_env_id,ierr)
+          CPAssert(ierr==0,cp_failure_level,routineP,error,failure)
+          IF (ASSOCIATED(ep_env%precond)) THEN
+             DO i=1,1 !SIZE(ep_env%precond) ! same precond for all spins
+                CALL destroy_preconditioner(ep_env%precond(i)%preconditioner,error=error)
+             END DO
+             DEALLOCATE(ep_env%precond,stat=stat)
+             CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+          END IF
+          IF (ASSOCIATED(ep_env%sub_nmo)) THEN
+             DEALLOCATE(ep_env%sub_nmo,ep_env%sub_nao,ep_env%full_nmo,ep_env%full_nao,&
+                  stat=stat)
+             CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
+          END IF
+          IF (ASSOCIATED(ep_env%at2sub)) THEN
+             DEALLOCATE(ep_env%at2sub,stat=stat)
+             CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
+          END IF
+          CALL globenv_release(ep_env%globenv,error=error)
+          CALL cp_para_env_release(ep_env%para_env,error=error)
+          CALL section_vals_release(ep_env%input,error=error)
+          CALL section_vals_release(ep_env%root_section,error=error)
+          CALL ep_envs_rm_ep_env(ep_env,error=error)
+          CALL ep_force_release(ep_env%force,error=error)
+          IF (ASSOCIATED(ep_env%base_C0)) THEN
+             DO i=1,SIZE(ep_env%base_C0)
+                DEALLOCATE(ep_env%base_C0(i)%array,stat=stat)
+                CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
+             END DO
+             DEALLOCATE(ep_env%base_C0,stat=stat)
+             CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
+          END IF
+          DEALLOCATE(ep_env, stat=stat)
+          CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+       END IF
+    END IF
+    NULLIFY(ep_env)
+  END SUBROUTINE ep_env_release
+
+! *****************************************************************************
+!> \brief returns the various attributes of the ep_env
+!> \param ep_env the ep_env to get the info from
+!> \param id_nr ...
+!> \param mol_envs ...
+!> \param sub_proj ...
+!> \param main_qs_env ...
+!> \param main_p_env ...
+!> \param sub_p_env ...
+!> \param preconditioner ...
+!> \param m_pi_Hrho_psi0d ...
+!> \param psi1 ...
+!> \param f_env_id ...
+!> \param globenv ...
+!> \param at2sub ...
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!>
+!>      For the other arguments see the attributes of ep_env_type
+!> \par History
+!>      12.2002 created [fawzi]
+!> \author fawzi
+! *****************************************************************************
+  SUBROUTINE ep_env_get(ep_env,id_nr, mol_envs, sub_proj, main_qs_env,&
+       main_p_env,sub_p_env, preconditioner, m_pi_Hrho_psi0d, psi1, f_env_id,&
+       globenv,at2sub,error)
+    TYPE(ep_env_type), POINTER               :: ep_env
+    INTEGER, INTENT(out), OPTIONAL           :: id_nr
+    TYPE(replica_env_type), OPTIONAL, &
+      POINTER                                :: mol_envs
+    TYPE(qs_p_projection_p_type), &
+      DIMENSION(:), OPTIONAL, POINTER        :: sub_proj
+    TYPE(qs_environment_type), OPTIONAL, &
+      POINTER                                :: main_qs_env
+    TYPE(qs_p_env_type), OPTIONAL, POINTER   :: main_p_env, sub_p_env
+    TYPE(preconditioner_p_type), &
+      DIMENSION(:), OPTIONAL, POINTER        :: preconditioner
+    TYPE(cp_fm_p_type), DIMENSION(:), &
+      OPTIONAL, POINTER                      :: m_pi_Hrho_psi0d, psi1
+    INTEGER, INTENT(out), OPTIONAL           :: f_env_id
+    TYPE(global_environment_type), &
+      OPTIONAL, POINTER                      :: globenv
+    INTEGER, DIMENSION(:), OPTIONAL, POINTER :: at2sub
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'ep_env_get', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+
+    failure=.FALSE.
+
+    CPPrecondition(ASSOCIATED(ep_env),cp_failure_level,routineP,error,failure)
+    IF (.not.failure) THEN
+       CPPrecondition(ep_env%ref_count>0,cp_failure_level,routineP,error,failure)
+    END IF
+
+    IF (.NOT. failure) THEN
+       IF (PRESENT(id_nr)) id_nr=ep_env%id_nr
+       IF (PRESENT(mol_envs)) mol_envs => ep_env%mol_envs
+       IF (PRESENT(sub_proj)) sub_proj => ep_env%sub_proj
+       IF (PRESENT(main_qs_env)) main_qs_env => ep_env%main_qs_env
+       IF (PRESENT(main_p_env)) main_p_env => ep_env%main_p_env
+       IF (PRESENT(sub_p_env)) sub_p_env => ep_env%sub_p_env
+       IF (PRESENT(m_pi_Hrho_psi0d)) m_pi_Hrho_psi0d => ep_env%m_pi_Hrho_psi0d
+       IF (PRESENT(psi1)) psi1 => ep_env%psi1
+!FM     IF (PRESENT(nspins)) THEN
+!FM        CPPrecondition(ASSOCIATED(ep_env%main_qs_env),cp_failure_level,routineP,error,failure)
+!FM        IF (.not.failure) THEN
+!FM           nspins=ep_env%main_qs_env%dft_control%nspins
+!FM        END IF
+!FM     END IF
+       IF (PRESENT(preconditioner)) THEN
+          preconditioner => ep_env%precond
+       END IF
+       IF (PRESENT(globenv)) globenv => ep_env%globenv
+       IF (PRESENT(f_env_id)) f_env_id=ep_env%f_env_id
+       IF (PRESENT(at2sub)) at2sub => ep_env%at2sub
+    END IF
+  END SUBROUTINE ep_env_get
+
+! *****************************************************************************
+!> \brief returns the replica environment with the given id_nr
+!> \param id_nr the id_nr of the requested ep_envs
+!> \retval res ...
+!> \author fawzi
+! *****************************************************************************
+  FUNCTION ep_envs_get_ep_env(id_nr) RESULT(res)
+    INTEGER, INTENT(in)                      :: id_nr
+    TYPE(ep_env_type), POINTER               :: res
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'ep_envs_get_ep_env', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: i
+
+    NULLIFY(res)
+    IF (module_initialized) THEN
+       IF (ASSOCIATED(ep_envs)) THEN
+          DO i=1,SIZE(ep_envs)
+             IF (ep_envs(i)%ep_env%id_nr==id_nr) THEN
+                res => ep_envs(i)%ep_env
+                EXIT
+             END IF
+          END DO
+       END IF
+    END IF
+  END FUNCTION ep_envs_get_ep_env
+
+! *****************************************************************************
+!> \brief adds the given ep_env to the list of controlled ep_envs.
+!> \param ep_env the ep_env to add
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \author fawzi
+! *****************************************************************************
+  SUBROUTINE ep_envs_add_ep_env(ep_env,error)
+    TYPE(ep_env_type), POINTER               :: ep_env
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'ep_envs_add_ep_env', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: i, stat
+    LOGICAL                                  :: failure
+    TYPE(ep_env_p_type), DIMENSION(:), &
+      POINTER                                :: new_ep_envs
+    TYPE(ep_env_type), POINTER               :: ep_env2
+
+    failure=.FALSE.
+
+    IF (ASSOCIATED(ep_env)) THEN
+       ep_env2 => ep_envs_get_ep_env(ep_env%id_nr)
+       IF (.NOT.ASSOCIATED(ep_env2)) THEN
+          IF (module_initialized) THEN
+             IF (ASSOCIATED(ep_envs)) THEN
+                ALLOCATE(new_ep_envs(SIZE(ep_envs)+1),stat=stat)
+                CPPostcondition(stat==0,cp_fatal_level,routineP,error,failure)
+                DO i=1,SIZE(ep_envs)
+                   new_ep_envs(i)%ep_env => ep_envs(i)%ep_env
+                END DO
+                DEALLOCATE(ep_envs,stat=stat)
+                CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+                ep_envs => new_ep_envs
+             ELSE
+                ALLOCATE(ep_envs(1),stat=stat)
+                CPPostcondition(stat==0,cp_fatal_level,routineP,error,failure)
+             END IF
+          ELSE
+             ALLOCATE(ep_envs(1),stat=stat)
+             CPPostcondition(stat==0,cp_fatal_level,routineP,error,failure)
+          END IF
+          ep_envs(SIZE(ep_envs))%ep_env => ep_env
+          module_initialized=.TRUE.
+       END IF
+    END IF
+  END SUBROUTINE ep_envs_add_ep_env
+
+! *****************************************************************************
+!> \brief removes the given ep_env to the list of controlled ep_envs.
+!> \param ep_env the ep_env to remove
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \author fawzi
+! *****************************************************************************
+  SUBROUTINE ep_envs_rm_ep_env(ep_env,error)
+    TYPE(ep_env_type), POINTER               :: ep_env
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'ep_envs_rm_ep_env', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: i, ii, stat
+    LOGICAL                                  :: failure
+    TYPE(ep_env_p_type), DIMENSION(:), &
+      POINTER                                :: new_ep_envs
+
+    failure=.FALSE.
+
+    IF (ASSOCIATED(ep_env)) THEN
+       CPPrecondition(module_initialized,cp_failure_level,routineP,error,failure)
+       ALLOCATE(new_ep_envs(SIZE(ep_envs)-1),stat=stat)
+       CPPostcondition(stat==0,cp_fatal_level,routineP,error,failure)
+       ii=0
+       DO i=1,SIZE(ep_envs)
+          IF (ep_envs(i)%ep_env%id_nr/=ep_env%id_nr) THEN
+             ii=ii+1
+             new_ep_envs(ii)%ep_env => ep_envs(i)%ep_env
+          END IF
+       END DO
+       CPPostcondition(ii==SIZE(new_ep_envs),cp_failure_level,routineP,error,failure)
+       DEALLOCATE(ep_envs,stat=stat)
+       CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+       ep_envs => new_ep_envs
+       IF (SIZE(ep_envs)==0) THEN
+          DEALLOCATE(ep_envs,stat=stat)
+          CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+       END IF
+    END IF
+  END SUBROUTINE ep_envs_rm_ep_env
+
+! *****************************************************************************
+!> \brief updates forces and energy in the given ep_env
+!> \param ep_env ...
+!> \param calc_f ...
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \author fawzi
+! *****************************************************************************
+  SUBROUTINE ep_env_calc_e_f(ep_env,calc_f,error)
+    TYPE(ep_env_type), POINTER               :: ep_env
+    LOGICAL, INTENT(in)                      :: calc_f
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'ep_env_calc_e_f', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: ierr, my_calc_f
+    LOGICAL                                  :: failure
+
+    failure=.FALSE.
+
+    IF (.NOT.failure) THEN
+       IF (calc_f) THEN
+          my_calc_f=1
+       ELSE
+          my_calc_f=0
+       END IF
+       CALL ep_env_calc_e_f_low(ep_env%id_nr,my_calc_f,ierr)
+       CPAssert(ierr==0,cp_failure_level,routineP,error,failure)
+    END IF
+  END SUBROUTINE ep_env_calc_e_f
+
+! *****************************************************************************
+!> \brief creates an ep_force_type
+!> \param force the type to create
+!> \param nat the number of atoms
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \author fawzi
+! *****************************************************************************
+  SUBROUTINE ep_force_create(force,nat,error)
+    TYPE(ep_force_type), POINTER             :: force
+    INTEGER, INTENT(in)                      :: nat
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'ep_force_create', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: stat
+    LOGICAL                                  :: failure
+
+    failure=.FALSE.
+    CPPrecondition(.NOT.ASSOCIATED(force),cp_failure_level,routineP,error,failure)
+    IF (.NOT. failure) THEN
+       ALLOCATE(force,stat=stat)
+       CPPostcondition(stat==0,cp_fatal_level,routineP,error,failure)
+    END IF
+    IF (.NOT. failure) THEN
+       last_force_id=last_force_id+1
+       force%id_nr=last_force_id
+       force%ref_count=1
+       ALLOCATE(force%f0_internal(3,nat),stat=stat)
+       CPPostcondition(stat==0,cp_fatal_level,routineP,error,failure)
+    END IF
+  END SUBROUTINE ep_force_create
+
+! *****************************************************************************
+!> \brief zeroes the forces
+!> \param force the force type to zero out
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \author fawzi
+! *****************************************************************************
+  SUBROUTINE ep_force_zero(force,error)
+    TYPE(ep_force_type), POINTER             :: force
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'ep_force_zero', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+
+    failure=.FALSE.
+    CPPrecondition(ASSOCIATED(force),cp_failure_level,routineP,error,failure)
+    CPPrecondition(force%ref_count>0,cp_failure_level,routineP,error,failure)
+    IF (.NOT. failure) THEN
+       force%f0_internal=0._dp
+    END IF
+  END SUBROUTINE ep_force_zero
+
+! *****************************************************************************
+!> \brief retains the given force type
+!> \param force the force type to retain
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \author fawzi
+! *****************************************************************************
+  SUBROUTINE ep_force_retain(force,error)
+    TYPE(ep_force_type), POINTER             :: force
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'ep_force_retain', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+
+    failure=.FALSE.
+    CPPrecondition(ASSOCIATED(force),cp_failure_level,routineP,error,failure)
+    CPPrecondition(force%ref_count>0,cp_failure_level,routineP,error,failure)
+    IF (.NOT. failure) THEN
+       force%ref_count=force%ref_count+1
+    END IF
+  END SUBROUTINE ep_force_retain
+
+! *****************************************************************************
+!> \brief retains the given force type
+!> \param force the force type to retain
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \author fawzi
+! *****************************************************************************
+  SUBROUTINE ep_force_release(force,error)
+    TYPE(ep_force_type), POINTER             :: force
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'ep_force_release', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: stat
+    LOGICAL                                  :: failure
+
+    failure=.FALSE.
+    IF (ASSOCIATED(force)) THEN
+       CPPrecondition(force%ref_count>0,cp_failure_level,routineP,error,failure)
+       force%ref_count=force%ref_count-1
+       IF (force%ref_count==0) THEN
+          DEALLOCATE(force%f0_internal,stat=stat)
+          CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+          DEALLOCATE(force,stat=stat)
+          CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+       END IF
+    END IF
+    NULLIFY(force)
+  END SUBROUTINE ep_force_release
+
+! *****************************************************************************
 ! The following routines are never called, but introduce a dependence on the
 ! old SM code.
-!> \brief Calculate the forces due to dC/dR (in the sub systems)
-!> \param ep_env the ep environment
-!> \param error controls error handling
-! *****************************************************************************
-! SUBROUTINE ep_calc_f_sub(ep_env,error)
-!   TYPE(ep_env_type), POINTER               :: ep_env
-!   TYPE(cp_error_type), INTENT(inout)       :: error
-
-!   CHARACTER(len=*), PARAMETER :: routineN = 'ep_calc_f_sub', &
-!     routineP = moduleN//':'//routineN
-
-!   INTEGER                                  :: handle, iat, idir, ierr, &
-!                                               irep, irep_local, ispin, nat, &
-!                                               stat
-!   INTEGER, ALLOCATABLE, DIMENSION(:)       :: atom_of_kind, kind_of
-!   LOGICAL                                  :: failure
-!   REAL(kind=dp)                            :: fdiff(2)
-!   TYPE(atomic_kind_type), DIMENSION(:), &
-!     POINTER                                :: atomic_kind_set
-!   TYPE(cp_dbcsr_p_type), DIMENSION(:), &
-!     POINTER                                :: matrix_s_b
-!   TYPE(cp_error_type)                      :: new_error
-!   TYPE(cp_fm_p_type), DIMENSION(:), &
-!     POINTER                                :: aomo_work1, coeffs_cr, &
-!                                               pi_Hrho_psi0d
-!   TYPE(cp_fm_pool_p_type), DIMENSION(:), &
-!     POINTER                                :: ao_mo_fm_pools
-!   TYPE(cp_fm_pool_type), POINTER           :: maxao_maxao_fm_pool, &
-!                                               maxao_maxmo_fm_pool, &
-!                                               maxmo_maxmo_fm_pool
-!   TYPE(cp_fm_type), POINTER                :: aoao_work1, psi0
-!   TYPE(ep_force_type), POINTER             :: ep_force
-!   TYPE(f_env_type), POINTER                :: f_env
-!   TYPE(global_environment_type), POINTER   :: sub_globenv
-!   TYPE(mo_set_p_type), DIMENSION(:), &
-!     POINTER                                :: mos
-!   TYPE(qs_environment_type), POINTER       :: sub_qs_env
-!   TYPE(qs_force_type), DIMENSION(:), &
-!     POINTER                                :: force
-!   TYPE(qs_wf_history_type), POINTER        :: tmp_wf_history
-!   TYPE(qs_wf_snapshot_type), POINTER       :: snapshot, tmp_snap
-!   TYPE(real_matrix_p_type), DIMENSION(:), &
-!     POINTER                                :: matrix_s
-!   TYPE(real_matrix_p_type), &
-!     DIMENSION(:, :), POINTER               :: local_P_H_pi
-!   TYPE(real_matrix_type), POINTER          :: diag_P_H_pi
-!   TYPE(replica_env_type), POINTER          :: rep_env
-
-!   CALL timeset(routineN,handle)
-!   failure=.FALSE.
-!   NULLIFY(f_env, maxao_maxao_fm_pool, maxmo_maxmo_fm_pool, &
-!        maxao_maxmo_fm_pool, ao_mo_fm_pools, mos, sub_globenv, sub_qs_env, distribution_2d)
-!   ep_force => ep_env%force
-
-!   CALL get_qs_env(ep_env%main_qs_env,mos=mos,matrix_s=matrix_s_b,&
-!        distribution_2d=distribution_2d,&
-!        error=new_error)
-
-!   NULLIFY(matrix_s)!sm->dbcsr
-!   CALL allocate_matrix_set( matrix_s, SIZE(matrix_s_b), error )!sm->dbcsr
-!   DO ispin=1,SIZE(matrix_s)!sm->dbcsr
-!      CALL sm_from_dbcsr(matrix_s(ispin)%matrix, matrix_s_b(ispin)%matrix, &
-!           distribution_2d,error)!sm->dbcsr
-!   ENDDO!sm->dbcsr
-
-!   NULLIFY(diag_P_H_pi,local_P_H_pi,local_P_H_pi)
-!   CALL ep_create_local_empty_sm(ep_env,local_P_H_pi,"local_P_H_pi",&
-!        symmetry="none",error=error)
-!   CALL ep_create_full_diag_sm(ep_env,matrix_s(1)%matrix,diag_P_H_pi,"diag_P_H_pi",error=error)
-!   DO ispin=1,ep_env%nspins
-!      CALL set_matrix(diag_P_H_pi,0.0_dp)
-!      CALL get_mo_set(mos(ispin)%mo_set,mo_coeff=psi0)
-!      CALL cp_sm_plus_fm_fm_t(sparse_matrix=diag_P_H_pi,&
-!           matrix_v=psi0,&
-!           matrix_g=ep_env%m_pi_Hrho_psi0d(ispin)%matrix,&
-!           ncol=ep_env%full_nmo(ispin),error=error)
-!FM       PRINT *,"diag_P_H_pi"
-!FM       CALL write_sparse_matrix(diag_P_H_pi,4,6,ep_env%main_qs_env,ep_env%globenv,output_unit=6)
-!      CALL ep_full_to_local_sm(ep_env,diag_P_H_pi,local_P_H_pi,ispin,&
-!           error=error)
-!   END DO
-!   CALL deallocate_matrix(diag_P_H_pi,error=error)
-
-!   rep_env => ep_env%mol_envs
-!   CALL f_env_add_defaults(rep_env%f_env_id,f_env,new_error,failure)
-!   CALL force_env_get(f_env%force_env,qs_env=sub_qs_env,globenv=sub_globenv,&
-!        error=new_error)
-!FM    DO ispin=1,ep_env%nspins
-!FM       DO i=1,SIZE(local_P_H_pi,2)
-!FM          PRINT *,"local_P_H_pi",i
-!FM          CALL write_sparse_matrix(local_P_H_pi(ispin,i)%matrix,&
-!FM               4,6,sub_qs_env,sub_globenv,output_unit=6)
-!FM       END DO
-!FM    END DO
-!   CALL mpools_get(sub_qs_env%mpools,&
-!        maxao_maxao_fm_pool=maxao_maxao_fm_pool,&
-!        maxao_maxmo_fm_pool=maxao_maxmo_fm_pool,&
-!        maxmo_maxmo_fm_pool=maxao_maxmo_fm_pool,&
-!        ao_mo_fm_pools=ao_mo_fm_pools,&
-!        error=error)
-!   CALL fm_pools_create_fm_vect(ao_mo_fm_pools,aomo_work1,&
-!        name="ao_mo_work1",error=error)
-!   CALL fm_pools_create_fm_vect(ao_mo_fm_pools,coeffs_cr,&
-!        name="coeffs_cr",error=error)
-
-!   CALL get_qs_env(sub_qs_env,force=force,atomic_kind_set=atomic_kind_set,&
-!        error=error)
-!   nat=rep_env%nat
-!   ALLOCATE (atom_of_kind(nat),STAT=stat)
-!   CPPostcondition(stat==0,cp_fatal_level,routineP,error,failure)
-!   ALLOCATE (kind_of(nat),STAT=stat)
-!   CPPostcondition(stat==0,cp_fatal_level,routineP,error,failure)
-!   CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
-!        atom_of_kind=atom_of_kind,&
-!        kind_of=kind_of)
-
-!   DO irep_local=1,SIZE(rep_env%local_rep_indices)
-!      irep=rep_env%local_rep_indices(irep_local)
-!      snapshot => wfi_get_snapshot(&
-!           rep_env%wf_history(irep_local)%wf_history,&
-!           1,error=new_error)
-
-!      CPAssert(ASSOCIATED(snapshot),cp_failure_level,routineP,new_error,failure)
-!      CPAssert(ASSOCIATED(snapshot%wf),cp_failure_level,routineP,new_error,failure)
-!      CALL get_qs_env(sub_qs_env,error=new_error)
-
-!      NULLIFY(tmp_wf_history,tmp_snap)
-!      CALL wfi_create(tmp_wf_history,&
-!           interpolation_method_nr=wfi_use_prev_wf_method_nr,&
-!           extrapolation_order = 1,&
-!           error=new_error)
-!      CALL wfi_change_memory_depth(tmp_wf_history,MAX(1,tmp_wf_history%memory_depth),&
-!           error=error)
-!      tmp_wf_history%store_wf=.TRUE.
-!      CALL wfs_duplicate_snapshot(input_snapshot=snapshot, output_snapshot=tmp_snap,&
-!           qs_env=sub_qs_env, error=new_error)
-!      tmp_wf_history%last_state_index=MODULO(tmp_wf_history%snapshot_count,&
-!           tmp_wf_history%memory_depth)+1
-!      CALL wfs_release(tmp_wf_history%past_states(tmp_wf_history%last_state_index)%snapshot,&
-!           error=new_error)
-!      tmp_wf_history%past_states(tmp_wf_history%last_state_index)%snapshot => &
-!           tmp_snap
-!      NULLIFY(tmp_snap)
-!      CALL set_qs_env(sub_qs_env,wf_history=tmp_wf_history,error=new_error)
-!      CALL wfi_release(tmp_wf_history,error=error)
-
-!      !* calc H_0 subforces and deriv operators
-!      CALL calc_energy_force(rep_env%f_env_id,.TRUE.,ierr)
-!      CPAssert(ierr==0,cp_failure_level,routineP,error,failure)
-
-!      !* setup sub perturb env
-!      NULLIFY(pi_Hrho_psi0d)
-!      CALL fm_pools_create_fm_vect(ao_mo_fm_pools,pi_Hrho_psi0d,error=error)
-!      CALL p_env_did_change(ep_env%sub_p_env, s_struct_changed=.TRUE., &
-!           grid_changed=.FALSE.,error=new_error)
-!      CALL p_env_psi0_changed(ep_env%sub_p_env, qs_env=sub_qs_env,&
-!           Hrho_psi0d=pi_Hrho_psi0d, error=new_error)
-!      CALL p_postortho(p_env=ep_env%sub_p_env,qs_env=sub_qs_env,&
-!           v=pi_Hrho_psi0d, &
-!           n_cols=ep_env%sub_p_env%n_mo,&
-!           error=error)
-
-!      !* calc dC/dR coefficients
-!      CALL fm_pool_create_fm(maxao_maxao_fm_pool,aoao_work1,&
-!           name="ao_ao_work1",error=error)
-!      DO ispin=1,ep_env%nspins
-!         CALL copy_sm_to_fm(local_P_H_pi(ispin,irep_local)%matrix,aoao_work1,error=new_error)
-!         CALL cp_fm_gemm(transa="T",transb="N",m=ep_env%sub_nao(ispin),&
-!              n=ep_env%sub_nmo(ispin),k=ep_env%sub_nao(ispin),alpha=1._dp,&
-!              matrix_a=aoao_work1,matrix_b=ep_env%sub_p_env%S_psi0(ispin)%matrix,&
-!              beta=0._dp,matrix_c=coeffs_cr(ispin)%matrix,error=new_error)
-!      END DO
-!      CALL fm_pool_give_back_fm(maxao_maxao_fm_pool,aoao_work1,error=error)
-
-!      ! invert second order matrix and finds coeffs of ddE/(dC dR)
-!      ! analytic
-!      !CALL ep_sub_stupid_solve(ep_env,coeffs_cr,coeffs_ecr)
-!      ! f_diff
-!      DO iat=1,ep_env%nat_per_mol
-!         DO idir=1,3
-!            ! f_diff deriv
-!            CALL ep_calc_dc_dr_fdiff(ep_env,aomo_work1,irep,iat,idir,error)
-!            DO ispin=1,ep_env%nspins
-!               CALL cp_fm_trace(coeffs_cr(ispin)%matrix,&
-!                    aomo_work1(ispin)%matrix,fdiff(ispin), error=error)
-!            END DO
-
-!            DO ispin=1,ep_env%nspins
-!               ep_force%f0_internal(idir,iat)=ep_force%f0_internal(idir,iat)+fdiff(ispin)
-!FM                   PRINT *,"irep",irep," iatom",iatom
-!FM                   PRINT *," ep_force%f0_internal(1:3,atoms(iatom))",ep_force%f0_internal(1:3,atoms(iatom))
-!            END DO
-!         END DO
-!      END DO
-!      CALL fm_pools_give_back_fm_vect(ao_mo_fm_pools,pi_Hrho_psi0d,error=error)
-!   END DO
-!   CALL ep_give_back_local_sm(ep_env,local_P_H_pi,error=error)
-!   CALL fm_pools_give_back_fm_vect(ao_mo_fm_pools,aomo_work1,error=error)
-!   CALL fm_pools_give_back_fm_vect(ao_mo_fm_pools,coeffs_cr,error=error)
-
-!   DEALLOCATE (atom_of_kind,STAT=stat)
-!   CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
-
-!   DEALLOCATE (kind_of,STAT=stat)
-!   CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
-
-!   CALL f_env_rm_defaults(f_env,new_error,ierr)
-!   CPAssert(ierr==0,cp_failure_level,routineP,error,failure)
-
-!   CALL mp_sum(ep_force%f0_internal,ep_env%main_qs_env%para_env%group)
-
-!   CALL deallocate_matrix_set( matrix_s, error )!sm->dbcsr
-
-!   CALL timestop(handle)
-
-! END SUBROUTINE ep_calc_f_sub
-
-! *****************************************************************************
-!> \brief creates a zeroed diagonal (molecular) sparse matrix without
-!>      symmetry
-!> \param ep_env the ep_environment
-!> \param source_m the source matrix
-!> \param diag_m diagonal matrix that will be created
-!> \param diag_m_name name of the newly created matrix
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
-!> \author fawzi
-! *****************************************************************************
-! SUBROUTINE ep_create_full_diag_sm(ep_env,source_m,diag_m,diag_m_name,&
-!      error)
-
-!   !   History: - Creation (17.11.2000, MK)
-
-!   TYPE(ep_env_type), POINTER               :: ep_env
-!   TYPE(real_matrix_type), POINTER          :: source_m, diag_m
-!   CHARACTER(LEN=*), INTENT(IN)             :: diag_m_name
-!   TYPE(cp_error_type), INTENT(inout)       :: error
-
-!   CHARACTER(LEN=*), PARAMETER :: routineN = 'ep_create_full_diag_sm', &
-!     routineP = moduleN//':'//routineN
-
-!   INTEGER                                  :: iblock_col, iblock_row, &
-!                                               ncols, nrows
-!   INTEGER, DIMENSION(:), POINTER           :: cols, rows
-!   LOGICAL                                  :: failure
-
-!   failure=.FALSE.
-!   CPPrecondition(ASSOCIATED(source_m),cp_failure_level,routineP,error,failure)
-!   CPPrecondition(.NOT.ASSOCIATED(diag_m),cp_failure_level,routineP,error,failure)
-
-!    PRINT *,"start ", routineP
-!   NULLIFY(rows,cols)
-!   CALL allocate_matrix(matrix=diag_m,&
-!        nrow=source_m%nrow,&
-!        ncol=source_m%ncol,&
-!        nblock_row=source_m%nblock_row,&
-!        nblock_col=source_m%nblock_col,&
-!        first_row=source_m%first_row(:),&
-!        last_row=source_m%last_row(:),&
-!        first_col=source_m%first_col(:),&
-!        last_col=source_m%last_col(:),&
-!        matrix_name=diag_m_name,&
-!        sparsity_id=source_m%sparsity_id, &
-!        distribution_2d=source_m%distribution_2d,&
-!        matrix_symmetry="none",error=error)
-
-!   CALL distribution_2d_get(source_m%distribution_2d,&
-!        flat_local_rows=rows,flat_local_cols=cols,&
-!        n_flat_local_rows=nrows,n_flat_local_cols=ncols,&
-!        error=error)
-
-!   DO iblock_row=1,nrows
-!      DO iblock_col=ncols,1,-1
-!         IF (ep_env%at2sub(cols(iblock_col))==ep_env%at2sub(rows(iblock_row))) THEN
-!             PRINT *, "adding ",iblock_row,iblock_col
-!            CALL add_block_node(matrix=diag_m,&
-!                 block_row=rows(iblock_row),&
-!                 block_col=cols(iblock_col),error=error)
-!         END IF
-!      END DO
-!   END DO
-!    PRINT *,"end ", routineP
-
-! END SUBROUTINE ep_create_full_diag_sm
-
-
-! *****************************************************************************
-!> \brief creates local sparse matrixes with no blocks.
-!>      WARNING, this is obviously incompatible with s-matrix
-!>      sparsity/distribution!
-!> \param ep_env the ep_environment
-!> \param local_sm the matrixes to be created
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
-!> \author fawzi
-! *****************************************************************************
-! SUBROUTINE ep_create_local_empty_sm(ep_env,local_sm,name,symmetry,error)
-!   TYPE(ep_env_type), POINTER               :: ep_env
-!   TYPE(real_matrix_p_type), &
-!     DIMENSION(:, :), POINTER               :: local_sm
-!   CHARACTER(len=*), INTENT(in)             :: name
-!   CHARACTER(len=*), INTENT(in), OPTIONAL   :: symmetry
-!   TYPE(cp_error_type), INTENT(inout)       :: error
-
-!   CHARACTER(len=*), PARAMETER :: routineN = 'ep_create_local_empty_sm', &
-!     routineP = moduleN//':'//routineN
-
-!   INTEGER                                  :: handle, i, ierr, ispin, stat
-!   LOGICAL                                  :: failure
-!   TYPE(cp_dbcsr_p_type), DIMENSION(:), &
-!     POINTER                                :: matrix_s_b
-!   TYPE(cp_error_type)                      :: new_error
-!   TYPE(distribution_2d_type), POINTER      :: distribution_2d
-!   TYPE(f_env_type), POINTER                :: f_env
-!   TYPE(qs_environment_type), POINTER       :: sub_qs_env
-!   TYPE(real_matrix_p_type), DIMENSION(:), &
-!     POINTER                                :: matrix_s
-!   TYPE(real_matrix_type), POINTER          :: source_m
-
-!   failure=.FALSE.
-!   CALL timeset(routineN,handle)
-!   NULLIFY(f_env,sub_qs_env,matrix_s,distribution_2d)
-!   CPPrecondition(ASSOCIATED(ep_env),cp_failure_level,routineP,error,failure)
-!   CPPrecondition(ep_env%ref_count>0,cp_failure_level,routineP,error,failure)
-!   IF (.NOT. failure) THEN
-!      ALLOCATE(local_sm(ep_env%nspins,SIZE(ep_env%mol_envs%local_rep_indices)),&
-!           stat=stat)
-!      CPPostcondition(stat==0,cp_fatal_level,routineP,error,failure)
-!   END IF
-!   IF (.not.failure) THEN
-!      CALL f_env_add_defaults(ep_env%f_env_id,f_env=f_env,&
-!           new_error=new_error,failure=failure)
-!      CALL force_env_get(f_env%force_env,qs_env=sub_qs_env,error=new_error)
-
-!      CALL get_qs_env(sub_qs_env,matrix_s=matrix_s_b,&
-!           distribution_2d=distribution_2d,&
-!           error=new_error)
-
-!   NULLIFY(matrix_s)!sm->dbcsr
-!   CALL allocate_matrix_set( matrix_s, SIZE(matrix_s_b), error )!sm->dbcsr
-!   DO ispin=1,SIZE(matrix_s)!sm->dbcsr
-!      CALL sm_from_dbcsr(matrix_s(ispin)%matrix, matrix_s_b(ispin)%matrix, &
-!           distribution_2d,error)!sm->dbcsr
-!   ENDDO!sm->dbcsr
-
-
-!      DO i=1,SIZE(local_sm,2)
-!         DO ispin=1,ep_env%nspins
-!            source_m => matrix_s(ispin)%matrix
-!            NULLIFY(local_sm(ispin,i)%matrix)
-!            IF (PRESENT(symmetry)) THEN
-!               CALL allocate_matrix(matrix=local_sm(ispin,i)%matrix,&
-!                    nrow=source_m%nrow,&
-!                    ncol=source_m%ncol,&
-!                    nblock_row=source_m%nblock_row,&
-!                    nblock_col=source_m%nblock_col,&
-!                    first_row=source_m%first_row,&
-!                    last_row=source_m%last_row,&
-!                    first_col=source_m%first_col,&
-!                    last_col=source_m%last_col,&
-!                    matrix_name=name//TRIM(ADJUSTL(cp_to_string(ispin)))//"_"&
-!                    //TRIM(ADJUSTL(cp_to_string(i))),&
-!                    sparsity_id=source_m%sparsity_id+100, &
-!                    distribution_2d=source_m%distribution_2d,&
-!                    matrix_symmetry=symmetry,error=error)
-!            ELSE
-!               CALL allocate_matrix(matrix=local_sm(ispin,i)%matrix,&
-!                    nrow=source_m%nrow,&
-!                    ncol=source_m%ncol,&
-!                    nblock_row=source_m%nblock_row,&
-!                    nblock_col=source_m%nblock_col,&
-!                    first_row=source_m%first_row,&
-!                    last_row=source_m%last_row,&
-!                    first_col=source_m%first_col,&
-!                    last_col=source_m%last_col,&
-!                    matrix_name=name//TRIM(ADJUSTL(cp_to_string(ispin)))//"_"&
-!                    //TRIM(ADJUSTL(cp_to_string(i))),&
-!                    sparsity_id=source_m%sparsity_id+100, &
-!                    distribution_2d=source_m%distribution_2d,&
-!                    matrix_symmetry=source_m%symmetry,error=error)
-!            END IF
-!         END DO
-!      END DO
-!      CALL f_env_rm_defaults(f_env,new_error,ierr)
-!      CPPostcondition(ierr==0,cp_failure_level,routineP,error,failure)
-!   END IF
-
-!   DO ispin=1,SIZE(matrix_s)!sm->dbcsr
-!      CALL cp_dbcsr_from_sm(matrix_s_b(ispin)%matrix, matrix_s(ispin)%matrix, error)!sm->dbcsr
-!   ENDDO!sm->dbcsr
-!   CALL deallocate_matrix_set( matrix_s, error )!sm->dbcsr
-
-!   CALL timestop(handle)
-! END SUBROUTINE ep_create_local_empty_sm
-
-! *****************************************************************************
-!> \brief gives back a local spare matrix
-!> \param ep_env the ep_env
-!> \param local_sm the matrix to give back
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
-!> \author fawzi
-! *****************************************************************************
-! SUBROUTINE ep_give_back_local_sm(ep_env, local_sm,error)
-!   TYPE(ep_env_type), POINTER               :: ep_env
-!   TYPE(real_matrix_p_type), &
-!     DIMENSION(:, :), POINTER               :: local_sm
-!   TYPE(cp_error_type), INTENT(inout)       :: error
-
-!   CHARACTER(len=*), PARAMETER :: routineN = 'ep_give_back_local_sm', &
-!     routineP = moduleN//':'//routineN
-
-!   INTEGER                                  :: i, ierr, ispin, stat
-!   LOGICAL                                  :: failure
-!   TYPE(cp_error_type)                      :: new_error
-!   TYPE(f_env_type), POINTER                :: f_env
-!   TYPE(qs_environment_type), POINTER       :: sub_qs_env
-
-!   failure=.FALSE.
-!   NULLIFY(f_env,sub_qs_env)
-!   CPPrecondition(ASSOCIATED(ep_env),cp_failure_level,routineP,error,failure)
-!   CPPrecondition(ep_env%ref_count>0,cp_failure_level,routineP,error,failure)
-!   CPPrecondition(ASSOCIATED(local_sm),cp_failure_level,routineP,error,failure)
-!   CPPrecondition(SIZE(local_sm,1)==ep_env%nspins,cp_failure_level,routineP,error,failure)
-!   IF (.NOT. failure) THEN
-!      CALL f_env_add_defaults(ep_env%f_env_id,f_env=f_env,&
-!           new_error=new_error,failure=failure)
-!      CALL force_env_get(f_env%force_env,qs_env=sub_qs_env,error=new_error)
-!      DO i=1,SIZE(local_sm,2)
-!         DO ispin=1,ep_env%nspins
-!            IF (ASSOCIATED(local_sm(ispin,i)%matrix)) THEN
-
-!               CALL deallocate_matrix(local_sm(ispin,i)%matrix,error=error)
-
-!            END IF
-!         END DO
-!      END DO
-!      DEALLOCATE(local_sm,stat=stat)
-!      CPPostconditionNoFail(stat==0,cp_warning_level,routineP,new_error)
-!      CALL f_env_rm_defaults(f_env,new_error,ierr)
-!      CPPostcondition(ierr==0,cp_failure_level,routineP,error,failure)
-!   END IF
-! END SUBROUTINE ep_give_back_local_sm
-
-! *****************************************************************************
 !> \brief transfers a full sparse matrix to local matrix
 !> \param ep_env the ep_environment
 !> \param full_sm the full matrix to copy
@@ -2664,10 +2777,8 @@ CONTAINS
 !     DIMENSION(:, :), POINTER               :: local_sm
 !   INTEGER                                  :: ispin
 !   TYPE(cp_error_type), INTENT(inout)       :: error
-
 !   CHARACTER(len=*), PARAMETER :: routineN = 'ep_full_to_local_sm', &
 !     routineP = moduleN//':'//routineN
-
 !   INTEGER                                  :: disp, i, iblock_col, &
 !                                               iblock_row, ii, ip, irep, j, &
 !                                               lcol, lrow, num_pe, stat, &
@@ -2681,7 +2792,6 @@ CONTAINS
 !   REAL(kind=dp), DIMENSION(:, :), POINTER  :: m_block
 !   TYPE(real_block_node_type), POINTER      :: block_node
 !   TYPE(replica_env_type), POINTER          :: rep_env
-
 !   failure=.FALSE.
 !   NULLIFY(m_block)
 !   CPPrecondition(ASSOCIATED(full_sm),cp_failure_level,routineP,error,failure)
@@ -2697,7 +2807,6 @@ CONTAINS
 !      send_sizes=0
 !      DO iblock_row=1,full_sm%nblock_row
 !         block_node => first_block_node(full_sm,iblock_row)
-
 !         DO WHILE (ASSOCIATED(block_node))
 !            CALL get_block_node(block_node=block_node,&
 !                 block_col=iblock_col, block=m_block)
@@ -2708,9 +2817,7 @@ CONTAINS
 !            END IF
 !            block_node => next_block_node(block_node)
 !         END DO
-
 !      END DO
-
 !      ALLOCATE(sdisp(0:num_pe), stat=stat)
 !      CPPostcondition(stat==0,cp_fatal_level,routineP,error,failure)
 !      disp=0
@@ -2721,10 +2828,8 @@ CONTAINS
 !      END DO
 !      ALLOCATE(send_buf(disp),stat=stat)
 !      CPPostcondition(stat==0,cp_fatal_level,routineP,error,failure)
-
 !      ALLOCATE(rcv_sizes(0:num_pe-1),stat=stat)
 !      CALL mp_alltoall(send_sizes,rcv_sizes,1,num_pe)
-
 !      ALLOCATE(rdisp(0:num_pe),stat=stat)
 !      CPPostcondition(stat==0,cp_fatal_level,routineP,error,failure)
 !      disp=0
@@ -2735,13 +2840,11 @@ CONTAINS
 !      END DO
 !      ALLOCATE(rcv_buf(disp),stat=stat)
 !      CPPostcondition(stat==0,cp_fatal_level,routineP,error,failure)
-
 !      ALLOCATE(pos_att(0:num_pe-1),stat=stat)
 !      CPPostcondition(stat==0,cp_fatal_level,routineP,error,failure)
 !      pos_att=sdisp(0:num_pe-1)
 !      DO iblock_row=1,full_sm%nblock_row
 !         block_node => first_block_node(full_sm,iblock_row)
-
 !         DO WHILE (ASSOCIATED(block_node))
 !            CALL get_block_node(block_node=block_node,&
 !                 block_col=iblock_col,&
@@ -2764,14 +2867,11 @@ CONTAINS
 !         END DO
 !      END DO
 !      CPPostcondition(ALL(sdisp(1:)==pos_att),cp_failure_level,routineP,error,failure)
-
 !      CALL mp_alltoall ( send_buf, send_sizes, sdisp,&
 !           rcv_buf, rcv_sizes, rdisp, rep_env%para_env_inter_rep%group )
-
 !      CALL get_matrix_info(full_sm,&
 !           first_row=first_row,last_row=last_row,&
 !           first_col=first_col,last_col=last_col)
-
 !      pos_att=rdisp(0:num_pe-1)
 !      DO ip=0,num_pe-1
 !         DO
@@ -2795,7 +2895,6 @@ CONTAINS
 !            END DO
 !            pos_att(ip)=ii
 !            atoms => ep_env%sub_proj(irep)%projection%atoms
-
 !            lrow=iblock_row-atoms(1)+1
 !            lcol=iblock_col-atoms(1)+1
 !            CPAssert(lrow>0,cp_failure_level,routineP,error,failure)
@@ -2804,7 +2903,6 @@ CONTAINS
 !            CPAssert(lcol<=SIZE(atoms),cp_failure_level,routineP,error,failure)
 !            CPAssert(atoms(lrow)==iblock_row,cp_failure_level,routineP,error,failure)
 !            CPAssert(atoms(lcol)==iblock_col,cp_failure_level,routineP,error,failure)
-
 !            CALL add_block_node(matrix=local_sm(ispin,&
 !                 rep_env_local_index(rep_env,irep,error=error))%matrix,&
 !                 block_row=lrow,&
@@ -2816,5 +2914,71 @@ CONTAINS
 !      END DO
 !   END IF
 ! END SUBROUTINE ep_full_to_local_sm
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 END MODULE ep_methods

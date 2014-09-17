@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2013  CP2K developers group                          !
+!   Copyright (C) 2000 - 2014  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -24,7 +24,7 @@ MODULE xas_control
                                              section_vals_val_get
   USE kinds,                           ONLY: dp
   USE memory_utilities,                ONLY: reallocate
-#include "cp_common_uses.h"
+#include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
 
@@ -55,6 +55,7 @@ MODULE xas_control
     REAL(dp)                            :: eps_diis
     REAL(dp)                            :: eps_added
     REAL(dp)                            :: xes_core_occupation
+    REAL(dp)                            :: xes_homo_occupation
   END TYPE xas_control_type
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'xas_control'
@@ -65,8 +66,8 @@ MODULE xas_control
 
 ! *** Public subroutines ***
 
-  PUBLIC :: read_xas_control, write_xas_control, xas_control_create, &
-            xas_control_release, xas_control_retain
+  PUBLIC :: read_xas_control, write_xas_control, xas_control_create,&
+            xas_control_release
 
 CONTAINS
 
@@ -74,6 +75,8 @@ CONTAINS
 !> \brief read from input the instructions for a xes/xas calculation
 !> \param xas_control control variables
 !>       error
+!> \param dft_section ...
+!> \param error ...
 !> \par History
 !>      04.2005 created [MI]
 ! *****************************************************************************
@@ -88,7 +91,7 @@ CONTAINS
 
     INTEGER                                  :: i, ir, istat, n_rep, nex_at
     INTEGER, DIMENSION(:), POINTER           :: list
-    LOGICAL                                  :: failure, was_present
+    LOGICAL                                  :: failure, hempty, was_present
     TYPE(section_vals_type), POINTER         :: xas_section
 
     failure=.FALSE.
@@ -128,6 +131,14 @@ CONTAINS
 
     CALL section_vals_val_get(xas_section,"XES_CORE", &
          r_val=xas_control%xes_core_occupation,error=error)
+
+    CALL section_vals_val_get(xas_section,"XES_EMPTY_HOMO", &
+         l_val=hempty,error=error)
+    IF(hempty) THEN
+         xas_control%xes_homo_occupation = 0
+    ELSE
+         xas_control%xes_homo_occupation = 1
+    END IF
 
 ! It should be further generalized
     IF(.NOT. ASSOCIATED(xas_control%exc_atoms)) THEN
@@ -181,6 +192,8 @@ CONTAINS
 !> \brief write on the instructions for a xes/xas calculation
 !> \param xas_control control variables
 !>       error
+!> \param dft_section ...
+!> \param error ...
 !> \par History
 !>      12.2005 created [MI]
 ! *****************************************************************************
@@ -244,6 +257,8 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief create retain release the xas_control_type
+!> \param xas_control ...
+!> \param error ...
 !> \par History
 !>      04.2005 created [MI]
 ! *****************************************************************************
@@ -275,6 +290,7 @@ CONTAINS
 !    xas_control%emission = .FALSE.
     xas_control%added_mos=0
     xas_control%xes_core_occupation=1.0_dp
+    xas_control%xes_homo_occupation=1.0_dp
     NULLIFY(xas_control%exc_atoms)
     xas_control%cubes = .FALSE.
     xas_control%do_centers = .FALSE.
@@ -282,6 +298,10 @@ CONTAINS
 
   END SUBROUTINE xas_control_create
 
+! *****************************************************************************
+!> \brief ...
+!> \param xas_control ...
+!> \param error ...
 ! *****************************************************************************
   SUBROUTINE xas_control_release(xas_control,error)
 
@@ -314,6 +334,10 @@ CONTAINS
 
   END SUBROUTINE xas_control_release
 
+! *****************************************************************************
+!> \brief ...
+!> \param xas_control ...
+!> \param error ...
 ! *****************************************************************************
   SUBROUTINE xas_control_retain(xas_control,error)
 

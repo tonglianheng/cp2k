@@ -1,11 +1,11 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2013  CP2K developers group                          !
+!   Copyright (C) 2000 - 2014  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 ! *****************************************************************************
 MODULE topology_cp2k
 
-  USE cell_types,                      ONLY: cell_type,&
+  USE cell_methods,                    ONLY: cell_type,&
                                              scaled_to_real
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
@@ -34,7 +34,7 @@ MODULE topology_cp2k
                                              timestop
   USE topology_types,                  ONLY: atom_info_type,&
                                              topology_parameters_type
-#include "cp_common_uses.h"
+#include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
 
@@ -48,8 +48,12 @@ CONTAINS
 ! *****************************************************************************
 !> \brief   Read the CP2K &COORD section from an external file, i.e. read
 !>          atomic coordinates and molecule/residue information in CP2K format.
-!> \author  Matthias Krack (MK)
+!> \param topology ...
+!> \param para_env ...
+!> \param subsys_section ...
+!> \param error ...
 !> \date    17.01.2011 (Creation, MK)
+!> \author  Matthias Krack (MK)
 !> \version 1.0
 ! *****************************************************************************
   SUBROUTINE read_coordinate_cp2k(topology,para_env,subsys_section,error)

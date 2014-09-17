@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2013  CP2K developers group                          !
+!   Copyright (C) 2000 - 2014  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -53,13 +53,12 @@ MODULE metadynamics
   USE reference_manager,               ONLY: cite_reference
   USE timings,                         ONLY: timeset,&
                                              timestop
-#include "cp_common_uses.h"
+#include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
   PRIVATE
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'metadynamics'
-  INTEGER, SAVE, PRIVATE :: last_meta_env_id=0
 
   PUBLIC :: metadyn_forces, metadyn_integrator
   PUBLIC :: metadyn_velocities_colvar, metadyn_write_colvar
@@ -67,10 +66,14 @@ MODULE metadynamics
 CONTAINS
 ! *****************************************************************************
 !> \brief  General driver for applying metadynamics
-!> \author Teodoro Laino
+!> \param force_env ...
+!> \param vel ...
+!> \param rand ...
+!> \param error ...
 !> \date   01.2009
 !> \par History
 !>      01.2009 created
+!> \author Teodoro Laino
 ! *****************************************************************************
   SUBROUTINE metadyn_integrator(force_env, vel, rand, error)
     TYPE(force_env_type), POINTER            :: force_env
@@ -83,12 +86,15 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'metadyn_integrator', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, i_part, natom_plumed
+    INTEGER                                  :: handle
     LOGICAL                                  :: failure
+#ifdef PLUMED_CP2K
+    INTEGER                                  :: i_part, natom_plumed
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: force_plumed, pos_plumed
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_subsys_type), POINTER            :: subsys
+#endif
 
     CALL timeset(routineN,handle)
 
@@ -156,6 +162,9 @@ CONTAINS
 ! *****************************************************************************
 !> \brief add forces to the subsys due to the metadynamics run
 !>      possibly modifies the velocites (if reflective walls are applied)
+!> \param force_env ...
+!> \param vel ...
+!> \param error ...
 !> \par History
 !>      04.2004 created
 ! *****************************************************************************
@@ -422,8 +431,11 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Evolves velocities COLVAR according to
 !>        Vanden-Eijnden Ciccotti C.Phys.Letter 429 (2006) 310-316
-!> \author Fabio Sterpone and Teodoro Laino
+!> \param force_env ...
+!> \param rand ...
+!> \param error ...
 !> \date  01.2009
+!> \author Fabio Sterpone and Teodoro Laino
 ! *****************************************************************************
   SUBROUTINE metadyn_velocities_colvar(force_env,rand,error)
     TYPE(force_env_type), POINTER            :: force_env
@@ -482,8 +494,10 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Evolves COLVAR position
 !>        Vanden-Eijnden Ciccotti C.Phys.Letter 429 (2006) 310-316
-!> \author Fabio Sterpone and Teodoro Laino
+!> \param force_env ...
+!> \param error ...
 !> \date  01.2009
+!> \author Fabio Sterpone and Teodoro Laino
 ! *****************************************************************************
   SUBROUTINE metadyn_position_colvar(force_env,error)
     TYPE(force_env_type), POINTER            :: force_env
@@ -527,8 +541,10 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Write down COLVAR information evolved  according to
 !>        Vanden-Eijnden Ciccotti C.Phys.Letter 429 (2006) 310-316
-!> \author Fabio Sterpone and Teodoro Laino
+!> \param force_env ...
+!> \param error ...
 !> \date  01.2009
+!> \author Fabio Sterpone and Teodoro Laino
 ! *****************************************************************************
   SUBROUTINE metadyn_write_colvar(force_env,error)
     TYPE(force_env_type), POINTER            :: force_env
@@ -626,6 +642,8 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Major driver for adding hills and computing forces due to the history
 !>        dependent term
+!> \param meta_env ...
+!> \param error ...
 !> \par History
 !>      04.2004 created
 !>      10.2008 Teodoro Laino [tlaino] - University of Zurich

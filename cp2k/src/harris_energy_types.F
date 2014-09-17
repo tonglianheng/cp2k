@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2013  CP2K developers group                          !
+!   Copyright (C) 2000 - 2014  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -14,7 +14,7 @@ MODULE harris_energy_types
 
   USE f77_blas
   USE kinds,                           ONLY: dp
-#include "cp_common_uses.h"
+#include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
   PRIVATE
@@ -23,15 +23,11 @@ MODULE harris_energy_types
   INTEGER, PRIVATE, SAVE :: last_harris_id=0
 
   ! *** Public data types ***
-  PUBLIC :: harris_energy_type, &
-            harris_energy_p_type
+  PUBLIC :: harris_energy_type
 
   ! *** Public subroutines ***
-  PUBLIC :: harris_energy_retain, &
-            harris_energy_release, &
-            harris_energy_set,&
-            harris_energy_get, &
-            harris_energy_clear, &
+  PUBLIC :: harris_energy_release,&
+            harris_energy_clear,&
             harris_energy_create
 
 ! *****************************************************************************
@@ -158,8 +154,6 @@ CONTAINS
 !> \brief Returns various attributes of the harris type
 !> \param harris_energy The enquired harris energy type
 !> \param id_nr unique identifier
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \param Ehartree_elec The electronic hartree energy
 !> \param Ehartree_core The hartree energy computed with rho_core
 !> \param Exc The exchange-correlation energy
@@ -173,6 +167,8 @@ CONTAINS
 !> \param Eharris The actual harris functional energy
 !>
 !>      For possible missing arguments see the attributes of harris_energy_type
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \par History
 !>      06.2005 initial create [tdk]
 !> \author Thomas D. Kuehne (tkuehne@phys.chem.ethz.ch)
@@ -228,8 +224,6 @@ CONTAINS
 !> \brief Sets various attributes of the harris energy type
 !> \param harris_energy The enquired harris energy type
 !> \param id_nr unique identifier
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \param Ehartree_elec The electronic hartree energy
 !> \param Ehartree_core The hartree energy computed with rho_core
 !> \param Exc The exchange-correlation energy
@@ -243,6 +237,8 @@ CONTAINS
 !> \param Eharris The actual harris functional energy
 !>
 !>      For possible missing arguments see the attributes of harris_energy_type
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \par History
 !>      06.2005 initial create [tdk]
 !> \author Thomas D. Kuehne (tkuehne@phys.chem.ethz.ch)

@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2013  CP2K developers group                          !
+!   Copyright (C) 2000 - 2014  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -18,7 +18,7 @@
 MODULE atoms_input
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind
-  USE cell_types,                      ONLY: cell_type,&
+  USE cell_methods,                    ONLY: cell_type,&
                                              pbc,&
                                              scaled_to_real
   USE cp_linked_list_val,              ONLY: cp_sll_val_next,&
@@ -47,7 +47,7 @@ MODULE atoms_input
                                              timestop
   USE topology_types,                  ONLY: atom_info_type,&
                                              topology_parameters_type
-#include "cp_common_uses.h"
+#include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
 
@@ -58,6 +58,12 @@ MODULE atoms_input
 CONTAINS
 
 ! *****************************************************************************
+!> \brief ...
+!> \param topology ...
+!> \param overwrite ...
+!> \param subsys_section ...
+!> \param save_mem ...
+!> \param error ...
 !> \author CJM
 ! *****************************************************************************
   SUBROUTINE read_atoms_input ( topology, overwrite, subsys_section, save_mem, error )
@@ -260,6 +266,14 @@ CPSourceFileRef,&
   END SUBROUTINE read_atoms_input
 
 ! *****************************************************************************
+!> \brief ...
+!> \param particle_set ...
+!> \param shell_particle_set ...
+!> \param cell ...
+!> \param subsys_section ...
+!> \param core_particle_set ...
+!> \param save_mem ...
+!> \param error ...
 !> \author MI
 ! *****************************************************************************
   SUBROUTINE read_shell_coord_input ( particle_set, shell_particle_set, cell,&

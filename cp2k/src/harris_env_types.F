@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2013  CP2K developers group                          !
+!   Copyright (C) 2000 - 2014  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -22,7 +22,7 @@ MODULE harris_env_types
                                              harris_force_type
   USE qs_rho_types,                    ONLY: qs_rho_release,&
                                              qs_rho_type
-#include "cp_common_uses.h"
+#include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
   PRIVATE
@@ -31,15 +31,12 @@ MODULE harris_env_types
   INTEGER, PRIVATE, SAVE :: last_harris_id=0
 
   ! *** Public data types ***
-  PUBLIC :: harris_env_type, &
-            harris_env_p_type
+  PUBLIC :: harris_env_type
 
   ! *** Public subroutines ***
-  PUBLIC :: harris_env_retain, &
-            harris_env_release, &
+  PUBLIC :: harris_env_release,&
             harris_env_set,&
-            harris_env_get, &
-            harris_env_clear, &
+            harris_env_get,&
             harris_env_create
 
 ! *****************************************************************************

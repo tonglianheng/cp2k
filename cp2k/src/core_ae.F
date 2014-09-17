@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2013  CP2K developers group                          !
+!   Copyright (C) 2000 - 2014  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 ! *****************************************************************************
 !> \brief Calculation of the nuclear attraction contribution to the core Hamiltonian
@@ -10,16 +10,14 @@
 !>      - adapted for nuclear attraction [jhu, 2009-02-24]
 ! *****************************************************************************
 MODULE core_ae
-
   USE ai_verfc,                        ONLY: verfc
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
-                                             get_atomic_kind,&
                                              get_atomic_kind_set
   USE basis_set_types,                 ONLY: gto_basis_set_p_type,&
                                              gto_basis_set_type
   USE cp_dbcsr_interface,              ONLY: cp_dbcsr_add,&
-                                             cp_dbcsr_get_block_p
-  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_p_type
+                                             cp_dbcsr_get_block_p,&
+                                             cp_dbcsr_p_type
   USE external_potential_types,        ONLY: all_potential_type,&
                                              get_potential
   USE kinds,                           ONLY: dp
@@ -29,6 +27,9 @@ MODULE core_ae
                                              ncoset
   USE particle_types,                  ONLY: particle_type
   USE qs_force_types,                  ONLY: qs_force_type
+  USE qs_kind_types,                   ONLY: get_qs_kind,&
+                                             get_qs_kind_set,&
+                                             qs_kind_type
   USE qs_neighbor_list_types,          ONLY: get_iterator_info,&
                                              neighbor_list_iterate,&
                                              neighbor_list_iterator_create,&
@@ -41,7 +42,7 @@ MODULE core_ae
                                              timestop
   USE virial_methods,                  ONLY: virial_pair_force
   USE virial_types,                    ONLY: virial_type
-#include "cp_common_uses.h"
+#include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
 
@@ -55,8 +56,24 @@ CONTAINS
 
 !==========================================================================================================
 
+! *****************************************************************************
+!> \brief ...
+!> \param matrix_h ...
+!> \param matrix_p ...
+!> \param force ...
+!> \param virial ...
+!> \param calculate_forces ...
+!> \param use_virial ...
+!> \param nder ...
+!> \param qs_kind_set ...
+!> \param atomic_kind_set ...
+!> \param particle_set ...
+!> \param sab_orb ...
+!> \param sac_ae ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE build_core_ae(matrix_h, matrix_p, force, virial, calculate_forces, use_virial, nder,&
-                    atomic_kind_set, particle_set, sab_orb, sac_ae, error)
+                    qs_kind_set, atomic_kind_set, particle_set, sab_orb, sac_ae, error)
 
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: matrix_h, matrix_p
@@ -66,6 +83,8 @@ CONTAINS
     LOGICAL, INTENT(IN)                      :: calculate_forces
     LOGICAL                                  :: use_virial
     INTEGER                                  :: nder
+    TYPE(qs_kind_type), DIMENSION(:), &
+      POINTER                                :: qs_kind_set
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(particle_type), DIMENSION(:), &
@@ -102,11 +121,9 @@ CONTAINS
                                                 rpgfb, sphi_a, sphi_b, zeta, &
                                                 zetb
     TYPE(all_potential_type), POINTER        :: all_potential
-    TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(gto_basis_set_p_type), &
       DIMENSION(:), POINTER                  :: basis_set_list
-    TYPE(gto_basis_set_type), POINTER        :: basis_set_a, basis_set_b, &
-                                                orb_basis_set
+    TYPE(gto_basis_set_type), POINTER        :: basis_set_a, basis_set_b
     TYPE(neighbor_list_iterator_p_type), &
       DIMENSION(:), POINTER                  :: ap_iterator, nl_iterator
 
@@ -135,7 +152,7 @@ CONTAINS
 
     maxder = ncoset(nder)
 
-    CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
+    CALL get_qs_kind_set(qs_kind_set,&
             maxco=maxco,maxlgto=maxl,maxsgf=maxsgf,maxnset=maxnset)
 
     CALL init_orbital_pointers(maxl+nder+1)
@@ -157,8 +174,7 @@ CONTAINS
     ALLOCATE (basis_set_list(nkind),STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     DO ikind=1,nkind
-      atomic_kind => atomic_kind_set(ikind)
-      CALL get_atomic_kind(atomic_kind=atomic_kind,orb_basis_set=basis_set_a)
+      CALL get_qs_kind(qs_kind_set(ikind),orb_basis_set=basis_set_a)
       IF (ASSOCIATED(basis_set_a)) THEN
         basis_set_list(ikind)%gto_basis_set => basis_set_a
       ELSE
@@ -264,8 +280,7 @@ CONTAINS
        ! loop over all kinds for pseudopotential  atoms
        hab = 0._dp
        DO kkind=1,nkind
-          atomic_kind => atomic_kind_set(kkind)
-          CALL get_atomic_kind(atomic_kind=atomic_kind,all_potential=all_potential)
+          CALL get_qs_kind(qs_kind_set(kkind),all_potential=all_potential)
           IF (.NOT.ASSOCIATED(all_potential)) CYCLE
           CALL get_potential(potential=all_potential,&
                              alpha_core_charge=alpha_c,zeff=zeta_c,&
@@ -407,6 +422,24 @@ CONTAINS
   END SUBROUTINE build_core_ae
 
 !==========================================================================================================
+! *****************************************************************************
+!> \brief ...
+!> \param habd ...
+!> \param pab ...
+!> \param fa ...
+!> \param fb ...
+!> \param nder ...
+!> \param la_max ...
+!> \param la_min ...
+!> \param npgfa ...
+!> \param zeta ...
+!> \param lb_max ...
+!> \param lb_min ...
+!> \param npgfb ...
+!> \param zetb ...
+!> \param rab ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE verfc_force(habd,pab,fa,fb,nder,la_max,la_min,npgfa,zeta,lb_max,lb_min,npgfb,zetb,rab,error)
 
     REAL(KIND=dp), DIMENSION(:, :), &

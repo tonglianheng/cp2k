@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2013  CP2K developers group                          !
+!   Copyright (C) 2000 - 2014  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -50,13 +50,10 @@ MODULE qs_dispersion_nonloc
                                              pw_p_type,&
                                              pw_type
   USE qs_dispersion_types,             ONLY: qs_dispersion_type
-  USE qs_energy_types,                 ONLY: qs_energy_type
-  USE qs_environment_types,            ONLY: get_qs_env,&
-                                             qs_environment_type
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE virial_types,                    ONLY: virial_type
-#include "cp_common_uses.h"
+#include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
 
@@ -72,6 +69,12 @@ MODULE qs_dispersion_nonloc
 
 CONTAINS
 
+! *****************************************************************************
+!> \brief ...
+!> \param dispersion_env ...
+!> \param nl_section ...
+!> \param para_env ...
+!> \param error ...
 ! *****************************************************************************
   SUBROUTINE qs_dispersion_nonloc_init(dispersion_env,nl_section,para_env,error)
     TYPE(qs_dispersion_type), POINTER        :: dispersion_env
@@ -126,13 +129,13 @@ CONTAINS
           dispersion_env%nr_points = nr_points
           IF(para_env%source==para_env%mepos) THEN
             !! Read in the values of the q points used to generate this kernel
-            READ(funit,"(1p4e23.14)") dispersion_env%q_mesh
+            READ(funit,"(1p, 4e23.14)") dispersion_env%q_mesh
             !! For each pair of q values, read in the function phi_q1_q2(k).
             !! That is, the fourier transformed kernel function assuming q1 and q2
             !! for all the values of r used.
             DO q1_i = 1, nqs
                DO q2_i = 1, q1_i
-                  READ(funit,"(1p4e23.14)") dispersion_env%kernel(0:nr_points, q1_i, q2_i)
+                  READ(funit,"(1p, 4e23.14)") dispersion_env%kernel(0:nr_points, q1_i, q2_i)
                   dispersion_env%kernel(0:nr_points, q2_i, q1_i) = dispersion_env%kernel(0:nr_points, q1_i, q2_i)
                END DO
             END DO
@@ -142,7 +145,7 @@ CONTAINS
             !! interpolation of the Fourier transformed kernel.
             DO q1_i = 1, nqs
                DO q2_i = 1, q1_i
-                  READ(funit,"(1p4e23.14)") dispersion_env%d2phi_dk2(0:nr_points, q1_i, q2_i)
+                  READ(funit,"(1p, 4e23.14)") dispersion_env%d2phi_dk2(0:nr_points, q1_i, q2_i)
                   dispersion_env%d2phi_dk2(0:nr_points, q2_i, q1_i) = dispersion_env%d2phi_dk2(0:nr_points, q1_i, q2_i)
                END DO
             END DO
@@ -168,13 +171,30 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE calculate_dispersion_nonloc(qs_env,vxc_rho,rho_r,rho_g,energy_only,&
-                                         cell,pw_pool,xc_pw_pool,virial,error)
-    TYPE(qs_environment_type), POINTER       :: qs_env
+! *****************************************************************************
+!> \brief ...
+!> \param vxc_rho ...
+!> \param rho_r ...
+!> \param rho_g ...
+!> \param edispersion ...
+!> \param dispersion_env ...
+!> \param energy_only ...
+!> \param cell ...
+!> \param pw_pool ...
+!> \param xc_pw_pool ...
+!> \param para_env ...
+!> \param virial ...
+!> \param error ...
+! *****************************************************************************
+  SUBROUTINE calculate_dispersion_nonloc(vxc_rho,rho_r,rho_g,edispersion,&
+             dispersion_env,energy_only,cell,pw_pool,xc_pw_pool,para_env,virial,error)
     TYPE(pw_p_type), DIMENSION(:), POINTER   :: vxc_rho, rho_r, rho_g
+    REAL(KIND=dp), INTENT(OUT)               :: edispersion
+    TYPE(qs_dispersion_type), POINTER        :: dispersion_env
     LOGICAL, INTENT(IN)                      :: energy_only
     TYPE(cell_type), POINTER                 :: cell
     TYPE(pw_pool_type), POINTER              :: pw_pool, xc_pw_pool
+    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(virial_type), OPTIONAL, POINTER     :: virial
     TYPE(cp_error_type), INTENT(inout)       :: error
 
@@ -192,15 +212,12 @@ CONTAINS
                                                 potential, q0, rho
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: drho, thetas
-    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(pw_grid_type), POINTER              :: grid
     TYPE(pw_p_type), ALLOCATABLE, &
       DIMENSION(:)                           :: thetas_g
     TYPE(pw_p_type), ALLOCATABLE, &
       DIMENSION(:, :)                        :: drho_r
     TYPE(pw_type), POINTER                   :: tmp_g, tmp_r, vxc_g, vxc_r
-    TYPE(qs_dispersion_type), POINTER        :: dispersion_env
-    TYPE(qs_energy_type), POINTER            :: energy
 
     CALL timeset(routineN,handle)
 
@@ -223,8 +240,6 @@ CONTAINS
     IF (.NOT. energy_only) THEN
        CPPrecondition(ASSOCIATED(vxc_rho),cp_failure_level,routineP,error,failure)
     END IF
-    CALL get_qs_env(qs_env, dispersion_env=dispersion_env, energy=energy, &
-                    para_env=para_env, error=error)
 
     b_value = dispersion_env%b_value
     beta = 0.03125_dp * (3.0_dp / (b_value**2.0_dp) )**0.75_dp
@@ -373,7 +388,7 @@ CONTAINS
        END SELECT
     END IF
     CALL mp_sum(Ec_nl,para_env%group)
-    energy%dispersion = Ec_nl
+    edispersion = Ec_nl
 
     IF (.NOT.energy_only) THEN
        !! ----------------------------------------------------------------------------
@@ -460,6 +475,15 @@ CONTAINS
 !! equations 11 and 12 in SOLER.
 !! energy contribution to stress is added in qs_force
 
+! *****************************************************************************
+!> \brief ...
+!> \param thetas_g ...
+!> \param dispersion_env ...
+!> \param vdW_xc_energy ...
+!> \param energy_only ...
+!> \param virial ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE vdW_energy(thetas_g, dispersion_env, vdW_xc_energy, energy_only, virial, error)
     TYPE(pw_p_type), ALLOCATABLE, &
       DIMENSION(:)                           :: thetas_g
@@ -585,6 +609,21 @@ CONTAINS
 !! routine, but the derivative of the interpolation polynomials, P_alpha(q),
 !! (SOLER equation 3) with respect to q is interpolated here, along with the 
 !! polynomials themselves.
+! *****************************************************************************
+!> \brief ...
+!> \param q0 ...
+!> \param dq0_drho ...
+!> \param dq0_dgradrho ...
+!> \param total_rho ...
+!> \param u_vdW ...
+!> \param potential ...
+!> \param h_prefactor ...
+!> \param dispersion_env ...
+!> \param drho ...
+!> \param dvol ...
+!> \param virial ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE get_potential(q0, dq0_drho, dq0_dgradrho, total_rho, u_vdW, potential, h_prefactor, &
                          dispersion_env, drho, dvol, virial, error)
 
@@ -707,6 +746,15 @@ CONTAINS
 
   !! This routine first calculates the q value defined in (DION equations 11 and 12), then
   !! saturates it according to (SOLER equation 5).  
+! *****************************************************************************
+!> \brief ...
+!> \param total_rho ...
+!> \param gradient_rho ...
+!> \param q0 ...
+!> \param dq0_drho ...
+!> \param dq0_dgradrho ...
+!> \param dispersion_env ...
+! *****************************************************************************
   SUBROUTINE get_q0_on_grid_vdw (total_rho, gradient_rho, q0, dq0_drho, dq0_dgradrho, dispersion_env)
   !!
   !! more specifically it calculates the following
@@ -816,6 +864,15 @@ CONTAINS
  
   END SUBROUTINE get_q0_on_grid_vdw
 
+! *****************************************************************************
+!> \brief ...
+!> \param total_rho ...
+!> \param gradient_rho ...
+!> \param q0 ...
+!> \param dq0_drho ...
+!> \param dq0_dgradrho ...
+!> \param dispersion_env ...
+! *****************************************************************************
   SUBROUTINE get_q0_on_grid_rvv10 (total_rho, gradient_rho, q0, dq0_drho, dq0_dgradrho, dispersion_env)
   !!
   !! more specifically it calculates the following
@@ -903,6 +960,13 @@ CONTAINS
  
   END SUBROUTINE get_q0_on_grid_rvv10
 
+! *****************************************************************************
+!> \brief ...
+!> \param total_rho ...
+!> \param gradient_rho ...
+!> \param q0 ...
+!> \param dispersion_env ...
+! *****************************************************************************
   SUBROUTINE get_q0_on_grid_eo_vdw (total_rho, gradient_rho, q0, dispersion_env)
 
     REAL(dp), INTENT(IN)                     :: total_rho(:), &
@@ -981,6 +1045,13 @@ CONTAINS
   END SUBROUTINE get_q0_on_grid_eo_vdw
 
 
+! *****************************************************************************
+!> \brief ...
+!> \param total_rho ...
+!> \param gradient_rho ...
+!> \param q0 ...
+!> \param dispersion_env ...
+! *****************************************************************************
   SUBROUTINE get_q0_on_grid_eo_rvv10 (total_rho, gradient_rho, q0, dispersion_env)
 
     REAL(dp), INTENT(IN)                     :: total_rho(:), &
@@ -1049,6 +1120,13 @@ CONTAINS
   !! press, page 97.  It was adapted for Fortran, of course and for the problem at hand, in that it finds
   !! the bin a particular x value is in and then loops over all the P_i functions so we only have to find
   !! the bin once.
+! *****************************************************************************
+!> \brief ...
+!> \param x ...
+!> \param d2y_dx2 ...
+!> \param evaluation_points ...
+!> \param values ...
+! *****************************************************************************
   SUBROUTINE spline_interpolation (x, d2y_dx2, evaluation_points, values)
 
     REAL(dp), INTENT(in)                     :: x(:), d2y_dx2(:,:), &
@@ -1100,6 +1178,11 @@ CONTAINS
 
   !! This routine is modeled after an algorithm from "Numerical Recipes in C" by Cambridge
   !! University Press, pages 96-97.  It was adapted for Fortran and for the problem at hand.
+! *****************************************************************************
+!> \brief ...
+!> \param x ...
+!> \param d2y_dx2 ...
+! *****************************************************************************
   SUBROUTINE initialize_spline_interpolation (x, d2y_dx2)
 
     REAL(dp), INTENT(in)                     :: x(:)
@@ -1146,6 +1229,13 @@ CONTAINS
   !! This routine is modeled after an algorithm from "Numerical Recipes in C" by Cambridge
   !! University Press, page 97.  Adapted for Fortran and the problem at hand.  This function is used to 
   !! find the Phi_alpha_beta needed for equations 8 and 11 of SOLER.
+! *****************************************************************************
+!> \brief ...
+!> \param k ...
+!> \param kernel_of_k ...
+!> \param dispersion_env ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE interpolate_kernel(k, kernel_of_k, dispersion_env,error)
 
     REAL(dp), INTENT(in)                     :: k
@@ -1210,6 +1300,13 @@ CONTAINS
 
   END SUBROUTINE interpolate_kernel
 
+! *****************************************************************************
+!> \brief ...
+!> \param k ...
+!> \param dkernel_of_dk ...
+!> \param dispersion_env ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE interpolate_dkernel_dk(k, dkernel_of_dk, dispersion_env, error)
     REAL(dp), INTENT(in)                     :: k
     REAL(dp), INTENT(inout)                  :: dkernel_of_dk(:,:)

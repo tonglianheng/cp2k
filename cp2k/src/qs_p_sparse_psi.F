@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2013  CP2K developers group                          !
+!   Copyright (C) 2000 - 2014  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -18,9 +18,10 @@ MODULE qs_p_sparse_psi
   USE kinds,                           ONLY: dp
   USE particle_types,                  ONLY: get_particle_set,&
                                              particle_type
+  USE qs_kind_types,                   ONLY: qs_kind_type
   USE timings,                         ONLY: timeset,&
                                              timestop
-#include "cp_common_uses.h"
+#include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
   PRIVATE
@@ -30,8 +31,7 @@ MODULE qs_p_sparse_psi
   INTEGER, SAVE, PRIVATE :: last_proj_id_nr=0
 
   PUBLIC :: qs_p_projection_type, qs_p_projection_p_type
-  PUBLIC :: p_proj_create, p_proj_retain, p_proj_release, &
-       p_proj_transfer_blacs_to_f, p_proj_restrain_f
+  PUBLIC :: p_proj_create, p_proj_release
 !***
 
 ! *****************************************************************************
@@ -67,88 +67,62 @@ CONTAINS
 !> \brief allocates and initializes a qs_p_projection_type
 !> \param p_proj the projection to initialize
 !> \param atoms the atoms that are part of the projection group.
-!> \param proj_indexes the (global) indexes of the ao that are part of the
-!>        projection. If not given then particle_set must be given and it
-!>        defaults to all the ones of the atoms.
 !> \param particle_set the particle set from where to extract the indexes
 !>        of the ao
+!> \param qs_kind_set ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 !> \par History
 !>      07.2002 created [fawzi]
 !> \author Fawzi Mohamed
 ! *****************************************************************************
-SUBROUTINE p_proj_create(p_proj, atoms, proj_indexes, particle_set, error)
+SUBROUTINE p_proj_create(p_proj, atoms, particle_set, qs_kind_set, error)
     TYPE(qs_p_projection_type), POINTER      :: p_proj
     INTEGER, DIMENSION(:), INTENT(in)        :: atoms
-    INTEGER, DIMENSION(:), INTENT(in), &
-      OPTIONAL                               :: proj_indexes
     TYPE(particle_type), DIMENSION(:), &
-      OPTIONAL, POINTER                      :: particle_set
+      POINTER                                :: particle_set
+    TYPE(qs_kind_type), DIMENSION(:), &
+      POINTER                                :: qs_kind_set
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'p_proj_create', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i, j, nparticle, pos, &
-                                                size_proj, stat
+                                                size_proj
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: first_sgf, last_sgf
-    LOGICAL                                  :: failure
 
-  failure=.FALSE.
-  ALLOCATE(p_proj, stat=stat)
-  CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-  IF (.NOT. failure) THEN
-     NULLIFY(p_proj%atoms, p_proj%proj_indexes)
-     ALLOCATE(p_proj%atoms(SIZE(atoms)),stat=stat)
-     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-  END IF
-  IF (.not.failure) THEN
-     p_proj%atoms=atoms
-     IF (PRESENT(proj_indexes)) THEN
-        ALLOCATE(p_proj%proj_indexes(SIZE(proj_indexes)), stat=stat)
-        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-     ELSE
-        CPPrecondition(PRESENT(particle_set),cp_failure_level,routineP,error,failure)
-        IF (.NOT.failure) THEN
-          nparticle = SIZE(particle_set)
-          ALLOCATE (first_sgf(nparticle),STAT=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-          ALLOCATE (last_sgf(nparticle),STAT=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-          IF (.NOT.failure) THEN
-            CALL get_particle_set(particle_set=particle_set,&
-                                  first_sgf=first_sgf,&
-                                  last_sgf=last_sgf,error=error)
-            size_proj = 0
-            DO i=1,SIZE(p_proj%atoms)
-              size_proj = size_proj + last_sgf(p_proj%atoms(i)) -&
-                          first_sgf(p_proj%atoms(i)) + 1
-            END DO
-            ALLOCATE(p_proj%proj_indexes(size_proj),stat=stat)
-            CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-          END IF
-          IF (.NOT.failure) THEN
-            pos = 1
-            DO i=1,SIZE(p_proj%atoms)
-              DO j=first_sgf(p_proj%atoms(i)),last_sgf(p_proj%atoms(i))
-                p_proj%proj_indexes(pos) = j
-                pos = pos + 1
-              END DO
-            END DO
-          END IF
-          DEALLOCATE (first_sgf,STAT=stat)
-          CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
-          DEALLOCATE (last_sgf,STAT=stat)
-          CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
-        END IF
-     END IF
-  END IF
-  IF (.not.failure) THEN
-     last_proj_id_nr=last_proj_id_nr+1
-     p_proj%id_nr=last_proj_id_nr
-     p_proj%ref_count=1
-  END IF
+    ALLOCATE(p_proj)
+    NULLIFY(p_proj%atoms, p_proj%proj_indexes)
+    ALLOCATE(p_proj%atoms(SIZE(atoms)))
+
+    p_proj%atoms=atoms
+    nparticle = SIZE(particle_set)
+    ALLOCATE (first_sgf(nparticle), last_sgf(nparticle))
+
+    CALL get_particle_set(particle_set, qs_kind_set,&
+                          first_sgf=first_sgf,&
+                          last_sgf=last_sgf,error=error)
+    size_proj = 0
+    DO i=1,SIZE(p_proj%atoms)
+      size_proj = size_proj + last_sgf(p_proj%atoms(i)) -&
+                  first_sgf(p_proj%atoms(i)) + 1
+    END DO
+
+    ALLOCATE(p_proj%proj_indexes(size_proj))
+    pos = 1
+    DO i=1,SIZE(p_proj%atoms)
+      DO j=first_sgf(p_proj%atoms(i)),last_sgf(p_proj%atoms(i))
+        p_proj%proj_indexes(pos) = j
+        pos = pos + 1
+      END DO
+    END DO
+
+    DEALLOCATE (first_sgf, last_sgf)
+
+    last_proj_id_nr=last_proj_id_nr+1
+    p_proj%id_nr=last_proj_id_nr
+    p_proj%ref_count=1
 END SUBROUTINE p_proj_create
 
 ! *****************************************************************************
@@ -226,8 +200,9 @@ END SUBROUTINE p_proj_release
 !> \param min_m the full matrix in the reduced basis
 !> \param full_m the full matrix in the full basis that gets the new
 !>        values
-!> \param start_col the column of full_m at which the first column of
-!>        (i min_m) will be written (defaults to 1)
+!> \param start_col_full the column of full_m at which the first column of
+!>        (i min_m) will be written (defaults to 1) 
+!> \param start_col_min ...
 !> \param ncol number of columns to set (defaults to all the columns of
 !>        min_m
 !> \param error variable to control error logging, stopping,...
@@ -315,16 +290,17 @@ END SUBROUTINE p_proj_transfer_blacs_to_f
 !> \brief restrains the requested columns of the full matrix to the space
 !>      of the minimal basis, i.e. computes:
 !>      full_m(:,start_col:star_col+ncol) = i pi full_m(:,start_col:star_col+ncol)
+!> \param p_proj ...
 !> \param full_m the matrix in the full basis to be restrained
 !> \param start_col the first column to restrain (defaults to 1)
 !> \param ncol number of columns to restrain
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
-!> \note
-!>      keep_row could easily reduced to (min(proj_indexes):max(proj_indexes))
 !> \par History
 !>      03.2003 created [fawzi]
 !> \author fawzi
+!> \note
+!>      keep_row could easily reduced to (min(proj_indexes):max(proj_indexes))
 ! *****************************************************************************
 SUBROUTINE p_proj_restrain_f(p_proj, full_m,start_col, ncol, error)
     TYPE(qs_p_projection_type), POINTER      :: p_proj

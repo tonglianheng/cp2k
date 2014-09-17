@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2013  CP2K developers group                          !
+!   Copyright (C) 2000 - 2014  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -43,6 +43,7 @@ MODULE qs_linres_epr_utils
                                              pw_release
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
+  USE qs_kind_types,                   ONLY: qs_kind_type
   USE qs_linres_types,                 ONLY: deallocate_nablavks_atom_set,&
                                              epr_env_create,&
                                              epr_env_type,&
@@ -56,7 +57,7 @@ MODULE qs_linres_epr_utils
   USE scf_control_types,               ONLY: scf_control_type
   USE timings,                         ONLY: timeset,&
                                              timestop
-#include "cp_common_uses.h"
+#include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
 
@@ -70,6 +71,9 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Initialize the epr environment
+!> \param epr_env ...
+!> \param qs_env ...
+!> \param error ...
 !> \par History
 !>      07.2006 created [MI]
 !> \author MI
@@ -101,6 +105,8 @@ CONTAINS
       POINTER                                :: particle_set
     TYPE(pw_env_type), POINTER               :: pw_env
     TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
+    TYPE(qs_kind_type), DIMENSION(:), &
+      POINTER                                :: qs_kind_set
     TYPE(qs_matrix_pools_type), POINTER      :: mpools
     TYPE(scf_control_type), POINTER          :: scf_control
     TYPE(section_vals_type), POINTER         :: lr_section
@@ -109,7 +115,7 @@ CONTAINS
 
     failure = .FALSE.
 
-    NULLIFY(atomic_kind_set, cell, dft_control, linres_control, scf_control)
+    NULLIFY(atomic_kind_set, qs_kind_set, cell, dft_control, linres_control, scf_control)
     NULLIFY(logger, mos, mpools, particle_set)
     NULLIFY(auxbas_pw_pool, pw_env)
     NULLIFY(nablavks_atom_set)
@@ -123,7 +129,7 @@ CONTAINS
     lr_section => section_vals_get_subs_vals(qs_env%input,"PROPERTIES%LINRES",error=error)
 
     output_unit = cp_print_key_unit_nr(logger,lr_section,"PRINT%PROGRAM_RUN_INFO",&
-         &                             extension=".linresLog",error=error)
+                                       extension=".linresLog",error=error)
 
     IF(epr_env%ref_count /= 0) THEN
       CALL epr_env_cleanup(epr_env,error=error)
@@ -139,6 +145,7 @@ CONTAINS
 
     CALL get_qs_env(qs_env=qs_env,&
                     atomic_kind_set=atomic_kind_set,&
+                    qs_kind_set=qs_kind_set,&
                     cell=cell,&
                     dft_control=dft_control,&
                     linres_control=linres_control,&
@@ -179,11 +186,10 @@ CONTAINS
     !
     ! Initialize local current density if GAPW calculation
     IF(gapw) THEN
-       CALL init_nablavks_atom_set(nablavks_atom_set,atomic_kind_set,&
-                   nspins,error=error)
+       CALL init_nablavks_atom_set(nablavks_atom_set,atomic_kind_set,qs_kind_set,nspins,error=error)
        CALL set_epr_env(epr_env=epr_env,&
                         nablavks_atom_set=nablavks_atom_set,&
-            &           error=error)
+                        error=error)
     ENDIF
     !
     ! Bind
@@ -256,6 +262,8 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Deallocate the epr environment
+!> \param epr_env ...
+!> \param error ...
 !> \par History
 !>      07.2005 created [MI]
 !> \author MI

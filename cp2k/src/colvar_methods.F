@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2013  CP2K developers group                          !
+!   Copyright (C) 2000 - 2014  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -12,7 +12,7 @@
 !> \author Alessandro Laio,Fawzi Mohamed
 ! *****************************************************************************
 MODULE colvar_methods
-  USE cell_types,                      ONLY: cell_type,&
+  USE cell_methods,                    ONLY: cell_type,&
                                              pbc
   USE colvar_types,                    ONLY: &
        HBP_colvar_id, Wc_colvar_id, angle_colvar_id, colvar_check_points, &
@@ -94,7 +94,7 @@ MODULE colvar_methods
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE wannier_states_types,            ONLY: wannier_centres_type
-#include "cp_common_uses.h"
+#include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
   PRIVATE
@@ -111,10 +111,9 @@ CONTAINS
 ! *****************************************************************************
 !> \brief reads a colvar from the input
 !> \param colvar the place where to store what will be read
-!> \param extended_lagrange if the extended lagrangian formalismus should
-!>        be used
 !> \param icol number of the current colvar (repetition in colvar_section)
 !> \param colvar_section the colvar section
+!> \param para_env ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 !> \par History
@@ -950,6 +949,7 @@ CPSourceFileRef)
        CALL section_vals_val_get(wrk_section,"ATOM",i_val=iatm,error=error)
        CALL section_vals_val_get(wrk_section,"COMPONENT",i_val=icomponent,error=error)
        CALL section_vals_val_get(wrk_section,"PBC",l_val=colvar%xyz_diag_param%use_pbc,error=error)
+       CALL section_vals_val_get(wrk_section,"ABSOLUTE_POSITION",l_val=colvar%xyz_diag_param%use_absolute_position,error=error)
        colvar%xyz_diag_param%i_atom     = iatm
        colvar%xyz_diag_param%component  = icomponent
     ELSE IF (my_subsection(18)) THEN
@@ -1389,6 +1389,10 @@ CPSourceFileRef)
 !> \brief evaluates the derivatives (dsdr) given and due to the given colvar
 !>      variables in a molecular environment
 !> \param colvar the collective variable to evaluate
+!> \param cell ...
+!> \param particles ...
+!> \param pos ...
+!> \param fixd_list ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 !> \author Teodoro Laino
@@ -1484,13 +1488,14 @@ CPSourceFileRef)
 
 ! *****************************************************************************
 !> \brief evaluates the derivatives (dsdr) given and due to the given colvar
-!> \param colvar the collective variable to evaluate
+!> \param icolvar the collective variable to evaluate
+!> \param force_env ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
+!> \author Alessandro Laio and fawzi
 !> \note
 !>      The torsion that generally is defined without the continuity problem
 !>      here (for free energy calculations) is defined only for (-pi,pi]
-!> \author Alessandro Laio and fawzi
 ! *****************************************************************************
   SUBROUTINE colvar_eval_glob_f(icolvar,force_env,error)
     INTEGER                                  :: icolvar
@@ -1575,6 +1580,8 @@ CPSourceFileRef)
 !> \brief evaluates the derivatives (dsdr) given and due to the given colvar
 !>        for the specification of a recursive colvar type
 !> \param colvar the collective variable to evaluate
+!> \param cell ...
+!> \param particles ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 !> \author sfchiff
@@ -1648,6 +1655,10 @@ CPSourceFileRef)
 
 ! *****************************************************************************
 !> \brief Get coordinates of atoms or of geometrical points
+!> \param colvar ...
+!> \param i ...
+!> \param ri ...
+!> \param my_particles ...
 !> \author Teodoro Laino 03.2007 [created]
 ! *****************************************************************************
   SUBROUTINE get_coordinates(colvar, i, ri, my_particles)
@@ -1668,6 +1679,10 @@ CPSourceFileRef)
 
 ! *****************************************************************************
 !> \brief Get masses of atoms or of geometrical points
+!> \param colvar ...
+!> \param i ...
+!> \param mi ...
+!> \param my_particles ...
 !> \author Teodoro Laino 03.2007 [created]
 ! *****************************************************************************
   SUBROUTINE get_mass(colvar, i, mi, my_particles)
@@ -1687,6 +1702,9 @@ CPSourceFileRef)
 
 ! *****************************************************************************
 !> \brief Transfer derivatives to ds/dr
+!> \param colvar ...
+!> \param i ...
+!> \param fi ...
 !> \author Teodoro Laino 03.2007 [created]
 ! *****************************************************************************
   SUBROUTINE put_derivative(colvar, i, fi)
@@ -1704,6 +1722,11 @@ CPSourceFileRef)
 
 ! *****************************************************************************
 !> \brief  evaluates the force due to the position colvar
+!> \param colvar ...
+!> \param cell ...
+!> \param subsys ...
+!> \param particles ...
+!> \param error ...
 !> \author Teodoro Laino 02.2010 [created]
 ! *****************************************************************************
   SUBROUTINE xyz_diag_colvar(colvar,cell,subsys,particles,error)
@@ -1741,10 +1764,14 @@ CPSourceFileRef)
     CALL get_coordinates(colvar, i, xpi, my_particles)
     ! Use the current coordinates as initial coordinates, if no initialization
     ! was performed yet
-    IF (ALL(colvar%xyz_diag_param%r0 == HUGE(0.0_dp))) THEN
-       colvar%xyz_diag_param%r0 = xpi
-    END IF
-    r0 = colvar%xyz_diag_param%r0
+    IF (.NOT.colvar%xyz_diag_param%use_absolute_position) THEN
+       IF (ALL(colvar%xyz_diag_param%r0 == HUGE(0.0_dp))) THEN
+          colvar%xyz_diag_param%r0 = xpi
+       END IF
+       r0 = colvar%xyz_diag_param%r0
+    ELSE
+       r0 = 0.0_dp
+    ENDIF
 
     IF(colvar%xyz_diag_param%use_pbc)THEN
        ss=MATMUL(cell%h_inv,xpi-r0)
@@ -1754,36 +1781,65 @@ CPSourceFileRef)
        xi=xpi-r0
     END IF
 
-    SELECT CASE (colvar%xyz_diag_param%component)
-    CASE(do_clv_x)
-       xi(2)=0.0_dp
-       xi(3)=0.0_dp
-    CASE(do_clv_y)
-       xi(1)=0.0_dp
-       xi(3)=0.0_dp
-    CASE(do_clv_z)
-       xi(1)=0.0_dp
-       xi(2)=0.0_dp
-    CASE(do_clv_xy)
-       xi(3)=0.0_dp
-    CASE(do_clv_xz)
-       xi(2)=0.0_dp
-    CASE(do_clv_yz)
-       xi(1)=0.0_dp
-    CASE DEFAULT
-       ! do_clv_xyz
-    END SELECT
+    IF (.NOT.colvar%xyz_diag_param%use_absolute_position) THEN
+       SELECT CASE (colvar%xyz_diag_param%component)
+       CASE(do_clv_x)
+          xi(2)=0.0_dp
+          xi(3)=0.0_dp
+       CASE(do_clv_y)
+          xi(1)=0.0_dp
+          xi(3)=0.0_dp
+       CASE(do_clv_z)
+          xi(1)=0.0_dp
+          xi(2)=0.0_dp
+       CASE(do_clv_xy)
+          xi(3)=0.0_dp
+       CASE(do_clv_xz)
+          xi(2)=0.0_dp
+       CASE(do_clv_yz)
+          xi(1)=0.0_dp
+       CASE DEFAULT
+          ! do_clv_xyz
+       END SELECT
 
-    r=xi(1)**2+xi(2)**2+xi(3)**2
+       r=xi(1)**2+xi(2)**2+xi(3)**2
+       fi(:)= 2.0_dp*xi
+    ELSE
+       SELECT CASE (colvar%xyz_diag_param%component)
+       CASE(do_clv_x)
+          r=xi(1)
+          xi(1)=1.0_dp
+          xi(2)=0.0_dp
+          xi(3)=0.0_dp
+       CASE(do_clv_y)
+          r=xi(2)
+          xi(1)=0.0_dp
+          xi(2)=1.0_dp
+          xi(3)=0.0_dp
+       CASE(do_clv_z)
+          r=xi(3)
+          xi(1)=0.0_dp
+          xi(2)=0.0_dp
+          xi(3)=1.0_dp
+       CASE DEFAULT
+          !Not implemented for anything which is not a single component.
+          CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)
+       END SELECT
+       fi(:)= xi
+    ENDIF
 
     colvar%ss=r
-    fi(:)= 2.0_dp*xi
     CALL put_derivative(colvar, 1, fi)
 
   END SUBROUTINE xyz_diag_colvar
 
 ! *****************************************************************************
 !> \brief  evaluates the force due to the position colvar
+!> \param colvar ...
+!> \param cell ...
+!> \param subsys ...
+!> \param particles ...
+!> \param error ...
 !> \author Teodoro Laino 02.2010 [created]
 ! *****************************************************************************
   SUBROUTINE xyz_outerdiag_colvar(colvar,cell,subsys,particles,error)
@@ -1870,9 +1926,13 @@ CPSourceFileRef)
 
 ! *****************************************************************************
 !> \brief evaluates the force due (and on) the energy as collective variable
-!> \author Sebastiano Caravati
+!> \param colvar ...
+!> \param force_env ...
+!> \param subsys ...
+!> \param error ...
 !> \par History Modified to allow functions of energy in a mixed_env environment
 !>              Teodoro Laino [tlaino] - 02.2011
+!> \author Sebastiano Caravati
 ! *****************************************************************************
   SUBROUTINE u_colvar(colvar,force_env,subsys,error)
     TYPE(colvar_type), POINTER               :: colvar
@@ -2060,6 +2120,11 @@ CPSourceFileRef)
 
 ! *****************************************************************************
 !> \brief evaluates the force due (and on) the distance from the plane collective variable
+!> \param colvar ...
+!> \param cell ...
+!> \param subsys ...
+!> \param particles ...
+!> \param error ...
 !> \author Teodoro Laino 02.2006 [created]
 ! *****************************************************************************
   SUBROUTINE plane_distance_colvar(colvar,cell,subsys,particles,error)
@@ -2178,6 +2243,11 @@ CPSourceFileRef)
 ! *****************************************************************************
 !> \brief evaluates the force due (and on) the angle between two planes.
 !>        plane-plane angle collective variable
+!> \param colvar ...
+!> \param cell ...
+!> \param subsys ...
+!> \param particles ...
+!> \param error ...
 !> \author Teodoro Laino 02.2009 [created]
 ! *****************************************************************************
   SUBROUTINE plane_plane_angle_colvar(colvar,cell,subsys,particles,error)
@@ -2400,6 +2470,11 @@ CPSourceFileRef)
 
 ! *****************************************************************************
 !> \brief Evaluates the value of the rotation angle between two bonds
+!> \param colvar ...
+!> \param cell ...
+!> \param subsys ...
+!> \param particles ...
+!> \param error ...
 !> \author Teodoro Laino 02.2006 [created]
 ! *****************************************************************************
   SUBROUTINE rotation_colvar(colvar,cell,subsys,particles,error)
@@ -2486,8 +2561,13 @@ CPSourceFileRef)
 
 ! *****************************************************************************
 !> \brief evaluates the force due to the function of two distances
+!> \param colvar ...
+!> \param cell ...
+!> \param subsys ...
+!> \param particles ...
+!> \param error ...
 !> \author Teodoro Laino 02.2006 [created]
-!          modified Florian Schiffmann 08.2008
+!> \note modified Florian Schiffmann 08.2008
 ! *****************************************************************************
   SUBROUTINE dfunct_colvar(colvar,cell,subsys,particles,error)
     TYPE(colvar_type), POINTER               :: colvar
@@ -2562,6 +2642,11 @@ CPSourceFileRef)
 
 ! *****************************************************************************
 !> \brief evaluates the force due (and on) the distance from the plane collective variable
+!> \param colvar ...
+!> \param cell ...
+!> \param subsys ...
+!> \param particles ...
+!> \param error ...
 !> \author Teodoro Laino 02.2006 [created]
 ! *****************************************************************************
   SUBROUTINE angle_colvar(colvar,cell,subsys,particles,error)
@@ -2637,6 +2722,11 @@ CPSourceFileRef)
 
 ! *****************************************************************************
 !> \brief evaluates the force due (and on) the distance collective variable
+!> \param colvar ...
+!> \param cell ...
+!> \param subsys ...
+!> \param particles ...
+!> \param error ...
 !> \author Alessandro Laio, Fawzi Mohamed
 ! *****************************************************************************
   SUBROUTINE dist_colvar(colvar,cell,subsys,particles,error)
@@ -2708,6 +2798,12 @@ CPSourceFileRef)
 
 ! *****************************************************************************
 !> \brief evaluates the force due to the torsion collective variable
+!> \param colvar ...
+!> \param cell ...
+!> \param subsys ...
+!> \param particles ...
+!> \param no_riemann_sheet_op ...
+!> \param error ...
 !> \author Alessandro Laio, Fawzi Mohamed
 ! *****************************************************************************
   SUBROUTINE torsion_colvar(colvar,cell,subsys,particles,no_riemann_sheet_op,error)
@@ -2869,6 +2965,11 @@ CPSourceFileRef)
 
 ! *****************************************************************************
 !> \brief evaluates the force due (and on) the Q PARM collective variable
+!> \param colvar ...
+!> \param cell ...
+!> \param subsys ...
+!> \param particles ...
+!> \param error ...
 ! *****************************************************************************
   SUBROUTINE qparm_colvar(colvar,cell,subsys,particles,error)
     TYPE(colvar_type), POINTER               :: colvar
@@ -3009,6 +3110,11 @@ CPSourceFileRef)
 
 ! *****************************************************************************
 !> \brief evaluates the force due (and on) the hydronium collective variable
+!> \param colvar ...
+!> \param cell ...
+!> \param subsys ...
+!> \param particles ...
+!> \param error ...
 !> \author Marcel Baer
 !> \note This function needs to be extended to the POINT structure!!
 !>       non-standard conform.. it's a breach in the colvar module.
@@ -3212,6 +3318,11 @@ CPSourceFileRef)
 
 ! *****************************************************************************
 !> \brief evaluates the force due (and on) the coordination-chain collective variable
+!> \param colvar ...
+!> \param cell ...
+!> \param subsys ...
+!> \param particles ...
+!> \param error ...
 !> \author MI
 !> \note When the third set of atoms is not defined, this variable is equivalent
 !>       to the simple coordination number.
@@ -3345,6 +3456,14 @@ CPSourceFileRef)
     colvar%dsdr(:,:) = colvar%dsdr(:,:)*inv_n_atoms_from
   END SUBROUTINE coord_colvar
 
+! *****************************************************************************
+!> \brief ...
+!> \param colvar ...
+!> \param cell ...
+!> \param subsys ...
+!> \param particles ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE mindist_colvar(colvar,cell, subsys, particles, error)
 
     TYPE(colvar_type), POINTER               :: colvar
@@ -3529,6 +3648,11 @@ CPSourceFileRef)
 
 ! *****************************************************************************
 !> \brief  evaluates function and forces due to a combination of COLVARs
+!> \param colvar ...
+!> \param cell ...
+!> \param subsys ...
+!> \param particles ...
+!> \param error ...
 !> \author Teodoro Laino [tlaino] - 12.2008
 ! *****************************************************************************
   SUBROUTINE combine_colvar(colvar,cell,subsys,particles,error)
@@ -3638,11 +3762,16 @@ CPSourceFileRef,&
 !> \brief evaluates the force due (and on) reaction path collective variable
 !>             ss(R) = [\sum_i i*dt exp{-\lambda \sum_a(S_a(R)-f_a(i))^2}]/
 !>                     [\sum_i exp{-\lambda \sum_a(S_a(R)-f_a(i))^2}]
+!> \param colvar ...
+!> \param cell ...
+!> \param subsys ...
+!> \param particles ...
+!> \param error ...
+!> \par History
+!>      extended MI 01.2010
 !> \author fschiff
 !> \note the system is still able to move in the space spanned by the CV
 !>       perpendicular to the path
-!> \par History
-!>      extended MI 01.2010
 ! *****************************************************************************
   SUBROUTINE reaction_path_colvar(colvar,cell,subsys,particles,error)
     TYPE(colvar_type), POINTER               :: colvar
@@ -3685,6 +3814,10 @@ CPSourceFileRef,&
 !> \brief  position along the path calculated using selected colvars
 !>         as compared to functions describing the variation of these same colvars
 !>         along the path given as reference
+!> \param colvar ...
+!> \param cell ...
+!> \param particles ...
+!> \param error ...
 !> \author fschiff
 ! *****************************************************************************
   SUBROUTINE rpath_colvar(colvar,cell,particles,error)
@@ -3715,7 +3848,7 @@ CPSourceFileRef,&
     lambda=colvar%reaction_path_param%lambda
     ALLOCATE(f_vals(ncolv,istart:iend),stat=stat)
     CPPostcondition(stat == 0,cp_failure_level,routinep,error,failure)
-    f_vals=colvar%reaction_path_param%f_vals
+    f_vals(:,:)=colvar%reaction_path_param%f_vals
     ALLOCATE(ss_vals(ncolv),stat=stat)
     CPPostcondition(stat == 0,cp_failure_level,routinep,error,failure)
 
@@ -3788,8 +3921,11 @@ CPSourceFileRef,&
 !> \brief  position along the path calculated from the positions of a selected list of
 !>         atoms as compared to the same positions in reference
 !>         configurations belonging to the given path.
-!> \author MI
+!> \param colvar ...
+!> \param particles ...
+!> \param error ...
 !> \date  01.2010
+!> \author MI
 ! *****************************************************************************
   SUBROUTINE rpath_dist_rmsd(colvar,particles,error)
     TYPE(colvar_type), POINTER               :: colvar
@@ -3929,6 +4065,12 @@ CPSourceFileRef,&
   END SUBROUTINE rpath_dist_rmsd
 
 
+! *****************************************************************************
+!> \brief ...
+!> \param colvar ...
+!> \param particles ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE  rpath_rmsd(colvar,particles,error)
     TYPE(colvar_type), POINTER               :: colvar
     TYPE(particle_type), DIMENSION(:), &
@@ -4072,8 +4214,13 @@ CPSourceFileRef,&
 ! *****************************************************************************
 !> \brief evaluates the force due (and on) distance from reaction path collective variable
 !>             ss(R) = -1/\lambda \log[\sum_i exp{-\lambda \sum_a(S_a(R)-f_a(i))^2}]
-!> \author MI
+!> \param colvar ...
+!> \param cell ...
+!> \param subsys ...
+!> \param particles ...
+!> \param error ...
 !> \date 01.2010
+!> \author MI
 ! *****************************************************************************
   SUBROUTINE  distance_from_path_colvar(colvar,cell,subsys,particles,error)
     TYPE(colvar_type), POINTER               :: colvar
@@ -4116,8 +4263,12 @@ CPSourceFileRef,&
 !> \brief  distance from path calculated using selected colvars
 !>         as compared to functions describing the variation of these same colvars
 !>         along the path given as reference
-!> \author MI
+!> \param colvar ...
+!> \param cell ...
+!> \param particles ...
+!> \param error ...
 !> \date  01.2010
+!> \author MI
 ! *****************************************************************************
   SUBROUTINE  dpath_colvar(colvar,cell,particles,error)
     TYPE(colvar_type), POINTER               :: colvar
@@ -4143,7 +4294,7 @@ CPSourceFileRef,&
     lambda=colvar%reaction_path_param%lambda
     ALLOCATE(f_vals(ncolv,istart:iend),stat=stat)
     CPPostcondition(stat == 0,cp_failure_level,routinep,error,failure)
-    f_vals=colvar%reaction_path_param%f_vals
+    f_vals(:,:)=colvar%reaction_path_param%f_vals
     ALLOCATE(ss_vals(ncolv),stat=stat)
     CPPostcondition(stat == 0,cp_failure_level,routinep,error,failure)
 
@@ -4207,8 +4358,11 @@ CPSourceFileRef,&
 !> \brief  distance from path calculated from the positions of a selected list of
 !>         atoms as compared to the same positions in reference
 !>         configurations belonging to the given path.
-!> \author MI
+!> \param colvar ...
+!> \param particles ...
+!> \param error ...
 !> \date  01.2010
+!> \author MI
 ! *****************************************************************************
   SUBROUTINE dpath_dist_rmsd(colvar,particles,error)
 
@@ -4333,6 +4487,12 @@ CPSourceFileRef,&
     CPPostcondition(stat == 0,cp_failure_level,routinep,error,failure)
   END SUBROUTINE  dpath_dist_rmsd
 
+! *****************************************************************************
+!> \brief ...
+!> \param colvar ...
+!> \param particles ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE dpath_rmsd(colvar,particles,error)
 
     TYPE(colvar_type), POINTER               :: colvar
@@ -4464,8 +4624,13 @@ CPSourceFileRef,&
 
 ! *****************************************************************************
 !> \brief evaluates the force due to population colvar
-!> \author fsterpone
+!> \param colvar ...
+!> \param cell ...
+!> \param subsys ...
+!> \param particles ...
+!> \param error ...
 !> \date  01.2009
+!> \author fsterpone
 ! *****************************************************************************
   SUBROUTINE population_colvar(colvar,cell,subsys,particles,error)
     TYPE(colvar_type), POINTER               :: colvar
@@ -4568,8 +4733,13 @@ CPSourceFileRef,&
 ! *****************************************************************************
 !> \brief evaluates the force due to the gyration radius colvar
 !>        sum_i (r_i-rcom)^2/N
-!> \author MI
+!> \param colvar ...
+!> \param cell ...
+!> \param subsys ...
+!> \param particles ...
+!> \param error ...
 !> \date  03.2009
+!> \author MI
 ! *****************************************************************************
   SUBROUTINE gyration_radius_colvar(colvar,cell,subsys,particles,error)
 
@@ -4654,9 +4824,13 @@ CPSourceFileRef,&
 
 ! *****************************************************************************
 !> \brief evaluates the force due to the rmsd colvar
-!> \note  could be extended to be used with more than 2 reference structures
-!> \author MI
+!> \param colvar ...
+!> \param subsys ...
+!> \param particles ...
+!> \param error ...
 !> \date  12.2009
+!> \author MI
+!> \note  could be extended to be used with more than 2 reference structures
 ! *****************************************************************************
   SUBROUTINE rmsd_colvar(colvar,subsys,particles,error)
     TYPE(colvar_type), POINTER               :: colvar
@@ -4680,9 +4854,13 @@ CPSourceFileRef,&
 !>        RMSD is calculated with respect to two reference structures, A and B,
 !>        considering all the atoms of the system or only a subset of them,
 !>        as selected by the input keyword LIST
-!> \author MI
+!> \param colvar ...
+!> \param subsys ...
+!> \param particles ...
+!> \param error ...
 !> \date  12.2009
-!> \history TL 2012 (generalized to any number of frames)
+!> \par History TL 2012 (generalized to any number of frames) 
+!> \author MI
 ! *****************************************************************************
   SUBROUTINE rmsd_colvar_low(colvar,subsys,particles,error)
 
@@ -4742,7 +4920,7 @@ CPSourceFileRef,&
       r(ii+2) = my_particles(i)%r(2)
       r(ii+3) = my_particles(i)%r(3)
     END DO
-    r0 = colvar%rmsd_param%r_ref
+    r0(:,:) = colvar%rmsd_param%r_ref
     rmsd = 0.0_dp
 
     CALL rmsd3(my_particles,r,r0(:,1),output_unit=-1,weights=weights,my_val=rmsd(1),rotate=.FALSE.,drmsd3=drmsd(:,:,1),error=error)
@@ -4805,8 +4983,13 @@ CPSourceFileRef,&
 ! *****************************************************************************
 !> \brief evaluates the force from ring puckering collective variables
 !>   Cramer and Pople, JACS 97 1354 (1975)
-!> \author JGH
+!> \param colvar ...
+!> \param cell ...
+!> \param subsys ...
+!> \param particles ...
+!> \param error ...
 !> \date 08.2012
+!> \author JGH
 ! *****************************************************************************
   SUBROUTINE  ring_puckering_colvar(colvar,cell,subsys,particles,error)
     TYPE(colvar_type), POINTER               :: colvar
@@ -5001,6 +5184,22 @@ CPSourceFileRef,&
 
 ! *****************************************************************************
 !> \brief used to print reaction_path function values on an arbitrary dimensional grid
+!> \param iw1 ...
+!> \param ncol ...
+!> \param f_vals ...
+!> \param v_count ...
+!> \param gp ...
+!> \param grid_sp ...
+!> \param step_size ...
+!> \param istart ...
+!> \param iend ...
+!> \param s1v ...
+!> \param s1 ...
+!> \param p_bounds ...
+!> \param lambda ...
+!> \param ifunc ...
+!> \param nconf ...
+!> \retval k ...
 !> \author fschiff
 ! *****************************************************************************
   RECURSIVE FUNCTION rec_eval_grid(iw1,ncol,f_vals,v_count,&
@@ -5049,8 +5248,14 @@ CPSourceFileRef,&
 ! *****************************************************************************
 !> \brief  Reads the coordinates of reference configurations given in input
 !>         either as xyz files or in &COORD section
-!> \author MI
+!> \param frame_section ...
+!> \param para_env ...
+!> \param nr_frames ...
+!> \param r_ref ...
+!> \param n_atoms ...
+!> \param error ...
 !> \date 01.2010
+!> \author MI
 ! *****************************************************************************
   SUBROUTINE read_frames(frame_section,para_env,nr_frames,r_ref,n_atoms,error)
 
@@ -5136,6 +5341,12 @@ CPSourceFileRef,&
 
 ! *****************************************************************************
 !> \brief evaluates the collective variable associated with a hydrogen bond
+!> \param colvar ...
+!> \param cell ...
+!> \param subsys ...
+!> \param particles ...
+!> \param qs_env ...
+!> \param error ...
 !> \author alin m elena
 ! *****************************************************************************
   SUBROUTINE Wc_colvar(colvar,cell,subsys,particles,qs_env,error)
@@ -5153,8 +5364,8 @@ CPSourceFileRef,&
     INTEGER                                  :: Od, H, Oa
     LOGICAL                                  :: failure
     REAL(dp)                                 :: rOd(3), rOa(3), rH(3), &
-                                                x,y,s(3),xv(3),dmin,amin,aux
-    INTEGER                                  :: idmin, iamin,i,j,ai
+                                                x,y,s(3),xv(3),dmin,amin
+    INTEGER                                  :: idmin, iamin,i,j
     TYPE(particle_list_type), POINTER        :: particles_i
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: my_particles
@@ -5226,7 +5437,7 @@ CPSourceFileRef,&
 !     CALL put_derivative(colvar, 2,zero)
 !     CALL put_derivative(colvar, 3, zero)
 
-!     write(6,'(2(i0,1x),4(f16.8,1x))')idmin,iamin,wc(1)%WannierHamDiag(idmin),wc(1)%WannierHamDiag(iamin),dmin,amin
+!     write(*,'(2(i0,1x),4(f16.8,1x))')idmin,iamin,wc(1)%WannierHamDiag(idmin),wc(1)%WannierHamDiag(iamin),dmin,amin
     colvar%ss = wc(1)%WannierHamDiag(idmin)-wc(1)%WannierHamDiag(iamin)
     DEALLOCATE(wcai,stat=ierror)
     CPPrecondition(ierror==0,cp_failure_level,routineP,error,failure)
@@ -5234,6 +5445,10 @@ CPSourceFileRef,&
     CPPrecondition(ierror==0,cp_failure_level,routineP,error,failure)
 
     CONTAINS
+! *****************************************************************************
+!> \brief ...
+!> \param rij ...
+! *****************************************************************************
     REAL(dp) FUNCTION distance(rij)
     REAL(dp), INTENT(in) :: rij(3)
 
@@ -5247,6 +5462,12 @@ CPSourceFileRef,&
 
 ! *****************************************************************************
 !> \brief evaluates the collective variable associated with a hydrogen bond wire
+!> \param colvar ...
+!> \param cell ...
+!> \param subsys ...
+!> \param particles ...
+!> \param qs_env ...
+!> \param error ...
 !> \author alin m elena
 ! *****************************************************************************
   SUBROUTINE HBP_colvar(colvar,cell,subsys,particles,qs_env,error)
@@ -5264,8 +5485,8 @@ CPSourceFileRef,&
     INTEGER                                  :: Od, H, Oa
     LOGICAL                                  :: failure
     REAL(dp)                                 :: rOd(3), rOa(3), rH(3), &
-                                                x,y,s(3),xv(3),dmin,amin,aux
-    INTEGER                                  :: idmin, iamin,i,j,ai,il,output_unit
+                                                x,y,s(3),xv(3),dmin,amin
+    INTEGER                                  :: idmin, iamin,i,j,il,output_unit
     TYPE(particle_list_type), POINTER        :: particles_i
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: my_particles
@@ -5359,6 +5580,10 @@ CPSourceFileRef,&
     CPPrecondition(ierror==0,cp_failure_level,routineP,error,failure)
 
   CONTAINS
+! *****************************************************************************
+!> \brief ...
+!> \param rij ...
+! *****************************************************************************
     REAL(dp) FUNCTION distance(rij)
     REAL(dp), INTENT(in) :: rij(3)
 

@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2013  CP2K developers group                          !
+!   Copyright (C) 2000 - 2014  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -19,7 +19,7 @@ MODULE cp_control_types
   USE xas_control,                     ONLY: xas_control_create,&
                                              xas_control_release,&
                                              xas_control_type
-#include "cp_common_uses.h"
+#include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
 
@@ -36,14 +36,6 @@ MODULE cp_control_types
   END TYPE pw_grid_option
 
 ! *****************************************************************************
-! \brief Control parameters for SCP calculations
-! *****************************************************************************
-  TYPE scp_control_type
-     LOGICAL                              :: dispersion
-     INTEGER                              :: coeff_guess
-  END TYPE scp_control_type
-
-! *****************************************************************************
 ! \brief Control parameters for REAL_TIME_PROPAGATION calculations
 ! *****************************************************************************
   TYPE rtp_control_type
@@ -58,10 +50,15 @@ MODULE cp_control_types
      LOGICAL                              :: initial_step
      LOGICAL                              :: hfx_redistribute
      INTEGER                              :: aspc_order
-     INTEGER                              :: extrapolation
      INTEGER                              :: sc_check_start
      LOGICAL                              :: apply_delta_pulse
      LOGICAL                              :: periodic
+     LOGICAL                              :: linear_scaling
+     LOGICAL                              :: calc_idempotency
+     LOGICAL                              :: orthonormal
+     INTEGER                              :: mcweeny_max_iter
+     INTEGER                              :: acc_ref
+     REAL(dp)                             :: mcweeny_eps
      INTEGER, DIMENSION(3)                :: delta_pulse_direction
      REAL(KIND=dp)                        :: delta_pulse_scale
   END TYPE rtp_control_type
@@ -72,14 +69,21 @@ MODULE cp_control_types
      LOGICAL                              :: self_consistent
      LOGICAL                              :: orthogonal_basis
      LOGICAL                              :: dispersion
+     INTEGER                              :: dispersion_type
+     LOGICAL                              :: dftb3_diagonal
      LOGICAL                              :: hb_sr_damp
+     REAL(KIND = dp)                      :: hb_sr_para
      REAL(KIND = dp)                      :: eps_disp
+     REAL(KIND = dp)                      :: epscn
+     REAL(KIND = dp)                      :: rcdisp
+     REAL(KIND = dp), DIMENSION(3)        :: sd3
      LOGICAL                              :: do_ewald
      CHARACTER(LEN=default_path_length)   :: sk_file_path
      CHARACTER(LEN=default_path_length)   :: sk_file_list
      CHARACTER(LEN=default_string_length),&
           DIMENSION(:,:), POINTER         :: sk_pair_list
      CHARACTER(LEN=default_path_length)   :: uff_force_field
+     CHARACTER(LEN=default_path_length)   :: dispersion_parameter_file
   END TYPE dftb_control_type
 
 ! *****************************************************************************
@@ -112,6 +116,12 @@ MODULE cp_control_types
      INTEGER               :: max_multipole
      INTEGER               :: ga_ncells
      REAL(KIND = dp)       :: delta
+     ! Dispersion pair potential
+     LOGICAL               :: dispersion
+     REAL(KIND = dp)                      :: rcdisp
+     REAL(KIND = dp)                      :: epscn
+     REAL(KIND = dp), DIMENSION(3)        :: sd3
+     CHARACTER(LEN=default_path_length)   :: dispersion_parameter_file
      ! Parameters controlling the evaluation of the integrals
      REAL(KIND = dp)       :: cutoff_lrc, taper_lrc, range_lrc
      REAL(KIND = dp)       :: cutoff_cou, taper_cou, range_cou
@@ -121,18 +131,9 @@ MODULE cp_control_types
 
 ! *****************************************************************************
 ! \brief Control parameters for GAPW method within QUICKSTEP ***
-!        eps_3c_reduce:to reduce the cutoff value for the interaction of
-!                     the primitive Gaussian-type
-!                     functions with the GAPW projectors in the construction of
-!                     the 3 center terms. This factor multiplies eps_pgf_orb in
-!                     the calculation of a shorter radius that can be used for
-!                     the construction of the OCE coefficients. The default is 1
-!                     (no effects). Larger values can be used to reduce the memory
-!                     allocations, but should be tested first.
 ! *****************************************************************************
   TYPE gapw_control_type
-    REAL(KIND = dp)                 :: eps_3c_reduce,&
-                                       eps_fit,&
+    REAL(KIND = dp)                 :: eps_fit,&
                                        eps_iso,&
                                        eps_Vrho0,&
                                        eps_svd,&
@@ -149,15 +150,6 @@ MODULE cp_control_types
     REAL(KIND = dp)                 :: alpha0_hard
     REAL(KIND = dp)                 :: max_rad_local
   END TYPE gapw_control_type
-! *****************************************************************************
-! \brief Control parameters for LRIPAW method within QUICKSTEP ***
-! *****************************************************************************
-  TYPE lripaw_control_type
-    REAL(KIND = dp)                 :: eps_fit
-    INTEGER                         :: quadrature
-    REAL(KIND = dp)                 :: alpha0
-  END TYPE lripaw_control_type
-
 ! *****************************************************************************
 ! \brief parameters for calculations involving a time dependent electric field
 ! *****************************************************************************
@@ -249,11 +241,15 @@ MODULE cp_control_types
 ! *****************************************************************************
 ! \brief some parameters useful for auxiliary density matrix method
 ! *****************************************************************************
+  TYPE admm_block_type
+    INTEGER, DIMENSION(:), ALLOCATABLE :: list
+  END TYPE admm_block_type
+
   TYPE admm_control_type
-    INTEGER                         :: method_id
     INTEGER                         :: purification_method
-    INTEGER                         :: block_projection_method
-    INTEGER                         :: block_purification_method
+    INTEGER                         :: method
+    TYPE(admm_block_type), DIMENSION(:), &
+                        ALLOCATABLE :: blocks
   END TYPE admm_control_type
 
 ! *****************************************************************************
@@ -275,17 +271,18 @@ MODULE cp_control_types
                                                      eps_gvg_rspace,&
                                                      progression_factor,&
                                                      relative_cutoff
+    LOGICAL                                       :: do_almo_scf
     LOGICAL                                       :: do_ls_scf
     LOGICAL                                       :: do_kg
     LOGICAL                                       :: commensurate_mgrids
     LOGICAL                                       :: realspace_mgrids
     LOGICAL                                       :: map_consistent
     LOGICAL                                       :: gapw,gapw_xc,gpw,pao
-    LOGICAL                                       :: lripaw
+    LOGICAL                                       :: lrigpw
+    LOGICAL                                       :: lri_optbas
     LOGICAL                                       :: ofgpw
     LOGICAL                                       :: dftb
     LOGICAL                                       :: scptb
-    LOGICAL                                       :: scp
     LOGICAL                                       :: semi_empirical
     LOGICAL                                       :: mulliken_restraint
     LOGICAL                                       :: ddapc_restraint
@@ -307,7 +304,6 @@ MODULE cp_control_types
     TYPE (scptb_control_type),POINTER             :: scptb_control
     TYPE (semi_empirical_control_type),POINTER    :: se_control
     TYPE (gapw_control_type), POINTER             :: gapw_control
-    TYPE (lripaw_control_type), POINTER           :: lripaw_control
     TYPE (pw_grid_option)                         :: pw_grid_opt
     LOGICAL                                       :: check_bcsr_code
     INTEGER                                       :: bcsr_code
@@ -358,7 +354,6 @@ MODULE cp_control_types
      TYPE(qs_control_type), POINTER    :: qs_control
      TYPE(tddfpt_control_type),POINTER :: tddfpt_control
      TYPE(xas_control_type), POINTER   :: xas_control
-     TYPE(scp_control_type),POINTER    :: scp_control
      TYPE(rtp_control_type),POINTER    :: rtp_control
      TYPE(admm_control_type), POINTER &
                                        :: admm_control
@@ -371,7 +366,8 @@ MODULE cp_control_types
                                           sic_method_id,&
                                           ref_count,&
                                           id_nr,&
-                                          plus_u_method_id
+                                          plus_u_method_id,&
+                                          dir_surf_dip
      INTEGER                           :: sic_list_id
      REAL(KIND=dp)                     :: relax_multiplicity,&
                                           sic_scaling_a,&
@@ -385,14 +381,19 @@ MODULE cp_control_types
                                           uks,&
                                           lsd,&
                                           dft_plus_u,&
-                                          scp,&
                                           apply_efield_field,&
                                           apply_period_efield,&
                                           apply_external_potential,&
                                           eval_external_potential,&
                                           do_admm,&
                                           smear,&
-                                          low_spin_roks
+                                          low_spin_roks,&
+                                          apply_external_density,&
+                                          read_external_density,&
+                                          apply_external_vxc,&
+                                          read_external_vxc,&
+                                          correct_surf_dip
+
   END TYPE dft_control_type
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cp_control_types'
@@ -403,18 +404,12 @@ MODULE cp_control_types
   PUBLIC :: dft_control_type,&
             qs_control_type,&
             gapw_control_type,&
-            lripaw_control_type,&
             tddfpt_control_type,&
             efield_type,&
-            period_efield_type,&
-            efield_p_type,&
-            pw_grid_option,&
             mulliken_restraint_type,&
             ddapc_restraint_type,&
-            ddapc_restraint_p_type,&
             dftb_control_type,&
             scptb_control_type,&
-            scp_control_type,&
             becke_restraint_type,&
             semi_empirical_control_type,&
             s2_restraint_type,&
@@ -426,7 +421,6 @@ MODULE cp_control_types
   PUBLIC :: dft_control_retain,&
             dft_control_release,&
             dft_control_create,&
-            scp_control_create,&
             xas_control_create,&
             tddfpt_control_create,&
             admm_control_create,&
@@ -436,6 +430,8 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief create  the mulliken_restraint_type
+!> \param mulliken_restraint_control ...
+!> \param error ...
 !> \par History
 !>      02.2005 created [Joost VandeVondele]
 ! *****************************************************************************
@@ -464,6 +460,8 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief release the mulliken_restraint_type
+!> \param mulliken_restraint_control ...
+!> \param error ...
 !> \par History
 !>      02.2005 created [Joost VandeVondele]
 ! *****************************************************************************
@@ -493,6 +491,8 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief retain the mulliken_restraint_type
+!> \param mulliken_restraint_control ...
+!> \param error ...
 !> \par History
 !>      02.2005 created [Joost VandeVondele]
 ! *****************************************************************************
@@ -513,6 +513,8 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief create the ddapc_restraint_type
+!> \param ddapc_restraint_control ...
+!> \param error ...
 !> \par History
 !>      02.2006 created [Joost VandeVondele]
 ! *****************************************************************************
@@ -546,6 +548,8 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief release the ddapc_restraint_type
+!> \param ddapc_restraint_control ...
+!> \param error ...
 !> \par History
 !>      02.2006 created [Joost VandeVondele]
 ! *****************************************************************************
@@ -577,6 +581,8 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief retain the ddapc_restraint_type
+!> \param ddapc_restraint_control ...
+!> \param error ...
 !> \par History
 !>      02.2006 created [Joost VandeVondele]
 ! *****************************************************************************
@@ -597,6 +603,8 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief create the becke_restraint_type
+!> \param becke_control ...
+!> \param error ...
 !> \par History
 !>      02.2007 created [Florian Schiffmann]
 ! *****************************************************************************
@@ -631,6 +639,8 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief release the becke_restraint_type
+!> \param becke_control ...
+!> \param error ...
 !> \par History
 !>      02.2007 created [Florian Schiffmann]
 ! *****************************************************************************
@@ -662,6 +672,8 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief retain the becke_restraint_type
+!> \param becke_control ...
+!> \param error ...
 !> \par History
 !>      02.2007 created [Florian Schiffmann]
 ! *****************************************************************************
@@ -681,6 +693,8 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief create the s2_restraint_type
+!> \param s2_restraint_control ...
+!> \param error ...
 !> \par History
 !>      03.2006 created [Joost VandeVondele]
 ! *****************************************************************************
@@ -709,6 +723,8 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief release the s2_restraint_type
+!> \param s2_restraint_control ...
+!> \param error ...
 !> \par History
 !>      03.2006 created [Joost VandeVondele]
 ! *****************************************************************************
@@ -735,6 +751,8 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief retain the s2_restraint_type
+!> \param s2_restraint_control ...
+!> \param error ...
 !> \par History
 !>      03.2006 created [Joost VandeVondele]
 ! *****************************************************************************
@@ -783,7 +801,6 @@ CONTAINS
        last_dft_control_id=last_dft_control_id+1
        dft_control%id_nr=last_dft_control_id
        NULLIFY(dft_control%xas_control)
-       NULLIFY(dft_control%scp_control)
        NULLIFY(dft_control%qs_control)
        NULLIFY(dft_control%tddfpt_control)
        NULLIFY(dft_control%efield_fields)
@@ -795,6 +812,9 @@ CONTAINS
   END SUBROUTINE dft_control_create
 
 ! *****************************************************************************
+!> \brief ...
+!> \param dft_control ...
+!> \param error ...
 !> \par History
 !>      02.2003 created [fawzi]
 !> \author fawzi
@@ -817,6 +837,9 @@ CONTAINS
   END SUBROUTINE dft_control_retain
 
 ! *****************************************************************************
+!> \brief ...
+!> \param dft_control ...
+!> \param error ...
 !> \par History
 !>      02.2003 created [fawzi]
 !> \author fawzi
@@ -839,7 +862,6 @@ CONTAINS
           CALL qs_control_release(dft_control%qs_control, error=error)
           CALL tddfpt_control_release(dft_control%tddfpt_control, error=error)
           CALL xas_control_release(dft_control%xas_control, error=error)
-          CALL scp_control_release(dft_control%scp_control, error=error)
           CALL admm_control_release(dft_control%admm_control, error=error)
           CALL efield_fields_release(dft_control%efield_fields, error=error)
           IF (ASSOCIATED(dft_control%period_efield))THEN
@@ -859,6 +881,10 @@ CONTAINS
   END SUBROUTINE dft_control_release
 
 ! *****************************************************************************
+!> \brief ...
+!> \param gapw_control ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE gapw_control_create(gapw_control, error)
     TYPE(gapw_control_type), POINTER         :: gapw_control
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -876,25 +902,11 @@ CONTAINS
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     END IF
   END SUBROUTINE gapw_control_create
+
 ! *****************************************************************************
-  SUBROUTINE lripaw_control_create(lripaw_control, error)
-    TYPE(lripaw_control_type), POINTER       :: lripaw_control
-    TYPE(cp_error_type), INTENT(inout)       :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'lripaw_control_create', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: stat
-    LOGICAL                                  :: failure
-
-    failure=.FALSE.
-    CPPrecondition(.NOT.ASSOCIATED(lripaw_control),cp_failure_level,routineP,error,failure)
-    IF (.NOT. failure) THEN
-       ALLOCATE (lripaw_control,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    END IF
-  END SUBROUTINE lripaw_control_create
-
+!> \brief ...
+!> \param qs_control ...
+!> \param error ...
 ! *****************************************************************************
   SUBROUTINE qs_control_create(qs_control, error)
     TYPE(qs_control_type), POINTER           :: qs_control
@@ -914,7 +926,6 @@ CONTAINS
 
        NULLIFY(qs_control%e_cutoff)
        NULLIFY(qs_control%gapw_control)
-       NULLIFY(qs_control%lripaw_control)
        NULLIFY(qs_control%mulliken_restraint_control)
        NULLIFY(qs_control%ddapc_restraint_control)
        NULLIFY(qs_control%s2_restraint_control)
@@ -928,13 +939,16 @@ CONTAINS
        CALL becke_control_create(qs_control%becke_control,error=error)
        CALL s2_control_create(qs_control%s2_restraint_control,error=error)
        CALL gapw_control_create(qs_control%gapw_control, error=error)
-       CALL lripaw_control_create(qs_control%lripaw_control, error=error)
        CALL se_control_create(qs_control%se_control,error=error)
        CALL dftb_control_create(qs_control%dftb_control,error=error)
        CALL scptb_control_create(qs_control%scptb_control,error=error)
     END IF
   END SUBROUTINE qs_control_create
 
+! *****************************************************************************
+!> \brief ...
+!> \param qs_control ...
+!> \param error ...
 ! *****************************************************************************
   SUBROUTINE qs_control_release(qs_control, error)
     TYPE(qs_control_type), POINTER           :: qs_control
@@ -963,10 +977,6 @@ CONTAINS
           DEALLOCATE(qs_control%gapw_control,stat=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        END IF
-       IF (ASSOCIATED(qs_control%lripaw_control))THEN
-          DEALLOCATE(qs_control%lripaw_control,stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       END IF
        IF(ASSOCIATED(qs_control%ddapc_restraint_control))THEN
           DO i = 1 , SIZE(qs_control%ddapc_restraint_control)
              CALL ddapc_control_release(qs_control%ddapc_restraint_control(i)%ddapc_restraint_control,&
@@ -979,6 +989,10 @@ CONTAINS
     END IF
   END SUBROUTINE qs_control_release
 
+! *****************************************************************************
+!> \brief ...
+!> \param tddfpt_control ...
+!> \param error ...
 ! *****************************************************************************
   SUBROUTINE tddfpt_control_create(tddfpt_control, error)
     TYPE(tddfpt_control_type), POINTER       :: tddfpt_control
@@ -1001,6 +1015,10 @@ CONTAINS
 
   END SUBROUTINE tddfpt_control_create
 
+! *****************************************************************************
+!> \brief ...
+!> \param tddfpt_control ...
+!> \param error ...
 ! *****************************************************************************
   SUBROUTINE tddfpt_control_release(tddfpt_control, error)
     TYPE(tddfpt_control_type), POINTER       :: tddfpt_control
@@ -1036,6 +1054,10 @@ CONTAINS
   END SUBROUTINE tddfpt_control_release
 
 
+! *****************************************************************************
+!> \brief ...
+!> \param efield_fields ...
+!> \param error ...
 ! *****************************************************************************
   SUBROUTINE efield_fields_release(efield_fields, error)
     TYPE(efield_p_type), DIMENSION(:), &
@@ -1074,43 +1096,9 @@ CONTAINS
   END SUBROUTINE efield_fields_release
 
 ! *****************************************************************************
-  SUBROUTINE scp_control_create(scp_control,error)
-    TYPE(scp_control_type), POINTER          :: scp_control
-    TYPE(cp_error_type), INTENT(inout)       :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'scp_control_create', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: stat
-    LOGICAL                                  :: failure
-
-    failure=.FALSE.
-
-    CPPrecondition(.NOT.ASSOCIATED(scp_control),cp_failure_level,routineP,error,failure)
-    ALLOCATE(scp_control,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-
-  END SUBROUTINE scp_control_create
-
-! *****************************************************************************
-  SUBROUTINE scp_control_release(scp_control,error)
-    TYPE(scp_control_type), POINTER          :: scp_control
-    TYPE(cp_error_type), INTENT(inout)       :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'scp_control_release', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: stat
-    LOGICAL                                  :: failure
-
-    failure=.FALSE.
-
-    IF (ASSOCIATED(scp_control)) THEN
-       DEALLOCATE(scp_control,stat=stat)
-       CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
-    END IF
-  END SUBROUTINE scp_control_release
-
+!> \brief ...
+!> \param dftb_control ...
+!> \param error ...
 ! *****************************************************************************
   SUBROUTINE dftb_control_create(dftb_control,error)
     TYPE(dftb_control_type), POINTER         :: dftb_control
@@ -1131,6 +1119,10 @@ CONTAINS
     NULLIFY(dftb_control%sk_pair_list)
   END SUBROUTINE dftb_control_create
 
+! *****************************************************************************
+!> \brief ...
+!> \param dftb_control ...
+!> \param error ...
 ! *****************************************************************************
   SUBROUTINE dftb_control_release(dftb_control,error)
     TYPE(dftb_control_type), POINTER         :: dftb_control
@@ -1155,6 +1147,10 @@ CONTAINS
   END SUBROUTINE dftb_control_release
 
 ! *****************************************************************************
+!> \brief ...
+!> \param scptb_control ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE scptb_control_create(scptb_control,error)
     TYPE(scptb_control_type), POINTER        :: scptb_control
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -1174,6 +1170,10 @@ CONTAINS
   END SUBROUTINE scptb_control_create
 
 ! *****************************************************************************
+!> \brief ...
+!> \param scptb_control ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE scptb_control_release(scptb_control,error)
     TYPE(scptb_control_type), POINTER        :: scptb_control
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -1192,6 +1192,10 @@ CONTAINS
     END IF
   END SUBROUTINE scptb_control_release
 
+! *****************************************************************************
+!> \brief ...
+!> \param se_control ...
+!> \param error ...
 ! *****************************************************************************
   SUBROUTINE se_control_create(se_control,error)
     TYPE(semi_empirical_control_type), &
@@ -1213,6 +1217,10 @@ CONTAINS
   END SUBROUTINE se_control_create
 
 ! *****************************************************************************
+!> \brief ...
+!> \param se_control ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE se_control_release(se_control,error)
     TYPE(semi_empirical_control_type), &
       POINTER                                :: se_control
@@ -1233,6 +1241,10 @@ CONTAINS
   END SUBROUTINE se_control_release
 
 ! *****************************************************************************
+!> \brief ...
+!> \param admm_control ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE admm_control_create(admm_control,error)
     TYPE(admm_control_type), POINTER         :: admm_control
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -1251,6 +1263,10 @@ CONTAINS
 
   END SUBROUTINE admm_control_create
 
+! *****************************************************************************
+!> \brief ...
+!> \param admm_control ...
+!> \param error ...
 ! *****************************************************************************
   SUBROUTINE admm_control_release(admm_control,error)
     TYPE(admm_control_type), POINTER         :: admm_control

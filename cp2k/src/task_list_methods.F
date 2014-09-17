@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2013  CP2K developers group                          !
+!   Copyright (C) 2000 - 2014  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -10,28 +10,22 @@
 !> \author Joost VandeVondele
 ! *****************************************************************************
 MODULE task_list_methods
-  USE array_types,                     ONLY: array_data
-  USE atomic_kind_types,               ONLY: atomic_kind_type,&
-                                             get_atomic_kind
+  USE ao_util,                         ONLY: exp_radius_very_extended
   USE basis_set_types,                 ONLY: get_gto_basis_set,&
                                              gto_basis_set_p_type,&
                                              gto_basis_set_type
-  USE cell_types,                      ONLY: cell_type,&
+  USE cell_methods,                    ONLY: cell_type,&
                                              pbc
   USE cp_control_types,                ONLY: dft_control_type
-  USE cp_dbcsr_interface,              ONLY: cp_dbcsr_col_block_sizes,&
-                                             cp_dbcsr_finalize,&
-                                             cp_dbcsr_get_block_p,&
-                                             cp_dbcsr_get_info,&
-                                             cp_dbcsr_put_block,&
-                                             cp_dbcsr_row_block_sizes,&
-                                             cp_dbcsr_work_create
-  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_type
+  USE cp_dbcsr_interface,              ONLY: &
+       array_data, convert_sizes_to_offsets, cp_dbcsr_col_block_sizes, &
+       cp_dbcsr_finalize, cp_dbcsr_get_block_p, cp_dbcsr_get_info, &
+       cp_dbcsr_put_block, cp_dbcsr_row_block_sizes, cp_dbcsr_type, &
+       cp_dbcsr_work_create
   USE cube_utils,                      ONLY: compute_cube_center,&
                                              cube_info_type,&
                                              return_cube,&
                                              return_cube_nonortho
-  USE dbcsr_util,                      ONLY: convert_sizes_to_offsets
   USE f77_blas
   USE gaussian_gridlevels,             ONLY: gaussian_gridlevel,&
                                              gridlevel_info_type
@@ -52,7 +46,8 @@ MODULE task_list_methods
                                              pw_env_type
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
-  USE qs_interactions,                 ONLY: exp_radius_very_extended
+  USE qs_kind_types,                   ONLY: get_qs_kind,&
+                                             qs_kind_type
   USE qs_neighbor_list_types,          ONLY: get_iterator_info,&
                                              neighbor_list_iterate,&
                                              neighbor_list_iterator_create,&
@@ -72,7 +67,7 @@ MODULE task_list_methods
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE util,                            ONLY: sort
-#include "cp_common_uses.h"
+#include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
 
@@ -83,19 +78,27 @@ MODULE task_list_methods
   PUBLIC :: generate_qs_task_list,&
             task_list_inner_loop
   PUBLIC :: distribute_tasks,&
-            pair2int,&
             int2pair,&
             rs_distribute_matrix
 
 CONTAINS
 
 ! *****************************************************************************
+!> \brief ...
+!> \param qs_env ...
+!> \param task_list ...
+!> \param reorder_rs_grid_ranks Flag that indicates if this routine should
+!>        or should not overwrite the rs descriptor (see comment below)
+!> \param skip_load_balance_distributed ...
+!> \param soft_valid ...
+!> \param basis_set_id ...
+!> \param pw_env_external ...
+!> \param sab_orb_external ...
+!> \param error ...
 !> \par History
 !>      01.2008 factored out of calculate_rho_elec [Joost VandeVondele]
 !>      04.2010 divides tasks into grid levels and atom pairs for integrate/collocate [Iain Bethune]
 !>              (c) The Numerical Algorithms Group (NAG) Ltd, 2010 on behalf of the HECToR project
-!> \param reorder_rs_grid_ranks Flag that indicates if this routine should
-!>        or should not overwrite the rs descriptor (see comment below)
 !> \note  If this routine is called several times with different task lists,
 !>        the default behaviour is to re-optimize the grid ranks and overwrite
 !>        the rs descriptor and grids. reorder_rs_grid_ranks = .FALSE. prevents the code
@@ -135,9 +138,6 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(3)              :: ra, rab
     REAL(KIND=dp), DIMENSION(:), POINTER     :: set_radius_a, set_radius_b
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: rpgfa, rpgfb, zeta, zetb
-    TYPE(atomic_kind_type), DIMENSION(:), &
-      POINTER                                :: atomic_kind_set
-    TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cube_info_type), DIMENSION(:), &
       POINTER                                :: cube_info
@@ -154,6 +154,9 @@ CONTAINS
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(pw_env_type), POINTER               :: pw_env
+    TYPE(qs_kind_type), DIMENSION(:), &
+      POINTER                                :: qs_kind_set
+    TYPE(qs_kind_type), POINTER              :: qs_kind
     TYPE(realspace_grid_desc_p_type), &
       DIMENSION(:), POINTER                  :: rs_descs
     TYPE(realspace_grid_p_type), &
@@ -176,7 +179,7 @@ CONTAINS
     SELECT CASE (my_basis_set_id)
     CASE (use_orb_basis_set)
       CALL get_qs_env(qs_env=qs_env,&
-           atomic_kind_set=atomic_kind_set,&
+           qs_kind_set=qs_kind_set,&
            cell=cell,&
            particle_set=particle_set,&
            dft_control=dft_control,&
@@ -184,7 +187,7 @@ CONTAINS
            pw_env=pw_env,error=error)
     CASE (use_aux_fit_basis_set)
       CALL get_qs_env(qs_env=qs_env,&
-           atomic_kind_set=atomic_kind_set,&
+           qs_kind_set=qs_kind_set,&
            cell=cell,&
            particle_set=particle_set,&
            dft_control=dft_control,&
@@ -203,19 +206,19 @@ CONTAINS
     cube_info=>pw_env%cube_info
 
     ! find maximum numbers
-    nkind = SIZE(atomic_kind_set)
+    nkind = SIZE(qs_kind_set)
     natoms = SIZE( particle_set )
     maxset=0
     maxpgf=0
     DO ikind=1,nkind
-       atomic_kind => atomic_kind_set(ikind)
+       qs_kind => qs_kind_set(ikind)
        SELECT CASE (my_basis_set_id)
        CASE (use_orb_basis_set)
-         CALL get_atomic_kind(atomic_kind=atomic_kind,&
+         CALL get_qs_kind(qs_kind=qs_kind,&
               softb = my_soft, &
               orb_basis_set=orb_basis_set)
        CASE (use_aux_fit_basis_set)
-          CALL get_atomic_kind(atomic_kind=atomic_kind,&
+          CALL get_qs_kind(qs_kind=qs_kind,&
               softb = my_soft, &
               aux_fit_basis_set=orb_basis_set,&
               basis_set_id=my_basis_set_id)
@@ -243,12 +246,12 @@ CONTAINS
 
     ALLOCATE (basis_set_list(nkind))
     DO ikind=1,nkind
-      atomic_kind => atomic_kind_set(ikind)
+      qs_kind => qs_kind_set(ikind)
       SELECT CASE (my_basis_set_id)
       CASE (use_orb_basis_set)
-        CALL get_atomic_kind(atomic_kind=atomic_kind,softb=my_soft,orb_basis_set=basis_set_a)
+        CALL get_qs_kind(qs_kind=qs_kind,softb=my_soft,orb_basis_set=basis_set_a)
       CASE (use_aux_fit_basis_set)
-        CALL get_atomic_kind(atomic_kind=atomic_kind,softb=my_soft,&
+        CALL get_qs_kind(qs_kind=qs_kind,softb=my_soft,&
              aux_fit_basis_set=basis_set_a,basis_set_id=my_basis_set_id)
       END SELECT
       IF (ASSOCIATED(basis_set_a)) THEN
@@ -400,6 +403,39 @@ CONTAINS
   END SUBROUTINE generate_qs_task_list
 
 ! *****************************************************************************
+!> \brief ...
+!> \param tasks ...
+!> \param dist_ab ...
+!> \param ntasks ...
+!> \param curr_tasks ...
+!> \param rs_descs ...
+!> \param dft_control ...
+!> \param cube_info ...
+!> \param gridlevel_info ...
+!> \param cell ...
+!> \param iatom ...
+!> \param jatom ...
+!> \param rpgfa ...
+!> \param rpgfb ...
+!> \param zeta ...
+!> \param zetb ...
+!> \param kind_radius_b ...
+!> \param set_radius_a ...
+!> \param set_radius_b ...
+!> \param ra ...
+!> \param rab ...
+!> \param la_max ...
+!> \param la_min ...
+!> \param lb_max ...
+!> \param lb_min ...
+!> \param npgfa ...
+!> \param npgfb ...
+!> \param maxpgf ...
+!> \param maxset ...
+!> \param natoms ...
+!> \param nseta ...
+!> \param nsetb ...
+!> \param error ...
 !> \par History
 !>      Joost VandeVondele: 10.2008 refactored
 ! *****************************************************************************
@@ -485,6 +521,24 @@ CONTAINS
 !>  its center, the bounding cube, the radius, the cost,
 !>  tries to predict the time needed for processing this task
 !>      in this way an improved load balance might be obtained
+!> \param cube_center ...
+!> \param lb_cube ...
+!> \param ub_cube ...
+!> \param radius ...
+!> \param rs_desc ...
+!> \param cube_info ...
+!> \param la_max ...
+!> \param zeta ...
+!> \param la_min ...
+!> \param lb_max ...
+!> \param zetb ...
+!> \param lb_min ...
+!> \param ra ...
+!> \param rab ...
+!> \param rab2 ...
+!> \param eps ...
+!> \par History
+!>      10.2008 refactored [Joost VandeVondele]
 !> \note
 !>      -) this requires the radius to be computed in the same way as
 !>      collocate_pgf_product_rspace, we should factor that part into a subroutine
@@ -495,8 +549,6 @@ CONTAINS
 !>      -) the cost function is a fit through the median cost of mapping a pgf with a given l and a given radius (in grid points)
 !>         fitting the measured data on an opteron/g95 using the expression
 !>         a*(l+b)(r+c)**3+d which is based on the innerloop of the collocating routines
-!> \par History
-!>      10.2008 refactored [Joost VandeVondele]
 ! *****************************************************************************
   SUBROUTINE compute_pgf_properties(cube_center,lb_cube,ub_cube,radius, &
                rs_desc,cube_info,la_max,zeta,la_min,lb_max,zetb,lb_min,ra,rab,rab2,eps)
@@ -552,6 +604,11 @@ CONTAINS
 !>        work as well
 !>        the cost model does not yet take into account the fraction of space
 !>        that is mapped locally for a given cube and rs_grid (generalised tasks)
+!> \param lb_cube ...
+!> \param ub_cube ...
+!> \param fraction ...
+!> \param lmax ...
+!> \param is_ortho ...
 ! *****************************************************************************
   INTEGER FUNCTION cost_model(lb_cube,ub_cube,fraction,lmax,is_ortho)
     INTEGER, DIMENSION(3), INTENT(IN)       :: lb_cube, ub_cube
@@ -590,6 +647,29 @@ CONTAINS
 !>        tasks(5,i) := cost
 !>        tasks(6,i) := alternate destination code (0 if none availabe)
 !>
+!> \param tasks ...
+!> \param dist_ab ...
+!> \param ntasks ...
+!> \param curr_tasks ...
+!> \param rab ...
+!> \param iatom ...
+!> \param jatom ...
+!> \param iset ...
+!> \param jset ...
+!> \param ipgf ...
+!> \param jpgf ...
+!> \param natoms ...
+!> \param maxset ...
+!> \param maxpgf ...
+!> \param la_max ...
+!> \param lb_max ...
+!> \param rs_desc ...
+!> \param igrid_level ...
+!> \param n_levels ...
+!> \param cube_center ...
+!> \param lb_cube ...
+!> \param ub_cube ...
+!> \param error ...
 !> \par History
 !>      10.2008 Refactored based on earlier routines by MattW [Joost VandeVondele]
 ! *****************************************************************************
@@ -672,10 +752,21 @@ CONTAINS
 !>      a list of integers can be sorted, and will result in a list of pgf pairs
 !>      for which all atom pairs are grouped, and for each atom pair all set pairs are grouped
 !>      and for each set pair, all pgfs are grouped
-!> \note
-!>      will hopefully not overflow any more
+!> \param res ...
+!> \param ilevel ...
+!> \param iatom ...
+!> \param jatom ...
+!> \param iset ...
+!> \param jset ...
+!> \param ipgf ...
+!> \param jpgf ...
+!> \param natom ...
+!> \param maxset ...
+!> \param maxpgf ...
 !> \par History
 !>      11.2007 created [Joost]
+!> \note
+!>      will hopefully not overflow any more
 ! *****************************************************************************
   SUBROUTINE pair2int(res,ilevel,iatom,jatom,iset,jset,ipgf,jpgf,natom,maxset,maxpgf)
     INTEGER(KIND=int_8), INTENT(OUT)         :: res
@@ -700,6 +791,19 @@ CONTAINS
 
   END SUBROUTINE pair2int
 
+! *****************************************************************************
+!> \brief ...
+!> \param res ...
+!> \param ilevel ...
+!> \param iatom ...
+!> \param jatom ...
+!> \param iset ...
+!> \param jset ...
+!> \param ipgf ...
+!> \param jpgf ...
+!> \param natom ...
+!> \param maxset ...
+!> \param maxpgf ...
 ! *****************************************************************************
   SUBROUTINE int2pair(res,ilevel,iatom,jatom,iset,jset,ipgf,jpgf,natom,maxset,maxpgf)
     INTEGER(KIND=int_8), INTENT(IN)          :: res
@@ -734,6 +838,14 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief performs load balancing of the tasks on the distributed grids
+!> \param tasks ...
+!> \param ntasks ...
+!> \param rs_descs ...
+!> \param grid_level ...
+!> \param natoms ...
+!> \param maxset ...
+!> \param maxpgf ...
+!> \param error ...
 !> \par History
 !>      created 2008-10-03 [Joost VandeVondele]
 ! *****************************************************************************
@@ -783,6 +895,7 @@ CONTAINS
 ! *****************************************************************************
 !> \brief this serial routine adjusts the fluxes in the global list
 !>
+!> \param list_global ...
 !> \par History
 !>      created 2008-10-06 [Joost VandeVondele]
 ! *****************************************************************************
@@ -798,7 +911,7 @@ CONTAINS
                                                 iflux, ilocal, k, maxdest, &
                                                 Ncpu, Nflux
     INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: flux_connections
-    LOGICAL                                  :: solution_ok, solution_optimal
+    LOGICAL                                  :: solution_optimal
     REAL(KIND=dp)                            :: average, load_shift, &
                                                 max_load_shift, tolerance
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: load, optimized_flux, &
@@ -813,7 +926,6 @@ CONTAINS
      ALLOCATE (load(0:Ncpu-1))
      load=0.0_dp
      ALLOCATE (optimized_load(0:Ncpu-1))
-
 
      ! figure out the number of fluxes
      ! we assume that the global_list is symmetric
@@ -855,7 +967,6 @@ CONTAINS
         ENDDO
      ENDDO
 
-     solution_ok=.TRUE.
      solution_optimal=.FALSE.
      optimized_flux=0.0_dp
 
@@ -867,7 +978,7 @@ CONTAINS
      average=SUM(load)/SIZE(load)
      tolerance=Tolerance_factor*average
 
-     optimized_load=load
+     optimized_load(:)=load
      DO k=1,Max_iter
        max_load_shift=0.0_dp
        DO iflux=1,Nflux
@@ -935,6 +1046,10 @@ CONTAINS
 ! *****************************************************************************
 !> \brief this routine gets back optimized loads for all destinations
 !>
+!> \param list ...
+!> \param group ...
+!> \param my_pos ...
+!> \param error ...
 !> \par History
 !>      created 2008-10-06 [Joost VandeVondele]
 ! *****************************************************************************
@@ -969,7 +1084,8 @@ CONTAINS
     ALLOCATE (list_global(2,maxdest,ncpu),STAT=stat)
     CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
 
-    load_all=RESHAPE(list(2,:,:),(/maxdest*ncpu/))
+    load_all(:)=RESHAPE(list(2,:,:),(/maxdest*ncpu/))
+
     CALL mp_gather(load_all,load_per_source,0,group)
 
     IF (my_pos==0) THEN
@@ -977,8 +1093,9 @@ CONTAINS
        ! collect the load of all CPUs
        load_all=0
        DO icpu=1,ncpu
-          load_all=load_all+load_per_source(maxdest*ncpu*(icpu-1)+1:maxdest*ncpu*icpu)
+          load_all(:)=load_all+load_per_source(maxdest*ncpu*(icpu-1)+1:maxdest*ncpu*icpu)
        ENDDO
+
        list_global(1,:,:)=list(1,:,:)
        list_global(2,:,:)=RESHAPE(load_all,(/maxdest,ncpu/))
 
@@ -1021,6 +1138,16 @@ CONTAINS
 !>        distribute.
 !>        Replicated tasks are not yet considered
 !>
+!> \param list ...
+!> \param rs_descs ...
+!> \param grid_level ...
+!> \param tasks ...
+!> \param ntasks ...
+!> \param natoms ...
+!> \param maxset ...
+!> \param maxpgf ...
+!> \param create_list ...
+!> \param error ...
 !> \par History
 !>      created 2008-10-06 [Joost VandeVondele]
 ! *****************************************************************************
@@ -1110,7 +1237,6 @@ CONTAINS
        ENDDO
 
        DO itask=itask_start,itask_stop
-
 
           dest=decode_rank(tasks(1,itask), SIZE(rs_descs)) ! notice that dest can be changed
           CALL int2pair(tasks(3,itask),ilevel,iatom,jatom,iset,jset,ipgf,jpgf,natoms,maxset,maxpgf)
@@ -1219,6 +1345,9 @@ CONTAINS
 ! *****************************************************************************
 !> \brief small helper function to return the proper index in the list array
 !>
+!> \param list ...
+!> \param rank ...
+!> \param dest ...
 !> \par History
 !>      created 2008-10-06 [Joost VandeVondele]
 ! *****************************************************************************
@@ -1235,6 +1364,10 @@ CONTAINS
 !> \brief create a list with possible destinations (i.e. the central cpu and neighbors) for each cpu
 !>        note that we allocate it with an additional field to store the load of this destination
 !>
+!> \param list ...
+!> \param rs_descs ...
+!> \param grid_level ...
+!> \param error ...
 !> \par History
 !>      created 2008-10-06 [Joost VandeVondele]
 ! *****************************************************************************
@@ -1251,7 +1384,6 @@ CONTAINS
     INTEGER                                  :: handle, i, icpu, j, maxcount, &
                                                 ncpu, stat, ultimate_max
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: index, sublist
-    INTEGER, DIMENSION(3)                    :: coord
     LOGICAL                                  :: failure
 
     failure=.FALSE.
@@ -1274,7 +1406,6 @@ CONTAINS
     maxcount=1
     DO icpu=0,ncpu-1
        sublist(1)=icpu
-       coord=rs_descs(grid_level)%rs_desc%rank2coord(:,icpu)
        sublist(2)=rs_grid_locate_rank(rs_descs(grid_level)%rs_desc,icpu,(/-1,0,0/))
        sublist(3)=rs_grid_locate_rank(rs_descs(grid_level)%rs_desc,icpu,(/+1,0,0/))
        sublist(4)=rs_grid_locate_rank(rs_descs(grid_level)%rs_desc,icpu,(/0,-1,0/))
@@ -1306,6 +1437,16 @@ CONTAINS
 !> \brief given a task list, compute the load of each process everywhere
 !>        giving this function the ability to loop over a (sub)set of rs_grids, and do all the communication in one shot,
 !>        would speed it up
+!> \param loads ...
+!> \param rs_descs ...
+!> \param grid_level ...
+!> \param ntasks ...
+!> \param natom ...
+!> \param maxset ...
+!> \param maxpgf ...
+!> \param tasks ...
+!> \param use_reordered_ranks ...
+!> \param error ...
 !> \par History
 !>      none
 !> \author MattW 21/11/2007
@@ -1378,6 +1519,13 @@ CONTAINS
 !> \brief performs load balancing shifting tasks on the replicated grids
 !>        this modifies the destination of some of the tasks on replicated
 !>        grids, and in this way balances the load
+!> \param rs_descs ...
+!> \param ntasks ...
+!> \param tasks ...
+!> \param natoms ...
+!> \param maxset ...
+!> \param maxpgf ...
+!> \param error ...
 !> \par History
 !>      none
 !> \author MattW 21/11/2007
@@ -1421,7 +1569,7 @@ CONTAINS
     recv_buf_i = 0
     DO i = 1, SIZE(rs_descs)
       CALL get_current_loads ( loads, rs_descs, i, ntasks, natoms,maxset,maxpgf, tasks, use_reordered_ranks=.TRUE. ,error=error )
-      recv_buf_i = recv_buf_i + loads
+      recv_buf_i(:) = recv_buf_i + loads
     END DO
 
     total_cost_global = SUM(recv_buf_i)
@@ -1439,7 +1587,7 @@ CONTAINS
     IF (stat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                     "index",int_size*desc%group_size)
 
-    load_imbalance = recv_buf_i - average_cost
+    load_imbalance(:) = recv_buf_i - average_cost
     no_overloaded = 0
     no_underloaded = 0
 
@@ -1535,6 +1683,14 @@ CONTAINS
 ! *****************************************************************************
 !> \brief given an input task list, redistribute so that all tasks can be processed locally,
 !>        i.e. dest equals rank
+!> \param rs_descs ...
+!> \param ntasks ...
+!> \param tasks ...
+!> \param rval ...
+!> \param ntasks_recv ...
+!> \param tasks_recv ...
+!> \param rval_recv ...
+!> \param error ...
 !> \par History
 !>      none
 !> \author MattW 21/11/2007
@@ -1730,9 +1886,19 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Assembles tasks to be performed on local grid
-!> \param rs the grid
+!> \param rs_descs the grids
+!> \param ntasks Number of tasks for local processing
+!> \param natoms ...
+!> \param maxset ...
+!> \param maxpgf ...
 !> \param tasks the task set generated on this processor
-!> \param npme Number of tasks for local processing
+!> \param rval ...
+!> \param atom_pair_send ...
+!> \param atom_pair_recv ...
+!> \param symmetric ...
+!> \param reorder_rs_grid_ranks ...
+!> \param skip_load_balance_distributed ...
+!> \param error ...
 !> \par History
 !>      none
 !> \author MattW 21/11/2007
@@ -1808,7 +1974,8 @@ CONTAINS
 
            CALL get_current_loads( loads(:,igrid_level), rs_descs, igrid_level, ntasks, natoms, maxset,maxpgf, &
                                    tasks, use_reordered_ranks=.FALSE. , error=error)
-           total_loads=total_loads+loads(:,igrid_level)
+
+           total_loads(:)=total_loads+loads(:,igrid_level)
 
          END IF
        END DO
@@ -1826,7 +1993,7 @@ CONTAINS
        END DO
 
        !IF (desc%my_pos==0) THEN
-       ! WRITE(6,*) "Total replicated load is ",replicated_load
+       ! WRITE(*,*) "Total replicated load is ",replicated_load
        !END IF
 
        ! Now we adjust the rank ordering based on the current loads
@@ -1836,14 +2003,14 @@ CONTAINS
          DO igrid_level=1,SIZE(rs_descs)
            IF (rs_descs(igrid_level)%rs_desc%distributed ) THEN
              IF (fixed_first_grid .EQV. .FALSE.) THEN
-               total_loads = loads(:,igrid_level)
+               total_loads(:) = loads(:,igrid_level)
                fixed_first_grid = .TRUE.
              ELSE
                ALLOCATE (trial_loads(0:desc%group_size-1),STAT=stat)
                IF (stat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                                "trial_loads",int_8_size*desc%group_size)
 
-               trial_loads = total_loads + loads(:,igrid_level)
+               trial_loads(:) = total_loads + loads(:,igrid_level)
                max_load = MAXVAL(trial_loads)
                load_gap = 0
                DO irank=0, desc%group_size-1
@@ -1867,7 +2034,7 @@ CONTAINS
                  IF (stat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                                  "real2virtual",int_size*desc%group_size)
 
-                 total_loads_tmp = total_loads
+                 total_loads_tmp(:) = total_loads
                  CALL sort(total_loads_tmp, desc%group_size, total_index)
                  CALL sort(loads(:,igrid_level), desc%group_size, index)
 
@@ -1890,7 +2057,7 @@ CONTAINS
                  DEALLOCATE (real2virtual,STAT=stat)
                  IF (stat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"real2virtual")
                ELSE
-                 total_loads = trial_loads
+                 total_loads(:) = trial_loads
                ENDIF
 
                DEALLOCATE (trial_loads,STAT=stat)
@@ -1912,11 +2079,11 @@ CONTAINS
        !END DO
 
        !IF (desc%my_pos==0) THEN
-       !  WRITE(6,*) ""
-       !  WRITE(6,*) "At the end of the load balancing procedure"
-       !  WRITE(6,*) "Maximum  load:",MAXVAL(total_loads)
-       !  WRITE(6,*) "Average  load:",SUM(total_loads)/SIZE(total_loads)
-       !  WRITE(6,*) "Minimum  load:",MINVAL(total_loads)
+       !  WRITE(*,*) ""
+       !  WRITE(*,*) "At the end of the load balancing procedure"
+       !  WRITE(*,*) "Maximum  load:",MAXVAL(total_loads)
+       !  WRITE(*,*) "Average  load:",SUM(total_loads)/SIZE(total_loads)
+       !  WRITE(*,*) "Minimum  load:",MINVAL(total_loads)
        !ENDIF
 
        ! given a list of tasks, this will do the needed reshuffle so that all tasks will be local
@@ -1936,8 +2103,8 @@ CONTAINS
        ! natom_send=SIZE(atom_pair_send)
        ! CALL mp_sum(natom_send,desc%group)
        ! IF (desc%my_pos==0) THEN
-       !     WRITE(6,*) ""
-       !     WRITE(6,*) "Total number of atomic blocks to be send:",natom_send
+       !     WRITE(*,*) ""
+       !     WRITE(*,*) "Total number of atomic blocks to be send:",natom_send
        ! ENDIF
 
        ALLOCATE (atom_pair_recv(ntasks_recv),STAT=stat)
@@ -1977,7 +2144,7 @@ CONTAINS
     IF (stat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                     "index",int_size*ntasks_recv)
 
-    taskid=tasks_recv(3,1:ntasks_recv)
+    taskid(:)=tasks_recv(3,1:ntasks_recv)
     CALL sort(taskid,SIZE(taskid),index)
 
     DO k=1,SIZE(tasks_recv,1)
@@ -2004,6 +2171,16 @@ CONTAINS
 
   END SUBROUTINE distribute_tasks
 
+! *****************************************************************************
+!> \brief ...
+!> \param atom_pair ...
+!> \param my_tasks ...
+!> \param send ...
+!> \param symmetric ...
+!> \param natoms ...
+!> \param maxset ...
+!> \param maxpgf ...
+!> \param rs_descs ...
 ! *****************************************************************************
   SUBROUTINE get_atom_pair ( atom_pair, my_tasks, send, symmetric, natoms, maxset, maxpgf, rs_descs)
 
@@ -2087,6 +2264,14 @@ END SUBROUTINE get_atom_pair
 !> \brief redistributes the matrix so that it can be used in realspace operations
 !>        i.e. according to the task lists for collocate and integrate.
 !>        This routine can become a bottleneck in large calculations.
+!> \param rs_descs ...
+!> \param pmat ...
+!> \param atom_pair_send ...
+!> \param atom_pair_recv ...
+!> \param natoms ...
+!> \param scatter ...
+!> \param error ...
+!> \param hmat ...
 ! *****************************************************************************
 SUBROUTINE rs_distribute_matrix( rs_descs, pmat, atom_pair_send, atom_pair_recv, &
      natoms, scatter, error, hmat )
@@ -2323,15 +2508,15 @@ SUBROUTINE rs_distribute_matrix( rs_descs, pmat, atom_pair_send, atom_pair_recv,
 !$  call omp_unset_lock(locks((arow-1)*nthread*10/nblkrows_total+1))
     ENDDO
 !$omp end do
-  END IF
-
-  IF (scatter) THEN
+  ELSE
     ! We will insert new blocks into P, so create mutable work matrices
     CALL cp_dbcsr_work_create(pmat,work_mutable=.TRUE.,&
       nblks_guess=SIZE(atom_pair_recv)/nthread,sizedata_guess=SIZE(recv_buf_r)/nthread,&
       n=nthread,error=error)
-!$omp barrier
   END IF
+
+! wait for comm and setup to finish
+!$omp barrier
 
   !do unpacking
 !$omp do schedule(guided)
@@ -2422,6 +2607,16 @@ END SUBROUTINE rs_distribute_matrix
 
 ! *****************************************************************************
 !> \brief determines the rank of the processor who's real rs grid contains point
+!> \param rs_desc ...
+!> \param igrid_level ...
+!> \param n_levels ...
+!> \param cube_center ...
+!> \param ntasks ...
+!> \param tasks ...
+!> \param lb_cube ...
+!> \param ub_cube ...
+!> \param added_tasks ...
+!> \param error ...
 !> \par History
 !>      11.2007 created [MattW]
 !>      10.2008 rewritten [Joost VandeVondele]
@@ -2595,6 +2790,10 @@ END SUBROUTINE rs_distribute_matrix
 !> \brief utility functions for encoding the grid level with a rank, allowing
 !>        different grid levels to maintain a different rank ordering without
 !>        losing information.  These encoded_ints are stored in the tasks(1:2,:) array
+!> \param rank ...
+!> \param grid_level ...
+!> \param n_levels ...
+!> \retval encoded_int ...
 !> \par History
 !>      4.2009 created [Iain Bethune]
 !>        (c) The Numerical Algorithms Group (NAG) Ltd, 2009 on behalf of the HECToR project
@@ -2610,6 +2809,12 @@ END SUBROUTINE rs_distribute_matrix
 
   END FUNCTION
 
+! *****************************************************************************
+!> \brief ...
+!> \param encoded_int ...
+!> \param n_levels ...
+!> \retval rank ...
+! *****************************************************************************
   FUNCTION decode_rank (encoded_int, n_levels) RESULT(rank)
 
     INTEGER(KIND=int_8), INTENT(IN)          :: encoded_int
@@ -2620,6 +2825,12 @@ END SUBROUTINE rs_distribute_matrix
 
   END FUNCTION
 
+! *****************************************************************************
+!> \brief ...
+!> \param encoded_int ...
+!> \param n_levels ...
+!> \retval grid_level ...
+! *****************************************************************************
   FUNCTION decode_level (encoded_int, n_levels) RESULT(grid_level)
 
     INTEGER(KIND=int_8), INTENT(IN)          :: encoded_int

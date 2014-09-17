@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2013  CP2K developers group                          !
+!   Copyright (C) 2000 - 2014  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -18,15 +18,15 @@
 ! *****************************************************************************
 MODULE global_types
 
+  USE cp_blacs_env,                    ONLY: BLACS_GRID_SQUARE
   USE f77_blas
-  USE input_constants,                 ONLY: BLACS_GRID_SQUARE
   USE kinds,                           ONLY: default_path_length,&
                                              default_string_length,&
                                              dp
   USE machine,                         ONLY: m_walltime
   USE parallel_rng_types,              ONLY: delete_rng_stream,&
                                              rng_stream_type
-#include "cp_common_uses.h"
+#include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
 
@@ -46,11 +46,6 @@ MODULE global_types
 
   ! Public parameters
 
-  PUBLIC :: SILENT,&
-            LOW,&
-            MEDIUM,&
-            HIGH,&
-            DEBUG
 
   ! Public data types
   PUBLIC :: global_environment_type
@@ -75,6 +70,7 @@ MODULE global_types
   TYPE global_environment_type
      INTEGER :: id_nr, ref_count
      TYPE(rng_stream_type), POINTER          :: gaussian_rng_stream
+     CHARACTER(LEN=default_string_length)    :: diag_library
      CHARACTER(LEN=default_string_length)    :: default_fft_library
      CHARACTER(LEN=default_path_length)      :: fftw_wisdom_file_name
 
@@ -118,6 +114,7 @@ CONTAINS
        globenv%id_nr=last_globenv_id
        globenv%ref_count=1
        globenv%run_type_id=0
+       globenv%diag_library="SL"
        globenv%default_fft_library="FFTSG"
        globenv%fftw_wisdom_file_name="/etc/fftw/wisdom"
        globenv%prog_name_id=0

@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2013  CP2K developers group                          !
+!   Copyright (C) 2000 - 2014  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -9,7 +9,7 @@
 MODULE qmmm_ff_fist
   USE f77_blas
   USE kinds,                           ONLY: default_string_length
-#include "cp_common_uses.h"
+#include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
   PRIVATE
@@ -23,8 +23,12 @@ CONTAINS
 !> \brief This function handles the atom names and modifies
 !>      the "_QM_" prefix, in order to find the parameters
 !>      and return .TRUE. if all input labels belong to QM atoms
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
+!> \param id1 ...
+!> \param id2 ...
+!> \param id3 ...
+!> \param id4 ...
+!> \param is_link ...
+!> \retval only_qm ...
 !> \par History
 !>      11.2004 created [tlaino]
 !> \author Teodoro Laino
@@ -97,6 +101,10 @@ CONTAINS
 
    END FUNCTION qmmm_ff_precond_only_qm
 
+! *****************************************************************************
+!> \brief ...
+!> \param id1 ...
+!> \retval is_link ...
 ! *****************************************************************************
    FUNCTION qmmm_ff_precond_only_link(id1) RESULT(is_link)
     CHARACTER(LEN=default_string_length), &

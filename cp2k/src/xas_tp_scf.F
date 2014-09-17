@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2013  CP2K developers group                          !
+!   Copyright (C) 2000 - 2014  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -13,12 +13,12 @@
 MODULE xas_tp_scf
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind
-  USE cell_types,                      ONLY: cell_type,&
+  USE cell_methods,                    ONLY: cell_type,&
                                              pbc
   USE cp_array_r_utils,                ONLY: cp_2d_r_p_type
   USE cp_control_types,                ONLY: dft_control_type
-  USE cp_dbcsr_interface,              ONLY: cp_dbcsr_copy
-  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_p_type
+  USE cp_dbcsr_interface,              ONLY: cp_dbcsr_copy,&
+                                             cp_dbcsr_p_type
   USE cp_external_control,             ONLY: external_control
   USE cp_fm_types,                     ONLY: cp_fm_get_submatrix,&
                                              cp_fm_init_random,&
@@ -63,6 +63,7 @@ MODULE xas_tp_scf
                                              qs_environment_type
   USE qs_gspace_mixing,                ONLY: gspace_mixing,&
                                              self_consistency_check
+  USE qs_kind_types,                   ONLY: qs_kind_type
   USE qs_ks_methods,                   ONLY: qs_ks_did_change,&
                                              qs_ks_update_qs_env
   USE qs_ks_types,                     ONLY: qs_ks_env_type
@@ -93,7 +94,7 @@ MODULE xas_tp_scf
                                              set_xas_env,&
                                              xas_environment_type
   USE xas_restart,                     ONLY: xas_write_restart
-#include "cp_common_uses.h"
+#include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
   PRIVATE
@@ -110,9 +111,15 @@ CONTAINS
 !> \brief perform an scf loop to calculate the xas spectrum
 !>      given by the excitation of a inner state of a selected atom
 !>      by using the transition potential method
+!> \param dft_control ...
 !> \param xas_env the environment for XAS  calculations
+!> \param iatom ...
 !> \param scf_env the scf_env where to perform the scf procedure
 !> \param qs_env the qs_env, the scf_env and xas_env live in
+!> \param xas_section ...
+!> \param scf_section ...
+!> \param converged ...
+!> \param should_stop ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 !> \par History
@@ -137,8 +144,7 @@ CONTAINS
     INTEGER                                  :: handle, handle2, ispin, &
                                                 iter_count, output_unit
     LOGICAL                                  :: diis_step, energy_only, &
-                                                exit_loop, failure, gapw, &
-                                                use_jacobi
+                                                exit_loop, failure, gapw
     REAL(KIND=dp)                            :: t1, t2
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
@@ -198,7 +204,6 @@ CONTAINS
 
     iter_count = 0
     diis_step = .FALSE.
-    use_jacobi = .FALSE.
 
     IF (output_unit>0) THEN
        WRITE (UNIT=output_unit,&
@@ -237,7 +242,7 @@ CONTAINS
           scf_env%iter_count=iter_count
           CALL do_general_diag(scf_env,mos,matrix_ks,&
                                matrix_s,scf_control,scf_section, &
-                               diis_step,use_jacobi,xas_env,error)
+                               diis_step,xas_env,error)
 
        END SELECT
 
@@ -291,7 +296,7 @@ CONTAINS
        IF (exit_loop) THEN
           ! now, print out energies and charges corresponding to the obtained wfn
           ! (this actually is not 100% consistent at this point)!
-          CALL qs_scf_print_summary(output_unit,qs_env,scp_dft=.FALSE.,error=error)
+          CALL qs_scf_print_summary(output_unit,qs_env,error=error)
           CALL cp_iterate(logger%iter_info,last=.TRUE.,iter_nr=iter_count,error=error)
        END IF
 
@@ -349,9 +354,12 @@ CONTAINS
 ! *****************************************************************************
 !> \brief  Post processing of the optimized wfn in XAS scheme, as preparation for
 !>         the calculation of the spectrum
+!> \param xas_control ...
 !> \param xas_env the environment for XAS  calculations
 !> \param qs_env the qs_env, the scf_env and xas_env live in
 !> \param iatom index of the excited atom
+!> \param xas_section ...
+!> \param output_unit ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 !> \par History
@@ -400,12 +408,14 @@ CONTAINS
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(preconditioner_type), POINTER       :: local_preconditioner
+    TYPE(qs_kind_type), DIMENSION(:), &
+      POINTER                                :: qs_kind_set
     TYPE(qs_loc_env_new_type), POINTER       :: qs_loc_env
     TYPE(section_vals_type), POINTER         :: loc_section, print_loc_section
 
     CALL timeset(routineN,handle)
 
-    NULLIFY(atomic_kind,dft_control,matrix_s,matrix_ks)
+    NULLIFY(atomic_kind,dft_control,matrix_s,matrix_ks, qs_kind_set)
     NULLIFY(cell,particle_set,local_preconditioner,vecbuffer,vecbuffer2)
     NULLIFY(dft_control,loc_section,mos,mo_coeff,eigenvalues)
     NULLIFY(centers_wfn,mykind_of_kind,qs_loc_env,localized_wfn_control,stogto_overlap)
@@ -418,7 +428,7 @@ CONTAINS
     CALL get_qs_env(qs_env=qs_env,&
          cell=cell,dft_control=dft_control,&
          matrix_ks=matrix_ks, matrix_s=matrix_s,mos=mos,&
-         particle_set=particle_set,error=error)
+         particle_set=particle_set,qs_kind_set=qs_kind_set,error=error)
 
     ! Some elements from the xas_env
     CALL get_xas_env(xas_env=xas_env,&
@@ -440,8 +450,7 @@ CONTAINS
     natom=SIZE(particle_set,1)
     ALLOCATE (first_sgf(natom),STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-    CALL get_particle_set(particle_set=particle_set, first_sgf=first_sgf,&
-         error=error)
+    CALL get_particle_set(particle_set, qs_kind_set, first_sgf=first_sgf, error=error)
     ALLOCATE(centers_wfn(3,nexc_search),STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
     centers_wfn=0.0_dp
@@ -604,9 +613,11 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief  SCF for emission spectra calculations: vacancy in valence
-!> \param xas_env the environment for XAS  calculations
 !> \param qs_env the qs_env, the scf_env and xas_env live in
-!> \param iatom index of the excited atom
+!> \param xas_env the environment for XAS  calculations
+!> \param scf_section ...
+!> \param converged ...
+!> \param should_stop ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 !> \par History
@@ -653,21 +664,25 @@ CONTAINS
        CALL get_qs_env(qs_env=qs_env,dft_control=dft_control, scf_control=scf_control,&
             matrix_ks=matrix_ks,mos=mos,para_env=para_env,error=error)
 
-       CALL get_mo_set(mos(1)%mo_set,nelectron=nelectron)
-       nelectron = nelectron - 1
-       CALL set_mo_set(mos(1)%mo_set,nelectron=nelectron,error=error)
-       CALL set_mo_occupation(mo_set=mos(1)%mo_set,smear=xas_env%smear,&
+
+       IF(xas_env%homo_occ == 0) THEN
+         CALL get_mo_set(mos(1)%mo_set,nelectron=nelectron)
+         nelectron = nelectron - 1
+         CALL set_mo_set(mos(1)%mo_set,nelectron=nelectron,error=error)
+         CALL set_mo_occupation(mo_set=mos(1)%mo_set,smear=xas_env%smear,&
                              error=error)
 
 
-       NULLIFY(scf_env)
-       CALL get_qs_env(qs_env,scf_env=scf_env,error=error)
-       CALL qs_scf_env_initialize(scf_env=scf_env,qs_env=qs_env,&
+         NULLIFY(scf_env)
+         CALL get_qs_env(qs_env,scf_env=scf_env,error=error)
+         CALL qs_scf_env_initialize(scf_env=scf_env,qs_env=qs_env,&
                                   do_xas_tp=.TRUE., error=error)
 
-       CALL scf_env_do_scf(scf_env=scf_env, qs_env=qs_env,  &
-            converged=converged, should_stop=should_stop, error=error)
-       CALL scf_env_cleanup(scf_env,qs_env=qs_env,error=error)
+         CALL scf_env_do_scf(scf_env=scf_env, qs_env=qs_env,  &
+              converged=converged, should_stop=should_stop, error=error)
+         CALL scf_env_cleanup(scf_env,qs_env=qs_env,error=error)
+
+       END IF
 
        !   The eigenstate of the KS Hamiltonian are nedeed
        NULLIFY(mo_coeff,eigenvalues)
@@ -705,8 +720,10 @@ CONTAINS
           CALL set_xas_env(xas_env=xas_env,nvirtual=nvirtual,nvirtual2=nvirtual2,error=error)
        END IF
 
-       nelectron = nelectron + 1
-       CALL set_mo_set(mos(1)%mo_set,nelectron=nelectron,error=error)
+       IF(xas_env%homo_occ == 0) THEN
+          nelectron = nelectron + 1
+          CALL set_mo_set(mos(1)%mo_set,nelectron=nelectron,error=error)
+       END IF
     END IF  ! failure
     CALL timestop(handle)
 

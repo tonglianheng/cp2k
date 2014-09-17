@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2013  CP2K developers group                          !
+!   Copyright (C) 2000 - 2014  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -11,21 +11,21 @@
 ! *****************************************************************************
 MODULE preconditioner_types
   USE cp_blacs_env,                    ONLY: cp_blacs_env_release,&
-                                             cp_blacs_env_retain
-  USE cp_dbcsr_interface,              ONLY: cp_dbcsr_release_p
-  USE cp_dbcsr_operations,             ONLY: cp_dbcsr_deallocate_matrix
-  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_type
+                                             cp_blacs_env_retain,&
+                                             cp_blacs_env_type
+  USE cp_dbcsr_interface,              ONLY: cp_dbcsr_deallocate_matrix,&
+                                             cp_dbcsr_release_p,&
+                                             cp_dbcsr_type
   USE cp_fm_types,                     ONLY: cp_fm_release,&
                                              cp_fm_type
   USE cp_para_env,                     ONLY: cp_para_env_release,&
                                              cp_para_env_retain
-  USE cp_para_types,                   ONLY: cp_blacs_env_type,&
-                                             cp_para_env_type
+  USE cp_para_types,                   ONLY: cp_para_env_type
   USE input_constants,                 ONLY: ot_precond_solver_default
   USE kinds,                           ONLY: dp
   USE timings,                         ONLY: timeset,&
                                              timestop
-#include "cp_common_uses.h"
+#include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
 
@@ -60,6 +60,10 @@ CONTAINS
 
 ! *****************************************************************************
 
+! *****************************************************************************
+!> \brief ...
+!> \param preconditioner ...
+! *****************************************************************************
   FUNCTION preconditioner_in_use(preconditioner)
     TYPE(preconditioner_type)                :: preconditioner
     LOGICAL                                  :: preconditioner_in_use
@@ -67,6 +71,12 @@ CONTAINS
     preconditioner_in_use = .NOT. (preconditioner%in_use .EQ. 0)
   END FUNCTION
 
+! *****************************************************************************
+!> \brief ...
+!> \param preconditioner_env ...
+!> \param para_env ...
+!> \param blacs_env ...
+!> \param error ...
 ! *****************************************************************************
   SUBROUTINE init_preconditioner(preconditioner_env,para_env,blacs_env, error)
 
@@ -90,6 +100,10 @@ CONTAINS
 
   END SUBROUTINE init_preconditioner
 
+! *****************************************************************************
+!> \brief ...
+!> \param preconditioner_env ...
+!> \param error ...
 ! *****************************************************************************
   SUBROUTINE destroy_preconditioner(preconditioner_env, error)
 

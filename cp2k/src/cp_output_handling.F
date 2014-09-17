@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2013  CP2K developers group                          !
+!   Copyright (C) 2000 - 2014  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -54,7 +54,7 @@ MODULE cp_output_handling
   USE memory_utilities,                ONLY: reallocate
   USE string_utilities,                ONLY: compress,&
                                              s2a
-#include "cp_common_uses.h"
+#include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
   PRIVATE
@@ -99,8 +99,6 @@ MODULE cp_output_handling
        cp_out_store_each=IBSET(0,cp_p_store_each),&
        cp_out_default=cp_out_file_if
 
-  INTEGER, SAVE, PRIVATE :: last_flags_id=0
-
 ! *****************************************************************************
 !> \brief stores the flags_env controlling the output of properties
 !> \param ref_count reference count (see doc/ReferenceCounting.html)
@@ -144,11 +142,18 @@ CONTAINS
 !> \param description the description of the print key
 !> \param print_level print level starting at which the printing takes place
 !>        (defaults to debug_print_level)
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
+!> \param each_iter_names ...
+!> \param each_iter_values ...
+!> \param add_last ...
+!> \param filename ...
+!> \param common_iter_levels ...
+!> \param citations ...
+!> \param supported_feature ...
 !> \param unit_str specifies an unit of measure for output quantity. If not
 !>        provided the control is totally left to how the output was coded
 !>        (i.e. USERS have no possibility to change it)
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \author fawzi
 ! *****************************************************************************
   SUBROUTINE cp_print_key_section_create(print_key_section, name, description, &
@@ -254,14 +259,17 @@ CONTAINS
        END IF
        CALL keyword_create(keyword, name="ADD_LAST",&
             description="If the last iteration should be added, and if it "//&
-            "should be marked symbolically (with l) or with the iteration "//&
-            "number."//&
+            "should be marked symbolically (with lowercase letter l) or with "//&
+            "the iteration number. "//&
             "Not every iteration level is able to identify the last iteration "//&
             "early enough to be able to output. When this keyword is activated "//&
             "all iteration levels are checked for the last iteration step.",&
-            usage="ADD_LAST NUMERIC",&
+            usage="ADD_LAST (NO|NUMERIC|SYMBOLIC)",&
             enum_c_vals=s2a("no","numeric","symbolic"),&
             enum_i_vals=(/add_last_no, add_last_numeric, add_last_symbolic/),&
+            enum_desc=s2a("Do not mark last iteration specifically",&
+                            "Mark last iteration with its iteration number",&
+                            "Mark last iteration with lowercase letter l"),&
             default_i_val=my_add_last,supported_feature=supported_feature,error=error)
        CALL section_add_keyword(print_key_section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
@@ -324,14 +332,15 @@ CONTAINS
 !> \param basis_section section that contains the printkey
 !> \param print_key_path path to the printkey- "%" between sections, and
 !>        optionally a "/" and a logical flag to check). Might be empty.
+!> \param used_print_key here the print_key that was used is returned
 !> \param first_time if it ist the first time that an output is written
 !>        (not fully correct, but most of the time)
-!> \param used_print_key here the print_key that was used is returned
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
+!> \retval res ...
+!> \author fawzi
 !> \note
 !>      not all the propreties support can be stored
-!> \author fawzi
 ! *****************************************************************************
   FUNCTION cp_print_key_should_output(iteration_info,basis_section,&
        print_key_path,used_print_key,first_time,error)&
@@ -430,6 +439,7 @@ CONTAINS
 !> \param print_key the section values of the key to be printed
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
+!> \retval res ...
 !> \author fawzi
 ! *****************************************************************************
   FUNCTION cp_printkey_is_on(iteration_info,print_key,error) RESULT(res)
@@ -468,6 +478,7 @@ CONTAINS
 !>        (not fully correct, but most of the time)
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
+!> \retval res ...
 !> \author fawzi
 ! *****************************************************************************
   FUNCTION cp_printkey_is_iter(iteration_info,print_key,first_time,error)&
@@ -536,9 +547,10 @@ CONTAINS
 !>        Defaults to false.
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
+!> \retval res ...
+!> \author fawzi
 !> \note
 !>      If the root level is 1 removes it
-!> \author fawzi
 ! *****************************************************************************
   FUNCTION cp_iter_string(iter_info,print_key,for_file,error) RESULT(res)
     TYPE(cp_iteration_info_type), POINTER    :: iter_info
@@ -599,11 +611,14 @@ CONTAINS
 !> \brief adds one to the actual iteration
 !> \param iteration_info the iteration info to update
 !> \param last if this iteration is the last one (defaults to false)
+!> \param iter_nr ...
+!> \param increment ...
+!> \param iter_nr_out ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
+!> \author fawzi
 !> \note
 !>      this is supposed to be called at the beginning of each iteration
-!> \author fawzi
 ! *****************************************************************************
   SUBROUTINE cp_iterate(iteration_info,last,iter_nr,increment,iter_nr_out,error)
     TYPE(cp_iteration_info_type), POINTER    :: iteration_info
@@ -647,7 +662,7 @@ CONTAINS
 !> \param iteration_info the iteration info to which an iteration level has
 !>        to be added
 !> \param level_name the name of this level, for pretty printing only, right now
-!> \param n_level_new number of iteration levels after this call
+!> \param n_rlevel_new number of iteration levels after this call 
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 !> \author fawzi
@@ -700,8 +715,8 @@ CONTAINS
 !> \brief Removes an iteration level
 !> \param iteration_info the iteration info to which an iteration level has
 !>        to be removed
-!> \param n_rlevel_att iteration level before the call (to do some checks)
 !> \param level_name level_name to be destroyed (if does not match gives an error)
+!> \param n_rlevel_att iteration level before the call (to do some checks)
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 !> \author fawzi
@@ -752,21 +767,16 @@ CONTAINS
 !>     finished (to immediately close the file that might have been opened)
 !> \param logger the logger for the parallel environment, iteration info
 !>        and filename generation
-!> \param basis_section section that contains the printkey
-!> \param print_key_path path to the printkey- "%" between sections, and
-!>        optionally a "/" and a logical flag to check). Might be empty.
-!> \param local if the unit should be local to this task, or global to the
-!>        program (defaults to false).
-!> \param log_filename if a small log with the filename should be written
-!>        to the main log (defaults to false)
-!> \param extension extension to be applied to the filename (including the ".")
+!> \param print_key ...
 !> \param middle_name name to be added to the generated filename, useful when
 !>        print_key activates different distinct outputs, to be able to
 !>        distinguish them
-!> \param ignore_should_output if true always returns a valid unit (ignoring
-!>        cp_print_key_should_output)
+!> \param extension extension to be applied to the filename (including the ".")
+!> \param my_local if the unit should be local to this task, or global to the
+!>        program (defaults to false).
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
+!> \retval filename ...
 !> \author Fawzi Mohamed
 ! *****************************************************************************
   FUNCTION cp_print_key_generate_filename(logger,print_key,middle_name,extension,&
@@ -840,6 +850,25 @@ CONTAINS
 
   END FUNCTION cp_print_key_generate_filename
 
+! *****************************************************************************
+!> \brief ...
+!> \param logger ...
+!> \param basis_section ...
+!> \param print_key_path ...
+!> \param extension ...
+!> \param middle_name ...
+!> \param local ...
+!> \param log_filename ...
+!> \param ignore_should_output ...
+!> \param file_form ...
+!> \param file_position ...
+!> \param file_action ...
+!> \param file_status ...
+!> \param do_backup ...
+!> \param on_file ...
+!> \param is_new_file ...
+!> \param error ...
+!> \retval res ...
 ! *****************************************************************************
   FUNCTION cp_print_key_unit_nr(logger, basis_section, print_key_path, extension,&
        middle_name, local, log_filename,ignore_should_output, file_form, file_position,&
@@ -1008,12 +1037,20 @@ CONTAINS
 !>
 !>      the inputs should be exactly the same of the corresponding
 !>      cp_print_key_unit_nr
-!> \note
-!>      closes if the corresponding filename of the printkey is
-!>      not __STD_OUT__
+!> \param unit_nr ...
+!> \param logger ...
+!> \param basis_section ...
+!> \param print_key_path ...
+!> \param local ...
+!> \param ignore_should_output ...
+!> \param on_file ...
+!> \param error ...
 !> \par History
 !>      08.2002 created [fawzi]
 !> \author Fawzi Mohamed
+!> \note
+!>      closes if the corresponding filename of the printkey is
+!>      not __STD_OUT__
 ! *****************************************************************************
   SUBROUTINE cp_print_key_finished_output(unit_nr, logger, basis_section,&
        print_key_path,local,ignore_should_output,on_file,error)
@@ -1070,15 +1107,16 @@ CONTAINS
 !>        optionally a "/" and a logical flag to check). Might be empty.
 !> \param extension extension to be applied to the filename (including the ".")
 !> \param message the message to write
+!> \param middle_name name to be added to the generated filename, useful when
+!>        print_key activates different distinct outputs, to be able to
+!>        distinguish them
 !> \param local if the unit should be local to this task, or global to the
 !>        program (defaults to false).
 !> \param log_filename if a small log with the filename should be written
 !>        to the main log (defaults to false)
-!> \param middle_name name to be added to the generated filename, useful when
-!>        print_key activates different distinct outputs, to be able to
-!>        distinguish them
 !> \param ignore_should_output if true always returns a valid unit (ignoring
 !>        cp_print_key_should_output)
+!> \param on_file ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 !> \author fawzi

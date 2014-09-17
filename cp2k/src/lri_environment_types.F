@@ -1,61 +1,35 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2012  CP2K developers group                          !
+!   Copyright (C) 2000 - 2014  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
 !> \brief contains the types and subroutines for dealing with the lri_env
 !>        lri : local resolution of the identity
-!> \author JGH August 2012
+!> \par History
+!>      created JGH [08.2012]
+!>      Dorothea Golze [02.2014] (1) extended, re-structured, cleaned
+!>                               (2) debugged
+!> \authors JGH 
+!>          Dorothea Golze  
 ! *****************************************************************************
 MODULE lri_environment_types
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
-                                             get_atomic_kind,&
-                                             set_atomic_kind
-  USE basis_set_types,                 ONLY: allocate_gto_basis_set,&
-                                             deallocate_gto_basis_set,&
-                                             get_gto_basis_set,&
+                                             get_atomic_kind
+  USE basis_set_types,                 ONLY: deallocate_gto_basis_set,&
                                              gto_basis_set_p_type,&
-                                             gto_basis_set_type,&
-                                             init_orb_basis_set,&
-                                             write_gto_basis_set
-  USE cp_control_types,                ONLY: lripaw_control_type
-  USE cp_dbcsr_operations,             ONLY: cp_dbcsr_deallocate_matrix_set
-  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_p_type
-  USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
-                                             cp_print_key_unit_nr
-  USE input_section_types,             ONLY: section_vals_type
+                                             gto_basis_set_type
   USE kinds,                           ONLY: dp
-  USE lebedev,                         ONLY: deallocate_lebedev_grids,&
-                                             get_number_of_lebedev_grid,&
-                                             init_lebedev_grids,&
-                                             lebedev_grid
-  USE mathconstants,                   ONLY: dfac,&
-                                             pi,&
-                                             rootpi,&
-                                             twopi
-  USE mathlib,                         ONLY: invert_matrix
-  USE orbital_pointers,                ONLY: indco,&
-                                             indso,&
-                                             init_orbital_pointers,&
-                                             nco,&
-                                             ncoset,&
-                                             nso,&
-                                             nsoset
-  USE orbital_symbols,                 ONLY: cgf_symbol,&
-                                             sgf_symbol
-  USE qs_grid_atom,                    ONLY: allocate_grid_atom,&
-                                             create_grid_atom,&
-                                             deallocate_grid_atom,&
-                                             grid_atom_type
-  USE qs_interactions,                 ONLY: init_interaction_radii_orb_basis
+  USE mathconstants,                   ONLY: fac,&
+                                             pi
   USE qs_neighbor_list_types,          ONLY: deallocate_neighbor_list_set,&
+                                             get_iterator_info,&
+                                             neighbor_list_iterate,&
+                                             neighbor_list_iterator_create,&
+                                             neighbor_list_iterator_p_type,&
+                                             neighbor_list_iterator_release,&
                                              neighbor_list_set_p_type
-  USE qs_util,                         ONLY: exp_radius
-  USE soft_basis_set,                  ONLY: create_soft_basis
-  USE spherical_harmonics,             ONLY: drvy_lm,&
-                                             y_lm
-#include "cp_common_uses.h"
+#include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
 
@@ -63,159 +37,219 @@ MODULE lri_environment_types
 
 ! *****************************************************************************
   TYPE lri_rhoab_type
-     ! number of basis functions (a)
+     ! number of spherical basis functions (a)
      INTEGER                                                 :: nba
-     ! number of basis functions (b)
+     ! number of spherical basis functions (b)
      INTEGER                                                 :: nbb
-     ! number of basis functions (ai)
+     ! number of spherical fit basis functions (ai)
      INTEGER                                                 :: nfa
-     ! number of basis functions (bi)
+     ! number of spherical fit basis functions (bi)
      INTEGER                                                 :: nfb
      ! expansion coeffs for RI density
      REAL(KIND=dp), DIMENSION(:), POINTER                    :: avec
      ! projection coeffs for RI density: SUM_ab (ab,i)*Pab
      REAL(KIND=dp), DIMENSION(:), POINTER                    :: tvec
+     ! integral (ai) * sinv * tvec
+     REAL(KIND=dp)                                           :: nst
      ! Lagrange parameter
      REAL(KIND=dp)                                           :: lambda
      ! Charge of pair density
      REAL(KIND=dp)                                           :: charge
   END TYPE lri_rhoab_type
 
+! *****************************************************************************
+
+  TYPE lri_debug_type
+     ! dmax: maximal deviation for integrals of primitive (!) gtos
+     ! dmax for overlap integrals (ai,bi); fit bas 
+     REAL(KIND=dp)                                           :: dmax_ab
+     ! dmax for overlap integrals (a,b); orb bas 
+     REAL(KIND=dp)                                           :: dmax_oo
+     ! dmax for integrals (a,b,ai) 
+     REAL(KIND=dp)                                           :: dmax_aba
+     ! dmax for integrals (a,b,bi) 
+     REAL(KIND=dp)                                           :: dmax_abb
+     ! dmax for (aa,bb) integrals
+     REAL(KIND=dp)                                           :: dmax_aabb
+  END TYPE lri_debug_type
+
+! *****************************************************************************
+
   TYPE lri_int_type
-     ! number of basis functions (a)
+     ! number of spherical basis functions (a)
      INTEGER                                                 :: nba
-     ! number of basis functions (b)
+     ! number of spherical basis functions (b)
      INTEGER                                                 :: nbb
-     ! number of basis functions (ai)
+     ! number of spherical fit basis functions (ai)
      INTEGER                                                 :: nfa
-     ! number of basis functions (bi)
+     ! number of spherical fit basis functions (bi)
      INTEGER                                                 :: nfb
      ! integrals (a,b,ai)
      REAL(KIND=dp), DIMENSION(:,:,:), POINTER                :: abaint
      ! integrals (a,b,bi)
      REAL(KIND=dp), DIMENSION(:,:,:), POINTER                :: abbint
+     ! integrals (da/dA,b,dai/dA)
+     REAL(KIND=dp), DIMENSION(:,:,:,:), POINTER              :: dabdaint
+     ! integrals (da/dA,b,bi)
+     REAL(KIND=dp), DIMENSION(:,:,:,:), POINTER              :: dabbint
      ! integrals (a,b)
-     REAL(KIND=dp), DIMENSION(:,:), POINTER                  :: soo
+     REAL(KIND=dp), DIMENSION(:,:), POINTER                  :: soo 
+     ! derivative d(a,b)/dA
+     REAL(KIND=dp), DIMENSION(:,:,:), POINTER                :: dsoo
      ! integrals (ai,bi)
      REAL(KIND=dp), DIMENSION(:,:), POINTER                  :: sab
-     ! integrals -SUM_i (a,b,ai) sn(i)/nsn
-     REAL(KIND=dp), DIMENSION(:,:), POINTER                  :: qab
+     ! derivative d(ai,bi)/dA
+     REAL(KIND=dp), DIMENSION(:,:,:), POINTER                :: dsab
+     ! derivative of fit coeff dacoef/dpmatrix
+     REAL(KIND=dp), DIMENSION(:,:,:), POINTER                :: dacoef
      ! inverse of integrals (ai,bi)
      REAL(KIND=dp), DIMENSION(:,:), POINTER                  :: sinv
+     ! integral (ai) / (bi), dim(1..nfa,nfa+1..nfa+nfb)
+     REAL(KIND=dp), DIMENSION(:), POINTER                    :: n
      ! sinv * (ai)
      REAL(KIND=dp), DIMENSION(:), POINTER                    :: sn
      ! (ai) * sinv * (ai)
      REAL(KIND=dp)                                           :: nsn
-  END TYPE lri_int_type
+     ! dmax: max deviation for integrals of primitive gtos; for debugging
+     ! dmax for overlap integrals (ai,bi); fit bas 
+     REAL(KIND=dp)                                           :: dmax_ab
+     ! dmax for overlap integrals (a,b); orb bas 
+     REAL(KIND=dp)                                           :: dmax_oo
+     ! dmax for integrals (a,b,ai) 
+     REAL(KIND=dp)                                           :: dmax_aba
+     ! dmax for integrals (a,b,bi) 
+     REAL(KIND=dp)                                           :: dmax_abb
+  END TYPE lri_int_type    
+ 
+  TYPE lri_int_rho_type   
+     ! integrals (aa,bb), orb basis 
+     REAL(KIND=dp), DIMENSION(:,:,:,:), POINTER              :: soaabb
+     ! dmax for (aa,bb) integrals; for debugging
+     REAL(KIND=dp)                                           :: dmax_aabb
+  END TYPE lri_int_rho_type     
 
-  TYPE lri_paw_type
-     INTEGER                                                 :: nb
-     REAL(KIND=dp), DIMENSION(:), POINTER                    :: fhh, fhs
-     REAL(KIND=dp), DIMENSION(:), POINTER                    :: fxh, fxs
-     INTEGER                                                 :: na
-     REAL(KIND=dp), DIMENSION(:), POINTER                    :: flhh, flhs
-     REAL(KIND=dp), DIMENSION(:), POINTER                    :: flxh, flxs
-  END TYPE lri_paw_type
-
-  TYPE lri_int_node
+  TYPE lri_node_type
      INTEGER                                                 :: nnode
      TYPE(lri_int_type), DIMENSION(:), POINTER               :: lri_int
+     TYPE(lri_int_rho_type), DIMENSION(:), POINTER           :: lri_int_rho
      TYPE(lri_rhoab_type), DIMENSION(:), POINTER             :: lri_rhoab
-     TYPE(lri_paw_type), POINTER                             :: lri_paw
-     REAL(KIND=dp), DIMENSION(:), POINTER                    :: acoef
-     REAL(KIND=dp), DIMENSION(:), POINTER                    :: fcoef
-  END TYPE lri_int_node
+  END TYPE lri_node_type
 
-  TYPE lri_int_atom
+  TYPE lri_atom_type
      INTEGER                                                 :: natom
-     TYPE(lri_int_node), DIMENSION(:), POINTER               :: lri_node
-  END TYPE lri_int_atom
+     TYPE(lri_node_type), DIMENSION(:), POINTER              :: lri_node
+  END TYPE lri_atom_type
 
-  TYPE lri_int_list
+  TYPE lri_list_type
      INTEGER                                                 :: nkind
-     TYPE(lri_int_atom), DIMENSION(:), POINTER               :: lri_atom
-  END TYPE lri_int_list
+     TYPE(lri_atom_type), DIMENSION(:), POINTER              :: lri_atom
+  END TYPE lri_list_type
 
-  TYPE lri_int_p_list
-     TYPE(lri_int_list),POINTER                              :: int_list
-  END TYPE lri_int_p_list
+  TYPE lri_list_p_type
+     TYPE(lri_list_type),POINTER                             :: lri_list
+  END TYPE lri_list_p_type
+  
 ! *****************************************************************************
-  TYPE lri_bas_norm
-     REAL(KIND=dp), DIMENSION(:), POINTER                    :: norm
-  END TYPE lri_bas_norm
-  TYPE lri_bas_overlap
-     REAL(KIND=dp), DIMENSION(:,:), POINTER                  :: ovlp
-  END TYPE lri_bas_overlap
-  TYPE harmonics_info_type
-     INTEGER                                                 :: lmax
-     INTEGER                                                 :: maxs
-     INTEGER                                                 :: ngrid
-     REAL(dp), DIMENSION(:,:),    POINTER                    :: coord
-     REAL(dp), DIMENSION(:,:),    POINTER                    :: slm
-     REAL(dp), DIMENSION(:,:,:),  POINTER                    :: dslm
-  END TYPE harmonics_info_type
-  !
-  TYPE lri_atom_info
-     ! atomic grids for PAW
-     TYPE(grid_atom_type), POINTER                           :: grid_atom
-     ! spherical harmoincs 
-     TYPE(harmonics_info_type), POINTER                      :: harmonics
-  END TYPE lri_atom_info
+
+  TYPE lri_bas_int_type
+     ! integral of ri basis fbas
+     REAL(KIND=dp), DIMENSION(:), POINTER                    :: int_fbas
+  END TYPE lri_bas_int_type
+
+  TYPE lri_bas_overlap_type
+     REAL(KIND=dp), DIMENSION(:,:), POINTER                  :: ri_ovlp
+     REAL(KIND=dp), DIMENSION(:,:), POINTER                  :: orb_ovlp
+  END TYPE lri_bas_overlap_type
+
+  TYPE lri_gcc_p_type
+     REAL(KIND=dp), DIMENSION(:,:,:), POINTER                :: gcc_orig
+  END TYPE lri_gcc_p_type
+
 ! *****************************************************************************
+
   TYPE lri_environment_type
      INTEGER :: id_nr, ref_count, in_use
+     ! flag for debugging lri integrals
+     LOGICAL                                                 :: debug
+     ! orbital basis set
      TYPE(gto_basis_set_p_type), DIMENSION(:), POINTER       :: orb_basis
+     ! lri (fit) basis set 
      TYPE(gto_basis_set_p_type), DIMENSION(:), POINTER       :: ri_basis
-     TYPE(gto_basis_set_p_type), DIMENSION(:), POINTER       :: ri_basis_soft
-     TYPE(gto_basis_set_p_type), DIMENSION(:), POINTER       :: paw_basis
-     TYPE(gto_basis_set_p_type), DIMENSION(:), POINTER       :: proj_basis
-     ! info on atoms
-     TYPE(lri_atom_info), DIMENSION(:), POINTER              :: atom
-     ! orb_basis neighborlist, used for RI projection integrals
+     ! holds the original contraction coeff of the lri basis
+     TYPE(lri_gcc_p_type), DIMENSION(:), POINTER             :: ri_gcc_orig
+     ! orb_basis neighborlist, LRI integrals
      TYPE(neighbor_list_set_p_type), DIMENSION(:), POINTER   :: soo_list
-     ! neighborlist for <ri_basis_soft|proj_basis> integrals
-     TYPE(neighbor_list_set_p_type), DIMENSION(:), POINTER   :: sip_list
-     ! Overlap matrix ri basis/paw projectors
-     TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER            :: rip_matrix
-     ! local RI projection integrals
-     TYPE(lri_int_list), POINTER                             :: lri_ints
-     ! norm of ri basis
-     TYPE(lri_bas_norm), DIMENSION(:), POINTER               :: bas_norm
+     ! local RI integrals
+     TYPE(lri_list_type), POINTER                            :: lri_ints
+     ! local integral of rho**2; for optimization 
+     TYPE(lri_list_type), POINTER                            :: lri_ints_rho
+     ! integral of a single contracted gaussian
+     TYPE(lri_bas_int_type), DIMENSION(:), POINTER           :: bas_int
      ! self overlap of ri basis
-     TYPE(lri_bas_overlap), DIMENSION(:), POINTER            :: bas_ovlp
+     TYPE(lri_bas_overlap_type), DIMENSION(:), POINTER       :: bas_ovlp
   END TYPE lri_environment_type
 
-  TYPE lri_environment_p_type
-     TYPE(lri_environment_type),POINTER :: lri_env
-  END TYPE lri_environment_p_type
 ! *****************************************************************************
+
+  TYPE lri_kind_type
+    ! expansion coeff for lri density dim(natom,nsgf)
+    REAL(KIND=dp), DIMENSION(:,:), POINTER                   :: acoef
+    ! integrals V*fbas (potential*fit basis) dim(natom,nsgf)
+    REAL(KIND=dp), DIMENSION(:,:), POINTER                   :: v_int
+    ! SUM_i integral(V*fbas_i)*davec/dR dim(natom,3) 
+    REAL(KIND=dp), DIMENSION(:,:), POINTER                   :: v_dadr
+    ! integrals V*dfbas/dR
+    REAL(KIND=dp), DIMENSION(:,:), POINTER                   :: v_dfdr
+  END TYPE lri_kind_type
+
+  TYPE lri_spin_type
+     TYPE(lri_kind_type), DIMENSION(:), POINTER              :: lri_kinds
+  END TYPE lri_spin_type
+
+! *****************************************************************************
+
+  TYPE lri_force_type
+    REAL(KIND=dp), DIMENSION(:), POINTER                     :: st
+    REAL(KIND=dp), DIMENSION(:,:), POINTER                   :: dssn,&
+                                                                sdssn,&
+                                                                dsst,&
+                                                                sdsst,&
+                                                                sdt
+    ! derivative dtvec/dR 
+    REAL(KIND=dp), DIMENSION(:,:), POINTER                   :: dtvec
+    ! derivative davec/dR 
+    REAL(KIND=dp), DIMENSION(:,:), POINTER                   :: davec
+    ! derivative overlap matrix dS/dR 
+    REAL(KIND=dp), DIMENSION(:,:,:), POINTER                 :: ds
+  END TYPE lri_force_type
+
+! *****************************************************************************
+
   TYPE lri_density_type
      INTEGER :: id_nr, ref_count, in_use
      INTEGER                                                 :: nspin
      ! pair density expansion (nspin)
-     TYPE(lri_int_p_list), DIMENSION(:),POINTER              :: lri_rhos
+     TYPE(lri_list_p_type), DIMENSION(:),POINTER             :: lri_rhos
      ! coefficients of RI expansion and gradients (nspin)
-     TYPE(lri_int_p_list), DIMENSION(:),POINTER              :: lri_coef
-     ! coefficients of PAW expansion and gradients (nspin)
-     TYPE(lri_int_p_list), DIMENSION(:),POINTER              :: lri_paw
+     TYPE(lri_spin_type), DIMENSION(:),POINTER               :: lri_coefs
+     TYPE(lri_force_type), POINTER                           :: lri_force
   END TYPE lri_density_type
 
-  TYPE lri_density_p_type
-     TYPE(lri_density_type),POINTER :: lri_density
-  END TYPE lri_density_p_type
 ! *****************************************************************************
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'lri_environment_types'
   INTEGER, SAVE, PRIVATE :: last_lri_env_id=0
   INTEGER, SAVE, PRIVATE :: last_lri_density_id=0
 
-  PUBLIC :: lri_environment_type, lri_environment_p_type, &
-            lri_env_create, lri_env_release, &
-            lri_int_type, lri_int_node, lri_int_atom, lri_int_list, &
-            deallocate_lri_ints, &
-            lri_atom_init, lri_basis_init, write_lripaw_basis_sets
-  PUBLIC :: lri_density_type, lri_density_p_type, &
-            lri_density_create, lri_density_release, lri_rhoab_type
+  PUBLIC :: lri_environment_type,&
+            lri_force_type, lri_list_type,&
+            lri_int_type, lri_int_rho_type, lri_density_type,&
+            lri_kind_type, lri_rhoab_type
+  PUBLIC :: lri_env_create, lri_env_release, allocate_lri_coefs,&
+            allocate_lri_ints, allocate_lri_ints_rho, lri_density_create,&
+            lri_density_release,allocate_lri_rhos, allocate_lri_force_components,&
+            lri_basis_init, deallocate_lri_ints, deallocate_lri_ints_rho,&
+            deallocate_lri_force_components
 
 ! *****************************************************************************
 
@@ -224,10 +258,10 @@ CONTAINS
 ! *****************************************************************************
 !> \brief creates and initializes an lri_env
 !> \param lri_env the lri_environment you want to create
-!>
-!> \author JGH
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 ! *****************************************************************************
-  SUBROUTINE lri_env_create ( lri_env, error )
+  SUBROUTINE lri_env_create (lri_env, error)
 
     TYPE(lri_environment_type), POINTER      :: lri_env
     TYPE(cp_error_type), INTENT(INOUT)       :: error
@@ -235,31 +269,26 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'lri_env_create', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: istat
+    INTEGER                                  :: stat
 
-    ALLOCATE ( lri_env, stat=istat )
-    CPPostconditionNoFail(istat==0,cp_warning_level,routineP,error)
+    ALLOCATE ( lri_env, stat=stat )
+    CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
 
     last_lri_env_id=last_lri_env_id+1
     lri_env%id_nr=last_lri_env_id
     lri_env%ref_count=1
     lri_env%in_use=0
-  
+
+    lri_env%debug = .FALSE.
+
     NULLIFY(lri_env%orb_basis)
     NULLIFY(lri_env%ri_basis)
-    NULLIFY(lri_env%ri_basis_soft)
-    NULLIFY(lri_env%paw_basis)
-    NULLIFY(lri_env%proj_basis)
-
-    NULLIFY(lri_env%atom)
+    NULLIFY(lri_env%ri_gcc_orig)
 
     NULLIFY(lri_env%soo_list)
-    NULLIFY(lri_env%sip_list)
-
-    NULLIFY(lri_env%rip_matrix)
     NULLIFY(lri_env%lri_ints)
-
-    NULLIFY(lri_env%bas_norm)
+    NULLIFY(lri_env%lri_ints_rho)
+    NULLIFY(lri_env%bas_int)
     NULLIFY(lri_env%bas_ovlp)
 
   END SUBROUTINE lri_env_create
@@ -269,10 +298,9 @@ CONTAINS
 !> \param lri_env the lri environment to release
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
-!>
-!> \author JGH
 ! *****************************************************************************
   SUBROUTINE lri_env_release(lri_env, error)
+
     TYPE(lri_environment_type), POINTER      :: lri_env
     TYPE(cp_error_type), INTENT(inout)       :: error
 
@@ -304,41 +332,15 @@ CONTAINS
           DEALLOCATE(lri_env%ri_basis,stat=stat)
           CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
        END IF
-       IF(ASSOCIATED(lri_env%ri_basis_soft)) THEN
-          nkind = SIZE(lri_env%ri_basis_soft)
+       IF(ASSOCIATED(lri_env%ri_gcc_orig)) THEN
+          nkind = SIZE(lri_env%ri_gcc_orig)
           DO ikind=1,nkind
-             CALL deallocate_gto_basis_set(lri_env%ri_basis_soft(ikind)%gto_basis_set,error)
+             DEALLOCATE(lri_env%ri_gcc_orig(ikind)%gcc_orig,stat=stat)
+             CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
           END DO
-          DEALLOCATE(lri_env%ri_basis_soft,stat=stat)
+          DEALLOCATE(lri_env%ri_gcc_orig,stat=stat)
           CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
        END IF
-       IF(ASSOCIATED(lri_env%paw_basis)) THEN
-          nkind = SIZE(lri_env%paw_basis)
-          DO ikind=1,nkind
-             CALL deallocate_gto_basis_set(lri_env%paw_basis(ikind)%gto_basis_set,error)
-          END DO
-          DEALLOCATE(lri_env%paw_basis,stat=stat)
-          CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
-       END IF
-       IF(ASSOCIATED(lri_env%proj_basis)) THEN
-          nkind = SIZE(lri_env%proj_basis)
-          DO ikind=1,nkind
-             CALL deallocate_gto_basis_set(lri_env%proj_basis(ikind)%gto_basis_set,error)
-          END DO
-          DEALLOCATE(lri_env%proj_basis,stat=stat)
-          CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
-       END IF
-
-       IF(ASSOCIATED(lri_env%atom)) THEN
-          nkind = SIZE(lri_env%atom)
-          DO ikind=1,nkind
-             CALL deallocate_grid_atom(lri_env%atom(ikind)%grid_atom,error)
-             CALL deallocate_harmonics(lri_env%atom(ikind)%harmonics,error)
-          END DO
-          DEALLOCATE(lri_env%atom,stat=stat)
-          CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
-       END IF
-  
        IF (ASSOCIATED(lri_env%soo_list)) THEN
           DO i=1,SIZE(lri_env%soo_list)
              CALL deallocate_neighbor_list_set(lri_env%soo_list(i)%neighbor_list_set)
@@ -346,36 +348,13 @@ CONTAINS
           DEALLOCATE(lri_env%soo_list,stat=stat)
           CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
        END IF
-       IF (ASSOCIATED(lri_env%sip_list)) THEN
-          DO i=1,SIZE(lri_env%sip_list)
-             CALL deallocate_neighbor_list_set(lri_env%sip_list(i)%neighbor_list_set)
-          END DO
-          DEALLOCATE(lri_env%sip_list,stat=stat)
-          CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
-       END IF
-       IF (ASSOCIATED(lri_env%rip_matrix)) THEN
-          CALL cp_dbcsr_deallocate_matrix_set(lri_env%rip_matrix,error)
-       END IF
        IF (ASSOCIATED(lri_env%lri_ints)) THEN
           CALL deallocate_lri_ints(lri_env%lri_ints,error)
        END IF
-       IF (ASSOCIATED(lri_env%bas_norm)) THEN
-          DO i=1,SIZE(lri_env%bas_norm)
-             DEALLOCATE(lri_env%bas_norm(i)%norm,stat=stat)
-             CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
-          END DO
-          DEALLOCATE(lri_env%bas_norm,stat=stat)
-          CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+       IF (ASSOCIATED(lri_env%lri_ints_rho)) THEN
+          CALL deallocate_lri_ints_rho(lri_env%lri_ints_rho,error)
        END IF
-       IF (ASSOCIATED(lri_env%bas_ovlp)) THEN
-          DO i=1,SIZE(lri_env%bas_ovlp)
-             DEALLOCATE(lri_env%bas_ovlp(i)%ovlp,stat=stat)
-             CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
-          END DO
-          DEALLOCATE(lri_env%bas_ovlp,stat=stat)
-          CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
-       END IF
-
+       CALL deallocate_ovlp_and_int_fbas(lri_env,error)
        DEALLOCATE(lri_env,stat=stat)
        CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
     END IF
@@ -384,12 +363,12 @@ CONTAINS
   END SUBROUTINE lri_env_release
 
 ! *****************************************************************************
-!> \brief creates and initializes an lri_env
-!> \param lri_env the lri_environment you want to create
-!>
-!> \author JGH
+!> \brief creates and initializes an lri_density environment
+!> \param lri_density the lri_density environment you want to create
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 ! *****************************************************************************
-  SUBROUTINE lri_density_create ( lri_density, error )
+  SUBROUTINE lri_density_create(lri_density, error)
 
     TYPE(lri_density_type), POINTER          :: lri_density
     TYPE(cp_error_type), INTENT(INOUT)       :: error
@@ -397,10 +376,10 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'lri_density_create', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: istat
+    INTEGER                                  :: stat
 
-    ALLOCATE ( lri_density, stat=istat )
-    CPPostconditionNoFail(istat==0,cp_warning_level,routineP,error)
+    ALLOCATE ( lri_density, stat=stat )
+    CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
 
     last_lri_density_id=last_lri_density_id+1
     lri_density%id_nr=last_lri_density_id
@@ -410,18 +389,16 @@ CONTAINS
     lri_density%nspin=0
   
     NULLIFY(lri_density%lri_rhos)
-    NULLIFY(lri_density%lri_coef)
-    NULLIFY(lri_density%lri_paw)
+    NULLIFY(lri_density%lri_coefs)
+    NULLIFY(lri_density%lri_force)
 
   END SUBROUTINE lri_density_create
 
 ! *****************************************************************************
-!> \brief releases the given lri_env
-!> \param lri_env the lri environment to release
+!> \brief releases the given lri_density
+!> \param lri_density the lri_density to release
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
-!>
-!> \author JGH
 ! *****************************************************************************
   SUBROUTINE lri_density_release(lri_density, error)
     TYPE(lri_density_type), POINTER          :: lri_density
@@ -430,7 +407,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'lri_density_release', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, stat
+    INTEGER                                  :: stat
     LOGICAL                                  :: failure
 
     failure=.FALSE.
@@ -438,29 +415,9 @@ CONTAINS
     IF (ASSOCIATED(lri_density)) THEN
        lri_density%ref_count=0
 
-       IF (ASSOCIATED(lri_density%lri_rhos)) THEN
-          DO i=1,SIZE(lri_density%lri_rhos)
-             CALL deallocate_lri_ints(lri_density%lri_rhos(i)%int_list,error)
-          END DO
-          DEALLOCATE(lri_density%lri_rhos,stat=stat)
-          CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
-       END IF
-
-       IF (ASSOCIATED(lri_density%lri_coef)) THEN
-          DO i=1,SIZE(lri_density%lri_coef)
-             CALL deallocate_lri_ints(lri_density%lri_coef(i)%int_list,error)
-          END DO
-          DEALLOCATE(lri_density%lri_coef,stat=stat)
-          CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
-       END IF
-
-       IF (ASSOCIATED(lri_density%lri_paw)) THEN
-          DO i=1,SIZE(lri_density%lri_paw)
-             CALL deallocate_lri_ints(lri_density%lri_paw(i)%int_list,error)
-          END DO
-          DEALLOCATE(lri_density%lri_paw,stat=stat)
-          CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
-       END IF
+       CALL deallocate_lri_rhos(lri_density%lri_rhos,error)
+       CALL deallocate_lri_coefs(lri_density%lri_coefs, error)
+       CALL deallocate_lri_force_components(lri_density%lri_force, error)
 
        DEALLOCATE(lri_density,stat=stat)
        CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
@@ -470,10 +427,14 @@ CONTAINS
   END SUBROUTINE lri_density_release
 
 ! *****************************************************************************
-
-  SUBROUTINE lri_basis_init(lri_env,lri_control,atomic_kind_set,error)
+!> \brief initializes the lri basis: calculates the norm, self-overlap
+!>        and integral of the ri basis
+!> \param lri_env ...
+!> \param atomic_kind_set ...
+!> \param error ...
+! *****************************************************************************
+  SUBROUTINE lri_basis_init(lri_env,atomic_kind_set,error)
     TYPE(lri_environment_type), POINTER      :: lri_env
-    TYPE(lripaw_control_type), POINTER       :: lri_control
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -482,64 +443,46 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: ikind, nkind, stat
-    LOGICAL                                  :: failure, paw_atom
-    REAL(KIND=dp)                            :: eps_fit, eps_pgf, rc
-    REAL(KIND=dp), DIMENSION(:), POINTER     :: ri_norm
-    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: ri_ovlp
-    TYPE(atomic_kind_type), POINTER          :: atomic_kind
-    TYPE(gto_basis_set_type), POINTER        :: orb_basis, paw_basis, &
-                                                proj_basis, ri_basis, ri_soft
+    LOGICAL                                  :: failure
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: orb_norm_r, ri_int_fbas, &
+                                                ri_norm_r, ri_norm_s
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: orb_ovlp, ri_ovlp
+    TYPE(gto_basis_set_type), POINTER        :: orb_basis, ri_basis
 
     failure=.FALSE.
 
     IF (ASSOCIATED(lri_env)) THEN
-       eps_fit = lri_control%eps_fit
        IF (ASSOCIATED(lri_env%orb_basis)) THEN
           CPPreconditionNoFail(ASSOCIATED(lri_env%ri_basis),cp_warning_level,routineP,error)
           nkind = SIZE(lri_env%orb_basis)
-          ALLOCATE (lri_env%ri_basis_soft(nkind),STAT=stat)
-          CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
-          ALLOCATE (lri_env%paw_basis(nkind),STAT=stat)
-          CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
-          ALLOCATE (lri_env%proj_basis(nkind),STAT=stat)
-          CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
-          ALLOCATE (lri_env%bas_norm(nkind),STAT=stat)
+          CALL deallocate_ovlp_and_int_fbas(lri_env,error)
+          ALLOCATE (lri_env%bas_int(nkind),STAT=stat)
           CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
           ALLOCATE (lri_env%bas_ovlp(nkind),STAT=stat)
           CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
           DO ikind = 1, nkind
-             atomic_kind => atomic_kind_set(ikind)
-             NULLIFY(orb_basis,ri_basis,ri_soft,paw_basis,proj_basis)
-             NULLIFY(lri_env%ri_basis_soft(ikind)%gto_basis_set)
-             NULLIFY(lri_env%paw_basis(ikind)%gto_basis_set)
-             NULLIFY(lri_env%proj_basis(ikind)%gto_basis_set)
+             NULLIFY(orb_basis, ri_basis)
              orb_basis => lri_env%orb_basis(ikind)%gto_basis_set
              IF (ASSOCIATED(orb_basis)) THEN
                 ri_basis => lri_env%ri_basis(ikind)%gto_basis_set
                 CPPreconditionNoFail(ASSOCIATED(ri_basis),cp_warning_level,routineP,error)
-                CALL get_atomic_kind(atomic_kind=atomic_kind,hard_radius=rc)
-                ! soft lri basis
-                CALL allocate_gto_basis_set(ri_soft,error)
-                CALL create_soft_basis(ri_basis,ri_soft,eps_fit,rc,paw_atom,&
-                                       .TRUE.,.FALSE.,error)
-                eps_pgf = eps_fit/100._dp
-                CALL init_interaction_radii_orb_basis(ri_soft,eps_pgf,error=error)
-                CPPreconditionNoFail(paw_atom,cp_warning_level,routineP,error)
-                lri_env%ri_basis_soft(ikind)%gto_basis_set => ri_soft
-                CALL set_atomic_kind(atomic_kind=atomic_kind,paw_atom=paw_atom)
-                ! paw and corresponding proj basis
-                CALL allocate_gto_basis_set(paw_basis,error)
-                CALL allocate_gto_basis_set(proj_basis,error)
-                CALL build_projector_basis(proj_basis,paw_basis,rc,eps_fit,error)
-                lri_env%paw_basis(ikind)%gto_basis_set => paw_basis
-                lri_env%proj_basis(ikind)%gto_basis_set => proj_basis
-                ! norm and self-overlap of RI basis
-                NULLIFY(ri_norm)
-                CALL basis_norm(ri_basis,ri_norm,error)
-                lri_env%bas_norm(ikind)%norm => ri_norm
+                NULLIFY(ri_norm_r)
+                CALL basis_norm_radial(ri_basis,ri_norm_r,error)
+                NULLIFY(orb_norm_r)
+                CALL basis_norm_radial(orb_basis,orb_norm_r,error)
+                NULLIFY(ri_norm_s)
+                CALL basis_norm_s_func(ri_basis,ri_norm_s,error)
+                NULLIFY(ri_int_fbas)
+                CALL basis_int(ri_basis,ri_int_fbas,ri_norm_s,error)
+                lri_env%bas_int(ikind)%int_fbas => ri_int_fbas
                 NULLIFY(ri_ovlp)
-                CALL basis_ovlp(ri_basis,ri_ovlp,error)
-                lri_env%bas_ovlp(ikind)%ovlp => ri_ovlp
+                CALL basis_ovlp(ri_basis,ri_ovlp,ri_norm_r,error)
+                lri_env%bas_ovlp(ikind)%ri_ovlp => ri_ovlp
+                NULLIFY(orb_ovlp)
+                CALL basis_ovlp(orb_basis,orb_ovlp,orb_norm_r,error)
+                lri_env%bas_ovlp(ikind)%orb_ovlp => orb_ovlp
+                DEALLOCATE (orb_norm_r,ri_norm_r,ri_norm_s,STAT=stat)
+                CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
              END IF
           END DO
        END IF
@@ -547,21 +490,28 @@ CONTAINS
 
   END SUBROUTINE lri_basis_init
 
+!*****************************************************************************
+!> \brief normalization for a contracted Gaussian s-function,
+!>        spherical = cartesian Gaussian for s-functions
+!> \param basis ...
+!> \param norm ...
+!> \param error ...
 ! *****************************************************************************
-
-  SUBROUTINE basis_norm(basis,norm,error)
+  SUBROUTINE basis_norm_s_func(basis,norm,error)
 
     TYPE(gto_basis_set_type), POINTER        :: basis
     REAL(dp), DIMENSION(:), POINTER          :: norm
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'basis_norm', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'basis_norm_s_func', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: ipgf, iset, isgf, ishell, l, &
-                                                nbas, stat
+    INTEGER                                  :: ipgf, iset, isgf, ishell, &
+                                                jpgf, l, nbas, stat
     LOGICAL                                  :: failure
-    REAL(KIND=dp)                            :: aa, cc, pp
+    REAL(KIND=dp)                            :: aai, aaj, cci, ccj, expa, ppl
+
+    NULLIFY(norm)
 
     nbas = basis%nsgf
     ALLOCATE (norm(nbas),STAT=stat)
@@ -572,25 +522,134 @@ CONTAINS
        DO ishell=1,basis%nshell(iset)
           l = basis%l(ishell,iset)
           IF (l/=0) CYCLE
+          expa = 0.5_dp*REAL(2*l + 3,dp)
+          ppl = pi**(3._dp/2._dp)
+          DO isgf=basis%first_sgf(ishell,iset),basis%last_sgf(ishell,iset)
+             DO ipgf=1,basis%npgf(iset)
+                cci = basis%gcc(ipgf,ishell,iset)
+                aai = basis%zet(ipgf,iset)
+                DO jpgf=1,basis%npgf(iset)
+                   ccj = basis%gcc(jpgf,ishell,iset)
+                   aaj = basis%zet(jpgf,iset)
+                   norm(isgf) =norm(isgf) + cci*ccj*ppl/(aai+aaj)**expa
+                END DO
+             END DO
+             norm(isgf)=1.0_dp/SQRT(norm(isgf)) 
+          END DO
+       END DO
+    END DO
+
+  END SUBROUTINE basis_norm_s_func
+
+!*****************************************************************************
+!> \brief normalization for radial part of contracted spherical Gaussian 
+!>        functions
+!> \param basis ...
+!> \param norm ...
+!> \param error ...
+! *****************************************************************************
+  SUBROUTINE basis_norm_radial(basis,norm,error)
+
+    TYPE(gto_basis_set_type), POINTER        :: basis
+    REAL(dp), DIMENSION(:), POINTER          :: norm
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'basis_norm_radial', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: ipgf, iset, isgf, ishell, &
+                                                jpgf, l, nbas, stat
+    LOGICAL                                  :: failure
+    REAL(KIND=dp)                            :: aai, aaj, cci, ccj, expa, ppl
+
+    NULLIFY(norm)
+
+    nbas = basis%nsgf
+    ALLOCATE (norm(nbas),STAT=stat)
+    CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+    norm = 0._dp
+
+    DO iset=1,basis%nset
+       DO ishell=1,basis%nshell(iset)
+          l = basis%l(ishell,iset)
+          expa = 0.5_dp*REAL(2*l + 3,dp)
+          ppl = fac(2*l+2)*SQRT(pi)/2._dp**REAL(2*l+3,dp)/fac(l+1)
+          DO isgf=basis%first_sgf(ishell,iset),basis%last_sgf(ishell,iset)
+             DO ipgf=1,basis%npgf(iset)
+                cci = basis%gcc(ipgf,ishell,iset)
+                aai = basis%zet(ipgf,iset)
+                DO jpgf=1,basis%npgf(iset)
+                   ccj = basis%gcc(jpgf,ishell,iset)
+                   aaj = basis%zet(jpgf,iset)
+                   norm(isgf) =norm(isgf) + cci*ccj*ppl/(aai+aaj)**expa
+                END DO
+             END DO
+             norm(isgf)=1.0_dp/SQRT(norm(isgf)) 
+          END DO
+       END DO
+    END DO
+
+  END SUBROUTINE basis_norm_radial
+
+!*****************************************************************************
+!> \brief integral over a single (contracted) lri auxiliary basis function,
+!>        integral is zero for all but s-functions               
+!> \param basis ...
+!> \param int_aux ...
+!> \param norm ...
+!> \param error ...
+! *****************************************************************************
+  SUBROUTINE basis_int(basis,int_aux,norm,error)
+
+    TYPE(gto_basis_set_type), POINTER        :: basis
+    REAL(dp), DIMENSION(:), POINTER          :: int_aux, norm
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'basis_int', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: ipgf, iset, isgf, ishell, l, &
+                                                nbas, stat
+    LOGICAL                                  :: failure
+    REAL(KIND=dp)                            :: aa, cc, pp
+
+    nbas = basis%nsgf
+    ALLOCATE (int_aux(nbas),STAT=stat)
+    CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+    int_aux = 0._dp
+
+    DO iset=1,basis%nset
+       DO ishell=1,basis%nshell(iset)
+          l = basis%l(ishell,iset)
+          IF (l/=0) CYCLE
           DO isgf=basis%first_sgf(ishell,iset),basis%last_sgf(ishell,iset)
              DO ipgf=1,basis%npgf(iset)
                 cc = basis%gcc(ipgf,ishell,iset)
                 aa = basis%zet(ipgf,iset)
-                pp = (0.5_dp*pi)**0.25_dp / aa**0.75_dp
-                norm(isgf) = norm(isgf) + cc*pp
+                pp = (pi/aa)**(3._dp/2._dp)
+                int_aux(isgf) = int_aux(isgf) + norm(isgf)*cc*pp
              END DO
           END DO
        END DO
     END DO
 
-  END SUBROUTINE basis_norm
+  END SUBROUTINE basis_int
 
+!*****************************************************************************
+!> \brief self-overlap of lri basis for contracted spherical Gaussians.
+!>        Overlap of radial part. Norm contains only normalization of radial
+!>        part. Norm and overlap of spherical harmonics not explicitly 
+!>        calculated since this cancels for the self-overlap anyway. 
+!> \param basis ...
+!> \param ovlp ...
+!> \param norm ...
+!> \param error ...
 ! *****************************************************************************
-
-  SUBROUTINE basis_ovlp(basis,ovlp,error)
+  SUBROUTINE basis_ovlp(basis,ovlp,norm,error)
 
     TYPE(gto_basis_set_type), POINTER        :: basis
     REAL(dp), DIMENSION(:, :), POINTER       :: ovlp
+    REAL(dp), DIMENSION(:), POINTER          :: norm
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'basis_ovlp', &
@@ -600,8 +659,9 @@ CONTAINS
                                                 jpgf, jset, jsgf, jshell, l, &
                                                 li, lj, nbas, stat
     LOGICAL                                  :: failure
-    REAL(KIND=dp)                            :: aai, aaj, cci, ccj, el, il, &
-                                                oo, ppi, ppj, ppl
+    REAL(KIND=dp)                            :: aai, aaj, cci, ccj, expa, &
+                                                m_i, m_j, norm_i, norm_j, oo, &
+                                                ppl
 
     nbas = basis%nsgf
     ALLOCATE (ovlp(nbas,nbas),STAT=stat)
@@ -616,23 +676,26 @@ CONTAINS
                 lj = basis%l(jshell,jset)
                 IF (li == lj) THEN
                    l = li
-                   ppl = 2._dp**(l+2)/SQRT(dfac(2*l+1))/twopi**0.25_dp
-                   el = (2._dp*l+3._dp)/4._dp
-                   il = dfac(2*l+1)/2._dp**(l+1)*SQRT(pi)
+                   expa = 0.5_dp*REAL(2*l + 3,dp)
+                   ppl = fac(2*l+2)*SQRT(pi)/2._dp**REAL(2*l+3,dp)/fac(l+1)
                    DO isgf=basis%first_sgf(ishell,iset),basis%last_sgf(ishell,iset)
+                      m_i=basis%m(isgf)
                       DO jsgf=basis%first_sgf(jshell,jset),basis%last_sgf(jshell,jset)
-                         DO ipgf=1,basis%npgf(iset)
-                            cci = basis%gcc(ipgf,ishell,iset)
-                            aai = basis%zet(ipgf,iset)
-                            ppi = cci*ppl*aai**el
-                            DO jpgf=1,basis%npgf(jset)
-                               ccj = basis%gcc(jpgf,jshell,jset)
-                               aaj = basis%zet(jpgf,jset)
-                               ppj = ccj*ppl*aaj**el
-                               oo = 0.5_dp*(aai+aaj)**(2._dp*el) 
-                               ovlp(isgf,jsgf) = ovlp(isgf,jsgf) + ppi*ppj*il*oo
-                            END DO
-                         END DO
+                         m_j=basis%m(jsgf)
+                         IF(m_i == m_j) THEN
+                           DO ipgf=1,basis%npgf(iset)
+                              cci = basis%gcc(ipgf,ishell,iset)
+                              aai = basis%zet(ipgf,iset)
+                              norm_i= norm(isgf) 
+                              DO jpgf=1,basis%npgf(jset)
+                                 ccj = basis%gcc(jpgf,jshell,jset)
+                                 aaj = basis%zet(jpgf,jset)
+                                 oo = 1._dp/(aai+aaj)**expa 
+                                 norm_j= norm(jsgf) 
+                                 ovlp(isgf,jsgf) = ovlp(isgf,jsgf) + norm_i*norm_j*ppl*cci*ccj*oo
+                              END DO
+                           END DO
+                         ENDIF
                       END DO
                    END DO
                 END IF
@@ -640,330 +703,522 @@ CONTAINS
           END DO
        END DO
     END DO
-
+    
   END SUBROUTINE basis_ovlp
-! *****************************************************************************
-!> \brief   initialize the projector-type set data set.
-!> \version 1.0
-! *****************************************************************************
-  SUBROUTINE build_projector_basis(prj_basis,paw_basis,rc,eps_fit,error)
 
-    TYPE(gto_basis_set_type), POINTER        :: prj_basis, paw_basis
-    REAL(dp), INTENT(IN)                     :: rc, eps_fit
-    TYPE(cp_error_type), INTENT(inout)       :: error
+! *****************************************************************************
+!> \brief allocate lri_ints, matrices that store LRI integrals
+!> \param lri_env ...
+!> \param lri_ints structure storing the LRI integrals
+!> \param nkind number of atom kinds 
+!> \param error variable to control error logging, stopping,...
+! *****************************************************************************
+  SUBROUTINE allocate_lri_ints(lri_env,lri_ints,nkind,error)
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'build_projector_basis', &
+    TYPE(lri_environment_type), POINTER      :: lri_env
+    TYPE(lri_list_type), POINTER             :: lri_ints
+    INTEGER, INTENT(IN)                      :: nkind
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'allocate_lri_ints', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: ico, ipgf, is, iset, ishell, &
-                                                jpgf, l, lshell, m, maxco, &
-                                                maxl, maxpgf, maxshell, na, &
-                                                ncgf, np, nset, nsgf, stat
-    INTEGER, ALLOCATABLE, DIMENSION(:)       :: npgf, nshell
-    INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: ll, nn
+    INTEGER                                  :: i, iac, iatom, ikind, ilist, &
+                                                jatom, jkind, jneighbor, nba, &
+                                                nbb, nfa, nfb, nlist, nn, &
+                                                nneighbor, stat
     LOGICAL                                  :: failure
-    REAL(dp)                                 :: eps_pgf, myerr, prefac, &
-                                                radius, za, zetmin, zp
-    REAL(dp), ALLOCATABLE, DIMENSION(:, :)   :: sinv, smat, tmat
+    TYPE(gto_basis_set_type), POINTER        :: fbasa, fbasb, obasa, obasb
+    TYPE(lri_int_type), POINTER              :: lrii
+    TYPE(neighbor_list_iterator_p_type), &
+      DIMENSION(:), POINTER                  :: nl_iterator
 
-    failure=.FALSE.
-    CPPrecondition(ASSOCIATED(prj_basis),cp_failure_level,routineP,error,failure)
-    CPPrecondition(ASSOCIATED(paw_basis),cp_failure_level,routineP,error,failure)
+    failure =.FALSE.
+    NULLIFY(fbasa, fbasb, lrii, nl_iterator, obasa, obasb)
 
-    radius = rc
+    ALLOCATE(lri_ints,STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
-    paw_basis%name = "Expansion_basis"
-    prj_basis%name = "Projector_basis"
-    maxl = 4 ! fix for soft expansion
-
-    ! each l quantum number is a set
-    nset = maxl + 1
-    ALLOCATE (paw_basis%lmax(nset),paw_basis%lmin(nset),STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
-    ALLOCATE (prj_basis%lmax(nset),prj_basis%lmin(nset),STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
-    DO iset=1,nset
-       paw_basis%lmax(iset) = iset - 1
-       paw_basis%lmin(iset) = iset - 1
-       prj_basis%lmax(iset) = iset - 1
-       prj_basis%lmin(iset) = iset - 1
+    lri_ints%nkind = nkind
+    ALLOCATE(lri_ints%lri_atom(nkind*nkind),STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    
+    DO i=1,nkind*nkind
+      NULLIFY(lri_ints%lri_atom(i)%lri_node)
+      lri_ints%lri_atom(i)%natom = 0
     END DO
 
-    ALLOCATE (npgf(nset),nshell(nset),STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
-    DO l=0,maxl
-       npgf(l+1) = MAX(6 - l/2,1)
-    END DO
-    nshell = npgf
-    maxshell = MAXVAL(nshell)
-    maxpgf = MAXVAL(npgf)
+    CALL neighbor_list_iterator_create(nl_iterator,lri_env%soo_list)
+    DO WHILE (neighbor_list_iterate(nl_iterator)==0)
 
-    ALLOCATE (nn(maxshell,nset),ll(maxshell,nset),STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
-    nn = 0
-    ll = 0
-    DO iset=1,nset
-       DO is=1,nshell(iset)
-         ll(is,iset) = paw_basis%lmax(iset)
-         nn(is,iset) = paw_basis%lmax(iset) + is
-       END DO
-    END DO
+       CALL get_iterator_info(nl_iterator,ikind=ikind,jkind=jkind,&
+            nlist=nlist,ilist=ilist,nnode=nneighbor,inode=jneighbor,&
+            iatom=iatom,jatom=jatom)
+      
+       iac = ikind + nkind*(jkind - 1)
 
-    ALLOCATE (paw_basis%npgf(nset),paw_basis%nshell(nset),STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
-    ALLOCATE (paw_basis%l(maxshell,nset),paw_basis%n(maxshell,nset),STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+       obasa => lri_env%orb_basis(ikind)%gto_basis_set
+       obasb => lri_env%orb_basis(jkind)%gto_basis_set
+       fbasa => lri_env%ri_basis(ikind)%gto_basis_set
+       fbasb => lri_env%ri_basis(jkind)%gto_basis_set
 
-    paw_basis%nset = nset
-    paw_basis%npgf = npgf
-    paw_basis%nshell = nshell
-    paw_basis%l = ll
-    paw_basis%n = nn
-    paw_basis%norm_type = 1
-    paw_basis%kind_radius = 0._dp
-    ALLOCATE (paw_basis%set_radius(nset),STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
-    paw_basis%set_radius = 0._dp
-    ALLOCATE (paw_basis%pgf_radius(maxpgf,nset),STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
-    paw_basis%pgf_radius = 0._dp
+       IF (.NOT.ASSOCIATED(obasa)) CYCLE
+       IF (.NOT.ASSOCIATED(obasb)) CYCLE
 
-    ALLOCATE (prj_basis%npgf(nset),prj_basis%nshell(nset),STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
-    ALLOCATE (prj_basis%l(maxshell,nset),prj_basis%n(maxshell,nset),STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
-
-    prj_basis%nset = nset
-    prj_basis%npgf = npgf
-    prj_basis%nshell = nshell
-    prj_basis%l = ll
-    prj_basis%n = nn
-    prj_basis%norm_type = 1
-    prj_basis%kind_radius = 0._dp
-    ALLOCATE (prj_basis%set_radius(nset),STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
-    prj_basis%set_radius = 0._dp
-    ALLOCATE (prj_basis%pgf_radius(maxpgf,nset),STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
-    prj_basis%pgf_radius = 0._dp
-
-    ALLOCATE (paw_basis%ncgf_set(nset),paw_basis%nsgf_set(nset),STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
-    ALLOCATE (paw_basis%first_cgf(maxshell,nset),paw_basis%last_cgf(maxshell,nset),STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
-    ALLOCATE (paw_basis%first_sgf(maxshell,nset),paw_basis%last_sgf(maxshell,nset),STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
-    ncgf = 0
-    nsgf = 0
-    maxco = 0
-    DO iset=1,nset
-       paw_basis%ncgf_set(iset) = 0
-       paw_basis%nsgf_set(iset) = 0
-       DO ishell=1,nshell(iset)
-          lshell = paw_basis%l(ishell,iset)
-          paw_basis%first_cgf(ishell,iset) = ncgf + 1
-          ncgf = ncgf + nco(lshell)
-          paw_basis%last_cgf(ishell,iset) = ncgf
-          paw_basis%ncgf_set(iset) = paw_basis%ncgf_set(iset) + nco(lshell)
-          paw_basis%first_sgf(ishell,iset) = nsgf + 1
-          nsgf = nsgf + nso(lshell)
-          paw_basis%last_sgf(ishell,iset) = nsgf
-          paw_basis%nsgf_set(iset) = paw_basis%nsgf_set(iset) + nso(lshell)
-       END DO
-       maxco = MAX(maxco,npgf(iset)*ncoset(paw_basis%lmax(iset)))
-    END DO
-    paw_basis%ncgf = ncgf
-    paw_basis%nsgf = nsgf
-    ALLOCATE (paw_basis%norm_cgf(ncgf),STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
-    paw_basis%norm_cgf = 0._dp
-    ALLOCATE (paw_basis%zet(maxpgf,nset),paw_basis%cphi(maxco,ncgf),&
-              paw_basis%sphi(maxco,nsgf),STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
-    ALLOCATE (paw_basis%gcc(maxpgf,maxshell,nset),STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
-
-    ALLOCATE (paw_basis%cgf_symbol(ncgf),paw_basis%sgf_symbol(nsgf),STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
-    ALLOCATE (paw_basis%lx(ncgf),paw_basis%ly(ncgf),paw_basis%lz(ncgf),STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
-    ALLOCATE (paw_basis%m(nsgf),STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
-    ncgf = 0
-    nsgf = 0
-    DO iset=1,nset
-       DO ishell=1,nshell(iset)
-          lshell = paw_basis%l(ishell,iset)
-          DO ico=ncoset(lshell-1)+1,ncoset(lshell)
-             ncgf = ncgf + 1
-             paw_basis%lx(ncgf) = indco(1,ico)
-             paw_basis%ly(ncgf) = indco(2,ico)
-             paw_basis%lz(ncgf) = indco(3,ico)
-             paw_basis%cgf_symbol(ncgf) =&
-                  cgf_symbol(nn(ishell,iset),(/paw_basis%lx(ncgf),&
-                  paw_basis%ly(ncgf),paw_basis%lz(ncgf)/))
+       IF(.NOT.ASSOCIATED(lri_ints%lri_atom(iac)%lri_node)) THEN
+          lri_ints%lri_atom(iac)%natom = nlist
+          ALLOCATE(lri_ints%lri_atom(iac)%lri_node(nlist),STAT=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          DO i=1,nlist
+             NULLIFY(lri_ints%lri_atom(iac)%lri_node(i)%lri_int)
+             lri_ints%lri_atom(iac)%lri_node(i)%nnode = 0
           END DO
-          DO m=-lshell,lshell
-             nsgf = nsgf + 1
-             paw_basis%m(nsgf) = m
-             paw_basis%sgf_symbol(nsgf) = sgf_symbol(nn(ishell,iset),lshell,m)
-          END DO
-       END DO
-    END DO
+       END IF
+       IF(.NOT.ASSOCIATED(lri_ints%lri_atom(iac)%lri_node(ilist)%lri_int)) THEN
+          lri_ints%lri_atom(iac)%lri_node(ilist)%nnode = nneighbor
+          ALLOCATE(lri_ints%lri_atom(iac)%lri_node(ilist)%lri_int(nneighbor),STAT=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       END IF
 
-    ALLOCATE (prj_basis%ncgf_set(nset),prj_basis%nsgf_set(nset),STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
-    ALLOCATE (prj_basis%first_cgf(maxshell,nset),prj_basis%last_cgf(maxshell,nset),STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
-    ALLOCATE (prj_basis%first_sgf(maxshell,nset),prj_basis%last_sgf(maxshell,nset),STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
-    ncgf = 0
-    nsgf = 0
-    maxco = 0
-    DO iset=1,nset
-       prj_basis%ncgf_set(iset) = 0
-       prj_basis%nsgf_set(iset) = 0
-       DO ishell=1,nshell(iset)
-          lshell = prj_basis%l(ishell,iset)
-          prj_basis%first_cgf(ishell,iset) = ncgf + 1
-          ncgf = ncgf + nco(lshell)
-          prj_basis%last_cgf(ishell,iset) = ncgf
-          prj_basis%ncgf_set(iset) = prj_basis%ncgf_set(iset) + nco(lshell)
-          prj_basis%first_sgf(ishell,iset) = nsgf + 1
-          nsgf = nsgf + nso(lshell)
-          prj_basis%last_sgf(ishell,iset) = nsgf
-          prj_basis%nsgf_set(iset) = prj_basis%nsgf_set(iset) + nso(lshell)
-       END DO
-       maxco = MAX(maxco,npgf(iset)*ncoset(prj_basis%lmax(iset)))
-    END DO
-    prj_basis%ncgf = ncgf
-    prj_basis%nsgf = nsgf
-    ALLOCATE (prj_basis%norm_cgf(ncgf),STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
-    prj_basis%norm_cgf = 0._dp
-    ALLOCATE (prj_basis%zet(maxpgf,nset),prj_basis%cphi(maxco,ncgf),&
-              prj_basis%sphi(maxco,nsgf),STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
-    ALLOCATE (prj_basis%gcc(maxpgf,maxshell,nset),STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+       lrii => lri_ints%lri_atom(iac)%lri_node(ilist)%lri_int(jneighbor)
 
-    ALLOCATE (prj_basis%cgf_symbol(ncgf),prj_basis%sgf_symbol(nsgf),STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
-    ALLOCATE (prj_basis%lx(ncgf),prj_basis%ly(ncgf),prj_basis%lz(ncgf),STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
-    ALLOCATE (prj_basis%m(nsgf),STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
-    ncgf = 0
-    nsgf = 0
-    DO iset=1,nset
-       DO ishell=1,nshell(iset)
-          lshell = prj_basis%l(ishell,iset)
-          DO ico=ncoset(lshell-1)+1,ncoset(lshell)
-             ncgf = ncgf + 1
-             prj_basis%lx(ncgf) = indco(1,ico)
-             prj_basis%ly(ncgf) = indco(2,ico)
-             prj_basis%lz(ncgf) = indco(3,ico)
-             prj_basis%cgf_symbol(ncgf) =&
-                  cgf_symbol(nn(ishell,iset),(/prj_basis%lx(ncgf),&
-                  prj_basis%ly(ncgf),prj_basis%lz(ncgf)/))
-          END DO
-          DO m=-lshell,lshell
-             nsgf = nsgf + 1
-             prj_basis%m(nsgf) = m
-             prj_basis%sgf_symbol(nsgf) = sgf_symbol(nn(ishell,iset),lshell,m)
-          END DO
-       END DO
-    END DO
+       nba = obasa%nsgf
+       nbb = obasb%nsgf
+       nfa = fbasa%nsgf
+       nfb = fbasb%nsgf
+       nn  = nfa + nfb
+       
+       ALLOCATE(lrii%abaint(nba,nbb,nfa),&
+                lrii%abbint(nba,nbb,nfb),STAT=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       lrii%abaint = 0._dp
+       lrii%abbint = 0._dp
 
-    ! set up exponents of atom basis
-    paw_basis%gcc = 0._dp
-    ! unique set for all soft basis sets
-    DO iset=1,paw_basis%nset
-       DO ipgf=1,paw_basis%npgf(iset)
-          l = iset+ipgf-2
-          paw_basis%zet(ipgf,iset) = 0.1_dp*2.0_dp**l
-          paw_basis%gcc(ipgf,ipgf,iset) = 1._dp
-       END DO
-    END DO
-    CALL init_orb_basis_set(paw_basis,error)
+       ALLOCATE(lrii%dabdaint(nba,nbb,nfa,3),&
+                lrii%dabbint(nba,nbb,nfb,3),STAT=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       lrii%dabdaint = 0._dp
+       lrii%dabbint = 0._dp
 
-    ! set up exponents of projector basis
-    prj_basis%gcc = 0._dp
-    DO iset=1,prj_basis%nset
-       zetmin = minexp(prj_basis%lmax(iset),radius,eps_fit)
-       DO ipgf=1,prj_basis%npgf(iset)
-          prj_basis%zet(ipgf,iset) = zetmin*2.0_dp**(ipgf-1)
-       END DO
-    END DO
+       ALLOCATE(lrii%sab(nfa,nfb),lrii%dsab(nfa,nfb,3),STAT=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       lrii%sab  = 0._dp
+       lrii%dsab = 0._dp
 
-    ! calculate overlap matrix <basis|projector>
-    ALLOCATE (smat(maxpgf,maxpgf),sinv(maxpgf,maxpgf),tmat(maxpgf,maxpgf),STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
-    DO iset=1,paw_basis%nset
-       na = paw_basis%npgf(iset)
-       np = prj_basis%npgf(iset)
-       CPPrecondition(na==np,cp_failure_level,routineP,error,failure)
-       l = paw_basis%lmax(iset)
-       prefac = 0.5_dp**(l + 2)*rootpi*dfac(2*l + 1)
-       smat = 0._dp
-       DO ipgf=1,na
-          za = paw_basis%zet(ipgf,iset)
-          DO jpgf=1,np
-             zp = prj_basis%zet(jpgf,iset)
-             smat(ipgf,jpgf) = prefac/(za + zp)**(REAL(l,dp)+1.5_dp)
-          END DO
-       END DO
-       ! contraction of atom basis (most likely not the case)
-       sinv = 0._dp
-       sinv(1:na,1:np) = MATMUL(TRANSPOSE(paw_basis%gcc(1:na,1:na,iset)),smat(1:na,1:np))
-       ! invert matrix
-       CALL invert_matrix(sinv(1:na,1:np),tmat(1:na,1:np),myerr,"T",error=error)
-       ! projector contraction
-       prj_basis%gcc(1:np,1:np,iset) = tmat(1:na,1:np)
-    END DO
-    DEALLOCATE (smat,sinv,tmat,STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+       IF(iatom == jatom) THEN
+        ALLOCATE(lrii%sinv(nfa,nfa),STAT=stat)
+        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       ELSE
+        ALLOCATE(lrii%sinv(nn,nn),STAT=stat)
+        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       ENDIF
+       lrii%sinv = 0._dp
 
-    ! setup transformation matrices for projector basis
-    CALL init_orb_basis_set(prj_basis,error)
+       IF(iatom == jatom) THEN
+        ALLOCATE(lrii%n(nfa),lrii%sn(nfa),STAT=stat)
+        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       ELSE
+        ALLOCATE(lrii%n(nn),lrii%sn(nn),STAT=stat)
+        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       ENDIF
+       lrii%n    = 0._dp
+       lrii%sn   = 0._dp
 
-    ! setup interaction radii
-    eps_pgf = eps_fit/100._dp
-    CALL init_interaction_radii_orb_basis(paw_basis,eps_pgf,error=error)
-    CALL init_interaction_radii_orb_basis(prj_basis,eps_pgf,error=error)
+       ALLOCATE(lrii%soo(nba,nbb),lrii%dsoo(nba,nbb,3),STAT=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       lrii%soo  = 0._dp
+       lrii%dsoo = 0._dp
 
-    DEALLOCATE (npgf,nshell,nn,ll,STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+       IF(iatom == jatom) THEN
+        ALLOCATE(lrii%dacoef(nba,nbb,nfa),STAT=stat)
+        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       ELSE
+        ALLOCATE(lrii%dacoef(nba,nbb,nn),STAT=stat)
+        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       ENDIF
+       lrii%dacoef = 0._dp
+ 
+       lrii%dmax_ab   = 0._dp
+       lrii%dmax_oo   = 0._dp
+       lrii%dmax_aba  = 0._dp
+       lrii%dmax_abb  = 0._dp
 
-  END SUBROUTINE  build_projector_basis
+    ENDDO
 
-  FUNCTION minexp(lmax,radius,eps_fit) RESULT(zet)
-    INTEGER                                  :: lmax
-    REAL(dp)                                 :: radius, eps_fit, zet
+    CALL neighbor_list_iterator_release(nl_iterator)
 
-    REAL(dp)                                 :: rad
-
-    zet = 1._dp
-    DO
-       rad = exp_radius(lmax,zet,eps_fit,1.0_dp)
-       IF(rad < radius) EXIT
-       zet = zet + 0.5_dp
-    END DO
-
-  END FUNCTION minexp
+  END SUBROUTINE allocate_lri_ints
 
 ! *****************************************************************************
+!> \brief allocate lri_ints_rho, storing integral for the exact density
+!> \param lri_env ...
+!> \param lri_ints_rho structure storing the integrals (aa,bb)
+!> \param nkind number of atom kinds 
+!> \param error variable to control error logging, stopping,...
+! *****************************************************************************
+  SUBROUTINE allocate_lri_ints_rho(lri_env,lri_ints_rho,nkind,error)
 
+    TYPE(lri_environment_type), POINTER      :: lri_env
+    TYPE(lri_list_type), POINTER             :: lri_ints_rho
+    INTEGER, INTENT(IN)                      :: nkind
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'allocate_lri_ints_rho', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: i, iac, iatom, ikind, ilist, &
+                                                jatom, jkind, jneighbor, nba, &
+                                                nbb, nlist, nneighbor, stat
+    LOGICAL                                  :: failure
+    TYPE(gto_basis_set_type), POINTER        :: obasa, obasb
+    TYPE(lri_int_rho_type), POINTER          :: lriir
+    TYPE(neighbor_list_iterator_p_type), &
+      DIMENSION(:), POINTER                  :: nl_iterator
+
+    ALLOCATE(lri_ints_rho,STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+
+    lri_ints_rho%nkind = nkind
+    ALLOCATE(lri_ints_rho%lri_atom(nkind*nkind),STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    
+    DO i=1,nkind*nkind
+      NULLIFY(lri_ints_rho%lri_atom(i)%lri_node)
+      lri_ints_rho%lri_atom(i)%natom = 0
+    ENDDO
+
+    CALL neighbor_list_iterator_create(nl_iterator,lri_env%soo_list)
+    DO WHILE (neighbor_list_iterate(nl_iterator)==0)
+
+       CALL get_iterator_info(nl_iterator,ikind=ikind,jkind=jkind,&
+            nlist=nlist,ilist=ilist,nnode=nneighbor,inode=jneighbor,&
+            iatom=iatom,jatom=jatom)
+      
+       iac = ikind + nkind*(jkind - 1)
+
+       obasa => lri_env%orb_basis(ikind)%gto_basis_set
+       obasb => lri_env%orb_basis(jkind)%gto_basis_set
+
+       IF (.NOT.ASSOCIATED(obasa)) CYCLE
+       IF (.NOT.ASSOCIATED(obasb)) CYCLE
+
+       IF(.NOT.ASSOCIATED(lri_ints_rho%lri_atom(iac)%lri_node)) THEN
+          lri_ints_rho%lri_atom(iac)%natom = nlist
+          ALLOCATE(lri_ints_rho%lri_atom(iac)%lri_node(nlist),STAT=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          DO i=1,nlist
+             NULLIFY(lri_ints_rho%lri_atom(iac)%lri_node(i)%lri_int_rho)
+             lri_ints_rho%lri_atom(iac)%lri_node(i)%nnode = 0
+          END DO
+       END IF
+       IF(.NOT.ASSOCIATED(lri_ints_rho%lri_atom(iac)%lri_node(ilist)%lri_int_rho)) THEN
+          lri_ints_rho%lri_atom(iac)%lri_node(ilist)%nnode = nneighbor
+          ALLOCATE(lri_ints_rho%lri_atom(iac)%lri_node(ilist)%lri_int_rho(nneighbor),STAT=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       END IF
+
+       lriir => lri_ints_rho%lri_atom(iac)%lri_node(ilist)%lri_int_rho(jneighbor)
+
+       nba = obasa%nsgf
+       nbb = obasb%nsgf
+
+       ALLOCATE(lriir%soaabb(nba,nba,nbb,nbb),STAT=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       lriir%soaabb = 0._dp
+       lriir%dmax_aabb = 0._dp
+
+    ENDDO
+
+    CALL neighbor_list_iterator_release(nl_iterator)
+  
+  END SUBROUTINE allocate_lri_ints_rho
+
+! *****************************************************************************
+!> \brief creates and initializes lri_rhos
+!> \param lri_env ...
+!> \param lri_rhos structure storing tvec and avec
+!> \param nspin ...
+!> \param nkind number of atom kinds 
+!> \param error variable to control error logging, stopping,...
+! *****************************************************************************
+  SUBROUTINE allocate_lri_rhos(lri_env,lri_rhos,nspin,nkind,error)
+
+    TYPE(lri_environment_type), POINTER      :: lri_env
+    TYPE(lri_list_p_type), DIMENSION(:), &
+      POINTER                                :: lri_rhos
+    INTEGER, INTENT(IN)                      :: nspin, nkind
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'allocate_lri_rhos', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: i, iac, iatom, ikind, ilist, &
+                                                ispin, jatom, jkind, &
+                                                jneighbor, nfa, nfb, nlist, &
+                                                nn, nneighbor, stat
+    LOGICAL                                  :: failure
+    TYPE(lri_int_type), POINTER              :: lrii
+    TYPE(lri_list_type), POINTER             :: lri_rho
+    TYPE(lri_rhoab_type), POINTER            :: lrho
+    TYPE(neighbor_list_iterator_p_type), &
+      DIMENSION(:), POINTER                  :: nl_iterator
+
+    failure =.FALSE.
+    NULLIFY(lri_rho, lrho, lrii, nl_iterator)
+
+    ALLOCATE(lri_rhos(nspin),STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+
+    DO ispin = 1, nspin
+
+       ALLOCATE(lri_rhos(ispin)%lri_list,STAT=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+
+       lri_rhos(ispin)%lri_list%nkind = nkind
+       ALLOCATE(lri_rhos(ispin)%lri_list%lri_atom(nkind*nkind),STAT=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       
+       DO i=1,nkind*nkind
+         NULLIFY(lri_rhos(ispin)%lri_list%lri_atom(i)%lri_node)
+         lri_rhos(ispin)%lri_list%lri_atom(i)%natom = 0
+       END DO
+
+       lri_rho => lri_rhos(ispin)%lri_list
+
+       CALL neighbor_list_iterator_create(nl_iterator,lri_env%soo_list)
+       DO WHILE (neighbor_list_iterate(nl_iterator)==0)
+          CALL get_iterator_info(nl_iterator,ikind=ikind,jkind=jkind,iatom=iatom,&
+               jatom=jatom,nlist=nlist,ilist=ilist,nnode=nneighbor,inode=jneighbor)
+  
+          iac = ikind + nkind*(jkind - 1)
+
+          IF(.NOT.ASSOCIATED(lri_env%lri_ints%lri_atom(iac)%lri_node)) CYCLE
+
+          IF(.NOT.ASSOCIATED(lri_rho%lri_atom(iac)%lri_node)) THEN
+             lri_rho%lri_atom(iac)%natom = nlist
+             ALLOCATE(lri_rho%lri_atom(iac)%lri_node(nlist),STAT=stat)
+             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+             DO i=1,nlist
+                NULLIFY(lri_rho%lri_atom(iac)%lri_node(i)%lri_rhoab)
+                lri_rho%lri_atom(iac)%lri_node(i)%nnode = 0
+             END DO
+          END IF
+          IF(.NOT.ASSOCIATED(lri_rho%lri_atom(iac)%lri_node(ilist)%lri_rhoab)) THEN
+             lri_rho%lri_atom(iac)%lri_node(ilist)%nnode = nneighbor
+             ALLOCATE(lri_rho%lri_atom(iac)%lri_node(ilist)%lri_rhoab(nneighbor),STAT=stat)
+             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          END IF
+
+          lrho => lri_rho%lri_atom(iac)%lri_node(ilist)%lri_rhoab(jneighbor)
+          lrii => lri_env%lri_ints%lri_atom(iac)%lri_node(ilist)%lri_int(jneighbor)
+
+          lrho%nba = lrii%nba
+          lrho%nbb = lrii%nbb
+          lrho%nfa = lrii%nfa
+          lrho%nfb = lrii%nfb
+ 
+          nfa = lrho%nfa
+          nfb = lrho%nfb
+          nn  = nfa + nfb
+
+          IF(iatom == jatom) THEN
+           ALLOCATE(lrho%avec(nfa), STAT=stat)
+           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+           ALLOCATE(lrho%tvec(nfa), STAT=stat)
+           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          ELSE
+           ALLOCATE(lrho%avec(nn), STAT=stat)
+           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+           ALLOCATE(lrho%tvec(nn), STAT=stat)
+           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          ENDIF
+          lrho%avec = 0._dp
+          lrho%tvec = 0._dp
+          
+       ENDDO
+
+       CALL neighbor_list_iterator_release(nl_iterator)
+
+    ENDDO
+
+  END SUBROUTINE allocate_lri_rhos
+
+! *****************************************************************************
+!> \brief creates and initializes lri_coefs
+!> \param lri_env ...
+!> \param lri_density ...
+!> \param atomic_kind_set ...
+!> \param error variable to control error logging, stopping,...
+! *****************************************************************************
+  SUBROUTINE allocate_lri_coefs(lri_env, lri_density, atomic_kind_set, error)
+
+    TYPE(lri_environment_type), POINTER      :: lri_env
+    TYPE(lri_density_type), POINTER          :: lri_density
+    TYPE(atomic_kind_type), DIMENSION(:), &
+      POINTER                                :: atomic_kind_set
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'allocate_lri_coefs', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: ikind, ispin, natom, nkind, &
+                                                nsgf, nspin, stat
+    LOGICAL                                  :: failure
+    TYPE(atomic_kind_type), POINTER          :: atomic_kind
+    TYPE(gto_basis_set_type), POINTER        :: fbas
+    TYPE(lri_spin_type), DIMENSION(:), &
+      POINTER                                :: lri_coefs
+
+    failure =.FALSE.
+    NULLIFY(atomic_kind, fbas, lri_coefs)
+    nkind = SIZE(atomic_kind_set)
+    nspin = lri_density%nspin  
+ 
+    ALLOCATE(lri_density%lri_coefs(nspin),STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    lri_coefs => lri_density%lri_coefs   
+
+    DO ispin =1, nspin
+     ALLOCATE(lri_density%lri_coefs(ispin)%lri_kinds(nkind),STAT=stat)
+     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+     DO ikind=1,nkind
+       NULLIFY(lri_coefs(ispin)%lri_kinds(ikind)%acoef)
+       NULLIFY(lri_coefs(ispin)%lri_kinds(ikind)%v_int)
+       NULLIFY(lri_coefs(ispin)%lri_kinds(ikind)%v_dadr)
+       NULLIFY(lri_coefs(ispin)%lri_kinds(ikind)%v_dfdr)
+       atomic_kind => atomic_kind_set(ikind)
+       CALL get_atomic_kind(atomic_kind=atomic_kind,natom=natom)
+       fbas => lri_env%ri_basis(ikind)%gto_basis_set
+       nsgf = fbas%nsgf
+       ALLOCATE(lri_coefs(ispin)%lri_kinds(ikind)%acoef(natom,nsgf),STAT=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       lri_coefs(ispin)%lri_kinds(ikind)%acoef = 0._dp
+       ALLOCATE(lri_coefs(ispin)%lri_kinds(ikind)%v_int(natom,nsgf),STAT=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       lri_coefs(ispin)%lri_kinds(ikind)%v_int = 0._dp
+       ALLOCATE(lri_coefs(ispin)%lri_kinds(ikind)%v_dadr(natom,3),STAT=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       lri_coefs(ispin)%lri_kinds(ikind)%v_dadr = 0._dp
+       ALLOCATE(lri_coefs(ispin)%lri_kinds(ikind)%v_dfdr(natom,3),STAT=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       lri_coefs(ispin)%lri_kinds(ikind)%v_dfdr = 0._dp
+     END DO
+    ENDDO
+
+  END SUBROUTINE allocate_lri_coefs
+
+! *****************************************************************************
+!> \brief creates and initializes lri_force
+!> \param lri_force ...
+!> \param nfa and nfb number of fit functions on a/b
+!> \param nfb ...
+!> \param error variable to control error logging, stopping,...
+! *****************************************************************************
+  SUBROUTINE allocate_lri_force_components(lri_force,nfa,nfb,error)
+
+    TYPE(lri_force_type), POINTER            :: lri_force
+    INTEGER, INTENT(IN)                      :: nfa, nfb
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    CHARACTER(LEN=*), PARAMETER :: &
+      routineN = 'allocate_lri_force_components', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: nn, stat
+    LOGICAL                                  :: failure
+
+    failure = .FALSE.
+
+    nn = nfa + nfb
+
+    IF(.NOT.ASSOCIATED(lri_force)) THEN
+      ALLOCATE(lri_force,STAT=stat)
+      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+
+      ALLOCATE(lri_force%ds(nn,nn,3),STAT=stat)
+      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+      lri_force%ds    = 0._dp
+      ALLOCATE(lri_force%st(nn),STAT=stat)
+      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+      lri_force%st    = 0._dp
+      ALLOCATE(lri_force%dsst(nn,3),STAT=stat)
+      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+      lri_force%dsst  = 0._dp
+      ALLOCATE(lri_force%sdsst(nn,3),STAT=stat)
+      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+      lri_force%sdsst = 0._dp
+      ALLOCATE(lri_force%dssn(nn,3),STAT=stat)
+      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+      lri_force%dssn  = 0._dp
+      ALLOCATE(lri_force%sdssn(nn,3),STAT=stat)
+      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+      lri_force%sdssn = 0._dp
+      ALLOCATE(lri_force%sdt(nn,3),STAT=stat)
+      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+      lri_force%sdt   = 0._dp
+      ALLOCATE(lri_force%davec(nn,3),STAT=stat)
+      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+      lri_force%davec = 0._dp
+      ALLOCATE(lri_force%dtvec(nn,3),STAT=stat)
+      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+      lri_force%dtvec = 0._dp
+    ENDIF
+
+  END SUBROUTINE allocate_lri_force_components
+ 
+! *****************************************************************************
+!> \brief deallocates one-center overlap integrals and integral of ri basis
+!> \param lri_env ...
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+! *****************************************************************************
+  SUBROUTINE deallocate_ovlp_and_int_fbas (lri_env,error)
+
+    TYPE(lri_environment_type), POINTER      :: lri_env
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'deallocate_ovlp_and_int_fbas', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: i, stat
+
+    IF (ASSOCIATED(lri_env%bas_int)) THEN
+       DO i=1,SIZE(lri_env%bas_int)
+          DEALLOCATE(lri_env%bas_int(i)%int_fbas,stat=stat)
+          CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+       END DO
+       DEALLOCATE(lri_env%bas_int,stat=stat)
+       CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+    END IF
+    IF (ASSOCIATED(lri_env%bas_ovlp)) THEN
+       DO i=1,SIZE(lri_env%bas_ovlp)
+          DEALLOCATE(lri_env%bas_ovlp(i)%ri_ovlp,stat=stat)
+          CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+          DEALLOCATE(lri_env%bas_ovlp(i)%orb_ovlp,stat=stat)
+          CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+       END DO
+       DEALLOCATE(lri_env%bas_ovlp,stat=stat)
+       CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+    END IF
+
+  END SUBROUTINE deallocate_ovlp_and_int_fbas
+
+! *****************************************************************************
+!> \brief deallocates the given lri_ints
+!> \param lri_ints ...
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+! *****************************************************************************
   SUBROUTINE deallocate_lri_ints (lri_ints,error)
 
-    TYPE(lri_int_list), POINTER              :: lri_ints
+    TYPE(lri_list_type), POINTER             :: lri_ints
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'deallocate_lri_ints', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: iatom, ijkind, inode, istat, &
-                                                natom, nkind, nnode
+    INTEGER                                  :: iatom, ijkind, inode, natom, &
+                                                nkind, nnode, stat
     LOGICAL                                  :: failure
 
     CPPrecondition(ASSOCIATED(lri_ints),cp_failure_level,routineP,error,failure)
@@ -980,277 +1235,270 @@ CONTAINS
                       DO inode = 1,nnode
                          DEALLOCATE (lri_ints%lri_atom(ijkind)%lri_node(iatom)%lri_int(inode)%abaint,&
                                      lri_ints%lri_atom(ijkind)%lri_node(iatom)%lri_int(inode)%abbint,&
+                                     lri_ints%lri_atom(ijkind)%lri_node(iatom)%lri_int(inode)%dabdaint,&
+                                     lri_ints%lri_atom(ijkind)%lri_node(iatom)%lri_int(inode)%dabbint,&
                                      lri_ints%lri_atom(ijkind)%lri_node(iatom)%lri_int(inode)%soo,&
+                                     lri_ints%lri_atom(ijkind)%lri_node(iatom)%lri_int(inode)%dsoo,&
                                      lri_ints%lri_atom(ijkind)%lri_node(iatom)%lri_int(inode)%sab,&
-                                     lri_ints%lri_atom(ijkind)%lri_node(iatom)%lri_int(inode)%qab,&
+                                     lri_ints%lri_atom(ijkind)%lri_node(iatom)%lri_int(inode)%dsab,&
+                                     lri_ints%lri_atom(ijkind)%lri_node(iatom)%lri_int(inode)%dacoef,&
                                      lri_ints%lri_atom(ijkind)%lri_node(iatom)%lri_int(inode)%sinv,&
+                                     lri_ints%lri_atom(ijkind)%lri_node(iatom)%lri_int(inode)%n,&
                                      lri_ints%lri_atom(ijkind)%lri_node(iatom)%lri_int(inode)%sn,&
-                                     STAT=istat)
-                         CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+                                     STAT=stat)
+                         CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
                       END DO
-                      DEALLOCATE (lri_ints%lri_atom(ijkind)%lri_node(iatom)%lri_int,STAT=istat)
-                      CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
-                   END IF
-                   IF(ASSOCIATED(lri_ints%lri_atom(ijkind)%lri_node(iatom)%lri_rhoab)) THEN
-                      DO inode = 1,nnode
-                         DEALLOCATE (lri_ints%lri_atom(ijkind)%lri_node(iatom)%lri_rhoab(inode)%avec,&
-                                     lri_ints%lri_atom(ijkind)%lri_node(iatom)%lri_rhoab(inode)%tvec,&
-                                     STAT=istat)
-                         CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
-                      END DO
-                      DEALLOCATE (lri_ints%lri_atom(ijkind)%lri_node(iatom)%lri_rhoab,STAT=istat)
-                      CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
-                   END IF
-                   IF(ASSOCIATED(lri_ints%lri_atom(ijkind)%lri_node(iatom)%acoef)) THEN
-                      DEALLOCATE (lri_ints%lri_atom(ijkind)%lri_node(iatom)%acoef,STAT=istat)
-                      CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
-                   END IF
-                   IF(ASSOCIATED(lri_ints%lri_atom(ijkind)%lri_node(iatom)%fcoef)) THEN
-                      DEALLOCATE (lri_ints%lri_atom(ijkind)%lri_node(iatom)%fcoef,STAT=istat)
-                      CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
-                   END IF
-                   IF(ASSOCIATED(lri_ints%lri_atom(ijkind)%lri_node(iatom)%lri_paw)) THEN
-                      IF(ASSOCIATED(lri_ints%lri_atom(ijkind)%lri_node(iatom)%lri_paw%fhh)) THEN
-                        DEALLOCATE (lri_ints%lri_atom(ijkind)%lri_node(iatom)%lri_paw%fhh,STAT=istat)
-                        CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
-                      END IF
-                      IF(ASSOCIATED(lri_ints%lri_atom(ijkind)%lri_node(iatom)%lri_paw%fhs)) THEN
-                        DEALLOCATE (lri_ints%lri_atom(ijkind)%lri_node(iatom)%lri_paw%fhs,STAT=istat)
-                        CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
-                      END IF
-                      IF(ASSOCIATED(lri_ints%lri_atom(ijkind)%lri_node(iatom)%lri_paw%fxh)) THEN
-                        DEALLOCATE (lri_ints%lri_atom(ijkind)%lri_node(iatom)%lri_paw%fxh,STAT=istat)
-                        CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
-                      END IF
-                      IF(ASSOCIATED(lri_ints%lri_atom(ijkind)%lri_node(iatom)%lri_paw%fxs)) THEN
-                        DEALLOCATE (lri_ints%lri_atom(ijkind)%lri_node(iatom)%lri_paw%fxs,STAT=istat)
-                        CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
-                      END IF
-                      IF(ASSOCIATED(lri_ints%lri_atom(ijkind)%lri_node(iatom)%lri_paw%flhh)) THEN
-                        DEALLOCATE (lri_ints%lri_atom(ijkind)%lri_node(iatom)%lri_paw%flhh,STAT=istat)
-                        CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
-                      END IF
-                      IF(ASSOCIATED(lri_ints%lri_atom(ijkind)%lri_node(iatom)%lri_paw%flhs)) THEN
-                        DEALLOCATE (lri_ints%lri_atom(ijkind)%lri_node(iatom)%lri_paw%flhs,STAT=istat)
-                        CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
-                      END IF
-                      IF(ASSOCIATED(lri_ints%lri_atom(ijkind)%lri_node(iatom)%lri_paw%flxh)) THEN
-                        DEALLOCATE (lri_ints%lri_atom(ijkind)%lri_node(iatom)%lri_paw%flxh,STAT=istat)
-                        CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
-                      END IF
-                      IF(ASSOCIATED(lri_ints%lri_atom(ijkind)%lri_node(iatom)%lri_paw%flxs)) THEN
-                        DEALLOCATE (lri_ints%lri_atom(ijkind)%lri_node(iatom)%lri_paw%flxs,STAT=istat)
-                        CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
-                      END IF
-                      DEALLOCATE (lri_ints%lri_atom(ijkind)%lri_node(iatom)%lri_paw,STAT=istat)
-                      CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+                      DEALLOCATE (lri_ints%lri_atom(ijkind)%lri_node(iatom)%lri_int,STAT=stat)
+                      CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
                    END IF
                 END IF
              END DO
-             DEALLOCATE (lri_ints%lri_atom(ijkind)%lri_node,STAT=istat)
-             CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+             DEALLOCATE (lri_ints%lri_atom(ijkind)%lri_node,STAT=stat)
+             CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
            END IF
        END DO
-       DEALLOCATE (lri_ints%lri_atom,STAT=istat)
-       CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+       DEALLOCATE (lri_ints%lri_atom,STAT=stat)
+       CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
     END IF
-    DEALLOCATE (lri_ints,STAT=istat)
-    CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+    DEALLOCATE (lri_ints,STAT=stat)
+    CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
 
   END SUBROUTINE deallocate_lri_ints
 
 ! *****************************************************************************
-  SUBROUTINE lri_atom_init (lri_env,lri_control,atomic_kind_set,error)
+!> \brief deallocates the given lri_ints_rho
+!> \param lri_ints_rho ...
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+! *****************************************************************************
+  SUBROUTINE deallocate_lri_ints_rho (lri_ints_rho,error)
 
-    TYPE(lri_environment_type), POINTER      :: lri_env
-    TYPE(lripaw_control_type), POINTER       :: lri_control
-    TYPE(atomic_kind_type), DIMENSION(:), &
-      POINTER                                :: atomic_kind_set
+    TYPE(lri_list_type), POINTER             :: lri_ints_rho
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'lri_atom_init', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'deallocate_lri_ints_rho', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: ikind, istat, la, ll, llmax, &
-                                                lpaw, lri, na, nkind, nr
+    INTEGER                                  :: iatom, ijkind, inode, natom, &
+                                                nkind, nnode, stat
     LOGICAL                                  :: failure
-    TYPE(atomic_kind_type), POINTER          :: atomic_kind
-    TYPE(grid_atom_type), POINTER            :: grid_atom
-    TYPE(gto_basis_set_type), POINTER        :: paw_basis, ri_basis
-    TYPE(harmonics_info_type), POINTER       :: harmonics
 
-    failure = .FALSE.
+    CPPrecondition(ASSOCIATED(lri_ints_rho),cp_failure_level,routineP,error,failure)
+    nkind = lri_ints_rho%nkind
 
-    nkind = SIZE(lri_env%atom)
+    IF(nkind > 0) THEN
+       DO ijkind = 1,SIZE(lri_ints_rho%lri_atom)
+          natom = lri_ints_rho%lri_atom(ijkind)%natom
+          IF(natom > 0) THEN
+             DO iatom=1,natom
+                nnode = lri_ints_rho%lri_atom(ijkind)%lri_node(iatom)%nnode
+                IF(nnode > 0) THEN
+                   IF(ASSOCIATED(lri_ints_rho%lri_atom(ijkind)%lri_node(iatom)%lri_int_rho)) THEN
+                      DO inode = 1,nnode
+                         DEALLOCATE (lri_ints_rho%lri_atom(ijkind)%lri_node(iatom)%lri_int_rho(inode)%soaabb,&
+                                     STAT=stat)
+                         CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+                      END DO
+                      DEALLOCATE (lri_ints_rho%lri_atom(ijkind)%lri_node(iatom)%lri_int_rho,STAT=stat)
+                      CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+                   END IF
+                END IF
+             END DO
+             DEALLOCATE (lri_ints_rho%lri_atom(ijkind)%lri_node,STAT=stat)
+             CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+           END IF
+       END DO
+       DEALLOCATE (lri_ints_rho%lri_atom,STAT=stat)
+       CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+    END IF
+    DEALLOCATE (lri_ints_rho,STAT=stat)
+    CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
 
-    CALL init_lebedev_grids()
-
-    DO ikind = 1, nkind
-       atomic_kind => atomic_kind_set(ikind)
-       CALL get_atomic_kind(atomic_kind=atomic_kind,ngrid_rad=nr,ngrid_ang=na)
-       ri_basis => lri_env%ri_basis(ikind)%gto_basis_set
-       paw_basis => lri_env%paw_basis(ikind)%gto_basis_set
-       CALL get_gto_basis_set(gto_basis_set=ri_basis,maxl=lri)
-       CALL get_gto_basis_set(gto_basis_set=paw_basis,maxl=lpaw)
-       llmax = MAX(lri,lpaw)
-       ll = get_number_of_lebedev_grid(n=na)
-       na = lebedev_grid(ll)%n
-       la = lebedev_grid(ll)%l
-
-       IF (llmax > la) THEN
-          WRITE(6,'(/,72("*"))')
-          WRITE(6,'(T2,A,T66,I4)') &
-             "WARNING: the lebedev grid is built for angular momentum l up to ",la,&
-             "         the max l of spherical harmonics is larger, l_max = ", llmax,&
-             "         good integration is guaranteed only for l <= ",la
-          WRITE(6,'(72("*"),/)')
-       END IF
-
-       CALL init_orbital_pointers(la)
-
-       ! initialize radial and Lebedev grids
-       NULLIFY(grid_atom)
-       CALL allocate_grid_atom(grid_atom,error)
-       grid_atom%ng_sphere = na
-       grid_atom%nr = nr
-       CALL create_grid_atom(grid_atom,nr,na,llmax,ll,lri_control%quadrature)
-       lri_env%atom(ikind)%grid_atom => grid_atom
-
-       ! initialize spherical harmonics
-       ALLOCATE (harmonics,STAT=istat)
-       CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
-       CALL create_harmonics(harmonics,ll,error)
-       lri_env%atom(ikind)%harmonics => harmonics
-    END DO
-
-    CALL deallocate_lebedev_grids()
-
-  END SUBROUTINE lri_atom_init
+  END SUBROUTINE deallocate_lri_ints_rho
 
 ! *****************************************************************************
+!> \brief deallocates the given lri_rhos
+!> \param lri_rhos ...
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+! *****************************************************************************
+  SUBROUTINE deallocate_lri_rhos(lri_rhos,error)
 
-  SUBROUTINE create_harmonics(harmonics,lleb,error)
-
-    TYPE(harmonics_info_type), POINTER       :: harmonics
-    INTEGER, INTENT(IN)                      :: lleb
+    TYPE(lri_list_p_type), DIMENSION(:), &
+      POINTER                                :: lri_rhos
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'create_harmonics', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'deallocate_lri_rhos', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: is, istat, l, la, m, ms, na
+    INTEGER                                  :: i, iatom, ijkind, inode, &
+                                                natom, nkind, nnode, stat
     LOGICAL                                  :: failure
+    TYPE(lri_list_type), POINTER             :: lri_rho
 
     failure = .FALSE.
+    NULLIFY(lri_rho)
 
-    na = lebedev_grid(lleb)%n
-    la = lebedev_grid(lleb)%l
-    ms = nsoset(la)
+    IF(ASSOCIATED(lri_rhos)) THEN
 
-    harmonics%lmax   = la
-    harmonics%maxs   = ms
-    harmonics%ngrid  = na
+      DO i=1,SIZE(lri_rhos)
 
-    ALLOCATE (harmonics%coord(3,na),&
-              harmonics%slm(na,ms),&
-              harmonics%dslm(3,na,ms),STAT=istat)
-    CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+         lri_rho => lri_rhos(i)%lri_list
+         CPPrecondition(ASSOCIATED(lri_rho),cp_failure_level,routineP,error,failure)
+         nkind = lri_rho%nkind
 
-    harmonics%coord(1:3,1:na) = lebedev_grid(lleb)%r(1:3,1:na)
+         IF(nkind > 0) THEN
+           DO ijkind = 1,SIZE(lri_rho%lri_atom)
+              natom = lri_rho%lri_atom(ijkind)%natom
+              IF(natom > 0) THEN
+                DO iatom=1,natom
+                   nnode = lri_rho%lri_atom(ijkind)%lri_node(iatom)%nnode
+                   IF(nnode > 0) THEN
+                     IF(ASSOCIATED(lri_rho%lri_atom(ijkind)%lri_node(iatom)%lri_rhoab)) THEN
+                       DO inode = 1,nnode
+                          DEALLOCATE (lri_rho%lri_atom(ijkind)%lri_node(iatom)%lri_rhoab(inode)%avec,&
+                                      lri_rho%lri_atom(ijkind)%lri_node(iatom)%lri_rhoab(inode)%tvec,&
+                                      STAT=stat)
+                          CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+                       END DO
+                       DEALLOCATE (lri_rho%lri_atom(ijkind)%lri_node(iatom)%lri_rhoab,STAT=stat)
+                       CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+                     END IF
+                   END IF
+                END DO
+                DEALLOCATE (lri_rho%lri_atom(ijkind)%lri_node,STAT=stat)
+                CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+               END IF
+           END DO
+           DEALLOCATE (lri_rho%lri_atom,STAT=stat)
+           CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+         END IF
+         DEALLOCATE (lri_rho,STAT=stat)
+         CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+      END DO
 
-    DO is=1,ms
-       l = indso(1,is)
-       m = indso(2,is)
-       CALL y_lm(harmonics%coord,harmonics%slm(1:na,is),l,m)
-       CALL drvy_lm(harmonics%coord,harmonics%dslm(1:3,1:na,is),l,m)
-    END DO
+      DEALLOCATE(lri_rhos,stat=stat)
+      CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
 
-  END SUBROUTINE create_harmonics
+    END IF
 
-  SUBROUTINE deallocate_harmonics(harmonics,error)
+  END SUBROUTINE deallocate_lri_rhos
 
-    TYPE(harmonics_info_type), POINTER       :: harmonics
+! *****************************************************************************
+!> \brief releases the given lri_coefs
+!> \param lri_coefs the integral storage environment that is released 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+! *****************************************************************************
+  SUBROUTINE deallocate_lri_coefs(lri_coefs,error)
+    TYPE(lri_spin_type), DIMENSION(:), &
+      POINTER                                :: lri_coefs
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'deallocate_harmonics', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'deallocate_lri_coefs', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: istat
+    INTEGER                                  :: i, j, stat
     LOGICAL                                  :: failure
 
-    failure = .FALSE.
+    failure=.FALSE.
 
-    IF(ASSOCIATED(harmonics%coord)) THEN
-       DEALLOCATE (harmonics%coord,STAT=istat)
-       CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+    IF (ASSOCIATED(lri_coefs)) THEN
+       DO i=1,SIZE(lri_coefs)
+        DO j=1,SIZE(lri_coefs(i)%lri_kinds)
+           IF(ASSOCIATED(lri_coefs(i)%lri_kinds(j)%acoef)) THEN
+            DEALLOCATE(lri_coefs(i)%lri_kinds(j)%acoef,stat=stat)
+            CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+           ENDIF
+           IF(ASSOCIATED(lri_coefs(i)%lri_kinds(j)%v_int)) THEN
+            DEALLOCATE(lri_coefs(i)%lri_kinds(j)%v_int,stat=stat)
+            CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+           ENDIF
+           IF(ASSOCIATED(lri_coefs(i)%lri_kinds(j)%v_dadr)) THEN
+            DEALLOCATE(lri_coefs(i)%lri_kinds(j)%v_dadr,stat=stat)
+            CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+           ENDIF
+           IF(ASSOCIATED(lri_coefs(i)%lri_kinds(j)%v_dfdr)) THEN
+            DEALLOCATE(lri_coefs(i)%lri_kinds(j)%v_dfdr,stat=stat)
+            CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+           ENDIF
+        ENDDO
+        DEALLOCATE(lri_coefs(i)%lri_kinds,stat=stat)
+        CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+       END DO
+       DEALLOCATE(lri_coefs,stat=stat)
+       CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
     END IF
-    IF(ASSOCIATED(harmonics%slm)) THEN
-       DEALLOCATE (harmonics%slm,STAT=istat)
-       CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
-    END IF
-    IF(ASSOCIATED(harmonics%dslm)) THEN
-       DEALLOCATE (harmonics%dslm,STAT=istat)
-       CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
-    END IF
-
-    DEALLOCATE (harmonics,STAT=istat)
-    CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
-
-  END SUBROUTINE deallocate_harmonics
+    NULLIFY(lri_coefs)
+ 
+  END SUBROUTINE deallocate_lri_coefs
 
 ! *****************************************************************************
-!> \brief Write all the GTO basis sets in use for the LRIPAW method to output
+!> \brief releases the given lri_force_type
+!> \param lri_force the integral storage environment that is released 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 ! *****************************************************************************
-  SUBROUTINE write_lripaw_basis_sets(lri_env,atomic_kind_set,subsys_section,error)
+  SUBROUTINE deallocate_lri_force_components(lri_force,error)
 
-    TYPE(lri_environment_type), POINTER      :: lri_env
-    TYPE(atomic_kind_type), DIMENSION(:), &
-      POINTER                                :: atomic_kind_set
-    TYPE(section_vals_type), POINTER         :: subsys_section
-    TYPE(cp_error_type), INTENT(inout)       :: error
+    TYPE(lri_force_type), POINTER            :: lri_force
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'write_lripaw_basis_sets', &
+    CHARACTER(len=*), PARAMETER :: &
+      routineN = 'deallocate_lri_force_components', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: ikind, nkind, output_unit
+    INTEGER                                  :: stat
     LOGICAL                                  :: failure
-    TYPE(atomic_kind_type), POINTER          :: atomic_kind
-    TYPE(cp_logger_type), POINTER            :: logger
 
-    failure = .FALSE.
-    NULLIFY (logger)
-    logger => cp_error_get_logger(error)
-    output_unit = cp_print_key_unit_nr(logger,subsys_section,&
-         "PRINT%KINDS/BASIS_SET",&
-         extension=".Log",error=error)
-    IF (output_unit > 0) THEN
-       IF (ASSOCIATED(lri_env)) THEN
-          WRITE (UNIT=output_unit,FMT="(/,/,T2,A)")&
-               "LRIPAW BASIS SET INFORMATION"
-          nkind = SIZE(atomic_kind_set)
-          DO ikind=1,nkind
-             atomic_kind => atomic_kind_set(ikind)
-             WRITE (UNIT=output_unit,FMT="(/,T2,I2,A)")&
-                  atomic_kind%kind_number,". Atomic kind: "//TRIM(atomic_kind%name)
-             CALL write_gto_basis_set(lri_env%ri_basis(ikind)%gto_basis_set,&
-                  output_unit,"LRI Basis Set",error)
-             CALL write_gto_basis_set(lri_env%ri_basis_soft(ikind)%gto_basis_set,&
-                  output_unit,"LRI Soft Basis Set",error)
-             CALL write_gto_basis_set(lri_env%paw_basis(ikind)%gto_basis_set,&
-                  output_unit,"PAW Expansion Basis Set",error)
-             CALL write_gto_basis_set(lri_env%proj_basis(ikind)%gto_basis_set,&
-                  output_unit,"PAW Projector Basis Set",error)
-          END DO
-       ELSE
-          CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)
-       END IF
-    END IF
+    failure=.FALSE.
 
-    CALL cp_print_key_finished_output(output_unit,logger,subsys_section,&
-         "PRINT%KINDS/BASIS_SET",error=error)
+    IF (ASSOCIATED(lri_force)) THEN
 
-  END SUBROUTINE write_lripaw_basis_sets
-! *****************************************************************************
+       IF(ASSOCIATED(lri_force%st)) THEN
+        DEALLOCATE(lri_force%st,stat=stat)
+        CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+       ENDIF
+       IF(ASSOCIATED(lri_force%dssn)) THEN
+        DEALLOCATE(lri_force%dssn,stat=stat)
+        CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+       ENDIF
+       IF(ASSOCIATED(lri_force%sdssn)) THEN
+        DEALLOCATE(lri_force%sdssn,stat=stat)
+        CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+       ENDIF
+       IF(ASSOCIATED(lri_force%dsst)) THEN
+        DEALLOCATE(lri_force%dsst,stat=stat)
+        CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+       ENDIF
+       IF(ASSOCIATED(lri_force%sdsst)) THEN
+        DEALLOCATE(lri_force%sdsst,stat=stat)
+        CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+       ENDIF
+       IF(ASSOCIATED(lri_force%sdt)) THEN
+        DEALLOCATE(lri_force%sdt,stat=stat)
+        CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+       ENDIF
+       IF(ASSOCIATED(lri_force%dtvec)) THEN
+        DEALLOCATE(lri_force%dtvec,stat=stat)
+        CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+       ENDIF
+       IF(ASSOCIATED(lri_force%davec)) THEN
+        DEALLOCATE(lri_force%davec,stat=stat)
+        CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+       ENDIF
+       IF(ASSOCIATED(lri_force%ds)) THEN
+        DEALLOCATE(lri_force%ds,stat=stat)
+        CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+       ENDIF
+       
+       DEALLOCATE(lri_force, stat=stat)
+       CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+
+       NULLIFY(lri_force)
+    ENDIF
+
+  END SUBROUTINE deallocate_lri_force_components
 
 END MODULE lri_environment_types
 

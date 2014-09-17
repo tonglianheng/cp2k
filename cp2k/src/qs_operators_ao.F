@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2013  CP2K developers group                          !
+!   Copyright (C) 2000 - 2014  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -13,20 +13,17 @@ MODULE qs_operators_ao
                                              diffop,&
                                              moment
   USE ai_os_rr,                        ONLY: os_rr_ovlp
-  USE atomic_kind_types,               ONLY: atomic_kind_type,&
-                                             get_atomic_kind,&
-                                             get_atomic_kind_set
   USE basis_set_types,                 ONLY: gto_basis_set_p_type,&
                                              gto_basis_set_type
   USE block_p_types,                   ONLY: block_p_type
-  USE cell_types,                      ONLY: cell_type,&
+  USE cell_methods,                    ONLY: cell_type,&
                                              pbc
   USE cp_dbcsr_interface,              ONLY: cp_dbcsr_get_block_p,&
-                                             cp_dbcsr_get_matrix_type
-  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_p_type
-  USE cp_para_types,                   ONLY: cp_para_env_type
-  USE dbcsr_types,                     ONLY: dbcsr_type_antisymmetric,&
+                                             cp_dbcsr_get_matrix_type,&
+                                             cp_dbcsr_p_type,&
+                                             dbcsr_type_antisymmetric,&
                                              dbcsr_type_no_symmetry
+  USE cp_para_types,                   ONLY: cp_para_env_type
   USE kinds,                           ONLY: dp
   USE mathconstants,                   ONLY: pi
   USE orbital_pointers,                ONLY: coset,&
@@ -35,6 +32,9 @@ MODULE qs_operators_ao
   USE particle_types,                  ONLY: particle_type
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
+  USE qs_kind_types,                   ONLY: get_qs_kind,&
+                                             get_qs_kind_set,&
+                                             qs_kind_type
   USE qs_neighbor_list_types,          ONLY: get_iterator_info,&
                                              neighbor_list_iterate,&
                                              neighbor_list_iterator_create,&
@@ -43,7 +43,7 @@ MODULE qs_operators_ao
                                              neighbor_list_set_p_type
   USE timings,                         ONLY: timeset,&
                                              timestop
-#include "cp_common_uses.h"
+#include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
   PRIVATE
@@ -60,8 +60,11 @@ CONTAINS
 ! *****************************************************************************
 !> \brief   Calculation of the linear momemtum matrix over
 !>          Cartesian Gaussian functions.
-!> \author  VW
+!> \param qs_env ...
+!> \param matrix ...
+!> \param error ...
 !> \date    27.02.2009
+!> \author  VW
 !> \version 1.0
 ! *****************************************************************************
   SUBROUTINE build_lin_mom_matrix(qs_env,matrix,error)
@@ -91,9 +94,6 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:), POINTER     :: set_radius_a, set_radius_b
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: rpgfa, rpgfb, sphi_a, sphi_b, &
                                                 zeta, zetb
-    TYPE(atomic_kind_type), DIMENSION(:), &
-      POINTER                                :: atomic_kind_set
-    TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(block_p_type), ALLOCATABLE, &
       DIMENSION(:)                           :: integral
     TYPE(cell_type), POINTER                 :: cell
@@ -108,18 +108,21 @@ CONTAINS
       DIMENSION(:), POINTER                  :: sab_orb
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
+    TYPE(qs_kind_type), DIMENSION(:), &
+      POINTER                                :: qs_kind_set
+    TYPE(qs_kind_type), POINTER              :: qs_kind
 
     CALL timeset(routineN,handle)
 
     failure = .FALSE.
 
-    NULLIFY(cell,sab_orb,atomic_kind_set,particle_set,para_env)
+    NULLIFY(cell,sab_orb,qs_kind_set,particle_set,para_env)
     NULLIFY(logger)
 
     logger => cp_error_get_logger(error)
 
     CALL get_qs_env(qs_env=qs_env,&
-                    atomic_kind_set=atomic_kind_set,&
+                    qs_kind_set=qs_kind_set,&
                     particle_set=particle_set,&
                     neighbor_list_id=neighbor_list_id,&
                     para_env=para_env,&
@@ -127,12 +130,12 @@ CONTAINS
                     cell=cell,&
                     error=error)
 
-    nkind = SIZE(atomic_kind_set)
+    nkind = SIZE(qs_kind_set)
     natom = SIZE(particle_set)
 
 !   *** Allocate work storage ***
 
-    CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
+    CALL get_qs_kind_set(qs_kind_set=qs_kind_set,&
                              maxco=maxco,&
                              maxlgto=maxlgto,&
                              maxsgf=maxsgf)
@@ -149,8 +152,8 @@ CONTAINS
     ALLOCATE (basis_set_list(nkind),STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
     DO ikind=1,nkind
-      atomic_kind => atomic_kind_set(ikind)
-      CALL get_atomic_kind(atomic_kind=atomic_kind,orb_basis_set=basis_set_a)
+      qs_kind => qs_kind_set(ikind)
+      CALL get_qs_kind(qs_kind=qs_kind,orb_basis_set=basis_set_a)
       IF (ASSOCIATED(basis_set_a)) THEN
         basis_set_list(ikind)%gto_basis_set => basis_set_a
       ELSE
@@ -298,8 +301,23 @@ CONTAINS
 ! *****************************************************************************
 !> \brief   Calculation of the primitive paramagnetic spin orbit integrals over
 !>          Cartesian Gaussian-type functions.
-!> \author  VW
+!> \param la_max ...
+!> \param la_min ...
+!> \param npgfa ...
+!> \param rpgfa ...
+!> \param zeta ...
+!> \param lb_max ...
+!> \param lb_min ...
+!> \param npgfb ...
+!> \param rpgfb ...
+!> \param zetb ...
+!> \param rab ...
+!> \param intab ...
+!> \param ldrr ...
+!> \param rr ...
+!> \param error ...
 !> \date    02.03.2009
+!> \author  VW
 !> \version 1.0
 ! *****************************************************************************
   SUBROUTINE lin_mom(la_max,la_min,npgfa,rpgfa,zeta,lb_max,lb_min,npgfb,rpgfb,zetb,&
@@ -419,8 +437,12 @@ CONTAINS
 ! *****************************************************************************
 !> \brief   Calculation of the angular momemtum matrix over
 !>          Cartesian Gaussian functions.
-!> \author  VW
+!> \param qs_env ...
+!> \param matrix ...
+!> \param rc ...
+!> \param error ...
 !> \date    27.02.2009
+!> \author  VW
 !> \version 1.0
 ! *****************************************************************************
 
@@ -452,9 +474,6 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:), POINTER     :: set_radius_a, set_radius_b
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: rpgfa, rpgfb, sphi_a, sphi_b, &
                                                 zeta, zetb
-    TYPE(atomic_kind_type), DIMENSION(:), &
-      POINTER                                :: atomic_kind_set
-    TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(block_p_type), ALLOCATABLE, &
       DIMENSION(:)                           :: integral
     TYPE(cell_type), POINTER                 :: cell
@@ -469,18 +488,21 @@ CONTAINS
       DIMENSION(:), POINTER                  :: sab_all
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
+    TYPE(qs_kind_type), DIMENSION(:), &
+      POINTER                                :: qs_kind_set
+    TYPE(qs_kind_type), POINTER              :: qs_kind
 
     CALL timeset(routineN,handle)
 
     failure = .FALSE.
 
-    NULLIFY(cell,sab_all,atomic_kind_set,particle_set,para_env)
+    NULLIFY(cell,sab_all,qs_kind_set,particle_set,para_env)
     NULLIFY(logger)
 
     logger => cp_error_get_logger(error)
 
     CALL get_qs_env(qs_env=qs_env,&
-                    atomic_kind_set=atomic_kind_set,&
+                    qs_kind_set=qs_kind_set,&
                     particle_set=particle_set,&
                     neighbor_list_id=neighbor_list_id,&
                     para_env=para_env,&
@@ -488,12 +510,12 @@ CONTAINS
                     cell=cell,&
                     error=error)
 
-    nkind = SIZE(atomic_kind_set)
+    nkind = SIZE(qs_kind_set)
     natom = SIZE(particle_set)
 
 !   *** Allocate work storage ***
 
-    CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
+    CALL get_qs_kind_set(qs_kind_set=qs_kind_set,&
                              maxco=maxco,&
                              maxlgto=maxlgto,&
                              maxsgf=maxsgf)
@@ -510,8 +532,8 @@ CONTAINS
     ALLOCATE (basis_set_list(nkind),STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
     DO ikind=1,nkind
-      atomic_kind => atomic_kind_set(ikind)
-      CALL get_atomic_kind(atomic_kind=atomic_kind,orb_basis_set=basis_set_a)
+      qs_kind => qs_kind_set(ikind)
+      CALL get_qs_kind(qs_kind=qs_kind,orb_basis_set=basis_set_a)
       IF (ASSOCIATED(basis_set_a)) THEN
         basis_set_list(ikind)%gto_basis_set => basis_set_a
       ELSE
@@ -671,8 +693,24 @@ CONTAINS
 ! *****************************************************************************
 !> \brief   Calculation of the primitive paramagnetic spin orbit integrals over
 !>          Cartesian Gaussian-type functions.
-!> \author  VW
+!> \param la_max ...
+!> \param la_min ...
+!> \param npgfa ...
+!> \param rpgfa ...
+!> \param zeta ...
+!> \param lb_max ...
+!> \param lb_min ...
+!> \param npgfb ...
+!> \param rpgfb ...
+!> \param zetb ...
+!> \param rab ...
+!> \param rac ...
+!> \param intab ...
+!> \param ldrr ...
+!> \param rr ...
+!> \param error ...
 !> \date    02.03.2009
+!> \author  VW
 !> \version 1.0
 ! *****************************************************************************
   SUBROUTINE ang_mom(la_max,la_min,npgfa,rpgfa,zeta,lb_max,lb_min,npgfb,rpgfb,zetb,&
@@ -801,7 +839,7 @@ CONTAINS
 !> \brief Calculation of the components of the dipole operator in the velocity form
 !>      The elements of the  sparse matrices are the integrals in the
 !>      basis functions
-!> \param op_sm matrix representation of the p operator
+!> \param op matrix representation of the p operator
 !>               calculated in terms of the contracted basis functions
 !> \param qs_env enviroment for the lists and the basis sets
 !> \param minimum_image take into account only the first neighbors in the lists
@@ -840,9 +878,6 @@ CONTAINS
                                                 work, zeta, zetb
     REAL(KIND=dp), DIMENSION(:, :, :), &
       POINTER                                :: difab
-    TYPE(atomic_kind_type), DIMENSION(:), &
-      POINTER                                :: atomic_kind_set
-    TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(block_p_type), DIMENSION(:), &
       POINTER                                :: op_dip
     TYPE(cell_type), POINTER                 :: cell
@@ -855,24 +890,27 @@ CONTAINS
       DIMENSION(:), POINTER                  :: sab_orb
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
+    TYPE(qs_kind_type), DIMENSION(:), &
+      POINTER                                :: qs_kind_set
+    TYPE(qs_kind_type), POINTER              :: qs_kind
 
     CALL timeset(routineN,handle)
 
     failure = .FALSE.
-    NULLIFY (atomic_kind, atomic_kind_set)
+    NULLIFY (qs_kind, qs_kind_set)
     NULLIFY (cell, particle_set)
     NULLIFY (sab_orb)
     NULLIFY (difab, op_dip, work)
     NULLIFY (la_max, la_min, lb_max, lb_min, npgfa, npgfb, nsgfa, nsgfb)
     NULLIFY (set_radius_a,set_radius_b,rpgfa, rpgfb, sphi_a,sphi_b,zeta, zetb )
 
-    CALL get_qs_env(qs_env=qs_env, atomic_kind_set=atomic_kind_set,&
+    CALL get_qs_env(qs_env=qs_env, qs_kind_set=qs_kind_set,&
          cell=cell,particle_set=particle_set,&
          sab_orb=sab_orb,error=error)
 
-    nkind = SIZE(atomic_kind_set)
+    nkind = SIZE(qs_kind_set)
 
-    CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
+    CALL get_qs_kind_set(qs_kind_set=qs_kind_set,&
                              maxco=ldwork, maxlgto=maxl )
 
     my_minimum_image = .FALSE.
@@ -901,8 +939,8 @@ CONTAINS
     ALLOCATE (basis_set_list(nkind),STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
     DO ikind=1,nkind
-      atomic_kind => atomic_kind_set(ikind)
-      CALL get_atomic_kind(atomic_kind=atomic_kind,orb_basis_set=basis_set_a)
+      qs_kind => qs_kind_set(ikind)
+      CALL get_qs_kind(qs_kind=qs_kind,orb_basis_set=basis_set_a)
       IF (ASSOCIATED(basis_set_a)) THEN
         basis_set_list(ikind)%gto_basis_set => basis_set_a
       ELSE
@@ -1085,12 +1123,13 @@ CONTAINS
 !>      sufficiently localized
 !>      The elements of the  sparse matrices are the integrals in the
 !>      basis functions
-!> \param op_sm matrix representation of the p operator
+!> \param op matrix representation of the p operator
 !>               calculated in terms of the contracted basis functions
 !> \param qs_env enviroment for the lists and the basis sets
 !> \param rc reference vector position
 !> \param order maximum order of the momentum, for the doipole order = 1
 !> \param minimum_image take into account only the first neighbors in the lists
+!> \param soft ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 !> \par History
@@ -1127,9 +1166,6 @@ CONTAINS
                                                 work, zeta, zetb
     REAL(KIND=dp), DIMENSION(:, :, :), &
       POINTER                                :: mab
-    TYPE(atomic_kind_type), DIMENSION(:), &
-      POINTER                                :: atomic_kind_set
-    TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(block_p_type), DIMENSION(:), &
       POINTER                                :: op_dip
     TYPE(cell_type), POINTER                 :: cell
@@ -1142,24 +1178,27 @@ CONTAINS
       DIMENSION(:), POINTER                  :: sab_orb
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
+    TYPE(qs_kind_type), DIMENSION(:), &
+      POINTER                                :: qs_kind_set
+    TYPE(qs_kind_type), POINTER              :: qs_kind
 
     CALL timeset(routineN,handle)
 
     failure = .FALSE.
-    NULLIFY (atomic_kind, atomic_kind_set)
+    NULLIFY (qs_kind, qs_kind_set)
     NULLIFY (cell, particle_set)
     NULLIFY (sab_orb)
     NULLIFY (mab, op_dip, work)
     NULLIFY (la_max, la_min, lb_max,  npgfa, npgfb, nsgfa, nsgfb)
     NULLIFY (set_radius_a,set_radius_b,rpgfa, rpgfb, sphi_a,sphi_b,zeta, zetb )
 
-    CALL get_qs_env(qs_env=qs_env, atomic_kind_set=atomic_kind_set,&
+    CALL get_qs_env(qs_env=qs_env, qs_kind_set=qs_kind_set,&
          cell=cell,particle_set=particle_set,sab_orb=sab_orb,&
          error=error)
 
-    nkind = SIZE(atomic_kind_set)
+    nkind = SIZE(qs_kind_set)
 
-    CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
+    CALL get_qs_kind_set(qs_kind_set=qs_kind_set,&
                              maxco=ldwork, maxlgto=maxl )
 
     my_minimum_image = .FALSE.
@@ -1195,8 +1234,8 @@ CONTAINS
     ALLOCATE (basis_set_list(nkind),STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
     DO ikind=1,nkind
-      atomic_kind => atomic_kind_set(ikind)
-      CALL get_atomic_kind(atomic_kind=atomic_kind,softb=my_soft,orb_basis_set=basis_set_a)
+      qs_kind => qs_kind_set(ikind)
+      CALL get_qs_kind(qs_kind=qs_kind,softb=my_soft,orb_basis_set=basis_set_a)
       IF (ASSOCIATED(basis_set_a)) THEN
         basis_set_list(ikind)%gto_basis_set => basis_set_a
       ELSE
@@ -1360,22 +1399,24 @@ CONTAINS
 !>
 !>     The same holds for the derivative with respect to the electronic position r
 !>     taking into account that [\mu|op|d(\nu)/dR] = -[\mu|op|d(\nu)/dr]
-!> \param op_sm matrix representation of the p operator
+!> \param op matrix representation of the p operator
 !>               calculated in terms of the contracted basis functions
+!> \param op_der ...
 !> \param qs_env enviroment for the lists and the basis sets
 !> \param rc reference vector position
 !> \param order maximum order of the momentum, for the dipole order = 1
 !> \param minimum_image take into account only the first neighbors in the lists
+!> \param soft ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
+!> \par History
+!>      03.2006 created [MI]
+!> \author MI
 !> \note
 !>      Probably it does not work for PBC, or maybe yes if the wfn are
 !>      sufficiently localized
 !>      The elements of the  sparse matrices are the integrals in the
 !>      basis functions
-!> \par History
-!>      03.2006 created [MI]
-!> \author MI
 ! *****************************************************************************
   SUBROUTINE rRc_xyz_der_ao(op,op_der,qs_env,rc,order,minimum_image,soft,error)
 
@@ -1413,9 +1454,6 @@ CONTAINS
       POINTER                                :: mab, mab_tmp
     REAL(KIND=dp), DIMENSION(:, :, :, :), &
       POINTER                                :: difmab
-    TYPE(atomic_kind_type), DIMENSION(:), &
-      POINTER                                :: atomic_kind_set
-    TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(block_p_type), DIMENSION(:), &
       POINTER                                :: op_dip
     TYPE(block_p_type), DIMENSION(:, :), &
@@ -1431,6 +1469,9 @@ CONTAINS
       DIMENSION(:), POINTER                  :: sab_all
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
+    TYPE(qs_kind_type), DIMENSION(:), &
+      POINTER                                :: qs_kind_set
+    TYPE(qs_kind_type), POINTER              :: qs_kind
 
     CALL timeset(routineN,handle)
 
@@ -1442,7 +1483,7 @@ CONTAINS
        CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
     END IF
 
-    NULLIFY (atomic_kind, atomic_kind_set)
+    NULLIFY (qs_kind, qs_kind_set)
     NULLIFY (cell, particle_set, orb_basis_set)
     NULLIFY (sab_all)
     NULLIFY (difmab, mab, mab_tmp)
@@ -1450,13 +1491,13 @@ CONTAINS
     NULLIFY (la_max, la_min, lb_max, lb_min, npgfa, npgfb, nsgfa, nsgfb)
     NULLIFY (set_radius_a,set_radius_b,rpgfa, rpgfb, sphi_a,sphi_b,zeta, zetb )
 
-    CALL get_qs_env(qs_env=qs_env, atomic_kind_set=atomic_kind_set,&
+    CALL get_qs_env(qs_env=qs_env, qs_kind_set=qs_kind_set,&
          cell=cell,particle_set=particle_set,&
          sab_all=sab_all,error=error)
 
-    nkind = SIZE(atomic_kind_set)
+    nkind = SIZE(qs_kind_set)
 
-    CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
+    CALL get_qs_kind_set(qs_kind_set=qs_kind_set,&
                              maxco=ldwork, maxlgto=maxl )
 
     my_minimum_image = .FALSE.
@@ -1501,8 +1542,8 @@ CONTAINS
     ALLOCATE (basis_set_list(nkind),STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
     DO ikind=1,nkind
-      atomic_kind => atomic_kind_set(ikind)
-      CALL get_atomic_kind(atomic_kind=atomic_kind,softb=my_soft,orb_basis_set=basis_set_a)
+      qs_kind => qs_kind_set(ikind)
+      CALL get_qs_kind(qs_kind=qs_kind,softb=my_soft,orb_basis_set=basis_set_a)
       IF (ASSOCIATED(basis_set_a)) THEN
         basis_set_list(ikind)%gto_basis_set => basis_set_a
       ELSE

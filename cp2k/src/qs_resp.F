@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2013  CP2K developers group                          !
+!   Copyright (C) 2000 - 2014  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -15,7 +15,7 @@ MODULE qs_resp
   USE atomic_charges,                  ONLY: print_atomic_charges
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind
-  USE cell_types,                      ONLY: cell_type,&
+  USE cell_methods,                    ONLY: cell_type,&
                                              pbc
   USE cp_output_handling,              ONLY: cp_p_file,&
                                              cp_print_key_finished_output,&
@@ -23,6 +23,7 @@ MODULE qs_resp
                                              cp_print_key_should_output,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
+  USE cp_realspace_grid_cube,          ONLY: cp_pw_to_cube
   USE cp_subsys_types,                 ONLY: cp_subsys_get,&
                                              cp_subsys_type
   USE cp_units,                        ONLY: cp_unit_from_cp2k,&
@@ -76,11 +77,11 @@ MODULE qs_resp
                                              calculate_rho_resp_single
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
-  USE realspace_grid_cube,             ONLY: pw_to_cube
+  USE qs_kind_types,                   ONLY: qs_kind_type
   USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
-#include "cp_common_uses.h"
+#include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
 
@@ -90,8 +91,7 @@ MODULE qs_resp
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_resp'
 
-  PUBLIC :: resp_fit,&
-            resp_type
+  PUBLIC :: resp_fit
 
   TYPE resp_type
    LOGICAL                                :: equal_charges, itc,& 
@@ -118,6 +118,11 @@ MODULE qs_resp
 
 CONTAINS
 
+! *****************************************************************************
+!> \brief performs resp fit and generates RESP charges
+!> \param qs_env the qs environment
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 ! *****************************************************************************
   SUBROUTINE resp_fit(qs_env,error)
     TYPE(qs_environment_type), POINTER       :: qs_env
@@ -237,11 +242,14 @@ CONTAINS
     CALL timestop(handle)
 
   END SUBROUTINE resp_fit
-!****************************************************************************
-!\brief creates the resp_type structure
-!\param error variable to control error logging, stopping,...
-!       see module cp_error_handling
-!****************************************************************************
+
+! *****************************************************************************
+!> \brief creates the resp_type structure
+!> \param resp_env the resp environment
+!> \param rep_sys structure for repeating input sections defining fit points
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+! *****************************************************************************
   SUBROUTINE create_resp_type(resp_env, rep_sys, error)
     TYPE(resp_type), POINTER                 :: resp_env
     TYPE(resp_p_type), DIMENSION(:), POINTER :: rep_sys
@@ -283,11 +291,14 @@ CONTAINS
     resp_env%npoints_proc=0 
 
   END SUBROUTINE create_resp_type
-!****************************************************************************
-!\brief deallocates the resp_type structure
-!\param error variable to control error logging, stopping,...
-!       see module cp_error_handling
-!****************************************************************************
+
+! *****************************************************************************
+!> \brief deallocates the resp_type structure 
+!> \param resp_env the resp environment
+!> \param rep_sys structure for repeating input sections defining fit points
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+! *****************************************************************************
   SUBROUTINE resp_dealloc(resp_env,rep_sys, error)
     TYPE(resp_type), POINTER                 :: resp_env
     TYPE(resp_p_type), DIMENSION(:), POINTER :: rep_sys
@@ -334,9 +345,23 @@ CONTAINS
     ENDIF
 
   END SUBROUTINE resp_dealloc
-!****************************************************************************
-!\brief intializes the resp fit. Getting the parameters
-!****************************************************************************
+
+! *****************************************************************************
+!> \brief intializes the resp fit. Getting the parameters
+!> \param qs_env the qs environment
+!> \param resp_env the resp environment
+!> \param rep_sys structure for repeating input sections defining fit points
+!> \param input ...
+!> \param subsys ...
+!> \param particle_set ...
+!> \param atomic_kind_set ...
+!> \param cell parameters related to the simulation cell
+!> \param resp_section resp section
+!> \param cons_section constraints section, part of resp section
+!> \param rest_section restraints section, part of resp section
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+! *****************************************************************************
   SUBROUTINE init_resp(qs_env,resp_env,rep_sys,input,subsys,particle_set,&
              atomic_kind_set,cell,resp_section,cons_section,rest_section,error)
 
@@ -461,9 +486,17 @@ CPSourceFileRef,&
     CALL timestop(handle)
 
   END SUBROUTINE init_resp
-!****************************************************************************
-!\brief getting the parameters for nonperiodic/non-surface systems
-!****************************************************************************
+
+! *****************************************************************************
+!> \brief getting the parameters for nonperiodic/non-surface systems
+!> \param resp_env the resp environment
+!> \param nonperiodic_section input section setting parameters for sampling
+!>        fitting in spheres around the atom
+!> \param cell parameters related to the simulation cell
+!> \param atomic_kind_set ...
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+! *****************************************************************************
   SUBROUTINE get_parameter_nonperiodic_sys(resp_env,nonperiodic_section,cell,&
              atomic_kind_set,error)
 
@@ -557,9 +590,18 @@ CPSourceFileRef,&
     ENDIF
 
   END SUBROUTINE get_parameter_nonperiodic_sys
-!****************************************************************************
-!\brief building atom lists for different sections of RESP
-!****************************************************************************
+
+! *****************************************************************************
+!> \brief building atom lists for different sections of RESP
+!> \param section input section
+!> \param subsys ...
+!> \param atom_list list of atoms for restraints, constraints and fit point 
+!>        sampling for slab-like systems
+!> \param rep input section can be repeated, this param defines for which 
+!>        repetition of the input section the atom_list is built
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+! *****************************************************************************
   SUBROUTINE build_atom_list(section,subsys,atom_list,rep,error)
 
     TYPE(section_vals_type), POINTER         :: section
@@ -623,9 +665,19 @@ CPSourceFileRef,&
 
   END SUBROUTINE build_atom_list
  
-!****************************************************************************
-!\brief build matrix and vector for nonperiodic RESP fitting
-!****************************************************************************
+! *****************************************************************************
+!> \brief build matrix and vector for nonperiodic RESP fitting
+!> \param qs_env the qs environment
+!> \param resp_env the resp environment
+!> \param atomic_kind_set ...
+!> \param particles ...
+!> \param cell parameters related to the simulation cell
+!> \param matrix coefficient matrix of the linear system of equations
+!> \param rhs vector of the linear system of equations
+!> \param natom number of atoms
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+! *****************************************************************************
   SUBROUTINE calc_resp_matrix_nonper(qs_env,resp_env,atomic_kind_set,particles,&
                                      cell,matrix,rhs,natom,error)
 
@@ -790,10 +842,19 @@ CPSourceFileRef,&
 
     CALL timestop(handle)
 
-  END SUBROUTINE calc_resp_matrix_nonper 
-!****************************************************************************
-!\brief build matrix and vector for periodic RESP fitting
-!****************************************************************************
+  END SUBROUTINE calc_resp_matrix_nonper
+ 
+! *****************************************************************************
+!> \brief build matrix and vector for periodic RESP fitting
+!> \param qs_env the qs environment
+!> \param resp_env the resp environment
+!> \param rep_sys structure for repeating input sections defining fit points
+!> \param particles ...
+!> \param cell parameters related to the simulation cell
+!> \param natom number of atoms
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+! *****************************************************************************
   SUBROUTINE calc_resp_matrix_periodic(qs_env,resp_env,rep_sys,particles,cell,&
                                        natom,error)
 
@@ -905,9 +966,16 @@ CPSourceFileRef,&
 
   END SUBROUTINE calc_resp_matrix_periodic
 
-!****************************************************************************
-!\brief get RESP fitting points for the periodic fitting
-!****************************************************************************
+! *****************************************************************************
+!> \brief get RESP fitting points for the periodic fitting
+!> \param qs_env the qs environment
+!> \param resp_env the resp environment
+!> \param rep_sys structure for repeating input sections defining fit points
+!> \param particles ...
+!> \param cell parameters related to the simulation cell
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+! *****************************************************************************
   SUBROUTINE get_fitting_points(qs_env,resp_env,rep_sys,particles,cell,error)
  
     TYPE(qs_environment_type), POINTER       :: qs_env
@@ -1077,9 +1145,15 @@ CPSourceFileRef,&
  
   END SUBROUTINE get_fitting_points
 
-!****************************************************************************
-!\brief calculate vector rhs
-!****************************************************************************
+! *****************************************************************************
+!> \brief calculate vector rhs
+!> \param qs_env the qs environment
+!> \param resp_env the resp environment
+!> \param rhs vector 
+!> \param vpot single gaussian potential
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+! *****************************************************************************
   SUBROUTINE calculate_rhs(qs_env,resp_env,rhs,vpot,error)
  
     TYPE(qs_environment_type), POINTER       :: qs_env
@@ -1120,10 +1194,18 @@ CPSourceFileRef,&
     CALL timestop(handle)
  
   END SUBROUTINE calculate_rhs
-!****************************************************************************
-!\brief print the atom coordinates and the coordinates of the fitting points
-!       to an xyz file
-!****************************************************************************
+
+! *****************************************************************************
+!> \brief print the atom coordinates and the coordinates of the fitting points 
+!>        to an xyz file
+!> \param qs_env the qs environment
+!> \param resp_env the resp environment
+!> \param dh incremental cell matrix
+!> \param output_unit ...
+!> \param gbo lower and upper bounds for the grid points
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+! *****************************************************************************
   SUBROUTINE print_fitting_points(qs_env,resp_env,dh,output_unit,gbo,error)
   
     TYPE(qs_environment_type), POINTER       :: qs_env
@@ -1254,9 +1336,19 @@ CPSourceFileRef,&
     CALL timestop(handle)
  
   END SUBROUTINE print_fitting_points
-!****************************************************************************
-!\brief add restraints and constraints
-!****************************************************************************
+
+! *****************************************************************************
+!> \brief add restraints and constraints
+!> \param qs_env the qs environment
+!> \param resp_env the resp environment
+!> \param rest_section input section for restraints
+!> \param subsys ...
+!> \param natom number of atoms
+!> \param cons_section input section for constraints
+!> \param particle_set ...
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+! *****************************************************************************
   SUBROUTINE add_restraints_and_constraints(qs_env,resp_env,rest_section,&
                              subsys,natom,cons_section,particle_set,error)
 
@@ -1370,9 +1462,16 @@ CPSourceFileRef,&
     CALL timestop(handle)
 
   END SUBROUTINE add_restraints_and_constraints
-!****************************************************************************
-!\brief print input information
-!****************************************************************************
+
+! *****************************************************************************
+!> \brief print input information
+!> \param qs_env the qs environment
+!> \param resp_env the resp environment
+!> \param rep_sys structure for repeating input sections defining fit points 
+!> \param my_per ...
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+! *****************************************************************************
   SUBROUTINE print_resp_parameter_info(qs_env,resp_env,rep_sys,my_per,error)
    
     TYPE(qs_environment_type), POINTER       :: qs_env
@@ -1460,9 +1559,16 @@ CPSourceFileRef,&
     CALL timestop(handle)
 
   END SUBROUTINE print_resp_parameter_info
-!****************************************************************************
-!\brief print RESP charges to an extra file or to the normal output file
-!****************************************************************************
+
+! *****************************************************************************
+!> \brief print RESP charges to an extra file or to the normal output file
+!> \param qs_env the qs environment
+!> \param resp_env the resp environment
+!> \param output_runinfo ...
+!> \param natom number of atoms
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+! *****************************************************************************
   SUBROUTINE print_resp_charges(qs_env,resp_env,output_runinfo,natom,error)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
@@ -1479,14 +1585,17 @@ CPSourceFileRef,&
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
+    TYPE(qs_kind_type), DIMENSION(:), &
+      POINTER                                :: qs_kind_set
     TYPE(section_vals_type), POINTER         :: input, print_key, resp_section
 
     CALL timeset(routineN,handle)
 
     failure=.FALSE.
-    NULLIFY(particle_set,input,logger,resp_section,print_key)
+    NULLIFY(particle_set,qs_kind_set,input,logger,resp_section,print_key)
  
-    CALL get_qs_env(qs_env,input=input,particle_set=particle_set,error=error)
+    CALL get_qs_env(qs_env,input=input,particle_set=particle_set,&
+                    qs_kind_set=qs_kind_set, error=error)
 
     resp_section => section_vals_get_subs_vals(input,"PROPERTIES%RESP",&
                                                 error=error)
@@ -1509,7 +1618,7 @@ CPSourceFileRef,&
       filename = cp_print_key_generate_filename(logger,&
                  print_key, extension=".resp", &
                  my_local=.FALSE.,error=error)
-     CALL print_atomic_charges(particle_set,output_file,title="RESP charges:",&
+     CALL print_atomic_charges(particle_set,qs_kind_set,output_file,title="RESP charges:",&
                                              atomic_charges=resp_env%rhs(1:natom))
      IF(output_runinfo>0) WRITE(output_runinfo,'(2X,A,/)')  "PRINTED RESP CHARGES TO FILE"
      ENDIF
@@ -1517,15 +1626,24 @@ CPSourceFileRef,&
      CALL cp_print_key_finished_output(output_file,logger,resp_section,&
                        "PRINT%RESP_CHARGES_TO_FILE", error=error)
     ELSE
-     CALL print_atomic_charges(particle_set,output_runinfo,title="RESP charges:",&
+     CALL print_atomic_charges(particle_set,qs_kind_set,output_runinfo,title="RESP charges:",&
                                              atomic_charges=resp_env%rhs(1:natom))
     ENDIF
 
     CALL timestop(handle)
+
   END SUBROUTINE print_resp_charges
-!****************************************************************************
-!\brief print potential generates by RESP charges to file
-!****************************************************************************
+
+! *****************************************************************************
+!> \brief print potential generated by RESP charges to file
+!> \param qs_env the qs environment
+!> \param resp_env the resp environment
+!> \param particles ...
+!> \param natom number of atoms
+!> \param output_runinfo ...
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+! *****************************************************************************
   SUBROUTINE print_pot_from_resp_charges(qs_env,resp_env,particles,natom,output_runinfo,error)
  
     TYPE(qs_environment_type), POINTER       :: qs_env
@@ -1617,14 +1735,14 @@ CPSourceFileRef,&
      udvol = 1.0_dp/v_resp_rspace%pw%pw_grid%dvol
      CALL pw_copy(v_resp_rspace%pw,aux_r%pw, error=error)
      CALL pw_scale(aux_r%pw,udvol,error=error)
-     CALL pw_to_cube(aux_r%pw,unit_nr,"RESP POTENTIAL",particles=particles,&
+     CALL cp_pw_to_cube(aux_r%pw,unit_nr,"RESP POTENTIAL",particles=particles,&
                stride=section_get_ivals(resp_section,&
                "PRINT%V_RESP_CUBE%STRIDE",error=error),&
                error=error)
      CALL cp_print_key_finished_output(unit_nr,logger,resp_section,&
           "PRINT%V_RESP_CUBE",error=error)
      CALL pw_pool_give_back_pw(auxbas_pw_pool,aux_r%pw, error=error)
-   
+
     !RMS and RRMS
     sum_diff=0.0_dp
     sum_hartree=0.0_dp
@@ -1652,5 +1770,6 @@ CPSourceFileRef,&
     ENDIF
  
     CALL timestop(handle)
+
   END SUBROUTINE print_pot_from_resp_charges
 END MODULE qs_resp

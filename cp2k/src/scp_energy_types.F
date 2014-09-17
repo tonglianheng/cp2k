@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2013  CP2K developers group                          !
+!   Copyright (C) 2000 - 2014  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 ! *****************************************************************************
 MODULE scp_energy_types
@@ -8,7 +8,7 @@ MODULE scp_energy_types
   USE kinds,                           ONLY: dp
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
-#include "cp_common_uses.h"
+#include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'scp_energy_types'
@@ -28,11 +28,13 @@ MODULE scp_energy_types
 ! *** Public subroutines ***
 
   PUBLIC :: allocate_scp_energy,&
-            deallocate_scp_energy,&
-            init_scp_energy
+            deallocate_scp_energy
 
 CONTAINS
 
+! *****************************************************************************
+!> \brief ...
+!> \param scp_energy ...
 ! *****************************************************************************
   SUBROUTINE allocate_scp_energy(scp_energy)
 
@@ -54,6 +56,9 @@ CONTAINS
   END SUBROUTINE allocate_scp_energy
 
 ! *****************************************************************************
+!> \brief ...
+!> \param scp_energy ...
+! *****************************************************************************
   SUBROUTINE deallocate_scp_energy(scp_energy)
 
     TYPE(scp_energy_type), POINTER           :: scp_energy
@@ -74,6 +79,9 @@ CONTAINS
 
   END SUBROUTINE deallocate_scp_energy
 
+! *****************************************************************************
+!> \brief ...
+!> \param scp_energy ...
 ! *****************************************************************************
   SUBROUTINE init_scp_energy(scp_energy)
 

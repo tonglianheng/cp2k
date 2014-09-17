@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2013  CP2K developers group                          !
+!   Copyright (C) 2000 - 2014  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -14,16 +14,18 @@
 MODULE hfx_admm_utils
 
   USE admm_methods,                    ONLY: admm_calculate_density_matrix,&
-                                             admm_fit_mo_coeffs
-  USE admm_types,                      ONLY: admm_type
+                                             admm_fit_mo_coeffs,&
+                                             create_admm_xc_section
+  USE admm_types,                      ONLY: admm_env_create,&
+                                             admm_type
   USE atomic_kind_types,               ONLY: atomic_kind_type
   USE cell_types,                      ONLY: cell_type
   USE cp_control_types,                ONLY: dft_control_type
   USE cp_dbcsr_interface,              ONLY: cp_dbcsr_add,&
-                                             cp_dbcsr_set
-  USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm
-  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_p_type,&
+                                             cp_dbcsr_p_type,&
+                                             cp_dbcsr_set,&
                                              cp_dbcsr_type
+  USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm
   USE cp_fm_types,                     ONLY: cp_fm_get_info,&
                                              cp_fm_type
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
@@ -61,15 +63,19 @@ MODULE hfx_admm_utils
                                              qs_environment_type,&
                                              set_qs_env
   USE qs_force_types,                  ONLY: qs_force_type
+  USE qs_kind_types,                   ONLY: qs_kind_type
   USE qs_ks_types,                     ONLY: qs_ks_env_type
   USE qs_mo_types,                     ONLY: get_mo_set,&
                                              mo_set_p_type
-  USE qs_rho_types,                    ONLY: qs_rho_type
+  USE qs_rho_types,                    ONLY: qs_rho_get,&
+                                             qs_rho_type
+  USE rt_propagation_types,            ONLY: get_rtp_hfx,&
+                                             rt_prop_type
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE virial_types,                    ONLY: virial_type
   USE xc_adiabatic_utils,              ONLY: rescale_xc_potential
-#include "cp_common_uses.h"
+#include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
 
@@ -85,6 +91,11 @@ CONTAINS
 ! *****************************************************************************
 !> \brief  Compute the ADMM density matrix
 !>
+!> \param qs_env ...
+!> \param ks_env ...
+!> \param dft_control ...
+!> \param input ...
+!> \param error ...
 !> \par History
 !>     refactoring 03-2011 [MI]
 ! *****************************************************************************
@@ -100,7 +111,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, ispin, n_rep_hf, &
-                                                nspins
+                                                natoms, nspins
     LOGICAL                                  :: do_hfx, failure
     TYPE(admm_type), POINTER                 :: admm_env
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
@@ -108,12 +119,14 @@ CONTAINS
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mos, mos_aux_fit
-    TYPE(section_vals_type), POINTER         :: hfx_sections
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: particle_set
+    TYPE(section_vals_type), POINTER         :: hfx_sections, xc_section
 
     failure=.FALSE.
     CALL timeset(routineN,handle)
     NULLIFY(admm_env, hfx_sections, matrix_p, matrix_p_aux_fit, mos, &
-         mos_aux_fit, para_env)
+         mos_aux_fit, para_env, particle_set, xc_section)
 
     hfx_sections => section_vals_get_subs_vals(input,"DFT%XC%HF",error=error)
     CALL section_vals_get(hfx_sections,explicit=do_hfx,error=error)
@@ -151,15 +164,27 @@ CONTAINS
        ENDIF!fm->dbcsr
     ENDDO!fm->dbcsr
 
-    CALL admm_fit_mo_coeffs(qs_env, admm_env, dft_control%admm_control, para_env, &
+    IF (.NOT. ASSOCIATED(admm_env)) THEN
+      ! setup admm environment
+      CALL get_qs_env(qs_env, input=input, particle_set=particle_set, error=error)
+      natoms = SIZE(particle_set,1)
+      CALL admm_env_create(admm_env, dft_control%admm_control, mos, mos_aux_fit, &
+                           para_env, natoms, error)
+      xc_section => section_vals_get_subs_vals(input,"DFT%XC",error=error)
+      CALL create_admm_xc_section(qs_env, xc_section, admm_env, error)
+    ENDIF
+
+    CALL admm_fit_mo_coeffs(qs_env, admm_env, para_env, &
                             qs_env%matrix_s_aux_fit, qs_env%matrix_s_aux_fit_vs_orb,&
                             mos, mos_aux_fit, ks_env%s_mstruct_changed, error=error)
 
     DO ispin=1,nspins
        matrix_p_aux_fit =>qs_env%rho_aux_fit%rho_ao
        matrix_p => qs_env%rho%rho_ao
+       !TODO why is qs_env%matrix_s_aux_fit an array?
        CALL admm_calculate_density_matrix(admm_env, mos_aux_fit(ispin)%mo_set, matrix_p(ispin)%matrix, &
-                                          matrix_p_aux_fit(ispin)%matrix,ispin,nspins,error=error)
+                                          matrix_p_aux_fit(ispin)%matrix, qs_env%matrix_s_aux_fit(1)%matrix,&
+                                          ispin,nspins,error=error)
        CALL calculate_rho_elec(matrix_p=qs_env%rho_aux_fit%rho_ao(ispin)%matrix,&
             rho=qs_env%rho_aux_fit%rho_r(ispin),&
             rho_gspace=qs_env%rho_aux_fit%rho_g(ispin),&
@@ -167,6 +192,7 @@ CONTAINS
             qs_env=qs_env,soft_valid=.FALSE.,&
             basis_set_id=use_aux_fit_basis_set, error=error)
     END DO
+
 
     CALL set_qs_env(qs_env,admm_env=admm_env,error=error)
 
@@ -180,6 +206,16 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Add the hfx contributions to the Hamiltonian
 !>
+!> \param ks_env ...
+!> \param qs_env ...
+!> \param ks_matrix ...
+!> \param rho ...
+!> \param energy ...
+!> \param calculate_forces ...
+!> \param just_energy ...
+!> \param v_rspace_new ...
+!> \param v_tau_rspace ...
+!> \param error ...
 !> \par History
 !>     refactoring 03-2011 [MI]
 ! *****************************************************************************
@@ -200,14 +236,13 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, ikind, irep, ispin, &
-                                                n_rep_hf, nspins, stat
-    LOGICAL                                  :: do_adiabatic_rescaling, &
-                                                do_hfx_ri, failure, &
-                                                hfx_treat_lsd_in_core, &
-                                                use_virial
+                                                mspin, n_rep_hf, nspins, stat
+    LOGICAL :: distribute_fock_matrix, do_adiabatic_rescaling, do_hfx_ri, &
+      failure, hfx_treat_lsd_in_core, use_virial
     REAL(dp), ALLOCATABLE, DIMENSION(:)      :: hf_energy
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_h
+      POINTER                                :: matrix_h, matrix_ks_orb, &
+                                                rho_ao_orb
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(pw_env_type), POINTER               :: pw_env
@@ -215,6 +250,8 @@ CONTAINS
     TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
     TYPE(qs_force_type), DIMENSION(:), &
       POINTER                                :: force
+    TYPE(qs_rho_type), POINTER               :: rho_orb
+    TYPE(rt_prop_type), POINTER              :: rtp
     TYPE(section_vals_type), POINTER         :: adiabatic_rescaling_section, &
                                                 hfx_ri_section, hfx_sections, &
                                                 input
@@ -284,61 +321,75 @@ CONTAINS
        ALLOCATE(hf_energy(n_rep_hf), STAT=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        DO irep = 1,n_rep_hf
-          IF( .NOT. do_adiabatic_rescaling) THEN
-             IF( dft_control%do_admm ) THEN
-                IF ( .NOT. hfx_treat_lsd_in_core ) THEN
-                   CALL integrate_four_center(qs_env, qs_env%matrix_ks_aux_fit,energy,&
-                                              qs_env%rho_aux_fit,hfx_sections,&
-                                              para_env,ks_env%s_mstruct_changed,irep,.TRUE.,&
-                                              ispin=1, error=error)
-                ELSE
-                   DO ispin = 1,nspins
-                      CALL integrate_four_center(qs_env, qs_env%matrix_ks_aux_fit,energy,&
-                                                 qs_env%rho_aux_fit,hfx_sections,&
-                                                 para_env,ks_env%s_mstruct_changed,irep,.TRUE.,&
-                                                 ispin=ispin, error=error)
-                   END DO
-                END IF
 
-
-                IF( calculate_forces ) THEN
-                   CALL derivatives_four_center(qs_env, qs_env%rho_aux_fit, hfx_sections, &
-                                                para_env, irep, use_virial, error=error)
-                END IF
-             ELSE
-                IF ( .NOT. hfx_treat_lsd_in_core ) THEN
-                   CALL integrate_four_center(qs_env, ks_matrix ,energy,rho,hfx_sections,&
-                                              para_env,ks_env%s_mstruct_changed,irep,.TRUE.,&
-                                              ispin=1, error=error)
-                ELSE
-                   DO ispin = 1,nspins
-                      CALL integrate_four_center(qs_env, ks_matrix ,energy,rho,hfx_sections,&
-                                                 para_env,ks_env%s_mstruct_changed,irep,.TRUE.,&
-                                                 ispin=ispin, error=error)
-                   END DO
-                END IF
-                IF( calculate_forces ) THEN
-                   CALL derivatives_four_center(qs_env, rho, hfx_sections, &
-                                                para_env, irep, use_virial, error=error)
-                END IF
-             END IF
-          ELSE
-             IF( .NOT. hfx_treat_lsd_in_core ) THEN
-                !! we calculate everything but we do not add the potential in a first step
-                CALL integrate_four_center(qs_env, ks_matrix,energy,rho,hfx_sections,&
-                                           para_env,ks_env%s_mstruct_changed,irep,.FALSE.,&
-                                           ispin=1, error=error)
-             ELSE
-                CALL cp_unimplemented_error(fromWhere=routineP, &
+          IF( do_adiabatic_rescaling .AND. hfx_treat_lsd_in_core)&
+             CALL cp_unimplemented_error(fromWhere=routineP, &
                      message="HFX_TREAT_LSD_IN_CORE not implemented for adiabatically rescaled hybrids",&
                      error=error, error_level=cp_failure_level)
-             END IF
-             hf_energy(irep) = energy%ex
-             !! If required, the calculation of the forces will be done later
+          ! everything is calulated with adiabatic rescaling but the potential is not added in a first step
+          distribute_fock_matrix=.NOT.do_adiabatic_rescaling
+
+          mspin=1
+          IF ( hfx_treat_lsd_in_core ) mspin=nspins
+
+          ! fetch the correct matrices for normal HFX or ADMM
+          IF( dft_control%do_admm ) THEN
+             CALL get_qs_env(qs_env=qs_env,matrix_ks_aux_fit=matrix_ks_orb,&
+                             rho_aux_fit=rho_orb,error=error)
+          ELSE
+             CALL get_qs_env(qs_env=qs_env,matrix_ks=matrix_ks_orb,rho=rho_orb,error=error)
           END IF
+          CALL qs_rho_get(rho_struct=rho_orb,rho_ao=rho_ao_orb,error=error)
+          ! Finally the real hfx calulation
+          DO ispin = 1,mspin
+             CALL integrate_four_center(qs_env, matrix_ks_orb ,energy,rho_ao_orb,hfx_sections,&
+                                        para_env, ks_env%s_mstruct_changed, irep, distribute_fock_matrix,&
+                                        ispin=ispin, error=error)
+          END DO
+       
+          IF( calculate_forces .AND. .NOT. do_adiabatic_rescaling ) THEN
+             CALL derivatives_four_center(qs_env, rho_ao_orb, hfx_sections, &
+                                          para_env, irep, use_virial, error=error)
+          END IF
+
+          !! If required, the calculation of the forces will be done later with adiabatic rescaling
+          IF( do_adiabatic_rescaling ) hf_energy(irep) = energy%ex
+
+          ! special case RTP/EMD we have a full complex density and HFX has a contrinution from the imaginary part
+          IF( qs_env%run_rtp)THEN
+
+             CALL get_qs_env(qs_env=qs_env,rtp=rtp,error=error)
+             DO ispin = 1,nspins
+                CALL cp_dbcsr_set(qs_env%rtp%rtp_hfx%matrix_ks_im(ispin)%matrix,0.0_dp,error=error)
+             END DO
+             IF( dft_control%do_admm ) THEN
+                CALL get_rtp_hfx(rtp_hfx=rtp%rtp_hfx,matrix_ks_admm_im=matrix_ks_orb,matrix_p_admm_im=rho_ao_orb,error=error)
+                DO ispin = 1,nspins
+                   CALL cp_dbcsr_set(qs_env%rtp%rtp_hfx%matrix_ks_admm_im(ispin)%matrix,0.0_dp,error=error)
+                END DO
+             ELSE
+                CALL get_rtp_hfx(rtp_hfx=rtp%rtp_hfx,matrix_ks_im=matrix_ks_orb,matrix_p_im=rho_ao_orb,error=error)
+             END IF
+
+             DO ispin = 1,mspin
+                CALL integrate_four_center(qs_env, matrix_ks_orb ,energy,rho_ao_orb,hfx_sections,&
+                                           para_env, .FALSE., irep, distribute_fock_matrix,&
+                                           ispin=ispin, error=error)
+             END DO
+   
+             IF( calculate_forces .AND. .NOT. do_adiabatic_rescaling ) THEN
+                CALL derivatives_four_center(qs_env, rho_ao_orb, hfx_sections, &
+                                             para_env, irep, use_virial, error=error)
+             END IF
+   
+             !! If required, the calculation of the forces will be done later with adiabatic rescaling
+             IF( do_adiabatic_rescaling ) hf_energy(irep) = energy%ex
+          END IF
+
           CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool,&
                        poisson_env=poisson_env,error=error)
           CALL pw_hfx(qs_env,energy,hfx_sections,poisson_env,auxbas_pw_pool,irep,error)
+         
        END DO
     END IF
 
@@ -364,10 +415,17 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief computes the Hartree-Fock energy brute force in a pw basis
-!> \note
-!>      only computes the HFX energy, no derivatives as yet
+!> \param qs_env ...
+!> \param energy ...
+!> \param hfx_section ...
+!> \param poisson_env ...
+!> \param auxbas_pw_pool ...
+!> \param irep ...
+!> \param error ...
 !> \par History
 !>      12.2007 created [Joost VandeVondele]
+!> \note
+!>      only computes the HFX energy, no derivatives as yet
 ! *****************************************************************************
   SUBROUTINE pw_hfx(qs_env,energy,hfx_section,poisson_env,auxbas_pw_pool,irep,error)
     TYPE(qs_environment_type), POINTER       :: qs_env
@@ -402,6 +460,8 @@ CONTAINS
     TYPE(pw_p_type)                          :: pot_g, rho_g, rho_r
     TYPE(pw_p_type), ALLOCATABLE, &
       DIMENSION(:)                           :: rho_i, rho_j
+    TYPE(qs_kind_type), DIMENSION(:), &
+      POINTER                                :: qs_kind_set
 
     CALL timeset(routineN,handle)
     failure = .FALSE.
@@ -415,7 +475,7 @@ CONTAINS
 
        CALL get_qs_env(qs_env,mos=mo_array,pw_env=pw_env, dft_control=dft_control, &
                        cell=cell, particle_set=particle_set, &
-                       atomic_kind_set=atomic_kind_set, error=error)
+                       atomic_kind_set=atomic_kind_set, qs_kind_set=qs_kind_set, error=error)
 
        ! limit the blocksize by the number of orbitals
        CALL get_mo_set(mo_set=mo_array(1)%mo_set,mo_coeff=mo_coeff)
@@ -463,7 +523,7 @@ CONTAINS
 
                  iloc=iorb-iorb_block+1
                  CALL calculate_wavefunction(mo_coeff,iorb,rho_i(iloc),rho_g, &
-                          atomic_kind_set,cell,dft_control,particle_set, &
+                          atomic_kind_set,qs_kind_set, cell,dft_control,particle_set, &
                           pw_env,error=error)
 
              ENDDO
@@ -474,7 +534,7 @@ CONTAINS
 
                    jloc=jorb-jorb_block+1
                    CALL calculate_wavefunction(mo_coeff,jorb,rho_j(jloc),rho_g, &
-                            atomic_kind_set,cell,dft_control,particle_set, &
+                            atomic_kind_set,qs_kind_set, cell,dft_control,particle_set, &
                             pw_env,error=error)
 
                 ENDDO

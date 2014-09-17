@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2013  CP2K developers group                          !
+!   Copyright (C) 2000 - 2014  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -25,14 +25,14 @@ MODULE gle_system_types
                                              next_rng_seed,&
                                              rng_stream_type
   USE string_utilities,                ONLY: compress
-#include "cp_common_uses.h"
+#include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
   PRIVATE
 
   PUBLIC :: gle_dealloc,&
             gle_init, gle_thermo_create,&
-            gle_type, gle_thermo_type
+            gle_type
 
 !
   TYPE gle_thermo_type
@@ -59,7 +59,12 @@ MODULE gle_system_types
 CONTAINS
 
 ! *****************************************************************************
-!> \brief
+!> \brief ...
+!> \param gle ...
+!> \param dt ...
+!> \param temp ...
+!> \param section ...
+!> \param error ...
 !> \param
 ! *****************************************************************************
   SUBROUTINE gle_init(gle, dt,temp, section, error)
@@ -164,7 +169,10 @@ CONTAINS
   END SUBROUTINE gle_init
 
 ! *****************************************************************************
-!> \brief
+!> \brief ...
+!> \param gle ...
+!> \param mal_size ...
+!> \param error ...
 !> \param
 ! *****************************************************************************
   SUBROUTINE gle_thermo_create(gle, mal_size, error)
@@ -230,6 +238,7 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Deallocate type for GLE thermostat
+!> \param gle ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 ! *****************************************************************************

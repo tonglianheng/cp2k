@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2013  CP2K developers group                          !
+!   Copyright (C) 2000 - 2014  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -15,7 +15,7 @@ MODULE scp_force_types
                                              int_size
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
-#include "cp_common_uses.h"
+#include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
 
@@ -28,14 +28,14 @@ MODULE scp_force_types
 
   PUBLIC :: scp_force_type
 
-  PUBLIC :: allocate_scp_force,&
-            deallocate_scp_force,&
-            init_scp_force
+  PUBLIC :: deallocate_scp_force
 
 CONTAINS
 
 ! *****************************************************************************
 !> \brief   Allocate a scp force data structure.
+!> \param scp_forces ...
+!> \param natom_of_kind ...
 !> \version 1.0
 ! *****************************************************************************
   SUBROUTINE allocate_scp_force(scp_forces,natom_of_kind)
@@ -87,6 +87,7 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief   Deallocate a scp force data structure.
+!> \param scp_forces ...
 !> \version 1.0
 ! *****************************************************************************
   SUBROUTINE deallocate_scp_force(scp_forces)
@@ -140,6 +141,7 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief   Initialize a scp force data structure.
+!> \param scp_forces ...
 !> \version 1.0
 ! *****************************************************************************
   SUBROUTINE init_scp_force(scp_forces)

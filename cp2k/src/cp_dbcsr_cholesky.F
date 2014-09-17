@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2013  CP2K developers group                          !
+!   Copyright (C) 2000 - 2014  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -14,10 +14,10 @@
 ! *****************************************************************************
 MODULE cp_dbcsr_cholesky
   USE cp_blacs_env,                    ONLY: cp_blacs_env_type
-  USE cp_dbcsr_interface,              ONLY: cp_dbcsr_get_info
+  USE cp_dbcsr_interface,              ONLY: cp_dbcsr_get_info,&
+                                             cp_dbcsr_type
   USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
                                              copy_fm_to_dbcsr
-  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_type
   USE cp_fm_basic_linalg,              ONLY: cp_fm_upper_to_full
   USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                              cp_fm_struct_release,&
@@ -25,20 +25,19 @@ MODULE cp_dbcsr_cholesky
   USE cp_fm_types,                     ONLY: cp_fm_create,&
                                              cp_fm_release,&
                                              cp_fm_type
-  USE cp_para_types,                   ONLY: cp_blacs_env_type,&
-                                             cp_para_env_type
+  USE cp_para_types,                   ONLY: cp_para_env_type
   USE kinds,                           ONLY: dp,&
                                              sp
   USE timings,                         ONLY: timeset,&
                                              timestop
-#include "cp_common_uses.h"
+#include "common/cp_common_uses.f90"
 
   IMPLICIT NONE
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cp_dbcsr_cholesky'
 
   PUBLIC :: cp_dbcsr_cholesky_decompose, cp_dbcsr_cholesky_invert,&
-       cp_dbcsr_cholesky_reduce, cp_dbcsr_cholesky_restore
+            cp_dbcsr_cholesky_restore
 
   PRIVATE
 
@@ -50,6 +49,8 @@ CONTAINS
 !> \param matrix the matrix to replace with its cholesky decomposition
 !> \param n the number of row (and columns) of the matrix &
 !>        (defaults to the min(size(matrix)))
+!> \param para_env ...
+!> \param blacs_env ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 !> \par History
@@ -70,12 +71,14 @@ CONTAINS
     INTEGER                                  :: handle, info, my_n, &
                                                 nfullcols_total, &
                                                 nfullrows_total
-    INTEGER, DIMENSION(9)                    :: desca
-    LOGICAL                                  :: failure, ionode
+    LOGICAL                                  :: failure
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: a
     REAL(KIND=sp), DIMENSION(:, :), POINTER  :: a_sp
     TYPE(cp_fm_struct_type), POINTER         :: fm_struct
     TYPE(cp_fm_type), POINTER                :: fm_matrix
+#if defined(__SCALAPACK)
+    INTEGER, DIMENSION(9)                    :: desca
+#endif
 
     CALL timeset(routineN,handle)
 
@@ -134,6 +137,9 @@ CONTAINS
 !> \brief used to replace the cholesky decomposition by the inverse
 !> \param matrix the matrix to invert (must be an upper triangular matrix)
 !> \param n size of the matrix to invert (defaults to the min(size(matrix)))
+!> \param para_env ...
+!> \param blacs_env ...
+!> \param upper_to_full ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 !> \par History
@@ -155,10 +161,12 @@ CONTAINS
     REAL(KIND = sp), DIMENSION(:,:), POINTER  :: a_sp
     INTEGER                                   :: info,handle
     INTEGER                                   :: my_n, nfullrows_total, nfullcols_total
-    INTEGER, DIMENSION(9)                     :: desca
     LOGICAL                                   :: failure
     TYPE(cp_fm_type), POINTER                 :: fm_matrix, fm_matrix_tmp
     TYPE(cp_fm_struct_type), POINTER          :: fm_struct
+#if defined(__SCALAPACK)
+    INTEGER, DIMENSION(9)                     :: desca
+#endif
 
     CALL timeset(routineN,handle)
 
@@ -228,6 +236,8 @@ CONTAINS
 !>      (AX=BX -> inv(U^T)*A*inv(U)*U*X=U*X hence evecs U*X)
 !> \param matrix the symmetric matrix A
 !> \param matrixb the cholesky decomposition of matrix B
+!> \param para_env ...
+!> \param blacs_env ...
 !> \param error variable to control error logging, stopping,...
 !>              see module cp_error_handling
 !> \par History
@@ -246,12 +256,13 @@ CONTAINS
     REAL(KIND = dp), DIMENSION(:,:), POINTER  :: a,b
     INTEGER                                   :: info,itype,handle
     INTEGER                                   :: n, nfullrows_total, nfullcols_total
-    INTEGER                                   :: nprow,npcol,myprow,mypcol
-    INTEGER, DIMENSION(9)                     :: desca,descb
-    REAL(KIND = dp)                           :: scale
     LOGICAL                                   :: failure
     TYPE(cp_fm_type), POINTER                 :: fm_matrix, fm_matrixb
     TYPE(cp_fm_struct_type), POINTER          :: fm_struct
+#if defined(__SCALAPACK)
+    REAL(KIND=dp)                             :: scale
+    INTEGER, DIMENSION(9)                     :: desca, descb
+#endif
 
     CALL timeset(routineN,handle)
 
@@ -315,6 +326,18 @@ CPSourceFileRef,&
 
 !
 ! *****************************************************************************
+!> \brief ...
+!> \param matrix ...
+!> \param neig ...
+!> \param matrixb ...
+!> \param matrixout ...
+!> \param op ...
+!> \param pos ...
+!> \param transa ...
+!> \param para_env ...
+!> \param blacs_env ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE cp_dbcsr_cholesky_restore(matrix,neig,matrixb,matrixout,op,pos,transa,&
        para_env,blacs_env,error)
     TYPE(cp_dbcsr_type)                                :: matrix,matrixb,matrixout
@@ -331,17 +354,20 @@ CPSourceFileRef,&
 
     REAL(KIND = dp), DIMENSION(:,:), POINTER  :: a,b,out
     REAL(KIND = sp), DIMENSION(:,:), POINTER  :: a_sp,b_sp,out_sp
-    INTEGER                                   :: info,itype,handle
+    INTEGER                                   :: itype,handle
     INTEGER                                   :: n
-    LOGICAL                                   :: ionode, failure
+    LOGICAL                                   :: failure
     REAL(KIND = dp)                           :: alpha
-    INTEGER                                   :: myprow, mypcol, i, nfullrows_total, &
+    INTEGER                                   :: myprow, mypcol, nfullrows_total, &
          nfullcols_total
-    INTEGER, DIMENSION(9)                     :: desca,descb,descout
     TYPE(cp_blacs_env_type), POINTER          :: context
     CHARACTER                                 :: chol_pos,chol_transa
     TYPE(cp_fm_type), POINTER                 :: fm_matrix,fm_matrixb,fm_matrixout
-    TYPE(cp_fm_struct_type), POINTER         :: fm_struct
+    TYPE(cp_fm_struct_type), POINTER          :: fm_struct
+#if defined(__SCALAPACK)
+    INTEGER                                   :: i
+    INTEGER, DIMENSION(9)                     :: desca, descb, descout
+#endif
 
     CALL timeset(routineN,handle)
 

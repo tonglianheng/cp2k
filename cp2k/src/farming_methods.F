@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2013  CP2K developers group                          !
+!   Copyright (C) 2000 - 2014  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -21,7 +21,7 @@ MODULE farming_methods
                                              section_vals_type,&
                                              section_vals_val_get
   USE message_passing,                 ONLY: mp_bcast
-#include "cp_common_uses.h"
+#include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
   PRIVATE
@@ -36,6 +36,13 @@ MODULE farming_methods
 
 CONTAINS
 
+! *****************************************************************************
+!> \brief ...
+!> \param farming_env ...
+!> \param start ...
+!> \param END ...
+!> \param current ...
+!> \param todo ...
 ! *****************************************************************************
   SUBROUTINE get_next_job(farming_env,start,END,current,todo)
     TYPE(farming_env_type), POINTER          :: farming_env
@@ -100,6 +107,12 @@ CONTAINS
     ENDIF
   END SUBROUTINE get_next_job
 
+! *****************************************************************************
+!> \brief ...
+!> \param farming_env ...
+!> \param root_section ...
+!> \param para_env ...
+!> \param error ...
 ! *****************************************************************************
   SUBROUTINE farming_parse_input(farming_env,root_section,para_env,error)
     TYPE(farming_env_type), POINTER          :: farming_env

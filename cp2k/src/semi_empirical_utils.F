@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2013  CP2K developers group                          !
+!   Copyright (C) 2000 - 2014  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -12,7 +12,7 @@ MODULE semi_empirical_utils
                                              create_gto_from_sto_basis,&
                                              gto_basis_set_type,&
                                              set_sto_basis_set
-  USE cell_types,                      ONLY: cell_type,&
+  USE cell_methods,                    ONLY: cell_type,&
                                              plane_distance
   USE cp_control_types,                ONLY: semi_empirical_control_type
   USE f77_blas
@@ -37,7 +37,7 @@ MODULE semi_empirical_utils
   USE semi_empirical_types,            ONLY: se_taper_type,&
                                              semi_empirical_type
   USE termination,                     ONLY: stop_program
-#include "cp_common_uses.h"
+#include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
 
@@ -51,6 +51,11 @@ MODULE semi_empirical_utils
 CONTAINS
 ! *****************************************************************************
 !> \brief  Reset cutoffs trying to be somehow a bit smarter
+!> \param se_control ...
+!> \param se_section ...
+!> \param cell ...
+!> \param output_unit ...
+!> \param error ...
 !> \author Teodoro Laino [tlaino] - 03.2009
 ! *****************************************************************************
   SUBROUTINE se_cutoff_compatible(se_control, se_section, cell, output_unit, error)
@@ -159,6 +164,11 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief  Initializes the semi-empirical taper for a chunk calculation
+!> \param se_taper ...
+!> \param coulomb ...
+!> \param exchange ...
+!> \param lr_corr ...
+!> \param error ...
 !> \author Teodoro Laino [tlaino] - 03.2009
 ! *****************************************************************************
   SUBROUTINE initialize_se_taper(se_taper, coulomb, exchange, lr_corr, error)
@@ -200,6 +210,8 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief  Finalizes the semi-empirical taper for a chunk calculation
+!> \param se_taper ...
+!> \param error ...
 !> \author Teodoro Laino [tlaino] - 03.2009
 ! *****************************************************************************
   SUBROUTINE finalize_se_taper(se_taper, error)
@@ -219,6 +231,10 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Initialize semi_empirical type
+!> \param sep ...
+!> \param orb_basis_set ...
+!> \param ngauss ...
+!> \param error ...
 ! *****************************************************************************
   SUBROUTINE init_se_param(sep,orb_basis_set,ngauss,error)
     TYPE(semi_empirical_type), POINTER       :: sep
@@ -285,6 +301,10 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Initialize parameter for a semi_empirival type
+!> \param sep ...
+!> \param z ...
+!> \param method ...
+!> \param error ...
 ! *****************************************************************************
   SUBROUTINE se_param_set_default(sep,z,method,error)
 
@@ -357,6 +377,8 @@ CPSourceFileRef,&
 
 ! *****************************************************************************
 !> \brief Gives back the unique semi_empirical METHOD type
+!> \param se_method ...
+!> \retval se_type ...
 ! *****************************************************************************
   FUNCTION get_se_type(se_method) RESULT(se_type)
 

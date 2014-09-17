@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2013  CP2K developers group                          !
+!   Copyright (C) 2000 - 2014  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -36,7 +36,7 @@ MODULE atomic_kind_list_types
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              deallocate_atomic_kind_set
   USE f77_blas
-#include "cp_common_uses.h"
+#include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
   PRIVATE
@@ -45,9 +45,10 @@ MODULE atomic_kind_list_types
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'atomic_kind_list_types'
   INTEGER, PRIVATE, SAVE :: last_atomic_kind_list_id=0
 
-  PUBLIC :: atomic_kind_list_type, atomic_kind_list_p_type
-  PUBLIC :: atomic_kind_list_create, atomic_kind_list_retain,&
-       atomic_kind_list_release
+  !API
+  PUBLIC :: atomic_kind_list_type, atomic_kind_list_p_type,&
+            atomic_kind_list_create, atomic_kind_list_retain,&
+            atomic_kind_list_release
 
 !***
 

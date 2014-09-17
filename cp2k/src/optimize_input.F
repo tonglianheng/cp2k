@@ -1,9 +1,10 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2013  CP2K developers group                          !
+!   Copyright (C) 2000 - 2014  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 MODULE optimize_input
-  USE cell_types,                      ONLY: parse_cell_line
+  USE cell_methods,                    ONLY: parse_cell_line
+  USE cp2k_info,                       ONLY: write_restart_header
   USE cp_external_control,             ONLY: external_control
   USE cp_output_handling,              ONLY: cp_add_iter_level,&
                                              cp_iterate,&
@@ -22,8 +23,8 @@ MODULE optimize_input
                                              destroy_force_env,&
                                              set_cell
   USE input_constants,                 ONLY: opt_force_matching
-  USE input_cp2k_restarts,             ONLY: write_restart_header
-  USE input_section_types,             ONLY: section_vals_get,&
+  USE input_section_types,             ONLY: section_type,&
+                                             section_vals_get,&
                                              section_vals_get_subs_vals,&
                                              section_vals_type,&
                                              section_vals_val_get,&
@@ -51,7 +52,7 @@ MODULE optimize_input
                                              powell_optimize
   USE timings,                         ONLY: timeset,&
                                              timestop
-#include "cp_common_uses.h"
+#include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
   PRIVATE
@@ -99,9 +100,14 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief main entry point for methods aimed at optimizing parameters in a CP2K input file
+!> \param input_declaration ...
+!> \param root_section ...
+!> \param para_env ...
+!> \param error ...
 !> \author Joost VandeVondele
 ! *****************************************************************************
-  SUBROUTINE run_optimize_input(root_section,para_env, error)
+  SUBROUTINE run_optimize_input(input_declaration, root_section, para_env, error)
+    TYPE(section_type), POINTER              :: input_declaration
     TYPE(section_vals_type), POINTER         :: root_section
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cp_error_type), INTENT(INOUT)       :: error
@@ -142,7 +148,7 @@ CONTAINS
     ! proceed to actual methods
     SELECT CASE(oi_env%method)
     CASE(opt_force_matching)
-      CALL force_matching(oi_env,root_section,para_env,error)
+      CALL force_matching(oi_env,input_declaration,root_section,para_env,error)
     CASE DEFAULT
       CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)
     END SELECT
@@ -153,10 +159,16 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief optimizes parameters by force/energy matching results against reference values
+!> \param oi_env ...
+!> \param input_declaration ...
+!> \param root_section ...
+!> \param para_env ...
+!> \param error ...
 !> \author Joost VandeVondele
 ! *****************************************************************************
-  SUBROUTINE force_matching(oi_env,root_section,para_env, error)
+  SUBROUTINE force_matching(oi_env,input_declaration,root_section,para_env, error)
     TYPE(oi_env_type)                        :: oi_env
+    TYPE(section_type), POINTER              :: input_declaration
     TYPE(section_vals_type), POINTER         :: root_section
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cp_error_type), INTENT(INOUT)       :: error
@@ -326,7 +338,8 @@ CONTAINS
          ENDDO
 
          ierr=0
-         CALL create_force_env(new_env_id=new_env_id,input_path=input_path, output_path=output_path, &
+         CALL create_force_env(new_env_id=new_env_id, input_declaration=input_declaration,&
+                               input_path=input_path, output_path=output_path, &
                                mpi_comm=mpi_comm_slave,initial_variables=initial_variables,ierr=ierr)
 
          ! set to zero initialy, for easier mp_summing
@@ -445,7 +458,7 @@ CONTAINS
                CALL section_vals_val_set(variable_section,"VALUE",i_rep_section=free_var_index(i_free_var), &
                                          r_val=free_vars(i_free_var),error=error)
             ENDDO
-            CALL write_restart_header(restart_unit, error)
+            CALL write_restart_header(restart_unit)
             CALL section_vals_write(root_section,unit_nr=restart_unit,hide_root=.TRUE., error=error)
          ENDIF
          CALL cp_print_key_finished_output(restart_unit,logger,root_section,"OPTIMIZE_INPUT%RESTART", error=error)
@@ -500,10 +513,13 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief reads the reference data for force matching results, the format of the files needs to be the CP2K xyz trajectory format
-!> \param force_traj: forces
-!> \param pos_traj: position
-!> \param energy_traj: energies, as extracted from the forces file
-!> \param cell_traj: cell parameters, as extracted from a CP2K cell file
+!> \param oi_env ...
+!> \param para_env ...
+!> \param force_traj forces 
+!> \param pos_traj position 
+!> \param energy_traj energies, as extracted from the forces file
+!> \param cell_traj cell parameters, as extracted from a CP2K cell file 
+!> \param error ...
 !> \author Joost VandeVondele
 ! *****************************************************************************
   SUBROUTINE read_reference_data(oi_env,para_env,force_traj,pos_traj,energy_traj,cell_traj,error)
@@ -519,7 +535,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'read_reference_data', &
       routineP = moduleN//':'//routineN
 
-    CHARACTER(len=default_path_length)       :: filename, title
+    CHARACTER(len=default_path_length)       :: filename
     CHARACTER(len=default_string_length)     :: AA
     INTEGER                                  :: cell_itimes, handle, i, &
                                                 iframe, n_frames, &
@@ -528,7 +544,6 @@ CONTAINS
     LOGICAL                                  :: at_end, test_ok
     REAL(KIND=dp)                            :: cell_time, trj_epot, &
                                                 trj_time, vec(3), vol
-    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: force
     TYPE(cp_parser_type), POINTER            :: local_parser
 
     CALL timeset(routineN,handle)
@@ -628,7 +643,9 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief parses the input section, and stores in the optimize input environment
-!> \param oi_env: optimize input environment
+!> \param oi_env optimize input environment
+!> \param root_section ...
+!> \param error ...
 !> \author Joost VandeVondele
 ! *****************************************************************************
   SUBROUTINE parse_input(oi_env,root_section,error)
@@ -639,7 +656,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'parse_input', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, ivar, method, n_var
+    INTEGER                                  :: handle, ivar, n_var
     LOGICAL                                  :: explicit, failure
     TYPE(section_vals_type), POINTER         :: fm_section, oi_section, &
                                                 variable_section

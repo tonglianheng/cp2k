@@ -8,12 +8,11 @@ CPP      =
 FC       = gfortran -flto=jobserver -use-linker-plugin
 LD       = gfortran -flto=jobserver -use-linker-plugin
 
-AR       = ar -r
+AR       = gcc-ar -r
 
 CPPFLAGS = 
-DFLAGS   = -D__GFORTRAN -D__FFTSG
+DFLAGS   = 
 FCFLAGS  = -O1 -g -ffree-form $(DFLAGS)
 LDFLAGS  = $(FCFLAGS)
 LIBS     = -llapack -lblas
 
-OBJECTS_ARCHITECTURE = machine_gfortran.o

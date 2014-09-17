@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2013  CP2K developers group                          !
+!   Copyright (C) 2000 - 2014  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -15,6 +15,7 @@ MODULE qs_vxc
 
   USE cell_types,                      ONLY: cell_type
   USE cp_control_types,                ONLY: dft_control_type
+  USE cp_para_types,                   ONLY: cp_para_env_type
   USE input_constants,                 ONLY: sic_ad,&
                                              sic_eo,&
                                              sic_mauri_spz,&
@@ -44,6 +45,7 @@ MODULE qs_vxc
                                              pw_release,&
                                              pw_type
   USE qs_dispersion_nonloc,            ONLY: calculate_dispersion_nonloc
+  USE qs_dispersion_types,             ONLY: qs_dispersion_type
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
   USE qs_mo_types,                     ONLY: get_mo_set,&
@@ -54,7 +56,7 @@ MODULE qs_vxc
   USE virial_types,                    ONLY: virial_type
   USE xc,                              ONLY: xc_exc_calc,&
                                              xc_vxc_pw_create1
-#include "cp_common_uses.h"
+#include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
 
@@ -70,16 +72,21 @@ CONTAINS
 ! *****************************************************************************
 !> \brief calculates and allocates the xc potential, already reducing it to
 !>      the dependence on rho and the one on tau
+!> \param qs_env qs_environment to get all the needed things
+!> \param rho_struct density for which v_xc is calculated
+!> \param xc_section ...
 !> \param vxc_rho will contain the v_xc part that depend on rho
 !>        (if one of the choosen xc functionals has it it is allocated and you
 !>        are responsible for it)
 !> \param vxc_tau will contain the kinetic (tau) part of v_xc
 !>        (if one of the choosen xc functionals has it it is allocated and you
 !>        are responsible for it)
-!> \param qs_env qs_environment to get all the needed things
-!> \param rho_struct density for which v_xc is calculated
+!> \param exc ...
 !> \param just_energy if true calculates just the energy, and does not
 !>        allocate v_*_rspace
+!> \param edisp ...
+!> \param dispersion_env ...
+!> \param adiabatic_rescale_factor ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 !> \par History
@@ -93,15 +100,18 @@ CONTAINS
 !> \author Fawzi Mohamed
 ! *****************************************************************************
   SUBROUTINE qs_vxc_create( qs_env, rho_struct, xc_section, vxc_rho, vxc_tau, exc,&
-       just_energy, adiabatic_rescale_factor, error)
+       just_energy, edisp, dispersion_env, adiabatic_rescale_factor, error)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(qs_rho_type), POINTER               :: rho_struct
     TYPE(section_vals_type), POINTER         :: xc_section
     TYPE(pw_p_type), DIMENSION(:), POINTER   :: vxc_rho, vxc_tau
-    REAL(KIND=dp)                            :: exc
+    REAL(KIND=dp), INTENT(out)               :: exc
     LOGICAL, INTENT(in), OPTIONAL            :: just_energy
-    REAL(KIND=dp), INTENT(IN), OPTIONAL      :: adiabatic_rescale_factor
+    REAL(KIND=dp), INTENT(out), OPTIONAL     :: edisp
+    TYPE(qs_dispersion_type), OPTIONAL, &
+      POINTER                                :: dispersion_env
+    REAL(KIND=dp), INTENT(in), OPTIONAL      :: adiabatic_rescale_factor
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'qs_vxc_create', &
@@ -109,15 +119,15 @@ CONTAINS
 
     INTEGER                                  :: handle, ispin, myfun, stat, &
                                                 vdw
-    LOGICAL                                  :: do_adiabatic_rescaling, &
-                                                failure, my_just_energy, &
-                                                sic_scaling_b_zero, uf_grid, &
-                                                vdW_nl
+    LOGICAL :: compute_virial, do_adiabatic_rescaling, failure, &
+      my_just_energy, sic_scaling_b_zero, uf_grid, vdW_nl
     REAL(KIND=dp)                            :: exc_m, factor, &
                                                 my_adiabatic_rescale_factor, &
                                                 my_scaling, nelec_s_inv, &
                                                 nelec_spin(2)
+    REAL(KIND=dp), DIMENSION(3, 3)           :: virial_xc_tmp
     TYPE(cell_type), POINTER                 :: cell
+    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mo_array
@@ -150,12 +160,21 @@ CONTAINS
 
     CALL get_qs_env(qs_env=qs_env, dft_control=dft_control, &
          pw_env=pw_env, cell=cell, virial=virial, error=error)
+    compute_virial=virial%pv_calculate.AND.(.NOT.virial%pv_numer)
 
     CALL section_vals_val_get(xc_section,"XC_FUNCTIONAL%_SECTION_PARAMETERS_",&
          i_val=myfun,error=error)
     CALL section_vals_val_get(xc_section,"VDW_POTENTIAL%POTENTIAL_TYPE",&
          i_val=vdw,error=error)
+
     vdW_nl = (vdw==xc_vdw_fun_nonloc)
+    ! this combination has not been investigated 
+    CPPrecondition(.NOT.(do_adiabatic_rescaling .AND. vdW_nl),cp_failure_level,routineP,error,failure)
+    ! are the necessary inputs available
+    IF(.NOT.(PRESENT(dispersion_env) .AND. PRESENT(edisp))) THEN
+       vdW_nl = .FALSE.
+    END IF
+    IF(PRESENT(edisp)) edisp = 0.0_dp
 
     IF (myfun/=xc_none .OR. vdW_nl) THEN
 
@@ -279,15 +298,16 @@ CONTAINS
           IF (my_just_energy) THEN
              exc=xc_exc_calc(rho_r=rho_r,tau=tau,&
                   rho_g=rho_g, xc_section=xc_section,&
-                  cell=cell, pw_pool=xc_pw_pool,&
+                  pw_pool=xc_pw_pool,&
                   error=error)
 
           ELSE
              CALL xc_vxc_pw_create1(vxc_rho=my_vxc_rho,vxc_tau=my_vxc_tau, rho_r=rho_r,&
                   rho_g=rho_g,tau=tau,exc=exc,&
                   xc_section=xc_section,&
-                  cell=cell, pw_pool=xc_pw_pool,&
-                  virial=virial,&
+                  pw_pool=xc_pw_pool,&
+                  compute_virial=compute_virial,&
+                  virial_xc=virial%pv_xc,&
                   error=error)
           END IF
 
@@ -305,11 +325,20 @@ CONTAINS
           ! if yes, we use the dispersion_env from qs_env
           ! this is dangerous, as it assumes a special connection xc_section -> qs_env
           IF (vdW_nl) THEN
+             CALL get_qs_env(qs_env=qs_env, para_env=para_env, error=error)
              ! no spin polarization allowed
              CPPrecondition(dft_control%nspins==1,cp_failure_level,routineP,error,failure)
+             ! no SIC functionals allowed
+             CPPrecondition(dft_control%sic_method_id==sic_none,cp_failure_level,routineP,error,failure)
+             ! 
              CALL pw_env_get(pw_env,vdw_pw_pool=vdw_pw_pool,error=error)
-             CALL calculate_dispersion_nonloc(qs_env,my_vxc_rho,rho_r,rho_g,my_just_energy,&
-                  cell,vdw_pw_pool,xc_pw_pool,virial=virial,error=error)
+             IF(my_just_energy) THEN
+                CALL calculate_dispersion_nonloc(my_vxc_rho,rho_r,rho_g,edisp,dispersion_env,&
+                     my_just_energy,cell,vdw_pw_pool,xc_pw_pool,para_env,error=error)
+             ELSE
+                CALL calculate_dispersion_nonloc(my_vxc_rho,rho_r,rho_g,edisp,dispersion_env,&
+                     my_just_energy,cell,vdw_pw_pool,xc_pw_pool,para_env,virial=virial,error=error)
+             END IF
           END IF
 
           !! Apply rescaling to the potential if requested
@@ -389,13 +418,17 @@ CONTAINS
              IF (my_just_energy) THEN
                 exc_m=xc_exc_calc(rho_r=rho_r,tau=tau,&
                      rho_g=rho_g, xc_section=xc_section,&
-                     cell=cell, pw_pool=xc_pw_pool,&
+                     pw_pool=xc_pw_pool,&
                      error=error)
              ELSE
+                ! virial untested
+                CPPrecondition(.NOT.compute_virial,cp_failure_level,routineP,error,failure)
                 CALL xc_vxc_pw_create1(vxc_rho=my_vxc_rho,vxc_tau=my_vxc_tau, rho_r=rho_r,&
                      rho_g=rho_g,tau=tau,exc=exc_m,&
                      xc_section=xc_section,&
-                     cell=cell, pw_pool=xc_pw_pool,&
+                     pw_pool=xc_pw_pool,&
+                     compute_virial=.FALSE.,&
+                     virial_xc=virial_xc_tmp,&
                      error=error)
              END IF
 
@@ -464,13 +497,17 @@ CONTAINS
                 IF (my_just_energy) THEN
                    exc_m=xc_exc_calc(rho_r=rho_r,tau=tau,&
                         rho_g=rho_g, xc_section=xc_section,&
-                        cell=cell, pw_pool=xc_pw_pool,&
+                        pw_pool=xc_pw_pool,&
                         error=error)
                 ELSE
+                   ! virial untested
+                   CPPrecondition(.NOT.compute_virial,cp_failure_level,routineP,error,failure)
                    CALL xc_vxc_pw_create1(vxc_rho=my_vxc_rho,vxc_tau=my_vxc_tau, rho_r=rho_r,&
                         rho_g=rho_g,tau=tau,exc=exc_m,&
                         xc_section=xc_section,&
-                        cell=cell, pw_pool=xc_pw_pool,&
+                        pw_pool=xc_pw_pool,&
+                        compute_virial=.FALSE.,&
+                        virial_xc=virial_xc_tmp,&
                         error=error)
                 END IF
 
@@ -510,13 +547,17 @@ CONTAINS
              IF (my_just_energy) THEN
                 exc_m=xc_exc_calc(rho_r=rho_r,tau=tau,&
                      rho_g=rho_g, xc_section=xc_section,&
-                     cell=cell, pw_pool=xc_pw_pool,&
+                     pw_pool=xc_pw_pool,&
                      error=error)
              ELSE
+                ! virial untested
+                CPPrecondition(.NOT.compute_virial,cp_failure_level,routineP,error,failure)
                 CALL xc_vxc_pw_create1(vxc_rho=my_vxc_rho,vxc_tau=my_vxc_tau, rho_r=rho_r,&
                      rho_g=rho_g,tau=tau,exc=exc_m,&
                      xc_section=xc_section,&
-                     cell=cell, pw_pool=xc_pw_pool,&
+                     pw_pool=xc_pw_pool,&
+                     compute_virial=.FALSE.,&
+                     virial_xc=virial_xc_tmp,&
                      error=error)
              END IF
 

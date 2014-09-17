@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2013  CP2K developers group                          !
+!   Copyright (C) 2000 - 2014  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -11,17 +11,15 @@
 !> \author Fawzi Mohamed
 ! *****************************************************************************
 MODULE qs_environment_methods
-  USE atomic_kind_types,               ONLY: atomic_kind_type,&
-                                             get_atomic_kind,&
-                                             get_atomic_kind_set
+  USE atomic_kind_types,               ONLY: atomic_kind_type
   USE cp_control_types,                ONLY: dft_control_type
-  USE cp_dbcsr_operations,             ONLY: cp_dbcsr_deallocate_matrix_set,&
-                                             cp_dbcsr_dist2d_to_dist
-  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_p_type
+  USE cp_dbcsr_interface,              ONLY: cp_dbcsr_deallocate_matrix_set,&
+                                             cp_dbcsr_p_type,&
+                                             dbcsr_distribution_obj
+  USE cp_dbcsr_operations,             ONLY: cp_dbcsr_dist2d_to_dist
   USE cp_ddapc_types,                  ONLY: cp_ddapc_release
   USE cp_ddapc_util,                   ONLY: cp_ddapc_init
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE dbcsr_types,                     ONLY: dbcsr_distribution_obj
   USE distribution_2d_types,           ONLY: distribution_2d_release,&
                                              distribution_2d_type
   USE distribution_methods,            ONLY: distribute_molecules_2d
@@ -30,6 +28,7 @@ MODULE qs_environment_methods
   USE f77_blas
   USE input_constants,                 ONLY: do_ppl_analytic,&
                                              do_ppl_grid,&
+                                             kg_tnadd_embed,&
                                              use_aux_fit_basis_set
   USE kinds,                           ONLY: dp
   USE molecule_kind_types,             ONLY: molecule_kind_type
@@ -58,14 +57,16 @@ MODULE qs_environment_methods
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type,&
                                              set_qs_env
+  USE qs_kind_types,                   ONLY: get_qs_kind,&
+                                             get_qs_kind_set,&
+                                             qs_kind_type
   USE qs_ks_methods,                   ONLY: qs_ks_did_change
   USE qs_matrix_pools,                 ONLY: mpools_rebuild_fm_pools
   USE qs_outer_scf,                    ONLY: outer_loop_variables_count
   USE qs_rho_methods,                  ONLY: qs_rho_rebuild
   USE qs_scf_types,                    ONLY: scf_env_did_change
   USE scf_control_types,               ONLY: scf_control_type
-  USE scp_environment,                 ONLY: scp_dft_init,&
-                                             scp_nddo_init
+  USE scp_environment,                 ONLY: scp_nddo_init
   USE scp_environment_types,           ONLY: scp_env_create,&
                                              scp_env_release,&
                                              scp_environment_type
@@ -75,7 +76,7 @@ MODULE qs_environment_methods
                                              task_list_type
   USE timings,                         ONLY: timeset,&
                                              timestop
-#include "cp_common_uses.h"
+#include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
   PRIVATE
@@ -85,7 +86,6 @@ MODULE qs_environment_methods
 
   PUBLIC :: qs_env_update_s_mstruct,&
             qs_env_rebuild_pw_env,&
-            qs_env_rebuild_rho,&
             qs_env_setup
 !***
 CONTAINS
@@ -113,7 +113,7 @@ SUBROUTINE qs_env_setup(qs_env,error)
 
     INTEGER                                  :: handle, n_ao_aux_fit, &
                                                 nhistory, nvariables, stat
-    LOGICAL                                  :: failure, scp_dft, scp_nddo
+    LOGICAL                                  :: failure, scp_nddo
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: outer_scf_history
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
@@ -128,6 +128,8 @@ SUBROUTINE qs_env_setup(qs_env,error)
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(qs_charges_type), POINTER           :: qs_charges
+    TYPE(qs_kind_type), DIMENSION(:), &
+      POINTER                                :: qs_kind_set
     TYPE(scf_control_type), POINTER          :: scf_control
     TYPE(scp_environment_type), POINTER      :: scp_env
 
@@ -135,10 +137,11 @@ SUBROUTINE qs_env_setup(qs_env,error)
 
     failure = .FALSE.
 
-    NULLIFY(atomic_kind_set, dft_control, scf_control, qs_charges, para_env,&
+    NULLIFY(qs_kind_set, atomic_kind_set, dft_control, scf_control, qs_charges, para_env,&
          distribution_2d, molecule_kind_set, molecule_set, particle_set, scp_env)
 
     CALL get_qs_env(qs_env=qs_env,&
+                    qs_kind_set=qs_kind_set,&
                     atomic_kind_set=atomic_kind_set,&
                     dft_control=dft_control,&
                     molecule_kind_set=molecule_kind_set,&
@@ -147,11 +150,11 @@ SUBROUTINE qs_env_setup(qs_env,error)
                     scf_control=scf_control,&
                     para_env=para_env,&
                     error=error)
+    CPPrecondition(ASSOCIATED(qs_kind_set),cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED(atomic_kind_set),cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED(dft_control),cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED(scf_control),cp_failure_level,routineP,error,failure)
     scp_nddo = dft_control%qs_control%se_control%scp
-    scp_dft = dft_control%scp
     IF (.NOT. failure) THEN
        ! allocate qs_charges
        CALL qs_charges_create(qs_charges,nspins=dft_control%nspins,error=error)
@@ -177,28 +180,23 @@ SUBROUTINE qs_env_setup(qs_env,error)
        IF (ASSOCIATED(qs_env%mos)) THEN
            CALL mpools_rebuild_fm_pools(qs_env%mpools,mos=qs_env%mos,&
                   blacs_env=qs_env%blacs_env, para_env=para_env,&
-                  nrow_block=scf_control%nrow_block,&
-                  ncol_block=scf_control%ncol_block,&
                   error=error)
        ENDIF
 
        ! If we use auxiliary density matrix methods rebuild fm_pools
        IF( qs_env%dft_control%do_admm ) THEN
-         CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
-                                  nsgf=n_ao_aux_fit,&
+         CALL get_qs_kind_set(qs_kind_set, nsgf=n_ao_aux_fit,&
                                   basis_set_id=use_aux_fit_basis_set)
          CALL mpools_rebuild_fm_pools(qs_env%mpools_aux_fit,mos=qs_env%mos_aux_fit,&
               blacs_env=qs_env%blacs_env, para_env=para_env,&
-              nrow_block=scf_control%nrow_block,&
-!              ncol_block=n_ao_aux_fit,&
-              ncol_block=scf_control%ncol_block,&
               error=error)
         END IF
 
        ! create 2d distribution
 
        CALL distribute_molecules_2d(cell=qs_env%cell,&
-                                    particle_kind_set=atomic_kind_set,&
+                                    atomic_kind_set=atomic_kind_set,&
+                                    qs_kind_set=qs_kind_set,&
                                     particle_set=particle_set,&
                                     molecule_kind_set=molecule_kind_set,&
                                     molecule_set=molecule_set,&
@@ -215,21 +213,11 @@ SUBROUTINE qs_env_setup(qs_env,error)
        CALL set_qs_env(qs_env,distribution_2d=distribution_2d,error=error)
        CALL distribution_2d_release(distribution_2d, error=error)
 
-
-
        ! SCP
-       IF ( scp_nddo .OR. scp_dft ) THEN
+       IF ( scp_nddo ) THEN
        ! create the SCP env
           CALL scp_env_create ( scp_env, error )
-          ! Specific to scp_dft
-          IF ( scp_dft ) THEN
-          ! initialize the SCP env to the qs env
-             CALL scp_dft_init ( scp_env, qs_env, error )
-          ENDIF
-          ! Specific to scp_nddo
-          IF ( scp_nddo ) THEN
-            CALL scp_nddo_init ( scp_env, qs_env, error )
-          ENDIF
+          CALL scp_nddo_init ( scp_env, qs_env, error )
           CALL set_qs_env ( qs_env = qs_env, scp_env = scp_env, error = error )
           ! keeping only one copy
           CALL scp_env_release ( scp_env, error )
@@ -245,7 +233,6 @@ END SUBROUTINE qs_env_setup
 !>      Should be called after the atoms have moved and the new overlap
 !>      has been calculated.
 !> \param qs_env the environment to update
-!> \param para_env the mpi environment
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 !> \par History
@@ -375,6 +362,11 @@ SUBROUTINE qs_env_update_s_mstruct(qs_env,error)
 
 END SUBROUTINE qs_env_update_s_mstruct
 
+! *****************************************************************************
+!> \brief ...
+!> \param qs_env ...
+!> \param error ...
+! *****************************************************************************
 SUBROUTINE qs_create_task_list(qs_env, error)
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -435,27 +427,31 @@ SUBROUTINE qs_create_task_list(qs_env, error)
     IF (dft_control%qs_control%do_kg) THEN
       soft_valid = (dft_control%qs_control%gapw .OR. dft_control%qs_control%gapw_xc)
 
-      IF (ASSOCIATED(qs_env%kg_env%subset)) THEN
-        DO isub=1,qs_env%kg_env%nsubsets
-          IF (ASSOCIATED(qs_env%kg_env%subset(isub)%task_list)) &
-            CALL deallocate_task_list(qs_env%kg_env%subset(isub)%task_list, error)
-        END DO
-      ELSE
-        ALLOCATE(qs_env%kg_env%subset(qs_env%kg_env%nsubsets))
-      END IF
+      IF(qs_env%kg_env%tnadd_method == kg_tnadd_embed) THEN
 
-      DO isub=1, qs_env%kg_env%nsubsets
+         IF (ASSOCIATED(qs_env%kg_env%subset)) THEN
+           DO isub=1,qs_env%kg_env%nsubsets
+             IF (ASSOCIATED(qs_env%kg_env%subset(isub)%task_list)) &
+               CALL deallocate_task_list(qs_env%kg_env%subset(isub)%task_list, error)
+           END DO
+         ELSE
+           ALLOCATE(qs_env%kg_env%subset(qs_env%kg_env%nsubsets))
+         END IF
 
-        CALL allocate_task_list(qs_env%kg_env%subset(isub)%task_list, error)
+         DO isub=1, qs_env%kg_env%nsubsets
 
-        ! generate the subset task list from the neighborlist
-        CALL generate_qs_task_list(qs_env, qs_env%kg_env%subset(isub)%task_list, &
-             reorder_rs_grid_ranks=.FALSE., soft_valid = soft_valid, &
-             skip_load_balance_distributed=skip_load_balance_distributed, &
-             sab_orb_external=qs_env%kg_env%subset(isub)%sab_orb, &
-             error=error)
+           CALL allocate_task_list(qs_env%kg_env%subset(isub)%task_list, error)
 
-      END DO
+           ! generate the subset task list from the neighborlist
+           CALL generate_qs_task_list(qs_env, qs_env%kg_env%subset(isub)%task_list, &
+                reorder_rs_grid_ranks=.FALSE., soft_valid = soft_valid, &
+                skip_load_balance_distributed=skip_load_balance_distributed, &
+                sab_orb_external=qs_env%kg_env%subset(isub)%sab_orb, &
+                error=error)
+
+         END DO
+
+       END IF
 
     END IF
 
@@ -483,8 +479,9 @@ SUBROUTINE qs_env_rebuild_pw_env(qs_env,error)
     LOGICAL                                  :: failure, nlcc
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(pw_env_type), POINTER               :: new_pw_env
-    TYPE(pw_p_type), POINTER                 :: rho_core, rho_nlcc, &
-                                                rho_nlcc_g, vee, vppl
+    TYPE(pw_p_type), POINTER                 :: external_vxc, rho_core, &
+                                                rho_nlcc, rho_nlcc_g, vee, &
+                                                vppl
     TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
 
     CALL timeset(routineN,handle)
@@ -623,12 +620,36 @@ SUBROUTINE qs_env_rebuild_pw_env(qs_env,error)
          dft_control%eval_external_potential=.TRUE.
       END IF
     END IF
+
+! ZMP Reallocate external_vxc: external vxc potential
+    IF (dft_control%apply_external_vxc) THEN
+      NULLIFY(external_vxc)
+      CALL get_qs_env(qs_env,pw_env=new_pw_env,external_vxc=external_vxc,error=error)
+      IF (ASSOCIATED(external_vxc)) THEN
+        CALL pw_release(external_vxc%pw,error=error)
+        DEALLOCATE(external_vxc,stat=stat)
+        CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+      ENDIF
+      ALLOCATE(external_vxc,stat=stat)
+      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+      IF (.NOT.failure) THEN
+        CALL pw_env_get(new_pw_env,auxbas_pw_pool=auxbas_pw_pool,error=error)
+        CALL pw_pool_create_pw(auxbas_pw_pool, external_vxc%pw, use_data=REALDATA3D, error=error)
+        external_vxc%pw%in_space=REALSPACE
+        CALL set_qs_env(qs_env,external_vxc=external_vxc,error=error)
+        dft_control%read_external_vxc=.TRUE.
+      END IF
+    END IF
+
     CALL timestop(handle)
 
 END SUBROUTINE qs_env_rebuild_pw_env
 
 ! *****************************************************************************
 !> \brief finds if a given qs run needs to use nlcc
+!> \param nlcc ...
+!> \param qs_env ...
+!> \param error ...
 ! *****************************************************************************
   SUBROUTINE has_nlcc(nlcc,qs_env,error)
 
@@ -641,17 +662,15 @@ END SUBROUTINE qs_env_rebuild_pw_env
 
     INTEGER                                  :: ikind
     LOGICAL                                  :: nlcc_present
-    TYPE(atomic_kind_type), DIMENSION(:), &
-      POINTER                                :: atomic_kind_set
-    TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(gth_potential_type), POINTER        :: gth_potential
+    TYPE(qs_kind_type), DIMENSION(:), &
+      POINTER                                :: qs_kind_set
 
     nlcc=.FALSE.
 
-    CALL get_qs_env(qs_env=qs_env,atomic_kind_set=atomic_kind_set,error=error)
-    DO ikind=1,SIZE(atomic_kind_set)
-      atomic_kind => atomic_kind_set(ikind)
-      CALL get_atomic_kind(atomic_kind=atomic_kind, gth_potential=gth_potential)
+    CALL get_qs_env(qs_env=qs_env,qs_kind_set=qs_kind_set,error=error)
+    DO ikind=1,SIZE(qs_kind_set)
+      CALL get_qs_kind(qs_kind_set(ikind), gth_potential=gth_potential)
       IF (.NOT.ASSOCIATED(gth_potential)) CYCLE
       CALL get_potential(potential=gth_potential,nlcc_present=nlcc_present)
       nlcc=nlcc.OR.nlcc_present
@@ -668,14 +687,14 @@ END SUBROUTINE qs_env_rebuild_pw_env
 !>        Defaults to false.
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
+!> \par History
+!>      10.2002 created [fawzi]
+!> \author Fawzi Mohamed
 !> \note
 !>      needs updated  pw pools, s_mstruct and h.
 !>      The use of p to keep the structure of h (needed for the forces)
 !>      is ugly and should be removed.
 !>      If necessary rho is created from scratch.
-!> \par History
-!>      10.2002 created [fawzi]
-!> \author Fawzi Mohamed
 ! *****************************************************************************
 SUBROUTINE qs_env_rebuild_rho(qs_env, rebuild_ao, rebuild_grids, error)
     TYPE(qs_environment_type), POINTER       :: qs_env
@@ -706,6 +725,15 @@ SUBROUTINE qs_env_rebuild_rho(qs_env, rebuild_ao, rebuild_grids, error)
                           rebuild_ao=rebuild_ao, rebuild_grids=rebuild_grids, &
                           basis_set_id=use_aux_fit_basis_set, error=error)
     END IF
+! ZMP rebuilding external density
+    IF (dft_control%apply_external_density) THEN
+      CALL qs_rho_rebuild(qs_env%rho_external,qs_env=qs_env,&
+                           rebuild_grids=rebuild_grids, &
+                           error=error)
+      dft_control%read_external_density=.TRUE.
+    ENDIF
+
+
     CALL timestop(handle)
 
 END SUBROUTINE qs_env_rebuild_rho

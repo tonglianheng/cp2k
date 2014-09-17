@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2013  CP2K developers group                          !
+!   Copyright (C) 2000 - 2014  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -24,7 +24,7 @@ MODULE scptb_parameters
   USE kinds,                           ONLY: dp
   USE periodic_table,                  ONLY: ptable
   USE scptb_types,                     ONLY: scptb_parameter_type
-#include "cp_common_uses.h"
+#include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
 
@@ -40,6 +40,8 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Default parameter sets for SCPTB method
+!> \param param ...
+!> \param error ...
 ! *****************************************************************************
   SUBROUTINE scptb_default_parameter ( param, error)
     TYPE(scptb_parameter_type), &

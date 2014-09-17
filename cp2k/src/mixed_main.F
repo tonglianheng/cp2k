@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2013  CP2K developers group                          !
+!   Copyright (C) 2000 - 2014  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -27,7 +27,7 @@ MODULE mixed_main
                                              set_mixed_env
   USE timings,                         ONLY: timeset,&
                                              timestop
-#include "cp_common_uses.h"
+#include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
 
@@ -36,14 +36,19 @@ MODULE mixed_main
 ! *** Global parameters ***
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'mixed_main'
 
-! *** Global variables ***
-  TYPE(mixed_environment_type), POINTER :: mixed_env
-
   PUBLIC :: mixed_create_force_env
 
 CONTAINS
 ! *****************************************************************************
 !> \brief Controls program flow for mixed calculations
+!> \param force_env ...
+!> \param root_section ...
+!> \param para_env ...
+!> \param globenv ...
+!> \param force_env_section ...
+!> \param n_subforce_eval ...
+!> \param use_motion_section ...
+!> \param error ...
 !> \author fschiff
 ! *****************************************************************************
   SUBROUTINE mixed_create_force_env ( force_env, root_section, para_env,globenv,&

@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2013  CP2K developers group                          !
+!   Copyright (C) 2000 - 2014  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -13,7 +13,10 @@
 MODULE input_cp2k_constraints
   USE cp_output_handling,              ONLY: cp_print_key_section_create
   USE f77_blas
-  USE input_constants
+  USE input_constants,                 ONLY: &
+       do_constr_atomic, do_constr_molec, do_constr_none, high_print_level, &
+       use_perd_x, use_perd_xy, use_perd_xyz, use_perd_xz, use_perd_y, &
+       use_perd_yz, use_perd_z
   USE input_keyword_types,             ONLY: keyword_create,&
                                              keyword_release,&
                                              keyword_type
@@ -27,7 +30,7 @@ MODULE input_cp2k_constraints
                                              real_t
   USE kinds,                           ONLY: dp
   USE string_utilities,                ONLY: s2a
-#include "cp_common_uses.h"
+#include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
   PRIVATE
@@ -180,7 +183,7 @@ CONTAINS
             description="The restarting values for COLVAR restraints."//&
             " The order is an internal order. So if you decide to modify these values by hand"//&
             " first think what you're doing!",repeats=.TRUE.,&
-            usage="<REAL>", type_of_var=real_t, n_var=1, error=error)
+            usage="{Real}", type_of_var=real_t, n_var=1, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
@@ -220,7 +223,7 @@ CONTAINS
             description="The restarting position of fixed atoms for restraints."//&
             " The order is an internal order. So if you decide to modify these values by hand"//&
             " first think what you're doing!",repeats=.TRUE.,&
-            usage="<REAL> <REAL> <REAL>", type_of_var=real_t, n_var=-1, error=error)
+            usage="{Real} ...", type_of_var=real_t, n_var=-1, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 

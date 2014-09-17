@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2013  CP2K developers group                          !
+!   Copyright (C) 2000 - 2014  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -11,7 +11,7 @@ MODULE mixed_environment_types
                                              atomic_kind_list_release,&
                                              atomic_kind_list_type
   USE atomic_kind_types,               ONLY: atomic_kind_type
-  USE cell_types,                      ONLY: cell_release,&
+  USE cell_methods,                    ONLY: cell_release,&
                                              cell_retain,&
                                              cell_type
   USE cp_para_env,                     ONLY: cp_para_env_release,&
@@ -21,8 +21,7 @@ MODULE mixed_environment_types
   USE cp_result_types,                 ONLY: cp_result_create,&
                                              cp_result_release,&
                                              cp_result_type
-  USE cp_subsys_types,                 ONLY: cp_subsys_create,&
-                                             cp_subsys_get,&
+  USE cp_subsys_types,                 ONLY: cp_subsys_get,&
                                              cp_subsys_release,&
                                              cp_subsys_retain,&
                                              cp_subsys_set,&
@@ -49,7 +48,7 @@ MODULE mixed_environment_types
                                              particle_list_release,&
                                              particle_list_type
   USE particle_types,                  ONLY: particle_type
-#include "cp_common_uses.h"
+#include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
   PRIVATE
@@ -95,16 +94,14 @@ MODULE mixed_environment_types
 
 ! *** Public data types ***
 
-  PUBLIC :: mixed_environment_type,        &
-            mixed_environment_p_type
+  PUBLIC :: mixed_environment_type
 
 ! *** Public subroutines ***
 
   PUBLIC :: get_mixed_env,&
-            init_mixed_env,&
             set_mixed_env,&
-            mixed_env_create, &
-            mixed_env_release, &
+            mixed_env_create,&
+            mixed_env_release,&
             mixed_env_retain
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'mixed_environment_types'
@@ -115,6 +112,21 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Get the MIXED environment.
 !> \param mixed_env the pointer to the mixed_env
+!> \param atomic_kind_set ...
+!> \param particle_set ...
+!> \param local_particles ...
+!> \param local_molecules ...
+!> \param molecule_kind_set ...
+!> \param molecule_set ...
+!> \param cell ...
+!> \param cell_ref ...
+!> \param mixed_energy ...
+!> \param para_env ...
+!> \param sub_para_env ...
+!> \param subsys ...
+!> \param input ...
+!> \param results ...
+!> \param error ...
 ! *****************************************************************************
   SUBROUTINE get_mixed_env( mixed_env, atomic_kind_set, particle_set,  &
                            local_particles, local_molecules, molecule_kind_set, &
@@ -184,6 +196,8 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Initialise the MIXED environment.
 !> \param mixed_env the pointer to the mixed_env
+!> \param para_env ...
+!> \param error ...
 ! *****************************************************************************
   SUBROUTINE init_mixed_env ( mixed_env, para_env, error )
 
@@ -202,7 +216,7 @@ CONTAINS
     NULLIFY (mixed_env%energies)
     NULLIFY (mixed_env%par)
     NULLIFY (mixed_env%val)
-    CALL cp_subsys_create(mixed_env%subsys, para_env=para_env, error=error)
+    NULLIFY (mixed_env%subsys)
     CALL cp_result_create(results=mixed_env%results,error=error)
     CALL cp_para_env_retain(para_env,error=error)
     mixed_env%para_env => para_env
@@ -215,6 +229,19 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Set the MIXED environment.
 !> \param mixed_env the pointer to the mixed_env
+!> \param atomic_kind_set ...
+!> \param particle_set ...
+!> \param local_particles ...
+!> \param local_molecules ...
+!> \param molecule_kind_set ...
+!> \param molecule_set ...
+!> \param cell ...
+!> \param cell_ref ...
+!> \param mixed_energy ...
+!> \param subsys ...
+!> \param input ...
+!> \param sub_para_env ...
+!> \param error ...
 ! *****************************************************************************
   SUBROUTINE set_mixed_env( mixed_env, atomic_kind_set, particle_set, &
                            local_particles, local_molecules, molecule_kind_set, &

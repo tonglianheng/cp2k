@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2013  CP2K developers group                          !
+!   Copyright (C) 2000 - 2014  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -16,7 +16,7 @@
 MODULE mm_mapping_library
   USE f77_blas
   USE kinds,                           ONLY: default_string_length
-#include "cp_common_uses.h"
+#include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
   PRIVATE
@@ -33,13 +33,13 @@ MODULE mm_mapping_library
                                         charmm_map,&
                                         gromos_map
   PUBLIC :: create_ff_map,&
-            destroy_ff_map,&
-            ff_map_type
+            destroy_ff_map
 CONTAINS
 
 ! *****************************************************************************
 !> \brief Initialize arrays for mapping KINDS <-> ELEMENTS
 !>      for major elements in AMBER and CHARMM
+!> \param ff_type ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 !> \par History
@@ -142,6 +142,7 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Deallocates the arrays used for mapping
+!> \param ff_type ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 !> \par History

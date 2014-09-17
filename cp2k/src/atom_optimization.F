@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2013  CP2K developers group                          !
+!   Copyright (C) 2000 - 2014  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -11,7 +11,7 @@ MODULE atom_optimization
   USE f77_blas
   USE kinds,                           ONLY: dp
   USE lapack,                          ONLY: lapack_sgelss
-#include "cp_common_uses.h"
+#include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
 
@@ -34,13 +34,19 @@ MODULE atom_optimization
     TYPE(hmat_type),DIMENSION(:),POINTER  :: hmat
   END TYPE atom_history_type
 
-  PUBLIC :: atom_opt, hmat_type, &
+  PUBLIC :: atom_opt,&
             atom_history_type, atom_history_init, atom_history_update, atom_history_release
 
 ! *****************************************************************************
 
 CONTAINS
 
+! *****************************************************************************
+!> \brief ...
+!> \param history ...
+!> \param optimization ...
+!> \param matrix ...
+!> \param error ...
 ! *****************************************************************************
   SUBROUTINE atom_history_init (history,optimization,matrix,error)
     TYPE(atom_history_type), INTENT(INOUT)   :: history
@@ -84,6 +90,12 @@ CONTAINS
 
   END SUBROUTINE atom_history_init
 ! *****************************************************************************
+!> \brief ...
+!> \param history ...
+!> \param fmat ...
+!> \param emat ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE atom_history_update (history,fmat,emat,error)
     TYPE(atom_history_type), INTENT(INOUT)   :: history
     REAL(dp), DIMENSION(:, :, :), INTENT(IN) :: fmat, emat
@@ -106,6 +118,10 @@ CONTAINS
     history%hpos = nnow
 
   END SUBROUTINE atom_history_update
+! *****************************************************************************
+!> \brief ...
+!> \param history ...
+!> \param error ...
 ! *****************************************************************************
   SUBROUTINE atom_history_release (history,error)
     TYPE(atom_history_type), INTENT(INOUT)   :: history
@@ -147,6 +163,12 @@ CONTAINS
     END IF
 
   END SUBROUTINE atom_history_release
+! *****************************************************************************
+!> \brief ...
+!> \param fmat ...
+!> \param history ...
+!> \param err ...
+!> \param error ...
 ! *****************************************************************************
   SUBROUTINE atom_opt (fmat,history,err,error)
     REAL(dp), DIMENSION(:, :, :), &

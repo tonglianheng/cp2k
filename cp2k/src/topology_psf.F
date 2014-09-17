@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2013  CP2K developers group                          !
+!   Copyright (C) 2000 - 2014  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -47,7 +47,7 @@ MODULE topology_psf
                                              reorder_structure,&
                                              tag_molecule
   USE util,                            ONLY: sort
-#include "cp_common_uses.h"
+#include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
 
@@ -64,6 +64,12 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Read PSF topology file
 !>      Teodoro Laino - Introduced CHARMM31 EXT PSF standard format
+!> \param filename ...
+!> \param topology ...
+!> \param para_env ...
+!> \param subsys_section ...
+!> \param psf_type ...
+!> \param error ...
 !> \par History
 !>      04-2007 Teodoro Laino - Zurich University [tlaino]
 !>      This routine should contain only information read from the PSF format
@@ -412,6 +418,9 @@ CPSourceFileRef,&
 
 ! *****************************************************************************
 !> \brief Post processing of PSF informations
+!> \param topology ...
+!> \param subsys_section ...
+!> \param error ...
 ! *****************************************************************************
   SUBROUTINE  psf_post_process(topology,subsys_section,error)
     TYPE(topology_parameters_type), &
@@ -573,6 +582,10 @@ CPSourceFileRef,&
 
 ! *****************************************************************************
 !> \brief Input driven modification (IDM) of PSF defined structures
+!> \param topology ...
+!> \param section ...
+!> \param subsys_section ...
+!> \param error ...
 !> \author Teodoro Laino - Zurich University 04.2007
 ! *****************************************************************************
   SUBROUTINE  idm_psf(topology,section,subsys_section,error)
@@ -741,6 +754,11 @@ CPSourceFileRef,&
 ! *****************************************************************************
 !> \brief Teodoro Laino - 01.2006
 !>      Write PSF topology file in the CHARMM31 EXT standard format
+!> \param file_unit ...
+!> \param topology ...
+!> \param subsys_section ...
+!> \param force_env_section ...
+!> \param error ...
 ! *****************************************************************************
   SUBROUTINE write_topology_psf (file_unit,topology,subsys_section,force_env_section,error)
     INTEGER, INTENT(IN)                      :: file_unit

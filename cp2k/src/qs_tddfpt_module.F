@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2013  CP2K developers group                          !
+!   Copyright (C) 2000 - 2014  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -42,7 +42,7 @@ MODULE qs_tddfpt_module
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE xc_pot_saop,                     ONLY: add_saop_pot
-#include "cp_common_uses.h"
+#include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
 
@@ -55,6 +55,8 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Performs the perturbation calculation
+!> \param qs_env ...
+!> \param error ...
 ! *****************************************************************************
   SUBROUTINE tddfpt_calculation(qs_env, error)
 
@@ -115,6 +117,8 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Apply a special potential to obtain better
 !>       orbital eigenvalues.
+!> \param qs_env ...
+!> \param error ...
 ! *****************************************************************************
   SUBROUTINE orbital_eigenvalue_correction(qs_env, error)
 

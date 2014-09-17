@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2013  CP2K developers group                          !
+!   Copyright (C) 2000 - 2014  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -16,8 +16,10 @@
 !> \author fawzi & Johanna
 ! *****************************************************************************
 MODULE f77_interface
+  USE acc_device,                      ONLY: acc_get_ndevices,&
+                                             acc_set_active_device
   USE bibliography,                    ONLY: add_all_references
-  USE cell_types,                      ONLY: cell_type,&
+  USE cell_methods,                    ONLY: cell_type,&
                                              init_cell
   USE cp2k_info,                       ONLY: get_runtime_info
   USE cp_dbcsr_interface,              ONLY: cp_dbcsr_finalize_lib,&
@@ -37,11 +39,10 @@ MODULE f77_interface
                                              cp_para_env_release,&
                                              cp_para_env_retain
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE cp_result_methods,               ONLY: get_results
+  USE cp_result_methods,               ONLY: get_results,&
+                                             test_for_result
   USE cp_subsys_types,                 ONLY: cp_subsys_type,&
                                              unpack_subsys_particles
-  USE cuda_device,                     ONLY: cuda_device_init,&
-                                             cuda_device_release
   USE eip_main,                        ONLY: eip_create_force_env
   USE environment,                     ONLY: cp2k_finalize,&
                                              cp2k_init,&
@@ -72,10 +73,10 @@ MODULE f77_interface
                                              do_mixed,&
                                              do_qmmm,&
                                              do_qs
-  USE input_cp2k,                      ONLY: create_cp2k_input_reading,&
-                                             empty_initial_variables
   USE input_cp2k_check,                ONLY: check_cp2k_input
   USE input_cp2k_force_eval,           ONLY: create_force_eval_section
+  USE input_cp2k_read,                 ONLY: empty_initial_variables,&
+                                             read_input
   USE input_enumeration_types,         ONLY: enum_i2c,&
                                              enumeration_type
   USE input_keyword_types,             ONLY: keyword_get,&
@@ -88,7 +89,8 @@ MODULE f77_interface
   USE kinds,                           ONLY: default_path_length,&
                                              default_string_length,&
                                              dp
-  USE machine,                         ONLY: m_chdir,&
+  USE machine,                         ONLY: default_output_unit,&
+                                             m_chdir,&
                                              m_getcwd
   USE message_passing,                 ONLY: &
        MPI_COMM_WORLD, add_mp_perf_env, get_mp_perf_env, mp_max, &
@@ -98,8 +100,10 @@ MODULE f77_interface
                                              meta_env_type
   USE metadynamics_utils,              ONLY: metadyn_read
   USE mixed_main,                      ONLY: mixed_create_force_env
-  USE physcon,                         ONLY: init_physcon
-  USE qmmm_main,                       ONLY: qmmm_create_force_env
+  USE periodic_table,                  ONLY: init_periodic_table
+  USE pw_cuda,                         ONLY: pw_cuda_finalize,&
+                                             pw_cuda_init
+  USE qmmm_create,                     ONLY: qmmm_create_force_env
   USE qs_main,                         ONLY: quickstep_create_force_env
   USE reference_manager,               ONLY: remove_all_references
   USE string_table,                    ONLY: string_table_allocate,&
@@ -112,7 +116,8 @@ MODULE f77_interface
                                              timeset,&
                                              timestop
   USE timings_types,                   ONLY: timer_env_type
-#include "cp_common_uses.h"
+  USE virial_types,                    ONLY: virial_type
+#include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
   PRIVATE
@@ -148,18 +153,18 @@ MODULE f77_interface
   PUBLIC :: init_f77_default
   PUBLIC :: init_cp2k, finalize_cp2k
   PUBLIC :: create_force_env, destroy_force_env, set_pos, get_pos,&
-            get_force, calc_energy_force, get_energy, &
+            get_force, calc_energy_force, get_energy, get_stress_tensor,&
             calc_energy, calc_force, check_input, get_natom, get_nparticle,&
-            f_env_add_defaults, f_env_rm_defaults, f_env_type, f_env_p_type,&
+            f_env_add_defaults, f_env_rm_defaults, f_env_type,&
             f_env_get_from_id,&
-            set_vel, get_vel, do_shake, set_cell, get_cell, get_result_r1
+            set_vel, do_shake, set_cell, get_cell, get_result_r1
 CONTAINS
 
-!- ****************************************************************************
+! ****************************************************************************
 !> \brief set the default mpi reordering method
-!> \param mpi_mapping_method the selected method
+!> \param mapping_method the selected method
 !> \author Christiane Pousa Ribeiro
-!- ****************************************************************************
+! *****************************************************************************
  SUBROUTINE init_f77_default(mapping_method)
     INTEGER, INTENT(IN)                      :: mapping_method
 
@@ -169,9 +174,10 @@ CONTAINS
 ! *****************************************************************************
 !> \brief returns the position of the force env corresponding to the given id
 !> \param env_id the id of the requested environment
+!> \retval res ...
+!> \author fawzi
 !> \note
 !>      private utility function
-!> \author fawzi
 ! *****************************************************************************
   FUNCTION get_pos_of_env(env_id) RESULT(res)
     INTEGER, INTENT(in)                      :: env_id
@@ -202,7 +208,9 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'init_cp2k', &
       routineP = moduleN//':'//routineN
  
+#if defined __GEMINI || __SEASTAR || __BLUEGENE || __NET
     CHARACTER                                :: strategy
+#endif
 
     INTEGER                                  :: mpi_comm_default, stat, &
                                                 unit_nr
@@ -252,7 +260,7 @@ CONTAINS
        CALL cp_para_env_create(default_para_env, group=mpi_comm_default, &
             owns_group=.FALSE.,error=error)
        IF (default_para_env%source==default_para_env%mepos) THEN
-          unit_nr=6
+          unit_nr=default_output_unit
        ELSE
           unit_nr=-1
        END IF
@@ -281,17 +289,20 @@ CONTAINS
        ENDIF
 
        !   *** Initialize mathematical constants ***
-       CALL init_physcon()
+       CALL init_periodic_table()
 
        !   *** init the bibliography ***
        CALL add_all_references()
 
 
+       IF(acc_get_ndevices() > 0) &
+         CALL acc_set_active_device(MOD(default_para_env%mepos, acc_get_ndevices()))
+
+       CALL pw_cuda_init()
+
        ! Initialize the DBCSR configuration
        CALL cp_dbcsr_init_lib (group=mpi_comm_default, error=error)
 
-       ! Initialize non DBCSR CUDA devices
-       CALL cuda_device_init (group=mpi_comm_default, error=error)
     ELSE
        ierr=cp_failure_level
     END IF
@@ -323,7 +334,7 @@ CONTAINS
          CALL cp_ma_finalize_lib(error=error)
        ENDIF
        CALL cp_error_init(error, stop_level=cp_fatal_level)
-       CALL cuda_device_release (error=error)
+       CALL pw_cuda_finalize()
        DO ienv=n_f_envs,1,-1
           CALL destroy_force_env(f_envs(ienv)%f_env%id_nr,ierr=ierr)
           CPAssertNoFail(ierr==0,cp_warning_level,routineP,error)
@@ -391,7 +402,9 @@ CONTAINS
 !> \param force_env the force_environment to be stored
 !> \param timer_env the timer env to be stored
 !> \param mp_perf_env the mp performance environement to be stored
-!> \param work_dir directory in whic to run (defaults to the actual directory)
+!> \param id_nr ...
+!> \param error ...
+!> \param old_dir ...
 !> \author fawzi
 ! *****************************************************************************
   SUBROUTINE f_env_create(f_env,template_error,force_env, timer_env,mp_perf_env,&
@@ -431,6 +444,12 @@ CONTAINS
     END IF
   END SUBROUTINE f_env_create
 
+! *****************************************************************************
+!> \brief ...
+!> \param f_env_id ...
+!> \param f_env ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE f_env_get_from_id(f_env_id,f_env,error)
     INTEGER, INTENT(in)                      :: f_env_id
     TYPE(f_env_type), POINTER                :: f_env
@@ -463,13 +482,14 @@ CONTAINS
 !> \param f_env will contain the f_env corresponding to f_env_id
 !> \param new_error an error that can be used for the given f_env
 !> \param failure will be set to true if something went wrong
+!> \param handle ...
+!> \author fawzi
 !> \note
 !>      The following routines need to be synchronized wrt. adding/removing
 !>      of the default environments (logging, perormance,error):
 !>      environment:cp2k_init, environment:cp2k_finalize,
 !>      f77_interface:f_env_add_defaults, f77_interface:f_env_rm_defaults,
 !>      f77_interface:create_force_env, f77_interface:destroy_force_env
-!> \author fawzi
 ! *****************************************************************************
   SUBROUTINE f_env_add_defaults(f_env_id,f_env,new_error, failure, handle)
     INTEGER, INTENT(in)                      :: f_env_id
@@ -522,13 +542,14 @@ CONTAINS
 !> \param error the error to be checked (will be released)
 !> \param ierr variable that will be set to a number different from 0 if
 !>        error contains an error (otherwise it will be set to 0)
+!> \param handle ...
+!> \author fawzi
 !> \note
 !>      The following routines need to be synchronized wrt. adding/removing
 !>      of the default environments (logging, perormance,error):
 !>      environment:cp2k_init, environment:cp2k_finalize,
 !>      f77_interface:f_env_add_defaults, f77_interface:f_env_rm_defaults,
 !>      f77_interface:create_force_env, f77_interface:destroy_force_env
-!> \author fawzi
 ! *****************************************************************************
   SUBROUTINE f_env_rm_defaults(f_env,error,ierr,handle)
     TYPE(f_env_type), POINTER                :: f_env
@@ -598,6 +619,7 @@ CONTAINS
 !> \brief creates a new force environment using the given input, and writing
 !>      the output to the given output unit
 !> \param new_env_id will contain the id of the newly created environment
+!> \param input_declaration ...
 !> \param input_path where to read the input (if the input is given it can
 !>        a virtual path)
 !> \param output_path filename (or name of the unit) for the output
@@ -606,21 +628,24 @@ CONTAINS
 !> \param output_unit if given it should be the unit for the output
 !>        and no file is open(should be valid on the processor with rank 0)
 !> \param owns_out_unit if the output unit should be closed upon destroing
-!>        of the force_env (defaults to true if not 6)
+!>        of the force_env (defaults to true if not default_output_unit)
 !> \param input the parsed input, if given and valid it is used
 !>        instead of parsing from file
 !> \param ierr will return a number different from 0 if there was an error
+!> \param work_dir ...
+!> \param initial_variables ...
+!> \author fawzi
 !> \note
 !>      The following routines need to be synchronized wrt. adding/removing
 !>      of the default environments (logging, perormance,error):
 !>      environment:cp2k_init, environment:cp2k_finalize,
 !>      f77_interface:f_env_add_defaults, f77_interface:f_env_rm_defaults,
 !>      f77_interface:create_force_env, f77_interface:destroy_force_env
-!> \author fawzi
 ! *****************************************************************************
-  RECURSIVE SUBROUTINE create_force_env(new_env_id,input_path,&
+  RECURSIVE SUBROUTINE create_force_env(new_env_id,input_declaration,input_path,&
        output_path,mpi_comm,output_unit,owns_out_unit,input,ierr,work_dir, initial_variables)
     INTEGER, INTENT(out)                     :: new_env_id
+    TYPE(section_type), POINTER              :: input_declaration
     CHARACTER(len=*), INTENT(in)             :: input_path
     CHARACTER(len=*), INTENT(in), OPTIONAL   :: output_path
     INTEGER, INTENT(in), OPTIONAL            :: mpi_comm, output_unit
@@ -664,6 +689,7 @@ CONTAINS
 
     failure=.FALSE.
 
+    CPPrecondition(ASSOCIATED(input_declaration),cp_failure_level,routineP,error,failure)
     NULLIFY(para_env, force_env,timer_env,mp_perf_env, globenv,meta_env,&
          fp_env)
     new_env_id=-1
@@ -694,7 +720,7 @@ CONTAINS
     ELSE
        IF (para_env%mepos==para_env%source) THEN
           IF (output_path=="__STD_OUT__") THEN
-             unit_nr=6
+             unit_nr=default_output_unit
           ELSE
              CALL open_file(file_name=output_path,file_status="UNKNOWN",&
                   file_action="WRITE", file_position="APPEND",&
@@ -704,7 +730,7 @@ CONTAINS
           unit_nr=-1
        END IF
     END IF
-    my_owns_out_unit=unit_nr/=6
+    my_owns_out_unit=unit_nr/=default_output_unit
     IF (PRESENT(owns_out_unit)) my_owns_out_unit=owns_out_unit
     CALL globenv_create(globenv,error=error)
     CALL cp2k_init(para_env, output_unit=unit_nr, globenv=globenv, input_file_name=input_path,&
@@ -718,9 +744,9 @@ CONTAINS
     IF (PRESENT(input)) input_file => input
     IF (.NOT.ASSOCIATED(input_file)) THEN
        IF (PRESENT(initial_variables)) THEN
-         input_file => create_cp2k_input_reading(input_path,initial_variables,para_env=para_env,error=error)
+         input_file => read_input(input_declaration, input_path,initial_variables,para_env=para_env,error=error)
        ELSE
-         input_file => create_cp2k_input_reading(input_path,empty_initial_variables,para_env=para_env,error=error)
+         input_file => read_input(input_declaration, input_path,empty_initial_variables,para_env=para_env,error=error)
        ENDIF
     ELSE
        CALL section_vals_retain(input_file,error=error)
@@ -737,7 +763,7 @@ CONTAINS
     ! XXXXXXXXXXXXXXXXXXXXXXXXXXX
     CALL cp_error_check(error,failure)
     IF (.NOT.failure) THEN
-       CALL check_cp2k_input(input_file,para_env=para_env,output_unit=unit_nr,error=error)
+       CALL check_cp2k_input(input_declaration,input_file,para_env=para_env,output_unit=unit_nr,error=error)
        CALL cp_error_check(error,failure)
     END IF
     ! XXXXXXXXXXXXXXXXXXXXXXXXXXX
@@ -838,7 +864,7 @@ CPSourceFileRef,&
           CASE (do_ep)
              ! does not support multi force_env_sections
              CPPostcondition(nforce_eval==1,cp_fatal_level,routineP,my_error,failure)
-             CALL ep_create_force_env ( my_force_env, root_section, my_para_env, globenv,&
+             CALL ep_create_force_env ( my_force_env, root_section, input_declaration, my_para_env, globenv,&
                   force_env_section=force_env_section, error = my_error )
           CASE (do_fist)
              CALL fist_create_force_env ( my_force_env, root_section, my_para_env, globenv,&
@@ -939,13 +965,13 @@ CPSourceFileRef,&
 !> \brief deallocates the force_env with the given id
 !> \param env_id the id of the force_env to remove
 !> \param ierr will contain a number different from 0 if
+!> \author fawzi
 !> \note
 !>      The following routines need to be synchronized wrt. adding/removing
 !>      of the default environments (logging, perormance,error):
 !>      environment:cp2k_init, environment:cp2k_finalize,
 !>      f77_interface:f_env_add_defaults, f77_interface:f_env_rm_defaults,
 !>      f77_interface:create_force_env, f77_interface:destroy_force_env
-!> \author fawzi
 ! *****************************************************************************
   RECURSIVE SUBROUTINE destroy_force_env(env_id,ierr)
     INTEGER, INTENT(in)                      :: env_id
@@ -1004,12 +1030,11 @@ CPSourceFileRef,&
 
 ! *****************************************************************************
 !> \brief returns the number of atoms in the given force env
-!> \param new_pos the array with the new positions
-!> \param n_el number of positions (3*natom) just to check
 !> \param env_id id of the force_env
+!> \param n_atom ...
 !> \param ierr will return a number different from 0 if there was an error
-!> \author fawzi
 !> \date   22.11.2010 (MK)
+!> \author fawzi
 ! *****************************************************************************
   SUBROUTINE get_natom(env_id, n_atom, ierr)
 
@@ -1036,9 +1061,8 @@ CPSourceFileRef,&
 
 ! *****************************************************************************
 !> \brief returns the number of particles in the given force env
-!> \param new_pos the array with the new positions
-!> \param n_el number of positions (3*nparticle) just to check
 !> \param env_id id of the force_env
+!> \param n_particle ...
 !> \param ierr will return a number different from 0 if there was an error
 !> \author Matthias Krack
 !>
@@ -1068,9 +1092,9 @@ CPSourceFileRef,&
 
 ! *****************************************************************************
 !> \brief gets a cell
+!> \param env_id id of the force_env
 !> \param cell the array with the cell matrix
 !> \param per periodicity
-!> \param env_id id of the force_env
 !> \param ierr will return a number different from 0 if there was an error
 !> \author Joost VandeVondele
 ! *****************************************************************************
@@ -1111,21 +1135,22 @@ CPSourceFileRef,&
 
 ! *****************************************************************************
 !> \brief gets a result from CP2K that is a real 1D array
-!> \param description, the tag of the result
 !> \param env_id id of the force_env
-!> \param result will contain the result
+!> \param description the tag of the result
+!> \param N ...
 !> \param ierr will return a number different from 0 if there was an error
 !> \author Joost VandeVondele
 ! *****************************************************************************
-  SUBROUTINE get_result_r1(env_id, description, N, RESULT, ierr)
+  SUBROUTINE get_result_r1(env_id, description, N, RESULT, res_exist, ierr)
     INTEGER                                  :: env_id
     CHARACTER(LEN=default_string_length)     :: description
     INTEGER                                  :: N
     REAL(KIND=dp), DIMENSION(1:N)            :: RESULT
+    LOGICAL, OPTIONAL                        :: res_exist
     INTEGER                                  :: ierr
 
     INTEGER                                  :: nres
-    LOGICAL                                  :: failure
+    LOGICAL                                  :: exist_res, failure
     TYPE(cp_error_type)                      :: error
     TYPE(f_env_type), POINTER                :: f_env
 
@@ -1134,13 +1159,24 @@ CPSourceFileRef,&
     CALL f_env_add_defaults(env_id,f_env,error,failure)
 
     IF (.NOT. failure) THEN
-       CALL get_results(results=f_env%force_env%results,&
-            description=description,&
-            n_rep=nres,error=error)
-       CALL get_results(results=f_env%force_env%results,&
-            description=description,&
-            values=RESULT,&
-            nval=nres,error=error)
+      ! first test for the result
+      IF(PRESENT(res_exist)) THEN
+        res_exist = test_for_result(results=f_env%force_env%results,&
+                      description=description, error=error)
+        exist_res = res_exist
+      ELSE
+        exist_res = .TRUE.
+      END IF
+      ! if existing (or assuming the existance) read the results
+      IF(res_exist) THEN
+        CALL get_results(results=f_env%force_env%results,&
+             description=description,&
+             n_rep=nres,error=error)
+        CALL get_results(results=f_env%force_env%results,&
+             description=description,&
+             values=RESULT,&
+             nval=nres,error=error)
+      END IF
     ENDIF
 
     CALL f_env_rm_defaults(f_env,error,ierr)
@@ -1149,12 +1185,12 @@ CPSourceFileRef,&
 
 ! *****************************************************************************
 !> \brief gets the forces of the particles
+!> \param env_id id of the force_env
 !> \param frc the array where to write the forces
 !> \param n_el number of positions (3*nparticle) just to check
-!> \param env_id id of the force_env
 !> \param ierr will return a number different from 0 if there was an error
-!> \author fawzi
 !> \date   22.11.2010 (MK)
+!> \author fawzi
 ! *****************************************************************************
   SUBROUTINE get_force(env_id, frc, n_el, ierr)
 
@@ -1180,13 +1216,51 @@ CPSourceFileRef,&
   END SUBROUTINE get_force
 
 ! *****************************************************************************
+!> \brief gets the stress tensor
+!> \param env_id id of the force_env
+!> \param stress_tensor the array where to write the stress tensor
+!> \param ierr will return a number different from 0 if there was an error
+!> \author Ole Schuett
+! *****************************************************************************
+  SUBROUTINE get_stress_tensor(env_id, stress_tensor, ierr)
+
+    INTEGER, INTENT(IN)                      :: env_id
+    REAL(KIND=dp), DIMENSION(3, 3), &
+      INTENT(OUT)                            :: stress_tensor
+    INTEGER, INTENT(OUT)                     :: ierr
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'get_stress_tensor', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+    TYPE(cell_type), POINTER                 :: cell
+    TYPE(cp_error_type)                      :: error
+    TYPE(f_env_type), POINTER                :: f_env
+    TYPE(virial_type), POINTER               :: virial
+
+    failure = .FALSE.
+    NULLIFY (f_env, virial, cell)
+    stress_tensor(:,:) = 0.0_dp
+
+    CALL f_env_add_defaults(env_id,f_env,error,failure)
+    IF (.NOT.failure) THEN
+       CALL force_env_get(f_env%force_env, virial=virial, cell=cell, error=error)
+       IF(virial%pv_availability) THEN
+          stress_tensor(:,:) = virial%pv_virial(:,:)/cell%deth
+       ENDIF
+    END IF
+    CALL f_env_rm_defaults(f_env,error,ierr)
+
+  END SUBROUTINE get_stress_tensor
+
+! *****************************************************************************
 !> \brief gets the positions of the particles
+!> \param env_id id of the force_env
 !> \param pos the array where to write the positions
 !> \param n_el number of positions (3*nparticle) just to check
-!> \param env_id id of the force_env
 !> \param ierr will return a number different from 0 if there was an error
-!> \author fawzi
 !> \date   22.11.2010 (MK)
+!> \author fawzi
 ! *****************************************************************************
   SUBROUTINE get_pos(env_id, pos, n_el, ierr)
 
@@ -1213,9 +1287,9 @@ CPSourceFileRef,&
 
 ! *****************************************************************************
 !> \brief gets the velocities of the particles
+!> \param env_id id of the force_env
 !> \param vel the array where to write the velocities
 !> \param n_el number of velocities (3*nparticle) just to check
-!> \param env_id id of the force_env
 !> \param ierr will return a number different from 0 if there was an error
 !> \author fawzi
 !> date    22.11.2010 (MK)
@@ -1245,8 +1319,8 @@ CPSourceFileRef,&
 
 ! *****************************************************************************
 !> \brief sets a new cell
-!> \param new_cell the array with the cell matrix
 !> \param env_id id of the force_env
+!> \param new_cell the array with the cell matrix
 !> \param ierr will return a number different from 0 if there was an error
 !> \author Joost VandeVondele
 ! *****************************************************************************
@@ -1286,12 +1360,12 @@ CPSourceFileRef,&
 
 ! *****************************************************************************
 !> \brief sets the positions of the particles
+!> \param env_id id of the force_env
 !> \param new_pos the array with the new positions
 !> \param n_el number of positions (3*nparticle) just to check
-!> \param env_id id of the force_env
 !> \param ierr will return a number different from 0 if there was an error
-!> \author fawzi
 !> \date   22.11.2010 updated (MK)
+!> \author fawzi
 ! *****************************************************************************
   SUBROUTINE set_pos(env_id, new_pos, n_el, ierr)
 
@@ -1322,12 +1396,12 @@ CPSourceFileRef,&
 
 ! *****************************************************************************
 !> \brief sets the velocities of the particles
+!> \param env_id id of the force_env
 !> \param new_vel the array with the new velocities
 !> \param n_el number of velocities (3*nparticle) just to check
-!> \param env_id id of the force_env
 !> \param ierr will return a number different from 0 if there was an error
-!> \author fawzi
 !> \date   22.11.2010 updated (MK)
+!> \author fawzi
 ! *****************************************************************************
   SUBROUTINE set_vel(env_id, new_vel, n_el, ierr)
 
@@ -1428,9 +1502,9 @@ CPSourceFileRef,&
 !> \param n_el number of elements in pos (3*natom)
 !> \param e_pot the potential energy of the system
 !> \param ierr will return a number different from 0 if there was an error
+!> \author fawzi
 !> \note
 !>      utility call
-!> \author fawzi
 ! *****************************************************************************
   RECURSIVE SUBROUTINE calc_energy(env_id,pos,n_el,e_pot,ierr)
 
@@ -1457,11 +1531,11 @@ CPSourceFileRef,&
 !> \param n_el_force number of elements in force (3*natom). If 0 the
 !>        forces are not calculated
 !> \param ierr will return a number different from 0 if there was an error
+!> \author fawzi
 !> \note
 !>      utility call, but actually it could be a better and more efficient
 !>      interface to connect to other codes if cp2k would be deeply
 !>      refactored
-!> \author fawzi
 ! *****************************************************************************
   RECURSIVE SUBROUTINE calc_force(env_id,pos,n_el_pos,e_pot,force,n_el_force,ierr)
 
@@ -1486,18 +1560,21 @@ CPSourceFileRef,&
 
 ! *****************************************************************************
 !> \brief performs a check of the input
+!> \param input_declaration ...
 !> \param input_file_path the path of the input file to check
 !> \param output_file_path path of the output file (to which it is appended)
-!>        if it is "__STD_OUT__" the unit 6 is used
+!>        if it is "__STD_OUT__" the default_output_unit is used
 !> \param echo_input if the parsed input should be written out with all the
 !>        defaults made explicit
 !> \param mpi_comm the mpi communicator (if not given it uses the default
 !>        one)
+!> \param permissive ...
 !> \param ierr error control, if different from 0 there was an error
 !> \author fawzi
 ! *****************************************************************************
-  SUBROUTINE check_input(input_file_path,output_file_path,&
+  SUBROUTINE check_input(input_declaration, input_file_path,output_file_path,&
        echo_input,mpi_comm,permissive,ierr)
+    TYPE(section_type), POINTER              :: input_declaration
     CHARACTER(len=*), INTENT(in)             :: input_file_path, &
                                                 output_file_path
     LOGICAL, INTENT(in), OPTIONAL            :: echo_input
@@ -1531,7 +1608,7 @@ CPSourceFileRef,&
     END IF
     IF (para_env%mepos==para_env%source) THEN
        IF (output_file_path=="__STD_OUT__") THEN
-          unit_nr=6
+          unit_nr=default_output_unit
        ELSE
           CALL open_file(file_name=output_file_path,file_status="UNKNOWN",&
                file_action="WRITE", file_position="APPEND",&
@@ -1549,12 +1626,12 @@ CPSourceFileRef,&
     CALL cp_logger_release(logger)
     CALL cp_error_init(error,logger=logger,stop_level=cp_fatal_level)
 
-    input_file => create_cp2k_input_reading(input_file_path,initial_variables=empty_initial_variables, &
+    input_file => read_input(input_declaration, input_file_path,initial_variables=empty_initial_variables, &
                                             para_env=para_env,error=error)
     IF (my_permissive) CALL cp_error_reset(error)
     CALL cp_error_check(error,failure)
     IF (.NOT.failure) THEN
-       CALL check_cp2k_input(input_file,para_env=para_env,output_unit=unit_nr,error=error)
+       CALL check_cp2k_input(input_declaration,input_file,para_env=para_env,output_unit=unit_nr,error=error)
        IF (my_permissive) CALL cp_error_reset(error)
        IF (my_echo_input.AND.para_env%mepos==para_env%source) THEN
           CALL section_vals_write(input_file,&
@@ -1576,8 +1653,7 @@ CPSourceFileRef,&
 !> \param f_env_id the force env on which to apply the shake
 !> \param dt timestep
 !> \param shake_tol tolerance for shake
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
+!> \param ierr ...
 !> \author fawzi
 ! *****************************************************************************
   SUBROUTINE do_shake(f_env_id,dt,shake_tol,ierr)

@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2013  CP2K developers group                          !
+!   Copyright (C) 2000 - 2014  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -21,7 +21,10 @@
 MODULE d3_poly
   USE f77_blas
   USE kinds,                           ONLY: dp
-#include "cp_common_uses.h"
+
+  !$ USE OMP_LIB
+
+#include "./common/cp_common_uses.f90"
 
     IMPLICIT NONE
 
@@ -33,7 +36,7 @@ MODULE d3_poly
         poly_p_eval3,poly_p_eval2,poly_eval1,poly_eval2,poly_p_eval2b,&
         poly_eval3,poly_derive3,poly_p_eval3b,poly_cp2k2d3,&
         poly_padd_uneval3,poly_padd_uneval3b,poly_padd_uneval2,poly_padd_uneval2b,&
-        poly_affine_t3t,poly_d32cp2k
+        poly_affine_t3t,poly_d32cp2k, init_d3_poly_module
 
 #ifdef FD_DEBUG
 #define IF_CHECK(x,y) x
@@ -51,7 +54,7 @@ MODULE d3_poly
 
 
 ! cached index -> monomial exponents
-    LOGICAL, SAVE, PRIVATE :: module_initialized=.FALSE.
+    LOGICAL, SAVE                           :: module_initialized=.FALSE.
     INTEGER, SAVE, DIMENSION(2,cached_dim2) :: a_mono_exp2
     INTEGER, SAVE, DIMENSION(3,cached_dim3) :: a_mono_exp3
     INTEGER, SAVE, DIMENSION(cached_dim3)   :: a_reduce_idx3
@@ -59,7 +62,6 @@ MODULE d3_poly
     INTEGER, SAVE, DIMENSION(cached_dim2,cached_dim2) :: a_mono_mult2
     INTEGER, SAVE, DIMENSION(cached_dim3,cached_dim3) :: a_mono_mult3
     INTEGER, SAVE, DIMENSION(4,cached_dim3) :: a_mono_mult3a
-!$OMP THREADPRIVATE(module_initialized,a_mono_exp2,a_mono_exp3,a_reduce_idx3,a_deriv_idx3,a_mono_mult2,a_mono_mult3,a_mono_mult3a)
 
 CONTAINS
 
@@ -68,11 +70,17 @@ CONTAINS
 !> that use cached values
 ! *****************************************************************************
 SUBROUTINE init_d3_poly_module()
-    INTEGER                                  :: grad, i, ii, ij, j, subG
+    INTEGER                                  :: grad, i, ii, ij, j, nthreads, &
+                                                subG
     INTEGER, DIMENSION(2)                    :: monoRes2
     INTEGER, DIMENSION(3)                    :: monoRes3
 
+    nthreads = 1
+    !$ nthreads = OMP_GET_NUM_THREADS()
+    IF(nthreads /= 1) STOP "init_d3_poly_module must not be called within OMP PARALLEL"
+
     IF (module_initialized) RETURN
+
     ii=1
     DO grad=0,max_grad2
         DO i=grad,0,-1
@@ -134,11 +142,14 @@ SUBROUTINE init_d3_poly_module()
           ii=ii+1
        END DO
     END DO
+
     module_initialized=.TRUE.
 END SUBROUTINE
 
 ! *****************************************************************************
 !> \brief size of a polynomial in x up to the given degree
+!> \param maxgrad ...
+!> \retval res ...
 ! *****************************************************************************
 PURE FUNCTION poly_size1(maxgrad) RESULT(res)
     INTEGER, INTENT(in)                      :: maxgrad
@@ -149,6 +160,8 @@ END FUNCTION
 
 ! *****************************************************************************
 !> \brief size of a polynomial in x,y up to the given degree
+!> \param maxgrad ...
+!> \retval res ...
 ! *****************************************************************************
 PURE FUNCTION poly_size2(maxgrad) RESULT(res)
     INTEGER, INTENT(in)                      :: maxgrad
@@ -159,6 +172,8 @@ END FUNCTION
 
 ! *****************************************************************************
 !> \brief size of a polynomial in x,y,z up to the given degree
+!> \param maxgrad ...
+!> \retval res ...
 ! *****************************************************************************
 PURE FUNCTION poly_size3(maxgrad) RESULT(res)
     INTEGER, INTENT(in)                      :: maxgrad
@@ -169,6 +184,8 @@ END FUNCTION
 
 ! *****************************************************************************
 !> \brief max grad for a polynom of the given size
+!> \param n ...
+!> \retval res ...
 ! *****************************************************************************
 PURE FUNCTION grad_size1(n) RESULT(res)
     INTEGER, INTENT(in)                      :: n
@@ -179,6 +196,8 @@ END FUNCTION
 
 ! *****************************************************************************
 !> \brief max grad for a polynom of the given size
+!> \param n ...
+!> \retval res ...
 ! *****************************************************************************
 PURE FUNCTION grad_size2(n) RESULT(res)
     INTEGER, INTENT(in)                      :: n
@@ -189,6 +208,8 @@ END FUNCTION
 
 ! *****************************************************************************
 !> \brief max grad for a polynom of the given size
+!> \param n ...
+!> \retval res ...
 ! *****************************************************************************
 PURE FUNCTION grad_size3(n) RESULT(res)
     INTEGER, INTENT(in)                      :: n
@@ -208,6 +229,8 @@ END FUNCTION
 
 ! *****************************************************************************
 !> \brief 0-based index of monomial of the given degree
+!> \param i ...
+!> \retval res ...
 ! *****************************************************************************
 PURE FUNCTION mono_index1(i) RESULT(res)
     INTEGER, INTENT(in)                      :: i
@@ -218,6 +241,9 @@ END FUNCTION
 
 ! *****************************************************************************
 !> \brief 0-based index of monomial of the given degree
+!> \param i ...
+!> \param j ...
+!> \retval res ...
 ! *****************************************************************************
 PURE FUNCTION mono_index2(i,j) RESULT(res)
     INTEGER, INTENT(in)                      :: i, j
@@ -231,6 +257,10 @@ END FUNCTION
 
 ! *****************************************************************************
 !> \brief 0-based index of monomial of the given degree
+!> \param i ...
+!> \param j ...
+!> \param k ...
+!> \retval res ...
 ! *****************************************************************************
 PURE FUNCTION mono_index3(i,j,k) RESULT(res)
     INTEGER, INTENT(in)                      :: i, j, k
@@ -245,6 +275,8 @@ END FUNCTION
 
 ! *****************************************************************************
 !> \brief exponents of the monomial at the given 0-based index
+!> \param ii ...
+!> \retval res ...
 ! *****************************************************************************
 PURE FUNCTION mono_exp1(ii) RESULT(res)
     INTEGER, INTENT(in)                      :: ii
@@ -255,6 +287,8 @@ END FUNCTION
 
 ! *****************************************************************************
 !> \brief exponents of the monomial at the given 0-based index
+!> \param ii ...
+!> \retval res ...
 ! *****************************************************************************
 PURE FUNCTION mono_exp2(ii) RESULT(res)
     INTEGER, INTENT(in)                      :: ii
@@ -269,6 +303,8 @@ END FUNCTION
 
 ! *****************************************************************************
 !> \brief exponents of the monomial at the given 0-based index
+!> \param n ...
+!> \retval res ...
 ! *****************************************************************************
 PURE FUNCTION mono_exp3(n) RESULT(res)
     INTEGER, INTENT(in)                      :: n
@@ -289,6 +325,9 @@ END FUNCTION
 
 ! *****************************************************************************
 !> \brief the index of the result of the multiplication of the two monomials
+!> \param ii ...
+!> \param ij ...
+!> \retval res ...
 ! *****************************************************************************
 PURE FUNCTION mono_mult1(ii,ij) RESULT(res)
     INTEGER, INTENT(in)                      :: ii, ij
@@ -299,6 +338,9 @@ END FUNCTION
 
 ! *****************************************************************************
 !> \brief the index of the result of the multiplication of the two monomials
+!> \param ii ...
+!> \param ij ...
+!> \retval res ...
 ! *****************************************************************************
 PURE FUNCTION mono_mult2(ii,ij) RESULT(res)
     INTEGER, INTENT(in)                      :: ii, ij
@@ -312,6 +354,9 @@ END FUNCTION
 
 ! *****************************************************************************
 !> \brief the index of the result of the multiplication of the two monomials
+!> \param ii ...
+!> \param ij ...
+!> \retval res ...
 ! *****************************************************************************
 PURE FUNCTION mono_mult3(ii,ij) RESULT(res)
     INTEGER, INTENT(in)                      :: ii, ij
@@ -325,6 +370,12 @@ END FUNCTION
 
 ! *****************************************************************************
 !> \brief multiplies the polynomials p1 with p2 using pRes to store the result
+!> \param p1 ...
+!> \param p2 ...
+!> \param pRes ...
+!> \param np1 ...
+!> \param sumUp ...
+!> \param error ...
 ! *****************************************************************************
 SUBROUTINE poly_mult1(p1,p2,pRes,np1,sumUp,error)
     REAL(dp), DIMENSION(:), INTENT(in)       :: p1, p2
@@ -341,7 +392,7 @@ SUBROUTINE poly_mult1(p1,p2,pRes,np1,sumUp,error)
                                                 resShift_0, size_p1, size_p2
     LOGICAL                                  :: mySumUp
 
-    IF (.not.module_initialized) CALL init_d3_poly_module
+    IF (.not.module_initialized) STOP "module d3_poly not initialized"
     mySumUp=.FALSE.
     myNp1=1
     IF (PRESENT(np1)) myNp1=np1
@@ -369,6 +420,12 @@ END SUBROUTINE
 
 ! *****************************************************************************
 !> \brief multiplies p1 with p2 using pRes to store the result
+!> \param p1 ...
+!> \param p2 ...
+!> \param pRes ...
+!> \param np1 ...
+!> \param sumUp ...
+!> \param error ...
 ! *****************************************************************************
 SUBROUTINE poly_mult2(p1,p2,pRes,np1,sumUp,error)
     REAL(dp), DIMENSION(:), INTENT(in)       :: p1, p2
@@ -385,7 +442,7 @@ SUBROUTINE poly_mult2(p1,p2,pRes,np1,sumUp,error)
       size_p2, subG2
     LOGICAL                                  :: mySumUp
 
-    IF (.not.module_initialized) CALL init_d3_poly_module
+    IF (.not.module_initialized) STOP "module d3_poly not initialized"
     mySumUp=.FALSE.
     IF (PRESENT(sumUp)) mySumUp=sumUp
     myNp1=1
@@ -447,6 +504,12 @@ END SUBROUTINE
 
 ! *****************************************************************************
 !> \brief multiplies p1 with p2 using pRes to store the result
+!> \param p1 ...
+!> \param p2 ...
+!> \param pRes ...
+!> \param np1 ...
+!> \param sumUp ...
+!> \param error ...
 ! *****************************************************************************
 SUBROUTINE poly_mult3(p1,p2,pRes,np1,sumUp,error)
     REAL(dp), DIMENSION(:), INTENT(in)       :: p1, p2
@@ -462,7 +525,7 @@ SUBROUTINE poly_mult3(p1,p2,pRes,np1,sumUp,error)
                                                 newSize, size_p1, size_p2
     LOGICAL                                  :: mySumUp
 
-    IF (.not.module_initialized) CALL init_d3_poly_module
+    IF (.not.module_initialized) STOP "module d3_poly not initialized"
     mySumUp=.FALSE.
     IF (PRESENT(sumUp)) mySumUp=sumUp
     myNp1=1
@@ -479,6 +542,16 @@ END SUBROUTINE
 
 ! *****************************************************************************
 !> \brief low level routine of poly_mult3 without checks
+!> \param p1 ...
+!> \param size_p1 ...
+!> \param grad1 ...
+!> \param p2 ...
+!> \param size_p2 ...
+!> \param grad2 ...
+!> \param pRes ...
+!> \param size_pRes ...
+!> \param np1 ...
+!> \param sumUp ...
 ! *****************************************************************************
 SUBROUTINE poly_mult3b(p1,size_p1,grad1,p2,size_p2,grad2,pRes,size_pRes,np1,sumUp)
     INTEGER, INTENT(in)                      :: size_p1
@@ -504,7 +577,7 @@ SUBROUTINE poly_mult3b(p1,size_p1,grad1,p2,size_p2,grad2,pRes,size_pRes,np1,sumU
       shift2J, shiftRes, shiftRes_0, shiftResI, shiftResI_0, shiftResJ, &
       subG2, subGrad
 
-    IF (.not.module_initialized) CALL init_d3_poly_module
+    IF (.not.module_initialized) STOP "module d3_poly not initialized"
     my_size_p1=size_p1/np1
     newSize=size_pRes/np1
 
@@ -581,6 +654,14 @@ END SUBROUTINE
 
 ! *****************************************************************************
 !> \brief low level routine that multiplies with a polynomial of grad 1
+!> \param p1 ...
+!> \param size_p1 ...
+!> \param grad1 ...
+!> \param p2 ...
+!> \param pRes ...
+!> \param size_pRes ...
+!> \param np1 ...
+!> \param sumUp ...
 ! *****************************************************************************
 SUBROUTINE poly_mult3ab(p1,size_p1,grad1,p2,pRes,size_pRes,np1,sumUp)
     INTEGER, INTENT(in)                      :: size_p1
@@ -606,7 +687,7 @@ SUBROUTINE poly_mult3ab(p1,size_p1,grad1,p2,pRes,size_pRes,np1,sumUp)
       shift2J, shiftRes, shiftRes_0, shiftResI, shiftResI_0, shiftResJ, &
       subG2, subGrad
 
-    IF (.not.module_initialized) CALL init_d3_poly_module
+    IF (.not.module_initialized) STOP "module d3_poly not initialized"
     my_size_p1=size_p1/np1
     newSize=size_pRes/np1
 
@@ -679,6 +760,8 @@ END SUBROUTINE
 
 ! *****************************************************************************
 !> \brief writes out a 1d polynomial in a human readable form
+!> \param p ...
+!> \param out_f ...
 ! *****************************************************************************
 SUBROUTINE poly_write1(p,out_f)
     REAL(dp), DIMENSION(:), INTENT(in)       :: p
@@ -701,6 +784,8 @@ END SUBROUTINE
 
 ! *****************************************************************************
 !> \brief writes out a 2d polynomial in a human readable form
+!> \param p ...
+!> \param out_f ...
 ! *****************************************************************************
 SUBROUTINE poly_write2(p,out_f)
     REAL(dp), DIMENSION(:), INTENT(in)       :: p
@@ -710,7 +795,7 @@ SUBROUTINE poly_write2(p,out_f)
     INTEGER, DIMENSION(2)                    :: mono_e
     LOGICAL                                  :: did_write
 
-    IF (.not.module_initialized) CALL init_d3_poly_module
+    IF (.not.module_initialized) STOP "module d3_poly not initialized"
     did_write=.FALSE.
     DO i=1,SIZE(p)
         mono_e=mono_exp2(i-1)
@@ -727,6 +812,8 @@ END SUBROUTINE
 
 ! *****************************************************************************
 !> \brief writes out the polynomial in a human readable form
+!> \param p ...
+!> \param out_f ...
 ! *****************************************************************************
 SUBROUTINE poly_write3(p,out_f)
     REAL(dp), DIMENSION(:), INTENT(in)       :: p
@@ -736,7 +823,7 @@ SUBROUTINE poly_write3(p,out_f)
     INTEGER, DIMENSION(3)                    :: mono_e
     LOGICAL                                  :: did_write
 
-    IF (.not.module_initialized) CALL init_d3_poly_module
+    IF (.not.module_initialized) STOP "module d3_poly not initialized"
     did_write=.FALSE.
     DO i=1,SIZE(p)
         mono_e=mono_exp3(i-1)
@@ -755,6 +842,11 @@ END SUBROUTINE
 ! *****************************************************************************
 !> \brief random poly with coeffiecents that are easy to print exactly,
 !>        of the given maximum size (for testing purposes)
+!> \param p ...
+!> \param maxSize ...
+!> \param minSize ...
+!> \param error ...
+!> \retval res ...
 ! *****************************************************************************
 FUNCTION poly_random(p,maxSize,minSize,error) RESULT(res)
     REAL(dp), DIMENSION(:), INTENT(out)      :: p
@@ -769,7 +861,7 @@ FUNCTION poly_random(p,maxSize,minSize,error) RESULT(res)
     INTEGER                                  :: i, myMinSize, pSize
     REAL(dp)                                 :: g
 
-    IF (.not.module_initialized) CALL init_d3_poly_module
+    IF (.not.module_initialized) STOP "module d3_poly not initialized"
     myMinSize=1
     IF (PRESENT(minSize)) myMinSize=minSize
     CALL RANDOM_NUMBER(g)
@@ -788,6 +880,12 @@ END FUNCTION
 ! *****************************************************************************
 !> \brief returns in the polynomials pRes the transpose of the
 !> affine transformation x -> m*x+b of p
+!> \param p ...
+!> \param m ...
+!> \param b ...
+!> \param pRes ...
+!> \param npoly ...
+!> \param error ...
 ! *****************************************************************************
 SUBROUTINE poly_affine_t3t(p,m,b,pRes,npoly,error)
     REAL(dp), DIMENSION(:), INTENT(in)       :: p
@@ -807,7 +905,7 @@ SUBROUTINE poly_affine_t3t(p,m,b,pRes,npoly,error)
     REAL(dp), ALLOCATABLE, DIMENSION(:)      :: monoG1, monoG2
     REAL(dp), DIMENSION(4, 3)                :: basepoly
 
-    IF (.not.module_initialized) CALL init_d3_poly_module
+    IF (.not.module_initialized) STOP "module d3_poly not initialized"
     my_npoly=1
     IF (PRESENT(npoly)) my_npoly=npoly
     basepoly(1,:)=b
@@ -950,6 +1048,12 @@ END SUBROUTINE
 
 ! *****************************************************************************
 !> \brief returns in the polynomials pRes the affine transformation x -> m*x+b of p
+!> \param p ...
+!> \param m ...
+!> \param b ...
+!> \param pRes ...
+!> \param npoly ...
+!> \param error ...
 ! *****************************************************************************
 SUBROUTINE poly_affine_t3(p,m,b,pRes,npoly,error)
     REAL(dp), DIMENSION(:), INTENT(in)       :: p
@@ -969,7 +1073,7 @@ SUBROUTINE poly_affine_t3(p,m,b,pRes,npoly,error)
     REAL(dp), ALLOCATABLE, DIMENSION(:)      :: monoG1, monoG2
     REAL(dp), DIMENSION(4, 3)                :: basepoly
 
-    IF (.not.module_initialized) CALL init_d3_poly_module
+    IF (.not.module_initialized) STOP "module d3_poly not initialized"
     my_npoly=1
     IF (PRESENT(npoly)) my_npoly=npoly
     basepoly(1,:)=b
@@ -1112,6 +1216,11 @@ END SUBROUTINE
 
 ! *****************************************************************************
 !> \brief evaluates the 3d polymial at x (the result is a polynomial in two variables)
+!> \param p ...
+!> \param x ...
+!> \param pRes ...
+!> \param npoly ...
+!> \param error ...
 ! *****************************************************************************
 SUBROUTINE poly_p_eval3(p,x,pRes,npoly,error)
     REAL(dp), DIMENSION(:), INTENT(in)       :: p
@@ -1127,7 +1236,7 @@ SUBROUTINE poly_p_eval3(p,x,pRes,npoly,error)
                                                 size_p, stat
     REAL(dp), ALLOCATABLE, DIMENSION(:)      :: xi
 
-    IF (.not.module_initialized) CALL init_d3_poly_module
+    IF (.not.module_initialized) STOP "module d3_poly not initialized"
     my_npoly=1
     IF (PRESENT(npoly)) my_npoly=npoly
     size_p=SIZE(p)/my_npoly
@@ -1144,6 +1253,14 @@ END SUBROUTINE
 
 ! *****************************************************************************
 !> \brief low level routine of poly_p_eval3 without checks
+!> \param p ...
+!> \param size_p ...
+!> \param x ...
+!> \param pRes ...
+!> \param size_pRes ...
+!> \param npoly ...
+!> \param grad ...
+!> \param xi ...
 ! *****************************************************************************
 SUBROUTINE poly_p_eval3b(p,size_p,x,pRes,size_pRes,npoly,grad,xi)
     INTEGER, INTENT(in)                      :: size_p
@@ -1168,7 +1285,7 @@ SUBROUTINE poly_p_eval3b(p,size_p,x,pRes,size_pRes,npoly,grad,xi)
                                                 pShift, shiftRes, shiftRes_0, &
                                                 subG
 
-    IF (.not.module_initialized) CALL init_d3_poly_module
+    IF (.not.module_initialized) STOP "module d3_poly not initialized"
     inSize=size_p/npoly
     newSize=size_pRes/npoly
     pRes(1:size_pRes)=0.0
@@ -1218,6 +1335,11 @@ END SUBROUTINE
 !> \brief unevaluates a 2d polymial to a 3d polynomial at x
 !>  p(a,b,c)=p(a,b,c)+sum(pRes(b,c)*(x*a)^i,i), this is *not* the inverse of poly_p_eval3
 !>  adds to p
+!> \param p ...
+!> \param x ...
+!> \param pRes ...
+!> \param npoly ...
+!> \param error ...
 ! *****************************************************************************
 SUBROUTINE poly_padd_uneval3(p,x,pRes,npoly,error)
     REAL(dp), DIMENSION(:), INTENT(inout)    :: p
@@ -1233,7 +1355,7 @@ SUBROUTINE poly_padd_uneval3(p,x,pRes,npoly,error)
                                                 size_p, stat
     REAL(dp), ALLOCATABLE, DIMENSION(:)      :: xi
 
-    IF (.not.module_initialized) CALL init_d3_poly_module
+    IF (.not.module_initialized) STOP "module d3_poly not initialized"
     my_npoly=1
     IF (PRESENT(npoly)) my_npoly=npoly
     size_p=SIZE(p)/my_npoly
@@ -1250,6 +1372,14 @@ END SUBROUTINE
 
 ! *****************************************************************************
 !> \brief low level routine of poly_padd_uneval3 without checks
+!> \param p ...
+!> \param size_p ...
+!> \param x ...
+!> \param pRes ...
+!> \param size_pRes ...
+!> \param npoly ...
+!> \param grad ...
+!> \param xi ...
 !> \note loop should be structured differently (more contiguous pRes access)
 ! *****************************************************************************
 SUBROUTINE poly_padd_uneval3b(p,size_p,x,pRes,size_pRes,npoly,grad,xi)
@@ -1275,7 +1405,7 @@ SUBROUTINE poly_padd_uneval3b(p,size_p,x,pRes,size_pRes,npoly,grad,xi)
                                                 pShift, shiftRes, shiftRes_0, &
                                                 subG, upSize
 
-    IF (.not.module_initialized) CALL init_d3_poly_module
+    IF (.not.module_initialized) STOP "module d3_poly not initialized"
     inSize=size_p/npoly
     newSize=size_pRes/npoly
     upSize=(grad+1)*(grad+2)*(grad+3)/6
@@ -1323,6 +1453,11 @@ END SUBROUTINE
 
 ! *****************************************************************************
 !> \brief evaluates the 2d polynomial at x (the result is a polynomial in one variable)
+!> \param p ...
+!> \param x ...
+!> \param pRes ...
+!> \param npoly ...
+!> \param error ...
 ! *****************************************************************************
 SUBROUTINE poly_p_eval2(p,x,pRes,npoly,error)
     REAL(dp), DIMENSION(:), INTENT(in)       :: p
@@ -1338,7 +1473,7 @@ SUBROUTINE poly_p_eval2(p,x,pRes,npoly,error)
                                                 size_p, stat
     REAL(dp), ALLOCATABLE, DIMENSION(:)      :: xi
 
-    IF (.not.module_initialized) CALL init_d3_poly_module
+    IF (.not.module_initialized) STOP "module d3_poly not initialized"
     my_npoly=1
     IF (PRESENT(npoly)) my_npoly=npoly
     size_p=SIZE(p)/my_npoly
@@ -1355,6 +1490,14 @@ END SUBROUTINE
 
 ! *****************************************************************************
 !> \brief low level routine of poly_p_eval2 without checks
+!> \param p ...
+!> \param size_p ...
+!> \param x ...
+!> \param pRes ...
+!> \param size_pRes ...
+!> \param npoly ...
+!> \param grad ...
+!> \param xi ...
 ! *****************************************************************************
 SUBROUTINE poly_p_eval2b(p,size_p,x,pRes,size_pRes,npoly,grad,xi)
     INTEGER, INTENT(in)                      :: size_p
@@ -1377,7 +1520,7 @@ SUBROUTINE poly_p_eval2b(p,size_p,x,pRes,size_pRes,npoly,grad,xi)
                                                 inSize, ipoly, msize_p, &
                                                 newSize, pShift, shiftRes
 
-    IF (.not.module_initialized) CALL init_d3_poly_module
+    IF (.not.module_initialized) STOP "module d3_poly not initialized"
     inSize=size_p/npoly
     newSize=size_pRes/npoly
     pRes(1:size_pRes)=0.0_dp
@@ -1423,6 +1566,11 @@ END SUBROUTINE
 !> \brief unevaluates a 1d polynomial to 2d at x
 !>  p(a,b)=sum(pRes(b)*(x*a)^i,i), this is *not* the inverse of poly_p_eval2
 !>  overwrites p
+!> \param p ...
+!> \param x ...
+!> \param pRes ...
+!> \param npoly ...
+!> \param error ...
 ! *****************************************************************************
 SUBROUTINE poly_padd_uneval2(p,x,pRes,npoly,error)
     REAL(dp), DIMENSION(:), INTENT(inout)    :: p
@@ -1438,7 +1586,7 @@ SUBROUTINE poly_padd_uneval2(p,x,pRes,npoly,error)
                                                 size_p, stat
     REAL(dp), ALLOCATABLE, DIMENSION(:)      :: xi
 
-    IF (.not.module_initialized) CALL init_d3_poly_module
+    IF (.not.module_initialized) STOP "module d3_poly not initialized"
     my_npoly=1
     IF (PRESENT(npoly)) my_npoly=npoly
     size_p=SIZE(p)/my_npoly
@@ -1455,6 +1603,14 @@ END SUBROUTINE
 
 ! *****************************************************************************
 !> \brief low level routine of poly_p_uneval2 without checks
+!> \param p ...
+!> \param size_p ...
+!> \param x ...
+!> \param pRes ...
+!> \param size_pRes ...
+!> \param npoly ...
+!> \param grad ...
+!> \param xi ...
 ! *****************************************************************************
 SUBROUTINE poly_padd_uneval2b(p,size_p,x,pRes,size_pRes,npoly,grad,xi)
     INTEGER, INTENT(in)                      :: size_p
@@ -1478,7 +1634,7 @@ SUBROUTINE poly_padd_uneval2b(p,size_p,x,pRes,size_pRes,npoly,grad,xi)
                                                 newSize, pShift, shiftRes, &
                                                 upSize
 
-    IF (.not.module_initialized) CALL init_d3_poly_module
+    IF (.not.module_initialized) STOP "module d3_poly not initialized"
     inSize=size_p/npoly
     upSize=(grad+1)*(grad+2)/2
     newSize=size_pRes/npoly
@@ -1522,6 +1678,11 @@ END SUBROUTINE
 
 ! *****************************************************************************
 !> \brief evaluates the 1d polynomial at the given place, results are stored contiguosly
+!> \param p ...
+!> \param x ...
+!> \param pRes ...
+!> \param npoly ...
+!> \param error ...
 ! *****************************************************************************
 SUBROUTINE poly_eval1(p,x,pRes,npoly,error)
     REAL(dp), DIMENSION(:), INTENT(in)       :: p
@@ -1556,6 +1717,12 @@ END SUBROUTINE
 
 ! *****************************************************************************
 !> \brief evaluates the 2d polynomial at the given place, results are stored contiguosly
+!> \param p ...
+!> \param x ...
+!> \param y ...
+!> \param pRes ...
+!> \param npoly ...
+!> \param error ...
 ! *****************************************************************************
 SUBROUTINE poly_eval2(p,x,y,pRes,npoly,error)
     REAL(dp), DIMENSION(:), INTENT(in)       :: p
@@ -1573,7 +1740,7 @@ SUBROUTINE poly_eval2(p,x,y,pRes,npoly,error)
     REAL(dp)                                 :: v
     REAL(dp), ALLOCATABLE, DIMENSION(:)      :: xi, yi
 
-    IF (.not.module_initialized) CALL init_d3_poly_module
+    IF (.not.module_initialized) STOP "module d3_poly not initialized"
     my_npoly=1
     IF (PRESENT(npoly)) my_npoly=npoly
     size_p=SIZE(p)/my_npoly
@@ -1623,6 +1790,13 @@ END SUBROUTINE
 
 ! *****************************************************************************
 !> \brief evaluates the 3d polynomial at the given place, results are stored contiguosly
+!> \param p ...
+!> \param x ...
+!> \param y ...
+!> \param z ...
+!> \param pRes ...
+!> \param npoly ...
+!> \param error ...
 ! *****************************************************************************
 SUBROUTINE poly_eval3(p,x,y,z,pRes,npoly,error)
     REAL(dp), DIMENSION(:), INTENT(in)       :: p
@@ -1640,7 +1814,7 @@ SUBROUTINE poly_eval3(p,x,y,z,pRes,npoly,error)
     REAL(dp)                                 :: v
     REAL(dp), ALLOCATABLE, DIMENSION(:)      :: xi, yi, zi
 
-    IF (.not.module_initialized) CALL init_d3_poly_module
+    IF (.not.module_initialized) STOP "module d3_poly not initialized"
     my_npoly=1
     IF (PRESENT(npoly)) my_npoly=npoly
     size_p=SIZE(p)/my_npoly
@@ -1698,6 +1872,11 @@ END SUBROUTINE
 
 ! *****************************************************************************
 !> \brief returns an array with all dp/dx, the all dp/dy, and finally all dp/dz
+!> \param p ...
+!> \param pRes ...
+!> \param npoly ...
+!> \param sumUp ...
+!> \param error ...
 ! *****************************************************************************
 SUBROUTINE poly_derive3(p,pRes,npoly,sumUp,error)
     REAL(dp), DIMENSION(:), INTENT(in)       :: p
@@ -1714,7 +1893,7 @@ SUBROUTINE poly_derive3(p,pRes,npoly,sumUp,error)
       zShift
     LOGICAL                                  :: my_sumUp
 
-    IF (.not.module_initialized) CALL init_d3_poly_module
+    IF (.not.module_initialized) STOP "module d3_poly not initialized"
     my_npoly=1
     IF (PRESENT(npoly)) my_npoly=npoly
     my_sumUp=.FALSE.
@@ -1782,6 +1961,10 @@ END SUBROUTINE
 
 ! *****************************************************************************
 !> \brief subroutine that converts from the cp2k poly format to the d3 poly format
+!> \param poly_cp2k ...
+!> \param grad ...
+!> \param poly_d3 ...
+!> \param error ...
 ! *****************************************************************************
 SUBROUTINE poly_cp2k2d3(poly_cp2k,grad,poly_d3,error)
     REAL(dp), DIMENSION(:), INTENT(in)       :: poly_cp2k
@@ -1835,6 +2018,10 @@ END SUBROUTINE
 
 ! *****************************************************************************
 !> \brief subroutine that converts from the d3 poly format to the cp2k poly format
+!> \param poly_cp2k ...
+!> \param grad ...
+!> \param poly_d3 ...
+!> \param error ...
 ! *****************************************************************************
 SUBROUTINE poly_d32cp2k(poly_cp2k,grad,poly_d3,error)
     REAL(dp), DIMENSION(:), INTENT(out)      :: poly_cp2k

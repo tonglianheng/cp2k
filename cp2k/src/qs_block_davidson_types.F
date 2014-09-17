@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2013  CP2K developers group                          !
+!   Copyright (C) 2000 - 2014  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -28,7 +28,7 @@ MODULE qs_block_davidson_types
                                              mo_set_type
   USE timings,                         ONLY: timeset,&
                                              timestop
-#include "cp_common_uses.h"
+#include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
   PRIVATE
@@ -49,6 +49,13 @@ CONTAINS
 
 ! *****************************************************************************
 
+! *****************************************************************************
+!> \brief ...
+!> \param bdav_env ...
+!> \param nspins ...
+!> \param scf_section ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE block_davidson_env_create(bdav_env,nspins,scf_section,error)
 
     TYPE(davidson_type), DIMENSION(:), &
@@ -103,6 +110,12 @@ CONTAINS
 
   END SUBROUTINE block_davidson_env_create
 
+! *****************************************************************************
+!> \brief ...
+!> \param bdav_env ...
+!> \param mo_set ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE block_davidson_allocate(bdav_env,mo_set,error)
 
     TYPE(davidson_type)                      :: bdav_env
@@ -145,6 +158,11 @@ CONTAINS
 
   END SUBROUTINE block_davidson_allocate
 
+! *****************************************************************************
+!> \brief ...
+!> \param bdav_env ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE block_davidson_deallocate(bdav_env,error)
 
     TYPE(davidson_type), DIMENSION(:), &
@@ -177,6 +195,11 @@ CONTAINS
 
   END SUBROUTINE block_davidson_deallocate
 
+! *****************************************************************************
+!> \brief ...
+!> \param bdav_env ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE block_davidson_release(bdav_env,error)
 
     TYPE(davidson_type), DIMENSION(:), &

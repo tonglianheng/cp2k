@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2013  CP2K developers group                          !
+!   Copyright (C) 2000 - 2014  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -13,24 +13,23 @@ MODULE qs_mo_methods
   USE admm_types,                      ONLY: admm_type
   USE admm_utils,                      ONLY: admm_correct_for_eigenvalues,&
                                              admm_uncorrect_for_eigenvalues
-  USE array_types,                     ONLY: array_i1d_obj,&
-                                             array_release
+  USE cp_blacs_env,                    ONLY: cp_blacs_env_type
   USE cp_dbcsr_diag,                   ONLY: cp_dbcsr_syevd,&
                                              cp_dbcsr_syevx
   USE cp_dbcsr_interface,              ONLY: &
-       cp_create_bl_distribution, cp_dbcsr_copy, cp_dbcsr_create, &
-       cp_dbcsr_distribution, cp_dbcsr_distribution_release, &
-       cp_dbcsr_get_info, cp_dbcsr_init, cp_dbcsr_init_p, cp_dbcsr_multiply, &
-       cp_dbcsr_release, cp_dbcsr_release_p, cp_dbcsr_scale_by_vector, &
-       cp_dbcsr_set
+       array_i1d_obj, array_release, cp_create_bl_distribution, &
+       cp_dbcsr_copy, cp_dbcsr_create, cp_dbcsr_distribution, &
+       cp_dbcsr_distribution_release, cp_dbcsr_get_info, cp_dbcsr_init, &
+       cp_dbcsr_init_p, cp_dbcsr_multiply, cp_dbcsr_p_type, cp_dbcsr_release, &
+       cp_dbcsr_release_p, cp_dbcsr_scale_by_vector, cp_dbcsr_set, &
+       cp_dbcsr_type, dbcsr_distribution_mp, dbcsr_distribution_new, &
+       dbcsr_distribution_obj, dbcsr_mp_npcols, dbcsr_mp_nprows, &
+       dbcsr_type_no_symmetry, dbcsr_type_real_default
   USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
                                              copy_fm_to_dbcsr,&
                                              cp_dbcsr_plus_fm_fm_t,&
                                              cp_dbcsr_sm_fm_multiply
-  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_p_type,&
-                                             cp_dbcsr_type
   USE cp_fm_basic_linalg,              ONLY: cp_fm_column_scale,&
-                                             cp_fm_gemm,&
                                              cp_fm_syrk,&
                                              cp_fm_triangular_multiply
   USE cp_fm_cholesky,                  ONLY: cp_fm_cholesky_decompose
@@ -45,15 +44,8 @@ MODULE qs_mo_methods
                                              cp_fm_release,&
                                              cp_fm_to_fm,&
                                              cp_fm_type
-  USE cp_para_types,                   ONLY: cp_blacs_env_type,&
-                                             cp_para_env_type
-  USE dbcsr_methods,                   ONLY: dbcsr_distribution_mp,&
-                                             dbcsr_distribution_new,&
-                                             dbcsr_mp_npcols,&
-                                             dbcsr_mp_nprows
-  USE dbcsr_types,                     ONLY: dbcsr_distribution_obj,&
-                                             dbcsr_type_no_symmetry,&
-                                             dbcsr_type_real_default
+  USE cp_gemm_interface,               ONLY: cp_gemm
+  USE cp_para_types,                   ONLY: cp_para_env_type
   USE f77_blas
   USE kinds,                           ONLY: dp
   USE message_passing,                 ONLY: mp_max
@@ -66,7 +58,7 @@ MODULE qs_mo_methods
   USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
-#include "cp_common_uses.h"
+#include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
   PRIVATE
@@ -94,7 +86,10 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief returns an S-orthonormal basis v (v^T S v ==1)
-!> \param v and S
+!> \param vmatrix ...
+!> \param ncol ...
+!> \param matrix_s ...
+!> \param error ...
 !> \par History
 !>      03.2006 created [Joost VandeVondele]
 ! *****************************************************************************
@@ -129,7 +124,7 @@ CONTAINS
     CALL cp_fm_create(overlap_vv,fm_struct_tmp,"overlap_vv",error=error)
     CALL cp_fm_struct_release(fm_struct_tmp,error=error)
 
-    CALL cp_fm_gemm('T','N',ncol,ncol,n,rone,vmatrix,svmatrix,rzero, overlap_vv,error=error)
+    CALL cp_gemm('T','N',ncol,ncol,n,rone,vmatrix,svmatrix,rzero, overlap_vv,error=error)
     CALL cp_fm_cholesky_decompose(overlap_vv,error=error)
     CALL cp_fm_triangular_multiply(overlap_vv,vmatrix,n_cols=ncol,side='R',invert_tr=.TRUE.,error=error)
 
@@ -142,7 +137,10 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief returns an S-orthonormal basis v and the corresponding matrix S*v as well
-!> \param v and S*v
+!> \param vmatrix ...
+!> \param ncol ...
+!> \param svmatrix ...
+!> \param error ...
 !> \par History
 !>      03.2006 created [Joost VandeVondele]
 ! *****************************************************************************
@@ -175,7 +173,7 @@ CONTAINS
     CALL cp_fm_create(overlap_vv,fm_struct_tmp,"overlap_vv",error=error)
     CALL cp_fm_struct_release(fm_struct_tmp,error=error)
 
-    CALL cp_fm_gemm('T','N',ncol,ncol,n,rone,vmatrix,svmatrix,rzero, overlap_vv,error=error)
+    CALL cp_gemm('T','N',ncol,ncol,n,rone,vmatrix,svmatrix,rzero, overlap_vv,error=error)
     CALL cp_fm_cholesky_decompose(overlap_vv,error=error)
     CALL cp_fm_triangular_multiply(overlap_vv,vmatrix,n_cols=ncol,side='R',invert_tr=.TRUE.,error=error)
     CALL cp_fm_triangular_multiply(overlap_vv,svmatrix,n_cols=ncol,side='R',invert_tr=.TRUE.,error=error)
@@ -186,6 +184,15 @@ CONTAINS
 
     END SUBROUTINE make_basis_sv_fm
 
+! *****************************************************************************
+!> \brief ...
+!> \param vmatrix ...
+!> \param ncol ...
+!> \param svmatrix ...
+!> \param para_env ...
+!> \param blacs_env ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE make_basis_sv_dbcsr(vmatrix,ncol,svmatrix,para_env,blacs_env,error)
 
     TYPE(cp_dbcsr_type)                      :: vmatrix
@@ -227,7 +234,7 @@ CONTAINS
     CALL copy_dbcsr_to_fm(vmatrix,fm_vmatrix,error=error)
     CALL copy_dbcsr_to_fm(svmatrix,fm_svmatrix,error=error)
 
-    CALL cp_fm_gemm('T','N',ncol,ncol,n,rone,fm_vmatrix,fm_svmatrix,rzero, overlap_vv,error=error)
+    CALL cp_gemm('T','N',ncol,ncol,n,rone,fm_vmatrix,fm_svmatrix,rzero, overlap_vv,error=error)
     CALL cp_fm_cholesky_decompose(overlap_vv,error=error)
     CALL cp_fm_triangular_multiply(overlap_vv,fm_vmatrix,n_cols=ncol,side='R',invert_tr=.TRUE.,error=error)
     CALL cp_fm_triangular_multiply(overlap_vv,fm_svmatrix,n_cols=ncol,side='R',invert_tr=.TRUE.,error=error)
@@ -246,13 +253,16 @@ CONTAINS
 ! *****************************************************************************
 !> \brief return a set of S orthonormal vectors (C^T S C == 1) where
 !>      the cholesky decomposed form of S is passed as an argument
+!> \param vmatrix ...
+!> \param ncol ...
 !> \param ortho cholesky decomposed S matrix
+!> \param error ...
+!> \par History
+!>      03.2006 created [Joost VandeVondele]
 !> \note
 !>      if the cholesky decomposed S matrix is not available
 !>      use make_basis_sm since this is much faster than computing the
 !>      cholesky decomposition of S
-!> \par History
-!>      03.2006 created [Joost VandeVondele]
 ! *****************************************************************************
   SUBROUTINE make_basis_cholesky(vmatrix,ncol,ortho,error)
 
@@ -299,10 +309,14 @@ CONTAINS
 !> \brief return a set of S orthonormal vectors (C^T S C == 1) where
 !>      a Loedwin transformation is applied to keep the rotated vectors as close
 !>      as possible to the original ones
+!> \param vmatrix ...
+!> \param ncol ...
+!> \param matrix_s ...
+!> \param error ...
 !> \param
-!> \note
 !> \par History
 !>      05.2009 created [MI]
+!> \note
 ! *****************************************************************************
   SUBROUTINE make_basis_lowdin(vmatrix,ncol,matrix_s,error)
 
@@ -339,9 +353,9 @@ CONTAINS
     CALL cp_fm_create(work,fm_struct_tmp,"work",error=error)
     CALL cp_fm_struct_release(fm_struct_tmp,error=error)
 
-    CALL cp_fm_gemm('T','N',ncol,ncol,n,rone,vmatrix,sc,rzero, csc,error=error)
+    CALL cp_gemm('T','N',ncol,ncol,n,rone,vmatrix,sc,rzero, csc,error=error)
     CALL cp_fm_power(csc,work,-0.5_dp, threshold,ndep,error=error)
-    CALL cp_fm_gemm('N','N',n,ncol,ncol,rone,vmatrix,csc,rzero,sc,error=error)
+    CALL cp_gemm('N','N',n,ncol,ncol,rone,vmatrix,csc,rzero,sc,error=error)
     CALL cp_fm_to_fm(sc, vmatrix, ncol, 1,1)
 
     CALL cp_fm_release(csc,error=error)
@@ -355,6 +369,9 @@ CONTAINS
 ! *****************************************************************************
 !> \brief given a set of vectors, return an orthogonal (C^T C == 1) set
 !>      spanning the same space (notice, only for cases where S==1)
+!> \param vmatrix ...
+!> \param ncol ...
+!> \param error ...
 !> \par History
 !>      03.2006 created [Joost VandeVondele]
 ! *****************************************************************************
@@ -387,7 +404,7 @@ CONTAINS
     CALL cp_fm_create(overlap_vv,fm_struct_tmp,"overlap_vv",error=error)
     CALL cp_fm_struct_release(fm_struct_tmp,error=error)
 
-    CALL cp_fm_gemm('T','N',ncol,ncol,n,rone,vmatrix,vmatrix,rzero, overlap_vv,error=error)
+    CALL cp_gemm('T','N',ncol,ncol,n,rone,vmatrix,vmatrix,rzero, overlap_vv,error=error)
     CALL cp_fm_cholesky_decompose(overlap_vv,error=error)
     CALL cp_fm_triangular_multiply(overlap_vv,vmatrix,n_cols=ncol,side='R',invert_tr=.TRUE.,error=error)
 
@@ -399,10 +416,14 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief   Calculate the density matrix
-!> \author  Joost VandeVondele
+!> \param mo_set ...
+!> \param density_matrix ...
+!> \param use_dbcsr ...
+!> \param error ...
 !> \date    06.2002
 !> \par History
 !>       - Fractional occupied orbitals (MK)
+!> \author  Joost VandeVondele
 !> \version 1.0
 ! *****************************************************************************
   SUBROUTINE calculate_dm_sparse(mo_set,density_matrix,use_dbcsr,error)
@@ -481,12 +502,14 @@ CONTAINS
 !>      writes the evals to the screen depending on ionode/scr
 !> \param orbitals S-orthonormal orbitals
 !> \param ks_matrix Kohn-Sham matrix
-!> \param para_env of the Kohn-Sham matrix
 !> \param evals_arg optional, filled with the evals
 !> \param ionode /scr  : if present write to unit scr where ionode
+!> \param scr ...
 !> \param do_rotation optional rotate orbitals (default=.TRUE.)
 !>        note that rotating the orbitals is slower
 !> \param co_rotate an optional set of orbitals rotated by the same rotation matrix
+!> \param co_rotate_dbcsr ...
+!> \param error ...
 !> \par History
 !>      08.2004 documented and added do_rotation [Joost VandeVondele]
 !>      09.2008 only compute eigenvalues if rotation is not needed
@@ -554,7 +577,7 @@ CONTAINS
         ! h subblock and diag
         CALL cp_dbcsr_sm_fm_multiply(ks_matrix,orbitals,weighted_vectors, ncol_global,error=error)
 
-        CALL cp_fm_gemm('T','N',ncol_global,ncol_global,nrow_global,1.0_dp, &
+        CALL cp_gemm('T','N',ncol_global,ncol_global,nrow_global,1.0_dp, &
                         orbitals,weighted_vectors,0.0_dp,h_block,error=error)
 
         ! if eigenvectors are required, go for syevd, otherwise only compute eigenvalues
@@ -566,12 +589,12 @@ CONTAINS
 
         ! rotate the orbitals
         IF (do_rotation_local) THEN
-            CALL cp_fm_gemm('N','N',nrow_global,ncol_global,ncol_global,1.0_dp, &
+            CALL cp_gemm('N','N',nrow_global,ncol_global,ncol_global,1.0_dp, &
                         orbitals,e_vectors,0.0_dp,weighted_vectors,error=error)
             CALL cp_fm_to_fm(weighted_vectors,orbitals,error=error)
             IF (PRESENT(co_rotate)) THEN
               IF (ASSOCIATED(co_rotate)) THEN
-                CALL cp_fm_gemm('N','N',nrow_global,ncol_global,ncol_global,1.0_dp, &
+                CALL cp_gemm('N','N',nrow_global,ncol_global,ncol_global,1.0_dp, &
                         co_rotate,e_vectors,0.0_dp,weighted_vectors,error=error)
                 CALL cp_fm_to_fm(weighted_vectors,co_rotate,error=error)
               ENDIF
@@ -580,7 +603,7 @@ CONTAINS
                IF(ASSOCIATED(co_rotate_dbcsr)) THEN
                   CALL cp_fm_create(weighted_vectors2,orbitals%matrix_struct,"weighted_vectors",error=error)
                   CALL copy_dbcsr_to_fm(co_rotate_dbcsr,weighted_vectors2,error)
-                  CALL cp_fm_gemm('N','N',nrow_global,ncol_global,ncol_global,1.0_dp, &
+                  CALL cp_gemm('N','N',nrow_global,ncol_global,ncol_global,1.0_dp, &
                        weighted_vectors2,e_vectors,0.0_dp,weighted_vectors,error=error)
                   CALL copy_fm_to_dbcsr(weighted_vectors,co_rotate_dbcsr,error=error)
                   CALL cp_fm_release(weighted_vectors2,error=error)
@@ -628,6 +651,19 @@ CONTAINS
   END SUBROUTINE subspace_eigenvalues_ks_fm
 
 
+! *****************************************************************************
+!> \brief ...
+!> \param orbitals ...
+!> \param ks_matrix ...
+!> \param evals_arg ...
+!> \param ionode ...
+!> \param scr ...
+!> \param do_rotation ...
+!> \param co_rotate ...
+!> \param para_env ...
+!> \param blacs_env ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE subspace_eigenvalues_ks_dbcsr(orbitals,ks_matrix,evals_arg,ionode,scr,&
        do_rotation,co_rotate,para_env,blacs_env,error)
 
@@ -718,7 +754,7 @@ CONTAINS
         !CALL cp_dbcsr_sm_fm_multiply(ks_matrix,orbitals,weighted_vectors, ncol_global,error=error)
 
         CALL cp_dbcsr_multiply('T','N',1.0_dp,orbitals,weighted_vectors,0.0_dp,h_block,error=error)
-        !CALL cp_fm_gemm('T','N',ncol_global,ncol_global,nrow_global,1.0_dp, &
+        !CALL cp_gemm('T','N',ncol_global,ncol_global,nrow_global,1.0_dp, &
         !                orbitals,weighted_vectors,0.0_dp,h_block,error=error)
 
         ! if eigenvectors are required, go for syevd, otherwise only compute eigenvalues
@@ -731,14 +767,14 @@ CONTAINS
         ! rotate the orbitals
         IF (do_rotation_local) THEN
            CALL cp_dbcsr_multiply('N','N',1.0_dp,orbitals,e_vectors,0.0_dp,weighted_vectors,error=error)
-           !CALL cp_fm_gemm('N','N',nrow_global,ncol_global,ncol_global,1.0_dp, &
+           !CALL cp_gemm('N','N',nrow_global,ncol_global,ncol_global,1.0_dp, &
            !             orbitals,e_vectors,0.0_dp,weighted_vectors,error=error)
            CALL cp_dbcsr_copy(orbitals,weighted_vectors,error=error)
            !CALL cp_fm_to_fm(weighted_vectors,orbitals,error=error)
            IF (PRESENT(co_rotate)) THEN
               IF (ASSOCIATED(co_rotate)) THEN
                  CALL cp_dbcsr_multiply('N','N',1.0_dp,co_rotate,e_vectors,0.0_dp,weighted_vectors,error=error)
-                 !CALL cp_fm_gemm('N','N',nrow_global,ncol_global,ncol_global,1.0_dp, &
+                 !CALL cp_gemm('N','N',nrow_global,ncol_global,ncol_global,1.0_dp, &
                  !     co_rotate,e_vectors,0.0_dp,weighted_vectors,error=error)
                  CALL cp_dbcsr_copy(co_rotate,weighted_vectors,error=error)
                  !CALL cp_fm_to_fm(weighted_vectors,co_rotate,error=error)
@@ -792,6 +828,12 @@ CONTAINS
 ! computes the effective orthonormality of a set of mos given an s-matrix
 ! orthonormality is the max deviation from unity of the C^T S C
 ! *****************************************************************************
+!> \brief ...
+!> \param orthonormality ...
+!> \param mo_array ...
+!> \param matrix_s ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE calculate_orthonormality(orthonormality,mo_array,matrix_s,error)
     REAL(KIND=dp)                            :: orthonormality
     TYPE(mo_set_p_type), DIMENSION(:), &
@@ -830,7 +872,7 @@ CONTAINS
              context=mo_array(ispin)%mo_set%mo_coeff%matrix_struct%context,error=error)
         CALL cp_fm_create(overlap,tmp_fm_struct,error=error)
         CALL cp_fm_struct_release(tmp_fm_struct,error=error)
-        CALL cp_fm_gemm('T','N',k,k,n,1.0_dp, mo_array(ispin)%mo_set%mo_coeff,&
+        CALL cp_gemm('T','N',k,k,n,1.0_dp, mo_array(ispin)%mo_set%mo_coeff,&
              svec,0.0_dp,overlap,error=error)
         CALL cp_fm_release(svec,error=error)
       ELSE
@@ -842,7 +884,7 @@ CONTAINS
              context=mo_array(ispin)%mo_set%mo_coeff%matrix_struct%context,error=error)
         CALL cp_fm_create(overlap,tmp_fm_struct,error=error)
         CALL cp_fm_struct_release(tmp_fm_struct,error=error)
-        CALL cp_fm_gemm('T','N',k,k,n,1.0_dp, mo_array(ispin)%mo_set%mo_coeff,&
+        CALL cp_gemm('T','N',k,k,n,1.0_dp, mo_array(ispin)%mo_set%mo_coeff,&
              mo_array(ispin)%mo_set%mo_coeff,0.0_dp,overlap,error=error)
       ENDIF
       CALL cp_fm_get_info(overlap,nrow_local=nrow_local,ncol_local=ncol_local, &
@@ -858,7 +900,7 @@ CONTAINS
     ENDDO
     CALL mp_max(max_alpha,mo_array(1)%mo_set%mo_coeff%matrix_struct%para_env%group)
     orthonormality=max_alpha
-    ! write(6,*) "max deviation from orthonormalization ",orthonormality
+    ! write(*,*) "max deviation from orthonormalization ",orthonormality
 
     CALL timestop(handle)
 
@@ -868,6 +910,12 @@ CONTAINS
 ! to detect problems in the case of nearly singular overlap matrices.
 ! in this case, we expect the ratio of min/max to be large
 ! this routine is only similar to mo_orthonormality if S==1
+! *****************************************************************************
+!> \brief ...
+!> \param mo_array ...
+!> \param mo_mag_min ...
+!> \param mo_mag_max ...
+!> \param error ...
 ! *****************************************************************************
   SUBROUTINE calculate_magnitude(mo_array,mo_mag_min,mo_mag_max,error)
     TYPE(mo_set_p_type), DIMENSION(:), &
@@ -900,7 +948,7 @@ CONTAINS
       CALL cp_fm_create(overlap,tmp_fm_struct,error=error)
       CALL cp_fm_create(evecs,tmp_fm_struct,error=error)
       CALL cp_fm_struct_release(tmp_fm_struct,error=error)
-      CALL cp_fm_gemm('T','N',k,k,n,1.0_dp, mo_array(ispin)%mo_set%mo_coeff,&
+      CALL cp_gemm('T','N',k,k,n,1.0_dp, mo_array(ispin)%mo_set%mo_coeff,&
              mo_array(ispin)%mo_set%mo_coeff,0.0_dp,overlap,error=error)
       CALL choose_eigv_solver(overlap,evecs,evals,error=error)
       mo_mag_min=MIN(MINVAL(evals),mo_mag_min)
@@ -915,11 +963,18 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief  Calculate KS eigenvalues starting from  OF MOS
+!> \param mos ...
+!> \param nspins ...
+!> \param ks_rmpv ...
+!> \param scf_control ...
+!> \param mo_derivs ...
+!> \param admm_env ...
+!> \param error ...
 !> \par History
 !>         02.2013 moved from qs_scf_post_gpw
 !>
 ! *****************************************************************************
-  SUBROUTINE make_mo_eig(mos,nspins,ks_rmpv,scf_control,mo_derivs,admm_env,ks_aux,error)
+  SUBROUTINE make_mo_eig(mos,nspins,ks_rmpv,scf_control,mo_derivs,admm_env,error)
 
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mos
@@ -930,8 +985,6 @@ CONTAINS
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: mo_derivs
     TYPE(admm_type), OPTIONAL, POINTER       :: admm_env
-    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
-      OPTIONAL, POINTER                      :: ks_aux
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'make_mo_eig', &
@@ -956,9 +1009,9 @@ CONTAINS
             eigenvalues=mo_eigenvalues,homo=homo,nmo=nmo)
        IF (output_unit>0) WRITE(output_unit,*) " "
        IF (output_unit>0) WRITE(output_unit,*) " Eigenvalues of the occupied subspace spin ",ispin
-       IF (homo .NE. nmo) THEN
-          IF (output_unit>0) WRITE(output_unit,*)" and ",nmo-homo," added MO eigenvalues"
-       ENDIF
+ !      IF (homo .NE. nmo) THEN
+ !         IF (output_unit>0) WRITE(output_unit,*)" and ",nmo-homo," added MO eigenvalues"
+ !      ENDIF
        IF (output_unit>0) WRITE(output_unit,*) "---------------------------------------------"
 
        IF(scf_control%use_ot) THEN
@@ -972,7 +1025,7 @@ CONTAINS
           ! ** If we do ADMM, we add have to modify the kohn-sham matrix
           IF( PRESENT(admm_env) ) THEN
             CALL admm_correct_for_eigenvalues(ispin, admm_env, ks_rmpv(ispin)%matrix, &
-                                              ks_aux(ispin)%matrix, error)
+                                               error)
           END IF
 
           CALL calculate_subspace_eigenvalues(mo_coeff,ks_rmpv(ispin)%matrix,mo_eigenvalues, &
@@ -982,8 +1035,10 @@ CONTAINS
           ! ** If we do ADMM, we restore the original kohn-sham matrix
           IF( PRESENT(admm_env) ) THEN
             CALL admm_uncorrect_for_eigenvalues(ispin, admm_env, ks_rmpv(ispin)%matrix, &
-                                                ks_aux(ispin)%matrix, error)
+                                                error)
           END IF
+       ELSE
+          IF (output_unit>0) WRITE(output_unit,'(4(1X,1F16.8))') mo_eigenvalues(1:homo)
        END IF
        CALL set_mo_occupation(mo_set=mos(ispin)%mo_set,smear=scf_control%smear,error=error)
        IF (output_unit>0) WRITE(output_unit,'(T2,A,F12.6)') &

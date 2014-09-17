@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2013  CP2K developers group                          !
+!   Copyright (C) 2000 - 2014  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 ! *****************************************************************************
 MODULE topology_xyz
@@ -26,7 +26,7 @@ MODULE topology_xyz
                                              timestop
   USE topology_types,                  ONLY: atom_info_type,&
                                              topology_parameters_type
-#include "cp_common_uses.h"
+#include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
 
@@ -38,6 +38,11 @@ MODULE topology_xyz
 CONTAINS
 
 ! *****************************************************************************
+!> \brief ...
+!> \param topology ...
+!> \param para_env ...
+!> \param subsys_section ...
+!> \param error ...
 !> \author Teodoro Laino
 ! *****************************************************************************
   SUBROUTINE read_coordinate_xyz (topology,para_env,subsys_section,error)

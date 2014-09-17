@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2013  CP2K developers group                          !
+!   Copyright (C) 2000 - 2014  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -10,22 +10,27 @@
 MODULE qs_dftb_dispersion
 
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
-                                             get_atomic_kind,&
                                              get_atomic_kind_set
   USE atprop_types,                    ONLY: atprop_array_init
   USE cp_control_types,                ONLY: dft_control_type,&
                                              dftb_control_type
   USE cp_para_types,                   ONLY: cp_para_env_type
+  USE input_constants,                 ONLY: dispersion_d3,&
+                                             dispersion_uff
   USE kinds,                           ONLY: dp
   USE message_passing,                 ONLY: mp_sum
   USE particle_types,                  ONLY: particle_type
   USE qs_dftb_types,                   ONLY: qs_dftb_atom_type,&
                                              qs_dftb_pairpot_type
   USE qs_dftb_utils,                   ONLY: get_dftb_atom_param
+  USE qs_dispersion_pairpot,           ONLY: calculate_dispersion_pairpot
+  USE qs_dispersion_types,             ONLY: qs_dispersion_type
   USE qs_energy_types,                 ONLY: qs_energy_type
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
   USE qs_force_types,                  ONLY: qs_force_type
+  USE qs_kind_types,                   ONLY: get_qs_kind,&
+                                             qs_kind_type
   USE qs_neighbor_list_types,          ONLY: get_iterator_info,&
                                              neighbor_list_iterate,&
                                              neighbor_list_iterator_create,&
@@ -36,7 +41,7 @@ MODULE qs_dftb_dispersion
                                              timestop
   USE virial_methods,                  ONLY: virial_pair_force
   USE virial_types,                    ONLY: virial_type
-#include "cp_common_uses.h"
+#include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
 
@@ -49,6 +54,12 @@ MODULE qs_dftb_dispersion
 CONTAINS
 
 ! *****************************************************************************
+!> \brief ...
+!> \param qs_env ...
+!> \param para_env ...
+!> \param calculate_forces ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE calculate_dftb_dispersion(qs_env,para_env,calculate_forces,error)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
@@ -57,6 +68,52 @@ CONTAINS
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'calculate_dftb_dispersion', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+    TYPE(dft_control_type), POINTER          :: dft_control
+    TYPE(dftb_control_type), POINTER         :: dftb_control
+    TYPE(qs_dispersion_type), POINTER        :: dispersion_env
+    TYPE(qs_energy_type), POINTER            :: energy
+
+    failure = .FALSE.
+    CALL get_qs_env(qs_env=qs_env,&
+                    energy=energy,&
+                    dft_control=dft_control,error=error)
+
+    energy%dispersion = 0._dp
+
+    dftb_control => dft_control%qs_control%dftb_control
+    IF ( dftb_control%dispersion ) THEN
+       SELECT CASE (dftb_control%dispersion_type)
+          CASE (dispersion_uff)
+             CALL calculate_dispersion_uff(qs_env,para_env,calculate_forces,error)
+          CASE (dispersion_d3)
+             CALL get_qs_env(qs_env=qs_env,dispersion_env=dispersion_env,error=error)
+             CALL calculate_dispersion_pairpot(qs_env,dispersion_env,&
+                  energy%dispersion,calculate_forces,error)
+          CASE DEFAULT
+             CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
+       END SELECT
+    END IF
+
+  END SUBROUTINE calculate_dftb_dispersion
+
+! *****************************************************************************
+!> \brief ...
+!> \param qs_env ...
+!> \param para_env ...
+!> \param calculate_forces ...
+!> \param error ...
+! *****************************************************************************
+  SUBROUTINE calculate_dispersion_uff(qs_env,para_env,calculate_forces,error)
+
+    TYPE(qs_environment_type), POINTER       :: qs_env
+    TYPE(cp_para_env_type), POINTER          :: para_env
+    LOGICAL, INTENT(IN)                      :: calculate_forces
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'calculate_dispersion_uff', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: atom_a, atom_b, handle, &
@@ -71,7 +128,6 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(3)              :: fdij, rij
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
-    TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(dftb_control_type), POINTER         :: dftb_control
     TYPE(neighbor_list_iterator_p_type), &
@@ -87,6 +143,8 @@ CONTAINS
     TYPE(qs_energy_type), POINTER            :: energy
     TYPE(qs_force_type), DIMENSION(:), &
       POINTER                                :: force
+    TYPE(qs_kind_type), DIMENSION(:), &
+      POINTER                                :: qs_kind_set
     TYPE(virial_type), POINTER               :: virial
 
     CALL timeset(routineN,handle)
@@ -96,6 +154,7 @@ CONTAINS
     CALL get_qs_env(qs_env=qs_env,&
                     energy=energy,&
                     atomic_kind_set=atomic_kind_set,&
+                    qs_kind_set=qs_kind_set,&
                     virial=virial,&
                     dft_control=dft_control,error=error)
 
@@ -122,8 +181,7 @@ CONTAINS
        ALLOCATE (define_kind(nkind),rc_kind(nkind),STAT=istat)
        CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
        DO ikind=1,nkind
-          atomic_kind => atomic_kind_set(ikind)
-          CALL get_atomic_kind(atomic_kind=atomic_kind,dftb_parameter=dftb_kind_a)
+          CALL get_qs_kind(qs_kind_set(ikind),dftb_parameter=dftb_kind_a)
           CALL get_dftb_atom_param(dftb_kind_a,defined=define_kind(ikind),rcdisp=rc_kind(ikind))
        END DO
 
@@ -218,7 +276,7 @@ CONTAINS
 
     CALL timestop(handle)
 
-  END SUBROUTINE calculate_dftb_dispersion
+  END SUBROUTINE calculate_dispersion_uff
 
 END MODULE qs_dftb_dispersion
 

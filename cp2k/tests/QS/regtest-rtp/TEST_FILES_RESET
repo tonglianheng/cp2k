@@ -124,7 +124,7 @@ wfn_mix_1.inp
 wfn_mix_1.inp
 wfn_mix_loc-1.inp
 wfn_mix_loc-1.inp
-# atomic code: unrestricted calculations 
+# atomic code unrestricted calculations 
 wfn_mix_1.inp
 # Numerics 
 wfn_mix_1.inp
@@ -269,3 +269,37 @@ wfn_mix_1.inp
 wfn_mix_1.inp
 #  
 wfn_mix_1.inp
+# byg fix for TAYLOR nsquare
+H2plus-emd-1.inp                               
+H2plus-emd.inp                                 
+H2-emd_EM.inp                                  
+H2-emd_restart.inp                             
+H2-emd_restart-1.inp                           
+H2-rtp-efield.inp                              
+H2-emd-efield.inp                             
+#file escaped reset
+H2-emd.inp 
+# correct initialization of velocities in EMD
+H2-emd.inp
+H2plus-emd-1.inp
+H2plus-emd.inp
+H2-emd_CN.inp
+H2-emd_EM.inp
+H2-emd_ETRS_PADE.inp
+H2-emd_restart.inp
+H2-emd_restart-1.inp
+H2-emd-efield.inp
+H2O_excit_emd.inp
+#bugfix in bch/ETRS compatibility
+H2O-ls-rtp-bch.inp
+#initial density matrix no longer fixed to sparsity of S
+H2O-ls-emd.inp
+H2O-ls-rtp-bch.inp
+#Bugfix of sparse rtp with ETRS and bch
+H2O-ls-rtp-bch.inp
+# new force routine for MO EMD (numerics)
+wfn_mix_loc-1.inp
+# Numerics
+H2-emd-efield.inp
+# Improved numerics
+emd-KG.inp

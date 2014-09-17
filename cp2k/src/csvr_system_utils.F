@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2013  CP2K developers group                          !
+!   Copyright (C) 2000 - 2014  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -14,7 +14,7 @@ MODULE csvr_system_utils
   USE kinds,                           ONLY: dp
   USE parallel_rng_types,              ONLY: next_random_number,&
                                              rng_stream_type
-#include "cp_common_uses.h"
+#include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
  
@@ -68,8 +68,15 @@ CONTAINS
 !>       sigma ! target average value of the kinetic energy (ndeg k_b T/2)  (in the same units as kk)
 !>       ndeg  ! number of degrees of freedom of the atoms to be thermalized
 !>       taut  ! relaxation time of the thermostat, in units of 'how often this routine is called'
-!> \author Giovanni Bussi - ETH Zurich, Lugano 10.2007
+!> \param kk ...
+!> \param sigma ...
+!> \param ndeg ...
+!> \param taut ...
+!> \param rng_stream ...
+!> \param error ...
+!> \retval my_res ...
 !> \date 09.2007
+!> \author Giovanni Bussi - ETH Zurich, Lugano 10.2007
 ! *****************************************************************************
   FUNCTION rescaling_factor(kk, sigma, ndeg, taut, rng_stream, error) RESULT(my_res)
     REAL(KIND=dp), INTENT(IN)                :: kk, sigma
@@ -110,8 +117,12 @@ CONTAINS
 ! *****************************************************************************
 !> \brief returns the sum of n independent gaussian noises squared
 !>      (i.e. equivalent to summing the square of the return values of nn calls to gasdev)
-!> \author Teo - University of Zurich
+!> \param nn ...
+!> \param rng_stream ...
+!> \param error ...
+!> \retval sum_gauss ...
 !> \date 09.2007
+!> \author Teo - University of Zurich
 ! *****************************************************************************
   FUNCTION sumnoises(nn, rng_stream, error) RESULT(sum_gauss)
     INTEGER, INTENT(IN)                      :: nn

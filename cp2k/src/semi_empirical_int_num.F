@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2013  CP2K developers group                          !
+!   Copyright (C) 2000 - 2014  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -43,7 +43,7 @@ MODULE semi_empirical_int_num
                                              semi_empirical_type,&
                                              setup_se_int_control_type
   USE taper_types,                     ONLY: taper_eval
-#include "cp_common_uses.h"
+#include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
 
@@ -62,14 +62,14 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Computes the two particle interactions in the lab frame
-!> \param on input  sepi   = Atomic parameters of first atom
-!>                  sepj   = Atomic parameters of second atom
-!>                  rijv   = Coordinate vector i -> j
-!>        se_int_control   = input parameters that control the calculation of SE
+!> \param sepi Atomic parameters of first atom
+!> \param sepj Atomic parameters of second atom
+!> \param rijv Coordinate vector i -> j
+!> \param w Array of two-electron repulsion integrals.
+!> \param se_int_control input parameters that control the calculation of SE
 !>                           integrals (shortrange, R3 residual, screening type)
-!>
-!>    on output     w      = Array of two-electron repulsion integrals.
-!>
+!> \param se_taper ...
+!> \param error ...
 !> \note routine adapted from mopac7 (rotate)
 !>       written by Ernest R. Davidson, Indiana University.
 !>       Teodoro Laino [tlaino] - University of Zurich 04.2008 : major rewriting
@@ -216,14 +216,14 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Calculates the derivative pf two-electron repulsion integrals and the
 !>      nuclear attraction integrals w.r.t. |r|
-!> \param on input rij   = interatomic distance
-!>               sepi    = paramters of atom i
-!>               sepj    = paramters of atom j
-!>      se_int_control   = input parameters that control the calculation of SE
+!> \param sepi paramters of atom i
+!> \param sepj paramters of atom j
+!> \param rij interatomic distance
+!> \param rep array of two-electron repulsion integrals
+!> \param se_taper ...
+!> \param se_int_control input parameters that control the calculation of SE
 !>                         integrals (shortrange, R3 residual, screening type)
-!>
-!>     on output ri      = array of two-electron repulsion integrals
-!>
+!> \param error ...
 !> \par History
 !>      03.2008 created [tlaino]
 !> \author Teodoro Laino [tlaino] - Zurich University
@@ -264,16 +264,16 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Calculates the  two-electron repulsion integrals - sp shell only
-!> \param on input rij   = interatomic distance
-!>               sepi    = paramters of atom i
-!>               sepj    = paramters of atom j
-!>      se_int_control   = input parameters that control the calculation of SE
+!> \param sepi paramters of atom i
+!> \param sepj paramters of atom j
+!> \param rij ...
+!> \param rep array of two-electron repulsion integrals
+!> \param se_int_control input parameters that control the calculation of SE
 !>                         integrals (shortrange, R3 residual, screening type)
-!>      se_int_screen    = contains information for computing the screened
+!> \param se_int_screen contains information for computing the screened
 !>                         integrals KDSO-D
-!>
-!>     on output rep     = array of two-electron repulsion integrals
-!>
+!> \param ft ...
+!> \param error ...
 !> \par History
 !>      Teodoro Laino (04.2008) [tlaino] - University of Zurich : new driver
 !>                 for computing integrals
@@ -333,16 +333,16 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Calculates the  two-electron repulsion integrals - d shell only
-!> \param on input rij   = interatomic distance
-!>               sepi    = paramters of atom i
-!>               sepj    = paramters of atom j
-!>      se_int_control   = input parameters that control the calculation of SE
+!> \param sepi ...
+!> \param sepj ...
+!> \param rij interatomic distance
+!> \param rep array of two-electron repulsion integrals
+!> \param se_int_control input parameters that control the calculation of SE
 !>                         integrals (shortrange, R3 residual, screening type)
-!>      se_int_screen    = contains information for computing the screened
+!> \param se_int_screen contains information for computing the screened
 !>                         integrals KDSO-D
-!>
-!>     on output rep     = array of two-electron repulsion integrals
-!>
+!> \param ft ...
+!> \param error ...
 !> \par History
 !>      Teodoro Laino (04.2008) [tlaino] - University of Zurich : new driver
 !>                 for computing integrals
@@ -404,16 +404,17 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Computes the two-particle interactions.
-!> \param on input  sepi   = Atomic parameters of first atom
-!>                  sepj   = Atomic parameters of second atom
-!>                  rijv   = Coordinate vector i -> j
-!>        se_int_control   = input parameters that control the calculation of SE
-!>                           integrals (shortrange, R3 residual, screening type)
-!>
-!>    on output e1b,e2a= Array of electron-nuclear attraction integrals,
+!> \param sepi Atomic parameters of first atom
+!> \param sepj Atomic parameters of second atom
+!> \param rijv Coordinate vector i -> j
+!> \param e1b Array of electron-nuclear attraction integrals,
 !>                       e1b = Electron on atom ni attracting nucleus of nj.
+!> \param e2a Array of electron-nuclear attraction integrals,
 !>                       e2a = Electron on atom nj attracting nucleus of ni.
-!>
+!> \param itype ...
+!> \param se_int_control ...
+!> \param se_taper ...
+!> \param error ...
 !> \note routine adapted from mopac7 (rotate)
 !>       written by Ernest R. Davidson, Indiana University.
 !>       Teodoro Laino [tlaino] - University of Zurich 04.2008 : major rewriting
@@ -517,14 +518,15 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Computes the core-core interactions.
-!> \param on input  sepi   = Atomic parameters of first atom
-!>                  sepj   = Atomic parameters of second atom
-!>                  rijv   = Coordinate vector i -> j
-!>        se_int_control   = input parameters that control the calculation of SE
+!> \param sepi Atomic parameters of first atom
+!> \param sepj Atomic parameters of second atom
+!> \param rijv Coordinate vector i -> j
+!> \param enuc nuclear-nuclear repulsion term.
+!> \param itype ...
+!> \param se_int_control input parameters that control the calculation of SE
 !>                           integrals (shortrange, R3 residual, screening type)
-!>
-!>    on output     enuc= nuclear-nuclear repulsion term.
-!>
+!> \param se_taper ...
+!> \param error ...
 !> \note routine adapted from mopac7 (rotate)
 !>       written by Ernest R. Davidson, Indiana University.
 !>       Teodoro Laino [tlaino] - University of Zurich 04.2008 : major rewriting
@@ -697,14 +699,15 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Computes the electrostatic core-core interactions only.
-!> \param on input  sepi   = Atomic parameters of first atom
-!>                  sepj   = Atomic parameters of second atom
-!>                  rijv   = Coordinate vector i -> j
-!>        se_int_control   = input parameters that control the calculation of SE
+!> \param sepi Atomic parameters of first atom
+!> \param sepj Atomic parameters of second atom
+!> \param rijv Coordinate vector i -> j
+!> \param enuc nuclear-nuclear repulsion term.
+!> \param itype ...
+!> \param se_int_control input parameters that control the calculation of SE
 !>                           integrals (shortrange, R3 residual, screening type)
-!>
-!>    on output     enuc= nuclear-nuclear repulsion term.
-!>
+!> \param se_taper ...
+!> \param error ...
 !> \author Teodoro Laino [tlaino] - 05.2009
 ! *****************************************************************************
   SUBROUTINE corecore_el_num(sepi,sepj,rijv,enuc,itype,se_int_control,se_taper,error)
@@ -746,16 +749,17 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Calculates the SSSS integrals (main driver)
-!> \param on input rij    = interatomic distance
-!>                sepi    = paramters of atom i
-!>                sepj    = paramters of atom j
-!>                itype   = type of semi_empirical model
-!>                          extension to the original routine to compute qm/mm integrals
-!>       se_int_control   = input parameters that control the calculation of SE
-!>                          integrals (shortrange, R3 residual, screening type)
-!>
-!>      on output ssss    = derivative of (ssss) integral
+!> \param sepi paramters of atom i
+!> \param sepj paramters of atom j
+!> \param rij interatomic distance
+!> \param ssss derivative of (ssss) integral
 !>                          derivatives are intended w.r.t. rij
+!> \param itype type of semi_empirical model
+!>                          extension to the original routine to compute qm/mm integrals
+!> \param se_taper ...
+!> \param se_int_control input parameters that control the calculation of SE
+!>                          integrals (shortrange, R3 residual, screening type)
+!> \param error ...
 !> \par History
 !>      03.2008 created [tlaino]
 !> \author Teodoro Laino - Zurich University
@@ -804,16 +808,17 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Calculates the nuclear attraction integrals CORE (main driver)
-!> \param on input rij    = interatomic distance
-!>                sepi    = paramters of atom i
-!>                sepj    = paramters of atom j
-!>                itype   = type of semi_empirical model
-!>                          extension to the original routine to compute qm/mm integrals
-!>       se_int_control   = input parameters that control the calculation of SE
-!>                          integrals (shortrange, R3 residual, screening type)
-!>
-!>      on output core    = derivative of 4 X 2 array of electron-core attraction integrals
+!> \param sepi paramters of atom i
+!> \param sepj paramters of atom j
+!> \param rij interatomic distance
+!> \param core derivative of 4 X 2 array of electron-core attraction integrals
 !>                          derivatives are intended w.r.t. rij
+!> \param itype type of semi_empirical model
+!>                          extension to the original routine to compute qm/mm integrals
+!> \param se_taper ...
+!> \param se_int_control input parameters that control the calculation of SE
+!>                          integrals (shortrange, R3 residual, screening type)
+!> \param error ...
 !> \par History
 !>      03.2008 created [tlaino]
 !> \author Teodoro Laino - Zurich University
@@ -871,31 +876,23 @@ CONTAINS
   END SUBROUTINE core_nucint_num
 
 ! *****************************************************************************
-!> \brief Calculates the nuclear attraction integrals for sp basis
-!> \param on input rij   = interatomic distance
-!>                sepi   = paramters of atom i
-!>                sepj   = paramters of atom j
-!>                itype  = type of semi_empirical model
-!>                         extension to the original routine to compute qm/mm integrals
-!>      se_int_control   = input parameters that control the calculation of SE
-!>                         integrals (shortrange, R3 residual, screening type)
-!>      se_int_screen    = contains information for computing the screened
-!>                         integrals KDSO-D
-!>
-!>      on output core   = 4 X 2 array of electron-core attraction integrals
-!>                ssss   = (ssss) integral
-!>                          derivatives are intended w.r.t. rij
-!>         The storage of the nuclear attraction integrals  core(kl/ij) iS
-!>         (SS/)=1,   (SP/)=2,   (PP/)=3,   (P+P+/)=4,   (SD/)=5,
-!>         (DP/)=6,   (DD/)=7,   (D+P+)=8,  (D+D+/)=9,   (D#D#)=10
-!>
-!>         where ij=1 if the orbitals centred on atom i,  =2 if on atom j.
+!> \brief ...
+!> \param sepi ...
+!> \param sepj ...
+!> \param rij ...
+!> \param ssss ...
+!> \param core ...
+!> \param itype ...
+!> \param se_int_control ...
+!> \param se_int_screen ...
+!> \param error ...
 !> \par History
 !>      Teodoro Laino (04.2008) [tlaino] - University of Zurich : new driver
 !>                    for computing integrals
 !>      Teodoro Laino (04.2008) [tlaino] - Totally rewritten: nothing to do with
 !>                    the old version
 ! *****************************************************************************
+
   SUBROUTINE nucint_sp_num( sepi, sepj, rij, ssss, core, itype, se_int_control,&
        se_int_screen, error)
     TYPE(semi_empirical_type), POINTER       :: sepi, sepj
@@ -964,23 +961,23 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Calculates the nuclear attraction integrals involving d orbitals
-!> \param on input rij   = interatomic distance
-!>                sepi   = paramters of atom i
-!>                sepj   = paramters of atom j
-!>                itype  = type of semi_empirical model
-!>                         extension to the original routine to compute qm/mm integrals
-!>      se_int_control   = input parameters that control the calculation of SE
-!>                         integrals (shortrange, R3 residual, screening type)
-!>      se_int_screen    = contains information for computing the screened
-!>                         integrals KDSO-D
-!>
-!>      on output core   = 4 X 2 array of electron-core attraction integrals
+!> \param sepi paramters of atom i
+!> \param sepj paramters of atom j
+!> \param rij interatomic distance
+!> \param core 4 X 2 array of electron-core attraction integrals
 !>
 !>         The storage of the nuclear attraction integrals  core(kl/ij) iS
 !>         (SS/)=1,   (SP/)=2,   (PP/)=3,   (P+P+/)=4,   (SD/)=5,
 !>         (DP/)=6,   (DD/)=7,   (D+P+)=8,  (D+D+/)=9,   (D#D#)=10
 !>
 !>         where ij=1 if the orbitals centred on atom i,  =2 if on atom j.
+!> \param itype type of semi_empirical model
+!>                         extension to the original routine to compute qm/mm integrals
+!> \param se_int_control input parameters that control the calculation of SE
+!>                         integrals (shortrange, R3 residual, screening type)
+!> \param se_int_screen contains information for computing the screened
+!>                         integrals KDSO-D
+!> \param error ...
 !> \author
 !>      Teodoro Laino (03.2008) [tlaino] - University of Zurich
 ! *****************************************************************************
@@ -1051,6 +1048,14 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Numerical Derivatives for rotint
+!> \param sepi ...
+!> \param sepj ...
+!> \param r ...
+!> \param dw ...
+!> \param delta ...
+!> \param se_int_control ...
+!> \param se_taper ...
+!> \param error ...
 ! *****************************************************************************
   SUBROUTINE drotint_num(sepi,sepj,r,dw,delta,se_int_control,se_taper, error)
     TYPE(semi_empirical_type), POINTER       :: sepi, sepj
@@ -1087,6 +1092,16 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Numerical Derivatives for rotnuc
+!> \param sepi ...
+!> \param sepj ...
+!> \param r ...
+!> \param de1b ...
+!> \param de2a ...
+!> \param itype ...
+!> \param delta ...
+!> \param se_int_control ...
+!> \param se_taper ...
+!> \param error ...
 ! *****************************************************************************
   SUBROUTINE drotnuc_num(sepi,sepj,r,de1b,de2a,itype,delta,se_int_control,se_taper,error)
     TYPE(semi_empirical_type), POINTER       :: sepi, sepj
@@ -1133,6 +1148,15 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Numerical Derivatives for corecore
+!> \param sepi ...
+!> \param sepj ...
+!> \param r ...
+!> \param denuc ...
+!> \param itype ...
+!> \param delta ...
+!> \param se_int_control ...
+!> \param se_taper ...
+!> \param error ...
 ! *****************************************************************************
   SUBROUTINE dcorecore_num(sepi,sepj,r,denuc,itype,delta,se_int_control,se_taper,error)
     TYPE(semi_empirical_type), POINTER       :: sepi, sepj
@@ -1164,6 +1188,15 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Numerical Derivatives for corecore
+!> \param sepi ...
+!> \param sepj ...
+!> \param r ...
+!> \param denuc ...
+!> \param itype ...
+!> \param delta ...
+!> \param se_int_control ...
+!> \param se_taper ...
+!> \param error ...
 ! *****************************************************************************
   SUBROUTINE dcorecore_el_num(sepi,sepj,r,denuc,itype,delta,se_int_control,se_taper,error)
     TYPE(semi_empirical_type), POINTER       :: sepi, sepj

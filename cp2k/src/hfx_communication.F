@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2013  CP2K developers group                          !
+!   Copyright (C) 2000 - 2014  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -13,11 +13,11 @@ MODULE hfx_communication
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind_set
   USE cp_dbcsr_interface,              ONLY: cp_dbcsr_get_block_p,&
+                                             cp_dbcsr_iterator,&
                                              cp_dbcsr_iterator_blocks_left,&
                                              cp_dbcsr_iterator_next_block,&
                                              cp_dbcsr_iterator_start,&
-                                             cp_dbcsr_iterator_stop
-  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_iterator,&
+                                             cp_dbcsr_iterator_stop,&
                                              cp_dbcsr_p_type,&
                                              cp_dbcsr_type
   USE cp_para_types,                   ONLY: cp_para_env_type
@@ -27,24 +27,22 @@ MODULE hfx_communication
                                              hfx_type
   USE kinds,                           ONLY: dp,&
                                              int_8
-  USE mathconstants
   USE message_passing,                 ONLY: mp_allgather,&
                                              mp_isendrecv,&
                                              mp_max,&
                                              mp_sync,&
                                              mp_waitall
-  USE orbital_pointers
   USE particle_types,                  ONLY: particle_type
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
   USE timings,                         ONLY: timeset,&
                                              timestop
-#include "cp_common_uses.h"
+#include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
   PRIVATE
 
-  PUBLIC get_full_density,&
+  PUBLIC :: get_full_density,&
          distribute_ks_matrix,&
          scale_and_add_fock_to_ks_matrix,&
          get_atomic_block_maps
@@ -56,28 +54,31 @@ MODULE hfx_communication
 
 ! *****************************************************************************
 !> \brief - Collects full density matrix from all CPUs
-!> \param para_en v
+!> \param para_env ...
 !> \param full_density The full Density matrix
 !> \param rho Distributed density
 !> \param number_of_p_entries Maximal buffer size
-!> \param is_assoc_atomic_block tells us which node owns which atomic pairs
-!> \param particle_se t
-!> \param nato m
-!> \param last_sgf_global helper array for mapping local to global indices
+!> \param block_offset ...
+!> \param natom ...
+!> \param kind_of ...
+!> \param basis_parameter ...
+!> \param get_max_vals_spin ...
+!> \param rho_beta ...
+!> \param antisymmetric ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
+!> \par History
+!>      11.2007 created [Manuel Guidon]
+!> \author Manuel Guidon
 !> \note
 !>      - Communication with left/right node only
 !>        added a mp_sync before and after the ring of isendrecv. This *speed up* the
 !>        communication, and might protect against idle neighbors flooding a busy node
 !>        with messages [Joost]
-!> \par History
-!>      11.2007 created [Manuel Guidon]
-!> \author Manuel Guidon
 ! *****************************************************************************
   SUBROUTINE get_full_density(para_env, full_density, rho, number_of_p_entries, &
-                              block_offset, natom,  kind_of, &
-                              basis_parameter, get_max_vals_spin, rho_beta, error)
+                              block_offset, natom,  kind_of, basis_parameter,&
+                              get_max_vals_spin, rho_beta, antisymmetric, error)
 
     TYPE(cp_para_env_type), POINTER          :: para_env
     REAL(dp), DIMENSION(:), POINTER          :: full_density
@@ -90,6 +91,7 @@ MODULE hfx_communication
       POINTER                                :: basis_parameter
     LOGICAL, INTENT(IN)                      :: get_max_vals_spin
     TYPE(cp_dbcsr_type), OPTIONAL, POINTER   :: rho_beta
+    LOGICAL, INTENT(IN)                      :: antisymmetric
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'get_full_density', &
@@ -100,6 +102,7 @@ MODULE hfx_communication
       req(2), source, source_cpu
     INTEGER, DIMENSION(:), POINTER           :: nsgfa, nsgfb
     LOGICAL                                  :: failure, found
+    REAL(dp)                                 :: symmfac
     REAL(dp), DIMENSION(:), POINTER          :: recbuffer, sendbuffer, &
                                                 swapbuffer
     REAL(dp), DIMENSION(:, :), POINTER       :: sparse_block, &
@@ -117,8 +120,11 @@ MODULE hfx_communication
     i=1
     CALL cp_dbcsr_iterator_start(iter, rho, shared=.FALSE.)
     DO WHILE (cp_dbcsr_iterator_blocks_left (iter))
-       CALL cp_dbcsr_iterator_next_block(iter, iatom, jatom, sparse_block, blk)
-
+      CALL cp_dbcsr_iterator_next_block(iter, iatom, jatom, sparse_block, blk)
+      ! the resulting vector will eb only the upper triangle.
+      ! in case of antisymmetry take care to change signs if a lower block gets copied
+      symmfac=1.0_dp
+      IF(antisymmetric.AND.iatom>jatom)symmfac=-1.0_dp
       ikind = kind_of(iatom)
       nseta = basis_parameter(ikind)%nset
       nsgfa => basis_parameter(ikind)%nsgf
@@ -149,7 +155,7 @@ MODULE hfx_communication
             DO jset = 1,nsetb
               DO pa1 = pa+1, pa + nsgfa(iset)
                 DO pb1 = pb+1, pb + nsgfb(jset)
-                  sendbuffer(i) = sparse_block(pa1,pb1)
+                  sendbuffer(i) = sparse_block(pa1,pb1)*symmfac
                   i = i + 1
                 END DO
               END DO
@@ -193,25 +199,27 @@ MODULE hfx_communication
 
 ! *****************************************************************************
 !> \brief - Distributes the local full Kohn-Sham matrix to all CPUS
-!> \param para_en v
+!> \param para_env ...
 !> \param full_ks The full Kohn-Sham matrix
 !> \param ks_matrix Distributed Kohn-Sham matrix
 !> \param number_of_p_entries Maximal buffer size
-!> \param is_assoc_atomic_block tells us which node owns which atomic pairs
-!> \param particle_se t
-!> \param nato m
-!> \param last_sgf_global helper array for mapping local to global indices
+!> \param block_offset ...
+!> \param natom ...
+!> \param kind_of ...
+!> \param basis_parameter ...
+!> \param off_diag_fac ...
+!> \param diag_fac ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
-!> \note
-!>      - Communication with left/right node only
 !> \par History
 !>      11.2007 created [Manuel Guidon]
 !> \author Manuel Guidon
+!> \note
+!>      - Communication with left/right node only
 ! *****************************************************************************
   SUBROUTINE distribute_ks_matrix(para_env, full_ks, ks_matrix, number_of_p_entries, &
                                   block_offset, natom, kind_of, basis_parameter, &
-                                  off_diag_fac, error)
+                                  off_diag_fac, diag_fac, error)
 
     TYPE(cp_para_env_type), POINTER          :: para_env
     REAL(dp), DIMENSION(:)                   :: full_ks
@@ -222,7 +230,7 @@ MODULE hfx_communication
     INTEGER                                  :: kind_of(*)
     TYPE(hfx_basis_type), DIMENSION(:), &
       POINTER                                :: basis_parameter
-    REAL(dp), INTENT(IN), OPTIONAL           :: off_diag_fac
+    REAL(dp), INTENT(IN), OPTIONAL           :: off_diag_fac, diag_fac
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'distribute_ks_matrix', &
@@ -233,14 +241,15 @@ MODULE hfx_communication
       pa1, pb, pb1, req(2), source
     INTEGER, DIMENSION(:), POINTER           :: nsgfa, nsgfb
     LOGICAL                                  :: failure
-    REAL(dp)                                 :: my_fac
+    REAL(dp)                                 :: my_fac, myd_fac
     REAL(dp), DIMENSION(:), POINTER          :: recbuffer, sendbuffer, &
                                                 swapbuffer
     REAL(dp), DIMENSION(:, :), POINTER       :: sparse_block
     TYPE(cp_dbcsr_iterator)                  :: iter
 
-    my_fac = 1.0_dp
+    my_fac = 1.0_dp; myd_fac=1.0_dp
     IF( PRESENT( off_diag_fac ) ) my_fac = off_diag_fac
+    IF( PRESENT( diag_fac ) ) myd_fac = diag_fac
 
     ALLOCATE(sendbuffer(number_of_p_entries), STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
@@ -292,7 +301,7 @@ MODULE hfx_communication
             DO pa1 = pa+1,pa + nsgfa(iset)
               DO pb1 = pb+1,pb + nsgfb(jset)
                 IF(iatom == jatom .AND. pa1==pb1) THEN
-                  sparse_block(pa1,pb1) = sendbuffer(i) + sparse_block(pa1,pb1)
+                  sparse_block(pa1,pb1) = sendbuffer(i)*myd_fac + sparse_block(pa1,pb1)
                 ELSE
                   sparse_block(pa1,pb1) = sendbuffer(i)*my_fac + sparse_block(pa1,pb1)
                 END IF
@@ -315,21 +324,18 @@ MODULE hfx_communication
 !> \brief - Distributes the local full Kohn-Sham matrix to all CPUS. Is called in
 !>        case of adiabatic rescaling. This is just a refactored version of
 !>        distribute_ks_matrix
-!> \param para_en v
-!> \param full_ks The full Kohn-Sham matrix
+!> \param para_env ...
+!> \param qs_env ...
 !> \param ks_matrix Distributed Kohn-Sham matrix
-!> \param number_of_p_entries Maximal buffer size
-!> \param is_assoc_atomic_block tells us which node owns which atomic pairs
-!> \param particle_se t
-!> \param nato m
-!> \param last_sgf_global helper array for mapping local to global indices
+!> \param irep ...
+!> \param scaling_factor ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
-!> \note
-!>      - Communication with left/right node only
 !> \par History
 !>      11.2007 created [Manuel Guidon]
 !> \author Manuel Guidon
+!> \note
+!>      - Communication with left/right node only
 ! *****************************************************************************
   SUBROUTINE scale_and_add_fock_to_ks_matrix(para_env, qs_env, ks_matrix, irep ,&
                                              scaling_factor, error)
@@ -417,7 +423,8 @@ MODULE hfx_communication
 !>        a symmetric upper triangle NxN matrix
 !>        The compiler should inline this function, therefore it appears in
 !>        several modules
-!> \param i,j 2d index
+!> \param i 2d index
+!> \param j 2d index
 !> \param N matrix size
 !> \par History
 !>      03.2009 created [Manuel Guidon]
@@ -437,14 +444,25 @@ MODULE hfx_communication
 
 ! *****************************************************************************
 !> \brief create a several maps array that reflects the ks matrix sparsity
-!> \param para_en v
+!> \param matrix ...
+!> \param basis_parameter ...
+!> \param kind_of ...
+!> \param is_assoc_atomic_block ...
+!> \param number_of_p_entries ...
+!> \param para_env ...
+!> \param atomic_block_offset ...
+!> \param set_offset ...
+!> \param block_offset ...
+!> \param map_atoms_to_cpus ...
+!> \param nkind ...
+!> \param error ...
 !> \par History
 !>      11.2007 refactored [Joost VandeVondele]
 !>      07.2009 add new maps
+!> \author Manuel Guidon
 !> \notes
 !>      is_assoc_atomic_block returns the mpi rank + 1 for associated blocks,
 !>      zero for unassiated blocks
-!> \author Manuel Guidon
 ! *****************************************************************************
   SUBROUTINE get_atomic_block_maps(matrix,basis_parameter,kind_of,&
                                    is_assoc_atomic_block,number_of_p_entries,&
@@ -538,6 +556,8 @@ MODULE hfx_communication
 
     DO ibuf=0,number_of_p_blocks*para_env%num_pe*3-3,3
        itask=buffer_out(ibuf+3)
+       ! buffer_out can be 0 if buffer_in contained less elements than the max number of atom pairs
+       ! is_assoc_atomic_block is a map for atom pairs to a processor (assumes symmetry, i,j on the ame as j,i)
        IF (itask.NE.0) THEN
            iatom=buffer_out(ibuf+1)
            jatom=buffer_out(ibuf+2)

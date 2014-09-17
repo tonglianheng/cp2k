@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2013  CP2K developers group                          !
+!   Copyright (C) 2000 - 2014  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -12,7 +12,7 @@ MODULE mixed_energy_types
   USE f77_blas
   USE kinds,                           ONLY: dp
   USE termination,                     ONLY: stop_program
-#include "cp_common_uses.h"
+#include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'mixed_energy_types'
@@ -35,15 +35,16 @@ MODULE mixed_energy_types
 
 ! Public subroutines
   PUBLIC :: allocate_mixed_energy,&
-            deallocate_mixed_energy,&
-            init_mixed_energy
+            deallocate_mixed_energy
 
 CONTAINS
 
 ! *****************************************************************************
 !> \brief   Allocate and/or initialise a mixed energy data structure.
-!> \author  fschiff
+!> \param mixed_energy ...
+!> \param error ...
 !> \date    11.06
+!> \author  fschiff
 !> \version 1.0
 ! *****************************************************************************
   SUBROUTINE allocate_mixed_energy(mixed_energy, error)
@@ -66,8 +67,10 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief   Deallocate a mixed energy data structure.
-!> \author  fschiff
+!> \param mixed_energy ...
+!> \param error ...
 !> \date    11.06
+!> \author  fschiff
 !> \version 1.0
 ! *****************************************************************************
   SUBROUTINE deallocate_mixed_energy(mixed_energy, error)
@@ -87,6 +90,9 @@ CONTAINS
     END IF
   END SUBROUTINE deallocate_mixed_energy
 
+! *****************************************************************************
+!> \brief ...
+!> \param mixed_energy ...
 ! *****************************************************************************
   SUBROUTINE init_mixed_energy(mixed_energy)
     TYPE(mixed_energy_type), POINTER         :: mixed_energy

@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2013  CP2K developers group                          !
+!   Copyright (C) 2000 - 2014  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -14,7 +14,7 @@ MODULE qs_ks_types
                                              pw_pool_release,&
                                              pw_pool_type
   USE pw_types,                        ONLY: pw_p_type
-#include "cp_common_uses.h"
+#include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
   PRIVATE
@@ -22,7 +22,7 @@ MODULE qs_ks_types
   LOGICAL, PRIVATE, PARAMETER :: debug_this_module=.TRUE.
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_ks_types'
 
-  PUBLIC :: qs_ks_env_type, qs_ks_env_p_type
+  PUBLIC :: qs_ks_env_type
   PUBLIC :: qs_ks_release, qs_ks_retain
 
 ! *****************************************************************************

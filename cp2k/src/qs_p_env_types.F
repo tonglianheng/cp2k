@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2013  CP2K developers group                          !
+!   Copyright (C) 2000 - 2014  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -10,8 +10,8 @@
 !> \author Fawzi Mohamed
 ! *****************************************************************************
 MODULE qs_p_env_types
-  USE cp_dbcsr_operations,             ONLY: cp_dbcsr_deallocate_matrix_set
-  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_p_type
+  USE cp_dbcsr_interface,              ONLY: cp_dbcsr_deallocate_matrix_set,&
+                                             cp_dbcsr_p_type
   USE cp_fm_types,                     ONLY: cp_fm_p_type
   USE cp_fm_vect,                      ONLY: cp_fm_vect_dealloc,&
                                              cp_fm_vect_write
@@ -28,12 +28,12 @@ MODULE qs_p_env_types
                                              local_rho_type
   USE qs_rho_types,                    ONLY: qs_rho_release,&
                                              qs_rho_type
-#include "cp_common_uses.h"
+#include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
   PRIVATE
-  PUBLIC :: qs_p_env_type, qs_p_env_p_type
-  PUBLIC :: p_env_retain, p_env_release, p_env_write
+  PUBLIC :: qs_p_env_type
+  PUBLIC :: p_env_release
 
   LOGICAL, PRIVATE, PARAMETER :: debug_this_module=.TRUE.
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_p_env_types'
@@ -210,11 +210,11 @@ END SUBROUTINE p_env_retain
 !>        (defaults to false, i.e. global)
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
-!> \note
-!>      remove all iostat checks??
 !> \par History
 !>      12.2002 created [fawzi]
 !> \author fawzi
+!> \note
+!>      remove all iostat checks??
 ! *****************************************************************************
    SUBROUTINE p_env_write(p_env, unit_nr, long_description, local, error)
     TYPE(qs_p_env_type), POINTER             :: p_env

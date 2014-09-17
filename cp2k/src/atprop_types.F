@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2013  CP2K developers group                          !
+!   Copyright (C) 2000 - 2014  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -12,16 +12,15 @@
 MODULE atprop_types
   USE f77_blas
   USE kinds,                           ONLY: dp
-#include "cp_common_uses.h"
+#include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
   PRIVATE
-#include "f77_int.h"
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'atprop_types'
 
   PUBLIC :: atprop_type, atprop_create, atprop_release, atprop_init
-  PUBLIC :: atprop_array_init, atprop_array_release, atprop_array_add
+  PUBLIC :: atprop_array_init, atprop_array_add
 
 ! *****************************************************************************
 !> \brief type for the atomic properties
@@ -43,6 +42,10 @@ END TYPE atprop_type
 
 CONTAINS
 
+! *****************************************************************************
+!> \brief ...
+!> \param atprop_env ...
+!> \param error ...
 ! *****************************************************************************
   SUBROUTINE atprop_create(atprop_env,error)
     TYPE(atprop_type), POINTER               :: atprop_env
@@ -66,6 +69,12 @@ CONTAINS
 
   END SUBROUTINE atprop_create
 
+! *****************************************************************************
+!> \brief ...
+!> \param atprop_env ...
+!> \param natom ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE atprop_init(atprop_env,natom,error)
     TYPE(atprop_type), POINTER               :: atprop_env
     INTEGER, INTENT(IN)                      :: natom
@@ -103,6 +112,12 @@ CONTAINS
 
   END SUBROUTINE atprop_init
 
+! *****************************************************************************
+!> \brief ...
+!> \param atarray ...
+!> \param natom ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE atprop_array_init(atarray,natom,error)
     REAL(KIND=dp), DIMENSION(:), POINTER     :: atarray
     INTEGER, INTENT(IN)                      :: natom
@@ -126,6 +141,11 @@ CONTAINS
 
   END SUBROUTINE atprop_array_init
 
+! *****************************************************************************
+!> \brief ...
+!> \param atarray ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE atprop_array_release(atarray,error)
     REAL(KIND=dp), DIMENSION(:), POINTER     :: atarray
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -146,6 +166,12 @@ CONTAINS
 
   END SUBROUTINE atprop_array_release
 
+! *****************************************************************************
+!> \brief ...
+!> \param array_a ...
+!> \param array_b ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE atprop_array_add(array_a,array_b,error)
     REAL(KIND=dp), DIMENSION(:), POINTER     :: array_a, array_b
     TYPE(cp_error_type), INTENT(inout)       :: error

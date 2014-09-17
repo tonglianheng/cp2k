@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2013  CP2K developers group                          !
+!   Copyright (C) 2000 - 2014  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -28,7 +28,7 @@ MODULE input_optimize_basis
                                              real_t
   USE kinds,                           ONLY: dp
   USE string_utilities,                ONLY: s2a
-#include "cp_common_uses.h"
+#include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
   PRIVATE
@@ -40,6 +40,8 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief creates the optimize_basis section
+!> \param section ...
+!> \param error ...
 !> \author Florian Schiffmann
 ! *****************************************************************************
    SUBROUTINE create_optimize_basis_section(section,error)
@@ -156,6 +158,11 @@ CONTAINS
 
    END SUBROUTINE create_optimize_basis_section
 
+! *****************************************************************************
+!> \brief ...
+!> \param section ...
+!> \param error ...
+! *****************************************************************************
    SUBROUTINE create_fit_kinds_section(section,error)
     TYPE(section_type), POINTER              :: section
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -242,6 +249,11 @@ CONTAINS
     
    END SUBROUTINE create_fit_kinds_section
 
+! *****************************************************************************
+!> \brief ...
+!> \param section ...
+!> \param error ...
+! *****************************************************************************
    SUBROUTINE create_derived_sets_section(section,error)
     TYPE(section_type), POINTER              :: section
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -284,6 +296,11 @@ CONTAINS
 
    END SUBROUTINE create_derived_sets_section
 
+! *****************************************************************************
+!> \brief ...
+!> \param section ...
+!> \param error ...
+! *****************************************************************************
    SUBROUTINE create_constrain_exp_section(section,error)
     TYPE(section_type), POINTER              :: section
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -325,6 +342,11 @@ CONTAINS
    END SUBROUTINE create_constrain_exp_section
     
 
+! *****************************************************************************
+!> \brief ...
+!> \param section ...
+!> \param error ...
+! *****************************************************************************
    SUBROUTINE create_training_section(section,error)
     TYPE(section_type), POINTER              :: section
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -360,6 +382,11 @@ CONTAINS
     
    END SUBROUTINE create_training_section
   
+! *****************************************************************************
+!> \brief ...
+!> \param section ...
+!> \param error ...
+! *****************************************************************************
    SUBROUTINE create_powell_section(section,error)
     TYPE(section_type), POINTER              :: section
     TYPE(cp_error_type), INTENT(inout)       :: error

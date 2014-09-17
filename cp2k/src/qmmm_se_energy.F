@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2013  CP2K developers group                          !
+!   Copyright (C) 2000 - 2014  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -11,16 +11,16 @@
 MODULE qmmm_se_energy
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind
-  USE cell_types,                      ONLY: cell_type,&
+  USE cell_methods,                    ONLY: cell_type,&
                                              pbc
   USE cp_control_types,                ONLY: dft_control_type
-  USE cp_dbcsr_interface,              ONLY: cp_dbcsr_copy,&
+  USE cp_dbcsr_interface,              ONLY: cp_dbcsr_allocate_matrix_set,&
+                                             cp_dbcsr_copy,&
                                              cp_dbcsr_get_block_p,&
                                              cp_dbcsr_init,&
+                                             cp_dbcsr_p_type,&
                                              cp_dbcsr_set
-  USE cp_dbcsr_operations,             ONLY: cp_dbcsr_allocate_matrix_set
   USE cp_dbcsr_output,                 ONLY: cp_dbcsr_write_sparse_matrix
-  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_p_type
   USE cp_output_handling,              ONLY: cp_p_file,&
                                              cp_print_key_finished_output,&
                                              cp_print_key_should_output,&
@@ -42,6 +42,8 @@ MODULE qmmm_se_energy
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type,&
                                              set_qs_env
+  USE qs_kind_types,                   ONLY: get_qs_kind,&
+                                             qs_kind_type
   USE qs_ks_qmmm_types,                ONLY: qs_ks_qmmm_env_type
   USE qs_neighbor_lists,               ONLY: build_qs_neighbor_lists
   USE qs_overlap,                      ONLY: build_overlap_matrix
@@ -60,7 +62,7 @@ MODULE qmmm_se_energy
   USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
-#include "cp_common_uses.h"
+#include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
 
@@ -74,6 +76,12 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Constructs the 1-el semi-empirical hamiltonian
+!> \param qs_env ...
+!> \param qmmm_env ...
+!> \param particles_mm ...
+!> \param mm_cell ...
+!> \param para_env ...
+!> \param error ...
 !> \author Teodoro Laino 04.2007 [created]
 ! *****************************************************************************
   SUBROUTINE build_se_qmmm_matrix(qs_env,qmmm_env,particles_mm,mm_cell,para_env,error)
@@ -98,13 +106,14 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: h_block_a
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
-    TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: matrix_s
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particles_qm
+    TYPE(qs_kind_type), DIMENSION(:), &
+      POINTER                                :: qs_kind_set
     TYPE(qs_ks_qmmm_env_type), POINTER       :: ks_qmmm_env_loc
     TYPE(se_int_control_type)                :: se_int_control
     TYPE(se_taper_type), POINTER             :: se_taper
@@ -115,7 +124,7 @@ CONTAINS
     NULLIFY(logger)
     logger => cp_error_get_logger(error)
 
-    NULLIFY (matrix_s, atomic_kind_set)
+    NULLIFY (matrix_s, atomic_kind_set, qs_kind_set)
     NULLIFY (se_kind_a, se_kind_mm, se_taper, particles_qm)
     CALL build_qs_neighbor_lists(qs_env,para_env,force_env_section=qs_env%input,error=error)
     CALL get_qs_env(qs_env=qs_env, matrix_s=matrix_s, error=error)
@@ -130,6 +139,7 @@ CONTAINS
     CALL get_qs_env(qs_env=qs_env,&
                     se_taper=se_taper,&
                     atomic_kind_set=atomic_kind_set,&
+                    qs_kind_set=qs_kind_set,&
                     ks_qmmm_env=ks_qmmm_env_loc,&
                     dft_control=dft_control,&
                     particle_set=particles_qm,&
@@ -170,11 +180,8 @@ CONTAINS
        nkind    = SIZE(atomic_kind_set)
        enuclear = 0.0_dp
        Kinds: DO ikind=1,nkind
-          atomic_kind => atomic_kind_set(ikind)
-          CALL get_atomic_kind(atomic_kind=atomic_kind,&
-                               natom=natom,&
-                               se_parameter=se_kind_a,&
-                               atom_list=list)
+          CALL get_atomic_kind(atomic_kind_set(ikind), natom=natom, atom_list=list)
+          CALL get_qs_kind(qs_kind_set(ikind), se_parameter=se_kind_a)
           CALL get_se_param(se_kind_a,&
                             defined=defined,&
                             natorb=natorb_a)
@@ -256,6 +263,25 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Low Level : Constructs the 1-el semi-empirical hamiltonian block
+!> \param h_block_a ...
+!> \param se_kind_a ...
+!> \param se_kind_mm ...
+!> \param potentials ...
+!> \param particles_mm ...
+!> \param mm_charges ...
+!> \param mm_el_pot_radius ...
+!> \param mm_atom_index ...
+!> \param num_mm_atoms ...
+!> \param mm_cell ...
+!> \param IndQM ...
+!> \param enuclear ...
+!> \param itype ...
+!> \param se_taper ...
+!> \param se_int_control ...
+!> \param anag ...
+!> \param qmmm_spherical_cutoff ...
+!> \param particles_qm ...
+!> \param error ...
 !> \author Teodoro Laino 04.2007 [created]
 ! *****************************************************************************
   SUBROUTINE build_se_qmmm_matrix_low(h_block_a, se_kind_a, se_kind_mm, potentials,&

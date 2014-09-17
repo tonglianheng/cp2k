@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2013  CP2K developers group                          !
+!   Copyright (C) 2000 - 2014  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -40,7 +40,7 @@ MODULE topology_connectivity_util
                                              connectivity_info_type,&
                                              topology_parameters_type
   USE util,                            ONLY: sort
-#include "cp_common_uses.h"
+#include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
 
@@ -53,8 +53,13 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief topology connectivity pack
-!> \History 11/2009 (Louis Vanduyhuys): added Out of Plane bends based on
-!>                                      impropers in topology
+!> \param molecule_kind_set ...
+!> \param molecule_set ...
+!> \param topology ...
+!> \param subsys_section ...
+!> \param error ...
+!> \par History 11/2009 (Louis Vanduyhuys): added Out of Plane bends based on
+!>                                      impropers in topology 
 ! *****************************************************************************
   SUBROUTINE topology_connectivity_pack(molecule_kind_set,molecule_set,&
        topology,subsys_section,error)
@@ -1290,6 +1295,12 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief used to achieve linear scaling in the connectivity_pack
+!> \param nmol_type ...
+!> \param map_vars ...
+!> \param map_var_mol ...
+!> \param bnd_type ...
+!> \param nvar1 ...
+!> \param error ...
 !> \par History
 !>      Teodoro Laino
 ! *****************************************************************************
@@ -1333,6 +1344,9 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief   Handles the multiple unit cell option for the connectivity
+!> \param topology ...
+!> \param subsys_section ...
+!> \param error ...
 !> \author  Teodoro Laino [tlaino] - 06.2009
 ! *****************************************************************************
   SUBROUTINE topology_conn_multiple(topology, subsys_section, error)

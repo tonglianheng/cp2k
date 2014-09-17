@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2013  CP2K developers group                          !
+!   Copyright (C) 2000 - 2014  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -34,10 +34,8 @@
 ! *****************************************************************************
 MODULE [el_typename]_list_types
   USE f77_blas
-  USE kinds, ONLY: dp
-  USE timings, ONLY: timeset, timestop
   [USE]
-#include "cp_common_uses.h"
+#include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
   PRIVATE
@@ -46,9 +44,10 @@ MODULE [el_typename]_list_types
   CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN='[el_typename]_list_types'
   INTEGER, PRIVATE, SAVE :: last_[el_typename]_list_id=0
 
-  PUBLIC :: [el_typename]_list_type, [el_typename]_list_p_type
-  PUBLIC :: [el_typename]_list_create, [el_typename]_list_retain,&
-       [el_typename]_list_release
+  !API
+  PUBLIC :: [el_typename]_list_type, [el_typename]_list_p_type,&
+            [el_typename]_list_create, [el_typename]_list_retain,&
+            [el_typename]_list_release
 
 !***
 

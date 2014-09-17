@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2013  CP2K developers group                          !
+!   Copyright (C) 2000 - 2014  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -36,7 +36,7 @@ MODULE particle_list_types
   USE f77_blas
   USE particle_types,                  ONLY: deallocate_particle_set,&
                                              particle_type
-#include "cp_common_uses.h"
+#include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
   PRIVATE
@@ -45,9 +45,10 @@ MODULE particle_list_types
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'particle_list_types'
   INTEGER, PRIVATE, SAVE :: last_particle_list_id=0
 
-  PUBLIC :: particle_list_type, particle_list_p_type
-  PUBLIC :: particle_list_create, particle_list_retain,&
-       particle_list_release
+  !API
+  PUBLIC :: particle_list_type, particle_list_p_type,&
+            particle_list_create, particle_list_retain,&
+            particle_list_release
 
 !***
 

@@ -1,13 +1,11 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2013  CP2K developers group                          !
+!   Copyright (C) 2000 - 2014  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 ! *****************************************************************************
 MODULE  hartree_local_methods
-
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
-                                             get_atomic_kind,&
-                                             get_atomic_kind_set
+                                             get_atomic_kind
   USE atprop_types,                    ONLY: atprop_array_init
   USE basis_set_types,                 ONLY: get_gto_basis_set,&
                                              gto_basis_set_type
@@ -18,8 +16,7 @@ MODULE  hartree_local_methods
                                              ecoul_1center_type,&
                                              hartree_local_type,&
                                              set_ecoul_1c
-  USE input_constants,                 ONLY: tddfpt_singlet,&
-                                             use_periodic
+  USE input_constants,                 ONLY: tddfpt_singlet
   USE kinds,                           ONLY: dp
   USE mathconstants,                   ONLY: fourpi,&
                                              pi
@@ -28,13 +25,17 @@ MODULE  hartree_local_methods
                                              nsoset
   USE pw_env_types,                    ONLY: pw_env_get,&
                                              pw_env_type
-  USE pw_poisson_types,                ONLY: pw_poisson_type
+  USE pw_poisson_types,                ONLY: pw_poisson_periodic,&
+                                             pw_poisson_type
   USE qs_charges_types,                ONLY: qs_charges_type
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
   USE qs_grid_atom,                    ONLY: grid_atom_type
   USE qs_harmonics_atom,               ONLY: get_none0_cg_list,&
                                              harmonics_atom_type
+  USE qs_kind_types,                   ONLY: get_qs_kind,&
+                                             get_qs_kind_set,&
+                                             qs_kind_type
   USE qs_local_rho_types,              ONLY: rhoz_type
   USE qs_p_env_types,                  ONLY: qs_p_env_type
   USE qs_rho0_types,                   ONLY: get_rho0_mpole,&
@@ -47,7 +48,7 @@ MODULE  hartree_local_methods
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE util,                            ONLY: get_limit
-#include "cp_common_uses.h"
+#include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
 
@@ -61,6 +62,11 @@ MODULE  hartree_local_methods
 
 CONTAINS
 
+! *****************************************************************************
+!> \brief ...
+!> \param hartree_local ...
+!> \param natom ...
+!> \param error ...
 ! *****************************************************************************
   SUBROUTINE init_coulomb_local(hartree_local,natom,error)
 
@@ -89,6 +95,13 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Calculates Hartree potential for hard and soft densities (including
 !>        nuclear charge and compensation charges) using numerical integration
+!> \param vrad_h ...
+!> \param vrad_s ...
+!> \param rrad_h ...
+!> \param rrad_s ...
+!> \param rrad_0 ...
+!> \param rrad_z ...
+!> \param grid_atom ...
 !> \par History
 !>      05.2012 JGH refactoring
 !> \author ??
@@ -193,6 +206,12 @@ CONTAINS
 !>        Hartree potentials are input
 !>        Takes possible background charge into account
 !>        Special case for densities without core charge
+!> \param qs_env ...
+!> \param energy_hartree_1c ...
+!> \param tddft ...
+!> \param do_triplet ...
+!> \param p_env ...
+!> \param error ...
 !> \par History
 !>      05.2012 JGH refactoring
 !> \author ??
@@ -228,7 +247,6 @@ CONTAINS
     REAL(dp), DIMENSION(:, :, :), POINTER    :: my_CG, Qlm_gg
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
-    TYPE(atomic_kind_type), POINTER          :: atom_kind
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(dft_control_type), POINTER          :: dft_control
@@ -240,6 +258,8 @@ CONTAINS
     TYPE(pw_env_type), POINTER               :: pw_env
     TYPE(pw_poisson_type), POINTER           :: poisson_env
     TYPE(qs_charges_type), POINTER           :: qs_charges
+    TYPE(qs_kind_type), DIMENSION(:), &
+      POINTER                                :: qs_kind_set
     TYPE(rho0_atom_type), DIMENSION(:), &
       POINTER                                :: rho0_atom_set
     TYPE(rho0_mpole_type), POINTER           :: rho0_mpole
@@ -252,9 +272,9 @@ CONTAINS
 
     failure = .FALSE.
     NULLIFY(cell,dft_control,para_env,poisson_env,pw_env,qs_charges)
-    NULLIFY(atomic_kind_set, rho_atom_set, rho0_atom_set)
+    NULLIFY(atomic_kind_set, qs_kind_set, rho_atom_set, rho0_atom_set)
     NULLIFY(rho0_mpole,rhoz_set,ecoul_1c)
-    NULLIFY(atom_kind,atom_list,grid_atom,harmonics)
+    NULLIFY(atom_list,grid_atom,harmonics)
     NULLIFY(orb_basis,lmin,lmax,npgf,zet)
     NULLIFY(gsph)
 
@@ -266,10 +286,11 @@ CONTAINS
          cell=cell,dft_control=dft_control,&
          para_env=para_env,&
          atomic_kind_set=atomic_kind_set,&
+         qs_kind_set=qs_kind_set,&
          pw_env=pw_env,qs_charges=qs_charges,error=error)
 
     CALL pw_env_get(pw_env,poisson_env=poisson_env,error=error)
-    my_periodic= (poisson_env%method==use_periodic)
+    my_periodic= (poisson_env%method==pw_poisson_periodic)
 
     back_ch = qs_charges%background*cell%deth
 
@@ -298,7 +319,7 @@ CONTAINS
        ENDIF
     END IF
 
-    CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,maxg_iso_not0=max_iso)
+    CALL get_qs_kind_set(qs_kind_set, maxg_iso_not0=max_iso)
     CALL get_rho0_mpole(rho0_mpole=rho0_mpole,lmax_0=lmax_0)
 
     atenergy=.FALSE.
@@ -316,12 +337,13 @@ CONTAINS
     !   Here starts the loop over all the atoms
     DO ikind = 1,nkind
 
-      atom_kind => atomic_kind_set(ikind)
-      CALL get_atomic_kind(atomic_kind=atom_kind, atom_list=atom_list,&
+      CALL get_atomic_kind(atomic_kind_set(ikind), atom_list=atom_list, natom=nat)
+      CALL get_qs_kind(qs_kind_set(ikind),&
             orb_basis_set=orb_basis,&
-            natom=nat,grid_atom=grid_atom,&
+            grid_atom=grid_atom,&
             harmonics=harmonics,ngrid_rad=nr,&
             max_iso_not0=max_iso_not0,paw_atom=paw_atom)
+
       IF(paw_atom) THEN
 !===========    PAW   ===============
          CALL get_gto_basis_set(gto_basis_set=orb_basis,lmax=lmax,lmin=lmin,&
@@ -461,6 +483,22 @@ CONTAINS
 
 ! *****************************************************************************
 
+! *****************************************************************************
+!> \brief ...
+!> \param rho_atom ...
+!> \param vrrad_0 ...
+!> \param grid_atom ...
+!> \param iatom ...
+!> \param core_charge ...
+!> \param vrrad_z ...
+!> \param Vh1_h ...
+!> \param Vh1_s ...
+!> \param nchan_0 ...
+!> \param nspins ...
+!> \param max_iso_not0 ...
+!> \param bfactor ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE Vh_1c_atom_potential(rho_atom,vrrad_0,&
              grid_atom,iatom,core_charge,vrrad_z,Vh1_h,Vh1_s,&
              nchan_0,nspins,max_iso_not0,bfactor,error)
@@ -515,6 +553,25 @@ CONTAINS
 
 ! *****************************************************************************
 
+! *****************************************************************************
+!> \brief ...
+!> \param energy_hartree_1c ...
+!> \param ecoul_1c ...
+!> \param rho_atom ...
+!> \param rrad_0 ...
+!> \param grid_atom ...
+!> \param iatom ...
+!> \param core_charge ...
+!> \param rrad_z ...
+!> \param Vh1_h ...
+!> \param Vh1_s ...
+!> \param nchan_0 ...
+!> \param nspins ...
+!> \param max_iso_not0 ...
+!> \param atenergy ...
+!> \param ate1c ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE Vh_1c_atom_energy(energy_hartree_1c,ecoul_1c,rho_atom,rrad_0,&
              grid_atom,iatom,core_charge,rrad_z,Vh1_h,Vh1_s,&
              nchan_0,nspins,max_iso_not0,atenergy,ate1c,error)
@@ -585,6 +642,33 @@ CONTAINS
 
 !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
+! *****************************************************************************
+!> \brief ...
+!> \param rho_atom ...
+!> \param aVh1b_hh ...
+!> \param aVh1b_ss ...
+!> \param aVh1b_00 ...
+!> \param Vh1_h ...
+!> \param Vh1_s ...
+!> \param max_iso_not0 ...
+!> \param max_s_harm ...
+!> \param llmax ...
+!> \param cg_list ...
+!> \param cg_n_list ...
+!> \param nset ...
+!> \param npgf ...
+!> \param lmin ...
+!> \param lmax ...
+!> \param nsotot ...
+!> \param maxso ...
+!> \param nspins ...
+!> \param nchan_0 ...
+!> \param gsph ...
+!> \param g0_h_w ...
+!> \param my_CG ...
+!> \param Qlm_gg ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE Vh_1c_atom_integrals(rho_atom,&
              aVh1b_hh,aVh1b_ss,aVh1b_00,Vh1_h,Vh1_s,max_iso_not0,&
              max_s_harm,llmax,cg_list,cg_n_list,&

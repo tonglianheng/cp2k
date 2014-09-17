@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2013  CP2K developers group                          !
+!   Copyright (C) 2000 - 2014  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -13,7 +13,7 @@ MODULE task_list_types
   USE f77_blas
   USE kinds,                           ONLY: dp,&
                                              int_8
-#include "cp_common_uses.h"
+#include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
 
@@ -40,6 +40,8 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief allocates and initialised the components of the task_list_type
+!> \param task_list ...
+!> \param error ...
 !> \par History
 !>      01.2008 created [Joost VandeVondele]
 ! *****************************************************************************
@@ -68,6 +70,8 @@ END SUBROUTINE allocate_task_list
 
 ! *****************************************************************************
 !> \brief deallocates the components and the object itself
+!> \param task_list ...
+!> \param error ...
 !> \par History
 !>      01.2008 created [Joost VandeVondele]
 ! *****************************************************************************

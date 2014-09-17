@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2013  CP2K developers group                          !
+!   Copyright (C) 2000 - 2014  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -30,7 +30,7 @@ MODULE colvar_types
   USE particle_types,                  ONLY: particle_type
   USE rmsd,                            ONLY: rmsd3
   USE string_utilities,                ONLY: uppercase
-#include "cp_common_uses.h"
+#include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
 
@@ -41,41 +41,18 @@ MODULE colvar_types
   PUBLIC :: colvar_type,&
             colvar_p_type,&
             colvar_p_reallocate,&
+            colvar_p_release,&
             colvar_create,&
             colvar_clone,&
             colvar_setup,&
             colvar_release,&
             colvar_counters,&
-            dist_colvar_type,&
-            coord_colvar_type,&
-            torsion_colvar_type,&
-            angle_colvar_type,&
-            plane_distance_colvar_type,&
-            plane_def_type,&
-            plane_plane_angle_colvar_type,&
-            rotation_colvar_type,&
-            dfunct_colvar_type,&
-            qparm_colvar_type,&
-            hydronium_colvar_type,&
-            reaction_path_colvar_type,&
-            combine_colvar_type,&
-            population_colvar_type,&
-            point_type,&
             colvar_check_points,&
             eval_point_der,&
             eval_point_pos,&
             eval_point_mass,&
             post_process_colvar,&
-            diff_colvar,&
-            gyration_colvar_type,&
-            rmsd_colvar_type,&
-            xyz_diag_colvar_type,&
-            xyz_outerdiag_colvar_type,&
-            Wc_colvar_type,&
-            HBP_colvar_type,&
-            ring_puckering_colvar_type,&
-            u_colvar_type,&
-            mindist_colvar_type
+            diff_colvar
 
   INTEGER, PARAMETER, PUBLIC :: no_colvar_id                  = -2,&
                                 dist_colvar_id                =  1,&
@@ -265,6 +242,7 @@ MODULE colvar_types
 ! *****************************************************************************
   TYPE xyz_diag_colvar_type
      LOGICAL                                  :: use_pbc
+     LOGICAL                                  :: use_absolute_position
      INTEGER                                  :: i_atom
      INTEGER                                  :: component
      REAL(KIND=dp), DIMENSION(3)              :: r0
@@ -397,6 +375,7 @@ CONTAINS
 ! *****************************************************************************
 !> \brief initializes a colvar_param type
 !> \param colvar the colvat to initialize
+!> \param colvar_id ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 !> \author alessandro laio and fawzi mohamed
@@ -533,6 +512,7 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Check and setup about the use of geometrical points instead of atoms
 !> \param colvar the colvat to initialize
+!> \param section ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 !> \author Teodoro Laino, [teo] 03.2007
@@ -1149,6 +1129,9 @@ CPSourceFileRef)
 
 ! *****************************************************************************
 !> \brief Gives back the size of an array of integer. If not associated gives back 1
+!> \param colvar ...
+!> \param i ...
+!> \retval my_size ...
 !> \author Teodoro Laino - 03.2007
 ! *****************************************************************************
   FUNCTION colv_size(colvar,i) RESULT(my_size)
@@ -1399,7 +1382,9 @@ CPSourceFileRef)
 
 ! *****************************************************************************
 !> \brief Clone a colvar type
-!> \param colvar the colvar to deallocate
+!> \param colvar_out ...
+!> \param colvar_in the colvar to deallocate
+!> \param i_atom_offset ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 !> \author Teodoro Laino [tlaino] 04.2006
@@ -1591,6 +1576,7 @@ CPSourceFileRef)
        colvar_out%xyz_diag_param%component    = colvar_in%xyz_diag_param%component
        colvar_out%xyz_diag_param%r0           = colvar_in%xyz_diag_param%r0
        colvar_out%xyz_diag_param%use_pbc      = colvar_in%xyz_diag_param%use_pbc
+       colvar_out%xyz_diag_param%use_absolute_position      = colvar_in%xyz_diag_param%use_absolute_position
      CASE(xyz_outerdiag_colvar_id)
        colvar_out%xyz_outerdiag_param%i_atoms    = colvar_in%xyz_outerdiag_param%i_atoms+ my_offset
        colvar_out%xyz_outerdiag_param%components = colvar_in%xyz_outerdiag_param%components
@@ -1778,7 +1764,9 @@ CPSourceFileRef)
 
 ! *****************************************************************************
 !> \brief Clone points type of a colvar type
-!> \param colvar the colvar to deallocate
+!> \param colvar_out ...
+!> \param colvar_in the colvar to deallocate
+!> \param offset ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 !> \author Teodoro Laino [tlaino] 03.2007
@@ -1829,7 +1817,9 @@ CPSourceFileRef)
 
 ! *****************************************************************************
 !> \brief Change the dimension of a colvar_p_type
-!> \param colvar the colvar to deallocate
+!> \param colvar_set ...
+!> \param lb1_new ...
+!> \param ub1_new ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 !> \author Teodoro Laino [tlaino] 04.2006
@@ -1891,8 +1881,39 @@ CPSourceFileRef)
     END IF
   END SUBROUTINE colvar_p_reallocate
 
+
+! *****************************************************************************
+!> \brief Deallocate a set of colvar_p_type
+!> \param colvar_p ...
+!> \param error ...
+!> \par History
+!>      07.2003 created [fawzi]
+!>      01.2014 moved from cp_subsys_release() into separate routine.
+!> \author Ole Schuett
+! *****************************************************************************
+  SUBROUTINE colvar_p_release(colvar_p, error)
+    TYPE(colvar_p_type), DIMENSION(:), &
+      POINTER                                :: colvar_p
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    INTEGER                                  :: i
+
+! Colvar info
+
+     IF(ASSOCIATED(colvar_p)) THEN
+        DO i=1,SIZE(colvar_p)
+           IF (ASSOCIATED(colvar_p(i)%colvar)) &
+              CALL colvar_release(colvar_p(i)%colvar,error)
+        ENDDO
+        DEALLOCATE(colvar_p)
+     END IF
+  END SUBROUTINE colvar_p_release
+
 ! *****************************************************************************
 !> \brief Evaluate the position of the geometrical point
+!> \param point ...
+!> \param particles ...
+!> \param r ...
 !> \author Teodoro Laino - 03.2007
 ! *****************************************************************************
   SUBROUTINE eval_point_pos(point, particles, r)
@@ -1915,6 +1936,12 @@ CPSourceFileRef)
 
   END SUBROUTINE eval_point_pos
 
+! *****************************************************************************
+!> \brief ...
+!> \param point ...
+!> \param particles ...
+!> \param m ...
+! *****************************************************************************
   SUBROUTINE eval_point_mass(point, particles, m)
     TYPE(point_type)                         :: point
     TYPE(particle_type), DIMENSION(:), &
@@ -1937,6 +1964,10 @@ CPSourceFileRef)
 
 ! *****************************************************************************
 !> \brief Evaluate the position of the geometrical point
+!> \param points ...
+!> \param i ...
+!> \param dsdr ...
+!> \param f ...
 !> \author Teodoro Laino - 03.2007
 ! *****************************************************************************
   SUBROUTINE eval_point_der(points, i, dsdr, f)
@@ -1969,9 +2000,12 @@ CPSourceFileRef)
 ! *****************************************************************************
 !> \brief Complete the description of the COORDINATION colvar when
 !>      defined using KINDS
-!> \author Teodoro Laino - 07.2007
+!> \param colvar ...
+!> \param particles ...
+!> \param error ...
 !> \par History
 !>      1.2009 Fabio Sterpone : Added a part for population
+!> \author Teodoro Laino - 07.2007
 ! *****************************************************************************
   SUBROUTINE post_process_colvar(colvar, particles, error)
     TYPE(colvar_type), POINTER               :: colvar
@@ -2201,6 +2235,9 @@ CPSourceFileRef)
 ! *****************************************************************************
 !> \brief subtract b from the ss value of a colvar: general function for handling
 !>        periodic/non-periodic colvar
+!> \param colvar ...
+!> \param b ...
+!> \retval diff ...
 !> \author Teodoro Laino [tlaino] - University of Zurich 10.2008
 ! *****************************************************************************
   FUNCTION diff_colvar(colvar, b) RESULT(diff)

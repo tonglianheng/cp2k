@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2013  CP2K developers group                          !
+!   Copyright (C) 2000 - 2014  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -10,7 +10,7 @@
 MODULE semi_empirical_mpole_types
   USE f77_blas
   USE kinds,                           ONLY: dp
-#include "cp_common_uses.h"
+#include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
 
@@ -68,6 +68,9 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Allocate semi-empirical mpole type
+!> \param mpole ...
+!> \param ndim ...
+!> \param error ...
 !> \author Teodoro Laino [tlaino] - 08.2008 Zurich University
 ! *****************************************************************************
   SUBROUTINE semi_empirical_mpole_p_create(mpole, ndim, error)
@@ -96,6 +99,8 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Deallocate the semi-empirical mpole type
+!> \param mpole ...
+!> \param error ...
 !> \author Teodoro Laino [tlaino] - 08.2008 Zurich University
 ! *****************************************************************************
   SUBROUTINE semi_empirical_mpole_p_release(mpole, error)
@@ -123,6 +128,8 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Allocate semi-empirical mpole type
+!> \param mpole ...
+!> \param error ...
 !> \author Teodoro Laino [tlaino] - 08.2008 Zurich University
 ! *****************************************************************************
   SUBROUTINE semi_empirical_mpole_create(mpole, error)
@@ -153,6 +160,8 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Deallocate the semi-empirical mpole type
+!> \param mpole ...
+!> \param error ...
 !> \author Teodoro Laino [tlaino] - 08.2008 Zurich University
 ! *****************************************************************************
   SUBROUTINE semi_empirical_mpole_release(mpole, error)
@@ -175,6 +184,8 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Allocate NDDO multipole type
+!> \param nddo_mpole ...
+!> \param error ...
 !> \author Teodoro Laino [tlaino] - 08.2008 Zurich University
 ! *****************************************************************************
   SUBROUTINE nddo_mpole_create(nddo_mpole, error)
@@ -201,6 +212,8 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Deallocate NDDO multipole type
+!> \param nddo_mpole ...
+!> \param error ...
 !> \author Teodoro Laino [tlaino] - 08.2008 Zurich University
 ! *****************************************************************************
   SUBROUTINE nddo_mpole_release(nddo_mpole, error)

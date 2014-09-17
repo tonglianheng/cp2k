@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2013  CP2K developers group                          !
+!   Copyright (C) 2000 - 2014  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -13,8 +13,7 @@
 !> \author Fawzi Mohamed
 ! *****************************************************************************
 MODULE pw_env_methods
-  USE atomic_kind_types,               ONLY: atomic_kind_type,&
-                                             get_atomic_kind
+  USE ao_util,                         ONLY: exp_radius
   USE basis_set_types,                 ONLY: get_gto_basis_set,&
                                              gto_basis_set_type
   USE cell_types,                      ONLY: cell_type
@@ -24,19 +23,16 @@ MODULE pw_env_methods
                                              cp_print_key_should_output,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
+  USE cp_realspace_grid_init,          ONLY: init_input_type
   USE cube_utils,                      ONLY: destroy_cube_info,&
                                              init_cube_info,&
                                              return_cube_max_iradius
+  USE d3_poly,                         ONLY: init_d3_poly_module
   USE f77_blas
   USE gaussian_gridlevels,             ONLY: destroy_gaussian_gridlevel,&
                                              gaussian_gridlevel,&
                                              init_gaussian_gridlevel
-  USE input_constants,                 ONLY: &
-       use_mt, xc_deriv_collocate, xc_deriv_nn10_smooth, &
-       xc_deriv_nn50_smooth, xc_deriv_pw, xc_deriv_spline2, &
-       xc_deriv_spline2_smooth, xc_deriv_spline3, xc_deriv_spline3_smooth, &
-       xc_rho_nn10, xc_rho_nn50, xc_rho_no_smooth, xc_rho_spline2_smooth, &
-       xc_rho_spline3_smooth, xc_vdw_fun_nonloc
+  USE input_constants,                 ONLY: xc_vdw_fun_nonloc
   USE input_section_types,             ONLY: section_get_ival,&
                                              section_vals_get,&
                                              section_vals_get_subs_vals,&
@@ -45,18 +41,29 @@ MODULE pw_env_methods
   USE kinds,                           ONLY: dp
   USE lgrid_types,                     ONLY: lgrid_create,&
                                              lgrid_release
+  USE ps_wavelet_types,                ONLY: WAVELET0D,&
+                                             WAVELET2D,&
+                                             WAVELET3D
   USE pw_env_types,                    ONLY: pw_env_type
   USE pw_grid_info,                    ONLY: pw_grid_init_setup
   USE pw_grid_types,                   ONLY: FULLSPACE,&
                                              HALFSPACE,&
-                                             do_pw_grid_blocked_false,&
                                              pw_grid_type
-  USE pw_grids,                        ONLY: pw_grid_change,&
+  USE pw_grids,                        ONLY: do_pw_grid_blocked_false,&
+                                             pw_grid_change,&
                                              pw_grid_create,&
                                              pw_grid_release,&
                                              pw_grid_setup
   USE pw_poisson_methods,              ONLY: pw_poisson_set
-  USE pw_poisson_types,                ONLY: pw_poisson_create
+  USE pw_poisson_read_input,           ONLY: pw_poisson_read_parameters
+  USE pw_poisson_types,                ONLY: pw_poisson_analytic,&
+                                             pw_poisson_create,&
+                                             pw_poisson_mt,&
+                                             pw_poisson_multipole,&
+                                             pw_poisson_none,&
+                                             pw_poisson_parameter_type,&
+                                             pw_poisson_periodic,&
+                                             pw_poisson_wavelet
   USE pw_pool_types,                   ONLY: pw_pool_create,&
                                              pw_pool_p_type,&
                                              pw_pool_release,&
@@ -65,19 +72,27 @@ MODULE pw_env_methods
   USE qs_dispersion_types,             ONLY: qs_dispersion_type
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
+  USE qs_kind_types,                   ONLY: get_qs_kind,&
+                                             qs_kind_type
   USE qs_rho0_types,                   ONLY: get_rho0_mpole,&
                                              rho0_mpole_type
-  USE qs_util,                         ONLY: exp_radius
-  USE realspace_grid_types,            ONLY: &
-       init_input_type, realspace_grid_desc_p_type, &
-       realspace_grid_input_type, realspace_grid_p_type, rs_grid_create, &
-       rs_grid_create_descriptor, rs_grid_print, rs_grid_release, &
-       rs_grid_release_descriptor
-  USE scp_environment_types,           ONLY: scp_environment_type
-  USE scp_rspw_methods,                ONLY: maxradius_scp_init
+  USE realspace_grid_types,            ONLY: realspace_grid_desc_p_type,&
+                                             realspace_grid_input_type,&
+                                             realspace_grid_p_type,&
+                                             rs_grid_create,&
+                                             rs_grid_create_descriptor,&
+                                             rs_grid_print,&
+                                             rs_grid_release,&
+                                             rs_grid_release_descriptor
+  USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
-#include "cp_common_uses.h"
+  USE xc_input_constants,              ONLY: &
+       xc_deriv_collocate, xc_deriv_nn10_smooth, xc_deriv_nn50_smooth, &
+       xc_deriv_pw, xc_deriv_spline2, xc_deriv_spline2_smooth, &
+       xc_deriv_spline3, xc_deriv_spline3_smooth, xc_rho_nn10, xc_rho_nn50, &
+       xc_rho_no_smooth, xc_rho_spline2_smooth, xc_rho_spline3_smooth
+#include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
   PRIVATE
@@ -127,10 +142,12 @@ SUBROUTINE pw_env_create(pw_env,qs_env,external_para_env,error)
     IF (.NOT. failure) THEN
        NULLIFY(pw_env%pw_pools, pw_env%gridlevel_info,pw_env%poisson_env, &
             pw_env%cube_info, pw_env%rs_descs, pw_env%rs_grids, &
-            pw_env%xc_pw_pool, pw_env%vdw_pw_pool, pw_env%lgrid)
+            pw_env%xc_pw_pool, pw_env%vdw_pw_pool, pw_env%lgrid, &
+            pw_env%interp_section)
        pw_env%auxbas_grid=-1
        pw_env%ref_count=1
-       IF (PRESENT(qs_env)) CALL pw_env_rebuild(pw_env,qs_env=qs_env,external_para_env=external_para_env,error=error)
+       IF (PRESENT(qs_env)) CALL pw_env_rebuild(pw_env,qs_env=qs_env,&
+                                 external_para_env=external_para_env,error=error)
     END IF
 
     CALL timestop(handle)
@@ -141,6 +158,7 @@ END SUBROUTINE pw_env_create
 !> \brief rebuilds the pw_env data (necessary if cell or cutoffs change)
 !> \param pw_env the environment to rebuild
 !> \param qs_env the qs_env where to get the cell, cutoffs,...
+!> \param external_para_env ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 !> \par History
@@ -158,6 +176,7 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, external_para_env, error)
       routineP = moduleN//':'//routineN
     REAL(KIND=dp), PARAMETER                 :: safety_factor = 1.01
 
+    CHARACTER(LEN=3)                         :: string
     INTEGER :: blocked_id, blocked_id_input, grid_span, handle, i, &
       igrid_level, iounit, ncommensurate, ngrid_level, stat, &
       xc_deriv_method_id, xc_smooth_method_id
@@ -169,8 +188,6 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, external_para_env, error)
                                                 rel_cutoff, zet0
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: radius
     REAL(KIND=dp), DIMENSION(:), POINTER     :: cutoff
-    TYPE(atomic_kind_type), DIMENSION(:), &
-      POINTER                                :: atomic_kind_set
     TYPE(cell_type), POINTER                 :: cell, cell_ref, my_cell
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
@@ -179,9 +196,12 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, external_para_env, error)
                                                 old_pw_grid, pw_grid, &
                                                 super_ref_grid, vdw_grid, &
                                                 xc_super_ref_grid
+    TYPE(pw_poisson_parameter_type)          :: poisson_params
     TYPE(pw_pool_p_type), DIMENSION(:), &
       POINTER                                :: pw_pools
     TYPE(qs_dispersion_type), POINTER        :: dispersion_env
+    TYPE(qs_kind_type), DIMENSION(:), &
+      POINTER                                :: qs_kind_set
     TYPE(realspace_grid_desc_p_type), &
       DIMENSION(:), POINTER                  :: rs_descs
     TYPE(realspace_grid_input_type)          :: input_settings
@@ -204,7 +224,7 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, external_para_env, error)
 !
 !
   failure=.FALSE.
-  NULLIFY(cutoff, cell, pw_grid, old_pw_grid, dft_control, atomic_kind_set, &
+  NULLIFY(cutoff, cell, pw_grid, old_pw_grid, dft_control, qs_kind_set, &
        pw_pools, rho0_mpole, rs_descs, para_env, cell_ref, &
        mt_super_ref_grid, input, poisson_section, xc_super_ref_grid, &
        vdw_grid, super_ref_grid, my_cell, rs_grids)
@@ -262,7 +282,7 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, external_para_env, error)
   IF (.NOT.failure) THEN
      NULLIFY(dispersion_env)
      CALL get_qs_env(qs_env=qs_env,&
-          dft_control=dft_control,atomic_kind_set=atomic_kind_set,&
+          dft_control=dft_control,qs_kind_set=qs_kind_set,&
           cell_ref=cell_ref,cell=cell,para_env=para_env, input=input,&
           dispersion_env=dispersion_env,&
           error=error)
@@ -270,6 +290,9 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, external_para_env, error)
         para_env=>external_para_env
         CPPostcondition(ASSOCIATED(para_env),cp_failure_level,routineP,error,failure)
      ENDIF
+     ! interpolation section
+     pw_env%interp_section => section_vals_get_subs_vals(input,"DFT%MGRID%INTERPOLATOR",error=error)
+
      CALL get_qs_env ( qs_env, use_ref_cell = use_ref_cell ,error=error)
      IF (use_ref_cell) THEN
        my_cell => cell_ref
@@ -410,7 +433,7 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, external_para_env, error)
 
         IF (igrid_level == 1) THEN
            IF (ASSOCIATED(old_pw_grid)) THEN
-              CALL pw_grid_setup(my_cell,pw_grid,grid_span=grid_span,&
+              CALL pw_grid_setup(my_cell%hmat,pw_grid,grid_span=grid_span,&
                    cutoff=cutilev,&
                    spherical=spherical,odd=odd,fft_usage=.TRUE.,&
                    ncommensurate=ncommensurate,icommensurate=igrid_level,&
@@ -420,7 +443,7 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, external_para_env, error)
                    iounit=iounit,error=error)
               old_pw_grid => pw_grid
            ELSE
-              CALL pw_grid_setup(my_cell,pw_grid,grid_span=grid_span,&
+              CALL pw_grid_setup(my_cell%hmat,pw_grid,grid_span=grid_span,&
                    cutoff=cutilev,&
                    spherical=spherical,odd=odd,fft_usage=.TRUE.,&
                    ncommensurate=ncommensurate,icommensurate=igrid_level,&
@@ -430,7 +453,7 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, external_para_env, error)
               old_pw_grid => pw_grid
            END IF
         ELSE
-           CALL pw_grid_setup(my_cell,pw_grid,grid_span=grid_span,&
+           CALL pw_grid_setup(my_cell%hmat,pw_grid,grid_span=grid_span,&
                 cutoff=cutilev,&
                 spherical=spherical,odd=odd,fft_usage=.TRUE.,&
                 ncommensurate=ncommensurate,icommensurate=igrid_level,&
@@ -477,7 +500,7 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, external_para_env, error)
      IF (set_vdw_pool) THEN
         CPPrecondition(ASSOCIATED(old_pw_grid),cp_failure_level,routineP,error,failure)
         CALL pw_grid_create(vdw_grid,para_env%group,error=error)
-        CALL pw_grid_setup(my_cell,vdw_grid,grid_span=grid_span,&
+        CALL pw_grid_setup(my_cell%hmat,vdw_grid,grid_span=grid_span,&
              cutoff=dispersion_env%pw_cutoff,&
              spherical=spherical,odd=odd,fft_usage=.TRUE.,&
              ncommensurate=ncommensurate,icommensurate=0,&
@@ -498,8 +521,9 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, external_para_env, error)
      END IF
      poisson_section => section_vals_get_subs_vals(input,"DFT%POISSON",&
           error=error)
-     CALL pw_poisson_set(pw_env%poisson_env,cell=my_cell,pw_pools=pw_env%pw_pools,&
-          parameters=poisson_section,mt_super_ref_pw_grid=mt_super_ref_grid,&
+     CALL pw_poisson_read_parameters(poisson_section, poisson_params, error)
+     CALL pw_poisson_set(pw_env%poisson_env,cell_hmat=my_cell%hmat,pw_pools=pw_env%pw_pools,&
+          parameters=poisson_params,mt_super_ref_pw_grid=mt_super_ref_grid,&
           use_level=pw_env%auxbas_grid,error=error)
      CALL pw_grid_release(mt_super_ref_grid,error=error)
 !
@@ -508,13 +532,15 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, external_para_env, error)
 !
     IF ( use_ref_cell ) THEN
          DO igrid_level = 1, SIZE ( pw_pools )
-           CALL pw_grid_change ( cell, pw_pools ( igrid_level ) % pool % pw_grid )
+           CALL pw_grid_change ( cell%hmat, pw_pools ( igrid_level ) % pool % pw_grid )
          ENDDO
-         IF (set_vdw_pool) CALL pw_grid_change( cell, pw_env%vdw_pw_pool%pw_grid )
-         CALL pw_poisson_set(pw_env%poisson_env,cell=cell,pw_pools=pw_env%pw_pools,&
-          parameters=poisson_section,mt_super_ref_pw_grid=mt_super_ref_grid,&
+         IF (set_vdw_pool) CALL pw_grid_change( cell%hmat, pw_env%vdw_pw_pool%pw_grid )
+         CALL pw_poisson_read_parameters(poisson_section, poisson_params, error)
+         CALL pw_poisson_set(pw_env%poisson_env,cell_hmat=cell%hmat,pw_pools=pw_env%pw_pools,&
+          parameters=poisson_params,mt_super_ref_pw_grid=mt_super_ref_grid,&
           use_level=pw_env%auxbas_grid,error=error)
-    ENDIF
+    END IF
+
 !
 !
 !    determine the maximum radii for mapped gaussians, needed to
@@ -545,6 +571,7 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, external_para_env, error)
      DO igrid_level=1,ngrid_level
         pw_grid => pw_pools(igrid_level)%pool%pw_grid
 
+        CALL init_d3_poly_module() ! a fairly arbitrary but sufficient spot to do this
         CALL init_cube_info(pw_env%cube_info(igrid_level),&
              pw_grid%dr(:), pw_grid%dh(:,:), pw_grid%dh_inv(:,:), pw_grid%orthorhombic,&
              radius(igrid_level))
@@ -573,22 +600,78 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, external_para_env, error)
      ! (but don't yet allocate the lgrid, in case we don't need it)
      CALL lgrid_create(pw_env%lgrid, pw_env%rs_descs, error)
 
-!
-!    Print grid information
-!
+     ! Print grid information
+
      logger => cp_error_get_logger(error)
      iounit = cp_print_key_unit_nr(logger,print_section,'',&
-          extension='.Log',error=error)
-     should_output=BTEST(cp_print_key_should_output(logger%iter_info,&
-          print_section,'',error=error),cp_p_file)
-
-     IF ( should_output ) THEN
+                                   extension='.Log',error=error)
+     IF (iounit > 0) THEN
+       SELECT CASE (poisson_params%solver)
+       CASE(pw_poisson_periodic)
+         WRITE (UNIT=iounit,FMT="(/,T2,A,T51,A30)")&
+         "POISSON| Solver","PERIODIC"
+       CASE(pw_poisson_analytic)
+         WRITE (UNIT=iounit,FMT="(/,T2,A,T51,A30)")&
+          "POISSON| Solver","ANALYTIC"
+       CASE(pw_poisson_mt)
+         WRITE (UNIT=iounit,FMT="(/,T2,A,T51,A30)")&
+          "POISSON| Solver",ADJUSTR("Martyna-Tuckerman (MT)")
+         WRITE (UNIT=iounit,FMT="(T2,A,T71,F10.3,/,T2,A,T71,F10.1)")&
+          "POISSON| MT| Alpha",poisson_params%mt_alpha,&
+          "POISSON| MT| Relative cutoff",poisson_params%mt_rel_cutoff
+       CASE(pw_poisson_multipole)
+         WRITE (UNIT=iounit,FMT="(/,T2,A,T51,A30)")&
+          "POISSON| Solver","MULTIPOLE (Bloechl)"
+       CASE(pw_poisson_wavelet)
+         WRITE (UNIT=iounit,FMT="(/,T2,A,T51,A30)")&
+          "POISSON| Solver","WAVELET"
+         WRITE (UNIT=iounit,FMT="(T2,A,T71,I10)")&
+          "POISSON| Wavelet| Scaling function",poisson_params%wavelet_scf_type
+         SELECT CASE (poisson_params%wavelet_method)
+         CASE (WAVELET0D)
+           WRITE (UNIT=iounit,FMT="(T2,A,T51,A30)")&
+            "POISSON| Periodicity","NONE"
+         CASE (WAVELET2D)
+           WRITE (UNIT=iounit,FMT="(T2,A,T51,A30)")&
+            "POISSON| Periodicity","XZ"
+         CASE (WAVELET3D)
+           WRITE (UNIT=iounit,FMT="(T2,A,T51,A30)")&
+            "POISSON| Periodicity","XYZ"
+         CASE DEFAULT
+           CALL stop_program(routineN,moduleN,__LINE__,&
+                             "Invalid periodicity for wavelet solver selected",&
+                             para_env)
+         END SELECT
+       CASE(pw_poisson_none)
+         WRITE (UNIT=iounit,FMT="(/,T2,A,T51,A30)")&
+          "POISSON| Solver","NONE"
+       CASE default
+         CALL stop_program(routineN,moduleN,__LINE__,&
+                           "Invalid Poisson solver selected",&
+                           para_env)
+       END SELECT
+       IF (poisson_params%solver /= pw_poisson_wavelet) THEN
+         IF (SUM(poisson_params%periodic(1:3)) == 0) THEN
+           WRITE (UNIT=iounit,FMT="(T2,A,T51,A30)")&
+            "POISSON| Periodicity","NONE"
+         ELSE
+           string = ""
+           IF (poisson_params%periodic(1) == 1) string = TRIM(string)//"X"
+           IF (poisson_params%periodic(2) == 1) string = TRIM(string)//"Y"
+           IF (poisson_params%periodic(3) == 1) string = TRIM(string)//"Z"
+           WRITE (UNIT=iounit,FMT="(T2,A,T51,A30)")&
+            "POISSON| Periodicity",string
+         END IF
+       END IF
+     END IF
+     should_output = BTEST(cp_print_key_should_output(logger%iter_info,&
+                           print_section,'',error=error),cp_p_file)
+     IF (should_output) THEN
        DO igrid_level=1,ngrid_level
           CALL rs_grid_print(rs_grids(igrid_level)%rs_grid,iounit,error=error)
        END DO
      END IF
-     CALL cp_print_key_finished_output(iounit,logger,print_section,&
-         "",error=error)
+     CALL cp_print_key_finished_output(iounit,logger,print_section,"",error=error)
 
   END IF
 
@@ -598,6 +681,10 @@ END SUBROUTINE pw_env_rebuild
 
 ! *****************************************************************************
 !> \brief computes the maximum radius
+!> \param radius ...
+!> \param pw_env ...
+!> \param qs_env ...
+!> \param error ...
 !> \par History
 !>      10.2010 refactored [Joost VandeVondele]
 !> \author Joost VandeVondele
@@ -622,14 +709,12 @@ SUBROUTINE compute_max_radius(radius, pw_env, qs_env, error)
                                                 max_rpgf0_s, maxradius, zet0, &
                                                 zetp
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: zeta, zetb
-    TYPE(atomic_kind_type), DIMENSION(:), &
-      POINTER                                :: atomic_kind_set
-    TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(dft_control_type), POINTER          :: dft_control
-    TYPE(gto_basis_set_type), POINTER        :: aux_fit_basis_set, &
-                                                orb_basis_set
+    TYPE(gto_basis_set_type), POINTER        :: orb_basis_set
+    TYPE(qs_kind_type), DIMENSION(:), &
+      POINTER                                :: qs_kind_set
+    TYPE(qs_kind_type), POINTER              :: qs_kind
     TYPE(rho0_mpole_type), POINTER           :: rho0_mpole
-    TYPE(scp_environment_type), POINTER      :: scp_env
 
 ! a very small safety factor might be needed for roundoff issues
 ! e.g. radius being computed here as 12.998 (13) and 13.002 (14) during the collocation
@@ -638,9 +723,9 @@ SUBROUTINE compute_max_radius(radius, pw_env, qs_env, error)
 
     CALL timeset(routineN,handle)
     failure=.FALSE.
-    NULLIFY(dft_control, atomic_kind_set, rho0_mpole)
+    NULLIFY(dft_control, qs_kind_set, rho0_mpole)
 
-    CALL get_qs_env(qs_env=qs_env, atomic_kind_set=atomic_kind_set, &
+    CALL get_qs_env(qs_env=qs_env, qs_kind_set=qs_kind_set, &
                     dft_control=dft_control, error=error)
 
     IF(dft_control%qs_control%gapw) THEN
@@ -650,7 +735,7 @@ SUBROUTINE compute_max_radius(radius, pw_env, qs_env, error)
     END IF
 
     ngrid_level=SIZE(radius)
-    nkind=SIZE(atomic_kind_set)
+    nkind=SIZE(qs_kind_set)
 
     ! Find the grid level suitable for rho0_soft
     IF(dft_control%qs_control%gapw) THEN
@@ -673,9 +758,9 @@ SUBROUTINE compute_max_radius(radius, pw_env, qs_env, error)
        ! ibasis set type loops over the needed kinds of basis sets. Right now this is
        ! the orb_basis_set and the aux_fit_basis_set.
        ! Seemingly others (e.g. gapw soft basis set) are not needed?
-       DO ibasis_set_type=1,4
+       DO ibasis_set_type=1,5
           DO ikind=1,nkind
-            atomic_kind => atomic_kind_set(ikind)
+            qs_kind => qs_kind_set(ikind)
 
             IF (dft_control%qs_control%dftb) CYCLE
 
@@ -683,8 +768,8 @@ SUBROUTINE compute_max_radius(radius, pw_env, qs_env, error)
              ! right now, the core is mapped on the auxiliary basis,
              ! this should, at a give point be changed
              ! so that also for the core a multigrid is used
-             CALL get_atomic_kind(atomic_kind=atomic_kind,&
-                                 alpha_core_charge=alpha,ccore_charge=core_charge)
+             CALL get_qs_kind(qs_kind_set(ikind),&
+                        alpha_core_charge=alpha,ccore_charge=core_charge)
 
              IF (alpha > 0.0_dp .AND. core_charge.NE.0.0_dp) THEN
                maxradius=MAX(maxradius,exp_radius( 0, alpha, &
@@ -699,17 +784,23 @@ SUBROUTINE compute_max_radius(radius, pw_env, qs_env, error)
              !
              SELECT CASE (ibasis_set_type)
              CASE (1)
-               CALL get_atomic_kind(atomic_kind=atomic_kind,&
+               CALL get_qs_kind(qs_kind=qs_kind,&
                                     orb_basis_set=orb_basis_set)
              CASE (2)
-               CALL get_atomic_kind(atomic_kind=atomic_kind,&
+               CALL get_qs_kind(qs_kind=qs_kind,&
                                     aux_fit_basis_set=orb_basis_set)
              CASE (3)
-               CALL get_atomic_kind(atomic_kind=atomic_kind,&
+               CALL get_qs_kind(qs_kind=qs_kind,&
                                     aux_basis_set=orb_basis_set)
              CASE (4)
-               CALL get_atomic_kind(atomic_kind=atomic_kind,&
+               CALL get_qs_kind(qs_kind=qs_kind,&
                                     ri_aux_basis_set=orb_basis_set)
+             CASE (5)
+               ! for lri basis set optimization, do not take radius of lri basis
+               ! set since GPW, not LRIGPW density is distributed on the grid 
+               IF(dft_control%qs_control%lri_optbas) CYCLE
+               CALL get_qs_kind(qs_kind=qs_kind,&
+                                    lri_basis_set=orb_basis_set)
              END SELECT
 
              IF (.NOT.ASSOCIATED(orb_basis_set)) CYCLE
@@ -718,26 +809,30 @@ SUBROUTINE compute_max_radius(radius, pw_env, qs_env, error)
                                     npgf=npgfa, nset=nseta, zet=zeta,l=lshella,nshell=nshella)
 
              DO jkind=1,nkind
-                atomic_kind => atomic_kind_set(jkind)
+                qs_kind => qs_kind_set(jkind)
 
                 SELECT CASE (ibasis_set_type)
                 CASE (1)
-                  CALL get_atomic_kind(atomic_kind=atomic_kind,&
+                  CALL get_qs_kind(qs_kind=qs_kind,&
                                        orb_basis_set=orb_basis_set)
                 CASE (2)
-                  CALL get_atomic_kind(atomic_kind=atomic_kind,&
+                  CALL get_qs_kind(qs_kind=qs_kind,&
                                        aux_fit_basis_set=orb_basis_set)
                 CASE (3)
-                  CALL get_atomic_kind(atomic_kind=atomic_kind,&
+                  CALL get_qs_kind(qs_kind=qs_kind,&
                                        aux_basis_set=orb_basis_set)
                 CASE (4)
-                  CALL get_atomic_kind(atomic_kind=atomic_kind,&
+                  CALL get_qs_kind(qs_kind=qs_kind,&
                                        ri_aux_basis_set=orb_basis_set)
+                CASE (5)
+                  CALL get_qs_kind(qs_kind=qs_kind,&
+                                    lri_basis_set=orb_basis_set)
                 END SELECT
 
                 IF (.NOT.ASSOCIATED(orb_basis_set)) CYCLE
                 CALL get_gto_basis_set(gto_basis_set=orb_basis_set, &
                                        npgf=npgfb, nset=nsetb, zet=zetb, l=lshellb, nshell=nshellb)
+
                 DO iset=1,nseta
                 DO ipgf=1,npgfa(iset)
                 DO ishell=1,nshella(iset)
@@ -788,24 +883,28 @@ SUBROUTINE compute_max_radius(radius, pw_env, qs_env, error)
        radius(igrid_level)=maxradius
     END DO
 
-    ! Compare the maxradius with that of the AUX_BASIS used with SCP
-    IF ( dft_control % scp ) THEN
-       CALL get_qs_env ( qs_env=qs_env, scp_env=scp_env, error = error )
-       CALL maxradius_scp_init ( scp_env, atomic_kind_set,  &
-                                pw_env%gridlevel_info, radius, &
-                                dft_control%qs_control%eps_gvg_rspace, &
-                                dft_control%qs_control%eps_rho_rspace, error )
-    END IF
-
   CALL timestop(handle)
 
 END SUBROUTINE compute_max_radius
 
 ! *****************************************************************************
 !> \brief Initialize the super-reference grid for Tuckerman or xc
+!> \param super_ref_pw_grid ...
+!> \param mt_super_ref_pw_grid ...
+!> \param xc_super_ref_pw_grid ...
+!> \param cutilev ...
+!> \param grid_span ...
+!> \param spherical ...
+!> \param cell_ref ...
+!> \param para_env ...
+!> \param input ...
+!> \param my_ncommensurate ...
+!> \param uf_grid ...
+!> \param print_section ...
+!> \param error ...
+!> \author 03-2005 Teodoro Laino [teo]
 !> \note
 !>      move somewere else?
-!> \author 03-2005 Teodoro Laino [teo]
 ! *****************************************************************************
   SUBROUTINE setup_super_ref_grid(super_ref_pw_grid,mt_super_ref_pw_grid,&
        xc_super_ref_pw_grid, cutilev, grid_span, spherical,&
@@ -846,7 +945,7 @@ END SUBROUTINE compute_max_radius
        ! Check if grids will be the same... In this case we don't use a super-reference grid
        !
        mt_s_grid=.FALSE.
-       IF (my_val==use_mt) THEN
+       IF (my_val==pw_poisson_mt) THEN
           CALL section_vals_val_get(poisson_section,"MT%REL_CUTOFF",&
                r_val=mt_rel_cutoff,error=error)
           IF (mt_rel_cutoff>1._dp) mt_s_grid=.TRUE.
@@ -858,7 +957,7 @@ END SUBROUTINE compute_max_radius
 
        IF (uf_grid) THEN
           CALL pw_grid_create(xc_super_ref_pw_grid,para_env%group,error=error)
-          CALL pw_grid_setup(cell_ref, xc_super_ref_pw_grid, grid_span=grid_span,&
+          CALL pw_grid_setup(cell_ref%hmat, xc_super_ref_pw_grid, grid_span=grid_span,&
                cutoff=4._dp*cutilev,spherical=spherical,odd=.FALSE., fft_usage=.TRUE., &
                ncommensurate=my_ncommensurate,icommensurate=1,&
                blocked=do_pw_grid_blocked_false, rs_dims=(/para_env%num_pe,1/),&
@@ -882,7 +981,7 @@ END SUBROUTINE compute_max_radius
 
              ! bug appears for nn==no, also in old versions
              CPPrecondition(ALL(nn>no),cp_failure_level,routineP,error,failure)
-             CALL pw_grid_setup(cell_ref, mt_super_ref_pw_grid, &
+             CALL pw_grid_setup(cell_ref%hmat, mt_super_ref_pw_grid, &
                   cutoff=my_cutilev,spherical=spherical,fft_usage=.TRUE., &
                   blocked=do_pw_grid_blocked_false, rs_dims=(/para_env%num_pe,1/),&
                   iounit=iounit,error=error)

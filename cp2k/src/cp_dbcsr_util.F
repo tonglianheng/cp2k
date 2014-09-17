@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2013  CP2K developers group                          !
+!   Copyright (C) 2000 - 2014  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -11,12 +11,13 @@
 ! *****************************************************************************
 
 MODULE cp_dbcsr_util
-  USE cp_dbcsr_interface,              ONLY: cp_dbcsr_get_info
-  USE cp_dbcsr_operations,             ONLY: cp_dbcsr_multiply_local
-  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_type
-  USE dbcsr_types,                     ONLY: dbcsr_type_real_4,&
+  USE cp_dbcsr_interface,              ONLY: cp_dbcsr_get_info,&
+                                             cp_dbcsr_type,&
+                                             dbcsr_type_real_4,&
                                              dbcsr_type_real_8
-  USE kinds,                           ONLY: dp
+  USE cp_dbcsr_operations,             ONLY: cp_dbcsr_multiply_local
+  USE kinds,                           ONLY: dp,&
+                                             sp
   USE message_passing,                 ONLY: mp_bcast,&
                                              mp_environ,&
                                              mp_max,&
@@ -29,7 +30,7 @@ MODULE cp_dbcsr_util
                                              rng_stream_type
   USE timings,                         ONLY: timeset,&
                                              timestop
-#include "cp_common_uses.h"
+#include "common/cp_common_uses.f90"
 
   IMPLICIT NONE
 
@@ -37,7 +38,7 @@ MODULE cp_dbcsr_util
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cp_dbcsr_util'
 
-  PUBLIC lanczos_alg_serial
+  PUBLIC :: lanczos_alg_serial
 
 CONTAINS
 
@@ -46,6 +47,14 @@ CONTAINS
 !>        with the Lanczos algorithm. The 3 Lanczos vectors are replicated.
 !>        speedups could be gained from an improved dbcsr x vector multiplication (distributed vector).
 !>        if svd is true the square of the matrix is employed.
+!> \param matrix_a ...
+!> \param max_ev ...
+!> \param min_ev ...
+!> \param converged ...
+!> \param threshold ...
+!> \param max_iter ...
+!> \param svd ...
+!> \param error ...
 !> \par History
 !>       2012.07 created [Florian Thoele]
 !> \author Florian Thoele 
@@ -92,6 +101,18 @@ CONTAINS
     CALL timestop(handle)
   END SUBROUTINE lanczos_alg_serial
 
+! *****************************************************************************
+!> \brief ...
+!> \param matrix_a ...
+!> \param max_ev ...
+!> \param min_ev ...
+!> \param converged ...
+!> \param threshold ...
+!> \param max_iter ...
+!> \param svd ...
+!> \param mp_group ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE lanczos_alg_serial_d(matrix_a, max_ev, min_ev, converged, threshold, max_iter, svd, mp_group, error)
     TYPE(cp_dbcsr_type), INTENT(INOUT)       :: matrix_a
     REAL(KIND=dp), INTENT(OUT)               :: max_ev, min_ev
@@ -224,6 +245,18 @@ CONTAINS
   END SUBROUTINE lanczos_alg_serial_d
 
 
+! *****************************************************************************
+!> \brief ...
+!> \param matrix_a ...
+!> \param max_ev ...
+!> \param min_ev ...
+!> \param converged ...
+!> \param threshold ...
+!> \param max_iter ...
+!> \param svd ...
+!> \param mp_group ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE lanczos_alg_serial_s(matrix_a, max_ev, min_ev, converged, threshold, max_iter, svd, mp_group, error)
     TYPE(cp_dbcsr_type), INTENT(INOUT)       :: matrix_a
     REAL(KIND=dp), INTENT(OUT)               :: max_ev, min_ev
@@ -238,12 +271,13 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i, info, lwork, n, ntask, rank
-    REAL                                     :: alpha, beta, nrm_v, SDOT, &
-                                                SNRM2
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: eval, work
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: evs, evs_tmp
-    REAL, ALLOCATABLE, DIMENSION(:, :)       :: u, u_tmp, v, vn
+    REAL(kind=sp)                            :: alpha, beta, nrm_v, SDOT, &
+                                                SNRM2
+    REAL(KIND=sp), ALLOCATABLE, &
+      DIMENSION(:, :)                        :: u, u_tmp, v, vn
     TYPE(rng_stream_type), POINTER           :: rng_stream
 
     converged = .FALSE.

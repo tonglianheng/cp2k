@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2013  CP2K developers group                          !
+!   Copyright (C) 2000 - 2014  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -21,7 +21,7 @@ MODULE extended_system_types
   USE input_section_types,             ONLY: section_vals_type,&
                                              section_vals_val_get
   USE kinds,                           ONLY: dp
-#include "cp_common_uses.h"
+#include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
   PRIVATE
@@ -32,9 +32,7 @@ MODULE extended_system_types
             map_info_type,&
             create_map_info_type,&
             release_map_info_type,&
-            npt_info_type,&
-            nhc_info_type,&
-            point_info_type
+            npt_info_type
 
   LOGICAL, PARAMETER, PUBLIC :: debug_isotropic_limit = .FALSE.
   LOGICAL, PARAMETER, PUBLIC :: debug_uniaxial_limit  = .FALSE.
@@ -88,6 +86,8 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Initialize type for Nose-Hoover thermostat
+!> \param lnhc ...
+!> \param section ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 ! *****************************************************************************
@@ -117,6 +117,7 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief create the map_info type
+!> \param map_info ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 ! *****************************************************************************
@@ -144,6 +145,7 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief release the map_info type
+!> \param map_info ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 ! *****************************************************************************
@@ -193,6 +195,7 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Deallocate type for Nose-Hoover thermostat
+!> \param lnhc ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 ! *****************************************************************************

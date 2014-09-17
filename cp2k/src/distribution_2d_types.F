@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2013  CP2K developers group                          !
+!   Copyright (C) 2000 - 2014  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -17,13 +17,13 @@ MODULE distribution_2d_types
   USE cp_blacs_calls,                  ONLY: cp_blacs_igsum2d
   USE cp_blacs_env,                    ONLY: cp_blacs_env_release,&
                                              cp_blacs_env_retain,&
+                                             cp_blacs_env_type,&
                                              cp_blacs_env_write
-  USE cp_para_types,                   ONLY: cp_blacs_env_type
   USE f77_blas
   USE machine,                         ONLY: m_flush
   USE message_passing,                 ONLY: mp_max,&
                                              mp_sum
-#include "cp_common_uses.h"
+#include "common/cp_common_uses.f90"
 
   IMPLICIT NONE
   PRIVATE
@@ -33,11 +33,9 @@ MODULE distribution_2d_types
 
   PUBLIC :: distribution_2d_type
 
-  PUBLIC :: distribution_2d_create, &
-            distribution_2d_release, &
+  PUBLIC :: distribution_2d_create,&
+            distribution_2d_release,&
             distribution_2d_retain,&
-            distribution_2d_build_gdist,&
-            distribution_2d_destroy_gdist,&
             distribution_2d_write,&
             distribution_2d_get
 
@@ -85,11 +83,22 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief initializes the distribution_2d
-!> \note
-!>      the row and col_distribution are not allocated if not given
+!> \param distribution_2d ...
+!> \param blacs_env ...
+!> \param local_rows_ptr ...
+!> \param n_local_rows ...
+!> \param local_cols_ptr ...
+!> \param row_distribution_ptr ...
+!> \param col_distribution_ptr ...
+!> \param n_local_cols ...
+!> \param n_row_distribution ...
+!> \param n_col_distribution ...
+!> \param error ...
 !> \par History
 !>      09.2003 rewamped [fawzi]
 !> \author Joost VandeVondele
+!> \note
+!>      the row and col_distribution are not allocated if not given
 ! *****************************************************************************
 SUBROUTINE distribution_2d_create(distribution_2d, blacs_env,&
      local_rows_ptr, n_local_rows, &
@@ -236,6 +245,9 @@ SUBROUTINE distribution_2d_create(distribution_2d, blacs_env,&
  END SUBROUTINE distribution_2d_create
 
 ! *****************************************************************************
+!> \brief ...
+!> \param distribution_2d ...
+!> \param error ...
 !> \author Joost VandeVondele
 ! *****************************************************************************
 SUBROUTINE distribution_2d_retain(distribution_2d,error)
@@ -255,6 +267,10 @@ SUBROUTINE distribution_2d_retain(distribution_2d,error)
   ENDIF
 END SUBROUTINE distribution_2d_retain
 
+! *****************************************************************************
+!> \brief ...
+!> \param distribution_2d ...
+!> \param error ...
 ! *****************************************************************************
 SUBROUTINE distribution_2d_release(distribution_2d,error)
     TYPE(distribution_2d_type), POINTER      :: distribution_2d
@@ -320,7 +336,7 @@ END SUBROUTINE distribution_2d_release
 ! *****************************************************************************
 !> \brief build the arrays with the prow/pcol of the processor that owns that index
 !>      (-1 if no processor owns it)
-!> \param distribution_ 2d: the distribution for which you want to build the global
+!> \param distribution_2d the distribution for which you want to build the global
 !>        distribution
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
@@ -500,7 +516,7 @@ END SUBROUTINE distribution_2d_build_gdist
 
 ! *****************************************************************************
 !> \brief deletes the global distribution
-!> \param distribution_ 2d: the distribution from which you want to remove
+!> \param distribution_2d the distribution from which you want to remove
 !>        the global distribution
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
@@ -537,7 +553,7 @@ END SUBROUTINE distribution_2d_destroy_gdist
 
 ! *****************************************************************************
 !> \brief writes out the given distribution
-!> \param distribution_ 2d: the distribution to write out
+!> \param distribution_2d the distribution to write out
 !> \param unit_nr the unit to write to
 !> \param local if the unit is local to to each processor (otherwise
 !>        only the processor with logger%para_env%source==
@@ -546,11 +562,11 @@ END SUBROUTINE distribution_2d_destroy_gdist
 !>        defaults to false
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
-!> \note
-!>      to clean up, make safer wrt. grabage in distribution_2d%n_*
 !> \par History
 !>      08.2003 adapted qs_distribution_2d_create write done by Matthias[fawzi]
 !> \author Fawzi Mohamed
+!> \note
+!>      to clean up, make safer wrt. grabage in distribution_2d%n_*
 ! *****************************************************************************
 SUBROUTINE distribution_2d_write(distribution_2d, unit_nr, local,&
      long_description, error)
@@ -731,7 +747,21 @@ END SUBROUTINE distribution_2d_write
 
 ! *****************************************************************************
 !> \brief returns various attributes about the distribution_2d
-!> \param distribution_ 2d: the object you want info about
+!> \param distribution_2d the object you want info about
+!> \param row_distribution ...
+!> \param col_distribution ...
+!> \param n_row_distribution ...
+!> \param n_col_distribution ...
+!> \param n_local_rows ...
+!> \param n_local_cols ...
+!> \param local_rows ...
+!> \param local_cols ...
+!> \param flat_local_rows ...
+!> \param flat_local_cols ...
+!> \param n_flat_local_rows ...
+!> \param n_flat_local_cols ...
+!> \param blacs_env ...
+!> \param id_nr ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 !>      see distribution_2d_type attributes for a description of the other

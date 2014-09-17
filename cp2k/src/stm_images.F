@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2013  CP2K developers group                          !
+!   Copyright (C) 2000 - 2014  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -14,11 +14,11 @@ MODULE stm_images
 
   USE cp_array_r_utils,                ONLY: cp_1d_r_p_type
   USE cp_dbcsr_interface,              ONLY: cp_dbcsr_copy,&
+                                             cp_dbcsr_deallocate_matrix,&
                                              cp_dbcsr_init,&
-                                             cp_dbcsr_set
-  USE cp_dbcsr_operations,             ONLY: cp_dbcsr_deallocate_matrix,&
-                                             cp_dbcsr_plus_fm_fm_t
-  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_type
+                                             cp_dbcsr_set,&
+                                             cp_dbcsr_type
+  USE cp_dbcsr_operations,             ONLY: cp_dbcsr_plus_fm_fm_t
   USE cp_fm_basic_linalg,              ONLY: cp_fm_column_scale
   USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                              cp_fm_struct_release,&
@@ -30,6 +30,7 @@ MODULE stm_images
                                              cp_fm_type
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
+  USE cp_realspace_grid_cube,          ONLY: cp_pw_to_cube
   USE input_section_types,             ONLY: section_get_ivals,&
                                              section_vals_type,&
                                              section_vals_val_get
@@ -54,10 +55,9 @@ MODULE stm_images
   USE qs_mo_types,                     ONLY: get_mo_set,&
                                              mo_set_p_type
   USE qs_rho_types,                    ONLY: qs_rho_type
-  USE realspace_grid_cube,             ONLY: pw_to_cube
   USE timings,                         ONLY: timeset,&
                                              timestop
-#include "cp_common_uses.h"
+#include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
   PRIVATE
@@ -71,16 +71,22 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Driver for the calculation of STM image, as post processing of a
 !>        ground-state electronic structure calculation.
+!> \param qs_env ...
+!> \param stm_section ...
+!> \param particles ...
+!> \param unoccupied_orbs ...
+!> \param unoccupied_evals ...
+!> \param error ...
 !> \param
+!> \par History
+!>      02.2009 Created [MI]
+!> \author MI
 !> \note
 !>   The Tersoff-Hamman
 !>        approximation is applied, occupied and a sufficient number of
 !>        unoccupied eigenstates are needed (depending on the given Bias potential)
 !>        and should be computed in advance. Unoccupied states are calculated
 !>        before enetering this module when NLUMO =/ 0
-!> \par History
-!>      02.2009 Created [MI]
-!> \author MI
 ! *****************************************************************************
 
   SUBROUTINE th_stm_image(qs_env, stm_section, particles, unoccupied_orbs, &
@@ -242,13 +248,28 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief computes a simple approximation to the tunneling current for STM
+!> \param qs_env ...
+!> \param stm_section ...
+!> \param stm_density_ao ...
+!> \param wf_r ...
+!> \param wf_g ...
+!> \param mo_arrays ...
+!> \param evals ...
+!> \param occupation ...
+!> \param efermi ...
+!> \param stm_biases ...
+!> \param stm_th_torb ...
+!> \param particles ...
+!> \param output_unit ...
+!> \param append_cube ...
+!> \param error ...
 !> \param
-!> \note
-!>      requires the MOs that are passed to be eigenstates, and energy ordered
 !> \par History
 !>      7.2008 Created [Joost VandeVondele]
 !>       07.2009 modified MI
 !> \author Joost VandeVondele
+!> \note
+!>      requires the MOs that are passed to be eigenstates, and energy ordered
 ! *****************************************************************************
   SUBROUTINE stm_cubes(qs_env, stm_section, stm_density_ao, wf_r, wf_g, mo_arrays, evals, &
                        occupation, efermi, stm_biases,  stm_th_torb, particles, &
@@ -386,7 +407,7 @@ CONTAINS
               middle_name=TRIM(filename),file_position=my_pos, file_action="WRITE",&
               log_filename=.FALSE.,error=error)
          WRITE(title,'(A,I0,A,I0,A,F16.8)') "STM cube ",ibias," wfn deriv. ",iorb," at bias ",stm_biases(ibias)
-         CALL pw_to_cube(wf_r%pw,unit_nr,title,particles=particles,&
+         CALL cp_pw_to_cube(wf_r%pw,unit_nr,title,particles=particles,&
              stride=section_get_ivals(stm_section,"STRIDE",error=error),zero_tails=.TRUE., error=error)
 
          CALL cp_print_key_finished_output(unit_nr,logger,stm_section,error=error)

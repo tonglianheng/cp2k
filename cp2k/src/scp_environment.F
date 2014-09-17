@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2013  CP2K developers group                          !
+!   Copyright (C) 2000 - 2014  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -8,28 +8,15 @@
 !> \author CJM
 ! *****************************************************************************
 MODULE scp_environment
-  USE array_types,                     ONLY: array_i1d_obj,&
-                                             array_new,&
-                                             array_nullify,&
-                                             array_release
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
-                                             get_atomic_kind,&
-                                             get_atomic_kind_set
-  USE cp_dbcsr_interface,              ONLY: cp_dbcsr_copy,&
-                                             cp_dbcsr_create,&
-                                             cp_dbcsr_finalize,&
-                                             cp_dbcsr_get_diag,&
-                                             cp_dbcsr_get_info,&
-                                             cp_dbcsr_init,&
-                                             cp_dbcsr_set
-  USE cp_dbcsr_operations,             ONLY: cp_dbcsr_add_block_node
-  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_type
+                                             get_atomic_kind
+  USE cp_dbcsr_interface,              ONLY: &
+       array_i1d_obj, array_new, array_nullify, array_release, &
+       convert_offsets_to_sizes, cp_dbcsr_add_block_node, cp_dbcsr_copy, &
+       cp_dbcsr_create, cp_dbcsr_finalize, cp_dbcsr_get_diag, &
+       cp_dbcsr_get_info, cp_dbcsr_init, cp_dbcsr_set, cp_dbcsr_type, &
+       dbcsr_distribution_obj, dbcsr_repl_full, dbcsr_type_symmetric
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE dbcsr_types,                     ONLY: dbcsr_distribution_obj,&
-                                             dbcsr_repl_full,&
-                                             dbcsr_type_symmetric
-  USE dbcsr_util,                      ONLY: convert_offsets_to_sizes
-  USE distribution_1d_types,           ONLY: distribution_1d_type
   USE f77_blas
   USE input_constants,                 ONLY: do_method_pnnl,&
                                              use_scp_basis_set
@@ -39,21 +26,15 @@ MODULE scp_environment
   USE kinds,                           ONLY: dp
   USE particle_types,                  ONLY: get_particle_set,&
                                              particle_type
-  USE periodic_table,                  ONLY: get_ptable_info
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
-  USE scp_coeff_types,                 ONLY: aux_coeff_set_create,&
-                                             aux_coeff_set_initialize,&
-                                             aux_coeff_set_release,&
-                                             aux_coeff_set_type
+  USE qs_kind_types,                   ONLY: get_qs_kind,&
+                                             get_qs_kind_set,&
+                                             qs_kind_type
   USE scp_energy_types,                ONLY: allocate_scp_energy,&
                                              scp_energy_type
-  USE scp_environment_methods,         ONLY: scp_qs_env_setup
   USE scp_environment_types,           ONLY: scp_environment_type,&
                                              set_scp_env
-  USE scp_force_types,                 ONLY: allocate_scp_force,&
-                                             init_scp_force,&
-                                             scp_force_type
   USE semi_empirical_store_int_types,  ONLY: semi_empirical_si_create,&
                                              semi_empirical_si_type
   USE semi_empirical_types,            ONLY: get_se_param,&
@@ -63,13 +44,13 @@ MODULE scp_environment
                                              se_param_set_default
   USE timings,                         ONLY: timeset,&
                                              timestop
-#include "cp_common_uses.h"
+#include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
 
   PRIVATE
 
-  PUBLIC :: scp_dft_init, scp_nddo_init
+  PUBLIC :: scp_nddo_init
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'scp_environment'
 
@@ -78,83 +59,9 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Initializes the SCP environment using the QS environment
-! *****************************************************************************
-  SUBROUTINE scp_dft_init ( scp_env, qs_env, error )
-
-    TYPE(scp_environment_type), POINTER      :: scp_env
-    TYPE(qs_environment_type), OPTIONAL, &
-      POINTER                                :: qs_env
-    TYPE(cp_error_type), INTENT(inout)       :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'scp_dft_init', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: handle, nkind, stat
-    INTEGER, ALLOCATABLE, DIMENSION(:)       :: natom_of_kind
-    LOGICAL                                  :: failure
-    TYPE(atomic_kind_type), DIMENSION(:), &
-      POINTER                                :: atomic_kind_set
-    TYPE(aux_coeff_set_type), POINTER        :: aux_coeff_set
-    TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(distribution_1d_type), POINTER      :: local_particles
-    TYPE(scp_energy_type), POINTER           :: energy
-    TYPE(scp_force_type), POINTER            :: force( : )
-    TYPE(section_vals_type), POINTER         :: dft_section, input
-
-    CALL timeset(routineN,handle)
-
-    failure = .FALSE.
-    ! Nullifying  pointers
-    NULLIFY ( aux_coeff_set )
-    NULLIFY ( energy, force )
-    NULLIFY ( para_env )
-    NULLIFY ( input )
-    NULLIFY ( atomic_kind_set )
-    NULLIFY ( local_particles )
-
-    IF ( PRESENT ( qs_env ) ) THEN
-      CALL get_qs_env (qs_env, para_env = para_env, input = input, &
-                       atomic_kind_set = atomic_kind_set, &
-                       local_particles = local_particles, error = error )
-
-      dft_section =>  section_vals_get_subs_vals( input, "DFT", error = error )
-      ! Set the input section of the SCP
-      CALL set_scp_env(scp_env,input=dft_section,&
-           error=error)
-
-      ! Allocate and initialize coefs pointer
-      CALL aux_coeff_set_create(aux_coeff_set=aux_coeff_set,atomic_kind_set=atomic_kind_set,&
-           distribution=local_particles, error=error)
-      CALL aux_coeff_set_initialize(aux_coeff_set,para_env,error)
-      CALL set_scp_env (scp_env=scp_env,aux_coeff_set = aux_coeff_set, error=error)
-      CALL aux_coeff_set_release(aux_coeff_set, error=error)
-
-      ! Allocate the data structure for energies ***
-      CALL allocate_scp_energy (energy)
-
-      ! Allocate the data structure for energies ***
-      nkind = SIZE(atomic_kind_set)
-      ALLOCATE (natom_of_kind(nkind),STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-
-      CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
-                             natom_of_kind=natom_of_kind)
-      CALL allocate_scp_force(force,natom_of_kind)
-      DEALLOCATE (natom_of_kind,STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-      CALL init_scp_force(force)
-
-      ! set the scp_env
-      CALL set_scp_env (scp_env=scp_env, energy=energy,force=force,error=error)
-
-      !Sets up pw, grids, densities
-      CALL scp_qs_env_setup(scp_env,qs_env,error)
-    END IF
-    CALL timestop(handle)
-
-  END SUBROUTINE scp_dft_init
-! *****************************************************************************
-!> \brief Initializes the SCP environment using the QS environment
+!> \param scp_env ...
+!> \param qs_env ...
+!> \param error ...
 ! *****************************************************************************
   SUBROUTINE scp_nddo_init ( scp_env, qs_env, error )
 
@@ -180,12 +87,14 @@ CONTAINS
     TYPE(array_i1d_obj)                      :: col_blk_sizes, row_blk_sizes
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
-    TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(cp_dbcsr_type), POINTER             :: ks_scp, pscp
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(dbcsr_distribution_obj), POINTER    :: dbcsr_dist
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
+    TYPE(qs_kind_type), DIMENSION(:), &
+      POINTER                                :: qs_kind_set
+    TYPE(qs_kind_type), POINTER              :: qs_kind
     TYPE(scp_energy_type), POINTER           :: energy
     TYPE(section_vals_type), POINTER         :: dft_section, input, &
                                                 qs_section, se_section
@@ -199,11 +108,12 @@ CONTAINS
     NULLIFY ( energy )
     NULLIFY ( particle_set )
     NULLIFY ( para_env )
-    NULLIFY ( atomic_kind_set, atomic_kind )
+    NULLIFY ( atomic_kind_set, qs_kind_set, qs_kind )
     NULLIFY ( pscp, ks_scp, block, ascp_diag, se_kind, atom_list )
 
     CALL get_qs_env (qs_env, para_env = para_env, &
                      atomic_kind_set = atomic_kind_set, &
+                     qs_kind_set = qs_kind_set, &
                      particle_set = particle_set, &
                      neighbor_list_id=neighbor_list_id, &
                      dbcsr_dist=dbcsr_dist, input = input, &
@@ -221,32 +131,32 @@ CONTAINS
     z = -1
     zeff_correction = 0.0_dp
     DO ikind=1,nkind
-       atomic_kind => atomic_kind_set(ikind)
+       qs_kind => qs_kind_set(ikind)
     ! Retrieve information on element
-    !   CALL get_atomic_kind(atomic_kind=atomic_kind, scp_se_parameter=se_kind )
-       CALL get_ptable_info(atomic_kind%element_symbol, ielement=z)
+    !   CALL get_qs_kind(qs_kind=qs_kind, scp_se_parameter=se_kind )
+       CALL get_atomic_kind(atomic_kind_set(ikind), z=z)
    ! Setup proper semiempirical parameters
        check = .NOT.ASSOCIATED(se_kind)
        CPPostcondition(check, cp_failure_level, routineP, error, failure)
-       CALL semi_empirical_create(atomic_kind%scp_se_parameter,error)
+       CALL semi_empirical_create(qs_kind%scp_se_parameter,error)
     ! We allow p-orbitals on H for SCP
        SELECT CASE(z)
        CASE (1)
-         atomic_kind%scp_se_parameter%p_orbitals_on_h=.TRUE.
+         qs_kind%scp_se_parameter%p_orbitals_on_h=.TRUE.
        CASE DEFAULT
           ! No special cases for other elements..
        END SELECT
        ! Set default parameters
        CALL section_vals_val_get(dft_section,"QS%SE%STO_NG",i_val=ngauss,error=error)
-       CALL se_param_set_default(atomic_kind%scp_se_parameter,z,do_method_pnnl,error)
-       CALL init_se_param(atomic_kind%scp_se_parameter,atomic_kind%scp_basis_set,ngauss,error=error)
-!       CALL init_potential ( atomic_kind%all_potential, itype="BARE", &
+       CALL se_param_set_default(qs_kind%scp_se_parameter,z,do_method_pnnl,error)
+       CALL init_se_param(qs_kind%scp_se_parameter,qs_kind%scp_basis_set,ngauss,error=error)
+!       CALL init_potential ( qs_kind%all_potential, itype="BARE", &
 !            zeff=se_kind%zeff,zeff_correction=zeff_correction,error=error)
-       atomic_kind%scp_se_parameter%zeff=atomic_kind%se_parameter%zeff
+       qs_kind%scp_se_parameter%zeff=qs_kind%se_parameter%zeff
     END DO
 
-    CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,nsgf=nsgf_a,basis_set_id=use_scp_basis_set)
-    CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,nsgf=nsgf_b,basis_set_id=use_scp_basis_set)
+    CALL get_qs_kind_set(qs_kind_set=qs_kind_set,nsgf=nsgf_a,basis_set_id=use_scp_basis_set)
+    CALL get_qs_kind_set(qs_kind_set=qs_kind_set,nsgf=nsgf_b,basis_set_id=use_scp_basis_set)
 
     ALLOCATE (first_sgf_a(natom),STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -257,12 +167,12 @@ CONTAINS
     ALLOCATE (last_sgf_b(natom),STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
-    CALL get_particle_set(particle_set=particle_set,&
+    CALL get_particle_set(particle_set, qs_kind_set,&
                           first_sgf=first_sgf_a,&
                           last_sgf=last_sgf_a,&
                           basis_set_id=use_scp_basis_set,&
                           error=error)
-    CALL get_particle_set(particle_set=particle_set,&
+    CALL get_particle_set(particle_set, qs_kind_set,&
                           first_sgf=first_sgf_b,&
                           last_sgf=last_sgf_b,&
                           basis_set_id=use_scp_basis_set,&
@@ -291,10 +201,9 @@ CONTAINS
     CALL array_release (col_blk_sizes)
 
     DO ikind=1,nkind
-       atomic_kind => atomic_kind_set(ikind)
-       CALL get_atomic_kind(atomic_kind=atomic_kind,&
-                            scp_se_parameter=se_kind, &
-                            atom_list=atom_list)
+       qs_kind => qs_kind_set(ikind)
+       CALL get_qs_kind(qs_kind, scp_se_parameter=se_kind)
+       CALL get_atomic_kind(atomic_kind_set(ikind), atom_list=atom_list)
        CALL get_se_param(se_kind, ass=ass,app=app,asp=asp,natorb=natorb)
        IF (natorb>4) THEN
           CALL cp_unimplemented_error(fromWhere=routineP, &

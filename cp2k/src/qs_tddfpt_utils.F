@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2013  CP2K developers group                          !
+!   Copyright (C) 2000 - 2014  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -10,9 +10,9 @@
 MODULE qs_tddfpt_utils
 
   USE cp_control_types,                ONLY: tddfpt_control_type
+  USE cp_dbcsr_interface,              ONLY: cp_dbcsr_p_type
   USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
                                              cp_dbcsr_sm_fm_multiply
-  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_p_type
   USE cp_fm_basic_linalg,              ONLY: cp_fm_scale,&
                                              cp_fm_scale_and_add,&
                                              cp_fm_trace
@@ -40,7 +40,7 @@ MODULE qs_tddfpt_utils
   USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
-#include "cp_common_uses.h"
+#include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
 
@@ -58,12 +58,11 @@ MODULE qs_tddfpt_utils
   PRIVATE
 
   ! METHODS
-  PUBLIC :: tddfpt_cleanup, &
-            tddfpt_init, &
-            tddfpt_env_init, &
-            co_initial_guess, &
+  PUBLIC :: tddfpt_cleanup,&
+            tddfpt_init,&
+            co_initial_guess,&
             find_contributions,&
-            normalize, &
+            normalize,&
             reorthogonalize
 
 CONTAINS
@@ -74,6 +73,7 @@ CONTAINS
 !> \param t_env tddfpt environment to be initialized
 !> \param qs_env Quickstep environment with the results of a
 !>                   ground state calcualtion
+!> \param error ...
 ! *****************************************************************************
   SUBROUTINE tddfpt_init(p_env, t_env, qs_env, error)
 
@@ -102,6 +102,9 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Initialize t_env with meaningfull values.
+!> \param t_env ...
+!> \param qs_env ...
+!> \param error ...
 ! *****************************************************************************
   SUBROUTINE tddfpt_env_init(t_env, qs_env,error)
 
@@ -126,6 +129,11 @@ CONTAINS
   END SUBROUTINE tddfpt_env_init
 
 ! *****************************************************************************
+!> \brief ...
+!> \param t_env ...
+!> \param p_env ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE tddfpt_cleanup(t_env, p_env, error)
 
     TYPE(tddfpt_env_type), INTENT(inout)     :: t_env
@@ -140,6 +148,13 @@ CONTAINS
 
   END SUBROUTINE tddfpt_cleanup
 
+! *****************************************************************************
+!> \brief ...
+!> \param matrices ...
+!> \param energies ...
+!> \param n_v ...
+!> \param qs_env ...
+!> \param error ...
 ! *****************************************************************************
   SUBROUTINE co_initial_guess(matrices, energies, n_v, qs_env, error)
 
@@ -270,6 +285,11 @@ CONTAINS
   END SUBROUTINE co_initial_guess
 
 ! *****************************************************************************
+!> \brief ...
+!> \param qs_env ...
+!> \param t_env ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE find_contributions(qs_env, t_env, error)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
@@ -346,7 +366,7 @@ CONTAINS
                 END DO
                 summed_contributions = summed_contributions + (contribution)**2
                 IF (ABS(contribution) > 5.0e-2_dp) THEN
-                   IF (output_unit>0) WRITE (output_unit,'(18X,I3,A,I3,10X,F8.3,5X,F8.3)') &
+                   IF (output_unit>0) WRITE (output_unit,'(14X,I5,A,I5,10X,F8.3,5X,F8.3)') &
                         occ, " ->", nhomos(spin)+virt, ABS(contribution), summed_contributions
                 END IF
                 IF (ABS(summed_contributions - 1.0_dp) < 1.0e-3_dp) CYCLE searchloop
@@ -373,6 +393,12 @@ CONTAINS
 
   END SUBROUTINE find_contributions
 
+! *****************************************************************************
+!> \brief ...
+!> \param X ...
+!> \param tmp_vec ...
+!> \param metric ...
+!> \param error ...
 ! *****************************************************************************
   SUBROUTINE normalize(X, tmp_vec, metric, error)
 
@@ -408,6 +434,14 @@ CONTAINS
   ! x must not be changed in this routine !
   ! tmp_vec may be changed                !
   !---------------------------------------!
+! *****************************************************************************
+!> \brief ...
+!> \param X ...
+!> \param V_set ...
+!> \param SV_set ...
+!> \param work ...
+!> \param n ...
+!> \param error ...
 ! *****************************************************************************
   SUBROUTINE reorthogonalize(X, V_set, SV_set, work, n, error)
 

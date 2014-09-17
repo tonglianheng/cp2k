@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2013  CP2K developers group                          !
+!   Copyright (C) 2000 - 2014  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -20,7 +20,7 @@ MODULE gaussian_gridlevels
                                              int_8
   USE message_passing,                 ONLY: mp_sum
   USE termination,                     ONLY: stop_memory
-#include "cp_common_uses.h"
+#include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
 
@@ -46,6 +46,14 @@ MODULE gaussian_gridlevels
 CONTAINS
 
 ! *****************************************************************************
+!> \brief ...
+!> \param gridlevel_info ...
+!> \param ngrid_levels ...
+!> \param cutoff ...
+!> \param rel_cutoff ...
+!> \param print_section ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE init_gaussian_gridlevel(gridlevel_info,ngrid_levels,cutoff,rel_cutoff, print_section, error)
     TYPE(gridlevel_info_type)                :: gridlevel_info
     INTEGER                                  :: ngrid_levels
@@ -69,6 +77,11 @@ CONTAINS
     CALL section_vals_retain(print_section,error=error)
   END SUBROUTINE init_gaussian_gridlevel
 
+! *****************************************************************************
+!> \brief ...
+!> \param gridlevel_info ...
+!> \param para_env ...
+!> \param error ...
 ! *****************************************************************************
   SUBROUTINE destroy_gaussian_gridlevel(gridlevel_info,para_env,error)
     TYPE(gridlevel_info_type)                :: gridlevel_info
@@ -128,6 +141,11 @@ CONTAINS
 
   END SUBROUTINE destroy_gaussian_gridlevel
 
+! *****************************************************************************
+!> \brief ...
+!> \param gridlevel_info ...
+!> \param exponent ...
+!> \retval gridlevel ...
 ! *****************************************************************************
   FUNCTION gaussian_gridlevel(gridlevel_info,exponent) RESULT(gridlevel)
     TYPE(gridlevel_info_type), INTENT(INOUT) :: gridlevel_info

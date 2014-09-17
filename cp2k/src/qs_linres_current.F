@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2013  CP2K developers group                          !
+!   Copyright (C) 2000 - 2014  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -14,36 +14,28 @@
 ! *****************************************************************************
 MODULE qs_linres_current
 
-  USE array_types,                     ONLY: array_i1d_obj,&
-                                             array_new,&
-                                             array_nullify,&
-                                             array_release
-  USE atomic_kind_types,               ONLY: atomic_kind_type,&
-                                             get_atomic_kind,&
-                                             get_atomic_kind_set
   USE basis_set_types,                 ONLY: get_gto_basis_set,&
                                              gto_basis_set_p_type,&
                                              gto_basis_set_type
-  USE cell_types,                      ONLY: cell_type,&
+  USE cell_methods,                    ONLY: cell_type,&
                                              pbc
   USE cp_array_i_utils,                ONLY: cp_2d_i_p_type
   USE cp_array_r_utils,                ONLY: cp_2d_r_p_type
   USE cp_control_types,                ONLY: dft_control_type
+  USE cp_dbcsr_cp2k_link,              ONLY: cp_dbcsr_alloc_block_from_nbl
   USE cp_dbcsr_interface,              ONLY: &
-       cp_dbcsr_col_block_sizes, cp_dbcsr_copy, cp_dbcsr_create, &
-       cp_dbcsr_distribution, cp_dbcsr_finalize, cp_dbcsr_get_block_p, &
-       cp_dbcsr_get_data_size, cp_dbcsr_get_matrix_type, &
-       cp_dbcsr_get_num_blocks, cp_dbcsr_init, cp_dbcsr_row_block_sizes, &
-       cp_dbcsr_set
-  USE cp_dbcsr_operations,             ONLY: cp_dbcsr_add_block_node,&
-                                             cp_dbcsr_alloc_block_from_nbl,&
-                                             cp_dbcsr_allocate_matrix_set,&
-                                             cp_dbcsr_deallocate_matrix,&
-                                             cp_dbcsr_deallocate_matrix_set,&
-                                             cp_dbcsr_plus_fm_fm_t,&
+       array_i1d_obj, array_new, array_nullify, array_release, &
+       convert_offsets_to_sizes, cp_dbcsr_add_block_node, &
+       cp_dbcsr_allocate_matrix_set, cp_dbcsr_col_block_sizes, cp_dbcsr_copy, &
+       cp_dbcsr_create, cp_dbcsr_deallocate_matrix, &
+       cp_dbcsr_deallocate_matrix_set, cp_dbcsr_distribution, &
+       cp_dbcsr_finalize, cp_dbcsr_get_block_p, cp_dbcsr_get_data_size, &
+       cp_dbcsr_get_matrix_type, cp_dbcsr_get_num_blocks, cp_dbcsr_init, &
+       cp_dbcsr_p_type, cp_dbcsr_row_block_sizes, cp_dbcsr_set, &
+       cp_dbcsr_type, dbcsr_distribution_obj, dbcsr_type_antisymmetric, &
+       dbcsr_type_no_symmetry
+  USE cp_dbcsr_operations,             ONLY: cp_dbcsr_plus_fm_fm_t,&
                                              cp_dbcsr_sm_fm_multiply
-  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_p_type,&
-                                             cp_dbcsr_type
   USE cp_fm_basic_linalg,              ONLY: cp_fm_scale_and_add,&
                                              cp_fm_trace
   USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
@@ -60,13 +52,10 @@ MODULE qs_linres_current
                                              cp_print_key_should_output,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
+  USE cp_realspace_grid_cube,          ONLY: cp_pw_to_cube
   USE cp_subsys_types,                 ONLY: cp_subsys_get,&
                                              cp_subsys_type
   USE cube_utils,                      ONLY: cube_info_type
-  USE dbcsr_types,                     ONLY: dbcsr_distribution_obj,&
-                                             dbcsr_type_antisymmetric,&
-                                             dbcsr_type_no_symmetry
-  USE dbcsr_util,                      ONLY: convert_offsets_to_sizes
   USE gaussian_gridlevels,             ONLY: gridlevel_info_type
   USE input_constants,                 ONLY: current_gauge_atom
   USE input_section_types,             ONLY: section_get_ivals,&
@@ -79,7 +68,6 @@ MODULE qs_linres_current
   USE lgrid_types,                     ONLY: lgrid_type
   USE mathconstants,                   ONLY: twopi
   USE memory_utilities,                ONLY: reallocate
-  USE message_passing
   USE orbital_pointers,                ONLY: ncoset
   USE particle_list_types,             ONLY: particle_list_type
   USE particle_types,                  ONLY: get_particle_set,&
@@ -96,10 +84,12 @@ MODULE qs_linres_current
   USE pw_types,                        ONLY: REALDATA3D,&
                                              REALSPACE,&
                                              pw_p_type
-  USE qs_collocate_density,            ONLY: collocate_pgf_product_rspace,&
-                                             density_rs2pw
+  USE qs_collocate_density,            ONLY: collocate_pgf_product_rspace
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
+  USE qs_kind_types,                   ONLY: get_qs_kind,&
+                                             get_qs_kind_set,&
+                                             qs_kind_type
   USE qs_linres_atom_current,          ONLY: calculate_jrho_atom,&
                                              calculate_jrho_atom_coeff,&
                                              calculate_jrho_atom_rad
@@ -125,11 +115,11 @@ MODULE qs_linres_current
                                              neighbor_list_set_p_type
   USE qs_operators_ao,                 ONLY: build_lin_mom_matrix,&
                                              rRc_xyz_der_ao
-  USE realspace_grid_cube,             ONLY: pw_to_cube
   USE realspace_grid_types,            ONLY: &
        realspace_grid_desc_p_type, realspace_grid_desc_type, &
        realspace_grid_p_type, realspace_grid_type, rs_grid_create, &
        rs_grid_mult_and_add, rs_grid_release, rs_grid_retain, rs_grid_zero
+  USE rs_pw_interface,                 ONLY: density_rs2pw
   USE task_list_methods,               ONLY: distribute_tasks,&
                                              int2pair,&
                                              rs_distribute_matrix,&
@@ -137,14 +127,14 @@ MODULE qs_linres_current
   USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
-#include "cp_common_uses.h"
+#include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
 
   PRIVATE
 
   ! *** Public subroutines ***
-  PUBLIC :: current_build_current,calculate_jrho_resp,current_build_chi,current_set_gauge
+  PUBLIC :: current_build_current, current_build_chi
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_linres_current'
 
@@ -172,7 +162,11 @@ CONTAINS
 !>       and on other selected points in real space summing up the contributions
 !>       from the PW grid current density and the local densities
 !>       Spline interpolation is used
-!> \param psi 1, p_psi1 : scratch MOS coefficients
+!> \param current_env ...
+!> \param qs_env ...
+!> \param iB ...
+!> \param error ...
+!> \author MI
 !> \note
 !>       The susceptibility is needed to compute the G=0 term of the shift
 !>       in reciprocal space. \chi_{ij} = \int (r x Jj)_i
@@ -181,7 +175,6 @@ CONTAINS
 !>       the position operator yet another time.
 !>       This cannot be done on directly on the full J(r) because it is not localized
 !>       Therefore it is done state by state (see linres_nmr_shift)
-!> \author MI
 ! *****************************************************************************
   SUBROUTINE current_build_current(current_env,qs_env,iB,error)
     !
@@ -234,6 +227,8 @@ CONTAINS
     TYPE(pw_p_type)                          :: wf_r
     TYPE(pw_p_type), POINTER                 :: jrho_gspace, jrho_rspace
     TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
+    TYPE(qs_kind_type), DIMENSION(:), &
+      POINTER                                :: qs_kind_set
     TYPE(qs_matrix_pools_type), POINTER      :: mpools
     TYPE(realspace_grid_desc_type), POINTER  :: auxbas_rs_desc
     TYPE(section_vals_type), POINTER         :: current_section
@@ -242,38 +237,39 @@ CONTAINS
     CALL timeset(routineN,handle)
     !
     NULLIFY(jrho_rspace,jrho_gspace,logger,current_section,density_matrix0,density_matrix_a,&
-         &  density_matrix_ii,density_matrix_iii,cell,dft_control,mos,&
-         &  particle_set,pw_env,auxbas_rs_desc,auxbas_pw_pool,&
-         &  para_env,center_list,mo_coeff,psi_a_iB,&
-         &  psi1,p_psi1,psi1_p,psi1_D,psi1_rxp,psi0_order,sab_all)
+            density_matrix_ii,density_matrix_iii,cell,dft_control,mos,&
+            particle_set,pw_env,auxbas_rs_desc,auxbas_pw_pool,&
+            para_env,center_list,mo_coeff,psi_a_iB,&
+            psi1,p_psi1,psi1_p,psi1_D,psi1_rxp,psi0_order,sab_all, qs_kind_set)
 
     logger => cp_error_get_logger(error)
     output_unit= cp_logger_get_default_io_unit(logger)
     !
     !
     CALL get_current_env(current_env=current_env,&
-         &               center_list=center_list,&
-         &               psi1_rxp=psi1_rxp,&
-         &               psi1_D=psi1_D,&
-         &               psi1_p=psi1_p,&
-         &               psi0_order=psi0_order,&
-         &               nstates=nstates,&
-         &               nao=nao,&
-         &               error=error)
+                         center_list=center_list,&
+                         psi1_rxp=psi1_rxp,&
+                         psi1_D=psi1_D,&
+                         psi1_p=psi1_p,&
+                         psi0_order=psi0_order,&
+                         nstates=nstates,&
+                         nao=nao,&
+                         error=error)
     !
     !
     CALL get_qs_env(qs_env=qs_env,&
-         &          cell=cell,&
-         &          dft_control=dft_control,&
-         &          mos=mos,&
-         &          mpools=mpools,&
-         &          pw_env=pw_env,&
-         &          para_env=para_env,&
-         &          subsys=subsys,&
-         &          sab_all=sab_all,&
-         &          particle_set=particle_set,&
-         &          dbcsr_dist=dbcsr_dist,&
-         &          error=error)
+                    cell=cell,&
+                    dft_control=dft_control,&
+                    mos=mos,&
+                    mpools=mpools,&
+                    pw_env=pw_env,&
+                    para_env=para_env,&
+                    subsys=subsys,&
+                    sab_all=sab_all,&
+                    particle_set=particle_set,&
+                    qs_kind_set=qs_kind_set,&
+                    dbcsr_dist=dbcsr_dist,&
+                    error=error)
 
     CALL cp_subsys_get(subsys,particles=particles,error=error)
 
@@ -302,7 +298,7 @@ CONTAINS
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
     ALLOCATE (last_sgf(natom),STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-    CALL get_particle_set(particle_set=particle_set,&
+    CALL get_particle_set(particle_set, qs_kind_set,&
                           first_sgf=first_sgf,&
                           last_sgf=last_sgf,error=error)
     ALLOCATE (rbs(natom), STAT=istat)
@@ -372,8 +368,8 @@ CONTAINS
           ! Build the first density matrix
           CALL cp_dbcsr_set(density_matrix0(ispin)%matrix,0.0_dp,error=error)
           CALL cp_dbcsr_plus_fm_fm_t(sparse_matrix=density_matrix0(ispin)%matrix ,&
-               &                  matrix_v=mo_coeff,matrix_g=mo_coeff,&
-               &                  ncol=nmo,alpha=maxocc,error=error)
+                                  matrix_v=mo_coeff,matrix_g=mo_coeff,&
+                                  ncol=nmo,alpha=maxocc,error=error)
           !
           ! Allocate buffer vectors
           ALLOCATE(ddk(3,nmo),STAT=istat)
@@ -422,20 +418,20 @@ CONTAINS
           ! Build the first density matrix
           CALL cp_dbcsr_set(density_matrix_a(ispin)%matrix ,0.0_dp,error=error)
           CALL cp_dbcsr_plus_fm_fm_t(sparse_matrix=density_matrix_a(ispin)%matrix ,&
-               &                  matrix_v=mo_coeff,matrix_g=psi_a_iB,&
-               &                  ncol=nmo,alpha=maxocc,error=error)
+                                  matrix_v=mo_coeff,matrix_g=psi_a_iB,&
+                                  ncol=nmo,alpha=maxocc,error=error)
           !
           ! Build the second density matrix
           CALL cp_dbcsr_set(density_matrix_iii(ispin)%matrix,0.0_dp,error=error)
           CALL cp_dbcsr_plus_fm_fm_t(sparse_matrix=density_matrix_iii(ispin)%matrix ,&
-               &                  matrix_v=mo_coeff,matrix_g=psi1_p(ispin,iiiB)%matrix,&
-               &                  ncol=nmo,alpha=maxocc,error=error)
+                                  matrix_v=mo_coeff,matrix_g=psi1_p(ispin,iiiB)%matrix,&
+                                  ncol=nmo,alpha=maxocc,error=error)
           !
           ! Build the third density matrix
           CALL cp_dbcsr_set(density_matrix_ii(ispin)%matrix,0.0_dp,error=error)
           CALL cp_dbcsr_plus_fm_fm_t(sparse_matrix=density_matrix_ii(ispin)%matrix ,&
-               &                  matrix_v=mo_coeff,matrix_g=psi1_p(ispin,iiB)%matrix,&
-               &                  ncol=nmo,alpha=maxocc,error=error)
+                                  matrix_v=mo_coeff,matrix_g=psi1_p(ispin,iiB)%matrix,&
+                                  ncol=nmo,alpha=maxocc,error=error)
           DO idir = 1,3
              !
              ! Calculate the current density on the pw grid (only soft if GAPW)
@@ -447,11 +443,11 @@ CONTAINS
              CALL pw_zero(jrho_rspace%pw,error=error)
              CALL pw_zero(jrho_gspace%pw,error=error)
              CALL calculate_jrho_resp(density_matrix0(ispin)%matrix, &
-                  &                   density_matrix_a(ispin)%matrix, &
-                  &                   density_matrix_ii(ispin)%matrix, &
-                  &                   density_matrix_iii(ispin)%matrix, &
-                  &                   iB,idir,jrho_rspace,jrho_gspace,qs_env, &
-                  &                   current_env,gapw,error=error)
+                                      density_matrix_a(ispin)%matrix, &
+                                      density_matrix_ii(ispin)%matrix, &
+                                      density_matrix_iii(ispin)%matrix, &
+                                      iB,idir,jrho_rspace,jrho_gspace,qs_env, &
+                                      current_env,gapw,error=error)
 
              scale_fac = cell%deth / twopi
              CALL pw_scale(jrho_rspace%pw,scale_fac,error=error)
@@ -463,7 +459,7 @@ CONTAINS
              IF(output_unit>0) THEN
                 WRITE(output_unit,'(T2,2(A,E24.16))') 'Integrated j_'&
                      &//ACHAR(idir+119)//ACHAR(iB+119)//'(r): G-space=',&
-                     &jrho_tot_G(idir,iB),' R-space=',jrho_tot_R(idir,iB)
+                      jrho_tot_G(idir,iB),' R-space=',jrho_tot_R(idir,iB)
              ENDIF
              !
           ENDDO ! idir
@@ -481,11 +477,11 @@ CONTAINS
              ! First the sparse matrices are multiplied by the expansion coefficients
              ! this is the equivalent of the CPC for the charge density
              CALL calculate_jrho_atom_coeff(qs_env,current_env, &
-                  &                         density_matrix0, &
-                  &                         density_matrix_a, &
-                  &                         density_matrix_ii, &
-                  &                         density_matrix_iii, &
-                  &                         iB,idir,error=error)
+                                            density_matrix0, &
+                                            density_matrix_a, &
+                                            density_matrix_ii, &
+                                            density_matrix_iii, &
+                                            iB,idir,error=error)
              !
              ! Then the radial parts are computed on the local radial grid, atom by atom
              ! 8 functions are computed for each atom, per grid point
@@ -508,11 +504,11 @@ CONTAINS
           END IF
           !
           CALL pw_env_get(pw_env, auxbas_rs_desc=auxbas_rs_desc,&
-               &          auxbas_pw_pool=auxbas_pw_pool,&
-               &          error=error)
+                          auxbas_pw_pool=auxbas_pw_pool,&
+                          error=error)
           !
           CALL pw_pool_create_pw(auxbas_pw_pool,wf_r%pw,use_data=REALDATA3D,&
-               &                  in_space=REALSPACE,error=error)
+                                  in_space=REALSPACE,error=error)
           !
           DO idir = 1,3
              CALL pw_zero(wf_r%pw,error=error)
@@ -532,14 +528,14 @@ CONTAINS
              WRITE(ext,'(a2,I1,a2,I1,a5)')  "iB",iB,"_d",idir,".cube"
              WRITE(ext,'(a2,a1,a2,a1,a5)')  "iB",ACHAR(iB+119),"_d",ACHAR(idir+119),".cube"
              unit_nr=cp_print_key_unit_nr(logger,current_section,"PRINT%CURRENT_CUBES",&
-                  &                       extension=TRIM(ext),middle_name=TRIM(filename),&
-                  &                       log_filename=.FALSE.,file_position=my_pos,&
-                  &                       error=error)
+                                          extension=TRIM(ext),middle_name=TRIM(filename),&
+                                          log_filename=.FALSE.,file_position=my_pos,&
+                                          error=error)
 
-             CALL pw_to_cube(wf_r%pw,unit_nr,"RESPONSE CURRENT DENSITY ",&
-                  &          particles=particles,&
-                  &          stride=section_get_ivals(current_section,"PRINT%CURRENT_CUBES%STRIDE",&
-                  &          error=error),error=error)
+             CALL cp_pw_to_cube(wf_r%pw,unit_nr,"RESPONSE CURRENT DENSITY ",&
+                             particles=particles,&
+                             stride=section_get_ivals(current_section,"PRINT%CURRENT_CUBES%STRIDE",&
+                             error=error),error=error)
              CALL cp_print_key_finished_output(unit_nr,logger,current_section,&
                   &                            "PRINT%CURRENT_CUBES",error=error)
           ENDDO
@@ -550,7 +546,7 @@ CONTAINS
        ! Integrated current response checksum
        IF(output_unit>0) THEN
           WRITE(output_unit,'(T2,A,E24.16)') 'CheckSum R-integrated j=',&
-               &            SQRT(DDOT(9,jrho_tot_R(1,1),1,jrho_tot_R(1,1),1))
+                            SQRT(DDOT(9,jrho_tot_R(1,1),1,jrho_tot_R(1,1),1))
        ENDIF
        !
        !
@@ -579,6 +575,18 @@ CONTAINS
 !> \brief Calculation of the idir component of the response current density
 !>       in the presence of a constant magnetic field in direction iB
 !>       the current density is collocated on the pw grid in real space
+!> \param mat_d0 ...
+!> \param mat_jp ...
+!> \param mat_jp_rii ...
+!> \param mat_jp_riii ...
+!> \param iB ...
+!> \param idir ...
+!> \param current_rs ...
+!> \param current_gs ...
+!> \param qs_env ...
+!> \param current_env ...
+!> \param soft_valid ...
+!> \param error ...
 !> \note
 !>       The collocate is done in three parts, one for each density matrix
 !>       In all cases the density matrices and therefore the collocation
@@ -651,9 +659,6 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:, :, :), &
       POINTER                                :: jpabt_a, jpabt_b, jpabt_c, &
                                                 jpabt_d, workt
-    TYPE(atomic_kind_type), DIMENSION(:), &
-      POINTER                                :: atomic_kind_set
-    TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_dbcsr_type), POINTER             :: deltajp_a, deltajp_b, &
                                                 deltajp_c, deltajp_d, mat_a, &
@@ -675,17 +680,19 @@ CONTAINS
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(pw_env_type), POINTER               :: pw_env
+    TYPE(qs_kind_type), DIMENSION(:), &
+      POINTER                                :: qs_kind_set
+    TYPE(qs_kind_type), POINTER              :: qs_kind
     TYPE(realspace_grid_desc_p_type), &
       DIMENSION(:), POINTER                  :: rs_descs
     TYPE(realspace_grid_p_type), &
       DIMENSION(:), POINTER                  :: rs_current, rs_rho
     TYPE(realspaces_grid_p_type), &
       DIMENSION(:), POINTER                  :: rs_gauge
-    TYPE(section_vals_type), POINTER         :: input, interp_section
 
     failure=.FALSE.
-    NULLIFY(atomic_kind, cell, dft_control, orb_basis_set, rs_rho, &
-         atomic_kind_set, sab_orb, particle_set, rs_current, pw_env, &
+    NULLIFY(qs_kind, cell, dft_control, orb_basis_set, rs_rho, &
+         qs_kind_set, sab_orb, particle_set, rs_current, pw_env, &
          rs_descs, para_env, dist_ab, set_radius_a, set_radius_b, la_max, &
          la_min, lb_max, lb_min, npgfa, npgfb, nsgfa, nsgfb, rpgfa, rpgfb, &
          sphi_a, sphi_b, zeta, zetb, first_sgfa, first_sgfb, dist_ab, &
@@ -714,18 +721,17 @@ CONTAINS
     ENDIF
 
     CALL get_qs_env(qs_env=qs_env,&
-         atomic_kind_set=atomic_kind_set,&
+         qs_kind_set=qs_kind_set,&
          cell=cell,&
          dft_control=dft_control,&
          particle_set=particle_set,&
          sab_all=sab_orb,&
          para_env=para_env,&
-         input=input,&
          pw_env=pw_env,error=error)
 
     CALL get_current_env(current_env=current_env,&
-         &               rs_gauge=rs_gauge,&
-         &               error=error)
+                         rs_gauge=rs_gauge,&
+                         error=error)
 
     ! Component of appearing in the vector product rxp, iiB and iiiB
     CALL set_vecp(iB,iiB,iiiB)
@@ -741,10 +747,6 @@ CONTAINS
     ! *** assign from pw_env
     gridlevel_info=>pw_env%gridlevel_info
     cube_info=>pw_env%cube_info
-
-    interp_section => section_vals_get_subs_vals(input,"DFT%MGRID%INTERPOLATOR",&
-         error=error)
-    !    CALL section_vals_val_get(interp_section,"KIND",i_val=interp_kind,error=error)
 
     !   Check that the neighbor list with all the pairs is associated
     CPPrecondition(ASSOCIATED(sab_orb),cp_failure_level,routineP,error,failure)
@@ -763,7 +765,7 @@ CONTAINS
     nthread = 1
 
     !   *** Allocate work storage ***
-    CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
+    CALL get_qs_kind_set(qs_kind_set=qs_kind_set,&
          maxco=maxco,&
          maxsgf=maxsgf,&
          maxsgf_set=maxsgf_set)
@@ -778,7 +780,7 @@ CONTAINS
     my_soft=.FALSE.
     IF (PRESENT(soft_valid)) my_soft = soft_valid
 
-    nkind = SIZE(atomic_kind_set)
+    nkind = SIZE(qs_kind_set)
 
     CALL reallocate(jpabt_a,1,maxco,1,maxco,0,nthread-1)
     CALL reallocate(jpabt_b,1,maxco,1,maxco,0,nthread-1)
@@ -798,9 +800,9 @@ CONTAINS
     maxpgf=0
 
     DO ikind=1,nkind
-       atomic_kind => atomic_kind_set(ikind)
+       qs_kind => qs_kind_set(ikind)
 
-       CALL get_atomic_kind(atomic_kind=atomic_kind,&
+       CALL get_qs_kind(qs_kind=qs_kind,&
             orb_basis_set=orb_basis_set)
 
        IF (.NOT.ASSOCIATED(orb_basis_set)) CYCLE
@@ -856,8 +858,8 @@ CONTAINS
     ALLOCATE (basis_set_list(nkind),STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
     DO ikind=1,nkind
-      atomic_kind => atomic_kind_set(ikind)
-      CALL get_atomic_kind(atomic_kind=atomic_kind,softb=my_soft,orb_basis_set=basis_set_a)
+      qs_kind => qs_kind_set(ikind)
+      CALL get_qs_kind(qs_kind=qs_kind,softb=my_soft,orb_basis_set=basis_set_a)
       IF (ASSOCIATED(basis_set_a)) THEN
         basis_set_list(ikind)%gto_basis_set => basis_set_a
       ELSE
@@ -980,7 +982,7 @@ CONTAINS
        ENDIF
        CALL rs_grid_zero(rs_rho(igrid_level)%rs_grid)
        CALL rs_grid_create(rs_current(igrid_level)%rs_grid, rs_descs(igrid_level)%rs_desc,&
-            &              error=error)
+                           error=error)
        CALL rs_grid_zero(rs_current(igrid_level)%rs_grid)
     ENDDO
 
@@ -1079,7 +1081,7 @@ CONTAINS
           bcol = jatom
 
           IF (ikind .NE. ikind_old ) THEN
-             CALL get_atomic_kind(atomic_kind=particle_set(iatom)%atomic_kind,&
+             CALL get_qs_kind(qs_kind_set(ikind),&
                   softb = my_soft, &
                   orb_basis_set=orb_basis_set)
 
@@ -1098,7 +1100,7 @@ CONTAINS
 
           IF (jkind .NE. jkind_old ) THEN
 
-             CALL get_atomic_kind(atomic_kind=particle_set(jatom)%atomic_kind,&
+             CALL get_qs_kind(qs_kind_set(jkind),&
                   softb = my_soft, &
                   orb_basis_set=orb_basis_set)
 
@@ -1302,7 +1304,7 @@ CONTAINS
     IF(do_igaim) THEN
        DO igrid_level=1,gridlevel_info%ngrid_levels
           CALL rs_grid_mult_and_add(rs_current(igrid_level)%rs_grid,rs_rho(igrid_level)%rs_grid,&
-               &                    rs_gauge(idir2)%rs(igrid_level)%rs_grid,1.0_dp)
+                                    rs_gauge(idir2)%rs(igrid_level)%rs_grid,1.0_dp)
        ENDDO
     ENDIF
     !   *** Release work storage ***
@@ -1327,8 +1329,7 @@ CONTAINS
        CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
     ENDIF
 
-    CALL density_rs2pw(pw_env,rs_current,current_rs,current_gs,&
-         interp_section=interp_section,error=error)
+    CALL density_rs2pw(pw_env,rs_current,current_rs,current_gs,error=error)
 
     IF (ASSOCIATED(rs_rho)) THEN
       DO i=1, SIZE(rs_rho)
@@ -1345,6 +1346,12 @@ CONTAINS
   END SUBROUTINE calculate_jrho_resp
 
 
+! *****************************************************************************
+!> \brief ...
+!> \param current_env ...
+!> \param qs_env ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE current_set_gauge(current_env,qs_env,error)
     !
     TYPE(current_env_type)                   :: current_env
@@ -1371,10 +1378,10 @@ CONTAINS
     CALL timeset(routineN,handle)
 
     CALL get_current_env(current_env=current_env,&
-         &               use_old_gauge_atom=use_old_gauge_atom,&
-         &               rs_gauge=rs_gauge,&
-         &               gauge=gauge,&
-         &               error=error)
+                         use_old_gauge_atom=use_old_gauge_atom,&
+                         rs_gauge=rs_gauge,&
+                         gauge=gauge,&
+                         error=error)
 
     IF(gauge.EQ.current_gauge_atom) THEN
        CALL get_qs_env(qs_env=qs_env,&
@@ -1406,16 +1413,16 @@ CONTAINS
 
           IF(use_old_gauge_atom) THEN
              CALL collocate_gauge(current_env,qs_env,&
-                  &               rs_gauge(1)%rs(igrid_level)%rs_grid,&
-                  &               rs_gauge(2)%rs(igrid_level)%rs_grid,&
-                  &               rs_gauge(3)%rs(igrid_level)%rs_grid,&
-                  &               error)
+                                  rs_gauge(1)%rs(igrid_level)%rs_grid,&
+                                  rs_gauge(2)%rs(igrid_level)%rs_grid,&
+                                  rs_gauge(3)%rs(igrid_level)%rs_grid,&
+                                  error)
           ELSE
              CALL collocate_gauge_new(current_env,qs_env,&
-                  &                   rs_gauge(1)%rs(igrid_level)%rs_grid,&
-                  &                   rs_gauge(2)%rs(igrid_level)%rs_grid,&
-                  &                   rs_gauge(3)%rs(igrid_level)%rs_grid,&
-                  &                   box,error)
+                                      rs_gauge(1)%rs(igrid_level)%rs_grid,&
+                                      rs_gauge(2)%rs(igrid_level)%rs_grid,&
+                                      rs_gauge(3)%rs(igrid_level)%rs_grid,&
+                                      box,error)
           ENDIF
        ENDDO
        !
@@ -1434,6 +1441,11 @@ CONTAINS
 
   CONTAINS
 
+! *****************************************************************************
+!> \brief ...
+!> \param qs_env ...
+!> \param error ...
+! *****************************************************************************
     SUBROUTINE box_atoms(qs_env,error)
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(cp_error_type), INTENT(INOUT)       :: error
@@ -1444,14 +1456,14 @@ CONTAINS
                                                 kbox, natms
     REAL(dp)                                 :: offset(3)
     REAL(dp), ALLOCATABLE, DIMENSION(:, :)   :: ratom
-    TYPE(atomic_kind_type), DIMENSION(:), &
-      POINTER                                :: atomic_kind_set
     TYPE(cell_type), POINTER                 :: cell
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
+    TYPE(qs_kind_type), DIMENSION(:), &
+      POINTER                                :: qs_kind_set
 
       CALL get_qs_env(qs_env=qs_env,&
-           atomic_kind_set=atomic_kind_set,&
+           qs_kind_set=qs_kind_set,&
            cell=cell,&
            particle_set=particle_set,&
            error=error)
@@ -1517,6 +1529,15 @@ CONTAINS
     END SUBROUTINE box_atoms
 
 
+! *****************************************************************************
+!> \brief ...
+!> \param current_env ...
+!> \param qs_env ...
+!> \param rs_grid_x ...
+!> \param rs_grid_y ...
+!> \param rs_grid_z ...
+!> \param error ...
+! *****************************************************************************
     SUBROUTINE collocate_gauge(current_env,qs_env,rs_grid_x,rs_grid_y,rs_grid_z,error)
       !
     TYPE(current_env_type)                   :: current_env
@@ -1534,11 +1555,11 @@ CONTAINS
       DIMENSION(:, :)                        :: atms_pnt, ratom
     REAL(kind=dp), DIMENSION(:, :, :), &
       POINTER                                :: grid_x, grid_y, grid_z
-    TYPE(atomic_kind_type), DIMENSION(:), &
-      POINTER                                :: atomic_kind_set
     TYPE(cell_type), POINTER                 :: cell
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
+    TYPE(qs_kind_type), DIMENSION(:), &
+      POINTER                                :: qs_kind_set
 
 !
 
@@ -1547,7 +1568,7 @@ CONTAINS
            error=error)
       !
       CALL get_qs_env(qs_env=qs_env,&
-           atomic_kind_set=atomic_kind_set,&
+           qs_kind_set=qs_kind_set,&
            cell=cell,&
            particle_set=particle_set,&
            error=error)
@@ -1677,6 +1698,13 @@ CONTAINS
 
     END SUBROUTINE collocate_gauge
 
+! *****************************************************************************
+!> \brief ...
+!> \param current_env ...
+!> \param qs_env ...
+!> \param box ...
+!> \param error ...
+! *****************************************************************************
     SUBROUTINE box_atoms_new(current_env,qs_env,box,error)
     TYPE(current_env_type)                   :: current_env
     TYPE(qs_environment_type), POINTER       :: qs_env
@@ -1696,16 +1724,16 @@ CONTAINS
     REAL(kind=dp)                            :: box_center(3), &
                                                 box_center_wrap(3), &
                                                 box_size_guess, r(3)
-    TYPE(atomic_kind_type), DIMENSION(:), &
-      POINTER                                :: atomic_kind_set
     TYPE(cell_type), POINTER                 :: cell
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
+    TYPE(qs_kind_type), DIMENSION(:), &
+      POINTER                                :: qs_kind_set
 
       CALL timeset(routineN,handle)
 
       CALL get_qs_env(qs_env=qs_env,&
-           atomic_kind_set=atomic_kind_set,&
+           qs_kind_set=qs_kind_set,&
            cell=cell,&
            particle_set=particle_set,&
            error=error)
@@ -1909,6 +1937,16 @@ CONTAINS
 
     END SUBROUTINE box_atoms_new
 
+! *****************************************************************************
+!> \brief ...
+!> \param current_env ...
+!> \param qs_env ...
+!> \param rs_grid_x ...
+!> \param rs_grid_y ...
+!> \param rs_grid_z ...
+!> \param box ...
+!> \param error ...
+! *****************************************************************************
     SUBROUTINE collocate_gauge_new(current_env,qs_env,rs_grid_x,rs_grid_y,rs_grid_z,box,error)
       !
     TYPE(current_env_type)                   :: current_env
@@ -1934,11 +1972,11 @@ CONTAINS
       DIMENSION(:, :)                        :: atms_pnt, ratom
     REAL(kind=dp), DIMENSION(:, :, :), &
       POINTER                                :: grid_x, grid_y, grid_z
-    TYPE(atomic_kind_type), DIMENSION(:), &
-      POINTER                                :: atomic_kind_set
     TYPE(cell_type), POINTER                 :: cell
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
+    TYPE(qs_kind_type), DIMENSION(:), &
+      POINTER                                :: qs_kind_set
 
       CALL timeset(routineN,handle)
 
@@ -1948,7 +1986,7 @@ CONTAINS
            error=error)
       !
       CALL get_qs_env(qs_env=qs_env,&
-           atomic_kind_set=atomic_kind_set,&
+           qs_kind_set=qs_kind_set,&
            cell=cell,&
            particle_set=particle_set,&
            error=error)
@@ -2138,6 +2176,10 @@ CONTAINS
 
     END SUBROUTINE collocate_gauge_new
 
+! *****************************************************************************
+!> \brief ...
+!> \param box ...
+! *****************************************************************************
     SUBROUTINE deallocate_box(box)
     TYPE(box_type), DIMENSION(:, :, :), &
       POINTER                                :: box
@@ -2160,6 +2202,13 @@ CONTAINS
   END SUBROUTINE current_set_gauge
 
 
+! *****************************************************************************
+!> \brief ...
+!> \param current_env ...
+!> \param qs_env ...
+!> \param iB ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE current_build_chi(current_env,qs_env,iB,error)
     !
     TYPE(current_env_type)                   :: current_env
@@ -2176,6 +2225,13 @@ CONTAINS
   END SUBROUTINE current_build_chi
 
 
+! *****************************************************************************
+!> \brief ...
+!> \param current_env ...
+!> \param qs_env ...
+!> \param iB ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE current_build_chi_many_centers(current_env,qs_env,iB,error)
     !
     TYPE(current_env_type)                   :: current_env
@@ -2225,45 +2281,48 @@ CONTAINS
       DIMENSION(:), POINTER                  :: sab_all, sab_orb
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
+    TYPE(qs_kind_type), DIMENSION(:), &
+      POINTER                                :: qs_kind_set
 
     failure = .FALSE.
     !
     CALL timeset(routineN,handle)
     !
     NULLIFY(dft_control,mos,para_env,mo_coeff,op_mom_ao,&
-         &  op_mom_der_ao,center_list,centers_set,psi0,psi_rxp,psi_D,psi_p1,psi_p2,&
-         &  op_p_ao,psi1_p,psi1_rxp,psi1_D,p_rxp,r_p1,r_p2,rr_rxp,rr_p1,rr_p2,&
-         &  cell,psi0_order,particle_set)
+            op_mom_der_ao,center_list,centers_set,psi0,psi_rxp,psi_D,psi_p1,psi_p2,&
+            op_p_ao,psi1_p,psi1_rxp,psi1_D,p_rxp,r_p1,r_p2,rr_rxp,rr_p1,rr_p2,&
+            cell,psi0_order,particle_set,qs_kind_set)
 
     logger => cp_error_get_logger(error)
     output_unit= cp_logger_get_default_io_unit(logger)
 
     CALL get_qs_env(qs_env=qs_env,&
-         &          dft_control=dft_control,&
-         &          mos=mos,&
-         &          para_env=para_env,&
-         &          cell=cell,&
-         &          dbcsr_dist=dbcsr_dist,&
-         &          particle_set=particle_set,&
-         &          sab_all=sab_all,&
-         &          sab_orb=sab_orb,&
-         &          error=error)
+                    dft_control=dft_control,&
+                    mos=mos,&
+                    para_env=para_env,&
+                    cell=cell,&
+                    dbcsr_dist=dbcsr_dist,&
+                    particle_set=particle_set,&
+                    qs_kind_set=qs_kind_set,&
+                    sab_all=sab_all,&
+                    sab_orb=sab_orb,&
+                    error=error)
 
     nspins = dft_control%nspins
     gapw = dft_control%qs_control%gapw
 
     CALL get_current_env(current_env=current_env,&
-         &               chi_pbc=chi_pbc,&
-         &               nao=nao,&
-         &               nbr_center=nbr_center,&
-         &               center_list=center_list,&
-         &               centers_set=centers_set,&
-         &               psi1_p=psi1_p,&
-         &               psi1_rxp=psi1_rxp,&
-         &               psi1_D=psi1_D,&
-         &               nstates=nstates,&
-         &               psi0_order=psi0_order,&
-         &               error=error)
+                         chi_pbc=chi_pbc,&
+                         nao=nao,&
+                         nbr_center=nbr_center,&
+                         center_list=center_list,&
+                         centers_set=centers_set,&
+                         psi1_p=psi1_p,&
+                         psi1_rxp=psi1_rxp,&
+                         psi1_D=psi1_D,&
+                         nstates=nstates,&
+                         psi0_order=psi0_order,&
+                         error=error)
     !
     ! get max nbr of states per center
     max_states = 0
@@ -2285,7 +2344,7 @@ CONTAINS
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
     ALLOCATE (last_sgf(natom),STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-    CALL get_particle_set(particle_set=particle_set,&
+    CALL get_particle_set(particle_set, qs_kind_set,&
                           first_sgf=first_sgf,&
                           last_sgf=last_sgf,error=error)
     ALLOCATE (rbs(natom), STAT=istat)
@@ -2355,9 +2414,9 @@ CONTAINS
     mo_coeff => psi0_order(1)%matrix
     NULLIFY(tmp_fm_struct)
     CALL cp_fm_struct_create(tmp_fm_struct,nrow_global=nao,&
-         &                   ncol_global=max_states,para_env=para_env,&
-         &                   context=mo_coeff%matrix_struct%context,&
-         &                   error=error)
+                             ncol_global=max_states,para_env=para_env,&
+                             context=mo_coeff%matrix_struct%context,&
+                             error=error)
     CALL cp_fm_create(psi0,tmp_fm_struct,error=error)
     CALL cp_fm_create(psi_D,tmp_fm_struct,error=error)
     CALL cp_fm_create(psi_rxp,tmp_fm_struct,error=error)
@@ -2368,9 +2427,9 @@ CONTAINS
     ALLOCATE(p_rxp(3),r_p1(3),r_p2(3),rr_rxp(9,3),rr_p1(9,3),rr_p2(9,3),STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
     CALL cp_fm_struct_create(tmp_fm_struct,nrow_global=nao,&
-         &                   ncol_global=max_states,para_env=para_env,&
-         &                   context=mo_coeff%matrix_struct%context,&
-         &                   error=error)
+                             ncol_global=max_states,para_env=para_env,&
+                             context=mo_coeff%matrix_struct%context,&
+                             error=error)
     DO idir = 1,3
        CALL cp_fm_create(p_rxp(idir)%matrix,tmp_fm_struct,error=error)
        CALL cp_fm_create(r_p1(idir)%matrix,tmp_fm_struct,error=error)
@@ -2418,7 +2477,7 @@ CONTAINS
              ENDDO
           ENDDO
           CALL rRc_xyz_der_ao(op_mom_ao,op_mom_der_ao,qs_env,dk,order=2,&
-               &              minimum_image=.FALSE.,soft=gapw,error=error)
+                              minimum_image=.FALSE.,soft=gapw,error=error)
           !
           ! collecte the states that belong to a given center
           CALL cp_fm_set_all(psi0,0.0_dp,error=error)
@@ -2450,35 +2509,35 @@ CONTAINS
           DO idir = 1,3
              CALL set_vecp(idir,ii,iii)
              CALL cp_dbcsr_sm_fm_multiply(op_p_ao(idir)%matrix,psi_rxp,&
-                  &                 p_rxp(idir)%matrix,ncol=nstate_loc,alpha=1.e0_dp,&
-                  &                 error=error)
+                                    p_rxp(idir)%matrix,ncol=nstate_loc,alpha=1.e0_dp,&
+                                    error=error)
              IF(iiiB.EQ.iii.OR.iiiB.EQ.ii) THEN
                 CALL cp_dbcsr_sm_fm_multiply(op_mom_ao(idir)%matrix,psi_p1,&
-                     &                 r_p1(idir)%matrix,ncol=nstate_loc,alpha=1.e0_dp,&
-                     &                 error=error)
+                                       r_p1(idir)%matrix,ncol=nstate_loc,alpha=1.e0_dp,&
+                                       error=error)
              ENDIF
              IF(iiB.EQ.iii.OR.iiB.EQ.ii) THEN
                 CALL cp_dbcsr_sm_fm_multiply(op_mom_ao(idir)%matrix,psi_p2,&
-                     &                 r_p2(idir)%matrix,ncol=nstate_loc,alpha=1.e0_dp,&
-                     &                 error=error)
+                                       r_p2(idir)%matrix,ncol=nstate_loc,alpha=1.e0_dp,&
+                                       error=error)
              ENDIF
              DO idir2 = 1,9
                 IF(idir2.EQ.ii.OR.idir2.EQ.iii) THEN
                    CALL cp_dbcsr_sm_fm_multiply(op_mom_der_ao(idir2,idir)%matrix,psi_rxp,&
-                        &                 rr_rxp(idir2,idir)%matrix,ncol=nstate_loc,alpha=1.e0_dp,&
-                        &                 error=error)
+                                          rr_rxp(idir2,idir)%matrix,ncol=nstate_loc,alpha=1.e0_dp,&
+                                          error=error)
                 ENDIF
                 !
                 IF(idir2.EQ.ind_m2(ii,iiiB).OR.idir2.EQ.ind_m2(iii,iiiB).OR.idir2.EQ.iiiB) THEN
                    CALL cp_dbcsr_sm_fm_multiply(op_mom_der_ao(idir2,idir)%matrix,psi_p1,&
-                        &                 rr_p1(idir2,idir)%matrix,ncol=nstate_loc,alpha=1.e0_dp,&
-                        &                 error=error)
+                                          rr_p1(idir2,idir)%matrix,ncol=nstate_loc,alpha=1.e0_dp,&
+                                          error=error)
                 ENDIF
                 !
                 IF(idir2.EQ.ind_m2(ii,iiB).OR.idir2.EQ.ind_m2(iii,iiB).OR.idir2.EQ.iiB) THEN
                    CALL cp_dbcsr_sm_fm_multiply(op_mom_der_ao(idir2,idir)%matrix,psi_p2,&
-                        &                 rr_p2(idir2,idir)%matrix,ncol=nstate_loc,alpha=1.e0_dp,&
-                        &                 error=error)
+                                          rr_p2(idir2,idir)%matrix,ncol=nstate_loc,alpha=1.e0_dp,&
+                                          error=error)
                 ENDIF
              ENDDO
           ENDDO
@@ -2597,7 +2656,7 @@ CONTAINS
        !
        DO idir = 1,3
           current_env%chi_tensor(idir,iB,ispin) = current_env%chi_tensor(idir,iB,ispin)+&
-               &                                  chi(idir)
+                                                  chi(idir)
           IF (output_unit>0) THEN
              !WRITE(output_unit,'(A,E12.6)') ' chi_'//ACHAR(119+idir)//ACHAR(119+iB)//&
              !     &                         ' = ',chi(idir)
@@ -2636,6 +2695,13 @@ CONTAINS
   END SUBROUTINE current_build_chi_many_centers
 
 
+! *****************************************************************************
+!> \brief ...
+!> \param current_env ...
+!> \param qs_env ...
+!> \param iB ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE current_build_chi_one_center(current_env,qs_env,iB,error)
     !
     TYPE(current_env_type)                   :: current_env
@@ -2680,44 +2746,47 @@ CONTAINS
       DIMENSION(:), POINTER                  :: sab_all, sab_orb
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
+    TYPE(qs_kind_type), DIMENSION(:), &
+      POINTER                                :: qs_kind_set
 
     failure = .FALSE.
     !
     CALL timeset(routineN,handle)
     !
     NULLIFY(dft_control,mos,para_env,mo_coeff,op_mom_ao,&
-         &  op_mom_der_ao,center_list,centers_set,&
-         &  op_p_ao,psi1_p,psi1_rxp,psi1_D,buf,cell,psi0_order)
+            op_mom_der_ao,center_list,centers_set,&
+            op_p_ao,psi1_p,psi1_rxp,psi1_D,buf,cell,psi0_order)
 
     logger => cp_error_get_logger(error)
     output_unit= cp_logger_get_default_io_unit(logger)
 
     CALL get_qs_env(qs_env=qs_env,&
-         &          dft_control=dft_control,&
-         &          mos=mos,&
-         &          para_env=para_env,&
-         &          cell=cell,&
-         &          particle_set=particle_set,&
-         &          sab_all=sab_all,&
-         &          sab_orb=sab_orb,&
-         &          dbcsr_dist=dbcsr_dist,&
-         &          error=error)
+                    dft_control=dft_control,&
+                    mos=mos,&
+                    para_env=para_env,&
+                    cell=cell,&
+                    particle_set=particle_set,&
+                    qs_kind_set=qs_kind_set,&
+                    sab_all=sab_all,&
+                    sab_orb=sab_orb,&
+                    dbcsr_dist=dbcsr_dist,&
+                    error=error)
 
     nspins = dft_control%nspins
     gapw = dft_control%qs_control%gapw
 
     CALL get_current_env(current_env=current_env,&
-         &               chi_pbc=chi_pbc,&
-         &               nao=nao,&
-         &               nbr_center=nbr_center,&
-         &               center_list=center_list,&
-         &               centers_set=centers_set,&
-         &               psi1_p=psi1_p,&
-         &               psi1_rxp=psi1_rxp,&
-         &               psi1_D=psi1_D,&
-         &               nstates=nstates,&
-         &               psi0_order=psi0_order,&
-         &               error=error)
+                         chi_pbc=chi_pbc,&
+                         nao=nao,&
+                         nbr_center=nbr_center,&
+                         center_list=center_list,&
+                         centers_set=centers_set,&
+                         psi1_p=psi1_p,&
+                         psi1_rxp=psi1_rxp,&
+                         psi1_D=psi1_D,&
+                         nstates=nstates,&
+                         psi0_order=psi0_order,&
+                         error=error)
     !
     max_states = MAXVAL(nstates(1:nspins))
     !
@@ -2732,7 +2801,7 @@ CONTAINS
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
     ALLOCATE (last_sgf(natom),STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-    CALL get_particle_set(particle_set=particle_set,&
+    CALL get_particle_set(particle_set, qs_kind_set,&
                           first_sgf=first_sgf,&
                           last_sgf=last_sgf,error=error)
     ALLOCATE (rbs(natom), STAT=istat)
@@ -2802,9 +2871,9 @@ CONTAINS
     mo_coeff => psi0_order(1)%matrix
     NULLIFY(tmp_fm_struct)
     CALL cp_fm_struct_create(tmp_fm_struct,nrow_global=nao,&
-         &                   ncol_global=max_states,para_env=para_env,&
-         &                   context=mo_coeff%matrix_struct%context,&
-         &                   error=error)
+                             ncol_global=max_states,para_env=para_env,&
+                             context=mo_coeff%matrix_struct%context,&
+                             error=error)
     CALL cp_fm_create(buf,tmp_fm_struct,error=error)
     CALL cp_fm_struct_release(tmp_fm_struct,error=error)
     !
@@ -2843,7 +2912,7 @@ CONTAINS
           ENDDO
        ENDDO
        CALL rRc_xyz_der_ao(op_mom_ao,op_mom_der_ao,qs_env,dk,order=2,&
-            &              minimum_image=.FALSE.,soft=gapw,error=error)
+                           minimum_image=.FALSE.,soft=gapw,error=error)
        !
        !
        ! Multuply left and right by the appropriate coefficients and sum into the
@@ -2859,7 +2928,7 @@ CONTAINS
           ! term: dk_ii*2[C0| d_iii(C1(rxp-D))] - dk_iii*2[C0| d_ii(C1(rxp-D))]
           IF(.NOT.chi_pbc) THEN
              CALL cp_dbcsr_sm_fm_multiply(op_p_ao(idir)%matrix,mo_coeff,&
-                  &                 buf,ncol=nmo,alpha=1.e0_dp,error=error)
+                                    buf,ncol=nmo,alpha=1.e0_dp,error=error)
              DO jdir = 1,3
                 DO kdir = 1,3
                    IF(Levi_Civita(kdir,jdir,idir).EQ.0.0_dp) CYCLE
@@ -2880,7 +2949,7 @@ CONTAINS
           !       -dk_iii * 2[C0|(r-dk)_iiiB | d_ii(C1(piiB))]
           DO jdir = 1,3
              CALL cp_dbcsr_sm_fm_multiply(op_mom_der_ao(jdir,idir)%matrix,mo_coeff,&
-                  &                 buf,ncol=nmo,alpha=1.e0_dp,error=error)
+                                    buf,ncol=nmo,alpha=1.e0_dp,error=error)
              DO kdir = 1,3
                 IF(Levi_Civita(kdir,jdir,idir).EQ.0.0_dp) CYCLE
                 CALL cp_fm_trace(buf,psi1_rxp(ispin,iB)%matrix,contrib,error=error)
@@ -2920,7 +2989,7 @@ CONTAINS
           ! HERE THERE IS ONE EXTRA MULTIPLY
           DO jdir = 1,3
              CALL cp_dbcsr_sm_fm_multiply(op_mom_der_ao(ind_m2(jdir,iiB),idir)%matrix,mo_coeff,&
-                  &                 buf,ncol=nmo,alpha=1.e0_dp,error=error)
+                                    buf,ncol=nmo,alpha=1.e0_dp,error=error)
              DO kdir = 1,3
                 IF(Levi_Civita(kdir,jdir,idir).EQ.0.0_dp) CYCLE
                 CALL cp_fm_trace(buf,psi1_p(ispin,iiiB)%matrix,contrib,error=error)
@@ -2928,7 +2997,7 @@ CONTAINS
              ENDDO
              !
              CALL cp_dbcsr_sm_fm_multiply(op_mom_der_ao(ind_m2(jdir,iiiB),idir)%matrix,mo_coeff,&
-                  &                 buf,ncol=nmo,alpha=1.e0_dp,error=error)
+                                    buf,ncol=nmo,alpha=1.e0_dp,error=error)
              DO kdir = 1,3
                 IF(Levi_Civita(kdir,jdir,idir).EQ.0.0_dp) CYCLE
                 CALL cp_fm_trace(buf,psi1_p(ispin,iiB)%matrix,contrib,error=error)
@@ -2944,7 +3013,7 @@ CONTAINS
           ! term2: +2[C0| (r-dk)_ii  (r-dk)_iiiB | d_iii(C1(piiB))] +
           !        -2[C0| (r-dk)_iii (r-dk)_iiiB | d_ii(C1(piiB))]
           CALL cp_dbcsr_sm_fm_multiply(op_mom_ao(idir)%matrix,mo_coeff,&
-               &                 buf,ncol=nmo,alpha=1.e0_dp,error=error)
+                                 buf,ncol=nmo,alpha=1.e0_dp,error=error)
           DO jdir = 1,3
              DO kdir = 1,3
                 IF(Levi_Civita(kdir,idir,jdir).EQ.0.0_dp) CYCLE
@@ -2973,7 +3042,7 @@ CONTAINS
        !
        DO idir = 1,3
           current_env%chi_tensor(idir,iB,ispin) = current_env%chi_tensor(idir,iB,ispin)+&
-               &                                  maxocc * chi(idir)
+                                                  maxocc * chi(idir)
           IF (output_unit>0) THEN
              !WRITE(output_unit,'(A,E12.6)') ' chi_'//ACHAR(119+idir)//ACHAR(119+iB)//&
              !     &                         ' = ',maxocc * chi(idir)

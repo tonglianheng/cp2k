@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2013  CP2K developers group                          !
+!   Copyright (C) 2000 - 2014  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -14,7 +14,7 @@ MODULE qs_diis_types
                                              cp_fm_release
   USE f77_blas
   USE kinds,                           ONLY: dp
-#include "cp_common_uses.h"
+#include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
   PRIVATE
@@ -23,7 +23,7 @@ MODULE qs_diis_types
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_diis_types'
 
   PUBLIC :: qs_diis_buffer_type
-  PUBLIC :: qs_diis_b_retain, qs_diis_b_release
+  PUBLIC :: qs_diis_b_release
 
 ! *****************************************************************************
 !> \brief keeps a buffer with the previous values of s,p,k

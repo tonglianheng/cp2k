@@ -1,12 +1,12 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2013  CP2K developers group                          !
+!   Copyright (C) 2000 - 2014  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 MODULE se_fock_matrix_dbg
-  USE cp_dbcsr_interface,              ONLY: cp_dbcsr_set,&
+  USE cp_dbcsr_interface,              ONLY: cp_dbcsr_p_type,&
+                                             cp_dbcsr_set,&
                                              cp_dbcsr_trace
-  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_p_type
   USE f77_blas
   USE kinds,                           ONLY: dp
   USE qs_energy_types,                 ONLY: init_qs_energy,&
@@ -14,7 +14,7 @@ MODULE se_fock_matrix_dbg
   USE qs_environment_types,            ONLY: qs_environment_type
   USE se_fock_matrix_coulomb_mpi,      ONLY: build_fock_matrix_coulomb_lr
   USE semi_empirical_store_int_types,  ONLY: semi_empirical_si_type
-#include "cp_common_uses.h"
+#include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
   PRIVATE
@@ -28,6 +28,14 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Debug routine for long-range energy (debug value of EWALD vs VALUE KS)
+!> \param energy ...
+!> \param ks_matrix ...
+!> \param nspins ...
+!> \param qs_env ...
+!> \param matrix_p ...
+!> \param calculate_forces ...
+!> \param store_int_env ...
+!> \param error ...
 !> \author Teodoro Laino [tlaino] - 04.2009
 ! *****************************************************************************
   SUBROUTINE dbg_energy_coulomb_lr(energy, ks_matrix, nspins, qs_env, matrix_p,&

@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2013  CP2K developers group                          !
+!   Copyright (C) 2000 - 2014  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -13,7 +13,11 @@ MODULE input_cp2k_force_eval
   USE cp_output_handling,              ONLY: cp_print_key_section_create
   USE cp_units,                        ONLY: cp_unit_to_cp2k
   USE f77_blas
-  USE input_constants
+  USE input_constants,                 ONLY: &
+       add_last_numeric, do_eip, do_ep, do_fist, do_mixed, do_qmmm, do_qs, &
+       do_stress_analytical, do_stress_diagonal_anal, &
+       do_stress_diagonal_numer, do_stress_none, do_stress_numerical, &
+       high_print_level, low_print_level, medium_print_level, numerical
   USE input_cp2k_dft,                  ONLY: create_bsse_section,&
                                              create_dft_section,&
                                              create_ep_section
@@ -37,7 +41,7 @@ MODULE input_cp2k_force_eval
                                              real_t
   USE kinds,                           ONLY: dp
   USE string_utilities,                ONLY: s2a
-#include "cp_common_uses.h"
+#include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
   PRIVATE
@@ -100,7 +104,7 @@ CONTAINS
     CALL section_add_keyword(section,keyword,error=error)
     CALL keyword_release(keyword,error=error)
 
-    CALL keyword_create(keyword, name="stress_tensor",&
+    CALL keyword_create(keyword, name="STRESS_TENSOR",&
          description="Controls the calculation of the stress tensor. The combinations defined below"//&
          " are not implemented for all methods.",&
          usage="stress_tensor (NONE|ANALYTICAL|NUMERICAL|DIAGONAL_ANA|DIAGONAL_NUM)", &
@@ -109,9 +113,9 @@ CONTAINS
          enum_i_vals=(/do_stress_none,do_stress_analytical,do_stress_numerical,&
                        do_stress_diagonal_anal,do_stress_diagonal_numer/),&
          enum_desc=s2a("Do not compute stress tensor",&
-                       "Compute the stress tensor analytical (if available).",&
+                       "Compute the stress tensor analytically (if available).",&
                        "Compute the stress tensor numerically.",&
-                       "Compute the diagonal part only of the stress tensor analytical (if available).",&
+                       "Compute the diagonal part only of the stress tensor analytically (if available).",&
                        "Compute the diagonal part only of the stress tensor numerically"),&
          error=error)
     CALL section_add_keyword(section,keyword,error=error)
@@ -169,8 +173,10 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Creates the section for applying an external potential
-!> \author teo
+!> \param section ...
+!> \param error ...
 !> \date 03.2008
+!> \author teo
 ! *****************************************************************************
   SUBROUTINE create_ext_pot_section(section,error)
     TYPE(section_type), POINTER              :: section
@@ -290,6 +296,8 @@ CONTAINS
   END SUBROUTINE create_rescale_force_section
 
 ! *****************************************************************************
+!> \brief ...
+!> \param section ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 !> \author fawzi
@@ -375,7 +383,7 @@ CONTAINS
 
        CALL cp_print_key_section_create(print_key,"STRESS_TENSOR",&
             description="Controls the printing of the stress tensor",&
-            print_level=medium_print_level, filename="__STD_OUT__",error=error)
+            print_level=high_print_level, filename="__STD_OUT__",error=error)
        CALL keyword_create(keyword=keyword,&
                            name="NDIGITS",&
                            description="Specifies the number of digits used "//&

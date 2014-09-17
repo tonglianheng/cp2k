@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2013  CP2K developers group                          !
+!   Copyright (C) 2000 - 2014  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -44,7 +44,7 @@ MODULE force_fields_ext
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE topology_amber,                  ONLY: rdparm_amber_8
-#include "cp_common_uses.h"
+#include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
 
@@ -59,6 +59,10 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Reads the GROMOS force_field
+!> \param ff_type ...
+!> \param para_env ...
+!> \param mm_section ...
+!> \param error ...
 !> \author ikuo
 ! *****************************************************************************
   SUBROUTINE read_force_field_gromos ( ff_type , para_env,  mm_section, error )
@@ -309,6 +313,10 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Reads the charmm force_field
+!> \param ff_type ...
+!> \param para_env ...
+!> \param mm_section ...
+!> \param error ...
 !> \author ikuo
 ! *****************************************************************************
   SUBROUTINE read_force_field_charmm ( ff_type, para_env, mm_section, error )
@@ -680,6 +688,11 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Reads the AMBER force_field
+!> \param ff_type ...
+!> \param para_env ...
+!> \param mm_section ...
+!> \param particle_set ...
+!> \param error ...
 !> \author Teodoro Laino [tlaino, teodoro.laino-AT-gmail.com] - 11.2008
 ! *****************************************************************************
   SUBROUTINE read_force_field_amber ( ff_type, para_env, mm_section, particle_set, error )
@@ -793,6 +806,9 @@ CONTAINS
 !>                char for CHARMM would not be the "-".. How can you choose this
 !>                character in a file of numbers as a continuation char????
 !>                This sounds simply crazy....
+!> \param parser ...
+!> \param nline ...
+!> \param error ...
 !> \author Teodoro Laino - Zurich University - 06.2007
 ! *****************************************************************************
   SUBROUTINE charmm_get_next_line(parser, nline, error)

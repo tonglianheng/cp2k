@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2013  CP2K developers group                          !
+!   Copyright (C) 2000 - 2014  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -23,7 +23,7 @@ MODULE qmmm_topology_util
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE topology_types,                  ONLY: topology_parameters_type
-#include "cp_common_uses.h"
+#include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
   PRIVATE
@@ -36,6 +36,10 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Modifies the atom_info%id_atmname
+!> \param topology ...
+!> \param qmmm_env ...
+!> \param subsys_section ...
+!> \param error ...
 !> \par History
 !>      11.2004 created [tlaino]
 !> \author Teodoro Laino
@@ -99,6 +103,10 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Set up the connectivity for QM/MM calculations
+!> \param molecule_set ...
+!> \param qmmm_env ...
+!> \param subsys_section ...
+!> \param error ...
 !> \par History
 !>      12.2004 created [tlaino]
 !> \author Teodoro Laino

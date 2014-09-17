@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2013  CP2K developers group                          !
+!   Copyright (C) 2000 - 2014  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -15,6 +15,7 @@
 ! *****************************************************************************
 MODULE qs_localization_methods
   USE cell_types,                      ONLY: cell_type
+  USE cp_blacs_env,                    ONLY: cp_blacs_env_type
   USE cp_cfm_basic_linalg,             ONLY: cp_cfm_column_scale,&
                                              cp_cfm_gemm,&
                                              cp_cfm_schur_product
@@ -29,7 +30,6 @@ MODULE qs_localization_methods
                                              cp_cfm_type
   USE cp_external_control,             ONLY: external_control
   USE cp_fm_basic_linalg,              ONLY: cp_fm_frobenius_norm,&
-                                             cp_fm_gemm,&
                                              cp_fm_scale,&
                                              cp_fm_scale_and_add,&
                                              cp_fm_trace,&
@@ -43,8 +43,8 @@ MODULE qs_localization_methods
        cp_fm_create, cp_fm_get_element, cp_fm_get_info, cp_fm_get_submatrix, &
        cp_fm_maxabsrownorm, cp_fm_maxabsval, cp_fm_p_type, cp_fm_release, &
        cp_fm_set_all, cp_fm_set_submatrix, cp_fm_to_fm, cp_fm_type
-  USE cp_para_types,                   ONLY: cp_blacs_env_type,&
-                                             cp_para_env_type
+  USE cp_gemm_interface,               ONLY: cp_gemm
+  USE cp_para_types,                   ONLY: cp_para_env_type
   USE kinds,                           ONLY: dp
   USE machine,                         ONLY: m_flush,&
                                              m_walltime
@@ -60,7 +60,7 @@ MODULE qs_localization_methods
                                              get_nsquare_norder
   USE timings,                         ONLY: timeset,&
                                              timestop
-#include "cp_common_uses.h"
+#include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
   PUBLIC :: initialize_weights, crazy_rotations,&
@@ -78,6 +78,14 @@ MODULE qs_localization_methods
    END TYPE
 
 CONTAINS
+! *****************************************************************************
+!> \brief ...
+!> \param C ...
+!> \param iterations ...
+!> \param eps ...
+!> \param converged ...
+!> \param sweeps ...
+!> \param error ...
 ! *****************************************************************************
   SUBROUTINE approx_l1_norm_sd( C, iterations, eps, converged, sweeps, error)
     TYPE(cp_fm_type), POINTER                :: C
@@ -115,10 +123,10 @@ CONTAINS
     output_unit= cp_logger_get_default_io_unit(logger)
 
     CALL cp_fm_struct_get(C%matrix_struct, nrow_global=n, ncol_global=k, &
-         &                nrow_local = nrow_local, ncol_local = ncol_local, &
-         &                para_env=para_env, context=context,error=error)
+                          nrow_local = nrow_local, ncol_local = ncol_local, &
+                          para_env=para_env, context=context,error=error)
     CALL cp_fm_struct_create(fm_struct_k_k, para_env=para_env, context=context, &
-         &                   nrow_global=k, ncol_global=k, error=error)
+                             nrow_global=k, ncol_global=k, error=error)
     CALL cp_fm_create(CTmp, C%matrix_struct, error=error)
     CALL cp_fm_create(U   , fm_struct_k_k, error=error)
     CALL cp_fm_create(G   , fm_struct_k_k, error=error)
@@ -162,7 +170,7 @@ CONTAINS
              CTmp%local_data(i,p) = C%local_data(i,p) / SQRT( C%local_data(i,p)**2 + f2_eps )
           ENDDO
        ENDDO
-       CALL cp_fm_gemm('T','N',k,k,n,1.0_dp,CTmp,C,0.0_dp,G,error=error)
+       CALL cp_gemm('T','N',k,k,n,1.0_dp,CTmp,C,0.0_dp,G,error=error)
        ! antisymmetrize
        CALL cp_fm_transpose(G,U,error=error)
        CALL cp_fm_scale_and_add(-0.5_dp,G,0.5_dp,U,error=error)
@@ -188,7 +196,7 @@ CONTAINS
           CALL cp_fm_to_fm(G,Gp1,error=error)
           DO i = 2,taylor_order
              ! new power of G
-             CALL cp_fm_gemm('N','N',k,k,k,1.0_dp,G,Gp1,0.0_dp,Gp2,error=error)
+             CALL cp_gemm('N','N',k,k,k,1.0_dp,G,Gp1,0.0_dp,Gp2,error=error)
              CALL cp_fm_to_fm(Gp2,Gp1,error=error)
              ! add to the taylor expansion so far
              expfactor = expfactor / REAL(i,KIND=dp)
@@ -200,7 +208,7 @@ CONTAINS
        ENDIF
        !
        ! incrementaly rotate the MOs
-       CALL cp_fm_gemm('N','N',n,k,k,1.0_dp,C,U,0.0_dp,CTmp,error=error)
+       CALL cp_gemm('N','N',n,k,k,1.0_dp,C,U,0.0_dp,CTmp,error=error)
        CALL cp_fm_to_fm(CTmp,C,error=error)
        !
        ! printing
@@ -251,6 +259,10 @@ CONTAINS
 
   END SUBROUTINE approx_l1_norm_sd
 ! *****************************************************************************
+!> \brief ...
+!> \param cell ...
+!> \param weights ...
+! *****************************************************************************
   SUBROUTINE initialize_weights ( cell, weights )
     TYPE(cell_type), INTENT(IN)              :: cell
     REAL(KIND=dp), DIMENSION(:)              :: weights
@@ -272,6 +284,17 @@ CONTAINS
 ! *****************************************************************************
 !> \brief wrapper for the jacobi routines, should be removed if jacobi_rot_para
 !>        can deal with serial para_envs.
+!> \param weights ...
+!> \param zij ...
+!> \param vectors ...
+!> \param para_env ...
+!> \param max_iter ...
+!> \param eps_localization ...
+!> \param sweeps ...
+!> \param out_each ...
+!> \param target_time ...
+!> \param start_time ...
+!> \param error ...
 !> \par History
 !> \author Joost VandeVondele (02.2010)
 ! *****************************************************************************
@@ -301,6 +324,16 @@ CONTAINS
 ! *****************************************************************************
 ! this routine, private to the module is a serial backup, till we have jacobi_rot_para to work in serial
 ! while the routine below works in parallel, it is too slow to be useful
+! *****************************************************************************
+!> \brief ...
+!> \param weights ...
+!> \param zij ...
+!> \param vectors ...
+!> \param max_iter ...
+!> \param eps_localization ...
+!> \param sweeps ...
+!> \param out_each ...
+!> \param error ...
 ! *****************************************************************************
   SUBROUTINE jacobi_rotations_serial ( weights, zij, vectors, max_iter, eps_localization, sweeps, out_each, error)
     REAL(KIND=dp), INTENT(IN)                :: weights( : )
@@ -404,6 +437,13 @@ CONTAINS
 
   END SUBROUTINE jacobi_rotations_serial
 ! *****************************************************************************
+!> \brief ...
+!> \param istate ...
+!> \param jstate ...
+!> \param st ...
+!> \param ct ...
+!> \param zij ...
+! *****************************************************************************
   SUBROUTINE rotate_zij ( istate, jstate, st, ct, zij )
     IMPLICIT NONE
     INTEGER, INTENT ( IN ) :: istate, jstate
@@ -411,10 +451,12 @@ CONTAINS
     REAL ( KIND = dp ), INTENT ( IN ) :: st, ct
 ! Locals
     TYPE ( cp_error_type ) :: error
-    INTEGER :: idim, nstate, stride
+    INTEGER :: idim, nstate
     COMPLEX ( KIND = dp ) :: st_cmplx
 #if defined(__SCALAPACK)
     INTEGER, DIMENSION(9) :: desc
+#else
+    INTEGER :: stride
 #endif
 
     st_cmplx = CMPLX ( st, 0.0_dp, dp )
@@ -435,6 +477,13 @@ CONTAINS
 #endif
     END DO
   END SUBROUTINE rotate_zij
+! *****************************************************************************
+!> \brief ...
+!> \param istate ...
+!> \param jstate ...
+!> \param st ...
+!> \param ct ...
+!> \param rmat ...
 ! *****************************************************************************
   SUBROUTINE rotate_rmat ( istate, jstate, st, ct, rmat )
     IMPLICIT NONE
@@ -459,6 +508,13 @@ CONTAINS
     CALL zrot( nstate, rmat % local_data(1,istate), 1, rmat % local_data(1,jstate), 1, ct, st_cmplx )
 #endif
   END SUBROUTINE rotate_rmat
+! *****************************************************************************
+!> \brief ...
+!> \param mii ...
+!> \param mjj ...
+!> \param mij ...
+!> \param weights ...
+!> \param theta ...
 ! *****************************************************************************
   SUBROUTINE get_angle ( mii, mjj, mij,  weights, theta )
     COMPLEX(KIND=dp), POINTER                :: mii( : ), mjj( : ), mij( : )
@@ -500,6 +556,11 @@ CONTAINS
     ENDIF
   END SUBROUTINE get_angle
 ! *****************************************************************************
+!> \brief ...
+!> \param zij ...
+!> \param weights ...
+!> \param tolerance ...
+! *****************************************************************************
   SUBROUTINE check_tolerance ( zij, weights, tolerance )
     TYPE(cp_cfm_p_type)                      :: zij( : )
     REAL(KIND=dp), INTENT(IN)                :: weights( : )
@@ -527,6 +588,10 @@ CONTAINS
 
   END SUBROUTINE check_tolerance
 ! *****************************************************************************
+!> \brief ...
+!> \param rmat ...
+!> \param vectors ...
+! *****************************************************************************
   SUBROUTINE rotate_orbitals ( rmat, vectors )
     TYPE(cp_fm_type), POINTER                :: rmat, vectors
 
@@ -537,10 +602,16 @@ CONTAINS
     NULLIFY ( wf )
     CALL cp_fm_create ( wf, vectors % matrix_struct, error = error  )
     CALL cp_fm_get_info ( vectors, nrow_global = n, ncol_global=k ,error=error)
-    CALL cp_fm_gemm("N", "N", n, k, k, 1.0_dp, vectors, rmat, 0.0_dp, wf ,error=error)
+    CALL cp_gemm("N", "N", n, k, k, 1.0_dp, vectors, rmat, 0.0_dp, wf ,error=error)
     CALL cp_fm_to_fm ( wf, vectors ,error=error)
     CALL cp_fm_release ( wf ,error=error)
   END SUBROUTINE rotate_orbitals
+! *****************************************************************************
+!> \brief ...
+!> \param diag ...
+!> \param weights ...
+!> \param matrix ...
+!> \param ndim ...
 ! *****************************************************************************
   SUBROUTINE gradsq_at_0 ( diag, weights, matrix,ndim )
     COMPLEX(KIND=dp), DIMENSION(:, :), &
@@ -575,6 +646,11 @@ CONTAINS
       END DO
     END DO
   END SUBROUTINE gradsq_at_0
+! *****************************************************************************
+!> \brief ...
+!> \param matrix_p ...
+!> \param weights ...
+!> \param matrix ...
 ! *****************************************************************************
   SUBROUTINE grad_at_0 ( matrix_p, weights, matrix )
     TYPE(cp_cfm_p_type)                      :: matrix_p( : )
@@ -622,6 +698,13 @@ CONTAINS
   END SUBROUTINE grad_at_0
 
 ! return energy and maximum gradient in the current point
+! *****************************************************************************
+!> \brief ...
+!> \param weights ...
+!> \param zij ...
+!> \param tolerance ...
+!> \param value ...
+!> \param error ...
 ! *****************************************************************************
   SUBROUTINE check_tolerance_new( weights, zij, tolerance, value, error)
     REAL(KIND=dp), INTENT(IN)                :: weights( : )
@@ -675,6 +758,19 @@ CONTAINS
   END SUBROUTINE check_tolerance_new
 ! yet another crazy try, computes the angles needed to rotate the orbitals first
 ! and rotates them all at the same time (hoping for the best of course)
+! *****************************************************************************
+!> \brief ...
+!> \param weights ...
+!> \param zij ...
+!> \param vectors ...
+!> \param max_iter ...
+!> \param max_crazy_angle ...
+!> \param crazy_scale ...
+!> \param crazy_use_diag ...
+!> \param eps_localization ...
+!> \param iterations ...
+!> \param converged ...
+!> \param error ...
 ! *****************************************************************************
   SUBROUTINE crazy_rotations( weights, zij, vectors,max_iter, max_crazy_angle, crazy_scale, crazy_use_diag, &
                               eps_localization, iterations, converged, error )
@@ -754,13 +850,13 @@ CONTAINS
     CALL cp_fm_syevd(mat_t,mat_U,evals,error=error)
     DO idim=1,dim2
        ! rotate z's
-       CALL cp_fm_gemm('N','N',nrow_global,nrow_global,nrow_global,1.0_dp,zij(1,idim)%matrix,mat_U,0.0_dp,mat_t,error=error)
-       CALL cp_fm_gemm('T','N',nrow_global,nrow_global,nrow_global,1.0_dp,mat_U,mat_t,0.0_dp,zij(1,idim)%matrix,error=error)
-       CALL cp_fm_gemm('N','N',nrow_global,nrow_global,nrow_global,1.0_dp,zij(2,idim)%matrix,mat_U,0.0_dp,mat_t,error=error)
-       CALL cp_fm_gemm('T','N',nrow_global,nrow_global,nrow_global,1.0_dp,mat_U,mat_t,0.0_dp,zij(2,idim)%matrix,error=error)
+       CALL cp_gemm('N','N',nrow_global,nrow_global,nrow_global,1.0_dp,zij(1,idim)%matrix,mat_U,0.0_dp,mat_t,error=error)
+       CALL cp_gemm('T','N',nrow_global,nrow_global,nrow_global,1.0_dp,mat_U,mat_t,0.0_dp,zij(1,idim)%matrix,error=error)
+       CALL cp_gemm('N','N',nrow_global,nrow_global,nrow_global,1.0_dp,zij(2,idim)%matrix,mat_U,0.0_dp,mat_t,error=error)
+       CALL cp_gemm('T','N',nrow_global,nrow_global,nrow_global,1.0_dp,mat_U,mat_t,0.0_dp,zij(2,idim)%matrix,error=error)
     ENDDO
     ! collect rotation matrix
-    CALL cp_fm_gemm('N','N',nrow_global,nrow_global,nrow_global,1.0_dp,mat_R,mat_U,0.0_dp,mat_t,error=error)
+    CALL cp_gemm('N','N',nrow_global,nrow_global,nrow_global,1.0_dp,mat_R,mat_U,0.0_dp,mat_t,error=error)
     CALL cp_fm_to_fm(mat_t,mat_R,error=error)
 
     unit_nr=-1
@@ -834,13 +930,13 @@ CONTAINS
 
       DO idim=1,dim2
          ! rotate z's
-         CALL cp_fm_gemm('N','N',nrow_global,nrow_global,nrow_global,1.0_dp,zij(1,idim)%matrix,mat_U,0.0_dp,mat_t,error=error)
-         CALL cp_fm_gemm('T','N',nrow_global,nrow_global,nrow_global,1.0_dp,mat_U,mat_t,0.0_dp,zij(1,idim)%matrix,error=error)
-         CALL cp_fm_gemm('N','N',nrow_global,nrow_global,nrow_global,1.0_dp,zij(2,idim)%matrix,mat_U,0.0_dp,mat_t,error=error)
-         CALL cp_fm_gemm('T','N',nrow_global,nrow_global,nrow_global,1.0_dp,mat_U,mat_t,0.0_dp,zij(2,idim)%matrix,error=error)
+         CALL cp_gemm('N','N',nrow_global,nrow_global,nrow_global,1.0_dp,zij(1,idim)%matrix,mat_U,0.0_dp,mat_t,error=error)
+         CALL cp_gemm('T','N',nrow_global,nrow_global,nrow_global,1.0_dp,mat_U,mat_t,0.0_dp,zij(1,idim)%matrix,error=error)
+         CALL cp_gemm('N','N',nrow_global,nrow_global,nrow_global,1.0_dp,zij(2,idim)%matrix,mat_U,0.0_dp,mat_t,error=error)
+         CALL cp_gemm('T','N',nrow_global,nrow_global,nrow_global,1.0_dp,mat_U,mat_t,0.0_dp,zij(2,idim)%matrix,error=error)
       ENDDO
       ! collect rotation matrix
-      CALL cp_fm_gemm('N','N',nrow_global,nrow_global,nrow_global,1.0_dp,mat_R,mat_U,0.0_dp,mat_t,error=error)
+      CALL cp_gemm('N','N',nrow_global,nrow_global,nrow_global,1.0_dp,mat_R,mat_U,0.0_dp,mat_t,error=error)
       CALL cp_fm_to_fm(mat_t,mat_R,error=error)
 
       CALL check_tolerance_new ( weights, zij, tolerance, value ,error=error)
@@ -883,6 +979,16 @@ CONTAINS
 ! apart from being expensive and not cleaned, this works fine
 ! useful to try different spread functionals
 !
+! *****************************************************************************
+!> \brief ...
+!> \param weights ...
+!> \param zij ...
+!> \param vectors ...
+!> \param max_iter ...
+!> \param eps_localization ...
+!> \param iterations ...
+!> \param out_each ...
+!> \param error ...
 ! *****************************************************************************
   SUBROUTINE direct_mini( weights, zij, vectors, max_iter ,eps_localization, iterations , out_each, error)
     REAL(KIND=dp), INTENT(IN)                :: weights( : )
@@ -938,7 +1044,7 @@ CONTAINS
     failure=.FALSE.
 
     IF ( output_unit > 0) THEN
-      WRITE(output_unit,'(T10,A )') "Localization by direct minimization of the functiona; "
+      WRITE(output_unit,'(T10,A )') "Localization by direct minimization of the functional; "
       WRITE(output_unit,'(T5,2A13,A20,A20,A10 )') " Line search ", " Iteration ", " Functional ", " Tolerance "," ds Min "
     END IF
 
@@ -994,7 +1100,7 @@ CONTAINS
          CALL cp_cfm_to_cfm(cmat_R,cmat_t1,error=error)
          CALL cp_cfm_column_scale(cmat_t1,evals_exp)
          CALL cp_cfm_gemm('N','C',n,n,n,cone,cmat_t1,cmat_R,czero,cmat_U,error=error)
-         cmat_U%local_data=REAL(cmat_U%local_data) ! enforce numerics, U is a real matrix
+         cmat_U%local_data=REAL(cmat_U%local_data,KIND=dp) ! enforce numerics, U is a real matrix
 
          IF ( new_direction .AND. MOD(line_searches,20).EQ.5 ) THEN ! reset with A .eq. 0
             DO idim=1,ndim
@@ -1002,8 +1108,8 @@ CONTAINS
                CALL cp_cfm_gemm('C','N',n,n,n,cone,cmat_U,cmat_t1,czero,c_zij(idim)%matrix,error=error)
             ENDDO
             ! collect rotation matrix
-            matrix_H%local_data=REAL(cmat_U%local_data)
-            CALL cp_fm_gemm('N','N',n,n,n,1.0_dp,matrix_R,matrix_H,0.0_dp,matrix_T,error=error)
+            matrix_H%local_data=REAL(cmat_U%local_data,KIND=dp)
+            CALL cp_gemm('N','N',n,n,n,1.0_dp,matrix_R,matrix_H,0.0_dp,matrix_T,error=error)
             CALL cp_fm_to_fm(matrix_T,matrix_R,error=error)
 
             CALL cp_cfm_set_all(cmat_U,czero,cone,error=error)
@@ -1039,7 +1145,7 @@ CONTAINS
                DO irow=1,nrow_local
                   tmp = cmat_t1%local_data(irow,icol)*CONJG(diag_z(col_indices(icol),idim))
                   cmat_M%local_data(irow,icol)=cmat_M%local_data(irow,icol) &
-                                              +4.0_dp*fvald(col_indices(icol))*REAL(tmp)
+                                              +4.0_dp*fvald(col_indices(icol))*REAL(tmp,KIND=dp)
                ENDDO
             ENDDO
          ENDDO
@@ -1076,7 +1182,7 @@ CONTAINS
          CALL cp_cfm_schur_product(cmat_t2,cmat_B,cmat_t1,error=error)
          CALL cp_cfm_gemm('N','C',n,n,n,cone,cmat_t1,cmat_R,czero,cmat_t2,error=error)
          CALL cp_cfm_gemm('N','N',n,n,n,cone,cmat_R,cmat_t2,czero,cmat_t1,error=error)
-         matrix_G%local_data=REAL(cmat_t1%local_data)
+         matrix_G%local_data=REAL(cmat_t1%local_data,KIND=dp)
          CALL cp_fm_transpose(matrix_G,matrix_T,error=error)
          CALL cp_fm_scale_and_add(  -1.0_dp,matrix_G, 1.0_dp,matrix_T,error=error)
          CALL cp_fm_maxabsval(matrix_G,tol,error=error)
@@ -1252,8 +1358,8 @@ CONTAINS
     ENDDO
 
     ! collect rotation matrix
-    matrix_H%local_data=REAL(cmat_U%local_data)
-    CALL cp_fm_gemm('N','N',n,n,n,1.0_dp,matrix_R,matrix_H,0.0_dp,matrix_T,error=error)
+    matrix_H%local_data=REAL(cmat_U%local_data,KIND=dp)
+    CALL cp_gemm('N','N',n,n,n,1.0_dp,matrix_R,matrix_H,0.0_dp,matrix_T,error=error)
     CALL cp_fm_to_fm(matrix_T,matrix_R,error=error)
     CALL rotate_orbitals(matrix_R,vectors)
     CALL cp_fm_release  ( matrix_R,error=error)
@@ -1288,6 +1394,17 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Parallel algorithm for jacobi rotations
+!> \param weights ...
+!> \param zij ...
+!> \param vectors ...
+!> \param para_env ...
+!> \param max_iter ...
+!> \param eps_localization ...
+!> \param sweeps ...
+!> \param out_each ...
+!> \param target_time ...
+!> \param start_time ...
+!> \param error ...
 !> \par History
 !>      use allgather for improved performance
 !> \author MI (11.2009)
@@ -1670,7 +1787,7 @@ CONTAINS
         DO ip = 0,para_env%num_pe-1
 
           ip_recv_from=MOD(para_env%mepos-IP+para_env%num_pe,para_env%num_pe)
-          rmat_recv=rmat_recv_all(:,:,ip_recv_from)
+          rmat_recv(:,:)=rmat_recv_all(:,:,ip_recv_from)
 
           ns_recv_from = ns_bound(ip_recv_from,2)-ns_bound(ip_recv_from,1)+1
 
@@ -1934,6 +2051,13 @@ CONTAINS
 
   END SUBROUTINE jacobi_rot_para
 
+! *****************************************************************************
+!> \brief ...
+!> \param iperm ...
+!> \param para_env ...
+!> \param list_pair ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE eberlein(iperm,para_env,list_pair,error)
     INTEGER, INTENT(IN)                      :: iperm
     TYPE(cp_para_env_type), POINTER          :: para_env

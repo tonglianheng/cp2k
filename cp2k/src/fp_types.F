@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2013  CP2K developers group                          !
+!   Copyright (C) 2000 - 2014  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -22,7 +22,7 @@ MODULE fp_types
   USE kinds,                           ONLY: dp
   USE timings,                         ONLY: timeset,&
                                              timestop
-#include "cp_common_uses.h"
+#include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
   PRIVATE
@@ -58,6 +58,8 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief create retain release the flexible partitioning environment
+!> \param fp_env ...
+!> \param error ...
 !> \par History
 !>      04.2006 created [Joost VandeVondele]
 ! *****************************************************************************
@@ -88,6 +90,10 @@ CONTAINS
   END SUBROUTINE fp_env_create
 
 ! *****************************************************************************
+!> \brief ...
+!> \param fp_env ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE fp_env_release(fp_env,error)
     TYPE(fp_type), POINTER                   :: fp_env
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -117,6 +123,10 @@ CONTAINS
   END SUBROUTINE fp_env_release
 
 ! *****************************************************************************
+!> \brief ...
+!> \param fp_env ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE fp_env_retain(fp_env,error)
     TYPE(fp_type), POINTER                   :: fp_env
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -134,6 +144,9 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief reads the corresponding input section and stores it in the fp_env
+!> \param fp_env ...
+!> \param fp_section ...
+!> \param error ...
 !> \par History
 !>      04.2006 created [Joost VandeVondele]
 ! *****************************************************************************
@@ -180,6 +193,9 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief writes information concerning the fp_env to the output
+!> \param fp_env ...
+!> \param fp_section ...
+!> \param error ...
 !> \par History
 !>      04.2006 created [Joost VandeVondele]
 ! *****************************************************************************

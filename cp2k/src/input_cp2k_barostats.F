@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2013  CP2K developers group                          !
+!   Copyright (C) 2000 - 2014  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -12,7 +12,14 @@ MODULE input_cp2k_barostats
   USE cp_output_handling,              ONLY: cp_print_key_section_create
   USE cp_units,                        ONLY: cp_unit_to_cp2k
   USE f77_blas
-  USE input_constants
+  USE input_constants,                 ONLY: do_clv_x,&
+                                             do_clv_xy,&
+                                             do_clv_xyz,&
+                                             do_clv_xz,&
+                                             do_clv_y,&
+                                             do_clv_yz,&
+                                             do_clv_z,&
+                                             high_print_level
   USE input_cp2k_thermostats,          ONLY: create_mass_section,&
                                              create_thermostat_section,&
                                              create_velocity_section
@@ -27,7 +34,7 @@ MODULE input_cp2k_barostats
   USE input_val_types,                 ONLY: real_t
   USE kinds,                           ONLY: dp
   USE string_utilities,                ONLY: s2a
-#include "cp_common_uses.h"
+#include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
   PRIVATE
@@ -41,6 +48,7 @@ PUBLIC :: create_barostat_section
 CONTAINS
 
 ! *****************************************************************************
+!> \brief ...
 !> \param section will contain the coeff section
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
@@ -89,7 +97,7 @@ CONTAINS
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="TEMP_TOL",&
-            description="Maximum oscillation of the Barostat temperature imposed by recaling.",&
+            description="Maximum oscillation of the Barostat temperature imposed by rescaling.",&
             usage="TEMP_TOL real",default_r_val=0._dp, &
             unit_str='K',error=error)
        CALL section_add_keyword(section,keyword,error=error)
@@ -126,6 +134,8 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Creates print section for barostat section
+!> \param section ...
+!> \param error ...
 !> \author teo [tlaino] - University of Zurich - 02.2008
 ! *****************************************************************************
   SUBROUTINE create_print_section(section, error)

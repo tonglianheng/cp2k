@@ -3,7 +3,7 @@ CPP      =
 FC       = xlf95_r -qstacktemp=1 -qsuffix=f=F
 LD       = xlf95_r -qstacktemp=1 
 AR       = ar -r 
-DFLAGS   = -WF,-D__AIX,-D__ESSL,-D__FFTSG,-D__FFTESSL
+DFLAGS   =
 CPPFLAGS = -C $(DFLAGS) -P -traditional
 FCFLAGS  = -O2 -qstrict -q64  -qcache=auto -qmaxmem=-1  $(DFLAGS)
 FCFLAGS2 = -O0 -qstrict -q64  -qcache=auto -qmaxmem=-1  $(DFLAGS)
@@ -12,7 +12,6 @@ LDFLAGS  = $(FCFLAGS) -L/sp/fd/teo/libs/BGP_FEN/lapack-3.2.1/
 LIBS     = -llapack_BGP-FEN -lessl /opt/ibmcmp/xlmass/5.0/lib64/libmass_64.a
 CPPSHELL = -WF,-D__COMPILE_ARCH="\"$(ARCH)\"",-D__COMPILE_DATE="\"$(shell date)\"",-D__COMPILE_HOST="\"$(shell hostname)\"",-D__COMPILE_LASTCVS="\"$(shell tail -n1 $(SRCDIR)/CVS/Entries)\""
 
-OBJECTS_ARCHITECTURE = machine_aix.o
 
 ### To speed up compilation time ###
 cp2k_runs.o: cp2k_runs.F
