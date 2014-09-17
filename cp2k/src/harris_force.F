@@ -13,9 +13,8 @@ MODULE harris_force
 
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind_set
-  USE cell_types,                      ONLY: cell_type
   USE cp_control_types,                ONLY: dft_control_type
-  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_p_type
+  USE cp_dbcsr_interface,              ONLY: cp_dbcsr_p_type
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE f77_blas
   USE global_types,                    ONLY: global_environment_type
@@ -78,9 +77,7 @@ MODULE harris_force
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'harris_force'
 
   ! *** Public subroutines ***
-  PUBLIC :: harris_force_correction, &
-            harris_force_EVal, &
-            harris_calc_nsc_force
+  PUBLIC :: harris_force_correction
 
 !***
 
@@ -89,16 +86,15 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Performs the harris functional force correction
 !> \param qs_env The QS environment of matter
-!> \param harris_force The harris force type in which all necessary informations
-!>                      are stored
+!> \param harris_env ...
 !> \param globenv The global environment from which the para_env is extracted
 !> \param error variable to control error logging, stopping,...
 !>               see module cp_error_handling
-!> \note
-!>      Performs the force calculation according to the Harris energy functional
 !> \par History
 !>      06.2005 initial create [tdk]
 !> \author Thomas D. Kuehne (tkuehne@phys.chem.ethz.ch)
+!> \note
+!>      Performs the force calculation according to the Harris energy functional
 ! *****************************************************************************
   SUBROUTINE harris_force_correction(qs_env, harris_env, globenv, error)
 
@@ -119,7 +115,6 @@ CONTAINS
     REAL(KIND=dp)                            :: Ehartree, Exc
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
-    TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: matrix_ks, rho_ao
     TYPE(cp_logger_type), POINTER            :: logger
@@ -153,7 +148,7 @@ CONTAINS
 
     failure = .FALSE.
     NULLIFY(force, force_tmp, v_rspace_new, v_tau_rspace, rho, matrix_ks, &
-            pw_env, auxbas_pw_pool, rho_core, cell, dft_control, xc_section, &
+            pw_env, auxbas_pw_pool, rho_core, dft_control, xc_section, &
             atomic_kind_set, particle_set, deriv_set, rho_set, my_rho_r, &
             v_xc, harris_force, rho_r, ks_env, poisson_env, input, rho_ao)
     para_env=>qs_env%para_env
@@ -170,7 +165,7 @@ CONTAINS
       CALL harris_env_get(harris_env=harris_env, harris_force=harris_force, error=error)
       CALL get_qs_env(qs_env=qs_env, atomic_kind_set=atomic_kind_set, force=force, &
                       dft_control=dft_control, particle_set=particle_set, &
-                      cell=cell, input=input, error=error)
+                      input=input, error=error)
 
       xc_section => section_vals_get_subs_vals(input, "DFT%XC", error=error)
 
@@ -192,8 +187,8 @@ CONTAINS
                                natom_of_kind=natom_of_kind)
 
       CALL duplicate_qs_force(qs_force_input=force, qs_force_output=force_tmp, &
-                              natom_of_kind=natom_of_kind)
-      CALL zero_qs_force(force)
+                              natom_of_kind=natom_of_kind, error=error)
+      CALL zero_qs_force(force,error)
 
       ! *** d/dR[Sum of eigenvalues] = d/dR[trace(H_in * rho_out)] *** !
       CALL build_core_hamiltonian_matrix(qs_env=qs_env,calculate_forces=.TRUE.,error=error)
@@ -222,7 +217,7 @@ CONTAINS
         harris_force%f_self(iatom, 1:3) = 0.0_dp
       END DO
 
-      CALL zero_qs_force(force)
+      CALL zero_qs_force(force,error)
 
       CALL get_qs_env(qs_env=qs_env, pw_env=pw_env, rho=rho, rho_core=rho_core, &
                       ks_env=ks_env, matrix_ks=matrix_ks, error=error)
@@ -278,7 +273,7 @@ CONTAINS
         harris_force%f_hartree(iatom, 1:3) = force(ikind)%rho_elec(1:3,i)
       END DO
 
-      CALL zero_qs_force(force)
+      CALL zero_qs_force(force,error)
 
       ! *** Calculation of the forces of the xc-integral *** !
       CALL qs_rho_get(rho_struct=rho, rho_r=rho_r, error=error)
@@ -289,7 +284,7 @@ CONTAINS
       END DO
       CALL xc_prep_2nd_deriv(deriv_set=deriv_set, rho_set=rho_set, &
                              rho_r=my_rho_r, pw_pool=auxbas_pw_pool, &
-                             xc_section=xc_section, cell=cell, error=error)
+                             xc_section=xc_section, error=error)
       DEALLOCATE(my_rho_r, stat=stat)
       CPPostconditionNoFail(stat==0, cp_warning_level, routineP, error)
 
@@ -388,7 +383,7 @@ CONTAINS
         harris_force%f_hartree(iatom, 1:3) = 0.0_dp
       END DO
 
-      CALL zero_qs_force(force)
+      CALL zero_qs_force(force,error)
 
       ! *** The forces due to n_core *** !
       CALL pw_copy(rho_core%pw,rho_tot_gspace%pw,error=error)
@@ -421,7 +416,7 @@ CONTAINS
         harris_force%f_rho_core(iatom, 1:3) = force(ikind)%rho_core(1:3,i)
       END DO
 
-      CALL deallocate_qs_force(force)
+      CALL deallocate_qs_force(force,error)
       CALL set_qs_env(qs_env=qs_env, force=force_tmp, error=error)
 
       CALL get_qs_env(qs_env=qs_env, force=force, error=error)
@@ -473,16 +468,15 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Performs the harris functional force correction
 !> \param qs_env The QS environment of matter
-!> \param harris_force The harris force type in which all necessary informations
-!>                      are stored
+!> \param harris_env ...
 !> \param globenv The global environment from which the para_env is extracted
 !> \param error variable to control error logging, stopping,...
 !>               see module cp_error_handling
-!> \note
-!>      Performs the force calculation according to the Harris energy functional
 !> \par History
 !>      11.2005 initial create [tdk]
 !> \author Thomas D. Kuehne (tkuehne@phys.chem.ethz.ch)
+!> \note
+!>      Performs the force calculation according to the Harris energy functional
 ! *****************************************************************************
   SUBROUTINE harris_force_EVal(qs_env, harris_env, globenv, error)
 
@@ -503,7 +497,6 @@ CONTAINS
     REAL(KIND=dp)                            :: E_overlap_core, Ehartree, Exc
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
-    TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: matrix_ks, rho_ao
     TYPE(cp_logger_type), POINTER            :: logger
@@ -537,7 +530,7 @@ CONTAINS
 
     failure = .FALSE.
     NULLIFY(force, force_tmp, v_rspace_new, v_tau_rspace, rho, matrix_ks, &
-            pw_env, auxbas_pw_pool, rho_core, cell, dft_control, xc_section, &
+            pw_env, auxbas_pw_pool, rho_core, dft_control, xc_section, &
             atomic_kind_set, particle_set, deriv_set, rho_set, my_rho_r, &
             v_xc, harris_force, rho_r, ks_env, poisson_env, input)
     logger => cp_error_get_logger(error)
@@ -552,7 +545,7 @@ CONTAINS
     IF (.NOT. failure) THEN
       CALL harris_env_get(harris_env=harris_env, harris_force=harris_force, error=error)
       CALL get_qs_env(qs_env=qs_env, atomic_kind_set=atomic_kind_set, force=force, &
-                      dft_control=dft_control, cell=cell, particle_set=particle_set, &
+                      dft_control=dft_control, particle_set=particle_set, &
                       input=input, error=error)
 
       xc_section => section_vals_get_subs_vals(input, "DFT%XC", error=error)
@@ -575,8 +568,8 @@ CONTAINS
                                natom_of_kind=natom_of_kind)
 
       CALL duplicate_qs_force(qs_force_input=force, qs_force_output=force_tmp, &
-                              natom_of_kind=natom_of_kind)
-      CALL zero_qs_force(force)
+                              natom_of_kind=natom_of_kind, error=error)
+      CALL zero_qs_force(force,error)
 
       ! *** d/dR[Sum of eigenvalues] = d/dR[trace(H_in * rho_out)] *** !
       CALL build_core_hamiltonian_matrix(qs_env=qs_env,calculate_forces=.TRUE.,error=error)
@@ -598,7 +591,7 @@ CONTAINS
                                            + force(ikind)%gth_ppnl(1:3,i) + force(ikind)%gth_nlcc(1:3,i)
       END DO
 
-      CALL zero_qs_force(force)
+      CALL zero_qs_force(force,error)
 
       CALL get_qs_env(qs_env=qs_env, pw_env=pw_env, rho=rho, rho_core=rho_core, &
                       ks_env=ks_env, matrix_ks=matrix_ks, &
@@ -657,7 +650,7 @@ CONTAINS
         harris_force%f_hartree(iatom, 1:3) = force(ikind)%rho_elec(1:3,i)
       END DO
 
-      CALL zero_qs_force(force)
+      CALL zero_qs_force(force,error)
 
       ! ** Force computation of f_V  ** !
       DO ispin = 1,nspins
@@ -680,7 +673,7 @@ CONTAINS
         harris_force%f_V(iatom, 1:3) = force(ikind)%rho_core(1:3,i)
       END DO
 
-      CALL zero_qs_force(force)
+      CALL zero_qs_force(force,error)
 
       ! *** Calculation of the forces of the xc-integral *** !
       CALL qs_rho_get(rho_struct=rho, rho_r=rho_r, error=error)
@@ -691,7 +684,7 @@ CONTAINS
       END DO
       CALL xc_prep_2nd_deriv(deriv_set=deriv_set, rho_set=rho_set, &
                              rho_r=my_rho_r, pw_pool=auxbas_pw_pool, &
-                             xc_section=xc_section, cell=cell, error=error)
+                             xc_section=xc_section, error=error)
       DEALLOCATE(my_rho_r, stat=stat)
       CPPostconditionNoFail(stat==0, cp_warning_level, routineP, error)
 
@@ -784,7 +777,7 @@ CONTAINS
         harris_force%f_integral_vxc(iatom, 1:3) = 0.0_dp
       END DO
 
-      CALL zero_qs_force(force)
+      CALL zero_qs_force(force,error)
       ! *** End of force calculation due to the sum_of_eigenvalues *** !
 
       CALL harris_env_get(harris_env=harris_env, rho=rho, error=error)
@@ -808,7 +801,7 @@ CONTAINS
         harris_force%f_rho_core(iatom, 1:3) = force(ikind)%rho_core(1:3,i)
       END DO
 
-      CALL zero_qs_force(force)
+      CALL zero_qs_force(force,error)
 
       ! *** The forces due to exchange and correlation *** !
       CALL qs_vxc_create(qs_env=qs_env, rho_struct=qs_env%rho, xc_section=xc_section, &
@@ -824,7 +817,7 @@ CONTAINS
       END DO
       CALL xc_prep_2nd_deriv(deriv_set=deriv_set, rho_set=rho_set, &
                              rho_r=my_rho_r, pw_pool=auxbas_pw_pool, &
-                             xc_section=xc_section, cell=cell, error=error)
+                             xc_section=xc_section, error=error)
       DEALLOCATE(my_rho_r, stat=stat)
       CPPostconditionNoFail(stat==0, cp_warning_level, routineP, error)
 
@@ -904,7 +897,7 @@ CONTAINS
         harris_force%f_integral_vxc(iatom, 1:3) = force(ikind)%rho_elec(1:3,i)
       END DO
 
-      CALL zero_qs_force(force)
+      CALL zero_qs_force(force,error)
 
       CALL calculate_ecore_overlap(qs_env=qs_env, para_env=para_env, &
                                    calculate_forces=.TRUE., E_overlap_core=E_overlap_core,&
@@ -916,7 +909,7 @@ CONTAINS
         harris_force%f_ovrl(iatom, 1:3) = force(ikind)%core_overlap(1:3,i)
       END DO
 
-      CALL deallocate_qs_force(force)
+      CALL deallocate_qs_force(force,error)
       CALL set_qs_env(qs_env=qs_env, force=force_tmp, error=error)
 
       CALL get_qs_env(qs_env=qs_env, force=force, error=error)
@@ -975,6 +968,7 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Calculates the non-self-consistent force correction, in order to keep
 !>      the forces consistent with the according energies.
+!> \param qs_env ...
 !> \param error variable to control error logging, stopping,...
 !>               see module cp_error_handling
 !> \par History
@@ -997,7 +991,6 @@ CONTAINS
     REAL(KIND=dp)                            :: Ehartree, Exc
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
-    TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: matrix_ks, rho_ao
     TYPE(cp_para_env_type), POINTER          :: para_env
@@ -1028,7 +1021,7 @@ CONTAINS
     para_env=>qs_env%para_env
     NULLIFY(harris_env, harris_force, force, force_tmp, particle_set, &
             v_rspace_new, v_tau_rspace, rho_r, my_rho_r, v_xc, dft_control, &
-            cell, deriv_set, rho_set, auxbas_pw_pool, matrix_ks, pw_env, &
+            deriv_set, rho_set, auxbas_pw_pool, matrix_ks, pw_env, &
             poisson_env, xc_section, input)
 
     CPPrecondition(ASSOCIATED(qs_env), cp_failure_level, routineP, error, failure)
@@ -1037,7 +1030,7 @@ CONTAINS
     IF (.NOT. failure) THEN
       CALL get_qs_env(qs_env=qs_env, harris_env=harris_env, dft_control=dft_control, &
                       atomic_kind_set=atomic_kind_set, force=force, pw_env=pw_env, &
-                      particle_set=particle_set, matrix_ks=matrix_ks, cell=cell, &
+                      particle_set=particle_set, matrix_ks=matrix_ks, &
                       error=error)
 
       xc_section => section_vals_get_subs_vals(input, "DFT%XC", error=error)
@@ -1065,8 +1058,8 @@ CONTAINS
                          rho_output=harris_env%rho_diff, qs_env=qs_env, error=error)
 
       CALL duplicate_qs_force(qs_force_input=force, qs_force_output=force_tmp, &
-                              natom_of_kind=natom_of_kind)
-      CALL zero_qs_force(force)
+                              natom_of_kind=natom_of_kind, error=error)
+      CALL zero_qs_force(force,error)
 
       CALL pw_env_get(pw_env=pw_env, auxbas_pw_pool=auxbas_pw_pool, &
                       poisson_env=poisson_env, error=error)
@@ -1104,7 +1097,7 @@ CONTAINS
         harris_force%f_nsc(iatom, 1:3) = force(ikind)%rho_elec(1:3,i)
       END DO
 
-      CALL zero_qs_force(force)
+      CALL zero_qs_force(force,error)
 
       DO ispin = 1,nspins
         CALL pw_poisson_solve(poisson_env, harris_env%rho_diff%rho_g(ispin)%pw, &
@@ -1138,7 +1131,7 @@ CONTAINS
                                        + force(ikind)%rho_elec(1:3,i)
       END DO
 
-      CALL zero_qs_force(force)
+      CALL zero_qs_force(force,error)
 
       ! *** Calculation of the forces of the xc-integral *** !
 
@@ -1167,7 +1160,7 @@ CONTAINS
         !harris_force%f_nsc(iatom, 1:3) = force(ikind)%rho_elec(1:3,i)
       END DO
 
-      CALL zero_qs_force(force)
+      CALL zero_qs_force(force,error)
 
       CALL qs_rho_get(rho_struct=harris_env%rho_diff, rho_r=rho_r, error=error)
       !CALL qs_rho_get(rho_struct=harris_env%rho_diff, rho_r=rho_r, error=error)
@@ -1178,7 +1171,7 @@ CONTAINS
       END DO
       CALL xc_prep_2nd_deriv(deriv_set=deriv_set, rho_set=rho_set, &
                              rho_r=my_rho_r, pw_pool=auxbas_pw_pool, &
-                             xc_section=xc_section, cell=cell, error=error)
+                             xc_section=xc_section, error=error)
       DEALLOCATE(my_rho_r, stat=stat)
       CPPostconditionNoFail(stat==0, cp_warning_level, routineP, error)
 
@@ -1260,11 +1253,11 @@ CONTAINS
 !>                      are stored
 !> \param error variable to control error logging, stopping,...
 !>               see module cp_error_handling
-!> \note
-!>      Only for internal debugging purposes
 !> \par History
 !>      06.2005 initial create [tdk]
 !> \author Thomas D. Kuehne (tkuehne@phys.chem.ethz.ch)
+!> \note
+!>      Only for internal debugging purposes
 ! *****************************************************************************
   SUBROUTINE harris_force_test_rho_core(qs_env, harris_force, error)
     TYPE(qs_environment_type), POINTER       :: qs_env
@@ -1355,11 +1348,11 @@ CONTAINS
 !>                      are stored
 !> \param error variable to control error logging, stopping,...
 !>               see module cp_error_handling
-!> \note
-!>      Only for internal debugging purposes
 !> \par History
 !>      06.2005 initial create [tdk]
 !> \author Thomas D. Kuehne (tkuehne@phys.chem.ethz.ch)
+!> \note
+!>      Only for internal debugging purposes
 ! *****************************************************************************
   SUBROUTINE harris_force_test_rho_elec(qs_env, harris_force, error)
     TYPE(qs_environment_type), POINTER       :: qs_env
@@ -1444,16 +1437,17 @@ CONTAINS
   END SUBROUTINE harris_force_test_rho_elec
 
 ! *****************************************************************************
+!> \brief ...
 !> \param qs_env The QS environment of matter
 !> \param harris_force The harris force type in which all necessary informations
 !>                      are stored
 !> \param error variable to control error logging, stopping,...
 !>               see module cp_error_handling
-!> \note
-!>      Only for internal debugging purposes
 !> \par History
 !>      06.2005 initial create [tdk]
 !> \author Thomas D. Kuehne (tkuehne@phys.chem.ethz.ch)
+!> \note
+!>      Only for internal debugging purposes
 ! *****************************************************************************
   SUBROUTINE harris_force_test_integral_vxc(qs_env, harris_force, error)
     TYPE(qs_environment_type), POINTER       :: qs_env
@@ -1537,8 +1531,8 @@ CONTAINS
 
       ! *** Debug Code: Calculate the forces of the sum of eigenvalues *** !
       CALL duplicate_qs_force(qs_force_input=force, qs_force_output=force_tmp, &
-                              natom_of_kind=natom_of_kind)
-      CALL zero_qs_force(force)
+                              natom_of_kind=natom_of_kind, error=error)
+      CALL zero_qs_force(force,error)
 
       CALL get_qs_env(qs_env=qs_env, pw_env=pw_env, rho=rho, rho_core=rho_core, &
                       matrix_ks=matrix_ks, error=error)
@@ -1612,7 +1606,7 @@ CONTAINS
         WRITE (unit_nr,*) force(ikind)%rho_elec(1:3,i)
       END DO
 
-      CALL deallocate_qs_force(force)
+      CALL deallocate_qs_force(force,error)
       CALL set_qs_env(qs_env=qs_env, force=force_tmp,error=error)
       CALL get_qs_env(qs_env=qs_env, force=force, error=error)
 

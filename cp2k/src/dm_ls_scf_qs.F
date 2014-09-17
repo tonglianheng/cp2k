@@ -11,38 +11,25 @@
 !> \author Joost VandeVondele
 ! *****************************************************************************
 MODULE dm_ls_scf_qs
-  USE array_types,                     ONLY: array_data,&
-                                             array_i1d_obj,&
-                                             array_new,&
-                                             array_release
   USE atomic_kind_types,               ONLY: atomic_kind_type
   USE cp_control_types,                ONLY: dft_control_type
   USE cp_dbcsr_cp2k_link,              ONLY: cp_dbcsr_alloc_block_from_nbl
   USE cp_dbcsr_interface,              ONLY: &
-       cp_dbcsr_complete_redistribute, cp_dbcsr_copy, &
-       cp_dbcsr_copy_into_existing, cp_dbcsr_create, cp_dbcsr_desymmetrize, &
-       cp_dbcsr_distribution, cp_dbcsr_finalize, cp_dbcsr_init, &
-       cp_dbcsr_nblkrows_total, cp_dbcsr_release, cp_dbcsr_row_block_sizes, &
-       cp_dbcsr_set
-  USE cp_dbcsr_operations,             ONLY: cp_dbcsr_allocate_matrix_set
-  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_p_type,&
-                                             cp_dbcsr_type
+       array_data, array_i1d_obj, array_new, array_release, &
+       cp_dbcsr_allocate_matrix_set, cp_dbcsr_complete_redistribute, &
+       cp_dbcsr_copy, cp_dbcsr_copy_into_existing, cp_dbcsr_create, &
+       cp_dbcsr_desymmetrize, cp_dbcsr_distribution, cp_dbcsr_finalize, &
+       cp_dbcsr_init, cp_dbcsr_nblkrows_total, cp_dbcsr_p_type, &
+       cp_dbcsr_release, cp_dbcsr_row_block_sizes, cp_dbcsr_set, &
+       cp_dbcsr_type, dbcsr_distribution_col_dist, dbcsr_distribution_init, &
+       dbcsr_distribution_mp, dbcsr_distribution_new, dbcsr_distribution_obj, &
+       dbcsr_distribution_release, dbcsr_distribution_row_dist, dbcsr_name, &
+       dbcsr_type_no_symmetry, dbcsr_type_real_4, dbcsr_type_real_8, &
+       dbcsr_type_symmetric
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_realspace_grid_cube,          ONLY: cp_pw_to_cube
   USE cp_subsys_types,                 ONLY: cp_subsys_get,&
                                              cp_subsys_type
-  USE dbcsr_methods,                   ONLY: dbcsr_distribution_col_dist,&
-                                             dbcsr_distribution_init,&
-                                             dbcsr_distribution_mp,&
-                                             dbcsr_distribution_new,&
-                                             dbcsr_distribution_release,&
-                                             dbcsr_distribution_row_dist,&
-                                             dbcsr_name
-  USE dbcsr_types,                     ONLY: dbcsr_distribution_obj,&
-                                             dbcsr_type_no_symmetry,&
-                                             dbcsr_type_real_4,&
-                                             dbcsr_type_real_8,&
-                                             dbcsr_type_symmetric
   USE dm_ls_scf_types,                 ONLY: ls_cluster_atomic,&
                                              ls_cluster_molecular,&
                                              ls_mstruct_type,&
@@ -70,6 +57,7 @@ MODULE dm_ls_scf_qs
                                              set_qs_env
   USE qs_initial_guess,                ONLY: calculate_atomic_block_dm,&
                                              calculate_mopac_dm
+  USE qs_kind_types,                   ONLY: qs_kind_type
   USE qs_ks_methods,                   ONLY: qs_ks_create,&
                                              qs_ks_did_change,&
                                              qs_ks_update_qs_env
@@ -93,6 +81,10 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief create a matrix for use (and as a template) in ls based on a qs template
+!> \param matrix_ls ...
+!> \param matrix_qs ...
+!> \param ls_mstruct ...
+!> \param error ...
 !> \par History
 !>       2011.03 created [Joost VandeVondele]
 !> \author Joost VandeVondele
@@ -212,6 +204,10 @@ CONTAINS
 !> \brief first link to QS, copy a QS matrix to LS matrix
 !>        used to isolate QS style matrices from LS style
 !>        will be useful for future features (e.g. precision, symmetry, blocking, ...)
+!> \param matrix_ls ...
+!> \param matrix_qs ...
+!> \param ls_mstruct ...
+!> \param error ...
 !> \par History
 !>       2010.10 created [Joost VandeVondele]
 !> \author Joost VandeVondele
@@ -270,6 +266,10 @@ CONTAINS
 !> \brief second link to QS, copy a LS matrix to QS matrix
 !>        used to isolate QS style matrices from LS style
 !>        will be useful for future features (e.g. precision, symmetry, blocking, ...)
+!> \param matrix_qs ...
+!> \param matrix_ls ...
+!> \param ls_mstruct ...
+!> \param error ...
 !> \par History
 !>       2010.10 created [Joost VandeVondele]
 !> \author Joost VandeVondele
@@ -324,6 +324,8 @@ CONTAINS
 ! *****************************************************************************
 !> \brief further required initialization of QS.
 !>        Might be factored-out since this seems common code with the other SCF.
+!> \param qs_env ...
+!> \param error ...
 !> \par History
 !>       2010.10 created [Joost VandeVondele]
 !> \author Joost VandeVondele
@@ -386,6 +388,9 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief get an atomic initial guess
+!> \param qs_env ...
+!> \param energy ...
+!> \param error ...
 !> \par History
 !>       2012.11 created [Joost VandeVondele]
 !> \author Joost VandeVondele
@@ -411,6 +416,8 @@ CONTAINS
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(qs_energy_type), POINTER            :: qs_energy
+    TYPE(qs_kind_type), DIMENSION(:), &
+      POINTER                                :: qs_kind_set
     TYPE(qs_ks_env_type), POINTER            :: ks_env
 
     CALL timeset(routineN,handle)
@@ -430,6 +437,7 @@ CONTAINS
                            ks_env=ks_env,&
                            energy=qs_energy,&
                            atomic_kind_set=atomic_kind_set,&
+                           qs_kind_set=qs_kind_set,&
                            particle_set=particle_set,&
                            has_unit_metric=has_unit_metric,&
                            para_env=para_env,&
@@ -442,12 +450,12 @@ CONTAINS
        CALL cp_dbcsr_set(qs_env%rho%rho_ao(ispin)%matrix,0.0_dp,error=error)
        IF (dft_control%qs_control%dftb .OR. dft_control%qs_control%semi_empirical) THEN
           CALL calculate_mopac_dm(qs_env%rho%rho_ao(ispin)%matrix,matrix_s(1)%matrix, has_unit_metric, &
-                                  dft_control,particle_set, atomic_kind_set,&
+                                  dft_control,particle_set, atomic_kind_set, qs_kind_set,&
                                   ispin, nspin, nelectron_spin(ispin),&
                                   para_env, error)
        ELSE
           CALL calculate_atomic_block_dm(qs_env%rho%rho_ao(ispin)%matrix,matrix_s(1)%matrix, &
-                                         particle_set, atomic_kind_set, &
+                                         particle_set, atomic_kind_set, qs_kind_set, &
                                          ispin, nspin, nelectron_spin(ispin), &
                                          unit_nr, error)
        ENDIF
@@ -466,6 +474,10 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief use the density matrix in ls_scf_env to compute the new energy and KS matrix
+!> \param qs_env ...
+!> \param ls_scf_env ...
+!> \param energy_new ...
+!> \param error ...
 !> \par History
 !>       2011.04 created [Joost VandeVondele]
 !> \author Joost VandeVondele
@@ -504,6 +516,16 @@ CONTAINS
   END SUBROUTINE ls_scf_dm_to_ks
 
 
+! *****************************************************************************
+!> \brief ...
+!> \param qs_env ...
+!> \param ls_scf_env ...
+!> \param matrix_p_ls ...
+!> \param unit_nr ...
+!> \param title ...
+!> \param stride ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE write_matrix_to_cube(qs_env,ls_scf_env,matrix_p_ls,unit_nr,title,stride,error)
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(ls_scf_env_type)                    :: ls_scf_env

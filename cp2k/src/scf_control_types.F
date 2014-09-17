@@ -58,10 +58,8 @@ MODULE scf_control_types
 
   ! Public data types
 
-  PUBLIC :: outer_scf_control_type,&
-            scf_control_type,&
-            smear_type,&
-            diagonalization_type
+  PUBLIC :: scf_control_type,&
+            smear_type
 
   ! Public subroutines
 
@@ -84,8 +82,6 @@ MODULE scf_control_types
 !> \param max_iter_lumus maxumum number of iterations used to calculate
 !>        the lumos at the end of the scf
 !> \param max_scf max scf iterations
-!> \param nrow_block number of rows of a full matrix block
-!> \param ncol_block number of of columns in a block of a full matrix
 !> \param id_nr unique number to identify an scf control
 !> \param ref_count reference count (see cp2k/doc/ReferenceCounting.html)
 !> \param added_mos additional number of MOs that might be used in the SCF
@@ -135,8 +131,8 @@ MODULE scf_control_types
                                              level_shift,&
                                              eps_lumos,eps_diis
     INTEGER                               :: max_iter_lumos, max_diis, nmixing
-    INTEGER                               :: max_scf,nrow_block,max_scf_hist,&
-                                             ncol_block,maxl,nkind
+    INTEGER                               :: max_scf,max_scf_hist,&
+                                             maxl,nkind
     LOGICAL                               :: do_diag_sub,gradient_functional,gth_potential_present,&
                                              use_cholesky,use_ot,use_diag,do_outer_scf_reortho
     INTEGER                               :: ref_count,id_nr
@@ -190,8 +186,6 @@ CONTAINS
       scf_control%level_shift = 0.0_dp
       scf_control%max_diis = 4
       scf_control%max_scf = 50
-      scf_control%nrow_block = 32
-      scf_control%ncol_block = 32
       scf_control%nmixing = 2
       scf_control%use_cholesky = .TRUE.
       scf_control%use_diag = .TRUE.
@@ -309,11 +303,11 @@ CONTAINS
 !> \param scf_control the object to free
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
-!> \note
-!>      at the moment does nothing
 !> \par History
 !>      09.2002 created [fawzi]
 !> \author Fawzi Mohamed
+!> \note
+!>      at the moment does nothing
 ! *****************************************************************************
   SUBROUTINE scf_c_release(scf_control,error)
 
@@ -350,6 +344,7 @@ CONTAINS
 ! *****************************************************************************
 !> \brief reads the parameters of the scf section into the given scf_control
 !> \param scf_control the object that wil contain the values read
+!> \param dft_section ...
 !> \param error controls log and error handling
 !> \par History
 !>      05.2001 created [Matthias]
@@ -380,8 +375,6 @@ CONTAINS
     CPPrecondition((scf_control%ref_count > 0),cp_failure_level,routineP,error,failure)
     IF (.NOT.failure) THEN
        scf_section => section_vals_get_subs_vals(dft_section,"SCF",error=error)
-       CALL section_vals_val_get(scf_section,"nrow_block",i_val=scf_control%nrow_block,error=error)
-       CALL section_vals_val_get(scf_section,"ncol_block",i_val=scf_control%ncol_block,error=error)
        CALL section_vals_val_get(scf_section,"DIAGONALIZATION%_SECTION_PARAMETERS_",&
             l_val=scf_control%use_diag,error=error)
        IF(scf_control%use_diag) THEN
@@ -531,6 +524,11 @@ CONTAINS
 
   END SUBROUTINE scf_c_read_parameters
 
+! *****************************************************************************
+!> \brief ...
+!> \param smear ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE init_smear(smear,error)
     TYPE(smear_type), POINTER                :: smear
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -556,6 +554,12 @@ CONTAINS
     END IF
   END SUBROUTINE init_smear
 
+! *****************************************************************************
+!> \brief ...
+!> \param smear ...
+!> \param smear_section ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE read_smear_section(smear,smear_section,error)
     TYPE(smear_type), POINTER                :: smear
     TYPE(section_vals_type), POINTER         :: smear_section
@@ -607,6 +611,7 @@ CONTAINS
 ! *****************************************************************************
 !> \brief writes out the scf parameters
 !> \param scf_control the object you want to print
+!> \param dft_section ...
 !> \param error controls log and error handling
 !> \par History
 !>      05.2001 created [Matthias]
@@ -793,6 +798,12 @@ CONTAINS
 
 ! *****************************************************************************
 
+! *****************************************************************************
+!> \brief ...
+!> \param settings ...
+!> \param scf_section ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE ot_diag_read_input(settings,scf_section,error)
     TYPE(qs_ot_settings_type)                :: settings
     TYPE(section_vals_type), POINTER         :: scf_section

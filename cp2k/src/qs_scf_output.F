@@ -6,8 +6,8 @@
 MODULE qs_scf_output
   USE atomic_kind_types,               ONLY: atomic_kind_type
   USE cp_control_types,                ONLY: dft_control_type
+  USE cp_dbcsr_interface,              ONLY: cp_dbcsr_p_type
   USE cp_dbcsr_output,                 ONLY: cp_dbcsr_write_sparse_matrix
-  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_p_type
   USE cp_output_handling,              ONLY: cp_p_file,&
                                              cp_print_key_finished_output,&
                                              cp_print_key_should_output,&
@@ -27,11 +27,12 @@ MODULE qs_scf_output
   USE qs_energy_types,                 ONLY: qs_energy_type
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
+  USE qs_kind_types,                   ONLY: qs_kind_type
+  USE qs_mo_io,                        ONLY: write_mo_set
   USE qs_mo_methods,                   ONLY: calculate_magnitude,&
                                              calculate_orthonormality
   USE qs_mo_types,                     ONLY: get_mo_set,&
-                                             mo_set_p_type,&
-                                             write_mo_set
+                                             mo_set_p_type
   USE qs_rho_types,                    ONLY: qs_rho_type
   USE qs_scf_types,                    ONLY: qs_scf_env_type,&
                                              special_diag_method_nr
@@ -57,6 +58,9 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief writes a summary of information after scf
+!> \param output_unit ...
+!> \param qs_env ...
+!> \param error ...
 ! *****************************************************************************
   SUBROUTINE qs_scf_print_summary(output_unit,qs_env,error)
     INTEGER, INTENT(IN)                      :: output_unit
@@ -90,6 +94,9 @@ CONTAINS
     
 ! *****************************************************************************
 !> \brief writes basic information at the beginning of an scf run
+!> \param output_unit ...
+!> \param mos ...
+!> \param dft_control ...
 ! *****************************************************************************
   SUBROUTINE qs_scf_initial_info(output_unit,mos,dft_control)
     INTEGER                                  :: output_unit
@@ -128,12 +135,21 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief writes out the mos in the scf loop if needed
+!> \param mos ...
+!> \param atomic_kind_set ...
+!> \param qs_kind_set ...
+!> \param particle_set ...
+!> \param dft_section ...
+!> \param last ...
+!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE qs_scf_write_mos(mos,atomic_kind_set,particle_set,dft_section,last,error)
+  SUBROUTINE qs_scf_write_mos(mos,atomic_kind_set,qs_kind_set,particle_set,dft_section,last,error)
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mos
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
+    TYPE(qs_kind_type), DIMENSION(:), &
+      POINTER                                :: qs_kind_set
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(section_vals_type), POINTER         :: dft_section
@@ -144,18 +160,25 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     IF (SIZE(mos) > 1) THEN
-       CALL write_mo_set(mos(1)%mo_set,atomic_kind_set,particle_set,4,&
+       CALL write_mo_set(mos(1)%mo_set,atomic_kind_set,qs_kind_set,particle_set,4,&
                          dft_section,spin="ALPHA",last=.FALSE.,error=error)
-       CALL write_mo_set(mos(2)%mo_set,atomic_kind_set,particle_set,4,&
+       CALL write_mo_set(mos(2)%mo_set,atomic_kind_set,qs_kind_set,particle_set,4,&
                          dft_section,spin="BETA",last=.FALSE.,error=error)
     ELSE
-       CALL write_mo_set(mos(1)%mo_set,atomic_kind_set,particle_set,4,&
+       CALL write_mo_set(mos(1)%mo_set,atomic_kind_set,qs_kind_set,particle_set,4,&
                          dft_section,last=.FALSE.,error=error)
     END IF
 
   END SUBROUTINE qs_scf_write_mos
 ! *****************************************************************************
 !> \brief writes basic information obtained in a scf outer loop step
+!> \param output_unit ...
+!> \param scf_control ...
+!> \param scf_env ...
+!> \param energy ...
+!> \param total_steps ...
+!> \param should_stop ...
+!> \param outer_loop_converged ...
 ! *****************************************************************************
 
   SUBROUTINE qs_scf_outer_loop_info(output_unit,scf_control,scf_env,&
@@ -165,7 +188,7 @@ CONTAINS
     TYPE(qs_scf_env_type), POINTER           :: scf_env
     TYPE(qs_energy_type), POINTER            :: energy
     INTEGER                                  :: total_steps
-    LOGICAL, INTENT(OUT)                     :: should_stop, &
+    LOGICAL, INTENT(IN)                      :: should_stop, &
                                                 outer_loop_converged
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'qs_scf_outer_loop_info', &
@@ -196,6 +219,12 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief writes basic information obtained in a scf step
+!> \param scf_env ...
+!> \param output_unit ...
+!> \param just_energy ...
+!> \param t1 ...
+!> \param t2 ...
+!> \param energy ...
 ! *****************************************************************************
 
    SUBROUTINE qs_scf_loop_info(scf_env,output_unit,just_energy,t1,t2,energy)
@@ -236,6 +265,17 @@ CONTAINS
 ! *****************************************************************************
 !> \brief writes rather detailed summary of densities and energies
 !>      after the SCF
+!> \param output_unit ...
+!> \param rho ...
+!> \param qs_charges ...
+!> \param energy ...
+!> \param nelectron_total ...
+!> \param dft_control ...
+!> \param qmmm ...
+!> \param qs_env ...
+!> \param gapw ...
+!> \param gapw_xc ...
+!> \param error ...
 !> \par History
 !>      03.2006 created [Joost VandeVondele]
 ! *****************************************************************************
@@ -304,12 +344,18 @@ CONTAINS
             "Two-electron integral energy [eV]:             ",energy%hartree*evolt,&
             "Electronic energy [eV]:                        ",&
                                               (energy%core+0.5_dp*energy%hartree)*evolt
+         IF (energy%dispersion /= 0.0_dp)&
+               WRITE (UNIT=output_unit,FMT="(T3,A,T56,F25.14)")&
+               "Dispersion energy [eV]:                     ",energy%dispersion*evolt
        ELSEIF (dft_control%qs_control%dftb) THEN
          WRITE (UNIT=output_unit,FMT="(/,(T3,A,T56,F25.14))")&
             "Core Hamiltonian energy:                       ",energy%core,&
             "Repulsive potential energy:                    ",energy%repulsive,&
             "Electronic energy:                             ",energy%hartree,&
             "Dispersion energy:                             ",energy%dispersion
+         IF (energy%dftb3 /= 0.0_dp)&
+               WRITE (UNIT=output_unit,FMT="(T3,A,T56,F25.14)")&
+               "DFTB3 3rd order energy:                     ",energy%dftb3
        ELSEIF (dft_control%qs_control%scptb) THEN
          WRITE (UNIT=output_unit,FMT="(/,(T3,A,T56,F25.14))")&
             "Repulsive pair potential energy:               ",energy%repulsive,&
@@ -400,6 +446,10 @@ END SUBROUTINE qs_scf_print_scf_summary
 
 ! *****************************************************************************
 !> \brief collects the 'heavy duty' printing tasks out of the SCF loop
+!> \param qs_env ...
+!> \param scf_env ...
+!> \param para_env ...
+!> \param error ...
 !> \par History
 !>      03.2006 created [Joost VandeVondele]
 ! *****************************************************************************

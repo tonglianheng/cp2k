@@ -9,24 +9,18 @@
 ! *****************************************************************************
 
 MODULE rt_propagation_output
-
-  USE atomic_kind_types,               ONLY: atomic_kind_type,&
-                                             get_atomic_kind_set
-  USE cp_dbcsr_interface,              ONLY: cp_dbcsr_add,&
-                                             cp_dbcsr_create,&
-                                             cp_dbcsr_desymmetrize,&
-                                             cp_dbcsr_init,&
-                                             cp_dbcsr_iterator_blocks_left,&
-                                             cp_dbcsr_iterator_next_block,&
-                                             cp_dbcsr_iterator_start,&
-                                             cp_dbcsr_iterator_stop
-  USE cp_dbcsr_operations,             ONLY: cp_dbcsr_deallocate_matrix,&
-                                             cp_dbcsr_sm_fm_multiply
-  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_iterator,&
-                                             cp_dbcsr_p_type,&
-                                             cp_dbcsr_type
-  USE cp_fm_basic_linalg,              ONLY: cp_fm_gemm,&
-                                             cp_fm_scale_and_add
+  USE atomic_kind_types,               ONLY: atomic_kind_type
+  USE cp_dbcsr_interface,              ONLY: &
+       cp_dbcsr_add, cp_dbcsr_allocate_matrix_set, cp_dbcsr_copy, &
+       cp_dbcsr_create, cp_dbcsr_deallocate_matrix, &
+       cp_dbcsr_deallocate_matrix_set, cp_dbcsr_desymmetrize, &
+       cp_dbcsr_distribution, cp_dbcsr_filter, cp_dbcsr_get_occupation, &
+       cp_dbcsr_init, cp_dbcsr_init_p, cp_dbcsr_iterator, &
+       cp_dbcsr_iterator_blocks_left, cp_dbcsr_iterator_next_block, &
+       cp_dbcsr_iterator_start, cp_dbcsr_iterator_stop, cp_dbcsr_p_type, &
+       cp_dbcsr_type, dbcsr_distribution_mp, dbcsr_mp_group
+  USE cp_dbcsr_operations,             ONLY: cp_dbcsr_sm_fm_multiply
+  USE cp_fm_basic_linalg,              ONLY: cp_fm_scale_and_add
   USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                              cp_fm_struct_double,&
                                              cp_fm_struct_release,&
@@ -37,6 +31,7 @@ MODULE rt_propagation_output
                                              cp_fm_release,&
                                              cp_fm_set_all,&
                                              cp_fm_type
+  USE cp_gemm_interface,               ONLY: cp_gemm
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
   USE input_constants,                 ONLY: ehrenfest,&
@@ -50,11 +45,14 @@ MODULE rt_propagation_output
   USE particle_types,                  ONLY: particle_type
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
-  USE qs_mo_types,                     ONLY: write_rt_mos_to_restart
+  USE qs_kind_types,                   ONLY: get_qs_kind_set,&
+                                             qs_kind_type
+  USE qs_mo_io,                        ONLY: write_rt_mos_to_restart
   USE qs_rho_types,                    ONLY: qs_rho_type
   USE qs_scf_post_dftb,                ONLY: scf_post_calculation_dftb
   USE qs_scf_post_gpw,                 ONLY: qs_scf_post_moments,&
-                                             write_available_results
+                                             write_available_results,&
+                                             write_mo_free_results
   USE rt_propagation_types,            ONLY: get_rtp,&
                                              rt_prop_type
   USE timings,                         ONLY: timeset,&
@@ -69,11 +67,20 @@ MODULE rt_propagation_output
 
   PUBLIC :: rt_prop_output,&
             rt_convergence,&
-            rt_convergence_density
+            rt_convergence_density,&
+            report_density_occupation
 
 CONTAINS
 
 
+! *****************************************************************************
+!> \brief ...
+!> \param qs_env ...
+!> \param run_type ...
+!> \param delta_iter ...
+!> \param used_time ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE rt_prop_output(qs_env,run_type,delta_iter,used_time,error)
     TYPE(qs_environment_type), POINTER       :: qs_env
     INTEGER                                  :: run_type
@@ -91,6 +98,8 @@ CONTAINS
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
+    TYPE(qs_kind_type), DIMENSION(:), &
+      POINTER                                :: qs_kind_set
     TYPE(qs_rho_type), POINTER               :: rho
     TYPE(rt_prop_type), POINTER              :: rtp
     TYPE(section_vals_type), POINTER         :: dft_section, input, &
@@ -100,12 +109,10 @@ CONTAINS
 
     logger => cp_error_get_logger(error)
     CALL get_qs_env(qs_env=qs_env,rtp=rtp,matrix_s=matrix_s,input=input,rho=rho,particle_set=particle_set,&
-         atomic_kind_set=atomic_kind_set,error=error)
-    IF(.NOT.rtp%linear_scaling) CALL get_rtp(rtp=rtp,mos_new=mos_new,error=error)
+         atomic_kind_set=atomic_kind_set,qs_kind_set=qs_kind_set,error=error)
     rtp_section => section_vals_get_subs_vals(input,"DFT%REAL_TIME_PROPAGATION",error=error)
 
-    CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set, &
-         nelectron=n_electrons)
+    CALL get_qs_kind_set(qs_kind_set, nelectron=n_electrons)
     n_electrons = n_electrons - qs_env%dft_control%charge
 
     tot_rho_r = accurate_sum(rho%tot_rho_r)
@@ -119,9 +126,6 @@ CONTAINS
     IF(output_unit>0) THEN
        WRITE (output_unit,FMT="(/,(T3,A,T40,I5))")&
             "Information at iteration step:",rtp%iter
-    ENDIF
-
-    IF(output_unit>0) THEN
        WRITE (UNIT=output_unit,FMT="((T3,A,T41,2F20.10))")&
             "Total electronic density (r-space): ",&
             tot_rho_r,&
@@ -146,29 +150,47 @@ CONTAINS
            "CONVERGENCE REACHED",rtp%energy_new-rtp%energy_old
        END IF
     END IF
-    !TODO: For density propagation output the idempotency
-    IF(rtp%converged.AND.(.NOT.rtp%linear_scaling)) THEN
-       CALL rt_calculate_orthonormality(output_unit,orthonormality,&
-            mos_new,matrix_s(1)%matrix,error)
-       IF(output_unit>0)&
-            WRITE(output_unit,FMT="(/,(T3,A,T60,F20.10))")&
-            "Max deviation from orthonormalization:",orthonormality
+
+    IF(rtp%converged) THEN
+       IF(.NOT.rtp%linear_scaling) THEN
+          CALL get_rtp(rtp=rtp,mos_new=mos_new,error=error)
+          CALL rt_calculate_orthonormality(output_unit,orthonormality,&
+               mos_new,matrix_s(1)%matrix,error)
+          IF(output_unit>0)&
+               WRITE(output_unit,FMT="(/,(T3,A,T60,F20.10))")&
+               "Max deviation from orthonormalization:",orthonormality
+       ENDIF
     END IF
+
     IF(output_unit>0)&
        CALL m_flush(output_unit)
     CALL cp_print_key_finished_output(output_unit,logger,rtp_section,&
          "PRINT%PROGRAM_RUN_INFO", error=error)
 
-    IF(.NOT.rtp%converged)THEN
-
-
-    ELSE
-       CALL make_moment(qs_env,error)
-       CALL write_available_results(qs_env=qs_env,error=error)
-       dft_section =>  section_vals_get_subs_vals(input,"DFT",error=error)
-       !TODO: make a restart for density propagation
-       IF (.NOT. rtp%linear_scaling)&
-          CALL write_rt_mos_to_restart(qs_env%mos,mos_new,particle_set,dft_section,atomic_kind_set,error)
+    IF(rtp%converged)THEN
+       IF(qs_env%dft_control%qs_control%dftb)THEN
+          IF (rtp%linear_scaling) THEN
+            !TODO: make a restart for density propagation
+          ELSE
+             CALL make_moment(qs_env,error)
+             CALL get_rtp(rtp=rtp,mos_new=mos_new,error=error)
+             dft_section =>  section_vals_get_subs_vals(input,"DFT",error=error)
+             CALL write_rt_mos_to_restart(qs_env%mos,mos_new,particle_set,&
+                            dft_section,atomic_kind_set,qs_kind_set,error)
+          END IF
+       ELSE
+          IF (rtp%linear_scaling) THEN
+             CALL write_mo_free_results(qs_env,error)
+             !TODO: make a restart for density propagation
+          ELSE
+             CALL make_moment(qs_env,error)
+             CALL write_available_results(qs_env=qs_env,error=error)
+             CALL get_rtp(rtp=rtp,mos_new=mos_new,error=error)
+             dft_section =>  section_vals_get_subs_vals(input,"DFT",error=error)
+             CALL write_rt_mos_to_restart(qs_env%mos,mos_new,particle_set,&
+                               dft_section,atomic_kind_set,qs_kind_set,error)
+          ENDIF
+       END IF
     END IF
 
   END SUBROUTINE rt_prop_output
@@ -178,6 +200,11 @@ CONTAINS
 ! *****************************************************************************
 !> \brief computes the effective orthonormality of a set of mos given an s-matrix
 !>        orthonormality is the max deviation from unity of the C^T S C
+!> \param unit_nr ...
+!> \param orthonormality ...
+!> \param mos_new ...
+!> \param matrix_s ...
+!> \param error ...
 !> \author Florian Schiffmann (02.09)
 ! *****************************************************************************
   SUBROUTINE rt_calculate_orthonormality(unit_nr,orthonormality,mos_new,matrix_s,error)
@@ -227,9 +254,9 @@ CONTAINS
 
       CALL cp_fm_struct_release(tmp_fm_struct,error=error)
 
-      CALL cp_fm_gemm('T','N',k,k,n,1.0_dp, mos_new(re)%matrix,&
+      CALL cp_gemm('T','N',k,k,n,1.0_dp, mos_new(re)%matrix,&
            svec_re,0.0_dp,overlap_re,error=error)
-      CALL cp_fm_gemm('T','N',k,k,n,1.0_dp, mos_new(im)%matrix,&
+      CALL cp_gemm('T','N',k,k,n,1.0_dp, mos_new(im)%matrix,&
            svec_im,1.0_dp,overlap_re,error=error)
 
       CALL cp_fm_release(svec_re,error=error)
@@ -260,6 +287,10 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief computs the convergence criterium for RTP and EMD
+!> \param qs_env ...
+!> \param delta_mos ...
+!> \param delta_eps ...
+!> \param error ...
 !> \author Florian Schiffmann (02.09)
 ! *****************************************************************************
 
@@ -351,10 +382,10 @@ CONTAINS
       CALL cp_fm_create(work2,matrix_struct=newstruct1,error=error)
 
 
-      CALL cp_fm_gemm("T","N",nmo,newdim,nao,1.0_dp,delta_mos(re)%matrix,&
+      CALL cp_gemm("T","N",nmo,newdim,nao,1.0_dp,delta_mos(re)%matrix,&
            work1,0.0_dp,work,error=error)
 
-      CALL cp_fm_gemm("T","N",nmo,newdim,nao,1.0_dp,delta_mos(im)%matrix,&
+      CALL cp_gemm("T","N",nmo,newdim,nao,1.0_dp,delta_mos(im)%matrix,&
            work1,0.0_dp,work2,error=error)
 
       CALL cp_fm_get_info(work,nrow_local=lrow,error=error)
@@ -384,6 +415,10 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief computs the convergence criterium for RTP and EMD based on the density matrix
+!> \param qs_env ...
+!> \param delta_P ...
+!> \param delta_eps ...
+!> \param error ...
 !> \author Samuel Andermatt (02.14)
 ! *****************************************************************************
 
@@ -449,7 +484,7 @@ CONTAINS
        END DO
        CALL cp_dbcsr_iterator_stop (iter)
    END DO
-   CALL mp_max(max_alpha,delta_P(1)%matrix%matrix%m%dist%d%mp_env%mp%mp_group)
+   CALL mp_max(max_alpha,dbcsr_mp_group(dbcsr_distribution_mp(cp_dbcsr_distribution(delta_P(1)%matrix))))
    delta_eps=SQRT(max_alpha)
    CALL cp_dbcsr_deallocate_matrix(tmp,error=error)
    CALL timestop(handle)
@@ -458,6 +493,8 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief interface to qs_moments. Does only work for nonperiodic dipole
+!> \param qs_env ...
+!> \param error ...
 !> \author Florian Schiffmann (02.09)
 ! *****************************************************************************
 
@@ -490,9 +527,65 @@ CONTAINS
 
   END SUBROUTINE make_moment
 
+! *****************************************************************************
+!> \brief Reports the sparsity pattern of the complex density matrix
+!> \param rtp ...
+!> \param rho ...
+!> \param error ...
+!> \author Samuel Andermatt (09.14)
+! *****************************************************************************
 
+  SUBROUTINE report_density_occupation(rtp,rho,error)
 
+    TYPE(rt_prop_type), POINTER              :: rtp
+    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+      POINTER                                :: rho
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
+    CHARACTER(len=*), PARAMETER :: routineN = 'report_density_occupation', &
+      routineP = moduleN//':'//routineN
 
+    INTEGER                                  :: handle, i, im, ispin, re, &
+                                                unit_nr
+    REAL(KIND=dp)                            :: eps, occ
+    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+      POINTER                                :: tmp
+    TYPE(cp_logger_type), POINTER            :: logger
+
+    CALL timeset(routineN,handle)
+
+    logger => cp_error_get_logger(error)
+    unit_nr = cp_logger_get_default_io_unit(logger)
+    NULLIFY(tmp)
+    CALL cp_dbcsr_allocate_matrix_set(tmp,SIZE(rho),error=error)
+    DO i=1,SIZE(rho)
+      CALL cp_dbcsr_init_p(tmp(i)%matrix,error=error)
+      CALL cp_dbcsr_create(tmp(i)%matrix,template=rho(i)%matrix,error=error)
+      CALL cp_dbcsr_copy(tmp(i)%matrix,rho(i)%matrix,error=error)
+    ENDDO
+    DO ispin=1,SIZE(rho)/2
+      re=2*ispin-1
+      im=2*ispin
+      eps=MAX(rtp%filter_eps,10E-12_dp)
+      DO WHILE(eps<1.1_dp)
+         CALL cp_dbcsr_filter(tmp(re)%matrix,eps,error=error)
+         occ=cp_dbcsr_get_occupation(tmp(re)%matrix)
+         IF(unit_nr>0) WRITE(unit_nr,FMT="((T3,A,I1,A,F15.12,A,T61,F20.10))") "Occupation of rho spin ",&
+                       ispin," eps ", eps, " real: ", occ
+         eps=eps*10 
+      ENDDO
+      eps=MAX(rtp%filter_eps,10E-12_dp)
+      DO WHILE(eps<1.1_dp)
+         CALL cp_dbcsr_filter(tmp(im)%matrix,eps,error=error)
+         occ=cp_dbcsr_get_occupation(tmp(im)%matrix)
+         IF(unit_nr>0) WRITE(unit_nr,FMT="((T3,A,I1,A,F15.12,A,T61,F20.10))") "Occupation of rho spin ",&
+                       ispin," eps ", eps, " imag: " ,occ
+         eps=eps*10 
+      ENDDO
+    ENDDO
+    CALL cp_dbcsr_deallocate_matrix_set(tmp,error=error)
+    CALL timestop(handle)
+
+  END SUBROUTINE report_density_occupation
 
 END MODULE rt_propagation_output

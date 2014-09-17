@@ -33,13 +33,13 @@ MODULE mm_mapping_library
                                         charmm_map,&
                                         gromos_map
   PUBLIC :: create_ff_map,&
-            destroy_ff_map,&
-            ff_map_type
+            destroy_ff_map
 CONTAINS
 
 ! *****************************************************************************
 !> \brief Initialize arrays for mapping KINDS <-> ELEMENTS
 !>      for major elements in AMBER and CHARMM
+!> \param ff_type ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 !> \par History
@@ -142,6 +142,7 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Deallocates the arrays used for mapping
+!> \param ff_type ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 !> \par History

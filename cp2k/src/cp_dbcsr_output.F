@@ -13,27 +13,22 @@
 !> - Created 2009-09-09
 ! *****************************************************************************
 MODULE cp_dbcsr_output
-  USE array_types,                     ONLY: array_data
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
-                                             get_atomic_kind,&
-                                             get_atomic_kind_set
+                                             get_atomic_kind
   USE basis_set_types,                 ONLY: get_gto_basis_set,&
                                              gto_basis_set_type
   USE cp_dbcsr_interface,              ONLY: &
-       cp_dbcsr_col_block_sizes, cp_dbcsr_get_data_size, cp_dbcsr_get_info, &
-       cp_dbcsr_get_matrix_type, cp_dbcsr_get_num_blocks, &
-       cp_dbcsr_iterator_blocks_left, cp_dbcsr_iterator_next_block, &
-       cp_dbcsr_iterator_start, cp_dbcsr_iterator_stop, cp_dbcsr_name, &
-       cp_dbcsr_row_block_sizes
-  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_iterator,&
-                                             cp_dbcsr_type
+       array_data, cp_dbcsr_col_block_sizes, cp_dbcsr_get_data_size, &
+       cp_dbcsr_get_info, cp_dbcsr_get_matrix_type, cp_dbcsr_get_num_blocks, &
+       cp_dbcsr_iterator, cp_dbcsr_iterator_blocks_left, &
+       cp_dbcsr_iterator_next_block, cp_dbcsr_iterator_start, &
+       cp_dbcsr_iterator_stop, cp_dbcsr_name, cp_dbcsr_row_block_sizes, &
+       cp_dbcsr_type, dbcsr_type_antisymmetric, dbcsr_type_no_symmetry, &
+       dbcsr_type_symmetric
   USE cp_fm_types,                     ONLY: cp_fm_get_info,&
                                              cp_fm_get_submatrix,&
                                              cp_fm_type
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE dbcsr_types,                     ONLY: dbcsr_type_antisymmetric,&
-                                             dbcsr_type_no_symmetry,&
-                                             dbcsr_type_symmetric
   USE kinds,                           ONLY: default_string_length,&
                                              dp,&
                                              int_8
@@ -47,6 +42,9 @@ MODULE cp_dbcsr_output
                                              particle_type
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
+  USE qs_kind_types,                   ONLY: get_qs_kind,&
+                                             get_qs_kind_set,&
+                                             qs_kind_type
   USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
@@ -67,6 +65,17 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Print a spherical matrix of blacs type.
+!> \param blacs_matrix ...
+!> \param before ...
+!> \param after ...
+!> \param qs_env ...
+!> \param para_env ...
+!> \param first_row ...
+!> \param last_row ...
+!> \param first_col ...
+!> \param last_col ...
+!> \param output_unit ...
+!> \param error ...
 !> \author Creation (12.06.2001,MK)
 !>       Allow for printing of a sub-matrix (01.07.2003,MK)
 ! *****************************************************************************
@@ -91,8 +100,8 @@ CONTAINS
                                                 nsgf, row1, row2, stat
     LOGICAL                                  :: failure
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: matrix
-    TYPE(atomic_kind_type), DIMENSION(:), &
-      POINTER                                :: atomic_kind_set
+    TYPE(qs_kind_type), DIMENSION(:), &
+      POINTER                                :: qs_kind_set
 
     failure = .FALSE.
     group = para_env%group
@@ -105,8 +114,8 @@ CONTAINS
     CALL cp_fm_get_submatrix(blacs_matrix,matrix,error=error)
 
     ! *** Get the matrix dimension and check the optional arguments ***
-    CALL get_qs_env(qs_env=qs_env,atomic_kind_set=atomic_kind_set,error=error)
-    CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,nsgf=nsgf)
+    CALL get_qs_env(qs_env=qs_env,qs_kind_set=qs_kind_set,error=error)
+    CALL get_qs_kind_set(qs_kind_set=qs_kind_set,nsgf=nsgf)
 
     IF (PRESENT(first_row)) THEN
       row1 = MAX(1,first_row)
@@ -143,6 +152,21 @@ CONTAINS
 
   END SUBROUTINE write_fm_with_basis_info
 
+! *****************************************************************************
+!> \brief ...
+!> \param sparse_matrix ...
+!> \param before ...
+!> \param after ...
+!> \param qs_env ...
+!> \param para_env ...
+!> \param first_row ...
+!> \param last_row ...
+!> \param first_col ...
+!> \param last_col ...
+!> \param scale ...
+!> \param output_unit ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE cp_dbcsr_write_sparse_matrix(sparse_matrix,before,after,qs_env,para_env,&
                                       first_row,last_row,first_col,last_col,scale,&
                                        output_unit,error)
@@ -165,8 +189,8 @@ CONTAINS
                                                 group, row1, row2, stat
     LOGICAL                                  :: failure, print_sym
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: matrix
-    TYPE(atomic_kind_type), DIMENSION(:), &
-      POINTER                                :: atomic_kind_set
+    TYPE(qs_kind_type), DIMENSION(:), &
+      POINTER                                :: qs_kind_set
 
     failure = .FALSE.
     group = para_env%group
@@ -191,7 +215,7 @@ CONTAINS
     END SELECT
 
     ! *** Get the matrix dimension and check the optional arguments ***
-    CALL get_qs_env(qs_env=qs_env,atomic_kind_set=atomic_kind_set,error=error)
+    CALL get_qs_env(qs_env=qs_env,qs_kind_set=qs_kind_set,error=error)
     dim_row = SIZE(matrix,1)
     dim_col = SIZE(matrix,2)
 
@@ -239,6 +263,12 @@ CONTAINS
 
   END SUBROUTINE cp_dbcsr_write_sparse_matrix
 
+! *****************************************************************************
+!> \brief ...
+!> \param sparse_matrix ...
+!> \param fm ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE copy_repl_dbcsr_to_repl_fm(sparse_matrix,fm,error)
 
     TYPE(cp_dbcsr_type)                      :: sparse_matrix
@@ -311,6 +341,18 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Write a matrix or a sub-matrix to the output unit (symmetric)
+!> \param matrix ...
+!> \param matrix_name ...
+!> \param before ...
+!> \param after ...
+!> \param qs_env ...
+!> \param para_env ...
+!> \param first_row ...
+!> \param last_row ...
+!> \param first_col ...
+!> \param last_col ...
+!> \param output_unit ...
+!> \param error ...
 !> \author Creation (01.07.2003,MK)
 ! *****************************************************************************
   SUBROUTINE write_matrix_sym(matrix,matrix_name,before,after,qs_env,para_env,&
@@ -333,8 +375,9 @@ CONTAINS
     CHARACTER(LEN=25)                        :: fmtstr1
     CHARACTER(LEN=35)                        :: fmtstr2
     CHARACTER(LEN=6), DIMENSION(:), POINTER  :: sgf_symbol
-    INTEGER :: from, group, iatom, icol, irow, iset, isgf, ishell, iso, jcol, &
-      l, left, natom, ncol, ndigits, nset, nsgf, right, stat, to, width
+    INTEGER :: from, group, iatom, icol, ikind, irow, iset, isgf, ishell, &
+      iso, jcol, l, left, natom, ncol, ndigits, nset, nsgf, right, stat, to, &
+      width
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: first_sgf, last_sgf
     INTEGER, DIMENSION(:), POINTER           :: nshell
     INTEGER, DIMENSION(:, :), POINTER        :: lshell
@@ -344,6 +387,8 @@ CONTAINS
     TYPE(gto_basis_set_type), POINTER        :: orb_basis_set
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
+    TYPE(qs_kind_type), DIMENSION(:), &
+      POINTER                                :: qs_kind_set
 
     failure = .FALSE.
     group = para_env%group
@@ -352,18 +397,19 @@ CONTAINS
       CALL m_flush(output_unit)
 
       CALL get_qs_env(qs_env=qs_env,&
+                      qs_kind_set=qs_kind_set,&
                       atomic_kind_set=atomic_kind_set,&
                       particle_set=particle_set,error=error)
 
       natom = SIZE(particle_set)
 
-      CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,nsgf=nsgf)
+      CALL get_qs_kind_set(qs_kind_set=qs_kind_set,nsgf=nsgf)
 
       ALLOCATE (first_sgf(natom),STAT=stat)
       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
       ALLOCATE (last_sgf(natom),STAT=stat)
       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-      CALL get_particle_set(particle_set=particle_set,&
+      CALL get_particle_set(particle_set, qs_kind_set,&
                             first_sgf=first_sgf,&
                             last_sgf=last_sgf,error=error)
 
@@ -399,8 +445,9 @@ CONTAINS
          irow = 1
          DO iatom=1,natom
             NULLIFY(orb_basis_set)
-            CALL get_atomic_kind(atomic_kind=particle_set(iatom)%atomic_kind,&
-                 element_symbol=element_symbol, orb_basis_set=orb_basis_set)
+            CALL get_atomic_kind(particle_set(iatom)%atomic_kind,&
+                 kind_number=ikind, element_symbol=element_symbol)
+            CALL get_qs_kind(qs_kind_set(ikind), orb_basis_set=orb_basis_set)
             IF ( ASSOCIATED(orb_basis_set) ) THEN
                CALL get_gto_basis_set(gto_basis_set=orb_basis_set,&
                     nset=nset,nshell=nshell,l=lshell,sgf_symbol=sgf_symbol)
@@ -452,6 +499,17 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Write a matrix not necessarily symmetric (no index with atomic labels)
+!> \param matrix ...
+!> \param matrix_name ...
+!> \param before ...
+!> \param after ...
+!> \param para_env ...
+!> \param first_row ...
+!> \param last_row ...
+!> \param first_col ...
+!> \param last_col ...
+!> \param output_unit ...
+!> \param error ...
 !> \author Teodoro Laino [tlaino] - 10.2007 - University of Zurich
 ! *****************************************************************************
   SUBROUTINE write_matrix_gen(matrix,matrix_name,before,after,para_env,&
@@ -529,6 +587,10 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Print the distribution of a sparse matrix.
+!> \param matrix ...
+!> \param output_unit ...
+!> \param para_env ...
+!> \param error ...
 !> \par History
 !>      Creation (25.06.2003,MK)
 ! *****************************************************************************

@@ -20,14 +20,27 @@ MODULE input_cp2k_qmmm
   USE cp_output_handling,              ONLY: cp_print_key_section_create
   USE cp_units,                        ONLY: cp_unit_to_cp2k
   USE f77_blas
-  USE input_constants
+  USE input_constants,                 ONLY: &
+       add_last_numeric, alpha_imomm_default, charge_scale_factor, &
+       debug_print_level, do_fm_mom_conserv_buffer, do_fm_mom_conserv_core, &
+       do_fm_mom_conserv_equal_a, do_fm_mom_conserv_equal_f, &
+       do_fm_mom_conserv_none, do_fm_mom_conserv_qm, &
+       do_multipole_section_off, do_multipole_section_on, do_par_atom, &
+       do_par_grid, do_qmmm_center_every_step, do_qmmm_center_max_minus_min, &
+       do_qmmm_center_never, do_qmmm_center_pbc_aware, &
+       do_qmmm_center_setup_only, do_qmmm_coulomb, do_qmmm_gauss, &
+       do_qmmm_image_calcmatrix, do_qmmm_image_iter, do_qmmm_link_gho, &
+       do_qmmm_link_imomm, do_qmmm_link_pseudo, do_qmmm_none, do_qmmm_swave, &
+       do_qmmm_wall_none, do_qmmm_wall_quadratic, do_qmmm_wall_reflective, &
+       gaussian, high_print_level, low_print_level, medium_print_level, &
+       radius_qmmm_default, silent_print_level, spline3_nopbc_interp, &
+       use_perd_none
   USE input_cp2k_mm,                   ONLY: create_GENPOT_section,&
                                              create_Goodwin_section,&
                                              create_LJ_section,&
                                              create_NONBONDED14_section,&
                                              create_Williams_section
-  USE input_cp2k_poisson,              ONLY: create_gspace_interp_section,&
-                                             create_multipole_section
+  USE input_cp2k_poisson,              ONLY: create_gspace_interp_section
   USE input_cp2k_subsys,               ONLY: create_cell_section
   USE input_keyword_types,             ONLY: keyword_create,&
                                              keyword_release,&
@@ -263,6 +276,7 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Input section to create MM kinds sections
+!> \param section ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 !> \author tlaino
@@ -309,6 +323,7 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Input section to create FORCE_MIXING sections
+!> \param section ...
 !> \param error variable to control error logging, stopping,... 
 !>        see module cp_error_handling 
 !> \author noam
@@ -561,6 +576,7 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Input section to create QM kinds sections
+!> \param section ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 !> \author tlaino
@@ -600,6 +616,7 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Input section to set QM/MM periodic boundary conditions
+!> \param section ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 !> \author tlaino
@@ -660,10 +677,11 @@ CONTAINS
 
 ! ****************************************************************************
 !> \brief Input section for QM/MM image charge calculations
+!> \param section ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 !> \author Dorothea Golze
-! ****************************************************************************
+! *****************************************************************************
   SUBROUTINE create_qmmm_image_charge_section (section,error)
     TYPE(section_type), POINTER              :: section
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -747,6 +765,7 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Input section to set QM/MM periodic boundary conditions
+!> \param section ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 !> \author tlaino
@@ -795,7 +814,7 @@ CONTAINS
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
-       CALL create_multipole_section(subsection,error)
+       CALL create_multipole_qmmm_section(subsection,error)
        CALL section_add_subsection(section, subsection, error=error)
        CALL section_release(subsection,error=error)
 
@@ -814,8 +833,106 @@ CONTAINS
   END SUBROUTINE create_qmmm_periodic_section
 
 ! *****************************************************************************
+!> \brief Section to set-up parameters for decoupling using the Bloechl scheme
+!> \param section the section to create
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \par History
+!>      Dorothea Golze [04.2014] copied from input_cp2k_poisson.F and
+!>      enabled switch-on/off 
+!> \author teo
+! *****************************************************************************
+  SUBROUTINE create_multipole_qmmm_section(section,error)
+    TYPE(section_type), POINTER              :: section
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: &
+      routineN = 'create_multipole_qmmm_section', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+    TYPE(keyword_type), POINTER              :: keyword
+    TYPE(section_type), POINTER              :: subsection
+
+    failure=.FALSE.
+
+    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
+    IF (.NOT. failure) THEN
+
+       CALL section_create(section,name="MULTIPOLE",&
+            description="This section is used to set up the decoupling of QM periodic images with "//&
+            "the use of density derived atomic point charges. Switched on by default even if not "//&
+            "explicitly given. Can be switched off if e.g. QM and MM box are of the same size.",&
+            n_keywords=1, n_subsections=0, repeats=.FALSE., required=.FALSE.,&
+            error=error)
+
+       NULLIFY(keyword, subsection)
+       CALL keyword_create(keyword, name="_SECTION_PARAMETERS_",&
+            description="Defines the usage of the multipole section",&
+            usage="ON",&
+            enum_c_vals=s2a("ON","OFF"),&
+            enum_i_vals=(/do_multipole_section_on, do_multipole_section_off/),&
+            enum_desc=s2a("switch on MULTIPOLE section", &
+                          "switch off MULTIPOLE section"), &
+            default_i_val=do_multipole_section_on,lone_keyword_i_val=do_multipole_section_on,&
+            error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="RCUT",&
+            description="Real space cutoff for the Ewald sum.",&
+            usage="RCUT {real}", n_var=1, type_of_var=real_t,&
+            unit_str="angstrom",error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="EWALD_PRECISION",&
+            description="Precision achieved in the Ewald sum.",&
+            usage="EWALD_PRECISION {real}", n_var=1, type_of_var=real_t,&
+            unit_str="hartree",default_r_val=1.0E-6_dp,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="ANALYTICAL_GTERM",&
+            description="Evaluates the Gterm in the Ewald Scheme analytically instead of using Splines.",&
+            usage="ANALYTICAL_GTERM <LOGICAL>",&
+            default_l_val=.FALSE.,lone_keyword_l_val=.TRUE.,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="NGRIDS",&
+            description="Specifies the number of grid points used for the Interpolation of the G-space term",&
+            usage="NGRIDS <integer> <iteger> <integer> ",n_var=3,default_i_vals=(/50,50,50/),&
+            error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL create_gspace_interp_section(subsection,error)
+       CALL section_add_subsection(section, subsection, error=error)
+       CALL section_release(subsection,error=error)
+
+       CALL cp_print_key_section_create(subsection,"check_spline",&
+            description="Controls the checking of the G-space term Spline Interpolation.",&
+            print_level=medium_print_level,filename="GSpace-SplInterp",&
+            error=error)
+       CALL section_add_subsection(section,subsection,error=error)
+       CALL section_release(subsection,error=error)
+
+       CALL cp_print_key_section_create(subsection,"program_run_info",&
+            description="Controls the printing of basic information during the run", &
+            print_level=low_print_level,add_last=add_last_numeric,filename="__STD_OUT__",&
+            error=error)
+       CALL section_add_subsection(section,subsection,error=error)
+       CALL section_release(subsection,error=error)
+
+    END IF
+
+  END SUBROUTINE create_multipole_qmmm_section
+
+! *****************************************************************************
 !> \brief creates the qm/mm forcefield section to override to the FF specification
 !>      given in the FIST input
+!> \param section ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 !> \author tlaino
@@ -864,6 +981,7 @@ CONTAINS
 ! *****************************************************************************
 !> \brief creates the qm/mm forcefield section to override to the FF specification
 !>      given in the FIST input - NONBONDED PART
+!> \param section ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 !> \author tlaino
@@ -909,6 +1027,7 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief creates the qm/mm link section
+!> \param section ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 !> \author tlaino
@@ -1120,6 +1239,7 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief creates the interpolation section
+!> \param section ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 !> \author tlaino

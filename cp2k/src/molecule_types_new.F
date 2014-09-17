@@ -138,10 +138,12 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief   Deallocate a global constraint.
-!> \author  Ole Schuett
+!> \param gci ...
+!> \param error ...
 !> \par History
 !>      07.2003 created [fawzi]
 !>      01.2014 moved from cp_subsys_release() into separate routine.
+!> \author  Ole Schuett
 ! *****************************************************************************
   SUBROUTINE deallocate_global_constraint(gci, error)
     TYPE(global_constraint_type), POINTER    :: gci
@@ -190,8 +192,11 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief   Allocate a molecule set.
-!> \author  MK
+!> \param molecule_set ...
+!> \param nmolecule ...
+!> \param error ...
 !> \date    29.08.2003
+!> \author  MK
 !> \version 1.0
 ! *****************************************************************************
   SUBROUTINE allocate_molecule_set(molecule_set,nmolecule,error)
@@ -226,8 +231,10 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief   Deallocate a molecule set.
-!> \author  MK
+!> \param molecule_set ...
+!> \param error ...
 !> \date    29.08.2003
+!> \author  MK
 !> \version 1.0
 ! *****************************************************************************
   SUBROUTINE deallocate_molecule_set(molecule_set,error)
@@ -296,11 +303,22 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief   Get components from a molecule data set.
-!> \author  MK
+!> \param molecule ...
+!> \param molecule_kind ...
+!> \param lmi ...
+!> \param lci ...
+!> \param lg3x3 ...
+!> \param lg4x6 ...
+!> \param lcolv ...
+!> \param first_atom ...
+!> \param last_atom ...
+!> \param first_shell ...
+!> \param last_shell ...
 !> \date    29.08.2003
+!> \author  MK
 !> \version 1.0
 ! *****************************************************************************
-  SUBROUTINE get_molecule(molecule,molecule_kind,lmi,lg3x3,lg4x6,lcolv,&
+  SUBROUTINE get_molecule(molecule,molecule_kind,lmi,lci,lg3x3,lg4x6,lcolv,&
        first_atom,last_atom,first_shell,last_shell)
 
     TYPE(molecule_type), POINTER             :: molecule
@@ -308,6 +326,8 @@ CONTAINS
       POINTER                                :: molecule_kind
     TYPE(local_molecule_type), OPTIONAL, &
       POINTER                                :: lmi
+    TYPE(local_constraint_type), OPTIONAL, &
+      POINTER                                :: lci
     TYPE(local_g3x3_constraint_type), &
       OPTIONAL, POINTER                      :: lg3x3( : )
     TYPE(local_g4x6_constraint_type), &
@@ -328,6 +348,7 @@ CONTAINS
       IF (PRESENT(last_shell)) last_shell = molecule%last_shell
       IF (PRESENT(molecule_kind)) molecule_kind => molecule%molecule_kind
       IF (PRESENT(lmi))           lmi           => molecule%lmi
+      IF (PRESENT(lci))           lci           => molecule%lci
       IF ( PRESENT ( lcolv ) ) THEN
          IF ( ASSOCIATED ( molecule%lci ) ) THEN
            lcolv => molecule%lci%lcolv
@@ -364,8 +385,15 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief   Set a molecule data set.
-!> \author  MK
+!> \param molecule ...
+!> \param molecule_kind ...
+!> \param lmi ...
+!> \param lci ...
+!> \param lcolv ...
+!> \param lg3x3 ...
+!> \param lg4x6 ...
 !> \date    29.08.2003
+!> \author  MK
 !> \version 1.0
 ! *****************************************************************************
   SUBROUTINE set_molecule(molecule,molecule_kind,lmi,lci,lcolv,lg3x3,lg4x6)
@@ -426,8 +454,11 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief   Set a molecule data set.
-!> \author  MK
+!> \param molecule_set ...
+!> \param first_atom ...
+!> \param last_atom ...
 !> \date    29.08.2003
+!> \author  MK
 !> \version 1.0
 ! *****************************************************************************
   SUBROUTINE set_molecule_set(molecule_set,first_atom,last_atom)
@@ -482,6 +513,9 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief   finds for each atom the molecule it belongs to
+!> \param molecule_set ...
+!> \param atom_to_mol ...
+!> \param error ...
 ! *****************************************************************************
   SUBROUTINE molecule_of_atom(molecule_set,atom_to_mol,error)
     TYPE(molecule_type), DIMENSION(:), &
@@ -508,6 +542,13 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief returns information about molecules in the set.
+!> \param molecule_set ...
+!> \param atom_to_mol ...
+!> \param mol_to_first_atom ...
+!> \param mol_to_last_atom ...
+!> \param mol_to_nelectrons ...
+!> \param mol_to_nbasis ...
+!> \param error ...
 !> \par History
 !>       2011.06 created [Rustam Z Khaliullin]
 !> \author Rustam Z Khaliullin

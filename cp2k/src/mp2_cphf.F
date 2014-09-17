@@ -12,19 +12,17 @@
 MODULE mp2_cphf
   USE atomic_kind_types,               ONLY: atomic_kind_type
   USE cell_types,                      ONLY: cell_type
+  USE cp_blacs_env,                    ONLY: cp_blacs_env_type
   USE cp_control_types,                ONLY: dft_control_type
   USE cp_dbcsr_cp2k_link,              ONLY: cp_dbcsr_alloc_block_from_nbl
   USE cp_dbcsr_interface,              ONLY: &
-       cp_dbcsr_add, cp_dbcsr_col_block_sizes, cp_dbcsr_copy, &
-       cp_dbcsr_create, cp_dbcsr_distribution, cp_dbcsr_init, &
-       cp_dbcsr_release, cp_dbcsr_row_block_sizes, cp_dbcsr_scale, &
-       cp_dbcsr_set
+       cp_dbcsr_add, cp_dbcsr_allocate_matrix_set, cp_dbcsr_col_block_sizes, &
+       cp_dbcsr_copy, cp_dbcsr_create, cp_dbcsr_distribution, cp_dbcsr_init, &
+       cp_dbcsr_p_type, cp_dbcsr_release, cp_dbcsr_row_block_sizes, &
+       cp_dbcsr_scale, cp_dbcsr_set, dbcsr_type_symmetric
   USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
-                                             copy_fm_to_dbcsr,&
-                                             cp_dbcsr_allocate_matrix_set
-  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_p_type
-  USE cp_fm_basic_linalg,              ONLY: cp_fm_gemm,&
-                                             cp_fm_upper_to_full
+                                             copy_fm_to_dbcsr
+  USE cp_fm_basic_linalg,              ONLY: cp_fm_upper_to_full
 ! USE f77_blas
   USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                              cp_fm_struct_release,&
@@ -36,9 +34,8 @@ MODULE mp2_cphf
                                              cp_fm_set_all,&
                                              cp_fm_to_fm_submat,&
                                              cp_fm_type
-  USE cp_para_types,                   ONLY: cp_blacs_env_type,&
-                                             cp_para_env_type
-  USE dbcsr_types,                     ONLY: dbcsr_type_symmetric
+  USE cp_gemm_interface,               ONLY: cp_gemm
+  USE cp_para_types,                   ONLY: cp_para_env_type
   USE hfx_energy_potential,            ONLY: integrate_four_center
   USE hfx_types,                       ONLY: alloc_containers,&
                                              hfx_container_type,&
@@ -108,6 +105,19 @@ MODULE mp2_cphf
 !>        gradients, in order to be consistent here the parameters for the 
 !>        calculation of the CPHF like updats have to be exactly equal to the 
 !>        SCF case
+!> \param qs_env ...
+!> \param mp2_env ...
+!> \param para_env ...
+!> \param dft_control ...
+!> \param cell ...
+!> \param particle_set ...
+!> \param atomic_kind_set ...
+!> \param mo_coeff ...
+!> \param nmo ...
+!> \param homo ...
+!> \param Eigenval ...
+!> \param unit_nr ...
+!> \param error ...
 !> \author Mauro Del Ben 
 ! *****************************************************************************
   SUBROUTINE solve_z_vector_eq(qs_env,mp2_env,para_env,dft_control,cell,particle_set,&
@@ -171,7 +181,7 @@ MODULE mp2_cphf
     TYPE(section_vals_type), POINTER         :: hfx_sections, input
     TYPE(virial_type), POINTER               :: virial
 
-!$  INTEGER :: omp_get_max_threads,omp_get_thread_num
+!$  INTEGER :: omp_get_max_threads
 
     CALL timeset(routineN,handle)
     failure=.FALSE.
@@ -227,6 +237,7 @@ MODULE mp2_cphf
     END IF
 
     ! create work array
+    NULLIFY(mat_mu_nu)
     CALL cp_dbcsr_allocate_matrix_set(mat_mu_nu, dft_control%nspins, error)
     DO ispin=1,dft_control%nspins
       ALLOCATE(mat_mu_nu(ispin)%matrix)
@@ -468,7 +479,7 @@ MODULE mp2_cphf
     ! are symmetric (in principle), not need to symmetrize
     ! first W_mo
     CALL cp_fm_set_all(fm_back, 0.0_dp,error=error)
-    CALL cp_fm_gemm('N','N',dimen,dimen,dimen,1.0_dp,&
+    CALL cp_gemm('N','N',dimen,dimen,dimen,1.0_dp,&
                     mo_coeff,W_mo,0.0_dp,fm_back,&
                     error=error,&
                     a_first_row=1,&
@@ -477,7 +488,7 @@ MODULE mp2_cphf
                     c_first_col=1,&
                     c_first_row=1)
     CALL cp_fm_set_all(W_mo, 0.0_dp,error=error)
-    CALL cp_fm_gemm('N','T',dimen,dimen,dimen,1.0_dp,&
+    CALL cp_gemm('N','T',dimen,dimen,dimen,1.0_dp,&
                     fm_back,mo_coeff,0.0_dp,W_mo,&
                     error=error,&
                     a_first_row=1,&
@@ -487,7 +498,7 @@ MODULE mp2_cphf
                     c_first_row=1)
     ! and P_mo
     CALL cp_fm_set_all(fm_back, 0.0_dp,error=error)
-    CALL cp_fm_gemm('N','N',dimen,dimen,dimen,1.0_dp,&
+    CALL cp_gemm('N','N',dimen,dimen,dimen,1.0_dp,&
                     mo_coeff,P_mo,0.0_dp,fm_back,&
                     error=error,&
                     a_first_row=1,&
@@ -496,7 +507,7 @@ MODULE mp2_cphf
                     c_first_col=1,&
                     c_first_row=1)
     CALL cp_fm_set_all(P_mo, 0.0_dp,error=error)
-    CALL cp_fm_gemm('N','T',dimen,dimen,dimen,1.0_dp,&
+    CALL cp_gemm('N','T',dimen,dimen,dimen,1.0_dp,&
                     fm_back,mo_coeff,0.0_dp,P_mo,&
                     error=error,&
                     a_first_row=1,&
@@ -637,6 +648,38 @@ MODULE mp2_cphf
 !>        transf_type_out defines the type of transformation for the matrix in output
 !>        transf_type_out = 1 -> occ-vit transformation 
 !>        transf_type_out = 2 -> occ-occ transformation
+!> \param qs_env ...
+!> \param mp2_env ...
+!> \param para_env ...
+!> \param homo ...
+!> \param virtual ...
+!> \param dimen ...
+!> \param unit_nr ...
+!> \param mo_coeff ...
+!> \param mo_coeff_o ...
+!> \param mo_coeff_v ...
+!> \param Eigenval ...
+!> \param dft_control ...
+!> \param hfx_sections ...
+!> \param energy ...
+!> \param n_rep_hf ...
+!> \param pw_env ...
+!> \param poisson_env ...
+!> \param rho_work ...
+!> \param pot_g ...
+!> \param rho_g ...
+!> \param rho_r ...
+!> \param mat_mu_nu ...
+!> \param P_mu_nu ...
+!> \param fm_mo ...
+!> \param fm_ao ...
+!> \param fm_back ...
+!> \param transf_type_in ...
+!> \param out_alpha ...
+!> \param fm_mo_out ...
+!> \param transf_type_out ...
+!> \param error ...
+!> \param recalc_hfx_integrals ...
 !> \author Mauro Del Ben 
 ! *****************************************************************************
   SUBROUTINE cphf_like_update(qs_env,mp2_env,para_env,homo,virtual,dimen,unit_nr,&
@@ -694,7 +737,7 @@ MODULE mp2_cphf
       CASE(1)
         ! occ-occ block
         CALL cp_fm_set_all(fm_back, 0.0_dp,error=error)
-        CALL cp_fm_gemm('N','N',dimen,homo,homo,1.0_dp,&
+        CALL cp_gemm('N','N',dimen,homo,homo,1.0_dp,&
                         mo_coeff_o,fm_mo,0.0_dp,fm_back,&
                         error=error,&
                         a_first_row=1,&
@@ -703,7 +746,7 @@ MODULE mp2_cphf
                         c_first_col=1,&
                         c_first_row=1)
         CALL cp_fm_set_all(fm_ao, 0.0_dp,error=error)
-        CALL cp_fm_gemm('N','T',dimen,dimen,homo,1.0_dp,&
+        CALL cp_gemm('N','T',dimen,dimen,homo,1.0_dp,&
                         fm_back,mo_coeff_o,0.0_dp,fm_ao,&
                         error=error,&
                         a_first_row=1,&
@@ -715,7 +758,7 @@ MODULE mp2_cphf
       CASE(2)
         ! virt-virt block
         CALL cp_fm_set_all(fm_back, 0.0_dp,error=error)
-        CALL cp_fm_gemm('N','N',dimen,virtual,virtual,1.0_dp,&
+        CALL cp_gemm('N','N',dimen,virtual,virtual,1.0_dp,&
                         mo_coeff_v,fm_mo,0.0_dp,fm_back,&
                         error=error,&
                         a_first_row=1,&
@@ -724,7 +767,7 @@ MODULE mp2_cphf
                         c_first_col=1,&
                         c_first_row=1)
         CALL cp_fm_set_all(fm_ao, 0.0_dp,error=error)
-        CALL cp_fm_gemm('N','T',dimen,dimen,virtual,1.0_dp,&
+        CALL cp_gemm('N','T',dimen,dimen,virtual,1.0_dp,&
                         fm_back,mo_coeff_v,0.0_dp,fm_ao,&
                         error=error,&
                         a_first_row=1,&
@@ -735,7 +778,7 @@ MODULE mp2_cphf
 
       CASE(3)
         CALL cp_fm_set_all(fm_back, 0.0_dp,error=error)
-        CALL cp_fm_gemm('N','N',dimen,virtual,homo,1.0_dp,&
+        CALL cp_gemm('N','N',dimen,virtual,homo,1.0_dp,&
                         mo_coeff_o,fm_mo,0.0_dp,fm_back,&
                         error=error,&
                         a_first_row=1,&
@@ -744,7 +787,7 @@ MODULE mp2_cphf
                         c_first_col=1,&
                         c_first_row=1)
         CALL cp_fm_set_all(fm_ao, 0.0_dp,error=error)
-        CALL cp_fm_gemm('N','T',dimen,dimen,virtual,1.0_dp,&
+        CALL cp_gemm('N','T',dimen,dimen,virtual,1.0_dp,&
                         fm_back,mo_coeff_v,0.0_dp,fm_ao,&
                         error=error,&
                         a_first_row=1,&
@@ -754,7 +797,7 @@ MODULE mp2_cphf
                         c_first_row=1)
         ! and symmetrize (here again multiply instead of transposing)
         CALL cp_fm_set_all(fm_back, 0.0_dp,error=error)
-        CALL cp_fm_gemm('N','T',dimen,homo,virtual,1.0_dp,&
+        CALL cp_gemm('N','T',dimen,homo,virtual,1.0_dp,&
                         mo_coeff_v,fm_mo,0.0_dp,fm_back,&
                         error=error,&
                         a_first_row=1,&
@@ -762,7 +805,7 @@ MODULE mp2_cphf
                         b_first_row=1,&
                         c_first_col=1,&
                         c_first_row=1)
-        CALL cp_fm_gemm('N','T',dimen,dimen,homo,0.5_dp,&
+        CALL cp_gemm('N','T',dimen,dimen,homo,0.5_dp,&
                         fm_back,mo_coeff_o,0.5_dp,fm_ao,&
                         error=error,&
                         a_first_row=1,&
@@ -790,7 +833,7 @@ MODULE mp2_cphf
       CASE(4)
         ! all-all block
         CALL cp_fm_set_all(fm_back, 0.0_dp,error=error)
-        CALL cp_fm_gemm('N','N',dimen,dimen,dimen,1.0_dp,&
+        CALL cp_gemm('N','N',dimen,dimen,dimen,1.0_dp,&
                         mo_coeff,fm_mo,0.0_dp,fm_back,&
                         error=error,&
                         a_first_row=1,&
@@ -799,7 +842,7 @@ MODULE mp2_cphf
                         c_first_col=1,&
                         c_first_row=1)
         CALL cp_fm_set_all(fm_ao, 0.0_dp,error=error)
-        CALL cp_fm_gemm('N','T',dimen,dimen,dimen,1.0_dp,&
+        CALL cp_gemm('N','T',dimen,dimen,dimen,1.0_dp,&
                         fm_back,mo_coeff,0.0_dp,fm_ao,&
                         error=error,&
                         a_first_row=1,&
@@ -860,7 +903,7 @@ MODULE mp2_cphf
       CASE(1)
         ! occ-virt block
         CALL cp_fm_set_all(fm_back, 0.0_dp,error=error)
-        CALL cp_fm_gemm('T','N',homo,dimen,dimen,1.0_dp,&
+        CALL cp_gemm('T','N',homo,dimen,dimen,1.0_dp,&
                         mo_coeff_o,fm_ao,0.0_dp,fm_back,&
                         error=error,&
                         a_first_row=1,&
@@ -868,7 +911,7 @@ MODULE mp2_cphf
                         b_first_row=1,&
                         c_first_col=1,&
                         c_first_row=1)
-        CALL cp_fm_gemm('N','N',homo,virtual,dimen,out_alpha,&
+        CALL cp_gemm('N','N',homo,virtual,dimen,out_alpha,&
                         fm_back,mo_coeff_v,1.0_dp,fm_mo_out,&
                         error=error,&
                         a_first_row=1,&
@@ -880,7 +923,7 @@ MODULE mp2_cphf
       CASE(2)
         ! occ-occ block
         CALL cp_fm_set_all(fm_back, 0.0_dp,error=error)
-        CALL cp_fm_gemm('T','N',homo,dimen,dimen,1.0_dp,&
+        CALL cp_gemm('T','N',homo,dimen,dimen,1.0_dp,&
                         mo_coeff_o,fm_ao,0.0_dp,fm_back,&
                         error=error,&
                         a_first_row=1,&
@@ -888,7 +931,7 @@ MODULE mp2_cphf
                         b_first_row=1,&
                         c_first_col=1,&
                         c_first_row=1)
-        CALL cp_fm_gemm('N','N',homo,homo,dimen,out_alpha,&
+        CALL cp_gemm('N','N',homo,homo,dimen,out_alpha,&
                         fm_back,mo_coeff_o,1.0_dp,fm_mo_out,&
                         error=error,&
                         a_first_row=1,&
@@ -909,6 +952,35 @@ MODULE mp2_cphf
 ! *****************************************************************************
 !> \brief Low level subroutine for the iterative solution of a large 
 !>        system of linear equation
+!> \param qs_env ...
+!> \param mp2_env ...
+!> \param para_env ...
+!> \param homo ...
+!> \param virtual ...
+!> \param dimen ...
+!> \param unit_nr ...
+!> \param mo_coeff ...
+!> \param mo_coeff_o ...
+!> \param mo_coeff_v ...
+!> \param Eigenval ...
+!> \param blacs_env ...
+!> \param dft_control ...
+!> \param hfx_sections ...
+!> \param energy ...
+!> \param n_rep_hf ...
+!> \param pw_env ...
+!> \param poisson_env ...
+!> \param rho_work ...
+!> \param pot_g ...
+!> \param rho_g ...
+!> \param rho_r ...
+!> \param mat_mu_nu ...
+!> \param P_mu_nu ...
+!> \param L_jb ...
+!> \param fm_G_mu_nu ...
+!> \param fm_back ...
+!> \param P_ia ...
+!> \param error ...
 !> \author Mauro Del Ben 
 ! *****************************************************************************
   SUBROUTINE solve_z_vector_eq_low(qs_env,mp2_env,para_env,homo,virtual,dimen,unit_nr,&
@@ -1279,6 +1351,11 @@ MODULE mp2_cphf
 
   END SUBROUTINE solve_z_vector_eq_low
 
+! *****************************************************************************
+!> \brief ...
+!> \param mat ...
+!> \param unitout ...
+! *****************************************************************************
   SUBROUTINE write_array(mat,unitout)
     REAL(KIND=dp), DIMENSION(:, :)           :: mat
     INTEGER, OPTIONAL                        :: unitout

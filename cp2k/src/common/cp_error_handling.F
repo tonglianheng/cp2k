@@ -46,15 +46,16 @@ MODULE cp_error_handling
   LOGICAL, PRIVATE, PARAMETER :: debug_this_module=.FALSE.
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cp_error_handling'
 
-  ! types
+  !API types
   PUBLIC :: cp_error_type
-  ! parameters var
+  !API parameters var
   PUBLIC :: cp_debug, cp_no_error, cp_caller_error, cp_wrong_args_error,&
        cp_precondition_failed, cp_internal_error, cp_postcondition_failed,&
        cp_invariant_failed, cp_assertion_failed, cp_unimplemented_error_nr
-  ! public routines
+  !API public routines
   PUBLIC :: cp_assert, cp_a_l, cp_simple_assert, cp_unimplemented_error
 
+  !API
   PUBLIC :: cp_error_init, cp_error_dealloc_ref, cp_error_set,&
        cp_error_get, cp_error_reset, cp_error_get_level,&
        cp_error_get_print_level, cp_error_get_nr,&
@@ -140,6 +141,8 @@ CONTAINS
 !>             the default logger)
 !> \param template_error an error that gives the default values for
 !>             the previous variables (useful to initialize an internal error)
+!> \param error_nr ...
+!> \param level ...
 !> \par History
 !>      none
 !> \author Fawzi Mohamed
@@ -213,8 +216,14 @@ CONTAINS
 ! *****************************************************************************
 !> \brief routine to set the various components of the error structure
 !> \param error the error you want to change
+!> \param level ...
+!> \param error_nr ...
+!> \param stop_level ...
+!> \param print_level ...
+!> \param logger ...
 !> \param template_error gives the default values of logger, stop_level
 !>           and print_level (but not of level and error_nr)
+!> \param info ...
 !> \par History
 !>      none
 !> \author Fawzi Mohamed
@@ -255,14 +264,14 @@ CONTAINS
 !> \param err_to_free the error that gets deallocated
 !> \param error variable to control error logging, stopping,...
 !>             see module cp_error_handling
-!> \note
-!>      actually the error allocates no memory, and it is better if it
-!>      stays so even in the future, but I have written this routine
-!>      to remain consistent with the generic types
 !> \par History
 !>      none
 !> \author Fawzi Mohamed
 !>      @version 1.2002
+!> \note
+!>      actually the error allocates no memory, and it is better if it
+!>      stays so even in the future, but I have written this routine
+!>      to remain consistent with the generic types
 ! *****************************************************************************
   SUBROUTINE cp_error_dealloc_ref(err_to_free, error)
     TYPE(cp_error_type), INTENT(inout)       :: err_to_free
@@ -291,6 +300,12 @@ CONTAINS
 !> \brief returns the various attributes of the given error
 !> \param error variable to control error logging, stopping,...
 !>             see module cp_error_handling
+!> \param level ...
+!> \param error_nr ...
+!> \param stop_level ...
+!> \param print_level ...
+!> \param logger ...
+!> \param info ...
 !> \par History
 !>      none
 !> \author Fawzi Mohamed
@@ -317,6 +332,7 @@ CONTAINS
 ! *****************************************************************************
 !> \brief gets the error level from the given error
 !> \param error the error you take the info from
+!> \retval res ...
 !> \par History
 !>      none
 !> \author Fawzi Mohamed
@@ -339,6 +355,7 @@ CONTAINS
 !>      gets printed) from the given error
 !>      if the error is not present returns cp_note_level
 !> \param error the error you take the info from (optional)
+!> \retval res ...
 !> \par History
 !>      none
 !> \author Fawzi Mohamed
@@ -359,6 +376,7 @@ CONTAINS
 ! *****************************************************************************
 !> \brief gets the error number from the given error
 !> \param error the error you take the info from
+!> \retval res ...
 !> \par History
 !>      none
 !> \author Fawzi Mohamed
@@ -383,6 +401,7 @@ CONTAINS
 !>      If the error is not present or its logger is not associated
 !>      returns the default logger.
 !> \param error the error you take the info from (optional)
+!> \retval res ...
 !> \par History
 !>      none
 !> \author Fawzi Mohamed
@@ -406,6 +425,7 @@ CONTAINS
 !> \brief gets the error level at which the error will stop the programm
 !>      If the error is not present returns cp_failure_level
 !> \param error the error you take the info from (optional)
+!> \retval res ...
 !> \par History
 !>      none
 !> \author Fawzi Mohamed
@@ -454,6 +474,9 @@ CONTAINS
 !>      this function, great place to put a breakpoint if you want to catch
 !>      errors that do not stop the program.
 !> \param error the error you take the info from (optional)
+!> \param fromWhere ...
+!> \param message ...
+!> \param ionode ...
 !> \par History
 !>      none
 !> \author Fawzi Mohamed
@@ -531,6 +554,8 @@ CONTAINS
 !> \param error the error type that controls error reporting (optional)
 !> \param failure is set to true if the condition is false otherwise
 !>            it is not changed (optional)
+!> \param info ...
+!> \param only_ionode ...
 !> \par History
 !>      none
 !> \author Fawzi Mohamed
@@ -591,6 +616,8 @@ CONTAINS
 !>      (i.e. sets error to the same error than iError) and sets failure
 !>      to true if a failure more severe than warning happened
 !> \param iError the error object that comes from the subroutine
+!> \param fromWhere ...
+!> \param message ...
 !> \param error the error object in the actual routine
 !> \param failure if iError has an error it is set to true
 !> \param failure_level starting with which error level propagation happens
@@ -644,10 +671,10 @@ CONTAINS
 !> \brief comodity call to signat that something is not implemented
 !> \param fromWhere routine where the error happened
 !> \param message the message to write out (UNIMPLEMENTED is added to it)
-!> \param error_level the error level of this error, defaults to
-!>        cp_failure_level
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
+!> \param error_level the error level of this error, defaults to
+!>        cp_failure_level
 !> \par History
 !>      05.2002 created [fawzi]
 !> \author Fawzi Mohamed
@@ -680,9 +707,10 @@ CONTAINS
 !> \brief synchronizes the error values between different processors
 !>      (propagating an eventual failure to each processor)
 !> \param error the error to synchronize
+!> \param para_env ...
+!> \author fawzi
 !> \note
 !>      allow for non uniform presence of the error argument?)
-!> \author fawzi
 ! *****************************************************************************
   SUBROUTINE cp_error_synchronize_error(error,para_env)
     TYPE(cp_error_type), INTENT(inout), &
@@ -722,9 +750,13 @@ CONTAINS
 ! *****************************************************************************
 !> \brief assert with linenumber (to be used with the assertion macros
 !>      to keep the line short)
-!> \param from _
+!> \param condition ...
+!> \param level ...
+!> \param fromWhere ...
+!> \param lineNr ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
+!> \param failure ...
 !> \par History
 !>      12.2002 created [fawzi]
 !> \author fawzi
@@ -771,12 +803,14 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief simple assert
+!> \param condition ...
+!> \param routineP ...
+!> \param line ...
+!> \par History
+!>      TCH, created
 !> \note
 !>      you should use the CPAssert and similar macros defined in
 !>      cp_prep_globals.h that call cp_a_l
-!> \par History
-!>      , TCH, created
-!> \see cp_a_l
 ! *****************************************************************************
   SUBROUTINE cp_simple_assert(condition, routineP, line)
 

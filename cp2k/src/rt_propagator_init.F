@@ -11,28 +11,25 @@ MODULE rt_propagator_init
 
   USE cp_control_types,                ONLY: dft_control_type,&
                                              rtp_control_type
-  USE cp_dbcsr_interface,              ONLY: cp_dbcsr_copy,&
-                                             cp_dbcsr_create,&
-                                             cp_dbcsr_desymmetrize,&
-                                             cp_dbcsr_init,&
-                                             cp_dbcsr_multiply,&
-                                             cp_dbcsr_scale,&
-                                             cp_dbcsr_set
+  USE cp_dbcsr_interface,              ONLY: &
+       cp_dbcsr_copy, cp_dbcsr_create, cp_dbcsr_deallocate_matrix, &
+       cp_dbcsr_filter, cp_dbcsr_init, cp_dbcsr_multiply, cp_dbcsr_p_type, &
+       cp_dbcsr_scale, cp_dbcsr_type
   USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
-                                             copy_fm_to_dbcsr,&
-                                             cp_dbcsr_deallocate_matrix
-  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_p_type,&
-                                             cp_dbcsr_type
+                                             copy_fm_to_dbcsr
   USE cp_dbcsr_util,                   ONLY: lanczos_alg_serial
-  USE cp_fm_basic_linalg,              ONLY: cp_fm_gemm,&
-                                             cp_fm_scale,&
+  USE cp_fm_basic_linalg,              ONLY: cp_fm_scale,&
                                              cp_fm_upper_to_full
   USE cp_fm_diag,                      ONLY: cp_fm_syevd
   USE cp_fm_types,                     ONLY: cp_fm_create,&
+                                             cp_fm_get_info,&
                                              cp_fm_p_type,&
                                              cp_fm_release,&
+                                             cp_fm_set_all,&
                                              cp_fm_to_fm,&
                                              cp_fm_type
+  USE cp_gemm_interface,               ONLY: cp_gemm
+  USE dm_ls_scf_methods,               ONLY: density_matrix_trs4
   USE input_constants,                 ONLY: do_arnoldi,&
                                              do_bch,&
                                              do_cn,&
@@ -46,12 +43,10 @@ MODULE rt_propagator_init
                                              qs_environment_type
   USE qs_ks_methods,                   ONLY: qs_ks_update_qs_env
   USE qs_ks_types,                     ONLY: qs_ks_env_type
-  USE qs_rho_types,                    ONLY: qs_rho_type
   USE rt_make_propagators,             ONLY: compute_exponential,&
                                              compute_exponential_sparse,&
                                              propagate_arnoldi
-  USE rt_matrix_exp,                   ONLY: backtransform_matrix,&
-                                             get_nsquare_norder
+  USE rt_matrix_exp,                   ONLY: get_nsquare_norder
   USE rt_propagation_methods,          ONLY: calc_SinvH,&
                                              calc_update_rho,&
                                              calc_update_rho_sparse,&
@@ -80,6 +75,8 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief prepares the initial matrices for the propagators
+!> \param qs_env ...
+!> \param error ...
 !> \author Florian Schiffmann (02.09)
 ! *****************************************************************************
 
@@ -91,7 +88,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'init_propagators', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, imat
+    INTEGER                                  :: i, imat, unit_nr
     REAL(KIND=dp)                            :: dt, prefac
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: exp_H_new, exp_H_old, &
@@ -99,6 +96,7 @@ CONTAINS
                                                 s_mat
     TYPE(cp_fm_p_type), DIMENSION(:), &
       POINTER                                :: mos_new, mos_next, mos_old
+    TYPE(cp_logger_type), POINTER            :: logger
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(rt_prop_type), POINTER              :: rtp
     TYPE(rtp_control_type), POINTER          :: rtp_control
@@ -126,8 +124,16 @@ CONTAINS
        ELSE
           CALL get_maxabs_eigval(rtp,qs_env,error)
        END IF
-    ELSE
     END IF
+    IF(rtp_control%mat_exp==do_pade.AND.rtp%linear_scaling) THEN
+       ! get a useful output_unit
+       logger => cp_error_get_logger(error)
+       IF (logger%para_env%mepos==logger%para_env%source) THEN
+          unit_nr=cp_logger_get_default_unit_nr(logger,local=.TRUE.)
+          WRITE(unit_nr,*) "linear_scaling currently does not support pade exponentials, switching to taylor"
+       ENDIF
+       rtp_control%mat_exp=do_taylor
+    ENDIF
     ! We have no clue yet about next H so we use initial H for t and t+dt
     ! Due to different nature of the propagator the prefactor has to be adopted
     SELECT CASE(rtp_control%propagator)
@@ -155,14 +161,14 @@ CONTAINS
           END DO
        ELSEIF(rtp_control%mat_exp==do_bch) THEN
        ELSE
-         IF(rtp%linear_scaling) THEN
-            CALL compute_exponential_sparse(exp_H_new,propagator_matrix,rtp_control,rtp,error=error)
-         ELSE
-            CALL compute_exponential(exp_H_new,propagator_matrix,rtp_control,rtp,error=error)
-         END IF
-         DO imat=1,SIZE(exp_H_new)
-            CALL cp_dbcsr_copy(exp_H_old(imat)%matrix,exp_H_new(imat)%matrix,error=error)
-         END DO
+          IF(rtp%linear_scaling) THEN
+             CALL compute_exponential_sparse(exp_H_new,propagator_matrix,rtp_control,rtp,error=error)
+          ELSE
+             CALL compute_exponential(exp_H_new,propagator_matrix,rtp_control,rtp,error=error)
+          END IF
+          DO imat=1,SIZE(exp_H_new)
+             CALL cp_dbcsr_copy(exp_H_old(imat)%matrix,exp_H_new(imat)%matrix,error=error)
+          END DO
        END IF
     END IF
 
@@ -179,6 +185,9 @@ CONTAINS
 !> \brief gets an estimate for the 2-norm of KS (diagnaliztion of KS) and
 !>        calculates the order and number of squaring steps for Taylor or
 !>        Pade matrix exponential
+!> \param rtp ...
+!> \param qs_env ...
+!> \param error ...
 !> \author Florian Schiffmann (02.09)
 ! *****************************************************************************
 
@@ -280,9 +289,9 @@ CONTAINS
        CALL cp_fm_upper_to_full(H_fm,tmp_mat_H,error)
        CALL cp_fm_scale(t,H_fm,error)
 
-       CALL cp_fm_gemm("N","N",ndim,ndim,ndim,one,H_fm,S_minus_half,zero,&
+       CALL cp_gemm("N","N",ndim,ndim,ndim,one,H_fm,S_minus_half,zero,&
             tmp_mat_H,error)
-       CALL cp_fm_gemm("N","N",ndim,ndim,ndim,one,S_minus_half,tmp_mat_H,zero,&
+       CALL cp_gemm("N","N",ndim,ndim,ndim,one,S_minus_half,tmp_mat_H,zero,&
             H_fm,error)
 
        CALL cp_fm_syevd(H_fm,tmp_mat_H,eigval_H,error=error)
@@ -311,6 +320,9 @@ CONTAINS
 !> \brief gets an estimate for the 2-norm of KS (diagnaliztion of KS) and
 !>        calculates the order and number of squaring steps for Taylor or
 !>        Pade matrix exponential. Based on the full matrix code.
+!> \param rtp ...
+!> \param qs_env ...
+!> \param error ...
 !> \author Samuel Andermatt (02.14)
 ! *****************************************************************************
 
@@ -356,6 +368,7 @@ CONTAINS
     scale=1.0_dp
     IF(qs_env%dft_control%rtp_control%propagator==do_etrs)scale=2.0_dp
     t=-t/scale
+    emd=(.NOT.qs_env%dft_control%rtp_control%fixed_ions)
 
     IF(qs_env%dft_control%rtp_control%mat_exp==do_taylor)method=1
     IF(qs_env%dft_control%rtp_control%mat_exp==do_pade)method=2
@@ -382,10 +395,61 @@ CONTAINS
 
   END SUBROUTINE
 
+! *****************************************************************************
+!> \brief Is still left from diagonalization, should be removed later but is
+!>  still needed for the guess for the padé/Taylor method
+!> \param Eval ...
+!> \param eigenvec ...
+!> \param matrix ...
+!> \param error ...
+!> \author Florian Schiffmann (02.09)
+! *****************************************************************************
+
+  SUBROUTINE backtransform_matrix(Eval,eigenvec,matrix,error)
+
+    REAL(dp), DIMENSION(:)                   :: Eval
+    TYPE(cp_fm_type), POINTER                :: eigenvec, matrix
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'backtransform_matrix', &
+      routineP = moduleN//':'//routineN
+    REAL(KIND=dp), PARAMETER                 :: one = 1.0_dp , zero = 0.0_dp
+
+    INTEGER                                  :: handle, i, j, l, ncol_local, &
+                                                ndim, nrow_local
+    INTEGER, DIMENSION(:), POINTER           :: col_indices, row_indices
+    TYPE(cp_fm_type), POINTER                :: tmp
+
+    CALL timeset(routineN,handle)
+    CALL cp_fm_create(tmp,&
+         matrix_struct=matrix%matrix_struct,&
+         name="TMP_BT",&
+         error=error)
+    CALL cp_fm_get_info(matrix, nrow_local=nrow_local, ncol_local=ncol_local,&
+         row_indices=row_indices,col_indices=col_indices,error=error)
+
+    ndim=matrix%matrix_struct%nrow_global
+
+    CALL cp_fm_set_all(tmp,zero,zero,error)
+    DO i=1,ncol_local
+       l=col_indices(i)
+       DO j=1,nrow_local
+          tmp%local_data(j,i)=eigenvec%local_data(j,i)*Eval(l)
+       END DO
+    END DO
+    CALL cp_gemm("N","T",ndim,ndim,ndim,one,tmp,eigenvec,zero,&
+         matrix ,error)
+
+    CALL cp_fm_release(tmp,error)
+    CALL timestop(handle)
+
+  END SUBROUTINE backtransform_matrix
 
 ! *****************************************************************************
 !> \brief computs all matrices needed to initialize emd (S_derivs, SinvH,
 !>        SinvB and forces)
+!> \param qs_env ...
+!> \param error ...
 !> \author Florian Schiffmann (02.09)
 ! *****************************************************************************
 
@@ -409,7 +473,7 @@ CONTAINS
             error=error)
        !derivativs of the overlap needed for EMD
        CALL calc_S_derivs(qs_env,error)
-       ! a bit hidden, but computs SinvH and SinvB (calc_SinvH for CN,EM and ARNOLDI)
+       ! a bit hidden, but computes SinvH and SinvB (calc_SinvH for CN,EM and ARNOLDI)
        ! make_etrs_exp in case of ETRS in combination with TAYLOR and PADE
        CALL init_propagators(qs_env,error)
    END SUBROUTINE init_emd_propagators
@@ -417,47 +481,66 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Computes the density matrix starting from the kohn-sham matrix
+!> \param qs_env ...
+!> \param rtp ...
+!> \param rtp_control ...
+!> \param error ...
 !> \author Samuel Andermatt (03.14)
 ! *****************************************************************************
 
-   SUBROUTINE rt_initialize_rho_from_ks(qs_env,rtp,error)
+   SUBROUTINE rt_initialize_rho_from_ks(qs_env,rtp,rtp_control,error)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(rt_prop_type), POINTER              :: rtp
+    TYPE(rtp_control_type), POINTER          :: rtp_control
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'rt_initialize_rho_from_ks', &
       routineP = moduleN//':'//routineN
     REAL(KIND=dp), PARAMETER                 :: one = 1.0_dp , zero = 0.0_dp
 
-    INTEGER                                  :: im, ispin, re
+    INTEGER                                  :: im, ispin, &
+                                                nelectron_spin_real, re
+    REAL(KIND=dp)                            :: e_homo, e_lumo, e_mu
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: matrix_ks, matrix_s, rho_old
-    TYPE(qs_rho_type), POINTER               :: rho
+    TYPE(cp_dbcsr_type), POINTER             :: S_half, S_minus_half, tmp
 
-    CALL get_qs_env(qs_env,rho=rho,matrix_ks=matrix_ks,matrix_s=matrix_s,error=error)
-    CALL get_rtp(rtp=rtp,rho_old=rho_old,error=error)
-    !WORK in progress
-    !TODO: some work is done twice here for rtp, I could remove that
-    !CALL s_matrices_create (matrix_s,rtp,error)
+    CALL get_qs_env(qs_env,matrix_ks=matrix_ks,matrix_s=matrix_s,error=error)
+    CALL get_rtp(rtp=rtp,rho_old=rho_old,S_half=S_half,S_minus_half=S_minus_half,error=error)
+    !The inverse of S will be calculated twice in the first step, but preventing that would make things more complicated
+    CALL matrix_sqrt_Newton_Schulz(S_half,S_minus_half,matrix_s(1)%matrix,rtp%filter_eps,&
+         rtp%newton_schulz_order,rtp%lanzcos_threshold,rtp%lanzcos_max_iter,error=error)
+    NULLIFY(tmp)
+    ALLOCATE(tmp)
+    CALL cp_dbcsr_init(tmp,error=error)
+    CALL cp_dbcsr_create(tmp,template=matrix_ks(1)%matrix,matrix_type="N",error=error)
 
-    !CALL get_rtp(rtp=rtp,S_minus_half=S_minus_half,error=error)
+    e_homo = 0
+    e_lumo = 0
+    e_mu = 0
 
-    !CALL cp_dbcsr_init(tmp)
-    !CALL cp_dbcsr_create(tmp,template=matrix_ks(ispin)%matrix,error=error)
 
     DO ispin=1,SIZE(matrix_ks)
        re=2*ispin-1
        im=2*ispin
-       !CALL density_matrix_trs4(rho_old(re)%matrix, matrix_ks(ispin)%matrix, S_minus_half, &
-       !     qs_env%nelectron_total, rtp%filter_eps, e_lumo, e_mu, matrix_ks_deviation=tmp,
-       !     max_iter_lanczos=rtp%lanzcos_max_iter, eps_lanczos=rtp%lanzcos_threshold, error=error)
-       CALL cp_dbcsr_desymmetrize(rho%rho_ao(ispin)%matrix,rho_old(re)%matrix,error=error)
-       CALL cp_dbcsr_set(rho_old(im)%matrix,zero,error=error)
+       nelectron_spin_real=qs_env%nelectron_spin(ispin)
+       IF(SIZE(matrix_ks)==1) nelectron_spin_real=nelectron_spin_real/2
+       CALL density_matrix_trs4(rho_old(re)%matrix, matrix_ks(ispin)%matrix, S_minus_half, &
+            nelectron_spin_real, rtp%filter_eps, e_homo, e_lumo, e_mu, .FALSE., tmp,&
+            max_iter_lanczos=rtp%lanzcos_max_iter, eps_lanczos=rtp%lanzcos_threshold, error=error)
+       IF(SIZE(matrix_ks)==1) CALL cp_dbcsr_scale(rho_old(re)%matrix,2.0_dp,error=error)
+       IF(rtp_control%orthonormal) THEN
+          CALL cp_dbcsr_multiply("N","N",one,S_half,rho_old(re)%matrix,zero,tmp,filter_eps=rtp%filter_eps_small,error=error)
+          CALL cp_dbcsr_multiply("N","N",one,tmp,S_half,zero,rho_old(re)%matrix,filter_eps=rtp%filter_eps_small,error=error)
+          CALL cp_dbcsr_multiply("N","N",one,S_half,rho_old(im)%matrix,zero,tmp,filter_eps=rtp%filter_eps_small,error=error)
+          CALL cp_dbcsr_multiply("N","N",one,tmp,S_half,zero,rho_old(im)%matrix,filter_eps=rtp%filter_eps_small,error=error)
+       ENDIF
+       CALL cp_dbcsr_filter(rho_old(re)%matrix,eps=rtp%filter_eps,error=error)
     END DO
 
-    !CALL cp_dbcsr_release(tmp,error=error)
 
-   END SUBROUTINE
+    CALL cp_dbcsr_deallocate_matrix(tmp,error=error)
+   END SUBROUTINE rt_initialize_rho_from_ks
 
 END MODULE rt_propagator_init

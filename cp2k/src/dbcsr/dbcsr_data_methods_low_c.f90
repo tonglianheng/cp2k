@@ -5,11 +5,11 @@
 
 ! *****************************************************************************
 !> \brief Sets a data pointer.
+!> \param[inout] area     target data area
+!> \param[in]    p        source data pointer
 !> \par Assumptions
 !>      Assumes that no memory will be lost when repointing the
 !>      pointer in the data area and that the area is initialized.
-!> \param[inout] area     target data area
-!> \param[in]    p        source data pointer
 ! *****************************************************************************
   SUBROUTINE set_data_p_c (area, p)
     TYPE(dbcsr_data_obj), INTENT(INOUT)      :: area
@@ -25,11 +25,11 @@
 
 ! *****************************************************************************
 !> \brief Sets a data pointer.
+!> \param[inout] area     target data area
+!> \param[in]    p        source data pointer
 !> \par Assumptions
 !>      Assumes that no memory will be lost when repointing the
 !>      pointer in the data area and that the area is initialized.
-!> \param[inout] area     target data area
-!> \param[in]    p        source data pointer
 ! *****************************************************************************
   SUBROUTINE set_data_p_2d_c (area, p)
     TYPE(dbcsr_data_obj), INTENT(INOUT)      :: area
@@ -46,15 +46,15 @@
 
 ! *****************************************************************************
 !> \brief Returns the single/double precision real/complex data
-!> \par Calling
-!>      This routine is hidden behind the dbcsr_get_data interface, hence the
-!>      need for the coersion argument.
-!> \sa dbcsr_get_data_p_c
 !> \param[in] area       data area
 !> \param[in] coersion   force datatype
 !> \param[in] lb         (optional) lower bound for pointer
 !> \param[in] ub         (optional) upper bound for pointer
 !> \retval data          pointer to data
+!> \par Calling
+!>      This routine is hidden behind the dbcsr_get_data interface, hence the
+!>      need for the coersion argument.
+!>      see dbcsr_get_data_p_c
 ! *****************************************************************************
   FUNCTION dbcsr_get_data_c_c (area, coersion, lb, ub) RESULT (DATA)
     TYPE(dbcsr_data_obj), INTENT(IN)         :: area
@@ -67,7 +67,7 @@
 
     INTEGER                        :: l, u
     TYPE(dbcsr_error_type)         :: error
-    COMPLEX(kind=real_4)                        :: tmp
+
 !   ---------------------------------------------------------------------------
 
     ! The coersion argument is needed to make this function unique
@@ -97,14 +97,13 @@
 
 ! *****************************************************************************
 !> \brief Returns the single/double precision real/complex data
-!> \par Calling
-!>      This routine can be called explicitly.
 !> \brief dbcsr_get_data_c_c
 !> \param[in] area       data area
-!> \param[in] coersion   force datatype
 !> \param[in] lb         (optional) lower bound for pointer
 !> \param[in] ub         (optional) upper bound for pointer
-!> \param[out] data      pointer to data
+!> \retval DATA pointer to data
+!> \par Calling
+!>      This routine can be called explicitly.
 ! *****************************************************************************
   FUNCTION dbcsr_get_data_p_c (area, lb, ub) RESULT (DATA)
     TYPE(dbcsr_data_obj), INTENT(IN)         :: area
@@ -143,14 +142,13 @@
 
 ! *****************************************************************************
 !> \brief Returns the single/double precision real/complex data
-!> \par Calling
-!>      This routine can be called explicitly.
 !> \brief dbcsr_get_data_c_c
 !> \param[in] area       data area
-!> \param[in] coersion   force datatype
 !> \param[in] lb         (optional) lower bound for pointer
 !> \param[in] ub         (optional) upper bound for pointer
-!> \param[out] data      pointer to data
+!> \retval DATA pointer to data
+!> \par Calling
+!>      This routine can be called explicitly.
 ! *****************************************************************************
   FUNCTION dbcsr_get_data_p_2d_c (area, lb, ub) RESULT (DATA)
     TYPE(dbcsr_data_obj), INTENT(IN)            :: area
@@ -198,7 +196,7 @@
 ! *****************************************************************************
 !> \brief Returns the single/double precision real/complex data
 !> \param[in] area       data area
-!> \param[out] data      pointer to data
+!> \param[out] DATA pointer to data
 !> \param[in] lb         (optional) lower bound for pointer
 !> \param[in] ub         (optional) upper bound for pointer
 ! *****************************************************************************
@@ -241,7 +239,7 @@
 ! *****************************************************************************
 !> \brief Returns the single/double precision real/complex data
 !> \param[in] area       data area
-!> \param[out] data      pointer to data
+!> \param[out] DATA pointer to data
 !> \param[in] lb         (optional) lower bound for pointer
 !> \param[in] ub         (optional) upper bound for pointer
 ! *****************************************************************************
@@ -289,11 +287,10 @@
 
 ! *****************************************************************************
 !> \brief Returns the entire data for a matrix.
+!> \param matrix ...
+!> \param[out] DATA pointer to data
 !> \par Warning
 !>      This routine should only be used within DBCSR code.
-!> \param[in] area       data area
-!> \param[in] coersion   force datatype
-!> \param[out] data      pointer to data
 ! *****************************************************************************
   SUBROUTINE get_data_m_c (matrix, DATA)
     TYPE(dbcsr_obj), INTENT(IN)              :: matrix
@@ -307,7 +304,7 @@
 ! *****************************************************************************
 !> \brief Sets a scalar in an encapsulated data structure
 !> \param[in] scalar                    scalar to encapsulate
-!> \result encapsulated_scalar          encapsulated scalar
+!> \retval encapsulated_scalar          encapsulated scalar 
 ! *****************************************************************************
   ELEMENTAL FUNCTION dbcsr_scalar_c (scalar) RESULT (encapsulated_scalar)
     COMPLEX(kind=real_4), INTENT(IN)       :: scalar
@@ -324,8 +321,8 @@
 
 ! *****************************************************************************
 !> \brief Sets a scalar in an encapsulated data structure
-!> \params[in] encapsulated_scalar          encapsulated scalar
-!> \params[out] value                       value of the scalar
+!> \param[in] encapsulated_scalar          encapsulated scalar
+!> \param[out] value                       value of the scalar
 ! *****************************************************************************
   ELEMENTAL SUBROUTINE dbcsr_scalar_get_value_c (encapsulated_scalar, value)
     TYPE(dbcsr_scalar_type), INTENT(IN) :: encapsulated_scalar
@@ -343,13 +340,18 @@
 ! *****************************************************************************
 !> \brief Used to determine appropriate type for data.
 !> \param[in] data                      data to query
-!> \result data_type                    appropriate data_type
+!> \retval data_type                    appropriate data_type 
 ! *****************************************************************************
   PURE FUNCTION query_type_c_1d (DATA) RESULT (data_type)
     COMPLEX(kind=real_4), DIMENSION(:), INTENT(IN) :: DATA
     INTEGER                           :: data_type
     data_type = dbcsr_type_complex_4
   END FUNCTION query_type_c_1d
+! *****************************************************************************
+!> \brief ...
+!> \param data ...
+!> \retval data_type ...
+! *****************************************************************************
   PURE FUNCTION query_type_c_2d (DATA) RESULT (data_type)
     COMPLEX(kind=real_4), DIMENSION(:,:), INTENT(IN) :: DATA
     INTEGER                             :: data_type

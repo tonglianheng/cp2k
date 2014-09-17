@@ -14,8 +14,8 @@ MODULE qs_scf_post_scptb
   USE atomic_kind_types,               ONLY: atomic_kind_type
   USE cell_types,                      ONLY: cell_type
   USE cp_control_types,                ONLY: dft_control_type
+  USE cp_dbcsr_interface,              ONLY: cp_dbcsr_p_type
   USE cp_dbcsr_output,                 ONLY: cp_dbcsr_write_sparse_matrix
-  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_p_type
   USE cp_output_handling,              ONLY: cp_p_file,&
                                              cp_print_key_finished_output,&
                                              cp_print_key_should_output,&
@@ -43,21 +43,21 @@ MODULE qs_scf_post_scptb
   PRIVATE
   ! Global parameters
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_scf_post_scptb'
-  PUBLIC :: scf_post_calculation_scptb ,&
-            write_scptb_mo_free_results
+  PUBLIC :: scf_post_calculation_scptb
 
 CONTAINS
 
 ! *****************************************************************************
 !> \brief collects possible post - scf calculations and prints info / computes properties.
+!> \param dft_section ...
 !> \param scf_env the scf_env whose info should be written out
 !> \param qs_env the qs_env in which the qs_env lives
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
-!> \note
 !> \par History
 !>        09.2013  Adapted from qs_scf_post_gpw.F
 !> \author  Ralph Koitz
+!> \note
 ! *****************************************************************************
   SUBROUTINE scf_post_calculation_scptb(dft_section, scf_env,qs_env, error)
 
@@ -83,7 +83,7 @@ CONTAINS
 !> \param qs_env the qs_env in which the qs_env lives
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
-!> \history 09.2013 adapted from qs_scf_post_gpw.F. [RK]
+!> \par History 09.2013 adapted from qs_scf_post_gpw.F. [RK] 
 ! *****************************************************************************
   SUBROUTINE write_scptb_mo_free_results(qs_env,error)
     TYPE(qs_environment_type), POINTER       :: qs_env

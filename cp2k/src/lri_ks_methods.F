@@ -13,10 +13,10 @@
 MODULE lri_ks_methods
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind_set
-  USE cp_dbcsr_interface,              ONLY: cp_dbcsr_finalize,&
-                                             cp_dbcsr_get_block_p
-  USE cp_dbcsr_operations,             ONLY: cp_dbcsr_add_block_node
-  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_type
+  USE cp_dbcsr_interface,              ONLY: cp_dbcsr_add_block_node,&
+                                             cp_dbcsr_finalize,&
+                                             cp_dbcsr_get_block_p,&
+                                             cp_dbcsr_type
   USE cp_output_handling,              ONLY: cp_p_file,&
                                              cp_print_key_finished_output,&
                                              cp_print_key_should_output,&
@@ -65,16 +65,20 @@ MODULE lri_ks_methods
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'lri_ks_methods'
 
-  PUBLIC :: print_lri_density_cube, print_v_xc_cube, calculate_lri_ks_matrix
+  PUBLIC :: calculate_lri_ks_matrix
 
 CONTAINS
 
 !*****************************************************************************
 !> \brief update of LRIPGW KS matrix
-!> \param h_matrix KS matrix, on entry containing the core hamiltonian
+!> \param lri_env ...
 !> \param lri_v_int integrals of potential * ri basis set
+!> \param h_matrix KS matrix, on entry containing the core hamiltonian
+!> \param atomic_kind_set ...
+!> \param para_env ...
+!> \param error ...
 !> \note including this in lri_environment_methods?
-!*****************************************************************************
+! *****************************************************************************
   SUBROUTINE calculate_lri_ks_matrix(lri_env, lri_v_int, h_matrix, &
                                      atomic_kind_set, para_env,  error)
 
@@ -198,8 +202,14 @@ CONTAINS
   END SUBROUTINE calculate_lri_ks_matrix
 
 ! *****************************************************************************
-!> routine for testing, to be deleted later
-!******************************************************************************
+!> \brief ...
+!> \param rho_tot_gspace ...
+!> \param qs_env ...
+!> \param lri_rho_g ...
+!> \param skip_nuclear_density ...
+!> \param error ...
+!> \note  routine for testing, to be deleted later
+! *****************************************************************************
   SUBROUTINE calc_lri_rho_tot_gspace(rho_tot_gspace, qs_env, lri_rho_g,&
                                      skip_nuclear_density, error)
     TYPE(pw_p_type), INTENT(INOUT)           :: rho_tot_gspace
@@ -234,9 +244,14 @@ CONTAINS
  
   END SUBROUTINE calc_lri_rho_tot_gspace
 ! *****************************************************************************
-!> only NSPIN=1!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-!> routine for testing, to be deleted later
-!******************************************************************************
+!> \brief ...
+!> \param qs_env ...
+!> \param rho_r ...
+!> \param lri ...
+!> \param error ...
+!> \note only NSPIN=1!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!> \note routine for testing, to be deleted later
+! *****************************************************************************
   SUBROUTINE print_lri_density_cube(qs_env, rho_r, lri, error)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
@@ -290,9 +305,13 @@ CONTAINS
 
   END SUBROUTINE print_lri_density_cube
 ! *****************************************************************************
-!> only NSPIN=1!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-!> routine for testing, to be deleted later
-!******************************************************************************
+!> \brief ...
+!> \param qs_env ...
+!> \param v_rspace_new ...
+!> \param error ...
+!> \note only NSPIN=1!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!> \note routine for testing, to be deleted later
+! *****************************************************************************
   SUBROUTINE print_v_xc_cube(qs_env, v_rspace_new, error)
 
     TYPE(qs_environment_type), POINTER       :: qs_env

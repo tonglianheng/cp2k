@@ -10,7 +10,7 @@
 !> \author MDB
 ! *****************************************************************************
 MODULE mp2_types
-  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_p_type,&
+  USE cp_dbcsr_interface,              ONLY: cp_dbcsr_p_type,&
                                              cp_dbcsr_type
   USE cp_fm_types,                     ONLY: cp_fm_type
   USE hfx_types,                       ONLY: hfx_release,&
@@ -36,7 +36,7 @@ MODULE mp2_types
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'mp2_types'
 
-  PUBLIC :: mp2_type, mp2_direct_type, &
+  PUBLIC :: mp2_type,&
             integ_mat_buffer_type,&
             integ_mat_buffer_type_2D,&
             mp2_method_none,&
@@ -49,10 +49,8 @@ MODULE mp2_types
             ri_mp2_laplace,&
             init_TShPSC_lmax
 
-  PUBLIC :: mp2_env_create, mp2_env_release,mp2_biel_type,&
-            pair_list_type_mp2,&
-            mp2_potential_type, mp2_gpw_type, ri_rpa_type, ri_mp2_type,&
-            mp2_laplace_type, grad_util
+  PUBLIC :: mp2_env_create, mp2_env_release, mp2_biel_type,&
+            pair_list_type_mp2
 
   INTEGER, SAVE                                         :: init_TShPSC_lmax = -1
 
@@ -95,8 +93,10 @@ MODULE mp2_types
   TYPE ri_rpa_type
        INTEGER                  :: rpa_num_quad_points
        INTEGER                  :: rpa_integ_group_size
+       INTEGER                  :: mm_style
        TYPE(hfx_type),DIMENSION(:,:), POINTER     &
                                 :: x_data
+       LOGICAL                  :: minimax_quad
   END TYPE
 
   TYPE ri_basis_opt
@@ -104,6 +104,8 @@ MODULE mp2_types
        REAL(KIND=dp)            :: DRI
        REAL(KIND=dp)            :: eps_step
        INTEGER                  :: max_num_iter
+       INTEGER                  :: basis_quality
+       INTEGER, DIMENSION(:), ALLOCATABLE :: RI_nset_per_l
   END TYPE
 
   TYPE grad_util
@@ -159,6 +161,11 @@ MODULE mp2_types
 
 CONTAINS
 
+! *****************************************************************************
+!> \brief ...
+!> \param mp2_env ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE mp2_env_release(mp2_env,error)
     TYPE(mp2_type), POINTER                  :: mp2_env
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -187,6 +194,11 @@ CONTAINS
 
   END SUBROUTINE mp2_env_release
 
+! *****************************************************************************
+!> \brief ...
+!> \param mp2_env ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE mp2_env_create(mp2_env,error)
     TYPE(mp2_type), POINTER                  :: mp2_env
     TYPE(cp_error_type), INTENT(inout)       :: error

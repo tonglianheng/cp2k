@@ -22,15 +22,18 @@ MODULE dbcsr_data_operations
                                              dbcsr_data_hold,&
                                              dbcsr_data_set_size_referenced,&
                                              dbcsr_get_data
-  USE dbcsr_error_handling
-  USE dbcsr_kinds,                     ONLY: real_4,&
-                                             real_8
+  USE dbcsr_error_handling,            ONLY: &
+       dbcsr_assert, dbcsr_caller_error, dbcsr_error_set, dbcsr_error_stop, &
+       dbcsr_error_type, dbcsr_failure_level, dbcsr_fatal_level, &
+       dbcsr_internal_error, dbcsr_warning_level, dbcsr_wrong_args_error
   USE dbcsr_types,                     ONLY: dbcsr_data_obj,&
                                              dbcsr_type_complex_4,&
                                              dbcsr_type_complex_8,&
                                              dbcsr_type_real_4,&
                                              dbcsr_type_real_8
   USE dbcsr_util,                      ONLY: sgn
+  USE kinds,                           ONLY: real_4,&
+                                             real_8
 
   !$ USE OMP_LIB
 
@@ -290,8 +293,10 @@ CONTAINS
 !> \param[out] blk_p          re-arranged block pointers reflecting the new
 !>                            data order
 !> \param[in] old_blk_p       current block pointers
-!> \param[in] rbs, cbs        sizes of the blocked rows and columns
-!> \param[in] row_p, col_i    index
+!> \param[in] row_p index
+!> \param[in] col_i index
+!> \param[in] rbs sizes of the blocked rows
+!> \param[in] cbs sizes of the blocked columns
 !> \param[out] dst            sorted data
 !> \param[in] src             existing unordered data
 !> \param[in] mark_transposed           mark data as transposed by negating the
@@ -373,10 +378,10 @@ CONTAINS
 !>                            data order
 !> \param[in] old_blk_p       current block pointers
 !> \param[in] sizes           sizes of the data blocks
-!> \param[out] dst            sorted data
+!> \param[out] dsts           sorted data
 !> \param[in] src             existing unordered data
 !> \param[in] srcs            (optional) multiple source areas
-!> \param[in] blk_d           (optional) mapping from blocks to source areas
+!> \param old_blk_d ...
 !> \param[in,out] error       cp2k error
 ! *****************************************************************************
   SUBROUTINE dbcsr_sort_data(blk_p, old_blk_p, sizes, dsts, src,&

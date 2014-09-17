@@ -8,6 +8,7 @@
 !> \param[in] matrix_a       DBCSR matrix
 !> \param[out] trace         the trace of the matrix
 !>
+!> \param error ...
 ! *****************************************************************************
   SUBROUTINE dbcsr_trace_a_d(matrix_a, trace, error)
     TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix_a
@@ -77,11 +78,13 @@
 
 ! *****************************************************************************
 !> \brief traces a product of DBCSR matrices
-!> \param[in] matrix_a,matrix_b  DBCSR matrices
+!> \param[in] matrix_a DBCSR matrices
+!> \param[in] matrix_b DBCSR matrices
 !> \param[out] trace             the trace of the product of the matrices
 !> \param[in] trans_a            (optional) is matrix_a transposed or not?
 !> \param[in] trans_b            (optional) is matrix_b transposed or not?
-!>
+!> \param local_sum ...
+!> \param error ...
 ! *****************************************************************************
   SUBROUTINE dbcsr_trace_ab_d(matrix_a, matrix_b, trace, trans_a, trans_b, local_sum, error)
     TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix_a, matrix_b
@@ -242,72 +245,19 @@
     !
     ! summe
     IF(.NOT.my_local_sum) &
-         & CALL mp_sum(trace,dbcsr_mp_group(dbcsr_distribution_mp(matrix_a%m%dist)))
+           CALL mp_sum(trace,dbcsr_mp_group(dbcsr_distribution_mp(matrix_a%m%dist)))
 
   END SUBROUTINE dbcsr_trace_ab_d
 
 
-  SUBROUTINE bcast_block_d(blk, source, scope, mp_obj, error)
-    REAL(kind=real_8), DIMENSION(:), INTENT(INOUT)     :: blk
-    INTEGER, INTENT(IN)                      :: source
-    CHARACTER(LEN=*), INTENT(IN)             :: scope
-    TYPE(dbcsr_mp_obj)                       :: mp_obj
-    TYPE(dbcsr_error_type), INTENT(INOUT)       :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'bcast_block_d', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: icol, irow, mp_group, &
-                                                mypcol, myprow, npcols, &
-                                                nprows, src
-    INTEGER, DIMENSION(:, :), POINTER        :: blacs2mpi
-    REAL(kind=real_8), ALLOCATABLE, DIMENSION(:)       :: buff
-
-!   ---------------------------------------------------------------------------
-
-    myprow = dbcsr_mp_myprow (mp_obj)
-    mypcol = dbcsr_mp_mypcol (mp_obj)
-    npcols = dbcsr_mp_npcols (mp_obj)
-    nprows = dbcsr_mp_nprows (mp_obj)
-    blacs2mpi => dbcsr_mp_pgrid (mp_obj)
-    mp_group = dbcsr_mp_group (mp_obj)
-
-    ALLOCATE(buff(SIZE(blk)))
-    SELECT CASE(scope)
-    CASE('rowise')
-       !
-       ! simple hack
-       DO icol = 0,npcols-1
-          buff = blk
-          src = blacs2mpi(source,icol)
-          CALL mp_bcast(buff,src,mp_group)
-          IF(mypcol.EQ.icol) THEN
-             blk = buff
-          ENDIF
-       ENDDO
-    CASE('columnwise')
-       !
-       ! simple hack
-       DO irow = 0,nprows-1
-          buff = blk
-          src = blacs2mpi(irow,source)
-          CALL mp_bcast(buff,src,mp_group)
-          IF(myprow.EQ.irow) THEN
-             blk = buff
-          ENDIF
-       ENDDO
-    CASE('all')
-       CALL dbcsr_assert (.FALSE., dbcsr_fatal_level, dbcsr_unimplemented_error_nr, &
-            routineN, "combination of types NYI",__LINE__,error)
-    CASE DEFAULT
-       CALL dbcsr_assert (.FALSE., dbcsr_fatal_level, dbcsr_internal_error, &
-            routineN, "how do you wanna bcast",__LINE__,error)
-    END SELECT
-    DEALLOCATE(buff)
-
-  END SUBROUTINE bcast_block_d
-
   !> \brief Interface for matrix scaling by a scalar
+! *****************************************************************************
+!> \brief ...
+!> \param matrix_a ...
+!> \param alpha_scalar ...
+!> \param last_column ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE dbcsr_scale_d(matrix_a, alpha_scalar, last_column, error)
     TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix_a
     REAL(kind=real_8), INTENT(IN)                      :: alpha_scalar
@@ -336,6 +286,13 @@
   END SUBROUTINE dbcsr_scale_d
 
   !> \brief Interface for matrix scaling by a vector
+! *****************************************************************************
+!> \brief ...
+!> \param matrix_a ...
+!> \param alpha ...
+!> \param side ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE dbcsr_scale_by_vector_d(matrix_a, alpha, side, error)
     TYPE(dbcsr_obj), INTENT(INOUT)            :: matrix_a
     REAL(kind=real_8), DIMENSION(:), INTENT(IN), TARGET :: alpha
@@ -356,6 +313,13 @@
   END SUBROUTINE dbcsr_scale_by_vector_d
 
   !> \brief Interface for matrix scaling by a matrix
+! *****************************************************************************
+!> \brief ...
+!> \param matrix_a ...
+!> \param alpha_matrix ...
+!> \param side ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE dbcsr_scale_d_m(matrix_a, alpha_matrix,&
        side, error)
     TYPE(dbcsr_obj), INTENT(INOUT)             :: matrix_a
@@ -378,6 +342,12 @@
   END SUBROUTINE dbcsr_scale_d_m
 
   !> \brief Interface for dbcsr_set
+! *****************************************************************************
+!> \brief ...
+!> \param matrix ...
+!> \param alpha ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE dbcsr_set_d(matrix, alpha, error)
     TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix
     REAL(kind=real_8), INTENT(IN)                      :: alpha
@@ -385,39 +355,16 @@
     CALL dbcsr_set_anytype(matrix, dbcsr_scalar(alpha), error)
   END SUBROUTINE dbcsr_set_d
 
-  !> \brief Interface for dbcsr_add THIS IS NOT NEEDED ANYMORE (alpha and beta ALWAYS REQUESTED)
-  SUBROUTINE dbcsr_add_alpha_d(matrix_a, matrix_b, alpha_scalar, beta_scalar, error)
-    TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix_a
-    TYPE(dbcsr_obj), INTENT(IN)              :: matrix_b
-    REAL(kind=real_8), INTENT(IN)                      :: alpha_scalar
-    REAL(kind=real_8), INTENT(IN), OPTIONAL            :: beta_scalar
-    TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
-    IF (PRESENT(beta_scalar)) THEN
-       CALL dbcsr_add_anytype(matrix_a, matrix_b,&
-            alpha_scalar=dbcsr_scalar(alpha_scalar),&
-            beta_scalar=dbcsr_scalar(beta_scalar), error=error)
-    ELSE
-       CALL dbcsr_add_anytype(matrix_a, matrix_b,&
-            alpha_scalar=dbcsr_scalar(alpha_scalar), error=error)
-    ENDIF
-  END SUBROUTINE dbcsr_add_alpha_d
-  !> \brief Interface for dbcsr_add THIS IS NOT NEEDED ANYMORE (alpha and beta ALWAYS REQUESTED)
-  SUBROUTINE dbcsr_add_beta_d(matrix_a, matrix_b, alpha_scalar, beta_scalar, error)
-    TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix_a
-    TYPE(dbcsr_obj), INTENT(IN)              :: matrix_b
-    REAL(kind=real_8), INTENT(IN), OPTIONAL            :: alpha_scalar
-    REAL(kind=real_8), INTENT(IN)                      :: beta_scalar
-    TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
-    IF (PRESENT(alpha_scalar)) THEN
-       CALL dbcsr_add_anytype(matrix_a, matrix_b,&
-            alpha_scalar=dbcsr_scalar(alpha_scalar),&
-            beta_scalar=dbcsr_scalar(beta_scalar), error=error)
-    ELSE
-       CALL dbcsr_add_anytype(matrix_a, matrix_b,&
-            beta_scalar=dbcsr_scalar(beta_scalar), error=error)
-    ENDIF
-  END SUBROUTINE dbcsr_add_beta_d
-
+! *****************************************************************************
+!> \brief ...
+!> \param matrix ...
+!> \param eps ...
+!> \param method ...
+!> \param use_absolute ...
+!> \param filter_diag ...
+!> \param quick ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE dbcsr_filter_d (matrix, eps, method, use_absolute, &
        filter_diag, quick, error)
     TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix
@@ -429,6 +376,12 @@
          use_absolute, filter_diag, quick, error)
   END SUBROUTINE dbcsr_filter_d
 
+! *****************************************************************************
+!> \brief ...
+!> \param matrix ...
+!> \param diag ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE dbcsr_set_diag_d(matrix, diag, error)
     TYPE(dbcsr_obj), INTENT(INOUT)            :: matrix
     REAL(kind=real_8), DIMENSION(:), INTENT(IN), TARGET :: diag
@@ -449,6 +402,12 @@
     CALL dbcsr_data_release (diag_a)
   END SUBROUTINE dbcsr_set_diag_d
 
+! *****************************************************************************
+!> \brief ...
+!> \param matrix ...
+!> \param diag ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE dbcsr_get_diag_d(matrix, diag, error)
 
     TYPE(dbcsr_obj), INTENT(IN)                    :: matrix
@@ -475,6 +434,9 @@
 !> \brief add a constant to the diagonal of a matrix
 !> \param[inout] matrix       DBCSR matrix
 !> \param[in]    alpha_scalar scalar
+!> \param first_row ...
+!> \param last_row ...
+!> \param error ...
 ! *****************************************************************************
   SUBROUTINE dbcsr_add_on_diag_d(matrix, alpha_scalar, first_row, last_row, error)
     TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix

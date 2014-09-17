@@ -13,7 +13,7 @@ MODULE farming_types
   IMPLICIT NONE
   PRIVATE
 
-  PUBLIC :: farming_env_type, deallocate_farming_env, init_farming_env, init_job_type, job_type
+  PUBLIC :: farming_env_type, deallocate_farming_env, init_farming_env, init_job_type
 
   INTEGER, PUBLIC, PARAMETER :: job_pending=1,job_running=2,job_finished=3
 
@@ -52,7 +52,7 @@ CONTAINS
 ! *****************************************************************************
 !> \brief help poor compilers do their job
 !>       i.e. provide a default initialization
-!> \param an associated farming env pointer
+!> \param farming_env an associated farming env pointer
 !> \par History
 !>      03.2004 created [Joost VandeVondele ]
 ! *****************************************************************************
@@ -79,6 +79,7 @@ END SUBROUTINE
 
 ! *****************************************************************************
 !> \brief provide a default initialization
+!> \param job ...
 !> \par History
 !>      09.2007 created [Joost VandeVondele ]
 ! *****************************************************************************
@@ -96,6 +97,7 @@ END SUBROUTINE init_job_type
 
 ! *****************************************************************************
 !> \brief deallocates all memory associated with this job
+!> \param job ...
 !> \par History
 !>      09.2007 created [Joost VandeVondele ]
 ! *****************************************************************************
@@ -109,6 +111,7 @@ END SUBROUTINE deallocate_job_type
 ! *****************************************************************************
 !> \brief deallocates all associated fields of the farming_env type
 !>      and the type itself
+!> \param farming_env ...
 !> \par History
 !>      03.2004 created [Joost VandeVondele]
 ! *****************************************************************************

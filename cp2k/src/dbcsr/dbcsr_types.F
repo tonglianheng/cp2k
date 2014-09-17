@@ -13,21 +13,17 @@
 !> - Created 2009-05-12
 ! *****************************************************************************
 MODULE dbcsr_types
+  USE acc_devmem,                      ONLY: acc_devmem_type
+  USE acc_event,                       ONLY: acc_event_type
+  USE acc_stream,                      ONLY: acc_stream_type
   USE array_types,                     ONLY: array_i1d_obj
   USE btree_i8_k_cp2d_v,               ONLY: btree_2d_c => btree
   USE btree_i8_k_dp2d_v,               ONLY: btree_2d_d => btree
   USE btree_i8_k_sp2d_v,               ONLY: btree_2d_s => btree
   USE btree_i8_k_zp2d_v,               ONLY: btree_2d_z => btree
-  USE dbcsr_cuda_devmem,               ONLY: dbcsr_cuda_devmem_type
-  USE dbcsr_cuda_event,                ONLY: dbcsr_cuda_event_type
-  USE dbcsr_cuda_stream,               ONLY: dbcsr_cuda_stream_type
-  USE dbcsr_kinds,                     ONLY: default_string_length,&
-                                             dp,&
-                                             int_4,&
-                                             int_8,&
-                                             real_4,&
-                                             real_8
-  USE dbcsr_message_passing,           ONLY: mp_window_type
+  USE kinds,                           ONLY: &
+       default_string_length, dp, int_4, int_4_size, int_8, int_8_size, &
+       real_4, real_4_size, real_8, real_8_size
 
   !$ USE OMP_LIB
 
@@ -45,15 +41,14 @@ MODULE dbcsr_types
             dbcsr_work_type,&
             dbcsr_2d_array_type,&
             dbcsr_array_type,&
-            dbcsr_mp_obj, dbcsr_mp_type,&
-            dbcsr_distribution_obj, dbcsr_distribution_type,&
+            dbcsr_mp_obj,&
+            dbcsr_distribution_obj,&
             dbcsr_imagedistribution_type,&
             dbcsr_imagedistribution_obj,&
             dbcsr_iterator,&
             dbcsr_1d_array_obj,&
             dbcsr_2d_array_obj,&
-            dbcsr_mutable_obj, dbcsr_mutable_type,&
-            dbcsr_block_buffer_obj, dbcsr_block_buffer_type
+            dbcsr_mutable_obj
   PUBLIC :: dbcsr_meta_size
   PUBLIC :: dbcsr_slot_size,&
             dbcsr_slot_row_p,&
@@ -86,11 +81,11 @@ MODULE dbcsr_types
             dbcsr_type_real_4_2d, dbcsr_type_real_8_2d,&
             dbcsr_type_complex_4_2d, dbcsr_type_complex_8_2d,&
             dbcsr_type_int_4, dbcsr_type_int_8
+  PUBLIC :: dbcsr_datatype_sizeof
   PUBLIC :: dbcsr_mempool_type,&
             dbcsr_mempool_entry_type,&
             dbcsr_memtype_type,&
-            dbcsr_memtype_default,&
-            dbcsr_memtype_MPI
+            dbcsr_memtype_default
 
   PUBLIC :: dbcsr_type_invalid, dbcsr_type_no_symmetry, dbcsr_type_symmetric,&
             dbcsr_type_antisymmetric, dbcsr_type_hermitian, dbcsr_type_antihermitian
@@ -126,7 +121,7 @@ MODULE dbcsr_types
   TYPE dbcsr_mp_type
      INTEGER                            :: mynode, numnodes, myprow, mypcol
      INTEGER                            :: mp_group
-     INTEGER, DIMENSION(:,:), POINTER   :: pgrid
+     INTEGER, DIMENSION(:,:), POINTER   :: pgrid => Null()
      INTEGER                            :: refcount
      LOGICAL                            :: subgroups_defined
      INTEGER                            :: prow_group, pcol_group
@@ -141,11 +136,11 @@ MODULE dbcsr_types
 !> \var refcount              reference counter
 ! *****************************************************************************
   TYPE dbcsr_mp_obj
-     TYPE(dbcsr_mp_type), POINTER :: mp
+     TYPE(dbcsr_mp_type), POINTER :: mp => Null()
   END TYPE dbcsr_mp_obj
 
   TYPE dbcsr_data_obj
-     TYPE(dbcsr_data_area_type), POINTER           :: d
+     TYPE(dbcsr_data_area_type), POINTER           :: d => Null()
   END TYPE dbcsr_data_obj
 ! *****************************************************************************
 !> \brief Matrix distribution on the processor grid
@@ -176,7 +171,8 @@ MODULE dbcsr_types
   TYPE dbcsr_distribution_type
      TYPE(array_i1d_obj)               :: row_dist, col_dist
      TYPE(array_i1d_obj)               :: local_rows, local_cols
-     TYPE(array_i1d_obj), DIMENSION(:), POINTER :: other_l_rows, other_l_cols
+     TYPE(array_i1d_obj), DIMENSION(:), POINTER :: other_l_rows => Null(),&
+                                                   other_l_cols => Null()
      LOGICAL                           :: has_other_l_rows, has_other_l_cols
      TYPE(array_i1d_obj)               :: global_row_map, global_col_map
      LOGICAL                           :: has_global_row_map, has_global_col_map
@@ -188,7 +184,7 @@ MODULE dbcsr_types
      INTEGER                           :: refcount
   END TYPE dbcsr_distribution_type
   TYPE dbcsr_distribution_obj
-     TYPE(dbcsr_distribution_type), POINTER  :: d
+     TYPE(dbcsr_distribution_type), POINTER  :: d => Null()
   END TYPE dbcsr_distribution_obj
 
 ! *****************************************************************************
@@ -217,7 +213,8 @@ MODULE dbcsr_types
      !
      TYPE(array_i1d_obj)                :: vrow_dist, vcol_dist
      !
-     TYPE(array_i1d_obj), DIMENSION(:), POINTER :: other_vl_rows, other_vl_cols
+     TYPE(array_i1d_obj), DIMENSION(:), POINTER :: other_vl_rows => Null(),&
+                                                   other_vl_cols => Null()
      TYPE(array_i1d_obj)               :: global_vrow_map, global_vcol_map
      LOGICAL                           :: has_other_vl_rows, has_other_vl_cols,&
                                           has_global_vrow_map, has_global_vcol_map
@@ -226,7 +223,7 @@ MODULE dbcsr_types
   END TYPE dbcsr_imagedistribution_type
 
   TYPE dbcsr_imagedistribution_obj
-     TYPE(dbcsr_imagedistribution_type), POINTER :: i
+     TYPE(dbcsr_imagedistribution_type), POINTER :: i => Null()
   END TYPE dbcsr_imagedistribution_obj
 
 ! *****************************************************************************
@@ -264,16 +261,15 @@ MODULE dbcsr_types
 
   TYPE dbcsr_memtype_type
      LOGICAL                           :: mpi = .FALSE.
-     LOGICAL                           :: cuda_hostalloc = .FALSE.
-     LOGICAL                           :: cuda_devalloc = .FALSE.
-     TYPE(dbcsr_cuda_stream_type)      :: cuda_stream = dbcsr_cuda_stream_type()
+     LOGICAL                           :: acc_hostalloc = .FALSE.
+     LOGICAL                           :: acc_devalloc = .FALSE.
+     TYPE(acc_stream_type)             :: acc_stream = acc_stream_type()
      TYPE(dbcsr_mempool_type), POINTER :: pool => Null()
      REAL(KIND=dp)                     :: oversize_factor = 1.0
   END TYPE dbcsr_memtype_type
 
   !providing pool=Null() explicitly to circumvent bug in ifort 12.1
   TYPE(dbcsr_memtype_type), PARAMETER :: dbcsr_memtype_default = dbcsr_memtype_type(pool=Null())
-  TYPE(dbcsr_memtype_type), PARAMETER :: dbcsr_memtype_MPI = dbcsr_memtype_type(mpi=.TRUE., pool=Null())
 
 ! *****************************************************************************
 !> \brief Stores actual data
@@ -302,8 +298,8 @@ MODULE dbcsr_types
      INTEGER                                  :: id = -1
      TYPE(dbcsr_memtype_type)                 :: memory_type = dbcsr_memtype_default
      INTEGER                                  :: data_type  = -1
-     TYPE(dbcsr_cuda_devmem_type)             :: cuda_devmem
-     TYPE(dbcsr_cuda_event_type)              :: cuda_ready
+     TYPE(acc_devmem_type)                    :: acc_devmem
+     TYPE(acc_event_type)                     :: acc_ready
   END TYPE dbcsr_data_area_type
 
 !> Type definitions:
@@ -351,11 +347,11 @@ MODULE dbcsr_types
 ! *****************************************************************************
   TYPE dbcsr_block_buffer_type
      INTEGER                                     :: refcount
-     LOGICAL, DIMENSION(:), POINTER              :: dirty
-     TYPE(dbcsr_data_obj), DIMENSION(:), POINTER :: buffers
-     INTEGER, DIMENSION(:,:), POINTER            :: rcb
+     LOGICAL, DIMENSION(:), POINTER              :: dirty => Null()
+     TYPE(dbcsr_data_obj), DIMENSION(:), POINTER :: buffers  => Null()
+     INTEGER, DIMENSION(:,:), POINTER            :: rcb  => Null()
      TYPE(dbcsr_data_obj)                        :: main
-     TYPE(dbcsr_data_obj), DIMENSION(:), POINTER :: backing
+     TYPE(dbcsr_data_obj), DIMENSION(:), POINTER :: backing  => Null()
      INTEGER                                     :: data_type
   END TYPE dbcsr_block_buffer_type
 
@@ -364,7 +360,7 @@ MODULE dbcsr_types
 !> \var t               Block buffer
 ! *****************************************************************************
   TYPE dbcsr_block_buffer_obj
-     TYPE(dbcsr_block_buffer_type), POINTER :: b
+     TYPE(dbcsr_block_buffer_type), POINTER :: b => Null()
   END TYPE dbcsr_block_buffer_obj
 
 
@@ -394,19 +390,26 @@ MODULE dbcsr_types
 !>                       indexing is enabled)
 ! *****************************************************************************
   TYPE dbcsr_iterator
-     TYPE(dbcsr_obj), POINTER                       :: matrix
+     TYPE(dbcsr_obj), POINTER                       :: matrix => Null()
      TYPE(dbcsr_block_buffer_obj)                   :: buffer_2d
      INTEGER                                        :: pos, row, row_size, &
           row_offset
-     INTEGER, DIMENSION(:), POINTER :: rbs, cbs, roff, coff
+     INTEGER, DIMENSION(:), POINTER :: rbs  => Null(),&
+                                       cbs  => Null(),&
+                                       roff => Null(),&
+                                       coff => Null()
      LOGICAL            :: local_indexing
      LOGICAL            :: contiguous_pointers, transpose, read_only
      LOGICAL            :: shared, dynamic, dynamic_byrows
-     INTEGER, POINTER   :: common_pos
+     INTEGER, POINTER   :: common_pos => Null()
      ! Copies from the matrix.
      INTEGER            :: nblks, nblkrows_total, max_r_size, max_c_size
-     INTEGER, DIMENSION(:), POINTER :: row_p, col_i, blk_p, tdist,&
-                                       local_rows, global_rows
+     INTEGER, DIMENSION(:), POINTER :: row_p       => Null(),&
+                                       col_i       => Null(),&
+                                       blk_p       => Null(),&
+                                       tdist       => Null(),&
+                                       local_rows  => Null(),&
+                                       global_rows => Null()
      TYPE(dbcsr_data_obj) :: data_area
   END TYPE dbcsr_iterator
 
@@ -430,7 +433,7 @@ MODULE dbcsr_types
 !> \brief Object for the mutable data type
 ! *****************************************************************************
   TYPE dbcsr_mutable_obj
-     TYPE(dbcsr_mutable_type), POINTER :: m
+     TYPE(dbcsr_mutable_type), POINTER :: m => Null()
   END TYPE dbcsr_mutable_obj
 
 ! *****************************************************************************
@@ -448,9 +451,9 @@ MODULE dbcsr_types
 ! *****************************************************************************
   TYPE dbcsr_work_type
      TYPE(dbcsr_data_obj)                    :: data_area
-     INTEGER, DIMENSION(:), POINTER          :: row_i,&
-          &                                     col_i,&
-          &                                     blk_p
+     INTEGER, DIMENSION(:), POINTER          :: row_i => Null(),&
+                                                col_i => Null(),&
+                                                blk_p => Null()
      INTEGER        :: lastblk, datasize
      !TYPE(btree_2d_d)        :: tree
      TYPE(dbcsr_mutable_obj)                 :: mutable
@@ -517,20 +520,20 @@ MODULE dbcsr_types
      LOGICAL                            :: valid
      LOGICAL                            :: initialized = .FALSE.
      CHARACTER(LEN=default_string_length) :: name
-     !REAL(kind=dp), DIMENSION(:), POINTER :: DATA
+     !REAL(kind=dp), DIMENSION(:), POINTER :: DATA => Null()
      TYPE(dbcsr_data_obj)               :: data_area
-     INTEGER, DIMENSION(:), POINTER     :: index
-     INTEGER, DIMENSION(:), POINTER     :: row_p,&
-          &                                col_i,&
-          &                                blk_p,&
-          &                                thr_c,&
-          &                                coo_l
+     INTEGER, DIMENSION(:), POINTER     :: index => Null()
+     INTEGER, DIMENSION(:), POINTER     :: row_p => Null(),&
+                                           col_i => Null(),&
+                                           blk_p => Null(),&
+                                           thr_c => Null(),&
+                                           coo_l => Null()
      TYPE(array_i1d_obj)                   row_blk_size,&
-          &                                col_blk_size,&
-          &                                row_blk_offset,&
-          &                                col_blk_offset,&
-          &                                local_rows, global_rows,&
-          &                                local_cols, global_cols
+                                           col_blk_size,&
+                                           row_blk_offset,&
+                                           col_blk_offset,&
+                                           local_rows, global_rows,&
+                                           local_cols, global_cols
      LOGICAL                               has_local_rows, has_global_rows,&
                                            has_local_cols, has_global_cols
      INTEGER                            :: max_rbs, max_cbs
@@ -551,11 +554,10 @@ MODULE dbcsr_types
      TYPE(dbcsr_memtype_type):: data_memory_type, index_memory_type
      TYPE(dbcsr_block_buffer_obj) :: buffers
      !TYPE(dbcsr_work_type)   :: w
-     TYPE(dbcsr_work_type), DIMENSION(:), POINTER :: wms
+     TYPE(dbcsr_work_type), DIMENSION(:), POINTER :: wms => Null()
      TYPE(dbcsr_distribution_obj)       :: dist
      INTEGER                 :: refcount
      LOGICAL                 :: work_mutable
-!$   INTEGER(KIND=omp_lock_kind) :: modification_lock
   END TYPE dbcsr_type
 
 
@@ -642,7 +644,7 @@ MODULE dbcsr_types
 !> \var w           the work matrix
 ! *****************************************************************************
   TYPE dbcsr_work_type_p
-     TYPE(dbcsr_work_type), POINTER     :: w
+     TYPE(dbcsr_work_type), POINTER     :: w => Null()
   END TYPE dbcsr_work_type_p
 
 ! *****************************************************************************
@@ -651,8 +653,8 @@ MODULE dbcsr_types
 !> \var refcount    reference counter
 ! *****************************************************************************
   TYPE dbcsr_1d_array_obj
-     TYPE(dbcsr_obj), DIMENSION(:), POINTER :: s
-     INTEGER, POINTER                       :: refcount
+     TYPE(dbcsr_obj), DIMENSION(:), POINTER :: s => Null()
+     INTEGER, POINTER                       :: refcount => Null()
   END TYPE dbcsr_1d_array_obj
 
 ! *****************************************************************************
@@ -661,8 +663,8 @@ MODULE dbcsr_types
 !> \var refcount    reference counter
 ! *****************************************************************************
   TYPE dbcsr_2d_array_obj
-     TYPE(dbcsr_obj), DIMENSION(:,:), POINTER :: s
-     INTEGER, POINTER                         :: refcount
+     TYPE(dbcsr_obj), DIMENSION(:,:), POINTER :: s => Null()
+     INTEGER, POINTER                         :: refcount => Null()
   END TYPE dbcsr_2d_array_obj
 
 ! *****************************************************************************
@@ -672,8 +674,7 @@ MODULE dbcsr_types
 !> \var image_dist  image distribution
 ! *****************************************************************************
   TYPE dbcsr_array_type
-     TYPE(dbcsr_obj), DIMENSION(:), POINTER :: mats
-     TYPE(mp_window_type), DIMENSION(:), POINTER :: data_windows, index_windows
+     TYPE(dbcsr_obj), DIMENSION(:), POINTER :: mats => Null()
      TYPE(dbcsr_imagedistribution_type) :: image_dist
   END TYPE dbcsr_array_type
 
@@ -683,8 +684,38 @@ MODULE dbcsr_types
 !> \var image_dist  image distribution
 ! *****************************************************************************
   TYPE dbcsr_2d_array_type
-     TYPE(dbcsr_obj), DIMENSION(:,:), POINTER :: mats
+     TYPE(dbcsr_obj), DIMENSION(:,:), POINTER :: mats => Null()
      TYPE(dbcsr_imagedistribution_obj) :: image_dist
   END TYPE dbcsr_2d_array_type
+
+ CONTAINS
+
+! *****************************************************************************
+!> \brief Helper-routine, returns size of given datatype in terms of bytes.
+!> \param datatype ...
+!> \retval size ...
+!> \author Ole Schuett
+! *****************************************************************************
+  FUNCTION dbcsr_datatype_sizeof(datatype) RESULT(size)
+    INTEGER, INTENT(IN)                      :: datatype
+    INTEGER                                  :: size
+
+    SELECT CASE (datatype)
+    CASE (dbcsr_type_int_4)
+       size = int_4_size
+    CASE (dbcsr_type_int_8)
+       size = int_8_size
+    CASE (dbcsr_type_real_4)
+       size = real_4_size
+    CASE (dbcsr_type_real_8)
+       size = real_8_size
+    CASE (dbcsr_type_complex_4)
+       size = (2*real_4_size)
+    CASE (dbcsr_type_complex_8)
+       size = (2*real_8_size)
+    CASE default
+       STOP "dbcsr_datatype_sizeof: Invalid data type"
+    END SELECT
+ END FUNCTION dbcsr_datatype_sizeof
 
 END MODULE dbcsr_types

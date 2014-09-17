@@ -13,7 +13,7 @@ MODULE efield_utils
 
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind
-  USE cell_types,                      ONLY: cell_type,&
+  USE cell_methods,                    ONLY: cell_type,&
                                              pbc
   USE cp_control_types,                ONLY: dft_control_type,&
                                              efield_type
@@ -33,6 +33,8 @@ MODULE efield_utils
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
   USE qs_force_types,                  ONLY: qs_force_type
+  USE qs_kind_types,                   ONLY: get_qs_kind,&
+                                             qs_kind_type
   USE qs_rho_types,                    ONLY: qs_rho_type
   USE timings,                         ONLY: timeset,&
                                              timestop
@@ -53,6 +55,9 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief computes the time dependend potential on the grid
+!> \param qs_env ...
+!> \param v_efield_rspace ...
+!> \param error ...
 !> \author Florian Schiffmann (02.09)
 ! *****************************************************************************
 
@@ -115,6 +120,11 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief computes the amplitude of the efield within a given envelop
+!> \param dft_control ...
+!> \param field ...
+!> \param sim_step ...
+!> \param sim_time ...
+!> \param error ...
 !> \author Florian Schiffmann (02.09)
 ! *****************************************************************************
 
@@ -149,6 +159,7 @@ CONTAINS
           END IF
        END IF
        IF(efield%envelop_id==ramp_env)THEN
+! check this part, it seems to be wrong
           IF(sim_step.GE.efield%envelop_i_vars(1).AND.sim_step.GE.efield%envelop_i_vars(2)) &
                strength=strength*(sim_step-efield%envelop_i_vars(1))/(efield%envelop_i_vars(2)-efield%envelop_i_vars(1))
           IF(sim_step.GE.efield%envelop_i_vars(3).AND.sim_step.GE.efield%envelop_i_vars(4)) &
@@ -168,6 +179,9 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief computes the force and the enrgy due to a efield on the cores
+!> \param qs_env ...
+!> \param calculate_forces ...
+!> \param error ...
 !> \author Florian Schiffmann (02.09)
 ! *****************************************************************************
 
@@ -187,13 +201,14 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(3)              :: field, r
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
-    TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(cell_type), POINTER                 :: cell
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(qs_energy_type), POINTER            :: energy
     TYPE(qs_force_type), DIMENSION(:), &
       POINTER                                :: force
+    TYPE(qs_kind_type), DIMENSION(:), &
+      POINTER                                :: qs_kind_set
 
     CALL timeset(routineN,handle)
     IF(qs_env%dft_control%apply_efield_field)THEN
@@ -205,6 +220,7 @@ CONTAINS
 
        CALL get_qs_env(qs_env=qs_env,&
             atomic_kind_set=atomic_kind_set,&
+            qs_kind_set=qs_kind_set,&
             energy=energy,&
             particle_set=particle_set,&
             cell=cell,&
@@ -214,13 +230,8 @@ CONTAINS
        CALL make_field(qs_env%dft_control,field,qs_env%sim_step,qs_env%sim_time,error)
 
        DO ikind=1,SIZE(atomic_kind_set)
-
-          atomic_kind => atomic_kind_set(ikind)
-
-          CALL get_atomic_kind(atomic_kind=atomic_kind,&
-               atom_list=list,&
-               natom=natom,&
-               zeff=zeff)
+          CALL get_atomic_kind(atomic_kind_set(ikind),atom_list=list,natom=natom)
+          CALL get_qs_kind(qs_kind_set(ikind),zeff=zeff)
 
           natom = SIZE(list)
           DO iatom=1,natom

@@ -1,4 +1,4 @@
-!-----------------------------------------------------------------------------!
+!r-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000 - 2014  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
@@ -19,14 +19,7 @@ MODULE array_types
 
   INTEGER, PARAMETER :: dp = KIND(0.0d0)
 
-  PUBLIC :: array_i1d_obj,&
-            array_i2d_obj,&
-            array_d1d_obj,&
-            array_d2d_obj
-  PUBLIC :: array_i1d_type,&
-            array_i2d_type,&
-            array_d1d_type,&
-            array_d2d_type
+  PUBLIC :: array_i1d_obj
   PUBLIC :: array_new,&
             array_hold,&
             array_release,&
@@ -119,6 +112,12 @@ CONTAINS
 
   !
 
+! *****************************************************************************
+!> \brief ...
+!> \param array ...
+!> \param DATA ...
+!> \param gift ...
+! *****************************************************************************
   SUBROUTINE array_new_i1d(array, DATA, gift)
     TYPE(array_i1d_obj), INTENT(OUT)         :: array
     INTEGER, DIMENSION(:), POINTER           :: DATA
@@ -140,6 +139,12 @@ CONTAINS
        array%low%data(:) = DATA(:)
     ENDIF
   END SUBROUTINE array_new_i1d
+! *****************************************************************************
+!> \brief ...
+!> \param array ...
+!> \param DATA ...
+!> \param lb ...
+! *****************************************************************************
   SUBROUTINE array_new_i1d_lb(array, DATA, lb)
     TYPE(array_i1d_obj), INTENT(OUT)         :: array
     INTEGER, DIMENSION(:), INTENT(IN)        :: DATA
@@ -153,6 +158,12 @@ CONTAINS
     ALLOCATE (array%low%data(lb:ub))
     array%low%data(:) = DATA(:)
   END SUBROUTINE array_new_i1d_lb
+! *****************************************************************************
+!> \brief ...
+!> \param array ...
+!> \param DATA ...
+!> \param gift ...
+! *****************************************************************************
   SUBROUTINE array_new_i2d(array, DATA, gift)
     TYPE(array_i2d_obj), INTENT(OUT)         :: array
     INTEGER, DIMENSION(:, :), POINTER        :: DATA
@@ -174,6 +185,12 @@ CONTAINS
        array%low%data(:,:) = DATA(:,:)
     ENDIF
   END SUBROUTINE array_new_i2d
+! *****************************************************************************
+!> \brief ...
+!> \param array ...
+!> \param DATA ...
+!> \param lb ...
+! *****************************************************************************
   SUBROUTINE array_new_i2d_lb(array, DATA, lb)
     TYPE(array_i2d_obj), INTENT(OUT)         :: array
     INTEGER, DIMENSION(:, :), INTENT(IN)     :: DATA
@@ -188,6 +205,12 @@ CONTAINS
     ALLOCATE (array%low%data(lb(1):ub(1), lb(2):ub(2)))
     array%low%data(:,:) = DATA(:,:)
   END SUBROUTINE array_new_i2d_lb
+! *****************************************************************************
+!> \brief ...
+!> \param array ...
+!> \param DATA ...
+!> \param gift ...
+! *****************************************************************************
   SUBROUTINE array_new_d1d(array, DATA, gift)
     TYPE(array_d1d_obj), INTENT(OUT)         :: array
     REAL(KIND=dp), DIMENSION(:), POINTER     :: DATA
@@ -209,6 +232,12 @@ CONTAINS
        array%low%data(:) = DATA(:)
     ENDIF
   END SUBROUTINE array_new_d1d
+! *****************************************************************************
+!> \brief ...
+!> \param array ...
+!> \param DATA ...
+!> \param lb ...
+! *****************************************************************************
   SUBROUTINE array_new_d1d_lb(array, DATA, lb)
     TYPE(array_d1d_obj), INTENT(OUT)         :: array
     REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: DATA
@@ -222,6 +251,12 @@ CONTAINS
     ALLOCATE (array%low%data(lb:ub))
     array%low%data(:) = DATA(:)
   END SUBROUTINE array_new_d1d_lb
+! *****************************************************************************
+!> \brief ...
+!> \param array ...
+!> \param DATA ...
+!> \param gift ...
+! *****************************************************************************
   SUBROUTINE array_new_d2d(array, DATA, gift)
     TYPE(array_d2d_obj), INTENT(OUT)         :: array
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: DATA
@@ -243,6 +278,12 @@ CONTAINS
        array%low%data(:,:) = DATA(:,:)
     ENDIF
   END SUBROUTINE array_new_d2d
+! *****************************************************************************
+!> \brief ...
+!> \param array ...
+!> \param DATA ...
+!> \param lb ...
+! *****************************************************************************
   SUBROUTINE array_new_d2d_lb(array, DATA, lb)
     TYPE(array_d2d_obj), INTENT(OUT)         :: array
     REAL(KIND=dp), DIMENSION(:, :), &
@@ -261,21 +302,37 @@ CONTAINS
 
   !
 
+! *****************************************************************************
+!> \brief ...
+!> \param array ...
+! *****************************************************************************
   PURE SUBROUTINE array_hold_i1d (array)
     TYPE(array_i1d_obj), INTENT(INOUT)       :: array
 
     array%low%refcount = array%low%refcount + 1
   END SUBROUTINE array_hold_i1d
+! *****************************************************************************
+!> \brief ...
+!> \param array ...
+! *****************************************************************************
   PURE SUBROUTINE array_hold_i2d (array)
     TYPE(array_i2d_obj), INTENT(INOUT)       :: array
 
     array%low%refcount = array%low%refcount + 1
   END SUBROUTINE array_hold_i2d
+! *****************************************************************************
+!> \brief ...
+!> \param array ...
+! *****************************************************************************
   PURE SUBROUTINE array_hold_d1d (array)
     TYPE(array_d1d_obj), INTENT(INOUT)       :: array
 
     array%low%refcount = array%low%refcount + 1
   END SUBROUTINE array_hold_d1d
+! *****************************************************************************
+!> \brief ...
+!> \param array ...
+! *****************************************************************************
   PURE SUBROUTINE array_hold_d2d (array)
     TYPE(array_d2d_obj), INTENT(INOUT)       :: array
 
@@ -284,6 +341,10 @@ CONTAINS
 
   !
 
+! *****************************************************************************
+!> \brief ...
+!> \param array ...
+! *****************************************************************************
   SUBROUTINE array_release_i1d (array)
     TYPE(array_i1d_obj), INTENT(INOUT)       :: array
 
@@ -296,6 +357,10 @@ CONTAINS
        ENDIF
     ENDIF
   END SUBROUTINE array_release_i1d
+! *****************************************************************************
+!> \brief ...
+!> \param array ...
+! *****************************************************************************
   SUBROUTINE array_release_i2d (array)
     TYPE(array_i2d_obj), INTENT(INOUT)       :: array
 
@@ -308,6 +373,10 @@ CONTAINS
        ENDIF
     ENDIF
   END SUBROUTINE array_release_i2d
+! *****************************************************************************
+!> \brief ...
+!> \param array ...
+! *****************************************************************************
   SUBROUTINE array_release_d1d (array)
     TYPE(array_d1d_obj), INTENT(INOUT)       :: array
 
@@ -320,6 +389,10 @@ CONTAINS
        ENDIF
     ENDIF
   END SUBROUTINE array_release_d1d
+! *****************************************************************************
+!> \brief ...
+!> \param array ...
+! *****************************************************************************
   SUBROUTINE array_release_d2d (array)
     TYPE(array_d2d_obj), INTENT(INOUT)       :: array
 
@@ -335,21 +408,37 @@ CONTAINS
 
   !
 
+! *****************************************************************************
+!> \brief ...
+!> \param array ...
+! *****************************************************************************
   PURE SUBROUTINE array_nullify_i1d (array)
     TYPE(array_i1d_obj), INTENT(INOUT)       :: array
 
     NULLIFY (array%low)
   END SUBROUTINE array_nullify_i1d
+! *****************************************************************************
+!> \brief ...
+!> \param array ...
+! *****************************************************************************
   PURE SUBROUTINE array_nullify_i2d (array)
     TYPE(array_i2d_obj), INTENT(INOUT)       :: array
 
     NULLIFY (array%low)
   END SUBROUTINE array_nullify_i2d
+! *****************************************************************************
+!> \brief ...
+!> \param array ...
+! *****************************************************************************
   PURE SUBROUTINE array_nullify_d1d (array)
     TYPE(array_d1d_obj), INTENT(INOUT)       :: array
 
     NULLIFY (array%low)
   END SUBROUTINE array_nullify_d1d
+! *****************************************************************************
+!> \brief ...
+!> \param array ...
+! *****************************************************************************
   PURE SUBROUTINE array_nullify_d2d (array)
     TYPE(array_d2d_obj), INTENT(INOUT)       :: array
 
@@ -358,6 +447,11 @@ CONTAINS
 
   !
 
+! *****************************************************************************
+!> \brief ...
+!> \param array ...
+!> \retval array_exists ...
+! *****************************************************************************
   PURE FUNCTION array_exists_i1d (array) RESULT (array_exists)
     TYPE(array_i1d_obj), INTENT(IN)          :: array
     LOGICAL                                  :: array_exists
@@ -365,6 +459,11 @@ CONTAINS
     array_exists = ASSOCIATED (array%low)
     IF (array_exists) array_exists = array%low%refcount .GT. 0
   END FUNCTION array_exists_i1d
+! *****************************************************************************
+!> \brief ...
+!> \param array ...
+!> \retval array_exists ...
+! *****************************************************************************
   PURE FUNCTION array_exists_i2d (array) RESULT (array_exists)
     TYPE(array_i2d_obj), INTENT(IN)          :: array
     LOGICAL                                  :: array_exists
@@ -372,6 +471,11 @@ CONTAINS
     array_exists = ASSOCIATED (array%low)
     IF (array_exists) array_exists = array%low%refcount .GT. 0
   END FUNCTION array_exists_i2d
+! *****************************************************************************
+!> \brief ...
+!> \param array ...
+!> \retval array_exists ...
+! *****************************************************************************
   PURE FUNCTION array_exists_d1d (array) RESULT (array_exists)
     TYPE(array_d1d_obj), INTENT(IN)          :: array
     LOGICAL                                  :: array_exists
@@ -380,6 +484,11 @@ CONTAINS
     IF (array_exists) array_exists = array%low%refcount .GT. 0
 
   END FUNCTION array_exists_d1d
+! *****************************************************************************
+!> \brief ...
+!> \param array ...
+!> \retval array_exists ...
+! *****************************************************************************
   PURE FUNCTION array_exists_d2d (array) RESULT (array_exists)
     TYPE(array_d2d_obj), INTENT(IN)          :: array
     LOGICAL                                  :: array_exists
@@ -392,6 +501,11 @@ CONTAINS
 
   !
 
+! *****************************************************************************
+!> \brief ...
+!> \param array ...
+!> \retval DATA ...
+! *****************************************************************************
   FUNCTION array_data_i1d(array) RESULT (DATA)
     TYPE(array_i1d_obj), INTENT(IN)          :: array
     INTEGER, DIMENSION(:), POINTER           :: DATA
@@ -402,6 +516,11 @@ CONTAINS
        NULLIFY (DATA)
     ENDIF
   END FUNCTION array_data_i1d
+! *****************************************************************************
+!> \brief ...
+!> \param array ...
+!> \retval DATA ...
+! *****************************************************************************
   FUNCTION array_data_i2d(array) RESULT (DATA)
     TYPE(array_i2d_obj), INTENT(IN)          :: array
     INTEGER, DIMENSION(:, :), POINTER        :: DATA
@@ -412,6 +531,11 @@ CONTAINS
        NULLIFY (DATA)
     ENDIF
   END FUNCTION array_data_i2d
+! *****************************************************************************
+!> \brief ...
+!> \param array ...
+!> \retval DATA ...
+! *****************************************************************************
   FUNCTION array_data_d1d(array) RESULT (DATA)
     TYPE(array_d1d_obj), INTENT(IN)          :: array
     REAL(KIND=dp), DIMENSION(:), POINTER     :: DATA
@@ -422,6 +546,11 @@ CONTAINS
        NULLIFY (DATA)
     ENDIF
   END FUNCTION array_data_d1d
+! *****************************************************************************
+!> \brief ...
+!> \param array ...
+!> \retval DATA ...
+! *****************************************************************************
   FUNCTION array_data_d2d(array) RESULT (DATA)
     TYPE(array_d2d_obj), INTENT(IN)          :: array
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: DATA
@@ -435,6 +564,11 @@ CONTAINS
 
   !
 
+! *****************************************************************************
+!> \brief ...
+!> \param array ...
+!> \retval the_size ...
+! *****************************************************************************
   PURE FUNCTION array_size_i1d(array) RESULT (the_size)
     TYPE(array_i1d_obj), INTENT(IN)          :: array
     INTEGER                                  :: the_size
@@ -445,6 +579,11 @@ CONTAINS
        the_size = 0
     ENDIF
   END FUNCTION array_size_i1d
+! *****************************************************************************
+!> \brief ...
+!> \param array ...
+!> \retval the_size ...
+! *****************************************************************************
   PURE FUNCTION array_size_i2d(array) RESULT (the_size)
     TYPE(array_i2d_obj), INTENT(IN)          :: array
     INTEGER                                  :: the_size
@@ -455,6 +594,11 @@ CONTAINS
        the_size = 0
     ENDIF
   END FUNCTION array_size_i2d
+! *****************************************************************************
+!> \brief ...
+!> \param array ...
+!> \retval the_size ...
+! *****************************************************************************
   PURE FUNCTION array_size_d1d(array) RESULT (the_size)
     TYPE(array_d1d_obj), INTENT(IN)          :: array
     INTEGER                                  :: the_size
@@ -465,6 +609,11 @@ CONTAINS
        the_size = 0
     ENDIF
   END FUNCTION array_size_d1d
+! *****************************************************************************
+!> \brief ...
+!> \param array ...
+!> \retval the_size ...
+! *****************************************************************************
   PURE FUNCTION array_size_d2d(array) RESULT (the_size)
     TYPE(array_d2d_obj), INTENT(IN)          :: array
     INTEGER                                  :: the_size
@@ -478,6 +627,12 @@ CONTAINS
 
   !
 
+! *****************************************************************************
+!> \brief ...
+!> \param array1 ...
+!> \param array2 ...
+!> \retval are_equal ...
+! *****************************************************************************
   PURE FUNCTION array_equality_i1d(array1, array2) RESULT (are_equal)
     TYPE(array_i1d_obj), INTENT(IN)          :: array1, array2
     LOGICAL                                  :: are_equal
@@ -488,6 +643,12 @@ CONTAINS
        are_equal = ALL(array1%low%data .EQ. array2%low%data)
     ENDIF
   END FUNCTION array_equality_i1d
+! *****************************************************************************
+!> \brief ...
+!> \param array1 ...
+!> \param array2 ...
+!> \retval are_equal ...
+! *****************************************************************************
   PURE FUNCTION array_equality_i2d(array1, array2) RESULT (are_equal)
     TYPE(array_i2d_obj), INTENT(IN)          :: array1, array2
     LOGICAL                                  :: are_equal
@@ -498,6 +659,12 @@ CONTAINS
        are_equal = ALL(array1%low%data .EQ. array2%low%data)
     ENDIF
   END FUNCTION array_equality_i2d
+! *****************************************************************************
+!> \brief ...
+!> \param array1 ...
+!> \param array2 ...
+!> \retval are_equal ...
+! *****************************************************************************
   PURE FUNCTION array_equality_d1d(array1, array2) RESULT (are_equal)
     TYPE(array_d1d_obj), INTENT(IN)          :: array1, array2
     LOGICAL                                  :: are_equal
@@ -508,6 +675,12 @@ CONTAINS
        are_equal = ALL(array1%low%data .EQ. array2%low%data)
     ENDIF
   END FUNCTION array_equality_d1d
+! *****************************************************************************
+!> \brief ...
+!> \param array1 ...
+!> \param array2 ...
+!> \retval are_equal ...
+! *****************************************************************************
   PURE FUNCTION array_equality_d2d(array1, array2) RESULT (are_equal)
     TYPE(array_d2d_obj), INTENT(IN)          :: array1, array2
     LOGICAL                                  :: are_equal
@@ -521,6 +694,12 @@ CONTAINS
 
   !
 
+! *****************************************************************************
+!> \brief ...
+!> \param array ...
+!> \param index1 ...
+!> \retval value ...
+! *****************************************************************************
   PURE FUNCTION array_get_i1d(array, index1) RESULT (value)
     TYPE(array_i1d_obj), INTENT(IN)          :: array
     INTEGER, INTENT(IN)                      :: index1
@@ -528,13 +707,12 @@ CONTAINS
 
     value = array%low%data(index1)
   END FUNCTION array_get_i1d
-  PURE FUNCTION array_get_i2d(array, index1, index2) RESULT (value)
-    TYPE(array_i2d_obj), INTENT(IN)          :: array
-    INTEGER, INTENT(IN)                      :: index1, index2
-    INTEGER                                  :: value
-
-    value = array%low%data(index1, index2)
-  END FUNCTION array_get_i2d
+! *****************************************************************************
+!> \brief ...
+!> \param array ...
+!> \param index1 ...
+!> \retval value ...
+! *****************************************************************************
   PURE FUNCTION array_get_d1d(array, index1) RESULT (value)
     TYPE(array_d1d_obj), INTENT(IN)          :: array
     INTEGER, INTENT(IN)                      :: index1
@@ -542,13 +720,5 @@ CONTAINS
 
     value = array%low%data(index1)
   END FUNCTION array_get_d1d
-  PURE FUNCTION array_get_d2d(array, index1, index2) RESULT (value)
-    TYPE(array_d2d_obj), INTENT(IN)          :: array
-    INTEGER, INTENT(IN)                      :: index1, index2
-    REAL(KIND=dp)                            :: value
-
-    value = array%low%data(index1, index2)
-  END FUNCTION array_get_d2d
-
 
 END MODULE array_types

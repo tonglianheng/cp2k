@@ -13,8 +13,8 @@ MODULE qs_kpp1_env_types
   USE cp_array_i_utils,                ONLY: cp_2d_i_write
   USE cp_array_logical_utils,          ONLY: cp_1d_logical_write,&
                                              cp_2d_logical_write
-  USE cp_dbcsr_operations,             ONLY: cp_dbcsr_deallocate_matrix
-  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_p_type
+  USE cp_dbcsr_interface,              ONLY: cp_dbcsr_deallocate_matrix,&
+                                             cp_dbcsr_p_type
   USE cp_files,                        ONLY: close_file,&
                                              open_file
   USE cp_para_types,                   ONLY: cp_para_env_type
@@ -33,8 +33,8 @@ MODULE qs_kpp1_env_types
 
   IMPLICIT NONE
   PRIVATE
-  PUBLIC :: qs_kpp1_env_type, qs_kpp1_env_p_type
-  PUBLIC :: kpp1_release, kpp1_retain, kpp1_write
+  PUBLIC :: qs_kpp1_env_type
+  PUBLIC :: kpp1_release
 
   LOGICAL, PRIVATE, PARAMETER :: debug_this_module=.TRUE.
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_kpp1_env_types'
@@ -91,7 +91,7 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief releases a kpp1_env (see doc/ReferenceCounting.html)
-!> \param kpp 1_env: the environement to release
+!> \param kpp1_env the environement to release
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 !> \par History
@@ -163,7 +163,7 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief retains a kpp1_env (see doc/ReferenceCounting.html)
-!> \param kpp 1_env: the environement to retain
+!> \param kpp1_env the environement to retain
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 !> \par History
@@ -190,7 +190,8 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief writes the content of the kpp1_env to the given output unit
-!> \param kpp 1_env: the kpp1_env to output
+!> \param kpp1_env the kpp1_env to output
+!> \param particles ...
 !> \param unit_nr the unit where to output
 !> \param long_description if a long description should be written
 !>        (defaults to false)

@@ -8,7 +8,7 @@
 ! *****************************************************************************
 MODULE et_coupling_types
 
-  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_p_type
+  USE cp_dbcsr_interface,              ONLY: cp_dbcsr_p_type
   USE cp_fm_types,                     ONLY: cp_fm_p_type,&
                                              cp_fm_release
   USE f77_blas
@@ -29,7 +29,6 @@ MODULE et_coupling_types
 
   PUBLIC :: et_coupling_create,&
             et_coupling_release,&
-            get_et_coupling_type,&
             set_et_coupling_type
 
 ! *****************************************************************************
@@ -47,6 +46,10 @@ MODULE et_coupling_types
 
   CONTAINS
 
+! *****************************************************************************
+!> \brief ...
+!> \param et_coupling ...
+!> \param error ...
 ! *****************************************************************************
     SUBROUTINE et_coupling_create(et_coupling,error)
     TYPE(et_coupling_type), POINTER          :: et_coupling
@@ -74,6 +77,12 @@ MODULE et_coupling_types
     END SUBROUTINE et_coupling_create
 
 ! *****************************************************************************
+!> \brief ...
+!> \param et_coupling ...
+!> \param et_mo_coeff ...
+!> \param rest_mat ...
+!> \param error ...
+! *****************************************************************************
     SUBROUTINE get_et_coupling_type(et_coupling,et_mo_coeff,rest_mat,error)
     TYPE(et_coupling_type), POINTER          :: et_coupling
     TYPE(cp_fm_p_type), DIMENSION(:), &
@@ -91,6 +100,12 @@ MODULE et_coupling_types
     END SUBROUTINE get_et_coupling_type
 
 ! *****************************************************************************
+!> \brief ...
+!> \param et_coupling ...
+!> \param et_mo_coeff ...
+!> \param rest_mat ...
+!> \param error ...
+! *****************************************************************************
     SUBROUTINE set_et_coupling_type(et_coupling,et_mo_coeff,rest_mat,error)
     TYPE(et_coupling_type), POINTER          :: et_coupling
     TYPE(cp_fm_p_type), DIMENSION(:), &
@@ -107,6 +122,10 @@ MODULE et_coupling_types
 
     END SUBROUTINE set_et_coupling_type
 
+! *****************************************************************************
+!> \brief ...
+!> \param et_coupling ...
+!> \param error ...
 ! *****************************************************************************
     SUBROUTINE et_coupling_release(et_coupling,error)
     TYPE(et_coupling_type), POINTER          :: et_coupling

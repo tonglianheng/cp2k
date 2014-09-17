@@ -3,7 +3,7 @@
 #set -x
 
 TMPDIR=`mktemp -d`
-REV=`./get_revision_number ../ | sed -e "s/://"`
+REV=`./build_utils/get_revision_number ../ | sed -e "s/://"`
 OUTNAME=libdbcsr_$REV
 OUTDIR=$TMPDIR/$OUTNAME
 
@@ -19,12 +19,38 @@ rsync -axq \
    --exclude="*.template" \
    --exclude="*.pyc" \
    --exclude="libcusmm.cu" \
-   ../src/dbcsr/ $OUTDIR/src/
+   ../src/dbcsr/ $OUTDIR/src/dbcsr
 
-mkdir $OUTDIR/tools
-cp -a ../tools/makedep.py  $OUTDIR/tools/
-cp -a ../tools/get_arch_code  $OUTDIR/tools/
-cp -a ../tools/get_revision_number  $OUTDIR/tools/
+rsync -axq \
+   --exclude=".*" \
+   --exclude="**/preprettify/" \
+   --exclude="*.instantiation" \
+   --exclude="*.template" \
+   --exclude="*.pyc" \
+   --exclude="libcusmm.cu" \
+   ../src/acc/ $OUTDIR/src/acc
+
+rsync -axq \
+   --exclude=".*" \
+   --exclude="**/preprettify/" \
+   --exclude="*.instantiation" \
+   --exclude="*.template" \
+   --exclude="*.pyc" \
+   --exclude="libcusmm.cu" \
+   ../src/base/ $OUTDIR/src/base
+
+rsync -axq \
+   --exclude=".*" \
+   --exclude="**/preprettify/" \
+   --exclude="*.instantiation" \
+   --exclude="*.template" \
+   --exclude="*.pyc" \
+   --exclude="libcusmm.cu" \
+   ../src/mpiwrap/ $OUTDIR/src/mpiwrap
+
+
+mkdir -p $OUTDIR/tools/build_utils
+rsync -axq --exclude=".*" ../tools/build_utils/  $OUTDIR/tools/build_utils/
 
 mkdir $OUTDIR/tools/dbcsr_test/
 rsync -axq --exclude=".*" ../tools/dbcsr_test/  $OUTDIR/tools/dbcsr_test/

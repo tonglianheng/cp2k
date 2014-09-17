@@ -10,7 +10,7 @@
 ! *****************************************************************************
 MODULE helium_io
 
-  USE cell_types,                      ONLY: get_cell
+  USE cell_methods,                    ONLY: get_cell
   USE cp_output_handling,              ONLY: cp_p_file,&
                                              cp_print_key_finished_output,&
                                              cp_print_key_should_output,&
@@ -58,7 +58,6 @@ MODULE helium_io
   PUBLIC :: helium_write_plength
   PUBLIC :: helium_write_coordinates
   PUBLIC :: helium_write_force
-  PUBLIC :: helium_write_force_inst
   PUBLIC :: helium_write_accepts
   PUBLIC :: helium_write_perm
 
@@ -70,6 +69,11 @@ MODULE helium_io
   !> \author Lukasz Walewski
   !> \date   2009-06-03
   ! ***************************************************************************
+! *****************************************************************************
+!> \brief ...
+!> \param helium ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE helium_write_setup( helium, error )
 
     TYPE(helium_solvent_type), POINTER       :: helium
@@ -244,6 +248,11 @@ MODULE helium_io
   !> \author Lukasz Walewski
   !> \date   2009-07-10
   ! ***************************************************************************
+! *****************************************************************************
+!> \brief ...
+!> \param line ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE helium_write_line(line,error)
 
     CHARACTER(len=*), INTENT(IN)             :: line
@@ -273,6 +282,11 @@ MODULE helium_io
   !> \author Lukasz Walewski
   !> \date   2009-06-08
   ! ***************************************************************************
+! *****************************************************************************
+!> \brief ...
+!> \param helium ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE helium_write_energy( helium, error )
 
     TYPE(helium_solvent_type), POINTER       :: helium
@@ -352,6 +366,11 @@ MODULE helium_io
   !> \author Lukasz Walewski
   !> \date   2010-06-15
   ! ***************************************************************************
+! *****************************************************************************
+!> \brief ...
+!> \param helium ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE helium_write_sdensity( helium, error )
 
     TYPE(helium_solvent_type), POINTER       :: helium
@@ -398,6 +417,11 @@ MODULE helium_io
   !> \par    History
   !>         2010-06-15 output W for each He environment/processor [lwalewski]
   ! ***************************************************************************
+! *****************************************************************************
+!> \brief ...
+!> \param helium ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE helium_write_wnumber( helium, error )
 
     TYPE(helium_solvent_type), POINTER       :: helium
@@ -456,6 +480,11 @@ MODULE helium_io
   !> \author Lukasz Walewski
   !> \date   2010-05-27
   ! ***************************************************************************
+! *****************************************************************************
+!> \brief ...
+!> \param helium ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE helium_write_accepts( helium, error )
 
     TYPE(helium_solvent_type), POINTER       :: helium
@@ -522,6 +551,11 @@ MODULE helium_io
   !> \author Lukasz Walewski
   !> \date   2010-06-07
   ! ***************************************************************************
+! *****************************************************************************
+!> \brief ...
+!> \param helium ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE helium_write_perm( helium, error )
 
     TYPE(helium_solvent_type), POINTER       :: helium
@@ -592,6 +626,11 @@ MODULE helium_io
   !> \par    History
   !>         2010-02-15 output from all processors added [lwalewski]
   ! ***************************************************************************
+! *****************************************************************************
+!> \brief ...
+!> \param helium ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE helium_write_coordinates( helium, error )
 
     TYPE(helium_solvent_type), POINTER       :: helium
@@ -822,6 +861,11 @@ MODULE helium_io
   !> \author Lukasz Walewski
   !> \date   2009-07-23
   ! ***************************************************************************
+! *****************************************************************************
+!> \brief ...
+!> \param helium ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE helium_write_rdf( helium, error )
 
     TYPE(helium_solvent_type), POINTER       :: helium
@@ -882,6 +926,11 @@ MODULE helium_io
   !>         2011-11-11 output of any number of density estimators to different
   !>                    files according to helium%rho_num
   ! ***************************************************************************
+! *****************************************************************************
+!> \brief ...
+!> \param helium ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE helium_write_rho( helium, error )
 
     TYPE(helium_solvent_type), POINTER       :: helium
@@ -998,6 +1047,11 @@ MODULE helium_io
   !> \author Lukasz Walewski
   !> \date   2010-06-07
   ! ***************************************************************************
+! *****************************************************************************
+!> \brief ...
+!> \param helium ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE helium_write_plength( helium, error )
 
     TYPE(helium_solvent_type), POINTER       :: helium
@@ -1053,6 +1107,11 @@ MODULE helium_io
   !> \author Lukasz Walewski
   !> \date   2010-01-27
   ! ***************************************************************************
+! *****************************************************************************
+!> \brief ...
+!> \param helium ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE helium_write_force( helium, error )
 
     TYPE(helium_solvent_type), POINTER       :: helium
@@ -1132,6 +1191,11 @@ MODULE helium_io
   !> This subroutine does message passing, frequent calls can slow down your
   !> code significantly.
   ! ***************************************************************************
+! *****************************************************************************
+!> \brief ...
+!> \param helium ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE helium_write_force_inst( helium, error )
 
     TYPE(helium_solvent_type), POINTER       :: helium

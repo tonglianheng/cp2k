@@ -9,30 +9,29 @@
 !>      10.2011 created [Joost VandeVondele and Mauro Del Ben]
 ! *****************************************************************************
 MODULE mp2_gpw
-  USE array_types,                     ONLY: array_i1d_obj,&
-                                             array_new,&
-                                             array_nullify,&
-                                             array_release
   USE atomic_kind_types,               ONLY: atomic_kind_type
   USE cell_types,                      ONLY: cell_type
   USE cp_blacs_env,                    ONLY: BLACS_GRID_SQUARE,&
                                              cp_blacs_env_create,&
-                                             cp_blacs_env_release
+                                             cp_blacs_env_release,&
+                                             cp_blacs_env_type
   USE cp_control_types,                ONLY: dft_control_type
   USE cp_dbcsr_cp2k_link,              ONLY: cp_dbcsr_alloc_block_from_nbl
   USE cp_dbcsr_interface,              ONLY: &
+       array_i1d_obj, array_new, array_nullify, array_release, &
        cp_create_bl_distribution, cp_dbcsr_clear_mempools, cp_dbcsr_copy, &
        cp_dbcsr_create, cp_dbcsr_distribution, cp_dbcsr_distribution_release, &
        cp_dbcsr_filter, cp_dbcsr_get_info, cp_dbcsr_init, cp_dbcsr_init_p, &
-       cp_dbcsr_iterator_blocks_left, cp_dbcsr_iterator_next_block, &
-       cp_dbcsr_iterator_start, cp_dbcsr_iterator_stop, cp_dbcsr_multiply, &
+       cp_dbcsr_iterator, cp_dbcsr_iterator_blocks_left, &
+       cp_dbcsr_iterator_next_block, cp_dbcsr_iterator_start, &
+       cp_dbcsr_iterator_stop, cp_dbcsr_multiply, cp_dbcsr_p_type, &
        cp_dbcsr_release, cp_dbcsr_reserve_all_blocks, &
-       cp_dbcsr_row_block_sizes, cp_dbcsr_set
+       cp_dbcsr_row_block_sizes, cp_dbcsr_set, cp_dbcsr_type, &
+       dbcsr_distribution_mp, dbcsr_distribution_new, dbcsr_distribution_obj, &
+       dbcsr_distribution_row_dist, dbcsr_mp_npcols, dbcsr_mp_nprows, &
+       dbcsr_type_no_symmetry, dbcsr_type_real_default, dbcsr_type_symmetric
   USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
                                              cp_dbcsr_dist2d_to_dist
-  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_iterator,&
-                                             cp_dbcsr_p_type,&
-                                             cp_dbcsr_type
   USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                              cp_fm_struct_release,&
                                              cp_fm_struct_type
@@ -42,18 +41,8 @@ MODULE mp2_gpw
                                              cp_fm_type
   USE cp_para_env,                     ONLY: cp_para_env_create,&
                                              cp_para_env_release
-  USE cp_para_types,                   ONLY: cp_blacs_env_type,&
-                                             cp_para_env_type
+  USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_subsys_types,                 ONLY: cp_subsys_type
-  USE dbcsr_methods,                   ONLY: dbcsr_distribution_mp,&
-                                             dbcsr_distribution_new,&
-                                             dbcsr_distribution_row_dist,&
-                                             dbcsr_mp_npcols,&
-                                             dbcsr_mp_nprows
-  USE dbcsr_types,                     ONLY: dbcsr_distribution_obj,&
-                                             dbcsr_type_no_symmetry,&
-                                             dbcsr_type_real_default,&
-                                             dbcsr_type_symmetric
   USE distribution_1d_types,           ONLY: distribution_1d_release,&
                                              distribution_1d_type
   USE distribution_2d_types,           ONLY: distribution_2d_release,&
@@ -103,6 +92,7 @@ MODULE mp2_gpw
                                              qs_environment_type
   USE qs_integrate_potential,          ONLY: integrate_v_rspace
   USE qs_interactions,                 ONLY: init_interaction_radii
+  USE qs_kind_types,                   ONLY: qs_kind_type
   USE qs_mo_types,                     ONLY: get_mo_set,&
                                              mo_set_p_type
   USE qs_neighbor_list_types,          ONLY: deallocate_neighbor_list_set,&
@@ -135,6 +125,22 @@ MODULE mp2_gpw
 
 ! *****************************************************************************
 !> \brief with a big bang to mp2
+!> \param qs_env ...
+!> \param mp2_env ...
+!> \param Emp2 ...
+!> \param Emp2_Cou ...
+!> \param Emp2_EX ...
+!> \param Emp2_S ...
+!> \param Emp2_T ...
+!> \param mos_mp2 ...
+!> \param para_env ...
+!> \param unit_nr ...
+!> \param calc_forces ...
+!> \param calc_ex ...
+!> \param error ...
+!> \param do_ri_mp2 ...
+!> \param do_ri_rpa ...
+!> \param do_ri_sos_laplace_mp2 ...
 !> \author Mauro Del Ben and Joost VandeVondele
 ! *****************************************************************************
   SUBROUTINE mp2_gpw_main(qs_env,mp2_env,Emp2,Emp2_Cou,Emp2_EX,Emp2_S,Emp2_T,&
@@ -159,7 +165,7 @@ MODULE mp2_gpw
 
     INTEGER :: blacs_grid_layout, color_sub, comm_sub, dimen, dimen_RI, &
       handle, homo, homo_beta, i, i_multigrid, local_unit_nr, my_group_L_end, &
-      my_group_L_size, my_group_L_start, n_multigrid, nao, natom, nelectron, &
+      my_group_L_size, my_group_L_start, n_multigrid, natom, nelectron, &
       nelectron_beta, nkind, nmo, nspins, stat
     INTEGER, ALLOCATABLE, DIMENSION(:) :: ends_array, ends_B_virtual, &
       ends_B_virtual_beta, sizes_array, sizes_B_virtual, &
@@ -179,7 +185,7 @@ MODULE mp2_gpw
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :, :)                     :: BIb_C, BIb_C_beta
     REAL(KIND=dp), DIMENSION(:), POINTER     :: mo_eigenvalues
-    TYPE(array_i1d_obj)                      :: col_blk_size, row_blk_sizes
+    TYPE(array_i1d_obj)                      :: row_blk_sizes
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(cell_type), POINTER                 :: cell
@@ -192,7 +198,6 @@ MODULE mp2_gpw
     TYPE(cp_logger_type), POINTER            :: logger, logger_sub
     TYPE(cp_para_env_type), POINTER          :: para_env_sub
     TYPE(cp_subsys_type), POINTER            :: subsys
-    TYPE(dbcsr_distribution_obj)             :: dist
     TYPE(dbcsr_distribution_obj), POINTER    :: dbcsr_dist_sub
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(distribution_1d_type), POINTER      :: local_molecules_sub, &
@@ -212,6 +217,8 @@ MODULE mp2_gpw
     TYPE(pw_p_type)                          :: pot_g, rho_g, rho_r
     TYPE(pw_poisson_type), POINTER           :: poisson_env
     TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
+    TYPE(qs_kind_type), DIMENSION(:), &
+      POINTER                                :: qs_kind_set
     TYPE(task_list_type), POINTER            :: task_list_sub
 
     CALL timeset(routineN,handle)
@@ -276,6 +283,7 @@ MODULE mp2_gpw
     subsys=>qs_env%subsys
     particle_set => subsys%particles%els
     atomic_kind_set => subsys%atomic_kinds%els
+    CALL get_qs_env(qs_env, qs_kind_set=qs_kind_set, error=error)
     molecule_set => subsys%molecules_new%els
     molecule_kind_set => subsys%molecule_kinds_new%els
 
@@ -287,11 +295,11 @@ MODULE mp2_gpw
     qs_env%dft_control%qs_control%eps_pgf_orb   =mp2_env%mp2_gpw%eps_grid
     qs_env%dft_control%qs_control%eps_rho_rspace=mp2_env%mp2_gpw%eps_grid
     qs_env%dft_control%qs_control%eps_gvg_rspace=mp2_env%mp2_gpw%eps_grid
-    CALL init_interaction_radii(qs_env%dft_control%qs_control,atomic_kind_set, error_sub)
+    CALL init_interaction_radii(qs_env%dft_control%qs_control,atomic_kind_set, qs_kind_set, error_sub)
 
     ! get a distribution_1d
     NULLIFY(local_particles_sub,local_molecules_sub)
-    CALL distribute_molecules_1d(particle_kind_set=atomic_kind_set,&
+    CALL distribute_molecules_1d(atomic_kind_set=atomic_kind_set,&
                                  particle_set=particle_set,&
                                  local_particles=local_particles_sub,&
                                  molecule_kind_set=molecule_kind_set,&
@@ -304,7 +312,8 @@ MODULE mp2_gpw
     cell=>qs_env%cell
     NULLIFY(distribution_2d_sub)
     CALL distribute_molecules_2d(cell=cell,&
-                                 particle_kind_set=atomic_kind_set,&
+                                 atomic_kind_set=atomic_kind_set,&
+                                 qs_kind_set=qs_kind_set,&
                                  particle_set=particle_set,&
                                  molecule_kind_set=molecule_kind_set,&
                                  molecule_set=molecule_set,&
@@ -327,7 +336,7 @@ MODULE mp2_gpw
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
     CALL atom2d_build(atom2d,orb_radius,orb_present,local_particles_sub,distribution_2d_sub,&
-                      atomic_kind_set,molecule_set,molecule_only=.FALSE.,dftb=.FALSE.,&
+                      atomic_kind_set,qs_kind_set,molecule_set,molecule_only=.FALSE.,dftb=.FALSE.,&
                       particle_set=particle_set,error=error)
     CALL pair_radius_setup(orb_present,orb_present,orb_radius,orb_radius,pair_radius,error)
     CALL build_neighbor_lists(sab_orb_sub,particle_set,atom2d,cell,pair_radius,&
@@ -347,7 +356,7 @@ MODULE mp2_gpw
     natom = SIZE(particle_set)
     ALLOCATE (rbs(natom), STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    CALL get_particle_set(particle_set=particle_set,nsgf=rbs,error=error)
+    CALL get_particle_set(particle_set, qs_kind_set, nsgf=rbs,error=error)
     CALL array_nullify (row_blk_sizes)
     CALL array_new (row_blk_sizes, rbs, gift=.TRUE.)
     ALLOCATE(mat_munu%matrix, STAT=stat)
@@ -395,7 +404,7 @@ MODULE mp2_gpw
     n_multigrid=SIZE(qs_env%dft_control%qs_control%e_cutoff)
     ALLOCATE(e_cutoff_old(n_multigrid), STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    e_cutoff_old=qs_env%dft_control%qs_control%e_cutoff
+    e_cutoff_old(:)=qs_env%dft_control%qs_control%e_cutoff
     cutoff_old=qs_env%dft_control%qs_control%cutoff
 
     qs_env%dft_control%qs_control%cutoff=mp2_env%mp2_gpw%cutoff*0.5_dp
@@ -450,7 +459,7 @@ MODULE mp2_gpw
         ! open shell case (RI) here the (ia|K) integrals are computed for both the alpha and beta components
         CALL mp2_ri_gpw_compute_in(BIb_C,ends_array,ends_B_virtual,sizes_array,sizes_B_virtual,starts_array,starts_B_virtual,&
                                    dimen_RI,qs_env,para_env,para_env_sub,color_sub,dft_control,cell,particle_set,&
-                                   atomic_kind_set,mo_coeff,nmo,homo,rho_r,rho_g,pot_g,&
+                                   atomic_kind_set, qs_kind_set,mo_coeff,nmo,homo,rho_r,rho_g,pot_g,&
                                    mat_munu,sab_orb_sub,pw_env_sub,poisson_env,auxbas_pw_pool,task_list_sub,&
                                    mo_coeff_o,mo_coeff_v,mp2_env%mp2_gpw%eps_filter,unit_nr,&
                                    mp2_env%mp2_memory,mp2_env%calc_PQ_cond_num,calc_forces,error,blacs_env_sub,error_sub,&
@@ -460,7 +469,7 @@ MODULE mp2_gpw
         ! closed shell case (RI)
         CALL mp2_ri_gpw_compute_in(BIb_C,ends_array,ends_B_virtual,sizes_array,sizes_B_virtual,starts_array,starts_B_virtual,&
                                    dimen_RI,qs_env,para_env,para_env_sub,color_sub,dft_control,cell,particle_set,&
-                                   atomic_kind_set,mo_coeff,nmo,homo,rho_r,rho_g,pot_g,&
+                                   atomic_kind_set, qs_kind_set,mo_coeff,nmo,homo,rho_r,rho_g,pot_g,&
                                    mat_munu,sab_orb_sub,pw_env_sub,poisson_env,auxbas_pw_pool,task_list_sub,&
                                    mo_coeff_o,mo_coeff_v,mp2_env%mp2_gpw%eps_filter,unit_nr,&
                                    mp2_env%mp2_memory,mp2_env%calc_PQ_cond_num,calc_forces,error,blacs_env_sub,error_sub)
@@ -472,7 +481,7 @@ MODULE mp2_gpw
         IF (unit_nr>0) WRITE(unit_nr,*)
         IF (unit_nr>0) WRITE(unit_nr,'(T3,A)') 'Alpha (ia|'
         CALL mp2_gpw_compute(Emp2,Emp2_Cou,Emp2_EX,qs_env,para_env,para_env_sub,color_sub,dft_control,cell,particle_set,&
-                             atomic_kind_set,mo_coeff,Eigenval,nmo,homo,rho_r,rho_g,pot_g,&
+                             atomic_kind_set,qs_kind_set,mo_coeff,Eigenval,nmo,homo,rho_r,rho_g,pot_g,&
                              mat_munu,sab_orb_sub,pw_env_sub,poisson_env,auxbas_pw_pool,task_list_sub,&
                              mo_coeff_o,mo_coeff_v,mp2_env%mp2_gpw%eps_filter,unit_nr,&
                              mp2_env%mp2_memory,calc_ex,blacs_env_sub,error_sub,&
@@ -482,7 +491,7 @@ MODULE mp2_gpw
         IF (unit_nr>0) WRITE(unit_nr,*)
         IF (unit_nr>0) WRITE(unit_nr,'(T3,A)') 'Beta (ia|'
         CALL mp2_gpw_compute(Emp2_BB,Emp2_Cou_BB,Emp2_EX_BB,qs_env,para_env,para_env_sub,color_sub,dft_control,cell,particle_set,&
-                             atomic_kind_set,mo_coeff_beta,Eigenval_beta,nmo,homo_beta,rho_r,rho_g,pot_g,&
+                             atomic_kind_set,qs_kind_set,mo_coeff_beta,Eigenval_beta,nmo,homo_beta,rho_r,rho_g,pot_g,&
                              mat_munu,sab_orb_sub,pw_env_sub,poisson_env,auxbas_pw_pool,task_list_sub,&
                              mo_coeff_o_beta,mo_coeff_v_beta,mp2_env%mp2_gpw%eps_filter,unit_nr,&
                              mp2_env%mp2_memory,calc_ex,blacs_env_sub,error_sub)
@@ -490,7 +499,7 @@ MODULE mp2_gpw
       ELSE 
         ! closed shell case
         CALL mp2_gpw_compute(Emp2,Emp2_Cou,Emp2_EX,qs_env,para_env,para_env_sub,color_sub,dft_control,cell,particle_set,&
-                             atomic_kind_set,mo_coeff,Eigenval,nmo,homo,rho_r,rho_g,pot_g,&
+                             atomic_kind_set,qs_kind_set,mo_coeff,Eigenval,nmo,homo,rho_r,rho_g,pot_g,&
                              mat_munu,sab_orb_sub,pw_env_sub,poisson_env,auxbas_pw_pool,task_list_sub,&
                              mo_coeff_o,mo_coeff_v,mp2_env%mp2_gpw%eps_filter,unit_nr,&
                              mp2_env%mp2_memory,calc_ex,blacs_env_sub,error_sub)
@@ -641,7 +650,7 @@ MODULE mp2_gpw
           ! CALL array_release (row_blk_sizes)
 
           CALL  calc_ri_mp2_nonsep(qs_env,mp2_env,para_env,para_env_sub,color_sub,dft_control,cell,particle_set,&
-                                   atomic_kind_set,mo_coeff,nmo,homo,dimen_RI,Eigenval,&
+                                   atomic_kind_set,qs_kind_set,mo_coeff,nmo,homo,dimen_RI,Eigenval,&
                                    my_group_L_start,my_group_L_end,my_group_L_size,rho_r,rho_g,pot_g,&
                                    mat_munu,sab_orb_sub,pw_env_sub,poisson_env,auxbas_pw_pool,task_list_sub,&
                                    unit_nr,blacs_env_sub,error,error_sub)
@@ -725,7 +734,7 @@ MODULE mp2_gpw
     qs_env%dft_control%qs_control%eps_pgf_orb=eps_pgf_orb_old
     qs_env%dft_control%qs_control%eps_rho_rspace=eps_rho_rspace_old
     qs_env%dft_control%qs_control%eps_gvg_rspace=eps_gvg_rspace_old
-    CALL init_interaction_radii(qs_env%dft_control%qs_control,atomic_kind_set, error_sub)
+    CALL init_interaction_radii(qs_env%dft_control%qs_control,atomic_kind_set, qs_kind_set, error_sub)
 
     ! restore the initial value of the cutoff
     qs_env%dft_control%qs_control%e_cutoff=e_cutoff_old
@@ -757,8 +766,49 @@ MODULE mp2_gpw
 
   END SUBROUTINE mp2_gpw_main
 
+! *****************************************************************************
+!> \brief ...
+!> \param Emp2 ...
+!> \param Emp2_Cou ...
+!> \param Emp2_EX ...
+!> \param qs_env ...
+!> \param para_env ...
+!> \param para_env_sub ...
+!> \param color_sub ...
+!> \param dft_control ...
+!> \param cell ...
+!> \param particle_set ...
+!> \param atomic_kind_set ...
+!> \param qs_kind_set ...
+!> \param mo_coeff ...
+!> \param Eigenval ...
+!> \param nmo ...
+!> \param homo ...
+!> \param rho_r ...
+!> \param rho_g ...
+!> \param pot_g ...
+!> \param mat_munu ...
+!> \param sab_orb_sub ...
+!> \param pw_env_sub ...
+!> \param poisson_env ...
+!> \param auxbas_pw_pool ...
+!> \param task_list_sub ...
+!> \param mo_coeff_o ...
+!> \param mo_coeff_v ...
+!> \param eps_filter ...
+!> \param unit_nr ...
+!> \param mp2_memory ...
+!> \param calc_ex ...
+!> \param blacs_env_sub ...
+!> \param error_sub ...
+!> \param homo_beta ...
+!> \param mo_coeff_o_beta ...
+!> \param mo_coeff_v_beta ...
+!> \param Eigenval_beta ...
+!> \param Emp2_AB ...
+! *****************************************************************************
   SUBROUTINE mp2_gpw_compute(Emp2,Emp2_Cou,Emp2_EX,qs_env,para_env,para_env_sub,color_sub,dft_control,&
-                 cell,particle_set,atomic_kind_set,mo_coeff,Eigenval,nmo,homo,&
+                 cell,particle_set,atomic_kind_set,qs_kind_set,mo_coeff,Eigenval,nmo,homo,&
                  rho_r,rho_g,pot_g,mat_munu,sab_orb_sub,pw_env_sub,&
                  poisson_env,auxbas_pw_pool,task_list_sub,mo_coeff_o,mo_coeff_v,eps_filter,unit_nr,&
                  mp2_memory,calc_ex,blacs_env_sub,error_sub,homo_beta,mo_coeff_o_beta,mo_coeff_v_beta,Eigenval_beta,Emp2_AB)
@@ -773,6 +823,8 @@ MODULE mp2_gpw
       POINTER                                :: particle_set
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
+    TYPE(qs_kind_type), DIMENSION(:), &
+      POINTER                                :: qs_kind_set
     TYPE(cp_fm_type), POINTER                :: mo_coeff
     REAL(KIND=dp), DIMENSION(:)              :: Eigenval
     INTEGER                                  :: nmo, homo
@@ -808,11 +860,10 @@ MODULE mp2_gpw
       mepos_in_EX_group, my_A_batch_size, my_A_virtual_end, &
       my_A_virtual_start, my_B_size, my_B_virtual_end, my_B_virtual_start, &
       my_I_batch_size, my_I_occupied_end, my_I_occupied_start, my_q_position, &
-      ncol_local, nfullcols_total, nfullrows_total, ngroup, nrow_local, one, &
-      p, p_best, proc_receive
-    INTEGER :: proc_send, q, q_best, row, row_offset, row_size, size_EX, &
-      size_EX_send, size_of_exchange_group, stat, sub_sub_color, virtual, &
-      virtual_beta, wfn_calc, wfn_calc_best
+      ncol_local, nfullcols_total, nfullrows_total, ngroup, nrow_local, one, p
+    INTEGER :: p_best, proc_receive, proc_send, q, q_best, row, row_offset, &
+      row_size, size_EX, size_EX_send, size_of_exchange_group, stat, &
+      sub_sub_color, virtual, virtual_beta, wfn_calc, wfn_calc_best
     INTEGER, ALLOCATABLE, DIMENSION(:) :: proc_map, sub_proc_map, &
       vector_B_sizes, vector_batch_A_size_group, vector_batch_I_size_group
     INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: color_array, &
@@ -1159,8 +1210,8 @@ MODULE mp2_gpw
       CALL pw_pool_create_pw(auxbas_pw_pool,psi_i(i)%pw,&
                             use_data=REALDATA3D,&
                             in_space=REALSPACE,error=error_sub)
-      CALL calculate_wavefunction(mo_coeff,i,psi_i(i),rho_g, &
-                        atomic_kind_set,cell,dft_control,particle_set, &
+      CALL calculate_wavefunction(mo_coeff,i,psi_i(i),rho_g, atomic_kind_set,&
+                        qs_kind_set,cell,dft_control,particle_set, &
                         pw_env_sub,external_vector=my_Cocc(:,i-my_I_occupied_start+1),error=error_sub)
     END DO
 
@@ -1179,8 +1230,8 @@ MODULE mp2_gpw
       IF(calc_ex) BIb_C=0.0_dp
 
       ! psi_a
-      CALL calculate_wavefunction(mo_coeff,a,psi_a,rho_g, &
-                      atomic_kind_set,cell,dft_control,particle_set, &
+      CALL calculate_wavefunction(mo_coeff,a,psi_a,rho_g, atomic_kind_set,&
+                      qs_kind_set,cell,dft_control,particle_set, &
                       pw_env_sub,external_vector=my_Cvirt(:,a-(homo+my_A_virtual_start)+1),error=error_sub)
       i_counter=0
       DO i=my_I_occupied_start, my_I_occupied_end
@@ -1366,6 +1417,18 @@ MODULE mp2_gpw
 
   END SUBROUTINE mp2_gpw_compute
 
+! *****************************************************************************
+!> \brief ...
+!> \param wfn_size ...
+!> \param p ...
+!> \param q ...
+!> \param num_w ...
+!> \param nmo ...
+!> \param virtual ...
+!> \param homo ...
+!> \param calc_ex ...
+!> \param mem_try ...
+! *****************************************************************************
   SUBROUTINE estimate_memory_usage(wfn_size,p,q,num_w,nmo, virtual, homo,calc_ex,mem_try)
     REAL(KIND=dp)                            :: wfn_size
     INTEGER                                  :: p, q, num_w, nmo, virtual, &
@@ -1394,6 +1457,21 @@ MODULE mp2_gpw
 
   END SUBROUTINE
 
+! *****************************************************************************
+!> \brief ...
+!> \param para_env_sub ...
+!> \param fm_BIb_jb ...
+!> \param BIb_jb ...
+!> \param max_row_col_local ...
+!> \param homo ...
+!> \param virtual ...
+!> \param proc_map ...
+!> \param local_col_row_info ...
+!> \param my_B_virtual_end ...
+!> \param my_B_virtual_start ...
+!> \param my_B_size ...
+!> \param error_sub ...
+! *****************************************************************************
   SUBROUTINE grep_my_integrals(para_env_sub,fm_BIb_jb,BIb_jb,max_row_col_local,&
                                homo,virtual,proc_map,local_col_row_info,&
                                my_B_virtual_end,my_B_virtual_start,my_B_size,&
@@ -1427,7 +1505,7 @@ MODULE mp2_gpw
     ALLOCATE(rec_col_row_info(0:max_row_col_local,2),STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error_sub,failure)
 
-    rec_col_row_info=local_col_row_info
+    rec_col_row_info(:,:)=local_col_row_info
 
     nrow_rec=rec_col_row_info(0,1)
     ncol_rec=rec_col_row_info(0,2)
@@ -1506,6 +1584,23 @@ MODULE mp2_gpw
 
   END SUBROUTINE grep_my_integrals
 
+! *****************************************************************************
+!> \brief ...
+!> \param qs_env ...
+!> \param mp2_env ...
+!> \param para_env ...
+!> \param para_env_sub ...
+!> \param mo_coeff ...
+!> \param dimen ...
+!> \param homo ...
+!> \param mat_munu ...
+!> \param mo_coeff_o ...
+!> \param mo_coeff_v ...
+!> \param blacs_env_sub ...
+!> \param unit_nr ...
+!> \param error ...
+!> \param error_sub ...
+! *****************************************************************************
   SUBROUTINE replicate_mat_to_subgroup(qs_env,mp2_env,para_env,para_env_sub,mo_coeff,dimen,homo,mat_munu,&
                                        mo_coeff_o,mo_coeff_v,blacs_env_sub,unit_nr,error,error_sub)
     TYPE(qs_environment_type), POINTER       :: qs_env
@@ -1664,7 +1759,7 @@ MODULE mp2_gpw
         END IF
       END DO
 
-      local_col_row_info=rec_col_row_info
+      local_col_row_info(:,:)=rec_col_row_info
       DEALLOCATE(local_C)
       ALLOCATE(local_C(nrow_rec,ncol_rec),STAT=stat)
       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -1860,6 +1955,26 @@ MODULE mp2_gpw
 
   END SUBROUTINE
 
+! *****************************************************************************
+!> \brief ...
+!> \param qs_env ...
+!> \param para_env_sub ...
+!> \param dimen ...
+!> \param homo ...
+!> \param virtual ...
+!> \param my_I_occupied_start ...
+!> \param my_I_occupied_end ...
+!> \param my_I_batch_size ...
+!> \param my_A_virtual_start ...
+!> \param my_A_virtual_end ...
+!> \param my_A_batch_size ...
+!> \param mo_coeff_o ...
+!> \param mo_coeff_v ...
+!> \param my_Cocc ...
+!> \param my_Cvirt ...
+!> \param unit_nr ...
+!> \param error_sub ...
+! *****************************************************************************
   SUBROUTINE grep_occ_virt_wavefunc(qs_env,para_env_sub,dimen,homo,virtual,&
                                     my_I_occupied_start,my_I_occupied_end,my_I_batch_size,&
                                     my_A_virtual_start,my_A_virtual_end,my_A_batch_size,&

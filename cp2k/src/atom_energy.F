@@ -69,6 +69,11 @@ CONTAINS
 
 ! *****************************************************************************
 
+! *****************************************************************************
+!> \brief ...
+!> \param atom_section ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE atom_energy_opt(atom_section,error)
     TYPE(section_vals_type), POINTER         :: atom_section
     TYPE(cp_error_type), INTENT(INOUT)       :: error
@@ -478,6 +483,13 @@ CONTAINS
   END SUBROUTINE atom_energy_opt
 
 ! *****************************************************************************
+!> \brief ...
+!> \param atom ...
+!> \param delta ...
+!> \param nder ...
+!> \param iw ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE atom_response_basis(atom,delta,nder,iw,error)
 
     TYPE(atom_type), POINTER                 :: atom
@@ -608,6 +620,11 @@ CONTAINS
     WRITE(iw,'(" ",79("*"))')
 
   END SUBROUTINE atom_response_basis
+! *****************************************************************************
+!> \brief ...
+!> \param atom ...
+!> \param iw ...
+!> \param error ...
 ! *****************************************************************************
   SUBROUTINE atom_write_upf(atom,iw,error)
 
@@ -766,13 +783,13 @@ CONTAINS
     DO l=0,3
        IF(pot%nl(l) == 0) CYCLE
        rl = pot%rcnl(l)
-       rp = atom%basis%grid%rad
-       ef = EXP(-0.5_dp*rp*rp/(rl*rl))
+       rp(:) = atom%basis%grid%rad
+       ef(:) = EXP(-0.5_dp*rp*rp/(rl*rl))
        DO i=1,pot%nl(l)
           pf = rl**(l+0.5_dp*(4._dp*i-1._dp))
           j = l + 2*i - 1
           pf = SQRT(2._dp) / (pf * SQRT(gamma1(j)))
-          beta = pf * rp**(l+2*i-2) * ef
+          beta(:) = pf * rp**(l+2*i-2) * ef
           ibeta=ibeta+1
           CALL compose(string,"<PP_BETA",counter=ibeta)
           WRITE(iw,'(T8,A)') TRIM(string)
@@ -782,7 +799,7 @@ CONTAINS
           CALL compose(string,"size",ival=nr)
           WRITE(iw,'(T12,A)') TRIM(string)
           WRITE(iw,'(T12,A)') 'columns="4">'
-          beta = beta*rp
+          beta(:) = beta*rp
           IF(up) THEN
              WRITE(iw,'(T12,4ES25.12E3)') (2._dp*beta(j),j=1,nr)
           ELSE
@@ -834,7 +851,7 @@ CONTAINS
           DO k=1,atom%basis%nbas(l)
              beta(:) = beta(:) + atom%orbitals%wfn(k,i,l)*atom%basis%bf(:,k,l)
           END DO
-          beta = beta*atom%basis%grid%rad
+          beta(:) = beta*atom%basis%grid%rad
           IF(up) THEN
              WRITE(iw,'(T12,4ES25.12E3)') (beta(j)*atom%basis%grid%rad(j),j=1,nr)
           ELSE
@@ -869,6 +886,16 @@ CONTAINS
     WRITE(iw,'(A)') '</UPF>'
 
   END SUBROUTINE atom_write_upf
+! *****************************************************************************
+!> \brief ...
+!> \param string ...
+!> \param tag ...
+!> \param counter ...
+!> \param rval ...
+!> \param ival ...
+!> \param cval ...
+!> \param isfinal ...
+! *****************************************************************************
   SUBROUTINE compose(string,tag,counter,rval,ival,cval,isfinal)
     CHARACTER(len=*)                         :: string, tag
     INTEGER, OPTIONAL                        :: counter

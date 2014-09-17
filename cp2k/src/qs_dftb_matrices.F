@@ -8,10 +8,6 @@
 !> \author JGH
 ! *****************************************************************************
 MODULE qs_dftb_matrices
-  USE array_types,                     ONLY: array_i1d_obj,&
-                                             array_new,&
-                                             array_nullify,&
-                                             array_release
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind,&
                                              get_atomic_kind_set,&
@@ -20,27 +16,19 @@ MODULE qs_dftb_matrices
   USE block_p_types,                   ONLY: block_p_type
   USE cp_control_types,                ONLY: dft_control_type,&
                                              dftb_control_type
-  USE cp_dbcsr_interface,              ONLY: cp_dbcsr_add,&
-                                             cp_dbcsr_copy,&
-                                             cp_dbcsr_create,&
-                                             cp_dbcsr_finalize,&
-                                             cp_dbcsr_get_block_p,&
-                                             cp_dbcsr_init,&
-                                             cp_dbcsr_multiply
-  USE cp_dbcsr_operations,             ONLY: cp_dbcsr_add_block_node,&
-                                             cp_dbcsr_allocate_matrix_set
+  USE cp_dbcsr_interface,              ONLY: &
+       array_i1d_obj, array_new, array_nullify, array_release, &
+       convert_offsets_to_sizes, cp_dbcsr_add, cp_dbcsr_add_block_node, &
+       cp_dbcsr_allocate_matrix_set, cp_dbcsr_copy, cp_dbcsr_create, &
+       cp_dbcsr_finalize, cp_dbcsr_get_block_p, cp_dbcsr_init, &
+       cp_dbcsr_multiply, cp_dbcsr_p_type, cp_dbcsr_type, &
+       dbcsr_distribution_obj, dbcsr_type_antisymmetric, dbcsr_type_symmetric
   USE cp_dbcsr_output,                 ONLY: cp_dbcsr_write_sparse_matrix
-  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_p_type,&
-                                             cp_dbcsr_type
   USE cp_output_handling,              ONLY: cp_p_file,&
                                              cp_print_key_finished_output,&
                                              cp_print_key_should_output,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE dbcsr_types,                     ONLY: dbcsr_distribution_obj,&
-                                             dbcsr_type_antisymmetric,&
-                                             dbcsr_type_symmetric
-  USE dbcsr_util,                      ONLY: convert_offsets_to_sizes
   USE f77_blas
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type
@@ -59,6 +47,9 @@ MODULE qs_dftb_matrices
                                              qs_environment_type,&
                                              set_qs_env
   USE qs_force_types,                  ONLY: qs_force_type
+  USE qs_kind_types,                   ONLY: get_qs_kind,&
+                                             get_qs_kind_set,&
+                                             qs_kind_type
   USE qs_ks_types,                     ONLY: qs_ks_env_type
   USE qs_mo_types,                     ONLY: get_mo_set,&
                                              mo_set_p_type
@@ -102,6 +93,12 @@ MODULE qs_dftb_matrices
 CONTAINS
 
 ! *****************************************************************************
+!> \brief ...
+!> \param qs_env ...
+!> \param para_env ...
+!> \param calculate_forces ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE build_dftb_matrices(qs_env,para_env,calculate_forces,error)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
@@ -123,8 +120,8 @@ CONTAINS
                                                 use_virial
     REAL(KIND=dp)                            :: ddr, dgam, dgrd, dr, drm, &
                                                 drp, erep, erepij, f0, f1, &
-                                                foab, fow, ga, gb, s_cut, &
-                                                urep_cut
+                                                foab, fow, ga, gb, hb_para, &
+                                                s_cut, urep_cut
     REAL(KIND=dp), DIMENSION(0:3)            :: eta_a, eta_b, skself
     REAL(KIND=dp), DIMENSION(10)             :: urep
     REAL(KIND=dp), DIMENSION(2)              :: surr
@@ -136,7 +133,6 @@ CONTAINS
     TYPE(array_i1d_obj)                      :: row_blk_sizes
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
-    TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(block_p_type), DIMENSION(2:4)       :: dgblocks, dsblocks
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: gamma_matrix, matrix_h, &
@@ -158,6 +154,8 @@ CONTAINS
     TYPE(qs_energy_type), POINTER            :: energy
     TYPE(qs_force_type), DIMENSION(:), &
       POINTER                                :: force
+    TYPE(qs_kind_type), DIMENSION(:), &
+      POINTER                                :: qs_kind_set
     TYPE(qs_rho_type), POINTER               :: rho
     TYPE(virial_type), POINTER               :: virial
 
@@ -182,10 +180,11 @@ CONTAINS
     NULLIFY(logger)
     logger => cp_error_get_logger(error)
 
-    NULLIFY (matrix_h,matrix_s,matrix_p,matrix_w,gamma_matrix,atomic_kind_set,sab_orb)
+    NULLIFY (matrix_h,matrix_s,matrix_p,matrix_w,gamma_matrix,atomic_kind_set,qs_kind_set,sab_orb)
     CALL get_qs_env(qs_env=qs_env,&
                     energy=energy,&
                     atomic_kind_set=atomic_kind_set,&
+                    qs_kind_set=qs_kind_set,&
                     matrix_h=matrix_h,matrix_s=matrix_s,&
                     dft_control=dft_control,error=error)
     
@@ -300,20 +299,14 @@ CONTAINS
     DO WHILE (neighbor_list_iterate(nl_iterator)==0)
        CALL get_iterator_info(nl_iterator,ikind=ikind,jkind=jkind,&
             iatom=iatom,jatom=jatom,inode=inode,r=rij)
-
-       atomic_kind => atomic_kind_set(ikind)
-       CALL get_atomic_kind(atomic_kind=atomic_kind,&
-                            natom=natom,&
-                            dftb_parameter=dftb_kind_a)
+       CALL get_atomic_kind(atomic_kind_set(ikind), natom=natom)
+       CALL get_qs_kind(qs_kind_set(ikind), dftb_parameter=dftb_kind_a)
        CALL get_dftb_atom_param(dftb_kind_a,&
               defined=defined,lmax=lmaxi,skself=skself,&
               eta=eta_a,natorb=natorb_a)
 
        IF (.NOT.defined .OR. natorb_a < 1) CYCLE
-
-       atomic_kind => atomic_kind_set(jkind)
-       CALL get_atomic_kind(atomic_kind=atomic_kind,&
-                            dftb_parameter=dftb_kind_b)
+       CALL get_qs_kind(qs_kind_set(jkind), dftb_parameter=dftb_kind_b)
        CALL get_dftb_atom_param(dftb_kind_b,&
               defined=defined,lmax=lmaxj,eta=eta_b,natorb=natorb_b)
 
@@ -484,13 +477,18 @@ CONTAINS
                hb_sr_damp = is_hydrogen(particle_set(iatom)%atomic_kind).NEQV.&
                             is_hydrogen(particle_set(jatom)%atomic_kind)
             END IF
+            IF (hb_sr_damp) THEN
+               hb_para = dftb_control%hb_sr_para
+            ELSE
+               hb_para = 0.0_dp
+            END IF
             ga = eta_a(0)
             gb = eta_b(0)
-            gblock(1,1)= gblock(1,1) + gamma_rab_sr(dr,ga,gb,hb_sr_damp)
+            gblock(1,1)= gblock(1,1) + gamma_rab_sr(dr,ga,gb,hb_para)
             IF(calculate_forces .AND. (iatom/=jatom .OR. dr > 0.001_dp)) THEN
                drp = dr + ddr
                drm = dr - ddr
-               dgam = 0.5_dp*(gamma_rab_sr(drp,ga,gb,hb_sr_damp)-gamma_rab_sr(drm,ga,gb,hb_sr_damp))/ddr
+               dgam = 0.5_dp*(gamma_rab_sr(drp,ga,gb,hb_para)-gamma_rab_sr(drm,ga,gb,hb_para))/ddr
                DO i=1,3
                   CPPrecondition(ASSOCIATED(dgblocks(i+1)%block),cp_failure_level,routineP,error,failure)
                   IF ( irow == iatom ) THEN
@@ -603,6 +601,16 @@ CONTAINS
   END SUBROUTINE build_dftb_matrices
 
 ! *****************************************************************************
+!> \brief ...
+!> \param ks_env ...
+!> \param qs_env ...
+!> \param ks_matrix ...
+!> \param rho ...
+!> \param energy ...
+!> \param calculate_forces ...
+!> \param just_energy ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE build_dftb_ks_matrix (ks_env,qs_env,ks_matrix,rho,energy,&
                calculate_forces,just_energy,error)
 
@@ -627,7 +635,6 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: charges
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
-    TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: matrix_h, matrix_p, matrix_s, &
                                                 mo_derivs
@@ -640,6 +647,8 @@ CONTAINS
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(qs_dftb_atom_type), POINTER         :: dftb_kind
+    TYPE(qs_kind_type), DIMENSION(:), &
+      POINTER                                :: qs_kind_set
     TYPE(section_vals_type), POINTER         :: scf_section
 
     CALL timeset(routineN,handle)
@@ -660,6 +669,7 @@ CONTAINS
        CALL get_qs_env(qs_env=qs_env,&
             dft_control=dft_control,&
             atomic_kind_set=atomic_kind_set,&
+            qs_kind_set=qs_kind_set,&
             matrix_h=matrix_h,&
             para_env=para_env,error=error)
 
@@ -690,12 +700,11 @@ CONTAINS
          CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
          nkind = SIZE(atomic_kind_set)
          DO ikind=1,nkind
-            atomic_kind => atomic_kind_set(ikind)
-            CALL get_atomic_kind(atomic_kind=atomic_kind,&
-                               natom=natom,dftb_parameter=dftb_kind)
+            CALL get_atomic_kind(atomic_kind_set(ikind), natom=natom)
+            CALL get_qs_kind(qs_kind_set(ikind), dftb_parameter=dftb_kind)
             CALL get_dftb_atom_param(dftb_kind,zeff=zeff)
             DO iatom=1,natom
-              atom_a = atomic_kind%atom_list(iatom)
+              atom_a = atomic_kind_set(ikind)%atom_list(iatom)
               mcharge(atom_a) = zeff - SUM(charges(atom_a,1:nspins))
             END DO
          END DO
@@ -711,7 +720,7 @@ CONTAINS
        END IF
 
        energy%total = energy%core + energy%hartree + energy%qmmm_el + &
-                      energy%repulsive + energy%dispersion
+                      energy%repulsive + energy%dispersion + energy%dftb3
 
        output_unit=cp_print_key_unit_nr(logger,scf_section,"PRINT%DETAILED_ENERGY",&
           extension=".scfLog",error=error)
@@ -721,8 +730,12 @@ CONTAINS
                "Zeroth order Hamiltonian energy:               ",energy%core,&
                "Charge fluctuation energy:                     ",energy%hartree,&
                "London dispersion energy:                      ",energy%dispersion
+          IF ( dft_control%qs_control%dftb_control%dftb3_diagonal ) THEN
+             WRITE (UNIT=output_unit,FMT="(T9,A,T60,F20.10)")&
+                  "DFTB3 3rd Order Energy Correction              ",energy%dftb3
+          END IF
           IF (qs_env%qmmm) THEN
-             WRITE (UNIT=output_unit,FMT="(T3,A,T60,F20.10)")&
+             WRITE (UNIT=output_unit,FMT="(T9,A,T60,F20.10)")&
                   "QM/MM Electrostatic energy:                    ",energy%qmmm_el
           END IF
        END IF
@@ -749,6 +762,12 @@ CONTAINS
   END SUBROUTINE build_dftb_ks_matrix
 
 ! *****************************************************************************
+!> \brief ...
+!> \param qs_env ...
+!> \param nderivative ...
+!> \param matrix_s ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE build_dftb_overlap(qs_env,nderivative,matrix_s,error)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
@@ -773,7 +792,6 @@ CONTAINS
       POINTER                                :: dsblock1
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
-    TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(block_p_type), DIMENSION(2:10)      :: dsblocks
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(dft_control_type), POINTER          :: dft_control
@@ -786,6 +804,8 @@ CONTAINS
     TYPE(qs_dftb_pairpot_type), &
       DIMENSION(:, :), POINTER               :: dftb_potential
     TYPE(qs_dftb_pairpot_type), POINTER      :: dftb_param_ij, dftb_param_ji
+    TYPE(qs_kind_type), DIMENSION(:), &
+      POINTER                                :: qs_kind_set
 
     CALL timeset(routineN,handle)
 
@@ -811,10 +831,10 @@ CONTAINS
     ! Allocate the overlap matrix
     CALL setup_matrices(qs_env,nderivative,matrix_s,'OVERLAP',error)
 
-    NULLIFY ( atomic_kind_set, sab_orb)
+    NULLIFY ( atomic_kind_set, qs_kind_set, sab_orb)
 
     CALL get_qs_env(qs_env=qs_env,&
-                    atomic_kind_set=atomic_kind_set,&
+                    atomic_kind_set=atomic_kind_set,qs_kind_set=qs_kind_set,&
                     dft_control=dft_control,error=error)
 
     dftb_control => dft_control%qs_control%dftb_control
@@ -832,19 +852,15 @@ CONTAINS
        CALL get_iterator_info(nl_iterator,ikind=ikind,jkind=jkind,&
             iatom=iatom,jatom=jatom,inode=inode,r=rij)
 
-       atomic_kind => atomic_kind_set(ikind)
-       CALL get_atomic_kind(atomic_kind=atomic_kind,&
-                            natom=natom,&
-                            dftb_parameter=dftb_kind_a)
+       CALL get_atomic_kind(atomic_kind_set(ikind), natom=natom)
+       CALL get_qs_kind(qs_kind_set(ikind), dftb_parameter=dftb_kind_a)
        CALL get_dftb_atom_param(dftb_kind_a,&
               defined=defined,lmax=lmaxi,skself=skself,&
               natorb=natorb_a)
 
        IF (.NOT.defined .OR. natorb_a < 1) CYCLE
 
-       atomic_kind => atomic_kind_set(jkind)
-       CALL get_atomic_kind(atomic_kind=atomic_kind,&
-                            dftb_parameter=dftb_kind_b)
+       CALL get_qs_kind(qs_kind_set(jkind), dftb_parameter=dftb_kind_b)
        CALL get_dftb_atom_param(dftb_kind_b,&
               defined=defined,lmax=lmaxj,natorb=natorb_b)
 
@@ -968,6 +984,20 @@ CONTAINS
   END SUBROUTINE build_dftb_overlap
 
 ! *****************************************************************************
+!> \brief ...
+!> \param block ...
+!> \param smatij ...
+!> \param smatji ...
+!> \param rij ...
+!> \param ngrd ...
+!> \param ngrdcut ...
+!> \param dgrd ...
+!> \param llm ...
+!> \param lmaxi ...
+!> \param lmaxj ...
+!> \param irow ...
+!> \param iatom ...
+! *****************************************************************************
   SUBROUTINE compute_block_sk(block,smatij,smatji,rij,ngrd,ngrdcut,dgrd,llm,lmaxi,lmaxj,irow,iatom)
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: block, smatij, smatji
     REAL(KIND=dp), DIMENSION(3)              :: rij
@@ -992,6 +1022,13 @@ CONTAINS
 
   END SUBROUTINE compute_block_sk
 
+! *****************************************************************************
+!> \brief ...
+!> \param qs_env ...
+!> \param nderivative ...
+!> \param matrices ...
+!> \param mnames ...
+!> \param error ...
 ! *****************************************************************************
   SUBROUTINE setup_matrices(qs_env,nderivative,matrices,mnames,error)
 
@@ -1021,11 +1058,14 @@ CONTAINS
       DIMENSION(:), POINTER                  :: sab_orb
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
+    TYPE(qs_kind_type), DIMENSION(:), &
+      POINTER                                :: qs_kind_set
 
     NULLIFY(particle_set, sab_orb, atomic_kind_set)
 
     CALL get_qs_env(qs_env=qs_env,&
                     atomic_kind_set=atomic_kind_set,&
+                    qs_kind_set=qs_kind_set,&
                     particle_set=particle_set,&
                     sab_orb=sab_orb,&
                     dbcsr_dist=dbcsr_dist,&
@@ -1035,14 +1075,14 @@ CONTAINS
     nkind = SIZE(atomic_kind_set)
     natom = SIZE(particle_set)
 
-    CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,nsgf=nsgf)
+    CALL get_qs_kind_set(qs_kind_set,nsgf=nsgf)
 
     ALLOCATE (first_sgf(natom),STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
     ALLOCATE (last_sgf(natom),STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
 
-    CALL get_particle_set(particle_set=particle_set,&
+    CALL get_particle_set(particle_set, qs_kind_set,&
                           first_sgf=first_sgf,&
                           last_sgf=last_sgf,error=error)
 
@@ -1090,6 +1130,13 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Gets matrix elements on z axis, as they are stored in the tables
+!> \param slakotab ...
+!> \param skpar ...
+!> \param dx ...
+!> \param ngrd ...
+!> \param ngrdcut ...
+!> \param dgrd ...
+!> \param llm ...
 !> \author 07. Feb. 2004, TH
 ! *****************************************************************************
   SUBROUTINE getskz(slakotab,skpar,dx,ngrd,ngrdcut,dgrd,llm)
@@ -1129,6 +1176,15 @@ CONTAINS
   END SUBROUTINE getskz
 
 ! *****************************************************************************
+!> \brief ...
+!> \param slakotab ...
+!> \param skpar ...
+!> \param dx ...
+!> \param ngrd ...
+!> \param dgrd ...
+!> \param llm ...
+!> \param clgp ...
+! *****************************************************************************
   SUBROUTINE interpol(slakotab,skpar,dx,ngrd,dgrd,llm,clgp)
     REAL(dp), INTENT(in)                     :: slakotab(:,:), dx
     INTEGER, INTENT(in)                      :: ngrd
@@ -1158,6 +1214,14 @@ CONTAINS
     END DO
   END SUBROUTINE interpol
 
+! *****************************************************************************
+!> \brief ...
+!> \param slakotab ...
+!> \param skpar ...
+!> \param dx ...
+!> \param ngrd ...
+!> \param dgrd ...
+!> \param llm ...
 ! *****************************************************************************
   SUBROUTINE extrapol(slakotab,skpar,dx,ngrd,dgrd,llm)
     REAL(dp), INTENT(in)                     :: slakotab(:,:), dx
@@ -1198,7 +1262,13 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief   Turn matrix element from z-axis to orientation of dxv
-!> \author  TH
+!> \param mat ...
+!> \param skab1 ...
+!> \param skab2 ...
+!> \param dxv ...
+!> \param dx ...
+!> \param lmaxa ...
+!> \param lmaxb ...
 !> \date    13. Jan 2004
 !> \par Notes
 !>          These routines are taken from an old TB code (unknown to TH).
@@ -1210,6 +1280,7 @@ CONTAINS
 !>          r_i^2/r, replicated in rr2(4:6) for index convenience later
 !>          r_i/r, direction vector, rr(4:6) are replicated from 1:3
 !>          lmax of A and B
+!> \author  TH
 !> \version 1.0
 ! *****************************************************************************
   SUBROUTINE turnsk(mat,skab1,skab2,dxv,dx,lmaxa,lmaxb)
@@ -1313,6 +1384,8 @@ CONTAINS
     !
 ! *****************************************************************************
 !> \brief   s-s interaction (no rotation necessary)
+!> \param skpar ...
+!> \param mat ...
 !> \version 1.0
 ! *****************************************************************************
     SUBROUTINE skss(skpar,mat)
@@ -1325,6 +1398,10 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief  s-p interaction (simple rotation)
+!> \param skpar ...
+!> \param mat ...
+!> \param ind ...
+!> \param transposed ...
 !> \version 1.0
 ! *****************************************************************************
     SUBROUTINE sksp(skpar,mat,ind,transposed)
@@ -1349,6 +1426,11 @@ CONTAINS
       !
     END SUBROUTINE sksp
 
+! *****************************************************************************
+!> \brief ...
+!> \param skpar ...
+!> \param mat ...
+!> \param ind ...
 ! *****************************************************************************
     SUBROUTINE skpp(skpar,mat,ind)
     REAL(dp), INTENT(in)                     :: skpar(:)
@@ -1384,6 +1466,12 @@ CONTAINS
     END SUBROUTINE skpp
 
 ! *****************************************************************************
+!> \brief ...
+!> \param skpar ...
+!> \param mat ...
+!> \param ind ...
+!> \param transposed ...
+! *****************************************************************************
     SUBROUTINE sksd(skpar,mat,ind,transposed)
     REAL(dp), INTENT(in)                     :: skpar(:)
     REAL(dp), INTENT(inout)                  :: mat(:,:)
@@ -1415,6 +1503,12 @@ CONTAINS
       END IF
     END SUBROUTINE sksd
 
+! *****************************************************************************
+!> \brief ...
+!> \param skpar ...
+!> \param mat ...
+!> \param ind ...
+!> \param transposed ...
 ! *****************************************************************************
     SUBROUTINE skpd(skpar,mat,ind,transposed)
     REAL(dp), INTENT(in)                     :: skpar(:)
@@ -1486,6 +1580,11 @@ CONTAINS
       !
     END SUBROUTINE skpd
 
+! *****************************************************************************
+!> \brief ...
+!> \param skpar ...
+!> \param mat ...
+!> \param ind ...
 ! *****************************************************************************
     SUBROUTINE skdd(skpar,mat,ind)
     REAL(dp), INTENT(in)                     :: skpar(:)
@@ -1567,6 +1666,14 @@ CONTAINS
   END SUBROUTINE turnsk
 
 ! *****************************************************************************
+!> \brief ...
+!> \param xa ...
+!> \param ya ...
+!> \param n ...
+!> \param x ...
+!> \param y ...
+!> \param dy ...
+! *****************************************************************************
   SUBROUTINE polint(xa,ya,n,x,y,dy)
     INTEGER, INTENT(in)                      :: n
     REAL(dp), INTENT(in)                     :: ya(n), xa(n), x
@@ -1617,6 +1724,21 @@ CONTAINS
     RETURN
   END SUBROUTINE polint
 
+! *****************************************************************************
+!> \brief ...
+!> \param rv ...
+!> \param r ...
+!> \param erep ...
+!> \param derep ...
+!> \param n_urpoly ...
+!> \param urep ...
+!> \param spdim ...
+!> \param s_cut ...
+!> \param srep ...
+!> \param spxr ...
+!> \param scoeff ...
+!> \param surr ...
+!> \param dograd ...
 ! *****************************************************************************
   SUBROUTINE urep_egr(rv,r,erep,derep,&
                       n_urpoly,urep,spdim,s_cut,srep,spxr,scoeff,surr,dograd)
@@ -1721,15 +1843,20 @@ CONTAINS
 ! *****************************************************************************
 !> \brief  Computes the short-range gamma parameter from exact Coulomb
 !>         interaction of normalized exp(-a*r) charge distribution - 1/r
+!> \param r ...
+!> \param ga ...
+!> \param gb ...
+!> \param hb_para ...
+!> \retval gamma ...
 !> \par Literature
 !>         Elstner et al, PRB 58 (1998) 7260
-!> \version 1.1
-!> \par HIstory
+!> \par History
 !>      10.2008 Axel Kohlmeyer - adding sr_damp
+!>      08.2014 JGH - adding flexible exponent for damping
+!> \version 1.1
 ! *****************************************************************************
-  FUNCTION gamma_rab_sr(r,ga,gb,sr_damp) RESULT(gamma)
-    REAL(dp), INTENT(in)                     :: r, ga, gb
-    LOGICAL, INTENT(in)                      :: sr_damp
+  FUNCTION gamma_rab_sr(r,ga,gb,hb_para) RESULT(gamma)
+    REAL(dp), INTENT(in)                     :: r, ga, gb, hb_para
     REAL(dp)                                 :: gamma
 
     REAL(dp)                                 :: a, b, fac, g_sum
@@ -1762,8 +1889,8 @@ CONTAINS
     ! functional form from Hu H. et al., J. Phys. Chem. A 2007, 111, 5685-5691
     ! according to Elstner M, Theor. Chem. Acc. 2006, 116, 316-325,
     ! this should only be applied to a-b pairs involving hydrogen.
-    IF (sr_damp) THEN
-      gamma = gamma * EXP(-(0.5_dp*(ga+gb))**4 * r*r)
+    IF (hb_para > 0.0_dp) THEN
+      gamma = gamma * EXP(-(0.5_dp*(ga+gb))**hb_para *r*r)
     END IF
   END FUNCTION gamma_rab_sr
 

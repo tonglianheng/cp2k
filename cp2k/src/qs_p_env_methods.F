@@ -13,18 +13,17 @@
 ! *****************************************************************************
 MODULE qs_p_env_methods
   USE cp_control_types,                ONLY: dft_control_type
-  USE cp_dbcsr_interface,              ONLY: cp_dbcsr_copy,&
-                                             cp_dbcsr_init,&
-                                             cp_dbcsr_scale,&
-                                             cp_dbcsr_set
-  USE cp_dbcsr_operations,             ONLY: cp_dbcsr_allocate_matrix_set,&
+  USE cp_dbcsr_interface,              ONLY: cp_dbcsr_allocate_matrix_set,&
+                                             cp_dbcsr_copy,&
                                              cp_dbcsr_deallocate_matrix_set,&
-                                             cp_dbcsr_plus_fm_fm_t,&
-                                             cp_dbcsr_sm_fm_multiply
-  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_p_type,&
+                                             cp_dbcsr_init,&
+                                             cp_dbcsr_p_type,&
+                                             cp_dbcsr_scale,&
+                                             cp_dbcsr_set,&
                                              cp_dbcsr_type
-  USE cp_fm_basic_linalg,              ONLY: cp_fm_gemm,&
-                                             cp_fm_scale_and_add,&
+  USE cp_dbcsr_operations,             ONLY: cp_dbcsr_plus_fm_fm_t,&
+                                             cp_dbcsr_sm_fm_multiply
+  USE cp_fm_basic_linalg,              ONLY: cp_fm_scale_and_add,&
                                              cp_fm_symm,&
                                              cp_fm_triangular_multiply
   USE cp_fm_cholesky,                  ONLY: cp_fm_cholesky_decompose
@@ -48,6 +47,7 @@ MODULE qs_p_env_methods
                                              cp_fm_type
   USE cp_fm_vect,                      ONLY: cp_fm_vect_copy,&
                                              cp_fm_vect_dealloc
+  USE cp_gemm_interface,               ONLY: cp_gemm
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
@@ -95,8 +95,8 @@ MODULE qs_p_env_methods
 
   PRIVATE
   PUBLIC :: p_env_create, p_env_psi0_changed, p_op_l2_fawzi
-  PUBLIC :: p_op_l1, p_op_l1_spin, p_op_l2, p_preortho, p_postortho,&
-       p_env_did_change
+  PUBLIC :: p_op_l1, p_op_l2, p_preortho, p_postortho,&
+            p_env_did_change
 
 CONTAINS
 
@@ -104,9 +104,12 @@ CONTAINS
 !> \brief allocates and initializes the perturbation environment (no setup)
 !> \param p_env the environment to initialize
 !> \param qs_env the qs_environment for the system
-!> \param kpp 1_env: the environment that builds the second order
-!>        perturbation kernel.
+!> \param kpp1_env the environment that builds the second order
+!>        perturbation kernel
+!> \param p1_option ...
+!> \param psi0d ...
 !> \param orthogonal_orbitals if the orbitals are orthogonal
+!> \param linres_control ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 !> \par History
@@ -311,11 +314,11 @@ CONTAINS
 !> \param qs_env the qs environment this p_env lives in
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
-!> \note
-!>      private routine
 !> \par History
 !>      12.2002 created [fawzi]
 !> \author Fawzi Mohamed
+!> \note
+!>      private routine
 ! *****************************************************************************
   SUBROUTINE p_env_check_i_alloc(p_env, qs_env, error)
     TYPE(qs_p_env_type), POINTER             :: p_env
@@ -379,8 +382,8 @@ CONTAINS
 !> \brief function to advise of changes either in the grids or in the the
 !>      matrix structure (to update p_env's internal cache)
 !> \param p_env the p_env to inform of the changes
-!> \param grid_changed true if the grids have changed and have to be rebuilt
 !> \param s_struct_changed true if the structure of the s matrix has changed
+!> \param grid_changed true if the grids have changed and have to be rebuilt
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 !> \par History
@@ -434,8 +437,9 @@ END SUBROUTINE p_env_did_change
 !> \brief To be called after the value of psi0 has changed.
 !>      Recalculates the quantities S_psi0 and m_epsilon.
 !> \param p_env the perturbation environment to set
-!> \param psi 0: the value of psi0, if not given defaults to the qs_env mos
-!> \param Hrho_psi 0d: is given, then the partial result Hrho_psi0d is stored in
+!> \param qs_env ...
+!> \param psi0 the value of psi0, if not given defaults to the qs_env mos
+!> \param Hrho_psi0d is given, then the partial result Hrho_psi0d is stored in
 !>        that vector
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
@@ -528,7 +532,7 @@ END SUBROUTINE p_env_did_change
                   my_psi0(spin)%matrix,&
                   p_env%S_psi0(spin)%matrix,&
                   ncol=p_env%n_mo(spin), alpha=1.0_dp,error=error)
-             CALL cp_fm_gemm(transa='T',transb='N',n=p_env%n_mo(spin),&
+             CALL cp_gemm(transa='T',transb='N',n=p_env%n_mo(spin),&
                   m=p_env%n_mo(spin),k=p_env%n_ao(spin),alpha=1.0_dp,&
                   matrix_a=my_psi0(spin)%matrix, &
                   matrix_b=p_env%S_psi0(spin)%matrix,&
@@ -626,7 +630,7 @@ END SUBROUTINE p_env_did_change
                   error=error)
           END IF
           ! m_epsilon = -1 times S_psi0^T times psi0d
-          CALL cp_fm_gemm('T', 'N', &
+          CALL cp_gemm('T', 'N', &
                p_env%n_mo(spin), p_env%n_mo(spin), p_env%n_ao(spin), &
                -1.0_dp, p_env%S_psi0(spin)%matrix, p_env%psi0d(spin)%matrix, &
                0.0_dp, p_env%m_epsilon(spin)%matrix,error=error)
@@ -718,11 +722,11 @@ END SUBROUTINE p_env_did_change
 !> \param v the matrix to operate on
 !> \param res the result
 !> \param error error handling object (optional)
-!> \note
-!>      Same as p_op_l1 but takes a spin as additional argument.
 !> \par History
 !>      10.2002, TCH, created
 !> \author Thomas Chassaing
+!> \note
+!>      Same as p_op_l1 but takes a spin as additional argument.
 ! *****************************************************************************
   SUBROUTINE p_op_l1_spin(p_env, qs_env, spin, v, res, error)
 
@@ -787,20 +791,19 @@ END SUBROUTINE p_env_did_change
 !>      with kpp1 evaluated with p=qs_env%rho%rho_ao, p1=p1
 !> \param p_env the perturbation environment
 !> \param qs_env the qs_env that is perturbed by this p_env
-!> \param p 1: direction in which evaluate the second derivative
+!> \param p1 direction in which evaluate the second derivative
 !> \param res place where to store the result
-!> \param v values of the coeffs of the correcting orbitals
 !> \param alpha scale factor of the result (defaults to 1.0)
 !> \param beta scale factor of the old values (defaults to 0.0)
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
-!> \note
-!>      qs_env%rho must be up to date
-!>      it would be better to pass rho1, not p1
 !> \par History
 !>      02.09.2002 adapted for new qs_p_env_type (TC)
 !>      03.2003 extended for p1 not taken from v (TC)
 !> \author fawzi
+!> \note
+!>      qs_env%rho must be up to date
+!>      it would be better to pass rho1, not p1
 ! *****************************************************************************
   SUBROUTINE p_op_l2(p_env, qs_env, p1, res, alpha, beta, error)
 
@@ -972,12 +975,12 @@ END SUBROUTINE p_env_did_change
 
           IF (.NOT. failure) THEN
              ! tmp_matrix = v^T (S psi0)
-             CALL cp_fm_gemm(transa='T',transb='N',m=cols,n=p_env%n_mo(spin),&
+             CALL cp_gemm(transa='T',transb='N',m=cols,n=p_env%n_mo(spin),&
                   k=p_env%n_ao(spin),alpha=1.0_dp,matrix_a=v(spin)%matrix,&
                   matrix_b=p_env%S_psi0(spin)%matrix,beta=0.0_dp,&
                   matrix_c=tmp_matrix,error=error)
              ! v = v- psi0d tmp_matrix^T = v - psi0d psi0^T S v
-             CALL cp_fm_gemm(transa='N',transb='T',m=p_env%n_ao(spin),n=cols,&
+             CALL cp_gemm(transa='N',transb='T',m=p_env%n_ao(spin),n=cols,&
                   k=p_env%n_mo(spin),alpha=-1.0_dp,&
                   matrix_a=p_env%psi0d(spin)%matrix,matrix_b=tmp_matrix,&
                   beta=1.0_dp,matrix_c=v(spin)%matrix,error=error)
@@ -1089,12 +1092,12 @@ END SUBROUTINE p_env_did_change
 
           IF (.NOT. failure) THEN
              ! tmp_matrix = v^T psi0d
-             CALL cp_fm_gemm(transa='T',transb='N',m=cols,n=p_env%n_mo(spin),&
+             CALL cp_gemm(transa='T',transb='N',m=cols,n=p_env%n_mo(spin),&
                   k=p_env%n_ao(spin),alpha=1.0_dp,matrix_a=v(spin)%matrix,&
                   matrix_b=p_env%psi0d(spin)%matrix,beta=0.0_dp,&
                   matrix_c=tmp_matrix,error=error)
              ! v = v- (S psi0) tmp_matrix^T = v - S psi0 psi0d^T v
-             CALL cp_fm_gemm(transa='N',transb='T',m=p_env%n_ao(spin),n=cols,&
+             CALL cp_gemm(transa='N',transb='T',m=p_env%n_ao(spin),n=cols,&
                   k=p_env%n_mo(spin),alpha=-1.0_dp,&
                   matrix_a=p_env%S_psi0(spin)%matrix,matrix_b=tmp_matrix,&
                   beta=1.0_dp,matrix_c=v(spin)%matrix,error=error)
@@ -1118,17 +1121,17 @@ END SUBROUTINE p_env_did_change
 !> \brief evaluates res = alpha kpp1(v)*psi0 + beta res
 !> \param p_env the perturbation environment
 !> \param qs_env the qs_env that is perturbed by this p_env
-!> \param res place where to store the result
 !> \param v values of the coeffs of the correcting orbitals
+!> \param res place where to store the result
 !> \param alpha scale factor of the result (defaults to 1.0)
 !> \param beta scale factor of the old values (defaults to 0.0)
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
-!> \note
-!>      to be removed
 !> \par History
 !>      02.09.2002 adapted for new qs_p_env_type (TC)
 !> \author Fawzi Mohamed
+!> \note
+!>      to be removed
 ! *****************************************************************************
   SUBROUTINE p_op_l2_fawzi(p_env, qs_env, v, res, alpha, beta, error)
 

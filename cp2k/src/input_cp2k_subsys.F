@@ -19,7 +19,20 @@ MODULE input_cp2k_subsys
   USE cp_output_handling,              ONLY: cp_print_key_section_create
   USE cp_units,                        ONLY: cp_unit_to_cp2k
   USE f77_blas
-  USE input_constants
+  USE input_constants,                 ONLY: &
+       cell_sym_cubic, cell_sym_hexagonal, cell_sym_monoclinic, &
+       cell_sym_none, cell_sym_orthorhombic, cell_sym_rhombohedral, &
+       cell_sym_tetragonal_ab, cell_sym_tetragonal_ac, &
+       cell_sym_tetragonal_bc, cell_sym_triclinic, debug_print_level, do_add, &
+       do_bondparm_covalent, do_bondparm_vdw, do_cell_cp2k, do_cell_xsc, &
+       do_conn_amb7, do_conn_g87, do_conn_g96, do_conn_generate, &
+       do_conn_mol_set, do_conn_off, do_conn_psf, do_conn_psf_u, &
+       do_conn_user, do_coord_cif, do_coord_cp2k, do_coord_crd, do_coord_g96, &
+       do_coord_off, do_coord_pdb, do_coord_xtl, do_coord_xyz, do_remove, &
+       do_skip_11, do_skip_12, do_skip_13, do_skip_14, dump_pdb, gaussian, &
+       high_print_level, medium_print_level, use_perd_none, use_perd_x, &
+       use_perd_xy, use_perd_xyz, use_perd_xz, use_perd_y, use_perd_yz, &
+       use_perd_z
   USE input_cp2k_colvar,               ONLY: create_colvar_section
   USE input_cp2k_mm,                   ONLY: create_neighbor_lists_section
   USE input_keyword_types,             ONLY: keyword_create,&
@@ -56,6 +69,9 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief creates the cell section
+!> \param section ...
+!> \param periodic ...
+!> \param label ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 !> \author teo
@@ -647,7 +663,7 @@ CONTAINS
 ! *****************************************************************************
 !> \brief creates structure data section for output.. both subsys  (for initialization)
 !>      and motion section..
-!> \param section the section to create
+!> \param print_key ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 ! *****************************************************************************
@@ -1410,6 +1426,13 @@ CONTAINS
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
+       CALL keyword_create(keyword, name="DFTB3_PARAM",&
+            description="The third order parameter (derivative of hardness) used in "//&
+            "diagonal DFTB3 correction.",&
+            usage="DFTB3_PARAM 0.2", default_r_val=0.0_dp,&
+            error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
 
        ! Logicals
        CALL keyword_create(keyword, name="SE_P_ORBITALS_ON_H",&
@@ -1484,8 +1507,10 @@ CONTAINS
 !> \brief      Create CP2K input section for BS method: imposing atomic orbital occupation
 !>             different from default in initialization of the density  matrix
 !>             it works only with GUESS ATOMIC
-!> \author     MI
+!> \param section ...
+!> \param error ...
 !> \date       05.08.2009
+!> \author     MI
 !> \version    1.0
 ! *****************************************************************************
   SUBROUTINE create_bs_section(section,error)
@@ -1882,6 +1907,7 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Setup a list of fine exclusion elements
 !> \param section the section to create
+!> \param header ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 !> \author Teodoro Laino [tlaino] - 12.2009
@@ -2330,6 +2356,7 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Specify keywords used to define connectivity
 !> \param section the section to create
+!> \param default ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 !> \author teo
@@ -2391,8 +2418,10 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief      Create CP2K input section for the DFT+U method parameters
-!> \author     Matthias Krack (MK)
+!> \param section ...
+!> \param error ...
 !> \date       01.11.2007
+!> \author     Matthias Krack (MK)
 !> \version    1.0
 ! *****************************************************************************
   SUBROUTINE create_dft_plus_u_section(section,error)

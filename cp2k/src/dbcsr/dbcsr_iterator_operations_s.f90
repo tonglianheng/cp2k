@@ -13,6 +13,8 @@
 !> \param[out] block_number  (optional) block number
 !> \param[out] row_size      (optional) logical row size of block
 !> \param[out] col_size      (optional) logical column size of block
+!> \param row_offset ...
+!> \param col_offset ...
 ! *****************************************************************************
   SUBROUTINE iterator_next_1d_block_s (iterator, row, column, block,&
        transposed, block_number, row_size, col_size, row_offset, col_offset)
@@ -27,9 +29,7 @@
     CHARACTER(len=*), PARAMETER :: routineN = 'iterator_next_1d_block_s', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: blk_p, bp, csize, ithread, &
-                                                nze, rsize, pos
-    REAL(kind=real_4), DIMENSION(:), POINTER :: rbp
+    INTEGER                                  :: blk_p, bp, csize, nze, rsize
 
 !   ---------------------------------------------------------------------------
 ! If we're pointing to a valid block, return that block.
@@ -76,6 +76,8 @@
 !> \param[out] block_number  (optional) block number
 !> \param[out] row_size      (optional) logical row size of block
 !> \param[out] col_size      (optional) logical column size of block
+!> \param row_offset ...
+!> \param col_offset ...
 ! *****************************************************************************
   SUBROUTINE iterator_next_2d_block_s (iterator, row, column,&
        block, transposed,&
@@ -91,8 +93,7 @@
     CHARACTER(len=*), PARAMETER :: routineN = 'iterator_next_2d_block_s', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: blk_p, bp, csize, ithread, &
-                                                nze, rsize, pos,&
+    INTEGER                                  :: blk_p, bp, csize, nze, rsize, &
                                                 block_row_size, block_col_size
     REAL(kind=real_4), DIMENSION(:), POINTER           :: lin_blk_p
     INTEGER                                  :: error_handle
@@ -119,22 +120,10 @@
        IF (PRESENT (row_offset)) row_offset = iterator%row_offset
        IF (PRESENT (col_offset)) col_offset = iterator%coff(column)
        nze = rsize * csize
-       IF (dbcsr_buffers_2d_needed) THEN
-          CALL dbcsr_buffers_flush (iterator%buffer_2d, error=error)
-          CALL resize_buffers (iterator, error=error)
-          CALL dbcsr_buffers_set_pointer_2d (block, row, column,&
-               block_row_size, block_col_size,&
-               transposed, blk_p, iterator%buffer_2d, .FALSE., error=error)
-          IF (iterator%read_only) &
-               CALL dbcsr_buffers_mark_dirty (iterator%buffer_2d,&
-               dirty=.FALSE., error=error)
-          transposed = .FALSE.
-       ELSE
-          IF (transposed) CALL swap (rsize, csize)
-          CALL dbcsr_get_data (iterator%data_area, lin_blk_p,&
-               lb=bp, ub=bp+nze-1)
-          CALL pointer_s_rank_remap2 (block, rsize, csize, lin_blk_p)
-       ENDIF
+       IF (transposed) CALL swap (rsize, csize)
+       CALL dbcsr_get_data (iterator%data_area, lin_blk_p,&
+            lb=bp, ub=bp+nze-1)
+       CALL pointer_s_rank_remap2 (block, rsize, csize, lin_blk_p)
        IF (PRESENT (block_number)) block_number = iterator%pos
        ! Move to the next non-deleted position.
        CALL iterator_advance (iterator)

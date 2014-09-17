@@ -117,6 +117,9 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief  Create an object of molsym type
+!> \param sym ...
+!> \param natoms ...
+!> \param error ...
 !> \author jgh
 ! *****************************************************************************
   SUBROUTINE create_molsym(sym,natoms,error)
@@ -144,6 +147,8 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief  release an object of molsym type
+!> \param sym ...
+!> \param error ...
 !> \author jgh
 ! *****************************************************************************
   SUBROUTINE release_molsym(sym,error)
@@ -197,7 +202,11 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Add a new C_n axis to the list sec, but first check, if the
-!         Cn axis is already in the list.
+!>         Cn axis is already in the list.
+!> \param n ...
+!> \param a ...
+!> \param sym ...
+!> \param error ...
 !> \par History
 !>        Creation (19.10.98, Matthias Krack)
 !> \author jgh
@@ -238,6 +247,10 @@ CONTAINS
 ! *****************************************************************************
 !> \brief  Add a new Sn axis to the list ses, but first check, if the
 !>         Sn axis is already in the list.
+!> \param n ...
+!> \param a ...
+!> \param sym ...
+!> \param error ...
 !> \par History
 !>        Creation (19.10.98, Matthias Krack)
 !> \author jgh
@@ -278,6 +291,9 @@ CONTAINS
 ! *****************************************************************************
 !> \brief  Add a new mirror plane to the list sig, but first check, if the
 !>         normal vector of the mirror plane is already in the list.
+!> \param a ...
+!> \param sym ...
+!> \param error ...
 !> \par History
 !>        Creation (19.10.98, Matthias Krack)
 !> \author jgh
@@ -314,6 +330,8 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief  Symmetry handling for only one atom.
+!> \param sym ...
+!> \param error ...
 !> \par History
 !>        Creation (19.10.98, Matthias Krack)
 !> \author jgh
@@ -339,6 +357,9 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Search for point groups with AXial SYMmetry (Cn,Cnh,Cnv,Dn,Dnh,Dnd,S2n).
+!> \param coord ...
+!> \param sym ...
+!> \param error ...
 !> \par History
 !>        Creation (19.10.98, Matthias Krack)
 !> \author jgh
@@ -473,6 +494,9 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Generate a symmetry list to identify equivalent atoms.
+!> \param sym ...
+!> \param coord ...
+!> \param error ...
 !> \par History
 !>        Creation (19.10.98, Matthias Krack)
 !> \author jgh
@@ -583,6 +607,10 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Rotate the molecule about a n-fold axis defined by the vector a
 !>        using a rotation angle of 2*pi/n. Check, if the axis is a Cn axis.
+!> \param n ...
+!> \param a ...
+!> \param sym ...
+!> \param coord ...
 !> \par History
 !>        Creation (19.10.98, Matthias Krack)
 !> \author jgh
@@ -624,6 +652,10 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Check for a point group of cubic symmetry (I,Ih,O,Oh,T,Th,Td).
+!> \param sym ...
+!> \param coord ...
+!> \param failed ...
+!> \param error ...
 !> \par History
 !>        Creation (19.10.98, Matthias Krack)
 !> \author jgh
@@ -830,6 +862,10 @@ CONTAINS
 !> \brief The number of a equivalent atom to atoma is returned. If there
 !>        is no equivalent atom, then zero is returned. The cartesian
 !>        coordinates of the equivalent atom are defined by the vector a.
+!> \param atoma ...
+!> \param a ...
+!> \param sym ...
+!> \param coord ...
 !> \par History
 !>        Creation (19.10.98, Matthias Krack)
 !> \author jgh
@@ -860,6 +896,7 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Calculate the order of the point group.
+!> \param sym ...
 !> \par History
 !>        Creation (19.10.98, Matthias Krack)
 !> \author jgh
@@ -903,6 +940,7 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Get the point group symbol.
+!> \param sym ...
 !> \par History
 !>        Creation (19.10.98, Matthias Krack)
 !> \author jgh
@@ -966,6 +1004,10 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Initialization of the global variables of module symmetry.
+!> \param sym ...
+!> \param atype ...
+!> \param weight ...
+!> \param error ...
 !> \par History
 !>        Creation (19.10.98, Matthias Krack)
 !> \author jgh
@@ -1042,6 +1084,8 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief  Return .TRUE., if the atom atoma is in the list symequ_list.
+!> \param atoma ...
+!> \param sym ...
 !> \par History
 !>        Creation (21.04.95, Matthias Krack)
 !> \author jgh
@@ -1066,6 +1110,9 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Search for point groups of LOW SYMmetry (Ci,Cs).
+!> \param sym ...
+!> \param coord ...
+!> \param error ...
 !> \par History
 !>        Creation (21.04.95, Matthias Krack)
 !> \author jgh
@@ -1104,6 +1151,12 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Main program for symmetry analysis.
+!> \param sym ...
+!> \param eps_geo ...
+!> \param coord ...
+!> \param atype ...
+!> \param weight ...
+!> \param error ...
 !> \par History
 !>        Creation (14.11.98, Matthias Krack)
 !> \author jgh
@@ -1154,6 +1207,9 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Find the molecular symmetry.
+!> \param sym ...
+!> \param coord ...
+!> \param error ...
 !> \par History
 !>        Creation (14.11.98, Matthias Krack)
 !> \author jgh
@@ -1269,6 +1325,9 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief The number of atoms which are placed on an axis defined by the vector a is returned.
+!> \param a ...
+!> \param coord ...
+!> \param sym ...
 !> \par History
 !>        Creation (16.11.98, Matthias Krack)
 !> \author jgh
@@ -1313,7 +1372,9 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Return .FALSE., if the symmetry elements se1 and se2 are a pair of
-!         redundant symmetry elements.
+!>         redundant symmetry elements.
+!> \param se1 ...
+!> \param se2 ...
 !> \par History
 !>        Creation (16.11.98, Matthias Krack)
 !> \author jgh
@@ -1337,7 +1398,10 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief The number of atoms which are placed in a plane defined by the
-!         the normal vector a is returned.
+!>         the normal vector a is returned.
+!> \param a ...
+!> \param sym ...
+!> \param coord ...
 !> \par History
 !>        Creation (16.11.98, Matthias Krack)
 !> \author jgh
@@ -1380,6 +1444,8 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Style the output of the symmetry elements.
+!> \param se ...
+!> \param eps ...
 !> \par History
 !>        Creation (16.11.98, Matthias Krack)
 !> \author jgh
@@ -1405,18 +1471,28 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Print the output of the symmetry analysis.
+!> \param sym ...
+!> \param coord ...
+!> \param atype ...
+!> \param element ...
+!> \param z ...
+!> \param weight ...
+!> \param iw ...
+!> \param plevel ...
+!> \param error ...
 !> \par History
 !>        Creation (16.11.98, Matthias Krack)
 !> \author jgh
 ! *****************************************************************************
-  SUBROUTINE print_symmetry(sym,coord,atype,element,zeff,weight,iw,plevel,error)
+  SUBROUTINE print_symmetry(sym,coord,atype,element,z,weight,iw,plevel,error)
     TYPE(molsym_type), INTENT(inout)         :: sym
     REAL(KIND=dp), DIMENSION(:, :), &
       INTENT(in)                             :: coord
     INTEGER, DIMENSION(:), INTENT(in)        :: atype
     CHARACTER(LEN=*), DIMENSION(:), &
       INTENT(in)                             :: element
-    REAL(KIND=dp), DIMENSION(:), INTENT(in)  :: zeff, weight
+    INTEGER, DIMENSION(:), INTENT(in)        :: z
+    REAL(KIND=dp), DIMENSION(:), INTENT(in)  :: weight
     INTEGER, INTENT(IN)                      :: iw, plevel
     TYPE(cp_error_type), INTENT(inout)       :: error
 
@@ -1442,7 +1518,7 @@ CONTAINS
 
     IF ( MOD(plevel,10) == 1 ) THEN
       ! Print the Cartesian coordinates of the standard orientation
-      CALL write_coordinates(coord,atype,element,zeff,weight,iw,error)
+      CALL write_coordinates(coord,atype,element,z,weight,iw,error)
 
       WRITE (iw,"(/,T3,A,(T41,10I4))") "Group Number:      1   Group Members:",&
         (sym%symequ_list(iequatom),iequatom=sym%llequatom(1),sym%ulequatom(1))
@@ -1516,6 +1592,11 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Rotate the molecule about an axis defined by the vector a. The
 !>        rotation angle is phi (radians).
+!> \param phi ...
+!> \param a ...
+!> \param sym ...
+!> \param coord ...
+!> \param error ...
 !> \par History
 !>        Creation (16.11.98, Matthias Krack)
 !> \author jgh
@@ -1568,6 +1649,10 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Rotate the molecule about a n-fold axis defined by the vector a
 !>        using a rotation angle of 2*pi/n. Check, if the axis is a Cn axis.
+!> \param n ...
+!> \param a ...
+!> \param sym ...
+!> \param coord ...
 !> \par History
 !>        Creation (16.11.98, Matthias Krack)
 !> \author jgh
@@ -1613,6 +1698,9 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Reflect all atoms of the molecule through a mirror plane defined
 !>        by the normal vector a.
+!> \param a ...
+!> \param sym ...
+!> \param coord ...
 !> \par History
 !>        Creation (16.11.98, Matthias Krack)
 !> \author jgh
@@ -1650,6 +1738,9 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Calculate the molecular tensor of inertia and the vector to the
 !>        center of mass of the molecule.
+!> \param sym ...
+!> \param coord ...
+!> \param error ...
 !> \par History
 !>        Creation (16.11.98, Matthias Krack)
 !> \author jgh
@@ -1710,6 +1801,9 @@ CONTAINS
 !>        inertia is connected to the z axis instead of the x axis. In
 !>        addition the local atomic coordinate systems are initialized,
 !>        if the symmetry is turned off.
+!> \param sym ...
+!> \param coord ...
+!> \param idx ...
 !> \par History
 !>        Creation (16.11.98, Matthias Krack)
 !> \author jgh
@@ -1731,6 +1825,9 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Distance between two points
+!> \param a ...
+!> \param b ...
+!> \retval d ...
 !> \author jgh
 ! *****************************************************************************
   FUNCTION dist(a,b) RESULT(d)
@@ -1742,16 +1839,24 @@ CONTAINS
   END FUNCTION
 ! *****************************************************************************
 !> \brief   Write atomic coordinates to output unit iw.
-!> \author  JGH
+!> \param coord ...
+!> \param atype ...
+!> \param element ...
+!> \param z ...
+!> \param weight ...
+!> \param iw ...
+!> \param error ...
 !> \date    08.05.2008
+!> \author  JGH
 ! *****************************************************************************
-  SUBROUTINE write_coordinates(coord,atype,element,zeff,weight,iw,error)
+  SUBROUTINE write_coordinates(coord,atype,element,z,weight,iw,error)
     REAL(KIND=dp), DIMENSION(:, :), &
       INTENT(in)                             :: coord
     INTEGER, DIMENSION(:), INTENT(in)        :: atype
     CHARACTER(LEN=*), DIMENSION(:), &
       INTENT(in)                             :: element
-    REAL(KIND=dp), DIMENSION(:), INTENT(in)  :: zeff, weight
+    INTEGER, DIMENSION(:), INTENT(in)        :: z
+    REAL(KIND=dp), DIMENSION(:), INTENT(in)  :: weight
     INTEGER, INTENT(IN)                      :: iw
     TYPE(cp_error_type), INTENT(inout)       :: error
 
@@ -1762,13 +1867,13 @@ CONTAINS
       WRITE (UNIT=iw,FMT="(/,T2,A)")&
         "Atomic Coordinates [Bohr] in Standard Orientation"
       WRITE (UNIT=iw,&
-           FMT="(/,T3,A,7X,2(A1,11X),A1,8X,A8,5X,A6,/)")&
-        "Atom  Kind  Element","X","Y","Z","  Z(eff)","  Mass"
+           FMT="(/,T3,A,7X,2(A1,11X),A1,6X,A10,4X,A4,/)")&
+        "Atom  Kind  Element","X","Y","Z","Atomic-No.","Mass"
 
       natom = SIZE(coord,2)
       DO iatom=1,natom
-        WRITE (UNIT=iw,FMT="(T2,I5,1X,I4,3X,A2,5X,3F12.6,4X,F6.2,2X,F11.4)")&
-          iatom,atype(iatom),element(iatom),coord(1:3,iatom),zeff(iatom),weight(iatom)
+        WRITE (UNIT=iw,FMT="(T2,I5,1X,I4,3X,A2,5X,3F12.6,4X,I4,2X,F11.4)")&
+          iatom,atype(iatom),element(iatom),coord(1:3,iatom),z(iatom),weight(iatom)
       END DO
 
     END IF

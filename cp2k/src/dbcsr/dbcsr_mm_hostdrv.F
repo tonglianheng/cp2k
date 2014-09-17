@@ -14,18 +14,19 @@
 ! *****************************************************************************
 MODULE dbcsr_mm_hostdrv
   USE dbcsr_config,                    ONLY: mm_driver,&
+                                             mm_driver_acc,&
                                              mm_driver_blas,&
-                                             mm_driver_cuda,&
                                              mm_driver_matmul,&
-                                             mm_driver_plasma,&
                                              mm_driver_smm,&
                                              mm_host_driver
   USE dbcsr_data_methods,              ONLY: dbcsr_data_get_size
-  USE dbcsr_error_handling
-  USE dbcsr_kinds,                     ONLY: dp,&
-                                             real_4,&
-                                             real_8,&
-                                             sp
+  USE dbcsr_error_handling,            ONLY: dbcsr_assert,&
+                                             dbcsr_caller_error,&
+                                             dbcsr_error_set,&
+                                             dbcsr_error_stop,&
+                                             dbcsr_error_type,&
+                                             dbcsr_fatal_level,&
+                                             dbcsr_internal_error
   USE dbcsr_mm_types,                  ONLY: dbcsr_ps_width,&
                                              p_a_first,&
                                              p_b_first,&
@@ -41,6 +42,10 @@ MODULE dbcsr_mm_hostdrv
                                              dbcsr_type_real_4,&
                                              dbcsr_type_real_8,&
                                              dbcsr_work_type
+  USE kinds,                           ONLY: dp,&
+                                             real_4,&
+                                             real_8,&
+                                             sp
 
   !$ USE OMP_LIB
 
@@ -53,8 +58,6 @@ MODULE dbcsr_mm_hostdrv
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'dbcsr_mm_hostdrv'
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: int_print = "(10(1X,I7))"
-
-  INTEGER :: multrec_calls = 0
 
   LOGICAL, PARAMETER, PUBLIC :: show_levels = .FALSE.
   LOGICAL, PARAMETER :: verbose_acc = .FALSE.
@@ -74,7 +77,12 @@ MODULE dbcsr_mm_hostdrv
 CONTAINS
 
 ! *****************************************************************************
-! \brief Initialize the library
+!> \brief Initialize the library
+!> \param this ...
+!> \param left ...
+!> \param right ...
+!> \param product_wm ...
+!> \param error ...
 ! *****************************************************************************
  SUBROUTINE dbcsr_mm_hostdrv_init(this, left, right, product_wm, error)
     TYPE(dbcsr_mm_hostdrv_type), &
@@ -98,8 +106,10 @@ CONTAINS
 
 
 ! *****************************************************************************
-! \brief Signal approaching end of multiplication
-! \author Ole Schuett
+!> \brief Signal approaching end of multiplication
+!> \param this ...
+!> \param error ...
+!> \author Ole Schuett
 ! *****************************************************************************
   SUBROUTINE dbcsr_mm_hostdrv_phaseout(this, error)
     TYPE(dbcsr_mm_hostdrv_type), &
@@ -112,8 +122,10 @@ CONTAINS
 
 
 ! *****************************************************************************
-! \brief Signal that previous stacks should be processed first
-! \author Ole Schuett
+!> \brief Signal that previous stacks should be processed first
+!> \param this ...
+!> \param error ...
+!> \author Ole Schuett
 ! *****************************************************************************
   SUBROUTINE dbcsr_mm_hostdrv_barrier(this, error)
     TYPE(dbcsr_mm_hostdrv_type), &
@@ -126,7 +138,9 @@ CONTAINS
 
 
 ! *****************************************************************************
-! \brief Finalize the library
+!> \brief Finalize the library
+!> \param this ...
+!> \param error ...
 ! *****************************************************************************
   SUBROUTINE dbcsr_mm_hostdrv_finalize(this, error)
     TYPE(dbcsr_mm_hostdrv_type), &
@@ -140,15 +154,14 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Calls the various drivers that process the stack.
 !>
+!> \param this ...
+!> \param[in] left Left-matrix data 
+!> \param[in] right Right-matrix data
 !> \param[in] params           Stack of GEMM parameters
-!> \param[in] n                Number of parameters
-!> \param[in] ab%left   Left-matrix data
-!> \param[in] ab%right  Right-matrix data
-!> \param[in,out] zero_first   Zero product data area starting from this
-!>                             element
-!> \param[in,out] zero_last    Zero product data area up to this element
-!> \param[in] lastblk          Number of blocks in product
-!> \param[in,out] this%data_area  Data for results
+!> \param stack_size ...
+!> \param stack_descr ...
+!> \param success ...
+!> \param error ...
 ! *****************************************************************************
   SUBROUTINE dbcsr_mm_hostdrv_process(this, left, right, params, stack_size, &
        stack_descr, success, error)
@@ -170,7 +183,7 @@ CONTAINS
     INTEGER                                  :: error_handle, sp
     REAL(KIND=dp)                            :: rnd
 
-    IF(mm_driver==mm_driver_cuda) & !for cpu-only runs this is called too often
+    IF(mm_driver==mm_driver_acc) & !for cpu-only runs this is called too often
        CALL dbcsr_error_set (routineN, error_handle, error)
 
     success = .TRUE. !host driver never failes...hopefully
@@ -257,32 +270,6 @@ CONTAINS
           CALL dbcsr_assert (.FALSE., dbcsr_fatal_level, dbcsr_caller_error,&
                routineN, "Invalid data type",__LINE__,error)
        END SELECT
-    CASE (mm_driver_plasma)
-       SELECT CASE (this%data_area%d%data_type)
-       CASE (dbcsr_type_real_4)
-          CALL plasma_process_mm_stack_s (params,&
-               stack_size,&
-               left%data_area%d%r_sp, right%data_area%d%r_sp, this%data_area%d%r_sp,&
-               error=error)
-       CASE (dbcsr_type_real_8)
-          CALL plasma_process_mm_stack_d (params,&
-               stack_size,&
-               left%data_area%d%r_dp, right%data_area%d%r_dp, this%data_area%d%r_dp,&
-               error=error)
-       CASE (dbcsr_type_complex_4)
-          CALL plasma_process_mm_stack_c (params,&
-               stack_size,&
-               left%data_area%d%c_sp, right%data_area%d%c_sp, this%data_area%d%c_sp,&
-               error=error)
-       CASE (dbcsr_type_complex_8)
-          CALL plasma_process_mm_stack_z (params,&
-               stack_size,&
-               left%data_area%d%c_dp, right%data_area%d%c_dp, this%data_area%d%c_dp,&
-               error=error)
-       CASE default
-          CALL dbcsr_assert (.FALSE., dbcsr_fatal_level, dbcsr_caller_error,&
-               routineN, "Invalid data type",__LINE__,error)
-       END SELECT
     CASE (mm_driver_blas)
        SELECT CASE (this%data_area%d%data_type)
        CASE (dbcsr_type_real_4)
@@ -315,7 +302,7 @@ CONTAINS
     END SELECT
 
 
-    IF(mm_driver==mm_driver_cuda) & !for cpu-only runs this is called too often
+    IF(mm_driver==mm_driver_acc) & !for cpu-only runs this is called too often
        CALL dbcsr_error_stop(error_handle, error)
 
 
@@ -324,6 +311,7 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Helper-routine used by dbcsr_mm_hostdrv_process to print debug info.
+!> \param params ...
 ! *****************************************************************************
   SUBROUTINE print_gemm_parameters(params)
     INTEGER, DIMENSION(:, :), INTENT(in)     :: params

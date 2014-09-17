@@ -11,11 +11,11 @@
 ! *****************************************************************************
 MODULE qs_density_mixing_types
 
+  USE ao_util,                         ONLY: exp_radius
   USE input_section_types,             ONLY: section_vals_type,&
                                              section_vals_val_get
   USE kinds,                           ONLY: dp
   USE qs_rho_atom_types,               ONLY: rho_atom_coeff
-  USE qs_util,                         ONLY: exp_radius
 #include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
@@ -64,6 +64,11 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief creates a mixing_storage
+!> \param mixing_store ...
+!> \param mixing_section ...
+!> \param mixing_method ...
+!> \param ecut ...
+!> \param error ...
 !> \par History
 !>      05.2009 created [MI]
 !> \author [MI]
@@ -169,6 +174,8 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief releases a mixing_storage
+!> \param mixing_store ...
+!> \param error ...
 !> \par History
 !>      05.2009 created [MI]
 !> \author [MI]

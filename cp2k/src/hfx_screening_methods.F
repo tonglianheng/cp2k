@@ -10,8 +10,7 @@
 !> \author Manuel Guidon
 ! *****************************************************************************
 MODULE hfx_screening_methods
-  USE atomic_kind_types,               ONLY: atomic_kind_type,&
-                                             get_atomic_kind
+  USE ao_util,                         ONLY: exp_radius_very_extended
   USE basis_set_types,                 ONLY: gto_basis_set_type
   USE f77_blas
   USE hfx_libint_interface,            ONLY: evaluate_eri_screen
@@ -25,13 +24,13 @@ MODULE hfx_screening_methods
   USE kinds,                           ONLY: dp,&
                                              int_8
   USE machine,                         ONLY: default_output_unit
-  USE mathconstants
-  USE orbital_pointers
+  USE orbital_pointers,                ONLY: ncoset
   USE powell,                          ONLY: opt_state_type,&
                                              powell_optimize
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
-  USE qs_interactions,                 ONLY: exp_radius_very_extended
+  USE qs_kind_types,                   ONLY: get_qs_kind,&
+                                             qs_kind_type
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "./common/cp_common_uses.f90"
@@ -39,7 +38,7 @@ MODULE hfx_screening_methods
   IMPLICIT NONE
   PRIVATE
 
-  PUBLIC update_pmax_mat, &
+  PUBLIC :: update_pmax_mat, &
          calc_screening_functions,&
          calc_pair_dist_radii
 
@@ -52,15 +51,22 @@ MODULE hfx_screening_methods
 ! *****************************************************************************
 !> \brief calculates max values of two-electron integrals in a quartet/shell
 !>      w.r.t. different zetas using the library lib_int
-!> \param r position
-!> \param z zeta
-!> \param l angular momentum
-!> \param npgf number of primitive cartesian gaussian in actual shell
+!> \param lib ...
+!> \param ra position
+!> \param rb position
+!> \param zeta zeta
+!> \param zetb zeta
+!> \param la_min angular momentum
+!> \param la_max angular momentum
+!> \param lb_min angular momentum
+!> \param lb_max angular momentum
+!> \param npgfa number of primitive cartesian gaussian in actual shell
+!> \param npgfb number of primitive cartesian gaussian in actual shell
 !> \param max_val schwarz screening value
 !> \param potential_parameter contains info for libint
-!> \param i_thread thread id of the current task
 !> \param tmp_R_1 pgf_based screening coefficients
 !> \param rab2 Squared Distance of centers ab
+!> \param p_work ...
 !> \par History
 !>     03.2007 created [Manuel Guidon]
 !>     02.2009 refactored [Manuel Guidon]
@@ -110,11 +116,22 @@ MODULE hfx_screening_methods
 ! *****************************************************************************
 !> \brief updates the maximum of the density matrix in compressed form for screening purposes
 !> \param pmax_set buffer to store matrix
-!> \note
-!>      - updates for each pair of shells the maximum absolute value of p
+!> \param map_atom_to_kind_atom ...
+!> \param set_offset ...
+!> \param atomic_block_offset ...
+!> \param pmax_atom ...
+!> \param full_density ...
+!> \param full_density_beta ...
+!> \param natom ...
+!> \param kind_of ...
+!> \param basis_parameter ...
+!> \param nkind ...
+!> \param is_assoc_atomic_block ...
 !> \par History
 !>     09.2007 created [Manuel Guidon]
 !> \author Manuel Guidon
+!> \note
+!>      - updates for each pair of shells the maximum absolute value of p
 ! *****************************************************************************
   SUBROUTINE update_pmax_mat(pmax_set, map_atom_to_kind_atom, set_offset, atomic_block_offset, &
                              pmax_atom, full_density, full_density_beta, natom, &
@@ -249,15 +266,22 @@ MODULE hfx_screening_methods
 ! *****************************************************************************
 !> \brief calculates screening functions for schwarz screening
 !> \param qs_env qs_env
+!> \param basis_parameter ...
 !> \param lib structure to libint
 !> \param potential_parameter contains infos on potential
-!> \param i_thread Thread ID of current task
 !> \param coeffs_set set based coefficients
 !> \param coeffs_kind kind based coefficients
 !> \param coeffs_pgf pgf based coefficients
 !> \param radii_pgf coefficients for long-range screening
 !> \param max_set Maximum Number of basis set sets in the system
 !> \param max_pgf Maximum Number of basis set pgfs in the system
+!> \param n_threads ...
+!> \param i_thread Thread ID of current task
+!> \param p_work ...
+!> \param error ...
+!> \par History
+!>     02.2009 created [Manuel Guidon]
+!> \author Manuel Guidon
 !> \note
 !>      This routine calculates (ab|ab) for different distances Rab = |a-b|
 !>      and uses the powell optimiztion routines in order to fit the results
@@ -273,9 +297,6 @@ MODULE hfx_screening_methods
 !>      the corresponding ranges of the prodiuct charge distributions
 !>      Doing so, we only need arrays of size nkinds^2*2 instead of big
 !>      screening matrices
-!> \par History
-!>     02.2009 created [Manuel Guidon]
-!> \author Manuel Guidon
 ! *****************************************************************************
 
   SUBROUTINE calc_screening_functions(qs_env, basis_parameter, lib, potential_parameter, &
@@ -316,12 +337,12 @@ MODULE hfx_screening_methods
     REAL(dp), DIMENSION(:, :), POINTER       :: rpgfa, rpgfb, sphi_a, sphi_b, &
                                                 zeta, zetb
     REAL(dp), SAVE                           :: DATA(2,0:100)
-    TYPE(atomic_kind_type), DIMENSION(:), &
-      POINTER                                :: atomic_kind_set
-    TYPE(atomic_kind_type), POINTER          :: atom_kind
     TYPE(gto_basis_set_type), POINTER        :: orb_basis
     TYPE(hfx_screen_coeff_type), &
       DIMENSION(:, :), POINTER               :: tmp_R_1
+    TYPE(qs_kind_type), DIMENSION(:), &
+      POINTER                                :: qs_kind_set
+    TYPE(qs_kind_type), POINTER              :: qs_kind
 
     failure = .FALSE.
 
@@ -330,10 +351,10 @@ MODULE hfx_screening_methods
 !$OMP END MASTER
 
     CALL get_qs_env(qs_env=qs_env,&
-                    atomic_kind_set=atomic_kind_set,&
+                    qs_kind_set=qs_kind_set,&
                     error=error)
 
-    nkind = SIZE(atomic_kind_set,1)
+    nkind = SIZE(qs_kind_set,1)
 
 !$OMP MASTER
     ALLOCATE(coeffs_pgf(max_pgf,max_pgf,max_set,max_set,nkind,nkind),STAT=stat)
@@ -358,9 +379,9 @@ MODULE hfx_screening_methods
     ra = 0.0_dp
     rb = 0.0_dp
     DO ikind=1,nkind
-      NULLIFY(atom_kind,orb_basis)
-      atom_kind => atomic_kind_set(ikind)
-      CALL get_atomic_kind(atomic_kind=atom_kind,orb_basis_set=orb_basis)
+      NULLIFY(qs_kind,orb_basis)
+      qs_kind => qs_kind_set(ikind)
+      CALL get_qs_kind(qs_kind=qs_kind,orb_basis_set=orb_basis)
       NULLIFY(la_max,la_min,npgfa,zeta)
 
       la_max => basis_parameter(ikind)%lmax
@@ -375,9 +396,9 @@ MODULE hfx_screening_methods
       rpgfa => basis_parameter(ikind)%pgf_radius
 
       DO jkind = 1,nkind
-        NULLIFY(atom_kind,orb_basis)
-        atom_kind => atomic_kind_set(jkind)
-        CALL get_atomic_kind(atomic_kind=atom_kind,orb_basis_set=orb_basis)
+        NULLIFY(qs_kind,orb_basis)
+        qs_kind => qs_kind_set(jkind)
+        CALL get_qs_kind(qs_kind=qs_kind,orb_basis_set=orb_basis)
         NULLIFY(lb_max,lb_min,npgfb,zetb)
 
         lb_max => basis_parameter(jkind)%lmax
@@ -460,9 +481,9 @@ MODULE hfx_screening_methods
     ra = 0.0_dp
     rb = 0.0_dp
     DO ikind=1,nkind
-      NULLIFY(atom_kind,orb_basis)
-      atom_kind => atomic_kind_set(ikind)
-      CALL get_atomic_kind(atomic_kind=atom_kind,orb_basis_set=orb_basis)
+      NULLIFY(qs_kind,orb_basis)
+      qs_kind => qs_kind_set(ikind)
+      CALL get_qs_kind(qs_kind=qs_kind,orb_basis_set=orb_basis)
       NULLIFY(la_max,la_min,npgfa,zeta)
 !      CALL get_gto_basis_set(gto_basis_set=orb_basis,&
 !                             lmax=la_max,&
@@ -485,9 +506,9 @@ MODULE hfx_screening_methods
       nsgfa => basis_parameter(ikind)%nsgf
 
       DO jkind = 1,nkind
-        NULLIFY(atom_kind,orb_basis)
-        atom_kind => atomic_kind_set(jkind)
-        CALL get_atomic_kind(atomic_kind=atom_kind,orb_basis_set=orb_basis)
+        NULLIFY(qs_kind,orb_basis)
+        qs_kind => qs_kind_set(jkind)
+        CALL get_qs_kind(qs_kind=qs_kind,orb_basis_set=orb_basis)
         NULLIFY(lb_max,lb_min,npgfb,zetb)
 
         lb_max => basis_parameter(jkind)%lmax
@@ -553,9 +574,9 @@ MODULE hfx_screening_methods
     ra = 0.0_dp
     rb = 0.0_dp
     DO ikind=1,nkind
-      NULLIFY(atom_kind,orb_basis)
-      atom_kind => atomic_kind_set(ikind)
-      CALL get_atomic_kind(atomic_kind=atom_kind,orb_basis_set=orb_basis)
+      NULLIFY(qs_kind,orb_basis)
+      qs_kind => qs_kind_set(ikind)
+      CALL get_qs_kind(qs_kind=qs_kind,orb_basis_set=orb_basis)
       NULLIFY(la_max,la_min,npgfa,zeta)
 
       la_max => basis_parameter(ikind)%lmax
@@ -569,9 +590,9 @@ MODULE hfx_screening_methods
       nsgfa => basis_parameter(ikind)%nsgf
 
       DO jkind = 1,nkind
-        NULLIFY(atom_kind,orb_basis)
-        atom_kind => atomic_kind_set(jkind)
-        CALL get_atomic_kind(atomic_kind=atom_kind,orb_basis_set=orb_basis)
+        NULLIFY(qs_kind,orb_basis)
+        qs_kind => qs_kind_set(jkind)
+        CALL get_qs_kind(qs_kind=qs_kind,orb_basis_set=orb_basis)
         NULLIFY(lb_max,lb_min,npgfb,zetb)
 
         lb_max => basis_parameter(jkind)%lmax
@@ -632,12 +653,17 @@ MODULE hfx_screening_methods
 ! *****************************************************************************
 !> \brief calculates radius functions for longrange screening
 !> \param qs_env qs_env
-!> \param lib structure to libint
-!> \param potential_parameter contains infos on potential
-!> \param i_thread Thread ID of current task
+!> \param basis_parameter ...
 !> \param radii_pgf pgf based coefficients
 !> \param max_set Maximum Number of basis set sets in the system
 !> \param max_pgf Maximum Number of basis set pgfs in the system
+!> \param eps_schwarz ...
+!> \param n_threads ...
+!> \param i_thread Thread ID of current task
+!> \param error ...
+!> \par History
+!>     02.2009 created [Manuel Guidon]
+!> \author Manuel Guidon
 !> \note
 !>      This routine calculates the pair-distribution radius of a product
 !>      Gaussian and uses the powell optimiztion routines in order to fit
@@ -645,9 +671,6 @@ MODULE hfx_screening_methods
 !>
 !>                 (ab| = (ab(Rab) = c2*Rab^2 + c0
 !>
-!> \par History
-!>     02.2009 created [Manuel Guidon]
-!> \author Manuel Guidon
 ! *****************************************************************************
 
   SUBROUTINE calc_pair_dist_radii(qs_env, basis_parameter, &
@@ -681,10 +704,10 @@ MODULE hfx_screening_methods
     REAL(dp), DIMENSION(:, :), POINTER       :: rpgfa, rpgfb, sphi_a, sphi_b, &
                                                 zeta, zetb
     REAL(dp), SAVE                           :: DATA(2,0:100)
-    TYPE(atomic_kind_type), DIMENSION(:), &
-      POINTER                                :: atomic_kind_set
-    TYPE(atomic_kind_type), POINTER          :: atom_kind
     TYPE(gto_basis_set_type), POINTER        :: orb_basis
+    TYPE(qs_kind_type), DIMENSION(:), &
+      POINTER                                :: qs_kind_set
+    TYPE(qs_kind_type), POINTER              :: qs_kind
 
     failure = .FALSE.
 
@@ -693,10 +716,10 @@ MODULE hfx_screening_methods
     CALL timeset(routineN,handle)
 !$OMP END MASTER
     CALL get_qs_env(qs_env=qs_env,&
-                    atomic_kind_set=atomic_kind_set,&
+                    qs_kind_set=qs_kind_set,&
                     error=error)
 
-    nkind = SIZE(atomic_kind_set,1)
+    nkind = SIZE(qs_kind_set,1)
     ra = 0.0_dp
     rb = 0.0_dp
 !$OMP MASTER
@@ -721,9 +744,9 @@ MODULE hfx_screening_methods
 !$OMP BARRIER
 
     DO ikind=1,nkind
-      NULLIFY(atom_kind,orb_basis)
-      atom_kind => atomic_kind_set(ikind)
-      CALL get_atomic_kind(atomic_kind=atom_kind,orb_basis_set=orb_basis)
+      NULLIFY(qs_kind,orb_basis)
+      qs_kind => qs_kind_set(ikind)
+      CALL get_qs_kind(qs_kind=qs_kind,orb_basis_set=orb_basis)
       NULLIFY(la_max,la_min,npgfa,zeta)
 
       la_max => basis_parameter(ikind)%lmax
@@ -738,9 +761,9 @@ MODULE hfx_screening_methods
 
 
       DO jkind = 1,nkind
-        NULLIFY(atom_kind,orb_basis)
-        atom_kind => atomic_kind_set(jkind)
-        CALL get_atomic_kind(atomic_kind=atom_kind,orb_basis_set=orb_basis)
+        NULLIFY(qs_kind,orb_basis)
+        qs_kind => qs_kind_set(jkind)
+        CALL get_qs_kind(qs_kind=qs_kind,orb_basis_set=orb_basis)
         NULLIFY(lb_max,lb_min,npgfb,zetb)
 
         lb_max => basis_parameter(jkind)%lmax
@@ -814,6 +837,12 @@ END SUBROUTINE calc_pair_dist_radii
 ! it constructs an approximate upper bound of the fitted function
 !
 !
+! *****************************************************************************
+!> \brief ...
+!> \param DATA ...
+!> \param x ...
+!> \param fmin ...
+! *****************************************************************************
   SUBROUTINE optimize_it(DATA,x,fmin)
 
     REAL(KIND=dp), INTENT(IN)                :: DATA(2,0:100)
@@ -881,7 +910,8 @@ END SUBROUTINE calc_pair_dist_radii
 !>        a symmetric upper triangle NxN matrix
 !>        The compiler should inline this function, therefore it appears in
 !>        several modules
-!> \param i,j 2d index
+!> \param i 2d index
+!> \param j 2d index
 !> \param N matrix size
 !> \par History
 !>      03.2009 created [Manuel Guidon]

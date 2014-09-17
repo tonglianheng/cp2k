@@ -14,7 +14,13 @@ MODULE input_cp2k_mp2
                                              DelBen2013
   USE cp_output_handling,              ONLY: cp_print_key_section_create
   USE f77_blas
-  USE input_constants
+  USE input_constants,                 ONLY: &
+       add_last_numeric, debug_print_level, do_hfx_potential_coulomb, &
+       do_mp2_potential_tshpsc, gaussian, high_print_level, low_print_level, &
+       medium_print_level, mp2_method_direct, mp2_method_gpw, &
+       mp2_method_none, mp2_ri_optimize_basis, numerical, ri_mp2_laplace, &
+       ri_mp2_method_gpw, ri_rpa_method_gpw, silent_print_level, &
+       wfc_mm_style_gemm, wfc_mm_style_syrk
   USE input_cp2k_hfx,                  ONLY: create_hfx_section
   USE input_keyword_types,             ONLY: keyword_create,&
                                              keyword_release,&
@@ -24,7 +30,8 @@ MODULE input_cp2k_mp2
                                              section_create,&
                                              section_release,&
                                              section_type
-  USE input_val_types,                 ONLY: real_t
+  USE input_val_types,                 ONLY: integer_t,&
+                                             real_t
   USE kinds,                           ONLY: dp
   USE string_utilities,                ONLY: s2a
 #include "./common/cp_common_uses.f90"
@@ -213,6 +220,11 @@ CONTAINS
 
   END SUBROUTINE create_mp2_section
 
+! *****************************************************************************
+!> \brief ...
+!> \param section ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE create_mp2_direct(section,error)
     TYPE(section_type), POINTER              :: section
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -249,6 +261,11 @@ CONTAINS
 
   END SUBROUTINE create_mp2_direct
 
+! *****************************************************************************
+!> \brief ...
+!> \param section ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE create_ri_mp2(section,error)
     TYPE(section_type), POINTER              :: section
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -308,6 +325,11 @@ CONTAINS
 
   END SUBROUTINE create_ri_mp2
 
+! *****************************************************************************
+!> \brief ...
+!> \param section ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE create_opt_ri_basis(section,error)
     TYPE(section_type), POINTER              :: section
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -326,7 +348,7 @@ CONTAINS
             description="Parameters influencing the optimization of the RI MP2 basis. "//&
                         "Only exponents of non-contracted auxiliary basis can be optimized. "//&
                         "An initial RI auxiliary basis has to be specified.",&
-            n_keywords=4, n_subsections=0, repeats=.FALSE., required=.FALSE.,&
+            n_keywords=6, n_subsections=0, repeats=.FALSE., required=.FALSE.,&
             citations=(/DelBen2013/),&
             error=error)
 
@@ -359,7 +381,7 @@ CONTAINS
                         "The change in the exponent a_i employed for the numerical evaluation "//&
                         "is defined as h_i=EPS_DERIV*a_i.",&
             usage="EPS_DERIV  1.0E-3_dp",&
-            default_r_val=1.0E-2_dp,&
+            default_r_val=1.0E-3_dp,&
             error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
@@ -373,10 +395,35 @@ CONTAINS
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
+       CALL keyword_create(keyword, name="NUM_FUNC",&
+            description="Specifies the number of function, for each angular momentum (s, p, d ...), "//&
+                        "employed in the automatically generated initial guess. "//&
+                        "This will be effective only if RI_AUX_BASIS_SET in the KIND section is not specified.",&
+            usage="NUM_FUNC {number of s func.} {number of p func.} ...", &
+            n_var=-1, default_i_vals=(/-1/), type_of_var=integer_t, error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword=keyword,name="BASIS_SIZE",&
+            description="Specifies the size of the auxiliary basis set automatically "//&
+                        "generated as initial guess. This will be effective only if RI_AUX_BASIS_SET "//&
+                        "in the KIND section and NUM_FUNC are not specified.",&
+            usage="BASIS_SIZE  MEDIUM",&
+            enum_c_vals=s2a("MEDIUM","LARGE","VERY_LARGE"),&
+            enum_i_vals=(/0,1,2/),&
+            default_i_val=0, error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
     END IF
 
   END SUBROUTINE create_opt_ri_basis
 
+! *****************************************************************************
+!> \brief ...
+!> \param section ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE create_ri_laplace(section,error)
     TYPE(section_type), POINTER              :: section
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -424,6 +471,11 @@ CONTAINS
 
   END SUBROUTINE create_ri_laplace
 
+! *****************************************************************************
+!> \brief ...
+!> \param section ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE create_ri_rpa(section,error)
     TYPE(section_type), POINTER              :: section
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -468,6 +520,31 @@ CONTAINS
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
+       CALL keyword_create(keyword,&
+            name="MM_STYLE",&
+            description="Matrix multiplication style for the Q matrix.",&
+            usage="MM_STYLE GEMM",&
+            enum_c_vals=s2a("GEMM","SYRK"),&
+            enum_i_vals=(/wfc_mm_style_gemm,wfc_mm_style_syrk/),&
+            enum_desc=s2a("Use pdgemm: more flops, maybe faster.",&
+                          "Use pdysrk: fewer flops, maybe slower."),&
+            default_i_val=wfc_mm_style_gemm, error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(&
+            keyword=keyword,&
+            name="MINIMAX_QUADRATURE",&
+            variants=(/"MINIMAX"/),&
+            description="Use the Minimax quadrature scheme for performing the numerical integration. "//&
+                        "Maximum number of quadrature point limited to 20.",&
+            usage="MINIMAX_QUADRATURE",&
+            default_l_val=.FALSE.,&
+            lone_keyword_l_val=.TRUE.,&
+            error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
        ! here we generate a hfx subsection to use in the case EXX has to be computed after RPA
        CALL create_hfx_section(subsection,error)
        CALL section_add_subsection(section,subsection,error=error)
@@ -477,6 +554,11 @@ CONTAINS
 
   END SUBROUTINE create_ri_rpa
 
+! *****************************************************************************
+!> \brief ...
+!> \param section ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE create_wfc_gpw(section,error)
     TYPE(section_type), POINTER              :: section
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -544,6 +626,11 @@ CONTAINS
 
   END SUBROUTINE create_wfc_gpw
 
+! *****************************************************************************
+!> \brief ...
+!> \param section ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE create_cphf(section,error)
     TYPE(section_type), POINTER              :: section
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -588,6 +675,11 @@ CONTAINS
 
   END SUBROUTINE create_cphf
 
+! *****************************************************************************
+!> \brief ...
+!> \param section ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE create_mp2_potential(section,error)
     TYPE(section_type), POINTER              :: section
     TYPE(cp_error_type), INTENT(inout)       :: error

@@ -16,12 +16,11 @@ MODULE qs_moments
                                              cossin,&
                                              moment
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
-                                             get_atomic_kind,&
-                                             get_atomic_kind_set
+                                             get_atomic_kind
   USE basis_set_types,                 ONLY: gto_basis_set_p_type,&
                                              gto_basis_set_type
   USE block_p_types,                   ONLY: block_p_type
-  USE cell_types,                      ONLY: cell_type,&
+  USE cell_methods,                    ONLY: cell_type,&
                                              pbc
   USE cp_cfm_basic_linalg,             ONLY: cp_cfm_lu_decompose
   USE cp_cfm_types,                    ONLY: cp_cfm_create,&
@@ -29,18 +28,12 @@ MODULE qs_moments
                                              cp_cfm_p_type,&
                                              cp_cfm_release
   USE cp_control_types,                ONLY: dft_control_type
-  USE cp_dbcsr_interface,              ONLY: cp_dbcsr_copy,&
-                                             cp_dbcsr_get_block_p,&
-                                             cp_dbcsr_init,&
-                                             cp_dbcsr_set,&
-                                             cp_dbcsr_trace
-  USE cp_dbcsr_operations,             ONLY: cp_dbcsr_allocate_matrix_set,&
-                                             cp_dbcsr_deallocate_matrix,&
-                                             cp_dbcsr_deallocate_matrix_set,&
-                                             cp_dbcsr_sm_fm_multiply
-  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_p_type,&
-                                             cp_dbcsr_type
-  USE cp_fm_basic_linalg,              ONLY: cp_fm_gemm
+  USE cp_dbcsr_interface,              ONLY: &
+       cp_dbcsr_allocate_matrix_set, cp_dbcsr_copy, &
+       cp_dbcsr_deallocate_matrix, cp_dbcsr_deallocate_matrix_set, &
+       cp_dbcsr_get_block_p, cp_dbcsr_init, cp_dbcsr_p_type, cp_dbcsr_set, &
+       cp_dbcsr_trace, cp_dbcsr_type
+  USE cp_dbcsr_operations,             ONLY: cp_dbcsr_sm_fm_multiply
   USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                              cp_fm_struct_double,&
                                              cp_fm_struct_release,&
@@ -51,6 +44,7 @@ MODULE qs_moments
                                              cp_fm_release,&
                                              cp_fm_set_all,&
                                              cp_fm_type
+  USE cp_gemm_interface,               ONLY: cp_gemm
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_result_methods,               ONLY: cp_results_erase,&
                                              put_results
@@ -68,6 +62,9 @@ MODULE qs_moments
                                              debye
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
+  USE qs_kind_types,                   ONLY: get_qs_kind,&
+                                             get_qs_kind_set,&
+                                             qs_kind_type
   USE qs_mo_types,                     ONLY: get_mo_set,&
                                              mo_set_p_type
   USE qs_neighbor_list_types,          ONLY: get_iterator_info,&
@@ -91,11 +88,19 @@ MODULE qs_moments
 
 ! *** Public subroutines ***
 
-  PUBLIC :: build_berry_moment_matrix, build_local_moment_matrix
+  PUBLIC :: build_berry_moment_matrix
   PUBLIC :: qs_moment_berry_phase, qs_moment_locop
 
 CONTAINS
 
+! *****************************************************************************
+!> \brief ...
+!> \param qs_env ...
+!> \param moments ...
+!> \param nmoments ...
+!> \param ref_point ...
+!> \param ref_points ...
+!> \param error ...
 ! *****************************************************************************
   SUBROUTINE build_local_moment_matrix(qs_env,moments,nmoments,ref_point,ref_points,error)
 
@@ -128,9 +133,6 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:), POINTER     :: set_radius_a, set_radius_b
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: rpgfa, rpgfb, sphi_a, sphi_b, &
                                                 zeta, zetb
-    TYPE(atomic_kind_type), DIMENSION(:), &
-      POINTER                                :: atomic_kind_set
-    TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(block_p_type), ALLOCATABLE, &
       DIMENSION(:)                           :: mint
     TYPE(cell_type), POINTER                 :: cell
@@ -145,6 +147,9 @@ CONTAINS
       DIMENSION(:), POINTER                  :: sab_orb
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
+    TYPE(qs_kind_type), DIMENSION(:), &
+      POINTER                                :: qs_kind_set
+    TYPE(qs_kind_type), POINTER              :: qs_kind
 
     IF ( nmoments < 1 ) RETURN
 
@@ -152,7 +157,7 @@ CONTAINS
 
     failure = .FALSE.
 
-    NULLIFY (atomic_kind_set,cell,particle_set,sab_orb)
+    NULLIFY (qs_kind_set,cell,particle_set,sab_orb)
     NULLIFY (matrix_s)
 
     CALL get_qs_env(qs_env=qs_env, matrix_s=matrix_s,error=error)
@@ -167,18 +172,18 @@ CONTAINS
        CALL cp_dbcsr_set(moments(i)%matrix,0.0_dp,error=error)
     END DO
 
-    NULLIFY (atomic_kind_set,particle_set,sab_orb,cell)
+    NULLIFY (qs_kind_set,particle_set,sab_orb,cell)
     CALL get_qs_env(qs_env=qs_env,&
-                    atomic_kind_set=atomic_kind_set,&
+                    qs_kind_set=qs_kind_set,&
                     particle_set=particle_set,cell=cell,&
                     sab_orb=sab_orb,error=error)
 
-    nkind = SIZE(atomic_kind_set)
+    nkind = SIZE(qs_kind_set)
     natom = SIZE(particle_set)
 
 !   *** Allocate work storage ***
 
-    CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
+    CALL get_qs_kind_set(qs_kind_set=qs_kind_set,&
                              maxco=maxco,&
                              maxsgf=maxsgf)
 
@@ -199,8 +204,8 @@ CONTAINS
     ALLOCATE (basis_set_list(nkind),STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
     DO ikind=1,nkind
-      atomic_kind => atomic_kind_set(ikind)
-      CALL get_atomic_kind(atomic_kind=atomic_kind,orb_basis_set=basis_set_a)
+      qs_kind => qs_kind_set(ikind)
+      CALL get_qs_kind(qs_kind=qs_kind,orb_basis_set=basis_set_a)
       IF (ASSOCIATED(basis_set_a)) THEN
         basis_set_list(ikind)%gto_basis_set => basis_set_a
       ELSE
@@ -352,6 +357,14 @@ CONTAINS
   END SUBROUTINE build_local_moment_matrix
 
 ! *****************************************************************************
+!> \brief ...
+!> \param qs_env ...
+!> \param magmom ...
+!> \param nmoments ...
+!> \param ref_point ...
+!> \param ref_points ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE build_local_magmom_matrix(qs_env,magmom,nmoments,ref_point,ref_points,error)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
@@ -383,9 +396,6 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:), POINTER     :: set_radius_a, set_radius_b
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: rpgfa, rpgfb, sphi_a, sphi_b, &
                                                 zeta, zetb
-    TYPE(atomic_kind_type), DIMENSION(:), &
-      POINTER                                :: atomic_kind_set
-    TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(block_p_type), ALLOCATABLE, &
       DIMENSION(:)                           :: mint
     TYPE(cell_type), POINTER                 :: cell
@@ -400,6 +410,9 @@ CONTAINS
       DIMENSION(:), POINTER                  :: sab_orb
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
+    TYPE(qs_kind_type), DIMENSION(:), &
+      POINTER                                :: qs_kind_set
+    TYPE(qs_kind_type), POINTER              :: qs_kind
 
     IF ( nmoments < 1 ) RETURN
 
@@ -407,7 +420,7 @@ CONTAINS
 
     failure = .FALSE.
 
-    NULLIFY (atomic_kind_set,cell,particle_set,sab_orb)
+    NULLIFY (qs_kind_set,cell,particle_set,sab_orb)
     NULLIFY (matrix_s)
 
     CALL get_qs_env(qs_env=qs_env, matrix_s=matrix_s,error=error)
@@ -423,18 +436,18 @@ CONTAINS
        CALL cp_dbcsr_set(magmom(i)%matrix,0.0_dp,error=error)
     END DO
 
-    NULLIFY (atomic_kind_set,particle_set,sab_orb,cell)
+    NULLIFY (qs_kind_set,particle_set,sab_orb,cell)
     CALL get_qs_env(qs_env=qs_env,&
-                    atomic_kind_set=atomic_kind_set,&
+                    qs_kind_set=qs_kind_set,&
                     particle_set=particle_set,cell=cell,&
                     sab_orb=sab_orb,error=error)
 
-    nkind = SIZE(atomic_kind_set)
+    nkind = SIZE(qs_kind_set)
     natom = SIZE(particle_set)
 
 !   *** Allocate work storage ***
 
-    CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
+    CALL get_qs_kind_set(qs_kind_set=qs_kind_set,&
                              maxco=maxco,&
                              maxsgf=maxsgf)
 
@@ -455,8 +468,8 @@ CONTAINS
     ALLOCATE (basis_set_list(nkind),STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
     DO ikind=1,nkind
-      atomic_kind => atomic_kind_set(ikind)
-      CALL get_atomic_kind(atomic_kind=atomic_kind,orb_basis_set=basis_set_a)
+      qs_kind => qs_kind_set(ikind)
+      CALL get_qs_kind(qs_kind=qs_kind,orb_basis_set=basis_set_a)
       IF (ASSOCIATED(basis_set_a)) THEN
         basis_set_list(ikind)%gto_basis_set => basis_set_a
       ELSE
@@ -608,6 +621,13 @@ CONTAINS
   END SUBROUTINE build_local_magmom_matrix
 
 ! *****************************************************************************
+!> \brief ...
+!> \param qs_env ...
+!> \param cosmat ...
+!> \param sinmat ...
+!> \param kvec ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE build_berry_moment_matrix(qs_env,cosmat,sinmat,kvec,error)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
@@ -633,35 +653,34 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:), POINTER     :: set_radius_a, set_radius_b
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: rpgfa, rpgfb, sphi_a, sphi_b, &
                                                 zeta, zetb
-    TYPE(atomic_kind_type), DIMENSION(:), &
-      POINTER                                :: atomic_kind_set
-    TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(cell_type), POINTER                 :: cell
     TYPE(gto_basis_set_p_type), &
       DIMENSION(:), POINTER                  :: basis_set_list
-    TYPE(gto_basis_set_type), POINTER        :: basis_set_a, basis_set_b, &
-                                                orb_basis_set
+    TYPE(gto_basis_set_type), POINTER        :: basis_set_a, basis_set_b
     TYPE(neighbor_list_iterator_p_type), &
       DIMENSION(:), POINTER                  :: nl_iterator
     TYPE(neighbor_list_set_p_type), &
       DIMENSION(:), POINTER                  :: sab_orb
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
+    TYPE(qs_kind_type), DIMENSION(:), &
+      POINTER                                :: qs_kind_set
+    TYPE(qs_kind_type), POINTER              :: qs_kind
 
     CALL timeset(routineN,handle)
 
     failure = .FALSE.
 
-    NULLIFY (atomic_kind_set,particle_set,sab_orb,cell)
+    NULLIFY (qs_kind_set,particle_set,sab_orb,cell)
     CALL get_qs_env(qs_env=qs_env,&
-                    atomic_kind_set=atomic_kind_set,&
+                    qs_kind_set=qs_kind_set,&
                     particle_set=particle_set,cell=cell,&
                     sab_orb=sab_orb,error=error)
 
     CALL cp_dbcsr_set(sinmat,0.0_dp,error=error)
     CALL cp_dbcsr_set(cosmat,0.0_dp,error=error)
 
-    CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set, maxco=ldwork )
+    CALL get_qs_kind_set(qs_kind_set=qs_kind_set, maxco=ldwork )
     ldab = ldwork
     ALLOCATE(cosab(ldab,ldab),STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
@@ -670,14 +689,14 @@ CONTAINS
     ALLOCATE(work(ldwork,ldwork),STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
 
-    nkind = SIZE(atomic_kind_set)
+    nkind = SIZE(qs_kind_set)
     natom = SIZE(particle_set)
 
     ALLOCATE (basis_set_list(nkind),STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
     DO ikind=1,nkind
-      atomic_kind => atomic_kind_set(ikind)
-      CALL get_atomic_kind(atomic_kind=atomic_kind,orb_basis_set=basis_set_a)
+      qs_kind => qs_kind_set(ikind)
+      CALL get_qs_kind(qs_kind=qs_kind,orb_basis_set=basis_set_a)
       IF (ASSOCIATED(basis_set_a)) THEN
         basis_set_list(ikind)%gto_basis_set => basis_set_a
       ELSE
@@ -786,6 +805,15 @@ CONTAINS
   END SUBROUTINE build_berry_moment_matrix
 
 ! *****************************************************************************
+!> \brief ...
+!> \param qs_env ...
+!> \param magnetic ...
+!> \param nmoments ...
+!> \param reference ...
+!> \param ref_point ...
+!> \param unit_number ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE qs_moment_berry_phase (qs_env,magnetic,nmoments,reference,ref_point,unit_number,error)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
@@ -804,10 +832,10 @@ CONTAINS
     COMPLEX(dp)                              :: xphase(3), zdet, zdeta, &
                                                 zi(3), zij(3,3), zijk(3,3,3), &
                                                 zijkl(3,3,3,3), zphase(3), zz
-    INTEGER                                  :: handle, i, ia, idim, ispin, &
-                                                istat, ix, iy, iz, j, k, l, &
-                                                nao, nm, nmo, nmom, nmotot, &
-                                                tmp_dim
+    INTEGER                                  :: handle, i, ia, idim, ikind, &
+                                                ispin, istat, ix, iy, iz, j, &
+                                                k, l, nao, nm, nmo, nmom, &
+                                                nmotot, tmp_dim
     LOGICAL                                  :: failure, ghost, uniform
     REAL(dp)                                 :: charge, ci(3), cij(3,3), dd, &
                                                 occ, trace
@@ -834,6 +862,8 @@ CONTAINS
       POINTER                                :: mos
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
+    TYPE(qs_kind_type), DIMENSION(:), &
+      POINTER                                :: qs_kind_set
     TYPE(qs_rho_type), POINTER               :: rho
     TYPE(rt_prop_type), POINTER              :: rtp
 
@@ -872,7 +902,7 @@ CONTAINS
        para_env => qs_env%para_env
        NULLIFY ( dft_control, rho, cell, particle_set )
        CALL get_qs_env ( qs_env, dft_control=dft_control, rho=rho, cell=cell,&
-                         particle_set=particle_set, error=error)
+                         particle_set=particle_set, qs_kind_set=qs_kind_set, error=error)
        NULLIFY ( local_particles )
        CALL get_qs_env ( qs_env, local_particles=local_particles, error=error)
        NULLIFY ( matrix_s, mos )
@@ -936,7 +966,8 @@ CONTAINS
        ! nuclear contribution
        DO ia = 1,SIZE(particle_set)
          atomic_kind => particle_set(ia)%atomic_kind
-         CALL get_atomic_kind(atomic_kind=atomic_kind,core_charge=charge,ghost=ghost)
+         CALL get_atomic_kind(atomic_kind, kind_number=ikind)
+         CALL get_qs_kind(qs_kind_set(ikind), core_charge=charge, ghost=ghost)
          IF (.NOT. ghost) THEN
             rmom(1,2) = rmom(1,2) - charge
          ENDIF
@@ -956,7 +987,8 @@ CONTAINS
              zi(:) = CMPLX ( 1._dp, 0._dp, dp )
              DO ia = 1,SIZE(particle_set)
                atomic_kind => particle_set(ia)%atomic_kind
-               CALL get_atomic_kind(atomic_kind=atomic_kind,core_charge=charge,ghost=ghost)
+               CALL get_atomic_kind(atomic_kind, kind_number=ikind)
+               CALL get_qs_kind(qs_kind_set(ikind), core_charge=charge, ghost=ghost)
                IF (.NOT. ghost) THEN
                   ria = particle_set(ia)%r
                   ria = pbc(ria,cell)
@@ -979,7 +1011,8 @@ CONTAINS
              zij(:,:) = CMPLX ( 1._dp, 0._dp, dp )
              DO ia = 1,SIZE(particle_set)
                atomic_kind => particle_set(ia)%atomic_kind
-               CALL get_atomic_kind(atomic_kind=atomic_kind,core_charge=charge)
+               CALL get_atomic_kind(atomic_kind, kind_number=ikind)
+               CALL get_qs_kind(qs_kind_set(ikind), core_charge=charge)
                ria = particle_set(ia)%r
                ria = pbc(ria,cell)
                DO i = 1, 3
@@ -1220,6 +1253,14 @@ CONTAINS
   END SUBROUTINE qs_moment_berry_phase
 
 ! *****************************************************************************
+!> \brief ...
+!> \param cosmat ...
+!> \param sinmat ...
+!> \param mos ...
+!> \param op_fm_set ...
+!> \param opvec ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE op_orbbas (cosmat,sinmat,mos,op_fm_set,opvec,error)
 
     TYPE(cp_dbcsr_type), POINTER             :: cosmat, sinmat
@@ -1237,15 +1278,24 @@ CONTAINS
     DO i=1,SIZE ( op_fm_set, 2 )   ! spin
        CALL get_mo_set(mo_set=mos(i)%mo_set,nao=nao,mo_coeff=mo_coeff,nmo=nmo)
        CALL cp_dbcsr_sm_fm_multiply(cosmat, mo_coeff, opvec(i)%matrix, ncol=nmo, error=error)
-       CALL cp_fm_gemm("T","N",nmo,nmo,nao,1.0_dp,mo_coeff,opvec(i)%matrix,0.0_dp,&
+       CALL cp_gemm("T","N",nmo,nmo,nao,1.0_dp,mo_coeff,opvec(i)%matrix,0.0_dp,&
             op_fm_set(1,i)%matrix,error=error)
        CALL cp_dbcsr_sm_fm_multiply(sinmat, mo_coeff, opvec(i)%matrix, ncol=nmo, error=error)
-       CALL cp_fm_gemm("T","N",nmo,nmo,nao,1.0_dp,mo_coeff,opvec(i)%matrix,0.0_dp,&
+       CALL cp_gemm("T","N",nmo,nmo,nao,1.0_dp,mo_coeff,opvec(i)%matrix,0.0_dp,&
             op_fm_set(2,i)%matrix,error=error)
     ENDDO
 
   END SUBROUTINE op_orbbas
 
+! *****************************************************************************
+!> \brief ...
+!> \param cosmat ...
+!> \param sinmat ...
+!> \param mos ...
+!> \param op_fm_set ...
+!> \param opvec ...
+!> \param mos_new ...
+!> \param error ...
 ! *****************************************************************************
   SUBROUTINE op_orbbas_rtp (cosmat,sinmat,mos,op_fm_set,opvec,mos_new,error)
 
@@ -1307,7 +1357,7 @@ CONTAINS
 
        CALL cp_fm_create(work1,matrix_struct=newstruct1,error=error)
 
-       CALL cp_fm_gemm("T","N",nmo,newdim,nao,1.0_dp,mos_new(2*i-1)%matrix,&
+       CALL cp_gemm("T","N",nmo,newdim,nao,1.0_dp,mos_new(2*i-1)%matrix,&
             work,0.0_dp,work1,error=error)
 
        DO icol=1,lcol
@@ -1316,7 +1366,7 @@ CONTAINS
        END DO
 
 
-       CALL cp_fm_gemm("T","N",nmo,newdim,nao,1.0_dp,mos_new(2*i)%matrix,&
+       CALL cp_gemm("T","N",nmo,newdim,nao,1.0_dp,mos_new(2*i)%matrix,&
             work,0.0_dp,work1,error=error)
 
        DO icol=1,lcol
@@ -1336,6 +1386,15 @@ CONTAINS
   END SUBROUTINE op_orbbas_rtp
 
 ! *****************************************************************************
+!> \brief ...
+!> \param qs_env ...
+!> \param magnetic ...
+!> \param nmoments ...
+!> \param reference ...
+!> \param ref_point ...
+!> \param unit_number ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE qs_moment_locop (qs_env,magnetic,nmoments,reference,ref_point,unit_number,error)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
@@ -1351,9 +1410,9 @@ CONTAINS
     CHARACTER(LEN=8), ALLOCATABLE, &
       DIMENSION(:)                           :: rlab
     CHARACTER(LEN=default_string_length)     :: description
-    INTEGER                                  :: handle, i, ia, iatom, ikind, &
-                                                ispin, istat, ix, iy, iz, l, &
-                                                nm, nmom
+    INTEGER                                  :: akind, handle, i, ia, iatom, &
+                                                ikind, ispin, istat, ix, iy, &
+                                                iz, l, nm, nmom
     LOGICAL                                  :: failure
     REAL(dp)                                 :: charge, dd, strace, trace
     REAL(dp), ALLOCATABLE, DIMENSION(:)      :: mmom
@@ -1368,6 +1427,8 @@ CONTAINS
     TYPE(distribution_1d_type), POINTER      :: local_particles
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
+    TYPE(qs_kind_type), DIMENSION(:), &
+      POINTER                                :: qs_kind_set
     TYPE(qs_rho_type), POINTER               :: rho
 
     failure = .FALSE.
@@ -1385,9 +1446,9 @@ CONTAINS
        ! electronic contribution
        NULLIFY ( moments )
        CALL build_local_moment_matrix(qs_env,moments,nmom,ref_point=rcc,error=error)
-       NULLIFY ( dft_control, rho, cell, particle_set )
+       NULLIFY ( dft_control, rho, cell, particle_set, qs_kind_set )
        CALL get_qs_env ( qs_env, dft_control=dft_control, rho=rho, cell=cell,&
-                         particle_set=particle_set, error=error)
+                         particle_set=particle_set, qs_kind_set=qs_kind_set, error=error)
        para_env => qs_env%para_env
        NULLIFY ( matrix_s )
        CALL get_qs_env(qs_env=qs_env, matrix_s=matrix_s,error=error)
@@ -1444,7 +1505,8 @@ CONTAINS
             ria = pbc(particle_set(iatom)%r-rcc,cell)+rcc
             ria = ria - rcc
             atomic_kind => particle_set(iatom)%atomic_kind
-            CALL get_atomic_kind(atomic_kind=atomic_kind,core_charge=charge)
+            CALL get_atomic_kind(atomic_kind, kind_number=akind)
+            CALL get_qs_kind(qs_kind_set(akind), core_charge=charge)
             rmom(1,2) = rmom(1,2) - charge
             DO l = 1, nm
               ix = indco(1,l+1)
@@ -1489,6 +1551,12 @@ CONTAINS
   END SUBROUTINE qs_moment_locop
 
 ! *****************************************************************************
+!> \brief ...
+!> \param label ...
+!> \param ix ...
+!> \param iy ...
+!> \param iz ...
+! *****************************************************************************
   SUBROUTINE set_label(label,ix,iy,iz)
     CHARACTER(LEN=*), INTENT(OUT)            :: label
     INTEGER, INTENT(IN)                      :: ix, iy, iz
@@ -1508,6 +1576,16 @@ CONTAINS
 
   END SUBROUTINE set_label
 
+! *****************************************************************************
+!> \brief ...
+!> \param unit_number ...
+!> \param nmom ...
+!> \param rmom ...
+!> \param rlab ...
+!> \param rcc ...
+!> \param cell ...
+!> \param periodic ...
+!> \param mmom ...
 ! *****************************************************************************
   SUBROUTINE print_moments(unit_number,nmom,rmom,rlab,rcc,cell,periodic,mmom)
     INTEGER, INTENT(IN)                      :: unit_number, nmom

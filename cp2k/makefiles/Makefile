@@ -3,7 +3,7 @@
 #
 # will now perform a parallel build of 4 cp2k executables
 #
-.SUFFIXES: .F .dep .o .f90 .cu .c
+.SUFFIXES: .F .dep .o .f90 .cu .c .instantiation .instantiated .template
 SHELL = /bin/sh
 #
 # the home dir is taken from the current directory: you must cd to the makefiles
@@ -12,7 +12,7 @@ SHELL = /bin/sh
 # also works fine
 #
 CP2KHOME     := $(abspath $(PWD)/..)
-ARCH         := $(shell $(CP2KHOME)/tools/get_arch_code)
+ARCH         := $(shell $(CP2KHOME)/tools/build_utils/get_arch_code)
 export VERSION=sopt
 
 MAKEFILE     := $(CP2KHOME)/makefiles/Makefile
@@ -21,11 +21,19 @@ MAINEXEDIR   := $(CP2KHOME)/exe
 MAINLIBDIR   := $(CP2KHOME)/lib
 MAINOBJDIR   := $(CP2KHOME)/obj
 PRETTYOBJDIR := $(CP2KHOME)/obj/prettified
+DOXIFYOBJDIR := $(CP2KHOME)/obj/doxified
+INSTANTIATEDDIR := $(CP2KHOME)/obj/instantiated
 TOOLSRC      := $(CP2KHOME)/tools
 SRCDIR       := $(CP2KHOME)/src
 EXEDIR       := $(MAINEXEDIR)/$(ARCH)
-REVISION     := $(shell $(CP2KHOME)/tools/get_revision_number $(SRCDIR))
+REVISION     := $(shell $(CP2KHOME)/tools/build_utils/get_revision_number $(SRCDIR))
 
+
+# Discover programs =========================================================
+ifeq ($(ALL_EXE_FILES),)
+export ALL_EXE_FILES := $(sort $(shell $(TOOLSRC)/build_utils/discover_programs.py $(SRCDIR)))
+endif
+EXE_NAMES := $(basename $(notdir $(ALL_EXE_FILES)))
 
 # Once we are down to a single version ======================================
 # this only happens on stage 3 and 4
@@ -34,25 +42,28 @@ MODDEPS = "lower"
 include $(CP2KHOME)/arch/$(ARCH).$(ONEVERSION)
 LIBDIR  := $(MAINLIBDIR)/$(ARCH)/$(ONEVERSION)
 OBJDIR  := $(MAINOBJDIR)/$(ARCH)/$(ONEVERSION)
+ifeq ($(NVCC),)
+EXE_NAMES := $(basename $(notdir $(filter-out %.cu, $(ALL_EXE_FILES))))
 endif
-
-# Discover programs =========================================================
-ALL_EXE_FILES = $(sort $(shell $(TOOLSRC)/discover_programs.py $(SRCDIR)))
-EXE_NAMES = $(basename $(notdir $(ALL_EXE_FILES)))
+endif
 
 # Declare PHONY targets =====================================================
 .PHONY : $(VERSION) $(EXE_NAMES) \
          dirs makedep default_target all \
+         doxifydir doxify doxifyclean \
          prettydir pretty prettyclean doxygen/clean doxygen \
-         install clean realclean distclean mrproper help
+         install clean realclean distclean mrproper help templates instantiationdir templatesclean
 
 
 # Discover files and directories ============================================
 ALL_SRC_DIRS := $(shell find $(SRCDIR) -type d ! -name preprettify  ! -path "*/.svn*" | awk '{printf("%s:",$$1)}')
+LIBCUSMM_DIR := $(shell find $(SRCDIR) -type d -name "libcusmm")
+ALL_PREPRETTY_DIRS = $(shell find $(SRCDIR) -type d -name preprettify)
 
 ALL_PKG_FILES  = $(shell find $(SRCDIR) ! -path "*/preprettify/*" -name "PACKAGE")
 OBJ_SRC_FILES  = $(shell find $(SRCDIR) ! -path "*/preprettify/*" -name "*.F")
 OBJ_SRC_FILES += $(shell find $(SRCDIR) ! -path "*/preprettify/*" -name "*.c")
+ALL_INST_FILES = $(shell find $(SRCDIR) ! -path "*/preprettify/*" -name "*.instantiation")
 
 ifneq ($(NVCC),)
 OBJ_SRC_FILES += $(shell find $(SRCDIR) ! -path "*/preprettify/*" ! -name "libcusmm.cu" -name "*.cu")
@@ -156,7 +167,7 @@ OTHER_HELP += "realclean : Remove all file for given ARCH and VERSION"
 #
 # Remove all files from previous builds
 #
-distclean:
+distclean: prettyclean doxifyclean
 	rm -rf $(DOXYGENDIR) $(MAINEXEDIR) $(MAINOBJDIR) $(MAINLIBDIR) $(LIBCUSMM_DIR)/libcusmm.cu
 OTHER_HELP += "distclean : Remove all files from previous builds"
 
@@ -169,6 +180,25 @@ mrproper:
 OTHER_HELP += "mrproper : Remove ALL files not in SVN"
 
 #
+# instantiate the templates
+#
+vpath %.instantiation   $(ALL_SRC_DIRS)
+
+# since the same named .instantiation file can be present in many directories, we need to copy the full tree
+# to store the instantiated file in a unique location
+# TODO: proper dependencies based on .template
+instantiateddir:
+	-rm -fR $(INSTANTIATEDDIR)
+	@mkdir -p $(dir $(addprefix $(INSTANTIATEDDIR), $(ALL_INST_FILES:.instantiation=.instantiated)))
+
+templates: instantiateddir $(addprefix $(INSTANTIATEDDIR), $(ALL_INST_FILES:.instantiation=.instantiated))
+TOOL_HELP += "templates : instantiate all templates"
+
+$(addprefix $(INSTANTIATEDDIR), %.instantiated): %.instantiation instantiateddir
+	@cd $(dir $<); $(TOOLSRC)/instantiateTemplates.py $(notdir $<)
+	@touch $@
+
+#
 # so far CP2K does not install, but give a hint to the user
 #
 
@@ -178,12 +208,12 @@ vpath %.pretty $(PRETTYOBJDIR)
 prettydir:
 	@mkdir -p $(PRETTYOBJDIR)
 
-pretty: prettydir $(addprefix $(PRETTYOBJDIR)/, $(ALL_OBJECTS:.o=.pretty))
+pretty: doxify prettydir $(addprefix $(PRETTYOBJDIR)/, $(ALL_OBJECTS:.o=.pretty))
 TOOL_HELP += "pretty : Reformat all source files in a pretty way."
 
 prettyclean:
-	-rm -rf $(PRETTYOBJDIR)
-TOOL_HELP += "prettyclean : Remove prettify markers"
+	-rm -rf $(PRETTYOBJDIR) $(ALL_PREPRETTY_DIRS)
+TOOL_HELP += "prettyclean : Remove prettify marker files and preprettify directories"
 
 $(PRETTYOBJDIR)/%.pretty: %.F
 	cd $(dir $<); $(TOOLSRC)/prettify.py $(notdir $<)
@@ -193,6 +223,25 @@ $(PRETTYOBJDIR)/%.pretty: %.c
 #   TODO: call indent here?
 	@touch $@
 
+# Doxyifier stuff ===========================================================
+vpath %.doxified $(DOXIFYOBJDIR)
+
+doxifydir:
+	@mkdir -p $(DOXIFYOBJDIR)
+
+doxify: doxifydir $(addprefix $(DOXIFYOBJDIR)/, $(ALL_OBJECTS:.o=.doxified))
+TOOL_HELP += "doxify : Autogenerate doxygen headers for subroutines"
+
+doxifyclean:
+	-rm -rf $(DOXIFYOBJDIR)
+TOOL_HELP += "doxifyclean : Remove doxify marker files"
+
+$(DOXIFYOBJDIR)/%.doxified: %.F
+	$(TOOLSRC)/doxify/doxify.sh $<
+	@touch $@
+
+$(DOXIFYOBJDIR)/%.doxified: %.c
+	@touch $@
 
 # doxygen stuff =============================================================
 doxygen/clean:
@@ -211,13 +260,12 @@ doxygen: doxygen/clean
 	@echo "<html><body>Sorry, the Doxygen documentation is currently being updated. Please try again in a few minutes.</body></html>" > $(DOXYGENDIR)/html/index.html
 	cp $(ALL_SRC_FILES) $(DOXYGENDIR)
 	@for i in $(DOXYGENDIR)/*.F ; do mv $${i}  $${i%%.*}.f90; done ;
-	@cat $(CP2KHOME)/doc/Doxyfile.template | sed "s/#revision#/`$(TOOLSRC)/get_revision_number $(CP2KHOME)`/"  >$(DOXYGENDIR)/Doxyfile
+	@cat $(TOOLSRC)/doxify/Doxyfile.template | sed "s/#revision#/`$(TOOLSRC)/build_utils/get_revision_number $(CP2KHOME)`/"  >$(DOXYGENDIR)/Doxyfile
 	cd $(DOXYGENDIR); doxygen ./Doxyfile
 TOOL_HELP += "doxygen : Generate the doxygen documentation"
 
 
 # Libcusmm stuff ============================================================
-LIBCUSMM_DIR = $(shell find $(SRCDIR) -type d -name "libcusmm")
 $(LIBCUSMM_DIR)/libcusmm.cu: $(LIBCUSMM_DIR)/generate.py $(LIBCUSMM_DIR)/parameters.txt $(wildcard $(LIBCUSMM_DIR)/kernels/*.py)
 	cd $(LIBCUSMM_DIR); ./generate.py $(LIBCUSMM_FLAGS)
 
@@ -232,10 +280,16 @@ else
  endif
 endif
 
+ifneq ($(LD_SHARED),)
+ ARCHIVE_EXT = ".$(ONEVERSION).so"
+else
+ ARCHIVE_EXT = ".a"
+endif
+
 # this happens on stage 3
 makedep: $(ALL_SRC_FILES) $(ALL_PKG_FILES)
 	@echo "Resolving dependencies for $(ONEVERSION) ... "
-	@$(TOOLSRC)/makedep.py $(OBJDIR)/all.dep $(MODDEPS) $(MAKEDEPMODE) $(OBJ_SRC_FILES)
+	@$(TOOLSRC)/build_utils/makedep.py $(OBJDIR)/all.dep $(MODDEPS) $(MAKEDEPMODE) $(ARCHIVE_EXT) $(OBJ_SRC_FILES)
 
 # on stage 4, load the rules generated by makedep.py
 ifeq ($(INCLUDE_DEPS), true)
@@ -297,11 +351,18 @@ endif
 %.o: %.c
 	$(CC) -c $(CFLAGS) $<
 
+ifneq ($(LIBDIR),)
 $(LIBDIR)/%:
+ifneq ($(LD_SHARED),)
+	@echo "Creating shared library $@"
+	@$(LD_SHARED) -o $(@:.a=.so) $^
+else
 	@echo "Updating archive $@"
 	@$(AR) $@ $?
+endif
 ifneq ($(RANLIB),)
 	@$(RANLIB) $@
+endif
 endif
 
 %.o: %.cu

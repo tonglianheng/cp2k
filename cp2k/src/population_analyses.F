@@ -18,23 +18,15 @@ MODULE population_analyses
                                              get_atomic_kind_set
   USE basis_set_types,                 ONLY: get_gto_basis_set,&
                                              gto_basis_set_type
-  USE cp_dbcsr_interface,              ONLY: cp_dbcsr_copy,&
-                                             cp_dbcsr_get_block_p,&
-                                             cp_dbcsr_init,&
-                                             cp_dbcsr_iterator_blocks_left,&
-                                             cp_dbcsr_iterator_next_block,&
-                                             cp_dbcsr_iterator_start,&
-                                             cp_dbcsr_iterator_stop,&
-                                             cp_dbcsr_set
+  USE cp_dbcsr_interface,              ONLY: &
+       cp_dbcsr_copy, cp_dbcsr_deallocate_matrix, cp_dbcsr_get_block_p, &
+       cp_dbcsr_init, cp_dbcsr_iterator, cp_dbcsr_iterator_blocks_left, &
+       cp_dbcsr_iterator_next_block, cp_dbcsr_iterator_start, &
+       cp_dbcsr_iterator_stop, cp_dbcsr_p_type, cp_dbcsr_set, cp_dbcsr_type
   USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
-                                             cp_dbcsr_deallocate_matrix,&
                                              cp_dbcsr_sm_fm_multiply
   USE cp_dbcsr_output,                 ONLY: cp_dbcsr_write_sparse_matrix,&
                                              write_fm_with_basis_info
-  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_iterator,&
-                                             cp_dbcsr_p_type,&
-                                             cp_dbcsr_type
-  USE cp_fm_basic_linalg,              ONLY: cp_fm_gemm
   USE cp_fm_diag,                      ONLY: cp_fm_power
   USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                              cp_fm_struct_release,&
@@ -43,6 +35,7 @@ MODULE population_analyses
                                              cp_fm_get_diag,&
                                              cp_fm_release,&
                                              cp_fm_type
+  USE cp_gemm_interface,               ONLY: cp_gemm
   USE f77_blas
   USE kinds,                           ONLY: default_string_length,&
                                              dp
@@ -53,6 +46,9 @@ MODULE population_analyses
                                              particle_type
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
+  USE qs_kind_types,                   ONLY: get_qs_kind,&
+                                             get_qs_kind_set,&
+                                             qs_kind_type
   USE qs_rho_types,                    ONLY: qs_rho_type
   USE scf_control_types,               ONLY: scf_control_type
   USE timings,                         ONLY: timeset,&
@@ -74,8 +70,12 @@ CONTAINS
 !> \brief Perform a Lowdin population analysis based on a symmetric
 !>        orthogonalisation of the density matrix using S^(1/2)
 !>
-!> \author  Matthias Krack (MK)
+!> \param qs_env ...
+!> \param output_unit ...
+!> \param print_level ...
+!> \param error ...
 !> \date    06.07.2010
+!> \author  Matthias Krack (MK)
 !> \version 1.0
 ! *****************************************************************************
   SUBROUTINE lowdin_population_analysis(qs_env,output_unit,print_level,error)
@@ -101,6 +101,8 @@ CONTAINS
     TYPE(cp_fm_type), POINTER                :: fm_s_half, fm_work1, fm_work2
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
+    TYPE(qs_kind_type), DIMENSION(:), &
+      POINTER                                :: qs_kind_set
     TYPE(qs_rho_type), POINTER               :: rho
     TYPE(scf_control_type), POINTER          :: scf_control
 
@@ -109,6 +111,7 @@ CONTAINS
     failure = .FALSE.
 
     NULLIFY (atomic_kind_set)
+    NULLIFY (qs_kind_set)
     NULLIFY (fmstruct)
     NULLIFY (fm_s_half)
     NULLIFY (fm_work1)
@@ -125,6 +128,7 @@ CONTAINS
 
     CALL get_qs_env(qs_env=qs_env,&
                     atomic_kind_set=atomic_kind_set,&
+                    qs_kind_set=qs_kind_set,&
                     matrix_s=matrix_s,&
                     particle_set=particle_set,&
                     rho=rho,&
@@ -132,6 +136,7 @@ CONTAINS
                     error=error)
 
     CPPrecondition(ASSOCIATED(atomic_kind_set),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(qs_kind_set),cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED(matrix_s),cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED(particle_set),cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED(rho),cp_failure_level,routineP,error,failure)
@@ -143,7 +148,7 @@ CONTAINS
     nspin = SIZE(matrix_p)
 
     ! Get the total number of contracted spherical Gaussian basis functions
-    CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,nsgf=nsgf)
+    CALL get_qs_kind_set(qs_kind_set,nsgf=nsgf)
 
     ! Provide an array to store the orbital populations for each spin
     ALLOCATE (orbpop(nsgf,nspin),STAT=stat)
@@ -190,7 +195,7 @@ CONTAINS
       sm_p => matrix_p(ispin)%matrix ! Density matrix for spin ispin in sparse format
       ! Calculate S^(1/2)*P*S^(1/2) as a full matrix (Lowdin)
       CALL cp_dbcsr_sm_fm_multiply(sm_p,fm_s_half,fm_work1,nsgf,error=error)
-      CALL cp_fm_gemm(transa="N",&
+      CALL cp_gemm(transa="N",&
                       transb="N",&
                       m=nsgf,&
                       n=nsgf,&
@@ -219,7 +224,7 @@ CONTAINS
     ! Write atomic populations and charges
     IF (output_unit > 0) THEN
       print_gop = (print_level > 1) ! Print also orbital populations
-      CALL write_orbpop(orbpop,atomic_kind_set,particle_set,output_unit,print_gop,error)
+      CALL write_orbpop(orbpop,atomic_kind_set,qs_kind_set,particle_set,output_unit,print_gop,error)
     END IF
 
     ! Release local working storage
@@ -238,8 +243,12 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Perform a Mulliken population analysis
 !>
-!> \author  Matthias Krack (MK)
+!> \param qs_env ...
+!> \param output_unit ...
+!> \param print_level ...
+!> \param error ...
 !> \date    10.07.2010
+!> \author  Matthias Krack (MK)
 !> \version 1.0
 ! *****************************************************************************
   SUBROUTINE mulliken_population_analysis(qs_env,output_unit,print_level,error)
@@ -268,6 +277,8 @@ CONTAINS
     TYPE(cp_dbcsr_type), POINTER             :: sm_p, sm_ps, sm_s
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
+    TYPE(qs_kind_type), DIMENSION(:), &
+      POINTER                                :: qs_kind_set
     TYPE(qs_rho_type), POINTER               :: rho
 
     CALL timeset(routineN,handle)
@@ -275,6 +286,7 @@ CONTAINS
     failure = .FALSE.
 
     NULLIFY (atomic_kind_set)
+    NULLIFY (qs_kind_set)
     NULLIFY (matrix_p)
     NULLIFY (matrix_s)
     NULLIFY (orbpop)
@@ -289,12 +301,14 @@ CONTAINS
 
     CALL get_qs_env(qs_env=qs_env,&
                     atomic_kind_set=atomic_kind_set,&
+                    qs_kind_set=qs_kind_set,&
                     matrix_s=matrix_s,&
                     particle_set=particle_set,&
                     rho=rho,&
                     error=error)
 
     CPPrecondition(ASSOCIATED(atomic_kind_set),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(qs_kind_set),cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED(particle_set),cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED(rho),cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED(matrix_s),cp_failure_level,routineP,error,failure)
@@ -305,17 +319,13 @@ CONTAINS
     nspin = SIZE(matrix_p)
 
     ! Get the total number of contracted spherical Gaussian basis functions
-    CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
-                             natom=natom,&
-                             nsgf=nsgf)
-
+    CALL get_atomic_kind_set(atomic_kind_set, natom=natom)
+    CALL get_qs_kind_set(qs_kind_set, nsgf=nsgf)
     ALLOCATE (first_sgf_atom(natom),STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     first_sgf_atom(:) = 0
 
-    CALL get_particle_set(particle_set=particle_set,&
-                          first_sgf=first_sgf_atom,&
-                          error=error)
+    CALL get_particle_set(particle_set, qs_kind_set, first_sgf=first_sgf_atom, error=error)
 
     ! Provide an array to store the orbital populations for each spin
     ALLOCATE (orbpop(nsgf,nspin),STAT=stat)
@@ -405,7 +415,7 @@ CONTAINS
     ! Write atomic populations and charges
     IF (output_unit > 0) THEN
       print_gop = (print_level > 1) ! Print also orbital populations
-      CALL write_orbpop(orbpop,atomic_kind_set,particle_set,output_unit,print_gop,error)
+      CALL write_orbpop(orbpop,atomic_kind_set, qs_kind_set,particle_set,output_unit,print_gop,error)
     END IF
 
     ! Release local working storage
@@ -426,16 +436,25 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Write atomic orbital populations and net atomic charges
 !>
-!> \author  Matthias Krack (MK)
+!> \param orbpop ...
+!> \param atomic_kind_set ...
+!> \param qs_kind_set ...
+!> \param particle_set ...
+!> \param output_unit ...
+!> \param print_orbital_contributions ...
+!> \param error ...
 !> \date    07.07.2010
+!> \author  Matthias Krack (MK)
 !> \version 1.0
 ! *****************************************************************************
-  SUBROUTINE write_orbpop(orbpop,atomic_kind_set,particle_set,output_unit,&
+  SUBROUTINE write_orbpop(orbpop,atomic_kind_set,qs_kind_set,particle_set,output_unit,&
                           print_orbital_contributions,error)
 
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: orbpop
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
+    TYPE(qs_kind_type), DIMENSION(:), &
+      POINTER                                :: qs_kind_set
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     INTEGER, INTENT(IN)                      :: output_unit
@@ -472,9 +491,8 @@ CONTAINS
 
     nspin = SIZE(orbpop,2)
 
-    CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
-                             natom=natom,&
-                             nsgf=nsgf)
+    CALL get_atomic_kind_set(atomic_kind_set, natom=natom)
+    CALL get_qs_kind_set(qs_kind_set, nsgf=nsgf)
 
     ! Select and write headline
     IF (nspin == 1) THEN
@@ -503,9 +521,8 @@ CONTAINS
       NULLIFY (orb_basis_set)
       CALL get_atomic_kind(atomic_kind=particle_set(iatom)%atomic_kind,&
                            element_symbol=element_symbol,&
-                           kind_number=ikind,&
-                           orb_basis_set=orb_basis_set,&
-                           zeff=zeff)
+                           kind_number=ikind)
+      CALL get_qs_kind(qs_kind_set(ikind), orb_basis_set=orb_basis_set, zeff=zeff)
       IF (ASSOCIATED(orb_basis_set)) THEN
         CALL get_gto_basis_set(gto_basis_set=orb_basis_set,&
                                nset=nset,&

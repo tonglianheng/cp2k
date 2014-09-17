@@ -9,7 +9,7 @@
 !> \author Teodoro Laino
 ! *****************************************************************************
 MODULE qmmm_util
-  USE cell_types,                      ONLY: cell_copy,&
+  USE cell_methods,                    ONLY: cell_copy,&
                                              cell_type
   USE cp_subsys_types,                 ONLY: cp_subsys_type
   USE f77_blas
@@ -35,6 +35,7 @@ MODULE qmmm_util
                                              qs_subsys
   USE qs_energy_types,                 ONLY: qs_energy_type
   USE qs_environment_types,            ONLY: get_qs_env
+  USE qs_kind_types,                   ONLY: qs_kind_type
 #include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
@@ -45,7 +46,6 @@ MODULE qmmm_util
   PUBLIC :: apply_qmmm_walls_reflective,&
             apply_qmmm_walls,&
             apply_qmmm_translate,&
-            apply_qmmm_translate_low,&
             apply_qmmm_wrap,&
             apply_qmmm_unwrap,&
             spherical_cutoff_factor,&
@@ -56,6 +56,7 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Apply QM quadratic walls in order to avoid QM atoms escaping from
 !>      the QM Box
+!> \param force_env ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 !> \par History
@@ -92,6 +93,7 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Apply reflective QM walls in order to avoid QM atoms escaping from
 !>      the QM Box
+!> \param force_env ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 !> \par History
@@ -215,6 +217,8 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Apply QM quadratic walls in order to avoid QM atoms escaping from
 !>      the QM Box
+!> \param force_env ...
+!> \param walls_section ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 !> \par History
@@ -331,6 +335,15 @@ CONTAINS
   END SUBROUTINE apply_qmmm_walls_quadratic
 
   ! wrap positions (with mm periodicity)
+! *****************************************************************************
+!> \brief ...
+!> \param subsys_mm ...
+!> \param mm_cell ...
+!> \param subsys_qm ...
+!> \param qm_atom_index ...
+!> \param saved_pos ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE apply_qmmm_wrap(subsys_mm, mm_cell, subsys_qm, qm_atom_index, saved_pos, error)
     TYPE(cp_subsys_type), POINTER            :: subsys_mm
     TYPE(cell_type), POINTER                 :: mm_cell
@@ -365,6 +378,14 @@ CONTAINS
     END IF
   END SUBROUTINE apply_qmmm_wrap
 
+! *****************************************************************************
+!> \brief ...
+!> \param subsys_mm ...
+!> \param subsys_qm ...
+!> \param qm_atom_index ...
+!> \param saved_pos ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE apply_qmmm_unwrap(subsys_mm, subsys_qm, qm_atom_index, saved_pos, error)
     TYPE(cp_subsys_type), POINTER            :: subsys_mm
     TYPE(cp_subsys_type), OPTIONAL, POINTER  :: subsys_qm
@@ -393,6 +414,7 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Apply translation to the full system in order to center the QM
 !>      system into the QM box
+!> \param force_env ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 !> \par History
@@ -417,7 +439,11 @@ CONTAINS
       POINTER                                :: particles_core, &
                                                 particles_extended, &
                                                 particles_mm, particles_qm
+    TYPE(qs_kind_type), DIMENSION(:), &
+      POINTER                                :: qs_kind_set
     TYPE(section_vals_type), POINTER         :: subsys_section
+
+    NULLIFY(qs_kind_set)
 
     SELECT CASE(force_env%in_use)
 
@@ -459,7 +485,10 @@ CONTAINS
           particles_core => subsys_core%particles%els
           subsys_section => section_vals_get_subs_vals(force_env%force_env_section, &
                                                               "SUBSYS",error=error)
-          CALL write_qs_particle_coordinates(particles_core,subsys_section,"QM/MM core calc first QM, then MM (0 charges)",error)
+          CALL get_qs_env(force_env%sub_force_env(force_mixing_core_subsys)%force_env%sub_force_env(qs_subsys)%force_env%qs_env,&
+                          qs_kind_set=qs_kind_set,error=error)
+          CALL write_qs_particle_coordinates(particles_core,qs_kind_set,subsys_section,&
+                                             "QM/MM core calc first QM, then MM (0 charges)",error)
           CALL force_env_get(force_env%sub_force_env(force_mixing_core_subsys)%force_env%sub_force_env(fist_subsys)%force_env,&
                             subsys=subsys_core,cell=cell_core,error=error)
           particles_core => subsys_core%particles%els
@@ -478,6 +507,7 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Apply translation to the full system in order to center the QM
 !>      system into the QM box
+!> \param force_env ...
 !> \param error variable to control error logging, stopping,... 
 !>        see module cp_error_handling 
 !> \par History
@@ -506,6 +536,8 @@ CONTAINS
     TYPE(cp_subsys_type), POINTER            :: subsys_mm, subsys_qm
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particles_mm, particles_qm
+    TYPE(qs_kind_type), DIMENSION(:), &
+      POINTER                                :: qs_kind_set
     TYPE(section_vals_type), POINTER         :: subsys_section
 
     SELECT CASE(force_env%in_use)
@@ -513,7 +545,7 @@ CONTAINS
        failure         = .FALSE.
        logger => cp_error_get_logger(error)
        NULLIFY(subsys_mm, subsys_qm, qm_atom_index, particles_mm, particles_qm,&
-               subsys_section, qm_cell, mm_cell)
+               subsys_section, qm_cell, mm_cell, qs_kind_set)
 
        CPPrecondition(ASSOCIATED(force_env),cp_failure_level,routineP,error,failure)
        CPPrecondition(force_env%ref_count>0,cp_failure_level,routineP,error,failure)
@@ -626,7 +658,10 @@ CONTAINS
 
        subsys_section => section_vals_get_subs_vals(force_env%force_env_section, &
                                                     "SUBSYS",error=error)
-       CALL write_qs_particle_coordinates(particles_qm,subsys_section,"QM/MM first QM, then MM (0 charges)",error)
+
+       CALL get_qs_env(qs_env=force_env%sub_force_env(qs_subsys)%force_env%qs_env,&
+                       qs_kind_set=qs_kind_set,error=error)
+       CALL write_qs_particle_coordinates(particles_qm,qs_kind_set,subsys_section,"QM/MM first QM, then MM (0 charges)",error)
        ALLOCATE(charges(SIZE(particles_mm)))
        charges = 0.0_dp
        CALL write_fist_particle_coordinates(particles_mm,subsys_section,charges,error)
@@ -637,6 +672,12 @@ CONTAINS
   END SUBROUTINE apply_qmmm_translate_low
 
   ! pbc-aware mean QM atom position
+! *****************************************************************************
+!> \brief ...
+!> \param particles_mm ...
+!> \param mm_cell ...
+!> \param qm_atom_index ...
+! *****************************************************************************
   FUNCTION qmmm_pbc_aware_mean(particles_mm, mm_cell, qm_atom_index)
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particles_mm
@@ -656,6 +697,12 @@ CONTAINS
   END FUNCTION
 
   ! minimum image lattice coordinates difference vector
+! *****************************************************************************
+!> \brief ...
+!> \param mm_cell ...
+!> \param p1 ...
+!> \param p2 ...
+! *****************************************************************************
   FUNCTION qmmm_lat_dv(mm_cell, p1, p2)
     TYPE(cell_type), POINTER                 :: mm_cell
     REAL(dp)                                 :: p1(3), p2(3), qmmm_lat_dv(3)
@@ -671,6 +718,18 @@ CONTAINS
 
   ! find closest QM particle, in position/negative direction if dir is 1 or -1,
   ! respectively
+! *****************************************************************************
+!> \brief ...
+!> \param particles_mm ...
+!> \param mm_cell ...
+!> \param qm_atom_index ...
+!> \param avoid ...
+!> \param p ...
+!> \param i_dim ...
+!> \param dir ...
+!> \param closest_dv ...
+!> \retval closest_ip ...
+! *****************************************************************************
   FUNCTION qmmm_find_closest(particles_mm, mm_cell, qm_atom_index, avoid, p, i_dim, dir, closest_dv) RESULT (closest_ip)
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particles_mm
@@ -709,6 +768,9 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Computes a spherical cutoff factor for the QMMM interactions
+!> \param spherical_cutoff ...
+!> \param rij ...
+!> \param factor ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 !> \par History
@@ -732,6 +794,12 @@ CONTAINS
 
   END SUBROUTINE spherical_cutoff_factor
 
+! *****************************************************************************
+!> \brief ...
+!> \param force_env ...
+!> \param error ...
+!> \retval active ...
+! *****************************************************************************
   RECURSIVE FUNCTION qmmm_force_mixing_active(force_env, error) RESULT(active)
     TYPE(force_env_type), POINTER            :: force_env
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -751,7 +819,8 @@ CONTAINS
     ! top level wasn't a QMMM with FORCE_MIXING, so loop over sub force envs, e.g. for mixed force env
     nforce_eval = SIZE(force_env%sub_force_env)
     DO iforce_eval=1, nforce_eval
-      ! if the current force env is QMMM, then any sub force envs are dups of it generated by FORCE_MIXING, so explicitly avoid recursing into those
+      ! if the current force env is QMMM, then any sub force envs are dups
+      ! of it generated by FORCE_MIXING, so explicitly avoid recursing into those
       IF (force_env%in_use /= use_qmmm) THEN 
          active = qmmm_force_mixing_active(force_env%sub_force_env(iforce_eval)%force_env, error)
          IF (active) RETURN

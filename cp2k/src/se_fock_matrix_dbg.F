@@ -4,9 +4,9 @@
 !-----------------------------------------------------------------------------!
 
 MODULE se_fock_matrix_dbg
-  USE cp_dbcsr_interface,              ONLY: cp_dbcsr_set,&
+  USE cp_dbcsr_interface,              ONLY: cp_dbcsr_p_type,&
+                                             cp_dbcsr_set,&
                                              cp_dbcsr_trace
-  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_p_type
   USE f77_blas
   USE kinds,                           ONLY: dp
   USE qs_energy_types,                 ONLY: init_qs_energy,&
@@ -28,6 +28,14 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Debug routine for long-range energy (debug value of EWALD vs VALUE KS)
+!> \param energy ...
+!> \param ks_matrix ...
+!> \param nspins ...
+!> \param qs_env ...
+!> \param matrix_p ...
+!> \param calculate_forces ...
+!> \param store_int_env ...
+!> \param error ...
 !> \author Teodoro Laino [tlaino] - 04.2009
 ! *****************************************************************************
   SUBROUTINE dbg_energy_coulomb_lr(energy, ks_matrix, nspins, qs_env, matrix_p,&

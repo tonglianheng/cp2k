@@ -18,7 +18,16 @@ MODULE input_cp2k_properties_dft
   USE cp_output_handling,              ONLY: cp_print_key_section_create
   USE cp_units,                        ONLY: cp_unit_to_cp2k
   USE f77_blas
-  USE input_constants
+  USE input_constants,                 ONLY: &
+       add_last_numeric, current_gauge_atom, current_gauge_r, &
+       current_gauge_r_and_step_func, current_orb_center_atom, &
+       current_orb_center_box, current_orb_center_common, &
+       current_orb_center_wannier, do_ddapc_constraint, do_ddapc_restraint, &
+       do_et_becke, do_et_ddapc, do_full_density, do_no_et, do_spin_density, &
+       high_print_level, low_print_level, ot_precond_full_all, &
+       ot_precond_full_kinetic, ot_precond_full_single, &
+       ot_precond_full_single_inverse, ot_precond_none, ot_precond_s_inverse, &
+       ot_precond_sparse_diag, ot_precond_sparse_kinetic
   USE input_cp2k_atprop,               ONLY: create_atprop_section
   USE input_cp2k_dft,                  ONLY: create_interp_section,&
                                              create_localize_section
@@ -347,7 +356,7 @@ CONTAINS
                           "Use the atoms as center.",&
                           "Boxing."),&
             enum_i_vals=(/current_orb_center_wannier,current_orb_center_common,&
-            &             current_orb_center_atom,current_orb_center_box/),&
+                          current_orb_center_atom,current_orb_center_box/),&
             error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
@@ -976,6 +985,7 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief creates the section for electron transfer coupling
+!> \param section ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 !> \author fschiff
@@ -1041,6 +1051,11 @@ CONTAINS
     END IF
   END SUBROUTINE create_et_coupling_section
 
+! *****************************************************************************
+!> \brief ...
+!> \param section ...
+!> \param section_name ...
+!> \param error ...
 ! *****************************************************************************
   SUBROUTINE create_restraint_A(section,section_name,error)
     TYPE(section_type), POINTER              :: section

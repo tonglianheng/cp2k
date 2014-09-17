@@ -39,6 +39,8 @@ MODULE kg_environment
   USE particle_types,                  ONLY: particle_type
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
+  USE qs_kind_types,                   ONLY: get_qs_kind,&
+                                             qs_kind_type
   USE qs_neighbor_list_types,          ONLY: deallocate_neighbor_list_set,&
                                              get_iterator_info,&
                                              neighbor_list_iterate,&
@@ -71,6 +73,7 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Allocates and intitializes kg_env
 !> \param kg_env the object to create
+!> \param input ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 !> \par History
@@ -100,6 +103,9 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Initializes kg_env
+!> \param kg_env ...
+!> \param input ...
+!> \param error ...
 !> \par History
 !>       2012.07 created [Martin Haeufel]
 !> \author Martin Haeufel
@@ -236,10 +242,14 @@ CONTAINS
 ! *****************************************************************************
 !> \brief builds either the full neighborlist or neighborlists of molecular
 !> \brief subsets, depending on parameter values
-!> \param sab_orb: the return type, a neighborlist
-!> \param molecular: if false, the full neighborlist is build
-!> \param subset: the molecular subsets
-!> \param current_subset: the subset of which the neighborlist is to be build
+!> \param kg_env ...
+!> \param qs_env ...
+!> \param sab_orb the return type, a neighborlist 
+!> \param sac_kin ...
+!> \param molecular if false, the full neighborlist is build
+!> \param subset_of_mol the molecular subsets
+!> \param current_subset the subset of which the neighborlist is to be build
+!> \param error ...
 !> \par History
 !>       2012.07 created [Martin Haeufel]
 !> \author Martin Haeufel
@@ -259,14 +269,13 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, ikind, nkind, stat
-    LOGICAL                                  :: failure, mic, molecule_only
+    LOGICAL                                  :: failure, molecule_only
     LOGICAL, ALLOCATABLE, DIMENSION(:)       :: orb_present, tpot_present
     REAL(dp)                                 :: subcells
     REAL(dp), ALLOCATABLE, DIMENSION(:)      :: orb_radius, tpot_radius
     REAL(dp), ALLOCATABLE, DIMENSION(:, :)   :: pair_radius
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
-    TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(cell_type), POINTER                 :: cell
     TYPE(distribution_1d_type), POINTER      :: distribution_1d
     TYPE(distribution_2d_type), POINTER      :: distribution_2d
@@ -277,6 +286,8 @@ CONTAINS
       POINTER                                :: molecule_set
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
+    TYPE(qs_kind_type), DIMENSION(:), &
+      POINTER                                :: qs_kind_set
     TYPE(section_vals_type), POINTER         :: neighbor_list_section
 
     CALL timeset(routineN, handle)
@@ -288,6 +299,7 @@ CONTAINS
 
     CALL get_qs_env(qs_env=qs_env,&
                     atomic_kind_set=atomic_kind_set,&
+                    qs_kind_set=qs_kind_set,&
                     cell=cell,&
                     distribution_2d=distribution_2d,&
                     molecule_set=molecule_set,&
@@ -312,17 +324,16 @@ CONTAINS
 
     IF (PRESENT(subset_of_mol)) THEN
       CALL atom2d_build(atom2d,orb_radius,orb_present,distribution_1d,distribution_2d,&
-                     atomic_kind_set,molecule_set,molecule_only,kg=.FALSE.,&
+                     atomic_kind_set,qs_kind_set,molecule_set,molecule_only,kg=.FALSE.,&
                      dftb=.FALSE.,particle_set=particle_set,error=error)
     ELSE
       CALL atom2d_build(atom2d,orb_radius,orb_present,distribution_1d,distribution_2d,&
-                     atomic_kind_set,molecule_set,molecule_only,kg=.TRUE.,&
+                     atomic_kind_set,qs_kind_set,molecule_set,molecule_only,kg=.TRUE.,&
                      dftb=.FALSE.,particle_set=particle_set,error=error)
     END IF
 
     DO ikind=1,nkind
-       atomic_kind => atomic_kind_set(ikind)
-       CALL get_atomic_kind(atomic_kind=atomic_kind, atom_list=atom2d(ikind)%list)
+       CALL get_atomic_kind(atomic_kind_set(ikind), atom_list=atom2d(ikind)%list)
     END DO
 
     IF (PRESENT(sab_orb)) THEN
@@ -354,9 +365,8 @@ CONTAINS
 
     IF (PRESENT(sac_kin)) THEN
        DO ikind=1,nkind
-          atomic_kind => atomic_kind_set(ikind)
           tpot_present(ikind) = .FALSE.
-          CALL get_atomic_kind(atomic_kind=atomic_kind,tnadd_potential=tnadd_potential)
+          CALL get_qs_kind(qs_kind_set(ikind),tnadd_potential=tnadd_potential)
           IF (ASSOCIATED(tnadd_potential)) THEN
              CALL get_potential(potential=tnadd_potential,radius=tpot_radius(ikind))
              tpot_present(ikind) = .TRUE.
@@ -388,8 +398,8 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Removes all replicated pairs from a 2d integer buffer array
-!> \param pairs_buffer: the array, assumed to have the shape (2,:)
-!> \param n: number of pairs (in), number of disjunct pairs (out)
+!> \param pairs_buffer the array, assumed to have the shape (2,:)
+!> \param n number of pairs (in), number of disjunct pairs (out)
 !> \par History
 !>       2012.07 created [Martin Haeufel]
 !> \author Martin Haeufel
@@ -460,6 +470,12 @@ CONTAINS
   ! ...
   ! there is one edge descriptor line for each edge in the graph
   ! for an edge (w,v) the fields W and V specify its endpoints
+! *****************************************************************************
+!> \brief ...
+!> \param pairs ...
+!> \param nnodes ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE write_to_file(pairs, nnodes, error)
     INTEGER(KIND=int_4), ALLOCATABLE, &
       DIMENSION(:, :), INTENT(IN)            :: pairs
@@ -522,6 +538,12 @@ CONTAINS
 
   END SUBROUTINE
 
+! *****************************************************************************
+!> \brief ...
+!> \param kg_env ...
+!> \param para_env ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE kg_build_subsets(kg_env, para_env, error)
     TYPE(kg_environment_type), POINTER       :: kg_env
     TYPE(cp_para_env_type), POINTER          :: para_env
@@ -653,7 +675,9 @@ CONTAINS
       !WRITE(*,'(A48,5X,I10,4X,A2,1X,I10)') " KG| Total number of overlapping molecular pairs",npairs/2,"of",nmol*(nmol-1)/2
 
       ! write to file, nnodes = number of molecules
-      !CALL write_to_file(pairs, SIZE(kg_env%molecule_set), error)
+      IF (.FALSE.) THEN
+         CALL write_to_file(pairs, SIZE(kg_env%molecule_set), error)
+      ENDIF
 
       ! vertex coloring algorithm
       CALL kg_vertex_coloring(kg_env, pairs, ncolors, color_of_node, error)

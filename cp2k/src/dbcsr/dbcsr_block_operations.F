@@ -14,8 +14,8 @@
 ! *****************************************************************************
 MODULE dbcsr_block_operations
 
-  USE dbcsr_cuda_devmem,               ONLY: dbcsr_cuda_devmem_allocated,&
-                                             dbcsr_cuda_devmem_setzero
+  USE acc_devmem,                      ONLY: acc_devmem_allocated,&
+                                             acc_devmem_setzero_bytes
   USE dbcsr_data_methods_low,          ONLY: &
        dbcsr_data_exists, dbcsr_data_get_size, &
        dbcsr_data_get_size_referenced, dbcsr_data_get_type, &
@@ -23,16 +23,19 @@ MODULE dbcsr_block_operations
        dbcsr_get_data_p_2d_d, dbcsr_get_data_p_2d_s, dbcsr_get_data_p_2d_z, &
        dbcsr_get_data_p_c, dbcsr_get_data_p_d, dbcsr_get_data_p_s, &
        dbcsr_get_data_p_z, dbcsr_type_2d_to_1d, dbcsr_type_is_2d
-  USE dbcsr_error_handling
-  USE dbcsr_kinds,                     ONLY: dp,&
+  USE dbcsr_error_handling,            ONLY: &
+       dbcsr_assert, dbcsr_caller_error, dbcsr_error_set, dbcsr_error_stop, &
+       dbcsr_error_type, dbcsr_failure_level, dbcsr_fatal_level, &
+       dbcsr_internal_error, dbcsr_warning_level, dbcsr_wrong_args_error
+  USE dbcsr_types,                     ONLY: &
+       dbcsr_data_obj, dbcsr_datatype_sizeof, dbcsr_scalar_type, &
+       dbcsr_type_complex_4, dbcsr_type_complex_4_2d, dbcsr_type_complex_8, &
+       dbcsr_type_complex_8_2d, dbcsr_type_real_4, dbcsr_type_real_4_2d, &
+       dbcsr_type_real_8, dbcsr_type_real_8_2d
+  USE kinds,                           ONLY: dp,&
                                              real_4,&
                                              real_8,&
                                              sp
-  USE dbcsr_types,                     ONLY: &
-       dbcsr_data_obj, dbcsr_scalar_type, dbcsr_type_complex_4, &
-       dbcsr_type_complex_4_2d, dbcsr_type_complex_8, &
-       dbcsr_type_complex_8_2d, dbcsr_type_real_4, dbcsr_type_real_4_2d, &
-       dbcsr_type_real_8, dbcsr_type_real_8_2d
 
   !$ USE OMP_LIB
   IMPLICIT NONE
@@ -42,14 +45,13 @@ MODULE dbcsr_block_operations
 
   PUBLIC :: dbcsr_block_transpose, dbcsr_data_set
   PUBLIC :: dbcsr_block_copy, dbcsr_block_partial_copy
-  PUBLIC :: set_block_diagonal, dbcsr_data_clear
+  PUBLIC :: dbcsr_data_clear
   PUBLIC :: set_block2d_diagonal, get_block2d_diagonal
   PUBLIC :: dbcsr_block_scale, dbcsr_block_conjg, dbcsr_block_real_neg
 
   PUBLIC :: block_set, dbcsr_data_copy
   PUBLIC :: block_add_on_diag
   PUBLIC :: block_chol_inv
-  PUBLIC :: dbcsr_block_norm_frob
 
   PUBLIC :: block_add
 
@@ -194,6 +196,7 @@ CONTAINS
 !> \param[in] scale      (optional) scale data
 !> \param[in] lb2        (optional) lower bound of 2nd dimension for target
 !> \param[in] source_lb2 (optional) lower bound of 2nd dimension for source
+!> \param error ...
 ! *****************************************************************************
   SUBROUTINE dbcsr_block_transpose_aa (dst, src, &
        row_size, col_size, lb, source_lb, scale, lb2, source_lb2, error)
@@ -355,15 +358,14 @@ CONTAINS
 !> \brief Scale a data area.
 !>
 !> There are no checks done for correctness!
-!> \param[in] src        source data area
+!> \param dst ...
+!> \param[in] scale      (optional) scale data
 !> \param[in] row_size   row size of existing block
 !> \param[in] col_size   column size of existing block
 !> \param[in] lb         (optional) lower bound for destination (and source if
 !>                       not given explicity)
-!> \param[in] source_lb  (optional) lower bound of source
-!> \param[in] scale      (optional) scale data
 !> \param[in] lb2        (optional) lower bound of 2nd dimension for target
-!> \param[in] source_lb2 (optional) lower bound of 2nd dimension for source
+!> \param error ...
 !> \par History
 !> - 2010-09 [??] Copied from block_transpose?
 !> - 2010-09-20 [UB] Swaps/corrects row/column definitions for 2-D bounds
@@ -442,15 +444,13 @@ CONTAINS
 !> \brief Negates the real part of a block
 !>
 !> There are no checks done for correctness!
-!> \param[in] src        source data area
+!> \param dst ...
 !> \param[in] row_size   row size of existing block
 !> \param[in] col_size   column size of existing block
 !> \param[in] lb         (optional) lower bound for destination (and source if
 !>                       not given explicity)
-!> \param[in] source_lb  (optional) lower bound of source
-!> \param[in] scale      (optional) scale data
 !> \param[in] lb2        (optional) lower bound of 2nd dimension for target
-!> \param[in] source_lb2 (optional) lower bound of 2nd dimension for source
+!> \param error ...
 !> \par History
 !> - 2010-09 [??] Copied from block_transpose?
 !> - 2010-09-20 [UB] Swaps/corrects row/column definitions for 2-D bounds
@@ -537,15 +537,13 @@ CONTAINS
 !> \brief Conjugate a data area.
 !>
 !> There are no checks done for correctness!
-!> \param[in] src        source data area
+!> \param dst ...
 !> \param[in] row_size   row size of existing block
 !> \param[in] col_size   column size of existing block
 !> \param[in] lb         (optional) lower bound for destination (and source if
 !>                       not given explicity)
-!> \param[in] source_lb  (optional) lower bound of source
-!> \param[in] scale      (optional) scale data
 !> \param[in] lb2        (optional) lower bound of 2nd dimension for target
-!> \param[in] source_lb2 (optional) lower bound of 2nd dimension for source
+!> \param error ...
 !> \par History
 !> - 2010-09 [??] Copied from block_transpose?
 !> - 2010-09-20 [UB] Swaps/corrects row/column definitions for 2-D bounds
@@ -623,6 +621,7 @@ CONTAINS
 !> \param[in] area       encapsulated data area
 !> \param[in] row_size   number of rows in existing block
 !> \param[in] col_size   number of columns in existing block
+!> \param error ...
 ! *****************************************************************************
   SUBROUTINE dbcsr_block_transpose_a (area, row_size, col_size, error)
     TYPE(dbcsr_data_obj), INTENT(INOUT)      :: area
@@ -1070,6 +1069,13 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Clears a data area, possibly transposed.
+!> \param area ...
+!> \param lb ...
+!> \param ub ...
+!> \param value ...
+!> \param lb2 ...
+!> \param ub2 ...
+!> \param tr ...
 ! *****************************************************************************
   SUBROUTINE dbcsr_data_clear_nt (area, lb, ub, value, lb2, ub2, tr)
     TYPE(dbcsr_data_obj), INTENT(INOUT)      :: area
@@ -1094,9 +1100,11 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Clears a data area
 !> \param[in,out] area   area with encapsulated data
-!> \param[in] lb, lb2    (optional) lower bound for clearing
-!> \param[in] ub, ub2    (optional) upper bound for clearing
+!> \param[in] lb (optional) lower bound for clearing
+!> \param[in] ub (optional) lower bound for clearing
 !> \param[in] value      (optional) value to use for clearing
+!> \param[in] lb2 (optional) upper bound for clearing
+!> \param[in] ub2 (optional) upper bound for clearing
 ! *****************************************************************************
   SUBROUTINE dbcsr_data_clear0 (area, lb, ub, value, lb2, ub2)
     TYPE(dbcsr_data_obj), INTENT(INOUT)      :: area
@@ -1108,7 +1116,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_data_clear0', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: l, l2, u, u2
+    INTEGER                                  :: l, l2, s, u, u2
     TYPE(dbcsr_error_type)                   :: error
 
 !   ---------------------------------------------------------------------------
@@ -1123,9 +1131,10 @@ CONTAINS
             "Incompatible data types",__LINE__,error)
     ENDIF
 
-    IF(dbcsr_cuda_devmem_allocated(area%d%cuda_devmem)) THEN
-      IF (PRESENT(value)) STOP "dbcsr_data_clear0 with value not implemented for cuda_devmem"
-      CALL dbcsr_cuda_devmem_setzero(area%d%cuda_devmem, lb, ub, area%d%memory_type%cuda_stream, error)
+    IF(acc_devmem_allocated(area%d%acc_devmem)) THEN
+      IF (PRESENT(value)) STOP "dbcsr_data_clear0 with value not implemented for acc_devmem"
+      s = dbcsr_datatype_sizeof(area%d%data_type)
+      CALL acc_devmem_setzero_bytes(area%d%acc_devmem, s*lb, s*ub, area%d%memory_type%acc_stream)
     END IF
 
     SELECT CASE (area%d%data_type)
@@ -1344,7 +1353,7 @@ CONTAINS
 !> \param[in] dst_r_lb   first row in target
 !> \param[in] dst_c_lb   first column in target
 !> \param[in] src_r_lb   first_row in source
-!> \param[in] src_r_lb   first column in target
+!> \param[in] src_c_lb   first column in target 
 !> \param[in] nrow       number of rows to copy
 !> \param[in] ncol       number of columns to copy
 !> \param[in] dst_offset offset in target
@@ -1496,12 +1505,12 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Sets the diagonal of a square data block
-!> \par Off-diagonal values
-!>      Other values are untouched.
 !> \param[in,out] block_data  sets the diagonal of this data block
 !> \param[in] diagonal        set diagonal of block_data to these values
 !> \param[in] d               block size
 !> \param[in] error           error
+!> \par Off-diagonal values
+!>      Other values are untouched.
 ! *****************************************************************************
   SUBROUTINE set_block2d_diagonal_a (block_data, diagonal, d, &
        error)
@@ -1621,6 +1630,9 @@ CONTAINS
 !> \param[in] alpha_scalar     Adds this value to the diagonal elements of the
 !>                             block
 !> \param[in] block_dimension  Dimension of the block
+!> \param imin ...
+!> \param imax ...
+!> \param error ...
 ! *****************************************************************************
   SUBROUTINE block_add_on_diag_anytype (block_a, alpha_scalar, block_dimension,&
        imin, imax, error)
@@ -1673,6 +1685,7 @@ CONTAINS
 !> \brief Adds two blocks
 !> \param[in,out] block_a      Block to add to
 !> \param[in] block_b          Block to add to block_a
+!> \param len ...
 !> \param[inout] error         error
 ! *****************************************************************************
   SUBROUTINE block_add_anytype (block_a, block_b, len, error)
@@ -1733,8 +1746,8 @@ CONTAINS
 !> \brief Calculates frobenious norm of a block
 !>
 !> \param[in] area       encapsulated data area
+!> \param norm single-precision real frobenius norm
 !> \param[in,out] error  error
-!> \result norm     single-precision real frobenius norm
 ! *****************************************************************************
   SUBROUTINE block_norm_frob_anytype_s (area, norm, error)
     TYPE(dbcsr_data_obj), INTENT(INOUT)      :: area
@@ -1774,6 +1787,12 @@ CONTAINS
     IF (careful_mod) CALL dbcsr_error_stop(error_handler, error)
   END SUBROUTINE block_norm_frob_anytype_s
 
+! *****************************************************************************
+!> \brief ...
+!> \param m ...
+!> \param blk ...
+!> \param norm ...
+! *****************************************************************************
   SUBROUTINE block_norm_frob_s_s (m, blk, norm)
     INTEGER, INTENT(IN)                      :: m
     REAL(KIND=real_4), DIMENSION(m), &
@@ -1785,6 +1804,12 @@ CONTAINS
 
     norm = SQRT (REAL (SUM (blk**2), KIND=real_4))
   END SUBROUTINE block_norm_frob_s_s
+! *****************************************************************************
+!> \brief ...
+!> \param m ...
+!> \param blk ...
+!> \param norm ...
+! *****************************************************************************
   SUBROUTINE block_norm_frob_d_s (m, blk, norm)
     INTEGER, INTENT(IN)                      :: m
     REAL(KIND=real_8), DIMENSION(m), &
@@ -1796,6 +1821,12 @@ CONTAINS
 
     norm = SQRT (REAL (SUM (blk**2), KIND=real_4))
   END SUBROUTINE block_norm_frob_d_s
+! *****************************************************************************
+!> \brief ...
+!> \param m ...
+!> \param blk ...
+!> \param norm ...
+! *****************************************************************************
   SUBROUTINE block_norm_frob_c_s (m, blk, norm)
     INTEGER, INTENT(IN)                      :: m
     COMPLEX(KIND=real_4), DIMENSION(m), &
@@ -1807,6 +1838,12 @@ CONTAINS
 
     norm = SQRT (REAL (SUM (CONJG(blk) * blk), KIND=real_4))
   END SUBROUTINE block_norm_frob_c_s
+! *****************************************************************************
+!> \brief ...
+!> \param m ...
+!> \param blk ...
+!> \param norm ...
+! *****************************************************************************
   SUBROUTINE block_norm_frob_z_s (m, blk, norm)
     INTEGER, INTENT(IN)                      :: m
     COMPLEX(KIND=real_8), DIMENSION(m), &

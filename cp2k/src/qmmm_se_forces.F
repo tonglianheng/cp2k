@@ -11,11 +11,11 @@
 MODULE qmmm_se_forces
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind
-  USE cell_types,                      ONLY: cell_type,&
+  USE cell_methods,                    ONLY: cell_type,&
                                              pbc
   USE cp_control_types,                ONLY: dft_control_type
-  USE cp_dbcsr_interface,              ONLY: cp_dbcsr_get_block_p
-  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_p_type
+  USE cp_dbcsr_interface,              ONLY: cp_dbcsr_get_block_p,&
+                                             cp_dbcsr_p_type
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE f77_blas
   USE input_constants,                 ONLY: &
@@ -31,6 +31,8 @@ MODULE qmmm_se_forces
   USE qmmm_util,                       ONLY: spherical_cutoff_factor
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
+  USE qs_kind_types,                   ONLY: get_qs_kind,&
+                                             qs_kind_type
   USE qs_ks_qmmm_types,                ONLY: qs_ks_qmmm_env_type
   USE qs_rho_types,                    ONLY: qs_rho_type
   USE semi_empirical_int_arrays,       ONLY: se_orbital_pointer
@@ -63,6 +65,15 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Constructs the derivative w.r.t. 1-el semi-empirical hamiltonian
 !>      QMMM terms
+!> \param qs_env ...
+!> \param qmmm_env ...
+!> \param particles_mm ...
+!> \param mm_cell ...
+!> \param para_env ...
+!> \param calc_force ...
+!> \param Forces ...
+!> \param Forces_added_charges ...
+!> \param error ...
 !> \author Teodoro Laino 04.2007 [created]
 ! *****************************************************************************
   SUBROUTINE deriv_se_qmmm_matrix(qs_env,qmmm_env,particles_mm,mm_cell,para_env,&
@@ -91,12 +102,13 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: Forces_QM, p_block_a
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
-    TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: matrix_p
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particles_qm
+    TYPE(qs_kind_type), DIMENSION(:), &
+      POINTER                                :: qs_kind_set
     TYPE(qs_ks_qmmm_env_type), POINTER       :: ks_qmmm_env_loc
     TYPE(qs_rho_type), POINTER               :: rho
     TYPE(se_int_control_type)                :: se_int_control
@@ -106,12 +118,13 @@ CONTAINS
     failure = .FALSE.
     CALL timeset(routineN,handle)
     IF (calc_force) THEN
-       NULLIFY (rho, atomic_kind_set, se_taper)
+       NULLIFY (rho, atomic_kind_set, qs_kind_set, se_taper)
        NULLIFY (se_kind_a, se_kind_mm, particles_qm)
        CALL get_qs_env(qs_env=qs_env,&
                        rho=rho,&
                        se_taper=se_taper,&
                        atomic_kind_set=atomic_kind_set,&
+                       qs_kind_set=qs_kind_set,&
                        ks_qmmm_env=ks_qmmm_env_loc,&
                        dft_control=dft_control,&
                        particle_set=particles_qm,&
@@ -146,11 +159,8 @@ CONTAINS
        DO ispin = 1, dft_control%nspins
           iqm = 0
           Kinds: DO ikind=1,nkind
-             atomic_kind => atomic_kind_set(ikind)
-             CALL get_atomic_kind(atomic_kind=atomic_kind,&
-                                  natom=natom,&
-                                  se_parameter=se_kind_a,&
-                                  atom_list=list)
+             CALL get_atomic_kind(atomic_kind_set(ikind), natom=natom, atom_list=list)
+             CALL get_qs_kind(qs_kind_set(ikind), se_parameter=se_kind_a)
              CALL get_se_param(se_kind_a,&
                                defined=defined,&
                                natorb=natorb_a)
@@ -219,10 +229,8 @@ CONTAINS
        CALL mp_sum(Forces_QM, para_env%group)
        iqm = 0
        DO ikind=1,nkind
-          atomic_kind => atomic_kind_set(ikind)
-          CALL get_atomic_kind(atomic_kind=atomic_kind,&
-                               se_parameter=se_kind_a,&
-                               atom_list=list)
+          CALL get_atomic_kind(atomic_kind_set(ikind), atom_list=list)
+          CALL get_qs_kind(qs_kind_set(ikind), se_parameter=se_kind_a)
           CALL get_se_param(se_kind_a,&
                             defined=defined,&
                             natorb=natorb_a)
@@ -246,6 +254,27 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Low Level : Computes derivatives of the 1-el semi-empirical QMMM
 !>                  hamiltonian block w.r.t. MM and QM coordinates
+!> \param p_block_a ...
+!> \param se_kind_a ...
+!> \param se_kind_mm ...
+!> \param potentials ...
+!> \param particles_mm ...
+!> \param mm_charges ...
+!> \param mm_el_pot_radius ...
+!> \param mm_atom_index ...
+!> \param num_mm_atoms ...
+!> \param mm_cell ...
+!> \param IndQM ...
+!> \param itype ...
+!> \param forces ...
+!> \param forces_qm ...
+!> \param se_taper ...
+!> \param se_int_control ...
+!> \param anag ...
+!> \param delta ...
+!> \param qmmm_spherical_cutoff ...
+!> \param particles_qm ...
+!> \param error ...
 !> \author Teodoro Laino 04.2007 [created]
 ! *****************************************************************************
   SUBROUTINE deriv_se_qmmm_matrix_low(p_block_a, se_kind_a, se_kind_mm,&

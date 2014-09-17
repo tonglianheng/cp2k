@@ -16,17 +16,15 @@
 !> \author MI (04.2005)
 ! *****************************************************************************
 MODULE qs_loc_methods
-  USE atomic_kind_types,               ONLY: allocate_atomic_kind_set,&
-                                             atomic_kind_type,&
+  USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              deallocate_atomic_kind_set,&
                                              set_atomic_kind
-  USE cell_types,                      ONLY: cell_type,&
+  USE cell_methods,                    ONLY: cell_type,&
                                              pbc
   USE cp_control_types,                ONLY: dft_control_type
+  USE cp_dbcsr_interface,              ONLY: cp_dbcsr_p_type
   USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
                                              cp_dbcsr_sm_fm_multiply
-  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_p_type
-  USE cp_fm_basic_linalg,              ONLY: cp_fm_gemm
   USE cp_fm_pool_types,                ONLY: cp_fm_pool_p_type,&
                                              fm_pool_create_fm
   USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
@@ -36,6 +34,7 @@ MODULE qs_loc_methods
        cp_fm_create, cp_fm_get_element, cp_fm_get_info, cp_fm_get_submatrix, &
        cp_fm_p_type, cp_fm_release, cp_fm_set_all, cp_fm_set_submatrix, &
        cp_fm_to_fm, cp_fm_type
+  USE cp_gemm_interface,               ONLY: cp_gemm
   USE cp_output_handling,              ONLY: cp_iter_string,&
                                              cp_p_file,&
                                              cp_print_key_finished_output,&
@@ -85,6 +84,7 @@ MODULE qs_loc_methods
   USE qs_collocate_density,            ONLY: calculate_wavefunction
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
+  USE qs_kind_types,                   ONLY: qs_kind_type
   USE qs_loc_types,                    ONLY: get_qs_loc_env,&
                                              localized_wfn_control_type,&
                                              qs_loc_env_new_type
@@ -128,16 +128,21 @@ CONTAINS
 !> \param op_sm_set sparse matrices containing the integrals of the kind <mi e{iGr} nu>
 !> \param zij_fm_set set of full matrix of size nmoloc x nmoloc, will contain the z_ij numbers
 !>                    as defined by Silvestrelli et al
-!> \param ionode logical that indicates the node responsable for the i/o
+!> \param para_env ...
+!> \param cell ...
+!> \param weights ...
+!> \param ispin ...
+!> \param loc_section ...
+!> \param print_loc_section ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
+!> \par History
+!>      04.2005 created [MI]
+!> \author MI
 !> \note
 !>       This definition need the use of complex numbers, therefore the
 !>       optimization routines are specific for this case
 !>       The file for the centers and the spreads have a xyz format
-!> \par History
-!>      04.2005 created [MI]
-!> \author MI
 ! *****************************************************************************
   SUBROUTINE optimize_loc_berry( method, qs_loc_env, vectors, op_sm_set, &
        zij_fm_set, para_env, cell, weights,  ispin, loc_section, print_loc_section,&
@@ -187,7 +192,7 @@ CONTAINS
        DO j=1,SIZE ( zij_fm_set, 1 )
           CALL cp_fm_set_all(zij_fm_set(j,i)%matrix, 0.0_dp, error=error)
           CALL cp_dbcsr_sm_fm_multiply(op_sm_set(j,i)%matrix, vectors,opvec,ncol=nmoloc ,error=error)
-          CALL cp_fm_gemm("T","N",nmoloc,nmoloc,nao,1.0_dp,vectors,opvec,0.0_dp,&
+          CALL cp_gemm("T","N",nmoloc,nmoloc,nao,1.0_dp,vectors,opvec,0.0_dp,&
                zij_fm_set(j,i)%matrix,error=error)
        ENDDO
     ENDDO
@@ -241,7 +246,7 @@ CONTAINS
           DO j=1,SIZE ( zij_fm_set, 1 )
              CALL cp_fm_set_all(zij_fm_set(j,i)%matrix, 0.0_dp, error=error)
              CALL cp_dbcsr_sm_fm_multiply(op_sm_set(j,i)%matrix, vectors,opvec,ncol=nmoloc ,error=error)
-             CALL cp_fm_gemm("T","N",nmoloc,nmoloc,nao,1.0_dp,vectors,opvec,0.0_dp,&
+             CALL cp_gemm("T","N",nmoloc,nmoloc,nao,1.0_dp,vectors,opvec,0.0_dp,&
                   zij_fm_set(j,i)%matrix,error=error)
           ENDDO
        ENDDO
@@ -268,6 +273,16 @@ CONTAINS
   END SUBROUTINE optimize_loc_berry
 
 ! *****************************************************************************
+!> \brief ...
+!> \param qs_env ...
+!> \param method ...
+!> \param qs_loc_env ...
+!> \param vectors ...
+!> \param zij_fm_set ...
+!> \param ispin ...
+!> \param loc_section ...
+!> \param print_loc_section ...
+!> \param error ...
 !> \par History
 !>      04.2005 created [MI]
 !> \author MI
@@ -300,6 +315,8 @@ CONTAINS
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
+    TYPE(qs_kind_type), DIMENSION(:), &
+      POINTER                                :: qs_kind_set
 
     CALL timeset(routineN,handle)
     failure = .FALSE.
@@ -314,7 +331,8 @@ CONTAINS
     CALL cp_fm_create(opvec,vectors%matrix_struct,error=error)
     CALL cp_fm_set_all(opvec, 0.0_dp, error=error)
 
-    CALL get_qs_env(qs_env=qs_env, matrix_s=matrix_s, particle_set=particle_set,error=error)
+    CALL get_qs_env(qs_env=qs_env, matrix_s=matrix_s, &
+                  particle_set=particle_set,qs_kind_set=qs_kind_set,error=error)
 
     natom = SIZE(particle_set,1)
     ALLOCATE (first_sgf(natom), STAT=istat)
@@ -325,7 +343,7 @@ CONTAINS
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
 
     !   construction of
-    CALL get_particle_set(particle_set=particle_set,&
+    CALL get_particle_set(particle_set, qs_kind_set,&
          first_sgf=first_sgf,last_sgf=last_sgf,nsgf=nsgf,error=error)
 
     !   Copy the overlap sparse matrix in a full matrix
@@ -340,15 +358,15 @@ CONTAINS
        isgf = first_sgf(iatom)
        ncol = nsgf(iatom)
        ! multiply fmxfm, using only part of the ao : Ct x S
-       CALL cp_fm_gemm('N','N',nao,nmoloc,nao,1.0_dp,ov_fm,vectors,0.0_dp,opvec,&
+       CALL cp_gemm('N','N',nao,nmoloc,nao,1.0_dp,ov_fm,vectors,0.0_dp,opvec,&
             b_first_col=1,a_first_row=1,b_first_row=1,error=error)
-       CALL cp_fm_gemm('T','N',nmoloc,nmoloc,ncol,0.5_dp,vectors,opvec,&
+       CALL cp_gemm('T','N',nmoloc,nmoloc,ncol,0.5_dp,vectors,opvec,&
             0.0_dp,zij_fm_set(iatom,1)%matrix,&
             b_first_col=1,a_first_row=isgf,b_first_row=isgf,error=error)
 
-       CALL cp_fm_gemm('N','N',nao,nmoloc,ncol,1.0_dp,ov_fm,vectors,0.0_dp,opvec,&
+       CALL cp_gemm('N','N',nao,nmoloc,ncol,1.0_dp,ov_fm,vectors,0.0_dp,opvec,&
             b_first_col=1,a_first_row=isgf,b_first_row=isgf,error=error)
-       CALL cp_fm_gemm('T','N',nmoloc,nmoloc,nao,0.5_dp,vectors,opvec,&
+       CALL cp_gemm('T','N',nmoloc,nmoloc,nao,0.5_dp,vectors,opvec,&
             1.0_dp,zij_fm_set(iatom,1)%matrix,&
             b_first_col=1,a_first_row=1,b_first_row=1,error=error)
     END DO  ! iatom
@@ -392,6 +410,17 @@ CONTAINS
   END SUBROUTINE optimize_loc_pipek
 
 ! *****************************************************************************
+!> \brief ...
+!> \param qs_loc_env ...
+!> \param zij ...
+!> \param nmoloc ...
+!> \param cell ...
+!> \param weights ...
+!> \param ispin ...
+!> \param loc_section ...
+!> \param print_loc_section ...
+!> \param only_initial_out ...
+!> \param error ...
 !> \par History
 !>      04.2005 created [MI]
 !> \author MI
@@ -499,11 +528,12 @@ CONTAINS
 ! *****************************************************************************
 !> \brief define and print the centers and spread
 !>       when the pipek operator is used
+!> \param qs_loc_env ...
 !> \param zij_fm_set matrix elements that define the populations on atoms
-!> \param localized_wfn_control control parameter for a localization calculation
+!> \param particle_set ...
 !> \param ispin spin 1 or 2
-!> \param ionode i/o proc. should write the output if required
-!>       error:
+!> \param print_loc_section ...
+!> \param error ...
 !> \par History
 !>      05.2005 created [MI]
 ! *****************************************************************************
@@ -601,6 +631,13 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief set up the calculation of localized orbitals
+!> \param qs_env ...
+!> \param qs_loc_env ...
+!> \param loc_section ...
+!> \param print_loc_section ...
+!> \param myspin ...
+!> \param ext_mo_coeff ...
+!> \param error ...
 !> \par History
 !>      04.2005 created [MI]
 !> \author MI
@@ -856,19 +893,23 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief write the cube files for a set of selected states
-!> \param qs_en v
+!> \param qs_env ...
 !> \param mo_coeff set mos from which the states to be printed are extracted
 !> \param nstates number of states to be printed
 !> \param state_list list of the indexes of the states to be printed
 !> \param centers centers and spread, all=0 if they hva not been calculated
-!> \param ispi n
-!> \param ionod e
+!> \param print_key ...
 !> \param root initial part of the cube file names
-!> \note
-!>      This routine shoul not be in this module
+!> \param ispin ...
+!> \param idir ...
+!> \param state0 ...
+!> \param file_position ...
+!> \param error ...
 !> \par History
 !>      08.2005 created [MI]
 !> \author MI
+!> \note
+!>      This routine shoul not be in this module
 ! *****************************************************************************
   SUBROUTINE qs_print_cubes(qs_env,mo_coeff,nstates,state_list,centers,&
        print_key,root,ispin,idir,state0,file_position,error)
@@ -909,6 +950,8 @@ CONTAINS
     TYPE(pw_env_type), POINTER               :: pw_env
     TYPE(pw_p_type)                          :: wf_g, wf_r
     TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
+    TYPE(qs_kind_type), DIMENSION(:), &
+      POINTER                                :: qs_kind_set
 
     failure = .FALSE.
     CALL timeset(routineN,handle)
@@ -951,11 +994,11 @@ CONTAINS
 
     DO istate = 1, nstates
        ivector = state_list(istate) - my_state0
-       CALL get_qs_env(qs_env=qs_env,atomic_kind_set=atomic_kind_set,cell=cell,&
+       CALL get_qs_env(qs_env=qs_env,atomic_kind_set=atomic_kind_set,qs_kind_set=qs_kind_set,cell=cell,&
             dft_control=dft_control,particle_set=particle_set,pw_env=pw_env,error=error)
 
-       CALL calculate_wavefunction(mo_coeff, ivector, wf_r, wf_g, atomic_kind_set,&
-            cell, dft_control, particle_set, pw_env, error=error)
+       CALL calculate_wavefunction(mo_coeff, ivector, wf_r, wf_g, atomic_kind_set, &
+                  qs_kind_set, cell, dft_control, particle_set, pw_env, error=error)
 
        ! Formatting the middle part of the name
        ivector = state_list(istate)
@@ -994,7 +1037,11 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Prints wannier centers
-!> \param qs_env the qs_env in which the qs_env lives
+!> \param qs_loc_env ...
+!> \param print_key ...
+!> \param center ...
+!> \param logger ...
+!> \param ispin ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 ! *****************************************************************************
@@ -1053,7 +1100,12 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief computes spread and centers
-!> \param qs_env the qs_env in which the qs_env lives
+!> \param qs_loc_env ...
+!> \param print_key ...
+!> \param center ...
+!> \param iunit ...
+!> \param init_traj ...
+!> \param unit_conv ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 ! *****************************************************************************
@@ -1084,7 +1136,7 @@ CONTAINS
     natom = SIZE(qs_loc_env%particle_set)
     ntot =  natom + SIZE(center,2)
     CALL allocate_particle_set(particle_set, ntot,error)
-    CALL allocate_atomic_kind_set(atomic_kind_set,1,error)
+    ALLOCATE(atomic_kind_set(1))
     atomic_kind => atomic_kind_set(1)
     CALL set_atomic_kind(atomic_kind=atomic_kind,kind_number=0,&
          name="X",element_symbol="X",mass=0.0_dp)

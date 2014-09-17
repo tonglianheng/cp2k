@@ -51,6 +51,10 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Write symmetry information to output
+!> \param particle_set  Atom coordinates and types
+!> \param cell          Cell information
+!> \param input_section Input
+!> \param error   CP2K error handling
 !> \par History
 !> \author jgh
 ! *****************************************************************************
@@ -69,12 +73,12 @@ CONTAINS
     CHARACTER(LEN=8)                         :: csym1, csym2, csymm, esymm
     INTEGER                                  :: handle, i, ierr, iw, natom, &
                                                 plevel
-    INTEGER, ALLOCATABLE, DIMENSION(:)       :: atype
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: atype, z
     LOGICAL                                  :: check, failure, molecular, &
                                                 pall, pcoor, pinertia, prmat, &
                                                 psymmele
     REAL(KIND=dp)                            :: eps_geo
-    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: weight, zeff
+    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: weight
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: coord
     TYPE(cp_logger_type), POINTER            :: logger
@@ -107,12 +111,13 @@ CONTAINS
         NULLIFY(mol_sym)
 
         natom = SIZE(particle_set)
-        ALLOCATE(coord(3,natom),zeff(natom),weight(natom),atype(natom),element(natom),STAT=ierr)
+        ALLOCATE(coord(3,natom),z(natom),weight(natom),atype(natom),element(natom),STAT=ierr)
         CPPostcondition(ierr==0,cp_failure_level,routineP,error,failure)
 
         DO i=1,natom
+          CALL get_atomic_kind(particle_set(i)%atomic_kind, z=z(i))
           CALL get_atomic_kind(atomic_kind=particle_set(i)%atomic_kind,&
-                  kind_number=atype(i),element_symbol=element(i),mass=weight(i),zeff=zeff(i))
+                  kind_number=atype(i),element_symbol=element(i),mass=weight(i))
           coord(1:3,i) = particle_set(i)%r(1:3)
         END DO
         weight = weight/massunit
@@ -133,7 +138,7 @@ CONTAINS
         IF ( psymmele ) plevel = plevel + 100
         IF ( pall ) plevel = 1111111111
 
-        CALL print_symmetry(mol_sym,coord,atype,element,zeff,weight,iw,plevel,error)
+        CALL print_symmetry(mol_sym,coord,atype,element,z,weight,iw,plevel,error)
 
         CALL section_vals_val_get(section_vals=section,&
                         keyword_name="CHECK_SYMMETRY",c_val=esymm,error=error)
@@ -145,7 +150,7 @@ CONTAINS
           CPPostcondition(check,cp_failure_level,routineP,error,failure)
         END IF
 
-        DEALLOCATE(coord,zeff,weight,atype,element,STAT=ierr)
+        DEALLOCATE(coord,z,weight,atype,element,STAT=ierr)
         CPPostcondition(ierr==0,cp_failure_level,routineP,error,failure)
 
         CALL release_molsym(mol_sym,error)
@@ -156,17 +161,18 @@ CONTAINS
         NULLIFY(crys_sym)
 
         natom = SIZE(particle_set)
-        ALLOCATE(coord(3,natom),zeff(natom),weight(natom),atype(natom),element(natom),STAT=ierr)
+        ALLOCATE(coord(3,natom),z(natom),weight(natom),atype(natom),element(natom),STAT=ierr)
         CPPostcondition(ierr==0,cp_failure_level,routineP,error,failure)
 
         DO i=1,natom
+          CALL get_atomic_kind(particle_set(i)%atomic_kind, z=z(i))
           CALL get_atomic_kind(atomic_kind=particle_set(i)%atomic_kind,&
-                  kind_number=atype(i),element_symbol=element(i),mass=weight(i),zeff=zeff(i))
+                  kind_number=atype(i),element_symbol=element(i),mass=weight(i))
           coord(1:3,i) = particle_set(i)%r(1:3)
         END DO
         weight = weight/massunit
 
-        CALL kp_sym_gen(crys_sym,coord,atype,cell%hmat,delta=eps_geo,unit=iw,error=error)
+        CALL kp_sym_gen(crys_sym,coord,atype,cell%hmat,delta=eps_geo,iounit=iw,error=error)
 
         CALL section_vals_val_get(section_vals=section,&
                         keyword_name="ROTATION_MATRICES",l_val=prmat,error=error)

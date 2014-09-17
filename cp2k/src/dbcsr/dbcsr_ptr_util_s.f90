@@ -6,8 +6,9 @@
 ! *****************************************************************************
 !> \brief Returns a pointer with different bounds.
 !> \param[in] original   original data pointer
-!> \param[in] lb, ub     lower and upper bound for the new pointer view
-!> \param[out] view      new pointer
+!> \param[in] lb lower and upper bound for the new pointer view
+!> \param[in] ub lower and upper bound for the new pointer view
+!> \retval view      new pointer
 ! *****************************************************************************
   FUNCTION pointer_view_s (original, lb, ub) RESULT (view)
     REAL(kind=real_4), DIMENSION(:), POINTER :: original, view
@@ -28,6 +29,7 @@
 !> \param[in] memory_type     (optional) use special memory
 !> \param[in] zero_pad        (optional) zero new allocations; default is to
 !>                            write nothing
+!> \param error ...
 ! *****************************************************************************
   SUBROUTINE ensure_array_size_s(array, lb, ub, factor,&
        nocopy, memory_type, zero_pad, error)
@@ -42,9 +44,9 @@
     CHARACTER(len=*), PARAMETER :: routineN = 'ensure_array_size_s', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: lb_new, lb_orig, stat, &
+    INTEGER                                  :: lb_new, lb_orig, &
                                                 ub_new, ub_orig, old_size,&
-                                                size_increase, error_handler
+                                                size_increase
     TYPE(dbcsr_memtype_type)                 :: mem_type
     LOGICAL                                  :: dbg, docopy, &
                                                 pad
@@ -196,8 +198,8 @@
     IF (careful_mod) &
        CALL dbcsr_error_set (routineN, error_handle, error=error)
 
-    IF(mem_type%cuda_hostalloc .AND. n>1) THEN
-       CALL dbcsr_cuda_hostmem_allocate(mem, n, error=error)
+    IF(mem_type%acc_hostalloc .AND. n>1) THEN
+       CALL acc_hostmem_allocate(mem, n)
     ELSE IF(mem_type%mpi) THEN
        CALL mp_allocate(mem, n)
     ELSE
@@ -212,7 +214,7 @@
 ! *****************************************************************************
 !> \brief Allocates memory
 !> \param[out] mem        memory to allocate
-!> \param[in] n           length of elements to allocate
+!> \param[in] sizes length of elements to allocate
 !> \param[in] mem_type    memory type
 !> \param[in,out] error   error
 ! *****************************************************************************
@@ -229,10 +231,10 @@
     IF (careful_mod) &
        CALL dbcsr_error_set (routineN, error_handle, error=error)
 
-    IF(mem_type%cuda_hostalloc) THEN
+    IF(mem_type%acc_hostalloc) THEN
        CALL dbcsr_assert(.FALSE., dbcsr_fatal_level, dbcsr_caller_error,&
-               routineN, "Cuda hostalloc not supported for 2D arrays.",__LINE__,error)
-       !CALL dbcsr_cuda_hostmem_allocate(mem, n, error=error)
+               routineN, "Accelerator hostalloc not supported for 2D arrays.",__LINE__,error)
+       !CALL acc_hostmem_allocate(mem, n)
     ELSE IF(mem_type%mpi) THEN
        CALL dbcsr_assert(.FALSE., dbcsr_fatal_level, dbcsr_caller_error,&
           routineN, "MPI allocate not supported for 2D arrays.",__LINE__,error)
@@ -249,7 +251,6 @@
 ! *****************************************************************************
 !> \brief Deallocates memory
 !> \param[out] mem        memory to allocate
-!> \param[in] n           length of elements to allocate
 !> \param[in] mem_type    memory type
 !> \param[in,out] error   error
 ! *****************************************************************************
@@ -265,8 +266,8 @@
     IF (careful_mod) &
        CALL dbcsr_error_set (routineN, error_handle, error=error)
 
-    IF(mem_type%cuda_hostalloc .AND. SIZE(mem)>1) THEN
-       CALL dbcsr_cuda_hostmem_deallocate(mem, error=error)
+    IF(mem_type%acc_hostalloc .AND. SIZE(mem)>1) THEN
+       CALL acc_hostmem_deallocate(mem)
     ELSE IF(mem_type%mpi) THEN
        CALL mp_deallocate(mem)
     ELSE
@@ -281,7 +282,6 @@
 ! *****************************************************************************
 !> \brief Deallocates memory
 !> \param[out] mem        memory to allocate
-!> \param[in] n           length of elements to allocate
 !> \param[in] mem_type    memory type
 !> \param[in,out] error   error
 ! *****************************************************************************
@@ -297,10 +297,10 @@
     IF (careful_mod) &
        CALL dbcsr_error_set (routineN, error_handle, error=error)
 
-    IF(mem_type%cuda_hostalloc) THEN
+    IF(mem_type%acc_hostalloc) THEN
        CALL dbcsr_assert(.FALSE., dbcsr_fatal_level, dbcsr_caller_error,&
-          routineN, "Cuda host deallocate not supported for 2D arrays.",__LINE__,error)
-       !CALL dbcsr_cuda_hostmem_deallocate(mem, error=error)
+          routineN, "Accelerator host deallocate not supported for 2D arrays.",__LINE__,error)
+       !CALL acc_hostmem_deallocate(mem)
     ELSE IF(mem_type%mpi) THEN
        CALL dbcsr_assert(.FALSE., dbcsr_fatal_level, dbcsr_caller_error,&
           routineN, "MPI deallocate not supported for 2D arrays.",__LINE__,error)
@@ -314,10 +314,13 @@
   END SUBROUTINE mem_dealloc_s_2d
 
 
-#if defined(__PTR_RANK_REMAP)
 ! *****************************************************************************
 !> \brief Sets a rank-2 pointer to rank-1 data using Fortran 2003 pointer
 !>        rank remapping.
+!> \param r2p ...
+!> \param d1 ...
+!> \param d2 ...
+!> \param r1p ...
 ! *****************************************************************************
   SUBROUTINE pointer_s_rank_remap2 (r2p, d1, d2, r1p)
     INTEGER, INTENT(IN)                      :: d1, d2
@@ -328,52 +331,3 @@
 
     r2p(1:d1,1:d2) => r1p(1:d1*d2)
   END SUBROUTINE pointer_s_rank_remap2
-#elif !defined(__HAS_NO_ISO_C_BINDING)
-! *****************************************************************************
-!> \brief Sets a rank-2 pointer to rank-1 data using Fortran 2003 pointer
-!>        ISO_C_BINDING.
-! *****************************************************************************
-  SUBROUTINE pointer_s_rank_remap2 (r2p, d1, d2, r1p)
-    INTEGER, INTENT(IN)                      :: d1, d2
-    REAL(kind=real_4), DIMENSION(:, :), &
-      POINTER                                :: r2p
-    REAL(kind=real_4), DIMENSION(:), &
-      POINTER                                :: r1p
-    TYPE(C_PTR)                              :: fe_loc
-
-    IF (SIZE(r1p) .EQ. 0) THEN
-       fe_loc = C_NULL_PTR
-    ELSE
-       fe_loc = C_LOC (r1p(1))
-    ENDIF
-    CALL C_F_POINTER (fe_loc, r2p, (/ d1, d2 /))
-  END SUBROUTINE pointer_s_rank_remap2
-#elif !defined(__NO_ASSUMED_SIZE_NOCOPY_ASSUMPTION)
-! *****************************************************************************
-!> \brief Sets a rank-2 pointer to rank-1 data using ugly hacks.
-! *****************************************************************************
-  SUBROUTINE pointer_s_rank_remap2 (r2p, d1, d2, r1p)
-    REAL(kind=real_4), DIMENSION(:, :), &
-      POINTER                                :: r2p
-    INTEGER, INTENT(IN)                      :: d1, d2
-    REAL(kind=real_4), DIMENSION(d1, *), &
-      TARGET                                 :: r1p
-
-    r2p => r1p(1:d1, 1:d2)
-  END SUBROUTINE pointer_s_rank_remap2
-#else
-! *****************************************************************************
-!> \brief Not supported
-! *****************************************************************************
-  SUBROUTINE pointer_s_rank_remap2 (r2p, d1, d2, r1p)
-    INTEGER, INTENT(IN)                      :: d1, d2
-    REAL(kind=real_4), DIMENSION(:, :), &
-      POINTER                                :: r2p
-    REAL(kind=real_4), DIMENSION(d1*d2), &
-      TARGET                                 :: r1p
-
-!    r2p(1:d1,1:d2) => r1p(1:d1*d2)
-    STOP "Pointer rank remapping needed but not supported directly or with hacks."
-    NULLIFY (r2p)
-  END SUBROUTINE pointer_s_rank_remap2
-#endif

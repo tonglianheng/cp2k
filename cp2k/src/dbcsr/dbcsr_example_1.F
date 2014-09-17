@@ -14,26 +14,20 @@
 !> - Created 2010
 ! *****************************************************************************
 PROGRAM dbcsr_example_1
-  USE array_types,                     ONLY: array_i1d_obj,&
-                                             array_new,&
-                                             array_nullify,&
-                                             array_release
-  USE dbcsr_block_access
-  USE dbcsr_data_methods
-  USE dbcsr_error_handling,            ONLY: dbcsr_error_type
-  USE dbcsr_io,                        ONLY: dbcsr_print
-  USE dbcsr_message_passing,           ONLY: mp_cart_create,&
+  USE dbcsr_api,                       ONLY: &
+       array_i1d_obj, array_new, array_nullify, array_release, dbcsr_create, &
+       dbcsr_distribution_new, dbcsr_distribution_obj, &
+       dbcsr_distribution_release, dbcsr_error_type, dbcsr_finalize, &
+       dbcsr_finalize_lib, dbcsr_init, dbcsr_init_lib, dbcsr_mp_new, &
+       dbcsr_mp_obj, dbcsr_mp_release, dbcsr_obj, dbcsr_print, dbcsr_release, &
+       dbcsr_set_default_config, dbcsr_type_no_symmetry, dbcsr_type_real_8
+  USE machine,                         ONLY: default_output_unit
+  USE message_passing,                 ONLY: mp_cart_create,&
                                              mp_cart_rank,&
+                                             mp_comm_free,&
                                              mp_environ,&
                                              mp_world_finalize,&
                                              mp_world_init
-  USE dbcsr_methods
-  USE dbcsr_operations
-  USE dbcsr_ptr_util
-  USE dbcsr_transformations
-  USE dbcsr_types
-  USE dbcsr_util
-  USE dbcsr_work_operations
 
   !$ USE OMP_LIB
 
@@ -45,7 +39,7 @@ PROGRAM dbcsr_example_1
   TYPE(array_i1d_obj)                      :: col_blk_sizes, row_blk_sizes
   INTEGER, DIMENSION(:), POINTER           :: rbs, cbs
   INTEGER                                  :: mp_comm, group, numnodes, mynode, &
-       prow, pcol, nblkrows_total, nblkcols_total
+       prow, pcol, nblkrows_total, nblkcols_total, io_unit
   INTEGER, DIMENSION(2)                    :: npdims, myploc, coord
   INTEGER, DIMENSION(:,:), POINTER         :: pgrid
   TYPE(array_i1d_obj)                      :: col_dist, row_dist
@@ -88,6 +82,15 @@ PROGRAM dbcsr_example_1
   DEALLOCATE(pgrid)
 
   !***************************************************************************************
+  !
+  ! initialize libdbcsr
+  CALL dbcsr_init_lib (group=mp_comm, error=error)
+  CALL dbcsr_set_default_config (error=error)
+
+  !
+  ! set standard output parameters
+  io_unit = 0
+  IF (mynode.EQ.0) io_unit = default_output_unit
 
   !
   ! the matrix will contain nblkrows_total row blocks and nblkcols_total column blocks
@@ -167,6 +170,12 @@ PROGRAM dbcsr_example_1
 
 
   !***************************************************************************************
+  !
+  ! finalize libdbcsr
+  CALL dbcsr_finalize_lib (mp_comm, io_unit, error)
+
+  ! free comm
+  CALL mp_comm_free(group)
 
   !
   ! finalize mpi
@@ -176,6 +185,12 @@ PROGRAM dbcsr_example_1
 
 CONTAINS
 
+! *****************************************************************************
+!> \brief ...
+!> \param dist_array ...
+!> \param dist_size ...
+!> \param nbins ...
+! *****************************************************************************
   SUBROUTINE random_dist (dist_array, dist_size, nbins)
     TYPE(array_i1d_obj), INTENT(out)         :: dist_array
     INTEGER, INTENT(in)                      :: dist_size, nbins

@@ -20,27 +20,24 @@ MODULE qs_ks_methods
   USE admm_methods,                    ONLY: admm_merge_ks_matrix,&
                                              admm_merge_mo_derivs
   USE admm_types,                      ONLY: admm_type
-  USE array_types,                     ONLY: array_i1d_obj
   USE atomic_kind_types,               ONLY: atomic_kind_type
   USE cell_types,                      ONLY: cell_type
+  USE cp_blacs_env,                    ONLY: cp_blacs_env_type
   USE cp_control_types,                ONLY: becke_restraint_type,&
                                              dft_control_type
   USE cp_dbcsr_cp2k_link,              ONLY: cp_dbcsr_alloc_block_from_nbl
   USE cp_dbcsr_interface,              ONLY: &
-       cp_dbcsr_col_block_sizes, cp_dbcsr_copy, cp_dbcsr_create, &
-       cp_dbcsr_distribution, cp_dbcsr_filter, cp_dbcsr_get_occupation, &
-       cp_dbcsr_init, cp_dbcsr_multiply, cp_dbcsr_name, &
-       cp_dbcsr_row_block_sizes, cp_dbcsr_set
+       cp_dbcsr_allocate_matrix_set, cp_dbcsr_col_block_sizes, cp_dbcsr_copy, &
+       cp_dbcsr_create, cp_dbcsr_distribution, cp_dbcsr_filter, &
+       cp_dbcsr_get_occupation, cp_dbcsr_init, cp_dbcsr_multiply, &
+       cp_dbcsr_name, cp_dbcsr_p_type, cp_dbcsr_row_block_sizes, &
+       cp_dbcsr_set, cp_dbcsr_type, dbcsr_type_symmetric
   USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
                                              copy_fm_to_dbcsr,&
-                                             cp_dbcsr_allocate_matrix_set,&
                                              cp_dbcsr_plus_fm_fm_t,&
                                              cp_dbcsr_sm_fm_multiply
-  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_p_type,&
-                                             cp_dbcsr_type
   USE cp_ddapc,                        ONLY: qs_ks_ddapc
   USE cp_fm_basic_linalg,              ONLY: cp_fm_column_scale,&
-                                             cp_fm_gemm,&
                                              cp_fm_scale_and_add,&
                                              cp_fm_symm,&
                                              cp_fm_transpose,&
@@ -54,12 +51,10 @@ MODULE qs_ks_methods
                                              cp_fm_release,&
                                              cp_fm_to_fm,&
                                              cp_fm_type
+  USE cp_gemm_interface,               ONLY: cp_gemm
   USE cp_output_handling,              ONLY: cp_p_file,&
                                              cp_print_key_should_output
-  USE cp_para_types,                   ONLY: cp_blacs_env_type,&
-                                             cp_para_env_type
-  USE dbcsr_types,                     ONLY: dbcsr_distribution_obj,&
-                                             dbcsr_type_symmetric
+  USE cp_para_types,                   ONLY: cp_para_env_type
   USE dft_plus_u,                      ONLY: plus_u
   USE efield_utils,                    ONLY: efield_potential
   USE ep_qs_types,                     ONLY: ep_qs_type
@@ -76,9 +71,13 @@ MODULE qs_ks_methods
   USE kg_correction,                   ONLY: kg_ekin_subset
   USE kinds,                           ONLY: default_string_length,&
                                              dp
+  USE kpoint_types,                    ONLY: get_kpoint_info,&
+                                             kpoint_type,&
+                                             set_kpoint_info
   USE lri_environment_types,           ONLY: lri_density_type,&
                                              lri_environment_type,&
                                              lri_kind_type
+  USE lri_forces,                      ONLY: calculate_lri_forces
   USE lri_ks_methods,                  ONLY: calculate_lri_ks_matrix
   USE message_passing,                 ONLY: mp_sum
   USE pw_env_types,                    ONLY: pw_env_get,&
@@ -106,7 +105,7 @@ MODULE qs_ks_methods
                                              calculate_image_pot,&
                                              integrate_potential_devga_rspace
   USE qs_charges_types,                ONLY: qs_charges_type
-  USE qs_core_energies,                ONLY: calculate_ecore
+  USE qs_core_energies,                ONLY: calculate_ptrace
   USE qs_dftb_matrices,                ONLY: build_dftb_ks_matrix
   USE qs_efield_berry,                 ONLY: qs_efield_berry_phase
   USE qs_energy_types,                 ONLY: qs_energy_type
@@ -194,11 +193,8 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'qs_ks_create', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: auxbas_grid, handle, nspins, &
-                                                stat
+    INTEGER                                  :: handle, stat
     LOGICAL                                  :: failure
-    TYPE(cell_type), POINTER                 :: cell
-    TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(pw_env_type), POINTER               :: pw_env
     TYPE(pw_pool_p_type), DIMENSION(:), &
       POINTER                                :: pw_pools
@@ -211,16 +207,11 @@ CONTAINS
     ALLOCATE(ks_env, stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
-    IF (.not.failure) THEN
-       NULLIFY( pw_env, auxbas_pw_pool,&
-            pw_env, cell,pw_pools)
-       CALL get_qs_env(qs_env=qs_env,&
-            dft_control=dft_control,&
-            pw_env=pw_env, cell=cell,error=error)
-       CALL pw_env_get(pw_env,auxbas_pw_pool=auxbas_pw_pool,pw_pools=pw_pools,&
-            auxbas_grid=auxbas_grid,error=error)
+    IF (.NOT.failure) THEN
 
-       nspins=dft_control%nspins
+       NULLIFY( pw_env, auxbas_pw_pool, pw_pools)
+       CALL get_qs_env(qs_env=qs_env, pw_env=pw_env, error=error)
+       CALL pw_env_get(pw_env,auxbas_pw_pool=auxbas_pw_pool,pw_pools=pw_pools,error=error)
 
        ks_env%s_mstruct_changed=.TRUE.
        ks_env%rho_changed=.TRUE.
@@ -230,11 +221,12 @@ CONTAINS
        ks_env%ref_count=1
 
     END IF
+
     IF (.NOT.failure) THEN
        ks_env%auxbas_pw_pool=>auxbas_pw_pool
        CALL pw_pool_retain(ks_env%auxbas_pw_pool,error=error)
-       CALL pw_pool_create_pw(auxbas_pw_pool,ks_env%v_hartree_rspace%pw,&
-            use_data=REALDATA3D, in_space=REALSPACE,error=error)
+       CALL pw_pool_create_pw(auxbas_pw_pool, ks_env%v_hartree_rspace%pw,&
+            use_data=REALDATA3D, in_space=REALSPACE, error=error)
     END IF
 
     CALL timestop(handle)
@@ -247,20 +239,17 @@ CONTAINS
 !> \param ks_env the ks_env that old all the temporary objects that
 !>        the calculation of the KS matrix needs
 !> \param qs_env the qs_env to update
+!> \param ks_matrix the KS matrix that is created
+!> \param rho the density, must be up to date
+!> \param energy the place where energies are stored
 !> \param calculate_forces if true calculate the quantities needed
 !>        to calculate the forces. Defaults to false.
 !> \param just_energy if true updates the energies but not the
 !>        ks matrix. Defaults to false
-!> \param ks the KS matrix that is created
-!> \param rho the density, must be up to date
+!> \param print_active ...
 !> \param rho_xc the soft density, only for gapw_xc , must be up to date
-!> \param energy the place where energies are stored
-!> \param qs_charges the place where the grids charges are stored
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
-!> \note
-!>      make rho, energy and qs_charges optional, defaulting
-!>      to qs_env components?
 !> \par History
 !>      06.2002 moved from qs_scf to qs_ks_methods, use of ks_env
 !>              new did_change scheme [fawzi]
@@ -271,6 +260,9 @@ CONTAINS
 !>              where the KS matrix alone (however this might be defined)
 !>               does not contain the info to construct this derivative.
 !> \author Matthias Krack
+!> \note
+!>      make rho, energy and qs_charges optional, defaulting
+!>      to qs_env components?
 ! *****************************************************************************
   SUBROUTINE qs_ks_build_kohn_sham_matrix(ks_env,qs_env,ks_matrix,&
                                           rho,energy,calculate_forces,&
@@ -294,8 +286,8 @@ CONTAINS
     LOGICAL :: do_adiabatic_rescaling, do_ddapc, do_ep, do_hfx, do_ppl, &
       failure, gapw, gapw_xc, hfx_treat_lsd_in_core, just_energy_xc, &
       my_print, use_virial
-    REAL(KIND=dp)                            :: ecore_ppl, ee_ener, ekin_mol, &
-                                                mulliken_order_p
+    REAL(KIND=dp)                            :: ecore_ppl, edisp, ee_ener, &
+                                                ekin_mol, mulliken_order_p
     REAL(KIND=dp), DIMENSION(3, 3)           :: h_stress
     TYPE(admm_type), POINTER                 :: admm_env
     TYPE(becke_restraint_type), POINTER      :: becke
@@ -391,7 +383,7 @@ CONTAINS
     ! Setup the possible usage of DDAPC charges
     do_ddapc = qs_env%dft_control%qs_control%ddapc_restraint.OR.&
                qs_env%cp_ddapc_ewald%do_decoupling.OR.&
-               qs_env%cp_ddapc_ewald%do_qmmm_periodic.OR.&
+               qs_env%cp_ddapc_ewald%do_qmmm_periodic_decpl.OR.&
                qs_env%cp_ddapc_ewald%do_solvation
 
     ! Check for GAPW method : additional terms for local densities
@@ -586,6 +578,7 @@ CONTAINS
            CALL get_qs_env(qs_env=qs_env, rho_aux_fit=rho_struct, error=error)
          END IF
 
+         ! here we ignore a possible vdW section in admm_env%xc_section_aux
          CALL qs_vxc_create(qs_env=qs_env, rho_struct=rho_struct, xc_section=xc_section, &
               vxc_rho=v_rspace_new_aux_fit, vxc_tau=v_tau_rspace_aux_fit, exc=energy%exc_aux_fit, &
               just_energy=just_energy_xc, error=error)
@@ -614,7 +607,9 @@ CONTAINS
        ELSE
          CALL qs_vxc_create(qs_env=qs_env, rho_struct=rho_struct, xc_section=xc_section, &
               vxc_rho=v_rspace_new, vxc_tau=v_tau_rspace, exc=energy%exc, &
+              edisp=edisp, dispersion_env=qs_env%dispersion_env, &
               just_energy=just_energy_xc, error=error)
+         IF(edisp /= 0.0_dp) energy%dispersion = edisp
          IF (qs_env%requires_matrix_vxc) THEN
             CALL compute_matrix_vxc(qs_env=qs_env,v_rspace=v_rspace_new, matrix_vxc=qs_env%matrix_vxc, error=error)
          ENDIF
@@ -775,6 +770,7 @@ CONTAINS
            IF(.NOT.qs_env%run_rtp)THEN
               CALL admm_merge_ks_matrix(ispin, qs_env%admm_env, mo_array(ispin)%mo_set, mo_coeff,&
                    mo_coeff_aux_fit, qs_env%matrix_ks, qs_env%matrix_ks_aux_fit, qs_env%matrix_s,&
+                   qs_env%matrix_s_aux_fit, qs_env%matrix_s_aux_fit_vs_orb,&
                    matrix_p_aux_fit, matrix_p, error)
            ELSE
               CALL rtp_admm_merge_ks_matrix(ispin,qs_env%rtp, qs_env%admm_env, mo_array(ispin)%mo_set, mo_coeff,&
@@ -846,20 +842,22 @@ CONTAINS
 !> \param ks_env the ks_env that holds all the temporary objects that
 !>        the calculation of the LRI KS matrix needs
 !> \param qs_env the qs_env to update
-!> \param ks the KS matrix that is created
+!> \param ks_matrix the KS matrix that is created
 !> \param rho the density, must be up to date
 !> \param energy the place where energies are stored
+!> \param calculate_forces ...
 !> \param just_energy if true updates the energies but not the
 !>        ks matrix. Defaults to false
+!> \param print_active ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
-!> \note  might be integrate in qs_ks_build_kohn_sham_matrix later
 !> \par History
 !>      01.2014 created
 !> \author Dorothea Golze
+!> \note  might be integrate in qs_ks_build_kohn_sham_matrix later
 ! *****************************************************************************
   SUBROUTINE lri_build_ks_matrix(ks_env,qs_env,ks_matrix,rho,energy,&
-             just_energy,print_active,error)
+             calculate_forces,just_energy,print_active,error)
 
     TYPE(qs_ks_env_type), POINTER            :: ks_env
     TYPE(qs_environment_type), POINTER       :: qs_env
@@ -867,7 +865,7 @@ CONTAINS
       POINTER                                :: ks_matrix
     TYPE(qs_rho_type), POINTER               :: rho
     TYPE(qs_energy_type), POINTER            :: energy
-    LOGICAL, INTENT(in)                      :: just_energy
+    LOGICAL, INTENT(in)                      :: calculate_forces, just_energy
     LOGICAL, INTENT(in), OPTIONAL            :: print_active
     TYPE(cp_error_type), INTENT(inout)       :: error
 
@@ -877,10 +875,11 @@ CONTAINS
     INTEGER                                  :: handle, ispin, nspins, stat
     LOGICAL                                  :: failure, just_energy_xc, &
                                                 my_print
+    REAL(KIND=dp)                            :: edisp
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_h, mo_derivs
+      POINTER                                :: matrix_h, matrix_p, mo_derivs
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(lri_density_type), POINTER          :: lri_density
@@ -902,8 +901,8 @@ CONTAINS
     CALL timeset(routineN,handle)
     NULLIFY(dft_control, input,  mo_derivs, my_rho_xc, para_env,&
             pw_env, xc_section)
-    NULLIFY(auxbas_pw_pool, matrix_h, poisson_env, pw_pools, v_rspace_new, &
-         v_tau_rspace)
+    NULLIFY(auxbas_pw_pool, matrix_h, matrix_p, poisson_env, pw_pools, v_rspace_new, &
+            v_tau_rspace)
     NULLIFY(atomic_kind_set, lri_env, lri_density, lri_v_int)
 
     CPPrecondition(ASSOCIATED(ks_env),cp_failure_level,routineP,error,failure)
@@ -979,7 +978,9 @@ CONTAINS
 
       CALL qs_vxc_create(qs_env=qs_env, rho_struct=rho, xc_section=xc_section, &
            vxc_rho=v_rspace_new, vxc_tau=v_tau_rspace, exc=energy%exc, &
+           edisp=edisp, dispersion_env=qs_env%dispersion_env, &
            just_energy=just_energy_xc, error=error)
+      IF(edisp /= 0.0_dp) energy%dispersion = edisp
 
       ! sum v_hartree + v_xc
       IF (ASSOCIATED(v_rspace_new)) THEN
@@ -993,10 +994,11 @@ CONTAINS
  
       !do integration and build matrix
       IF (.NOT. just_energy) THEN
+
        DO ispin=1,nspins
           lri_v_int => lri_density%lri_coefs(ispin)%lri_kinds
           CALL integrate_v_rspace_one_center(v_rspace_new(ispin),qs_env,&
-               lri_v_int,error)
+               lri_v_int,calculate_forces,error)
           CALL pw_pool_give_back_pw(auxbas_pw_pool,v_rspace_new(ispin)%pw,&
                error=error)
           CALL calculate_lri_ks_matrix(lri_env, lri_v_int, ks_matrix(ispin)%matrix,&
@@ -1004,6 +1006,15 @@ CONTAINS
        ENDDO
        DEALLOCATE(v_rspace_new,stat=stat)
        CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+
+       IF (calculate_forces ) THEN
+           ! Getting nuclear force contribution from the core charge density
+            CALL integrate_v_core_rspace(ks_env%v_hartree_rspace, qs_env,error=error)
+           ! Getting electronic force contribution from fitted LRI charge density
+            matrix_p =>qs_env%rho%rho_ao
+            CALL calculate_lri_forces(lri_env,lri_density,qs_env,matrix_p,atomic_kind_set,error)
+       END IF
+
       ENDIF
       
       ! Right now we can compute the orbital derivative here, as it depends currently only on the available
@@ -1027,12 +1038,20 @@ CONTAINS
             energy%exc_aux_fit+&
             energy%image_charge
 
+
     END IF ! failure
 
     CALL timestop(handle)
 
   END SUBROUTINE lri_build_ks_matrix
 
+! *****************************************************************************
+!> \brief ...
+!> \param rho_tot_gspace ...
+!> \param qs_env ...
+!> \param rho ...
+!> \param skip_nuclear_density ...
+!> \param error ...
 ! *****************************************************************************
   SUBROUTINE calc_rho_tot_gspace(rho_tot_gspace, qs_env, rho, skip_nuclear_density, error)
     TYPE(pw_p_type), INTENT(INOUT)           :: rho_tot_gspace
@@ -1086,9 +1105,10 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief compute MO derivatives
-!> \param ks_env the ks_env that old all the temporary objects that
-!>        the calculation of the KS matrix needs
 !> \param qs_env the qs_env to update
+!> \param ks_matrix ...
+!> \param mo_derivs ...
+!> \param error ...
 !> \par History
 !>      01.2014 created, transferred from qs_ks_build_kohn_sham_matrix in
 !>      separate subroutine
@@ -1193,10 +1213,12 @@ CONTAINS
 !>        to calculate the forces. Defaults to false.
 !> \param just_energy if true updates the energies but not the
 !>        ks matrix. Defaults to false
+!> \param print_active ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 !> \par History
 !>      4.2002 created [fawzi]
+!>      8.2014 kpoints [JGH]
 !> \author Fawzi Mohamed
 ! *****************************************************************************
   SUBROUTINE qs_ks_update_qs_env(ks_env,qs_env,calculate_forces,&
@@ -1210,15 +1232,18 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'qs_ks_update_qs_env', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, ispin
+    INTEGER                                  :: handle
     LOGICAL                                  :: c_forces, did_update, &
-                                                energy_only, failure
-    REAL(KIND=dp)                            :: ecore, ekin
+                                                do_kpoints, energy_only, &
+                                                failure
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: matrix_h, matrix_ks, matrix_t
+    TYPE(cp_dbcsr_p_type), DIMENSION(:, :), &
+      POINTER                                :: matrixkp_h, matrixkp_ks, &
+                                                matrixkp_t
     TYPE(cp_logger_type), POINTER            :: logger
-    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(dft_control_type), POINTER          :: dft_control
+    TYPE(kpoint_type), POINTER               :: kpoints
     TYPE(qs_energy_type), POINTER            :: energy
     TYPE(qs_rho_type), POINTER               :: rho, rho_xc
 
@@ -1235,44 +1260,47 @@ CONTAINS
 
     failure=.FALSE.
     did_update=.FALSE.
-    NULLIFY(matrix_ks,matrix_t,matrix_h,energy, logger, rho, rho_xc, dft_control, para_env)
+    NULLIFY(logger)
     logger => cp_error_get_logger(error)
 
     CPPrecondition(ASSOCIATED(ks_env),cp_failure_level,routineP,error,failure)
     CPPrecondition(ks_env%ref_count>0,cp_failure_level,routineP,error,failure)
+
+    CALL get_qs_env(qs_env,do_kpoints=do_kpoints,error=error)
 
     IF (.NOT. failure) THEN
        IF (ks_env%rho_changed .OR. ks_env%s_mstruct_changed .OR. &
             ks_env%potential_changed .OR. &
             (c_forces.AND..NOT.ks_env%forces_up_to_date)) THEN
           did_update=.TRUE.
-          CALL get_qs_env(qs_env,matrix_ks=matrix_ks,rho=rho,&
-               rho_xc=rho_xc,energy=energy,&
-               dft_control=dft_control,kinetic=matrix_t, &
-               matrix_h=matrix_h,para_env=para_env,error=error)
-          ! update ecore
-          energy%core=0.0_dp
-          DO ispin=1,dft_control%nspins
-             CALL calculate_ecore(h=matrix_h(1)%matrix,&
-                  p=rho%rho_ao(ispin)%matrix,&
-                  ecore=ecore,&
-                  error=error)
-             energy%core=energy%core+ecore
-          END DO
 
-          ! update ekin, but only when doing scptb, otherwise segfault.
-          ! who knows, it might segfault anyway, this is a kindof ugly solution
-!          IF (dft_control%qs_control%scptb) THEN
-          IF(ASSOCIATED(matrix_t)) THEN
-              energy%kinetic=0.0_dp
-              DO ispin=1,dft_control%nspins
-                 CALL calculate_ecore(h=matrix_t(1)%matrix,&
-                      p=rho%rho_ao(ispin)%matrix,&
-                      ecore=ekin,&
-                      error=error)
-                 !abusing the ecore method to calculate the same trace.
-                 energy%kinetic=energy%kinetic+ekin
-              END DO
+          NULLIFY(energy,rho,dft_control)
+          CALL get_qs_env(qs_env,rho=rho,energy=energy,dft_control=dft_control,error=error)
+          IF (do_kpoints) THEN
+             NULLIFY(matrixkp_t,matrixkp_h)
+             CALL get_qs_env(qs_env,kpoints=kpoints,error=error)
+             CALL get_kpoint_info(kpoints,matrix_t=matrixkp_t,matrix_h=matrixkp_h,error=error)
+             ! ecore
+             CALL calculate_ptrace(matrixkp_h,rho%rho_ao_kp,energy%core,dft_control%nspins,error)
+             !
+             IF(ASSOCIATED(matrixkp_t)) THEN
+                ! kinetic energy
+                CALL calculate_ptrace(matrixkp_t,rho%rho_ao_kp,energy%kinetic,dft_control%nspins,error)
+             END IF
+             NULLIFY(matrixkp_ks)
+             CALL get_kpoint_info(kpoints,matrix_ks=matrixkp_ks,error=error)
+          ELSE
+             NULLIFY(matrix_t,matrix_h)
+             CALL get_qs_env(qs_env,kinetic=matrix_t,matrix_h=matrix_h,error=error)
+             ! ecore
+             CALL calculate_ptrace(matrix_h,rho%rho_ao,energy%core,dft_control%nspins,error)
+             !
+             IF(ASSOCIATED(matrix_t)) THEN
+                ! kinetic energy
+                CALL calculate_ptrace(matrix_t,rho%rho_ao,energy%kinetic,dft_control%nspins,error)
+             END IF
+             NULLIFY(matrix_ks,rho_xc)
+             CALL get_qs_env(qs_env,matrix_ks=matrix_ks,rho_xc=rho_xc,error=error)
           END IF
 
           ! the ks matrix will be rebuilt so this is fine now
@@ -1288,10 +1316,17 @@ CONTAINS
                   calculate_forces=c_forces,just_energy=energy_only,&
                   error=error)
           ELSEIF ( dft_control%qs_control%scptb ) THEN
-             CALL build_scptb_ks_matrix(ks_env,qs_env=qs_env,&
+             IF (do_kpoints) THEN
+                CALL build_scptb_ks_matrix(ks_env,qs_env=qs_env,&
+                  ks_matrixkp=matrixkp_ks,rho=rho,energy=energy,&
+                  calculate_forces=c_forces,just_energy=energy_only,&
+                  error=error)
+             ELSE
+                CALL build_scptb_ks_matrix(ks_env,qs_env=qs_env,&
                   ks_matrix=matrix_ks,rho=rho,energy=energy,&
                   calculate_forces=c_forces,just_energy=energy_only,&
                   error=error)
+             END IF
           ELSEIF (dft_control%qs_control%gapw_xc) THEN
              CALL qs_ks_build_kohn_sham_matrix(ks_env,qs_env=qs_env,&
                   ks_matrix=matrix_ks, rho=rho, energy=energy,&
@@ -1299,8 +1334,9 @@ CONTAINS
                   print_active=print_active,rho_xc=rho_xc,error=error)
           ELSEIF (dft_control%qs_control%lrigpw) THEN
             CALL lri_build_ks_matrix(ks_env,qs_env,ks_matrix=matrix_ks,& 
-                 rho=rho,energy=energy,just_energy=energy_only,&
-                 print_active=print_active,error=error)
+                 rho=rho,energy=energy,calculate_forces=c_forces, &
+                 just_energy=energy_only,print_active=print_active,&
+                 error=error)
           ELSE
              CALL qs_ks_build_kohn_sham_matrix(ks_env,qs_env=qs_env,&
                   ks_matrix=matrix_ks, rho=rho, energy=energy,&
@@ -1338,6 +1374,7 @@ CONTAINS
 !>        overlap matrix has changed
 !>        (atoms have moved)
 !> \param rho_changed if true it means that the density has changed
+!> \param potential_changed ...
 !> \param full_reset if true everything has changed
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
@@ -1397,6 +1434,7 @@ CONTAINS
 !> \param mo_set type containing the full matrix of the MO and the eigenvalues
 !> \param w_matrix sparse matrix
 !>        error
+!> \param error ...
 !> \par History
 !>         Creation (03.03.03,MK)
 !>         Modification that computes it as a full block, several times (e.g. 20)
@@ -1451,9 +1489,11 @@ CONTAINS
 !>        could overwrite the mo_derivs for increased memory efficiency
 !> \param mo_set type containing the full matrix of the MO coefs
 !>        mo_deriv:
+!> \param mo_deriv ...
 !> \param w_matrix sparse matrix
 !> \param s_matrix sparse matrix for the overlap
 !>        error
+!> \param error ...
 !> \par History
 !>         Creation (JV)
 !> \author MK
@@ -1508,7 +1548,7 @@ CONTAINS
 
     ! the convention seems to require the half here, the factor of two is presumably taken care of
     ! internally in qs_core_hamiltonian
-    CALL cp_fm_gemm('T','N',ncol_global,ncol_global,nrow_global,0.5_dp, &
+    CALL cp_gemm('T','N',ncol_global,ncol_global,nrow_global,0.5_dp, &
                     mo_set%mo_coeff,weighted_vectors,0.0_dp,h_block,error=error)
 
     IF (do_symm) THEN
@@ -1519,7 +1559,7 @@ CONTAINS
     ENDIF
 
     ! this could overwrite the mo_derivs to save the weighted_vectors
-    CALL cp_fm_gemm('N','N',nrow_global,ncol_global,ncol_global,1.0_dp, &
+    CALL cp_gemm('N','N',nrow_global,ncol_global,ncol_global,1.0_dp, &
                     mo_set%mo_coeff,h_block,0.0_dp,weighted_vectors,error=error)
 
     CALL cp_dbcsr_set(w_matrix,0.0_dp,error=error)
@@ -1541,7 +1581,7 @@ CONTAINS
        DEALLOCATE(scaling_factor,stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
-       WRITE(6,*) " maxabs difference ", MAXVAL(ABS(weighted_vectors%local_data-2.0_dp*gradient%local_data))
+       WRITE(*,*) " maxabs difference ", MAXVAL(ABS(weighted_vectors%local_data-2.0_dp*gradient%local_data))
        CALL cp_fm_release(gradient,error=error)
     ENDIF
 
@@ -1556,6 +1596,11 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Calculate the energy-weighted density matrix W if ROKS is active.
 !>        The W matrix is returned in matrix_w.
+!> \param mo_set ...
+!> \param matrix_ks ...
+!> \param matrix_p ...
+!> \param matrix_w ...
+!> \param error ...
 !> \author 04.05.06,MK
 ! *****************************************************************************
   SUBROUTINE calculate_w_matrix_roks(mo_set,matrix_ks,matrix_p,matrix_w,error)
@@ -1595,7 +1640,7 @@ CONTAINS
     CALL copy_dbcsr_to_fm(matrix_p,p,error=error)
     CALL cp_fm_upper_to_full(p,work,error)
     CALL cp_fm_symm("L","U",nao,nao,1.0_dp,ks,p,0.0_dp,work,error=error)
-    CALL cp_fm_gemm("T","N",nao,nao,nao,1.0_dp,p,work,0.0_dp,ks,error=error)
+    CALL cp_gemm("T","N",nao,nao,nao,1.0_dp,p,work,0.0_dp,ks,error=error)
     CALL cp_dbcsr_set(matrix_w,0.0_dp,error=error)
     CALL copy_fm_to_dbcsr(ks,matrix_w,keep_sparsity=.TRUE., error=error)
 
@@ -1609,6 +1654,8 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Allocate ks_matrix and ks_env if necessary
+!> \param qs_env ...
+!> \param error ...
 !> \par History
 !>    refactoring 04.03.2011 [MI]
 !> \author
@@ -1622,86 +1669,114 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=default_string_length)     :: headline
-    INTEGER                                  :: ispin
-    TYPE(array_i1d_obj)                      :: col_blk_size
+    INTEGER                                  :: ic, ispin, ncount
+    INTEGER, DIMENSION(:, :), POINTER        :: index_to_cell
+    LOGICAL                                  :: do_kpoints
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_ks, matrix_ks_aux_fit, &
-                                                matrix_s
-    TYPE(dbcsr_distribution_obj)             :: dist
+      POINTER                                :: matrix_ks, matrix_ks_aux_fit
+    TYPE(cp_dbcsr_p_type), DIMENSION(:, :), &
+      POINTER                                :: matrixkp_ks
+    TYPE(cp_dbcsr_type), POINTER             :: refmatrix
     TYPE(dft_control_type), POINTER          :: dft_control
+    TYPE(kpoint_type), POINTER               :: kpoints
     TYPE(qs_ks_env_type), POINTER            :: ks_env
 
-    NULLIFY(dft_control, matrix_s, matrix_ks_aux_fit, matrix_ks, ks_env)
+    NULLIFY(dft_control,ks_env)
+    CALL get_qs_env(qs_env=qs_env,do_kpoints=do_kpoints,&
+                    dft_control=dft_control,ks_env=ks_env,error=error)
 
-    CALL get_qs_env(qs_env=qs_env,&
-         dft_control=dft_control,&
-         matrix_ks=matrix_ks,&
-         matrix_ks_aux_fit=matrix_ks_aux_fit,&
-         matrix_s=matrix_s,&
-         ks_env=ks_env,&
-         error=error)
+    IF(do_kpoints) THEN
 
-    IF (.NOT.ASSOCIATED(matrix_ks)) THEN
-       CALL cp_dbcsr_allocate_matrix_set(matrix_ks, dft_control%nspins, error)
-       DO ispin=1,dft_control%nspins
-          ALLOCATE(matrix_ks(ispin)%matrix)
-          CALL cp_dbcsr_init(matrix_ks(ispin)%matrix,error=error)
-          IF (dft_control%nspins > 1) THEN
-             IF (ispin == 1) THEN
-                headline="KOHN-SHAM MATRIX FOR ALPHA SPIN"
+       NULLIFY(matrixkp_ks)
+       CALL get_qs_env(qs_env=qs_env,kpoints=kpoints,error=error)
+       CALL get_kpoint_info(kpoints,matrix_ks=matrixkp_ks,error=error)
+       IF (.NOT.ASSOCIATED(matrixkp_ks)) THEN
+          headline="KOHN-SHAM MATRIX"
+          CALL get_kpoint_info(kpoint=kpoints,index_to_cell=index_to_cell,error=error)
+          ncount = SIZE(index_to_cell,2)
+          CALL cp_dbcsr_allocate_matrix_set(matrixkp_ks, dft_control%nspins, ncount, error)
+          refmatrix => qs_env%matrix_s(1)%matrix
+          DO ispin=1,dft_control%nspins
+             DO ic=1,ncount
+                ALLOCATE(matrixkp_ks(ispin,ic)%matrix)
+                CALL cp_dbcsr_init(matrixkp_ks(ispin,ic)%matrix,error=error)
+                CALL cp_dbcsr_create(matrix=matrixkp_ks(ispin,ic)%matrix,&
+                  name=TRIM(headline),&
+                  dist=cp_dbcsr_distribution(refmatrix), matrix_type=dbcsr_type_symmetric,&
+                  row_blk_size=cp_dbcsr_row_block_sizes(refmatrix),&
+                  col_blk_size=cp_dbcsr_col_block_sizes(refmatrix),&
+                  nblks=0, nze=0, error=error)
+                CALL cp_dbcsr_alloc_block_from_nbl(matrixkp_ks(ispin,ic)%matrix,&
+                     qs_env%sab_orb,error=error)
+                CALL cp_dbcsr_set(matrixkp_ks(ispin,ic)%matrix,0.0_dp,error=error)
+             ENDDO
+          ENDDO
+          CALL set_kpoint_info(kpoints,matrix_ks=matrixkp_ks,error=error)
+       END IF
+
+    ELSE
+
+       NULLIFY(matrix_ks)
+       CALL get_qs_env(qs_env=qs_env,matrix_ks=matrix_ks,error=error)
+       IF (.NOT.ASSOCIATED(matrix_ks)) THEN
+          CALL cp_dbcsr_allocate_matrix_set(matrix_ks, dft_control%nspins, error)
+          refmatrix => qs_env%matrix_s(1)%matrix
+          DO ispin=1,dft_control%nspins
+             ALLOCATE(matrix_ks(ispin)%matrix)
+             CALL cp_dbcsr_init(matrix_ks(ispin)%matrix,error=error)
+             IF (dft_control%nspins > 1) THEN
+                IF (ispin == 1) THEN
+                   headline="KOHN-SHAM MATRIX FOR ALPHA SPIN"
+                ELSE
+                   headline="KOHN-SHAM MATRIX FOR BETA SPIN"
+                END IF
              ELSE
-                headline="KOHN-SHAM MATRIX FOR BETA SPIN"
+                headline="KOHN-SHAM MATRIX"
              END IF
-          ELSE
-             headline="KOHN-SHAM MATRIX"
-          END IF
-          CALL cp_dbcsr_create(matrix=matrix_ks(ispin)%matrix,&
-               name=TRIM(headline),&
-               dist=cp_dbcsr_distribution(matrix_s(1)%matrix), matrix_type=dbcsr_type_symmetric,&
-               row_blk_size=cp_dbcsr_row_block_sizes(matrix_s(1)%matrix),&
-               col_blk_size=cp_dbcsr_col_block_sizes(matrix_s(1)%matrix),&
-               nblks=0, nze=0, error=error)
-          CALL cp_dbcsr_alloc_block_from_nbl(matrix_ks(ispin)%matrix,qs_env%sab_orb,error=error)
-          CALL cp_dbcsr_set(matrix_ks(ispin)%matrix,0.0_dp,error=error)
-       ENDDO
-
-       CALL set_qs_env(qs_env=qs_env,&
-            matrix_ks=matrix_ks,error=error)
+             CALL cp_dbcsr_create(matrix=matrix_ks(ispin)%matrix,&
+                  name=TRIM(headline),&
+                  dist=cp_dbcsr_distribution(refmatrix), matrix_type=dbcsr_type_symmetric,&
+                  row_blk_size=cp_dbcsr_row_block_sizes(refmatrix),&
+                  col_blk_size=cp_dbcsr_col_block_sizes(refmatrix),&
+                  nblks=0, nze=0, error=error)
+             CALL cp_dbcsr_alloc_block_from_nbl(matrix_ks(ispin)%matrix,qs_env%sab_orb,error=error)
+             CALL cp_dbcsr_set(matrix_ks(ispin)%matrix,0.0_dp,error=error)
+          ENDDO
+          CALL set_qs_env(qs_env=qs_env,matrix_ks=matrix_ks,error=error)
+       END IF
 
     END IF
 
-!   *** Allocate matrix_ks_aux_fit if requested and put it in the QS environment ***
-
+    ! Allocate matrix_ks_aux_fit if requested and put it in the QS environment
     IF( dft_control%do_admm) THEN
-      IF (.NOT.ASSOCIATED(matrix_ks_aux_fit)) THEN
-         CALL cp_dbcsr_allocate_matrix_set(matrix_ks_aux_fit, dft_control%nspins, error)
-         DO ispin=1,dft_control%nspins
-            ALLOCATE(matrix_ks_aux_fit(ispin)%matrix)
-            CALL cp_dbcsr_init(matrix_ks_aux_fit(ispin)%matrix,error=error)
-
-            CALL cp_dbcsr_create(matrix=matrix_ks_aux_fit(ispin)%matrix, &
-                 name="KOHN-SHAM_MATRIX for ADMM", &
-                 dist=cp_dbcsr_distribution(qs_env%matrix_s_aux_fit(1)%matrix), matrix_type=dbcsr_type_symmetric, &
-                 row_blk_size=cp_dbcsr_row_block_sizes(qs_env%matrix_s_aux_fit(1)%matrix),&
-                 col_blk_size=cp_dbcsr_col_block_sizes(qs_env%matrix_s_aux_fit(1)%matrix),&
-                 nblks=0, nze=0, error=error)
-            CALL cp_dbcsr_alloc_block_from_nbl(matrix_ks_aux_fit(ispin)%matrix,qs_env%sab_aux_fit,&
-                 error=error)
-            CALL cp_dbcsr_set(matrix_ks_aux_fit(ispin)%matrix,0.0_dp,error=error)
-         ENDDO
-
-         CALL set_qs_env(qs_env=qs_env,&
-              matrix_ks_aux_fit=matrix_ks_aux_fit,error=error)
-      END IF
+       NULLIFY(matrix_ks_aux_fit)
+       CALL get_qs_env(qs_env=qs_env,matrix_ks_aux_fit=matrix_ks_aux_fit,error=error)
+       IF (.NOT.ASSOCIATED(matrix_ks_aux_fit)) THEN
+          refmatrix => qs_env%matrix_s_aux_fit(1)%matrix
+          CALL cp_dbcsr_allocate_matrix_set(matrix_ks_aux_fit, dft_control%nspins, error)
+          DO ispin=1,dft_control%nspins
+             ALLOCATE(matrix_ks_aux_fit(ispin)%matrix)
+             CALL cp_dbcsr_init(matrix_ks_aux_fit(ispin)%matrix,error=error)
+             CALL cp_dbcsr_create(matrix=matrix_ks_aux_fit(ispin)%matrix, &
+                  name="KOHN-SHAM_MATRIX for ADMM", &
+                  dist=cp_dbcsr_distribution(refmatrix), matrix_type=dbcsr_type_symmetric, &
+                  row_blk_size=cp_dbcsr_row_block_sizes(refmatrix),&
+                  col_blk_size=cp_dbcsr_col_block_sizes(refmatrix),&
+                  nblks=0, nze=0, error=error)
+             CALL cp_dbcsr_alloc_block_from_nbl(matrix_ks_aux_fit(ispin)%matrix,qs_env%sab_aux_fit,&
+                  error=error)
+             CALL cp_dbcsr_set(matrix_ks_aux_fit(ispin)%matrix,0.0_dp,error=error)
+          ENDDO
+          CALL set_qs_env(qs_env=qs_env,matrix_ks_aux_fit=matrix_ks_aux_fit,error=error)
+       END IF
     END IF
 
-!   *** allocate the ks env **
+    ! allocate the ks_env
     IF (.NOT.ASSOCIATED(ks_env)) THEN
        CALL qs_ks_create(ks_env,qs_env=qs_env,error=error)
        CALL set_qs_env(qs_env, ks_env=ks_env,error=error)
        CALL qs_ks_release(ks_env,error=error)
     END IF
-
 
   END SUBROUTINE qs_ks_allocate_basics
 

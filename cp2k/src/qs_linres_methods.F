@@ -11,22 +11,20 @@
 !> \author MI
 ! *****************************************************************************
 MODULE qs_linres_methods
-  USE cell_types,                      ONLY: cell_type
   USE cp_control_types,                ONLY: dft_control_type
-  USE cp_dbcsr_interface,              ONLY: cp_dbcsr_checksum,&
+  USE cp_dbcsr_interface,              ONLY: cp_dbcsr_allocate_matrix_set,&
+                                             cp_dbcsr_checksum,&
                                              cp_dbcsr_copy,&
                                              cp_dbcsr_init,&
-                                             cp_dbcsr_set
-  USE cp_dbcsr_operations,             ONLY: cp_dbcsr_allocate_matrix_set,&
-                                             cp_dbcsr_plus_fm_fm_t,&
-                                             cp_dbcsr_sm_fm_multiply
-  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_p_type,&
+                                             cp_dbcsr_p_type,&
+                                             cp_dbcsr_set,&
                                              cp_dbcsr_type
+  USE cp_dbcsr_operations,             ONLY: cp_dbcsr_plus_fm_fm_t,&
+                                             cp_dbcsr_sm_fm_multiply
   USE cp_external_control,             ONLY: external_control
   USE cp_files,                        ONLY: close_file,&
                                              open_file
-  USE cp_fm_basic_linalg,              ONLY: cp_fm_gemm,&
-                                             cp_fm_scale_and_add,&
+  USE cp_fm_basic_linalg,              ONLY: cp_fm_scale_and_add,&
                                              cp_fm_trace
   USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                              cp_fm_struct_release,&
@@ -40,6 +38,7 @@ MODULE qs_linres_methods
                                              cp_fm_to_fm,&
                                              cp_fm_type
   USE cp_fm_vect,                      ONLY: cp_fm_vect_dealloc
+  USE cp_gemm_interface,               ONLY: cp_gemm
   USE cp_output_handling,              ONLY: cp_p_file,&
                                              cp_print_key_finished_output,&
                                              cp_print_key_generate_filename,&
@@ -132,7 +131,7 @@ MODULE qs_linres_methods
 
   ! *** Public subroutines ***
   PUBLIC :: linres_localize, linres_solver
-  PUBLIC :: linres_write_restart, linres_read_restart, linres_init_write_restart
+  PUBLIC :: linres_write_restart, linres_read_restart
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_linres_methods'
 
@@ -141,6 +140,11 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Find the centers and spreads of the wfn,
 !>      if required apply a localization algorithm
+!> \param qs_env ...
+!> \param linres_control ...
+!> \param nspins ...
+!> \param centers_only ...
+!> \param error ...
 !> \par History
 !>      07.2005 created [MI]
 !> \author MI
@@ -248,6 +252,13 @@ CONTAINS
 !> \brief scf loop to optimize the first order wavefunctions (psi1)
 !>      given a perturbation as an operator applied to the ground
 !>      state orbitals (h1_psi0)
+!> \param p_env ...
+!> \param qs_env ...
+!> \param psi1 ...
+!> \param h1_psi0 ...
+!> \param psi0_order ...
+!> \param should_stop ...
+!> \param error ...
 !> \par History
 !>      07.2005 created [MI]
 !> \author MI
@@ -347,9 +358,9 @@ CONTAINS
     !
     NULLIFY(tmp_fm_struct)
     CALL cp_fm_struct_create(tmp_fm_struct,nrow_global=nao,&
-         &                   ncol_global=maxnmo,para_env=para_env,&
-         &                   context=psi1(1)%matrix%matrix_struct%context,&
-         &                   error=error)
+                             ncol_global=maxnmo,para_env=para_env,&
+                             context=psi1(1)%matrix%matrix_struct%context,&
+                             error=error)
     CALL cp_fm_create(buf,tmp_fm_struct,error=error)
     CALL cp_fm_struct_release(tmp_fm_struct,error=error)
     !
@@ -363,9 +374,9 @@ CONTAINS
        CALL cp_fm_create(Sc(ispin)%matrix,mo_coeff%matrix_struct,error=error)
        NULLIFY(tmp_fm_struct)
        CALL cp_fm_struct_create(tmp_fm_struct,nrow_global=nmo,&
-            &                   ncol_global=nmo,para_env=para_env,&
-            &                   context=mo_coeff%matrix_struct%context,&
-            &                   error=error)
+                                ncol_global=nmo,para_env=para_env,&
+                                context=mo_coeff%matrix_struct%context,&
+                                error=error)
        CALL cp_fm_create(chc(ispin)%matrix,tmp_fm_struct,error=error)
        CALL cp_fm_struct_release(tmp_fm_struct,error=error)
     ENDDO
@@ -376,7 +387,7 @@ CONTAINS
        mo_coeff => psi0_order(ispin)%matrix
        CALL cp_fm_get_info(mo_coeff,ncol_global=ncol,error=error)
        CALL cp_dbcsr_sm_fm_multiply(matrix_ks(ispin)%matrix,mo_coeff,buf,ncol,error=error)
-       CALL cp_fm_gemm('T','N',ncol,ncol,nao,-1.0_dp,mo_coeff,buf,0.0_dp,chc(ispin)%matrix,error)
+       CALL cp_gemm('T','N',ncol,ncol,nao,-1.0_dp,mo_coeff,buf,0.0_dp,chc(ispin)%matrix,error)
        !
        ! S * C0
        CALL get_mo_set(mos(ispin)%mo_set,mo_coeff=mo_coeff)
@@ -439,7 +450,7 @@ CONTAINS
        ! z_0 = M * r_0
        DO ispin = 1,nspins
           CALL apply_preconditioner(p_env%preconditioner(ispin),r(ispin)%matrix,&
-              &                     z(ispin)%matrix,error)
+                                    z(ispin)%matrix,error)
        ENDDO
        linres_control%flag="PCG"
     ENDIF
@@ -594,7 +605,7 @@ CONTAINS
           ! z_j+1 = M * r_j+1
           DO ispin = 1,nspins
              CALL apply_preconditioner(p_env%preconditioner(ispin),r(ispin)%matrix,&
-                  &                    z(ispin)%matrix,error)
+                                       z(ispin)%matrix,error)
           ENDDO
           linres_control%flag="PCG"
        ENDIF
@@ -655,6 +666,17 @@ CONTAINS
   END SUBROUTINE linres_solver
   !
   !
+! *****************************************************************************
+!> \brief ...
+!> \param qs_env ...
+!> \param p_env ...
+!> \param c0 ...
+!> \param v ...
+!> \param Av ...
+!> \param chc ...
+!> \param buf ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE apply_op(qs_env,p_env,c0,v,Av,chc,buf,error)
     !
     TYPE(qs_environment_type), POINTER       :: qs_env
@@ -759,6 +781,13 @@ CONTAINS
   END SUBROUTINE apply_op
   !
   !
+! *****************************************************************************
+!> \brief ...
+!> \param c0 ...
+!> \param c1 ...
+!> \param dm ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE build_dm_response(c0,c1,dm,error)
     !
     TYPE(cp_fm_p_type), DIMENSION(:), &
@@ -800,6 +829,16 @@ CONTAINS
   END SUBROUTINE build_dm_response
   !
   !
+! *****************************************************************************
+!> \brief ...
+!> \param v ...
+!> \param Av ...
+!> \param matrix_ks ...
+!> \param matrix_s ...
+!> \param chc ...
+!> \param buf ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE apply_op_1(v,Av,matrix_ks,matrix_s,chc,buf,error)
     !
     TYPE(cp_fm_type), POINTER                :: v, Av
@@ -830,7 +869,7 @@ CONTAINS
     ! H * v
     CALL cp_dbcsr_sm_fm_multiply(matrix_ks,v,Av,ncol,error=error)
     ! v * e  (chc already multiplied by -1)
-    CALL cp_fm_gemm('N','N',nrow,ncol,ncol,1.0_dp,v,chc,0.0_dp,buf,error)
+    CALL cp_gemm('N','N',nrow,ncol,ncol,1.0_dp,v,chc,0.0_dp,buf,error)
     ! S * ve
     CALL cp_dbcsr_sm_fm_multiply(matrix_s,buf,Av,ncol,alpha=1.0_dp,beta=1.0_dp,error=error)
     !Results is H*C1 - S*<iHj>*C1
@@ -840,6 +879,17 @@ CONTAINS
   END SUBROUTINE apply_op_1
 
 
+! *****************************************************************************
+!> \brief ...
+!> \param qs_env ...
+!> \param p_env ...
+!> \param c0 ...
+!> \param v ...
+!> \param Av ...
+!> \param chc ...
+!> \param buf ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE apply_op_2(qs_env,p_env,c0,v,Av,chc,buf,error)
     !
     TYPE(qs_environment_type), POINTER       :: qs_env
@@ -859,7 +909,6 @@ CONTAINS
                                                 lr_triplet, lsd
     REAL(KIND=dp)                            :: energy_hartree, &
                                                 energy_hartree_1c, fac
-    TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(linres_control_type), POINTER       :: linres_control
@@ -883,7 +932,7 @@ CONTAINS
     failure=.FALSE.
 
     NULLIFY(auxbas_pw_pool, pw_pools, pw_env, v_rspace_new, &
-            rho1_r, rho1_g_pw, tau_pw, cell, v_xc, rho1_set,&
+            rho1_r, rho1_g_pw, tau_pw, v_xc, rho1_set,&
             poisson_env, input, scf_section,rho,dft_control,logger)
     logger => cp_error_get_logger(error)
 
@@ -908,7 +957,6 @@ CONTAINS
 
        CALL get_qs_env(qs_env=qs_env,&
             pw_env=pw_env,&
-            cell=cell,&
             input=input,&
             rho=rho,&
             linres_control=linres_control,&
@@ -1039,7 +1087,7 @@ CONTAINS
        CALL xc_rho_set_update(rho1_set, rho1_r_pw, rho1_g_pw, tau_pw, needs,&
                              section_get_ival(xc_section,"XC_GRID%XC_DERIV",error=error),&
                              section_get_ival(xc_section,"XC_GRID%XC_SMOOTH_RHO",error=error),&
-                             cell, auxbas_pw_pool,  error)
+                             auxbas_pw_pool,  error)
 
        ALLOCATE(v_xc(nspins),stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -1224,6 +1272,12 @@ CONTAINS
   END SUBROUTINE apply_op_2
   !
   !
+! *****************************************************************************
+!> \brief ...
+!> \param p_env ...
+!> \param qs_env ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE p_env_check_i_alloc(p_env, qs_env, error)
     TYPE(qs_p_env_type), POINTER             :: p_env
     TYPE(qs_environment_type), POINTER       :: qs_env
@@ -1283,6 +1337,13 @@ CONTAINS
   END SUBROUTINE p_env_check_i_alloc
   !
   !
+! *****************************************************************************
+!> \brief ...
+!> \param kpp1_env ...
+!> \param qs_env ...
+!> \param lr_triplet ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE kpp1_check_i_alloc(kpp1_env, qs_env, lr_triplet,error)
 
     TYPE(qs_kpp1_env_type), POINTER          :: kpp1_env
@@ -1295,7 +1356,6 @@ CONTAINS
 
     INTEGER                                  :: ispin, nspins, stat
     LOGICAL                                  :: failure
-    TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: matrix_s
     TYPE(pw_env_type), POINTER               :: pw_env
@@ -1313,7 +1373,7 @@ CONTAINS
     CPPrecondition(kpp1_env%ref_count>0,cp_failure_level,routineP,error,failure)
 
     CALL get_qs_env(qs_env, pw_env=pw_env,&
-                    matrix_s=matrix_s, cell=cell, input=input, error=error, rho=rho)
+                    matrix_s=matrix_s, input=input, error=error, rho=rho)
 
     CALL qs_rho_get(rho, rho_r=rho_r, error=error)
     nspins=SIZE(rho_r)
@@ -1373,7 +1433,7 @@ CONTAINS
 
        CALL xc_prep_2nd_deriv(kpp1_env%deriv_set, kpp1_env%rho_set, &
                               my_rho_r, auxbas_pw_pool, &
-                              xc_section=xc_section, cell=cell, error=error)
+                              xc_section=xc_section, error=error)
 
        DO ispin=1,SIZE(my_rho_r)
           CALL pw_release(my_rho_r(ispin)%pw,error=error)
@@ -1385,6 +1445,14 @@ CONTAINS
   END SUBROUTINE kpp1_check_i_alloc
   !
   !
+! *****************************************************************************
+!> \brief ...
+!> \param v ...
+!> \param psi0 ...
+!> \param S_psi0 ...
+!> \param buf ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE preortho(v,psi0,S_psi0,buf,error)
     !v = (I-PS)v
     !
@@ -1424,9 +1492,9 @@ CONTAINS
        CPPrecondition(nt==nv,cp_failure_level,routineP,error,failure)
        !
        ! buf = v' * S_psi0
-       CALL cp_fm_gemm('T','N',mv,mp,nv,1.0_dp,v(ispin)%matrix,S_psi0(ispin)%matrix,0.0_dp,buf,error)
+       CALL cp_gemm('T','N',mv,mp,nv,1.0_dp,v(ispin)%matrix,S_psi0(ispin)%matrix,0.0_dp,buf,error)
        ! v = v - psi0 * buf'
-       CALL cp_fm_gemm('N','T',nv,mv,mp,-1.0_dp,psi0(ispin)%matrix,buf,1.0_dp,v(ispin)%matrix,error)
+       CALL cp_gemm('N','T',nv,mv,mp,-1.0_dp,psi0(ispin)%matrix,buf,1.0_dp,v(ispin)%matrix,error)
        !
     ENDDO
     !
@@ -1435,6 +1503,14 @@ CONTAINS
   END SUBROUTINE preortho
   !
   !
+! *****************************************************************************
+!> \brief ...
+!> \param v ...
+!> \param psi0 ...
+!> \param S_psi0 ...
+!> \param buf ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE postortho(v,psi0,S_psi0,buf,error)
     !v = (I-SP)v
     !
@@ -1472,9 +1548,9 @@ CONTAINS
        CPPrecondition(nt==nv,cp_failure_level,routineP,error,failure)
        !
        ! buf = v' * psi0
-       CALL cp_fm_gemm('T','N',mv,mp,nv,1.0_dp,v(ispin)%matrix,psi0(ispin)%matrix,0.0_dp,buf,error)
+       CALL cp_gemm('T','N',mv,mp,nv,1.0_dp,v(ispin)%matrix,psi0(ispin)%matrix,0.0_dp,buf,error)
        ! v = v - S_psi0 * buf'
-       CALL cp_fm_gemm('N','T',nv,mv,mp,-1.0_dp,S_psi0(ispin)%matrix,buf,1.0_dp,v(ispin)%matrix,error)
+       CALL cp_gemm('N','T',nv,mv,mp,-1.0_dp,S_psi0(ispin)%matrix,buf,1.0_dp,v(ispin)%matrix,error)
        !
     ENDDO
     !
@@ -1482,6 +1558,16 @@ CONTAINS
     !
   END SUBROUTINE postortho
 
+! *****************************************************************************
+!> \brief ...
+!> \param qs_env ...
+!> \param linres_section ...
+!> \param vec ...
+!> \param ivec ...
+!> \param tag ...
+!> \param ind ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE linres_write_restart(qs_env,linres_section,vec,ivec,tag,ind,error)
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(section_vals_type), POINTER         :: linres_section
@@ -1601,6 +1687,11 @@ CONTAINS
 
   END SUBROUTINE linres_write_restart
 
+! *****************************************************************************
+!> \brief ...
+!> \param linres_section ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE linres_init_write_restart(linres_section,error)
     TYPE(section_vals_type), POINTER         :: linres_section
     TYPE(cp_error_type), INTENT(INOUT)       :: error
@@ -1641,6 +1732,16 @@ CONTAINS
   END SUBROUTINE linres_init_write_restart
 
 
+! *****************************************************************************
+!> \brief ...
+!> \param qs_env ...
+!> \param linres_section ...
+!> \param vec ...
+!> \param ivec ...
+!> \param tag ...
+!> \param ind ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE linres_read_restart(qs_env,linres_section,vec,ivec,tag,ind,error)
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(section_vals_type), POINTER         :: linres_section
@@ -1810,6 +1911,13 @@ CONTAINS
 
 ! *****************************************************************************
 
+! *****************************************************************************
+!> \brief ...
+!> \param p_env ...
+!> \param linres_control ...
+!> \param nspins ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE check_p_env_init(p_env,linres_control, nspins, error)
     !
     TYPE(qs_p_env_type), POINTER             :: p_env

@@ -13,6 +13,7 @@
 MODULE dm_ls_scf
   USE bibliography,                    ONLY: Kolafa2004,&
                                              Niklasson2003,&
+                                             Niklasson2014,&
                                              Shao2003,&
                                              VandeVondele2012,&
                                              cite_reference
@@ -22,13 +23,11 @@ MODULE dm_ls_scf
        cp_dbcsr_binary_write, cp_dbcsr_checksum, cp_dbcsr_copy, &
        cp_dbcsr_create, cp_dbcsr_distribution, cp_dbcsr_filter, &
        cp_dbcsr_frobenius_norm, cp_dbcsr_get_occupation, cp_dbcsr_init, &
-       cp_dbcsr_multiply, cp_dbcsr_release, cp_dbcsr_scale, cp_dbcsr_set
-  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_p_type,&
-                                             cp_dbcsr_type
+       cp_dbcsr_multiply, cp_dbcsr_p_type, cp_dbcsr_release, cp_dbcsr_scale, &
+       cp_dbcsr_set, cp_dbcsr_type, dbcsr_type_no_symmetry
   USE cp_dbcsr_util,                   ONLY: lanczos_alg_serial
   USE cp_external_control,             ONLY: external_control
   USE cp_para_env,                     ONLY: cp_para_env_retain
-  USE dbcsr_types,                     ONLY: dbcsr_type_no_symmetry
   USE dm_ls_chebyshev,                 ONLY: compute_chebyshev
   USE dm_ls_scf_curvy,                 ONLY: deallocate_curvy_data,&
                                              dm_ls_curvy_optimization
@@ -37,6 +36,7 @@ MODULE dm_ls_scf
                                              compute_matrix_preconditioner,&
                                              density_matrix_sign,&
                                              density_matrix_sign_fixed_mu,&
+                                             density_matrix_tc2,&
                                              density_matrix_trs4
   USE dm_ls_scf_qs,                    ONLY: ls_scf_dm_to_ks,&
                                              ls_scf_init_qs,&
@@ -50,7 +50,7 @@ MODULE dm_ls_scf
        ls_cluster_atomic, ls_cluster_molecular, ls_s_inversion_hotelling, &
        ls_s_inversion_sign_sqrt, ls_s_preconditioner_atomic, &
        ls_s_preconditioner_molecular, ls_s_preconditioner_none, ls_scf_ns, &
-       ls_scf_trs4
+       ls_scf_tc2, ls_scf_trs4
   USE input_section_types,             ONLY: section_vals_get,&
                                              section_vals_get_subs_vals,&
                                              section_vals_retain,&
@@ -89,6 +89,8 @@ CONTAINS
 ! *****************************************************************************
 !> \brief perform an linear scaling scf procedure: entry point
 !>
+!> \param qs_env ...
+!> \param error ...
 !> \par History
 !>       2010.10 created [Joost VandeVondele]
 !> \author Joost VandeVondele
@@ -123,6 +125,8 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Creation and basic initialization of the LS type.
+!> \param qs_env ...
+!> \param error ...
 !> \par History
 !>       2012.11 created [Joost VandeVondele]
 !> \author Joost VandeVondele
@@ -204,6 +208,9 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief initialization needed for scf
+!> \param qs_env ...
+!> \param ls_scf_env ...
+!> \param error ...
 !> \par History
 !>       2010.10 created [Joost VandeVondele]
 !> \author Joost VandeVondele
@@ -279,6 +286,9 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief deal with the scf initial guess
+!> \param qs_env ...
+!> \param ls_scf_env ...
+!> \param error ...
 !> \par History
 !>       2012.11 created [Joost VandeVondele]
 !> \author Joost VandeVondele
@@ -298,7 +308,7 @@ CONTAINS
     INTEGER                                  :: handle, iaspc, &
                                                 initial_guess_type, ispin, &
                                                 istore, naspc, unit_nr
-    REAL(KIND=dp)                            :: alpha, cs_pos, energy
+    REAL(KIND=dp)                            :: alpha, cs_pos
     TYPE(cp_dbcsr_type)                      :: matrix_tmp1
     TYPE(cp_logger_type), POINTER            :: logger
 
@@ -399,6 +409,8 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief store a history of matrices for later use in ls_scf_initial_guess
+!> \param ls_scf_env ...
+!> \param error ...
 !> \par History
 !>       2012.11 created [Joost VandeVondele]
 !> \author Joost VandeVondele
@@ -473,6 +485,9 @@ CONTAINS
 ! *****************************************************************************
 !> \brief initialize S matrix related properties (sqrt, inverse...)
 !>        Might be factored-out since this seems common code with the other SCF.
+!> \param matrix_s ...
+!> \param ls_scf_env ...
+!> \param error ...
 !> \par History
 !>       2010.10 created [Joost VandeVondele]
 !> \author Joost VandeVondele
@@ -605,6 +620,10 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief parse the input section, no need to pass it around
+!> \param input ...
+!> \param ls_scf_env ...
+!> \param unit_nr ...
+!> \param error ...
 !> \par History
 !>       2010.10 created [Joost VandeVondele]
 !> \author Joost VandeVondele
@@ -646,6 +665,7 @@ CONTAINS
     CALL section_vals_val_get(ls_scf_section,"PERFORM_MU_SCAN",l_val=ls_scf_env%perform_mu_scan,error=error)
     CALL section_vals_val_get(ls_scf_section,"PURIFICATION_METHOD",i_val=ls_scf_env%purification_method,error=error)
     CALL section_vals_val_get(ls_scf_section,"DYNAMIC_THRESHOLD",l_val=ls_scf_env%dynamic_threshold,error=error)
+    CALL section_vals_val_get(ls_scf_section,"NON_MONOTONIC",l_val=ls_scf_env%non_monotonic,error=error)
     CALL section_vals_val_get(ls_scf_section,"SIGN_SQRT_ORDER",i_val=ls_scf_env%sign_sqrt_order,error=error)
     CALL section_vals_val_get(ls_scf_section,"EXTRAPOLATION_ORDER",i_val=ls_scf_env%extrapolation_order,error=error)
     CALL section_vals_val_get(ls_scf_section,"RESTART_READ",l_val=ls_scf_env%restart_read,error=error)
@@ -746,6 +766,9 @@ CONTAINS
        SELECT CASE(ls_scf_env%purification_method)
        CASE(ls_scf_ns)
            WRITE(unit_nr,'(T2,A,T38,A30)') "Purification method","Newton-Schulz sign iter"
+       CASE(ls_scf_tc2)
+           CALL cite_reference(Niklasson2014)
+           WRITE(unit_nr,'(T2,A,T38,A30)') "Purification method","Trace conserving 2nd  order"
        CASE(ls_scf_trs4)
            CALL cite_reference(Niklasson2003)
            WRITE(unit_nr,'(T2,A,T38,A30)') "Purification method","Trace resetting 4th order"
@@ -778,6 +801,9 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Main SCF routine. Can we keep it clean ?
+!> \param qs_env ...
+!> \param ls_scf_env ...
+!> \param error ...
 !> \par History
 !>       2010.10 created [Joost VandeVondele]
 !> \author Joost VandeVondele
@@ -793,8 +819,7 @@ CONTAINS
     INTEGER                                  :: handle, iscf, ispin, &
                                                 nelectron_spin_real, nspin, &
                                                 unit_nr
-    LOGICAL                                  :: check_convergence, converged, &
-                                                should_stop
+    LOGICAL                                  :: check_convergence, should_stop
     REAL(KIND=dp)                            :: energy_diff, energy_new, &
                                                 energy_old, t1, t2
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
@@ -883,6 +908,12 @@ CONTAINS
               CALL density_matrix_sign(ls_scf_env%matrix_p(ispin),ls_scf_env%mu_spin(ispin), ls_scf_env%fixed_mu, &
                                        matrix_mixing_old(ispin),ls_scf_env%matrix_s, ls_scf_env%matrix_s_inv, &
                                        nelectron_spin_real,ls_scf_env%eps_filter,error)
+            CASE(ls_scf_tc2)
+              CALL density_matrix_tc2(ls_scf_env%matrix_p(ispin), matrix_mixing_old(ispin),  ls_scf_env%matrix_s_sqrt_inv,&
+                                       nelectron_spin_real, ls_scf_env%eps_filter, ls_scf_env%homo_spin(ispin),&
+                                       ls_scf_env%lumo_spin(ispin), non_monotonic=ls_scf_env%non_monotonic, &
+                                       eps_lanczos=ls_scf_env%eps_lanczos, max_iter_lanczos=ls_scf_env%max_iter_lanczos,&
+                                       error=error)
             CASE(ls_scf_trs4)
               CALL density_matrix_trs4(ls_scf_env%matrix_p(ispin), matrix_mixing_old(ispin),  ls_scf_env%matrix_s_sqrt_inv,&
                                        nelectron_spin_real, ls_scf_env%eps_filter, ls_scf_env%homo_spin(ispin),&
@@ -938,6 +969,9 @@ CONTAINS
 ! *****************************************************************************
 !> \brief after SCF we have a density matrix, and the self consistent KS matrix
 !>        analyze its properties.
+!> \param qs_env ...
+!> \param ls_scf_env ...
+!> \param error ...
 !> \par History
 !>       2010.10 created [Joost VandeVondele]
 !> \author Joost VandeVondele
@@ -1028,6 +1062,8 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Compute the HOMO LUMO energies post SCF
+!> \param ls_scf_env ...
+!> \param error ...
 !> \par History
 !>       2013.06 created [Joost VandeVondele]
 !> \author Joost VandeVondele
@@ -1103,6 +1139,8 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Compute the density matrix for various values of the chemical potential
+!> \param ls_scf_env ...
+!> \param error ...
 !> \par History
 !>       2010.10 created [Joost VandeVondele]
 !> \author Joost VandeVondele
@@ -1170,6 +1208,8 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Report on the sparsities of various interesting matrices.
 !>
+!> \param ls_scf_env ...
+!> \param error ...
 !> \par History
 !>       2010.10 created [Joost VandeVondele]
 !> \author Joost VandeVondele
@@ -1284,6 +1324,11 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Helper routine to report on the sparsity of a single matrix,
 !>        for several filtering values
+!> \param matrix ...
+!> \param unit_nr ...
+!> \param title ...
+!> \param eps ...
+!> \param error ...
 !> \par History
 !>       2010.10 created [Joost VandeVondele]
 !> \author Joost VandeVondele
@@ -1328,6 +1373,9 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Compute matrix_w as needed for the forces
+!> \param matrix_w ...
+!> \param ls_scf_env ...
+!> \param error ...
 !> \par History
 !>       2010.11 created [Joost VandeVondele]
 !> \author Joost VandeVondele
@@ -1388,6 +1436,8 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief a place for quick experiments
+!> \param ls_scf_env ...
+!> \param error ...
 !> \par History
 !>       2010.11 created [Joost VandeVondele]
 !> \author Joost VandeVondele

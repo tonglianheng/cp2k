@@ -10,16 +10,14 @@
 !>      - full rewrite [jhu, 2009-01-23]
 ! *****************************************************************************
 MODULE core_ppnl
-
-  USE ai_overlap_new,                  ONLY: overlap
+  USE ai_overlap,                      ONLY: overlap
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
-                                             get_atomic_kind,&
                                              get_atomic_kind_set
   USE basis_set_types,                 ONLY: gto_basis_set_p_type,&
                                              gto_basis_set_type
   USE cp_dbcsr_interface,              ONLY: cp_dbcsr_add,&
-                                             cp_dbcsr_get_block_p
-  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_p_type
+                                             cp_dbcsr_get_block_p,&
+                                             cp_dbcsr_p_type
   USE external_potential_types,        ONLY: gth_potential_p_type,&
                                              gth_potential_type
   USE kinds,                           ONLY: dp
@@ -28,6 +26,9 @@ MODULE core_ppnl
                                              ncoset
   USE particle_types,                  ONLY: particle_type
   USE qs_force_types,                  ONLY: qs_force_type
+  USE qs_kind_types,                   ONLY: get_qs_kind,&
+                                             get_qs_kind_set,&
+                                             qs_kind_type
   USE qs_neighbor_list_types,          ONLY: get_iterator_info,&
                                              neighbor_list_iterate,&
                                              neighbor_list_iterator_create,&
@@ -58,8 +59,25 @@ CONTAINS
 
 !==========================================================================================================
 
+! *****************************************************************************
+!> \brief ...
+!> \param matrix_h ...
+!> \param matrix_p ...
+!> \param force ...
+!> \param virial ...
+!> \param calculate_forces ...
+!> \param use_virial ...
+!> \param nder ...
+!> \param qs_kind_set ...
+!> \param atomic_kind_set ...
+!> \param particle_set ...
+!> \param sab_orb ...
+!> \param sap_ppnl ...
+!> \param eps_ppnl ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE build_core_ppnl(matrix_h, matrix_p, force, virial, calculate_forces, use_virial, nder,&
-                    atomic_kind_set, particle_set, sab_orb, sap_ppnl, eps_ppnl, error)
+                    qs_kind_set, atomic_kind_set, particle_set, sab_orb, sap_ppnl, eps_ppnl, error)
 
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: matrix_h, matrix_p
@@ -69,6 +87,8 @@ CONTAINS
     LOGICAL, INTENT(IN)                      :: calculate_forces
     LOGICAL                                  :: use_virial
     INTEGER                                  :: nder
+    TYPE(qs_kind_type), DIMENSION(:), &
+      POINTER                                :: qs_kind_set
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(particle_type), DIMENSION(:), &
@@ -107,7 +127,6 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:, :, :), &
       POINTER                                :: achint, acint, bchint, bcint
     TYPE(alist_type), POINTER                :: alist_ac, alist_bc
-    TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(clist_type), POINTER                :: clist
     TYPE(gth_potential_p_type), &
       DIMENSION(:), POINTER                  :: potential
@@ -138,7 +157,7 @@ CONTAINS
 
       ALLOCATE (atom_of_kind(natom),STAT=stat)
       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-      CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,atom_of_kind=atom_of_kind)
+      CALL get_atomic_kind_set(atomic_kind_set,atom_of_kind=atom_of_kind)
 
       IF (calculate_forces) THEN
          IF (SIZE(matrix_p) == 2) THEN
@@ -151,12 +170,12 @@ CONTAINS
 
       maxder = ncoset(nder)
 
-      CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
+      CALL get_qs_kind_set(qs_kind_set,&
                                maxco=maxco,&
                                maxlgto=maxlgto,&
+                               maxsgf=maxsgf,&
                                maxlppnl=maxlppnl,&
-                               maxppnl=maxppnl,&
-                               maxsgf=maxsgf)
+                               maxppnl=maxppnl)
 
       maxl = MAX(maxlgto,maxlppnl)
       CALL init_orbital_pointers(maxl+nder+1)
@@ -176,14 +195,13 @@ CONTAINS
       ALLOCATE(basis_set(nkind),potential(nkind),STAT=stat)
       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
       DO ikind=1,nkind
-         atomic_kind => atomic_kind_set(ikind)
-         CALL get_atomic_kind(atomic_kind=atomic_kind,orb_basis_set=orb_basis_set)
+         CALL get_qs_kind(qs_kind_set(ikind),orb_basis_set=orb_basis_set)
          IF (ASSOCIATED(orb_basis_set)) THEN
            basis_set(ikind)%gto_basis_set => orb_basis_set
          ELSE
            NULLIFY(basis_set(ikind)%gto_basis_set)
          END IF
-         CALL get_atomic_kind(atomic_kind=atomic_kind,gth_potential=gth_potential)
+         CALL get_qs_kind(qs_kind_set(ikind),gth_potential=gth_potential)
          IF (ASSOCIATED(gth_potential)) THEN
            potential(ikind)%gth_potential => gth_potential
          ELSE

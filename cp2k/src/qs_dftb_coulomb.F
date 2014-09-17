@@ -10,22 +10,21 @@
 MODULE qs_dftb_coulomb
 
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
-                                             get_atomic_kind,&
                                              get_atomic_kind_set
   USE atprop_types,                    ONLY: atprop_array_init,&
                                              atprop_type
-  USE cell_types,                      ONLY: cell_type,&
+  USE cell_methods,                    ONLY: cell_type,&
                                              get_cell,&
                                              pbc
   USE cp_dbcsr_interface,              ONLY: cp_dbcsr_add,&
                                              cp_dbcsr_get_block_p,&
+                                             cp_dbcsr_iterator,&
                                              cp_dbcsr_iterator_blocks_left,&
                                              cp_dbcsr_iterator_next_block,&
                                              cp_dbcsr_iterator_start,&
-                                             cp_dbcsr_iterator_stop
-  USE cp_dbcsr_operations,             ONLY: cp_dbcsr_multiply_local
-  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_iterator,&
+                                             cp_dbcsr_iterator_stop,&
                                              cp_dbcsr_p_type
+  USE cp_dbcsr_operations,             ONLY: cp_dbcsr_multiply_local
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE dgs,                             ONLY: dg_sum_patch,&
                                              dg_sum_patch_force_1d,&
@@ -66,12 +65,15 @@ MODULE qs_dftb_coulomb
                                              RECIPROCALSPACE,&
                                              pw_p_type,&
                                              pw_type
+  USE qs_dftb3_methods,                ONLY: build_dftb3_diagonal
   USE qs_dftb_types,                   ONLY: qs_dftb_atom_type
   USE qs_dftb_utils,                   ONLY: get_dftb_atom_param
   USE qs_energy_types,                 ONLY: qs_energy_type
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
   USE qs_force_types,                  ONLY: qs_force_type
+  USE qs_kind_types,                   ONLY: get_qs_kind,&
+                                             qs_kind_type
   USE qs_neighbor_list_types,          ONLY: get_iterator_info,&
                                              neighbor_list_iterate,&
                                              neighbor_list_iterator_create,&
@@ -101,6 +103,16 @@ MODULE qs_dftb_coulomb
 
 CONTAINS
 
+! *****************************************************************************
+!> \brief ...
+!> \param qs_env ...
+!> \param ks_matrix ...
+!> \param rho ...
+!> \param mcharge ...
+!> \param energy ...
+!> \param calculate_forces ...
+!> \param just_energy ...
+!> \param error ...
 ! *****************************************************************************
   SUBROUTINE build_dftb_coulomb(qs_env,ks_matrix,rho,mcharge,energy,&
                calculate_forces,just_energy,error)
@@ -133,7 +145,6 @@ CONTAINS
                                                 mcout, pblock, sblock
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
-    TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_dbcsr_iterator)                  :: iter
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
@@ -150,6 +161,8 @@ CONTAINS
     TYPE(qs_dftb_atom_type), POINTER         :: dftb_kind
     TYPE(qs_force_type), DIMENSION(:), &
       POINTER                                :: force
+    TYPE(qs_kind_type), DIMENSION(:), &
+      POINTER                                :: qs_kind_set
     TYPE(virial_type), POINTER               :: virial
 
     CALL timeset(routineN,handle)
@@ -273,6 +286,7 @@ CONTAINS
 
     CALL get_qs_env(qs_env=qs_env,&
                     atomic_kind_set=atomic_kind_set,&
+                    qs_kind_set=qs_kind_set,&
                     force=force,para_env=para_env,error=error)
     CALL mp_sum(gmcharge(:,1),para_env%group)
 
@@ -289,8 +303,7 @@ CONTAINS
       CALL get_qs_env(qs_env=qs_env,&
                       local_particles=local_particles,error=error)
       DO ikind=1,SIZE(local_particles%n_el)
-        atomic_kind => atomic_kind_set(ikind)
-        CALL get_atomic_kind(atomic_kind=atomic_kind,dftb_parameter=dftb_kind)
+        CALL get_qs_kind(qs_kind_set(ikind),dftb_parameter=dftb_kind)
         CALL get_dftb_atom_param(dftb_kind,zeff=zeff)
         DO ia=1,local_particles%n_el(ikind)
           iatom=local_particles%list(ikind)%array(ia)
@@ -383,10 +396,29 @@ CONTAINS
     DEALLOCATE(gmcharge,STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
 
+    IF ( qs_env%dft_control%qs_control%dftb_control%dftb3_diagonal ) THEN
+       ! Diagonal 3rd order correction (DFTB3)
+       CALL build_dftb3_diagonal(qs_env,ks_matrix,rho,mcharge,energy,&
+               calculate_forces,just_energy,error)
+    END IF
+
     CALL timestop(handle)
 
   END SUBROUTINE build_dftb_coulomb
 
+! *****************************************************************************
+!> \brief ...
+!> \param ewald_env ...
+!> \param ewald_pw ...
+!> \param particle_set ...
+!> \param box ...
+!> \param gmcharge ...
+!> \param mcharge ...
+!> \param calculate_forces ...
+!> \param virial ...
+!> \param use_virial ...
+!> \param atprop ...
+!> \param error ...
 ! *****************************************************************************
   SUBROUTINE dftb_spme_evaluate (ewald_env,ewald_pw,particle_set,box,&
        gmcharge,mcharge,calculate_forces,virial,use_virial,atprop,error)
@@ -604,6 +636,16 @@ CONTAINS
 
   END SUBROUTINE dftb_spme_evaluate
 
+! *****************************************************************************
+!> \brief ...
+!> \param gmcharge ...
+!> \param mcharge ...
+!> \param alpha ...
+!> \param n_list ...
+!> \param virial ...
+!> \param use_virial ...
+!> \param atprop ...
+!> \param error ...
 ! *****************************************************************************
   SUBROUTINE dftb_ewald_overlap(gmcharge,mcharge,alpha,n_list,virial,use_virial,atprop,error)
 

@@ -15,9 +15,9 @@ MODULE qs_scf_post_se
   USE cell_types,                      ONLY: cell_type
   USE cp_array_r_utils,                ONLY: cp_1d_r_p_type
   USE cp_control_types,                ONLY: dft_control_type
-  USE cp_dbcsr_output,                 ONLY: cp_dbcsr_write_sparse_matrix
-  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_p_type,&
+  USE cp_dbcsr_interface,              ONLY: cp_dbcsr_p_type,&
                                              cp_dbcsr_type
+  USE cp_dbcsr_output,                 ONLY: cp_dbcsr_write_sparse_matrix
   USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                              cp_fm_struct_release,&
                                              cp_fm_struct_type
@@ -67,6 +67,7 @@ MODULE qs_scf_post_se
                                              pw_p_type
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
+  USE qs_kind_types,                   ONLY: qs_kind_type
   USE qs_ks_methods,                   ONLY: qs_ks_did_change,&
                                              qs_ks_update_qs_env
   USE qs_loc_methods,                  ONLY: qs_loc_driver
@@ -79,11 +80,11 @@ MODULE qs_scf_post_se
                                              read_loc_section,&
                                              set_loc_centers,&
                                              set_loc_wfn_lists
+  USE qs_mo_io,                        ONLY: write_mo_set
   USE qs_mo_methods,                   ONLY: calculate_subspace_eigenvalues
   USE qs_mo_types,                     ONLY: get_mo_set,&
                                              mo_set_p_type,&
-                                             set_mo_occupation,&
-                                             write_mo_set
+                                             set_mo_occupation
   USE qs_ot_eigensolver,               ONLY: ot_eigensolver
   USE qs_resp,                         ONLY: resp_fit
   USE qs_rho_types,                    ONLY: qs_rho_type
@@ -109,19 +110,20 @@ CONTAINS
 ! *****************************************************************************
 !> \brief collects possible post - scf calculations and prints info / computes properties.
 !>        specific for Semi-empirical calculations
+!> \param dft_section ...
 !> \param scf_env the scf_env whose info should be written out
 !> \param qs_env the qs_env in which the qs_env lives
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
+!> \par History
+!>      07.2008 created [tlaino] - Splitted from qs_scf_post (general)
+!> \author tlaino
 !> \note
 !>      this function changes mo_eigenvectors and mo_eigenvalues, depending on the print keys.
 !>      In particular, MO_CUBES causes the MOs to be rotated to make them eigenstates of the KS
 !>      matrix, and mo_eigenvalues is updated accordingly. This can, for unconverged wavefunctions,
 !>      change afterwards slightly the forces (hence small numerical differences between MD
 !>      with and without the debug print level). Ideally this should not happen...
-!> \par History
-!>      07.2008 created [tlaino] - Splitted from qs_scf_post (general)
-!> \author tlaino
 ! *****************************************************************************
   SUBROUTINE scf_post_calculation_se(dft_section, scf_env,qs_env,error)
 
@@ -136,7 +138,7 @@ CONTAINS
     INTEGER :: handle, homo, ispin, n, n_mo(2), nao, nelectron, nhomo, nlumo, &
       nlumos, nmo, nmoloc(2), nmos, output_unit
     INTEGER, DIMENSION(:), POINTER           :: marked_states
-    LOGICAL :: do_mo_cubes, do_wannier_cubes, explicit, failure, ionode, &
+    LOGICAL :: do_mo_cubes, do_wannier_cubes, explicit, failure, &
       my_localized_wfn, p_loc, p_molstates, p_wanstates, uniform_occ
     REAL(KIND=dp)                            :: maxocc
     REAL(KIND=dp), DIMENSION(:), POINTER     :: mo_eigenvalues
@@ -443,7 +445,7 @@ CPSourceFileRef,&
 
              ! Prints the cube files of UNOCCUPIED ORBITALS
              CALL qs_scf_post_unocc_cubes(input, dft_section, dft_control, logger, qs_env,&
-                  unoccupied_orbs, wf_g, wf_r, particles, nlumos, homo, ispin, error)
+                  unoccupied_orbs(ispin)%matrix, wf_g, wf_r, particles, nlumos, homo, ispin, error=error)
           ENDDO
 
        ENDIF
@@ -497,7 +499,8 @@ CPSourceFileRef,&
 
 ! *****************************************************************************
 !> \brief Computes and prints Electric Field Gradient
-!> \param qs_env the qs_env in which the qs_env lives
+!> \param input ...
+!> \param logger ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 ! *****************************************************************************
@@ -525,7 +528,10 @@ CPSourceFileRef,&
 
 ! *****************************************************************************
 !> \brief Computes and prints electric moments
+!> \param input ...
+!> \param logger ...
 !> \param qs_env the qs_env in which the qs_env lives
+!> \param output_unit ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 ! *****************************************************************************
@@ -554,7 +560,13 @@ CPSourceFileRef,&
 
 ! *****************************************************************************
 !> \brief Computes and Prints Atomic Charges with several methods
+!> \param input ...
+!> \param logger ...
 !> \param qs_env the qs_env in which the qs_env lives
+!> \param rho ...
+!> \param matrix_s ...
+!> \param mos ...
+!> \param para_env ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 ! *****************************************************************************
@@ -582,12 +594,15 @@ CPSourceFileRef,&
     TYPE(distribution_1d_type), POINTER      :: local_particles
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
+    TYPE(qs_kind_type), DIMENSION(:), &
+      POINTER                                :: qs_kind_set
     TYPE(scp_environment_type), POINTER      :: scp_env
     TYPE(section_vals_type), POINTER         :: print_key
 
     NULLIFY(particle_set)
     CALL get_qs_env(qs_env=qs_env,&
                     atomic_kind_set=atomic_kind_set,&
+                    qs_kind_set=qs_kind_set,&
                     local_particles=local_particles,&
                     particle_set=particle_set,&
                     scp_env=scp_env,&
@@ -611,7 +626,7 @@ CPSourceFileRef,&
        IF (print_it) print_level = 3
        CALL mulliken_population_analysis(qs_env,unit_nr,print_level,error)
        IF ( scp_nddo ) &
-       CALL multipoles(atomic_kind_set,particle_set,&
+       CALL multipoles(atomic_kind_set,qs_kind_set,particle_set,&
          rho%rho_ao,pscp,matrix_s(1)%matrix,para_env,unit_nr,"DFT%PRINT%MULLIKEN",error=error)
 
        CALL cp_print_key_finished_output(unit_nr, logger,input,"DFT%PRINT%MULLIKEN",error=error)
@@ -649,6 +664,10 @@ CPSourceFileRef,&
 
 ! *****************************************************************************
 !> \brief Computes and prints the Dipole (using localized charges)
+!> \param input ...
+!> \param dft_control ...
+!> \param qs_loc_env ...
+!> \param logger ...
 !> \param qs_env the qs_env in which the qs_env lives
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
@@ -678,7 +697,14 @@ CPSourceFileRef,&
 
 ! *****************************************************************************
 !> \brief Computes and prints the optical conductivity
+!> \param input ...
+!> \param dft_section ...
+!> \param dft_control ...
+!> \param logger ...
 !> \param qs_env the qs_env in which the qs_env lives
+!> \param unoccupied_orbs ...
+!> \param unoccupied_evals ...
+!> \param output_unit ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 ! *****************************************************************************
@@ -708,7 +734,11 @@ CPSourceFileRef,&
 
 ! *****************************************************************************
 !> \brief Computes and prints the X-ray diffraction spectrum.
+!> \param input ...
+!> \param dft_section ...
+!> \param logger ...
 !> \param qs_env the qs_env in which the qs_env lives
+!> \param output_unit ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 ! *****************************************************************************
@@ -740,6 +770,8 @@ CPSourceFileRef,&
 
 ! *****************************************************************************
 !> \brief Dumps EPR
+!> \param input ...
+!> \param logger ...
 !> \param qs_env the qs_env in which the qs_env lives
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
@@ -771,6 +803,8 @@ CPSourceFileRef,&
 !> \brief computes the condition number of the overlap matrix and
 !>      prints the value of the total energy. This is needed
 !>      for BASIS_MOLOPT optimizations
+!> \param input ...
+!> \param logger ...
 !> \param qs_env the qs_env in which the qs_env lives
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
@@ -802,7 +836,9 @@ CPSourceFileRef,&
 
 ! *****************************************************************************
 !> \brief Computes the Electron Transfer Coupling matrix element
+!> \param input ...
 !> \param qs_env the qs_env in which the qs_env lives
+!> \param dft_control ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 ! *****************************************************************************
@@ -833,6 +869,7 @@ CPSourceFileRef,&
 ! *****************************************************************************
 !> \brief Write QS results always available (if switched on through the print_keys)
 !> \param qs_env the qs_env in which the qs_env lives
+!> \param scf_env ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 ! *****************************************************************************
@@ -861,6 +898,8 @@ CPSourceFileRef,&
     TYPE(particle_list_type), POINTER        :: particles
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
+    TYPE(qs_kind_type), DIMENSION(:), &
+      POINTER                                :: qs_kind_set
     TYPE(qs_rho_type), POINTER               :: rho
     TYPE(scf_control_type), POINTER          :: scf_control
     TYPE(section_vals_type), POINTER         :: dft_section, input
@@ -877,7 +916,8 @@ CPSourceFileRef,&
     CPPrecondition(ASSOCIATED(qs_env),cp_failure_level,routineP,error,failure)
     IF (.NOT. failure) THEN
        CALL get_qs_env(qs_env,dft_control=dft_control,molecule_set=molecule_set, &
-            mos=mos,atomic_kind_set=atomic_kind_set,particle_set=particle_set,&
+            mos=mos,atomic_kind_set=atomic_kind_set,&
+            qs_kind_set=qs_kind_set,particle_set=particle_set,&
             rho=rho,matrix_ks=ks_rmpv,scf_control=scf_control,&
             input=input,cell=cell,subsys=subsys,error=error)
        CALL cp_subsys_get(subsys,particles=particles,error=error)
@@ -885,12 +925,12 @@ CPSourceFileRef,&
        ! *** if the dft_section tells you to do so, write last wavefunction to screen
        dft_section => section_vals_get_subs_vals(input,"DFT",error=error)
        IF (dft_control%nspins == 2) THEN
-         CALL write_mo_set(mos(1)%mo_set,atomic_kind_set,particle_set,4,&
+         CALL write_mo_set(mos(1)%mo_set,atomic_kind_set,qs_kind_set,particle_set,4,&
                            dft_section,spin="ALPHA",last=.TRUE.,error=error)
-         CALL write_mo_set(mos(2)%mo_set,atomic_kind_set,particle_set,4,&
+         CALL write_mo_set(mos(2)%mo_set,atomic_kind_set,qs_kind_set,particle_set,4,&
                            dft_section,spin="BETA",last=.TRUE.,error=error)
        ELSE
-         CALL write_mo_set(mos(1)%mo_set,atomic_kind_set,particle_set,4,&
+         CALL write_mo_set(mos(1)%mo_set,atomic_kind_set,qs_kind_set,particle_set,4,&
                            dft_section,last=.TRUE.,error=error)
        END IF
 

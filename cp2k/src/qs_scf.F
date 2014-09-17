@@ -36,18 +36,20 @@
 !>      - 03.2006 large cleaning action [Joost VandeVondele]
 !>      - High-spin ROKS added (05.04.06,MK)
 !>      - Mandes (10.2013)
-!>        internediate energy communication with external communicator added
+!>        intermediate energy communication with external communicator added
+!>      - kpoints (08.2014, JGH)
 !> \author Matthias Krack (30.04.2001)
 ! *****************************************************************************
 MODULE qs_scf
   USE atomic_kind_types,               ONLY: atomic_kind_type
   USE cp_control_types,                ONLY: dft_control_type
   USE cp_dbcsr_interface,              ONLY: cp_dbcsr_copy,&
-                                             cp_dbcsr_name
-  USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
-                                             cp_dbcsr_deallocate_matrix_set
-  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_p_type,&
+                                             cp_dbcsr_deallocate_matrix,&
+                                             cp_dbcsr_deallocate_matrix_set,&
+                                             cp_dbcsr_name,&
+                                             cp_dbcsr_p_type,&
                                              cp_dbcsr_type
+  USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm
   USE cp_fm_types,                     ONLY: cp_fm_release,&
                                              cp_fm_type
   USE cp_output_handling,              ONLY: cp_add_iter_level,&
@@ -92,14 +94,15 @@ MODULE qs_scf
   USE qs_energy_types,                 ONLY: qs_energy_type
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
+  USE qs_kind_types,                   ONLY: qs_kind_type
   USE qs_ks_methods,                   ONLY: qs_ks_did_change
   USE qs_ks_types,                     ONLY: qs_ks_env_type
+  USE qs_mo_io,                        ONLY: write_mo_set
   USE qs_mo_methods,                   ONLY: make_basis_simple,&
                                              make_basis_sm
   USE qs_mo_types,                     ONLY: get_mo_set,&
                                              mo_set_p_type,&
-                                             set_mo_occupation,&
-                                             write_mo_set
+                                             set_mo_occupation
   USE qs_ot,                           ONLY: qs_ot_new_preconditioner
   USE qs_ot_scf,                       ONLY: ot_scf_init,&
                                              ot_scf_read_input
@@ -111,8 +114,8 @@ MODULE qs_scf
   USE qs_scf_loop_utils,               ONLY: &
        qs_scf_check_inner_exit, qs_scf_check_outer_exit, &
        qs_scf_density_mixing, qs_scf_harris_e_correct, qs_scf_inner_finalize, &
-       qs_scf_ks_updates, qs_scf_new_mos, qs_scf_rho_update, &
-       qs_scf_set_loop_flags
+       qs_scf_ks_updates, qs_scf_new_mos, qs_scf_new_mos_kp, &
+       qs_scf_rho_update, qs_scf_set_loop_flags
   USE qs_scf_output,                   ONLY: qs_scf_loop_info,&
                                              qs_scf_loop_print,&
                                              qs_scf_outer_loop_info,&
@@ -139,8 +142,7 @@ MODULE qs_scf
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_scf'
 
-  PUBLIC :: scf, scf_env_cleanup, scf_env_do_scf,&
-            init_scf_loop
+  PUBLIC :: scf, scf_env_cleanup, scf_env_do_scf
 
 CONTAINS
 
@@ -149,10 +151,10 @@ CONTAINS
 !> \param qs_env the qs_environment where to perform the scf procedure
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
-!> \note
 !> \par History
 !>      02.2003 introduced scf_env, moved real work to scf_env_do_scf [fawzi]
 !> \author fawzi
+!> \note
 ! *****************************************************************************
   SUBROUTINE scf(qs_env,error)
     TYPE(qs_environment_type), POINTER       :: qs_env
@@ -222,15 +224,16 @@ CONTAINS
 !> \param scf_env the scf_env where to perform the scf procedure
 !> \param qs_env the qs_env, the scf_env lives in
 !> \param converged will be true / false if converged is reached
+!> \param should_stop ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
-!> \note
 !> \par History
 !>      long history, see cvs and qs_scf module history
 !>      02.2003 introduced scf_env [fawzi]
 !>      09.2005 Frozen density approximation [TdK]
 !>      06.2007 Check for SCF iteration count early [jgh]
 !> \author Matthias Krack
+!> \note
 ! *****************************************************************************
   SUBROUTINE scf_env_do_scf(scf_env,qs_env,converged,should_stop,error)
 
@@ -243,12 +246,11 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=default_string_length)     :: description
-    INTEGER :: ext_master_id, external_comm, handle, handle2, i_tmp, ispin, &
-      iter_count, output_unit, scf_energy_message_tag, total_steps
-    LOGICAL :: diis_step, energy_only, exit_inner_loop, exit_outer_loop, &
-      failure, gapw, gapw_xc, harris_flag, has_unit_metric, &
-      inner_loop_converged, just_energy, outer_loop_converged, scp_nddo, &
-      use_jacobi
+    INTEGER :: ext_master_id, external_comm, handle, handle2, i_tmp, ic, &
+      ispin, iter_count, output_unit, scf_energy_message_tag, total_steps
+    LOGICAL :: diis_step, do_kpoints, energy_only, exit_inner_loop, &
+      exit_outer_loop, failure, gapw, gapw_xc, harris_flag, has_unit_metric, &
+      inner_loop_converged, just_energy, outer_loop_converged, scp_nddo
     REAL(KIND=dp)                            :: t1, t2
     REAL(KIND=dp), DIMENSION(3)              :: res_val_3
     TYPE(atomic_kind_type), DIMENSION(:), &
@@ -266,6 +268,8 @@ CONTAINS
     TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
     TYPE(qs_charges_type), POINTER           :: qs_charges
     TYPE(qs_energy_type), POINTER            :: energy
+    TYPE(qs_kind_type), DIMENSION(:), &
+      POINTER                                :: qs_kind_set
     TYPE(qs_ks_env_type), POINTER            :: ks_env
     TYPE(qs_rho_type), POINTER               :: rho, rho_xc
     TYPE(scf_control_type), POINTER          :: scf_control
@@ -278,7 +282,7 @@ CONTAINS
     failure=.FALSE.
 
     NULLIFY(dft_control,matrix_s,matrix_ks,rho,rho_xc,energy, &
-            scf_control,logger,qs_charges,ks_env,mos,atomic_kind_set, &
+            scf_control,logger,qs_charges,ks_env,mos,atomic_kind_set,qs_kind_set, &
             particle_set,harris_env,dft_section,input,&
             scf_section, para_env)
 
@@ -298,8 +302,10 @@ CONTAINS
                     ks_env=ks_env, &
                     harris_env=harris_env,&
                     atomic_kind_set=atomic_kind_set,&
-                    matrix_ks=matrix_ks,rho=rho,rho_xc=rho_xc,mos=mos, &
-                    input=input, dft_control=dft_control, scf_control=scf_control, &
+                    qs_kind_set=qs_kind_set,&
+                    matrix_ks=matrix_ks,rho=rho,rho_xc=rho_xc,mos=mos,&
+                    input=input, dft_control=dft_control, scf_control=scf_control,&
+                    do_kpoints=do_kpoints,&
                     error=error)
 
     ! Defining SCP logicals
@@ -369,7 +375,7 @@ CONTAINS
             scf_section=scf_section, error=error)
 
        CALL qs_scf_set_loop_flags(scp_nddo,scf_control,scf_env,diis_step,&
-                      use_jacobi,energy_only,just_energy,exit_inner_loop,error)
+                      energy_only,just_energy,exit_inner_loop,error)
 
        scf_loop: DO
 
@@ -389,15 +395,21 @@ CONTAINS
           ! print 'heavy weight' or relatively expensive quantities
           CALL qs_scf_loop_print(qs_env,scf_env,para_env,error)
 
-          CALL qs_scf_new_mos(qs_env,scf_env,scf_section,diis_step,use_jacobi,energy_only,error)
+          IF(do_kpoints) THEN
+             ! kpoints
+             CALL qs_scf_new_mos_kp(qs_env,scf_env,scf_section,diis_step,energy_only,error)
+          ELSE
+             ! Gamma points only
+             CALL qs_scf_new_mos(qs_env,scf_env,scf_section,diis_step,energy_only,error)
+          END IF
 
           ! another heavy weight print object, print controlled by dft_section
-          CALL qs_scf_write_mos(mos,atomic_kind_set,particle_set,dft_section,.FALSE.,error)
+          CALL qs_scf_write_mos(mos,atomic_kind_set,qs_kind_set,particle_set,dft_section,.FALSE.,error)
           
           CALL qs_scf_harris_e_correct(qs_env,harris_env,para_env,scf_env,energy,harris_section,&
                                        harris_flag,error)
 
-          CALL qs_scf_density_mixing(scf_env,rho,para_env,diis_step,error)
+          CALL qs_scf_density_mixing(scf_env,rho,para_env,diis_step,do_kpoints,error)
 
           t2 = m_walltime()
 
@@ -407,17 +419,16 @@ CONTAINS
 
           IF (harris_flag) CALL harris_postprocessing(harris_env, error=error)
 
-          ! check for external communicator and if the inermediate energy should be sended
+          ! check for external communicator and if the intermediate energy should be sent
           IF(scf_energy_message_tag.GT.0)THEN
-            CALL mp_send(energy%total, ext_master_id, scf_energy_message_tag, &
-                         external_comm)
+            CALL mp_send(energy%total, ext_master_id, scf_energy_message_tag, external_comm)
           END IF
 
           CALL qs_scf_check_inner_exit(qs_env,scf_env,scf_control,should_stop,exit_inner_loop,&
                                inner_loop_converged,output_unit,error)
 
-          ! ** In case we decide to exit we perform few more check to see if this one
-          ! ** is really the last SCF step
+          ! In case we decide to exit we perform few more check to see if this one
+          ! is really the last SCF step
           IF (exit_inner_loop) THEN
 
              CALL qs_scf_inner_finalize(qs_env,harris_flag,diis_step,output_unit,error)
@@ -425,16 +436,17 @@ CONTAINS
              CALL qs_scf_check_outer_exit(qs_env,scf_env,scf_control,should_stop,&
                                          outer_loop_converged,exit_outer_loop,error)
 
-             ! ** Let's tag the last SCF cycle so we can print informations only of the last step
+             ! Let's tag the last SCF cycle so we can print informations only of the last step
              IF (exit_outer_loop) CALL cp_iterate(logger%iter_info,last=.TRUE.,iter_nr=iter_count,error=error)
 
           END IF
 
-          !   *** Write WaveFunction restart file ***
+          ! Write WaveFunction restart file
           CALL write_mo_set(mos,particle_set,dft_section=dft_section,&
-                            atomic_kind_set=atomic_kind_set,error=error)
+                            atomic_kind_set=atomic_kind_set,qs_kind_set=qs_kind_set,&
+                            kpoints=qs_env%kpoints,error=error)
 
-          !   *** Exit if we have finished with the SCF inner loop ***
+          ! Exit if we have finished with the SCF inner loop
           IF (exit_inner_loop) THEN
              CALL timestop(handle2)
              EXIT scf_loop
@@ -444,12 +456,21 @@ CONTAINS
                scf_section,"PRINT%ITERATION_INFO/TIME_CUMUL",error=error),cp_p_file)) &
                t1 = m_walltime()
 
-          ! ** mixing methods have the new density matrix in p_mix_new **
+          ! mixing methods have the new density matrix in p_mix_new
           IF (scf_env%mixing_method > 0) THEN
-             DO ispin=1,dft_control%nspins
-                CALL cp_dbcsr_copy(rho%rho_ao(ispin)%matrix,scf_env%p_mix_new(ispin)%matrix,&
+             IF(do_kpoints) THEN
+                DO ic=1,SIZE(rho%rho_ao_kp,2)
+                   DO ispin=1,dft_control%nspins
+                      CALL cp_dbcsr_copy(rho%rho_ao_kp(ispin,ic)%matrix,scf_env%p_mix_kp(ispin,ic)%matrix,&
+                                      name=TRIM(cp_dbcsr_name(rho%rho_ao_kp(ispin,ic)%matrix)),error=error)
+                   END DO
+                END DO
+             ELSE
+                DO ispin=1,dft_control%nspins
+                   CALL cp_dbcsr_copy(rho%rho_ao(ispin)%matrix,scf_env%p_mix_new(ispin)%matrix,&
                                    name=TRIM(cp_dbcsr_name(rho%rho_ao(ispin)%matrix)),error=error)
-             END DO
+                END DO
+             END IF
           END IF
           
           CALL qs_scf_rho_update(rho,qs_env,scf_env,ks_env,&
@@ -461,7 +482,7 @@ CONTAINS
 
        IF (.NOT. scf_control%outer_scf%have_scf) EXIT scf_outer_loop
 
-       ! ** In case we use the OUTER SCF loop let's print some info..
+       ! In case we use the OUTER SCF loop let's print some info..
        CALL qs_scf_outer_loop_info(output_unit,scf_control,scf_env,&
                                    energy,total_steps,should_stop,outer_loop_converged)
 
@@ -475,7 +496,7 @@ CONTAINS
 
     converged = inner_loop_converged .AND. outer_loop_converged
 
-    !if needed copy mo_coeff dbcsr->fm for later use in post_scf!fm->dbcsr
+    ! if needed copy mo_coeff dbcsr->fm for later use in post_scf!fm->dbcsr
     DO ispin=1,SIZE(mos)!fm -> dbcsr
        IF(mos(ispin)%mo_set%use_mo_coeff_b) THEN!fm->dbcsr
           IF (.NOT.ASSOCIATED(mos(ispin)%mo_set%mo_coeff_b)) &!fm->dbcsr
@@ -501,6 +522,10 @@ CONTAINS
 !> \brief inits those objects needed if you want to restart the scf with, say
 !>        only a new initial guess, or different density functional or ...
 !>        this will happen just before the scf loop starts
+!> \param scf_env ...
+!> \param qs_env ...
+!> \param scf_section ...
+!> \param error ...
 !> \par History
 !>      03.2006 created [Joost VandeVondele]
 ! *****************************************************************************
@@ -748,6 +773,8 @@ CPSourceFileRef)
 ! *****************************************************************************
 !> \brief perform cleanup operations (like releasing temporary storage)
 !>      at the end of the scf
+!> \param scf_env ...
+!> \param qs_env ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 !> \par History
@@ -785,6 +812,16 @@ CPSourceFileRef)
        IF (ASSOCIATED(scf_env%scf_work2)) CALL cp_fm_release(scf_env%scf_work2,error)
        IF (ASSOCIATED(scf_env%ortho)) CALL cp_fm_release(scf_env%ortho,error=error)
        IF (ASSOCIATED(scf_env%ortho_m1)) CALL cp_fm_release(scf_env%ortho_m1,error=error)
+
+       IF (ASSOCIATED(scf_env%ortho_dbcsr)) THEN
+           CALL cp_dbcsr_deallocate_matrix(scf_env%ortho_dbcsr,error=error)
+       END IF
+       IF (ASSOCIATED(scf_env%buf1_dbcsr)) THEN
+           CALL cp_dbcsr_deallocate_matrix(scf_env%buf1_dbcsr,error=error)
+       END IF
+       IF (ASSOCIATED(scf_env%buf2_dbcsr)) THEN
+           CALL cp_dbcsr_deallocate_matrix(scf_env%buf2_dbcsr,error=error)
+       END IF
 
        IF (ASSOCIATED(scf_env%p_mix_new)) THEN
           CALL cp_dbcsr_deallocate_matrix_set(scf_env%p_mix_new,error=error)

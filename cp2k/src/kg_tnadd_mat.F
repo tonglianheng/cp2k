@@ -9,29 +9,18 @@
 !>      - adapted from core_ppl 
 ! *****************************************************************************
 MODULE kg_tnadd_mat
-
   USE ai_overlap_ppl,                  ONLY: ppl_integral
-  USE array_types,                     ONLY: array_i1d_obj,&
-                                             array_new,&
-                                             array_nullify,&
-                                             array_release
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
-                                             get_atomic_kind,&
                                              get_atomic_kind_set
   USE basis_set_types,                 ONLY: gto_basis_set_p_type,&
                                              gto_basis_set_type
   USE cp_dbcsr_cp2k_link,              ONLY: cp_dbcsr_alloc_block_from_nbl
-  USE cp_dbcsr_interface,              ONLY: cp_dbcsr_add,&
-                                             cp_dbcsr_create,&
-                                             cp_dbcsr_finalize,&
-                                             cp_dbcsr_get_block_p,&
-                                             cp_dbcsr_init,&
-                                             cp_dbcsr_set
-  USE cp_dbcsr_operations,             ONLY: cp_dbcsr_allocate_matrix_set,&
-                                             cp_dbcsr_deallocate_matrix_set
-  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_p_type
-  USE dbcsr_types,                     ONLY: dbcsr_distribution_obj,&
-                                             dbcsr_type_symmetric
+  USE cp_dbcsr_interface,              ONLY: &
+       array_i1d_obj, array_new, array_nullify, array_release, cp_dbcsr_add, &
+       cp_dbcsr_allocate_matrix_set, cp_dbcsr_create, &
+       cp_dbcsr_deallocate_matrix_set, cp_dbcsr_finalize, &
+       cp_dbcsr_get_block_p, cp_dbcsr_init, cp_dbcsr_p_type, cp_dbcsr_set, &
+       dbcsr_distribution_obj, dbcsr_type_symmetric
   USE external_potential_types,        ONLY: get_potential,&
                                              local_potential_type
   USE input_constants,                 ONLY: use_orb_basis_set
@@ -42,6 +31,9 @@ MODULE kg_tnadd_mat
   USE particle_types,                  ONLY: get_particle_set,&
                                              particle_type
   USE qs_force_types,                  ONLY: qs_force_type
+  USE qs_kind_types,                   ONLY: get_qs_kind,&
+                                             get_qs_kind_set,&
+                                             qs_kind_type
   USE qs_neighbor_list_types,          ONLY: get_iterator_info,&
                                              neighbor_list_iterate,&
                                              neighbor_list_iterator_create,&
@@ -68,8 +60,23 @@ CONTAINS
 
 !==========================================================================================================
 
+! *****************************************************************************
+!> \brief ...
+!> \param kg_env ...
+!> \param matrix_p ...
+!> \param force ...
+!> \param virial ...
+!> \param calculate_forces ...
+!> \param use_virial ...
+!> \param qs_kind_set ...
+!> \param atomic_kind_set ...
+!> \param particle_set ...
+!> \param sab_orb ...
+!> \param dbcsr_dist ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE build_tnadd_mat(kg_env, matrix_p, force, virial, calculate_forces, use_virial, &
-                    atomic_kind_set, particle_set, sab_orb, dbcsr_dist, error)
+                    qs_kind_set, atomic_kind_set, particle_set, sab_orb, dbcsr_dist, error)
 
     TYPE(kg_environment_type), POINTER       :: kg_env
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
@@ -79,6 +86,8 @@ CONTAINS
     TYPE(virial_type), POINTER               :: virial
     LOGICAL, INTENT(IN)                      :: calculate_forces
     LOGICAL                                  :: use_virial
+    TYPE(qs_kind_type), DIMENSION(:), &
+      POINTER                                :: qs_kind_set
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(particle_type), DIMENSION(:), &
@@ -120,7 +129,6 @@ CONTAINS
                                                 p_block, rpgfa, rpgfb, &
                                                 sphi_a, sphi_b, zeta, zetb
     TYPE(array_i1d_obj)                      :: col_blk_sizes, row_blk_sizes
-    TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: matrix_kg
     TYPE(gto_basis_set_p_type), &
@@ -133,6 +141,8 @@ CONTAINS
       DIMENSION(:), POINTER                  :: sac_kin
 
 !$  INTEGER :: omp_get_thread_num, omp_get_max_threads
+
+    NULLIFY(matrix_kg)
 
     failure = .FALSE.
     IF (calculate_forces) THEN
@@ -168,8 +178,8 @@ CONTAINS
 
     maxder = ncoset(nder)
 
-    CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
-            maxco=maxco,maxlgto=maxlgto,maxpol=maxpol,maxsgf=maxsgf,maxnset=maxnset)
+    CALL get_qs_kind_set(qs_kind_set,maxpol=maxpol,maxco=maxco,maxlgto=maxlgto,&
+                          maxsgf=maxsgf,maxnset=maxnset)
 
     maxl = MAX(maxlgto,maxpol)
     CALL init_orbital_pointers(maxl+nder+1)
@@ -180,8 +190,7 @@ CONTAINS
     ALLOCATE (basis_set_list(nkind),STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     DO ikind=1,nkind
-      atomic_kind => atomic_kind_set(ikind)
-      CALL get_atomic_kind(atomic_kind=atomic_kind,orb_basis_set=basis_set_a)
+      CALL get_qs_kind(qs_kind_set(ikind), orb_basis_set=basis_set_a)
       IF (ASSOCIATED(basis_set_a)) THEN
         basis_set_list(ikind)%gto_basis_set => basis_set_a
       ELSE
@@ -193,9 +202,9 @@ CONTAINS
     ALLOCATE (rbs(natom),cbs(natom), STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
 
-    CALL get_particle_set(particle_set=particle_set,nsgf=rbs,&
+    CALL get_particle_set(particle_set, qs_kind_set, nsgf=rbs,&
                           basis_set_id=use_orb_basis_set,error=error)
-    CALL get_particle_set(particle_set=particle_set,nsgf=cbs,&
+    CALL get_particle_set(particle_set, qs_kind_set, nsgf=cbs,&
                           basis_set_id=use_orb_basis_set,error=error)
 
     CALL cp_dbcsr_allocate_matrix_set(matrix_kg,1,error=error)
@@ -228,8 +237,8 @@ CONTAINS
 !$OMP PARALLEL &
 !$OMP DEFAULT (NONE) &
 !$OMP SHARED  (nl_iterator, basis_set_list, calculate_forces, force, use_virial,&
-!$OMP          matrix_kg, matrix_p,virial, atomic_kind_set, particle_set, sab_orb, sac_kin, &
-!$OMP          nthread, ncoset, nkind, &
+!$OMP          matrix_kg, matrix_p,virial, atomic_kind_set, qs_kind_set, particle_set,&
+!$OMP          sab_orb, sac_kin, nthread, ncoset, nkind,&
 !$OMP          atom_of_kind, ldsab,  maxnset, maxder, &
 !$OMP          maxlgto, nder, maxco, atom_to_molecule) &
 !$OMP PRIVATE (ikind, jkind, inode, iatom, jatom, rab, basis_set_a, basis_set_b, atom_a, &
@@ -237,7 +246,7 @@ CONTAINS
 !$OMP          zeta, first_sgfb, lb_max, lb_min, npgfb, nsetb, rpgfb, set_radius_b, sphi_b, &
 !$OMP          zetb, last_iatom, last_jatom, new_atom_pair, dab, irow, icol, h_block, found, iset, ncoa, &
 !$OMP          sgfa, jset, ncob, sgfb, nsgfb, p_block, work, pab, hab, kkind, nseta, &
-!$OMP          atomic_kind, radius, alpha, nct, imol, jmol, kmol,&
+!$OMP          radius, alpha, nct, imol, jmol, kmol,&
 !$OMP          npol, ngau, cval, ccval, ap_iterator, rac, dac, rbc, dbc, &
 !$OMP          set_radius_a,  rpgfa, force_a, force_b, ppl_fwork, mepos, &
 !$OMP          f0, failure, katom, ppl_work, atom_c,&
@@ -372,8 +381,7 @@ CONTAINS
        ! loop over all kinds for nonadditive kinetic energy potential atoms
        DO kkind=1,nkind
 
-          atomic_kind => atomic_kind_set(kkind)
-          CALL get_atomic_kind(atomic_kind=atomic_kind,tnadd_potential=tnadd_potential)
+          CALL get_qs_kind(qs_kind_set(kkind),tnadd_potential=tnadd_potential)
           IF (.NOT.ASSOCIATED(tnadd_potential)) CYCLE
           CALL get_potential(potential=tnadd_potential,&
                alpha=alpha,cval=cval,ngau=ngau,npol=npol,radius=radius)

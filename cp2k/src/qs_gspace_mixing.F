@@ -9,20 +9,21 @@ MODULE qs_gspace_mixing
   USE cp_control_types,                ONLY: dft_control_type
   USE cp_dbcsr_cp2k_link,              ONLY: cp_dbcsr_alloc_block_from_nbl
   USE cp_dbcsr_interface,              ONLY: &
-       cp_dbcsr_add, cp_dbcsr_col_block_sizes, cp_dbcsr_create, &
-       cp_dbcsr_distribution, cp_dbcsr_get_info, cp_dbcsr_init, &
-       cp_dbcsr_row_block_sizes, cp_dbcsr_scale, cp_dbcsr_set, cp_dbcsr_trace
+       cp_dbcsr_add, cp_dbcsr_allocate_matrix_set, cp_dbcsr_col_block_sizes, &
+       cp_dbcsr_create, cp_dbcsr_distribution, cp_dbcsr_get_info, &
+       cp_dbcsr_init, cp_dbcsr_p_type, cp_dbcsr_row_block_sizes, &
+       cp_dbcsr_scale, cp_dbcsr_set, cp_dbcsr_trace, cp_dbcsr_type, &
+       dbcsr_type_symmetric
   USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
                                              copy_fm_to_dbcsr,&
-                                             cp_dbcsr_allocate_matrix_set,&
                                              cp_dbcsr_sm_fm_multiply
-  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_p_type
-  USE cp_fm_basic_linalg,              ONLY: cp_fm_gemm,&
-                                             cp_fm_trace,&
+  USE cp_fm_basic_linalg,              ONLY: cp_fm_trace,&
                                              cp_fm_upper_to_full
+  USE cp_gemm_interface,               ONLY: cp_gemm
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE dbcsr_types,                     ONLY: dbcsr_type_symmetric
   USE kinds,                           ONLY: dp
+  USE kpoint_types,                    ONLY: get_kpoint_info,&
+                                             kpoint_type
   USE mathlib,                         ONLY: diamat_all,&
                                              invert_matrix
   USE message_passing,                 ONLY: mp_bcast,&
@@ -72,12 +73,21 @@ MODULE qs_gspace_mixing
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_gspace_mixing'
 
-  PUBLIC :: gspace_mixing, broyden_mixing, broyden_mixing_new, gmix_potential_only, &
-            gspace_density_mixing, mixing_allocate, mixing_init,&
-            pulay_mixing, self_consistency_check
+  PUBLIC :: gspace_mixing,&
+            mixing_allocate, mixing_init,&
+            self_consistency_check
 
 CONTAINS
 
+! *****************************************************************************
+!> \brief ...
+!> \param rho_ao ...
+!> \param p_delta ...
+!> \param para_env ...
+!> \param p_out ...
+!> \param delta ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE self_consistency_check(rho_ao,p_delta,para_env,p_out,delta,error)
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: rho_ao, p_delta
@@ -122,16 +132,21 @@ CONTAINS
   END SUBROUTINE self_consistency_check
 
 ! *****************************************************************************
-!> \brief
+!> \brief ...
 !> \param qs_env the qs_environment where to perform the scf procedure
+!> \param scf_env ...
+!> \param p_out ...
+!> \param delta ...
+!> \param eps_scf ...
+!> \param diis ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
-!> \note At the moment the mixing of density matrix in g-space does not work,
-!>       The g-space mixing is then performed only on the grid and affects the potential only
-!>       This is done in gmix_potential_only
 !> \par History
 !>      02.2009
 !> \author MI
+!> \note At the moment the mixing of density matrix in g-space does not work,
+!>       The g-space mixing is then performed only on the grid and affects the potential only
+!>       This is done in gmix_potential_only
 ! *****************************************************************************
 
   SUBROUTINE  gspace_density_mixing(qs_env,scf_env,p_out,delta,eps_scf,diis,error)
@@ -266,7 +281,7 @@ CONTAINS
 
        CALL cp_dbcsr_sm_fm_multiply(matrix_q(ispin)%matrix,scf_env%s_minus_one,&
             scf_env%scf_work2, nao,error=error)
-       CALL cp_fm_gemm("N","N",nao,nao,nao,1.0_dp,scf_env%s_minus_one,&
+       CALL cp_gemm("N","N",nao,nao,nao,1.0_dp,scf_env%s_minus_one,&
             scf_env%scf_work2,0.0_dp,scf_env%scf_work1(ispin)%matrix,error=error )
 
 !       a_mix = 1.0_dp-scf_env%p_mix_alpha
@@ -291,7 +306,13 @@ CONTAINS
   END SUBROUTINE gspace_density_mixing
 ! *****************************************************************************
 !> \brief  Driver for the g-space mixing, calls the proper routine given the
-!requested method
+!>requested method
+!> \param qs_env ...
+!> \param scf_env ...
+!> \param mixing_store ...
+!> \param rho ...
+!> \param para_env ...
+!> \param error ...
 !> \par History
 !>      05.2009
 !> \author MI
@@ -429,6 +450,10 @@ CONTAINS
 ! *****************************************************************************
 !> \brief G-space mixing performed via the Kerker damping on the density on the grid
 !>        thus affecting only the caluclation of the potential, but not the denisity matrix
+!> \param qs_env ...
+!> \param mixing_store ...
+!> \param rho ...
+!> \param error ...
 !> \par History
 !>      02.2009
 !> \author MI
@@ -507,6 +532,10 @@ CONTAINS
 !>        The mixing is applied directly on the density in reciprocal space,
 !>        therefore it affects the potentials
 !>        on the grid but not the density matrix
+!> \param mixing_store ...
+!> \param rho ...
+!> \param para_env ...
+!> \param error ...
 !> \par History
 !>      03.2009
 !> \author MI
@@ -685,6 +714,11 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Broyden Mixing using as metrics for the residual the Kerer damping factor
 !>        The mixing is applied directly on the density expansion in reciprocal space
+!> \param qs_env ...
+!> \param mixing_store ...
+!> \param rho ...
+!> \param para_env ...
+!> \param error ...
 !> \par History
 !>      03.2009
 !> \author MI
@@ -964,6 +998,13 @@ CONTAINS
 
  END SUBROUTINE broyden_mixing
 
+! *****************************************************************************
+!> \brief ...
+!> \param mixing_store ...
+!> \param rho ...
+!> \param para_env ...
+!> \param error ...
+! *****************************************************************************
  SUBROUTINE broyden_mixing_new(mixing_store, rho, para_env,  error)
 
     TYPE(mixing_storage_type), POINTER       :: mixing_store
@@ -1215,7 +1256,7 @@ CONTAINS
         ELSE
           b=0.0_dp
           ALLOCATE(work(ib-1,ib-1),aval(ib-1),av(ib-1,ib-1),au(ib-1,ib-1))
-          work=a
+          work(:,:)=a
           ALLOCATE(iwork(8*(ib-1)),work_dgesdd(1))
              lwork=-1
              CALL DGESDD('S',ib-1,ib-1,work,ib-1,aval,au,ib-1,av,ib-1,work_dgesdd,lwork,iwork,info)
@@ -1377,6 +1418,10 @@ CONTAINS
 !>        The mixing is applied directly on the density in reciprocal space,
 !>        therefore it affects the potentials
 !>        on the grid but not the density matrix
+!> \param mixing_store ...
+!> \param rho ...
+!> \param para_env ...
+!> \param error ...
 !> \par History
 !>      05.2009
 !> \author MI
@@ -1769,10 +1814,15 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief  allocation needed when density mixing is used
+!> \param qs_env ...
+!> \param mixing_method ...
+!> \param mixing_store ...
+!> \param nspins ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 !> \par History
 !>      05.2009 created [MI]
+!>      08.2014 kpoints [JGH]
 !> \author fawzi
 ! *****************************************************************************
  SUBROUTINE mixing_allocate(qs_env,mixing_method,mixing_store,&
@@ -1786,11 +1836,13 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'mixing_allocate', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, i, iat, ispin, natom, &
-                                                nbuffer, stat
-    LOGICAL                                  :: failure
+    INTEGER                                  :: handle, i, iat, ic, ispin, &
+                                                natom, nbuffer, ncount, stat
+    LOGICAL                                  :: do_kpoints, failure
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: matrix_s
+    TYPE(cp_dbcsr_type), POINTER             :: refmatrix
+    TYPE(kpoint_type), POINTER               :: kpoints
     TYPE(neighbor_list_set_p_type), &
       DIMENSION(:), POINTER                  :: sab_orb
     TYPE(qs_scf_env_type), POINTER           :: scf_env
@@ -1805,7 +1857,9 @@ CONTAINS
     CALL get_qs_env(qs_env=qs_env, sab_orb=sab_orb, &
          scf_env=scf_env, &
          matrix_s=matrix_s, &
+         do_kpoints=do_kpoints, &
          error=error)
+    refmatrix => matrix_s(1)%matrix
 
 !   *** allocate p_mix_new ***
     IF (.NOT.ASSOCIATED(scf_env%p_mix_new)) THEN
@@ -1815,13 +1869,36 @@ CONTAINS
           CALL cp_dbcsr_init(scf_env%p_mix_new(i)%matrix, error=error)
           CALL cp_dbcsr_create(matrix=scf_env%p_mix_new(i)%matrix, &
                name="SCF"//TRIM(ADJUSTL(cp_to_string(scf_env%id_nr)))//"DENSITY", &
-               dist=cp_dbcsr_distribution(matrix_s(1)%matrix), matrix_type=dbcsr_type_symmetric,&
-               row_blk_size=cp_dbcsr_row_block_sizes(matrix_s(1)%matrix), &
-               col_blk_size=cp_dbcsr_col_block_sizes(matrix_s(1)%matrix), &
+               dist=cp_dbcsr_distribution(refmatrix), matrix_type=dbcsr_type_symmetric,&
+               row_blk_size=cp_dbcsr_row_block_sizes(refmatrix), &
+               col_blk_size=cp_dbcsr_col_block_sizes(refmatrix), &
                nblks=0, nze=0, error=error)
           CALL cp_dbcsr_alloc_block_from_nbl(scf_env%p_mix_new(i)%matrix,sab_orb,error=error)
           CALL cp_dbcsr_set(scf_env%p_mix_new(i)%matrix,0.0_dp,error=error)
        ENDDO
+    END IF
+
+!   *** allocate p_mix_kp ***
+    IF(do_kpoints) THEN
+       IF (.NOT.ASSOCIATED(scf_env%p_mix_kp)) THEN
+          CALL get_qs_env(qs_env=qs_env, kpoints=kpoints, error=error)
+          CALL get_kpoint_info(kpoint=kpoints, ncount=ncount, error=error)
+          CALL cp_dbcsr_allocate_matrix_set(scf_env%p_mix_kp,nspins,ncount,error=error)
+          DO i=1,nspins
+             DO ic=1,ncount
+                ALLOCATE(scf_env%p_mix_kp(i,ic)%matrix)
+                CALL cp_dbcsr_init(scf_env%p_mix_kp(i,ic)%matrix, error=error)
+                CALL cp_dbcsr_create(matrix=scf_env%p_mix_kp(i,ic)%matrix, &
+                     name="SCF"//TRIM(ADJUSTL(cp_to_string(scf_env%id_nr)))//"DENSITY", &
+                     dist=cp_dbcsr_distribution(refmatrix), matrix_type=dbcsr_type_symmetric,&
+                     row_blk_size=cp_dbcsr_row_block_sizes(refmatrix), &
+                     col_blk_size=cp_dbcsr_col_block_sizes(refmatrix), &
+                     nblks=0, nze=0, error=error)
+                CALL cp_dbcsr_alloc_block_from_nbl(scf_env%p_mix_kp(i,ic)%matrix,sab_orb,error=error)
+                CALL cp_dbcsr_set(scf_env%p_mix_kp(i,ic)%matrix,0.0_dp,error=error)
+             ENDDO
+          ENDDO
+       END IF
     END IF
 
 !   *** allocate p_delta ***
@@ -1833,9 +1910,9 @@ CONTAINS
              CALL cp_dbcsr_init(scf_env%p_delta(i)%matrix, error=error)
              CALL cp_dbcsr_create(matrix=scf_env%p_delta(i)%matrix, &
                   name="SCF"//TRIM(ADJUSTL(cp_to_string(scf_env%id_nr)))//"DENSITY", &
-                  dist=cp_dbcsr_distribution(matrix_s(1)%matrix), matrix_type=dbcsr_type_symmetric,&
-                  row_blk_size=cp_dbcsr_row_block_sizes(matrix_s(1)%matrix), &
-                  col_blk_size=cp_dbcsr_col_block_sizes(matrix_s(1)%matrix), &
+                  dist=cp_dbcsr_distribution(refmatrix), matrix_type=dbcsr_type_symmetric,&
+                  row_blk_size=cp_dbcsr_row_block_sizes(refmatrix), &
+                  col_blk_size=cp_dbcsr_col_block_sizes(refmatrix), &
                   nblks=0, nze=0, error=error)
              CALL cp_dbcsr_alloc_block_from_nbl(scf_env%p_delta(i)%matrix,sab_orb,error=error)
              CALL cp_dbcsr_set(scf_env%p_delta(i)%matrix,0.0_dp,error=error)
@@ -2006,6 +2083,11 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief  initialiation needed when gspace mixing is used
+!> \param mixing_method ...
+!> \param rho ...
+!> \param mixing_store ...
+!> \param para_env ...
+!> \param rho_atom ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 !> \par History

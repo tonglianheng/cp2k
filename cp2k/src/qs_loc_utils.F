@@ -12,26 +12,22 @@ MODULE qs_loc_utils
 
   USE ai_moments,                      ONLY: contract_cossin,&
                                              cossin
-  USE atomic_kind_types,               ONLY: atomic_kind_type,&
-                                             get_atomic_kind,&
-                                             get_atomic_kind_set
   USE basis_set_types,                 ONLY: gto_basis_set_p_type,&
                                              gto_basis_set_type
   USE block_p_types,                   ONLY: block_p_type
-  USE cell_types,                      ONLY: cell_type,&
+  USE cell_methods,                    ONLY: cell_type,&
                                              pbc
   USE cp_array_r_utils,                ONLY: cp_1d_r_p_type
   USE cp_dbcsr_interface,              ONLY: cp_dbcsr_copy,&
                                              cp_dbcsr_get_block_p,&
                                              cp_dbcsr_init,&
-                                             cp_dbcsr_set
-  USE cp_dbcsr_operations,             ONLY: cp_dbcsr_sm_fm_multiply
-  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_p_type,&
+                                             cp_dbcsr_p_type,&
+                                             cp_dbcsr_set,&
                                              cp_dbcsr_type
+  USE cp_dbcsr_operations,             ONLY: cp_dbcsr_sm_fm_multiply
   USE cp_files,                        ONLY: close_file,&
                                              open_file
-  USE cp_fm_basic_linalg,              ONLY: cp_fm_column_scale,&
-                                             cp_fm_gemm
+  USE cp_fm_basic_linalg,              ONLY: cp_fm_column_scale
   USE cp_fm_diag,                      ONLY: choose_eigv_solver
   USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                              cp_fm_struct_release,&
@@ -40,6 +36,7 @@ MODULE qs_loc_utils
        cp_fm_create, cp_fm_get_element, cp_fm_get_info, cp_fm_get_submatrix, &
        cp_fm_maxabsval, cp_fm_p_type, cp_fm_release, cp_fm_set_all, &
        cp_fm_set_submatrix, cp_fm_to_fm, cp_fm_type, cp_fm_write_unformatted
+  USE cp_gemm_interface,               ONLY: cp_gemm
   USE cp_output_handling,              ONLY: cp_p_file,&
                                              cp_print_key_finished_output,&
                                              cp_print_key_generate_filename,&
@@ -66,6 +63,9 @@ MODULE qs_loc_utils
   USE particle_types,                  ONLY: particle_type
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
+  USE qs_kind_types,                   ONLY: get_qs_kind,&
+                                             get_qs_kind_set,&
+                                             qs_kind_type
   USE qs_loc_types,                    ONLY: get_qs_loc_env,&
                                              localized_wfn_control_create,&
                                              localized_wfn_control_release,&
@@ -99,14 +99,17 @@ MODULE qs_loc_utils
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_loc_utils'
 
 ! *** Public ***
-  PUBLIC ::  jacobi_rotation_pipek, qs_loc_env_init, loc_write_restart,&
-            loc_read_restart, rotate_state_to_ref, retain_history, qs_loc_init,&
-            read_loc_section,set_loc_centers, set_loc_wfn_lists, qs_loc_control_init
+  PUBLIC :: jacobi_rotation_pipek, qs_loc_env_init, loc_write_restart,&
+            retain_history, qs_loc_init,&
+            read_loc_section, set_loc_centers, set_loc_wfn_lists, qs_loc_control_init
 
 CONTAINS
 
 ! *****************************************************************************
 !> \brief copy old mos to new ones, allocating as necessary
+!> \param mo_loc_history ...
+!> \param mo_loc ...
+!> \param error ...
 ! *****************************************************************************
   SUBROUTINE retain_history(mo_loc_history, mo_loc, error)
 
@@ -144,6 +147,10 @@ CONTAINS
 ! *****************************************************************************
 !> \brief rotate the mo_new, so that the orbitals are as similar
 !>        as possible to ones in mo_ref.
+!> \param mo_new ...
+!> \param mo_ref ...
+!> \param matrix_S ...
+!> \param error ...
 ! *****************************************************************************
   SUBROUTINE rotate_state_to_ref(mo_new, mo_ref, matrix_S, error)
 
@@ -181,10 +188,10 @@ CONTAINS
 
     ! o1 = (mo_new)^T matrix_S mo_ref
     CALL cp_dbcsr_sm_fm_multiply(matrix_S,mo_ref,smo,ncol,error=error)
-    CALL cp_fm_gemm('T','N',ncol,ncol,nrow,1.0_dp, mo_new,smo,0.0_dp,o1,error=error)
+    CALL cp_gemm('T','N',ncol,ncol,nrow,1.0_dp, mo_new,smo,0.0_dp,o1,error=error)
 
     ! o2 = (o1^T o1)
-    CALL cp_fm_gemm('T','N',ncol,ncol,ncol,1.0_dp, o1,o1,0.0_dp,o2,error=error)
+    CALL cp_gemm('T','N',ncol,ncol,ncol,1.0_dp, o1,o1,0.0_dp,o2,error=error)
 
     ! o2 = (o1^T o1)^-1/2
     ALLOCATE(eigenvalues(ncol))
@@ -192,20 +199,20 @@ CONTAINS
     CALL cp_fm_to_fm(o3,o4,error=error)
     eigenvalues=1.0_dp/SQRT(eigenvalues)
     CALL cp_fm_column_scale(o4,eigenvalues)
-    CALL cp_fm_gemm('N','T',ncol,ncol,ncol,1.0_dp,o3,o4,0.0_dp,o2,error=error)
+    CALL cp_gemm('N','T',ncol,ncol,ncol,1.0_dp,o3,o4,0.0_dp,o2,error=error)
 
     ! o3 = o1 (o1^T o1)^-1/2
-    CALL cp_fm_gemm('N','N',ncol,ncol,ncol,1.0_dp,o1,o2,0.0_dp,o3,error=error)
+    CALL cp_gemm('N','N',ncol,ncol,ncol,1.0_dp,o1,o2,0.0_dp,o3,error=error)
 
     ! mo_new o1 (o1^T o1)^-1/2
-    CALL cp_fm_gemm('N','N',nrow,ncol,ncol,1.0_dp,mo_new,o3,0.0_dp,smo,error=error)
+    CALL cp_gemm('N','N',nrow,ncol,ncol,1.0_dp,mo_new,o3,0.0_dp,smo,error=error)
     CALL cp_fm_to_fm(smo,mo_new,error=error)
 
     ! XXXXXXX testing
-    ! CALL cp_fm_gemm('N','T',ncol,ncol,ncol,1.0_dp,o3,o3,0.0_dp,o1,error=error)
-    ! WRITE(6,*) o1%local_data
-    ! CALL cp_fm_gemm('T','N',ncol,ncol,ncol,1.0_dp,o3,o3,0.0_dp,o1,error=error)
-    ! WRITE(6,*) o1%local_data
+    ! CALL cp_gemm('N','T',ncol,ncol,ncol,1.0_dp,o3,o3,0.0_dp,o1,error=error)
+    ! WRITE(*,*) o1%local_data
+    ! CALL cp_gemm('T','N',ncol,ncol,ncol,1.0_dp,o3,o3,0.0_dp,o1,error=error)
+    ! WRITE(*,*) o1%local_data
 
     CALL cp_fm_release(o1,error=error)
     CALL cp_fm_release(o2,error=error)
@@ -221,6 +228,10 @@ CONTAINS
 ! *****************************************************************************
 !> \brief 2by2 rotation for the pipek operator
 !>       in this case the z_ij numbers are reals
+!> \param zij_fm_set ...
+!> \param vectors ...
+!> \param sweeps ...
+!> \param error ...
 !> \par History
 !>       05-2005 created
 !> \author MI
@@ -299,6 +310,13 @@ CONTAINS
   END SUBROUTINE jacobi_rotation_pipek
 
 ! *****************************************************************************
+!> \brief ...
+!> \param istate ...
+!> \param jstate ...
+!> \param st ...
+!> \param ct ...
+!> \param rmat ...
+!> \param error ...
 !> \par History
 !>      04.2005 created [MI]
 !> \author MI
@@ -330,6 +348,13 @@ CONTAINS
   END SUBROUTINE rotate_rmat_real
 
 ! *****************************************************************************
+!> \brief ...
+!> \param istate ...
+!> \param jstate ...
+!> \param st ...
+!> \param ct ...
+!> \param zij ...
+!> \param error ...
 !> \par History
 !>      04.2005 created [MI]
 !> \author MI
@@ -342,9 +367,11 @@ CONTAINS
       POINTER                                :: zij
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    INTEGER                                  :: iatom, natom, nstate, stride
+    INTEGER                                  :: iatom, natom, nstate
 #if defined(__SCALAPACK)
     INTEGER, DIMENSION(9)                    :: desc
+#else
+    INTEGER                                  :: stride
 #endif
     LOGICAL                                  :: failure
 
@@ -373,6 +400,10 @@ CONTAINS
   END SUBROUTINE rotate_zij_real
 
 ! *****************************************************************************
+!> \brief ...
+!> \param zij_fm_set ...
+!> \param tolerance ...
+!> \param error ...
 !> \par History
 !>      04.2005 created [MI]
 !> \author MI
@@ -438,13 +469,17 @@ CONTAINS
 !> \param qs_loc_env new environment for the localization calculations
 !> \param localized_wfn_control variables and directives for the localization
 !> \param qs_env the qs_env in which the qs_env lives
+!> \param myspin ...
+!> \param do_localize ...
+!> \param loc_coeff ...
+!> \param mo_loc_history ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
-!> \note
-!>      similar to the old one, but not quite
 !> \par History
 !>      04.2005 created [MI]
 !> \author MI
+!> \note
+!>      similar to the old one, but not quite
 ! *****************************************************************************
   SUBROUTINE qs_loc_env_init(qs_loc_env,localized_wfn_control,qs_env,myspin,do_localize,&
              loc_coeff, mo_loc_history, error)
@@ -680,12 +715,12 @@ CONTAINS
 !> \param qs_env the qs_env in which the qs_env lives
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
-!> \note
-!>      The intgrals are computed analytically  using the primitives GTO
-!>      The contraction is performed block-wise
 !> \par History
 !>      04.2005 created [MI]
 !> \author MI
+!> \note
+!>      The intgrals are computed analytically  using the primitives GTO
+!>      The contraction is performed block-wise
 ! *****************************************************************************
   SUBROUTINE get_berry_operator ( qs_loc_env, qs_env, error )
     TYPE(qs_loc_env_new_type), POINTER       :: qs_loc_env
@@ -711,9 +746,6 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: cosab, rpgfa, rpgfb, sinab, &
                                                 sphi_a, sphi_b, work, zeta, &
                                                 zetb
-    TYPE(atomic_kind_type), DIMENSION(:), &
-      POINTER                                :: atomic_kind_set
-    TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(block_p_type), DIMENSION(:), &
       POINTER                                :: op_cos, op_sin
     TYPE(cell_type), POINTER                 :: cell
@@ -729,24 +761,27 @@ CONTAINS
       DIMENSION(:), POINTER                  :: sab_orb
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
+    TYPE(qs_kind_type), DIMENSION(:), &
+      POINTER                                :: qs_kind_set
+    TYPE(qs_kind_type), POINTER              :: qs_kind
 
     CALL timeset(routineN,handle)
 
     failure = .FALSE.
-    NULLIFY (atomic_kind, atomic_kind_set)
+    NULLIFY (qs_kind, qs_kind_set)
     NULLIFY ( cell, op_sm_set , orb_basis_set, particle_set)
     NULLIFY (sab_orb)
     NULLIFY (cosab, sinab, work)
     NULLIFY (la_max, la_min, lb_max, lb_min, npgfa, npgfb, nsgfa, nsgfb)
     NULLIFY (set_radius_a,set_radius_b,rpgfa, rpgfb, sphi_a,sphi_b,zeta, zetb )
 
-    CALL get_qs_env(qs_env=qs_env, atomic_kind_set=atomic_kind_set,&
+    CALL get_qs_env(qs_env=qs_env, qs_kind_set=qs_kind_set,&
                     particle_set=particle_set, sab_orb=sab_orb,&
                     error=error)
 
-    nkind = SIZE(atomic_kind_set)
+    nkind = SIZE(qs_kind_set)
 
-    CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
+    CALL get_qs_kind_set(qs_kind_set=qs_kind_set,&
                              maxco=ldwork, maxlgto=maxl )
     ldab = ldwork
     ALLOCATE(cosab(ldab,ldab))
@@ -786,8 +821,8 @@ CONTAINS
     ALLOCATE (basis_set_list(nkind),STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
     DO ikind=1,nkind
-      atomic_kind => atomic_kind_set(ikind)
-      CALL get_atomic_kind(atomic_kind=atomic_kind,orb_basis_set=basis_set_a)
+      qs_kind => qs_kind_set(ikind)
+      CALL get_qs_kind(qs_kind=qs_kind,orb_basis_set=basis_set_a)
       IF (ASSOCIATED(basis_set_a)) THEN
         basis_set_list(ikind)%gto_basis_set => basis_set_a
       ELSE
@@ -918,6 +953,17 @@ CONTAINS
     CALL timestop(handle)
   END SUBROUTINE get_berry_operator
 
+! *****************************************************************************
+!> \brief ...
+!> \param qs_env ...
+!> \param qs_loc_env ...
+!> \param section ...
+!> \param mo_array ...
+!> \param coeff_localized ...
+!> \param do_homo ...
+!> \param evals ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE loc_write_restart(qs_env,qs_loc_env,section,mo_array, coeff_localized,&
              do_homo, evals, error)
     TYPE(qs_environment_type), POINTER       :: qs_env
@@ -1021,6 +1067,19 @@ CONTAINS
   END SUBROUTINE  loc_write_restart
 
 
+! *****************************************************************************
+!> \brief ...
+!> \param qs_loc_env ...
+!> \param mos ...
+!> \param mos_localized ...
+!> \param section ...
+!> \param section2 ...
+!> \param para_env ...
+!> \param do_homo ...
+!> \param restart_found ...
+!> \param evals ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE  loc_read_restart(qs_loc_env,mos,mos_localized,section, section2,para_env,&
               do_homo,restart_found, evals,error)
 
@@ -1216,6 +1275,12 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief initializes everything needed for localization of the HOMOs
+!> \param qs_loc_env ...
+!> \param loc_section ...
+!> \param do_homo ...
+!> \param do_xas ...
+!> \param nloc_xas ...
+!> \param error ...
 !> \par History
 !>      2009 created
 ! *****************************************************************************
@@ -1249,6 +1314,18 @@ CONTAINS
   ! *****************************************************************************
   !> \brief initializes everything needed for localization of the molecular orbitals
   ! *****************************************************************************
+! *****************************************************************************
+!> \brief ...
+!> \param qs_env ...
+!> \param qs_loc_env ...
+!> \param localize_section ...
+!> \param mos_localized ...
+!> \param do_homo ...
+!> \param do_mo_cubes ...
+!> \param mo_loc_history ...
+!> \param evals ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE qs_loc_init(qs_env,qs_loc_env,localize_section,mos_localized, &
              do_homo,do_mo_cubes,mo_loc_history,evals,error)
     TYPE(qs_environment_type), POINTER       :: qs_env
@@ -1424,6 +1501,12 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief read the controlparameter from input, using the new input scheme
+!> \param localized_wfn_control ...
+!> \param loc_section ...
+!> \param localize ...
+!> \param do_xas ...
+!> \param nloc_xas ...
+!> \param error ...
 !> \par History
 !>      05.2005 created [MI]
 ! *****************************************************************************
@@ -1693,6 +1776,10 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief create the center and spread array and the file names for the output
+!> \param localized_wfn_control ...
+!> \param nmoloc ...
+!> \param nspins ...
+!> \param error ...
 !> \par History
 !>      04.2005 created [MI]
 ! *****************************************************************************
@@ -1721,6 +1808,11 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief create the lists of mos that are taken into account
+!> \param localized_wfn_control ...
+!> \param nmoloc ...
+!> \param nmo ...
+!> \param nspins ...
+!> \param error ...
 !> \par History
 !>      04.2005 created [MI]
 ! *****************************************************************************

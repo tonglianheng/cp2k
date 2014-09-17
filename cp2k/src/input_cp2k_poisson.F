@@ -56,7 +56,6 @@ MODULE input_cp2k_poisson
 
   PUBLIC :: create_poisson_section,&
             create_gspace_interp_section,&
-            create_multipole_section,&
             create_ewald_section
 !***
 CONTAINS
@@ -265,6 +264,7 @@ CONTAINS
   END SUBROUTINE create_mt_section
 
 ! *****************************************************************************
+!> \brief ...
 !> \param section will contain the ewald section
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
@@ -458,6 +458,7 @@ END SUBROUTINE create_ewald_section
 
 ! *****************************************************************************
 !> \brief creates the interpolation section for the periodic QM/MM
+!> \param section ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 !> \author tlaino
@@ -547,9 +548,9 @@ END SUBROUTINE create_ewald_section
 !> \param section the section to create
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
+!> \author fschiff
 !> \note
 !>      this approach is based on the development of T. Deutsch and S. Goedecker
-!> \author fschiff
 ! *****************************************************************************
   SUBROUTINE create_wavelet_section(section,error)
     TYPE(section_type), POINTER              :: section

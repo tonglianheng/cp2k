@@ -14,29 +14,25 @@
 !> - Created 2010
 ! *****************************************************************************
 PROGRAM dbcsr_example_2
-  USE array_types,                     ONLY: array_data,&
-                                             array_i1d_obj,&
-                                             array_new,&
-                                             array_nullify,&
-                                             array_release
-  USE dbcsr_block_access
-  USE dbcsr_data_methods
-  USE dbcsr_dist_operations,           ONLY: dbcsr_get_stored_coordinates
-  USE dbcsr_error_handling,            ONLY: dbcsr_error_type
-  USE dbcsr_io,                        ONLY: dbcsr_print
-  USE dbcsr_kinds,                     ONLY: real_8
-  USE dbcsr_message_passing,           ONLY: mp_cart_create,&
+  USE dbcsr_api,                       ONLY: &
+       array_data, array_i1d_obj, array_new, array_nullify, array_release, &
+       dbcsr_col_block_sizes, dbcsr_create, dbcsr_distribution, &
+       dbcsr_distribution_mp, dbcsr_distribution_new, dbcsr_distribution_obj, &
+       dbcsr_distribution_release, dbcsr_error_type, dbcsr_finalize, &
+       dbcsr_finalize_lib, dbcsr_get_stored_coordinates, dbcsr_init, &
+       dbcsr_init_lib, dbcsr_max_col_size, dbcsr_max_row_size, &
+       dbcsr_mp_mynode, dbcsr_mp_new, dbcsr_mp_obj, dbcsr_mp_release, &
+       dbcsr_nblkcols_total, dbcsr_nblkrows_total, dbcsr_obj, dbcsr_print, &
+       dbcsr_put_block, dbcsr_release, dbcsr_row_block_sizes, &
+       dbcsr_set_default_config, dbcsr_type_no_symmetry, dbcsr_type_real_8
+  USE kinds,                           ONLY: real_8
+  USE machine,                         ONLY: default_output_unit
+  USE message_passing,                 ONLY: mp_cart_create,&
                                              mp_cart_rank,&
+                                             mp_comm_free,&
                                              mp_environ,&
                                              mp_world_finalize,&
                                              mp_world_init
-  USE dbcsr_methods
-  USE dbcsr_operations
-  USE dbcsr_ptr_util
-  USE dbcsr_transformations
-  USE dbcsr_types
-  USE dbcsr_util
-  USE dbcsr_work_operations
 
   !$ USE OMP_LIB
 
@@ -49,7 +45,7 @@ PROGRAM dbcsr_example_2
   INTEGER, DIMENSION(:), POINTER           :: rbs, cbs
   INTEGER                                  :: mp_comm, group, numnodes, mynode, &
        prow, pcol, nblkrows_total, nblkcols_total, node_holds_blk, max_nze, nze, &
-       row, col, row_s, col_s
+       row, col, row_s, col_s, io_unit
   INTEGER, DIMENSION(2)                    :: npdims, myploc, coord
   INTEGER, DIMENSION(:,:), POINTER         :: pgrid
   TYPE(array_i1d_obj)                      :: col_dist, row_dist
@@ -77,6 +73,15 @@ PROGRAM dbcsr_example_2
   DEALLOCATE(pgrid)
 
   !***************************************************************************************
+  !
+  ! initialize libdbcsr
+  CALL dbcsr_init_lib (group=mp_comm, error=error)
+  CALL dbcsr_set_default_config (error=error)
+
+  !
+  ! set standard output parameters
+  io_unit = 0
+  IF (mynode.EQ.0) io_unit = default_output_unit
 
   !
   ! the matrix will contain nblkrows_total row blocks and nblkcols_total column blocks
@@ -185,13 +190,25 @@ PROGRAM dbcsr_example_2
   CALL array_release (col_blk_sizes)
 
   !***************************************************************************************
+  !
+  ! finalize libdbcsr
+  CALL dbcsr_finalize_lib (mp_comm, io_unit, error)
 
+  !
+  ! finalize mpi
+  CALL mp_comm_free(group)
   CALL mp_world_finalize()
 
   !***************************************************************************************
 
 CONTAINS
 
+! *****************************************************************************
+!> \brief ...
+!> \param dist_array ...
+!> \param dist_size ...
+!> \param nbins ...
+! *****************************************************************************
   SUBROUTINE random_dist (dist_array, dist_size, nbins)
     TYPE(array_i1d_obj), INTENT(out)         :: dist_array
     INTEGER, INTENT(in)                      :: dist_size, nbins

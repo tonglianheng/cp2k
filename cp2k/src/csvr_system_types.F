@@ -30,7 +30,6 @@ MODULE csvr_system_types
 
   PRIVATE
   PUBLIC :: csvr_system_type,&
-            csvr_thermo_type,&
             csvr_init,&
             csvr_dealloc,&
             csvr_thermo_create
@@ -59,6 +58,9 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Initialize type for Canonical Sampling through Velocity Rescaling (CSVR)
+!> \param csvr ...
+!> \param simpar ...
+!> \param section ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 !> \author Teodoro Laino [tlaino] 10.2007- University of Zurich
@@ -89,6 +91,7 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Initialize NVT type for CSVR thermostat
+!> \param csvr ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 !> \author Teodoro Laino [tlaino] 10.2007- University of Zurich
@@ -144,6 +147,7 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Deallocate type for CSVR thermostat
+!> \param csvr ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 !> \author Teodoro Laino [tlaino] 10.2007- University of Zurich
@@ -170,6 +174,7 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Deallocate NVT type for CSVR thermostat
+!> \param nvt ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 !> \author Teodoro Laino [tlaino] 10.2007- University of Zurich

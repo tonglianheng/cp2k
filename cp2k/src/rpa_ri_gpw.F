@@ -11,9 +11,10 @@
 MODULE rpa_ri_gpw
 ! USE f77_blas
   USE cp_blacs_env,                    ONLY: cp_blacs_env_create,&
-                                             cp_blacs_env_release
-  USE cp_fm_basic_linalg,              ONLY: cp_fm_gemm,&
-                                             cp_fm_scale_and_add
+                                             cp_blacs_env_release,&
+                                             cp_blacs_env_type
+  USE cp_fm_basic_linalg,              ONLY: cp_fm_scale_and_add,&
+                                             cp_fm_syrk
   USE cp_fm_cholesky,                  ONLY: cp_fm_cholesky_decompose
   USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                              cp_fm_struct_release,&
@@ -25,10 +26,12 @@ MODULE rpa_ri_gpw
                                              cp_fm_release,&
                                              cp_fm_set_all,&
                                              cp_fm_type
+  USE cp_gemm_interface,               ONLY: cp_gemm
   USE cp_para_env,                     ONLY: cp_para_env_create,&
                                              cp_para_env_release
-  USE cp_para_types,                   ONLY: cp_blacs_env_type,&
-                                             cp_para_env_type
+  USE cp_para_types,                   ONLY: cp_para_env_type
+  USE input_constants,                 ONLY: wfc_mm_style_gemm,&
+                                             wfc_mm_style_syrk
   USE kinds,                           ONLY: dp
   USE machine,                         ONLY: m_flush,&
                                              m_memory,&
@@ -38,6 +41,7 @@ MODULE rpa_ri_gpw
        mp_bcast, mp_comm_split_direct, mp_irecv, mp_isend, mp_min, &
        mp_sendrecv, mp_sum, mp_wait, mp_waitall
   USE minimax,                         ONLY: check_range
+  USE minimax_rpa,                     ONLY: get_rpa_minimax_coeff
   USE mp2_laplace,                     ONLY: laplace_minimax_approx
   USE mp2_types,                       ONLY: integ_mat_buffer_type,&
                                              mp2_type
@@ -61,6 +65,36 @@ MODULE rpa_ri_gpw
 
   CONTAINS
 
+! *****************************************************************************
+!> \brief ...
+!> \param Erpa ...
+!> \param mp2_env ...
+!> \param BIb_C ...
+!> \param qs_env ...
+!> \param para_env ...
+!> \param para_env_sub ...
+!> \param color_sub ...
+!> \param ends_array ...
+!> \param ends_B_virtual ...
+!> \param sizes_array ...
+!> \param sizes_B_virtual ...
+!> \param starts_array ...
+!> \param starts_B_virtual ...
+!> \param Eigenval ...
+!> \param nmo ...
+!> \param homo ...
+!> \param dimen_RI ...
+!> \param unit_nr ...
+!> \param error ...
+!> \param error_sub ...
+!> \param do_ri_sos_laplace_mp2 ...
+!> \param BIb_C_beta ...
+!> \param homo_beta ...
+!> \param Eigenval_beta ...
+!> \param ends_B_virtual_beta ...
+!> \param sizes_B_virtual_beta ...
+!> \param starts_B_virtual_beta ...
+! *****************************************************************************
   SUBROUTINE rpa_ri_compute_en(Erpa,mp2_env,BIb_C,qs_env,para_env,para_env_sub,color_sub,&
                                ends_array,ends_B_virtual,sizes_array,sizes_B_virtual,starts_array,starts_B_virtual,&
                                Eigenval,nmo,homo,dimen_RI,unit_nr,error,error_sub,do_ri_sos_laplace_mp2,&
@@ -92,23 +126,23 @@ MODULE rpa_ri_gpw
       routineP = moduleN//':'//routineN
     INTEGER, PARAMETER                       :: occ_chunk = 128
 
-    INTEGER :: a, best_integ_group_size, best_num_integ_point, &
-      color_rpa_group, dimen_ia, dimen_ia_beta, handle, handle2, i, &
-      ia_global, ierr, iiB, input_integ_group_size, integ_group_size, iproc, &
-      itmp(2), jjB, min_integ_group_size, my_B_size, my_B_size_beta, &
-      my_B_virtual_end, my_B_virtual_end_beta, my_B_virtual_start, &
-      my_B_virtual_start_beta, my_group_L_end, my_group_L_size, &
-      my_group_L_start, my_homo_beta, my_ia_end, my_ia_end_beta, my_ia_size, &
-      my_ia_size_beta, my_ia_start, my_ia_start_beta, ngroup, &
-      num_integ_group, num_integ_points, occ_high, occ_low, pos_integ_group, &
-      proc_receive, proc_send, proc_shift, rec_B_size
-    INTEGER :: rec_B_virtual_end, rec_B_virtual_start, stat, virtual, &
-      virtual_beta
+    INTEGER :: best_integ_group_size, best_num_integ_point, color_rpa_group, &
+      dimen_ia, dimen_ia_beta, handle, handle2, i, ia_global, ierr, iiB, &
+      input_integ_group_size, integ_group_size, iproc, itmp(2), jjB, &
+      min_integ_group_size, my_B_size, my_B_size_beta, my_B_virtual_end, &
+      my_B_virtual_end_beta, my_B_virtual_start, my_B_virtual_start_beta, &
+      my_group_L_end, my_group_L_size, my_group_L_start, my_homo_beta, &
+      my_ia_end, my_ia_end_beta, my_ia_size, my_ia_size_beta, my_ia_start, &
+      my_ia_start_beta, ngroup, num_integ_group, num_integ_points, occ_high, &
+      occ_low, pos_integ_group, proc_receive, proc_send
+    INTEGER :: proc_shift, rec_B_size, rec_B_virtual_end, &
+      rec_B_virtual_start, stat, virtual, virtual_beta
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: ends_ia, ends_ia_beta, &
                                                 sizes_ia, sizes_ia_beta, &
                                                 starts_ia, starts_ia_beta, &
                                                 sub_proc_map
-    LOGICAL                                  :: failure, my_open_shell, &
+    LOGICAL                                  :: do_minimax_quad, failure, &
+                                                my_open_shell, &
                                                 skip_integ_group_opt
     REAL(KIND=dp) :: allowed_memory, avail_mem, E_Range, Emax, Emax_beta, &
       Emin, Emin_beta, mem_for_iaK, mem_for_QK, mem_min, mem_per_group, &
@@ -166,6 +200,14 @@ MODULE rpa_ri_gpw
     ELSE
       num_integ_points=mp2_env%ri_rpa%rpa_num_quad_points
       input_integ_group_size=mp2_env%ri_rpa%rpa_integ_group_size
+      do_minimax_quad=mp2_env%ri_rpa%minimax_quad
+      IF(do_minimax_quad.AND.num_integ_points>20) THEN
+        CALL cp_assert(.FALSE.,cp_warning_level,cp_assertion_failed,routineP,&
+                       "The required number of quadrature point exceeds the maximum possible in the "//&
+                       "Minimax quadrature scheme. The number of quadrature point has been reset to 20.",&
+                       only_ionode=.TRUE.)
+        num_integ_points=20
+      END IF
     END IF
     allowed_memory=mp2_env%mp2_memory
 
@@ -271,8 +313,13 @@ MODULE rpa_ri_gpw
       ELSE
          WRITE (UNIT=unit_nr,FMT="(T3,A,T75,i6)")&
                                  "RI_INFO| Group size for frequency integration:", integ_group_size*para_env_sub%num_pe
-         WRITE (UNIT=unit_nr,FMT="(T3,A)")&
-                                 "INTEG_INFO| Clenshaw-Curtius quadrature"
+         IF(do_minimax_quad) THEN
+           WRITE (UNIT=unit_nr,FMT="(T3,A)")&
+                                   "INTEG_INFO| MINIMAX quadrature"
+         ELSE
+           WRITE (UNIT=unit_nr,FMT="(T3,A)")&
+                                   "INTEG_INFO| Clenshaw-Curtius quadrature"
+         END IF
          WRITE (UNIT=unit_nr,FMT="(T3,A,T75,i6)")&
                                  "INTEG_INFO| Number of integration points:", num_integ_points
          WRITE (UNIT=unit_nr,FMT="(T3,A,T75,i6)")&
@@ -503,12 +550,12 @@ MODULE rpa_ri_gpw
                                     homo_beta,virtual_beta,dimen_ia_beta,Eigenval_beta,fm_mat_S_beta,&
                                     fm_mat_Q_gemm_beta,fm_mat_Q_beta)
       ELSE
-        ! go with clenshaw curtius quadrature
-        CALL clenshaw_curtius_quad(Erpa,para_env,para_env_RPA,unit_nr,homo,virtual,dimen_RI,dimen_ia,Eigenval,&
-                                   num_integ_points,num_integ_group,color_rpa_group,&
-                                   fm_mat_S,fm_mat_Q_gemm,fm_mat_Q,error,&
-                                   homo_beta,virtual_beta,dimen_ia_beta,Eigenval_beta,fm_mat_S_beta,&
-                                   fm_mat_Q_gemm_beta,fm_mat_Q_beta)
+        ! go with clenshaw-curtius/minimax quadrature
+        CALL rpa_numerical_integ(Erpa,para_env,para_env_RPA,unit_nr,homo,virtual,dimen_RI,dimen_ia,Eigenval,&
+                                 num_integ_points,num_integ_group,color_rpa_group,&
+                                 fm_mat_S,fm_mat_Q_gemm,fm_mat_Q,mp2_env%ri_rpa%mm_style,do_minimax_quad,error,&
+                                 homo_beta,virtual_beta,dimen_ia_beta,Eigenval_beta,fm_mat_S_beta,&
+                                 fm_mat_Q_gemm_beta,fm_mat_Q_beta)
       END IF
     ELSE
       IF(do_ri_sos_laplace_mp2) THEN
@@ -517,10 +564,10 @@ MODULE rpa_ri_gpw
                                     num_integ_points,num_integ_group,color_rpa_group,&
                                     fm_mat_S,fm_mat_Q_gemm,fm_mat_Q,error)
       ELSE
-        ! go with clenshaw curtius quadrature
-        CALL clenshaw_curtius_quad(Erpa,para_env,para_env_RPA,unit_nr,homo,virtual,dimen_RI,dimen_ia,Eigenval,&
-                                   num_integ_points,num_integ_group,color_rpa_group,&
-                                   fm_mat_S,fm_mat_Q_gemm,fm_mat_Q,error)
+        ! go with clenshaw-curtius/minimax quadrature
+        CALL rpa_numerical_integ(Erpa,para_env,para_env_RPA,unit_nr,homo,virtual,dimen_RI,dimen_ia,Eigenval,&
+                                 num_integ_points,num_integ_group,color_rpa_group,&
+                                 fm_mat_S,fm_mat_Q_gemm,fm_mat_Q,mp2_env%ri_rpa%mm_style,do_minimax_quad,error)
       END IF
     END IF
 
@@ -554,6 +601,44 @@ MODULE rpa_ri_gpw
 
     END SUBROUTINE rpa_ri_compute_en
 
+! *****************************************************************************
+!> \brief ...
+!> \param BIb_C_2D ...
+!> \param para_env ...
+!> \param para_env_sub ...
+!> \param color_sub ...
+!> \param ngroup ...
+!> \param integ_group_size ...
+!> \param num_integ_group ...
+!> \param dimen_RI ...
+!> \param homo ...
+!> \param virtual ...
+!> \param dimen_ia ...
+!> \param color_rpa_group ...
+!> \param ext_row_block_size ...
+!> \param ext_col_block_size ...
+!> \param unit_nr ...
+!> \param sizes_ia ...
+!> \param starts_ia ...
+!> \param ends_ia ...
+!> \param my_ia_size ...
+!> \param my_ia_start ...
+!> \param my_ia_end ...
+!> \param sizes_array ...
+!> \param starts_array ...
+!> \param ends_array ...
+!> \param my_group_L_size ...
+!> \param my_group_L_start ...
+!> \param my_group_L_end ...
+!> \param para_env_RPA ...
+!> \param fm_mat_S ...
+!> \param fm_mat_Q_gemm ...
+!> \param fm_mat_Q ...
+!> \param error ...
+!> \param error_sub ...
+!> \param beta_case ...
+!> \param blacs_env_ext ...
+! *****************************************************************************
     SUBROUTINE create_integ_mat(BIb_C_2D,para_env,para_env_sub,color_sub,ngroup,integ_group_size,num_integ_group,&
                                 dimen_RI,homo,virtual,dimen_ia,color_rpa_group,&
                                 ext_row_block_size,ext_col_block_size,unit_nr,&
@@ -596,10 +681,11 @@ MODULE rpa_ri_gpw
       num_rec_cols, number_of_rec, number_of_send, proc_receive, &
       proc_receive_static, proc_send, proc_send_static, proc_shift, &
       rec_counter, rec_ia_end, rec_ia_size, rec_ia_start, rec_L_end, &
-      rec_L_size, rec_L_start, rec_pcol, rec_prow
-    INTEGER :: ref_send_pcol, ref_send_prow, row_col_proc_ratio, &
-      send_counter, send_pcol, send_prow, size_rec_buffer, size_send_buffer, &
-      start_col_block, start_row_block, stat, sub_sub_color
+      rec_L_size
+    INTEGER :: rec_L_start, rec_pcol, rec_prow, ref_send_pcol, ref_send_prow, &
+      row_col_proc_ratio, send_counter, send_pcol, send_prow, &
+      size_rec_buffer, size_send_buffer, start_col_block, start_row_block, &
+      stat, sub_sub_color
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: iii_vet, index_col_rec, &
                                                 map_rec_size, map_send_size, &
                                                 req_send, RPA_proc_map
@@ -1189,7 +1275,7 @@ MODULE rpa_ri_gpw
         DEALLOCATE(BIb_C_2D)
         ALLOCATE(BIb_C_2D(rec_ia_size,rec_L_size),STAT=stat)
         CPPostcondition(stat==0,cp_failure_level,routineP,error_sub,failure)
-        BIb_C_2D=BIb_C_rec
+        BIb_C_2D(:,:)=BIb_C_rec
 
         DEALLOCATE(BIb_C_rec)
       END DO
@@ -1260,11 +1346,39 @@ MODULE rpa_ri_gpw
 
     END SUBROUTINE create_integ_mat
 
-    SUBROUTINE clenshaw_curtius_quad(Erpa,para_env,para_env_RPA,unit_nr,homo,virtual,dimen_RI,dimen_ia,Eigenval,&
-                                     num_integ_points,num_integ_group,color_rpa_group,&
-                                     fm_mat_S,fm_mat_Q_gemm,fm_mat_Q,error,&
-                                     homo_beta,virtual_beta,dimen_ia_beta,Eigenval_beta,fm_mat_S_beta,&
-                                     fm_mat_Q_gemm_beta,fm_mat_Q_beta)
+! *****************************************************************************
+!> \brief ...
+!> \param Erpa ...
+!> \param para_env ...
+!> \param para_env_RPA ...
+!> \param unit_nr ...
+!> \param homo ...
+!> \param virtual ...
+!> \param dimen_RI ...
+!> \param dimen_ia ...
+!> \param Eigenval ...
+!> \param num_integ_points ...
+!> \param num_integ_group ...
+!> \param color_rpa_group ...
+!> \param fm_mat_S ...
+!> \param fm_mat_Q_gemm ...
+!> \param fm_mat_Q ...
+!> \param mm_style ...
+!> \param do_minimax_quad ...
+!> \param error ...
+!> \param homo_beta ...
+!> \param virtual_beta ...
+!> \param dimen_ia_beta ...
+!> \param Eigenval_beta ...
+!> \param fm_mat_S_beta ...
+!> \param fm_mat_Q_gemm_beta ...
+!> \param fm_mat_Q_beta ...
+! *****************************************************************************
+    SUBROUTINE rpa_numerical_integ(Erpa,para_env,para_env_RPA,unit_nr,homo,virtual,dimen_RI,dimen_ia,Eigenval,&
+                                   num_integ_points,num_integ_group,color_rpa_group,&
+                                   fm_mat_S,fm_mat_Q_gemm,fm_mat_Q,mm_style,do_minimax_quad,error,&
+                                   homo_beta,virtual_beta,dimen_ia_beta,Eigenval_beta,fm_mat_S_beta,&
+                                   fm_mat_Q_gemm_beta,fm_mat_Q_beta)
     REAL(KIND=dp)                            :: Erpa
     TYPE(cp_para_env_type), POINTER          :: para_env, para_env_RPA
     INTEGER                                  :: unit_nr, homo, virtual, &
@@ -1275,6 +1389,8 @@ MODULE rpa_ri_gpw
                                                 color_rpa_group
     TYPE(cp_fm_type), POINTER                :: fm_mat_S, fm_mat_Q_gemm, &
                                                 fm_mat_Q
+    INTEGER                                  :: mm_style
+    LOGICAL                                  :: do_minimax_quad
     TYPE(cp_error_type), INTENT(inout)       :: error
     INTEGER, OPTIONAL                        :: homo_beta, virtual_beta, &
                                                 dimen_ia_beta
@@ -1283,11 +1399,12 @@ MODULE rpa_ri_gpw
                                                 fm_mat_Q_gemm_beta, &
                                                 fm_mat_Q_beta
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'clenshaw_curtius_quad', &
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'rpa_numerical_integ', &
       routineP = moduleN//':'//routineN
+    LOGICAL, PARAMETER                       :: use_gemm = .FALSE.
 
-    INTEGER :: avirt, handle, i_global, iiB, info_chol, iocc, j_global, jjB, &
-      jquad, my_num_dgemm_call, ncol_local, nrow_local, number_of_rec, &
+    INTEGER :: avirt, handle, i_global, ierr, iiB, info_chol, iocc, j_global, &
+      jjB, jquad, my_num_dgemm_call, ncol_local, nrow_local, number_of_rec, &
       number_of_rec_beta, number_of_send, number_of_send_beta, stat
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: map_rec_size, &
                                                 map_rec_size_beta, &
@@ -1299,9 +1416,11 @@ MODULE rpa_ri_gpw
     INTEGER, DIMENSION(:), POINTER           :: col_indices, row_indices
     LOGICAL                                  :: failure, first_cycle, &
                                                 my_open_shell
-    REAL(KIND=dp) :: a_scaling, actual_flop_rate, alpha, eigen_diff, FComega, &
-      my_flop_rate, omega, omega_old, t_end, t_start
-    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: Q_log, tj, trace_Qomega, wj
+    REAL(KIND=dp) :: a_scaling, actual_flop_rate, alpha, E_Range, eigen_diff, &
+      Emax, Emax_beta, Emin, Emin_beta, FComega, my_flop_rate, omega, &
+      omega_old, t_end, t_start
+    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: Q_log, tj, trace_Qomega, wj, &
+                                                x_tw
     TYPE(integ_mat_buffer_type), &
       ALLOCATABLE, DIMENSION(:)              :: buffer_rec, buffer_rec_beta, &
                                                 buffer_send, buffer_send_beta
@@ -1329,28 +1448,72 @@ MODULE rpa_ri_gpw
     ALLOCATE(trace_Qomega(dimen_RI),STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
-    DO jquad=1, num_integ_points-1
-      tj(jquad)=jquad*pi/(2.0_dp*num_integ_points)
-      wj(jquad)=pi/(num_integ_points*SIN(tj(jquad))**2)
-    END DO
-    tj(num_integ_points)=pi/2.0_dp
-    wj(num_integ_points)=pi/(2.0_dp*num_integ_points*SIN(tj(num_integ_points))**2)
+    IF(do_minimax_quad) THEN
+      ! MINIMAX quadrature
+      ALLOCATE(x_tw(2*num_integ_points),STAT=stat)
+      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+      x_tw=0.0_dp
 
-    a_scaling=1.0_dp
-    IF(my_open_shell) THEN
-      CALL calc_scaling_factor(a_scaling,para_env,para_env_RPA,homo,virtual,dimen_RI,dimen_ia,Eigenval,&
-                               num_integ_points,num_integ_group,color_rpa_group,&
-                               tj,wj,fm_mat_S,error,&
-                               homo_beta,virtual_beta,dimen_ia_beta,Eigenval_beta,fm_mat_S_beta)
-      alpha=2.0_dp
+      Emin=Eigenval(homo+1)-Eigenval(homo)
+      Emax=MAXVAL(Eigenval)-MINVAL(Eigenval)
+      IF(my_open_shell.AND.homo_beta>0) THEN
+        Emin_beta=Eigenval_beta(homo_beta+1)-Eigenval_beta(homo_beta)
+        Emax_beta=MAXVAL(Eigenval_beta)-MINVAL(Eigenval_beta)
+        Emin=MIN(Emin,Emin_beta)
+        Emax=MAX(Emax,Emax_beta)
+      END IF
+      E_Range=Emax/Emin
+
+      ierr=0
+      CALL get_rpa_minimax_coeff(num_integ_points,E_Range,x_tw,ierr,error)
+
+      DO jquad=1, num_integ_points
+        tj(jquad)=x_tw(jquad)
+        wj(jquad)=x_tw(jquad+num_integ_points)
+      END DO
+
+      DEALLOCATE(x_tw)
+
+      IF (unit_nr>0) THEN
+        WRITE (UNIT=unit_nr,FMT="(T3,A,T66,F15.4)")&
+                            "INTEG_INFO| Range for the minimax approximation:", E_Range
+        WRITE (UNIT=unit_nr,FMT="(T3,A,T54,A,T72,A)") "INTEG_INFO| Minimax parameters:","Weights","Abscissas"
+        DO jquad=1, num_integ_points
+          WRITE (UNIT=unit_nr,FMT="(T41,F20.10,F20.10)") wj(jquad), tj(jquad)
+        END DO
+        CALL m_flush(unit_nr)
+      END IF
+
+      ! scale the minimax parameters
+      tj=tj*Emin
+      wj=wj*Emin
+
     ELSE
-      CALL calc_scaling_factor(a_scaling,para_env,para_env_RPA,homo,virtual,dimen_RI,dimen_ia,Eigenval,&
-                               num_integ_points,num_integ_group,color_rpa_group,&
-                               tj,wj,fm_mat_S,error)
-      alpha=4.0_dp
-    END IF
+      ! Clenshaw-Curtius quadrature
+      DO jquad=1, num_integ_points-1
+        tj(jquad)=jquad*pi/(2.0_dp*num_integ_points)
+        wj(jquad)=pi/(num_integ_points*SIN(tj(jquad))**2)
+      END DO
+      tj(num_integ_points)=pi/2.0_dp
+      wj(num_integ_points)=pi/(2.0_dp*num_integ_points*SIN(tj(num_integ_points))**2)
 
-    IF (unit_nr>0) WRITE(unit_nr,'(T3,A,T56,F25.5)') 'INTEG_INFO| Scaling parameter:', a_scaling
+      a_scaling=1.0_dp
+      IF(my_open_shell) THEN
+        CALL calc_scaling_factor(a_scaling,para_env,para_env_RPA,homo,virtual,dimen_RI,dimen_ia,Eigenval,&
+                                 num_integ_points,num_integ_group,color_rpa_group,&
+                                 tj,wj,fm_mat_S,error,&
+                                 homo_beta,virtual_beta,dimen_ia_beta,Eigenval_beta,fm_mat_S_beta)
+      ELSE
+        CALL calc_scaling_factor(a_scaling,para_env,para_env_RPA,homo,virtual,dimen_RI,dimen_ia,Eigenval,&
+                                 num_integ_points,num_integ_group,color_rpa_group,&
+                                 tj,wj,fm_mat_S,error)
+      END IF
+
+      IF (unit_nr>0) WRITE(unit_nr,'(T3,A,T56,F25.5)') 'INTEG_INFO| Scaling parameter:', a_scaling
+
+      wj=wj*a_scaling
+
+    END IF
 
     ! initialize buffer for matrix redistribution
     CALL initialize_buffer(fm_mat_Q_gemm,fm_mat_Q,RPA_proc_map,buffer_rec,buffer_send,&
@@ -1362,8 +1525,13 @@ MODULE rpa_ri_gpw
                              map_send_size_beta,map_rec_size_beta,local_size_source_beta,para_env_RPA,error)
     END IF
 
+    IF(my_open_shell) THEN
+      alpha=2.0_dp
+    ELSE
+      alpha=4.0_dp
+    END IF
+
     Erpa=0.0_dp
-    wj=wj*a_scaling
     first_cycle=.TRUE.
     omega_old=0.0_dp
     my_num_dgemm_call=0
@@ -1371,7 +1539,11 @@ MODULE rpa_ri_gpw
     DO jquad=1, num_integ_points
       IF(MODULO(jquad,num_integ_group)/=color_rpa_group) CYCLE
       
-      omega=a_scaling/TAN(tj(jquad))
+      IF(do_minimax_quad) THEN
+        omega=tj(jquad)
+      ELSE
+        omega=a_scaling/TAN(tj(jquad))
+      END IF
 
       !XXX ! copy fm_mat_S into fm_mat_G
       !XXX CALL cp_fm_to_fm(source=fm_mat_S,destination=fm_mat_G,error=error)
@@ -1436,11 +1608,23 @@ MODULE rpa_ri_gpw
 
       ! alpha=4.0 is valid only for closed shell systems (alpha is 2.0 in the spin-orbital basis)
       t_start=m_walltime()
-      CALL cp_fm_gemm(transa="T",transb="N",m=dimen_RI,n=dimen_RI,k=dimen_ia,alpha=alpha,&
-                      matrix_a=fm_mat_S,matrix_b=fm_mat_S,beta=0.0_dp,&
-                      matrix_c=fm_mat_Q_gemm,error=error)
+      SELECT CASE(mm_style)
+      CASE(wfc_mm_style_gemm)
+         ! waste-fully computes the full symmetrix matrix, but maybe faster than cp_fm_syrk for optimized cp_fm_gemm
+         CALL cp_gemm(transa="T",transb="N",m=dimen_RI,n=dimen_RI,k=dimen_ia,alpha=alpha,&
+                         matrix_a=fm_mat_S,matrix_b=fm_mat_S,beta=0.0_dp,&
+                         matrix_c=fm_mat_Q_gemm,error=error)
+      CASE(wfc_mm_style_syrk)
+         ! will only compute the upper half of the matrix, which is fine, since we only use it for cholesky later
+         CALL cp_fm_syrk(uplo='U',trans='T',k=dimen_ia,alpha=alpha,matrix_a=fm_mat_S,&
+                         ia=1,ja=1,beta=0.0_dp,matrix_c=fm_mat_Q_gemm,error=error)
+      CASE DEFAULT
+         CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
+      END SELECT
       t_end=m_walltime()
-      actual_flop_rate=2.0_dp*REAL(dimen_ia,KIND=dp)*dimen_RI*REAL(dimen_RI,KIND=dp)/(MAX(0.01_dp,t_end-t_start))
+
+      actual_flop_rate=2.0_dp*REAL(dimen_ia,KIND=dp)*dimen_RI*REAL(dimen_RI,KIND=dp)
+      actual_flop_rate=actual_flop_rate/(MAX(0.01_dp,t_end-t_start))
       IF(para_env_RPA%mepos==0) my_flop_rate=my_flop_rate+actual_flop_rate
       my_num_dgemm_call=my_num_dgemm_call+1
 
@@ -1510,9 +1694,17 @@ MODULE rpa_ri_gpw
         END IF
 
         t_start=m_walltime()
-        CALL cp_fm_gemm(transa="T",transb="N",m=dimen_RI,n=dimen_RI,k=dimen_ia_beta,alpha=alpha,&
-                        matrix_a=fm_mat_S_beta,matrix_b=fm_mat_S_beta,beta=0.0_dp,&
-                        matrix_c=fm_mat_Q_gemm_beta,error=error)
+        SELECT CASE(mm_style)
+        CASE(wfc_mm_style_gemm)
+           CALL cp_gemm(transa="T",transb="N",m=dimen_RI,n=dimen_RI,k=dimen_ia_beta,alpha=alpha,&
+                           matrix_a=fm_mat_S_beta,matrix_b=fm_mat_S_beta,beta=0.0_dp,&
+                           matrix_c=fm_mat_Q_gemm_beta,error=error)
+        CASE(wfc_mm_style_syrk)
+           CALL cp_fm_syrk(uplo='U',trans='T',k=dimen_ia_beta,alpha=alpha,matrix_a=fm_mat_S_beta,&
+                           ia=1,ja=1,beta=0.0_dp,matrix_c=fm_mat_Q_gemm_beta,error=error)
+        CASE DEFAULT
+           CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
+        END SELECT
         t_end=m_walltime()
         actual_flop_rate=2.0_dp*REAL(dimen_ia_beta,KIND=dp)*dimen_RI*REAL(dimen_RI,KIND=dp)/(MAX(0.01_dp,t_end-t_start))
         IF(para_env_RPA%mepos==0) my_flop_rate=my_flop_rate+actual_flop_rate
@@ -1595,6 +1787,7 @@ MODULE rpa_ri_gpw
 
     CALL mp_sum(Erpa,para_env%group)
     Erpa=Erpa/(pi*2.0_dp)
+    IF(do_minimax_quad) Erpa=Erpa/2.0_dp
 
     IF(para_env_RPA%mepos==0) my_flop_rate=my_flop_rate/REAL(MAX(my_num_dgemm_call,1),KIND=dp)/1.0E9_dp
     CALL mp_sum(my_flop_rate,para_env%group)
@@ -1620,8 +1813,31 @@ MODULE rpa_ri_gpw
 
     CALL timestop(handle)
 
-    END SUBROUTINE clenshaw_curtius_quad
+    END SUBROUTINE rpa_numerical_integ
 
+! *****************************************************************************
+!> \brief ...
+!> \param a_scaling_ext ...
+!> \param para_env ...
+!> \param para_env_RPA ...
+!> \param homo ...
+!> \param virtual ...
+!> \param dimen_RI ...
+!> \param dimen_ia ...
+!> \param Eigenval ...
+!> \param num_integ_points ...
+!> \param num_integ_group ...
+!> \param color_rpa_group ...
+!> \param tj_ext ...
+!> \param wj_ext ...
+!> \param fm_mat_S ...
+!> \param error ...
+!> \param homo_beta ...
+!> \param virtual_beta ...
+!> \param dimen_ia_beta ...
+!> \param Eigenval_beta ...
+!> \param fm_mat_S_beta ...
+! *****************************************************************************
     SUBROUTINE  calc_scaling_factor(a_scaling_ext,para_env,para_env_RPA,homo,virtual,dimen_RI,dimen_ia,Eigenval,&
                                     num_integ_points,num_integ_group,color_rpa_group,&
                                     tj_ext,wj_ext,fm_mat_S,error,&
@@ -1947,6 +2163,31 @@ MODULE rpa_ri_gpw
 
     END SUBROUTINE
 
+! *****************************************************************************
+!> \brief ...
+!> \param a_scaling ...
+!> \param left_term ...
+!> \param first_deriv ...
+!> \param num_integ_points ...
+!> \param my_open_shell ...
+!> \param ZERO ...
+!> \param ONE ...
+!> \param FOUR ...
+!> \param PIG ...
+!> \param M_ia ...
+!> \param cottj ...
+!> \param wj ...
+!> \param D_ia ...
+!> \param D_ia_beta ...
+!> \param M_ia_beta ...
+!> \param nrow_local ...
+!> \param nrow_local_beta ...
+!> \param num_integ_group ...
+!> \param color_rpa_group ...
+!> \param para_env ...
+!> \param para_env_row ...
+!> \param para_env_row_beta ...
+! *****************************************************************************
     SUBROUTINE calculate_objfunc(a_scaling,left_term,first_deriv,num_integ_points,my_open_shell,&
                                  ZERO,ONE,FOUR,PIG,M_ia,cottj,wj,D_ia,D_ia_beta,M_ia_beta,&
                                  nrow_local,nrow_local_beta,num_integ_group,color_rpa_group,&

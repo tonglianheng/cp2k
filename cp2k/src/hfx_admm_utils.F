@@ -14,16 +14,18 @@
 MODULE hfx_admm_utils
 
   USE admm_methods,                    ONLY: admm_calculate_density_matrix,&
-                                             admm_fit_mo_coeffs
-  USE admm_types,                      ONLY: admm_type
+                                             admm_fit_mo_coeffs,&
+                                             create_admm_xc_section
+  USE admm_types,                      ONLY: admm_env_create,&
+                                             admm_type
   USE atomic_kind_types,               ONLY: atomic_kind_type
   USE cell_types,                      ONLY: cell_type
   USE cp_control_types,                ONLY: dft_control_type
   USE cp_dbcsr_interface,              ONLY: cp_dbcsr_add,&
-                                             cp_dbcsr_set
-  USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm
-  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_p_type,&
+                                             cp_dbcsr_p_type,&
+                                             cp_dbcsr_set,&
                                              cp_dbcsr_type
+  USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm
   USE cp_fm_types,                     ONLY: cp_fm_get_info,&
                                              cp_fm_type
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
@@ -61,6 +63,7 @@ MODULE hfx_admm_utils
                                              qs_environment_type,&
                                              set_qs_env
   USE qs_force_types,                  ONLY: qs_force_type
+  USE qs_kind_types,                   ONLY: qs_kind_type
   USE qs_ks_types,                     ONLY: qs_ks_env_type
   USE qs_mo_types,                     ONLY: get_mo_set,&
                                              mo_set_p_type
@@ -88,6 +91,11 @@ CONTAINS
 ! *****************************************************************************
 !> \brief  Compute the ADMM density matrix
 !>
+!> \param qs_env ...
+!> \param ks_env ...
+!> \param dft_control ...
+!> \param input ...
+!> \param error ...
 !> \par History
 !>     refactoring 03-2011 [MI]
 ! *****************************************************************************
@@ -103,7 +111,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, ispin, n_rep_hf, &
-                                                nspins
+                                                natoms, nspins
     LOGICAL                                  :: do_hfx, failure
     TYPE(admm_type), POINTER                 :: admm_env
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
@@ -111,12 +119,14 @@ CONTAINS
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mos, mos_aux_fit
-    TYPE(section_vals_type), POINTER         :: hfx_sections
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: particle_set
+    TYPE(section_vals_type), POINTER         :: hfx_sections, xc_section
 
     failure=.FALSE.
     CALL timeset(routineN,handle)
     NULLIFY(admm_env, hfx_sections, matrix_p, matrix_p_aux_fit, mos, &
-         mos_aux_fit, para_env)
+         mos_aux_fit, para_env, particle_set, xc_section)
 
     hfx_sections => section_vals_get_subs_vals(input,"DFT%XC%HF",error=error)
     CALL section_vals_get(hfx_sections,explicit=do_hfx,error=error)
@@ -154,15 +164,27 @@ CONTAINS
        ENDIF!fm->dbcsr
     ENDDO!fm->dbcsr
 
-    CALL admm_fit_mo_coeffs(qs_env, admm_env, dft_control%admm_control, para_env, &
+    IF (.NOT. ASSOCIATED(admm_env)) THEN
+      ! setup admm environment
+      CALL get_qs_env(qs_env, input=input, particle_set=particle_set, error=error)
+      natoms = SIZE(particle_set,1)
+      CALL admm_env_create(admm_env, dft_control%admm_control, mos, mos_aux_fit, &
+                           para_env, natoms, error)
+      xc_section => section_vals_get_subs_vals(input,"DFT%XC",error=error)
+      CALL create_admm_xc_section(qs_env, xc_section, admm_env, error)
+    ENDIF
+
+    CALL admm_fit_mo_coeffs(qs_env, admm_env, para_env, &
                             qs_env%matrix_s_aux_fit, qs_env%matrix_s_aux_fit_vs_orb,&
                             mos, mos_aux_fit, ks_env%s_mstruct_changed, error=error)
 
     DO ispin=1,nspins
        matrix_p_aux_fit =>qs_env%rho_aux_fit%rho_ao
        matrix_p => qs_env%rho%rho_ao
+       !TODO why is qs_env%matrix_s_aux_fit an array?
        CALL admm_calculate_density_matrix(admm_env, mos_aux_fit(ispin)%mo_set, matrix_p(ispin)%matrix, &
-                                          matrix_p_aux_fit(ispin)%matrix,ispin,nspins,error=error)
+                                          matrix_p_aux_fit(ispin)%matrix, qs_env%matrix_s_aux_fit(1)%matrix,&
+                                          ispin,nspins,error=error)
        CALL calculate_rho_elec(matrix_p=qs_env%rho_aux_fit%rho_ao(ispin)%matrix,&
             rho=qs_env%rho_aux_fit%rho_r(ispin),&
             rho_gspace=qs_env%rho_aux_fit%rho_g(ispin),&
@@ -184,6 +206,16 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Add the hfx contributions to the Hamiltonian
 !>
+!> \param ks_env ...
+!> \param qs_env ...
+!> \param ks_matrix ...
+!> \param rho ...
+!> \param energy ...
+!> \param calculate_forces ...
+!> \param just_energy ...
+!> \param v_rspace_new ...
+!> \param v_tau_rspace ...
+!> \param error ...
 !> \par History
 !>     refactoring 03-2011 [MI]
 ! *****************************************************************************
@@ -383,10 +415,17 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief computes the Hartree-Fock energy brute force in a pw basis
-!> \note
-!>      only computes the HFX energy, no derivatives as yet
+!> \param qs_env ...
+!> \param energy ...
+!> \param hfx_section ...
+!> \param poisson_env ...
+!> \param auxbas_pw_pool ...
+!> \param irep ...
+!> \param error ...
 !> \par History
 !>      12.2007 created [Joost VandeVondele]
+!> \note
+!>      only computes the HFX energy, no derivatives as yet
 ! *****************************************************************************
   SUBROUTINE pw_hfx(qs_env,energy,hfx_section,poisson_env,auxbas_pw_pool,irep,error)
     TYPE(qs_environment_type), POINTER       :: qs_env
@@ -421,6 +460,8 @@ CONTAINS
     TYPE(pw_p_type)                          :: pot_g, rho_g, rho_r
     TYPE(pw_p_type), ALLOCATABLE, &
       DIMENSION(:)                           :: rho_i, rho_j
+    TYPE(qs_kind_type), DIMENSION(:), &
+      POINTER                                :: qs_kind_set
 
     CALL timeset(routineN,handle)
     failure = .FALSE.
@@ -434,7 +475,7 @@ CONTAINS
 
        CALL get_qs_env(qs_env,mos=mo_array,pw_env=pw_env, dft_control=dft_control, &
                        cell=cell, particle_set=particle_set, &
-                       atomic_kind_set=atomic_kind_set, error=error)
+                       atomic_kind_set=atomic_kind_set, qs_kind_set=qs_kind_set, error=error)
 
        ! limit the blocksize by the number of orbitals
        CALL get_mo_set(mo_set=mo_array(1)%mo_set,mo_coeff=mo_coeff)
@@ -482,7 +523,7 @@ CONTAINS
 
                  iloc=iorb-iorb_block+1
                  CALL calculate_wavefunction(mo_coeff,iorb,rho_i(iloc),rho_g, &
-                          atomic_kind_set,cell,dft_control,particle_set, &
+                          atomic_kind_set,qs_kind_set, cell,dft_control,particle_set, &
                           pw_env,error=error)
 
              ENDDO
@@ -493,7 +534,7 @@ CONTAINS
 
                    jloc=jorb-jorb_block+1
                    CALL calculate_wavefunction(mo_coeff,jorb,rho_j(jloc),rho_g, &
-                            atomic_kind_set,cell,dft_control,particle_set, &
+                            atomic_kind_set,qs_kind_set, cell,dft_control,particle_set, &
                             pw_env,error=error)
 
                 ENDDO

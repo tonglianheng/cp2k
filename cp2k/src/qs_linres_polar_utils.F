@@ -15,7 +15,7 @@
 MODULE qs_linres_polar_utils
   USE cell_types,                      ONLY: cell_type
   USE cp_control_types,                ONLY: dft_control_type
-  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_p_type
+  USE cp_dbcsr_interface,              ONLY: cp_dbcsr_p_type
   USE cp_fm_basic_linalg,              ONLY: cp_fm_frobenius_norm,&
                                              cp_fm_trace
   USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
@@ -69,6 +69,10 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Initialize the polar environment
+!> \param polar_env ...
+!> \param p_env ...
+!> \param qs_env ...
+!> \param error ...
 ! *****************************************************************************
   SUBROUTINE polar_response(polar_env,p_env,qs_env,error)
    
@@ -220,6 +224,12 @@ CONTAINS
   END SUBROUTINE polar_response
 
 
+! *****************************************************************************
+!> \brief ...
+!> \param polar_env ...
+!> \param qs_env ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE polar_polar(polar_env,qs_env,error)
 
     TYPE(polar_env_type)                     :: polar_env
@@ -310,6 +320,12 @@ CONTAINS
     !
   END SUBROUTINE polar_polar
 
+! *****************************************************************************
+!> \brief ...
+!> \param polar_env ...
+!> \param qs_env ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE polar_print(polar_env,qs_env,error)
     TYPE(polar_env_type)                     :: polar_env
     TYPE(qs_environment_type), POINTER       :: qs_env
@@ -397,6 +413,9 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Initialize the polar environment
+!> \param polar_env ...
+!> \param qs_env ...
+!> \param error ...
 ! *****************************************************************************
   SUBROUTINE polar_env_init(polar_env,qs_env,error)
     !
@@ -504,6 +523,8 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Deallocate the polar environment
+!> \param polar_env ...
+!> \param error ...
 !> \par History
 ! *****************************************************************************
   SUBROUTINE polar_env_cleanup(polar_env,error)

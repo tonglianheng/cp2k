@@ -12,6 +12,7 @@
 MODULE bsse
   USE atomic_kind_types,               ONLY: get_atomic_kind
   USE cell_types,                      ONLY: cell_type
+  USE cp2k_info,                       ONLY: write_restart_header
   USE cp_external_control,             ONLY: external_control
   USE cp_output_handling,              ONLY: cp_add_iter_level,&
                                              cp_iterate,&
@@ -30,7 +31,6 @@ MODULE bsse
                                              force_env_type
   USE global_types,                    ONLY: global_environment_type
   USE input_constants,                 ONLY: do_qs
-  USE input_cp2k_restarts,             ONLY: write_restart_header
   USE input_section_types,             ONLY: section_vals_get,&
                                              section_vals_get_subs_vals,&
                                              section_vals_type,&
@@ -63,6 +63,8 @@ CONTAINS
 !>      E_{AB}^{2,uncorr} = E_{AB}(AB) - E_A(A)  - E_B(B)
 !>      E_{AB}^{CP}       = E_{AB}(AB) + [ E_A(A) - E_A(AB) ] + [ E_B(B) - E_B(AB) ]
 !>                                                          [CP-corrected total energy of AB]
+!> \param force_env ...
+!> \param globenv ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 !> \par History
@@ -151,6 +153,14 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Evaluate the N-body energy contribution to the BSSE evaluation
+!> \param conf ...
+!> \param Em ...
+!> \param force_env ...
+!> \param force_env_loc ...
+!> \param n_frags ...
+!> \param root_section ...
+!> \param globenv ...
+!> \param should_stop ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 !> \par History
@@ -222,6 +232,14 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Evaluate the N-body energy contribution to the BSSE evaluation
+!> \param force_env ...
+!> \param force_env_loc ...
+!> \param conf ...
+!> \param conf_loc ...
+!> \param n_frags ...
+!> \param root_section ...
+!> \param globenv ...
+!> \param energy ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 !> \par History
@@ -353,6 +371,13 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Dumps bsse information (configuration fragment)
+!> \param atom_index ...
+!> \param atom_type ...
+!> \param conf ...
+!> \param conf_loc ...
+!> \param bsse_section ...
+!> \param present_charge ...
+!> \param present_multpl ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 !> \par History
@@ -372,8 +397,8 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'dump_bsse_info', &
       routineP = moduleN//':'//routineN
 
-    CHARACTER(len=default_string_length)     :: conf_loc_s, conf_s
-    INTEGER                                  :: i, iw
+    INTEGER                                  :: i, istat, iw
+    CHARACTER(len=20*SIZE(conf))             :: conf_loc_s, conf_s
     LOGICAL                                  :: failure
     TYPE(cp_logger_type), POINTER            :: logger
 
@@ -384,8 +409,12 @@ CONTAINS
         iw=cp_print_key_unit_nr(logger,bsse_section,"PRINT%PROGRAM_RUN_INFO",&
                                          extension=".log",error=error)
         IF (iw>0) THEN
-          WRITE (conf_s,*)conf ;         CALL compress(conf_s,full=.TRUE.)
-          WRITE (conf_loc_s,*)conf_loc ; CALL compress(conf_loc_s,full=.TRUE.)
+          WRITE (conf_s,fmt="(1000I0)",iostat=istat)conf ;
+          IF(istat.NE.0) conf_s="exceeded"
+          CALL compress(conf_s,full=.TRUE.)
+          WRITE (conf_loc_s,fmt="(1000I0)",iostat=istat)conf_loc ;
+          IF(istat.NE.0) conf_loc_s="exceeded"
+          CALL compress(conf_loc_s,full=.TRUE.)
 
           WRITE (UNIT=iw,FMT="(/,T2,A)") REPEAT("-",79)
           WRITE (UNIT=iw,FMT="(T2,A,T80,A)") "-","-"
@@ -410,6 +439,12 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Read modified parameters for configurations
+!> \param present_charge ...
+!> \param present_multpl ...
+!> \param conf ...
+!> \param conf_loc ...
+!> \param bsse_section ...
+!> \param dft_section ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 !> \par History
@@ -426,8 +461,6 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'conf_info_setup', &
       routineP = moduleN//':'//routineN
 
-    CHARACTER(len=default_string_length)     :: conf_loc_s, conf_s, &
-                                                glb_conf_s, sub_conf_s
     INTEGER                                  :: i, nconf
     INTEGER, DIMENSION(:), POINTER           :: glb_conf, sub_conf
     LOGICAL                                  :: explicit, failure
@@ -438,8 +471,6 @@ CONTAINS
     failure = .FALSE.
     NULLIFY(configurations, glb_conf, sub_conf)
     IF (.NOT.failure) THEN
-       WRITE (conf_s,*)conf ;         CALL compress(conf_s,full=.TRUE.)
-       WRITE (conf_loc_s,*)conf_loc ; CALL compress(conf_loc_s,full=.TRUE.)
        ! Loop over all configurations to pick up the right one
        configurations => section_vals_get_subs_vals(bsse_section,"CONFIGURATION",error=error)
        CALL section_vals_get(configurations,explicit=explicit,n_repetition=nconf,error=error)
@@ -457,9 +488,7 @@ CPSourceFileRef,&
                   "different from the number of fragments defined!"//&
 CPSourceFileRef,&
                   only_ionode=.TRUE.)
-             WRITE (glb_conf_s,*)glb_conf ; CALL compress(glb_conf_s,full=.TRUE.)
-             WRITE (sub_conf_s,*)sub_conf ; CALL compress(sub_conf_s,full=.TRUE.)
-             IF ((conf_s==glb_conf_s).AND.(conf_loc_s==sub_conf_s)) THEN
+             IF (ALL(conf==glb_conf).AND.ALL(conf_loc==sub_conf)) THEN
                 CALL section_vals_val_get(configurations,"CHARGE", i_rep_section=i,&
                                           i_val=present_charge, error=error)
                 CALL section_vals_val_get(configurations,"MULTIPLICITY", i_rep_section=i,&
@@ -475,6 +504,10 @@ CPSourceFileRef,&
 
 ! *****************************************************************************
 !> \brief Dumps results
+!> \param conf ...
+!> \param Em ...
+!> \param num_of_frag ...
+!> \param bsse_section ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 !> \par History
@@ -530,8 +563,9 @@ CPSourceFileRef,&
 
 ! *****************************************************************************
 !> \brief generate the N-body configuration for the N-body BSSE evaluation
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
+!> \param Num_of_frag ...
+!> \param num_of_conf ...
+!> \param conf ...
 !> \par History
 !>      07.2005 created [tlaino]
 !> \author Teodoro Laino
@@ -552,6 +586,13 @@ CPSourceFileRef,&
     END DO
   END SUBROUTINE gen_Nbody_conf
 
+! *****************************************************************************
+!> \brief ...
+!> \param ldown ...
+!> \param lup ...
+!> \param conf ...
+!> \param k ...
+!> \param my_ind ...
 ! *****************************************************************************
   RECURSIVE SUBROUTINE build_Nbody_conf(ldown, lup, conf, k, my_ind)
     INTEGER, INTENT(IN)                      :: ldown, lup
@@ -578,6 +619,10 @@ CPSourceFileRef,&
   END SUBROUTINE build_Nbody_conf
 
 ! *****************************************************************************
+!> \brief ...
+!> \param num ...
+!> \retval my_fact ...
+! *****************************************************************************
   RECURSIVE FUNCTION FACT(num) RESULT(my_fact)
     INTEGER, INTENT(IN)                      :: num
     INTEGER                                  :: my_fact
@@ -589,6 +634,10 @@ CPSourceFileRef,&
     END IF
   END FUNCTION FACT
 
+! *****************************************************************************
+!> \brief ...
+!> \param main_conf ...
+!> \param conf ...
 ! *****************************************************************************
   SUBROUTINE make_plan_conf (main_conf, conf)
     INTEGER, DIMENSION(:), INTENT(IN)        :: main_conf
@@ -615,6 +664,8 @@ CPSourceFileRef,&
 
 ! *****************************************************************************
 !> \brief Writes restart for BSSE calculations
+!> \param bsse_section ...
+!> \param root_section ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 !> \par History
@@ -639,7 +690,7 @@ CPSourceFileRef,&
          extension=".restart",  do_backup=.FALSE., file_position="REWIND",error=error)
 
     IF (ires>0) THEN
-       CALL write_restart_header(ires, error)
+       CALL write_restart_header(ires)
        CALL section_vals_write(root_section, unit_nr=ires, hide_root=.TRUE., error=error)
     ENDIF
 

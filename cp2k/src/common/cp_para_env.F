@@ -25,11 +25,10 @@ MODULE cp_para_env
   LOGICAL, PRIVATE, PARAMETER :: debug_this_module=.TRUE.
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cp_para_env'
 
-  PUBLIC :: cp_para_env_retain, cp_para_env_release, cp_para_env_create, &
-      cp_para_env_duplicate,&
-      cp_para_env_write
-  PUBLIC :: cp_cart_create, cp_cart_release, cp_cart_update, cp_cart_retain,&
-       cp_cart_write
+  PUBLIC :: cp_para_env_retain, cp_para_env_release, cp_para_env_create,&
+            cp_para_env_write
+  PUBLIC :: cp_cart_create, cp_cart_release,&
+            cp_cart_write
 !***
 CONTAINS
 
@@ -87,7 +86,7 @@ CONTAINS
 !> \brief creates a new para environment by duplicating an environment
 !>      (and also the undelying mpi group)
 !> \param para_env the new group
-!> \param template the environment to copy
+!> \param TEMPLATE the environment to copy
 !> \param source the source of the new para_env, defaults to template%source
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
@@ -161,12 +160,12 @@ CONTAINS
 !> \param para_env the new group
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
-!> \note
-!>      to avoid circular dependencies cp_log_handling has a private copy
-!>      of this method (see cp_log_handling:my_cp_para_env_release)!
 !> \par History
 !>      08.2002 created [fawzi]
 !> \author Fawzi Mohamed
+!> \note
+!>      to avoid circular dependencies cp_log_handling has a private copy
+!>      of this method (see cp_log_handling:my_cp_para_env_release)!
 ! *****************************************************************************
   SUBROUTINE cp_para_env_release(para_env, error)
     TYPE(cp_para_env_type), POINTER          :: para_env

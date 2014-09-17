@@ -8,9 +8,8 @@
 !> \author Joost VandeVondele (04.2003)
 ! *****************************************************************************
 MODULE qs_conductivity
+  USE cp_dbcsr_interface,              ONLY: cp_dbcsr_p_type
   USE cp_dbcsr_operations,             ONLY: cp_dbcsr_sm_fm_multiply
-  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_p_type
-  USE cp_fm_basic_linalg,              ONLY: cp_fm_gemm
   USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                              cp_fm_struct_release,&
                                              cp_fm_struct_type
@@ -18,6 +17,7 @@ MODULE qs_conductivity
                                              cp_fm_get_info,&
                                              cp_fm_release,&
                                              cp_fm_type
+  USE cp_gemm_interface,               ONLY: cp_gemm
   USE f77_blas
   USE kinds,                           ONLY: dp
   USE mathconstants,                   ONLY: pi
@@ -38,6 +38,16 @@ MODULE qs_conductivity
 
 CONTAINS
 
+! *****************************************************************************
+!> \brief ...
+!> \param matrix_s ...
+!> \param occupied_orbs ...
+!> \param occupied_evals ...
+!> \param unoccupied_orbs ...
+!> \param unoccupied_evals ...
+!> \param volume ...
+!> \param scr ...
+!> \param error ...
 ! *****************************************************************************
 SUBROUTINE optical_conductivity(matrix_s,occupied_orbs,occupied_evals, &
                                 unoccupied_orbs,unoccupied_evals,volume,scr,error)
@@ -113,7 +123,7 @@ SUBROUTINE optical_conductivity(matrix_s,occupied_orbs,occupied_evals, &
    DO component=1,3
       RESULT=0.0_dp
       CALL cp_dbcsr_sm_fm_multiply(matrix_s(component+1)%matrix,unoccupied_orbs,buf,nunocc,error=error)
-      CALL cp_fm_gemm("T","N",nocc,nunocc,nao,1.0_dp,occupied_orbs,buf,0.0_dp,matrix_elements,error=error)
+      CALL cp_gemm("T","N",nocc,nunocc,nao,1.0_dp,occupied_orbs,buf,0.0_dp,matrix_elements,error=error)
       DO j=1,ncol_local
         DO i=1,nrow_local
 
@@ -122,7 +132,7 @@ SUBROUTINE optical_conductivity(matrix_s,occupied_orbs,occupied_evals, &
 
            ! this should be the strength of the transition.
            strength=Pi*(matrix_elements%local_data(i,j))**2 / (volume*energy)
-           ! write(6,*) i,j,matrix_elements%local_data(i,j)
+           ! write(*,*) i,j,matrix_elements%local_data(i,j)
 
            ! put the transitions in the correct bin
            index=FLOOR(((energy-emin)/(emax-emin))*npoints)

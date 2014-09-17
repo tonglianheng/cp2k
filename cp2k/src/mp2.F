@@ -18,9 +18,9 @@ MODULE mp2
   USE bibliography,                    ONLY: DelBen2012,&
                                              cite_reference
   USE cp_dbcsr_interface,              ONLY: cp_dbcsr_get_info,&
+                                             cp_dbcsr_p_type,&
                                              cp_dbcsr_set
   USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm
-  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_p_type
   USE cp_fm_basic_linalg,              ONLY: cp_fm_triangular_invert
   USE cp_fm_cholesky,                  ONLY: cp_fm_cholesky_decompose
   USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
@@ -69,6 +69,7 @@ MODULE mp2
   USE qs_energy_types,                 ONLY: qs_energy_type
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
+  USE qs_kind_types,                   ONLY: qs_kind_type
   USE qs_matrix_pools,                 ONLY: mpools_create,&
                                              mpools_rebuild_fm_pools,&
                                              mpools_release,&
@@ -77,8 +78,7 @@ MODULE mp2
                                              deallocate_mo_set,&
                                              get_mo_set,&
                                              init_mo_set,&
-                                             mo_set_p_type,&
-                                             mo_set_type
+                                             mo_set_p_type
   USE qs_rho_types,                    ONLY: qs_rho_type
   USE qs_scf_methods,                  ONLY: eigensolver
   USE qs_scf_types,                    ONLY: qs_scf_env_type
@@ -98,6 +98,9 @@ MODULE mp2
 
 ! *****************************************************************************
 !> \brief the main entry point for MP2 calculations
+!> \param qs_env ...
+!> \param calc_forces ...
+!> \param error ...
 !> \author Mauro Del Ben
 ! *****************************************************************************
   SUBROUTINE mp2_main(qs_env,calc_forces,error)
@@ -111,7 +114,7 @@ MODULE mp2
     INTEGER :: bin, cholesky_method, dimen, handle, handle2, i, i_thread, &
       iatom, ikind, irep, ispin, max_nset, my_bin_size, n_rep_hf, n_threads, &
       nao, natom, ncol_block, nelec_alpha, nelec_beta, nelectron, &
-      nfullcols_total, nfullrows_total, nkind, nmo, nrow_block, nspins, stat, &
+      nfullcols_total, nfullrows_total, nkind, nrow_block, nspins, stat, &
       unit_nr
     INTEGER(KIND=int_8)                      :: mem
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: kind_of
@@ -146,18 +149,19 @@ MODULE mp2
     TYPE(hfx_type), POINTER                  :: actual_x_data
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mos, mos_mp2
-    TYPE(mo_set_type), POINTER               :: mo_set
     TYPE(mp2_biel_type)                      :: mp2_biel
     TYPE(mp2_type), POINTER                  :: mp2_env
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(qs_energy_type), POINTER            :: energy
+    TYPE(qs_kind_type), DIMENSION(:), &
+      POINTER                                :: qs_kind_set
     TYPE(qs_matrix_pools_type), POINTER      :: my_mpools
     TYPE(qs_rho_type), POINTER               :: rho
     TYPE(qs_scf_env_type), POINTER           :: scf_env
     TYPE(section_vals_type), POINTER         :: hfx_sections, input
 
-!$  INTEGER :: omp_get_max_threads,omp_get_thread_num
+!$  INTEGER :: omp_get_max_threads
 
     CALL timeset(routineN,handle)
     failure=.FALSE.
@@ -166,6 +170,7 @@ MODULE mp2
     CALL cite_reference(DelBen2012)
 
     CALL get_qs_env(qs_env=qs_env, input=input, atomic_kind_set=atomic_kind_set, &
+                  qs_kind_set=qs_kind_set,&
                   particle_set=particle_set, para_env=para_env,   &
                   energy=energy, rho=rho, mos=mos, scf_env=scf_env,&
                   matrix_ks=matrix_ks, matrix_s=matrix_s, matrix_ks_aux_fit=matrix_ks_aux,&
@@ -236,12 +241,11 @@ MODULE mp2
     ALLOCATE(kind_of(natom),STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
-    CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
-                               kind_of=kind_of)
+    CALL get_atomic_kind_set(atomic_kind_set, kind_of=kind_of)
     nkind = SIZE(atomic_kind_set,1)
 
 
-    CALL hfx_create_basis_types(basis_parameter,basis_info, atomic_kind_set, do_admm=.FALSE., error=error)
+    CALL hfx_create_basis_types(basis_parameter,basis_info, qs_kind_set, do_admm=.FALSE., error=error)
 
     dimen=0
     max_nset=0
@@ -302,8 +306,6 @@ MODULE mp2
                                  mos=mos_mp2,&
                                  blacs_env=qs_env%blacs_env,&
                                  para_env=para_env,&
-                                 nrow_block=nrow_block,&
-                                 ncol_block=ncol_block,&
                                  error=error)
 
     DO ispin=1, nspins
@@ -311,14 +313,14 @@ MODULE mp2
       ! If ADMM we should make the ks matrix up-to-date
       IF( qs_env%dft_control%do_admm ) THEN
         CALL admm_correct_for_eigenvalues(ispin, admm_env, matrix_ks(ispin)%matrix, &
-                                          matrix_ks_aux(ispin)%matrix, error)
+                                          error)
       END IF
 
       CALL copy_dbcsr_to_fm(matrix_ks(ispin)%matrix, fm_matrix_ks, error=error)
 
       IF( qs_env%dft_control%do_admm ) THEN
         CALL admm_uncorrect_for_eigenvalues(ispin, admm_env, matrix_ks(ispin)%matrix, &
-                                          matrix_ks_aux(ispin)%matrix, error)
+                                          error)
       END IF
 
       CALL init_mo_set(mos_mp2(ispin)%mo_set,&
@@ -328,15 +330,12 @@ MODULE mp2
 
       ! diagonalize KS matrix
       cholesky_method=cholesky_inverse
-      CALL eigensolver(matrix_ks=fm_matrix_ks,&
+      CALL eigensolver(matrix_ks_fm=fm_matrix_ks,&
                        mo_set=mos_mp2(ispin)%mo_set,&
                        ortho=fm_matrix_s,&
                        work=fm_matrix_work,&
-                       do_level_shift=.FALSE.,&
-                       level_shift=0.0_dp,&
                        cholesky_method=cholesky_method,&
                        use_jacobi=.FALSE.,&
-                       jacobi_threshold=qs_env%scf_control%diagonalization%jacobi_threshold,&
                        error=error)
     END DO
       
@@ -393,7 +392,8 @@ MODULE mp2
            !    integral_containers => actual_x_data%integral_containers(:,bin)
            !    CALL hfx_init_container(maxval_container, actual_x_data%memory_parameter%actual_memory_usage, .FALSE., error)
            !    DO i=1,64
-           !      CALL hfx_init_container(integral_containers(i), actual_x_data%memory_parameter%actual_memory_usage, .FALSE., error)
+           !      CALL hfx_init_container(integral_containers(i), &
+           !               actual_x_data%memory_parameter%actual_memory_usage, .FALSE., error)
            !    END DO
            !  END DO
           END IF
@@ -715,6 +715,14 @@ MODULE mp2
 
   END SUBROUTINE mp2_main
 
+! *****************************************************************************
+!> \brief ...
+!> \param natom ...
+!> \param max_nset ...
+!> \param index_table ...
+!> \param basis_parameter ...
+!> \param kind_of ...
+! *****************************************************************************
   SUBROUTINE build_index_table(natom,max_nset,index_table,basis_parameter,kind_of)
     INTEGER                                  :: natom, max_nset
     INTEGER, DIMENSION(natom, max_nset)      :: index_table
@@ -739,6 +747,30 @@ MODULE mp2
 
   END SUBROUTINE build_index_table
 
+! *****************************************************************************
+!> \brief ...
+!> \param dimen ...
+!> \param occ_i ...
+!> \param occ_j ...
+!> \param mp2_biel ...
+!> \param mp2_env ...
+!> \param C_i ...
+!> \param Auto_i ...
+!> \param Emp2 ...
+!> \param Emp2_Cou ...
+!> \param Emp2_ex ...
+!> \param kind_of ...
+!> \param basis_parameter ...
+!> \param qs_env ...
+!> \param matrix_ks ...
+!> \param rho ...
+!> \param hfx_sections ...
+!> \param para_env ...
+!> \param unit_nr ...
+!> \param C_j ...
+!> \param Auto_j ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE mp2_direct_energy(dimen,occ_i,occ_j,mp2_biel,mp2_env,C_i,Auto_i,Emp2,Emp2_Cou,Emp2_ex,&
                                kind_of,basis_parameter,&
                                qs_env,matrix_ks,rho,hfx_sections,para_env, &
@@ -769,11 +801,11 @@ MODULE mp2
       routineP = moduleN//':'//routineN
     REAL(KIND=dp), PARAMETER                 :: zero = 0.D+00
 
-    INTEGER :: a, batch_number, color_sub, comm_sub, counter, &
-      elements_ij_proc, group_counter, handle, i, i_batch, i_batch_start, &
-      i_group_counter, j, j_batch_start, j_group_counter, last_batch, &
-      max_batch_number, max_batch_size, max_set, minimum_memory_needed, &
-      my_batch_size, my_I_batch_size, my_I_occupied_end, my_I_occupied_start, &
+    INTEGER :: batch_number, color_sub, comm_sub, counter, elements_ij_proc, &
+      group_counter, handle, i, i_batch, i_batch_start, i_group_counter, j, &
+      j_batch_start, j_group_counter, last_batch, max_batch_number, &
+      max_batch_size, max_set, minimum_memory_needed, my_batch_size, &
+      my_I_batch_size, my_I_occupied_end, my_I_occupied_start, &
       my_J_batch_size, my_J_occupied_end, my_J_occupied_start, natom, &
       Ni_occupied, Nj_occupied, number_groups, number_i_subset, &
       number_j_subset, one, sqrt_number_groups, stat, &
@@ -949,7 +981,7 @@ MODULE mp2
     DEALLOCATE(batch_sizes)
     ALLOCATE(batch_sizes(batch_number),STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    batch_sizes=batch_sizes_tmp
+    batch_sizes(:)=batch_sizes_tmp
     DEALLOCATE(batch_sizes_tmp)
 
     max_batch_size=MAXVAL(batch_sizes)
@@ -1043,6 +1075,12 @@ MODULE mp2
 
   END SUBROUTINE  mp2_direct_energy
 
+! *****************************************************************************
+!> \brief ...
+!> \param qs_env ...
+!> \param unit_nr ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE calculate_exx(qs_env,unit_nr,error)
     TYPE(qs_environment_type), POINTER       :: qs_env
     INTEGER                                  :: unit_nr

@@ -14,20 +14,18 @@ MODULE mulliken
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind
   USE cp_control_types,                ONLY: mulliken_restraint_type
-  USE cp_dbcsr_interface,              ONLY: cp_dbcsr_get_block_p,&
-                                             cp_dbcsr_get_info,&
-                                             cp_dbcsr_iterator_blocks_left,&
-                                             cp_dbcsr_iterator_next_block,&
-                                             cp_dbcsr_iterator_start,&
-                                             cp_dbcsr_iterator_stop
-  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_iterator,&
-                                             cp_dbcsr_p_type,&
-                                             cp_dbcsr_type
+  USE cp_dbcsr_interface,              ONLY: &
+       cp_dbcsr_get_block_p, cp_dbcsr_get_info, cp_dbcsr_iterator, &
+       cp_dbcsr_iterator_blocks_left, cp_dbcsr_iterator_next_block, &
+       cp_dbcsr_iterator_start, cp_dbcsr_iterator_stop, cp_dbcsr_p_type, &
+       cp_dbcsr_type
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE f77_blas
   USE kinds,                           ONLY: dp
   USE message_passing,                 ONLY: mp_sum
   USE particle_types,                  ONLY: particle_type
+  USE qs_kind_types,                   ONLY: get_qs_kind,&
+                                             qs_kind_type
   USE semi_empirical_int_arrays,       ONLY: se_orbital_pointer
   USE semi_empirical_mpole_types,      ONLY: semi_empirical_mpole_type
   USE semi_empirical_types,            ONLY: get_se_param,&
@@ -68,12 +66,18 @@ CONTAINS
 !> \param mulliken_restraint_control additional parameters needed to control the restraint
 !> \param para_env para_env of the matrices
 !> \param s_matrix ,p_matrix : containing the respective quantities
+!> \param p_matrix ...
+!> \param energy ...
+!> \param order_p ...
+!> \param ks_matrix ...
+!> \param w_matrix ...
+!> \param error ...
+!> \par History
+!>      06.2004 created [Joost VandeVondele]
 !> \note
 !>      contribution to the KS matrix is derivative wrt P
 !>      contribution to the W matrix is derivate wrt S (sign?)
 !>      needed for orbital and ionic forces respectively
-!> \par History
-!>      06.2004 created [Joost VandeVondele]
 ! *****************************************************************************
   SUBROUTINE mulliken_restraint(mulliken_restraint_control,para_env, &
                                 s_matrix,p_matrix,energy,order_p,ks_matrix,w_matrix,error)
@@ -179,15 +183,16 @@ CONTAINS
 !> \brief computes energy and derivatives given a set of charges
 !>       this implementation uses the spin density on a number of atoms
 !>       as a penalty function
+!> \param mulliken_restraint_control ...
 !> \param charges (nblock,nspin)
-!> \param output :
-!> \param energ y
 !> \param charges_deriv derivate wrt the corresponding charge entry
-!> \note
-!>       should be easy to adapt for other specialized cases
+!> \param energy ...
+!> \param order_p ...
 !> \par History
 !>      06.2004 created [Joost VandeVondele]
 !>      02.2005 added more general form [Joost VandeVondele]
+!> \note
+!>       should be easy to adapt for other specialized cases
 ! *****************************************************************************
 SUBROUTINE restraint_functional(mulliken_restraint_control,charges, &
                                 charges_deriv,energy,order_p)
@@ -218,11 +223,12 @@ END SUBROUTINE restraint_functional
 
 ! *****************************************************************************
 !> \brief checks numerically the analytic derivative in restraint_functional
+!> \param mulliken_restraint_control ...
 !> \param charges (nblock,nspin)
-!> \note
-!>       for testing only, uncomment the call in mulliken restraint
 !> \par History
 !>      06.2004 created [Joost VandeVondele]
+!> \note
+!>       for testing only, uncomment the call in mulliken restraint
 ! *****************************************************************************
 SUBROUTINE rf_deriv_check(mulliken_restraint_control,charges)
     TYPE(mulliken_restraint_type), &
@@ -261,7 +267,7 @@ SUBROUTINE rf_deriv_check(mulliken_restraint_control,charges)
     ! analytic results vs deriv_num
     CALL restraint_functional(mulliken_restraint_control,charges, &
                                    charges_deriv,energy2,dum)
-    WRITE(6,*) "deriv check : max abs diff, max abs", MAXVAL(ABS(charges_deriv-deriv_num)), &
+    WRITE(*,*) "deriv check : max abs diff, max abs", MAXVAL(ABS(charges_deriv-deriv_num)), &
                                                       MAXVAL(ABS(charges_deriv))
 
     DEALLOCATE(charges_local,charges_deriv,deriv_num)
@@ -271,11 +277,13 @@ END SUBROUTINE rf_deriv_check
 ! *****************************************************************************
 !> \brief compute the mulliken charges
 !> \param p_matrix , s_matrix, para_env
+!> \param s_matrix ...
 !> \param charges previously allocated with the right size (natom,nspin)
-!> \note
-!>      charges are computed per spin in the LSD case
+!> \param para_env ...
 !> \par History
 !>      06.2004 created [Joost VandeVondele]
+!> \note
+!>      charges are computed per spin in the LSD case
 ! *****************************************************************************
   SUBROUTINE compute_charges(p_matrix,s_matrix,charges,para_env)
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
@@ -327,7 +335,10 @@ END SUBROUTINE rf_deriv_check
 ! *****************************************************************************
 !> \brief compute the mulliken charge derivatives
 !> \param p_matrix , s_matrix, para_env
+!> \param s_matrix ...
+!> \param charges ...
 !> \param dcharges previously allocated with the right size (natom,3)
+!> \param para_env ...
 !> \par History
 !>      01.2012 created [JHU]
 ! *****************************************************************************
@@ -387,14 +398,18 @@ END SUBROUTINE rf_deriv_check
 ! *****************************************************************************
 !> \brief print the mulliken charges to scr on ionode
 !> \param p_matrix , s_matrix, para_env
+!> \param s_matrix ...
+!> \param para_env ...
 !> \param particle_set (needed for Z)
+!> \param qs_kind_set ...
 !> \param scr unit for output
-!> \param ionode true if scr is connected, and output is needed
+!> \param title ...
+!> \param error ...
 !> \par History
 !>      06.2004 adapted to remove explicit matrix multiply [Joost VandeVondele]
 ! *****************************************************************************
   SUBROUTINE mulliken_charges_a(p_matrix,s_matrix,para_env,particle_set, &
-                                scr,title,error)
+                                qs_kind_set, scr,title,error)
 
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: p_matrix
@@ -402,6 +417,8 @@ END SUBROUTINE rf_deriv_check
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
+    TYPE(qs_kind_type), DIMENSION(:), &
+      POINTER                                :: qs_kind_set
     INTEGER                                  :: scr
     CHARACTER(LEN=*)                         :: title
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -421,7 +438,7 @@ END SUBROUTINE rf_deriv_check
     ALLOCATE(charges(nblock,nspin))
     CALL compute_charges(p_matrix,s_matrix,charges,para_env)
 
-    CALL print_atomic_charges(particle_set,scr,title,electronic_charges=charges)
+    CALL print_atomic_charges(particle_set,qs_kind_set,scr,title,electronic_charges=charges)
 
     DEALLOCATE(charges)
 
@@ -429,6 +446,13 @@ END SUBROUTINE rf_deriv_check
 
   END SUBROUTINE mulliken_charges_a
 
+! *****************************************************************************
+!> \brief ...
+!> \param p_matrix ...
+!> \param s_matrix ...
+!> \param para_env ...
+!> \param mcharge ...
+!> \param error ...
 ! *****************************************************************************
   SUBROUTINE mulliken_charges_b(p_matrix,s_matrix,para_env,mcharge,error)
 
@@ -453,6 +477,14 @@ END SUBROUTINE rf_deriv_check
   END SUBROUTINE mulliken_charges_b
 
 ! *****************************************************************************
+!> \brief ...
+!> \param p_matrix ...
+!> \param s_matrix ...
+!> \param para_env ...
+!> \param mcharge ...
+!> \param dmcharge ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE mulliken_charges_c(p_matrix,s_matrix,para_env,mcharge,dmcharge,error)
 
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
@@ -476,10 +508,25 @@ END SUBROUTINE rf_deriv_check
 
 ! *****************************************************************************
 
-  SUBROUTINE compute_multipoles(atomic_kind_set,particle_set,&
+! *****************************************************************************
+!> \brief ...
+!> \param atomic_kind_set ...
+!> \param qs_kind_set ...
+!> \param particle_set ...
+!> \param p_matrix ...
+!> \param pscp ...
+!> \param s_matrix ...
+!> \param charge ...
+!> \param dipole ...
+!> \param quadrupole ...
+!> \param para_env ...
+! *****************************************************************************
+  SUBROUTINE compute_multipoles(atomic_kind_set,qs_kind_set,particle_set,&
                                 p_matrix,pscp,s_matrix,charge,dipole,quadrupole,para_env)
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
+    TYPE(qs_kind_type), DIMENSION(:), &
+      POINTER                                :: qs_kind_set
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
@@ -491,14 +538,11 @@ END SUBROUTINE rf_deriv_check
       POINTER                                :: quadrupole
     TYPE(cp_para_env_type), POINTER          :: para_env
 
-    INTEGER                                  :: blk, iatom, iblock_col, &
-                                                iblock_row, indi, indj, &
-                                                ispin, jint, natorb_a, &
-                                                nblock, nspin, size_1c_int
+    INTEGER :: blk, iatom, iblock_col, iblock_row, ikind, indi, indj, ispin, &
+      jint, natorb_a, nblock, nspin, size_1c_int
     LOGICAL                                  :: defined, found
     REAL(kind=dp)                            :: fac
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: p_block, pscp_block, s_block
-    TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(cp_dbcsr_iterator)                  :: iter
     TYPE(semi_empirical_mpole_type), POINTER :: mpole
     TYPE(semi_empirical_type), POINTER       :: se_kind_a
@@ -522,8 +566,8 @@ END SUBROUTINE rf_deriv_check
 
           iatom=iblock_row
 
-          atomic_kind => particle_set(iatom)%atomic_kind
-          CALL get_atomic_kind(atomic_kind=atomic_kind,se_parameter=se_kind_a)
+          CALL get_atomic_kind(particle_set(iatom)%atomic_kind, kind_number=ikind)
+          CALL get_qs_kind(qs_kind_set(ikind), se_parameter=se_kind_a)
           CALL get_se_param(se_kind_a,defined=defined,natorb=natorb_a)
 
           CALL cp_dbcsr_get_block_p(matrix=p_matrix(ispin)%matrix,&
@@ -567,11 +611,26 @@ END SUBROUTINE rf_deriv_check
 
 ! *****************************************************************************
 
-  SUBROUTINE multipoles_a(atomic_kind_set,particle_set,&
+! *****************************************************************************
+!> \brief ...
+!> \param atomic_kind_set ...
+!> \param qs_kind_set ...
+!> \param particle_set ...
+!> \param p_matrix ...
+!> \param pscp ...
+!> \param s_matrix ...
+!> \param para_env ...
+!> \param scr ...
+!> \param title ...
+!> \param error ...
+! *****************************************************************************
+  SUBROUTINE multipoles_a(atomic_kind_set,qs_kind_set,particle_set,&
                           p_matrix,pscp,s_matrix,para_env,scr,title,error)
 
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
+    TYPE(qs_kind_type), DIMENSION(:), &
+      POINTER                                :: qs_kind_set
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
@@ -601,10 +660,11 @@ END SUBROUTINE rf_deriv_check
     ALLOCATE(dipole(3,nblock))
     ALLOCATE(quadrupole(3,3,nblock))
 
-    CALL compute_multipoles(atomic_kind_set,particle_set,&
+    CALL compute_multipoles(atomic_kind_set,qs_kind_set,particle_set,&
                             p_matrix,pscp,s_matrix,charge,dipole,quadrupole,para_env)
 
-    CALL print_multipoles(particle_set,scr,title,charge=charge,dipole=dipole,quadrupole=quadrupole)
+    CALL print_multipoles(particle_set,qs_kind_set,scr,title,charge=charge,&
+                          dipole=dipole,quadrupole=quadrupole)
 
     DEALLOCATE(charge)
     DEALLOCATE(dipole)
@@ -615,12 +675,27 @@ END SUBROUTINE rf_deriv_check
   END SUBROUTINE multipoles_a
 
 ! *****************************************************************************
-  SUBROUTINE multipoles_b(atomic_kind_set,particle_set,&
+!> \brief ...
+!> \param atomic_kind_set ...
+!> \param qs_kind_set ...
+!> \param particle_set ...
+!> \param p_matrix ...
+!> \param pscp ...
+!> \param s_matrix ...
+!> \param para_env ...
+!> \param mcharge ...
+!> \param mdipole ...
+!> \param mquadrupole ...
+!> \param error ...
+! *****************************************************************************
+  SUBROUTINE multipoles_b(atomic_kind_set,qs_kind_set,particle_set,&
                           p_matrix,pscp,s_matrix,para_env,&
                           mcharge,mdipole,mquadrupole,error)
 
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
+    TYPE(qs_kind_type), DIMENSION(:), &
+      POINTER                                :: qs_kind_set
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
@@ -640,7 +715,7 @@ END SUBROUTINE rf_deriv_check
 
     CALL timeset(routineN,handle)
 
-    CALL compute_multipoles(atomic_kind_set,particle_set,&
+    CALL compute_multipoles(atomic_kind_set,qs_kind_set,particle_set,&
                             p_matrix,pscp,s_matrix,mcharge,mdipole,mquadrupole,para_env)
 
     CALL timestop(handle)

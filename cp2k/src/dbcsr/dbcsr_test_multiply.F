@@ -33,10 +33,6 @@ MODULE dbcsr_test_multiply
                                              dbcsr_internal_error,&
                                              dbcsr_wrong_args_error
   USE dbcsr_io,                        ONLY: dbcsr_print
-  USE dbcsr_kinds,                     ONLY: real_4,&
-                                             real_8
-  USE dbcsr_message_passing,           ONLY: mp_bcast,&
-                                             mp_environ
   USE dbcsr_methods,                   ONLY: &
        dbcsr_col_block_offsets, dbcsr_col_block_sizes, &
        dbcsr_distribution_new, dbcsr_distribution_release, &
@@ -66,6 +62,10 @@ MODULE dbcsr_test_multiply
        dbcsr_type_real_4_2d, dbcsr_type_real_8, dbcsr_type_real_8_2d, &
        dbcsr_type_symmetric
   USE dbcsr_work_operations,           ONLY: dbcsr_create
+  USE kinds,                           ONLY: real_4,&
+                                             real_8
+  USE message_passing,                 ONLY: mp_bcast,&
+                                             mp_environ
 
   !$ USE OMP_LIB
 
@@ -81,6 +81,16 @@ MODULE dbcsr_test_multiply
 
 CONTAINS
 
+! *****************************************************************************
+!> \brief ...
+!> \param group ...
+!> \param mp_env ...
+!> \param npdims ...
+!> \param io_unit ...
+!> \param narg ...
+!> \param args ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE dbcsr_test_multiplies (group, mp_env, npdims, io_unit, narg, args, error)
 
     INTEGER                                  :: group
@@ -186,14 +196,18 @@ CONTAINS
 !> \brief Performs a variety of matrix multiplies of same matrices on different
 !>        processor grids
 !> \param[in] mp_group          MPI communicator
+!> \param mp_env ...
+!> \param npdims ...
 !> \param[in] io_unit           which unit to write to, if not negative
-!> \param[in] nproc             number of processors to test on
 !> \param[in] matrix_sizes      size of matrices to test
-!> \param[in] matrix_types      types of matrices to create
-!> \param[in] trs               transposes of the two matrices
-!> \param[in] bs_m, bs_n, bs_k  block sizes of the 3 dimensions
+!> \param bs_m block sizes of the 3 dimension
+!> \param bs_n block sizes of the 3 dimension
+!> \param bs_k block sizes of the 3 dimension
 !> \param[in] sparsities        sparsities of matrices to create
-!> \param[in] alpha, beta       alpha and beta values to use in multiply
+!> \param alpha_in alpha value to use in multiply
+!> \param beta_in beta value to use in multiply
+!> \param limits ...
+!> \param retain_sparsity ...
 !> \param[in,out] error         cp2k error
 ! *****************************************************************************
   SUBROUTINE dbcsr_test_multiply_low (mp_group, mp_env, npdims, io_unit, &
@@ -481,10 +495,23 @@ CONTAINS
 !> \brief Performs a variety of matrix multiplies of same matrices on different
 !>        processor grids
 !> \param[in] mp_group          MPI communicator
-!> \param[in] group_sizes       array of (sub) communicator
-!>                              sizes to test (2-D)
-!> \param[in] matrix_a, matrix_b, matrix_c    matrices to multiply
+!> \param mp_env ...
+!> \param npdims ...
 !> \param[in] io_unit           which unit to write to, if not negative
+!> \param[in] matrix_a matrices to multiply
+!> \param[in] matrix_b matrices to multiply
+!> \param[in] matrix_c matrices to multiply
+!> \param data_a ...
+!> \param data_b ...
+!> \param data_c ...
+!> \param data_c_dbcsr ...
+!> \param transa ...
+!> \param transb ...
+!> \param alpha ...
+!> \param beta ...
+!> \param limits ...
+!> \param retain_sparsity ...
+!> \param error ...
 ! *****************************************************************************
   SUBROUTINE test_multiply (mp_group, mp_env, npdims, io_unit,&
        matrix_a, matrix_b, matrix_c,&
@@ -677,12 +704,19 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Performs a check of matrix multiplies
+!> \param matrix_c ...
 !> \param[in] dense_c_dbcsr             dense result of the dbcsr_multiply
-!> \param[in] dense_a, dense_b, dense_c input dense matrices
-!> \param[in] transa, transb            transposition status
-!> \param[in] alpha, beta               coefficients for the gemm
+!> \param dense_a input dense matrices
+!> \param dense_b input dense matrices
+!> \param dense_c input dense matrices
+!> \param transa transposition status
+!> \param transb transposition status
+!> \param alpha coefficients for the gemm
+!> \param beta coefficients for the gemm
 !> \param[in] limits                    limits for the gemm
+!> \param retain_sparsity ...
 !> \param[in] io_unit                   io unit for printing
+!> \param mp_group ...
 !> \param[out] success                  if passed the check success=T
 !> \param[inout] error                  dbcsr error
 !>
