@@ -242,9 +242,6 @@ CONTAINS
     TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER :: mat_S, mat_H
     TYPE(fb_atomic_halo_list_obj) :: atomic_halos
     TYPE(fb_atomic_halo_obj), DIMENSION(:), POINTER :: halos
-    INTEGER, DIMENSION(:), ALLOCATABLE :: send_sizes, send_disps, send_pair_count, &
-                                          recv_sizes, recv_disps, recv_pair_count, &
-                                          first_row, last_row, first_col, last_col
     REAL(KIND=dp), DIMENSION(:,:), POINTER :: atomic_H, atomic_S
     REAL(KIND=dp), DIMENSION(:,:), ALLOCATABLE :: filtered_eigenvectors, &
                                                   atomic_filter_matrix
@@ -253,14 +250,19 @@ CONTAINS
     REAL(KIND=dp) :: filter_temperature, fermi_level, maxocc
     INTEGER :: ispin, nblkrows_total, nblkcols_total, stat, ihalo, nhalos, &
                this_atom, this_atom_in_halo, ii, jj, mat_dim
+    INTEGER, DIMENSION(:), POINTER :: atomic_H_blk_row_start, &
+                                      atomic_H_blk_col_start, &
+                                      atomic_S_blk_row_start, &
+                                      atomic_S_blk_col_start
 
     failure = .FALSE.
 
     CPPostcondition(fb_env_has_data(fb_env), &
                     cp_failure_level, routineP, error, failure)
 
-    NULLIFY(para_env, mo_list, particle_set, atomic_kind, mat_S, mat_H, halos, 
-            atomic_H, atomic_S)
+    NULLIFY(para_env, mo_list, particle_set, atomic_kind, mat_S, mat_H, halos, &
+            atomic_H, atomic_S, atomic_H_blk_row_start, atomic_H_blk_col_start, &
+            atomic_S_blk_row_start, atomic_S_blk_col_start)
     CALL fb_atomic_halo_list_nullify(atomic_halos)
 
     CALL fb_env_get(fb_env=fb_env, &
@@ -296,17 +298,17 @@ CONTAINS
           CALL fb_construct_atomic_matrix(fb_env, &
                                           mat_H(ispin)%matrix, &
                                           atomic_H, &
+                                          atomic_H_blk_row_start, &
+                                          atomic_H_blk_col_start, &
                                           ihalo, &
-                                          atom_pair_send, &
-                                          atom_pair_recv, &
                                           error)
           ! construct atomic matrix for S for this_atom
           CALL fb_construct_atomic_matrix(fb_env, &
                                           mat_S(ispin)%matrix, &
                                           atomic_S, &
+                                          atomic_S_blk_row_start, &
+                                          atomic_S_blk_col_start, &
                                           ihalo, &
-                                          atom_pair_send, &
-                                          atom_pair_recv, &
                                           error)
           ! diagonalise using LAPACK
           mat_dim = SIZE(atomic_H, 1)

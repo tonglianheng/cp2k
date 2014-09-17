@@ -54,17 +54,19 @@ MODULE qs_fb_atomic_halo_types
   !**********************************************************************
   !> \brief derived type containing the list of atoms in an atomic halo,
   !>        used by filtered-basis diagonalisation method
-  !> \param id_nr      : unique id for the object
-  !> \param ref_count  : reference count on the object
-  !> \param atom_id    : global atomic id of the atom this halo belongs to
-  !> \param natoms     : number of atoms in the halo
-  !> \param nelectrons : estimate of total number of electrons in halo
-  !> \param halo_atoms : the list of global id of atoms in the halo
+  !> \param id_nr            : unique id for the object
+  !> \param ref_count        : reference count on the object
+  !> \param owner_atom       : global atomic id of the atom this halo belongs to
+  !> \param owner_id_in_halo : index of the owner_atom in the halo_atoms array
+  !> \param natoms           : number of atoms in the halo
+  !> \param nelectrons       : estimate of total number of electrons in halo
+  !> \param halo_atoms       : the list of global id of atoms in the halo
   !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
   !**********************************************************************
   TYPE fb_atomic_halo_data
      INTEGER :: id_nr, ref_count
-     INTEGER :: atom_id
+     INTEGER :: owner_atom
+     INTEGER :: owner_id_in_halo
      INTEGER :: natoms
      INTEGER :: nelectrons
      INTEGER, DIMENSION(:), POINTER :: halo_atoms
@@ -127,9 +129,11 @@ CONTAINS
     LOGICAL :: failure
 
     failure = .FALSE.
-    CPPrecondition(ASSOCIATED(atomic_halo%obj), cp_failure_level, routineP, error, failure)
+    CPPrecondition(ASSOCIATED(atomic_halo%obj), &
+                   cp_failure_level, routineP, error, failure)
     IF (.NOT. failure) THEN
-       CPPreconditionNoFail(atomic_halo%obj%ref_count>0, cp_failure_level, routineP, error)
+       CPPreconditionNoFail(atomic_halo%obj%ref_count>0, &
+                            cp_failure_level, routineP, error)
        atomic_halo%obj%ref_count = fb_env%obj%ref_count + 1
     END IF
   END SUBROUTINE fb_atomic_halo_retain
@@ -155,7 +159,8 @@ CONTAINS
 
     failure = .FALSE.
     IF (ASSOCIATED(atomic_halo%obj)) THEN
-       CPPreconditionNoFail(atomic_halo%obj%ref_count>0, cp_failure_level, routineP, error)
+       CPPreconditionNoFail(atomic_halo%obj%ref_count>0, &
+                            cp_failure_level, routineP, error)
        atomic_halo%obj%ref_count = atomic_halo%obj%ref_count - 1
        IF (atomic_halo%obj%ref_count == 0) THEN
           atomic_halo%obj%ref_count = 1
@@ -251,7 +256,8 @@ CONTAINS
     IF (.NOT. failure) THEN
        ALLOCATE(atomic_halo%obj, STAT=stat)
        CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
-       atomic_halo%obj%atom_id = 0
+       atomic_halo%obj%owner_atom = 0
+       atomic_halo%obj%owner_id_in_halo = 0
        atomic_halo%obj%natoms = 0
        atomic_halo%obj%nelectrons = 0
        NULLIFY(atomic_halo%obj%halo_atoms)
@@ -288,7 +294,8 @@ CONTAINS
           CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
           NULLIFY(atomic_halo%obj%halo_atoms)
        END IF
-       atomic_halo%obj%atom_id = 0
+       atomic_halo%obj%owner_atom = 0
+       atomic_halo%obj%owner_id_in_halo = 0
        atomic_halo%obj%natoms = 0
        atomic_halo%obj%nelectrons = 0
     END IF
@@ -301,7 +308,7 @@ CONTAINS
   !>        this module via this procedure.
   !> \param atomic_halo: the fb_atomic_halo object, its content must
   !>                     not be NULL or UNDEFINED
-  !> \param atom_id [OPTIONAL]: if present, outputs atmic_halo%obj%atom_id
+  !> \param owner_atom [OPTIONAL]: if present, outputs atmic_halo%obj%owner_atom
   !> \param natoms [OPTIONAL]: if present, outputs atomic_halo%obj%natoms
   !> \param halo_atoms [OPTIONAL]: if present, outputs pointer
   !>                               atomic_halo%obj%halo_atoms
@@ -309,14 +316,16 @@ CONTAINS
   !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
   ! **********************************************************************
   SUBROUTINE fb_atomic_halo_get(atomic_halo, &
-                                atom_id, &
+                                owner_atom, &
+                                owner_id_in_halo, &
                                 natoms, &
                                 nelectrons, &
                                 halo_atoms, &
                                 error)
     TYPE(fb_atomic_halo_obj), INTENT(in) :: atomic_halo
     TYPE(cp_error_type), INTENT(inout) :: error
-    INTEGER, INTENT(out), OPTIONAL :: atom_id
+    INTEGER, INTENT(out), OPTIONAL :: owner_atom
+    INTEGER, INTENT(out), OPTIONAL :: owner_id_in_halo
     INTEGER, INTENT(out), OPTIONAL :: natoms
     INTEGER, INTENT(out), OPTIONAL :: nelectrons
     INTEGER, DIMENSION(:), POINTER, OPTIONAL :: halo_atoms
@@ -329,7 +338,8 @@ CONTAINS
     failure = .FALSE.
     CPPrecondition(ASSOCIATED(atomic_halo%obj), cp_failure_level, routineP, error, failure)
     IF (.NOT. failure) THEN
-       IF (PRESENT(atom_id)) atom_id = atomic_halo%obj%atom_id
+       IF (PRESENT(owner_atom)) owner_atom = atomic_halo%obj%owner_atom
+       IF (PRESENT(owner_id_in_halo)) owner_id_in_halo = atomic_halo%obj%owner_id_in_halo
        IF (PRESENT(natoms)) natoms = atomic_halo%obj%natoms
        IF (PRESENT(nelectrons)) nelectrons = atomic_halo%obj%nelectrons
        IF (PRESENT(halo_atoms)) halo_atoms => atomic_halo%obj%halo_atoms
@@ -343,7 +353,8 @@ CONTAINS
   !>        this module via this procedure.
   !> \param atomic_halo: the fb_atomic_halo object, its content must
   !>                     not be NULL or UNDEFINED
-  !> \param atom_id [OPTIONAL]: if present, sets atmic_halo%obj%atom_id = atom_id
+  !> \param owner_atom [OPTIONAL]: if present, sets
+  !>                               atmic_halo%obj%owner_atom = owner_atom
   !> \param natoms [OPTIONAL]: if present, sets atomic_halo%obj%natoms = natoms
   !> \param halo_atoms [OPTIONAL]: if present, reallocates atomic_halo%obj%halo_atoms
   !>                               to the size of halo_atoms, and copies
@@ -352,14 +363,16 @@ CONTAINS
   !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
   ! **********************************************************************
   SUBROUTINE fb_atomic_halo_set(atomic_halo, &
-                                atom_id, &
+                                owner_atom, &
+                                owner_id_in_halo, &
                                 natoms, &
                                 nelectrons, &
                                 halo_atoms, &
                                 error)
     TYPE(fb_atomic_halo_obj), INTENT(in) :: atomic_halo
     TYPE(cp_error_type), INTENT(inout) :: error
-    INTEGER, INTENT(in), OPTIONAL :: atom_id
+    INTEGER, INTENT(in), OPTIONAL :: owner_atom
+    INTEGER, INTENT(in), OPTIONAL :: owner_id_in_halo
     INTEGER, INTENT(in), OPTIONAL :: natoms
     INTEGER, INTENT(in), OPTIONAL :: nelectrons
     INTEGER, DIMENSION(:), POINTER, OPTIONAL :: halo_atoms
@@ -374,7 +387,8 @@ CONTAINS
     CPPrecondition(ASSOCIATED(atomic_halo%obj), &
                    cp_failure_level, routineP, error, failure)
     IF (.NOT. failure) THEN
-       IF (PRESENT(atom_id)) atomic_halo%obj%atom_id = atom_id
+       IF (PRESENT(owner_atom)) atomic_halo%obj%owner_atom = owner_atom
+       IF (PRESENT(owner_id_in_halo)) atomic_halo%obj%owner_id_in_halo = owner_id_in_halo
        IF (PRESENT(natoms)) atomic_halo%obj%natoms = natoms
        IF (PRESENT(nelectrons)) atomic_halo%obj%nelectrons = nelectrons
        IF (PRESENT(halo_atoms)) THEN
@@ -710,7 +724,7 @@ CONTAINS
     TYPE(cp_logger_type), POINTER :: logger
     INTEGER :: print_unit, mype
     CHARACTER(LEN=default_string_length) :: string
-    INTEGER :: ihalo, jatom, atom_id, nhalos, nhalo_atoms
+    INTEGER :: ihalo, jatom, owner_atom, nhalos, nhalo_atoms
     TYPE(fb_atomic_halo_obj), DIMENSION(:), POINTER :: halos
     INTEGER, DIMENSION(:), POINTER :: halo_atoms
 
@@ -749,12 +763,12 @@ CONTAINS
                                     error=error)
        DO ihalo = 1, nhalos
           CALL fb_atomic_halo_get(halos(ihalo), &
-                                  atom_id=atom_id, &
+                                  owner_atom=owner_atom, &
                                   natoms=nhalo_atoms, &
                                   halo_atoms=halo_atoms, &
                                   error=error)
           WRITE (UNIT=print_unit, FMT="(2X,I6,A)", ADVANCE="no") &
-                atom_id, " : "
+                owner_atom, " : "
           DO jatom = 1, nhalo_atoms
              WRITE (UNIT=print_unit, FMT="(I6)", ADVANCE="no") &
                    halo_atoms(jatom)
