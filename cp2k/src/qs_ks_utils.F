@@ -17,24 +17,20 @@
 !> \author Fawzi Mohamed
 ! *****************************************************************************
 MODULE qs_ks_utils
-  USE atomic_kind_types,               ONLY: atomic_kind_type,&
-                                             get_atomic_kind_set
+
   USE cell_types,                      ONLY: cell_type
   USE cp_control_types,                ONLY: becke_restraint_type,&
                                              dft_control_type
   USE cp_dbcsr_interface,              ONLY: &
-       cp_dbcsr_add, cp_dbcsr_copy, cp_dbcsr_get_info, cp_dbcsr_init, &
-       cp_dbcsr_init_p, cp_dbcsr_multiply, cp_dbcsr_release_p, &
-       cp_dbcsr_scale, cp_dbcsr_scale_by_vector, cp_dbcsr_set, cp_dbcsr_trace
+       cp_dbcsr_add, cp_dbcsr_allocate_matrix_set, cp_dbcsr_copy, &
+       cp_dbcsr_deallocate_matrix, cp_dbcsr_deallocate_matrix_set, &
+       cp_dbcsr_get_info, cp_dbcsr_init, cp_dbcsr_init_p, cp_dbcsr_multiply, &
+       cp_dbcsr_p_type, cp_dbcsr_release_p, cp_dbcsr_scale, &
+       cp_dbcsr_scale_by_vector, cp_dbcsr_set, cp_dbcsr_trace, cp_dbcsr_type
   USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
                                              copy_fm_to_dbcsr,&
-                                             cp_dbcsr_allocate_matrix_set,&
-                                             cp_dbcsr_deallocate_matrix,&
-                                             cp_dbcsr_deallocate_matrix_set,&
                                              cp_dbcsr_plus_fm_fm_t,&
                                              cp_dbcsr_sm_fm_multiply
-  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_p_type,&
-                                             cp_dbcsr_type
   USE cp_ddapc,                        ONLY: cp_ddapc_apply_CD
   USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                              cp_fm_struct_release,&
@@ -89,6 +85,8 @@ MODULE qs_ks_utils
   USE qs_force_types,                  ONLY: qs_force_type
   USE qs_integrate_potential,          ONLY: integrate_v_core_rspace,&
                                              integrate_v_rspace
+  USE qs_kind_types,                   ONLY: get_qs_kind_set,&
+                                             qs_kind_type
   USE qs_ks_qmmm_methods,              ONLY: qmmm_modify_hartree_pot
   USE qs_ks_types,                     ONLY: qs_ks_env_type
   USE qs_mo_types,                     ONLY: get_mo_set,&
@@ -96,6 +94,7 @@ MODULE qs_ks_utils
   USE qs_rho_types,                    ONLY: qs_rho_type
   USE timings,                         ONLY: timeset,&
                                              timestop
+  USE virial_types,                    ONLY: virial_type
   USE xc,                              ONLY: xc_exc_calc,&
                                              xc_vxc_pw_create1
 #include "./common/cp_common_uses.f90"
@@ -116,6 +115,13 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief do ROKS calculations yielding low spin states
+!> \param energy ...
+!> \param qs_env ...
+!> \param dft_control ...
+!> \param just_energy ...
+!> \param calculate_forces ...
+!> \param auxbas_pw_pool ...
+!> \param error ...
 ! *****************************************************************************
   SUBROUTINE low_spin_roks(energy,qs_env,dft_control,just_energy,&
                                calculate_forces,auxbas_pw_pool,error)
@@ -135,9 +141,10 @@ CONTAINS
                                                 Nelectron, Nspin, Nterms, stat
     INTEGER, DIMENSION(:), POINTER           :: ivec
     INTEGER, DIMENSION(:, :, :), POINTER     :: occupations
-    LOGICAL                                  :: failure, in_range, &
-                                                uniform_occupation
+    LOGICAL                                  :: compute_virial, failure, &
+                                                in_range, uniform_occupation
     REAL(KIND=dp)                            :: exc, total_rho
+    REAL(KIND=dp), DIMENSION(3, 3)           :: virial_xc_tmp
     REAL(KIND=dp), DIMENSION(:), POINTER     :: energy_scaling, rvec, scaling
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
@@ -154,6 +161,7 @@ CONTAINS
     TYPE(qs_rho_type), POINTER               :: rho
     TYPE(section_vals_type), POINTER         :: input, low_spin_roks_section, &
                                                 xc_section
+    TYPE(virial_type), POINTER               :: virial
 
     IF (.NOT. dft_control%low_spin_roks) RETURN
     failure=.FALSE.
@@ -161,7 +169,8 @@ CONTAINS
     CALL timeset(routineN,handle)
 
     CALL get_qs_env(qs_env,mo_derivs=mo_derivs,mos=mo_array,rho=rho,pw_env=pw_env, &
-                    input=input, cell=cell, error=error)
+                    input=input, cell=cell, virial=virial, error=error)
+    compute_virial=virial%pv_calculate.AND.(.NOT.virial%pv_numer)
     xc_section => section_vals_get_subs_vals(input,"DFT%XC",error=error)
 
     ! some assumptions need to be checked
@@ -288,11 +297,12 @@ CONTAINS
        ! compute the exchange energies / potential if needed
        IF (just_energy) THEN
            exc=xc_exc_calc(rho_r=rho_r, rho_g=rho_g, tau=tau, xc_section=xc_section,&
-                   cell=cell, pw_pool=xc_pw_pool, error=error)
-       ELSE
-           CALL xc_vxc_pw_create1(vxc_rho=vxc, rho_r=rho_r,&
-                   rho_g=rho_g, tau=tau, vxc_tau=vxc_tau, exc=exc, xc_section=xc_section, cell=cell, &
                    pw_pool=xc_pw_pool, error=error)
+       ELSE
+           CPPrecondition(.NOT.compute_virial,cp_failure_level,routineP,error,failure)
+           CALL xc_vxc_pw_create1(vxc_rho=vxc, rho_r=rho_r,&
+                   rho_g=rho_g, tau=tau, vxc_tau=vxc_tau, exc=exc, xc_section=xc_section, &
+                   pw_pool=xc_pw_pool, compute_virial=.FALSE., virial_xc=virial_xc_tmp, error=error)
        END IF
 
        energy%exc = energy%exc + energy_scaling(iterm) * exc
@@ -352,6 +362,14 @@ CONTAINS
   END SUBROUTINE low_spin_roks
 ! *****************************************************************************
 !> \brief do sic calculations on explicit orbitals
+!> \param energy ...
+!> \param qs_env ...
+!> \param dft_control ...
+!> \param poisson_env ...
+!> \param just_energy ...
+!> \param calculate_forces ...
+!> \param auxbas_pw_pool ...
+!> \param error ...
 ! *****************************************************************************
   SUBROUTINE sic_explicit_orbitals(energy,qs_env,dft_control,poisson_env,just_energy,&
                                calculate_forces,auxbas_pw_pool,error)
@@ -370,8 +388,10 @@ CONTAINS
     INTEGER                                  :: handle, i, Iorb, k_alpha, &
                                                 k_beta, Norb, stat
     INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: sic_orbital_list
-    LOGICAL                                  :: failure, uniform_occupation
+    LOGICAL                                  :: compute_virial, failure, &
+                                                uniform_occupation
     REAL(KIND=dp)                            :: ener, exc, total_rho
+    REAL(KIND=dp), DIMENSION(3, 3)           :: virial_xc_tmp
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_dbcsr_p_type)                    :: orb_density_matrix_p, orb_h_p
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
@@ -392,6 +412,7 @@ CONTAINS
     TYPE(pw_pool_type), POINTER              :: xc_pw_pool
     TYPE(qs_rho_type), POINTER               :: rho
     TYPE(section_vals_type), POINTER         :: input, xc_section
+    TYPE(virial_type), POINTER               :: virial
 
     IF (dft_control%sic_method_id .NE. sic_eo) RETURN
 
@@ -403,7 +424,8 @@ CONTAINS
 
     ! generate the lists of orbitals that need sic treatment
     CALL get_qs_env(qs_env,mo_derivs=mo_derivs,mos=mo_array,rho=rho,pw_env=pw_env, &
-                    input=input, cell=cell, error=error)
+                    input=input, cell=cell, virial=virial, error=error)
+    compute_virial=virial%pv_calculate.AND.(.NOT.virial%pv_numer)
     xc_section => section_vals_get_subs_vals(input,"DFT%XC",error=error)
 
     DO i=1,SIZE(mo_array)!fm->dbcsr
@@ -584,8 +606,8 @@ CONTAINS
                 rho=orb_rho_r,rho_gspace=orb_rho_g, total_rho=total_rho,&
                 qs_env=qs_env, error=error)
 
-       ! write(6,*) 'Orbital ',sic_orbital_list(1,iorb),sic_orbital_list(2,iorb)
-       ! write(6,*) 'Total orbital rho= ',total_rho
+       ! write(*,*) 'Orbital ',sic_orbital_list(1,iorb),sic_orbital_list(2,iorb)
+       ! write(*,*) 'Total orbital rho= ',total_rho
 
        ! compute the energy functional for this orbital and its derivative
 
@@ -600,11 +622,12 @@ CONTAINS
 
        IF (just_energy) THEN
            exc=xc_exc_calc(rho_r=rho_r, rho_g=rho_g, tau=tau, xc_section=xc_section,&
-                   cell=cell, pw_pool=xc_pw_pool, error=error)
-       ELSE
-           CALL xc_vxc_pw_create1(vxc_rho=vxc, rho_r=rho_r,&
-                   rho_g=rho_g, tau=tau, vxc_tau=vxc_tau, exc=exc, xc_section=xc_section, cell=cell, &
                    pw_pool=xc_pw_pool, error=error)
+       ELSE
+           CPPrecondition(.NOT.compute_virial,cp_failure_level,routineP,error,failure)
+           CALL xc_vxc_pw_create1(vxc_rho=vxc, rho_r=rho_r,&
+                   rho_g=rho_g, tau=tau, vxc_tau=vxc_tau, exc=exc, xc_section=xc_section, &
+                   pw_pool=xc_pw_pool, compute_virial=compute_virial, virial_xc=virial_xc_tmp, error=error)
            ! add to the existing work_v_rspace
            work_v_rspace%pw%cr3d = work_v_rspace%pw%cr3d - &
                    dft_control%sic_scaling_b * vxc(1)%pw %pw_grid%dvol *  vxc(1)%pw%cr3d
@@ -661,6 +684,16 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief do sic calculations on the spin density
+!> \param v_sic_rspace ...
+!> \param energy ...
+!> \param qs_env ...
+!> \param dft_control ...
+!> \param rho ...
+!> \param poisson_env ...
+!> \param just_energy ...
+!> \param calculate_forces ...
+!> \param auxbas_pw_pool ...
+!> \param error ...
 ! *****************************************************************************
   SUBROUTINE calc_v_sic_rspace(v_sic_rspace,energy,&
                                qs_env,dft_control,rho,poisson_env,just_energy,&
@@ -792,6 +825,12 @@ CONTAINS
   END SUBROUTINE calc_v_sic_rspace
 
 ! *****************************************************************************
+!> \brief ...
+!> \param qs_env ...
+!> \param rho ...
+!> \param rho_xc ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE print_densities(qs_env, rho, rho_xc, error)
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(qs_rho_type), POINTER               :: rho, rho_xc
@@ -801,22 +840,21 @@ CONTAINS
                                                 output_unit
     REAL(dp)                                 :: tot1_h, tot1_s, tot_rho_r, &
                                                 trace, trace_tmp
-    TYPE(atomic_kind_type), DIMENSION(:), &
-      POINTER                                :: atomic_kind_set
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(qs_charges_type), POINTER           :: qs_charges
+    TYPE(qs_kind_type), DIMENSION(:), &
+      POINTER                                :: qs_kind_set
     TYPE(section_vals_type), POINTER         :: input, scf_section
 
-    NULLIFY(qs_charges, atomic_kind_set, cell, input, logger, scf_section)
+    NULLIFY(qs_charges, qs_kind_set, cell, input, logger, scf_section)
     logger => cp_error_get_logger(error)
 
     CALL get_qs_env(qs_env=qs_env, &
-         atomic_kind_set=atomic_kind_set, &
+         qs_kind_set=qs_kind_set, &
          cell=cell,qs_charges=qs_charges,&
          input=input,error=error)
-    CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set, &
-         nelectron=n_electrons)
+    CALL get_qs_kind_set(qs_kind_set, nelectron=n_electrons)
 
     scf_section => section_vals_get_subs_vals(input,"DFT%SCF",error=error)
     output_unit = cp_print_key_unit_nr(logger,scf_section,"PRINT%TOTAL_DENSITIES",&
@@ -906,6 +944,12 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Print detailed energies
 !>
+!> \param qs_env ...
+!> \param dft_control ...
+!> \param input ...
+!> \param energy ...
+!> \param mulliken_order_p ...
+!> \param error ...
 !> \par History
 !>    refactoring 04.03.2011 [MI]
 !> \author
@@ -1023,6 +1067,10 @@ CONTAINS
 !> \brief compute matrix_vxc, defined via the potential created by qs_vxc_create
 !>        ignores things like tau functional, gapw, sic, ...
 !>         so only OK for GGA & GPW right now
+!> \param qs_env ...
+!> \param v_rspace ...
+!> \param matrix_vxc ...
+!> \param error ...
 !> \par History
 !>    created 23.10.2012 [Joost VandeVondele]
 !> \author
@@ -1079,6 +1127,22 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Sum up all potentials defined  on the grid and integrate
 !>
+!> \param ks_env ...
+!> \param qs_env ...
+!> \param ks_matrix ...
+!> \param rho ...
+!> \param my_rho ...
+!> \param vppl_rspace ...
+!> \param v_rspace_new ...
+!> \param v_rspace_new_aux_fit ...
+!> \param v_tau_rspace ...
+!> \param v_tau_rspace_aux_fit ...
+!> \param v_efield_rspace ...
+!> \param v_sic_rspace ...
+!> \param v_spin_ddapc_rest_r ...
+!> \param becke ...
+!> \param calculate_forces ...
+!> \param error ...
 !> \par History
 !>    refactoring 04.03.2011 [MI]
 !> \author
@@ -1306,6 +1370,10 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Sum up all potentials defined  on the grid and integrate
 !>
+!> \param qs_env ...
+!> \param ep_qs_env ...
+!> \param nspins ...
+!> \param error ...
 !> \par History
 !>    refactoring 04.03.2011 [MI]
 !> \author
@@ -1379,8 +1447,13 @@ CONTAINS
 !> multiplier, plus Fermi-Amaldi potential that should give the V_xc in the
 !> limit \lambda --> \infty 
 !>
+!> \param qs_env ...
+!> \param v_rspace_new ...
+!> \param rho ...
+!> \param exc ...
+!> \param error ...
 !> \author D. Varsano  [daniele.varsano@nano.cnr.it]
-!**************************************************************************
+! *****************************************************************************
   SUBROUTINE calculate_zmp_potential(qs_env, v_rspace_new, rho, exc, error)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
@@ -1482,7 +1555,8 @@ CONTAINS
         CALL mp_sum ( exc, v_rspace_new(1)%pw%pw_grid%para%group )
      END IF
 
-!     IF (v_rspace_new(1)%pw%pw_grid%para%my_pos==0)  WRITE(*,FMT="(T3,A,T61,F20.10)") "ZMP| Integral of (electron density)*(v_xc):    " , exc
+!     IF (v_rspace_new(1)%pw%pw_grid%para%my_pos==0) &
+!           WRITE(*,FMT="(T3,A,T61,F20.10)") "ZMP| Integral of (electron density)*(v_xc):    " , exc
 !Note that this is not the xc energy but \int(\rho*v_xc)
 !Vxc---> v_rspace_new
 !Exc---> energy%exc

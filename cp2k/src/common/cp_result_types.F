@@ -33,9 +33,7 @@
 
 ! *** Public data types ***
   PUBLIC :: cp_result_type,&
-            cp_result_p_type,&
-            cp_result_value_type,&
-            cp_result_value_p_type
+            cp_result_p_type
 
 ! *** Public subroutines ***
   PUBLIC :: cp_result_create,&
@@ -44,7 +42,6 @@
             cp_result_clean,&
             cp_result_copy,&
             cp_result_value_create,&
-            cp_result_value_release,&
             cp_result_value_copy,&
             cp_result_value_p_reallocate,&
             cp_result_value_init
@@ -89,6 +86,8 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Allocates and intitializes the cp_result
+!> \param results ...
+!> \param error ...
 !> \par History
 !>      12.2007 created
 !>      10.2008 Teodoro Laino [tlaino] - major rewriting
@@ -119,6 +118,8 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Releases cp_result type
+!> \param results ...
+!> \param error ...
 !> \par History
 !>      12.2007 created
 !>      10.2008 Teodoro Laino [tlaino] - major rewriting
@@ -162,6 +163,8 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Releases cp_result clean
+!> \param results ...
+!> \param error ...
 !> \author Teodoro Laino [tlaino] - University of Zurich - 10.2008
 ! *****************************************************************************
   SUBROUTINE cp_result_clean(results,error)
@@ -196,6 +199,8 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Retains cp_result type
+!> \param results ...
+!> \param error ...
 !> \par History
 !>      12.2007 created
 !> \author fschiff
@@ -219,6 +224,8 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Allocates and intitializes the cp_result_value type
+!> \param value ...
+!> \param error ...
 !> \author Teodoro Laino [tlaino] - University of Zurich 10.2008
 ! *****************************************************************************
   SUBROUTINE cp_result_value_create(value,error)
@@ -244,6 +251,10 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Setup of the cp_result_value type
+!> \param value ...
+!> \param type_in_use ...
+!> \param size_value ...
+!> \param error ...
 !> \author Teodoro Laino [tlaino] - University of Zurich 10.2008
 ! *****************************************************************************
   SUBROUTINE cp_result_value_init(value, type_in_use, size_value, error)
@@ -280,6 +291,8 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Releases the cp_result_value type
+!> \param value ...
+!> \param error ...
 !> \author Teodoro Laino [tlaino] - University of Zurich 10.2008
 ! *****************************************************************************
   SUBROUTINE cp_result_value_release(value,error)
@@ -329,6 +342,9 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Copies the cp_result type
+!> \param results_in ...
+!> \param results_out ...
+!> \param error ...
 !> \author Teodoro Laino [tlaino] - University of Zurich 10.2008
 ! *****************************************************************************
   SUBROUTINE cp_result_copy(results_in, results_out, error)
@@ -365,6 +381,9 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Copies the cp_result_value type
+!> \param value_out ...
+!> \param value_in ...
+!> \param error ...
 !> \author Teodoro Laino [tlaino] - University of Zurich 10.2008
 ! *****************************************************************************
   SUBROUTINE cp_result_value_copy(value_out, value_in, error)
@@ -407,6 +426,10 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Reallocates the cp_result_value type
+!> \param result_value ...
+!> \param istart ...
+!> \param iend ...
+!> \param error ...
 !> \author Teodoro Laino [tlaino] - University of Zurich 10.2008
 ! *****************************************************************************
   SUBROUTINE cp_result_value_p_reallocate(result_value, istart, iend, error)

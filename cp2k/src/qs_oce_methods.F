@@ -13,10 +13,8 @@
 ! *****************************************************************************
 MODULE qs_oce_methods
 
-  USE ai_overlap_new,                  ONLY: overlap
-  USE atomic_kind_types,               ONLY: atomic_kind_type,&
-                                             get_atomic_kind,&
-                                             get_atomic_kind_set
+  USE ai_overlap,                      ONLY: overlap
+  USE ao_util,                         ONLY: exp_radius
   USE basis_set_types,                 ONLY: get_gto_basis_set,&
                                              gto_basis_set_type
   USE block_p_types,                   ONLY: block_p_type
@@ -32,13 +30,15 @@ MODULE qs_oce_methods
   USE particle_types,                  ONLY: particle_type
   USE paw_proj_set_types,              ONLY: get_paw_proj_set,&
                                              paw_proj_set_type
+  USE qs_kind_types,                   ONLY: get_qs_kind,&
+                                             get_qs_kind_set,&
+                                             qs_kind_type
   USE qs_neighbor_list_types,          ONLY: get_iterator_info,&
                                              neighbor_list_iterate,&
                                              neighbor_list_iterator_create,&
                                              neighbor_list_iterator_p_type,&
                                              neighbor_list_iterator_release,&
                                              neighbor_list_set_p_type
-  USE qs_util,                         ONLY: exp_radius
   USE sap_kind_types,                  ONLY: clist_type,&
                                              sap_int_type,&
                                              sap_sort
@@ -61,13 +61,25 @@ MODULE qs_oce_methods
 CONTAINS
 
 ! *****************************************************************************
+!> \brief ...
+!> \param oces ...
+!> \param atom_ka ...
+!> \param atom_kb ...
+!> \param rab ...
+!> \param nder ...
+!> \param sgf_list ...
+!> \param nsgf_cnt ...
+!> \param sgf_soft_only ...
+!> \param eps_fit ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE build_oce_block(oces,atom_ka,atom_kb,rab,nder,sgf_list,nsgf_cnt,sgf_soft_only,&
        eps_fit,error)
 
 
     TYPE(block_p_type), DIMENSION(:), &
       POINTER                                :: oces
-    TYPE(atomic_kind_type), POINTER          :: atom_ka, atom_kb
+    TYPE(qs_kind_type), POINTER              :: atom_ka, atom_kb
     REAL(dp), DIMENSION(3)                   :: rab
     INTEGER, INTENT(IN)                      :: nder
     INTEGER, DIMENSION(:), INTENT(OUT)       :: sgf_list
@@ -103,12 +115,12 @@ CONTAINS
 
    failure = .FALSE.
    NULLIFY(orb_basis_a,paw_proj_a)
-   CALL get_atomic_kind(atomic_kind=atom_ka,orb_basis_set=orb_basis_a,&
+   CALL get_qs_kind(qs_kind=atom_ka,orb_basis_set=orb_basis_a,&
                         paw_proj_set=paw_proj_a,paw_atom=paw_atom_a,&
                         hard_radius=hard_radius_a)
 
    NULLIFY(orb_basis_b,paw_proj_b)
-   CALL get_atomic_kind(atomic_kind=atom_kb,orb_basis_set=orb_basis_b,&
+   CALL get_qs_kind(qs_kind=atom_kb,orb_basis_set=orb_basis_b,&
                          paw_proj_set=paw_proj_b,paw_atom=paw_atom_b,&
                          hard_radius=hard_radius_b)
 
@@ -263,11 +275,20 @@ CONTAINS
 
   END SUBROUTINE build_oce_block
 
+! *****************************************************************************
+!> \brief ...
+!> \param oceh ...
+!> \param oces ...
+!> \param atom_ka ...
+!> \param sgf_list ...
+!> \param nsgf_cnt ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE build_oce_block_local(oceh,oces,atom_ka,sgf_list,nsgf_cnt,error)
 
     TYPE(block_p_type), DIMENSION(:), &
       POINTER                                :: oceh, oces
-    TYPE(atomic_kind_type), POINTER          :: atom_ka
+    TYPE(qs_kind_type), POINTER              :: atom_ka
     INTEGER, DIMENSION(:), INTENT(OUT)       :: sgf_list
     INTEGER, INTENT(OUT)                     :: nsgf_cnt
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -288,7 +309,7 @@ CONTAINS
 
     failure = .FALSE.
     NULLIFY(orb_basis_a,paw_proj_a)
-    CALL get_atomic_kind(atomic_kind=atom_ka,orb_basis_set=orb_basis_a,&
+    CALL get_qs_kind(qs_kind=atom_ka,orb_basis_set=orb_basis_a,&
                          paw_proj_set=paw_proj_a,paw_atom=paw_atom_a)
 
     IF(.NOT. paw_atom_a) RETURN
@@ -340,20 +361,27 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Set up the sparse matrix for the coefficients of one center expansions
 !>      This routine uses the same logic as the nonlocal pseudopotential
-!> \param intac: TYPE that holds the integrals (a=basis; c=projector)
+!> \param intac TYPE that holds the integrals (a=basis; c=projector)
+!> \param calculate_forces ...
+!> \param nder ...
+!> \param qs_kind_set ...
+!> \param particle_set ...
+!> \param sap_oce ...
+!> \param eps_fit ...
+!> \param error ...
 !> \par History
 !>      02.2009 created
 !> \author jgh
 ! *****************************************************************************
   SUBROUTINE build_oce_matrices(intac, calculate_forces, nder,&
-                    atomic_kind_set, particle_set, sap_oce, eps_fit, error)
+                    qs_kind_set, particle_set, sap_oce, eps_fit, error)
 
     TYPE(sap_int_type), DIMENSION(:), &
       POINTER                                :: intac
     LOGICAL, INTENT(IN)                      :: calculate_forces
     INTEGER                                  :: nder
-    TYPE(atomic_kind_type), DIMENSION(:), &
-      POINTER                                :: atomic_kind_set
+    TYPE(qs_kind_type), DIMENSION(:), &
+      POINTER                                :: qs_kind_set
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(neighbor_list_set_p_type), &
@@ -385,7 +413,6 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:), POINTER     :: set_radius_a
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: rpgfa, rzetprj, sphi_a, zeta, &
                                                 zetb
-    TYPE(atomic_kind_type), POINTER          :: at_a, at_b, atomic_kind
     TYPE(block_p_type), DIMENSION(:), &
       POINTER                                :: oceh, oces
     TYPE(clist_type), POINTER                :: clist
@@ -393,6 +420,7 @@ CONTAINS
     TYPE(neighbor_list_iterator_p_type), &
       DIMENSION(:), POINTER                  :: nl_iterator
     TYPE(paw_proj_set_type), POINTER         :: paw_proj_b
+    TYPE(qs_kind_type), POINTER              :: at_a, at_b, qs_kind
 
     failure = .FALSE.
     IF (calculate_forces) THEN
@@ -403,12 +431,12 @@ CONTAINS
 
     IF ( ASSOCIATED(sap_oce) ) THEN
 
-      nkind = SIZE(atomic_kind_set)
+      nkind = SIZE(qs_kind_set)
       natom = SIZE(particle_set)
 
       maxder = ncoset(nder)
 
-      CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
+      CALL get_qs_kind_set(qs_kind_set=qs_kind_set,&
                                maxco=maxco,&
                                maxlgto=maxlgto,&
                                maxlprj=maxlprj,&
@@ -444,8 +472,8 @@ CONTAINS
          iac = ikind + nkind*(jkind - 1)
          dab = SQRT(SUM(rab*rab))
 
-         atomic_kind => atomic_kind_set(ikind)
-         CALL get_atomic_kind(atomic_kind=atomic_kind,orb_basis_set=orb_basis_set)
+         qs_kind => qs_kind_set(ikind)
+         CALL get_qs_kind(qs_kind=qs_kind,orb_basis_set=orb_basis_set)
 
          IF (.NOT.ASSOCIATED(orb_basis_set)) CYCLE
          CALL get_gto_basis_set(gto_basis_set=orb_basis_set,&
@@ -463,13 +491,13 @@ CONTAINS
                                 sphi=sphi_a,&
                                 zet=zeta)
 
-         atomic_kind => atomic_kind_set(jkind)
+         qs_kind => qs_kind_set(jkind)
 
          NULLIFY(paw_proj_b)
-         CALL get_atomic_kind(atomic_kind=atomic_kind,paw_proj_set=paw_proj_b,paw_atom=paw_atom_b)
+         CALL get_qs_kind(qs_kind=qs_kind,paw_proj_set=paw_proj_b,paw_atom=paw_atom_b)
          IF (.NOT.paw_atom_b) CYCLE
 
-         CALL get_atomic_kind(atomic_kind=atomic_kind,orb_basis_set=orb_basis_paw)
+         CALL get_qs_kind(qs_kind=qs_kind,orb_basis_set=orb_basis_paw)
          IF (.NOT.ASSOCIATED(orb_basis_paw)) CYCLE
          CALL get_gto_basis_set(gto_basis_set=orb_basis_paw,maxso=maxsob,nset=nsetb)
 
@@ -516,8 +544,8 @@ CONTAINS
          ALLOCATE(sgf_list(nsgfa),STAT=stat)
          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
-         at_a => atomic_kind_set(jkind)
-         at_b => atomic_kind_set(ikind)
+         at_a => qs_kind_set(jkind)
+         at_b => qs_kind_set(ikind)
 
          local = (atom_a == atom_b .AND. ALL(cell_b == 0))
 
@@ -598,10 +626,24 @@ CONTAINS
 
  END SUBROUTINE build_oce_matrices
 
-!==========================================================================================================
 ! *****************************************************************************
 !> \brief Project a matrix block onto the local atomic functions.
 !>
+!> \param h_a ...
+!> \param s_a ...
+!> \param na ...
+!> \param h_b ...
+!> \param s_b ...
+!> \param nb ...
+!> \param blk ...
+!> \param ldb ...
+!> \param proj_h ...
+!> \param proj_s ...
+!> \param nso ...
+!> \param buf1 ...
+!> \param buf2 ...
+!> \param fac ...
+!> \param distab ...
 !> \par History
 !>      02.2009 created
 !> \author vw
@@ -654,14 +696,19 @@ CONTAINS
     ENDIF
     !
   END SUBROUTINE proj_blk
-!==========================================================================================================
-  ! ain  : matrix in old indexing
-  ! aout : matrix in new compressed indexing
+
+! *****************************************************************************
+!> \brief ...
+!> \param ain matrix in old indexing
+!> \param aout matrix in new compressed indexing
+!> \param atom ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE prj_gather(ain,aout,atom,error)
 
     REAL(dp), DIMENSION(:, :), INTENT(IN)    :: ain
     REAL(dp), DIMENSION(:, :), INTENT(INOUT) :: aout
-    TYPE(atomic_kind_type), POINTER          :: atom
+    TYPE(qs_kind_type), INTENT(IN)           :: atom
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'prj_gather', &
@@ -673,7 +720,7 @@ CONTAINS
     TYPE(paw_proj_set_type), POINTER         :: paw_proj
 
     NULLIFY(paw_proj)
-    CALL get_atomic_kind(atomic_kind=atom,paw_proj_set=paw_proj,paw_atom=paw_atom)
+    CALL get_qs_kind(qs_kind=atom,paw_proj_set=paw_proj,paw_atom=paw_atom)
     NULLIFY(n2oindex)
     CALL get_paw_proj_set(paw_proj_set=paw_proj,nsatbas=nbas,n2oindex=n2oindex)
 
@@ -686,14 +733,19 @@ CONTAINS
     END DO
 
   END SUBROUTINE prj_gather
-!==========================================================================================================
-  ! aout : matrix in old indexing (addup)
-  ! ain  : matrix in new compressed indexing
+
+! *****************************************************************************
+!> \brief ...
+!> \param ain  matrix in new compressed indexing
+!> \param aout matrix in old indexing (addup)
+!> \param atom ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE prj_scatter(ain,aout,atom,error)
 
     REAL(dp), DIMENSION(:, :), INTENT(IN)    :: ain
     REAL(dp), DIMENSION(:, :), INTENT(INOUT) :: aout
-    TYPE(atomic_kind_type), POINTER          :: atom
+    TYPE(qs_kind_type), INTENT(IN)           :: atom
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'prj_scatter', &
@@ -705,7 +757,7 @@ CONTAINS
     TYPE(paw_proj_set_type), POINTER         :: paw_proj
 
     NULLIFY(paw_proj)
-    CALL get_atomic_kind(atomic_kind=atom,paw_proj_set=paw_proj,paw_atom=paw_atom)
+    CALL get_qs_kind(qs_kind=atom,paw_proj_set=paw_proj,paw_atom=paw_atom)
     NULLIFY(n2oindex)
     CALL get_paw_proj_set(paw_proj_set=paw_proj,nsatbas=nbas,n2oindex=n2oindex)
 
@@ -718,6 +770,5 @@ CONTAINS
     END DO
 
   END SUBROUTINE prj_scatter
-!==========================================================================================================
 
 END MODULE qs_oce_methods

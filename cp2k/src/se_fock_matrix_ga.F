@@ -18,8 +18,8 @@ MODULE se_fock_matrix_ga
                                              cp_dbcsr_copy,&
                                              cp_dbcsr_get_info,&
                                              cp_dbcsr_multiply,&
-                                             cp_dbcsr_trace
-  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_p_type,&
+                                             cp_dbcsr_p_type,&
+                                             cp_dbcsr_trace,&
                                              cp_dbcsr_type
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
@@ -72,9 +72,17 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Construction of the Fock matrix for NDDO methods
-!> \author JGH
+!> \param ks_env ...
+!> \param qs_env ...
+!> \param ks_matrix ...
+!> \param rho ...
+!> \param energy ...
+!> \param calculate_forces ...
+!> \param just_energy ...
+!> \param error ...
 !> \par History
 !>         - Teodoro Laino [tlaino] (05.2009) - Split and module reorganization
+!> \author JGH
 ! *****************************************************************************
   SUBROUTINE build_se_fock_matrix_ga (ks_env,qs_env,ks_matrix,rho,energy,&
        calculate_forces,just_energy,error)
@@ -238,6 +246,7 @@ CONTAINS
                          energy%core_overlap +&
                          0.5_dp*energy%hartree + &
                          energy%qmmm_el +&
+                         energy%dispersion +&
                          energy%mulliken
 !      WRITE ( *, * ) ' AFTER TOTAL', energy%total
 

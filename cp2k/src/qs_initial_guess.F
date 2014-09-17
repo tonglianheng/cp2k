@@ -9,8 +9,6 @@
 !>       2006.03 Moved here from qs_scf.F [Joost VandeVondele]
 ! *****************************************************************************
 MODULE qs_initial_guess
-  USE array_types,                     ONLY: array_i1d_obj,&
-                                             array_release
   USE atom_kind_orbitals,              ONLY: calculate_atomic_orbitals
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind,&
@@ -19,21 +17,22 @@ MODULE qs_initial_guess
                                              gto_basis_set_type
   USE cp_control_types,                ONLY: dft_control_type
   USE cp_dbcsr_interface,              ONLY: &
-       cp_create_bl_distribution, cp_dbcsr_checksum, cp_dbcsr_copy, &
-       cp_dbcsr_distribution, cp_dbcsr_distribution_release, cp_dbcsr_filter, &
-       cp_dbcsr_get_diag, cp_dbcsr_get_num_blocks, cp_dbcsr_get_occupation, &
-       cp_dbcsr_init, cp_dbcsr_iterator_blocks_left, &
+       array_i1d_obj, array_release, cp_create_bl_distribution, &
+       cp_dbcsr_checksum, cp_dbcsr_copy, cp_dbcsr_distribution, &
+       cp_dbcsr_distribution_release, cp_dbcsr_filter, cp_dbcsr_get_diag, &
+       cp_dbcsr_get_num_blocks, cp_dbcsr_get_occupation, cp_dbcsr_init, &
+       cp_dbcsr_iterator, cp_dbcsr_iterator_blocks_left, &
        cp_dbcsr_iterator_next_block, cp_dbcsr_iterator_start, &
        cp_dbcsr_iterator_stop, cp_dbcsr_multiply, cp_dbcsr_nfullrows_total, &
-       cp_dbcsr_release, cp_dbcsr_row_block_sizes, cp_dbcsr_scale, &
-       cp_dbcsr_set, cp_dbcsr_set_diag, cp_dbcsr_trace, cp_dbcsr_verify_matrix
+       cp_dbcsr_p_type, cp_dbcsr_release, cp_dbcsr_row_block_sizes, &
+       cp_dbcsr_scale, cp_dbcsr_set, cp_dbcsr_set_diag, cp_dbcsr_trace, &
+       cp_dbcsr_type, cp_dbcsr_verify_matrix, dbcsr_distribution_mp, &
+       dbcsr_distribution_new, dbcsr_distribution_obj, &
+       dbcsr_distribution_row_dist, dbcsr_mp_npcols
   USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
                                              copy_fm_to_dbcsr,&
                                              cp_dbcsr_from_fm,&
                                              cp_dbcsr_sm_fm_multiply
-  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_iterator,&
-                                             cp_dbcsr_p_type,&
-                                             cp_dbcsr_type
   USE cp_fm_types,                     ONLY: &
        cp_fm_create, cp_fm_get_submatrix, cp_fm_init_random, cp_fm_p_type, &
        cp_fm_release, cp_fm_set_all, cp_fm_set_submatrix, cp_fm_to_fm, &
@@ -41,11 +40,6 @@ MODULE qs_initial_guess
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE dbcsr_methods,                   ONLY: dbcsr_distribution_mp,&
-                                             dbcsr_distribution_new,&
-                                             dbcsr_distribution_row_dist,&
-                                             dbcsr_mp_npcols
-  USE dbcsr_types,                     ONLY: dbcsr_distribution_obj
   USE external_potential_types,        ONLY: all_potential_type,&
                                              gth_potential_type
   USE f77_blas
@@ -65,8 +59,13 @@ MODULE qs_initial_guess
   USE qs_dftb_utils,                   ONLY: get_dftb_atom_param
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
+  USE qs_kind_types,                   ONLY: get_qs_kind,&
+                                             get_qs_kind_set,&
+                                             qs_kind_type
   USE qs_ks_methods,                   ONLY: qs_ks_did_change,&
                                              qs_ks_update_qs_env
+  USE qs_mo_io,                        ONLY: read_mo_set,&
+                                             wfn_restart_file_name
   USE qs_mo_methods,                   ONLY: calculate_density_matrix,&
                                              make_basis_lowdin,&
                                              make_basis_simple,&
@@ -74,12 +73,10 @@ MODULE qs_initial_guess
   USE qs_mo_types,                     ONLY: get_mo_set,&
                                              mo_set_p_type,&
                                              mo_set_restrict,&
-                                             read_mo_set,&
-                                             set_mo_occupation,&
-                                             wfn_restart_file_name
+                                             set_mo_occupation
   USE qs_rho_methods,                  ONLY: qs_rho_update_rho
   USE qs_scf_methods,                  ONLY: eigensolver,&
-                                             simple_eigensolver
+                                             eigensolver_simple
   USE qs_scf_types,                    ONLY: block_davidson_diag_method_nr,&
                                              block_krylov_diag_method_nr,&
                                              ot_diag_method_nr,&
@@ -110,12 +107,16 @@ CONTAINS
 ! *****************************************************************************
 !> \brief can use a variety of methods to come up with an initial
 !>      density matrix and optionally an initial wavefunction
-!> \note
-!>      badly needs to be split in subroutines each doing one of the possible
-!>      schemes
+!> \param scf_env  SCF environment information
+!> \param qs_env   QS environment
+!> \param error    CP2K error handling
 !> \par History
 !>      03.2006 moved here from qs_scf [Joost VandeVondele]
 !>      06.2007 allow to skip the initial guess [jgh]
+!>      08.2014 kpoints [JGH]
+!> \note
+!>      badly needs to be split in subroutines each doing one of the possible
+!>      schemes
 ! *****************************************************************************
   SUBROUTINE calculate_first_density_matrix(scf_env,qs_env,error)
 
@@ -128,7 +129,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=default_path_length)       :: file_name, filename
-    INTEGER :: atom_a, blk, density_guess, group, handle, homo, i, iatom, &
+    INTEGER :: atom_a, blk, density_guess, group, handle, homo, i, iatom, ic, &
       icol, id_nr, ikind, irow, iseed(4), ispin, istart_col, istart_row, &
       istat, j, last_read, n, n_cols, n_rows, nao, natom, natoms, natoms_tmp, &
       nelectron, nmo, nmo_tmp, not_read, nsgf, nspin, nvec, output_unit, &
@@ -136,10 +137,8 @@ CONTAINS
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: first_sgf, kind_of, last_sgf
     INTEGER, DIMENSION(:), POINTER           :: atom_list, elec_conf, &
                                                 nelec_kind, sort_kind
-    LOGICAL                                  :: did_guess, do_std_diag, &
-                                                exist, failure, &
-                                                has_unit_metric, &
-                                                natom_mismatch, ofgpw
+    LOGICAL :: did_guess, do_kpoints, do_std_diag, exist, failure, &
+      has_unit_metric, natom_mismatch, ofgpw
     REAL(dp), ALLOCATABLE, DIMENSION(:, :)   :: buff, buff2
     REAL(dp), DIMENSION(:, :), POINTER       :: DATA
     REAL(KIND=dp)                            :: checksum, eps, maxocc, occ, &
@@ -155,6 +154,8 @@ CONTAINS
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: h_core_sparse, p_rmpv, &
                                                 s_sparse
+    TYPE(cp_dbcsr_p_type), DIMENSION(:, :), &
+      POINTER                                :: denmat
     TYPE(cp_dbcsr_type)                      :: mo_dbcsr, mo_tmp_dbcsr
     TYPE(cp_fm_p_type), DIMENSION(:), &
       POINTER                                :: work1
@@ -168,6 +169,9 @@ CONTAINS
       POINTER                                :: mo_array
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
+    TYPE(qs_kind_type), DIMENSION(:), &
+      POINTER                                :: qs_kind_set
+    TYPE(qs_kind_type), POINTER              :: qs_kind
     TYPE(scf_control_type), POINTER          :: scf_control
     TYPE(scp_environment_type), POINTER      :: scp_env
     TYPE(section_vals_type), POINTER         :: dft_section, input, &
@@ -175,8 +179,8 @@ CONTAINS
 
     logger => cp_error_get_logger(error)
     failure = .FALSE.
-    NULLIFY(atomic_kind, mo_coeff, sv, orb_basis_set, atomic_kind_set, &
-         particle_set, ortho, work2, work1, mo_array, s_sparse, &
+    NULLIFY(atomic_kind, qs_kind, mo_coeff, sv, orb_basis_set, atomic_kind_set,&
+         qs_kind_set, particle_set, ortho, work2, work1, mo_array, s_sparse, &
          scf_control, dft_control, p_rmpv, ortho, work2, work1, &
          s_sparse, scf_control, dft_control, h_core_sparse)
     NULLIFY(dft_section, input, subsys_section)
@@ -186,11 +190,11 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-    CALL get_qs_env(qs_env,atomic_kind_set=atomic_kind_set,&
+    CALL get_qs_env(qs_env,atomic_kind_set=atomic_kind_set,qs_kind_set=qs_kind_set,&
          particle_set=particle_set,mos=mo_array, matrix_s=s_sparse,&
          matrix_h=h_core_sparse,input=input,scp_env=scp_env,&
          scf_control=scf_control, id_nr=qs_env_id, dft_control=dft_control,&
-         has_unit_metric=has_unit_metric, error=error)
+         has_unit_metric=has_unit_metric, do_kpoints=do_kpoints, error=error)
 
     nspin=dft_control%nspins
     p_rmpv => qs_env%rho%rho_ao
@@ -292,9 +296,9 @@ CPSourceFileRef,&
     IF (density_guess == restart_guess) THEN
 
        CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set)
-       CALL read_mo_set(mo_array,atomic_kind_set,particle_set,qs_env%para_env,&
+       CALL read_mo_set(mo_array,atomic_kind_set,qs_kind_set,particle_set,qs_env%para_env,&
             id_nr=id_nr,multiplicity=dft_control%multiplicity,dft_section=dft_section,&
-            natom_mismatch=natom_mismatch, error=error)
+            natom_mismatch=natom_mismatch, kpoints=qs_env%kpoints, error=error)
 
        IF (natom_mismatch) THEN
          density_guess = safe_density_guess
@@ -343,10 +347,9 @@ CPSourceFileRef,&
        IF (not_read > 1) THEN
           DO i=1, last_read
              j = last_read -i
-             CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set)
-             CALL read_mo_set(mo_array,atomic_kind_set,particle_set,qs_env%para_env,&
+             CALL read_mo_set(mo_array,atomic_kind_set,qs_kind_set,particle_set,qs_env%para_env,&
                   id_nr=j,multiplicity=dft_control%multiplicity,&
-                  dft_section=dft_section, error=error)
+                  dft_section=dft_section, kpoints=qs_env%kpoints, error=error)
 
              DO ispin=1,nspin
                 IF (scf_control%level_shift /= 0.0_dp) THEN
@@ -437,7 +440,7 @@ CALL copy_fm_to_dbcsr(mo_array(ispin)%mo_set%mo_coeff,mo_array(ispin)%mo_set%mo_
        ! molecular orbitals (MOs)
 
        IF (has_unit_metric) THEN
-          CALL simple_eigensolver(matrix_ks=work1(ispin)%matrix,&
+          CALL eigensolver_simple(matrix_ks=work1(ispin)%matrix,&
                                   mo_set=mo_array(ispin)%mo_set,&
                                   work=work2,&
                                   do_level_shift=.FALSE.,&
@@ -445,15 +448,12 @@ CALL copy_fm_to_dbcsr(mo_array(ispin)%mo_set%mo_coeff,mo_array(ispin)%mo_set%mo_
                                   use_jacobi=.FALSE.,jacobi_threshold=0._dp,&
                                   error=error)
        ELSE
-          CALL eigensolver(matrix_ks=work1(ispin)%matrix,&
+          CALL eigensolver(matrix_ks_fm=work1(ispin)%matrix,&
                            mo_set=mo_array(ispin)%mo_set,&
                            ortho=ortho,&
                            work=work2,&
-                           do_level_shift=.FALSE.,&
-                           level_shift=0.0_dp,&
                            cholesky_method=scf_env%cholesky_method,&
                            use_jacobi=.FALSE.,&
-                           jacobi_threshold=scf_control%diagonalization%jacobi_threshold,&
                            error=error)
        END IF
 
@@ -511,7 +511,7 @@ CALL copy_fm_to_dbcsr(mo_array(ispin)%mo_set%mo_coeff,mo_array(ispin)%mo_set%mo_
           CALL get_mo_set(mo_set=mo_array(ispin)%mo_set, nelectron=nelectron)
 
           CALL calculate_atomic_block_dm(p_rmpv(ispin)%matrix,s_sparse(1)%matrix, &
-                                         particle_set, atomic_kind_set, &
+                                         particle_set, atomic_kind_set, qs_kind_set, &
                                          ispin, nspin, nelectron, output_unit, error)
 
           ! The orbital transformation method (OT) requires not only an
@@ -613,7 +613,7 @@ CALL copy_fm_to_dbcsr(mo_array(ispin)%mo_set%mo_coeff,mo_array(ispin)%mo_set%mo_
        i = cp_dbcsr_get_num_blocks (s_sparse(1)%matrix); CALL mp_sum(i,group)
        IF(output_unit>0)WRITE(output_unit,*) 'S nblks',i,' checksum',checksum
 
-       CALL get_particle_set(particle_set=particle_set,first_sgf=first_sgf,&
+       CALL get_particle_set(particle_set,qs_kind_set,first_sgf=first_sgf,&
                              last_sgf=last_sgf,error=error)
        CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,kind_of=kind_of)
 
@@ -625,8 +625,9 @@ CALL copy_fm_to_dbcsr(mo_array(ispin)%mo_set%mo_coeff,mo_array(ispin)%mo_set%mo_
           IF (nspin==2) scale=0.5_dp
           DO ikind=1,SIZE(atomic_kind_set)
             atomic_kind => atomic_kind_set(ikind)
+            qs_kind     => qs_kind_set(ikind)
             NULLIFY(pmat(ikind)%mat)
-            CALL calculate_atomic_orbitals(atomic_kind,pmat=pmat(ikind)%mat,ispin=ispin,error=error)
+            CALL calculate_atomic_orbitals(atomic_kind,qs_kind, pmat=pmat(ikind)%mat,ispin=ispin,error=error)
             NULLIFY(atomic_kind)
           END DO
           CALL get_mo_set(mo_set=mo_array(ispin)%mo_set,&
@@ -681,13 +682,13 @@ CALL copy_fm_to_dbcsr(mo_array(ispin)%mo_set%mo_coeff,mo_array(ispin)%mo_set%mo_
              ! sort kind vs nbr electron
              DO ikind = 1,size_atomic_kind_set
                 atomic_kind => atomic_kind_set(ikind)
+                qs_kind     => qs_kind_set(ikind)
                 CALL get_atomic_kind(atomic_kind=atomic_kind,&
                                      natom=natom,&
                                      atom_list=atom_list,&
-                                     orb_basis_set=orb_basis_set)
-                CALL get_atomic_kind(atomic_kind=atomic_kind, &
-                                     elec_conf=elec_conf, &
-                                     nsgf=nsgf, z=z, zeff=zeff)
+                                     z=z)
+                CALL get_qs_kind(qs_kind, nsgf=nsgf,elec_conf=elec_conf,&
+                                 orb_basis_set=orb_basis_set, zeff=zeff)
                 nelec_kind(ikind) = SUM(elec_conf)
              ENDDO
              CALL sort(nelec_kind,size_atomic_kind_set,sort_kind)
@@ -867,7 +868,7 @@ CALL copy_fm_to_dbcsr(mo_array(ispin)%mo_set%mo_coeff,mo_array(ispin)%mo_set%mo_
           CALL get_mo_set(mo_set=mo_array(ispin)%mo_set, nelectron=nelectron)
 
           CALL calculate_mopac_dm(p_rmpv(ispin)%matrix,s_sparse(1)%matrix, has_unit_metric, qs_env%dft_control,&
-                                  particle_set, atomic_kind_set, ispin, nspin, nelectron,  qs_env%para_env, error)
+                                  particle_set, atomic_kind_set, qs_kind_set, ispin, nspin, nelectron,  qs_env%para_env, error)
 
           ! The orbital transformation method (OT) requires not only an
           ! initial density matrix, but also an initial wavefunction (MO set)
@@ -940,15 +941,12 @@ CALL copy_fm_to_dbcsr(mo_array(ispin)%mo_set%mo_coeff,mo_array(ispin)%mo_set%mo_
        qs_env%scf_env%iter_delta = 0.0_dp
 
        DO ispin = 1,qs_env%dft_control%nspins
-         CALL eigensolver(matrix_ks=qs_env%scf_env%scf_work1(ispin)%matrix, &
+         CALL eigensolver(matrix_ks_fm=qs_env%scf_env%scf_work1(ispin)%matrix, &
                           mo_set=mo_array(ispin)%mo_set,&
                           ortho=qs_env%scf_env%ortho, &
                           work=qs_env%scf_env%scf_work2,&
-                          do_level_shift=.FALSE., &
-                          level_shift=scf_control%level_shift, &
                           cholesky_method=scf_env%cholesky_method,&
                           use_jacobi=.FALSE.,&
-                          jacobi_threshold=scf_control%diagonalization%jacobi_threshold, &
                           error=error)
          CALL set_mo_occupation(mo_set=mo_array(ispin)%mo_set,&
                                 smear=scf_control%smear,&
@@ -960,6 +958,24 @@ CALL copy_fm_to_dbcsr(mo_array(ispin)%mo_set%mo_coeff,mo_array(ispin)%mo_set%mo_
 
        did_guess = .TRUE.
     END IF
+
+    IF(do_kpoints) THEN
+       IF (density_guess == restart_guess) THEN
+          CALL cp_assert(.FALSE.,cp_failure_level,&
+               cp_assertion_failed,routineP,CPSourceFileRef)
+       ELSE
+          ! copy gamma point density matrix guess
+          p_rmpv => qs_env%rho%rho_ao
+          denmat => qs_env%rho%rho_ao_kp
+          DO ispin = 1,qs_env%dft_control%nspins
+             DO ic=1,SIZE(denmat,2)
+                CALL cp_dbcsr_set(denmat(ispin,ic)%matrix,0.0_dp,error=error)
+             END DO
+             CALL cp_dbcsr_copy(denmat(ispin,1)%matrix,p_rmpv(ispin)%matrix,error=error)
+          END DO
+       END IF
+    END IF
+
     IF (density_guess == no_guess) THEN
        did_guess = .TRUE.
     END IF
@@ -975,14 +991,26 @@ CALL copy_fm_to_dbcsr(mo_array(ispin)%mo_set%mo_coeff,mo_array(ispin)%mo_set%mo_
 
 ! *****************************************************************************
 !> \brief returns a block diagonal density matrix. Blocks correspond to the atomic densities.
+!> \param matrix_p ...
+!> \param matrix_s ...
+!> \param particle_set ...
+!> \param atomic_kind_set ...
+!> \param qs_kind_set ...
+!> \param ispin ...
+!> \param nspin ...
+!> \param nelectron_spin ...
+!> \param output_unit ...
+!> \param error ...
 ! *****************************************************************************
   SUBROUTINE calculate_atomic_block_dm(matrix_p,matrix_s, particle_set, atomic_kind_set, &
-                                       ispin, nspin, nelectron_spin, output_unit, error)
+                                       qs_kind_set, ispin, nspin, nelectron_spin, output_unit, error)
     TYPE(cp_dbcsr_type), INTENT(INOUT)       :: matrix_p, matrix_s
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
+    TYPE(qs_kind_type), DIMENSION(:), &
+      POINTER                                :: qs_kind_set
     INTEGER, INTENT(IN)                      :: ispin, nspin, nelectron_spin, &
                                                 output_unit
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -1000,6 +1028,7 @@ CALL copy_fm_to_dbcsr(mo_array(ispin)%mo_set%mo_coeff,mo_array(ispin)%mo_set%mo_
       DIMENSION(:)                           :: pmat
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(cp_dbcsr_iterator)                  :: iter
+    TYPE(qs_kind_type), POINTER              :: qs_kind
 
     failure = .FALSE.
 
@@ -1024,12 +1053,13 @@ CALL copy_fm_to_dbcsr(mo_array(ispin)%mo_set%mo_coeff,mo_array(ispin)%mo_set%mo_
     ! precompute the atomic blocks corresponding to spherical atoms
     DO ikind=1,SIZE(atomic_kind_set)
       atomic_kind => atomic_kind_set(ikind)
+      qs_kind     => qs_kind_set(ikind)
       NULLIFY(pmat(ikind)%mat)
       IF (output_unit > 0) THEN
         WRITE (UNIT=output_unit,FMT="(/,T2,A)")&
           "Guess for atomic kind: "//TRIM(atomic_kind%name)
       END IF
-      CALL calculate_atomic_orbitals(atomic_kind,iunit=output_unit,pmat=pmat(ikind)%mat,&
+      CALL calculate_atomic_orbitals(atomic_kind,qs_kind,iunit=output_unit,pmat=pmat(ikind)%mat,&
                                      ispin=ispin,error=error)
     END DO
 
@@ -1079,9 +1109,21 @@ CALL copy_fm_to_dbcsr(mo_array(ispin)%mo_set%mo_coeff,mo_array(ispin)%mo_set%mo_
 
 ! *****************************************************************************
 !> \brief returns a block diagonal density matrix. Blocks correspond to the mopac initial guess.
+!> \param matrix_p ...
+!> \param matrix_s ...
+!> \param has_unit_metric ...
+!> \param dft_control ...
+!> \param particle_set ...
+!> \param atomic_kind_set ...
+!> \param qs_kind_set ...
+!> \param ispin ...
+!> \param nspin ...
+!> \param nelectron_spin ...
+!> \param para_env ...
+!> \param error ...
 ! *****************************************************************************
   SUBROUTINE calculate_mopac_dm(matrix_p,matrix_s, has_unit_metric, &
-                                dft_control, particle_set, atomic_kind_set, &
+                                dft_control, particle_set, atomic_kind_set, qs_kind_set, &
                                 ispin, nspin, nelectron_spin, para_env, error)
     TYPE(cp_dbcsr_type), INTENT(INOUT)       :: matrix_p, matrix_s
     LOGICAL                                  :: has_unit_metric
@@ -1090,6 +1132,8 @@ CALL copy_fm_to_dbcsr(mo_array(ispin)%mo_set%mo_coeff,mo_array(ispin)%mo_set%mo_
       POINTER                                :: particle_set
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
+    TYPE(qs_kind_type), DIMENSION(:), &
+      POINTER                                :: qs_kind_set
     INTEGER, INTENT(IN)                      :: ispin, nspin, nelectron_spin
     TYPE(cp_para_env_type)                   :: para_env
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -1099,7 +1143,7 @@ CALL copy_fm_to_dbcsr(mo_array(ispin)%mo_set%mo_coeff,mo_array(ispin)%mo_set%mo_
 
     INTEGER :: atom_a, group, handle, iatom, ikind, iset, isgf, isgfa, &
       ishell, istat, la, maxl, maxll, nao, natom, ncount, nset, nsgf, z
-    INTEGER, ALLOCATABLE, DIMENSION(:)       :: first_sgf, last_sgf
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: first_sgf
     INTEGER, DIMENSION(:), POINTER           :: atom_list, elec_conf, nshell
     INTEGER, DIMENSION(:, :), POINTER        :: first_sgfa, l, last_sgfa
     LOGICAL                                  :: failure
@@ -1108,7 +1152,6 @@ CALL copy_fm_to_dbcsr(mo_array(ispin)%mo_set%mo_coeff,mo_array(ispin)%mo_set%mo_
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: econf, pdiag, sdiag
     REAL(KIND=dp), DIMENSION(0:3)            :: edftb
     TYPE(all_potential_type), POINTER        :: all_potential
-    TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(gth_potential_type), POINTER        :: gth_potential
     TYPE(gto_basis_set_type), POINTER        :: orb_basis_set
 
@@ -1126,8 +1169,8 @@ CALL copy_fm_to_dbcsr(mo_array(ispin)%mo_set%mo_coeff,mo_array(ispin)%mo_set%mo_
     ALLOCATE (first_sgf(natom),STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
 
-    CALL get_particle_set(particle_set=particle_set,first_sgf=first_sgf,error=error)
-    CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,maxlgto=maxl)
+    CALL get_particle_set(particle_set,qs_kind_set,first_sgf=first_sgf,error=error)
+    CALL get_qs_kind_set(qs_kind_set, maxlgto=maxl)
 
     ALLOCATE (econf(0:maxl),STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
@@ -1154,27 +1197,26 @@ CALL copy_fm_to_dbcsr(mo_array(ispin)%mo_set%mo_coeff,mo_array(ispin)%mo_set%mo_
 
     IF (nelectron_spin /= 0) THEN
        DO ikind=1,SIZE(atomic_kind_set)
-          atomic_kind => atomic_kind_set(ikind)
 
-          CALL get_atomic_kind(atomic_kind=atomic_kind,&
-                               natom=natom,&
-                               atom_list=atom_list,&
+          CALL get_atomic_kind(atomic_kind_set(ikind), natom=natom, atom_list=atom_list)
+          CALL get_qs_kind(qs_kind_set(ikind), orb_basis_set=orb_basis_set,&
                                all_potential=all_potential,&
-                               gth_potential=gth_potential,&
-                               orb_basis_set=orb_basis_set)
+                               gth_potential=gth_potential)
 
           IF ( dft_control%qs_control%dftb ) THEN
-             CALL get_dftb_atom_param(dftb_parameter=atomic_kind%dftb_parameter,&
+             CALL get_dftb_atom_param(qs_kind_set(ikind)%dftb_parameter,&
                   lmax=maxll,occupation=edftb)
              maxll = MIN(maxll,maxl)
              econf(0:maxl)=edftb(0:maxl)
           ELSEIF (ASSOCIATED(all_potential)) THEN
-             CALL get_atomic_kind(atomic_kind=atomic_kind,elec_conf=elec_conf, nsgf=nsgf, z=z, zeff=zeff)
+             CALL get_atomic_kind(atomic_kind_set(ikind), z=z)
+             CALL get_qs_kind(qs_kind_set(ikind), nsgf=nsgf, elec_conf=elec_conf, zeff=zeff)
              maxll = MIN(SIZE(elec_conf) - 1,maxl)
              econf(:) = 0.0_dp
              econf(0:maxll) = 0.5_dp*maxocc*REAL(elec_conf(0:maxll),dp)
           ELSE IF (ASSOCIATED(gth_potential)) THEN
-             CALL get_atomic_kind(atomic_kind=atomic_kind,elec_conf=elec_conf, nsgf=nsgf, z=z, zeff=zeff)
+             CALL get_atomic_kind(atomic_kind_set(ikind), z=z)
+             CALL get_qs_kind(qs_kind_set(ikind), nsgf=nsgf, elec_conf=elec_conf, zeff=zeff)
              maxll = MIN(SIZE(elec_conf) - 1,maxl)
              econf(:) = 0.0_dp
              econf(0:maxll) = 0.5_dp*maxocc*REAL(elec_conf(0:maxll),dp)

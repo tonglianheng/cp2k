@@ -10,17 +10,14 @@
 ! *****************************************************************************
 MODULE qs_spin_orbit
   USE ai_spin_orbit,                   ONLY: pso
-  USE atomic_kind_types,               ONLY: atomic_kind_type,&
-                                             get_atomic_kind,&
-                                             get_atomic_kind_set
   USE basis_set_types,                 ONLY: gto_basis_set_p_type,&
                                              gto_basis_set_type
   USE block_p_types,                   ONLY: block_p_type
-  USE cell_types,                      ONLY: cell_type,&
+  USE cell_methods,                    ONLY: cell_type,&
                                              pbc
-  USE cp_dbcsr_interface,              ONLY: cp_dbcsr_get_block_p
+  USE cp_dbcsr_interface,              ONLY: cp_dbcsr_get_block_p,&
+                                             cp_dbcsr_p_type
   USE cp_dbcsr_output,                 ONLY: cp_dbcsr_write_sparse_matrix
-  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_p_type
   USE cp_output_handling,              ONLY: cp_p_file,&
                                              cp_print_key_finished_output,&
                                              cp_print_key_should_output,&
@@ -34,6 +31,9 @@ MODULE qs_spin_orbit
   USE particle_types,                  ONLY: particle_type
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
+  USE qs_kind_types,                   ONLY: get_qs_kind,&
+                                             get_qs_kind_set,&
+                                             qs_kind_type
   USE qs_neighbor_list_types,          ONLY: get_iterator_info,&
                                              neighbor_list_iterate,&
                                              neighbor_list_iterator_create,&
@@ -62,8 +62,12 @@ CONTAINS
 ! *****************************************************************************
 !> \brief   Calculation of the paramagnetic spin orbit matrix over
 !>          Cartesian Gaussian functions.
-!> \author  VW
+!> \param qs_env ...
+!> \param matrix_so ...
+!> \param rc ...
+!> \param error ...
 !> \date    27.02.2009
+!> \author  VW
 !> \version 1.0
 ! *****************************************************************************
 
@@ -95,9 +99,6 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:), POINTER     :: set_radius_a, set_radius_b
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: rpgfa, rpgfb, sphi_a, sphi_b, &
                                                 zeta, zetb
-    TYPE(atomic_kind_type), DIMENSION(:), &
-      POINTER                                :: atomic_kind_set
-    TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(block_p_type), ALLOCATABLE, &
       DIMENSION(:)                           :: soint
     TYPE(cell_type), POINTER                 :: cell
@@ -112,16 +113,19 @@ CONTAINS
       DIMENSION(:), POINTER                  :: sab_orb
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
+    TYPE(qs_kind_type), DIMENSION(:), &
+      POINTER                                :: qs_kind_set
+    TYPE(qs_kind_type), POINTER              :: qs_kind
 
     CALL timeset(routineN,handle)
 
-    NULLIFY(cell,sab_orb,atomic_kind_set,particle_set,para_env)
+    NULLIFY(cell,sab_orb,qs_kind_set,particle_set,para_env)
     NULLIFY(logger)
 
     logger => cp_error_get_logger(error)
 
     CALL get_qs_env(qs_env=qs_env,&
-                    atomic_kind_set=atomic_kind_set,&
+                    qs_kind_set=qs_kind_set,&
                     particle_set=particle_set,&
                     neighbor_list_id=neighbor_list_id,&
                     para_env=para_env,&
@@ -129,13 +133,13 @@ CONTAINS
                     cell=cell,&
                     error=error)
 
-    nkind = SIZE(atomic_kind_set)
+    nkind = SIZE(qs_kind_set)
     natom = SIZE(particle_set)
 
 
 !   *** Allocate work storage ***
 
-    CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
+    CALL get_qs_kind_set(qs_kind_set=qs_kind_set,&
                              maxco=maxco,&
                              maxlgto=maxlgto,&
                              maxsgf=maxsgf)
@@ -167,8 +171,8 @@ CONTAINS
     IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                      "basis_set_list",nkind)
     DO ikind=1,nkind
-      atomic_kind => atomic_kind_set(ikind)
-      CALL get_atomic_kind(atomic_kind=atomic_kind,orb_basis_set=basis_set_a)
+      qs_kind => qs_kind_set(ikind)
+      CALL get_qs_kind(qs_kind=qs_kind,orb_basis_set=basis_set_a)
       IF (ASSOCIATED(basis_set_a)) THEN
         basis_set_list(ikind)%gto_basis_set => basis_set_a
       ELSE

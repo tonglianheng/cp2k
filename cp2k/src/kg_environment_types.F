@@ -10,8 +10,8 @@
 !> \author Martin Haeufel
 ! *****************************************************************************
 MODULE kg_environment_types
-  USE cp_dbcsr_operations,             ONLY: cp_dbcsr_deallocate_matrix_set
-  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_p_type
+  USE cp_dbcsr_interface,              ONLY: cp_dbcsr_deallocate_matrix_set,&
+                                             cp_dbcsr_p_type
   USE f77_blas
   USE input_section_types,             ONLY: section_vals_release,&
                                              section_vals_type
@@ -30,7 +30,7 @@ MODULE kg_environment_types
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'kg_environment_types'
 
-  PUBLIC :: kg_environment_type, kg_env_release, subset_type
+  PUBLIC :: kg_environment_type, kg_env_release
 
   TYPE subset_type
     TYPE (neighbor_list_set_p_type), DIMENSION(:), POINTER :: sab_orb 
@@ -71,6 +71,11 @@ MODULE kg_environment_types
 
 CONTAINS
 
+! *****************************************************************************
+!> \brief ...
+!> \param kg_env ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE kg_env_release(kg_env, error)
     TYPE(kg_environment_type), POINTER       :: kg_env
     TYPE(cp_error_type), INTENT(inout)       :: error

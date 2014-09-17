@@ -29,13 +29,6 @@ MODULE dbcsr_performance_multiply
                                              dbcsr_internal_error,&
                                              dbcsr_wrong_args_error
   USE dbcsr_io,                        ONLY: dbcsr_print
-  USE dbcsr_kinds,                     ONLY: int_8,&
-                                             real_4,&
-                                             real_8
-  USE dbcsr_machine,                   ONLY: m_walltime
-  USE dbcsr_message_passing,           ONLY: mp_environ,&
-                                             mp_sum,&
-                                             mp_sync
   USE dbcsr_methods,                   ONLY: &
        dbcsr_col_block_offsets, dbcsr_col_block_sizes, dbcsr_distribution, &
        dbcsr_distribution_col_dist, dbcsr_distribution_new, &
@@ -60,6 +53,13 @@ MODULE dbcsr_performance_multiply
   USE dbcsr_util,                      ONLY: dbcsr_checksum
   USE dbcsr_work_operations,           ONLY: dbcsr_create,&
                                              dbcsr_finalize
+  USE kinds,                           ONLY: int_8,&
+                                             real_4,&
+                                             real_8
+  USE machine,                         ONLY: m_walltime
+  USE message_passing,                 ONLY: mp_environ,&
+                                             mp_sum,&
+                                             mp_sync
 
   !$ USE OMP_LIB
 
@@ -73,6 +73,16 @@ MODULE dbcsr_performance_multiply
 
 CONTAINS
 
+! *****************************************************************************
+!> \brief ...
+!> \param group ...
+!> \param mp_env ...
+!> \param npdims ...
+!> \param io_unit ...
+!> \param narg ...
+!> \param args ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE dbcsr_perf_multiply( group, mp_env, npdims, io_unit, narg, args, error)
 
     INTEGER                                  :: group
@@ -199,14 +209,22 @@ CONTAINS
 !> \brief Performs a variety of matrix multiplies of same matrices on different
 !>        processor grids
 !> \param[in] mp_group          MPI communicator
+!> \param mp_env ...
+!> \param npdims ...
 !> \param[in] io_unit           which unit to write to, if not negative
-!> \param[in] nproc             number of processors to test on
 !> \param[in] matrix_sizes      size of matrices to test
-!> \param[in] matrix_types      types of matrices to create
-!> \param[in] trs               transposes of the two matrices
-!> \param[in] bs_m, bs_n, bs_k  block sizes of the 3 dimensions
+!> \param bs_m block sizes of the 3 dimensions
+!> \param bs_n block sizes of the 3 dimensions
+!> \param bs_k block sizes of the 3 dimensions
 !> \param[in] sparsities        sparsities of matrices to create
-!> \param[in] alpha, beta       alpha and beta values to use in multiply
+!> \param trans transposes of the two matrices
+!> \param symmetries ...
+!> \param data_type types of matrices to create
+!> \param alpha_in alpha value to use in multiply
+!> \param beta_in beta value to use in multiply
+!> \param limits ...
+!> \param retain_sparsity ...
+!> \param nrep ...
 !> \param[in,out] error         cp2k error
 ! *****************************************************************************
   SUBROUTINE dbcsr_perf_multiply_low (mp_group, mp_env, npdims, io_unit, &
@@ -451,10 +469,19 @@ CONTAINS
 !> \brief Performs a variety of matrix multiplies of same matrices on different
 !>        processor grids
 !> \param[in] mp_group          MPI communicator
-!> \param[in] group_sizes       array of (sub) communicator
-!>                              sizes to test (2-D)
-!> \param[in] matrix_a, matrix_b, matrix_c    matrices to multiply
+!> \param mp_env ...
 !> \param[in] io_unit           which unit to write to, if not negative
+!> \param matrix_a matrices to multiply
+!> \param matrix_b matrices to multiply
+!> \param matrix_c matrices to multiply
+!> \param transa ...
+!> \param transb ...
+!> \param alpha ...
+!> \param beta ...
+!> \param limits ...
+!> \param retain_sparsity ...
+!> \param nrep ...
+!> \param error ...
 ! *****************************************************************************
   SUBROUTINE perf_multiply (mp_group, mp_env, io_unit,&
        matrix_a, matrix_b, matrix_c,&
@@ -637,15 +664,15 @@ CONTAINS
 
     !
     !
-    t_max = MAXVAL(times, DIM=1)
-    t_min = MINVAL(times, DIM=1)
-    t = SUM(times, DIM=1) / REAL(numnodes, real_8)
-    flop_sum = SUM(flops, DIM=1)
+    t_max(:) = MAXVAL(times, DIM=1)
+    t_min(:) = MINVAL(times, DIM=1)
+    t(:) = SUM(times, DIM=1) / REAL(numnodes, real_8)
+    flop_sum(:) = SUM(flops, DIM=1)
     t_max = MAX (t_max, 0.001_real_8)
-    flops_all = REAL(flop_sum, KIND=real_8) / t_max !* 1.0e-9_real_8
-    flops_node = flops_all / REAL(numnodes, real_8)
-    flops_thread = flops_node / REAL(nthreads, real_8)
-    load_imb = t_max - t / REAL(numnodes, real_8)
+    flops_all(:) = REAL(flop_sum, KIND=real_8) / t_max !* 1.0e-9_real_8
+    flops_node(:) = flops_all / REAL(numnodes, real_8)
+    flops_thread(:) = flops_node / REAL(nthreads, real_8)
+    load_imb(:) = t_max - t / REAL(numnodes, real_8)
 
     std_t = 1.0_real_8
     std_all = 1.0_real_8
@@ -698,6 +725,10 @@ CONTAINS
 
   END SUBROUTINE perf_multiply
 
+! *****************************************************************************
+!> \brief ...
+!> \param v ...
+! *****************************************************************************
   FUNCTION mean(v)
     REAL(real_8), DIMENSION(:)               :: v
     REAL(real_8)                             :: mean
@@ -711,6 +742,10 @@ CONTAINS
     ENDDO
     mean = mean/REAL(n,real_8)
   END FUNCTION mean
+! *****************************************************************************
+!> \brief ...
+!> \param v ...
+! *****************************************************************************
   FUNCTION std(v)
     REAL(real_8), DIMENSION(:)               :: v
     REAL(real_8)                             :: std

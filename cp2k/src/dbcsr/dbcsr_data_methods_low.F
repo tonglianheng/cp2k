@@ -14,22 +14,16 @@
 ! *****************************************************************************
 MODULE dbcsr_data_methods_low
 
-  USE dbcsr_cuda_devmem,               ONLY: dbcsr_cuda_devmem_allocate,&
-                                             dbcsr_cuda_devmem_allocated,&
-                                             dbcsr_cuda_devmem_deallocate
-  USE dbcsr_cuda_event,                ONLY: dbcsr_cuda_event_create,&
-                                             dbcsr_cuda_event_destroy
+  USE acc_devmem,                      ONLY: acc_devmem_allocate_bytes,&
+                                             acc_devmem_allocated,&
+                                             acc_devmem_deallocate
+  USE acc_event,                       ONLY: acc_event_create,&
+                                             acc_event_destroy
   USE dbcsr_error_handling,            ONLY: &
        dbcsr_assert, dbcsr_caller_error, dbcsr_error_set, dbcsr_error_stop, &
        dbcsr_error_type, dbcsr_failure_level, dbcsr_fatal_level, &
        dbcsr_internal_error, dbcsr_warning_level, dbcsr_wrong_args_error
-  USE dbcsr_kinds,                     ONLY: dp,&
-                                             real_4,&
-                                             real_4_size,&
-                                             real_8,&
-                                             real_8_size
-  USE dbcsr_ptr_util,                  ONLY: dbcsr_ptr_remapping,&
-                                             memory_allocate,&
+  USE dbcsr_ptr_util,                  ONLY: memory_allocate,&
                                              memory_deallocate,&
                                              memory_zero,&
                                              pointer_c_rank_remap2,&
@@ -37,11 +31,17 @@ MODULE dbcsr_data_methods_low
                                              pointer_s_rank_remap2,&
                                              pointer_z_rank_remap2
   USE dbcsr_types,                     ONLY: &
-       dbcsr_data_area_type, dbcsr_data_obj, dbcsr_memtype_type, dbcsr_obj, &
-       dbcsr_scalar_type, dbcsr_type_complex_4, dbcsr_type_complex_4_2d, &
-       dbcsr_type_complex_8, dbcsr_type_complex_8_2d, dbcsr_type_int_4, &
-       dbcsr_type_int_8, dbcsr_type_real_4, dbcsr_type_real_4_2d, &
-       dbcsr_type_real_8, dbcsr_type_real_8_2d
+       dbcsr_data_area_type, dbcsr_data_obj, dbcsr_datatype_sizeof, &
+       dbcsr_memtype_type, dbcsr_obj, dbcsr_scalar_type, &
+       dbcsr_type_complex_4, dbcsr_type_complex_4_2d, dbcsr_type_complex_8, &
+       dbcsr_type_complex_8_2d, dbcsr_type_int_4, dbcsr_type_int_8, &
+       dbcsr_type_real_4, dbcsr_type_real_4_2d, dbcsr_type_real_8, &
+       dbcsr_type_real_8_2d
+  USE kinds,                           ONLY: dp,&
+                                             real_4,&
+                                             real_4_size,&
+                                             real_8,&
+                                             real_8_size
 
   !$ USE OMP_LIB
 
@@ -54,22 +54,18 @@ MODULE dbcsr_data_methods_low
 
 
   PUBLIC :: dbcsr_type_is_2d, dbcsr_type_2d_to_1d, dbcsr_type_1d_to_2d
-  PUBLIC :: dbcsr_scalar, dbcsr_scalar_one, dbcsr_scalar_i, dbcsr_scalar_zero,&
+  PUBLIC :: dbcsr_scalar, dbcsr_scalar_one, dbcsr_scalar_zero,&
             dbcsr_scalar_are_equal, dbcsr_scalar_negative,&
-            dbcsr_scalar_add, dbcsr_scalar_multiply,&
             dbcsr_scalar_get_type, dbcsr_scalar_set_type,&
             dbcsr_scalar_fill_all, dbcsr_scalar_get_value
   PUBLIC :: dbcsr_data_init, dbcsr_data_hold,&
-            dbcsr_data_get_size, dbcsr_data_get_type,&
-            dbcsr_data_reset_type, dbcsr_data_query_type,&
-            dbcsr_data_get_type_size
-  PUBLIC :: dbcsr_data_resize
-  PUBLIC :: dbcsr_get_data, &
+            dbcsr_data_get_size, dbcsr_data_get_type
+  PUBLIC :: dbcsr_get_data,&
             dbcsr_data_set_pointer,&
             dbcsr_data_clear_pointer, dbcsr_data_set_2d_pointer,&
-            dbcsr_data_clear_2d_pointer, &
+            dbcsr_data_clear_2d_pointer,&
             dbcsr_data_get_sizes, dbcsr_data_verify_bounds,&
-            dbcsr_data_exists, dbcsr_data_valid, dbcsr_data_get_memory_type
+            dbcsr_data_exists, dbcsr_data_get_memory_type
   PUBLIC :: dbcsr_data_zero
   PUBLIC :: dbcsr_data_set_size_referenced, dbcsr_data_get_size_referenced
   PUBLIC :: dbcsr_get_data_p, dbcsr_get_data_p_s, dbcsr_get_data_p_c,&
@@ -135,7 +131,7 @@ MODULE dbcsr_data_methods_low
 ! *****************************************************************************
 !> \brief Returns data type of a data area
 !> \param[in] area         data area
-!> \result data_type       data type of the data area
+!> \retval data_type       data type of the data area
 ! *****************************************************************************
   PURE FUNCTION dbcsr_data_get_type (area) RESULT (data_type)
     TYPE(dbcsr_data_obj), INTENT(IN)         :: area
@@ -145,6 +141,11 @@ MODULE dbcsr_data_methods_low
   END FUNCTION dbcsr_data_get_type
 
 
+! *****************************************************************************
+!> \brief ...
+!> \param area ...
+!> \retval memory_type ...
+! *****************************************************************************
   FUNCTION dbcsr_data_get_memory_type (area) RESULT (memory_type)
     TYPE(dbcsr_data_obj), INTENT(IN)         :: area
     TYPE(dbcsr_memtype_type)                 :: memory_type
@@ -155,7 +156,7 @@ MODULE dbcsr_data_methods_low
 ! *****************************************************************************
 !> \brief Returns size in bytes used to store one data element
 !> \param[in] area         data area
-!> \result type_size       data type of the data area
+!> \retval type_size ...
 ! *****************************************************************************
   PURE FUNCTION dbcsr_data_get_type_size (area) RESULT (type_size)
     TYPE(dbcsr_data_obj), INTENT(IN)         :: area
@@ -173,60 +174,6 @@ MODULE dbcsr_data_methods_low
     END SELECT
   END FUNCTION dbcsr_data_get_type_size
 
-
-! *****************************************************************************
-! \brief Data type transformations
-! *****************************************************************************
-  FUNCTION data_type_2d_from_1d (type_1d) RESULT (type_2d)
-    INTEGER, INTENT(in)                      :: type_1d
-    INTEGER                                  :: type_2d
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'data_type_2d_from_1d', &
-      routineP = moduleN//':'//routineN
-
-    TYPE(dbcsr_error_type)                   :: error
-
-    SELECT CASE (type_1d)
-    CASE (dbcsr_type_real_4)
-       type_2d = dbcsr_type_real_4_2d
-    CASE (dbcsr_type_real_8)
-       type_2d = dbcsr_type_real_8_2d
-    CASE (dbcsr_type_complex_4)
-       type_2d = dbcsr_type_complex_4_2d
-    CASE (dbcsr_type_complex_8)
-       type_2d = dbcsr_type_complex_8_2d
-    CASE default
-       CALL dbcsr_assert (.FALSE., dbcsr_failure_level, dbcsr_caller_error,&
-            routineN, "Invalid data type.",__LINE__,error)
-    END SELECT
-  END FUNCTION data_type_2d_from_1d
-
-! Data type transformations
-  FUNCTION data_type_1d_from_2d (type_2d) RESULT (type_1d)
-    INTEGER, INTENT(IN)                      :: type_2d
-    INTEGER                                  :: type_1d
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'data_type_1d_from_2d', &
-      routineP = moduleN//':'//routineN
-
-    TYPE(dbcsr_error_type)                   :: error
-
-    SELECT CASE (type_2d)
-    CASE (dbcsr_type_real_4_2d)
-       type_1d = dbcsr_type_real_4
-    CASE (dbcsr_type_real_8_2d)
-       type_1d = dbcsr_type_real_8
-    CASE (dbcsr_type_complex_4_2d)
-       type_1d = dbcsr_type_complex_4
-    CASE (dbcsr_type_complex_8_2d)
-       type_1d = dbcsr_type_complex_8
-    CASE default
-       CALL dbcsr_assert (.FALSE., dbcsr_failure_level, dbcsr_caller_error,&
-            routineN, "Invalid data type.",__LINE__,error)
-    END SELECT
-  END FUNCTION data_type_1d_from_2d
-
-
 ! *****************************************************************************
 !> \brief Initializes a data area
 !> \param[inout] area         data area
@@ -240,9 +187,7 @@ MODULE dbcsr_data_methods_low
 ! *****************************************************************************
 !> \brief Allocates pointers in the data type
 !> \param[in,out] area        internal structure holding array pointers
-!> \param[in] data_type       selects which array to allocate
 !> \param[in] sizes           sizes to allocate to
-!> \param[in] memory_type     type of memory to allocate
 !> \param[in,out] error       error
 ! *****************************************************************************
   SUBROUTINE internal_data_allocate (area, sizes, error)
@@ -254,7 +199,7 @@ MODULE dbcsr_data_methods_low
     CHARACTER(len=*), PARAMETER :: routineN = 'internal_data_allocate', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: d, error_handle
+    INTEGER                                  :: error_handle
 
 !   ---------------------------------------------------------------------------
 
@@ -301,10 +246,10 @@ MODULE dbcsr_data_methods_low
 
 
 
-    IF(area%memory_type%cuda_devalloc) THEN
+    IF(area%memory_type%acc_devalloc) THEN
        IF(sizes(1) > 1) &
-          CALL dbcsr_cuda_devmem_allocate(area%cuda_devmem, datatype=area%data_type, n=sizes(1), error=error)
-       CALL dbcsr_cuda_event_create(area%cuda_ready, error)
+          CALL acc_devmem_allocate_bytes(area%acc_devmem, dbcsr_datatype_sizeof(area%data_type)*sizes(1))
+       CALL acc_event_create(area%acc_ready)
     ENDIF
 
     CALL dbcsr_error_stop(error_handle, error)
@@ -315,9 +260,6 @@ MODULE dbcsr_data_methods_low
 ! *****************************************************************************
 !> \brief Allocates pointers in the data type
 !> \param[in,out] area        internal structure holding array pointers
-!> \param[in] data_type       selects which array to allocate
-!> \param[in] sizes           sizes to allocate to
-!> \param[in] memory_type     type of memory to deallocate
 !> \param[in,out] error       error
 ! *****************************************************************************
   SUBROUTINE internal_data_deallocate (area, error)
@@ -372,10 +314,10 @@ MODULE dbcsr_data_methods_low
                routineN, "Invalid data type.",__LINE__,error)
     END SELECT
 
-    IF(area%memory_type%cuda_devalloc) THEN
-       IF(dbcsr_cuda_devmem_allocated(area%cuda_devmem)) &
-          CALL dbcsr_cuda_devmem_deallocate(area%cuda_devmem, error)
-       CALL dbcsr_cuda_event_destroy(area%cuda_ready, error)
+    IF(area%memory_type%acc_devalloc) THEN
+       IF(acc_devmem_allocated(area%acc_devmem)) &
+          CALL acc_devmem_deallocate(area%acc_devmem)
+       CALL acc_event_destroy(area%acc_ready)
     ENDIF
 
     CALL dbcsr_error_stop(error_handler, error)
@@ -434,6 +376,7 @@ MODULE dbcsr_data_methods_low
 ! *****************************************************************************
 !> \brief Clears pointers from the data area.
 !> \param[inout] area         data area
+!> \param new_type ...
 ! *****************************************************************************
   SUBROUTINE dbcsr_data_reset_type (area, new_type)
     TYPE(dbcsr_data_obj), INTENT(INOUT)      :: area
@@ -458,7 +401,7 @@ MODULE dbcsr_data_methods_low
 ! *****************************************************************************
 !> \brief Checks whether a data area is valid
 !> \param[in] area         data area
-!> \result valid           whether the data area is valid
+!> \retval valid           whether the data area is valid
 ! *****************************************************************************
   ELEMENTAL FUNCTION dbcsr_data_valid (area) RESULT (valid)
     TYPE(dbcsr_data_obj), INTENT(IN)         :: area
@@ -476,7 +419,7 @@ MODULE dbcsr_data_methods_low
 !> \brief Checks whether a data pointer exists
 !> \param[in] area         data area
 !> \param[in,out] error    error
-!> \result valid           whether the data pointer exists
+!> \retval valid           whether the data pointer exists 
 ! *****************************************************************************
   FUNCTION dbcsr_data_exists (area, error) RESULT (valid)
     TYPE(dbcsr_data_obj), INTENT(IN)         :: area
@@ -566,7 +509,8 @@ MODULE dbcsr_data_methods_low
 !> Assumes that no memory will be lost when repointing the pointer in the data
 !> area and that the area is initialized.
 !> \param[in,out] area         data area to repoint
-!> \param[in] rsize, csize     size of data area to point to
+!> \param[in] rsize size of data area to point to
+!> \param[in] csize size of data area to point to
 !> \param[in] pointee          data area to point to
 !> \param[in] source_lb        (optional) point to this offset in pointee
 ! *****************************************************************************
@@ -617,10 +561,6 @@ MODULE dbcsr_data_methods_low
     ENDIF
     ! There's a remap if the ranks are compatible but not equal.
     rmp = dt1 .NE. dt2
-    IF (.NOT. dbcsr_ptr_remapping) &
-         CALL dbcsr_assert (.NOT. rmp, dbcsr_fatal_level, dbcsr_internal_error,&
-         routineN, "Compiler does not support pointer rank remapping.",&
-         __LINE__, error=error)
     SELECT CASE (dt2)
     CASE (dbcsr_type_real_4_2d)
        area%d%r2_sp => pointee%d%r2_sp(1:rsize,1:csize)
@@ -861,9 +801,11 @@ MODULE dbcsr_data_methods_low
 
 ! *****************************************************************************
 !> \brief Clears a part of the data area
-!> \note Optimized for clearing big 1-D data areas from all data types.
 !> \param[in] area         data area
+!> \param lb ...
+!> \param ub ...
 !> \param[in,out] error    error
+!> \note Optimized for clearing big 1-D data areas from all data types.
 ! *****************************************************************************
   SUBROUTINE dbcsr_data_zero (area, lb, ub, error)
     TYPE(dbcsr_data_obj), INTENT(INOUT)      :: area
@@ -903,8 +845,8 @@ MODULE dbcsr_data_methods_low
                routineN, "Invalid data type.",__LINE__,error)
     END SELECT
 
-    IF(area%d%memory_type%cuda_devalloc) THEN
-       WRITE(*,*) "dbcsr_data_zero: not yet supported for cuda devmem"
+    IF(area%d%memory_type%acc_devalloc) THEN
+       WRITE(*,*) "dbcsr_data_zero: not yet supported for acc devmem"
        STOP 1
     ENDIF
 
@@ -1034,7 +976,7 @@ MODULE dbcsr_data_methods_low
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_data_get_sizes_any', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: d, error_handler
+    INTEGER                                  :: error_handler
 
 !   ---------------------------------------------------------------------------
 
@@ -1093,7 +1035,7 @@ MODULE dbcsr_data_methods_low
 !> \brief Returns the allocated data size
 !> \param[in] area       data area to query for size, should be 2-D
 !> \param[out] row_size  row size
-!> \param[out] row_size  column size
+!> \param[out] col_size  column size 
 !> \param[out] valid     whether the data is actually allocated
 !> \param[in,out] error  error
 ! *****************************************************************************
@@ -1106,7 +1048,7 @@ MODULE dbcsr_data_methods_low
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_data_get_sizes_2', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: d, error_handler
+    INTEGER                                  :: error_handler
     INTEGER, DIMENSION(2)                    :: s
 
 !   ---------------------------------------------------------------------------
@@ -1147,7 +1089,7 @@ MODULE dbcsr_data_methods_low
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_data_get_sizes_1', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: d, error_handler
+    INTEGER                                  :: error_handler
     INTEGER, DIMENSION(1)                    :: s
 
 !   ---------------------------------------------------------------------------
@@ -1191,7 +1133,7 @@ MODULE dbcsr_data_methods_low
 !   ---------------------------------------------------------------------------
 
     CALL dbcsr_error_set (routineN, error_handler, error)
-    !
+
     CALL dbcsr_assert (ASSOCIATED (area%d), dbcsr_fatal_level,&
          dbcsr_caller_error, routineN,&
          "Invalid data area", __LINE__, error=error)
@@ -1222,7 +1164,7 @@ MODULE dbcsr_data_methods_low
 ! *****************************************************************************
 !> \brief Returns an encapsulated scalar "1"
 !> \param[in] data_type       use the data type
-!> \result one                enpsulated value of one
+!> \retval one                encapsulated value of one 
 ! *****************************************************************************
   ELEMENTAL FUNCTION dbcsr_scalar_one (data_type) RESULT (one)
     INTEGER, INTENT(IN)                      :: data_type
@@ -1244,7 +1186,7 @@ MODULE dbcsr_data_methods_low
 ! *****************************************************************************
 !> \brief Returns an encapsulated scalar "sqrt(-1)"
 !> \param[in] data_type       use the data type
-!> \result one                enpsulated value of one
+!> \retval i                 encapsulated value of i
 ! *****************************************************************************
   ELEMENTAL FUNCTION dbcsr_scalar_i (data_type) RESULT (i)
     INTEGER, INTENT(IN)                      :: data_type
@@ -1266,7 +1208,7 @@ MODULE dbcsr_data_methods_low
 ! *****************************************************************************
 !> \brief Returns an encapsulated scalar "0"
 !> \param[in] data_type       use the data type
-!> \result zero               enpsulated value of zero
+!> \retval zero               encapsulated value of zero
 ! *****************************************************************************
   ELEMENTAL FUNCTION dbcsr_scalar_zero (data_type) RESULT (zero)
     INTEGER, INTENT(IN)                      :: data_type
@@ -1284,7 +1226,7 @@ MODULE dbcsr_data_methods_low
 !> \brief Returns whether an encapsulated scalar is equal to another value
 !> \param[in] s1                    one value
 !> \param[in] s2                    another value
-!> \result are_equal                whether values are equal
+!> \retval are_equal                whether values are equal 
 ! *****************************************************************************
   ELEMENTAL FUNCTION dbcsr_scalar_are_equal (s1, s2) RESULT (are_equal)
     TYPE(dbcsr_scalar_type), INTENT(IN)      :: s1, s2
@@ -1310,8 +1252,8 @@ MODULE dbcsr_data_methods_low
 
 ! *****************************************************************************
 !> \brief Returns an encapsulated scalar as a negation of the given
-!> \param[in] v                    given value
-!> \result negated                 negated value
+!> \param[in] s                    given value
+!> \retval negated                 negated value 
 ! *****************************************************************************
   ELEMENTAL FUNCTION dbcsr_scalar_negative (s) RESULT (negated)
     TYPE(dbcsr_scalar_type), INTENT(IN)      :: s
@@ -1334,8 +1276,9 @@ MODULE dbcsr_data_methods_low
 
 ! *****************************************************************************
 !> \brief Returns an encapsulated scalar as a negation of the given
-!> \param[in] v                    given value
-!> \result negated                 negated value
+!> \param s1 ...
+!> \param s2 ...
+!> \retval s_sum ...
 ! *****************************************************************************
   ELEMENTAL FUNCTION dbcsr_scalar_add (s1, s2) RESULT (s_sum)
     TYPE(dbcsr_scalar_type), INTENT(IN)      :: s1, s2
@@ -1357,9 +1300,10 @@ MODULE dbcsr_data_methods_low
   END FUNCTION dbcsr_scalar_add
 
 ! *****************************************************************************
-!> \brief Returns an encapsulated scalar as a negation of the given
-!> \param[in] v                    given value
-!> \result negated                 negated value
+!> \brief ...
+!> \param s1 ...
+!> \param s2 ...
+!> \retval s_product ...
 ! *****************************************************************************
   ELEMENTAL FUNCTION dbcsr_scalar_multiply (s1, s2) RESULT (s_product)
     TYPE(dbcsr_scalar_type), INTENT(IN)      :: s1, s2
@@ -1384,7 +1328,7 @@ MODULE dbcsr_data_methods_low
 ! *****************************************************************************
 !> \brief Returns data type of a scalar
 !> \param[in] scalar       scalar
-!> \result data_type       data type of the scalar
+!> \retval data_type       data type of the scalar
 ! *****************************************************************************
   ELEMENTAL FUNCTION dbcsr_scalar_get_type (scalar) RESULT (data_type)
     TYPE(dbcsr_scalar_type), INTENT(IN)      :: scalar
@@ -1394,9 +1338,9 @@ MODULE dbcsr_data_methods_low
   END FUNCTION dbcsr_scalar_get_type
 
 ! *****************************************************************************
-!> \brief Returns data type of a scalar
+!> \brief Sets data type of a scalar
 !> \param[in] scalar       scalar
-!> \result data_type       data type of the scalar
+!> \param data_type ...
 ! *****************************************************************************
   ELEMENTAL SUBROUTINE dbcsr_scalar_set_type (scalar, data_type)
     TYPE(dbcsr_scalar_type), INTENT(INOUT)   :: scalar
@@ -1408,7 +1352,7 @@ MODULE dbcsr_data_methods_low
 
 ! *****************************************************************************
 !> \brief Fills all data and precision types from the set one
-!> \param[in,out] scalara         data area
+!> \param[in,out] scalar         data area
 ! *****************************************************************************
   ELEMENTAL SUBROUTINE dbcsr_scalar_fill_all (scalar)
     TYPE(dbcsr_scalar_type), INTENT(INOUT)   :: scalar
@@ -1439,7 +1383,8 @@ MODULE dbcsr_data_methods_low
 
 ! *****************************************************************************
 !> \brief Checks whether the data type is 2-D.
-!> \result Data type is 2-D.
+!> \param data_type ...
+!> \retval dbcsr_type_is_2d Data type is 2-D.
 ! *****************************************************************************
   PURE FUNCTION dbcsr_type_is_2d (data_type)
     INTEGER, INTENT(IN)                      :: data_type
@@ -1453,7 +1398,8 @@ MODULE dbcsr_data_methods_low
 
 ! *****************************************************************************
 !> \brief Returns 1-d data type corresponding to the given 2-D one.
-!> \result 1-D data type
+!> \param data_type ...
+!> \retval dbcsr_type_2d_to_1d 1-D data type
 ! *****************************************************************************
   PURE FUNCTION dbcsr_type_2d_to_1d (data_type)
     INTEGER, INTENT(IN)                      :: data_type
@@ -1483,7 +1429,8 @@ MODULE dbcsr_data_methods_low
 
 ! *****************************************************************************
 !> \brief Returns 2-D data type corresponding to the given 1-D one.
-!> \result 2-D data type
+!> \param data_type ...
+!> \retval dbcsr_type_1d_to_2d 2-D data type 
 ! *****************************************************************************
   PURE FUNCTION dbcsr_type_1d_to_2d (data_type)
     INTEGER, INTENT(IN)                      :: data_type
@@ -1516,7 +1463,7 @@ MODULE dbcsr_data_methods_low
 ! *****************************************************************************
 !> \brief Get actual data storage used for matrix
 !> \param[in] area            Count data of this matrix
-!> \result data_size          Data size used by matrix
+!> \retval data_size_referenced Data size used by matrix
 ! *****************************************************************************
   PURE FUNCTION dbcsr_data_get_size_referenced (area) RESULT (data_size_referenced)
     TYPE(dbcsr_data_obj), INTENT(IN)         :: area
@@ -1532,7 +1479,7 @@ MODULE dbcsr_data_methods_low
 ! *****************************************************************************
 !> \brief Sets the referenced size of the data area
 !> \param[in,out] data_area  area for which to set referenced data size
-!> \param[in]                set referenced data size to this value
+!> \param[in] referenced_size     set referenced data size to this value  
 ! *****************************************************************************
   PURE SUBROUTINE dbcsr_data_set_size_referenced (data_area, referenced_size)
     TYPE(dbcsr_data_obj), INTENT(INOUT)      :: data_area
@@ -1542,7 +1489,6 @@ MODULE dbcsr_data_methods_low
   END SUBROUTINE dbcsr_data_set_size_referenced
 
 
-! *****************************************************************************
 ! *****************************************************************************
 #include "dbcsr_data_methods_low_d.f90"
 #include "dbcsr_data_methods_low_z.f90"

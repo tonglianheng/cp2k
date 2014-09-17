@@ -11,39 +11,29 @@
 !> \author Joost VandeVondele (06.2002)
 ! *****************************************************************************
 MODULE qs_ot_types
-  USE array_types,                     ONLY: array_i1d_obj,&
-                                             array_release
   USE bibliography,                    ONLY: VandeVondele2003,&
                                              Weber2008,&
                                              cite_reference
   USE cp_blacs_env,                    ONLY: cp_blacs_env_release,&
-                                             cp_blacs_env_retain
+                                             cp_blacs_env_retain,&
+                                             cp_blacs_env_type
   USE cp_dbcsr_interface,              ONLY: &
-       cp_create_bl_distribution, cp_dbcsr_copy, cp_dbcsr_create, &
+       array_i1d_obj, array_release, cp_create_bl_distribution, &
+       cp_dbcsr_allocate_matrix_set, cp_dbcsr_copy, cp_dbcsr_create, &
+       cp_dbcsr_deallocate_matrix, cp_dbcsr_deallocate_matrix_set, &
        cp_dbcsr_distribution, cp_dbcsr_distribution_release, &
        cp_dbcsr_finalize, cp_dbcsr_get_data_size, cp_dbcsr_init_p, &
-       cp_dbcsr_release_p, cp_dbcsr_row_block_sizes, cp_dbcsr_set
-  USE cp_dbcsr_operations,             ONLY: cp_dbcsr_allocate_matrix_set,&
-                                             cp_dbcsr_deallocate_matrix,&
-                                             cp_dbcsr_deallocate_matrix_set
-  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_p_type,&
-                                             cp_dbcsr_type
+       cp_dbcsr_p_type, cp_dbcsr_release_p, cp_dbcsr_row_block_sizes, &
+       cp_dbcsr_set, cp_dbcsr_type, dbcsr_distribution_mp, &
+       dbcsr_distribution_new, dbcsr_distribution_obj, &
+       dbcsr_distribution_row_dist, dbcsr_mp_npcols, dbcsr_mp_nprows, &
+       dbcsr_type_complex_default, dbcsr_type_no_symmetry, dbcsr_type_real_4, &
+       dbcsr_type_real_default
   USE cp_fm_struct,                    ONLY: cp_fm_struct_get,&
                                              cp_fm_struct_type
   USE cp_para_env,                     ONLY: cp_para_env_release,&
                                              cp_para_env_retain
-  USE cp_para_types,                   ONLY: cp_blacs_env_type,&
-                                             cp_para_env_type
-  USE dbcsr_methods,                   ONLY: dbcsr_distribution_mp,&
-                                             dbcsr_distribution_new,&
-                                             dbcsr_distribution_row_dist,&
-                                             dbcsr_mp_npcols,&
-                                             dbcsr_mp_nprows
-  USE dbcsr_types,                     ONLY: dbcsr_distribution_obj,&
-                                             dbcsr_type_complex_default,&
-                                             dbcsr_type_no_symmetry,&
-                                             dbcsr_type_real_4,&
-                                             dbcsr_type_real_default
+  USE cp_para_types,                   ONLY: cp_para_env_type
   USE f77_blas
   USE input_constants,                 ONLY: &
        ls_2pnt, ls_3pnt, ls_gold, ls_none, ot_algo_irac, &
@@ -247,6 +237,7 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief sets default values for the settings type
+!> \param settings ...
 !> \par History
 !>      10.2004 created [Joost VandeVondele]
 ! *****************************************************************************
@@ -286,6 +277,10 @@ CONTAINS
   END SUBROUTINE qs_ot_settings_init
 
   ! init matrices, needs c0 and sc0 so that c0*sc0=1
+! *****************************************************************************
+!> \brief ...
+!> \param qs_ot_env ...
+!> \param error ...
 ! *****************************************************************************
   SUBROUTINE qs_ot_init(qs_ot_env,error)
     TYPE(qs_ot_type)                         :: qs_ot_env
@@ -339,6 +334,15 @@ CONTAINS
   ! allocates the data in qs_ot_env, for a calculation with fm_struct_ref
   ! ortho_k allows for specifying an additional orthogonal subspace (i.e. c will
   ! be kept orthogonal provided c0 was, used in qs_ot_eigensolver)
+! *****************************************************************************
+!> \brief ...
+!> \param qs_ot_env ...
+!> \param matrix_s ...
+!> \param fm_struct_ref ...
+!> \param aux_coeff_set ...
+!> \param scp_sm ...
+!> \param ortho_k ...
+!> \param error ...
 ! *****************************************************************************
   SUBROUTINE qs_ot_allocate(qs_ot_env, matrix_s, fm_struct_ref, aux_coeff_set, scp_sm, ortho_k,error)
     TYPE(qs_ot_type)                         :: qs_ot_env
@@ -816,6 +820,10 @@ CONTAINS
 
   ! deallocates data
 ! *****************************************************************************
+!> \brief ...
+!> \param qs_ot_env ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE qs_ot_destroy(qs_ot_env,error)
     TYPE(qs_ot_type)                         :: qs_ot_env
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -938,6 +946,12 @@ CONTAINS
 
   END SUBROUTINE qs_ot_destroy
 
+! *****************************************************************************
+!> \brief ...
+!> \param settings ...
+!> \param ot_section ...
+!> \param output_unit ...
+!> \param error ...
 ! *****************************************************************************
   SUBROUTINE ot_readwrite_input(settings,ot_section,output_unit,error)
     TYPE(qs_ot_settings_type)                :: settings

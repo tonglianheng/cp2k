@@ -13,7 +13,11 @@ MODULE input_cp2k_force_eval
   USE cp_output_handling,              ONLY: cp_print_key_section_create
   USE cp_units,                        ONLY: cp_unit_to_cp2k
   USE f77_blas
-  USE input_constants
+  USE input_constants,                 ONLY: &
+       add_last_numeric, do_eip, do_ep, do_fist, do_mixed, do_qmmm, do_qs, &
+       do_stress_analytical, do_stress_diagonal_anal, &
+       do_stress_diagonal_numer, do_stress_none, do_stress_numerical, &
+       high_print_level, low_print_level, medium_print_level, numerical
   USE input_cp2k_dft,                  ONLY: create_bsse_section,&
                                              create_dft_section,&
                                              create_ep_section
@@ -169,8 +173,10 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Creates the section for applying an external potential
-!> \author teo
+!> \param section ...
+!> \param error ...
 !> \date 03.2008
+!> \author teo
 ! *****************************************************************************
   SUBROUTINE create_ext_pot_section(section,error)
     TYPE(section_type), POINTER              :: section
@@ -290,6 +296,8 @@ CONTAINS
   END SUBROUTINE create_rescale_force_section
 
 ! *****************************************************************************
+!> \brief ...
+!> \param section ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 !> \author fawzi

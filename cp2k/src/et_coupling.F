@@ -13,10 +13,9 @@ MODULE et_coupling
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind_set
   USE cell_types,                      ONLY: cell_type
-  USE cp_dbcsr_operations,             ONLY: cp_dbcsr_deallocate_matrix_set,&
-                                             cp_dbcsr_sm_fm_multiply
-  USE cp_fm_basic_linalg,              ONLY: cp_fm_gemm,&
-                                             cp_fm_invert,&
+  USE cp_dbcsr_interface,              ONLY: cp_dbcsr_deallocate_matrix_set
+  USE cp_dbcsr_operations,             ONLY: cp_dbcsr_sm_fm_multiply
+  USE cp_fm_basic_linalg,              ONLY: cp_fm_invert,&
                                              cp_fm_transpose
   USE cp_fm_pool_types,                ONLY: cp_fm_pool_p_type,&
                                              fm_pool_get_el_struct
@@ -26,6 +25,7 @@ MODULE et_coupling
                                              cp_fm_p_type,&
                                              cp_fm_release,&
                                              cp_fm_type
+  USE cp_gemm_interface,               ONLY: cp_gemm
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
   USE cp_subsys_types,                 ONLY: cp_subsys_get
@@ -61,9 +61,13 @@ MODULE et_coupling
 
 ! *** Public subroutines ***
 
-  PUBLIC :: calc_et_coupling,becke_restraint,becke_force
+  PUBLIC :: calc_et_coupling, becke_restraint
 
 CONTAINS
+! *****************************************************************************
+!> \brief ...
+!> \param qs_env ...
+!> \param error ...
 ! *****************************************************************************
   SUBROUTINE calc_et_coupling(qs_env,error)
 
@@ -148,7 +152,7 @@ CONTAINS
 
     CALL cp_dbcsr_sm_fm_multiply(qs_env%matrix_s(1)%matrix,qs_env%et_coupling%et_mo_coeff(i)%matrix,&
          tmp2,nmo,1.0_dp,0.0_dp,error=error)
-    CALL cp_fm_gemm('T','N',nmo,nmo,nao,1.0_dp,&
+    CALL cp_gemm('T','N',nmo,nmo,nao,1.0_dp,&
          qs_env%mos(i)%mo_set%mo_coeff,&
          tmp2,0.0_dp,SMO,error=error)
 
@@ -158,7 +162,7 @@ CONTAINS
          qs_env%et_coupling%et_mo_coeff(i)%matrix,&
          tmp2,nmo,1.0_dp,0.0_dp,error=error)
 
-    CALL cp_fm_gemm('T','N',nmo,nmo,nao,1.0_dp,&
+    CALL cp_gemm('T','N',nmo,nmo,nao,1.0_dp,&
          qs_env%mos(i)%mo_set%mo_coeff,&
          tmp2,0.0_dp,rest_MO(1)%matrix,error=error)
 
@@ -168,7 +172,7 @@ CONTAINS
          qs_env%mos(i)%mo_set%mo_coeff,&
          tmp2,nmo,1.0_dp,0.0_dp,error=error)
 
-    CALL cp_fm_gemm('T','N',nmo,nmo,nao,1.0_dp,&
+    CALL cp_gemm('T','N',nmo,nmo,nao,1.0_dp,&
          qs_env%et_coupling%et_mo_coeff(i)%matrix,&
          tmp2,0.0_dp,rest_MO(2)%matrix,error=error)
 
@@ -284,7 +288,11 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief calculates a becke contraint
+!> \param qs_env ...
+!> \param becke_const ...
 !> \param calc_pot logical if potential has to be calculated or only_energy
+!> \param calculate_forces ...
+!> \param error ...
 !> \author fschiff (01.2007)
 ! *****************************************************************************
   SUBROUTINE becke_restraint(qs_env,becke_const ,calc_pot,calculate_forces,error)
@@ -453,6 +461,9 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief calculates a becke contraint forces
+!> \param qs_env ...
+!> \param becke_const ...
+!> \param error ...
 !> \author fschiff (01.2007)
 ! *****************************************************************************
   SUBROUTINE becke_force(qs_env,becke_const,error)

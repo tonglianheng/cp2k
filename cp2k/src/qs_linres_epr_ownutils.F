@@ -13,7 +13,7 @@ MODULE qs_linres_epr_ownutils
                                              get_atomic_kind
   USE cell_types,                      ONLY: cell_type
   USE cp_control_types,                ONLY: dft_control_type
-  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_p_type
+  USE cp_dbcsr_interface,              ONLY: cp_dbcsr_p_type
   USE cp_output_handling,              ONLY: cp_p_file,&
                                              cp_print_key_finished_output,&
                                              cp_print_key_should_output,&
@@ -52,11 +52,13 @@ MODULE qs_linres_epr_ownutils
                                              REALSPACE,&
                                              RECIPROCALSPACE,&
                                              pw_p_type
-  USE qs_core_energies,                ONLY: calculate_ecore
+  USE qs_core_energies,                ONLY: calculate_ptrace
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
   USE qs_grid_atom,                    ONLY: grid_atom_type
   USE qs_harmonics_atom,               ONLY: harmonics_atom_type
+  USE qs_kind_types,                   ONLY: get_qs_kind,&
+                                             qs_kind_type
   USE qs_linres_nmr_epr_common_utils,  ONLY: mult_G_ov_G2_grid
   USE qs_linres_op,                    ONLY: fac_vecp,&
                                              set_vecp,&
@@ -89,6 +91,9 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Prints the g tensor
+!> \param epr_env ...
+!> \param qs_env ...
+!> \param error ...
 !> \par History
 !>      06.2006 created [RD]
 !> \author RD
@@ -138,8 +143,8 @@ CONTAINS
               "EPR%PRINT%G_TENSOR",error=error),cp_p_file)) THEN
 
        unit_nr=cp_print_key_unit_nr(logger,lr_section,"EPR%PRINT%G_TENSOR",&
-            &                          extension=".data",middle_name="GTENSOR",&
-            &                          log_filename=.FALSE.,error=error)
+                                       extension=".data",middle_name="GTENSOR",&
+                                       log_filename=.FALSE.,error=error)
 
        IF(unit_nr > 0) THEN
 
@@ -215,6 +220,9 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Calculate zke part of the g tensor
+!> \param epr_env ...
+!> \param qs_env ...
+!> \param error ...
 !> \par History
 !>      06.2006 created [RD]
 !> \author RD
@@ -251,10 +259,8 @@ CONTAINS
                     kinetic=kinetic,rho=rho,para_env=para_env,error=error)
 
     DO ispin=1,dft_control%nspins
-       CALL calculate_ecore(h=kinetic(1)%matrix,&
-                            p=rho%rho_ao(ispin)%matrix,&
-                            ecore=epr_g_zke_temp(ispin),&
-                            error=error)
+       CALL calculate_ptrace(kinetic(1)%matrix,rho%rho_ao(ispin)%matrix,&
+                             ecore=epr_g_zke_temp(ispin),error=error)
     END DO
 
     epr_env%g_zke = epr_env%g_zke_factor * ( epr_g_zke_temp(1) - epr_g_zke_temp(2) )
@@ -274,6 +280,11 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Calculates g_so
+!> \param epr_env ...
+!> \param current_env ...
+!> \param qs_env ...
+!> \param iB ...
+!> \param error ...
 !> \par History
 !>      06.2006 created [RD]
 !> \author RD
@@ -296,14 +307,14 @@ CONTAINS
     INTEGER, DIMENSION(:), POINTER           :: atom_list
     LOGICAL                                  :: failure, gapw, paw_atom, &
                                                 success
-    REAL(dp)                                 :: eps_r, eps_x, temp_so_soft, &
-                                                vks_ra_idir2, vks_ra_idir3
+    REAL(dp)                                 :: eps_r, eps_x, hard_radius, &
+                                                temp_so_soft, vks_ra_idir2, &
+                                                vks_ra_idir3
     REAL(dp), DIMENSION(3, 3)                :: temp_so_gapw
     REAL(dp), DIMENSION(:, :), POINTER       :: g_so, g_total
     REAL(KIND=dp), DIMENSION(3)              :: ra
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
-    TYPE(atomic_kind_type), POINTER          :: atom_kind
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(dft_control_type), POINTER          :: dft_control
@@ -322,13 +333,15 @@ CONTAINS
       POINTER                                :: vks_pw_spline
     TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
     TYPE(pw_spline_precond_type), POINTER    :: precond
+    TYPE(qs_kind_type), DIMENSION(:), &
+      POINTER                                :: qs_kind_set
     TYPE(qs_rho_p_type), DIMENSION(:), &
       POINTER                                :: jrho1_set
     TYPE(qs_rho_p_type), DIMENSION(:, :), &
       POINTER                                :: nablavks_set
     TYPE(section_vals_type), POINTER         :: interp_section, lr_section
 
-    NULLIFY(atomic_kind_set, atom_kind, atom_list, dft_control,&
+    NULLIFY(atomic_kind_set, qs_kind_set, atom_list, dft_control,&
       grid_atom, g_so, g_total, harmonics, interp_section, jrho1_atom_set,&
       jrho1_set, logger, lr_section, nablavks_atom, nablavks_atom_set,&
       nablavks_set, para_env, particle_set)
@@ -343,6 +356,7 @@ CONTAINS
 
     CALL get_qs_env(qs_env=qs_env,dft_control=dft_control,&
                     atomic_kind_set=atomic_kind_set,&
+                    qs_kind_set=qs_kind_set,&
                     para_env=para_env,pw_env=pw_env,&
                     particle_set=particle_set,&
                     error=error)
@@ -357,7 +371,7 @@ CONTAINS
                          error=error)
 
     gapw = dft_control%qs_control%gapw
-    nkind = SIZE(atomic_kind_set,1)
+    nkind = SIZE(qs_kind_set,1)
     nspins = dft_control%nspins
 
     DO idir1=1,3
@@ -421,11 +435,13 @@ CONTAINS
        temp_so_gapw = 0.0_dp
 
        DO ikind = 1, nkind
-          NULLIFY (atom_kind,atom_list,grid_atom,harmonics)
-          atom_kind => atomic_kind_set(ikind)
-          CALL get_atomic_kind(atomic_kind=atom_kind,atom_list=atom_list,&
-                               grid_atom=grid_atom,harmonics=harmonics,&
-                               natom=natom, paw_atom=paw_atom)
+          NULLIFY (atom_list,grid_atom,harmonics)
+          CALL get_atomic_kind(atomic_kind_set(ikind), atom_list=atom_list, natom=natom)
+          CALL get_qs_kind(qs_kind_set(ikind),&
+                           hard_radius=hard_radius,&
+                           grid_atom=grid_atom,&
+                           harmonics=harmonics,&
+                           paw_atom=paw_atom)
 
           IF (.NOT.paw_atom) CYCLE
 
@@ -444,7 +460,7 @@ CONTAINS
                 DO ispin = 1,nspins
                    DO ir = 1,grid_atom%nr
 
-                      IF (grid_atom%rad(ir) >= atom_kind%hard_radius) CYCLE
+                      IF (grid_atom%rad(ir) >= hard_radius) CYCLE
 
                       DO ia = 1,grid_atom%ng_sphere
 
@@ -551,6 +567,11 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Calculates g_soo (soft part only for now)
+!> \param epr_env ...
+!> \param current_env ...
+!> \param qs_env ...
+!> \param iB ...
+!> \param error ...
 !> \par History
 !>      06.2006 created [RD]
 !> \author RD
@@ -575,13 +596,13 @@ CONTAINS
                                                 soo_rho_hard, success
     REAL(dp)                                 :: bind_ra_idir1, &
                                                 chi_tensor(3,3,2), eps_r, &
-                                                eps_x, rho_spin, temp_soo_soft
+                                                eps_x, hard_radius, rho_spin, &
+                                                temp_soo_soft
     REAL(dp), DIMENSION(3, 3)                :: temp_soo_gapw
     REAL(dp), DIMENSION(:, :), POINTER       :: g_soo, g_total
     REAL(KIND=dp), DIMENSION(3)              :: ra
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
-    TYPE(atomic_kind_type), POINTER          :: atom_kind
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(dft_control_type), POINTER          :: dft_control
@@ -594,6 +615,8 @@ CONTAINS
       POINTER                                :: bind_pw_spline
     TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
     TYPE(pw_spline_precond_type), POINTER    :: precond
+    TYPE(qs_kind_type), DIMENSION(:), &
+      POINTER                                :: qs_kind_set
     TYPE(qs_rho_p_type), DIMENSION(:, :), &
       POINTER                                :: bind_set
     TYPE(qs_rho_type), POINTER               :: rho
@@ -605,7 +628,7 @@ CONTAINS
     TYPE(section_vals_type), POINTER         :: g_section, interp_section, &
                                                 lr_section
 
-    NULLIFY(atomic_kind_set, atom_kind, atom_list, bind_set, dft_control, &
+    NULLIFY(atomic_kind_set, qs_kind_set, atom_list, bind_set, dft_control, &
          grid_atom, g_section, g_soo, g_total, harmonics, interp_section, &
          logger, lr_section, para_env, particle_set, rho, rho_atom, &
          rho_atom_set)
@@ -623,7 +646,7 @@ CONTAINS
 
     failure = .FALSE.
 
-    CALL get_qs_env(qs_env=qs_env,atomic_kind_set=atomic_kind_set,&
+    CALL get_qs_env(qs_env=qs_env,atomic_kind_set=atomic_kind_set,qs_kind_set=qs_kind_set,&
                     dft_control=dft_control,para_env=para_env,particle_set=particle_set,&
                     pw_env=pw_env,rho=rho,rho_atom_set=rho_atom_set,error=error)
 
@@ -635,7 +658,7 @@ CONTAINS
                          error=error)
 
     gapw = dft_control%qs_control%gapw
-    nkind = SIZE(atomic_kind_set,1)
+    nkind = SIZE(qs_kind_set,1)
     nspins = dft_control%nspins
 
     DO idir1=1,3
@@ -703,11 +726,13 @@ CONTAINS
        temp_soo_gapw = 0.0_dp
 
        DO ikind = 1,nkind
-          NULLIFY (atom_kind,atom_list,grid_atom,harmonics)
-          atom_kind => atomic_kind_set(ikind)
-          CALL get_atomic_kind(atomic_kind=atom_kind,atom_list=atom_list,&
-                               grid_atom=grid_atom,harmonics=harmonics,&
-                               natom=natom, paw_atom=paw_atom)
+          NULLIFY (atom_list,grid_atom,harmonics)
+          CALL get_atomic_kind(atomic_kind_set(ikind), atom_list=atom_list, natom=natom)
+          CALL get_qs_kind(qs_kind_set(ikind),&
+                           hard_radius=hard_radius,&
+                           grid_atom=grid_atom,&
+                           harmonics=harmonics,&
+                           paw_atom=paw_atom)
 
           IF (.NOT.paw_atom) CYCLE
 
@@ -726,7 +751,7 @@ CONTAINS
                 DO ispin = 1,nspins
                    DO ir = 1,grid_atom%nr
 
-                      IF (grid_atom%rad(ir) >= atom_kind%hard_radius) CYCLE
+                      IF (grid_atom%rad(ir) >= hard_radius) CYCLE
 
                       DO ia = 1,grid_atom%ng_sphere
 
@@ -788,6 +813,14 @@ CONTAINS
 
   END SUBROUTINE epr_g_soo
 
+! *****************************************************************************
+!> \brief ...
+!> \param epr_env ...
+!> \param current_env ...
+!> \param qs_env ...
+!> \param iB ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE epr_ind_magnetic_field(epr_env,current_env,qs_env,iB,error)
 
     TYPE(epr_env_type)                       :: epr_env
@@ -850,17 +883,17 @@ CONTAINS
     DO ispin = 1,nspins
        DO idir = 1,3
           CALL pw_pool_create_pw(auxbas_pw_pool,shift_pw_gspace(idir,ispin)%pw,&
-               &                  use_data=COMPLEXDATA1D,&
-               &                  in_space=RECIPROCALSPACE,error=error)
+                                  use_data=COMPLEXDATA1D,&
+                                  in_space=RECIPROCALSPACE,error=error)
           CALL pw_zero(shift_pw_gspace(idir,ispin)%pw,error=error)
        ENDDO
     ENDDO
     CALL pw_pool_create_pw(auxbas_pw_pool,shift_pw_rspace%pw,&
-         &                 use_data=REALDATA3D,in_space=REALSPACE,error=error)
+                           use_data=REALDATA3D,in_space=REALSPACE,error=error)
     CALL pw_zero(shift_pw_rspace%pw,error=error)
     CALL pw_pool_create_pw(auxbas_pw_pool,pw_gspace_work%pw,&
-            &              use_data=COMPLEXDATA1D,&
-            &              in_space=RECIPROCALSPACE,error=error)
+                           use_data=COMPLEXDATA1D,&
+                           in_space=RECIPROCALSPACE,error=error)
 
     CALL pw_zero(pw_gspace_work%pw,error=error)
     !
@@ -881,7 +914,7 @@ CONTAINS
              IF(idir /= idir2) THEN
                 ! in reciprocal space multiply (G_idir2(i)/G(i)^2)J_(idir)(G(i))
                 CALL mult_G_ov_G2_grid(cell,auxbas_pw_pool,rho_gspace,&
-                     &                 pw_gspace_work,idir2,0.0_dp,error=error)
+                                       pw_gspace_work,idir2,0.0_dp,error=error)
                 !
                 ! scale and add to the correct component of the shift column
                 CALL set_vecp_rev(idir,idir2,idir3)

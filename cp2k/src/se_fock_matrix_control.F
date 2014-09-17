@@ -9,7 +9,7 @@
 !> \par History
 ! *****************************************************************************
 MODULE se_fock_matrix_control
-  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_p_type
+  USE cp_dbcsr_interface,              ONLY: cp_dbcsr_p_type
   USE qs_energy_types,                 ONLY: qs_energy_type
   USE qs_environment_types,            ONLY: qs_environment_type
   USE qs_ks_types,                     ONLY: qs_ks_env_type
@@ -31,9 +31,17 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Construction of the Fock matrix for NDDO methods
-!> \author JGH
+!> \param ks_env ...
+!> \param qs_env ...
+!> \param ks_matrix ...
+!> \param rho ...
+!> \param energy ...
+!> \param calculate_forces ...
+!> \param just_energy ...
+!> \param error ...
 !> \par History
 !>         - Teodoro Laino [tlaino] (05.2009) - Split and module reorganization
+!> \author JGH
 ! *****************************************************************************
   SUBROUTINE build_se_fock_matrix_control (ks_env,qs_env,ks_matrix,rho,energy,&
        calculate_forces,just_energy,error)

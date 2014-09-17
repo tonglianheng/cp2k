@@ -25,11 +25,6 @@ MODULE dbcsr_work_operations
   USE btree_I8_k_dp2d_v,               ONLY: btree_2d_data_d => dp2d
   USE btree_I8_k_sp2d_v,               ONLY: btree_2d_data_s => sp2d
   USE btree_I8_k_zp2d_v,               ONLY: btree_2d_data_z => zp2d
-  USE dbcsr_block_buffers,             ONLY: dbcsr_buffers_2d_needed,&
-                                             dbcsr_buffers_flush,&
-                                             dbcsr_buffers_init,&
-                                             dbcsr_buffers_new,&
-                                             dbcsr_buffers_release
   USE dbcsr_block_operations,          ONLY: block_copy_c,&
                                              block_copy_d,&
                                              block_copy_s,&
@@ -46,7 +41,11 @@ MODULE dbcsr_work_operations
        dbcsr_get_data_p_d, dbcsr_get_data_p_s, dbcsr_get_data_p_z
   USE dbcsr_data_operations,           ONLY: dbcsr_data_copyall,&
                                              dbcsr_sort_data
-  USE dbcsr_error_handling
+  USE dbcsr_error_handling,            ONLY: &
+       dbcsr_assert, dbcsr_caller_error, dbcsr_error_set, dbcsr_error_stop, &
+       dbcsr_error_type, dbcsr_failure_level, dbcsr_fatal_level, &
+       dbcsr_internal_error, dbcsr_unimplemented_error_nr, &
+       dbcsr_warning_level, dbcsr_wrong_args_error
   USE dbcsr_index_operations,          ONLY: dbcsr_addto_index_array,&
                                              dbcsr_build_row_index,&
                                              dbcsr_clearfrom_index_array,&
@@ -59,10 +58,6 @@ MODULE dbcsr_work_operations
                                              dbcsr_iterator_next_block,&
                                              dbcsr_iterator_start,&
                                              dbcsr_iterator_stop
-  USE dbcsr_kinds,                     ONLY: default_string_length,&
-                                             int_8,&
-                                             real_4,&
-                                             real_8
   USE dbcsr_mem_methods,               ONLY: dbcsr_memtype_equal
   USE dbcsr_methods,                   ONLY: &
        dbcsr_col_block_sizes, dbcsr_distribution, &
@@ -102,6 +97,10 @@ MODULE dbcsr_work_operations
                                              dbcsr_calc_block_sizes,&
                                              dbcsr_verify_matrix,&
                                              meta_from_dist
+  USE kinds,                           ONLY: default_string_length,&
+                                             int_8,&
+                                             real_4,&
+                                             real_8
 
   !$ USE OMP_LIB
 
@@ -115,7 +114,7 @@ MODULE dbcsr_work_operations
 
 
   PUBLIC :: dbcsr_create, dbcsr_work_create, dbcsr_finalize, dbcsr_special_finalize
-  PUBLIC :: dbcsr_work_destroy, dbcsr_add_wm_from_matrix,&
+  PUBLIC :: dbcsr_add_wm_from_matrix,&
             add_work_coordinate
 
   INTERFACE dbcsr_create
@@ -132,18 +131,18 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Creates a matrix, allocating the essentials.
-!> \par The matrix itself is allocated, as well as the essential parts of
-!>      the index. When passed the nze argument, the data is also allocated
-!>      to that size.
 !> \param[in,out] matrix      new matrix
+!> \param name ...
 !> \param[in] dist            distribution_2d distribution
 !> \param[in] matrix_type     'N' for normal, 'T' for transposed, 'S' for
 !>                            symmetric, and 'A' for antisymmetric
+!> \param row_blk_size ...
+!> \param col_blk_size ...
 !> \param[in] nblks           (optional) number of blocks
 !> \param[in] nze             (optional) number of elements
-!> \param[in] data_type       type of data from [rRcC] for single/double
+!> \param[in] data_type       type of data from 'rRcC' for single/double
 !>                            precision real/complex, default is 'R'
-!> \param[in] memory_type     (optional) allocate indices and data using
+!> \param[in] data_memory_type     (optional) allocate indices and data using
 !>                            special memory
 !> \param[in] index_memory_type     (optional) allocate indices using
 !>                            special memory
@@ -153,8 +152,11 @@ CONTAINS
 !>                            append-only data; default is append-only
 !> \param[in] replication_type     replication to be used for this matrix;
 !>                                 default is dbcsr_repl_none
-!>                                 \see dbcsr_types.F
 !> \param[in,out] error       cp2k error
+!> \par The matrix itself is allocated, as well as the essential parts of
+!>      the index. When passed the nze argument, the data is also allocated
+!>      to that size.
+!>                                 see dbcsr_types.F
 ! *****************************************************************************
   SUBROUTINE dbcsr_create_new(matrix, name, dist, matrix_type,&
        row_blk_size, col_blk_size, nblks, nze, data_type,&
@@ -197,9 +199,6 @@ CONTAINS
     IF (.NOT.hijack) THEN
        CALL dbcsr_init (matrix%m)
        matrix%m%refcount = 1
-    ELSEIF (dbcsr_buffers_2d_needed) THEN
-       CALL dbcsr_buffers_flush (matrix%m%buffers, error=error)
-       CALL dbcsr_buffers_release (matrix%m%buffers, error=error)
     ENDIF
     !$OMP CRITICAL
     matrix%m%serial_number = dbcsr_matrix_counter
@@ -397,12 +396,6 @@ CONTAINS
     matrix%m%has_global_rows = .FALSE.
     matrix%m%has_local_cols  = .FALSE.
     matrix%m%has_global_cols = .FALSE.
-    CALL dbcsr_buffers_init (matrix%m%buffers)
-    IF (dbcsr_buffers_2d_needed) THEN
-       CALL dbcsr_buffers_new (matrix%m%buffers, matrix%m%data_area,&
-            error=error)
-    ENDIF
-!$  CALL OMP_INIT_LOCK (matrix%m%modification_lock)
     CALL dbcsr_make_index_exist (matrix%m, error=error)
     matrix%m%valid = .TRUE.
     CALL dbcsr_error_stop(error_handler, error)
@@ -410,6 +403,23 @@ CONTAINS
 
 
 ! *****************************************************************************
+!> \brief ...
+!> \param matrix ...
+!> \param template ...
+!> \param name ...
+!> \param dist ...
+!> \param matrix_type ...
+!> \param row_blk_size ...
+!> \param col_blk_size ...
+!> \param nblks ...
+!> \param nze ...
+!> \param data_type ...
+!> \param data_memory_type ...
+!> \param index_memory_type ...
+!> \param reuse ...
+!> \param mutable_work ...
+!> \param replication_type ...
+!> \param error ...
 ! *****************************************************************************
   SUBROUTINE dbcsr_create_template(matrix, template, name, dist, matrix_type,&
        row_blk_size, col_blk_size, nblks, nze, data_type,&
@@ -522,8 +532,11 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Initializes one work matrix
 !> \param[out] wm             initialized work matrix
+!> \param data_type ...
 !> \param[in] nblks_guess     (optional) estimated number of blocks
 !> \param[in] sizedata_guess  (optional) estimated size of data
+!> \param memory_type ...
+!> \param error ...
 ! *****************************************************************************
   SUBROUTINE dbcsr_init_wm (wm, data_type, nblks_guess, sizedata_guess, memory_type, error)
     TYPE(dbcsr_work_type), INTENT(OUT)       :: wm
@@ -591,6 +604,7 @@ CONTAINS
 !>                            default is 1
 !> \param[in] work_mutable    (optional) use mutable work type, default is
 !>                            what was specified in create
+!> \param memory_type ...
 !> \param[in,out] error       cp2k error
 ! *****************************************************************************
   SUBROUTINE dbcsr_work_create(matrix, nblks_guess, sizedata_guess, n,&
@@ -711,9 +725,6 @@ CONTAINS
     CALL dbcsr_assert (dbcsr_is_initialized (matrix),&
          dbcsr_fatal_level, dbcsr_caller_error,&
          routineN, "Can not finalize uninitialized matrix.",__LINE__,error)
-    IF (dbcsr_buffers_2d_needed) THEN
-       CALL dbcsr_buffers_flush (matrix%m%buffers, error=error)
-    ENDIF
 
     ! If the matrix is not marked as dirty then skip the work.
     IF (dbcsr_valid_index(matrix)) THEN
@@ -898,15 +909,15 @@ CONTAINS
        DEALLOCATE (empty_row_p)
     ENDIF
 !$OMP END MASTER
-    IF (dbcsr_buffers_2d_needed) THEN
-       CALL dbcsr_buffers_new (matrix%m%buffers, matrix%m%data_area,&
-            error=error)
-    ENDIF
 !$OMP BARRIER
     CALL dbcsr_error_stop(error_handler, error)
   END SUBROUTINE dbcsr_finalize
 
 ! *****************************************************************************
+!> \brief ...
+!> \param matrix ...
+!> \param reshuffle ...
+!> \param error ...
 ! *****************************************************************************
   SUBROUTINE dbcsr_special_finalize(matrix, reshuffle, error)
     TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix
@@ -940,9 +951,6 @@ CONTAINS
          dbcsr_fatal_level, dbcsr_caller_error,&
          routineN, "Optimized finalize requires single work matrix",__LINE__,error)
 
-    IF (dbcsr_buffers_2d_needed) THEN
-       CALL dbcsr_buffers_flush (matrix%m%buffers, error=error)
-    ENDIF
     !
     ! If possible, data copying is avoided.
     IF (PRESENT (reshuffle)) THEN
@@ -998,10 +1006,6 @@ CONTAINS
        CALL dbcsr_verify_matrix (matrix, error=error)
        !$OMP END SINGLE
     ENDIF
-    IF (dbcsr_buffers_2d_needed) THEN
-       CALL dbcsr_buffers_new (matrix%m%buffers, matrix%m%data_area,&
-            error=error)
-    ENDIF
     !$OMP BARRIER
     CALL dbcsr_error_stop(error_handler, error)
   END SUBROUTINE dbcsr_special_finalize
@@ -1009,7 +1013,7 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Checks whether the matrix can be finalized with minimal copying.
 !> \param[in] matrix          matrix to check
-!> \result quick              whether matrix can be quickly finalized
+!> \retval quick              whether matrix can be quickly finalized 
 ! *****************************************************************************
   FUNCTION can_quickly_finalize (matrix) RESULT (quick)
     TYPE(dbcsr_obj), INTENT(IN)              :: matrix
@@ -1152,6 +1156,7 @@ CONTAINS
 !>        previously-finalized one.
 !> \param[in,out] wm          the work matrix to fill
 !> \param[in,out] matrix      DBCSR matrix
+!> \param size_used ...
 !> \param[in] limits          (optional) only fills blocks within this range
 !> \param[in,out] error       error
 !> \par limits
@@ -1275,9 +1280,10 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Checks whether a point is within bounds
-!> \param[in] row, column    point to check
+!> \param[in] row point to check
+!> \param[in] column point to check
 !> \param[in] limits         limits (low_row, high_row, low_col, high_col)
-!> \result                   whether the point is within the bounds
+!> \retval within_limits     whether the point is within the bounds
 ! *****************************************************************************
 
   PURE FUNCTION within_limits (row, column, limits)
@@ -1329,12 +1335,7 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Deallocates and destroys a work matrix.
-!> \param[in,out] wm          work matrix
-!> \param[in,out] error       cp2k error
-!> \param keepdata    do not deallocate data
-!> \param keepfinal   do not destroy the final, non-work matrix
-!> \param keepfinaldata       do not destroy the data in the final,
-!>                            non-work matrix
+!> \param m ...
 ! *****************************************************************************
   SUBROUTINE dbcsr_work_destroy_all(m)
     TYPE(dbcsr_type), INTENT(INOUT)          :: m
@@ -1368,12 +1369,13 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Adds a coordinate (or other data) into a work matrix's row_i and
 !>        col_i arrays and returns its position.
-!> \note  Uses the matrix%lastblk to keep track of the current position.
 !> \param[in,out] matrix      work matrix
-!> \param[in] row,col         row, col data to add
+!> \param[in] row row data to add
+!> \param[in] col col data to add
 !> \param[in] blk   (optional) block pointer to add
 !> \param[out] index          (optional) saved position
 !> \param error     cp2k error
+!> \note  Uses the matrix%lastblk to keep track of the current position.
 ! *****************************************************************************
   SUBROUTINE add_work_coordinate(matrix, row, col, blk, index, error)
     TYPE(dbcsr_work_type), INTENT(INOUT)     :: matrix
@@ -1406,39 +1408,13 @@ CONTAINS
     IF (careful_mod) CALL dbcsr_error_stop(error_handler, error)
   END SUBROUTINE add_work_coordinate
 
-
-! *****************************************************************************
-!> \brief Count actual size taken by work matrix
-!> \param[in] row_i           row indices
-!> \param[in] col_i           column indices
-!> \param[in] row_block_sizes  offsets of rows
-!> \param[in] col_block_sizes  offsets of columns
-!> \param[in] nblks              number of blocks
-!> \param[out] nze               counted data size
-! *****************************************************************************
-  PURE SUBROUTINE dbcsr_count_wm(row_i, col_i,&
-       row_block_sizes, col_block_sizes, nblks, nze)
-    INTEGER, INTENT(IN)                      :: nblks
-    INTEGER, DIMENSION(:), INTENT(IN)        :: col_block_sizes, &
-                                                row_block_sizes
-    INTEGER, DIMENSION(nblks), INTENT(IN)    :: col_i, row_i
-    INTEGER, INTENT(OUT)                     :: nze
-
-    INTEGER                                  :: blk
-
-!   ---------------------------------------------------------------------------
-
-    nze = 0
-    DO blk = 1, nblks
-       nze = nze + row_block_sizes(row_i(blk)) * col_block_sizes(col_i(blk))
-    ENDDO
-  END SUBROUTINE dbcsr_count_wm
-
-
 ! *****************************************************************************
 !> \brief Merge data from matrix and work matrices into the final matrix.
 !>
 !> \param[in,out] matrix      matrix to work on
+!> \param old_row_p ...
+!> \param old_col_i ...
+!> \param old_blk_p ...
 !> \param[in] data_starting_offset   Where to add data
 !> \param[in] sort_data       whether data will be fully sorted
 !> \param[in,out] error       error
@@ -1844,11 +1820,21 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Builds a new index from several work matrices.
 !>
-!> \param[in] wm          work matrix
-!> \param[in,out] additions_per_row     number of blocks and data to add for
-!>                                      every row
-!> \param[out] additions_total          total number of blocks and data to add
-!> \param[out] blk_p          block sizes of data to add
+!> \param new_row_p ...
+!> \param new_col_i ...
+!> \param new_blk_p ...
+!> \param blk_d ...
+!> \param old_row_p ...
+!> \param old_col_i ...
+!> \param old_blk_p ...
+!> \param all_row_p ...
+!> \param all_col_i ...
+!> \param all_blk_p ...
+!> \param all_data_offsets ...
+!> \param nwms ...
+!> \param nrows ...
+!> \param max_row_count ...
+!> \param sort_data ...
 !> \param[in,out] error       error
 ! *****************************************************************************
   SUBROUTINE merge_index (new_row_p, new_col_i, new_blk_p,&

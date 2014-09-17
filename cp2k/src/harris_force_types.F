@@ -23,15 +23,11 @@ MODULE harris_force_types
   INTEGER, PRIVATE, SAVE :: last_harris_id=0
 
   ! *** Public data types ***
-  PUBLIC :: harris_force_type, &
-            harris_force_p_type
+  PUBLIC :: harris_force_type
 
   ! *** Public subroutines ***
-  PUBLIC :: harris_force_retain, &
-            harris_force_release, &
-            harris_force_set,&
-            harris_force_get, &
-            harris_force_clear, &
+  PUBLIC :: harris_force_release,&
+            harris_force_clear,&
             harris_force_create
 
 ! *****************************************************************************
@@ -244,9 +240,8 @@ CONTAINS
 !> \brief Returns various attributes of the harris force type
 !> \param harris_force The enquired harris force type
 !> \param id_nr unique identifier
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \param f_trace The forces of the sum of eigenvalue term
+!> \param f_V ...
 !> \param f_hartree The forces due to the hartree repulsion of the electrons
 !> \param f_integral_vxc The forces due to the integral over the vxc potential
 !> \param f_delta_integral_vxc The differnece between f_integral_vxc & f_xc
@@ -254,19 +249,21 @@ CONTAINS
 !> \param f_ovrl The forces due to the overalp
 !> \param f_self The forces dur to the self-interaction
 !> \param f_rho_core The forces due to the hartree repulsion of the cores
-!> \param EII The forces due to the ion-ion repulsion
+!> \param f_EII The forces due to the ion-ion repulsion
 !> \param f_harris The total forces due to the harris functional
 !> \param f_cross_integrate_v The forces of the integral of the cross terms
 !> \param f_cross_integrate_v_core The forces of the integral of the cross terms
-!> \param f_total The sum of the total forces of all involved atoms
-!>          In principle this sum should be zero, due to translation invariance
-!>          It can therefore be used as a criterion for the quality of the forces
 !> \param f_kinetic The forces due to the kinetic energy
 !> \param f_gth_pp The forces of the GTH pseudopotential
 !> \param f_overlap The forces due to the overlap
 !> \param f_nsc The non-self-consistent forces
 !>
 !>      For possible missing arguments see the attributes of harris_force_type
+!> \param f_total The sum of the total forces of all involved atoms
+!>          In principle this sum should be zero, due to translation invariance
+!>          It can therefore be used as a criterion for the quality of the forces
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \par History
 !>      06.2005 initial create [tdk]
 !> \author Thomas D. Kuehne (tkuehne@phys.chem.ethz.ch)
@@ -332,9 +329,8 @@ CONTAINS
 !> \brief Sets various attributes of the harris force type
 !> \param harris_force The enquired harris force type
 !> \param id_nr unique identifier
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \param f_trace The forces of the sum of eigenvalue term
+!> \param f_V ...
 !> \param f_hartree The forces due to the hartree repulsion of the electrons
 !> \param f_integral_vxc The forces due to the integral over the vxc potential
 !> \param f_delta_integral_vxc The differnece between f_integral_vxc & f_xc
@@ -342,19 +338,21 @@ CONTAINS
 !> \param f_ovrl The forces due to the overalp
 !> \param f_self The forces dur to the self-interaction
 !> \param f_rho_core The forces due to the hartree repulsion of the cores
-!> \param EII The forces due to the ion-ion repulsion
+!> \param f_EII The forces due to the ion-ion repulsion
 !> \param f_harris The total forces due to the harris functional
 !> \param f_cross_integrate_v The forces of the integral of the cross terms
 !> \param f_cross_integrate_v_core The forces of the integral of the cross terms
-!> \param f_total The sum of the total forces of all involved atoms
-!>          In principle this sum should be zero, due to translation invariance
-!>          It can therefore be used as a criterion for the quality of the forces
 !> \param f_kinetic The forces due to the kinetic energy
 !> \param f_gth_pp The forces of the GTH pseudopotential
 !> \param f_overlap The forces due to the overlap
 !> \param f_nsc The non-self-consistent forces
 !>
 !>      For possible missing arguments see the attributes of harris_force_type
+!> \param f_total The sum of the total forces of all involved atoms
+!>          In principle this sum should be zero, due to translation invariance
+!>          It can therefore be used as a criterion for the quality of the forces
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \par History
 !>      06.2005 initial create [tdk]
 !> \author Thomas D. Kuehne (tkuehne@phys.chem.ethz.ch)

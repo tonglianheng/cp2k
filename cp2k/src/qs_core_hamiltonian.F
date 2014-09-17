@@ -1,4 +1,4 @@
-!-----------------------------------------------------------------------------!
+!i----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000 - 2014  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
@@ -68,35 +68,28 @@
 !>      - Binary search loop for VPPNL operators (09.01.2004,JGH,MK)
 !>      - Refactoring of pseudopotential and nuclear attraction integrals (25.02.2009,JGH)
 !>      - General refactoring (01.10.2010,JGH)
+!>      - Refactoring related to the new kinetic energy and overlap routines (07.2014,JGH)
 !> \author Matthias Krack (14.09.2000,21.03.02)
 ! *****************************************************************************
 MODULE qs_core_hamiltonian
-
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
-                                             get_atomic_kind,&
                                              get_atomic_kind_set
   USE core_ae,                         ONLY: build_core_ae
   USE core_ppl,                        ONLY: build_core_ppl
   USE core_ppnl,                       ONLY: build_core_ppnl
-  USE cp_dbcsr_interface,              ONLY: cp_dbcsr_add,&
-                                             cp_dbcsr_copy,&
-                                             cp_dbcsr_init,&
-                                             cp_dbcsr_iterator_blocks_left,&
-                                             cp_dbcsr_iterator_next_block,&
-                                             cp_dbcsr_iterator_start,&
-                                             cp_dbcsr_iterator_stop
-  USE cp_dbcsr_operations,             ONLY: cp_dbcsr_allocate_matrix_set,&
-                                             cp_dbcsr_deallocate_matrix_set
+  USE cp_dbcsr_interface,              ONLY: &
+       cp_dbcsr_add, cp_dbcsr_allocate_matrix_set, cp_dbcsr_copy, &
+       cp_dbcsr_deallocate_matrix_set, cp_dbcsr_init, cp_dbcsr_iterator, &
+       cp_dbcsr_iterator_blocks_left, cp_dbcsr_iterator_next_block, &
+       cp_dbcsr_iterator_start, cp_dbcsr_iterator_stop, cp_dbcsr_p_type, &
+       dbcsr_distribution_obj
   USE cp_dbcsr_output,                 ONLY: cp_dbcsr_write_matrix_dist,&
                                              cp_dbcsr_write_sparse_matrix
-  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_iterator,&
-                                             cp_dbcsr_p_type
   USE cp_output_handling,              ONLY: cp_p_file,&
                                              cp_print_key_finished_output,&
                                              cp_print_key_should_output,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE dbcsr_types,                     ONLY: dbcsr_distribution_obj
   USE ep_qs_types,                     ONLY: ep_qs_type
   USE input_constants,                 ONLY: do_ppl_analytic,&
                                              kg_tnadd_atomic,&
@@ -115,6 +108,9 @@ MODULE qs_core_hamiltonian
                                              qs_environment_type,&
                                              set_qs_env
   USE qs_force_types,                  ONLY: qs_force_type
+  USE qs_kind_types,                   ONLY: get_qs_kind,&
+                                             get_qs_kind_set,&
+                                             qs_kind_type
   USE qs_kinetic,                      ONLY: build_kinetic_matrix
   USE qs_neighbor_list_types,          ONLY: neighbor_list_set_p_type
   USE qs_oce_methods,                  ONLY: build_oce_matrices
@@ -142,6 +138,9 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Cosntruction of the QS Core Hamiltonian Matrix
+!> \param qs_env ...
+!> \param calculate_forces ...
+!> \param error ...
 !> \author Creation (11.03.2002,MK)
 !>      Non-redundant calculation of the non-local part of the GTH PP (22.05.2003,MK)
 !>      New parallelization scheme (27.06.2003,MK)
@@ -161,7 +160,7 @@ CONTAINS
                                                 nkind, stat
     LOGICAL :: all_potential_present, do_ep, failure, gth_potential_present, &
       kgpot, lrigpw, ofdft, ppl_present, use_virial
-    REAL(KIND=dp)                            :: eps_fit, eps_ppnl
+    REAL(KIND=dp)                            :: eps_filter, eps_fit, eps_ppnl
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER :: matrix_h, matrix_p, &
@@ -182,6 +181,8 @@ CONTAINS
       POINTER                                :: particle_set
     TYPE(qs_force_type), DIMENSION(:), &
       POINTER                                :: force
+    TYPE(qs_kind_type), DIMENSION(:), &
+      POINTER                                :: qs_kind_set
     TYPE(qs_rho_type), POINTER               :: rho
     TYPE(scf_control_type), POINTER          :: scf_control
     TYPE(virial_type), POINTER               :: virial
@@ -197,6 +198,7 @@ CONTAINS
     logger => cp_error_get_logger(error)
 
     NULLIFY (atomic_kind_set)
+    NULLIFY (qs_kind_set)
     NULLIFY (force)
     NULLIFY (matrix_h)
     NULLIFY (matrix_s)
@@ -229,6 +231,7 @@ CONTAINS
 
     CALL get_qs_env(qs_env=qs_env,&
                     atomic_kind_set=atomic_kind_set,&
+                    qs_kind_set=qs_kind_set,&
                     matrix_h=matrix_h,&
                     kinetic=matrix_t,&
                     matrix_s=matrix_s,&
@@ -316,6 +319,9 @@ CONTAINS
        ENDIF
     ENDIF
 
+    ! filter for new matrices
+    eps_filter = qs_env%dft_control%qs_control%eps_filter_matrix
+
     maxder = ncoset(nder)
 
     IF (calculate_forces) THEN
@@ -329,11 +335,12 @@ CONTAINS
                                  error=error)
        ! T matrix
        IF (.NOT.ofdft) &
-          CALL build_kinetic_matrix(qs_env,nderivative=nders,matrix_t=matrix_t,&
+          CALL build_kinetic_matrix(qs_env,matrix_t=matrix_t,&
                                  matrix_name="KINETIC ENERGY MATRIX",&
                                  basis_set_id=use_orb_basis_set,&
                                  sab_nl=sab_orb,calculate_forces=.TRUE.,&
                                  matrix_p=matrix_p(1)%matrix,&
+                                 eps_filter=eps_filter,&
                                  error=error)
     ELSE
        ! S matrix
@@ -345,10 +352,11 @@ CONTAINS
                                  error=error)
        ! T matrix
        IF (.NOT.ofdft) &
-          CALL build_kinetic_matrix(qs_env,nderivative=nders,matrix_t=matrix_t,&
+          CALL build_kinetic_matrix(qs_env,matrix_t=matrix_t,&
                                  matrix_name="KINETIC ENERGY MATRIX",&
                                  basis_set_id=use_orb_basis_set,&
                                  sab_nl=sab_orb,&
+                                 eps_filter=eps_filter,&
                                  error=error)
        IF( qs_env%dft_control%do_admm) THEN
          NULLIFY(matrix_s_aux_fit,matrix_s_aux_fit_vs_orb)
@@ -382,7 +390,7 @@ CONTAINS
        ! relativistic atomic correction to kinetic energy
        IF(qs_env%rel_control%rel_method /= rel_none)THEN
           IF(qs_env%rel_control%rel_transformation == rel_trans_atom)THEN
-             CALL build_atomic_relmat(matrix_h, atomic_kind_set, particle_set, error)
+             CALL build_atomic_relmat(matrix_h, atomic_kind_set, qs_kind_set, particle_set, error)
           END IF
        END IF
     END IF
@@ -395,11 +403,9 @@ CONTAINS
        qs_env%dft_control%qs_control%do_ppl_method=do_ppl_analytic
     ENDIF
 
-   ! The transition potential method may need the kinetic matrix
-   CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
-                            gth_potential_present=gth_potential_present,&
-                            all_potential_present=all_potential_present)
-
+    CALL get_qs_kind_set(qs_kind_set,&
+                         gth_potential_present=gth_potential_present,&
+                         all_potential_present=all_potential_present)
     ppl_present = ASSOCIATED(sac_ppl)
 
     IF (calculate_forces) THEN
@@ -419,40 +425,40 @@ CONTAINS
     IF (ppl_present) THEN
       IF(qs_env%dft_control%qs_control%do_ppl_method==do_ppl_analytic) THEN
         CALL build_core_ppl(matrix_h, matrix_p, force, virial, calculate_forces, use_virial, nder,&
-                    atomic_kind_set, particle_set, sab_orb, sac_ppl, error)
+                    qs_kind_set, atomic_kind_set, particle_set, sab_orb, sac_ppl, error)
       END IF
     END IF
 
     ! *** compute the nuclear attraction contribution to the core hamiltonian ***
     IF (all_potential_present) THEN
       CALL build_core_ae(matrix_h, matrix_p, force, virial, calculate_forces, use_virial, nder,&
-                    atomic_kind_set, particle_set, sab_orb, sac_ae, error)
+                    qs_kind_set, atomic_kind_set, particle_set, sab_orb, sac_ae, error)
     END IF
 
     ! *** compute the ppnl contribution to the core hamiltonian ***
     eps_ppnl = qs_env%dft_control%qs_control%eps_ppnl
     CALL build_core_ppnl(matrix_h, matrix_p, force, virial, calculate_forces, use_virial, nder,&
-                    atomic_kind_set, particle_set, sab_orb, sap_ppnl, eps_ppnl, error)
+                    qs_kind_set, atomic_kind_set, particle_set, sab_orb, sap_ppnl, eps_ppnl, error)
 
     ! *** GAPW one-center-expansion (oce) matrices
     IF(qs_env%dft_control%qs_control%gapw .OR. qs_env%dft_control%qs_control%gapw_xc) THEN
       eps_fit  = qs_env%dft_control%qs_control%gapw_control%eps_fit
       IF (ASSOCIATED(sap_oce)) &
-         CALL build_oce_matrices(oce%intac,calculate_forces,nder,atomic_kind_set,particle_set,&
+         CALL build_oce_matrices(oce%intac,calculate_forces,nder,qs_kind_set,particle_set,&
               sap_oce,eps_fit,error)
     END IF
 
     ! *** LRIGPW  matrices
     IF(lrigpw) THEN
        CALL get_qs_env(qs_env=qs_env,lri_env=lri_env,error=error)
-       CALL build_lri_matrices(lri_env,qs_env,error)
+       CALL build_lri_matrices(lri_env,qs_env,calculate_forces,error)
     END IF
 
     ! *** KG atomic potentials for nonadditive kinetic energy
     IF (kgpot) THEN
        CALL get_qs_env(qs_env=qs_env,kg_env=kg_env,dbcsr_dist=dbcsr_dist,error=error)
        CALL build_tnadd_mat(kg_env, matrix_p, force, virial, calculate_forces, use_virial,&
-                    atomic_kind_set, particle_set, sab_orb, dbcsr_dist, error)
+                    qs_kind_set, atomic_kind_set, particle_set, sab_orb, dbcsr_dist, error)
     END IF
 
     ! *** Put the core Hamiltonian matrix in the QS environment ***
@@ -479,12 +485,19 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Adds atomic blocks of relativistic correction for the kinetic energy
+!> \param matrix_h ...
+!> \param atomic_kind_set ...
+!> \param qs_kind_set ...
+!> \param particle_set ...
+!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE build_atomic_relmat(matrix_h, atomic_kind_set, particle_set, error)
+  SUBROUTINE build_atomic_relmat(matrix_h, atomic_kind_set, qs_kind_set, particle_set, error)
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: matrix_h
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
+    TYPE(qs_kind_type), DIMENSION(:), &
+      POINTER                                :: qs_kind_set
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -497,7 +510,6 @@ CONTAINS
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: kind_of
     LOGICAL                                  :: failure
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: hblock, reltmat
-    TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(cp_dbcsr_iterator)                  :: iter
 
     failure = .FALSE.
@@ -505,15 +517,14 @@ CONTAINS
     ALLOCATE (kind_of(natom),STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
 
-    CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,kind_of=kind_of)
+    CALL get_atomic_kind_set(atomic_kind_set,kind_of=kind_of)
 
     CALL cp_dbcsr_iterator_start(iter,matrix_h(1)%matrix)
     DO WHILE (cp_dbcsr_iterator_blocks_left(iter))
        CALL cp_dbcsr_iterator_next_block(iter, iatom, jatom, hblock, blk)
        IF (iatom==jatom) THEN
           ikind = kind_of(iatom)
-          atomic_kind => atomic_kind_set(ikind)
-          CALL get_atomic_kind(atomic_kind=atomic_kind,reltmat=reltmat)
+          CALL get_qs_kind(qs_kind_set(ikind),reltmat=reltmat)
           hblock = hblock + reltmat
        END IF
     END DO
@@ -527,6 +538,13 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Possibly prints matrices after the construction of the Core
 !>     Hamiltonian Matrix
+!> \param matrix_s ...
+!> \param matrix_t ...
+!> \param matrix_h ...
+!> \param qs_env ...
+!> \param calculate_forces ...
+!> \param para_env ...
+!> \param error ...
 ! *****************************************************************************
   SUBROUTINE dump_info_core_hamiltonian(matrix_s, matrix_t, matrix_h, qs_env, &
        calculate_forces, para_env, error)
@@ -568,14 +586,14 @@ CONTAINS
          qs_env%input,"DFT%PRINT%AO_MATRICES/OVERLAP",error=error),cp_p_file)) THEN
        iw = cp_print_key_unit_nr(logger,qs_env%input,"DFT%PRINT%AO_MATRICES/OVERLAP",&
             extension=".Log",error=error)
-      CALL cp_dbcsr_write_sparse_matrix(matrix_s(1)%matrix,4,6,qs_env,para_env,output_unit=iw,error=error)
-      IF (BTEST(cp_print_key_should_output(logger%iter_info,qs_env%input,&
+       CALL cp_dbcsr_write_sparse_matrix(matrix_s(1)%matrix,4,6,qs_env,para_env,output_unit=iw,error=error)
+       IF (BTEST(cp_print_key_should_output(logger%iter_info,qs_env%input,&
            "DFT%PRINT%AO_MATRICES/DERIVATIVES",error=error),cp_p_file)) THEN
-         DO i=2,SIZE(matrix_s)
-            CALL cp_dbcsr_write_sparse_matrix(matrix_s(i)%matrix,4,6,qs_env,para_env,output_unit=iw,error=error)
-         END DO
-      END IF
-      CALL cp_print_key_finished_output(iw,logger,qs_env%input,&
+          DO i=2,SIZE(matrix_s)
+             CALL cp_dbcsr_write_sparse_matrix(matrix_s(i)%matrix,4,6,qs_env,para_env,output_unit=iw,error=error)
+          END DO
+       END IF
+       CALL cp_print_key_finished_output(iw,logger,qs_env%input,&
            "DFT%PRINT%AO_MATRICES/OVERLAP", error=error)
     END IF
 
@@ -585,13 +603,7 @@ CONTAINS
        iw = cp_print_key_unit_nr(logger,qs_env%input,"DFT%PRINT%AO_MATRICES/KINETIC_ENERGY",&
             extension=".Log",error=error)
        CALL cp_dbcsr_write_sparse_matrix(matrix_t(1)%matrix,4,6,qs_env,para_env,output_unit=iw,error=error)
-       IF (BTEST(cp_print_key_should_output(logger%iter_info,qs_env%input,&
-            "DFT%PRINT%AO_MATRICES/DERIVATIVES",error=error),cp_p_file)) THEN
-          DO i=2,SIZE(matrix_t)
-             CALL cp_dbcsr_write_sparse_matrix(matrix_t(i)%matrix,4,6,qs_env,para_env,output_unit=iw,error=error)
-          END DO
-       END IF
-      CALL cp_print_key_finished_output(iw,logger,qs_env%input,&
+       CALL cp_print_key_finished_output(iw,logger,qs_env%input,&
             "DFT%PRINT%AO_MATRICES/KINETIC_ENERGY", error=error)
     END IF
 
@@ -600,16 +612,16 @@ CONTAINS
          qs_env%input,"DFT%PRINT%AO_MATRICES/POTENTIAL_ENERGY",error=error),cp_p_file)) THEN
        iw = cp_print_key_unit_nr(logger,qs_env%input,"DFT%PRINT%AO_MATRICES/POTENTIAL_ENERGY",&
             extension=".Log",error=error)
-      CALL cp_dbcsr_allocate_matrix_set(matrix_v,1,error=error)
-      ALLOCATE(matrix_v(1)%matrix)
-      CALL cp_dbcsr_init(matrix_v(1)%matrix, error=error)
-      CALL cp_dbcsr_copy(matrix_v(1)%matrix,matrix_h(1)%matrix,&
-           name="POTENTIAL ENERGY MATRIX",error=error)
-      CALL cp_dbcsr_add(matrix_v(1)%matrix,matrix_t(1)%matrix,&
-           alpha_scalar=1.0_dp,beta_scalar=-1.0_dp,error=error)
-      CALL cp_dbcsr_write_sparse_matrix(matrix_v(1)%matrix,4,6,qs_env,para_env,output_unit=iw,error=error)
-      CALL cp_dbcsr_deallocate_matrix_set(matrix_v,error=error)
-      CALL cp_print_key_finished_output(iw,logger,qs_env%input,&
+       CALL cp_dbcsr_allocate_matrix_set(matrix_v,1,error=error)
+       ALLOCATE(matrix_v(1)%matrix)
+       CALL cp_dbcsr_init(matrix_v(1)%matrix, error=error)
+       CALL cp_dbcsr_copy(matrix_v(1)%matrix,matrix_h(1)%matrix,&
+            name="POTENTIAL ENERGY MATRIX",error=error)
+       CALL cp_dbcsr_add(matrix_v(1)%matrix,matrix_t(1)%matrix,&
+            alpha_scalar=1.0_dp,beta_scalar=-1.0_dp,error=error)
+       CALL cp_dbcsr_write_sparse_matrix(matrix_v(1)%matrix,4,6,qs_env,para_env,output_unit=iw,error=error)
+       CALL cp_dbcsr_deallocate_matrix_set(matrix_v,error=error)
+       CALL cp_print_key_finished_output(iw,logger,qs_env%input,&
             "DFT%PRINT%AO_MATRICES/POTENTIAL_ENERGY", error=error)
     END IF
 

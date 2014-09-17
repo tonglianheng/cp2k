@@ -11,16 +11,15 @@
 !> \author Mauro Del Ben
 ! *****************************************************************************
 MODULE mp2_ri_libint
-
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
-                                             get_atomic_kind,&
                                              get_atomic_kind_set
   USE basis_set_types,                 ONLY: get_gto_basis_set,&
                                              gto_basis_set_type,&
                                              init_aux_basis_set
   USE cell_types,                      ONLY: cell_type
   USE cp_blacs_env,                    ONLY: cp_blacs_env_create,&
-                                             cp_blacs_env_release
+                                             cp_blacs_env_release,&
+                                             cp_blacs_env_type
   USE cp_files,                        ONLY: get_unit_number
   USE cp_fm_basic_linalg,              ONLY: cp_fm_triangular_invert
   USE cp_fm_cholesky,                  ONLY: cp_fm_cholesky_decompose
@@ -32,12 +31,10 @@ MODULE mp2_ri_libint
                                              cp_fm_release,&
                                              cp_fm_set_submatrix,&
                                              cp_fm_type
-  USE cp_para_types,                   ONLY: cp_blacs_env_type,&
-                                             cp_para_env_type
+  USE cp_para_types,                   ONLY: cp_para_env_type
   USE gamma,                           ONLY: init_md_ftable
   USE hfx_energy_potential,            ONLY: coulomb4
-  USE hfx_libint_wrapper_types,        ONLY: has_iso_c_binding,&
-                                             lib_int
+  USE hfx_libint_wrapper_types,        ONLY: lib_int
   USE hfx_pair_list_methods,           ONLY: build_pair_list_mp2
   USE hfx_screening_methods,           ONLY: calc_pair_dist_radii,&
                                              calc_screening_functions
@@ -52,17 +49,22 @@ MODULE mp2_ri_libint
   USE input_section_types,             ONLY: section_vals_type
   USE kinds,                           ONLY: dp,&
                                              int_8
-  USE mathconstants
+  USE mathconstants,                   ONLY: zero
   USE message_passing,                 ONLY: mp_sum
   USE mp2_types,                       ONLY: init_TShPSC_lmax,&
                                              mp2_biel_type,&
                                              mp2_type,&
                                              pair_list_type_mp2
-  USE orbital_pointers
+  USE orbital_pointers,                ONLY: nco,&
+                                             ncoset,&
+                                             nso
   USE particle_types,                  ONLY: particle_type
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
-  USE t_sh_p_s_c,                      ONLY: free,&
+  USE qs_kind_types,                   ONLY: get_qs_kind,&
+                                             get_qs_kind_set,&
+                                             qs_kind_type
+  USE t_sh_p_s_c,                      ONLY: free_C0,&
                                              init
   USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
@@ -72,7 +74,7 @@ MODULE mp2_ri_libint
   IMPLICIT NONE
   PRIVATE
    
-  PUBLIC  libint_ri_mp2, read_RI_basis_set, release_RI_basis_set
+  PUBLIC ::  libint_ri_mp2, read_RI_basis_set, release_RI_basis_set
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'mp2_ri_libint'
 
@@ -80,6 +82,29 @@ MODULE mp2_ri_libint
   
   CONTAINS
 
+! *****************************************************************************
+!> \brief ...
+!> \param dimen ...
+!> \param RI_dimen ...
+!> \param occupied ...
+!> \param natom ...
+!> \param mp2_biel ...
+!> \param mp2_env ...
+!> \param C ...
+!> \param kind_of ...
+!> \param basis_parameter ...
+!> \param particle_set ...
+!> \param RI_basis_parameter ...
+!> \param RI_basis_info ...
+!> \param basis_S0 ...
+!> \param RI_index_table ...
+!> \param qs_env ...
+!> \param hfx_section ...
+!> \param para_env ...
+!> \param unit_nr ...
+!> \param Lai ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE libint_ri_mp2(dimen,RI_dimen,occupied,natom,mp2_biel,mp2_env,C,&
                            kind_of,basis_parameter,particle_set,&     
                            RI_basis_parameter,RI_basis_info,basis_S0,RI_index_table,&                                       
@@ -139,6 +164,16 @@ MODULE mp2_ri_libint
 
 ! *****************************************************************************
 !> \brief Read the auxiliary basis set for RI approxiamtion
+!> \param qs_env ...
+!> \param RI_basis_parameter ...
+!> \param RI_basis_info ...
+!> \param natom ...
+!> \param nkind ...
+!> \param kind_of ...
+!> \param RI_index_table ...
+!> \param RI_dimen ...
+!> \param basis_S0 ...
+!> \param error ...
 !> \par History
 !>      08.2013 created [Mauro Del Ben]
 !> \author Mauro Del Ben
@@ -169,19 +204,19 @@ MODULE mp2_ri_libint
     INTEGER, DIMENSION(:, :), POINTER        :: first_sgfa, nl_a
     LOGICAL                                  :: failure
     REAL(dp), DIMENSION(:, :), POINTER       :: sphi_a
-    TYPE(atomic_kind_type), DIMENSION(:), &
-      POINTER                                :: atomic_kind_set
-    TYPE(atomic_kind_type), POINTER          :: atom_kind
     TYPE(gto_basis_set_type), POINTER        :: orb_basis_a
+    TYPE(qs_kind_type), DIMENSION(:), &
+      POINTER                                :: qs_kind_set
+    TYPE(qs_kind_type), POINTER              :: atom_kind
 
     failure = .FALSE.
 
     NULLIFY(RI_basis_parameter)
 
-    NULLIFY(atomic_kind_set)
-    CALL get_qs_env(qs_env=qs_env, atomic_kind_set=atomic_kind_set, error=error)
+    NULLIFY(qs_kind_set)
+    CALL get_qs_env(qs_env=qs_env, qs_kind_set=qs_kind_set, error=error)
 
-    nkind = SIZE(atomic_kind_set,1)
+    nkind = SIZE(qs_kind_set,1)
     ALLOCATE(RI_basis_parameter(nkind), STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     ALLOCATE(basis_S0(nkind), STAT=stat)
@@ -189,11 +224,11 @@ MODULE mp2_ri_libint
     max_set = 0
     DO ikind = 1,nkind
       NULLIFY(atom_kind)
-      atom_kind => atomic_kind_set(ikind)
-      IF(.NOT.(ASSOCIATED(atomic_kind_set(ikind)%ri_aux_basis_set))) THEN
+      atom_kind => qs_kind_set(ikind)
+      IF(.NOT.(ASSOCIATED(qs_kind_set(ikind)%ri_aux_basis_set))) THEN
         CALL stop_program(routineN,moduleN,__LINE__,"Initial RI auxiliary basis not specified.")
       END IF
-      CALL get_atomic_kind(atomic_kind=atom_kind,&
+      CALL get_qs_kind(qs_kind=atom_kind,&
                            ri_aux_basis_set=orb_basis_a)
       ! here we reset the initial RI basis such that we can
       ! work with non-normalized auxiliary basis functions
@@ -201,7 +236,7 @@ MODULE mp2_ri_libint
       orb_basis_a%norm_type = 1
       CALL init_aux_basis_set(orb_basis_a,error)
 
-      CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
+      CALL get_qs_kind_set(qs_kind_set=qs_kind_set,&
                                maxsgf=RI_basis_info%max_sgf,&
                                maxnset=RI_basis_info%max_set,&
                                maxlgto=RI_basis_info%max_am,&
@@ -348,6 +383,9 @@ MODULE mp2_ri_libint
 ! *****************************************************************************
 !> \brief Release the auxiliary basis set for RI approxiamtion (to be used
 !>        only in the case of basis optimization)
+!> \param RI_basis_parameter ...
+!> \param basis_S0 ...
+!> \param error ...
 !> \par History
 !>      08.2013 created [Mauro Del Ben]
 !> \author Mauro Del Ben
@@ -411,14 +449,20 @@ MODULE mp2_ri_libint
 
 ! *****************************************************************************
 !> \brief 
-!> \param qs_env  
-!> \param energy
+!> \param mp2_env ...
+!> \param qs_env   ...
 !> \param hfx_section input_section HFX
-!> \param para_env
-!> \param geometry_did_change flag that indicates we have to recalc integrals
-!> \param irep Index for the HFX replica
-!> \param distribute_fock_matrix Flag that indicates whether to communicate the
-!>        new fock matrix or not
+!> \param para_env ...
+!> \param mp2_biel ...
+!> \param dimen ...
+!> \param C ...
+!> \param occupied ...
+!> \param RI_basis_parameter ...
+!> \param RI_basis_info ...
+!> \param RI_index_table ...
+!> \param RI_dimen ...
+!> \param basis_S0 ...
+!> \param Lai ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 !> \par History
@@ -460,11 +504,10 @@ MODULE mp2_ri_libint
       L_B_i_start, L_B_k_end, L_B_k_start, l_max, latom, latom_end, &
       latom_start, lkind, llB, lset, max_am, max_pgf, max_set, n_threads, &
       natom, ncob, ncos_max, nints, nkind, nneighbors, nseta, nsetb, nsetc, &
-      nsetd, nsgf_max, nspins, orb_k_end, orb_k_start, orb_l_end, &
-      orb_l_start, primitive_counter
-    INTEGER :: sgfb, sphi_a_u1, sphi_a_u2, sphi_a_u3, sphi_b_u1, sphi_b_u2, &
-      sphi_b_u3, sphi_c_u1, sphi_c_u2, sphi_c_u3, sphi_d_u1, sphi_d_u2, &
-      sphi_d_u3, stat, unit_id, virtual
+      nsetd, nsgf_max, nspins, orb_k_end, orb_k_start, orb_l_end
+    INTEGER :: orb_l_start, primitive_counter, sgfb, sphi_a_u1, sphi_a_u2, &
+      sphi_a_u3, sphi_b_u1, sphi_b_u2, sphi_b_u3, sphi_c_u1, sphi_c_u2, &
+      sphi_c_u3, sphi_d_u1, sphi_d_u2, sphi_d_u3, stat, unit_id, virtual
     INTEGER(int_8) :: estimate_to_store_int, max_val_memory, mem_eris, &
       mem_eris_disk, mem_max_val, n_processes, ncpu, neris_disk, &
       neris_incore, neris_onthefly, neris_tmp, neris_total, nprim_ints, &
@@ -546,6 +589,8 @@ MODULE mp2_ri_libint
       DIMENSION(:)                           :: set_list_kl
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
+    TYPE(qs_kind_type), DIMENSION(:), &
+      POINTER                                :: qs_kind_set
 
     CALL timeset(routineN,handle)
 
@@ -555,10 +600,11 @@ MODULE mp2_ri_libint
 
     logger => cp_error_get_logger(error)
 
-    CALL get_qs_env(qs_env=qs_env, atomic_kind_set=atomic_kind_set, cell=cell, error=error)
+    CALL get_qs_env(qs_env=qs_env, atomic_kind_set=atomic_kind_set,&
+                    qs_kind_set=qs_kind_set, cell=cell, error=error)
 
     !! Calculate l_max used in fgamma , because init_md_ftable is definitely not thread safe
-    nkind = SIZE(atomic_kind_set,1)
+    nkind = SIZE(qs_kind_set,1)
     l_max = 0
     DO ikind=1,nkind
       l_max = MAX(l_max,MAXVAL(qs_env%x_data(1,1)%basis_parameter(ikind)%lmax))
@@ -648,7 +694,7 @@ MODULE mp2_ri_libint
 
     max_set = MAX(basis_info%max_set,RI_basis_info%max_set)
     CALL get_qs_env(qs_env=qs_env,&
-                    atomic_kind_set=atomic_kind_set,&
+                    qs_kind_set=qs_kind_set,&
                     particle_set=particle_set,&
                     error=error)
 
@@ -657,8 +703,7 @@ MODULE mp2_ri_libint
     ALLOCATE(kind_of(natom),STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
-    CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
-                             kind_of=kind_of)
+    CALL get_atomic_kind_set(atomic_kind_set, kind_of=kind_of)
 
     !! precompute maximum nco and allocate scratch
     ncos_max=0
@@ -697,11 +742,6 @@ MODULE mp2_ri_libint
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     ALLOCATE(ee_primitives_tmp(nsgf_max**4),STAT=stat) ! XXXXX could be wrong
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-
-    IF( .NOT. has_iso_c_binding) THEN
-      ALLOCATE(p_work(nco(max_am)**4), STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    END IF
 
     nspins = qs_env%dft_control%nspins
 
@@ -1338,17 +1378,12 @@ MODULE mp2_ri_libint
     DEALLOCATE(ee_work, ee_work2, ee_buffer1, ee_buffer2, ee_primitives_tmp, STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
-    IF( .NOT. has_iso_c_binding) THEN
-      DEALLOCATE(p_work, STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    END IF
-
     DEALLOCATE(nimages, STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
     IF(mp2_env%potential_parameter%potential_type == do_mp2_potential_TShPSC) THEN
       init_TShPSC_lmax = -1
-      CALL FREE()
+      CALL free_C0()
     END IF
 
     CALL timestop(handle)

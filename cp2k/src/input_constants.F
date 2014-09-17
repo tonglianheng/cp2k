@@ -182,7 +182,8 @@ MODULE input_constants
   INTEGER, PARAMETER, PUBLIC               :: cholesky_off=0,&
                                               cholesky_reduce=1,&
                                               cholesky_restore=2,&
-                                              cholesky_inverse=3
+                                              cholesky_inverse=3,&
+                                              cholesky_dbcsr=4
 
   INTEGER, PARAMETER, PUBLIC               :: atomic_guess=1,&
                                               restart_guess=2,&
@@ -235,6 +236,9 @@ MODULE input_constants
                                               do_method_pnnl=16,&
                                               do_method_ofgpw=17,&
                                               do_method_scptb=18
+
+  INTEGER, PARAMETER, PUBLIC               :: do_multipole_section_on=0,&
+                                              do_multipole_section_off=1
 
   INTEGER, PARAMETER, PUBLIC               :: do_ppl_analytic=0,&
                                               do_ppl_grid=1
@@ -475,23 +479,6 @@ MODULE input_constants
                                               high_print_level=3,&
                                               debug_print_level=4
 
-  INTEGER, PARAMETER, PUBLIC               :: xc_rho_no_smooth=0,&
-                                              xc_rho_spline2_smooth=1,&
-                                              xc_rho_spline3_smooth=2,&
-                                              xc_rho_nn10=3,&
-                                              xc_rho_nn50=4
-  INTEGER, PARAMETER, PUBLIC               :: xc_deriv_pw=0,&
-                                              xc_deriv_spline2=1,&
-                                              xc_deriv_spline3=2,&
-                                              xc_deriv_spline2_smooth=3,&
-                                              xc_deriv_spline3_smooth=4,&
-                                              xc_deriv_nn10_smooth=5,&
-                                              xc_deriv_nn50_smooth=6,&
-                                              xc_deriv_collocate=7
-  INTEGER, PARAMETER, PUBLIC               :: xc_old_f_routine=0,&
-                                              xc_new_f_routine=1,&
-                                              xc_test_lsd_f_routine=3,&
-                                              xc_debug_new_routine=4
   INTEGER, PARAMETER, PUBLIC               :: xc_funct_no_shortcut=0,&
                                               xc_funct_blyp=1,&
                                               xc_funct_pade=2,&
@@ -503,7 +490,8 @@ MODULE input_constants
                                               xc_none=8,&
                                               xc_funct_xwpbe=9,&
                                               xc_funct_b3lyp=10,&
-                                              xc_funct_pbe0=11
+                                              xc_funct_pbe0=11,&
+                                              xc_funct_beefvdw=12
   INTEGER, PARAMETER, PUBLIC               :: sic_none=0,&
                                               sic_mauri_us=1,&
                                               sic_mauri_spz=2,&
@@ -547,59 +535,6 @@ MODULE input_constants
   INTEGER, PARAMETER, PUBLIC               :: do_add=1,&
                                               do_remove=2
 
-  INTEGER, PARAMETER, PUBLIC               :: xgga_b88=101,&
-                                              xgga_b88x=102,&
-                                              xgga_pw86=103,&
-                                              xgga_pw91=104,&
-                                              xgga_pbex=105,&
-                                              xgga_revpbe=106,&
-                                              xgga_optx=107,&
-                                              xgga_hcth=108,&
-                                              xgga_tpss=109,&
-                                              xalpha=110,&
-                                              xgga_pbe=111,&
-                                              xgga_opt=112,&
-                                              xgga_ev93=113
-
-  INTEGER, PARAMETER, PUBLIC               :: cgga_lyp=201,&
-                                              c_pade=202,&
-                                              cgga_hcth93=203,&
-                                              cgga_hcth120=204,&
-                                              cgga_hcth147=205,&
-                                              cgga_hcth407=206,&
-                                              cgga_cs1=207,&
-                                              cgga_pw86=208,&
-                                              c_pw92=209,&
-                                              c_pw92dmc=210,&
-                                              c_pw92vmc=211,&
-                                              c_pz=212,&
-                                              c_pzdmc=213,&
-                                              c_pzvmc=214,&
-                                              c_vwn=215,&
-                                              cgga_pbe=216
-
-  INTEGER, PARAMETER, PUBLIC               :: ke_ol1=301,&
-                                              ke_ol2=302,&
-                                              ke_llp=303,&
-                                              ke_pw86=304,&
-                                              ke_pw91=305,&
-                                              ke_lc=306,&
-                                              ke_t92=307,&
-                                              ke_pbe=308,&
-                                              ke_revpbe=309,&
-                                              ke_tf=310,&
-                                              ke_tfw=311
-
-  INTEGER, PARAMETER, PUBLIC               :: pw_orig=209,&
-                                              pw_dmc=210,&
-                                              pw_vmc=211
-
-  INTEGER, PARAMETER, PUBLIC               :: pz_orig=212,&
-                                              pz_dmc=213,&
-                                              pz_vmc=214
-
-  INTEGER, PARAMETER, PUBLIC               :: xc_b97_orig=401,&
-                                              xc_b97_grimme=402
 
   INTEGER, PARAMETER, PUBLIC               :: use_perd_x=0,&
                                               use_perd_y=1,&
@@ -657,10 +592,6 @@ MODULE input_constants
                                               lr_gtensor=2,&
                                               lr_current=3
 
-  INTEGER, PARAMETER, PUBLIC               :: xc_pbe_orig=11,&
-                                              xc_pbe_rev=12,&
-                                              xc_pbe_sol=13
-
   ! EIP models
   INTEGER, PARAMETER, PUBLIC               :: use_bazant_eip=1, &
                                               use_lenosky_eip=2
@@ -689,10 +620,6 @@ MODULE input_constants
   ! ROKS schemes
   INTEGER, PARAMETER, PUBLIC               :: general_roks   = 1,&
                                               high_spin_roks = 2
-
-  !VWN xc functional flavours
-  INTEGER, PARAMETER, PUBLIC               :: do_vwn5=1,&
-                                              do_vwn3=2
 
   ! mixing of force envs
   INTEGER, PARAMETER, PUBLIC               :: mix_linear_combination=701, &
@@ -757,25 +684,17 @@ MODULE input_constants
                                               use_ri_aux_basis_set=5,&
                                               use_lri_basis_set=6
   ! ADMM PARAMETER
-  ! This parameter the method to use in order to get an auxiliary density matrix
-  INTEGER, PARAMETER, PUBLIC               ::  do_admm_basis_set_projection=1,&
-                                               do_admm_block_density_matrix=2
-
   ! This parameter defines the method to use for the purification
   INTEGER, PARAMETER, PUBLIC               :: do_admm_purify_none=1,&
                                               do_admm_purify_cauchy=2,&
                                               do_admm_purify_cauchy_subspace=3,&
                                               do_admm_purify_mo_diag=4,&
-                                              do_admm_purify_mo_no_diag=5
-  ! This parameter defines which basis to use for blocking
-  INTEGER, PARAMETER, PUBLIC               :: do_admm_block_aux_basis_off=0,&
-                                              do_admm_block_aux_basis_on=1
-
-  ! This parameter defines whether we purify or not
-  INTEGER, PARAMETER, PUBLIC               :: do_admm_block_purify_off=0,&
-                                              do_admm_block_purify_full=1,&
-                                              do_admm_block_purify_blocked=2
-
+                                              do_admm_purify_mo_no_diag=5,&
+                                              do_admm_purify_mcweeny=6
+  ! This parameter defines when to use blocking
+  INTEGER, PARAMETER, PUBLIC               :: do_admm_basis_projection=0,&
+                                              do_admm_blocking_purify_full=1,&
+                                              do_admm_blocked_projection=2
 
   ! Define DFT+U method identifier codes
   INTEGER, PARAMETER, PUBLIC               :: plus_u_lowdin=1,&
@@ -820,9 +739,6 @@ MODULE input_constants
                                               do_arnoldi=3,&
                                               do_bch=4
 
-  INTEGER, PARAMETER, PUBLIC               :: extr_mos=1,&
-                                              extr_s_ks=2
-
   INTEGER, PARAMETER, PUBLIC               :: do_etrs=1,&
                                               do_cn=2,&
                                               do_em=3
@@ -851,7 +767,8 @@ MODULE input_constants
   INTEGER, PARAMETER, PUBLIC               :: ls_s_inversion_hotelling=3,&
                                               ls_s_inversion_sign_sqrt=5
   
-  INTEGER, PARAMETER, PUBLIC               :: ls_scf_ns=17, ls_scf_trs4=18
+  INTEGER, PARAMETER, PUBLIC               :: ls_scf_ns=17, ls_scf_trs4=18,&
+                                              ls_scf_tc2=19
 
   INTEGER, PARAMETER, PUBLIC               :: ls_scf_line_search_3point=3,&
                                               ls_scf_line_search_3point_2d=6
@@ -911,7 +828,10 @@ MODULE input_constants
                                               ri_mp2_method_gpw=7,&
                                               ri_rpa_method_gpw=8,&
                                               ri_mp2_laplace=9,&
-                                              mp2_ri_optimize_basis=10
+                                              mp2_ri_optimize_basis=10,&
+                                              wfc_mm_style_gemm=11,&
+                                              wfc_mm_style_syrk=12
+
   ! periodic RESP parameters
   INTEGER, PARAMETER, PUBLIC               :: do_resp_x_dir=0,&
                                               do_resp_y_dir=1,&
@@ -956,5 +876,13 @@ MODULE input_constants
 ! global opt parameters
   INTEGER, PARAMETER, PUBLIC               :: glbopt_do_minhop  =1,&
                                               glbopt_do_mincrawl=2
+
+! fm matrix multiplication
+  INTEGER, PARAMETER, PUBLIC               :: do_pdgemm  =1,&
+                                              do_dbcsr   =2
+
+  ! Dispersion DFTB
+  INTEGER, PARAMETER, PUBLIC               :: dispersion_uff=100,&
+                                              dispersion_d3 =200
 
 END MODULE input_constants

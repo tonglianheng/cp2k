@@ -16,13 +16,13 @@ MODULE qs_force
                                              get_atomic_kind_set
   USE cp_control_types,                ONLY: dft_control_type
   USE cp_dbcsr_interface,              ONLY: cp_dbcsr_add,&
+                                             cp_dbcsr_allocate_matrix_set,&
                                              cp_dbcsr_copy,&
+                                             cp_dbcsr_deallocate_matrix_set,&
                                              cp_dbcsr_init,&
+                                             cp_dbcsr_p_type,&
                                              cp_dbcsr_set
-  USE cp_dbcsr_operations,             ONLY: cp_dbcsr_allocate_matrix_set,&
-                                             cp_dbcsr_deallocate_matrix_set
   USE cp_dbcsr_output,                 ONLY: cp_dbcsr_write_sparse_matrix
-  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_p_type
   USE cp_fm_types,                     ONLY: cp_fm_type,&
                                              cp_fm_write
   USE cp_output_handling,              ONLY: cp_p_file,&
@@ -101,8 +101,11 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief   Calculate the Quickstep forces.
-!> \author  MK
+!> \param qs_env ...
+!> \param globenv ...
+!> \param error ...
 !> \date    29.10.2002
+!> \author  MK
 !> \version 1.0
 ! *****************************************************************************
   SUBROUTINE qs_forces(qs_env,globenv,error)
@@ -129,8 +132,7 @@ CONTAINS
                                                 matrix_s_aux_fit, &
                                                 matrix_s_aux_fit_vs_orb, &
                                                 matrix_w, mo_derivs
-    TYPE(cp_fm_type), POINTER                :: dp_imag, mo_coeff, &
-                                                mo_coeff_aux_fit
+    TYPE(cp_fm_type), POINTER                :: mo_coeff, mo_coeff_aux_fit
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(dft_control_type), POINTER          :: dft_control
@@ -210,7 +212,7 @@ CONTAINS
        CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
        CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
             natom_of_kind=natom_of_kind)
-       CALL allocate_qs_force(force,natom_of_kind)
+       CALL allocate_qs_force(force,natom_of_kind,error)
        DEALLOCATE (natom_of_kind,STAT=istat)
        CPPostconditionNoFail(istat==0,cp_warning_level,routineP,error)
        CALL set_qs_env(qs_env,force=force,error=error)
@@ -220,7 +222,7 @@ CONTAINS
           CALL harris_env_set(harris_env=harris_env, harris_force=harris_force, error=error)
        END IF
     END IF
-    CALL zero_qs_force(force)
+    CALL zero_qs_force(force,error)
 
     CALL get_qs_env(qs_env=qs_env,&
          matrix_s=matrix_s,&
@@ -248,7 +250,7 @@ CONTAINS
        END DO
        CALL set_qs_env(qs_env=qs_env,matrix_w=matrix_w,error=error)
 
-       CALL calc_c_mat_force(qs_env,dp_imag,error)
+       CALL calc_c_mat_force(qs_env,error)
        IF(qs_env%dft_control%do_admm)&
           CALL rt_admm_force(qs_env,error)
     END IF
@@ -370,6 +372,7 @@ CONTAINS
           CALL mp_sum(force(ikind)%core_overlap,para_env%group)
           CALL mp_sum(force(ikind)%rho_core,para_env%group)
           CALL mp_sum(force(ikind)%rho_elec,para_env%group)
+          CALL mp_sum(force(ikind)%rho_lri_elec,para_env%group)
           CALL mp_sum(force(ikind)%vhxc_atom,para_env%group)
           CALL mp_sum(force(ikind)%g0s_Vh_elec,para_env%group)
           CALL mp_sum(force(ikind)%fock_4c,para_env%group)
@@ -391,6 +394,7 @@ CONTAINS
                force(ikind)%overlap_admm(:,:) +&
                force(ikind)%rho_core(:,:) +&
                force(ikind)%rho_elec(:,:) +&
+               force(ikind)%rho_lri_elec(:,:) +&
                force(ikind)%vhxc_atom(:,:) +&
                force(ikind)%g0s_Vh_elec(:,:) +&
                force(ikind)%fock_4c(:,:) +&
@@ -486,8 +490,14 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief   Write a Quickstep force data structure to output unit
-!> \author  MK
+!> \param qs_force ...
+!> \param atomic_kind_set ...
+!> \param ftype ...
+!> \param output_unit ...
+!> \param print_section ...
+!> \param error ...
 !> \date    05.06.2002
+!> \author  MK
 !> \version 1.0
 ! *****************************************************************************
   SUBROUTINE write_forces(qs_force,atomic_kind_set,ftype,output_unit,&
@@ -585,6 +595,7 @@ CONTAINS
                   iatom,ikind,"  core_overlap",qs_force(ikind)%core_overlap(1:3,i),&
                   iatom,ikind,"      rho_core",qs_force(ikind)%rho_core(1:3,i),&
                   iatom,ikind,"      rho_elec",qs_force(ikind)%rho_elec(1:3,i),&
+                  iatom,ikind,"      rho_lri_elec",qs_force(ikind)%rho_lri_elec(1:3,i),&
                   iatom,ikind,"      ch_pulay",qs_force(ikind)%ch_pulay(1:3,i),&
                   iatom,ikind,"    dispersion",qs_force(ikind)%dispersion(1:3,i),&
                   iatom,ikind,"         other",qs_force(ikind)%other(1:3,i),&
@@ -613,6 +624,7 @@ CONTAINS
                   iatom,ikind,"  core_overlap",qs_force(ikind)%core_overlap(1:3,i),&
                   iatom,ikind,"      rho_core",qs_force(ikind)%rho_core(1:3,i),&
                   iatom,ikind,"      rho_elec",qs_force(ikind)%rho_elec(1:3,i),&
+                  iatom,ikind,"      rho_lri_elec",qs_force(ikind)%rho_lri_elec(1:3,i),&
                   iatom,ikind,"     vhxc_atom",qs_force(ikind)%vhxc_atom(1:3,i),&
                   iatom,ikind,"   g0s_Vh_elec",qs_force(ikind)%g0s_Vh_elec(1:3,i),&
                   iatom,ikind,"      ch_pulay",qs_force(ikind)%ch_pulay(1:3,i),&
@@ -633,6 +645,7 @@ CONTAINS
              WRITE (UNIT=output_unit,FMT=fmtstr2)&
                   iatom,ikind," all_potential",qs_force(ikind)%all_potential(1:3,i),&
                   iatom,ikind,"      rho_elec",qs_force(ikind)%rho_elec(1:3,i),&
+                  iatom,ikind,"      rho_lri_elec",qs_force(ikind)%rho_lri_elec(1:3,i),&
                   iatom,ikind,"         total",qs_force(ikind)%total(1:3,i)
              grand_total(1:3) = grand_total(1:3) + qs_force(ikind)%total(1:3,i)
           END DO
@@ -650,6 +663,7 @@ CONTAINS
                   iatom,ikind,"   core_overlap",qs_force(ikind)%core_overlap(1:3,i),&
                   iatom,ikind,"       rho_core",qs_force(ikind)%rho_core(1:3,i),&
                   iatom,ikind,"       rho_elec",qs_force(ikind)%rho_elec(1:3,i),&
+                  iatom,ikind,"       rho_lri_elec",qs_force(ikind)%rho_lri_elec(1:3,i),&
                   iatom,ikind,"       ch_pulay",qs_force(ikind)%ch_pulay(1:3,i),&
                   iatom,ikind,"        fock_4c",qs_force(ikind)%fock_4c(1:3,i),&
                   iatom,ikind,"        hfx_ri",qs_force(ikind)%hfx_ri(1:3,i),&
@@ -667,6 +681,7 @@ CONTAINS
                   iatom,ikind,"        overlap",qs_force(ikind)%overlap(1:3,i),&
                   iatom,ikind,"   overlap_admm",qs_force(ikind)%overlap_admm(1:3,i),&
                   iatom,ikind,"       rho_elec",qs_force(ikind)%rho_elec(1:3,i),&
+                  iatom,ikind,"       rho_lri_elec",qs_force(ikind)%rho_lri_elec(1:3,i),&
                   iatom,ikind,"      repulsive",qs_force(ikind)%repulsive(1:3,i),&
                   iatom,ikind,"     dispersion",qs_force(ikind)%dispersion(1:3,i),&
                   iatom,ikind,"     ehrenfest",qs_force(ikind)%ehrenfest(1:3,i),&
@@ -681,6 +696,7 @@ CONTAINS
                   iatom,ikind,"       overlap",qs_force(ikind)%overlap(1:3,i),&
                   iatom,ikind,"       kinetic",qs_force(ikind)%kinetic(1:3,i),&
                   iatom,ikind,"      rho_elec",qs_force(ikind)%rho_elec(1:3,i),&
+                  iatom,ikind,"      rho_lri_elec",qs_force(ikind)%rho_lri_elec(1:3,i),&
                   iatom,ikind,"    dispersion",qs_force(ikind)%dispersion(1:3,i),&
                   iatom,ikind," all potential",qs_force(ikind)%all_potential(1:3,i),&
                   iatom,ikind,"         other",qs_force(ikind)%other(1:3,i),&

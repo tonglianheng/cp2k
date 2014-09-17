@@ -46,6 +46,9 @@ CONTAINS
 !> \brief Initialize the qmmm pool of pw_type.
 !>      Then Main difference w.r.t. QS pw_type pools is that this pool
 !>      has [0,L] as boundaries.
+!> \param qmmm_env ...
+!> \param pw_env ...
+!> \param cell ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 !> \par History
@@ -118,6 +121,7 @@ CONTAINS
 !>      (by adding a point for the upper boundary)
 !> \param pw_grid_in the pw grid to duplicate
 !> \param pw_grid_out the output pw_grid_type
+!> \param pw_mode ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 !> \par History
@@ -184,7 +188,6 @@ CONTAINS
             pw_grid_out%mapn%pos,pw_grid_out%mapn%neg)
 
        !para
-       CALL mp_comm_dup ( pw_grid_in % para % group, pw_grid_out % para % group )
        CALL mp_environ ( pw_grid_out % para % group_size, &
                          pw_grid_out % para % my_pos, &
                          pw_grid_out % para % group )

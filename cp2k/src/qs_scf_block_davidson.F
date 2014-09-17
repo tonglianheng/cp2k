@@ -15,20 +15,21 @@
 ! *****************************************************************************
 MODULE qs_scf_block_davidson
 
-  USE array_types,                     ONLY: array_i1d_obj,&
-                                             array_release
   USE cp_dbcsr_interface,              ONLY: &
-       cp_create_bl_distribution, cp_dbcsr_add, cp_dbcsr_col_block_sizes, &
-       cp_dbcsr_copy, cp_dbcsr_create, cp_dbcsr_distribution, &
-       cp_dbcsr_distribution_release, cp_dbcsr_get_diag, cp_dbcsr_get_info, &
-       cp_dbcsr_init_p, cp_dbcsr_multiply, cp_dbcsr_norm, cp_dbcsr_release_p, &
-       cp_dbcsr_row_block_sizes, cp_dbcsr_scale_by_vector
+       array_i1d_obj, array_release, cp_create_bl_distribution, cp_dbcsr_add, &
+       cp_dbcsr_col_block_sizes, cp_dbcsr_copy, cp_dbcsr_create, &
+       cp_dbcsr_distribution, cp_dbcsr_distribution_release, &
+       cp_dbcsr_get_diag, cp_dbcsr_get_info, cp_dbcsr_init_p, &
+       cp_dbcsr_multiply, cp_dbcsr_norm, cp_dbcsr_release_p, &
+       cp_dbcsr_row_block_sizes, cp_dbcsr_scale_by_vector, cp_dbcsr_type, &
+       dbcsr_distribution_mp, dbcsr_distribution_new, dbcsr_distribution_obj, &
+       dbcsr_distribution_row_dist, dbcsr_mp_npcols, dbcsr_mp_nprows, &
+       dbcsr_norm_column, dbcsr_type_no_symmetry, dbcsr_type_real_default, &
+       dbcsr_type_symmetric
   USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
                                              copy_fm_to_dbcsr,&
                                              cp_dbcsr_sm_fm_multiply
-  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_type
   USE cp_fm_basic_linalg,              ONLY: cp_fm_column_scale,&
-                                             cp_fm_gemm,&
                                              cp_fm_scale_and_add,&
                                              cp_fm_symm,&
                                              cp_fm_transpose,&
@@ -45,16 +46,7 @@ MODULE qs_scf_block_davidson
        cp_fm_create, cp_fm_get_diag, cp_fm_get_info, cp_fm_release, &
        cp_fm_set_all, cp_fm_to_fm, cp_fm_to_fm_submat, cp_fm_type, &
        cp_fm_vectorsnorm
-  USE dbcsr_methods,                   ONLY: dbcsr_distribution_mp,&
-                                             dbcsr_distribution_new,&
-                                             dbcsr_distribution_row_dist,&
-                                             dbcsr_mp_npcols,&
-                                             dbcsr_mp_nprows
-  USE dbcsr_types,                     ONLY: dbcsr_distribution_obj,&
-                                             dbcsr_norm_column,&
-                                             dbcsr_type_no_symmetry,&
-                                             dbcsr_type_real_default,&
-                                             dbcsr_type_symmetric
+  USE cp_gemm_interface,               ONLY: cp_gemm
   USE kinds,                           ONLY: dp
   USE machine,                         ONLY: m_walltime
   USE message_passing,                 ONLY: mp_sum
@@ -77,6 +69,15 @@ CONTAINS
 
 ! *****************************************************************************
 
+! *****************************************************************************
+!> \brief ...
+!> \param bdav_env ...
+!> \param mo_coeff ...
+!> \param matrix_sc ...
+!> \param matrix_hc ...
+!> \param ritz_coeff ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE ritz_coefficients(bdav_env,mo_coeff,matrix_sc,matrix_hc,ritz_coeff,error)
 
     TYPE(davidson_type)                      :: bdav_env
@@ -115,7 +116,7 @@ CONTAINS
 
     ! since we only use diagonal elements this is a bit of a waste
     ! compute CSC
-!   CALL cp_fm_gemm('T','N',nmo,nmo,nao,1.0_dp,mo_coeff,matrix_sc,0.0_dp,matrix_tmp,error=error)
+!   CALL cp_gemm('T','N',nmo,nmo,nao,1.0_dp,mo_coeff,matrix_sc,0.0_dp,matrix_tmp,error=error)
 !    CALL cp_fm_get_diag(matrix_tmp,csc_diag,error=error)
     ! set the top left part of S[C,Z] block matrix  CSC
     block_mat => bdav_env%S_block_mat
@@ -123,7 +124,7 @@ CONTAINS
 !    CALL cp_fm_to_fm_submat(matrix_tmp,block_mat,nmo,nmo,1,1,1,1,error=error)
 
     ! compute CHC
-    CALL cp_fm_gemm('T','N',nmo,nmo,nao,1.0_dp,mo_coeff,matrix_hc,0.0_dp,matrix_tmp,error=error)
+    CALL cp_gemm('T','N',nmo,nmo,nao,1.0_dp,mo_coeff,matrix_hc,0.0_dp,matrix_tmp,error=error)
     CALL cp_fm_get_diag(matrix_tmp,chc_diag,error=error)
     ! set the top left part of H[C,Z] block matrix CHC
     block_mat => bdav_env%H_block_mat
@@ -141,6 +142,16 @@ CONTAINS
   END SUBROUTINE ritz_coefficients
 ! +++++++++++++++++++++++++++++
 
+! *****************************************************************************
+!> \brief ...
+!> \param bdav_env ...
+!> \param mo_set ...
+!> \param matrix_h ...
+!> \param matrix_s ...
+!> \param output_unit ...
+!> \param preconditioner ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE generate_extended_space(bdav_env,mo_set,matrix_h,matrix_s,output_unit,&
              preconditioner,error)
 
@@ -224,7 +235,7 @@ CONTAINS
       CALL cp_fm_create(m_tmp,fm_struct_tmp,name="matrix_tmp",error=error)
       CALL cp_fm_struct_release(fm_struct_tmp,error=error)
 
-      CALL cp_fm_gemm('T','N',nmo,nmo,nao,1.0_dp,mo_coeff,m_hc,0.0_dp,m_tmp,error=error)
+      CALL cp_gemm('T','N',nmo,nmo,nao,1.0_dp,mo_coeff,m_hc,0.0_dp,m_tmp,error=error)
       CALL cp_fm_get_diag(m_tmp,ritz_coeff,error=error)
       CALL cp_fm_release(m_tmp,error=error)
 
@@ -374,7 +385,7 @@ CONTAINS
           jj=jj+n
         END DO
         CALL cp_fm_symm('L','U',nao,nmo_converged,1.0_dp,s_fm,c_conv,0.0_dp,m_tmp,error=error)
-        CALL cp_fm_gemm('N','T',nao,nao,nmo_converged,1.0_dp,m_tmp,m_tmp,0.0_dp,c_out,error=error)
+        CALL cp_gemm('N','T',nao,nao,nmo_converged,1.0_dp,m_tmp,m_tmp,0.0_dp,c_out,error=error)
 
         ! project c_out out of H
         lambda = 100.0_dp*ABS(eigenvalues(homo))
@@ -398,7 +409,7 @@ CONTAINS
           eig_not_conv(jj:jj+n-1) = ritz_coeff(i_first:i_last)
           jj=jj+n
         END DO
-        CALL cp_fm_gemm('N','N',nao,nmo_not_converged,nao,1.0_dp,c_out,c_notconv,0.0_dp,m_hc,error=error)
+        CALL cp_gemm('N','N',nao,nmo_not_converged,nao,1.0_dp,c_out,c_notconv,0.0_dp,m_hc,error=error)
         CALL cp_fm_symm('L','U',nao,nmo_not_converged,1.0_dp,s_fm,c_notconv,0.0_dp,m_sc,error=error)
         ! extend suspace using only the not converged vectors
          CALL cp_fm_to_fm(m_sc,m_tmp,error=error)
@@ -448,16 +459,16 @@ CONTAINS
        CALL cp_fm_set_all(s_block,0.0_dp, 1.0_dp,error=error)
 
        ! compute CHC
-       CALL cp_fm_gemm('T','N',nmat,nmat,nao,1.0_dp,c_notconv,m_hc,0.0_dp,m_tmp,error=error)
+       CALL cp_gemm('T','N',nmat,nmat,nao,1.0_dp,c_notconv,m_hc,0.0_dp,m_tmp,error=error)
        CALL cp_fm_to_fm_submat(m_tmp,h_block,nmat,nmat,1,1,1,1,error=error)
 
        ! compute ZSC
-       CALL cp_fm_gemm('T','N',nmat,nmat,nao,1.0_dp,c_pz,m_sc,0.0_dp,m_tmp,error=error)
+       CALL cp_gemm('T','N',nmat,nmat,nao,1.0_dp,c_pz,m_sc,0.0_dp,m_tmp,error=error)
        CALL cp_fm_to_fm_submat(m_tmp,s_block,nmat,nmat,1,1,1+nmat,1,error=error)
        CALL cp_fm_transpose(m_tmp,mt_tmp,error=error)
        CALL cp_fm_to_fm_submat(mt_tmp,s_block,nmat,nmat,1,1,1,1+nmat,error=error)
        ! compute ZHC
-       CALL cp_fm_gemm('T','N',nmat,nmat,nao,1.0_dp,c_pz,m_hc,0.0_dp,m_tmp,error=error)
+       CALL cp_gemm('T','N',nmat,nmat,nao,1.0_dp,c_pz,m_hc,0.0_dp,m_tmp,error=error)
        CALL cp_fm_to_fm_submat(m_tmp,h_block,nmat,nmat,1,1,1+nmat,1,error=error)
        CALL cp_fm_transpose(m_tmp,mt_tmp,error=error)
        CALL cp_fm_to_fm_submat(mt_tmp,h_block,nmat,nmat,1,1,1,1+nmat,error=error)
@@ -466,7 +477,7 @@ CONTAINS
 
        ! reuse m_sc and m_hc to computr HZ and SZ
        IF(nmo_converged>0) THEN
-         CALL cp_fm_gemm('N','N',nao,nmat,nao,1.0_dp,c_out,c_pz,0.0_dp,m_hc,error=error)
+         CALL cp_gemm('N','N',nao,nmat,nao,1.0_dp,c_out,c_pz,0.0_dp,m_hc,error=error)
          CALL cp_fm_symm('L','U',nao,nmo_not_converged,1.0_dp,s_fm,c_pz,0.0_dp,m_sc,error=error)
 
          CALL cp_fm_release(c_out,error=error)
@@ -478,10 +489,10 @@ CONTAINS
        END IF
 
        ! compute ZSZ
-       CALL cp_fm_gemm('T','N',nmat,nmat,nao,1.0_dp,c_pz,m_sc,0.0_dp,m_tmp,error=error)
+       CALL cp_gemm('T','N',nmat,nmat,nao,1.0_dp,c_pz,m_sc,0.0_dp,m_tmp,error=error)
        CALL cp_fm_to_fm_submat(m_tmp,s_block,nmat,nmat,1,1,1+nmat,1+nmat,error=error)
        ! compute ZHZ
-       CALL cp_fm_gemm('T','N',nmat,nmat,nao,1.0_dp,c_pz,m_hc,0.0_dp,m_tmp,error=error)
+       CALL cp_gemm('T','N',nmat,nmat,nao,1.0_dp,c_pz,m_hc,0.0_dp,m_tmp,error=error)
        CALL cp_fm_to_fm_submat(m_tmp,h_block,nmat,nmat,1,1,1+nmat,1+nmat,error=error)
 
        CALL cp_fm_release(m_sc,error=error)
@@ -491,9 +502,9 @@ CONTAINS
 
       ! extract egenvectors
        CALL cp_fm_to_fm_submat(v_block,m_tmp, nmat,nmat,1,1,1,1,error=error)
-       CALL cp_fm_gemm('N','N',nao,nmat,nmat,1.0_dp,c_notconv,m_tmp,0.0_dp,m_hc,error=error)
+       CALL cp_gemm('N','N',nao,nmat,nmat,1.0_dp,c_notconv,m_tmp,0.0_dp,m_hc,error=error)
        CALL cp_fm_to_fm_submat(v_block,m_tmp, nmat,nmat,1+nmat,1,1,1,error=error)
-       CALL cp_fm_gemm('N','N',nao,nmat,nmat,1.0_dp,c_pz,m_tmp,1.0_dp,m_hc,error=error)
+       CALL cp_gemm('N','N',nao,nmat,nmat,1.0_dp,c_pz,m_tmp,1.0_dp,m_hc,error=error)
 
        CALL cp_fm_release(m_tmp,error=error)
 
@@ -548,6 +559,15 @@ CONTAINS
     CALL timestop(handle)
   END SUBROUTINE generate_extended_space
 
+! *****************************************************************************
+!> \brief ...
+!> \param bdav_env ...
+!> \param mo_set ...
+!> \param matrix_h ...
+!> \param matrix_s ...
+!> \param output_unit ...
+!> \param preconditioner ...
+!> \param error ...
 ! *****************************************************************************
   SUBROUTINE generate_extended_space_sparse(bdav_env,mo_set,matrix_h,matrix_s,output_unit,&
              preconditioner,error)
@@ -1001,9 +1021,9 @@ CONTAINS
        CALL copy_dbcsr_to_fm(matrix_pz,matrix_z_fm,error=error)
       ! extract egenvectors
        CALL cp_fm_to_fm_submat(v_block,matrix_mm_fm, nmat,nmat,1,1,1,1,error=error)
-       CALL cp_fm_gemm('N','N',nao,nmat,nmat,1.0_dp,mo_notconv_fm,matrix_mm_fm,0.0_dp,matrix_nm_fm,error=error)
+       CALL cp_gemm('N','N',nao,nmat,nmat,1.0_dp,mo_notconv_fm,matrix_mm_fm,0.0_dp,matrix_nm_fm,error=error)
        CALL cp_fm_to_fm_submat(v_block,matrix_mm_fm, nmat,nmat,1+nmat,1,1,1,error=error)
-       CALL cp_fm_gemm('N','N',nao,nmat,nmat,1.0_dp,matrix_z_fm,matrix_mm_fm,1.0_dp,matrix_nm_fm,error=error)
+       CALL cp_gemm('N','N',nao,nmat,nmat,1.0_dp,matrix_z_fm,matrix_mm_fm,1.0_dp,matrix_nm_fm,error=error)
 
        CALL cp_dbcsr_release_p(matrix_z, error=error)
        CALL cp_dbcsr_release_p(matrix_pz, error=error)
@@ -1069,8 +1089,17 @@ CONTAINS
   END SUBROUTINE generate_extended_space_sparse
 
 ! *****************************************************************************
-! *****************************************************************************
 
+! *****************************************************************************
+!> \brief ...
+!> \param s_block ...
+!> \param h_block ...
+!> \param v_block ...
+!> \param w_block ...
+!> \param evals ...
+!> \param ndim ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE  reduce_extended_space(s_block,h_block,v_block,w_block, evals, ndim, error)
 
     TYPE(cp_fm_type), POINTER                :: s_block, h_block, v_block, &
@@ -1101,10 +1130,10 @@ CONTAINS
 ! S^(-1/2)
          CALL cp_fm_power(w_block,s_block,-0.5_dp,1.0E-5_dp,info,error=error)
          CALL cp_fm_to_fm(w_block,s_block,error=error)
-         CALL cp_fm_gemm('N','N',ndim,ndim,ndim,1.0_dp,H_block,s_block,0.0_dp,w_block,error=error)
-         CALL cp_fm_gemm('N','N',ndim,ndim,ndim,1.0_dp,s_block,w_block,0.0_dp,H_block,error=error)
+         CALL cp_gemm('N','N',ndim,ndim,ndim,1.0_dp,H_block,s_block,0.0_dp,w_block,error=error)
+         CALL cp_gemm('N','N',ndim,ndim,ndim,1.0_dp,s_block,w_block,0.0_dp,H_block,error=error)
          CALL choose_eigv_solver(H_block,w_block,evals,error=error)
-         CALL cp_fm_gemm('N','N',ndim,ndim,ndim,1.0_dp,s_block,w_block,0.0_dp,v_block,error=error)
+         CALL cp_gemm('N','N',ndim,ndim,ndim,1.0_dp,s_block,w_block,0.0_dp,v_block,error=error)
       END IF
 
     CALL timestop(handle)

@@ -19,12 +19,12 @@ MODULE cp_dbcsr_diag
   USE cp_cfm_types,                    ONLY: cp_cfm_create,&
                                              cp_cfm_release,&
                                              cp_cfm_type
-  USE cp_dbcsr_interface,              ONLY: cp_dbcsr_get_info
+  USE cp_dbcsr_interface,              ONLY: cp_dbcsr_get_info,&
+                                             cp_dbcsr_type
   USE cp_dbcsr_operations,             ONLY: copy_cfm_to_dbcsr,&
                                              copy_dbcsr_to_cfm,&
                                              copy_dbcsr_to_fm,&
                                              copy_fm_to_dbcsr
-  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_type
   USE cp_fm_diag,                      ONLY: choose_eigv_solver,&
                                              cp_fm_syevr,&
                                              cp_fm_syevx
@@ -34,8 +34,7 @@ MODULE cp_dbcsr_diag
   USE cp_fm_types,                     ONLY: cp_fm_create,&
                                              cp_fm_release,&
                                              cp_fm_type
-  USE cp_para_types,                   ONLY: cp_blacs_env_type,&
-                                             cp_para_env_type
+  USE cp_para_types,                   ONLY: cp_para_env_type
   USE kinds,                           ONLY: dp
   USE timings,                         ONLY: timeset,&
                                              timestop
@@ -49,13 +48,20 @@ MODULE cp_dbcsr_diag
 
   ! Public subroutines
 
-  PUBLIC :: cp_dbcsr_syevd, &
-            cp_dbcsr_syevr, &
-            cp_dbcsr_syevx, &
+  PUBLIC :: cp_dbcsr_syevd,&
+            cp_dbcsr_syevx,&
             cp_dbcsr_heevd
 
 CONTAINS
 
+! *****************************************************************************
+!> \brief ...
+!> \param matrix ...
+!> \param eigenvectors ...
+!> \param eigenvalues ...
+!> \param para_env ...
+!> \param blacs_env ...
+!> \param error ...
 ! *****************************************************************************
   SUBROUTINE cp_dbcsr_syevd(matrix,eigenvectors,eigenvalues,para_env,blacs_env,error)
 
@@ -75,7 +81,6 @@ CONTAINS
 
     INTEGER                                  :: handle, nfullrows_total
     LOGICAL                                  :: failure
-    TYPE(cp_blacs_env_type), POINTER         :: context
     TYPE(cp_fm_struct_type), POINTER         :: fm_struct
     TYPE(cp_fm_type), POINTER                :: fm_eigenvectors, fm_matrix
 
@@ -109,6 +114,14 @@ CONTAINS
 !> \brief   compute eigenvalues and optionally eigenvectors of a real symmetric matrix using scalapack.
 !>          If eigenvectors are required this routine will replicate a full matrix on each CPU...
 !>          if more than a handful of vectors are needed, use cp_dbcsr_syevd instead
+!> \param matrix ...
+!> \param eigenvectors ...
+!> \param eigenvalues ...
+!> \param neig ...
+!> \param work_syevx ...
+!> \param para_env ...
+!> \param blacs_env ...
+!> \param error ...
 !> \par     matrix is supposed to be in upper triangular form, and overwritten by this routine
 !>          neig   is the number of vectors needed (default all)
 !>          work_syevx evec calculation only, is the fraction of the working buffer allowed (1.0 use full buffer)
@@ -132,7 +145,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, n, neig_local
-    TYPE(cp_blacs_env_type), POINTER         :: context
     TYPE(cp_fm_struct_type), POINTER         :: fm_struct
     TYPE(cp_fm_type), POINTER                :: fm_eigenvectors, fm_matrix
 
@@ -170,6 +182,14 @@ CONTAINS
 !>        a real symmetric matrix A distributed in 2D blockcyclic format by
 !>       calling the recommended sequence of ScaLAPACK routines.
 !>
+!> \param matrix ...
+!> \param eigenvectors ...
+!> \param eigenvalues ...
+!> \param ilow ...
+!> \param iup ...
+!> \param para_env ...
+!> \param blacs_env ...
+!> \param error ...
 !> \par     matrix is supposed to be in upper triangular form, and overwritten by this routine
 !>          subsets of eigenvalues/vectors can be selected by
 !>          specifying a range of values or a range of indices for the desired eigenvalues.
@@ -188,7 +208,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, n
-    TYPE(cp_blacs_env_type), POINTER         :: context
     TYPE(cp_fm_struct_type), POINTER         :: fm_struct
     TYPE(cp_fm_type), POINTER                :: fm_eigenvectors, fm_matrix
 
@@ -216,6 +235,14 @@ CONTAINS
 
   END SUBROUTINE cp_dbcsr_syevr
 
+! *****************************************************************************
+!> \brief ...
+!> \param matrix ...
+!> \param eigenvectors ...
+!> \param eigenvalues ...
+!> \param para_env ...
+!> \param blacs_env ...
+!> \param error ...
 ! *****************************************************************************
   SUBROUTINE cp_dbcsr_heevd(matrix,eigenvectors,eigenvalues,para_env,blacs_env,error)
 

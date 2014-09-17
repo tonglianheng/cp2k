@@ -16,14 +16,13 @@
 ! *****************************************************************************
 MODULE se_fock_matrix_coulomb_ga
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
-                                             get_atomic_kind,&
                                              get_atomic_kind_set
-  USE cell_types,                      ONLY: cell_type,&
+  USE cell_methods,                    ONLY: cell_type,&
                                              pbc
   USE cp_control_types,                ONLY: dft_control_type,&
                                              semi_empirical_control_type
-  USE cp_dbcsr_interface,              ONLY: cp_dbcsr_print
-  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_p_type
+  USE cp_dbcsr_interface,              ONLY: cp_dbcsr_p_type,&
+                                             cp_dbcsr_print
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
@@ -53,6 +52,8 @@ MODULE se_fock_matrix_coulomb_ga
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
   USE qs_force_types,                  ONLY: qs_force_type
+  USE qs_kind_types,                   ONLY: get_qs_kind,&
+                                             qs_kind_type
   USE se_fock_matrix_integrals,        ONLY: &
        dfock2C, dfock2C_r3, dfock2_1el, dfock2_1el_r3, fock2C, fock2C_ew, &
        fock2C_r3, fock2_1el, fock2_1el_ew, fock2_1el_r3, &
@@ -102,6 +103,7 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief A mockup for the ga_zero routine from the Global Arrays Toolkit.
+!> \param g_a ...
 !> \author Ole Schuett
 ! *****************************************************************************
 #ifndef _USE_GA 
@@ -115,6 +117,13 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Construction of the Coulomb part of the Fock matrix
+!> \param qs_env ...
+!> \param ks_matrix ...
+!> \param matrix_p ...
+!> \param energy ...
+!> \param calculate_forces ...
+!> \param store_int_env ...
+!> \param error ...
 !> \author JGH
 ! *****************************************************************************
   SUBROUTINE build_fock_matrix_coulomb (qs_env,ks_matrix,matrix_p,energy,calculate_forces,&
@@ -156,7 +165,6 @@ CONTAINS
       pbuff_a, pbuff_b
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
-    TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(dft_control_type), POINTER          :: dft_control
@@ -167,6 +175,8 @@ CONTAINS
       POINTER                                :: particle_set
     TYPE(qs_force_type), DIMENSION(:), &
       POINTER                                :: force
+    TYPE(qs_kind_type), DIMENSION(:), &
+      POINTER                                :: qs_kind_set
     TYPE(se_int_control_type)                :: se_int_control
     TYPE(se_taper_type), POINTER             :: se_taper
     TYPE(semi_empirical_control_type), &
@@ -182,13 +192,17 @@ CONTAINS
     failure=.FALSE.
     CALL timeset(routineN,handle)
 
+#ifndef _USE_GA
+    STOP "use _USE_GA "
+#endif
+
     IF ( .NOT. failure ) THEN
        NULLIFY(dft_control,cell,force,particle_set,&
                se_control,se_taper,ga_env,pbuff_a, &
                pbuff_b, ksbuff_a, ksbuff_b, ks_i, ks_j, dens_i_info, dens_j_info )
 
        CALL get_qs_env(qs_env=qs_env, dft_control=dft_control, cell=cell, se_taper=se_taper,&
-            para_env=para_env, atomic_kind_set=atomic_kind_set, &
+            para_env=para_env, atomic_kind_set=atomic_kind_set, qs_kind_set=qs_kind_set,&
             particle_set=particle_set, virial=virial, ga_env=ga_env,  error=error)
 
 ! GA option:  Get the GA info
@@ -242,8 +256,7 @@ CONTAINS
        ALLOCATE (se_defined(nkind),se_kind_list(nkind),se_natorb(nkind),STAT=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        DO ikind=1,nkind
-         atomic_kind => atomic_kind_set(ikind)
-         CALL get_atomic_kind(atomic_kind=atomic_kind,se_parameter=se_kind_a)
+         CALL get_qs_kind(qs_kind_set(ikind), se_parameter=se_kind_a)
          se_kind_list(ikind)%se_param => se_kind_a
          CALL get_se_param(se_kind_a,defined=defined,natorb=natorb_a)
          se_defined(ikind) = (defined .AND. natorb_a >= 1)
@@ -571,8 +584,15 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief  Long-Range part for SE Coulomb interactions
-!> \author Teodoro Laino [tlaino] - University of Zurich
+!> \param qs_env ...
+!> \param ks_matrix ...
+!> \param matrix_p ...
+!> \param energy ...
+!> \param calculate_forces ...
+!> \param store_int_env ...
+!> \param error ...
 !> \date   08.2008 [created]
+!> \author Teodoro Laino [tlaino] - University of Zurich
 ! *****************************************************************************
   SUBROUTINE build_fock_matrix_coulomb_lr (qs_env, ks_matrix, matrix_p, energy,&
        calculate_forces, store_int_env, error)
@@ -609,7 +629,6 @@ CONTAINS
                                                 pa_block_a, pbuff_a
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
-    TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
@@ -624,6 +643,8 @@ CONTAINS
       POINTER                                :: particle_set
     TYPE(qs_force_type), DIMENSION(:), &
       POINTER                                :: force
+    TYPE(qs_kind_type), DIMENSION(:), &
+      POINTER                                :: qs_kind_set
     TYPE(section_vals_type), POINTER         :: se_section
     TYPE(semi_empirical_control_type), &
       POINTER                                :: se_control
@@ -634,6 +655,10 @@ CONTAINS
     failure=.FALSE.
     CALL timeset(routineN,handle)
 
+#ifndef _USE_GA
+    STOP "use _USE_GA "
+#endif
+
     IF ( .NOT. failure ) THEN
        NULLIFY(dft_control, cell, force,particle_set,local_particles,&
             se_control, ewald_env, ewald_pw, se_nddo_mpole, se_nonbond_env, se_section, mpole,&
@@ -641,7 +666,8 @@ CONTAINS
 
        logger => cp_error_get_logger(error)
        CALL get_qs_env(qs_env=qs_env, dft_control=dft_control, cell=cell, para_env=para_env,&
-            atomic_kind_set=atomic_kind_set, particle_set=particle_set, ewald_env=ewald_env,&
+            atomic_kind_set=atomic_kind_set, qs_kind_set=qs_kind_set, particle_set=particle_set,&
+            ewald_env=ewald_env,&
             ewald_pw=ewald_pw, se_nddo_mpole=se_nddo_mpole,local_particles=local_particles,&
             se_nonbond_env=se_nonbond_env, virial=virial, ga_env=ga_env, &
             error=error)
@@ -734,8 +760,7 @@ CONTAINS
            DO iblock = 1, isize
              ikind = INT ( dens_i_info ( 1, iblock )  )
              iatom = INT ( dens_i_info ( 2, iblock )  )
-             atomic_kind => atomic_kind_set(ikind)
-             CALL get_atomic_kind(atomic_kind=atomic_kind,se_parameter=se_kind_a)
+             CALL get_qs_kind(qs_kind_set(ikind), se_parameter=se_kind_a)
              CALL get_se_param(se_kind_a,defined=defined,natorb=natorb_a)
 
 
@@ -828,8 +853,7 @@ CONTAINS
           ! Sum the local forces to the global forces
           node = 0
           DO ikind = 1, nkind
-            atomic_kind => atomic_kind_set(ikind)
-            CALL get_atomic_kind(atomic_kind=atomic_kind,se_parameter=se_kind_a)
+            CALL get_qs_kind(qs_kind_set(ikind), se_parameter=se_kind_a)
             CALL get_se_param(se_kind_a,defined=defined,natorb=natorb_a)
             IF (.NOT.defined .OR. natorb_a < 1) CYCLE
             nparticle_local = local_particles%n_el(ikind)
@@ -884,8 +908,7 @@ CONTAINS
          DO iblock = 1, isize
            ikind = INT ( dens_i_info ( 1, iblock )  )
            iatom = INT ( dens_i_info ( 2, iblock )  )
-           atomic_kind => atomic_kind_set(ikind)
-           CALL get_atomic_kind(atomic_kind=atomic_kind,se_parameter=se_kind_a)
+           CALL get_qs_kind(qs_kind_set(ikind), se_parameter=se_kind_a)
            CALL get_se_param(se_kind_a,defined=defined,natorb=natorb_a)
 
            IF (.NOT.defined .OR. natorb_a < 1) CYCLE
@@ -979,6 +1002,17 @@ CONTAINS
 !> \brief When doing long-range SE calculation, this module computes the correction
 !>        between the mismatch of point-like multipoles and multipoles represented
 !>        with charges
+!> \param qs_env ...
+!> \param ks_matrix ...
+!> \param matrix_p ...
+!> \param energy ...
+!> \param calculate_forces ...
+!> \param store_int_env ...
+!> \param se_nddo_mpole ...
+!> \param task ...
+!> \param virial ...
+!> \param pv_glob ...
+!> \param error ...
 !> \author Teodoro Laino [tlaino] - 05.2009
 ! *****************************************************************************
   SUBROUTINE build_fock_matrix_coul_lrc (qs_env,ks_matrix,matrix_p,energy,&
@@ -1027,7 +1061,6 @@ CONTAINS
       pb_block_a, pbuff_a, pbuff_b
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
-    TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(dft_control_type), POINTER          :: dft_control
@@ -1036,6 +1069,8 @@ CONTAINS
       POINTER                                :: particle_set
     TYPE(qs_force_type), DIMENSION(:), &
       POINTER                                :: force
+    TYPE(qs_kind_type), DIMENSION(:), &
+      POINTER                                :: qs_kind_set
     TYPE(se_int_control_type)                :: se_int_control
     TYPE(se_taper_type), POINTER             :: se_taper
     TYPE(semi_empirical_control_type), &
@@ -1046,12 +1081,15 @@ CONTAINS
 
     failure=.FALSE.
     CALL timeset(routineN,handle)
+#ifndef _USE_GA
+    STOP "use _USE_GA "
+#endif
     IF ( .NOT. failure ) THEN
        NULLIFY(dft_control, cell, force, particle_set, se_control, se_taper, &
             efield0, efield1, efield2,ga_env)
 
        CALL get_qs_env(qs_env=qs_env, dft_control=dft_control, cell=cell, se_taper=se_taper,&
-            para_env=para_env, atomic_kind_set=atomic_kind_set, &
+            para_env=para_env, atomic_kind_set=atomic_kind_set, qs_kind_set=qs_kind_set,&
             particle_set=particle_set, ga_env=ga_env, error=error)
 
        CALL get_ga_env ( ga_env, se_dims = se_dims, error = error )
@@ -1122,8 +1160,7 @@ CONTAINS
        ALLOCATE (se_defined(nkind),se_kind_list(nkind),se_natorb(nkind),STAT=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        DO ikind=1,nkind
-          atomic_kind => atomic_kind_set(ikind)
-          CALL get_atomic_kind(atomic_kind=atomic_kind,se_parameter=se_kind_a)
+          CALL get_qs_kind(qs_kind_set(ikind),se_parameter=se_kind_a)
           se_kind_list(ikind)%se_param => se_kind_a
           CALL get_se_param(se_kind_a,defined=defined,natorb=natorb_a)
           se_defined(ikind) = (defined .AND. natorb_a >= 1)
@@ -1406,6 +1443,12 @@ CONTAINS
 !>        term of the Fock matrix
 !>        The 1/R^3 correction works in real-space strictly on the zero-cell,
 !>        in order to avoid more parameters to be provided in the input..
+!> \param qs_env ...
+!> \param ks_matrix ...
+!> \param matrix_p ...
+!> \param energy ...
+!> \param calculate_forces ...
+!> \param error ...
 !> \author Teodoro Laino [tlaino] - 12.2008
 ! *****************************************************************************
   SUBROUTINE build_fock_matrix_coul_lr_r3(qs_env,ks_matrix,matrix_p,energy,calculate_forces,error)
@@ -1443,7 +1486,6 @@ CONTAINS
       pbuff_a, pbuff_b
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
-    TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
@@ -1458,6 +1500,8 @@ CONTAINS
       POINTER                                :: particle_set
     TYPE(qs_force_type), DIMENSION(:), &
       POINTER                                :: force
+    TYPE(qs_kind_type), DIMENSION(:), &
+      POINTER                                :: qs_kind_set
     TYPE(section_vals_type), POINTER         :: se_section
     TYPE(semi_empirical_control_type), &
       POINTER                                :: se_control
@@ -1467,6 +1511,9 @@ CONTAINS
 
       failure=.FALSE.
     CALL timeset(routineN,handle)
+#ifndef _USE_GA
+    STOP "use _USE_GA "
+#endif
 
     CALL get_qs_env(qs_env=qs_env, error=error)!sm->dbcsr
 
@@ -1478,7 +1525,8 @@ CONTAINS
 
        logger => cp_error_get_logger(error)
        CALL get_qs_env(qs_env=qs_env, dft_control=dft_control, cell=cell, para_env=para_env,&
-            atomic_kind_set=atomic_kind_set, particle_set=particle_set, ewald_env=ewald_env,&
+            atomic_kind_set=atomic_kind_set, qs_kind_set=qs_kind_set, particle_set=particle_set,&
+            ewald_env=ewald_env,&
             local_particles=local_particles, ewald_pw=ewald_pw, se_nddo_mpole=se_nddo_mpole,&
             se_nonbond_env=se_nonbond_env, ga_env=ga_env, error=error)
 
@@ -1533,8 +1581,7 @@ CONTAINS
        ALLOCATE (se_defined(nkind),se_kind_list(nkind),se_natorb(nkind),STAT=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        DO ikind=1,nkind
-          atomic_kind => atomic_kind_set(ikind)
-          CALL get_atomic_kind(atomic_kind=atomic_kind,se_parameter=se_kind_a)
+          CALL get_qs_kind(qs_kind_set(ikind),se_parameter=se_kind_a)
           se_kind_list(ikind)%se_param => se_kind_a
           CALL get_se_param(se_kind_a,defined=defined,natorb=natorb_a)
           se_defined(ikind) = (defined .AND. natorb_a >= 1)

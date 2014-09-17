@@ -12,7 +12,7 @@
 !>      CP2K: 
 !>      Please use the interface definded in util.F for calling sort().
 !>      This could not go into cp_array__nametype1__utils.template because 
-!>      there some routines use the error-handling from common/cp_common_uses.f90,
+!>      there some routines use the error-handling from cp_common_uses.f90,
 !>      which in turn uses timings.F, which uses sort() :-(
 !>
 !>      DBCSR:
@@ -27,7 +27,7 @@
 ! *****************************************************************************
 MODULE dbcsr_array_i8_sort
    
-  USE dbcsr_kinds,                     ONLY: int_8
+  USE kinds,                           ONLY: int_8
 
   IMPLICIT NONE
   PRIVATE
@@ -178,14 +178,14 @@ END SUBROUTINE dbcsr_1d_i8_sort_low
   ! files are almost the same (multi-line use change it a bit)
   ! [template(type1,nametype1,USE,lessQ,defines)]
 ! ARGS:
-!  USE = "USE dbcsr_kinds,       ONLY:int_8"
+!  USE = "USE kinds,       ONLY:int_8"
 !  defines = 
 !    "#define CP_I_LESS_Q(el1,el2) ( el1 < el2 )
 !     "
 !  lessQ = "CP_I_LESS_Q"
-!  lib = "dbcsr/dbcsr"
 !  libname = "dbcsr"
 !  nametype1 = "i8"
+!  template = "dbcsr_array__nametype1__sort.template"
 !  type1 = "integer(kind=int_8)"
 
 

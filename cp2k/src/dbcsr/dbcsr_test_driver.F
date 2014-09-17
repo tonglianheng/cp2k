@@ -13,29 +13,30 @@
 !> - Created 2010
 ! *****************************************************************************
 PROGRAM dbcsr_test_driver
-
+  USE dbcsr_config,                    ONLY: dbcsr_set_default_config
   USE dbcsr_error_handling,            ONLY: dbcsr_assert,&
                                              dbcsr_error_set,&
                                              dbcsr_error_stop,&
                                              dbcsr_error_type,&
                                              dbcsr_fatal_level,&
                                              dbcsr_wrong_args_error
-  USE dbcsr_kinds,                     ONLY: default_string_length
-  USE dbcsr_message_passing,           ONLY: mp_bcast,&
-                                             mp_cart_create,&
-                                             mp_cart_rank,&
-                                             mp_environ,&
-                                             mp_world_finalize,&
-                                             mp_world_init
   USE dbcsr_methods,                   ONLY: dbcsr_mp_new,&
                                              dbcsr_mp_release
   USE dbcsr_operations,                ONLY: dbcsr_finalize_lib,&
                                              dbcsr_init_lib
   USE dbcsr_test_add,                  ONLY: dbcsr_test_adds
-  USE dbcsr_test_methods,              ONLY: dbcsr_default_config,&
-                                             dbcsr_test_read_args
+  USE dbcsr_test_methods,              ONLY: dbcsr_test_read_args
   USE dbcsr_test_multiply,             ONLY: dbcsr_test_multiplies
   USE dbcsr_types,                     ONLY: dbcsr_mp_obj
+  USE kinds,                           ONLY: default_string_length
+  USE machine,                         ONLY: default_output_unit
+  USE message_passing,                 ONLY: mp_bcast,&
+                                             mp_cart_create,&
+                                             mp_cart_rank,&
+                                             mp_comm_free,&
+                                             mp_environ,&
+                                             mp_world_finalize,&
+                                             mp_world_init
 
   !$ USE OMP_LIB
 
@@ -81,7 +82,7 @@ PROGRAM dbcsr_test_driver
   !
   ! set standard output parameters
   io_unit = 0
-  IF (mynode.EQ.0) io_unit = 6
+  IF (mynode.EQ.0) io_unit = default_output_unit
 
   !
   ! read and distribute input args
@@ -94,7 +95,7 @@ PROGRAM dbcsr_test_driver
   !
   ! initialize libdbcsr
   CALL dbcsr_init_lib (group=mp_comm, error=error)
-  CALL dbcsr_default_config (error=error)
+  CALL dbcsr_set_default_config (error=error)
 
   !
   ! select the operation
@@ -118,6 +119,7 @@ PROGRAM dbcsr_test_driver
 
   !
   ! finalize mpi
+  CALL mp_comm_free(group)
   CALL mp_world_finalize ()
 
   !

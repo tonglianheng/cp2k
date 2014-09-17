@@ -17,8 +17,8 @@ MODULE cp_ddapc
   USE cp_control_types,                ONLY: ddapc_restraint_type
   USE cp_dbcsr_interface,              ONLY: cp_dbcsr_copy,&
                                              cp_dbcsr_init,&
+                                             cp_dbcsr_p_type,&
                                              cp_dbcsr_set
-  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_p_type
   USE cp_ddapc_forces,                 ONLY: ewald_ddapc_force,&
                                              reset_ch_pulay,&
                                              restraint_functional_force,&
@@ -62,14 +62,23 @@ MODULE cp_ddapc
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cp_ddapc'
 
   PUBLIC :: cp_ddapc_apply_CD,&  ! Apply Coupling/Decoupling to Periodic Images
-            cp_ddapc_apply_RS,&  ! Apply Restraints/Constraints
-            cp_ddapc_apply_RF,&  ! Apply an SCRF (Solvation Scheme)
             qs_ks_ddapc
 
 CONTAINS
 
 ! *****************************************************************************
 !> \brief Set of methods using DDAPC charges
+!> \param qs_env ...
+!> \param auxbas_pw_pool ...
+!> \param rho_tot_gspace ...
+!> \param v_hartree_gspace ...
+!> \param v_spin_ddapc_rest_r ...
+!> \param energy ...
+!> \param calculate_forces ...
+!> \param ks_env ...
+!> \param ks_matrix ...
+!> \param just_energy ...
+!> \param error ...
 !> \par History
 !>      08.2005 created [tlaino]
 !>      08.2008 extended to restraint/constraint DDAPC charges [fschiff]
@@ -210,6 +219,13 @@ CONTAINS
 !>      Ewald summation, and for performance reason I'm writing a specific
 !>      driver instead of using and setting-up the environment of the already
 !>      available routines
+!> \param qs_env ...
+!> \param rho_tot_gspace ...
+!> \param energy ...
+!> \param v_hartree_gspace ...
+!> \param calculate_forces ...
+!> \param Itype_of_density ...
+!> \param error ...
 !> \par History
 !>      08.2005 created [tlaino]
 !> \author Teodoro Laino
@@ -246,7 +262,7 @@ CONTAINS
     need_f         = .FALSE.
     IF (PRESENT(calculate_forces)) need_f   = calculate_forces
     logger         => cp_error_get_logger(error)
-    apply_decpl    = qs_env%cp_ddapc_ewald%do_decoupling.OR.qs_env%cp_ddapc_ewald%do_qmmm_periodic
+    apply_decpl    = qs_env%cp_ddapc_ewald%do_decoupling.OR.qs_env%cp_ddapc_ewald%do_qmmm_periodic_decpl
     IF ((.NOT.failure).AND.(apply_decpl)) THEN
        ! Initialize
        NULLIFY(multipole_section,&
@@ -275,7 +291,7 @@ CONTAINS
        IF (qs_env%cp_ddapc_ewald%do_decoupling) THEN
           multipole_section => section_vals_get_subs_vals(poisson_section,"MULTIPOLE", error=error)
        END IF
-       IF (qs_env%cp_ddapc_ewald%do_qmmm_periodic) THEN
+       IF (qs_env%cp_ddapc_ewald%do_qmmm_periodic_decpl) THEN
           qmmm_periodic_section   => section_vals_get_subs_vals(force_env_section,"QMMM%PERIODIC", error=error)
           multipole_section       => section_vals_get_subs_vals(qmmm_periodic_section,"MULTIPOLE", error=error)
        END IF
@@ -308,7 +324,7 @@ CONTAINS
           e_decpl = 0.5_dp*DOT_PRODUCT(charges,MATMUL(qs_env%cp_ddapc_env%Md,charges))
           WRITE(iw,FMT="(T3,A,T60,F20.10)")"Decoupling Energy: ", e_decpl
        END IF
-       IF (qs_env%cp_ddapc_ewald%do_qmmm_periodic.AND.(iw>0)) THEN
+       IF (qs_env%cp_ddapc_ewald%do_qmmm_periodic_decpl.AND.(iw>0)) THEN
           e_recpl = 0.5_dp*DOT_PRODUCT(charges,MATMUL(qs_env%cp_ddapc_env%Mr,charges))
           WRITE(iw,FMT="(T3,A,T60,F20.10)")"Recoupling Energy: ", e_recpl
        END IF
@@ -326,7 +342,7 @@ CONTAINS
           CALL ewald_ddapc_force(qs_env, qs_env%cp_ddapc_ewald%coeff_qm,&
                .FALSE., 1.0_dp, multipole_section, cell, particle_set,&
                radii, dq, charges, error=error)
-          IF (qs_env%cp_ddapc_ewald%do_qmmm_periodic) THEN
+          IF (qs_env%cp_ddapc_ewald%do_qmmm_periodic_decpl) THEN
              CALL ewald_ddapc_force(qs_env, qs_env%cp_ddapc_ewald%coeff_mm,&
                   .TRUE., -1.0_dp, multipole_section, super_cell, particle_set, &
                   radii, dq, charges, error=error)
@@ -350,6 +366,15 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Routine to apply RESTRAINT/CONSTRAINTS to the density
 !>      with the Bloechl scheme
+!> \param qs_env ...
+!> \param energy ...
+!> \param energy_res ...
+!> \param v_hartree_gspace ...
+!> \param v_spin_ddapc_rest_g ...
+!> \param section_id ...
+!> \param ddapc_restraint_control ...
+!> \param calculate_forces ...
+!> \param error ...
 !> \par History
 !>      08.2005 created [tlaino]
 !> \author Teodoro Laino
@@ -465,6 +490,13 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Routine to apply a reaction field during SCF (SCRF) with the Bloechl scheme
+!> \param qs_env ...
+!> \param rho_tot_gspace ...
+!> \param energy ...
+!> \param v_hartree_gspace ...
+!> \param calculate_forces ...
+!> \param Itype_of_density ...
+!> \param error ...
 !> \par History
 !>      08.2005 created [tlaino]
 !> \author Teodoro Laino

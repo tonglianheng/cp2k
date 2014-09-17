@@ -44,6 +44,8 @@ MODULE atom_kind_orbitals
   USE qs_grid_atom,                    ONLY: allocate_grid_atom,&
                                              create_grid_atom,&
                                              grid_atom_type
+  USE qs_kind_types,                   ONLY: get_qs_kind,&
+                                             qs_kind_type
   USE rel_control_types,               ONLY: rel_control_type
 #include "./common/cp_common_uses.f90"
 
@@ -61,9 +63,20 @@ MODULE atom_kind_orbitals
 CONTAINS
 
 ! *****************************************************************************
-  SUBROUTINE calculate_atomic_orbitals (atomic_kind,iunit,pmat,ispin,confine,&
+!> \brief ...
+!> \param atomic_kind ...
+!> \param qs_kind ...
+!> \param iunit ...
+!> \param pmat ...
+!> \param ispin ...
+!> \param confine ...
+!> \param xc_section ...
+!> \param error ...
+! *****************************************************************************
+  SUBROUTINE calculate_atomic_orbitals (atomic_kind,qs_kind,iunit,pmat,ispin,confine,&
                                         xc_section,error)
-    TYPE(atomic_kind_type), POINTER          :: atomic_kind
+    TYPE(atomic_kind_type), INTENT(IN)       :: atomic_kind
+    TYPE(qs_kind_type), INTENT(IN)           :: qs_kind
     INTEGER, INTENT(IN), OPTIONAL            :: iunit
     REAL(KIND=dp), DIMENSION(:, :), &
       OPTIONAL, POINTER                      :: pmat
@@ -117,14 +130,17 @@ CONTAINS
        NULLIFY(atom%xc_section)
     END IF
 
-    CALL get_atomic_kind(atomic_kind,z=z,zeff=zeff)
+    CALL get_atomic_kind(atomic_kind,z=z)
     NULLIFY(all_potential,gth_potential,orb_basis_set)
-    CALL get_atomic_kind(atomic_kind=atomic_kind,&
-                         all_potential=all_potential,&
-                         gth_potential=gth_potential,&
-                         orb_basis_set=orb_basis_set,&
-                         bs_occupation=bs_occupation,&
-                         addel=addel,laddel=laddel,naddel=naddel)
+    CALL get_qs_kind(qs_kind,zeff=zeff,&
+                     all_potential=all_potential,&
+                     gth_potential=gth_potential)
+
+    CALL get_qs_kind(qs_kind,&
+                     orb_basis_set=orb_basis_set,&
+                     bs_occupation=bs_occupation,&
+                     addel=addel,laddel=laddel,naddel=naddel)
+
     CPPostcondition(ASSOCIATED(orb_basis_set), cp_failure_level, routineP, error, failure)
 
     atom%z = z
@@ -150,8 +166,8 @@ CONTAINS
          potential%confinement=.TRUE.
       END IF
       potential%acon=0.1_dp
-      potential%rcon=2._dp*ptable(z)%vdw_radius*bohr
-      potential%ncon=2
+      potential%rcon=2.0_dp*ptable(z)%vdw_radius*bohr
+      potential%scon=2.0_dp
 
       CALL get_potential(gth_potential,&
                          zeff=zeff,&
@@ -252,8 +268,8 @@ CONTAINS
          potential%confinement=.FALSE.
       END IF
       potential%acon=0.1_dp
-      potential%rcon=2._dp*ptable(z)%vdw_radius*bohr
-      potential%ncon=2
+      potential%rcon=2.0_dp*ptable(z)%vdw_radius*bohr
+      potential%scon=2.0_dp
       CALL set_atom(atom,zcore=z,potential=potential,error=error)
     END IF
 
@@ -470,7 +486,7 @@ CONTAINS
       END DO
     END IF
 
-    IF ( atomic_kind%ghost ) THEN
+    IF ( qs_kind%ghost ) THEN
       nelem = 0
       ncore = 0
       ncalc = 0
@@ -564,10 +580,22 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE calculate_atomic_density (density,atomic_kind,ngto,iunit,allelectron,confine,error)
+! *****************************************************************************
+!> \brief ...
+!> \param density ...
+!> \param atomic_kind ...
+!> \param qs_kind ...
+!> \param ngto ...
+!> \param iunit ...
+!> \param allelectron ...
+!> \param confine ...
+!> \param error ...
+! *****************************************************************************
+  SUBROUTINE calculate_atomic_density (density,atomic_kind,qs_kind,ngto,iunit,allelectron,confine,error)
     REAL(KIND=dp), DIMENSION(:, :), &
       INTENT(INOUT)                          :: density
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
+    TYPE(qs_kind_type), POINTER              :: qs_kind
     INTEGER, INTENT(IN)                      :: ngto
     INTEGER, INTENT(IN), OPTIONAL            :: iunit
     LOGICAL, INTENT(IN), OPTIONAL            :: allelectron, confine
@@ -606,11 +634,11 @@ CONTAINS
     NULLIFY(atom)
     CALL create_atom_type(atom,error)
 
-    CALL get_atomic_kind(atomic_kind,z=z,zeff=zeff)
+    CALL get_atomic_kind(atomic_kind,z=z)
     NULLIFY(all_potential, gth_potential)
-    CALL get_atomic_kind(atomic_kind=atomic_kind,&
-                         all_potential=all_potential,&
-                         gth_potential=gth_potential)
+    CALL get_qs_kind(qs_kind,zeff=zeff,&
+                     all_potential=all_potential,&
+                     gth_potential=gth_potential)
 
     IF(PRESENT(allelectron)) THEN
        IF(allelectron) THEN
@@ -649,8 +677,8 @@ CONTAINS
          potential%confinement=.TRUE.
       END IF
       potential%acon=0.1_dp
-      potential%rcon=2._dp*ptable(z)%vdw_radius*bohr
-      potential%ncon=2
+      potential%rcon=2.0_dp*ptable(z)%vdw_radius*bohr
+      potential%scon=2.0_dp
 
       CALL get_potential(gth_potential,&
                          zeff=zeff,&
@@ -751,8 +779,8 @@ CONTAINS
          potential%confinement=.FALSE.
       END IF
       potential%acon=0.1_dp
-      potential%rcon=2._dp*ptable(z)%vdw_radius*bohr
-      potential%ncon=2
+      potential%rcon=2.0_dp*ptable(z)%vdw_radius*bohr
+      potential%scon=2.0_dp
       CALL set_atom(atom,zcore=z,potential=potential,error=error)
     END IF
 
@@ -897,7 +925,7 @@ CONTAINS
       ncalc = nelem - ncore
     END IF
 
-    IF ( atomic_kind%ghost ) THEN
+    IF ( qs_kind%ghost ) THEN
       nelem = 0
       ncore = 0
       ncalc = 0
@@ -975,8 +1003,17 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE calculate_atomic_relkin (atomic_kind,rel_control,rtmat,error)
-    TYPE(atomic_kind_type), POINTER          :: atomic_kind
+! *****************************************************************************
+!> \brief ...
+!> \param atomic_kind ...
+!> \param qs_kind ...
+!> \param rel_control ...
+!> \param rtmat ...
+!> \param error ...
+! *****************************************************************************
+  SUBROUTINE calculate_atomic_relkin (atomic_kind,qs_kind,rel_control,rtmat,error)
+    TYPE(atomic_kind_type), INTENT(IN)       :: atomic_kind
+    TYPE(qs_kind_type), INTENT(IN)           :: qs_kind
     TYPE(rel_control_type), POINTER          :: rel_control
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: rtmat
     TYPE(cp_error_type), INTENT(INOUT)       :: error
@@ -1013,15 +1050,15 @@ CONTAINS
     IF(rel_control%rel_method == rel_none) RETURN
 
     NULLIFY(all_potential,orb_basis_set)
-    CALL get_atomic_kind(atomic_kind=atomic_kind,&
-                         all_potential=all_potential,&
-                         orb_basis_set=orb_basis_set)
+    CALL get_qs_kind(qs_kind, orb_basis_set=orb_basis_set, all_potential=all_potential)
+
     CPPostcondition(ASSOCIATED(orb_basis_set), cp_failure_level, routineP, error, failure)
 
     IF ( ASSOCIATED(all_potential) ) THEN
        ! only all electron atoms will get the relativistic correction
 
-       CALL get_atomic_kind(atomic_kind,z=z,zeff=zeff)
+       CALL get_atomic_kind(atomic_kind,z=z)
+       CALL get_qs_kind(qs_kind,zeff=zeff)
        NULLIFY(atom)
        CALL create_atom_type(atom,error)
        NULLIFY(atom%xc_section)
@@ -1209,7 +1246,7 @@ CONTAINS
        END DO
        ncalc = nelem - ncore
 
-       IF ( atomic_kind%ghost ) THEN
+       IF ( qs_kind%ghost ) THEN
           nelem = 0
           ncore = 0
           ncalc = 0

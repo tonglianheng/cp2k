@@ -27,15 +27,6 @@ MODULE dbcsr_test_methods
                                              dbcsr_block_transpose,&
                                              dbcsr_data_clear,&
                                              dbcsr_data_set
-  USE dbcsr_config,                    ONLY: &
-       dbcsr_get_conf_combtypes, dbcsr_get_conf_max_ele_block, &
-       dbcsr_get_conf_mm_driver, dbcsr_get_conf_mpi_mem, &
-       dbcsr_get_conf_subcomm, dbcsr_get_conf_use_comm_thread, &
-       dbcsr_set_conf_combtypes, dbcsr_set_conf_comm_thread_load, &
-       dbcsr_set_conf_max_ele_block, dbcsr_set_conf_mm_driver, &
-       dbcsr_set_conf_mm_stacksize, dbcsr_set_conf_mpi_mem, &
-       dbcsr_set_conf_nstacks, dbcsr_set_conf_subcomm, &
-       dbcsr_set_conf_use_comm_thread
   USE dbcsr_data_methods,              ONLY: &
        dbcsr_data_clear_pointer, dbcsr_data_get_sizes, dbcsr_data_get_type, &
        dbcsr_data_init, dbcsr_data_new, dbcsr_data_release, &
@@ -53,11 +44,6 @@ MODULE dbcsr_test_methods
                                              dbcsr_iterator_next_block,&
                                              dbcsr_iterator_start,&
                                              dbcsr_iterator_stop
-  USE dbcsr_kinds,                     ONLY: default_string_length,&
-                                             dp,&
-                                             real_8
-  USE dbcsr_message_passing,           ONLY: mp_comm_null,&
-                                             mp_environ
   USE dbcsr_methods,                   ONLY: &
        dbcsr_distribution_hold, dbcsr_distribution_mp, &
        dbcsr_distribution_new, dbcsr_distribution_release, &
@@ -76,6 +62,11 @@ MODULE dbcsr_test_methods
   USE dbcsr_work_operations,           ONLY: dbcsr_create,&
                                              dbcsr_finalize,&
                                              dbcsr_work_create
+  USE kinds,                           ONLY: default_string_length,&
+                                             dp,&
+                                             real_8
+  USE message_passing,                 ONLY: mp_comm_null,&
+                                             mp_environ
 
   !$ USE OMP_LIB
 
@@ -84,14 +75,19 @@ MODULE dbcsr_test_methods
   PRIVATE
 
   PUBLIC :: dbcsr_to_dense_local, dbcsr_impose_sparsity
-  PUBLIC :: dbcsr_random_dist, dbcsr_make_random_matrix, dbcsr_make_null_mp, &
-       dbcsr_make_random_block_sizes, dbcsr_make_null_dist, dbcsr_test_read_args, &
-       atoi, atol, ator, dbcsr_default_config
+  PUBLIC :: dbcsr_random_dist, dbcsr_make_random_matrix,&
+            dbcsr_make_random_block_sizes, dbcsr_test_read_args,&
+            atoi, atol, ator
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'dbcsr_test_methods'
 
 CONTAINS
 
+! *****************************************************************************
+!> \brief ...
+!> \param narg ...
+!> \param args ...
+! *****************************************************************************
   SUBROUTINE dbcsr_test_read_args(narg, args)
     INTEGER, INTENT(out)                     :: narg
     CHARACTER(len=*), DIMENSION(:), &
@@ -111,54 +107,6 @@ CONTAINS
     ENDDO
 
   END SUBROUTINE dbcsr_test_read_args
-
-! *****************************************************************************
-!> \brief Configure DBCSR driver with default values. [test routine]
-!> \param[inout] error        dbcsr error
-!>
-!> This is only used for dbcsr_test_driver and dbcsr_performance_driver.
-!> Basically it reads the default values and reset them.
-! *****************************************************************************
-  SUBROUTINE dbcsr_default_config(error)
-    TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_default_config', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: comm_thread_load, &
-                                                error_handler, max_ele_block, &
-                                                mm_driver, mm_ss
-    INTEGER, DIMENSION(3)                    :: nstacks
-    LOGICAL                                  :: use_combtypes, &
-                                                use_comm_thread, use_mpi_mem, &
-                                                use_subcomms
-
-    CALL dbcsr_error_set (routineN, error_handler, error=error)
-
-    use_subcomms = dbcsr_get_conf_subcomm()
-    use_combtypes = dbcsr_get_conf_combtypes()
-    use_mpi_mem = dbcsr_get_conf_mpi_mem()
-    mm_ss = -1
-    mm_driver = dbcsr_get_conf_mm_driver()
-    max_ele_block = dbcsr_get_conf_max_ele_block()
-    nstacks(1:3) = -1
-    use_comm_thread = dbcsr_get_conf_use_comm_thread()
-    comm_thread_load = -1
-
-    CALL dbcsr_set_conf_mm_driver (mm_driver, error=error)
-    CALL dbcsr_set_conf_subcomm (use_subcomms, error=error)
-    CALL dbcsr_set_conf_combtypes (use_combtypes, error=error)
-    CALL dbcsr_set_conf_mpi_mem (use_mpi_mem, error=error)
-    CALL dbcsr_set_conf_max_ele_block (max_ele_block, error=error)
-    IF (mm_ss > 0) CALL dbcsr_set_conf_mm_stacksize (mm_ss, error=error)
-    IF (nstacks(1) > 0) CALL dbcsr_set_conf_nstacks(nstacks, error=error)
-
-    CALL dbcsr_set_conf_use_comm_thread(use_comm_thread, error=error)
-    CALL dbcsr_set_conf_comm_thread_load(comm_thread_load, error=error)
-
-    CALL dbcsr_error_stop(error_handler, error=error)
-
-  END SUBROUTINE dbcsr_default_config
 
 ! *****************************************************************************
 !> \brief Impose sparsity on a dense matrix based on a dbcsr
@@ -376,6 +324,12 @@ CONTAINS
 
   END SUBROUTINE dbcsr_to_dense_local
 
+! *****************************************************************************
+!> \brief ...
+!> \param dist_array ...
+!> \param dist_size ...
+!> \param nbins ...
+! *****************************************************************************
   SUBROUTINE dbcsr_random_dist (dist_array, dist_size, nbins)
     TYPE(array_i1d_obj), INTENT(out)         :: dist_array
     INTEGER, INTENT(in)                      :: dist_size, nbins
@@ -398,8 +352,19 @@ CONTAINS
 
 
 !> \brief Creates a random matrix.
+!> \param matrix ...
+!> \param row_blk_sizes ...
+!> \param col_blk_sizes ...
+!> \param name ...
+!> \param sparsity ...
+!> \param mp_group ...
+!> \param data_type ...
+!> \param symmetry ...
+!> \param dist ...
 !> \param[in] nondet     (optional) Specifies that deterministic behavior is
 !>                       unneeded.
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE dbcsr_make_random_matrix (matrix, row_blk_sizes, col_blk_sizes,&
        name, sparsity, mp_group, data_type, symmetry, dist, nondet, error)
     TYPE(dbcsr_obj), INTENT(out)             :: matrix
@@ -554,6 +519,12 @@ CONTAINS
     CALL dbcsr_error_stop (error_handle, error)
   END SUBROUTINE dbcsr_make_random_matrix
 
+! *****************************************************************************
+!> \brief ...
+!> \param block_sizes ...
+!> \param size_sum ...
+!> \param size_mix ...
+! *****************************************************************************
   SUBROUTINE dbcsr_make_random_block_sizes(block_sizes, size_sum, size_mix)
     TYPE(array_i1d_obj), INTENT(out)         :: block_sizes
     INTEGER, INTENT(in)                      :: size_sum
@@ -611,6 +582,11 @@ CONTAINS
   END SUBROUTINE dbcsr_make_random_block_sizes
 
 
+! *****************************************************************************
+!> \brief ...
+!> \param mp_env ...
+!> \param group ...
+! *****************************************************************************
   SUBROUTINE dbcsr_make_null_mp (mp_env, group)
     TYPE(dbcsr_mp_obj), INTENT(out)          :: mp_env
     INTEGER, INTENT(in), OPTIONAL            :: group
@@ -629,6 +605,13 @@ CONTAINS
     ENDIF
   END SUBROUTINE dbcsr_make_null_mp
   !
+! *****************************************************************************
+!> \brief ...
+!> \param distribution ...
+!> \param nblkrows ...
+!> \param nblkcols ...
+!> \param group ...
+! *****************************************************************************
   SUBROUTINE dbcsr_make_null_dist (distribution, nblkrows, nblkcols, group)
     TYPE(dbcsr_distribution_obj), &
       INTENT(out)                            :: distribution
@@ -649,6 +632,10 @@ CONTAINS
     CALL dbcsr_mp_release (mp_env)
   END SUBROUTINE dbcsr_make_null_dist
 
+! *****************************************************************************
+!> \brief ...
+!> \param a ...
+! *****************************************************************************
   FUNCTION atoi(a)
     CHARACTER(len=*), INTENT(in)             :: a
     INTEGER                                  :: atoi
@@ -656,6 +643,10 @@ CONTAINS
     READ(a,'(I6)') atoi
   END FUNCTION atoi
 
+! *****************************************************************************
+!> \brief ...
+!> \param a ...
+! *****************************************************************************
   FUNCTION atol(a)
     CHARACTER(len=*), INTENT(in)             :: a
     LOGICAL                                  :: atol
@@ -663,6 +654,10 @@ CONTAINS
     READ(a,'(L1)') atol
   END FUNCTION atol
 
+! *****************************************************************************
+!> \brief ...
+!> \param a ...
+! *****************************************************************************
   FUNCTION ator(a)
     CHARACTER(len=*), INTENT(in)             :: a
     REAL(real_8)                             :: ator

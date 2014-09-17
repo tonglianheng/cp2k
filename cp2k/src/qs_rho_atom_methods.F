@@ -4,7 +4,6 @@
 !-----------------------------------------------------------------------------!
 ! *****************************************************************************
 MODULE qs_rho_atom_methods
-
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind,&
                                              get_atomic_kind_set
@@ -13,8 +12,8 @@ MODULE qs_rho_atom_methods
                                              gto_basis_set_type
   USE cp_control_types,                ONLY: dft_control_type,&
                                              gapw_control_type
-  USE cp_dbcsr_interface,              ONLY: cp_dbcsr_get_block_p
-  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_p_type
+  USE cp_dbcsr_interface,              ONLY: cp_dbcsr_get_block_p,&
+                                             cp_dbcsr_p_type
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE erf_fn,                          ONLY: erf
   USE kinds,                           ONLY: dp
@@ -39,6 +38,9 @@ MODULE qs_rho_atom_methods
                                              get_maxl_CG,&
                                              get_none0_cg_list,&
                                              harmonics_atom_type
+  USE qs_kind_types,                   ONLY: get_qs_kind,&
+                                             get_qs_kind_set,&
+                                             qs_kind_type
   USE qs_linres_types,                 ONLY: linres_control_type
   USE qs_neighbor_list_types,          ONLY: get_iterator_info,&
                                              neighbor_list_iterate,&
@@ -82,13 +84,25 @@ MODULE qs_rho_atom_methods
  CONTAINS
 
 ! *****************************************************************************
-  SUBROUTINE calculate_rho_atom(para_env,rho_atom_set,atom_kind,atom_list,&
+!> \brief ...
+!> \param para_env ...
+!> \param rho_atom_set ...
+!> \param qs_kind ...
+!> \param atom_list ...
+!> \param grid_atom ...
+!> \param natom ...
+!> \param nspins ...
+!> \param tot_rho1_h ...
+!> \param tot_rho1_s ...
+!> \param error ...
+! *****************************************************************************
+  SUBROUTINE calculate_rho_atom(para_env,rho_atom_set,qs_kind,atom_list,&
                                 grid_atom, natom, nspins, tot_rho1_h, tot_rho1_s, error)
 
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(rho_atom_type), DIMENSION(:), &
       POINTER                                :: rho_atom_set
-    TYPE(atomic_kind_type), POINTER          :: atom_kind
+    TYPE(qs_kind_type), INTENT(IN)           :: qs_kind
     INTEGER, DIMENSION(:), INTENT(IN)        :: atom_list
     TYPE(grid_atom_type), INTENT(IN)         :: grid_atom
     INTEGER, INTENT(IN)                      :: natom, nspins
@@ -133,7 +147,7 @@ MODULE qs_rho_atom_methods
     NULLIFY(harmonics)
     NULLIFY(lmin,lmax,npgf,zet,my_CG,my_dCG,my_CG_dxyz,coeff)
 
-    CALL get_atomic_kind(atomic_kind=atom_kind,orb_basis_set=orb_basis,&
+    CALL get_qs_kind(qs_kind,orb_basis_set=orb_basis,&
                          paw_proj_set=paw_proj,harmonics=harmonics)
 
     CALL get_gto_basis_set(gto_basis_set=orb_basis,lmax=lmax,lmin=lmin,&
@@ -469,6 +483,13 @@ MODULE qs_rho_atom_methods
 
 ! *****************************************************************************
 
+! *****************************************************************************
+!> \brief ...
+!> \param qs_env ...
+!> \param rho_ao ...
+!> \param rho_atom_set ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE calculate_rho_atom_coeff(qs_env, rho_ao, rho_atom_set,error)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
@@ -500,7 +521,6 @@ MODULE qs_rho_atom_methods
     TYPE(alist_type), POINTER                :: alist_ac, alist_bc
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
-    TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(gto_basis_set_p_type), &
@@ -513,6 +533,8 @@ MODULE qs_rho_atom_methods
       DIMENSION(:), POINTER                  :: sab_orb
     TYPE(oce_matrix_type), POINTER           :: oce
     TYPE(paw_proj_set_type), POINTER         :: paw_proj
+    TYPE(qs_kind_type), DIMENSION(:), &
+      POINTER                                :: qs_kind_set
     TYPE(rho_atom_coeff), DIMENSION(:), &
       POINTER                                :: p_block_spin
     TYPE(rho_atom_type), DIMENSION(:), &
@@ -523,7 +545,7 @@ MODULE qs_rho_atom_methods
     failure = .FALSE.
 
     NULLIFY(dft_control)
-    NULLIFY(atomic_kind_set)
+    NULLIFY(qs_kind_set)
     NULLIFY(oce)
     NULLIFY(sab_orb)
     NULLIFY(rho_atom)
@@ -532,6 +554,7 @@ MODULE qs_rho_atom_methods
     CALL get_qs_env(qs_env=qs_env,&
             dft_control=dft_control,&
             atomic_kind_set=atomic_kind_set,&
+            qs_kind_set=qs_kind_set,&
             para_env=para_env,&
             oce=oce,sab_orb=sab_orb,&
             rho_atom_set=rho_atom,error=error)
@@ -548,9 +571,8 @@ MODULE qs_rho_atom_methods
       NULLIFY(p_block_spin(ispin)%r_coef)
     END DO
 
-    CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
-                             maxsgf=max_nsgf,&
-                             maxgtops=max_gau,natom=natom)
+    CALL get_atomic_kind_set(atomic_kind_set, natom=natom)
+    CALL get_qs_kind_set(qs_kind_set, maxsgf=max_nsgf, maxgtops=max_gau)
 
     ALLOCATE (PC1(max_nsgf*max_gau),CPC(max_gau*max_gau),p_matrix(max_nsgf,max_nsgf),&
               STAT=istat)
@@ -558,11 +580,9 @@ MODULE qs_rho_atom_methods
 
     nkind = SIZE(atomic_kind_set)
 !   Inizialize to 0 the CPC coefficients and the local density arrays
-    DO ikind = 1 ,nkind
-      atomic_kind => atomic_kind_set(ikind)
-      CALL get_atomic_kind(atomic_kind=atomic_kind,&
-                           atom_list=a_list,natom=nat_kind,&
-                           paw_atom=paw_atom)
+    DO ikind = 1, nkind
+      CALL get_atomic_kind(atomic_kind_set(ikind), atom_list=a_list,natom=nat_kind)
+      CALL get_qs_kind(qs_kind_set(ikind), paw_atom=paw_atom)
 
       IF(.NOT. paw_atom) CYCLE
       DO i = 1,nat_kind
@@ -588,8 +608,7 @@ MODULE qs_rho_atom_methods
     ALLOCATE (basis_set_list(nkind),STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
     DO ikind=1,nkind
-      atomic_kind => atomic_kind_set(ikind)
-      CALL get_atomic_kind(atomic_kind=atomic_kind,orb_basis_set=basis_set_a)
+      CALL get_qs_kind(qs_kind_set(ikind), orb_basis_set=basis_set_a)
       IF (ASSOCIATED(basis_set_a)) THEN
         basis_set_list(ikind)%gto_basis_set => basis_set_a
       ELSE
@@ -625,11 +644,9 @@ MODULE qs_rho_atom_methods
        ENDDO
 
        DO kkind = 1 ,nkind
-
-         atomic_kind => atomic_kind_set(kkind)
-         CALL get_atomic_kind(atomic_kind=atomic_kind,&
-                              orb_basis_set=orb_basis_set,&
-                              paw_proj_set=paw_proj,paw_atom=paw_atom)
+         CALL get_qs_kind(qs_kind_set(kkind),&
+                          orb_basis_set=orb_basis_set,&
+                          paw_proj_set=paw_proj,paw_atom=paw_atom)
 
          CALL get_gto_basis_set(gto_basis_set=orb_basis_set,nset =nsetc,maxso=maxsoc)
 
@@ -703,14 +720,14 @@ MODULE qs_rho_atom_methods
 
                   IF(iatom <= jatom) THEN
                      CALL proj_blk(C_coeff_hh_a,C_coeff_ss_a,n_cont_a,&
-                          &        C_coeff_hh_b,C_coeff_ss_b,n_cont_b,&
-                          &        p_matrix,max_nsgf,r_coef_h,r_coef_s,nsoctot,&
-                          &        PC1,CPC,factor,distab)
+                                   C_coeff_hh_b,C_coeff_ss_b,n_cont_b,&
+                                   p_matrix,max_nsgf,r_coef_h,r_coef_s,nsoctot,&
+                                   PC1,CPC,factor,distab)
                   ELSE
                      CALL proj_blk(C_coeff_hh_b,C_coeff_ss_b,n_cont_b,&
-                          &        C_coeff_hh_a,C_coeff_ss_a,n_cont_a,&
-                          &        p_matrix,max_nsgf,r_coef_h,r_coef_s,nsoctot,&
-                          &        PC1,CPC,factor,distab)
+                                   C_coeff_hh_a,C_coeff_ss_a,n_cont_a,&
+                                   p_matrix,max_nsgf,r_coef_h,r_coef_s,nsoctot,&
+                                   PC1,CPC,factor,distab)
                   ENDIF
 
                END DO
@@ -724,11 +741,10 @@ MODULE qs_rho_atom_methods
 
     ALLOCATE (kind_of(natom),STAT=istat)
     CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
-    CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,kind_of=kind_of)
+    CALL get_atomic_kind_set(atomic_kind_set,kind_of=kind_of)
 
     DO iatom = 1,natom
       ikind = kind_of(iatom)
-      atomic_kind => atomic_kind_set(ikind)
 
        DO ispin = 1,nspins
          IF(ASSOCIATED(rho_atom(iatom)%cpc_h(ispin)%r_coef)) THEN
@@ -751,6 +767,11 @@ MODULE qs_rho_atom_methods
   END SUBROUTINE calculate_rho_atom_coeff
 
 ! *****************************************************************************
+!> \brief ...
+!> \param qs_env ...
+!> \param gapw_control ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE init_rho_atom(qs_env,gapw_control,error)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
@@ -762,20 +783,21 @@ MODULE qs_rho_atom_methods
 
     INTEGER :: handle, ikind, il, iso, iso1, iso2, istat, l1, l1l2, l2, la, &
       lc1, lc2, lcleb, ll, llmax, lmax_sphere, lp, m1, m2, max_s_harm, &
-      max_s_set, maxl, maxlgto, maxs, mm, mp, na, nat, natom, nkind, nr, &
-      nspins, quadrature
+      max_s_set, maxl, maxlgto, maxs, mm, mp, na, nat, natom, nr, nspins, &
+      quadrature
     INTEGER, DIMENSION(:), POINTER           :: atom_list
     LOGICAL                                  :: failure, paw_atom
     REAL(dp), ALLOCATABLE, DIMENSION(:, :)   :: rga
     REAL(dp), DIMENSION(:, :, :), POINTER    :: my_CG
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
-    TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(grid_atom_type), POINTER            :: grid_atom
     TYPE(gto_basis_set_type), POINTER        :: orb_basis_set
     TYPE(harmonics_atom_type), POINTER       :: harmonics
     TYPE(linres_control_type), POINTER       :: linres_control
+    TYPE(qs_kind_type), DIMENSION(:), &
+      POINTER                                :: qs_kind_set
     TYPE(rho_atom_type), DIMENSION(:), &
       POINTER                                :: rho_atom_set
 
@@ -783,19 +805,18 @@ MODULE qs_rho_atom_methods
     failure=.FALSE.
 
     NULLIFY(rho_atom_set)
-    NULLIFY(atomic_kind_set)
-    NULLIFY(atomic_kind)
+    NULLIFY(qs_kind_set, atomic_kind_set)
     NULLIFY(dft_control,linres_control)
     NULLIFY(orb_basis_set)
-    NULLIFY(my_CG, atomic_kind, grid_atom, harmonics,atom_list)
+    NULLIFY(my_CG, grid_atom, harmonics,atom_list)
 
-    CALL get_qs_env(qs_env=qs_env, atomic_kind_set=atomic_kind_set, &
+    CALL get_qs_env(qs_env=qs_env, qs_kind_set=qs_kind_set, atomic_kind_set=atomic_kind_set,&
                     dft_control=dft_control,linres_control=linres_control,error=error)
-    CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,maxlgto=maxlgto,natom=natom)
+    CALL get_atomic_kind_set(atomic_kind_set, natom=natom)
+    CALL get_qs_kind_set(qs_kind_set, maxlgto=maxlgto)
 
     nspins = dft_control%nspins
 
-    nkind = SIZE(atomic_kind_set)
     lmax_sphere = gapw_control%lmax_sphere
 
     llmax = MIN(lmax_sphere, 2*maxlgto)
@@ -864,14 +885,13 @@ MODULE qs_rho_atom_methods
     CALL init_lebedev_grids()
     quadrature=gapw_control%quadrature
 
-    DO ikind = 1,nkind
-      atomic_kind => atomic_kind_set(ikind)
-      CALL get_atomic_kind(atomic_kind=atomic_kind,&
-                           atom_list=atom_list,natom=nat, &
-                           paw_atom=paw_atom,&
-                           grid_atom=grid_atom,&
-                           harmonics=harmonics,&
-                           ngrid_rad=nr,ngrid_ang=na)
+    DO ikind = 1, SIZE(atomic_kind_set)
+      CALL get_atomic_kind(atomic_kind_set(ikind),atom_list=atom_list,natom=nat)
+      CALL get_qs_kind(qs_kind_set(ikind),&
+                       paw_atom=paw_atom,&
+                       grid_atom=grid_atom,&
+                       harmonics=harmonics,&
+                       ngrid_rad=nr,ngrid_ang=na)
 
 !     *** determine the Lebedev grid for this kind ***
 
@@ -882,12 +902,12 @@ MODULE qs_rho_atom_methods
       grid_atom%nr = nr
 
       IF (llmax > la) THEN
-        WRITE(6,'(/,72("*"))')
-        WRITE(6,'(T2,A,T66,I4)') &
+        WRITE(*,'(/,72("*"))')
+        WRITE(*,'(T2,A,T66,I4)') &
           "WARNING: the lebedev grid is built for angular momentum l up to ",la,&
           "         the max l of spherical harmonics is larger, l_max = ", llmax,&
           "         good integration is guaranteed only for l <= ",la
-        WRITE(6,'(72("*"),/)')
+        WRITE(*,'(72("*"),/)')
       END IF
 
 !     *** calculate the radial grid ***
@@ -895,8 +915,7 @@ MODULE qs_rho_atom_methods
 
 !     *** calculate the spherical harmonics on the grid ***
 
-      CALL get_atomic_kind(atomic_kind=atomic_kind,&
-                           orb_basis_set=orb_basis_set)
+      CALL get_qs_kind(qs_kind_set(ikind), orb_basis_set=orb_basis_set)
       CALL get_gto_basis_set(gto_basis_set=orb_basis_set,maxl=maxl)
       maxs=nsoset(maxl)
       CALL create_harmonics_atom(harmonics,&
@@ -920,6 +939,11 @@ MODULE qs_rho_atom_methods
   END SUBROUTINE init_rho_atom
 
 ! *****************************************************************************
+!> \brief ...
+!> \param qs_env ...
+!> \param rho_atom_set ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE allocate_rho_atom_internals(qs_env,rho_atom_set,error)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
@@ -931,44 +955,41 @@ MODULE qs_rho_atom_methods
       routineP = moduleN//':'//routineN
 
     INTEGER :: bo(2), handle, iat, iatom, ikind, ispin, istat, j, &
-      max_iso_not0, mepos, nat, natom, nkind, nr, nsatbas, nsotot, nspins, &
-      num_pe
+      max_iso_not0, mepos, nat, natom, nr, nsatbas, nsotot, nspins, num_pe
     INTEGER, DIMENSION(:), POINTER           :: atom_list
     LOGICAL                                  :: failure, paw_atom
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
-    TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(harmonics_atom_type), POINTER       :: harmonics
     TYPE(paw_proj_set_type), POINTER         :: paw_proj
+    TYPE(qs_kind_type), DIMENSION(:), &
+      POINTER                                :: qs_kind_set
 
     CALL timeset(routineN,handle)
 
-    NULLIFY(atomic_kind_set,para_env,rho_atom_set)
+    NULLIFY(qs_kind_set,para_env,rho_atom_set)
     failure = .FALSE.
 
-    CALL get_qs_env(qs_env=qs_env, atomic_kind_set=atomic_kind_set,&
+    CALL get_qs_env(qs_env=qs_env, qs_kind_set=qs_kind_set, &
+                    atomic_kind_set=atomic_kind_set,&
                     para_env=para_env,error=error)
 
-    CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
-                             natom = natom)
+    CALL get_atomic_kind_set(atomic_kind_set, natom=natom)
 
-    nkind = SIZE(atomic_kind_set)
     nspins = qs_env%dft_control%nspins
 
     CALL allocate_rho_atom_set(rho_atom_set,natom)
 
-    DO ikind = 1, nkind
+    DO ikind = 1, SIZE(atomic_kind_set)
 
-       NULLIFY(atom_list, atomic_kind, harmonics)
-
-       atomic_kind => atomic_kind_set(ikind)
-       CALL get_atomic_kind(atomic_kind=atomic_kind,&
-                            atom_list=atom_list,natom=nat, &
-                            paw_proj_set=paw_proj,&
-                            paw_atom=paw_atom,&
-                            harmonics=harmonics,&
-                            ngrid_rad=nr)
+       NULLIFY(atom_list, harmonics)
+       CALL get_atomic_kind(atomic_kind_set(ikind),atom_list=atom_list,natom=nat)
+       CALL get_qs_kind(qs_kind_set(ikind),&
+                        paw_proj_set=paw_proj,&
+                        paw_atom=paw_atom,&
+                        harmonics=harmonics,&
+                        ngrid_rad=nr)
 
        IF (paw_atom) THEN
          CALL get_paw_proj_set(paw_proj_set=paw_proj,nsatbas=nsatbas,nsotot=nsotot)
@@ -1083,6 +1104,14 @@ MODULE qs_rho_atom_methods
   END SUBROUTINE allocate_rho_atom_internals
 
 ! *****************************************************************************
+!> \brief ...
+!> \param rho_atom_set ...
+!> \param iatom ...
+!> \param ispin ...
+!> \param nr ...
+!> \param max_iso_not0 ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE allocate_rho_atom_rad(rho_atom_set,iatom,ispin,nr,max_iso_not0,error)
 
     TYPE(rho_atom_type), DIMENSION(:), &
@@ -1142,6 +1171,12 @@ MODULE qs_rho_atom_methods
 
   END SUBROUTINE  allocate_rho_atom_rad
 
+! *****************************************************************************
+!> \brief ...
+!> \param rho_atom_set ...
+!> \param iatom ...
+!> \param ispin ...
+!> \param error ...
 ! *****************************************************************************
   SUBROUTINE set2zero_rho_atom_rad(rho_atom_set,iatom,ispin,error)
 

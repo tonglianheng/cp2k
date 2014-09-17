@@ -32,9 +32,7 @@ MODULE extended_system_types
             map_info_type,&
             create_map_info_type,&
             release_map_info_type,&
-            npt_info_type,&
-            nhc_info_type,&
-            point_info_type
+            npt_info_type
 
   LOGICAL, PARAMETER, PUBLIC :: debug_isotropic_limit = .FALSE.
   LOGICAL, PARAMETER, PUBLIC :: debug_uniaxial_limit  = .FALSE.
@@ -88,6 +86,8 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Initialize type for Nose-Hoover thermostat
+!> \param lnhc ...
+!> \param section ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 ! *****************************************************************************
@@ -117,6 +117,7 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief create the map_info type
+!> \param map_info ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 ! *****************************************************************************
@@ -144,6 +145,7 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief release the map_info type
+!> \param map_info ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 ! *****************************************************************************
@@ -193,6 +195,7 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Deallocate type for Nose-Hoover thermostat
+!> \param lnhc ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 ! *****************************************************************************

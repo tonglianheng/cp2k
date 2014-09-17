@@ -14,7 +14,7 @@ MODULE fp_methods
   USE beta_gamma_psi,                  ONLY: erf,&
                                              gamln,&
                                              psi
-  USE cell_types,                      ONLY: cell_type,&
+  USE cell_methods,                    ONLY: cell_type,&
                                              pbc
   USE cp_output_handling,              ONLY: cp_iter_string,&
                                              cp_print_key_finished_output,&
@@ -45,6 +45,10 @@ CONTAINS
 ! *****************************************************************************
 !> \brief computest the forces and the energy due to the flexible potential & bias,
 !>     and writes the weights file
+!> \param fp_env ...
+!> \param subsys ...
+!> \param cell ...
+!> \param error ...
 !> \par History
 !>      04.2006 created [Joost VandeVondele]
 ! *****************************************************************************
@@ -216,6 +220,11 @@ CONTAINS
 !> \brief counts in a smooth way (error function with width=width)
 !>      if r is closer than r1. Returns 1.0 for the count=c if r<<r1
 !>      and the derivative wrt r dcdr
+!> \param r ...
+!> \param r1 ...
+!> \param width ...
+!> \param c ...
+!> \param dcdr ...
 !> \par History
 !>      04.2006 created [Joost VandeVondele]
 ! *****************************************************************************

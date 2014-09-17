@@ -13,9 +13,8 @@ MODULE molecular_states
                                              cite_reference
   USE cell_types,                      ONLY: cell_type
   USE cp_control_types,                ONLY: dft_control_type
+  USE cp_dbcsr_interface,              ONLY: cp_dbcsr_type
   USE cp_dbcsr_operations,             ONLY: cp_dbcsr_sm_fm_multiply
-  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_type
-  USE cp_fm_basic_linalg,              ONLY: cp_fm_gemm
   USE cp_fm_diag,                      ONLY: choose_eigv_solver
   USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                              cp_fm_struct_release,&
@@ -26,6 +25,7 @@ MODULE molecular_states
                                              cp_fm_release,&
                                              cp_fm_to_fm,&
                                              cp_fm_type
+  USE cp_gemm_interface,               ONLY: cp_gemm
   USE cp_output_handling,              ONLY: cp_p_file,&
                                              cp_print_key_finished_output,&
                                              cp_print_key_should_output,&
@@ -51,6 +51,7 @@ MODULE molecular_states
   USE qs_collocate_density,            ONLY: calculate_wavefunction
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
+  USE qs_kind_types,                   ONLY: qs_kind_type
   USE termination,                     ONLY: stop_memory
   USE timings,                         ONLY: timeset,&
                                              timestop
@@ -74,6 +75,20 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief constructs molecular states. mo_localized gets overwritten!
+!> \param molecule_set ...
+!> \param mo_localized ...
+!> \param mo_coeff ...
+!> \param mo_eigenvalues ...
+!> \param Hks ...
+!> \param matrix_S ...
+!> \param qs_env ...
+!> \param wf_r ...
+!> \param wf_g ...
+!> \param loc_print_section ...
+!> \param particles ...
+!> \param tag ...
+!> \param marked_states ...
+!> \param error ...
 ! *****************************************************************************
   SUBROUTINE construct_molecular_states(molecule_set, mo_localized, &
        mo_coeff, mo_eigenvalues, Hks, matrix_S, qs_env, wf_r, wf_g,&
@@ -118,6 +133,8 @@ CONTAINS
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(pw_env_type), POINTER               :: pw_env
+    TYPE(qs_kind_type), DIMENSION(:), &
+      POINTER                                :: qs_kind_set
 
     CALL cite_reference(Hunt2003)
 
@@ -253,7 +270,7 @@ CONTAINS
 
        CALL cp_dbcsr_sm_fm_multiply(Hks,b,c,ns,error=error)
 
-       CALL cp_fm_gemm('T','N',ns,ns,nrow_global,1.0_dp, &
+       CALL cp_gemm('T','N',ns,ns,nrow_global,1.0_dp, &
             b,c,0.0_dp,d,error=error)
 
        CALL choose_eigv_solver( d, e_vectors, evals , error=error)
@@ -280,7 +297,7 @@ CONTAINS
           ENDDO
        ENDIF
 
-       CALL cp_fm_gemm('N','N',nrow_global,ns,ns,1.0_dp, &
+       CALL cp_gemm('N','N',nrow_global,ns,ns,1.0_dp, &
             b,e_vectors,0.0_dp,rot_e_vectors,error=error)
 
        DO i=1,ns
@@ -295,7 +312,7 @@ CONTAINS
               context=mo_localized%matrix_struct%context,error=error)
          CALL cp_fm_create(D_igk,fm_struct_tmp,error=error)
          CALL cp_fm_struct_release(fm_struct_tmp,error=error)
-         CALL cp_fm_gemm('T','N',ns,ncol_global,nrow_global,1.0_dp, &
+         CALL cp_gemm('T','N',ns,ncol_global,nrow_global,1.0_dp, &
               rot_e_vectors,smo,0.0_dp,D_igk,error=error)
             DO i=1,ns
                DO k=1,ncol_global
@@ -313,6 +330,7 @@ CONTAINS
 
           CALL get_qs_env(qs_env=qs_env,&
                atomic_kind_set=atomic_kind_set,&
+               qs_kind_set=qs_kind_set,&
                cell=cell,&
                dft_control=dft_control,&
                particle_set=particle_set,&
@@ -322,7 +340,7 @@ CONTAINS
              IF (evals(i)<eval_range(1) .OR. evals(i)>eval_range(2)) CYCLE
 
              CALL calculate_wavefunction(rot_e_vectors,i,wf_r, &
-                  wf_g, atomic_kind_set,cell,dft_control,particle_set, &
+                  wf_g, atomic_kind_set, qs_kind_set, cell,dft_control,particle_set, &
                   pw_env, error = error )
 
              WRITE(filename,'(a9,I4.4,a1,I5.5,a4)')"MOLECULE_",imol,"_",i,tag

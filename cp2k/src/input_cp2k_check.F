@@ -21,17 +21,17 @@ MODULE input_cp2k_check
   USE f77_blas
   USE input_constants,                 ONLY: &
        do_region_global, do_thermo_al, do_thermo_csvr, do_thermo_gle, &
-       do_thermo_nose, do_thermo_same_as_part, do_vwn5, id_release_version, &
-       npt_f_ensemble, npt_i_ensemble, xc_funct_b3lyp, xc_funct_blyp, &
-       xc_funct_bp, xc_funct_hcth120, xc_funct_no_shortcut, xc_funct_olyp, &
-       xc_funct_pade, xc_funct_pbe, xc_funct_pbe0, xc_funct_tpss, &
-       xc_funct_xwpbe, xc_none
-  USE input_cp2k,                      ONLY: create_cp2k_root_section
+       do_thermo_nose, do_thermo_same_as_part, id_release_version, &
+       npt_f_ensemble, npt_i_ensemble, vdw_nl_LMKLL, xc_funct_b3lyp, &
+       xc_funct_beefvdw, xc_funct_blyp, xc_funct_bp, xc_funct_hcth120, &
+       xc_funct_no_shortcut, xc_funct_olyp, xc_funct_pade, xc_funct_pbe, &
+       xc_funct_pbe0, xc_funct_tpss, xc_funct_xwpbe, xc_none, &
+       xc_vdw_fun_nonloc
   USE input_keyword_types,             ONLY: keyword_type
   USE input_parsing,                   ONLY: section_vals_parse
   USE input_section_types,             ONLY: &
-       section_release, section_type, section_vals_check_release, &
-       section_vals_create, section_vals_get, section_vals_get_subs_vals, &
+       section_type, section_vals_check_release, section_vals_create, &
+       section_vals_get, section_vals_get_subs_vals, &
        section_vals_get_subs_vals3, section_vals_release, &
        section_vals_remove_values, section_vals_set_subs_vals, &
        section_vals_type, section_vals_val_get, section_vals_val_set, &
@@ -43,6 +43,7 @@ MODULE input_cp2k_check
   USE memory_utilities,                ONLY: reallocate
   USE timings,                         ONLY: timeset,&
                                              timestop
+  USE xc_input_constants,              ONLY: do_vwn5
 #include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
@@ -57,14 +58,18 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief performs further checks on an input that parsed successfully
+!> \param input_declaration ...
 !> \param input_file the parsed input
+!> \param para_env ...
+!> \param output_unit ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
+!> \author fawzi
 !> \note
 !>      at the moment does nothing
-!> \author fawzi
 ! *****************************************************************************
-  SUBROUTINE check_cp2k_input(input_file,para_env,output_unit,error)
+  SUBROUTINE check_cp2k_input(input_declaration,input_file,para_env,output_unit,error)
+    TYPE(section_type), POINTER              :: input_declaration
     TYPE(section_vals_type), POINTER         :: input_file
     TYPE(cp_para_env_type), POINTER          :: para_env
     INTEGER, INTENT(IN), OPTIONAL            :: output_unit
@@ -90,7 +95,7 @@ CONTAINS
     IF (.NOT. failure) THEN
        ! ext_restart
        IF(PRESENT(output_unit)) &
-          CALL handle_ext_restart(input_file,para_env,output_unit,error)
+          CALL handle_ext_restart(input_declaration, input_file,para_env,output_unit,error)
 
        ! checks on force_eval section
        sections => section_vals_get_subs_vals(input_file,"FORCE_EVAL",error=error)
@@ -143,6 +148,7 @@ CONTAINS
 ! *****************************************************************************
 !> \brief expand a shortcutted functional section
 !> \param functionals the functional section to expand
+!> \param xc_section ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 !> \author fawzi
@@ -175,6 +181,35 @@ CONTAINS
           ! Hartree Fock Exact Exchange
           CALL section_vals_val_set(xc_section,"HF%FRACTION",&
                r_val=0.25_dp,error=error)
+          CALL section_vals_val_set(functionals,"_SECTION_PARAMETERS_",&
+               i_val=xc_funct_no_shortcut,error=error)
+       CASE(xc_funct_beefvdw)       
+          CALL section_vals_val_set(functionals,"PBE%_SECTION_PARAMETERS_",& !40% PBEc
+               l_val=.TRUE.,error=error)
+          CALL section_vals_val_set(functionals,"PBE%SCALE_C",&
+               r_val=0.3998335231_dp,error=error)
+          CALL section_vals_val_set(functionals,"PBE%SCALE_X",&  !no PBEx
+               r_val=0.0000000000_dp,error=error)
+
+               !PW92 correlation functional from libxc is required.
+               !The cp2k-native PW92 gives disagreeing results (in the 0.01E_H
+               !decimal) and yields inconsistent forces in a DEBUG run.
+               !(rk, 6.3.2014)
+          CALL section_vals_val_set(functionals,"LIBXC%_SECTION_PARAMETERS_",& !60%LDA
+               l_val=.TRUE.,error=error)
+          CALL section_vals_val_set(functionals,"LIBXC%FUNCTIONAL",&
+               c_val="XC_LDA_C_PW",error=error)
+          CALL section_vals_val_set(functionals,"LIBXC%SCALE",&
+               r_val=0.6001664769_dp,error=error)
+
+          CALL section_vals_val_set(functionals,"BEEF%_SECTION_PARAMETERS_",& !BEEF exchange
+               l_val=.TRUE.,error=error)
+
+               !NONLOCAL, LMKLL.
+          CALL section_vals_val_set(xc_section,"VDW_POTENTIAL%DISPERSION_FUNCTIONAL",&
+               i_val=xc_vdw_fun_nonloc,error=error)
+          CALL section_vals_val_set(xc_section,"VDW_POTENTIAL%NON_LOCAL%TYPE",&
+               i_val=vdw_nl_LMKLL,error=error)
           CALL section_vals_val_set(functionals,"_SECTION_PARAMETERS_",&
                i_val=xc_funct_no_shortcut,error=error)
        CASE(xc_funct_b3lyp)
@@ -260,12 +295,16 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Replaces the requested sections in the input with those found
 !>      in the external restart (EXT_RESTART%RESTART_FILE_NAME).
+!> \param input_declaration ...
 !> \param input_file the input file to initialize
+!> \param para_env ...
+!> \param output_unit ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 !> \author fawzi
 ! *****************************************************************************
-  SUBROUTINE handle_ext_restart(input_file,para_env,output_unit,error)
+  SUBROUTINE handle_ext_restart(input_declaration, input_file,para_env,output_unit,error)
+    TYPE(section_type), POINTER              :: input_declaration
     TYPE(section_vals_type), POINTER         :: input_file
     TYPE(cp_para_env_type), POINTER          :: para_env
     INTEGER, INTENT(IN)                      :: output_unit
@@ -294,7 +333,6 @@ CONTAINS
     TYPE(cp_error_type)                      :: sub_error
     TYPE(cp_parser_type), POINTER            :: cpparser
     TYPE(cp_unit_set_type), POINTER          :: default_units
-    TYPE(section_type), POINTER              :: input_structure
     TYPE(section_vals_type), POINTER         :: r_section, rep_sections, &
                                                 restart_file, section, &
                                                 section1, section2, &
@@ -313,11 +351,8 @@ CONTAINS
        IF (r_file_path/=" ") THEN
           CALL cp_error_init(sub_error,template_error=error,stop_level=cp_fatal_level)
           ! parse the input
-          NULLIFY(input_structure, default_units)
-          CALL create_cp2k_root_section(input_structure,error=sub_error)
-          NULLIFY(restart_file)
-          CALL section_vals_create(restart_file,input_structure, error=sub_error)
-          CALL section_release(input_structure,error=sub_error)
+          NULLIFY(default_units,restart_file)
+          CALL section_vals_create(restart_file,input_declaration, error=sub_error)
           NULLIFY(cpparser)
           CALL parser_create(cpparser,file_name=r_file_path,para_env=para_env,error=sub_error)
           CALL cp_unit_set_create(default_units, "OUTPUT",error=sub_error)
@@ -779,6 +814,9 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief store information on the restarted quantities
+!> \param label ...
+!> \param restarted_infos ...
+!> \param error ...
 !> \author Teodoro Laino [tlaino] 09.2008 - University of Zurich
 ! *****************************************************************************
   SUBROUTINE set_restart_info(label, restarted_infos, error)
@@ -805,6 +843,11 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief dumps on output the information on the information effectively restarted
+!> \param restarted_infos ...
+!> \param r_file_path ...
+!> \param binary_restart_file ...
+!> \param output_unit ...
+!> \param error ...
 !> \author Teodoro Laino [tlaino] 09.2008 - University of Zurich
 ! *****************************************************************************
   SUBROUTINE release_restart_info(restarted_infos, r_file_path,&
@@ -860,7 +903,11 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Possibly restart thermostats information
+!> \param flag ...
 !> \param input_file the input file to initialize
+!> \param restart_file ...
+!> \param path ...
+!> \param check ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 !> \author Teodoro Laino [tlaino] 10.2007- University of Zurich
@@ -958,8 +1005,11 @@ CPSourceFileRef,&
 ! *****************************************************************************
 !> \brief Checks if there are the proper conditions to do a restart
 !> \param input_file the input file to initialize
+!> \param restart_file ...
+!> \param tag_section ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
+!> \retval do_restart ...
 !> \author teo
 ! *****************************************************************************
   FUNCTION check_restart(input_file, restart_file, tag_section, error) RESULT(do_restart)
@@ -1103,7 +1153,7 @@ CPSourceFileRef,&
 
 ! *****************************************************************************
 !> \brief This subroutine controls the defaults for the restartable quantities..
-!> \param input_file the input file to initialize
+!> \param r_section ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 !> \author teo - University of Zurich - 09.2007 [tlaino]

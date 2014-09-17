@@ -28,14 +28,14 @@ MODULE scp_force_types
 
   PUBLIC :: scp_force_type
 
-  PUBLIC :: allocate_scp_force,&
-            deallocate_scp_force,&
-            init_scp_force
+  PUBLIC :: deallocate_scp_force
 
 CONTAINS
 
 ! *****************************************************************************
 !> \brief   Allocate a scp force data structure.
+!> \param scp_forces ...
+!> \param natom_of_kind ...
 !> \version 1.0
 ! *****************************************************************************
   SUBROUTINE allocate_scp_force(scp_forces,natom_of_kind)
@@ -87,6 +87,7 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief   Deallocate a scp force data structure.
+!> \param scp_forces ...
 !> \version 1.0
 ! *****************************************************************************
   SUBROUTINE deallocate_scp_force(scp_forces)
@@ -140,6 +141,7 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief   Initialize a scp force data structure.
+!> \param scp_forces ...
 !> \version 1.0
 ! *****************************************************************************
   SUBROUTINE init_scp_force(scp_forces)

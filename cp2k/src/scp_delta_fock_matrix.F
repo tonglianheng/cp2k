@@ -16,21 +16,16 @@
 ! *****************************************************************************
 MODULE scp_delta_fock_matrix
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
-                                             get_atomic_kind,&
                                              get_atomic_kind_set
   USE cell_types,                      ONLY: cell_type
   USE cp_control_types,                ONLY: dft_control_type,&
                                              semi_empirical_control_type
   USE cp_dbcsr_interface,              ONLY: &
-       cp_dbcsr_add, cp_dbcsr_copy, cp_dbcsr_distribute, &
-       cp_dbcsr_get_block_diag, cp_dbcsr_get_block_p, cp_dbcsr_init, &
-       cp_dbcsr_replicate_all, cp_dbcsr_set, cp_dbcsr_sum_replicated, &
-       cp_dbcsr_trace
-  USE cp_dbcsr_operations,             ONLY: cp_dbcsr_allocate_matrix_set,&
-                                             cp_dbcsr_deallocate_matrix,&
-                                             cp_dbcsr_deallocate_matrix_set
-  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_p_type,&
-                                             cp_dbcsr_type
+       cp_dbcsr_add, cp_dbcsr_allocate_matrix_set, cp_dbcsr_copy, &
+       cp_dbcsr_deallocate_matrix, cp_dbcsr_deallocate_matrix_set, &
+       cp_dbcsr_distribute, cp_dbcsr_get_block_diag, cp_dbcsr_get_block_p, &
+       cp_dbcsr_init, cp_dbcsr_p_type, cp_dbcsr_replicate_all, cp_dbcsr_set, &
+       cp_dbcsr_sum_replicated, cp_dbcsr_trace, cp_dbcsr_type
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE ewald_environment_types,         ONLY: ewald_env_get,&
                                              ewald_environment_type
@@ -48,6 +43,8 @@ MODULE scp_delta_fock_matrix
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
   USE qs_force_types,                  ONLY: qs_force_type
+  USE qs_kind_types,                   ONLY: get_qs_kind,&
+                                             qs_kind_type
   USE qs_neighbor_list_types,          ONLY: get_iterator_info,&
                                              neighbor_list_iterate,&
                                              neighbor_list_iterator_create,&
@@ -94,6 +91,14 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Construction of the Coulomb part of the Fock matrix
+!> \param qs_env ...
+!> \param ks_matrix ...
+!> \param matrix_p ...
+!> \param energy ...
+!> \param calculate_forces ...
+!> \param just_energy ...
+!> \param store_int_env ...
+!> \param error ...
 !> \author JGH
 ! *****************************************************************************
   SUBROUTINE build_delta_fock_matrix (qs_env,ks_matrix,matrix_p,energy,calculate_forces,&
@@ -134,7 +139,6 @@ CONTAINS
       ptmp_b_block
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
-    TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: diagmat_ks, diagmat_p
@@ -153,6 +157,8 @@ CONTAINS
       POINTER                                :: particle_set
     TYPE(qs_force_type), DIMENSION(:), &
       POINTER                                :: force
+    TYPE(qs_kind_type), DIMENSION(:), &
+      POINTER                                :: qs_kind_set
     TYPE(scp_energy_type), POINTER           :: energy_scp
     TYPE(scp_environment_type), POINTER      :: scp_env
     TYPE(se_int_control_type)                :: se_int_control
@@ -173,7 +179,7 @@ CONTAINS
                energy_scp, ascp_diag)
 
        CALL get_qs_env(qs_env=qs_env, dft_control=dft_control, cell=cell, se_taper=se_taper,&
-            para_env=para_env, sab_se=sab_se, atomic_kind_set=atomic_kind_set, &
+            para_env=para_env, sab_se=sab_se, atomic_kind_set=atomic_kind_set, qs_kind_set=qs_kind_set, &
             particle_set=particle_set, virial=virial, error=error)
 
        ! Parameters
@@ -255,8 +261,7 @@ CONTAINS
        ALLOCATE (se_defined(nkind),se_kind_list(nkind),se_natorb(nkind),STAT=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        DO ikind=1,nkind
-          atomic_kind => atomic_kind_set(ikind)
-          CALL get_atomic_kind(atomic_kind=atomic_kind,scp_se_parameter=se_kind_a)
+          CALL get_qs_kind(qs_kind_set(ikind), scp_se_parameter=se_kind_a)
           se_kind_list(ikind)%se_param => se_kind_a
           CALL get_se_param(se_kind_a,defined=defined,natorb=natorb_a)
           se_defined(ikind) = (defined .AND. natorb_a >= 1)
@@ -567,7 +572,7 @@ CONTAINS
        CALL cp_dbcsr_deallocate_matrix ( kmat_loc, error=error )
 
       ! evalulate kernel and forces on the SCP coeffs
-       CALL evaluate_scp_force ( atomic_kind_set, pscp, ks_scp, ascp_diag, &
+       CALL evaluate_scp_force ( atomic_kind_set, qs_kind_set, pscp, ks_scp, ascp_diag, &
                                  just_energy, energy_scp%e_scp_kernel, error )
 
        IF (calculate_forces) THEN

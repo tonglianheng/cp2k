@@ -33,8 +33,6 @@ MODULE constraint_vsite
 
   PRIVATE
   PUBLIC :: shake_vsite_int,&
-            force_vsite_int,&
-            force_vsite_ext,&
             shake_vsite_ext,&
             vsite_force_control
 
@@ -44,10 +42,12 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief control force distribution for virtual sites
+!> \param force_env ...
+!> \param error ...
+!> \date 12.2008
 !> \par History
 !>      - none
 !> \author Marcel Baer
-!> \date 12.2008
 ! *****************************************************************************
   SUBROUTINE vsite_force_control( force_env, error)
     TYPE(force_env_type), POINTER            :: force_env
@@ -115,6 +115,9 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Intramolecular virtual site
+!> \param molecule ...
+!> \param pos ...
+!> \param error ...
 !> \par History
 !>      12.2008 Marcel Baer
 ! *****************************************************************************
@@ -137,6 +140,9 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Intramolecular virtual site
+!> \param gci ...
+!> \param pos ...
+!> \param error ...
 !> \par History
 !>      12.2008 Marcel Baer
 ! *****************************************************************************
@@ -158,6 +164,12 @@ CONTAINS
   END SUBROUTINE shake_vsite_ext
 
 ! *****************************************************************************
+!> \brief ...
+!> \param vsite_list ...
+!> \param nvsite ...
+!> \param first_atom ...
+!> \param pos ...
+!> \param error ...
 !> \par History
 !>      12.2008 Marcel Bear
 ! *****************************************************************************
@@ -187,6 +199,8 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Intramolecular virtual site
+!> \param molecule ...
+!> \param particle_set ...
 !> \par History
 !>      12.2008 Marcel Bear
 ! *****************************************************************************
@@ -226,6 +240,8 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Intramolecular virtual site
+!> \param gci ...
+!> \param particle_set ...
 !> \par History
 !>      12.2008 Marcel Bear
 ! *****************************************************************************

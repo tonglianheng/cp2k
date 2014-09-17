@@ -16,8 +16,7 @@ MODULE dbcsr_toollib
 
   USE dbcsr_array_i4_sort,             ONLY: dbcsr_1d_i4_sort
   USE dbcsr_array_i8_sort,             ONLY: dbcsr_1d_i8_sort
-  USE dbcsr_error_handling
-  USE dbcsr_kinds,                     ONLY: int_4,&
+  USE kinds,                           ONLY: int_4,&
                                              int_8
 
   !$ USE OMP_LIB
@@ -34,10 +33,9 @@ MODULE dbcsr_toollib
   ! string routines
   PUBLIC :: uppercase
   ! math routines
-  PUBLIC :: gcd, lcm, ceil_log2
+  PUBLIC :: gcd, lcm
   ! utility routines
   PUBLIC :: sort, joaat_hash
-  PUBLIC :: partitions
 
   INTERFACE swap
      MODULE PROCEDURE iswap, bswap
@@ -50,6 +48,12 @@ MODULE dbcsr_toollib
 
 CONTAINS
 
+! *****************************************************************************
+!> \brief ...
+!> \param most ...
+!> \param least ...
+!> \retval tuple ...
+! *****************************************************************************
   ELEMENTAL FUNCTION make_coordinate_tuple (most, least) RESULT (tuple)
     INTEGER, INTENT(IN)                      :: most, least
     INTEGER(KIND=int_8)                      :: tuple
@@ -63,7 +67,8 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Swaps two integers
-!> \param[in,out] a,b         Integers to swap
+!> \param a Integers to swap
+!> \param b Integers to swap
 ! *****************************************************************************
   ELEMENTAL SUBROUTINE iswap(a, b)
     INTEGER, INTENT(INOUT)                   :: a, b
@@ -78,7 +83,8 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Swaps two logicals
-!> \param[in,out] a,b         Logicals to swap
+!> \param a Logicals to swap
+!> \param b Logicals to swap
 ! *****************************************************************************
   ELEMENTAL SUBROUTINE bswap(a, b)
     LOGICAL, INTENT(INOUT)                   :: a, b
@@ -125,6 +131,10 @@ CONTAINS
   END SUBROUTINE dbcsr_unpack_i8_2i4
 
 
+! *****************************************************************************
+!> \brief ...
+!> \param string ...
+! *****************************************************************************
   SUBROUTINE uppercase(string)
     CHARACTER(LEN=*), INTENT(INOUT)          :: string
 
@@ -140,6 +150,11 @@ CONTAINS
   END SUBROUTINE uppercase
 
 
+! *****************************************************************************
+!> \brief ...
+!> \param a ...
+!> \param b ...
+! *****************************************************************************
   ELEMENTAL FUNCTION gcd(a,b)
     INTEGER, INTENT(IN)                      :: a, b
     INTEGER                                  :: gcd
@@ -168,6 +183,11 @@ CONTAINS
     ENDIF
   END FUNCTION gcd
 
+! *****************************************************************************
+!> \brief ...
+!> \param a ...
+!> \param b ...
+! *****************************************************************************
   ELEMENTAL FUNCTION lcm(a,b)
     INTEGER, INTENT(IN)                      :: a, b
     INTEGER                                  :: lcm
@@ -186,9 +206,9 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Calculates the ceiling of a log base 2 for integers
-!> \note Should be careful for highest integer values.
 !> \param[in] lv    Value for which to calculate the function
-!> \result cl2      Result of function on lv
+!> \retval cl2 Result of function on lv
+!> \note Should be careful for highest integer values.
 ! *****************************************************************************
   ELEMENTAL FUNCTION ceil_log2 (lv) RESULT (cl2)
     INTEGER, INTENT(IN)                      :: lv
@@ -235,15 +255,16 @@ CONTAINS
 ! *****************************************************************************
 !> \brief generates the hash of a string and the index in the table
 !> \param key a string of any length
+!> \retval hash_index ...
+!> \par History
+!>       09.2006 created [Joost VandeVondele]
+!>       2010-11-23 copied from CP2K and converted to take integers
 !> \note
 !>       http://en.wikipedia.org/wiki/Hash_table
 !>       http://www.burtleburtle.net/bob/hash/doobs.html
 !>       However, since fortran doesn't have an unsigned 4 byte int
 !>       we compute it using an integer with the appropriate range
 !>       we return already the index in the table as a final result
-!> \par History
-!>       09.2006 created [Joost VandeVondele]
-!>       2010-11-23 copied from CP2K and converted to take integers
 ! *****************************************************************************
   FUNCTION joaat_hash(key) RESULT(hash_index)
     INTEGER, DIMENSION(:), INTENT(IN)        :: key

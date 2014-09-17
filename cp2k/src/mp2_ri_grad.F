@@ -9,21 +9,20 @@
 !>      10.2013 created [Mauro Del Ben]
 ! *****************************************************************************
 MODULE mp2_ri_grad
+! USE f77_blas
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind_set
   USE basis_set_types,                 ONLY: gto_basis_set_type
-  USE cell_types,                      ONLY: cell_type,&
+  USE cell_methods,                    ONLY: cell_type,&
                                              pbc
+  USE cp_blacs_env,                    ONLY: cp_blacs_env_type
   USE cp_control_types,                ONLY: dft_control_type
   USE cp_dbcsr_interface,              ONLY: &
        cp_dbcsr_add, cp_dbcsr_copy, cp_dbcsr_copy_into_existing, &
-       cp_dbcsr_create, cp_dbcsr_init, cp_dbcsr_multiply, cp_dbcsr_release, &
-       cp_dbcsr_set, cp_dbcsr_transposed
+       cp_dbcsr_create, cp_dbcsr_init, cp_dbcsr_multiply, cp_dbcsr_p_type, &
+       cp_dbcsr_release, cp_dbcsr_set, cp_dbcsr_transposed, cp_dbcsr_type, &
+       dbcsr_type_no_symmetry, dbcsr_type_symmetric
   USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm
-  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_p_type,&
-                                             cp_dbcsr_type
-  USE cp_fm_basic_linalg,              ONLY: cp_fm_gemm
-! USE f77_blas
   USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                              cp_fm_struct_release,&
                                              cp_fm_struct_type
@@ -35,18 +34,14 @@ MODULE mp2_ri_grad
                                              cp_fm_release,&
                                              cp_fm_set_all,&
                                              cp_fm_type
+  USE cp_gemm_interface,               ONLY: cp_gemm
   USE cp_para_env,                     ONLY: cp_para_env_create,&
                                              cp_para_env_release
-  USE cp_para_types,                   ONLY: cp_blacs_env_type,&
-                                             cp_para_env_type
+  USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_subsys_types,                 ONLY: cp_subsys_type
-  USE dbcsr_types,                     ONLY: dbcsr_type_no_symmetry,&
-                                             dbcsr_type_symmetric
   USE gaussian_gridlevels,             ONLY: gaussian_gridlevel
   USE input_constants,                 ONLY: use_orb_basis_set,&
                                              use_ri_aux_basis_set
-  USE input_section_types,             ONLY: section_vals_get_subs_vals,&
-                                             section_vals_type
   USE kinds,                           ONLY: dp
   USE mathconstants,                   ONLY: fourpi
   USE message_passing,                 ONLY: &
@@ -81,14 +76,15 @@ MODULE mp2_ri_grad
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
   USE qs_force_types,                  ONLY: qs_force_type
-  USE qs_integrate_potential,          ONLY: integrate_v_rspace,&
-                                             potential_pw2rs
-  USE qs_integrate_potential_low,      ONLY: integrate_pgf_product_rspace
+  USE qs_integrate_potential,          ONLY: integrate_pgf_product_rspace,&
+                                             integrate_v_rspace
+  USE qs_kind_types,                   ONLY: qs_kind_type
   USE qs_neighbor_list_types,          ONLY: neighbor_list_set_p_type
   USE realspace_grid_types,            ONLY: realspace_grid_desc_p_type,&
                                              realspace_grid_p_type,&
                                              rs_grid_release,&
                                              rs_grid_retain
+  USE rs_pw_interface,                 ONLY: potential_pw2rs
   USE task_list_types,                 ONLY: task_list_type
   USE timings,                         ONLY: timeset,&
                                              timestop
@@ -110,10 +106,41 @@ MODULE mp2_ri_grad
 ! *****************************************************************************
 !> \brief Calcualte the non-separable part of the gradients and update the 
 !>        Lagrangian
+!> \param qs_env ...
+!> \param mp2_env ...
+!> \param para_env ...
+!> \param para_env_sub ...
+!> \param color_sub ...
+!> \param dft_control ...
+!> \param cell ...
+!> \param particle_set ...
+!> \param atomic_kind_set ...
+!> \param qs_kind_set ...
+!> \param mo_coeff ...
+!> \param nmo ...
+!> \param homo ...
+!> \param dimen_RI ...
+!> \param Eigenval ...
+!> \param my_group_L_start ...
+!> \param my_group_L_end ...
+!> \param my_group_L_size ...
+!> \param rho_r ...
+!> \param rho_g ...
+!> \param pot_g ...
+!> \param mat_munu ...
+!> \param sab_orb_sub ...
+!> \param pw_env_sub ...
+!> \param poisson_env ...
+!> \param auxbas_pw_pool ...
+!> \param task_list_sub ...
+!> \param unit_nr ...
+!> \param blacs_env_sub ...
+!> \param error ...
+!> \param error_sub ...
 !> \author Mauro Del Ben 
 ! *****************************************************************************
   SUBROUTINE calc_ri_mp2_nonsep(qs_env,mp2_env,para_env,para_env_sub,color_sub,dft_control,cell,particle_set,&
-                                atomic_kind_set,mo_coeff,nmo,homo,dimen_RI,Eigenval,&
+                                atomic_kind_set,qs_kind_set,mo_coeff,nmo,homo,dimen_RI,Eigenval,&
                                 my_group_L_start,my_group_L_end,my_group_L_size,rho_r,rho_g,pot_g,&
                                 mat_munu,sab_orb_sub,pw_env_sub,poisson_env,auxbas_pw_pool,task_list_sub,&
                                 unit_nr,blacs_env_sub,error,error_sub)
@@ -127,6 +154,8 @@ MODULE mp2_ri_grad
       POINTER                                :: particle_set
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
+    TYPE(qs_kind_type), DIMENSION(:), &
+      POINTER                                :: qs_kind_set
     TYPE(cp_fm_type), POINTER                :: mo_coeff
     INTEGER                                  :: nmo, homo, dimen_RI
     REAL(KIND=dp), DIMENSION(:)              :: Eigenval
@@ -154,8 +183,7 @@ MODULE mp2_ri_grad
       natom, ncoa, nkind, nseta, offset, sgfa, stat, tp(3), ub(3), virtual
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: atom_of_kind, kind_of
     INTEGER, DIMENSION(3)                    :: comp
-    INTEGER, DIMENSION(:), POINTER           :: la_max, la_min, lb_max, &
-                                                lb_min, npgfa, nsgfa
+    INTEGER, DIMENSION(:), POINTER           :: la_max, la_min, npgfa, nsgfa
     INTEGER, DIMENSION(:, :), POINTER        :: first_sgfa
     LOGICAL                                  :: failure, map_it_here, &
                                                 skip_shell, use_virial
@@ -169,7 +197,7 @@ MODULE mp2_ri_grad
                                                 my_virial_b
     REAL(KIND=dp), DIMENSION(:), POINTER     :: set_radius_a
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: I_tmp2, pab, rpgfa, sphi_a, &
-                                                zeta, zetb
+                                                zeta
     TYPE(cp_dbcsr_p_type)                    :: Lag_mu_i_1, Lag_nu_a_2, &
                                                 matrix_P_inu, matrix_P_munu, &
                                                 matrix_P_munu_nosym
@@ -191,7 +219,6 @@ MODULE mp2_ri_grad
       DIMENSION(:), POINTER                  :: rs_descs
     TYPE(realspace_grid_p_type), &
       DIMENSION(:), POINTER                  :: rs_v
-    TYPE(section_vals_type), POINTER         :: input, interp_section
     TYPE(virial_type), POINTER               :: virial
 
     CALL timeset(routineN,handle)
@@ -215,9 +242,7 @@ MODULE mp2_ri_grad
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
     ALLOCATE (atom_of_kind(natom),STAT=stat)
     CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
-    CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
-                             kind_of=kind_of,&
-                             atom_of_kind=atom_of_kind)
+    CALL get_atomic_kind_set(atomic_kind_set, kind_of=kind_of, atom_of_kind=atom_of_kind)
 
     itmp=get_limit(dimen_RI,para_env_sub%num_pe,para_env_sub%mepos)
     my_P_start=itmp(1)
@@ -278,9 +303,9 @@ MODULE mp2_ri_grad
                            use_data=REALDATA3D,&
                            in_space=REALSPACE,error=error_sub)
 
-    ! get input section and forces
+    ! get forces
     NULLIFY (force, virial)
-    CALL get_qs_env(qs_env=qs_env,input=input,force=force,virial=virial,error=error)
+    CALL get_qs_env(qs_env=qs_env,force=force,virial=virial,error=error)
 
     ! check if we want to calculate the virial
     use_virial = virial%pv_availability.AND.(.NOT.virial%pv_numer)
@@ -349,8 +374,8 @@ MODULE mp2_ri_grad
       wf_vector=0.0_dp
       wf_vector(LLL)=1.0_dp
       ! pseudo psi_L
-      CALL calculate_wavefunction(mo_coeff,1,psi_L,rho_g, &
-                                  atomic_kind_set,cell,dft_control,particle_set, &
+      CALL calculate_wavefunction(mo_coeff,1,psi_L,rho_g, atomic_kind_set,&
+                                  qs_kind_set,cell,dft_control,particle_set, &
                                   pw_env_sub,basis_set_id=use_ri_aux_basis_set,&
                                   external_vector=wf_vector,&
                                   error=error_sub)
@@ -385,15 +410,13 @@ MODULE mp2_ri_grad
       DO i=1,SIZE(rs_v)
         CALL rs_grid_retain(rs_v(i)%rs_grid,error=error_sub)
       END DO
-      interp_section => section_vals_get_subs_vals(input,"DFT%MGRID%INTERPOLATOR",&
-           error=error_sub)
-      CALL potential_pw2rs(rs_v,rho_r,pw_env_sub,interp_section,error_sub)
+      CALL potential_pw2rs(rs_v,rho_r,pw_env_sub,error_sub)
 
       offset=0
       DO iatom=1, natom
         ikind=kind_of(iatom)
         atom_a = atom_of_kind(iatom)
-        basis_set_a => atomic_kind_set(ikind)%ri_aux_basis_set
+        basis_set_a => qs_kind_set(ikind)%ri_aux_basis_set
 
         first_sgfa   =>  basis_set_a%first_sgf
         la_max       =>  basis_set_a%lmax
@@ -560,9 +583,9 @@ MODULE mp2_ri_grad
         ! hartree potential derivatives
         CALL timeset(routineN//"_Virial",handle3)
         wf_vector=0.0_dp
-        wf_vector=-2.0_dp*G_PQ_local(:,L_counter)
-        CALL calculate_wavefunction(mo_coeff,1,psi_L,rho_g, &
-                                    atomic_kind_set,cell,dft_control,particle_set, &
+        wf_vector(:)=-2.0_dp*G_PQ_local(:,L_counter)
+        CALL calculate_wavefunction(mo_coeff,1,psi_L,rho_g, atomic_kind_set, &
+                                    qs_kind_set,cell,dft_control,particle_set, &
                                     pw_env_sub,basis_set_id=use_ri_aux_basis_set,&
                                     external_vector=wf_vector,&
                                     error=error_sub)
@@ -637,15 +660,13 @@ MODULE mp2_ri_grad
       DO i=1,SIZE(rs_v)
         CALL rs_grid_retain(rs_v(i)%rs_grid,error=error_sub)
       END DO
-      interp_section => section_vals_get_subs_vals(input,"DFT%MGRID%INTERPOLATOR",&
-           error=error_sub)
-      CALL potential_pw2rs(rs_v,rho_r,pw_env_sub,interp_section,error_sub)
+      CALL potential_pw2rs(rs_v,rho_r,pw_env_sub,error_sub)
 
       offset=0
       DO iatom=1, natom
         ikind=kind_of(iatom)
         atom_a = atom_of_kind(iatom)
-        basis_set_a => atomic_kind_set(ikind)%ri_aux_basis_set
+        basis_set_a => qs_kind_set(ikind)%ri_aux_basis_set
 
         first_sgfa   =>  basis_set_a%first_sgf
         la_max       =>  basis_set_a%lmax
@@ -857,6 +878,23 @@ MODULE mp2_ri_grad
 
   END SUBROUTINE calc_ri_mp2_nonsep
 
+! *****************************************************************************
+!> \brief ...
+!> \param qs_env ...
+!> \param mp2_env ...
+!> \param mo_coeff ...
+!> \param homo ...
+!> \param virtual ...
+!> \param dimen ...
+!> \param para_env ...
+!> \param para_env_sub ...
+!> \param color_sub ...
+!> \param Eigenval ...
+!> \param L1_mu_i ...
+!> \param L2_nu_a ...
+!> \param error ...
+!> \param error_sub ...
+! *****************************************************************************
   SUBROUTINE create_W_P(qs_env,mp2_env,mo_coeff,homo,virtual,dimen,para_env,para_env_sub,&
                         color_sub,Eigenval,L1_mu_i,L2_nu_a,error,error_sub)
     TYPE(qs_environment_type), POINTER       :: qs_env
@@ -881,10 +919,10 @@ MODULE mp2_ri_grad
       nprow_1i, nprow_2a, nrow_block, nrow_block_1i, nrow_block_2a, &
       nrow_local, nrow_local_1i, nrow_local_2a, number_of_rec, &
       number_of_send, proc_receive, proc_receive_static, proc_send, &
-      proc_send_ex, proc_send_static, proc_send_sub
-    INTEGER :: proc_shift, rec_col_size, rec_counter, rec_row_size, &
-      send_col_size, send_counter, send_pcol, send_prow, send_row_size, &
-      size_rec_buffer, size_send_buffer, stat
+      proc_send_ex
+    INTEGER :: proc_send_static, proc_send_sub, proc_shift, rec_col_size, &
+      rec_counter, rec_row_size, send_col_size, send_counter, send_pcol, &
+      send_prow, send_row_size, size_rec_buffer, size_send_buffer, stat
     INTEGER, ALLOCATABLE, DIMENSION(:) :: iii_vet, map_rec_size, &
       map_send_size, pos_info, pos_info_ex, proc_2_send_pos, proc_map_ex, &
       req_send, sub_proc_map
@@ -1431,7 +1469,7 @@ MODULE mp2_ri_grad
     CALL  mp_sendrecv(mat_send,proc_send_static,&
                       mat_rec,proc_receive_static,&
                       para_env_exchange%group)
-    L_mu_q%local_data(:,:)=mat_rec(1:nrow_local,1:ncol_local)
+    L_mu_q%local_data(1:nrow_local,1:ncol_local)=mat_rec(1:nrow_local,1:ncol_local)
     DEALLOCATE(buffer_cyclic)
     DEALLOCATE(mat_send)
     DEALLOCATE(mat_rec)
@@ -1461,7 +1499,7 @@ MODULE mp2_ri_grad
     CALL cp_fm_struct_release(fm_struct_tmp,error=error)
     CALL cp_fm_set_all(fm_P_ij, 0.0_dp,error=error)
 
-    CALL cp_fm_gemm('T','N',homo,homo,dimen,1.0_dp,&
+    CALL cp_gemm('T','N',homo,homo,dimen,1.0_dp,&
                     mo_coeff,L_mu_q,0.0_dp,fm_P_ij,&
                     error=error,&
                     a_first_row=1,&
@@ -1471,7 +1509,7 @@ MODULE mp2_ri_grad
                     c_first_row=1)
     ! don't know if it is better to transpose (for communication reasons)
     ! or just recompute the transposed matrix
-    CALL cp_fm_gemm('T','N',homo,homo,dimen,-2.0_dp,&
+    CALL cp_gemm('T','N',homo,homo,dimen,-2.0_dp,&
                     L_mu_q,mo_coeff,2.0_dp,fm_P_ij,&
                     error=error,&
                     a_first_row=1,&
@@ -1623,7 +1661,7 @@ MODULE mp2_ri_grad
     CALL cp_fm_struct_release(fm_struct_tmp,error=error)
 
     ! all block
-    CALL cp_fm_gemm('T','N',dimen,dimen,dimen,2.0_dp,&
+    CALL cp_gemm('T','N',dimen,dimen,dimen,2.0_dp,&
                     L_mu_q,mo_coeff,0.0_dp,mp2_env%ri_grad%W_mo,&
                     error=error,&
                     a_first_row=1,&
@@ -1633,7 +1671,7 @@ MODULE mp2_ri_grad
                     c_first_row=1)
 
     ! occ-occ block
-    CALL cp_fm_gemm('T','N',homo,homo,dimen,-2.0_dp,&
+    CALL cp_gemm('T','N',homo,homo,dimen,-2.0_dp,&
                     L_mu_q,mo_coeff,0.0_dp,mp2_env%ri_grad%W_mo,&
                     error=error,&
                     a_first_row=1,&
@@ -1643,7 +1681,7 @@ MODULE mp2_ri_grad
                     c_first_row=1)
 
     ! occ-virt block
-    CALL cp_fm_gemm('T','N',homo,virtual,dimen,2.0_dp,&
+    CALL cp_gemm('T','N',homo,virtual,dimen,2.0_dp,&
                     mo_coeff,L_mu_q,0.0_dp,mp2_env%ri_grad%W_mo,&
                     error=error,&
                     a_first_row=1,&
@@ -1665,7 +1703,7 @@ MODULE mp2_ri_grad
     CALL cp_fm_set_all(mp2_env%ri_grad%L_jb, 0.0_dp,error=error)
  
     ! first Virtual
-    CALL cp_fm_gemm('T','N',homo,virtual,dimen,1.0_dp,&
+    CALL cp_gemm('T','N',homo,virtual,dimen,1.0_dp,&
                     L_mu_q,mo_coeff,0.0_dp,mp2_env%ri_grad%L_jb,&
                     error=error,&
                     a_first_row=1,&
@@ -1674,7 +1712,7 @@ MODULE mp2_ri_grad
                     c_first_col=1,&
                     c_first_row=1)
     ! then occupied
-    CALL cp_fm_gemm('T','N',homo,virtual,dimen,2.0_dp,&
+    CALL cp_gemm('T','N',homo,virtual,dimen,2.0_dp,&
                     mo_coeff,L_mu_q,2.0_dp,mp2_env%ri_grad%L_jb,&
                     error=error,&
                     a_first_row=1,&
@@ -1781,6 +1819,11 @@ MODULE mp2_ri_grad
   END SUBROUTINE create_W_P
 
 
+! *****************************************************************************
+!> \brief ...
+!> \param mat ...
+!> \param unitout ...
+! *****************************************************************************
    SUBROUTINE write_array(mat,unitout)
     REAL(KIND=dp), DIMENSION(:, :)           :: mat
     INTEGER, OPTIONAL                        :: unitout

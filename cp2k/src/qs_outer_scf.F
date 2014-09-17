@@ -50,6 +50,9 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief returns the number of variables that is employed in the outer loop
+!> \param scf_control ...
+!> \param error ...
+!> \retval res ...
 !> \par History
 !>      03.2006 created [Joost VandeVondele]
 ! *****************************************************************************
@@ -77,6 +80,9 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief computes the gradient wrt to the outer loop variables
+!> \param qs_env ...
+!> \param scf_env ...
+!> \param error ...
 !> \par History
 !>      03.2006 created [Joost VandeVondele]
 ! *****************************************************************************
@@ -161,10 +167,13 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief optimizes the parameters of the outer_scf
-!> \note
-!>       ought to be general, and independent of the actual kind of variables
+!> \param scf_env ...
+!> \param scf_control ...
+!> \param error ...
 !> \par History
 !>      03.2006 created [Joost VandeVondele]
+!> \note
+!>       ought to be general, and independent of the actual kind of variables
 ! *****************************************************************************
   SUBROUTINE outer_loop_optimize(scf_env, scf_control, error)
     TYPE(qs_scf_env_type), POINTER           :: scf_env
@@ -256,7 +265,7 @@ CONTAINS
           b(nb+1,nb+1)=0.0_dp
 
           CALL diamat_all(b,ev,error=error)
-          a=b
+          a(:,:)=b
           DO I=1,nb+1
              IF (ABS(ev(I)).LT.1.0E-12_dp) THEN
                 a(:,I)=0.0_dp
@@ -264,7 +273,7 @@ CONTAINS
                 a(:,I)=a(:,I)/ev(I)
              ENDIF
           END DO
-          ev=-MATMUL(a,b(nb+1,:))
+          ev(:)=-MATMUL(a,b(nb+1,:))
 
           scf_env%outer_scf%variables(:,ihistory+1)=0.0_dp
           DO i=1,nb
@@ -285,6 +294,9 @@ CONTAINS
 ! *****************************************************************************
 !> \brief propagates the updated variables to wherever they need to be set in
 !>       qs_env
+!> \param qs_env ...
+!> \param scf_env ...
+!> \param error ...
 !> \par History
 !>      03.2006 created [Joost VandeVondele]
 ! *****************************************************************************
@@ -341,11 +353,13 @@ CONTAINS
 ! *****************************************************************************
 !> \brief uses the outer_scf_history to extrapolate new values for the variables
 !>       and updates their value in qs_env accordingly
+!> \param qs_env ...
+!> \param error ...
+!> \par History
+!>      03.2006 created [Joost VandeVondele]
 !> \note
 !>       it assumes that the current value of qs_env still needs to be added to the history
 !>       simple multilinear extrapolation is employed
-!> \par History
-!>      03.2006 created [Joost VandeVondele]
 ! *****************************************************************************
   SUBROUTINE outer_loop_extrapolate(qs_env, error)
     TYPE(qs_environment_type), POINTER       :: qs_env
@@ -411,11 +425,11 @@ CONTAINS
     nvec=MIN(nhistory,outer_scf_ihistory)
     alpha=nvec
     ivec=1+MODULO(outer_scf_ihistory-1,nhistory)
-    extrapolation=alpha*outer_scf_history(:,ivec)
+    extrapolation(:)=alpha*outer_scf_history(:,ivec)
     DO ihis=2,nvec
        alpha = -1.0_dp * alpha * REAL(nvec - ihis + 1 , dp ) / REAL(ihis , dp )
        ivec=1+MODULO(outer_scf_ihistory-ihis,nhistory)
-       extrapolation=extrapolation+alpha*outer_scf_history(:,ivec)
+       extrapolation(:)=extrapolation+alpha*outer_scf_history(:,ivec)
     ENDDO
 
     ! update qs_env to use this extrapolation

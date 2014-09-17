@@ -31,10 +31,6 @@ MODULE dbcsr_test_add
                                              dbcsr_internal_error,&
                                              dbcsr_wrong_args_error
   USE dbcsr_io,                        ONLY: dbcsr_print
-  USE dbcsr_kinds,                     ONLY: real_4,&
-                                             real_8
-  USE dbcsr_message_passing,           ONLY: mp_bcast,&
-                                             mp_environ
   USE dbcsr_methods,                   ONLY: &
        dbcsr_col_block_sizes, dbcsr_distribution_new, &
        dbcsr_distribution_release, dbcsr_get_data_type, &
@@ -61,6 +57,10 @@ MODULE dbcsr_test_add
        dbcsr_type_real_4, dbcsr_type_real_4_2d, dbcsr_type_real_8, &
        dbcsr_type_real_8_2d, dbcsr_type_symmetric
   USE dbcsr_work_operations,           ONLY: dbcsr_create
+  USE kinds,                           ONLY: real_4,&
+                                             real_8
+  USE message_passing,                 ONLY: mp_bcast,&
+                                             mp_environ
 
   !$ USE OMP_LIB
 
@@ -74,6 +74,16 @@ MODULE dbcsr_test_add
 
 CONTAINS
 
+! *****************************************************************************
+!> \brief ...
+!> \param group ...
+!> \param mp_env ...
+!> \param npdims ...
+!> \param ionode ...
+!> \param narg ...
+!> \param args ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE dbcsr_test_adds( group, mp_env, npdims, ionode, narg, args, error)
 
     INTEGER                                  :: group
@@ -165,14 +175,17 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Performs a variety of matrix add
 !> \param[in] mp_group          MPI communicator
+!> \param mp_env ...
+!> \param npdims ...
 !> \param[in] io_unit           which unit to write to, if not negative
-!> \param[in] nproc             number of processors to test on
 !> \param[in] matrix_sizes      size of matrices to test
-!> \param[in] matrix_types      types of matrices to create
-!> \param[in] trs               transposes of the two matrices
-!> \param[in] bs_m, bs_n, bs_k  block sizes of the 3 dimensions
+!> \param[in] bs_m block sizes of the 3 dimensions
+!> \param[in] bs_n block sizes of the 3 dimensions
 !> \param[in] sparsities        sparsities of matrices to create
-!> \param[in] alpha, beta       alpha and beta values to use in multiply
+!> \param[in] alpha_in alpha value to use in multiply
+!> \param[in] beta_in alpha value to use in multiply
+!> \param limits ...
+!> \param retain_sparsity ...
 !> \param[in,out] error         cp2k error
 ! *****************************************************************************
   SUBROUTINE dbcsr_test_add_low (mp_group, mp_env, npdims, io_unit, &
@@ -355,10 +368,19 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Performs a variety of matrix add
 !> \param[in] mp_group          MPI communicator
-!> \param[in] group_sizes       array of (sub) communicator
-!>                              sizes to test (2-D)
-!> \param[in] matrix_a, matrix_b, matrix_c    matrices to multiply
+!> \param mp_env ...
+!> \param npdims ...
 !> \param[in] io_unit           which unit to write to, if not negative
+!> \param[in] matrix_a matrices to add
+!> \param[in] matrix_b matrices to add
+!> \param data_a ...
+!> \param data_b ...
+!> \param data_a_dbcsr ...
+!> \param alpha ...
+!> \param beta ...
+!> \param limits ...
+!> \param retain_sparsity ...
+!> \param error ...
 ! *****************************************************************************
   SUBROUTINE test_add (mp_group, mp_env, npdims, io_unit,&
        matrix_a, matrix_b, &
@@ -379,7 +401,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'test_add', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: c, error_handler, r, test
+    INTEGER                                  :: c, error_handler, r
     LOGICAL                                  :: success
     REAL(real_8)                             :: occ_a_in, occ_a_out, occ_b
     TYPE(array_i1d_obj)                      :: col_dist_a, col_dist_b, &
@@ -491,12 +513,16 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Performs a check of matrix adds
-!> \param[in] dense_c_dbcsr             dense result of the dbcsr_add
-!> \param[in] dense_a, dense_b, dense_c input dense matrices
-!> \param[in] transa, transb            transposition status
-!> \param[in] alpha, beta               coefficients for the add
+!> \param matrix_a ...
+!> \param dense_a_dbcsr ...
+!> \param dense_a input dense matrices
+!> \param dense_b input dense matrices
+!> \param[in] alpha coefficients for the add
+!> \param[in] beta coefficients for the add
 !> \param[in] limits                    limits for the add
+!> \param retain_sparsity ...
 !> \param[in] io_unit                   io unit for printing
+!> \param mp_group ...
 !> \param[out] success                  if passed the check success=T
 !> \param[inout] error                  dbcsr error
 !>
@@ -562,7 +588,7 @@ CONTAINS
        a_norm_dbcsr = dlange(norm, row_size, col_size, dense_a_dbcsr%d%r2_dp(1,1), ld, work)
        !
        dense_a%d%r2_dp(row:row+m-1,col:col+n-1) = alpha%r_dp * dense_a%d%r2_dp(row:row+m-1,col:col+n-1) + &
-            &                                      beta%r_dp * dense_b%d%r2_dp(row:row+m-1,col:col+n-1)
+                                                   beta%r_dp * dense_b%d%r2_dp(row:row+m-1,col:col+n-1)
        !
        ! impose the sparsity if needed
        IF(retain_sparsity) CALL dbcsr_impose_sparsity(matrix_a, dense_a, error=error)
@@ -587,7 +613,7 @@ CONTAINS
        a_norm_dbcsr = slange(norm, row_size, col_size, dense_a_dbcsr%d%r2_sp(1,1), ld, work_sp)
        !
        dense_a%d%r2_sp(row:row+m-1,col:col+n-1) = alpha%r_sp * dense_a%d%r2_sp(row:row+m-1,col:col+n-1) + &
-            &                                      beta%r_sp * dense_b%d%r2_sp(row:row+m-1,col:col+n-1)
+                                                   beta%r_sp * dense_b%d%r2_sp(row:row+m-1,col:col+n-1)
        !
        ! impose the sparsity if needed
        IF(retain_sparsity) CALL dbcsr_impose_sparsity(matrix_a, dense_a, error=error)
@@ -612,7 +638,7 @@ CONTAINS
        a_norm_dbcsr = zlange(norm, row_size, col_size, dense_a_dbcsr%d%c2_dp(1,1), ld, work)
        !
        dense_a%d%c2_dp(row:row+m-1,col:col+n-1) = alpha%c_dp * dense_a%d%c2_dp(row:row+m-1,col:col+n-1) + &
-            &                                      beta%c_dp * dense_b%d%c2_dp(row:row+m-1,col:col+n-1)
+                                                   beta%c_dp * dense_b%d%c2_dp(row:row+m-1,col:col+n-1)
        !
        ! impose the sparsity if needed
        IF(retain_sparsity) CALL dbcsr_impose_sparsity(matrix_a, dense_a, error=error)
@@ -653,7 +679,7 @@ CONTAINS
        ENDIF
 
        dense_a%d%c2_sp(row:row+m-1,col:col+n-1) = alpha%c_sp * dense_a%d%c2_sp(row:row+m-1,col:col+n-1) + &
-            &                                      beta%c_sp * dense_b%d%c2_sp(row:row+m-1,col:col+n-1)
+                                                   beta%c_sp * dense_b%d%c2_sp(row:row+m-1,col:col+n-1)
        !
        ! impose the sparsity if needed
        IF(retain_sparsity) CALL dbcsr_impose_sparsity(matrix_a, dense_a, error=error)

@@ -21,6 +21,8 @@ MODULE environment
   USE cp_files,                        ONLY: close_file,&
                                              open_file
   USE cp_fm_diag,                      ONLY: diag_init
+  USE cp_fm_struct,                    ONLY: cp_fm_struct_config
+  USE cp_fm_types,                     ONLY: cp_fm_setup
   USE cp_ma_interface,                 ONLY: &
        cp_ma_config, cp_ma_current_thread_run, cp_ma_mempol, cp_ma_mpi_sched, &
        cp_ma_print_machine, cp_ma_print_strategy, cp_ma_run_on, &
@@ -43,7 +45,7 @@ MODULE environment
        do_fft_fftw3, do_fft_sg, do_fist, do_qs, do_test, energy_run, &
        high_print_level, id_development_version, low_print_level, &
        medium_print_level, mol_dyn_run, none_run, silent_print_level
-  USE input_cp2k,                      ONLY: create_global_section
+  USE input_cp2k_global,               ONLY: create_global_section
   USE input_enumeration_types,         ONLY: enum_i2c,&
                                              enumeration_type
   USE input_keyword_types,             ONLY: keyword_get,&
@@ -64,7 +66,10 @@ MODULE environment
                                              m_flush_internal,&
                                              m_memory_details,&
                                              m_procrun
-  USE machine_architecture_types
+  USE machine_architecture_types,      ONLY: group,&
+                                             has_ma,&
+                                             local,&
+                                             threads
   USE message_passing,                 ONLY: add_mp_perf_env,&
                                              describe_mp_perf_env,&
                                              mp_max,&
@@ -114,6 +119,11 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Initializes a CP2K run (setting of the global environment variables)
+!> \param para_env ...
+!> \param output_unit ...
+!> \param globenv ...
+!> \param input_file_name ...
+!> \param wdir ...
 !> \par History
 !>      JGH (28.11.2001) : default for pp_library_path
 !>      - print keys added (17.01.2002, MK)
@@ -132,7 +142,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=default_string_length)     :: dev_flag
-    INTEGER                                  :: ipe, my_output_unit
+    INTEGER                                  :: my_output_unit
     TYPE(cp_logger_type), POINTER            :: logger
 #if defined(__HPM)
 #include "f_hpm.h"
@@ -204,6 +214,8 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief echos the list of host names and pids
+!> \param para_env ...
+!> \param output_unit ...
 ! *****************************************************************************
   SUBROUTINE echo_all_hosts(para_env,output_unit)
     TYPE(cp_para_env_type), POINTER          :: para_env
@@ -261,6 +273,8 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief echos the list the number of process per host
+!> \param para_env ...
+!> \param output_unit ...
 ! *****************************************************************************
   SUBROUTINE echo_all_process_host(para_env,output_unit)
     TYPE(cp_para_env_type), POINTER          :: para_env
@@ -330,14 +344,17 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief read part of cp2k_init
+!> \param root_section ...
+!> \param para_env ...
 !> \param globenv the globenv
+!> \param error ...
+!> \author fawzi
 !> \note
 !>      The following routines need to be synchronized wrt. adding/removing
 !>      of the default environments (logging, perormance,error):
 !>      environment:cp2k_init, environment:cp2k_finalize,
 !>      f77_interface:f_env_add_defaults, f77_interface:f_env_rm_defaults,
 !>      f77_interface:create_force_env, f77_interface:destroy_force_env
-!> \author fawzi
 ! *****************************************************************************
   SUBROUTINE cp2k_read(root_section,para_env,globenv,error)
 
@@ -396,13 +413,15 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief globenv initializations that need the input and error
+!> \param root_section ...
+!> \param para_env ...
 !> \param globenv the global environment to initialize
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
+!> \author fawzi
 !> \note
 !>      if possible do the initializations here as the environement
 !>      (error,...) is setup, instaed of cp2k_init
-!> \author fawzi
 ! *****************************************************************************
   SUBROUTINE cp2k_setup(root_section,para_env,globenv,error)
 
@@ -473,12 +492,16 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief read the global sectionof new input
-!> \note
-!>      Should not be required anymore once everything is converted
-!>      to get information directly from the input structure
+!> \param root_section ...
+!> \param para_env ...
+!> \param globenv ...
+!> \param error ...
 !> \par History
 !>      06-2005 [created]
 !> \author MI
+!> \note
+!>      Should not be required anymore once everything is converted
+!>      to get information directly from the input structure
 ! *****************************************************************************
   SUBROUTINE read_global_section(root_section,para_env,globenv,error)
 
@@ -499,8 +522,9 @@ CONTAINS
     CHARACTER(LEN=default_string_length), &
       DIMENSION(:), POINTER                  :: trace_routines
     INTEGER :: i_diag, i_fft, iforce_eval, method_name_id, n_rep_val, &
-      nforce_eval, nid, num_threads, output_unit, print_level, trace_max, &
-      unit_nr
+      nforce_eval, num_threads, output_unit, print_level, trace_max, unit_nr
+
+!$  INTEGER :: nid
     INTEGER(kind=int_8) :: Buffers, Buffers_avr, Buffers_max, Buffers_min, &
       Cached, Cached_avr, Cached_max, Cached_min, MemFree, MemFree_avr, &
       MemFree_max, MemFree_min, MemLikelyFree, MemLikelyFree_avr, &
@@ -554,7 +578,9 @@ CONTAINS
     logger=>cp_error_get_logger(error)
     output_unit=cp_print_key_unit_nr(logger,global_section,"PROGRAM_RUN_INFO",&
          extension=".log",error=error)
-         
+    
+    CALL fm_setup(global_section,error)
+     
     IF(trace .AND. (.NOT. trace_master .OR. para_env%mepos==0)) THEN
        unit_nr = -1
        IF (logger%para_env%mepos==logger%para_env%source .OR. .NOT. trace_master) &
@@ -845,6 +871,11 @@ CONTAINS
   END SUBROUTINE read_global_section
 
 ! *****************************************************************************
+!> \brief ...
+!> \param root_section ...
+!> \param para_env ...
+!> \param globenv ...
+!> \param error ...
 !> \par History
 !>      2-Dec-2000 (JGH) added default fft library
 !> \author JGH,MK
@@ -879,6 +910,11 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief check FFT preferred library availability, if not switch
+!> \param globenv ...
+!> \param para_env ...
+!> \param global_section ...
+!> \param output_unit ...
+!> \param error ...
 !> \par History
 !>      2-Dec-2000 (JGH) added default fft library
 !>      Nov-2013 (MI) refactoring
@@ -980,6 +1016,9 @@ CONTAINS
 ! *****************************************************************************
 !> \brief availability diagonalizatioon library
 !>
+!> \param globenv ...
+!> \param output_unit ...
+!> \param error ...
 !> \author MI
 ! *****************************************************************************
   SUBROUTINE diag_setup_library(globenv, output_unit,error)
@@ -1007,8 +1046,43 @@ CONTAINS
     END IF
   
   END SUBROUTINE diag_setup_library
+
+! *****************************************************************************
+!> \brief ...
+!> \param glob_section ...
+!> \param error ...
+! *****************************************************************************
+  SUBROUTINE fm_setup(glob_section,error)
+    TYPE(section_vals_type), POINTER         :: glob_section
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'fm_setup', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: multiplication_type, ncb, nrb
+    LOGICAL                                  :: force_me
+    TYPE(section_vals_type), POINTER         :: fm_section
+
+    fm_section => section_vals_get_subs_vals(glob_section,"FM",error=error)
+
+    CALL section_vals_val_get(fm_section,"NROW_BLOCKS",i_val=nrb,error=error)
+    CALL section_vals_val_get(fm_section,"NCOL_BLOCKS",i_val=ncb,error=error)
+    CALL section_vals_val_get(fm_section,"FORCE_BLOCK_SIZE",l_val=force_me,error=error)
+
+    CALL cp_fm_struct_config(nrow_block=nrb,ncol_block=ncb,force_block=force_me)
+
+    CALL section_vals_val_get(fm_section,"TYPE_OF_MATRIX_MULTIPLICATION",&
+                              i_val=multiplication_type,error=error)
+
+    CALL cp_fm_setup(multiplication_type)
+
+  END SUBROUTINE fm_setup
 ! *****************************************************************************
 !> \brief reads the Walltime also in format HH:MM:SS
+!> \param section ...
+!> \param keyword_name ...
+!> \param walltime ...
+!> \param error ...
 !> \par History
 !>      none
 !> \author Mandes
@@ -1052,15 +1126,20 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Writes final timings and banner for CP2K
+!> \param root_section ...
+!> \param para_env ...
+!> \param globenv ...
+!> \param wdir ...
+!> \param error ...
+!> \par History
+!>      none
+!> \author JGH,MK
 !> \note
 !>      The following routines need to be synchronized wrt. adding/removing
 !>      of the default environments (logging, perormance,error):
 !>      environment:cp2k_init, environment:cp2k_finalize,
 !>      f77_interface:f_env_add_defaults, f77_interface:f_env_rm_defaults,
 !>      f77_interface:create_force_env, f77_interface:destroy_force_env
-!> \par History
-!>      none
-!> \author JGH,MK
 ! *****************************************************************************
   SUBROUTINE cp2k_finalize(root_section,para_env,globenv,wdir,error)
 
@@ -1101,8 +1180,8 @@ CONTAINS
     CALL deallocate_orbital_pointers()
     CALL deallocate_md_ftable()
 
-    ! finalize the fft (i.e. writes the wisdom)
-    CALL finalize_fft(para_env,error)
+    ! finalize the fft (i.e. writes the wisdom if FFTW3 )
+    CALL finalize_fft(para_env,globenv%fftw_wisdom_file_name, error)
 
     ! Write message passing performance info
 

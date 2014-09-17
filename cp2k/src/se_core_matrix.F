@@ -14,14 +14,12 @@ MODULE se_core_matrix
                                              get_atomic_kind_set
   USE cp_control_types,                ONLY: dft_control_type
   USE cp_dbcsr_interface,              ONLY: &
-       cp_dbcsr_add, cp_dbcsr_copy, cp_dbcsr_distribute, &
+       cp_dbcsr_add, cp_dbcsr_allocate_matrix_set, cp_dbcsr_copy, &
+       cp_dbcsr_deallocate_matrix, cp_dbcsr_distribute, &
        cp_dbcsr_get_block_diag, cp_dbcsr_get_block_p, cp_dbcsr_init, &
-       cp_dbcsr_replicate_all, cp_dbcsr_set, cp_dbcsr_sum_replicated
-  USE cp_dbcsr_operations,             ONLY: cp_dbcsr_allocate_matrix_set,&
-                                             cp_dbcsr_deallocate_matrix
+       cp_dbcsr_p_type, cp_dbcsr_replicate_all, cp_dbcsr_set, &
+       cp_dbcsr_sum_replicated, cp_dbcsr_type
   USE cp_dbcsr_output,                 ONLY: cp_dbcsr_write_sparse_matrix
-  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_p_type,&
-                                             cp_dbcsr_type
   USE cp_output_handling,              ONLY: cp_p_file,&
                                              cp_print_key_finished_output,&
                                              cp_print_key_should_output,&
@@ -39,6 +37,8 @@ MODULE se_core_matrix
                                              qs_environment_type,&
                                              set_qs_env
   USE qs_force_types,                  ONLY: qs_force_type
+  USE qs_kind_types,                   ONLY: get_qs_kind,&
+                                             qs_kind_type
   USE qs_neighbor_list_types,          ONLY: get_iterator_info,&
                                              neighbor_list_iterate,&
                                              neighbor_list_iterator_create,&
@@ -68,6 +68,12 @@ MODULE se_core_matrix
 CONTAINS
 
 ! *****************************************************************************
+!> \brief ...
+!> \param qs_env ...
+!> \param para_env ...
+!> \param calculate_forces ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE build_se_core_matrix(qs_env,para_env,calculate_forces,error)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
@@ -94,13 +100,12 @@ CONTAINS
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: hmt, umt
     REAL(KIND=dp), DIMENSION(16)             :: ha, hb, ua
-    REAL(KIND=dp), DIMENSION(3)              :: force_ab, R, rij
+    REAL(KIND=dp), DIMENSION(3)              :: force_ab, rij
     REAL(KIND=dp), DIMENSION(:), POINTER     :: beta_a, sto_exponents_a
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: dsmat, h_block, h_blocka, &
                                                 pabmat, pamat, s_block
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
-    TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: matrix_h, matrix_p, matrix_s
     TYPE(cp_dbcsr_type), POINTER             :: diagmat_h, diagmat_p
@@ -114,16 +119,20 @@ CONTAINS
       POINTER                                :: particle_set
     TYPE(qs_force_type), DIMENSION(:), &
       POINTER                                :: force
+    TYPE(qs_kind_type), DIMENSION(:), &
+      POINTER                                :: qs_kind_set
     TYPE(qs_rho_type), POINTER               :: rho
     TYPE(semi_empirical_type), POINTER       :: se_kind_a
     TYPE(virial_type), POINTER               :: virial
+
+!   REAL(KIND=dp), DIMENSION(3)              :: R
 
     CALL timeset(routineN,handle)
 
     NULLIFY(logger)
     logger => cp_error_get_logger(error)
 
-     NULLIFY ( rho,force,atomic_kind_set,sab_orb,&
+     NULLIFY ( rho,force,atomic_kind_set,qs_kind_set,sab_orb,&
                diagmat_h,diagmat_p,particle_set, matrix_p )
 
      ! calculate overlap matrix
@@ -154,6 +163,7 @@ CONTAINS
                      matrix_h=matrix_h,&
                      matrix_s=matrix_s,&
                      atomic_kind_set=atomic_kind_set,&
+                     qs_kind_set=qs_kind_set,&
                      dft_control=dft_control,error=error)
 
      IF(calculate_forces) THEN
@@ -219,8 +229,8 @@ CONTAINS
 
      econst   = 0.0_dp
      DO ikind=1,nkind
-        atomic_kind => atomic_kind_set(ikind)
-        CALL get_atomic_kind(atomic_kind=atomic_kind,natom=natom,se_parameter=se_kind_a)
+        CALL get_atomic_kind(atomic_kind_set(ikind), natom=natom)
+        CALL get_qs_kind(qs_kind_set(ikind), se_parameter=se_kind_a)
         CALL get_se_param(se_kind_a,defined=defined,natorb=natorb_a,&
              beta=beta_a,uss=uss,upp=upp,udd=udd,uff=uff,eisol=eisol,eheat=eheat,&
              nr=nr_a,sto_exponents=sto_exponents_a)
@@ -427,6 +437,17 @@ CONTAINS
 
   END SUBROUTINE build_se_core_matrix
 
+! *****************************************************************************
+!> \brief ...
+!> \param R ...
+!> \param nra ...
+!> \param nrb ...
+!> \param ZSA ...
+!> \param ZSB ...
+!> \param ZPA ...
+!> \param ZPB ...
+!> \param S ...
+! *****************************************************************************
 SUBROUTINE makeS(R,nra,nrb,ZSA,ZSB,ZPA,ZPB,S)
 
     REAL(kind=dp), DIMENSION(3)              :: R
@@ -707,26 +728,26 @@ SUBROUTINE makeS(R,nra,nrb,ZSA,ZSB,ZPA,ZPB,S)
       0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  6,  0,  0,  6,  0,  0,  &
       0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  4,  0,  0,  4,  0,  0,  0,  0,  &
       0,  0,  0,  0,  0,  0,  0,  0,  7,  0,  0,  7,  0,  0,  0,  0,  0,  0,  &
-      0,  0,  0,  0,  0,  0,  5,  0,  0,  5,  0 /) , (/ 4, 4,20/) ), mb5 = &
-      RESHAPE( (/  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2, &
-      2,  0,  3,  3,  3,  3,  4,  3,  3,  3,  3,  4,  3,  3,  3,  3,  4,  0,  &
-      0,  4,  4,  0,  0,  4,  0,  4,  4,  0,  4,  4,  0,  4,  0,  0,  1,  0,  &
-      0,  1,  2,  0,  5,  0,  0,  6,  0,  0,  5,  0,  6,  0,  0,  1,  5,  0,  &
-      0,  5,  1,  1,  5,  2,  5,  5,  1,  5,  2,  0,  0,  2,  1,  0,  0,  1,  &
-      6,  2,  1,  4,  1,  1,  6,  1,  8,  0,  0,  0,  2,  0,  0,  2,  3,  0,  &
-      2,  0,  6,  2,  3,  6,  4,  0,  0,  0,  3,  0,  0,  3,  4,  0,  3,  0,  &
-      2,  3,  4,  2,  6,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  7,  0,  &
-      0,  7,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  3,  0,  0,  3,  &
-      0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  4,  0,  0,  4,  0,  0,  &
-      0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  5,  0,  0,  5,  0,  0,  0,  0,  &
-      0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  &
-      0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  &
-      0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  &
-      0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  &
-      0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  &
-      0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  &
-      0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0 /) , &
-      (/ 4, 4,20/) )
+      0,  0,  0,  0,  0,  0,  5,  0,  0,  5,  0 /) , (/ 4, 4,20/) )
+    INTEGER, DIMENSION(4, 4, 20), PARAMETER :: mb5 = RESHAPE( (/  2,  2,  2,  &
+      2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2, 2,  0,  3,  3,  3,  3,  4&
+      ,  3,  3,  3,  3,  4,  3,  3,  3,  3,  4,  0,  0,  4,  4,  0,  0,  4,  0&
+      ,  4,  4,  0,  4,  4,  0,  4,  0,  0,  1,  0,  0,  1,  2,  0,  5,  0,  0&
+      ,  6,  0,  0,  5,  0,  6,  0,  0,  1,  5,  0,  0,  5,  1,  1,  5,  2,  5&
+      ,  5,  1,  5,  2,  0,  0,  2,  1,  0,  0,  1,  6,  2,  1,  4,  1,  1,  6&
+      ,  1,  8,  0,  0,  0,  2,  0,  0,  2,  3,  0,  2,  0,  6,  2,  3,  6,  4&
+      ,  0,  0,  0,  3,  0,  0,  3,  4,  0,  3,  0,  2,  3,  4,  2,  6,  0,  0&
+      ,  0,  0,  0,  0,  0,  0,  0,  0,  0,  7,  0,  0,  7,  0,  0,  0,  0,  0&
+      ,  0,  0,  0,  0,  0,  0,  0,  3,  0,  0,  3,  0,  0,  0,  0,  0,  0,  0&
+      ,  0,  0,  0,  0,  0,  4,  0,  0,  4,  0,  0,  0,  0,  0,  0,  0,  0,  0&
+      ,  0,  0,  0,  5,  0,  0,  5,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0&
+      ,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0&
+      ,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0&
+      ,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0&
+      ,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0&
+      ,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0&
+      ,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0&
+      ,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0 /) , (/ 4, 4,20/) )
 
     INTEGER                                  :: k, k1, k2, mu
     REAL(kind=dp)                            :: cp, ct, fac1, fac2, J, Jc, &
@@ -896,6 +917,17 @@ ENDIF
 
 END SUBROUTINE makeS
 
+! *****************************************************************************
+!> \brief ...
+!> \param R ...
+!> \param nra ...
+!> \param nrb ...
+!> \param ZSA ...
+!> \param ZSB ...
+!> \param ZPA ...
+!> \param ZPB ...
+!> \param dS ...
+! *****************************************************************************
 SUBROUTINE makedS(R,nra,nrb,ZSA,ZSB,ZPA,ZPB,dS)
 
     REAL(kind=dp), DIMENSION(3)              :: R
@@ -1176,26 +1208,26 @@ SUBROUTINE makedS(R,nra,nrb,ZSA,ZSB,ZPA,ZPB,dS)
       0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  6,  0,  0,  6,  0,  0,  &
       0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  4,  0,  0,  4,  0,  0,  0,  0,  &
       0,  0,  0,  0,  0,  0,  0,  0,  7,  0,  0,  7,  0,  0,  0,  0,  0,  0,  &
-      0,  0,  0,  0,  0,  0,  5,  0,  0,  5,  0 /) , (/ 4, 4,20/) ), mb5 = &
-      RESHAPE( (/  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2, &
-      2,  0,  3,  3,  3,  3,  4,  3,  3,  3,  3,  4,  3,  3,  3,  3,  4,  0,  &
-      0,  4,  4,  0,  0,  4,  0,  4,  4,  0,  4,  4,  0,  4,  0,  0,  1,  0,  &
-      0,  1,  2,  0,  5,  0,  0,  6,  0,  0,  5,  0,  6,  0,  0,  1,  5,  0,  &
-      0,  5,  1,  1,  5,  2,  5,  5,  1,  5,  2,  0,  0,  2,  1,  0,  0,  1,  &
-      6,  2,  1,  4,  1,  1,  6,  1,  8,  0,  0,  0,  2,  0,  0,  2,  3,  0,  &
-      2,  0,  6,  2,  3,  6,  4,  0,  0,  0,  3,  0,  0,  3,  4,  0,  3,  0,  &
-      2,  3,  4,  2,  6,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  7,  0,  &
-      0,  7,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  3,  0,  0,  3,  &
-      0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  4,  0,  0,  4,  0,  0,  &
-      0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  5,  0,  0,  5,  0,  0,  0,  0,  &
-      0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  &
-      0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  &
-      0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  &
-      0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  &
-      0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  &
-      0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  &
-      0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0 /) , &
-      (/ 4, 4,20/) )
+      0,  0,  0,  0,  0,  0,  5,  0,  0,  5,  0 /) , (/ 4, 4,20/) )
+    INTEGER, DIMENSION(4, 4, 20), PARAMETER :: mb5 = RESHAPE( (/  2,  2,  2,  &
+      2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2, 2,  0,  3,  3,  3,  3,  4&
+      ,  3,  3,  3,  3,  4,  3,  3,  3,  3,  4,  0,  0,  4,  4,  0,  0,  4,  0&
+      ,  4,  4,  0,  4,  4,  0,  4,  0,  0,  1,  0,  0,  1,  2,  0,  5,  0,  0&
+      ,  6,  0,  0,  5,  0,  6,  0,  0,  1,  5,  0,  0,  5,  1,  1,  5,  2,  5&
+      ,  5,  1,  5,  2,  0,  0,  2,  1,  0,  0,  1,  6,  2,  1,  4,  1,  1,  6&
+      ,  1,  8,  0,  0,  0,  2,  0,  0,  2,  3,  0,  2,  0,  6,  2,  3,  6,  4&
+      ,  0,  0,  0,  3,  0,  0,  3,  4,  0,  3,  0,  2,  3,  4,  2,  6,  0,  0&
+      ,  0,  0,  0,  0,  0,  0,  0,  0,  0,  7,  0,  0,  7,  0,  0,  0,  0,  0&
+      ,  0,  0,  0,  0,  0,  0,  0,  3,  0,  0,  3,  0,  0,  0,  0,  0,  0,  0&
+      ,  0,  0,  0,  0,  0,  4,  0,  0,  4,  0,  0,  0,  0,  0,  0,  0,  0,  0&
+      ,  0,  0,  0,  5,  0,  0,  5,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0&
+      ,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0&
+      ,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0&
+      ,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0&
+      ,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0&
+      ,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0&
+      ,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0&
+      ,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0 /) , (/ 4, 4,20/) )
 
     INTEGER                                  :: k, k1, k2, mu
     REAL(kind=dp)                            :: cp, ct, dJ, dJc, dJcc, dJss, &
@@ -1457,6 +1489,11 @@ ENDIF
 
 END SUBROUTINE makedS
 
+! *****************************************************************************
+!> \brief ...
+!> \param n ...
+!> \param x ...
+! *****************************************************************************
 FUNCTION AA(n,x)
 
     INTEGER                                  :: n
@@ -1472,75 +1509,75 @@ IF(n == 1)THEN
 ELSE
 IF(n == 2)THEN
   p=     2.0_dp+x*(&
-   &     2.0_dp+x)
+         2.0_dp+x)
 ELSE
 IF(n == 3)THEN
   p=     6.0_dp+x*(&
-   &     6.0_dp+x*(&
-   &     3.0_dp+x))
+         6.0_dp+x*(&
+         3.0_dp+x))
 ELSE
 IF(n == 4)THEN
   p=    24.0_dp+x*(&
-   &    24.0_dp+x*(&
-   &    12.0_dp+x*(&
-   &     4.0_dp+x)))
+        24.0_dp+x*(&
+        12.0_dp+x*(&
+         4.0_dp+x)))
 ELSE
 IF(n == 5)THEN
   p=   120.0_dp+x*(&
-    &  120.0_dp+x*(&
-    &   60.0_dp+x*(&
-    &   20.0_dp+x*(&
-    &    5.0_dp+x))))
+       120.0_dp+x*(&
+        60.0_dp+x*(&
+        20.0_dp+x*(&
+         5.0_dp+x))))
 ELSE
 IF(n == 6)THEN
   p=   720.0_dp+x*(&
-   &   720.0_dp+x*(&
-   &   360.0_dp+x*(&
-   &   120.0_dp+x*(&
-   &    30.0_dp+x*(&
-   &     6.0_dp+x)))))
+       720.0_dp+x*(&
+       360.0_dp+x*(&
+       120.0_dp+x*(&
+        30.0_dp+x*(&
+         6.0_dp+x)))))
 ELSE
 IF(n == 7)THEN
   p=  5040.0_dp+x*(&
-   &  5040.0_dp+x*(&
-   &  2520.0_dp+x*(&
-   &   840.0_dp+x*(&
-   &   210.0_dp+x*(&
-   &    42.0_dp+x*(&
-   &     7.0_dp+x))))))
+      5040.0_dp+x*(&
+      2520.0_dp+x*(&
+       840.0_dp+x*(&
+       210.0_dp+x*(&
+        42.0_dp+x*(&
+         7.0_dp+x))))))
 ELSE
 IF(n == 8)THEN
   p= 40320.0_dp+x*(&
-   & 40320.0_dp+x*(&
-   & 20160.0_dp+x*(&
-   &  6720.0_dp+x*(&
-   &  1680.0_dp+x*(&
-   &   336.0_dp+x*(&
-   &    56.0_dp+x*(&
-   &     8.0_dp+x)))))))
+     40320.0_dp+x*(&
+     20160.0_dp+x*(&
+      6720.0_dp+x*(&
+      1680.0_dp+x*(&
+       336.0_dp+x*(&
+        56.0_dp+x*(&
+         8.0_dp+x)))))))
 ELSE
 IF(n == 9)THEN
   p= 362880.0_dp+x*(&
-   & 362880.0_dp+x*(&
-   & 181440.0_dp+x*(&
-   &  60480.0_dp+x*(&
-   &  15120.0_dp+x*(&
-   &   3024.0_dp+x*(&
-   &    504.0_dp+x*(&
-   &     72.0_dp+x*(&
-   &      9.0_dp+x))))))))
+     362880.0_dp+x*(&
+     181440.0_dp+x*(&
+      60480.0_dp+x*(&
+      15120.0_dp+x*(&
+       3024.0_dp+x*(&
+        504.0_dp+x*(&
+         72.0_dp+x*(&
+          9.0_dp+x))))))))
 ELSE
 IF(n == 10)THEN
   p= 3628800.0_dp+x*(&
-   & 3628800.0_dp+x*(&
-   & 1814400.0_dp+x*(&
-   &  604800.0_dp+x*(&
-   &  151200.0_dp+x*(&
-   &   30240.0_dp+x*(&
-   &    5040.0_dp+x*(&
-   &     720.0_dp+x*(&
-   &      90.0_dp+x*(&
-   &      10.0_dp+x)))))))))
+     3628800.0_dp+x*(&
+     1814400.0_dp+x*(&
+      604800.0_dp+x*(&
+      151200.0_dp+x*(&
+       30240.0_dp+x*(&
+        5040.0_dp+x*(&
+         720.0_dp+x*(&
+          90.0_dp+x*(&
+          10.0_dp+x)))))))))
 ELSE
   p=1.0_dp
   WRITE(*,*) ' n= ',n,' in AA(n,x) '
@@ -1560,6 +1597,11 @@ AA=EXP(-x)*p/x**(n+1)
 
 END FUNCTION AA
 
+! *****************************************************************************
+!> \brief ...
+!> \param n ...
+!> \param y ...
+! *****************************************************************************
 FUNCTION BB(n,y)
 
     INTEGER                                  :: n

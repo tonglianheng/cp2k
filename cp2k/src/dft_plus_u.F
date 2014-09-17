@@ -14,42 +14,34 @@
 !> \version 1.0
 ! *****************************************************************************
 MODULE dft_plus_u
-
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind,&
-                                             get_atomic_kind_set,&
-                                             set_atomic_kind
+                                             get_atomic_kind_set
   USE basis_set_types,                 ONLY: get_gto_basis_set,&
                                              gto_basis_set_type
   USE bibliography,                    ONLY: Dudarev1997,&
                                              Dudarev1998,&
                                              cite_reference
   USE cp_control_types,                ONLY: dft_control_type
-  USE cp_dbcsr_interface,              ONLY: cp_dbcsr_get_block_diag,&
-                                             cp_dbcsr_get_block_p,&
-                                             cp_dbcsr_init,&
-                                             cp_dbcsr_iterator_blocks_left,&
-                                             cp_dbcsr_iterator_next_block,&
-                                             cp_dbcsr_iterator_start,&
-                                             cp_dbcsr_iterator_stop,&
-                                             cp_dbcsr_set
+  USE cp_dbcsr_interface,              ONLY: &
+       cp_dbcsr_deallocate_matrix, cp_dbcsr_get_block_diag, &
+       cp_dbcsr_get_block_p, cp_dbcsr_init, cp_dbcsr_iterator, &
+       cp_dbcsr_iterator_blocks_left, cp_dbcsr_iterator_next_block, &
+       cp_dbcsr_iterator_start, cp_dbcsr_iterator_stop, cp_dbcsr_p_type, &
+       cp_dbcsr_set, cp_dbcsr_type
   USE cp_dbcsr_operations,             ONLY: copy_fm_to_dbcsr,&
-                                             cp_dbcsr_deallocate_matrix,&
                                              cp_dbcsr_plus_fm_fm_t,&
                                              cp_dbcsr_sm_fm_multiply
   USE cp_dbcsr_output,                 ONLY: cp_dbcsr_write_sparse_matrix,&
                                              write_fm_with_basis_info
-  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_iterator,&
-                                             cp_dbcsr_p_type,&
-                                             cp_dbcsr_type
-  USE cp_fm_basic_linalg,              ONLY: cp_fm_gemm,&
-                                             cp_fm_transpose
+  USE cp_fm_basic_linalg,              ONLY: cp_fm_transpose
   USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                              cp_fm_struct_release,&
                                              cp_fm_struct_type
   USE cp_fm_types,                     ONLY: cp_fm_create,&
                                              cp_fm_release,&
                                              cp_fm_type
+  USE cp_gemm_interface,               ONLY: cp_gemm
   USE cp_output_handling,              ONLY: cp_p_file,&
                                              cp_print_key_finished_output,&
                                              cp_print_key_should_output,&
@@ -71,6 +63,10 @@ MODULE dft_plus_u
   USE qs_energy_types,                 ONLY: qs_energy_type
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
+  USE qs_kind_types,                   ONLY: get_qs_kind,&
+                                             get_qs_kind_set,&
+                                             qs_kind_type,&
+                                             set_qs_kind
   USE qs_rho_types,                    ONLY: qs_rho_type
   USE qs_scf_types,                    ONLY: qs_scf_env_type
   USE timings,                         ONLY: timeset,&
@@ -93,8 +89,8 @@ CONTAINS
 !> \param[in,out] matrix_h Hamiltonian matrices for each spin
 !> \param[in,out] matrix_w Energy weighted density matrices for each spin
 !> \param[in]     error environment
-!> \author        Matthias Krack (MK)
 !> \date          14.01.2008
+!> \author        Matthias Krack (MK)
 !> \version       1.0
 ! *****************************************************************************
   SUBROUTINE plus_u(qs_env,matrix_h,matrix_w,error)
@@ -185,8 +181,16 @@ CONTAINS
 !>                \f[Q = S^{1/2} P S^{1/2}\f]
 !>                where \b P and \b S are the density and the
 !>                overlap matrix, respectively.
-!> \details
-!>  \f{eqnarray*}
+!> \param[in]     qs_env Quickstep environment
+!> \param[in,out] matrix_h Hamiltonian matrices for each spin
+!> \param[in,out] matrix_w Energy weighted density matrices for each spin
+!> \param should_output ...
+!> \param output_unit ...
+!> \param print_level ...
+!> \param[in]     error environment
+!> \date          02.07.2008
+!> \par
+!>  \f{eqnarray*}{
 !>   E^{\rm DFT+U} & = & E^{\rm DFT} +  E^{\rm U}\\\
 !>                 & = & E^{\rm DFT} +  \frac{1}{2}(U - J)\sum_\mu (q_\mu - q_\mu^2)\\[1ex]
 !>   V_{\mu\nu}^{\rm DFT+U} & = & V_{\mu\nu}^{\rm DFT} + V_{\mu\nu}^{\rm U}\\\
@@ -198,12 +202,7 @@ CONTAINS
 !>                                \frac{\partial E^{\rm U}}{\partial q_\mu}
 !>                                \frac{\partial q_\mu}{\partial P_{\mu\nu}}\\\
 !>  \f}
-!> \param[in]     qs_env Quickstep environment
-!> \param[in,out] matrix_h Hamiltonian matrices for each spin
-!> \param[in,out] matrix_w Energy weighted density matrices for each spin
-!> \param[in]     error environment
 !> \author        Matthias Krack (MK)
-!> \date          02.07.2008
 !> \version       1.0
 ! *****************************************************************************
   SUBROUTINE lowdin(qs_env,matrix_h,matrix_w,should_output,output_unit,&
@@ -244,7 +243,6 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: q_block, v_block
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
-    TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: matrix_p, matrix_s
     TYPE(cp_dbcsr_type), POINTER             :: sm_h, sm_p, sm_q, sm_s, sm_v, &
@@ -256,6 +254,8 @@ CONTAINS
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(qs_energy_type), POINTER            :: energy
+    TYPE(qs_kind_type), DIMENSION(:), &
+      POINTER                                :: qs_kind_set
     TYPE(qs_rho_type), POINTER               :: rho
     TYPE(qs_scf_env_type), POINTER           :: scf_env
 
@@ -264,8 +264,8 @@ CONTAINS
     debug = .FALSE. ! Set to .TRUE. to print debug information
 
     NULLIFY (atom_list)
-    NULLIFY (atomic_kind)
     NULLIFY (atomic_kind_set)
+    NULLIFY (qs_kind_set)
     NULLIFY (dft_control)
     NULLIFY (energy)
     NULLIFY (first_sgf)
@@ -300,6 +300,7 @@ CONTAINS
 
     CALL get_qs_env(qs_env=qs_env,&
                     atomic_kind_set=atomic_kind_set,&
+                    qs_kind_set=qs_kind_set,&
                     dft_control=dft_control,&
                     energy=energy,&
                     matrix_s=matrix_s,&
@@ -331,9 +332,9 @@ CONTAINS
     ! Get the total number of atoms, contracted spherical Gaussian basis
     ! functions, and atomic kinds
 
-    CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
-                             natom=natom,&
-                             nsgf=nsgf)
+    CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set, natom=natom)
+    CALL get_qs_kind_set(qs_kind_set, nsgf=nsgf)
+
 
     nkind = SIZE(atomic_kind_set)
 
@@ -341,7 +342,7 @@ CONTAINS
     CPPostcondition((stat == 0),cp_failure_level,routineP,error,failure)
     first_sgf_atom(:) = 0
 
-    CALL get_particle_set(particle_set=particle_set,&
+    CALL get_particle_set(particle_set, qs_kind_set,&
                           first_sgf=first_sgf_atom,&
                           error=error)
 
@@ -433,7 +434,7 @@ CONTAINS
       ! Calculate S^(1/2)*P*S^(1/2) as a full matrix (Lowdin)
 
       CALL cp_dbcsr_sm_fm_multiply(sm_p,fm_s_half,fm_work1,nsgf,error=error)
-      CALL cp_fm_gemm(transa="N",&
+      CALL cp_gemm(transa="N",&
                       transb="N",&
                       m=nsgf,&
                       n=nsgf,&
@@ -473,16 +474,16 @@ CONTAINS
 
       DO ikind=1,nkind
 
-        atomic_kind => atomic_kind_set(ikind)
-
         ! Load the required atomic kind data
 
-        CALL get_atomic_kind(atomic_kind=atomic_kind,&
+        CALL get_atomic_kind(atomic_kind_set(ikind),&
                              atom_list=atom_list,&
+                             name=atomic_kind_name,&
+                             natom=natom_of_kind)
+
+        CALL get_qs_kind(qs_kind_set(ikind),&
                              dft_plus_u_atom=dft_plus_u_atom,&
                              l_of_dft_plus_u=lu,&
-                             name=atomic_kind_name,&
-                             natom=natom_of_kind,&
                              nsgf=nsgf_kind,&
                              orb_basis_set=orb_basis_set,&
                              u_minus_j=u_minus_j,&
@@ -493,6 +494,7 @@ CONTAINS
                              eps_scf=eps_scf,&
                              max_scf=max_scf,&
                              smear=smear)
+
 
         ! Check, if the atoms of this atomic kind need a DFT+U correction
 
@@ -505,7 +507,7 @@ CONTAINS
         IF ((ispin == 1).AND.(u_ramping > 0.0_dp)) THEN
           IF (qs_env%scf_env%iter_delta <= eps_u_ramping) THEN
             u_minus_j = MIN(u_minus_j + u_ramping,u_minus_j_target)
-            CALL set_atomic_kind(atomic_kind=atomic_kind,u_minus_j=u_minus_j)
+            CALL set_qs_kind(qs_kind_set(ikind), u_minus_j=u_minus_j)
           END IF
           IF (should_output.AND.(output_unit > 0)) THEN
             WRITE (UNIT=output_unit,FMT="(T3,A,3X,A,F0.3,A)")&
@@ -657,7 +659,7 @@ CONTAINS
                     trq = trq - q_eigval(iloc(1))
                   END DO
                 END DO
-                q_matrix = MATMUL(q_matrix,TRANSPOSE(q_eigvec)) ! backtransform right
+                q_matrix(:,:) = MATMUL(q_matrix,TRANSPOSE(q_eigvec)) ! backtransform right
                 DEALLOCATE (orb_occ,STAT=stat)
                 CPPostcondition((stat == 0),cp_failure_level,routineP,error,failure)
                 DEALLOCATE (q_eigval,STAT=stat)
@@ -877,8 +879,16 @@ CONTAINS
 !>                                             S_{\mu\nu} P_{\nu\mu})\f]
 !>                where \b P and \b S are the density and the
 !>                overlap matrix, respectively.
-!> \details
-!>  \f{eqnarray*}
+!> \param[in]     qs_env Quickstep environment
+!> \param orthonormal_basis ...
+!> \param[in,out] matrix_h Hamiltonian matrices for each spin
+!> \param should_output ...
+!> \param output_unit ...
+!> \param print_level ...
+!> \param[in]     error environment
+!> \date          03.07.2008
+!> \par
+!>  \f{eqnarray*}{
 !>   E^{\rm DFT+U} & = & E^{\rm DFT} + E^{\rm U}\\\
 !>                 & = & E^{\rm DFT} + \frac{1}{2}\sum_A(U_A - J_A)(Tr(q_A) - Tr(q^2_A))\\[1ex]
 !>   V_{\mu\nu}^{\rm DFT+U} & = & V_{\mu\nu}^{\rm DFT} + V_{\mu\nu}^{\rm U}\\\
@@ -890,11 +900,7 @@ CONTAINS
 !>                                \frac{\partial E^{\rm U}}{\partial q_A}
 !>                                \frac{\partial q_A}{\partial P_{\mu\nu}}\\\
 !>  \f}
-!> \param[in]     qs_env Quickstep environment
-!> \param[in,out] matrix_h Hamiltonian matrices for each spin
-!> \param[in]     error environment
 !> \author        Matthias Krack (MK)
-!> \date          03.07.2008
 !> \version       1.0
 ! *****************************************************************************
   SUBROUTINE mulliken(qs_env,orthonormal_basis,matrix_h,should_output,&
@@ -936,7 +942,7 @@ CONTAINS
                                                 s_block, v_block
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
-    TYPE(atomic_kind_type), POINTER          :: atomic_kind, kind_a
+    TYPE(atomic_kind_type), POINTER          :: kind_a
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: matrix_p, matrix_s
     TYPE(cp_dbcsr_type), POINTER             :: sm_h, sm_p, sm_q, sm_s, sm_v
@@ -945,6 +951,8 @@ CONTAINS
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(qs_energy_type), POINTER            :: energy
+    TYPE(qs_kind_type), DIMENSION(:), &
+      POINTER                                :: qs_kind_set
     TYPE(qs_rho_type), POINTER               :: rho
 
     CALL timeset(routineN,handle)
@@ -952,8 +960,8 @@ CONTAINS
     debug = .FALSE. ! Set to .TRUE. to print debug information
 
     NULLIFY (atom_list)
-    NULLIFY (atomic_kind)
     NULLIFY (atomic_kind_set)
+    NULLIFY (qs_kind_set)
     NULLIFY (dft_control)
     NULLIFY (energy)
     NULLIFY (first_sgf)
@@ -985,6 +993,7 @@ CONTAINS
 
     CALL get_qs_env(qs_env=qs_env,&
                     atomic_kind_set=atomic_kind_set,&
+                    qs_kind_set=qs_kind_set,&
                     dft_control=dft_control,&
                     energy=energy,&
                     particle_set=particle_set,&
@@ -1121,26 +1130,26 @@ CONTAINS
 
       DO ikind=1,nkind
 
-        atomic_kind => atomic_kind_set(ikind)
-
         ! Load the required atomic kind data
 
-        CALL get_atomic_kind(atomic_kind=atomic_kind,&
+        CALL get_atomic_kind(atomic_kind_set(ikind),&
                              atom_list=atom_list,&
-                             dft_plus_u_atom=dft_plus_u_atom,&
-                             l_of_dft_plus_u=lu,&
                              name=atomic_kind_name,&
-                             natom=natom_of_kind,&
-                             nsgf=nsgf_kind,&
-                             orb_basis_set=orb_basis_set,&
-                             u_minus_j=u_minus_j,&
-                             u_minus_j_target=u_minus_j_target,&
-                             u_ramping=u_ramping,&
-                             eps_u_ramping=eps_u_ramping,&
-                             orbitals=orbitals,&
-                             eps_scf=eps_scf,&
-                             max_scf=max_scf,&
-                             smear=smear)
+                             natom=natom_of_kind)
+
+        CALL get_qs_kind(qs_kind_set(ikind),&
+                         dft_plus_u_atom=dft_plus_u_atom,&
+                         l_of_dft_plus_u=lu,&
+                         nsgf=nsgf_kind,&
+                         orb_basis_set=orb_basis_set,&
+                         u_minus_j=u_minus_j,&
+                         u_minus_j_target=u_minus_j_target,&
+                         u_ramping=u_ramping,&
+                         eps_u_ramping=eps_u_ramping,&
+                         orbitals=orbitals,&
+                         eps_scf=eps_scf,&
+                         max_scf=max_scf,&
+                         smear=smear)
 
         ! Check, if the atoms of this atomic kind need a DFT+U correction
 
@@ -1153,7 +1162,7 @@ CONTAINS
         IF ((ispin == 1).AND.(u_ramping > 0.0_dp)) THEN
           IF (qs_env%scf_env%iter_delta <= eps_u_ramping) THEN
             u_minus_j = MIN(u_minus_j + u_ramping,u_minus_j_target)
-            CALL set_atomic_kind(atomic_kind=atomic_kind,u_minus_j=u_minus_j)
+            CALL set_qs_kind(qs_kind_set(ikind), u_minus_j=u_minus_j)
           END IF
           IF (should_output.AND.(output_unit > 0)) THEN
             WRITE (UNIT=output_unit,FMT="(T3,A,3X,A,F0.3,A)")&
@@ -1307,7 +1316,7 @@ CONTAINS
                     trq = trq - q_eigval(iloc(1))
                   END DO
                 END DO
-                q_matrix = MATMUL(q_matrix,TRANSPOSE(q_eigvec)) ! backtransform right
+                q_matrix(:,:) = MATMUL(q_matrix,TRANSPOSE(q_eigvec)) ! backtransform right
                 DEALLOCATE (orb_occ,STAT=stat)
                 CPPostcondition((stat == 0),cp_failure_level,routineP,error,failure)
                 DEALLOCATE (q_eigval,STAT=stat)
@@ -1553,8 +1562,17 @@ CONTAINS
 !>                         = \sum_\nu P_{\mu\nu} S_{\nu\mu}\f]
 !>                where \b P and \b S are the density and the
 !>                overlap matrix, respectively.
-!> \details
-!>  \f{eqnarray*}
+!> \param[in]     qs_env Quickstep environment
+!> \param orthonormal_basis ...
+!> \param[in,out] matrix_h Hamiltonian matrices for each spin
+!> \param[in,out] matrix_w Energy weighted density matrices for each spin
+!> \param should_output ...
+!> \param output_unit ...
+!> \param print_level ...
+!> \param[in]     error environment
+!> \date          11.01.2008
+!> \par
+!>  \f{eqnarray*}{
 !>   E^{\rm DFT+U} & = & E^{\rm DFT} +  E^{\rm U}\\\
 !>                 & = & E^{\rm DFT} +  \frac{1}{2}(U - J)\sum_\mu (q_\mu - q_\mu^2)\\[1ex]
 !>   V_{\mu\nu}^{\rm DFT+U} & = & V_{\mu\nu}^{\rm DFT} + V_{\mu\nu}^{\rm U}\\\
@@ -1568,12 +1586,7 @@ CONTAINS
 !>                          & = & H_{\mu\nu} +
 !>                                \frac{1}{2}(U - J)(1 - q_\mu - q_\nu) S_{\mu\nu}\\\
 !>  \f}
-!> \param[in]     qs_env Quickstep environment
-!> \param[in,out] matrix_h Hamiltonian matrices for each spin
-!> \param[in,out] matrix_w Energy weighted density matrices for each spin
-!> \param[in]     error environment
 !> \author        Matthias Krack (MK)
-!> \date          11.01.2008
 !> \version       1.0
 !> \note          The use of any full matrices was avoided. Thus no ScaLAPACK
 !>                calls are performed
@@ -1614,7 +1627,6 @@ CONTAINS
                                                 w_block
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
-    TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(cp_dbcsr_iterator)                  :: iter
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: matrix_p, matrix_s
@@ -1624,13 +1636,15 @@ CONTAINS
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(qs_energy_type), POINTER            :: energy
+    TYPE(qs_kind_type), DIMENSION(:), &
+      POINTER                                :: qs_kind_set
     TYPE(qs_rho_type), POINTER               :: rho
 
     CALL timeset(routineN,handle)
 
     NULLIFY (atom_list)
-    NULLIFY (atomic_kind)
     NULLIFY (atomic_kind_set)
+    NULLIFY (qs_kind_set)
     NULLIFY (dft_control)
     NULLIFY (energy)
     NULLIFY (first_sgf)
@@ -1654,6 +1668,7 @@ CONTAINS
 
     CALL get_qs_env(qs_env=qs_env,&
                     atomic_kind_set=atomic_kind_set,&
+                    qs_kind_set=qs_kind_set,&
                     dft_control=dft_control,&
                     energy=energy,&
                     particle_set=particle_set,&
@@ -1694,9 +1709,8 @@ CONTAINS
     ! Get the total number of atoms, contracted spherical Gaussian basis
     ! functions, and atomic kinds
 
-    CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
-                             natom=natom,&
-                             nsgf=nsgf)
+    CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set, natom=natom)
+    CALL get_qs_kind_set(qs_kind_set, nsgf=nsgf)
 
     nkind = SIZE(atomic_kind_set)
 
@@ -1704,7 +1718,7 @@ CONTAINS
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     first_sgf_atom(:) = 0
 
-    CALL get_particle_set(particle_set=particle_set,&
+    CALL get_particle_set(particle_set, qs_kind_set,&
                           first_sgf=first_sgf_atom,&
                           error=error)
 
@@ -1812,21 +1826,20 @@ CONTAINS
 
       DO ikind=1,nkind
 
-         atomic_kind => atomic_kind_set(ikind)
-
         ! Load the required atomic kind data
-
-        CALL get_atomic_kind(atomic_kind=atomic_kind,&
+        CALL get_atomic_kind(atomic_kind_set(ikind),&
                              atom_list=atom_list,&
-                             dft_plus_u_atom=dft_plus_u_atom,&
-                             l_of_dft_plus_u=lu,&
                              name=atomic_kind_name,&
-                             natom=natom_of_kind,&
-                             orb_basis_set=orb_basis_set,&
-                             u_minus_j=u_minus_j,&
-                             u_minus_j_target=u_minus_j_target,&
-                             u_ramping=u_ramping,&
-                             eps_u_ramping=eps_u_ramping)
+                             natom=natom_of_kind)
+
+        CALL get_qs_kind(qs_kind_set(ikind),&
+                         dft_plus_u_atom=dft_plus_u_atom,&
+                         l_of_dft_plus_u=lu,&
+                         orb_basis_set=orb_basis_set,&
+                         u_minus_j=u_minus_j,&
+                         u_minus_j_target=u_minus_j_target,&
+                         u_ramping=u_ramping,&
+                         eps_u_ramping=eps_u_ramping)
 
         ! Check, if this atom needs a DFT+U correction
 
@@ -1839,7 +1852,7 @@ CONTAINS
         IF ((ispin == 1).AND.(u_ramping > 0.0_dp)) THEN
           IF (qs_env%scf_env%iter_delta <= eps_u_ramping) THEN
             u_minus_j = MIN(u_minus_j + u_ramping,u_minus_j_target)
-            CALL set_atomic_kind(atomic_kind=atomic_kind,u_minus_j=u_minus_j)
+            CALL set_qs_kind(qs_kind_set(ikind), u_minus_j=u_minus_j)
           END IF
           IF (should_output.AND.(output_unit > 0)) THEN
             WRITE (UNIT=output_unit,FMT="(T3,A,3X,A,F0.3,A)")&

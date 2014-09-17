@@ -18,10 +18,7 @@ MODULE dbcsr_transformations
                                              array_hold,&
                                              array_i1d_obj,&
                                              array_release
-  USE dbcsr_block_access,              ONLY: dbcsr_access_flush,&
-                                             dbcsr_access_start,&
-                                             dbcsr_access_stop,&
-                                             dbcsr_get_block_p,&
+  USE dbcsr_block_access,              ONLY: dbcsr_get_block_p,&
                                              dbcsr_put_block
   USE dbcsr_block_operations,          ONLY: dbcsr_block_conjg,&
                                              dbcsr_block_partial_copy,&
@@ -43,7 +40,11 @@ MODULE dbcsr_transformations
                                              dbcsr_reblocking_targets,&
                                              dbcsr_transpose_dims,&
                                              dbcsr_transpose_distribution
-  USE dbcsr_error_handling
+  USE dbcsr_error_handling,            ONLY: &
+       dbcsr_assert, dbcsr_caller_error, dbcsr_error_set, dbcsr_error_stop, &
+       dbcsr_error_type, dbcsr_failure_level, dbcsr_fatal_level, &
+       dbcsr_internal_error, dbcsr_unimplemented_error_nr, &
+       dbcsr_warning_level, dbcsr_wrong_args_error
   USE dbcsr_index_operations,          ONLY: dbcsr_addto_index_array,&
                                              dbcsr_clearfrom_index_array,&
                                              dbcsr_repoint_index,&
@@ -54,11 +55,6 @@ MODULE dbcsr_transformations
                                              dbcsr_iterator_next_block,&
                                              dbcsr_iterator_start,&
                                              dbcsr_iterator_stop
-  USE dbcsr_kinds,                     ONLY: dp,&
-                                             int_8,&
-                                             sp
-  USE dbcsr_message_passing,           ONLY: mp_allgather,&
-                                             mp_alltoall
   USE dbcsr_methods,                   ONLY: &
        dbcsr_col_block_sizes, dbcsr_distribution, &
        dbcsr_distribution_col_dist, dbcsr_distribution_hold, &
@@ -103,6 +99,11 @@ MODULE dbcsr_transformations
   USE dbcsr_work_operations,           ONLY: dbcsr_create,&
                                              dbcsr_finalize,&
                                              dbcsr_work_create
+  USE kinds,                           ONLY: dp,&
+                                             int_8,&
+                                             sp
+  USE message_passing,                 ONLY: mp_allgather,&
+                                             mp_alltoall
 
   !$ USE OMP_LIB
 
@@ -125,10 +126,6 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Transposes a DBCSR matrix.
-!> \par Distribution options
-!>      By default the distribution is transposed. If transpose_distribution
-!>      is false, then an undetermined distribution is created that is
-!>      compatible with the same process grid.
 !> \param[out] transposed     transposed DBCSR matrix
 !> \param[in] normal          input DBCSR matrix
 !> \param[in] shallow_data_copy         (optional) only shallow data_copy;
@@ -144,6 +141,10 @@ CONTAINS
 !>                                      default is .TRUE. unless shallow or
 !>                                      transpose_distribution are set.
 !> \param[in,out] error       cp2k error
+!> \par Distribution options
+!>      By default the distribution is transposed. If transpose_distribution
+!>      is false, then an undetermined distribution is created that is
+!>      compatible with the same process grid.
 ! *****************************************************************************
   SUBROUTINE dbcsr_new_transposed (transposed, normal, shallow_data_copy,&
        transpose_data, transpose_distribution, transpose_index,&
@@ -176,7 +177,6 @@ CONTAINS
 
     CALL dbcsr_assert (dbcsr_valid_index(normal), dbcsr_fatal_level, dbcsr_caller_error,&
          routineN, "Matrix does not exist.",__LINE__,error)
-    CALL dbcsr_access_flush (normal, error=error)
     ! Internalize options
     shallow = .FALSE.
     IF (PRESENT (shallow_data_copy)) shallow = shallow_data_copy
@@ -314,7 +314,7 @@ CONTAINS
 !>        matrices
 !> \param[in] sm              input symmetric matrix
 !> \param[out] desm           desymmetrized matrix
-!> \param[in] transpose_data  (optional) make all data blocks be non-transposed
+!> \param untransposed_data ...
 !> \param[in,out] error       cp2k error
 ! *****************************************************************************
   SUBROUTINE dbcsr_desymmetrize_deep(sm, desm, untransposed_data, error)
@@ -352,8 +352,6 @@ CONTAINS
     CALL dbcsr_assert (dbcsr_valid_index (sm),&
          dbcsr_fatal_level, dbcsr_caller_error, routineN,&
          "Input matrix is invalid.",__LINE__,error)
-    CALL dbcsr_access_flush (sm, error=error)
-    CALL dbcsr_access_flush (desm, error=error)
     IF(dbcsr_valid_index (desm)) THEN
        CALL dbcsr_release(desm)
        CALL dbcsr_init(desm)
@@ -568,6 +566,7 @@ CONTAINS
 !> \brief Distributes a matrix that is currently replicated.
 !> \param[in,out] matrix      matrix to replicate
 !> \param[in] fast            change just the index, don't touch the data
+!> \param error ...
 ! *****************************************************************************
   SUBROUTINE dbcsr_distribute(matrix, fast, error)
     TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix
@@ -602,7 +601,6 @@ CONTAINS
     CALL dbcsr_assert (matrix%m%replication_type .NE. dbcsr_repl_none,&
          dbcsr_warning_level, dbcsr_caller_error, routineN,&
          "Distributing a non-replicated matrix makes no sense.",__LINE__,error)
-    CALL dbcsr_access_flush (matrix, error=error)
     IF (PRESENT (fast)) THEN
        mini=fast
     ELSE
@@ -700,6 +698,7 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Detransposes all blocks in a matrix
 !> \param[in,out] matrix      DBCSR matrix
+!> \param error ...
 ! *****************************************************************************
   SUBROUTINE dbcsr_make_untransposed_blocks(matrix, error)
     TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix
@@ -764,6 +763,13 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Makes a dense matrix, inplace.
 !> \param[in,out] matrix      matrix to make dense
+!> \param dense_matrix ...
+!> \param dense_dist ...
+!> \param dense_row_sizes ...
+!> \param dense_col_sizes ...
+!> \param row_map ...
+!> \param col_map ...
+!> \param error ...
 !> \note Used for making matrices dense/undense
 ! *****************************************************************************
   SUBROUTINE dbcsr_make_dense (matrix, dense_matrix, dense_dist,&
@@ -800,7 +806,6 @@ CONTAINS
        cs = dbcsr_checksum (matrix, error=error)
        WRITE(*,*)routineN//" prod cs pre", cs
     ENDIF
-    CALL dbcsr_access_flush (matrix, error=error)
     old_distribution = dbcsr_distribution (matrix)
     ! Conversion of global to local offsets for the dense blocks
     CALL dbcsr_get_local_rows (dense_dist, dense_local_rows,&
@@ -826,7 +831,6 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Copies a matrix and makes its data dense.
-!> \note the dense_matrix must have been created
 !> \param[in] und_matrix         Original non-dense matrix
 !> \param[in,out] dense_matrix   Dense copy of und_matrix
 !> \param[in] und_local_rows     The process-grid local rows of the non-dense
@@ -851,6 +855,7 @@ CONTAINS
 !> \param[in] join_rows              Make rows dense
 !> \param[in] join_cols              Make columns dense
 !> \param[in] error                  Error
+!> \note the dense_matrix must have been created
 ! *****************************************************************************
   SUBROUTINE dbcsr_make_dense_low (und_matrix, dense_matrix,&
        und_local_rows, und_local_cols,&
@@ -1001,9 +1006,13 @@ CONTAINS
 !> \param[in] matrix                 dense matrix
 !> \param[in,out] undense_matrix     matrix to make undense
 !> \param[in] distribution    distribution of non-dense rows and columns
-!> \param[in] row_blk_offsets, col_blk_offsets   non-dense row and column block offsets
-!> \param[in] row_blk_sizes, col_blk_sizes       non-dense row and column block sizes
-!> \param[in] row_map, col_map   mapping from non-dense rows/columns
+!> \param[in] row_blk_offsets non-dense row block offsets
+!> \param[in] col_blk_offsets non-dense column block offsets
+!> \param[in] row_blk_sizes non-dense row block sizes
+!> \param[in] col_blk_sizes non-dense column block sizes
+!> \param[in] row_map mapping from non-dense rows
+!> \param[in] col_map mapping from non-dense columns
+!> \param error ...
 !> \note Used for making matrices dense/undense
 ! *****************************************************************************
   SUBROUTINE dbcsr_make_undense (matrix, undense_matrix, distribution,&
@@ -1035,7 +1044,6 @@ CONTAINS
 !   ---------------------------------------------------------------------------
 
     CALL dbcsr_error_set(routineN, error_handler, error)
-    CALL dbcsr_access_flush (matrix, error=error)
     IF (dbg) THEN
        cs = dbcsr_checksum (matrix, error=error)
        WRITE(*,*)routineN//" prod cs pre", cs
@@ -1150,10 +1158,19 @@ CONTAINS
 !> \brief Shuffles the data from blocked to standard dense form
 !> \param[in] matrix                 Existing blocked matrix
 !> \param[in,out] dense_data         Dense data
-!> \param[in] nfullrows, nfullcols    size of new data
+!> \param[in] nfullrows size of new data
+!> \param[in] nfullcols size of new data
+!> \param und_row_blk_offsets ...
+!> \param und_col_blk_offsets ...
+!> \param dense_row_blk_offsets ...
+!> \param dense_col_blk_offsets ...
+!> \param row_map ...
+!> \param col_map ...
+!> \param row_internal_offsets ...
+!> \param col_internal_offsets ...
+!> \param[in] join_rows           (optional) make rows dense, default is yes
 !> \param[in] join_cols           (optional) make columns dense, default is
 !>                                yes
-!> \param[in] join_rows           (optional) make rows dense, default is yes
 !> \param[in] make_tr             (optional) make the dense blocks transposed
 !> \note Used for making matrices dense/undense
 ! *****************************************************************************
@@ -1174,10 +1191,9 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'make_dense_data', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: blk_col, blk_col_offset, blk_col_size, blk_row, &
-      blk_row_offset, blk_row_size, dense_col, dense_row, error_handle, &
-      target_col_offset, target_cs, target_offset, target_row_offset, &
-      target_rs, tco, tro
+    INTEGER :: blk_col, blk_col_size, blk_row, blk_row_size, dense_col, &
+      dense_row, error_handle, target_col_offset, target_cs, target_offset, &
+      target_row_offset, target_rs, tco, tro
     LOGICAL                                  :: tr
     TYPE(dbcsr_data_obj)                     :: block
     TYPE(dbcsr_error_type)                   :: error
@@ -1200,7 +1216,7 @@ CONTAINS
 !$OMP PARALLEL DEFAULT(none) &
 !$OMP PRIVATE (block, iter, &
 !$OMP         target_rs, target_cs, blk_row, blk_col, tr, blk_row_size, blk_col_size,&
-!$OMP         blk_row_offset, blk_col_offset, tro, tco, target_offset,&
+!$OMP         tro, tco, target_offset,&
 !$OMP         target_row_offset, target_col_offset,&
 !$OMP         dense_row, dense_col) &
 !$OMP SHARED (error,&
@@ -1275,6 +1291,9 @@ CONTAINS
 !> \param[in] dense_col_blk_offsets  column block offsets for dense data
 !> \param[in] row_map                mapping from undense to dense rows
 !> \param[in] col_map                mapping from undense to dense rows
+!> \param row_internal_offsets ...
+!> \param col_internal_offsets ...
+!> \param error ...
 !> \note Used for making matrices dense/undense
 ! *****************************************************************************
   SUBROUTINE make_undense_data (matrix, dense_data, nfullrows, nfullcols,&
@@ -1422,7 +1441,6 @@ CONTAINS
 !   ---------------------------------------------------------------------------
 
     CALL dbcsr_error_set(routineN, error_handler, error)
-    CALL dbcsr_access_flush (matrix, error=error)
     CALL dbcsr_assert (dbcsr_valid_index(matrix%m),&
          dbcsr_fatal_level, dbcsr_caller_error,&
          routineN, "Matrix not initialized.",__LINE__,error)
@@ -1669,6 +1687,7 @@ CONTAINS
 !> \param[in,out] redist      redistributed matrix
 !> \param[in] keep_sparsity   (optional) retains the sparsity of the redist
 !>                            matrix
+!> \param error ...
 ! *****************************************************************************
   SUBROUTINE dbcsr_complete_redistribute(matrix, redist, keep_sparsity, error)
     TYPE(dbcsr_obj), INTENT(IN)              :: matrix
@@ -1718,7 +1737,6 @@ CONTAINS
     CALL dbcsr_assert (matrix%m%replication_type .EQ. dbcsr_repl_none,&
          dbcsr_warning_level, dbcsr_caller_error, routineN,&
          "Can not redistribute replicated matrix.",__LINE__,error)
-    CALL dbcsr_access_flush (matrix, error=error)
     !
     my_keep_sparsity = .FALSE.
     IF (PRESENT (keep_sparsity)) my_keep_sparsity = keep_sparsity
@@ -1964,7 +1982,6 @@ CONTAINS
          redist%m%max_rbs, redist%m%max_cbs)
     CALL dbcsr_data_new (data_block, dbcsr_type_1d_to_2d (data_type))
 
-    CALL dbcsr_access_start (redist, error=error)
     !blk_p = 1
     !blk = 1
     blk_ps = 0
@@ -2040,7 +2057,6 @@ CONTAINS
     CALL dbcsr_data_clear_pointer(data_block)
     CALL dbcsr_data_release (buff_data)
     CALL dbcsr_data_release (data_block)
-    CALL dbcsr_access_stop (redist, error=error)
     !
     IF (dbg) THEN
        WRITE(*,*)routineN//" Declared blocks=",redist%m%wms(1)%lastblk,&
@@ -2081,6 +2097,7 @@ CONTAINS
 !> \param[in] matrix          matrix to redistribute
 !> \param[in,out] redist      redistributed matrix, which should already be
 !>                            created
+!> \param error ...
 ! *****************************************************************************
   SUBROUTINE dbcsr_redistribute(matrix, redist, error)
     TYPE(dbcsr_obj), INTENT(IN)              :: matrix
@@ -2115,8 +2132,6 @@ CONTAINS
 !   ---------------------------------------------------------------------------
 
     CALL dbcsr_error_set(routineN, error_handler, error)
-    CALL dbcsr_access_flush (matrix, error=error)
-    CALL dbcsr_access_flush (redist, error=error)
     !call dbcsr_print_dist (matrix%m%dist)
     !call dbcsr_print_dist (redist%m%dist)
     CALL dbcsr_assert (dbcsr_valid_index(matrix%m),&
@@ -2328,14 +2343,23 @@ CONTAINS
 !>        This routine should be used with dbcsr_binary_read in the module 
 !>        dbcsr_io.F 
 !>
-!> \param[in] dblk, row_p, col_i, blk_p   data blocks, row_p, col_i and blk_p
-!>    of the DBCSR matrix that the current node possesses after reading the 
-!>    data file 
-!> \param[in] proc_nblks, proc_darea_sizes   1D arrays holding nblks and data_
-!>    area_size of those nodes of the mp environment, that created the file, 
+!> \param[in] dblk data blocks of the DBCSR matrix that the current node possesses after reading the 
+!>    data file
+!> \param[in] row_p row_p of the DBCSR matrix that the current node possesses after reading the 
+!>    data file
+!> \param[in] col_i col_i of the DBCSR matrix that the current node possesses after reading the 
+!>    data file
+!> \param[in] blk_p blk_p of the DBCSR matrix that the current node possesses after reading the 
+!>    data file
+!> \param[in] proc_nblks 1D array holding nblks
+!>    of those nodes of the mp environment, that created the file, 
+!>    whose contents have been read by the current node of the present mp environment
+!> \param[in] proc_darea_sizes 1D array holding data_area_size
+!>    of those nodes of the mp environment, that created the file, 
 !>    whose contents have been read by the current node of the present mp environment
 !> \param[in,out] new_matrix   redistributed matrix 
 !> 
+!> \param error ...
 !> \par History
 !>      11.2012 created [Hossein Bani-Hashemian]
 ! *****************************************************************************
@@ -2571,6 +2595,11 @@ CONTAINS
     CALL dbcsr_error_stop(error_handler, error)
     CONTAINS
     
+! *****************************************************************************
+!> \brief ...
+!> \param arr ...
+!> \param cumsum ...
+! *****************************************************************************
     SUBROUTINE cumsum_l(arr,cumsum)
     INTEGER(kind=int_8), DIMENSION(:), &
       INTENT(IN)                             :: arr

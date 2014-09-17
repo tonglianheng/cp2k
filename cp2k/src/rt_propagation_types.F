@@ -22,13 +22,13 @@ MODULE rt_propagation_types
                                              cite_reference
   USE cp_control_types,                ONLY: dft_control_type,&
                                              rtp_control_type
-  USE cp_dbcsr_interface,              ONLY: cp_dbcsr_create,&
-                                             cp_dbcsr_init,&
-                                             cp_dbcsr_init_p
-  USE cp_dbcsr_operations,             ONLY: cp_dbcsr_allocate_matrix_set,&
+  USE cp_dbcsr_interface,              ONLY: cp_dbcsr_allocate_matrix_set,&
+                                             cp_dbcsr_create,&
                                              cp_dbcsr_deallocate_matrix,&
-                                             cp_dbcsr_deallocate_matrix_set
-  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_p_type,&
+                                             cp_dbcsr_deallocate_matrix_set,&
+                                             cp_dbcsr_init,&
+                                             cp_dbcsr_init_p,&
+                                             cp_dbcsr_p_type,&
                                              cp_dbcsr_type
   USE cp_fm_pool_types,                ONLY: cp_fm_pool_p_type,&
                                              fm_pool_get_el_struct
@@ -62,7 +62,6 @@ MODULE rt_propagation_types
     TYPE(cp_dbcsr_p_type),POINTER, DIMENSION(:) :: next
  END TYPE rtp_rho_type
 
-
  TYPE rtp_hfx_type
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                  :: matrix_p_im
@@ -92,6 +91,8 @@ MODULE rt_propagation_types
     TYPE(cp_dbcsr_p_type),POINTER,DIMENSION(:)  :: exp_H_new
     TYPE(cp_dbcsr_p_type),POINTER,DIMENSION(:)  :: propagator_matrix
     TYPE(cp_dbcsr_type),POINTER                 :: S_inv
+    TYPE(cp_dbcsr_type),POINTER                 :: S_half
+    TYPE(cp_dbcsr_type),POINTER                 :: S_minus_half
     TYPE(cp_dbcsr_type),POINTER                 :: B_mat
     TYPE(cp_dbcsr_p_type),POINTER,DIMENSION(:)  :: C_mat
     TYPE(cp_dbcsr_p_type),POINTER,DIMENSION(:)  :: S_der
@@ -104,11 +105,13 @@ MODULE rt_propagation_types
     REAL(KIND=dp)                               :: dt
     REAL(KIND=dp)                               :: delta_iter
     REAL(KIND=dp)                               :: filter_eps
+    REAL(KIND=dp)                               :: filter_eps_small
     LOGICAL                                     :: do_hfx
     TYPE(rtp_hfx_type),POINTER                  :: rtp_hfx
     INTEGER,DIMENSION(:,:),ALLOCATABLE          :: orders
     INTEGER                                     :: nsteps,istep,i_start
     INTEGER                                     :: iter
+    INTEGER                                     :: narn_old
     LOGICAL                                     :: converged
     LOGICAL                                     :: matrix_update
     TYPE(rtp_history_type),POINTER              :: history
@@ -125,16 +128,25 @@ MODULE rt_propagation_types
 
 ! *** Public subroutines ***
 
-   PUBLIC ::  rt_prop_create,&
-              get_rtp,&
-              rt_prop_release,&
-              rtp_history_create,&
-              rtp_hfx_type,&
-              get_rtp_hfx,&
-              set_rtp_hfx
+  PUBLIC :: rt_prop_create,&
+            get_rtp,&
+            rt_prop_release,&
+            rtp_history_create,&
+            get_rtp_hfx
 CONTAINS
 
 
+! *****************************************************************************
+!> \brief ...
+!> \param rtp ...
+!> \param mos ...
+!> \param mpools ...
+!> \param dft_control ...
+!> \param template ...
+!> \param linear_scaling ...
+!> \param mos_aux ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE rt_prop_create(rtp,mos,mpools,dft_control,template,linear_scaling,mos_aux,error)
 
     TYPE(rt_prop_type), POINTER              :: rtp
@@ -263,6 +275,16 @@ CONTAINS
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     CALL cp_dbcsr_init(rtp%S_inv,error=error)
     CALL cp_dbcsr_create(rtp%S_inv,template=template,matrix_type="S",error=error)
+    NULLIFY(rtp%S_half)
+    ALLOCATE(rtp%S_half,stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CALL cp_dbcsr_init(rtp%S_half,error=error)
+    CALL cp_dbcsr_create(rtp%S_half,template=template,matrix_type="S",error=error)
+    NULLIFY(rtp%S_minus_half)
+    ALLOCATE(rtp%S_minus_half,stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CALL cp_dbcsr_init(rtp%S_minus_half,error=error)
+    CALL cp_dbcsr_create(rtp%S_minus_half,template=template,matrix_type="S",error=error)
     NULLIFY(rtp%B_mat)
     NULLIFY(rtp%C_mat)
     NULLIFY(rtp%S_der)
@@ -274,7 +296,7 @@ CONTAINS
        CALL cp_dbcsr_init(rtp%B_mat,error=error)
        CALL cp_dbcsr_create(rtp%B_mat,template=template,matrix_type="N",error=error)
        CALL cp_dbcsr_allocate_matrix_set(rtp%C_mat,3,error=error)
-       CALL cp_dbcsr_allocate_matrix_set(rtp%S_der,3,error=error)
+       CALL cp_dbcsr_allocate_matrix_set(rtp%S_der,9,error=error)
        CALL cp_dbcsr_allocate_matrix_set(rtp%SinvH,nspin,error=error)
        CALL cp_dbcsr_allocate_matrix_set(rtp%SinvB,nspin,error=error)
        DO i=1,nspin 
@@ -286,6 +308,8 @@ CONTAINS
        DO i=1,3
           CALL cp_dbcsr_init_p(rtp%C_mat(i)%matrix,error=error)
           CALL cp_dbcsr_create(rtp%C_mat(i)%matrix,template=template,matrix_type="N",error=error)
+       END DO
+       DO i=1,9
           CALL cp_dbcsr_init_p(rtp%S_der(i)%matrix,error=error)
           CALL cp_dbcsr_create(rtp%S_der(i)%matrix,template=template,matrix_type="N",error=error)
        END DO
@@ -294,6 +318,7 @@ CONTAINS
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     rtp_control%converged=.FALSE.
     rtp%matrix_update=.TRUE.
+    rtp%narn_old=0
     rtp%istep=0
     rtp%iter=0
     rtp%do_hfx=.FALSE.
@@ -301,8 +326,35 @@ CONTAINS
   END SUBROUTINE rt_prop_create
 
 
+! *****************************************************************************
+!> \brief ...
+!> \param rtp ...
+!> \param exp_H_old ...
+!> \param exp_H_new ...
+!> \param rho_old ...
+!> \param rho_next ...
+!> \param rho_new ...
+!> \param mos ...
+!> \param mos_new ...
+!> \param mos_old ...
+!> \param mos_next ...
+!> \param S_inv ...
+!> \param S_half ...
+!> \param S_minus_half ...
+!> \param B_mat ...
+!> \param C_mat ...
+!> \param propagator_matrix ...
+!> \param S_der ...
+!> \param dt ...
+!> \param nsteps ...
+!> \param SinvH ...
+!> \param SinvB ...
+!> \param admm_mos ...
+!> \param rtp_hfx ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE get_rtp(rtp,exp_H_old,exp_H_new,rho_old,rho_next,rho_new,mos,mos_new,mos_old,mos_next,&
-                     S_inv,B_mat,C_mat,propagator_matrix,&
+                     S_inv,S_half,S_minus_half,B_mat,C_mat,propagator_matrix,&
                      S_der,dt,nsteps,SinvH,SinvB,admm_mos,rtp_hfx,error)
 
     TYPE(rt_prop_type), POINTER              :: rtp
@@ -312,7 +364,8 @@ CONTAINS
     TYPE(rtp_mos_type), OPTIONAL, POINTER    :: mos
     TYPE(cp_fm_p_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: mos_new, mos_old, mos_next
-    TYPE(cp_dbcsr_type), OPTIONAL, POINTER   :: S_inv, B_mat
+    TYPE(cp_dbcsr_type), OPTIONAL, POINTER   :: S_inv, S_half, S_minus_half, &
+                                                B_mat
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: C_mat, propagator_matrix, &
                                                 S_der
@@ -347,6 +400,8 @@ CONTAINS
     IF (PRESENT(admm_mos))admm_mos=>rtp%mos%admm
 
     IF(PRESENT(S_inv))S_inv=>rtp%S_inv
+    IF(PRESENT(S_half))S_half=>rtp%S_half
+    IF(PRESENT(S_minus_half))S_minus_half=>rtp%S_minus_half
     IF(PRESENT(B_mat))B_mat=>rtp%B_mat
     IF(PRESENT(C_mat))C_mat=>rtp%C_mat
     IF(PRESENT(SinvH))SinvH=>rtp%SinvH
@@ -360,6 +415,11 @@ CONTAINS
 
   END SUBROUTINE get_rtp
 
+! *****************************************************************************
+!> \brief ...
+!> \param rtp ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE rt_prop_release(rtp,error)
     TYPE(rt_prop_type)                       :: rtp
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -399,6 +459,8 @@ CONTAINS
       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     END IF
     CALL cp_dbcsr_deallocate_matrix(rtp%S_inv,error)
+    CALL cp_dbcsr_deallocate_matrix(rtp%S_half,error)
+    CALL cp_dbcsr_deallocate_matrix(rtp%S_minus_half,error)
     IF(ASSOCIATED(rtp%B_mat))&
          CALL cp_dbcsr_deallocate_matrix(rtp%B_mat,error)
     IF(ASSOCIATED(rtp%C_mat))&
@@ -418,6 +480,15 @@ CONTAINS
     IF(.NOT.rtp%linear_scaling) CALL cp_fm_struct_release(rtp%ao_ao_fmstruct,error)
   END SUBROUTINE rt_prop_release
 
+! *****************************************************************************
+!> \brief ...
+!> \param rtp_hfx ...
+!> \param matrix_p_im ...
+!> \param matrix_ks_im ...
+!> \param matrix_p_admm_im ...
+!> \param matrix_ks_admm_im ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE get_rtp_hfx(rtp_hfx,matrix_p_im,matrix_ks_im, &
                             matrix_p_admm_im,matrix_ks_admm_im,error)
     TYPE(rtp_hfx_type), OPTIONAL, POINTER    :: rtp_hfx
@@ -437,6 +508,15 @@ CONTAINS
 
   END SUBROUTINE get_rtp_hfx
 
+! *****************************************************************************
+!> \brief ...
+!> \param rtp_hfx ...
+!> \param matrix_p_im ...
+!> \param matrix_ks_im ...
+!> \param matrix_p_admm_im ...
+!> \param matrix_ks_admm_im ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE set_rtp_hfx(rtp_hfx,matrix_p_im,matrix_ks_im,&
                         matrix_p_admm_im,matrix_ks_admm_im,error)
     TYPE(rtp_hfx_type), OPTIONAL, POINTER    :: rtp_hfx
@@ -456,6 +536,11 @@ CONTAINS
 
   END SUBROUTINE set_rtp_hfx   
 
+! *****************************************************************************
+!> \brief ...
+!> \param rtp_hfx ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE rtp_hfx_release(rtp_hfx,error)
     TYPE(rtp_hfx_type), OPTIONAL, POINTER    :: rtp_hfx
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -505,6 +590,12 @@ CONTAINS
 
   END SUBROUTINE rtp_hfx_release
 
+! *****************************************************************************
+!> \brief ...
+!> \param rtp ...
+!> \param aspc_order ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE rtp_history_create(rtp,aspc_order,error)
     TYPE(rt_prop_type)                       :: rtp
     INTEGER                                  :: aspc_order
@@ -562,6 +653,11 @@ CONTAINS
 
 
 
+! *****************************************************************************
+!> \brief ...
+!> \param rtp ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE rtp_history_release(rtp,error)
     TYPE(rt_prop_type)                       :: rtp
     TYPE(cp_error_type), INTENT(inout)       :: error

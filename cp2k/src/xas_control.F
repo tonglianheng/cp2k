@@ -66,8 +66,8 @@ MODULE xas_control
 
 ! *** Public subroutines ***
 
-  PUBLIC :: read_xas_control, write_xas_control, xas_control_create, &
-            xas_control_release, xas_control_retain
+  PUBLIC :: read_xas_control, write_xas_control, xas_control_create,&
+            xas_control_release
 
 CONTAINS
 
@@ -75,6 +75,8 @@ CONTAINS
 !> \brief read from input the instructions for a xes/xas calculation
 !> \param xas_control control variables
 !>       error
+!> \param dft_section ...
+!> \param error ...
 !> \par History
 !>      04.2005 created [MI]
 ! *****************************************************************************
@@ -190,6 +192,8 @@ CONTAINS
 !> \brief write on the instructions for a xes/xas calculation
 !> \param xas_control control variables
 !>       error
+!> \param dft_section ...
+!> \param error ...
 !> \par History
 !>      12.2005 created [MI]
 ! *****************************************************************************
@@ -253,6 +257,8 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief create retain release the xas_control_type
+!> \param xas_control ...
+!> \param error ...
 !> \par History
 !>      04.2005 created [MI]
 ! *****************************************************************************
@@ -293,6 +299,10 @@ CONTAINS
   END SUBROUTINE xas_control_create
 
 ! *****************************************************************************
+!> \brief ...
+!> \param xas_control ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE xas_control_release(xas_control,error)
 
     TYPE(xas_control_type), POINTER          :: xas_control
@@ -324,6 +334,10 @@ CONTAINS
 
   END SUBROUTINE xas_control_release
 
+! *****************************************************************************
+!> \brief ...
+!> \param xas_control ...
+!> \param error ...
 ! *****************************************************************************
   SUBROUTINE xas_control_retain(xas_control,error)
 

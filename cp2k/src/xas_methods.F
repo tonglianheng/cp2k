@@ -7,36 +7,33 @@
 !> \brief driver for the xas calculation and xas_scf for the tp method
 !> \par History
 !>      created 05.2005
+!>      replace overlap integral routine [07.2014,JGH]
 !> \author MI (05.2005)
 ! *****************************************************************************
 MODULE xas_methods
 
-  USE ai_overlap_new,                  ONLY: overlap
-  USE array_types,                     ONLY: array_i1d_obj,&
-                                             array_new,&
-                                             array_nullify,&
-                                             array_release
+  USE ai_contraction,                  ONLY: block_add,&
+                                             contraction
+  USE ai_overlap,                      ONLY: overlap_ab
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind
   USE basis_set_types,                 ONLY: &
        allocate_sto_basis_set, create_gto_from_sto_basis, &
        deallocate_sto_basis_set, get_gto_basis_set, gto_basis_set_type, &
        init_orb_basis_set, set_sto_basis_set, srules, sto_basis_set_type
-  USE cell_types,                      ONLY: cell_type,&
+  USE cell_methods,                    ONLY: cell_type,&
                                              pbc
   USE cp_array_r_utils,                ONLY: cp_2d_r_p_type
   USE cp_control_types,                ONLY: dft_control_type
   USE cp_dbcsr_cp2k_link,              ONLY: cp_dbcsr_alloc_block_from_nbl
-  USE cp_dbcsr_interface,              ONLY: cp_dbcsr_copy,&
-                                             cp_dbcsr_create,&
-                                             cp_dbcsr_init,&
-                                             cp_dbcsr_set
+  USE cp_dbcsr_interface,              ONLY: &
+       array_i1d_obj, array_new, array_nullify, array_release, &
+       convert_offsets_to_sizes, cp_dbcsr_allocate_matrix_set, cp_dbcsr_copy, &
+       cp_dbcsr_create, cp_dbcsr_init, cp_dbcsr_p_type, cp_dbcsr_set, &
+       dbcsr_distribution_obj, dbcsr_type_antisymmetric
   USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
-                                             cp_dbcsr_allocate_matrix_set,&
                                              cp_dbcsr_sm_fm_multiply
-  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_p_type
   USE cp_external_control,             ONLY: external_control
-  USE cp_fm_basic_linalg,              ONLY: cp_fm_gemm
   USE cp_fm_pool_types,                ONLY: fm_pool_create_fm
   USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                              cp_fm_struct_release,&
@@ -49,14 +46,12 @@ MODULE xas_methods
                                              cp_fm_set_submatrix,&
                                              cp_fm_to_fm,&
                                              cp_fm_type
+  USE cp_gemm_interface,               ONLY: cp_gemm
   USE cp_output_handling,              ONLY: cp_p_file,&
                                              cp_print_key_finished_output,&
                                              cp_print_key_should_output,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE dbcsr_types,                     ONLY: dbcsr_distribution_obj,&
-                                             dbcsr_type_antisymmetric
-  USE dbcsr_util,                      ONLY: convert_offsets_to_sizes
   USE input_constants,                 ONLY: &
        do_loc_none, state_loc_list, state_loc_range, xas_1s_type, &
        xas_2p_type, xas_2s_type, xas_dip_len2, xas_dip_vel, xas_dscf, &
@@ -82,6 +77,8 @@ MODULE xas_methods
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type,&
                                              set_qs_env
+  USE qs_kind_types,                   ONLY: get_qs_kind,&
+                                             qs_kind_type
   USE qs_loc_methods,                  ONLY: qs_loc_driver,&
                                              qs_print_cubes
   USE qs_loc_types,                    ONLY: localized_wfn_control_type,&
@@ -94,11 +91,11 @@ MODULE xas_methods
                                              set_loc_wfn_lists
   USE qs_matrix_pools,                 ONLY: mpools_get,&
                                              qs_matrix_pools_type
+  USE qs_mo_io,                        ONLY: write_mo_set
   USE qs_mo_methods,                   ONLY: calculate_subspace_eigenvalues
   USE qs_mo_types,                     ONLY: get_mo_set,&
                                              mo_set_p_type,&
-                                             set_mo_set,&
-                                             write_mo_set
+                                             set_mo_set
   USE qs_neighbor_list_types,          ONLY: neighbor_list_set_p_type
   USE qs_operators_ao,                 ONLY: p_xyz_ao,&
                                              rRc_xyz_ao
@@ -143,8 +140,12 @@ CONTAINS
 !>      An scf optimization using the TP scheme or TD-DFT is used
 !>      to evaluate the spectral energies and oscillator strengths
 !> \param qs_env the qs_env, the xas_env lives in
+!> \param dft_control ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
+!> \par History
+!>      05.2005 created [MI]
+!> \author MI
 !> \note
 !>      the iteration counter is not finilized yet
 !>      only the transition potential approach is active
@@ -152,9 +153,6 @@ CONTAINS
 !>      it uses by default the berry phase approach
 !>      The number of states to be localized is xas_control%nexc_search
 !>      In general only the core states are needed
-!> \par History
-!>      05.2005 created [MI]
-!> \author MI
 ! *****************************************************************************
   SUBROUTINE xas(qs_env, dft_control, error)
 
@@ -191,6 +189,8 @@ CONTAINS
       POINTER                                :: mos
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
+    TYPE(qs_kind_type), DIMENSION(:), &
+      POINTER                                :: qs_kind_set
     TYPE(qs_loc_env_new_type), POINTER       :: qs_loc_env
     TYPE(qs_scf_env_type), POINTER           :: scf_env
     TYPE(scf_control_type), POINTER          :: scf_control
@@ -250,8 +250,8 @@ CONTAINS
     END IF
 
 !   Initialize the type of calculation
-    NULLIFY(atomic_kind_set, scf_control, mos, para_env, particle_set)
-    CALL get_qs_env(qs_env=qs_env, atomic_kind_set=atomic_kind_set, &
+    NULLIFY(atomic_kind_set, qs_kind_set, scf_control, mos, para_env, particle_set)
+    CALL get_qs_env(qs_env=qs_env, atomic_kind_set=atomic_kind_set, qs_kind_set=qs_kind_set,&
          cell = cell, scf_control=scf_control,&
          matrix_ks=matrix_ks,mos=mos, para_env=para_env, &
          particle_set=particle_set ,error=error)
@@ -509,7 +509,7 @@ CONTAINS
 
 !   *** Write last wavefunction to screen ***
         DO ispin=1,dft_control%nspins
-           CALL write_mo_set(mos(ispin)%mo_set,atomic_kind_set,particle_set,4,&
+           CALL write_mo_set(mos(ispin)%mo_set,atomic_kind_set,qs_kind_set,particle_set,4,&
                              dft_section,error=error)
         ENDDO
 
@@ -589,6 +589,8 @@ CONTAINS
 !> \param xas_env the environment for XAS  calculations
 !> \param xas_control parameters for the xas calculation
 !> \param qs_env the qs_env, the xas_env lives in
+!> \param xas_section ...
+!> \param logger ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 !> \par History
@@ -638,6 +640,8 @@ CONTAINS
       DIMENSION(:), POINTER                  :: sab_orb
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
+    TYPE(qs_kind_type), DIMENSION(:), &
+      POINTER                                :: qs_kind_set
     TYPE(qs_loc_env_new_type), POINTER       :: qs_loc_env
     TYPE(qs_matrix_pools_type), POINTER      :: mpools
     TYPE(qs_scf_env_type), POINTER           :: scf_env
@@ -653,12 +657,13 @@ CONTAINS
 
     IF(.NOT. failure) THEN
 
-      NULLIFY( atomic_kind_set, dft_control, scf_control, matrix_s, mos, mpools )
+      NULLIFY( atomic_kind_set, qs_kind_set, dft_control, scf_control, matrix_s, mos, mpools )
       NULLIFY( para_env, particle_set, scf_env)
       NULLIFY(qs_loc_env)
       NULLIFY(sab_orb)
       CALL get_qs_env(qs_env=qs_env, &
                 atomic_kind_set=atomic_kind_set, &
+                qs_kind_set=qs_kind_set, &
                 dft_control = dft_control, &
                 scf_control = scf_control, &
                 mpools=mpools,&
@@ -877,7 +882,7 @@ CONTAINS
          CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
          ALLOCATE (last_sgf(natom),STAT=istat)
          CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-         CALL get_particle_set(particle_set=particle_set,&
+         CALL get_particle_set(particle_set, qs_kind_set,&
               first_sgf=first_sgf,&
               last_sgf=last_sgf,error=error)
          ALLOCATE (rbs(natom), STAT=istat)
@@ -974,8 +979,8 @@ CONTAINS
         iatom = xas_env%exc_atoms(iat)
         NULLIFY(atomic_kind)
         atomic_kind =>  particle_set(iatom)%atomic_kind
-        CALL get_atomic_kind(atomic_kind=atomic_kind,&
-             kind_number=ikind,zeff=zatom)
+        CALL get_atomic_kind(atomic_kind=atomic_kind, kind_number=ikind)
+        CALL get_qs_kind(qs_kind_set(ikind), zeff=zatom)
         ihavethis = .FALSE.
         DO ik = 1,nk
           IF(ikind==kind_type_tmp(ik)) THEN
@@ -1020,9 +1025,8 @@ CONTAINS
         xas_env%my_gto_basis(ik)%gto_basis_set%norm_type = 2
         CALL init_orb_basis_set(xas_env%my_gto_basis(ik)%gto_basis_set,error=error)
 
-        atomic_kind => atomic_kind_set(kind_type_tmp(ik))
-        CALL get_atomic_kind(atomic_kind=atomic_kind,&
-             orb_basis_set=orb_basis_set)
+        ikind = kind_type_tmp(ik)
+        CALL get_qs_kind(qs_kind_set(ikind), orb_basis_set=orb_basis_set)
 
         CALL get_gto_basis_set(gto_basis_set=orb_basis_set,nsgf=nsgf_gto)
         CALL get_gto_basis_set(gto_basis_set=xas_env%my_gto_basis(ik)%gto_basis_set,nsgf=nsgf_sto)
@@ -1044,15 +1048,18 @@ CONTAINS
 !> \brief Calculate and write the spectrum relative to the core level excitation
 !>      of a specific atom. It works for TP approach, because of the definition
 !>      of the oscillator strengths as  matrix elements of the dipole operator
+!> \param xas_control ...
+!> \param xas_env ...
+!> \param qs_env ...
+!> \param xas_section ...
 !> \param iatom index of the excited atom
-!> \param iter iteration of the xas calculation
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
-!> \note
-!>      for the tddft calculation should be re-thought
 !> \par History
 !>      03.2006 created [MI]
 !> \author MI
+!> \note
+!>      for the tddft calculation should be re-thought
 ! *****************************************************************************
   SUBROUTINE cls_calculate_spectrum(xas_control,xas_env,qs_env,xas_section,&
              iatom,error)
@@ -1167,17 +1174,20 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief write the spectrum for each atom in a different output file
-!> \param spectrum temporary variable contaning the spectrum for the actual atom
-!> \param xas_rootfname root of the filename where the spectrum is written
+!> \param sp_em ...
+!> \param sp_ab ...
+!> \param estate ...
+!> \param xas_section ...
 !> \param iatom index of the excited atom
-!> \param ionode logical assigning the i/o node
+!> \param lfomo ...
+!> \param length ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
-!> \note
-!>      the iteration counter is not finilized yet
 !> \par History
 !>      05.2005 created [MI]
 !> \author MI
+!> \note
+!>      the iteration counter is not finilized yet
 ! *****************************************************************************
   SUBROUTINE xas_write(sp_em, sp_ab, estate, xas_section, iatom, &
              lfomo, length, error)
@@ -1255,11 +1265,13 @@ CONTAINS
 ! *****************************************************************************
 !> \brief write the cube files for a set of selected states
 !> \param xas_control provide number ant indexes of the states to be printed
-!> \param qs_en v
+!> \param qs_env ...
+!> \param xas_section ...
 !> \param mos mos from which the states to be printed are extracted
-!> \param iter iteration step (e.g. along an md)
+!> \param all_vectors ...
 !> \param iatom index of the atom that has been excited
-!> \param ionod e
+!> \param append_cube ...
+!> \param error ...
 !> \par History
 !>      08.2005 created [MI]
 !> \author MI
@@ -1331,10 +1343,14 @@ CONTAINS
 !>               calculated for the basis functions
 !> \param mos wavefunctions coefficients
 !> \param excvec coefficients of the excited orbital
+!> \param all_vectors ...
+!> \param all_evals ...
 !> \param fm_work work space
 !> \param cell parameters for the simulation cell
-!> \param spectrum temporary variable contaning the spectrum for the actual atom
+!> \param sp_em ...
+!> \param sp_ab ...
 !> \param estate index of the excited state
+!> \param nstate ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 !> \par History
@@ -1385,7 +1401,7 @@ CONTAINS
            CALL cp_fm_set_all(fm_set(j,i)%matrix, 0.0_dp, error=error)
            CALL cp_fm_set_all(fm_work, 0.0_dp, error=error)
            CALL cp_dbcsr_sm_fm_multiply(op_sm(j,i)%matrix,all_vectors,fm_work,ncol=nstate,error=error)
-           CALL cp_fm_gemm("T","N",1,nstate,nao,1.0_dp,excvec,&
+           CALL cp_gemm("T","N",1,nstate,nao,1.0_dp,excvec,&
                   fm_work,0.0_dp, fm_set(j,i)%matrix,b_first_col=1,error=error)
         END DO
       END DO
@@ -1435,9 +1451,13 @@ CONTAINS
 !>               calculated for the basis functions
 !> \param mos wavefunctions coefficients
 !> \param excvec coefficients of the excited orbital
+!> \param all_vectors ...
+!> \param all_evals ...
 !> \param fm_work work space
-!> \param spectrum temporary variable contaning the spectrum for the actual atom
+!> \param sp_em ...
+!> \param sp_ab ...
 !> \param estate index of the excited state
+!> \param nstate ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 !> \par History
@@ -1485,7 +1505,7 @@ CONTAINS
          CALL cp_fm_set_all(fm_set(1,i)%matrix, 0.0_dp, error=error)
          CALL cp_fm_set_all(fm_work, 0.0_dp, error=error)
          CALL cp_dbcsr_sm_fm_multiply(op_sm(i)%matrix,all_vectors,fm_work,ncol=nstate,error=error)
-         CALL cp_fm_gemm("T","N",1,nstate,nao,1.0_dp,excvec,&
+         CALL cp_gemm("T","N",1,nstate,nao,1.0_dp,excvec,&
               fm_work,0.0_dp, fm_set(1,i)%matrix,b_first_col=1,error=error)
       END DO
 
@@ -1523,6 +1543,12 @@ CONTAINS
   END SUBROUTINE spectrum_dip_vel
 
 ! *****************************************************************************
+!> \brief ...
+!> \param base_a ...
+!> \param base_b ...
+!> \param matrix ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE calc_stogto_overlap(base_a, base_b, matrix,error)
 
     TYPE(gto_basis_set_type), POINTER        :: base_a, base_b
@@ -1532,8 +1558,8 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'calc_stogto_overlap', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: iset, istat, jset, ldai, ldsab, maxcoa, maxcob, maxl, maxla, &
-      maxlb, ncoa, ncob, nseta, nsetb, nsgfa, nsgfb, sgfa, sgfb
+    INTEGER :: iset, istat, jset, ldsab, maxcoa, maxcob, maxl, maxla, maxlb, &
+      na, nb, nseta, nsetb, nsgfa, nsgfb, sgfa, sgfb
     INTEGER, DIMENSION(:), POINTER           :: la_max, la_min, lb_max, &
                                                 lb_min, npgfa, npgfb, &
                                                 nsgfa_set, nsgfb_set
@@ -1541,10 +1567,8 @@ CONTAINS
     LOGICAL                                  :: failure
     REAL(dp)                                 :: rab(3)
     REAL(dp), ALLOCATABLE, DIMENSION(:, :)   :: sab, work
-    REAL(dp), ALLOCATABLE, &
-      DIMENSION(:, :, :)                     :: ai_work
-    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: rpgfa, rpgfb, sphi_a, sphi_b, &
-                                                zeta, zetb
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: rpgfa, rpgfb, scon_a, scon_b, &
+                                                sphi_a, sphi_b, zeta, zetb
 
     failure = .FALSE.
 
@@ -1555,52 +1579,41 @@ CONTAINS
 
     CALL get_gto_basis_set(gto_basis_set=base_a,nsgf=nsgfa,nsgf_set=nsgfa_set,lmax=la_max,&
                           lmin=la_min,npgf=npgfa,pgf_radius=rpgfa, &
-                          sphi=sphi_a,zet=zeta,first_sgf=first_sgfa, &
+                          sphi=sphi_a,scon=scon_a,zet=zeta,first_sgf=first_sgfa, &
                           maxco=maxcoa,nset=nseta, maxl=maxla)
 
     CALL get_gto_basis_set(gto_basis_set=base_b,nsgf=nsgfb,nsgf_set=nsgfb_set, lmax=lb_max,&
                           lmin=lb_min,npgf=npgfb,pgf_radius=rpgfb, &
-                          sphi=sphi_b,zet=zetb,first_sgf=first_sgfb, &
+                          sphi=sphi_b,scon=scon_b,zet=zetb,first_sgf=first_sgfb, &
                           maxco=maxcob,nset=nsetb,maxl=maxlb)
-    rab = 0.0_dp
     ! Initialize and allocate
+    rab = 0.0_dp
     matrix = 0.0_dp
 
     ldsab = MAX(maxcoa,maxcob,nsgfa,nsgfb)
     maxl = MAX(maxla,maxlb)
-    ldai = ncoset(maxl)
 
     ALLOCATE(sab(ldsab,ldsab),STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
     ALLOCATE(work(ldsab,ldsab),STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-    ALLOCATE(ai_work(ldai,ldai,1),STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
 
     DO iset=1,nseta
 
-       ncoa = npgfa(iset)*ncoset(la_max(iset))
+       na = npgfa(iset)*(ncoset(la_max(iset))-ncoset(la_min(iset)-1))
        sgfa = first_sgfa(1,iset)
 
        DO jset=1,nsetb
 
-          ncob = npgfb(jset)*ncoset(lb_max(jset))
+          nb = npgfb(jset)*(ncoset(lb_max(jset))-ncoset(lb_min(iset)-1))
           sgfb = first_sgfb(1,jset)
 
-          ai_work = 0.0_dp
-
-          CALL overlap(la_max(iset),la_min(iset),npgfa(iset),&
-               rpgfa(:,iset),zeta(:,iset),&
-               lb_max(jset),lb_min(jset),npgfb(jset),&
-               rpgfb(:,jset),zetb(:,jset),rab,0.0_dp,sab,0,.FALSE.,ai_work,ldai)
-          CALL dgemm("N","N",ncoa,nsgfb_set(jset),ncob,&
-               1.0_dp,sab(1,1),SIZE(sab,1),&
-               sphi_b(1,sgfb),SIZE(sphi_b,1),&
-               0.0_dp,work(1,1),SIZE(work,1))
-          CALL dgemm("T","N",nsgfa_set(iset),nsgfb_set(jset),ncoa,&
-               1.0_dp,sphi_a(1,sgfa),SIZE(sphi_a,1),&
-               work(1,1),SIZE(work,1),&
-               1.0_dp,matrix(sgfa,sgfb), SIZE(matrix,1))
+          CALL overlap_ab(la_max(iset),la_min(iset),npgfa(iset),rpgfa(:,iset),zeta(:,iset),&
+                          lb_max(jset),lb_min(jset),npgfb(jset),rpgfb(:,jset),zetb(:,jset),&
+                          rab,sab,error=error)
+          CALL contraction(sab,work,ca=scon_a(:,sgfa:),na=na,ma=nsgfa_set(iset),&
+                                    cb=scon_b(:,sgfb:),nb=nb,mb=nsgfb_set(jset),error=error)
+          CALL block_add("IN",work,nsgfa_set(iset),nsgfb_set(jset),matrix,sgfa,sgfb,error=error)
 
        END DO  ! jset
     END DO  ! iset
@@ -1621,6 +1634,11 @@ CONTAINS
 !>      proceeding to the assignment of the type
 !>      The type is determined by computing the overalp with a
 !>      type specific, minimal, STO bais set
+!> \param xas_control ...
+!> \param xas_env ...
+!> \param localized_wfn_control ...
+!> \param qs_env ...
+!> \param error ...
 !> \par History
 !>      03.2006 created [MI]
 !> \author MI
@@ -1661,18 +1679,21 @@ CONTAINS
       POINTER                                :: mos
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
+    TYPE(qs_kind_type), DIMENSION(:), &
+      POINTER                                :: qs_kind_set
 
     failure = .FALSE.
     NULLIFY(cell,mos,particle_set)
     NULLIFY(atom_of_state,centers_wfn,mykind_of_kind,state_of_atom)
-    NULLIFY(stogto_overlap,type_of_state,max_overlap)
+    NULLIFY(stogto_overlap,type_of_state,max_overlap, qs_kind_set)
     NULLIFY(state_of_mytype,type_of_state,sto_state_overlap)
 
     NULLIFY(logger)
     logger => cp_error_get_logger(error)
     output_unit= cp_logger_get_default_io_unit(logger)
 
-    CALL get_qs_env(qs_env=qs_env, cell=cell, mos=mos, particle_set=particle_set,error=error)
+    CALL get_qs_env(qs_env=qs_env, cell=cell, mos=mos, particle_set=particle_set,&
+                    qs_kind_set=qs_kind_set, error=error)
 
     ! The Berry operator can be used only for periodic systems
     ! If an isolated system is used the periodicity is overimposed
@@ -1694,7 +1715,7 @@ CONTAINS
 
     ALLOCATE (first_sgf(natom),STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-    CALL get_particle_set(particle_set=particle_set, first_sgf=first_sgf,error=error)
+    CALL get_particle_set(particle_set, qs_kind_set, first_sgf=first_sgf,error=error)
     ALLOCATE (sto_state_overlap(nexc_search),STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
     ALLOCATE (max_overlap(natom),STAT=istat)

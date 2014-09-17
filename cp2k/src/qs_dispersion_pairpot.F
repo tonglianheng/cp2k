@@ -11,18 +11,16 @@ MODULE qs_dispersion_pairpot
 
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind,&
-                                             get_atomic_kind_set,&
-                                             set_atomic_kind
+                                             get_atomic_kind_set
   USE atprop_types,                    ONLY: atprop_array_init,&
                                              atprop_type
   USE bibliography,                    ONLY: cite_reference,&
                                              grimme2006,&
                                              grimme2010
-  USE cell_types,                      ONLY: cell_type,&
+  USE cell_methods,                    ONLY: cell_type,&
                                              get_cell,&
                                              pbc,&
                                              plane_distance
-  USE cp_control_types,                ONLY: dft_control_type
   USE cp_files,                        ONLY: close_file,&
                                              open_file
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
@@ -34,16 +32,11 @@ MODULE qs_dispersion_pairpot
                                              parser_create,&
                                              parser_release
   USE f77_blas
-  USE input_constants,                 ONLY: vdw_nl_DRSLL,&
-                                             vdw_nl_LMKLL,&
-                                             vdw_nl_RVV10,&
-                                             vdw_pairpot_dftd2,&
+  USE input_constants,                 ONLY: vdw_pairpot_dftd2,&
                                              vdw_pairpot_dftd3,&
                                              xc_vdw_fun_none,&
-                                             xc_vdw_fun_nonloc,&
                                              xc_vdw_fun_pairpot
-  USE input_section_types,             ONLY: section_vals_get_subs_vals,&
-                                             section_vals_type,&
+  USE input_section_types,             ONLY: section_vals_type,&
                                              section_vals_val_get
   USE kinds,                           ONLY: default_string_length,&
                                              dp
@@ -61,10 +54,12 @@ MODULE qs_dispersion_pairpot
                                              dftd3_pp,&
                                              qs_atom_dispersion_type,&
                                              qs_dispersion_type
-  USE qs_energy_types,                 ONLY: qs_energy_type
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
   USE qs_force_types,                  ONLY: qs_force_type
+  USE qs_kind_types,                   ONLY: get_qs_kind,&
+                                             qs_kind_type,&
+                                             set_qs_kind
   USE qs_neighbor_list_types,          ONLY: get_iterator_info,&
                                              neighbor_list_iterate,&
                                              neighbor_list_iterator_create,&
@@ -84,7 +79,7 @@ MODULE qs_dispersion_pairpot
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_dispersion_pairpot'
 
   PUBLIC :: qs_dispersion_pairpot_init, calculate_dispersion_pairpot, &
-            qs_scaling_init, qs_scaling_dftd3, write_dispersion
+            qs_scaling_init, qs_scaling_dftd3
 
   TYPE dcnum_type
      INTEGER                                :: neighbors
@@ -98,9 +93,19 @@ MODULE qs_dispersion_pairpot
 CONTAINS
 
 ! *****************************************************************************
-  SUBROUTINE qs_dispersion_pairpot_init(atomic_kind_set,dispersion_env,pp_section,para_env,error)
+!> \brief ...
+!> \param atomic_kind_set ...
+!> \param qs_kind_set ...
+!> \param dispersion_env ...
+!> \param pp_section ...
+!> \param para_env ...
+!> \param error ...
+! *****************************************************************************
+  SUBROUTINE qs_dispersion_pairpot_init(atomic_kind_set,qs_kind_set,dispersion_env,pp_section,para_env,error)
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
+    TYPE(qs_kind_type), DIMENSION(:), &
+      POINTER                                :: qs_kind_set
     TYPE(qs_dispersion_type), POINTER        :: dispersion_env
     TYPE(section_vals_type), OPTIONAL, &
       POINTER                                :: pp_section
@@ -121,7 +126,6 @@ CONTAINS
     LOGICAL                                  :: at_end, failure, found, &
                                                 is_available
     REAL(KIND=dp)                            :: dum
-    TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(cp_parser_type), POINTER            :: parser
     TYPE(qs_atom_dispersion_type), POINTER   :: disp
 
@@ -195,8 +199,7 @@ CONTAINS
 
     nkind  = SIZE(atomic_kind_set)
     DO ikind = 1, nkind
-       atomic_kind => atomic_kind_set(ikind)
-       CALL get_atomic_kind(atomic_kind,element_symbol=symbol,z=elem)
+       CALL get_atomic_kind(atomic_kind_set(ikind),element_symbol=symbol,z=elem)
        ALLOCATE(disp,STAT=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        SELECT CASE (vdw_type)
@@ -312,7 +315,7 @@ CONTAINS
             "through an external file! "//&
  CPSourceFileRef,&
             error=error,failure=failure)
-       CALL set_atomic_kind(atomic_kind,dispersion=disp,error=error)
+       CALL set_qs_kind(qs_kind_set(ikind),dispersion=disp,error=error)
     END DO
 
     CALL timestop(handle)
@@ -321,6 +324,12 @@ CONTAINS
 
 ! *****************************************************************************
 
+! *****************************************************************************
+!> \brief ...
+!> \param scaling ...
+!> \param vdw_section ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE qs_scaling_init(scaling,vdw_section,error)
     REAL(KIND=dp), INTENT(inout)             :: scaling
     TYPE(section_vals_type), POINTER         :: vdw_section
@@ -364,6 +373,14 @@ CONTAINS
 
 ! *****************************************************************************
 
+! *****************************************************************************
+!> \brief ...
+!> \param s6 ...
+!> \param sr6 ...
+!> \param s8 ...
+!> \param vdw_section ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE qs_scaling_dftd3(s6,sr6,s8,vdw_section,error)
     REAL(KIND=dp), INTENT(inout)             :: s6, sr6, s8
     TYPE(section_vals_type), POINTER         :: vdw_section
@@ -552,116 +569,18 @@ CONTAINS
 ! *****************************************************************************
 
 ! *****************************************************************************
-  SUBROUTINE write_dispersion(qs_env,error)
-    TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(cp_error_type), INTENT(inout)       :: error
-
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'write_dispersion', &
-      routineP = moduleN//':'//routineN
-
-    CHARACTER(LEN=2)                         :: symbol
-    INTEGER                                  :: handle, i, ikind, nkind, &
-                                                output_unit
-    LOGICAL                                  :: failure
-    TYPE(atomic_kind_type), DIMENSION(:), &
-      POINTER                                :: atomic_kind_set
-    TYPE(atomic_kind_type), POINTER          :: atomic_kind
-    TYPE(cp_logger_type), POINTER            :: logger
-    TYPE(qs_atom_dispersion_type), POINTER   :: disp
-    TYPE(qs_dispersion_type), POINTER        :: dispersion_env
-    TYPE(section_vals_type), POINTER         :: dft_section
-
-    CALL timeset(routineN,handle)
-
-    failure=.FALSE.
-
-    NULLIFY(logger)
-    logger => cp_error_get_logger(error)
-
-    dft_section => section_vals_get_subs_vals(qs_env%input,"DFT",error=error)
-    output_unit = cp_print_key_unit_nr(logger,dft_section,&
-         "PRINT%DFT_CONTROL_PARAMETERS",extension=".Log",error=error)
-
-    IF (output_unit>0) THEN
-       CALL get_qs_env(qs_env=qs_env,dispersion_env=dispersion_env,error=error)
-       ! vdW type specific output
-       IF ( dispersion_env%type == xc_vdw_fun_pairpot ) THEN
-          WRITE (output_unit, fmt="(' vdW POTENTIAL| ',T67,'Pair Potential')")
-          ! Pair potentials
-          IF ( dispersion_env%pp_type == vdw_pairpot_dftd2 ) THEN
-             WRITE (output_unit, fmt="(' vdW POTENTIAL| ',T35,'Potential Form: S. Grimme, JCC 27: 1787 (2006)')")
-             WRITE (output_unit, fmt="(' vdW POTENTIAL| ',T35,'Cutoff Radius [Bohr]:',T73,F8.2)") dispersion_env%rc_disp
-             WRITE (output_unit, fmt="(' vdW POTENTIAL| ',T35,'Scaling Factor:',T73,F8.4)") dispersion_env%scaling
-             WRITE (output_unit, fmt="(' vdW POTENTIAL| ',T35,'Exp Prefactor for Damping:',T73,F8.1)") dispersion_env%exp_pre
-             CALL get_qs_env(qs_env,atomic_kind_set=atomic_kind_set,error=error)
-             nkind  = SIZE(atomic_kind_set)
-             DO ikind = 1, nkind
-                atomic_kind => atomic_kind_set(ikind)
-                CALL get_atomic_kind(atomic_kind,element_symbol=symbol,dispersion=disp)
-                IF ( disp%defined ) THEN
-                   WRITE (output_unit, fmt="(' vdW PARAMETER| ',T18,'Atom=',A2,"//&
-                        "T28,'C6[J*nm^6*mol^-1]=',F8.4,T63,'r(vdW)[A]=',F8.4)") &
-                        symbol, disp%c6/(1000._dp*bohr**6/kjmol), disp%vdw_radii/bohr
-                ELSE
-                   WRITE (output_unit, fmt="(' vdW PARAMETER| ',T20,'Atom=',A2,T70,'not defined')")
-                END IF
-             END DO
-          ELSE IF ( dispersion_env%pp_type == vdw_pairpot_dftd3 ) THEN
-             WRITE (output_unit, fmt="(' vdW POTENTIAL| ',T26,'Potential Form: S. Grimme et al, JCP 132: 154104 (2010)')")
-             WRITE (output_unit, fmt="(' vdW POTENTIAL| ',T26,'Cutoff Radius [Bohr]:',T73,F8.2)") dispersion_env%rc_disp
-             WRITE (output_unit, fmt="(' vdW POTENTIAL| ',T26,'s6 Scaling Factor:',T73,F8.4)") dispersion_env%s6
-             WRITE (output_unit, fmt="(' vdW POTENTIAL| ',T26,'sr6 Scaling Factor:',T73,F8.4)") dispersion_env%sr6
-             WRITE (output_unit, fmt="(' vdW POTENTIAL| ',T26,'s8 Scaling Factor:',T73,F8.4)") dispersion_env%s8
-             WRITE (output_unit, fmt="(' vdW POTENTIAL| ',T26,'Cutoff for CN calculation:',T69,E12.4)") dispersion_env%eps_cn
-          END IF
-       ELSE IF ( dispersion_env%type == xc_vdw_fun_nonloc ) THEN
-          WRITE (output_unit, fmt="(' vdW POTENTIAL| ',T61,'Non-local Functional')")
-          WRITE (output_unit, &
-            fmt="(' vdW POTENTIAL| ','Implementation: G. Roman-Perez, J. Soler, PRL 103: 096102 (2009)')")
-          WRITE (output_unit, &
-            fmt="(' vdW POTENTIAL| ',T38,' T. Thonhauser et al, PRB 76: 125112 (2007)')")
-          WRITE (output_unit, &
-            fmt="(' vdW POTENTIAL| ',T22,' R. Sabatini et al, J.Phys:Condens Matter 24: 424209 (2012)')")
-          WRITE (output_unit, &
-            fmt="(' vdW POTENTIAL| ',T16,' Based on QE implementation by Brian Kolb, Timo Thonhauser (2009)')")
-          SELECT CASE (dispersion_env%nl_type)
-             CASE DEFAULT
-                ! unknown functional
-                CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
-             CASE (vdw_nl_DRSLL)
-                WRITE (output_unit, &
-                 fmt="(' vdW POTENTIAL| ','DRSLL Functional:           M. Dion et al, PRL 92: 246401 (2004)')")
-             CASE (vdw_nl_LMKLL)
-                WRITE (output_unit, &
-                 fmt="(' vdW POTENTIAL| ','LMKLL Functional:            K. Lee et al, PRB 82: 081101 (2010)')")
-             CASE (vdw_nl_RVV10)
-                WRITE (output_unit, &
-                 fmt="(' vdW POTENTIAL| ','RVV10 Functional:    R. Sabatini et al, PRB 87: 041108(R) (2013)')")
-          END SELECT
-          IF ( dispersion_env%verbose ) THEN
-             WRITE (output_unit,&
-              fmt="(' vdW POTENTIAL| ','         Carrying out vdW-DF run using the following parameters:')")
-             WRITE (output_unit, fmt="(' vdW POTENTIAL| ','Nqs =',I8,'        Nr_points =',I8,'       r_max =',F10.3)")&
-                dispersion_env%nqs,dispersion_env%nr_points,dispersion_env%r_max
-             WRITE (output_unit, fmt="(' vdW POTENTIAL| ','q_mesh =')")
-             WRITE (output_unit, fmt="(8X,4F18.8)" ) (dispersion_env%q_mesh(i), i=1, dispersion_env%nqs)
-             WRITE (output_unit,&
-              fmt="(' vdW POTENTIAL| ','Density cutoff for comvolution:',T68,F10.1,' Ry')") &
-              2.0_dp*dispersion_env%pw_cutoff
-          END IF
-       END IF
-    END IF
-    CALL cp_print_key_finished_output(output_unit,logger,dft_section,&
-         "PRINT%DFT_CONTROL_PARAMETERS",error=error)
-
-    CALL timestop(handle)
-
-  END SUBROUTINE write_dispersion
+!> \brief ...
+!> \param qs_env ...
+!> \param dispersion_env ...
+!> \param energy ...
+!> \param calculate_forces ...
+!> \param error ...
 ! *****************************************************************************
-
-  SUBROUTINE calculate_dispersion_pairpot(qs_env,calculate_forces,error)
+  SUBROUTINE calculate_dispersion_pairpot(qs_env,dispersion_env,energy,calculate_forces,error)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
+    TYPE(qs_dispersion_type), POINTER        :: dispersion_env
+    REAL(KIND=dp), INTENT(OUT)               :: energy
     LOGICAL, INTENT(IN)                      :: calculate_forces
     TYPE(cp_error_type), INTENT(inout)       :: error
 
@@ -700,14 +619,12 @@ CONTAINS
       POINTER                                :: atstr
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
-    TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(atprop_type), POINTER               :: atprop
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(dcnum_type), ALLOCATABLE, &
       DIMENSION(:)                           :: dcnum
-    TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(neighbor_list_iterator_p_type), &
       DIMENSION(:), POINTER                  :: nl_iterator
     TYPE(neighbor_list_set_p_type), &
@@ -715,51 +632,52 @@ CONTAINS
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(qs_atom_dispersion_type), POINTER   :: disp_a, disp_b, disp_c
-    TYPE(qs_dispersion_type), POINTER        :: dispersion_env
-    TYPE(qs_energy_type), POINTER            :: energy
     TYPE(qs_force_type), DIMENSION(:), &
       POINTER                                :: force
-    TYPE(section_vals_type), POINTER         :: dftd_section, input
+    TYPE(qs_kind_type), DIMENSION(:), &
+      POINTER                                :: qs_kind_set
     TYPE(virial_type), POINTER               :: virial
 
     CALL timeset(routineN,handle)
 
-    NULLIFY (atomic_kind_set,sab_cn, sab_vdw,input)
-
-    NULLIFY(logger)
-    logger => cp_error_get_logger(error)
-
     failure = .FALSE.
-    CALL get_qs_env(qs_env=qs_env, energy=energy, atomic_kind_set=atomic_kind_set,&
-         cell=cell, virial=virial, dft_control=dft_control, para_env=para_env,&
-         dispersion_env=dispersion_env, atprop=atprop, input=input, error=error)
-    debugx = dispersion_env%verbose
-    debugall = debugx
-    debug = debugx .AND. para_env%ionode
-    nkind = SIZE(atomic_kind_set)
 
-    dftd_section => section_vals_get_subs_vals(input,"DFT%XC%vdw_potential%PAIR_POTENTIAL",&
-         error=error)
-    unit_nr = cp_print_key_unit_nr(logger,dftd_section,"PRINT_DFTD",extension=".dftd",&
-         error=error)
-
-    ! atomic energy and stress arrays
-    atenergy = atprop%energy
-    IF (atenergy) THEN
-       NULLIFY (particle_set)
-       CALL get_qs_env(qs_env=qs_env,particle_set=particle_set,error=error)
-       natom = SIZE(particle_set)
-       CALL atprop_array_init(qs_env%atprop%atevdw,natom,error)
-       atener => qs_env%atprop%atevdw
-    END IF
-    atstress = qs_env%atprop%stress
-    IF (atstress) THEN
-       atstr => qs_env%atprop%atstress
-    END IF
-
-    energy%dispersion = 0._dp
+    energy = 0._dp
 
     IF ( dispersion_env%type == xc_vdw_fun_pairpot ) THEN
+
+       NULLIFY (atomic_kind_set,qs_kind_set,sab_cn,sab_vdw)
+
+       CALL get_qs_env(qs_env=qs_env, atomic_kind_set=atomic_kind_set,qs_kind_set=qs_kind_set,&
+            cell=cell, virial=virial, para_env=para_env, atprop=atprop, error=error)
+
+       debugx = dispersion_env%verbose
+       debugall = debugx
+       debug = debugx .AND. para_env%ionode
+       nkind = SIZE(atomic_kind_set)
+
+       NULLIFY(logger)
+       logger => cp_error_get_logger(error)
+       IF(ASSOCIATED(dispersion_env%dftd_section)) THEN
+          unit_nr = cp_print_key_unit_nr(logger,dispersion_env%dftd_section,"PRINT_DFTD",&
+                                         extension=".dftd",error=error)
+       ELSE
+          unit_nr = -1
+       END IF
+
+       ! atomic energy and stress arrays
+       atenergy = atprop%energy
+       IF (atenergy) THEN
+          NULLIFY (particle_set)
+          CALL get_qs_env(qs_env=qs_env,particle_set=particle_set,error=error)
+          natom = SIZE(particle_set)
+          CALL atprop_array_init(qs_env%atprop%atevdw,natom,error)
+          atener => qs_env%atprop%atevdw
+       END IF
+       atstress = qs_env%atprop%stress
+       IF (atstress) THEN
+          atstr => qs_env%atprop%atstress
+       END IF
 
        IF(unit_nr>0) THEN
         WRITE(unit_nr,*)
@@ -779,8 +697,7 @@ CONTAINS
           CALL get_qs_env(qs_env=qs_env,force=force,error=error)
           ALLOCATE (atom_of_kind(natom),kind_of(natom),STAT=istat)
           CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-          CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
-               atom_of_kind=atom_of_kind,kind_of=kind_of)
+          CALL get_atomic_kind_set(atomic_kind_set, atom_of_kind=atom_of_kind,kind_of=kind_of)
           use_virial = virial%pv_availability.AND.(.NOT.virial%pv_numer)
           IF (use_virial .AND. debugall) THEN
             dvirial = virial%pv_virial
@@ -788,15 +705,14 @@ CONTAINS
        ELSE IF ( dispersion_env%pp_type == vdw_pairpot_dftd3 .AND. dispersion_env%doabc ) THEN
           ALLOCATE (atom_of_kind(natom),kind_of(natom),STAT=istat)
           CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-          CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
-               atom_of_kind=atom_of_kind,kind_of=kind_of)
+          CALL get_atomic_kind_set(atomic_kind_set, atom_of_kind=atom_of_kind,kind_of=kind_of)
        END IF
 
        ALLOCATE (dodisp(nkind),ghost(nkind),atomnumber(nkind),c6d2(nkind),radd2(nkind),STAT=istat)
        CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
        DO ikind=1,nkind
-          atomic_kind => atomic_kind_set(ikind)
-          CALL get_atomic_kind(atomic_kind=atomic_kind, z=za, dispersion=disp_a, ghost=ghost_a)
+          CALL get_atomic_kind(atomic_kind_set(ikind), z=za)
+          CALL get_qs_kind(qs_kind_set(ikind), dispersion=disp_a, ghost=ghost_a)
           dodisp(ikind)=disp_a%defined
           ghost(ikind)=ghost_a
           atomnumber(ikind)=za
@@ -845,7 +761,7 @@ CONTAINS
           END IF
           ! Calculate coordination numbers
           NULLIFY (particle_set)
-          CALL get_qs_env(qs_env=qs_env,sab_cn=sab_cn,particle_set=particle_set,error=error)
+          CALL get_qs_env(qs_env=qs_env,particle_set=particle_set,error=error)
           natom = SIZE (particle_set)
           ALLOCATE (cnumbers(natom),STAT=istat)
           CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
@@ -859,7 +775,7 @@ CONTAINS
               CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
             END DO
           END IF
-          CALL get_qs_env(qs_env=qs_env,sab_cn=sab_cn,error=error)
+          sab_cn => dispersion_env%sab_cn
           CALL neighbor_list_iterator_create(nl_iterator,sab_cn)
           DO WHILE (neighbor_list_iterate(nl_iterator)==0)
              CALL get_iterator_info(nl_iterator,ikind=ikind,jkind=jkind,iatom=iatom,jatom=jatom,r=rij)
@@ -942,8 +858,7 @@ CONTAINS
             ! first use the default values
             DO iatom=1,natom
               ikind=kind_of(iatom)
-              atomic_kind => atomic_kind_set(ikind)
-              CALL get_atomic_kind(atomic_kind,z=za)
+              CALL get_atomic_kind(atomic_kind_set(ikind),z=za)
               cnumfix(iatom) = dispersion_env%cn(za)
             END DO
             ! now check for changes from default
@@ -953,8 +868,7 @@ CONTAINS
                 cnum=dispersion_env%cnkind(i)%cnum
                 CPPrecondition(ikind <= nkind,cp_failure_level,routineP,error,failure)
                 CPPrecondition(ikind > 0,cp_failure_level,routineP,error,failure)
-                atomic_kind => atomic_kind_set(ikind)
-                CALL get_atomic_kind(atomic_kind,natom=na,atom_list=atom_list)
+                CALL get_atomic_kind(atomic_kind_set(ikind), natom=na,atom_list=atom_list)
                 DO ia=1,na
                   iatom=atom_list(ia)
                   cnumfix(iatom) = cnum
@@ -983,7 +897,7 @@ CONTAINS
 
        evdw = 0._dp
 
-       CALL get_qs_env(qs_env=qs_env,sab_vdw=sab_vdw,error=error)
+       sab_vdw => dispersion_env%sab_vdw
 
        nkind = SIZE(atomic_kind_set)
 
@@ -1353,8 +1267,7 @@ CONTAINS
              cnkind = 0._dp
              ! first use the default values
              DO ikind=1,nkind
-               atomic_kind => atomic_kind_set(ikind)
-               CALL get_atomic_kind(atomic_kind,z=za)
+               CALL get_atomic_kind(atomic_kind_set(ikind), z=za)
                cnkind(ikind) = dispersion_env%cn(za)
              END DO
              ! now check for changes from default
@@ -1365,12 +1278,12 @@ CONTAINS
                END DO
              END IF
              DO ikind=1,nkind
-                atomic_kind => atomic_kind_set(ikind)
-                CALL get_atomic_kind(atomic_kind=atomic_kind, natom=na, z=za, dispersion=disp_a, ghost=ghost_a)
+                CALL get_atomic_kind(atomic_kind_set(ikind), natom=na, z=za)
+                CALL get_qs_kind(qs_kind_set(ikind), dispersion=disp_a, ghost=ghost_a)
                 IF (.NOT.disp_a%defined .OR. ghost_a) CYCLE
                 DO jkind=1,nkind
-                   atomic_kind => atomic_kind_set(jkind)
-                   CALL get_atomic_kind(atomic_kind=atomic_kind, natom=nb, z=zb, dispersion=disp_b, ghost=ghost_b)
+                   CALL get_atomic_kind(atomic_kind_set(jkind), natom=nb, z=zb)
+                   CALL get_qs_kind(qs_kind_set(jkind), dispersion=disp_b, ghost=ghost_b)
                    IF (.NOT.disp_b%defined .OR. ghost_b) CYCLE
                    CALL getc6(maxc,max_elem,dispersion_env%c6ab,dispersion_env%maxci,za,zb,&
                       cnkind(ikind),cnkind(jkind),dispersion_env%k3,cc6ab,dcc6aba,dcc6abb)
@@ -1379,8 +1292,8 @@ CONTAINS
                    elrc8 = elrc8 - s8*twopi*REAL(na*nb,KIND=dp)*c8/(5._dp*rcut**5*cell%deth)
                    IF (dispersion_env%doabc) THEN
                       DO kkind=1,nkind
-                         atomic_kind => atomic_kind_set(kkind)
-                         CALL get_atomic_kind(atomic_kind=atomic_kind, natom=nc, z=zc, dispersion=disp_c, ghost=ghost_c)
+                         CALL get_atomic_kind(atomic_kind_set(kkind), natom=nc, z=zc)
+                         CALL get_qs_kind(qs_kind_set(kkind), dispersion=disp_c, ghost=ghost_c)
                          IF (.NOT.disp_c%defined .OR. ghost_c) CYCLE
                          CALL getc6(maxc,max_elem,dispersion_env%c6ab,dispersion_env%maxci,za,zb,&
                             cnkind(ikind),cnkind(jkind),dispersion_env%k3,cc6ab,dcc6aba,dcc6abb)
@@ -1424,7 +1337,7 @@ CONTAINS
        ! set dispersion energy
        CALL mp_sum(evdw,para_env%group)
        evdw = evdw + (elrc6+elrc8+elrc9)
-       energy%dispersion = evdw
+       energy = evdw
 
        IF ( dispersion_env%pp_type == vdw_pairpot_dftd3 .AND. debugall ) THEN
          CALL mp_sum(e6tot,para_env%group)
@@ -1494,13 +1407,23 @@ CONTAINS
        DEALLOCATE (dodisp,ghost,atomnumber,rcpbc,radd2,c6d2,STAT=istat)
        CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
 
+       IF(ASSOCIATED(dispersion_env%dftd_section)) THEN
+          CALL cp_print_key_finished_output(unit_nr,logger,dispersion_env%dftd_section,&
+                                            "PRINT_DFTD", error=error)
+       END IF
+
     END IF
-    CALL cp_print_key_finished_output(unit_nr,logger,dftd_section,"PRINT_DFTD", error=error)
 
     CALL timestop(handle)
 
   END SUBROUTINE calculate_dispersion_pairpot
 
+! *****************************************************************************
+!> \brief ...
+!> \param cell ...
+!> \param ncell ...
+!> \param error ...
+!> \retval hash ...
 ! *****************************************************************************
   FUNCTION cellhash(cell,ncell,error) RESULT(hash)
     INTEGER, DIMENSION(3), INTENT(IN)        :: cell, ncell
@@ -1537,6 +1460,13 @@ CONTAINS
 
   END FUNCTION cellhash
 ! *****************************************************************************
+!> \brief ...
+!> \param z ...
+!> \param c6 ...
+!> \param r ...
+!> \param found ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE dftd2_param(z,c6,r,found,error)
 
     INTEGER, INTENT(in)                      :: z
@@ -1554,14 +1484,16 @@ CONTAINS
       16.37_dp, 12.64_dp, 12.47_dp, 12.01_dp, 24.67_dp, 24.67_dp, 24.67_dp, &
       24.67_dp, 24.67_dp, 24.67_dp, 24.67_dp, 24.67_dp, 24.67_dp, 24.67_dp, &
       24.67_dp, 24.67_dp, 37.32_dp, 38.71_dp, 38.44_dp, 31.74_dp, 31.50_dp, &
-      29.99_dp /), rval = (/1.001_dp, 1.012_dp, 0.825_dp, 1.408_dp, 1.485_dp, &
-      1.452_dp, 1.397_dp, 1.342_dp, 1.287_dp, 1.243_dp, 1.144_dp, 1.364_dp, &
-      1.639_dp, 1.716_dp, 1.705_dp, 1.683_dp, 1.639_dp, 1.595_dp, 1.485_dp, &
-      1.474_dp, 1.562_dp, 1.562_dp, 1.562_dp, 1.562_dp, 1.562_dp, 1.562_dp, &
-      1.562_dp, 1.562_dp, 1.562_dp, 1.562_dp, 1.650_dp, 1.727_dp, 1.760_dp, &
-      1.771_dp, 1.749_dp, 1.727_dp, 1.628_dp, 1.606_dp, 1.639_dp, 1.639_dp, &
-      1.639_dp, 1.639_dp, 1.639_dp, 1.639_dp, 1.639_dp, 1.639_dp, 1.639_dp, &
-      1.639_dp, 1.672_dp, 1.804_dp, 1.881_dp, 1.892_dp, 1.892_dp, 1.881_dp /)
+      29.99_dp /)
+    REAL(KIND=dp), DIMENSION(54), PARAMETER :: rval = (/1.001_dp, 1.012_dp, &
+      0.825_dp, 1.408_dp, 1.485_dp, 1.452_dp, 1.397_dp, 1.342_dp, 1.287_dp, &
+      1.243_dp, 1.144_dp, 1.364_dp, 1.639_dp, 1.716_dp, 1.705_dp, 1.683_dp, &
+      1.639_dp, 1.595_dp, 1.485_dp, 1.474_dp, 1.562_dp, 1.562_dp, 1.562_dp, &
+      1.562_dp, 1.562_dp, 1.562_dp, 1.562_dp, 1.562_dp, 1.562_dp, 1.562_dp, &
+      1.650_dp, 1.727_dp, 1.760_dp, 1.771_dp, 1.749_dp, 1.727_dp, 1.628_dp, &
+      1.606_dp, 1.639_dp, 1.639_dp, 1.639_dp, 1.639_dp, 1.639_dp, 1.639_dp, &
+      1.639_dp, 1.639_dp, 1.639_dp, 1.639_dp, 1.672_dp, 1.804_dp, 1.881_dp, &
+      1.892_dp, 1.892_dp, 1.881_dp /)
 
 !
 ! GRIMME DISPERSION PARAMETERS
@@ -1584,6 +1516,13 @@ CONTAINS
     END IF
 
   END SUBROUTINE dftd2_param
+! *****************************************************************************
+!> \brief ...
+!> \param c6ab ...
+!> \param maxci ...
+!> \param filename ...
+!> \param para_env ...
+!> \param error ...
 ! *****************************************************************************
   SUBROUTINE dftd3_c6_param(c6ab,maxci,filename,para_env,error)
 
@@ -1642,6 +1581,13 @@ CONTAINS
 
   END SUBROUTINE dftd3_c6_param
 
+! *****************************************************************************
+!> \brief ...
+!> \param iat ...
+!> \param jat ...
+!> \param iadr ...
+!> \param jadr ...
+! *****************************************************************************
   SUBROUTINE limit(iat,jat,iadr,jadr)
     INTEGER                                  :: iat, jat, iadr, jadr
 
@@ -1664,6 +1610,12 @@ CONTAINS
       ENDIF
    END SUBROUTINE limit
 
+! *****************************************************************************
+!> \brief ...
+!> \param rout ...
+!> \param rcov ...
+!> \param r2r4 ...
+! *****************************************************************************
    SUBROUTINE setr0ab(rout,rcov,r2r4)
       ! set cut-off radii
     REAL(KIND=dp), DIMENSION(:, :)           :: rout
@@ -2483,6 +2435,10 @@ CONTAINS
 
   END SUBROUTINE setr0ab
 
+! *****************************************************************************
+!> \brief ...
+!> \param cnout ...
+! *****************************************************************************
   SUBROUTINE setcn(cnout)
       ! default coordination numbers
     REAL(KIND=dp), DIMENSION(:)              :: cnout
@@ -2506,6 +2462,15 @@ CONTAINS
 
   END SUBROUTINE setcn
 
+! *****************************************************************************
+!> \brief ...
+!> \param rab ...
+!> \param rcova ...
+!> \param rcovb ...
+!> \param k1 ...
+!> \param cnab ...
+!> \param dcnab ...
+! *****************************************************************************
   SUBROUTINE cnparam_d3(rab,rcova,rcovb,k1,cnab,dcnab)
 
     REAL(KIND=dp), INTENT(IN)                :: rab, rcova, rcovb, k1
@@ -2526,6 +2491,16 @@ CONTAINS
 
   END SUBROUTINE cnparam_d3
 
+! *****************************************************************************
+!> \brief ...
+!> \param rab ...
+!> \param rcutab ...
+!> \param srn ...
+!> \param alpn ...
+!> \param rcut ...
+!> \param fdab ...
+!> \param dfdab ...
+! *****************************************************************************
   SUBROUTINE damping_d3(rab,rcutab,srn,alpn,rcut,fdab,dfdab)
 
     REAL(KIND=dp), INTENT(IN)                :: rab, rcutab, srn, alpn, rcut
@@ -2564,6 +2539,21 @@ CONTAINS
 
   END SUBROUTINE damping_d3
 
+! *****************************************************************************
+!> \brief ...
+!> \param maxc ...
+!> \param max_elem ...
+!> \param c6ab ...
+!> \param mxc ...
+!> \param iat ...
+!> \param jat ...
+!> \param nci ...
+!> \param ncj ...
+!> \param k3 ...
+!> \param c6 ...
+!> \param dc6a ...
+!> \param dc6b ...
+! *****************************************************************************
   SUBROUTINE getc6(maxc,max_elem,c6ab,mxc,iat,jat,nci,ncj,k3,c6,dc6a,dc6b)
 
     INTEGER, INTENT(IN)                      :: maxc, max_elem
@@ -2575,12 +2565,13 @@ CONTAINS
     INTEGER                                  :: i, j
     REAL(KIND=dp)                            :: c6mem, cn1, cn2, csum, dtmpa, &
                                                 dtmpb, dwa, dwb, dza, dzb, r, &
-                                                rsum, tmp1
+                                                rsave, rsum, tmp1
 
 ! the exponential is sensitive to numerics
 ! when nci or ncj is much larger than cn1/cn2
 
-    c6mem=-1.e+99_dp
+    c6mem=-1.0e+99_dp
+    rsave=1.0e+99_dp
     rsum=0.0_dp
     csum=0.0_dp
     dza=0.0_dp
@@ -2591,15 +2582,18 @@ CONTAINS
     DO i=1,mxc(iat)
       DO j=1,mxc(jat)
          c6=c6ab(iat,jat,i,j,1)
-         IF(c6 > 0._dp)THEN
-            c6mem=c6
+         IF(c6 > 0.0_dp)THEN
             cn1=c6ab(iat,jat,i,j,2)
             cn2=c6ab(iat,jat,i,j,3)
             ! distance
             r=(cn1-nci)**2+(cn2-ncj)**2
+            IF (r < rsave) THEN
+               rsave=r
+               c6mem=c6
+            ENDIF
             tmp1=EXP(k3*r)
-            dtmpa=-2._dp*k3*(cn1-nci)*tmp1
-            dtmpb=-2._dp*k3*(cn2-ncj)*tmp1
+            dtmpa=-2.0_dp*k3*(cn1-nci)*tmp1
+            dtmpb=-2.0_dp*k3*(cn2-ncj)*tmp1
             rsum=rsum+tmp1
             csum=csum+tmp1*c6
             dza=dza+dtmpa*c6
@@ -2610,7 +2604,9 @@ CONTAINS
       ENDDO
     ENDDO
 
-    IF(rsum > 10.E-08_dp)THEN
+    IF(c6 == 0.0_dp) c6mem=0.0_dp
+
+    IF(rsum > 1.0e-66_dp)THEN
        c6=csum/rsum
        dc6a=(dza-c6*dwa)/rsum
        dc6b=(dzb-c6*dwb)/rsum
@@ -2622,6 +2618,11 @@ CONTAINS
 
   END SUBROUTINE getc6
 
+! *****************************************************************************
+!> \brief ...
+!> \param dcnum ...
+!> \param para_env ...
+!> \param error ...
 ! *****************************************************************************
   SUBROUTINE dcnum_distribute(dcnum,para_env,error)
 

@@ -11,8 +11,8 @@
 !> \author Fawzi Mohamed
 ! *****************************************************************************
 MODULE ep_qs_types
-  USE cp_dbcsr_operations,             ONLY: cp_dbcsr_deallocate_matrix_set
-  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_p_type
+  USE cp_dbcsr_interface,              ONLY: cp_dbcsr_deallocate_matrix_set,&
+                                             cp_dbcsr_p_type
   USE f77_blas
   USE kinds,                           ONLY: dp
   USE timings,                         ONLY: timeset,&
@@ -24,7 +24,7 @@ MODULE ep_qs_types
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'ep_qs_types'
 
-  PUBLIC :: ep_qs_type, ep_qs_p_type
+  PUBLIC :: ep_qs_type
   PUBLIC :: ep_qs_retain, ep_qs_release
 
 ! *****************************************************************************
@@ -115,7 +115,7 @@ END SUBROUTINE ep_qs_release
 !> \param ep_qs_env the env to modify
 !> \param dH_coeffs_ptr new coeffs, might be null, aquires ownership of
 !>        the pointer
-!> \param dS_coeffs the new coeffs, might be null, aquires ownership of
+!> \param dS_coeffs_ptr the new coeffs, might be null, aquires ownership of
 !>        the pointer
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling

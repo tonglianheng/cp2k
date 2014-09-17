@@ -44,7 +44,7 @@
 !> 67 - 70       Integer        Z value
 ! *****************************************************************************
 MODULE topology_pdb
-  USE cell_types,                      ONLY: get_cell
+  USE cell_methods,                    ONLY: get_cell
   USE cp2k_info,                       ONLY: compile_revision,&
                                              cp2k_version,&
                                              r_datx,&
@@ -90,6 +90,11 @@ MODULE topology_pdb
 CONTAINS
 
 ! *****************************************************************************
+!> \brief ...
+!> \param topology ...
+!> \param para_env ...
+!> \param subsys_section ...
+!> \param error ...
 !> \par History
 !>      TLAINO 05.2004 - Added the TER option to use different non-bonded molecules
 ! *****************************************************************************
@@ -268,6 +273,12 @@ CONTAINS
 
   END SUBROUTINE read_coordinate_pdb
 
+! *****************************************************************************
+!> \brief ...
+!> \param file_unit ...
+!> \param topology ...
+!> \param subsys_section ...
+!> \param error ...
 ! *****************************************************************************
   SUBROUTINE write_coordinate_pdb (file_unit,topology,subsys_section,error)
 

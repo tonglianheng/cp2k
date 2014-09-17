@@ -14,13 +14,14 @@ MODULE rt_make_propagators
   USE cp_control_types,                ONLY: rtp_control_type
   USE cp_dbcsr_interface,              ONLY: cp_dbcsr_copy,&
                                              cp_dbcsr_create,&
-                                             cp_dbcsr_init
+                                             cp_dbcsr_deallocate_matrix,&
+                                             cp_dbcsr_init,&
+                                             cp_dbcsr_p_type,&
+                                             cp_dbcsr_scale,&
+                                             cp_dbcsr_type
   USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
                                              copy_fm_to_dbcsr,&
-                                             cp_dbcsr_deallocate_matrix,&
                                              cp_dbcsr_sm_fm_multiply
-  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_p_type,&
-                                             cp_dbcsr_type
   USE cp_fm_types,                     ONLY: cp_fm_create,&
                                              cp_fm_get_info,&
                                              cp_fm_p_type,&
@@ -30,7 +31,6 @@ MODULE rt_make_propagators
                                              do_pade,&
                                              do_taylor
   USE kinds,                           ONLY: dp
-  USE message_passing,                 ONLY: mp_abort
   USE rt_matrix_exp,                   ONLY: arnoldi,&
                                              exp_pade_full_complex,&
                                              exp_pade_only_imaginary,&
@@ -39,8 +39,6 @@ MODULE rt_make_propagators
   USE rt_matrix_exp_dbcsr,             ONLY: bch_expansion_complex_propagator,&
                                              bch_expansion_imaginary_propagator,&
                                              cp_complex_dbcsr_gemm_3,&
-                                             exp_pade_full_complex_dbcsr,&
-                                             exp_pade_only_imaginary_dbcsr,&
                                              taylor_full_complex_dbcsr,&
                                              taylor_only_imaginary_dbcsr
   USE rt_propagation_types,            ONLY: get_rtp,&
@@ -69,6 +67,9 @@ CONTAINS
 !> \brief performs propagations if explicit matrix exponentials are used
 !>        ETRS:  exp(i*H(t+dt)*dt/2)*exp(i*H(t)*dt/2)*MOS
 !>        EM:    exp[-idt/2H(t+dt/2)*MOS
+!> \param rtp ...
+!> \param rtp_control ...
+!> \param error ...
 !> \author Florian Schiffmann (02.09)
 ! *****************************************************************************
 
@@ -138,6 +139,9 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Propagation of the density matrix instead of the atomic orbitals
 !>        via a matrix exponential
+!> \param rtp ...
+!> \param rtp_control ...
+!> \param error ...
 !> \author Samuel Andermatt (02.2014)
 ! *****************************************************************************
 
@@ -209,6 +213,9 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief computes U_prop*MOs using arnoldi subspace algorithm
+!> \param rtp ...
+!> \param rtp_control ...
+!> \param error ...
 !> \author Florian Schiffmann (02.09)
 ! *****************************************************************************
 
@@ -223,7 +230,7 @@ CONTAINS
 
     INTEGER                                  :: handle, i, im, ispin, nspin, &
                                                 re
-    REAL(dp)                                 :: dt, eps_arnoldi, t
+    REAL(dp)                                 :: eps_arnoldi, t
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: propagator_matrix
     TYPE(cp_fm_p_type), DIMENSION(:), &
@@ -261,17 +268,18 @@ CONTAINS
        IF(rtp_control%fixed_ions.AND..NOT.rtp%do_hfx)THEN
           CALL arnoldi(mos_old(re:im),mos_new(re:im),&
                eps_arnoldi,Him=propagator_matrix_fm(im)%matrix,&
-               mos_next=mos_next(re:im),error=error)
+               mos_next=mos_next(re:im),narn_old=rtp%narn_old,error=error)
        ELSE
           CALL arnoldi(mos_old(re:im),mos_new(re:im),&
                eps_arnoldi,Hre=propagator_matrix_fm(re)%matrix,&
-               Him=propagator_matrix_fm(im)%matrix,mos_next=mos_next(re:im),error=error)
+               Him=propagator_matrix_fm(im)%matrix,mos_next=mos_next(re:im),&
+               narn_old=rtp%narn_old,error=error)
        END IF
     END DO
 
-    DO i=1,SIZE(propagator_matrix)
-         CALL copy_fm_to_dbcsr(propagator_matrix_fm(i)%matrix,propagator_matrix(i)%matrix,error=error)
-    END DO
+!    DO i=1,SIZE(propagator_matrix)
+!         CALL copy_fm_to_dbcsr(propagator_matrix_fm(i)%matrix,propagator_matrix(i)%matrix,error=error)
+!    END DO
     CALL cp_fm_vect_dealloc(propagator_matrix_fm,error=error)
 
     CALL timestop(handle)
@@ -281,6 +289,9 @@ CONTAINS
 ! *****************************************************************************
 !> \brief  Propagation using the Baker–Campbell–Hausdorff expansion,
 !>         currently only works for rtp
+!> \param rtp ...
+!> \param rtp_control ...
+!> \param error ...
 !> \author Samuel Andermatt (02.2014)
 ! *****************************************************************************
 
@@ -296,9 +307,11 @@ CONTAINS
 
     INTEGER                                  :: handle, im, ispin, re
     LOGICAL                                  :: failure
+    REAL(dp)                                 :: dt
+    REAL(KIND=dp)                            :: prefac
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
-      POINTER                                :: propagator_matrix, rho_new, &
-                                                rho_next, rho_old
+      POINTER                                :: exp_H_old, propagator_matrix, &
+                                                rho_new, rho_next, rho_old
 
     CALL timeset(routineN,handle)
 
@@ -307,35 +320,40 @@ CONTAINS
     CALL get_rtp(rtp=rtp, propagator_matrix=propagator_matrix,rho_old=rho_old,rho_new=rho_new,&
          rho_next=rho_next,error=error)
 
-    IF(.NOT.rtp_control%fixed_ions) CALL mp_abort("bch not yet implemented for emd")
-
     DO ispin=1,SIZE(propagator_matrix)/2
        re=2*ispin-1
        im=2*ispin
 
        IF(rtp%iter==1) THEN
-          !For EM I have to copy rho_old onto rho_next and for ETRS, this is the first term of the series of commutators that result in rho_next
+          ! For EM I have to copy rho_old onto rho_next and for ETRS,
+          ! this is the first term of the series of commutators that result in rho_next
           CALL cp_dbcsr_copy(rho_next(re)%matrix,rho_old(re)%matrix,error=error)
           CALL cp_dbcsr_copy(rho_next(im)%matrix,rho_old(im)%matrix,error=error)
           IF(rtp_control%propagator==do_etrs) THEN
-             IF(.NOT.rtp%do_hfx)THEN
-                CALL bch_expansion_imaginary_propagator(propagator_matrix(im)%matrix,&
-                     rho_next(re)%matrix,rho_next(im)%matrix,rtp%filter_eps,rtp_control%eps_exp,error=error)
+             !since we never calculated the matrix exponential the old matrix exponential stores the unscalled propagator
+             CALL get_rtp(rtp=rtp,exp_H_old=exp_H_old,dt=dt,error=error)
+             prefac=-0.5_dp*dt
+             CALL cp_dbcsr_scale(exp_H_old(im)%matrix,prefac,error=error)
+             IF(.NOT.rtp%do_hfx.AND.rtp_control%fixed_ions)THEN
+                CALL bch_expansion_imaginary_propagator(exp_H_old(im)%matrix,&
+                     rho_next(re)%matrix,rho_next(im)%matrix,rtp%filter_eps,rtp%filter_eps_small,rtp_control%eps_exp,error=error)
              ELSE
-                CALL bch_expansion_complex_propagator(propagator_matrix(re)%matrix,propagator_matrix(im)%matrix,&
-                     rho_next(re)%matrix,rho_next(im)%matrix,rtp%filter_eps,rtp_control%eps_exp,error=error)
+                CALL cp_dbcsr_scale(exp_H_old(re)%matrix,prefac,error=error)
+                CALL bch_expansion_complex_propagator(exp_H_old(re)%matrix,exp_H_old(im)%matrix,&
+                     rho_next(re)%matrix,rho_next(im)%matrix,rtp%filter_eps,rtp%filter_eps_small,rtp_control%eps_exp,error=error)
              ENDIF
           END IF
        END IF
        CALL cp_dbcsr_copy(rho_new(re)%matrix,rho_next(re)%matrix,error=error)
        CALL cp_dbcsr_copy(rho_new(im)%matrix,rho_next(im)%matrix,error=error)
-       IF(.NOT.rtp%do_hfx)THEN
+       IF(.NOT.rtp%do_hfx.AND.rtp_control%fixed_ions)THEN
           CALL bch_expansion_imaginary_propagator(propagator_matrix(im)%matrix,&
-               rho_new(re)%matrix,rho_new(im)%matrix,rtp%filter_eps,rtp_control%eps_exp,error=error)
+               rho_new(re)%matrix,rho_new(im)%matrix,rtp%filter_eps,rtp%filter_eps_small,rtp_control%eps_exp,error=error)
        ELSE
           CALL bch_expansion_complex_propagator(propagator_matrix(re)%matrix,propagator_matrix(im)%matrix,&
-               rho_new(re)%matrix,rho_new(im)%matrix,rtp%filter_eps,rtp_control%eps_exp,error=error)
+               rho_new(re)%matrix,rho_new(im)%matrix,rtp%filter_eps,rtp%filter_eps_small,rtp_control%eps_exp,error=error)
        ENDIF
+
     END DO
 
     CALL timestop(handle)
@@ -345,6 +363,11 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief decides which type of exponential has to be computed
+!> \param propagator ...
+!> \param propagator_matrix ...
+!> \param rtp_control ...
+!> \param rtp ...
+!> \param error ...
 !> \author Florian Schiffmann (02.09)
 ! *****************************************************************************
 
@@ -414,6 +437,11 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Sparse versions of the matrix exponentials
+!> \param propagator ...
+!> \param propagator_matrix ...
+!> \param rtp_control ...
+!> \param rtp ...
+!> \param error ...
 !> \author Samuel Andermatt (02.14)
 ! *****************************************************************************
 
@@ -434,25 +462,13 @@ CONTAINS
     DO ispin=1,SIZE(propagator)/2
        re=2*ispin-1
        im=2*ispin
-       SELECT CASE(rtp_control%mat_exp)
-
-       CASE(do_taylor)
-          IF(rtp_control%fixed_ions.AND..NOT.rtp%do_hfx)THEN
-             CALL taylor_only_imaginary_dbcsr(propagator(re:im),propagator_matrix(im)%matrix,&
-                  rtp%orders(1,ispin),rtp%orders(2,ispin),rtp%filter_eps,error)
-          ELSE
-             CALL taylor_full_complex_dbcsr(propagator(re:im),propagator_matrix(re)%matrix,propagator_matrix(im)%matrix,&
-                  rtp%orders(1,ispin),rtp%orders(2,ispin),rtp%filter_eps,error)
-          END IF
-       CASE(do_pade)
-          IF(rtp_control%fixed_ions.AND..NOT.rtp%do_hfx)THEN
-             CALL exp_pade_only_imaginary_dbcsr(propagator(re:im),propagator_matrix(im)%matrix,&
-                  rtp%orders(1,ispin),rtp%orders(2,ispin),rtp%filter_eps,rtp%ao_ao_fmstruct,error)
-          ELSE
-             CALL exp_pade_full_complex_dbcsr(propagator(re:im),propagator_matrix(re)%matrix,propagator_matrix(im)%matrix,&
-                  rtp%orders(1,ispin),rtp%orders(2,ispin),rtp%filter_eps,rtp%ao_ao_fmstruct,error)
-          END IF
-       END SELECT
+       IF(rtp_control%fixed_ions.AND..NOT.rtp%do_hfx)THEN
+          CALL taylor_only_imaginary_dbcsr(propagator(re:im),propagator_matrix(im)%matrix,&
+               rtp%orders(1,ispin),rtp%orders(2,ispin),rtp%filter_eps,error)
+       ELSE
+          CALL taylor_full_complex_dbcsr(propagator(re:im),propagator_matrix(re)%matrix,propagator_matrix(im)%matrix,&
+               rtp%orders(1,ispin),rtp%orders(2,ispin),rtp%filter_eps,error)
+       END IF
     END DO
 
     CALL timestop(handle)

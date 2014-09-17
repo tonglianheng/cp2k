@@ -8,7 +8,6 @@
 !>      for the atomic density in the basis set of spherical primitives
 ! *****************************************************************************
 MODULE qs_vxc_atom
-
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind
   USE basis_set_types,                 ONLY: get_gto_basis_set,&
@@ -33,6 +32,8 @@ MODULE qs_vxc_atom
   USE qs_grid_atom,                    ONLY: grid_atom_type
   USE qs_harmonics_atom,               ONLY: get_none0_cg_list,&
                                              harmonics_atom_type
+  USE qs_kind_types,                   ONLY: get_qs_kind,&
+                                             qs_kind_type
   USE qs_linres_types,                 ONLY: nablavks_atom_type
   USE qs_p_env_types,                  ONLY: qs_p_env_type
   USE qs_rho_atom_types,               ONLY: get_rho_atom,&
@@ -71,6 +72,13 @@ MODULE qs_vxc_atom
 CONTAINS
 
 ! *****************************************************************************
+!> \brief ...
+!> \param qs_env ...
+!> \param energy_only ...
+!> \param error ...
+!> \param gradient_atom_set ...
+!> \param adiabatic_rescale_factor ...
+! *****************************************************************************
   SUBROUTINE calculate_vxc_atom(qs_env,energy_only,error,gradient_atom_set,adiabatic_rescale_factor)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
@@ -83,8 +91,10 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'calculate_vxc_atom', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: bo(2), handle, ia, iat, iatom, idir, ikind, ir, ispin, istat, &
-      mepos, myfun, na, natom, nkind, nr, nspins, num_pe
+    INTEGER                                  :: bo(2), handle, ia, iat, &
+                                                iatom, idir, ikind, ir, &
+                                                ispin, istat, mepos, myfun, &
+                                                na, natom, nr, nspins, num_pe
     INTEGER, DIMENSION(2, 3)                 :: bounds
     INTEGER, DIMENSION(:), POINTER           :: atom_list
     LOGICAL                                  :: epr_xc, failure, gradient_f, &
@@ -99,12 +109,14 @@ CONTAINS
     REAL(dp), DIMENSION(:, :, :, :), POINTER :: drho_h, drho_s, vxg_h, vxg_s
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
-    TYPE(atomic_kind_type), POINTER          :: atom_kind
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(grid_atom_type), POINTER            :: grid_atom
     TYPE(harmonics_atom_type), POINTER       :: harmonics
     TYPE(qs_energy_type), POINTER            :: energy
+    TYPE(qs_kind_type), DIMENSION(:), &
+      POINTER                                :: qs_kind_set
+    TYPE(qs_kind_type), POINTER              :: qs_kind
     TYPE(rho_atom_coeff), DIMENSION(:), &
       POINTER                                :: dr_h, dr_s, r_h, r_s
     TYPE(rho_atom_coeff), DIMENSION(:, :), &
@@ -124,9 +136,10 @@ CONTAINS
 
     failure = .FALSE.
 
-    NULLIFY (atom_kind)
     NULLIFY (atom_list)
+    NULLIFY (qs_kind_set)
     NULLIFY (atomic_kind_set)
+    NULLIFY (qs_kind)
     NULLIFY (deriv_set)
     NULLIFY (energy)
     NULLIFY (grid_atom)
@@ -154,6 +167,7 @@ CONTAINS
                     para_env=para_env,&
                     energy=energy,&
                     atomic_kind_set=atomic_kind_set,&
+                    qs_kind_set=qs_kind_set,&
                     input=input,&
                     rho_atom_set=rho_atom_set,error=error)
 
@@ -193,8 +207,6 @@ CONTAINS
       gradient_f = (needs%drho.OR.needs%drho_spin)
       tau_f = (needs%tau.OR.needs%tau_spin)
 
-      nkind = SIZE(atomic_kind_set)
-
       ! Initialize energy contribution from the one center XC terms to zero
       energy%exc1 = 0.0_dp
 
@@ -206,11 +218,9 @@ CONTAINS
 
       ! Here starts the loop over all the atoms
 
-      DO ikind = 1,nkind
-
-        atom_kind => atomic_kind_set(ikind)
-        CALL get_atomic_kind(atomic_kind=atom_kind,atom_list=atom_list,&
-                             natom=natom,paw_atom=paw_atom,&
+      DO ikind = 1, SIZE(atomic_kind_set)
+        CALL get_atomic_kind(atomic_kind_set(ikind),atom_list=atom_list,natom=natom)
+        CALL get_qs_kind(qs_kind_set(ikind), paw_atom=paw_atom,&
                              harmonics=harmonics,grid_atom=grid_atom)
 
         IF (.NOT.paw_atom) CYCLE
@@ -347,15 +357,15 @@ CONTAINS
           ! internal transformation to get the integral in cartesian Gaussians
 
           IF (.NOT.energy_only) THEN
-            atom_kind => atomic_kind_set(ikind)
+            qs_kind => qs_kind_set(ikind)
             IF (gradient_f) THEN
-              CALL gaVxcgb_GC(vxc_h,vxc_s,vxg_h,vxg_s,atom_kind,&
+              CALL gaVxcgb_GC(vxc_h,vxc_s,vxg_h,vxg_s,qs_kind,&
                               rho_atom,drho_h,drho_s,nspins,error=error)
             ELSE
-              CALL gaVxcgb_noGC(vxc_h,vxc_s,atom_kind,rho_atom,nspins,error=error)
+              CALL gaVxcgb_noGC(vxc_h,vxc_s,qs_kind,rho_atom,nspins,error=error)
             END IF
             IF (tau_f) THEN
-              CALL dgaVtaudgb(vtau_h,vtau_s,atom_kind,rho_atom,nspins,error=error)
+              CALL dgaVtaudgb(vtau_h,vtau_s,qs_kind,rho_atom,nspins,error=error)
             END IF
           END IF  ! energy_only
           NULLIFY (r_h,r_s,dr_h,dr_s)
@@ -445,6 +455,14 @@ CONTAINS
   END SUBROUTINE calculate_vxc_atom
 
 ! *****************************************************************************
+!> \brief ...
+!> \param p_env ...
+!> \param qs_env ...
+!> \param xc_section ...
+!> \param do_tddft ...
+!> \param do_triplet ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE calculate_xc_2nd_deriv_atom(p_env,qs_env,xc_section,do_tddft,do_triplet,error)
 
     TYPE(qs_p_env_type), POINTER             :: p_env
@@ -458,8 +476,7 @@ CONTAINS
 
     INTEGER                                  :: atom, excitations, handle, &
                                                 iatom, ikind, ir, na, natom, &
-                                                nkind, nr, nspins, res_etype, &
-                                                stat
+                                                nr, nspins, res_etype, stat
     INTEGER, DIMENSION(2)                    :: local_loop_limit
     INTEGER, DIMENSION(2, 3)                 :: bounds
     INTEGER, DIMENSION(:), POINTER           :: atom_list
@@ -478,11 +495,12 @@ CONTAINS
                                                 drho_s, vxg_h, vxg_s
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
-    TYPE(atomic_kind_type), POINTER          :: atom_kind
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(grid_atom_type), POINTER            :: grid_atom
     TYPE(harmonics_atom_type), POINTER       :: harmonics
     TYPE(qs_energy_type), POINTER            :: energy
+    TYPE(qs_kind_type), DIMENSION(:), &
+      POINTER                                :: qs_kind_set
     TYPE(rho_atom_coeff), DIMENSION(:), &
       POINTER                                :: dr1_h, dr1_s, dr_h, dr_s, &
                                                 r1_h, r1_s, r_h, r_s
@@ -503,7 +521,7 @@ CONTAINS
 
    failure = .FALSE.
 
-   NULLIFY(atomic_kind_set, energy, para_env)
+   NULLIFY(qs_kind_set, energy, para_env)
    NULLIFY(rho_h, rho_s, drho_h, drho_s, weight)
    NULLIFY(rho1_h, rho1_s, drho1_h, drho1_s)
    NULLIFY(vxc_h, vxc_s, vxg_h, vxg_s)
@@ -516,6 +534,7 @@ CONTAINS
                    para_env=para_env,&
                    energy=energy,&
                    input=input,&
+                   qs_kind_set=qs_kind_set,&
                    atomic_kind_set=atomic_kind_set,&
                    rho_atom_set=rho_atom_set,&
                    error=error)
@@ -568,15 +587,12 @@ CONTAINS
        ENDIF
     ENDIF
 
-   nkind = SIZE(atomic_kind_set)
-
 !  Here starts the loop over all the atoms
-   DO ikind = 1,nkind
+   DO ikind = 1, SIZE(atomic_kind_set)
 
-      NULLIFY(atom_kind, atom_list, harmonics, grid_atom)
-      atom_kind => atomic_kind_set(ikind)
-      CALL get_atomic_kind(atomic_kind=atom_kind,atom_list=atom_list,&
-                           natom=natom,paw_atom=paw_atom,&
+      NULLIFY(atom_list, harmonics, grid_atom)
+      CALL get_atomic_kind(atomic_kind_set(ikind),atom_list=atom_list,natom=natom)
+      CALL get_qs_kind(qs_kind_set(ikind),paw_atom=paw_atom,&
                            harmonics=harmonics,grid_atom=grid_atom)
       IF (.NOT.paw_atom) CYCLE
 
@@ -700,13 +716,11 @@ CONTAINS
                                 deriv_set=deriv_set, needs=needs, &
                                 w=weight, exc=exc, vxc=vxc_s, vxg=vxg_s, error=error)
 
-         atom_kind => atomic_kind_set(ikind)
-
          IF(gradient_functional) THEN
-            CALL gaVxcgb_GC(vxc_h,vxc_s,vxg_h,vxg_s,atom_kind,&
+            CALL gaVxcgb_GC(vxc_h,vxc_s,vxg_h,vxg_s,qs_kind_set(ikind),&
                             rho1_atom, drho_h, drho_s, nspins,error=error)
          ELSE
-            CALL gaVxcgb_noGC(vxc_h, vxc_s, atom_kind, &
+            CALL gaVxcgb_noGC(vxc_h, vxc_s, qs_kind_set(ikind), &
                               rho1_atom, nspins,error=error)
          ENDIF
 
@@ -738,6 +752,24 @@ CONTAINS
 
  END SUBROUTINE calculate_xc_2nd_deriv_atom
 
+! *****************************************************************************
+!> \brief ...
+!> \param grid_atom ...
+!> \param harmonics ...
+!> \param nspins ...
+!> \param grad_func ...
+!> \param ir ...
+!> \param r_h ...
+!> \param r_s ...
+!> \param rho_h ...
+!> \param rho_s ...
+!> \param dr_h ...
+!> \param dr_s ...
+!> \param r_h_d ...
+!> \param r_s_d ...
+!> \param drho_h ...
+!> \param drho_s ...
+!> \param error ...
 ! *****************************************************************************
   SUBROUTINE calc_rho_angular(grid_atom, harmonics, nspins, grad_func, &
                               ir, r_h, r_s, rho_h, rho_s, &
@@ -859,6 +891,17 @@ CONTAINS
 
  END SUBROUTINE calc_rho_angular
 ! *****************************************************************************
+!> \brief ...
+!> \param grid_atom ...
+!> \param harmonics ...
+!> \param nspins ...
+!> \param ir ...
+!> \param trho_h ...
+!> \param trho_s ...
+!> \param tau_h ...
+!> \param tau_s ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE calc_tau_angular(grid_atom, harmonics, nspins, ir, &
                               trho_h, trho_s, tau_h, tau_s, error)
 
@@ -914,10 +957,18 @@ CONTAINS
   END SUBROUTINE calc_tau_angular
 
 ! *****************************************************************************
-  SUBROUTINE  gaVxcgb_noGC(vxc_h,vxc_s,atom_kind,rho_atom,nspins,error)
+!> \brief ...
+!> \param vxc_h ...
+!> \param vxc_s ...
+!> \param qs_kind ...
+!> \param rho_atom ...
+!> \param nspins ...
+!> \param error ...
+! *****************************************************************************
+  SUBROUTINE  gaVxcgb_noGC(vxc_h,vxc_s,qs_kind,rho_atom,nspins,error)
 
     REAL(dp), DIMENSION(:, :, :), POINTER    :: vxc_h, vxc_s
-    TYPE(atomic_kind_type), POINTER          :: atom_kind
+    TYPE(qs_kind_type), INTENT(IN)           :: qs_kind
     TYPE(rho_atom_type), POINTER             :: rho_atom
     INTEGER, INTENT(IN)                      :: nspins
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -952,7 +1003,7 @@ CONTAINS
 
     NULLIFY (lmin,lmax,npgf,zet,my_CG,harmonics,grid_atom)
 
-    CALL get_atomic_kind(atomic_kind=atom_kind, orb_basis_set=orb_basis,&
+    CALL get_qs_kind(qs_kind, orb_basis_set=orb_basis,&
                          harmonics=harmonics,&
                          grid_atom=grid_atom)
 
@@ -1102,12 +1153,24 @@ CONTAINS
   END SUBROUTINE gaVxcgb_noGC
 
 ! *****************************************************************************
-  SUBROUTINE  gaVxcgb_GC(vxc_h,vxc_s,vxg_h,vxg_s,atom_kind,rho_atom,drho_h,&
+!> \brief ...
+!> \param vxc_h ...
+!> \param vxc_s ...
+!> \param vxg_h ...
+!> \param vxg_s ...
+!> \param qs_kind ...
+!> \param rho_atom ...
+!> \param drho_h ...
+!> \param drho_s ...
+!> \param nspins ...
+!> \param error ...
+! *****************************************************************************
+  SUBROUTINE  gaVxcgb_GC(vxc_h,vxc_s,vxg_h,vxg_s,qs_kind,rho_atom,drho_h,&
                          drho_s,nspins,error)
 
     REAL(dp), DIMENSION(:, :, :), POINTER    :: vxc_h, vxc_s
     REAL(dp), DIMENSION(:, :, :, :), POINTER :: vxg_h, vxg_s
-    TYPE(atomic_kind_type), POINTER          :: atom_kind
+    TYPE(qs_kind_type), INTENT(IN)           :: qs_kind
     TYPE(rho_atom_type), POINTER             :: rho_atom
     REAL(dp), DIMENSION(:, :, :, :), POINTER :: drho_h, drho_s
     INTEGER, INTENT(IN)                      :: nspins
@@ -1148,7 +1211,7 @@ CONTAINS
 
     NULLIFY(lmin,lmax,npgf,zet,my_CG,my_CG_dxyz,harmonics,grid_atom)
 
-    CALL get_atomic_kind(atomic_kind=atom_kind, orb_basis_set=orb_basis,&
+    CALL get_qs_kind(qs_kind, orb_basis_set=orb_basis,&
                          harmonics=harmonics,&
                          grid_atom=grid_atom)
 
@@ -1388,10 +1451,18 @@ CONTAINS
   END SUBROUTINE gaVxcgb_GC
 
 ! *****************************************************************************
-  SUBROUTINE  dgaVtaudgb(vtau_h,vtau_s,atom_kind,rho_atom,nspins,error)
+!> \brief ...
+!> \param vtau_h ...
+!> \param vtau_s ...
+!> \param qs_kind ...
+!> \param rho_atom ...
+!> \param nspins ...
+!> \param error ...
+! *****************************************************************************
+  SUBROUTINE  dgaVtaudgb(vtau_h,vtau_s,qs_kind,rho_atom,nspins,error)
 
     REAL(dp), DIMENSION(:, :, :), POINTER    :: vtau_h, vtau_s
-    TYPE(atomic_kind_type), POINTER          :: atom_kind
+    TYPE(qs_kind_type), INTENT(IN)           :: qs_kind
     TYPE(rho_atom_type), POINTER             :: rho_atom
     INTEGER, INTENT(IN)                      :: nspins
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -1427,7 +1498,7 @@ CONTAINS
     failure = .FALSE.
 
     NULLIFY(harmonics,grid_atom)
-    CALL get_atomic_kind(atomic_kind=atom_kind,orb_basis_set=orb_basis,&
+    CALL get_qs_kind(qs_kind,orb_basis_set=orb_basis,&
                          harmonics=harmonics,grid_atom=grid_atom)
 
     NULLIFY(lmin,lmax,npgf,zet)
@@ -1540,12 +1611,13 @@ CONTAINS
                        matso_s(iso1,iso2) = matso_s(iso1,iso2) + my_CG(iso1,iso2,iso)*&
                             DOT_PRODUCT(vts(1:nr,ispin),fgr(1:nr,l1,l2))
                        ! d azimuthal
+! Add a warning here
 !deb
-IF(mm1*mm2 /= 0) THEN
-  IF(ABS(indso(2,iso)) .LE. 1) THEN
-     WRITE(*,*) " PROBLEM ::::: ",l1,mm1,l2,mm2,indso(1,iso),indso(2,iso)
-  ENDIF
-ENDIF
+!IF(mm1*mm2 /= 0) THEN
+!  IF(ABS(indso(2,iso)) .LE. 1) THEN
+!     WRITE(*,*) " PROBLEM ::::: ",l1,mm1,l2,mm2,indso(1,iso),indso(2,iso)
+!  ENDIF
+!ENDIF
 !deb
                        matso_h(iso1,iso2) = matso_h(iso1,iso2) + REAL(mm1*mm2,dp)*my_CG(iso1,iso2,iso)*&
                             DOT_PRODUCT(dvth(1:nr,ispin),dgr(1:nr,l1+l2))

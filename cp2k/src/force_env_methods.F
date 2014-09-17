@@ -17,7 +17,7 @@ MODULE force_env_methods
   USE atprop_types,                    ONLY: atprop_create,&
                                              atprop_init,&
                                              atprop_type
-  USE cell_types,                      ONLY: cell_clone,&
+  USE cell_methods,                    ONLY: cell_clone,&
                                              cell_create,&
                                              cell_release,&
                                              cell_type,&
@@ -49,17 +49,16 @@ MODULE force_env_methods
                                              cp_subsys_p_type,&
                                              cp_subsys_retain,&
                                              cp_subsys_type
-  USE cpot_types,                      ONLY: cpot_calc
   USE eip_environment_types,           ONLY: eip_env_get,&
                                              eip_env_retain,&
                                              eip_environment_type
   USE eip_silicon,                     ONLY: eip_bazant,&
                                              eip_lenosky
-  USE ep_types,                        ONLY: ep_env_calc_e_f,&
-                                             ep_env_create,&
-                                             ep_env_release,&
-                                             ep_env_retain,&
-                                             ep_env_type
+  USE ep_f77,                          ONLY: ep_f77_calc_e_f,&
+                                             ep_f77_create,&
+                                             ep_f77_get_main_qs_env,&
+                                             ep_f77_release,&
+                                             ep_f77_retain
   USE external_potential_methods,      ONLY: add_external_potential
   USE f77_blas
   USE fist_environment_types,          ONLY: fist_env_get,&
@@ -67,10 +66,9 @@ MODULE force_env_methods
                                              fist_environment_type
   USE fist_force,                      ONLY: fist_force_control
   USE force_env_types,                 ONLY: &
-       force_env_get, force_env_get_natom, force_env_get_pos, &
-       force_env_p_type, force_env_set, force_env_set_cell, force_env_type, &
-       use_eip_force, use_ep_force, use_fist_force, use_mixed_force, &
-       use_prog_name, use_qmmm, use_qs_force
+       force_env_get, force_env_get_natom, force_env_p_type, force_env_set, &
+       force_env_set_cell, force_env_type, use_eip_force, use_ep_force, &
+       use_fist_force, use_mixed_force, use_prog_name, use_qmmm, use_qs_force
   USE force_env_utils,                 ONLY: rescale_forces,&
                                              write_forces,&
                                              write_stress_tensor
@@ -92,7 +90,8 @@ MODULE force_env_methods
        do_stress_diagonal_numer, do_stress_none, do_stress_numerical, &
        low_print_level, mix_coupled, mix_generic, mix_linear_combination, &
        mix_minimum, mix_restrained, use_bazant_eip, use_lenosky_eip
-  USE input_section_types,             ONLY: section_vals_get_subs_vals,&
+  USE input_section_types,             ONLY: section_type,&
+                                             section_vals_get_subs_vals,&
                                              section_vals_retain,&
                                              section_vals_type,&
                                              section_vals_val_get,&
@@ -170,6 +169,12 @@ CONTAINS
 !> \param consistent_energies Performs an additional qs_ks_update_qs_env, so
 !>          that the energies are appropriate to the forces, they are in the
 !>          non-selfconsistent case not consistent to each other! [08.2005, TdK]
+!> \param skip_external_control ...
+!> \param eval_energy_forces ...
+!> \param require_consistent_energy_force ...
+!> \param linres ...
+!> \param calc_stress_tensor ...
+!> \param error ...
 !> \author CJM & fawzi
 ! *****************************************************************************
   RECURSIVE SUBROUTINE force_env_calc_energy_force ( force_env, calc_force, &
@@ -187,8 +192,7 @@ CONTAINS
     REAL(kind=dp), PARAMETER                 :: ateps = 1.0E-6_dp
 
     INTEGER                                  :: i, j, nat, ndigits, &
-                                                output_unit, print_forces, &
-                                                stat
+                                                output_unit, print_forces
     LOGICAL :: calculate_forces, calculate_stress_tensor, energy_consistency, &
       eval_ef, failure, linres_run, my_skip
     REAL(KIND=dp)                            :: checksum, e_pot, sum_energy, &
@@ -197,7 +201,6 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(3)              :: grand_total_force, total_force
     REAL(KIND=dp), DIMENSION(3, 3)           :: atomic_stress_tensor, &
                                                 diff_stress_tensor
-    REAL(KIND=dp), DIMENSION(:), POINTER     :: pos
     TYPE(atprop_type), POINTER               :: atprop_env
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_logger_type), POINTER            :: logger
@@ -248,7 +251,7 @@ CONTAINS
                   force_env_section=force_env%force_env_section, error=error)
              CALL fist_env_get(fist_env=force_env%fist_env,results=results,error=error)
           CASE (use_ep_force)
-             CALL ep_env_calc_e_f(force_env%ep_env,calculate_forces,error=error)
+             CALL ep_f77_calc_e_f(force_env%ep_env_id,calculate_forces,error)
           CASE ( use_qs_force )
              CALL set_qs_env(qs_env=force_env%qs_env,atprop=atprop_env,error=error)
              force_env%qs_env%linres_run = linres_run
@@ -314,16 +317,6 @@ CONTAINS
           CALL add_external_potential(force_env, error=error)
           ! Rescale forces if requested
           CALL rescale_forces(force_env, error=error)
-       END IF
-       IF (ASSOCIATED(force_env%cpot_env)) THEN
-          CALL force_env_get(force_env, potential_energy=e_pot, error=error)
-          nat=force_env_get_natom(force_env,error=error)
-          ALLOCATE(pos(3*nat),stat=stat)
-          CPPostcondition(stat==0,cp_fatal_level,routineP,error,failure)
-          CALL force_env_get_pos(force_env, pos, 3*nat, error=error)
-          DEALLOCATE(pos,stat=stat)
-          CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
-          CALL cpot_calc(force_env%cpot_env, e_pot,pos,error)
        END IF
 
        ! Print always Energy in the same format for all methods
@@ -478,6 +471,9 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Evaluates the stress tensor and pressure numerically
+!> \param force_env ...
+!> \param dx ...
+!> \param error ...
 !> \par History
 !>      10.2005 created [JCS]
 !>      05.2009 Teodoro Laino [tlaino] - rewriting for general force_env
@@ -680,8 +676,19 @@ CONTAINS
 ! *****************************************************************************
 !> \brief creates and initializes a force environment
 !> \param force_env the force env to create
+!> \param root_section ...
+!> \param para_env ...
+!> \param globenv ...
 !> \param fist_env , qs_env: exactly one of these should be
 !>        associated, the one that is active
+!> \param qs_env ...
+!> \param meta_env ...
+!> \param sub_force_env ...
+!> \param qmmm_env ...
+!> \param eip_env ...
+!> \param ep_env_id ...
+!> \param force_env_section ...
+!> \param mixed_env ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 !> \par History
@@ -689,7 +696,7 @@ CONTAINS
 !> \author fawzi
 ! *****************************************************************************
   SUBROUTINE force_env_create(force_env,root_section,para_env,globenv,fist_env,&
-       qs_env,meta_env,sub_force_env,qmmm_env,eip_env,ep_env,force_env_section,&
+       qs_env,meta_env,sub_force_env,qmmm_env,eip_env,ep_env_id,force_env_section,&
        mixed_env,error)
 
     TYPE(force_env_type), POINTER            :: force_env
@@ -707,7 +714,7 @@ CONTAINS
       POINTER                                :: qmmm_env
     TYPE(eip_environment_type), OPTIONAL, &
       POINTER                                :: eip_env
-    TYPE(ep_env_type), OPTIONAL, POINTER     :: ep_env
+    INTEGER, OPTIONAL, POINTER               :: ep_env_id
     TYPE(section_vals_type), POINTER         :: force_env_section
     TYPE(mixed_environment_type), OPTIONAL, &
       POINTER                                :: mixed_env
@@ -721,6 +728,9 @@ CONTAINS
                                                 failure, pv_availability, &
                                                 pv_diagonal, pv_numerical
     TYPE(cp_subsys_type), POINTER            :: subsys
+    TYPE(qs_environment_type), POINTER       :: ep_main_qs_env
+
+    NULLIFY(ep_main_qs_env)
 
     failure=.FALSE.
 
@@ -731,9 +741,9 @@ CONTAINS
             force_env%qs_env,   &
             force_env%para_env, force_env%globenv, &
             force_env%meta_env, force_env%sub_force_env, &
-            force_env%qmmm_env, force_env%ep_env, force_env%fp_env, &
+            force_env%qmmm_env, force_env%ep_env_id, force_env%fp_env, &
             force_env%force_env_section, force_env%eip_env,force_env%mixed_env,&
-            force_env%root_section, force_env%cpot_env, force_env%atprop_env, force_env%results)
+            force_env%root_section, force_env%atprop_env, force_env%results)
        last_force_env_id=last_force_env_id+1
        force_env%id_nr=last_force_env_id
        force_env%ref_count=1
@@ -855,12 +865,12 @@ CONTAINS
                             pv_numer=pv_numerical,&
                             pv_diagonal=pv_diagonal)
        END IF
-       IF (PRESENT(ep_env)) THEN
-          IF (ASSOCIATED(ep_env)) THEN
+       IF (PRESENT(ep_env_id)) THEN
+          IF (ASSOCIATED(ep_env_id)) THEN
              CPPrecondition(force_env%in_use==0,cp_failure_level,routineP,error,failure)
              force_env%in_use=use_ep_force
-             force_env%ep_env => ep_env
-             CALL ep_env_retain(ep_env,error=error)
+             force_env%ep_env_id => ep_env_id
+             CALL ep_f77_retain(ep_env_id,error=error)
              ! Virial not present for EP
              CALL virial_create ( force_env%virial, error=error)
           END IF
@@ -886,8 +896,10 @@ CONTAINS
           CALL get_qs_env(force_env%qs_env, subsys=force_env%subsys,error=error)
           CALL cp_subsys_retain(force_env%subsys,error=error)
        CASE(use_ep_force)
-          CALL get_qs_env(force_env%ep_env%main_qs_env,subsys=force_env%subsys,error=error)
+          CALL ep_f77_get_main_qs_env(force_env%ep_env_id, ep_main_qs_env)
+          CALL get_qs_env(ep_main_qs_env,subsys=force_env%subsys,error=error)
           CALL cp_subsys_retain(force_env%subsys,error=error)
+          NULLIFY(ep_main_qs_env)
        CASE(use_eip_force)
           CALL eip_env_get(force_env%eip_env,subsys=force_env%subsys,error=error)
           CALL cp_subsys_retain(force_env%subsys, error=error)
@@ -909,16 +921,21 @@ CONTAINS
 ! *****************************************************************************
 !> \brief creates a force environment that does an ep calculation
 !> \param force_env the force environment to be created
+!> \param root_section ...
+!> \param input_declaration ...
+!> \param para_env ...
 !> \param globenv the global environment with input,...
+!> \param force_env_section ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 !> \author fawzi
 ! *****************************************************************************
-  SUBROUTINE ep_create_force_env(force_env, root_section, para_env, globenv,&
+  SUBROUTINE ep_create_force_env(force_env, root_section, input_declaration, para_env, globenv,&
      force_env_section, error)
 
     TYPE(force_env_type), POINTER            :: force_env
     TYPE(section_vals_type), POINTER         :: root_section
+    TYPE(section_type), POINTER              :: input_declaration
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(global_environment_type), POINTER   :: globenv
     TYPE(section_vals_type), POINTER         :: force_env_section
@@ -927,24 +944,27 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'ep_create_force_env', &
       routineP = moduleN//':'//routineN
 
+    INTEGER, POINTER                         :: ep_env_id
     LOGICAL                                  :: failure
-    TYPE(ep_env_type), POINTER               :: ep_env
 
     failure=.FALSE.
 
     IF (.NOT. failure) THEN
-       NULLIFY(ep_env)
-       CALL ep_env_create(ep_env, root_section, para_env, globenv=globenv,&
+       NULLIFY(ep_env_id)
+       CALL ep_f77_create(ep_env_id, root_section, input_declaration, para_env, globenv=globenv,&
             error=error)
-       CALL force_env_create(force_env,root_section,para_env,globenv=globenv,ep_env=ep_env,&
+       CALL force_env_create(force_env,root_section,para_env,globenv=globenv,ep_env_id=ep_env_id,&
             force_env_section = force_env_section, error=error)
-       CALL ep_env_release(ep_env,error=error)
+       CALL ep_f77_release(ep_env_id,error=error)
     END IF
   END SUBROUTINE ep_create_force_env
 
 ! *****************************************************************************
 !> \brief calculates the qm/mm energy and forces
+!> \param force_env ...
 !> \param calc_force if also the forces should be calculated
+!> \param require_consistent_energy_force ...
+!> \param linres ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 !> \par History
@@ -1139,7 +1159,9 @@ CPSourceFileRef,&
 
 ! *****************************************************************************
 !> \brief calculates the qm/mm energy and forces
+!> \param force_env ...
 !> \param calc_force if also the forces should be calculated
+!> \param linres ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 !> \par History
@@ -1338,6 +1360,9 @@ CPSourceFileRef,&
 !> \brief ****f* force_env_methods/mixed_energy_forces  [1.0]
 !>
 !>     Computes energy and forces for a mixed force_env type
+!> \param force_env ...
+!> \param calculate_forces ...
+!> \param error ...
 !> \par History
 !>       11.06  created [fschiff]
 !>       04.07  generalization to an illimited number of force_eval [tlaino]

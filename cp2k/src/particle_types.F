@@ -19,7 +19,7 @@ MODULE particle_types
                                              get_atomic_kind
   USE basis_set_types,                 ONLY: get_gto_basis_set,&
                                              gto_basis_set_p_type
-  USE cell_types,                      ONLY: cell_clone,&
+  USE cell_methods,                    ONLY: cell_clone,&
                                              cell_create,&
                                              cell_release,&
                                              cell_type,&
@@ -53,6 +53,8 @@ MODULE particle_types
   USE message_passing,                 ONLY: mp_sum
   USE physcon,                         ONLY: massunit
   USE qmmm_ff_fist,                    ONLY: qmmm_ff_precond_only_qm
+  USE qs_kind_types,                   ONLY: get_qs_kind,&
+                                             qs_kind_type
   USE shell_potential_types,           ONLY: get_shell,&
                                              shell_kind_type
   USE string_utilities,                ONLY: uppercase
@@ -107,8 +109,11 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief   Allocate a particle set.
-!> \author  MK
+!> \param particle_set ...
+!> \param nparticle ...
+!> \param error ...
 !> \date    14.01.2002
+!> \author  MK
 !> \version 1.0
 ! *****************************************************************************
   SUBROUTINE allocate_particle_set(particle_set,nparticle,error)
@@ -144,8 +149,10 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief   Deallocate a particle set.
-!> \author  MK
+!> \param particle_set ...
+!> \param error ...
 !> \date    14.01.2002
+!> \author  MK
 !> \version 1.0
 ! *****************************************************************************
   SUBROUTINE deallocate_particle_set(particle_set,error)
@@ -173,18 +180,28 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief   Get the components of a particle set.
-!> \author  MK
+!> \param particle_set ...
+!> \param qs_kind_set ...
+!> \param first_sgf ...
+!> \param last_sgf ...
+!> \param nsgf ...
+!> \param basis_set_id ...
+!> \param basis ...
+!> \param error ...
 !> \date    14.01.2002
 !> \par History
 !>      - particle type cleaned (13.10.2003,MK)
 !>      - refactoring and add besis set option (17.08.2010,jhu)
+!> \author  MK
 !> \version 1.0
 ! *****************************************************************************
-  SUBROUTINE get_particle_set(particle_set,first_sgf,last_sgf,nsgf,&
+  SUBROUTINE get_particle_set(particle_set,qs_kind_set,first_sgf,last_sgf,nsgf,&
                               basis_set_id,basis,error)
 
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
+    TYPE(qs_kind_type), DIMENSION(:), &
+      POINTER                                :: qs_kind_set
     INTEGER, DIMENSION(:), INTENT(INOUT), &
       OPTIONAL                               :: first_sgf, last_sgf, nsgf
     INTEGER, INTENT(IN), OPTIONAL            :: basis_set_id
@@ -216,14 +233,13 @@ CONTAINS
     IF (PRESENT(first_sgf).OR.PRESENT(last_sgf).OR.PRESENT(nsgf)) THEN
       isgf = 0
       DO iparticle=1,nparticle
+        CALL get_atomic_kind(particle_set(iparticle)%atomic_kind, kind_number=ikind)
         IF (PRESENT(basis)) THEN
-          CALL get_atomic_kind(atomic_kind=particle_set(iparticle)%atomic_kind,kind_number=ikind)
           CALL get_gto_basis_set(gto_basis_set=basis(ikind)%gto_basis_set,nsgf=ns)
         ELSEIF (PRESENT(basis_set_id)) THEN
-          CALL get_atomic_kind(atomic_kind=particle_set(iparticle)%atomic_kind,nsgf=ns,&
-                             basis_set_id=basis_set_id)
+          CALL get_qs_kind(qs_kind_set(ikind), nsgf=ns, basis_set_id=basis_set_id)
         ELSE
-          CALL get_atomic_kind(atomic_kind=particle_set(iparticle)%atomic_kind,nsgf=ns)
+          CALL get_qs_kind(qs_kind_set(ikind), nsgf=ns)
         END IF
         IF (PRESENT(nsgf)) nsgf(iparticle) = ns
         IF (PRESENT(first_sgf)) first_sgf(iparticle) = isgf + 1
@@ -244,8 +260,20 @@ CONTAINS
 !>          FORMAT   CONTENT                                    UNITS x, v, f
 !>          XMOL     POS, VEL, FORCE, POS_VEL, POS_VEL_FORCE    Angstrom, a.u., a.u.
 !>
-!> \author  MK
+!> \param particle_set ...
+!> \param iunit ...
+!> \param output_format ...
+!> \param content ...
+!> \param title ...
+!> \param cell ...
+!> \param array ...
+!> \param unit_conv ...
+!> \param charge_occup ...
+!> \param charge_beta ...
+!> \param charge_extended ...
+!> \param error ...
 !> \date    14.01.2002
+!> \author  MK
 !> \version 1.0
 ! *****************************************************************************
   SUBROUTINE write_particle_coordinates(particle_set,iunit,output_format,&
@@ -565,8 +593,12 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief   Write the atomic coordinates to the output unit.
-!> \author  MK
+!> \param particle_set ...
+!> \param subsys_section ...
+!> \param charges ...
+!> \param error ...
 !> \date    05.06.2000
+!> \author  MK
 !> \version 1.0
 ! *****************************************************************************
   SUBROUTINE write_fist_particle_coordinates(particle_set,subsys_section,&
@@ -623,14 +655,21 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief   Write the atomic coordinates to the output unit.
-!> \author  MK
+!> \param particle_set ...
+!> \param qs_kind_set ...
+!> \param subsys_section ...
+!> \param label ...
+!> \param error ...
 !> \date    05.06.2000
+!> \author  MK
 !> \version 1.0
 ! *****************************************************************************
-  SUBROUTINE write_qs_particle_coordinates(particle_set,subsys_section,label,error)
+  SUBROUTINE write_qs_particle_coordinates(particle_set,qs_kind_set,subsys_section,label,error)
 
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
+    TYPE(qs_kind_type), DIMENSION(:), &
+      POINTER                                :: qs_kind_set
     TYPE(section_vals_type), POINTER         :: subsys_section
     CHARACTER(LEN=*), INTENT(IN)             :: label
     TYPE(cp_error_type), INTENT(INOUT)       :: error
@@ -668,8 +707,8 @@ CONTAINS
                              kind_number=ikind,&
                              element_symbol=element_symbol,&
                              mass=mass,&
-                             z=z,&
-                             zeff=zeff)
+                             z=z)
+        CALL get_qs_kind(qs_kind_set(ikind), zeff=zeff)
         WRITE (UNIT=iw,&
                FMT="(T2,I7,1X,I5,1X,A2,1X,I3,3F12.6,4X,F6.2,2X,F11.4)")&
           iatom,ikind,element_symbol,z,&
@@ -687,8 +726,12 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief   Write the matrix of the particle distances to the output unit.
-!> \author  Matthias Krack
+!> \param particle_set ...
+!> \param cell ...
+!> \param subsys_section ...
+!> \param error ...
 !> \date    06.10.2000
+!> \author  Matthias Krack
 !> \version 1.0
 ! *****************************************************************************
   SUBROUTINE write_particle_distances(particle_set,cell,subsys_section,error)
@@ -754,6 +797,14 @@ CONTAINS
   END SUBROUTINE write_particle_distances
 
 ! *****************************************************************************
+!> \brief ...
+!> \param matrix ...
+!> \param particle_set ...
+!> \param iw ...
+!> \param el_per_part ...
+!> \param Ilist ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE write_particle_matrix(matrix,particle_set,iw,el_per_part,Ilist,error)
     REAL(KIND=dp), DIMENSION(:, :)           :: matrix
     TYPE(particle_type), DIMENSION(:), &
@@ -810,11 +861,15 @@ CONTAINS
 !>          section to the output unit.
 !>          input_section can be either motion_section or subsys_section.
 !>
-!> \author  MK
+!> \param particle_set ...
+!> \param cell ...
+!> \param input_section ...
+!> \param error ...
 !> \date    11.03.04
-!> \version 1.0
 !> \par History
 !>          Recovered (23.03.06,MK)
+!> \author  MK
+!> \version 1.0
 ! *****************************************************************************
   SUBROUTINE write_structure_data(particle_set,cell,input_section,error)
     TYPE(particle_type), DIMENSION(:), &
@@ -1067,6 +1122,15 @@ CONTAINS
   END SUBROUTINE write_structure_data
 
 ! *****************************************************************************
+!> \brief ...
+!> \param particle_set ...
+!> \param int_group ...
+!> \param pos ...
+!> \param vel ...
+!> \param for ...
+!> \param add ...
+!> \param error ...
+! *****************************************************************************
   SUBROUTINE update_particle_set ( particle_set, int_group,  pos, vel, for, add, error )
 
     TYPE(particle_type), POINTER             :: particle_set( : )
@@ -1137,8 +1201,12 @@ CONTAINS
 ! *****************************************************************************
 !> \brief   Return the atomic position or velocity of atom iatom in x from a
 !>          packed vector even if core-shell particles are present
-!> \author  Matthias Krack
+!> \param iatom ...
+!> \param particle_set ...
+!> \param vector ...
+!> \retval x ...
 !> \date    25.11.2010
+!> \author  Matthias Krack
 !> \version 1.0
 ! *****************************************************************************
   FUNCTION get_particle_pos_or_vel(iatom,particle_set,vector) RESULT(x)
@@ -1169,8 +1237,12 @@ CONTAINS
 !> \brief   Update the atomic position or velocity by x and return the updated
 !>          atomic position or velocity in x even if core-shell particles are
 !>          present
-!> \author  Matthias Krack
+!> \param iatom ...
+!> \param particle_set ...
+!> \param x ...
+!> \param vector ...
 !> \date    26.11.2010
+!> \author  Matthias Krack
 !> \version 1.0
 !> \note    particle-set is not changed, only the positions or velocities in
 !>          the packed vector are updated

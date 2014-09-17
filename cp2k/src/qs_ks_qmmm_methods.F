@@ -12,6 +12,7 @@ MODULE qs_ks_qmmm_methods
                                              cp_print_key_unit_nr
   USE cube_utils,                      ONLY: cube_info_type,&
                                              init_cube_info
+  USE d3_poly,                         ONLY: init_d3_poly_module
   USE f77_blas
   USE input_constants,                 ONLY: do_qmmm_gauss,&
                                              do_qmmm_swave
@@ -43,13 +44,15 @@ MODULE qs_ks_qmmm_methods
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_ks_qmmm_methods'
   INTEGER, SAVE, PRIVATE :: last_ks_qmmm_nr=0
 
-  PUBLIC :: ks_qmmm_env_rebuild, qs_ks_qmmm_create,qmmm_calculate_energy,&
+  PUBLIC :: ks_qmmm_env_rebuild, qmmm_calculate_energy,&
             qmmm_modify_hartree_pot
 
 CONTAINS
 
 ! *****************************************************************************
 !> \brief Initialize the ks_qmmm_env
+!> \param qs_env ...
+!> \param qmmm_env ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 !> \par History
@@ -81,6 +84,7 @@ CONTAINS
 !> \brief allocates and initializes the given ks_qmmm_env.
 !> \param ks_qmmm_env the ks_qmmm env to be initialized
 !> \param qs_env the qs environment
+!> \param qmmm_env ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 !> \par History
@@ -129,6 +133,7 @@ CONTAINS
             use_data=REALDATA3D, in_space=REALSPACE,error=error)
 
        IF ((qmmm_env%qmmm_coupl_type==do_qmmm_gauss).OR.(qmmm_env%qmmm_coupl_type==do_qmmm_swave)) THEN
+          CALL init_d3_poly_module() ! a fairly arbitrary but sufficient spot to do this
           CALL pw_env_get(ks_qmmm_env%pw_env,pw_pools=pools,error=error)
           ALLOCATE(cube_info(SIZE(pools)), stat=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -153,6 +158,11 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Computes the contribution to the total energy of the QM/MM
 !>      electrostatic coupling
+!> \param qs_env ...
+!> \param rho ...
+!> \param v_qmmm ...
+!> \param qmmm_energy ...
+!> \param error ...
 !> \par History
 !>      05.2004 created [tlaino]
 !> \author Teodoro Laino
@@ -211,6 +221,10 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Modify the hartree potential in order to include the QM/MM correction
+!> \param v_hartree ...
+!> \param v_qmmm ...
+!> \param scale ...
+!> \param error ...
 !> \par History
 !>      05.2004 created [tlaino]
 !> \author Teodoro Laino

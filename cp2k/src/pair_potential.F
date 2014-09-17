@@ -28,7 +28,8 @@ MODULE pair_potential
        b4_type, bm_type, compare_pot, ea_type, ft_type, ftd_type, gp_type, &
        gw_type, ip_type, list_pot, lj_charmm_type, lj_type, multi_type, &
        nn_type, pair_potential_pp_type, pair_potential_single_type, &
-       potential_single_allocation, siepmann_type, tersoff_type, wl_type
+       potential_single_allocation, quip_type, siepmann_type, tersoff_type, &
+       wl_type
   USE pair_potential_util,             ONLY: ener_pot,&
                                              ener_zbl,&
                                              zbl_matching_polinomial
@@ -66,6 +67,8 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Initialize genpot
+!> \param potparm ...
+!> \param ntype ...
 !> \par History
 !>      Teo 2007.06 - Zurich University
 ! *****************************************************************************
@@ -111,6 +114,21 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief creates the splines for the potentials
+!> \param spline_env ...
+!> \param potparm ...
+!> \param atomic_kind_set ...
+!> \param eps_spline ...
+!> \param max_energy ...
+!> \param rlow_nb ...
+!> \param emax_spline ...
+!> \param npoints ...
+!> \param iw ...
+!> \param iw2 ...
+!> \param iw3 ...
+!> \param do_zbl ...
+!> \param shift_cutoff ...
+!> \param nonbonded_type ...
+!> \param error ...
 !> \par History
 !>      Teo 2006.05 : Improved speed and accuracy. Linear scaling of the setup
 ! *****************************************************************************
@@ -168,7 +186,7 @@ CONTAINS
           DO k = 1, SIZE(pot%type)
              SELECT CASE(pot%type(k))
              CASE (lj_type,lj_charmm_type,wl_type,gw_type,ft_type, ftd_type, ip_type,&
-                   b4_type,bm_type,gp_type,ea_type)
+                   b4_type,bm_type,gp_type,ea_type,quip_type)
                 pot%no_pp = .FALSE.
              CASE (tersoff_type)
                 pot%no_mb = .FALSE.
@@ -182,7 +200,7 @@ CONTAINS
              END SELECT
              ! Special case for EAM
              SELECT CASE(pot%type(k))
-             CASE (ea_type)
+             CASE (ea_type,quip_type)
                 pot%no_mb = .FALSE.
              END SELECT
           END DO
@@ -248,6 +266,13 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Finds the cutoff for the generation of the spline
 !>      In a two pass approach, first with low resolution, refine in a second iteration
+!> \param hicut ...
+!> \param locut ...
+!> \param found_locut ...
+!> \param pot ...
+!> \param do_zbl ...
+!> \param energy_cutoff ...
+!> \param emax_spline ...
 !> \par History
 !>      Splitting in order to make some season cleaning..
 !> \author Teodoro Laino [tlaino] 2007.06
@@ -295,6 +320,25 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Real Generation of spline..
+!> \param spl_p ...
+!> \param npoints ...
+!> \param locut ...
+!> \param hicut ...
+!> \param eps_spline ...
+!> \param iw ...
+!> \param iw2 ...
+!> \param i ...
+!> \param j ...
+!> \param n ...
+!> \param ncount ...
+!> \param max_energy ...
+!> \param pot ...
+!> \param energy_cutoff ...
+!> \param found_locut ...
+!> \param do_zbl ...
+!> \param atomic_kind_set ...
+!> \param nonbonded_type ...
+!> \param error ...
 !> \par History
 !>      Splitting in order to make some season cleaning..
 !> \author Teodoro Laino [tlaino] 2007.06
@@ -509,6 +553,12 @@ CPSourceFileRef,&
 
 ! *****************************************************************************
 !> \brief Prescreening of the effective bonds evaluations. linear scaling algorithm
+!> \param spline_env ...
+!> \param potparm ...
+!> \param atomic_kind_set ...
+!> \param do_zbl ...
+!> \param shift_cutoff ...
+!> \param error ...
 !> \author Teodoro Laino [tlaino] 2006.05
 ! *****************************************************************************
   SUBROUTINE get_nonbond_storage(spline_env, potparm, atomic_kind_set, do_zbl, &
@@ -570,6 +620,8 @@ CPSourceFileRef,&
           nvar = 5 + nvar
        CASE (ea_type)
           nvar = 4 + nvar
+       CASE (quip_type)
+          nvar = 1 + nvar
        CASE (ft_type)
           nvar = 4 + nvar
        CASE (ftd_type)
@@ -641,6 +693,11 @@ CPSourceFileRef,&
                       pot_par(nk,2)  = potparm%pot(i,j)%pot%set(1)%eam%drhoar
                       pot_par(nk,3)  = potparm%pot(i,j)%pot%set(1)%eam%acutal
                       pot_par(nk,4)  = potparm%pot(i,j)%pot%set(1)%eam%npoints
+                   CASE (quip_type)
+                      pot_par(nk,1)  = str2id(&
+                                        TRIM(potparm%pot(i,j)%pot%set(1)%quip%quip_file_name)// &
+                                        TRIM(potparm%pot(i,j)%pot%set(1)%quip%init_args)//&
+                                        TRIM(potparm%pot(i,j)%pot%set(1)%quip%calc_args))
                    CASE (ft_type)
                       pot_par(nk,1)  = potparm%pot(i,j)%pot%set(1)%ft%A
                       pot_par(nk,2)  = potparm%pot(i,j)%pot%set(1)%ft%B
@@ -717,12 +774,12 @@ CPSourceFileRef,&
           CALL sort(pot_par(:,1),ndim,Iwork1)
           ! Sort all the other components of the potential
           DO k = 2, nvar
-             Rwork = pot_par(:,k)
+             Rwork(:) = pot_par(:,k)
              DO i = 1, ndim
                 pot_par(i,k)=Rwork(Iwork1(i))
              END DO
           END DO
-          Iwork2  = my_index
+          Iwork2(:) = my_index
           DO i = 1, ndim
              my_index(i) = Iwork2(Iwork1(i))
           END DO
@@ -754,12 +811,12 @@ CPSourceFileRef,&
              IF (.NOT.at_least_one) EXIT
              ! Sort other components
              DO j = k+1, nvar
-                Rwork = pot_par(:,j)
+                Rwork(:) = pot_par(:,j)
                 DO i = 1, ndim
                    pot_par(i,j)=Rwork(Iwork1(i))
                 END DO
              END DO
-             Iwork2  = my_index
+             Iwork2(:) = my_index
              DO i = 1, ndim
                 my_index(i) = Iwork2(Iwork1(i))
              END DO
@@ -777,7 +834,7 @@ CPSourceFileRef,&
           !
           ALLOCATE(Cwork(nvar),stat=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-          Cwork = pot_par(1,:)
+          Cwork(:) = pot_par(1,:)
           locij = my_index(1)
           CALL get_indexes(locij,ntype,tmpij0)
           istart = 1
@@ -786,6 +843,7 @@ CPSourceFileRef,&
              locij = my_index(j)
              CALL get_indexes(locij,ntype,tmpij)
              SELECT CASE(pot_target)
+             !NB should do something about QUIP here?
              CASE(ea_type,ip_type)
                 ! check the array components
                 CALL compare_pot(potparm%pot(tmpij(1) ,tmpij(2) )%pot,&
@@ -813,7 +871,7 @@ CPSourceFileRef,&
                 check = .TRUE.
              END SELECT
              IF (ALL(Cwork==pot_par(j,:)).AND.check) CYCLE
-             Cwork = pot_par(j,:)
+             Cwork(:) = pot_par(j,:)
              nunique = nunique + 1
              iend    = j - 1
              CALL set_potparm_index(potparm, my_index(istart:iend), pot_target, &
@@ -876,6 +934,15 @@ CPSourceFileRef,&
 ! *****************************************************************************
 !> \brief Trivial for non LJ potential.. gives back in the case of LJ
 !>      the potparm with the smallest sigma..
+!> \param potparm ...
+!> \param my_index ...
+!> \param pot_target ...
+!> \param ntype ...
+!> \param tmpij_out ...
+!> \param atomic_kind_set ...
+!> \param shift_cutoff ...
+!> \param do_zbl ...
+!> \param error ...
 !> \author Teodoro Laino [tlaino] 2007.06
 ! *****************************************************************************
   SUBROUTINE set_potparm_index(potparm, my_index, pot_target, ntype, tmpij_out,&
@@ -1021,6 +1088,9 @@ CPSourceFileRef,&
 
 ! *****************************************************************************
 !> \brief Gives back the indices of the matrix w.r.t. the collective array index
+!> \param Inind ...
+!> \param ndim ...
+!> \param ij ...
 !> \author Teodoro Laino [tlaino] 2006.05
 ! *****************************************************************************
   SUBROUTINE get_indexes(Inind, ndim, ij)

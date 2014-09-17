@@ -13,11 +13,11 @@ MODULE hfx_communication
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind_set
   USE cp_dbcsr_interface,              ONLY: cp_dbcsr_get_block_p,&
+                                             cp_dbcsr_iterator,&
                                              cp_dbcsr_iterator_blocks_left,&
                                              cp_dbcsr_iterator_next_block,&
                                              cp_dbcsr_iterator_start,&
-                                             cp_dbcsr_iterator_stop
-  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_iterator,&
+                                             cp_dbcsr_iterator_stop,&
                                              cp_dbcsr_p_type,&
                                              cp_dbcsr_type
   USE cp_para_types,                   ONLY: cp_para_env_type
@@ -27,13 +27,11 @@ MODULE hfx_communication
                                              hfx_type
   USE kinds,                           ONLY: dp,&
                                              int_8
-  USE mathconstants
   USE message_passing,                 ONLY: mp_allgather,&
                                              mp_isendrecv,&
                                              mp_max,&
                                              mp_sync,&
                                              mp_waitall
-  USE orbital_pointers
   USE particle_types,                  ONLY: particle_type
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
@@ -44,7 +42,7 @@ MODULE hfx_communication
   IMPLICIT NONE
   PRIVATE
 
-  PUBLIC get_full_density,&
+  PUBLIC :: get_full_density,&
          distribute_ks_matrix,&
          scale_and_add_fock_to_ks_matrix,&
          get_atomic_block_maps
@@ -56,24 +54,27 @@ MODULE hfx_communication
 
 ! *****************************************************************************
 !> \brief - Collects full density matrix from all CPUs
-!> \param para_en v
+!> \param para_env ...
 !> \param full_density The full Density matrix
 !> \param rho Distributed density
 !> \param number_of_p_entries Maximal buffer size
-!> \param is_assoc_atomic_block tells us which node owns which atomic pairs
-!> \param particle_se t
-!> \param nato m
-!> \param last_sgf_global helper array for mapping local to global indices
+!> \param block_offset ...
+!> \param natom ...
+!> \param kind_of ...
+!> \param basis_parameter ...
+!> \param get_max_vals_spin ...
+!> \param rho_beta ...
+!> \param antisymmetric ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
+!> \par History
+!>      11.2007 created [Manuel Guidon]
+!> \author Manuel Guidon
 !> \note
 !>      - Communication with left/right node only
 !>        added a mp_sync before and after the ring of isendrecv. This *speed up* the
 !>        communication, and might protect against idle neighbors flooding a busy node
 !>        with messages [Joost]
-!> \par History
-!>      11.2007 created [Manuel Guidon]
-!> \author Manuel Guidon
 ! *****************************************************************************
   SUBROUTINE get_full_density(para_env, full_density, rho, number_of_p_entries, &
                               block_offset, natom,  kind_of, basis_parameter,&
@@ -198,21 +199,23 @@ MODULE hfx_communication
 
 ! *****************************************************************************
 !> \brief - Distributes the local full Kohn-Sham matrix to all CPUS
-!> \param para_en v
+!> \param para_env ...
 !> \param full_ks The full Kohn-Sham matrix
 !> \param ks_matrix Distributed Kohn-Sham matrix
 !> \param number_of_p_entries Maximal buffer size
-!> \param is_assoc_atomic_block tells us which node owns which atomic pairs
-!> \param particle_se t
-!> \param nato m
-!> \param last_sgf_global helper array for mapping local to global indices
+!> \param block_offset ...
+!> \param natom ...
+!> \param kind_of ...
+!> \param basis_parameter ...
+!> \param off_diag_fac ...
+!> \param diag_fac ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
-!> \note
-!>      - Communication with left/right node only
 !> \par History
 !>      11.2007 created [Manuel Guidon]
 !> \author Manuel Guidon
+!> \note
+!>      - Communication with left/right node only
 ! *****************************************************************************
   SUBROUTINE distribute_ks_matrix(para_env, full_ks, ks_matrix, number_of_p_entries, &
                                   block_offset, natom, kind_of, basis_parameter, &
@@ -321,21 +324,18 @@ MODULE hfx_communication
 !> \brief - Distributes the local full Kohn-Sham matrix to all CPUS. Is called in
 !>        case of adiabatic rescaling. This is just a refactored version of
 !>        distribute_ks_matrix
-!> \param para_en v
-!> \param full_ks The full Kohn-Sham matrix
+!> \param para_env ...
+!> \param qs_env ...
 !> \param ks_matrix Distributed Kohn-Sham matrix
-!> \param number_of_p_entries Maximal buffer size
-!> \param is_assoc_atomic_block tells us which node owns which atomic pairs
-!> \param particle_se t
-!> \param nato m
-!> \param last_sgf_global helper array for mapping local to global indices
+!> \param irep ...
+!> \param scaling_factor ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
-!> \note
-!>      - Communication with left/right node only
 !> \par History
 !>      11.2007 created [Manuel Guidon]
 !> \author Manuel Guidon
+!> \note
+!>      - Communication with left/right node only
 ! *****************************************************************************
   SUBROUTINE scale_and_add_fock_to_ks_matrix(para_env, qs_env, ks_matrix, irep ,&
                                              scaling_factor, error)
@@ -423,7 +423,8 @@ MODULE hfx_communication
 !>        a symmetric upper triangle NxN matrix
 !>        The compiler should inline this function, therefore it appears in
 !>        several modules
-!> \param i,j 2d index
+!> \param i 2d index
+!> \param j 2d index
 !> \param N matrix size
 !> \par History
 !>      03.2009 created [Manuel Guidon]
@@ -443,14 +444,25 @@ MODULE hfx_communication
 
 ! *****************************************************************************
 !> \brief create a several maps array that reflects the ks matrix sparsity
-!> \param para_en v
+!> \param matrix ...
+!> \param basis_parameter ...
+!> \param kind_of ...
+!> \param is_assoc_atomic_block ...
+!> \param number_of_p_entries ...
+!> \param para_env ...
+!> \param atomic_block_offset ...
+!> \param set_offset ...
+!> \param block_offset ...
+!> \param map_atoms_to_cpus ...
+!> \param nkind ...
+!> \param error ...
 !> \par History
 !>      11.2007 refactored [Joost VandeVondele]
 !>      07.2009 add new maps
+!> \author Manuel Guidon
 !> \notes
 !>      is_assoc_atomic_block returns the mpi rank + 1 for associated blocks,
 !>      zero for unassiated blocks
-!> \author Manuel Guidon
 ! *****************************************************************************
   SUBROUTINE get_atomic_block_maps(matrix,basis_parameter,kind_of,&
                                    is_assoc_atomic_block,number_of_p_entries,&

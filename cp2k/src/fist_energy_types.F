@@ -35,15 +35,15 @@ MODULE fist_energy_types
 ! *** Public subroutines ***
 
   PUBLIC :: allocate_fist_energy,&
-            deallocate_fist_energy,&
-            init_fist_energy
+            deallocate_fist_energy
 
 CONTAINS
 
 ! *****************************************************************************
 !> \brief   Allocate and/or initialise a Fist energy data structure.
-!> \author  MK
+!> \param fist_energy ...
 !> \date    13.06.2002
+!> \author  MK
 !> \version 1.0
 ! *****************************************************************************
   SUBROUTINE allocate_fist_energy(fist_energy)
@@ -66,8 +66,9 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief   Deallocate a Fist energy data structure.
-!> \author  MK
+!> \param fist_energy ...
 !> \date    13.06.2002
+!> \author  MK
 !> \version 1.0
 ! *****************************************************************************
   SUBROUTINE deallocate_fist_energy(fist_energy)
@@ -91,8 +92,9 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief   Initialise a Fist energy data structure.
-!> \author  MK
+!> \param fist_energy ...
 !> \date    13.06.2002
+!> \author  MK
 !> \version 1.0
 ! *****************************************************************************
   SUBROUTINE init_fist_energy(fist_energy)

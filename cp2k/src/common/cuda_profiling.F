@@ -10,13 +10,16 @@
 !> \author Ole Schuett
 ! *****************************************************************************
 MODULE cuda_profiling
-  USE kinds,                           ONLY: int_8
+  USE kinds,                           ONLY: default_string_length,&
+                                             int_8
+
+ !$ USE OMP_LIB
 
  IMPLICIT NONE
 
  PRIVATE
 
- PUBLIC  :: cuda_nvtx_range_push, cuda_nvtx_range_pop, cuda_mem_info
+ PUBLIC  :: cuda_nvtx_init, cuda_nvtx_range_push, cuda_nvtx_range_pop, cuda_mem_info
 
 #if defined( __CUDA_PROFILING )
 
@@ -49,12 +52,44 @@ MODULE cuda_profiling
 
     END FUNCTION cudaMemGetInfo_cu
   END INTERFACE
+
+  INTERFACE
+     SUBROUTINE cuda_nvtx_name_osthread_cu(name)&
+          BIND(C, name="cuda_nvtx_name_osthread_cu")
+        USE ISO_C_BINDING
+    CHARACTER(KIND=C_CHAR), DIMENSION(*)     :: name
+
+     END SUBROUTINE cuda_nvtx_name_osthread_cu
+  END INTERFACE
+
+
 #endif
 
  CONTAINS
 
 #if defined( __CUDA_PROFILING )
  ! *****************************************************************************
+! *****************************************************************************
+!> \brief ...
+! *****************************************************************************
+ SUBROUTINE cuda_nvtx_init()
+    USE ISO_C_BINDING
+    CHARACTER(len=default_string_length)     :: threadname
+    INTEGER                                  :: ithread
+
+    !$OMP PARALLEL default (none), private (ithread,threadname)
+    ithread = 0
+    !$ ithread = OMP_GET_THREAD_NUM ()
+    WRITE(threadname, "(I3,A,I2,A)") ithread
+    CALL cuda_nvtx_name_osthread_cu(TRIM(threadname)//c_null_char)
+    !$OMP END PARALLEL
+  END SUBROUTINE cuda_nvtx_init
+
+ ! *****************************************************************************
+! *****************************************************************************
+!> \brief ...
+!> \param routineN ...
+! *****************************************************************************
   SUBROUTINE cuda_nvtx_range_push(routineN)
     CHARACTER(LEN=*), INTENT(IN)             :: routineN
 
@@ -64,6 +99,9 @@ MODULE cuda_profiling
   END SUBROUTINE cuda_nvtx_range_push
 
  ! *****************************************************************************
+! *****************************************************************************
+!> \brief ...
+! *****************************************************************************
   SUBROUTINE cuda_nvtx_range_pop()
     INTEGER                                  :: level
 
@@ -71,6 +109,11 @@ MODULE cuda_profiling
   END SUBROUTINE cuda_nvtx_range_pop
 
   ! *****************************************************************************
+! *****************************************************************************
+!> \brief ...
+!> \param free ...
+!> \param total ...
+! *****************************************************************************
   SUBROUTINE cuda_mem_info(free, total)
     USE ISO_C_BINDING
     INTEGER(KIND=int_8), INTENT(OUT)         :: free, total
@@ -85,8 +128,19 @@ MODULE cuda_profiling
   END SUBROUTINE cuda_mem_info
 
 #else
+ ! *****************************************************************************
+! *****************************************************************************
+!> \brief ...
+! *****************************************************************************
+  SUBROUTINE cuda_nvtx_init()
+  ! nothing todo
+  END SUBROUTINE cuda_nvtx_init
 
  ! *****************************************************************************
+! *****************************************************************************
+!> \brief ...
+!> \param routineN ...
+! *****************************************************************************
   SUBROUTINE cuda_nvtx_range_push(routineN)
     CHARACTER(LEN=*), INTENT(IN)             :: routineN
 
@@ -94,11 +148,19 @@ MODULE cuda_profiling
   END SUBROUTINE cuda_nvtx_range_push
 
  ! *****************************************************************************
+! *****************************************************************************
+!> \brief ...
+! *****************************************************************************
   SUBROUTINE cuda_nvtx_range_pop()
      STOP "cuda_nvtx_range_push: __CUDA_PROFILING not compiled in."
   END SUBROUTINE cuda_nvtx_range_pop
 
   ! *****************************************************************************
+! *****************************************************************************
+!> \brief ...
+!> \param free ...
+!> \param total ...
+! *****************************************************************************
   SUBROUTINE cuda_mem_info(free, total)
     INTEGER(KIND=int_8), INTENT(OUT)         :: free, total
 
@@ -106,8 +168,6 @@ MODULE cuda_profiling
     total = 0
   END SUBROUTINE cuda_mem_info
 #endif
-
-
 
 
 END MODULE cuda_profiling
