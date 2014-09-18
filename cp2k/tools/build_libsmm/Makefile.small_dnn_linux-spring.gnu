@@ -16,7 +16,7 @@ all: bench
 source: $(SRCFILES) 
 
 %.f90: 
-	 .././small_gen.x `echo $* | awk -F_ '{ print $$3" "$$4" "$$5 }'` 1 1 32 ../tiny_gen_optimal_dnn_linux-spring.gnu.out > $@
+	 .././small_gen.x `echo $* | awk -F_ '{ print $$3" "$$4" "$$5 }'` 1 1 16 ../tiny_gen_optimal_dnn_linux-spring.gnu.out > $@
 
 compile: $(EXEFILES) 
 

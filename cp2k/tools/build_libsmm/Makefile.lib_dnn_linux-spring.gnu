@@ -15,7 +15,7 @@ all: archive
 source: $(SRCFILES) 
 
 %.f90: 
-	 .././lib_gen.x `echo $* | awk -F_ '{ print $$3" "$$4" "$$5 }'` 1 1 32 ../small_gen_optimal_dnn_linux-spring.gnu.out ../tiny_gen_optimal_dnn_linux-spring.gnu.out > $@
+	 .././lib_gen.x `echo $* | awk -F_ '{ print $$3" "$$4" "$$5 }'` 1 1 16 ../small_gen_optimal_dnn_linux-spring.gnu.out ../tiny_gen_optimal_dnn_linux-spring.gnu.out > $@
 
 compile: $(OBJFILES) 
 
