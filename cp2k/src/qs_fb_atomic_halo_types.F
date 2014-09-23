@@ -221,7 +221,7 @@ CONTAINS
   ! **********************************************************************
   !> \brief Checks if a fb_atomic_halo object is associated with an actual
   !>        data content or not
-  !> \param atomic_halos: the fb_atomic_halo_list object
+  !> \param atomic_halos: the fb_atomic_halo object
   !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
   ! **********************************************************************
   FUNCTION fb_atomic_halo_has_data(atomic_halo) RESULT(res)
@@ -305,7 +305,7 @@ CONTAINS
 
 
   ! **********************************************************************
-  !> \brief Gets attributes from an fb_atomic_halo object, one should
+  !> \brief Gets attributes from a fb_atomic_halo object, one should
   !>        only access the data content in a fb_atomic_halo outside
   !>        this module via this procedure.
   !> \param atomic_halo: the fb_atomic_halo object, its content must
@@ -350,7 +350,7 @@ CONTAINS
 
 
   ! **********************************************************************
-  !> \brief Gets attributes from an fb_atomic_halo object, one should
+  !> \brief Sets attributes in a fb_atomic_halo object, one should
   !>        only set the data content in a fb_atomic_halo from outside
   !>        this module via this procedure.
   !> \param atomic_halo: the fb_atomic_halo object, its content must
