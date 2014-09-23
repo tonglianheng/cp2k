@@ -29,6 +29,7 @@ MODULE qs_fb_atomic_halo_types
   PUBLIC :: fb_atomic_halo_retain, &
             fb_atomic_halo_release, &
             fb_atomic_halo_nullify, &
+            fb_atomic_halo_has_data, &
             fb_atomic_halo_associate, &
             fb_atomic_halo_create, &
             fb_atomic_halo_init, &
@@ -38,6 +39,7 @@ MODULE qs_fb_atomic_halo_types
             fb_atomic_halo_list_retain, &
             fb_atomic_halo_list_release, &
             fb_atomic_halo_list_nullify, &
+            fb_atomic_halo_list_has_data, &
             fb_atomic_halo_list_associate, &
             fb_atomic_halo_list_create, &
             fb_atomic_halo_list_init, &
@@ -134,7 +136,7 @@ CONTAINS
     IF (.NOT. failure) THEN
        CPPreconditionNoFail(atomic_halo%obj%ref_count>0, &
                             cp_failure_level, routineP, error)
-       atomic_halo%obj%ref_count = fb_env%obj%ref_count + 1
+       atomic_halo%obj%ref_count = atomic_halo%obj%ref_count + 1
     END IF
   END SUBROUTINE fb_atomic_halo_retain
 
@@ -223,14 +225,14 @@ CONTAINS
   !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
   ! **********************************************************************
   FUNCTION fb_atomic_halo_has_data(atomic_halo) RESULT(res)
-    TYPE(fb_atomic_halo_list_obj), INTENT(in) :: atomic_halos
+    TYPE(fb_atomic_halo_list_obj), INTENT(in) :: atomic_halo
     LOGICAL :: res
 
     CHARACTER(len=*), PARAMETER :: routineN = 'fb_atomic_halo_has_data', &
                                    routineP = moduleN//':'//routineN
 
     res = ASSOCIATED(atomic_halo%obj)
-  END FUNCTION fb_atomic_halo_list_has_data
+  END FUNCTION fb_atomic_halo_has_data
 
 
   ! **********************************************************************
