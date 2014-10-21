@@ -54,7 +54,7 @@ CONTAINS
 
   ! **********************************************************************
   !> \brief Calculates the atomic matrix size from a given DBCSR matrix
-  !>        and atomic halo. It also calculates the first row (col) or the 
+  !>        and atomic halo. It also calculates the first row (col) or the
   !>        row (col) atomic blocks in the atomic matrix
   !> \param dbcsr_mat : pointer to the DBCSR matrix the atomic matrix is
   !>                    to be constructed from
@@ -91,12 +91,12 @@ CONTAINS
     INTEGER, DIMENSION(:), ALLOCATABLE :: first_row, last_row, &
                                           first_col, last_col
     INTEGER, DIMENSION(:), POINTER :: halo_atoms
-    INTEGER :: ii
+    INTEGER :: ii, nblkrows_total, nblkcols_total
 
     failure = .FALSE.
-    
+
     NULLIFY(halo_atoms)
-    
+
     CALL cp_dbcsr_get_info(matrix=dbcsr_mat, &
                            nblkrows_total=nblkrows_total, &
                            nblkcols_total=nblkcols_total)
@@ -124,7 +124,6 @@ CONTAINS
     DEALLOCATE(first_row, last_row, first_col, last_col, STAT=stat)
     CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
   END SUBROUTINE fb_calc_atomic_matrix_size
-
 
 
   ! **********************************************************************
@@ -168,13 +167,13 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:), ALLOCATABLE :: send_buf, recv_buf
     REAL(KIND=dp), DIMENSION(:,:), POINTER :: mat_block
     INTEGER :: ipair, pe, nblkrows_total, nblkcols_total, arow, &
-               acol, nrows, ncols, me, ipe, ii, jj, ind, stat, &
-               natoms_in_halo, nhalos, iatom, jatom, numprocs
+               acol, me, ipe, ii, jj, ind, stat, natoms_in_halo, &
+               nhalos, iatom, jatom, numprocs, nrows_blk, ncols_blk
 
     failure = .FALSE.
 
     NULLIFY(atomic_pairs_send, atomic_pairs_recv, halo_atoms)
-    
+
     ! initialise atomic matrix
     atomic_matrix = 0.0_dp
 
@@ -197,16 +196,16 @@ CONTAINS
                             error=error)
 
     ! generate send and receiv atomic pairs
-    CALL fb_generate_send_recv_pairs(fb_env, &
-                                     dbcsr_mat, &
+    CALL fb_generate_send_recv_pairs(dbcsr_mat, &
+                                     atomic_halo, &
+                                     para_env, &
                                      atom_pairs_send, &
                                      atom_pairs_recv, &
-                                     ihalo, &
                                      error)
-    
+
     ! get para_env info
     numprocs = para_env%num_pe
-    me = para_env%mepos + 1   ! my process id, starting counting from 1
+    ! me = para_env%mepos + 1   ! my process id, starting counting from 1
 
     ! allocate temporary arrays
     ALLOCATE(send_sizes(numprocs), STAT=stat)
@@ -246,13 +245,14 @@ CONTAINS
     send_pair_count = 0
     DO ipair = 1, SIZE(atom_pairs_send)
        ! decode processor and (iatom, jatom) information
-       CALL fb_atom_pair_decode(atom_pairs_send(ipair), pe, iatom, jatom, natoms_in_halo)
+       CALL fb_atom_pair_decode(atom_pairs_send(ipair), &
+                                pe, iatom, jatom, natoms_in_halo)
        pe = pe + 1 ! we need proc to count from 1
        arow = halo_atoms(iatom)
        acol = halo_atoms(jatom)
-       nrows = last_row(arow) - first_row(arow) + 1
-       ncols = last_col(acol) - first_col(acol) + 1
-       send_sizes(pe) = send_sizes(pe) + nrows * ncols
+       nrows_blk = last_row(arow) - first_row(arow) + 1
+       ncols_blk = last_col(acol) - first_col(acol) + 1
+       send_sizes(pe) = send_sizes(pe) + nrows_blk * ncols_blk
        send_pair_count(pe) = send_pair_count(pe) + 1
     END DO
     ! calculate displacements of the data of each destibation pe in
@@ -272,13 +272,14 @@ CONTAINS
     recv_pair_count = 0
     DO ipair = 1, SIZE(atom_pairs_recv)
        ! decode processor and (iatom, jatom) information
-       CALL fb_atom_pair_decode(atom_pairs_recv(ipair), pe, iatom, jatom, natoms_in_halo)
+       CALL fb_atom_pair_decode(atom_pairs_recv(ipair), &
+                                pe, iatom, jatom, natoms_in_halo)
        pe = pe + 1 ! we need proc to count from 1
        arow = halo_atoms(iatom)
        acol = halo_atoms(jatom)
-       nrows = last_row(arow) - first_row(arow) + 1
-       ncols = last_col(acol) - first_col(acol) + 1
-       recv_sizes(pe) = recv_sizes(pe) + nrows * ncols
+       nrows_blk = last_row(arow) - first_row(arow) + 1
+       ncols_blk = last_col(acol) - first_col(acol) + 1
+       recv_sizes(pe) = recv_sizes(pe) + nrows_blk * ncols_blk
        recv_pair_count(pe) = recv_pair_count(pe) + 1
     END DO
     ! calculate displacements of the data of each destibation pe in
@@ -303,8 +304,8 @@ CONTAINS
                                    pe, iatom, jatom, natoms_in_halo)
           arow = halo_atoms(iatom)
           acol = halo_atoms(jatom)
-          nrows = last_row(arow) - first_row(arow) + 1
-          ncols = last_col(arow) - first_col(arow) + 1
+          nrows_blk = last_row(arow) - first_row(arow) + 1
+          ncols_blk = last_col(arow) - first_col(arow) + 1
           CALL cp_dbcsr_get_block_p(matrix=dbcsr_mat, &
                                     row=arow, col=acol, block=mat_block, found=found)
           IF (.NOT. found) THEN
@@ -321,14 +322,14 @@ CONTAINS
              CALL stop_program(routineN, moduleN, __LINE__, "Matrix block not found")
           ELSE
              ! we have found the matrix block
-             DO jj = 1, ncols
-                DO ii = 1, nrows
+             DO jj = 1, ncols_blk
+                DO ii = 1, nrows_blk
                    ! column major format in blocks
-                   ind = send_disp(ipe) + send_sizes(ipe) + ii + jj*nrows
+                   ind = send_disp(ipe) + send_sizes(ipe) + ii + jj*nrows_blk
                    send_buf(ind) = mat_block(ii,jj)
                 END DO ! ii
              END DO ! jj
-             send_sizes(ipe) = send_sizes(ipe) + nrows*ncols
+             send_sizes(ipe) = send_sizes(ipe) + nrows_blk*ncols_blk
           END IF
        END DO ! ipair
     END DO ! ipe
@@ -353,39 +354,38 @@ CONTAINS
     CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
 
     ! work out atomic_matrix sizes and allocate
-    IF (ASSOCIATED(blk_row_start)) THEN
-       IF (SIZE(blk_row_start) < natoms_in_halo) THEN
-          DEALLOCATE(blk_row_start, STAT=stat)
-          CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
-          ALLOCATE(blk_row_start(natoms_in_halo), STAT=stat)
-          CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
-       END IF
-    ELSE
-       ALLOCATE(blk_row_start(natoms_in_halo), STAT=stat)
-       CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
-    END IF
-    IF (ASSOCIATED(blk_col_start)) THEN
-       IF (SIZE(blk_col_start) < natoms_in_halo) THEN
-          DEALLOCATE(blk_col_start, STAT=stat)
-          CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
-       END IF
-    ELSE
-       ALLOCATE(blk_col_start(natoms_in_halo), STAT=stat)
-       CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
-    END IF
-    blk_col_start = 0
-    blk_row_start = 0
-    nrows = 0
-    ncols = 0
-    DO ii = 1, natoms_in_halo
-       blk_row_start(ii) = nrows + 1
-       blk_col_start(ii) = ncols + 1
-       nrows = nrows + last_row(halo_atoms(ii)) - first_row(halo_atoms(ii)) + 1
-       ncols = ncols + last_col(halo_atoms(ii)) - first_col(halo_atoms(ii)) + 1
-    END DO
-    ALLOCATE(atomic_matrix(nrows,ncols), STAT=stat)
-    CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
-    atomic_mat = 0.0_dp
+    ! IF (ASSOCIATED(blk_row_start)) THEN
+    !    IF (SIZE(blk_row_start) < natoms_in_halo) THEN
+    !       DEALLOCATE(blk_row_start, STAT=stat)
+    !       CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
+    !       ALLOCATE(blk_row_start(natoms_in_halo), STAT=stat)
+    !       CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
+    !    END IF
+    ! ELSE
+    !    ALLOCATE(blk_row_start(natoms_in_halo), STAT=stat)
+    !    CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
+    ! END IF
+    ! IF (ASSOCIATED(blk_col_start)) THEN
+    !    IF (SIZE(blk_col_start) < natoms_in_halo) THEN
+    !       DEALLOCATE(blk_col_start, STAT=stat)
+    !       CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
+    !    END IF
+    ! ELSE
+    !    ALLOCATE(blk_col_start(natoms_in_halo), STAT=stat)
+    !    CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
+    ! END IF
+    ! blk_col_start = 0
+    ! blk_row_start = 0
+    ! nrows = 0
+    ! ncols = 0
+    ! DO ii = 1, natoms_in_halo
+    !    blk_row_start(ii) = nrows + 1
+    !    blk_col_start(ii) = ncols + 1
+    !    nrows = nrows + last_row(halo_atoms(ii)) - first_row(halo_atoms(ii)) + 1
+    !    ncols = ncols + last_col(halo_atoms(ii)) - first_col(halo_atoms(ii)) + 1
+    ! END DO
+    ! ALLOCATE(atomic_matrix(nrows,ncols), STAT=stat)
+    ! CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
 
     ! do unpacking
     DO ipe = 1, numprocs
@@ -396,18 +396,18 @@ CONTAINS
                                    pe, iatom, jatom, natoms_in_halo)
           arow = halo_atoms(iatom)
           acol = halo_atoms(jatom)
-          nrows = last_row(arow) - first_row(arow) + 1
-          ncols = last_col(arow) - first_col(arow) + 1
+          nrows_blk = last_row(arow) - first_row(arow) + 1
+          ncols_blk = last_col(arow) - first_col(arow) + 1
           ! put block into the full conventional matrix
-          DO jj = 0, ncols - 1
-             DO ii = 0, nrows - 1
+          DO jj = 0, ncols_blk - 1
+             DO ii = 0, nrows_blk - 1
                 ! column major format in blocks
-                ind = recv_disp(ipe) + recv_sizes(ipe) + ii + jj*nrows + 1
-                atomic_mat(blk_row_start(iatom) + ii, &
-                           blk_col_start(jatom) + jj) = recv_buf(ind)
+                ind = recv_disp(ipe) + recv_sizes(ipe) + ii + jj*nrows_blk + 1
+                atomic_matrix(blk_row_start(iatom) + ii, &
+                              blk_col_start(jatom) + jj) = recv_buf(ind)
              END DO ! ii
           END DO ! jj
-          recv_sizes(ipe) = recv_sizes(ipe) + nrows*ncols
+          recv_sizes(ipe) = recv_sizes(ipe) + nrows_blk*ncols_blk
        END DO ! ipair
     END DO ! ipe
 
@@ -730,6 +730,20 @@ CONTAINS
   END SUBROUTINE fb_tasks_transpose_dest_src
 
 
+  ! **********************************************************************
+  !> \brief build atom_pair indices for the blocks from the list of tasks
+  !> \param atom_pairs : the atom pair indices to be calclated from the
+  !>                     tasks
+  !> \param tasks : the list of tasks used to generate the pair indices
+  !> \param ntasks : the total number of tasks
+  !> \param symmetric : sets whether the matrix the blocks corresponding
+  !>                    to the atom pairs is expected to be symmetric
+  !> \param natoms : number of atoms corresponding to the iatom and jatom
+  !>                 indices, this is used for decode and encode atom
+  !>                 pair indices
+  !> \param direction : sets if it is for send or receiv atom_pairs
+  !> \param error : CP2K data container for error handling
+  ! **********************************************************************
   SUBROUTINE fb_build_atom_pairs_from_tasks(atom_pairs, &
                                             tasks, &
                                             ntasks, &
@@ -810,6 +824,15 @@ CONTAINS
   END SUBROUTINE fb_build_atom_pairs
 
 
+  ! **********************************************************************
+  !> \brief encode from (iatom, jatom) pair to a single integer index
+  !> \param int : the encoded single index
+  !> \param iatom : iatom index of the (iatom, jatom) pair
+  !> \param jatom : jatom index of the (iatom, jatom) pair
+  !> \param natoms : total number of atoms corresponding to the iatom and 
+  !>                 jatom indices. This is used for encoding
+  !> \author : Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
+  ! **********************************************************************
   SUBROUTINE fb_encode_pair(int, iatom, jatom, natoms)
     INTEGER(KIND=int_8), INTENT(out) :: int
     INTEGER, INTENT(in) :: iatom, jatom, natoms
@@ -823,6 +846,15 @@ CONTAINS
   END SUBROUTINE fb_encode_pair
 
 
+  ! **********************************************************************
+  !> \brief decode single integer pair index to (iatom, jatom) pair
+  !> \param int : the encoded single index
+  !> \param iatom : iatom index of the (iatom, jatom) pair
+  !> \param jatom : jatom index of the (iatom, jatom) pair
+  !> \param natoms : total number of atoms corresponding to the iatom and 
+  !>                 jatom indices. This is used for encoding
+  !> \author : Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
+  ! **********************************************************************
   SUBROUTINE fb_decode_pair(int, iatom, jatom, natoms)
     INTEGER(KIND=int_8), INTENT(in) :: int
     INTEGER, INTENT(in) :: natoms
@@ -834,17 +866,26 @@ CONTAINS
     INTEGER(KIND=int_8) :: natoms8, iatom8, jatom8
 
     natoms8 = natoms
-
     iatom8 = int / natoms8 + 1_int_8
     jatom8 = MOD(int, natoms8) + 1_int_8
-
     iatom = iatom8
     jatom = jatom8
   END SUBROUTINE fb_decode_pair
 
 
-  SUBROUTINE fb_atom_pair_encode(res, pe, iatom, jatom, natoms)
-    INTEGER(KIND=int_8), INTENT(out) :: res
+  ! **********************************************************************
+  !> \brief encode (pe, iatom, jatom) tripplet to a single integer index
+  !> \param ind: encoded atomic_pair_index
+  !> \param pe: MPI process rank (to send to or recieve from) attached to
+  !>            the pair. Note it starts counting from 0
+  !> \param iatom: iatom index of the (iatom, jatom) pair
+  !> \param jatom: jatom index of the (iatom, jatom) pair
+  !> \param natoms: number of atoms corresponding to the iatom and jatom
+  !>                indices used for encoding (pe, iatom, jatom)
+  !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
+  ! **********************************************************************
+  SUBROUTINE fb_atom_pair_encode(ind, pe, iatom, jatom, natoms)
+    INTEGER(KIND=int_8), INTENT(out) :: ind
     INTEGER, INTENT(in) :: pe, iatom, jatom, natoms
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'fb_atom_pair_encode', &
@@ -853,15 +894,25 @@ CONTAINS
     INTEGER(KIND=int_8) :: natoms8, pair
 
     ! pe must start count from 0 (i.e same as MPI convension)
-
     natoms8 = natoms
     CALL fb_encode_pair(pair, iatom, jatom, natoms)
-    res = pe * natoms8 * natoms8 + pair
+    ind = pe * natoms8 * natoms8 + pair
   END SUBROUTINE fb_atom_pair_encode
 
 
-  SUBROUTINE fb_atom_pair_decode(res, pe, iatom, jatom, natoms)
-    INTEGER(KIND=int_8), INTENT(in) :: res
+  ! **********************************************************************
+  !> \brief decode an atom_pair index to (pe, iatom, jatom) tripplet
+  !> \param ind: atomic_pair_index to decode
+  !> \param pe: MPI process rank (to send to or recieve from) attached to
+  !>            the pair. Note, starts counting from 0
+  !> \param iatom: iatom index of the (iatom, jatom) pair
+  !> \param jatom: jatom index of the (iatom, jatom) pair
+  !> \param natoms: number of atoms corresponding to the iatom and jatom
+  !>                indices used for encoding (pe, iatom, jatom) to ind
+  !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
+  ! **********************************************************************
+  SUBROUTINE fb_atom_pair_decode(ind, pe, iatom, jatom, natoms)
+    INTEGER(KIND=int_8), INTENT(in) :: ind
     INTEGER, INTENT(in) :: natoms
     INTEGER, INTENT(out) :: pe, iatom, jatom
 
@@ -871,31 +922,10 @@ CONTAINS
     INTEGER(KIND=int_8) :: natoms8, pair
 
     ! pe start count from 0 (i.e same as MPI convension)
-
     natoms8 = natoms
-    res = pe * natoms8 * natoms8 + &
-          (iatom - 1) * natoms8
-
-    pe = res / (natoms8*natoms8)
+    pe = ind / (natoms8*natoms8)
     pair =  MOD(res, natoms8*natoms8)
     CALL fb_decode_pair(pair, iatom, jatom, natoms)
   END SUBROUTINE fb_atom_pair_decode
-
-  ! constructs a cp_fm_type that is distributed only on this proc
-  ! SUBROUTINE fb_construct_local_full_matrix(fm_matrix, nrows, ncols, name)
-  !   NULLIFY(fm_struct)
-  !   nrows =
-  !   CALL cp_fm_struct_create(fmstruct=fm_struct, &
-  !                            para_env=para_env, &
-  !                            context=blacs_env, &
-  !                            nrow_global=nrows, &
-  !                            ncol_global=ncols)
-  !   CALL cp_fm_create(fm_matrix, &
-  !                     matrix_struct=fm_struct, &
-  !                     name=name, &
-  !                     error=error)
-  ! END SUBROUTINE fb_construct_local_full_matrix
-
-
 
 END MODULE qs_fb_atomic_matrix_methods
