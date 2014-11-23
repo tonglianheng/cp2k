@@ -8,6 +8,20 @@ MODULE qs_fb_atomic_matrix_methods
                                        fb_atomic_halo_p_type
   USE qs_fb_atomic_halo_methods, ONLY: fb_atomic_halo_set_get, &
                                        fb_atomic_halo_get
+  USE qs_fb_com_tasks_types,     ONLY: TASKS_N_RECORDS, &
+                                       TASK_DEST, &
+                                       TASK_SRC, &
+                                       TASK_PAIR, &
+                                       TASK_COST, &
+                                       fb_com_tasks_obj, &
+                                       fb_com_atom_pairs_obj, &
+                                       fb_com_atom_pairs_nullify, &
+                                       fb_com_atom_pairs_create, &
+                                       fb_com_atom_pairs_get, &
+                                       fb_com_atom_pair_decode, &
+                                       fb_com_atom_pairs_release, &
+                                       fb_com_tasks_transpose_dest_src, &
+                                       fb_com_tasks_build_atom_pairs
   USE cp_dbcsr_types,            ONLY: cp_dbcsr_type
   USE qs_environment_types,      ONLY: get_qs_env, &
                                        qs_environment_type
@@ -20,6 +34,7 @@ MODULE qs_fb_atomic_matrix_methods
   USE array_types,               ONLY: array_data
   USE memory_utilities,          ONLY: reallocate
   USE util,                      ONLY: sort
+  USE message_passing,           ONLY: mp_alltoall
 
   IMPLICIT NONE
 
@@ -29,25 +44,8 @@ MODULE qs_fb_atomic_matrix_methods
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_fb_atomic_matrix_methods'
 
-  ! **********************************************************************
-  ! explaination on format of task lists (same for tasks_recv and tasks_send):
-  ! tasks_recv has dimension (4, ntasks_recv), and stores information on
-  ! the block to be copied or transfered
-  ! - tasks_recv(TASK_DEST,itask) = destination MPI rank of itask-th task
-  ! - tasks_recv(TASK_SRC,itask) = source MPI rank of itask-th task
-  ! - tasks_recv(TASK_PAIR,itask) = compressed pair indices of the block of itask-th task
-  ! - tasks_recv(TASK_COST,itask) = the cost of itask-th task
-  !
-  ! number of record slots in each task in the task lists
-  INTEGER, PARAMETER, PRIVATE :: TASK_N_RECORDS = 4
-  ! the indices for the records (1:TASK_DIM) in a task
-  INTEGER, PARAMETER, PRIVATE :: TASK_DEST = 1, &
-                                 TASK_SRC  = 2, &
-                                 TASK_PAIR = 3, &
-                                 TASK_COST = 4
-  ! **********************************************************************
-
-  PUBLIC :: fb_construct_atomic_matrix
+  PUBLIC :: fb_calc_atomic_matrix_size, &
+            fb_construct_atomic_matrix
 
 CONTAINS
 
@@ -121,6 +119,8 @@ CONTAINS
        nrows = nrows + last_row(halo_atoms(ii)) - first_row(halo_atoms(ii)) + 1
        ncols = ncols + last_col(halo_atoms(ii)) - first_col(halo_atoms(ii)) + 1
     END DO
+    blk_row_start(natoms_in_halo + 1) = nrows + 1
+    blk_col_start(natoms_in_halo + 1) = ncols + 1
     DEALLOCATE(first_row, last_row, first_col, last_col, STAT=stat)
     CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
   END SUBROUTINE fb_calc_atomic_matrix_size
@@ -137,8 +137,6 @@ CONTAINS
                                     atomic_halo, &
                                     para_env, &
                                     atomic_matrix, &
-                                    nrows, &
-                                    ncols, &
                                     blk_row_start, &
                                     blk_col_start, &
                                     error)
@@ -146,8 +144,6 @@ CONTAINS
     TYPE(fb_atomic_halo_obj), INTENT(in) :: atomic_halo
     TYPE(cp_para_env_type), POINTER :: para_env
     REAL(KIND=dp), DIMENSION(:,:), INTENT(out) :: atomic_matrix
-    INTEGER, INTENT(in) :: nrows
-    INTEGER, INTENT(in) :: ncols
     INTEGER, DIMENSION(:), INTENT(in) :: blk_row_start
     INTEGER, DIMENSION(:), INTENT(in) :: blk_col_start
     TYPE(cp_error_type), INTENT(inout) :: error
@@ -156,8 +152,10 @@ CONTAINS
                                    routineP = moduleN//':'//routineN
 
     LOGICAL :: failure, found
-    INTEGER(KIND=int_8), DIMENSION(:), POINTER :: atom_pairs_send, &
-                                                  atom_pairs_recv
+    TYPE(fb_com_atom_pairs_obj) :: atom_pairs_send, atom_pairs_recv
+
+
+    INTEGER(KIND=int_8), DIMENSION(:), POINTER :: pairs_send, pairs_recv
     INTEGER, DIMENSION(:), POINTER :: halo_atoms
     INTEGER, DIMENSION(:), ALLOCATABLE :: send_sizes, send_disps, &
                                           send_pair_count, send_pair_disps, &
@@ -166,13 +164,16 @@ CONTAINS
                                           first_row, last_row, first_col, last_col
     REAL(KIND=dp), DIMENSION(:), ALLOCATABLE :: send_buf, recv_buf
     REAL(KIND=dp), DIMENSION(:,:), POINTER :: mat_block
-    INTEGER :: ipair, pe, nblkrows_total, nblkcols_total, arow, &
-               acol, me, ipe, ii, jj, ind, stat, natoms_in_halo, &
-               nhalos, iatom, jatom, numprocs, nrows_blk, ncols_blk
+    INTEGER :: ipair, npairs_send, npairs_recv, pe, nblkrows_total, &
+         nblkcols_total, arow, acol, me, ipe, ii, jj, ind, stat, &
+         send_encode, recv_encode, nhalos, iatom, jatom, numprocs, &
+         nrows_blk, ncols_blk
 
     failure = .FALSE.
 
-    NULLIFY(atomic_pairs_send, atomic_pairs_recv, halo_atoms)
+    NULLIFY(pairs, halo_atoms)
+    CALL fb_com_atom_pairs_nullify(atom_pairs_send, error)
+    CALL fb_com_atom_pairs_nullify(atom_pairs_recv, error)
 
     ! initialise atomic matrix
     atomic_matrix = 0.0_dp
@@ -191,11 +192,12 @@ CONTAINS
     !                             error=error)
     ! CPPrecondition(ihalo.LE.nhalos, cp_failure_level, routineP, error, failure)
     CALL fb_atomic_halo_get(atomic_halo=atomic_halo, &
-                            natoms=natoms_in_halo, &
                             halo_atoms=halo_atoms, &
                             error=error)
 
     ! generate send and receiv atomic pairs
+    CALL fb_com_atom_pairs_create(atom_pairs_send, error)
+    CALL fb_com_atom_pairs_create(atom_pairs_recv, error)
     CALL fb_generate_send_recv_pairs(dbcsr_mat, &
                                      atomic_halo, &
                                      para_env, &
@@ -241,12 +243,17 @@ CONTAINS
                                   first_col, last_col)
 
     ! setup send buffer sizes
+    CALL fb_com_atom_pairs_get(atom_pairs=atom_pairs_send, &
+                               pairs=pairs_send, &
+                               npairs=npairs_send, &
+                               natoms_encode=send_encode, &
+                               error=error)
     send_sizes = 0
     send_pair_count = 0
-    DO ipair = 1, SIZE(atom_pairs_send)
+    DO ipair = 1, npairs_send
        ! decode processor and (iatom, jatom) information
-       CALL fb_atom_pair_decode(atom_pairs_send(ipair), &
-                                pe, iatom, jatom, natoms_in_halo)
+       CALL fb_com_atom_pair_decode(pairs_send(ipair), &
+                                    pe, iatom, jatom, send_encode)
        pe = pe + 1 ! we need proc to count from 1
        arow = halo_atoms(iatom)
        acol = halo_atoms(jatom)
@@ -268,12 +275,17 @@ CONTAINS
     CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
 
     ! similarly set up recieve buffer
+    CALL fb_com_atom_pairs_get(atom_pairs=atom_pairs_recv, &
+                               pairs=pairs_recv, &
+                               npairs=npairs_recv, &
+                               natoms_encode=recv_encode, &
+                               error=error)
     recv_sizes = 0
     recv_pair_count = 0
-    DO ipair = 1, SIZE(atom_pairs_recv)
+    DO ipair = 1, npairs_recv
        ! decode processor and (iatom, jatom) information
-       CALL fb_atom_pair_decode(atom_pairs_recv(ipair), &
-                                pe, iatom, jatom, natoms_in_halo)
+       CALL fb_com_atom_pair_decode(pairs_recv(ipair), &
+                                    pe, iatom, jatom, recv_encode)
        pe = pe + 1 ! we need proc to count from 1
        arow = halo_atoms(iatom)
        acol = halo_atoms(jatom)
@@ -300,8 +312,8 @@ CONTAINS
        ! need to reuse send_sizes as an accumulative displacement, so recalculate
        send_sizes(ipe) = 0
        DO ipair = 1, send_pair_count(ipe)
-          CALL fb_atom_pair_decode(atom_pairs_send(send_pair_disps(ipe) + ipair), &
-                                   pe, iatom, jatom, natoms_in_halo)
+          CALL fb_com_atom_pair_decode(pairs_send(send_pair_disps(ipe) + ipair), &
+                                       pe, iatom, jatom, send_encode)
           arow = halo_atoms(iatom)
           acol = halo_atoms(jatom)
           nrows_blk = last_row(arow) - first_row(arow) + 1
@@ -353,47 +365,13 @@ CONTAINS
     DEALLOCATE(recv_disps, STAT=stat)
     CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
 
-    ! work out atomic_matrix sizes and allocate
-    ! IF (ASSOCIATED(blk_row_start)) THEN
-    !    IF (SIZE(blk_row_start) < natoms_in_halo) THEN
-    !       DEALLOCATE(blk_row_start, STAT=stat)
-    !       CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
-    !       ALLOCATE(blk_row_start(natoms_in_halo), STAT=stat)
-    !       CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
-    !    END IF
-    ! ELSE
-    !    ALLOCATE(blk_row_start(natoms_in_halo), STAT=stat)
-    !    CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
-    ! END IF
-    ! IF (ASSOCIATED(blk_col_start)) THEN
-    !    IF (SIZE(blk_col_start) < natoms_in_halo) THEN
-    !       DEALLOCATE(blk_col_start, STAT=stat)
-    !       CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
-    !    END IF
-    ! ELSE
-    !    ALLOCATE(blk_col_start(natoms_in_halo), STAT=stat)
-    !    CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
-    ! END IF
-    ! blk_col_start = 0
-    ! blk_row_start = 0
-    ! nrows = 0
-    ! ncols = 0
-    ! DO ii = 1, natoms_in_halo
-    !    blk_row_start(ii) = nrows + 1
-    !    blk_col_start(ii) = ncols + 1
-    !    nrows = nrows + last_row(halo_atoms(ii)) - first_row(halo_atoms(ii)) + 1
-    !    ncols = ncols + last_col(halo_atoms(ii)) - first_col(halo_atoms(ii)) + 1
-    ! END DO
-    ! ALLOCATE(atomic_matrix(nrows,ncols), STAT=stat)
-    ! CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
-
     ! do unpacking
     DO ipe = 1, numprocs
 !       IF (ipe == me) CYCLE
        recv_sizes(ipe) = 0
        DO ipair = 1, recv_pair_count(ipe)
-          CALL fb_atom_pair_decode(atom_pairs_recv(recv_pair_disps(ipe) + ipair), &
-                                   pe, iatom, jatom, natoms_in_halo)
+          CALL fb_com_atom_pair_decode(pairs_recv(recv_pair_disps(ipe) + ipair), &
+                                       pe, iatom, jatom, recv_encode)
           arow = halo_atoms(iatom)
           acol = halo_atoms(jatom)
           nrows_blk = last_row(arow) - first_row(arow) + 1
@@ -423,7 +401,11 @@ CONTAINS
     DEALLOCATE(first_row, last_row, first_col, last_col, STAT)
     CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
 
+    CALL fb_com_atom_pairs_release(atom_pairs_send, error)
+    CALL fb_com_atom_pairs_release(atom_pairs_recv, error)
+
   END SUBROUTINE fb_build_atomic_matrix
+
 
 
   SUBROUTINE fb_generate_send_recv_pairs(dbcsr_mat, &
@@ -435,8 +417,8 @@ CONTAINS
     TYPE(cp_dbcsr_type), POINTER :: dbcsr_mat
     TYPE(fb_atomic_halo_obj), INTENT(in) :: atomic_halo
     TYPE(cp_para_env_type), POINTER :: para_env
-    INTEGER(KIND=int_8), DIMENSION(:), POINTER :: atom_pairs_send
-    INTEGER(KIND=int_8), DIMENSION(:), POINTER :: atom_pairs_recv
+    TYPE(fb_com_atom_pairs_obj), INTENT(out) :: atom_pairs_send
+    TYPE(fb_com_atom_pairs_obj), INTENT(out) :: atom_pairs_recv
     TYPE(cp_error_type), INTENT(inout) :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'fb_generate_send_recv_pairs', &
@@ -444,9 +426,11 @@ CONTAINS
 
     LOGICAL :: failure, found
     INTEGER, DIMENSION(:), POINTER :: halo_atoms
+    TYPE(fb_com_tasks_obj) :: com_tasks_send
+    TYPE(fb_com_tasks_obj) :: com_tasks_recv
     INTEGER(KIND=int_8), DIMENSION(:,:), POINTER :: tasks_send
     INTEGER(KIND=int_8), DIMENSION(:,:), POINTER :: tasks_recv
-    INTEGER :: iatom, jatom, iatom_global, jatom_global, natoms_local,&
+    INTEGER :: iatom, jatom, iatom_global, jatom_global, natoms_local, &
                my_basis_set_id, dest, src, ntasks_recv, ntasks_send, &
                itask, nhalos, natoms_in_halo, pair, stat
     INTEGER, DIMENSION(:), ALLOCATABLE :: tmp_index
@@ -455,10 +439,20 @@ CONTAINS
     failure = .FALSE.
 
     NULLIFY(halo_atoms, tasks_send, tasks_recv)
+    CALL fb_com_tasks_nullify(com_tasks_send, error)
+    CALL fb_com_tasks_nullify(com_tasks_recv, error)
 
     ! initialise atomic_pairs_send and atomic_pairs_receive
-    atomic_pairs_send = 0
-    atomic_pairs_recv = 0
+    IF (fb_com_atomic_pairs_has_data(atomic_pairs_send)) THEN
+       CALL fb_com_atomic_pairs_init(atomic_pairs_send)
+    ELSE
+       CALL fb_com_atomic_pairs_create(atomic_pairs_send)
+    END IF
+    IF (fb_com_atomic_pairs_has_data(atomic_pairs_recv)) THEN
+       CALL fb_com_atomic_pairs_init(atomic_pairs_recv)
+    ELSE
+       CALL fb_com_atomic_pairs_create(atomic_pairs_recv)
+    END IF
 
     CALL fb_atomic_halo_get(atomic_halo=atomic_halo, &
                             natoms=natoms_in_halo, &
@@ -508,9 +502,25 @@ CONTAINS
        END DO ! jatom
     END DO ! iatom
 
+    ! create tasks
+    CALL fb_com_tasks_create(com_tasks_recv, error)
+    CALL fb_com_tasks_create(com_tasks_send, error)
+
+    CALL fb_com_tasks_set(com_tasks=com_tasks_recv, &
+                          task_dim=TASK_N_RECORDS, &
+                          ntasks=ntasks_recv, &
+                          tasks=tasks_recv, &
+                          error=error)
+
     ! genearte the send task list (tasks_send) from the recv task list
-    CALL fb_tasks_transpose_dest_src(para_env, tasks_recv, ntasks_recv, ">", &
-                                     tasks_send, ntasks_send, error)
+    CALL fb_com_tasks_transpose_dest_src(com_tasks_recv, ">", com_tasks_send, &
+                                         para_env, error)
+
+
+    CALL fb_com_tasks_get(com_tasks=com_tasks_send, &
+                          ntasks=ntasks_send, &
+                          tasks=tasks_send, &
+                          error=error)
 
     ! because the atomic_halos and the neighbor_list_set used to
     ! generate the sparse structure of the DBCSR matrix do not
@@ -521,7 +531,7 @@ CONTAINS
     counter = 0
     DO itask = 1, ntasks_send
        pair = tasks_send(TASK_PAIR,itask)
-       CALL fb_decode_pair(pair, iatom, jatom, natoms_in_halo)
+       CALL fb_com_tasks_decode_pair(pair, iatom, jatom, natoms_in_halo)
        ! check if block exists in DBCSR matrix
        iatom_global = halo_atoms(iatom)
        jatom_global = halo_atoms(jatom)
@@ -544,388 +554,399 @@ CONTAINS
     ! array will just be garbage
     ntasks_send = counter
 
+    CALL fb_com_tasks_set(com_tasks=com_tasks_send, &
+                          ntasks=ntasks_send, &
+                          tasks=tasks_send, &
+                          error)
+
     ! now, re-distribute the new send tasks list to other processors
     ! to build the updated recv tasks list
-    CALL fb_tasks_transpose_dest_src(para_env, tasks_recv, ntasks_recv, "<", &
-                                     tasks_send, ntasks_send, error)
+    CALL fb_com_tasks_transpose_dest_src(com_tasks_recv, "<", com_tasks_send, &
+                                         para_env, error)
 
     ! task lists are now complete, now construct the atom_pairs_send
     ! and atom_pairs_recv from the tasks lists
-    CALL fb_build_atom_pairs_from_tasks(atom_pairs_send, tasks_send, &
-                                        ntasks_send, .FALSE., &
-                                        natoms_in_halo, "send", error)
-    CALL fb_build_atom_pairs_from_tasks(atom_pairs_recv, tasks_recv, &
-                                        ntasks_recv, .FALSE., &
-                                        natoms_in_halo, "recv", error)
+    CALL fb_com_tasks_build_atom_pairs(com_tasks=com_tasks_send, &
+                                       atom_pairs=atom_pairs_send, &
+                                       natoms_encode=natoms_in_halo, &
+                                       send_or_recv="send", &
+                                       symmetric=.FALSE., &
+                                       error=error)
+    CALL fb_com_tasks_build_atom_pairs(com_tasks=com_tasks_recv, &
+                                       atom_pairs=atom_pairs_recv, &
+                                       natoms_encode=natoms_in_halo, &
+                                       send_or_recv="recv", &
+                                       symmetric=.FALSE., &
+                                       error=error)
 
     ! cleanup
-    DEALLOCATE(tasks_recv)
-    DEALLOCATE(tasks_send)
+    CALL fb_com_tasks_release(com_tasks_recv, error)
+    CALL fb_com_tasks_release(com_tasks_send, error)
 
   END SUBROUTINE fb_generate_send_recv_pairs
 
 
-  SUBROUTINE fb_tasks_transpose_dest_src(para_env, &
-                                         tasks_dest_is_me, &
-                                         ntasks_dest_is_me, &
-                                         direction, &
-                                         tasks_src_is_me, &
-                                         ntasks_src_is_me, &
-                                         error)
-    TYPE(cp_para_env_type), POINTER :: para_env
-    INTEGER, INTENT(inout) :: ntasks_dest_is_me
-    INTEGER(KIND=int_8), DIMENSION(:,:), POINTER :: tasks_dest_is_me
-    INTEGER, INTENT(inout) :: ntasks_src_is_me
-    INTEGER(KIND=int_8), DIMENSION(:,:), POINTER :: tasks_src_is_me
-    CHARACTER, INTENT(in) :: direction
-    TYPE(cp_error_type), INTENT(inout) :: error
+  ! SUBROUTINE fb_tasks_transpose_dest_src(para_env, &
+  !                                        tasks_dest_is_me, &
+  !                                        ntasks_dest_is_me, &
+  !                                        direction, &
+  !                                        tasks_src_is_me, &
+  !                                        ntasks_src_is_me, &
+  !                                        error)
+  !   TYPE(cp_para_env_type), POINTER :: para_env
+  !   INTEGER, INTENT(inout) :: ntasks_dest_is_me
+  !   INTEGER(KIND=int_8), DIMENSION(:,:), POINTER :: tasks_dest_is_me
+  !   INTEGER, INTENT(inout) :: ntasks_src_is_me
+  !   INTEGER(KIND=int_8), DIMENSION(:,:), POINTER :: tasks_src_is_me
+  !   CHARACTER, INTENT(in) :: direction
+  !   TYPE(cp_error_type), INTENT(inout) :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'fb_generate_send_tasks_from_recv_tasks', &
-                                   routineP = moduleN//':'//routineN
+  !   CHARACTER(LEN=*), PARAMETER :: routineN = 'fb_generate_send_tasks_from_recv_tasks', &
+  !                                  routineP = moduleN//':'//routineN
 
-    LOGICAL :: failure
-    INTEGER :: itask, ipe, rank, rank_pos, task_dim, ii, jj, ind, &
-               ntasks_in, ntasks_out
-    INTEGER(KIND=int_8), DIMENSION(:,:), POINTER :: tasks_in, taks_out
-    INTEGER, DIMENSION(:), ALLOCATABLE :: send_sizes, send_disps, &
-                                          recv_sizes, recv_disps, &
-                                          send_buf, recv_buf
+  !   LOGICAL :: failure
+  !   INTEGER :: itask, ipe, rank, rank_pos, task_dim, ii, jj, ind, &
+  !              ntasks_in, ntasks_out
+  !   INTEGER(KIND=int_8), DIMENSION(:,:), POINTER :: tasks_in, taks_out
+  !   INTEGER, DIMENSION(:), ALLOCATABLE :: send_sizes, send_disps, &
+  !                                         recv_sizes, recv_disps, &
+  !                                         send_buf, recv_buf
 
-    failure = .FALSE.
+  !   failure = .FALSE.
 
-    NULLIFY(tasks_in, tasks_out)
+  !   NULLIFY(tasks_in, tasks_out)
 
-    IF (direction == "<") THEN
-       tasks_in => tasks_src_is_me
-       ntasks_in = ntasks_src_is_me
-       rank_pos = TASK_DEST
-    ELSE
-       tasks_in => tasks_dest_is_me
-       ntasks_in = ntasks_dest_is_me
-       rank_pos = TASK_SRC
-    END IF
+  !   IF (direction == "<") THEN
+  !      tasks_in => tasks_src_is_me
+  !      ntasks_in = ntasks_src_is_me
+  !      rank_pos = TASK_DEST
+  !   ELSE
+  !      tasks_in => tasks_dest_is_me
+  !      ntasks_in = ntasks_dest_is_me
+  !      rank_pos = TASK_SRC
+  !   END IF
 
-    ! allocate local arrays
-    ALLOCATE(send_sizes(para_env%num_pe), STAT=stat)
-    CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
-    ALLOCATE(send_disps(para_env%num_pe), STAT=stat)
-    CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
-    ALLOCATE(send_buf(para_env%num_pe), STAT=stat)
-    CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
+  !   ! allocate local arrays
+  !   ALLOCATE(send_sizes(para_env%num_pe), STAT=stat)
+  !   CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
+  !   ALLOCATE(send_disps(para_env%num_pe), STAT=stat)
+  !   CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
+  !   ALLOCATE(send_buf(para_env%num_pe), STAT=stat)
+  !   CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
 
-    ALLOCATE(recv_sizes(para_env%num_pe), STAT=stat)
-    CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
-    ALLOCATE(recv_disps(para_env%num_pe), STAT=stat)
-    CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
-    ALLOCATE(recv_buf(para_env%num_pe), STAT=stat)
-    CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
+  !   ALLOCATE(recv_sizes(para_env%num_pe), STAT=stat)
+  !   CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
+  !   ALLOCATE(recv_disps(para_env%num_pe), STAT=stat)
+  !   CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
+  !   ALLOCATE(recv_buf(para_env%num_pe), STAT=stat)
+  !   CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
 
-    ! first count how many local recv tasks need to be sent to other
-    ! processes, and share this information with the other processes.
-    ! using send_buf as a temporary array for counting
-    send_buf = 0
-    ! looping over local task list
-    DO itask = 1, ntasks_in
-       rank = tasks_in(rank_pos,i) + 1
-       send_buf(rank) = send_buf(rank) + 1
-    END DO
-    CALL mp_alltoall(send_buf, recv_buf, 1, para_env%group)
+  !   ! first count how many local recv tasks need to be sent to other
+  !   ! processes, and share this information with the other processes.
+  !   ! using send_buf as a temporary array for counting
+  !   send_buf = 0
+  !   ! looping over local task list
+  !   DO itask = 1, ntasks_in
+  !      rank = tasks_in(rank_pos,i) + 1
+  !      send_buf(rank) = send_buf(rank) + 1
+  !   END DO
+  !   CALL mp_alltoall(send_buf, recv_buf, 1, para_env%group)
 
-    ! now that we know how many recv tasks to send, pack the tasks,
-    ! and send them around, so that the recv tasks are sent to the
-    ! correct src processes, and these then are collected into the
-    ! send tasks list on each of the src processes
+  !   ! now that we know how many recv tasks to send, pack the tasks,
+  !   ! and send them around, so that the recv tasks are sent to the
+  !   ! correct src processes, and these then are collected into the
+  !   ! send tasks list on each of the src processes
 
-    task_dim = SIZE(tasks_in, 1)
-    send_sizes = 0
-    send_disps = 0
-    recv_sizes = 0
-    recv_disps = 0
+  !   task_dim = SIZE(tasks_in, 1)
+  !   send_sizes = 0
+  !   send_disps = 0
+  !   recv_sizes = 0
+  !   recv_disps = 0
 
-    ! work out the sizes of send and recv buffers and allocate them
-    send_sizes(1) = send_buf(1) * task_dim
-    recv_sizes(1) = recv_buf(1) * task_dim
-    DO ipe = 2, para_env%num_pe
-       send_sizes(ipe) = send_buf(ipe) * task_dim
-       send_disps(ipe) = send_disps(ipe-1) + send_sizes(ipe-1)
-       recv_sizes(ipe) = recv_buf(ipe) * task_dim
-       recv_disps(ipe) = recv_disps(ipe-1) + recv_sizes(ipe-1)
-    END DO
+  !   ! work out the sizes of send and recv buffers and allocate them
+  !   send_sizes(1) = send_buf(1) * task_dim
+  !   recv_sizes(1) = recv_buf(1) * task_dim
+  !   DO ipe = 2, para_env%num_pe
+  !      send_sizes(ipe) = send_buf(ipe) * task_dim
+  !      send_disps(ipe) = send_disps(ipe-1) + send_sizes(ipe-1)
+  !      recv_sizes(ipe) = recv_buf(ipe) * task_dim
+  !      recv_disps(ipe) = recv_disps(ipe-1) + recv_sizes(ipe-1)
+  !   END DO
 
-    ! reallocate send and recv buffers to the correct sizes for
-    ! transferring the actual tasks
-    DEALLOCATE(send_buf, STAT=stat)
-    CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
-    DEALLOCATE(recv_buf, STAT=stat)
-    CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
-    ALLOCATE(send_buf(SUM(send_sizes)), STAT=stat)
-    CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
-    ALLOCATE(recv_buf(SUM(recv_sizes)), STAT=stat)
-    CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
+  !   ! reallocate send and recv buffers to the correct sizes for
+  !   ! transferring the actual tasks
+  !   DEALLOCATE(send_buf, STAT=stat)
+  !   CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
+  !   DEALLOCATE(recv_buf, STAT=stat)
+  !   CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
+  !   ALLOCATE(send_buf(SUM(send_sizes)), STAT=stat)
+  !   CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
+  !   ALLOCATE(recv_buf(SUM(recv_sizes)), STAT=stat)
+  !   CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
 
-    ! now that the send buffer is of correct size, do packing
-    send_buf = 0
-    send_sizes = 0
-    DO itask = 1, ntasks_in
-       rank = tasks_in(rank_pos,itask) + 1
-       DO ii = 1, task_dim
-          ind = send_disps(rank) + send_sizes(rank) + ii
-          send_buf(ind) = tasks_in(ii,itask)
-       END DO
-       send_sizes(rank) = send_sizes(rank) + task_dim
-    END DO
-    ! do communication
-    CALL mp_alltoall(send_buf, send_sizes, send_disps, &
-                     recv_buf, recv_sizes, recv_disps, &
-                     para_env%group)
+  !   ! now that the send buffer is of correct size, do packing
+  !   send_buf = 0
+  !   send_sizes = 0
+  !   DO itask = 1, ntasks_in
+  !      rank = tasks_in(rank_pos,itask) + 1
+  !      DO ii = 1, task_dim
+  !         ind = send_disps(rank) + send_sizes(rank) + ii
+  !         send_buf(ind) = tasks_in(ii,itask)
+  !      END DO
+  !      send_sizes(rank) = send_sizes(rank) + task_dim
+  !   END DO
+  !   ! do communication
+  !   CALL mp_alltoall(send_buf, send_sizes, send_disps, &
+  !                    recv_buf, recv_sizes, recv_disps, &
+  !                    para_env%group)
 
-    ! deallocate send buffers
-    DEALLOCATE(send_buf, STAT=stat)
-    CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
-    DEALLOCATE(send_sizes, STAT=stat)
-    CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
-    DEALLOCATE(send_disps, STAT=stat)
-    CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
+  !   ! deallocate send buffers
+  !   DEALLOCATE(send_buf, STAT=stat)
+  !   CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
+  !   DEALLOCATE(send_sizes, STAT=stat)
+  !   CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
+  !   DEALLOCATE(send_disps, STAT=stat)
+  !   CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
 
-    ! allocate the output task list
-    ntasks_out = SUM(recv_sizes) / task_dim
-    IF (direction == "<") THEN
-       IF (ASSOCIATED(tasks_dest_is_me)) THEN
-          DEALLOCATE(tasks_dest_is_me, STAT=stat)
-          CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
-       END IF
-       ALLOCATE(tasks_dest_is_me(task_dim,ntasks_out), STAT=stat)
-       tasks_out => tasks_dest_is_me
-       ntasks_dest_is_me = ntasks_out
-    ELSE
-       IF (ASSOCIATED(tasks_src_is_me)) THEN
-          DEALLOCATE(tasks_src_is_me, STAT=stat)
-          CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
-       END IF
-       ALLOCATE(tasks_src_is_me(task_dim,ntasks_out), STAT=stat)
-       tasks_out => tasks_src_is_me
-       ntasks_src_is_me = ntasks_out
-    END IF
+  !   ! allocate the output task list
+  !   ntasks_out = SUM(recv_sizes) / task_dim
+  !   IF (direction == "<") THEN
+  !      IF (ASSOCIATED(tasks_dest_is_me)) THEN
+  !         DEALLOCATE(tasks_dest_is_me, STAT=stat)
+  !         CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
+  !      END IF
+  !      ALLOCATE(tasks_dest_is_me(task_dim,ntasks_out), STAT=stat)
+  !      tasks_out => tasks_dest_is_me
+  !      ntasks_dest_is_me = ntasks_out
+  !   ELSE
+  !      IF (ASSOCIATED(tasks_src_is_me)) THEN
+  !         DEALLOCATE(tasks_src_is_me, STAT=stat)
+  !         CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
+  !      END IF
+  !      ALLOCATE(tasks_src_is_me(task_dim,ntasks_out), STAT=stat)
+  !      tasks_out => tasks_src_is_me
+  !      ntasks_src_is_me = ntasks_out
+  !   END IF
 
-    ! do unpacking
-    itask = 0
-    DO ipe = 1, para_env%num_pe
-       DO ii = 0, recv_sizes(ipe) / task_dim - 1
-          itask = itask + 1
-          DO jj = 1, task_dim
-             ind = recv_disps(ipe) + ii * task_dim + jj
-             tasks_out(jj,itask) = recv_buf(ind)
-          END DO
-       END DO
-    END DO
+  !   ! do unpacking
+  !   itask = 0
+  !   DO ipe = 1, para_env%num_pe
+  !      DO ii = 0, recv_sizes(ipe) / task_dim - 1
+  !         itask = itask + 1
+  !         DO jj = 1, task_dim
+  !            ind = recv_disps(ipe) + ii * task_dim + jj
+  !            tasks_out(jj,itask) = recv_buf(ind)
+  !         END DO
+  !      END DO
+  !   END DO
 
-    ! deallocate recv buffers
-    DEALLOCATE(recv_buf, STAT=stat)
-    CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
-    DEALLOCATE(recv_sizes, STAT=stat)
-    CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
-    DEALLOCATE(recv_disps, STAT=stat)
-    CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
+  !   ! deallocate recv buffers
+  !   DEALLOCATE(recv_buf, STAT=stat)
+  !   CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
+  !   DEALLOCATE(recv_sizes, STAT=stat)
+  !   CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
+  !   DEALLOCATE(recv_disps, STAT=stat)
+  !   CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
 
-  END SUBROUTINE fb_tasks_transpose_dest_src
-
-
-  ! **********************************************************************
-  !> \brief build atom_pair indices for the blocks from the list of tasks
-  !> \param atom_pairs : the atom pair indices to be calclated from the
-  !>                     tasks
-  !> \param tasks : the list of tasks used to generate the pair indices
-  !> \param ntasks : the total number of tasks
-  !> \param symmetric : sets whether the matrix the blocks corresponding
-  !>                    to the atom pairs is expected to be symmetric
-  !> \param natoms : number of atoms corresponding to the iatom and jatom
-  !>                 indices, this is used for decode and encode atom
-  !>                 pair indices
-  !> \param direction : sets if it is for send or receiv atom_pairs
-  !> \param error : CP2K data container for error handling
-  ! **********************************************************************
-  SUBROUTINE fb_build_atom_pairs_from_tasks(atom_pairs, &
-                                            tasks, &
-                                            ntasks, &
-                                            symmetric, &
-                                            natoms, &
-                                            direction, &
-                                            error)
-    INTEGER(KIND=int_8), DIMENSION(:), POINTER :: atom_pairs
-    INTEGER(KIND=int_8), DIMENSION(:,:), INTENT(in) :: tasks
-    INTEGER, INTENT(in) :: ntasks, natoms
-    LOGICAL, INTENT(in) :: symmetric
-    CHARACTER(LEN=*) :: direction
-    TYPE(cp_error_type), INTENT(inout) :: error
-
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'fb_build_atom_pairs_from_tasks', &
-                                   routineP = moduleN//':'//routineN
-
-    INTEGER :: itask, counter, arow, acol, pair, rank, rank_pos, stat
-    INTEGER, DIMENSION(:), ALLOCATABLE :: tmp_index
-
-    IF (TRIM(direction) == "send") THEN
-       rank_pos = TASK_DEST
-    ELSE
-       rank_pos = TASK_SRC
-    END IF
-
-    ! if atom_pairs is already assciated, reallocate to appropriate size
-    IF (ASSOCIATED(atom_pairs)) THEN
-       DEALLOCATE(atom_pairs, STAT=stat)
-       CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
-    END IF
-    ALLOCATE(atom_pairs(ntasks), STAT=stat)
-    CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
-
-    DO itask = 1, ntasks
-       pair = tasks(TASK_PAIR,itask)
-       CALL fb_decode_pair(pair, iatom, jatom, natoms)
-       IF (symmetric) THEN
-          IF (iatom .LE. jatom) THEN
-             arow = iatom
-             acol = jatom
-          ELSE
-             arow = jatom
-             acol = iatom
-          END IF
-       ELSE
-          arow = iatom
-          acol = jatom
-       END IF
-       rank = tasks(rank_pos,itask)
-       CALL fb_atom_pair_encode(atom_pairs(itask), &
-                                rank, arow, acol, natoms)
-    END DO
-
-    ! sort atom_pairs so that the pairs are ordered process blocks and
-    ! that possible duplicates may be found (we don't want to send or
-    ! receive same information to the same destination or source more
-    ! than once)
-    ALLOCATE(tmp_index(ntasks), STAT=stat)
-    CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
-    ! only sort the actual pairs recorded in the send list
-    CALL sort(atom_pairs, ntasks, tmp_index)
-    DEALLOCATE(tmp_index, STAT=stat)
-    CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
-    ! remove duplicates
-    IF (SIZE(atom_pairs) > 1) THEN
-       counter = 1
-       ! first atom pair must be allowed
-       DO ii = 2, ntasks
-          IF (atom_pairs(ii) > atom_pairs(ii-1)) THEN
-             counter = counter + 1
-             atom_pairs(counter) = atom_pairs(ii)
-          END IF
-       END DO
-       CALL reallocate(atom_pairs, 1, counter)
-    END IF
-
-  END SUBROUTINE fb_build_atom_pairs
+  ! END SUBROUTINE fb_tasks_transpose_dest_src
 
 
-  ! **********************************************************************
-  !> \brief encode from (iatom, jatom) pair to a single integer index
-  !> \param int : the encoded single index
-  !> \param iatom : iatom index of the (iatom, jatom) pair
-  !> \param jatom : jatom index of the (iatom, jatom) pair
-  !> \param natoms : total number of atoms corresponding to the iatom and 
-  !>                 jatom indices. This is used for encoding
-  !> \author : Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
-  ! **********************************************************************
-  SUBROUTINE fb_encode_pair(int, iatom, jatom, natoms)
-    INTEGER(KIND=int_8), INTENT(out) :: int
-    INTEGER, INTENT(in) :: iatom, jatom, natoms
+  ! ! **********************************************************************
+  ! !> \brief build atom_pair indices for the blocks from the list of tasks
+  ! !> \param atom_pairs : the atom pair indices to be calclated from the
+  ! !>                     tasks
+  ! !> \param tasks : the list of tasks used to generate the pair indices
+  ! !> \param ntasks : the total number of tasks
+  ! !> \param symmetric : sets whether the matrix the blocks corresponding
+  ! !>                    to the atom pairs is expected to be symmetric
+  ! !> \param natoms : number of atoms corresponding to the iatom and jatom
+  ! !>                 indices, this is used for decode and encode atom
+  ! !>                 pair indices
+  ! !> \param direction : sets if it is for send or receiv atom_pairs
+  ! !> \param error : CP2K data container for error handling
+  ! ! **********************************************************************
+  ! SUBROUTINE fb_build_atom_pairs_from_tasks(atom_pairs, &
+  !                                           tasks, &
+  !                                           ntasks, &
+  !                                           symmetric, &
+  !                                           natoms, &
+  !                                           direction, &
+  !                                           error)
+  !   INTEGER(KIND=int_8), DIMENSION(:), POINTER :: atom_pairs
+  !   INTEGER(KIND=int_8), DIMENSION(:,:), INTENT(in) :: tasks
+  !   INTEGER, INTENT(in) :: ntasks, natoms
+  !   LOGICAL, INTENT(in) :: symmetric
+  !   CHARACTER(LEN=*) :: direction
+  !   TYPE(cp_error_type), INTENT(inout) :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'fb_encode_pair', &
-                                   routineP = moduleN//':'//routineN
+  !   CHARACTER(LEN=*), PARAMETER :: routineN = 'fb_build_atom_pairs_from_tasks', &
+  !                                  routineP = moduleN//':'//routineN
 
-    INTEGER(KIND=int_8) :: natoms8
+  !   INTEGER :: itask, counter, arow, acol, pair, rank, rank_pos, stat
+  !   INTEGER, DIMENSION(:), ALLOCATABLE :: tmp_index
 
-    int = (iatom - 1) * natoms8 + (jatom - 1)
-  END SUBROUTINE fb_encode_pair
+  !   IF (TRIM(direction) == "send") THEN
+  !      rank_pos = TASK_DEST
+  !   ELSE
+  !      rank_pos = TASK_SRC
+  !   END IF
+
+  !   ! if atom_pairs is already assciated, reallocate to appropriate size
+  !   IF (ASSOCIATED(atom_pairs)) THEN
+  !      DEALLOCATE(atom_pairs, STAT=stat)
+  !      CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
+  !   END IF
+  !   ALLOCATE(atom_pairs(ntasks), STAT=stat)
+  !   CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
+
+  !   DO itask = 1, ntasks
+  !      pair = tasks(TASK_PAIR,itask)
+  !      CALL fb_decode_pair(pair, iatom, jatom, natoms)
+  !      IF (symmetric) THEN
+  !         IF (iatom .LE. jatom) THEN
+  !            arow = iatom
+  !            acol = jatom
+  !         ELSE
+  !            arow = jatom
+  !            acol = iatom
+  !         END IF
+  !      ELSE
+  !         arow = iatom
+  !         acol = jatom
+  !      END IF
+  !      rank = tasks(rank_pos,itask)
+  !      CALL fb_atom_pair_encode(atom_pairs(itask), &
+  !                               rank, arow, acol, natoms)
+  !   END DO
+
+  !   ! sort atom_pairs so that the pairs are ordered process blocks and
+  !   ! that possible duplicates may be found (we don't want to send or
+  !   ! receive same information to the same destination or source more
+  !   ! than once)
+  !   ALLOCATE(tmp_index(ntasks), STAT=stat)
+  !   CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
+  !   ! only sort the actual pairs recorded in the send list
+  !   CALL sort(atom_pairs, ntasks, tmp_index)
+  !   DEALLOCATE(tmp_index, STAT=stat)
+  !   CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
+  !   ! remove duplicates
+  !   IF (SIZE(atom_pairs) > 1) THEN
+  !      counter = 1
+  !      ! first atom pair must be allowed
+  !      DO ii = 2, ntasks
+  !         IF (atom_pairs(ii) > atom_pairs(ii-1)) THEN
+  !            counter = counter + 1
+  !            atom_pairs(counter) = atom_pairs(ii)
+  !         END IF
+  !      END DO
+  !      CALL reallocate(atom_pairs, 1, counter)
+  !   END IF
+
+  ! END SUBROUTINE fb_build_atom_pairs
 
 
-  ! **********************************************************************
-  !> \brief decode single integer pair index to (iatom, jatom) pair
-  !> \param int : the encoded single index
-  !> \param iatom : iatom index of the (iatom, jatom) pair
-  !> \param jatom : jatom index of the (iatom, jatom) pair
-  !> \param natoms : total number of atoms corresponding to the iatom and 
-  !>                 jatom indices. This is used for encoding
-  !> \author : Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
-  ! **********************************************************************
-  SUBROUTINE fb_decode_pair(int, iatom, jatom, natoms)
-    INTEGER(KIND=int_8), INTENT(in) :: int
-    INTEGER, INTENT(in) :: natoms
-    INTEGER, INTENT(out) :: iatom, jatom
+  ! ! **********************************************************************
+  ! !> \brief encode from (iatom, jatom) pair to a single integer index
+  ! !> \param int : the encoded single index
+  ! !> \param iatom : iatom index of the (iatom, jatom) pair
+  ! !> \param jatom : jatom index of the (iatom, jatom) pair
+  ! !> \param natoms : total number of atoms corresponding to the iatom and
+  ! !>                 jatom indices. This is used for encoding
+  ! !> \author : Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
+  ! ! **********************************************************************
+  ! SUBROUTINE fb_encode_pair(int, iatom, jatom, natoms)
+  !   INTEGER(KIND=int_8), INTENT(out) :: int
+  !   INTEGER, INTENT(in) :: iatom, jatom, natoms
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'fb_decode_pair', &
-                                   routineP = moduleN//':'//routineN
+  !   CHARACTER(LEN=*), PARAMETER :: routineN = 'fb_encode_pair', &
+  !                                  routineP = moduleN//':'//routineN
 
-    INTEGER(KIND=int_8) :: natoms8, iatom8, jatom8
+  !   INTEGER(KIND=int_8) :: natoms8
 
-    natoms8 = natoms
-    iatom8 = int / natoms8 + 1_int_8
-    jatom8 = MOD(int, natoms8) + 1_int_8
-    iatom = iatom8
-    jatom = jatom8
-  END SUBROUTINE fb_decode_pair
+  !   int = (iatom - 1) * natoms8 + (jatom - 1)
+  ! END SUBROUTINE fb_encode_pair
 
 
-  ! **********************************************************************
-  !> \brief encode (pe, iatom, jatom) tripplet to a single integer index
-  !> \param ind: encoded atomic_pair_index
-  !> \param pe: MPI process rank (to send to or recieve from) attached to
-  !>            the pair. Note it starts counting from 0
-  !> \param iatom: iatom index of the (iatom, jatom) pair
-  !> \param jatom: jatom index of the (iatom, jatom) pair
-  !> \param natoms: number of atoms corresponding to the iatom and jatom
-  !>                indices used for encoding (pe, iatom, jatom)
-  !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
-  ! **********************************************************************
-  SUBROUTINE fb_atom_pair_encode(ind, pe, iatom, jatom, natoms)
-    INTEGER(KIND=int_8), INTENT(out) :: ind
-    INTEGER, INTENT(in) :: pe, iatom, jatom, natoms
+  ! ! **********************************************************************
+  ! !> \brief decode single integer pair index to (iatom, jatom) pair
+  ! !> \param int : the encoded single index
+  ! !> \param iatom : iatom index of the (iatom, jatom) pair
+  ! !> \param jatom : jatom index of the (iatom, jatom) pair
+  ! !> \param natoms : total number of atoms corresponding to the iatom and
+  ! !>                 jatom indices. This is used for encoding
+  ! !> \author : Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
+  ! ! **********************************************************************
+  ! SUBROUTINE fb_decode_pair(int, iatom, jatom, natoms)
+  !   INTEGER(KIND=int_8), INTENT(in) :: int
+  !   INTEGER, INTENT(in) :: natoms
+  !   INTEGER, INTENT(out) :: iatom, jatom
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'fb_atom_pair_encode', &
-                                   routineP = moduleN//':'//routineN
+  !   CHARACTER(LEN=*), PARAMETER :: routineN = 'fb_decode_pair', &
+  !                                  routineP = moduleN//':'//routineN
 
-    INTEGER(KIND=int_8) :: natoms8, pair
+  !   INTEGER(KIND=int_8) :: natoms8, iatom8, jatom8
 
-    ! pe must start count from 0 (i.e same as MPI convension)
-    natoms8 = natoms
-    CALL fb_encode_pair(pair, iatom, jatom, natoms)
-    ind = pe * natoms8 * natoms8 + pair
-  END SUBROUTINE fb_atom_pair_encode
+  !   natoms8 = natoms
+  !   iatom8 = int / natoms8 + 1_int_8
+  !   jatom8 = MOD(int, natoms8) + 1_int_8
+  !   iatom = iatom8
+  !   jatom = jatom8
+  ! END SUBROUTINE fb_decode_pair
 
 
-  ! **********************************************************************
-  !> \brief decode an atom_pair index to (pe, iatom, jatom) tripplet
-  !> \param ind: atomic_pair_index to decode
-  !> \param pe: MPI process rank (to send to or recieve from) attached to
-  !>            the pair. Note, starts counting from 0
-  !> \param iatom: iatom index of the (iatom, jatom) pair
-  !> \param jatom: jatom index of the (iatom, jatom) pair
-  !> \param natoms: number of atoms corresponding to the iatom and jatom
-  !>                indices used for encoding (pe, iatom, jatom) to ind
-  !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
-  ! **********************************************************************
-  SUBROUTINE fb_atom_pair_decode(ind, pe, iatom, jatom, natoms)
-    INTEGER(KIND=int_8), INTENT(in) :: ind
-    INTEGER, INTENT(in) :: natoms
-    INTEGER, INTENT(out) :: pe, iatom, jatom
+  ! ! **********************************************************************
+  ! !> \brief encode (pe, iatom, jatom) tripplet to a single integer index
+  ! !> \param ind: encoded atomic_pair_index
+  ! !> \param pe: MPI process rank (to send to or recieve from) attached to
+  ! !>            the pair. Note it starts counting from 0
+  ! !> \param iatom: iatom index of the (iatom, jatom) pair
+  ! !> \param jatom: jatom index of the (iatom, jatom) pair
+  ! !> \param natoms: number of atoms corresponding to the iatom and jatom
+  ! !>                indices used for encoding (pe, iatom, jatom)
+  ! !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
+  ! ! **********************************************************************
+  ! SUBROUTINE fb_atom_pair_encode(ind, pe, iatom, jatom, natoms)
+  !   INTEGER(KIND=int_8), INTENT(out) :: ind
+  !   INTEGER, INTENT(in) :: pe, iatom, jatom, natoms
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'fb_atom_pair_decode', &
-                                   routineP = moduleN//':'//routineN
+  !   CHARACTER(LEN=*), PARAMETER :: routineN = 'fb_atom_pair_encode', &
+  !                                  routineP = moduleN//':'//routineN
 
-    INTEGER(KIND=int_8) :: natoms8, pair
+  !   INTEGER(KIND=int_8) :: natoms8, pair
 
-    ! pe start count from 0 (i.e same as MPI convension)
-    natoms8 = natoms
-    pe = ind / (natoms8*natoms8)
-    pair =  MOD(res, natoms8*natoms8)
-    CALL fb_decode_pair(pair, iatom, jatom, natoms)
-  END SUBROUTINE fb_atom_pair_decode
+  !   ! pe must start count from 0 (i.e same as MPI convension)
+  !   natoms8 = natoms
+  !   CALL fb_encode_pair(pair, iatom, jatom, natoms)
+  !   ind = pe * natoms8 * natoms8 + pair
+  ! END SUBROUTINE fb_atom_pair_encode
+
+
+  ! ! **********************************************************************
+  ! !> \brief decode an atom_pair index to (pe, iatom, jatom) tripplet
+  ! !> \param ind: atomic_pair_index to decode
+  ! !> \param pe: MPI process rank (to send to or recieve from) attached to
+  ! !>            the pair. Note, starts counting from 0
+  ! !> \param iatom: iatom index of the (iatom, jatom) pair
+  ! !> \param jatom: jatom index of the (iatom, jatom) pair
+  ! !> \param natoms: number of atoms corresponding to the iatom and jatom
+  ! !>                indices used for encoding (pe, iatom, jatom) to ind
+  ! !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
+  ! ! **********************************************************************
+  ! SUBROUTINE fb_atom_pair_decode(ind, pe, iatom, jatom, natoms)
+  !   INTEGER(KIND=int_8), INTENT(in) :: ind
+  !   INTEGER, INTENT(in) :: natoms
+  !   INTEGER, INTENT(out) :: pe, iatom, jatom
+
+  !   CHARACTER(LEN=*), PARAMETER :: routineN = 'fb_atom_pair_decode', &
+  !                                  routineP = moduleN//':'//routineN
+
+  !   INTEGER(KIND=int_8) :: natoms8, pair
+
+  !   ! pe start count from 0 (i.e same as MPI convension)
+  !   natoms8 = natoms
+  !   pe = ind / (natoms8*natoms8)
+  !   pair =  MOD(res, natoms8*natoms8)
+  !   CALL fb_decode_pair(pair, iatom, jatom, natoms)
+  ! END SUBROUTINE fb_atom_pair_decode
 
 END MODULE qs_fb_atomic_matrix_methods
