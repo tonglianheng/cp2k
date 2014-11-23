@@ -442,16 +442,16 @@ CONTAINS
     CALL fb_com_tasks_nullify(com_tasks_send, error)
     CALL fb_com_tasks_nullify(com_tasks_recv, error)
 
-    ! initialise atomic_pairs_send and atomic_pairs_receive
-    IF (fb_com_atomic_pairs_has_data(atomic_pairs_send)) THEN
-       CALL fb_com_atomic_pairs_init(atomic_pairs_send)
+    ! initialise atom_pairs_send and atom_pairs_receive
+    IF (fb_com_atomic_pairs_has_data(atom_pairs_send)) THEN
+       CALL fb_com_atomic_pairs_init(atom_pairs_send)
     ELSE
-       CALL fb_com_atomic_pairs_create(atomic_pairs_send)
+       CALL fb_com_atomic_pairs_create(atom_pairs_send)
     END IF
-    IF (fb_com_atomic_pairs_has_data(atomic_pairs_recv)) THEN
-       CALL fb_com_atomic_pairs_init(atomic_pairs_recv)
+    IF (fb_com_atomic_pairs_has_data(atom_pairs_recv)) THEN
+       CALL fb_com_atomic_pairs_init(atom_pairs_recv)
     ELSE
-       CALL fb_com_atomic_pairs_create(atomic_pairs_recv)
+       CALL fb_com_atomic_pairs_create(atom_pairs_recv)
     END IF
 
     CALL fb_atomic_halo_get(atomic_halo=atomic_halo, &
