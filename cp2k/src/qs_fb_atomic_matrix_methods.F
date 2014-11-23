@@ -44,8 +44,9 @@ MODULE qs_fb_atomic_matrix_methods
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_fb_atomic_matrix_methods'
 
-  PUBLIC :: fb_calc_atomic_matrix_size, &
-            fb_construct_atomic_matrix
+  PUBLIC :: fb_atmatrix_calc_size, &
+            fb_atmatrix_construct, &
+            fb_atmatrix_generate_com_pairs
 
 CONTAINS
 
@@ -66,13 +67,13 @@ CONTAINS
   !>                        atomic matrix
   !> \param error : the data container for CP2K error logs
   ! **********************************************************************
-  SUBROUTINE fb_calc_atomic_matrix_size(dbcsr_mat, &
-                                        atomic_halo, &
-                                        nrows, &
-                                        ncols, &
-                                        blk_row_start, &
-                                        blk_col_start, &
-                                        error)
+  SUBROUTINE fb_atmatrix_calc_size(dbcsr_mat, &
+                                   atomic_halo, &
+                                   nrows, &
+                                   ncols, &
+                                   blk_row_start, &
+                                   blk_col_start, &
+                                   error)
     TYPE(cp_dbcsr_type), POINTER :: dbcsr_mat
     TYPE(fb_atomic_halo_obj), INTENT(in) :: atomic_halo
     INTEGER, INTENT(in) :: natoms_in_halo
@@ -82,7 +83,7 @@ CONTAINS
     INTEGER, DIMENSION(:), INTENT(out) :: blk_col_start
     TYPE(cp_error_type), INTENT(inout) :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'fb_calc_atomic_matrix_size', &
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'fb_atmatrix_calc_size', &
                                    routineP = moduleN//':'//routineN
 
     LOGICAL :: failure
@@ -123,7 +124,7 @@ CONTAINS
     blk_col_start(natoms_in_halo + 1) = ncols + 1
     DEALLOCATE(first_row, last_row, first_col, last_col, STAT=stat)
     CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
-  END SUBROUTINE fb_calc_atomic_matrix_size
+  END SUBROUTINE fb_atmatrix_calc_size
 
 
   ! **********************************************************************
@@ -133,13 +134,13 @@ CONTAINS
   !>        in the atomic matrix. The atomic matrix upon input should be
   !>        a null pointer
   ! **********************************************************************
-  SUBROUTINE fb_build_atomic_matrix(dbcsr_mat, &
-                                    atomic_halo, &
-                                    para_env, &
-                                    atomic_matrix, &
-                                    blk_row_start, &
-                                    blk_col_start, &
-                                    error)
+  SUBROUTINE fb_atmatrix_construct(dbcsr_mat, &
+                                   atomic_halo, &
+                                   para_env, &
+                                   atomic_matrix, &
+                                   blk_row_start, &
+                                   blk_col_start, &
+                                   error)
     TYPE(cp_dbcsr_type), POINTER :: dbcsr_mat
     TYPE(fb_atomic_halo_obj), INTENT(in) :: atomic_halo
     TYPE(cp_para_env_type), POINTER :: para_env
@@ -148,7 +149,7 @@ CONTAINS
     INTEGER, DIMENSION(:), INTENT(in) :: blk_col_start
     TYPE(cp_error_type), INTENT(inout) :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'fb_build_atomic_matrix', &
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'fb_atmatrix_construct', &
                                    routineP = moduleN//':'//routineN
 
     LOGICAL :: failure, found
@@ -198,12 +199,12 @@ CONTAINS
     ! generate send and receiv atomic pairs
     CALL fb_com_atom_pairs_create(atom_pairs_send, error)
     CALL fb_com_atom_pairs_create(atom_pairs_recv, error)
-    CALL fb_generate_send_recv_pairs(dbcsr_mat, &
-                                     atomic_halo, &
-                                     para_env, &
-                                     atom_pairs_send, &
-                                     atom_pairs_recv, &
-                                     error)
+    CALL fb_atmatrix_generate_com_pairs(dbcsr_mat, &
+                                        atomic_halo, &
+                                        para_env, &
+                                        atom_pairs_send, &
+                                        atom_pairs_recv, &
+                                        error)
 
     ! get para_env info
     numprocs = para_env%num_pe
@@ -404,16 +405,15 @@ CONTAINS
     CALL fb_com_atom_pairs_release(atom_pairs_send, error)
     CALL fb_com_atom_pairs_release(atom_pairs_recv, error)
 
-  END SUBROUTINE fb_build_atomic_matrix
+  END SUBROUTINE fb_atmatrix_construct
 
 
-
-  SUBROUTINE fb_generate_send_recv_pairs(dbcsr_mat, &
-                                         atomic_halo, &
-                                         para_env, &
-                                         atom_pairs_send, &
-                                         atom_pairs_recv, &
-                                         error)
+  SUBROUTINE fb_atmatrix_generate_com_pairs(dbcsr_mat, &
+                                            atomic_halo, &
+                                            para_env, &
+                                            atom_pairs_send, &
+                                            atom_pairs_recv, &
+                                            error)
     TYPE(cp_dbcsr_type), POINTER :: dbcsr_mat
     TYPE(fb_atomic_halo_obj), INTENT(in) :: atomic_halo
     TYPE(cp_para_env_type), POINTER :: para_env
@@ -421,7 +421,7 @@ CONTAINS
     TYPE(fb_com_atom_pairs_obj), INTENT(out) :: atom_pairs_recv
     TYPE(cp_error_type), INTENT(inout) :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'fb_generate_send_recv_pairs', &
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'fb_atmatrix_generate_com_pairs', &
                                    routineP = moduleN//':'//routineN
 
     LOGICAL :: failure, found
@@ -536,8 +536,8 @@ CONTAINS
        iatom_global = halo_atoms(iatom)
        jatom_global = halo_atoms(jatom)
        CALL cp_dbcsr_get_block_p(matrix=dbcsr_mat, &
-                                 row=iatom_global, col=jatom_global, &
-                                 block=mat_block, found=found)
+                                 row=iatom_global, col=jatom_global, block=mat_block, &
+                                 found=found)
        IF (found) THEN
           counter = counter + 1
           ! we can do this here, because essencially we are inspecting
@@ -583,7 +583,7 @@ CONTAINS
     CALL fb_com_tasks_release(com_tasks_recv, error)
     CALL fb_com_tasks_release(com_tasks_send, error)
 
-  END SUBROUTINE fb_generate_send_recv_pairs
+  END SUBROUTINE fb_atmatrix_generate_com_pairs
 
 
   ! SUBROUTINE fb_tasks_transpose_dest_src(para_env, &
