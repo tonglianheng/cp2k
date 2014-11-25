@@ -443,15 +443,15 @@ CONTAINS
     CALL fb_com_tasks_nullify(com_tasks_recv, error)
 
     ! initialise atom_pairs_send and atom_pairs_receive
-    IF (fb_com_atomic_pairs_has_data(atom_pairs_send)) THEN
-       CALL fb_com_atomic_pairs_init(atom_pairs_send)
+    IF (fb_com_atom_pairs_has_data(atom_pairs_send)) THEN
+       CALL fb_com_atom_pairs_init(atom_pairs_send, error)
     ELSE
-       CALL fb_com_atomic_pairs_create(atom_pairs_send)
+       CALL fb_com_atom_pairs_create(atom_pairs_send, error)
     END IF
-    IF (fb_com_atomic_pairs_has_data(atom_pairs_recv)) THEN
-       CALL fb_com_atomic_pairs_init(atom_pairs_recv)
+    IF (fb_com_atom_pairs_has_data(atom_pairs_recv)) THEN
+       CALL fb_com_atom_pairs_init(atom_pairs_recv, error)
     ELSE
-       CALL fb_com_atomic_pairs_create(atom_pairs_recv)
+       CALL fb_com_atom_pairs_create(atom_pairs_recv, error)
     END IF
 
     CALL fb_atomic_halo_get(atomic_halo=atomic_halo, &
@@ -495,8 +495,8 @@ CONTAINS
           ! difficult to get halo indices from global indices
           tasks_recv(TASK_DEST,itask) = dest
           tasks_recv(TASK_SRC,itask) = src
-          CALL fb_encode_pair(tasks_recv(TASK_PAIR,itask), &
-                              iatoms, jatoms, natoms_in_halo)
+          CALL fb_com_tasks_encode_pair(tasks_recv(TASK_PAIR,itask), &
+                                        iatoms, jatoms, natoms_in_halo)
           ! calculation of cost not implemented at the moment
           tasks_recv(TASK_COST,itask) = 0
        END DO ! jatom
