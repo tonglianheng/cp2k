@@ -83,6 +83,8 @@ MODULE qs_fb_com_tasks_types
   !>                    to be communicated, etc.
   !> \param task_dim  : the size of the first dimension of tasks
   !> \param ntasks    : total number of local tasks
+  !> \param nencode   : the total number of atoms used for encoding
+  !>                    the block coordinates (iatom, jatom)
   !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
   ! **********************************************************************
   TYPE fb_com_tasks_data
@@ -91,6 +93,7 @@ MODULE qs_fb_com_tasks_types
      INTEGER(KIND=int_8), DIMENSION(:,:), POINTER :: tasks
      INTEGER :: task_dim
      INTEGER :: ntasks
+     INTEGER :: nencode
   END type fb_com_tasks_data
 
 
@@ -117,7 +120,7 @@ MODULE qs_fb_com_tasks_types
   !> \param npairs        : number of blks to be communicated in the atom
   !>                        pair list
   !> \param natoms_encode : the total number of atoms used for encoding
-  !>                        the block coordinates (iatom, jatom)
+  !>                        the proc + block coordinates (pe, iatom, jatom)
   !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
   ! **********************************************************************
   TYPE fb_com_atom_pairs_data
@@ -399,6 +402,7 @@ CONTAINS
        CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
        com_tasks%obj%task_dim = TASK_N_RECORDS
        com_tasks%obj%ntasks = 0
+       com_tasks%obj%nencode = 0
        NULLIFY(com_tasks%obj%tasks)
        com_tasks%obj%ref_count = 1
        com_tasks%obj%id_nr = last_fb_com_tasks_id + 1
@@ -467,6 +471,7 @@ CONTAINS
        END IF
        com_tasks%obj%task_dim = TASK_N_RECORDS
        com_tasks%obj%ntasks = 0
+       com_tasks%obj%nencode = 0
     END IF
   END SUBROUTINE fb_com_tasks_init
 
@@ -510,6 +515,7 @@ CONTAINS
   !>                   NULL or UNDEFINED
   !> \param task_dim [OPTIONAL]: if present, outputs com_tasks%obj%task_dim
   !> \param ntasks [OPTIONAL]: if present, outputs com_tasks%obj%ntasks
+  !> \param nencode [OPTIONAL]: if present, outputs com_tasks%obj%nencode
   !> \param tasks [OPTIONAL]: if present, outputs pointer com_tasks%obj%tasks
   !> \param error: CP2K data container for error logging
   !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
@@ -517,11 +523,13 @@ CONTAINS
   SUBROUTINE fb_com_tasks_get(com_tasks, &
                               task_dim, &
                               ntasks, &
+                              nencode, &
                               tasks, &
                               error)
     TYPE(fb_com_tasks_obj), INTENT(in) :: com_tasks
     INTEGER, INTENT(out), OPTIONAL :: task_dim
     INTEGER, INTENT(out), OPTIONAL :: ntasks
+    INTEGER, INTENT(out), OPTIONAL :: nencode
     INTEGER(KIND=int_8), DIMENSION(:,:), POINTER, OPTIONAL :: tasks
     TYPE(cp_error_type), INTENT(inout) :: error
 
@@ -535,6 +543,7 @@ CONTAINS
     IF (.NOT. failure) THEN
        IF (PRESENT(task_dim)) task_dim = com_tasks%obj%task_dim
        IF (PRESENT(ntasks)) ntasks = com_tasks%obj%ntasks
+       IF (PRESENT(nencode)) nencode = com_tasks%obj%nencode
        IF (PRESENT(tasks)) tasks => com_tasks%obj%tasks
     END IF
   END SUBROUTINE fb_com_tasks_get
@@ -586,6 +595,7 @@ CONTAINS
   !>                   NULL or UNDEFINED
   !> \param task_dim [OPTIONAL]: if present, sets com_tasks%obj%task_dim
   !> \param ntasks [OPTIONAL]: if present, sets com_tasks%obj%ntasks
+  !> \param nencode [OPTIONAL]: if present, sets com_tasks%obj%nencode
   !> \param tasks [OPTIONAL]: if present, associates pointer com_tasks%obj%tasks
   !> \param error: CP2K data container for error logging
   !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
@@ -593,11 +603,13 @@ CONTAINS
   SUBROUTINE fb_com_tasks_set(com_tasks, &
                               task_dim, &
                               ntasks, &
+                              nencode, &
                               tasks, &
                               error)
     TYPE(fb_com_tasks_obj), INTENT(in) :: com_tasks
     INTEGER, INTENT(out), OPTIONAL :: task_dim
     INTEGER, INTENT(out), OPTIONAL :: ntasks
+    INTEGER, INTENT(out), OPTIONAL :: nencode
     INTEGER(KIND=int_8), DIMENSION(:,:), POINTER, OPTIONAL :: tasks
     TYPE(cp_error_type), INTENT(inout) :: error
 
@@ -613,6 +625,7 @@ CONTAINS
     IF (.NOT. failure) THEN
        IF (PRESENT(task_dim)) com_tasks%obj%task_dim = task_dim
        IF (PRESENT(ntasks)) com_tasks%obj%ntasks = ntasks
+       IF (PRESENT(nencode)) com_tasks%obj%nencode = nencode
        IF (PRESENT(tasks)) THEN
           IF (ASSOCIATED(com_tasks%obj%tasks)) THEN
              DEALLOCATE(com_tasks%obj%tasks, STAT=stat)
