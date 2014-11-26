@@ -14,6 +14,7 @@ MODULE qs_fb_atomic_halo_types
   USE particle_types,      ONLY: particle_type
   USE atomic_kind_types,   ONLY: atomic_kind_type, &
                                  get_atomic_kind
+  USE util,                ONLY: sort, locate
 
 #include "./common/cp_common_uses.f90"
 
@@ -35,6 +36,8 @@ MODULE qs_fb_atomic_halo_types
             fb_atomic_halo_init, &
             fb_atomic_halo_get, &
             fb_atomic_halo_set, &
+            fb_atomic_halo_sort, &
+            fb_atomic_halo_atom_global2halo, &
             fb_atomic_halo_nelectrons_estimate_Z, &
             fb_atomic_halo_list_retain, &
             fb_atomic_halo_list_release, &
@@ -63,6 +66,7 @@ MODULE qs_fb_atomic_halo_types
   !> \param natoms           : number of atoms in the halo
   !> \param nelectrons       : estimate of total number of electrons in halo
   !> \param halo_atoms       : the list of global id of atoms in the halo
+  !> \param sorted           : whether the halo_atoms list is sorted or not
   !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
   !**********************************************************************
   TYPE fb_atomic_halo_data
@@ -72,6 +76,7 @@ MODULE qs_fb_atomic_halo_types
      INTEGER :: natoms
      INTEGER :: nelectrons
      INTEGER, DIMENSION(:), POINTER :: halo_atoms
+     LOGICAL :: sorted
   END TYPE fb_atomic_halo_data
 
 
@@ -262,6 +267,7 @@ CONTAINS
        atomic_halo%obj%owner_id_in_halo = 0
        atomic_halo%obj%natoms = 0
        atomic_halo%obj%nelectrons = 0
+       atomic_halo%obj%sorted = .FALSE.
        NULLIFY(atomic_halo%obj%halo_atoms)
        atomic_halo%obj%ref_count = 1
        atomic_halo%obj%id_nr = last_fb_atomic_halo_id + 1
@@ -300,6 +306,7 @@ CONTAINS
        atomic_halo%obj%owner_id_in_halo = 0
        atomic_halo%obj%natoms = 0
        atomic_halo%obj%nelectrons = 0
+       atomic_halo%obj%sorted = .FALSE.
     END IF
   END SUBROUTINE fb_atomic_halo_init
 
@@ -312,8 +319,10 @@ CONTAINS
   !>                     not be NULL or UNDEFINED
   !> \param owner_atom [OPTIONAL]: if present, outputs atmic_halo%obj%owner_atom
   !> \param natoms [OPTIONAL]: if present, outputs atomic_halo%obj%natoms
+  !> \param nelectrons [OPTIONAL]: if present, outputs atomic_halo%obj%nelectrons
   !> \param halo_atoms [OPTIONAL]: if present, outputs pointer
   !>                               atomic_halo%obj%halo_atoms
+  !> \param sorted [OPTIONAL]: if present, outputs atomic_halo%obj%sorted
   !> \param error: CP2K data container for error logging
   !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
   ! **********************************************************************
@@ -323,6 +332,7 @@ CONTAINS
                                 natoms, &
                                 nelectrons, &
                                 halo_atoms, &
+                                sorted, &
                                 error)
     TYPE(fb_atomic_halo_obj), INTENT(in) :: atomic_halo
     TYPE(cp_error_type), INTENT(inout) :: error
@@ -331,6 +341,7 @@ CONTAINS
     INTEGER, INTENT(out), OPTIONAL :: natoms
     INTEGER, INTENT(out), OPTIONAL :: nelectrons
     INTEGER, DIMENSION(:), POINTER, OPTIONAL :: halo_atoms
+    LOGICAL, INTENT(out), OPTIONAL :: sorted
 
     CHARACTER(len=*), PARAMETER :: routineN = 'fb_atomic_halo_get', &
                                    routineP = moduleN//':'//routineN
@@ -345,6 +356,7 @@ CONTAINS
        IF (PRESENT(natoms)) natoms = atomic_halo%obj%natoms
        IF (PRESENT(nelectrons)) nelectrons = atomic_halo%obj%nelectrons
        IF (PRESENT(halo_atoms)) halo_atoms => atomic_halo%obj%halo_atoms
+       IF (PRESENT(sorted)) sorted = atomic_halo%obj%sorted
     END IF
   END SUBROUTINE fb_atomic_halo_get
 
@@ -358,9 +370,11 @@ CONTAINS
   !> \param owner_atom [OPTIONAL]: if present, sets
   !>                               atmic_halo%obj%owner_atom = owner_atom
   !> \param natoms [OPTIONAL]: if present, sets atomic_halo%obj%natoms = natoms
+  !> \param nelectrons [OPTIONAL]: if present, sets atomic_halo%obj%nelectrons = nelectrons
   !> \param halo_atoms [OPTIONAL]: if present, reallocates atomic_halo%obj%halo_atoms
   !>                               to the size of halo_atoms, and copies
   !>                               contents of halo_atoms to atomic_halo%obj%halo_atoms
+  !> \param sorted [OPTIONAL]: if present, sets atomic_halo%obj%sorted = sorted
   !> \param error: CP2K data container for error logging
   !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
   ! **********************************************************************
@@ -370,6 +384,7 @@ CONTAINS
                                 natoms, &
                                 nelectrons, &
                                 halo_atoms, &
+                                sorted, &
                                 error)
     TYPE(fb_atomic_halo_obj), INTENT(in) :: atomic_halo
     TYPE(cp_error_type), INTENT(inout) :: error
@@ -378,8 +393,9 @@ CONTAINS
     INTEGER, INTENT(in), OPTIONAL :: natoms
     INTEGER, INTENT(in), OPTIONAL :: nelectrons
     INTEGER, DIMENSION(:), POINTER, OPTIONAL :: halo_atoms
+    LOGICAL, INTENT(in), OPTIONAL :: sorted
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'fb_atomic_halo_get', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'fb_atomic_halo_set', &
                                    routineP = moduleN//':'//routineN
 
     LOGICAL :: failure
@@ -400,8 +416,80 @@ CONTAINS
           END IF
           atomic_halo%obj%halo_atoms => halo_atoms
        END IF
+       IF (PRESENT(nelectrons)) atomic_halo%obj%sorted = sorted
     END IF
   END SUBROUTINE fb_atomic_halo_set
+
+
+  ! **********************************************************************
+  !> \brief Sort the list of atomic indices in the halo in accending order.
+  !>        The atomic_halo must not be empty
+  !> \param atomic_halo:  the atomic_halo object
+  !> \param error: CP2K data container for error logging
+  !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
+  ! **********************************************************************
+  SUBROUTINE fb_atomic_halo_sort(atomic_halo, error)
+    TYPE(fb_atomic_halo_obj), INTENT(in) :: atomic_halo
+    TYPE(cp_error_type), INTENT(inout) :: error
+    
+    CHARACTER(len=*), PARAMETER :: routineN = 'fb_atomic_halo_sort', &
+                                   routineP = moduleN//':'//routineN
+
+    LOGICAL :: failure
+    INTEGER, DIMENSION(:), ALLOCATABLE :: tmp_index
+    INTEGER :: stat
+
+    failure = .FALSE.
+    CPPrecondition(SIZE(atomic_halo%obj%halo_atoms) > 0,
+                   cp_failure_level, routineP, error, failure)
+    ALLOCATE(tmp_index(atomic_halo%obj%natoms), STAT=stat)
+    CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
+    CALL sort(atomic_halo%obj%halo_atoms, atomic_halo%obj%natoms, tmp_index)
+    DEALLOCATE(tmp_index, STAT=stat)
+    CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
+    atomic_halo%obj%sorted = .TRUE.
+  END SUBROUTINE fb_atomic_halo_sort
+
+
+  ! **********************************************************************
+  !> \brief Given a global atomic index, convert it to its index in a
+  !>        given atomic halo, if found.
+  !>        The atomic_halo object must already have been sorted
+  !> \param atomic_halo:  the atomic_halo object
+  !> \param iatom_global:  the global atomic index
+  !> \param iatom_halo:  the atomic index inside the halo
+  !> \param found:  returns true if given atom is in the halo, otherwise
+  !>                false
+  !> \param error: CP2K data container for error logging
+  !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
+  ! **********************************************************************
+  SUBROUTINE fb_atomic_halo_atom_global2halo(atomic_halo, &
+                                             iatom_global, &
+                                             iatom_halo, &
+                                             found, &
+                                             error)
+    TYPE(fb_atomic_halo_obj), INTENT(in) :: atomic_halo
+    INTEGER, INTENT(in) :: iatom_global
+    INTEGER, INTENT(out) :: iatom_local
+    INTEGER, INTENT(out) :: found
+    TYPE(cp_error_type), INTENT(inout) :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'fb_atomic_halo_sort', &
+                                   routineP = moduleN//':'//routineN
+
+    LOGICAL :: failure
+
+    failure = .FALSE.
+    CPPrecondition(atomic_halo%obj%sorted, &
+                   cp_failure_level, routineP, error, failure)
+    iatom_halo = locate(atomic_halo%obj%halo_atoms, iatom_global)
+    IF (iatom_halo == 0) THEN
+       found = .FALSE.
+    ELSE
+       found = .TRUE.
+    END IF
+  END SUBROUTINE fb_atomic_halo_atom_global2halo
+
 
 
   ! **********************************************************************
