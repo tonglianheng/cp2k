@@ -19,6 +19,7 @@ MODULE qs_fb_atomic_matrix_methods
                                        fb_com_atom_pairs_create, &
                                        fb_com_atom_pairs_get, &
                                        fb_com_atom_pair_decode, &
+                                       fb_atomic_halo_atom_global2halo, &
                                        fb_com_atom_pairs_release, &
                                        fb_com_tasks_transpose_dest_src, &
                                        fb_com_tasks_build_atom_pairs
@@ -154,10 +155,7 @@ CONTAINS
 
     LOGICAL :: failure, found
     TYPE(fb_com_atom_pairs_obj) :: atom_pairs_send, atom_pairs_recv
-
-
     INTEGER(KIND=int_8), DIMENSION(:), POINTER :: pairs_send, pairs_recv
-    INTEGER, DIMENSION(:), POINTER :: halo_atoms
     INTEGER, DIMENSION(:), ALLOCATABLE :: send_sizes, send_disps, &
                                           send_pair_count, send_pair_disps, &
                                           recv_sizes, recv_disps, &
@@ -166,35 +164,18 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:), ALLOCATABLE :: send_buf, recv_buf
     REAL(KIND=dp), DIMENSION(:,:), POINTER :: mat_block
     INTEGER :: ipair, npairs_send, npairs_recv, pe, nblkrows_total, &
-         nblkcols_total, arow, acol, me, ipe, ii, jj, ind, stat, &
-         send_encode, recv_encode, nhalos, iatom, jatom, numprocs, &
-         nrows_blk, ncols_blk
+               nblkcols_total, arow, acol, me, ipe, ii, jj, ind, stat, &
+               send_encode, recv_encode, nhalos, iatom, jatom, &
+               iatom_in_halo, jatom_in_halo, numprocs, nrows_blk, ncols_blk
 
     failure = .FALSE.
 
-    NULLIFY(pairs, halo_atoms)
+    NULLIFY(pairs_send, pairs_recv, mat_block)
     CALL fb_com_atom_pairs_nullify(atom_pairs_send, error)
     CALL fb_com_atom_pairs_nullify(atom_pairs_recv, error)
 
     ! initialise atomic matrix
     atomic_matrix = 0.0_dp
-
-    ! get some information first
-    ! CALL fb_env_get(fb_env=fb_env, &
-    !                 qs_env=qs_env, &
-    !                 atomic_halos=atomic_halos, &
-    !                 error=error)
-    ! CALL get_qs_env(qs_env=qs_env, &
-    !                 para_env=para_env, &
-    !                 error=error)
-    ! CALL fb_atomic_halo_set_get(atomic_halos=atomic_halos, &
-    !                             nhalos=nhalos, &
-    !                             halos=halos, &
-    !                             error=error)
-    ! CPPrecondition(ihalo.LE.nhalos, cp_failure_level, routineP, error, failure)
-    CALL fb_atomic_halo_get(atomic_halo=atomic_halo, &
-                            halo_atoms=halo_atoms, &
-                            error=error)
 
     ! generate send and receiv atomic pairs
     CALL fb_com_atom_pairs_create(atom_pairs_send, error)
@@ -256,10 +237,8 @@ CONTAINS
        CALL fb_com_atom_pair_decode(pairs_send(ipair), &
                                     pe, iatom, jatom, send_encode)
        pe = pe + 1 ! we need proc to count from 1
-       arow = halo_atoms(iatom)
-       acol = halo_atoms(jatom)
-       nrows_blk = last_row(arow) - first_row(arow) + 1
-       ncols_blk = last_col(acol) - first_col(acol) + 1
+       nrows_blk = last_row(iatom) - first_row(iatom) + 1
+       ncols_blk = last_col(jatom) - first_col(jatom) + 1
        send_sizes(pe) = send_sizes(pe) + nrows_blk * ncols_blk
        send_pair_count(pe) = send_pair_count(pe) + 1
     END DO
@@ -288,10 +267,8 @@ CONTAINS
        CALL fb_com_atom_pair_decode(pairs_recv(ipair), &
                                     pe, iatom, jatom, recv_encode)
        pe = pe + 1 ! we need proc to count from 1
-       arow = halo_atoms(iatom)
-       acol = halo_atoms(jatom)
-       nrows_blk = last_row(arow) - first_row(arow) + 1
-       ncols_blk = last_col(acol) - first_col(acol) + 1
+       nrows_blk = last_row(iatom) - first_row(iatom) + 1
+       ncols_blk = last_col(jatom) - first_col(jatom) + 1
        recv_sizes(pe) = recv_sizes(pe) + nrows_blk * ncols_blk
        recv_pair_count(pe) = recv_pair_count(pe) + 1
     END DO
@@ -315,12 +292,11 @@ CONTAINS
        DO ipair = 1, send_pair_count(ipe)
           CALL fb_com_atom_pair_decode(pairs_send(send_pair_disps(ipe) + ipair), &
                                        pe, iatom, jatom, send_encode)
-          arow = halo_atoms(iatom)
-          acol = halo_atoms(jatom)
-          nrows_blk = last_row(arow) - first_row(arow) + 1
-          ncols_blk = last_col(arow) - first_col(arow) + 1
+          nrows_blk = last_row(iatom) - first_row(iatom) + 1
+          ncols_blk = last_col(jatom) - first_col(jatom) + 1
           CALL cp_dbcsr_get_block_p(matrix=dbcsr_mat, &
-                                    row=arow, col=acol, block=mat_block, found=found)
+                                    row=iatom, col=jatom, block=mat_block, &
+                                    found=found)
           IF (.NOT. found) THEN
 !TODO:LT:2014/08/07: This is not quite right here. What if the
 !                    rcut-neighbor list is larger than the CP2K
@@ -373,17 +349,27 @@ CONTAINS
        DO ipair = 1, recv_pair_count(ipe)
           CALL fb_com_atom_pair_decode(pairs_recv(recv_pair_disps(ipe) + ipair), &
                                        pe, iatom, jatom, recv_encode)
-          arow = halo_atoms(iatom)
-          acol = halo_atoms(jatom)
-          nrows_blk = last_row(arow) - first_row(arow) + 1
-          ncols_blk = last_col(arow) - first_col(arow) + 1
+          nrows_blk = last_row(iatom) - first_row(iatom) + 1
+          ncols_blk = last_col(jatom) - first_col(jatom) + 1
+          ! get the corresponding atom indices in halo
+          ! the atoms from the recv_pairs should be in the atomic_halo, because
+          ! the recv_pairs are the matrix blocks requested by the local proc for
+          ! this particular atomic_halo
+          CALL fb_atomic_halo_atom_global2halo(atomic_halo, &
+                                               iatom, iatom_in_halo, &
+                                               found, error)
+          CPPostcondition(found, cp_failure_level, routineP, error, failure)
+          CALL fb_atomic_halo_atom_global2halo(atomic_halo, &
+                                               jatom, jatom_in_halo, &
+                                               found, error)
+          CPPostcondition(found, cp_failure_level, routineP, error, failure)
           ! put block into the full conventional matrix
           DO jj = 0, ncols_blk - 1
              DO ii = 0, nrows_blk - 1
                 ! column major format in blocks
                 ind = recv_disp(ipe) + recv_sizes(ipe) + ii + jj*nrows_blk + 1
-                atomic_matrix(blk_row_start(iatom) + ii, &
-                              blk_col_start(jatom) + jj) = recv_buf(ind)
+                atomic_matrix(blk_row_start(iatom_in_halo) + ii, &
+                              blk_col_start(jatom_in_halo) + jj) = recv_buf(ind)
              END DO ! ii
           END DO ! jj
           recv_sizes(ipe) = recv_sizes(ipe) + nrows_blk*ncols_blk
@@ -432,7 +418,8 @@ CONTAINS
     INTEGER(KIND=int_8), DIMENSION(:,:), POINTER :: tasks_recv
     INTEGER :: iatom, jatom, iatom_global, jatom_global, natoms_local, &
                my_basis_set_id, dest, src, ntasks_recv, ntasks_send, &
-               itask, nhalos, natoms_in_halo, pair, stat
+               itask, nhalos, natoms_in_halo, pair, nblkrows_total, &
+               nencode, stat
     INTEGER, DIMENSION(:), ALLOCATABLE :: tmp_index
     REAL(KIND=dp), DIMENSION(:,:), POINTER :: mat_block
 
@@ -454,10 +441,16 @@ CONTAINS
        CALL fb_com_atom_pairs_create(atom_pairs_recv, error)
     END IF
 
+    ! get atomic halo information
     CALL fb_atomic_halo_get(atomic_halo=atomic_halo, &
                             natoms=natoms_in_halo, &
                             halo_atoms=halo_atoms, &
                             error=error)
+    
+    ! get the total number of atoms, we can obtain this directly
+    ! from the global block row dimension of the dbcsr matrix
+    CALL cp_dbcsr_get_info(matrix=dbcsr_mat, &
+                           nblkrows_total=nblkrows_total)
 
     ! destination proc is always the local processor
     dest = para_env%mepos  ! my MPI rank
@@ -487,16 +480,17 @@ CONTAINS
                                                jatom_global, &
                                                transpose=.FALSE., &
                                                processor=src)
-          ! create task, we enocode the halo indices instead of global
-          ! indices on purpose here, because halo indices for the
-          ! pairs are used to determine the block position in the
-          ! atomic matrix, and while it is straight-forward to get
-          ! global indices from halo indices, it is much more
-          ! difficult to get halo indices from global indices
+          ! we must encode the global atom indices rather the halo atomic indices
+          ! in each task, because halo atomic indices are local to each halo, and
+          ! each processor is working on a different halo local to them. So
+          ! one processor would not have the information about the halo on another
+          ! processor, rendering the halo atomic indices rather useless outside
+          ! the local processor.
           tasks_recv(TASK_DEST,itask) = dest
           tasks_recv(TASK_SRC,itask) = src
           CALL fb_com_tasks_encode_pair(tasks_recv(TASK_PAIR,itask), &
-                                        iatoms, jatoms, natoms_in_halo)
+                                        iatoms_global, jatoms_global, &
+                                        nblkrows_total)
           ! calculation of cost not implemented at the moment
           tasks_recv(TASK_COST,itask) = 0
        END DO ! jatom
@@ -509,6 +503,7 @@ CONTAINS
     CALL fb_com_tasks_set(com_tasks=com_tasks_recv, &
                           task_dim=TASK_N_RECORDS, &
                           ntasks=ntasks_recv, &
+                          nencode=nblkrows_total, &
                           tasks=tasks_recv, &
                           error=error)
 
@@ -520,6 +515,7 @@ CONTAINS
     CALL fb_com_tasks_get(com_tasks=com_tasks_send, &
                           ntasks=ntasks_send, &
                           tasks=tasks_send, &
+                          nencode=nencode, &
                           error=error)
 
     ! because the atomic_halos and the neighbor_list_set used to
@@ -531,10 +527,8 @@ CONTAINS
     counter = 0
     DO itask = 1, ntasks_send
        pair = tasks_send(TASK_PAIR,itask)
-       CALL fb_com_tasks_decode_pair(pair, iatom, jatom, natoms_in_halo)
+       CALL fb_com_tasks_decode_pair(pair, iatom_global, jatom_global, encode)
        ! check if block exists in DBCSR matrix
-       iatom_global = halo_atoms(iatom)
-       jatom_global = halo_atoms(jatom)
        CALL cp_dbcsr_get_block_p(matrix=dbcsr_mat, &
                                  row=iatom_global, col=jatom_global, block=mat_block, &
                                  found=found)
@@ -557,6 +551,7 @@ CONTAINS
     CALL fb_com_tasks_set(com_tasks=com_tasks_send, &
                           ntasks=ntasks_send, &
                           tasks=tasks_send, &
+                          nencode=nencode, &
                           error)
 
     ! now, re-distribute the new send tasks list to other processors
@@ -568,13 +563,13 @@ CONTAINS
     ! and atom_pairs_recv from the tasks lists
     CALL fb_com_tasks_build_atom_pairs(com_tasks=com_tasks_send, &
                                        atom_pairs=atom_pairs_send, &
-                                       natoms_encode=natoms_in_halo, &
+                                       natoms_encode=nencode, &
                                        send_or_recv="send", &
                                        symmetric=.FALSE., &
                                        error=error)
     CALL fb_com_tasks_build_atom_pairs(com_tasks=com_tasks_recv, &
                                        atom_pairs=atom_pairs_recv, &
-                                       natoms_encode=natoms_in_halo, &
+                                       natoms_encode=nencode, &
                                        send_or_recv="recv", &
                                        symmetric=.FALSE., &
                                        error=error)
