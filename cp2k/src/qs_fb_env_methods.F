@@ -10,6 +10,7 @@ MODULE qs_fb_env_methods
   USE qs_fb_atomic_halo_types, ONLY: fb_atomic_halo_obj, &
                                      fb_atomic_halo_get, &
                                      fb_atomic_halo_set, &
+                                     fb_atomic_halo_sort, &
                                      fb_atomic_halo_nelectrons_estimate_Z, &
                                      fb_atomic_halo_list_obj, &
                                      fb_atomic_halo_list_init, &
@@ -207,6 +208,9 @@ CONTAINS
                                   halo_atoms=halo_atoms, &
                                   nelectrons=nelectrons_in_halo, &
                                   error=error)
+          ! sort atomic halo
+          CALL fb_atomic_halo_sort(halos(ihalo), error)XS
+
           ihalo = ihalo + 1
        END DO ! iatom_local
     END DO ! ikind
@@ -236,24 +240,30 @@ CONTAINS
     LOGICAL :: failure
 
     TYPE(cp_para_env_type), POINTER :: para_env
+    TYPE(dbcsr_distribution_obj), POINTER :: dbcsr_dist
     TYPE(mo_set_p_type), DIMENSION(:), POINTER :: mo_list
     TYPE(particle_type), DIMENSION(:), POINTER :: particle_set
-    TYPE(atomic_kind_type), DIMENSION(:), POINTER :: atomic_kind
+    TYPE(atomic_kind_type), POINTER :: atomic_kind
     TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER :: mat_S, mat_H
     TYPE(fb_atomic_halo_list_obj) :: atomic_halos
     TYPE(fb_atomic_halo_obj), DIMENSION(:), POINTER :: halos
-    REAL(KIND=dp), DIMENSION(:,:), POINTER :: atomic_H, atomic_S
+    REAL(KIND=dp), DIMENSION(:,:), ALLOCATABLE :: atomic_H, atomic_S
     REAL(KIND=dp), DIMENSION(:,:), ALLOCATABLE :: filtered_eigenvectors, &
                                                   atomic_filter_matrix
     REAL(KIND=dp), DIMENSION(:), ALLOCATABLE :: filter_function, &
                                                 eigenvalues
     REAL(KIND=dp) :: filter_temperature, fermi_level, maxocc
-    INTEGER :: ispin, nblkrows_total, nblkcols_total, stat, ihalo, nhalos, &
-               this_atom, this_atom_in_halo, ii, jj, mat_dim
-    INTEGER, DIMENSION(:), POINTER :: atomic_H_blk_row_start, &
-                                      atomic_H_blk_col_start, &
-                                      atomic_S_blk_row_start, &
-                                      atomic_S_blk_col_start
+    INTEGER :: ispin, nblkrows_total, nblkcols_total, stat, jhalo, nhalos, &
+               this_atom, this_atom_in_halo, ii, jj, mat_dim, nrows, ncols, &
+               natoms_in_halo, ihalo_atom, jhalo_atom, iatom_global, jatom_global, &
+               natoms_global, ikind, jkind, nspin
+    INTEGER, DIMENSION(:), POINTER :: halo_atoms
+    INTEGER, DIMENSION(:), ALLOCATABLE :: atomic_H_blk_row_start, &
+                                          atomic_H_blk_col_start, &
+                                          atomic_S_blk_row_start, &
+                                          atomic_S_blk_col_start
+    INTEGER, DIMENSION(:), POINTER :: cbs
+    TYPE(array_i1d_obj) :: col_blk_size, row_blk_size
 
     failure = .FALSE.
 
@@ -262,21 +272,75 @@ CONTAINS
 
     NULLIFY(para_env, mo_list, particle_set, atomic_kind, mat_S, mat_H, halos, &
             atomic_H, atomic_S, atomic_H_blk_row_start, atomic_H_blk_col_start, &
-            atomic_S_blk_row_start, atomic_S_blk_col_start)
+            atomic_S_blk_row_start, atomic_S_blk_col_start, cbs)
+    CALL array_nullify(row_blk_size)
+    CALL array_nullify(col_blk_size)
     CALL fb_atomic_halo_list_nullify(atomic_halos)
 
     CALL fb_env_get(fb_env=fb_env, &
                     filter_temperature=filter_temperature, &
                     error=error)
+
     CALL get_qs_env(qs_env=qs_env, &
                     para_env=para_env, &
                     mos=mo_list, &
                     particle_set=particle_set, &
                     matrix_s=mat_S, &
                     matrix_h=mat_H, &
+                    dbcsr_dist=dbcsr_dist, &
                     error=error)
-    natoms = SIZE(particle_set)
 
+    CPPrecondition(SIZE(mat_H)==SIZE(mat_S), cp_failure_level, routineP, error, failure)
+    nspin = SIZE(mat_H)
+
+    ! get trial function information
+    CALL fb_trial_fns_get(trial_fns=trial_fns, &
+                          nfns=nfns, &
+                          fns=fns, &
+                          error=error)
+    
+    ! allocate the row_blk_sizes and col_blk_sizes arrays for
+    ! constructing the filter matrix in DBCSR format
+    natoms_global = SIZE(particle_set)
+    ALLOCATE(cbs(natoms_global), STAT=stat)
+    CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
+    rbs = 0
+    cbs = 0
+    ! row_blk_size is same as S or H matrix
+    CALL cp_dbcsr_get_info(mat_S(ispin=1)%matrix, &
+                           nblkrows_total=nblkrows_total, &
+                           nblkcols_total=nblkcols_total, &
+                           row_blk_size=row_blk_size)
+    ! work out col_blk_size
+    DO iatom_global = 1, natoms_global
+       atomic_kind => particle_set(iatom_global)%atomic_kind
+       CALL get_atomic_kind(atomic_kind=atomic_kind, &
+                            kind_number=ikind)
+       cbs(iatom_global) = nfns(ikind)
+    END DO
+    ! do not deallocate cbs if gift=.TRUE. as col_blk_sizes will only point to cbs
+    CALL array_new(col_blk_sizes, cbs, gift=.TRUE.)
+    ! the filter matrix is non-square and is always non-symmetric
+    symmetry_string = dbcsr_type_no_symmetry
+    ! create empty filter matrices for each spin
+    DO ispin = 1, nspin
+       WRITE (spin_string, FMT="(I1)"), ispin
+       name = TRIM("FILTER MATRIX SPIN"//spin_string)
+       CALL compress(name)
+       CALL uppercase(name)
+       ALLOCATE(filter_matrix(ispin)%matrix, STAT=stat)
+       CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
+       CALL cp_dbcsr_init(filter_matrix(ispin)%matrix, error=error)
+       CALL cp_dbcsr_create(matrix=filter_matrix(ispin)%matrix, &
+                            name=name, &
+                            dist=dbcsr_dist, &
+                            matrix_type=symmetry_string, &
+                            row_blk_size=row_blk_size, &
+                            col_blk_size=col_blk_size, &
+                            nblks=0, &
+                            nze=0, &
+                            error=error)
+    END DO
     ! generate atomic halos
     CALL fb_env_build_atomic_halos(fb_env, error)
     CALL fb_env_get(fb_env=fb_env, &
@@ -286,30 +350,57 @@ CONTAINS
                                  nhalos=nhalos, &
                                  halos=halos, &
                                  error=error)
-
-    CPPrecondition(SIZE(mat_H)==SIZE(mat_S), cp_failure_level, routineP, error, failure)
-    DO ispin = 1, SIZE(mat_H)
-       DO ihalo = 1, nhalos
-          CALL fb_atomic_halo_get(atomic_halo=halos(ihalo), &
-                                  owner_atom=this_atom
-                                  owner_id_in_halo=this_atom_in_halo
+    DO ispin = 1, nspin
+       DO jhalo = 1, nhalos
+          CALL fb_atomic_halo_get(atomic_halo=halos(jhalo), &
+                                  owner_atom=jatom, &
+                                  owner_id_in_halo=jatom_in_halo, &
+                                  natoms=natoms_in_halo, &
+                                  halo_atoms=halo_atoms, &
                                   errpr=error)
           ! construct atomic matrix for H for this_atom
-          CALL fb_construct_atomic_matrix(fb_env, &
-                                          mat_H(ispin)%matrix, &
-                                          atomic_H, &
+          ALLOCATE(atomic_H_blk_row_start(natoms_in_halo + 1), &
+                   atomic_H_blk_col_start(natoms_in_halo + 1), &
+                   STAT=stat)
+          CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
+          CALL fb_calc_atomic_matrix_size(mat_H(ispin)%matrix, &
+                                          atomic_halo, &
+                                          nrows, &
+                                          ncols, &
                                           atomic_H_blk_row_start, &
                                           atomic_H_blk_col_start, &
-                                          ihalo, &
                                           error)
+          ALLOCATE(atomic_H(nrows,ncols), STAT=stat)
+          CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
+          CALL fb_build_atomic_matrix(mat_H(ispin)%matrix, &
+                                      atomic_halo, &
+                                      para_env, &
+                                      atomic_H, &
+                                      atomic_H_blk_row_start, &
+                                      atomic_H_blk_col_start, &
+                                      error)
           ! construct atomic matrix for S for this_atom
-          CALL fb_construct_atomic_matrix(fb_env, &
-                                          mat_S(ispin)%matrix, &
-                                          atomic_S, &
+          ALLOCATE(atomic_S_blk_row_start(natoms_in_halo + 1), &
+                   atomic_S_blk_col_start(natoms_in_halo + 1), &
+                   STAT=stat)
+          CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
+          CALL fb_calc_atomic_matrix_size(mat_S(ispin)%matrix, &
+                                          atomic_halo, &
+                                          nrows, &
+                                          ncols, &
                                           atomic_S_blk_row_start, &
                                           atomic_S_blk_col_start, &
-                                          ihalo, &
                                           error)
+          ALLOCATE(atomic_S(nrows,ncols), STAT=stat)
+          CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
+          CALL fb_build_atomic_matrix(mat_S(ispin)%matrix, &
+                                      atomic_halo, &
+                                      para_env, &
+                                      atomic_S, &
+                                      atomic_S_blk_row_start, &
+                                      atomic_S_blk_col_start, &
+                                      error)
+
           ! diagonalise using LAPACK
           mat_dim = SIZE(atomic_H, 1)
           ALLOCATE(eigenvalues(mat_dim), STAT=stat)
@@ -395,9 +486,82 @@ CONTAINS
                      C      = atomic_filter_matrix,  &
                      LDC    = mat_dim)
           
-          ! now construct the local filter matrix blocks
+          ! construct filter matrix
           
+       
 
+
+          ! now construct the local filter matrix blocks
+          DO ihalo_atom = 1, natoms_in_halo
+             iatom_global = halo_atoms(ihalo_atom)
+             nrows_in_blk = atomic_H_blk_row_start(ihalo_atom + 1) - &
+                            atomic_H_blk_row_start(ihalo_atom)
+              DO jhalo_atom = 1, natoms_in_halo
+                jatom_global = halo_atoms(jhalo_atom)
+                atomic_kind => particle_set(jatom_global)%atomic_kind
+                CALL get_atomic_kind(atomic_kind=atomic_kind, &
+                                     kind_number=jkind)
+                ncols_in_blk = nfns(jkind)
+                ALLOCATE(filter_matrix_blk(nrows_in_blk,ncols_in_blk), STAT=stat)
+                CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
+                filter_matrix_blk = 0.0_dp
+                DO itrial = 1, nfns(jkind)
+                   CALL dgemv(                                                 &
+                        TRANSA = "N",                                          &
+                        TRANSB = "N",                                          &
+                        M      = nrows_in_blk,                                 &
+                        N      = mat_dim,                                      &
+                        ALPHA  = 1.0_dp,                                       &
+                        A      = atomic_filter_matrix(                         &
+                                   atomic_H_blk_row_start(ihalo_atom) :        &
+                                   atomic_H_blk_row_start(ihalo_atom + 1) - 1, &
+                                   1 : mat_dim                                 &
+                                 ),                                            &
+                        LDA    = nrows_in_blk,                                 &
+                        X      = atomic_S(                                     &
+                                   1 : mat_dim,                                &
+                                   atomic_S_blk_row_start(jhalo_atom) +        &
+                                   fns(itrial,jkind) - 1                       &
+                                 ),                                            &
+                        INCX   = 1,                                            &
+                        BETA   = 0.0_dp,                                       &
+                        Y      = filter_matrix_blk(                            &
+                                   1 : nrows_in_blk,                           &
+                                   itrial                                      &
+                                 ),                                            &
+                        INCY   = 1)
+                END DO ! itrial
+                
+                ! communicate the block
+                
+                ! construct communication tasks
+                CALL fb_com_tasks_create(com_tasks_send, error)
+                CALL fb_com_tasks_create(com_tasks_recv, error)
+                stored_row = iatom_global
+                stored_col = jatom_global
+                ! number of send tasks will not exceed the total
+                ! number of blocks generated on this process
+                ntasks_send = 
+
+                ! source is always this process
+                src = para_env%mepos
+                ! destination is the proc this block belongs to
+                CALL cp_dbcsr_get_stored_coordinates(matrix=filter_matrix(ispin)%matrix, &
+                                                     row=stored_row, col=stored_col, &
+                                                     transpose=.FALSE., &
+                                                     processor=dest)
+                
+
+
+                ! put the filter matrix block into the filter matrix
+                CALL cp_dbcsr_put_block(matrix=filter_matrix(ispin)%matrix, &
+                                        row=iatom_global, &
+                                        col=jatom_global, &
+                                        block=filter_matrix_blk)
+                
+
+             END DO ! jhalo_atoms
+          END DO ! ihalo_atom
 
        END DO  ! ihalo
     END DO ! ispin
