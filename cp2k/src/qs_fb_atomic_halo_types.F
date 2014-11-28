@@ -51,7 +51,7 @@ MODULE qs_fb_atomic_halo_types
             fb_atomic_halo_list_write
 
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'fb_atomic_halo_typess'
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_fb_atomic_halo_types'
   INTEGER, PRIVATE, SAVE :: last_fb_atomic_halo_id = 0
   INTEGER, PRIVATE, SAVE :: last_fb_atomic_halo_list_id = 0
 
@@ -416,7 +416,8 @@ CONTAINS
           END IF
           atomic_halo%obj%halo_atoms => halo_atoms
        END IF
-       IF (PRESENT(nelectrons)) atomic_halo%obj%sorted = sorted
+       IF (PRESENT(nelectrons)) atomic_halo%obj%nelectrons = nelectrons
+       IF (PRESENT(sorted)) atomic_halo%obj%sorted = sorted
     END IF
   END SUBROUTINE fb_atomic_halo_set
 
