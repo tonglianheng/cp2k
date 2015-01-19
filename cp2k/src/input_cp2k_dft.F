@@ -18,7 +18,7 @@ MODULE input_cp2k_dft
        Perdew1981, Porezag1995, Repasky2002, Rocha2006, Schenter2008, &
        Seifert1996, Stewart1982, Stewart1989, Stewart2007, Thiel1992, &
        Tozer1996, VandeVondele2003, VandeVondele2005a, VandeVondele2005b, &
-       VandeVondele2006, Weber2008, Zhao1994, Zhechkov2005
+       VandeVondele2006, Weber2008, Zhao1994, Zhechkov2005, Rayson2009
   USE cp_output_handling,              ONLY: cp_print_key_section_create
   USE cp_units,                        ONLY: cp_unit_to_cp2k
   USE f77_blas
@@ -27,7 +27,7 @@ MODULE input_cp2k_dft
        broy_mix_new, cholesky_dbcsr, cholesky_inverse, cholesky_off, &
        cholesky_reduce, cholesky_restore, constant_env, core_guess, &
        debug_print_level, densities_guess, diag_block_davidson, &
-       diag_block_krylov, diag_ot, diag_standard, direct_p_mix, &
+       diag_block_krylov, diag_ot, diag_standard, diag_filter_matrix, direct_p_mix, &
        dispersion_d3, dispersion_uff, do_admm_basis_projection, &
        do_admm_blocked_projection, do_admm_blocking_purify_full, &
        do_admm_purify_cauchy, do_admm_purify_cauchy_subspace, &
@@ -6347,8 +6347,10 @@ CONTAINS
             enum_desc=s2a("Standard diagonalization: LAPACK methods or Jacobi.",&
                           "Iterative diagonalization using OT method",&
                           "Block Krylov-space approach to self-consistent diagonalisation",&
-                          "Preconditioned blocked Davidson"),&
-            enum_i_vals=(/diag_standard, diag_ot, diag_block_krylov, diag_block_davidson/),&
+                          "Preconditioned blocked Davidson",&
+                          "Filter matrix diagonalization"),&
+            enum_i_vals=(/diag_standard, diag_ot, diag_block_krylov, diag_block_davidson,&
+                          diag_filter_matrix/),&
             error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
@@ -6423,9 +6425,50 @@ CONTAINS
        CALL section_add_subsection(section,subsection,error=error)
        CALL section_release(subsection,error=error)
 
+       NULLIFY(subsection)
+       CALL create_filtermatrix_section(subsection,error)
+       CALL section_add_subsection(section,subsection,error=error)
+       CALL section_release(subsection,error=error)
+
     END IF
 
   END SUBROUTINE create_diagonalization_section
+
+
+
+  SUBROUTINE create_filtermatrix_section(section, error)
+    TYPE(section_type), POINTER              :: section
+    TYPE(cp_error_type), INTENT(inout)       :: error
+    
+    CHARACTER(len=*), PARAMETER :: routineN = 'create_filtermatrix_section', &
+                                   routineP = moduleN//':'//routineN
+    
+    LOGICAL                                  :: failure
+    TYPE(keyword_type), POINTER              :: keyword
+    
+    failure = .FALSE.
+    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)  
+    
+    IF (.NOT. failure) THEN
+       CALL section_create(section,"FILTER_MATRIX",&
+                           description=" ",&
+                           n_keywords=1, n_subsections=0, repeats=.FALSE., required=.FALSE.,&
+                           error=error)
+       
+       NULLIFY(keyword)
+       
+       CALL keyword_create(keyword, name="FILTER_TEMPERATURE", &
+                           description="Temperature used for the filter function used to construct the filter matrix.", &
+                           USEAGE="FILTER_TEMPERATURE 0.1", &
+                           default_r_val=0.1, &
+                           citations=(/Rayson2009/), &
+                           error=error)
+       CALL section_add_keyword(section, keyword, error=error)
+       CALL keyword_release(keyword, error=error)
+       
+    END IF
+    
+  END SUBROUTINE create_filtermatrix_section
 
 
 ! *****************************************************************************
