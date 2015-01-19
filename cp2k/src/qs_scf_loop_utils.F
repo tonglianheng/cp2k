@@ -91,7 +91,7 @@ MODULE qs_scf_loop_utils
 CONTAINS
 
 ! *****************************************************************************
-!> \brief computes properties for a given hamilonian using the current wfn 
+!> \brief computes properties for a given hamilonian using the current wfn
 !> \param scp_nddo ...
 !> \param scf_control ...
 !> \param scf_env ...
@@ -120,13 +120,13 @@ CONTAINS
     IF ( scp_nddo  ) THEN
 ! check if we are doing outer SCF optimization of SCP coeffs:
       SELECT CASE (scf_control%outer_scf%type)
-      CASE ( outer_scf_none ) 
+      CASE ( outer_scf_none )
          scf_env%qs_ot_env(1)%settings%ks = .TRUE.
-      CASE ( outer_scf_scp )      
+      CASE ( outer_scf_scp )
 ! IF outer scf count is even, then only optimize SCP, else optimize KS
         even_iter=MOD ( scf_env%outer_scf%iter_count, 2 ) == 0
         odd_iter=MOD ( scf_env%outer_scf%iter_count, 2 ) /= 0
-        scf_env%qs_ot_env(1)%settings%ks      = even_iter                                    
+        scf_env%qs_ot_env(1)%settings%ks      = even_iter
         scf_env%qs_ot_env(1)%settings%scp_nddo= odd_iter .AND. scp_nddo
       END SELECT
     END IF
@@ -194,11 +194,20 @@ CONTAINS
                     error=error)
     scf_env%iter_param = 0.0_dp
 
+
     SELECT CASE (scf_env%method)
     CASE DEFAULT
        CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
             routineP,"unknown scf method: "//&
             cp_to_string(scf_env%method),error,failure)
+
+! ************************************************************************
+! Filter matrix diagonalisation: ugly implementation at this point of time
+! ************************************************************************
+    CASE(filter_diag_method_nr)
+
+       CALL fb_env_do_diag(fb_env, qs_env, matrix_ks, matrx_s, diis_step, error)
+
 ! Diagonlization in non orthonormal case
     CASE(general_diag_method_nr)
        IF (dft_control%roks) THEN
@@ -278,12 +287,12 @@ CONTAINS
        ENDIF
        ! ***SCP
     END SELECT
- 
-  END SUBROUTINE qs_scf_new_mos 
+
+  END SUBROUTINE qs_scf_new_mos
 
 ! *****************************************************************************
-!> \brief Updates MOs and density matrix using diagonalization    
-!>        Kpoint code           
+!> \brief Updates MOs and density matrix using diagonalization
+!>        Kpoint code
 !> \param qs_env ...
 !> \param scf_env ...
 !> \param scf_section ...
@@ -347,8 +356,8 @@ CONTAINS
                routineP,"KP code: Scf method not available: "//&
                cp_to_string(scf_env%method),error,failure)
     END SELECT
- 
-  END SUBROUTINE qs_scf_new_mos_kp 
+
+  END SUBROUTINE qs_scf_new_mos_kp
 
 ! *****************************************************************************
 !> \brief the inner loop of scf, specific to using to the orbital transformation method
@@ -480,13 +489,13 @@ CONTAINS
        IF ((harris_energy)) THEN
           energy%total = harris_env%harris_energy%Eharris
        END IF
-    END IF 
+    END IF
 
  END SUBROUTINE qs_scf_harris_e_correct
 ! *****************************************************************************
 !> \brief Performs the requested density mixing if any needed
 !> \param scf_env   Holds SCF environment information
-!> \param rho       All data for the electron density 
+!> \param rho       All data for the electron density
 !> \param para_env  Parallel environment
 !> \param diis_step Did we do a DIIS step?
 !> \param do_kpoints Is this a kpoint run?
@@ -586,9 +595,9 @@ CONTAINS
             SIZE(scf_env%outer_scf%gradient,1)
        IF (outer_loop_eps<scf_control%outer_scf%eps_scf) outer_loop_converged=.TRUE.
     END IF
- 
+
     exit_outer_loop=should_stop .OR. outer_loop_converged.OR.&
-             scf_env%outer_scf%iter_count>scf_control%outer_scf%max_scf 
+             scf_env%outer_scf%iter_count>scf_control%outer_scf%max_scf
 
   END SUBROUTINE qs_scf_check_outer_exit
 
@@ -638,7 +647,7 @@ CONTAINS
         inner_loop_converged=.FALSE.
         exit_inner_loop = .TRUE.
      END IF
- 
+
   END SUBROUTINE qs_scf_check_inner_exit
 ! *****************************************************************************
 !> \brief undoing density mixing. Important upon convergence
@@ -735,7 +744,7 @@ CONTAINS
 
     CALL qs_ks_update_qs_env(ks_env,qs_env=qs_env,calculate_forces=calculate_forces,&
          just_energy=just_energy,error=error)
-    
+
   END  SUBROUTINE qs_scf_ks_updates
 
 ! *****************************************************************************
@@ -758,7 +767,7 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'qs_scf_rho_updates', &
       routineP = moduleN//':'//routineN
 
-    
+
     ! ** update qs_env%rho
     CALL qs_rho_update_rho(rho, qs_env=qs_env, error=error)
     ! ** Density mixing through density matrix or on the reciprocal space grid (exclusive)
@@ -877,4 +886,4 @@ CONTAINS
 
   END SUBROUTINE cleanup_scf_loop
 
-END MODULE qs_scf_loop_utils 
+END MODULE qs_scf_loop_utils

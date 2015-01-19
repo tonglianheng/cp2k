@@ -2,8 +2,6 @@ MODULE qs_fb_atomic_halo_types
 
   USE kinds,               ONLY: dp, &
                                  default_string_length
-  USE qs_fb_env_types,     ONLY: fb_env_type, &
-                                 fb_env_get
   USE input_section_types, ONLY: section_vals_type
   USE cp_output_handling,  ONLY: cp_p_file, &
                                  cp_print_key_finished_output, &
@@ -95,12 +93,14 @@ MODULE qs_fb_atomic_halo_types
   !> \param id_nr     : unique id for the object
   !> \param ref_count : reference count on the object
   !> \param nhalos  : number of halos in the list
+  !> \param max_nhalos : maximum of the number of halos amongst all of the procs
   !> \param halos   : halos(ihalo) gives the ihalo-th fb_atomic_halo object
   !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
   !**********************************************************************
   TYPE fb_atomic_halo_list_data
      INTEGER :: id_nr, ref_count
      INTEGER :: nhalos
+     INTEGER :: max_nhalos
      TYPE(fb_atomic_halo_obj), DIMENSION(:), POINTER :: halos
   END TYPE fb_atomic_halo_list_data
 
@@ -672,6 +672,7 @@ CONTAINS
        ALLOCATE(atomic_halos%obj, STAT=stat)
        CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
        atomic_halos%obj%nhalos = 0
+       atomic_halos%obj%max_nhalos = 0
        NULLIFY(atomic_halos%obj%halos)
        atomic_halos%obj%ref_count = 1
        atomic_halos%obj%id_nr = last_fb_atomic_halo_list_id + 1
@@ -710,6 +711,7 @@ CONTAINS
           NULLIFY(atomic_halos%obj%halos)
        END IF
        atomic_halos%obj%nhalos = 0
+       atomic_halos%obj%max_nhalos = 0
     END IF
   END SUBROUTINE fb_atomic_halo_list_init
 
@@ -721,13 +723,15 @@ CONTAINS
   !> \param atomic_halos: the fb_atomic_halo object, its content must
   !>                      not be NULL or UNDEFINED
   !> \param nhalos [OPTIONAL]: if present, gives nhalos = atomic_halos%obj%nhalos
+  !> \param max_nhalos [OPTIONAL]: if present, gives max_nhalos = atomic_halos%obj%max_nhalos
   !> \param halos [OPTIONAL]: if present, gives halos => atomic_halos%obj%halos
   !> \param error: CP2K data container for error logging
   !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
   ! **********************************************************************
-  SUBROUTINE fb_atomic_halo_list_get(atomic_halos, nhalos, halos, error)
+  SUBROUTINE fb_atomic_halo_list_get(atomic_halos, nhalos, max_nhalos, halos, error)
     TYPE(fb_atomic_halo_list_obj), INTENT(in) :: atomic_halos
     INTEGER, INTENT(out), OPTIONAL :: nhalos
+    INTEGER, INTENT(out), OPTIONAL :: max_nhalos
     TYPE(fb_atomic_halo_obj), DIMENSION(:), POINTER, OPTIONAL :: halos
     TYPE(cp_error_type), INTENT(inout) :: error
 
@@ -740,6 +744,7 @@ CONTAINS
     CPPrecondition(ASSOCIATED(atomic_halos%obj), cp_failure_level, routineP, error, failure)
     IF (.NOT. failure) THEN
        IF (PRESENT(nhalos)) nhalos = atomic_halos%obj%nhalos
+       IF (PRESENT(max_nhalos)) max_nhalos = atomic_halos%obj%max_nhalos
        IF (PRESENT(halos)) halos => atomic_halos%obj%halos
     END IF
   END SUBROUTINE fb_atomic_halo_list_get
@@ -752,14 +757,16 @@ CONTAINS
   !> \param atomic_halos: the fb_atomic_halo object, its content must
   !>                      not be NULL or UNDEFINED
   !> \param nhalos [OPTIONAL]: if present, sets atomic_halos%obj%nhalos = nhalos
+  !> \param max_nhalos [OPTIONAL]: if present, sets atomic_halos%obj%max_nhalos = max_nhalos
   !> \param halos [OPTIONAL]: if present, reallocates atomic_halos%obj%halos
   !>                          to the size of halos
   !> \param error: CP2K data container for error logging
   !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
   ! **********************************************************************
-  SUBROUTINE fb_atomic_halo_list_set(atomic_halos, nhalos, halos, error)
+  SUBROUTINE fb_atomic_halo_list_set(atomic_halos, nhalos, max_nhalos, halos, error)
     TYPE(fb_atomic_halo_list_obj), INTENT(in) :: atomic_halos
     INTEGER, INTENT(in), OPTIONAL :: nhalos
+    INTEGER, INTENT(in), OPTIONAL :: max_nhalos
     TYPE(fb_atomic_halo_obj), DIMENSION(:), POINTER, OPTIONAL :: halos
     TYPE(cp_error_type), INTENT(inout) :: error
 
@@ -774,6 +781,7 @@ CONTAINS
                    cp_failure_level, routineP, error, failure)
     IF (.NOT. failure) THEN
        IF (PRESENT(nhalos)) atomic_halos%obj%nhalos = nhalos
+       IF (PRESENT(max_nhalos)) atomic_halos%obj%max_nhalos = max_nhalos
        IF (PRESENT(halos)) THEN
           IF (ASSOCIATED(halos)) THEN
              DO ihalo = 1, SIZE(halos)
@@ -795,7 +803,7 @@ CONTAINS
 
   ! **********************************************************************
   !> \brief Writes out the atomic halo list from an fb_atomic_halo_list
-  !?        object using information
+  !>        object using information
   !> \param atomic_halos: the fb_atomic_halo object
   !> \param para_env: pointer to a para_env_type object containing MPI info
   !> \param fb_section: pointer to the input section to filtered basis method

@@ -314,7 +314,7 @@ CONTAINS
              DO jj = 1, ncols_blk
                 DO ii = 1, nrows_blk
                    ! column major format in blocks
-                   ind = send_disp(ipe) + send_sizes(ipe) + ii + jj*nrows_blk
+                   ind = send_disp(ipe) + send_sizes(ipe) + ii + (jj-1)*nrows_blk
                    send_buf(ind) = mat_block(ii,jj)
                 END DO ! ii
              END DO ! jj

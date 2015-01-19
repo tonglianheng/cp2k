@@ -13,6 +13,8 @@ MODULE qs_fb_env_types
                                      fb_atomic_halo_list_nullify, &
                                      fb_atomic_halo_list_has_data, &
                                      fb_atomic_halo_list_associate
+  USE qs_fb_trial_fns_types,   ONLY: fb_trial_fns_obj
+  
 
 #include "./common/cp_common_uses.f90"
 
@@ -61,6 +63,7 @@ MODULE qs_fb_env_types
      REAL(kind=dp), DIMENSION(:), POINTER :: rcut
      TYPE(cp_fm_p_type), DIMENSION(:), POINTER :: filter_matrix
      TYPE(fb_atomic_halo_list_obj) :: atomic_halos
+     TYPE(fb_trial_fns_obj) :: trial_fns
      REAL(kind_dp) :: filter_temperature
   END type fb_env_data
 
@@ -140,6 +143,7 @@ CONTAINS
              CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
           END IF
           CALL fb_atomic_halo_list_release(fb_env%obj%atomic_halos, error)
+          CALL fb_trial_fns_release(fb_env%obj%trial_fns, error)
           fb_env%obj%ref_count = 0
           DEALLOCATE(fb_env%obj, STAT=stat)
           CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
@@ -232,6 +236,7 @@ CONTAINS
        NULLIFY(fb_env%obj%rcut)
        NULLIFY(fb_env%obj%filter_matrix)
        CALL fb_atomic_halo_list_nullify(fb_env%obj%atomic_halos)
+       CALL fb_trial_fns_nullify(fb_env%obj%trial_fns)
        fb_env%obj%filter_temperature = 0.0_dp
        fb_env%obj%ref_count = 1
        fb_env%obj%id_nr = last_fb_env_id + 1
@@ -276,6 +281,7 @@ CONTAINS
           NULLIFY(fb_env%obj%filter_matrix)
        END IF
        CALL fb_atomic_halo_list_release(fb_env%obj%atomic_halos, error)
+       CALL fb_trial_fns_release(fb_env%obj%trial_fns, error)
        fb_env%obj%filter_temperature = 0.0_dp
     END IF
   END SUBROUTINE fb_env_init
@@ -292,6 +298,8 @@ CONTAINS
   !>                             attribute of fb_env (optional)
   !> \param atomic_halos       : outputs pointer to atomic_halos
   !>                             attribute of fb_env (optional)
+  !> \param trial_fns          : outputs pointer to trial_fns
+  !>                             attribute of fb_env (optional)
   !> \param error  : variable to control error logging, stopping, ...
   !>                 see module cp_error_handling
   !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
@@ -302,6 +310,7 @@ CONTAINS
                         filter_matrix, &
                         filter_temperature, &
                         atomic_halos, &
+                        trial_fns, &
                         error)
     TYPE(fb_env_obj), INTENT(in) :: fb_env
     TYPE(qs_environment_type), POINTER, OPTIONAL :: qs_env
@@ -309,6 +318,7 @@ CONTAINS
     TYPE(cp_fm_p_type), DIMENSION(:), POINTER, OPTIONAL :: filter_matrix
     REAL(kind_dp), OPTIONAL :: filter_temperature
     TYPE(fb_atomic_halo_list_obj), INTENT(out), OPTIONAL :: atomic_halos
+    TYPE(fb_trial_fns_obj), INTENT(out), OPTIONAL :: trial_fns
     TYPE(cp_error_type), INTENT(inout) :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'fb_env_get', &
@@ -326,6 +336,8 @@ CONTAINS
        IF (PRESENT(filter_temperature)) filter_temperature = fb_env%obj%filter_temperature
        IF (PRESENT(atomic_halos)) &
             CALL fb_atomic_halo_list_associate(atomic_halos, fb_env%obj%atomic_halos)
+       IF (PRESENT(trial_fns)) &
+            CALL fb_trial_fns_associate(trial_fns, fb_env%obj%trial_fns)
     END IF
   END SUBROUTINE fb_env_get
 
@@ -338,6 +350,7 @@ CONTAINS
   !> \param filter_matrix      : sets filter_matrix attribute of fb_env (optional)
   !> \param filter_temperature : sets filter_temperature attribute of fb_env (optional)
   !> \param atomic_halos       : sets atomic_halos attribute of fb_env (optional)
+  !> \param trial_fns          : sets trial_fns attribute of fb_env (optional)
   !> \param error  : variable to control error logging, stopping, ...
   !>                 see module cp_error_handling
   !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
@@ -348,6 +361,7 @@ CONTAINS
                         filter_matrix, &
                         filter_temperature, &
                         atomic_halos, &
+                        trial_fns, &
                         error)
     TYPE(fb_env_obj), INTENT(in) :: fb_env
     TYPE(qs_environment_type), POINTER, OPTIONAL :: qs_env
@@ -355,6 +369,7 @@ CONTAINS
     TYPE(cp_fm_p_type), DIMENSION(:), POINTER, OPTIONAL :: filter_matrix
     REAL(kind_dp), INTENT(in), OPTIONAL :: filter_temperature
     TYPE(fb_atomic_halo_list_obj), INTENT(in), OPTIONAL :: atomic_halos
+    TYPE(fb_trial_fns_obj), INTENT(in), OPTIONAL :: trial_fns
     TYPE(cp_error_type), INTENT(inout) :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'fb_env_set', &
@@ -402,6 +417,12 @@ CONTAINS
                CALL fb_atomic_halo_list_retain(atomic_halos, error)
           CALL fb_atomic_halo_list_release(fb_env%obj%atomic_halos, error)
           CALL fb_atomic_halo_list_associate(fb_env%obj%atomic_halos, atomic_halos)
+       END IF
+       IF (PRESENT(trial_fns)) THEN
+          IF (fb_trial_fns_has_data(trial_fns)) &
+               CALL fb_trial_fns_retain(trial_fns, error)
+          CALL fb_trial_fns_release(fb_env%obj%trial_fns, error)
+          CALL fb_trial_fns_associate(fb_env%obj%trial_fns, trial_fns)
        END IF
     END IF
   END SUBROUTINE fb_env_set

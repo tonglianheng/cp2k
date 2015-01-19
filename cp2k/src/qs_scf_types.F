@@ -52,7 +52,10 @@ MODULE qs_scf_types
                                 ot_diag_method_nr=3,&
                                 block_krylov_diag_method_nr=4,&
                                 block_davidson_diag_method_nr=5,&
-                                ot_method_nr=10
+                                ot_method_nr=10, &
+!BEG:DEBUG:LT:2014/12/03
+                                filter_diag_method_nr=20
+!END:DEBUG:LT:2014/12/03
 
   INTEGER, SAVE, PRIVATE :: last_scf_env_id=0
 

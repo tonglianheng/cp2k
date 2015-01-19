@@ -4,6 +4,11 @@ MODULE qs_fb_com_tasks_types
   USE cp_para_types,   ONLY: cp_para_env_type
   USE message_passing, ONLY: mp_alltoall
   USE util,            ONLY: sort
+  USE cp_dbcsr_interface, ONLY: cp_dbcsr_type, &
+                                cp_dbcsr_row_block_sizes, &
+                                cp_dbcsr_col_block_sizes, &
+                                array_new
+                                
 
   IMPLICIT NONE
 
@@ -1133,6 +1138,8 @@ CONTAINS
     INTEGER(KIND=int_8), DIMENSION(:), POINTER :: pairs
     INTEGER, DIMENSION(:), ALLOCATABLE :: first_row, last_row, &
                                           first_col, last_col
+    INTEGER, DIMENSION(:), POINTER :: row_block_size_data, &
+                                      col_block_size_data
     
     failure = .FALSE.
 
@@ -1153,15 +1160,17 @@ CONTAINS
     CALL cp_dbcsr_get_info(dbcsr_matrix, &
                            nblkrows_total=nblkrows_total, &
                            nblkcols_total=nblkcols_total)
-    ALLOCATE(first_row(nblkrows_total), last_row(nblkrows_total), &
-             first_col(nblkcols_total), last_col(nblkcols_total), &
-             STAT=stat)
-    CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
-    CALL convert_sizes_to_offsets(array_data(cp_dbcsr_row_block_sizes(dbcsr_mat)), &
-                                  first_row, last_row)
-    CALL convert_sizes_to_offsets(array_data(cp_dbcsr_col_block_sizes(dbcsr_mat)), &
-                                  first_col, last_col)
-    
+    ! ALLOCATE(first_row(nblkrows_total), last_row(nblkrows_total), &
+    !          first_col(nblkcols_total), last_col(nblkcols_total), &
+    !          STAT=stat)
+    ! CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
+    ! CALL convert_sizes_to_offsets(array_data(cp_dbcsr_row_block_sizes(dbcsr_mat)), &
+    !                               first_row, last_row)
+    ! CALL convert_sizes_to_offsets(array_data(cp_dbcsr_col_block_sizes(dbcsr_mat)), &
+    !                               first_col, last_col)
+    row_block_size_data => array_data(cp_dbcsr_row_block_sizes(dbcsr_mat))
+    col_block_size_data => array_data(cp_dbcsr_col_block_sizes(dbcsr_mat))
+
     sendrecv_sizes = 0
     sendrecv_pair_counts = 0
     DO ipair = 1, npairs
@@ -1171,8 +1180,10 @@ CONTAINS
        pe = pe + 1 ! we need proc to count from 1
        IF (PRESENT(row_map)) iatom = row_map(iatom)
        IF (PRESENT(col_map)) jatom = row_map(jatom)
-       nrows_blk = last_row(iatom) - first_row(iatom) + 1
-       ncols_blk = last_col(jatom) - first_col(jatom) + 1
+       ! nrows_blk = last_row(iatom) - first_row(iatom) + 1
+       ! ncols_blk = last_col(jatom) - first_col(jatom) + 1
+       nrows_blk = row_block_size_data(iatom)
+       ncols_blk = col_block_size_data(jatom)
        sendrecv_sizes(pe) = sendrecv_sizes(pe) + nrows_blk * ncols_blk
        sendrecv_pair_counts(pe) = sendrecv_pair_counts(pe) + 1
     END DO
@@ -1185,8 +1196,8 @@ CONTAINS
        sendrecv_pair_disps(ipe) = sendrecv_pair_disps(ipe-1) + sendrecv_pair_count(ipe-1)
     END DO
 
-    DEALLOCATE(first_row, last_row, first_col, last_col, STAT=stat)
-    CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
+    ! DEALLOCATE(first_row, last_row, first_col, last_col, STAT=stat)
+    ! CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
 
   END SUBROUTINE fb_com_atom_pairs_sendrecv_sizes
 

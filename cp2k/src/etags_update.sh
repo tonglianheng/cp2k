@@ -25,7 +25,9 @@ ETAGS_REGEXP_FILE=./etags_regexp
 
 if [ "x$ETAGS_REGEXP_FILE" != "x" ] && \
    [ -f "$ETAGS_REGEXP_FILE" ] ; then
-    echo "$ETAGS_REGEXP_FILE file found, using -r option of etags"
+    cat >&2 <<EOF
+[32m$ETAGS_REGEXP_FILE file found[0m, using -r option of etags
+EOF
     etags_command="$ETAGS -r @etags_regexp"
 else
     etags_command="$ETAGS"
