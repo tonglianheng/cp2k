@@ -45,7 +45,7 @@ MODULE qs_scf_initialization
   USE input_constants,                 ONLY: &
        broy_mix, broy_mix_new, cholesky_dbcsr, cholesky_inverse, &
        cholesky_off, densities_guess, diag_block_davidson, diag_block_krylov, &
-       diag_ot, diag_standard, direct_p_mix, kerker_mix, multisec_mix, &
+       diag_ot, diag_standard, diag_filter_matrix, direct_p_mix, kerker_mix, multisec_mix, &
        no_mix, plus_u_lowdin, pulay_mix, wfi_frozen_method_nr, &
        wfi_use_guess_method_nr
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
@@ -96,7 +96,7 @@ MODULE qs_scf_initialization
        block_davidson_diag_method_nr, block_krylov_diag_method_nr, &
        diag_subspace_env_create, general_diag_method_nr, krylov_space_create, &
        ot_diag_method_nr, ot_method_nr, qs_scf_env_type, scf_env_create, &
-       scf_env_release, special_diag_method_nr
+       scf_env_release, special_diag_method_nr, filter_matrix_diag_method_nr
   USE qs_wf_history_methods,           ONLY: reorthogonalize_vectors,&
                                              wfi_extrapolate,&
                                              wfi_get_method_label,&
@@ -106,6 +106,9 @@ MODULE qs_scf_initialization
                                              timestop
   USE xas_env_types,                   ONLY: xas_environment_type
   USE xas_restart,                     ONLY: xas_initialize_rho
+  USE qs_fb_env_types,                 ONLY: fb_env_create
+
+
 #include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
@@ -738,6 +741,21 @@ CONTAINS
             routineP,"DFTB and SE not possible with OT diagonalization",error,failure)
       END SELECT
       SELECT CASE (scf_control%diagonalization%method)
+
+!BEG:DEBUG:LT:2015/01/10
+
+      CASE(diag_filter_matrix)
+         scf_env%method=filter_matrix_diag_method_nr
+         scf_env%cholesky_method = cholesky_inverse
+         IF (.NOT. fb_env_has_data(scf_env%filter_matrix_env, error=error)) THEN
+            CALL fb_env_create(scf_env%filter_matrix_env, error=error)
+         END IF
+         CALL fb_env_read_input(scf_env%filter_matrix_env, scf_section, error=error)
+         CALL fb_env_build_rcut_auto(scf_env%filter_matrix_env, qs_env, error=error)
+         
+!END:DEBUG:LT:2015/01/10
+
+
 ! Diagonalization: additional check whether we are in an orthonormal basis
       CASE(diag_standard)
         scf_env%method=general_diag_method_nr

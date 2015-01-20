@@ -204,7 +204,7 @@ CONTAINS
 ! ************************************************************************
 ! Filter matrix diagonalisation: ugly implementation at this point of time
 ! ************************************************************************
-    CASE(filter_diag_method_nr)
+    CASE(filter_matrix_diag_method_nr)
 
        CALL fb_env_do_diag(fb_env, qs_env, matrix_ks, matrx_s, diis_step, error)
 
@@ -874,6 +874,9 @@ CONTAINS
        CASE(special_diag_method_nr)
           !
        CASE(block_krylov_diag_method_nr,block_davidson_diag_method_nr)
+          !
+       CASE(filter_matrix_diag_method_nr)
+          !
        CASE DEFAULT
           CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
                routineP,"unknown scf method method:"//&

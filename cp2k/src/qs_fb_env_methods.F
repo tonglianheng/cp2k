@@ -1,7 +1,6 @@
 MODULE qs_fb_env_methods
 
   USE kinds, ONLY: dp, &
-                   int_8, &
                    default_string_length
   USE qs_fb_env_types, ONLY: fb_env_obj, &
                              fb_env_get, &
@@ -57,7 +56,9 @@ MODULE qs_fb_env_methods
   USE qs_diis, ONLY: qs_diis_b_step
   USE qs_scf_types, ONLY: qs_scf_env_type
   USE scf_control_types, ONLY: scf_control_type
-  USE input_section_types, ONLY: section_vals_type
+  USE input_section_types, ONLY: section_vals_type, &
+                                 section_vals_val_get, &
+                                 section_vals_get_subs_vals
   USE cp_para_types, ONLY: cp_para_env_type
   USE cp_blacs_env, ONLY: cp_blacs_env_type
   USE cp_fm_types, ONLY: cp_fm_type, &
@@ -80,6 +81,10 @@ MODULE qs_fb_env_methods
   USE cp_fm_cholesky, ONLY: cp_fm_cholesky_decompose
   USE cp_fm_basic_linalg, ONLY: cp_fm_triangular_invert
   USE qs_scf_methods, ONLY: eigensolver
+  USE basis_set_types, ONLY: gto_basis_set_type, &
+                             gto_basis_set_p_type, &
+                             get_gto_basis_set
+  USE qs_integral_utils, ONLY: basis_set_list_setup
 
 
 #include "./common/cp_common_uses.f90"
@@ -91,6 +96,8 @@ MODULE qs_fb_env_methods
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_fb_env_methods'
 
   PUBLIC :: fb_env_do_diag, &
+            fb_env_read_input, &
+            fb_env_build_rcut_auto, &
             fb_env_build_atomic_halos, &
             fb_env_build_trial_fns_auto
 
@@ -115,8 +122,7 @@ CONTAINS
                filtered_nfullrowsORcols_total, &
                nelectron, nfullrows_total, nfullcols_total, &
                homo_filtered, lfomo_filtered, &
-               nmo_filtered
-    INTEGER, DIMENSION(:), POINTER :: ntfns
+               nmo_filtered, max_nelectron
     REAL(kind=dp) :: diis_error, eps_diis
     REAL(kind=dp) :: fermi_level, maxocc, flexible_electron_count, &
                      filter_temp, mu_filtered, KTS_filtered
@@ -148,7 +154,7 @@ CONTAINS
     failure = .FALSE.
 
     NULLIFY(scf_env, scf_control, scf_section, para_env, blacs_env, &
-            mos, mos_filtered, matrix_filter, particle_set, ntfns)
+            mos, mos_filtered, matrix_filter, particle_set)
     CALL fb_atomic_halo_list_nullify(atomic_halos)
     CALL fb_trial_fns_nullify(trial_fns)
     CALL array_nullify(original_rowORcol_block_sizes)
@@ -215,8 +221,7 @@ CONTAINS
     END IF
 
 
-    ! get filter temperature, this is set at the beginning of the
-    ! calculations
+    ! get filter temperature
     CALL fb_env_get(fb_env=fb_env, &
                     filter_temperature=filter_temp, &
                     error=error)
@@ -229,14 +234,19 @@ CONTAINS
                     error=error)
 !TODO:LT:2015/01/19 can move the above into the outer MD loop sections?
 
-    ! get trial functions, trial functions should be constructed once
-    ! at the start of the simulation calculation, not here.
+    ! construct trial functions
+    max_nelectron = 0
+    DO ispin = 1, nspin
+       CALL get_mo_set(mo_set=mos(ispin)%mo_set, &
+                       nelectron=nelectron, &
+                       maxocc=maxocc)
+       max_nelectron = MAX(max_nelectron, nelectron)
+    END DO
+    CALL fb_env_build_trial_fns_auto(fb_env, qs_env, REAL(max_nelectron,dp), &
+                                     maxocc, error)
     CALL fb_env_get(fb_env=fb_env, &
                     trial_fns=trial_fns, &
                     error=error)
-    CALL fb_trial_fns_get(trial_fns=trial_fns, &
-                          nfunctions=ntfns, &
-                          error=error)
 
     ! allocate filter matrix (matrix_filter(ispin)%matrix are
     ! nullified by cp_dbcsr_allocate_matrix_set)
@@ -489,13 +499,13 @@ CONTAINS
     ! version (mos) for this, we need to update mo_coeff (and/or
     ! mo_coeff_b --- the DBCSR version, if used) of mos
 
-    ! note also that mo_eigenvalues cannot be updated, given that the
-    ! eigenvalues are computed in a smaller basis, and thus do not
-    ! give the full spectron. Printing of molecular states (molecular
-    ! DOS) at each SCF step is therefore not recommended when using
-    ! this method. The idea is that if one wants a full molecular DOS,
-    ! then one should perform a full diagonalisation without the
-    ! filters once the SCF has been achieved.
+    ! note also that mo_eigenvalues cannot be fully updated, given
+    ! that the eigenvalues are computed in a smaller basis, and thus
+    ! do not give the full spectron. Printing of molecular states
+    ! (molecular DOS) at each SCF step is therefore not recommended
+    ! when using this method. The idea is that if one wants a full
+    ! molecular DOS, then one should perform a full diagonalisation
+    ! without the filters once the SCF has been achieved.
 
     ! NOTE: from reading the source code, it appears that mo_coeff_b
     ! is actually never used by default (DOUBLE CHECK?!). Even
@@ -550,6 +560,96 @@ CONTAINS
     CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
 
   END SUBROUTINE fb_env_do_diag
+
+
+  SUBROUTINE fb_env_read_input(fb_env, scf_section, error)
+
+    TYPE(fb_env_obj), INTENT(in) :: fb_env
+    TYPE(section_vals_type), POINTER :: scf_section
+    TYPE(cp_error_type), INTENT(inout) :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'fb_env_read_input', &
+                                   routineP = moduleN//':'//routineN
+
+    TYPE(section_vals_type), POINTER :: fb_section
+    REAL(KIND=dp) :: filter_temperature
+
+    NULLIFY(fb_section)
+
+    fb_section => section_vals_get_subs_vals(scf_section, &
+                                             "DIAGONALIZATION%FILTER_MATRIX", &
+                                             error=error)
+    CALL section_vals_val_get(fb_section, "FILTER_TEMPERATURE", &
+                              r_val=filter_temperature, &
+                              error=error)
+    CALL fb_env_set(fb_env=fb_env, &
+                    filter_temperature=filter_temperature, &
+                    error=error)
+
+  END SUBROUTINE fb_env_read_input
+
+
+
+  SUBROUTINE fb_env_build_rcut_auto(fb_env, qs_env, error)
+    TYPE(fb_env_obj), INTENT(in) :: fb_env
+    TYPE(qs_environment_type), POINTER :: qs_env
+    TYPE(cp_error_type), INTENT(INOUT) :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'fb_env_build_rcut_auto', &
+                                   routineP = moduleN//':'//routineN
+
+    LOGICAL :: failure
+    TYPE(qs_kind_type), DIMENSION(:), POINTER :: qs_kind_set
+    TYPE(gto_basis_set_p_type), DIMENSION(:), POINTER :: basis_set_list
+    TYPE(gto_basis_set_type), POINTER :: basis_set
+
+    REAL(KIND=dp), DIMENSION(:), POINTER :: rcut
+    REAK(KIND=dp) :: kind_radius
+    INTEGER :: ikind, basis_set_id, nkinds, stat
+
+    NULLIFY(rcut, qs_kind_set)
+
+    CALL get_qs_env(qs_env=qs_env, &
+                    qs_kind_set=qs_kind_set)
+
+    nkinds = SIZE(qs_kind_set)
+    ALLOCATE(rcut(nkinds), STAT=stat)
+    CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
+
+    ! reading from the other parts of the code, it seemed that
+    ! aux_fit_basis_set is only used when do_admm is TRUE. This can be
+    ! seen from the calls to generate_qs_task_list subroutine in
+    ! qs_create_task_list, found in qs_environment_methods.F:
+    ! basis_set_id is only set as input parameter for do_admm
+    ! calculations, and if not set, the task list is generated using
+    ! the default basis_set_id=use_orb_basis_set.
+    IF (qs_env%dft_control%do_admm) THEN
+       basis_set_id = use_aux_fit_basis_set
+    ELSE
+       basis_set_id = use_orb_basis_set
+    END IF
+
+    ALLOCATE(basis_set_list(nkinds), STAT=istat)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+
+    CALL basis_set_list_setup(basis_set_list, basis_set_id, qs_kind_set)
+
+    DO ikind = 1, nkinds
+       basis_set => basis_set_list(ikind)%gto_basis_set
+       CALL get_gto_basis_set(gto_basis_set=basis_set, &
+                              kind_radius=kind_radius)
+       rcut(ikind) = kind_radius
+    END DO
+
+    CALL fb_env_set(fb_env=fb_env, &
+                    rcut=rcut, &
+                    error=error)
+
+    ! cleanup
+    DEALLOCATE(basis_set_list, STAT=stat)
+    CPPostcondition(istat==0, cp_failure_level, routineP, error, failure)
+
+  END SUBROUTINE fb_env_build_rcut_auto
 
 
   ! **********************************************************************
@@ -756,7 +856,7 @@ CONTAINS
     TYPE(gto_basis_set_p_type), DIMENSION(:), POINTER :: basis_set_list
     TYPE(gto_basis_set_type), POINTER :: basis_set
     INTEGER :: basis_set_id, old_lshell, iset, nset, ikind, nkinds, &
-               ishell, lshell, z, icgf, itrial, max_n_trial, counter, &
+               ishell, lshell, icgf, itrial, max_n_trial, counter, &
                ico, stat
     INTEGER, DIMENSION(:), POINTER :: nfunctions, lmax, nshell
     INTEGER, DIMENSION(:,:), POINTER :: functions
@@ -838,8 +938,6 @@ CONTAINS
     functions(:,:) = 0
     ! redo the loops to get the trial function indices within the basis set
     DO ikind = 1, nkinds
-       CALL get_atomic_kind(atomic_kind=atomic_kind_set(ikind), &
-                            z=z)
        ! "gto = gaussian type orbital"
        basis_set => basis_set_list(ikind)%gto_basis_set
        CALL get_gto_basis_set(gto_basis_set=gto_basis_set, &

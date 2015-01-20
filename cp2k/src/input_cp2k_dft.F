@@ -6343,7 +6343,7 @@ CONTAINS
             description="Algorithm to be used for diagonalization",&
             usage="ALGORITHM STANDARD",&
             default_i_val=diag_standard,&
-            enum_c_vals=s2a( "STANDARD","OT", "LANCZOS","DAVIDSON" ),&
+            enum_c_vals=s2a( "STANDARD","OT","LANCZOS","DAVIDSON","FILTER_MATRIX"),&
             enum_desc=s2a("Standard diagonalization: LAPACK methods or Jacobi.",&
                           "Iterative diagonalization using OT method",&
                           "Block Krylov-space approach to self-consistent diagonalisation",&

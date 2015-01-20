@@ -1,20 +1,19 @@
 MODULE qs_fb_env_types
 
   USE kinds,                   ONLY: dp
-  USE qs_environment_types,    ONLY: qs_environment_type, &
-                                     qs_env_retain, &
-                                     qs_env_release
-  USE cp_fm_typs,              ONLY: cp_fm_type, &
-                                     cp_fm_retain, &
-                                     cp_fm_release
   USE qs_fb_atomic_halo_types, ONLY: fb_atomic_halo_list_obj
                                      fb_atomic_halo_list_retain, &
                                      fb_atomic_halo_list_release, &
                                      fb_atomic_halo_list_nullify, &
                                      fb_atomic_halo_list_has_data, &
                                      fb_atomic_halo_list_associate
-  USE qs_fb_trial_fns_types,   ONLY: fb_trial_fns_obj
-  
+  USE qs_fb_trial_fns_types,   ONLY: fb_trial_fns_obj, &
+                                     fb_trial_fns_retain, &
+                                     fb_trial_fns_release, &
+                                     fb_trial_fns_nullify, &
+                                     fb_trial_fns_has_data, &
+                                     fb_trial_fns_associate
+
 
 #include "./common/cp_common_uses.f90"
 
@@ -44,12 +43,10 @@ MODULE qs_fb_env_types
   ! **********************************************************************
   !> \brief wrapper to the simulation parameters used for filtered basis
   !>        method
-  !> \param qs_env : quickstep environment
   !> \param rcut   : cutoff for included filtered basis set centred at
   !>                 each atom. These defines the ranges of the atomic
   !>                 halos. rcut(ikind) gives the range for atom of
   !>                 global kind ikind
-  !> \param filter_matrix : the filter (basis transformation) matrix
   !> \param atomic_halos  : stores information on the neighbors of each
   !>                        atom ii, which are defined by rcut
   !> \param filter_temperature : parameter controlling the smoothness of
@@ -59,9 +56,7 @@ MODULE qs_fb_env_types
   ! **********************************************************************
   TYPE fb_env_data
      INTEGER :: id_nr, ref_count
-     TYPE(qs_environment_type), POINTER :: qs_env
      REAL(kind=dp), DIMENSION(:), POINTER :: rcut
-     TYPE(cp_fm_p_type), DIMENSION(:), POINTER :: filter_matrix
      TYPE(fb_atomic_halo_list_obj) :: atomic_halos
      TYPE(fb_trial_fns_obj) :: trial_fns
      REAL(kind_dp) :: filter_temperature
@@ -130,16 +125,8 @@ CONTAINS
        fb_env%obj%ref_count = fb_env%obj%ref_count - 1
        IF (fb_env%obj%ref_count == 0) THEN
           fb_env%obj%ref_count = 1
-          CALL qs_env_release(fb_env%obj%qs_env, error=error)
           IF (ASSOCIATED(fb_env%obj%rcut)) THEN
              DEALLOCATE(fb_env%obj%rcut, STAT=stat)
-             CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
-          END IF
-          IF (ASSOCIATED(fb_env%obj%filter_matrix)) THEN
-             DO ii = 1, SIZE(fb_env%obj%filter_matrix)
-                CALL cp_fm_release(fb_env%obj%filter_matrix(ii)%matrix, error)
-             END DO
-             DEALLOCATE(fb_env%obj%filter_matrix, STAT=stat)
              CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
           END IF
           CALL fb_atomic_halo_list_release(fb_env%obj%atomic_halos, error)
@@ -232,9 +219,7 @@ CONTAINS
     IF (.NOT. failure) THEN
        ALLOCATE(fb_env%obj, STAT=stat)
        CPPostconditionNoFail(stat==0, cp_failure_level, routineP, error)
-       NULLIFY(fb_env%obj%qs_env)
        NULLIFY(fb_env%obj%rcut)
-       NULLIFY(fb_env%obj%filter_matrix)
        CALL fb_atomic_halo_list_nullify(fb_env%obj%atomic_halos)
        CALL fb_trial_fns_nullify(fb_env%obj%trial_fns)
        fb_env%obj%filter_temperature = 0.0_dp
@@ -266,19 +251,10 @@ CONTAINS
     failure = .FALSE.
     CPPrecondition(ASSOCIATED(fb_env%obj), cp_failure_level, routineP, error, failure)
     IF (.NOT. failure) THEN
-       CALL qs_env_release(fb_env%obj%qs_env, error)
        IF (ASSOCIATED(fb_env%obj%rcut)) THEN
           DEALLOCATE(fb_env%obj%rcut, STAT=stat)
           CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
           NULLIFY(fb_env%obj%rcut)
-       END IF
-       IF (ASSOCIATED(fb_env%obj%filter_matrix)) THEN
-          DO ii = 1, SIZE(fb_env%obj%filter_matrix)
-             CALL cp_fm_release(fb_env%obj%filter_matrix(ii)%matrix, error)
-          END DO
-          DEALLOCATE(fb_env%obj%filter_matrix, STAT=stat)
-          CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
-          NULLIFY(fb_env%obj%filter_matrix)
        END IF
        CALL fb_atomic_halo_list_release(fb_env%obj%atomic_halos, error)
        CALL fb_trial_fns_release(fb_env%obj%trial_fns, error)
@@ -290,10 +266,7 @@ CONTAINS
   ! **********************************************************************
   !> \brief method to get attributes from a given fb_env object
   !> \param fb_env : the fb_env object in question
-  !> \param qs_env : outputs pointer to qs_env of fb_env (optional)
   !> \param rcut   : outputs pointer to rcut attribute of fb_env (optional)
-  !> \param filter_matrix      : outputs pointer to filter_matrix
-  !>                             attribute of fb_env (optional)
   !> \param filter_temperature : outputs pointer to filter_temperature
   !>                             attribute of fb_env (optional)
   !> \param atomic_halos       : outputs pointer to atomic_halos
@@ -305,17 +278,13 @@ CONTAINS
   !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
   ! **********************************************************************
   SUBROUTINE fb_env_get(fb_env, &
-                        qs_env, &
                         rcut, &
-                        filter_matrix, &
                         filter_temperature, &
                         atomic_halos, &
                         trial_fns, &
                         error)
     TYPE(fb_env_obj), INTENT(in) :: fb_env
-    TYPE(qs_environment_type), POINTER, OPTIONAL :: qs_env
     REAL(kind=dp), DIMENSION(:), POINTER, OPTIONAL :: rcut
-    TYPE(cp_fm_p_type), DIMENSION(:), POINTER, OPTIONAL :: filter_matrix
     REAL(kind_dp), OPTIONAL :: filter_temperature
     TYPE(fb_atomic_halo_list_obj), INTENT(out), OPTIONAL :: atomic_halos
     TYPE(fb_trial_fns_obj), INTENT(out), OPTIONAL :: trial_fns
@@ -330,9 +299,7 @@ CONTAINS
     CPPrecondition(ASSOCIATED(fb_env%obj), cp_failure_level, routineP, error, failure)
     CPPrecondition(fb_env%obj%ref_count>0, cp_failure_level, routineP, error, failure)
     IF (.NOT. failure) THEN
-       IF (PRESENT(qs_env)) qs_env => fb_env%obj%qs_env
        IF (PRESENT(rcut)) rcut => fb_env%obj%rcut
-       IF (PRESENT(filter_matrix)) filter_matrix => fb_env%obj%filter_matrix
        IF (PRESENT(filter_temperature)) filter_temperature = fb_env%obj%filter_temperature
        IF (PRESENT(atomic_halos)) &
             CALL fb_atomic_halo_list_associate(atomic_halos, fb_env%obj%atomic_halos)
@@ -345,9 +312,7 @@ CONTAINS
   ! **********************************************************************
   !> \brief method to set attributes from a given fb_env object
   !> \param fb_env : the fb_env object in question
-  !> \param qs_env : sets qs_env attribute of fb_env (optional)
   !> \param rcut   : sets rcut attribute of fb_env (optional)
-  !> \param filter_matrix      : sets filter_matrix attribute of fb_env (optional)
   !> \param filter_temperature : sets filter_temperature attribute of fb_env (optional)
   !> \param atomic_halos       : sets atomic_halos attribute of fb_env (optional)
   !> \param trial_fns          : sets trial_fns attribute of fb_env (optional)
@@ -356,17 +321,13 @@ CONTAINS
   !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
   ! **********************************************************************
   SUBROUTINE fb_env_set(fb_env, &
-                        qs_env, &
                         rcut, &
-                        filter_matrix, &
                         filter_temperature, &
                         atomic_halos, &
                         trial_fns, &
                         error)
     TYPE(fb_env_obj), INTENT(in) :: fb_env
-    TYPE(qs_environment_type), POINTER, OPTIONAL :: qs_env
     TYPE(kind=dp), DIMENSION(:), POINTER, OPTIONAL :: rcut
-    TYPE(cp_fm_p_type), DIMENSION(:), POINTER, OPTIONAL :: filter_matrix
     REAL(kind_dp), INTENT(in), OPTIONAL :: filter_temperature
     TYPE(fb_atomic_halo_list_obj), INTENT(in), OPTIONAL :: atomic_halos
     TYPE(fb_trial_fns_obj), INTENT(in), OPTIONAL :: trial_fns
@@ -382,33 +343,12 @@ CONTAINS
     failure = .FALSE.
     CPPrecondition(ASSOCIATED(fb_env%obj), cp_failure_level, routineP, error, failure)
     IF (.NOT. failure) THEN
-       IF (PRESENT(qs_env)) THEN
-          IF (ASSOCIATED(qs_env)) &
-               CALL qs_env_retain(qs_env, error=error)
-          CALL qs_env_release(fb_env%qs_env, error=error)
-          fb_env%qs_env => qs_env
-       END IF
        IF (PRESENT(rcut)) THEN
           IF (ASSOCIATED(fb_env%obj%rcut)) THEN
              DEALLOCATE(fb_env%obj%rcut, STAT=stat)
              CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
           END IF
           fb_env%obj%rcut => rcut
-       END IF
-       IF (PRESENT(filter_matrix)) THEN
-          IF (ASSOCIATED(filter_matrix)) THEN
-             DO ii = 1, SIZE(filter_matrix)
-                CALL cp_fm_retain(fb_env%filter_matrix(ii)%matrix, error)
-             END DO
-          END IF
-          IF (ASSOCIATED(fb_env%obj%filter_matrix)) THEN
-             DO ii = 1, SIZE(fb_env%obj%filter_matrix)
-                CALL cp_fm_release(fb_env%obj%filter_matrix(ii)%matrix, error)
-             END DO
-             DEALLOCATE(fb_env%obj%filter_matrix, STAT=stat)
-             CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
-          END IF
-          fb_env%obj%filter_matrix => filter_matrix
        END IF
        IF (PRESENT(filter_temperature)) &
             fb_env%filter_temperature = filter_temperature
