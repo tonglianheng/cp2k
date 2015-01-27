@@ -32,7 +32,7 @@ MODULE qs_fb_atomic_matrix_methods
                                        fb_com_atom_pairs_get, &
                                        fb_com_atom_pairs_decode, &
                                        fb_com_atom_pairs_release, &
-                                       fb_com_atom_pairs_sendrecv_sizes
+                                       fb_com_atom_pairs_calc_buffer_sizes
   USE qs_environment_types,      ONLY: get_qs_env, &
                                        qs_environment_type
   USE cp_para_types,             ONLY: cp_para_env_type
@@ -207,7 +207,7 @@ CONTAINS
                                         atom_pairs_send, &
                                         atom_pairs_recv, &
                                         error)
-    
+
     ! get com pair informations
     CALL fb_com_atom_pairs_get(atom_pairs=atom_pairs_send, &
                                pairs=pairs_send, &
@@ -225,8 +225,8 @@ CONTAINS
     ! me = para_env%mepos + 1   ! my process id, starting counting from 1
 
     ! get dbcsr row and col block sizes
-    row_block_size_data => array_data(cp_dbcsr_row_block_sizes(dbcsr_matrix))
-    col_block_size_data => array_data(cp_dbcsr_col_block_sizes(dbcsr_matrix))
+    row_block_size_data => array_data(cp_dbcsr_row_block_sizes(dbcsr_mat))
+    col_block_size_data => array_data(cp_dbcsr_col_block_sizes(dbcsr_mat))
 
     ! allocate temporary arrays for send
     ALLOCATE(send_sizes(numprocs), STAT=stat)
@@ -239,16 +239,16 @@ CONTAINS
     CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
 
     ! setup send buffer sizes
-    CALL fb_com_atom_pairs_sendrecv_sizes(atom_pairs_send, &
-                                          dbcsr_mat, &
-                                          numprocs, &
-                                          row_block_size_data, &
-                                          col_block_size_data, &
-                                          send_sizes, &
-                                          send_disps, &
-                                          send_pair_count, &
-                                          send_pair_disps &
-                                          error)
+    CALL fb_com_atom_pairs_calc_buffer_sizes(atom_pairs_send, &
+                                             dbcsr_mat, &
+                                             numprocs, &
+                                             row_block_size_data, &
+                                             col_block_size_data, &
+                                             send_sizes, &
+                                             send_disps, &
+                                             send_pair_count, &
+                                             send_pair_disps, &
+                                             error)
     ! allocate send buffer
     ALLOCATE(send_buf(SUM(send_sizes)), STAT=stat)
     CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
@@ -264,16 +264,16 @@ CONTAINS
     CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
 
     ! setup recv buffer sizes
-    CALL fb_com_atom_pairs_sendrecv_sizes(atom_pairs_recv, &
-                                          dbcsr_mat, &
-                                          numprocs, &
-                                          row_block_size_data, &
-                                          col_block_size_data, &
-                                          recv_sizes, &
-                                          recv_disps, &
-                                          recv_pair_count, &
-                                          recv_pair_disps &
-                                          error)
+    CALL fb_com_atom_pairs_calc_buffer_sizes(atom_pairs_recv, &
+                                             dbcsr_mat, &
+                                             numprocs, &
+                                             row_block_size_data, &
+                                             col_block_size_data, &
+                                             recv_sizes, &
+                                             recv_disps, &
+                                             recv_pair_count, &
+                                             recv_pair_disps, &
+                                             error)
     ! allocate recv buffer
     ALLOCATE(recv_buf(SUM(recv_sizes)), STAT=stat)
     CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)

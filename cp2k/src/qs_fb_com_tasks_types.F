@@ -54,7 +54,7 @@ MODULE qs_fb_com_tasks_types
             fb_com_atom_pairs_set,           &
             fb_com_atom_pairs_encode,        &
             fb_com_atom_pairs_decode,        &
-            fb_com_atom_pairs_sendrecv_sizes
+            fb_com_atom_pairs_calc_buffer_sizes
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_fb_com_tasks_types'
   INTEGER, PRIVATE, SAVE :: last_fb_com_tasks_id = 0
@@ -1275,7 +1275,7 @@ CONTAINS
     ! DEALLOCATE(first_row, last_row, first_col, last_col, STAT=stat)
     ! CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
 
-  END SUBROUTINE fb_com_atom_pairs_sendrecv_sizes
+  END SUBROUTINE fb_com_atom_pairs_calc_buffer_sizes
 
 
 END MODULE qs_fb_com_tasks_types

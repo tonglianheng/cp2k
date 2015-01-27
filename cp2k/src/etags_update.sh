@@ -1,4 +1,4 @@
-B1;2c#!/bin/bash
+#!/bin/bash
 
 # --------------------------------------------------------------------
 # Script for recrusively updating TAGS file used by emacs for a source
