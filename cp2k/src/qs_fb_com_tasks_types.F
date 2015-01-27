@@ -20,9 +20,9 @@ MODULE qs_fb_com_tasks_types
 
   ! public parameters:
   PUBLIC :: TASK_N_RECORDS, &
-            TASK_DEST, &
-            TASK_SRC, &
-            TASK_PAIR, &
+            TASK_DEST,      &
+            TASK_SRC,       &
+            TASK_PAIR,      &
             TASK_COST
 
   ! public types
@@ -30,30 +30,31 @@ MODULE qs_fb_com_tasks_types
             fb_com_atom_pairs_obj
 
   ! public methods
-  PUBLIC :: fb_com_tasks_retain, &
-            fb_com_tasks_release, &
-            fb_com_tasks_nullify, &
-            fb_com_tasks_has_data, &
-            fb_com_tasks_associate, &
-            fb_com_tasks_create, &
-            fb_com_tasks_init, &
-            fb_com_tasks_get, &
-            fb_com_tasks_set, &
+  PUBLIC :: fb_com_tasks_retain,             &
+            fb_com_tasks_release,            &
+            fb_com_tasks_nullify,            &
+            fb_com_tasks_has_data,           &
+            fb_com_tasks_associate,          &
+            fb_com_tasks_create,             &
+            fb_com_tasks_init,               &
+            fb_com_tasks_get,                &
+            fb_com_tasks_set,                &
             fb_com_tasks_transpose_dest_src, &
-            fb_com_tasks_build_atom_pairs, &
-            fb_com_tasks_encode_pair, &
-            fb_com_tasks_decode_pair, &
-            fb_com_atom_pairs_retain, &
-            fb_com_atom_pairs_release, &
-            fb_com_atom_pairs_nullify, &
-            fb_com_atom_pairs_has_data, &
-            fb_com_atom_pairs_associate, &
-            fb_com_atom_pairs_create, &
-            fb_com_atom_pairs_init, &
-            fb_com_atom_pairs_get, &
-            fb_com_atom_pairs_set, &
-            fb_com_atom_pairs_encode, &
-            fb_com_atom_pairs_decode
+            fb_com_tasks_build_atom_pairs,   &
+            fb_com_tasks_encode_pair,        &
+            fb_com_tasks_decode_pair,        &
+            fb_com_atom_pairs_retain,        &
+            fb_com_atom_pairs_release,       &
+            fb_com_atom_pairs_nullify,       &
+            fb_com_atom_pairs_has_data,      &
+            fb_com_atom_pairs_associate,     &
+            fb_com_atom_pairs_create,        &
+            fb_com_atom_pairs_init,          &
+            fb_com_atom_pairs_get,           &
+            fb_com_atom_pairs_set,           &
+            fb_com_atom_pairs_encode,        &
+            fb_com_atom_pairs_decode,        &
+            fb_com_atom_pairs_sendrecv_sizes
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_fb_com_tasks_types'
   INTEGER, PRIVATE, SAVE :: last_fb_com_tasks_id = 0
@@ -1087,7 +1088,7 @@ CONTAINS
     natoms8 = INT(natoms, int_8)
     iatom8 = INT(iatom, int_8)
     jatom8 = INT(jatom, int_8)
-    
+
     ind = (iatom8 - 1_int_8) * natoms8 + (jatom8 - 1_int_8)
   END SUBROUTINE fb_com_tasks_encode_pair
 
@@ -1177,19 +1178,23 @@ CONTAINS
 
 
 
-  SUBROUTINE fb_com_atom_pairs_sendrecv_sizes(atom_pairs, &
-                                              dbcsr_matrix, &
-                                              nprocs, &
-                                              sendrecv_sizes, &
-                                              sendrecv_disps, &
-                                              sendrecv_pair_counts, &
-                                              sendrecv_pair_disps, &
-                                              error, &
-                                              row_map, &
-                                              col_map)
+  SUBROUTINE fb_com_atom_pairs_calc_buffer_sizes(atom_pairs, &
+                                                 dbcsr_matrix, &
+                                                 nprocs, &
+                                                 row_blk_sizes, &
+                                                 col_blk_sizes, &
+                                                 sendrecv_sizes, &
+                                                 sendrecv_disps, &
+                                                 sendrecv_pair_counts, &
+                                                 sendrecv_pair_disps, &
+                                                 error, &
+                                                 row_map, &
+                                                 col_map)
     TYPE(fb_com_atom_pairs_obj), INTENT(in) :: atom_pairs
     TYPE(cp_dbcsr_type), POINTER :: dbcsr_matrix
     INTEGER, INTENT(in) :: nprocs
+    INTEGER, DIMENSION(:), INTENT(in)  :: row_blk_sizes
+    INTEGER, DIMENSION(:), INTENT(in)  :: col_blk_sizes
     INTEGER, DIMENSION(:), INTENT(out) :: sendrecv_sizes
     INTEGER, DIMENSION(:), INTENT(out) :: sendrecv_disps
     INTEGER, DIMENSION(:), INTENT(out) :: sendrecv_pair_counts
@@ -1198,24 +1203,28 @@ CONTAINS
     INTEGER, DIMENSION(:), INTENT(in), OPTIONAL :: row_map
     INTEGER, DIMENSION(:), INTENT(in), OPTIONAL :: col_map
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'fb_atom_pairs_sendrecv_sizes', &
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'fb_atom_pairs_calc_buffer_sizes', &
                                    routineP = moduleN//':'//routineN
 
-    LOGICAL :: failure
+    LOGICAL :: failure, check_ok
     INTEGER :: ipe, ipair, npairs, pe, iatom, jatom, natoms_encode, &
-               nrows_blk, ncols_blk, nblkrows_total, nblkcols_total, &
-               stat
+               nrows_blk, ncols_blk, stat
+    INTEGER :: nblkrows_total, nblkcols_total
     INTEGER(KIND=int_8), DIMENSION(:), POINTER :: pairs
-    INTEGER, DIMENSION(:), ALLOCATABLE :: first_row, last_row, &
-                                          first_col, last_col
-    INTEGER, DIMENSION(:), POINTER :: row_block_size_data, &
-                                      col_block_size_data
-
+    ! INTEGER, DIMENSION(:), ALLOCATABLE :: first_row, last_row, &
+    !                                       first_col, last_col
     failure = .FALSE.
 
     NULLIFY(pairs)
 
-    CPPrecondition((SIZE(sendrecv_sizes)==nprocs .AND. SIZE(sendrecv_disps)==nprocs .AND. SIZE(sendrecv_pair_counts)==nprocs .AND. SIZE(sendrecv_pair_disps)==nprocs), cp_failure_level, routineP, error, failure)
+    check_ok = SIZE(sendrecv_sizes) == nprocs .AND. &
+               SIZE(sendrecv_disps) == nprocs .AND. &
+               SIZE(sendrecv_pair_counts) == nprocs .AND. &
+               SIZE(sendrecv_pair_disps) == nprocs
+    CPPostcondition(check_ok, cp_failure_level, routineP, error, failure)
+
+    check_ok = fb_com_atom_pairs_has_data(atom_pairs)
+    CPPostcondition(check_ok, cp_failure_level, routineP, error, failure)
 
     CALL fb_com_atom_pairs_get(atom_pairs=atom_pairs, &
                                pairs=pairs, &
@@ -1223,9 +1232,9 @@ CONTAINS
                                natoms_encode=natoms_encode, &
                                error=error)
 
-    CALL cp_dbcsr_get_info(dbcsr_matrix, &
-                           nblkrows_total=nblkrows_total, &
-                           nblkcols_total=nblkcols_total)
+    ! CALL cp_dbcsr_get_info(dbcsr_matrix, &
+    !                        nblkrows_total=nblkrows_total, &
+    !                        nblkcols_total=nblkcols_total)
     ! ALLOCATE(first_row(nblkrows_total), last_row(nblkrows_total), &
     !          first_col(nblkcols_total), last_col(nblkcols_total), &
     !          STAT=stat)
@@ -1234,8 +1243,9 @@ CONTAINS
     !                               first_row, last_row)
     ! CALL convert_sizes_to_offsets(array_data(cp_dbcsr_col_block_sizes(dbcsr_mat)), &
     !                               first_col, last_col)
-    row_block_size_data => array_data(cp_dbcsr_row_block_sizes(dbcsr_matrix))
-    col_block_size_data => array_data(cp_dbcsr_col_block_sizes(dbcsr_matrix))
+
+    ! row_block_size_data => array_data(cp_dbcsr_row_block_sizes(dbcsr_matrix))
+    ! col_block_size_data => array_data(cp_dbcsr_col_block_sizes(dbcsr_matrix))
 
     sendrecv_sizes = 0
     sendrecv_pair_counts = 0
@@ -1248,8 +1258,8 @@ CONTAINS
        IF (PRESENT(col_map)) jatom = row_map(jatom)
        ! nrows_blk = last_row(iatom) - first_row(iatom) + 1
        ! ncols_blk = last_col(jatom) - first_col(jatom) + 1
-       nrows_blk = row_block_size_data(iatom)
-       ncols_blk = col_block_size_data(jatom)
+       nrows_blk = row_blk_sizes(iatom)
+       ncols_blk = col_blk_sizes(jatom)
        sendrecv_sizes(pe) = sendrecv_sizes(pe) + nrows_blk * ncols_blk
        sendrecv_pair_counts(pe) = sendrecv_pair_counts(pe) + 1
     END DO

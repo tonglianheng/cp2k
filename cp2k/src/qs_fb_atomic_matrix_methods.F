@@ -15,14 +15,6 @@ MODULE qs_fb_atomic_matrix_methods
                                        TASK_PAIR, &
                                        TASK_COST, &
                                        fb_com_tasks_obj, &
-                                       fb_com_atom_pairs_obj, &
-                                       fb_com_atom_pairs_nullify, &
-                                       fb_com_atom_pairs_has_data, &
-                                       fb_com_atom_pairs_init, &
-                                       fb_com_atom_pairs_create, &
-                                       fb_com_atom_pairs_get, &
-                                       fb_com_atom_pairs_decode, &
-                                       fb_com_atom_pairs_release, &
                                        fb_com_tasks_transpose_dest_src, &
                                        fb_com_tasks_build_atom_pairs, &
                                        fb_com_tasks_set, &
@@ -31,7 +23,16 @@ MODULE qs_fb_atomic_matrix_methods
                                        fb_com_tasks_encode_pair, &
                                        fb_com_tasks_create, &
                                        fb_com_tasks_decode_pair, &
-                                       fb_com_tasks_release
+                                       fb_com_tasks_release, &
+                                       fb_com_atom_pairs_obj, &
+                                       fb_com_atom_pairs_nullify, &
+                                       fb_com_atom_pairs_has_data, &
+                                       fb_com_atom_pairs_init, &
+                                       fb_com_atom_pairs_create, &
+                                       fb_com_atom_pairs_get, &
+                                       fb_com_atom_pairs_decode, &
+                                       fb_com_atom_pairs_release, &
+                                       fb_com_atom_pairs_sendrecv_sizes
   USE qs_environment_types,      ONLY: get_qs_env, &
                                        qs_environment_type
   USE cp_para_types,             ONLY: cp_para_env_type
@@ -170,14 +171,17 @@ CONTAINS
     INTEGER, DIMENSION(:), ALLOCATABLE :: send_sizes, send_disps, &
                                           send_pair_count, send_pair_disps, &
                                           recv_sizes, recv_disps, &
-                                          recv_pair_count, recv_pair_disps, &
-                                          first_row, last_row, first_col, last_col
+                                          recv_pair_count, recv_pair_disps
+    ! INTEGER, DIMENSION(:), ALLOCATABLE :: first_row, last_row, first_col, last_col
     REAL(KIND=dp), DIMENSION(:), ALLOCATABLE :: send_buf, recv_buf
     REAL(KIND=dp), DIMENSION(:,:), POINTER :: mat_block
     INTEGER :: ipair, npairs_send, npairs_recv, pe, nblkrows_total, &
                nblkcols_total, arow, acol, me, ipe, ii, jj, ind, stat, &
                send_encode, recv_encode, nhalos, iatom, jatom, &
                iatom_in_halo, jatom_in_halo, numprocs, nrows_blk, ncols_blk
+    INTEGER, DIMENSION(:), POINTER :: row_block_size_data, &
+                                      col_block_size_data
+
 
 
 !BEG:DEBUG:LT:2015/01/25
@@ -186,7 +190,8 @@ CONTAINS
 
     failure = .FALSE.
 
-    NULLIFY(pairs_send, pairs_recv, mat_block)
+    NULLIFY(pairs_send, pairs_recv, mat_block, &
+            row_block_size_data, col_block_size_data)
     CALL fb_com_atom_pairs_nullify(atom_pairs_send)
     CALL fb_com_atom_pairs_nullify(atom_pairs_recv)
 
@@ -202,12 +207,28 @@ CONTAINS
                                         atom_pairs_send, &
                                         atom_pairs_recv, &
                                         error)
+    
+    ! get com pair informations
+    CALL fb_com_atom_pairs_get(atom_pairs=atom_pairs_send, &
+                               pairs=pairs_send, &
+                               npairs=npairs_send, &
+                               natoms_encode=send_encode, &
+                               error=error)
+    CALL fb_com_atom_pairs_get(atom_pairs=atom_pairs_recv, &
+                               pairs=pairs_recv, &
+                               npairs=npairs_recv, &
+                               natoms_encode=recv_encode, &
+                               error=error)
 
     ! get para_env info
     numprocs = para_env%num_pe
     ! me = para_env%mepos + 1   ! my process id, starting counting from 1
 
-    ! allocate temporary arrays
+    ! get dbcsr row and col block sizes
+    row_block_size_data => array_data(cp_dbcsr_row_block_sizes(dbcsr_matrix))
+    col_block_size_data => array_data(cp_dbcsr_col_block_sizes(dbcsr_matrix))
+
+    ! allocate temporary arrays for send
     ALLOCATE(send_sizes(numprocs), STAT=stat)
     CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
     ALLOCATE(send_disps(numprocs), STAT=stat)
@@ -217,6 +238,22 @@ CONTAINS
     ALLOCATE(send_pair_disps(numprocs), STAT=stat)
     CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
 
+    ! setup send buffer sizes
+    CALL fb_com_atom_pairs_sendrecv_sizes(atom_pairs_send, &
+                                          dbcsr_mat, &
+                                          numprocs, &
+                                          row_block_size_data, &
+                                          col_block_size_data, &
+                                          send_sizes, &
+                                          send_disps, &
+                                          send_pair_count, &
+                                          send_pair_disps &
+                                          error)
+    ! allocate send buffer
+    ALLOCATE(send_buf(SUM(send_sizes)), STAT=stat)
+    CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
+
+    ! allocate temporary arrays for recv
     ALLOCATE(recv_sizes(numprocs), STAT=stat)
     CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
     ALLOCATE(recv_disps(numprocs), STAT=stat)
@@ -226,56 +263,21 @@ CONTAINS
     ALLOCATE(recv_pair_disps(numprocs), STAT=stat)
     CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
 
-    ! obtain number of blocks in the DBCSR matrix and the
-    ! corresponding offsets in the data_area of the DBCSR matrix
-    CALL cp_dbcsr_get_info(dbcsr_mat, &
-                           nblkrows_total=nblkrows_total, &
-                           nblkcols_total=nblkcols_total)
-    ALLOCATE(first_row(nblkrows_total), last_row(nblkrows_total), &
-             first_col(nblkcols_total), last_col(nblkcols_total), &
-             STAT=stat)
-    CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
-    CALL convert_sizes_to_offsets(array_data(cp_dbcsr_row_block_sizes(dbcsr_mat)), &
-                                  first_row, last_row)
-    CALL convert_sizes_to_offsets(array_data(cp_dbcsr_col_block_sizes(dbcsr_mat)), &
-                                  first_col, last_col)
-
-    ! setup send buffer sizes
-    CALL fb_com_atom_pairs_get(atom_pairs=atom_pairs_send, &
-                               pairs=pairs_send, &
-                               npairs=npairs_send, &
-                               natoms_encode=send_encode, &
-                               error=error)
-    send_sizes = 0
-    send_pair_count = 0
-    DO ipair = 1, npairs_send
-       ! decode processor and (iatom, jatom) information
-       CALL fb_com_atom_pairs_decode(pairs_send(ipair), &
-                                     pe, iatom, jatom, send_encode)
-       pe = pe + 1 ! we need proc to count from 1
-       nrows_blk = last_row(iatom) - first_row(iatom) + 1
-       ncols_blk = last_col(jatom) - first_col(jatom) + 1
-       send_sizes(pe) = send_sizes(pe) + nrows_blk * ncols_blk
-       send_pair_count(pe) = send_pair_count(pe) + 1
-    END DO
-    ! calculate displacements of the data of each destibation pe in
-    ! send buffer and in the list of pairs to be sent
-    send_disps = 0
-    send_pair_disps = 0
-    DO ipe = 2, numprocs
-       send_disps(ipe) = send_disps(ipe-1) + send_sizes(ipe-1)
-       send_pair_disps(ipe) = send_pair_disps(ipe-1) + send_pair_count(ipe-1)
-    END DO
-    ! allocate send buffer
-    ALLOCATE(send_buf(SUM(send_sizes)), STAT=stat)
+    ! setup recv buffer sizes
+    CALL fb_com_atom_pairs_sendrecv_sizes(atom_pairs_recv, &
+                                          dbcsr_mat, &
+                                          numprocs, &
+                                          row_block_size_data, &
+                                          col_block_size_data, &
+                                          recv_sizes, &
+                                          recv_disps, &
+                                          recv_pair_count, &
+                                          recv_pair_disps &
+                                          error)
+    ! allocate recv buffer
+    ALLOCATE(recv_buf(SUM(recv_sizes)), STAT=stat)
     CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
 
-    ! similarly set up recieve buffer
-    CALL fb_com_atom_pairs_get(atom_pairs=atom_pairs_recv, &
-                               pairs=pairs_recv, &
-                               npairs=npairs_recv, &
-                               natoms_encode=recv_encode, &
-                               error=error)
 
 
 !BEG:DEBUG:LT:2015/01/25
@@ -284,29 +286,83 @@ CONTAINS
 !END:DEBUG:LT:2015/01/25
 
 
-    recv_sizes = 0
-    recv_pair_count = 0
-    DO ipair = 1, npairs_recv
-       ! decode processor and (iatom, jatom) information
-       CALL fb_com_atom_pairs_decode(pairs_recv(ipair), &
-                                     pe, iatom, jatom, recv_encode)
-       pe = pe + 1 ! we need proc to count from 1
-       nrows_blk = last_row(iatom) - first_row(iatom) + 1
-       ncols_blk = last_col(jatom) - first_col(jatom) + 1
-       recv_sizes(pe) = recv_sizes(pe) + nrows_blk * ncols_blk
-       recv_pair_count(pe) = recv_pair_count(pe) + 1
-    END DO
-    ! calculate displacements of the data of each destibation pe in
-    ! recv buffer and in the list of pairs to be sent
-    recv_disps = 0
-    recv_pair_disps = 0
-    DO ipe = 2, numprocs
-       recv_disps(ipe) = recv_disps(ipe-1) + recv_sizes(ipe-1)
-       recv_pair_disps(ipe) = recv_pair_disps(ipe-1) + recv_pair_count(ipe-1)
-    END DO
-    ! allocate recv buffer
-    ALLOCATE(recv_buf(SUM(recv_sizes)), STAT=stat)
-    CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
+
+    ! ! obtain number of blocks in the DBCSR matrix and the
+    ! ! corresponding offsets in the data_area of the DBCSR matrix
+    ! CALL cp_dbcsr_get_info(dbcsr_mat, &
+    !                        nblkrows_total=nblkrows_total, &
+    !                        nblkcols_total=nblkcols_total)
+    ! ALLOCATE(first_row(nblkrows_total), last_row(nblkrows_total), &
+    !          first_col(nblkcols_total), last_col(nblkcols_total), &
+    !          STAT=stat)
+    ! CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
+    ! CALL convert_sizes_to_offsets(array_data(cp_dbcsr_row_block_sizes(dbcsr_mat)), &
+    !                               first_row, last_row)
+    ! CALL convert_sizes_to_offsets(array_data(cp_dbcsr_col_block_sizes(dbcsr_mat)), &
+    !                               first_col, last_col)
+
+    ! ! setup send buffer sizes
+    ! CALL fb_com_atom_pairs_get(atom_pairs=atom_pairs_send, &
+    !                            pairs=pairs_send, &
+    !                            npairs=npairs_send, &
+    !                            natoms_encode=send_encode, &
+    !                            error=error)
+    ! send_sizes = 0
+    ! send_pair_count = 0
+    ! DO ipair = 1, npairs_send
+    !    ! decode processor and (iatom, jatom) information
+    !    CALL fb_com_atom_pairs_decode(pairs_send(ipair), &
+    !                                  pe, iatom, jatom, send_encode)
+    !    pe = pe + 1 ! we need proc to count from 1
+    !    nrows_blk = last_row(iatom) - first_row(iatom) + 1
+    !    ncols_blk = last_col(jatom) - first_col(jatom) + 1
+    !    send_sizes(pe) = send_sizes(pe) + nrows_blk * ncols_blk
+    !    send_pair_count(pe) = send_pair_count(pe) + 1
+    ! END DO
+    ! ! calculate displacements of the data of each destibation pe in
+    ! ! send buffer and in the list of pairs to be sent
+    ! send_disps = 0
+    ! send_pair_disps = 0
+    ! DO ipe = 2, numprocs
+    !    send_disps(ipe) = send_disps(ipe-1) + send_sizes(ipe-1)
+    !    send_pair_disps(ipe) = send_pair_disps(ipe-1) + send_pair_count(ipe-1)
+    ! END DO
+    ! ! allocate send buffer
+    ! ALLOCATE(send_buf(SUM(send_sizes)), STAT=stat)
+    ! CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
+
+
+    ! ! similarly set up recieve buffer
+    ! CALL fb_com_atom_pairs_get(atom_pairs=atom_pairs_recv, &
+    !                            pairs=pairs_recv, &
+    !                            npairs=npairs_recv, &
+    !                            natoms_encode=recv_encode, &
+    !                            error=error)
+    ! recv_sizes = 0
+    ! recv_pair_count = 0
+    ! DO ipair = 1, npairs_recv
+    !    ! decode processor and (iatom, jatom) information
+    !    CALL fb_com_atom_pairs_decode(pairs_recv(ipair), &
+    !                                  pe, iatom, jatom, recv_encode)
+    !    pe = pe + 1 ! we need proc to count from 1
+    !    nrows_blk = last_row(iatom) - first_row(iatom) + 1
+    !    ncols_blk = last_col(jatom) - first_col(jatom) + 1
+    !    recv_sizes(pe) = recv_sizes(pe) + nrows_blk * ncols_blk
+    !    recv_pair_count(pe) = recv_pair_count(pe) + 1
+    ! END DO
+    ! ! calculate displacements of the data of each destibation pe in
+    ! ! recv buffer and in the list of pairs to be sent
+    ! recv_disps = 0
+    ! recv_pair_disps = 0
+    ! DO ipe = 2, numprocs
+    !    recv_disps(ipe) = recv_disps(ipe-1) + recv_sizes(ipe-1)
+    !    recv_pair_disps(ipe) = recv_pair_disps(ipe-1) + recv_pair_count(ipe-1)
+    ! END DO
+    ! ! allocate recv buffer
+    ! ALLOCATE(recv_buf(SUM(recv_sizes)), STAT=stat)
+    ! CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
+
+
 
     ! do packing
     DO ipe = 1, numprocs
@@ -316,8 +372,10 @@ CONTAINS
        DO ipair = 1, send_pair_count(ipe)
           CALL fb_com_atom_pairs_decode(pairs_send(send_pair_disps(ipe) + ipair), &
                                         pe, iatom, jatom, send_encode)
-          nrows_blk = last_row(iatom) - first_row(iatom) + 1
-          ncols_blk = last_col(jatom) - first_col(jatom) + 1
+          nrows_blk = row_block_size_data(iatom)
+          ncols_blk = col_block_size_data(jatom)
+          ! nrows_blk = last_row(iatom) - first_row(iatom) + 1
+          ! ncols_blk = last_col(jatom) - first_col(jatom) + 1
           CALL cp_dbcsr_get_block_p(matrix=dbcsr_mat, &
                                     row=iatom, col=jatom, block=mat_block, &
                                     found=found)
@@ -371,8 +429,10 @@ CONTAINS
        DO ipair = 1, recv_pair_count(ipe)
           CALL fb_com_atom_pairs_decode(pairs_recv(recv_pair_disps(ipe) + ipair), &
                                         pe, iatom, jatom, recv_encode)
-          nrows_blk = last_row(iatom) - first_row(iatom) + 1
-          ncols_blk = last_col(jatom) - first_col(jatom) + 1
+          ! nrows_blk = last_row(iatom) - first_row(iatom) + 1
+          ! ncols_blk = last_col(jatom) - first_col(jatom) + 1
+          nrows_blk = row_block_size_data(iatom)
+          ncols_blk = col_block_size_data(jatom)
           ! get the corresponding atom indices in halo
           ! the atoms from the recv_pairs should be in the atomic_halo, because
           ! the recv_pairs are the matrix blocks requested by the local proc for
@@ -386,20 +446,20 @@ CONTAINS
                                                found, error)
           CPPostcondition(found, cp_failure_level, routineP, error, failure)
           ! put block into the full conventional matrix
-          DO jj = 0, ncols_blk - 1
-             DO ii = 0, nrows_blk - 1
+          DO jj = 1, ncols_blk
+             DO ii = 1, nrows_blk
                 ! column major format in blocks
-                ind = recv_disps(ipe) + recv_sizes(ipe) + ii + jj*nrows_blk + 1
+                ind = recv_disps(ipe) + recv_sizes(ipe) + ii + (jj-1)*nrows_blk
 
 !BEG:DEBUG:LT:2015/01/25
                 print *, "|LT| fb_atmatrix_construct: ind = ", ind
-                print *, "|LT| fb_atmatrix_construct: atomic_matrix(", & 
-                          blk_row_start(iatom_in_halo) + ii, ",", &
-                          blk_col_start(jatom_in_halo) + jj, ") = ", recv_buf(ind)
+                print *, "|LT| fb_atmatrix_construct: atomic_matrix(", &
+                          blk_row_start(iatom_in_halo) + ii - 1, ",", &
+                          blk_col_start(jatom_in_halo) + jj - 1, ") = ", recv_buf(ind)
 !END:DEBUG:LT:2015/01/25
 
-                atomic_matrix(blk_row_start(iatom_in_halo) + ii, &
-                              blk_col_start(jatom_in_halo) + jj) = recv_buf(ind)
+                atomic_matrix(blk_row_start(iatom_in_halo) + ii - 1, &
+                              blk_col_start(jatom_in_halo) + jj - 1) = recv_buf(ind)
 
              END DO ! ii
           END DO ! jj
@@ -414,8 +474,6 @@ CONTAINS
                 END DO
 !END:DEBUG:LT:2015/01/25
 
-
-
     ! cleanup rest of the temporary arrays
     DEALLOCATE(recv_buf, STAT=stat)
     CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
@@ -427,8 +485,8 @@ CONTAINS
     CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
     DEALLOCATE(recv_pair_disps, STAT=stat)
     CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
-    DEALLOCATE(first_row, last_row, first_col, last_col, STAT=stat)
-    CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
+    ! DEALLOCATE(first_row, last_row, first_col, last_col, STAT=stat)
+    ! CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
 
     CALL fb_com_atom_pairs_release(atom_pairs_send, error)
     CALL fb_com_atom_pairs_release(atom_pairs_recv, error)
@@ -489,7 +547,7 @@ CONTAINS
                             natoms=natoms_in_halo, &
                             halo_atoms=halo_atoms, &
                             error=error)
-    
+
     ! get the total number of atoms, we can obtain this directly
     ! from the global block row dimension of the dbcsr matrix
     CALL cp_dbcsr_get_info(matrix=dbcsr_mat, &
@@ -536,7 +594,7 @@ CONTAINS
           ! the local processor.
           tasks_recv(TASK_DEST,itask) = dest
           tasks_recv(TASK_SRC,itask) = src
-          
+
           CALL fb_com_tasks_encode_pair(tasks_recv(TASK_PAIR,itask), &
                                         iatom_global, jatom_global, &
                                         nblkrows_total)
