@@ -1,7 +1,7 @@
 MODULE qs_fb_env_types
 
   USE kinds,                   ONLY: dp
-  USE qs_fb_atomic_halo_types, ONLY: fb_atomic_halo_list_obj
+  USE qs_fb_atomic_halo_types, ONLY: fb_atomic_halo_list_obj, &
                                      fb_atomic_halo_list_retain, &
                                      fb_atomic_halo_list_release, &
                                      fb_atomic_halo_list_nullify, &
@@ -56,10 +56,10 @@ MODULE qs_fb_env_types
   ! **********************************************************************
   TYPE fb_env_data
      INTEGER :: id_nr, ref_count
-     REAL(kind=dp), DIMENSION(:), POINTER :: rcut
+     REAL(KIND=dp), DIMENSION(:), POINTER :: rcut
      TYPE(fb_atomic_halo_list_obj) :: atomic_halos
      TYPE(fb_trial_fns_obj) :: trial_fns
-     REAL(kind_dp) :: filter_temperature
+     REAL(KIND=dp) :: filter_temperature
   END type fb_env_data
 
 
@@ -153,7 +153,6 @@ CONTAINS
   ! **********************************************************************
   SUBROUTINE fb_env_nullify(fb_env)
     TYPE(fb_env_obj), INTENT(inout) :: fb_env
-    TYPE(cp_error_type), INTENT(inout) :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'fb_env_nullify', &
                                    routineP = moduleN//':'//routineN
@@ -284,8 +283,8 @@ CONTAINS
                         trial_fns, &
                         error)
     TYPE(fb_env_obj), INTENT(in) :: fb_env
-    REAL(kind=dp), DIMENSION(:), POINTER, OPTIONAL :: rcut
-    REAL(kind_dp), OPTIONAL :: filter_temperature
+    REAL(KIND=dp), DIMENSION(:), POINTER, OPTIONAL :: rcut
+    REAL(KIND=dp), OPTIONAL, INTENT(out) :: filter_temperature
     TYPE(fb_atomic_halo_list_obj), INTENT(out), OPTIONAL :: atomic_halos
     TYPE(fb_trial_fns_obj), INTENT(out), OPTIONAL :: trial_fns
     TYPE(cp_error_type), INTENT(inout) :: error
@@ -327,8 +326,8 @@ CONTAINS
                         trial_fns, &
                         error)
     TYPE(fb_env_obj), INTENT(in) :: fb_env
-    TYPE(kind=dp), DIMENSION(:), POINTER, OPTIONAL :: rcut
-    REAL(kind_dp), INTENT(in), OPTIONAL :: filter_temperature
+    REAL(KIND=dp), DIMENSION(:), POINTER, OPTIONAL :: rcut
+    REAL(KIND=dp), INTENT(in), OPTIONAL :: filter_temperature
     TYPE(fb_atomic_halo_list_obj), INTENT(in), OPTIONAL :: atomic_halos
     TYPE(fb_trial_fns_obj), INTENT(in), OPTIONAL :: trial_fns
     TYPE(cp_error_type), INTENT(inout) :: error
@@ -337,7 +336,6 @@ CONTAINS
                                    routineP = moduleN//':'//routineN
 
     LOGICAL :: failure
-    TYPE(cp_error_type), INTENT(inout) :: error
     INTEGER :: stat, ii, nspin
 
     failure = .FALSE.
@@ -351,7 +349,7 @@ CONTAINS
           fb_env%obj%rcut => rcut
        END IF
        IF (PRESENT(filter_temperature)) &
-            fb_env%filter_temperature = filter_temperature
+            fb_env%obj%filter_temperature = filter_temperature
        IF (PRESENT(atomic_halos)) THEN
           IF (fb_atomic_halo_list_has_data(atomic_halos)) &
                CALL fb_atomic_halo_list_retain(atomic_halos, error)

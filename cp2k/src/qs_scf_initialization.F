@@ -106,7 +106,10 @@ MODULE qs_scf_initialization
                                              timestop
   USE xas_env_types,                   ONLY: xas_environment_type
   USE xas_restart,                     ONLY: xas_initialize_rho
-  USE qs_fb_env_types,                 ONLY: fb_env_create
+  USE qs_fb_env_types,                 ONLY: fb_env_create, &
+                                             fb_env_has_data
+  USE qs_fb_env_methods,               ONLY: fb_env_read_input, &
+                                             fb_env_build_rcut_auto
 
 
 #include "./common/cp_common_uses.f90"
@@ -747,7 +750,7 @@ CONTAINS
       CASE(diag_filter_matrix)
          scf_env%method=filter_matrix_diag_method_nr
          scf_env%cholesky_method = cholesky_inverse
-         IF (.NOT. fb_env_has_data(scf_env%filter_matrix_env, error=error)) THEN
+         IF (.NOT. fb_env_has_data(scf_env%filter_matrix_env)) THEN
             CALL fb_env_create(scf_env%filter_matrix_env, error=error)
          END IF
          CALL fb_env_read_input(scf_env%filter_matrix_env, scf_section, error=error)

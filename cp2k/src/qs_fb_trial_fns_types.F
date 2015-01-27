@@ -28,8 +28,7 @@ MODULE qs_fb_trial_fns_types
             fb_trial_fns_create, &
             fb_trial_fns_init, &
             fb_trial_fns_get, &
-            fb_trial_fns_set, &
-            fb_trial_fns_construct
+            fb_trial_fns_set
   
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_fb_trial_fns_types'
   INTEGER, PRIVATE, SAVE :: last_fb_trial_fns_id = 0
@@ -60,11 +59,9 @@ CONTAINS
     LOGICAL :: failure
 
     failure = .FALSE.
-    CPPrecondition(ASSOCIATED(trial_fns%obj), &
-                   cp_failure_level, routineP, error, failure)
+    CPPrecondition(ASSOCIATED(trial_fns%obj), cp_failure_level, routineP, error, failure)
     IF (.NOT. failure) THEN
-       CPPreconditionNoFail(trial_fns%obj%ref_count>0, &
-                            cp_failure_level, routineP, error)
+       CPPreconditionNoFail(trial_fns%obj%ref_count>0, cp_failure_level, routineP, error)
        trial_fns%obj%ref_count = trial_fns%obj%ref_count + 1
     END IF
   END SUBROUTINE fb_trial_fns_retain
@@ -82,17 +79,16 @@ CONTAINS
 
     failure = .FALSE.
     IF (ASSOCIATED(trial_fns%obj)) THEN
-       CPPreconditionNoFail(trial_fns%obj%ref_count>0, &
-                            cp_failure_level, routineP, error)
+       CPPreconditionNoFail(trial_fns%obj%ref_count>0, cp_failure_level, routineP, error)
        trial_fns%obj%ref_count = trial_fns%obj%ref_count - 1
        IF (trial_fns%obj%ref_count == 0) THEN
           trial_fns%obj%ref_count = 1
-          IF (ASSOCIATED(trial_fns%obj%halo_atoms)) THEN
-             ! note that if there are other pointers associated to the memory pointed
-             ! by trial_fns%obj%halo_atoms, their behaviour becomes undefined per
-             ! FORTRAN standard (and thus becomes compiler dependent and unreliable)
-             ! after the following DEALLOCATE
-             DEALLOCATE(trial_fns%obj%halo_atoms)
+          IF (ASSOCIATED(trial_fns%obj%nfunctions)) THEN
+             DEALLOCATE(trial_fns%obj%nfunctions)
+             CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
+          END IF
+          IF (ASSOCIATED(trial_fns%obj%functions)) THEN
+             DEALLOCATE(trial_fns%obj%functions)
              CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
           END IF
           trial_fns%obj%ref_count = 0
@@ -129,7 +125,7 @@ CONTAINS
 
 
   FUNCTION fb_trial_fns_has_data(trial_fns) RESULT(res)
-    TYPE(fb_trial_fns_list_obj), INTENT(in) :: trial_fns
+    TYPE(fb_trial_fns_obj), INTENT(in) :: trial_fns
     LOGICAL :: res
 
     CHARACTER(len=*), PARAMETER :: routineN = 'fb_trial_fns_has_data', &
@@ -151,8 +147,7 @@ CONTAINS
     INTEGER :: stat
 
     failure = .FALSE.
-    CPPrecondition(.NOT.ASSOCIATED(trial_fns%obj), &
-                   cp_failure_level, routineP, error, failure)
+    CPPrecondition(.NOT.ASSOCIATED(trial_fns%obj), cp_failure_level, routineP, error, failure)
     IF (.NOT. failure) THEN
        ALLOCATE(trial_fns%obj, STAT=stat)
        CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
@@ -233,8 +228,7 @@ CONTAINS
     INTEGER :: stat
 
     failure = .FALSE.
-    CPPrecondition(ASSOCIATED(trial_fns%obj), &
-                   cp_failure_level, routineP, error, failure)
+    CPPrecondition(ASSOCIATED(trial_fns%obj), cp_failure_level, routineP, error, failure)
     IF (.NOT. failure) THEN
        IF (PRESENT(nfunctions)) THEN
           IF (ASSOCIATED(trial_fns%obj%nfunctions)) THEN

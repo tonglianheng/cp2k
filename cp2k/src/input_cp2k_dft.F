@@ -6459,8 +6459,8 @@ CONTAINS
        
        CALL keyword_create(keyword, name="FILTER_TEMPERATURE", &
                            description="Temperature used for the filter function used to construct the filter matrix.", &
-                           USEAGE="FILTER_TEMPERATURE 0.1", &
-                           default_r_val=0.1, &
+                           usage="FILTER_TEMPERATURE 0.1", &
+                           default_r_val=0.1_dp, &
                            citations=(/Rayson2009/), &
                            error=error)
        CALL section_add_keyword(section, keyword, error=error)

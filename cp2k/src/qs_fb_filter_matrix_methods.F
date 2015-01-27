@@ -1,7 +1,10 @@
 MODULE qs_fb_filter_matrix_methods
 
-  USE kinds, ONLY: dp, int_8
+  USE kinds, ONLY: dp, &
+                   int_8, &
+                   default_string_length
   USE cp_dbcsr_interface, ONLY: cp_dbcsr_type, &
+                                cp_dbcsr_init, &
                                 cp_dbcsr_create, &
                                 cp_dbcsr_finalize, &
                                 cp_dbcsr_row_block_sizes, &
@@ -11,7 +14,11 @@ MODULE qs_fb_filter_matrix_methods
                                 array_nullify, &
                                 array_data, &
                                 dbcsr_type_no_symmetry, &
-                                dbcsr_distribution_obj
+                                dbcsr_distribution_obj, &
+!BEG:DEBUG:LT:2015/01/20
+cp_dbcsr_print, &
+!END:DEBUG:LT:2015/01/20
+                                convert_sizes_to_offsets
   USE qs_fb_atomic_halo_types, ONLY: fb_atomic_halo_obj, &
                                      fb_atomic_halo_get, &
                                      fb_atomic_halo_list_obj, &
@@ -30,10 +37,11 @@ MODULE qs_fb_filter_matrix_methods
                                    fb_com_tasks_obj, &
                                    fb_com_atom_pairs_init, &
                                    fb_com_atom_pairs_create, &
+                                   fb_com_atom_pairs_nullify, &
                                    fb_com_atom_pairs_release, &
                                    fb_com_atom_pairs_has_data, &
                                    fb_com_atom_pairs_get, &
-                                   fb_com_atom_pair_decode, &
+                                   fb_com_atom_pairs_decode, &
                                    fb_com_tasks_nullify, &
                                    fb_com_tasks_encode_pair, &
                                    fb_com_tasks_create, &
@@ -45,7 +53,6 @@ MODULE qs_fb_filter_matrix_methods
   USE particle_types, ONLY: particle_type
   USE atomic_kind_types, ONLY: atomic_kind_type, &
                                get_atomic_kind
-  USE cp_dbcsr_types, ONLY: cp_dbcsr_type
   USE cp_dbcsr_interface, ONLY: cp_dbcsr_get_info, &
                                 cp_dbcsr_get_stored_coordinates, &
                                 cp_dbcsr_put_block
@@ -53,20 +60,21 @@ MODULE qs_fb_filter_matrix_methods
   ! USE qs_mo_types, ONLY: mo_set_type, &
   !                        get_mo_set
   USE lapack, ONLY: dsygv
-  USE f77_blas_generic, ONLY: dgemm, &
-                              dgemv
+  USE f77_blas_generic, ONLY: BL_GEMM, &
+                              BL_GEMV
   USE string_utilities, ONLY: compress, &
                               uppercase
+  USE message_passing, ONLY: mp_alltoall
+
+#include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
-
-#include "cp_common_uses.h"
 
   PRIVATE
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_fb_filter_matrix_methods'
 
-  PUBLIC ::  fb_filrmat_build, &
+  PUBLIC ::  fb_fltrmat_build, &
              fb_fltrmat_add_blkcol, &
              fb_fltrmat_generate_com_pairs, &
              fb_fltrmat_build_atomic_fltrmat, &
@@ -100,7 +108,7 @@ CONTAINS
     REAL(KIND=dp), INTENT(in) :: filter_temp
     CHARACTER(LEN=*), INTENT(in) :: name
     TYPE(cp_dbcsr_type), POINTER :: filter_mat
-    TYPE(cp_error_type), INTENT(inout) :: error    
+    TYPE(cp_error_type), INTENT(inout) :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'fb_fltrmat_build', &
                                    routineP = moduleN//':'//routineN
@@ -108,23 +116,27 @@ CONTAINS
     LOGICAL :: failure
     CHARACTER(LEN=default_string_length) :: name_string
     CHARACTER(LEN=32) :: symmetry_string
-    TYPE(dbcsr_distribution_obj), POINTER :: dbcsr_dist
+    TYPE(dbcsr_distribution_obj) :: dbcsr_dist
     TYPE(array_i1d_obj) :: col_blk_size, row_blk_size
     TYPE(atomic_kind_type), POINTER :: atomic_kind
     INTEGER, DIMENSION(:), POINTER :: col_blk_size_data, ntfns
     INTEGER :: ikind, ihalo, iblkcol, nblkcols_total, nhalos, stat
     TYPE(fb_atomic_halo_obj), DIMENSION(:), POINTER :: halos
-    
+
+
+!BEG:DEBUG:LT:2015/01/20
+    INTEGER, DIMENSION(:), POINTER :: halo_atoms
+!END:DEBUG:LT:2015/01/20
 
     failure = .FALSE.
 
-    NULLIFY(halos, atomic_kind, col_blk_size_data, dbcsr_dist, ntfns)
+    NULLIFY(halos, atomic_kind, col_blk_size_data, ntfns)
     CALL array_nullify(row_blk_size)
     CALL array_nullify(col_blk_size)
 
     ! filter_mat must be of a dissassociated status (i.e. brand new)
     CPPrecondition(.NOT.ASSOCIATED(filter_mat), cp_failure_level, routineP, error, failure)
-    
+
     ! get trial function information
     CALL fb_trial_fns_get(trial_fns=trial_fns, &
                           nfunctions=ntfns, &
@@ -133,12 +145,12 @@ CONTAINS
     ! calculate the row_blk_size and col_blk_size arrays for
     ! constructing the filter matrix in DBCSR format
     ! row_blk_size for the filter matrix is the same as H or S
-    CALL cp_dbcsr_get_info(mat_H%matrix, &
+    CALL cp_dbcsr_get_info(H_mat, &
                            nblkcols_total=nblkcols_total, &
                            row_blk_size=row_blk_size, &
                            distribution=dbcsr_dist)
     ALLOCATE(col_blk_size_data(nblkcols_total), STAT=stat)
-    CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)    
+    CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
     col_blk_size_data = 0
     DO iblkcol = 1, nblkcols_total
        atomic_kind => particle_set(iblkcol)%atomic_kind
@@ -171,13 +183,19 @@ CONTAINS
                                  halos=halos, &
                                  error=error)
     DO ihalo = 1, nhalos
+
+!BEG:DEBUG:LT:2015/01/20
+       CALL fb_atomic_halo_get(halos(ihalo), halo_atoms=halo_atoms, error=error)
+       print *, "|LT| fb_fltrmat_build: halo ", ihalo, " = ", halo_atoms
+!END:DEBUG:LT:2015/01/20
+
        ! construct the filter matrix block by block
        CALL fb_fltrmat_add_blkcol(H_mat, &
                                   S_mat, &
                                   halos(ihalo), &
                                   trial_fns, &
                                   para_env, &
-!                                  mo_set, &
+                                  particle_set, &
                                   fermi_level, &
                                   max_occ, &
                                   filter_temp, &
@@ -188,8 +206,8 @@ CONTAINS
     CALL cp_dbcsr_finalize(filter_mat, error=error)
 
   END SUBROUTINE fb_fltrmat_build
-  
-  
+
+
 
   SUBROUTINE fb_fltrmat_add_blkcol(H_mat, &
                                    S_mat, &
@@ -199,7 +217,6 @@ CONTAINS
                                    particle_set, &
                                    fermi_level, &
                                    max_occ, &
-!                                   mo_set, &
                                    filter_temp, &
                                    filter_mat, &
                                    error)
@@ -209,7 +226,6 @@ CONTAINS
     TYPE(fb_trial_fns_obj), INTENT(in) :: trial_fns
     TYPE(cp_para_env_type), POINTER :: para_env
     TYPE(particle_type), DIMENSION(:), POINTER :: particle_set
-!    TYPE(mo_set_type), POINTER :: mo_set
     REAL(KIND=dp), INTENT(in) :: fermi_level
     REAL(KIND=dp), INTENT(in) :: max_occ
     REAL(KIND=dp), INTENT(in) :: filter_temp
@@ -219,17 +235,18 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'fb_fltrmat_add_blkcol', &
                                    routineP = moduleN//':'//routineN
 
-    LOGICAL :: failure
+    LOGICAL :: failure, found
     TYPE(fb_com_atom_pairs_obj) :: com_pairs_send, com_pairs_recv
     TYPE(atomic_kind_type), POINTER :: atomic_kind
-    INTEGER :: ipair, stat, pe, ipe, numprocs &
+    INTEGER :: ipair, stat, pe, ipe, numprocs, &
                iatom_global, jatom_global, &
                iatom_in_halo, jatom_in_halo, &
                nrows_blk, ncols_blk, &
-               npairs_send, send_encode, send_sizes, send_pair_count, &
-               npairs_recv, recv_encode, recv_sizes, recv_pair_count, &
+               npairs_send, send_encode, &
+               npairs_recv, recv_encode, &
                natoms_in_halo, nrows_atmatrix, ncols_atmatrix, &
-               mat_dim, jkind, itrial, ind
+               mat_dim, jkind, itrial, ind, &
+               nblkrows_total, nblkcols_total
     INTEGER(KIND=int_8), DIMENSION(:), POINTER :: pairs_send, pairs_recv
     INTEGER, DIMENSION(:), ALLOCATABLE :: send_sizes, send_disps, &
                                           send_pair_count, send_pair_disps, &
@@ -242,15 +259,30 @@ CONTAINS
                                           atomic_S_blk_col_start
     INTEGER, DIMENSION(:), POINTER :: ntfns
     INTEGER, DIMENSION(:,:), POINTER :: tfns
-    REAL(KIND=dp), DIMENSION(:), ALLOCATABLE :: send_buf, recv_buf, &
-    REAL(KIND=dp), DIMENSION(:,:), ALLOCATABLE :: atomic_H, atomic_S
-    REAL(KIND=dp), DIMENSION(:,:), ALLOCATABLE ::  atomic_filter_mat
+    REAL(KIND=dp), DIMENSION(:), ALLOCATABLE :: send_buf, recv_buf
+!BEG:ORIG:LT:2015/01/26
+    ! REAL(KIND=dp), DIMENSION(:,:), ALLOCATABLE :: atomic_H, atomic_S
+    ! REAL(KIND=dp), DIMENSION(:,:), ALLOCATABLE ::  atomic_filter_mat
+!END:ORIG:LT:2015/01/26
+
+!BEG:DEBUG:LT:2015/01/26
+    REAL(KIND=dp), DIMENSION(:,:), ALLOCATABLE, TARGET :: atomic_H, atomic_S
+    REAL(KIND=dp), DIMENSION(:,:), ALLOCATABLE, TARGET ::  atomic_filter_mat
+!END:DEBUG:LT:2015/01/26
+
+
+!BEG:DEBUG:LT:2015/01/20
+    INTEGER :: ii, jj
+    CHARACTER(LEN=100) :: fmt
+    REAL(KIND=dp), DIMENSION(:), POINTER :: part_mat_pointer_1
+    REAL(KIND=dp), DIMENSION(:,:), POINTER :: part_mat_pointer_2
+!END:DEBUG:LT:2015/01/20
 
     failure = .FALSE.
 
     NULLIFY(pairs_send, pairs_recv, ntfns, tfns, atomic_kind)
-    CALL fb_com_atom_pairs_nullify(com_pairs_send, error)
-    CALL fb_com_atom_pairs_nullify(com_pairs_recv, error)
+    CALL fb_com_atom_pairs_nullify(com_pairs_send)
+    CALL fb_com_atom_pairs_nullify(com_pairs_recv)
 
 
     ! ----------------------------------------------------------------------
@@ -258,8 +290,8 @@ CONTAINS
     ! ----------------------------------------------------------------------
 
     ! generate send and recv atom pairs
-    CALL fb_com_atom_pairs_create(atom_pairs_send, error)
-    CALL fb_com_atom_pairs_create(atom_pairs_recv, error)
+    CALL fb_com_atom_pairs_create(com_pairs_send, error)
+    CALL fb_com_atom_pairs_create(com_pairs_recv, error)
     CALL fb_fltrmat_generate_com_pairs(filter_mat, &
                                        atomic_halo, &
                                        para_env, &
@@ -298,16 +330,24 @@ CONTAINS
              first_col(nblkcols_total), last_col(nblkcols_total), &
              STAT=stat)
     CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
-    CALL convert_sizes_to_offsets(array_data(cp_dbcsr_row_block_sizes(dbcsr_mat)), &
+    CALL convert_sizes_to_offsets(array_data(cp_dbcsr_row_block_sizes(H_mat)), &
                                   first_row, last_row)
-    CALL convert_sizes_to_offsets(array_data(cp_dbcsr_col_block_sizes(dbcsr_mat)), &
+    CALL convert_sizes_to_offsets(array_data(cp_dbcsr_col_block_sizes(H_mat)), &
                                   first_col, last_col)
 
     ! obtain trail function information
     CALL fb_trial_fns_get(trial_fns=trial_fns, &
                           nfunctions=ntfns, &
                           functions=tfns, &
-                          error)
+                          error=error)
+
+!BEG:DEBUG:LT:2015/01/20
+    print *, "|LT| fb_fltrmat_add_blkcol: ntfns = ", ntfns
+    DO ipe = 1, SIZE(ntfns)
+       print *, "|LT| fb_fltrmat_add_blkcol: tfns(kind=ipe) = ", tfns(:,ipe)
+    END DO
+!END:DEBUG:LT:2015/01/20
+
 
     ! setup send buffer sizes
     CALL fb_com_atom_pairs_get(atom_pairs=com_pairs_send, &
@@ -319,9 +359,9 @@ CONTAINS
     send_pair_count = 0
     DO ipair = 1, npairs_send
        ! decode processor and (iatom, jatom) information
-       CALL fb_com_atom_pair_decode(pairs_send(ipair), &
-                                    pe, iatom_global, jatom_global, &
-                                    send_encode)
+       CALL fb_com_atom_pairs_decode(pairs_send(ipair), &
+                                     pe, iatom_global, jatom_global, &
+                                     send_encode)
        atomic_kind => particle_set(jatom_global)%atomic_kind
        CALL get_atomic_kind(atomic_kind=atomic_kind, &
                             kind_number=jkind)
@@ -353,9 +393,9 @@ CONTAINS
     recv_pair_count = 0
     DO ipair = 1, npairs_recv
        ! decode processor and (iatom, jatom) information
-       CALL fb_com_atom_pair_decode(pairs_recv(ipair), &
-                                    pe, iatom_global, jatom_global, &
-                                    recv_encode)
+       CALL fb_com_atom_pairs_decode(pairs_recv(ipair), &
+                                     pe, iatom_global, jatom_global, &
+                                     recv_encode)
        atomic_kind => particle_set(jatom_global)%atomic_kind
        CALL get_atomic_kind(atomic_kind=atomic_kind, &
                             kind_number=jkind)
@@ -390,29 +430,45 @@ CONTAINS
              atomic_H_blk_col_start(natoms_in_halo + 1), &
              STAT=stat)
     CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
-    CALL fb_atmatrix_calc_size(mat_H, &
+    CALL fb_atmatrix_calc_size(H_mat, &
                                atomic_halo, &
                                nrows_atmatrix, &
                                ncols_atmatrix, &
                                atomic_H_blk_row_start, &
                                atomic_H_blk_col_start, &
                                error)
+
+
+!BEG:DEBUG:LT:2015/01/20
+    ! print *, "atomic_H_blk_row_start = ", atomic_H_blk_row_start
+    ! print *, "atomic_H_blk_col_start = ", atomic_H_blk_col_start
+!END:DEBUG:LT:2015/01/20
+
     ALLOCATE(atomic_H(nrows_atmatrix,ncols_atmatrix), STAT=stat)
     CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
-    CALL fb_atmatrix_construct(mat_H, &
+    CALL fb_atmatrix_construct(H_mat, &
                                atomic_halo, &
                                para_env, &
                                atomic_H, &
                                atomic_H_blk_row_start, &
                                atomic_H_blk_col_start, &
                                error)
+ !BEG:DEBUG:LT:2015/01/20
+    print *, "|LT| fb_fltrmat_add_blkcol: H_mat = "
+    CALL cp_dbcsr_print(H_mat, error=error)
+    print *, "|LT| fb_fltrmat_add_blkcol: atomic_H ="
+    write (fmt,*) "(", SIZE(atomic_H,2), "f9.4",")"
+    DO ipair = 1, SIZE(atomic_H,1)
+       write (*,fmt=fmt) atomic_H(ipair,:)
+    END DO
+ !END:DEBUG:LT:2015/01/20
 
     ! construct atomic matrix for S for atomic_halo
     ALLOCATE(atomic_S_blk_row_start(natoms_in_halo + 1), &
              atomic_S_blk_col_start(natoms_in_halo + 1), &
              STAT=stat)
     CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
-    CALL fb_atmatrix_calc_size(mat_S, &
+    CALL fb_atmatrix_calc_size(S_mat, &
                                atomic_halo, &
                                nrows_atmatrix, &
                                ncols_atmatrix, &
@@ -421,13 +477,25 @@ CONTAINS
                                error)
     ALLOCATE(atomic_S(nrows_atmatrix,ncols_atmatrix), STAT=stat)
     CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
-    CALL fb_atmatrix_construct(mat_S, &
+    CALL fb_atmatrix_construct(S_mat, &
                                atomic_halo, &
                                para_env, &
                                atomic_S, &
                                atomic_S_blk_row_start, &
                                atomic_S_blk_col_start, &
                                error)
+
+ !BEG:DEBUG:LT:2015/01/20
+    print *, "|LT| fb_fltrmat_add_blkcol: S_mat = "
+    CALL cp_dbcsr_print(S_mat, error=error)
+    print *, "|LT| fb_fltrmat_add_blkcol: atomic_S ="
+    write (fmt,*) "(", SIZE(atomic_S,2), "f9.4",")"
+    DO ipair = 1, SIZE(atomic_S,1)
+       write (*,fmt=fmt) atomic_S(ipair,:)
+    END DO
+ !END:DEBUG:LT:2015/01/20
+
+
 
     ! construct the atomic filter matrix
     ALLOCATE(atomic_filter_mat(nrows_atmatrix,ncols_atmatrix), STAT=stat)
@@ -440,6 +508,26 @@ CONTAINS
                                          atomic_filter_mat, &
                                          error)
 
+
+ !BEG:DEBUG:LT:2015/01/20
+    print *, "|LT| fb_fltrmat_add_blkcol: after call to fb_fltrmat_build_atomic_filrmat"
+    print *, "|LT| fb_fltrmat_add_blkcol: atomic_S ="
+    write (fmt,*) "(", SIZE(atomic_S,2), "f9.4",")"
+    DO ii = 1, SIZE(atomic_S,1)
+       write (*,fmt=fmt) atomic_S(ii,:)
+    END DO
+ !END:DEBUG:LT:2015/01/20
+
+
+!BEG:DEBUG:LT:2015/01/20
+    print *, "|LT| fb_fltrmat_add_blkcol: atomic_filter_mat ="
+    write (fmt,*) "(", SIZE(atomic_filter_mat,2), "f9.4",")"
+    DO ipair = 1, SIZE(atomic_filter_mat,1)
+       write (*,fmt=fmt) atomic_filter_mat(ipair,:)
+    END DO
+!END:DEBUG:LT:2015/01/20
+
+
     ! ----------------------------------------------------------------------
     ! Construct filter matrix blocks and add to the correct locations
     ! in send_buffer
@@ -451,9 +539,9 @@ CONTAINS
     DO ipe = 1, numprocs
        send_sizes(ipe) = 0
        DO ipair = 1, send_pair_count(ipe)
-          CALL fb_com_atom_pair_decode(pairs_send(send_pair_disps(ipe) + ipair), &
-                                       pe, iatom_global, jatom_global, &
-                                       send_encode)
+          CALL fb_com_atom_pairs_decode(pairs_send(send_pair_disps(ipe) + ipair), &
+                                        pe, iatom_global, jatom_global, &
+                                        send_encode)
           CALL fb_atomic_halo_atom_global2halo(atomic_halo, &
                                                iatom_global, iatom_in_halo, &
                                                found, error)
@@ -468,28 +556,67 @@ CONTAINS
           nrows_blk = last_row(iatom_global) - first_row(iatom_global) + 1
           ncols_blk = ntfns(jkind)
           ! do it column-wise one trial function at a time
+
+
+!BEG:DEBUG:LT:2015/01/20
+          print *, "|LT| fb_fltrmat_add_blkcol: part_atomic_filter (iatom_in_halo, row_start)", &
+                   iatom_in_halo, atomic_H_blk_row_start(iatom_in_halo)
+          part_mat_pointer_2 => atomic_filter_mat(atomic_H_blk_row_start(iatom_in_halo) : &
+                                                  atomic_H_blk_row_start(iatom_in_halo+1)-1, &
+                                                  1:ncols_atmatrix)
+          write (fmt,*) "(", SIZE(part_mat_pointer_2, 2), "f9.4",")"
+          DO ii = 1, SIZE(part_mat_pointer_2, 1)
+             write (*,fmt=fmt) part_mat_pointer_2(ii,:)
+          END DO
+!END:DEBUG:LT:2015/01/20
+
+ !BEG:DEBUG:LT:2015/01/20
+          print *, "|LT| fb_fltrmat_add_blkcol: atomic_S ="
+          write (fmt,*) "(", SIZE(atomic_S,2), "f9.4",")"
+          DO ii = 1, SIZE(atomic_S,1)
+             write (*,fmt=fmt) atomic_S(ii,:)
+          END DO
+ !END:DEBUG:LT:2015/01/20
+
+
           DO itrial = 1, ntfns(jkind)
-             ind = send_disp(ipe) + send_sizes(ipe) + (itrial-1) * nrows_blk
-             CALL dgemv(TRANSA = "N",                                          &
-                        TRANSB = "N",                                          &
-                        M      = nrows_blk,                                    &
-                        N      = ncols_atmatrix,                               &
-                        ALPHA  = 1.0_dp,                                       &
-                        A      = atomic_filter_mat(                            &
-                                   atomic_H_blk_row_start(iatom_in_halo):, :   &
-                                   ! atomic_H_blk_row_start(iatom_in_halo + 1) - 1, &
-                                   ! 1 : ncols_atmatrix                          &
-                                 ),                                            &
-                        LDA    = nrows_atmatrix,                               &
-                        X      = atomic_S(                                     &
-                                   1 : nrows_atmatrix,                         &
-                                   atomic_S_blk_row_start(jhalo_atom) +        &
-                                   tfns(itrial,jkind)                          &
-                                 ),                                            &
-                        INCX   = 1,                                            &
-                        BETA   = 0.0_dp,                                       &
-                        Y      = send_buf(ind + 1 : ind + nrows_blk),          &
-                        INCY   = 1)
+
+!BEG:DEBUG:LT:2015/01/20
+             print *, "jatom_in_halo", jatom_in_halo
+             print *, "atomic_S_blk_row_start = ", atomic_S_blk_row_start
+             print *, "tfns of jkind = ", tfns(:,jkind)
+             print *, "part_atomic_s = (jatom_in_halo, row_start)", &
+                      jatom_in_halo, atomic_S_blk_row_start(jatom_in_halo)
+             part_mat_pointer_1 => atomic_S(1 : nrows_atmatrix, &
+                                            atomic_S_blk_row_start(jatom_in_halo) + &
+                                            tfns(itrial,jkind) - 1)
+             DO ii = 1, SIZE(part_mat_pointer_1,1)
+                write (*,fmt="(1f10.4)") part_mat_pointer_1(ii)
+             END DO
+!END:DEBUG:LT:2015/01/20
+
+             ind = send_disps(ipe) + send_sizes(ipe) + (itrial-1) * nrows_blk
+             CALL BL_GEMV(TRANS = "N",                                           &
+                          M      = nrows_blk,                                    &
+                          N      = ncols_atmatrix,                               &
+                          ALPHA  = 1.0_dp,                                       &
+                          A      = atomic_filter_mat(                            &
+                                     ! atomic_H_blk_row_start(iatom_in_halo):, :  &
+                                     atomic_H_blk_row_start(iatom_in_halo) :     &
+                                     atomic_H_blk_row_start(iatom_in_halo+1)-1,  &
+                                     1 : ncols_atmatrix                          &
+                                   ),                                            &
+                          LDA    = nrows_blk,                                    &
+                         ! LDA    = nrows_atmatrix,                               &
+                          X      = atomic_S(                                     &
+                                     1 : nrows_atmatrix,                         &
+                                     atomic_S_blk_row_start(jatom_in_halo) +     &
+                                     tfns(itrial,jkind) - 1                      &
+                                   ),                                            &
+                          INCX   = 1,                                            &
+                          BETA   = 0.0_dp,                                       &
+                          Y      = send_buf(ind + 1 : ind + nrows_blk),          &
+                          INCY   = 1)
           END DO ! itrial
           send_sizes(ipe) = send_sizes(ipe) + nrows_blk * ncols_blk
        END DO ! ipair
@@ -512,7 +639,7 @@ CONTAINS
 
     CALL mp_alltoall(send_buf, send_sizes, send_disps, &
                      recv_buf, recv_sizes, recv_disps, &
-                     para_env&group)
+                     para_env%group)
 
     DEALLOCATE(send_buf, STAT=stat)
     CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
@@ -524,9 +651,6 @@ CONTAINS
     CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
     DEALLOCATE(send_pair_disps, STAT=stat)
     CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
-    DEALLOCATE(recv_disps, STAT=stat)
-    CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
-
 
     ! ----------------------------------------------------------------------
     ! Unpack the recv buffer and add the blocks to correct parts of
@@ -536,18 +660,18 @@ CONTAINS
     DO ipe = 1, numprocs
        recv_sizes(ipe) = 0
        DO ipair = 1, recv_pair_count(ipe)
-          CALL fb_com_atom_pair_decode(pairs_recv(recv_pair_disps(ipe) + ipair), &
-                                       pe, iatom_global, jatom_global, &
-                                       send_encode)
+          CALL fb_com_atom_pairs_decode(pairs_recv(recv_pair_disps(ipe) + ipair), &
+                                        pe, iatom_global, jatom_global, &
+                                        send_encode)
           atomic_kind => particle_set(jatom_global)%atomic_kind
           CALL get_atomic_kind(atomic_kind=atomic_kind, &
                                kind_number=jkind)
           nrows_blk = last_row(iatom_global) - first_row(iatom_global) + 1
           ncols_blk = ntfns(jkind)
-          ind = recv_disp(ipe) + recv_sizes(ipe)
+          ind = recv_disps(ipe) + recv_sizes(ipe)
           CALL cp_dbcsr_put_block(filter_mat, &
                                   iatom_global, jatom_global, &
-                                  recv_buff(ind + 1 : ind + nrows_blk * ncols_blk))
+                                  recv_buf((ind+1) : (ind+nrows_blk*ncols_blk)))
        END DO ! ipair
        recv_sizes(ipe) = recv_sizes(ipe) + nrows_blk * ncols_blk
     END DO ! ipe
@@ -561,11 +685,11 @@ CONTAINS
     CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
     DEALLOCATE(recv_pair_disps, STAT=stat)
     CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
-    DEALLOCATE(first_row, last_row, first_col, last_col, STAT)
+    DEALLOCATE(first_row, last_row, first_col, last_col, STAT=stat)
     CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
 
-    CALL fb_com_atom_pairs_release(atom_pairs_send, error)
-    CALL fb_com_atom_pairs_release(atom_pairs_recv, error)
+    CALL fb_com_atom_pairs_release(com_pairs_send, error)
+    CALL fb_com_atom_pairs_release(com_pairs_recv, error)
 
     ! cannot finalise the matrix until all blocks has been added
 
@@ -589,19 +713,19 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'fb_fltrmat_generate_com_tasks', &
                                    routineP = moduleN//':'//routineN
 
-    LOGICAL :: failure
+    LOGICAL :: failure, transpose
     TYPE(fb_com_tasks_obj) :: com_tasks_send, com_tasks_recv
     INTEGER(KIND=int_8), DIMENSION(:,:), POINTER :: tasks_send, tasks_recv
     INTEGER, DIMENSION(:), POINTER :: halo_atoms
     INTEGER :: itask, src, dest, jatom_global, iatom_in_halo, &
                natoms_in_halo, ntasks_send, ntasks_recv, nblkrows_total, &
-               stat
+               stat, iatom_global, iatom_stored, jatom_stored
 
     failure = .FALSE.
 
     NULLIFY(tasks_send, tasks_recv)
-    CALL fb_com_tasks_nullify(com_tasks_send, error)
-    CALL fb_com_tasks_nullify(com_tasks_recv, error)
+    CALL fb_com_tasks_nullify(com_tasks_send)
+    CALL fb_com_tasks_nullify(com_tasks_recv)
 
     ! initialise atom_pairs_send and atom_pairs_recv
     IF (fb_com_atom_pairs_has_data(atom_pairs_send)) THEN
@@ -658,11 +782,12 @@ CONTAINS
        iatom_global = halo_atoms(iatom_in_halo)
        iatom_stored = iatom_global
        jatom_stored = jatom_global
+       transpose = .FALSE.
        ! find where the constructed block of filter matrix belongs to
        CALL cp_dbcsr_get_stored_coordinates(filter_mat, &
                                             iatom_stored, &
                                             jatom_stored, &
-                                            transpose=.FALSE., &
+                                            transpose=transpose, &
                                             processor=dest)
        ! create the send tasks
        tasks_send(TASK_DEST,itask) = dest
@@ -694,13 +819,13 @@ CONTAINS
     ! and atom_pairs_recv from the tasks lists
     CALL fb_com_tasks_build_atom_pairs(com_tasks=com_tasks_send, &
                                        atom_pairs=atom_pairs_send, &
-                                       natoms_encode=nencode, &
+                                       natoms_encode=nblkrows_total, &
                                        send_or_recv="send", &
                                        symmetric=.FALSE., &
                                        error=error)
     CALL fb_com_tasks_build_atom_pairs(com_tasks=com_tasks_recv, &
                                        atom_pairs=atom_pairs_recv, &
-                                       natoms_encode=nencode, &
+                                       natoms_encode=nblkrows_total, &
                                        send_or_recv="recv", &
                                        symmetric=.FALSE., &
                                        error=error)
@@ -720,7 +845,7 @@ CONTAINS
                                              filter_temp, &
                                              atomic_filter_mat, &
                                              error)
-    REAL(KIND=dp), DIMENSION(:,:), INTENT(inout) :: atomic_H
+    REAL(KIND=dp), DIMENSION(:,:), INTENT(in) :: atomic_H
     REAL(KIND=dp), DIMENSION(:,:), INTENT(in) :: atomic_S
  !   TYPE(mo_set_type), POINTER :: mo_set
     REAL(KIND=dp), INTENT(in) :: fermi_level
@@ -729,17 +854,23 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:,:), INTENT(out) :: atomic_filter_mat
     TYPE(cp_error_type), INTENT(inout) :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'fb_fltrmat_build_atomic_fltrmat', &
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'fb_fltrmat_build_atomic_fltrmat', &
                                    routineP = moduleN//':'//routineN
 
     LOGICAL :: failure
-    INTEGER :: stat, info, mat_dim, work_array_size
+    INTEGER :: stat, info, mat_dim, work_array_size, ii, jj
 
 !    REAL(KIND=dp) :: fermi_level, maxocc
     REAL(KIND=dp), DIMENSION(:), ALLOCATABLE :: filter_function, &
                                                 eigenvalues, work
-    REAL(KIND=dp), DIMENSION(:,:), ALLOCATABLE :: filtered_eigenvectors
+    REAL(KIND=dp), DIMENSION(:,:), ALLOCATABLE :: filtered_eigenvectors, &
+                                                  atomic_S_copy, eigenvectors
 
+!BEG:DEBUG:LT:2015/01/26
+    CHARACTER(LEN=100) :: fmt
+    INTEGER :: kk
+    REAL(KIND=dp), DIMENSION(:,:), ALLOCATABLE :: inner_products, temp_mat
+!END:DEBUG:LT:2015/01/26
 
     failure = .FALSE.
 
@@ -753,17 +884,24 @@ CONTAINS
     ! get optimal work array size
     ALLOCATE(work(1), STAT=stat)
     CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
-    CALL dsygv(ITYPE = 1,           &
-               JOBZ  = 'V',         &
-               UPLO  = 'U',         &
-               N     = mat_dim,     &
-               A     = atomic_H,    &
-               LDA   = mat_dim,     &
-               B     = atomic_S,    &
-               LDB   = mat_dim,     &
-               W     = eigenvalues, &
-               WORK  = work,        &
-               LWORK = -1,          &
+    ! dsygv will overwrite part of atomic_H and atomic_S, thus need to copy them
+    ALLOCATE(atomic_S_copy(SIZE(atomic_S,1),SIZE(atomic_S,2)), STAT=stat)
+    CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
+    atomic_S_copy = atomic_S
+    ALLOCATE(eigenvectors(SIZE(atomic_H,1),SIZE(atomic_H,2)), STAT=stat)
+    CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
+    eigenvectors = atomic_H
+    CALL dsygv(ITYPE = 1,             &
+               JOBZ  = 'V',           &
+               UPLO  = 'U',           &
+               N     = mat_dim,       &
+               A     = eigenvectors,  &
+               LDA   = mat_dim,       &
+               B     = atomic_S_copy, &
+               LDB   = mat_dim,       &
+               W     = eigenvalues,   &
+               WORK  = work,          &
+               LWORK = -1,            &
                INFO  = info)
     work_array_size = work(1)
     ! now allocate work array
@@ -772,13 +910,15 @@ CONTAINS
     ALLOCATE(work(work_array_size), STAT=stat)
     CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
     ! do calculation
+    atomic_S_copy = atomic_S
+    eigenvectors = atomic_H
     CALL dsygv(ITYPE = 1,               &
                JOBZ  = 'V',             &
                UPLO  = 'U',             &
                N     = mat_dim,         &
-               A     = atomic_H,        &
+               A     = eigenvectors,    &
                LDA   = mat_dim,         &
-               B     = atomic_S,        &
+               B     = atomic_S_copy,   &
                LDB   = mat_dim,         &
                W     = eigenvalues,     &
                WORK  = work,            &
@@ -793,8 +933,8 @@ CONTAINS
 
     DEALLOCATE(work, STAT=stat)
     CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
-
-    ! atomic_H now contains the eigenvectors
+    DEALLOCATE(atomic_S_copy, STAT=stat)
+    CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
 
     ! first get the filter function
     ALLOCATE(filter_function(mat_dim), STAT=stat)
@@ -809,6 +949,12 @@ CONTAINS
                                    fermi_level, &
                                    max_occ)
 
+!BEG:DEBUG:LT:2015/01/26
+    print *, "|LT| fb_fltrmat_build_atomic_fltrmat: filter_function = ", filter_function
+    print *, "|LT| fb_fltrmat_build_atomic_fltrmat: eigenvalues = ", eigenvalues
+!END:DEBUG:LT:2015/01/26
+
+
     DEALLOCATE(eigenvalues, STAT=stat)
     CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
 
@@ -819,29 +965,85 @@ CONTAINS
     DO jj = 1, mat_dim
        DO ii = 1, mat_dim
           filtered_eigenvectors(ii,jj) = &
-               filter_function(jj) * atomic_H(ii,jj)
+               filter_function(jj) * eigenvectors(ii,jj)
        END DO ! ii
     END DO ! jj
+
+!BEG:DEBUG:LT:2015/01/26
+    print *, "|LT| fb_fltrmat_build_atomic_fltrmat: eigenvectors = "
+    write (fmt,*) "(", SIZE(eigenvectors,2), "f9.4", ")"
+    DO ii = 1, SIZE(eigenvectors,1)
+       write (*,fmt=fmt) eigenvectors(ii,:)
+    END DO
+!END:DEBUG:LT:2015/01/26
+
+!BEG:DEBUG:LT:2015/01/26
+    print *, "|LT| fb_fltrmat_build_atomic_fltrmat: check orthonormality of eigenvectors"
+    ALLOCATE(inner_products(SIZE(eigenvectors,1),SIZE(eigenvectors,2)), STAT=stat)
+    inner_products = 0.0_dp
+    ALLOCATE(temp_mat(SIZE(eigenvectors,1),SIZE(eigenvectors,2)), STAT=stat)
+    temp_mat = 0.0_dp
+    DO jj = 1, SIZE(eigenvectors,2)
+       DO ii = 1, SIZE(eigenvectors,1)
+          DO kk = 1, SIZE(eigenvectors,2)
+             temp_mat(ii,jj) = temp_mat(ii,jj) + &
+                               eigenvectors(kk,ii) * atomic_S(kk,jj)
+          END DO
+       END DO
+    END DO
+    DO jj = 1, SIZE(eigenvectors,2)
+       DO ii = 1, SIZE(eigenvectors,1)
+          DO kk = 1, SIZE(eigenvectors,2)
+             inner_products(ii,jj) = inner_products(ii,jj) + &
+                                     temp_mat(ii,kk) * eigenvectors(kk,jj)
+          END DO
+       END DO
+    END DO
+    write (fmt,*) "(", SIZE(inner_products,2), "f9.4", ")"
+    DO ii = 1, SIZE(inner_products,1)
+       write (*,fmt=fmt) inner_products(ii,:)
+    END DO
+    DEALLOCATE(inner_products)
+    DEALLOCATE(temp_mat)
+!END:DEBUG:LT:2015/01/26
+
+!BEG:DEBUG:LT:2015/01/26
+    print *, "|LT| fb_fltrmat_build_atomic_fltrmat: filtered_eigenvalues = "
+    write (fmt,*) "(", SIZE(filtered_eigenvectors,2), "f9.4", ")"
+    DO ii = 1, SIZE(filtered_eigenvectors,1)
+       write (*,fmt=fmt) filtered_eigenvectors(ii,:)
+    END DO
+!END:DEBUG:LT:2015/01/26
 
     DEALLOCATE(filter_function, STAT=stat)
     CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
 
     ! construct atomic filter matrix
-    CALL dgemm(TRANSA = "N",                   &
-               TRANSB = "T",                   &
-               M      = mat_dim,               &
-               N      = mat_dim,               &
-               K      = mat_dim,               &
-               ALPHA  = 1.0_dp,                &
-               A      = filtered_eigenvectors, &
-               LDA    = mat_dim,               &
-               B      = atomic_H,              &
-               LDB    = mat_dim,               &
-               BETA   = 0.0_dp,                &
-               C      = atomic_filter_mat,     &
-               LDC    = mat_dim)
+    CALL BL_GEMM(TRANSA = "N",                   &
+                 TRANSB = "T",                   &
+                 M      = mat_dim,               &
+                 N      = mat_dim,               &
+                 K      = mat_dim,               &
+                 ALPHA  = 1.0_dp,                &
+                 A      = filtered_eigenvectors, &
+                 LDA    = mat_dim,               &
+                 B      = eigenvectors,          &
+                 LDB    = mat_dim,               &
+                 BETA   = 0.0_dp,                &
+                 C      = atomic_filter_mat,     &
+                 LDC    = mat_dim)
+
+!BEG:DEBUG:LT:2015/01/26
+    print *, "|LT| fb_fltrmat_build_atomic_fltrmat: atomic_filter_mat = "
+    write (fmt,*) "(", SIZE(atomic_filter_mat,2), "f9.4", ")"
+    DO ii = 1, SIZE(atomic_filter_mat,1)
+       write (*,fmt=fmt) atomic_filter_mat(ii,:)
+    END DO
+!END:DEBUG:LT:2015/01/26
 
     DEALLOCATE(filtered_eigenvectors, STAT=stat)
+    CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
+    DEALLOCATE(eigenvectors, STAT=stat)
     CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
 
   END SUBROUTINE fb_fltrmat_build_atomic_fltrmat
@@ -858,8 +1060,7 @@ CONTAINS
                                    routineP = moduleN//':'//routineN
 
     LOGICAL :: failure
-    INTEGER :: ne
-    REAL(KIND=dp) :: kTS
+    REAL(KIND=dp) :: kTS, ne
 
     CALL Fermi(f, ne, kTS, eigenvals, mu, T, maxocc)
   END SUBROUTINE fb_fltrmat_fermi_dirac_mu
@@ -882,7 +1083,7 @@ CONTAINS
     LOGICAL       :: failure
 
     failure = .FALSE.
-    CALL FermiFixed(f, mu, kTS, eigenval, ne, fermi_T, maxocc)
+    CALL FermiFixed(f, mu, kTS, eigenvals, ne, T, maxocc)
   END SUBROUTINE fb_fltrmat_fermi_dirac_ne
 
 

@@ -1,4 +1,4 @@
-#!/bin/bash
+B1;2c#!/bin/bash
 
 # --------------------------------------------------------------------
 # Script for recrusively updating TAGS file used by emacs for a source
@@ -33,6 +33,6 @@ else
     etags_command="$ETAGS"
 fi
 
-find -E . -regex $INCLUDE_REGEXP -and \
+find . -regextype posix-extended -regex $INCLUDE_REGEXP -and \
      -not -regex $IGNORE_REGEXP \
      -print | xargs $etags_command

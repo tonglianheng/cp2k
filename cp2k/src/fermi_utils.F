@@ -20,7 +20,7 @@ MODULE fermi_utils
 
   PRIVATE
 
-  PUBLIC :: FermiFixed, FermiFixedDeriv, Fermikp
+  PUBLIC :: Fermi, FermiFixed, FermiFixedDeriv, Fermikp
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'fermi_utils'
 

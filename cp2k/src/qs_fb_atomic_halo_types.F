@@ -136,11 +136,9 @@ CONTAINS
     LOGICAL :: failure
 
     failure = .FALSE.
-    CPPrecondition(ASSOCIATED(atomic_halo%obj), &
-                   cp_failure_level, routineP, error, failure)
+    CPPrecondition(ASSOCIATED(atomic_halo%obj), cp_failure_level, routineP, error, failure)
     IF (.NOT. failure) THEN
-       CPPreconditionNoFail(atomic_halo%obj%ref_count>0, &
-                            cp_failure_level, routineP, error)
+       CPPreconditionNoFail(atomic_halo%obj%ref_count>0, cp_failure_level, routineP, error)
        atomic_halo%obj%ref_count = atomic_halo%obj%ref_count + 1
     END IF
   END SUBROUTINE fb_atomic_halo_retain
@@ -166,8 +164,7 @@ CONTAINS
 
     failure = .FALSE.
     IF (ASSOCIATED(atomic_halo%obj)) THEN
-       CPPreconditionNoFail(atomic_halo%obj%ref_count>0, &
-                            cp_failure_level, routineP, error)
+       CPPreconditionNoFail(atomic_halo%obj%ref_count>0, cp_failure_level, routineP, error)
        atomic_halo%obj%ref_count = atomic_halo%obj%ref_count - 1
        IF (atomic_halo%obj%ref_count == 0) THEN
           atomic_halo%obj%ref_count = 1
@@ -203,7 +200,7 @@ CONTAINS
                                    routineP = moduleN//':'//routineN
 
     NULLIFY(atomic_halo%obj)
-  END SUBROUTINE fb_atomic_halo_list_nullify
+  END SUBROUTINE fb_atomic_halo_nullify
 
 
   ! **********************************************************************
@@ -258,8 +255,7 @@ CONTAINS
     INTEGER :: stat
 
     failure = .FALSE.
-    CPPrecondition(.NOT.ASSOCIATED(atomic_halo%obj), &
-                   cp_failure_level, routineP, error, failure)
+    CPPrecondition(.NOT.ASSOCIATED(atomic_halo%obj), cp_failure_level, routineP, error, failure)
     IF (.NOT. failure) THEN
        ALLOCATE(atomic_halo%obj, STAT=stat)
        CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
@@ -402,8 +398,7 @@ CONTAINS
     INTEGER :: stat
 
     failure = .FALSE.
-    CPPrecondition(ASSOCIATED(atomic_halo%obj), &
-                   cp_failure_level, routineP, error, failure)
+    CPPrecondition(ASSOCIATED(atomic_halo%obj), cp_failure_level, routineP, error, failure)
     IF (.NOT. failure) THEN
        IF (PRESENT(owner_atom)) atomic_halo%obj%owner_atom = owner_atom
        IF (PRESENT(owner_id_in_halo)) atomic_halo%obj%owner_id_in_halo = owner_id_in_halo
@@ -471,8 +466,8 @@ CONTAINS
                                              error)
     TYPE(fb_atomic_halo_obj), INTENT(in) :: atomic_halo
     INTEGER, INTENT(in) :: iatom_global
-    INTEGER, INTENT(out) :: iatom_local
-    INTEGER, INTENT(out) :: found
+    INTEGER, INTENT(out) :: iatom_halo
+    LOGICAL, INTENT(out) :: found
     TYPE(cp_error_type), INTENT(inout) :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'fb_atomic_halo_sort', &
@@ -481,8 +476,7 @@ CONTAINS
     LOGICAL :: failure
 
     failure = .FALSE.
-    CPPrecondition(atomic_halo%obj%sorted, &
-                   cp_failure_level, routineP, error, failure)
+    CPPrecondition(atomic_halo%obj%sorted, cp_failure_level, routineP, error, failure)
     iatom_halo = locate(atomic_halo%obj%halo_atoms, iatom_global)
     IF (iatom_halo == 0) THEN
        found = .FALSE.
@@ -517,9 +511,9 @@ CONTAINS
 
     failure = .FALSE.
     nelectrons = 0
-    IF (ASSOCIATED(atomic_halo)) THEN
-       DO iatom_halo = 1, atomic_halo%natoms
-          iatom_global = atomic_halo%halo_atoms(iatom_halo)
+    IF (ASSOCIATED(atomic_halo%obj)) THEN
+       DO iatom_halo = 1, atomic_halo%obj%natoms
+          iatom_global = atomic_halo%obj%halo_atoms(iatom_halo)
           atomic_kind => particle_set(iatom_global)%atomic_kind
           CALL get_atomic_kind(atomic_kind=atomic_kind, &
                                z=z)
@@ -546,12 +540,10 @@ CONTAINS
     LOGICAL :: failure
 
     failure = .FALSE.
-    CPPrecondition(ASSOCIATED(atomic_halos%obj), &
-                   cp_failure_level, routineP, error, failure)
+    CPPrecondition(ASSOCIATED(atomic_halos%obj), cp_failure_level, routineP, error, failure)
     IF (.NOT. failure) THEN
-       CPPreconditionNoFail(atomic_halos%obj%ref_count>0, &
-                            cp_failure_level, routineP, error)
-       atomic_halo%obj%ref_count = fb_env%obj%ref_count + 1
+       CPPreconditionNoFail(atomic_halos%obj%ref_count>0, cp_failure_level, routineP, error)
+       atomic_halos%obj%ref_count = atomic_halos%obj%ref_count + 1
     END IF
   END SUBROUTINE fb_atomic_halo_list_retain
 
@@ -575,13 +567,12 @@ CONTAINS
 
     failure = .FALSE.
     IF (ASSOCIATED(atomic_halos%obj)) THEN
-       CPPreconditionNoFail(atomic_halos%obj%ref_count>0, &
-                            cp_failure_level, routineP, error)
+       CPPreconditionNoFail(atomic_halos%obj%ref_count>0, cp_failure_level, routineP, error)
        atomic_halos%obj%ref_count = atomic_halos%obj%ref_count - 1
        IF (atomic_halos%obj%ref_count == 0) THEN
           atomic_halos%obj%ref_count = 1
           IF (ASSOCIATED(atomic_halos%obj%halos)) THEN
-             DO ii = 1, SIZE(halos)
+             DO ii = 1, SIZE(atomic_halos%obj%halos)
                 CALL fb_atomic_halo_release(atomic_halos%obj%halos(ii), error=error)
              END DO
              DEALLOCATE(atomic_halos%obj%halos, STAT=stat)
@@ -666,8 +657,7 @@ CONTAINS
     INTEGER :: stat
 
     failure = .FALSE.
-    CPPrecondition(.NOT.ASSOCIATED(atomic_halos%obj), &
-                   cp_failure_level, routineP, error, failure)
+    CPPrecondition(.NOT.ASSOCIATED(atomic_halos%obj), cp_failure_level, routineP, error, failure)
     IF (.NOT. failure) THEN
        ALLOCATE(atomic_halos%obj, STAT=stat)
        CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
@@ -774,18 +764,17 @@ CONTAINS
                                    routineP = moduleN//':'//routineN
 
     LOGICAL :: failure
-    INTEGER :: ihalo, stat, nhalos
+    INTEGER :: ihalo, stat
 
     failure = .FALSE.
-    CPPrecondition(ASSOCIATED(atomic_halos%obj), &
-                   cp_failure_level, routineP, error, failure)
+    CPPrecondition(ASSOCIATED(atomic_halos%obj), cp_failure_level, routineP, error, failure)
     IF (.NOT. failure) THEN
        IF (PRESENT(nhalos)) atomic_halos%obj%nhalos = nhalos
        IF (PRESENT(max_nhalos)) atomic_halos%obj%max_nhalos = max_nhalos
        IF (PRESENT(halos)) THEN
           IF (ASSOCIATED(halos)) THEN
              DO ihalo = 1, SIZE(halos)
-                CALL fb_atomic_halo_retain(atomic_halos%obj%halos(ihalo), error)
+                CALL fb_atomic_halo_retain(halos(ihalo), error)
              END DO
           END IF
           IF (ASSOCIATED(atomic_halos%obj%halos)) THEN
@@ -850,7 +839,7 @@ CONTAINS
        WRITE (UNIT=string, FMT="(A,I5,A)") &
              "ATOMIC HALOS IN (PROCESS ", mype, ")"
        CALL compress(string)
-       IF (pring_unit > 0) THEN
+       IF (print_unit > 0) THEN
           WRITE (UNIT=print_unit, FMT="(/,/,T2,A)") TRIM(string)
           WRITE (UNIT=print_unit, FMT="(/,T2,A)") &
                 "atom : list of atoms in the atomic halo"
@@ -858,7 +847,7 @@ CONTAINS
        ! print content
        CALL fb_atomic_halo_list_get(atomic_halos=atomic_halos, &
                                     nhalos=nhalos, &
-                                    halos=halos
+                                    halos=halos, &
                                     error=error)
        DO ihalo = 1, nhalos
           CALL fb_atomic_halo_get(halos(ihalo), &
@@ -878,6 +867,6 @@ CONTAINS
        CALL cp_print_key_finished_output(print_unit, logger, fb_section, &
                                          "PRINT%ATOMIC_HALOS", error=error)
     END IF
-  END SUBROUTINE fb_atomic_halo_write
+  END SUBROUTINE fb_atomic_halo_list_write
 
 END MODULE qs_fb_atomic_halo_types

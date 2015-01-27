@@ -1,18 +1,20 @@
 MODULE qs_fb_com_tasks_types
 
-  USE kinds,           ONLY: int_8
+  USE kinds,           ONLY: int_8, int_4
   USE cp_para_types,   ONLY: cp_para_env_type
   USE message_passing, ONLY: mp_alltoall
   USE util,            ONLY: sort
   USE cp_dbcsr_interface, ONLY: cp_dbcsr_type, &
                                 cp_dbcsr_row_block_sizes, &
                                 cp_dbcsr_col_block_sizes, &
-                                array_new
-                                
+                                cp_dbcsr_get_info, &
+                                array_new, &
+                                array_data
+  USE memory_utilities, ONLY: reallocate
+
+#include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
-
-#include "cp_common_uses.h"
 
   PRIVATE
 
@@ -67,12 +69,12 @@ MODULE qs_fb_com_tasks_types
   ! - tasks_recv(TASK_COST,itask) = the cost of itask-th task
   !
   ! number of record slots in each task in the task lists
-  INTEGER, PARAMETER, :: TASK_N_RECORDS = 4
+  INTEGER, PARAMETER :: TASK_N_RECORDS = 4
   ! the indices for the records (1:TASK_DIM) in a task
-  INTEGER, PARAMETER, :: TASK_DEST = 1, &
-                         TASK_SRC  = 2, &
-                         TASK_PAIR = 3, &
-                         TASK_COST = 4
+  INTEGER, PARAMETER :: TASK_DEST = 1, &
+                        TASK_SRC  = 2, &
+                        TASK_PAIR = 3, &
+                        TASK_COST = 4
   ! **********************************************************************
 
 
@@ -99,7 +101,7 @@ MODULE qs_fb_com_tasks_types
      INTEGER :: task_dim
      INTEGER :: ntasks
      INTEGER :: nencode
-  END type fb_com_tasks_data
+  END TYPE fb_com_tasks_data
 
 
   !**********************************************************************
@@ -107,8 +109,8 @@ MODULE qs_fb_com_tasks_types
   !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
   !**********************************************************************
   TYPE fb_com_tasks_obj
-     TYPE(fb_com_task_data), POINTER, PRIVATE :: obj
-  END type fb_com_tasks_obj
+     TYPE(fb_com_tasks_data), POINTER, PRIVATE :: obj
+  END TYPE fb_com_tasks_obj
 
 
   ! **********************************************************************
@@ -165,11 +167,9 @@ CONTAINS
     LOGICAL :: failure
 
     failure = .FALSE.
-    CPPrecondition(ASSOCIATED(com_tasks%obj), &
-                   cp_failure_level, routineP, error, failure)
+    CPPrecondition(ASSOCIATED(com_tasks%obj), cp_failure_level, routineP, error, failure)
     IF (.NOT. failure) THEN
-       CPPreconditionNoFail(com_tasks%obj%ref_count>0, &
-                            cp_failure_level, routineP, error)
+       CPPreconditionNoFail(com_tasks%obj%ref_count>0, cp_failure_level, routineP, error)
        com_tasks%obj%ref_count = com_tasks%obj%ref_count + 1
     END IF
   END SUBROUTINE fb_com_tasks_retain
@@ -192,11 +192,9 @@ CONTAINS
     LOGICAL :: failure
 
     failure = .FALSE.
-    CPPrecondition(ASSOCIATED(%obj), &
-                   cp_failure_level, routineP, error, failure)
+    CPPrecondition(ASSOCIATED(atom_pairs%obj), cp_failure_level, routineP, error, failure)
     IF (.NOT. failure) THEN
-       CPPreconditionNoFail(atom_pairs%obj%ref_count>0, &
-                            cp_failure_level, routineP, error)
+       CPPreconditionNoFail(atom_pairs%obj%ref_count>0, cp_failure_level, routineP, error)
        atom_pairs%obj%ref_count = atom_pairs%obj%ref_count + 1
     END IF
   END SUBROUTINE fb_com_atom_pairs_retain
@@ -220,20 +218,41 @@ CONTAINS
     LOGICAL :: failure
     INTEGER :: stat
 
+!BEG:DEBUG:LT:2015/01/20
+    print *, "at the start of fb_com_tasks_release"
+    print *, "ASSOCATED = ", ASSOCiATED(com_tasks%obj)
+    print *, "ref_count = ", com_tasks%obj%ref_count
+    print *, "asociated tasks = ", associated(com_tasks%obj%tasks)
+!END:DEBUG:LT:2015/01/20
+
     failure = .FALSE.
     IF (ASSOCIATED(com_tasks%obj)) THEN
-       CPPreconditionNoFail(com_tasks%obj%ref_count>0, &
-                            cp_failure_level, routineP, error)
+       CPPreconditionNoFail(com_tasks%obj%ref_count>0, cp_failure_level, routineP, error)
        com_tasks%obj%ref_count = com_tasks%obj%ref_count - 1
        IF (com_tasks%obj%ref_count == 0) THEN
           com_tasks%obj%ref_count = 1
           IF (ASSOCIATED(com_tasks%obj%tasks)) THEN
-             DEALLOCATE(com_tasks%obj%tasks)
+
+!BEG:DEBUG:LT:2015/01/20
+             print *, "size(tasks) = ", size(com_tasks%obj%tasks)
+!END:DEBUG:LT:2015/01/20
+
+             DEALLOCATE(com_tasks%obj%tasks, STAT=stat)
              CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
           END IF
           com_tasks%obj%ref_count = 0
-          DEALLOCATE(com_tasks%obj, stat=stat)
+
+!BEG:DEBUG:LT:2015/01/20
+          print *, "we are here now"
+!END:DEBUG:LT:2015/01/20
+
+          DEALLOCATE(com_tasks%obj, STAT=stat)
           CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
+
+!BEG:DEBUG:LT:2015/01/20
+          print *, "------------------------------GGGADFADSF"
+!END:DEBUG:LT:2015/01/20
+
        END IF
     END IF
     NULLIFY(com_tasks%obj)
@@ -260,8 +279,7 @@ CONTAINS
 
     failure = .FALSE.
     IF (ASSOCIATED(atom_pairs%obj)) THEN
-       CPPreconditionNoFail(atom_pairs%obj%ref_count>0, &
-                            cp_failure_level, routineP, error)
+       CPPreconditionNoFail(atom_pairs%obj%ref_count>0, cp_failure_level, routineP, error)
        atom_pairs%obj%ref_count = atom_pairs%obj%ref_count - 1
        IF (atom_pairs%obj%ref_count == 0) THEN
           atom_pairs%obj%ref_count = 1
@@ -362,7 +380,7 @@ CONTAINS
                                    routineP = moduleN//':'//routineN
 
     res = ASSOCIATED(com_tasks%obj)
-  END FUNCTION fb_com_tasks_list_has_data
+  END FUNCTION fb_com_tasks_has_data
 
 
   ! **********************************************************************
@@ -379,7 +397,7 @@ CONTAINS
                                    routineP = moduleN//':'//routineN
 
     res = ASSOCIATED(atom_pairs%obj)
-  END FUNCTION fb_com_tasks_list_has_data
+  END FUNCTION fb_com_atom_pairs_has_data
 
 
   ! **********************************************************************
@@ -400,8 +418,7 @@ CONTAINS
     INTEGER :: stat
 
     failure = .FALSE.
-    CPPrecondition(.NOT.ASSOCIATED(com_tasks%obj), &
-                   cp_failure_level, routineP, error, failure)
+    CPPrecondition(.NOT.ASSOCIATED(com_tasks%obj), cp_failure_level, routineP, error, failure)
     IF (.NOT. failure) THEN
        ALLOCATE(com_tasks%obj, STAT=stat)
        CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
@@ -411,7 +428,7 @@ CONTAINS
        NULLIFY(com_tasks%obj%tasks)
        com_tasks%obj%ref_count = 1
        com_tasks%obj%id_nr = last_fb_com_tasks_id + 1
-       last_fb_com_tasks_id = tasks%obj%id_nr
+       last_fb_com_tasks_id = com_tasks%obj%id_nr
     END IF
   END SUBROUTINE fb_com_tasks_create
 
@@ -434,8 +451,7 @@ CONTAINS
     INTEGER :: stat
 
     failure = .FALSE.
-    CPPrecondition(.NOT.ASSOCIATED(atom_pairs%obj), &
-                   cp_failure_level, routineP, error, failure)
+    CPPrecondition(.NOT.ASSOCIATED(atom_pairs%obj), cp_failure_level, routineP, error, failure)
     IF (.NOT. failure) THEN
        ALLOCATE(atom_pairs%obj, STAT=stat)
        CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
@@ -444,7 +460,7 @@ CONTAINS
        NULLIFY(atom_pairs%obj%pairs)
        atom_pairs%obj%ref_count = 1
        atom_pairs%obj%id_nr = last_fb_com_atom_pairs_id + 1
-       last_fb_com_atom_pairs_id = tasks%obj%id_nr
+       last_fb_com_atom_pairs_id = atom_pairs%obj%id_nr
     END IF
   END SUBROUTINE fb_com_atom_pairs_create
 
@@ -612,9 +628,9 @@ CONTAINS
                               tasks, &
                               error)
     TYPE(fb_com_tasks_obj), INTENT(in) :: com_tasks
-    INTEGER, INTENT(out), OPTIONAL :: task_dim
-    INTEGER, INTENT(out), OPTIONAL :: ntasks
-    INTEGER, INTENT(out), OPTIONAL :: nencode
+    INTEGER, INTENT(in), OPTIONAL :: task_dim
+    INTEGER, INTENT(in), OPTIONAL :: ntasks
+    INTEGER, INTENT(in), OPTIONAL :: nencode
     INTEGER(KIND=int_8), DIMENSION(:,:), POINTER, OPTIONAL :: tasks
     TYPE(cp_error_type), INTENT(inout) :: error
 
@@ -625,8 +641,7 @@ CONTAINS
     INTEGER :: stat
 
     failure = .FALSE.
-    CPPrecondition(ASSOCIATED(com_tasks%obj), &
-                   cp_failure_level, routineP, error, failure)
+    CPPrecondition(ASSOCIATED(com_tasks%obj), cp_failure_level, routineP, error, failure)
     IF (.NOT. failure) THEN
        IF (PRESENT(task_dim)) com_tasks%obj%task_dim = task_dim
        IF (PRESENT(ntasks)) com_tasks%obj%ntasks = ntasks
@@ -659,9 +674,9 @@ CONTAINS
                                    natoms_encode, &
                                    pairs, &
                                    error)
-    TYPE(fb_com_atom_pairs_obj), INTENT(in) :: pairs
-    INTEGER, INTENT(out), OPTIONAL :: npairs
-    INTEGER, INTENT(out), OPTIONAL :: natoms_encode
+    TYPE(fb_com_atom_pairs_obj), INTENT(in) :: atom_pairs
+    INTEGER, INTENT(in), OPTIONAL :: npairs
+    INTEGER, INTENT(in), OPTIONAL :: natoms_encode
     INTEGER(KIND=int_8), DIMENSION(:), POINTER, OPTIONAL :: pairs
     TYPE(cp_error_type), INTENT(inout) :: error
 
@@ -672,8 +687,7 @@ CONTAINS
     INTEGER :: stat
 
     failure = .FALSE.
-    CPPrecondition(ASSOCIATED(atom_pairs%obj), &
-                   cp_failure_level, routineP, error, failure)
+    CPPrecondition(ASSOCIATED(atom_pairs%obj), cp_failure_level, routineP, error, failure)
     IF (.NOT. failure) THEN
        IF (PRESENT(npairs)) atom_pairs%obj%npairs = npairs
        IF (PRESENT(natoms_encode)) atom_pairs%obj%natoms_encode = natoms_encode
@@ -721,8 +735,8 @@ CONTAINS
 
     LOGICAL :: failure
     INTEGER :: itask, ipe, rank, rank_pos, task_dim, ii, jj, ind, &
-               ntasks_in, ntasks_out
-    INTEGER(KIND=int_8), DIMENSION(:,:), POINTER :: tasks_in, taks_out
+               ntasks_in, ntasks_out, stat, nencode
+    INTEGER(KIND=int_8), DIMENSION(:,:), POINTER :: tasks_in, tasks_out
     INTEGER, DIMENSION(:), ALLOCATABLE :: send_sizes, send_disps, &
                                           recv_sizes, recv_disps, &
                                           send_buf, recv_buf
@@ -735,13 +749,17 @@ CONTAINS
        CALL fb_com_tasks_get(com_tasks=tasks_src_is_me, &
                              task_dim=task_dim, &
                              ntasks=ntasks_in, &
-                             tasks=tasks_in)
+                             tasks=tasks_in, &
+                             nencode=nencode, &
+                             error=error)
        rank_pos = TASK_DEST
     ELSE
        CALL fb_com_tasks_get(com_tasks=tasks_dest_is_me, &
                              task_dim=task_dim, &
                              ntasks=ntasks_in, &
-                             tasks=tasks_in)
+                             tasks=tasks_in, &
+                             nencode=nencode, &
+                             error=error)
        rank_pos = TASK_SRC
     END IF
 
@@ -760,15 +778,31 @@ CONTAINS
     ALLOCATE(recv_buf(para_env%num_pe), STAT=stat)
     CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
 
+!BEG:DEBUG:LT:2015/01/20
+    print *, "size(send_buf) = ", SIZE(send_buf)
+    print *, "ntasks_in = ", ntasks_in
+    print *, "size(tasks_in) = ", SIZE(tasks_in)
+!END:DEBUG:LT:2015/01/20
+
     ! first count how many local recv/send tasks need to be sent to
     ! other processes, and share this information with the other
     ! processes.  using send_buf as a temporary array for counting
     send_buf = 0
     ! looping over local task list
     DO itask = 1, ntasks_in
-       rank = tasks_in(rank_pos,i) + 1
+       rank = tasks_in(rank_pos,itask) + 1
+
+!BEG:DEBUG:LT:2015/01/20
+       print *, "itask, rank", itask, rank
+!END:DEBUG:LT:2015/01/20
+
        send_buf(rank) = send_buf(rank) + 1
     END DO
+
+!BEG:DEBUG:LT:2015/01/20
+    print *, "send_buf = ", send_buf
+!END:DEBUG:LT:2015/01/20
+
     CALL mp_alltoall(send_buf, recv_buf, 1, para_env%group)
 
     ! now that we know how many recv/send tasks to send, pack the
@@ -851,12 +885,14 @@ CONTAINS
                              task_dim=task_dim, &
                              ntasks=ntasks_out, &
                              tasks=tasks_out, &
+                             nencode=nencode, &
                              error=error)
     ELSE
        CALL fb_com_tasks_set(com_tasks=tasks_src_is_me, &
                              task_dim=task_dim, &
                              ntasks=ntasks_out, &
                              tasks=tasks_out, &
+                             nencode=nencode, &
                              error=error)
     END IF
 
@@ -908,23 +944,23 @@ CONTAINS
                                    routineP = moduleN//':'//routineN
 
     LOGICAL :: failure, my_symmetric
-    INTEGER :: itask, ntasks, arow, acol, pair, rank, &
-               rank_pos, iatom, jatom, stat, npairs
-    INTEGER, DIMENSION(:,:), POINTER :: tasks
+    INTEGER :: itask, ntasks, arow, acol, rank, &
+               rank_pos, iatom, jatom, stat, npairs, ii
+    INTEGER(KIND=int_8) :: pair
+    INTEGER(KIND=int_8), DIMENSION(:,:), POINTER :: tasks
     INTEGER(KIND=int_8), DIMENSION(:), POINTER :: pairs
     INTEGER, DIMENSION(:), ALLOCATABLE :: tmp_index
 
     failure = .FALSE.
 
     NULLIFY(pairs, tasks)
-    
-    CPPrecondition(fb_com_atom_pairs_has_data(atom_pairs), &
-                   cp_failure_level, routineP, error, failure)
+
+    CPPrecondition(fb_com_atom_pairs_has_data(atom_pairs), cp_failure_level, routineP, error, failure)
 
     ! initialise atom_pairs
     CALL fb_com_atom_pairs_init(atom_pairs, error)
 
-    IF (TRIM(direction) == "send") THEN
+    IF (TRIM(send_or_recv) == "send") THEN
        rank_pos = TASK_DEST
     ELSE
        rank_pos = TASK_SRC
@@ -942,14 +978,14 @@ CONTAINS
                           error=error)
 
     ALLOCATE(pairs(ntasks), STAT=stat)
-    CPPrecondition(stat==0, &
-                   cp_failure_level, routineP, error, failure)
+    CPPrecondition(stat==0, cp_failure_level, routineP, error, failure)
     pairs = 0
-    npairs = 0
+    npairs = ntasks
 
     DO itask = 1, ntasks
        pair = tasks(TASK_PAIR,itask)
        CALL fb_com_tasks_decode_pair(pair, iatom, jatom, natoms_encode)
+
        IF (my_symmetric) THEN
           IF (iatom .LE. jatom) THEN
              arow = iatom
@@ -965,7 +1001,20 @@ CONTAINS
        rank = tasks(rank_pos,itask)
        CALL fb_com_atom_pairs_encode(pairs(itask), &
                                      rank, arow, acol, natoms_encode)
+
+!BEG:DEBUG:LT:2015/01/25
+       ! print *, "|LT| fb_com_tasks_build_atom_pairs: itask = ", itask
+       ! print *, "|LT| fb_com_tasks_build_atom_pairs: rank, arow, acol, natoms_encode = ", &
+       !          rank, arow, acol, natoms_encode
+       ! print *, "|LT| fb_com_tasks_build_atom_pairs: pairs(itask) = ", pairs(itask)
+!END:DEBUG:LT:2015/01/25
+
     END DO
+
+!BEG:DEBUG:LT:2015/01/25
+    ! print *, "|LT| fb_com_tasks_build_atom_pairs: SIZE(pairs) = ", SIZE(pairs)
+    ! print *, "|LT| fb_com_tasks_build_atom_pairs: pairs = ", pairs
+!END:DEBUG:LT:2015/01/25
 
     ! sort atom_pairs so that the pairs are ordered process blocks and
     ! that possible duplicates may be found (we don't want to send or
@@ -977,6 +1026,13 @@ CONTAINS
     CALL sort(pairs, ntasks, tmp_index)
     DEALLOCATE(tmp_index, STAT=stat)
     CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
+
+!BEG:DEBUG:LT:2015/01/25
+    ! print *, "|LT| fb_com_tasks_build_atom_pairs: After sort"
+    ! print *, "|LT| fb_com_tasks_build_atom_pairs: SIZE(pairs) = ", SIZE(pairs)
+    ! print *, "|LT| fb_com_tasks_build_atom_pairs: pairs = ", pairs
+!END:DEBUG:LT:2015/01/25
+
     ! remove duplicates
     IF (SIZE(pairs) > 1) THEN
        npairs = 1
@@ -984,7 +1040,7 @@ CONTAINS
        DO ii = 2, ntasks
           IF (pairs(ii) > pairs(ii-1)) THEN
              npairs = npairs + 1
-             pairs(npairs) = atom_pairs(ii)
+             pairs(npairs) = pairs(ii)
           END IF
        END DO
        ! reallocate the pairs list
@@ -996,6 +1052,16 @@ CONTAINS
                                npairs=npairs, &
                                natoms_encode=natoms_encode, &
                                error=error)
+
+!BEG:DEBUG:LT:2015/01/25
+    ! print *, "|LT| fb_com_tasks_build_atom_pairs: After fb_com_atom_pairs_set"
+    ! CALL fb_com_atom_pairs_get(atom_pairs=atom_pairs, &
+    !                            pairs=pairs, &
+    !                            npairs=npairs, &
+    !                            error=error)
+    ! print *, "|LT| fb_com_tasks_build_atom_pairs: npairs = ", npairs
+    ! print *, "|LT| fb_com_tasks_build_atom_pairs: pairs = ", pairs
+!END:DEBUG:LT:2015/01/25
 
   END SUBROUTINE fb_com_tasks_build_atom_pairs
 
@@ -1009,16 +1075,20 @@ CONTAINS
   !> \prarm natoms: the total number of atoms iatom and jatom indexes
   !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
   ! **********************************************************************
-  SUBROUTINE fb_com_tasks_encode_pair(int, iatom, jatom, natoms)
-    INTEGER(KIND=int_8), INTENT(out) :: int
+  SUBROUTINE fb_com_tasks_encode_pair(ind, iatom, jatom, natoms)
+    INTEGER(KIND=int_8), INTENT(out) :: ind
     INTEGER, INTENT(in) :: iatom, jatom, natoms
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'fb_com_tasks_encode_pair', &
                                    routineP = moduleN//':'//routineN
 
-    INTEGER(KIND=int_8) :: natoms8
+    INTEGER(KIND=int_8) :: natoms8, iatom8, jatom8
 
-    int = (iatom - 1) * natoms8 + (jatom - 1)
+    natoms8 = INT(natoms, int_8)
+    iatom8 = INT(iatom, int_8)
+    jatom8 = INT(jatom, int_8)
+    
+    ind = (iatom8 - 1_int_8) * natoms8 + (jatom8 - 1_int_8)
   END SUBROUTINE fb_com_tasks_encode_pair
 
 
@@ -1031,8 +1101,8 @@ CONTAINS
   !> \prarm natoms: the total number of atoms iatom and jatom indexes
   !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
   ! **********************************************************************
-  SUBROUTINE fb_com_tasks_decode_pair(int, iatom, jatom, natoms)
-    INTEGER(KIND=int_8), INTENT(in) :: int
+  SUBROUTINE fb_com_tasks_decode_pair(ind, iatom, jatom, natoms)
+    INTEGER(KIND=int_8), INTENT(in) :: ind
     INTEGER, INTENT(in) :: natoms
     INTEGER, INTENT(out) :: iatom, jatom
 
@@ -1041,11 +1111,11 @@ CONTAINS
 
     INTEGER(KIND=int_8) :: natoms8, iatom8, jatom8
 
-    natoms8 = natoms
-    iatom8 = int / natoms8 + 1_int_8
-    jatom8 = MOD(int, natoms8) + 1_int_8
-    iatom = iatom8
-    jatom = jatom8
+    natoms8 = INT(natoms, int_8)
+    iatom8 = ind / natoms8 + 1_int_8
+    jatom8 = MOD(ind, natoms8) + 1_int_8
+    iatom = INT(iatom8, int_4)
+    jatom = INT(jatom8, int_4)
   END SUBROUTINE fb_com_tasks_decode_pair
 
 
@@ -1070,9 +1140,9 @@ CONTAINS
     INTEGER(KIND=int_8) :: natoms8, pair
 
     ! pe must start count from 0 (i.e same as MPI convension)
-    natoms8 = natoms
+    natoms8 = INT(natoms, int_8)
     CALL fb_com_tasks_encode_pair(pair, iatom, jatom, natoms)
-    ind = pe * natoms8 * natoms8 + pair
+    ind = INT(pe, int_8) * natoms8 * natoms8 + pair
   END SUBROUTINE fb_com_atom_pairs_encode
 
 
@@ -1096,12 +1166,12 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'fb_atom_pair_decode', &
                                    routineP = moduleN//':'//routineN
 
-    INTEGER(KIND=int_8) :: natoms8, pair
+    INTEGER(KIND=int_8) :: natoms8, pair, res
 
     ! pe start count from 0 (i.e same as MPI convension)
-    natoms8 = natoms
-    pe = ind / (natoms8*natoms8)
-    pair =  MOD(res, natoms8*natoms8)
+    natoms8 = INT(natoms, int_8)
+    pe = INT(ind / (natoms8*natoms8), int_4)
+    pair =  MOD(ind, natoms8*natoms8)
     CALL fb_com_tasks_decode_pair(pair, iatom, jatom, natoms)
   END SUBROUTINE fb_com_atom_pairs_decode
 
@@ -1140,23 +1210,19 @@ CONTAINS
                                           first_col, last_col
     INTEGER, DIMENSION(:), POINTER :: row_block_size_data, &
                                       col_block_size_data
-    
+
     failure = .FALSE.
 
     NULLIFY(pairs)
 
-    CPPrecondition((SIZE(sendrecv_sizes)==nprocs .AND. &
-                    SIZE(sendrecv_disps)==nprocs .AND. &
-                    SIZE(sendrecv_pair_counts)==nprocs .AND. &
-                    SIZE(sendrecv_pair_disps)==nprocs), &
-                   cp_failure_level, routineP, error, failure)
-    
+    CPPrecondition((SIZE(sendrecv_sizes)==nprocs .AND. SIZE(sendrecv_disps)==nprocs .AND. SIZE(sendrecv_pair_counts)==nprocs .AND. SIZE(sendrecv_pair_disps)==nprocs), cp_failure_level, routineP, error, failure)
+
     CALL fb_com_atom_pairs_get(atom_pairs=atom_pairs, &
                                pairs=pairs, &
                                npairs=npairs, &
-                               natoms_encode=natooms_encode, &
+                               natoms_encode=natoms_encode, &
                                error=error)
-    
+
     CALL cp_dbcsr_get_info(dbcsr_matrix, &
                            nblkrows_total=nblkrows_total, &
                            nblkcols_total=nblkcols_total)
@@ -1168,8 +1234,8 @@ CONTAINS
     !                               first_row, last_row)
     ! CALL convert_sizes_to_offsets(array_data(cp_dbcsr_col_block_sizes(dbcsr_mat)), &
     !                               first_col, last_col)
-    row_block_size_data => array_data(cp_dbcsr_row_block_sizes(dbcsr_mat))
-    col_block_size_data => array_data(cp_dbcsr_col_block_sizes(dbcsr_mat))
+    row_block_size_data => array_data(cp_dbcsr_row_block_sizes(dbcsr_matrix))
+    col_block_size_data => array_data(cp_dbcsr_col_block_sizes(dbcsr_matrix))
 
     sendrecv_sizes = 0
     sendrecv_pair_counts = 0
@@ -1193,7 +1259,7 @@ CONTAINS
     sendrecv_pair_disps = 0
     DO ipe = 2, nprocs
        sendrecv_disps(ipe) = sendrecv_disps(ipe-1) + sendrecv_sizes(ipe-1)
-       sendrecv_pair_disps(ipe) = sendrecv_pair_disps(ipe-1) + sendrecv_pair_count(ipe-1)
+       sendrecv_pair_disps(ipe) = sendrecv_pair_disps(ipe-1) + sendrecv_pair_counts(ipe-1)
     END DO
 
     ! DEALLOCATE(first_row, last_row, first_col, last_col, STAT=stat)
@@ -1201,5 +1267,5 @@ CONTAINS
 
   END SUBROUTINE fb_com_atom_pairs_sendrecv_sizes
 
-    
+
 END MODULE qs_fb_com_tasks_types

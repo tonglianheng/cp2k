@@ -862,6 +862,8 @@ CPSourceFileRef)
        CASE(block_krylov_diag_method_nr)
        CASE(block_davidson_diag_method_nr)
            CALL block_davidson_deallocate(scf_env%block_davidson_env,error=error)
+       CASE(filter_matrix_diag_method_nr)
+          !
        CASE DEFAULT
           CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
                routineP,"unknown scf method method:"//&

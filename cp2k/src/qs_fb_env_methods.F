@@ -4,10 +4,13 @@ MODULE qs_fb_env_methods
                    default_string_length
   USE qs_fb_env_types, ONLY: fb_env_obj, &
                              fb_env_get, &
-                             fb_env_set
+                             fb_env_set, &
+                             fb_env_has_data
   USE qs_environment_types,    ONLY: qs_environment_type, &
                                      get_qs_env
   USE qs_fb_atomic_halo_types, ONLY: fb_atomic_halo_obj, &
+                                     fb_atomic_halo_nullify, &
+                                     fb_atomic_halo_create, &
                                      fb_atomic_halo_get, &
                                      fb_atomic_halo_set, &
                                      fb_atomic_halo_sort, &
@@ -22,7 +25,7 @@ MODULE qs_fb_env_methods
   USE particle_types,        ONLY: particle_type
   USE atomic_kind_types,     ONLY: atomic_kind_type, &
                                    get_atomic_kind
-  USE qs_neighbor_list,      ONLY: pair_radius_setup
+  USE qs_neighbor_lists,      ONLY: pair_radius_setup
   USE distribution_1d_types, ONLY: distribution_1d_type
   USE cp_dbcsr_interface, ONLY: cp_dbcsr_type, &
                                 cp_dbcsr_p_type, &
@@ -37,7 +40,13 @@ MODULE qs_fb_env_methods
                                 cp_dbcsr_nfullcols_total, &
                                 cp_dbcsr_finalize, &
                                 cp_dbcsr_multiply, &
-                                cp_dbcsr_release
+                                cp_dbcsr_release, &
+                                array_i1d_obj, &
+!BEG:DEBUG:LT:2015/01/20
+                                cp_dbcsr_print, &
+                                cp_dbcsr_desymmetrize, &
+!END:DEBUG:LT:2015/01/20
+                                array_nullify
   USE cp_dbcsr_operations, ONLY: copy_dbcsr_to_fm, &
                                  cp_dbcsr_sm_fm_multiply
   USE input_constants, ONLY: use_aux_fit_basis_set,&
@@ -47,8 +56,10 @@ MODULE qs_fb_env_methods
                               nco
   USE qs_mo_types, ONLY: mo_set_p_type, &
                          get_mo_set, &
+                         set_mo_set, &
                          init_mo_set, &
                          set_mo_occupation, &
+                         allocate_mo_set, &
                          deallocate_mo_set
   USE qs_mo_methods, ONLY: calculate_density_matrix
   USE string_utilities, ONLY: compress,&
@@ -64,12 +75,13 @@ MODULE qs_fb_env_methods
   USE cp_fm_types, ONLY: cp_fm_type, &
                          cp_fm_create, &
                          cp_fm_set_all, &
-                         cp_fm_release
+                         cp_fm_release, &
+                         cp_fm_to_fm
   USE qs_fb_trial_fns_types, ONLY: fb_trial_fns_obj, &
                                    fb_trial_fns_nullify, &
-                                   fb_trial_fns_get
-  USE array_types, ONLY: array_i1d_obj, &
-                         array_nullify
+                                   fb_trial_fns_get, &
+                                   fb_trial_fns_set, &
+                                   fb_trial_fns_create
   USE qs_fb_filter_matrix_methods, ONLY: fb_fltrmat_build
   USE qs_matrix_pools, ONLY: qs_matrix_pools_type, &
                              mpools_create, &
@@ -85,7 +97,10 @@ MODULE qs_fb_env_methods
                              gto_basis_set_p_type, &
                              get_gto_basis_set
   USE qs_integral_utils, ONLY: basis_set_list_setup
-
+  USE qs_kind_types, ONLY: qs_kind_type, &
+                           get_qs_kind
+  USE message_passing, ONLY: mp_max
+  USE cp_fm_basic_linalg, ONLY: cp_fm_gemm
 
 #include "./common/cp_common_uses.f90"
 
@@ -104,12 +119,13 @@ MODULE qs_fb_env_methods
 CONTAINS
 
 
-  SUBROUTINE fb_env_do_diag(fb_env, qs_env, matrix_ks, matrix_s, &
+  SUBROUTINE fb_env_do_diag(fb_env, qs_env, matrix_ks, matrix_s, scf_section, &
                             diis_step, error)
     TYPE(fb_env_obj), INTENT(in) :: fb_env
     TYPE(qs_environment_type), POINTER :: qs_env
     TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER :: matrix_ks
     TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER :: matrix_s
+    TYPE(section_vals_type), POINTER :: scf_section
     LOGICAL, INTENT(INOUT) :: diis_step
     TYPE(cp_error_type), INTENT(inout) :: error
 
@@ -128,18 +144,21 @@ CONTAINS
                      filter_temp, mu_filtered, KTS_filtered
     REAL(KIND=dp), DIMENSION(:), POINTER :: eigenvalues_filtered, occ_filtered, &
                                             eigenvalues, occ
-    TYPE(cp_fm_type), OINTER :: mo_coeff_filtered, mo_coeff, &
-                                fm_matrix_filtered_s, fm_matrix_filtered_ks, &
-                                fm_matrix_work
+    TYPE(cp_fm_type), POINTER :: mo_coeff_filtered, mo_coeff, &
+                                 fm_matrix_filtered_s, fm_matrix_filtered_ks, &
+                                 fm_matrix_work, fm_matrix_filter
     TYPE(qs_scf_env_type), POINTER :: scf_env
     TYPE(scf_control_type), POINTER :: scf_control
-    TYPE(section_vals_type), POINTER :: scf_section
     TYPE(cp_para_env_type), POINTER :: para_env
     TYPE(cp_blacs_env_type), POINTER :: blacs_env
     TYPE(mo_set_p_type), DIMENSION(:), POINTER :: mos, mos_filtered
     TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER :: matrix_filter
     TYPE(cp_dbcsr_type) :: matrix_tmp, matrix_filtered_ks, &
-                           matrix_filtered_p, matrix_filtered_s
+                           matrix_filtered_s
+!BEG:DEBUG:LT:2015/01/20
+    TYPE(cp_dbcsr_p_type) :: matrix_ks_desymm, matrix_s_desymm
+!END:DEBUG:LT:2015/01/20
+    TYPE(cp_dbcsr_type), POINTER :: matrix_filtered_p 
     TYPE(fb_atomic_halo_list_obj) :: atomic_halos
     TYPE(fb_trial_fns_obj) :: trial_fns
     CHARACTER(len=2) :: spin_string
@@ -153,8 +172,8 @@ CONTAINS
 
     failure = .FALSE.
 
-    NULLIFY(scf_env, scf_control, scf_section, para_env, blacs_env, &
-            mos, mos_filtered, matrix_filter, particle_set)
+    NULLIFY(scf_env, scf_control, para_env, blacs_env, mos, &
+            mos_filtered, matrix_filter, particle_set, matrix_filtered_p)
     CALL fb_atomic_halo_list_nullify(atomic_halos)
     CALL fb_trial_fns_nullify(trial_fns)
     CALL array_nullify(original_rowORcol_block_sizes)
@@ -166,11 +185,13 @@ CONTAINS
     CALL get_qs_env(qs_env=qs_env, &
                     scf_env=scf_env, &
                     scf_control=scf_control, &
-                    scf_senction=scf_section, &
                     para_env=para_env, &
-                    blacs_env=blacs_env
+                    blacs_env=blacs_env, &
                     particle_set=particle_set, &
-                    mos=mos)
+                    mos=mos, &
+                    error=error)
+
+    
 
     DO ispin = 1, nspin
        CALL copy_dbcsr_to_fm(matrix_ks(ispin)%matrix,&
@@ -257,6 +278,22 @@ CONTAINS
        CALL get_mo_set(mo_set=mos(ispin)%mo_set, &
                        mu=fermi_level, &
                        maxocc=maxocc)
+
+!BEG:DEBUG:LT:2015/01/2
+
+       ! desymmetrise matrix first to avoid the complex and hard to
+       ! understand DBCSR symmetric layout first.
+       NULLIFY(matrix_ks_desymm%matrix)
+       ALLOCATE(matrix_ks_desymm%matrix)
+       CALL cp_dbcsr_init(matrix_ks_desymm%matrix, error)
+       CALL cp_dbcsr_desymmetrize(matrix_ks(ispin)%matrix, matrix_ks_desymm%matrix, error)
+       NULLIFY(matrix_s_desymm%matrix)
+       ALLOCATE(matrix_s_desymm%matrix)
+       CALL cp_dbcsr_init(matrix_s_desymm%matrix, error)
+       CALL cp_dbcsr_desymmetrize(matrix_s(ispin)%matrix, matrix_s_desymm%matrix, error)
+
+!END:DEBUG:LT:2015/01/2
+
        ! get filter matrix name
        WRITE (spin_string, FMT="(I1)"), ispin
        name = TRIM("FILTER MATRIX SPIN "//spin_string)
@@ -264,8 +301,22 @@ CONTAINS
        CALL uppercase(name)
        ! calculate filter matrix (matrix_s(1) is the overlap, the rest
        ! in the array are its derivatives)
-       CALL fb_fltrmat_build(H_mat=matrix_ks(ispin)%matrix, &
-                             S_mat=matrix_s(1)%matrix, &
+!BEG:ORIG:LT:2015/01/2
+       ! CALL fb_fltrmat_build(H_mat=matrix_ks(ispin)%matrix, &
+       !                       S_mat=matrix_s(1)%matrix, &
+       !                       atomic_halos=atomic_halos, &
+       !                       trial_fns=trial_fns, &
+       !                       para_env=para_env, &
+       !                       particle_set=particle_set, &
+       !                       fermi_level=fermi_level, &
+       !                       max_occ=maxocc, &
+       !                       filter_temp=filter_temp, &
+       !                       name=name, &
+       !                       filter_mat=matrix_filter(ispin)%matrix, &
+       !                       error=error)
+!END:ORIG:LT:2015/01/2
+       CALL fb_fltrmat_build(H_mat=matrix_ks_desymm%matrix, &
+                             S_mat=matrix_s_desymm%matrix, &
                              atomic_halos=atomic_halos, &
                              trial_fns=trial_fns, &
                              para_env=para_env, &
@@ -276,6 +327,13 @@ CONTAINS
                              name=name, &
                              filter_mat=matrix_filter(ispin)%matrix, &
                              error=error)
+!BEG:DEBUG:LT:2015/01/2
+       CALL cp_dbcsr_release(matrix_ks_desymm%matrix, error)
+       CALL cp_dbcsr_release(matrix_s_desymm%matrix, error)
+       DEALLOCATE(matrix_ks_desymm%matrix)
+       DEALLOCATE(matrix_s_desymm%matrix)
+!END:DEBUG:LT:2015/01/2
+
     END DO
 
     ! Obtain matrix dimensions. KS and S matrices are symmetric, so
@@ -370,6 +428,9 @@ CONTAINS
     CALL cp_dbcsr_finalize(matrix_tmp, error=error)
 
     ! create fm format matrices used for diagonalisation
+!BEG:DEBUG:LT:2015/01/20
+    NULLIFY(fm_matrix_filter)
+!END:DEBUG:LT:2015/01/20
     NULLIFY(fm_matrix_filtered_s)
     NULLIFY(fm_matrix_filtered_ks)
     NULLIFY(fm_matrix_work)
@@ -382,6 +443,12 @@ CONTAINS
                              error=error)
     ! both fm_matrix_filtered_s and fm_matrix_filtered_ks are reused
     ! for each spin channel
+!BEG:DEBUG:LT:2015/01/20
+    CALL cp_fm_create(fm_matrix_filter, &
+                      fm_struct, &
+                      name="FM_MATRIX_FILTER", &
+                      error=error)
+!END:DEBUG:LT:2015/01/20
     CALL cp_fm_create(fm_matrix_filtered_s, &
                       fm_struct, &
                       name="FM_MATRIX_FILTERED_S", &
@@ -419,6 +486,14 @@ CONTAINS
        ! convert DBCSR matrices to fm format
        CALL copy_dbcsr_to_fm(matrix_filtered_s, fm_matrix_filtered_s, error=error)
        CALL copy_dbcsr_to_fm(matrix_filtered_ks, fm_matrix_filtered_ks, error=error)
+
+
+!BEG:DEBUG:LT:2015/01/20
+       CALL cp_dbcsr_print(matrix_filter(1)%matrix, error=error)
+       CALL cp_dbcsr_print(matrix_s(1)%matrix, error=error)
+       CALL cp_dbcsr_print(matrix_filtered_s, error=error)
+!END:DEBUG:LT:2015/01/20
+
 
        ! now diagonalise
 
@@ -464,6 +539,8 @@ CONTAINS
     ! get the filtered density matrix and then convert back to the
     ! full basis version in scf_env ready to be used outside this
     ! subroutine
+    ALLOCATE(matrix_filtered_p, STAT=stat)
+    CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
     CALL cp_dbcsr_init(matrix_filtered_p, error=error)
     CALL cp_dbcsr_create(matrix=matrix_filtered_p, &
                          name=TRIM("FILTERED_MATRIX_P"), &
@@ -477,7 +554,7 @@ CONTAINS
                          error=error)
     CALL cp_dbcsr_finalize(matrix_filtered_p, error=error)
 
-    DO ispin = nspin
+    DO ispin = 1, nspin
        ! calculate matrix_filtered_p
        CALL calculate_density_matrix(mos_filtered(ispin)%mo_set, &
                                      matrix_filtered_p, &
@@ -494,6 +571,8 @@ CONTAINS
     ! release temporary matrices
     CALL cp_dbcsr_release(matrix_tmp, error)
     CALL cp_dbcsr_release(matrix_filtered_p, error)
+    DEALLOCATE(matrix_filtered_p, STAT=stat)
+    CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
 
     ! we still need to convert mos_filtered back to the full basis
     ! version (mos) for this, we need to update mo_coeff (and/or
@@ -514,7 +593,7 @@ CONTAINS
 
     NULLIFY(eigenvalues_filtered, occ_filtered, mo_coeff_filtered, &
             eigenvalues, occ, mo_coeff)
-    DO ispin = nspin
+    DO ispin = 1, nspin
        ! now the full basis mo_set should only contain the reduced
        ! number of eigenvectors and eigenvalues
        CALL get_mo_set(mo_set=mos_filtered(ispin)%mo_set, &
@@ -531,20 +610,40 @@ CONTAINS
                        lfomo=lfomo_filtered, &
                        nmo=nmo_filtered, &
                        kTS=kTS_filtered, &
-                       mu=mu_filtered)
-       CALL get_mo_set(mo_set=mos(ispin)%mo_set, &
-                       occupation_numbers=occ, &
-                       eigenvalues=eigenvalues, &
-                       mo_coeff=mo_coeff)
-       eigenvalues(:) = 0.0_dp
-       eigenvalues(1:nmo_filtered) = eigenvalues_filtered(1:nmo_filtered)
-       occ(:) = 0.0_dp
-       occ(1:nmo_filtered) = occ_filtered(1:nmo_filtered)
-       CALL cp_dbcsr_sm_fm_multiply(matrix_filter(ispin)%matrix, &
-                                    mo_coeff_filtered, &
-                                    mo_coeff, &
-                                    nmo_filtered, &
-                                    error=error)
+                       mu=mu_filtered, &
+                       error=error)
+       ! CALL get_mo_set(mo_set=mos(ispin)%mo_set, &
+       !                 occupation_numbers=occ, &
+       !                 eigenvalues=eigenvalues, &
+       !                 mo_coeff=mo_coeff)
+       ! eigenvalues(:) = 0.0_dp
+       ! eigenvalues(1:nmo_filtered) = eigenvalues_filtered(1:nmo_filtered)
+       ! occ(:) = 0.0_dp
+       ! occ(1:nmo_filtered) = occ_filtered(1:nmo_filtered)
+
+!BEG:ORIG:LT:2015/01/20
+       ! CALL cp_dbcsr_sm_fm_multiply(matrix_filter(ispin)%matrix, &
+       !                              mo_coeff_filtered, &
+       !                              mo_coeff, &
+       !                              nmo_filtered, &
+       !                              error=error)
+!END:ORIG:LT:2015/01/20
+
+!BEG:DEBUG:LT:2015/01/20
+       ! NULLIFY(fm_matrix_work)
+       ! CALL cp_fm_create(fm_matrix_work, &
+       !                   mos_filtered(ispin)%mo_set%mo_coeff%matrix_struct, error=error)
+       ! CALL cp_fm_to_fm(mos_filtered(ispin)%mo_set%mo_coeff,fm_matrix_work,error=error)
+       ! CALL copy_dbcsr_to_fm(matrix_filter(ispin)%matrix, fm_matrix_filter, error=error)
+       ! CALL cp_fm_gemm("N","N", &
+       !                 original_nfullrowsORcols_total, &
+       !                 filtered_nfullrowsORcols_total, &
+       !                 filtered_nfullrowsORcols_total, &
+       !                 1.0_dp, fm_matrix_filter, fm_matrix_work, &
+       !                 0.0_dp, mo_coeff, error=error)
+       ! CALL cp_fm_release(fm_matrix_work, error=error)
+       ! CALL cp_fm_release(fm_matrix_filter, error=error)
+!END:DEBUG:LT:2015/01/20       
     END DO
 
     ! release temporary matrices
@@ -604,13 +703,14 @@ CONTAINS
     TYPE(gto_basis_set_type), POINTER :: basis_set
 
     REAL(KIND=dp), DIMENSION(:), POINTER :: rcut
-    REAK(KIND=dp) :: kind_radius
+    REAL(KIND=dp) :: kind_radius
     INTEGER :: ikind, basis_set_id, nkinds, stat
 
     NULLIFY(rcut, qs_kind_set)
 
     CALL get_qs_env(qs_env=qs_env, &
-                    qs_kind_set=qs_kind_set)
+                    qs_kind_set=qs_kind_set, &
+                    error=error)
 
     nkinds = SIZE(qs_kind_set)
     ALLOCATE(rcut(nkinds), STAT=stat)
@@ -629,8 +729,8 @@ CONTAINS
        basis_set_id = use_orb_basis_set
     END IF
 
-    ALLOCATE(basis_set_list(nkinds), STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    ALLOCATE(basis_set_list(nkinds), STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
     CALL basis_set_list_setup(basis_set_list, basis_set_id, qs_kind_set)
 
@@ -638,7 +738,7 @@ CONTAINS
        basis_set => basis_set_list(ikind)%gto_basis_set
        CALL get_gto_basis_set(gto_basis_set=basis_set, &
                               kind_radius=kind_radius)
-       rcut(ikind) = kind_radius
+       rcut(ikind) = 0.2_dp * kind_radius
     END DO
 
     CALL fb_env_set(fb_env=fb_env, &
@@ -647,7 +747,7 @@ CONTAINS
 
     ! cleanup
     DEALLOCATE(basis_set_list, STAT=stat)
-    CPPostcondition(istat==0, cp_failure_level, routineP, error, failure)
+    CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
 
   END SUBROUTINE fb_env_build_rcut_auto
 
@@ -705,7 +805,7 @@ CONTAINS
     ! get the number of atoms and kinds:
     CALL get_qs_env(qs_env=qs_env, &
                     local_particles=local_particles, &
-                    natoms=natoms_global, &
+                    natom=natoms_global, &
                     particle_set=particle_set, &
                     atomic_kind_set=atomic_kind_set, &
                     nkind=nkinds_global, &
@@ -719,7 +819,7 @@ CONTAINS
     CALL mp_max(max_natoms_local, para_env%group)
 
 !BEG:DEBUG:LT:2014/08/22
-    CALL cp_assert(nkinds .LE. SIZE(r_cut), cp_failure_level, &
+    CALL cp_assert(nkinds .LE. SIZE(rcut), cp_failure_level, &
                    cp_assertion_failed, routineP, &
                    "array size of r_cut and number of local particle kinds mismatch", &
                    error, failure)
@@ -733,6 +833,7 @@ CONTAINS
     ALLOCATE(halos(natoms_local), STAT=stat)
     CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
     DO ihalo = 1, natoms_local
+       CALL fb_atomic_halo_nullify(halos(ihalo))
        CALL fb_atomic_halo_create(halos(ihalo), error)
     END DO
     CALL fb_atomic_halo_list_set(atomic_halos=atomic_halos, &
@@ -811,7 +912,7 @@ CONTAINS
           nelectrons_in_halo = fb_atomic_halo_nelectrons_estimate_Z(halos(ihalo), &
                                                                     particle_set)
           ! set atomic halo
-          CALL fb_atomic_halo_set(halos(ihalo) &
+          CALL fb_atomic_halo_set(halos(ihalo), &
                                   owner_id_in_halo=owner_id_in_halo, &
                                   natoms=nhalo_atoms, &
                                   halo_atoms=halo_atoms, &
@@ -853,26 +954,35 @@ CONTAINS
     LOGICAL :: failure
     TYPE(fb_trial_fns_obj) :: trial_fns
     TYPE(qs_kind_type), DIMENSION(:), POINTER :: qs_kind_set
+    TYPE(atomic_kind_type), DIMENSION(:), POINTER :: atomic_kind_set
     TYPE(gto_basis_set_p_type), DIMENSION(:), POINTER :: basis_set_list
     TYPE(gto_basis_set_type), POINTER :: basis_set
     INTEGER :: basis_set_id, old_lshell, iset, nset, ikind, nkinds, &
                ishell, lshell, icgf, itrial, max_n_trial, counter, &
-               ico, stat
+               ico, zz, stat
     INTEGER, DIMENSION(:), POINTER :: nfunctions, lmax, nshell
     INTEGER, DIMENSION(:,:), POINTER :: functions
 
 
+    REAL(KIND=dp) :: zeff
+
+!BEG:DEBUG:LT:2015/01/20
+    print *, "|LT| fb_env_build_trial_fns_auto: constructing trial functions"
+!END:DEBUG:LT:2015/01/20
+
     failure = .FALSE.
     CPPrecondition(fb_env_has_data(fb_env), cp_failure_level, routineP, error, failure)
     NULLIFY(nfunctions, functions, basis_set, basis_set_list, &
-            qs_kind_set, atomic_kind_set)
+            atomic_kind_set, qs_kind_set)
     CALL fb_trial_fns_nullify(trial_fns)
 
     ! create a new trial_fn object
     CALL fb_trial_fns_create(trial_fns, error)
 
     CALL get_qs_env(qs_env=qs_env, &
-                    qs_kind_set=qs_kind_set)
+                    qs_kind_set=qs_kind_set, &
+                    atomic_kind_set=atomic_kind_set, &
+                    error=error)
 
     ! reading from the other parts of the code, it seemed that
     ! aux_fit_basis_set is only used when do_admm is TRUE. This can be
@@ -893,8 +1003,8 @@ CONTAINS
     CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
     nfunctions = 0
 
-    ALLOCATE(basis_set_list(nkinds), STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    ALLOCATE(basis_set_list(nkinds), STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     CALL basis_set_list_setup(basis_set_list, basis_set_id, qs_kind_set)
 
     DO ikind = 1, nkinds
@@ -904,8 +1014,15 @@ CONTAINS
                               nset=nset, &
                               lmax=lmax, &
                               nshell=nshell)
-       bset: DO iset = 1, nset
-          old_lshell = lmax(iset)
+       ! CALL get_atomic_kind(atomic_kind=atomic_kind_set(ikind), &
+       !                      z=zz)
+
+       CALL get_qs_kind(qs_kind=qs_kind_set(ikind), &
+                        zeff=zeff)
+       
+       bset1: DO iset = 1, nset
+!          old_lshell = lmax(iset)
+          old_lshell = -1
           DO ishell = 1, nshell(iset)
              lshell = basis_set%l(ishell,iset)
              counter = 0
@@ -913,7 +1030,7 @@ CONTAINS
              DO ico = ncoset(lshell-1)+1, ncoset(lshell)
                 counter = counter + 1
                 ! only include the first zeta orbitals
-                IF (counter .LE. nco(lshell)) THEN
+                IF ((lshell .GT. old_lshell) .AND. (counter .LE. nco(lshell))) THEN
                    nfunctions(ikind) = nfunctions(ikind) + 1
                 END IF
              END DO
@@ -922,31 +1039,52 @@ CONTAINS
              ! AND that that we have included all the first zeta
              ! orbitals of an angular momentum quantum number l
              IF (((lshell .GT. old_lshell) .OR. (lshell .EQ. lmax(iset))) .AND. &
-                 (maxocc * REAL(nfunctions(ikind),dp) .GE. nelectrons)) THEN
-                EXIT bset
+                 (maxocc * REAL(nfunctions(ikind),dp) .GE. zeff)) THEN
+                EXIT bset1
              END IF
              old_lshell = lshell
           END DO
-       END DO bset
+       END DO bset1
     END DO ! ikind
 
     ! now that we have the number of trial functions get the trial
     ! functions
     max_n_trial = MAXVAL(nfunctions)
+
+!BEG:DEBUG:LT:2015/01/26
+    print *, "|LT| fb_env_build_trial_fns_auto: max_n_trial = ", max_n_trial
+    print *, "|LT| fb_env_build_trial_fns_auto: nkinds = ", nkinds
+    print *, "|LT| fb_env_build_trial_fns_auto: nfunctions = ", nfunctions
+!END:DEBUG:LT:2015/01/26
+
     ALLOCATE(functions(max_n_trial,nkinds), STAT=stat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     functions(:,:) = 0
     ! redo the loops to get the trial function indices within the basis set
     DO ikind = 1, nkinds
        ! "gto = gaussian type orbital"
        basis_set => basis_set_list(ikind)%gto_basis_set
-       CALL get_gto_basis_set(gto_basis_set=gto_basis_set, &
+       CALL get_gto_basis_set(gto_basis_set=basis_set, &
                               nset=nset, &
                               lmax=lmax, &
                               nshell=nshell)
+
+       ! CALL get_atomic_kind(atomic_kind=atomic_kind_set(ikind), &
+       !                      z=zz)
+
+       CALL get_qs_kind(qs_kind=qs_kind_set(ikind), &
+                        zeff=zeff)
+
+!BEG:DEBUG:LT:2015/01/26
+       print *, "|LT| fb_env_build_trial_fns_auto: ikind = ", ikind
+       print *, "|LT| fb_env_build_trial_fns_auto: zeff = ", zeff
+!END:DEBUG:LT:2015/01/26
+
        icgf = 0
-       bset: DO iset = 1, nset
-          old_lshell = lmax(iset)
+       itrial = 0
+       bset2: DO iset = 1, nset
+!          old_lshell = lmax(iset)
+          old_lshell = -1
           DO ishell = 1, nshell(iset)
              lshell = basis_set%l(ishell,iset)
              counter = 0
@@ -955,7 +1093,13 @@ CONTAINS
                 icgf = icgf + 1
                 counter = counter + 1
                 ! only include the first zeta orbitals
-                IF (counter .LE. nco(lshell)) THEN
+
+!BEG:DEBUG:LT:2015/01/20
+                print *, "|LT| fb_env_build_trial_fns_auto: icg, counter, lshell, nco(lshell) = ", &
+                         icgf, counter, lshell, nco(lshell)
+!END:DEBUG:LT:2015/01/20
+
+                IF ((lshell .GT. old_lshell) .AND. (counter .LE. nco(lshell))) THEN
                    itrial = itrial + 1
                    functions(itrial,ikind) = icgf
                 END IF
@@ -966,13 +1110,17 @@ CONTAINS
              ! first zeta orbitals of an angular momentum quantum
              ! number l
              IF (((lshell .GT. old_lshell) .OR. (lshell .EQ. lmax(iset))) .AND. &
-                 (maxocc * REAL(nfunctions(ikind),dp) .GE. nelectrons)) THEN
-                EXIT bset
+                 (maxocc * REAL(itrial,dp) .GE. zeff)) THEN
+                EXIT bset2
              END IF
              old_lshell = lshell
           END DO
-       END DO bset
+       END DO bset2
     END DO ! ikind
+
+!BEG:DEBUG:LT:2015/01/20
+    print *, "|LT| fb_env_build_trial_fns_auto: trial_functions = ", functions
+!END:DEBUG:LT:2015/01/20
 
     ! set trial_functions
     CALL fb_trial_fns_set(trial_fns=trial_fns, &
@@ -986,7 +1134,7 @@ CONTAINS
 
     ! cleanup
     DEALLOCATE(basis_set_list, STAT=stat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
   END SUBROUTINE fb_env_build_trial_fns_auto
 
@@ -1130,9 +1278,6 @@ CONTAINS
   !      CALL dbcsr_finalize(filter_matrix(ispin)%matrix)
   !   END DO ! ispin
 
-  END SUBROUTINE fb_env_build_filter_matrix
-
-
-
+  ! END SUBROUTINE fb_env_build_filter_matrix
 
 END MODULE qs_fb_env_methods

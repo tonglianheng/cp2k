@@ -65,7 +65,8 @@ MODULE qs_scf_loop_utils
                                              ot_diag_method_nr,&
                                              ot_method_nr,&
                                              qs_scf_env_type,&
-                                             special_diag_method_nr
+                                             special_diag_method_nr,&
+                                             filter_matrix_diag_method_nr
   USE scf_control_types,               ONLY: scf_control_type,&
                                              smear_type
   USE scp_coeff_types,                 ONLY: aux_coeff_set_type
@@ -74,6 +75,9 @@ MODULE qs_scf_loop_utils
                                              set_scp_env
   USE timings,                         ONLY: timeset,&
                                              timestop
+  USE qs_fb_env_methods,               ONLY: fb_env_do_diag
+
+
 #include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
@@ -206,7 +210,8 @@ CONTAINS
 ! ************************************************************************
     CASE(filter_matrix_diag_method_nr)
 
-       CALL fb_env_do_diag(fb_env, qs_env, matrix_ks, matrx_s, diis_step, error)
+       CALL fb_env_do_diag(scf_env%filter_matrix_env, qs_env, &
+                            matrix_ks, matrix_s, scf_section, diis_step, error)
 
 ! Diagonlization in non orthonormal case
     CASE(general_diag_method_nr)

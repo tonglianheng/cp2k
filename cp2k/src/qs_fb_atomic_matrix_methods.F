@@ -2,13 +2,14 @@ MODULE qs_fb_atomic_matrix_methods
 
   USE kinds,                     ONLY: dp, &
                                        int_8
-  USE qs_fb_env_types,           ONLY: fb_env_type
-  USE qs_fb_env_methods,         ONLY: fb_env_get
-  USE qs_fb_atomic_halo_typs,    ONLY: fb_atomic_halo_set_type, &
-                                       fb_atomic_halo_p_type
-  USE qs_fb_atomic_halo_methods, ONLY: fb_atomic_halo_set_get, &
-                                       fb_atomic_halo_get
-  USE qs_fb_com_tasks_types,     ONLY: TASKS_N_RECORDS, &
+  USE qs_fb_env_types,           ONLY: fb_env_obj, &
+                                       fb_env_get
+  USE qs_fb_atomic_halo_types,   ONLY: fb_atomic_halo_list_obj, &
+                                       fb_atomic_halo_obj, &
+                                       fb_atomic_halo_list_get, &
+                                       fb_atomic_halo_get, &
+                                       fb_atomic_halo_atom_global2halo
+  USE qs_fb_com_tasks_types,     ONLY: TASK_N_RECORDS, &
                                        TASK_DEST, &
                                        TASK_SRC, &
                                        TASK_PAIR, &
@@ -16,30 +17,40 @@ MODULE qs_fb_atomic_matrix_methods
                                        fb_com_tasks_obj, &
                                        fb_com_atom_pairs_obj, &
                                        fb_com_atom_pairs_nullify, &
+                                       fb_com_atom_pairs_has_data, &
+                                       fb_com_atom_pairs_init, &
                                        fb_com_atom_pairs_create, &
                                        fb_com_atom_pairs_get, &
-                                       fb_com_atom_pair_decode, &
-                                       fb_atomic_halo_atom_global2halo, &
+                                       fb_com_atom_pairs_decode, &
                                        fb_com_atom_pairs_release, &
                                        fb_com_tasks_transpose_dest_src, &
-                                       fb_com_tasks_build_atom_pairs
-  USE cp_dbcsr_types,            ONLY: cp_dbcsr_type
+                                       fb_com_tasks_build_atom_pairs, &
+                                       fb_com_tasks_set, &
+                                       fb_com_tasks_get, &
+                                       fb_com_tasks_nullify, &
+                                       fb_com_tasks_encode_pair, &
+                                       fb_com_tasks_create, &
+                                       fb_com_tasks_decode_pair, &
+                                       fb_com_tasks_release
   USE qs_environment_types,      ONLY: get_qs_env, &
                                        qs_environment_type
   USE cp_para_types,             ONLY: cp_para_env_type
-  USE cp_dbcsr_interface,        ONLY: cp_dbcsr_get_stored_coordinates, &
-                                       cp_dbcsr_get_info
-  USE cp_dbcsr_methods,          ONLY: cp_dbcsr_row_block_sizes, &
+  USE cp_dbcsr_interface,        ONLY: cp_dbcsr_type, &
+                                       cp_dbcsr_get_stored_coordinates, &
+                                       cp_dbcsr_get_info, &
+                                       convert_sizes_to_offsets, &
+                                       cp_dbcsr_get_block_p, &
+                                       array_data, &
+                                       cp_dbcsr_row_block_sizes, &
                                        cp_dbcsr_col_block_sizes
-  USE dbcsr_util,                ONLY: convert_sizes_to_offsets
-  USE array_types,               ONLY: array_data
   USE memory_utilities,          ONLY: reallocate
   USE util,                      ONLY: sort
   USE message_passing,           ONLY: mp_alltoall
+  USE termination,               ONLY: stop_program
+
+#include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
-
-#include "cp_common_uses.h"
 
   PRIVATE
 
@@ -77,7 +88,6 @@ CONTAINS
                                    error)
     TYPE(cp_dbcsr_type), POINTER :: dbcsr_mat
     TYPE(fb_atomic_halo_obj), INTENT(in) :: atomic_halo
-    INTEGER, INTENT(in) :: natoms_in_halo
     INTEGER, INTENT(out) :: nrows
     INTEGER, INTENT(out) :: ncols
     INTEGER, DIMENSION(:), INTENT(out) :: blk_row_start
@@ -91,7 +101,7 @@ CONTAINS
     INTEGER, DIMENSION(:), ALLOCATABLE :: first_row, last_row, &
                                           first_col, last_col
     INTEGER, DIMENSION(:), POINTER :: halo_atoms
-    INTEGER :: ii, nblkrows_total, nblkcols_total
+    INTEGER :: ii, nblkrows_total, nblkcols_total, stat, natoms_in_halo
 
     failure = .FALSE.
 
@@ -110,7 +120,8 @@ CONTAINS
                                   first_col, last_col)
     CALL fb_atomic_halo_get(atomic_halo=atomic_halo, &
                             natoms=natoms_in_halo, &
-                            halo_atoms=halo_atoms)
+                            halo_atoms=halo_atoms, &
+                            error=error)
     blk_row_start = 0
     blk_col_start = 0
     nrows = 0
@@ -168,11 +179,16 @@ CONTAINS
                send_encode, recv_encode, nhalos, iatom, jatom, &
                iatom_in_halo, jatom_in_halo, numprocs, nrows_blk, ncols_blk
 
+
+!BEG:DEBUG:LT:2015/01/25
+    print *, "|LT| ******************** inside fb_atmatrix_construct ********************"
+!END:DEBUG:LT:2015/01/25
+
     failure = .FALSE.
 
     NULLIFY(pairs_send, pairs_recv, mat_block)
-    CALL fb_com_atom_pairs_nullify(atom_pairs_send, error)
-    CALL fb_com_atom_pairs_nullify(atom_pairs_recv, error)
+    CALL fb_com_atom_pairs_nullify(atom_pairs_send)
+    CALL fb_com_atom_pairs_nullify(atom_pairs_recv)
 
     ! initialise atomic matrix
     atomic_matrix = 0.0_dp
@@ -234,8 +250,8 @@ CONTAINS
     send_pair_count = 0
     DO ipair = 1, npairs_send
        ! decode processor and (iatom, jatom) information
-       CALL fb_com_atom_pair_decode(pairs_send(ipair), &
-                                    pe, iatom, jatom, send_encode)
+       CALL fb_com_atom_pairs_decode(pairs_send(ipair), &
+                                     pe, iatom, jatom, send_encode)
        pe = pe + 1 ! we need proc to count from 1
        nrows_blk = last_row(iatom) - first_row(iatom) + 1
        ncols_blk = last_col(jatom) - first_col(jatom) + 1
@@ -260,12 +276,20 @@ CONTAINS
                                npairs=npairs_recv, &
                                natoms_encode=recv_encode, &
                                error=error)
+
+
+!BEG:DEBUG:LT:2015/01/25
+    print *, "|LT| fb_atmatrix_construct: npairs_send = ", npairs_send
+    print *, "|LT| fb_atmatrix_construct: npairs_recv = ", npairs_recv
+!END:DEBUG:LT:2015/01/25
+
+
     recv_sizes = 0
     recv_pair_count = 0
     DO ipair = 1, npairs_recv
        ! decode processor and (iatom, jatom) information
-       CALL fb_com_atom_pair_decode(pairs_recv(ipair), &
-                                    pe, iatom, jatom, recv_encode)
+       CALL fb_com_atom_pairs_decode(pairs_recv(ipair), &
+                                     pe, iatom, jatom, recv_encode)
        pe = pe + 1 ! we need proc to count from 1
        nrows_blk = last_row(iatom) - first_row(iatom) + 1
        ncols_blk = last_col(jatom) - first_col(jatom) + 1
@@ -290,8 +314,8 @@ CONTAINS
        ! need to reuse send_sizes as an accumulative displacement, so recalculate
        send_sizes(ipe) = 0
        DO ipair = 1, send_pair_count(ipe)
-          CALL fb_com_atom_pair_decode(pairs_send(send_pair_disps(ipe) + ipair), &
-                                       pe, iatom, jatom, send_encode)
+          CALL fb_com_atom_pairs_decode(pairs_send(send_pair_disps(ipe) + ipair), &
+                                        pe, iatom, jatom, send_encode)
           nrows_blk = last_row(iatom) - first_row(iatom) + 1
           ncols_blk = last_col(jatom) - first_col(jatom) + 1
           CALL cp_dbcsr_get_block_p(matrix=dbcsr_mat, &
@@ -314,7 +338,7 @@ CONTAINS
              DO jj = 1, ncols_blk
                 DO ii = 1, nrows_blk
                    ! column major format in blocks
-                   ind = send_disp(ipe) + send_sizes(ipe) + ii + (jj-1)*nrows_blk
+                   ind = send_disps(ipe) + send_sizes(ipe) + ii + (jj-1)*nrows_blk
                    send_buf(ind) = mat_block(ii,jj)
                 END DO ! ii
              END DO ! jj
@@ -326,7 +350,7 @@ CONTAINS
     ! do communication
     CALL mp_alltoall(send_buf, send_sizes, send_disps, &
                      recv_buf, recv_sizes, recv_disps, &
-                     para_env&group)
+                     para_env%group)
 
     ! cleanup temporary arrays no longer needed
     DEALLOCATE(send_buf, STAT=stat)
@@ -339,16 +363,14 @@ CONTAINS
     CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
     DEALLOCATE(send_pair_disps, STAT=stat)
     CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
-    DEALLOCATE(recv_disps, STAT=stat)
-    CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
 
     ! do unpacking
     DO ipe = 1, numprocs
 !       IF (ipe == me) CYCLE
        recv_sizes(ipe) = 0
        DO ipair = 1, recv_pair_count(ipe)
-          CALL fb_com_atom_pair_decode(pairs_recv(recv_pair_disps(ipe) + ipair), &
-                                       pe, iatom, jatom, recv_encode)
+          CALL fb_com_atom_pairs_decode(pairs_recv(recv_pair_disps(ipe) + ipair), &
+                                        pe, iatom, jatom, recv_encode)
           nrows_blk = last_row(iatom) - first_row(iatom) + 1
           ncols_blk = last_col(jatom) - first_col(jatom) + 1
           ! get the corresponding atom indices in halo
@@ -367,25 +389,45 @@ CONTAINS
           DO jj = 0, ncols_blk - 1
              DO ii = 0, nrows_blk - 1
                 ! column major format in blocks
-                ind = recv_disp(ipe) + recv_sizes(ipe) + ii + jj*nrows_blk + 1
+                ind = recv_disps(ipe) + recv_sizes(ipe) + ii + jj*nrows_blk + 1
+
+!BEG:DEBUG:LT:2015/01/25
+                print *, "|LT| fb_atmatrix_construct: ind = ", ind
+                print *, "|LT| fb_atmatrix_construct: atomic_matrix(", & 
+                          blk_row_start(iatom_in_halo) + ii, ",", &
+                          blk_col_start(jatom_in_halo) + jj, ") = ", recv_buf(ind)
+!END:DEBUG:LT:2015/01/25
+
                 atomic_matrix(blk_row_start(iatom_in_halo) + ii, &
                               blk_col_start(jatom_in_halo) + jj) = recv_buf(ind)
+
              END DO ! ii
           END DO ! jj
           recv_sizes(ipe) = recv_sizes(ipe) + nrows_blk*ncols_blk
        END DO ! ipair
     END DO ! ipe
 
+!BEG:DEBUG:LT:2015/01/25
+                print *, "|LT| fb_atmatrix_construct: after assignment, atomic_matrix = "
+                DO ii = 1, SIZE(atomic_matrix,1)
+                   write (*,"(9f9.4)") atomic_matrix(ii,:)
+                END DO
+!END:DEBUG:LT:2015/01/25
+
+
+
     ! cleanup rest of the temporary arrays
     DEALLOCATE(recv_buf, STAT=stat)
     CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
     DEALLOCATE(recv_sizes, STAT=stat)
     CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
+    DEALLOCATE(recv_disps, STAT=stat)
+    CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
     DEALLOCATE(recv_pair_count, STAT=stat)
     CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
     DEALLOCATE(recv_pair_disps, STAT=stat)
     CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
-    DEALLOCATE(first_row, last_row, first_col, last_col, STAT)
+    DEALLOCATE(first_row, last_row, first_col, last_col, STAT=stat)
     CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
 
     CALL fb_com_atom_pairs_release(atom_pairs_send, error)
@@ -410,7 +452,7 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'fb_atmatrix_generate_com_pairs', &
                                    routineP = moduleN//':'//routineN
 
-    LOGICAL :: failure, found
+    LOGICAL :: failure, found, transpose
     INTEGER, DIMENSION(:), POINTER :: halo_atoms
     TYPE(fb_com_tasks_obj) :: com_tasks_send
     TYPE(fb_com_tasks_obj) :: com_tasks_recv
@@ -418,16 +460,17 @@ CONTAINS
     INTEGER(KIND=int_8), DIMENSION(:,:), POINTER :: tasks_recv
     INTEGER :: iatom, jatom, iatom_global, jatom_global, natoms_local, &
                my_basis_set_id, dest, src, ntasks_recv, ntasks_send, &
-               itask, nhalos, natoms_in_halo, pair, nblkrows_total, &
-               nencode, stat
+               itask, nhalos, natoms_in_halo, nblkrows_total, &
+               nencode, stat, counter
+    INTEGER(KIND=int_8) :: pair
     INTEGER, DIMENSION(:), ALLOCATABLE :: tmp_index
     REAL(KIND=dp), DIMENSION(:,:), POINTER :: mat_block
 
     failure = .FALSE.
 
     NULLIFY(halo_atoms, tasks_send, tasks_recv)
-    CALL fb_com_tasks_nullify(com_tasks_send, error)
-    CALL fb_com_tasks_nullify(com_tasks_recv, error)
+    CALL fb_com_tasks_nullify(com_tasks_send)
+    CALL fb_com_tasks_nullify(com_tasks_recv)
 
     ! initialise atom_pairs_send and atom_pairs_receive
     IF (fb_com_atom_pairs_has_data(atom_pairs_send)) THEN
@@ -464,6 +507,10 @@ CONTAINS
     ! number of matrix blocks requred do not exceed natoms_in_halo**2
     ntasks_recv = natoms_in_halo*natoms_in_halo
 
+!BEG:DEBUG:LT:2015/01/25
+    ! print *, "|LT| fb_atmatrix_generate_com_pairs: first ntasks_recv = ", ntasks_recv
+!END:DEBUG:LT:2015/01/25
+
     ALLOCATE(tasks_recv(TASK_N_RECORDS,ntasks_recv), STAT=stat)
     CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
 
@@ -475,10 +522,11 @@ CONTAINS
           jatom_global = halo_atoms(jatom)
           ! find the source proc that supposed to own the block
           ! (iatom_global, jatom_global)
+          transpose = .FALSE.
           CALL cp_dbcsr_get_stored_coordinates(dbcsr_mat, &
                                                iatom_global, &
                                                jatom_global, &
-                                               transpose=.FALSE., &
+                                               transpose=transpose, &
                                                processor=src)
           ! we must encode the global atom indices rather the halo atomic indices
           ! in each task, because halo atomic indices are local to each halo, and
@@ -488,11 +536,13 @@ CONTAINS
           ! the local processor.
           tasks_recv(TASK_DEST,itask) = dest
           tasks_recv(TASK_SRC,itask) = src
+          
           CALL fb_com_tasks_encode_pair(tasks_recv(TASK_PAIR,itask), &
-                                        iatoms_global, jatoms_global, &
+                                        iatom_global, jatom_global, &
                                         nblkrows_total)
           ! calculation of cost not implemented at the moment
           tasks_recv(TASK_COST,itask) = 0
+          itask = itask + 1
        END DO ! jatom
     END DO ! iatom
 
@@ -507,6 +557,10 @@ CONTAINS
                           tasks=tasks_recv, &
                           error=error)
 
+!BEG:DEBUG:LT:2015/01/25
+    ! print *, "|LT| fb_atmatrix_generate_com_pairs: ntasks_recv = ", ntasks_recv
+!END:DEBUG:LT:2015/01/25
+
     ! genearte the send task list (tasks_send) from the recv task list
     CALL fb_com_tasks_transpose_dest_src(com_tasks_recv, ">", com_tasks_send, &
                                          para_env, error)
@@ -518,16 +572,21 @@ CONTAINS
                           nencode=nencode, &
                           error=error)
 
+!BEG:DEBUG:LT:2015/01/25
+    ! print *, "|LT| fb_atmatrix_generate_com_pairs: ntasks_send = ", ntasks_send
+!END:DEBUG:LT:2015/01/25
+
     ! because the atomic_halos and the neighbor_list_set used to
     ! generate the sparse structure of the DBCSR matrix do not
     ! necessarily have to coincide, we must check of the blocks in
     ! tasks_send (these should be local to the processor) do indeed
     ! exist in the DBCSR matrix, if not, then we need to prune these
     ! out of the task list
+
     counter = 0
     DO itask = 1, ntasks_send
        pair = tasks_send(TASK_PAIR,itask)
-       CALL fb_com_tasks_decode_pair(pair, iatom_global, jatom_global, encode)
+       CALL fb_com_tasks_decode_pair(pair, iatom_global, jatom_global, nencode)
        ! check if block exists in DBCSR matrix
        CALL cp_dbcsr_get_block_p(matrix=dbcsr_mat, &
                                  row=iatom_global, col=jatom_global, block=mat_block, &
@@ -550,14 +609,22 @@ CONTAINS
 
     CALL fb_com_tasks_set(com_tasks=com_tasks_send, &
                           ntasks=ntasks_send, &
-                          tasks=tasks_send, &
-                          nencode=nencode, &
-                          error)
+!                          tasks=tasks_send, &
+!                          nencode=nencode, &
+                          error=error)
 
     ! now, re-distribute the new send tasks list to other processors
     ! to build the updated recv tasks list
     CALL fb_com_tasks_transpose_dest_src(com_tasks_recv, "<", com_tasks_send, &
                                          para_env, error)
+
+
+!BEG:DEBUG:LT:2015/01/25
+    ! CALL fb_com_tasks_get(com_tasks=com_tasks_recv, &
+    !                       ntasks=ntasks_recv, &
+    !                       error=error)
+    ! print *, "|LT| fb_atmatrix_generate_com_pairs: ntasks_recv = ", ntasks_recv
+!END:DEBUG:LT:2015/01/25
 
     ! task lists are now complete, now construct the atom_pairs_send
     ! and atom_pairs_recv from the tasks lists
@@ -577,6 +644,11 @@ CONTAINS
     ! cleanup
     CALL fb_com_tasks_release(com_tasks_recv, error)
     CALL fb_com_tasks_release(com_tasks_send, error)
+
+!BEG:DEBUG:LT:2015/01/20
+    ! print *, "|LT| fb_atmatrix_generate_com_pairs END"
+!END:DEBUG:LT:2015/01/20
+
 
   END SUBROUTINE fb_atmatrix_generate_com_pairs
 
