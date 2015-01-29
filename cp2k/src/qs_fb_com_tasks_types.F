@@ -839,7 +839,9 @@ CONTAINS
     CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
 
     ! now that the send buffer is of correct size, do packing
-    send_buf = 0
+    ! send_buf and recv_buf may be zero sized
+    IF (SIZE(send_buf) > 0) send_buf = 0
+    IF (SIZE(recv_buf) > 0) recv_buf = 0
     send_sizes = 0
     DO itask = 1, ntasks_in
        rank = tasks_in(rank_pos,itask) + 1
@@ -944,7 +946,7 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'fb_com_tasks_build_atom_pairs', &
                                    routineP = moduleN//':'//routineN
 
-    LOGICAL :: failure, my_symmetric
+    LOGICAL :: failure, my_symmetric, check_ok
     INTEGER :: itask, ntasks, arow, acol, rank, &
                rank_pos, iatom, jatom, stat, npairs, ii
     INTEGER(KIND=int_8) :: pair
@@ -956,7 +958,8 @@ CONTAINS
 
     NULLIFY(pairs, tasks)
 
-    CPPrecondition(fb_com_atom_pairs_has_data(atom_pairs), cp_failure_level, routineP, error, failure)
+    check_ok = fb_com_atom_pairs_has_data(atom_pairs)
+    CPPrecondition(check_ok, cp_failure_level, routineP, error, failure)
 
     ! initialise atom_pairs
     CALL fb_com_atom_pairs_init(atom_pairs, error)
@@ -980,7 +983,8 @@ CONTAINS
 
     ALLOCATE(pairs(ntasks), STAT=stat)
     CPPrecondition(stat==0, cp_failure_level, routineP, error, failure)
-    pairs = 0
+    ! we can have cases where ntasks == 0
+    IF (SIZE(pairs) > 0) pairs = 0
     npairs = ntasks
 
     DO itask = 1, ntasks
@@ -1021,13 +1025,14 @@ CONTAINS
     ! that possible duplicates may be found (we don't want to send or
     ! receive same information to the same destination or source more
     ! than once)
-    ALLOCATE(tmp_index(ntasks), STAT=stat)
-    CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
-    ! only sort the actual pairs recorded in the send list
-    CALL sort(pairs, ntasks, tmp_index)
-    DEALLOCATE(tmp_index, STAT=stat)
-    CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
-
+    IF (npairs > 0) THEN
+       ALLOCATE(tmp_index(npairs), STAT=stat)
+       CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
+       ! only sort the actual pairs recorded in the send list
+       CALL sort(pairs, npairs, tmp_index)
+       DEALLOCATE(tmp_index, STAT=stat)
+       CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
+    END IF
 !BEG:DEBUG:LT:2015/01/25
     ! print *, "|LT| fb_com_tasks_build_atom_pairs: After sort"
     ! print *, "|LT| fb_com_tasks_build_atom_pairs: SIZE(pairs) = ", SIZE(pairs)
@@ -1035,7 +1040,7 @@ CONTAINS
 !END:DEBUG:LT:2015/01/25
 
     ! remove duplicates
-    IF (SIZE(pairs) > 1) THEN
+    IF (npairs > 1) THEN
        npairs = 1
        ! first atom pair must be allowed
        DO ii = 2, ntasks

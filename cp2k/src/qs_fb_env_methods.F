@@ -912,7 +912,7 @@ CONTAINS
           nelectrons_in_halo = fb_atomic_halo_nelectrons_estimate_Z(halos(ihalo), &
                                                                     particle_set)
           ! set atomic halo
-          CALL fb_atomic_halo_set(halos(ihalo), &
+          CALL fb_atomic_halo_set(atomic_halo=halos(ihalo), &
                                   owner_id_in_halo=owner_id_in_halo, &
                                   natoms=nhalo_atoms, &
                                   halo_atoms=halo_atoms, &
@@ -920,7 +920,9 @@ CONTAINS
                                   error=error)
           ! sort atomic halo
           CALL fb_atomic_halo_sort(halos(ihalo), error)
-
+          CALL fb_atomic_halo_set(atomic_halo=halos(ihalo), &
+                                  sorted=.TRUE., &
+                                  error=error)
           ihalo = ihalo + 1
        END DO ! iatom_local
     END DO ! ikind

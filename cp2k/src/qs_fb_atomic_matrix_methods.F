@@ -98,31 +98,26 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'fb_atmatrix_calc_size', &
                                    routineP = moduleN//':'//routineN
 
-    LOGICAL :: failure
-    INTEGER, DIMENSION(:), ALLOCATABLE :: first_row, last_row, &
-                                          first_col, last_col
-    INTEGER, DIMENSION(:), POINTER :: halo_atoms
-    INTEGER :: ii, nblkrows_total, nblkcols_total, stat, natoms_in_halo
+    LOGICAL :: failure, check_ok
+    INTEGER, DIMENSION(:), POINTER :: halo_atoms, &
+                                      row_block_size_data, &
+                                      col_block_size_data
+    INTEGER :: ii, stat, natoms_in_halo
 
     failure = .FALSE.
 
-    NULLIFY(halo_atoms)
+    NULLIFY(halo_atoms, row_block_size_data, col_block_size_data)
 
-    CALL cp_dbcsr_get_info(matrix=dbcsr_mat, &
-                           nblkrows_total=nblkrows_total, &
-                           nblkcols_total=nblkcols_total)
-    ALLOCATE(first_row(nblkrows_total), last_row(nblkrows_total), &
-             first_col(nblkcols_total), last_col(nblkcols_total), &
-             STAT=stat)
-    CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
-    CALL convert_sizes_to_offsets(array_data(cp_dbcsr_row_block_sizes(dbcsr_mat)), &
-                                  first_row, last_row)
-    CALL convert_sizes_to_offsets(array_data(cp_dbcsr_col_block_sizes(dbcsr_mat)), &
-                                  first_col, last_col)
+    row_block_size_data => array_data(cp_dbcsr_row_block_sizes(dbcsr_mat))
+    col_block_size_data => array_data(cp_dbcsr_col_block_sizes(dbcsr_mat))
     CALL fb_atomic_halo_get(atomic_halo=atomic_halo, &
                             natoms=natoms_in_halo, &
                             halo_atoms=halo_atoms, &
                             error=error)
+    check_ok = SIZE(blk_row_start) .GE. (natoms_in_halo + 1)
+    CPPostcondition(check_ok, cp_failure_level, routineP, error, failure)
+    check_ok = SIZE(blk_col_start) .GE. (natoms_in_halo + 1)
+    CPPostcondition(check_ok, cp_failure_level, routineP, error, failure)
     blk_row_start = 0
     blk_col_start = 0
     nrows = 0
@@ -130,13 +125,11 @@ CONTAINS
     DO ii = 1, natoms_in_halo
        blk_row_start(ii) = nrows + 1
        blk_col_start(ii) = ncols + 1
-       nrows = nrows + last_row(halo_atoms(ii)) - first_row(halo_atoms(ii)) + 1
-       ncols = ncols + last_col(halo_atoms(ii)) - first_col(halo_atoms(ii)) + 1
+       nrows = nrows + row_block_size_data(halo_atoms(ii))
+       ncols = ncols + col_block_size_data(halo_atoms(ii))
     END DO
     blk_row_start(natoms_in_halo + 1) = nrows + 1
     blk_col_start(natoms_in_halo + 1) = ncols + 1
-    DEALLOCATE(first_row, last_row, first_col, last_col, STAT=stat)
-    CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
   END SUBROUTINE fb_atmatrix_calc_size
 
 
@@ -196,7 +189,9 @@ CONTAINS
     CALL fb_com_atom_pairs_nullify(atom_pairs_recv)
 
     ! initialise atomic matrix
-    atomic_matrix = 0.0_dp
+    IF (SIZE(atomic_matrix,1) > 0 .AND. SIZE(atomic_matrix,2) > 0) THEN
+       atomic_matrix = 0.0_dp
+    END IF
 
     ! generate send and receiv atomic pairs
     CALL fb_com_atom_pairs_create(atom_pairs_send, error)
@@ -468,10 +463,14 @@ CONTAINS
     END DO ! ipe
 
 !BEG:DEBUG:LT:2015/01/25
-                print *, "|LT| fb_atmatrix_construct: after assignment, atomic_matrix = "
-                DO ii = 1, SIZE(atomic_matrix,1)
-                   write (*,"(9f9.4)") atomic_matrix(ii,:)
-                END DO
+    print *, "|LT| fb_atmatrix_construct: after assignment, atomic_matrix = "
+    IF (SIZE(atomic_matrix,1) > 0 .AND. SIZE(atomic_matrix,2) > 0) THEN
+       DO ii = 1, SIZE(atomic_matrix,1)
+          write (*,"(9f9.4)") atomic_matrix(ii,:)
+       END DO
+    ELSE
+       print *, "**EMPTY** (DUMMY)"
+    END IF
 !END:DEBUG:LT:2015/01/25
 
     ! cleanup rest of the temporary arrays
@@ -665,10 +664,9 @@ CONTAINS
     ! array will just be garbage
     ntasks_send = counter
 
+    ! tasks_send is set through the pointer already
     CALL fb_com_tasks_set(com_tasks=com_tasks_send, &
                           ntasks=ntasks_send, &
-!                          tasks=tasks_send, &
-!                          nencode=nencode, &
                           error=error)
 
     ! now, re-distribute the new send tasks list to other processors
