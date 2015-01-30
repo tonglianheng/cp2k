@@ -46,13 +46,11 @@ MODULE qs_fb_atomic_matrix_methods
                                        cp_dbcsr_col_block_sizes
   USE memory_utilities,          ONLY: reallocate
   USE util,                      ONLY: sort
-  USE message_passing,           ONLY: mp_alltoall
+  USE message_passing,           ONLY: mp_alltoall, &
+!BEG:DEBUG:LT:2015/01/30
+       MPI_COMM_WORLD
+!END:DEBUG:LT:2015/01/30
   USE termination,               ONLY: stop_program
-
-
-!BEG:DEBUG:LT:2015/01/29
-  USE message_passing, ONLY: MPI_COMM_WORLD
-!END:DEBUG:LT:2015/01/29
 
 #include "./common/cp_common_uses.f90"
 
@@ -66,9 +64,6 @@ MODULE qs_fb_atomic_matrix_methods
             fb_atmatrix_construct, &
             fb_atmatrix_generate_com_pairs
 
-!BEG:DEBUG:LT:2015/01/29
-  INTEGER :: LT_UNIT
-!END:DEBUG:LT:2015/01/29
 
 CONTAINS
 
@@ -184,9 +179,13 @@ CONTAINS
     INTEGER, DIMENSION(:), POINTER :: row_block_size_data, &
                                       col_block_size_data
 
+!BEG:DEBUG:LT:2015/01/29
+!    INTEGER :: LT_UNIT
+!END:DEBUG:LT:2015/01/29
+
 !BEG:DEBUG:LT:2015/01/30
-    CALL mpi_comm_rank(MPI_COMM_WORLD, LT_UNIT)
-    LT_UNIT = LT_UNIT + 100
+    ! CALL mpi_comm_rank(MPI_COMM_WORLD, LT_UNIT)
+    ! LT_UNIT = LT_UNIT + 100
 !END:DEBUG:LT:2015/01/30
 
     failure = .FALSE.
@@ -284,8 +283,8 @@ CONTAINS
 
 
 !BEG:DEBUG:LT:2015/01/25
-    write (LT_UNIT,*) "|LT| fb_atmatrix_construct: npairs_send = ", npairs_send
-    write (LT_UNIT,*) "|LT| fb_atmatrix_construct: npairs_recv = ", npairs_recv
+    ! write (LT_UNIT,*) "|LT| fb_atmatrix_construct: npairs_send = ", npairs_send
+    ! write (LT_UNIT,*) "|LT| fb_atmatrix_construct: npairs_recv = ", npairs_recv
 !END:DEBUG:LT:2015/01/25
 
 
@@ -455,10 +454,10 @@ CONTAINS
                 ind = recv_disps(ipe) + recv_sizes(ipe) + ii + (jj-1)*nrows_blk
 
 !BEG:DEBUG:LT:2015/01/25
-                write (LT_UNIT,*) "|LT| fb_atmatrix_construct: ind = ", ind
-                write (LT_UNIT,*) "|LT| fb_atmatrix_construct: atomic_matrix(", &
-                      blk_row_start(iatom_in_halo) + ii - 1, ",", &
-                      blk_col_start(jatom_in_halo) + jj - 1, ") = ", recv_buf(ind)
+                ! write (LT_UNIT,*) "|LT| fb_atmatrix_construct: ind = ", ind
+                ! write (LT_UNIT,*) "|LT| fb_atmatrix_construct: atomic_matrix(", &
+                !       blk_row_start(iatom_in_halo) + ii - 1, ",", &
+                !       blk_col_start(jatom_in_halo) + jj - 1, ") = ", recv_buf(ind)
 !END:DEBUG:LT:2015/01/25
 
                 atomic_matrix(blk_row_start(iatom_in_halo) + ii - 1, &
@@ -471,15 +470,15 @@ CONTAINS
     END DO ! ipe
 
 !BEG:DEBUG:LT:2015/01/25
-    write (LT_UNIT,*) &
-         "|LT| fb_atmatrix_construct: after assignment, atomic_matrix = "
-    IF (SIZE(atomic_matrix,1) > 0 .AND. SIZE(atomic_matrix,2) > 0) THEN
-       DO ii = 1, SIZE(atomic_matrix,1)
-          write (LT_UNIT,"(9f9.4)") atomic_matrix(ii,:)
-       END DO
-    ELSE
-       write (LT_UNIT,*) "**EMPTY** (DUMMY)"
-    END IF
+    ! write (LT_UNIT,*) &
+    !      "|LT| fb_atmatrix_construct: after assignment, atomic_matrix = "
+    ! IF (SIZE(atomic_matrix,1) > 0 .AND. SIZE(atomic_matrix,2) > 0) THEN
+    !    DO ii = 1, SIZE(atomic_matrix,1)
+    !       write (LT_UNIT,"(9f9.4)") atomic_matrix(ii,:)
+    !    END DO
+    ! ELSE
+    !    write (LT_UNIT,*) "**EMPTY** (DUMMY)"
+    ! END IF
 !END:DEBUG:LT:2015/01/25
 
     ! cleanup rest of the temporary arrays
@@ -533,9 +532,13 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:,:), POINTER :: mat_block
 
 
+!BEG:DEBUG:LT:2015/01/29
+    ! INTEGER :: LT_UNIT
+!END:DEBUG:LT:2015/01/29
+
 !BEG:DEBUG:LT:2015/01/30
-    CALL mpi_comm_rank(MPI_COMM_WORLD, LT_UNIT)
-    LT_UNIT = LT_UNIT + 100
+    ! CALL mpi_comm_rank(MPI_COMM_WORLD, LT_UNIT)
+    ! LT_UNIT = LT_UNIT + 100
 !END:DEBUG:LT:2015/01/30
 
     failure = .FALSE.

@@ -99,13 +99,11 @@ MODULE qs_fb_env_methods
   USE qs_integral_utils, ONLY: basis_set_list_setup
   USE qs_kind_types, ONLY: qs_kind_type, &
                            get_qs_kind
-  USE message_passing, ONLY: mp_max
+  USE message_passing, ONLY: mp_max, &
+!BEG:DEBUG:LT:2015/01/30
+       MPI_COMM_WORLD
+!END:DEBUG:LT:2015/01/30
   USE cp_fm_basic_linalg, ONLY: cp_fm_gemm
-
-!BEG:DEBUG:LT:2015/01/29
-  USE message_passing, ONLY: MPI_COMM_WORLD
-!END:DEBUG:LT:2015/01/29
-
 
 #include "./common/cp_common_uses.f90"
 
@@ -121,10 +119,6 @@ MODULE qs_fb_env_methods
             fb_env_build_atomic_halos, &
             fb_env_build_trial_fns_auto
 
-
-!BEG:DEBUG:LT:2015/01/29
-  INTEGER :: LT_UNIT
-!END:DEBUG:LT:2015/01/29
 
 CONTAINS
 
@@ -178,6 +172,16 @@ CONTAINS
     TYPE(particle_type), DIMENSION(:), POINTER :: particle_set
     TYPE(qs_matrix_pools_type), POINTER :: my_mpools
     TYPE(cp_fm_struct_type), POINTER  :: fm_struct
+
+
+!BEG:DEBUG:LT:2015/01/29
+    ! INTEGER :: LT_UNIT
+!END:DEBUG:LT:2015/01/29
+
+!BEG:DEBUG:LT:2015/01/30
+    ! CALL mpi_comm_rank(MPI_COMM_WORLD, LT_UNIT)
+    ! LT_UNIT = LT_UNIT + 100
+!END:DEBUG:LT:2015/01/30
 
 
     failure = .FALSE.
@@ -325,6 +329,13 @@ CONTAINS
        !                       filter_mat=matrix_filter(ispin)%matrix, &
        !                       error=error)
 !END:ORIG:LT:2015/01/2
+
+!BEG:DEBUG:LT:2015/01/30
+       ! write (LT_UNIT,*) "|LT| fb_env_do_diag: atomic_halos associated = ", &
+       !       fb_atomic_halo_list_has_data(atomic_halos)
+!END:DEBUG:LT:2015/01/30
+
+
        CALL fb_fltrmat_build(H_mat=matrix_ks_desymm%matrix, &
                              S_mat=matrix_s_desymm%matrix, &
                              atomic_halos=atomic_halos, &
@@ -499,9 +510,9 @@ CONTAINS
 
 
 !BEG:DEBUG:LT:2015/01/20
-       CALL cp_dbcsr_print(matrix_filter(1)%matrix, error=error)
-       CALL cp_dbcsr_print(matrix_s(1)%matrix, error=error)
-       CALL cp_dbcsr_print(matrix_filtered_s, error=error)
+       ! CALL cp_dbcsr_print(matrix_filter(1)%matrix, error=error)
+       ! CALL cp_dbcsr_print(matrix_s(1)%matrix, error=error)
+       ! CALL cp_dbcsr_print(matrix_filtered_s, error=error)
 !END:DEBUG:LT:2015/01/20
 
 
@@ -978,13 +989,17 @@ CONTAINS
 
     REAL(KIND=dp) :: zeff
 
+!BEG:DEBUG:LT:2015/01/29
+  ! INTEGER :: LT_UNIT
+!END:DEBUG:LT:2015/01/29
+
 !BEG:DEBUG:LT:2015/01/30
-    CALL mpi_comm_rank(MPI_COMM_WORLD, LT_UNIT)
-    LT_UNIT = LT_UNIT + 100
+    ! CALL mpi_comm_rank(MPI_COMM_WORLD, LT_UNIT)
+    ! LT_UNIT = LT_UNIT + 100
 !END:DEBUG:LT:2015/01/30
 
 !BEG:DEBUG:LT:2015/01/20
-    write (LT_UNIT,*) "|LT| fb_env_build_trial_fns_auto: constructing trial functions"
+    ! write (LT_UNIT,*) "|LT| fb_env_build_trial_fns_auto: constructing trial functions"
 !END:DEBUG:LT:2015/01/20
 
     failure = .FALSE.
@@ -1069,9 +1084,9 @@ CONTAINS
     max_n_trial = MAXVAL(nfunctions)
 
 !BEG:DEBUG:LT:2015/01/26
-    write (LT_UNIT,*) "|LT| fb_env_build_trial_fns_auto: max_n_trial = ", max_n_trial
-    write (LT_UNIT,*) "|LT| fb_env_build_trial_fns_auto: nkinds = ", nkinds
-    write (LT_UNIT,*) "|LT| fb_env_build_trial_fns_auto: nfunctions = ", nfunctions
+    ! write (LT_UNIT,*) "|LT| fb_env_build_trial_fns_auto: max_n_trial = ", max_n_trial
+    ! write (LT_UNIT,*) "|LT| fb_env_build_trial_fns_auto: nkinds = ", nkinds
+    ! write (LT_UNIT,*) "|LT| fb_env_build_trial_fns_auto: nfunctions = ", nfunctions
 !END:DEBUG:LT:2015/01/26
 
     ALLOCATE(functions(max_n_trial,nkinds), STAT=stat)
@@ -1093,8 +1108,8 @@ CONTAINS
                         zeff=zeff)
 
 !BEG:DEBUG:LT:2015/01/26
-       write (LT_UNIT,*) "|LT| fb_env_build_trial_fns_auto: ikind = ", ikind
-       write (LT_UNIT,*) "|LT| fb_env_build_trial_fns_auto: zeff = ", zeff
+       ! write (LT_UNIT,*) "|LT| fb_env_build_trial_fns_auto: ikind = ", ikind
+       ! write (LT_UNIT,*) "|LT| fb_env_build_trial_fns_auto: zeff = ", zeff
 !END:DEBUG:LT:2015/01/26
 
        icgf = 0
@@ -1112,9 +1127,9 @@ CONTAINS
                 ! only include the first zeta orbitals
 
 !BEG:DEBUG:LT:2015/01/20
-                write (LT_UNIT,*) &
-                      "|LT| fb_env_build_trial_fns_auto: icg, counter, lshell, nco(lshell) = ", &
-                      icgf, counter, lshell, nco(lshell)
+                ! write (LT_UNIT,*) &
+                !       "|LT| fb_env_build_trial_fns_auto: icg, counter, lshell, nco(lshell) = ", &
+                !       icgf, counter, lshell, nco(lshell)
 !END:DEBUG:LT:2015/01/20
 
                 IF ((lshell .GT. old_lshell) .AND. (counter .LE. nco(lshell))) THEN
@@ -1137,7 +1152,7 @@ CONTAINS
     END DO ! ikind
 
 !BEG:DEBUG:LT:2015/01/20
-    write (LT_UNIT,*) "|LT| fb_env_build_trial_fns_auto: trial_functions = ", functions
+    ! write (LT_UNIT,*) "|LT| fb_env_build_trial_fns_auto: trial_functions = ", functions
 !END:DEBUG:LT:2015/01/20
 
     ! set trial_functions

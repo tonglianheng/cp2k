@@ -2,7 +2,10 @@ MODULE qs_fb_com_tasks_types
 
   USE kinds,           ONLY: int_8, int_4
   USE cp_para_types,   ONLY: cp_para_env_type
-  USE message_passing, ONLY: mp_alltoall
+  USE message_passing, ONLY: mp_alltoall, &
+!BEG:DEBUG:LT:2015/01/30
+       MPI_COMM_WORLD
+!END:DEBUG:LT:2015/01/30
   USE util,            ONLY: sort
   USE cp_dbcsr_interface, ONLY: cp_dbcsr_type, &
                                 cp_dbcsr_row_block_sizes, &
@@ -11,10 +14,6 @@ MODULE qs_fb_com_tasks_types
                                 array_new, &
                                 array_data
   USE memory_utilities, ONLY: reallocate
-
-!BEG:DEBUG:LT:2015/01/29
-  USE message_passing, ONLY: MPI_COMM_WORLD
-!END:DEBUG:LT:2015/01/29
 
 #include "./common/cp_common_uses.f90"
 
@@ -151,10 +150,6 @@ MODULE qs_fb_com_tasks_types
      TYPE(fb_com_atom_pairs_data), POINTER, PRIVATE :: obj
   END type fb_com_atom_pairs_obj
 
-
-!BEG:DEBUG:LT:2015/01/29
-  INTEGER :: LT_UNIT
-!END:DEBUG:LT:2015/01/29
 
 CONTAINS
 
@@ -728,9 +723,13 @@ CONTAINS
                                           recv_sizes, recv_disps, &
                                           send_buf, recv_buf
 
+!BEG:DEBUG:LT:2015/01/29
+!    INTEGER :: LT_UNIT
+!END:DEBUG:LT:2015/01/29
+
 !BEG:DEBUG:LT:2015/01/30
-    CALL mpi_comm_rank(MPI_COMM_WORLD, LT_UNIT)
-    LT_UNIT = LT_UNIT + 100
+!    CALL mpi_comm_rank(MPI_COMM_WORLD, LT_UNIT)
+!    LT_UNIT = LT_UNIT + 100
 !END:DEBUG:LT:2015/01/30
 
     failure = .FALSE.
@@ -771,9 +770,9 @@ CONTAINS
     CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
 
 !BEG:DEBUG:LT:2015/01/20
-    write (LT_UNIT,*) "size(send_buf) = ", SIZE(send_buf)
-    write (LT_UNIT,*) "ntasks_in = ", ntasks_in
-    write (LT_UNIT,*) "size(tasks_in) = ", SIZE(tasks_in)
+    ! write (LT_UNIT,*) "size(send_buf) = ", SIZE(send_buf)
+    ! write (LT_UNIT,*) "ntasks_in = ", ntasks_in
+    ! write (LT_UNIT,*) "size(tasks_in) = ", SIZE(tasks_in)
 !END:DEBUG:LT:2015/01/20
 
     ! first count how many local recv/send tasks need to be sent to
@@ -785,14 +784,14 @@ CONTAINS
        rank = tasks_in(rank_pos,itask) + 1
 
 !BEG:DEBUG:LT:2015/01/20
-       write (LT_UNIT,*) "itask, rank", itask, rank
+       ! write (LT_UNIT,*) "itask, rank", itask, rank
 !END:DEBUG:LT:2015/01/20
 
        send_buf(rank) = send_buf(rank) + 1
     END DO
 
 !BEG:DEBUG:LT:2015/01/20
-    write (LT_UNIT,*) "send_buf = ", send_buf
+    ! write (LT_UNIT,*) "send_buf = ", send_buf
 !END:DEBUG:LT:2015/01/20
 
     CALL mp_alltoall(send_buf, recv_buf, 1, para_env%group)
