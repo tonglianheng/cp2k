@@ -71,6 +71,10 @@ cp_dbcsr_print, &
                               uppercase
   USE message_passing, ONLY: mp_alltoall
 
+!BEG:DEBUG:LT:2015/01/29
+  USE message_passing, ONLY: MPI_COMM_WORLD
+!END:DEBUG:LT:2015/01/29
+
 #include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
@@ -85,6 +89,10 @@ cp_dbcsr_print, &
              fb_fltrmat_build_atomic_fltrmat, &
              fb_fltrmat_fermi_dirac_mu, &
              fb_fltrmat_fermi_dirac_ne
+
+!BEG:DEBUG:LT:2015/01/29
+  INTEGER :: LT_UNIT
+!END:DEBUG:LT:2015/01/29
 
 CONTAINS
 
@@ -135,6 +143,11 @@ CONTAINS
 !BEG:DEBUG:LT:2015/01/20
     INTEGER, DIMENSION(:), POINTER :: halo_atoms
 !END:DEBUG:LT:2015/01/20
+
+!BEG:DEBUG:LT:2015/01/30
+    CALL mpi_comm_rank(MPI_COMM_WORLD, LT_UNIT)
+    LT_UNIT = LT_UNIT + 100
+!END:DEBUG:LT:2015/01/30
 
     failure = .FALSE.
 
@@ -212,8 +225,8 @@ CONTAINS
     DO ihalo = 1, max_nhalos
 
 !BEG:DEBUG:LT:2015/01/29
-       print *, "|LT| fb_fltrmat_build: nhalos = ", nhalos
-       print *, "|LT| fb_fltrmat_build: max_nhalos = ", max_nhalos
+       write (LT_UNIT, *) "|LT| fb_fltrmat_build: nhalos = ", nhalos
+       write (LT_UNIT, *) "|LT| fb_fltrmat_build: max_nhalos = ", max_nhalos
 !END:DEBUG:LT:2015/01/29
 
        IF (ihalo > nhalos) THEN
@@ -224,7 +237,7 @@ CONTAINS
        IF (send_data_only) THEN
 
 !BEG:DEBUG:LT:2015/01/29
-          print *, "|LT| fb_fltrmat_build: doing dummy calculation"
+          write (LT_UNIT, *) "|LT| fb_fltrmat_build: doing dummy calculation"
 !END:DEBUG:LT:2015/01/29
 
           CALL fb_fltrmat_add_blkcol(H_mat, &
@@ -242,7 +255,7 @@ CONTAINS
 
 !BEG:DEBUG:LT:2015/01/20
           CALL fb_atomic_halo_get(halos(ihalo), halo_atoms=halo_atoms, error=error)
-          print *, "|LT| fb_fltrmat_build: halo ", ihalo, " = ", halo_atoms
+          write (LT_UNIT, *) "|LT| fb_fltrmat_build: halo ", ihalo, " = ", halo_atoms
 !END:DEBUG:LT:2015/01/20          
 
           CALL fb_fltrmat_add_blkcol(H_mat, &
@@ -339,6 +352,11 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:,:), POINTER :: part_mat_pointer_2
 !END:DEBUG:LT:2015/01/20
 
+!BEG:DEBUG:LT:2015/01/30
+    CALL mpi_comm_rank(MPI_COMM_WORLD, LT_UNIT)
+    LT_UNIT = LT_UNIT + 100
+!END:DEBUG:LT:2015/01/30
+
     failure = .FALSE.
 
     NULLIFY(pairs_send, pairs_recv, ntfns, tfns, atomic_kind, &
@@ -380,9 +398,9 @@ CONTAINS
                           error=error)
 
 !BEG:DEBUG:LT:2015/01/20
-    print *, "|LT| fb_fltrmat_add_blkcol: ntfns = ", ntfns
+    write (LT_UNIT, *) "|LT| fb_fltrmat_add_blkcol: ntfns = ", ntfns
     DO ipe = 1, SIZE(ntfns)
-       print *, "|LT| fb_fltrmat_add_blkcol: tfns(kind=ipe) = ", tfns(:,ipe)
+       write (LT_UNIT, *) "|LT| fb_fltrmat_add_blkcol: tfns(kind=ipe) = ", tfns(:,ipe)
     END DO
 !END:DEBUG:LT:2015/01/20
 
@@ -467,8 +485,8 @@ CONTAINS
                                error)
 
 !BEG:DEBUG:LT:2015/01/20
-    ! print *, "atomic_H_blk_row_start = ", atomic_H_blk_row_start
-    ! print *, "atomic_H_blk_col_start = ", atomic_H_blk_col_start
+    ! write (LT_UNIT, *) "atomic_H_blk_row_start = ", atomic_H_blk_row_start
+    ! write (LT_UNIT, *) "atomic_H_blk_col_start = ", atomic_H_blk_col_start
 !END:DEBUG:LT:2015/01/20
 
     ALLOCATE(atomic_H(nrows_atmatrix,ncols_atmatrix), STAT=stat)
@@ -482,12 +500,10 @@ CONTAINS
                                error)
 
  !BEG:DEBUG:LT:2015/01/20
-    print *, "|LT| fb_fltrmat_add_blkcol: H_mat = "
-    CALL cp_dbcsr_print(H_mat, error=error)
-    print *, "|LT| fb_fltrmat_add_blkcol: atomic_H ="
+    write (LT_UNIT,*) "|LT| fb_fltrmat_add_blkcol: atomic_H ="
     write (fmt,*) "(", SIZE(atomic_H,2), "f9.4",")"
     DO ipair = 1, SIZE(atomic_H,1)
-       write (*,fmt=fmt) atomic_H(ipair,:)
+       write (LT_UNIT,fmt=fmt) atomic_H(ipair,:)
     END DO
  !END:DEBUG:LT:2015/01/20
 
@@ -514,12 +530,10 @@ CONTAINS
                                error)
 
  !BEG:DEBUG:LT:2015/01/20
-    print *, "|LT| fb_fltrmat_add_blkcol: S_mat = "
-    CALL cp_dbcsr_print(S_mat, error=error)
-    print *, "|LT| fb_fltrmat_add_blkcol: atomic_S ="
+    write (LT_UNIT,*) "|LT| fb_fltrmat_add_blkcol: atomic_S ="
     write (fmt,*) "(", SIZE(atomic_S,2), "f9.4",")"
     DO ipair = 1, SIZE(atomic_S,1)
-       write (*,fmt=fmt) atomic_S(ipair,:)
+       write (LT_UNIT,fmt=fmt) atomic_S(ipair,:)
     END DO
  !END:DEBUG:LT:2015/01/20
 
@@ -536,19 +550,19 @@ CONTAINS
                                             atomic_filter_mat, &
                                             error)
 !BEG:DEBUG:LT:2015/01/20
-       print *, "|LT| fb_fltrmat_add_blkcol: after call to fb_fltrmat_build_atomic_filrmat"
-       print *, "|LT| fb_fltrmat_add_blkcol: atomic_S ="
+       write (LT_UNIT, *) "|LT| fb_fltrmat_add_blkcol: after call to fb_fltrmat_build_atomic_filrmat"
+       write (LT_UNIT, *) "|LT| fb_fltrmat_add_blkcol: atomic_S ="
        write (fmt,*) "(", SIZE(atomic_S,2), "f9.4",")"
        DO ii = 1, SIZE(atomic_S,1)
-          write (*,fmt=fmt) atomic_S(ii,:)
+          write (LT_UNIT,fmt=fmt) atomic_S(ii,:)
        END DO
 !END:DEBUG:LT:2015/01/20
 
 !BEG:DEBUG:LT:2015/01/20
-       print *, "|LT| fb_fltrmat_add_blkcol: atomic_filter_mat ="
+       write (LT_UNIT, *) "|LT| fb_fltrmat_add_blkcol: atomic_filter_mat ="
        write (fmt,*) "(", SIZE(atomic_filter_mat,2), "f9.4",")"
        DO ipair = 1, SIZE(atomic_filter_mat,1)
-          write (*,fmt=fmt) atomic_filter_mat(ipair,:)
+          write (LT_UNIT,fmt=fmt) atomic_filter_mat(ipair,:)
        END DO
 !END:DEBUG:LT:2015/01/20
 
@@ -567,11 +581,12 @@ CONTAINS
        DO ipair = 1, send_pair_count(ipe)
 
 !BEG:DEBUG:LT:2015/01/29
-          print *, "|LT| fb_fltrmat_add_blkcol: ipair = ", ipair
-          print *, "|LT| fb_fltrmat_add_blkcol: SIZE(pairs_send) = ", SIZE(pairs_send)
-          print *, "|LT| fb_fltrmat_add_blkcol: ipe = ", ipe
-          print *, "|LT| fb_fltrmat_add_blkcol: pairs_send(send_pair_disps(ipe) + ipair) = ", &
-                   pairs_send(send_pair_disps(ipe) + ipair)
+          write (LT_UNIT, *) "|LT| fb_fltrmat_add_blkcol: ipair = ", ipair
+          write (LT_UNIT, *) "|LT| fb_fltrmat_add_blkcol: SIZE(pairs_send) = ", SIZE(pairs_send)
+          write (LT_UNIT, *) "|LT| fb_fltrmat_add_blkcol: ipe = ", ipe
+          write (LT_UNIT, *) &
+                "|LT| fb_fltrmat_add_blkcol: pairs_send(send_pair_disps(ipe) + ipair) = ", &
+                pairs_send(send_pair_disps(ipe) + ipair)
 !END:DEBUG:LT:2015/01/29
 
           CALL fb_com_atom_pairs_decode(pairs_send(send_pair_disps(ipe) + ipair), &
@@ -594,37 +609,38 @@ CONTAINS
           ! do it column-wise one trial function at a time
 
 !BEG:DEBUG:LT:2015/01/20
-          print *, "|LT| fb_fltrmat_add_blkcol: part_atomic_filter (iatom_in_halo, row_start)", &
-                   iatom_in_halo, atomic_H_blk_row_start(iatom_in_halo)
+          write (LT_UNIT, *) &
+                "|LT| fb_fltrmat_add_blkcol: part_atomic_filter (iatom_in_halo, row_start)", &
+                iatom_in_halo, atomic_H_blk_row_start(iatom_in_halo)
           part_mat_pointer_2 => atomic_filter_mat(atomic_H_blk_row_start(iatom_in_halo) : &
                                                   atomic_H_blk_row_start(iatom_in_halo+1)-1, &
                                                   1:ncols_atmatrix)
           write (fmt,*) "(", SIZE(part_mat_pointer_2, 2), "f9.4",")"
           DO ii = 1, SIZE(part_mat_pointer_2, 1)
-             write (*,fmt=fmt) part_mat_pointer_2(ii,:)
+             write (LT_UNIT,fmt=fmt) part_mat_pointer_2(ii,:)
           END DO
 !END:DEBUG:LT:2015/01/20
 
  !BEG:DEBUG:LT:2015/01/20
-          print *, "|LT| fb_fltrmat_add_blkcol: atomic_S ="
+          write (LT_UNIT, *) "|LT| fb_fltrmat_add_blkcol: atomic_S ="
           write (fmt,*) "(", SIZE(atomic_S,2), "f9.4",")"
           DO ii = 1, SIZE(atomic_S,1)
-             write (*,fmt=fmt) atomic_S(ii,:)
+             write (LT_UNIT,fmt=fmt) atomic_S(ii,:)
           END DO
  !END:DEBUG:LT:2015/01/20
 
           DO itrial = 1, ntfns(jkind)
 
 !BEG:DEBUG:LT:2015/01/20
-             print *, "jatom_in_halo", jatom_in_halo
-             print *, "atomic_S_blk_row_start = ", atomic_S_blk_row_start
-             print *, "part_atomic_s = (jatom_in_halo, row_start)", &
+             write (LT_UNIT, *) "jatom_in_halo", jatom_in_halo
+             write (LT_UNIT, *) "atomic_S_blk_row_start = ", atomic_S_blk_row_start
+             write (LT_UNIT, *) "part_atomic_s = (jatom_in_halo, row_start)", &
                       jatom_in_halo, atomic_S_blk_row_start(jatom_in_halo)
              part_mat_pointer_1 => atomic_S(1 : nrows_atmatrix, &
                                             atomic_S_blk_row_start(jatom_in_halo) + &
                                             tfns(itrial,jkind) - 1)
              DO ii = 1, SIZE(part_mat_pointer_1,1)
-                write (*,fmt="(1f10.4)") part_mat_pointer_1(ii)
+                write (LT_UNIT,fmt="(1f10.4)") part_mat_pointer_1(ii)
              END DO
 !END:DEBUG:LT:2015/01/20
 
@@ -905,6 +921,11 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:,:), ALLOCATABLE :: inner_products, temp_mat
 !END:DEBUG:LT:2015/01/26
 
+!BEG:DEBUG:LT:2015/01/30
+    CALL mpi_comm_rank(MPI_COMM_WORLD, LT_UNIT)
+    LT_UNIT = LT_UNIT + 100
+!END:DEBUG:LT:2015/01/30
+
     failure = .FALSE.
 
     ! This subroutine assumes atomic_filter_mat is not zero size, in
@@ -991,8 +1012,10 @@ CONTAINS
                                    max_occ)
 
 !BEG:DEBUG:LT:2015/01/26
-    print *, "|LT| fb_fltrmat_build_atomic_fltrmat: filter_function = ", filter_function
-    print *, "|LT| fb_fltrmat_build_atomic_fltrmat: eigenvalues = ", eigenvalues
+    write (LT_UNIT,*) &
+          "|LT| fb_fltrmat_build_atomic_fltrmat: filter_function = ", filter_function
+    write (LT_UNIT,*) &
+          "|LT| fb_fltrmat_build_atomic_fltrmat: eigenvalues = ", eigenvalues
 !END:DEBUG:LT:2015/01/26
 
 
@@ -1011,15 +1034,15 @@ CONTAINS
     END DO ! jj
 
 !BEG:DEBUG:LT:2015/01/26
-    print *, "|LT| fb_fltrmat_build_atomic_fltrmat: eigenvectors = "
+    write (LT_UNIT, *) "|LT| fb_fltrmat_build_atomic_fltrmat: eigenvectors = "
     write (fmt,*) "(", SIZE(eigenvectors,2), "f9.4", ")"
     DO ii = 1, SIZE(eigenvectors,1)
-       write (*,fmt=fmt) eigenvectors(ii,:)
+       write (LT_UNIT,fmt=fmt) eigenvectors(ii,:)
     END DO
 !END:DEBUG:LT:2015/01/26
 
 !BEG:DEBUG:LT:2015/01/26
-    print *, "|LT| fb_fltrmat_build_atomic_fltrmat: check orthonormality of eigenvectors"
+    write (LT_UNIT, *) "|LT| fb_fltrmat_build_atomic_fltrmat: check orthonormality of eigenvectors"
     ALLOCATE(inner_products(SIZE(eigenvectors,1),SIZE(eigenvectors,2)), STAT=stat)
     inner_products = 0.0_dp
     ALLOCATE(temp_mat(SIZE(eigenvectors,1),SIZE(eigenvectors,2)), STAT=stat)
@@ -1042,17 +1065,17 @@ CONTAINS
     END DO
     write (fmt,*) "(", SIZE(inner_products,2), "f9.4", ")"
     DO ii = 1, SIZE(inner_products,1)
-       write (*,fmt=fmt) inner_products(ii,:)
+       write (LT_UNIT,fmt=fmt) inner_products(ii,:)
     END DO
     DEALLOCATE(inner_products)
     DEALLOCATE(temp_mat)
 !END:DEBUG:LT:2015/01/26
 
 !BEG:DEBUG:LT:2015/01/26
-    print *, "|LT| fb_fltrmat_build_atomic_fltrmat: filtered_eigenvalues = "
+    write (LT_UNIT, *) "|LT| fb_fltrmat_build_atomic_fltrmat: filtered_eigenvalues = "
     write (fmt,*) "(", SIZE(filtered_eigenvectors,2), "f9.4", ")"
     DO ii = 1, SIZE(filtered_eigenvectors,1)
-       write (*,fmt=fmt) filtered_eigenvectors(ii,:)
+       write (LT_UNIT,fmt=fmt) filtered_eigenvectors(ii,:)
     END DO
 !END:DEBUG:LT:2015/01/26
 
@@ -1075,10 +1098,10 @@ CONTAINS
                  LDC    = mat_dim)
 
 !BEG:DEBUG:LT:2015/01/26
-    print *, "|LT| fb_fltrmat_build_atomic_fltrmat: atomic_filter_mat = "
+    write (LT_UNIT, *) "|LT| fb_fltrmat_build_atomic_fltrmat: atomic_filter_mat = "
     write (fmt,*) "(", SIZE(atomic_filter_mat,2), "f9.4", ")"
     DO ii = 1, SIZE(atomic_filter_mat,1)
-       write (*,fmt=fmt) atomic_filter_mat(ii,:)
+       write (LT_UNIT,fmt=fmt) atomic_filter_mat(ii,:)
     END DO
 !END:DEBUG:LT:2015/01/26
 

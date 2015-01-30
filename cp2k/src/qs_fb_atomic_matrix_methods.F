@@ -49,6 +49,11 @@ MODULE qs_fb_atomic_matrix_methods
   USE message_passing,           ONLY: mp_alltoall
   USE termination,               ONLY: stop_program
 
+
+!BEG:DEBUG:LT:2015/01/29
+  USE message_passing, ONLY: MPI_COMM_WORLD
+!END:DEBUG:LT:2015/01/29
+
 #include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
@@ -60,6 +65,10 @@ MODULE qs_fb_atomic_matrix_methods
   PUBLIC :: fb_atmatrix_calc_size, &
             fb_atmatrix_construct, &
             fb_atmatrix_generate_com_pairs
+
+!BEG:DEBUG:LT:2015/01/29
+  INTEGER :: LT_UNIT
+!END:DEBUG:LT:2015/01/29
 
 CONTAINS
 
@@ -175,11 +184,10 @@ CONTAINS
     INTEGER, DIMENSION(:), POINTER :: row_block_size_data, &
                                       col_block_size_data
 
-
-
-!BEG:DEBUG:LT:2015/01/25
-    print *, "|LT| ******************** inside fb_atmatrix_construct ********************"
-!END:DEBUG:LT:2015/01/25
+!BEG:DEBUG:LT:2015/01/30
+    CALL mpi_comm_rank(MPI_COMM_WORLD, LT_UNIT)
+    LT_UNIT = LT_UNIT + 100
+!END:DEBUG:LT:2015/01/30
 
     failure = .FALSE.
 
@@ -276,8 +284,8 @@ CONTAINS
 
 
 !BEG:DEBUG:LT:2015/01/25
-    print *, "|LT| fb_atmatrix_construct: npairs_send = ", npairs_send
-    print *, "|LT| fb_atmatrix_construct: npairs_recv = ", npairs_recv
+    write (LT_UNIT,*) "|LT| fb_atmatrix_construct: npairs_send = ", npairs_send
+    write (LT_UNIT,*) "|LT| fb_atmatrix_construct: npairs_recv = ", npairs_recv
 !END:DEBUG:LT:2015/01/25
 
 
@@ -447,10 +455,10 @@ CONTAINS
                 ind = recv_disps(ipe) + recv_sizes(ipe) + ii + (jj-1)*nrows_blk
 
 !BEG:DEBUG:LT:2015/01/25
-                print *, "|LT| fb_atmatrix_construct: ind = ", ind
-                print *, "|LT| fb_atmatrix_construct: atomic_matrix(", &
-                          blk_row_start(iatom_in_halo) + ii - 1, ",", &
-                          blk_col_start(jatom_in_halo) + jj - 1, ") = ", recv_buf(ind)
+                write (LT_UNIT,*) "|LT| fb_atmatrix_construct: ind = ", ind
+                write (LT_UNIT,*) "|LT| fb_atmatrix_construct: atomic_matrix(", &
+                      blk_row_start(iatom_in_halo) + ii - 1, ",", &
+                      blk_col_start(jatom_in_halo) + jj - 1, ") = ", recv_buf(ind)
 !END:DEBUG:LT:2015/01/25
 
                 atomic_matrix(blk_row_start(iatom_in_halo) + ii - 1, &
@@ -463,13 +471,14 @@ CONTAINS
     END DO ! ipe
 
 !BEG:DEBUG:LT:2015/01/25
-    print *, "|LT| fb_atmatrix_construct: after assignment, atomic_matrix = "
+    write (LT_UNIT,*) &
+         "|LT| fb_atmatrix_construct: after assignment, atomic_matrix = "
     IF (SIZE(atomic_matrix,1) > 0 .AND. SIZE(atomic_matrix,2) > 0) THEN
        DO ii = 1, SIZE(atomic_matrix,1)
-          write (*,"(9f9.4)") atomic_matrix(ii,:)
+          write (LT_UNIT,"(9f9.4)") atomic_matrix(ii,:)
        END DO
     ELSE
-       print *, "**EMPTY** (DUMMY)"
+       write (LT_UNIT,*) "**EMPTY** (DUMMY)"
     END IF
 !END:DEBUG:LT:2015/01/25
 
@@ -523,6 +532,12 @@ CONTAINS
     INTEGER, DIMENSION(:), ALLOCATABLE :: tmp_index
     REAL(KIND=dp), DIMENSION(:,:), POINTER :: mat_block
 
+
+!BEG:DEBUG:LT:2015/01/30
+    CALL mpi_comm_rank(MPI_COMM_WORLD, LT_UNIT)
+    LT_UNIT = LT_UNIT + 100
+!END:DEBUG:LT:2015/01/30
+
     failure = .FALSE.
 
     NULLIFY(halo_atoms, tasks_send, tasks_recv)
@@ -565,7 +580,8 @@ CONTAINS
     ntasks_recv = natoms_in_halo*natoms_in_halo
 
 !BEG:DEBUG:LT:2015/01/25
-    ! print *, "|LT| fb_atmatrix_generate_com_pairs: first ntasks_recv = ", ntasks_recv
+    ! write (LT_UNIT,*) &
+    !   "|LT| fb_atmatrix_generate_com_pairs: first ntasks_recv = ", ntasks_recv
 !END:DEBUG:LT:2015/01/25
 
     ALLOCATE(tasks_recv(TASK_N_RECORDS,ntasks_recv), STAT=stat)
@@ -615,7 +631,8 @@ CONTAINS
                           error=error)
 
 !BEG:DEBUG:LT:2015/01/25
-    ! print *, "|LT| fb_atmatrix_generate_com_pairs: ntasks_recv = ", ntasks_recv
+    ! write (LT_UNIT,*) &
+    !   "|LT| fb_atmatrix_generate_com_pairs: ntasks_recv = ", ntasks_recv
 !END:DEBUG:LT:2015/01/25
 
     ! genearte the send task list (tasks_send) from the recv task list
@@ -630,7 +647,8 @@ CONTAINS
                           error=error)
 
 !BEG:DEBUG:LT:2015/01/25
-    ! print *, "|LT| fb_atmatrix_generate_com_pairs: ntasks_send = ", ntasks_send
+    ! write (LT_UNIT,*) &
+    !   "|LT| fb_atmatrix_generate_com_pairs: ntasks_send = ", ntasks_send
 !END:DEBUG:LT:2015/01/25
 
     ! because the atomic_halos and the neighbor_list_set used to
@@ -679,7 +697,8 @@ CONTAINS
     ! CALL fb_com_tasks_get(com_tasks=com_tasks_recv, &
     !                       ntasks=ntasks_recv, &
     !                       error=error)
-    ! print *, "|LT| fb_atmatrix_generate_com_pairs: ntasks_recv = ", ntasks_recv
+    ! write (LT_UNIT,*) &
+    !   "|LT| fb_atmatrix_generate_com_pairs: ntasks_recv = ", ntasks_recv
 !END:DEBUG:LT:2015/01/25
 
     ! task lists are now complete, now construct the atom_pairs_send
@@ -702,7 +721,7 @@ CONTAINS
     CALL fb_com_tasks_release(com_tasks_send, error)
 
 !BEG:DEBUG:LT:2015/01/20
-    ! print *, "|LT| fb_atmatrix_generate_com_pairs END"
+    ! write (LT_UNIT,*) "|LT| fb_atmatrix_generate_com_pairs END"
 !END:DEBUG:LT:2015/01/20
 
 

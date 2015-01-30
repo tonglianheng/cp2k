@@ -102,6 +102,11 @@ MODULE qs_fb_env_methods
   USE message_passing, ONLY: mp_max
   USE cp_fm_basic_linalg, ONLY: cp_fm_gemm
 
+!BEG:DEBUG:LT:2015/01/29
+  USE message_passing, ONLY: MPI_COMM_WORLD
+!END:DEBUG:LT:2015/01/29
+
+
 #include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
@@ -115,6 +120,11 @@ MODULE qs_fb_env_methods
             fb_env_build_rcut_auto, &
             fb_env_build_atomic_halos, &
             fb_env_build_trial_fns_auto
+
+
+!BEG:DEBUG:LT:2015/01/29
+  INTEGER :: LT_UNIT
+!END:DEBUG:LT:2015/01/29
 
 CONTAINS
 
@@ -968,8 +978,13 @@ CONTAINS
 
     REAL(KIND=dp) :: zeff
 
+!BEG:DEBUG:LT:2015/01/30
+    CALL mpi_comm_rank(MPI_COMM_WORLD, LT_UNIT)
+    LT_UNIT = LT_UNIT + 100
+!END:DEBUG:LT:2015/01/30
+
 !BEG:DEBUG:LT:2015/01/20
-    print *, "|LT| fb_env_build_trial_fns_auto: constructing trial functions"
+    write (LT_UNIT,*) "|LT| fb_env_build_trial_fns_auto: constructing trial functions"
 !END:DEBUG:LT:2015/01/20
 
     failure = .FALSE.
@@ -1054,9 +1069,9 @@ CONTAINS
     max_n_trial = MAXVAL(nfunctions)
 
 !BEG:DEBUG:LT:2015/01/26
-    print *, "|LT| fb_env_build_trial_fns_auto: max_n_trial = ", max_n_trial
-    print *, "|LT| fb_env_build_trial_fns_auto: nkinds = ", nkinds
-    print *, "|LT| fb_env_build_trial_fns_auto: nfunctions = ", nfunctions
+    write (LT_UNIT,*) "|LT| fb_env_build_trial_fns_auto: max_n_trial = ", max_n_trial
+    write (LT_UNIT,*) "|LT| fb_env_build_trial_fns_auto: nkinds = ", nkinds
+    write (LT_UNIT,*) "|LT| fb_env_build_trial_fns_auto: nfunctions = ", nfunctions
 !END:DEBUG:LT:2015/01/26
 
     ALLOCATE(functions(max_n_trial,nkinds), STAT=stat)
@@ -1078,8 +1093,8 @@ CONTAINS
                         zeff=zeff)
 
 !BEG:DEBUG:LT:2015/01/26
-       print *, "|LT| fb_env_build_trial_fns_auto: ikind = ", ikind
-       print *, "|LT| fb_env_build_trial_fns_auto: zeff = ", zeff
+       write (LT_UNIT,*) "|LT| fb_env_build_trial_fns_auto: ikind = ", ikind
+       write (LT_UNIT,*) "|LT| fb_env_build_trial_fns_auto: zeff = ", zeff
 !END:DEBUG:LT:2015/01/26
 
        icgf = 0
@@ -1097,8 +1112,9 @@ CONTAINS
                 ! only include the first zeta orbitals
 
 !BEG:DEBUG:LT:2015/01/20
-                print *, "|LT| fb_env_build_trial_fns_auto: icg, counter, lshell, nco(lshell) = ", &
-                         icgf, counter, lshell, nco(lshell)
+                write (LT_UNIT,*) &
+                      "|LT| fb_env_build_trial_fns_auto: icg, counter, lshell, nco(lshell) = ", &
+                      icgf, counter, lshell, nco(lshell)
 !END:DEBUG:LT:2015/01/20
 
                 IF ((lshell .GT. old_lshell) .AND. (counter .LE. nco(lshell))) THEN
@@ -1121,7 +1137,7 @@ CONTAINS
     END DO ! ikind
 
 !BEG:DEBUG:LT:2015/01/20
-    print *, "|LT| fb_env_build_trial_fns_auto: trial_functions = ", functions
+    write (LT_UNIT,*) "|LT| fb_env_build_trial_fns_auto: trial_functions = ", functions
 !END:DEBUG:LT:2015/01/20
 
     ! set trial_functions

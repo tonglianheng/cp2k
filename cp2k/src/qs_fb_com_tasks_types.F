@@ -12,6 +12,10 @@ MODULE qs_fb_com_tasks_types
                                 array_data
   USE memory_utilities, ONLY: reallocate
 
+!BEG:DEBUG:LT:2015/01/29
+  USE message_passing, ONLY: MPI_COMM_WORLD
+!END:DEBUG:LT:2015/01/29
+
 #include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
@@ -148,6 +152,10 @@ MODULE qs_fb_com_tasks_types
   END type fb_com_atom_pairs_obj
 
 
+!BEG:DEBUG:LT:2015/01/29
+  INTEGER :: LT_UNIT
+!END:DEBUG:LT:2015/01/29
+
 CONTAINS
 
 
@@ -219,13 +227,6 @@ CONTAINS
     LOGICAL :: failure
     INTEGER :: stat
 
-!BEG:DEBUG:LT:2015/01/20
-    print *, "at the start of fb_com_tasks_release"
-    print *, "ASSOCATED = ", ASSOCiATED(com_tasks%obj)
-    print *, "ref_count = ", com_tasks%obj%ref_count
-    print *, "asociated tasks = ", associated(com_tasks%obj%tasks)
-!END:DEBUG:LT:2015/01/20
-
     failure = .FALSE.
     IF (ASSOCIATED(com_tasks%obj)) THEN
        CPPreconditionNoFail(com_tasks%obj%ref_count>0, cp_failure_level, routineP, error)
@@ -233,27 +234,12 @@ CONTAINS
        IF (com_tasks%obj%ref_count == 0) THEN
           com_tasks%obj%ref_count = 1
           IF (ASSOCIATED(com_tasks%obj%tasks)) THEN
-
-!BEG:DEBUG:LT:2015/01/20
-             print *, "size(tasks) = ", size(com_tasks%obj%tasks)
-!END:DEBUG:LT:2015/01/20
-
              DEALLOCATE(com_tasks%obj%tasks, STAT=stat)
              CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
           END IF
           com_tasks%obj%ref_count = 0
-
-!BEG:DEBUG:LT:2015/01/20
-          print *, "we are here now"
-!END:DEBUG:LT:2015/01/20
-
           DEALLOCATE(com_tasks%obj, STAT=stat)
           CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
-
-!BEG:DEBUG:LT:2015/01/20
-          print *, "------------------------------GGGADFADSF"
-!END:DEBUG:LT:2015/01/20
-
        END IF
     END IF
     NULLIFY(com_tasks%obj)
@@ -742,6 +728,11 @@ CONTAINS
                                           recv_sizes, recv_disps, &
                                           send_buf, recv_buf
 
+!BEG:DEBUG:LT:2015/01/30
+    CALL mpi_comm_rank(MPI_COMM_WORLD, LT_UNIT)
+    LT_UNIT = LT_UNIT + 100
+!END:DEBUG:LT:2015/01/30
+
     failure = .FALSE.
 
     NULLIFY(tasks_in, tasks_out)
@@ -780,9 +771,9 @@ CONTAINS
     CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
 
 !BEG:DEBUG:LT:2015/01/20
-    print *, "size(send_buf) = ", SIZE(send_buf)
-    print *, "ntasks_in = ", ntasks_in
-    print *, "size(tasks_in) = ", SIZE(tasks_in)
+    write (LT_UNIT,*) "size(send_buf) = ", SIZE(send_buf)
+    write (LT_UNIT,*) "ntasks_in = ", ntasks_in
+    write (LT_UNIT,*) "size(tasks_in) = ", SIZE(tasks_in)
 !END:DEBUG:LT:2015/01/20
 
     ! first count how many local recv/send tasks need to be sent to
@@ -794,14 +785,14 @@ CONTAINS
        rank = tasks_in(rank_pos,itask) + 1
 
 !BEG:DEBUG:LT:2015/01/20
-       print *, "itask, rank", itask, rank
+       write (LT_UNIT,*) "itask, rank", itask, rank
 !END:DEBUG:LT:2015/01/20
 
        send_buf(rank) = send_buf(rank) + 1
     END DO
 
 !BEG:DEBUG:LT:2015/01/20
-    print *, "send_buf = ", send_buf
+    write (LT_UNIT,*) "send_buf = ", send_buf
 !END:DEBUG:LT:2015/01/20
 
     CALL mp_alltoall(send_buf, recv_buf, 1, para_env%group)
@@ -1008,17 +999,20 @@ CONTAINS
                                      rank, arow, acol, natoms_encode)
 
 !BEG:DEBUG:LT:2015/01/25
-       ! print *, "|LT| fb_com_tasks_build_atom_pairs: itask = ", itask
-       ! print *, "|LT| fb_com_tasks_build_atom_pairs: rank, arow, acol, natoms_encode = ", &
-       !          rank, arow, acol, natoms_encode
-       ! print *, "|LT| fb_com_tasks_build_atom_pairs: pairs(itask) = ", pairs(itask)
+       ! write (LT_UNIT,*) &
+       !       "|LT| fb_com_tasks_build_atom_pairs: itask = ", itask
+       ! write (LT_UNIT,*) &
+       !       "|LT| fb_com_tasks_build_atom_pairs: rank, arow, acol, natoms_encode = ", &
+       !       rank, arow, acol, natoms_encode
+       ! write (LT_UNIT,*) &
+       !       "|LT| fb_com_tasks_build_atom_pairs: pairs(itask) = ", pairs(itask)
 !END:DEBUG:LT:2015/01/25
 
     END DO
 
 !BEG:DEBUG:LT:2015/01/25
-    ! print *, "|LT| fb_com_tasks_build_atom_pairs: SIZE(pairs) = ", SIZE(pairs)
-    ! print *, "|LT| fb_com_tasks_build_atom_pairs: pairs = ", pairs
+    ! write (LT_UNIT,*) "|LT| fb_com_tasks_build_atom_pairs: SIZE(pairs) = ", SIZE(pairs)
+    ! write (LT_UNIT,*) "|LT| fb_com_tasks_build_atom_pairs: pairs = ", pairs
 !END:DEBUG:LT:2015/01/25
 
     ! sort atom_pairs so that the pairs are ordered process blocks and
@@ -1034,9 +1028,9 @@ CONTAINS
        CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
     END IF
 !BEG:DEBUG:LT:2015/01/25
-    ! print *, "|LT| fb_com_tasks_build_atom_pairs: After sort"
-    ! print *, "|LT| fb_com_tasks_build_atom_pairs: SIZE(pairs) = ", SIZE(pairs)
-    ! print *, "|LT| fb_com_tasks_build_atom_pairs: pairs = ", pairs
+    ! write (LT_UNIT,*) "|LT| fb_com_tasks_build_atom_pairs: After sort"
+    ! write (LT_UNIT,*) "|LT| fb_com_tasks_build_atom_pairs: SIZE(pairs) = ", SIZE(pairs)
+    ! write (LT_UNIT,*) "|LT| fb_com_tasks_build_atom_pairs: pairs = ", pairs
 !END:DEBUG:LT:2015/01/25
 
     ! remove duplicates
@@ -1060,13 +1054,14 @@ CONTAINS
                                error=error)
 
 !BEG:DEBUG:LT:2015/01/25
-    ! print *, "|LT| fb_com_tasks_build_atom_pairs: After fb_com_atom_pairs_set"
+    ! write (LT_UNIT,*) &
+    !       "|LT| fb_com_tasks_build_atom_pairs: After fb_com_atom_pairs_set"
     ! CALL fb_com_atom_pairs_get(atom_pairs=atom_pairs, &
     !                            pairs=pairs, &
     !                            npairs=npairs, &
     !                            error=error)
-    ! print *, "|LT| fb_com_tasks_build_atom_pairs: npairs = ", npairs
-    ! print *, "|LT| fb_com_tasks_build_atom_pairs: pairs = ", pairs
+    ! write (LT_UNIT,*) "|LT| fb_com_tasks_build_atom_pairs: npairs = ", npairs
+    ! write (LT_UNIT,*) "|LT| fb_com_tasks_build_atom_pairs: pairs = ", pairs
 !END:DEBUG:LT:2015/01/25
 
   END SUBROUTINE fb_com_tasks_build_atom_pairs
