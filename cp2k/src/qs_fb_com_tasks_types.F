@@ -2,10 +2,7 @@ MODULE qs_fb_com_tasks_types
 
   USE kinds,           ONLY: int_8, int_4
   USE cp_para_types,   ONLY: cp_para_env_type
-  USE message_passing, ONLY: mp_alltoall, &
-!BEG:DEBUG:LT:2015/01/30
-       MPI_COMM_WORLD
-!END:DEBUG:LT:2015/01/30
+  USE message_passing, ONLY: mp_alltoall
   USE util,            ONLY: sort
   USE cp_dbcsr_interface, ONLY: cp_dbcsr_type, &
                                 cp_dbcsr_row_block_sizes, &
@@ -724,12 +721,11 @@ CONTAINS
                                           send_buf, recv_buf
 
 !BEG:DEBUG:LT:2015/01/29
-!    INTEGER :: LT_UNIT
+    INTEGER :: LT_UNIT
 !END:DEBUG:LT:2015/01/29
 
 !BEG:DEBUG:LT:2015/01/30
-!    CALL mpi_comm_rank(MPI_COMM_WORLD, LT_UNIT)
-!    LT_UNIT = LT_UNIT + 100
+    LT_UNIT = 100 + para_env%mepos
 !END:DEBUG:LT:2015/01/30
 
     failure = .FALSE.
@@ -770,9 +766,9 @@ CONTAINS
     CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
 
 !BEG:DEBUG:LT:2015/01/20
-    ! write (LT_UNIT,*) "size(send_buf) = ", SIZE(send_buf)
-    ! write (LT_UNIT,*) "ntasks_in = ", ntasks_in
-    ! write (LT_UNIT,*) "size(tasks_in) = ", SIZE(tasks_in)
+    write (LT_UNIT,*) "size(send_buf) = ", SIZE(send_buf)
+    write (LT_UNIT,*) "ntasks_in = ", ntasks_in
+    write (LT_UNIT,*) "size(tasks_in) = ", SIZE(tasks_in)
 !END:DEBUG:LT:2015/01/20
 
     ! first count how many local recv/send tasks need to be sent to
@@ -784,14 +780,14 @@ CONTAINS
        rank = tasks_in(rank_pos,itask) + 1
 
 !BEG:DEBUG:LT:2015/01/20
-       ! write (LT_UNIT,*) "itask, rank", itask, rank
+       write (LT_UNIT,*) "itask, rank", itask, rank
 !END:DEBUG:LT:2015/01/20
 
        send_buf(rank) = send_buf(rank) + 1
     END DO
 
 !BEG:DEBUG:LT:2015/01/20
-    ! write (LT_UNIT,*) "send_buf = ", send_buf
+    write (LT_UNIT,*) "send_buf = ", send_buf
 !END:DEBUG:LT:2015/01/20
 
     CALL mp_alltoall(send_buf, recv_buf, 1, para_env%group)
@@ -944,6 +940,14 @@ CONTAINS
     INTEGER(KIND=int_8), DIMENSION(:), POINTER :: pairs
     INTEGER, DIMENSION(:), ALLOCATABLE :: tmp_index
 
+!BEG:DEBUG:LT:2015/01/30
+    INTEGER :: LT_UNIT
+!END:DEBUG:LT:2015/01/30
+
+!BEG:DEBUG:LT:2015/01/30
+    LT_UNIT = 200
+!END:DEBUG:LT:2015/01/30
+
     failure = .FALSE.
 
     NULLIFY(pairs, tasks)
@@ -998,20 +1002,20 @@ CONTAINS
                                      rank, arow, acol, natoms_encode)
 
 !BEG:DEBUG:LT:2015/01/25
-       ! write (LT_UNIT,*) &
-       !       "|LT| fb_com_tasks_build_atom_pairs: itask = ", itask
-       ! write (LT_UNIT,*) &
-       !       "|LT| fb_com_tasks_build_atom_pairs: rank, arow, acol, natoms_encode = ", &
-       !       rank, arow, acol, natoms_encode
-       ! write (LT_UNIT,*) &
-       !       "|LT| fb_com_tasks_build_atom_pairs: pairs(itask) = ", pairs(itask)
+       write (LT_UNIT,*) &
+             "|LT| fb_com_tasks_build_atom_pairs: itask = ", itask
+       write (LT_UNIT,*) &
+             "|LT| fb_com_tasks_build_atom_pairs: rank, arow, acol, natoms_encode = ", &
+             rank, arow, acol, natoms_encode
+       write (LT_UNIT,*) &
+             "|LT| fb_com_tasks_build_atom_pairs: pairs(itask) = ", pairs(itask)
 !END:DEBUG:LT:2015/01/25
 
     END DO
 
 !BEG:DEBUG:LT:2015/01/25
-    ! write (LT_UNIT,*) "|LT| fb_com_tasks_build_atom_pairs: SIZE(pairs) = ", SIZE(pairs)
-    ! write (LT_UNIT,*) "|LT| fb_com_tasks_build_atom_pairs: pairs = ", pairs
+    write (LT_UNIT,*) "|LT| fb_com_tasks_build_atom_pairs: SIZE(pairs) = ", SIZE(pairs)
+    write (LT_UNIT,*) "|LT| fb_com_tasks_build_atom_pairs: pairs = ", pairs
 !END:DEBUG:LT:2015/01/25
 
     ! sort atom_pairs so that the pairs are ordered process blocks and
@@ -1027,9 +1031,9 @@ CONTAINS
        CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
     END IF
 !BEG:DEBUG:LT:2015/01/25
-    ! write (LT_UNIT,*) "|LT| fb_com_tasks_build_atom_pairs: After sort"
-    ! write (LT_UNIT,*) "|LT| fb_com_tasks_build_atom_pairs: SIZE(pairs) = ", SIZE(pairs)
-    ! write (LT_UNIT,*) "|LT| fb_com_tasks_build_atom_pairs: pairs = ", pairs
+    write (LT_UNIT,*) "|LT| fb_com_tasks_build_atom_pairs: After sort"
+    write (LT_UNIT,*) "|LT| fb_com_tasks_build_atom_pairs: SIZE(pairs) = ", SIZE(pairs)
+    write (LT_UNIT,*) "|LT| fb_com_tasks_build_atom_pairs: pairs = ", pairs
 !END:DEBUG:LT:2015/01/25
 
     ! remove duplicates
@@ -1053,14 +1057,14 @@ CONTAINS
                                error=error)
 
 !BEG:DEBUG:LT:2015/01/25
-    ! write (LT_UNIT,*) &
-    !       "|LT| fb_com_tasks_build_atom_pairs: After fb_com_atom_pairs_set"
-    ! CALL fb_com_atom_pairs_get(atom_pairs=atom_pairs, &
-    !                            pairs=pairs, &
-    !                            npairs=npairs, &
-    !                            error=error)
-    ! write (LT_UNIT,*) "|LT| fb_com_tasks_build_atom_pairs: npairs = ", npairs
-    ! write (LT_UNIT,*) "|LT| fb_com_tasks_build_atom_pairs: pairs = ", pairs
+    write (LT_UNIT,*) &
+          "|LT| fb_com_tasks_build_atom_pairs: After fb_com_atom_pairs_set"
+    CALL fb_com_atom_pairs_get(atom_pairs=atom_pairs, &
+                               pairs=pairs, &
+                               npairs=npairs, &
+                               error=error)
+    write (LT_UNIT,*) "|LT| fb_com_tasks_build_atom_pairs: npairs = ", npairs
+    write (LT_UNIT,*) "|LT| fb_com_tasks_build_atom_pairs: pairs = ", pairs
 !END:DEBUG:LT:2015/01/25
 
   END SUBROUTINE fb_com_tasks_build_atom_pairs
