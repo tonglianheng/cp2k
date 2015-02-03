@@ -1303,7 +1303,7 @@ CPSourceFileRef,&
      IF (ASSOCIATED(matrix)) THEN
         data_unit=unit_nr
         desc_unit=unit_nr
-        IF (.not.loc.and.long_description) THEN
+        IF (.not.loc.and.my_long_description) THEN
            matrix%print_count=matrix%print_count+1
            IF (para_env%mepos==para_env%source) THEN
               filename=TRIM(matrix%name)//'-'//&
@@ -1364,7 +1364,7 @@ CPSourceFileRef,&
            WRITE (unit=desc_unit,fmt="(a)",iostat=iostat) " }"
         END IF
 
-        IF (.not.loc.and.long_description) THEN
+        IF (.not.loc.and.my_long_description) THEN
            CALL close_file(desc_unit)
            CALL close_file(data_unit)
         END IF

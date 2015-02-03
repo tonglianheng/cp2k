@@ -8,6 +8,9 @@ MODULE qs_fb_env_methods
                              fb_env_has_data
   USE qs_environment_types,    ONLY: qs_environment_type, &
                                      get_qs_env
+!BEG:DEBUG:LT:2015/02/02
+!  USE qs_environment_methods, ONLY: qs_create_task_list
+!END:DEBUG:LT:2015/02/02
   USE qs_fb_atomic_halo_types, ONLY: fb_atomic_halo_obj, &
                                      fb_atomic_halo_nullify, &
                                      fb_atomic_halo_create, &
@@ -41,6 +44,14 @@ MODULE qs_fb_env_methods
                                 cp_dbcsr_finalize, &
                                 cp_dbcsr_multiply, &
                                 cp_dbcsr_release, &
+                                cp_dbcsr_set, &
+                                cp_dbcsr_reserve_blocks, &
+                                cp_dbcsr_iterator, &
+                                cp_dbcsr_iterator_start, &
+                                cp_dbcsr_iterator_stop, &
+                                cp_dbcsr_iterator_next_block, &
+                                cp_dbcsr_iterator_blocks_left, &
+                                cp_dbcsr_get_matrix_type, &
                                 array_i1d_obj, &
 !BEG:DEBUG:LT:2015/01/20
                                 cp_dbcsr_print, &
@@ -49,6 +60,7 @@ MODULE qs_fb_env_methods
                                 array_nullify
   USE cp_dbcsr_operations, ONLY: copy_dbcsr_to_fm, &
                                  cp_dbcsr_sm_fm_multiply
+  USE cp_dbcsr_cp2k_link, ONLY: cp_dbcsr_alloc_block_from_nbl
   USE input_constants, ONLY: use_aux_fit_basis_set,&
                              use_orb_basis_set, &
                              cholesky_inverse
@@ -76,7 +88,10 @@ MODULE qs_fb_env_methods
                          cp_fm_create, &
                          cp_fm_set_all, &
                          cp_fm_release, &
-                         cp_fm_to_fm
+                         cp_fm_to_fm, &
+!BEG:DEBUG:LT:2015/02/02
+                         cp_fm_write
+!END:DEBUG:LT:2015/02/02
   USE qs_fb_trial_fns_types, ONLY: fb_trial_fns_obj, &
                                    fb_trial_fns_nullify, &
                                    fb_trial_fns_get, &
@@ -101,6 +116,8 @@ MODULE qs_fb_env_methods
                            get_qs_kind
   USE message_passing, ONLY: mp_max
   USE cp_fm_basic_linalg, ONLY: cp_fm_gemm
+  USE qs_neighbor_list_types, ONLY: neighbor_list_set_p_type
+
 
 #include "./common/cp_common_uses.f90"
 
@@ -130,7 +147,7 @@ CONTAINS
     LOGICAL, INTENT(INOUT) :: diis_step
     TYPE(cp_error_type), INTENT(inout) :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'fb_env_do_diag', &
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'fb_env_do_diag', &
                                    routineP = moduleN//':'//routineN
 
     LOGICAL :: failure, use_jacobi
@@ -159,7 +176,7 @@ CONTAINS
 !BEG:DEBUG:LT:2015/01/20
     TYPE(cp_dbcsr_p_type) :: matrix_ks_desymm, matrix_s_desymm
 !END:DEBUG:LT:2015/01/20
-    TYPE(cp_dbcsr_type), POINTER :: matrix_filtered_p 
+    TYPE(cp_dbcsr_type), POINTER :: matrix_filtered_p
     TYPE(fb_atomic_halo_list_obj) :: atomic_halos
     TYPE(fb_trial_fns_obj) :: trial_fns
     CHARACTER(len=2) :: spin_string
@@ -169,7 +186,7 @@ CONTAINS
     TYPE(particle_type), DIMENSION(:), POINTER :: particle_set
     TYPE(qs_matrix_pools_type), POINTER :: my_mpools
     TYPE(cp_fm_struct_type), POINTER  :: fm_struct
-
+    TYPE(neighbor_list_set_p_type), DIMENSION(:), POINTER :: sab_orb
 
 !BEG:DEBUG:LT:2015/01/29
     INTEGER :: LT_UNIT
@@ -177,8 +194,10 @@ CONTAINS
 
     failure = .FALSE.
 
-    NULLIFY(scf_env, scf_control, para_env, blacs_env, mos, &
-            mos_filtered, matrix_filter, particle_set, matrix_filtered_p)
+    NULLIFY(scf_env, scf_control, para_env, blacs_env, mos, sab_orb, &
+            mos_filtered, matrix_filter, particle_set, &
+            matrix_filtered_p, eigenvalues_filtered, occ_filtered, &
+            mo_coeff_filtered, eigenvalues, occ, mo_coeff)
     CALL fb_atomic_halo_list_nullify(atomic_halos)
     CALL fb_trial_fns_nullify(trial_fns)
     CALL array_nullify(original_rowORcol_block_sizes)
@@ -199,7 +218,7 @@ CONTAINS
 !BEG:DEBUG:LT:2015/01/30
     LT_UNIT = 100 + para_env%mepos
 !END:DEBUG:LT:2015/01/30
-    
+
     DO ispin = 1, nspin
        CALL copy_dbcsr_to_fm(matrix_ks(ispin)%matrix,&
                              scf_env%scf_work1(ispin)%matrix,&
@@ -501,13 +520,31 @@ CONTAINS
        CALL copy_dbcsr_to_fm(matrix_filtered_s, fm_matrix_filtered_s, error=error)
        CALL copy_dbcsr_to_fm(matrix_filtered_ks, fm_matrix_filtered_ks, error=error)
 
-
 !BEG:DEBUG:LT:2015/01/20
+       write (LT_UNIT,*) "|LT| fb_env_do_diag: matrix_filter(1)%matrix: (DBCSR)"
        CALL cp_dbcsr_print(matrix_filter(1)%matrix, unit_nr=LT_UNIT, error=error)
+       write (LT_UNIT,*) "|LT| fb_env_do_diag: matrix_s(1)%matrix: (DBCSR):"
        CALL cp_dbcsr_print(matrix_s(1)%matrix, unit_nr=LT_UNIT, error=error)
+       write (LT_UNIT,*) "|LT| fb_env_do_diag: matrix_filtered_s(1)%matrix: (DBCSR)"
        CALL cp_dbcsr_print(matrix_filtered_s, unit_nr=LT_UNIT, error=error)
+       write (LT_UNIT,*) "|LT| fb_env_do_diag: fm_matrix_filtered_s: (FM)"
+       CALL cp_fm_write(matrix=fm_matrix_filtered_s, &
+                        long_description=.TRUE., &
+                        local=.TRUE., &
+                        unit_nr=LT_UNIT, &
+                        error=error)
+       write (LT_UNIT,*) "|LT| fb_env_do_diag: matrix_ks(1)%matrix: (DBCSR):"
+       CALL cp_dbcsr_print(matrix_ks(1)%matrix, unit_nr=LT_UNIT, error=error)
+       write (LT_UNIT,*) "|LT| fb_env_do_diag: matrix_filtered_ks(1)%matrix: (DBCSR)"
+       CALL cp_dbcsr_print(matrix_filtered_ks, unit_nr=LT_UNIT, error=error)
+       write (LT_UNIT,*) "|LT| fb_env_do_diag: fm_matrix_filtered_ks: (FM)"
+       CALL cp_fm_write(matrix=fm_matrix_filtered_ks, &
+                        long_description=.TRUE., &
+                        local=.TRUE., &
+                        unit_nr=LT_UNIT, &
+                        error=error)
+       CALL FLUSH(LT_UNIT)
 !END:DEBUG:LT:2015/01/20
-
 
        ! now diagonalise
 
@@ -535,6 +572,22 @@ CONTAINS
                         cholesky_method=scf_env%cholesky_method, &
                         use_jacobi=use_jacobi, &
                         error=error)
+
+!BEG:DEBUG:LT:2015/02/02
+       CALL get_mo_set(mo_set=mos_filtered(ispin)%mo_set, &
+                       eigenvalues=eigenvalues_filtered, &
+                       mo_coeff=mo_coeff_filtered)
+       write (LT_UNIT,*) "|LT| fb_env_do_diag: eigenvalues_filtered = "
+       write (LT_UNIT,*) eigenvalues_filtered
+       write (LT_UNIT,*) "|LT| fb_env_do_diag: mo_coeff_filtered: (FM)"
+       CALL cp_fm_write(matrix=mo_coeff_filtered, &
+                        long_description=.TRUE., &
+                        local=.TRUE., &
+                        unit_nr=LT_UNIT, &
+                        error=error)
+       CALL FLUSH(LT_UNIT)
+!END:DEBUG:LT:2015/02/02
+
     END DO ! spin
 
     ! release temporary matrices
@@ -550,29 +603,72 @@ CONTAINS
                            smear=scf_control%smear, &
                            error=error)
 
+!BEG:DEBUG:LT:2015/02/02
+    CALL get_mo_set(mo_set=mos_filtered(1)%mo_set, &
+                    occupation_numbers=occ_filtered, &
+                    mu=mu_filtered)
+    write (LT_UNIT,*) "|LT| fb_env_do_diag: associated(occ_filtered) = ", associated(occ_filtered)
+    CALL FLUSH(LT_UNIT)
+    write (LT_UNIT,*) "|LT| fb_env_do_diag: SIZE(occ_filtered) = ", SIZE(occ_filtered)
+    CALL FLUSH(LT_UNIT)
+    write (LT_UNIT,*) "|LT| fb_env_do_diag: occ_filtered = ", occ_filtered
+    write (LT_UNIT,*) "|LT| fb_env_do_diag: mu_filtered = ", mu_filtered
+    CALL FLUSH(LT_UNIT)
+!END:DEBUG:LT:2015/02/02
+
+
     ! get the filtered density matrix and then convert back to the
     ! full basis version in scf_env ready to be used outside this
     ! subroutine
     ALLOCATE(matrix_filtered_p, STAT=stat)
     CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
     CALL cp_dbcsr_init(matrix_filtered_p, error=error)
+    ! the filtered density matrix should have the same sparse
+    ! structure as the original density matrix, we must copy the
+    ! sparse structure here, since construction of the density matrix
+    ! preserves its sparse form, and therefore matrix_filtered_p must
+    ! have its blocks allocated here now. We assume the original
+    ! density matrix scf_env%p_mix_new has the same sparse structure
+    ! in both spin channels.
     CALL cp_dbcsr_create(matrix=matrix_filtered_p, &
                          name=TRIM("FILTERED_MATRIX_P"), &
-                         ! all DBCSR matrices in CP2K uses the same distribution
-                         dist=cp_dbcsr_distribution(matrix_s(1)%matrix), &
-                         matrix_type=dbcsr_type_no_symmetry, &
+                         dist=cp_dbcsr_distribution(scf_env%p_mix_new(1)%matrix), &
+                         matrix_type=cp_dbcsr_get_matrix_type(scf_env%p_mix_new(1)%matrix), &
                          row_blk_size=filtered_rowORcol_block_sizes, &
                          col_blk_size=filtered_rowORcol_block_sizes, &
                          nblks=0, &
                          nze=0, &
                          error=error)
     CALL cp_dbcsr_finalize(matrix_filtered_p, error=error)
+    CALL fb_dbcsr_copy_sparse_struct(matrix_filtered_p, &
+                                     scf_env%p_mix_new(1)%matrix, &
+                                     error)
+    ! old implementation, using sab_orb to allocate the blocks in matrix_filtered_p
+    ! CALL get_qs_env(qs_env=qs_env, sab_orb=sab_orb, error=error)
+    ! CALL cp_dbcsr_alloc_block_from_nbl(matrix_filtered_p, sab_orb, error=error)
+    CALL cp_dbcsr_set(matrix_filtered_p, 0.0_dp, error=error)
 
     DO ispin = 1, nspin
-       ! calculate matrix_filtered_p
+
+!BEG:DEBUG:LT:2015/02/02
+       write (LT_UNIT,*) "|LT| fb_env_do_diag: before update density: scf_env%p_mix_new: (DBCSR)"
+       CALL cp_dbcsr_print(scf_env%p_mix_new(ispin)%matrix, unit_nr=LT_UNIT, error=error)
+       CALL FLUSH(LT_UNIT)
+!END:DEBUG:LT:2015/02/02
+
+      ! calculate matrix_filtered_p
        CALL calculate_density_matrix(mos_filtered(ispin)%mo_set, &
                                      matrix_filtered_p, &
                                      error=error)
+
+
+!BEG:DEBUG:LT:2015/02/02
+       write (LT_UNIT,*) "|LT| fb_env_do_diag: matrix_filtered_p: (DBCSR) "
+       CALL cp_dbcsr_print(matrix_filtered_p, unit_nr=LT_UNIT, error=error)
+       CALL FLUSH(LT_UNIT)
+!END:DEBUG:LT:2015/02/02
+
+
        ! convert back to full basis p
        CALL cp_dbcsr_multiply("N", "N", 1.0_dp, &
                               matrix_filter(ispin)%matrix, matrix_filtered_p, &
@@ -580,6 +676,14 @@ CONTAINS
        CALL cp_dbcsr_multiply("N", "T", 1.0_dp, &
                               matrix_tmp, matrix_filter(ispin)%matrix, &
                               0.0_dp, scf_env%p_mix_new(ispin)%matrix, error=error)
+
+!BEG:DEBUG:LT:2015/02/02
+       write (LT_UNIT,*) "|LT| fb_env_do_diag: after update density: scf_env%p_mix_new: (DBCSR)"
+       CALL cp_dbcsr_print(scf_env%p_mix_new(ispin)%matrix, unit_nr=LT_UNIT, error=error)
+       CALL FLUSH(LT_UNIT)
+!END:DEBUG:LT:2015/02/02
+
+
     END DO
 
     ! release temporary matrices
@@ -604,9 +708,6 @@ CONTAINS
     ! is actually never used by default (DOUBLE CHECK?!). Even
     ! subroutine eigensolver_dbcsr updates mo_coeff, and not
     ! mo_coeff_b.
-
-    NULLIFY(eigenvalues_filtered, occ_filtered, mo_coeff_filtered, &
-            eigenvalues, occ, mo_coeff)
     DO ispin = 1, nspin
        ! now the full basis mo_set should only contain the reduced
        ! number of eigenvectors and eigenvalues
@@ -657,7 +758,7 @@ CONTAINS
        !                 0.0_dp, mo_coeff, error=error)
        ! CALL cp_fm_release(fm_matrix_work, error=error)
        ! CALL cp_fm_release(fm_matrix_filter, error=error)
-!END:DEBUG:LT:2015/01/20       
+!END:DEBUG:LT:2015/01/20
     END DO
 
     ! release temporary matrices
@@ -671,6 +772,11 @@ CONTAINS
     CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
     DEALLOCATE(matrix_filter, STAT=stat)
     CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
+
+
+!BEG:DEBUG:LT:2015/02/02
+!    CALL qs_create_task_list(qs_env, error)
+!END:DEBUG:LT:2015/02/02
 
   END SUBROUTINE fb_env_do_diag
 
@@ -1043,7 +1149,7 @@ CONTAINS
 
        CALL get_qs_kind(qs_kind=qs_kind_set(ikind), &
                         zeff=zeff)
-       
+
        bset1: DO iset = 1, nset
 !          old_lshell = lmax(iset)
           old_lshell = -1
@@ -1164,145 +1270,76 @@ CONTAINS
   END SUBROUTINE fb_env_build_trial_fns_auto
 
 
+  SUBROUTINE fb_dbcsr_copy_sparse_struct(matrix_out, matrix_in, error)
 
-  ! SUBROUTINE fb_env_build_filter_matrix(fb_env, qs_env, error)
-  !   TYPE(fb_env_obj), POINTER :: fb_env
-  !   TYPE(qs_environment_type), POINTER :: qs_env
-  !   TYPE(cp_error_type), INTENT(INOUT) :: error
+    TYPE(cp_dbcsr_type), INTENT(in) :: matrix_in
+    TYPE(cp_dbcsr_type), INTENT(inout) :: matrix_out
+    TYPE(cp_error_type), INTENT(INOUT) :: error
 
-  !   CHARACTER(LEN=*), PARAMETER :: routineN = 'fb_env_build_filter_matrix', &
-  !                                  routineP = moduleN//':'//routineN
+    CHARACTER(len=*), PARAMETER :: routineN = 'fb_dbcsr_copy_sparse_struct', &
+                                   routineP = moduleN//':'//routineN
 
-  !   LOGICAL :: failure
+    LOGICAL :: failure
+    CHARACTER(LEN=1)                         :: symmetry
+    TYPE(cp_dbcsr_iterator) :: iter
+    INTEGER :: iatom, jatom, iblk, nblks, stat
+    REAL(dp), DIMENSION(:, :), POINTER :: mat_block
+    INTEGER, DIMENSION(:), ALLOCATABLE :: rows, cols
 
-  !   TYPE(cp_para_env_type), POINTER :: para_env
-  !   TYPE(dbcsr_distribution_obj), POINTER :: dbcsr_dist
-  !   TYPE(mo_set_p_type), DIMENSION(:), POINTER :: mo_list
-  !   TYPE(particle_type), DIMENSION(:), POINTER :: particle_set
-  !   TYPE(atomic_kind_type), POINTER :: atomic_kind
-  !   TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER :: mat_S, mat_H
-  !   TYPE(fb_atomic_halo_list_obj) :: atomic_halos
-  !   TYPE(fb_atomic_halo_obj), DIMENSION(:), POINTER :: halos
-  !   REAL(KIND=dp), DIMENSION(:,:), ALLOCATABLE :: atomic_H, atomic_S
-  !   REAL(KIND=dp), DIMENSION(:,:), ALLOCATABLE :: filtered_eigenvectors, &
-  !                                                 atomic_filter_matrix
-  !   REAL(KIND=dp), DIMENSION(:), ALLOCATABLE :: filter_function, &
-  !                                               eigenvalues
-  !   REAL(KIND=dp) :: filter_temperature, fermi_level, maxocc
-  !   INTEGER :: ispin, nblkrows_total, nblkcols_total, stat, jhalo, nhalos, &
-  !              this_atom, this_atom_in_halo, ii, jj, mat_dim, nrows, ncols, &
-  !              natoms_in_halo, ihalo_atom, jhalo_atom, iatom_global, jatom_global, &
-  !              natoms_global, ikind, jkind, nspin
-  !   INTEGER, DIMENSION(:), POINTER :: halo_atoms
-  !   INTEGER, DIMENSION(:), ALLOCATABLE :: atomic_H_blk_row_start, &
-  !                                         atomic_H_blk_col_start, &
-  !                                         atomic_S_blk_row_start, &
-  !                                         atomic_S_blk_col_start
-  !   INTEGER, DIMENSION(:), POINTER :: cbs
-  !   TYPE(array_i1d_obj) :: col_blk_size, row_blk_size
+!BEG:DEBUG:LT:2015/02/02
+    INTEGER :: LT_UNIT
+!END:DEBUG:LT:2015/02/02
 
-  !   failure = .FALSE.
+!BEG:DEBUG:LT:2015/02/02
+    LT_UNIT = 200
+!END:DEBUG:LT:2015/02/02
 
-  !   CPPostcondition(fb_env_has_data(fb_env), &
-  !                   cp_failure_level, routineP, error, failure)
+    failure = .FALSE.
 
-  !   NULLIFY(para_env, mo_list, particle_set, atomic_kind, mat_S, mat_H, halos, &
-  !           atomic_H, atomic_S, atomic_H_blk_row_start, atomic_H_blk_col_start, &
-  !           atomic_S_blk_row_start, atomic_S_blk_col_start, cbs)
-  !   CALL array_nullify(row_blk_size)
-  !   CALL array_nullify(col_blk_size)
-  !   CALL fb_atomic_halo_list_nullify(atomic_halos)
+    nblks = matrix_in%matrix%m%nblks
+    ALLOCATE(rows(nblks), STAT=stat)
+    CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
+    ALLOCATE(cols(nblks), STAT=stat)
+    CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
 
-  !   CALL fb_env_get(fb_env=fb_env, &
-  !                   filter_temperature=filter_temperature, &
-  !                   error=error)
+!BEG:DEBUG:LT:2015/02/02
+    write (LT_UNIT,*) "|LT| fb_dbcsr_copy_sparse_struct: nblks = ", nblks
+    CALL FLUSH(LT_UNIT)
+!END:DEBUG:LT:2015/02/02
 
-  !   CALL get_qs_env(qs_env=qs_env, &
-  !                   para_env=para_env, &
-  !                   mos=mo_list, &
-  !                   particle_set=particle_set, &
-  !                   matrix_s=mat_S, &
-  !                   matrix_h=mat_H, &
-  !                   dbcsr_dist=dbcsr_dist, &
-  !                   error=error)
+    iblk = 0
+    CALL cp_dbcsr_iterator_start(iter, matrix_in)
+    DO WHILE (cp_dbcsr_iterator_blocks_left(iter))
+       CALL cp_dbcsr_iterator_next_block(iter, &
+                                         iatom, &
+                                         jatom, &
+                                         mat_block, &
+                                         iblk)
 
-  !   CPPrecondition(SIZE(mat_H)==SIZE(mat_S), cp_failure_level, routineP, error, failure)
-  !   nspin = SIZE(mat_H)
+!BEG:DEBUG:LT:2015/02/02
+       write (LT_UNIT,*) "|LT| fb_dbcsr_copy_sparse_struct: iblk = ", iblk
+       write (LT_UNIT,*) "|LT| fb_dbcsr_copy_sparse_struct: rows(iblk) = ", iatom
+       write (LT_UNIT,*) "|LT| fb_dbcsr_copy_sparse_struct: cols(iblk) = ", jatom
+       CALL FLUSH(LT_UNIT)
+!END:DEBUG:LT:2015/02/02
 
-  !   ! get trial function information
-  !   CALL fb_trial_fns_get(trial_fns=trial_fns, &
-  !                         nfunctions=ntfns, &
-  !                         functions=tfns, &
-  !                         error=error)
+       rows(iblk) = iatom
+       cols(iblk) = jatom
+    END DO
+    CALL cp_dbcsr_iterator_stop(iter)
+    CALL cp_dbcsr_reserve_blocks(matrix_out, rows, cols, error=error)
+    CALL cp_dbcsr_finalize(matrix_out, error=error)
 
-  !   ! allocate the row_blk_sizes and col_blk_sizes arrays for
-  !   ! constructing the filter matrix in DBCSR format
-  !   natoms_global = SIZE(particle_set)
-  !   ALLOCATE(cbs(natoms_global), STAT=stat)
-  !   CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
-  !   rbs = 0
-  !   cbs = 0
-  !   ! row_blk_size is same as S or H matrix
-  !   CALL cp_dbcsr_get_info(mat_S(ispin=1)%matrix, &
-  !                          nblkrows_total=nblkrows_total, &
-  !                          nblkcols_total=nblkcols_total, &
-  !                          row_blk_size=row_blk_size)
-  !   ! work out col_blk_size
-  !   DO iatom_global = 1, natoms_global
-  !      atomic_kind => particle_set(iatom_global)%atomic_kind
-  !      CALL get_atomic_kind(atomic_kind=atomic_kind, &
-  !                           kind_number=ikind)
-  !      cbs(iatom_global) = ntfns(ikind)
-  !   END DO
-  !   ! do not deallocate cbs if gift=.TRUE. as col_blk_sizes will only point to cbs
-  !   CALL array_new(col_blk_sizes, cbs, gift=.TRUE.)
-  !   ! the filter matrix is non-square and is always non-symmetric
-  !   symmetry_string = dbcsr_type_no_symmetry
-  !   ! create empty filter matrices for each spin
-  !   DO ispin = 1, nspin
-  !      WRITE (spin_string, FMT="(I1)"), ispin
-  !      name = TRIM("FILTER MATRIX SPIN"//spin_string)
-  !      CALL compress(name)
-  !      CALL uppercase(name)
-  !      ALLOCATE(filter_matrix(ispin)%matrix, STAT=stat)
-  !      CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
-  !      CALL cp_dbcsr_init(filter_matrix(ispin)%matrix, error=error)
-  !      CALL cp_dbcsr_create(matrix=filter_matrix(ispin)%matrix, &
-  !                           name=name, &
-  !                           dist=dbcsr_dist, &
-  !                           matrix_type=symmetry_string, &
-  !                           row_blk_size=row_blk_size, &
-  !                           col_blk_size=col_blk_size, &
-  !                           nblks=0, &
-  !                           nze=0, &
-  !                           error=error)
-  !   END DO
-  !   ! generate atomic halos
-  !   CALL fb_env_build_atomic_halos(fb_env, error)
-  !   CALL fb_env_get(fb_env=fb_env, &
-  !                   atomic_halos=atomic_halos, &
-  !                   error=error)
-  !   CALL fb_atomic_halo_list_get(atomic_halos=atomic_halos, &
-  !                                nhalos=nhalos, &
-  !                                halos=halos, &
-  !                                error=error)
-  !   DO ispin = 1, nspin
-  !      DO jhalo = 1, nhalos
-  !         ! construct the filter matrix block by block
-  !         CALL fb_fltrmat_add_blkcol(mat_H(ispin)%matrix, &
-  !                                    mat_S(ispin)%matrix, &
-  !                                    halo(jhalo), &
-  !                                    trial_fns, &
-  !                                    para_env, &
-  !                                    mo_list(ispin)%mo_set, &
-  !                                    filter_temperature, &
-  !                                    filter_matrix(ispin)%matrix, &
-  !                                    error)
-  !      END DO  ! ihalo
-  !      ! finalise the filter matrix
-  !      CALL dbcsr_finalize(filter_matrix(ispin)%matrix)
-  !   END DO ! ispin
+    ! cleanup
+    DEALLOCATE(rows, STAT=stat)
+    CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
+    DEALLOCATE(cols, STAT=stat)
+    CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
 
-  ! END SUBROUTINE fb_env_build_filter_matrix
+  END SUBROUTINE fb_dbcsr_copy_sparse_struct
+
+
+
+
 
 END MODULE qs_fb_env_methods
