@@ -156,12 +156,13 @@ CONTAINS
                filtered_nfullrowsORcols_total, &
                nelectron, nfullrows_total, nfullcols_total, &
                homo_filtered, lfomo_filtered, &
-               nmo_filtered, max_nelectron
+               nmo_filtered, max_nelectron, &
+               nmo, my_nmo
     REAL(kind=dp) :: diis_error, eps_diis
     REAL(kind=dp) :: fermi_level, maxocc, flexible_electron_count, &
                      filter_temp, mu_filtered, KTS_filtered
-    REAL(KIND=dp), DIMENSION(:), POINTER :: eigenvalues_filtered, occ_filtered, &
-                                            eigenvalues, occ
+    REAL(KIND=dp), DIMENSION(:), POINTER :: eigenvalues, eigenvalues_filtered, &
+                                            occ, occ_filtered
     TYPE(cp_fm_type), POINTER :: mo_coeff_filtered, mo_coeff, &
                                  fm_matrix_filtered_s, fm_matrix_filtered_ks, &
                                  fm_matrix_work, fm_matrix_filter
@@ -171,12 +172,10 @@ CONTAINS
     TYPE(cp_blacs_env_type), POINTER :: blacs_env
     TYPE(mo_set_p_type), DIMENSION(:), POINTER :: mos, mos_filtered
     TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER :: matrix_filter
+    TYPE(cp_dbcsr_p_type) :: matrix_ks_desymm, matrix_s_desymm
+    TYPE(cp_dbcsr_type), POINTER :: matrix_filtered_p
     TYPE(cp_dbcsr_type) :: matrix_tmp, matrix_filtered_ks, &
                            matrix_filtered_s
-!BEG:DEBUG:LT:2015/01/20
-    TYPE(cp_dbcsr_p_type) :: matrix_ks_desymm, matrix_s_desymm
-!END:DEBUG:LT:2015/01/20
-    TYPE(cp_dbcsr_type), POINTER :: matrix_filtered_p
     TYPE(fb_atomic_halo_list_obj) :: atomic_halos
     TYPE(fb_trial_fns_obj) :: trial_fns
     CHARACTER(len=2) :: spin_string
@@ -185,13 +184,8 @@ CONTAINS
                            original_rowORcol_block_sizes
     TYPE(particle_type), DIMENSION(:), POINTER :: particle_set
     TYPE(qs_matrix_pools_type), POINTER :: my_mpools
-    TYPE(cp_fm_struct_type), POINTER  :: fm_struct
-
-!BEG:DEBUG:LT:2015/02/03
-    TYPE(cp_fm_struct_type), POINTER  :: filter_fm_struct
-!END:DEBUG:LT:2015/02/03
-
-    TYPE(neighbor_list_set_p_type), DIMENSION(:), POINTER :: sab_orb
+    TYPE(cp_fm_struct_type), POINTER  :: fm_struct, filter_fm_struct
+!    TYPE(neighbor_list_set_p_type), DIMENSION(:), POINTER :: sab_orb
 
 !BEG:DEBUG:LT:2015/01/29
     INTEGER :: LT_UNIT
@@ -199,16 +193,20 @@ CONTAINS
 
     failure = .FALSE.
 
-    NULLIFY(scf_env, scf_control, para_env, blacs_env, mos, sab_orb, &
-            mos_filtered, matrix_filter, particle_set, &
-            matrix_filtered_p, eigenvalues_filtered, occ_filtered, &
-            mo_coeff_filtered, eigenvalues, occ, mo_coeff)
+    NULLIFY(scf_env, scf_control, para_env, blacs_env, particle_set)
+    NULLIFY(eigenvalues, eigenvalues_filtered, occ, occ_filtered)
+    NULLIFY(mos, mos_filtered)
+    NULLIFY(my_mpools)
+    NULLIFY(matrix_filter, matrix_filtered_p)
+    NULLIFY(fm_struct, filter_fm_struct)
+    NULLIFY(fm_matrix_filter, fm_matrix_filtered_s, &
+            fm_matrix_filtered_ks, fm_matrix_work, &
+            mo_coeff_filtered, mo_coeff)
+    ! NULLIFY(sab_orb)
     CALL fb_atomic_halo_list_nullify(atomic_halos)
     CALL fb_trial_fns_nullify(trial_fns)
     CALL array_nullify(original_rowORcol_block_sizes)
     CALL array_nullify(filtered_rowORcol_block_sizes)
-
-    nspin = SIZE(matrix_ks)
 
     ! get qs_env information
     CALL get_qs_env(qs_env=qs_env, &
@@ -224,26 +222,37 @@ CONTAINS
     LT_UNIT = 100 + para_env%mepos
 !END:DEBUG:LT:2015/01/30
 
+    nspin = SIZE(matrix_ks)
+
+    ! ----------------------------------------------------------------------
+    ! DIIS step - based on non-filtered matrices and MOs
+    ! ----------------------------------------------------------------------
+
     DO ispin = 1, nspin
-       CALL copy_dbcsr_to_fm(matrix_ks(ispin)%matrix,&
-                             scf_env%scf_work1(ispin)%matrix,&
+       CALL copy_dbcsr_to_fm(matrix_ks(ispin)%matrix, &
+                             scf_env%scf_work1(ispin)%matrix, &
                              error=error)
     END DO
+
+    eps_diis = scf_control%eps_diis
+
     IF (scf_env%iter_count > 1 .AND. .NOT. scf_env%skip_diis) THEN
        CALL qs_diis_b_step(scf_env%scf_diis_buffer, mos, scf_env%scf_work1, &
                            scf_env%scf_work2, scf_env%iter_delta, &
                            diis_error, diis_step, eps_diis, scf_control%nmixing, &
-                           s_matrix=matrix_s, scf_section=scf_section, error=error)
+                           s_matrix=matrix_s, scf_section=scf_section, &
+                           error=error)
     ELSE
        diis_step = .FALSE.
     END IF
 
-    IF ((scf_env%iter_count > 1).AND.&
-        (scf_env%iter_delta < scf_control%diagonalization%eps_jacobi)) THEN
-      use_jacobi = .TRUE.
-    ELSE
-      use_jacobi = .FALSE.
-    END IF
+    ! IF ((scf_env%iter_count > 1).AND.&
+    !     (scf_env%iter_delta < scf_control%diagonalization%eps_jacobi)) THEN
+    !   use_jacobi = .TRUE.
+    ! ELSE
+    !   use_jacobi = .FALSE.
+    ! END IF
+    use_jacobi = .FALSE.
 
     IF (diis_step) THEN
        scf_env%iter_param = diis_error
@@ -272,6 +281,9 @@ CONTAINS
        END IF
     END IF
 
+    ! ----------------------------------------------------------------------
+    ! Construct Filter Matrix
+    ! ----------------------------------------------------------------------
 
     ! get filter temperature
     CALL fb_env_get(fb_env=fb_env, &
@@ -310,10 +322,12 @@ CONTAINS
                        mu=fermi_level, &
                        maxocc=maxocc)
 
-!BEG:DEBUG:LT:2015/01/2
-
+       ! ----------------------------------------------------------------------
        ! desymmetrise matrix first to avoid the complex and hard to
        ! understand DBCSR symmetric layout first.
+       !
+       !TODO:LT:2015/02/04: This is inefficient, need to use symmetry!
+       !
        NULLIFY(matrix_ks_desymm%matrix)
        ALLOCATE(matrix_ks_desymm%matrix)
        CALL cp_dbcsr_init(matrix_ks_desymm%matrix, error)
@@ -322,8 +336,7 @@ CONTAINS
        ALLOCATE(matrix_s_desymm%matrix)
        CALL cp_dbcsr_init(matrix_s_desymm%matrix, error)
        CALL cp_dbcsr_desymmetrize(matrix_s(ispin)%matrix, matrix_s_desymm%matrix, error)
-
-!END:DEBUG:LT:2015/01/2
+       ! ----------------------------------------------------------------------
 
        ! get filter matrix name
        WRITE (spin_string, FMT="(I1)"), ispin
@@ -345,13 +358,7 @@ CONTAINS
        !                       filter_mat=matrix_filter(ispin)%matrix, &
        !                       error=error)
 !END:ORIG:LT:2015/01/2
-
-!BEG:DEBUG:LT:2015/01/30
-       write (LT_UNIT,*) "|LT| fb_env_do_diag: atomic_halos associated = ", &
-             fb_atomic_halo_list_has_data(atomic_halos)
-!END:DEBUG:LT:2015/01/30
-
-
+!BEG:REPL:LT:2015/01/2
        CALL fb_fltrmat_build(H_mat=matrix_ks_desymm%matrix, &
                              S_mat=matrix_s_desymm%matrix, &
                              atomic_halos=atomic_halos, &
@@ -363,14 +370,21 @@ CONTAINS
                              name=name, &
                              filter_mat=matrix_filter(ispin)%matrix, &
                              error=error)
-!BEG:DEBUG:LT:2015/01/2
+!END:REPL:LT:2015/01/2
+
+       ! ----------------------------------------------------------------------
+       ! Deallocate the desymmetrised matrices
        CALL cp_dbcsr_release(matrix_ks_desymm%matrix, error)
        CALL cp_dbcsr_release(matrix_s_desymm%matrix, error)
        DEALLOCATE(matrix_ks_desymm%matrix)
        DEALLOCATE(matrix_s_desymm%matrix)
-!END:DEBUG:LT:2015/01/2
+       ! ----------------------------------------------------------------------
 
-    END DO
+    END DO ! ispin
+
+    ! ----------------------------------------------------------------------
+    ! Do Filtered Diagonalisation
+    ! ----------------------------------------------------------------------
 
     ! Obtain matrix dimensions. KS and S matrices are symmetric, so
     ! row_block_sizes and col_block_sizes should be identical. The
@@ -403,8 +417,7 @@ CONTAINS
                             maxocc=maxocc, &
                             flexible_electron_count=flexible_electron_count, &
                             error=error)
-    END DO
-    NULLIFY(my_mpools)
+    END DO ! ispin
     CALL mpools_create(mpools=my_mpools, error=error)
     CALL mpools_rebuild_fm_pools(mpools=my_mpools,&
                                  mos=mos_filtered,&
@@ -464,36 +477,12 @@ CONTAINS
     CALL cp_dbcsr_finalize(matrix_tmp, error=error)
 
     ! create fm format matrices used for diagonalisation
-
-!BEG:DEBUG:LT:2015/01/20
-    NULLIFY(fm_matrix_filter)
-!END:DEBUG:LT:2015/01/20
-
-    NULLIFY(fm_matrix_filtered_s)
-    NULLIFY(fm_matrix_filtered_ks)
-    NULLIFY(fm_matrix_work)
-    NULLIFY(fm_struct)
     CALL cp_fm_struct_create(fmstruct=fm_struct, &
                              para_env=para_env, &
                              context=blacs_env, &
                              nrow_global=filtered_nfullrowsORcols_total, &
                              ncol_global=filtered_nfullrowsORcols_total, &
                              error=error)
-!BEG:DEBUG:LT:2015/01/20
-    CALL cp_fm_struct_create(fmstruct=filter_fm_struct, &
-                             para_env=para_env, &
-                             context=blacs_env, &
-                             nrow_global=original_nfullrowsORcols_total, &
-                             ncol_global=filtered_nfullrowsORcols_total, &
-                             error=error)
-    CALL cp_fm_create(fm_matrix_filter, &
-                      filter_fm_struct, &
-                      name="FM_MATRIX_FILTER", &
-                      error=error)
-!END:DEBUG:LT:2015/01/20
-
-
-
     ! both fm_matrix_filtered_s and fm_matrix_filtered_ks are reused
     ! for each spin channel
     CALL cp_fm_create(fm_matrix_filtered_s, &
@@ -508,12 +497,6 @@ CONTAINS
     CALL cp_fm_create(fm_matrix_work, fm_struct, name="FM_MATRIX_WORK", error=error)
     ! all fm matrices are created, so can release fm_struct
     CALL cp_fm_struct_release(fm_struct, error=error)
-
-
-!BEG:DEBUG:LT:2015/02/03
-    CALL cp_fm_struct_release(filter_fm_struct, error=error)
-!END:DEBUG:LT:2015/02/03
-
 
     ! construct filtered KS, S matrix and diagonalise
     DO ispin = 1, nspin
@@ -537,44 +520,31 @@ CONTAINS
        ! channel, perform ordinary diagonalisation
 
        ! convert DBCSR matrices to fm format
-
-!BEG:DEBUG:LT:2015/02/03
-       CALL copy_dbcsr_to_fm(matrix_filter(ispin)%matrix, fm_matrix_filter, error=error)
-!END:DEBUG:LT:2015/02/03
-
        CALL copy_dbcsr_to_fm(matrix_filtered_s, fm_matrix_filtered_s, error=error)
        CALL copy_dbcsr_to_fm(matrix_filtered_ks, fm_matrix_filtered_ks, error=error)
 
 !BEG:DEBUG:LT:2015/01/20
-       write (LT_UNIT,*) "|LT| fb_env_do_diag: matrix_filter(1)%matrix: (DBCSR)"
-       CALL cp_dbcsr_print(matrix_filter(1)%matrix, unit_nr=LT_UNIT, error=error)
-       write (LT_UNIT,*) "|LT| fb_env_do_diag: fm_matrix_filter: (FM)"
-       CALL cp_fm_write(matrix=fm_matrix_filter, &
-                        long_description=.TRUE., &
-                        local=.TRUE., &
-                        unit_nr=LT_UNIT, &
-                        error=error)
-       write (LT_UNIT,*) "|LT| fb_env_do_diag: matrix_s(1)%matrix: (DBCSR):"
-       CALL cp_dbcsr_print(matrix_s(1)%matrix, unit_nr=LT_UNIT, error=error)
-       write (LT_UNIT,*) "|LT| fb_env_do_diag: matrix_filtered_s(1)%matrix: (DBCSR)"
-       CALL cp_dbcsr_print(matrix_filtered_s, unit_nr=LT_UNIT, error=error)
-       write (LT_UNIT,*) "|LT| fb_env_do_diag: fm_matrix_filtered_s: (FM)"
-       CALL cp_fm_write(matrix=fm_matrix_filtered_s, &
-                        long_description=.TRUE., &
-                        local=.TRUE., &
-                        unit_nr=LT_UNIT, &
-                        error=error)
-       write (LT_UNIT,*) "|LT| fb_env_do_diag: matrix_ks(1)%matrix: (DBCSR):"
-       CALL cp_dbcsr_print(matrix_ks(1)%matrix, unit_nr=LT_UNIT, error=error)
-       write (LT_UNIT,*) "|LT| fb_env_do_diag: matrix_filtered_ks(1)%matrix: (DBCSR)"
-       CALL cp_dbcsr_print(matrix_filtered_ks, unit_nr=LT_UNIT, error=error)
-       write (LT_UNIT,*) "|LT| fb_env_do_diag: fm_matrix_filtered_ks: (FM)"
-       CALL cp_fm_write(matrix=fm_matrix_filtered_ks, &
-                        long_description=.TRUE., &
-                        local=.TRUE., &
-                        unit_nr=LT_UNIT, &
-                        error=error)
-       CALL FLUSH(LT_UNIT)
+       ! write (LT_UNIT,*) "|LT| fb_env_do_diag: matrix_s(1)%matrix: (DBCSR):"
+       ! CALL cp_dbcsr_print(matrix_s(1)%matrix, unit_nr=LT_UNIT, error=error)
+       ! write (LT_UNIT,*) "|LT| fb_env_do_diag: matrix_filtered_s(1)%matrix: (DBCSR)"
+       ! CALL cp_dbcsr_print(matrix_filtered_s, unit_nr=LT_UNIT, error=error)
+       ! write (LT_UNIT,*) "|LT| fb_env_do_diag: fm_matrix_filtered_s: (FM)"
+       ! CALL cp_fm_write(matrix=fm_matrix_filtered_s, &
+       !                  long_description=.TRUE., &
+       !                  local=.TRUE., &
+       !                  unit_nr=LT_UNIT, &
+       !                  error=error)
+       ! write (LT_UNIT,*) "|LT| fb_env_do_diag: matrix_ks(1)%matrix: (DBCSR):"
+       ! CALL cp_dbcsr_print(matrix_ks(1)%matrix, unit_nr=LT_UNIT, error=error)
+       ! write (LT_UNIT,*) "|LT| fb_env_do_diag: matrix_filtered_ks(1)%matrix: (DBCSR)"
+       ! CALL cp_dbcsr_print(matrix_filtered_ks, unit_nr=LT_UNIT, error=error)
+       ! write (LT_UNIT,*) "|LT| fb_env_do_diag: fm_matrix_filtered_ks: (FM)"
+       ! CALL cp_fm_write(matrix=fm_matrix_filtered_ks, &
+       !                  long_description=.TRUE., &
+       !                  local=.TRUE., &
+       !                  unit_nr=LT_UNIT, &
+       !                  error=error)
+       ! CALL FLUSH(LT_UNIT)
 !END:DEBUG:LT:2015/01/20
 
        ! now diagonalise
@@ -591,11 +561,10 @@ CONTAINS
        CALL cp_fm_set_all(matrix=fm_matrix_work, alpha=0.0_dp, error=error)
        ! diagonalise
 
-!BEG:DEBUG:LT:2015/01/10
+       ! At the moment, can only use cholesky_inverse with no jacobi
+!TODO:LT:2015/02/04: make it more flexible
        scf_env%cholesky_method = cholesky_inverse
        use_jacobi = .FALSE.
-!END:DEBUG:LT:2015/01/10
-
        CALL eigensolver(matrix_ks_fm=fm_matrix_filtered_ks, &
                         mo_set=mos_filtered(ispin)%mo_set, &
                         ortho=fm_matrix_filtered_s, &
@@ -605,21 +574,21 @@ CONTAINS
                         error=error)
 
 !BEG:DEBUG:LT:2015/02/02
-       CALL get_mo_set(mo_set=mos_filtered(ispin)%mo_set, &
-                       eigenvalues=eigenvalues_filtered, &
-                       mo_coeff=mo_coeff_filtered)
-       write (LT_UNIT,*) "|LT| fb_env_do_diag: eigenvalues_filtered = "
-       write (LT_UNIT,*) eigenvalues_filtered
-       write (LT_UNIT,*) "|LT| fb_env_do_diag: mo_coeff_filtered: (FM)"
-       CALL cp_fm_write(matrix=mo_coeff_filtered, &
-                        long_description=.TRUE., &
-                        local=.TRUE., &
-                        unit_nr=LT_UNIT, &
-                        error=error)
-       CALL FLUSH(LT_UNIT)
+       ! CALL get_mo_set(mo_set=mos_filtered(ispin)%mo_set, &
+       !                 eigenvalues=eigenvalues_filtered, &
+       !                 mo_coeff=mo_coeff_filtered)
+       ! write (LT_UNIT,*) "|LT| fb_env_do_diag: eigenvalues_filtered = "
+       ! write (LT_UNIT,*) eigenvalues_filtered
+       ! write (LT_UNIT,*) "|LT| fb_env_do_diag: mo_coeff_filtered: (FM)"
+       ! CALL cp_fm_write(matrix=mo_coeff_filtered, &
+       !                  long_description=.TRUE., &
+       !                  local=.TRUE., &
+       !                  unit_nr=LT_UNIT, &
+       !                  error=error)
+       ! CALL FLUSH(LT_UNIT)
 !END:DEBUG:LT:2015/02/02
 
-    END DO ! spin
+    END DO ! ispin
 
     ! release temporary matrices
     CALL cp_dbcsr_release(matrix_filtered_s, error)
@@ -628,9 +597,9 @@ CONTAINS
     CALL cp_fm_release(fm_matrix_filtered_ks, error=error)
     CALL cp_fm_release(fm_matrix_work, error=error)
 
-!BEG:DEBUG:LT:2015/02/03
-    CALL cp_fm_release(fm_matrix_filter, error=error)
-!END:DEBUG:LT:2015/02/03
+    ! ----------------------------------------------------------------------
+    ! Construct New Density Matrix
+    ! ----------------------------------------------------------------------
 
     ! calculate filtered molecular orbital occupation numbers and fermi
     ! level etc
@@ -650,7 +619,6 @@ CONTAINS
     write (LT_UNIT,*) "|LT| fb_env_do_diag: mu_filtered = ", mu_filtered
     CALL FLUSH(LT_UNIT)
 !END:DEBUG:LT:2015/02/02
-
 
     ! get the filtered density matrix and then convert back to the
     ! full basis version in scf_env ready to be used outside this
@@ -686,9 +654,9 @@ CONTAINS
     DO ispin = 1, nspin
 
 !BEG:DEBUG:LT:2015/02/02
-       write (LT_UNIT,*) "|LT| fb_env_do_diag: before update density: scf_env%p_mix_new: (DBCSR)"
-       CALL cp_dbcsr_print(scf_env%p_mix_new(ispin)%matrix, unit_nr=LT_UNIT, error=error)
-       CALL FLUSH(LT_UNIT)
+       ! write (LT_UNIT,*) "|LT| fb_env_do_diag: before update density: scf_env%p_mix_new: (DBCSR)"
+       ! CALL cp_dbcsr_print(scf_env%p_mix_new(ispin)%matrix, unit_nr=LT_UNIT, error=error)
+       ! CALL FLUSH(LT_UNIT)
 !END:DEBUG:LT:2015/02/02
 
       ! calculate matrix_filtered_p
@@ -696,13 +664,11 @@ CONTAINS
                                      matrix_filtered_p, &
                                      error=error)
 
-
 !BEG:DEBUG:LT:2015/02/02
-       write (LT_UNIT,*) "|LT| fb_env_do_diag: matrix_filtered_p: (DBCSR) "
-       CALL cp_dbcsr_print(matrix_filtered_p, unit_nr=LT_UNIT, error=error)
-       CALL FLUSH(LT_UNIT)
+       ! write (LT_UNIT,*) "|LT| fb_env_do_diag: matrix_filtered_p: (DBCSR) "
+       ! CALL cp_dbcsr_print(matrix_filtered_p, unit_nr=LT_UNIT, error=error)
+       ! CALL FLUSH(LT_UNIT)
 !END:DEBUG:LT:2015/02/02
-
 
        ! convert back to full basis p
        CALL cp_dbcsr_multiply("N", "N", 1.0_dp, &
@@ -713,19 +679,22 @@ CONTAINS
                               0.0_dp, scf_env%p_mix_new(ispin)%matrix, error=error)
 
 !BEG:DEBUG:LT:2015/02/02
-       write (LT_UNIT,*) "|LT| fb_env_do_diag: after update density: scf_env%p_mix_new: (DBCSR)"
-       CALL cp_dbcsr_print(scf_env%p_mix_new(ispin)%matrix, unit_nr=LT_UNIT, error=error)
-       CALL FLUSH(LT_UNIT)
+       ! write (LT_UNIT,*) "|LT| fb_env_do_diag: after update density: scf_env%p_mix_new: (DBCSR)"
+       ! CALL cp_dbcsr_print(scf_env%p_mix_new(ispin)%matrix, unit_nr=LT_UNIT, error=error)
+       ! CALL FLUSH(LT_UNIT)
 !END:DEBUG:LT:2015/02/02
 
-
-    END DO
+    END DO ! ispin
 
     ! release temporary matrices
     CALL cp_dbcsr_release(matrix_tmp, error)
     CALL cp_dbcsr_release(matrix_filtered_p, error)
     DEALLOCATE(matrix_filtered_p, STAT=stat)
     CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
+
+    ! ----------------------------------------------------------------------
+    ! Update MOs
+    ! ----------------------------------------------------------------------
 
     ! we still need to convert mos_filtered back to the full basis
     ! version (mos) for this, we need to update mo_coeff (and/or
@@ -743,6 +712,20 @@ CONTAINS
     ! is actually never used by default (DOUBLE CHECK?!). Even
     ! subroutine eigensolver_dbcsr updates mo_coeff, and not
     ! mo_coeff_b.
+
+    ! create FM format filter matrix
+    CALL cp_fm_struct_create(fmstruct=filter_fm_struct, &
+                             para_env=para_env, &
+                             context=blacs_env, &
+                             nrow_global=original_nfullrowsORcols_total, &
+                             ncol_global=filtered_nfullrowsORcols_total, &
+                             error=error)
+    CALL cp_fm_create(fm_matrix_filter, &
+                      filter_fm_struct, &
+                      name="FM_MATRIX_FILTER", &
+                      error=error)
+    CALL cp_fm_struct_release(filter_fm_struct, error=error)
+
     DO ispin = 1, nspin
        ! now the full basis mo_set should only contain the reduced
        ! number of eigenvectors and eigenvalues
@@ -755,48 +738,80 @@ CONTAINS
                        mo_coeff=mo_coeff_filtered, &
                        kTS=kTS_filtered, &
                        mu=mu_filtered)
+       ! first set all the relevent scalars
        CALL set_mo_set(mo_set=mos(ispin)%mo_set, &
                        homo=homo_filtered, &
                        lfomo=lfomo_filtered, &
-                       nmo=nmo_filtered, &
                        kTS=kTS_filtered, &
                        mu=mu_filtered, &
                        error=error)
-       ! CALL get_mo_set(mo_set=mos(ispin)%mo_set, &
-       !                 occupation_numbers=occ, &
-       !                 eigenvalues=eigenvalues, &
-       !                 mo_coeff=mo_coeff)
-       ! eigenvalues(:) = 0.0_dp
-       ! eigenvalues(1:nmo_filtered) = eigenvalues_filtered(1:nmo_filtered)
-       ! occ(:) = 0.0_dp
-       ! occ(1:nmo_filtered) = occ_filtered(1:nmo_filtered)
+       ! now set the arrays and fm_matrices
+       CALL get_mo_set(mo_set=mos(ispin)%mo_set, &
+                       nmo=nmo, &
+                       occupation_numbers=occ, &
+                       eigenvalues=eigenvalues, &
+                       mo_coeff=mo_coeff)
+       ! number of mos in original mo_set may sometimes be less than
+       ! nmo_filtered, so we must make sure we do not go out of bounds
+       my_nmo = MIN(nmo, nmo_filtered)
+       eigenvalues(:) = 0.0_dp
+       eigenvalues(1:my_nmo) = eigenvalues_filtered(1:my_nmo)
+       occ(:) = 0.0_dp
+       occ(1:my_nmo) = occ_filtered(1:my_nmo)
+       ! convert mo_coeff_filtered back to original basis
+       CALL cp_fm_set_all(matrix=mo_coeff, alpha=0.0_dp, error=error)
+       CALL copy_dbcsr_to_fm(matrix_filter(ispin)%matrix, fm_matrix_filter, error=error)
 
-!BEG:ORIG:LT:2015/01/20
-       ! CALL cp_dbcsr_sm_fm_multiply(matrix_filter(ispin)%matrix, &
-       !                              mo_coeff_filtered, &
-       !                              mo_coeff, &
-       !                              nmo_filtered, &
-       !                              error=error)
-!END:ORIG:LT:2015/01/20
+!BEG:DEBUG:LT:2015/02/04
+       ! write (LT_UNIT,*) "|LT| fb_env_do_diag: matrix_filter(",ispin,")%matrix: (DBCSR)"
+       ! CALL cp_dbcsr_print(matrix_filter(ispin)%matrix, unit_nr=LT_UNIT, error=error)
+       ! write (LT_UNIT,*) "|LT| fb_env_do_diag: fm_matrix_filter: (FM)"
+       ! CALL cp_fm_write(matrix=fm_matrix_filter, &
+       !                  long_description=.TRUE., &
+       !                  local=.TRUE., &
+       !                  unit_nr=LT_UNIT, &
+       !                  error=error)
+       ! CALL FLUSH(LT_UNIT)
+!END:DEBUG:LT:2015/02/04
 
-!BEG:DEBUG:LT:2015/01/20
-       ! NULLIFY(fm_matrix_work)
-       ! CALL cp_fm_create(fm_matrix_work, &
-       !                   mos_filtered(ispin)%mo_set%mo_coeff%matrix_struct, error=error)
-       ! CALL cp_fm_to_fm(mos_filtered(ispin)%mo_set%mo_coeff,fm_matrix_work,error=error)
-       ! CALL copy_dbcsr_to_fm(matrix_filter(ispin)%matrix, fm_matrix_filter, error=error)
-       ! CALL cp_fm_gemm("N","N", &
-       !                 original_nfullrowsORcols_total, &
-       !                 filtered_nfullrowsORcols_total, &
-       !                 filtered_nfullrowsORcols_total, &
-       !                 1.0_dp, fm_matrix_filter, fm_matrix_work, &
-       !                 0.0_dp, mo_coeff, error=error)
-       ! CALL cp_fm_release(fm_matrix_work, error=error)
-       ! CALL cp_fm_release(fm_matrix_filter, error=error)
-!END:DEBUG:LT:2015/01/20
-    END DO
+!BEG:DEBUG:LT:2015/02/04
+       ! write (LT_UNIT,*) "|LT| fb_env_do_diag: original_nfullrowsORcols_total = ", &
+       !                   original_nfullrowsORcols_total
+       ! write (LT_UNIT,*) "|LT| fb_env_do_diag: filtered_nfullrowsORcols_total = ", &
+       !                   filtered_nfullrowsORcols_total
+       ! write (LT_UNIT,*) "|LT| fb_env_do_diag: : nmo = ", nmo
+       ! write (LT_UNIT,*) "|LT| fb_env_do_diag: : SIZE(occ) = ", SIZE(occ)
+       ! write (LT_UNIT,*) "|LT| fb_env_do_diag: mo_coeff_filtered: (FM)"
+       ! CALL cp_fm_write(matrix=mo_coeff_filtered, &
+       !                  long_description=.TRUE., &
+       !                  local=.TRUE., &
+       !                  unit_nr=LT_UNIT, &
+       !                  error=error)
+       ! write (LT_UNIT,*) "|LT| fb_env_do_diag: mo_coeff: (FM)"
+       ! CALL cp_fm_write(matrix=mo_coeff, &
+       !                  long_description=.TRUE., &
+       !                  local=.TRUE., &
+       !                  unit_nr=LT_UNIT, &
+       !                  error=error)
+       ! CALL FLUSH(LT_UNIT)
+!END:DEBUG:LT:2015/02/04
+
+       CALL cp_fm_gemm("N", "N", &
+                       original_nfullrowsORcols_total, &
+                       my_nmo, &
+                       filtered_nfullrowsORcols_total, &
+                       1.0_dp, fm_matrix_filter, mo_coeff_filtered, &
+                       0.0_dp, mo_coeff, error=error)
+
+    END DO ! ispin
 
     ! release temporary matrices
+    CALL cp_fm_release(fm_matrix_filter, error=error)
+
+    ! ----------------------------------------------------------------------
+    ! Final Clean Up
+    ! ----------------------------------------------------------------------
+
     CALL mpools_release(mpools=my_mpools, error=error)
     DO ispin = 1, nspin
        CALL deallocate_mo_set(mo_set=mos_filtered(ispin)%mo_set, &
@@ -807,11 +822,6 @@ CONTAINS
     CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
     DEALLOCATE(matrix_filter, STAT=stat)
     CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
-
-
-!BEG:DEBUG:LT:2015/02/02
-!    CALL qs_create_task_list(qs_env, error)
-!END:DEBUG:LT:2015/02/02
 
   END SUBROUTINE fb_env_do_diag
 
