@@ -98,7 +98,6 @@ CONTAINS
                               para_env, &
                               particle_set, &
                               fermi_level, &
-                              max_occ, &
                               filter_temp, &
                               name, &
                               filter_mat, &
@@ -110,7 +109,6 @@ CONTAINS
     TYPE(cp_para_env_type), POINTER :: para_env
     TYPE(particle_type), DIMENSION(:), POINTER :: particle_set
     REAL(KIND=dp), INTENT(in) :: fermi_level
-    REAL(KIND=dp), INTENT(in) :: max_occ
     REAL(KIND=dp), INTENT(in) :: filter_temp
     CHARACTER(LEN=*), INTENT(in) :: name
     TYPE(cp_dbcsr_type), POINTER :: filter_mat
@@ -249,7 +247,6 @@ CONTAINS
                                      para_env, &
                                      particle_set, &
                                      fermi_level, &
-                                     max_occ, &
                                      filter_temp, &
                                      filter_mat, &
                                      error)
@@ -267,7 +264,6 @@ CONTAINS
                                      para_env, &
                                      particle_set, &
                                      fermi_level, &
-                                     max_occ, &
                                      filter_temp, &
                                      filter_mat, &
                                      error)
@@ -291,7 +287,6 @@ CONTAINS
                                    para_env, &
                                    particle_set, &
                                    fermi_level, &
-                                   max_occ, &
                                    filter_temp, &
                                    filter_mat, &
                                    error)
@@ -302,7 +297,6 @@ CONTAINS
     TYPE(cp_para_env_type), POINTER :: para_env
     TYPE(particle_type), DIMENSION(:), POINTER :: particle_set
     REAL(KIND=dp), INTENT(in) :: fermi_level
-    REAL(KIND=dp), INTENT(in) :: max_occ
     REAL(KIND=dp), INTENT(in) :: filter_temp
     TYPE(cp_dbcsr_type), POINTER :: filter_mat
     TYPE(cp_error_type), INTENT(inout) :: error
@@ -553,7 +547,6 @@ CONTAINS
        CALL fb_fltrmat_build_atomic_fltrmat(atomic_H, &
                                             atomic_S, &
                                             fermi_level, &
-                                            max_occ, &
                                             filter_temp, &
                                             atomic_filter_mat, &
                                             error)
@@ -617,6 +610,8 @@ CONTAINS
           ! do it column-wise one trial function at a time
 
 !BEG:DEBUG:LT:2015/01/20
+          write (LT_UNIT, *) "iatom_global, jatom_global", iatom_global, jatom_global
+          write (LT_UNIT, *) "iatom_in_halo, jatom_in_halo", iatom_in_halo, jatom_in_halo
           write (LT_UNIT, *) &
                 "|LT| fb_fltrmat_add_blkcol: part_atomic_filter (iatom_in_halo, row_start)", &
                 iatom_in_halo, atomic_H_blk_row_start(iatom_in_halo)
@@ -640,12 +635,11 @@ CONTAINS
           DO itrial = 1, ntfns(jkind)
 
 !BEG:DEBUG:LT:2015/01/20
-             write (LT_UNIT, *) "jatom_in_halo", jatom_in_halo
-             write (LT_UNIT, *) "atomic_S_blk_row_start = ", atomic_S_blk_row_start
-             write (LT_UNIT, *) "part_atomic_s = (jatom_in_halo, row_start)", &
-                      jatom_in_halo, atomic_S_blk_row_start(jatom_in_halo)
+             write (LT_UNIT, *) "atomic_S_blk_col_start = ", atomic_S_blk_col_start
+             write (LT_UNIT, *) "part_atomic_s = (jatom_global, itrial)", &
+                                jatom_global, itrial
              part_mat_pointer_1 => atomic_S(1 : nrows_atmatrix, &
-                                            atomic_S_blk_row_start(jatom_in_halo) + &
+                                            atomic_S_blk_col_start(jatom_in_halo) + &
                                             tfns(itrial,jkind) - 1)
              DO ii = 1, SIZE(part_mat_pointer_1,1)
                 write (LT_UNIT,fmt="(1f10.4)") part_mat_pointer_1(ii)
@@ -653,31 +647,63 @@ CONTAINS
 !END:DEBUG:LT:2015/01/20
 
              ind = send_disps(ipe) + send_sizes(ipe) + (itrial-1) * nrows_blk
+!BEG:ORIG:LT:2015/02/03
+             ! CALL BL_GEMV(TRANS = "N",                                           &
+             !              M      = nrows_blk,                                    &
+             !              N      = ncols_atmatrix,                               &
+             !              ALPHA  = 1.0_dp,                                       &
+             !              A      = atomic_filter_mat(                            &
+             !                         ! atomic_H_blk_row_start(iatom_in_halo):, :  &
+             !                         atomic_H_blk_row_start(iatom_in_halo) :     &
+             !                         atomic_H_blk_row_start(iatom_in_halo+1)-1,  &
+             !                         1 : ncols_atmatrix                          &
+             !                       ),                                            &
+             !              LDA    = nrows_blk,                                    &
+             !             ! LDA    = nrows_atmatrix,                               &
+             !              X      = atomic_S(                                     &
+             !                         1 : nrows_atmatrix,                         &
+             !                         atomic_S_blk_col_start(jatom_in_halo) +     &
+             !                         tfns(itrial,jkind) - 1                      &
+             !                       ),                                            &
+             !              INCX   = 1,                                            &
+             !              BETA   = 0.0_dp,                                       &
+             !              Y      = send_buf(ind + 1 : ind + nrows_blk),          &
+             !              INCY   = 1)
+!END:ORIG:LT:2015/02/03
              CALL BL_GEMV(TRANS = "N",                                           &
                           M      = nrows_blk,                                    &
                           N      = ncols_atmatrix,                               &
                           ALPHA  = 1.0_dp,                                       &
-                          A      = atomic_filter_mat(                            &
-                                     ! atomic_H_blk_row_start(iatom_in_halo):, :  &
-                                     atomic_H_blk_row_start(iatom_in_halo) :     &
-                                     atomic_H_blk_row_start(iatom_in_halo+1)-1,  &
-                                     1 : ncols_atmatrix                          &
-                                   ),                                            &
+                          A      = part_mat_pointer_2,                           &
                           LDA    = nrows_blk,                                    &
-                         ! LDA    = nrows_atmatrix,                               &
-                          X      = atomic_S(                                     &
-                                     1 : nrows_atmatrix,                         &
-                                     atomic_S_blk_row_start(jatom_in_halo) +     &
-                                     tfns(itrial,jkind) - 1                      &
-                                   ),                                            &
+                          X      = part_mat_pointer_1,                           &
                           INCX   = 1,                                            &
                           BETA   = 0.0_dp,                                       &
                           Y      = send_buf(ind + 1 : ind + nrows_blk),          &
                           INCY   = 1)
           END DO ! itrial
+
+!BEG:DEBUG:LT:2015/02/03
+          write (LT_UNIT, *) "|LT| fb_fltrmat_add_blkcol: send_sizes = ", send_sizes
+          write (LT_UNIT, *) &
+                "|LT| fb_fltrmat_add_blkcol: send_buf (",iatom_global,",",jatom_global,"):"
+          DO ii = 1, nrows_blk
+             DO jj = 1, ncols_blk
+                write (UNIT=LT_UNIT,FMT="(f9.4)",ADVANCE="no") &
+                      send_buf(send_disps(ipe) + send_sizes(ipe) + ii + nrows_blk*(jj-1))
+             END DO ! jj
+             write (LT_UNIT,*) ""
+          END DO ! ii
+!END:DEBUG:LT:2015/02/03
+
           send_sizes(ipe) = send_sizes(ipe) + nrows_blk * ncols_blk
        END DO ! ipair
     END DO  ! ipe
+
+!BEG:DEBUG:LT:2015/02/03
+    write (LT_UNIT, *) "|LT| fb_fltrmat_add_blkcol: send_disps = ", send_disps
+!END:DEBUG:LT:2015/02/03
+
 
     DEALLOCATE(atomic_H, STAT=stat)
     CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
@@ -730,8 +756,21 @@ CONTAINS
           CALL cp_dbcsr_put_block(filter_mat, &
                                   iatom_global, jatom_global, &
                                   recv_buf((ind+1) : (ind+nrows_blk*ncols_blk)))
-       END DO ! ipair
+
+!BEG:DEBUG:LT:2015/02/03
+          write (LT_UNIT, *) &
+                "|LT| fb_fltrmat_add_blkcol: recv_buf (",iatom_global,",",jatom_global,"):"
+          write (LT_UNIT, *) recv_buf((ind+1) : (ind+nrows_blk*ncols_blk))
+          DO ii = 1, nrows_blk
+             DO jj = 1, ncols_blk
+                write (UNIT=LT_UNIT,FMT="(f9.4)",ADVANCE="no") &
+                      recv_buf(ind + ii + nrows_blk*(jj-1))
+             END DO ! jj
+             write (LT_UNIT,*) ""
+          END DO ! ii
+!END:DEBUG:LT:2015/02/03
        recv_sizes(ipe) = recv_sizes(ipe) + nrows_blk * ncols_blk
+       END DO ! ipair
     END DO ! ipe
 
     ! cleanup rest of the temporary arrays
@@ -898,7 +937,6 @@ CONTAINS
                                              atomic_S, &
 !                                             mo_set, &
                                              fermi_level, &
-                                             max_occ, &
                                              filter_temp, &
                                              atomic_filter_mat, &
                                              error)
@@ -906,7 +944,6 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:,:), INTENT(in) :: atomic_S
  !   TYPE(mo_set_type), POINTER :: mo_set
     REAL(KIND=dp), INTENT(in) :: fermi_level
-    REAL(KIND=dp), INTENT(in) :: max_occ
     REAL(KIND=dp), INTENT(in) :: filter_temp
     REAL(KIND=dp), DIMENSION(:,:), INTENT(out) :: atomic_filter_mat
     TYPE(cp_error_type), INTENT(inout) :: error
@@ -947,7 +984,7 @@ CONTAINS
                SIZE(atomic_filter_mat, 2) > 0
     CPPostcondition(check_ok, cp_failure_level, routineP, error, failure)
 
-    ! initialise, atomic_filter_matrix may have zero size
+    ! initialise
     atomic_filter_mat = 0.0_dp
     mat_dim = SIZE(atomic_H, 1)
 
@@ -982,6 +1019,7 @@ CONTAINS
     CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
     ALLOCATE(work(work_array_size), STAT=stat)
     CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
+    work = 0.0_dp
     ! do calculation
     atomic_S_copy = atomic_S
     eigenvectors = atomic_H
@@ -1012,6 +1050,7 @@ CONTAINS
     ! first get the filter function
     ALLOCATE(filter_function(mat_dim), STAT=stat)
     CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
+    filter_function = 0.0_dp
     ! ! get system mu
     ! CALL get_mo_set(mo_set=mo_set, &
     !                 mu=fermi_level, &
@@ -1019,8 +1058,7 @@ CONTAINS
     CALL fb_fltrmat_fermi_dirac_mu(filter_function, &
                                    eigenvalues, &
                                    filter_temp, &
-                                   fermi_level, &
-                                   max_occ)
+                                   fermi_level)
 
 !BEG:DEBUG:LT:2015/01/26
     write (LT_UNIT,*) &
@@ -1124,12 +1162,11 @@ CONTAINS
   END SUBROUTINE fb_fltrmat_build_atomic_fltrmat
 
 
-  SUBROUTINE fb_fltrmat_fermi_dirac_mu(f, eigenvals, T, mu, maxocc)
+  SUBROUTINE fb_fltrmat_fermi_dirac_mu(f, eigenvals, T, mu)
     REAL(KIND=dp), DIMENSION(:), INTENT(out) :: f
     REAL(KIND=dp), DIMENSION(:), INTENT(in)  :: eigenvals
     REAL(KIND=dp), INTENT(in) :: T
     REAL(KIND=dp), INTENT(in) :: mu
-    REAL(KIND=dp), INTENT(in) :: maxocc
 
     CHARACTER(len=*), PARAMETER :: routineN = 'fb_fltrmat_fermi_dirac_mu', &
                                    routineP = moduleN//':'//routineN
@@ -1137,7 +1174,8 @@ CONTAINS
     LOGICAL :: failure
     REAL(KIND=dp) :: kTS, ne
 
-    CALL Fermi(f, ne, kTS, eigenvals, mu, T, maxocc)
+    ! we want fermi function to normalise to 1, so maxocc = 1 here
+    CALL Fermi(f, ne, kTS, eigenvals, mu, T, 1.0_dp)
   END SUBROUTINE fb_fltrmat_fermi_dirac_mu
 
 

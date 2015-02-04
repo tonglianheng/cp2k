@@ -186,6 +186,11 @@ CONTAINS
     TYPE(particle_type), DIMENSION(:), POINTER :: particle_set
     TYPE(qs_matrix_pools_type), POINTER :: my_mpools
     TYPE(cp_fm_struct_type), POINTER  :: fm_struct
+
+!BEG:DEBUG:LT:2015/02/03
+    TYPE(cp_fm_struct_type), POINTER  :: filter_fm_struct
+!END:DEBUG:LT:2015/02/03
+
     TYPE(neighbor_list_set_p_type), DIMENSION(:), POINTER :: sab_orb
 
 !BEG:DEBUG:LT:2015/01/29
@@ -335,7 +340,6 @@ CONTAINS
        !                       para_env=para_env, &
        !                       particle_set=particle_set, &
        !                       fermi_level=fermi_level, &
-       !                       max_occ=maxocc, &
        !                       filter_temp=filter_temp, &
        !                       name=name, &
        !                       filter_mat=matrix_filter(ispin)%matrix, &
@@ -355,7 +359,6 @@ CONTAINS
                              para_env=para_env, &
                              particle_set=particle_set, &
                              fermi_level=fermi_level, &
-                             max_occ=maxocc, &
                              filter_temp=filter_temp, &
                              name=name, &
                              filter_mat=matrix_filter(ispin)%matrix, &
@@ -461,9 +464,11 @@ CONTAINS
     CALL cp_dbcsr_finalize(matrix_tmp, error=error)
 
     ! create fm format matrices used for diagonalisation
+
 !BEG:DEBUG:LT:2015/01/20
     NULLIFY(fm_matrix_filter)
 !END:DEBUG:LT:2015/01/20
+
     NULLIFY(fm_matrix_filtered_s)
     NULLIFY(fm_matrix_filtered_ks)
     NULLIFY(fm_matrix_work)
@@ -474,14 +479,23 @@ CONTAINS
                              nrow_global=filtered_nfullrowsORcols_total, &
                              ncol_global=filtered_nfullrowsORcols_total, &
                              error=error)
-    ! both fm_matrix_filtered_s and fm_matrix_filtered_ks are reused
-    ! for each spin channel
 !BEG:DEBUG:LT:2015/01/20
+    CALL cp_fm_struct_create(fmstruct=filter_fm_struct, &
+                             para_env=para_env, &
+                             context=blacs_env, &
+                             nrow_global=original_nfullrowsORcols_total, &
+                             ncol_global=filtered_nfullrowsORcols_total, &
+                             error=error)
     CALL cp_fm_create(fm_matrix_filter, &
-                      fm_struct, &
+                      filter_fm_struct, &
                       name="FM_MATRIX_FILTER", &
                       error=error)
 !END:DEBUG:LT:2015/01/20
+
+
+
+    ! both fm_matrix_filtered_s and fm_matrix_filtered_ks are reused
+    ! for each spin channel
     CALL cp_fm_create(fm_matrix_filtered_s, &
                       fm_struct, &
                       name="FM_MATRIX_FILTERED_S", &
@@ -494,6 +508,12 @@ CONTAINS
     CALL cp_fm_create(fm_matrix_work, fm_struct, name="FM_MATRIX_WORK", error=error)
     ! all fm matrices are created, so can release fm_struct
     CALL cp_fm_struct_release(fm_struct, error=error)
+
+
+!BEG:DEBUG:LT:2015/02/03
+    CALL cp_fm_struct_release(filter_fm_struct, error=error)
+!END:DEBUG:LT:2015/02/03
+
 
     ! construct filtered KS, S matrix and diagonalise
     DO ispin = 1, nspin
@@ -517,12 +537,23 @@ CONTAINS
        ! channel, perform ordinary diagonalisation
 
        ! convert DBCSR matrices to fm format
+
+!BEG:DEBUG:LT:2015/02/03
+       CALL copy_dbcsr_to_fm(matrix_filter(ispin)%matrix, fm_matrix_filter, error=error)
+!END:DEBUG:LT:2015/02/03
+
        CALL copy_dbcsr_to_fm(matrix_filtered_s, fm_matrix_filtered_s, error=error)
        CALL copy_dbcsr_to_fm(matrix_filtered_ks, fm_matrix_filtered_ks, error=error)
 
 !BEG:DEBUG:LT:2015/01/20
        write (LT_UNIT,*) "|LT| fb_env_do_diag: matrix_filter(1)%matrix: (DBCSR)"
        CALL cp_dbcsr_print(matrix_filter(1)%matrix, unit_nr=LT_UNIT, error=error)
+       write (LT_UNIT,*) "|LT| fb_env_do_diag: fm_matrix_filter: (FM)"
+       CALL cp_fm_write(matrix=fm_matrix_filter, &
+                        long_description=.TRUE., &
+                        local=.TRUE., &
+                        unit_nr=LT_UNIT, &
+                        error=error)
        write (LT_UNIT,*) "|LT| fb_env_do_diag: matrix_s(1)%matrix: (DBCSR):"
        CALL cp_dbcsr_print(matrix_s(1)%matrix, unit_nr=LT_UNIT, error=error)
        write (LT_UNIT,*) "|LT| fb_env_do_diag: matrix_filtered_s(1)%matrix: (DBCSR)"
@@ -596,6 +627,10 @@ CONTAINS
     CALL cp_fm_release(fm_matrix_filtered_s, error=error)
     CALL cp_fm_release(fm_matrix_filtered_ks, error=error)
     CALL cp_fm_release(fm_matrix_work, error=error)
+
+!BEG:DEBUG:LT:2015/02/03
+    CALL cp_fm_release(fm_matrix_filter, error=error)
+!END:DEBUG:LT:2015/02/03
 
     ! calculate filtered molecular orbital occupation numbers and fermi
     ! level etc
@@ -858,7 +893,7 @@ CONTAINS
        basis_set => basis_set_list(ikind)%gto_basis_set
        CALL get_gto_basis_set(gto_basis_set=basis_set, &
                               kind_radius=kind_radius)
-       rcut(ikind) = 0.2_dp * kind_radius
+       rcut(ikind) = kind_radius
     END DO
 
     CALL fb_env_set(fb_env=fb_env, &

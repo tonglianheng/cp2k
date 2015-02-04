@@ -1349,7 +1349,14 @@ CPSourceFileRef,&
            WRITE(unit=desc_unit,fmt="(a)",iostat=iostat) " ,"
            IF (my_long_description) THEN
               WRITE(unit=desc_unit,fmt="(a)",iostat=iostat) " local_data=("
-              CALL cp_2d_r_write(matrix%local_data,unit_nr=data_unit,error=error)
+!BEG:ORIG:LT:2015/02/03
+              ! CALL cp_2d_r_write(matrix%local_data,unit_nr=data_unit,error=error)
+!END:ORIG:LT:2015/02/03
+!BEG:DEBUG:LT:2015/02/03
+              CALL cp_2d_r_write(matrix%local_data, unit_nr=data_unit, &
+                                 el_format="f9.4", &
+                                 error=error)
+!END:DEBUG:LT:2015/02/03
               IF (desc_unit/=data_unit) THEN
                  WRITE(unit=desc_unit,fmt="(a)",iostat=iostat) &
                       "  written to file "//TRIM(filename)
