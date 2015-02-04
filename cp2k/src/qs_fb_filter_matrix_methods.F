@@ -498,13 +498,13 @@ CONTAINS
                                error)
 
  !BEG:DEBUG:LT:2015/01/20
-    write (LT_UNIT,*) "|LT| fb_fltrmat_add_blkcol: H_mat ="
-    CALL cp_dbcsr_print(H_mat, unit_nr=LT_UNIT, error=error)
-    write (LT_UNIT,*) "|LT| fb_fltrmat_add_blkcol: atomic_H ="
-    write (fmt,*) "(", SIZE(atomic_H,2), "f9.4",")"
-    DO ipair = 1, SIZE(atomic_H,1)
-       write (LT_UNIT,fmt=fmt) atomic_H(ipair,:)
-    END DO
+    ! write (LT_UNIT,*) "|LT| fb_fltrmat_add_blkcol: H_mat ="
+    ! CALL cp_dbcsr_print(H_mat, unit_nr=LT_UNIT, error=error)
+    ! write (LT_UNIT,*) "|LT| fb_fltrmat_add_blkcol: atomic_H ="
+    ! write (fmt,*) "(", SIZE(atomic_H,2), "f9.4",")"
+    ! DO ipair = 1, SIZE(atomic_H,1)
+    !    write (LT_UNIT,fmt=fmt) atomic_H(ipair,:)
+    ! END DO
  !END:DEBUG:LT:2015/01/20
 
     ! construct atomic matrix for S for atomic_halo
@@ -530,13 +530,13 @@ CONTAINS
                                error)
 
  !BEG:DEBUG:LT:2015/01/20
-    write (LT_UNIT,*) "|LT| fb_fltrmat_add_blkcol: S_mat ="
-    CALL cp_dbcsr_print(S_mat, unit_nr=LT_UNIT, error=error)
-    write (LT_UNIT,*) "|LT| fb_fltrmat_add_blkcol: atomic_S ="
-    write (fmt,*) "(", SIZE(atomic_S,2), "f9.4",")"
-    DO ipair = 1, SIZE(atomic_S,1)
-       write (LT_UNIT,fmt=fmt) atomic_S(ipair,:)
-    END DO
+    ! write (LT_UNIT,*) "|LT| fb_fltrmat_add_blkcol: S_mat ="
+    ! CALL cp_dbcsr_print(S_mat, unit_nr=LT_UNIT, error=error)
+    ! write (LT_UNIT,*) "|LT| fb_fltrmat_add_blkcol: atomic_S ="
+    ! write (fmt,*) "(", SIZE(atomic_S,2), "f9.4",")"
+    ! DO ipair = 1, SIZE(atomic_S,1)
+    !    write (LT_UNIT,fmt=fmt) atomic_S(ipair,:)
+    ! END DO
  !END:DEBUG:LT:2015/01/20
 
     ! construct the atomic filter matrix
@@ -551,20 +551,20 @@ CONTAINS
                                             atomic_filter_mat, &
                                             error)
 !BEG:DEBUG:LT:2015/01/20
-       write (LT_UNIT, *) "|LT| fb_fltrmat_add_blkcol: after call to fb_fltrmat_build_atomic_filrmat"
-       write (LT_UNIT, *) "|LT| fb_fltrmat_add_blkcol: atomic_S ="
-       write (fmt,*) "(", SIZE(atomic_S,2), "f9.4",")"
-       DO ii = 1, SIZE(atomic_S,1)
-          write (LT_UNIT,fmt=fmt) atomic_S(ii,:)
-       END DO
+       ! write (LT_UNIT, *) "|LT| fb_fltrmat_add_blkcol: after call to fb_fltrmat_build_atomic_filrmat"
+       ! write (LT_UNIT, *) "|LT| fb_fltrmat_add_blkcol: atomic_S ="
+       ! write (fmt,*) "(", SIZE(atomic_S,2), "f9.4",")"
+       ! DO ii = 1, SIZE(atomic_S,1)
+       !    write (LT_UNIT,fmt=fmt) atomic_S(ii,:)
+       ! END DO
 !END:DEBUG:LT:2015/01/20
 
 !BEG:DEBUG:LT:2015/01/20
-       write (LT_UNIT, *) "|LT| fb_fltrmat_add_blkcol: atomic_filter_mat ="
-       write (fmt,*) "(", SIZE(atomic_filter_mat,2), "f9.4",")"
-       DO ipair = 1, SIZE(atomic_filter_mat,1)
-          write (LT_UNIT,fmt=fmt) atomic_filter_mat(ipair,:)
-       END DO
+       ! write (LT_UNIT, *) "|LT| fb_fltrmat_add_blkcol: atomic_filter_mat ="
+       ! write (fmt,*) "(", SIZE(atomic_filter_mat,2), "f9.4",")"
+       ! DO ipair = 1, SIZE(atomic_filter_mat,1)
+       !    write (LT_UNIT,fmt=fmt) atomic_filter_mat(ipair,:)
+       ! END DO
 !END:DEBUG:LT:2015/01/20
 
     END IF
@@ -582,12 +582,12 @@ CONTAINS
        DO ipair = 1, send_pair_count(ipe)
 
 !BEG:DEBUG:LT:2015/01/29
-          write (LT_UNIT, *) "|LT| fb_fltrmat_add_blkcol: ipair = ", ipair
-          write (LT_UNIT, *) "|LT| fb_fltrmat_add_blkcol: SIZE(pairs_send) = ", SIZE(pairs_send)
-          write (LT_UNIT, *) "|LT| fb_fltrmat_add_blkcol: ipe = ", ipe
-          write (LT_UNIT, *) &
-                "|LT| fb_fltrmat_add_blkcol: pairs_send(send_pair_disps(ipe) + ipair) = ", &
-                pairs_send(send_pair_disps(ipe) + ipair)
+          ! write (LT_UNIT, *) "|LT| fb_fltrmat_add_blkcol: ipair = ", ipair
+          ! write (LT_UNIT, *) "|LT| fb_fltrmat_add_blkcol: SIZE(pairs_send) = ", SIZE(pairs_send)
+          ! write (LT_UNIT, *) "|LT| fb_fltrmat_add_blkcol: ipe = ", ipe
+          ! write (LT_UNIT, *) &
+          !       "|LT| fb_fltrmat_add_blkcol: pairs_send(send_pair_disps(ipe) + ipair) = ", &
+          !       pairs_send(send_pair_disps(ipe) + ipair)
 !END:DEBUG:LT:2015/01/29
 
           CALL fb_com_atom_pairs_decode(pairs_send(send_pair_disps(ipe) + ipair), &
@@ -610,90 +610,92 @@ CONTAINS
           ! do it column-wise one trial function at a time
 
 !BEG:DEBUG:LT:2015/01/20
-          write (LT_UNIT, *) "iatom_global, jatom_global", iatom_global, jatom_global
-          write (LT_UNIT, *) "iatom_in_halo, jatom_in_halo", iatom_in_halo, jatom_in_halo
-          write (LT_UNIT, *) &
-                "|LT| fb_fltrmat_add_blkcol: part_atomic_filter (iatom_in_halo, row_start)", &
-                iatom_in_halo, atomic_H_blk_row_start(iatom_in_halo)
-          part_mat_pointer_2 => atomic_filter_mat(atomic_H_blk_row_start(iatom_in_halo) : &
-                                                  atomic_H_blk_row_start(iatom_in_halo+1)-1, &
-                                                  1:ncols_atmatrix)
-          write (fmt,*) "(", SIZE(part_mat_pointer_2, 2), "f9.4",")"
-          DO ii = 1, SIZE(part_mat_pointer_2, 1)
-             write (LT_UNIT,fmt=fmt) part_mat_pointer_2(ii,:)
-          END DO
+          ! write (LT_UNIT, *) "iatom_global, jatom_global", iatom_global, jatom_global
+          ! write (LT_UNIT, *) "iatom_in_halo, jatom_in_halo", iatom_in_halo, jatom_in_halo
+          ! write (LT_UNIT, *) &
+          !       "|LT| fb_fltrmat_add_blkcol: part_atomic_filter (iatom_in_halo, row_start)", &
+          !       iatom_in_halo, atomic_H_blk_row_start(iatom_in_halo)
+          ! part_mat_pointer_2 => atomic_filter_mat(atomic_H_blk_row_start(iatom_in_halo) : &
+          !                                         atomic_H_blk_row_start(iatom_in_halo+1)-1, &
+          !                                         1:ncols_atmatrix)
+          ! write (fmt,*) "(", SIZE(part_mat_pointer_2, 2), "f9.4",")"
+          ! DO ii = 1, SIZE(part_mat_pointer_2, 1)
+          !    write (LT_UNIT,fmt=fmt) part_mat_pointer_2(ii,:)
+          ! END DO
 !END:DEBUG:LT:2015/01/20
 
 !BEG:DEBUG:LT:2015/01/20
-          write (LT_UNIT, *) "|LT| fb_fltrmat_add_blkcol: atomic_S ="
-          write (fmt,*) "(", SIZE(atomic_S,2), "f9.4",")"
-          DO ii = 1, SIZE(atomic_S,1)
-             write (LT_UNIT,fmt=fmt) atomic_S(ii,:)
-          END DO
+          ! write (LT_UNIT, *) "|LT| fb_fltrmat_add_blkcol: atomic_S ="
+          ! write (fmt,*) "(", SIZE(atomic_S,2), "f9.4",")"
+          ! DO ii = 1, SIZE(atomic_S,1)
+          !    write (LT_UNIT,fmt=fmt) atomic_S(ii,:)
+          ! END DO
 !END:DEBUG:LT:2015/01/20
 
           DO itrial = 1, ntfns(jkind)
 
 !BEG:DEBUG:LT:2015/01/20
-             write (LT_UNIT, *) "atomic_S_blk_col_start = ", atomic_S_blk_col_start
-             write (LT_UNIT, *) "part_atomic_s = (jatom_global, itrial)", &
-                                jatom_global, itrial
-             part_mat_pointer_1 => atomic_S(1 : nrows_atmatrix, &
-                                            atomic_S_blk_col_start(jatom_in_halo) + &
-                                            tfns(itrial,jkind) - 1)
-             DO ii = 1, SIZE(part_mat_pointer_1,1)
-                write (LT_UNIT,fmt="(1f10.4)") part_mat_pointer_1(ii)
-             END DO
+             ! write (LT_UNIT, *) "atomic_S_blk_col_start = ", atomic_S_blk_col_start
+             ! write (LT_UNIT, *) "part_atomic_s = (jatom_global, itrial)", &
+             !                    jatom_global, itrial
+             ! part_mat_pointer_1 => atomic_S(1 : nrows_atmatrix, &
+             !                                atomic_S_blk_col_start(jatom_in_halo) + &
+             !                                tfns(itrial,jkind) - 1)
+             ! DO ii = 1, SIZE(part_mat_pointer_1,1)
+             !    write (LT_UNIT,fmt="(1f10.4)") part_mat_pointer_1(ii)
+             ! END DO
 !END:DEBUG:LT:2015/01/20
 
              ind = send_disps(ipe) + send_sizes(ipe) + (itrial-1) * nrows_blk
 !BEG:ORIG:LT:2015/02/03
-             ! CALL BL_GEMV(TRANS = "N",                                           &
-             !              M      = nrows_blk,                                    &
-             !              N      = ncols_atmatrix,                               &
-             !              ALPHA  = 1.0_dp,                                       &
-             !              A      = atomic_filter_mat(                            &
-             !                         ! atomic_H_blk_row_start(iatom_in_halo):, :  &
-             !                         atomic_H_blk_row_start(iatom_in_halo) :     &
-             !                         atomic_H_blk_row_start(iatom_in_halo+1)-1,  &
-             !                         1 : ncols_atmatrix                          &
-             !                       ),                                            &
-             !              LDA    = nrows_blk,                                    &
-             !             ! LDA    = nrows_atmatrix,                               &
-             !              X      = atomic_S(                                     &
-             !                         1 : nrows_atmatrix,                         &
-             !                         atomic_S_blk_col_start(jatom_in_halo) +     &
-             !                         tfns(itrial,jkind) - 1                      &
-             !                       ),                                            &
-             !              INCX   = 1,                                            &
-             !              BETA   = 0.0_dp,                                       &
-             !              Y      = send_buf(ind + 1 : ind + nrows_blk),          &
-             !              INCY   = 1)
-!END:ORIG:LT:2015/02/03
              CALL BL_GEMV(TRANS = "N",                                           &
                           M      = nrows_blk,                                    &
                           N      = ncols_atmatrix,                               &
                           ALPHA  = 1.0_dp,                                       &
-                          A      = part_mat_pointer_2,                           &
+                          A      = atomic_filter_mat(                            &
+                                     ! atomic_H_blk_row_start(iatom_in_halo):, :  &
+                                     atomic_H_blk_row_start(iatom_in_halo) :     &
+                                     atomic_H_blk_row_start(iatom_in_halo+1)-1,  &
+                                     1 : ncols_atmatrix                          &
+                                   ),                                            &
                           LDA    = nrows_blk,                                    &
-                          X      = part_mat_pointer_1,                           &
+                         ! LDA    = nrows_atmatrix,                               &
+                          X      = atomic_S(                                     &
+                                     1 : nrows_atmatrix,                         &
+                                     atomic_S_blk_col_start(jatom_in_halo) +     &
+                                     tfns(itrial,jkind) - 1                      &
+                                   ),                                            &
                           INCX   = 1,                                            &
                           BETA   = 0.0_dp,                                       &
                           Y      = send_buf(ind + 1 : ind + nrows_blk),          &
                           INCY   = 1)
+!END:ORIG:LT:2015/02/03
+!BEG:DEBUG:LT:2015/02/04
+             ! CALL BL_GEMV(TRANS = "N",                                           &
+             !              M      = nrows_blk,                                    &
+             !              N      = ncols_atmatrix,                               &
+             !              ALPHA  = 1.0_dp,                                       &
+             !              A      = part_mat_pointer_2,                           &
+             !              LDA    = nrows_blk,                                    &
+             !              X      = part_mat_pointer_1,                           &
+             !              INCX   = 1,                                            &
+             !              BETA   = 0.0_dp,                                       &
+             !              Y      = send_buf(ind + 1 : ind + nrows_blk),          &
+             !              INCY   = 1)
+!END:DEBUG:LT:2015/02/04
           END DO ! itrial
 
 !BEG:DEBUG:LT:2015/02/03
-          write (LT_UNIT, *) "|LT| fb_fltrmat_add_blkcol: send_sizes = ", send_sizes
-          write (LT_UNIT, *) &
-                "|LT| fb_fltrmat_add_blkcol: send_buf (",iatom_global,",",jatom_global,"):"
-          DO ii = 1, nrows_blk
-             DO jj = 1, ncols_blk
-                write (UNIT=LT_UNIT,FMT="(f9.4)",ADVANCE="no") &
-                      send_buf(send_disps(ipe) + send_sizes(ipe) + ii + nrows_blk*(jj-1))
-             END DO ! jj
-             write (LT_UNIT,*) ""
-          END DO ! ii
+          ! write (LT_UNIT, *) "|LT| fb_fltrmat_add_blkcol: send_sizes = ", send_sizes
+          ! write (LT_UNIT, *) &
+          !       "|LT| fb_fltrmat_add_blkcol: send_buf (",iatom_global,",",jatom_global,"):"
+          ! DO ii = 1, nrows_blk
+          !    DO jj = 1, ncols_blk
+          !       write (UNIT=LT_UNIT,FMT="(f9.4)",ADVANCE="no") &
+          !             send_buf(send_disps(ipe) + send_sizes(ipe) + ii + nrows_blk*(jj-1))
+          !    END DO ! jj
+          !    write (LT_UNIT,*) ""
+          ! END DO ! ii
 !END:DEBUG:LT:2015/02/03
 
           send_sizes(ipe) = send_sizes(ipe) + nrows_blk * ncols_blk
@@ -701,7 +703,7 @@ CONTAINS
     END DO  ! ipe
 
 !BEG:DEBUG:LT:2015/02/03
-    write (LT_UNIT, *) "|LT| fb_fltrmat_add_blkcol: send_disps = ", send_disps
+    ! write (LT_UNIT, *) "|LT| fb_fltrmat_add_blkcol: send_disps = ", send_disps
 !END:DEBUG:LT:2015/02/03
 
 
@@ -758,17 +760,18 @@ CONTAINS
                                   recv_buf((ind+1) : (ind+nrows_blk*ncols_blk)))
 
 !BEG:DEBUG:LT:2015/02/03
-          write (LT_UNIT, *) &
-                "|LT| fb_fltrmat_add_blkcol: recv_buf (",iatom_global,",",jatom_global,"):"
-          write (LT_UNIT, *) recv_buf((ind+1) : (ind+nrows_blk*ncols_blk))
-          DO ii = 1, nrows_blk
-             DO jj = 1, ncols_blk
-                write (UNIT=LT_UNIT,FMT="(f9.4)",ADVANCE="no") &
-                      recv_buf(ind + ii + nrows_blk*(jj-1))
-             END DO ! jj
-             write (LT_UNIT,*) ""
-          END DO ! ii
+          ! write (LT_UNIT, *) &
+          !       "|LT| fb_fltrmat_add_blkcol: recv_buf (",iatom_global,",",jatom_global,"):"
+          ! write (LT_UNIT, *) recv_buf((ind+1) : (ind+nrows_blk*ncols_blk))
+          ! DO ii = 1, nrows_blk
+          !    DO jj = 1, ncols_blk
+          !       write (UNIT=LT_UNIT,FMT="(f9.4)",ADVANCE="no") &
+          !             recv_buf(ind + ii + nrows_blk*(jj-1))
+          !    END DO ! jj
+          !    write (LT_UNIT,*) ""
+          ! END DO ! ii
 !END:DEBUG:LT:2015/02/03
+
        recv_sizes(ipe) = recv_sizes(ipe) + nrows_blk * ncols_blk
        END DO ! ipair
     END DO ! ipe
@@ -1061,10 +1064,10 @@ CONTAINS
                                    fermi_level)
 
 !BEG:DEBUG:LT:2015/01/26
-    write (LT_UNIT,*) &
-          "|LT| fb_fltrmat_build_atomic_fltrmat: filter_function = ", filter_function
-    write (LT_UNIT,*) &
-          "|LT| fb_fltrmat_build_atomic_fltrmat: eigenvalues = ", eigenvalues
+    ! write (LT_UNIT,*) &
+    !       "|LT| fb_fltrmat_build_atomic_fltrmat: filter_function = ", filter_function
+    ! write (LT_UNIT,*) &
+    !       "|LT| fb_fltrmat_build_atomic_fltrmat: eigenvalues = ", eigenvalues
 !END:DEBUG:LT:2015/01/26
 
 
@@ -1083,49 +1086,49 @@ CONTAINS
     END DO ! jj
 
 !BEG:DEBUG:LT:2015/01/26
-    write (LT_UNIT, *) "|LT| fb_fltrmat_build_atomic_fltrmat: eigenvectors = "
-    write (fmt,*) "(", SIZE(eigenvectors,2), "f9.4", ")"
-    DO ii = 1, SIZE(eigenvectors,1)
-       write (LT_UNIT,fmt=fmt) eigenvectors(ii,:)
-    END DO
+    ! write (LT_UNIT, *) "|LT| fb_fltrmat_build_atomic_fltrmat: eigenvectors = "
+    ! write (fmt,*) "(", SIZE(eigenvectors,2), "f9.4", ")"
+    ! DO ii = 1, SIZE(eigenvectors,1)
+    !    write (LT_UNIT,fmt=fmt) eigenvectors(ii,:)
+    ! END DO
 !END:DEBUG:LT:2015/01/26
 
 !BEG:DEBUG:LT:2015/01/26
-    write (LT_UNIT, *) "|LT| fb_fltrmat_build_atomic_fltrmat: check orthonormality of eigenvectors"
-    ALLOCATE(inner_products(SIZE(eigenvectors,1),SIZE(eigenvectors,2)), STAT=stat)
-    inner_products = 0.0_dp
-    ALLOCATE(temp_mat(SIZE(eigenvectors,1),SIZE(eigenvectors,2)), STAT=stat)
-    temp_mat = 0.0_dp
-    DO jj = 1, SIZE(eigenvectors,2)
-       DO ii = 1, SIZE(eigenvectors,1)
-          DO kk = 1, SIZE(eigenvectors,2)
-             temp_mat(ii,jj) = temp_mat(ii,jj) + &
-                               eigenvectors(kk,ii) * atomic_S(kk,jj)
-          END DO
-       END DO
-    END DO
-    DO jj = 1, SIZE(eigenvectors,2)
-       DO ii = 1, SIZE(eigenvectors,1)
-          DO kk = 1, SIZE(eigenvectors,2)
-             inner_products(ii,jj) = inner_products(ii,jj) + &
-                                     temp_mat(ii,kk) * eigenvectors(kk,jj)
-          END DO
-       END DO
-    END DO
-    write (fmt,*) "(", SIZE(inner_products,2), "f9.4", ")"
-    DO ii = 1, SIZE(inner_products,1)
-       write (LT_UNIT,fmt=fmt) inner_products(ii,:)
-    END DO
-    DEALLOCATE(inner_products)
-    DEALLOCATE(temp_mat)
+    ! write (LT_UNIT, *) "|LT| fb_fltrmat_build_atomic_fltrmat: check orthonormality of eigenvectors"
+    ! ALLOCATE(inner_products(SIZE(eigenvectors,1),SIZE(eigenvectors,2)), STAT=stat)
+    ! inner_products = 0.0_dp
+    ! ALLOCATE(temp_mat(SIZE(eigenvectors,1),SIZE(eigenvectors,2)), STAT=stat)
+    ! temp_mat = 0.0_dp
+    ! DO jj = 1, SIZE(eigenvectors,2)
+    !    DO ii = 1, SIZE(eigenvectors,1)
+    !       DO kk = 1, SIZE(eigenvectors,2)
+    !          temp_mat(ii,jj) = temp_mat(ii,jj) + &
+    !                            eigenvectors(kk,ii) * atomic_S(kk,jj)
+    !       END DO
+    !    END DO
+    ! END DO
+    ! DO jj = 1, SIZE(eigenvectors,2)
+    !    DO ii = 1, SIZE(eigenvectors,1)
+    !       DO kk = 1, SIZE(eigenvectors,2)
+    !          inner_products(ii,jj) = inner_products(ii,jj) + &
+    !                                  temp_mat(ii,kk) * eigenvectors(kk,jj)
+    !       END DO
+    !    END DO
+    ! END DO
+    ! write (fmt,*) "(", SIZE(inner_products,2), "f9.4", ")"
+    ! DO ii = 1, SIZE(inner_products,1)
+    !    write (LT_UNIT,fmt=fmt) inner_products(ii,:)
+    ! END DO
+    ! DEALLOCATE(inner_products)
+    ! DEALLOCATE(temp_mat)
 !END:DEBUG:LT:2015/01/26
 
 !BEG:DEBUG:LT:2015/01/26
-    write (LT_UNIT, *) "|LT| fb_fltrmat_build_atomic_fltrmat: filtered_eigenvalues = "
-    write (fmt,*) "(", SIZE(filtered_eigenvectors,2), "f9.4", ")"
-    DO ii = 1, SIZE(filtered_eigenvectors,1)
-       write (LT_UNIT,fmt=fmt) filtered_eigenvectors(ii,:)
-    END DO
+    ! write (LT_UNIT, *) "|LT| fb_fltrmat_build_atomic_fltrmat: filtered_eigenvalues = "
+    ! write (fmt,*) "(", SIZE(filtered_eigenvectors,2), "f9.4", ")"
+    ! DO ii = 1, SIZE(filtered_eigenvectors,1)
+    !    write (LT_UNIT,fmt=fmt) filtered_eigenvectors(ii,:)
+    ! END DO
 !END:DEBUG:LT:2015/01/26
 
     DEALLOCATE(filter_function, STAT=stat)
@@ -1147,11 +1150,11 @@ CONTAINS
                  LDC    = mat_dim)
 
 !BEG:DEBUG:LT:2015/01/26
-    write (LT_UNIT, *) "|LT| fb_fltrmat_build_atomic_fltrmat: atomic_filter_mat = "
-    write (fmt,*) "(", SIZE(atomic_filter_mat,2), "f9.4", ")"
-    DO ii = 1, SIZE(atomic_filter_mat,1)
-       write (LT_UNIT,fmt=fmt) atomic_filter_mat(ii,:)
-    END DO
+    ! write (LT_UNIT, *) "|LT| fb_fltrmat_build_atomic_fltrmat: atomic_filter_mat = "
+    ! write (fmt,*) "(", SIZE(atomic_filter_mat,2), "f9.4", ")"
+    ! DO ii = 1, SIZE(atomic_filter_mat,1)
+    !    write (LT_UNIT,fmt=fmt) atomic_filter_mat(ii,:)
+    ! END DO
 !END:DEBUG:LT:2015/01/26
 
     DEALLOCATE(filtered_eigenvectors, STAT=stat)
