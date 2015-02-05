@@ -14,7 +14,6 @@ MODULE qs_fb_env_types
                                      fb_trial_fns_has_data, &
                                      fb_trial_fns_associate
 
-
 #include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
@@ -55,6 +54,8 @@ MODULE qs_fb_env_types
   !> \param auto_cutoff_scale : scale multiplied to max atomic orbital
   !>                            radii used for automatic construction of
   !>                            rcut
+  !> \param id_nr : unique id of this object
+  !> \param ref_count : reference counter of this object
   !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
   ! **********************************************************************
   TYPE fb_env_data
