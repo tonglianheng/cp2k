@@ -61,9 +61,6 @@ MODULE qs_fb_filter_matrix_methods
                                 cp_dbcsr_get_stored_coordinates, &
                                 cp_dbcsr_put_block
   USE fermi_utils, ONLY: Fermi, FermiFixed
-  USE lapack, ONLY: dsygv
-  USE f77_blas_generic, ONLY: BL_GEMM, &
-                              BL_GEMV
   USE string_utilities, ONLY: compress, &
                               uppercase
   USE message_passing, ONLY: mp_alltoall
@@ -688,25 +685,25 @@ CONTAINS
 
              ind = send_disps(ipe) + send_sizes(ipe) + (itrial-1) * nrows_blk
 !BEG:ORIG:LT:2015/02/03
-             CALL BL_GEMV(TRANS = "N",                                           &
-                          M      = nrows_blk,                                    &
-                          N      = ncols_atmatrix,                               &
-                          ALPHA  = 1.0_dp,                                       &
-                          A      = atomic_filter_mat(                            &
-                                     atomic_H_blk_row_start(iatom_in_halo) :     &
-                                     atomic_H_blk_row_start(iatom_in_halo+1)-1,  &
-                                     1 : ncols_atmatrix                          &
-                                   ),                                            &
-                          LDA    = nrows_blk,                                    &
-                          X      = atomic_S(                                     &
-                                     1 : nrows_atmatrix,                         &
-                                     atomic_S_blk_col_start(jatom_in_halo) +     &
-                                     tfns(itrial,jkind) - 1                      &
-                                   ),                                            &
-                          INCX   = 1,                                            &
-                          BETA   = 0.0_dp,                                       &
-                          Y      = send_buf(ind + 1 : ind + nrows_blk),          &
-                          INCY   = 1)
+             CALL dgemv("N",                                           &
+                         nrows_blk,                                    &
+                         ncols_atmatrix,                               &
+                         1.0_dp,                                       &
+                         atomic_filter_mat(                            &
+                           atomic_H_blk_row_start(iatom_in_halo) :     &
+                           atomic_H_blk_row_start(iatom_in_halo+1)-1,  &
+                           1 : ncols_atmatrix                          &
+                         ),                                            &
+                         nrows_blk,                                    &
+                         atomic_S(                                     &
+                           1 : nrows_atmatrix,                         &
+                           atomic_S_blk_col_start(jatom_in_halo) +     &
+                           tfns(itrial,jkind) - 1                      &
+                         ),                                            &
+                         1,                                            &
+                         0.0_dp,                                       &
+                         send_buf(ind + 1 : ind + nrows_blk),          &
+                         1)
 !END:ORIG:LT:2015/02/03
 !BEG:REPL:LT:2015/02/04
              ! CALL BL_GEMV(TRANS = "N",                                           &
@@ -1062,18 +1059,18 @@ CONTAINS
     ALLOCATE(eigenvectors(SIZE(atomic_H,1),SIZE(atomic_H,2)), STAT=stat)
     CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
     eigenvectors = atomic_H
-    CALL dsygv(ITYPE = 1,             &
-               JOBZ  = 'V',           &
-               UPLO  = 'U',           &
-               N     = mat_dim,       &
-               A     = eigenvectors,  &
-               LDA   = mat_dim,       &
-               B     = atomic_S_copy, &
-               LDB   = mat_dim,       &
-               W     = eigenvalues,   &
-               WORK  = work,          &
-               LWORK = -1,            &
-               INFO  = info)
+    CALL dsygv(1,             &
+               'V',           &
+               'U',           &
+               mat_dim,       &
+               eigenvectors,  &
+               mat_dim,       &
+               atomic_S_copy, &
+               mat_dim,       &
+               eigenvalues,   &
+               work,          &
+               -1,            &
+               info)
     work_array_size = work(1)
     ! now allocate work array
     DEALLOCATE(work, STAT=stat)
@@ -1084,18 +1081,18 @@ CONTAINS
     ! do calculation
     atomic_S_copy = atomic_S
     eigenvectors = atomic_H
-    CALL dsygv(ITYPE = 1,               &
-               JOBZ  = 'V',             &
-               UPLO  = 'U',             &
-               N     = mat_dim,         &
-               A     = eigenvectors,    &
-               LDA   = mat_dim,         &
-               B     = atomic_S_copy,   &
-               LDB   = mat_dim,         &
-               W     = eigenvalues,     &
-               WORK  = work,            &
-               LWORK = work_array_size, &
-               INFO  = info)
+    CALL dsygv(1,               &
+               'V',             &
+               'U',             &
+               mat_dim,         &
+               eigenvectors,    &
+               mat_dim,         &
+               atomic_S_copy,   &
+               mat_dim,         &
+               eigenvalues,     &
+               work,            &
+               work_array_size, &
+               info)
     ! check if diagonalisation is successful
     IF (info .NE. 0) THEN
        WRITE (*,*) "DSYGV ERROR MESSAGE: ", info
@@ -1188,19 +1185,19 @@ CONTAINS
     CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
 
     ! construct atomic filter matrix
-    CALL BL_GEMM(TRANSA = "N",                   &
-                 TRANSB = "T",                   &
-                 M      = mat_dim,               &
-                 N      = mat_dim,               &
-                 K      = mat_dim,               &
-                 ALPHA  = 1.0_dp,                &
-                 A      = filtered_eigenvectors, &
-                 LDA    = mat_dim,               &
-                 B      = eigenvectors,          &
-                 LDB    = mat_dim,               &
-                 BETA   = 0.0_dp,                &
-                 C      = atomic_filter_mat,     &
-                 LDC    = mat_dim)
+    CALL dgemm("N",                   &
+               "T",                   &
+               mat_dim,               &
+               mat_dim,               &
+               mat_dim,               &
+               1.0_dp,                &
+               filtered_eigenvectors, &
+               mat_dim,               &
+               eigenvectors,          &
+               mat_dim,               &
+               0.0_dp,                &
+               atomic_filter_mat,     &
+               mat_dim)
 
 !BEG:DEBUG:LT:2015/01/26
     ! write (LT_UNIT, *) "|LT| fb_fltrmat_build_atomic_fltrmat: atomic_filter_mat = "
