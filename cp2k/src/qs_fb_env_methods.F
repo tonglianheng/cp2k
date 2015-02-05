@@ -133,8 +133,24 @@ MODULE qs_fb_env_methods
 CONTAINS
 
 
-  SUBROUTINE fb_env_do_diag(fb_env, qs_env, matrix_ks, matrix_s, scf_section, &
-                            diis_step, error)
+  ! **********************************************************************
+  !> \brief Do filtered matrix method diagonalisation
+  !> \param fb_env : the filter matrix environment
+  !> \param qs_env : quickstep environment
+  !> \param matrix_ks : DBCSR system (unfiltered) input KS matrix
+  !> \param matrix_s  : DBCSR system (unfiltered) input overlap matrix
+  !> \param scf_section : SCF input section
+  !> \param diis_step : whether we are doing a DIIS step
+  !> \param error : cp2k error container
+  !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
+  ! **********************************************************************
+  SUBROUTINE fb_env_do_diag(fb_env, &
+                            qs_env, &
+                            matrix_ks, &
+                            matrix_s, &
+                            scf_section, &
+                            diis_step, &
+                            error)
     TYPE(fb_env_obj), INTENT(in) :: fb_env
     TYPE(qs_environment_type), POINTER :: qs_env
     TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER :: matrix_ks
@@ -152,8 +168,7 @@ CONTAINS
                filtered_nfullrowsORcols_total, &
                nelectron, nfullrows_total, nfullcols_total, &
                homo_filtered, lfomo_filtered, &
-               nmo_filtered, max_nelectron, &
-               nmo, my_nmo
+               nmo_filtered, nmo, my_nmo
     REAL(kind=dp) :: diis_error, eps_diis
     REAL(kind=dp) :: fermi_level, maxocc, flexible_electron_count, &
                      filter_temp, mu_filtered, KTS_filtered
@@ -295,15 +310,8 @@ CONTAINS
 !TODO:LT:2015/01/19 can move the above into the outer MD loop sections?
 
     ! construct trial functions
-    max_nelectron = 0
-    DO ispin = 1, nspin
-       CALL get_mo_set(mo_set=mos(ispin)%mo_set, &
-                       nelectron=nelectron, &
-                       maxocc=maxocc)
-       max_nelectron = MAX(max_nelectron, nelectron)
-    END DO
-    CALL fb_env_build_trial_fns_auto(fb_env, qs_env, REAL(max_nelectron,dp), &
-                                     maxocc, error)
+    CALL get_mo_set(mo_set=mos(1)%mo_set, maxocc=maxocc)
+    CALL fb_env_build_trial_fns_auto(fb_env, qs_env, maxocc, error)
     CALL fb_env_get(fb_env=fb_env, &
                     trial_fns=trial_fns, &
                     error=error)
@@ -822,6 +830,13 @@ CONTAINS
   END SUBROUTINE fb_env_do_diag
 
 
+  ! **********************************************************************
+  !> \brief Read input sections for filter matrix method
+  !> \param fb_env : the filter matrix environment
+  !> \param scf_section : SCF input section
+  !> \param error : cp2k error container
+  !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
+  ! **********************************************************************
   SUBROUTINE fb_env_read_input(fb_env, scf_section, error)
 
     TYPE(fb_env_obj), INTENT(in) :: fb_env
@@ -859,7 +874,15 @@ CONTAINS
   END SUBROUTINE fb_env_read_input
 
 
-
+  ! **********************************************************************
+  !> \brief Automatically generate the cutoff radii of atoms used for
+  !>        constructing the atomic halos, based on basis set cutoff
+  !>        ranges for each kind
+  !> \param fb_env : the filter matrix environment
+  !> \param qs_env : quickstep environment
+  !> \param error : cp2k error container
+  !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
+  ! **********************************************************************
   SUBROUTINE fb_env_build_rcut_auto(fb_env, qs_env, error)
     TYPE(fb_env_obj), INTENT(in) :: fb_env
     TYPE(qs_environment_type), POINTER :: qs_env
@@ -930,7 +953,10 @@ CONTAINS
   !> \brief Builds an fb_atomic_halo_list object using information
   !>        from fb_env
   !> \param fb_env: the fb_env object
-  !> \param error: CP2K data container for error logging
+  !> \param qs_env : quickstep environment (need this to access particle)
+  !>                 positions and their kinds as well as which particles
+  !>                 are local to this process
+  !> \param error: cp2k error container
   !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
   ! **********************************************************************
   SUBROUTINE fb_env_build_atomic_halos(fb_env, qs_env, error)
@@ -1115,12 +1141,20 @@ CONTAINS
   END SUBROUTINE fb_env_build_atomic_halos
 
 
-
-  SUBROUTINE fb_env_build_trial_fns_auto(fb_env, qs_env, nelectrons, maxocc, error)
+  ! **********************************************************************
+  !> \brief Autoatically construct the trial functiosn used for generating
+  !>        the filter matrix. It tries to use the single zeta subset from
+  !>        the system GTO basis set as the trial functions
+  !> \param fb_env : the filter matrix environment
+  !> \param qs_env : quickstep environment
+  !> \param maxocc : maximum occupancy for an orbital
+  !> \param error : cp2k error container
+  !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
+  ! **********************************************************************
+  SUBROUTINE fb_env_build_trial_fns_auto(fb_env, qs_env, maxocc, error)
 
     TYPE(fb_env_obj), INTENT(in) :: fb_env
     TYPE(qs_environment_type), POINTER :: qs_env
-    REAL(KIND=dp), INTENT(in) :: nelectrons
     REAL(KIND=dp), INTENT(in) :: maxocc
     TYPE(cp_error_type), INTENT(INOUT) :: error
 
@@ -1130,12 +1164,11 @@ CONTAINS
     LOGICAL :: failure
     TYPE(fb_trial_fns_obj) :: trial_fns
     TYPE(qs_kind_type), DIMENSION(:), POINTER :: qs_kind_set
-    TYPE(atomic_kind_type), DIMENSION(:), POINTER :: atomic_kind_set
     TYPE(gto_basis_set_p_type), DIMENSION(:), POINTER :: basis_set_list
     TYPE(gto_basis_set_type), POINTER :: basis_set
     INTEGER :: basis_set_id, old_lshell, iset, nset, ikind, nkinds, &
                ishell, lshell, icgf, itrial, max_n_trial, counter, &
-               ico, zz, stat
+               ico, stat
     INTEGER, DIMENSION(:), POINTER :: nfunctions, lmax, nshell
     INTEGER, DIMENSION(:,:), POINTER :: functions
 
@@ -1156,8 +1189,7 @@ CONTAINS
 
     failure = .FALSE.
     CPPrecondition(fb_env_has_data(fb_env), cp_failure_level, routineP, error, failure)
-    NULLIFY(nfunctions, functions, basis_set, basis_set_list, &
-            atomic_kind_set, qs_kind_set)
+    NULLIFY(nfunctions, functions, basis_set, basis_set_list, qs_kind_set)
     CALL fb_trial_fns_nullify(trial_fns)
 
     ! create a new trial_fn object
@@ -1165,7 +1197,6 @@ CONTAINS
 
     CALL get_qs_env(qs_env=qs_env, &
                     qs_kind_set=qs_kind_set, &
-                    atomic_kind_set=atomic_kind_set, &
                     error=error)
 
     ! reading from the other parts of the code, it seemed that
@@ -1198,9 +1229,6 @@ CONTAINS
                               nset=nset, &
                               lmax=lmax, &
                               nshell=nshell)
-       ! CALL get_atomic_kind(atomic_kind=atomic_kind_set(ikind), &
-       !                      z=zz)
-
        CALL get_qs_kind(qs_kind=qs_kind_set(ikind), &
                         zeff=zeff)
 
@@ -1252,10 +1280,6 @@ CONTAINS
                               nset=nset, &
                               lmax=lmax, &
                               nshell=nshell)
-
-       ! CALL get_atomic_kind(atomic_kind=atomic_kind_set(ikind), &
-       !                      z=zz)
-
        CALL get_qs_kind(qs_kind=qs_kind_set(ikind), &
                         zeff=zeff)
 
@@ -1324,6 +1348,17 @@ CONTAINS
   END SUBROUTINE fb_env_build_trial_fns_auto
 
 
+  ! **********************************************************************
+  !> \brief Copy the sparse structure of a DBCSR matrix to another, this
+  !>        means the other matrix will have the same number of blocks
+  !>        and their corresponding logical locations allocated, although
+  !>        the blocks does not have to be the same size as the original
+  !> \param matrix_out : DBCSR matrix whose blocks are to be allocated
+  !> \param matrix_in  : DBCSR matrix with exising sparse structure that
+  !>                     is to be copied
+  !> \param error : cp2k error container
+  !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
+  ! **********************************************************************
   SUBROUTINE fb_dbcsr_copy_sparse_struct(matrix_out, matrix_in, error)
 
     TYPE(cp_dbcsr_type), INTENT(in) :: matrix_in
@@ -1334,7 +1369,6 @@ CONTAINS
                                    routineP = moduleN//':'//routineN
 
     LOGICAL :: failure
-    CHARACTER(LEN=1)                         :: symmetry
     TYPE(cp_dbcsr_iterator) :: iter
     INTEGER :: iatom, jatom, iblk, nblks, stat
     REAL(dp), DIMENSION(:, :), POINTER :: mat_block
@@ -1364,11 +1398,7 @@ CONTAINS
     iblk = 0
     CALL cp_dbcsr_iterator_start(iter, matrix_in)
     DO WHILE (cp_dbcsr_iterator_blocks_left(iter))
-       CALL cp_dbcsr_iterator_next_block(iter, &
-                                         iatom, &
-                                         jatom, &
-                                         mat_block, &
-                                         iblk)
+       CALL cp_dbcsr_iterator_next_block(iter, iatom, jatom, mat_block, iblk)
 
 !BEG:DEBUG:LT:2015/02/02
        ! write (LT_UNIT,*) "|LT| fb_dbcsr_copy_sparse_struct: iblk = ", iblk
@@ -1393,6 +1423,15 @@ CONTAINS
   END SUBROUTINE fb_dbcsr_copy_sparse_struct
 
 
+  ! **********************************************************************
+  !> \brief Write out parameters used for the filter matrix method to
+  !>        output
+  !> \param fb_env : the filter matrix environment
+  !> \param qs_env : quickstep environment
+  !> \param scf_section : SCF input section
+  !> \param error : cp2k error container
+  !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
+  ! **********************************************************************
   SUBROUTINE fb_env_write_info(fb_env, qs_env, scf_section, error)
     TYPE(fb_env_obj), INTENT(in) :: fb_env
     TYPE(qs_environment_type), POINTER :: qs_env
