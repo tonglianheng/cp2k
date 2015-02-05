@@ -427,7 +427,7 @@ CONTAINS
   SUBROUTINE fb_atomic_halo_sort(atomic_halo, error)
     TYPE(fb_atomic_halo_obj), INTENT(in) :: atomic_halo
     TYPE(cp_error_type), INTENT(inout) :: error
-    
+
     CHARACTER(len=*), PARAMETER :: routineN = 'fb_atomic_halo_sort', &
                                    routineP = moduleN//':'//routineN
 
