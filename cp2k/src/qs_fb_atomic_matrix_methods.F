@@ -80,6 +80,7 @@ CONTAINS
   !> \param blk_col_start : first col in each atomic blk col in the
   !>                        atomic matrix
   !> \param error : the data container for CP2K error logs
+  !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
   ! **********************************************************************
   SUBROUTINE fb_atmatrix_calc_size(dbcsr_mat, &
                                    atomic_halo, &
@@ -140,6 +141,20 @@ CONTAINS
   !>        corresponding to the matrix blocks that nees to be included
   !>        in the atomic matrix. The atomic matrix upon input should be
   !>        a null pointer
+  !> \param dbcsr_mat : the DBCSR matrix the atomic matrix is to be
+  !>                    constructed from
+  !> \param atomic_halo : the atomic halo conrresponding to this atomic
+  !>                      matrix
+  !> \param para_env : cp2k parallel environment
+  !> \param atomic_matrix : the atomic matrix to be constructed, it should
+  !>                        have already been allocated prior entering
+  !>                        this subroutine
+  !> \param blk_row_start : first row in each atomic blk row in the
+  !>                        atomic matrix
+  !> \param blk_col_start : first col in each atomic blk col in the
+  !>                        atomic matrix
+  !> \param error : the data container for CP2K error logs
+  !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
   ! **********************************************************************
   SUBROUTINE fb_atmatrix_construct(dbcsr_mat, &
                                    atomic_halo, &
@@ -166,11 +181,10 @@ CONTAINS
                                           send_pair_count, send_pair_disps, &
                                           recv_sizes, recv_disps, &
                                           recv_pair_count, recv_pair_disps
-    ! INTEGER, DIMENSION(:), ALLOCATABLE :: first_row, last_row, first_col, last_col
     REAL(KIND=dp), DIMENSION(:), ALLOCATABLE :: send_buf, recv_buf
     REAL(KIND=dp), DIMENSION(:,:), POINTER :: mat_block
     INTEGER :: ipair, npairs_send, npairs_recv, pe, nblkrows_total, &
-               nblkcols_total, arow, acol, me, ipe, ii, jj, ind, stat, &
+               nblkcols_total, arow, acol, ipe, ii, jj, ind, stat, &
                send_encode, recv_encode, nhalos, iatom, jatom, &
                iatom_in_halo, jatom_in_halo, numprocs, nrows_blk, ncols_blk
     INTEGER, DIMENSION(:), POINTER :: row_block_size_data, &
@@ -220,7 +234,6 @@ CONTAINS
 
     ! get para_env info
     numprocs = para_env%num_pe
-    ! me = para_env%mepos + 1   ! my process id, starting counting from 1
 
     ! get dbcsr row and col block sizes
     row_block_size_data => array_data(cp_dbcsr_row_block_sizes(dbcsr_mat))
@@ -276,95 +289,13 @@ CONTAINS
     ALLOCATE(recv_buf(SUM(recv_sizes)), STAT=stat)
     CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
 
-
-
 !BEG:DEBUG:LT:2015/01/25
     ! write (LT_UNIT,*) "|LT| fb_atmatrix_construct: npairs_send = ", npairs_send
     ! write (LT_UNIT,*) "|LT| fb_atmatrix_construct: npairs_recv = ", npairs_recv
 !END:DEBUG:LT:2015/01/25
 
-
-
-    ! ! obtain number of blocks in the DBCSR matrix and the
-    ! ! corresponding offsets in the data_area of the DBCSR matrix
-    ! CALL cp_dbcsr_get_info(dbcsr_mat, &
-    !                        nblkrows_total=nblkrows_total, &
-    !                        nblkcols_total=nblkcols_total)
-    ! ALLOCATE(first_row(nblkrows_total), last_row(nblkrows_total), &
-    !          first_col(nblkcols_total), last_col(nblkcols_total), &
-    !          STAT=stat)
-    ! CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
-    ! CALL convert_sizes_to_offsets(array_data(cp_dbcsr_row_block_sizes(dbcsr_mat)), &
-    !                               first_row, last_row)
-    ! CALL convert_sizes_to_offsets(array_data(cp_dbcsr_col_block_sizes(dbcsr_mat)), &
-    !                               first_col, last_col)
-
-    ! ! setup send buffer sizes
-    ! CALL fb_com_atom_pairs_get(atom_pairs=atom_pairs_send, &
-    !                            pairs=pairs_send, &
-    !                            npairs=npairs_send, &
-    !                            natoms_encode=send_encode, &
-    !                            error=error)
-    ! send_sizes = 0
-    ! send_pair_count = 0
-    ! DO ipair = 1, npairs_send
-    !    ! decode processor and (iatom, jatom) information
-    !    CALL fb_com_atom_pairs_decode(pairs_send(ipair), &
-    !                                  pe, iatom, jatom, send_encode)
-    !    pe = pe + 1 ! we need proc to count from 1
-    !    nrows_blk = last_row(iatom) - first_row(iatom) + 1
-    !    ncols_blk = last_col(jatom) - first_col(jatom) + 1
-    !    send_sizes(pe) = send_sizes(pe) + nrows_blk * ncols_blk
-    !    send_pair_count(pe) = send_pair_count(pe) + 1
-    ! END DO
-    ! ! calculate displacements of the data of each destibation pe in
-    ! ! send buffer and in the list of pairs to be sent
-    ! send_disps = 0
-    ! send_pair_disps = 0
-    ! DO ipe = 2, numprocs
-    !    send_disps(ipe) = send_disps(ipe-1) + send_sizes(ipe-1)
-    !    send_pair_disps(ipe) = send_pair_disps(ipe-1) + send_pair_count(ipe-1)
-    ! END DO
-    ! ! allocate send buffer
-    ! ALLOCATE(send_buf(SUM(send_sizes)), STAT=stat)
-    ! CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
-
-
-    ! ! similarly set up recieve buffer
-    ! CALL fb_com_atom_pairs_get(atom_pairs=atom_pairs_recv, &
-    !                            pairs=pairs_recv, &
-    !                            npairs=npairs_recv, &
-    !                            natoms_encode=recv_encode, &
-    !                            error=error)
-    ! recv_sizes = 0
-    ! recv_pair_count = 0
-    ! DO ipair = 1, npairs_recv
-    !    ! decode processor and (iatom, jatom) information
-    !    CALL fb_com_atom_pairs_decode(pairs_recv(ipair), &
-    !                                  pe, iatom, jatom, recv_encode)
-    !    pe = pe + 1 ! we need proc to count from 1
-    !    nrows_blk = last_row(iatom) - first_row(iatom) + 1
-    !    ncols_blk = last_col(jatom) - first_col(jatom) + 1
-    !    recv_sizes(pe) = recv_sizes(pe) + nrows_blk * ncols_blk
-    !    recv_pair_count(pe) = recv_pair_count(pe) + 1
-    ! END DO
-    ! ! calculate displacements of the data of each destibation pe in
-    ! ! recv buffer and in the list of pairs to be sent
-    ! recv_disps = 0
-    ! recv_pair_disps = 0
-    ! DO ipe = 2, numprocs
-    !    recv_disps(ipe) = recv_disps(ipe-1) + recv_sizes(ipe-1)
-    !    recv_pair_disps(ipe) = recv_pair_disps(ipe-1) + recv_pair_count(ipe-1)
-    ! END DO
-    ! ! allocate recv buffer
-    ! ALLOCATE(recv_buf(SUM(recv_sizes)), STAT=stat)
-    ! CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
-
-
-
     ! do packing
     DO ipe = 1, numprocs
-!       IF (ipe == me) CYCLE ! no need to send to self
        ! need to reuse send_sizes as an accumulative displacement, so recalculate
        send_sizes(ipe) = 0
        DO ipair = 1, send_pair_count(ipe)
@@ -422,7 +353,6 @@ CONTAINS
 
     ! do unpacking
     DO ipe = 1, numprocs
-!       IF (ipe == me) CYCLE
        recv_sizes(ipe) = 0
        DO ipair = 1, recv_pair_count(ipe)
           CALL fb_com_atom_pairs_decode(pairs_recv(recv_pair_disps(ipe) + ipair), &
@@ -488,15 +418,28 @@ CONTAINS
     CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
     DEALLOCATE(recv_pair_disps, STAT=stat)
     CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
-    ! DEALLOCATE(first_row, last_row, first_col, last_col, STAT=stat)
-    ! CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
-
     CALL fb_com_atom_pairs_release(atom_pairs_send, error)
     CALL fb_com_atom_pairs_release(atom_pairs_recv, error)
 
   END SUBROUTINE fb_atmatrix_construct
 
 
+
+  ! **********************************************************************
+  !> \brief generate list of blocks (atom pairs) of a DBCSR matrix to be
+  !>        sent and recived in order to construct an atomic matrix
+  !>        corresponding to a given atomic halo
+  !> \param dbcsr_mat : The DBCSR matrix the atom blocks come from
+  !> \param atomic_halo : the atomic halo used to construct the atomic
+  !>                      matrix
+  !> \param para_env : cp2k parallel environment
+  !> \param atom_pairs_send : list of atom blocks from local DBCSR matrix
+  !>                          data to be sent
+  !> \param atom_pairs_recv : list of atom blocks from remote DBCSR matrix
+  !>                          data to be recveived
+  !> \param error : cp2k error container
+  !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
+  ! **********************************************************************
   SUBROUTINE fb_atmatrix_generate_com_pairs(dbcsr_mat, &
                                             atomic_halo, &
                                             para_env, &
