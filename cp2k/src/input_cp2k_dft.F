@@ -6446,6 +6446,7 @@ CONTAINS
   !> \brief Input section for filter matrix diagonalisation method
   !> \param section : section to be created
   !> \param error   : cp2k error container
+  !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
   ! *****************************************************************************
   SUBROUTINE create_filtermatrix_section(section, error)
     TYPE(section_type), POINTER              :: section
