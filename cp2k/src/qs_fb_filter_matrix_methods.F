@@ -15,10 +15,8 @@ MODULE qs_fb_filter_matrix_methods
                                 array_data, &
                                 dbcsr_type_no_symmetry, &
                                 dbcsr_distribution_obj, &
-!BEG:DEBUG:LT:2015/01/20
-                                cp_dbcsr_print, &
-!END:DEBUG:LT:2015/01/20
-                                convert_sizes_to_offsets
+                                convert_sizes_to_offsets, &
+                                cp_dbcsr_print
   USE qs_fb_atomic_halo_types, ONLY: fb_atomic_halo_obj, &
                                      fb_atomic_halo_create, &
                                      fb_atomic_halo_nullify, &
@@ -27,10 +25,8 @@ MODULE qs_fb_filter_matrix_methods
                                      fb_atomic_halo_set, &
                                      fb_atomic_halo_list_obj, &
                                      fb_atomic_halo_list_get, &
-                                     fb_atomic_halo_atom_global2halo, &
-!BEG:DEBUG:LT:2015/01/30
-                                     fb_atomic_halo_list_has_data
-!END:DEBUG:LT:2015/01/30
+                                     fb_atomic_halo_list_has_data, &
+                                     fb_atomic_halo_atom_global2halo
   USE qs_fb_trial_fns_types, ONLY: fb_trial_fns_obj, &
                                    fb_trial_fns_get
   USE qs_fb_atomic_matrix_methods, ONLY: fb_atmatrix_calc_size, &
@@ -65,8 +61,6 @@ MODULE qs_fb_filter_matrix_methods
                                 cp_dbcsr_get_stored_coordinates, &
                                 cp_dbcsr_put_block
   USE fermi_utils, ONLY: Fermi, FermiFixed
-  ! USE qs_mo_types, ONLY: mo_set_type, &
-  !                        get_mo_set
   USE lapack, ONLY: dsygv
   USE f77_blas_generic, ONLY: BL_GEMM, &
                               BL_GEMV
@@ -91,6 +85,28 @@ MODULE qs_fb_filter_matrix_methods
 
 CONTAINS
 
+
+  ! **********************************************************************
+  !> \brief Build the filter matrix
+  !> \param H_mat : DBCSR system KS matrix
+  !> \param S_mat : DBCSR system overlap matrix
+  !> \param atomic_halos : list of all local atomic halos, each halo gives
+  !>                       one atomic matrix and contributes to one blk
+  !>                       col to the filter matrix
+  !> \param trial_funs : the trial functions to be used to shrink the
+  !>                     size of the new "filtered" basis
+  !> \param para_env : cp2k parallel environment
+  !> \param particle_set : set of all particles in the system
+  !> \param fermi_level : the fermi level used for defining the filter
+  !>                      function, which is a Fermi-Dirac distribution
+  !>                      function
+  !> \param filter_temp : the filter temperature used for defining the
+  !>                      filter function
+  !> \param name        : name given to the filter matrix
+  !> \param filter_mat  : DBCSR format filter matrix
+  !> \prarm error       : cp2k error container
+  !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
+  ! **********************************************************************
   SUBROUTINE fb_fltrmat_build(H_mat, &
                               S_mat, &
                               atomic_halos, &
@@ -197,8 +213,8 @@ CONTAINS
                          error=error)
 
 !BEG:DEBUG:LT:2015/01/30
-    write (LT_UNIT,*) "|LT| fb_fltrmat_build: atomic_halos associated = ", &
-          fb_atomic_halo_list_has_data(atomic_halos)
+    ! write (LT_UNIT,*) "|LT| fb_fltrmat_build: atomic_halos associated = ", &
+    !       fb_atomic_halo_list_has_data(atomic_halos)
 !END:DEBUG:LT:2015/01/30
 
     CALL fb_atomic_halo_list_get(atomic_halos=atomic_halos, &
@@ -219,14 +235,14 @@ CONTAINS
                             nelectrons=0, &
                             sorted=.TRUE., &
                             error=error)
-    
+
     send_data_only = .FALSE.
-    
+
     DO ihalo = 1, max_nhalos
 
 !BEG:DEBUG:LT:2015/01/29
-       write (LT_UNIT, *) "|LT| fb_fltrmat_build: nhalos = ", nhalos
-       write (LT_UNIT, *) "|LT| fb_fltrmat_build: max_nhalos = ", max_nhalos
+       ! write (LT_UNIT, *) "|LT| fb_fltrmat_build: nhalos = ", nhalos
+       ! write (LT_UNIT, *) "|LT| fb_fltrmat_build: max_nhalos = ", max_nhalos
 !END:DEBUG:LT:2015/01/29
 
        IF (ihalo > nhalos) THEN
@@ -237,7 +253,7 @@ CONTAINS
        IF (send_data_only) THEN
 
 !BEG:DEBUG:LT:2015/01/29
-          write (LT_UNIT, *) "|LT| fb_fltrmat_build: doing dummy calculation"
+          ! write (LT_UNIT, *) "|LT| fb_fltrmat_build: doing dummy calculation"
 !END:DEBUG:LT:2015/01/29
 
           CALL fb_fltrmat_add_blkcol(H_mat, &
@@ -253,9 +269,9 @@ CONTAINS
        ELSE
 
 !BEG:DEBUG:LT:2015/01/20
-          CALL fb_atomic_halo_get(halos(ihalo), halo_atoms=halo_atoms, error=error)
-          write (LT_UNIT, *) "|LT| fb_fltrmat_build: halo ", ihalo, " = ", halo_atoms
-!END:DEBUG:LT:2015/01/20          
+          ! CALL fb_atomic_halo_get(halos(ihalo), halo_atoms=halo_atoms, error=error)
+          ! write (LT_UNIT, *) "|LT| fb_fltrmat_build: halo ", ihalo, " = ", halo_atoms
+!END:DEBUG:LT:2015/01/20
 
           CALL fb_fltrmat_add_blkcol(H_mat, &
                                      S_mat, &
@@ -279,7 +295,26 @@ CONTAINS
   END SUBROUTINE fb_fltrmat_build
 
 
-
+  ! **********************************************************************
+  !> \brief Add a computed blocks in one column to the filter matrix.
+  !>        It does not finalise the filter matrix
+  !> \param H_mat : DBCSR system KS matrix
+  !> \param S_mat : DBCSR system overlap matrix
+  !> \param atomic_halo :  the halo that contributes to the blk
+  !>                       col of the filter matrix
+  !> \param trial_funs : the trial functions to be used to shrink the
+  !>                     size of the new "filtered" basis
+  !> \param para_env : cp2k parallel environment
+  !> \param particle_set : set of all particles in the system
+  !> \param fermi_level : the fermi level used for defining the filter
+  !>                      function, which is a Fermi-Dirac distribution
+  !>                      function
+  !> \param filter_temp : the filter temperature used for defining the
+  !>                      filter function
+  !> \param filter_mat  : DBCSR format filter matrix
+  !> \prarm error       : cp2k error container
+  !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
+  ! **********************************************************************
   SUBROUTINE fb_fltrmat_add_blkcol(H_mat, &
                                    S_mat, &
                                    atomic_halo, &
@@ -314,14 +349,12 @@ CONTAINS
                send_encode, recv_encode, &
                natoms_in_halo, nrows_atmatrix, ncols_atmatrix, &
                jkind, itrial, ind, &
-               ! nblkrows_total, nblkcols_total, &
                natoms_global
     INTEGER(KIND=int_8), DIMENSION(:), POINTER :: pairs_send, pairs_recv
     INTEGER, DIMENSION(:), ALLOCATABLE :: send_sizes, send_disps, &
                                           send_pair_count, send_pair_disps, &
                                           recv_sizes, recv_disps, &
                                           recv_pair_count, recv_pair_disps, &
-                                          ! first_row, last_row, first_col, last_col, &
                                           atomic_H_blk_row_start, &
                                           atomic_H_blk_col_start, &
                                           atomic_S_blk_row_start, &
@@ -330,21 +363,21 @@ CONTAINS
     INTEGER, DIMENSION(:), POINTER :: ntfns, row_block_size_data
     INTEGER, DIMENSION(:,:), POINTER :: tfns
     REAL(KIND=dp), DIMENSION(:), ALLOCATABLE :: send_buf, recv_buf
-!BEG:ORIG:LT:2015/01/26
-    ! REAL(KIND=dp), DIMENSION(:,:), ALLOCATABLE :: atomic_H, atomic_S
-    ! REAL(KIND=dp), DIMENSION(:,:), ALLOCATABLE ::  atomic_filter_mat
-!END:ORIG:LT:2015/01/26
 
-!BEG:DEBUG:LT:2015/01/26
-    REAL(KIND=dp), DIMENSION(:,:), ALLOCATABLE, TARGET :: atomic_H, atomic_S
-    REAL(KIND=dp), DIMENSION(:,:), ALLOCATABLE, TARGET :: atomic_filter_mat
-!END:DEBUG:LT:2015/01/26
+!BEG:ORIG:LT:2015/01/26
+    REAL(KIND=dp), DIMENSION(:,:), ALLOCATABLE :: atomic_H, atomic_S
+    REAL(KIND=dp), DIMENSION(:,:), ALLOCATABLE ::  atomic_filter_mat
+!END:ORIG:LT:2015/01/26
+!BEG:REPL:LT:2015/01/26
+    ! REAL(KIND=dp), DIMENSION(:,:), ALLOCATABLE, TARGET :: atomic_H, atomic_S
+    ! REAL(KIND=dp), DIMENSION(:,:), ALLOCATABLE, TARGET :: atomic_filter_mat
+!END:REPL:LT:2015/01/26
 
 !BEG:DEBUG:LT:2015/01/20
-    INTEGER :: ii, jj
-    CHARACTER(LEN=100) :: fmt
-    REAL(KIND=dp), DIMENSION(:), POINTER :: part_mat_pointer_1
-    REAL(KIND=dp), DIMENSION(:,:), POINTER :: part_mat_pointer_2
+    ! INTEGER :: ii, jj
+    ! CHARACTER(LEN=100) :: fmt
+    ! REAL(KIND=dp), DIMENSION(:), POINTER :: part_mat_pointer_1
+    ! REAL(KIND=dp), DIMENSION(:,:), POINTER :: part_mat_pointer_2
 !END:DEBUG:LT:2015/01/20
 
 !BEG:DEBUG:LT:2015/01/29
@@ -396,10 +429,10 @@ CONTAINS
                           error=error)
 
 !BEG:DEBUG:LT:2015/01/20
-    write (LT_UNIT, *) "|LT| fb_fltrmat_add_blkcol: ntfns = ", ntfns
-    DO ipe = 1, SIZE(ntfns)
-       write (LT_UNIT, *) "|LT| fb_fltrmat_add_blkcol: tfns(kind=ipe) = ", tfns(:,ipe)
-    END DO
+    ! write (LT_UNIT, *) "|LT| fb_fltrmat_add_blkcol: ntfns = ", ntfns
+    ! DO ipe = 1, SIZE(ntfns)
+    !    write (LT_UNIT, *) "|LT| fb_fltrmat_add_blkcol: tfns(kind=ipe) = ", tfns(:,ipe)
+    ! END DO
 !END:DEBUG:LT:2015/01/20
 
     ! obtain row and col block size data for filter matrix
@@ -483,8 +516,8 @@ CONTAINS
                                error)
 
 !BEG:DEBUG:LT:2015/01/20
-    write (LT_UNIT, *) "atomic_H_blk_row_start = ", atomic_H_blk_row_start
-    write (LT_UNIT, *) "atomic_H_blk_col_start = ", atomic_H_blk_col_start
+    ! write (LT_UNIT, *) "atomic_H_blk_row_start = ", atomic_H_blk_row_start
+    ! write (LT_UNIT, *) "atomic_H_blk_col_start = ", atomic_H_blk_col_start
 !END:DEBUG:LT:2015/01/20
 
     ALLOCATE(atomic_H(nrows_atmatrix,ncols_atmatrix), STAT=stat)
@@ -653,13 +686,11 @@ CONTAINS
                           N      = ncols_atmatrix,                               &
                           ALPHA  = 1.0_dp,                                       &
                           A      = atomic_filter_mat(                            &
-                                     ! atomic_H_blk_row_start(iatom_in_halo):, :  &
                                      atomic_H_blk_row_start(iatom_in_halo) :     &
                                      atomic_H_blk_row_start(iatom_in_halo+1)-1,  &
                                      1 : ncols_atmatrix                          &
                                    ),                                            &
                           LDA    = nrows_blk,                                    &
-                         ! LDA    = nrows_atmatrix,                               &
                           X      = atomic_S(                                     &
                                      1 : nrows_atmatrix,                         &
                                      atomic_S_blk_col_start(jatom_in_halo) +     &
@@ -670,7 +701,7 @@ CONTAINS
                           Y      = send_buf(ind + 1 : ind + nrows_blk),          &
                           INCY   = 1)
 !END:ORIG:LT:2015/02/03
-!BEG:DEBUG:LT:2015/02/04
+!BEG:REPL:LT:2015/02/04
              ! CALL BL_GEMV(TRANS = "N",                                           &
              !              M      = nrows_blk,                                    &
              !              N      = ncols_atmatrix,                               &
@@ -682,7 +713,7 @@ CONTAINS
              !              BETA   = 0.0_dp,                                       &
              !              Y      = send_buf(ind + 1 : ind + nrows_blk),          &
              !              INCY   = 1)
-!END:DEBUG:LT:2015/02/04
+!END:REPL:LT:2015/02/04
           END DO ! itrial
 
 !BEG:DEBUG:LT:2015/02/03
@@ -705,7 +736,6 @@ CONTAINS
 !BEG:DEBUG:LT:2015/02/03
     ! write (LT_UNIT, *) "|LT| fb_fltrmat_add_blkcol: send_disps = ", send_disps
 !END:DEBUG:LT:2015/02/03
-
 
     DEALLOCATE(atomic_H, STAT=stat)
     CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
@@ -748,10 +778,6 @@ CONTAINS
           CALL fb_com_atom_pairs_decode(pairs_recv(recv_pair_disps(ipe) + ipair), &
                                         pe, iatom_global, jatom_global, &
                                         recv_encode)
-          ! atomic_kind => particle_set(jatom_global)%atomic_kind
-          ! CALL get_atomic_kind(atomic_kind=atomic_kind, &
-          !                      kind_number=jkind)
-          ! nrows_blk = last_row(iatom_global) - first_row(iatom_global) + 1
           nrows_blk = row_block_size_data(iatom_global)
           ncols_blk = col_block_size_data(jatom_global)
           ind = recv_disps(ipe) + recv_sizes(ipe)
@@ -785,8 +811,6 @@ CONTAINS
     CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
     DEALLOCATE(recv_pair_disps, STAT=stat)
     CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
-    ! DEALLOCATE(first_row, last_row, first_col, last_col, STAT=stat)
-    ! CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
 
     CALL fb_com_atom_pairs_release(com_pairs_send, error)
     CALL fb_com_atom_pairs_release(com_pairs_recv, error)
@@ -796,7 +820,18 @@ CONTAINS
   END SUBROUTINE fb_fltrmat_add_blkcol
 
 
-
+  ! **********************************************************************
+  !> \brief generate the list of blocks (atom pairs) to be sent and received
+  !>        in order to construct the filter matrix for each atomic halo
+  !> \param filter_mat : DBCSR formated filter matrix
+  !> \param atomic_halo :  the halo that contributes to a blk
+  !>                       col of the filter matrix
+  !> \param para_env : cp2k parallel environment
+  !> \param atom_pairs_send : list of blocks to be sent
+  !> \param atom_pairs_recv : list of blocks to be received
+  !> \prarm error       : cp2k error container
+  !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
+  ! **********************************************************************
   SUBROUTINE fb_fltrmat_generate_com_pairs(filter_mat, &
                                            atomic_halo, &
                                            para_env, &
@@ -936,16 +971,27 @@ CONTAINS
   END SUBROUTINE fb_fltrmat_generate_com_pairs
 
 
+
+  ! **********************************************************************
+  !> \brief Build the atomic filter matrix for each atomic halo
+  !> \param atomic_H : atomic KS matrix
+  !> \param atomic_S : atomic overlap matrix
+  !> \param fermi_level : fermi level used to construct the Fermi-Dirac
+  !>                      filter function
+  !> \param filter_temp : temperature used to construct the Fermi-Dirac
+  !>                      filter function
+  !> \param atomic_filter_mat : the atomic filter matrix
+  !> \prarm error       : cp2k error container
+  !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
+  ! **********************************************************************
   SUBROUTINE fb_fltrmat_build_atomic_fltrmat(atomic_H, &
                                              atomic_S, &
-!                                             mo_set, &
                                              fermi_level, &
                                              filter_temp, &
                                              atomic_filter_mat, &
                                              error)
     REAL(KIND=dp), DIMENSION(:,:), INTENT(in) :: atomic_H
     REAL(KIND=dp), DIMENSION(:,:), INTENT(in) :: atomic_S
- !   TYPE(mo_set_type), POINTER :: mo_set
     REAL(KIND=dp), INTENT(in) :: fermi_level
     REAL(KIND=dp), INTENT(in) :: filter_temp
     REAL(KIND=dp), DIMENSION(:,:), INTENT(out) :: atomic_filter_mat
@@ -956,17 +1002,15 @@ CONTAINS
 
     LOGICAL :: failure, check_ok
     INTEGER :: stat, info, mat_dim, work_array_size, ii, jj
-
-!    REAL(KIND=dp) :: fermi_level, maxocc
     REAL(KIND=dp), DIMENSION(:), ALLOCATABLE :: filter_function, &
                                                 eigenvalues, work
     REAL(KIND=dp), DIMENSION(:,:), ALLOCATABLE :: filtered_eigenvectors, &
                                                   atomic_S_copy, eigenvectors
 
 !BEG:DEBUG:LT:2015/01/26
-    CHARACTER(LEN=100) :: fmt
-    INTEGER :: kk
-    REAL(KIND=dp), DIMENSION(:,:), ALLOCATABLE :: inner_products, temp_mat
+    ! CHARACTER(LEN=100) :: fmt
+    ! INTEGER :: kk
+    ! REAL(KIND=dp), DIMENSION(:,:), ALLOCATABLE :: inner_products, temp_mat
 !END:DEBUG:LT:2015/01/26
 
 !BEG:DEBUG:LT:2015/01/29
@@ -1054,10 +1098,6 @@ CONTAINS
     ALLOCATE(filter_function(mat_dim), STAT=stat)
     CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
     filter_function = 0.0_dp
-    ! ! get system mu
-    ! CALL get_mo_set(mo_set=mo_set, &
-    !                 mu=fermi_level, &
-    !                 maxocc=maxocc)
     CALL fb_fltrmat_fermi_dirac_mu(filter_function, &
                                    eigenvalues, &
                                    filter_temp, &
@@ -1069,7 +1109,6 @@ CONTAINS
     ! write (LT_UNIT,*) &
     !       "|LT| fb_fltrmat_build_atomic_fltrmat: eigenvalues = ", eigenvalues
 !END:DEBUG:LT:2015/01/26
-
 
     DEALLOCATE(eigenvalues, STAT=stat)
     CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
@@ -1165,6 +1204,15 @@ CONTAINS
   END SUBROUTINE fb_fltrmat_build_atomic_fltrmat
 
 
+  ! **********************************************************************
+  !> \brief get values of Fermi-Dirac distribution based on a given fermi
+  !>        level at a given set of energy eigenvalues
+  !> \param f : the Fermi-Dirac distribution function values
+  !> \param eigenvals : set of energy eigenvalues
+  !> \param T : temperature
+  !> \param mu : the fermi level
+  !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
+  ! **********************************************************************
   SUBROUTINE fb_fltrmat_fermi_dirac_mu(f, eigenvals, T, mu)
     REAL(KIND=dp), DIMENSION(:), INTENT(out) :: f
     REAL(KIND=dp), DIMENSION(:), INTENT(in)  :: eigenvals
@@ -1182,6 +1230,16 @@ CONTAINS
   END SUBROUTINE fb_fltrmat_fermi_dirac_mu
 
 
+  ! **********************************************************************
+  !> \brief get values of Fermi-Dirac distribution based on a given electron
+  !>        number at a given set of energy eigenvales
+  !> \param f : the Fermi-Dirac distribution function values
+  !> \param eigenvals : set of energy eigenvalues
+  !> \param T : temperature
+  !> \param ne : number of electrons
+  !> \param maxocc : maximum occupancy per orbital
+  !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
+  ! **********************************************************************
   SUBROUTINE fb_fltrmat_fermi_dirac_ne(f, eigenvals, T, ne, maxocc)
     REAL(KIND=dp), DIMENSION(:), INTENT(out) :: f
     REAL(KIND=dp), DIMENSION(:), INTENT(in)  :: eigenvals
