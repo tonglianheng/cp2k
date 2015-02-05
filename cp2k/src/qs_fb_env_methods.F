@@ -112,6 +112,8 @@ MODULE qs_fb_env_methods
   USE cp_output_handling, ONLY: cp_print_key_finished_output, &
                                 cp_print_key_unit_nr
   USE cp_units, ONLY: cp_unit_from_cp2k
+  USE timings, ONLY: timeset, &
+                     timestop
   ! USE qs_neighbor_list_types, ONLY: neighbor_list_set_p_type
 
 #include "./common/cp_common_uses.f90"
@@ -168,7 +170,7 @@ CONTAINS
                filtered_nfullrowsORcols_total, &
                nelectron, nfullrows_total, nfullcols_total, &
                homo_filtered, lfomo_filtered, &
-               nmo_filtered, nmo, my_nmo
+               nmo_filtered, nmo, my_nmo, handle
     REAL(kind=dp) :: diis_error, eps_diis
     REAL(kind=dp) :: fermi_level, maxocc, flexible_electron_count, &
                      filter_temp, mu_filtered, KTS_filtered
@@ -203,6 +205,8 @@ CONTAINS
     ! INTEGER, DIMENSION(:), POINTER :: nfunctions
     ! INTEGER, DIMENSION(:,:), POINTER :: functions
 !END:DEBUG:LT:2015/01/29
+
+    CALL timeset(routineN, handle)
 
     failure = .FALSE.
 
@@ -842,6 +846,8 @@ CONTAINS
     DEALLOCATE(matrix_filter, STAT=stat)
     CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
 
+    CALL timestop(handle)
+
   END SUBROUTINE fb_env_do_diag
 
 
@@ -864,10 +870,14 @@ CONTAINS
     LOGICAL :: failure
     TYPE(section_vals_type), POINTER :: fb_section
     REAL(KIND=dp) :: r_val
+    INTEGER :: handle
 
-    NULLIFY(fb_section)
+
+    CALL timeset(routineN, handle)
 
     failure = .FALSE.
+
+    NULLIFY(fb_section)
     fb_section => section_vals_get_subs_vals(scf_section, &
                                              "DIAGONALIZATION%FILTER_MATRIX", &
                                              error=error)
@@ -885,6 +895,8 @@ CONTAINS
     CALL fb_env_set(fb_env=fb_env, &
                     auto_cutoff_scale=r_val, &
                     error=error)
+
+    CALL timestop(handle)
 
   END SUBROUTINE fb_env_read_input
 
@@ -913,7 +925,11 @@ CONTAINS
 
     REAL(KIND=dp), DIMENSION(:), POINTER :: rcut
     REAL(KIND=dp) :: kind_radius, auto_cutoff_scale
-    INTEGER :: ikind, basis_set_id, nkinds, stat
+    INTEGER :: ikind, basis_set_id, nkinds, stat, handle
+
+    CALL timeset(routineN, handle)
+
+    failure = .FALSE.
 
     NULLIFY(rcut, qs_kind_set)
 
@@ -961,6 +977,8 @@ CONTAINS
     DEALLOCATE(basis_set_list, STAT=stat)
     CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
 
+    CALL timestop(handle)
+
   END SUBROUTINE fb_env_build_rcut_auto
 
 
@@ -994,12 +1012,15 @@ CONTAINS
                iatom, nkinds_global, jkind, jatom, iatom_local, &
                n_local_atoms_in_kind, n_global_atoms_in_kind, &
                jatom_in_kind, ii, ihalo, ihalo_atom, nhalo_atoms, &
-               nelectrons_in_halo, owner_id_in_halo, max_natoms_local
+               nelectrons_in_halo, owner_id_in_halo, max_natoms_local, &
+               handle
     INTEGER, DIMENSION(:), POINTER :: halo_atoms
     INTEGER, DIMENSION(:), POINTER :: atom_list
     REAL(KIND=dp) :: rij
     REAL(KIND=dp), DIMENSION(:,:), ALLOCATABLE :: pair_radius
     LOGICAL, DIMENSION(:), ALLOCATABLE :: present_ab
+
+    CALL timeset(routineN, handle)
 
     failure = .FALSE.
 
@@ -1153,6 +1174,9 @@ CONTAINS
     ! cleanup
     DEALLOCATE(pair_radius, STAT=stat)
     CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
+
+    CALL timestop(handle)
+
   END SUBROUTINE fb_env_build_atomic_halos
 
 
@@ -1183,11 +1207,9 @@ CONTAINS
     TYPE(gto_basis_set_type), POINTER :: basis_set
     INTEGER :: basis_set_id, old_lshell, iset, nset, ikind, nkinds, &
                ishell, lshell, icgf, itrial, max_n_trial, counter, &
-               ico, stat
+               ico, stat, handle
     INTEGER, DIMENSION(:), POINTER :: nfunctions, lmax, nshell
     INTEGER, DIMENSION(:,:), POINTER :: functions
-
-
     REAL(KIND=dp) :: zeff
 
 !BEG:DEBUG:LT:2015/01/29
@@ -1201,6 +1223,8 @@ CONTAINS
 !BEG:DEBUG:LT:2015/01/20
     ! write (LT_UNIT,*) "|LT| fb_env_build_trial_fns_auto: constructing trial functions"
 !END:DEBUG:LT:2015/01/20
+
+    CALL timeset(routineN, handle)
 
     failure = .FALSE.
     CPPrecondition(fb_env_has_data(fb_env), cp_failure_level, routineP, error, failure)
@@ -1370,6 +1394,8 @@ CONTAINS
     DEALLOCATE(basis_set_list, STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
+    CALL timestop(handle)
+
   END SUBROUTINE fb_env_build_trial_fns_auto
 
 
@@ -1467,12 +1493,14 @@ CONTAINS
                                    routineP = moduleN//':'//routineN
 
     LOGICAL :: failure
-    INTEGER :: ikind, nkinds, unit_nr
+    INTEGER :: ikind, nkinds, unit_nr, handle
     REAL(KIND=dp) :: filter_temperature, auto_cutoff_scale
     REAL(KIND=dp), DIMENSION(:), POINTER :: rcut
     TYPE(atomic_kind_type), DIMENSION(:), POINTER :: atomic_kind_set
     TYPE(cp_logger_type), POINTER :: logger
     CHARACTER(LEN=2) :: element_symbol
+
+    CALL timeset(routineN, handle)
 
     failure = .FALSE.
     NULLIFY(rcut, atomic_kind_set, logger)
@@ -1515,6 +1543,9 @@ CONTAINS
     END IF
     CALL cp_print_key_finished_output(unit_nr, logger, scf_section, &
                                       "PRINT%FILTER_MATRIX", error=error)
+
+    CALL timestop(handle)
+
   END SUBROUTINE fb_env_write_info
 
 

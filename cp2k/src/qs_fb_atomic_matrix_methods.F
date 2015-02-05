@@ -48,6 +48,8 @@ MODULE qs_fb_atomic_matrix_methods
   USE util,                      ONLY: sort
   USE message_passing,           ONLY: mp_alltoall
   USE termination,               ONLY: stop_program
+  USE timings,                   ONLY: timeset, &
+                                       timestop
 
 #include "./common/cp_common_uses.f90"
 
@@ -186,7 +188,8 @@ CONTAINS
     INTEGER :: ipair, npairs_send, npairs_recv, pe, nblkrows_total, &
                nblkcols_total, arow, acol, ipe, ii, jj, ind, stat, &
                send_encode, recv_encode, nhalos, iatom, jatom, &
-               iatom_in_halo, jatom_in_halo, numprocs, nrows_blk, ncols_blk
+               iatom_in_halo, jatom_in_halo, numprocs, nrows_blk, ncols_blk, &
+               handle
     INTEGER, DIMENSION(:), POINTER :: row_block_size_data, &
                                       col_block_size_data
 
@@ -197,6 +200,8 @@ CONTAINS
 !BEG:DEBUG:LT:2015/01/30
     LT_UNIT = 100 + para_env%mepos
 !END:DEBUG:LT:2015/01/30
+
+    CALL timeset(routineN, handle)
 
     failure = .FALSE.
 
@@ -421,6 +426,8 @@ CONTAINS
     CALL fb_com_atom_pairs_release(atom_pairs_send, error)
     CALL fb_com_atom_pairs_release(atom_pairs_recv, error)
 
+    CALL timestop(handle)
+
   END SUBROUTINE fb_atmatrix_construct
 
 
@@ -465,7 +472,7 @@ CONTAINS
     INTEGER :: iatom, jatom, iatom_global, jatom_global, natoms_local, &
                my_basis_set_id, dest, src, ntasks_recv, ntasks_send, &
                itask, nhalos, natoms_in_halo, nblkrows_total, &
-               nencode, stat, counter
+               nencode, stat, counter, handle
     INTEGER(KIND=int_8) :: pair
     INTEGER, DIMENSION(:), ALLOCATABLE :: tmp_index
     REAL(KIND=dp), DIMENSION(:,:), POINTER :: mat_block
@@ -478,6 +485,8 @@ CONTAINS
 !BEG:DEBUG:LT:2015/01/30
     LT_UNIT = 100 + para_env%mepos
 !END:DEBUG:LT:2015/01/30
+
+    CALL timeset(routineN, handle)
 
     failure = .FALSE.
 
@@ -664,6 +673,8 @@ CONTAINS
 !BEG:DEBUG:LT:2015/01/20
     ! write (LT_UNIT,*) "|LT| fb_atmatrix_generate_com_pairs END"
 !END:DEBUG:LT:2015/01/20
+
+    CALL timestop(handle)
 
   END SUBROUTINE fb_atmatrix_generate_com_pairs
 

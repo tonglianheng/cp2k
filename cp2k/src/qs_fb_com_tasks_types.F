@@ -11,6 +11,8 @@ MODULE qs_fb_com_tasks_types
                                 array_new, &
                                 array_data
   USE memory_utilities, ONLY: reallocate
+  USE timings, ONLY: timeset, &
+                     timestop
 
 #include "./common/cp_common_uses.f90"
 
@@ -714,7 +716,7 @@ CONTAINS
 
     LOGICAL :: failure
     INTEGER :: itask, ipe, rank, rank_pos, task_dim, ii, jj, ind, &
-               ntasks_in, ntasks_out, stat, nencode
+               ntasks_in, ntasks_out, stat, nencode, handle
     INTEGER(KIND=int_8), DIMENSION(:,:), POINTER :: tasks_in, tasks_out
     INTEGER, DIMENSION(:), ALLOCATABLE :: send_sizes, send_disps, &
                                           recv_sizes, recv_disps, &
@@ -727,6 +729,8 @@ CONTAINS
 !BEG:DEBUG:LT:2015/01/30
     LT_UNIT = 100 + para_env%mepos
 !END:DEBUG:LT:2015/01/30
+
+    CALL timeset(routineN, handle)
 
     failure = .FALSE.
 
@@ -893,6 +897,8 @@ CONTAINS
     DEALLOCATE(recv_disps, STAT=stat)
     CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
 
+    CALL timestop(handle)
+
   END SUBROUTINE fb_com_tasks_transpose_dest_src
 
 
@@ -934,7 +940,7 @@ CONTAINS
 
     LOGICAL :: failure, my_symmetric, check_ok
     INTEGER :: itask, ntasks, arow, acol, rank, &
-               rank_pos, iatom, jatom, stat, npairs, ii
+               rank_pos, iatom, jatom, stat, npairs, ii, handle
     INTEGER(KIND=int_8) :: pair
     INTEGER(KIND=int_8), DIMENSION(:,:), POINTER :: tasks
     INTEGER(KIND=int_8), DIMENSION(:), POINTER :: pairs
@@ -947,6 +953,8 @@ CONTAINS
 !BEG:DEBUG:LT:2015/01/30
     LT_UNIT = 200
 !END:DEBUG:LT:2015/01/30
+
+    CALL timeset(routineN, handle)
 
     failure = .FALSE.
 
@@ -1067,6 +1075,8 @@ CONTAINS
     ! write (LT_UNIT,*) "|LT| fb_com_tasks_build_atom_pairs: npairs = ", npairs
     ! write (LT_UNIT,*) "|LT| fb_com_tasks_build_atom_pairs: pairs = ", pairs
 !END:DEBUG:LT:2015/01/25
+
+    CALL timestop(handle)
 
   END SUBROUTINE fb_com_tasks_build_atom_pairs
 

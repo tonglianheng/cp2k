@@ -67,6 +67,8 @@ MODULE qs_fb_filter_matrix_methods
   USE string_utilities, ONLY: compress, &
                               uppercase
   USE message_passing, ONLY: mp_alltoall
+  USE timings, ONLY: timeset, &
+                     timestop
 
 #include "./common/cp_common_uses.f90"
 
@@ -142,7 +144,7 @@ CONTAINS
     INTEGER, DIMENSION(:), POINTER :: col_blk_size_data, ntfns, &
                                       dummy_halo_atoms
     INTEGER :: ikind, ihalo, iblkcol, nblkcols_total, nhalos, &
-               max_nhalos, stat
+               max_nhalos, stat, handle
     TYPE(fb_atomic_halo_obj) :: dummy_atomic_halo
     TYPE(fb_atomic_halo_obj), DIMENSION(:), POINTER :: halos
 
@@ -158,6 +160,8 @@ CONTAINS
 !BEG:DEBUG:LT:2015/01/30
     LT_UNIT = 100 + para_env%mepos
 !END:DEBUG:LT:2015/01/30
+
+    CALL timeset(routineN, handle)
 
     failure = .FALSE.
 
@@ -292,6 +296,8 @@ CONTAINS
     ! cleanup
     CALL fb_atomic_halo_release(dummy_atomic_halo, error)
 
+    CALL timestop(handle)
+
   END SUBROUTINE fb_fltrmat_build
 
 
@@ -348,8 +354,7 @@ CONTAINS
                nrows_blk, ncols_blk, &
                send_encode, recv_encode, &
                natoms_in_halo, nrows_atmatrix, ncols_atmatrix, &
-               jkind, itrial, ind, &
-               natoms_global
+               jkind, itrial, ind, natoms_global, handle
     INTEGER(KIND=int_8), DIMENSION(:), POINTER :: pairs_send, pairs_recv
     INTEGER, DIMENSION(:), ALLOCATABLE :: send_sizes, send_disps, &
                                           send_pair_count, send_pair_disps, &
@@ -387,6 +392,8 @@ CONTAINS
 !BEG:DEBUG:LT:2015/01/30
     LT_UNIT = 100 + para_env%mepos
 !END:DEBUG:LT:2015/01/30
+
+    CALL timeset(routineN, handle)
 
     failure = .FALSE.
 
@@ -817,6 +824,8 @@ CONTAINS
 
     ! cannot finalise the matrix until all blocks has been added
 
+    CALL timestop(handle)
+
   END SUBROUTINE fb_fltrmat_add_blkcol
 
 
@@ -854,7 +863,9 @@ CONTAINS
     INTEGER, DIMENSION(:), POINTER :: halo_atoms
     INTEGER :: itask, src, dest, jatom_global, iatom_in_halo, &
                natoms_in_halo, ntasks_send, ntasks_recv, nblkrows_total, &
-               stat, iatom_global, iatom_stored, jatom_stored
+               stat, iatom_global, iatom_stored, jatom_stored, handle
+
+    CALL timeset(routineN, handle)
 
     failure = .FALSE.
 
@@ -968,6 +979,8 @@ CONTAINS
     CALL fb_com_tasks_release(com_tasks_recv, error)
     CALL fb_com_tasks_release(com_tasks_send, error)
 
+    CALL timestop(handle)
+
   END SUBROUTINE fb_fltrmat_generate_com_pairs
 
 
@@ -1000,7 +1013,7 @@ CONTAINS
                                    routineP = moduleN//':'//routineN
 
     LOGICAL :: failure, check_ok
-    INTEGER :: stat, info, mat_dim, work_array_size, ii, jj
+    INTEGER :: stat, info, mat_dim, work_array_size, ii, jj, handle
     REAL(KIND=dp), DIMENSION(:), ALLOCATABLE :: filter_function, &
                                                 eigenvalues, work
     REAL(KIND=dp), DIMENSION(:,:), ALLOCATABLE :: filtered_eigenvectors, &
@@ -1019,6 +1032,8 @@ CONTAINS
 !BEG:DEBUG:LT:2015/01/30
     LT_UNIT = 200
 !END:DEBUG:LT:2015/01/30
+
+    CALL timeset(routineN, handle)
 
     failure = .FALSE.
 
@@ -1209,6 +1224,8 @@ CONTAINS
     CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
     DEALLOCATE(eigenvectors, STAT=stat)
     CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
+
+    CALL timestop(handle)
 
   END SUBROUTINE fb_fltrmat_build_atomic_fltrmat
 
