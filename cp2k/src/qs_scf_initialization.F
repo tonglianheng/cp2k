@@ -109,6 +109,7 @@ MODULE qs_scf_initialization
   USE qs_fb_env_types,                 ONLY: fb_env_create, &
                                              fb_env_has_data
   USE qs_fb_env_methods,               ONLY: fb_env_read_input, &
+                                             fb_env_write_info, &
                                              fb_env_build_rcut_auto
 
 
@@ -746,7 +747,50 @@ CONTAINS
       SELECT CASE (scf_control%diagonalization%method)
 
 !BEG:DEBUG:LT:2015/01/10
+         
+!END:DEBUG:LT:2015/01/10
 
+
+! Diagonalization: additional check whether we are in an orthonormal basis
+      CASE(diag_standard)
+         scf_env%method=general_diag_method_nr
+         scf_env%needs_ortho=.NOT.has_unit_metric
+         IF (has_unit_metric) THEN
+            scf_env%method=special_diag_method_nr
+         END IF
+      ! OT Diagonalization: not possible with ROKS
+      CASE ( diag_ot ) 
+         CALL cp_assert(.NOT.(dft_control%roks),cp_failure_level,cp_assertion_failed,&
+              routineP,"ROKS with OT diagonalization not possible",error,failure)
+         CALL cp_assert(.NOT.do_kpoints,cp_failure_level,cp_assertion_failed,&
+              routineP,"OT diagonalization not possible with kpoint calculations",error,failure)
+         scf_env%method=ot_diag_method_nr
+         need_coeff_b=.TRUE.
+      ! Block Krylov diagonlization: not possible with ROKS,
+      ! allocation of additional matrices is needed
+      CASE ( diag_block_krylov ) 
+         CALL cp_assert(.NOT.(dft_control%roks),cp_failure_level,cp_assertion_failed,&
+              routineP,"ROKS with block PF diagonalization not possible",error,failure)
+         CALL cp_assert(.NOT.do_kpoints,cp_failure_level,cp_assertion_failed,&
+              routineP,"Block Krylov diagonalization not possible with kpoint calculations",error,failure)
+         scf_env%method=block_krylov_diag_method_nr
+         scf_env%needs_ortho=.TRUE.
+         IF(.NOT.ASSOCIATED(scf_env%krylov_space))&
+              CALL krylov_space_create(scf_env%krylov_space, scf_section,error=error)
+         CALL krylov_space_allocate(scf_env%krylov_space, scf_control, mos, error=error)
+      ! Block davidson diagonlization: allocation of additional matrices is needed
+      CASE ( diag_block_davidson )
+         CALL cp_assert(.NOT.do_kpoints,cp_failure_level,cp_assertion_failed,&
+              routineP,"Block Davidson diagonalization not possible with kpoint calculations",error,failure)
+         scf_env%method=block_davidson_diag_method_nr
+         IF(.NOT.ASSOCIATED(scf_env%block_davidson_env))&
+              CALL block_davidson_env_create(scf_env%block_davidson_env,dft_control%nspins,&
+                                             scf_section,error=error)
+         DO ispin=1,dft_control%nspins
+            CALL block_davidson_allocate(scf_env%block_davidson_env(ispin), mos(ispin)%mo_set, error=error)
+         END DO
+         need_coeff_b=.TRUE.
+      ! Filter matrix diagonalisation method
       CASE(diag_filter_matrix)
          scf_env%method=filter_matrix_diag_method_nr
          scf_env%cholesky_method = cholesky_inverse
@@ -755,51 +799,10 @@ CONTAINS
          END IF
          CALL fb_env_read_input(scf_env%filter_matrix_env, scf_section, error=error)
          CALL fb_env_build_rcut_auto(scf_env%filter_matrix_env, qs_env, error=error)
-         
-!END:DEBUG:LT:2015/01/10
-
-
-! Diagonalization: additional check whether we are in an orthonormal basis
-      CASE(diag_standard)
-        scf_env%method=general_diag_method_nr
-        scf_env%needs_ortho=.NOT.has_unit_metric
-        IF (has_unit_metric) THEN
-            scf_env%method=special_diag_method_nr
-        END IF
-! OT Diagonalization: not possible with ROKS
-      CASE ( diag_ot ) 
-        CALL cp_assert(.NOT.(dft_control%roks),cp_failure_level,cp_assertion_failed,&
-              routineP,"ROKS with OT diagonalization not possible",error,failure)
-        CALL cp_assert(.NOT.do_kpoints,cp_failure_level,cp_assertion_failed,&
-              routineP,"OT diagonalization not possible with kpoint calculations",error,failure)
-        scf_env%method=ot_diag_method_nr
-        need_coeff_b=.TRUE.
-! Block Krylov diagonlization: not possible with ROKS, allocation of additional matrices is needed
-      CASE ( diag_block_krylov ) 
-        CALL cp_assert(.NOT.(dft_control%roks),cp_failure_level,cp_assertion_failed,&
-              routineP,"ROKS with block PF diagonalization not possible",error,failure)
-        CALL cp_assert(.NOT.do_kpoints,cp_failure_level,cp_assertion_failed,&
-              routineP,"Block Krylov diagonalization not possible with kpoint calculations",error,failure)
-        scf_env%method=block_krylov_diag_method_nr
-        scf_env%needs_ortho=.TRUE.
-        IF(.NOT.ASSOCIATED(scf_env%krylov_space))&
-           CALL krylov_space_create(scf_env%krylov_space, scf_section,error=error)
-        CALL krylov_space_allocate(scf_env%krylov_space, scf_control, mos, error=error)
-! Block davidson diagonlization: allocation of additional matrices is needed
-      CASE ( diag_block_davidson )
-        CALL cp_assert(.NOT.do_kpoints,cp_failure_level,cp_assertion_failed,&
-              routineP,"Block Davidson diagonalization not possible with kpoint calculations",error,failure)
-        scf_env%method=block_davidson_diag_method_nr
-        IF(.NOT.ASSOCIATED(scf_env%block_davidson_env))&
-           CALL block_davidson_env_create(scf_env%block_davidson_env,dft_control%nspins,&
-                                          scf_section,error=error)
-        DO ispin=1,dft_control%nspins
-          CALL block_davidson_allocate(scf_env%block_davidson_env(ispin), mos(ispin)%mo_set, error=error)
-        END DO
-        need_coeff_b=.TRUE.
+         CALL fb_env_write_info(scf_env%filter_matrix_env, qs_env, scf_section, error=error)
       CASE DEFAULT
-        CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
-             routineP,"Unknown diagonalization method",error,failure)
+         CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
+              routineP,"Unknown diagonalization method",error,failure)
       END SELECT
 ! Check if subspace diagonlization is requested: allocation of additional matrices is needed
       IF(scf_control%do_diag_sub) THEN

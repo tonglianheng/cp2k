@@ -52,6 +52,9 @@ MODULE qs_fb_env_types
   !> \param filter_temperature : parameter controlling the smoothness of
   !>                             the filter function during the construction
   !>                             of the filter matrix
+  !> \param auto_cutoff_scale : scale multiplied to max atomic orbital
+  !>                            radii used for automatic construction of
+  !>                            rcut
   !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
   ! **********************************************************************
   TYPE fb_env_data
@@ -60,6 +63,7 @@ MODULE qs_fb_env_types
      TYPE(fb_atomic_halo_list_obj) :: atomic_halos
      TYPE(fb_trial_fns_obj) :: trial_fns
      REAL(KIND=dp) :: filter_temperature
+     REAL(KIND=dp) :: auto_cutoff_scale
   END type fb_env_data
 
 
@@ -222,6 +226,7 @@ CONTAINS
        CALL fb_atomic_halo_list_nullify(fb_env%obj%atomic_halos)
        CALL fb_trial_fns_nullify(fb_env%obj%trial_fns)
        fb_env%obj%filter_temperature = 0.0_dp
+       fb_env%obj%auto_cutoff_scale = 1.0_dp
        fb_env%obj%ref_count = 1
        fb_env%obj%id_nr = last_fb_env_id + 1
        last_fb_env_id = fb_env%obj%id_nr
@@ -258,6 +263,7 @@ CONTAINS
        CALL fb_atomic_halo_list_release(fb_env%obj%atomic_halos, error)
        CALL fb_trial_fns_release(fb_env%obj%trial_fns, error)
        fb_env%obj%filter_temperature = 0.0_dp
+       fb_env%obj%auto_cutoff_scale = 1.0_dp
     END IF
   END SUBROUTINE fb_env_init
 
@@ -268,6 +274,8 @@ CONTAINS
   !> \param rcut   : outputs pointer to rcut attribute of fb_env (optional)
   !> \param filter_temperature : outputs pointer to filter_temperature
   !>                             attribute of fb_env (optional)
+  !> \param auto_cutoff_scale  : outputs pointer to auto_cutoff_scale
+  !>                             attribure of fb_env (optional)
   !> \param atomic_halos       : outputs pointer to atomic_halos
   !>                             attribute of fb_env (optional)
   !> \param trial_fns          : outputs pointer to trial_fns
@@ -279,12 +287,14 @@ CONTAINS
   SUBROUTINE fb_env_get(fb_env, &
                         rcut, &
                         filter_temperature, &
+                        auto_cutoff_scale, &
                         atomic_halos, &
                         trial_fns, &
                         error)
     TYPE(fb_env_obj), INTENT(in) :: fb_env
     REAL(KIND=dp), DIMENSION(:), POINTER, OPTIONAL :: rcut
     REAL(KIND=dp), OPTIONAL, INTENT(out) :: filter_temperature
+    REAL(KIND=dp), OPTIONAL, INTENT(out) :: auto_cutoff_scale
     TYPE(fb_atomic_halo_list_obj), INTENT(out), OPTIONAL :: atomic_halos
     TYPE(fb_trial_fns_obj), INTENT(out), OPTIONAL :: trial_fns
     TYPE(cp_error_type), INTENT(inout) :: error
@@ -300,6 +310,7 @@ CONTAINS
     IF (.NOT. failure) THEN
        IF (PRESENT(rcut)) rcut => fb_env%obj%rcut
        IF (PRESENT(filter_temperature)) filter_temperature = fb_env%obj%filter_temperature
+       IF (PRESENT(auto_cutoff_scale)) auto_cutoff_scale = fb_env%obj%auto_cutoff_scale
        IF (PRESENT(atomic_halos)) &
             CALL fb_atomic_halo_list_associate(atomic_halos, fb_env%obj%atomic_halos)
        IF (PRESENT(trial_fns)) &
@@ -313,6 +324,7 @@ CONTAINS
   !> \param fb_env : the fb_env object in question
   !> \param rcut   : sets rcut attribute of fb_env (optional)
   !> \param filter_temperature : sets filter_temperature attribute of fb_env (optional)
+  !> \param auto_cutoff_scale  : sets auto_cutoff_scale attribute of fb_env (optional)
   !> \param atomic_halos       : sets atomic_halos attribute of fb_env (optional)
   !> \param trial_fns          : sets trial_fns attribute of fb_env (optional)
   !> \param error  : variable to control error logging, stopping, ...
@@ -322,12 +334,14 @@ CONTAINS
   SUBROUTINE fb_env_set(fb_env, &
                         rcut, &
                         filter_temperature, &
+                        auto_cutoff_scale, &
                         atomic_halos, &
                         trial_fns, &
                         error)
     TYPE(fb_env_obj), INTENT(in) :: fb_env
     REAL(KIND=dp), DIMENSION(:), POINTER, OPTIONAL :: rcut
     REAL(KIND=dp), INTENT(in), OPTIONAL :: filter_temperature
+    REAL(KIND=dp), INTENT(in), OPTIONAL :: auto_cutoff_scale
     TYPE(fb_atomic_halo_list_obj), INTENT(in), OPTIONAL :: atomic_halos
     TYPE(fb_trial_fns_obj), INTENT(in), OPTIONAL :: trial_fns
     TYPE(cp_error_type), INTENT(inout) :: error
@@ -350,6 +364,8 @@ CONTAINS
        END IF
        IF (PRESENT(filter_temperature)) &
             fb_env%obj%filter_temperature = filter_temperature
+       IF (PRESENT(auto_cutoff_scale)) &
+            fb_env%obj%auto_cutoff_scale = auto_cutoff_scale
        IF (PRESENT(atomic_halos)) THEN
           IF (fb_atomic_halo_list_has_data(atomic_halos)) &
                CALL fb_atomic_halo_list_retain(atomic_halos, error)

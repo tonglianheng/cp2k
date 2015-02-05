@@ -8,9 +8,6 @@ MODULE qs_fb_env_methods
                              fb_env_has_data
   USE qs_environment_types,    ONLY: qs_environment_type, &
                                      get_qs_env
-!BEG:DEBUG:LT:2015/02/02
-!  USE qs_environment_methods, ONLY: qs_create_task_list
-!END:DEBUG:LT:2015/02/02
   USE qs_fb_atomic_halo_types, ONLY: fb_atomic_halo_obj, &
                                      fb_atomic_halo_nullify, &
                                      fb_atomic_halo_create, &
@@ -53,10 +50,8 @@ MODULE qs_fb_env_methods
                                 cp_dbcsr_iterator_blocks_left, &
                                 cp_dbcsr_get_matrix_type, &
                                 array_i1d_obj, &
-!BEG:DEBUG:LT:2015/01/20
                                 cp_dbcsr_print, &
                                 cp_dbcsr_desymmetrize, &
-!END:DEBUG:LT:2015/01/20
                                 array_nullify
   USE cp_dbcsr_operations, ONLY: copy_dbcsr_to_fm, &
                                  cp_dbcsr_sm_fm_multiply
@@ -89,9 +84,7 @@ MODULE qs_fb_env_methods
                          cp_fm_set_all, &
                          cp_fm_release, &
                          cp_fm_to_fm, &
-!BEG:DEBUG:LT:2015/02/02
                          cp_fm_write
-!END:DEBUG:LT:2015/02/02
   USE qs_fb_trial_fns_types, ONLY: fb_trial_fns_obj, &
                                    fb_trial_fns_nullify, &
                                    fb_trial_fns_get, &
@@ -116,8 +109,10 @@ MODULE qs_fb_env_methods
                            get_qs_kind
   USE message_passing, ONLY: mp_max
   USE cp_fm_basic_linalg, ONLY: cp_fm_gemm
-  USE qs_neighbor_list_types, ONLY: neighbor_list_set_p_type
-
+  USE cp_output_handling, ONLY: cp_print_key_finished_output, &
+                                cp_print_key_unit_nr
+  USE cp_units, ONLY: cp_unit_from_cp2k
+  ! USE qs_neighbor_list_types, ONLY: neighbor_list_set_p_type
 
 #include "./common/cp_common_uses.f90"
 
@@ -131,7 +126,8 @@ MODULE qs_fb_env_methods
             fb_env_read_input, &
             fb_env_build_rcut_auto, &
             fb_env_build_atomic_halos, &
-            fb_env_build_trial_fns_auto
+            fb_env_build_trial_fns_auto, &
+            fb_env_write_info
 
 
 CONTAINS
@@ -608,16 +604,16 @@ CONTAINS
                            error=error)
 
 !BEG:DEBUG:LT:2015/02/02
-    CALL get_mo_set(mo_set=mos_filtered(1)%mo_set, &
-                    occupation_numbers=occ_filtered, &
-                    mu=mu_filtered)
-    write (LT_UNIT,*) "|LT| fb_env_do_diag: associated(occ_filtered) = ", associated(occ_filtered)
-    CALL FLUSH(LT_UNIT)
-    write (LT_UNIT,*) "|LT| fb_env_do_diag: SIZE(occ_filtered) = ", SIZE(occ_filtered)
-    CALL FLUSH(LT_UNIT)
-    write (LT_UNIT,*) "|LT| fb_env_do_diag: occ_filtered = ", occ_filtered
-    write (LT_UNIT,*) "|LT| fb_env_do_diag: mu_filtered = ", mu_filtered
-    CALL FLUSH(LT_UNIT)
+    ! CALL get_mo_set(mo_set=mos_filtered(1)%mo_set, &
+    !                 occupation_numbers=occ_filtered, &
+    !                 mu=mu_filtered)
+    ! write (LT_UNIT,*) "|LT| fb_env_do_diag: associated(occ_filtered) = ", associated(occ_filtered)
+    ! CALL FLUSH(LT_UNIT)
+    ! write (LT_UNIT,*) "|LT| fb_env_do_diag: SIZE(occ_filtered) = ", SIZE(occ_filtered)
+    ! CALL FLUSH(LT_UNIT)
+    ! write (LT_UNIT,*) "|LT| fb_env_do_diag: occ_filtered = ", occ_filtered
+    ! write (LT_UNIT,*) "|LT| fb_env_do_diag: mu_filtered = ", mu_filtered
+    ! CALL FLUSH(LT_UNIT)
 !END:DEBUG:LT:2015/02/02
 
     ! get the filtered density matrix and then convert back to the
@@ -835,19 +831,29 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'fb_env_read_input', &
                                    routineP = moduleN//':'//routineN
 
+    LOGICAL :: failure
     TYPE(section_vals_type), POINTER :: fb_section
-    REAL(KIND=dp) :: filter_temperature
+    REAL(KIND=dp) :: r_val
 
     NULLIFY(fb_section)
 
+    failure = .FALSE.
     fb_section => section_vals_get_subs_vals(scf_section, &
                                              "DIAGONALIZATION%FILTER_MATRIX", &
                                              error=error)
+    ! filter_temperature
     CALL section_vals_val_get(fb_section, "FILTER_TEMPERATURE", &
-                              r_val=filter_temperature, &
+                              r_val=r_val, &
                               error=error)
     CALL fb_env_set(fb_env=fb_env, &
-                    filter_temperature=filter_temperature, &
+                    filter_temperature=r_val, &
+                    error=error)
+    ! auto_cutoff_scale
+    CALL section_vals_val_get(fb_section, "AUTO_CUTOFF_SCALE", &
+                              r_val=r_val, &
+                              error=error)
+    CALL fb_env_set(fb_env=fb_env, &
+                    auto_cutoff_scale=r_val, &
                     error=error)
 
   END SUBROUTINE fb_env_read_input
@@ -868,13 +874,16 @@ CONTAINS
     TYPE(gto_basis_set_type), POINTER :: basis_set
 
     REAL(KIND=dp), DIMENSION(:), POINTER :: rcut
-    REAL(KIND=dp) :: kind_radius
+    REAL(KIND=dp) :: kind_radius, auto_cutoff_scale
     INTEGER :: ikind, basis_set_id, nkinds, stat
 
     NULLIFY(rcut, qs_kind_set)
 
     CALL get_qs_env(qs_env=qs_env, &
                     qs_kind_set=qs_kind_set, &
+                    error=error)
+    CALL fb_env_get(fb_env=fb_env, &
+                    auto_cutoff_scale=auto_cutoff_scale, &
                     error=error)
 
     nkinds = SIZE(qs_kind_set)
@@ -903,7 +912,7 @@ CONTAINS
        basis_set => basis_set_list(ikind)%gto_basis_set
        CALL get_gto_basis_set(gto_basis_set=basis_set, &
                               kind_radius=kind_radius)
-       rcut(ikind) = kind_radius
+       rcut(ikind) = kind_radius * auto_cutoff_scale
     END DO
 
     CALL fb_env_set(fb_env=fb_env, &
@@ -984,14 +993,14 @@ CONTAINS
     CALL mp_max(max_natoms_local, para_env%group)
 
 !BEG:DEBUG:LT:2014/08/22
-    CALL cp_assert(nkinds .LE. SIZE(rcut), cp_failure_level, &
-                   cp_assertion_failed, routineP, &
-                   "array size of r_cut and number of local particle kinds mismatch", &
-                   error, failure)
-    CALL cp_assert(nkinds == nkinds_global, cp_failure_level, &
-                   cp_assertion_failed, routineP, &
-                   "nkinds not equal to nkinds_global", &
-                   error, failure)
+    ! CALL cp_assert(nkinds .LE. SIZE(rcut), cp_failure_level, &
+    !                cp_assertion_failed, routineP, &
+    !                "array size of r_cut and number of local particle kinds mismatch", &
+    !                error, failure)
+    ! CALL cp_assert(nkinds == nkinds_global, cp_failure_level, &
+    !                cp_assertion_failed, routineP, &
+    !                "nkinds not equal to nkinds_global", &
+    !                error, failure)
 !END:DEBUG:LT:2014/08/22
 
     ! create the halos, one for each local atom
@@ -1142,7 +1151,7 @@ CONTAINS
 !END:DEBUG:LT:2015/01/30
 
 !BEG:DEBUG:LT:2015/01/20
-    write (LT_UNIT,*) "|LT| fb_env_build_trial_fns_auto: constructing trial functions"
+    ! write (LT_UNIT,*) "|LT| fb_env_build_trial_fns_auto: constructing trial functions"
 !END:DEBUG:LT:2015/01/20
 
     failure = .FALSE.
@@ -1227,9 +1236,9 @@ CONTAINS
     max_n_trial = MAXVAL(nfunctions)
 
 !BEG:DEBUG:LT:2015/01/26
-    write (LT_UNIT,*) "|LT| fb_env_build_trial_fns_auto: max_n_trial = ", max_n_trial
-    write (LT_UNIT,*) "|LT| fb_env_build_trial_fns_auto: nkinds = ", nkinds
-    write (LT_UNIT,*) "|LT| fb_env_build_trial_fns_auto: nfunctions = ", nfunctions
+    ! write (LT_UNIT,*) "|LT| fb_env_build_trial_fns_auto: max_n_trial = ", max_n_trial
+    ! write (LT_UNIT,*) "|LT| fb_env_build_trial_fns_auto: nkinds = ", nkinds
+    ! write (LT_UNIT,*) "|LT| fb_env_build_trial_fns_auto: nfunctions = ", nfunctions
 !END:DEBUG:LT:2015/01/26
 
     ALLOCATE(functions(max_n_trial,nkinds), STAT=stat)
@@ -1251,8 +1260,8 @@ CONTAINS
                         zeff=zeff)
 
 !BEG:DEBUG:LT:2015/01/26
-       write (LT_UNIT,*) "|LT| fb_env_build_trial_fns_auto: ikind = ", ikind
-       write (LT_UNIT,*) "|LT| fb_env_build_trial_fns_auto: zeff = ", zeff
+       ! write (LT_UNIT,*) "|LT| fb_env_build_trial_fns_auto: ikind = ", ikind
+       ! write (LT_UNIT,*) "|LT| fb_env_build_trial_fns_auto: zeff = ", zeff
 !END:DEBUG:LT:2015/01/26
 
        icgf = 0
@@ -1270,9 +1279,9 @@ CONTAINS
                 ! only include the first zeta orbitals
 
 !BEG:DEBUG:LT:2015/01/20
-                write (LT_UNIT,*) &
-                      "|LT| fb_env_build_trial_fns_auto: icg, counter, lshell, nco(lshell) = ", &
-                      icgf, counter, lshell, nco(lshell)
+                ! write (LT_UNIT,*) &
+                !       "|LT| fb_env_build_trial_fns_auto: icg, counter, lshell, nco(lshell) = ", &
+                !       icgf, counter, lshell, nco(lshell)
 !END:DEBUG:LT:2015/01/20
 
                 IF ((lshell .GT. old_lshell) .AND. (counter .LE. nco(lshell))) THEN
@@ -1295,7 +1304,7 @@ CONTAINS
     END DO ! ikind
 
 !BEG:DEBUG:LT:2015/01/20
-    write (LT_UNIT,*) "|LT| fb_env_build_trial_fns_auto: trial_functions = ", functions
+    ! write (LT_UNIT,*) "|LT| fb_env_build_trial_fns_auto: trial_functions = ", functions
 !END:DEBUG:LT:2015/01/20
 
     ! set trial_functions
@@ -1348,8 +1357,8 @@ CONTAINS
     CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
 
 !BEG:DEBUG:LT:2015/02/02
-    write (LT_UNIT,*) "|LT| fb_dbcsr_copy_sparse_struct: nblks = ", nblks
-    CALL FLUSH(LT_UNIT)
+    ! write (LT_UNIT,*) "|LT| fb_dbcsr_copy_sparse_struct: nblks = ", nblks
+    ! CALL FLUSH(LT_UNIT)
 !END:DEBUG:LT:2015/02/02
 
     iblk = 0
@@ -1362,10 +1371,10 @@ CONTAINS
                                          iblk)
 
 !BEG:DEBUG:LT:2015/02/02
-       write (LT_UNIT,*) "|LT| fb_dbcsr_copy_sparse_struct: iblk = ", iblk
-       write (LT_UNIT,*) "|LT| fb_dbcsr_copy_sparse_struct: rows(iblk) = ", iatom
-       write (LT_UNIT,*) "|LT| fb_dbcsr_copy_sparse_struct: cols(iblk) = ", jatom
-       CALL FLUSH(LT_UNIT)
+       ! write (LT_UNIT,*) "|LT| fb_dbcsr_copy_sparse_struct: iblk = ", iblk
+       ! write (LT_UNIT,*) "|LT| fb_dbcsr_copy_sparse_struct: rows(iblk) = ", iatom
+       ! write (LT_UNIT,*) "|LT| fb_dbcsr_copy_sparse_struct: cols(iblk) = ", jatom
+       ! CALL FLUSH(LT_UNIT)
 !END:DEBUG:LT:2015/02/02
 
        rows(iblk) = iatom
@@ -1384,7 +1393,65 @@ CONTAINS
   END SUBROUTINE fb_dbcsr_copy_sparse_struct
 
 
+  SUBROUTINE fb_env_write_info(fb_env, qs_env, scf_section, error)
+    TYPE(fb_env_obj), INTENT(in) :: fb_env
+    TYPE(qs_environment_type), POINTER :: qs_env
+    TYPE(section_vals_type), POINTER :: scf_section
+    TYPE(cp_error_type), INTENT(INOUT) :: error
 
+    CHARACTER(len=*), PARAMETER :: routineN = 'fb_env_write_info', &
+                                   routineP = moduleN//':'//routineN
+
+    LOGICAL :: failure
+    INTEGER :: ikind, nkinds, unit_nr
+    REAL(KIND=dp) :: filter_temperature, auto_cutoff_scale
+    REAL(KIND=dp), DIMENSION(:), POINTER :: rcut
+    TYPE(atomic_kind_type), DIMENSION(:), POINTER :: atomic_kind_set
+    TYPE(cp_logger_type), POINTER :: logger
+    CHARACTER(LEN=2) :: element_symbol
+
+    failure = .FALSE.
+    NULLIFY(rcut, atomic_kind_set, logger)
+
+    CALL get_qs_env(qs_env=qs_env, &
+                    atomic_kind_set=atomic_kind_set, &
+                    error=error)
+
+    CALL fb_env_get(fb_env=fb_env, &
+                    filter_temperature=filter_temperature, &
+                    auto_cutoff_scale=auto_cutoff_scale, &
+                    rcut=rcut, &
+                    error=error)
+
+    nkinds = SIZE(atomic_kind_set)
+
+    logger => cp_error_get_logger(error=error)
+    unit_nr = cp_print_key_unit_nr(logger, scf_section, &
+                                   "PRINT%FILTER_MATRIX", &
+                                   extension="", &
+                                   error=error)
+    IF (unit_nr > 0) THEN
+       WRITE (UNIT=unit_nr, FMT="(/,A,T71,g10.4)") &
+             "FILTER_MAT_DIAG| Filter temperature [K]:", &
+             cp_unit_from_cp2k(filter_temperature, "K", error=error)
+       WRITE (UNIT=unit_nr, FMT="(A,T71,f10.4)") &
+             "FILTER_MAT_DIAG| Filter temperature [a.u.]:", &
+             filter_temperature
+       WRITE (UNIT=unit_nr, FMT="(A,T71,f10.4)") &
+             "FILTER_MAT_DIAG| Auto atomic cutoff radius scale:", &
+             auto_cutoff_scale
+       WRITE (UNIT=unit_nr, FMT="(A)") &
+             "FILTER_MAT_DIAG| atomic cutoff radii [a.u.]"
+       DO ikind = 1, nkinds
+          CALL get_atomic_kind(atomic_kind=atomic_kind_set(ikind), &
+                               element_symbol=element_symbol)
+          WRITE (UNIT=unit_nr, FMT="(A,A,T71,f10.4)") &
+                "FILTER_MAT_DIAG|   ", element_symbol, rcut(ikind)
+       END DO ! ikind
+    END IF
+    CALL cp_print_key_finished_output(unit_nr, logger, scf_section, &
+                                      "PRINT%FILTER_MATRIX", error=error)
+  END SUBROUTINE fb_env_write_info
 
 
 END MODULE qs_fb_env_methods
