@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2014  CP2K developers group                          !
+!   Copyright (C) 2000 - 2015  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -10,21 +10,15 @@
 !>      03.2008 - Teodoro Laino [tlaino] - University of Zurich - Cell Optimization
 ! *****************************************************************************
 MODULE cell_opt_utils
-  USE cell_methods,                    ONLY: cell_type,&
-                                             get_cell_param,&
-                                             set_cell_param
+  USE cell_types,                      ONLY: &
+       cell_sym_cubic, cell_sym_hexagonal, cell_sym_monoclinic, &
+       cell_sym_orthorhombic, cell_sym_rhombohedral, cell_sym_tetragonal_ab, &
+       cell_sym_tetragonal_ac, cell_sym_tetragonal_bc, cell_sym_triclinic, &
+       cell_type, get_cell_param, set_cell_param
   USE cp_files,                        ONLY: close_file,&
                                              open_file
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_units,                        ONLY: cp_units_rad
-  USE f77_blas
-  USE force_env_types,                 ONLY: force_env_get,&
-                                             force_env_set_cell,&
-                                             force_env_type
-  USE input_constants,                 ONLY: &
-       cell_sym_cubic, cell_sym_hexagonal, cell_sym_monoclinic, &
-       cell_sym_orthorhombic, cell_sym_rhombohedral, cell_sym_tetragonal_ab, &
-       cell_sym_tetragonal_ac, cell_sym_tetragonal_bc, cell_sym_triclinic
   USE input_cp2k_global,               ONLY: create_global_section
   USE input_enumeration_types,         ONLY: enum_i2c,&
                                              enumeration_type
@@ -55,12 +49,12 @@ MODULE cell_opt_utils
 CONTAINS
 ! *****************************************************************************
 !> \brief Transform a general cell matrix into an upper triangular one
-!> \param force_env ...
+!> \param cell ...
 !> \param error ...
 !> \author Teodoro Laino [tlaino] - University of Zurich - 03.2008
 ! *****************************************************************************
-  SUBROUTINE get_ut_cell_matrix(force_env, error)
-    TYPE(force_env_type), POINTER            :: force_env
+  SUBROUTINE get_ut_cell_matrix(cell, error)
+    TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'get_ut_cell_matrix', &
@@ -69,10 +63,8 @@ CONTAINS
     INTEGER, DIMENSION(3)                    :: periodic
     LOGICAL                                  :: failure
     REAL(KIND=dp), DIMENSION(3)              :: cell_angle, cell_length
-    TYPE(cell_type), POINTER                 :: cell
 
     failure  = .FALSE.
-    CALL force_env_get(force_env, cell=cell, error=error)
     ! orthorhombic cells are diagonal, and should stay exactly like this
     IF (.NOT. cell%orthorhombic) THEN
       CALL get_cell_param(cell,cell_length,cell_angle,cp_units_rad,periodic=periodic,&
@@ -80,7 +72,6 @@ CONTAINS
       CALL set_cell_param(cell,cell_length,cell_angle,periodic=periodic,&
                           do_init_cell=.TRUE.,error=error)
     END IF
-    CALL force_env_set_cell(force_env, cell=cell, error=error)
 
   END SUBROUTINE get_ut_cell_matrix
 

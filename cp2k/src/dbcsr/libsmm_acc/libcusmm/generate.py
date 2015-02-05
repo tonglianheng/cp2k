@@ -18,12 +18,15 @@ def main():
     triples  = combinations(23)                 # blocked H2O (benchmark)
     triples += combinations(6)                  # idem min basis
     triples += combinations(14,16,29)           # RPA water
-    triples += combinations(5, 16, 13, 24, 26)
-    triples += combinations(9, 16, 22)
+    triples += combinations(14,32,29)
+    triples += combinations(5, 32, 13, 24, 26)
+    triples += combinations(9, 32, 22)
     triples += combinations(32)
     triples += combinations(64)
     triples += combinations(78)
     triples += combinations(16,29,55)
+    triples += combinations(32,29,55)
+    triples += combinations(12)
 
     usage = "Generator of LibCuSMM. The Library for Cuda Small Matrix Multiplications."
     parser = OptionParser(usage)
@@ -78,8 +81,11 @@ def gen_library(plan):
 
     output += gen_process(plan)
     output += "\n\n"
-    output += gen_transpose(plan)
+
+    left_sizes = [(k,m) for (m,n,k) in plan.keys()]
+    output += gen_transpose(left_sizes)
     output += "\n\n"
+
     output += gen_list(plan)
     output += "//EOF\n"
     writefile("libcusmm.cu", output)
@@ -146,14 +152,14 @@ def gen_process(plan):
     output += '#define dbcsr_type_complex_8  7\n\n'
 
     output += 'extern "C" int libsmm_acc_process '
-    output += '(int *param_stack, int stack_size, int nparams, int datatype,'
+    output += '(void *param_stack, int stack_size, int nparams, int datatype,'
     output += ' void *a_data, void *b_data, void *c_data,'
-    output += ' int m_max, int n_max, int k_max, int def_mnk, void* stream){\n'
+    output += ' int m_max, int n_max, int k_max, int def_mnk, void *stream){\n'
     output += 'cudaStream_t* custream = (cudaStream_t*) stream;\n'
     output += 'if(def_mnk!=1)\n'
     output += '  return(-1); // inhomogenous stacks not supported\n'
     output += 'if(datatype==dbcsr_type_real_8)\n'
-    output += '  return(libcusmm_process_d (param_stack, stack_size, *custream,'
+    output += '  return(libcusmm_process_d ((int *) param_stack, stack_size, *custream,'
     output += ' m_max, n_max, k_max,'
     output += '(double *) a_data, (double *) b_data, (double *) c_data));\n\n'
     output += 'return(-1); // datatype not supported\n'
@@ -177,12 +183,12 @@ def gen_list(plan):
     return(output)
 
 #===============================================================================
-def gen_transpose(plan):
+def gen_transpose(sizes):
     output  = "int libcusmm_transpose_d(int *trs_stack, int offset, int nblks,\n"
     output += "double *buffer, int m, int n, cudaStream_t * stream) {\n"
 
-    m_vals = sorted(list(set([k for (m,n,k) in plan.keys()])))
-    n_vals = sorted(list(set([m for (m,n,k) in plan.keys()])))
+    m_vals = sorted(list(set([m for (m,n) in sizes])))
+    n_vals = sorted(list(set([n for (m,n) in sizes])))
     assert(len(m_vals) * len(n_vals) < pow(2,16))
 
     output += "int idx = 0;\n"
@@ -204,7 +210,7 @@ def gen_transpose(plan):
     output += "if(missing) return 0;\n\n"
 
     idx_map = dict()
-    for (m,n,k) in plan.keys():
+    for (m,n) in sizes:
         idx = m_vals.index(m)*len(n_vals) + n_vals.index(n)
         idx_map[idx] = (m,n)
 
@@ -228,7 +234,7 @@ def gen_transpose(plan):
         output += "break;\n"
 
     output += "// If there is no kernel for these blocks, we don't need to transpose them.\n"
-    output += "default: return(0);\n"
+    output += "default: return 0;\n"
     output += "}\n\n"
 
     output += "return(cudaGetLastError());\n"
@@ -236,12 +242,12 @@ def gen_transpose(plan):
     output += "}\n\n\n"
 
     output += 'extern "C" int libsmm_acc_transpose '
-    output += '(int *trs_stack, int offset, int nblks, void *buffer,'
+    output += '(void *trs_stack, int offset, int nblks, void *buffer,'
     output += 'int datatype, int m, int n, void* stream) {\n'
     output += 'cudaStream_t* custream = (cudaStream_t*) stream;\n'
     output += 'if(datatype != dbcsr_type_real_8)\n'
     output += '  return 0; //transpose not needed\n'
-    output += 'return libcusmm_transpose_d(trs_stack, offset, nblks, (double*) buffer, m, n, custream);\n'
+    output += 'return libcusmm_transpose_d((int *) trs_stack, offset, nblks, (double *) buffer, m, n, custream);\n'
     output += '};\n'
 
     return(output)

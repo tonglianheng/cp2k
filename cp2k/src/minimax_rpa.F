@@ -1,6 +1,6 @@
  !-----------------------------------------------------------------------------!
  !   CP2K: A general program to perform molecular dynamics simulations         !
- !   Copyright (C) 2000 - 2014  CP2K developers group                          !
+ !   Copyright (C) 2000 - 2015  CP2K developers group                          !
  !-----------------------------------------------------------------------------!
 
  ! *****************************************************************************
@@ -25,20 +25,17 @@
 
    CONTAINS
 
- ! *****************************************************************************
- !> \brief The a_i and w_i coefficient are stored in aw such that the first 1:K 
- !>        elements correspond to a_i and the K+1:2k correspond to w_i.   
- !>        All a_i and w_i have been fitted with a 12th order polynomial as 
- !>        a function of Rc for each value of K.
- !> \author Mauro Del Ben 
- ! *****************************************************************************
 ! *****************************************************************************
-!> \brief ...
+!> \brief The a_i and w_i coefficient are stored in aw such that the first 1:K 
+!>        elements correspond to a_i and the K+1:2k correspond to w_i.   
+!>        All a_i and w_i have been fitted with a 12th order polynomial as 
+!>        a function of Rc for each value of K.
 !> \param k ...
 !> \param E_range ...
 !> \param aw ...
 !> \param ierr ...
 !> \param error ...
+!> \author Mauro Del Ben 
 ! *****************************************************************************
    SUBROUTINE get_rpa_minimax_coeff(k,E_range,aw,ierr,error)
     INTEGER                                  :: k

@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2014  CP2K developers group                          !
+!   Copyright (C) 2000 - 2015  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -14,7 +14,6 @@
 !> \author Matthias Krack (03.09.2001,25.06.2003)
 ! *****************************************************************************
 MODULE qs_overlap
-
   USE ai_contraction,                  ONLY: block_add,&
                                              contraction,&
                                              decontraction,&
@@ -25,6 +24,7 @@ MODULE qs_overlap
   USE basis_set_types,                 ONLY: gto_basis_set_p_type,&
                                              gto_basis_set_type
   USE block_p_types,                   ONLY: block_p_type
+  USE cp_control_types,                ONLY: dft_control_type
   USE cp_dbcsr_cp2k_link,              ONLY: cp_dbcsr_alloc_block_from_nbl
   USE cp_dbcsr_interface,              ONLY: &
        array_i1d_obj, array_new, array_nullify, array_release, &
@@ -39,14 +39,14 @@ MODULE qs_overlap
   USE orbital_pointers,                ONLY: indco,&
                                              ncoset
   USE orbital_symbols,                 ONLY: cgf_symbol
-  USE particle_types,                  ONLY: get_particle_set,&
-                                             particle_type
-  USE qs_environment_types,            ONLY: get_qs_env,&
-                                             qs_environment_type
+  USE particle_methods,                ONLY: get_particle_set
+  USE particle_types,                  ONLY: particle_type
   USE qs_force_types,                  ONLY: qs_force_type
   USE qs_integral_utils,               ONLY: basis_set_list_setup,&
                                              get_memory_usage
   USE qs_kind_types,                   ONLY: qs_kind_type
+  USE qs_ks_types,                     ONLY: get_ks_env,&
+                                             qs_ks_env_type
   USE qs_neighbor_list_types,          ONLY: get_iterator_info,&
                                              get_neighbor_list_set_p,&
                                              neighbor_list_iterate,&
@@ -88,7 +88,7 @@ CONTAINS
 ! *****************************************************************************
 
 !> \brief   Calculation of the overlap matrix over Cartesian Gaussian functions.
-!> \param   qs_env the QS env
+!> \param   ks_env the QS env
 !> \param   matrix_s The overlap matrix to be calculated (optional)
 !> \param   matrixkp_s The overlap matrices to be calculated (kpoints, optional)
 !> \param   matrix_name The name of the overlap matrix (i.e. for output)
@@ -98,7 +98,6 @@ CONTAINS
 !> \param   sab_nl pair list (must be consistent with basis sets!)
 !> \param   calculate_forces (optional)
 !> \param   matrix_p density matrix for force calculation (optional)
-!> \param   matrixkp_p density matrices for force calculation (kpoints,optional)
 !> \param   error CP2K error reporting 
 !> \date    11.03.2002
 !> \par     History
@@ -112,11 +111,11 @@ CONTAINS
 !> \author  MK
 !> \version 1.0
 ! *****************************************************************************
-  SUBROUTINE build_overlap_matrix(qs_env, matrix_s, matrixkp_s, matrix_name,&
+  SUBROUTINE build_overlap_matrix(ks_env, matrix_s, matrixkp_s, matrix_name,&
      nderivative, basis_set_id_a, basis_set_id_b, sab_nl, calculate_forces,&
-     matrix_p, matrixkp_p, error)
+     matrix_p, error)
 
-    TYPE(qs_environment_type), POINTER       :: qs_env
+    TYPE(qs_ks_env_type), POINTER            :: ks_env
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: matrix_s
     TYPE(cp_dbcsr_p_type), DIMENSION(:, :), &
@@ -128,8 +127,6 @@ CONTAINS
       DIMENSION(:), POINTER                  :: sab_nl
     LOGICAL, INTENT(IN), OPTIONAL            :: calculate_forces
     TYPE(cp_dbcsr_type), OPTIONAL, POINTER   :: matrix_p
-    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
-      OPTIONAL, POINTER                      :: matrixkp_p
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'build_overlap_matrix', &
@@ -137,14 +134,13 @@ CONTAINS
 
     INTEGER :: atom_a, atom_b, handle, i, iatom, ic, icol, ikind, inode, &
       irow, iset, istat, jatom, jkind, jset, ldsab, maxder, maxs, n1, n2, &
-      natom, ncoa, ncob, ncount, nder, nkind, nseta, nsetb, sgfa, sgfb
+      natom, ncoa, ncob, nder, nimg, nkind, nseta, nsetb, sgfa, sgfb
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: atom_of_kind
     INTEGER, DIMENSION(3)                    :: cell
     INTEGER, DIMENSION(:), POINTER           :: la_max, la_min, lb_max, &
                                                 lb_min, npgfa, npgfb, nsgfa, &
                                                 nsgfb
-    INTEGER, DIMENSION(:, :), POINTER        :: first_sgfa, first_sgfb, &
-                                                index_to_cell
+    INTEGER, DIMENSION(:, :), POINTER        :: first_sgfa, first_sgfb
     INTEGER, DIMENSION(:, :, :), POINTER     :: cell_to_index
     LOGICAL                                  :: do_forces, do_symmetric, &
                                                 dokp, failure, found, trans, &
@@ -163,6 +159,7 @@ CONTAINS
     TYPE(block_p_type), ALLOCATABLE, &
       DIMENSION(:)                           :: sint
     TYPE(dbcsr_distribution_obj), POINTER    :: dbcsr_dist
+    TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(gto_basis_set_p_type), &
       DIMENSION(:), POINTER                  :: basis_set_list_a, &
                                                 basis_set_list_b
@@ -176,6 +173,7 @@ CONTAINS
       POINTER                                :: qs_kind_set
     TYPE(virial_type), POINTER               :: virial
 
+     NULLIFY(dft_control)
      failure = .FALSE.
 
      CALL timeset(routineN,handle)
@@ -185,18 +183,22 @@ CONTAINS
         dokp = .FALSE.
      ELSEIF (PRESENT(matrixkp_s)) THEN
         dokp = .TRUE.
-        CALL get_qs_env(qs_env=qs_env,kpoints=kpoints,error=error)
-        CALL get_kpoint_info(kpoint=kpoints,index_to_cell=index_to_cell,&
-                             cell_to_index=cell_to_index,error=error)
-        ncount = SIZE(index_to_cell,2)
+        CALL get_ks_env(ks_env=ks_env,kpoints=kpoints,error=error)
+        CALL get_kpoint_info(kpoint=kpoints,cell_to_index=cell_to_index,error=error)
      ELSE
         CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
      END IF
 
      NULLIFY (atomic_kind_set)
-     CALL get_qs_env(qs_env=qs_env,atomic_kind_set=atomic_kind_set,natom=natom,&
-                     qs_kind_set=qs_kind_set,dbcsr_dist=dbcsr_dist,error=error)
+     CALL get_ks_env(ks_env,&
+                     atomic_kind_set=atomic_kind_set,&
+                     natom=natom,&
+                     qs_kind_set=qs_kind_set,&
+                     dbcsr_dist=dbcsr_dist,&
+                     dft_control=dft_control,&
+                     error=error)
 
+     nimg = dft_control%nimages
      nkind = SIZE(qs_kind_set)
 
      ALLOCATE (atom_of_kind(natom),STAT=istat)
@@ -208,6 +210,11 @@ CONTAINS
      ELSE
        do_forces = .FALSE.
      END IF
+
+     IF(do_forces .AND. dokp) THEN
+       ! forces and k-points are not support yet
+       CPPostcondition(nimg==1,cp_failure_level,routineP,error,failure)
+     ENDIF
 
      IF (PRESENT(nderivative)) THEN
        nder = nderivative
@@ -224,29 +231,25 @@ CONTAINS
      END IF
 
      IF(dokp) THEN
-        CALL cp_dbcsr_allocate_matrix_set(matrixkp_s,maxder,ncount,error=error)
-        CALL create_sab_matrix(qs_env, matrixkp_s, matrix_name, basis_set_id_a, basis_set_id_b, &
+        CALL cp_dbcsr_allocate_matrix_set(matrixkp_s,maxder,nimg,error=error)
+        CALL create_sab_matrix(ks_env, matrixkp_s, matrix_name, basis_set_id_a, basis_set_id_b, &
                                sab_nl, do_symmetric, error)
      ELSE
         CALL cp_dbcsr_allocate_matrix_set(matrix_s,maxder,error=error)
-        CALL create_sab_matrix(qs_env, matrix_s, matrix_name, basis_set_id_a, basis_set_id_b, &
+        CALL create_sab_matrix(ks_env, matrix_s, matrix_name, basis_set_id_a, basis_set_id_b, &
                                sab_nl, do_symmetric, error)
      END IF
      maxs = maxder
 
      IF (do_forces) THEN
-        CALL get_qs_env(qs_env=qs_env,force=force,virial=virial,error=error)
+        CALL get_ks_env(ks_env=ks_env,force=force,virial=virial,error=error)
         use_virial = virial%pv_availability.AND.(.NOT.virial%pv_numer)
      END IF
 
      ldsab = get_memory_usage(qs_kind_set,basis_set_id_a,basis_set_id_b)
      IF (do_forces) THEN
         ! we need density matrix for forces
-        IF(dokp) THEN
-           CPPrecondition(PRESENT(matrixkp_p),cp_failure_level,routineP,error,failure)
-        ELSE
-           CPPrecondition(PRESENT(matrix_p),cp_failure_level,routineP,error,failure)
-        END IF
+        CPPrecondition(PRESENT(matrix_p),cp_failure_level,routineP,error,failure)
         nder = MAX(nder,1)
         ALLOCATE (pmat(ldsab,ldsab),STAT=istat)
         CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
@@ -335,15 +338,9 @@ CONTAINS
         END DO
         IF (do_forces) THEN
            NULLIFY (p_block)
-           IF(dokp) THEN
-              CALL cp_dbcsr_get_block_p(matrix=matrixkp_p(ic)%matrix,&
-                   row=irow,col=icol,block=p_block,found=found)
-              CPPostcondition(found,cp_failure_level,routineP,error,failure)
-           ELSE
-              CALL cp_dbcsr_get_block_p(matrix=matrix_p,row=irow,col=icol,&
+           CALL cp_dbcsr_get_block_p(matrix=matrix_p,row=irow,col=icol,&
                    block=p_block,found=found)
               CPPostcondition(found,cp_failure_level,routineP,error,failure)
-           END IF
         END IF
         trans = do_symmetric .AND. (iatom > jatom)
 
@@ -412,17 +409,17 @@ CONTAINS
 
      IF(dokp) THEN
         DO i = 1,maxs
-           DO ic=1,ncount
+           DO ic=1,nimg
               CALL cp_dbcsr_finalize(matrixkp_s(i,ic)%matrix, error=error)
               CALL cp_dbcsr_filter(matrixkp_s(i,ic)%matrix, &
-                   qs_env%dft_control%qs_control%eps_filter_matrix, error=error)
+                   dft_control%qs_control%eps_filter_matrix, error=error)
            ENDDO
         ENDDO
      ELSE
         DO i = 1,maxs
            CALL cp_dbcsr_finalize(matrix_s(i)%matrix, error=error)
            CALL cp_dbcsr_filter(matrix_s(i)%matrix, &
-                qs_env%dft_control%qs_control%eps_filter_matrix, error=error)
+                dft_control%qs_control%eps_filter_matrix, error=error)
         ENDDO
      END IF
 
@@ -451,7 +448,7 @@ CONTAINS
 
 !> \brief   Calculation of the force contribution from an overlap matrix 
 !>          over Cartesian Gaussian functions.
-!> \param   qs_env the QS environment
+!> \param   ks_env the QS environment
 !> \param   force holds the calcuated force Tr(P dS/dR)
 !> \param   basis_set_id_a basis set to be used for bra in <a|b>
 !> \param   basis_set_id_b basis set to be used for ket in <a|b>
@@ -470,10 +467,10 @@ CONTAINS
 !> \author  MK/JGH
 !> \version 1.0
 ! *****************************************************************************
-  SUBROUTINE build_overlap_force(qs_env, force, basis_set_id_a, basis_set_id_b, &
+  SUBROUTINE build_overlap_force(ks_env, force, basis_set_id_a, basis_set_id_b, &
                                  sab_nl, matrix_p, error)
 
-    TYPE(qs_environment_type), POINTER       :: qs_env
+    TYPE(qs_ks_env_type), POINTER            :: ks_env
     REAL(KIND=dp), DIMENSION(:, :), &
       INTENT(INOUT)                          :: force
     INTEGER, INTENT(IN)                      :: basis_set_id_a, basis_set_id_b
@@ -518,7 +515,7 @@ CONTAINS
      CALL timeset(routineN,handle)
 
      NULLIFY (qs_kind_set)
-     CALL get_qs_env(qs_env=qs_env,qs_kind_set=qs_kind_set,error=error)
+     CALL get_ks_env(ks_env=ks_env,qs_kind_set=qs_kind_set,error=error)
 
      nkind = SIZE(qs_kind_set)
      nder = 1
@@ -527,7 +524,7 @@ CONTAINS
      CPPrecondition(SIZE(sab_nl) > 0,cp_failure_level,routineP,error,failure)
      CALL get_neighbor_list_set_p(neighbor_list_sets=sab_nl,symmetric=do_symmetric)
 
-     CALL get_qs_env(qs_env=qs_env,virial=virial,error=error)
+     CALL get_ks_env(ks_env=ks_env,virial=virial,error=error)
      use_virial = virial%pv_availability.AND.(.NOT.virial%pv_numer)
 
      ! *** Allocate work storage ***
@@ -662,7 +659,7 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Setup the structure of a sparse matrix based on the overlap 
 !>        neighbor list
-!> \param qs_env         The QS environment
+!> \param ks_env         The QS environment
 !> \param matrix_s       Matrices to be constructed
 !> \param matrix_name    Matrix base name
 !> \param basis_set_id_a Basis set used for <a|
@@ -671,10 +668,10 @@ CONTAINS
 !> \param symmetric      Is symmetry used in the neighbor list?
 !> \param error          CP2K error reporting
 ! *****************************************************************************
-  SUBROUTINE create_sab_matrix_1d(qs_env, matrix_s, matrix_name,&
+  SUBROUTINE create_sab_matrix_1d(ks_env, matrix_s, matrix_name,&
      basis_set_id_a, basis_set_id_b, sab_nl, symmetric, error)
 
-    TYPE(qs_environment_type), POINTER       :: qs_env
+    TYPE(qs_ks_env_type), POINTER            :: ks_env
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: matrix_s
     CHARACTER(LEN=*), INTENT(IN), OPTIONAL   :: matrix_name
@@ -702,7 +699,7 @@ CONTAINS
 
      failure = .FALSE.
 
-     CALL get_qs_env(qs_env=qs_env,particle_set=particle_set,&
+     CALL get_ks_env(ks_env=ks_env,particle_set=particle_set,&
                      qs_kind_set=qs_kind_set, dbcsr_dist=dbcsr_dist,error=error)
 
      natom = SIZE(particle_set)
@@ -774,7 +771,7 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Setup the structure of a sparse matrix based on the overlap 
 !>        neighbor list, 2d version
-!> \param qs_env         The QS environment
+!> \param ks_env         The QS environment
 !> \param matrix_s       Matrices to be constructed
 !> \param matrix_name    Matrix base name
 !> \param basis_set_id_a Basis set used for <a|
@@ -783,10 +780,10 @@ CONTAINS
 !> \param symmetric      Is symmetry used in the neighbor list?
 !> \param error          CP2K error reporting
 ! *****************************************************************************
-  SUBROUTINE create_sab_matrix_2d(qs_env, matrix_s, matrix_name,&
+  SUBROUTINE create_sab_matrix_2d(ks_env, matrix_s, matrix_name,&
      basis_set_id_a, basis_set_id_b, sab_nl, symmetric, error)
 
-    TYPE(qs_environment_type), POINTER       :: qs_env
+    TYPE(qs_ks_env_type), POINTER            :: ks_env
     TYPE(cp_dbcsr_p_type), DIMENSION(:, :), &
       POINTER                                :: matrix_s
     CHARACTER(LEN=*), INTENT(IN), OPTIONAL   :: matrix_name
@@ -815,7 +812,7 @@ CONTAINS
 
     failure = .FALSE.
 
-    CALL get_qs_env(qs_env=qs_env,particle_set=particle_set,&
+    CALL get_ks_env(ks_env=ks_env,particle_set=particle_set,&
                     qs_kind_set=qs_kind_set, dbcsr_dist=dbcsr_dist,error=error)
 
     natom = SIZE(particle_set)

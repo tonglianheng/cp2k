@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2014  CP2K developers group                          !
+!   Copyright (C) 2000 - 2015  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 #define CP_SLL_DERIV_LESS_Q(el1,el2,error) cp_sll_deriv_less_q(el1,el2,error)
@@ -44,7 +44,6 @@
 !> \author Fawzi Mohamed
 ! *****************************************************************************
 MODULE cp_linked_list_xc_deriv
-  USE f77_blas
   USE kinds,                           ONLY: dp
   USE xc_derivative_types,             ONLY: xc_derivative_p_type,&
                                              xc_derivative_type
@@ -201,9 +200,9 @@ MODULE cp_linked_list_xc_deriv
 
 CONTAINS
 
-!private compare function
+
 ! *****************************************************************************
-!> \brief ...
+!> \brief private compare function
 !> \param el1 ...
 !> \param el2 ...
 !> \param error ...
@@ -310,9 +309,9 @@ END FUNCTION
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_sll_xc_deriv_dealloc_node', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
     LOGICAL                                  :: failure
 
+    INTEGER:: stat
     failure=.FALSE.
 
     DEALLOCATE(sll, stat=stat)
@@ -1121,7 +1120,14 @@ END SUBROUTINE cp_sll_xc_deriv_insert_ordered2
 !  lessQ = "cp_sll_deriv_less_q"
 !  nametype1 = "xc_deriv"
 !  private_routines = 
-!    "!private compare function
+!    "
+!     ! *****************************************************************************
+!     !> \brief private compare function
+!     !> \param el1 ...
+!     !> \param el2 ...
+!     !> \param error ...
+!     !> \retval res ...
+!     ! *****************************************************************************
 !     function cp_sll_deriv_less_q(el1,el2,error) result(res)
 !       type(xc_derivative_type), pointer :: el1,el2
 !       type(cp_error_type), intent(inout) :: error

@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2014  CP2K developers group                          !
+!   Copyright (C) 2000 - 2015  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -13,7 +13,6 @@ MODULE admm_types
   USE bibliography,                    ONLY: Guidon2010,&
                                              cite_reference
   USE cp_control_types,                ONLY: admm_control_type
-  USE cp_dbcsr_interface,              ONLY: cp_dbcsr_type
   USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                              cp_fm_struct_release,&
                                              cp_fm_struct_type
@@ -22,9 +21,9 @@ MODULE admm_types
                                              cp_fm_release,&
                                              cp_fm_type
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE f77_blas
-  USE input_constants,                 ONLY: do_admm_basis_projection,&
-                                             do_admm_blocked_projection
+  USE input_constants,                 ONLY: do_admm_blocked_projection,&
+                                             do_admm_blocking_purify_full,&
+                                             do_admm_charge_constrained_projection
   USE input_section_types,             ONLY: section_vals_release,&
                                              section_vals_type
   USE kinds,                           ONLY: dp
@@ -34,7 +33,7 @@ MODULE admm_types
 
   IMPLICIT NONE
   PRIVATE
-  PUBLIC :: admm_env_create, admm_env_release, admm_type, mcweeny_history_type
+  PUBLIC :: admm_env_create, admm_env_release, admm_type
 
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'admm_types'
@@ -46,16 +45,6 @@ MODULE admm_types
   TYPE eigvals_p_type
     TYPE(eigvals_type), POINTER              :: eigvals
   END TYPE
-
-  TYPE mcweeny_history_type
-    TYPE(cp_dbcsr_type)                        :: m
-    INTEGER                                    :: count = -1
-    TYPE(mcweeny_history_type), POINTER        :: next => Null()
-  END TYPE mcweeny_history_type
-
-  TYPE mcweeny_history_p_type
-    TYPE(mcweeny_history_type), POINTER        :: p => Null()
-  END TYPE mcweeny_history_p_type
 
 ! *****************************************************************************
 !> \brief stores some data used in wavefunction fitting
@@ -78,6 +67,7 @@ MODULE admm_types
 !> \param nao_aux_fit number of atomic orbitals in aux basis set
 !> \param nmo number of molecular orbitals per spin
 !> \param eigvals_lamda eigenvalues of lambda matrix
+!> \param gsi contains ratio N_dens_m/N_aux_dens_m 
 !> \par History
 !>      05.2008 created [Manuel Guidon]
 !> \author Manuel Guidon
@@ -90,11 +80,16 @@ MODULE admm_types
                                                 B => Null(),&
                                                 work_orb_orb => Null(),&
                                                 work_orb_orb2 => Null(),&
+                                                work_orb_orb3 => Null(),&
                                                 work_aux_orb => Null(),&
                                                 work_aux_orb2 => Null(),&
+                                                work_aux_orb3 => Null(),&
                                                 work_aux_aux => Null(),&
                                                 work_aux_aux2 => Null(),&
-                                                work_aux_aux3 => Null()
+                                                work_aux_aux3 => Null(),&
+                                                work_aux_aux4 => Null(),&
+                                                work_aux_aux5 => Null()
+
     TYPE(cp_fm_p_type), DIMENSION(:), &
       POINTER                                :: lambda => Null(),&
                                                 lambda_inv => Null(),&
@@ -123,13 +118,17 @@ MODULE admm_types
                                                 eigvals_P_to_be_purified => Null()
     TYPE(section_vals_type), POINTER         :: xc_section_primary => Null(),&
                                                 xc_section_aux => Null()
+    REAL(KIND=dp)                            :: gsi(3), &   
+                                                lambda_merlot(2), &
+                                                n_large_basis(3) 
     INTEGER                                  :: nao_orb, nao_aux_fit, nmo(2)
     INTEGER                                  :: purification_method
+    LOGICAL                                  :: charge_constrain = .FALSE.  
+    INTEGER                                  :: scaling_model, &
+                                                aux_exch_func 
     LOGICAL                                  :: block_dm  = .FALSE.
     LOGICAL                                  :: block_fit = .FALSE.
     INTEGER, DIMENSION(:,:), POINTER         :: block_map => Null()
-    TYPE(mcweeny_history_p_type),&
-      DIMENSION(:), POINTER                  :: mcweeny_history
   END TYPE
 
 
@@ -212,12 +211,15 @@ MODULE admm_types
     CALL cp_fm_create(admm_env%B,fm_struct_orb_orb,name="work_B",error=error)
     CALL cp_fm_create(admm_env%work_orb_orb,fm_struct_orb_orb,name="work_orb_orb",error=error)
     CALL cp_fm_create(admm_env%work_orb_orb2,fm_struct_orb_orb,name="work_orb_orb",error=error)
+    CALL cp_fm_create(admm_env%work_orb_orb3,fm_struct_orb_orb,name="work_orb_orb3",error=error)
     CALL cp_fm_create(admm_env%work_aux_orb,fm_struct_aux_orb,name="work_aux_orb",error=error)
     CALL cp_fm_create(admm_env%work_aux_orb2,fm_struct_aux_orb,name="work_aux_orb2",error=error)
-
+    CALL cp_fm_create(admm_env%work_aux_orb3,fm_struct_aux_orb,name="work_aux_orb3",error=error)
     CALL cp_fm_create(admm_env%work_aux_aux,fm_struct_aux_aux,name="work_aux_aux",error=error)
     CALL cp_fm_create(admm_env%work_aux_aux2,fm_struct_aux_aux,name="work_aux_aux2",error=error)
     CALL cp_fm_create(admm_env%work_aux_aux3,fm_struct_aux_aux,name="work_aux_aux3",error=error)
+    CALL cp_fm_create(admm_env%work_aux_aux4,fm_struct_aux_aux,name="work_aux_aux4",error=error)
+    CALL cp_fm_create(admm_env%work_aux_aux5,fm_struct_aux_aux,name="work_aux_aux5",error=error)
 
     ALLOCATE(admm_env%lambda_inv(nspins))
     ALLOCATE(admm_env%lambda(nspins))
@@ -243,7 +245,6 @@ MODULE admm_types
     ALLOCATE(admm_env%lambda_inv2(nspins))
     ALLOCATE(admm_env%C_hat(nspins))
     ALLOCATE(admm_env%P_tilde(nspins))
-    ALLOCATE(admm_env%mcweeny_history(nspins))
 
     DO ispin = 1,nspins
       CALL get_mo_set(mos(ispin)%mo_set,mo_coeff=mo_coeff, nmo=nmo)
@@ -310,11 +311,16 @@ MODULE admm_types
 
     ! copy settings from admm_control
     admm_env%purification_method = admm_control%purification_method
-    admm_env%block_dm  = admm_control%method /= do_admm_basis_projection
+    admm_env%scaling_model = admm_control%scaling_model 
+    admm_env%aux_exch_func = admm_control%aux_exch_func
+    admm_env%charge_constrain = (admm_control%method == do_admm_charge_constrained_projection)     
+    admm_env%block_dm  = ((admm_control%method == do_admm_blocking_purify_full) .OR. &
+                          (admm_control%method == do_admm_blocked_projection ))
     admm_env%block_fit = admm_control%method == do_admm_blocked_projection
 
 
-    IF(admm_control%method /= do_admm_basis_projection) THEN
+    IF((admm_control%method == do_admm_blocking_purify_full)  .OR. &
+       (admm_control%method == do_admm_blocked_projection)) THEN
        ! create block map
        ALLOCATE(admm_env%block_map(natoms,natoms))
        admm_env%block_map(:,:) = 0
@@ -357,11 +363,15 @@ MODULE admm_types
     CALL cp_fm_release(admm_env%B, error=error)
     CALL cp_fm_release(admm_env%work_orb_orb, error=error)
     CALL cp_fm_release(admm_env%work_orb_orb2, error=error)
+    CALL cp_fm_release(admm_env%work_orb_orb3, error=error)
     CALL cp_fm_release(admm_env%work_aux_aux, error=error)
     CALL cp_fm_release(admm_env%work_aux_aux2, error=error)
     CALL cp_fm_release(admm_env%work_aux_aux3, error=error)
+    CALL cp_fm_release(admm_env%work_aux_aux4, error=error)
+    CALL cp_fm_release(admm_env%work_aux_aux5, error=error)
     CALL cp_fm_release(admm_env%work_aux_orb, error=error)
     CALL cp_fm_release(admm_env%work_aux_orb2, error=error)
+    CALL cp_fm_release(admm_env%work_aux_orb3, error=error)
     DO ispin = 1,SIZE(admm_env%lambda)
       CALL cp_fm_release(admm_env%lambda(ispin)%matrix, error=error)
       CALL cp_fm_release(admm_env%lambda_inv(ispin)%matrix, error=error)
@@ -415,7 +425,6 @@ MODULE admm_types
     DEALLOCATE(admm_env%lambda_inv2)
     DEALLOCATE(admm_env%C_hat)
     DEALLOCATE(admm_env%P_tilde)
-    DEALLOCATE(admm_env%mcweeny_history)
 
     IF(ASSOCIATED(admm_env%block_map)) &
       DEALLOCATE(admm_env%block_map)

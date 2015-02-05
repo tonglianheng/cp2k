@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2014  CP2K developers group                          !
+!   Copyright (C) 2000 - 2015  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 ! *****************************************************************************
 !> \brief Provide various population analyses and print the requested output
@@ -12,17 +12,18 @@
 ! *****************************************************************************
 
 MODULE population_analyses
-
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind,&
                                              get_atomic_kind_set
   USE basis_set_types,                 ONLY: get_gto_basis_set,&
                                              gto_basis_set_type
+  USE cp_blacs_env,                    ONLY: cp_blacs_env_type
   USE cp_dbcsr_interface,              ONLY: &
        cp_dbcsr_copy, cp_dbcsr_deallocate_matrix, cp_dbcsr_get_block_p, &
        cp_dbcsr_init, cp_dbcsr_iterator, cp_dbcsr_iterator_blocks_left, &
        cp_dbcsr_iterator_next_block, cp_dbcsr_iterator_start, &
-       cp_dbcsr_iterator_stop, cp_dbcsr_p_type, cp_dbcsr_set, cp_dbcsr_type
+       cp_dbcsr_iterator_stop, cp_dbcsr_p_type, cp_dbcsr_set, &
+       cp_dbcsr_setname, cp_dbcsr_type
   USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
                                              cp_dbcsr_sm_fm_multiply
   USE cp_dbcsr_output,                 ONLY: cp_dbcsr_write_sparse_matrix,&
@@ -36,20 +37,21 @@ MODULE population_analyses
                                              cp_fm_release,&
                                              cp_fm_type
   USE cp_gemm_interface,               ONLY: cp_gemm
-  USE f77_blas
+  USE cp_para_types,                   ONLY: cp_para_env_type
   USE kinds,                           ONLY: default_string_length,&
                                              dp
   USE machine,                         ONLY: m_flush
   USE message_passing,                 ONLY: mp_sum
   USE orbital_pointers,                ONLY: nso
-  USE particle_types,                  ONLY: get_particle_set,&
-                                             particle_type
+  USE particle_methods,                ONLY: get_particle_set
+  USE particle_types,                  ONLY: particle_type
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
   USE qs_kind_types,                   ONLY: get_qs_kind,&
                                              get_qs_kind_set,&
                                              qs_kind_type
-  USE qs_rho_types,                    ONLY: qs_rho_type
+  USE qs_rho_types,                    ONLY: qs_rho_get,&
+                                             qs_rho_type
   USE scf_control_types,               ONLY: scf_control_type
   USE timings,                         ONLY: timeset,&
                                              timestop
@@ -94,11 +96,13 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: orbpop
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
+    TYPE(cp_blacs_env_type), POINTER         :: blacs_env
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: matrix_p, matrix_s
     TYPE(cp_dbcsr_type), POINTER             :: sm_p, sm_s
     TYPE(cp_fm_struct_type), POINTER         :: fmstruct
     TYPE(cp_fm_type), POINTER                :: fm_s_half, fm_work1, fm_work2
+    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(qs_kind_type), DIMENSION(:), &
@@ -125,6 +129,8 @@ CONTAINS
     NULLIFY (sm_p)
     NULLIFY (sm_s)
     NULLIFY (orbpop)
+    NULLIFY (para_env)
+    NULLIFY (blacs_env)
 
     CALL get_qs_env(qs_env=qs_env,&
                     atomic_kind_set=atomic_kind_set,&
@@ -133,6 +139,8 @@ CONTAINS
                     particle_set=particle_set,&
                     rho=rho,&
                     scf_control=scf_control,&
+                    para_env=para_env,&
+                    blacs_env=blacs_env,&
                     error=error)
 
     CPPrecondition(ASSOCIATED(atomic_kind_set),cp_failure_level,routineP,error,failure)
@@ -143,7 +151,7 @@ CONTAINS
     CPPrecondition(ASSOCIATED(scf_control),cp_failure_level,routineP,error,failure)
 
     sm_s => matrix_s(1)%matrix ! Overlap matrix in sparse format
-    matrix_p => rho%rho_ao     ! Density matrices in sparse format
+    CALL qs_rho_get(rho, rho_ao=matrix_p, error=error) ! Density matrices in sparse format
 
     nspin = SIZE(matrix_p)
 
@@ -162,8 +170,8 @@ CONTAINS
 
     ! Provide full size work matrices
     CALL cp_fm_struct_create(fmstruct=fmstruct,&
-                             para_env=qs_env%para_env,&
-                             context=qs_env%blacs_env,&
+                             para_env=para_env,&
+                             context=blacs_env,&
                              nrow_global=nsgf,&
                              ncol_global=nsgf,&
                              error=error)
@@ -215,7 +223,7 @@ CONTAINS
             fm_work2%name = TRIM(headline)//" FOR BETA SPIN"
           END IF
         END IF
-        CALL write_fm_with_basis_info(fm_work2,4,6,qs_env,qs_env%para_env,&
+        CALL write_fm_with_basis_info(fm_work2,4,6,qs_env,para_env,&
                                       output_unit=output_unit,error=error)
       END IF
       CALL cp_fm_get_diag(fm_work2,orbpop(:,ispin),error)
@@ -275,6 +283,7 @@ CONTAINS
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: matrix_p, matrix_s
     TYPE(cp_dbcsr_type), POINTER             :: sm_p, sm_ps, sm_s
+    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(qs_kind_type), DIMENSION(:), &
@@ -298,6 +307,7 @@ CONTAINS
     NULLIFY (sm_ps)
     NULLIFY (sm_s)
     NULLIFY (s_block)
+    NULLIFY (para_env)
 
     CALL get_qs_env(qs_env=qs_env,&
                     atomic_kind_set=atomic_kind_set,&
@@ -305,6 +315,7 @@ CONTAINS
                     matrix_s=matrix_s,&
                     particle_set=particle_set,&
                     rho=rho,&
+                    para_env=para_env,&
                     error=error)
 
     CPPrecondition(ASSOCIATED(atomic_kind_set),cp_failure_level,routineP,error,failure)
@@ -314,7 +325,7 @@ CONTAINS
     CPPrecondition(ASSOCIATED(matrix_s),cp_failure_level,routineP,error,failure)
 
     sm_s => matrix_s(1)%matrix ! Overlap matrix in sparse format
-    matrix_p => rho%rho_ao     ! Density matrices in sparse format
+    CALL qs_rho_get(rho, rho_ao=matrix_p, error=error) ! Density matrices in sparse format
 
     nspin = SIZE(matrix_p)
 
@@ -399,18 +410,18 @@ CONTAINS
         ! Write the full Mulliken net AO and overlap population matrix
         IF (nspin > 1) THEN
           IF (ispin == 1) THEN
-            sm_ps%matrix%m%name = TRIM(headline)//" FOR ALPHA SPIN"
+             CALL cp_dbcsr_setname(sm_ps,TRIM(headline)//" FOR ALPHA SPIN")
           ELSE
-            sm_ps%matrix%m%name = TRIM(headline)//" FOR BETA SPIN"
+             CALL cp_dbcsr_setname(sm_ps,TRIM(headline)//" FOR BETA SPIN")
           END IF
         END IF
-        CALL cp_dbcsr_write_sparse_matrix(sm_ps,4,6,qs_env,qs_env%para_env,&
+        CALL cp_dbcsr_write_sparse_matrix(sm_ps,4,6,qs_env,para_env,&
                                        output_unit=output_unit,&
                                        error=error)
       END IF
     END DO
 
-    CALL mp_sum(orbpop,qs_env%para_env%group)
+    CALL mp_sum(orbpop,para_env%group)
 
     ! Write atomic populations and charges
     IF (output_unit > 0) THEN

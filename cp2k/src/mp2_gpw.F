@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2014  CP2K developers group                          !
+!   Copyright (C) 2000 - 2015  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -42,14 +42,12 @@ MODULE mp2_gpw
   USE cp_para_env,                     ONLY: cp_para_env_create,&
                                              cp_para_env_release
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE cp_subsys_types,                 ONLY: cp_subsys_type
   USE distribution_1d_types,           ONLY: distribution_1d_release,&
                                              distribution_1d_type
   USE distribution_2d_types,           ONLY: distribution_2d_release,&
                                              distribution_2d_type
   USE distribution_methods,            ONLY: distribute_molecules_1d,&
                                              distribute_molecules_2d
-  USE f77_blas
   USE input_constants,                 ONLY: use_orb_basis_set
   USE input_section_types,             ONLY: section_vals_val_get
   USE kinds,                           ONLY: dp
@@ -68,9 +66,10 @@ MODULE mp2_gpw
                                              mp2_ri_gpw_compute_in
   USE mp2_ri_grad,                     ONLY: calc_ri_mp2_nonsep
   USE mp2_types,                       ONLY: mp2_type
-  USE particle_types,                  ONLY: get_particle_set,&
-                                             particle_type
-  USE pw_env_methods,                  ONLY: pw_env_create
+  USE particle_methods,                ONLY: get_particle_set
+  USE particle_types,                  ONLY: particle_type
+  USE pw_env_methods,                  ONLY: pw_env_create,&
+                                             pw_env_rebuild
   USE pw_env_types,                    ONLY: pw_env_get,&
                                              pw_env_release,&
                                              pw_env_type
@@ -93,6 +92,7 @@ MODULE mp2_gpw
   USE qs_integrate_potential,          ONLY: integrate_v_rspace
   USE qs_interactions,                 ONLY: init_interaction_radii
   USE qs_kind_types,                   ONLY: qs_kind_type
+  USE qs_ks_types,                     ONLY: qs_ks_env_type
   USE qs_mo_types,                     ONLY: get_mo_set,&
                                              mo_set_p_type
   USE qs_neighbor_list_types,          ONLY: deallocate_neighbor_list_set,&
@@ -197,7 +197,6 @@ MODULE mp2_gpw
     TYPE(cp_fm_type), POINTER                :: mo_coeff, mo_coeff_beta
     TYPE(cp_logger_type), POINTER            :: logger, logger_sub
     TYPE(cp_para_env_type), POINTER          :: para_env_sub
-    TYPE(cp_subsys_type), POINTER            :: subsys
     TYPE(dbcsr_distribution_obj), POINTER    :: dbcsr_dist_sub
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(distribution_1d_type), POINTER      :: local_molecules_sub, &
@@ -219,6 +218,7 @@ MODULE mp2_gpw
     TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
     TYPE(qs_kind_type), DIMENSION(:), &
       POINTER                                :: qs_kind_set
+    TYPE(qs_ks_env_type), POINTER            :: ks_env
     TYPE(task_list_type), POINTER            :: task_list_sub
 
     CALL timeset(routineN,handle)
@@ -280,22 +280,26 @@ MODULE mp2_gpw
                              blacs_repeatable,error=error_sub)
 
     ! get stuff
-    subsys=>qs_env%subsys
-    particle_set => subsys%particles%els
-    atomic_kind_set => subsys%atomic_kinds%els
-    CALL get_qs_env(qs_env, qs_kind_set=qs_kind_set, error=error)
-    molecule_set => subsys%molecules_new%els
-    molecule_kind_set => subsys%molecule_kinds_new%els
+    CALL get_qs_env(qs_env,&
+                    ks_env=ks_env,&
+                    qs_kind_set=qs_kind_set,&
+                    cell=cell,&
+                    particle_set=particle_set,&
+                    atomic_kind_set=atomic_kind_set,&
+                    molecule_set=molecule_set,&
+                    molecule_kind_set=molecule_kind_set,&
+                    dft_control=dft_control,&
+                    error=error)
 
     ! re-init the radii to be able to generate pair lists with MP2-appropriate screening
-    eps_pgf_orb_old=qs_env%dft_control%qs_control%eps_pgf_orb
-    eps_rho_rspace_old=qs_env%dft_control%qs_control%eps_rho_rspace
-    eps_gvg_rspace_old=qs_env%dft_control%qs_control%eps_gvg_rspace
+    eps_pgf_orb_old=dft_control%qs_control%eps_pgf_orb
+    eps_rho_rspace_old=dft_control%qs_control%eps_rho_rspace
+    eps_gvg_rspace_old=dft_control%qs_control%eps_gvg_rspace
     ! hack hack hack XXXXXXXXXXXXXXX ... to be fixed
-    qs_env%dft_control%qs_control%eps_pgf_orb   =mp2_env%mp2_gpw%eps_grid
-    qs_env%dft_control%qs_control%eps_rho_rspace=mp2_env%mp2_gpw%eps_grid
-    qs_env%dft_control%qs_control%eps_gvg_rspace=mp2_env%mp2_gpw%eps_grid
-    CALL init_interaction_radii(qs_env%dft_control%qs_control,atomic_kind_set, qs_kind_set, error_sub)
+    dft_control%qs_control%eps_pgf_orb   =mp2_env%mp2_gpw%eps_grid
+    dft_control%qs_control%eps_rho_rspace=mp2_env%mp2_gpw%eps_grid
+    dft_control%qs_control%eps_gvg_rspace=mp2_env%mp2_gpw%eps_grid
+    CALL init_interaction_radii(dft_control%qs_control,atomic_kind_set, qs_kind_set, error_sub)
 
     ! get a distribution_1d
     NULLIFY(local_particles_sub,local_molecules_sub)
@@ -309,7 +313,6 @@ MODULE mp2_gpw
                                  error=error_sub)
 
     ! get a distribution_2d
-    cell=>qs_env%cell
     NULLIFY(distribution_2d_sub)
     CALL distribute_molecules_2d(cell=cell,&
                                  atomic_kind_set=atomic_kind_set,&
@@ -382,7 +385,7 @@ MODULE mp2_gpw
     ! new routine: replicate a full matrix from one para_env to a smaller one
     ! keeping the memory usage as small as possible in this case the 
     ! output the two part of the C matrix (virtual, occupied)
-    CALL replicate_mat_to_subgroup(qs_env,mp2_env,para_env,para_env_sub,mo_coeff,dimen,homo,mat_munu,&
+    CALL replicate_mat_to_subgroup(mp2_env,para_env,para_env_sub,mo_coeff,dimen,homo,mat_munu,&
                                    mo_coeff_o,mo_coeff_v,blacs_env_sub,unit_nr,error,error_sub)
 
     ! if open shell case replicate also the coefficient matrix for the beta orbitals 
@@ -395,31 +398,32 @@ MODULE mp2_gpw
       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
       Eigenval_beta(:)=mo_eigenvalues(:)
 
-      CALL replicate_mat_to_subgroup(qs_env,mp2_env,para_env,para_env_sub,mo_coeff_beta,dimen,homo_beta,mat_munu,&
+      CALL replicate_mat_to_subgroup(mp2_env,para_env,para_env_sub,mo_coeff_beta,dimen,homo_beta,mat_munu,&
                                      mo_coeff_o_beta,mo_coeff_v_beta,blacs_env_sub,unit_nr,error,error_sub)
     END IF
 
     ! hack hack hack XXXXXXXXXXXXXXX rebuilds the pw_en with the new cutoffs
-    progression_factor=qs_env%dft_control%qs_control%progression_factor
-    n_multigrid=SIZE(qs_env%dft_control%qs_control%e_cutoff)
+    progression_factor=dft_control%qs_control%progression_factor
+    n_multigrid=SIZE(dft_control%qs_control%e_cutoff)
     ALLOCATE(e_cutoff_old(n_multigrid), STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    e_cutoff_old(:)=qs_env%dft_control%qs_control%e_cutoff
-    cutoff_old=qs_env%dft_control%qs_control%cutoff
+    e_cutoff_old(:)=dft_control%qs_control%e_cutoff
+    cutoff_old=dft_control%qs_control%cutoff
 
-    qs_env%dft_control%qs_control%cutoff=mp2_env%mp2_gpw%cutoff*0.5_dp
-    qs_env%dft_control%qs_control%e_cutoff(1)=qs_env%dft_control%qs_control%cutoff
+    dft_control%qs_control%cutoff=mp2_env%mp2_gpw%cutoff*0.5_dp
+    dft_control%qs_control%e_cutoff(1)=dft_control%qs_control%cutoff
     DO i_multigrid=2, n_multigrid
-      qs_env%dft_control%qs_control%e_cutoff(i_multigrid) = qs_env%dft_control%qs_control%e_cutoff(i_multigrid-1) &
+      dft_control%qs_control%e_cutoff(i_multigrid) = dft_control%qs_control%e_cutoff(i_multigrid-1) &
           / progression_factor
     END DO
 
-    relative_cutoff_old=qs_env%dft_control%qs_control%relative_cutoff
-    qs_env%dft_control%qs_control%relative_cutoff=mp2_env%mp2_gpw%relative_cutoff*0.5_dp
+    relative_cutoff_old=dft_control%qs_control%relative_cutoff
+    dft_control%qs_control%relative_cutoff=mp2_env%mp2_gpw%relative_cutoff*0.5_dp
 
     ! a pw_env
     NULLIFY(pw_env_sub)
-    CALL pw_env_create(pw_env_sub,qs_env,para_env_sub,error_sub)
+    CALL pw_env_create(pw_env_sub,error_sub)
+    CALL pw_env_rebuild(pw_env_sub,qs_env,para_env_sub,error_sub)
 
     CALL pw_env_get(pw_env_sub, auxbas_pw_pool=auxbas_pw_pool,&
                     poisson_env=poisson_env,error=error_sub)
@@ -427,9 +431,9 @@ MODULE mp2_gpw
 
     ! now we need a task list, hard code skip_load_balance_distributed
     NULLIFY(task_list_sub)
-    skip_load_balance_distributed=qs_env%dft_control%qs_control%skip_load_balance_distributed
+    skip_load_balance_distributed=dft_control%qs_control%skip_load_balance_distributed
     CALL allocate_task_list(task_list_sub,error_sub)
-    CALL generate_qs_task_list(qs_env, task_list_sub, &
+    CALL generate_qs_task_list(ks_env, task_list_sub, &
                  reorder_rs_grid_ranks=.TRUE., soft_valid=.FALSE., &
                  skip_load_balance_distributed=skip_load_balance_distributed,&
                  pw_env_external=pw_env_sub, sab_orb_external=sab_orb_sub, error=error_sub)
@@ -573,13 +577,13 @@ MODULE mp2_gpw
     IF(my_do_ri_rpa.OR.my_do_ri_sos_laplace_mp2) THEN
       ! RI-RPA
       IF(nspins==2) THEN
-        CALL rpa_ri_compute_en(Emp2,mp2_env,BIb_C,qs_env,para_env,para_env_sub,color_sub,&
+        CALL rpa_ri_compute_en(Emp2,mp2_env,BIb_C,para_env,para_env_sub,color_sub,&
                                ends_array,ends_B_virtual,sizes_array,sizes_B_virtual,starts_array,starts_B_virtual,&
                                Eigenval,nmo,homo,dimen_RI,unit_nr,error,error_sub,my_do_ri_sos_laplace_mp2,&
                                BIb_C_beta,homo_beta,Eigenval_beta,&
                                ends_B_virtual_beta,sizes_B_virtual_beta, starts_B_virtual_beta)
       ELSE
-        CALL rpa_ri_compute_en(Emp2,mp2_env,BIb_C,qs_env,para_env,para_env_sub,color_sub,&
+        CALL rpa_ri_compute_en(Emp2,mp2_env,BIb_C,para_env,para_env_sub,color_sub,&
                                ends_array,ends_B_virtual,sizes_array,sizes_B_virtual,starts_array,starts_B_virtual,&
                                Eigenval,nmo,homo,dimen_RI,unit_nr,error,error_sub,my_do_ri_sos_laplace_mp2)
       END IF
@@ -588,13 +592,13 @@ MODULE mp2_gpw
         ! RI-MP2-GPW compute energy
         IF(nspins==2) THEN
           ! alpha-alpha component
-          CALL mp2_ri_gpw_compute_en(Emp2,Emp2_Cou,Emp2_EX,BIb_C,qs_env,mp2_env,para_env,para_env_sub,color_sub,&
+          CALL mp2_ri_gpw_compute_en(Emp2,Emp2_Cou,Emp2_EX,BIb_C,mp2_env,para_env,para_env_sub,color_sub,&
                                      ends_array,ends_B_virtual,sizes_array,sizes_B_virtual,starts_array,starts_B_virtual,&
                                      Eigenval,nmo,homo,dimen_RI,unit_nr,calc_forces,calc_ex,error,error_sub,&
                                      open_shell_SS=.TRUE.)
  
           ! beta-beta component
-          CALL mp2_ri_gpw_compute_en(Emp2_BB,Emp2_Cou_BB,Emp2_EX_BB,BIb_C_beta,qs_env,mp2_env,para_env,para_env_sub,color_sub,&
+          CALL mp2_ri_gpw_compute_en(Emp2_BB,Emp2_Cou_BB,Emp2_EX_BB,BIb_C_beta,mp2_env,para_env,para_env_sub,color_sub,&
                                      ends_array,ends_B_virtual_beta,sizes_array,&
                                      sizes_B_virtual_beta,starts_array,starts_B_virtual_beta,&
                                      Eigenval_beta,nmo,homo_beta,dimen_RI,unit_nr,calc_forces,calc_ex,error,error_sub,&
@@ -602,7 +606,7 @@ MODULE mp2_gpw
 
 
           ! alpha-beta case
-          CALL mp2_ri_gpw_compute_en(Emp2_d_AB,Emp2_AB,Emp2_d2_AB,BIb_C,qs_env,mp2_env,para_env,para_env_sub,color_sub,&
+          CALL mp2_ri_gpw_compute_en(Emp2_d_AB,Emp2_AB,Emp2_d2_AB,BIb_C,mp2_env,para_env,para_env_sub,color_sub,&
                                      ends_array,ends_B_virtual,sizes_array,sizes_B_virtual,starts_array,starts_B_virtual,&
                                      Eigenval,nmo,homo,dimen_RI,unit_nr,calc_forces,.FALSE.,error,error_sub,&
                                      .FALSE.,BIb_C_beta,homo_beta,Eigenval_beta,&
@@ -610,7 +614,7 @@ MODULE mp2_gpw
 
         ELSE
           ! closed shell case
-          CALL mp2_ri_gpw_compute_en(Emp2,Emp2_Cou,Emp2_EX,BIb_C,qs_env,mp2_env,para_env,para_env_sub,color_sub,&
+          CALL mp2_ri_gpw_compute_en(Emp2,Emp2_Cou,Emp2_EX,BIb_C,mp2_env,para_env,para_env_sub,color_sub,&
                                      ends_array,ends_B_virtual,sizes_array,sizes_B_virtual,starts_array,starts_B_virtual,&
                                      Eigenval,nmo,homo,dimen_RI,unit_nr,calc_forces,calc_ex,error,error_sub)
         END IF
@@ -731,15 +735,15 @@ MODULE mp2_gpw
     !XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXx
 
     ! re-init the radii to be able to generate pair lists with MP2-appropriate screening
-    qs_env%dft_control%qs_control%eps_pgf_orb=eps_pgf_orb_old
-    qs_env%dft_control%qs_control%eps_rho_rspace=eps_rho_rspace_old
-    qs_env%dft_control%qs_control%eps_gvg_rspace=eps_gvg_rspace_old
-    CALL init_interaction_radii(qs_env%dft_control%qs_control,atomic_kind_set, qs_kind_set, error_sub)
+    dft_control%qs_control%eps_pgf_orb=eps_pgf_orb_old
+    dft_control%qs_control%eps_rho_rspace=eps_rho_rspace_old
+    dft_control%qs_control%eps_gvg_rspace=eps_gvg_rspace_old
+    CALL init_interaction_radii(dft_control%qs_control,atomic_kind_set, qs_kind_set, error_sub)
 
     ! restore the initial value of the cutoff
-    qs_env%dft_control%qs_control%e_cutoff=e_cutoff_old
-    qs_env%dft_control%qs_control%cutoff=cutoff_old
-    qs_env%dft_control%qs_control%relative_cutoff=relative_cutoff_old
+    dft_control%qs_control%e_cutoff=e_cutoff_old
+    dft_control%qs_control%cutoff=cutoff_old
+    dft_control%qs_control%relative_cutoff=relative_cutoff_old
 
     CALL cp_blacs_env_release(blacs_env_sub, error=error_sub)
 
@@ -1112,7 +1116,7 @@ MODULE mp2_gpw
     ! replicate on a local array on proc 0 the occupied and virtual wavevectior
     ! needed for the calculation of the WF's by calculate_wavefunction
     ! (external vector)
-    CALL grep_occ_virt_wavefunc(qs_env,para_env_sub,nmo,homo,virtual,&
+    CALL grep_occ_virt_wavefunc(para_env_sub,nmo,homo,virtual,&
                                 my_I_occupied_start,my_I_occupied_end,my_I_batch_size,&
                                 my_A_virtual_start,my_A_virtual_end,my_A_batch_size,&
                                 mo_coeff_o,mo_coeff_v,my_Cocc,my_Cvirt,unit_nr,error_sub)
@@ -1586,7 +1590,6 @@ MODULE mp2_gpw
 
 ! *****************************************************************************
 !> \brief ...
-!> \param qs_env ...
 !> \param mp2_env ...
 !> \param para_env ...
 !> \param para_env_sub ...
@@ -1601,9 +1604,8 @@ MODULE mp2_gpw
 !> \param error ...
 !> \param error_sub ...
 ! *****************************************************************************
-  SUBROUTINE replicate_mat_to_subgroup(qs_env,mp2_env,para_env,para_env_sub,mo_coeff,dimen,homo,mat_munu,&
+  SUBROUTINE replicate_mat_to_subgroup(mp2_env,para_env,para_env_sub,mo_coeff,dimen,homo,mat_munu,&
                                        mo_coeff_o,mo_coeff_v,blacs_env_sub,unit_nr,error,error_sub)
-    TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(mp2_type), POINTER                  :: mp2_env
     TYPE(cp_para_env_type), POINTER          :: para_env, para_env_sub
     TYPE(cp_fm_type), POINTER                :: mo_coeff
@@ -1957,7 +1959,6 @@ MODULE mp2_gpw
 
 ! *****************************************************************************
 !> \brief ...
-!> \param qs_env ...
 !> \param para_env_sub ...
 !> \param dimen ...
 !> \param homo ...
@@ -1975,12 +1976,11 @@ MODULE mp2_gpw
 !> \param unit_nr ...
 !> \param error_sub ...
 ! *****************************************************************************
-  SUBROUTINE grep_occ_virt_wavefunc(qs_env,para_env_sub,dimen,homo,virtual,&
+  SUBROUTINE grep_occ_virt_wavefunc(para_env_sub,dimen,homo,virtual,&
                                     my_I_occupied_start,my_I_occupied_end,my_I_batch_size,&
                                     my_A_virtual_start,my_A_virtual_end,my_A_batch_size,&
                                     mo_coeff_o,mo_coeff_v,my_Cocc,my_Cvirt,unit_nr,error_sub)
 
-    TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(cp_para_env_type), POINTER          :: para_env_sub
     INTEGER :: dimen, homo, virtual, my_I_occupied_start, my_I_occupied_end, &
       my_I_batch_size, my_A_virtual_start, my_A_virtual_end, my_A_batch_size

@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2014  CP2K developers group                          !
+!   Copyright (C) 2000 - 2015  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -15,9 +15,9 @@ MODULE environment
   USE bibliography,                    ONLY: Frigo2005,&
                                              cite_reference
   USE cp2k_info,                       ONLY: &
-       compile_arch, compile_date, compile_host, compile_revision, cp2k_home, &
-       cp2k_version, cp2k_year, get_runtime_info, id_cp2k_version, &
-       r_host_name, r_pid, r_user_name
+       compile_arch, compile_date, compile_host, compile_revision, &
+       cp2k_flags, cp2k_home, cp2k_version, cp2k_year, get_runtime_info, &
+       id_cp2k_version, r_host_name, r_pid, r_user_name
   USE cp_files,                        ONLY: close_file,&
                                              open_file
   USE cp_fm_diag,                      ONLY: diag_init
@@ -28,9 +28,13 @@ MODULE environment
        cp_ma_print_machine, cp_ma_print_strategy, cp_ma_run_on, &
        cp_ma_thread_run_on, cp_ma_thread_sched
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
-                                             cp_print_key_unit_nr
+                                             cp_print_key_unit_nr,&
+                                             debug_print_level,&
+                                             high_print_level,&
+                                             low_print_level,&
+                                             medium_print_level,&
+                                             silent_print_level
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE f77_blas
   USE fft_tools,                       ONLY: fft3d,&
                                              finalize_fft,&
                                              init_fft
@@ -40,11 +44,10 @@ MODULE environment
   USE header,                          ONLY: cp2k_footer,&
                                              cp2k_header
   USE input_constants,                 ONLY: &
-       callgraph_all, callgraph_none, debug_print_level, do_cp2k, &
-       do_diag_elpa, do_diag_sl, do_diag_sl2, do_eip, do_farming, &
-       do_fft_fftw3, do_fft_sg, do_fist, do_qs, do_test, energy_run, &
-       high_print_level, id_development_version, low_print_level, &
-       medium_print_level, mol_dyn_run, none_run, silent_print_level
+       callgraph_all, callgraph_none, do_cp2k, do_diag_elpa, do_diag_sl, &
+       do_diag_sl2, do_eip, do_farming, do_fft_fftw3, do_fft_sg, do_fist, &
+       do_qs, do_test, energy_run, id_development_version, mol_dyn_run, &
+       none_run
   USE input_cp2k_global,               ONLY: create_global_section
   USE input_enumeration_types,         ONLY: enum_i2c,&
                                              enumeration_type
@@ -136,7 +139,7 @@ CONTAINS
     INTEGER                                  :: output_unit
     TYPE(global_environment_type), POINTER   :: globenv
     CHARACTER(LEN=*)                         :: input_file_name
-    CHARACTER(LEN=*), OPTIONAL :: wdir
+    CHARACTER(LEN=*), OPTIONAL               :: wdir
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp2k_init', &
       routineP = moduleN//':'//routineN
@@ -144,11 +147,9 @@ CONTAINS
     CHARACTER(LEN=default_string_length)     :: dev_flag
     INTEGER                                  :: my_output_unit
     TYPE(cp_logger_type), POINTER            :: logger
-#if defined(__HPM)
-#include "f_hpm.h"
-#endif
 
-    ! create a timer_env
+! create a timer_env
+
     CALL add_timer_env()
 
     ! message passing performance
@@ -192,6 +193,8 @@ CONTAINS
        WRITE (UNIT=my_output_unit,FMT="(T2,A,T41,A40)")&
             "CP2K| source code revision number:",&
             ADJUSTR(compile_revision)
+       WRITE (UNIT=my_output_unit,FMT="(T2,A)")&
+            "CP2K| "//TRIM(cp2k_flags())
        WRITE (UNIT=my_output_unit,FMT="(T2,A,T41,A40)")&
             "CP2K| is freely available from ",&
             ADJUSTR(TRIM(cp2k_home))
@@ -373,13 +376,7 @@ CONTAINS
 !   *** Read the input/output section ***
 
     logger => cp_get_default_logger()
-#if defined(__HPM)
-    IF (BTEST(cp_print_key_should_output(logger%iter_info,&
-         root_section,"GLOBAL%PRINT/HPM",error=error),cp_p_file)) THEN
-       CALL f_hpminit(para_env%mepos,"CP2K")
-       use_HPM = .TRUE.
-    ENDIF
-#endif
+
     ! try to use better names for the local log if it is not too late
     CALL section_vals_val_get(root_section,"GLOBAL%OUTPUT_FILE_NAME",&
          c_val=c_val,error=error)
@@ -515,9 +512,10 @@ CONTAINS
 
     CHARACTER(len=13)                        :: tracing_string
     CHARACTER(len=6)                         :: print_level_string
-    CHARACTER(len=default_path_length) :: basis_set_file_name, &
-      coord_file_name, geminal_file_name, mm_potential_file_name, &
-      potential_file_name
+    CHARACTER(len=default_path_length)       :: basis_set_file_name, &
+                                                coord_file_name, &
+                                                mm_potential_file_name, &
+                                                potential_file_name
     CHARACTER(len=default_string_length)     :: env_num, project_name
     CHARACTER(LEN=default_string_length), &
       DIMENSION(:), POINTER                  :: trace_routines
@@ -730,8 +728,6 @@ CONTAINS
                i_rep_section=i_force_eval(iforce_eval),error=error)
           CALL section_vals_val_get(dft_section,"BASIS_SET_FILE_NAME",&
                c_val=basis_set_file_name , ignore_required=.TRUE., error=error)
-          CALL section_vals_val_get(dft_section,"GEMINAL_FILE_NAME",&
-               c_val=geminal_file_name , ignore_required=.TRUE., error=error)
           CALL section_vals_val_get(dft_section,"POTENTIAL_FILE_NAME",&
                c_val=potential_file_name , ignore_required=.TRUE., error=error)
 
@@ -756,10 +752,6 @@ CONTAINS
                start_section_label//"| Force Environment number",&
                ADJUSTR(env_num(:40)),&
                start_section_label//"| Basis set file name",&
-               ADJUSTR(basis_set_file_name(:40)),&
-               start_section_label//"| Geminal file name",&
-               ADJUSTR(geminal_file_name(:40)),&
-               start_section_label//"| Potential file name",&
                ADJUSTR(potential_file_name(:40)),&
                start_section_label//"| MM Potential file name",&
                ADJUSTR(mm_potential_file_name(:40)),&
@@ -850,7 +842,7 @@ CONTAINS
       CALL cp_ma_run_on(para_env, error, output_unit)
 
 
-!$omp parallel private(nid)
+!$omp parallel default(none) private(nid) shared(error)
 !$omp critical
 !$          nid = omp_get_thread_num()
 !$          CALL cp_ma_thread_sched(nid, error=error )
@@ -859,7 +851,7 @@ CONTAINS
 
        CALL cp_ma_thread_run_on(output_unit, error=error)
 
-!$omp parallel private(nid)
+!$omp parallel default(none) private(nid) shared(error)
 !$          nid = omp_get_thread_num()
 !$          CALL cp_ma_current_thread_run(nid, error=error)
 !$omp end parallel
@@ -1152,17 +1144,14 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'cp2k_finalize', &
       routineP = moduleN//':'//routineN
 
-    CHARACTER(LEN=default_string_length)     :: dev_flag
     CHARACTER(LEN=default_path_length)       :: cg_filename
-    INTEGER                                  :: iw, unit_exit, cg_mode
-    LOGICAL                                  :: delete_it,failure,&
+    CHARACTER(LEN=default_string_length)     :: dev_flag
+    INTEGER                                  :: cg_mode, iw, unit_exit
+    LOGICAL                                  :: delete_it, failure, &
                                                 sort_by_self_time
     REAL(KIND=dp)                            :: r_timings
     TYPE(cp_logger_type), POINTER            :: logger
 
-#if defined(__HPM)
-#include "f_hpm.h"
-#endif
 ! look if we inherited a failure, more care is needed if so
 ! i.e. the input is most likely not available
 
@@ -1192,14 +1181,6 @@ CONTAINS
        CALL cp_print_key_finished_output(iw,logger,root_section,&
             "GLOBAL%PROGRAM_RUN_INFO", error=error)
     ENDIF
-
-#if defined(__HPM)
-    IF (BTEST(cp_print_key_should_output(logger%iter_info,&
-         root_section,"GLOBAL%PRINT/HPM",error=error),cp_p_file)) THEN
-       CALL f_hpmterminate(para_env%group)
-       use_HPM=.FALSE.
-    ENDIF
-#endif
 
     IF (.NOT. failure) THEN
        CALL collect_citations_from_ranks(para_env)

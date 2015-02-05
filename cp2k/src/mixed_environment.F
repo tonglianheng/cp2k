@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2014  CP2K developers group                          !
+!   Copyright (C) 2000 - 2015  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -9,19 +9,19 @@
 ! *****************************************************************************
 MODULE mixed_environment
   USE atomic_kind_types,               ONLY: atomic_kind_type
-  USE cell_methods,                    ONLY: cell_release,&
-                                             cell_type,&
-                                             get_cell,&
-                                             read_cell,&
+  USE cell_methods,                    ONLY: read_cell,&
                                              write_cell
+  USE cell_types,                      ONLY: cell_release,&
+                                             cell_type,&
+                                             get_cell
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_subsys_methods,               ONLY: cp_subsys_create
   USE cp_subsys_types,                 ONLY: cp_subsys_release,&
+                                             cp_subsys_set,&
                                              cp_subsys_type
   USE distribution_1d_types,           ONLY: distribution_1d_release,&
                                              distribution_1d_type
   USE distribution_methods,            ONLY: distribute_molecules_1d
-  USE f77_blas
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type
   USE kinds,                           ONLY: dp
@@ -173,10 +173,12 @@ CONTAINS
          force_env_section=force_env_section,&
          error=error )
 
+    CALL cp_subsys_set(subsys, cell=cell, error=error)
+
     ! set the mixed_env
     CALL set_mixed_env ( mixed_env = mixed_env, subsys = subsys, error = error )
     CALL set_mixed_env ( mixed_env=mixed_env,&
-         cell=cell, cell_ref=cell_ref, &
+         cell_ref=cell_ref, &
          local_molecules=local_molecules,&
          local_particles=local_particles,&
          mixed_energy=mixed_energy ,error=error)

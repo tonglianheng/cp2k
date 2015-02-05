@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2014  CP2K developers group                          !
+!   Copyright (C) 2000 - 2015  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -16,7 +16,6 @@ MODULE dimer_methods
                                              cp_subsys_type
   USE dimer_types,                     ONLY: dimer_env_type
   USE dimer_utils,                     ONLY: get_theta
-  USE f77_blas
   USE force_env_methods,               ONLY: force_env_calc_energy_force
   USE force_env_types,                 ONLY: force_env_get
   USE geo_opt,                         ONLY: cp_rot_opt

@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2014  CP2K developers group                          !
+!   Copyright (C) 2000 - 2015  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -20,7 +20,6 @@ MODULE gopt_f_types
                                              dimer_env_release,&
                                              dimer_env_retain,&
                                              dimer_env_type
-  USE f77_blas
   USE force_env_types,                 ONLY: force_env_get,&
                                              force_env_get_natom,&
                                              force_env_release,&
@@ -132,10 +131,10 @@ CONTAINS
        IF (PRESENT(eval_opt_geo)) gopt_env%eval_opt_geo = eval_opt_geo
        gopt_env%require_consistent_energy_force=.TRUE.
 
+       CALL force_env_get(force_env,subsys=subsys,error=error)
        gopt_env%type_id        = gopt_param%type_id
        SELECT CASE(gopt_env%type_id)
        CASE (default_ts_method_id,default_minimization_method_id)
-          CALL force_env_get(force_env,subsys=subsys,error=error)
           CALL cp_subsys_get(subsys,&
                              particles=particles,&
                              shell_particles=shell_particles,&
@@ -177,7 +176,7 @@ CONTAINS
           gopt_env%cell_method_id = gopt_param%cell_method_id
           CALL cell_opt_env_create(gopt_env%cell_env, force_env, gopt_env%geo_section, error)
        CASE(default_shellcore_method_id)
-          gopt_env%nfree   = force_env%subsys%shell_particles%n_els
+          gopt_env%nfree   = subsys%shell_particles%n_els
           gopt_env%label   = "SHELL_OPT"
           gopt_env%tag     = "  SHELL-CORE  "
           gopt_env%shellcore_method_id = gopt_param%shellcore_method_id

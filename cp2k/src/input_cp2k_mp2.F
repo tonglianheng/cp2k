@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2014  CP2K developers group                          !
+!   Copyright (C) 2000 - 2015  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -11,16 +11,20 @@
 ! *****************************************************************************
 MODULE input_cp2k_mp2
   USE bibliography,                    ONLY: DelBen2012,&
-                                             DelBen2013
-  USE cp_output_handling,              ONLY: cp_print_key_section_create
-  USE f77_blas
+                                             DelBen2013,&
+                                             DelBen2015
+  USE cp_output_handling,              ONLY: add_last_numeric,&
+                                             cp_print_key_section_create,&
+                                             debug_print_level,&
+                                             high_print_level,&
+                                             low_print_level,&
+                                             medium_print_level,&
+                                             silent_print_level
   USE input_constants,                 ONLY: &
-       add_last_numeric, debug_print_level, do_hfx_potential_coulomb, &
-       do_mp2_potential_tshpsc, gaussian, high_print_level, low_print_level, &
-       medium_print_level, mp2_method_direct, mp2_method_gpw, &
-       mp2_method_none, mp2_ri_optimize_basis, numerical, ri_mp2_laplace, &
-       ri_mp2_method_gpw, ri_rpa_method_gpw, silent_print_level, &
-       wfc_mm_style_gemm, wfc_mm_style_syrk
+       do_hfx_potential_coulomb, do_mp2_potential_tshpsc, gaussian, &
+       mp2_method_direct, mp2_method_gpw, mp2_method_none, &
+       mp2_ri_optimize_basis, numerical, ri_mp2_laplace, ri_mp2_method_gpw, &
+       ri_rpa_method_gpw, wfc_mm_style_gemm, wfc_mm_style_syrk
   USE input_cp2k_hfx,                  ONLY: create_hfx_section
   USE input_keyword_types,             ONLY: keyword_create,&
                                              keyword_release,&
@@ -70,7 +74,7 @@ CONTAINS
        CALL section_create(section,"WF_CORRELATION",&
             description="Sets up the Wavefunction-based Correlation parameters if requested ",&
             n_keywords=8, n_subsections=6, repeats=.TRUE., required=.TRUE.,&
-            citations=(/DelBen2012/),&
+            citations=(/DelBen2012,DelBen2013,DelBen2015/),&
             error=error)
 
        NULLIFY(keyword, print_key, subsection)
@@ -408,7 +412,7 @@ CONTAINS
             description="Specifies the size of the auxiliary basis set automatically "//&
                         "generated as initial guess. This will be effective only if RI_AUX_BASIS_SET "//&
                         "in the KIND section and NUM_FUNC are not specified.",&
-            usage="BASIS_SIZE  MEDIUM",&
+            usage="BASIS_SIZE  (MEDIUM|LARGE|VERY_LARGE)",&
             enum_c_vals=s2a("MEDIUM","LARGE","VERY_LARGE"),&
             enum_i_vals=(/0,1,2/),&
             default_i_val=0, error=error)
@@ -494,7 +498,7 @@ CONTAINS
        CALL section_create(section,"RI_RPA",&
             description="Parameters influencing the RI RPA method",&
             n_keywords=2, n_subsections=1, repeats=.FALSE., required=.FALSE.,&
-            citations=(/DelBen2013/),&
+            citations=(/DelBen2013,DelBen2015/),&
             error=error)
 
        NULLIFY(keyword,subsection)
@@ -581,15 +585,15 @@ CONTAINS
        NULLIFY(keyword)
        CALL keyword_create(keyword, name="EPS_GRID",&
             description="Determines a threshold for the GPW based integration",&
-            usage="EPS_GRID 1.0E-5 ",required=.FALSE.,type_of_var=real_t,&
-            default_r_val=1.0E-6_dp, error=error)
+            usage="EPS_GRID 1.0E-9 ",required=.FALSE.,type_of_var=real_t,&
+            default_r_val=1.0E-8_dp, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="EPS_FILTER",&
             description="Determines a threshold for the DBCSR based multiply (usually 10 times smaller than EPS_GRID).",&
-            usage="EPS_FILTER 1.0E-6 ",required=.FALSE.,type_of_var=real_t,&
-            default_r_val=1.0E-7_dp, error=error)
+            usage="EPS_FILTER 1.0E-10 ",required=.FALSE.,type_of_var=real_t,&
+            default_r_val=1.0E-9_dp, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
@@ -605,6 +609,15 @@ CONTAINS
             description="Determines the grid at which a Gaussian is mapped.",&
             usage="REL_CUTOFF 50",required=.FALSE.,type_of_var=real_t,&
             default_r_val=50.0_dp, error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="MULTIPOLE_TWO_CENT_INT",&
+            description="Use fast algorithm to calculate two-center RI integrals based on multipole expansion",&
+            usage="MULTIPOLE_TWO_CENT_INT",&
+            default_l_val=.FALSE.,&
+            lone_keyword_l_val=.TRUE.,&
+            error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 

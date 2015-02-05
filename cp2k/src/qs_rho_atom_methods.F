@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2014  CP2K developers group                          !
+!   Copyright (C) 2000 - 2015  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 ! *****************************************************************************
 MODULE qs_rho_atom_methods
@@ -557,9 +557,10 @@ MODULE qs_rho_atom_methods
             qs_kind_set=qs_kind_set,&
             para_env=para_env,&
             oce=oce,sab_orb=sab_orb,&
-            rho_atom_set=rho_atom,error=error)
+            rho_atom_set=rho_atom,&
+            error=error)
 
-    eps_cpc = qs_env%dft_control%qs_control%gapw_control%eps_cpc
+    eps_cpc = dft_control%qs_control%gapw_control%eps_cpc
 
     IF (PRESENT(rho_atom_set)) rho_atom => rho_atom_set
 
@@ -748,8 +749,8 @@ MODULE qs_rho_atom_methods
 
        DO ispin = 1,nspins
          IF(ASSOCIATED(rho_atom(iatom)%cpc_h(ispin)%r_coef)) THEN
-           CALL mp_sum(rho_atom(iatom)%cpc_h(ispin)%r_coef,qs_env%para_env%group)
-           CALL mp_sum(rho_atom(iatom)%cpc_s(ispin)%r_coef,qs_env%para_env%group)
+           CALL mp_sum(rho_atom(iatom)%cpc_h(ispin)%r_coef, para_env%group)
+           CALL mp_sum(rho_atom(iatom)%cpc_s(ispin)%r_coef, para_env%group)
            r_coef_h => rho_atom(iatom)%cpc_h(ispin)%r_coef
            r_coef_s => rho_atom(iatom)%cpc_s(ispin)%r_coef
            r_coef_h(:,:) = r_coef_h(:,:)+TRANSPOSE(r_coef_h(:,:))
@@ -961,6 +962,7 @@ MODULE qs_rho_atom_methods
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(harmonics_atom_type), POINTER       :: harmonics
     TYPE(paw_proj_set_type), POINTER         :: paw_proj
     TYPE(qs_kind_type), DIMENSION(:), &
@@ -968,16 +970,19 @@ MODULE qs_rho_atom_methods
 
     CALL timeset(routineN,handle)
 
-    NULLIFY(qs_kind_set,para_env,rho_atom_set)
+    NULLIFY(qs_kind_set,para_env,rho_atom_set,dft_control)
     failure = .FALSE.
 
-    CALL get_qs_env(qs_env=qs_env, qs_kind_set=qs_kind_set, &
+    CALL get_qs_env(qs_env,&
+                    qs_kind_set=qs_kind_set, &
                     atomic_kind_set=atomic_kind_set,&
-                    para_env=para_env,error=error)
+                    para_env=para_env,&
+                    dft_control=dft_control,&
+                    error=error)
 
     CALL get_atomic_kind_set(atomic_kind_set, natom=natom)
 
-    nspins = qs_env%dft_control%nspins
+    nspins = dft_control%nspins
 
     CALL allocate_rho_atom_set(rho_atom_set,natom)
 

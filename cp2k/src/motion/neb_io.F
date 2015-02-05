@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2014  CP2K developers group                          !
+!   Copyright (C) 2000 - 2015  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -24,7 +24,6 @@ MODULE neb_io
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
   USE cp_units,                        ONLY: cp_unit_from_cp2k
-  USE f77_blas
   USE f77_interface,                   ONLY: f_env_add_defaults,&
                                              f_env_rm_defaults,&
                                              f_env_type
@@ -58,9 +57,9 @@ MODULE neb_io
   USE neb_md_utils,                    ONLY: get_temperatures
   USE neb_types,                       ONLY: neb_type,&
                                              neb_var_type
+  USE particle_methods,                ONLY: write_particle_coordinates
   USE particle_types,                  ONLY: get_particle_pos_or_vel,&
-                                             particle_type,&
-                                             write_particle_coordinates
+                                             particle_type
   USE physcon,                         ONLY: angstrom
   USE replica_types,                   ONLY: replica_env_type
   USE timings,                         ONLY: timeset,&

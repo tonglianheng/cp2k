@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2014  CP2K developers group                          !
+!   Copyright (C) 2000 - 2015  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -14,8 +14,9 @@ MODULE qmmm_init
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind,&
                                              set_atomic_kind
-  USE cell_methods,                    ONLY: cell_type,&
-                                             read_cell
+  USE cell_methods,                    ONLY: read_cell
+  USE cell_types,                      ONLY: cell_type
+  USE cp_control_types,                ONLY: dft_control_type
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
@@ -26,20 +27,15 @@ MODULE qmmm_init
   USE external_potential_types,        ONLY: fist_potential_type,&
                                              get_potential,&
                                              set_potential
-  USE f77_blas
   USE force_field_types,               ONLY: input_info_type
   USE force_fields_input,              ONLY: read_gd_section,&
                                              read_gp_section,&
                                              read_lj_section,&
                                              read_wl_section
-  USE input_constants,                 ONLY: RADIUS_QMMM_DEFAULT,&
-                                             do_qmmm_gauss,&
-                                             do_qmmm_image_calcmatrix,&
-                                             do_qmmm_image_iter,&
-                                             do_qmmm_link_gho,&
-                                             do_qmmm_link_imomm,&
-                                             do_qmmm_link_pseudo,&
-                                             do_qmmm_swave
+  USE input_constants,                 ONLY: &
+       RADIUS_QMMM_DEFAULT, do_qmmm_gauss, do_qmmm_image_calcmatrix, &
+       do_qmmm_image_iter, do_qmmm_link_gho, do_qmmm_link_imomm, &
+       do_qmmm_link_pseudo, do_qmmm_pcharge, do_qmmm_swave
   USE input_section_types,             ONLY: section_vals_get,&
                                              section_vals_get_subs_vals,&
                                              section_vals_type,&
@@ -49,16 +45,19 @@ MODULE qmmm_init
   USE pair_potential_types,            ONLY: pair_potential_reallocate
   USE particle_list_types,             ONLY: particle_list_type
   USE particle_types,                  ONLY: particle_type
+  USE pw_env_types,                    ONLY: pw_env_type
   USE qmmm_elpot,                      ONLY: qmmm_potential_init
   USE qmmm_ff_fist,                    ONLY: qmmm_ff_precond_only_qm
   USE qmmm_gaussian_init,              ONLY: qmmm_gaussian_initialize
-  USE qmmm_per_elpot,                  ONLY: qmmm_per_potential_init
+  USE qmmm_per_elpot,                  ONLY: qmmm_ewald_potential_init,&
+                                             qmmm_per_potential_init
   USE qmmm_types,                      ONLY: add_set_type,&
                                              create_add_set_type,&
                                              qmmm_env_mm_type,&
                                              qmmm_env_qm_type,&
                                              qmmm_links_type
-  USE qs_environment_types,            ONLY: qs_environment_type
+  USE qs_environment_types,            ONLY: get_qs_env,&
+                                             qs_environment_type
   USE termination,                     ONLY: stop_program
 #include "./common/cp_common_uses.f90"
 
@@ -191,9 +190,9 @@ CONTAINS
     iw=cp_print_key_unit_nr(logger,qmmm_section,"PRINT%QMMM_CHARGES",&
                                          extension=".log",error=error)
     IF (iw>0) THEN
-       WRITE(iw,FMT="(/,T2,A)") REPEAT("-",73)
+       WRITE(iw,FMT="(/,T2,A)") REPEAT("-",79)
        WRITE(iw,FMT='(/5X,A)')"MM    POINT CHARGES GENERATING THE QM/MM ELECTROSTATIC POTENTIAL"
-       WRITE(iw,FMT="(/,T2,A)") REPEAT("-",73)
+       WRITE(iw,FMT="(/,T2,A)") REPEAT("-",79)
        DO I = 1, SIZE(mm_atom_index)
           IndMM = mm_atom_index(I)
           qi = mm_atom_chrg(I)
@@ -201,17 +200,17 @@ CONTAINS
           ri = mm_el_pot_radius(I)
           rc = mm_el_pot_radius_corr(I)
           IF (nocompatibility) THEN
-             WRITE(iw,'(7X,A9,I5,A8,F12.6,A8,F12.6)')' MM ATOM:',IndMM,' RADIUS:',ri,&
+             WRITE(iw,'(5X,A9,T15,I5,T28,A8,T38,F12.6,T60,A8,T69,F12.6)')' MM ATOM:',IndMM,' RADIUS:',ri,&
                   ' CHARGE:',qi
           ELSE
-             WRITE(iw,'(7X,A9,I5,A8,F12.6,A8,F12.6,A,F12.6)')' MM ATOM:',IndMM,' RADIUS:',ri,&
-                  ' CHARGE:',qi,'CORR. RADIUS',rc
+             WRITE(iw,'(5X,A9,T15,I5,T28,A8,T38,F12.6,T60,A8,T69,F12.6,/,T56,A12,T69,F12.6)')&
+                  ' MM ATOM:',IndMM,' RADIUS:',ri,' CHARGE:',qi,'CORR. RADIUS',rc
           END IF
        END DO
        IF (added_charges%num_mm_atoms /= 0) THEN
-          WRITE(iw,FMT="(/,T2,A)") REPEAT("-",73)
+          WRITE(iw,FMT="(/,T2,A)") REPEAT("-",79)
           WRITE(iw,'(/5X,A)')"ADDED POINT CHARGES GENERATING THE QM/MM ELECTROSTATIC POTENTIAL"
-          WRITE(iw,FMT="(/,T2,A)") REPEAT("-",73)
+          WRITE(iw,FMT="(/,T2,A)") REPEAT("-",79)
           DO I = 1, SIZE(added_charges%mm_atom_index)
              IndMM = added_charges%mm_atom_index(I)
              qi = added_charges%mm_atom_chrg(I)
@@ -220,18 +219,18 @@ CONTAINS
              ind1 = added_charges%add_env(I)%Index1
              ind2 = added_charges%add_env(I)%Index2
              IF (nocompatibility) THEN
-                WRITE(iw,'(7X,A9,I5,A8,F12.6,A8,F12.6,I5,I5)')'MM POINT:',IndMM,' RADIUS:',ri,&
+                WRITE(iw,'(5X,A9,I5,T25,A8,T35,F12.6,T50,A8,T59,F12.6,I5,I5)')'MM POINT:',IndMM,' RADIUS:',ri,&
                      ' CHARGE:',qi,ind1,ind2
              ELSE
-                WRITE(iw,'(7X,A9,I5,A8,F12.6,A8,F12.6,I5,I5,A,F12.6)')'MM POINT:',IndMM,' RADIUS:',ri,&
-                     ' CHARGE:',qi,ind1,ind2,' CORR. RADIUS',rc
+                WRITE(iw,'(5X,A9,I5,T25,A8,T35,F12.6,T50,A8,T59,F12.6,I5,I5,/,T56,A12,T69,F12.6)')&
+                     'MM POINT:',IndMM,' RADIUS:',ri,' CHARGE:',qi,ind1,ind2,'CORR. RADIUS',rc
              END IF
           END DO
 
        END IF
-       WRITE(iw,FMT="(/,T2,A)") REPEAT("-",73)
-       WRITE(iw,'(/,T36,A,F12.6)')' TOTAL CHARGE:',qtot
-       WRITE(iw,FMT="(/,T2,A,/)") REPEAT("-",73)
+       WRITE(iw,FMT="(/,T2,A)") REPEAT("-",79)
+       WRITE(iw,'(/,T50,A,T69,F12.6)')' TOTAL CHARGE:',qtot
+       WRITE(iw,FMT="(/,T2,A,/)") REPEAT("-",79)
     END IF
     CALL cp_print_key_finished_output(iw,logger,qmmm_section,&
                "PRINT%QMMM_CHARGES", error=error)
@@ -332,17 +331,19 @@ CONTAINS
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: maxchrg
     REAL(KIND=dp), DIMENSION(:), POINTER     :: maxradius, maxradius2
+    TYPE(pw_env_type), POINTER               :: pw_env
 
     failure=.FALSE.
     stat=0
-    NULLIFY(maxradius, maxradius2)
+    NULLIFY(maxradius, maxradius2, pw_env)
 
     maxchrg = MAXVAL(ABS(mm_atom_chrg(:)))
+    CALL get_qs_env(qs_env, pw_env=pw_env, error=error)
     IF (qmmm_env_qm%add_mm_charges) maxchrg=MAX(maxchrg,MAXVAL(ABS(added_charges%mm_atom_chrg(:))))
     CALL qmmm_gaussian_initialize(qmmm_gaussian_fns=qmmm_env_qm%pgfs,&
                                   qm_cell_small=qm_cell_small,&
                                   para_env=para_env,&
-                                  pw_env=qs_env%pw_env,&
+                                  pw_env=pw_env,&
                                   mm_el_pot_radius=qmmm_env_qm%mm_el_pot_radius,&
                                   mm_el_pot_radius_corr=qmmm_env_qm%mm_el_pot_radius_corr,&
                                   qmmm_coupl_type=qmmm_env_qm%qmmm_coupl_type,&
@@ -358,7 +359,7 @@ CONTAINS
        CALL qmmm_gaussian_initialize(qmmm_gaussian_fns=added_charges%pgfs,&
                                      qm_cell_small=qm_cell_small,&
                                      para_env=para_env,&
-                                     pw_env=qs_env%pw_env,&
+                                     pw_env=pw_env,&
                                      mm_el_pot_radius=added_charges%mm_el_pot_radius,&
                                      mm_el_pot_radius_corr=added_charges%mm_el_pot_radius_corr,&
                                      qmmm_coupl_type=qmmm_env_qm%qmmm_coupl_type,&
@@ -370,11 +371,13 @@ CONTAINS
                                      qmmm_section=qmmm_section,&
                                      error=error)
 
-       IF ((qmmm_env_qm%qmmm_coupl_type == do_qmmm_gauss).OR.(qmmm_env_qm%qmmm_coupl_type == do_qmmm_swave)) THEN
+       SELECT CASE(qmmm_env_qm%qmmm_coupl_type)
+       CASE(do_qmmm_gauss,do_qmmm_swave,do_qmmm_pcharge)
           DO i = 1, SIZE(maxradius)
              maxradius(i) = MAX( maxradius(i), maxradius2(i))
           END DO
-       END IF
+       END SELECT
+
        IF (ASSOCIATED(maxradius2)) DEALLOCATE(maxradius2, stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     END IF
@@ -389,7 +392,6 @@ CONTAINS
 !> \param qm_cell_small ...
 !> \param mm_cell ...
 !> \param para_env ...
-!> \param qs_env ...
 !> \param added_charges ...
 !> \param print_section ...
 !> \param error variable to control error logging, stopping,...
@@ -398,12 +400,11 @@ CONTAINS
 !>      1.2005 created [tlaino]
 !> \author Teodoro Laino
 ! *****************************************************************************
- SUBROUTINE qmmm_init_potential(qmmm_env_qm, qm_cell_small, mm_cell, para_env, qs_env,&
+ SUBROUTINE qmmm_init_potential(qmmm_env_qm, qm_cell_small, mm_cell, para_env, &
                                 added_charges, print_section, error)
     TYPE(qmmm_env_qm_type), POINTER          :: qmmm_env_qm
     TYPE(cell_type), POINTER                 :: qm_cell_small, mm_cell
     TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(add_set_type), POINTER              :: added_charges
     TYPE(section_vals_type), POINTER         :: print_section
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -465,55 +466,70 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'qmmm_init_periodic_potential', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: check
     REAL(KIND=dp)                            :: maxchrg
+    TYPE(dft_control_type), POINTER          :: dft_control
 
-   IF (.NOT.qmmm_env_qm%periodic) RETURN
-   check=(qs_env%dft_control%qs_control%semi_empirical.OR.&
-          qs_env%dft_control%qs_control%dftb)
+   IF (qmmm_env_qm%periodic) THEN
 
-   CALL cp_assert(.NOT.check,cp_failure_level,cp_assertion_failed,routineP,&
-           " QM/MM periodic calculations possible only with GPW. Not yet implemented for "//&
-           " semiempirical or DFTB calculations!"//&
-           CPSourceFileRef,&
-           only_ionode=.TRUE.)
+      NULLIFY(dft_control)
+      CALL get_qs_env(qs_env, dft_control=dft_control, error=error)
 
-   maxchrg = MAXVAL(ABS(mm_atom_chrg(:)))
-   IF (qmmm_env_qm%add_mm_charges) maxchrg=MAX(maxchrg,MAXVAL(ABS(added_charges%mm_atom_chrg(:))))
+      IF(dft_control%qs_control%semi_empirical) THEN
+         CALL cp_unimplemented_error(fromWhere=routineP, &
+            message="QM/MM periodic calculations not implemented for semi empirical methods", &
+            error=error, error_level=cp_fatal_level)
+      ELSE IF(dft_control%qs_control%dftb) THEN
+         CALL qmmm_ewald_potential_init(qmmm_env_qm%ewald_env, qmmm_env_qm%ewald_pw,&
+              qmmm_coupl_type=qmmm_env_qm%qmmm_coupl_type, mm_cell=mm_cell,&
+              para_env=para_env, qmmm_periodic=qmmm_periodic, print_section=print_section,&
+              error=error)
+      ELSE IF(dft_control%qs_control%scptb) THEN
+         CALL cp_unimplemented_error(fromWhere=routineP, &
+            message="QM/MM periodic calculations not implemented for SCPTB method", &
+            error=error, error_level=cp_fatal_level)
+      ELSE
+ 
+         ! setup for GPW/GPAW
+         maxchrg = MAXVAL(ABS(mm_atom_chrg(:)))
+         IF (qmmm_env_qm%add_mm_charges) maxchrg=MAX(maxchrg,MAXVAL(ABS(added_charges%mm_atom_chrg(:))))
 
-   CALL qmmm_per_potential_init(qmmm_coupl_type=qmmm_env_qm%qmmm_coupl_type,&
-                                per_potentials=qmmm_env_qm%per_potentials,&
-                                potentials=qmmm_env_qm%potentials,&
-                                pgfs=qmmm_env_qm%pgfs,&
-                                qm_cell_small=qm_cell_small,&
-                                mm_cell=mm_cell,&
-                                para_env=para_env,&
-                                compatibility=qmmm_env_qm%compatibility,&
-                                qmmm_periodic=qmmm_periodic,&
-                                print_section=print_section,&
-                                eps_mm_rspace=qmmm_env_qm%eps_mm_rspace,&
-                                maxchrg=maxchrg,&
-                                ncp =qmmm_env_qm%aug_pools(SIZE(qmmm_env_qm%aug_pools))%pool%pw_grid%npts,&
-                                ncpl=qmmm_env_qm%aug_pools(SIZE(qmmm_env_qm%aug_pools))%pool%pw_grid%npts_local,&
-                                error=error)
+         CALL qmmm_per_potential_init(qmmm_coupl_type=qmmm_env_qm%qmmm_coupl_type,&
+              per_potentials=qmmm_env_qm%per_potentials,&
+              potentials=qmmm_env_qm%potentials,&
+              pgfs=qmmm_env_qm%pgfs,&
+              qm_cell_small=qm_cell_small,&
+              mm_cell=mm_cell,&
+              para_env=para_env,&
+              compatibility=qmmm_env_qm%compatibility,&
+              qmmm_periodic=qmmm_periodic,&
+              print_section=print_section,&
+              eps_mm_rspace=qmmm_env_qm%eps_mm_rspace,&
+              maxchrg=maxchrg,&
+              ncp =qmmm_env_qm%aug_pools(SIZE(qmmm_env_qm%aug_pools))%pool%pw_grid%npts,&
+              ncpl=qmmm_env_qm%aug_pools(SIZE(qmmm_env_qm%aug_pools))%pool%pw_grid%npts_local,&
+              error=error)
 
-   IF (qmmm_env_qm%move_mm_charges.OR.qmmm_env_qm%add_mm_charges) THEN
+         IF (qmmm_env_qm%move_mm_charges.OR.qmmm_env_qm%add_mm_charges) THEN
 
-      CALL qmmm_per_potential_init(qmmm_coupl_type=qmmm_env_qm%qmmm_coupl_type,&
-                                   per_potentials=added_charges%per_potentials,&
-                                   potentials=added_charges%potentials,&
-                                   pgfs=added_charges%pgfs,&
-                                   qm_cell_small=qm_cell_small,&
-                                   mm_cell=mm_cell,&
-                                   para_env=para_env,&
-                                   compatibility=qmmm_env_qm%compatibility,&
-                                   qmmm_periodic=qmmm_periodic,&
-                                   print_section=print_section,&
-                                   eps_mm_rspace=qmmm_env_qm%eps_mm_rspace,&
-                                   maxchrg=maxchrg,&
-                                   ncp =qmmm_env_qm%aug_pools(SIZE(qmmm_env_qm%aug_pools))%pool%pw_grid%npts,&
-                                   ncpl=qmmm_env_qm%aug_pools(SIZE(qmmm_env_qm%aug_pools))%pool%pw_grid%npts_local,&
-                                   error=error)
+            CALL qmmm_per_potential_init(qmmm_coupl_type=qmmm_env_qm%qmmm_coupl_type,&
+                 per_potentials=added_charges%per_potentials,&
+                 potentials=added_charges%potentials,&
+                 pgfs=added_charges%pgfs,&
+                 qm_cell_small=qm_cell_small,&
+                 mm_cell=mm_cell,&
+                 para_env=para_env,&
+                 compatibility=qmmm_env_qm%compatibility,&
+                 qmmm_periodic=qmmm_periodic,&
+                 print_section=print_section,&
+                 eps_mm_rspace=qmmm_env_qm%eps_mm_rspace,&
+                 maxchrg=maxchrg,&
+                 ncp =qmmm_env_qm%aug_pools(SIZE(qmmm_env_qm%aug_pools))%pool%pw_grid%npts,&
+                 ncpl=qmmm_env_qm%aug_pools(SIZE(qmmm_env_qm%aug_pools))%pool%pw_grid%npts_local,&
+                 error=error)
+         END IF
+
+      END IF
+
    END IF
 
  END SUBROUTINE qmmm_init_periodic_potential
@@ -1487,7 +1503,7 @@ CPSourceFileRef,&
     ALLOCATE(qmmm_env%image_charge_pot%image_mm_list(num_image_mm_atom),stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
-    qmmm_env%image_charge_pot%image_mm_list=0.
+    qmmm_env%image_charge_pot%image_mm_list=0
     num_image_mm_atom=1
 
     DO i = 1, n_var

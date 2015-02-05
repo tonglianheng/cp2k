@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2014  CP2K developers group                          !
+!   Copyright (C) 2000 - 2015  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -26,7 +26,7 @@ MODULE xc_pot_saop
                                              cp_fm_set_all,&
                                              cp_fm_set_submatrix,&
                                              cp_fm_type
-  USE f77_blas
+  USE cp_para_types,                   ONLY: cp_para_env_type
   USE input_constants,                 ONLY: do_method_gapw,&
                                              oe_gllb,&
                                              oe_lb,&
@@ -61,6 +61,7 @@ MODULE xc_pot_saop
   USE qs_kind_types,                   ONLY: get_qs_kind,&
                                              qs_kind_type
   USE qs_ks_atom,                      ONLY: update_ks_atom
+  USE qs_ks_types,                     ONLY: qs_ks_env_type
   USE qs_local_rho_types,              ONLY: local_rho_set_create,&
                                              local_rho_set_release,&
                                              local_rho_type
@@ -71,7 +72,8 @@ MODULE xc_pot_saop
   USE qs_rho_atom_types,               ONLY: get_rho_atom,&
                                              rho_atom_coeff,&
                                              rho_atom_type
-  USE qs_rho_types,                    ONLY: qs_rho_type
+  USE qs_rho_types,                    ONLY: qs_rho_get,&
+                                             qs_rho_type
   USE qs_vxc_atom,                     ONLY: calc_rho_angular,&
                                              gaVxcgb_noGC
   USE util,                            ONLY: get_limit
@@ -150,7 +152,8 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:, :, :), &
       POINTER                                :: dummy, e_uniform
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
-      POINTER                                :: orbital_density_matrix
+      POINTER                                :: orbital_density_matrix, &
+                                                rho_struct_ao
     TYPE(cp_fm_p_type), DIMENSION(:), &
       POINTER                                :: single_mo_coeff
     TYPE(cp_fm_type), POINTER                :: mo_coeff
@@ -159,10 +162,11 @@ CONTAINS
       POINTER                                :: molecular_orbitals
     TYPE(pw_env_type), POINTER               :: pw_env
     TYPE(pw_p_type)                          :: orbital, orbital_g
-    TYPE(pw_p_type), DIMENSION(:), POINTER   :: rho_g, rho_r, tau, vxc_GLLB, &
-                                                vxc_LB, vxc_SAOP, vxc_tau, &
-                                                vxc_tmp
+    TYPE(pw_p_type), DIMENSION(:), POINTER   :: rho_g, rho_r, rho_struct_r, &
+                                                tau, vxc_GLLB, vxc_LB, &
+                                                vxc_SAOP, vxc_tau, vxc_tmp
     TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
+    TYPE(qs_ks_env_type), POINTER            :: ks_env
     TYPE(qs_rho_type), POINTER               :: rho_struct
     TYPE(section_vals_type), POINTER         :: input, xc_fun_section_orig, &
                                                 xc_fun_section_tmp, &
@@ -176,17 +180,18 @@ CONTAINS
 
     failure = .FALSE.
 
-    NULLIFY(pw_env, auxbas_pw_pool, input)
+    NULLIFY(ks_env, pw_env, auxbas_pw_pool, input)
     NULLIFY(rho_g, rho_r, tau, rho_struct, rho_set, e_uniform)
     NULLIFY(vxc_GLLB, vxc_LB, vxc_tmp, vxc_SAOP, vxc_tau)
-    NULLIFY(mo_eigenvalues, deriv_set, deriv)
+    NULLIFY(mo_eigenvalues, deriv_set, deriv, rho_struct_r, rho_struct_ao)
     NULLIFY(orbital_density_matrix, dummy,xc_section_tmp,xc_fun_section_tmp)
     logger => cp_error_get_logger(error)
     ionode = (logger%para_env%mepos==logger%para_env%source)
 
     IF (ionode) WRITE (*, *) " in "//routineP
 
-    CALL get_qs_env(qs_env=qs_env,&
+    CALL get_qs_env(qs_env,&
+                    ks_env=ks_env,&
                     rho=rho_struct,&
                     pw_env=pw_env,&
                     input=input,&
@@ -219,12 +224,13 @@ CONTAINS
     ALLOCATE(rho_r(nspins), single_mo_coeff(nspins), stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     CALL cp_dbcsr_allocate_matrix_set(orbital_density_matrix,nspins,error=error)
+    CALL qs_rho_get(rho_struct, rho_r=rho_struct_r, rho_ao=rho_struct_ao, error=error)
     DO ispin=1,nspins
-       rho_r(ispin)%pw => rho_struct%rho_r(ispin)%pw
+       rho_r(ispin)%pw => rho_struct_r(ispin)%pw
        ALLOCATE(orbital_density_matrix(ispin)%matrix)
        CALL cp_dbcsr_init(orbital_density_matrix(ispin)%matrix, error=error)
        CALL cp_dbcsr_copy(orbital_density_matrix(ispin)%matrix,&
-            rho_struct%rho_ao(ispin)%matrix,"orbital density",error=error)
+            rho_struct_ao(ispin)%matrix,"orbital density",error=error)
     END DO
     bo = rho_r(1)%pw%pw_grid%bounds_local
 
@@ -365,7 +371,7 @@ CONTAINS
           CALL pw_zero(orbital_g%pw,error=error)
           CALL calculate_rho_elec(orbital_density_matrix(ispin)%matrix, &
                                   orbital, orbital_g, &
-                                  tot_rho_psi, qs_env, error=error)
+                                  tot_rho_psi, ks_env, error=error)
 
           vxc_tmp(ispin)%pw%cr3d = vxc_tmp(ispin)%pw%cr3d + &
                efac * orbital%pw%cr3d
@@ -436,7 +442,7 @@ CONTAINS
           CALL pw_zero(orbital_g%pw,error=error)
           CALL calculate_rho_elec(orbital_density_matrix(ispin)%matrix, &
                                   orbital, orbital_g, &
-                                  tot_rho_psi, qs_env, error=error)
+                                  tot_rho_psi, ks_env, error=error)
 
 !TC          CALL calculate_wavefunction(mo_coeff,orb,orbital2,orbital2_g,qs_env,error)
 !TC          write (*,*) orb, maxval(abs(orbital2%pw%cr3d-orbital%pw%cr3d))
@@ -482,7 +488,7 @@ CONTAINS
        END IF
        vxc_SAOP(ispin)%pw%cr3d = vxc_SAOP(ispin)%pw%cr3d * vxc_SAOP(ispin)%pw%pw_grid%dvol
 
-       CALL integrate_v_rspace(vxc_SAOP(ispin), rho_struct%rho_ao(ispin), &
+       CALL integrate_v_rspace(vxc_SAOP(ispin), rho_struct_ao(ispin), &
                                ks_matrix(ispin), qs_env, &
                                calculate_forces=.FALSE.,&
                                gapw=gapw, error=error)
@@ -553,9 +559,12 @@ CONTAINS
     TYPE(cp_1d_r_p_type), DIMENSION(:), &
       POINTER                                :: mo_eigenvalues
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
-      POINTER                                :: orbital_density_matrix
+      POINTER                                :: matrix_ks, &
+                                                orbital_density_matrix, &
+                                                rho_struct_ao
     TYPE(cp_fm_p_type), DIMENSION(:), &
       POINTER                                :: mo_coeff, single_mo_coeff
+    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(grid_atom_type), POINTER            :: atomic_grid
     TYPE(harmonics_atom_type), POINTER       :: harmonics
     TYPE(local_rho_type), POINTER            :: local_rho_set
@@ -585,10 +594,10 @@ CONTAINS
 
     NULLIFY(weight, rho_h, rho_s, vxc_LB_h, vxc_LB_s, vxc_GLLB_h, vxc_GLLB_s, &
             vxc_tmp_h, vxc_tmp_s, vtau, dummy, e_uniform, drho_h, drho_s, vxg, atom_list, &
-            atomic_kind_set, qs_kind_set,  deriv_set, deriv, atomic_grid, &
+            atomic_kind_set, qs_kind_set,  deriv_set, deriv, atomic_grid, rho_struct_ao, &
             harmonics, molecular_orbitals, rho_structure, r_h, r_s, dr_h, dr_s, &
-            r_h_d, r_s_d, rho_atom_set, rho_atom, rho_set_h, rho_set_s, &
-            mo_coeff, single_mo_coeff, mo_eigenvalues, local_rho_set, &
+            r_h_d, r_s_d, rho_atom_set, rho_atom, rho_set_h, rho_set_s, para_env,&
+            mo_coeff, single_mo_coeff, mo_eigenvalues, local_rho_set, matrix_ks,&
             orbital_density_matrix, orb_rho_set_h, orb_rho_set_s, vxc_SAOP_h, vxc_SAOP_s)
 
     ! tau is needed for fill_rho_set, but should never be used
@@ -599,7 +608,12 @@ CONTAINS
                             mos=molecular_orbitals, &
                             atomic_kind_set=atomic_kind_set, &
                             qs_kind_set=qs_kind_set, &
-                            rho_atom_set=rho_atom_set,error=error)
+                            rho_atom_set=rho_atom_set,&
+                            matrix_ks=matrix_ks,&
+                            para_env=para_env,&
+                            error=error)
+
+    CALL qs_rho_get(rho_structure, rho_ao=rho_struct_ao, error=error)
 
     xc_section_orig => section_vals_get_subs_vals(input,"DFT%XC",error=error)
     CALL section_vals_retain(xc_section_orig,error=error)
@@ -619,7 +633,7 @@ CONTAINS
     CALL section_vals_val_get(xc_section_orig,"TAU_CUTOFF",&
          r_val=tau_cut,error=error)
 
-    CALL calculate_rho_atom_coeff(qs_env, rho_structure%rho_ao,error=error)
+    CALL calculate_rho_atom_coeff(qs_env, rho_struct_ao,error=error)
     CALL prepare_gapw_den(qs_env, error=error)
 
     ALLOCATE(mo_coeff(nspins), single_mo_coeff(nspins), &
@@ -642,7 +656,7 @@ CONTAINS
        ALLOCATE(orbital_density_matrix(ispin)%matrix)
        CALL cp_dbcsr_init(orbital_density_matrix(ispin)%matrix, error=error)
        CALL cp_dbcsr_copy(orbital_density_matrix(ispin)%matrix,&
-            rho_structure%rho_ao(ispin)%matrix, &
+            rho_struct_ao(ispin)%matrix, &
             "orbital density", error=error)
     END DO
     CALL local_rho_set_create(local_rho_set, error=error)
@@ -707,8 +721,8 @@ CONTAINS
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
 !      Distribute the atoms of this kind
-       num_pe = qs_env%para_env%num_pe
-       mepos  = qs_env%para_env%mepos
+       num_pe = para_env%num_pe
+       mepos  = para_env%mepos
        bo     = get_limit( natom, num_pe, mepos )
 
        DO iat = 1,natom !bo(1),bo(2)
@@ -1064,7 +1078,7 @@ CONTAINS
 
     END DO
 
-    CALL update_ks_atom(qs_env, qs_env%matrix_ks,rho_structure%rho_ao,.FALSE.,error=error)
+    CALL update_ks_atom(qs_env, matrix_ks,rho_struct_ao,.FALSE.,error=error)
 
     !---------!
     ! Cleanup !

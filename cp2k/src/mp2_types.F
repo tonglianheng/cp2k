@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2014  CP2K developers group                          !
+!   Copyright (C) 2000 - 2015  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -82,6 +82,7 @@ MODULE mp2_types
        INTEGER                  :: print_level
        REAL(KIND=dp)            :: cutoff
        REAL(KIND=dp)            :: relative_cutoff
+       LOGICAL                  :: do_mult_2c
   END TYPE mp2_gpw_type
 
   TYPE ri_mp2_type

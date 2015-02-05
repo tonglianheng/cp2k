@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2014  CP2K developers group                          !
+!   Copyright (C) 2000 - 2015  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -13,6 +13,7 @@
 MODULE lri_ks_methods
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind_set
+  USE cp_control_types,                ONLY: dft_control_type
   USE cp_dbcsr_interface,              ONLY: cp_dbcsr_add_block_node,&
                                              cp_dbcsr_finalize,&
                                              cp_dbcsr_get_block_p,&
@@ -23,9 +24,6 @@ MODULE lri_ks_methods
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_realspace_grid_cube,          ONLY: cp_pw_to_cube
-  USE cp_subsys_types,                 ONLY: cp_subsys_get,&
-                                             cp_subsys_type
-  USE f77_blas
   USE input_section_types,             ONLY: section_get_ivals,&
                                              section_get_lval,&
                                              section_vals_get_subs_vals,&
@@ -55,6 +53,8 @@ MODULE lri_ks_methods
                                              neighbor_list_iterator_p_type,&
                                              neighbor_list_iterator_release,&
                                              neighbor_list_set_p_type
+  USE qs_subsys_types,                 ONLY: qs_subsys_get,&
+                                             qs_subsys_type
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "./common/cp_common_uses.f90"
@@ -99,6 +99,7 @@ CONTAINS
       nneighbor, row, stat
     INTEGER, DIMENSION(:), POINTER           :: atom_of_kind
     LOGICAL                                  :: failure, found, trans
+    REAL(KIND=dp)                            :: dab, rab(3)
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: h_work
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: h_block
@@ -126,9 +127,11 @@ CONTAINS
 
       DO WHILE (neighbor_list_iterate(nl_iterator)==0)
          CALL get_iterator_info(nl_iterator,ikind=ikind,jkind=jkind,iatom=iatom,&
-              jatom=jatom,nlist=nlist,ilist=ilist,nnode=nneighbor,inode=jneighbor)
+              jatom=jatom,nlist=nlist,ilist=ilist,nnode=nneighbor,inode=jneighbor,&
+              r=rab)
 
          iac = ikind + nkind*(jkind - 1)
+         dab = SQRT(SUM(rab*rab))
  
          IF(.NOT.ASSOCIATED(lri_env%lri_ints%lri_atom(iac)%lri_node)) CYCLE
 
@@ -170,7 +173,7 @@ CONTAINS
                                    lri_v_int(ikind)%v_int(atom_a,i)*lrii%dacoef(1:nba,1:nbb,i)
          ENDDO
          ! Hab(b)
-         IF(iatom /= jatom) THEN
+         IF(dab > lri_env%delta) THEN
           DO i=1,nfb
               h_work(1:nba, 1:nbb) = h_work(1:nba,1:nbb) + &
                                      lri_v_int(jkind)%v_int(atom_b,i)*lrii%dacoef(1:nba,1:nbb,nfa+i) 
@@ -223,13 +226,15 @@ CONTAINS
 
     INTEGER                                  :: ispin
     LOGICAL                                  :: my_skip
+    TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(pw_p_type), POINTER                 :: rho_core
 
-    NULLIFY (rho_core)
+    NULLIFY (rho_core, dft_control)
     my_skip = .FALSE.
     IF (PRESENT(skip_nuclear_density)) my_skip=skip_nuclear_density
     CALL get_qs_env(qs_env=qs_env,&
                     rho_core=rho_core,&
+                    dft_control=dft_control,&
                     error=error)
 
     IF (.NOT.my_skip) THEN
@@ -238,7 +243,7 @@ CONTAINS
     ELSE
        CALL pw_axpy(lri_rho_g(1)%pw, rho_tot_gspace%pw, error=error)
     END IF
-    DO ispin=2, qs_env%dft_control%nspins
+    DO ispin=2, dft_control%nspins
        CALL pw_axpy(lri_rho_g(ispin)%pw, rho_tot_gspace%pw, error=error)
     END DO
  
@@ -266,8 +271,8 @@ CONTAINS
     INTEGER                                  :: output_unit, unit_nr
     LOGICAL                                  :: append_cube
     TYPE(cp_logger_type), POINTER            :: logger
-    TYPE(cp_subsys_type), POINTER            :: subsys
     TYPE(particle_list_type), POINTER        :: particles
+    TYPE(qs_subsys_type), POINTER            :: subsys
     TYPE(section_vals_type), POINTER         :: dft_section, input
 
     NULLIFY(dft_section, logger, particles, subsys)
@@ -276,7 +281,7 @@ CONTAINS
     logger => cp_error_get_logger(error)
     output_unit= cp_logger_get_default_io_unit(logger)
     dft_section => section_vals_get_subs_vals(input,"DFT",error=error)
-    CALL cp_subsys_get(subsys,particles=particles,error=error)
+    CALL qs_subsys_get(subsys,particles=particles,error=error)
  
     IF (BTEST(cp_print_key_should_output(logger%iter_info,input,&
        "DFT%PRINT%E_DENSITY_CUBE", error=error),cp_p_file)) THEN
@@ -326,11 +331,11 @@ CONTAINS
     LOGICAL                                  :: append_cube
     REAL(KIND=dp)                            :: udvol
     TYPE(cp_logger_type), POINTER            :: logger
-    TYPE(cp_subsys_type), POINTER            :: subsys
     TYPE(particle_list_type), POINTER        :: particles
     TYPE(pw_env_type), POINTER               :: pw_env
     TYPE(pw_p_type)                          :: aux_r
     TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
+    TYPE(qs_subsys_type), POINTER            :: subsys
     TYPE(section_vals_type), POINTER         :: dft_section, input
 
     NULLIFY(dft_section, logger, particles, subsys)
@@ -340,7 +345,7 @@ CONTAINS
     logger => cp_error_get_logger(error)
     output_unit= cp_logger_get_default_io_unit(logger)
     dft_section => section_vals_get_subs_vals(input,"DFT",error=error)
-    CALL cp_subsys_get(subsys,particles=particles,error=error)
+    CALL qs_subsys_get(subsys,particles=particles,error=error)
  
     IF (BTEST(cp_print_key_should_output(logger%iter_info,input,&
          "DFT%PRINT%V_HARTREE_CUBE",error=error),cp_p_file)) THEN

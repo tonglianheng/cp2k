@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2014  CP2K developers group                          !
+!   Copyright (C) 2000 - 2015  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -14,7 +14,6 @@ MODULE scptb_types
                                              cp_print_key_should_output,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE f77_blas
   USE input_section_types,             ONLY: section_vals_type
   USE kinds,                           ONLY: default_string_length,&
                                              dp
@@ -569,6 +568,8 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief ...
+!> \param RESULT ...
+!> \param vec1 ...
 !> \param vec2 ...
 !> \param error ...
 ! *****************************************************************************
@@ -591,6 +592,8 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief ...
+!> \param RESULT ...
+!> \param vec ...
 !> \param error ...
 ! *****************************************************************************
   SUBROUTINE scp_vector_norm(RESULT, vec, error)

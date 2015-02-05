@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2014  CP2K developers group                          !
+!   Copyright (C) 2000 - 2015  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -9,7 +9,7 @@
 ! *****************************************************************************
 MODULE ps_wavelet_kernel
 
-  USE f77_blas
+  
   USE kinds,                           ONLY: dp
   USE message_passing,                 ONLY: mp_alltoall
   USE ps_wavelet_base,                 ONLY: scramble_unpack

@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2014  CP2K developers group                          !
+!   Copyright (C) 2000 - 2015  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -15,13 +15,14 @@ MODULE qs_energy
                                              rtp_control_type
   USE cp_dbcsr_interface,              ONLY: cp_dbcsr_p_type
   USE dm_ls_scf,                       ONLY: ls_scf
-  USE f77_blas
   USE input_constants,                 ONLY: ehrenfest
   USE kinds,                           ONLY: dp
+  USE qs_energy_types,                 ONLY: qs_energy_type
   USE qs_energy_utils,                 ONLY: qs_energies_compute_matrix_w,&
                                              qs_energies_init,&
                                              qs_energies_mp2,&
                                              qs_energies_properties
+  USE qs_environment_methods,          ONLY: qs_env_rebuild_pw_env
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
   USE qs_ks_methods,                   ONLY: qs_ks_update_qs_env
@@ -74,6 +75,8 @@ CONTAINS
 
     LOGICAL                                  :: run_rtp
 
+    CALL qs_env_rebuild_pw_env(qs_env, error=error)
+
     CALL get_qs_env(qs_env=qs_env,run_rtp=run_rtp,error=error)
     IF(run_rtp)THEN
        CALL qs_energies_rtp(qs_env,error=error)
@@ -109,13 +112,13 @@ CONTAINS
 
     INTEGER                                  :: handle
     TYPE(dft_control_type), POINTER          :: dft_control
+    TYPE(qs_energy_type), POINTER            :: energy
 
     CALL timeset(routineN,handle)
 
-    NULLIFY(dft_control)
+    NULLIFY(dft_control, energy)
     CALL qs_energies_init(qs_env, calc_forces, error=error)
-
-    CALL get_qs_env(qs_env=qs_env, dft_control=dft_control, error=error)
+    CALL get_qs_env(qs_env=qs_env, dft_control=dft_control, energy=energy, error=error)
 
     ! *** Perform a SCF run ***
     IF (dft_control%qs_control%do_ls_scf) THEN
@@ -135,13 +138,10 @@ CONTAINS
 
     IF (PRESENT(consistent_energies)) THEN
       IF (consistent_energies) THEN
-        CALL qs_ks_update_qs_env(ks_env=qs_env%ks_env, &
-                                 qs_env=qs_env, &
-                                 calculate_forces=.FALSE., &
-                                 just_energy=.TRUE.,error=error)
+        CALL qs_ks_update_qs_env(qs_env, calculate_forces=.FALSE., just_energy=.TRUE., error=error)
         ! add MP2 energy if necessary
         IF(ASSOCIATED(qs_env%mp2_env)) THEN
-          qs_env%energy%total = qs_env%energy%total + qs_env%energy%mp2
+          energy%total = energy%total + energy%mp2
         END IF
       END IF
     END IF
@@ -173,13 +173,14 @@ CONTAINS
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: s_mat
     TYPE(dft_control_type), POINTER          :: dft_control
+    TYPE(qs_energy_type), POINTER            :: energy
     TYPE(rt_prop_type), POINTER              :: rtp
     TYPE(rtp_control_type), POINTER          :: rtp_control
 
     CALL timeset(routineN,handle)
 
-    NULLIFY(dft_control,rtp,rtp_control,s_mat)
-    CALL get_qs_env(qs_env=qs_env, dft_control=dft_control, error=error)
+    NULLIFY(dft_control,rtp,rtp_control,s_mat,energy)
+    CALL get_qs_env(qs_env=qs_env, dft_control=dft_control, energy=energy, error=error)
 
     rtp_control=>dft_control%rtp_control
     eps_ener=rtp_control%eps_ener
@@ -199,7 +200,7 @@ CONTAINS
        eps_ener=rtp_control%eps_ener
 
        CALL propagation_step(qs_env, rtp, rtp_control, error=error)
-       rtp%energy_new=qs_env%energy%total
+       rtp%energy_new=energy%total
 
        CALL rt_prop_output(qs_env,ehrenfest,delta_iter=rtp%delta_iter,error=error)
        rtp%energy_old=rtp%energy_new

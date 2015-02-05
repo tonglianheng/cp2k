@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2014  CP2K developers group                          !
+!   Copyright (C) 2000 - 2015  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -24,7 +24,6 @@ MODULE qs_dispersion_nonloc
   USE cp_files,                        ONLY: close_file,&
                                              open_file
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE f77_blas
   USE input_constants,                 ONLY: vdw_nl_DRSLL,&
                                              vdw_nl_LMKLL,&
                                              vdw_nl_RVV10,&
@@ -172,7 +171,8 @@ CONTAINS
 ! *****************************************************************************
 
 ! *****************************************************************************
-!> \brief ...
+!> \brief Calculates the non-local vdW functional using the method of Soler
+!>        For spin polarized cases we use E(a,b) = E(a+b), i.e. total density
 !> \param vxc_rho ...
 !> \param rho_r ...
 !> \param rho_g ...
@@ -226,9 +226,6 @@ CONTAINS
     CPPrecondition(ASSOCIATED(rho_g),cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED(pw_pool),cp_failure_level,routineP,error,failure)
 
-    ! only spin nonpolarized
-    nspin=1
-
     IF (PRESENT(virial)) THEN
        use_virial = virial%pv_calculate.AND.(.NOT.virial%pv_numer)
     ELSE
@@ -249,6 +246,7 @@ CONTAINS
     CALL pw_pool_create_pw(pw_pool, tmp_r, use_data=REALDATA3D, in_space=REALSPACE, error=error)
 
     ! get density derivatives
+    nspin=SIZE(rho_r)
     ALLOCATE ( drho_r(3,nspin), STAT = stat )
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     DO ispin=1,nspin
@@ -262,17 +260,20 @@ CONTAINS
        END DO
     END DO
 
-    ispin = 1
-    CPPrecondition(rho_r(ispin)%pw%in_use==REALDATA3D,cp_failure_level,routineP,error,failure)
-    CALL pw_transfer ( rho_g(ispin)%pw, tmp_g, error=error)
-    CALL pw_transfer ( tmp_g, tmp_r, error=error)
     np = SIZE(tmp_r%cr3d)
     ALLOCATE ( rho(np), drho(np,3), STAT = stat )
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    rho(:) = RESHAPE(tmp_r%cr3d,(/np/))
-    drho(:,1) = RESHAPE(drho_r(1,ispin)%pw%cr3d,(/np/))
-    drho(:,2) = RESHAPE(drho_r(2,ispin)%pw%cr3d,(/np/))
-    drho(:,3) = RESHAPE(drho_r(3,ispin)%pw%cr3d,(/np/))
+    rho = 0.0_dp
+    drho = 0.0_dp
+    DO ispin=1,nspin
+       CPPrecondition(rho_r(ispin)%pw%in_use==REALDATA3D,cp_failure_level,routineP,error,failure)
+       CALL pw_transfer ( rho_g(ispin)%pw, tmp_g, error=error)
+       CALL pw_transfer ( tmp_g, tmp_r, error=error)
+       rho(:) = rho(:) + RESHAPE(tmp_r%cr3d,(/np/))
+       drho(:,1) = drho(:,1) + RESHAPE(drho_r(1,ispin)%pw%cr3d,(/np/))
+       drho(:,2) = drho(:,2) + RESHAPE(drho_r(2,ispin)%pw%cr3d,(/np/))
+       drho(:,3) = drho(:,3) + RESHAPE(drho_r(3,ispin)%pw%cr3d,(/np/))
+    END DO
     !! ---------------------------------------------------------------------------------
     !! Find the value of q0 for all assigned grid points.  q is defined in equations
     !! 11 and 12 of DION and q0 is the saturated version of q defined in equation
@@ -424,7 +425,10 @@ CONTAINS
        CALL pw_pool_create_pw(pw_pool, vxc_r, use_data=REALDATA3D, in_space=REALSPACE, error=error)
        vxc_r%cr3d = RESHAPE(potential,(/n1,n2,n3/))
        DO idir=1,3
-          tmp_r%cr3d = RESHAPE(hpot,(/n1,n2,n3/)) * drho_r(idir,ispin)%pw%cr3d
+          tmp_r%cr3d = 0.0_dp
+          DO ispin=1,nspin
+             tmp_r%cr3d = tmp_r%cr3d + RESHAPE(hpot,(/n1,n2,n3/)) * drho_r(idir,ispin)%pw%cr3d
+          END DO
           CALL pw_transfer ( tmp_r, tmp_g ,error=error)
           CALL pw_derive ( tmp_g, nd(:,idir) ,error=error)
           CALL pw_transfer ( tmp_g, tmp_r ,error=error)
@@ -436,7 +440,9 @@ CONTAINS
        CALL pw_pool_create_pw(xc_pw_pool, vxc_g, use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE, error=error)
        CALL pw_transfer ( tmp_g, vxc_g ,error=error)
        CALL pw_transfer ( vxc_g, vxc_r ,error=error)
-       CALL pw_axpy(vxc_r,vxc_rho(ispin)%pw,1._dp,error)
+       DO ispin=1,nspin
+          CALL pw_axpy(vxc_r,vxc_rho(ispin)%pw,1._dp,error)
+       END DO
        CALL pw_pool_give_back_pw(xc_pw_pool, vxc_r, error=error)
        CALL pw_pool_give_back_pw(xc_pw_pool, vxc_g, error=error)
     END IF
@@ -558,14 +564,14 @@ CONTAINS
              uu  = uu + kernel_of_k(q2_i,q1_i)*theta(q1_i)
           END DO
           IF (ig < grid%first_gne0) THEN
-            vdW_xc_energy = vdW_xc_energy + (uu*CONJG(theta(q2_i)))
+            vdW_xc_energy = vdW_xc_energy + REAL(uu*CONJG(theta(q2_i)),KIND=dp)
           ELSE
-            vdW_xc_energy = vdW_xc_energy + G_multiplier * (uu*CONJG(theta(q2_i)))
+            vdW_xc_energy = vdW_xc_energy + G_multiplier * REAL(uu*CONJG(theta(q2_i)),KIND=dp)
           END IF
           IF (.NOT.energy_only) u_vdW(ig,q2_i)  = uu
           IF (use_virial .AND. ig >=grid%first_gne0) THEN
              DO q1_i = 1, Nqs
-                 gm = 0.5_dp * G_multiplier * grid%vol*theta(q1_i)*dkernel_of_dk(q1_i,q2_i)*CONJG(theta(q2_i))
+                 gm = 0.5_dp * G_multiplier * grid%vol*dkernel_of_dk(q1_i,q2_i)*REAL(theta(q1_i)*CONJG(theta(q2_i)),KIND=dp)
                  SELECT CASE (dispersion_env%nl_type)
                     CASE (vdw_nl_RVV10)
                        gm = 0.5_dp*gm

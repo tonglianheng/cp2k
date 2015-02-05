@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2014  CP2K developers group                          !
+!   Copyright (C) 2000 - 2015  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -17,7 +17,9 @@ MODULE md_vel_utils
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind,&
                                              get_atomic_kind_set
-  USE cell_types,                      ONLY: cell_type
+  USE cell_types,                      ONLY: &
+       cell_type, use_perd_none, use_perd_x, use_perd_xy, use_perd_xyz, &
+       use_perd_xz, use_perd_y, use_perd_yz, use_perd_z
   USE cp_linked_list_val,              ONLY: cp_sll_val_next,&
                                              cp_sll_val_type
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
@@ -27,18 +29,19 @@ MODULE md_vel_utils
                                              cp_subsys_type
   USE cp_units,                        ONLY: cp_unit_from_cp2k
   USE extended_system_types,           ONLY: npt_info_type
-  USE f77_blas
   USE force_env_methods,               ONLY: force_env_calc_energy_force
   USE force_env_types,                 ONLY: force_env_get,&
                                              force_env_type
   USE force_env_utils,                 ONLY: force_env_rattle,&
                                              force_env_shake
   USE global_types,                    ONLY: global_environment_type
-  USE input_constants,                 ONLY: &
-       npe_f_ensemble, npe_i_ensemble, nph_uniaxial_damped_ensemble, &
-       nph_uniaxial_ensemble, npt_f_ensemble, npt_i_ensemble, &
-       reftraj_ensemble, use_perd_none, use_perd_x, use_perd_xy, &
-       use_perd_xyz, use_perd_xz, use_perd_y, use_perd_yz, use_perd_z
+  USE input_constants,                 ONLY: npe_f_ensemble,&
+                                             npe_i_ensemble,&
+                                             nph_uniaxial_damped_ensemble,&
+                                             nph_uniaxial_ensemble,&
+                                             npt_f_ensemble,&
+                                             npt_i_ensemble,&
+                                             reftraj_ensemble
   USE input_cp2k_binary_restarts,      ONLY: read_binary_velocities
   USE input_restart_force_eval,        ONLY: update_subsys
   USE input_section_types,             ONLY: section_vals_get,&
@@ -1273,7 +1276,7 @@ CONTAINS
      DO ireg = 1,nregions
        NULLIFY(t_region)
        t_region => thermal_regions%thermal_region(ireg)
-       nfree = 3.0_dp*t_region%npart
+       nfree = 3*t_region%npart
        ekin = compute_ekin(part,ireg)
        IF(nfree > 0) t_region%temperature = 2.0_dp*ekin/REAL(nfree,KIND=dp)*kelvin
        temp_old(ireg) =  t_region%temperature

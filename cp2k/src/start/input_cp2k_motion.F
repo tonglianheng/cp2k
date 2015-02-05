@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2014  CP2K developers group                          !
+!   Copyright (C) 2000 - 2015  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -11,20 +11,22 @@
 MODULE input_cp2k_motion
   USE bibliography,                    ONLY: Byrd1995,&
                                              Henkelman1999
-  USE cp_output_handling,              ONLY: cp_print_key_section_create
+  USE cp_output_handling,              ONLY: add_last_numeric,&
+                                             cp_print_key_section_create,&
+                                             debug_print_level,&
+                                             high_print_level,&
+                                             low_print_level,&
+                                             medium_print_level
   USE cp_units,                        ONLY: cp_unit_to_cp2k
-  USE f77_blas
   USE input_constants,                 ONLY: &
-       add_last_numeric, debug_print_level, default_bfgs_method_id, &
-       default_cell_direct_id, default_cell_geo_opt_id, default_cell_md_id, &
-       default_cg_method_id, default_dimer_method_id, &
-       default_lbfgs_method_id, default_minimization_method_id, &
-       default_ts_method_id, do_mc_gemc_npt, do_mc_gemc_nvt, &
-       do_mc_traditional, do_mc_virial, fmt_id_pdb, fmt_id_xyz, gaussian, &
-       helium_cell_shape_cube, helium_cell_shape_octahedron, &
-       high_print_level, low_print_level, ls_2pnt, ls_3pnt, ls_fit, ls_gold, &
-       ls_none, medium_print_level, numerical, transformation_normal, &
-       transformation_stage
+       default_bfgs_method_id, default_cell_direct_id, &
+       default_cell_geo_opt_id, default_cell_md_id, default_cg_method_id, &
+       default_dimer_method_id, default_lbfgs_method_id, &
+       default_minimization_method_id, default_ts_method_id, do_mc_gemc_npt, &
+       do_mc_gemc_nvt, do_mc_traditional, do_mc_virial, fmt_id_pdb, &
+       fmt_id_xyz, gaussian, helium_cell_shape_cube, &
+       helium_cell_shape_octahedron, ls_2pnt, ls_3pnt, ls_fit, ls_gold, &
+       ls_none, numerical, transformation_normal, transformation_stage
   USE input_cp2k_constraints,          ONLY: create_constraint_section
   USE input_cp2k_free_energy,          ONLY: create_fe_section
   USE input_cp2k_md,                   ONLY: create_md_section
@@ -1518,6 +1520,13 @@ CONTAINS
             "of the optimizer (the energy)",&
             usage="WANTED_REL_F_ERROR {real}",unit_str="internal_cp2k",&
             default_r_val=1.0E-16_dp,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="TRUST_RADIUS",&
+            description="Trust radius used in LBFGS. Not completly in dept tested. Negativ values means no trust radius is used.",&
+            usage="TRUST_RADIUS {real}",unit_str='angstrom',&
+            default_r_val=-1.0_dp,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
     END IF

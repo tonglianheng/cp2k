@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2014  CP2K developers group                          !
+!   Copyright (C) 2000 - 2015  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -46,11 +46,10 @@ MODULE qs_vxc
                                              pw_type
   USE qs_dispersion_nonloc,            ONLY: calculate_dispersion_nonloc
   USE qs_dispersion_types,             ONLY: qs_dispersion_type
-  USE qs_environment_types,            ONLY: get_qs_env,&
-                                             qs_environment_type
-  USE qs_mo_types,                     ONLY: get_mo_set,&
-                                             mo_set_p_type
-  USE qs_rho_types,                    ONLY: qs_rho_type
+  USE qs_ks_types,                     ONLY: get_ks_env,&
+                                             qs_ks_env_type
+  USE qs_rho_types,                    ONLY: qs_rho_get,&
+                                             qs_rho_type
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE virial_types,                    ONLY: virial_type
@@ -72,7 +71,7 @@ CONTAINS
 ! *****************************************************************************
 !> \brief calculates and allocates the xc potential, already reducing it to
 !>      the dependence on rho and the one on tau
-!> \param qs_env qs_environment to get all the needed things
+!> \param ks_env to get all the needed things
 !> \param rho_struct density for which v_xc is calculated
 !> \param xc_section ...
 !> \param vxc_rho will contain the v_xc part that depend on rho
@@ -99,10 +98,10 @@ CONTAINS
 !>      - sic alterations [Joost VandeVondele]
 !> \author Fawzi Mohamed
 ! *****************************************************************************
-  SUBROUTINE qs_vxc_create( qs_env, rho_struct, xc_section, vxc_rho, vxc_tau, exc,&
+  SUBROUTINE qs_vxc_create( ks_env, rho_struct, xc_section, vxc_rho, vxc_tau, exc,&
        just_energy, edisp, dispersion_env, adiabatic_rescale_factor, error)
 
-    TYPE(qs_environment_type), POINTER       :: qs_env
+    TYPE(qs_ks_env_type), POINTER            :: ks_env
     TYPE(qs_rho_type), POINTER               :: rho_struct
     TYPE(section_vals_type), POINTER         :: xc_section
     TYPE(pw_p_type), DIMENSION(:), POINTER   :: vxc_rho, vxc_tau
@@ -117,24 +116,23 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'qs_vxc_create', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, ispin, myfun, stat, &
-                                                vdw
+    INTEGER                                  :: handle, ispin, myfun, &
+                                                nelec_spin(2), stat, vdw
     LOGICAL :: compute_virial, do_adiabatic_rescaling, failure, &
-      my_just_energy, sic_scaling_b_zero, uf_grid, vdW_nl
+      my_just_energy, rho_g_valid, sic_scaling_b_zero, tau_r_valid, uf_grid, &
+      vdW_nl
     REAL(KIND=dp)                            :: exc_m, factor, &
                                                 my_adiabatic_rescale_factor, &
-                                                my_scaling, nelec_s_inv, &
-                                                nelec_spin(2)
+                                                my_scaling, nelec_s_inv
     REAL(KIND=dp), DIMENSION(3, 3)           :: virial_xc_tmp
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(dft_control_type), POINTER          :: dft_control
-    TYPE(mo_set_p_type), DIMENSION(:), &
-      POINTER                                :: mo_array
     TYPE(pw_env_type), POINTER               :: pw_env
-    TYPE(pw_p_type), DIMENSION(:), POINTER   :: my_vxc_rho, my_vxc_tau, &
-                                                rho_g, rho_m_gspace, &
-                                                rho_m_rspace, rho_r, tau
+    TYPE(pw_p_type), DIMENSION(:), POINTER :: my_vxc_rho, my_vxc_tau, rho_g, &
+      rho_m_gspace, rho_m_rspace, rho_r, rho_struct_g, rho_struct_r, tau, &
+      tau_struct_r
+    TYPE(pw_p_type), POINTER                 :: rho_nlcc, rho_nlcc_g
     TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool, vdw_pw_pool, &
                                                 xc_pw_pool
     TYPE(pw_type), POINTER                   :: tmp_g, tmp_g2, tmp_pw
@@ -147,7 +145,7 @@ CONTAINS
     CPPrecondition(.NOT.ASSOCIATED(vxc_tau),cp_failure_level,routineP,error,failure)
     NULLIFY(dft_control, pw_env, auxbas_pw_pool, xc_pw_pool, vdw_pw_pool, cell, my_vxc_rho, &
             tmp_pw, tmp_g, tmp_g2, my_vxc_tau, rho_g, rho_r, tau, rho_m_rspace, &
-            rho_m_gspace)
+            rho_m_gspace, rho_nlcc, rho_nlcc_g,rho_struct_r,rho_struct_g,tau_struct_r)
 
     my_just_energy=.FALSE.
     IF (PRESENT(just_energy)) my_just_energy=just_energy
@@ -158,8 +156,23 @@ CONTAINS
        do_adiabatic_rescaling = .TRUE.
     END IF
 
-    CALL get_qs_env(qs_env=qs_env, dft_control=dft_control, &
-         pw_env=pw_env, cell=cell, virial=virial, error=error)
+    CALL get_ks_env(ks_env,&
+                   dft_control=dft_control, &
+                   pw_env=pw_env,&
+                   cell=cell,&
+                   virial=virial,&
+                   rho_nlcc=rho_nlcc,&
+                   rho_nlcc_g=rho_nlcc_g,&
+                   error=error)
+
+    CALL qs_rho_get(rho_struct,&
+                    tau_r_valid=tau_r_valid,&
+                    rho_g_valid=rho_g_valid,&
+                    rho_r=rho_struct_r,&
+                    rho_g=rho_struct_g,&
+                    tau_r=tau_struct_r,&
+                    error=error)
+
     compute_virial=virial%pv_calculate.AND.(.NOT.virial%pv_numer)
 
     CALL section_vals_val_get(xc_section,"XC_FUNCTIONAL%_SECTION_PARAMETERS_",&
@@ -180,8 +193,6 @@ CONTAINS
 
        ! test if the real space density is available
        CPPrecondition(ASSOCIATED(rho_struct),cp_failure_level,routineP,error,failure)
-       CPPrecondition(rho_struct%ref_count>0,cp_failure_level,routineP,error,failure)
-       CPPrecondition(rho_struct%rho_r_valid,cp_failure_level,routineP,error,failure)
        CALL cp_assert( dft_control%nspins == 1 .OR. dft_control%nspins == 2,&
             cp_failure_level,cp_assertion_failed,routineP,&
             "nspins must be 1 or 2",error,failure)
@@ -197,11 +208,11 @@ CONTAINS
           ! all fine
        CASE ( sic_mauri_spz, sic_ad )
           ! no idea yet what to do here in that case
-          CPPrecondition(.NOT.rho_struct%tau_r_valid ,cp_failure_level,routineP,error,failure)
+          CPPrecondition(.NOT.tau_r_valid ,cp_failure_level,routineP,error,failure)
        CASE ( sic_mauri_us )
           my_scaling=1.0_dp-dft_control%sic_scaling_b
           ! no idea yet what to do here in that case
-          CPPrecondition(.NOT.rho_struct%tau_r_valid ,cp_failure_level,routineP,error,failure)
+          CPPrecondition(.NOT.tau_r_valid ,cp_failure_level,routineP,error,failure)
        CASE ( sic_eo )
           ! NOTHING TO BE DONE
        CASE DEFAULT
@@ -224,41 +235,41 @@ CONTAINS
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
           IF (.not.uf_grid) THEN
              DO ispin=1,dft_control%nspins
-                rho_r(ispin)%pw => rho_struct%rho_r(ispin)%pw
+                rho_r(ispin)%pw => rho_struct_r(ispin)%pw
              END DO
 
-             IF (rho_struct%tau_r_valid) THEN
+             IF (tau_r_valid) THEN
                 ALLOCATE(tau(dft_control%nspins),stat=stat)
                 CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
                 DO ispin=1,dft_control%nspins
-                   tau(ispin)%pw => rho_struct%tau_r(ispin)%pw
+                   tau(ispin)%pw => tau_struct_r(ispin)%pw
                 END DO
              END IF
 
              ! for gradient corrected functional the density in g space might
              ! be useful so if we have it, we pass it in
-             IF ( rho_struct%rho_g_valid ) THEN
+             IF ( rho_g_valid ) THEN
                 ALLOCATE(rho_g(dft_control%nspins),stat=stat)
                 CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
                 DO ispin=1,dft_control%nspins
-                   rho_g(ispin)%pw => rho_struct%rho_g(ispin)%pw
+                   rho_g(ispin)%pw => rho_struct_g(ispin)%pw
                 END DO
              END IF
           ELSE
-             CPPrecondition(rho_struct%rho_g_valid,cp_failure_level,routineP,error,failure)
+             CPPrecondition(rho_g_valid,cp_failure_level,routineP,error,failure)
              ALLOCATE(rho_g(dft_control%nspins),stat=stat)
              CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
              DO ispin=1,dft_control%nspins
                 CALL pw_pool_create_pw(xc_pw_pool,rho_g(ispin)%pw,&
                      in_space=RECIPROCALSPACE, use_data=COMPLEXDATA1D,error=error)
-                CALL pw_transfer(rho_struct%rho_g(ispin)%pw,rho_g(ispin)%pw, error=error)
+                CALL pw_transfer(rho_struct_g(ispin)%pw,rho_g(ispin)%pw, error=error)
              END DO
              DO ispin=1,dft_control%nspins
                 CALL pw_pool_create_pw(xc_pw_pool,rho_r(ispin)%pw,&
                      in_space=REALSPACE, use_data=REALDATA3D,error=error)
                 CALL pw_transfer(rho_g(ispin)%pw,rho_r(ispin)%pw, error=error)
              END DO
-             IF (rho_struct%tau_r_valid) THEN
+             IF (tau_r_valid) THEN
                ! tau with finer grids is not implemented (at least not correctly), which this asserts
                CALL cp_unimplemented_error(fromWhere=routineP, &
                     message="tau with finer grids", &
@@ -283,11 +294,11 @@ CONTAINS
           END IF
 
           ! add the nlcc densities
-          IF (ASSOCIATED(qs_env%rho_nlcc)) THEN
+          IF (ASSOCIATED(rho_nlcc)) THEN
              factor=1.0_dp
              DO ispin=1,dft_control%nspins
-                CALL pw_axpy ( qs_env%rho_nlcc%pw, rho_r(ispin)%pw, factor, error)
-                CALL pw_axpy ( qs_env%rho_nlcc_g%pw, rho_g(ispin)%pw, factor, error)
+                CALL pw_axpy(rho_nlcc%pw,   rho_r(ispin)%pw, factor, error)
+                CALL pw_axpy(rho_nlcc_g%pw, rho_g(ispin)%pw, factor, error)
              ENDDO
           ENDIF
 
@@ -312,22 +323,20 @@ CONTAINS
           END IF
 
           ! remove the nlcc densities (keep stuff in original state)
-          IF (ASSOCIATED(qs_env%rho_nlcc)) THEN
+          IF (ASSOCIATED(rho_nlcc)) THEN
              factor=-1.0_dp
              DO ispin=1,dft_control%nspins
-                CALL pw_axpy ( qs_env%rho_nlcc%pw, rho_r(ispin)%pw, factor, error)
-                CALL pw_axpy ( qs_env%rho_nlcc_g%pw, rho_g(ispin)%pw, factor, error)
+                CALL pw_axpy(rho_nlcc%pw,   rho_r(ispin)%pw, factor, error)
+                CALL pw_axpy(rho_nlcc_g%pw, rho_g(ispin)%pw, factor, error)
              ENDDO
           ENDIF
 
           ! calclulate non-local vdW functional
           ! only if this XC_SECTION has it
-          ! if yes, we use the dispersion_env from qs_env
+          ! if yes, we use the dispersion_env from ks_env
           ! this is dangerous, as it assumes a special connection xc_section -> qs_env
           IF (vdW_nl) THEN
-             CALL get_qs_env(qs_env=qs_env, para_env=para_env, error=error)
-             ! no spin polarization allowed
-             CPPrecondition(dft_control%nspins==1,cp_failure_level,routineP,error,failure)
+             CALL get_ks_env(ks_env=ks_env, para_env=para_env, error=error)
              ! no SIC functionals allowed
              CPPrecondition(dft_control%sic_method_id==sic_none,cp_failure_level,routineP,error,failure)
              ! 
@@ -396,10 +405,10 @@ CONTAINS
              CALL pw_pool_create_pw(xc_pw_pool, rho_m_rspace(1)%pw,&
                   use_data = REALDATA3D,&
                   in_space = REALSPACE, error=error)
-             CALL pw_copy(rho_struct%rho_r(1)%pw,rho_m_rspace(1)%pw, error=error)
-             CALL pw_axpy(rho_struct%rho_r(2)%pw,rho_m_rspace(1)%pw,alpha=-1._dp, error=error)
-             CALL pw_copy(rho_struct%rho_g(1)%pw,rho_m_gspace(1)%pw, error=error)
-             CALL pw_axpy(rho_struct%rho_g(2)%pw,rho_m_gspace(1)%pw,alpha=-1._dp, error=error)
+             CALL pw_copy(rho_struct_r(1)%pw,rho_m_rspace(1)%pw, error=error)
+             CALL pw_axpy(rho_struct_r(2)%pw,rho_m_rspace(1)%pw,alpha=-1._dp, error=error)
+             CALL pw_copy(rho_struct_g(1)%pw,rho_m_gspace(1)%pw, error=error)
+             CALL pw_axpy(rho_struct_g(2)%pw,rho_m_gspace(1)%pw,alpha=-1._dp, error=error)
              ! bit sad, these will be just zero...
              CALL pw_pool_create_pw(xc_pw_pool, rho_m_gspace(2)%pw,&
                   use_data = COMPLEXDATA1D,&
@@ -461,9 +470,7 @@ CONTAINS
           IF ( dft_control%sic_method_id .EQ. sic_ad  .AND. .NOT. sic_scaling_b_zero ) THEN
 
              ! find out how many elecs we have
-             CALL get_qs_env(qs_env,mos=mo_array,error=error)
-             CALL get_mo_set(mo_set=mo_array(1)%mo_set,n_el_f=nelec_spin(1))
-             CALL get_mo_set(mo_set=mo_array(2)%mo_set,n_el_f=nelec_spin(2))
+             CALL get_ks_env(ks_env,nelectron_spin=nelec_spin,error=error)
 
              ALLOCATE(rho_m_rspace(2),rho_m_gspace(2))
              DO ispin=1,2
@@ -487,8 +494,8 @@ CONTAINS
                    ! does it matter if there are no electrons with this spin (H) ?
                    nelec_s_inv=0.0_dp
                 ENDIF
-                CALL pw_copy(rho_struct%rho_r(ispin)%pw,rho_m_rspace(1)%pw, error=error)
-                CALL pw_copy(rho_struct%rho_g(ispin)%pw,rho_m_gspace(1)%pw, error=error)
+                CALL pw_copy(rho_struct_r(ispin)%pw,rho_m_rspace(1)%pw, error=error)
+                CALL pw_copy(rho_struct_g(ispin)%pw,rho_m_gspace(1)%pw, error=error)
                 CALL pw_scale(rho_m_rspace(1)%pw,nelec_s_inv, error=error)
                 CALL pw_scale(rho_m_gspace(1)%pw,nelec_s_inv, error=error)
                 CALL pw_zero(rho_m_rspace(2)%pw, error=error)
@@ -537,11 +544,11 @@ CONTAINS
 
           ! compute again the xc but now for Exc(n_down,n_down)
           IF (dft_control%sic_method_id .EQ. sic_mauri_us .AND. .NOT. sic_scaling_b_zero ) THEN
-             rho_r(1)%pw => rho_struct%rho_r(2)%pw
-             rho_r(2)%pw => rho_struct%rho_r(2)%pw
-             IF ( rho_struct%rho_g_valid ) THEN
-                rho_g(1)%pw => rho_struct%rho_g(2)%pw
-                rho_g(2)%pw => rho_struct%rho_g(2)%pw
+             rho_r(1)%pw => rho_struct_r(2)%pw
+             rho_r(2)%pw => rho_struct_r(2)%pw
+             IF ( rho_g_valid ) THEN
+                rho_g(1)%pw => rho_struct_g(2)%pw
+                rho_g(2)%pw => rho_struct_g(2)%pw
              ENDIF
 
              IF (my_just_energy) THEN

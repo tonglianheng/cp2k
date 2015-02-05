@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2014  CP2K developers group                          !
+!   Copyright (C) 2000 - 2015  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -23,7 +23,6 @@ MODULE mp2_cphf
   USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
                                              copy_fm_to_dbcsr
   USE cp_fm_basic_linalg,              ONLY: cp_fm_upper_to_full
-! USE f77_blas
   USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                              cp_fm_struct_release,&
                                              cp_fm_struct_type
@@ -81,8 +80,13 @@ MODULE mp2_cphf
   USE qs_force_types,                  ONLY: qs_force_type
   USE qs_integrate_potential,          ONLY: integrate_v_core_rspace,&
                                              integrate_v_rspace
+  USE qs_ks_types,                     ONLY: qs_ks_env_type,&
+                                             set_ks_env
+  USE qs_neighbor_list_types,          ONLY: neighbor_list_set_p_type
   USE qs_rho_methods,                  ONLY: qs_rho_rebuild
-  USE qs_rho_types,                    ONLY: qs_rho_release,&
+  USE qs_rho_types,                    ONLY: qs_rho_create,&
+                                             qs_rho_get,&
+                                             qs_rho_release,&
                                              qs_rho_type
   USE timings,                         ONLY: timeset,&
                                              timestop
@@ -158,7 +162,9 @@ MODULE mp2_cphf
     TYPE(cp_blacs_env_type), POINTER         :: blacs_env
     TYPE(cp_dbcsr_p_type)                    :: P_mu_nu
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
-      POINTER                                :: mat_mu_nu, matrix_s
+      POINTER                                :: mat_mu_nu, matrix_ks, &
+                                                matrix_p_mp2, matrix_s, &
+                                                matrix_w_mp2, rho_ao
     TYPE(cp_fm_struct_type), POINTER         :: fm_struct_tmp
     TYPE(cp_fm_type), POINTER                :: fm_back, fm_G_mu_nu, L_jb, &
                                                 mo_coeff_o, mo_coeff_v, P_ia, &
@@ -167,9 +173,12 @@ MODULE mp2_cphf
       POINTER                                :: integral_containers
     TYPE(hfx_container_type), POINTER        :: maxval_container
     TYPE(hfx_type), POINTER                  :: actual_x_data
+    TYPE(neighbor_list_set_p_type), &
+      DIMENSION(:), POINTER                  :: sab_orb
     TYPE(pw_env_type), POINTER               :: pw_env
     TYPE(pw_p_type)                          :: dvg(3), pot_g, rho_g, rho_r, &
                                                 temp_pw_g
+    TYPE(pw_p_type), POINTER                 :: rho_core
     TYPE(pw_poisson_type), POINTER           :: poisson_env
     TYPE(pw_pool_p_type), DIMENSION(:), &
       POINTER                                :: pw_pools
@@ -177,6 +186,7 @@ MODULE mp2_cphf
     TYPE(qs_energy_type), POINTER            :: energy
     TYPE(qs_force_type), DIMENSION(:), &
       POINTER                                :: force
+    TYPE(qs_ks_env_type), POINTER            :: ks_env
     TYPE(qs_rho_type), POINTER               :: rho, rho_work
     TYPE(section_vals_type), POINTER         :: hfx_sections, input
     TYPE(virial_type), POINTER               :: virial
@@ -189,18 +199,27 @@ MODULE mp2_cphf
     ! start collecting stuff
     dimen=nmo
     virtual=dimen-homo
-    NULLIFY(input,pw_env,matrix_s,blacs_env,rho,energy,force,virial)
-    CALL get_qs_env(qs_env=qs_env,&
+    NULLIFY(input,pw_env,matrix_s,blacs_env,rho,energy,force,virial,matrix_w_mp2,&
+            matrix_p_mp2,matrix_ks,rho_core,sab_orb)
+    CALL get_qs_env(qs_env,&
+                    ks_env=ks_env,&
                     pw_env=pw_env,&
                     input=input,&
                     matrix_s=matrix_s,&
+                    matrix_ks= matrix_ks,&
+                    matrix_p_mp2=matrix_p_mp2,&
+                    matrix_w_mp2=matrix_w_mp2,&
                     blacs_env=blacs_env,&
                     rho=rho,&
                     energy=energy,&
                     force=force,&
                     virial=virial,&
+                    rho_core=rho_core,&
+                    sab_orb=sab_orb,&
                     error=error)
-    
+
+    CALL qs_rho_get(rho, rho_ao=rho_ao, error=error)
+
     ! check if we have to calculate the virial
     use_virial = virial%pv_availability.AND.(.NOT.virial%pv_numer)
 
@@ -248,7 +267,7 @@ MODULE mp2_cphf
            row_blk_size=cp_dbcsr_row_block_sizes(matrix_s(1)%matrix),&
            col_blk_size=cp_dbcsr_col_block_sizes(matrix_s(1)%matrix),&
            nblks=0, nze=0, error=error)
-      CALL cp_dbcsr_alloc_block_from_nbl(mat_mu_nu(ispin)%matrix,qs_env%sab_orb,error=error)
+      CALL cp_dbcsr_alloc_block_from_nbl(mat_mu_nu(ispin)%matrix,sab_orb,error=error)
       CALL cp_dbcsr_set(mat_mu_nu(ispin)%matrix,0.0_dp,error=error)
     END DO
 
@@ -256,7 +275,7 @@ MODULE mp2_cphf
     CALL cp_dbcsr_init(P_mu_nu%matrix,error=error)
     ! CALL cp_dbcsr_create(P_mu_nu%matrix,template=mat_mu_nu(1)%matrix,error=error)
     ! CALL cp_dbcsr_copy(P_mu_nu%matrix,mat_mu_nu(1)%matrix,name="P_mu_nu",error=error)
-    CALL cp_dbcsr_copy(P_mu_nu%matrix,rho%rho_ao(1)%matrix,name="P_mu_nu",error=error)
+    CALL cp_dbcsr_copy(P_mu_nu%matrix,rho_ao(1)%matrix,name="P_mu_nu",error=error)
     CALL cp_dbcsr_set(P_mu_nu%matrix,0.0_dp,error=error)
 
     NULLIFY(fm_G_mu_nu, fm_struct_tmp)
@@ -292,6 +311,7 @@ MODULE mp2_cphf
 
     ! create a working rho environment
     NULLIFY(rho_work)
+    CALL qs_rho_create(rho_work, error)
     CALL qs_rho_rebuild(rho=rho_work, qs_env=qs_env, rebuild_ao=.TRUE., rebuild_grids=.FALSE., error=error)
 
     ! here we check if we have to reallocate the HFX container
@@ -329,6 +349,16 @@ MODULE mp2_cphf
         END DO
       END DO
       CALL timestop(handle2)
+    END IF
+
+    ! not a good idea having screening on initial P
+    IF(qs_env%x_data(1,1)%screening_parameter%do_initial_p_screening) THEN
+      CALL cp_assert(.FALSE.,cp_warning_level,cp_assertion_failed,routineP,&
+                     "CPHF-like update of the Hartree Fock exchange part requested with the use "//&
+                     "of SCREEN_ON_INITIAL_P. This may lead to unphysical results. "//&
+                     "Set SCREEN_ON_INITIAL_P to false to avoid possible problems. "//&
+                     CPSourceFileRef,&
+                     only_ionode=.TRUE.)
     END IF
 
     ! update lagrangian with the CPHF like update, occ-occ block, first call (recompute hfx integrals if needed)
@@ -517,18 +547,19 @@ MODULE mp2_cphf
                     c_first_row=1)
  
     ! copy W_mo into dbcsr
-    CALL copy_fm_to_dbcsr(W_mo, qs_env%matrix_w_mp2(1)%matrix, keep_sparsity=.TRUE.,error=error)
+    CALL copy_fm_to_dbcsr(W_mo, matrix_w_mp2(1)%matrix, keep_sparsity=.TRUE.,error=error)
 
     ! create mp2 DBCSR density
-    CALL cp_dbcsr_allocate_matrix_set(qs_env%matrix_p_mp2,qs_env%dft_control%nspins,error=error)
+    CALL cp_dbcsr_allocate_matrix_set(matrix_p_mp2,dft_control%nspins,error=error)
     DO ispin=1, dft_control%nspins
-       ALLOCATE(qs_env%matrix_p_mp2(ispin)%matrix)
-       CALL cp_dbcsr_init(qs_env%matrix_p_mp2(ispin)%matrix,error=error)
-       CALL cp_dbcsr_copy(qs_env%matrix_p_mp2(ispin)%matrix,rho%rho_ao(ispin)%matrix,&
+       ALLOCATE(matrix_p_mp2(ispin)%matrix)
+       CALL cp_dbcsr_init(matrix_p_mp2(ispin)%matrix,error=error)
+       CALL cp_dbcsr_copy(matrix_p_mp2(ispin)%matrix,rho_ao(ispin)%matrix,&
             name="P MATRIX MP2",error=error)
-       CALL cp_dbcsr_set(qs_env%matrix_p_mp2(ispin)%matrix,0.0_dp,error=error)
-       CALL copy_fm_to_dbcsr(P_mo, qs_env%matrix_p_mp2(ispin)%matrix,keep_sparsity=.TRUE.,error=error)
+       CALL cp_dbcsr_set(matrix_p_mp2(ispin)%matrix,0.0_dp,error=error)
+       CALL copy_fm_to_dbcsr(P_mo, matrix_p_mp2(ispin)%matrix,keep_sparsity=.TRUE.,error=error)
     END DO
+    CALL set_ks_env(ks_env, matrix_p_mp2=matrix_p_mp2, error=error)
 
     ! release remaining fm stuff
     CALL cp_fm_release(W_mo,error=error)
@@ -537,11 +568,11 @@ MODULE mp2_cphf
 
     ! update the core-forces with the MP2-density contribution
     ! put MP2 density on the grid
-    CALL calculate_rho_elec(matrix_p=qs_env%matrix_p_mp2(1)%matrix,&
+    CALL calculate_rho_elec(matrix_p=matrix_p_mp2(1)%matrix,&
                             rho=rho_r,&
                             rho_gspace=rho_g,&
                             total_rho=tot_rho_r,&
-                            qs_env=qs_env,&
+                            ks_env=ks_env,&
                             soft_valid=.FALSE.,&
                             error=error)
     ! calculate the MP2 potential
@@ -557,7 +588,7 @@ MODULE mp2_cphf
        force(ikind)%rho_core=0.0_dp
     ENDDO
     ! right contribution
-    CALL integrate_v_rspace(v_rspace=rho_r,p=qs_env%rho%rho_ao(1),h=qs_env%matrix_ks(1),&
+    CALL integrate_v_rspace(v_rspace=rho_r,p=rho_ao(1),h=matrix_ks(1),&
                             qs_env=qs_env,calculate_forces=.TRUE.,error=error)
 
     IF(use_virial) THEN
@@ -586,17 +617,17 @@ MODULE mp2_cphf
       END DO
  
       ! calculate total SCF density and potential
-      CALL calculate_rho_elec(matrix_p=qs_env%rho%rho_ao(1)%matrix,&
+      CALL calculate_rho_elec(matrix_p=rho_ao(1)%matrix,&
                               rho=rho_r,&
                               rho_gspace=rho_g,&
                               total_rho=tot_rho_r,&
-                              qs_env=qs_env,&
+                              ks_env=ks_env,&
                               soft_valid=.FALSE.,&
                               error=error)
       ! and associated potential
       CALL pw_transfer(rho_r%pw, rho_g%pw, error=error)
       ! don't forget the core density
-      CALL pw_axpy(qs_env%rho_core%pw, rho_g%pw, error=error)
+      CALL pw_axpy(rho_core%pw, rho_g%pw, error=error)
       CALL pw_poisson_solve(poisson_env,rho_g%pw, pair_energy, pot_g%pw,error=error)
 
       ! finally update virial with the volume contribution
@@ -624,9 +655,9 @@ MODULE mp2_cphf
       CALL timestop(handle2)
     END IF
 
-    DO ispin=1, qs_env%dft_control%nspins
-      CALL cp_dbcsr_add(qs_env%rho%rho_ao(ispin)%matrix, qs_env%matrix_p_mp2(ispin)%matrix, 1.0_dp,  1.0_dp, error)
-    END DO   
+    DO ispin=1, dft_control%nspins
+      CALL cp_dbcsr_add(rho_ao(ispin)%matrix, matrix_p_mp2(ispin)%matrix, 1.0_dp,  1.0_dp, error)
+    END DO
 
     ! release stuff
     CALL pw_pool_give_back_pw(auxbas_pw_pool,rho_r%pw,error=error)
@@ -725,13 +756,18 @@ MODULE mp2_cphf
                                                 my_recalc_hfx_integrals
     REAL(KIND=dp)                            :: ex_energy, pair_energy, &
                                                 total_rho
+    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+      POINTER                                :: rho_work_ao
+    TYPE(qs_ks_env_type), POINTER            :: ks_env
 
+    NULLIFY(ks_env, rho_work_ao)
     CALL timeset(routineN,handle)
     failure=.FALSE.
 
     my_recalc_hfx_integrals=.FALSE.
     IF(PRESENT(recalc_hfx_integrals)) my_recalc_hfx_integrals=recalc_hfx_integrals
 
+    CALL get_qs_env(qs_env, ks_env=ks_env, error=error)
     ! perform back transformation
     SELECT CASE(transf_type_in)
       CASE(1)
@@ -864,7 +900,7 @@ MODULE mp2_cphf
                             rho=rho_r,&
                             rho_gspace=rho_g,&
                             total_rho=total_rho,&
-                            qs_env=qs_env,error=error)
+                            ks_env=ks_env,error=error)
     ! and calculate potential
     CALL pw_poisson_solve(poisson_env, rho_g%pw, pair_energy, pot_g%pw, error=error)
     CALL pw_transfer(pot_g%pw, rho_r%pw, error=error)
@@ -877,12 +913,13 @@ MODULE mp2_cphf
                             error=error)
     ! update with the exchange like contributions
     ! copy mat_mu_nu into rho_ao work
-    CALL cp_dbcsr_set(rho_work%rho_ao(1)%matrix,0.0_dp,error=error)
-    CALL cp_dbcsr_copy(rho_work%rho_ao(1)%matrix,P_mu_nu%matrix,error=error)
+    CALL qs_rho_get(rho_work, rho_ao=rho_work_ao, error=error)
+    CALL cp_dbcsr_set(rho_work_ao(1)%matrix,0.0_dp,error=error)
+    CALL cp_dbcsr_copy(rho_work_ao(1)%matrix,P_mu_nu%matrix,error=error)
     ! save old EX energy
     ex_energy=energy%ex
     DO irep=1, n_rep_hf
-      CALL integrate_four_center(qs_env, mat_mu_nu, energy, rho_work%rho_ao, hfx_sections,&
+      CALL integrate_four_center(qs_env, mat_mu_nu, energy, rho_work_ao, hfx_sections,&
                                  para_env, my_recalc_hfx_integrals, irep, .TRUE.,&
                                  ispin=1, error=error)
     END DO

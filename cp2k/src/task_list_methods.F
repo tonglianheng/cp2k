@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2014  CP2K developers group                          !
+!   Copyright (C) 2000 - 2015  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -14,7 +14,7 @@ MODULE task_list_methods
   USE basis_set_types,                 ONLY: get_gto_basis_set,&
                                              gto_basis_set_p_type,&
                                              gto_basis_set_type
-  USE cell_methods,                    ONLY: cell_type,&
+  USE cell_types,                      ONLY: cell_type,&
                                              pbc
   USE cp_control_types,                ONLY: dft_control_type
   USE cp_dbcsr_interface,              ONLY: &
@@ -26,7 +26,6 @@ MODULE task_list_methods
                                              cube_info_type,&
                                              return_cube,&
                                              return_cube_nonortho
-  USE f77_blas
   USE gaussian_gridlevels,             ONLY: gaussian_gridlevel,&
                                              gridlevel_info_type
   USE input_constants,                 ONLY: use_aux_fit_basis_set,&
@@ -44,10 +43,10 @@ MODULE task_list_methods
   USE particle_types,                  ONLY: particle_type
   USE pw_env_types,                    ONLY: pw_env_get,&
                                              pw_env_type
-  USE qs_environment_types,            ONLY: get_qs_env,&
-                                             qs_environment_type
   USE qs_kind_types,                   ONLY: get_qs_kind,&
                                              qs_kind_type
+  USE qs_ks_types,                     ONLY: get_ks_env,&
+                                             qs_ks_env_type
   USE qs_neighbor_list_types,          ONLY: get_iterator_info,&
                                              neighbor_list_iterate,&
                                              neighbor_list_iterator_create,&
@@ -67,6 +66,8 @@ MODULE task_list_methods
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE util,                            ONLY: sort
+
+!$ USE omp_lib
 #include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
@@ -85,7 +86,7 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief ...
-!> \param qs_env ...
+!> \param ks_env ...
 !> \param task_list ...
 !> \param reorder_rs_grid_ranks Flag that indicates if this routine should
 !>        or should not overwrite the rs descriptor (see comment below)
@@ -105,12 +106,12 @@ CONTAINS
 !>        of performing a new optimization by leaving the rank order in
 !>        its current state.
 ! *****************************************************************************
-  SUBROUTINE generate_qs_task_list(qs_env, task_list,&
+  SUBROUTINE generate_qs_task_list(ks_env, task_list,&
                                    reorder_rs_grid_ranks, skip_load_balance_distributed, &
                                    soft_valid, basis_set_id, pw_env_external, sab_orb_external, error)
 
 
-    TYPE(qs_environment_type), POINTER       :: qs_env
+    TYPE(qs_ks_env_type), POINTER            :: ks_env
     TYPE(task_list_type), POINTER            :: task_list
     LOGICAL, INTENT(IN)                      :: reorder_rs_grid_ranks, &
                                                 skip_load_balance_distributed
@@ -178,7 +179,7 @@ CONTAINS
 
     SELECT CASE (my_basis_set_id)
     CASE (use_orb_basis_set)
-      CALL get_qs_env(qs_env=qs_env,&
+      CALL get_ks_env(ks_env,&
            qs_kind_set=qs_kind_set,&
            cell=cell,&
            particle_set=particle_set,&
@@ -186,7 +187,7 @@ CONTAINS
            sab_orb=sab_orb,&
            pw_env=pw_env,error=error)
     CASE (use_aux_fit_basis_set)
-      CALL get_qs_env(qs_env=qs_env,&
+      CALL get_ks_env(ks_env,&
            qs_kind_set=qs_kind_set,&
            cell=cell,&
            particle_set=particle_set,&
@@ -195,7 +196,7 @@ CONTAINS
            pw_env=pw_env,error=error)
     END SELECT
 
-    ! maybe just don't pas qs_env instead ??
+    ! maybe just don't pas ks_env instead ??
     IF (PRESENT(pw_env_external)) pw_env=>pw_env_external
     IF (PRESENT(sab_orb_external)) sab_orb=>sab_orb_external
 
@@ -564,9 +565,10 @@ CONTAINS
     INTEGER, INTENT(IN)                      :: lb_min
     REAL(KIND=dp), INTENT(IN)                :: ra(3), rab(3), rab2, eps
 
+    INTEGER                                  :: extent(3)
     INTEGER, DIMENSION(:), POINTER           :: sphere_bounds
-    REAL(KIND=dp)                            :: cutoff, extent(3), f, &
-                                                prefactor, rb(3), zetp
+    REAL(KIND=dp)                            :: cutoff, f, prefactor, rb(3), &
+                                                zetp
     REAL(KIND=dp), DIMENSION(3)              :: rp
 
 ! the radius for this task
@@ -588,11 +590,11 @@ CONTAINS
     IF (rs_desc%orthorhombic ) THEN
        CALL return_cube(cube_info,radius,lb_cube,ub_cube,sphere_bounds)
     ELSE
-       ! untested so far
        CALL return_cube_nonortho(cube_info,radius,lb_cube,ub_cube,rp)
+       !? unclear if extent is computed correctly.
        extent(:)  = ub_cube(:) - lb_cube(:)
        lb_cube(:) = -extent(:) / 2 - 1
-       ub_cube(:) = extent(:) / 2
+       ub_cube(:) =  extent(:) / 2
     ENDIF
 
   END SUBROUTINE compute_pgf_properties
@@ -609,6 +611,7 @@ CONTAINS
 !> \param fraction ...
 !> \param lmax ...
 !> \param is_ortho ...
+!> \retval cost_model ...
 ! *****************************************************************************
   INTEGER FUNCTION cost_model(lb_cube,ub_cube,fraction,lmax,is_ortho)
     INTEGER, DIMENSION(3), INTENT(IN)       :: lb_cube, ub_cube
@@ -699,7 +702,7 @@ CONTAINS
 
     ntasks = ntasks + 1
     IF ( ntasks > curr_tasks ) THEN
-       curr_tasks = (curr_tasks+add_tasks)*mult_tasks
+       curr_tasks = INT((curr_tasks+add_tasks)*mult_tasks)
        CALL reallocate(tasks,1,6,1,curr_tasks)
     END IF
 
@@ -818,7 +821,7 @@ CONTAINS
 
     natom8=natom ; maxset8=maxset ; maxpgf8=maxpgf
 
-    ilevel=res/(natom8**2*maxset8**2*maxpgf8**2)
+    ilevel=INT(res/(natom8**2*maxset8**2*maxpgf8**2))
     tmp=MOD(res,natom8**2*maxset8**2*maxpgf8**2)
     ijatom=tmp/(maxpgf8**2*maxset8**2)
     iatom8=ijatom/natom8+1
@@ -831,8 +834,8 @@ CONTAINS
     ipgf8=ijpgf/maxpgf8+1
     jpgf8=MOD(ijpgf,maxpgf8)+1
 
-    iatom=iatom8 ; jatom=jatom8; iset=iset8 ; jset=jset8
-    ipgf=ipgf8 ; jpgf=jpgf8
+    iatom=INT(iatom8) ; jatom=INT(jatom8); iset=INT(iset8) ; jset=INT(jset8)
+    ipgf=INT(ipgf8) ; jpgf=INT(jpgf8)
 
   END SUBROUTINE int2pair
 
@@ -1011,8 +1014,8 @@ CONTAINS
                     Nflux=Nflux+1
                     IF (optimized_flux(Nflux)>0) THEN
                        list_global(2,ilocal,icpu)=list_global(2,ilocal,icpu)+&
-                                                  list_global(2,idest,icpu)-optimized_flux(Nflux)
-                       list_global(2,idest,icpu)=optimized_flux(Nflux)
+                                                  list_global(2,idest,icpu)-NINT(optimized_flux(Nflux))
+                       list_global(2,idest,icpu)=NINT(optimized_flux(Nflux))
                     ELSE
                        list_global(2,ilocal,icpu)=list_global(2,ilocal,icpu)+&
                                                   list_global(2,idest,icpu)
@@ -1027,8 +1030,8 @@ CONTAINS
                              list_global(2,idest,icpu)=0
                           ELSE
                              list_global(2,ilocal,icpu)=list_global(2,ilocal,icpu)+&
-                                                        list_global(2,idest,icpu)+optimized_flux(iflux)
-                             list_global(2,idest,icpu)=-optimized_flux(iflux)
+                                                        list_global(2,idest,icpu)+NINT(optimized_flux(iflux))
+                             list_global(2,idest,icpu)=-NINT(optimized_flux(iflux))
                           ENDIF
                           EXIT
                        ENDIF
@@ -1165,10 +1168,11 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'compute_load_list', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: dest, handle, i, iatom, ilevel, iopt, ipair_old, ipgf, iset, &
-      itask, itask_start, itask_stop, jatom, jpgf, jset, li, maxdest, ncpu, &
+    INTEGER :: cost, dest, handle, i, iatom, ilevel, iopt, ipgf, iset, itask, &
+      itask_start, itask_stop, jatom, jpgf, jset, li, maxdest, ncpu, &
       ndest_pair, nopt, nshort, rank
-    INTEGER(KIND=int_8)                      :: bit_pattern, ipair, natom8
+    INTEGER(KIND=int_8)                      :: bit_pattern, ipair, &
+                                                ipair_old, natom8
     INTEGER(KIND=int_8), ALLOCATABLE, &
       DIMENSION(:)                           :: loads
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: all_dests, index
@@ -1243,6 +1247,7 @@ CONTAINS
           ! Only proceed with tasks which are on this grid level
           IF (ilevel .NE. grid_level) CYCLE
           ipair=(iatom-1)*natom8+(jatom-1)
+          cost=INT(tasks(5,itask))
 
           SELECT CASE(tasks(4,itask))
           CASE(1)
@@ -1301,13 +1306,13 @@ CONTAINS
             ENDIF
             li=list_index(list,rank,dest)
             IF (create_list) THEN
-               list(2,li,dest)=list(2,li,dest)+tasks(5,itask)
+               list(2,li,dest)=list(2,li,dest)+cost
             ELSE
                IF (list(1,li,dest)==dest) THEN
                    tasks(1,itask)=encode_rank(dest, ilevel, SIZE(rs_descs))
                ELSE
-                 IF (list(2,li,dest)>=tasks(5,itask)) THEN
-                     list(2,li,dest)=list(2,li,dest)-tasks(5,itask)
+                 IF (list(2,li,dest)>=cost) THEN
+                     list(2,li,dest)=list(2,li,dest)-cost
                      tasks(1,itask)=encode_rank(list(1,li,dest), ilevel, SIZE(rs_descs))
                  ELSE
                      tasks(1,itask)=encode_rank(dest, ilevel, SIZE(rs_descs))
@@ -1317,13 +1322,13 @@ CONTAINS
           CASE(2) ! generalised
             li=list_index(list,dest,dest)
             IF (create_list) THEN
-               list(2,li,dest)=list(2,li,dest)+tasks(5,itask)
+               list(2,li,dest)=list(2,li,dest)+cost
             ELSE
                IF (list(1,li,dest)==dest) THEN
                    tasks(1,itask)=encode_rank(dest, ilevel, SIZE(rs_descs))
                ELSE
-                 IF (list(2,li,dest)>=tasks(5,itask)) THEN
-                     list(2,li,dest)=list(2,li,dest)-tasks(5,itask)
+                 IF (list(2,li,dest)>=cost) THEN
+                     list(2,li,dest)=list(2,li,dest)-cost
                      tasks(1,itask)=encode_rank(list(1,li,dest), ilevel, SIZE(rs_descs))
                  ELSE
                      tasks(1,itask)=encode_rank(dest, ilevel, SIZE(rs_descs))
@@ -1348,6 +1353,7 @@ CONTAINS
 !> \param list ...
 !> \param rank ...
 !> \param dest ...
+!> \retval list_index ...
 !> \par History
 !>      created 2008-10-06 [Joost VandeVondele]
 ! *****************************************************************************
@@ -1745,7 +1751,7 @@ CONTAINS
     IF (stat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                     "recv_buf_i",int_8_size*desc%group_size)
 
-    ! fill send buffer, now counting how many tasks will be send
+    ! fill send buffer, now counting how many tasks will be send (stored in an int8 array for convenience only).
     send_buf_i=0
     DO i = 1, ntasks
        rank = rs_descs(decode_level(tasks(1,i), SIZE(rs_descs)))%rs_desc%virtual2real(decode_rank(tasks(1,i), SIZE(rs_descs)))
@@ -1763,11 +1769,11 @@ CONTAINS
     recv_sizes = 0
     recv_disps = 0
 
-    send_sizes(1) = send_buf_i(1) * task_dim
-    recv_sizes(1) = recv_buf_i(1) * task_dim
+    send_sizes(1) = INT(send_buf_i(1) * task_dim)
+    recv_sizes(1) = INT(recv_buf_i(1) * task_dim)
     DO i = 2,desc%group_size
-       send_sizes(i) = send_buf_i(i) * task_dim
-       recv_sizes(i) = recv_buf_i(i) * task_dim
+       send_sizes(i) = INT(send_buf_i(i) * task_dim)
+       recv_sizes(i) = INT(recv_buf_i(i) * task_dim)
        send_disps(i)=send_disps(i-1)+send_sizes(i-1)
        recv_disps(i)=recv_disps(i-1)+recv_sizes(i-1)
     ENDDO
@@ -1924,9 +1930,9 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, igrid_level, irank, &
-                                                k, load_gap, max_load, &
-                                                ntasks_recv, replicated_load, &
-                                                stat
+                                                k, ntasks_recv, stat
+    INTEGER(KIND=int_8)                      :: load_gap, max_load, &
+                                                replicated_load
     INTEGER(KIND=int_8), ALLOCATABLE, &
       DIMENSION(:)                           :: taskid, total_loads, &
                                                 total_loads_tmp, trial_loads
@@ -2276,7 +2282,6 @@ END SUBROUTINE get_atom_pair
 SUBROUTINE rs_distribute_matrix( rs_descs, pmat, atom_pair_send, atom_pair_recv, &
      natoms, scatter, error, hmat )
 
-!$ USE omp_lib
 
     TYPE(realspace_grid_desc_p_type), &
       DIMENSION(:), POINTER                  :: rs_descs
@@ -2355,12 +2360,12 @@ SUBROUTINE rs_distribute_matrix( rs_descs, pmat, atom_pair_send, atom_pair_recv,
   DO i = 1, SIZE(atom_pair_send)
 
      ! proc we're sending this block to
-     k = atom_pair_send(i) / natom8**2 + 1
+     k = INT(atom_pair_send(i) / natom8**2) + 1
 
      pair = MOD(atom_pair_send(i),natom8**2)
 
-     arow = pair / natom8 + 1
-     acol = MOD(pair, natom8) + 1
+     arow = INT(pair / natom8) + 1
+     acol = INT(MOD(pair, natom8)) + 1
 
      nrow = last_row(arow) - first_row(arow) + 1
      ncol = last_col(acol) - first_col(acol) + 1
@@ -2389,12 +2394,12 @@ SUBROUTINE rs_distribute_matrix( rs_descs, pmat, atom_pair_send, atom_pair_recv,
   DO i = 1, SIZE(atom_pair_recv)
 
      ! proc we're receiving this data from
-     k = atom_pair_recv(i) / natom8**2 + 1
+     k = INT(atom_pair_recv(i) / natom8**2) + 1
 
      pair = MOD(atom_pair_recv(i),natom8**2)
 
-     arow = pair / natom8 + 1
-     acol = MOD(pair,natom8) + 1
+     arow = INT(pair / natom8) + 1
+     acol = INT(MOD(pair,natom8)) + 1
 
      nrow = last_row(arow) - first_row(arow) + 1
      ncol = last_col(acol) - first_col(acol) + 1
@@ -2438,8 +2443,8 @@ SUBROUTINE rs_distribute_matrix( rs_descs, pmat, atom_pair_send, atom_pair_recv,
     DO i = 1, send_pair_count(l)
      pair = MOD(atom_pair_send(send_pair_disps(l)+i),natom8**2)
 
-     arow = pair / natom8 + 1
-     acol = MOD(pair, natom8) + 1
+     arow = INT(pair / natom8) + 1
+     acol = INT(MOD(pair, natom8)) + 1
 
      nrow = last_row(arow)-first_row(arow) + 1
      ncol = last_col(acol)-first_col(acol) + 1
@@ -2488,8 +2493,8 @@ SUBROUTINE rs_distribute_matrix( rs_descs, pmat, atom_pair_send, atom_pair_recv,
     DO i = 1, send_pair_count(me)
      pair = MOD(atom_pair_send(send_pair_disps(me)+i),natom8**2)
 
-     arow = pair / natom8 + 1
-     acol = MOD(pair, natom8) + 1
+     arow = INT(pair / natom8) + 1
+     acol = INT(MOD(pair, natom8)) + 1
 
      nrow = last_row(arow) - first_row(arow) + 1
      ncol = last_col(acol) - first_col(acol) + 1
@@ -2526,8 +2531,8 @@ SUBROUTINE rs_distribute_matrix( rs_descs, pmat, atom_pair_send, atom_pair_recv,
     DO i = 1, recv_pair_count(l)
      pair = MOD(atom_pair_recv(recv_pair_disps(l)+i),natom8**2)
 
-     arow = pair / natom8 + 1
-     acol = MOD(pair, natom8) + 1
+     arow = INT(pair / natom8) + 1
+     acol = INT(MOD(pair, natom8)) + 1
 
      nrow = last_row(arow)-first_row(arow) + 1
      ncol = last_col(acol)-first_col(acol) + 1
@@ -2759,7 +2764,7 @@ END SUBROUTINE rs_distribute_matrix
        itask=ntasks
        ntasks=ntasks+added_tasks-1
        IF ( ntasks > SIZE(tasks,2)) THEN
-          curr_tasks = (SIZE(tasks,2)+add_tasks)*mult_tasks
+          curr_tasks = INT((SIZE(tasks,2)+add_tasks)*mult_tasks)
           CALL reallocate(tasks,1,6,1,curr_tasks)
        END IF
        DO iz=lb_coord(3),ub_coord(3)
@@ -2821,7 +2826,7 @@ END SUBROUTINE rs_distribute_matrix
     INTEGER, INTENT(IN)                      :: n_levels
     INTEGER                                  :: rank
 
-    rank = encoded_int / n_levels
+    rank = INT(encoded_int / n_levels)
 
   END FUNCTION
 
@@ -2841,7 +2846,7 @@ END SUBROUTINE rs_distribute_matrix
 
     n_levels8 = n_levels
 
-    grid_level = MODULO (encoded_int, n_levels8) + 1
+    grid_level = INT(MODULO (encoded_int, n_levels8)) + 1
 
   END FUNCTION decode_level
 

@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2014  CP2K developers group                          !
+!   Copyright (C) 2000 - 2015  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 !-----------------------------------------------------------------------------!
@@ -26,7 +26,6 @@
 MODULE ai_onecenter
 
   USE erf_fn,                          ONLY: erf
-  USE f77_blas
   USE kinds,                           ONLY: dp
   USE mathconstants,                   ONLY: dfac,&
                                              fac,&
@@ -41,9 +40,9 @@ MODULE ai_onecenter
 
   PRIVATE
   PUBLIC :: sg_overlap, sg_kinetic, sg_nuclear, sg_erf, sg_gpot,&
-            sg_proj_ol, sg_conf, sg_coulomb, sg_exchange, sg_kinnuc,&
+            sg_proj_ol, sg_coulomb, sg_exchange, sg_kinnuc,&
             sg_erfc
-  PUBLIC :: sto_overlap, sto_kinetic, sto_nuclear, sto_conf
+  PUBLIC :: sto_overlap, sto_kinetic, sto_nuclear
 
 CONTAINS
 

@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2014  CP2K developers group                          !
+!   Copyright (C) 2000 - 2015  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -13,7 +13,7 @@
 MODULE se_ga_tools
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind
-  USE cell_methods,                    ONLY: cell_type,&
+  USE cell_types,                      ONLY: cell_type,&
                                              pbc
   USE cp_control_types,                ONLY: dft_control_type,&
                                              semi_empirical_control_type
@@ -1101,12 +1101,12 @@ REAL ( dp ), POINTER :: ks_i ( :, :, : ), ks_j ( :, :, : )
       pmax = 0
       DO i = 2, ip
         DO j = 1, pmax
-          IF (MOD(i,prime(j))==0) go to 100
+          IF (MOD(i,prime(j))==0) EXIT
         END DO
+        IF (MOD(i,prime(j))==0) CYCLE
         pmax = pmax + 1
         IF (pmax>MAX_FACTOR) WRITE(*,*) 'Overflow in grid_factor'
         prime(pmax) = i
-        100   CONTINUE
       END DO
 !
 !    find all prime factors of p
@@ -1114,12 +1114,11 @@ REAL ( dp ), POINTER :: ks_i ( :, :, : ), ks_j ( :, :, : )
       ip = p
       ifac = 0
       DO i = 1, pmax
-        200   IF (MOD(ip,prime(i))==0) THEN
+        DO WHILE (MOD(ip,prime(i))==0)
           ifac = ifac + 1
           fac(ifac) = prime(i)
           ip = ip/prime(i)
-          go to 200
-        ENDIF
+        ENDDO
       END DO
 !
 !    determine three factors of p of approximately the
@@ -1129,9 +1128,9 @@ REAL ( dp ), POINTER :: ks_i ( :, :, : ), ks_j ( :, :, : )
       idy = 1
       idz = 1
       DO i = ifac, 1, -1
-        ix = xdim / idx
-        iy = ydim / idy
-        iz = zdim / idz
+        ix = INT (xdim / idx)
+        iy = INT (ydim / idy)
+        iz = INT (zdim / idz)
         IF (ix>=iy.and.ix>=iz.and.ix>1) THEN
           idx = fac(i)*idx
         ELSEIF (iy>=ix.and.iy>=iz.and.iy>1) THEN

@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2014  CP2K developers group                          !
+!   Copyright (C) 2000 - 2015  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -10,7 +10,7 @@
 !> \author Teodoro Laino
 ! *****************************************************************************
 MODULE qmmm_gpw_forces
-  USE cell_methods,                    ONLY: cell_type,&
+  USE cell_types,                      ONLY: cell_type,&
                                              pbc
   USE cp_control_types,                ONLY: dft_control_type
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
@@ -18,11 +18,11 @@ MODULE qmmm_gpw_forces
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_spline_utils,                 ONLY: pw_restrict_s3
   USE cube_utils,                      ONLY: cube_info_type
-  USE f77_blas
   USE input_constants,                 ONLY: do_par_atom,&
                                              do_qmmm_coulomb,&
                                              do_qmmm_gauss,&
                                              do_qmmm_none,&
+                                             do_qmmm_pcharge,&
                                              do_qmmm_swave,&
                                              spline3_nopbc_interp,&
                                              spline3_pbc_interp
@@ -65,11 +65,14 @@ MODULE qmmm_gpw_forces
                                              qmmm_pot_p_type,&
                                              qmmm_pot_type
   USE qmmm_util,                       ONLY: spherical_cutoff_factor
+  USE qs_dftb_matrices,                ONLY: deriv_dftb_qmmm_matrix,&
+                                             deriv_dftb_qmmm_matrix_pc
   USE qs_energy_types,                 ONLY: qs_energy_type
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
   USE qs_ks_qmmm_types,                ONLY: qs_ks_qmmm_env_type
-  USE qs_rho_types,                    ONLY: qs_rho_type
+  USE qs_rho_types,                    ONLY: qs_rho_get,&
+                                             qs_rho_type
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "./common/cp_common_uses.f90"
@@ -119,6 +122,7 @@ CONTAINS
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(pw_env_type), POINTER               :: pw_env
+    TYPE(pw_p_type), DIMENSION(:), POINTER   :: rho_r
     TYPE(pw_p_type), POINTER                 :: rho0_s_gs, rho_core
     TYPE(pw_pool_p_type), DIMENSION(:), &
       POINTER                                :: pw_pools
@@ -136,7 +140,7 @@ CONTAINS
     periodic = qmmm_env%periodic
     IF (PRESENT(calc_force)) need_f = calc_force
     NULLIFY(dft_control, ks_qmmm_env_loc, rho, pw_env, rho_tot_r, energy, Forces,&
-            Forces_added_charges,input_section,rho0_s_gs)
+            Forces_added_charges,input_section,rho0_s_gs, rho_r)
     CALL get_qs_env(qs_env=qs_env,&
          rho=rho,&
          rho_core=rho_core,&
@@ -147,6 +151,9 @@ CONTAINS
          rho0_s_gs=rho0_s_gs,&
          dft_control=dft_control,&
          error=error)
+
+    CALL qs_rho_get(rho, rho_r=rho_r, error=error)
+
     logger => cp_error_get_logger(error)
     ks_qmmm_env_loc => qs_env%ks_qmmm_env
     interp_section => section_vals_get_subs_vals(input_section,"QMMM%INTERPOLATOR",error=error)
@@ -163,12 +170,16 @@ CONTAINS
        Forces(:,:)               = 0.0_dp
        Forces_added_charges(:,:) = 0.0_dp
     END IF
-    IF (qs_env%dft_control%qs_control%semi_empirical) THEN
+    IF (dft_control%qs_control%semi_empirical) THEN
        ! SEMIEMPIRICAL
        SELECT CASE(qmmm_env%qmmm_coupl_type)
        CASE(do_qmmm_coulomb)
-          CALL deriv_se_qmmm_matrix(qs_env,qmmm_env,mm_particles,mm_cell,qs_env%para_env,&
+          CALL deriv_se_qmmm_matrix(qs_env,qmmm_env,mm_particles,mm_cell,para_env,&
                need_f,Forces,Forces_added_charges,error)
+       CASE(do_qmmm_pcharge)
+          CALL cp_unimplemented_error(fromWhere=routineP, &
+               message="Point Charge QM/MM electrostatic coupling not yet implemented for SE.", &
+               error=error, error_level=cp_failure_level)
        CASE(do_qmmm_gauss,do_qmmm_swave)
           CALL cp_unimplemented_error(fromWhere=routineP, &
                message="GAUSS or SWAVE QM/MM electrostatic coupling not yet implemented for SE.", &
@@ -180,11 +191,26 @@ CONTAINS
           IF (iw>0) WRITE(iw,'(T2,"QMMM|",1X,A)')"Unknown Coupling..."
           CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)
        END SELECT
-    ELSEIF (qs_env%dft_control%qs_control%dftb) THEN
+    ELSEIF (dft_control%qs_control%dftb) THEN
        ! DFTB
-       CALL cp_unimplemented_error(fromWhere=routineP, &
-               message="QM/MM forces not yet implemented for DFTB.", &
+       SELECT CASE(qmmm_env%qmmm_coupl_type)
+       CASE(do_qmmm_none)
+          IF (iw>0) WRITE(iw,'(T2,"QMMM|",1X,A)')&
+               "- No QM/MM Electrostatic coupling. Just Mechanical Coupling!"
+       CASE(do_qmmm_coulomb)
+          CALL deriv_dftb_qmmm_matrix(qs_env,qmmm_env,mm_particles,mm_cell,para_env,&
+               need_f,Forces,Forces_added_charges,error)
+       CASE(do_qmmm_pcharge)
+          CALL deriv_dftb_qmmm_matrix_pc(qs_env,qmmm_env,mm_particles,mm_cell,para_env,&
+               need_f,Forces,Forces_added_charges,error)
+       CASE(do_qmmm_gauss,do_qmmm_swave)
+          CALL cp_unimplemented_error(fromWhere=routineP, &
+               message="GAUSS or SWAVE QM/MM electrostatic coupling not yet implemented for DFTB.", &
                error=error, error_level=cp_failure_level)
+       CASE DEFAULT
+          IF (iw>0) WRITE(iw,'(T2,"QMMM|",1X,A)')"Unknown Coupling..."
+          CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)
+       END SELECT
     ELSE
        ! GPW/GAPW
        CALL pw_env_get(pw_env=pw_env,&
@@ -223,8 +249,8 @@ CONTAINS
        END IF
        IF (need_f) THEN
           !
-          DO ispin=1,SIZE(rho%rho_r)
-             CALL pw_axpy(rho%rho_r(ispin)%pw,rho_tot_r,error=error)
+          DO ispin=1,SIZE(rho_r)
+             CALL pw_axpy(rho_r(ispin)%pw,rho_tot_r,error=error)
           END DO
           IF (iw>0) WRITE(iw,'(T2,"QMMM|",1X,A)')"Evaluating forces on MM atoms due to the:"
           ! Electrostatic Interaction type...
@@ -232,6 +258,10 @@ CONTAINS
           CASE(do_qmmm_coulomb)
              CALL cp_unimplemented_error(fromWhere=routineP, &
                   message="Coulomb QM/MM electrostatic coupling not implemented for GPW/GAPW.", &
+                  error=error, error_level=cp_failure_level)
+          CASE(do_qmmm_pcharge)
+             CALL cp_unimplemented_error(fromWhere=routineP, &
+                  message="Point Charge QM/MM electrostatic coupling not yet implemented for GPW/GAPW.", &
                   error=error, error_level=cp_failure_level)
           CASE(do_qmmm_gauss,do_qmmm_swave)
              IF (iw>0) WRITE(iw,'(T2,"QMMM|",1X,A)')&
@@ -271,8 +301,8 @@ CONTAINS
        IF(qmmm_env%added_charges%num_mm_atoms/=0) CALL mp_sum(Forces_added_charges,para_env%group)
        ! Debug Forces
        IF (debug_this_module) THEN
-          IF ( (qs_env%dft_control%qs_control%semi_empirical).OR.&
-               (qs_env%dft_control%qs_control%dftb))THEN
+          IF ( (dft_control%qs_control%semi_empirical).OR.&
+               (dft_control%qs_control%dftb))THEN
              WRITE(iw,*)"NO DEBUG AVAILABLE in module"//TRIM(routineN)
           ELSE
              ! Print Out Forces
@@ -297,8 +327,8 @@ CONTAINS
        ENDIF
     END IF
     ! Give back rho_tot_t to auxbas_pool only for GPW/GAPW
-    IF  ((.NOT.qs_env%dft_control%qs_control%semi_empirical).AND.&
-         (.NOT.qs_env%dft_control%qs_control%dftb)) THEN
+    IF  ((.NOT.dft_control%qs_control%semi_empirical).AND.&
+         (.NOT.dft_control%qs_control%dftb)) THEN
        CALL pw_pool_give_back_pw(auxbas_pool,rho_tot_r,&
             accept_non_compatible=.TRUE.,error=error)
     END IF
@@ -1446,6 +1476,10 @@ CONTAINS
                 CALL cp_unimplemented_error(fromWhere=routineP, &
                      message="Coulomb QM/MM electrostatic coupling not implemented for GPW/GAPW.", &
                      error=error, error_level=cp_failure_level)
+             CASE(do_qmmm_pcharge)
+                CALL cp_unimplemented_error(fromWhere=routineP, &
+                     message="Point Charge  QM/MM electrostatic coupling not implemented for GPW/GAPW.", &
+                     error=error, error_level=cp_failure_level)
              CASE(do_qmmm_gauss,do_qmmm_swave)
                 CALL    qmmm_elec_with_gaussian(qmmm_env=qmmm_env,&
                                                 v_qmmm=v_qmmm_rspace,&
@@ -1481,6 +1515,10 @@ CONTAINS
     CASE(do_qmmm_coulomb)
        CALL cp_unimplemented_error(fromWhere=routineP, &
             message="Coulomb QM/MM electrostatic coupling not implemented for GPW/GAPW.", &
+            error=error, error_level=cp_failure_level)
+    CASE(do_qmmm_pcharge)
+       CALL cp_unimplemented_error(fromWhere=routineP, &
+            message="Point Charge QM/MM electrostatic coupling not implemented for GPW/GAPW.", &
             error=error, error_level=cp_failure_level)
     CASE(do_qmmm_gauss,do_qmmm_swave)
        IF (iw>0) WRITE(iw,'(/A/)')"CHECKING NUMERICAL Vs ANALYTICAL FORCES (Err%):"

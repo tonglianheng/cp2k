@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2014  CP2K developers group                          !
+!   Copyright (C) 2000 - 2015  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -11,8 +11,9 @@
 ! *****************************************************************************
 MODULE hfx_load_balance_methods
   USE cell_types,                      ONLY: cell_type
+  USE cp_files,                        ONLY: close_file,&
+                                             open_file
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE f77_blas
   USE hfx_pair_list_methods,           ONLY: build_atomic_pair_list,&
                                              build_pair_list
   USE hfx_types,                       ONLY: &
@@ -172,14 +173,15 @@ MODULE hfx_load_balance_methods
     INTEGER :: block_size, current_block_id, data_from, dest, handle, &
       handle_inner, handle_range, i, iatom_block, iatom_end, iatom_start, &
       ibin, icpu, j, jatom_block, jatom_end, jatom_start, katom_block, &
-      katom_end, katom_start, latom_block, latom_end, latom_start, &
-      my_process_id, natom, nbins, new_iatom_end, new_iatom_start, &
-      new_jatom_end, new_jatom_start, non_empty_blocks, objective_block_size, &
-      objective_nblocks, req(2), source, stat, total_blocks
+      katom_end, katom_start, latom_block, latom_end, latom_start, mepos, &
+      my_process_id, n_processes, natom, nbins, nblocks, ncpu, new_iatom_end, &
+      new_iatom_start, new_jatom_end, new_jatom_start, non_empty_blocks, &
+      objective_block_size, objective_nblocks, req(2), source, stat, &
+      total_blocks
     INTEGER(int_8) :: atom_block, cost_per_bin, cost_per_core, current_cost, &
       distribution_counter_end, distribution_counter_start, &
-      global_quartet_counter, local_quartet_counter, mepos, n_processes, &
-      nblocks, ncpu, self_cost_per_block, tmp_block, total_block_self_cost
+      global_quartet_counter, local_quartet_counter, self_cost_per_block, &
+      tmp_block, total_block_self_cost
     INTEGER(int_8), ALLOCATABLE, &
       DIMENSION(:)                           :: buffer_in, buffer_out
     INTEGER(int_8), DIMENSION(:), POINTER    :: local_cost_matrix, recbuffer, &
@@ -256,7 +258,7 @@ MODULE hfx_load_balance_methods
         atomic_pair_list => x_data%atomic_pair_list_forces
       END SELECT
       atomic_pair_list = .TRUE.
-      CALL init_blocks(nkind, para_env, natom,block_size,INT(nblocks),blocks_guess,&
+      CALL init_blocks(nkind, para_env, natom,block_size,nblocks,blocks_guess,&
                        list_ij, list_kl, set_list_ij, set_list_kl, &
                        particle_set,&
                        coeffs_set, coeffs_kind, &
@@ -410,7 +412,7 @@ MODULE hfx_load_balance_methods
         to_be_sorted(atom_block) = tmp_blocks2(atom_block)%istart
       END DO
 
-      CALL sort(to_be_sorted,INT(nblocks),tmp_index)
+      CALL sort(to_be_sorted,nblocks,tmp_index)
 
       ALLOCATE(x_data%blocks(nblocks), STAT=stat)
       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -512,16 +514,16 @@ MODULE hfx_load_balance_methods
       my_process_id = para_env%mepos*n_threads + i_thread
       nblocks = load_balance_parameter%nblocks
 
-      DO atom_block = my_process_id,nblocks**4-1,n_processes
+      DO atom_block = my_process_id,INT(nblocks,KIND=int_8)**4-1,n_processes
 
-        latom_block = MODULO(atom_block,nblocks)+1
+        latom_block = INT(MODULO(atom_block,INT(nblocks,KIND=int_8)))+1
         tmp_block = atom_block/nblocks
-        katom_block = MODULO(tmp_block,nblocks)+1
+        katom_block = INT(MODULO(tmp_block,INT(nblocks,KIND=int_8)))+1
         IF(latom_block<katom_block) CYCLE
         tmp_block = tmp_block/nblocks
-        jatom_block = MODULO(tmp_block,nblocks)+1
+        jatom_block = INT(MODULO(tmp_block,INT(nblocks,KIND=int_8)))+1
         tmp_block = tmp_block/nblocks
-        iatom_block = MODULO(tmp_block,nblocks)+1
+        iatom_block = INT(MODULO(tmp_block,INT(nblocks,KIND=int_8)))+1
         IF(jatom_block<iatom_block) CYCLE
 
         iatom_start = x_data%blocks(iatom_block)%istart
@@ -608,15 +610,15 @@ END IF
       global_quartet_counter = 0
       local_quartet_counter = 0
       last_bin_needs_to_be_filled = .FALSE.
-      DO atom_block = my_process_id,nblocks**4-1,n_processes
-        latom_block = MODULO(atom_block,nblocks)+1
+      DO atom_block = my_process_id,INT(nblocks,KIND=int_8)**4-1,n_processes
+        latom_block = INT(MODULO(atom_block,INT(nblocks,KIND=int_8)))+1
         tmp_block = atom_block/nblocks
-        katom_block = MODULO(tmp_block,nblocks)+1
+        katom_block = INT(MODULO(tmp_block,INT(nblocks,KIND=int_8)))+1
         IF(latom_block<katom_block) CYCLE
         tmp_block = tmp_block/nblocks
-        jatom_block = MODULO(tmp_block,nblocks)+1
+        jatom_block = INT(MODULO(tmp_block,INT(nblocks,KIND=int_8)))+1
         tmp_block = tmp_block/nblocks
-        iatom_block = MODULO(tmp_block,nblocks)+1
+        iatom_block = INT(MODULO(tmp_block,INT(nblocks,KIND=int_8)))+1
         IF(jatom_block<iatom_block) CYCLE
 
         distribution_counter_end = distribution_counter_end + 1
@@ -973,10 +975,8 @@ SUBROUTINE hfx_recursive_load_balance( n_processes, my_process_id, nblocks, &
                              log10_eps_schwarz, log_2, coeffs_kind_max0, use_virial, atomic_pair_list)
 
 ! input variables:
-    INTEGER(int_8), INTENT(IN)               :: n_processes
-    INTEGER, INTENT(IN)                      :: my_process_id
-    INTEGER(int_8), INTENT(IN)               :: nblocks
-    INTEGER, INTENT(IN)                      :: natom, nkind
+    INTEGER, INTENT(IN)                      :: n_processes, my_process_id, &
+                                                nblocks, natom, nkind
     TYPE(pair_list_type), INTENT(IN)         :: list_ij, list_kl
     TYPE(pair_set_list_type), ALLOCATABLE, &
       DIMENSION(:), INTENT(IN)               :: set_list_ij, set_list_kl
@@ -1018,14 +1018,14 @@ SUBROUTINE hfx_recursive_load_balance( n_processes, my_process_id, nblocks, &
 
     INTEGER :: handle, i, iatom_block, iatom_end, iatom_start, j, &
       jatom_block, jatom_end, jatom_start, katom_block, katom_end, &
-      katom_start, latom_block, latom_end, latom_start
-    INTEGER(int_8)                           :: local_cost, nP, nQ, numBins, &
-                                                p, pidx, q, qidx, sizeP, &
-                                                sizeQ, sumP, sumQ
+      katom_start, latom_block, latom_end, latom_start, nP, nQ, numBins, p, &
+      q, sizeP, sizeQ, unit_nr
+    INTEGER(int_8)                           :: local_cost, pidx, qidx, sumP, &
+                                                sumQ
     INTEGER(int_8), ALLOCATABLE, &
-      DIMENSION(:)                           :: local_cost_vector, &
-                                                p_atom_blocks, q_atom_blocks
-    INTEGER, ALLOCATABLE, DIMENSION(:)       :: blocksize, permute
+      DIMENSION(:)                           :: local_cost_vector
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: blocksize, p_atom_blocks, &
+                                                permute, q_atom_blocks
     REAL(dp)                                 :: maximum, mean
 
 ! internal variables:
@@ -1050,7 +1050,7 @@ SUBROUTINE hfx_recursive_load_balance( n_processes, my_process_id, nblocks, &
     ! Output:
     !   blocksize :: vector (size numBins) with the sizes for each column/row block
     !   permute   :: permutation vector
-    CALL hfx_recursive_permute( blocksize, 1, INT(nblocks**2), numBins,&
+    CALL hfx_recursive_permute( blocksize, 1, nblocks**2, numBins,&
                                 permute, 1,&
                                 my_process_id, n_processes, nblocks, &
                                 natom, nkind, list_ij, list_kl, set_list_ij, set_list_kl, &
@@ -1090,7 +1090,7 @@ SUBROUTINE hfx_recursive_load_balance( n_processes, my_process_id, nblocks, &
 
     ! calculate local cost for each processor!
     ! ****************************************
-    local_cost = 0.0
+    local_cost = 0
     DO i = 1,sizeP
         DO j= 1,sizeQ
 
@@ -1157,15 +1157,15 @@ SUBROUTINE hfx_recursive_load_balance( n_processes, my_process_id, nblocks, &
     !$OMP MASTER
         ! only output once
         IF( my_process_id == 0) THEN
-            OPEN(UNIT=1000,FILE="loads.dat")
-            WRITE(1000,*) 'maximum cost:', maximum
-            WRITE(1000,*) 'mean cost:', mean
-            WRITE(1000,*) 'load balance ratio max/mean: ', maximum/mean
-            WRITE(1000,*) '-------- detailed per-process costs ---------'
+            CALL open_file(unit_number=unit_nr,file_name="loads.dat")
+            WRITE(unit_nr,*) 'maximum cost:', maximum
+            WRITE(unit_nr,*) 'mean cost:', mean
+            WRITE(unit_nr,*) 'load balance ratio max/mean: ', maximum/mean
+            WRITE(unit_nr,*) '-------- detailed per-process costs ---------'
             DO i=1,n_processes
-                WRITE(1000,*) local_cost_vector(i)
+                WRITE(unit_nr,*) local_cost_vector(i)
             END DO
-            CLOSE(1000)
+            CALL close_file(unit_nr)
         END IF
     !$OMP END MASTER
     !$OMP BARRIER
@@ -1197,10 +1197,10 @@ END SUBROUTINE hfx_recursive_load_balance
 ! *****************************************************************************
   SUBROUTINE hfx_calculate_PQ(p, q, nBins, N)
 
-    INTEGER(int_8), INTENT(OUT)              :: p, q, nBins
-    INTEGER(int_8), INTENT(IN)               :: N
+    INTEGER, INTENT(OUT)                     :: p, q, nBins
+    INTEGER, INTENT(IN)                      :: N
 
-    INTEGER(int_8)                           :: a, b, k
+    INTEGER                                  :: a, b, k
     REAL(dp)                                 :: sqN
 
     k=2
@@ -1297,11 +1297,10 @@ END SUBROUTINE hfx_recursive_load_balance
                                       log10_eps_schwarz, log_2, coeffs_kind_max0, use_virial, atomic_pair_list)
 
 
-    INTEGER(int_8)                           :: nProc_in
-    INTEGER                                  :: blockend, blockstart
+    INTEGER                                  :: nProc_in, blockend, blockstart
     INTEGER, DIMENSION(nProc_in)             :: blocksize
-    INTEGER(int_8)                           :: nblocks, n_processes
-    INTEGER                                  :: my_process_id
+    INTEGER                                  :: nblocks, n_processes, &
+                                                my_process_id
     INTEGER, INTENT(IN)                      :: step
     INTEGER, DIMENSION(nblocks*nblocks)      :: permute
     INTEGER                                  :: natom
@@ -1335,11 +1334,11 @@ END SUBROUTINE hfx_recursive_load_balance
     LOGICAL, INTENT(IN)                      :: use_virial
     LOGICAL, DIMENSION(:, :), POINTER        :: atomic_pair_list
 
-    INTEGER :: endoffset, i, iatom_end, iatom_start, idx, inv_perm, &
-      jatom_end, jatom_start, katom_end, katom_start, latom_end, latom_start, &
+    INTEGER :: col, endoffset, i, iatom_block, iatom_end, iatom_start, idx, &
+      inv_perm, jatom_block, jatom_end, jatom_start, katom_block, katom_end, &
+      katom_start, latom_block, latom_end, latom_start, nbins, nProc, row, &
       startoffset
-    INTEGER(int_8) :: atom_block, col, iatom_block, jatom_block, katom_block, &
-      latom_block, nbins, nProc, row, tmp_block
+    INTEGER(int_8)                           :: atom_block, tmp_block
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: ithblocksize, localblocksize
     INTEGER, &
       DIMENSION(blockend-blockstart+1)       :: bin_perm, tmp_perm
@@ -1350,17 +1349,17 @@ END SUBROUTINE hfx_recursive_load_balance
     cost_vector = 0.0_dp
 
 !   loop over local atom_blocks.
-    DO atom_block = my_process_id,nblocks**4-1,n_processes
+    DO atom_block = my_process_id,INT(nblocks,KIND=int_8)**4-1,n_processes
 
 !       get corresponding 4D block indices
-        latom_block = MODULO(atom_block,nblocks)+1
+        latom_block = INT(MODULO(atom_block,INT(nblocks,KIND=int_8)))+1
         tmp_block = atom_block/nblocks
-        katom_block = MODULO(tmp_block,nblocks)+1
+        katom_block = INT(MODULO(tmp_block,INT(nblocks,KIND=int_8)))+1
         IF(latom_block<katom_block) CYCLE
         tmp_block = tmp_block/nblocks
-        jatom_block = MODULO(tmp_block,nblocks)+1
+        jatom_block = INT(MODULO(tmp_block,INT(nblocks,KIND=int_8)))+1
         tmp_block = tmp_block/nblocks
-        iatom_block = MODULO(tmp_block,nblocks)+1
+        iatom_block = INT(MODULO(tmp_block,INT(nblocks,KIND=int_8)))+1
         IF(jatom_block<iatom_block) CYCLE
 
 !       get 2D indices of this atom_block (with permutation applied)
@@ -1503,8 +1502,7 @@ END SUBROUTINE hfx_recursive_permute
 ! *****************************************************************************
 SUBROUTINE hfx_permute_binning ( nBins, costvector, maxbinsize, perm, block_count)
 
-    INTEGER(int_8), INTENT(IN)               :: nBins
-    INTEGER, INTENT(IN)                      :: maxbinsize
+    INTEGER, INTENT(IN)                      :: nBins, maxbinsize
     REAL(dp), DIMENSION(maxbinsize), &
       INTENT(IN)                             :: costvector
     INTEGER, DIMENSION(maxbinsize), &
@@ -1531,13 +1529,13 @@ SUBROUTINE hfx_permute_binning ( nBins, costvector, maxbinsize, perm, block_coun
     DO i = maxbinsize, 1, -1
         IF (vec(i) == 0) THEN
             ! spread zero-cost col/rows evenly among procs
-            mod_idx = MODULO(i,INT(nBins)) + 1 !(note the fortran offset by one!)
+            mod_idx = MODULO(i,nBins) + 1 !(note the fortran offset by one!)
             block_count(mod_idx) = block_count(mod_idx) + 1
             bin(mod_idx, block_count(mod_idx) ) = idx(i)
         ELSE
             ! sort the bins so that the one with the lowest cost is at the
             ! first place, where we then assign the current col/row
-            CALL sort(bincosts, INT(nBins), bin_idx)
+            CALL sort(bincosts, nBins, bin_idx)
             block_count = block_count(bin_idx)
             bin = bin(bin_idx,:)
 
@@ -1593,9 +1591,8 @@ END SUBROUTINE hfx_permute_binning
       routineP = moduleN//':'//routineN
 
     INTEGER :: data_from, dest, end_idx, handle, i, ibin, icpu, iprocess, j, &
-      my_bin_size, my_global_start_idx, my_process_id, nbins, req(2), source, &
-      start_idx, stat
-    INTEGER(int_8)                           :: mepos, n_processes, ncpu
+      mepos, my_bin_size, my_global_start_idx, my_process_id, n_processes, &
+      nbins, ncpu, req(2), source, start_idx, stat
     INTEGER(int_8), DIMENSION(:), POINTER    :: local_cost_matrix, recbuffer, &
                                                 sendbuffer, swapbuffer
     INTEGER(int_8), DIMENSION(:), POINTER, &
@@ -1910,7 +1907,7 @@ END SUBROUTINE hfx_permute_binning
     sigma=p3(2)*0.1_dp*mu
     switch=1.0_dp/(1.0_dp+EXP((LOG(estimate1)-mu)/sigma))
     estimate=estimate1*(1.0_dp-switch)+estimate2*switch
-    res = estimate*0.001_dp+1
+    res = INT(estimate*0.001_dp,KIND=int_8)+1
 
   CONTAINS
 
@@ -1937,6 +1934,7 @@ END SUBROUTINE hfx_permute_binning
 !> \param a0 ...
 !> \param a1 ...
 !> \param a2 ...
+!> \retval poly2 ...
 ! *****************************************************************************
     REAL(KIND=dp) FUNCTION poly2(x,a0,a1,a2)
        INTEGER :: x
@@ -1960,7 +1958,7 @@ END SUBROUTINE hfx_permute_binning
 ! *****************************************************************************
   SUBROUTINE optimize_distribution(total_number_of_bins, number_of_processes, bin_costs, &
                                    distribution_vector, do_randomize, error)
-    INTEGER(int_8)                           :: total_number_of_bins, &
+    INTEGER                                  :: total_number_of_bins, &
                                                 number_of_processes
     INTEGER(int_8), DIMENSION(:), POINTER    :: bin_costs
     INTEGER, DIMENSION(:), POINTER           :: distribution_vector
@@ -1993,7 +1991,7 @@ END SUBROUTINE hfx_permute_binning
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     tmp_cost=bin_costs
 
-    CALL sort(tmp_cost,INT(total_number_of_bins),tmp_index)
+    CALL sort(tmp_cost,total_number_of_bins,tmp_index)
     my_cost_cpu=0
     !
     ! assign the largest remaining bin to the CPU with the smallest load
@@ -2041,6 +2039,7 @@ END SUBROUTINE hfx_permute_binning
 !> \param i 2d index
 !> \param j 2d index
 !> \param N matrix size
+!> \retval get_1D_idx ...
 !> \par History
 !>      03.2009 created [Manuel Guidon]
 !> \author Manuel Guidon
@@ -2093,6 +2092,7 @@ END SUBROUTINE hfx_permute_binning
 !> \param coeffs_kind_max0 ...
 !> \param use_virial ...
 !> \param atomic_pair_list ...
+!> \retval estimate_block_cost ...
 ! *****************************************************************************
   FUNCTION estimate_block_cost(natom, nkind, list_ij, list_kl, set_list_ij, set_list_kl, &
                                iatom_start, iatom_end, jatom_start, jatom_end, &
@@ -2350,13 +2350,13 @@ END SUBROUTINE hfx_permute_binning
                                                           npgfa(iset),npgfb(jset),npgfc(kset),npgfd(lset), &
                                                           max_val2/log10_eps_schwarz,&
                                                           p1_energy,p2_energy,p3_energy)
-              estimate_block_cost = estimate_block_cost + cost_tmp
+              estimate_block_cost = estimate_block_cost + INT(cost_tmp,KIND=int_8)
             CASE (hfx_do_eval_forces)
               cost_tmp = cost_model(nsgfa(iset),nsgfb(jset),nsgfc(kset),nsgfd(lset), &
                                                           npgfa(iset),npgfb(jset),npgfc(kset),npgfd(lset), &
                                                           max_val2/log10_eps_schwarz,&
                                                           p1_forces,p2_forces,p3_forces)
-              estimate_block_cost = estimate_block_cost + cost_tmp
+              estimate_block_cost = estimate_block_cost + INT(cost_tmp,KIND=int_8)
             END SELECT
           ENDDO ! i_set_list_kl
         ENDDO ! i_set_list_ij
@@ -2498,11 +2498,11 @@ END SUBROUTINE hfx_permute_binning
     CHARACTER(LEN=*), PARAMETER :: routineN = 'collect_load_balance_info', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, j, k, my_rank, nranks, stat
+    INTEGER                                  :: i, j, k, my_rank, nbins, &
+                                                nranks, stat, total_bins
     INTEGER(int_8)                           :: avg_bin, avg_rank, max_bin, &
                                                 max_rank, min_bin, min_rank, &
-                                                nbins, sum_bin, sum_rank, &
-                                                total_bins
+                                                sum_bin, sum_rank
     INTEGER(int_8), ALLOCATABLE, &
       DIMENSION(:)                           :: buffer, buffer_in, &
                                                 buffer_out, summary
@@ -2550,7 +2550,7 @@ END SUBROUTINE hfx_permute_binning
 
     CALL mp_sum(bins_per_rank, para_env%group)
 
-    total_bins = 0_int_8
+    total_bins = 0
     DO i = 1,nranks
       total_bins = total_bins + bins_per_rank(i)
     END DO
@@ -2571,13 +2571,13 @@ END SUBROUTINE hfx_permute_binning
       DO i = shm_displ(i_thread+1), shm_displ(i_thread+2)-1
         j = j + 1
         shm_cost_vector(2*(i-1)+1) = x_data%distribution_energy(j)%cost
-        shm_cost_vector(2*i) = (x_data%distribution_energy(j)%time_first_scf*10000.0_dp)
+        shm_cost_vector(2*i) = INT(x_data%distribution_energy(j)%time_first_scf*10000.0_dp,KIND=int_8)
       END DO
     CASE (hfx_do_eval_forces)
        DO i = shm_displ(i_thread+1), shm_displ(i_thread+2)-1
         j = j + 1
         shm_cost_vector(2*(i-1)+1) = x_data%distribution_forces(j)%cost
-        shm_cost_vector(2*i) = (x_data%distribution_forces(j)%time_forces*10000.0_dp)
+        shm_cost_vector(2*i) = INT(x_data%distribution_forces(j)%time_forces*10000.0_dp,KIND=int_8)
       END DO
     END SELECT
 !$OMP BARRIER

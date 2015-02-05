@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2014  CP2K developers group                          !
+!   Copyright (C) 2000 - 2015  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -14,7 +14,6 @@
 MODULE xc_ke_gga
 
   USE cp_array_r_utils,                ONLY: cp_3d_r_p_type
-  USE f77_blas
   USE kinds,                           ONLY: dp
   USE mathconstants,                   ONLY: pi
   USE termination,                     ONLY: stop_program
@@ -237,8 +236,14 @@ CONTAINS
        SELECT CASE (functional)
        CASE (ke_ol1)
           CALL efactor_ol1 ( s, fs, m )
+          CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
+               routineP,"OL1 functional currently not working properly",&
+               error,failure)
        CASE (ke_ol2)
           CALL efactor_ol2 ( s, fs, m )
+          CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
+               routineP,"OL2 functional currently not working properly",&
+               error,failure)
        CASE (ke_llp)
           CALL efactor_llp ( s, fs, m )
        CASE (ke_pw86)

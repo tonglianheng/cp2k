@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2014  CP2K developers group                          !
+!   Copyright (C) 2000 - 2015  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -12,6 +12,7 @@
 MODULE hfx_communication
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind_set
+  USE cp_control_types,                ONLY: dft_control_type
   USE cp_dbcsr_interface,              ONLY: cp_dbcsr_get_block_p,&
                                              cp_dbcsr_iterator,&
                                              cp_dbcsr_iterator_blocks_left,&
@@ -21,7 +22,6 @@ MODULE hfx_communication
                                              cp_dbcsr_p_type,&
                                              cp_dbcsr_type
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE f77_blas
   USE hfx_types,                       ONLY: hfx_2D_map,&
                                              hfx_basis_type,&
                                              hfx_type
@@ -359,6 +359,7 @@ MODULE hfx_communication
     REAL(dp), DIMENSION(:), POINTER          :: full_ks
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
+    TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(hfx_basis_type), DIMENSION(:), &
       POINTER                                :: basis_parameter
     TYPE(hfx_type), POINTER                  :: actual_x_data
@@ -367,15 +368,17 @@ MODULE hfx_communication
 
 !! All shared data is saved in i_thread = 1!
 
+    NULLIFY(dft_control)
     actual_x_data => qs_env%x_data(irep, 1)
     basis_parameter => actual_x_data%basis_parameter
 
     CALL get_qs_env(qs_env=qs_env,&
                     atomic_kind_set=atomic_kind_set,&
                     particle_set=particle_set,&
+                    dft_control=dft_control,&
                     error=error)
 
-    nspins = qs_env%dft_control%nspins
+    nspins = dft_control%nspins
     natom = SIZE(particle_set,1)
     ALLOCATE(kind_of(natom),STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -426,6 +429,7 @@ MODULE hfx_communication
 !> \param i 2d index
 !> \param j 2d index
 !> \param N matrix size
+!> \retval get_1D_idx ...
 !> \par History
 !>      03.2009 created [Manuel Guidon]
 !> \author Manuel Guidon

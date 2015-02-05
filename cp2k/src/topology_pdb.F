@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2014  CP2K developers group                          !
+!   Copyright (C) 2000 - 2015  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -44,7 +44,7 @@
 !> 67 - 70       Integer        Z value
 ! *****************************************************************************
 MODULE topology_pdb
-  USE cell_methods,                    ONLY: get_cell
+  USE cell_types,                      ONLY: get_cell
   USE cp2k_info,                       ONLY: compile_revision,&
                                              cp2k_version,&
                                              r_datx,&
@@ -59,7 +59,6 @@ MODULE topology_pdb
                                              parser_create,&
                                              parser_release
   USE cp_units,                        ONLY: cp_unit_to_cp2k
-  USE f77_blas
   USE input_constants,                 ONLY: do_conn_user
   USE input_section_types,             ONLY: section_get_rval,&
                                              section_vals_get_subs_vals,&
@@ -162,7 +161,7 @@ CONTAINS
           natom = natom + 1
           topology%natoms = natom
           IF (natom > SIZE(atom_info%id_atmname)) THEN
-             newsize = pfactor*natom
+             newsize = INT(pfactor*natom)
              CALL reallocate(atom_info%id_molname,1,newsize)
              CALL reallocate(atom_info%id_resname,1,newsize)
              CALL reallocate(atom_info%resid,1,newsize)

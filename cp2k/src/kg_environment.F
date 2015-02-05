@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2014  CP2K developers group                          !
+!   Copyright (C) 2000 - 2015  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -13,12 +13,13 @@ MODULE kg_environment
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind
   USE cell_types,                      ONLY: cell_type
+  USE cp_files,                        ONLY: close_file,&
+                                             open_file
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE distribution_1d_types,           ONLY: distribution_1d_type
   USE distribution_2d_types,           ONLY: distribution_2d_type
   USE external_potential_types,        ONLY: get_potential,&
                                              local_potential_type
-  USE f77_blas
   USE input_constants,                 ONLY: kg_tnadd_atomic,&
                                              kg_tnadd_embed,&
                                              xc_funct_no_shortcut
@@ -31,6 +32,7 @@ MODULE kg_environment
   USE kg_vertex_coloring_methods,      ONLY: kg_vertex_coloring
   USE kinds,                           ONLY: dp,&
                                              int_4,&
+                                             int_4_size,&
                                              int_8
   USE message_passing,                 ONLY: mp_bcast,&
                                              mp_gather,&
@@ -242,7 +244,6 @@ CONTAINS
 ! *****************************************************************************
 !> \brief builds either the full neighborlist or neighborlists of molecular
 !> \brief subsets, depending on parameter values
-!> \param kg_env ...
 !> \param qs_env ...
 !> \param sab_orb the return type, a neighborlist 
 !> \param sac_kin ...
@@ -254,9 +255,8 @@ CONTAINS
 !>       2012.07 created [Martin Haeufel]
 !> \author Martin Haeufel
 ! *****************************************************************************
-  SUBROUTINE kg_build_neighborlist(kg_env, qs_env, sab_orb, sac_kin,&
+  SUBROUTINE kg_build_neighborlist(qs_env, sab_orb, sac_kin,&
              molecular, subset_of_mol, current_subset, error)
-    TYPE(kg_environment_type), POINTER       :: kg_env
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(neighbor_list_set_p_type), &
       DIMENSION(:), OPTIONAL, POINTER        :: sab_orb, sac_kin
@@ -277,6 +277,7 @@ CONTAINS
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(cell_type), POINTER                 :: cell
+    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(distribution_1d_type), POINTER      :: distribution_1d
     TYPE(distribution_2d_type), POINTER      :: distribution_2d
     TYPE(local_atoms_type), ALLOCATABLE, &
@@ -291,7 +292,7 @@ CONTAINS
     TYPE(section_vals_type), POINTER         :: neighbor_list_section
 
     CALL timeset(routineN, handle)
-
+    NULLIFY(para_env)
     failure = .FALSE.
 
     molecule_only = .FALSE.
@@ -305,6 +306,7 @@ CONTAINS
                     molecule_set=molecule_set,&
                     local_particles=distribution_1d,&
                     particle_set=particle_set,&
+                    para_env=para_env,&
                     error=error)
 
     ! Allocate work storage
@@ -354,10 +356,10 @@ CONTAINS
        neighbor_list_section => section_vals_get_subs_vals(qs_env%input,"DFT%KG_METHOD%PRINT%NEIGHBOR_LISTS",error=error) 
 
        IF (molecule_only) THEN
-         CALL write_neighbor_lists(sab_orb,particle_set,cell,qs_env%para_env,neighbor_list_section,&
+         CALL write_neighbor_lists(sab_orb,particle_set,cell,para_env,neighbor_list_section,&
               "/SAB_ORB_MOLECULAR","sab_orb","MOLECULAR SUBSET NEIGHBORLIST",error)
        ELSE
-         CALL write_neighbor_lists(sab_orb,particle_set,cell,qs_env%para_env,neighbor_list_section,&
+         CALL write_neighbor_lists(sab_orb,particle_set,cell,para_env,neighbor_list_section,&
               "/SAB_ORB_FULL","sab_orb","FULL NEIGHBORLIST",error)
        END IF
 
@@ -377,7 +379,7 @@ CONTAINS
             subcells=subcells,operator_type="ABC",name="sac_kin",error=error)
        neighbor_list_section => section_vals_get_subs_vals(qs_env%input,&
                                          "DFT%KG_METHOD%PRINT%NEIGHBOR_LISTS",error=error) 
-       CALL write_neighbor_lists(sac_kin,particle_set,cell,qs_env%para_env,neighbor_list_section,&
+       CALL write_neighbor_lists(sac_kin,particle_set,cell,para_env,neighbor_list_section,&
               "/SAC_KIN","sac_kin","ORBITAL kin energy potential",error)
     END IF
 
@@ -402,78 +404,64 @@ CONTAINS
 !> \param n number of pairs (in), number of disjunct pairs (out)
 !> \par History
 !>       2012.07 created [Martin Haeufel]
+!>       2014.11 simplified [Ole Schuett]
 !> \author Martin Haeufel
 ! *****************************************************************************
   SUBROUTINE kg_remove_duplicates(pairs_buffer, n)
-    INTEGER(KIND=int_4), ALLOCATABLE, &
-      DIMENSION(:, :), INTENT(INOUT)         :: pairs_buffer
+    INTEGER(KIND=int_4), DIMENSION(:, :), &
+      INTENT(INOUT)                          :: pairs_buffer
     INTEGER, INTENT(INOUT)                   :: n
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'kg_remove_duplicates', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, i, npairs
-    INTEGER(KIND=int_8), ALLOCATABLE, &
-      DIMENSION(:)                           :: work
-    INTEGER, ALLOCATABLE, DIMENSION(:)       :: ind
+    INTEGER, DIMENSION(n)                    :: ind
+    INTEGER(KIND=int_8), DIMENSION(n)        :: sort_keys
+    INTEGER(KIND=int_4), DIMENSION(2, n)     :: work
 
     CALL timeset(routineN, handle)
 
-    IF (n.GT.0) THEN
+    IF (n>0) THEN
+      ! represent a pair of int_4 as a single int_8 number, simplifies sorting.
+      sort_keys(1:n) = ISHFT(INT(pairs_buffer(1,1:n), KIND=int_8), 8*int_4_size)
+      sort_keys(1:n) = sort_keys(1:n) + pairs_buffer(2,1:n) !upper + lower bytes
+      CALL sort(sort_keys, n, ind)
 
-      ! allocate work storage
-      ALLOCATE(work(n))
-  
-      ! copy the 2d int_4 array into a 1d int_8 array
-      work(1:n) = INT(pairs_buffer(1,1:n), KIND=int_8)*HUGE(pairs_buffer(1,1)) &
-                                       + pairs_buffer(2,1:n)
-      ! sort
-      ALLOCATE(ind(n))
-      CALL sort(work, n, ind)
-      DEALLOCATE(ind)
+      ! add first pair, the case npairs==0 was excluded above
+      npairs=1
+      work(:, 1) = pairs_buffer(:, ind(1))
 
-      npairs=1 ! n is always greater than 0
-  
       ! remove duplicates from the sorted list
       DO i=2, n
-        IF (work(i).NE.work(i-1)) THEN
-          npairs=npairs+1
-          work(npairs)=work(i)
+        IF (sort_keys(i) /= sort_keys(i-1)) THEN
+          npairs = npairs + 1
+          work(:, npairs) = pairs_buffer(:, ind(i))
         END IF
       END DO
-  
-      ! copy back to a 2d int_4 array
-      pairs_buffer(1,1:npairs) = work(1:npairs)/HUGE(pairs_buffer(1,1))
-      pairs_buffer(2,1:npairs) = work(1:npairs) &
-                                         - INT(pairs_buffer(1,1:npairs), KIND=int_8)*HUGE(pairs_buffer(1,1)) 
-  
-      ! deallocate work memory
-      DEALLOCATE(work)
-  
-      n = npairs
 
+      n = npairs
+      pairs_buffer(:, :n) = work(:, :n)
     END IF
 
     CALL timestop(handle)
 
   END SUBROUTINE
 
-  ! writes the graph to file using the DIMACS standard format
-  ! for a definition of the file format see 
-  ! mat.gsia.cmu.edu?COLOR/general/ccformat.ps
-  ! in brief:
-  ! c comment line
-  ! p edge NODES EDGES
-  ! with NODES - number of nodes
-  !      EDGES - numer of edges
-  ! e W V
-  ! ...
-  ! there is one edge descriptor line for each edge in the graph
-  ! for an edge (w,v) the fields W and V specify its endpoints
 ! *****************************************************************************
-!> \brief ...
+!> \brief writes the graph to file using the DIMACS standard format
+!>        for a definition of the file format see 
+!>        mat.gsia.cmu.edu?COLOR/general/ccformat.ps
+!>        c comment line
+!>        p edge NODES EDGES
+!>        with NODES - number of nodes
+!>        EDGES - numer of edges
+!>        e W V
+!>        ...
+!>        there is one edge descriptor line for each edge in the graph
+!>        for an edge (w,v) the fields W and V specify its endpoints
 !> \param pairs ...
-!> \param nnodes ...
+!> \param nnodes the total number of nodes
 !> \param error ...
 ! *****************************************************************************
   SUBROUTINE write_to_file(pairs, nnodes, error)
@@ -485,7 +473,8 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'write_to_file', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, i, imol, jmol, npairs
+    INTEGER                                  :: handle, i, imol, jmol, &
+                                                npairs, unit_nr
     INTEGER(KIND=int_4), ALLOCATABLE, &
       DIMENSION(:, :)                        :: sorted_pairs
     LOGICAL                                  :: failure
@@ -521,16 +510,16 @@ CONTAINS
     ! should now be half as much pairs as before
     CPPostcondition(npairs==SIZE(pairs,2)/2,cp_failure_level,routineP,error,failure)
 
-    OPEN(33, FILE="graph.col")
+    CALL open_file(unit_number=unit_nr, file_name="graph.col")
 
-    WRITE(33, '(A6,1X,I8,1X,I8)') "p edge", nnodes, npairs
+    WRITE(unit_nr, '(A6,1X,I8,1X,I8)') "p edge", nnodes, npairs
 
     ! only write out the first npairs entries
     DO i=1,npairs
-      WRITE(33, '(A1,1X,I8,1X,I8)') "e", sorted_pairs(1,i), sorted_pairs(2,i)
+      WRITE(unit_nr, '(A1,1X,I8,1X,I8)') "e", sorted_pairs(1,i), sorted_pairs(2,i)
     END DO
 
-    CLOSE(33)
+   CALL close_file(unit_nr)
 
     DEALLOCATE(sorted_pairs)
 
@@ -638,6 +627,8 @@ CONTAINS
     DEALLOCATE(pairs_buffer)
 
     ! second: gather all data on the master node
+    ! better would be a scheme where duplicates are removed in a tree-like reduction scheme.
+    ! this step can be needlessly memory intensive in the current implementation.
 
     IF (para_env%source.EQ.para_env%mepos) THEN
        ALLOCATE(msg_gather(2,npairs*para_env%num_pe))

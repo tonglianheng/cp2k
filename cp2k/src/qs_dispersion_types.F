@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2014  CP2K developers group                          !
+!   Copyright (C) 2000 - 2015  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -44,6 +44,7 @@ MODULE qs_dispersion_types
     REAL(KIND=dp)                          :: k1,k2,k3 !ad hoc parameters
     REAL(KIND=dp)                          :: alp      !ad hoc parameters
     REAL(KIND=dp)                          :: s6,s8,sr6!scaling parameters
+    REAL(KIND=dp)                          :: a1,a2    !BJ scaling parameters
     REAL(KIND=dp)                          :: eps_cn
     LOGICAL                                :: doabc    !neglect C9 terms
     LOGICAL                                :: c9cnst   !use constant c9 terms

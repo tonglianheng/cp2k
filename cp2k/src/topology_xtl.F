@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2014  CP2K developers group                          !
+!   Copyright (C) 2000 - 2015  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -9,13 +9,13 @@
 !> \date   05.2009
 ! *****************************************************************************
 MODULE topology_xtl
-  USE cell_methods,                    ONLY: cell_create,&
+  USE cell_methods,                    ONLY: write_cell
+  USE cell_types,                      ONLY: cell_create,&
                                              cell_release,&
                                              cell_type,&
                                              pbc,&
                                              scaled_to_real,&
-                                             set_cell_param,&
-                                             write_cell
+                                             set_cell_param
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
@@ -26,7 +26,6 @@ MODULE topology_xtl
                                              parser_create,&
                                              parser_release
   USE cp_units,                        ONLY: cp_unit_to_cp2k
-  USE f77_blas
   USE input_section_types,             ONLY: section_get_rval,&
                                              section_vals_type
   USE kinds,                           ONLY: default_string_length,&
@@ -201,7 +200,7 @@ CPSourceFileRef)
        natom = natom + 1
        ! Resize in case needed
        IF (natom > SIZE(atom_info%id_molname)) THEN
-          newsize = pfactor*natom
+          newsize = INT(pfactor*natom)
           CALL reallocate(atom_info%id_molname,1,newsize)
           CALL reallocate(atom_info%id_resname,1,newsize)
           CALL reallocate(atom_info%resid,1,newsize)
@@ -286,7 +285,7 @@ CPSourceFileRef,&
                 natom = natom + 1
                 ! Resize in case needed
                 IF (natom > SIZE(atom_info%id_molname)) THEN
-                   newsize = pfactor*natom
+                   newsize = INT(pfactor*natom)
                    CALL reallocate(atom_info%id_molname,1,newsize)
                    CALL reallocate(atom_info%id_resname,1,newsize)
                    CALL reallocate(atom_info%resid,1,newsize)

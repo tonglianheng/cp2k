@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2014  CP2K developers group                          !
+!   Copyright (C) 2000 - 2015  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -14,7 +14,7 @@ MODULE ewalds_multipole
   USE bibliography,                    ONLY: Aguado2003,&
                                              Laino2008,&
                                              cite_reference
-  USE cell_methods,                    ONLY: cell_type,&
+  USE cell_types,                      ONLY: cell_type,&
                                              pbc
   USE damping_dipole_types,            ONLY: damping_type,&
                                              no_damping,&
@@ -29,7 +29,6 @@ MODULE ewalds_multipole
                                              ewald_environment_type
   USE ewald_pw_types,                  ONLY: ewald_pw_get,&
                                              ewald_pw_type
-  USE f77_blas
   USE fist_neighbor_list_types,        ONLY: fist_neighbor_type,&
                                              neighbor_kind_pairs_type
   USE fist_nonbond_env_types,          ONLY: fist_nonbond_env_get,&
@@ -819,7 +818,7 @@ CONTAINS
     END DO
 
     ! Looping over the positive g-vectors
-    DO gpt = 1, pw_grid%ngpts_cut
+    DO gpt = 1, pw_grid%ngpts_cut_local
        lp = pw_grid%mapl%pos(pw_grid%g_hat(1, gpt))
        mp = pw_grid%mapm%pos(pw_grid%g_hat(2, gpt))
        np = pw_grid%mapn%pos(pw_grid%g_hat(3, gpt))
@@ -857,7 +856,7 @@ CONTAINS
     IF (do_stress)  CALL mp_sum (summe_st, group)
 
     ! Looping over the positive g-vectors
-    DO gpt = 1, pw_grid%ngpts_cut
+    DO gpt = 1, pw_grid%ngpts_cut_local
        ! computing the potential energy
        lp = pw_grid%mapl%pos(pw_grid%g_hat(1,gpt))
        mp = pw_grid%mapm%pos(pw_grid%g_hat(2,gpt))

@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2014  CP2K developers group                          !
+!   Copyright (C) 2000 - 2015  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -9,10 +9,10 @@
 ! *****************************************************************************
 MODULE glbopt_input
   USE bibliography,                    ONLY: Goedecker2004
-  USE cp_output_handling,              ONLY: cp_print_key_section_create
-  USE input_constants,                 ONLY: glbopt_do_mincrawl,&
-                                             glbopt_do_minhop,&
+  USE cp_output_handling,              ONLY: cp_print_key_section_create,&
                                              low_print_level
+  USE input_constants,                 ONLY: glbopt_do_mincrawl,&
+                                             glbopt_do_minhop
   USE input_keyword_types,             ONLY: keyword_create,&
                                              keyword_release,&
                                              keyword_type

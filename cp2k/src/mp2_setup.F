@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2014  CP2K developers group                          !
+!   Copyright (C) 2000 - 2015  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -90,6 +90,8 @@ CONTAINS
                               r_val=mp2_env%mp2_gpw%cutoff, error=error)
     CALL section_vals_val_get(mp2_section,"WFC_GPW%REL_CUTOFF",&
                               r_val=mp2_env%mp2_gpw%relative_cutoff, error=error)
+    CALL section_vals_val_get(mp2_section,"WFC_GPW%MULTIPOLE_TWO_CENT_INT",&
+                              l_val=mp2_env%mp2_gpw%do_mult_2c, error=error)
     CALL section_vals_val_get(mp2_section,"WFC_GPW%PRINT_LEVEL",&
                               i_val=mp2_env%mp2_gpw%print_level, error=error)
 

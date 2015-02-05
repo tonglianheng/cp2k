@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2014  CP2K developers group                          !
+!   Copyright (C) 2000 - 2015  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -12,11 +12,11 @@
 MODULE pw_env_types
   USE cube_utils,                      ONLY: cube_info_type,&
                                              destroy_cube_info
-  USE f77_blas
   USE gaussian_gridlevels,             ONLY: destroy_gaussian_gridlevel,&
                                              gridlevel_info_type
   USE input_section_types,             ONLY: section_vals_release,&
                                              section_vals_type
+  USE kinds,                           ONLY: dp
   USE lgrid_types,                     ONLY: lgrid_release,&
                                              lgrid_type
   USE pw_poisson_types,                ONLY: pw_poisson_release,&
@@ -85,6 +85,8 @@ MODULE pw_env_types
      TYPE(cube_info_type), DIMENSION(:), POINTER :: cube_info
      TYPE(pw_poisson_type), POINTER              :: poisson_env
      TYPE(section_vals_type), POINTER            :: interp_section
+     ! store current cell, used to rebuild lazily.
+     REAL(KIND = dp), DIMENSION(3,3)          :: cell_hmat = -1.0_dp
   END TYPE pw_env_type
 
 CONTAINS

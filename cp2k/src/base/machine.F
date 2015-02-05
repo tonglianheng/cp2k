@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2014  CP2K developers group                          !
+!   Copyright (C) 2000 - 2015  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -71,8 +71,8 @@ END SUBROUTINE
 FUNCTION m_walltime() RESULT (wt)
     REAL(KIND=dp)                            :: wt
 
-    INTEGER                                  :: count
-    INTEGER, SAVE                            :: count_max, count_rate, &
+    INTEGER(KIND=int_8)                      :: count
+    INTEGER(KIND=int_8), SAVE                :: count_max, count_rate, &
                                                 cycles = -1, last_count
 
     !$ IF (.FALSE.) THEN

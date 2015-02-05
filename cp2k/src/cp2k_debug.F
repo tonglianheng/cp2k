@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2014  CP2K developers group                          !
+!   Copyright (C) 2000 - 2015  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -17,6 +17,7 @@
 !>              consistent to each other [TdK].
 !>      08.2005 In case the Harris functional is used, consistent_energies is
 !>              et to .FALSE., otherwise the QS energies are spuriously used [TdK].
+!>      01.2015 Remove Harris functional option
 !>      - Revised (20.11.2013,MK)
 !> \author Teodoro Laino
 ! *****************************************************************************
@@ -25,12 +26,13 @@ MODULE cp2k_debug
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE cp_subsys_types,                 ONLY: cp_subsys_type
-  USE f77_blas
+  USE cp_subsys_types,                 ONLY: cp_subsys_get,&
+                                             cp_subsys_type
   USE force_env_methods,               ONLY: force_env_calc_energy_force,&
                                              force_env_calc_num_pressure
   USE force_env_types,                 ONLY: force_env_get,&
-                                             force_env_type
+                                             force_env_type,&
+                                             use_qs_force
   USE input_constants,                 ONLY: do_stress_analytical,&
                                              do_stress_diagonal_anal,&
                                              do_stress_diagonal_numer,&
@@ -40,8 +42,11 @@ MODULE cp2k_debug
                                              section_vals_val_get
   USE kinds,                           ONLY: default_string_length,&
                                              dp
-  USE particle_types,                  ONLY: particle_type,&
-                                             write_fist_particle_coordinates
+  USE particle_methods,                ONLY: write_fist_particle_coordinates,&
+                                             write_qs_particle_coordinates
+  USE particle_types,                  ONLY: particle_type
+  USE qs_environment_types,            ONLY: get_qs_env
+  USE qs_kind_types,                   ONLY: qs_kind_type
   USE termination,                     ONLY: print_warning,&
                                              stop_program
   USE virial_types,                    ONLY: cp_virial,&
@@ -77,8 +82,9 @@ CONTAINS
     CHARACTER(LEN=3*default_string_length)   :: message
     INTEGER                                  :: i, ip, iw, j, k, np, stat, &
                                                 stress_tensor
-    LOGICAL :: check_failed, debug_forces, debug_stress_tensor, failure, &
-      harris_flag, skip, stop_on_mismatch
+    LOGICAL                                  :: check_failed, debug_forces, &
+                                                debug_stress_tensor, failure, &
+                                                skip, stop_on_mismatch
     REAL(KIND=dp)                            :: dx, eps_no_error_check, &
                                                 std_value
     REAL(KIND=dp), DIMENSION(2)              :: numer_energy
@@ -90,8 +96,9 @@ CONTAINS
     TYPE(cp_subsys_type), POINTER            :: subsys
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particles
-    TYPE(section_vals_type), POINTER         :: harris_section, root_section, &
-                                                subsys_section
+    TYPE(qs_kind_type), DIMENSION(:), &
+      POINTER                                :: qs_kind_set
+    TYPE(section_vals_type), POINTER         :: root_section, subsys_section
     TYPE(virial_type), POINTER               :: virial, virial_analytical, &
                                                 virial_numerical
 
@@ -103,13 +110,9 @@ CONTAINS
 
     IF (.NOT.failure) THEN
 
-       CALL force_env_get(force_env,para_env=para_env,error=error)
-       harris_section => section_vals_get_subs_vals(force_env%force_env_section, &
-                                                    "DFT%QS%HARRIS",error=error)
+       CALL force_env_get(force_env,para_env=para_env,subsys=subsys,cell=cell,error=error)
        subsys_section => section_vals_get_subs_vals(force_env%force_env_section, &
                                                     "SUBSYS",error=error)
-       CALL section_vals_val_get(harris_section,"ACTIVATE", &
-                                 l_val=harris_flag, error=error)
 
        CALL section_vals_val_get(root_section,"DEBUG%DEBUG_STRESS_TENSOR",&
                                  l_val=debug_stress_tensor,error=error)
@@ -152,7 +155,7 @@ CONTAINS
           IF (.NOT.skip) THEN
 
              ! Compute the analytical stress tensor
-             CALL force_env_get(force_env,virial=virial,error=error)
+             CALL cp_subsys_get(subsys,virial=virial,error=error)
              CALL virial_set(virial,pv_numer=.FALSE.)
              CALL force_env_calc_energy_force(force_env,&
                                               calc_force=.TRUE.,&
@@ -169,7 +172,7 @@ CONTAINS
              CALL force_env_calc_num_pressure(force_env,dx=dx,error=error)
 
              ! Retrieve the numerical virial
-             CALL force_env_get(force_env,virial=virial,error=error)
+             CALL cp_subsys_get(subsys,virial=virial,error=error)
              CALL virial_create(virial_numerical,error=error)
              CALL zero_virial(virial_numerical)
              CALL cp_virial(virial,virial_numerical)
@@ -222,10 +225,14 @@ CONTAINS
 
        IF (debug_forces) THEN
           ! Debug forces (numerical vs analytical)
-          CALL force_env_get(force_env,subsys=subsys,cell=cell,error=error)
           particles => subsys%particles%els
-          CALL write_fist_particle_coordinates(particles,subsys_section,&
-                                              charges=Null(),error=error)
+          SELECT CASE (force_env%in_use)
+          CASE (use_qs_force)
+             CALL get_qs_env(force_env%qs_env,qs_kind_set=qs_kind_set,error=error)
+             CALL write_qs_particle_coordinates(particles,qs_kind_set,subsys_section,"DEBUG",error)
+          CASE DEFAULT
+             CALL write_fist_particle_coordinates(particles,subsys_section,charges=Null(),error=error)
+          END SELECT
           ! First evaluate energy and forces
           CALL force_env_calc_energy_force(force_env,&
                                            calc_force=.TRUE.,&
@@ -249,13 +256,18 @@ CONTAINS
                 std_value = particles(ip)%r(k)
                 DO j=1,2
                    particles(ip)%r(k) = std_value - (-1.0_dp)**j*dx
-                   CALL write_fist_particle_coordinates(particles,subsys_section,&
-                                                        charges=Null(), error=error)
+                   SELECT CASE (force_env%in_use)
+                   CASE (use_qs_force)
+                      CALL get_qs_env(force_env%qs_env,qs_kind_set=qs_kind_set,error=error)
+                      CALL write_qs_particle_coordinates(particles,qs_kind_set,subsys_section,"DEBUG",error)
+                   CASE DEFAULT
+                      CALL write_fist_particle_coordinates(particles,subsys_section,charges=Null(),error=error)
+                   END SELECT
                    ! Compute energy
                    CALL force_env_calc_energy_force(force_env,&
                                                     calc_force=.FALSE.,&
                                                     calc_stress_tensor=.FALSE.,&
-                                                    consistent_energies=(.NOT.harris_flag),&
+                                                    consistent_energies=.TRUE.,&
                                                     error=error)
                    CALL force_env_get(force_env,potential_energy=numer_energy(j),error=error)
                 END DO

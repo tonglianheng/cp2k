@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2014  CP2K developers group                          !
+!   Copyright (C) 2000 - 2015  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -144,6 +144,8 @@ END SUBROUTINE cp_set_vel
 !> \param env_id ...
 !> \param description ...
 !> \param N ...
+!> \param RESULT ...
+!> \param ierr ...
 ! *****************************************************************************
 SUBROUTINE cp_get_result_r1(env_id, description, N, RESULT, ierr)
   USE kinds, ONLY: dp, default_string_length

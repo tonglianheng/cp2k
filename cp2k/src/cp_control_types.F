@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2014  CP2K developers group                          !
+!   Copyright (C) 2000 - 2015  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -10,14 +10,12 @@
 MODULE cp_control_types
   USE cp_fm_types,                     ONLY: cp_fm_p_type,&
                                              cp_fm_release
-  USE f77_blas
   USE input_constants,                 ONLY: do_full_density
   USE kinds,                           ONLY: default_path_length,&
                                              default_string_length,&
                                              dp
   USE pw_types,                        ONLY: pw_p_type
-  USE xas_control,                     ONLY: xas_control_create,&
-                                             xas_control_release,&
+  USE xas_control,                     ONLY: xas_control_release,&
                                              xas_control_type
 #include "./common/cp_common_uses.f90"
 
@@ -56,6 +54,7 @@ MODULE cp_control_types
      LOGICAL                              :: linear_scaling
      LOGICAL                              :: calc_idempotency
      LOGICAL                              :: orthonormal
+     LOGICAL                              :: write_restart
      INTEGER                              :: mcweeny_max_iter
      INTEGER                              :: acc_ref
      REAL(dp)                             :: mcweeny_eps
@@ -111,7 +110,6 @@ MODULE cp_control_types
      LOGICAL               :: analytical_gradients
      LOGICAL               :: force_kdsod_EX
      LOGICAL               :: do_ewald, do_ewald_r3, do_ewald_gks
-     LOGICAL               :: scp
      INTEGER               :: integral_screening, periodic_type
      INTEGER               :: max_multipole
      INTEGER               :: ga_ncells
@@ -246,8 +244,12 @@ MODULE cp_control_types
   END TYPE admm_block_type
 
   TYPE admm_control_type
+    REAL(KIND = dp)                 :: eps_filter
     INTEGER                         :: purification_method
     INTEGER                         :: method
+    LOGICAL                         :: charge_constrain 
+    INTEGER                         :: scaling_model
+    INTEGER                         :: aux_exch_func 
     TYPE(admm_block_type), DIMENSION(:), &
                         ALLOCATABLE :: blocks
   END TYPE admm_control_type
@@ -297,7 +299,8 @@ MODULE cp_control_types
     REAL(KIND = dp)                               :: cutoff
     REAL(KIND = dp), DIMENSION(:), POINTER        :: e_cutoff
     TYPE (mulliken_restraint_type), POINTER       :: mulliken_restraint_control
-    TYPE (ddapc_restraint_p_type), DIMENSION(:),POINTER :: ddapc_restraint_control
+    TYPE (ddapc_restraint_p_type), DIMENSION(:), &
+      POINTER                                     :: ddapc_restraint_control
     TYPE (becke_restraint_type), POINTER          :: becke_control
     TYPE (s2_restraint_type), POINTER             :: s2_restraint_control
     TYPE (dftb_control_type),POINTER              :: dftb_control
@@ -305,10 +308,31 @@ MODULE cp_control_types
     TYPE (semi_empirical_control_type),POINTER    :: se_control
     TYPE (gapw_control_type), POINTER             :: gapw_control
     TYPE (pw_grid_option)                         :: pw_grid_opt
-    LOGICAL                                       :: check_bcsr_code
-    INTEGER                                       :: bcsr_code
     LOGICAL                                       :: skip_load_balance_distributed
   END TYPE qs_control_type
+
+! *****************************************************************************
+! \brief Control parameters for the SCCS models
+! *****************************************************************************
+  TYPE sccs_control_type
+     LOGICAL                                      :: sccs_activated
+     INTEGER                                      :: derivative_method,&
+                                                     max_iter,&
+                                                     method_id,&
+                                                     ref_count
+     REAL(KIND=dp)                                :: alpha_solvent,&
+                                                     beta,&
+                                                     beta_solvent,&
+                                                     delta_rho,&
+                                                     eps_sccs,&
+                                                     eps_scf,&
+                                                     epsilon_solvent,&
+                                                     gamma_solvent,&
+                                                     mixing,&
+                                                     rho_zero,&
+                                                     rho_max,&
+                                                     rho_min
+  END TYPE sccs_control_type
 
 ! *****************************************************************************
 ! \brief Control parameters for a TIME-DEPENDENT PERTURBATION calculation
@@ -351,55 +375,57 @@ MODULE cp_control_types
 ! \brief Control parameters for a DFT calculation
 ! *****************************************************************************
   TYPE dft_control_type
-     TYPE(qs_control_type), POINTER    :: qs_control
-     TYPE(tddfpt_control_type),POINTER :: tddfpt_control
-     TYPE(xas_control_type), POINTER   :: xas_control
-     TYPE(rtp_control_type),POINTER    :: rtp_control
-     TYPE(admm_control_type), POINTER &
-                                       :: admm_control
-     TYPE(efield_p_type),POINTER,&
-                        DIMENSION(:)   :: efield_fields
-     TYPE(period_efield_type),POINTER  :: period_efield
-     INTEGER                           :: nspins,&
-                                          charge,&
-                                          multiplicity,&
-                                          sic_method_id,&
-                                          ref_count,&
-                                          id_nr,&
-                                          plus_u_method_id,&
-                                          dir_surf_dip
-     INTEGER                           :: sic_list_id
-     REAL(KIND=dp)                     :: relax_multiplicity,&
-                                          sic_scaling_a,&
-                                          sic_scaling_b
-     LOGICAL                           :: do_tddfpt_calculation, &
-                                          do_xas_calculation, &
-                                          drho_by_collocation, &
-                                          use_kinetic_energy_density, &
-                                          restricted,&
-                                          roks,&
-                                          uks,&
-                                          lsd,&
-                                          dft_plus_u,&
-                                          apply_efield_field,&
-                                          apply_period_efield,&
-                                          apply_external_potential,&
-                                          eval_external_potential,&
-                                          do_admm,&
-                                          smear,&
-                                          low_spin_roks,&
-                                          apply_external_density,&
-                                          read_external_density,&
-                                          apply_external_vxc,&
-                                          read_external_vxc,&
-                                          correct_surf_dip
-
+     TYPE(admm_control_type), POINTER           :: admm_control
+     TYPE(period_efield_type), POINTER          :: period_efield
+     TYPE(qs_control_type), POINTER             :: qs_control
+     TYPE(rtp_control_type), POINTER            :: rtp_control
+     TYPE(sccs_control_type), POINTER           :: sccs_control
+     TYPE(tddfpt_control_type), POINTER         :: tddfpt_control
+     TYPE(xas_control_type), POINTER            :: xas_control
+     TYPE(efield_p_type), POINTER, DIMENSION(:) :: efield_fields
+     INTEGER                                    :: nspins,&
+                                                   charge,&
+                                                   multiplicity,&
+                                                   sic_method_id,&
+                                                   ref_count,&
+                                                   id_nr,&
+                                                   plus_u_method_id,&
+                                                   dir_surf_dip,&
+                                                   nimages = 1
+     INTEGER                                    :: sic_list_id
+     REAL(KIND=dp)                              :: relax_multiplicity,&
+                                                   sic_scaling_a,&
+                                                   sic_scaling_b
+     LOGICAL                                    :: do_tddfpt_calculation,&
+                                                   do_xas_calculation,&
+                                                   drho_by_collocation,&
+                                                   use_kinetic_energy_density,&
+                                                   restricted,&
+                                                   roks,&
+                                                   uks,&
+                                                   lsd,&
+                                                   dft_plus_u,&
+                                                   apply_efield_field,&
+                                                   apply_period_efield,&
+                                                   apply_external_potential,&
+                                                   eval_external_potential,&
+                                                   do_admm,&
+                                                   do_admm_dm,&
+                                                   do_admm_mo,&
+                                                   smear,&
+                                                   low_spin_roks,&
+                                                   apply_external_density,&
+                                                   read_external_density,&
+                                                   apply_external_vxc,&
+                                                   read_external_vxc,&
+                                                   correct_surf_dip,&
+                                                   do_sccs
   END TYPE dft_control_type
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cp_control_types'
   INTEGER, SAVE :: last_dft_control_id=0
 
-! *** Public data types ***
+  ! Public data types
 
   PUBLIC :: dft_control_type,&
             qs_control_type,&
@@ -414,17 +440,18 @@ MODULE cp_control_types
             semi_empirical_control_type,&
             s2_restraint_type,&
             admm_control_type,&
-            rtp_control_type
+            rtp_control_type,&
+            sccs_control_type
 
-! *** Public subroutines ***
+  ! Public subroutines
 
   PUBLIC :: dft_control_retain,&
             dft_control_release,&
             dft_control_create,&
-            xas_control_create,&
             tddfpt_control_create,&
             admm_control_create,&
-            ddapc_control_create
+            ddapc_control_create,&
+            sccs_control_create
 
 CONTAINS
 
@@ -800,14 +827,16 @@ CONTAINS
        dft_control%ref_count=1
        last_dft_control_id=last_dft_control_id+1
        dft_control%id_nr=last_dft_control_id
-       NULLIFY(dft_control%xas_control)
-       NULLIFY(dft_control%qs_control)
-       NULLIFY(dft_control%tddfpt_control)
-       NULLIFY(dft_control%efield_fields)
-       NULLIFY(dft_control%period_efield)
-       NULLIFY(dft_control%admm_control)
-       NULLIFY(dft_control%rtp_control)
-       CALL qs_control_create(dft_control%qs_control, error=error)
+       NULLIFY (dft_control%xas_control)
+       NULLIFY (dft_control%qs_control)
+       NULLIFY (dft_control%tddfpt_control)
+       NULLIFY (dft_control%efield_fields)
+       NULLIFY (dft_control%period_efield)
+       NULLIFY (dft_control%admm_control)
+       NULLIFY (dft_control%rtp_control)
+       NULLIFY (dft_control%sccs_control)
+       dft_control%do_sccs = .FALSE.
+       CALL qs_control_create(dft_control%qs_control,error=error)
     END IF
   END SUBROUTINE dft_control_create
 
@@ -854,7 +883,8 @@ CONTAINS
     INTEGER                                  :: stat
     LOGICAL                                  :: failure
 
-    failure=.FALSE.
+    failure = .FALSE.
+
     IF (ASSOCIATED(dft_control)) THEN
        CPPreconditionNoFail(dft_control%ref_count>0,cp_failure_level,routineP,error)
        dft_control%ref_count=dft_control%ref_count-1
@@ -864,6 +894,7 @@ CONTAINS
           CALL xas_control_release(dft_control%xas_control, error=error)
           CALL admm_control_release(dft_control%admm_control, error=error)
           CALL efield_fields_release(dft_control%efield_fields, error=error)
+          CALL sccs_control_release(dft_control%sccs_control,error=error)
           IF (ASSOCIATED(dft_control%period_efield))THEN
              DEALLOCATE(dft_control%period_efield%polarisation,stat=stat)
              CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
@@ -873,11 +904,12 @@ CONTAINS
           IF (ASSOCIATED(dft_control%rtp_control)) THEN
              DEALLOCATE(dft_control%rtp_control,stat=stat)
              CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
-          ENDIF
+          END IF
           DEALLOCATE(dft_control, stat=stat)
           CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
        END IF
     END IF
+
   END SUBROUTINE dft_control_release
 
 ! *****************************************************************************
@@ -1213,7 +1245,6 @@ CONTAINS
     CPPrecondition(.NOT.ASSOCIATED(se_control),cp_failure_level,routineP,error,failure)
     ALLOCATE(se_control,stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    se_control%scp = .FALSE. ! Flag is needed even in non-semiempirical methods
   END SUBROUTINE se_control_create
 
 ! *****************************************************************************
@@ -1286,5 +1317,81 @@ CONTAINS
     END IF
   END SUBROUTINE admm_control_release
 
-END MODULE cp_control_types
+! *****************************************************************************
+!> \brief   Create sccs_control_type
+!> \param sccs_control ...
+!> \param error ...
+!> \par     History
+!>          - Creation (11.10.2013,MK)
+!> \author  Matthias Krack (MK)
+!> \version 1.0
+! *****************************************************************************
+  SUBROUTINE sccs_control_create(sccs_control,error)
+    TYPE(sccs_control_type), POINTER         :: sccs_control
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'sccs_control_create', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: istat
+    LOGICAL                                  :: failure
+
+    failure = .FALSE.
+
+    CPPrecondition(.NOT.ASSOCIATED(sccs_control),cp_failure_level,routineP,error,failure)
+    ALLOCATE (sccs_control,STAT=istat)
+    CPPostcondition((istat == 0),cp_failure_level,routineP,error,failure)
+
+    sccs_control%ref_count = 1
+    sccs_control%derivative_method = 0
+    sccs_control%max_iter = 0
+    sccs_control%method_id = 0
+    sccs_control%alpha_solvent = 0.0_dp
+    sccs_control%beta = 0.0_dp
+    sccs_control%beta_solvent = 0.0_dp
+    sccs_control%delta_rho = 0.0_dp
+    sccs_control%eps_sccs = 0.0_dp
+    sccs_control%eps_scf = 0.0_dp
+    sccs_control%epsilon_solvent = 0.0_dp
+    sccs_control%gamma_solvent = 0.0_dp
+    sccs_control%mixing = 0.0_dp
+    sccs_control%rho_max = 0.0_dp
+    sccs_control%rho_min = 0.0_dp
+    sccs_control%rho_zero = 0.0_dp
+    sccs_control%sccs_activated = .FALSE.
+
+  END SUBROUTINE sccs_control_create
+
+! *****************************************************************************
+!> \brief   Release sccs_control_type
+!> \param sccs_control ...
+!> \param error ...
+!> \par     History
+!>          - Creation (11.10.2013,MK)
+!> \author  Matthias Krack (MK)
+!> \version 1.0
+! *****************************************************************************
+  SUBROUTINE sccs_control_release(sccs_control,error)
+    TYPE(sccs_control_type), POINTER         :: sccs_control
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'sccs_control_release', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: istat
+    LOGICAL                                  :: failure
+
+    failure = .FALSE.
+
+    IF (ASSOCIATED(sccs_control)) THEN
+       CPPrecondition((sccs_control%ref_count > 0),cp_failure_level,routineP,error,failure)
+       sccs_control%ref_count = sccs_control%ref_count - 1
+       IF (sccs_control%ref_count == 0) THEN
+          DEALLOCATE (sccs_control,STAT=istat)
+          CPPostcondition((istat == 0),cp_failure_level,routineP,error,failure)
+       END IF
+    END IF
+
+  END SUBROUTINE sccs_control_release
+
+END MODULE cp_control_types

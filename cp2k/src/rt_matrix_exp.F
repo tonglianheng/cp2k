@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2014  CP2K developers group                          !
+!   Copyright (C) 2000 - 2015  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -74,7 +74,7 @@ CONTAINS
   SUBROUTINE taylor_only_imaginary(exp_H,im_matrix,nsquare,ntaylor,error)
     TYPE(cp_fm_p_type), DIMENSION(2)         :: exp_H
     TYPE(cp_fm_type), POINTER                :: im_matrix
-    INTEGER                                  :: nsquare, ntaylor
+    INTEGER, INTENT(in)                      :: nsquare, ntaylor
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'taylor_only_imaginary', &
@@ -178,7 +178,7 @@ CONTAINS
   SUBROUTINE taylor_full_complex(exp_H,re_part,im_part,nsquare,ntaylor,error)
     TYPE(cp_fm_p_type), DIMENSION(2)         :: exp_H
     TYPE(cp_fm_type), POINTER                :: re_part, im_part
-    INTEGER                                  :: nsquare, ntaylor
+    INTEGER, INTENT(in)                      :: nsquare, ntaylor
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'taylor_full_complex', &
@@ -266,11 +266,11 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE get_nsquare_norder(norm,nsquare,norder,eps_exp,method,do_emd,error)
 
-    REAL(dp)                                 :: norm
-    INTEGER                                  :: nsquare, norder
-    REAL(dp)                                 :: eps_exp
-    INTEGER                                  :: method
-    LOGICAL                                  :: do_emd
+    REAL(dp), INTENT(in)                     :: norm
+    INTEGER, INTENT(out)                     :: nsquare, norder
+    REAL(dp), INTENT(in)                     :: eps_exp
+    INTEGER, INTENT(in)                      :: method
+    LOGICAL, INTENT(in)                      :: do_emd
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'get_nsquare_norder', &
@@ -371,7 +371,7 @@ CONTAINS
   SUBROUTINE exp_pade_full_complex(exp_H,re_part,im_part,nsquare,npade,error)
     TYPE(cp_fm_p_type), DIMENSION(2)         :: exp_H
     TYPE(cp_fm_type), POINTER                :: re_part, im_part
-    INTEGER                                  :: nsquare, npade
+    INTEGER, INTENT(in)                      :: nsquare, npade
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'exp_pade_full_complex', &
@@ -388,7 +388,7 @@ CONTAINS
     TYPE(cp_cfm_type), POINTER               :: Dpq, fin_p, Npq, T1, T2, Tres
 
     p=npade
-    q=npade !p==q seems to be neccesary for the rest of the code
+    q=npade
 
     CALL timeset(routineN,handle)
     CALL cp_fm_get_info(re_part,local_data=local_data_re,ncol_local=ldim,&
@@ -435,7 +435,6 @@ CONTAINS
     CALL cp_cfm_add(one,Npq,one*0.5_dp,T2,error)
     CALL cp_cfm_add(one,Dpq,-one*0.5_dp,T2,error)
 
-    npade=MAX(p,q)
     IF(npade.GT.2)THEN
        DO i=2,npade
           IF(i.LE.p)scaleN=CMPLX(fac(p +q -i )*fac(p )/(fac(p +q )*fac(i )*fac(p -i )),0.0_dp,kind=dp)
@@ -489,15 +488,14 @@ CONTAINS
   SUBROUTINE exp_pade_only_imaginary(exp_H,im_part,nsquare,npade,error)
     TYPE(cp_fm_p_type), DIMENSION(2)         :: exp_H
     TYPE(cp_fm_type), POINTER                :: im_part
-    INTEGER                                  :: nsquare, npade
+    INTEGER, INTENT(in)                      :: nsquare, npade
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'exp_pade_only_imaginary', &
       routineP = moduleN//':'//routineN
     COMPLEX(KIND=dp), PARAMETER              :: one = (1.0_dp,0.0_dp) , &
                                                 zero = (0.0_dp,0.0_dp)
-    REAL(KIND=dp), PARAMETER                 :: rone = (1.0_dp,0.0_dp) , &
-                                                rzero = (0.0_dp,0.0_dp)
+    REAL(KIND=dp), PARAMETER                 :: rone = 1.0_dp , rzero = 0.0_dp
 
     COMPLEX(KIND=dp)                         :: scaleD, scaleN
     INTEGER                                  :: handle, i, j, k, ldim, ndim, &
@@ -514,7 +512,7 @@ CONTAINS
     q=npade !p==q seems to be neccesary for the rest of the code
 
     CALL cp_fm_get_info(im_part,local_data=local_data_im,ncol_local=ldim,nrow_global=ndim,error=error)
-    square_fac=1/(2.0_dp**REAL(nsquare,dp))
+    square_fac=1.0_dp/(2.0_dp**REAL(nsquare,dp))
     ALLOCATE(cmult_p(2))
 
     CALL cp_cfm_create(Dpq,&
@@ -552,8 +550,8 @@ CONTAINS
     CALL cp_cfm_set_all(Dpq,zero,one,error)
 
     DO i=1,ldim
-       Npq%local_data(:,i)= Npq%local_data(:,i)+0.5_dp*square_fac*CMPLX(0.0_dp,local_data_im(:,i),dp)
-       Dpq%local_data(:,i)= Dpq%local_data(:,i)-0.5_dp*square_fac*CMPLX(0.0_dp,local_data_im(:,i),dp)
+       Npq%local_data(:,i)= Npq%local_data(:,i)+CMPLX(0.0_dp,0.5_dp*square_fac*local_data_im(:,i),dp)
+       Dpq%local_data(:,i)= Dpq%local_data(:,i)-CMPLX(0.0_dp,0.5_dp*square_fac*local_data_im(:,i),dp)
     END DO
 
 
@@ -563,19 +561,19 @@ CONTAINS
        DO j=1,FLOOR(npade/2.0_dp)
           i=2*j
           my_fac=(-1.0_dp)**j
-          IF(i.LE.p)scaleN=my_fac*fac(p +q -i )*fac(p )/(fac(p +q )*fac(i )*fac(p -i ))
-          scaleD=my_fac* fac(p +q -i )*fac(q)/(fac(p +q )*fac(i )*fac(q -i))
+          IF(i.LE.p)scaleN=CMPLX(my_fac*fac(p +q -i )*fac(p )/(fac(p +q )*fac(i )*fac(p -i )),0.0_dp,dp)
+          scaleD=CMPLX(my_fac* fac(p +q -i )*fac(q)/(fac(p +q )*fac(i )*fac(q -i)),0.0_dp,dp)
           CALL cp_gemm("N","N",ndim,ndim,ndim,square_fac,im_part,T2,rzero,Tres,error)
 
           DO k=1,ldim
-             Npq%local_data(:,k)= Npq%local_data(:,k)+scaleN*CMPLX( Tres%local_data(:,k),0.0_dp,dp)
-             Dpq%local_data(:,k)= Dpq%local_data(:,k)+scaleD*CMPLX( Tres%local_data(:,k),0.0_dp,dp)
+             Npq%local_data(:,k)= Npq%local_data(:,k)+scaleN * Tres%local_data(:,k)
+             Dpq%local_data(:,k)= Dpq%local_data(:,k)+scaleD * Tres%local_data(:,k)
           END DO
 
           IF(2*j+1.le.q)THEN
           i=2*j+1
-          IF(i.LE.p)scaleN=my_fac*fac(p +q -i )*fac(p )/(fac(p +q )*fac(i )*fac(p -i ))
-          scaleD=-my_fac*fac(p +q -i )*fac(q)/(fac(p +q )*fac(i )*fac(q -i))
+          IF(i.LE.p)scaleN=CMPLX(my_fac*fac(p +q -i )*fac(p )/(fac(p +q )*fac(i )*fac(p -i )),0.0_dp,dp)
+          scaleD=CMPLX(-my_fac*fac(p +q -i )*fac(q)/(fac(p +q )*fac(i )*fac(q -i)),0.0_dp,dp)
           CALL cp_gemm("N","N",ndim,ndim,ndim,square_fac,im_part,Tres,rzero,T2,error)
 
           DO k=1,ldim
@@ -628,17 +626,17 @@ CONTAINS
   SUBROUTINE exp_pade_real(exp_H,matrix,nsquare,npade,error)
     TYPE(cp_fm_type)                         :: exp_H
     TYPE(cp_fm_type), POINTER                :: matrix
-    INTEGER                                  :: nsquare, npade
+    INTEGER, INTENT(in)                      :: nsquare, npade
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'exp_pade_real', &
       routineP = moduleN//':'//routineN
     REAL(KIND=dp), PARAMETER                 :: one = 1.0_dp , zero = 0.0_dp
 
-    COMPLEX(KIND=dp)                         :: scaleD, scaleN
     INTEGER                                  :: handle, i, j, k, ldim, ndim, &
                                                 p, q
-    REAL(KIND=dp)                            :: my_fac, square_fac
+    REAL(KIND=dp)                            :: my_fac, scaleD, scaleN, &
+                                                square_fac
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: local_data
     TYPE(cp_fm_p_type), DIMENSION(:), &
       POINTER                                :: mult_p
@@ -753,18 +751,19 @@ CONTAINS
   SUBROUTINE arnoldi(mos_old,mos_new,eps_exp,Hre,Him,mos_next,narn_old,error)
 
     TYPE(cp_fm_p_type), DIMENSION(2)         :: mos_old, mos_new
-    REAL(KIND=dp)                            :: eps_exp
+    REAL(KIND=dp), INTENT(in)                :: eps_exp
     TYPE(cp_fm_type), OPTIONAL, POINTER      :: Hre
     TYPE(cp_fm_type), POINTER                :: Him
     TYPE(cp_fm_p_type), DIMENSION(2), &
       OPTIONAL                               :: mos_next
-    INTEGER                                  :: narn_old
+    INTEGER, INTENT(inout)                   :: narn_old
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'arnoldi', &
       routineP = moduleN//':'//routineN
     COMPLEX(KIND=dp), PARAMETER              :: one = (1.0_dp,0.0_dp) , &
                                                 zero = (0.0_dp,0.0_dp)
+    REAL(KIND=dp), PARAMETER                 :: rone = 1.0_dp, rzero = 0.0_dp
 
     INTEGER :: col_group, handle, i, icol_local, idim, info, j, l, mydim, &
       nao, narnoldi, ncol_local, newdim, nmo, npade, pade_step, stat
@@ -810,7 +809,7 @@ CONTAINS
     double_col=.TRUE.
     double_row=.FALSE.
     CALL cp_fm_struct_double(newstruct,mo_struct,mo_struct%context,double_col,double_row,error)
-    H_approx_save=zero
+    H_approx_save=rzero
 
     DO i=1,narnoldi+1
        CALL cp_fm_create(V_mats(i)%matrix, matrix_struct=newstruct,&
@@ -927,8 +926,8 @@ CONTAINS
              N=0.0_dp
              D=0.0_dp
              DO idim=1,mydim
-                N(idim,idim)=1.0_dp
-                D(idim,idim)=one
+                N(idim,idim)=rone
+                D(idim,idim)=rone
              END DO
              N(:,:)=N+0.5_dp*mat1
              D(:,:)=D-0.5_dp*mat1
@@ -978,8 +977,8 @@ CONTAINS
    
           IF(conv_norm.LT.eps_exp.OR.i.GT.narnoldi)THEN
    
-             mos_new(1)%matrix%local_data=zero
-             mos_new(2)%matrix%local_data=zero
+             mos_new(1)%matrix%local_data=rzero
+             mos_new(2)%matrix%local_data=rzero
              DO icol_local=1,ncol_local
                 DO idim=1,mydim
                    prefac=H_approx(idim,1,icol_local)*norm1(icol_local)
@@ -1004,8 +1003,8 @@ CONTAINS
                    END DO
                  END DO
                END DO
-               mos_next(1)%matrix%local_data=zero
-               mos_next(2)%matrix%local_data=zero
+               mos_next(1)%matrix%local_data=rzero
+               mos_next(2)%matrix%local_data=rzero
                DO icol_local=1,ncol_local
                   DO idim=1,mydim
                      prefac=H_approx(idim,1,icol_local)*norm1(icol_local)

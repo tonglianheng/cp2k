@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2014  CP2K developers group                          !
+!   Copyright (C) 2000 - 2015  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -45,9 +45,8 @@ MODULE domain_submatrix_methods
             release_submatrices, multiply_submatrices, add_submatrices,&
             construct_submatrices, init_submatrices,&
             construct_dbcsr_from_submatrices,&
-            trace_submatrices,&
             set_submatrices,&
-            print_submatrices, qblk_exists, maxnorm_submatrices
+            print_submatrices, maxnorm_submatrices
 
   INTERFACE init_submatrices
      MODULE PROCEDURE init_submatrices_0d 
@@ -1732,6 +1731,7 @@ CONTAINS
 !> \param row ...
 !> \param col ...
 !> \param error ...
+!> \retval qblk_exists ...
 !> \par History
 !>       2013.01 created [Rustam Z. Khaliullin]
 !> \author Rustam Z. Khaliullin

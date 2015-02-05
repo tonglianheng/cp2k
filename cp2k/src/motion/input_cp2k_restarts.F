@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2014  CP2K developers group                          !
+!   Copyright (C) 2000 - 2015  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -27,7 +27,6 @@ MODULE input_cp2k_restarts
   USE extended_system_types,           ONLY: lnhc_parameters_type,&
                                              map_info_type,&
                                              npt_info_type
-  USE f77_blas
   USE force_env_types,                 ONLY: force_env_get,&
                                              force_env_type,&
                                              multiple_fe_list
@@ -92,7 +91,7 @@ MODULE input_cp2k_restarts
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'input_cp2k_restarts'
 
-  PUBLIC :: write_restart, update_input
+  PUBLIC :: write_restart
 
 CONTAINS
 
@@ -1049,19 +1048,16 @@ CONTAINS
 
   END SUBROUTINE update_motion_pint
 
-  ! ***************************************************************************
-  !> \brief  Update HELIUM section in the input structure.
-  !> \date   2009-11-12
-  !> \author Lukasz Walewski <Lukasz.Walewski@ruhr-uni-bochum.de>
-  !> \descr  Transfer the current helium state from the runtime environment
-  !>         to the input structure, so that it can be used for I/O, etc.
-  !> \note   Moved from the helium_io module directly, might be done better way
-  ! ***************************************************************************
-! *****************************************************************************
-!> \brief ...
+! ***************************************************************************
+!> \brief  Update HELIUM section in the input structure.
 !> \param motion_section ...
 !> \param helium ...
 !> \param error ...
+!> \date   2009-11-12
+!> \author Lukasz Walewski <Lukasz.Walewski@ruhr-uni-bochum.de>
+!> \note Transfer the current helium state from the runtime environment
+!>         to the input structure, so that it can be used for I/O, etc.
+!> \note   Moved from the helium_io module directly, might be done better way
 ! *****************************************************************************
   SUBROUTINE update_motion_helium(motion_section, helium, error)
 

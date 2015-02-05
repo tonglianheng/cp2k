@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2014  CP2K developers group                          !
+!   Copyright (C) 2000 - 2015  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -84,7 +84,7 @@ CONTAINS
 !> \param para_env defines the mpi communicator
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
-!> \param master return value, logical
+!> \retval master return value, logical
 !> \author Mandes 01.2013
 ! *****************************************************************************
   FUNCTION check_if_group_master(para_env, error) RESULT(master)
@@ -701,7 +701,7 @@ CONTAINS
                    +1+SIZE(tmc_params%atoms) +1
     ALLOCATE(m_send%task_real(msg_size_real))
     m_send%task_real(1) = REAL(SIZE(elem%pos),KIND=dp) ! positions
-    counter = 2 + m_send%task_real(1)
+    counter = 2 + INT(m_send%task_real(1))
     m_send%task_real(2:counter-1) = elem%pos
     m_send%task_real(counter) = SIZE(tmc_params%cell%hmat) ! cell vectors for cell size
     m_send%task_real(counter+1:counter+SIZE(tmc_params%cell%hmat)) = &
@@ -858,12 +858,12 @@ CONTAINS
     IF(tmc_params%pressure.GE.0.0_dp) msg_size_real = msg_size_real+ 1+SIZE(elem%box_scale(:))
     ALLOCATE(m_send%task_real(msg_size_real))
     m_send%task_real(1) = SIZE(elem%pos)
-    counter = 2 + m_send%task_real(1)
+    counter = 2 + INT(m_send%task_real(1))
     m_send%task_real(2:counter-1) = elem%pos
     IF(tmc_params%pressure.GE.0.0_dp) THEN
        m_send%task_real(counter) = SIZE(elem%box_scale)
        m_send%task_real(counter+1:counter+INT(m_send%task_real(counter))) = elem%box_scale(:)
-       counter = counter + 1+m_send%task_real(counter)
+       counter = counter + 1+INT(m_send%task_real(counter))
     END IF
     m_send%task_real(counter) = REAL(message_end_flag, KIND=dp) !message end
 
@@ -919,7 +919,7 @@ CONTAINS
     counter = counter +1
     IF(tmc_params%pressure.GE.0.0_dp) THEN
        elem%box_scale(:) = m_send%task_real(counter+1:counter+INT(m_send%task_real(counter)))
-       counter = counter +1+m_send%task_real(counter)
+       counter = counter +1+INT(m_send%task_real(counter))
     END IF
 
     CPPostcondition(counter.EQ.m_send%info(3),cp_failure_level,routineP,error, failure)
@@ -1104,7 +1104,7 @@ CONTAINS
     IF(tmc_params%pressure.GE.0.0_dp) THEN
        m_send%task_real(counter) = SIZE(elem%box_scale)
        m_send%task_real(counter+1:counter+INT(m_send%task_real(counter))) = elem%box_scale(:)
-       counter = counter + 1+m_send%task_real(counter)
+       counter = counter + 1+INT(m_send%task_real(counter))
     END IF
     m_send%task_real(counter) = REAL(message_end_flag, KIND=dp) !message end
 
@@ -1144,7 +1144,7 @@ CONTAINS
     counter = 3
     IF(tmc_params%pressure.GE.0.0_dp) THEN
        elem%box_scale(:) = m_send%task_real(counter+1:counter+INT(m_send%task_real(counter)))
-       counter = counter +1+m_send%task_real(counter)
+       counter = counter +1+INT(m_send%task_real(counter))
     END IF
 
     CPPostcondition(counter.EQ.m_send%info(3),cp_failure_level,routineP,error, failure)
@@ -1221,7 +1221,7 @@ CONTAINS
 
     ALLOCATE(m_send%task_real(msg_size_real))
     m_send%task_real(1) = SIZE(elem%pos)
-    counter = 2 + m_send%task_real(1)
+    counter = 2 + INT(m_send%task_real(1))
     m_send%task_real(2:counter-1) = elem%pos
     IF(msg_type.EQ.TMC_STAT_MD_REQUEST.OR.msg_type.EQ.TMC_STAT_MD_BROADCAST) THEN
        m_send%task_real(counter) = SIZE(elem%vel)
@@ -1240,7 +1240,7 @@ CONTAINS
     IF(tmc_params%pressure.GE.0.0_dp) THEN
        m_send%task_real(counter) = SIZE(elem%box_scale)
        m_send%task_real(counter+1:counter+INT(m_send%task_real(counter))) = elem%box_scale(:)
-       counter = counter + 1+m_send%task_real(counter)
+       counter = counter + 1+INT(m_send%task_real(counter))
     END IF
     m_send%task_real(counter) = message_end_flag !message end
 
@@ -1308,7 +1308,7 @@ CONTAINS
     counter = 0
     !then float array with pos, (vel), subbox_center and temp
     num_dim = NINT(m_send%task_real(1))
-    counter = 2 + m_send%task_real(1)
+    counter = 2 + INT(m_send%task_real(1))
     elem%pos = m_send%task_real(2:counter-1)
     IF(msg_type.EQ.TMC_STAT_MD_REQUEST.OR.msg_type.EQ.TMC_STAT_MD_BROADCAST)THEN
        elem%vel = m_send%task_real(counter+1:counter+NINT(m_send%task_real(counter)))
@@ -1323,7 +1323,7 @@ CONTAINS
 
     IF(tmc_params%pressure .GE. 0.0_dp) THEN
        elem%box_scale(:) = m_send%task_real(counter+1:counter+INT(m_send%task_real(counter)))
-       counter = counter +1+m_send%task_real(counter)
+       counter = counter +1+INT(m_send%task_real(counter))
     ELSE 
        elem%box_scale(:) = 1.0_dp
     END IF
@@ -1456,7 +1456,7 @@ CONTAINS
        msg_type.EQ.TMC_STAT_MD_BROADCAST)THEN
        m_send%task_real(counter) = SIZE(elem%vel)
        m_send%task_real(counter+1:counter+NINT(m_send%task_real(counter))) = elem%vel
-       counter = counter + 1+m_send%task_real(counter)
+       counter = counter + 1+INT(m_send%task_real(counter))
        m_send%task_real(counter) = 1
        m_send%task_real(counter+1) = elem%ekin_before_md
        counter = counter+2
@@ -1567,7 +1567,7 @@ CONTAINS
     IF(msg_type.EQ.TMC_STAT_MD_REQUEST.OR.msg_type.EQ.TMC_STAT_MD_RESULT.OR.&
        msg_type.EQ.TMC_STAT_MD_BROADCAST)THEN
        elem%vel = m_send%task_real(counter+1:counter+NINT(m_send%task_real(counter))) 
-       counter = counter + 1+m_send%task_real(counter)
+       counter = counter + 1+INT(m_send%task_real(counter))
        IF(.NOT.(tmc_params%task_type.EQ.task_type_gaussian_adaptation)) &
           elem%ekin_before_md = m_send%task_real(counter+1)
        counter = counter+2
@@ -1646,12 +1646,12 @@ CONTAINS
     IF(tmc_params%pressure.GE.0.0_dp) msg_size_real = msg_size_real+ 1+SIZE(list_elem%elem%box_scale(:))
     ALLOCATE(m_send%task_real(msg_size_real))
     m_send%task_real(1) = SIZE(list_elem%elem%pos)
-    counter = 2 + m_send%task_real(1)
+    counter = 2 + INT(m_send%task_real(1))
     m_send%task_real(2:counter-1) = list_elem%elem%pos
     IF(tmc_params%pressure.GE.0.0_dp) THEN
        m_send%task_real(counter) = SIZE(list_elem%elem%box_scale)
        m_send%task_real(counter+1:counter+INT(m_send%task_real(counter))) = list_elem%elem%box_scale(:)
-       counter = counter + 1+m_send%task_real(counter)
+       counter = counter + 1+INT(m_send%task_real(counter))
     END IF
     m_send%task_real(counter) = REAL(message_end_flag, KIND=dp) !message end
 
@@ -1708,7 +1708,7 @@ CONTAINS
     counter = counter +1
     IF(tmc_params%pressure.GE.0.0_dp) THEN
        elem%box_scale(:) = m_send%task_real(counter+1:counter+INT(m_send%task_real(counter)))
-       counter = counter +1+m_send%task_real(counter)
+       counter = counter +1+INT(m_send%task_real(counter))
     END IF
 
     CPPostcondition(counter.EQ.m_send%info(3),cp_failure_level,routineP,error, failure)
@@ -1817,7 +1817,7 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'stop_whole_group', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: dest_rank, stat
+    INTEGER                                  :: act_rank, dest_rank, stat
     LOGICAL                                  :: failure, flag
     LOGICAL, ALLOCATABLE, DIMENSION(:)       :: rank_stoped
 
@@ -1839,13 +1839,15 @@ CONTAINS
         ! busy workers have to be canceled
         IF(worker_info(dest_rank)%busy) THEN
           stat = TMC_CANCELING_MESSAGE
-          CALL tmc_message(msg_type=stat, send_recv=send_msg, dest=dest_rank, &
+          act_rank = dest_rank
+          CALL tmc_message(msg_type=stat, send_recv=send_msg, dest=act_rank, &
                            para_env=para_env, tmc_params=tmc_params, &
                            error=error)
         ELSE
         ! send stop message
           stat = TMC_STATUS_FAILED
-          CALL tmc_message(msg_type=stat, send_recv=send_msg, dest=dest_rank, &
+          act_rank = dest_rank
+          CALL tmc_message(msg_type=stat, send_recv=send_msg, dest=act_rank, &
                            para_env=para_env, tmc_params=tmc_params, &
                            error=error)
         END IF

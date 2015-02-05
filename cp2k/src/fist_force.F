@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2014  CP2K developers group                          !
+!   Copyright (C) 2000 - 2015  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -15,7 +15,8 @@ MODULE fist_force
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind
   USE atprop_types,                    ONLY: atprop_type
-  USE cell_methods,                    ONLY: cell_type,&
+  USE cell_types,                      ONLY: cell_type,&
+                                             init_cell,&
                                              pbc
   USE cp_output_handling,              ONLY: cp_p_file,&
                                              cp_print_key_finished_output,&
@@ -29,6 +30,7 @@ MODULE fist_force
   USE distribution_1d_types,           ONLY: distribution_1d_type
   USE ewald_environment_types,         ONLY: ewald_env_get,&
                                              ewald_environment_type
+  USE ewald_pw_methods,                ONLY: ewald_pw_grid_update
   USE ewald_pw_types,                  ONLY: ewald_pw_type
   USE ewalds,                          ONLY: ewald_evaluate,&
                                              ewald_print,&
@@ -36,7 +38,6 @@ MODULE fist_force
                                              ewald_self_atom
   USE ewalds_multipole,                ONLY: ewald_multipole_evaluate
   USE exclusion_types,                 ONLY: exclusion_type
-  USE f77_blas
   USE fist_energy_types,               ONLY: fist_energy_type
   USE fist_environment_types,          ONLY: fist_env_get,&
                                              fist_environment_type
@@ -146,6 +147,8 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(3, 3) :: ident, pv_bc, pv_bend, pv_bond, pv_g, &
       pv_imptors, pv_nonbond, pv_opbend, pv_torsion, pv_urey_bradley
     REAL(KIND=dp), DIMENSION(:), POINTER     :: e_coulomb
+    REAL(KIND=dp), DIMENSION(:, :, :), &
+      POINTER                                :: pv_coulomb
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
@@ -180,7 +183,7 @@ CONTAINS
          fist_nonbond_env,mm_section,local_molecules,local_particles,&
          molecule_kind_set,molecule_set,particle_set, print_section,&
          shell, shell_particle_set, core_particle_set, thermo, multipoles,&
-         e_coulomb)
+         e_coulomb, pv_coulomb)
     mm_section => section_vals_get_subs_vals(force_env_section,"MM",error=error)
     iw = cp_print_key_unit_nr(logger,mm_section,"PRINT%DERIVATIVES",&
          extension=".mmLog",error=error)
@@ -197,6 +200,10 @@ CONTAINS
 
     CALL ewald_env_get(ewald_env, ewald_type=ewald_type, do_multipoles=do_multipoles,&
          do_ipol=do_ipol,error=error)
+
+    ! Initialize ewald grids
+    CALL init_cell(cell)
+    CALL ewald_pw_grid_update(ewald_pw, ewald_env, cell%hmat, error)
 
     natoms = SIZE(particle_set)
     nlocal_particles = 0
@@ -426,9 +433,14 @@ CONTAINS
                       ALLOCATE(e_coulomb(fg_coulomb_size), STAT=stat)
                       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
                    END IF
+                   IF(atprop_env%stress) THEN
+                      ALLOCATE(pv_coulomb(3,3,fg_coulomb_size), STAT=stat)
+                      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+                   END IF
                    CALL ewald_evaluate(ewald_env, ewald_pw, cell, atomic_kind_set, particle_set,&
                         local_particles, fg_coulomb, vg_coulomb, pv_g ,use_virial=use_virial,&
-                        charges=fist_nonbond_env%charges, e_coulomb=e_coulomb, error=error)
+                        charges=fist_nonbond_env%charges, e_coulomb=e_coulomb, &
+                        pv_coulomb=pv_coulomb, error=error)
                 END IF
              END IF
           CASE(do_ewald_pme)
@@ -672,10 +684,17 @@ CONTAINS
              IF(atprop_env%energy) THEN
                 atprop_env%atener(ii) = atprop_env%atener(ii) + e_coulomb(node)
              END IF
+             IF(atprop_env%stress) THEN
+                atprop_env%atstress(:,:,ii) = atprop_env%atstress(:,:,ii) + pv_coulomb(:,:,node)
+             END IF
           END DO
        END DO
        IF(atprop_env%energy) THEN
          DEALLOCATE(e_coulomb, STAT = stat)
+         CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       END IF
+       IF(atprop_env%stress) THEN
+         DEALLOCATE(pv_coulomb, STAT = stat)
          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        END IF
     END IF

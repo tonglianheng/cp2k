@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2014  CP2K developers group                          !
+!   Copyright (C) 2000 - 2015  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -14,7 +14,6 @@ MODULE input_keyword_types
                                              cp_unit_desc,&
                                              cp_unit_release,&
                                              cp_unit_type
-  USE f77_blas
   USE input_enumeration_types,         ONLY: enum_create,&
                                              enum_release,&
                                              enum_retain,&
@@ -867,7 +866,7 @@ CONTAINS
           WRITE(unit_nr,FMT='(A,I0,A)') &
                '<A HREF="references.html#reference_',keyword%citations(iref),'" TITLE="'
           CALL print_reference(keyword%citations(iref),FORMAT=print_format_journal,unit=unit_nr)
-          WRITE(179,FMT='(A)') &
+          WRITE(unit_nr,FMT='(A)') &
                '">[' // TRIM(get_citation_key( keyword%citations(iref) )) // ']</A>'
        ENDDO
     ENDIF

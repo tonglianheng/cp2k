@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2014  CP2K developers group                          !
+!   Copyright (C) 2000 - 2015  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -37,7 +37,7 @@
 !> \author JGH (14.08.2004)
 ! *****************************************************************************
 MODULE semi_empirical_parameters
-  USE f77_blas
+  
   USE input_constants,                 ONLY: do_method_am1,&
                                              do_method_mndod,&
                                              do_method_pchg,&

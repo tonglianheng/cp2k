@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2014  CP2K developers group                          !
+!   Copyright (C) 2000 - 2015  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 MODULE fftsg_lib
   USE fft_kinds,                       ONLY: dp
@@ -35,15 +35,13 @@ CONTAINS
   END SUBROUTINE
   
   
-  ! *****************************************************************************
-  !> \par History
-  !>      Adapted to new interface structure
-  !> \author JGH
-  ! *****************************************************************************
 ! *****************************************************************************
 !> \brief ...
 !> \param DATA ...
 !> \param max_length ...
+!> \par History
+!>      Adapted to new interface structure
+!> \author JGH
 ! *****************************************************************************
   SUBROUTINE fftsg_get_lengths ( DATA, max_length )
   
@@ -69,7 +67,6 @@ CONTAINS
   
   END SUBROUTINE fftsg_get_lengths
   
-  ! *****************************************************************************
 ! *****************************************************************************
 !> \brief ...
 !> \param fft_in_place ...
@@ -128,7 +125,6 @@ CONTAINS
   
   END SUBROUTINE fftsg3d
   
-  ! *****************************************************************************
 ! *****************************************************************************
 !> \brief ...
 !> \param fsign ...

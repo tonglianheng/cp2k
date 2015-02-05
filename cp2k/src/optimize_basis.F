@@ -1,15 +1,16 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2014  CP2K developers group                          !
+!   Copyright (C) 2000 - 2015  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 MODULE optimize_basis
   USE admm_methods,                    ONLY: admm_fit_mo_coeffs
+  USE cp_blacs_env,                    ONLY: cp_blacs_env_type
+  USE cp_dbcsr_interface,              ONLY: cp_dbcsr_p_type
   USE cp_fm_types,                     ONLY: cp_fm_p_type,&
                                              cp_fm_release
   USE cp_para_env,                     ONLY: cp_para_env_create,&
                                              cp_para_env_release
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE f77_blas
   USE f77_interface,                   ONLY: create_force_env,&
                                              destroy_force_env,&
                                              f_env_add_defaults,&
@@ -49,8 +50,9 @@ MODULE optimize_basis
                                              optimize_basis_init_read_input,&
                                              update_derived_basis_sets
   USE powell,                          ONLY: powell_optimize
-  USE qs_environment_types,            ONLY: qs_environment_type,&
-                                             set_qs_env
+  USE qs_environment_types,            ONLY: get_qs_env,&
+                                             qs_environment_type
+  USE qs_ks_types,                     ONLY: qs_ks_env_type
   USE qs_neighbor_lists,               ONLY: build_qs_neighbor_lists
   USE timings,                         ONLY: timeset,&
                                              timestop
@@ -267,12 +269,18 @@ CONTAINS
                                                 mp_id, my_id, ncalc, set_id
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: cond_vec, energy, f_vec, &
                                                 my_time, start_time
+    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+      POINTER                                :: matrix_ks, matrix_s_aux_fit, &
+                                                matrix_s_aux_fit_vs_orb
     TYPE(f_env_type), POINTER                :: f_env
     TYPE(force_env_type), POINTER            :: force_env
     TYPE(qs_environment_type), POINTER       :: qs_env
+    TYPE(qs_ks_env_type), POINTER            :: ks_env
 
     CALL timeset(routineN,handle)
- 
+
+    NULLIFY(matrix_ks, matrix_s_aux_fit_vs_orb, matrix_s_aux_fit, ks_env)
+
     ncalc=opt_bas%ncombinations*opt_bas%ntraining_sets
     ALLOCATE(f_vec(ncalc)); ALLOCATE(my_time(ncalc)); ALLOCATE(cond_vec(ncalc)); ALLOCATE(energy(ncalc))
     f_vec=0.0_dp ; cond_vec=0.0_dp; my_time=0.0_dp; energy=0.0_dp
@@ -288,16 +296,21 @@ CONTAINS
         CALL f_env_get_from_id(f_env_id(icalc),f_env,error)
         force_env => f_env%force_env
         CALL force_env_get(force_env,qs_env=qs_env,error=error)
- 
+        CALL get_qs_env(qs_env, ks_env=ks_env, error=error)
         CALL update_basis_set(opt_bas,set_id,bas_id,qs_env,error)
         CALL build_qs_neighbor_lists(qs_env,para_env,molecular=.FALSE.,force_env_section=qs_env%input,error=error)
-        CALL calculate_overlap(qs_env,"S_AB_AUX",error)
-        CALL admm_fit_mo_coeffs(qs_env, qs_env%admm_env, qs_env%para_env, qs_env%matrix_s_aux_fit,&
-                                qs_env%matrix_s_aux_fit_vs_orb, qs_env%mos, qs_env%mos_aux_fit,&
+        CALL calculate_overlap(ks_env,"S_AB_AUX",error)
+        CALL get_qs_env(qs_env,&
+                        matrix_ks=matrix_ks,&
+                        matrix_s_aux_fit_vs_orb=matrix_s_aux_fit_vs_orb,&
+                        matrix_s_aux_fit=matrix_s_aux_fit,&
+                        error=error)
+        CALL admm_fit_mo_coeffs(qs_env%admm_env, para_env, matrix_s_aux_fit,&
+                                matrix_s_aux_fit_vs_orb, qs_env%mos, qs_env%mos_aux_fit,&
                                 geometry_did_change=.TRUE. , error=error)
-        CALL evaluate_fval(qs_env%mos,qs_env%mos_aux_fit,qs_env%matrix_s_aux_fit_vs_orb(1)%matrix,&
-                         qs_env%matrix_s_aux_fit(1)%matrix,qs_env%admm_env,f_vec(my_id),cond_vec(my_id),error)
-        CALL evaluate_energy(qs_env%mos_aux_fit,qs_env%matrix_ks,matrix_s_inv(icalc)%matrix,qs_env%admm_env%Q,&
+        CALL evaluate_fval(qs_env%mos,qs_env%mos_aux_fit,matrix_s_aux_fit_vs_orb(1)%matrix,&
+                           matrix_s_aux_fit(1)%matrix,qs_env%admm_env,f_vec(my_id),cond_vec(my_id),error)
+        CALL evaluate_energy(qs_env%mos_aux_fit,matrix_ks,matrix_s_inv(icalc)%matrix,qs_env%admm_env%Q,&
                              qs_env%admm_env%work_aux_aux,energy(my_id),error)
  
         my_time(my_id)=m_walltime()-start_time(icalc)
@@ -358,14 +371,19 @@ CONTAINS
     INTEGER                                  :: bas_id, handle, icalc, ierr, &
                                                 mp_id, set_id, stat
     LOGICAL                                  :: failure
+    TYPE(cp_blacs_env_type), POINTER         :: blacs_env
+    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+      POINTER                                :: matrix_s
     TYPE(cp_error_type), ALLOCATABLE, &
       DIMENSION(:)                           :: suberror
     TYPE(f_env_type), POINTER                :: f_env
     TYPE(force_env_type), POINTER            :: force_env
     TYPE(qs_environment_type), POINTER       :: qs_env
+    TYPE(qs_ks_env_type), POINTER            :: ks_env
     TYPE(section_vals_type), POINTER         :: input_file
 
     CALL timeset(routineN,handle)
+    NULLIFY(matrix_s, blacs_env, ks_env)
 
     mp_id=opt_bas%opt_id
     CALL m_getcwd(main_dir)
@@ -393,20 +411,20 @@ CONTAINS
                              mpi_comm=mpi_comm_opt,&
                              ierr=stat)
 
-       ! some weirdness with the default stacks defaults have to addded to get the 
+       ! some weirdness with the default stacks defaults have to be addded to get the 
        ! correct default program name this causes trouble with the timer stack if kept
        CALL f_env_add_defaults(f_env_id(icalc), f_env, suberror(icalc), failure)
        force_env => f_env%force_env
        CALL force_env_get(force_env,qs_env=qs_env,error=error)
-       CALL set_qs_env(qs_env=qs_env,atprop=force_env%atprop_env,error=error)
        CALL allocate_mo_sets(qs_env,error)
        CALL f_env_rm_defaults(f_env, suberror(icalc),stat)
-
+       CALL get_qs_env(qs_env, ks_env=ks_env, error=error)
        CALL build_qs_neighbor_lists(qs_env,para_env,molecular=.FALSE.,&
                                     force_env_section=qs_env%input,error=error)
-       CALL calculate_overlap(qs_env,"S_AB",error)
-       CALL calculate_overlap_inverse(qs_env%matrix_s(1)%matrix,matrix_s_inv(icalc)%matrix,&
-                                      para_env,qs_env%blacs_env,error)
+       CALL calculate_overlap(ks_env,"S_AB",error)
+       CALL get_qs_env(qs_env, matrix_s=matrix_s, blacs_env=blacs_env, error=error)
+       CALL calculate_overlap_inverse(matrix_s(1)%matrix,matrix_s_inv(icalc)%matrix,&
+                                      para_env,blacs_env,error)
        CALL calculate_ks_matrix(qs_env,suberror(icalc))
 
        CALL create_opt_admm_env(qs_env,error)

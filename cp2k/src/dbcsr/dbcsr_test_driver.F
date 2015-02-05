@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2014  CP2K developers group                          !
+!   Copyright (C) 2000 - 2015  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -13,6 +13,9 @@
 !> - Created 2010
 ! *****************************************************************************
 PROGRAM dbcsr_test_driver
+
+  USE acc_device,                      ONLY: acc_get_ndevices,&
+                                             acc_set_active_device
   USE dbcsr_config,                    ONLY: dbcsr_set_default_config
   USE dbcsr_error_handling,            ONLY: dbcsr_assert,&
                                              dbcsr_error_set,&
@@ -20,10 +23,10 @@ PROGRAM dbcsr_test_driver
                                              dbcsr_error_type,&
                                              dbcsr_fatal_level,&
                                              dbcsr_wrong_args_error
-  USE dbcsr_methods,                   ONLY: dbcsr_mp_new,&
-                                             dbcsr_mp_release
-  USE dbcsr_operations,                ONLY: dbcsr_finalize_lib,&
+  USE dbcsr_lib,                       ONLY: dbcsr_finalize_lib,&
                                              dbcsr_init_lib
+  USE dbcsr_mp_methods,                ONLY: dbcsr_mp_new,&
+                                             dbcsr_mp_release
   USE dbcsr_test_add,                  ONLY: dbcsr_test_adds
   USE dbcsr_test_methods,              ONLY: dbcsr_test_read_args
   USE dbcsr_test_multiply,             ONLY: dbcsr_test_multiplies
@@ -94,6 +97,8 @@ PROGRAM dbcsr_test_driver
 
   !
   ! initialize libdbcsr
+  IF (acc_get_ndevices() > 0) &
+     CALL acc_set_active_device(MOD(mynode, acc_get_ndevices()))
   CALL dbcsr_init_lib (group=mp_comm, error=error)
   CALL dbcsr_set_default_config (error=error)
 

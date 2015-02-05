@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2014  CP2K developers group                          !
+!   Copyright (C) 2000 - 2015  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -26,11 +26,12 @@
 !> \author Matthias Krack (03.04.2001)
 ! *****************************************************************************
 MODULE qs_integrate_potential_product
+  USE admm_types,                      ONLY: admm_type
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind_set
   USE basis_set_types,                 ONLY: get_gto_basis_set,&
                                              gto_basis_set_type
-  USE cell_methods,                    ONLY: cell_type,&
+  USE cell_types,                      ONLY: cell_type,&
                                              pbc
   USE cp_control_types,                ONLY: dft_control_type
   USE cp_dbcsr_interface,              ONLY: &
@@ -39,12 +40,12 @@ MODULE qs_integrate_potential_product
        cp_dbcsr_finalize, cp_dbcsr_get_block_p, cp_dbcsr_get_data_size, &
        cp_dbcsr_get_matrix_type, cp_dbcsr_get_num_blocks, cp_dbcsr_init, &
        cp_dbcsr_p_type, cp_dbcsr_row_block_sizes, cp_dbcsr_type, &
-       cp_dbcsr_work_create, dbcsr_distribution_has_threads, &
-       dbcsr_distribution_obj
+       cp_dbcsr_work_create, dbcsr_distribution_has_threads
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE cube_utils,                      ONLY: cube_info_type
   USE gaussian_gridlevels,             ONLY: gridlevel_info_type
-  USE input_constants,                 ONLY: use_aux_fit_basis_set,&
+  USE input_constants,                 ONLY: do_admm_exch_scaling_merlot,&
+                                             use_aux_fit_basis_set,&
                                              use_orb_basis_set
   USE kinds,                           ONLY: dp,&
                                              int_8
@@ -100,6 +101,8 @@ CONTAINS
 !> \param h ...
 !> \param qs_env ...
 !> \param calculate_forces ...
+!> \param force_adm ... whether force of in aux. dens. matrix is calculated
+!> \param ispin ...
 !> \param compute_tau ...
 !> \param gapw ...
 !> \param basis_set_id ...
@@ -121,7 +124,7 @@ CONTAINS
 !>     derivatives of these matrix elements with respect to the ionic
 !>     coordinates can be computed as well
 ! *****************************************************************************
-  SUBROUTINE integrate_v_rspace(v_rspace, p, h, qs_env, calculate_forces, &
+  SUBROUTINE integrate_v_rspace(v_rspace, p, h, qs_env, calculate_forces, force_adm, ispin, &
        compute_tau, gapw, basis_set_id, pw_env_external, task_list_external, error)
 
     TYPE(pw_p_type)                          :: v_rspace
@@ -130,6 +133,8 @@ CONTAINS
     TYPE(cp_dbcsr_p_type), INTENT(INOUT)     :: h
     TYPE(qs_environment_type), POINTER       :: qs_env
     LOGICAL, INTENT(IN)                      :: calculate_forces
+    LOGICAL, INTENT(IN), OPTIONAL            :: force_adm
+    INTEGER, INTENT(IN), OPTIONAL            :: ispin
     LOGICAL, INTENT(IN), OPTIONAL            :: compute_tau, gapw
     INTEGER, INTENT(IN), OPTIONAL            :: basis_set_id
     TYPE(pw_env_type), OPTIONAL, POINTER     :: pw_env_external
@@ -159,11 +164,11 @@ CONTAINS
                                                 nsgfb
     INTEGER, DIMENSION(:, :), POINTER        :: first_sgfa, first_sgfb
     LOGICAL :: atom_pair_changed, atom_pair_done, distributed_grids, failure, &
-      found, h_duplicated, map_consistent, my_compute_tau, my_gapw, &
-      new_set_pair_coming, p_duplicated, pab_required, scatter, use_subpatch, &
-      use_virial
-    REAL(KIND=dp)                            :: dab, eps_gvg_rspace, rab2, &
-                                                zetp
+      found, h_duplicated, map_consistent, my_compute_tau, my_force_adm, &
+      my_gapw, new_set_pair_coming, p_duplicated, pab_required, scatter, &
+      use_subpatch, use_virial
+    REAL(KIND=dp)                            :: admm_scal_fac, dab, &
+                                                eps_gvg_rspace, rab2, zetp
     REAL(KIND=dp), DIMENSION(3)              :: force_a, force_b, ra, rab, &
                                                 rab_inv, rb
     REAL(KIND=dp), DIMENSION(3, 3)           :: my_virial_a, my_virial_b
@@ -176,6 +181,7 @@ CONTAINS
       POINTER                                :: habt, hadb, hdab, pabt, workt
     REAL(kind=dp), DIMENSION(:, :, :, :), &
       POINTER                                :: hadbt, hdabt
+    TYPE(admm_type), POINTER                 :: admm_env
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(cell_type), POINTER                 :: cell
@@ -202,14 +208,13 @@ CONTAINS
     TYPE(task_list_type), POINTER            :: task_list, task_list_soft
     TYPE(virial_type), POINTER               :: virial
 
-!$  TYPE(dbcsr_distribution_obj), POINTER    :: dist
 !$  INTEGER                                  :: omp_get_max_threads, &
 !$                                              omp_get_thread_num
 
     CALL timeset(routineN,handle)
 
     failure=.FALSE.
-    NULLIFY(pw_env, rs_descs, tasks, dist_ab)
+    NULLIFY(pw_env, rs_descs, tasks, dist_ab, admm_env)
 
     debug_count=debug_count+1
 
@@ -220,6 +225,10 @@ CONTAINS
     ! tau mode    : < nabla a| V | nabla b>
     my_compute_tau = .FALSE.
     IF (PRESENT(compute_tau)) my_compute_tau = compute_tau
+
+    my_force_adm = .FALSE. 
+    IF (PRESENT(force_adm)) my_force_adm = force_adm
+
 
     ! this sets the basis set to be used. GAPW(==soft basis) overwrites basis_set_id
     ! default is "use_orb_basis_set"
@@ -267,6 +276,19 @@ CONTAINS
          para_env=para_env,&
          force=force,&
          virial=virial,error=error)
+
+    admm_scal_fac = 1.0_dp
+    IF(my_force_adm) THEN
+       CALL get_qs_env(qs_env=qs_env,admm_env=admm_env,error=error)
+       ! Calculate bare scaling of force according to Merlot, 1. IF: ADMMP, 2. IF: ADMMS,
+       IF( ( .NOT. admm_env%charge_constrain) .AND. &
+            (admm_env%scaling_model == do_admm_exch_scaling_merlot ) ) THEN
+            admm_scal_fac = admm_env%gsi(ispin)**2
+       ELSE IF( admm_env%charge_constrain .AND. &
+           (admm_env%scaling_model == do_admm_exch_scaling_merlot ) ) THEN
+            admm_scal_fac = (admm_env%gsi(ispin))**(2.0_dp/3.0_dp)
+       END IF
+    END IF
 
     ! short cuts to task list variables
     tasks  =>task_list%tasks
@@ -399,7 +421,7 @@ CONTAINS
 
 !$omp parallel default(none), &
 !$omp shared(workt,habt,hdabt,hadbt,pabt,tasks,particle_set,natom,maxset), &
-!$omp shared(maxpgf,my_basis_set_id,my_gapw,dh,ddv,deltap,use_virial), &
+!$omp shared(maxpgf,my_basis_set_id,my_gapw,dh,ddv,deltap,use_virial,admm_scal_fac), &
 !$omp shared(pab_required,calculate_forces,ncoset,rs_v,cube_info,my_compute_tau), &
 !$omp shared(map_consistent,eps_gvg_rspace,force,virial,cell,atom_of_kind,dist_ab), &
 !$omp shared(gridlevel_info,task_list,failure,block_touched,nthread,qs_kind_set), &
@@ -411,7 +433,7 @@ CONTAINS
 !$omp private(force_a,force_b,my_virial_a,my_virial_b,atom_pair_changed,h_block), &
 !$omp private(p_block,ncoa,sgfa,ncob,sgfb,rab,rab2,ra,rb,zetp,dab,igrid_level), &
 !$omp private(na1,na2,nb1,nb2,use_subpatch,rab_inv,new_set_pair_coming,atom_pair_done), &
-!$omp private(iset_new,jset_new,ipgf_new,jpgf_new,dist), &
+!$omp private(iset_new,jset_new,ipgf_new,jpgf_new), &
 !$omp private(itask)
 
     ithread = 0
@@ -433,8 +455,7 @@ CONTAINS
     loop_gridlevels: DO igrid_level = 1, gridlevel_info%ngrid_levels
 
     CALL cp_dbcsr_work_create(dh,work_mutable=.TRUE.,n=nthread,error=error)
-!$  dist => dh%matrix%m%dist
-!$  CALL cp_assert (dbcsr_distribution_has_threads(dist), cp_fatal_level,&
+!$  CALL cp_assert (dbcsr_distribution_has_threads(cp_dbcsr_distribution(dh)), cp_fatal_level,&
 !$       cp_internal_error, routineN, "No thread distribution defined.",&
 !$       error=error)
 !$omp barrier
@@ -732,17 +753,17 @@ CONTAINS
 !$omp critical(force_critical)
           IF (calculate_forces) THEN
              force(ikind)%rho_elec(:,atom_a) =&
-                  force(ikind)%rho_elec(:,atom_a) + 2.0_dp*force_a(:)
+                  force(ikind)%rho_elec(:,atom_a) + 2.0_dp*admm_scal_fac*force_a(:)
              IF (iatom /= jatom ) THEN
                 force(jkind)%rho_elec(:,atom_b) =&
-                     force(jkind)%rho_elec(:,atom_b) + 2.0_dp*force_b(:)
+                     force(jkind)%rho_elec(:,atom_b) + 2.0_dp*admm_scal_fac*force_b(:)
              END IF
           ENDIF
           IF (use_virial) THEN
              IF (use_virial .AND. calculate_forces) THEN
-                virial%pv_virial = virial%pv_virial + 2.0_dp*my_virial_a
+                virial%pv_virial = virial%pv_virial + 2.0_dp*admm_scal_fac*my_virial_a
                 IF (iatom /= jatom) THEN
-                   virial%pv_virial = virial%pv_virial + 2.0_dp*my_virial_b
+                   virial%pv_virial = virial%pv_virial + 2.0_dp*admm_scal_fac*my_virial_b
                 END IF
              END IF
           END IF

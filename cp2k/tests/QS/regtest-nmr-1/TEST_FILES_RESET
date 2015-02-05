@@ -523,3 +523,14 @@ H2O-NMR-11.inp
 H2O-NMR-12.inp
 #
 H2O-NMR-1.inp
+#do not accumulate shift in outer scf preconditioner
+H2O-NMR-3.inp
+#do not accumulate shift in outer scf preconditioner
+H2O-NMR-9.inp
+#improvements to full_single inverse
+H2O-NMR-3.inp
+#improvements to full_single inverse
+H2O-NMR-9.inp
+#fix for generalized arnoldi ev
+H2O-NMR-3.inp
+H2O-NMR-9.inp

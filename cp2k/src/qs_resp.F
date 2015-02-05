@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2014  CP2K developers group                          !
+!   Copyright (C) 2000 - 2015  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -15,8 +15,11 @@ MODULE qs_resp
   USE atomic_charges,                  ONLY: print_atomic_charges
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind
-  USE cell_methods,                    ONLY: cell_type,&
-                                             pbc
+  USE cell_types,                      ONLY: cell_type,&
+                                             pbc,&
+                                             use_perd_none,&
+                                             use_perd_xyz
+  USE cp_control_types,                ONLY: dft_control_type
   USE cp_output_handling,              ONLY: cp_p_file,&
                                              cp_print_key_finished_output,&
                                              cp_print_key_generate_filename,&
@@ -24,19 +27,14 @@ MODULE qs_resp
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_realspace_grid_cube,          ONLY: cp_pw_to_cube
-  USE cp_subsys_types,                 ONLY: cp_subsys_get,&
-                                             cp_subsys_type
   USE cp_units,                        ONLY: cp_unit_from_cp2k,&
                                              cp_unit_to_cp2k
-  USE f77_blas
   USE input_constants,                 ONLY: do_resp_minus_x_dir,&
                                              do_resp_minus_y_dir,&
                                              do_resp_minus_z_dir,&
                                              do_resp_x_dir,&
                                              do_resp_y_dir,&
-                                             do_resp_z_dir,&
-                                             use_perd_none,&
-                                             use_perd_xyz
+                                             do_resp_z_dir
   USE input_section_types,             ONLY: section_get_ivals,&
                                              section_get_lval,&
                                              section_vals_get,&
@@ -78,6 +76,8 @@ MODULE qs_resp
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
   USE qs_kind_types,                   ONLY: qs_kind_type
+  USE qs_subsys_types,                 ONLY: qs_subsys_get,&
+                                             qs_subsys_type
   USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
@@ -139,10 +139,10 @@ CONTAINS
       POINTER                                :: atomic_kind_set
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_logger_type), POINTER            :: logger
-    TYPE(cp_subsys_type), POINTER            :: subsys
     TYPE(particle_list_type), POINTER        :: particles
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
+    TYPE(qs_subsys_type), POINTER            :: subsys
     TYPE(resp_p_type), DIMENSION(:), POINTER :: rep_sys
     TYPE(resp_type), POINTER                 :: resp_env
     TYPE(section_vals_type), POINTER         :: cons_section, input, &
@@ -171,13 +171,13 @@ CONTAINS
        CALL section_vals_val_get(poisson_section,"PERIODIC",i_val=my_per,error=error)
        CALL create_resp_type(resp_env, rep_sys, error) 
        !initialize the RESP fitting, get all the keywords
-       CALL init_resp(qs_env,resp_env,rep_sys,input,subsys,particle_set,atomic_kind_set,&
+       CALL init_resp(resp_env,rep_sys,input,subsys,particle_set,atomic_kind_set,&
             cell,resp_section,cons_section,rest_section,error)
        
        !print info
        CALL print_resp_parameter_info(qs_env,resp_env,rep_sys,my_per,error)
        
-       CALL cp_subsys_get(subsys,particles=particles,error=error)
+       CALL qs_subsys_get(subsys,particles=particles,error=error)
        natom=particles%n_els
        nvar=natom+resp_env%ncons
 
@@ -348,7 +348,6 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief intializes the resp fit. Getting the parameters
-!> \param qs_env the qs environment
 !> \param resp_env the resp environment
 !> \param rep_sys structure for repeating input sections defining fit points
 !> \param input ...
@@ -362,14 +361,13 @@ CONTAINS
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 ! *****************************************************************************
-  SUBROUTINE init_resp(qs_env,resp_env,rep_sys,input,subsys,particle_set,&
+  SUBROUTINE init_resp(resp_env,rep_sys,input,subsys,particle_set,&
              atomic_kind_set,cell,resp_section,cons_section,rest_section,error)
 
-    TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(resp_type), POINTER                 :: resp_env
     TYPE(resp_p_type), DIMENSION(:), POINTER :: rep_sys
     TYPE(section_vals_type), POINTER         :: input
-    TYPE(cp_subsys_type), POINTER            :: subsys
+    TYPE(qs_subsys_type), POINTER            :: subsys
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(atomic_kind_type), DIMENSION(:), &
@@ -605,7 +603,7 @@ CPSourceFileRef,&
   SUBROUTINE build_atom_list(section,subsys,atom_list,rep,error)
 
     TYPE(section_vals_type), POINTER         :: section
-    TYPE(cp_subsys_type), POINTER            :: subsys
+    TYPE(qs_subsys_type), POINTER            :: subsys
     INTEGER, DIMENSION(:), POINTER           :: atom_list
     INTEGER, INTENT(IN), OPTIONAL            :: rep
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -646,7 +644,7 @@ CPSourceFileRef,&
     ENDDO
     !check atom list
     num_atom=num_atom-1
-    max_index=SIZE(subsys%particles%els)
+    CALL qs_subsys_get(subsys, nparticle=max_index, error=error)
     CPPrecondition(SIZE(atom_list) /= 0,cp_failure_level,routineP,error,failure)
     index_in_range=(MAXVAL(atom_list)<= max_index)&
                          .AND.(MINVAL(atom_list) > 0)
@@ -726,14 +724,17 @@ CPSourceFileRef,&
              "Nonperiodic solution for RESP charges (i.e. nonperiodic"//&
              " Poisson solver) can only be used with section NONPERIODC_SYS")
     ENDIF
-    CALL get_qs_env(qs_env=qs_env,input=input,particle_set=particle_set,error=error)
+    CALL get_qs_env(qs_env,&
+                    input=input,&
+                    particle_set=particle_set,&
+                    v_hartree_rspace=v_hartree_pw,&
+                    error=error)
     resp_section => section_vals_get_subs_vals(input,"PROPERTIES%RESP",&
                                                 error=error)
     print_key => section_vals_get_subs_vals(resp_section,&
                                             "PRINT%V_RESP_CUBE",error=error)
     logger => cp_error_get_logger(error)
 
-    v_hartree_pw => qs_env%ks_env%v_hartree_rspace%pw
     bo=v_hartree_pw%pw_grid%bounds_local
     gbo=v_hartree_pw%pw_grid%bounds
     np=v_hartree_pw%pw_grid%npts
@@ -1011,8 +1012,12 @@ CPSourceFileRef,&
     NULLIFY(atomic_kind_set,v_hartree_pw,para_env,logger,input,particle_set,&
             resp_section)   
  
-    CALL get_qs_env(qs_env,input=input,particle_set=particle_set,&
-                    atomic_kind_set=atomic_kind_set,para_env=para_env,&
+    CALL get_qs_env(qs_env,&
+                    input=input,&
+                    particle_set=particle_set,&
+                    atomic_kind_set=atomic_kind_set,&
+                    para_env=para_env,&
+                    v_hartree_rspace=v_hartree_pw,&
                     error=error)
 
     resp_section => section_vals_get_subs_vals(input,"PROPERTIES%RESP",&
@@ -1026,7 +1031,6 @@ CPSourceFileRef,&
                                      file_form="FORMATTED",& 
                                      error=error)
 
-    v_hartree_pw => qs_env%ks_env%v_hartree_rspace%pw
     bo=v_hartree_pw%pw_grid%bounds_local
     gbo=v_hartree_pw%pw_grid%bounds
     dh=v_hartree_pw%pw_grid%dh
@@ -1175,7 +1179,7 @@ CPSourceFileRef,&
     failure=.FALSE.
 
     NULLIFY(v_hartree_pw)
-    v_hartree_pw => qs_env%ks_env%v_hartree_rspace%pw
+    CALL get_qs_env(qs_env, v_hartree_rspace=v_hartree_pw, error=error)
     dvol=v_hartree_pw%pw_grid%dvol
     !multiply v_hartree and va_rspace and calculate the vector rhs
     !taking into account that v_hartree has opposite site; remove v_qmmm       
@@ -1355,7 +1359,7 @@ CPSourceFileRef,&
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(resp_type), POINTER                 :: resp_env
     TYPE(section_vals_type), POINTER         :: rest_section
-    TYPE(cp_subsys_type), POINTER            :: subsys
+    TYPE(qs_subsys_type), POINTER            :: subsys
     INTEGER, INTENT(IN)                      :: natom
     TYPE(section_vals_type), POINTER         :: cons_section
     TYPE(particle_type), DIMENSION(:), &
@@ -1373,12 +1377,15 @@ CPSourceFileRef,&
     REAL(KIND=dp)                            :: my_atom_coef(2), strength, &
                                                 TARGET
     REAL(KIND=dp), DIMENSION(:), POINTER     :: atom_coef
+    TYPE(dft_control_type), POINTER          :: dft_control
 
     CALL timeset(routineN,handle)
 
-    NULLIFY(atom_coef,atom_list_res,atom_list_cons)
+    NULLIFY(atom_coef,atom_list_res,atom_list_cons,dft_control)
     failure=.FALSE.
- 
+
+    CALL get_qs_env(qs_env, dft_control=dft_control, error=error)
+
     ! add the restraints
     DO i=1,resp_env%nrest_sec
        CALL section_vals_val_get(rest_section,"TARGET",i_rep_section=i,r_val=TARGET,error=error)
@@ -1429,7 +1436,7 @@ CPSourceFileRef,&
        ncons_v=ncons_v+1
        resp_env%matrix(1:natom,ncons_v)=1.0_dp
        resp_env%matrix(ncons_v,1:natom)=1.0_dp
-       resp_env%rhs(ncons_v)=qs_env%dft_control%charge
+       resp_env%rhs(ncons_v)=dft_control%charge
     ENDIF
 
     DO i=1,resp_env%ncons_sec
@@ -1668,16 +1675,21 @@ CPSourceFileRef,&
                                                 v_resp_gspace, v_resp_rspace
     TYPE(pw_poisson_type), POINTER           :: poisson_env
     TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
+    TYPE(pw_type), POINTER                   :: v_hartree_rspace
     TYPE(section_vals_type), POINTER         :: input, print_key, resp_section
 
     CALL timeset(routineN,handle)
 
     failure=.FALSE.
     NULLIFY(auxbas_pw_pool,logger,pw_env,poisson_env,input,print_key,&
-            para_env,resp_section)
+            para_env,resp_section,v_hartree_rspace)
     normalize_factor=SQRT((resp_env%eta/pi)**3)
-    CALL get_qs_env(qs_env=qs_env,input=input,para_env=para_env,&
-                    pw_env=pw_env,error=error)
+    CALL get_qs_env(qs_env,&
+                    input=input,&
+                    para_env=para_env,&
+                    pw_env=pw_env,&
+                    v_hartree_rspace=v_hartree_rspace,&
+                    error=error)
     resp_section => section_vals_get_subs_vals(input,"PROPERTIES%RESP",&
                                                 error=error)
     print_key => section_vals_get_subs_vals(resp_section,&
@@ -1752,9 +1764,9 @@ CPSourceFileRef,&
      jx = resp_env%fitpoints(1,ip)
      jy = resp_env%fitpoints(2,ip)
      jz = resp_env%fitpoints(3,ip)
-     sum_diff=sum_diff+(qs_env%ks_env%v_hartree_rspace%pw%cr3d(jx,jy,jz)-&
+     sum_diff=sum_diff+(v_hartree_rspace%cr3d(jx,jy,jz)-&
               v_resp_rspace%pw%cr3d(jx,jy,jz))**2
-     sum_hartree=sum_hartree+qs_env%ks_env%v_hartree_rspace%pw%cr3d(jx,jy,jz)**2 
+     sum_hartree=sum_hartree+v_hartree_rspace%cr3d(jx,jy,jz)**2 
     ENDDO
      CALL mp_sum(sum_diff,para_env%group)
      CALL mp_sum(sum_hartree,para_env%group)

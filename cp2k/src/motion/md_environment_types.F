@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2014  CP2K developers group                          !
+!   Copyright (C) 2000 - 2015  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -23,7 +23,6 @@ MODULE md_environment_types
                                              cp_para_env_retain
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE extended_system_types,           ONLY: npt_info_type
-  USE f77_blas
   USE force_env_types,                 ONLY: force_env_release,&
                                              force_env_retain,&
                                              force_env_type
@@ -475,6 +474,7 @@ CONTAINS
 !> \param md_env ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
+!> \retval need_per_atom_wiener_process ...
 !> \par History
 !>      02.2012 created [noamb]
 !> \author Noam Bernstein

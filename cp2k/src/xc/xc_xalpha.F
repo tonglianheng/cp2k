@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2014  CP2K developers group                          !
+!   Copyright (C) 2000 - 2015  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -16,7 +16,6 @@
 ! *****************************************************************************
 MODULE xc_xalpha
   USE cp_array_r_utils,                ONLY: cp_3d_r_p_type
-  USE f77_blas
   USE input_section_types,             ONLY: section_vals_type,&
                                              section_vals_val_get
   USE kinds,                           ONLY: dp
@@ -343,7 +342,8 @@ ELSE
     REAL(KIND=dp)                            :: f
 
     f = sx * flda
-!$omp parallel do private(ip)
+!$omp parallel do private(ip) default(none) &
+!$omp shared(n,rho,eps_rho,pot,f,r13)
 
     DO ip = 1, n
       IF ( rho(ip) > eps_rho ) THEN
@@ -373,7 +373,8 @@ ELSE
     REAL(KIND=dp)                            :: f
 
     f = f43 * flda * sx
-!$omp parallel do private(ip)
+!$omp parallel do private(ip) default(none)&
+!$omp shared(n,rho,eps_rho,pot,f,r13)
     DO ip = 1, n
       IF ( rho(ip) > eps_rho ) THEN
          pot(ip) = pot(ip) + f * r13(ip)
@@ -402,7 +403,8 @@ ELSE
     REAL(KIND=dp)                            :: f
 
     f = f13 * f43 * flda * sx
-!$omp parallel do private(ip)
+!$omp parallel do private(ip) default(none)&
+!$omp shared(n,rho,eps_rho,pot,f,r13)
     DO ip = 1, n
       IF ( rho(ip) > eps_rho ) THEN
          pot(ip) = pot(ip) + f * r13(ip) / rho(ip)
@@ -431,7 +433,8 @@ ELSE
     REAL(KIND=dp)                            :: f
 
     f = -f23 * f13 * f43 * flda * sx
-!$omp parallel do private(ip)
+!$omp parallel do private(ip) default(none)&
+!$omp shared(n,rho,eps_rho,pot,f,r13)
     DO ip = 1, n
       IF ( rho(ip) > eps_rho ) THEN
          pot(ip) = pot(ip) + f * r13(ip) / ( rho(ip) * rho(ip) )
@@ -463,7 +466,8 @@ ELSE
 
     f = sx * flsd
 
-!$omp parallel do private(ip)
+!$omp parallel do private(ip) default(none)&
+!$omp shared(n,rhoa,eps_rho,pot,f,r13a)
     DO ip = 1, n
 
       IF ( rhoa(ip) > eps_rho ) THEN
@@ -497,7 +501,8 @@ ELSE
 
     f = f43 * flsd * sx
 
-!$omp parallel do private(ip)
+!$omp parallel do private(ip) default(none)&
+!$omp shared(n,rhoa,eps_rho,pota,f,r13a)
     DO ip = 1, n
 
       IF ( rhoa(ip) > eps_rho ) THEN
@@ -531,7 +536,8 @@ ELSE
 
     f = f13 * f43 * flsd * sx
 
-!$omp parallel do private(ip)
+!$omp parallel do private(ip) default(none)&
+!$omp shared(n,rhoa,eps_rho,potaa,f,r13a)
     DO ip = 1, n
 
       IF ( rhoa(ip) > eps_rho ) THEN
@@ -565,7 +571,8 @@ ELSE
 
     f = -f23 * f13 * f43 * flsd * sx
 
-!$omp parallel do private(ip)
+!$omp parallel do private(ip) default(none)&
+!$omp shared(n,rhoa,eps_rho,potaaa,f,r13a)
     DO ip = 1, n
 
       IF ( rhoa(ip) > eps_rho ) THEN

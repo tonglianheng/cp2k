@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2014  CP2K developers group                          !
+!   Copyright (C) 2000 - 2015  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -10,11 +10,10 @@
 !> \author Thomas D. Kuehne (tkuehne@phys.chem.ethz.ch)
 ! *****************************************************************************
 MODULE input_cp2k_eip
-  USE cp_output_handling,              ONLY: cp_print_key_section_create
-  USE f77_blas
-  USE input_constants,                 ONLY: high_print_level,&
-                                             medium_print_level,&
-                                             use_bazant_eip,&
+  USE cp_output_handling,              ONLY: cp_print_key_section_create,&
+                                             high_print_level,&
+                                             medium_print_level
+  USE input_constants,                 ONLY: use_bazant_eip,&
                                              use_lenosky_eip
   USE input_keyword_types,             ONLY: keyword_create,&
                                              keyword_release,&

@@ -1,13 +1,13 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2014  CP2K developers group                          !
+!   Copyright (C) 2000 - 2015  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
 !> \brief Collection of routines to handle the iteration info
 ! *****************************************************************************
 MODULE cp_iter_types
-  USE f77_blas
+  
   USE kinds,                           ONLY: default_path_length,&
                                              default_string_length
   USE message_passing,                 ONLY: mp_abort

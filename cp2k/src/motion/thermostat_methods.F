@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2014  CP2K developers group                          !
+!   Copyright (C) 2000 - 2015  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -38,7 +38,6 @@ MODULE thermostat_methods
                                              initialize_nhc_shell,&
                                              initialize_nhc_slow
   USE extended_system_types,           ONLY: npt_info_type
-  USE f77_blas
   USE force_env_types,                 ONLY: force_env_get,&
                                              force_env_type
   USE gle_system_dynamics,             ONLY: gle_particles,&
@@ -143,7 +142,7 @@ CONTAINS
       thermo_baro_section, thermo_part_section, thermo_shell_section, &
       work_section
 
-    NULLIFY(qmmm_env)
+    NULLIFY(qmmm_env,cell)
     failure =.FALSE.
     CALL allocate_thermostats(thermostats, error)
     adiabatic_fast_section  => section_vals_get_subs_vals(md_section,"ADIABATIC_DYNAMICS%THERMOSTAT_FAST",error=error)
@@ -581,6 +580,7 @@ CPSourceFileRef,&
 ! *****************************************************************************
 !> \brief ...
 !> \param thermostat ...
+!> \param force_env ...
 !> \param molecule_kind_set ...
 !> \param molecule_set ...
 !> \param particle_set ...
@@ -599,11 +599,12 @@ CPSourceFileRef,&
 !>      10.2007 created [tlaino]
 !> \author Teodoro Laino
 ! *****************************************************************************
-  SUBROUTINE apply_thermostat_particles(thermostat, molecule_kind_set, molecule_set,&
+  SUBROUTINE apply_thermostat_particles(thermostat, force_env, molecule_kind_set, molecule_set,&
        particle_set, local_molecules, local_particles, group, shell_adiabatic, shell_particle_set,&
        core_particle_set, vel, shell_vel, core_vel, error)
 
     TYPE(thermostat_type), POINTER           :: thermostat
+    TYPE(force_env_type), POINTER            :: force_env
     TYPE(molecule_kind_type), POINTER        :: molecule_kind_set( : )
     TYPE(molecule_type), POINTER             :: molecule_set( : )
     TYPE(particle_type), POINTER             :: particle_set( : )
@@ -639,7 +640,7 @@ CPSourceFileRef,&
        ELSE IF (thermostat%type_of_thermostat==do_thermo_al) THEN  
           ! Apply AD_LANGEVIN Thermostat
           CPPostcondition(ASSOCIATED(thermostat%al),cp_failure_level,routineP,error,failure)
-          CALL al_particles(thermostat%al,molecule_kind_set,molecule_set,&
+          CALL al_particles(thermostat%al,force_env,molecule_kind_set,molecule_set,&
                particle_set,local_molecules, local_particles, group, vel, error)
        ELSE IF (thermostat%type_of_thermostat==do_thermo_gle) THEN
          ! Apply GLE Thermostat

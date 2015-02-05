@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2014  CP2K developers group                          !
+!   Copyright (C) 2000 - 2015  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -14,13 +14,12 @@ MODULE qs_outer_scf
                                              ddapc_restraint_type,&
                                              dft_control_type,&
                                              s2_restraint_type
-  USE f77_blas
   USE input_constants,                 ONLY: &
        do_ddapc_constraint, do_s2_constraint, outer_scf_becke_constraint, &
        outer_scf_ddapc_constraint, outer_scf_none, &
        outer_scf_optimizer_bisect, outer_scf_optimizer_diis, &
        outer_scf_optimizer_none, outer_scf_optimizer_sd, &
-       outer_scf_s2_constraint, outer_scf_scp
+       outer_scf_s2_constraint
   USE kinds,                           ONLY: dp
   USE mathlib,                         ONLY: diamat_all
   USE qs_energy_types,                 ONLY: qs_energy_type
@@ -69,8 +68,6 @@ CONTAINS
     CASE (outer_scf_becke_constraint)
        res=1
     CASE (outer_scf_none) ! just needed to communicate the gradient criterium
-       res=1
-    CASE (outer_scf_scp)
        res=1
     CASE DEFAULT
        res=0
@@ -148,15 +145,6 @@ CONTAINS
        scf_env%outer_scf%variables(:,ihistory)=becke_control%strength
        scf_env%outer_scf%gradient(:,ihistory) =becke_control%becke_order_p- &
             becke_control%target
-    CASE (outer_scf_scp)
-       scf_env%outer_scf%variables(1,ihistory)=scf_env%outer_scf%energy(ihistory)
-
-       IF ( ihistory == 1 ) THEN
-          scf_env%outer_scf%gradient(1,ihistory)=scf_env%outer_scf%energy(ihistory)
-       ELSE
-          scf_env%outer_scf%gradient(1,ihistory)=scf_env%outer_scf%energy(ihistory)- &
-               scf_env%outer_scf%energy(ihistory-1)
-       ENDIF
     CASE DEFAULT
        CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)
     END SELECT
@@ -199,7 +187,7 @@ CONTAINS
     ihistory=scf_env%outer_scf%iter_count
     optimizer_type=scf_control%outer_scf%optimizer
 
-100 CONTINUE ! if we need a different run type we'll restart here
+    DO WHILE(.TRUE.) ! if we need a different run type we'll restart here
 
     SELECT CASE(optimizer_type)
     CASE(outer_scf_optimizer_bisect) ! bisection on the gradient, needs to be 1D
@@ -228,7 +216,7 @@ CONTAINS
        ENDDO
        IF (ilow == -1) THEN ! we didn't bracket a minimum yet, try something else
           optimizer_type=outer_scf_optimizer_diis
-          GOTO 100
+          CYCLE
        ENDIF
        scf_env%outer_scf%count(ilow)=scf_env%outer_scf%count(ilow)+1
        scf_env%outer_scf%count(ihigh)=scf_env%outer_scf%count(ihigh)+1
@@ -248,7 +236,7 @@ CONTAINS
        nb=MIN(ihistory,scf_control%outer_scf%diis_buffer_length)
        IF (nb<2) THEN
           optimizer_type = outer_scf_optimizer_sd
-          GOTO 100
+          CYCLE
        ELSE
           ALLOCATE(b(nb+1,nb+1),a(nb+1,nb+1),ev(nb+1),ipivot(nb+1))
           DO I=1,nb
@@ -286,6 +274,8 @@ CONTAINS
     CASE DEFAULT
        CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)
     END SELECT
+    EXIT
+    ENDDO
 
     CALL timestop(handle)
 
@@ -325,8 +315,6 @@ CONTAINS
 
     SELECT CASE(scf_control%outer_scf%type)
     CASE (outer_scf_none)
-       ! do nothing
-    CASE (outer_scf_scp)
        ! do nothing
     CASE (outer_scf_ddapc_constraint)
        DO n=1,SIZE(dft_control%qs_control%ddapc_restraint_control)
@@ -399,8 +387,6 @@ CONTAINS
     SELECT CASE(scf_control%outer_scf%type)
     CASE (outer_scf_none)
        outer_scf_history(1,ivec)=0.0_dp
-    CASE (outer_scf_scp)
-       outer_scf_history(1,ivec)=0.0_dp
     CASE (outer_scf_ddapc_constraint)
        DO n=1,SIZE(dft_control%qs_control%ddapc_restraint_control)
           NULLIFY(ddapc_restraint_control)
@@ -435,8 +421,6 @@ CONTAINS
     ! update qs_env to use this extrapolation
     SELECT CASE(scf_control%outer_scf%type)
     CASE (outer_scf_none)
-       ! nothing
-    CASE (outer_scf_scp)
        ! nothing
     CASE (outer_scf_ddapc_constraint)
        ddapc_restraint_control%strength=extrapolation(1)

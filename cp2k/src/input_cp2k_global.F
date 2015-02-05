@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2014  CP2K developers group                          !
+!   Copyright (C) 2000 - 2015  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -26,20 +26,24 @@ MODULE input_cp2k_global
        dbcsr_get_conf_subcomm, dbcsr_get_conf_use_comm_thread, mm_driver_acc, &
        mm_driver_blas, mm_driver_matmul, mm_driver_smm, mm_name_acc, &
        mm_name_blas, mm_name_matmul, mm_name_smm, multrec_limit
-  USE cp_output_handling,              ONLY: cp_print_key_section_create
-  USE f77_blas
+  USE cp_output_handling,              ONLY: add_last_numeric,&
+                                             cp_print_key_section_create,&
+                                             debug_print_level,&
+                                             high_print_level,&
+                                             low_print_level,&
+                                             medium_print_level,&
+                                             silent_print_level
   USE input_constants,                 ONLY: &
-       add_last_numeric, bsse_run, callgraph_all, callgraph_master, &
-       callgraph_none, cell_opt_run, debug_print_level, debug_run, do_atom, &
-       do_band, do_cp2k, do_dbcsr, do_diag_elpa, do_diag_sl, do_diag_sl2, &
-       do_farming, do_fft_fftw3, do_fft_sg, do_opt_basis, do_optimize_input, &
-       do_pdgemm, do_swarm, do_tamc, do_test, do_tree_mc, do_tree_mc_ana, &
-       driver_run, ehrenfest, electronic_spectra_run, energy_force_run, &
-       energy_run, fftw_plan_estimate, fftw_plan_exhaustive, &
-       fftw_plan_measure, fftw_plan_patient, gaussian, geo_opt_run, &
-       high_print_level, linear_response_run, low_print_level, &
-       medium_print_level, mol_dyn_run, mon_car_run, none_run, pint_run, &
-       real_time_propagation, silent_print_level, tree_mc_run, vib_anal
+       bsse_run, callgraph_all, callgraph_master, callgraph_none, &
+       cell_opt_run, debug_run, do_atom, do_band, do_cp2k, do_dbcsr, &
+       do_diag_elpa, do_diag_sl, do_diag_sl2, do_farming, do_fft_fftw3, &
+       do_fft_sg, do_opt_basis, do_optimize_input, do_pdgemm, do_swarm, &
+       do_tamc, do_test, do_tree_mc, do_tree_mc_ana, driver_run, ehrenfest, &
+       electronic_spectra_run, energy_force_run, energy_run, &
+       fftw_plan_estimate, fftw_plan_exhaustive, fftw_plan_measure, &
+       fftw_plan_patient, gaussian, geo_opt_run, linear_response_run, &
+       mol_dyn_run, mon_car_run, none_run, pint_run, real_time_propagation, &
+       tree_mc_run, vib_anal
   USE input_keyword_types,             ONLY: keyword_create,&
                                              keyword_release,&
                                              keyword_type
@@ -268,8 +272,8 @@ CONTAINS
          "MC", "SPECTRA", "DEBUG", "BSSE", "LR", "PINT", "VIBRATIONAL_ANALYSIS",&
          "BAND", "CELL_OPT", "WFN_OPT", "WAVEFUNCTION_OPTIMIZATION",&
          "MOLECULAR_DYNAMICS", "GEOMETRY_OPTIMIZATION", "MONTECARLO",&
-         "ELECTRONIC_SPECTRA", "LINEAR_RESPONSE", "NORMAL_MODES","RT_PROPAGATION",&
-         "EHRENFEST_DYN","TAMC","TMC","DRIVER"),&
+         "ELECTRONIC_SPECTRA", "LINEAR_RESPONSE", "NORMAL_MODES", "RT_PROPAGATION",&
+         "EHRENFEST_DYN", "TAMC", "TMC", "DRIVER"),&
          enum_i_vals=(/ none_run, energy_run, energy_force_run, mol_dyn_run,&
           geo_opt_run, mon_car_run, electronic_spectra_run, debug_run,&
           bsse_run, linear_response_run, pint_run, vib_anal,do_band,&
@@ -284,7 +288,9 @@ CONTAINS
          "Alias for MC","Alias for SPECTRA","Alias for LR","Alias for VIBRATIONAL_ANALYSIS",&
          "Real Time propagation run (fixed ionic positions)",&
          "Ehrenfest dynamics (using real time propagation of the wavefunction)",&
-         "TAMC", "TreeMonteCarlo (TMC), a pre sampling MC algorithma","i-PI driver mode"),&
+         "Temperature Accelerated Monte Carlo (TAMC)",&
+         "Tree Monte Carlo (TMC), a pre-sampling MC algorithm",&
+         "i-PI driver mode"),&
          supported_feature=.TRUE.,error=error)
     CALL section_add_keyword(section,keyword,error=error)
     CALL keyword_release(keyword,error=error)
@@ -473,12 +479,7 @@ CONTAINS
                         supported_feature=.TRUE.,error=error)
     CALL section_add_keyword(print_key,keyword,error=error)
     CALL keyword_release(keyword,error=error)
-    CALL keyword_create(keyword,"HPM",&
-         description="if the keyword is active controls the printing of the hpm info (if linked as"//&
-         " external library, on IBM only)",&
-         default_l_val=.TRUE.,lone_keyword_l_val=.TRUE.,supported_feature=.TRUE.,error=error)
-    CALL section_add_keyword(print_key,keyword,error=error)
-    CALL keyword_release(keyword,error=error)
+
     CALL section_add_subsection(section,print_key,error=error)
     CALL section_release(print_key,error=error)
     NULLIFY(sub_section)
@@ -711,6 +712,17 @@ CONTAINS
     CALL section_add_keyword(section,keyword,error=error)
     CALL keyword_release(keyword,error=error)
     !
+    CALL keyword_create(keyword, name="max_elements_images",&
+         description="Maximum number of elements (dense limit)" &
+         // " for each image, which also corresponds to" &
+         // " the number of elements exchanged between MPI processes" &
+         // " during the operations." &
+         // " A negative or zero value means unlimited.",&
+         usage="max_elements_images 10000",&
+         default_i_val=-1,error=error)
+    CALL section_add_keyword(section,keyword,error=error)
+    CALL keyword_release(keyword,error=error)
+    !    
     CALL keyword_create(keyword, name="n_size_mnk_stacks",&
          description="Number of stacks to use for distinct atomic sizes" &
          // " (e.g., 2 for a system of mostly waters). "&

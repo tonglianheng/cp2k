@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2014  CP2K developers group                          !
+!   Copyright (C) 2000 - 2015  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -14,7 +14,6 @@ MODULE xc_derivative_set_types
                                              cp_sll_xc_deriv_insert_ordered,&
                                              cp_sll_xc_deriv_next,&
                                              cp_sll_xc_deriv_type
-  USE f77_blas
   USE kinds,                           ONLY: dp
   USE message_passing,                 ONLY: MPI_COMM_SELF
   USE pw_grid_types,                   ONLY: pw_grid_type

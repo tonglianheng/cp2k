@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2014  CP2K developers group                          !
+!   Copyright (C) 2000 - 2015  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -13,7 +13,7 @@
 ! *****************************************************************************
 MODULE semi_empirical_integrals
 
-  USE f77_blas
+  
   USE hfx_compression_methods,         ONLY: hfx_add_mult_cache_elements,&
                                              hfx_get_mult_cache_elements
   USE input_constants,                 ONLY: do_se_IS_slater
@@ -144,7 +144,7 @@ CONTAINS
                 memory_usage = store_int_env%memory_parameter%actual_memory_usage
                 CPPrecondition((nints/1.2_dp)<=HUGE(0)-memory_usage,cp_failure_level,routineP,error,failure)
                 IF (memory_usage+nints>SIZE(store_int_env%uncompressed_container)) THEN
-                   new_size = (memory_usage+nints)*1.2_dp
+                   new_size = INT((memory_usage+nints)*1.2_dp)
                    CALL reallocate(store_int_env%uncompressed_container, 1, new_size)
                 END IF
                 store_int_env%uncompressed_container(memory_usage:memory_usage+nints-1)=w(1:nints)
@@ -318,7 +318,7 @@ CONTAINS
                 memory_usage = store_int_env%memory_parameter%actual_memory_usage
                 CPPrecondition((nints/1.2_dp)<=HUGE(0)-memory_usage,cp_failure_level,routineP,error,failure)
                 IF (memory_usage+nints>SIZE(store_int_env%uncompressed_container)) THEN
-                   new_size = (memory_usage+nints)*1.2_dp
+                   new_size = INT((memory_usage+nints)*1.2_dp)
                    CALL reallocate(store_int_env%uncompressed_container, 1, new_size)
                 END IF
                 store_int_env%uncompressed_container(memory_usage:memory_usage+nints-1)=w(1:nints)

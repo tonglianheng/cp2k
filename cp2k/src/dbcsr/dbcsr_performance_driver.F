@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2014  CP2K developers group                          !
+!   Copyright (C) 2000 - 2015  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -20,10 +20,10 @@ PROGRAM dbcsr_performance_driver
                                              dbcsr_error_type,&
                                              dbcsr_fatal_level,&
                                              dbcsr_wrong_args_error
-  USE dbcsr_methods,                   ONLY: dbcsr_mp_new,&
-                                             dbcsr_mp_release
-  USE dbcsr_operations,                ONLY: dbcsr_finalize_lib,&
+  USE dbcsr_lib,                       ONLY: dbcsr_finalize_lib,&
                                              dbcsr_init_lib
+  USE dbcsr_mp_methods,                ONLY: dbcsr_mp_new,&
+                                             dbcsr_mp_release
   USE dbcsr_performance_multiply,      ONLY: dbcsr_perf_multiply
   USE dbcsr_test_methods,              ONLY: dbcsr_test_read_args
   USE dbcsr_types,                     ONLY: dbcsr_mp_obj

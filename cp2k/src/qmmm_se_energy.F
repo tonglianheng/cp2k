@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2014  CP2K developers group                          !
+!   Copyright (C) 2000 - 2015  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -11,7 +11,7 @@
 MODULE qmmm_se_energy
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind
-  USE cell_methods,                    ONLY: cell_type,&
+  USE cell_types,                      ONLY: cell_type,&
                                              pbc
   USE cp_control_types,                ONLY: dft_control_type
   USE cp_dbcsr_interface,              ONLY: cp_dbcsr_allocate_matrix_set,&
@@ -26,25 +26,28 @@ MODULE qmmm_se_energy
                                              cp_print_key_should_output,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE f77_blas
   USE input_constants,                 ONLY: &
        do_method_am1, do_method_mndo, do_method_mndod, do_method_pchg, &
        do_method_pdg, do_method_pm3, do_method_pm6, do_method_pnnl, &
-       do_method_rm1, do_multipole_none, do_qmmm_coulomb, do_qmmm_gauss, &
-       do_qmmm_none, do_qmmm_swave, use_orb_basis_set
+       do_method_rm1, do_qmmm_coulomb, do_qmmm_gauss, do_qmmm_none, &
+       do_qmmm_pcharge, do_qmmm_swave, use_orb_basis_set
   USE kinds,                           ONLY: dp
   USE message_passing,                 ONLY: mp_sum
+  USE multipole_types,                 ONLY: do_multipole_none
   USE particle_types,                  ONLY: particle_type
   USE qmmm_types,                      ONLY: qmmm_env_qm_type,&
                                              qmmm_pot_p_type,&
                                              qmmm_pot_type
   USE qmmm_util,                       ONLY: spherical_cutoff_factor
+  USE qs_energy_types,                 ONLY: qs_energy_type
   USE qs_environment_types,            ONLY: get_qs_env,&
-                                             qs_environment_type,&
-                                             set_qs_env
+                                             qs_environment_type
   USE qs_kind_types,                   ONLY: get_qs_kind,&
                                              qs_kind_type
   USE qs_ks_qmmm_types,                ONLY: qs_ks_qmmm_env_type
+  USE qs_ks_types,                     ONLY: qs_ks_env_type,&
+                                             set_ks_env
+  USE qs_neighbor_list_types,          ONLY: neighbor_list_set_p_type
   USE qs_neighbor_lists,               ONLY: build_qs_neighbor_lists
   USE qs_overlap,                      ONLY: build_overlap_matrix
   USE semi_empirical_int_arrays,       ONLY: se_orbital_pointer
@@ -110,10 +113,14 @@ CONTAINS
       POINTER                                :: matrix_s
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(dft_control_type), POINTER          :: dft_control
+    TYPE(neighbor_list_set_p_type), &
+      DIMENSION(:), POINTER                  :: sab_orb
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particles_qm
+    TYPE(qs_energy_type), POINTER            :: energy
     TYPE(qs_kind_type), DIMENSION(:), &
       POINTER                                :: qs_kind_set
+    TYPE(qs_ks_env_type), POINTER            :: ks_env
     TYPE(qs_ks_qmmm_env_type), POINTER       :: ks_qmmm_env_loc
     TYPE(se_int_control_type)                :: se_int_control
     TYPE(se_taper_type), POINTER             :: se_taper
@@ -124,18 +131,24 @@ CONTAINS
     NULLIFY(logger)
     logger => cp_error_get_logger(error)
 
-    NULLIFY (matrix_s, atomic_kind_set, qs_kind_set)
-    NULLIFY (se_kind_a, se_kind_mm, se_taper, particles_qm)
+    NULLIFY (matrix_s, atomic_kind_set, qs_kind_set, energy)
+    NULLIFY (se_kind_a, se_kind_mm, se_taper, particles_qm, ks_env, sab_orb)
     CALL build_qs_neighbor_lists(qs_env,para_env,force_env_section=qs_env%input,error=error)
-    CALL get_qs_env(qs_env=qs_env, matrix_s=matrix_s, error=error)
-    CALL build_overlap_matrix(qs_env,matrix_s=matrix_s,&
+    CALL get_qs_env(qs_env,&
+                    ks_env=ks_env,&
+                    matrix_s=matrix_s,&
+                    energy=energy,&
+                    sab_orb=sab_orb,&
+                    error=error)
+
+    CALL build_overlap_matrix(ks_env,matrix_s=matrix_s,&
                               matrix_name="OVERLAP",&
                               basis_set_id_a=use_orb_basis_set,&
                               basis_set_id_b=use_orb_basis_set, &
-                              sab_nl=qs_env%sab_orb,&
+                              sab_nl=sab_orb,&
                               error=error)
 
-    CALL set_qs_env(qs_env=qs_env,matrix_s=matrix_s,error=error)
+    CALL set_ks_env(ks_env,matrix_s=matrix_s,error=error)
     CALL get_qs_env(qs_env=qs_env,&
                     se_taper=se_taper,&
                     atomic_kind_set=atomic_kind_set,&
@@ -172,7 +185,7 @@ CONTAINS
     CALL cp_dbcsr_set(ks_qmmm_env_loc%matrix_h(1)%matrix,0.0_dp,error)
 
     SELECT CASE(qmmm_env%qmmm_coupl_type)
-    CASE(do_qmmm_coulomb,do_qmmm_gauss,do_qmmm_swave)
+    CASE(do_qmmm_coulomb,do_qmmm_gauss,do_qmmm_swave,do_qmmm_pcharge)
        ! Create a fake semi-empirical type to handle the classical atom
        CALL semi_empirical_create(se_kind_mm,error)
        CALL se_param_set_default(se_kind_mm,0,do_method_pchg,error)
@@ -241,7 +254,7 @@ CONTAINS
           END DO Atoms
        END DO Kinds
        CALL mp_sum(enuclear,para_env%group)
-       qs_env%energy%qmmm_nu = enuclear
+       energy%qmmm_nu = enuclear
        CALL semi_empirical_release(se_kind_mm,error)
     CASE(do_qmmm_none)
        ! Zero Matrix

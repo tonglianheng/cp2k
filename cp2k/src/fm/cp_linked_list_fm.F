@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2014  CP2K developers group                          !
+!   Copyright (C) 2000 - 2015  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! less not much meningful...
@@ -47,7 +47,6 @@
 MODULE cp_linked_list_fm
   USE cp_fm_types,                     ONLY: cp_fm_p_type,&
                                              cp_fm_type
-  USE f77_blas
   USE kinds,                           ONLY: dp
 #include "../common/cp_common_uses.f90"
 
@@ -286,9 +285,9 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_sll_fm_dealloc_node', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
     LOGICAL                                  :: failure
 
+    INTEGER:: stat
     failure=.FALSE.
 
     DEALLOCATE(sll, stat=stat)

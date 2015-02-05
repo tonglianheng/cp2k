@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2014  CP2K developers group                          !
+!   Copyright (C) 2000 - 2015  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -12,7 +12,6 @@ MODULE constraint_util
   USE cell_types,                      ONLY: cell_type
   USE colvar_methods,                  ONLY: colvar_eval_mol_f
   USE distribution_1d_types,           ONLY: distribution_1d_type
-  USE f77_blas
   USE kinds,                           ONLY: dp,&
                                              int_size
   USE mathlib,                         ONLY: matmul_3x3,&

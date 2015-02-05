@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2014  CP2K developers group                          !
+!   Copyright (C) 2000 - 2015  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -10,7 +10,6 @@ MODULE atom
   USE atom_pseudo,                     ONLY: atom_pseudo_opt
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
-  USE f77_blas
   USE header,                          ONLY: atom_footer,&
                                              atom_header
   USE input_constants,                 ONLY: atom_basis_run,&

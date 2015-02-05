@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2014  CP2K developers group                          !
+!   Copyright (C) 2000 - 2015  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -27,7 +27,7 @@ MODULE integrator
                                              get_atomic_kind,&
                                              get_atomic_kind_set
   USE barostat_types,                  ONLY: barostat_type
-  USE cell_methods,                    ONLY: cell_type,&
+  USE cell_types,                      ONLY: cell_type,&
                                              init_cell,&
                                              parse_cell_line
   USE constraint,                      ONLY: rattle_control,&
@@ -37,6 +37,7 @@ MODULE integrator
   USE constraint_fxd,                  ONLY: fix_atom_control
   USE constraint_util,                 ONLY: getold,&
                                              pv_constraint
+  USE cp_control_types,                ONLY: dft_control_type
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_parser_methods,               ONLY: parser_get_next_line,&
                                              parser_read_line
@@ -47,10 +48,8 @@ MODULE integrator
   USE eigenvalueproblems,              ONLY: diagonalise
   USE extended_system_dynamics,        ONLY: shell_scale_comv
   USE extended_system_types,           ONLY: npt_info_type
-  USE f77_blas
   USE force_env_methods,               ONLY: force_env_calc_energy_force
   USE force_env_types,                 ONLY: force_env_get,&
-                                             force_env_set_cell,&
                                              force_env_type
   USE global_types,                    ONLY: global_environment_type
   USE input_constants,                 ONLY: npe_f_ensemble,&
@@ -82,6 +81,7 @@ MODULE integrator
                                              femtoseconds
   USE qmmm_update,                     ONLY: qmmm_update_force_mixing_env
   USE qmmm_util,                       ONLY: apply_qmmm_walls_reflective
+  USE qs_environment_types,            ONLY: get_qs_env
   USE reftraj_types,                   ONLY: reftraj_type
   USE reftraj_util,                    ONLY: compute_msd_reftraj
   USE shell_opt,                       ONLY: optimize_shell_core
@@ -181,8 +181,7 @@ CONTAINS
     gam = simpar%gamma+simpar%shadow_gamma
     nshell = 0
 
-    CALL force_env_get(force_env=force_env,subsys=subsys,cell=cell,&
-         virial=virial,error=error)
+    CALL force_env_get(force_env=force_env,subsys=subsys,cell=cell,error=error)
 
     ! Do some checks on coordinates and box
     CALL apply_qmmm_walls_reflective(force_env, error=error)
@@ -196,6 +195,7 @@ CONTAINS
                        molecule_kinds_new=molecule_kinds,&
                        nshell=nshell,&
                        particles=particles,&
+                       virial=virial,&
                        error=error)
     CALL cp_assert((nshell == 0),cp_failure_level,cp_assertion_failed,routineP,&
                    "Langevin dynamics is not yet implemented for core-shell models",&
@@ -417,6 +417,7 @@ CONTAINS
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cp_subsys_type), POINTER            :: subsys
+    TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(distribution_1d_type), POINTER      :: local_molecules, &
                                                 local_particles
     TYPE(force_env_type), POINTER            :: force_env
@@ -445,20 +446,19 @@ CONTAINS
     NULLIFY (subsys, simpar, para_env, cell, gci, force_env, virial)
     NULLIFY (atomic_kinds, local_particles, molecules, molecule_kind_set, molecule_set, particle_set)
     NULLIFY (shell_particles, shell_particle_set, core_particles, &
-            core_particle_set, thermostat_shell)
+            core_particle_set, thermostat_shell, dft_control)
     CALL get_md_env(md_env=md_env,simpar=simpar,force_env=force_env,&
          thermostat_coeff=thermostat_coeff,thermostat_shell=thermostat_shell,&
          para_env=para_env, ehrenfest_md=ehrenfest_md, error=error)
     dt = simpar%dt
-    CALL force_env_get(force_env=force_env, subsys=subsys,&
-         virial=virial, cell=cell, error=error)
+    CALL force_env_get(force_env=force_env, subsys=subsys,cell=cell, error=error)
 
     ! Do some checks on coordinates and box
     CALL apply_qmmm_walls_reflective(force_env, error=error)
 
     CALL cp_subsys_get(subsys=subsys,atomic_kinds=atomic_kinds,local_particles=local_particles,&
          particles=particles,local_molecules_new=local_molecules,molecules_new=molecules, &
-         molecule_kinds_new=molecule_kinds,gci=gci,error=error)
+         molecule_kinds_new=molecule_kinds,gci=gci,virial=virial,error=error)
 
     nparticle_kind = atomic_kinds%n_els
     atomic_kind_set => atomic_kinds%els
@@ -534,7 +534,8 @@ CONTAINS
             core_particle_set, para_env, shell_adiabatic, vel=.TRUE.,&
             should_deall_vel=.FALSE.,error=error )
        tmp%vel=v_old
-       n_iter=force_env%qs_env%dft_control%rtp_control%max_iter
+       CALL get_qs_env(force_env%qs_env, dft_control=dft_control, error=error)
+       n_iter=dft_control%rtp_control%max_iter
     ELSE
        n_iter=1
     END IF
@@ -813,15 +814,14 @@ CONTAINS
          para_env=para_env, error=error)
     dt = simpar%dt
 
-    CALL force_env_get(force_env=force_env, subsys=subsys, &
-         virial=virial, cell=cell,error=error)
+    CALL force_env_get(force_env=force_env, subsys=subsys, cell=cell,error=error)
 
     ! Do some checks on coordinates and box
     CALL apply_qmmm_walls_reflective(force_env, error=error)
 
     CALL cp_subsys_get(subsys=subsys,atomic_kinds=atomic_kinds,local_particles=local_particles,&
          particles=particles,local_molecules_new=local_molecules,molecules_new=molecules,&
-         molecule_kinds_new=molecule_kinds,gci=gci,error=error)
+         molecule_kinds_new=molecule_kinds,gci=gci,virial=virial,error=error)
 
     nparticle_kind  = atomic_kinds%n_els
     atomic_kind_set => atomic_kinds%els
@@ -869,10 +869,10 @@ CONTAINS
             local_particles, para_env%group, shell_particle_set=shell_particle_set,&
             core_particle_set=core_particle_set, error=error)
     ELSE
-       CALL apply_thermostat_particles(thermostat_fast, molecule_kind_set, molecule_set,&
+       CALL apply_thermostat_particles(thermostat_fast, force_env, molecule_kind_set, molecule_set,&
             particle_set, local_molecules, local_particles, para_env%group ,error=error)
 
-       CALL apply_thermostat_particles(thermostat_slow, molecule_kind_set, molecule_set,&
+       CALL apply_thermostat_particles(thermostat_slow, force_env, molecule_kind_set, molecule_set,&
             particle_set, local_molecules, local_particles, para_env%group ,error=error)
     END IF
 
@@ -943,10 +943,10 @@ CONTAINS
             local_particles, para_env%group, vel= tmp%vel, shell_vel= tmp%shell_vel, &
             core_vel= tmp%core_vel, error=error)
     ELSE
-       CALL apply_thermostat_particles(thermostat_slow,molecule_kind_set, molecule_set, &
+       CALL apply_thermostat_particles(thermostat_slow, force_env,molecule_kind_set, molecule_set, &
             particle_set, local_molecules, local_particles, para_env%group, vel= tmp%vel, error=error)
 
-       CALL apply_thermostat_particles(thermostat_fast,molecule_kind_set, molecule_set, &
+       CALL apply_thermostat_particles(thermostat_fast, force_env,molecule_kind_set, molecule_set, &
             particle_set, local_molecules, local_particles, para_env%group, vel= tmp%vel, error=error)
     END IF
 
@@ -1043,15 +1043,14 @@ CONTAINS
          error=error)
     dt = simpar%dt
 
-    CALL force_env_get(force_env=force_env, subsys=subsys, &
-         virial=virial, cell=cell,error=error)
+    CALL force_env_get(force_env=force_env, subsys=subsys, cell=cell,error=error)
 
     ! Do some checks on coordinates and box
     CALL apply_qmmm_walls_reflective(force_env, error=error)
 
     CALL cp_subsys_get(subsys=subsys,atomic_kinds=atomic_kinds,local_particles=local_particles,&
          particles=particles,local_molecules_new=local_molecules,molecules_new=molecules,&
-         molecule_kinds_new=molecule_kinds,gci=gci,error=error)
+         molecule_kinds_new=molecule_kinds,gci=gci,virial=virial,error=error)
 
     nparticle_kind  = atomic_kinds%n_els
     atomic_kind_set => atomic_kinds%els
@@ -1090,7 +1089,7 @@ CONTAINS
 
     ! Apply Thermostat over the full set of particles
     IF(shell_adiabatic) THEN
-       CALL apply_thermostat_particles(thermostat_part, molecule_kind_set, molecule_set,&
+       CALL apply_thermostat_particles(thermostat_part, force_env, molecule_kind_set, molecule_set,&
             particle_set, local_molecules, local_particles, para_env%group, shell_adiabatic=shell_adiabatic,&
             shell_particle_set=shell_particle_set, core_particle_set=core_particle_set,&
             error=error)
@@ -1099,7 +1098,7 @@ CONTAINS
             local_particles, para_env%group, shell_particle_set=shell_particle_set,&
             core_particle_set=core_particle_set, error=error)
     ELSE
-       CALL apply_thermostat_particles(thermostat_part, molecule_kind_set, molecule_set,&
+       CALL apply_thermostat_particles(thermostat_part, force_env, molecule_kind_set, molecule_set,&
             particle_set, local_molecules, local_particles, para_env%group ,error=error)
     END IF
 
@@ -1151,12 +1150,11 @@ CONTAINS
     ![NB] recreate pointers changed by creation of new subsys in qmmm_update_force_mixing_env
     ![NB] ugly hack, which is why adaptivity isn't implemented in most other ensembles
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-    CALL force_env_get(force_env=force_env, subsys=subsys, &
-       virial=virial, cell=cell,error=error)
+    CALL force_env_get(force_env=force_env, subsys=subsys, cell=cell,error=error)
 
     CALL cp_subsys_get(subsys=subsys,atomic_kinds=atomic_kinds,local_particles=local_particles,&
        particles=particles,local_molecules_new=local_molecules,molecules_new=molecules,&
-       molecule_kinds_new=molecule_kinds,gci=gci,error=error)
+       molecule_kinds_new=molecule_kinds,gci=gci,virial=virial,error=error)
 
     nparticle_kind  = atomic_kinds%n_els
     atomic_kind_set => atomic_kinds%els
@@ -1201,7 +1199,7 @@ CONTAINS
 
     ! Apply Thermostat over the full set of particles
     IF (shell_adiabatic) THEN
-       CALL apply_thermostat_particles(thermostat_part,molecule_kind_set, molecule_set, &
+       CALL apply_thermostat_particles(thermostat_part, force_env,molecule_kind_set, molecule_set, &
             particle_set, local_molecules, local_particles, para_env%group, shell_adiabatic=shell_adiabatic,&
             vel= tmp%vel, shell_vel= tmp%shell_vel, core_vel= tmp%core_vel, error=error)
 
@@ -1209,7 +1207,7 @@ CONTAINS
             local_particles, para_env%group, vel= tmp%vel, shell_vel= tmp%shell_vel, &
             core_vel= tmp%core_vel, error=error)
     ELSE
-       CALL apply_thermostat_particles(thermostat_part,molecule_kind_set, molecule_set, &
+       CALL apply_thermostat_particles(thermostat_part, force_env,molecule_kind_set, molecule_set, &
             particle_set, local_molecules, local_particles, para_env%group, vel= tmp%vel, error=error)
     END IF
 
@@ -1319,15 +1317,14 @@ CONTAINS
     dt = simpar%dt
     infree = 1.0_dp / REAL ( simpar%nfree,KIND=dp)
 
-    CALL force_env_get(force_env=force_env, subsys=subsys, virial=virial,&
-         cell=cell, error=error)
+    CALL force_env_get(force_env=force_env, subsys=subsys, cell=cell, error=error)
 
     ! Do some checks on coordinates and box
     CALL apply_qmmm_walls_reflective(force_env, error=error)
 
     CALL cp_subsys_get(subsys=subsys,atomic_kinds=atomic_kinds,local_particles=local_particles,&
          particles=particles,local_molecules_new=local_molecules,molecules_new=molecules, &
-         gci=gci,molecule_kinds_new=molecule_kinds ,error=error)
+         gci=gci,molecule_kinds_new=molecule_kinds,virial=virial,error=error)
 
     nparticle_kind = atomic_kinds%n_els
     atomic_kind_set => atomic_kinds%els
@@ -1380,13 +1377,13 @@ CONTAINS
     ! Apply Thermostat over the full set of particles
     IF(simpar% ensemble /= npe_i_ensemble) THEN
       IF(shell_adiabatic) THEN
-        CALL apply_thermostat_particles(thermostat_part, molecule_kind_set, molecule_set,&
+        CALL apply_thermostat_particles(thermostat_part, force_env, molecule_kind_set, molecule_set,&
              particle_set, local_molecules, local_particles, para_env%group,shell_adiabatic=shell_adiabatic,&
              shell_particle_set=shell_particle_set, core_particle_set=core_particle_set,&
              error=error)
 
       ELSE
-        CALL apply_thermostat_particles(thermostat_part, molecule_kind_set, molecule_set,&
+        CALL apply_thermostat_particles(thermostat_part, force_env, molecule_kind_set, molecule_set,&
              particle_set, local_molecules, local_particles, para_env%group ,error=error)
       END IF
     END IF
@@ -1492,7 +1489,6 @@ CONTAINS
     END IF
 
     ! Update forces
-    CALL force_env_set_cell(force_env, cell, error)
     CALL force_env_calc_energy_force(force_env,error=error)
 
     ! Metadynamics
@@ -1529,11 +1525,11 @@ CONTAINS
     ! Apply Thermostat over the full set of particles
     IF(simpar% ensemble /= npe_i_ensemble) THEN
       IF (shell_adiabatic) THEN
-        CALL apply_thermostat_particles(thermostat_part,molecule_kind_set, molecule_set, &
+        CALL apply_thermostat_particles(thermostat_part, force_env,molecule_kind_set, molecule_set, &
              particle_set, local_molecules, local_particles, para_env%group, shell_adiabatic=shell_adiabatic,&
              vel=tmp%vel, shell_vel=tmp%shell_vel, core_vel=tmp%core_vel, error=error)
       ELSE
-        CALL apply_thermostat_particles(thermostat_part,molecule_kind_set, molecule_set, &
+        CALL apply_thermostat_particles(thermostat_part, force_env,molecule_kind_set, molecule_set, &
              particle_set, local_molecules, local_particles, para_env%group, vel=tmp%vel, error=error)
       END IF
     END IF
@@ -1713,7 +1709,6 @@ CPSourceFileRef,&
     IF(reftraj_env%info%variable_volume)THEN
        cell%hmat = h
        CALL init_cell(cell)
-       CALL force_env_set_cell(force_env, cell, error)
     END IF
 
     ![ADAPT] update input structure with new coordinates, make new labels
@@ -1815,14 +1810,14 @@ CPSourceFileRef,&
     dt = simpar%dt
     infree = 1.0_dp / REAL ( simpar%nfree, dp )
 
-    CALL force_env_get(force_env, subsys=subsys, virial = virial, cell=cell ,error=error)
+    CALL force_env_get(force_env, subsys=subsys, cell=cell ,error=error)
 
     ! Do some checks on coordinates and box
     CALL apply_qmmm_walls_reflective(force_env, error=error)
 
     CALL cp_subsys_get(subsys=subsys,atomic_kinds=atomic_kinds,local_particles=local_particles,&
          particles=particles,local_molecules_new=local_molecules, molecules_new=molecules, gci=gci,&
-         molecule_kinds_new=molecule_kinds ,error=error)
+         molecule_kinds_new=molecule_kinds,virial=virial,error=error)
 
     nparticle_kind = atomic_kinds%n_els
     atomic_kind_set => atomic_kinds%els
@@ -1944,7 +1939,6 @@ CPSourceFileRef,&
          core_particle_set, para_env, shell_adiabatic, pos=.TRUE.,  error=error )
 
     ! Update forces (and stress)
-    CALL force_env_set_cell(force_env, cell, error)
     CALL force_env_calc_energy_force(force_env, error=error)
 
     ! Metadynamics
@@ -2077,11 +2071,11 @@ CPSourceFileRef,&
     infree = 1.0_dp / REAL ( simpar%nfree, dp )
     gamma1 = simpar%gamma_nph
 
-    CALL force_env_get(force_env, subsys=subsys, virial = virial, cell = cell ,error=error)
+    CALL force_env_get(force_env, subsys=subsys, cell = cell ,error=error)
 
     CALL cp_subsys_get(subsys=subsys,atomic_kinds=atomic_kinds,local_particles=local_particles,&
          particles=particles,local_molecules_new=local_molecules,molecules_new=molecules,gci=gci,&
-         molecule_kinds_new=molecule_kinds ,error=error)
+         molecule_kinds_new=molecule_kinds,virial=virial,error=error)
 
     nparticle_kind = atomic_kinds%n_els
     atomic_kind_set => atomic_kinds%els
@@ -2208,7 +2202,6 @@ CPSourceFileRef,&
          core_particle_set, para_env, shell_adiabatic, pos=.TRUE.,  error=error )
 
     ! Update forces
-    CALL force_env_set_cell(force_env, cell, error)
     CALL force_env_calc_energy_force(force_env, error=error)
 
     ! Metadynamics
@@ -2355,14 +2348,14 @@ CPSourceFileRef,&
     dt = simpar%dt
     infree = 1.0_dp / REAL ( simpar%nfree,KIND=dp)
 
-    CALL force_env_get(force_env, subsys=subsys, virial=virial, cell=cell ,error=error)
+    CALL force_env_get(force_env, subsys=subsys, cell=cell ,error=error)
 
     ! Do some checks on coordinates and box
     CALL apply_qmmm_walls_reflective(force_env, error=error)
 
     CALL cp_subsys_get(subsys=subsys,atomic_kinds=atomic_kinds, local_particles=local_particles,&
          particles=particles,local_molecules_new=local_molecules,molecules_new=molecules, &
-         gci=gci,molecule_kinds_new=molecule_kinds ,error=error)
+         gci=gci,molecule_kinds_new=molecule_kinds,virial=virial,error=error)
 
     nparticle_kind = atomic_kinds%n_els
     atomic_kind_set => atomic_kinds%els
@@ -2403,12 +2396,12 @@ CPSourceFileRef,&
     ! Apply Thermostat over the full set of particles
     IF(simpar% ensemble /= npe_f_ensemble) THEN
       IF(shell_adiabatic) THEN
-        CALL apply_thermostat_particles(thermostat_part, molecule_kind_set, molecule_set,&
+        CALL apply_thermostat_particles(thermostat_part, force_env, molecule_kind_set, molecule_set,&
              particle_set, local_molecules, local_particles, para_env%group,shell_adiabatic=shell_adiabatic,&
              shell_particle_set=shell_particle_set,core_particle_set=core_particle_set,&
              error=error)
       ELSE
-        CALL apply_thermostat_particles(thermostat_part, molecule_kind_set, molecule_set,&
+        CALL apply_thermostat_particles(thermostat_part, force_env, molecule_kind_set, molecule_set,&
              particle_set, local_molecules, local_particles, para_env%group ,error=error)
       END IF
     END IF
@@ -2509,7 +2502,6 @@ CPSourceFileRef,&
     END IF
 
     ! Update forces
-    CALL force_env_set_cell(force_env, cell, error)
     CALL force_env_calc_energy_force(force_env,error=error)
 
     ! Metadynamics
@@ -2547,12 +2539,12 @@ CPSourceFileRef,&
     ! Apply Thermostat over the full set of particles
     IF(simpar% ensemble /= npe_f_ensemble) THEN
       IF (shell_adiabatic) THEN
-        CALL apply_thermostat_particles(thermostat_part,molecule_kind_set, molecule_set, &
+        CALL apply_thermostat_particles(thermostat_part, force_env,molecule_kind_set, molecule_set, &
              particle_set, local_molecules, local_particles, para_env%group,shell_adiabatic=shell_adiabatic,&
              vel=tmp%vel, shell_vel=tmp%shell_vel, core_vel=tmp%core_vel, error=error)
 
       ELSE
-        CALL apply_thermostat_particles(thermostat_part,molecule_kind_set, molecule_set, &
+        CALL apply_thermostat_particles(thermostat_part, force_env,molecule_kind_set, molecule_set, &
              particle_set, local_molecules, local_particles, para_env%group, vel=tmp%vel, error=error)
       END IF
     END IF

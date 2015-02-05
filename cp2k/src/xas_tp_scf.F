@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2014  CP2K developers group                          !
+!   Copyright (C) 2000 - 2015  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -13,9 +13,10 @@
 MODULE xas_tp_scf
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind
-  USE cell_methods,                    ONLY: cell_type,&
+  USE cell_types,                      ONLY: cell_type,&
                                              pbc
   USE cp_array_r_utils,                ONLY: cp_2d_r_p_type
+  USE cp_blacs_env,                    ONLY: cp_blacs_env_type
   USE cp_control_types,                ONLY: dft_control_type
   USE cp_dbcsr_interface,              ONLY: cp_dbcsr_copy,&
                                              cp_dbcsr_p_type
@@ -33,19 +34,17 @@ MODULE xas_tp_scf
                                              cp_print_key_unit_nr,&
                                              cp_rm_iter_level
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE f77_blas
   USE input_constants,                 ONLY: ot_precond_full_kinetic,&
                                              ot_precond_solver_default,&
-                                             xas_dscf,&
-                                             xas_scf_general
+                                             xas_dscf
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type
   USE kinds,                           ONLY: dp
   USE machine,                         ONLY: m_flush,&
                                              m_walltime
   USE message_passing,                 ONLY: mp_sync
-  USE particle_types,                  ONLY: get_particle_set,&
-                                             particle_type
+  USE particle_methods,                ONLY: get_particle_set
+  USE particle_types,                  ONLY: particle_type
   USE preconditioner,                  ONLY: make_preconditioner
   USE preconditioner_types,            ONLY: destroy_preconditioner,&
                                              init_preconditioner,&
@@ -64,28 +63,31 @@ MODULE xas_tp_scf
   USE qs_gspace_mixing,                ONLY: gspace_mixing,&
                                              self_consistency_check
   USE qs_kind_types,                   ONLY: qs_kind_type
-  USE qs_ks_methods,                   ONLY: qs_ks_did_change,&
-                                             qs_ks_update_qs_env
-  USE qs_ks_types,                     ONLY: qs_ks_env_type
+  USE qs_ks_methods,                   ONLY: qs_ks_update_qs_env
+  USE qs_ks_types,                     ONLY: qs_ks_did_change,&
+                                             qs_ks_env_type
   USE qs_loc_methods,                  ONLY: qs_loc_driver
   USE qs_loc_types,                    ONLY: get_qs_loc_env,&
                                              localized_wfn_control_type,&
                                              qs_loc_env_new_type
-  USE qs_mo_methods,                   ONLY: calculate_subspace_eigenvalues
+  USE qs_mo_methods,                   ONLY: calculate_density_matrix,&
+                                             calculate_subspace_eigenvalues
+  USE qs_mo_occupation,                ONLY: set_mo_occupation
   USE qs_mo_types,                     ONLY: get_mo_set,&
-                                             mo_set_p_type,&
-                                             set_mo_occupation,&
-                                             set_mo_set
+                                             mo_set_p_type
   USE qs_ot_eigensolver,               ONLY: ot_eigensolver
   USE qs_rho_methods,                  ONLY: qs_rho_update_rho
-  USE qs_rho_types,                    ONLY: qs_rho_type
+  USE qs_rho_types,                    ONLY: qs_rho_get,&
+                                             qs_rho_type
   USE qs_scf,                          ONLY: scf_env_cleanup,&
                                              scf_env_do_scf
-  USE qs_scf_diagonalization,          ONLY: do_general_diag
+  USE qs_scf_diagonalization,          ONLY: general_eigenproblem
   USE qs_scf_initialization,           ONLY: qs_scf_env_initialize
   USE qs_scf_methods,                  ONLY: scf_env_density_mixing
   USE qs_scf_output,                   ONLY: qs_scf_print_summary
-  USE qs_scf_types,                    ONLY: qs_scf_env_type
+  USE qs_scf_types,                    ONLY: general_diag_method_nr,&
+                                             qs_scf_env_type,&
+                                             scf_env_release
   USE scf_control_types,               ONLY: scf_control_type
   USE timings,                         ONLY: timeset,&
                                              timestop
@@ -93,7 +95,8 @@ MODULE xas_tp_scf
   USE xas_env_types,                   ONLY: get_xas_env,&
                                              set_xas_env,&
                                              xas_environment_type
-  USE xas_restart,                     ONLY: xas_write_restart
+  USE xas_restart,                     ONLY: find_excited_core_orbital,&
+                                             xas_write_restart
 #include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
@@ -142,7 +145,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, handle2, ispin, &
-                                                iter_count, output_unit
+                                                iter_count, nspin, output_unit
     LOGICAL                                  :: diis_step, energy_only, &
                                                 exit_loop, failure, gapw
     REAL(KIND=dp)                            :: t1, t2
@@ -150,6 +153,8 @@ CONTAINS
       POINTER                                :: atomic_kind_set
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: matrix_ks, matrix_s
+    TYPE(cp_dbcsr_p_type), DIMENSION(:, :), &
+      POINTER                                :: rho_ao_kp
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(mo_set_p_type), DIMENSION(:), &
@@ -162,7 +167,7 @@ CONTAINS
     TYPE(xas_control_type), POINTER          :: xas_control
 
     CALL timeset(routineN,handle)
-    NULLIFY(xas_control,matrix_s,matrix_ks,para_env)
+    NULLIFY(xas_control,matrix_s,matrix_ks,para_env, rho_ao_kp)
     NULLIFY(rho,energy,scf_control,logger, ks_env,mos,atomic_kind_set)
     NULLIFY(qs_charges)
 
@@ -180,11 +185,13 @@ CONTAINS
 
     CALL get_qs_env(qs_env=qs_env,&
          atomic_kind_set=atomic_kind_set,&
-         scf_control=scf_control,&
          matrix_s=matrix_s,energy=energy,&
          qs_charges=qs_charges,&
          ks_env=ks_env,para_env=para_env,&
          error=error)
+
+
+    CALL get_xas_env(xas_env, scf_control=scf_control, error=error)
 
     energy_only = .FALSE.
     output_unit=cp_print_key_unit_nr(logger,xas_section,"PRINT%PROGRAM_RUN_INFO",&
@@ -201,9 +208,11 @@ CONTAINS
     CALL cp_add_iter_level(logger%iter_info,"XAS_SCF",error=error)
 
     CALL get_qs_env(qs_env,matrix_ks=matrix_ks,rho=rho,mos=mos,error=error)
+    CALL qs_rho_get(rho, rho_ao_kp=rho_ao_kp, error=error)
 
     iter_count = 0
     diis_step = .FALSE.
+    nspin = dft_control%nspins
 
     IF (output_unit>0) THEN
        WRITE (UNIT=output_unit,&
@@ -226,41 +235,58 @@ CONTAINS
 
        ! ** here qs_env%rho%rho_r and qs_env%rho%rho_g should be up to date
 
-       CALL qs_ks_update_qs_env(ks_env,qs_env=qs_env,error=error,&
-            calculate_forces=.FALSE.,just_energy=energy_only)
+       CALL qs_ks_update_qs_env(qs_env, calculate_forces=.FALSE., just_energy=energy_only, error=error)
 
-       scf_env%mixing_store%alpha =  xas_env%mixing_store%alpha
-       scf_env%mixing_store%iter_method = xas_env%mixing_store%iter_method
-
-       SELECT CASE (xas_control%scf_method)
+       SELECT CASE (scf_env%method)
        CASE DEFAULT
           CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
                routineP,"unknown scf method method for core level spectroscopy"//&
-               cp_to_string(xas_control%scf_method),error,failure)
+               cp_to_string(scf_env%method),error,failure)
 
-       CASE(xas_scf_general) ! diagonalisation (default)
+       CASE(general_diag_method_nr) ! diagonalisation (default)
           scf_env%iter_count=iter_count
-          CALL do_general_diag(scf_env,mos,matrix_ks,&
+          CALL general_eigenproblem(scf_env,mos,matrix_ks,&
                                matrix_s,scf_control,scf_section, &
-                               diis_step,xas_env,error)
+                               diis_step,error)
+          CALL find_excited_core_orbital(xas_env,mos,matrix_s,error=error)
+          CALL set_mo_occupation(mo_set=mos(1)%mo_set,&
+                             smear=scf_control%smear,&
+                             xas_env=xas_env,&
+                             error=error)
+          CALL set_mo_occupation(mo_set=mos(2)%mo_set,&
+                                smear=scf_control%smear,&
+                                error=error)
+          DO ispin=1,nspin
+            ! does not yet handle k-points
+            CALL calculate_density_matrix(mos(ispin)%mo_set,&
+                                    scf_env%p_mix_new(ispin,1)%matrix,&
+                                    error=error)
+          END DO
+          energy%kTS = 0.0_dp
+          energy%efermi = 0.0_dp
+          DO ispin=1,nspin
+             energy%kTS = energy%kTS + mos(ispin)%mo_set%kTS
+             energy%efermi = energy%efermi + mos(ispin)%mo_set%mu
+          ENDDO
+          energy%efermi = energy%efermi /REAL(nspin,KIND=dp)
 
        END SELECT
 
-       SELECT CASE(xas_env%mixing_method)
+       SELECT CASE(scf_env%mixing_method)
        CASE(direct_mixing_nr)
           CALL scf_env_density_mixing(scf_env%p_mix_new,&
-               xas_env%mixing_store, rho%rho_ao, para_env, scf_env%iter_delta, scf_env%iter_count, &
+               scf_env%mixing_store, rho_ao_kp, para_env, scf_env%iter_delta, scf_env%iter_count, &
                diis=diis_step, error=error)
        CASE(gspace_mixing_nr,pulay_mixing_nr,broyden_mixing_nr,&
                  broyden_mixing_new_nr,multisecant_mixing_nr)
           ! Compute the difference p_out-p_in
-          CALL self_consistency_check(qs_env%rho%rho_ao,scf_env%p_delta,para_env,scf_env%p_mix_new,&
+          CALL self_consistency_check(rho_ao_kp,scf_env%p_delta,para_env,scf_env%p_mix_new,&
                 delta= scf_env%iter_delta, error=error)
        CASE(no_mixing_nr)
        CASE DEFAULT
           CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
                routineP,"unknown scf mixing method: "//&
-               cp_to_string(xas_env%mixing_method),error,failure)
+               cp_to_string(scf_env%mixing_method),error,failure)
        END SELECT
 
        t2 = m_walltime()
@@ -271,20 +297,19 @@ CONTAINS
                iter_count,TRIM(scf_env%iter_method),&
                scf_env%iter_param,t2 - t1,scf_env%iter_delta,energy%total,&
                energy%total-energy%tot_old
-
        END IF
        energy%tot_old = energy%total
 
        ! ** convergence check
        CALL external_control(should_stop,"XASSCF",target_time=qs_env%target_time,&
            start_time=qs_env%start_time,error=error)
-       IF (scf_env%iter_delta < xas_control%eps_scf) THEN
+       IF (scf_env%iter_delta < scf_control%eps_scf) THEN
           IF (output_unit>0) THEN
              WRITE(UNIT=output_unit,FMT="(/,T3,A,I5,A/)")&
                   "*** SCF run converged in ",iter_count," steps ***"
           END IF
           exit_loop = .TRUE.
-       ELSE IF (should_stop.OR. iter_count == xas_control%max_scf) THEN
+       ELSE IF (should_stop.OR. iter_count == scf_control%max_scf) THEN
           IF (output_unit>0) THEN
              WRITE(UNIT=output_unit,FMT="(/,T3,A,/)")&
                   "*** SCF run NOT converged ***"
@@ -313,17 +338,18 @@ CONTAINS
          xas_section,"PRINT%ITERATION_INFO/TIME_CUMUL",error=error),cp_p_file)) t1 = m_walltime()
 
        !   *** mixing methods have the new density matrix in p_mix_new
-       IF (xas_env%mixing_method > 0) THEN
-          DO ispin=1,dft_control%nspins
-             CALL cp_dbcsr_copy(rho%rho_ao(ispin)%matrix,scf_env%p_mix_new(ispin)%matrix,&
+       IF (scf_env%mixing_method > 0) THEN
+          DO ispin=1,nspin
+             ! does not yet handle k-points
+             CALL cp_dbcsr_copy(rho_ao_kp(ispin,1)%matrix,scf_env%p_mix_new(ispin,1)%matrix,&
                   error=error)
           END DO
        ENDIF
 
        ! ** update qs_env%rho
        CALL qs_rho_update_rho(rho, qs_env=qs_env, error=error)
-       IF(xas_env%mixing_method>=gspace_mixing_nr) THEN
-          CALL gspace_mixing(qs_env, scf_env, xas_env%mixing_store, rho, qs_env%para_env, error=error)
+       IF(scf_env%mixing_method>=gspace_mixing_nr) THEN
+          CALL gspace_mixing(qs_env, scf_env, scf_env%mixing_store, rho, para_env, error=error)
        END IF
 
        CALL qs_ks_did_change(ks_env,rho_changed=.TRUE.,error=error)
@@ -337,12 +363,12 @@ CONTAINS
        CALL m_flush(output_unit)
     END IF
 
-    CALL mp_sync(qs_env%para_env%group)
+    CALL mp_sync(para_env%group)
     CALL qs_ks_did_change(ks_env,rho_changed=.TRUE.,error=error)
 
     CALL cls_prepare_states(xas_control,xas_env,qs_env,iatom,xas_section,output_unit,error=error)
 
-    CALL mp_sync(qs_env%para_env%group)
+    CALL mp_sync(para_env%group)
 
     CALL cp_print_key_finished_output(output_unit,logger,xas_section,&
          "PRINT%PROGRAM_RUN_INFO", error=error)
@@ -395,11 +421,13 @@ CONTAINS
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_2d_r_p_type), DIMENSION(:), &
       POINTER                                :: stogto_overlap
+    TYPE(cp_blacs_env_type), POINTER         :: blacs_env
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_ks, matrix_s
+      POINTER                                :: kinetic, matrix_ks, matrix_s
     TYPE(cp_fm_type), POINTER                :: all_vectors, excvec_coeff, &
                                                 excvec_overlap, mo_coeff, &
                                                 uno_orbs
+    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(localized_wfn_control_type), &
       POINTER                                :: localized_wfn_control
@@ -411,31 +439,40 @@ CONTAINS
     TYPE(qs_kind_type), DIMENSION(:), &
       POINTER                                :: qs_kind_set
     TYPE(qs_loc_env_new_type), POINTER       :: qs_loc_env
+    TYPE(scf_control_type), POINTER          :: scf_control
     TYPE(section_vals_type), POINTER         :: loc_section, print_loc_section
 
     CALL timeset(routineN,handle)
 
-    NULLIFY(atomic_kind,dft_control,matrix_s,matrix_ks, qs_kind_set)
+    NULLIFY(atomic_kind,dft_control,matrix_s,matrix_ks, qs_kind_set, kinetic)
     NULLIFY(cell,particle_set,local_preconditioner,vecbuffer,vecbuffer2)
     NULLIFY(dft_control,loc_section,mos,mo_coeff,eigenvalues)
     NULLIFY(centers_wfn,mykind_of_kind,qs_loc_env,localized_wfn_control,stogto_overlap)
-    NULLIFY(all_evals,all_vectors,excvec_coeff,excvec_overlap,uno_evals)
+    NULLIFY(all_evals,all_vectors,excvec_coeff,excvec_overlap,uno_evals,para_env,blacs_env)
 
     failure=.FALSE.
 
     CPPrecondition(ASSOCIATED(xas_env),cp_failure_level,routineP,error,failure)
 
-    CALL get_qs_env(qs_env=qs_env,&
-         cell=cell,dft_control=dft_control,&
-         matrix_ks=matrix_ks, matrix_s=matrix_s,mos=mos,&
-         particle_set=particle_set,qs_kind_set=qs_kind_set,error=error)
+    CALL get_qs_env(qs_env,&
+                    cell=cell,&
+                    dft_control=dft_control,&
+                    matrix_ks=matrix_ks,&
+                    matrix_s=matrix_s,&
+                    kinetic=kinetic,&
+                    mos=mos,&
+                    particle_set=particle_set,&
+                    qs_kind_set=qs_kind_set,&
+                    para_env=para_env,&
+                    blacs_env=blacs_env,&
+                    error=error)
 
     ! Some elements from the xas_env
     CALL get_xas_env(xas_env=xas_env,&
          all_vectors=all_vectors,all_evals=all_evals,&
          excvec_coeff=excvec_coeff,&
          nvirtual2=nvirtual2,xas_estate=xas_estate,&
-         excvec_overlap=excvec_overlap,nexc_search=nexc_search,error=error)
+         excvec_overlap=excvec_overlap,nexc_search=nexc_search,scf_control=scf_control,error=error)
     CPPrecondition(ASSOCIATED(excvec_overlap),cp_failure_level,routineP,error,failure)
 
     CALL get_mo_set(mos(1)%mo_set, mo_coeff=mo_coeff,nao=nao,&
@@ -456,7 +493,7 @@ CONTAINS
     centers_wfn=0.0_dp
 
     ! Possible only for emission only
-    IF(.NOT.xas_control%scf_method==xas_scf_general) THEN
+    IF(scf_control%use_ot) THEN
        IF (output_unit>0) THEN
           WRITE (UNIT=output_unit,FMT="(/,/,T2,A)") " Eigenstates are derived "//&
           "from the MOs optimized by OT. Follows localization of the core states"//&
@@ -533,7 +570,7 @@ CONTAINS
        !
     END IF
 
-    CALL mp_sync(qs_env%para_env%group)
+    CALL mp_sync(para_env%group)
     !Calculate the virtual states from the KS matrix matrix_ks(1)
     IF(nvirtual2 .GT. 0) THEN
        NULLIFY(mo_coeff)
@@ -547,15 +584,15 @@ CONTAINS
        NULLIFY(uno_orbs,uno_evals,local_preconditioner)
        ALLOCATE(local_preconditioner,STAT=istat)
        CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-       CALL init_preconditioner(local_preconditioner,para_env=qs_env%para_env,&
-            blacs_env=qs_env%blacs_env,error=error)
+       CALL init_preconditioner(local_preconditioner,para_env=para_env,&
+                                blacs_env=blacs_env,error=error)
 
        CALL make_preconditioner(local_preconditioner, &
             precon_type=ot_precond_full_kinetic, &
             solver_type=ot_precond_solver_default, &
             matrix_h=matrix_ks(1)%matrix, &
             matrix_s=matrix_s(1)%matrix,&
-            matrix_t=qs_env%kinetic(1)%matrix, &
+            matrix_t=kinetic(1)%matrix, &
             convert_precond_to_dbcsr=.TRUE.,&
             mo_set=mos(1)%mo_set,energy_gap=0.2_dp,error=error)
 
@@ -576,7 +613,7 @@ CONTAINS
        CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
     END IF
 
-    CALL mp_sync(qs_env%para_env%group)
+    CALL mp_sync(para_env%group)
     ! Prapare arrays for the calculation of the spectrum
     IF(.NOT. xas_control%xas_method == xas_dscf) THEN
        ! Copy the final vectors in the array
@@ -615,7 +652,6 @@ CONTAINS
 !> \brief  SCF for emission spectra calculations: vacancy in valence
 !> \param qs_env the qs_env, the scf_env and xas_env live in
 !> \param xas_env the environment for XAS  calculations
-!> \param scf_section ...
 !> \param converged ...
 !> \param should_stop ...
 !> \param error variable to control error logging, stopping,...
@@ -624,20 +660,19 @@ CONTAINS
 !>      05.2005 created [MI]
 !> \author MI
 ! *****************************************************************************
-  SUBROUTINE xes_scf_once(qs_env,xas_env,scf_section,converged,should_stop,error)
+  SUBROUTINE xes_scf_once(qs_env,xas_env,converged,should_stop,error)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(xas_environment_type), POINTER      :: xas_env
-    TYPE(section_vals_type), POINTER         :: scf_section
     LOGICAL, INTENT(OUT)                     :: converged, should_stop
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'xes_scf_once', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, ispin, istate, &
-                                                nelectron, nmo, nvirtual, &
-                                                nvirtual2, output_unit
+    INTEGER                                  :: handle, ispin, istate, nmo, &
+                                                nvirtual, nvirtual2, &
+                                                output_unit
     LOGICAL                                  :: failure
     REAL(KIND=dp), DIMENSION(:), POINTER     :: all_evals, eigenvalues
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
@@ -650,9 +685,13 @@ CONTAINS
       POINTER                                :: mos
     TYPE(qs_scf_env_type), POINTER           :: scf_env
     TYPE(scf_control_type), POINTER          :: scf_control
+    TYPE(section_vals_type), POINTER         :: dft_section, scf_section, &
+                                                xas_section
+    TYPE(xas_control_type), POINTER          :: xas_control
 
     failure = .FALSE.
-    NULLIFY(dft_control,scf_control,matrix_ks,mos,para_env)
+    NULLIFY(dft_control,scf_control,scf_env,matrix_ks,mos,para_env,xas_control)
+    NULLIFY(dft_section, xas_section,scf_section,all_vectors,mo_coeff,all_evals, eigenvalues)
     NULLIFY(logger)
     logger => cp_error_get_logger(error)
     output_unit= cp_logger_get_default_io_unit(logger)
@@ -661,26 +700,35 @@ CONTAINS
 
     CPPrecondition(ASSOCIATED(xas_env),cp_failure_level,routineP,error,failure)
     IF(.NOT. failure) THEN
-       CALL get_qs_env(qs_env=qs_env,dft_control=dft_control, scf_control=scf_control,&
+       CALL get_qs_env(qs_env=qs_env,dft_control=dft_control, &
             matrix_ks=matrix_ks,mos=mos,para_env=para_env,error=error)
+
+       xas_control => dft_control%xas_control
+       CALL get_xas_env(xas_env, scf_control=scf_control, error=error)
+
+      dft_section => section_vals_get_subs_vals(qs_env%input,"DFT",error=error)
+      xas_section => section_vals_get_subs_vals(dft_section,"XAS",error=error)
+      scf_section => section_vals_get_subs_vals(xas_section,"SCF",error=error)
 
 
        IF(xas_env%homo_occ == 0) THEN
-         CALL get_mo_set(mos(1)%mo_set,nelectron=nelectron)
-         nelectron = nelectron - 1
-         CALL set_mo_set(mos(1)%mo_set,nelectron=nelectron,error=error)
-         CALL set_mo_occupation(mo_set=mos(1)%mo_set,smear=xas_env%smear,&
-                             error=error)
-
 
          NULLIFY(scf_env)
-         CALL get_qs_env(qs_env,scf_env=scf_env,error=error)
-         CALL qs_scf_env_initialize(scf_env=scf_env,qs_env=qs_env,&
-                                  do_xas_tp=.TRUE., error=error)
+         CALL get_xas_env(xas_env,scf_env=scf_env,error=error)
+         IF(.NOT. ASSOCIATED(scf_env)) THEN
+           CALL qs_scf_env_initialize(qs_env,scf_env, scf_control,scf_section,&
+                                   error=error)
+            CALL set_xas_env(xas_env,scf_env=scf_env,error=error)
+            CALL scf_env_release(scf_env,error=error)
+            CALL get_xas_env(xas_env=xas_env,scf_env=scf_env,error=error)
+         ELSE
+            CALL qs_scf_env_initialize(qs_env,scf_env,scf_control,scf_section,error=error)
+         ENDIF
 
-         CALL scf_env_do_scf(scf_env=scf_env, qs_env=qs_env,  &
+
+         CALL scf_env_do_scf(scf_env=scf_env, scf_control=scf_control, qs_env=qs_env,  &
               converged=converged, should_stop=should_stop, error=error)
-         CALL scf_env_cleanup(scf_env,qs_env=qs_env,error=error)
+         CALL scf_env_cleanup(scf_env,error=error)
 
        END IF
 
@@ -699,7 +747,6 @@ CONTAINS
                   do_rotation=.TRUE.,error=error)
           END DO
        END IF
-       NULLIFY(all_vectors,all_evals)
        CALL get_xas_env(xas_env=xas_env,all_vectors=all_vectors,&
             all_evals=all_evals,nvirtual2=nvirtual2,error=error)
        CALL get_mo_set(mos(1)%mo_set, eigenvalues=eigenvalues,mo_coeff=mo_coeff, nmo=nmo)
@@ -720,10 +767,6 @@ CONTAINS
           CALL set_xas_env(xas_env=xas_env,nvirtual=nvirtual,nvirtual2=nvirtual2,error=error)
        END IF
 
-       IF(xas_env%homo_occ == 0) THEN
-          nelectron = nelectron + 1
-          CALL set_mo_set(mos(1)%mo_set,nelectron=nelectron,error=error)
-       END IF
     END IF  ! failure
     CALL timestop(handle)
 

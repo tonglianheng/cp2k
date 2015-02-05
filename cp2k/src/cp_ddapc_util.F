@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2014  CP2K developers group                          !
+!   Copyright (C) 2000 - 2015  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -11,6 +11,7 @@
 !> \author Teodoro Laino
 ! *****************************************************************************
 MODULE cp_ddapc_util
+
   USE atomic_charges,                  ONLY: print_atomic_charges
   USE cell_types,                      ONLY: cell_type
   USE cp_control_types,                ONLY: ddapc_restraint_type,&
@@ -26,7 +27,7 @@ MODULE cp_ddapc_util
                                              cp_ddapc_type
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
-  USE f77_blas
+  USE cp_para_types,                   ONLY: cp_para_env_type
   USE input_constants,                 ONLY: do_full_density,&
                                              do_spin_density
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
@@ -53,7 +54,8 @@ MODULE cp_ddapc_util
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
   USE qs_kind_types,                   ONLY: qs_kind_type
-  USE qs_rho_types,                    ONLY: qs_rho_type
+  USE qs_rho_types,                    ONLY: qs_rho_get,&
+                                             qs_rho_type
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "./common/cp_common_uses.f90"
@@ -93,6 +95,7 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:), POINTER     :: inp_radii, radii
     TYPE(cell_type), POINTER                 :: cell, super_cell
     TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
@@ -108,13 +111,15 @@ CONTAINS
     failure         = .FALSE.
     logger => cp_error_get_logger(error)
     NULLIFY(dft_control, rho, rho_tot_g, rho_core, rho0_s_gs, pw_env,&
-            radii, inp_radii, particle_set, qs_charges)
+            radii, inp_radii, particle_set, qs_charges, para_env)
+
+    CALL get_qs_env(qs_env, dft_control=dft_control, error=error)
     allocate_ddapc_env = qs_env%cp_ddapc_ewald%do_solvation.OR.&
                          qs_env%cp_ddapc_ewald%do_qmmm_periodic_decpl.OR.&
                          qs_env%cp_ddapc_ewald%do_decoupling.OR.&
                          qs_env%cp_ddapc_ewald%do_restraint
-    unimplemented =      qs_env%dft_control%qs_control%semi_empirical.OR.&
-                         qs_env%dft_control%qs_control%dftb
+    unimplemented =      dft_control%qs_control%semi_empirical.OR.&
+                         dft_control%qs_control%dftb
     IF (allocate_ddapc_env.AND.unimplemented) THEN
        CALL cp_unimplemented_error(fromWhere=routineP, &
             message="DDAP charges work only with GPW/GAPW code.", &
@@ -134,6 +139,7 @@ CONTAINS
                        particle_set=particle_set,&
                        cell=cell,&
                        super_cell=super_cell,&
+                       para_env=para_env,&
                        error=error)
        density_fit_section => section_vals_get_subs_vals(qs_env%input,"DFT%DENSITY_FITTING", error=error)
        iw=cp_print_key_unit_nr(logger,density_fit_section,&
@@ -171,7 +177,7 @@ CONTAINS
             "PROGRAM_RUN_INFO/CONDITION_NUMBER",".FitCharge",error=error)
        ! Initialization of the cp_ddapc_env and of the cp_ddapc_ewald environment
        !NB pass qs_env%para_env for parallelization of ewald_ddapc_pot()
-       CALL cp_ddapc_create(qs_env%para_env,&
+       CALL cp_ddapc_create(para_env,&
                             qs_env%cp_ddapc_env,&
                             qs_env%cp_ddapc_ewald,&
                             particle_set,&
@@ -253,6 +259,7 @@ CONTAINS
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(pw_env_type), POINTER               :: pw_env
+    TYPE(pw_p_type), DIMENSION(:), POINTER   :: rho_g, rho_r
     TYPE(pw_p_type), POINTER                 :: rho0_s_gs, rho_core
     TYPE(pw_pool_type), POINTER              :: auxbas_pool
     TYPE(pw_type), POINTER                   :: rho_tot_g
@@ -272,7 +279,7 @@ CONTAINS
     need_f          = .FALSE.
     IF (PRESENT(calc_force))  need_f      = calc_force
     logger => cp_error_get_logger(error)
-    NULLIFY(dft_control, rho, rho_tot_g, rho_core, rho0_s_gs, pw_env,&
+    NULLIFY(dft_control, rho, rho_tot_g, rho_core, rho0_s_gs, pw_env, rho_g, rho_r,&
             radii, inp_radii, particle_set, qs_kind_set, qs_charges, cp_ddapc_env)
     IF (.NOT.failure) THEN
        CALL get_qs_env(qs_env=qs_env,&
@@ -287,6 +294,9 @@ CONTAINS
                        cell=cell,&
                        super_cell=super_cell,&
                        error=error)
+
+       CALL qs_rho_get(rho, rho_r=rho_r, rho_g=rho_g, error=error)
+
        IF (PRESENT(iwc)) THEN
           iw = iwc
        ELSE
@@ -317,19 +327,20 @@ CONTAINS
              ELSE
                 CALL pw_transfer(rho_core%pw,rho_tot_g, error=error)
              END IF
-             DO ispin=1,SIZE(rho%rho_g)
-                CALL pw_axpy(rho%rho_g(ispin)%pw,rho_tot_g, error=error)
+             DO ispin=1,SIZE(rho_g)
+                CALL pw_axpy(rho_g(ispin)%pw,rho_tot_g, error=error)
              END DO
              type_of_density = "FULL DENSITY"
           CASE(do_spin_density)
-             CALL pw_copy (rho%rho_g(1)%pw,rho_tot_g, error=error)
-             CALL pw_axpy (rho%rho_g(2)%pw,rho_tot_g,alpha=-1._dp, error=error)
+             CALL pw_copy (rho_g(1)%pw,rho_tot_g, error=error)
+             CALL pw_axpy (rho_g(2)%pw,rho_tot_g,alpha=-1._dp, error=error)
              type_of_density = "SPIN DENSITY"
           END SELECT
        END IF
-       Vol = rho%rho_r(1)%pw%pw_grid%vol
+       Vol = rho_r(1)%pw%pw_grid%vol
        ch_dens = 0.0_dp
-       IF (rho_tot_g%pw_grid%have_g0) ch_dens = rho_tot_g%cc(1)
+       ! should use pw_integrate 
+       IF (rho_tot_g%pw_grid%have_g0) ch_dens = REAL(rho_tot_g%cc(1),KIND=dp)
        CALL mp_sum(ch_dens,logger%para_env%group)
        !
        ! Get Input Parameters

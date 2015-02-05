@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2014  CP2K developers group                          !
+!   Copyright (C) 2000 - 2015  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -17,7 +17,6 @@ MODULE hfx_helpers
                                              cp_dbcsr_type,&
                                              dbcsr_type_symmetric
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE f77_blas
   USE kinds,                           ONLY: dp
   USE message_passing,                 ONLY: mp_sum
 #include "./common/cp_common_uses.f90"
@@ -38,6 +37,7 @@ MODULE hfx_helpers
 !> \brief - Auxiliary function for creating periodic neighbor cells
 !> \param shell number of shells in each coordinate direction
 !> \param perd ...
+!> \retval count_cells_perd ...
 !> \par History
 !>      09.2007 created [Manuel Guidon]
 !> \author Manuel Guidon
@@ -97,6 +97,7 @@ MODULE hfx_helpers
 !> \param matrix ...
 !> \param para_env ...
 !> \param error ...
+!> \retval get_occupation ...
 !> \par History
 !>      12.2008 created [Manuel Guidon]
 !> \author Manuel Guidon

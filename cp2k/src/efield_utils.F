@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2014  CP2K developers group                          !
+!   Copyright (C) 2000 - 2015  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -9,16 +9,13 @@
 
 
 MODULE efield_utils
-
-
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind
-  USE cell_methods,                    ONLY: cell_type,&
+  USE cell_types,                      ONLY: cell_type,&
                                              pbc
   USE cp_control_types,                ONLY: dft_control_type,&
                                              efield_type
-  USE cp_subsys_types,                 ONLY: cp_subsys_get
-  USE f77_blas
+  USE cp_para_types,                   ONLY: cp_para_env_type
   USE input_constants,                 ONLY: constant_env,&
                                              gaussian_env,&
                                              ramp_env
@@ -26,7 +23,6 @@ MODULE efield_utils
   USE kinds,                           ONLY: dp
   USE mathconstants,                   ONLY: pi
   USE message_passing,                 ONLY: mp_sum
-  USE particle_list_types,             ONLY: particle_list_type
   USE particle_types,                  ONLY: particle_type
   USE pw_types,                        ONLY: pw_p_type
   USE qs_energy_types,                 ONLY: qs_energy_type
@@ -35,7 +31,8 @@ MODULE efield_utils
   USE qs_force_types,                  ONLY: qs_force_type
   USE qs_kind_types,                   ONLY: get_qs_kind,&
                                              qs_kind_type
-  USE qs_rho_types,                    ONLY: qs_rho_type
+  USE qs_rho_types,                    ONLY: qs_rho_get,&
+                                             qs_rho_type
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "./common/cp_common_uses.f90"
@@ -75,19 +72,26 @@ CONTAINS
     LOGICAL                                  :: failure
     REAL(kind=dp)                            :: dvol, efield_ener, field(3)
     REAL(kind=dp), DIMENSION(3)              :: dr, grid_p
-    TYPE(cell_type), POINTER                 :: cell
-    TYPE(particle_list_type), POINTER        :: particles
+    TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(dft_control_type), POINTER          :: dft_control
+    TYPE(pw_p_type), DIMENSION(:), POINTER   :: rho_r
     TYPE(qs_energy_type), POINTER            :: energy
     TYPE(qs_rho_type), POINTER               :: rho
 
+    NULLIFY(dft_control, para_env, rho_r)
     failure=.FALSE.
     CALL timeset(routineN,handle)
 
-    NULLIFY(cell, particles)
-    CALL cp_subsys_get(qs_env%subsys,particles=particles,error=error)
-    v_efield_rspace%pw%cr3d=0.0_dp
+    CALL get_qs_env(qs_env,&
+                    energy=energy,&
+                    rho=rho,&
+                    dft_control=dft_control,&
+                    para_env=para_env,&
+                    error=error)
 
-    CALL get_qs_env(qs_env,cell=cell,energy=energy,rho=rho,error=error)
+    CALL qs_rho_get(rho, rho_r=rho_r, error=error)
+
+    v_efield_rspace%pw%cr3d=0.0_dp
 
     bo_local=v_efield_rspace%pw%pw_grid%bounds_local
     bo_global=v_efield_rspace%pw%pw_grid%bounds
@@ -95,7 +99,7 @@ CONTAINS
     dvol=v_efield_rspace%pw%pw_grid%dvol
     dr=v_efield_rspace%pw%pw_grid%dr
 
-    CALL make_field(qs_env%dft_control,field,qs_env%sim_step,qs_env%sim_time,error)
+    CALL make_field(dft_control,field,qs_env%sim_step,qs_env%sim_time,error)
 
     DO k=bo_local(1,3),bo_local(2,3)
        DO j=bo_local(1,2),bo_local(2,2)
@@ -108,10 +112,10 @@ CONTAINS
        END DO
     END DO
     efield_ener=0.0_dp
-    DO i=1,qs_env%dft_control%nspins
-       efield_ener=efield_ener+accurate_sum(v_efield_rspace%pw%cr3d*rho%rho_r(i)%pw%cr3d)*dvol
+    DO i=1,dft_control%nspins
+       efield_ener=efield_ener+accurate_sum(v_efield_rspace%pw%cr3d*rho_r(i)%pw%cr3d)*dvol
     END DO
-    CALL mp_sum(efield_ener,qs_env%para_env%group)
+    CALL mp_sum(efield_ener,para_env%group)
     energy%efield=efield_ener
     CALL timestop(handle)
 
@@ -202,6 +206,7 @@ CONTAINS
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(cell_type), POINTER                 :: cell
+    TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(qs_energy_type), POINTER            :: energy
@@ -210,8 +215,10 @@ CONTAINS
     TYPE(qs_kind_type), DIMENSION(:), &
       POINTER                                :: qs_kind_set
 
+    NULLIFY(dft_control)
     CALL timeset(routineN,handle)
-    IF(qs_env%dft_control%apply_efield_field)THEN
+    CALL get_qs_env(qs_env, dft_control=dft_control, error=error)
+    IF(dft_control%apply_efield_field)THEN
 
        failure=.FALSE.
 
@@ -227,7 +234,7 @@ CONTAINS
             error=error)
        efield_ener=0.0_dp
        nkind = SIZE(atomic_kind_set)
-       CALL make_field(qs_env%dft_control,field,qs_env%sim_step,qs_env%sim_time,error)
+       CALL make_field(dft_control,field,qs_env%sim_step,qs_env%sim_time,error)
 
        DO ikind=1,SIZE(atomic_kind_set)
           CALL get_atomic_kind(atomic_kind_set(ikind),atom_list=list,natom=natom)
@@ -241,7 +248,7 @@ CONTAINS
              efield_ener=efield_ener-zeff*DOT_PRODUCT(r,field)
               IF(my_force)THEN
                 CALL get_qs_env(qs_env=qs_env,force=force,error=error)
-                force(ikind)%efield(:,iatom)=force(ikind)%efield(:,iatom)+field*zeff
+                force(ikind)%efield(:,iatom)=force(ikind)%efield(:,iatom)-field*zeff
              END IF
           END DO
 

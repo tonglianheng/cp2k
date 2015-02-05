@@ -383,3 +383,25 @@ H2O-hfx-emd-restart.inp
 # numerics
 H2O-hfx-ls-emd-bch.inp
 H2O-hfx-ls-rtp-bch.inp
+# changed MCWEENY_MAX_ITER default parameter
+H2O-hfx-ls-emd.inp
+H2O-hfx-ls-rtp.inp
+H2O-hfx-ls-rtp-bch.inp
+H2O-hfx-ls-emd-bch.inp
+#do not accumulate shift in outer scf preconditioner
+H2O-hfx-emd.inp
+#do not accumulate shift in outer scf preconditioner
+H2O-hfx-emd-restart.inp
+#making ls-rtp giving back the imaginary part of P to qs_env
+H2O-hfx-ls-emd.inp
+H2O-hfx-ls-emd-bch.inp
+H2O-hfx-ls-rtp.inp
+H2O-hfx-ls-rtp-bch.inp
+#  
+CH-hfx-md-2.inp
+#  
+4H2O-disk.inp
+#  
+4H2O-mix-disk-ram.inp
+#  
+4H2O-mix-disk-ram-on-the-fly.inp

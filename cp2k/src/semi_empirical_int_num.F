@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2014  CP2K developers group                          !
+!   Copyright (C) 2000 - 2015  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -14,16 +14,16 @@
 ! *****************************************************************************
 MODULE semi_empirical_int_num
 
-  USE f77_blas
+  
   USE input_constants,                 ONLY: do_method_am1,&
                                              do_method_pchg,&
                                              do_method_pdg,&
                                              do_method_pm3,&
                                              do_method_pm6,&
                                              do_method_undef,&
-                                             do_multipole_none,&
                                              do_se_IS_kdso_d
   USE kinds,                           ONLY: dp
+  USE multipole_types,                 ONLY: do_multipole_none
   USE physcon,                         ONLY: angstrom,&
                                              evolt
   USE semi_empirical_int_arrays,       ONLY: &

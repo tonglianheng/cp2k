@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2014  CP2K developers group                          !
+!   Copyright (C) 2000 - 2015  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -17,6 +17,7 @@ MODULE cp2k_runs
                                              compile_revision,&
                                              cp2k_version,&
                                              cp2k_year
+  USE cp_control_types,                ONLY: dft_control_type
   USE cp_dbcsr_cp2k_link,              ONLY: cp_dbcsr_config,&
                                              cp_dbcsr_print_config
   USE cp_dbcsr_interface,              ONLY: cp_dbcsr_finalize_lib,&
@@ -44,7 +45,6 @@ MODULE cp2k_runs
                                              cp2k_init,&
                                              cp2k_read,&
                                              cp2k_setup
-  USE f77_blas
   USE f77_interface,                   ONLY: create_force_env,&
                                              destroy_force_env,&
                                              f77_default_para_env => default_para_env,&
@@ -70,7 +70,7 @@ MODULE cp2k_runs
                                              globenv_release,&
                                              globenv_retain
   USE input_constants,                 ONLY: &
-       bsse_run, cell_opt_run, debug_run, do_atom, do_band, do_cp2k, do_ep, &
+       bsse_run, cell_opt_run, debug_run, do_atom, do_band, do_cp2k, &
        do_farming, do_fist, do_mixed, do_opt_basis, do_optimize_input, &
        do_qmmm, do_qs, do_swarm, do_tamc, do_test, do_tree_mc, &
        do_tree_mc_ana, driver_run, ehrenfest, electronic_spectra_run, &
@@ -106,12 +106,15 @@ MODULE cp2k_runs
   USE message_passing,                 ONLY: &
        mp_any_source, mp_bcast, mp_comm_dup, mp_comm_free, mp_comm_split, &
        mp_environ, mp_recv, mp_send, mp_sum, mp_sync
+  USE mscfg_methods,                   ONLY: do_mol_loop,&
+                                             loop_over_molecules
   USE neb_methods,                     ONLY: neb
   USE optimize_basis,                  ONLY: run_optimize_basis
   USE optimize_input,                  ONLY: run_optimize_input
   USE pint_methods,                    ONLY: do_pint_run
   USE pw_cuda,                         ONLY: pw_cuda_finalize,&
                                              pw_cuda_init
+  USE qs_environment_types,            ONLY: get_qs_env
   USE qs_linres_module,                ONLY: linres_calculation
   USE qs_tddfpt_module,                ONLY: tddfpt_calculation
   USE reference_manager,               ONLY: print_all_references,&
@@ -177,6 +180,7 @@ CONTAINS
     TYPE(cp_error_type)                      :: error, suberror
     TYPE(cp_logger_type), POINTER            :: logger, sublogger
     TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(f_env_type), POINTER                :: f_env
     TYPE(force_env_type), POINTER            :: force_env
     TYPE(global_environment_type), POINTER   :: globenv
@@ -186,7 +190,7 @@ CONTAINS
     cp2k_run_OK = .FALSE.
     failure=.FALSE.
     was_present = .FALSE.
-    NULLIFY(para_env, f_env)
+    NULLIFY(para_env, f_env, dft_control)
     CALL cp_para_env_create(para_env, group=mpi_comm,&
          owns_group=.FALSE.,error=error)
 
@@ -343,11 +347,12 @@ CONTAINS
           CASE (do_tree_mc) ! TMC entry point
              CALL do_tmc (input_declaration, root_section, para_env, globenv, error=suberror)
           CASE (do_tree_mc_ana)
-             CALL do_analyze_files(input_declaration, root_section, para_env, globenv, error=suberror )
+             CALL do_analyze_files(input_declaration, root_section, para_env, error=suberror )
           CASE default
              CPAssert(.FALSE.,cp_failure_level,routineP,suberror,failure)
           END SELECT
           CALL section_vals_release(input_file,error=suberror)
+          
           SELECT CASE (globenv%run_type_id)
           CASE (pint_run)
              CALL do_pint_run( para_env, root_section, input_declaration, globenv, error=suberror )
@@ -358,7 +363,6 @@ CONTAINS
           CASE (energy_run, energy_force_run)
              IF(  method_name_id /= do_qs .AND.&
                   method_name_id /= do_qmmm .AND.&
-                  method_name_id /= do_ep .AND.&
                   method_name_id /= do_mixed .AND.&
                   method_name_id /= do_fist )  &
                   CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
@@ -370,6 +374,13 @@ CONTAINS
              CALL cp_add_iter_level(sublogger%iter_info,"JUST_ENERGY",&
                   n_rlevel_new=iter_level,&
                   error=suberror)
+             
+             ! loop over molecules to generate a molecular guess
+             ! this procedure is initiated here to avoid passing globenv deep down
+             ! the subroutine stack
+             IF (do_mol_loop(force_env=force_env,error=suberror)) &
+                CALL loop_over_molecules(globenv,force_env,error=suberror)
+
              SELECT CASE(globenv%run_type_id)
              CASE (energy_run)
                 CALL force_env_calc_energy_force(force_env,calc_force=.FALSE.,error=suberror)
@@ -405,7 +416,8 @@ CONTAINS
                   "Real time propagation needs METHOD QS. "//&
                   CPSourceFileRef,&
                   suberror,failure)
-             force_env%qs_env%dft_control%rtp_control%fixed_ions=.TRUE.
+             CALL get_qs_env(force_env%qs_env, dft_control=dft_control, error=error)
+             dft_control%rtp_control%fixed_ions=.TRUE.
              CALL rt_prop_setup(force_env,error)
           CASE (ehrenfest)
              IF(method_name_id /= do_qs) &
@@ -413,7 +425,8 @@ CONTAINS
                   "Ehrenfest dynamics needs METHOD QS "//&
                   CPSourceFileRef,&
                   suberror,failure)
-             force_env%qs_env%dft_control%rtp_control%fixed_ions=.FALSE.
+             CALL get_qs_env(force_env%qs_env, dft_control=dft_control, error=error)
+             dft_control%rtp_control%fixed_ions=.FALSE.
              CALL qs_mol_dyn ( force_env, globenv, error=suberror )
           CASE (bsse_run)
              CALL do_bsse_calculation(force_env, globenv, error=suberror)
@@ -430,7 +443,7 @@ CONTAINS
              CALL linres_calculation(force_env, error=suberror)
           CASE (debug_run)
              SELECT CASE(method_name_id)
-             CASE(do_qs, do_qmmm, do_ep, do_fist)
+             CASE(do_qs, do_qmmm, do_fist)
                 CALL cp2k_debug_energy_and_forces(force_env, error=suberror)
              CASE DEFAULT
                 CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&

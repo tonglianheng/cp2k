@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2014  CP2K developers group                          !
+!   Copyright (C) 2000 - 2015  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -8,14 +8,10 @@ MODULE surface_dipole
 
   USE cell_types,                      ONLY: cell_type
   USE cp_control_types,                ONLY: dft_control_type
-  USE cp_subsys_types,                 ONLY: cp_subsys_get,&
-                                             cp_subsys_type
-  USE f77_blas
   USE kahan_sum,                       ONLY: accurate_sum
   USE kinds,                           ONLY: dp
   USE mathconstants,                   ONLY: pi
   USE message_passing,                 ONLY: mp_sum
-  USE particle_list_types,             ONLY: particle_list_type
   USE pw_env_types,                    ONLY: pw_env_get,&
                                              pw_env_type
   USE pw_grid_types,                   ONLY: PW_MODE_LOCAL
@@ -28,12 +24,15 @@ MODULE surface_dipole
                                              pw_pool_type
   USE pw_types,                        ONLY: REALDATA3D,&
                                              REALSPACE,&
-                                             pw_p_type
+                                             pw_p_type,&
+                                             pw_type
   USE qs_energy_types,                 ONLY: qs_energy_type
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
   USE qs_ks_types,                     ONLY: qs_ks_env_type
-  USE qs_rho_types,                    ONLY: qs_rho_type
+  USE qs_rho_types,                    ONLY: qs_rho_get,&
+                                             qs_rho_type
+  USE qs_subsys_types,                 ONLY: qs_subsys_type
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "./common/cp_common_uses.f90"
@@ -84,25 +83,33 @@ CONTAINS
                                                 vdip_fac
     REAL(dp), ALLOCATABLE, DIMENSION(:)      :: rhoavsurf
     TYPE(cell_type), POINTER                 :: cell
-    TYPE(cp_subsys_type), POINTER            :: subsys
     TYPE(dft_control_type), POINTER          :: dft_control
-    TYPE(particle_list_type), POINTER        :: particles
     TYPE(pw_env_type), POINTER               :: pw_env
     TYPE(pw_p_type)                          :: vdip_r, wf_r
+    TYPE(pw_p_type), DIMENSION(:), POINTER   :: rho_r
     TYPE(pw_p_type), POINTER                 :: rho0_s_gs, rho_core
     TYPE(pw_pool_p_type), DIMENSION(:), &
       POINTER                                :: pw_pools
     TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
+    TYPE(pw_type), POINTER                   :: v_hartree_rspace
     TYPE(qs_rho_type), POINTER               :: rho
+    TYPE(qs_subsys_type), POINTER            :: subsys
 
     CALL timeset(routineN,handle)
     failure=.FALSE.
     NULLIFY(cell, dft_control, rho, pw_env, rho_core, rho0_s_gs, auxbas_pw_pool, &
-             pw_pools,subsys,particles)
+             pw_pools,subsys,v_hartree_rspace,rho_r)
 
-      CALL get_qs_env(qs_env, dft_control=dft_control, rho=rho, rho_core=rho_core, &
-               rho0_s_gs=rho0_s_gs, cell=cell, pw_env=pw_env,  subsys=subsys, error=error)
-      CALL cp_subsys_get(subsys,particles=particles,error=error)
+      CALL get_qs_env(qs_env,&
+                      dft_control=dft_control,&
+                      rho=rho,&
+                      rho_core=rho_core, &
+                      rho0_s_gs=rho0_s_gs,&
+                      cell=cell,&
+                      pw_env=pw_env,&
+                      subsys=subsys,&
+                      v_hartree_rspace=v_hartree_rspace,&
+                      error=error)
 
       CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool,&
                pw_pools=pw_pools,error=error)
@@ -121,14 +128,14 @@ CONTAINS
       ELSE
           CALL pw_transfer(rho_core%pw,wf_r%pw,error=error)
       END IF
+      CALL qs_rho_get(rho, rho_r=rho_r, error=error)
       DO ispin=1,dft_control%nspins
-          CALL pw_axpy(rho%rho_r(ispin)%pw,wf_r%pw, error=error)
+          CALL pw_axpy(rho_r(ispin)%pw,wf_r%pw, error=error)
       END DO
 
       ngrid(1:3) = wf_r%pw%pw_grid%npts(1:3)
       idir_surfdip = dft_control%dir_surf_dip
 
-      
       DO i = 1,3
        IF(i /= idir_surfdip) THEN
            IF(ABS(wf_r%pw%pw_grid%dh(idir_surfdip,i)) > 1.E-7_dp) THEN
@@ -224,7 +231,7 @@ CONTAINS
      DO i = ilayer_min+1,ilayer_min+ngrid(idir_surfdip)
        hh = REAL((i - ilayer_min),dp)*dh(idir_surfdip,idir_surfdip)
        vdip = vdip_fac*(-0.5_dp+(hh/ cell%hmat(idir_surfdip,idir_surfdip)))*&
-                    ks_env%v_hartree_rspace%pw%pw_grid%dvol/surfarea
+                    v_hartree_rspace%pw_grid%dvol/surfarea
         IF(i>iup) THEN
           irho =  i - ngrid(idir_surfdip)
         ELSE
@@ -254,7 +261,7 @@ CONTAINS
      END IF
 
 !    Add the dipole potential to the hartree potential on the realspace grid
-     ks_env%v_hartree_rspace%pw%cr3d =  ks_env%v_hartree_rspace%pw%cr3d + vdip_r%pw%cr3d
+     v_hartree_rspace%cr3d =  v_hartree_rspace%cr3d + vdip_r%pw%cr3d
 
      CALL pw_pool_give_back_pw(auxbas_pw_pool,wf_r%pw, error=error)
      CALL pw_pool_give_back_pw(auxbas_pw_pool,vdip_r%pw, error=error)

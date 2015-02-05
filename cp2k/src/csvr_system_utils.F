@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2014  CP2K developers group                          !
+!   Copyright (C) 2000 - 2015  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -10,7 +10,7 @@
 ! *****************************************************************************
 MODULE csvr_system_utils
 
-  USE f77_blas
+  
   USE kinds,                           ONLY: dp
   USE parallel_rng_types,              ONLY: next_random_number,&
                                              rng_stream_type

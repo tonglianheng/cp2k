@@ -65,10 +65,10 @@ MODULE qs_fb_env_methods
                          get_mo_set, &
                          set_mo_set, &
                          init_mo_set, &
-                         set_mo_occupation, &
                          allocate_mo_set, &
                          deallocate_mo_set
   USE qs_mo_methods, ONLY: calculate_density_matrix
+  USE qs_mo_occupation, ONLY: set_mo_occupation
   USE string_utilities, ONLY: compress,&
                               uppercase
   USE qs_diis, ONLY: qs_diis_b_step

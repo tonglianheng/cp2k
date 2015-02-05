@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2014  CP2K developers group                          !
+!   Copyright (C) 2000 - 2015  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -16,7 +16,7 @@
 MODULE library_tests
 
   USE ai_coulomb_test,                 ONLY: eri_test
-  USE cell_methods,                    ONLY: cell_create,&
+  USE cell_types,                    ONLY: cell_create,&
                                              cell_release,&
                                              cell_type,&
                                              init_cell
@@ -24,7 +24,7 @@ MODULE library_tests
   USE cp_blacs_env,                    ONLY: cp_blacs_env_create,&
                                              cp_blacs_env_release,&
                                              cp_blacs_env_type
-  USE cp_dbcsr_interface,              ONLY: cp_test_multiplies
+  USE cp_dbcsr_interface,              ONLY: dbcsr_run_tests
   USE cp_files,                        ONLY: close_file,&
                                              open_file
   USE cp_fm_basic_linalg,              ONLY: cp_fm_gemm
@@ -208,13 +208,13 @@ CONTAINS
 
 
     ! DBCSR tests
+    ! matrix_multiplication
     cp_dbcsr_test_section => section_vals_get_subs_vals(root_section,&
          "TEST%CP_DBCSR", error=error)
     CALL section_vals_get(cp_dbcsr_test_section, explicit=explicit, error=error)
     IF (explicit) THEN
        CALL cp_dbcsr_tests (para_env, iw, cp_dbcsr_test_section, error)
     ENDIF
-
 
     CALL cp_print_key_finished_output(iw,logger,root_section,"TEST%PROGRAM_RUN_INFO", error=error)
 
@@ -1626,10 +1626,9 @@ CONTAINS
 
     CHARACTER, DIMENSION(3)                  :: types
     INTEGER                                  :: data_type, i_rep, k, m, n, &
-                                                N_loop, n_rep
+                                                N_loop, n_rep, test_type
     INTEGER, DIMENSION(:), POINTER           :: bs_k, bs_m, bs_n, nproc
     LOGICAL                                  :: always_checksum, &
-                                                deterministic, &
                                                 retain_sparsity, transa_p, &
                                                 transb_p
     REAL(KIND=dp)                            :: alpha, beta, filter_eps, s_a, &
@@ -1644,6 +1643,7 @@ CONTAINS
        CALL section_vals_val_get(input_section,"N_loop",i_rep_section=i_rep,i_val=N_loop,error=error )
 
        ! matrices def.
+       CALL section_vals_val_get(input_section,"TEST_TYPE",i_rep_section=i_rep,i_val=test_type,error=error )
        CALL section_vals_val_get(input_section,"DATA_TYPE",i_rep_section=i_rep,i_val=data_type,error=error )
        CALL section_vals_val_get(input_section,"K",i_rep_section=i_rep,i_val=k,error=error )
        CALL section_vals_val_get(input_section,"N",i_rep_section=i_rep,i_val=n,error=error )
@@ -1672,10 +1672,9 @@ CONTAINS
             c_val=types(3), error=error)
        CALL section_vals_val_get(input_section,"filter_eps",&
             i_rep_section=i_rep,r_val=filter_eps,error=error )
-       CALL section_vals_val_get(input_section,"deterministic",i_rep_section=i_rep,l_val=deterministic,error=error )
        CALL section_vals_val_get(input_section,"ALWAYS_CHECKSUM",i_rep_section=i_rep,l_val=always_checksum,error=error )
-
-       CALL cp_test_multiplies (para_env%group, iw, nproc,&
+   
+       CALL dbcsr_run_tests (para_env%group, iw, nproc,&
             (/ m, n, k /),&
             types,&
             (/ transa_p, transb_p /),&
@@ -1683,7 +1682,8 @@ CONTAINS
             (/ s_a, s_b, s_c /),&
             alpha, beta,&
             data_type=data_type,&
-            n_loops=n_loop, eps=filter_eps, retain_sparsity=retain_sparsity, deterministic=deterministic,&
+            test_type=test_type,&
+            n_loops=n_loop, eps=filter_eps, retain_sparsity=retain_sparsity, &
             always_checksum=always_checksum)
     END DO
   END SUBROUTINE cp_dbcsr_tests

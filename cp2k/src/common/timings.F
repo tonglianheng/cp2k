@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2014  CP2K developers group                          !
+!   Copyright (C) 2000 - 2015  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -424,6 +424,8 @@ MODULE timings
        r_stat => list_get(timer_env%routine_stats, cs_entry%routine_id)
        WRITE (unit_nr, '(T10,I4,1X,A)') i, TRIM(r_stat%routineN)
     END DO
+    CALL m_flush(unit_nr)
+
   END SUBROUTINE print_stack
 
 ! *****************************************************************************

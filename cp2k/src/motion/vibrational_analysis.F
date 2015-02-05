@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2014  CP2K developers group                          !
+!   Copyright (C) 2000 - 2015  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -23,7 +23,6 @@ MODULE vibrational_analysis
   USE cp_result_methods,               ONLY: get_results
   USE cp_subsys_types,                 ONLY: cp_subsys_get,&
                                              cp_subsys_type
-  USE f77_blas
   USE f77_interface,                   ONLY: f_env_add_defaults,&
                                              f_env_rm_defaults,&
                                              f_env_type
@@ -50,8 +49,8 @@ MODULE vibrational_analysis
   USE motion_utils,                    ONLY: rot_ana,&
                                              thrs_motion
   USE particle_list_types,             ONLY: particle_list_type
-  USE particle_types,                  ONLY: particle_type,&
-                                             write_particle_matrix
+  USE particle_methods,                ONLY: write_particle_matrix
+  USE particle_types,                  ONLY: particle_type
   USE physcon,                         ONLY: massunit,&
                                              vibfac
   USE replica_methods,                 ONLY: rep_env_calc_e_f,&

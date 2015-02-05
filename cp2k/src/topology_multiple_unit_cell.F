@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2014  CP2K developers group                          !
+!   Copyright (C) 2000 - 2015  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -9,7 +9,6 @@
 ! *****************************************************************************
 MODULE topology_multiple_unit_cell
   USE cell_types,                      ONLY: cell_type
-  USE f77_blas
   USE input_section_types,             ONLY: section_vals_get,&
                                              section_vals_get_subs_vals,&
                                              section_vals_remove_values,&
@@ -80,7 +79,7 @@ CPSourceFileRef)
          "setup to two different values!! Correct this error!!"//&
 CPSourceFileRef)
        cell => topology%cell_muc
-       natoms = topology%natoms*REAL(PRODUCT(multiple_unit_cell),KIND=dp)
+       natoms = topology%natoms*PRODUCT(multiple_unit_cell)
 
        ! Check, if velocities are provided, that they are consistent in number with the atoms...
        work_section => section_vals_get_subs_vals(subsys_section,"VELOCITY",error=error)

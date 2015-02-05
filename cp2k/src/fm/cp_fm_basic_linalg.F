@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2014  CP2K developers group                          !
+!   Copyright (C) 2000 - 2015  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -487,79 +487,6 @@ CPSourceFileRef,&
     CALL timestop(handle)
 
  END SUBROUTINE cp_fm_frobenius_norm
-
-! *****************************************************************************
-!> \brief   performs a rank 1 operation: A = alpha*X*Y' + A
-!> \param alpha ...
-!> \param vector_x ...
-!> \param ix ...
-!> \param jx ...
-!> \param vector_y ...
-!> \param iy ...
-!> \param jy ...
-!> \param matrix_a ...
-!> \param error ...
-!> \date    07.03.2008
-!> \author  Matthias Krack
-!> \note Wrapper routine: check the LAPACK and ScaLAPACK documentation for
-!>          details.
-! *****************************************************************************
-  SUBROUTINE cp_fm_ger(alpha,vector_x,ix,jx,vector_y,iy,jy,matrix_a,error)
-
-    REAL(KIND=dp), INTENT(IN)                :: alpha
-    TYPE(cp_fm_type), POINTER                :: vector_x
-    INTEGER, INTENT(IN)                      :: ix, jx
-    TYPE(cp_fm_type), POINTER                :: vector_y
-    INTEGER, INTENT(IN)                      :: iy, jy
-    TYPE(cp_fm_type), POINTER                :: matrix_a
-    TYPE(cp_error_type), INTENT(inout)       :: error
-
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'cp_fm_ger', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: handle, ia, incx, incy, ja, &
-                                                m, n
-    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: a, x, y
-#if defined(__SCALAPACK)
-    INTEGER, DIMENSION(9)                    :: desca, descx, descy
-#else
-    INTEGER                                  :: lda
-#endif
-
-    CALL timeset(routineN,handle)
-
-    m = matrix_a%matrix_struct%nrow_global
-    n = matrix_a%matrix_struct%ncol_global
-
-    ia = 1
-    ja = 1
-
-    incx = 1
-    incy = 1
-
-    a => matrix_a%local_data
-    x => vector_x%local_data
-    y => vector_y%local_data
-
-#if defined(__SCALAPACK)
-
-    desca(:) = matrix_a%matrix_struct%descriptor(:)
-    descx(:) = vector_x%matrix_struct%descriptor(:)
-    descy(:) = vector_y%matrix_struct%descriptor(:)
-
-    CALL pdger(m,n,alpha,x(1,1),ix,jx,descx,incx,y(1,1),iy,jy,descy,incy,&
-               a(1,1),ia,ja,desca)
-
-#else
-
-    lda = SIZE(a,1)
-
-    CALL dger(m,n,alpha,x(ix,jx),incx,y(iy,jy),incy,a(ia,ja),lda)
-
-#endif
-    CALL timestop(handle)
-
-  END SUBROUTINE cp_fm_ger
 
 ! *****************************************************************************
 !> \brief performs a rank-k update of a symmetric matrix_c
@@ -1378,7 +1305,7 @@ SUBROUTINE cp_fm_triangular_multiply(triangular_matrix,matrix_b,side,&
     lwork = -1
     ALLOCATE(work(2*ndim),STAT=istat)
     CALL pdgeqrf( nrow, ncol, a, irow, icol, desca,  tau, work, lwork, info )
-    lwork = work(1)
+    lwork = INT(work(1))
     DEALLOCATE(work,STAT=istat)
     ALLOCATE(work(lwork),STAT=istat)
     CALL pdgeqrf( nrow, ncol, a, irow, icol, desca, tau, work, lwork, info )
@@ -1387,7 +1314,7 @@ SUBROUTINE cp_fm_triangular_multiply(triangular_matrix,matrix_b,side,&
     lwork = -1
     ALLOCATE(work(2*ndim),STAT=istat)
     CALL dgeqrf( nrow, ncol, a, lda,  tau, work, lwork, info )
-    lwork = work(1)
+    lwork = INT(work(1))
     DEALLOCATE(work,STAT=istat)
     ALLOCATE(work(lwork),STAT=istat)
     CALL dgeqrf( nrow, ncol, a, lda,  tau, work, lwork, info )

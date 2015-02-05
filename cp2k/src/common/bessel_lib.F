@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2014  CP2K developers group                          !
+!   Copyright (C) 2000 - 2015  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -13,7 +13,7 @@
 ! *****************************************************************************
 MODULE bessel_lib
 
-  USE f77_blas
+  
   USE kinds,                           ONLY: dp
   USE mathconstants,                   ONLY: fac,&
                                              pi
@@ -29,6 +29,7 @@ CONTAINS
 ! *****************************************************************************
 !> \brief ...
 !> \param x ...
+!> \retval bessj0 ...
 ! *****************************************************************************
   FUNCTION bessj0 ( x )
 
@@ -68,6 +69,7 @@ CONTAINS
 ! *****************************************************************************
 !> \brief ...
 !> \param x ...
+!> \retval bessj1 ...
 ! *****************************************************************************
   FUNCTION bessj1 ( x )
 
@@ -105,7 +107,8 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief ...
-!> \param x ...
+!> \param x must be positive
+!> \retval bessk0 ...
 ! *****************************************************************************
   FUNCTION bessk0 ( x )
 
@@ -134,7 +137,8 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief ...
-!> \param x ...
+!> \param x must be positive
+!> \retval bessk1 ...
 ! *****************************************************************************
   FUNCTION bessk1 ( x )
 
@@ -165,6 +169,7 @@ CONTAINS
 ! *****************************************************************************
 !> \brief ...
 !> \param x ...
+!> \retval bessi0 ...
 ! *****************************************************************************
   FUNCTION bessi0 ( x )
 
@@ -197,6 +202,7 @@ CONTAINS
 ! *****************************************************************************
 !> \brief ...
 !> \param x ...
+!> \retval bessi1 ...
 ! *****************************************************************************
   FUNCTION bessi1 ( x )
 
@@ -229,47 +235,9 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief ...
-!> \param fg ...
-!> \param g ...
-!> \param l ...
-!> \param r ...
-!> \param fr ...
-!> \param wr ...
-!> \param n ...
-! *****************************************************************************
-  SUBROUTINE bessel_transform (fg,g,l,r,fr,wr,n)
-    !
-    ! f(g) = 4Pi * INT(0..INF) r^2 * f(r) * B_L(g*r) dr
-    !      = 4Pi * SUM(1..n) r_i^2 * f(r_i) * B_L(g*r_i) * w(r_i)
-    !
-    REAL(KIND=dp), DIMENSION(:), INTENT(OUT) :: fg
-    REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: g
-    INTEGER, INTENT(IN)                      :: l
-    REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: r, fr, wr
-    INTEGER, INTENT(IN)                      :: n
-
-    INTEGER                                  :: i, j
-    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: bfr
-
-    ALLOCATE (bfr(n))
-    DO i=1,SIZE(fg)
-      IF ( i > 1 .AND. g(i)==g(i-1) ) THEN
-        fg(i) = fg(i-1)
-        CYCLE
-      END IF
-      DO j=1,n
-        bfr(j) = wr(j)*fr(j)*bessel0(g(i)*r(j),l)
-      END DO
-      fg(i) = 4._dp*pi*SUM ( bfr(1:n) )
-    END DO
-    DEALLOCATE (bfr)
-
-  END SUBROUTINE bessel_transform
-
-! *****************************************************************************
-!> \brief ...
 !> \param x ...
 !> \param l ...
+!> \retval bessel0 ...
 ! *****************************************************************************
   FUNCTION bessel0(x,l)
     !

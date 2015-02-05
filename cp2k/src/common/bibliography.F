@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2014  CP2K developers group                          !
+!   Copyright (C) 2000 - 2015  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -27,7 +27,7 @@
 !> \author Joost VandeVondele
 ! *****************************************************************************
 MODULE bibliography
-  USE f77_blas
+  
   USE reference_manager,               ONLY: add_reference,&
                                              cite_reference
   USE string_utilities,                ONLY: s2a
@@ -70,7 +70,9 @@ MODULE bibliography
        Tuckerman1992,  Zhao1994, Tozer1996, Goedecker2004,             &
        Khaliullin2013, Hutter2014, Bengtsson1999, Kantorovich2008,     &
        Kantorovich2008a, Wellendorff2012, Niklasson2014, Borstnik2014, &
-       Rayson2009, QUIP_ref
+       Rayson2009, Grimme2011, Fattebert2002, Andreussi2012,           &
+       Khaliullin2007, Khaliullin2008, Merlot2014, Lin2009, Lin2013,   &
+       QUIP_ref, DelBen2015
 
 CONTAINS
 
@@ -207,7 +209,7 @@ CONTAINS
          "AU ZHAO, QS",&
          "   MORRISON, RC",&
          "   PARR, RG",&
-         "TI FOR ELECTRON DENSITIES TO KHON-SHAM KINETIC ENERGIES, ORBITAL ENERGIES.",&
+         "TI FOR ELECTRON DENSITIES TO KOHN-SHAM KINETIC ENERGIES, ORBITAL ENERGIES.",&
          "   EXCHANGE-CORRELATION POTENTIALS, AND EXCHANGE-CORRELATION ENERGIES",&
          "SO PHYSICAL REVIEW A",&
          "SN 1050-2947",&
@@ -1736,6 +1738,23 @@ CONTAINS
          "ER"),&
          DOI="10.1063/1.3382344")
 
+    CALL add_reference(key=Grimme2011,ISI_record=s2a(&
+         "PT J",&
+         "AU Grimme, S",&
+         "   Ehrlich, S",&
+         "   Goerigk, L",&
+         "AF Grimme, Stefan",&
+         "   Ehrlich, Stephan",&
+         "   Goerigk, Lars",&
+         "TI Effect of the damping function in dispersion corrected density functional theory",&
+         "SO JOURNAL OF COMPUTATIONAL CHEMISTRY",&
+         "PY 2011",&
+         "VL 32",&
+         "BP 1456",&
+         "DI 10.1002/jcc.21759",&
+         "ER"),&
+         DOI="10.1002/jcc.21759")
+
     CALL add_reference(key=Branduardi2007,ISI_record=s2a(&
          "PT J",&
          "AU Branduardi, D",&
@@ -2457,7 +2476,6 @@ CONTAINS
          "ER"),&
          DOI="10.1021/jp002807j")
 
-
     CALL add_reference(key=Weber2009, ISI_record=s2a(&
          "PT J",&
          "AU Weber, V",&
@@ -2511,6 +2529,44 @@ CONTAINS
          "ER"),&
          DOI="10.1021/ct400698y")
 
+    CALL add_reference(key=Fattebert2002, ISI_record=s2a(&
+         "PT J",&
+         "AU Fattebert, JL",&
+         "   Gygi, F",&
+         "AF Fattebert, Jean-Luc",&
+         "   Gygi, Francois",&
+         "TI Density functional theory for efficient ab initio molecular dynamics",&
+         "   simulations in solution",&
+         "SO J. Comput. Chem.",&
+         "VL 23",&
+         "IS 6",&
+         "SP 662",&
+         "EP 666",&
+         "PD MAR 18",&
+         "PY 2002",&
+         "UR http://dx.doi.org/10.1002/jcc.10069",&
+         "ER"),&
+         DOI="10.1002/jcc.10069")
+
+    CALL add_reference(key=Andreussi2012, ISI_record=s2a(&
+         "PT J",&
+         "AU Andreussi, O",&
+         "   Dabo, I",&
+         "   Marzari, N",&
+         "AF Andreussi, Oliviero",&
+         "   Dabo, Ismaila",&
+         "   Marzari, Nicola",&
+         "TI Revised self-consistent continuum solvation in electronic-structure calculations",&
+         "SO J. Chem. Phys.",&
+         "VL 136",&
+         "IS 6",&
+         "AR 064102",&
+         "PD FEB 8",&
+         "PY 2012",&
+         "UR http://dx.doi.org/10.1063/1.3676407",&
+         "ER"),&
+         DOI="10.1063/1.3676407")
+
     CALL add_reference(key=Tuckerman1992, ISI_record=s2a(&
          "PT J",&
          "AU TUCKERMAN, M",&
@@ -2548,6 +2604,48 @@ CONTAINS
          "DI 10.1063/1.1724816",&
          "ER"),&
          DOI="10.1063/1.1724816")
+
+    CALL add_reference(key=Khaliullin2007, ISI_record=s2a(&
+         "PT J",&
+         "AU Khaliullin, RZ",&
+         "   Cobar, EA",&
+         "   Lochan, RC",&
+         "   Bell, AT",&
+         "   Head-Gordon, M",&
+         "AF Khaliullin, Rustam Z.",&
+         "   Cobar, Erika A.",&
+         "   Lochan, Rohini C.",&
+         "   Bell, Alexis T.",&
+         "   Head-Gordon, Martin",&
+         "TI Unravelling the origin of intermolecular interactions using absolutely localized molecular orbitals",&
+         "SO Journal of Physical Chemistry A",&
+         "PY 2007",&
+         "VL 111",&
+         "IS 36",&
+         "BP 8753",&
+         "EP 8765",&
+         "DI 10.1021/jp073685z",&
+         "ER"),&
+         DOI="10.1021/jp073685z")
+
+    CALL add_reference(key=Khaliullin2008, ISI_record=s2a(&
+         "PT J",&
+         "AU Khaliullin, RZ",&
+         "   Bell, AT",&
+         "   Head-Gordon, M",&
+         "AF Khaliullin, Rustam Z.",&
+         "   Bell, Alexis T.",&
+         "   Head-Gordon, Martin",&
+         "TI Analysis of charge transfer effects in molecular complexes based on absolutely localized molecular orbitals",&
+         "SO Journal of Chemical Physics",&
+         "SN 0021-9606",&
+         "PY 2008",&
+         "VL 128",&
+         "IS 18",&
+         "AR 184112",&
+         "DI 10.1063/1.2912041",&
+         "ER"),&
+         DOI="10.1063/1.2912041")
 
     CALL add_reference(key=Khaliullin2013, ISI_record=s2a(&
          "PT J",&
@@ -2692,6 +2790,121 @@ CONTAINS
          "DI 10.1103/PhysRevB.80.205104",&
          "ER"),&
          DOI="10.1103/PhysRevB.80.205104")
+
+    CALL add_reference(key=Merlot2014, ISI_record=s2a(&
+         "PT J",&
+         "AU Merlot, P",&
+         "   Izsak, R",&
+         "   Borgo, A",&
+         "   Kjaergaard, T",&
+         "   Helgaker, T",&
+         "   Reine, S",&
+         "AF Merlot, Patrick",&
+         "   Izsak, Robert",&
+         "   Borgo, Alex",&
+         "   Kjaergaard, Thomas",&
+         "   Helgaker, Trygve",&
+         "   Reine, Simen",&
+         "TI Charge-constrained auxiliary-density-matrix methods for the",&
+         "   Hartree-Fock exchange contribution",&
+         "SO JOURNAL OF CHEMICAL PHYSICS",&
+         "SN 0021-9606",&
+         "PD SEP",&
+         "PY 2014",&
+         "VL 141",&
+         "IS 9" ,&
+         "AR 094104",&
+         "DI /10.1063/1.4894267",&
+         "ER"),&
+         DOI="10.1063/1.4894267")
+
+    CALL add_reference(key=Lin2009, ISI_record=s2a(&
+          "PT J",&
+          "AU Lin, L",&
+          "   Lu, JF",&
+          "   Ying, LX",&
+          "   Car, R",&
+          "   E, WN",&
+          "AF Lin, Lin",&
+          "   Lu, Jianfeng",&
+          "   Ying, Lexing",&
+          "   Car, Roberto",&
+          "   E, Weinan",&
+          "TI FAST ALGORITHM FOR EXTRACTING THE DIAGONAL OF THE INVERSE MATRIX WITH",&
+          "   APPLICATION TO THE ELECTRONIC STRUCTURE ANALYSIS OF METALLIC SYSTEMS",&
+          "SO COMMUNICATIONS IN MATHEMATICAL SCIENCES",&
+          "VL 7",&
+          "SN 1539-6746",&
+          "PD SEP",&
+          "PY 2009",&
+          "RI Lin, Lin/I-2726-2012",&
+          "OI Lin, Lin/0000-0001-7738-5947",&
+          "TC 20",&
+          "ZB 0",&
+          "Z8 3",&
+          "ZS 0",&
+          "Z9 21",&
+          "VL 7",&
+          "IS 3",&
+          "BP 755",&
+          "EP 777",&
+          "UT WOS:000271568500012",&
+          "ER"),&
+          DOI="10.4310/CMS.2009.v7.n3.a12")
+
+     CALL add_reference(key=Lin2013, ISI_record=s2a(&
+          "PT J",&
+          "AU Lin, Lin",&
+          "   Chen, Mohan",&
+          "   Yang, Chao",&
+          "   He, Lixin",&
+          "TI Accelerating atomic orbital-based electronic structure calculation via",&
+          "   pole expansion and selected inversion",&
+          "SO JOURNAL OF PHYSICS-CONDENSED MATTER",&
+          "VL 25",&
+          "IS 29",&
+          "AR 295501",&
+          "PD JUL 24 2013",&
+          "PY 2013",&
+          "TC 3",&
+          "ZB 1",&
+          "Z8 0",&
+          "ZS 0",&
+          "Z9 3",&
+          "SN 0953-8984",&
+          "UT WOS:000321219200006",&
+          "PM 23803312",&
+          "ER"),&
+          DOI="10.1088/0953-8984/25/29/295501")
+
+     CALL add_reference(key=DelBen2015, ISI_record=s2a(&
+          "PT J",&
+          "AU Del Ben, M",&
+          "   Schuett, O",&
+          "   Wentz, T",&
+          "   Messmer, P",&
+          "   Hutter, J",&
+          "   VandeVondele, J",&
+          "AF Del Ben, Mauro",&
+          "   Schuett, Ole",&
+          "   Wentz, Tim",&
+          "   Messmer, Peter",&
+          "   Hutter, Juerg",&
+          "   VandeVondele, Joost",&
+          "TI Enabling simulation at the fifth rung of DFT: Large scale RPA",&
+          "   calculations with excellent time to solution",&
+          "SO COMPUTER PHYSICS COMMUNICATIONS",&
+          "SN 0010-4655",&
+          "EI 1879-2944",&
+          "PD FEB",&
+          "PY 2015",&
+          "VL 187",&
+          "BP 120",&
+          "EP 129",&
+          "DI 10.1016/j.cpc.2014.10.021",&
+          "UT WOS:000346954200014",&
+          "ER"),&
+          DOI="10.1016/j.cpc.2014.10.021")
 
   END SUBROUTINE add_all_references
 

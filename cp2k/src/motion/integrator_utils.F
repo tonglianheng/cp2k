@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2014  CP2K developers group                          !
+!   Copyright (C) 2000 - 2015  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -13,6 +13,13 @@
 MODULE integrator_utils
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind
+  USE barostat_types,                  ONLY: do_clv_x,&
+                                             do_clv_xy,&
+                                             do_clv_xyz,&
+                                             do_clv_xz,&
+                                             do_clv_y,&
+                                             do_clv_yz,&
+                                             do_clv_z
   USE cell_types,                      ONLY: cell_type
   USE constraint,                      ONLY: rattle_roll_control
   USE constraint_util,                 ONLY: pv_constraint
@@ -21,10 +28,8 @@ MODULE integrator_utils
   USE extended_system_types,           ONLY: debug_isotropic_limit,&
                                              debug_uniaxial_limit,&
                                              npt_info_type
-  USE f77_blas
   USE input_constants,                 ONLY: &
-       do_clv_x, do_clv_xy, do_clv_xyz, do_clv_xz, do_clv_y, do_clv_yz, &
-       do_clv_z, isokin_ensemble, npe_f_ensemble, npe_i_ensemble, &
+       isokin_ensemble, npe_f_ensemble, npe_i_ensemble, &
        nph_uniaxial_damped_ensemble, nph_uniaxial_ensemble, npt_f_ensemble, &
        npt_i_ensemble, nve_ensemble, nvt_ensemble
   USE kinds,                           ONLY: dp

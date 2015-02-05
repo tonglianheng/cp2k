@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2014  CP2K developers group                          !
+!   Copyright (C) 2000 - 2015  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -8,7 +8,7 @@
 !> \author Florian Schiffmann (09.2007,fschiff)
 ! *****************************************************************************
 MODULE ps_wavelet_base
-  USE f77_blas
+  
   USE kinds,                           ONLY: dp
   USE message_passing,                 ONLY: mp_alltoall
   USE ps_wavelet_fft3d,                ONLY: ctrig,&
@@ -1691,8 +1691,6 @@ CONTAINS
 !> \param hgrid grid spacing, used for integrating quantities 
 !> \param mpi_group ...
 !> \param error ...
-!> \param ! ...
-!> \param ehartree hartree energy of the potential
 !> \date February 2006
 !> \author S. Goedecker, L. Genovese
 !> \note As transform lengths
@@ -1708,7 +1706,7 @@ CONTAINS
 !>       GNU General Public License, see http://www.gnu.org/copyleft/gpl.txt . 
 ! *****************************************************************************
   SUBROUTINE F_PoissonSolver(n1,n2,n3,nd1,nd2,nd3,md1,md2,md3,nproc,iproc,pot,zf,&
-       scal,hgrid,mpi_group,error)!,ehartree)
+       scal,hgrid,mpi_group,error)
     INTEGER, INTENT(in)                      :: n1, n2, n3, nd1, nd2, nd3, &
                                                 md1, md2, md3, nproc, iproc
     REAL(KIND=dp), &
@@ -1796,6 +1794,7 @@ CONTAINS
     ALLOCATE(zt(2,lzt,n1),stat=i_stat)
     i_all=i_all+i_stat
     ALLOCATE(zmpi2(2,n1,md2/nproc,nd3),stat=i_stat)
+    zmpi2=1.0E99_dp ! init mpi'ed buffers to silence warnings under valgrind
     i_all=i_all+i_stat
     ALLOCATE(cosinarr(2,n3/2),stat=i_stat)
     i_all=i_all+i_stat

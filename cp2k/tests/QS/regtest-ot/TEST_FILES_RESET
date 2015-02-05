@@ -982,3 +982,35 @@ H2O-geo-ot-evals.inp
 sic_ddapc_rt.inp
 #  
 He2_ddapc_constraint-4.inp
+#change in numerics
+He2_ddapc_constraint-3.inp.out
+#  
+He2_ddapc_constraint-3.inp
+#do not accumulate shift in outer scf preconditioner
+He2_ddapc_constraint.inp
+He2_ddapc_constraint-2.inp
+He2_ddapc_constraint-3.inp
+He2_none.inp
+#do not accumulate shift in outer scf preconditioner
+He2_ddapc_constraint-4.inp
+He2_ddapc_constraint-2.inp
+# fix roundoff NaNs
+He_a_x.inp
+He_a_y.inp
+He_a_z.inp
+#New FULL_SINGLE_INVERSE
+He2_none_full_inverse.inp
+H2-diffBECKE-ET_coupling.inp
+#improvements to full_single inverse
+He2_none_full_inverse.inp
+#improvements to full_single inverse
+H2-diffBECKE-ET_coupling.inp
+reset tests for vector transfer
+H2-diffBECKE-ET_coupling.inp
+new defaults for preconditioner
+He2_none_full_all.inp
+He2_none_full_inverse.inp
+new defaults for preconditioner
+H2-diffBECKE-ET_coupling.inp
+# fix for generalized arnoldi ev
+He2_none_full_inverse.inp

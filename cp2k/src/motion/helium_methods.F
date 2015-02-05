@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2014  CP2K developers group                          !
+!   Copyright (C) 2000 - 2015  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -11,10 +11,11 @@
 MODULE helium_methods
 
   USE atomic_kind_types,               ONLY: get_atomic_kind
-  USE cell_methods,                    ONLY: cell_type,&
+  USE cell_types,                      ONLY: cell_type,&
                                              get_cell
   USE cp_files,                        ONLY: close_file,&
                                              open_file
+  USE cp_output_handling,              ONLY: silent_print_level
   USE cp_subsys_types,                 ONLY: cp_subsys_get,&
                                              cp_subsys_type
   USE cp_units,                        ONLY: cp_unit_from_cp2k
@@ -31,8 +32,7 @@ MODULE helium_methods
                                              helium_solvent_type
   USE input_constants,                 ONLY: helium_cell_shape_cube,&
                                              helium_cell_shape_none,&
-                                             helium_cell_shape_octahedron,&
-                                             silent_print_level
+                                             helium_cell_shape_octahedron
   USE input_section_types,             ONLY: section_vals_get,&
                                              section_vals_get_subs_vals,&
                                              section_vals_type,&
@@ -79,17 +79,14 @@ MODULE helium_methods
 
   CONTAINS
 
-  ! ***************************************************************************
-  !> \brief  Data-structure that holds all needed information about
-  !>         (superfluid) helium solvent
-  !> \author hforbert
-  ! ***************************************************************************
-! *****************************************************************************
-!> \brief ...
+! ***************************************************************************
+!> \brief  Data-structure that holds all needed information about
+!>         (superfluid) helium solvent
 !> \param helium ...
 !> \param input ...
 !> \param solute ...
 !> \param error ...
+!> \author hforbert
 ! *****************************************************************************
   SUBROUTINE helium_create( helium, input, solute, error )
     TYPE(helium_solvent_type), POINTER       :: helium
@@ -306,7 +303,7 @@ MODULE helium_methods
                  END IF
               ELSE ! ( expl_dens .AND. .NOT. expl_nats )
                  ! calculate the nearest number of atoms for given conditions
-                 helium%atoms = ANINT(helium%density * &
+                 helium%atoms = NINT(helium%density * &
                                 helium%cell_size**3.0_dp / cgeof)
                  ! adjust cell size to maintain correct density
                  ! (should be a small correction)
@@ -383,7 +380,7 @@ MODULE helium_methods
        msg_str = "BISECTION should be integer power of 2."
        CALL cp_assert(tcheck<100.0_dp*EPSILON(0.0_dp),cp_failure_level,&
             cp_assertion_failed, routineP, msg_str)
-       helium%bisctlog2 = ANINT(LOG(REAL(itmp))/LOG(2.0_dp))
+       helium%bisctlog2 = NINT(LOG(REAL(itmp,KIND=dp))/LOG(2.0_dp))
 
        ! hard coded He4 directly (mass so i get my original hb2m value)
        ! He4 mass defined as a constant in helium_types.F now [lwalewski]
@@ -658,14 +655,11 @@ MODULE helium_methods
     RETURN
   END SUBROUTINE helium_create
 
-  ! ***************************************************************************
-  !> \brief  Releases helium_solvent_type
-  !> \author hforbert
-  ! ***************************************************************************
-! *****************************************************************************
-!> \brief ...
+! ***************************************************************************
+!> \brief  Releases helium_solvent_type
 !> \param helium ...
 !> \param error ...
+!> \author hforbert
 ! *****************************************************************************
   SUBROUTINE helium_release(helium,error)
     TYPE(helium_solvent_type), POINTER       :: helium
@@ -819,14 +813,11 @@ MODULE helium_methods
     RETURN
   END SUBROUTINE helium_release
 
-  ! ***************************************************************************
-  !> \brief  Retains helium_solvent_type
-  !> \author hforbert
-  ! ***************************************************************************
-! *****************************************************************************
-!> \brief ...
+! ***************************************************************************
+!> \brief  Retains helium_solvent_type
 !> \param helium ...
 !> \param error ...
+!> \author hforbert
 ! *****************************************************************************
   SUBROUTINE helium_retain(helium,error)
     TYPE(helium_solvent_type), POINTER       :: helium
@@ -846,22 +837,19 @@ MODULE helium_methods
     RETURN
   END SUBROUTINE helium_retain
 
-  ! ***************************************************************************
-  !> \brief  Initialize helium data structures.
-  !> \author hforbert
-  !> \descr  Initializes helium coordinates either as random positions or from
-  !>         HELIUM%COORD section if it's present in the input file.
-  !>         Initializes helium permutation state as identity permutation or
-  !>         from HELIUM%PERM section if it's present in the input file.
-  !> \par    History
-  !>         removed refereces to pint_env_type data structure [lwalewski]
-  !>         2009-11-10 init/restore coords, perm, RNG and forces [lwalewski]
-  ! ***************************************************************************
-! *****************************************************************************
-!> \brief ...
+! ***************************************************************************
+!> \brief  Initialize helium data structures.
 !> \param helium ...
 !> \param pint_env ...
 !> \param error ...
+!> \par    History
+!>         removed refereces to pint_env_type data structure [lwalewski]
+!>         2009-11-10 init/restore coords, perm, RNG and forces [lwalewski]
+!> \author hforbert
+!> \note   Initializes helium coordinates either as random positions or from
+!>         HELIUM%COORD section if it's present in the input file.
+!>         Initializes helium permutation state as identity permutation or
+!>         from HELIUM%PERM section if it's present in the input file.
 ! *****************************************************************************
   SUBROUTINE helium_init( helium, pint_env, error )
 
@@ -992,23 +980,20 @@ MODULE helium_methods
     RETURN
   END SUBROUTINE helium_init
 
-  ! ***************************************************************************
+! ***************************************************************************
   ! Data transfer functions.
   !
   ! These functions manipulate and transfer data between the runtime
   ! environment and the input structure.
-  ! ***************************************************************************
+! ***************************************************************************
 
-  ! ***************************************************************************
-  !> \brief  Initialize helium coordinates with random positions.
-  !> \author Lukasz Walewski
-  !> \date   2009-11-09
-  ! ***************************************************************************
-! *****************************************************************************
-!> \brief ...
+! ***************************************************************************
+!> \brief  Initialize helium coordinates with random positions.
 !> \param helium ...
 !> \param pint_env ...
 !> \param error ...
+!> \date   2009-11-09
+!> \author Lukasz Walewski
 ! *****************************************************************************
   SUBROUTINE helium_coord_init( helium, pint_env, error )
     TYPE(helium_solvent_type), POINTER       :: helium
@@ -1043,18 +1028,15 @@ MODULE helium_methods
     RETURN
   END SUBROUTINE helium_coord_init
 
-  ! ***************************************************************************
-  !> \brief  Restore coordinates from the input structure.
-  !> \author Lukasz Walewski
-  !> \date   2009-11-09
-  !> \par    History
-  !>         2010-07-22 accomodate additional cpus in the runtime wrt the
-  !>                    restart [lwalewski]
-  ! ***************************************************************************
-! *****************************************************************************
-!> \brief ...
+! ***************************************************************************
+!> \brief  Restore coordinates from the input structure.
 !> \param helium ...
 !> \param error ...
+!> \date   2009-11-09
+!> \par    History
+!>         2010-07-22 accomodate additional cpus in the runtime wrt the
+!>                    restart [lwalewski]
+!> \author Lukasz Walewski
 ! *****************************************************************************
   SUBROUTINE helium_coord_restore( helium, error )
     TYPE(helium_solvent_type), POINTER       :: helium
@@ -1137,19 +1119,16 @@ MODULE helium_methods
     RETURN
   END SUBROUTINE helium_coord_restore
 
-  ! ***************************************************************************
-  !> \brief  Initialize forces exerted on the solute.
-  !> \author Lukasz Walewski
-  !> \date   2009-11-10
-  !> \descr  The forces are calculated based on both the helium and the solute
-  !>         positions, hence this function should be called AFTER
-  !>         helium_coord_init/restore.
-  ! ***************************************************************************
-! *****************************************************************************
-!> \brief ...
+! ***************************************************************************
+!> \brief  Initialize forces exerted on the solute.
 !> \param helium ...
 !> \param pint_env ...
 !> \param error ...
+!> \date   2009-11-10
+!> \author Lukasz Walewski
+!> \note  The forces are calculated based on both the helium and the solute
+!>         positions, hence this function should be called AFTER
+!>         helium_coord_init/restore.
 ! *****************************************************************************
   SUBROUTINE helium_force_init( helium, pint_env, error )
     TYPE(helium_solvent_type), POINTER       :: helium
@@ -1175,15 +1154,12 @@ MODULE helium_methods
     RETURN
   END SUBROUTINE helium_force_init
 
-  ! ***************************************************************************
-  !> \brief  Restore forces from the input structure to the runtime environment.
-  !> \author Lukasz Walewski
-  !> \date   2009-11-10
-  ! ***************************************************************************
-! *****************************************************************************
-!> \brief ...
+! ***************************************************************************
+!> \brief  Restore forces from the input structure to the runtime environment.
 !> \param helium ...
 !> \param error ...
+!> \date   2009-11-10
+!> \author Lukasz Walewski
 ! *****************************************************************************
   SUBROUTINE helium_force_restore( helium, error )
     TYPE(helium_solvent_type), POINTER       :: helium
@@ -1249,17 +1225,14 @@ MODULE helium_methods
     RETURN
   END SUBROUTINE helium_force_restore
 
-  ! ***************************************************************************
-  !> \brief  Initialize the permutation state.
-  !> \author Lukasz Walewski
-  !> \date   2009-11-05
-  !> \descr  Assign the identity permutation at each processor. Inverse
-  !>         permutation array gets assigned as well.
-  ! ***************************************************************************
-! *****************************************************************************
-!> \brief ...
+! ***************************************************************************
+!> \brief  Initialize the permutation state.
 !> \param helium ...
 !> \param error ...
+!> \date   2009-11-05
+!> \author Lukasz Walewski
+!> \note  Assign the identity permutation at each processor. Inverse
+!>         permutation array gets assigned as well.
 ! *****************************************************************************
   SUBROUTINE helium_perm_init( helium, error )
     TYPE(helium_solvent_type), POINTER       :: helium
@@ -1282,21 +1255,18 @@ MODULE helium_methods
     RETURN
   END SUBROUTINE helium_perm_init
 
-  ! ***************************************************************************
-  !> \brief  Restore permutation state from the input structre.
-  !> \author Lukasz Walewski
-  !> \date   2009-11-05
-  !> \descr  Transfer permutation state from the input tree to the runtime
-  !>         data structures on each processor. Inverse permutation array is
-  !>         recalculated according to the restored permutation state.
-  !> \par    History
-  !>         2010-07-22 accomodate additional cpus in the runtime wrt the
-  !>                    restart [lwalewski]
-  ! ***************************************************************************
-! *****************************************************************************
-!> \brief ...
+! ***************************************************************************
+!> \brief  Restore permutation state from the input structre.
 !> \param helium ...
 !> \param error ...
+!> \date   2009-11-05
+!> \par    History
+!>         2010-07-22 accomodate additional cpus in the runtime wrt the
+!>                    restart [lwalewski]
+!> \author Lukasz Walewski
+!> \note  Transfer permutation state from the input tree to the runtime
+!>         data structures on each processor. Inverse permutation array is
+!>         recalculated according to the restored permutation state.
 ! *****************************************************************************
   SUBROUTINE helium_perm_restore( helium, error )
     TYPE(helium_solvent_type), POINTER       :: helium
@@ -1386,18 +1356,15 @@ MODULE helium_methods
     RETURN
   END SUBROUTINE helium_perm_restore
 
-  ! ***************************************************************************
-  !> \brief  Create RNG streams and initialize their state.
-  !> \author Lukasz Walewski
-  !> \date   2009-11-04
-  !> \todo   This function shouldn't create (allocate) objects! Only
-  !>         initialization, i.e. setting the seed values etc, should be done
-  !>         here, allocation should be moved to helium_create
-  ! ***************************************************************************
-! *****************************************************************************
-!> \brief ...
+! ***************************************************************************
+!> \brief  Create RNG streams and initialize their state.
 !> \param helium ...
 !> \param error ...
+!> \date   2009-11-04
+!> \author Lukasz Walewski
+!> \note   This function shouldn't create (allocate) objects! Only
+!>         initialization, i.e. setting the seed values etc, should be done
+!>         here, allocation should be moved to helium_create
 ! *****************************************************************************
   SUBROUTINE helium_rng_state_init( helium, error )
     TYPE(helium_solvent_type), POINTER       :: helium
@@ -1484,18 +1451,15 @@ MODULE helium_methods
     RETURN
   END SUBROUTINE helium_rng_state_init
 
-  ! ***************************************************************************
-  !> \brief  Restore RNG state from the input structure.
-  !> \author Lukasz Walewski
-  !> \date   2009-11-04
-  !> \par    History
-  !>         2010-07-22 Create new rng streams if more cpus available in the
-  !>         runtime than in the restart [lwalewski]
-  ! ***************************************************************************
-! *****************************************************************************
-!> \brief ...
+! ***************************************************************************
+!> \brief  Restore RNG state from the input structure.
 !> \param helium ...
 !> \param error ...
+!> \date   2009-11-04
+!> \par    History
+!>         2010-07-22 Create new rng streams if more cpus available in the
+!>         runtime than in the restart [lwalewski]
+!> \author Lukasz Walewski
 ! *****************************************************************************
   SUBROUTINE helium_rng_state_restore( helium, error )
     TYPE(helium_solvent_type), POINTER       :: helium
@@ -1704,15 +1668,12 @@ MODULE helium_methods
   END SUBROUTINE helium_rng_state_restore
 
 
-  ! ***************************************************************************
-  !> \brief  Restore the densities from the input structure.
-  !> \author Lukasz Walewski
-  !> \date   2011-06-22
-  ! ***************************************************************************
-! *****************************************************************************
-!> \brief ...
+! ***************************************************************************
+!> \brief  Restore the densities from the input structure.
 !> \param helium ...
 !> \param error ...
+!> \date   2011-06-22
+!> \author Lukasz Walewski
 ! *****************************************************************************
   SUBROUTINE helium_densities_restore( helium, error )
 
@@ -1775,16 +1736,13 @@ MODULE helium_methods
   END SUBROUTINE helium_densities_restore
 
 
-  ! ***************************************************************************
-  !> \brief Count atoms of different types and store their global indices.
-  !> \note  Arrays ALLOCATEd here are (should be) DEALLOCATEd in
-  !>        helium_release.
-  !> \author Lukasz Walewski
-  ! ***************************************************************************
-! *****************************************************************************
-!> \brief ...
+! ***************************************************************************
+!> \brief Count atoms of different types and store their global indices.
 !> \param helium ...
 !> \param pint_env ...
+!> \author Lukasz Walewski
+!> \note  Arrays ALLOCATEd here are (should be) DEALLOCATEd in
+!>        helium_release.
 ! *****************************************************************************
   SUBROUTINE helium_set_solute_indices(helium, pint_env)
     TYPE(helium_solvent_type), POINTER       :: helium
@@ -1894,20 +1852,17 @@ MODULE helium_methods
     RETURN
   END SUBROUTINE helium_set_solute_indices
 
-  ! ***************************************************************************
-  !> \brief Sets helium%solute_cell based on the solute's force_env.
-  !> \author Lukasz Walewski
-  !> \descr The simulation cell for the solvated molecule is taken from force_env
-  !>        which should assure that we get proper cell dimensions regardless of
-  !>        the method used for the solute (QS, FIST). Helium solvent needs the
-  !>        solute's cell dimensions to calculate the solute-solvent distances
-  !>        correctly.
-  !> \note  At the moment only orthorhombic cells are supported.
-  ! *****************************************************************************
-! *****************************************************************************
-!> \brief ...
+! ***************************************************************************
+!> \brief Sets helium%solute_cell based on the solute's force_env.
 !> \param helium ...
 !> \param pint_env ...
+!> \author Lukasz Walewski
+!> \note The simulation cell for the solvated molecule is taken from force_env
+!>        which should assure that we get proper cell dimensions regardless of
+!>        the method used for the solute (QS, FIST). Helium solvent needs the
+!>        solute's cell dimensions to calculate the solute-solvent distances
+!>        correctly.
+!> \note  At the moment only orthorhombic cells are supported.
 ! *****************************************************************************
   SUBROUTINE helium_set_solute_cell(helium, pint_env)
     TYPE(helium_solvent_type), POINTER       :: helium

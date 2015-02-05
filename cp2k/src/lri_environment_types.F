@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2014  CP2K developers group                          !
+!   Copyright (C) 2000 - 2015  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -29,6 +29,7 @@ MODULE lri_environment_types
                                              neighbor_list_iterator_p_type,&
                                              neighbor_list_iterator_release,&
                                              neighbor_list_set_p_type
+  USE virial_types,                    ONLY: virial_type
 #include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
@@ -59,23 +60,9 @@ MODULE lri_environment_types
 
 ! *****************************************************************************
 
-  TYPE lri_debug_type
-     ! dmax: maximal deviation for integrals of primitive (!) gtos
-     ! dmax for overlap integrals (ai,bi); fit bas 
-     REAL(KIND=dp)                                           :: dmax_ab
-     ! dmax for overlap integrals (a,b); orb bas 
-     REAL(KIND=dp)                                           :: dmax_oo
-     ! dmax for integrals (a,b,ai) 
-     REAL(KIND=dp)                                           :: dmax_aba
-     ! dmax for integrals (a,b,bi) 
-     REAL(KIND=dp)                                           :: dmax_abb
-     ! dmax for (aa,bb) integrals
-     REAL(KIND=dp)                                           :: dmax_aabb
-  END TYPE lri_debug_type
-
-! *****************************************************************************
-
   TYPE lri_int_type
+     ! whether to calculate force for pair 
+     LOGICAL                                                 :: calc_force_pair
      ! number of spherical basis functions (a)
      INTEGER                                                 :: nba
      ! number of spherical basis functions (b)
@@ -84,6 +71,8 @@ MODULE lri_environment_types
      INTEGER                                                 :: nfa
      ! number of spherical fit basis functions (bi)
      INTEGER                                                 :: nfb
+     ! condition number of overlap matrix
+     REAL(KIND=dp)                                           :: cond_num
      ! integrals (a,b,ai)
      REAL(KIND=dp), DIMENSION(:,:,:), POINTER                :: abaint
      ! integrals (a,b,bi)
@@ -161,22 +150,18 @@ MODULE lri_environment_types
      REAL(KIND=dp), DIMENSION(:,:), POINTER                  :: orb_ovlp
   END TYPE lri_bas_overlap_type
 
-  TYPE lri_gcc_p_type
-     REAL(KIND=dp), DIMENSION(:,:,:), POINTER                :: gcc_orig
-  END TYPE lri_gcc_p_type
-
 ! *****************************************************************************
 
   TYPE lri_environment_type
      INTEGER :: id_nr, ref_count, in_use
      ! flag for debugging lri integrals
      LOGICAL                                                 :: debug
+     ! parameter for checking distance between atom pairs
+     REAL(KIND=dp)                                           :: delta
      ! orbital basis set
      TYPE(gto_basis_set_p_type), DIMENSION(:), POINTER       :: orb_basis
      ! lri (fit) basis set 
      TYPE(gto_basis_set_p_type), DIMENSION(:), POINTER       :: ri_basis
-     ! holds the original contraction coeff of the lri basis
-     TYPE(lri_gcc_p_type), DIMENSION(:), POINTER             :: ri_gcc_orig
      ! orb_basis neighborlist, LRI integrals
      TYPE(neighbor_list_set_p_type), DIMENSION(:), POINTER   :: soo_list
      ! local RI integrals
@@ -280,10 +265,10 @@ CONTAINS
     lri_env%in_use=0
 
     lri_env%debug = .FALSE.
+    lri_env%delta = 1.E-6_dp
 
     NULLIFY(lri_env%orb_basis)
     NULLIFY(lri_env%ri_basis)
-    NULLIFY(lri_env%ri_gcc_orig)
 
     NULLIFY(lri_env%soo_list)
     NULLIFY(lri_env%lri_ints)
@@ -330,15 +315,6 @@ CONTAINS
              CALL deallocate_gto_basis_set(lri_env%ri_basis(ikind)%gto_basis_set,error)
           END DO
           DEALLOCATE(lri_env%ri_basis,stat=stat)
-          CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
-       END IF
-       IF(ASSOCIATED(lri_env%ri_gcc_orig)) THEN
-          nkind = SIZE(lri_env%ri_gcc_orig)
-          DO ikind=1,nkind
-             DEALLOCATE(lri_env%ri_gcc_orig(ikind)%gcc_orig,stat=stat)
-             CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
-          END DO
-          DEALLOCATE(lri_env%ri_gcc_orig,stat=stat)
           CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
        END IF
        IF (ASSOCIATED(lri_env%soo_list)) THEN
@@ -711,13 +687,18 @@ CONTAINS
 !> \param lri_env ...
 !> \param lri_ints structure storing the LRI integrals
 !> \param nkind number of atom kinds 
+!> \param calculate_forces ...
+!> \param virial ...
 !> \param error variable to control error logging, stopping,...
 ! *****************************************************************************
-  SUBROUTINE allocate_lri_ints(lri_env,lri_ints,nkind,error)
+  SUBROUTINE allocate_lri_ints(lri_env,lri_ints,nkind,calculate_forces,&
+                               virial,error)
 
     TYPE(lri_environment_type), POINTER      :: lri_env
     TYPE(lri_list_type), POINTER             :: lri_ints
     INTEGER, INTENT(IN)                      :: nkind
+    LOGICAL, INTENT(IN)                      :: calculate_forces
+    TYPE(virial_type), POINTER               :: virial
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'allocate_lri_ints', &
@@ -727,7 +708,8 @@ CONTAINS
                                                 jatom, jkind, jneighbor, nba, &
                                                 nbb, nfa, nfb, nlist, nn, &
                                                 nneighbor, stat
-    LOGICAL                                  :: failure
+    LOGICAL                                  :: failure, use_virial
+    REAL(KIND=dp)                            :: dab, rab(3)
     TYPE(gto_basis_set_type), POINTER        :: fbasa, fbasb, obasa, obasb
     TYPE(lri_int_type), POINTER              :: lrii
     TYPE(neighbor_list_iterator_p_type), &
@@ -735,6 +717,8 @@ CONTAINS
 
     failure =.FALSE.
     NULLIFY(fbasa, fbasb, lrii, nl_iterator, obasa, obasb)
+
+    use_virial = virial%pv_availability.AND.(.NOT.virial%pv_numer)
 
     ALLOCATE(lri_ints,STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -753,10 +737,11 @@ CONTAINS
 
        CALL get_iterator_info(nl_iterator,ikind=ikind,jkind=jkind,&
             nlist=nlist,ilist=ilist,nnode=nneighbor,inode=jneighbor,&
-            iatom=iatom,jatom=jatom)
+            iatom=iatom,jatom=jatom,r=rab)
       
        iac = ikind + nkind*(jkind - 1)
-
+       dab = SQRT(SUM(rab*rab))
+ 
        obasa => lri_env%orb_basis(ikind)%gto_basis_set
        obasb => lri_env%orb_basis(jkind)%gto_basis_set
        fbasa => lri_env%ri_basis(ikind)%gto_basis_set
@@ -805,7 +790,7 @@ CONTAINS
        lrii%sab  = 0._dp
        lrii%dsab = 0._dp
 
-       IF(iatom == jatom) THEN
+       IF(iatom == jatom.AND.dab < lri_env%delta) THEN
         ALLOCATE(lrii%sinv(nfa,nfa),STAT=stat)
         CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        ELSE
@@ -814,7 +799,7 @@ CONTAINS
        ENDIF
        lrii%sinv = 0._dp
 
-       IF(iatom == jatom) THEN
+       IF(iatom == jatom.AND.dab < lri_env%delta) THEN
         ALLOCATE(lrii%n(nfa),lrii%sn(nfa),STAT=stat)
         CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        ELSE
@@ -829,7 +814,7 @@ CONTAINS
        lrii%soo  = 0._dp
        lrii%dsoo = 0._dp
 
-       IF(iatom == jatom) THEN
+       IF(iatom == jatom.AND.dab < lri_env%delta) THEN
         ALLOCATE(lrii%dacoef(nba,nbb,nfa),STAT=stat)
         CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        ELSE
@@ -842,6 +827,23 @@ CONTAINS
        lrii%dmax_oo   = 0._dp
        lrii%dmax_aba  = 0._dp
        lrii%dmax_abb  = 0._dp
+
+       lrii%calc_force_pair = .FALSE.
+
+       ! forces: not every pair is giving contributions
+       IF(calculate_forces) THEN
+         !no forces for self-pair aa
+         IF(iatom == jatom.AND.dab < lri_env%delta) THEN
+           lrii%calc_force_pair = .FALSE.
+         ELSE
+           !forces for periodic self-pair aa' required for virial 
+           IF(iatom ==  jatom.AND..NOT.use_virial) THEN
+             lrii%calc_force_pair = .FALSE.       
+           ELSE
+             lrii%calc_force_pair = .TRUE.
+           ENDIF 
+         ENDIF
+       ENDIF
 
     ENDDO
 
@@ -957,6 +959,7 @@ CONTAINS
                                                 jneighbor, nfa, nfb, nlist, &
                                                 nn, nneighbor, stat
     LOGICAL                                  :: failure
+    REAL(KIND=dp)                            :: dab, rab(3)
     TYPE(lri_int_type), POINTER              :: lrii
     TYPE(lri_list_type), POINTER             :: lri_rho
     TYPE(lri_rhoab_type), POINTER            :: lrho
@@ -987,10 +990,12 @@ CONTAINS
 
        CALL neighbor_list_iterator_create(nl_iterator,lri_env%soo_list)
        DO WHILE (neighbor_list_iterate(nl_iterator)==0)
-          CALL get_iterator_info(nl_iterator,ikind=ikind,jkind=jkind,iatom=iatom,&
-               jatom=jatom,nlist=nlist,ilist=ilist,nnode=nneighbor,inode=jneighbor)
+          CALL get_iterator_info(nl_iterator,ikind=ikind,jkind=jkind,&
+               iatom=iatom,jatom=jatom,nlist=nlist,ilist=ilist,&
+               nnode=nneighbor,inode=jneighbor,r=rab)
   
           iac = ikind + nkind*(jkind - 1)
+          dab = SQRT(SUM(rab*rab))
 
           IF(.NOT.ASSOCIATED(lri_env%lri_ints%lri_atom(iac)%lri_node)) CYCLE
 
@@ -1021,7 +1026,7 @@ CONTAINS
           nfb = lrho%nfb
           nn  = nfa + nfb
 
-          IF(iatom == jatom) THEN
+          IF(iatom == jatom.AND.dab < lri_env%delta) THEN
            ALLOCATE(lrho%avec(nfa), STAT=stat)
            CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
            ALLOCATE(lrho%tvec(nfa), STAT=stat)

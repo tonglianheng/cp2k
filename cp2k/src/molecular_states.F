@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2014  CP2K developers group                          !
+!   Copyright (C) 2000 - 2015  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -32,7 +32,6 @@ MODULE molecular_states
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_realspace_grid_cube,          ONLY: cp_pw_to_cube
-  USE f77_blas
   USE input_section_types,             ONLY: section_get_ivals,&
                                              section_vals_type,&
                                              section_vals_val_get
@@ -141,12 +140,12 @@ CONTAINS
     CALL timeset(routineN,handle)
 
     failure = .FALSE.
-    NULLIFY(logger,mark_states,mark_list)
+    NULLIFY(logger,mark_states,mark_list,para_env)
     logger => cp_error_get_logger(error)
     !-----------------------------------------------------------------------------
     ! 1.
     !-----------------------------------------------------------------------------
-    para_env => qs_env % para_env
+    CALL get_qs_env(qs_env, para_env=para_env, error=error)
     nproc = para_env%num_pe
     output_unit = cp_logger_get_default_io_unit(logger)
     CALL section_vals_val_get(loc_print_section,"MOLECULAR_STATES%CUBE_EVAL_RANGE",&

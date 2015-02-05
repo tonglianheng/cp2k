@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2014  CP2K developers group                          !
+!   Copyright (C) 2000 - 2015  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -79,7 +79,7 @@
 
 
 MODULE ai_verfc
-  USE f77_blas
+  
   USE gamma,                           ONLY: fgamma=>fgamma_0
   USE kinds,                           ONLY: dp
   USE mathconstants,                   ONLY: pi
@@ -130,7 +130,6 @@ CONTAINS
 !> \param pVp_sum ...
 !> \param pVp ...
 !> \param dkh_erfc ...
-!> \param !JT ...
 !> \date    04.10.2000
 !> \author  Matthias Krack
 !> \version 1.0

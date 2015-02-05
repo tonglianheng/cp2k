@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2014  CP2K developers group                          !
+!   Copyright (C) 2000 - 2015  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -13,7 +13,6 @@ MODULE dg_types
                                              dg_rho0_release,&
                                              dg_rho0_retain,&
                                              dg_rho0_type
-  USE f77_blas
 #include "../common/cp_common_uses.f90"
 
   IMPLICIT NONE

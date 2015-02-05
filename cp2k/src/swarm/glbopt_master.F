@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2014  CP2K developers group                          !
+!   Copyright (C) 2000 - 2015  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -43,9 +43,9 @@ MODULE glbopt_master
                                              deallocate_molecule_set,&
                                              global_constraint_type,&
                                              molecule_type
+  USE particle_methods,                ONLY: write_particle_coordinates
   USE particle_types,                  ONLY: deallocate_particle_set,&
-                                             particle_type,&
-                                             write_particle_coordinates
+                                             particle_type
   USE swarm_message,                   ONLY: swarm_message_get,&
                                              swarm_message_type
   USE topology,                        ONLY: topology_control

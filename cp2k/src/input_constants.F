@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2014  CP2K developers group                          !
+!   Copyright (C) 2000 - 2015  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -13,7 +13,7 @@
 !>              only integer/real global constants
 ! *****************************************************************************
 MODULE input_constants
-  USE f77_blas
+  
   USE kinds,                           ONLY: dp
 
   IMPLICIT NONE
@@ -47,8 +47,7 @@ MODULE input_constants
                                               do_fist=2,&
                                               do_qmmm=4,&
                                               do_eip=5,&
-                                              do_ep=6,&
-                                              do_mixed=7
+                                              do_mixed=6
 
   ! QMMM
   REAL(KIND=dp), PARAMETER, PUBLIC         :: RADIUS_QMMM_DEFAULT = 0.80_dp,& ! Angstrom
@@ -77,9 +76,6 @@ MODULE input_constants
 
   INTEGER, PARAMETER, PUBLIC               :: do_cell_cp2k=1,&
                                               do_cell_xsc=2
-
-  INTEGER, PARAMETER, PUBLIC               :: plane_def_atoms=0,&
-                                              plane_def_vec=1
 
   INTEGER, PARAMETER, PUBLIC               :: rmsd_all=0,&
                                               rmsd_list=1,&
@@ -194,7 +190,13 @@ MODULE input_constants
                                               no_guess=7,&
                                               mopac_guess=8,&
                                               sparse_guess=9,&
-                                              almo_scf_guess=10
+                                              almo_scf_guess=10,&
+                                              molecular_guess=11
+                                             
+  INTEGER, PARAMETER, PUBLIC               :: almo_frz_none=0,&
+                                              almo_frz_isolated=1,&
+                                              almo_frz_crystal=2,&
+                                              almo_frz_both=3
 
   INTEGER, PARAMETER, PUBLIC               :: pw_interp=1,&
                                               spline3_nopbc_interp=2,&
@@ -302,6 +304,7 @@ MODULE input_constants
                                               do_qmmm_coulomb=1,&
                                               do_qmmm_gauss=2,&
                                               do_qmmm_swave=3,&
+                                              do_qmmm_pcharge=4,&
                                               do_qmmm_link_imomm=1,&
                                               do_qmmm_link_gho=2,&
                                               do_qmmm_link_pseudo=3,&
@@ -350,21 +353,6 @@ MODULE input_constants
                                               do_coord_xtl=6,&
                                               do_coord_cp2k=7
 
-  INTEGER, PARAMETER, PUBLIC               :: do_ff_undef=0,&
-                                              do_ff_quartic=1,&
-                                              do_ff_g96=2,&
-                                              do_ff_charmm=3,&
-                                              do_ff_harmonic=4,&
-                                              do_ff_g87=5,&
-                                              do_ff_morse=6,&
-                                              do_ff_cubic=7,&
-                                              do_ff_mixed_bend_stretch=8,&
-                                              do_ff_amber=9,&
-                                              do_ff_mm2=10,&
-                                              do_ff_mm3=11,&
-                                              do_ff_mm4=12,&
-                                              do_ff_fues=13
-
   INTEGER, PARAMETER, PUBLIC               :: do_stress_none=0,&
                                               do_stress_analytical=1,&
                                               do_stress_numerical=2,&
@@ -375,11 +363,6 @@ MODULE input_constants
                                               do_mc_gemc_nvt=1,&
                                               do_mc_gemc_npt=2,&
                                               do_mc_virial=3
-
-  INTEGER, PARAMETER, PUBLIC               :: do_multipole_none=-1,&
-                                              do_multipole_charge=0,&
-                                              do_multipole_dipole=1,&
-                                              do_multipole_quadrupole=2
 
   INTEGER, PARAMETER, PUBLIC               :: do_loc_none=0,&
                                               do_loc_jacobi=1,&
@@ -435,16 +418,12 @@ MODULE input_constants
                                               ot_precond_full_single=1, &
                                               ot_precond_full_kinetic=2, &
                                               ot_precond_s_inverse=3, &
-                                              ot_precond_sparse_diag=4,&
                                               ot_precond_full_all=5,&
-                                              ot_precond_full_single_inverse=6,&
-                                              ot_precond_sparse_kinetic=7,&
-                                              ot_precond_sparse_kinetic_sainv=8,&
-                                              ot_precond_sparse_inverse=9
+                                              ot_precond_full_single_inverse=6
   INTEGER, PARAMETER, PUBLIC               :: ot_precond_solver_default=1,&
                                               ot_precond_solver_inv_chol=2,&
                                               ot_precond_solver_direct=3,&
-                                              ot_precond_solver_sainv=4
+                                              ot_precond_solver_update=4
 
   INTEGER, PARAMETER, PUBLIC               :: diag_standard=1,&
                                               diag_ot=2,&
@@ -471,15 +450,6 @@ MODULE input_constants
   INTEGER, PUBLIC, PARAMETER               :: default_cell_geo_opt_id=0,&
                                               default_cell_md_id=1,&
                                               default_cell_direct_id=2
-
-  INTEGER, PARAMETER, PUBLIC               :: add_last_no=0,&
-                                              add_last_numeric=1,&
-                                              add_last_symbolic=2
-  INTEGER, PARAMETER, PUBLIC               :: silent_print_level=0,&
-                                              low_print_level=1,&
-                                              medium_print_level=2,&
-                                              high_print_level=3,&
-                                              debug_print_level=4
 
   INTEGER, PARAMETER, PUBLIC               :: xc_funct_no_shortcut=0,&
                                               xc_funct_blyp=1,&
@@ -516,7 +486,8 @@ MODULE input_constants
                                               xc_vdw_fun_pairpot=101,&
                                               xc_vdw_fun_nonloc=102
   INTEGER, PARAMETER, PUBLIC               :: vdw_pairpot_dftd2=1,&
-                                              vdw_pairpot_dftd3=2
+                                              vdw_pairpot_dftd3=2,&
+                                              vdw_pairpot_dftd3bj=3
   INTEGER, PARAMETER, PUBLIC               :: vdw_nl_DRSLL=1,&
                                               vdw_nl_LMKLL=2,&
                                               vdw_nl_RVV10=3
@@ -537,32 +508,18 @@ MODULE input_constants
   INTEGER, PARAMETER, PUBLIC               :: do_add=1,&
                                               do_remove=2
 
-
-  INTEGER, PARAMETER, PUBLIC               :: use_perd_x=0,&
-                                              use_perd_y=1,&
-                                              use_perd_z=2,&
-                                              use_perd_xy=3,&
-                                              use_perd_xz=4,&
-                                              use_perd_yz=5,&
-                                              use_perd_xyz=6,&
-                                              use_perd_none=7
-
-  INTEGER, PARAMETER, PUBLIC               :: do_clv_geo_center=0,&
-                                              do_clv_fix_point =1,&
-                                              do_clv_xyz       =0,&
-                                              do_clv_x         =1,&
-                                              do_clv_y         =2,&
-                                              do_clv_z         =3,&
-                                              do_clv_xy        =4,&
-                                              do_clv_xz        =5,&
-                                              do_clv_yz        =6
-
   INTEGER, PARAMETER, PUBLIC               :: xc_pot_energy_none=0,&
                                               xc_pot_energy_xc_functional=1,&
                                               xc_pot_energy_sum_eigenvalues=2
 
   INTEGER, PARAMETER, PUBLIC               :: xc_pot_none = 1000,&
                                               xc_pot_saop = 1001
+
+  ! Hirschfeld partitioning
+  INTEGER, PARAMETER, PUBLIC               :: shape_function_gaussian=1,&
+                                              shape_function_density=2
+  INTEGER, PARAMETER, PUBLIC               :: ref_charge_atomic=100,&
+                                              ref_charge_mulliken=200
 
   ! X-Ray spectra Calculation
   INTEGER, PARAMETER, PUBLIC               :: xas_none=0,&
@@ -571,7 +528,8 @@ MODULE input_constants
                                               xes_tp_val=3,&
                                               xas_tp_xhh=4,&
                                               xas_tp_xfh=5,&
-                                              xas_dscf=6
+                                              xas_dscf=6,&
+                                              xas_tp_flex=7
   INTEGER, PARAMETER, PUBLIC               :: xas_1s_type=1,&
                                               xas_2s_type=2,&
                                               xas_2p_type=3,&
@@ -606,8 +564,7 @@ MODULE input_constants
   INTEGER, PARAMETER, PUBLIC               :: outer_scf_ddapc_constraint=123, &
                                               outer_scf_s2_constraint=124,&
                                               outer_scf_becke_constraint=125, &
-                                              outer_scf_scp=126, &
-                                              outer_scf_none=127
+                                              outer_scf_none=126
 
   ! outer scf optimizers
   INTEGER, PARAMETER, PUBLIC               :: outer_scf_optimizer_sd=1001, &
@@ -635,9 +592,6 @@ MODULE input_constants
   INTEGER, PARAMETER, PUBLIC               :: model_block_count=453, &
                                               model_block_surface=454, &
                                               model_block_lmax=455
-  ! optimization targets for distribution 2d
-  INTEGER, PARAMETER, PUBLIC               :: opt_target_minimum=456, &
-                                              opt_target_median=457
 
   ! clustering methods
   INTEGER, PARAMETER, PUBLIC               :: clustering_none=0, &
@@ -682,9 +636,8 @@ MODULE input_constants
   INTEGER, PARAMETER, PUBLIC               :: use_orb_basis_set=1,&
                                               use_aux_fit_basis_set=2,&
                                               use_aux_basis_set=3,&
-                                              use_scp_basis_set=4,&
-                                              use_ri_aux_basis_set=5,&
-                                              use_lri_basis_set=6
+                                              use_ri_aux_basis_set=4,&
+                                              use_lri_basis_set=5
   ! ADMM PARAMETER
   ! This parameter defines the method to use for the purification
   INTEGER, PARAMETER, PUBLIC               :: do_admm_purify_none=1,&
@@ -692,11 +645,26 @@ MODULE input_constants
                                               do_admm_purify_cauchy_subspace=3,&
                                               do_admm_purify_mo_diag=4,&
                                               do_admm_purify_mo_no_diag=5,&
-                                              do_admm_purify_mcweeny=6
+                                              do_admm_purify_mcweeny=6,&
+                                              do_admm_purify_none_dm=7
+
   ! This parameter defines when to use blocking
   INTEGER, PARAMETER, PUBLIC               :: do_admm_basis_projection=0,&
                                               do_admm_blocking_purify_full=1,&
-                                              do_admm_blocked_projection=2
+                                              do_admm_blocked_projection=2,&
+                                              do_admm_charge_constrained_projection=3
+
+  ! This parameter defines when to use blocking
+  INTEGER, PARAMETER, PUBLIC               :: do_admm_aux_exch_func_default=0,&
+                                              do_admm_aux_exch_func_pbex=1,&
+                                              do_admm_aux_exch_func_none=2,&
+                                              do_admm_aux_exch_func_opt=3,&
+                                              do_admm_aux_exch_func_bee=4
+ 
+
+  ! Define scaling of the exchange correction
+  INTEGER, PARAMETER, PUBLIC               :: do_admm_exch_scaling_none=0,&
+                                              do_admm_exch_scaling_merlot=1
 
   ! Define DFT+U method identifier codes
   INTEGER, PARAMETER, PUBLIC               :: plus_u_lowdin=1,&
@@ -732,9 +700,6 @@ MODULE input_constants
                                               fftw_plan_patient=3, &
                                               fftw_plan_exhaustive=4
 
-  ! SCP-DFT
-  INTEGER, PARAMETER, PUBLIC               :: copy_coeff=1,  &
-                                              copy_fcoeff=2
   !real time propagation
   INTEGER, PARAMETER, PUBLIC               :: do_taylor=1,  &
                                               do_pade=2,&
@@ -767,10 +732,11 @@ MODULE input_constants
                                               ls_cluster_molecular=112
 
   INTEGER, PARAMETER, PUBLIC               :: ls_s_inversion_hotelling=3,&
-                                              ls_s_inversion_sign_sqrt=5
+                                              ls_s_inversion_sign_sqrt=5,&
+                                              ls_s_inversion_none=6
   
   INTEGER, PARAMETER, PUBLIC               :: ls_scf_ns=17, ls_scf_trs4=18,&
-                                              ls_scf_tc2=19
+                                              ls_scf_tc2=19, ls_scf_pexsi=20
 
   INTEGER, PARAMETER, PUBLIC               :: ls_scf_line_search_3point=3,&
                                               ls_scf_line_search_3point_2d=6
@@ -791,19 +757,21 @@ MODULE input_constants
                                   almo_constraint_distance=1,&
                                   almo_constraint_ao_overlap=2
 
+  ! methods to treat electron delocalization
   INTEGER, PARAMETER, PUBLIC   :: almo_deloc_none=0,&
                                   almo_deloc_x=10,&
-                                  almo_deloc_qx=11,&
+                                  almo_deloc_xalmo_x=11,&
                                   almo_deloc_xk=12,&
-                                  almo_deloc_qscf=13,&
-                                  almo_deloc_full_scf=100,&
-                                  almo_deloc_x_then_full_scf=110
+                                  almo_deloc_xalmo_scf=13,&
+                                  almo_deloc_xalmo_1diag=14,&
+                                  almo_deloc_scf=100,&
+                                  almo_deloc_x_then_scf=110
   
   INTEGER, PARAMETER, PUBLIC   :: almo_scf_dm_sign=1,&
                                   almo_scf_diag=2,&
                                   almo_scf_pcg=3
 
-  ! parameters for CT methods
+  ! optimizer parameters
   INTEGER, PARAMETER, PUBLIC   :: cg_zero=0,&
                                   cg_polak_ribiere=1,&
                                   cg_fletcher_reeves=2,&
@@ -811,11 +779,19 @@ MODULE input_constants
                                   cg_fletcher=4,&
                                   cg_liu_storey=5,&
                                   cg_dai_yuan=6,& 
-                                  cg_hager_zhang=7 
-  
+                                  cg_hager_zhang=7
+  INTEGER, PARAMETER, PUBLIC   :: optimizer_diis=1,&
+                                  optimizer_pcg=2
+  INTEGER, PARAMETER, PUBLIC   :: prec_zero=0,&
+                                  prec_default=-1,&
+                                  prec_ks_plus_s=4
+  INTEGER, PARAMETER, PUBLIC   :: xalmo_case_block_diag=0,&
+                                  xalmo_case_fully_deloc=1,&
+                                  xalmo_case_normal=-1
+
+  ! parameters for CT methods
   INTEGER, PARAMETER, PUBLIC   :: tensor_orthogonal = 1, & 
                                   tensor_up_down = 2 
-  
   INTEGER, PARAMETER, PUBLIC   :: virt_full = 1,&
                                   virt_minimal = 2,&
                                   virt_occ_size = 3,&
@@ -847,23 +823,16 @@ MODULE input_constants
                                               do_opt_none=1,&
                                               do_opt_coeff=2,&
                                               do_opt_exps=3
-                                            
+
+  ! LRI basis optimization parameters
+  INTEGER, PARAMETER, PUBLIC               :: do_lri_opt_all=0,&
+                                              do_lri_opt_coeff=1,&
+                                              do_lri_opt_exps=2
+
   ! callgraph parameters
   INTEGER, PARAMETER, PUBLIC               :: callgraph_none=0,&
                                               callgraph_master=1,&
                                               callgraph_all=2 
-
-  ! Impose cell symmetry
-  INTEGER, PARAMETER, PUBLIC               :: cell_sym_none=0,&
-                                              cell_sym_triclinic=1,&
-                                              cell_sym_monoclinic=2,&
-                                              cell_sym_orthorhombic=3,&
-                                              cell_sym_tetragonal_ab=4,&
-                                              cell_sym_tetragonal_ac=5,&
-                                              cell_sym_tetragonal_bc=6,&
-                                              cell_sym_rhombohedral=7,&
-                                              cell_sym_hexagonal=8,&
-                                              cell_sym_cubic=9
 
   ! kg coloring parameters
   INTEGER, PARAMETER, PUBLIC               :: kg_color_dsatur=0,&
@@ -875,16 +844,32 @@ MODULE input_constants
   ! swarm parameters
   INTEGER, PARAMETER, PUBLIC               :: swarm_do_glbopt=1
 
-! global opt parameters
-  INTEGER, PARAMETER, PUBLIC               :: glbopt_do_minhop  =1,&
+  ! global opt parameters
+  INTEGER, PARAMETER, PUBLIC               :: glbopt_do_minhop=1,&
                                               glbopt_do_mincrawl=2
 
-! fm matrix multiplication
+  ! Self-consistent continuum solvation (SCCS) models
+  INTEGER, PARAMETER, PUBLIC               :: sccs_andreussi = 0,&
+                                              sccs_fattebert_gygi = 1
+
+  ! Derivative method used by the SCCS
+  INTEGER, PARAMETER, PUBLIC               :: sccs_derivative_fft = 0,&
+                                              sccs_derivative_cd3 = 1,&
+                                              sccs_derivative_cd5 = 2,&
+                                              sccs_derivative_cd7 = 3
+
+  ! fm matrix multiplication
   INTEGER, PARAMETER, PUBLIC               :: do_pdgemm  =1,&
                                               do_dbcsr   =2
 
   ! Dispersion DFTB
   INTEGER, PARAMETER, PUBLIC               :: dispersion_uff=100,&
                                               dispersion_d3 =200
+
+  ! Transport section
+  INTEGER, PARAMETER, PUBLIC               :: misc_method=0,&
+                                              scalapack_diagonalization=1,&
+                                              exper_code=2,&
+                                              do_transport=3
 
 END MODULE input_constants

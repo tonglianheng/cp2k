@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2014  CP2K developers group                          !
+!   Copyright (C) 2000 - 2015  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -13,7 +13,7 @@
 !> \date 25.02.2008
 ! *****************************************************************************
 MODULE cp_parser_inpp_types
-  USE f77_blas
+  
   USE kinds,                           ONLY: default_path_length
 #include "../common/cp_common_uses.f90"
 

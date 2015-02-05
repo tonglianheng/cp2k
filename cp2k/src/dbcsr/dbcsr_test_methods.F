@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2014  CP2K developers group                          !
+!   Copyright (C) 2000 - 2015  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -32,6 +32,10 @@ MODULE dbcsr_test_methods
        dbcsr_data_init, dbcsr_data_new, dbcsr_data_release, &
        dbcsr_scalar_negative, dbcsr_scalar_one, dbcsr_type_1d_to_2d, &
        dbcsr_type_2d_to_1d
+  USE dbcsr_dist_methods,              ONLY: dbcsr_distribution_hold,&
+                                             dbcsr_distribution_mp,&
+                                             dbcsr_distribution_new,&
+                                             dbcsr_distribution_release
   USE dbcsr_dist_operations,           ONLY: dbcsr_get_stored_coordinates
   USE dbcsr_error_handling,            ONLY: dbcsr_assert,&
                                              dbcsr_error_set,&
@@ -44,14 +48,18 @@ MODULE dbcsr_test_methods
                                              dbcsr_iterator_next_block,&
                                              dbcsr_iterator_start,&
                                              dbcsr_iterator_stop
-  USE dbcsr_methods,                   ONLY: &
-       dbcsr_distribution_hold, dbcsr_distribution_mp, &
-       dbcsr_distribution_new, dbcsr_distribution_release, &
-       dbcsr_get_matrix_type, dbcsr_init, dbcsr_max_col_size, &
-       dbcsr_max_row_size, dbcsr_mp_mynode, dbcsr_mp_new, dbcsr_mp_numnodes, &
-       dbcsr_mp_release, dbcsr_nblkcols_total, dbcsr_nblkrows_total, &
-       dbcsr_nfullcols_total, dbcsr_nfullrows_total
-!  USE dbcsr_transformations, only:dbcsr_put_block
+  USE dbcsr_methods,                   ONLY: dbcsr_get_matrix_type,&
+                                             dbcsr_init,&
+                                             dbcsr_max_col_size,&
+                                             dbcsr_max_row_size,&
+                                             dbcsr_nblkcols_total,&
+                                             dbcsr_nblkrows_total,&
+                                             dbcsr_nfullcols_total,&
+                                             dbcsr_nfullrows_total
+  USE dbcsr_mp_methods,                ONLY: dbcsr_mp_mynode,&
+                                             dbcsr_mp_new,&
+                                             dbcsr_mp_numnodes,&
+                                             dbcsr_mp_release
   USE dbcsr_ptr_util,                  ONLY: ensure_array_size
   USE dbcsr_types,                     ONLY: &
        dbcsr_data_obj, dbcsr_distribution_obj, dbcsr_iterator, dbcsr_mp_obj, &
@@ -343,9 +351,9 @@ CONTAINS
     ALLOCATE (grid_dist(dist_size))
     CALL array_nullify (dist_array)
     !CALL RANDOM_NUMBER (grid_dist)
-    FORALL (i = 1 : dist_size)
+    DO i = 1 , dist_size
        grid_dist(i) = MODULO (nbins-i, nbins)
-    END FORALL
+    END DO
     !CALL array_new (dist_array, INT(grid_dist*REAL(nbins)), lb=1)
     CALL array_new (dist_array, grid_dist, lb=1)
   END SUBROUTINE dbcsr_random_dist
@@ -361,12 +369,10 @@ CONTAINS
 !> \param data_type ...
 !> \param symmetry ...
 !> \param dist ...
-!> \param[in] nondet     (optional) Specifies that deterministic behavior is
-!>                       unneeded.
 !> \param error ...
 ! *****************************************************************************
   SUBROUTINE dbcsr_make_random_matrix (matrix, row_blk_sizes, col_blk_sizes,&
-       name, sparsity, mp_group, data_type, symmetry, dist, nondet, error)
+       name, sparsity, mp_group, data_type, symmetry, dist, error)
     TYPE(dbcsr_obj), INTENT(out)             :: matrix
     TYPE(array_i1d_obj), INTENT(in)          :: row_blk_sizes, col_blk_sizes
     CHARACTER(len=*), INTENT(in)             :: name
@@ -376,7 +382,6 @@ CONTAINS
     CHARACTER, INTENT(in), OPTIONAL          :: symmetry
     TYPE(dbcsr_distribution_obj), &
       INTENT(IN), OPTIONAL                   :: dist
-    LOGICAL, INTENT(in), OPTIONAL            :: nondet
     TYPE(dbcsr_error_type), INTENT(inout)    :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_make_random_matrix', &
@@ -387,9 +392,10 @@ CONTAINS
                                                 my_data_type, my_proc, &
                                                 numproc, nze, p, row, s_col, &
                                                 s_row
-    INTEGER, DIMENSION(4), SAVE              :: iseed = (/4,3,2,1/)
+    INTEGER, DIMENSION(4)                    :: iseed
     INTEGER, DIMENSION(:), POINTER           :: cbs, rbs
-    LOGICAL                                  :: quick, tr
+    INTEGER, SAVE                            :: imat_counter = 12341313
+    LOGICAL                                  :: tr
     REAL(kind=real_8)                        :: my_sparsity
     REAL(kind=real_8), DIMENSION(1)          :: value
     TYPE(dbcsr_data_obj)                     :: data_values, data_values_tr
@@ -398,7 +404,8 @@ CONTAINS
 !   ---------------------------------------------------------------------------
 
     CALL dbcsr_error_set (routineN, error_handle, error)
-    !
+    ! the counter goes into the seed. Every new call gives a new random matrix
+    imat_counter=imat_counter+1
     ! Create the matrix
     IF (PRESENT (dist)) THEN
        new_dist = dist
@@ -406,11 +413,6 @@ CONTAINS
     ELSE
        CALL dbcsr_make_null_dist (new_dist, array_size (row_blk_sizes),&
             array_size (col_blk_sizes), group=mp_group)
-    ENDIF
-    IF (PRESENT (nondet)) THEN
-       quick = nondet
-    ELSE
-       quick = .FALSE.
     ENDIF
     CALL dbcsr_init (matrix)
     my_data_type = dbcsr_type_real_default
@@ -449,14 +451,6 @@ CONTAINS
     my_proc = dbcsr_mp_mynode (dbcsr_distribution_mp (new_dist))
     DO row = 1, dbcsr_nblkrows_total (matrix)
        DO col = 1, dbcsr_nblkcols_total (matrix)
-          ! We have to extract random number generation outside so
-          ! that results are the same regardless of the process count.
-          IF (.NOT. quick) THEN
-             CALL dlarnv( 1, iseed, 1, value )
-             nze = rbs(row) * cbs(col)
-             CALL dbcsr_lapack_larnv( 1, iseed, nze, data_values, error )
-          ENDIF
-          !
           ! build the upper matrix if some symmetry.
           s_row=row ; s_col=col
           IF (PRESENT (dist)) THEN
@@ -467,13 +461,12 @@ CONTAINS
           ELSE
              IF(my_symmetry.NE.dbcsr_type_no_symmetry.AND.s_col.LT.s_row) CYCLE
           ENDIF
-          IF (quick) CALL dlarnv( 1, iseed, 1, value )
           IF (.NOT. PRESENT (dist) .AND. my_proc .NE. 0) CYCLE
+          iseed=(/imat_counter,row,42,col/)
+          CALL dlarnv( 1, iseed, 1, value )
           IF (value(1) .LT. my_sparsity) CYCLE
-          IF (quick) THEN
-             nze = rbs(s_row) * cbs(s_col)
-             CALL dbcsr_lapack_larnv( 1, iseed, nze, data_values, error )
-          ENDIF
+          nze = rbs(s_row) * cbs(s_col)
+          CALL dbcsr_lapack_larnv( 1, iseed, nze, data_values, error )
           CALL dbcsr_put_block (matrix, s_row, s_col, data_values)
           IF(my_symmetry.NE.dbcsr_type_no_symmetry.AND.s_col.EQ.s_row) THEN
              SELECT CASE(my_symmetry)
@@ -635,6 +628,7 @@ CONTAINS
 ! *****************************************************************************
 !> \brief ...
 !> \param a ...
+!> \retval atoi ...
 ! *****************************************************************************
   FUNCTION atoi(a)
     CHARACTER(len=*), INTENT(in)             :: a
@@ -646,6 +640,7 @@ CONTAINS
 ! *****************************************************************************
 !> \brief ...
 !> \param a ...
+!> \retval atol ...
 ! *****************************************************************************
   FUNCTION atol(a)
     CHARACTER(len=*), INTENT(in)             :: a
@@ -657,6 +652,7 @@ CONTAINS
 ! *****************************************************************************
 !> \brief ...
 !> \param a ...
+!> \retval ator ...
 ! *****************************************************************************
   FUNCTION ator(a)
     CHARACTER(len=*), INTENT(in)             :: a

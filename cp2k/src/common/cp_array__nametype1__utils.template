@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2014  CP2K developers group                          !
+!   Copyright (C) 2000 - 2015  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 [defines]
@@ -39,7 +39,6 @@
 !> \author Fawzi Mohamed
 ! *****************************************************************************
 MODULE cp_array_[nametype1]_utils
-  USE f77_blas
   USE machine, ONLY: m_flush
 #include "cp_common_uses.f90"
   [USE]
@@ -315,8 +314,7 @@ END SUBROUTINE cp_2d_[nametype1]_write
 !> \param u_index the upper index for binary search (defaults to size(array))
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
-!> \param result ...
-!> \param res ...
+!> \retval res ...
 !> \par History
 !>      06.2003 created [fawzi]
 !> \author Fawzi Mohamed

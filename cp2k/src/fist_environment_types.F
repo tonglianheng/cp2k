@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2014  CP2K developers group                          !
+!   Copyright (C) 2000 - 2015  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -15,15 +15,13 @@ MODULE fist_environment_types
                                              atomic_kind_list_release,&
                                              atomic_kind_list_type
   USE atomic_kind_types,               ONLY: atomic_kind_type
-  USE cell_methods,                    ONLY: cell_release,&
+  USE cell_types,                      ONLY: cell_release,&
                                              cell_retain,&
                                              cell_type
   USE cp_para_env,                     ONLY: cp_para_env_release,&
                                              cp_para_env_retain
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE cp_result_types,                 ONLY: cp_result_create,&
-                                             cp_result_release,&
-                                             cp_result_type
+  USE cp_result_types,                 ONLY: cp_result_type
   USE cp_subsys_types,                 ONLY: cp_subsys_get,&
                                              cp_subsys_release,&
                                              cp_subsys_retain,&
@@ -38,7 +36,6 @@ MODULE fist_environment_types
                                              ewald_pw_type
   USE exclusion_types,                 ONLY: exclusion_release,&
                                              exclusion_type
-  USE f77_blas
   USE fist_energy_types,               ONLY: deallocate_fist_energy,&
                                              fist_energy_type
   USE fist_nonbond_env_types,          ONLY: fist_nonbond_env_release,&
@@ -80,7 +77,6 @@ MODULE fist_environment_types
     LOGICAL                                      :: qmmm
     LOGICAL                                      :: shell_model, shell_model_ad
     TYPE (qmmm_env_mm_type), POINTER             :: qmmm_env
-    TYPE (cell_type), POINTER                    :: cell
     TYPE (cell_type), POINTER                    :: cell_ref
     TYPE (ewald_environment_type), POINTER       :: ewald_env
     TYPE (ewald_pw_type),          POINTER       :: ewald_pw
@@ -89,7 +85,6 @@ MODULE fist_environment_types
     TYPE (cp_subsys_type), POINTER               :: subsys
     TYPE (fist_nonbond_env_type), POINTER        :: fist_nonbond_env
     TYPE(section_vals_type), POINTER             :: input
-    TYPE(cp_result_type),POINTER                 :: results
     TYPE(exclusion_type), DIMENSION(:), POINTER  :: exclusions
  END TYPE fist_environment_type
 
@@ -211,7 +206,6 @@ CONTAINS
     IF ( PRESENT ( input ) ) input => fist_env%input
     IF ( PRESENT ( qmmm ) ) qmmm = fist_env % qmmm
     IF ( PRESENT ( qmmm_env )) qmmm_env => fist_env % qmmm_env
-    IF ( PRESENT ( cell ) ) cell => fist_env % cell
     IF ( PRESENT ( cell_ref ) ) cell_ref => fist_env % cell_ref
     IF ( PRESENT ( ewald_env ) ) ewald_env => fist_env % ewald_env
     IF ( PRESENT ( thermo ) ) thermo => fist_env % thermo
@@ -234,6 +228,8 @@ CONTAINS
                           shell_particles=shell_particles,&
                           core_particles=core_particles,&
                           multipoles=fist_multipoles,&
+                          results=results,&
+                          cell=cell,&
                           error=error)
     IF (PRESENT(atomic_kind_set)) atomic_kind_set => atomic_kinds%els
     IF (PRESENT(particle_set)) particle_set => particles%els
@@ -241,7 +237,6 @@ CONTAINS
     IF (PRESENT(molecule_set)) molecule_set => molecules_new%els
     IF (PRESENT(shell_particle_set)) shell_particle_set => shell_particles%els
     IF (PRESENT(core_particle_set)) core_particle_set => core_particles%els
-    IF (PRESENT(results)) results => fist_env%results
     IF (PRESENT(multipoles)) multipoles => fist_multipoles
   END SUBROUTINE fist_env_get
 
@@ -261,7 +256,6 @@ CONTAINS
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     NULLIFY (fist_env%input)
-    NULLIFY (fist_env%cell)
     NULLIFY (fist_env%qmmm_env)
     NULLIFY (fist_env%cell_ref)
     NULLIFY (fist_env%ewald_env)
@@ -275,7 +269,6 @@ CONTAINS
     fist_env % shell_model_ad = .FALSE.
     CALL qmmm_env_mm_create(fist_env%qmmm_env, error)
     NULLIFY (fist_env%subsys)
-    CALL cp_result_create(results=fist_env%results,error=error)
     CALL cp_para_env_retain(para_env,error=error)
     fist_env%para_env => para_env
     fist_env%ref_count=1
@@ -294,7 +287,6 @@ CONTAINS
 !> \param local_molecules ...
 !> \param molecule_kind_set ...
 !> \param molecule_set ...
-!> \param cell ...
 !> \param cell_ref ...
 !> \param ewald_env ...
 !> \param fist_nonbond_env ...
@@ -313,7 +305,7 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE fist_env_set( fist_env, atomic_kind_set, particle_set, ewald_pw, &
                            local_particles, local_molecules, molecule_kind_set, &
-                           molecule_set, cell, cell_ref, ewald_env,  &
+                           molecule_set, cell_ref, ewald_env,  &
                            fist_nonbond_env, thermo, subsys, qmmm, qmmm_env, &
                            input, shell_model, shell_model_ad, exclusions, error )
 
@@ -328,7 +320,7 @@ CONTAINS
     TYPE(molecule_kind_type), OPTIONAL, &
       POINTER                                :: molecule_kind_set( : )
     TYPE(molecule_type), OPTIONAL, POINTER   :: molecule_set( : )
-    TYPE(cell_type), OPTIONAL, POINTER       :: cell, cell_ref
+    TYPE(cell_type), OPTIONAL, POINTER       :: cell_ref
     TYPE(ewald_environment_type), OPTIONAL, &
       POINTER                                :: ewald_env
     TYPE(fist_nonbond_env_type), OPTIONAL, &
@@ -363,11 +355,6 @@ CONTAINS
        CALL qmmm_env_mm_retain(qmmm_env, error)
        CALL qmmm_env_mm_release(fist_env%qmmm_env, error=error)
        fist_env%qmmm_env => qmmm_env
-    END IF
-    IF (PRESENT(cell)) THEN
-       CALL cell_retain(cell, error=error)
-       CALL cell_release(fist_env%cell,error=error)
-       fist_env%cell => cell
     END IF
     IF ( PRESENT ( ewald_env ) ) THEN
        CALL ewald_env_retain ( ewald_env, error = error )
@@ -538,7 +525,6 @@ CONTAINS
        fist_env%ref_count=fist_env%ref_count-1
        IF (fist_env%ref_count<1) THEN
           CALL qmmm_env_mm_release(fist_env%qmmm_env, error=error)
-          CALL cell_release(fist_env%cell,error=error)
           CALL cell_release(fist_env%cell_ref,error=error)
           CALL ewald_pw_release(fist_env%ewald_pw,error=error)
           CALL ewald_env_release(fist_env%ewald_env,error=error)
@@ -546,7 +532,6 @@ CONTAINS
           CALL deallocate_fist_energy(fist_env%thermo)
 
           CALL fist_nonbond_env_release ( fist_env % fist_nonbond_env, error = error )
-          CALL cp_result_release(fist_env%results,error=error)
           CALL cp_subsys_release(fist_env%subsys,error=error)
           CALL section_vals_release(fist_env%input,error=error)
           CALL exclusion_release(fist_env%exclusions,error=error)

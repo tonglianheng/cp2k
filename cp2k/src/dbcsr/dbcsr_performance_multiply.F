@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2014  CP2K developers group                          !
+!   Copyright (C) 2000 - 2015  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -20,6 +20,10 @@ MODULE dbcsr_performance_multiply
   USE dbcsr_data_methods,              ONLY: dbcsr_scalar,&
                                              dbcsr_scalar_negative,&
                                              dbcsr_scalar_one
+  USE dbcsr_dist_methods,              ONLY: dbcsr_distribution_col_dist,&
+                                             dbcsr_distribution_new,&
+                                             dbcsr_distribution_release,&
+                                             dbcsr_distribution_row_dist
   USE dbcsr_dist_operations,           ONLY: dbcsr_dist_bin
   USE dbcsr_error_handling,            ONLY: dbcsr_assert,&
                                              dbcsr_error_set,&
@@ -31,13 +35,11 @@ MODULE dbcsr_performance_multiply
   USE dbcsr_io,                        ONLY: dbcsr_print
   USE dbcsr_methods,                   ONLY: &
        dbcsr_col_block_offsets, dbcsr_col_block_sizes, dbcsr_distribution, &
-       dbcsr_distribution_col_dist, dbcsr_distribution_new, &
-       dbcsr_distribution_release, dbcsr_distribution_row_dist, &
        dbcsr_get_data_type, dbcsr_get_matrix_type, dbcsr_init, dbcsr_name, &
        dbcsr_nfullcols_total, dbcsr_nfullrows_total, dbcsr_release, &
        dbcsr_row_block_offsets, dbcsr_row_block_sizes
+  USE dbcsr_multiply_api,              ONLY: dbcsr_multiply
   USE dbcsr_operations,                ONLY: dbcsr_copy,&
-                                             dbcsr_multiply,&
                                              dbcsr_scale
   USE dbcsr_test_methods,              ONLY: atoi,&
                                              atol,&
@@ -376,7 +378,7 @@ CONTAINS
     CALL dbcsr_distribution_new (dist_c, mp_env, row_dist_c, col_dist_c)
     CALL dbcsr_make_random_matrix (matrix_c, sizes_m, sizes_n, "Matrix C",&
          REAL(sparsities(3), real_8),&
-         mp_group, data_type=data_type, dist=dist_c, nondet=.TRUE.,&
+         mp_group, data_type=data_type, dist=dist_c, &
          error=error)
     CALL dbcsr_distribution_release (dist_c)
     IF (trs(1)) THEN
@@ -387,7 +389,7 @@ CONTAINS
        CALL dbcsr_distribution_new (dist_a, mp_env, row_dist_a, col_dist_a)
        CALL dbcsr_make_random_matrix (matrix_a, sizes_k, sizes_m, "Matrix A",&
             REAL(sparsities(1), real_8),&
-            mp_group, data_type=data_type, dist=dist_a, nondet=.TRUE.,&
+            mp_group, data_type=data_type, dist=dist_a, &
             error=error)
        CALL array_release (row_dist_a)
        CALL array_release (col_dist_a)
@@ -397,7 +399,7 @@ CONTAINS
        CALL dbcsr_distribution_new (dist_a, mp_env, row_dist_c, col_dist_a)
        CALL dbcsr_make_random_matrix (matrix_a, sizes_m, sizes_k, "Matrix A",&
             REAL(sparsities(1), real_8),&
-            mp_group, data_type=data_type, dist=dist_a, nondet=.TRUE.,&
+            mp_group, data_type=data_type, dist=dist_a, &
             error=error)
        CALL array_release (col_dist_a)
     ENDIF
@@ -410,7 +412,7 @@ CONTAINS
        CALL dbcsr_distribution_new (dist_b, mp_env, row_dist_b, col_dist_b)
        CALL dbcsr_make_random_matrix (matrix_b, sizes_n, sizes_k, "Matrix B",&
             REAL(sparsities(2), real_8),&
-            mp_group, data_type=data_type, dist=dist_b, nondet=.TRUE.,&
+            mp_group, data_type=data_type, dist=dist_b, &
             error=error)
        CALL array_release (row_dist_b)
        CALL array_release (col_dist_b)
@@ -420,7 +422,7 @@ CONTAINS
        CALL dbcsr_distribution_new (dist_b, mp_env, row_dist_b, col_dist_c)
        CALL dbcsr_make_random_matrix (matrix_b, sizes_k, sizes_n, "Matrix B",&
             REAL(sparsities(2), real_8),&
-            mp_group, data_type=data_type, dist=dist_b, nondet=.TRUE.,&
+            mp_group, data_type=data_type, dist=dist_b, &
             error=error)
        CALL array_release (row_dist_b)
     ENDIF
@@ -728,6 +730,7 @@ CONTAINS
 ! *****************************************************************************
 !> \brief ...
 !> \param v ...
+!> \retval mean ...
 ! *****************************************************************************
   FUNCTION mean(v)
     REAL(real_8), DIMENSION(:)               :: v
@@ -745,6 +748,7 @@ CONTAINS
 ! *****************************************************************************
 !> \brief ...
 !> \param v ...
+!> \retval std ...
 ! *****************************************************************************
   FUNCTION std(v)
     REAL(real_8), DIMENSION(:)               :: v

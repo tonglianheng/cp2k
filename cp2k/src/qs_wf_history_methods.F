@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2014  CP2K developers group                          !
+!   Copyright (C) 2000 - 2015  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -17,7 +17,6 @@
 !> \author fawzi
 ! *****************************************************************************
 MODULE qs_wf_history_methods
-
   USE bibliography,                    ONLY: Kolafa2004,&
                                              VandeVondele2005a,&
                                              cite_reference
@@ -47,8 +46,8 @@ MODULE qs_wf_history_methods
                                              cp_fm_type
   USE cp_gemm_interface,               ONLY: cp_gemm
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
-                                             cp_print_key_unit_nr
-  USE f77_blas
+                                             cp_print_key_unit_nr,&
+                                             low_print_level
   USE input_constants,                 ONLY: &
        wfi_aspc_nr, wfi_frozen_method_nr, wfi_linear_p_method_nr, &
        wfi_linear_ps_method_nr, wfi_linear_wf_method_nr, wfi_ps_method_nr, &
@@ -69,7 +68,7 @@ MODULE qs_wf_history_methods
                                              pw_p_type
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
-  USE qs_ks_methods,                   ONLY: qs_ks_did_change
+  USE qs_ks_types,                     ONLY: qs_ks_did_change
   USE qs_matrix_pools,                 ONLY: mpools_get,&
                                              qs_matrix_pools_type
   USE qs_mo_methods,                   ONLY: calculate_density_matrix,&
@@ -82,6 +81,7 @@ MODULE qs_wf_history_methods
   USE qs_rho_methods,                  ONLY: duplicate_rho_type,&
                                              qs_rho_update_rho
   USE qs_rho_types,                    ONLY: qs_rho_get,&
+                                             qs_rho_set,&
                                              qs_rho_type
   USE qs_scf_types,                    ONLY: ot_method_nr,&
                                              qs_scf_env_type
@@ -295,7 +295,7 @@ SUBROUTINE wfs_update(snapshot,wf_history,qs_env,dt,error)
     INTEGER                                  :: handle, ispin, nspins, stat
     LOGICAL                                  :: failure
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
-      POINTER                                :: rho_ao, s_array
+      POINTER                                :: matrix_s, rho_ao
     TYPE(cp_fm_pool_p_type), DIMENSION(:), &
       POINTER                                :: ao_mo_pools
     TYPE(cp_fm_type), POINTER                :: mo_coeff
@@ -311,10 +311,9 @@ SUBROUTINE wfs_update(snapshot,wf_history,qs_env,dt,error)
 
   failure=.FALSE.
   NULLIFY(pw_env, auxbas_pw_pool, ao_mo_pools, dft_control, mos, mo_coeff,&
-       rho, rho_r,rho_g,rho_ao, s_array)
+       rho, rho_r,rho_g,rho_ao, matrix_s)
   CALL get_qs_env(qs_env, pw_env=pw_env,&
-       dft_control=dft_control,rho=rho,matrix_s=s_array,&
-       error=error)
+       dft_control=dft_control,rho=rho, error=error)
   CALL mpools_get(qs_env%mpools, ao_mo_fm_pools=ao_mo_pools, &
        error=error)
   CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool, error=error)
@@ -421,11 +420,12 @@ SUBROUTINE wfs_update(snapshot,wf_history,qs_env,dt,error)
         CALL cp_dbcsr_deallocate_matrix(snapshot%overlap,error=error)
      END IF
      IF (wf_history%store_overlap) THEN
-        CPPrecondition(ASSOCIATED(s_array),cp_failure_level,routineP,error,failure)
-        CPPrecondition(ASSOCIATED(s_array(1)%matrix),cp_failure_level,routineP,error,failure)
+        CALL get_qs_env(qs_env, matrix_s=matrix_s, error=error)
+        CPPrecondition(ASSOCIATED(matrix_s),cp_failure_level,routineP,error,failure)
+        CPPrecondition(ASSOCIATED(matrix_s(1)%matrix),cp_failure_level,routineP,error,failure)
         ALLOCATE(snapshot%overlap)
-        CALL cp_dbcsr_init(snapshot%overlap,error=error)
-        CALL cp_dbcsr_copy(snapshot%overlap,s_array(1)%matrix,error=error)
+        CALL cp_dbcsr_init(snapshot%overlap, error=error)
+        CALL cp_dbcsr_copy(snapshot%overlap, matrix_s(1)%matrix, error=error)
      END IF
 
      IF (wf_history%store_frozen_density) THEN
@@ -631,12 +631,13 @@ END FUNCTION wfi_get_method_label
 
     INTEGER                                  :: actual_extrapolation_method_nr&
                                                 , handle, i, ispin, k, n, &
-                                                nmo, nvec, output_unit
+                                                nmo, nvec, output_unit, &
+                                                print_level
     LOGICAL                                  :: failure, my_orthogonal_wf, &
                                                 use_overlap
     REAL(KIND=dp)                            :: alpha, t0, t1, t2
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_s
+      POINTER                                :: rho_ao, rho_frozen_ao
     TYPE(cp_fm_pool_p_type), DIMENSION(:), &
       POINTER                                :: ao_mo_fm_pools
     TYPE(cp_fm_struct_type), POINTER         :: matrix_struct, &
@@ -648,14 +649,15 @@ END FUNCTION wfi_get_method_label
     TYPE(qs_rho_type), POINTER               :: rho, rho_xc
     TYPE(qs_wf_snapshot_type), POINTER       :: t0_state, t1_state
 
-    NULLIFY(mos, ao_mo_fm_pools, t0_state, t1_state, matrix_s, mo_coeff, &
-         rho, rho_xc)
+    NULLIFY(mos, ao_mo_fm_pools, t0_state, t1_state, mo_coeff, &
+         rho, rho_xc, rho_ao, rho_frozen_ao)
     failure=.FALSE.
 
     use_overlap = wf_history%store_overlap
 
     CALL timeset(routineN,handle)
     logger => cp_error_get_logger(error)
+    print_level = logger%iter_info%print_level
     output_unit = cp_print_key_unit_nr(logger,qs_env%input,"DFT%SCF%PRINT%PROGRAM_RUN_INFO",&
                   extension=".scfLog",error=error)
 
@@ -664,12 +666,8 @@ END FUNCTION wfi_get_method_label
     CPPrecondition(ASSOCIATED(qs_env),cp_failure_level,routineP,error,failure)
     CPPrecondition(qs_env%ref_count>0,cp_failure_level,routineP,error,failure)
     IF (.NOT. failure) THEN
-       CALL get_qs_env(qs_env, mos=mos,&
-            rho=rho,rho_xc=rho_xc,matrix_s=matrix_s,&
-            error=error)
-       CALL mpools_get(qs_env%mpools, ao_mo_fm_pools=ao_mo_fm_pools,&
-            error=error)
-
+       CALL get_qs_env(qs_env, mos=mos, rho=rho, rho_xc=rho_xc, error=error)
+       CALL mpools_get(qs_env%mpools, ao_mo_fm_pools=ao_mo_fm_pools, error=error)
        ! chooses the method for this extrapolation
        IF (wf_history%snapshot_count<1) THEN
           actual_extrapolation_method_nr=wfi_use_guess_method_nr
@@ -704,9 +702,11 @@ END FUNCTION wfi_get_method_label
           nvec = MIN(wf_history%memory_depth, wf_history%snapshot_count)
           CALL wfi_set_history_variables(qs_env=qs_env, nvec=nvec, error=error)
 
-          DO ispin=1,SIZE(t0_state%rho_frozen%rho_ao)
-             CALL cp_dbcsr_copy(rho%rho_ao(ispin)%matrix,&
-                             t0_state%rho_frozen%rho_ao(ispin)%matrix,&
+          CALL qs_rho_get(t0_state%rho_frozen, rho_ao=rho_frozen_ao, error=error)
+          CALL qs_rho_get(rho, rho_ao=rho_ao, error=error)
+          DO ispin=1,SIZE(rho_frozen_ao)
+             CALL cp_dbcsr_copy(rho_ao(ispin)%matrix,&
+                             rho_frozen_ao(ispin)%matrix,&
                              keep_sparsity=.TRUE.,&
                              error=error)
           END DO
@@ -721,21 +721,21 @@ END FUNCTION wfi_get_method_label
           CPPrecondition(ASSOCIATED(t0_state%rho_ao),cp_failure_level,routineP,error,failure)
           nvec = MIN(wf_history%memory_depth, wf_history%snapshot_count)
           CALL wfi_set_history_variables(qs_env=qs_env, nvec=nvec, error=error)
-
+          CALL qs_rho_get(rho, rho_ao=rho_ao, error=error)
           DO ispin=1,SIZE(t0_state%rho_ao)
-             CALL cp_dbcsr_copy(rho%rho_ao(ispin)%matrix,&
+             CALL cp_dbcsr_copy(rho_ao(ispin)%matrix,&
                              t0_state%rho_ao(ispin)%matrix,&
                              keep_sparsity=.TRUE.,&
                              error=error)
           END DO
-          rho%rho_g_valid=.TRUE.
+          CALL qs_rho_set(rho, rho_g_valid=.TRUE., error=error)
 
           ! does nothing
        CASE(wfi_use_prev_wf_method_nr)
           my_orthogonal_wf=.TRUE.
           nvec = MIN(wf_history%memory_depth, wf_history%snapshot_count)
           CALL wfi_set_history_variables(qs_env=qs_env, nvec=nvec, error=error)
-
+          CALL qs_rho_get(rho, rho_ao=rho_ao, error=error)
           DO ispin=1,SIZE(mos)
              CALL get_mo_set(mos(ispin)%mo_set,mo_coeff=mo_coeff,&
                   nmo=nmo)
@@ -743,7 +743,7 @@ END FUNCTION wfi_get_method_label
                   v_matrix=mo_coeff,&
                   n_col=nmo, error=error)
              CALL calculate_density_matrix(mo_set=mos(ispin)%mo_set,&
-                  density_matrix=rho%rho_ao(ispin)%matrix,error=error)
+                  density_matrix=rho_ao(ispin)%matrix,error=error)
           END DO
           CALL qs_rho_update_rho(rho, qs_env=qs_env, error=error)
           CALL qs_ks_did_change(qs_env%ks_env,rho_changed=.TRUE., error=error)
@@ -753,9 +753,9 @@ END FUNCTION wfi_get_method_label
           CPPrecondition(ASSOCIATED(t0_state%rho_ao),cp_failure_level,routineP,error,failure)
           nvec = MIN(wf_history%memory_depth, wf_history%snapshot_count)
           CALL wfi_set_history_variables(qs_env=qs_env, nvec=nvec, error=error)
-
+          CALL qs_rho_get(rho, rho_ao=rho_ao, error=error)
           DO ispin=1,SIZE(t0_state%rho_ao)
-             CALL cp_dbcsr_copy(rho%rho_ao(ispin)%matrix,&
+             CALL cp_dbcsr_copy(rho_ao(ispin)%matrix,&
                              t0_state%rho_ao(ispin)%matrix,&
                              keep_sparsity=.TRUE.,&
                              error=error)
@@ -790,6 +790,7 @@ END FUNCTION wfi_get_method_label
              t0=0.0_dp
              t1=t1_state%dt
              t2=t1+dt
+             CALL qs_rho_get(rho, rho_ao=rho_ao, error=error)
              DO ispin=1,SIZE(mos)
                 CALL get_mo_set(mos(ispin)%mo_set,mo_coeff=mo_coeff,&
                      nmo=nmo)
@@ -806,7 +807,7 @@ END FUNCTION wfi_get_method_label
                      v_matrix=mo_coeff,&
                      n_col=nmo, error=error)
                 CALL calculate_density_matrix(mo_set=mos(ispin)%mo_set,&
-                     density_matrix=rho%rho_ao(ispin)%matrix,error=error)
+                     density_matrix=rho_ao(ispin)%matrix,error=error)
              END DO
              CALL qs_rho_update_rho(rho, qs_env=qs_env,  error=error)
 
@@ -829,10 +830,11 @@ END FUNCTION wfi_get_method_label
             t0=0.0_dp
             t1=t1_state%dt
             t2=t1+dt
-            DO ispin=1,SIZE(rho%rho_ao)
-               CALL cp_dbcsr_add(rho%rho_ao(ispin)%matrix,t1_state%rho_ao(ispin)%matrix,&
+            CALL qs_rho_get(rho, rho_ao=rho_ao, error=error)
+            DO ispin=1,SIZE(rho_ao)
+               CALL cp_dbcsr_add(rho_ao(ispin)%matrix,t1_state%rho_ao(ispin)%matrix,&
                     alpha_scalar=0.0_dp,beta_scalar=(t2-t0)/(t1-t0),error=error) ! this copy should be unnecessary
-               CALL cp_dbcsr_add(rho%rho_ao(ispin)%matrix,t0_state%rho_ao(ispin)%matrix,&
+               CALL cp_dbcsr_add(rho_ao(ispin)%matrix,t0_state%rho_ao(ispin)%matrix,&
                     alpha_scalar=1.0_dp,beta_scalar=(t1-t2)/(t1-t0),error=error)
             END DO
             CALL qs_rho_update_rho(rho, qs_env=qs_env, error=error)
@@ -872,6 +874,7 @@ END FUNCTION wfi_get_method_label
              my_orthogonal_wf=.TRUE.
              ! use PS_2=2 PS_1-PS_0
              ! C_2 comes from using PS_2 as a projector acting on C_1
+             CALL qs_rho_get(rho, rho_ao=rho_ao, error=error)
              DO ispin=1,SIZE(mos)
                 NULLIFY(mo_coeff,matrix_struct,matrix_struct_new,csc)
                 CALL get_mo_set(mo_set=mos(ispin)%mo_set,mo_coeff=mo_coeff)
@@ -896,7 +899,7 @@ END FUNCTION wfi_get_method_label
                      v_matrix=mo_coeff,&
                      n_col=k, error=error)
                 CALL calculate_density_matrix(mo_set=mos(ispin)%mo_set,&
-                     density_matrix=rho%rho_ao(ispin)%matrix,error=error)
+                     density_matrix=rho_ao(ispin)%matrix,error=error)
              END DO
              CALL qs_rho_update_rho(rho, qs_env=qs_env, error=error)
              CALL qs_ks_did_change(qs_env%ks_env,rho_changed=.TRUE., error=error)
@@ -935,6 +938,7 @@ END FUNCTION wfi_get_method_label
              CALL cp_fm_to_fm(t1_state%wf(ispin)%matrix,mo_coeff,error=error)
              alpha = nvec
              CALL cp_fm_scale(alpha,mo_coeff,error=error)
+             CALL qs_rho_get(rho, rho_ao=rho_ao, error=error)
              DO i=2,nvec
                 t0_state => wfi_get_snapshot(wf_history, index=i, error=error)
                 IF ( use_overlap ) THEN
@@ -955,7 +959,7 @@ END FUNCTION wfi_get_method_label
                   v_matrix=mo_coeff,&
                   n_col=k, error=error)
              CALL calculate_density_matrix(mo_set=mos(ispin)%mo_set,&
-                  density_matrix=rho%rho_ao(ispin)%matrix,error=error)
+                  density_matrix=rho_ao(ispin)%matrix,error=error)
           END DO
           CALL qs_rho_update_rho(rho, qs_env=qs_env, error=error)
           CALL qs_ks_did_change(qs_env%ks_env,rho_changed=.TRUE., error=error)
@@ -979,6 +983,7 @@ END FUNCTION wfi_get_method_label
         END IF
 
         my_orthogonal_wf = .TRUE.
+        CALL qs_rho_get(rho, rho_ao=rho_ao, error=error)
         DO ispin=1,SIZE(mos)
           NULLIFY (mo_coeff,matrix_struct,matrix_struct_new,csc,fm_tmp)
           CALL get_mo_set(mo_set=mos(ispin)%mo_set,mo_coeff=mo_coeff)
@@ -999,8 +1004,8 @@ END FUNCTION wfi_get_method_label
                                        error=error)
           CALL cp_fm_to_fm(t1_state%wf(ispin)%matrix,mo_coeff,error=error)
           alpha = REAL(4*nvec - 2,KIND=dp)/REAL(nvec + 1,KIND=dp)
-          IF (output_unit>0) THEN
-            WRITE (UNIT=output_unit,FMT="(/,T3,A,/,/,T3,A,I0,/,/,T3,A2,I0,A4,F10.6)")&
+          IF ((output_unit > 0).AND.(print_level > low_print_level)) THEN
+            WRITE (UNIT=output_unit,FMT="(/,T2,A,/,/,T3,A,I0,/,/,T3,A2,I0,A4,F10.6)")&
               "Parameters for the always stable predictor-corrector (ASPC) method:",&
               "ASPC order: ",MAX(nvec - 2,0),&
               "B(",1,") = ",alpha
@@ -1019,7 +1024,7 @@ END FUNCTION wfi_get_method_label
             CALL cp_gemm('N','N',n,k,k,1.0_dp,t0_state%wf(ispin)%matrix,csc,0.0_dp,fm_tmp,error=error)
             alpha = (-1.0_dp)**(i + 1)*REAL(i,KIND=dp)*&
                     binomial(2*nvec,nvec - i)/binomial(2*nvec - 2,nvec -1)
-            IF (output_unit>0) THEN
+            IF ((output_unit > 0).AND.(print_level > low_print_level)) THEN
               WRITE (UNIT=output_unit,FMT="(T3,A2,I0,A4,F10.6)")&
                 "B(",i,") = ",alpha
             END IF
@@ -1032,7 +1037,7 @@ END FUNCTION wfi_get_method_label
                                               n_col=k,&
                                               error=error)
           CALL calculate_density_matrix(mo_set=mos(ispin)%mo_set,&
-                                        density_matrix=rho%rho_ao(ispin)%matrix,&
+                                        density_matrix=rho_ao(ispin)%matrix,&
                                         error=error)
         END DO
         CALL qs_rho_update_rho(rho, qs_env=qs_env, error=error)
@@ -1221,12 +1226,13 @@ END SUBROUTINE wfi_change_memory_depth
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: matrix_s
     TYPE(cp_fm_pool_type), POINTER           :: maxao_maxmo_fm_pool
+    TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(qs_matrix_pools_type), POINTER      :: mpools
     TYPE(qs_scf_env_type), POINTER           :: scf_env
     TYPE(scf_control_type), POINTER          :: scf_control
 
     failure=.FALSE.
-    NULLIFY(scf_env, scf_control, maxao_maxmo_fm_pool, matrix_s, mpools)
+    NULLIFY(scf_env, scf_control, maxao_maxmo_fm_pool, matrix_s, mpools, dft_control)
     CALL timeset(routineN,handle)
 
     CPPrecondition(ASSOCIATED(qs_env),cp_failure_level,routineP,error,failure)
@@ -1240,6 +1246,7 @@ END SUBROUTINE wfi_change_memory_depth
             scf_env=scf_env,&
             scf_control=scf_control,&
             matrix_s=matrix_s,&
+            dft_control=dft_control,&
             error=error)
        CALL mpools_get(mpools,maxao_maxmo_fm_pool=maxao_maxmo_fm_pool,&
             error=error)
@@ -1253,7 +1260,7 @@ END SUBROUTINE wfi_change_memory_depth
 
        CALL get_qs_env(qs_env,has_unit_metric=has_unit_metric,error=error)
        smearing_is_used = .FALSE.
-       IF (qs_env%dft_control%smear) THEN
+       IF (dft_control%smear) THEN
            smearing_is_used = .TRUE.
        END IF
 

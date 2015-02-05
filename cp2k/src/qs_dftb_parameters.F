@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2014  CP2K developers group                          !
+!   Copyright (C) 2000 - 2015  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -25,7 +25,6 @@ MODULE qs_dftb_parameters
                                              parser_create,&
                                              parser_release
   USE external_potential_types,        ONLY: set_potential
-  USE f77_blas
   USE input_constants,                 ONLY: dispersion_uff
   USE input_section_types,             ONLY: section_vals_type
   USE kinds,                           ONLY: default_path_length,&
@@ -574,7 +573,7 @@ CPSourceFileRef,&
         dftb_potential(ikind,jkind)%fmat(:,1:llm) = fmat(:,1:llm)
         CALL skreorder(smat,lmax_a,lmax_b)
         dftb_potential(ikind,jkind)%smat(:,1:llm) = smat(:,1:llm)
-        dftb_potential(ikind,jkind)%ngrdcut = ngrd + slako_d0/dgrd
+        dftb_potential(ikind,jkind)%ngrdcut = ngrd +INT(slako_d0/dgrd)
         ! Splines
         IF(spdim > 0) THEN
           dftb_potential(ikind,jkind)%s_cut = s_cut

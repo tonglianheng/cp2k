@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2014  CP2K developers group                          !
+!   Copyright (C) 2000 - 2015  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -12,7 +12,6 @@
 MODULE hfx_compression_methods
   USE cp_files,                        ONLY: close_file,&
                                              open_file
-  USE f77_blas
   USE hfx_compression_core_methods,    ONLY: bits2ints_specific,&
                                              ints2bits_specific
   USE hfx_types,                       ONLY: hfx_cache_type,&
@@ -372,7 +371,7 @@ MODULE hfx_compression_methods
 
     INTEGER                                  :: end_idx, i, start_idx, &
                                                 tmp_elements
-    INTEGER(int_8)                           :: shift
+    INTEGER(int_8)                           :: shift, tmp
     REAL(dp)                                 :: eps_schwarz_inv, factor
 
     eps_schwarz_inv = 1.0_dp/eps_schwarz
@@ -386,8 +385,9 @@ MODULE hfx_compression_methods
       DO i=1,nints
         values(i) = values(i)*pmax_entry
         IF(ABS(values(i)) > eps_schwarz) THEN
-          cache%data(i+start_idx-1)= ANINT(values(i)*eps_schwarz_inv, dp) + shift
-          values(i) = ANINT(values(i)*eps_schwarz_inv, dp)*factor
+          tmp=NINT(values(i)*eps_schwarz_inv, KIND=int_8)
+          cache%data(i+start_idx-1)= tmp + shift
+          values(i) = tmp*factor
         ELSE
           values(i) = 0.0_dp
           cache%data(i+start_idx-1) = shift
@@ -399,8 +399,9 @@ MODULE hfx_compression_methods
       DO i=1,tmp_elements
         values(i) = values(i)*pmax_entry
         IF(ABS(values(i)) > eps_schwarz) THEN
-          cache%data(i+start_idx-1)= ANINT(values(i)*eps_schwarz_inv,dp) + shift
-          values(i) = ANINT(values(i)*eps_schwarz_inv,dp)*factor
+          tmp=NINT(values(i)*eps_schwarz_inv, KIND=int_8)
+          cache%data(i+start_idx-1)= tmp + shift
+          values(i) = tmp*factor
         ELSE
           values(i) = 0.0_dp
           cache%data(i+start_idx-1) = shift
@@ -411,8 +412,9 @@ MODULE hfx_compression_methods
       DO i=tmp_elements+1, nints
         values(i) = values(i)*pmax_entry
         IF(ABS(values(i)) > eps_schwarz) THEN
-          cache%data(i-tmp_elements)= ANINT(values(i)*eps_schwarz_inv,dp) + shift
-          values(i) = ANINT(values(i)*eps_schwarz_inv,dp)*factor
+          tmp=NINT(values(i)*eps_schwarz_inv, KIND=int_8)
+          cache%data(i-tmp_elements)= tmp + shift
+          values(i) = tmp*factor
         ELSE
           values(i) = 0.0_dp
           cache%data(i-tmp_elements) = shift

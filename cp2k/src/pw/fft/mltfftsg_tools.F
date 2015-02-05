@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2014  CP2K developers group                          !
+!   Copyright (C) 2000 - 2015  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -68,7 +68,9 @@ SUBROUTINE mltfftsg ( transa, transb, a, ldax, lday, b, ldbx, ldby, n, m, isign,
   id = 0; num_threads = 1
 
 !$omp parallel &
-!$omp private ( id, istart, iend, nfft, i, inzee, itr )
+!$omp private ( id, istart, iend, nfft, i, inzee, itr,ierr ) default(none) &
+!$omp shared (num_threads,z,iterations,chunk,LOT,length,m,transa,isig, &
+!$omp         before,after,now,trig,a,n,ldax,tscal,scale,ic,transb,ldbx,b)
 
 !$omp single
 !$  num_threads = omp_get_num_threads()

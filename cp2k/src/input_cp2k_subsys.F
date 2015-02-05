@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2014  CP2K developers group                          !
+!   Copyright (C) 2000 - 2015  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -16,23 +16,25 @@ MODULE input_cp2k_subsys
                                              Krack2005,&
                                              VandeVondele2005a,&
                                              VandeVondele2007
-  USE cp_output_handling,              ONLY: cp_print_key_section_create
-  USE cp_units,                        ONLY: cp_unit_to_cp2k
-  USE f77_blas
-  USE input_constants,                 ONLY: &
+  USE cell_types,                      ONLY: &
        cell_sym_cubic, cell_sym_hexagonal, cell_sym_monoclinic, &
        cell_sym_none, cell_sym_orthorhombic, cell_sym_rhombohedral, &
        cell_sym_tetragonal_ab, cell_sym_tetragonal_ac, &
-       cell_sym_tetragonal_bc, cell_sym_triclinic, debug_print_level, do_add, &
-       do_bondparm_covalent, do_bondparm_vdw, do_cell_cp2k, do_cell_xsc, &
-       do_conn_amb7, do_conn_g87, do_conn_g96, do_conn_generate, &
+       cell_sym_tetragonal_bc, cell_sym_triclinic, use_perd_none, use_perd_x, &
+       use_perd_xy, use_perd_xyz, use_perd_xz, use_perd_y, use_perd_yz, &
+       use_perd_z
+  USE cp_output_handling,              ONLY: cp_print_key_section_create,&
+                                             debug_print_level,&
+                                             high_print_level,&
+                                             medium_print_level
+  USE cp_units,                        ONLY: cp_unit_to_cp2k
+  USE input_constants,                 ONLY: &
+       do_add, do_bondparm_covalent, do_bondparm_vdw, do_cell_cp2k, &
+       do_cell_xsc, do_conn_amb7, do_conn_g87, do_conn_g96, do_conn_generate, &
        do_conn_mol_set, do_conn_off, do_conn_psf, do_conn_psf_u, &
        do_conn_user, do_coord_cif, do_coord_cp2k, do_coord_crd, do_coord_g96, &
        do_coord_off, do_coord_pdb, do_coord_xtl, do_coord_xyz, do_remove, &
-       do_skip_11, do_skip_12, do_skip_13, do_skip_14, dump_pdb, gaussian, &
-       high_print_level, medium_print_level, use_perd_none, use_perd_x, &
-       use_perd_xy, use_perd_xyz, use_perd_xz, use_perd_y, use_perd_yz, &
-       use_perd_z
+       do_skip_11, do_skip_12, do_skip_13, do_skip_14, dump_pdb, gaussian
   USE input_cp2k_colvar,               ONLY: create_colvar_section
   USE input_cp2k_mm,                   ONLY: create_neighbor_lists_section
   USE input_keyword_types,             ONLY: keyword_create,&
@@ -989,39 +991,6 @@ CONTAINS
   END SUBROUTINE create_basis_section
 
 ! *****************************************************************************
-!> \brief Creates the &GEMINAL section
-!> \param section the section to create
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
-!> \author teo
-! *****************************************************************************
-  SUBROUTINE create_geminal_section(section,error)
-    TYPE(section_type), POINTER              :: section
-    TYPE(cp_error_type), INTENT(inout)       :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'create_geminal_section', &
-      routineP = moduleN//':'//routineN
-
-    LOGICAL                                  :: failure
-    TYPE(keyword_type), POINTER              :: keyword
-
-    failure=.FALSE.
-
-    IF (.NOT. failure) THEN
-       CALL section_create(section,name="geminal",&
-            description="Section used to specify a geminal basis set for QM calculations.",&
-            n_keywords=1, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
-            error=error)
-       NULLIFY(keyword)
-       CALL keyword_create(keyword, name="_DEFAULT_KEYWORD_",&
-            description="CP2K Basis Set Standard Format",repeats=.TRUE.,&
-            type_of_var=lchar_t, error=error)
-       CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-    END IF
-  END SUBROUTINE create_geminal_section
-
-! *****************************************************************************
 !> \brief Creates the &COORD section
 !> \param section the section to create
 !> \param error variable to control error logging, stopping,...
@@ -1286,13 +1255,6 @@ CONTAINS
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
-       CALL keyword_create(keyword, name="GEMINAL_BASIS_SET",&
-            description="The Geminal Gaussian basis set to be used in HF exchange fitting",&
-            usage="GEMINAL_BASIS_SET NAME", default_c_val=" ", &
-            n_var=1, required=.FALSE., error=error)
-       CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-
        CALL keyword_create(keyword, name="ELEC_CONF",&
             description="Specifies the electronic configration used in construction the "// &
                         "atomic initial guess (see the pseudo potential file for the default values.",&
@@ -1395,22 +1357,6 @@ CONTAINS
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
-       CALL keyword_create(keyword, name="ALPHA_SCP",&
-            description="The polarizability for scalar-isotropic polarization "//&
-            "using SCP with FIST as the driver",&
-            usage="ALPHA_SCP 0.2", default_r_val=1.0_dp,&
-            error=error)
-       CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-
-       CALL keyword_create(keyword, name="I_SCP",&
-            description="The dispersion parameter for scalar-isotropic polarization "//&
-            "using SCP with FIST as the driver",&
-            usage="I_SCP 0.2", default_r_val=1.0_dp,&
-            error=error)
-       CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-
        CALL keyword_create(keyword, name="MM_RADIUS",&
             description="Defines the radius of the electrostatic multipole "//&
             "of the atom in Fist. This radius applies to the charge, the "//&
@@ -1476,10 +1422,6 @@ CONTAINS
 
        NULLIFY(subsection)
        CALL create_basis_section(subsection, error)
-       CALL section_add_subsection(section, subsection, error=error)
-       CALL section_release(subsection,error=error)
-
-       CALL create_geminal_section(subsection, error)
        CALL section_add_subsection(section, subsection, error=error)
        CALL section_release(subsection,error=error)
 

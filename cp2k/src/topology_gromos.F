@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2014  CP2K developers group                          !
+!   Copyright (C) 2000 - 2015  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -15,7 +15,6 @@ MODULE topology_gromos
                                              parser_create,&
                                              parser_release
   USE cp_units,                        ONLY: cp_unit_to_cp2k
-  USE f77_blas
   USE input_cp2k_restarts_util,        ONLY: section_velocity_val_set
   USE input_section_types,             ONLY: section_get_rval,&
                                              section_vals_get_subs_vals,&
@@ -716,7 +715,7 @@ CONTAINS
           IF (string == TRIM("END")) EXIT
           natom = natom + 1
           IF (natom > SIZE(atom_info%id_molname)) THEN
-             newsize = pfactor*natom
+             newsize = INT(pfactor*natom)
              CALL reallocate(atom_info%id_molname,1,newsize)
              CALL reallocate(atom_info%id_resname,1,newsize)
              CALL reallocate(atom_info%resid,1,newsize)

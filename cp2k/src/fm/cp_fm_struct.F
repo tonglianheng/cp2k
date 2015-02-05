@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2014  CP2K developers group                          !
+!   Copyright (C) 2000 - 2015  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -18,7 +18,6 @@ MODULE cp_fm_struct
                                              cp_para_env_retain,&
                                              cp_para_env_write
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE f77_blas
   USE kinds,                           ONLY: default_string_length,&
                                              dp
   USE machine,                         ONLY: m_flush
@@ -439,43 +438,6 @@ FUNCTION cp_fm_struct_equivalent(fmstruct1,fmstruct2,error) RESULT(res)
      END IF
   END IF
 END FUNCTION cp_fm_struct_equivalent
-
-! *****************************************************************************
-!> \brief returns true if the two matrix structures are compatible,
-!>      (i.e. in the same parallel environment) false otherwise.
-!> \param fmstruct1 one of the full matrix structures to compare
-!> \param fmstruct2 the second of the full matrix structures to compare
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
-!> \retval res ...
-!> \par History
-!>      08.2002 created [fawzi]
-!> \author Fawzi Mohamed
-! *****************************************************************************
-FUNCTION cp_fm_struct_compatible(fmstruct1,fmstruct2,error) RESULT(res)
-    TYPE(cp_fm_struct_type), POINTER         :: fmstruct1, fmstruct2
-    TYPE(cp_error_type), INTENT(inout)       :: error
-    LOGICAL                                  :: res
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'cp_fm_struct_compatible', &
-      routineP = moduleN//':'//routineN
-
-    LOGICAL                                  :: failure
-
-  failure=.FALSE.
-
-  CPPrecondition(ASSOCIATED(fmstruct1),cp_failure_level,routineP,error,failure)
-  CPPrecondition(ASSOCIATED(fmstruct2),cp_failure_level,routineP,error,failure)
-  CPPrecondition(fmstruct1%ref_count>0,cp_failure_level,routineP,error,failure)
-  CPPrecondition(fmstruct2%ref_count>0,cp_failure_level,routineP,error,failure)
-  IF (.NOT. failure) THEN
-     IF (fmstruct1%id_nr==fmstruct2%id_nr) THEN
-        res=.TRUE.
-     ELSE
-        res= (fmstruct1%context%group==fmstruct2%context%group)
-     END IF
-  END IF
-END FUNCTION cp_fm_struct_compatible
 
 ! *****************************************************************************
 !> \brief writes a description of the matrix structure to the given unit

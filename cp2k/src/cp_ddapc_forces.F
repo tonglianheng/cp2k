@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2014  CP2K developers group                          !
+!   Copyright (C) 2000 - 2015  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -11,12 +11,13 @@
 !> \author Teodoro Laino
 ! *****************************************************************************
 MODULE cp_ddapc_forces
+  
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind_set
   USE cell_types,                      ONLY: cell_type
   USE cp_control_types,                ONLY: ddapc_restraint_type
+  USE cp_para_types,                   ONLY: cp_para_env_type
   USE erf_fn,                          ONLY: erfc
-  USE f77_blas
   USE input_constants,                 ONLY: do_ddapc_constraint,&
                                              do_ddapc_restraint,&
                                              weight_type_mass,&
@@ -94,7 +95,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER :: handle, ip1, ip2, iparticle1, iparticle2, k1, k2, k3, n_rep, &
-      nmax1, nmax2, nmax3, r1, r2, r3, rmax1, rmax2, rmax3, sfact, stat
+      nmax1, nmax2, nmax3, r1, r2, r3, rmax1, rmax2, rmax3, stat
     LOGICAL                                  :: analyt, failure
     REAL(KIND=dp)                            :: alpha, eps, fac, fac3, fs, &
                                                 galpha, gsq, gsqi, ij_fac, &
@@ -102,15 +103,16 @@ CONTAINS
                                                 rcut2, t1, t2, tol, tol1
     REAL(KIND=dp), DIMENSION(3)              :: drvec, fvec, gvec, ra, rvec
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: d_el, M
+    TYPE(cp_para_env_type), POINTER          :: para_env
 
     failure = .FALSE.
-    NULLIFY(d_el, M)
+    NULLIFY(d_el, M, para_env)
     CALL timeset(routineN,handle)
+    CALL get_qs_env(qs_env, para_env=para_env, error=error)
     IF (.NOT.failure) THEN
        CPPostcondition(PRESENT(charges),cp_failure_level,routineP,error,failure)
        CPPostcondition(ASSOCIATED(radii),cp_failure_level,routineP,error,failure)
        CPPostcondition(cell%orthorhombic,cp_failure_level,routineP,error,failure)
-       sfact =  factor
        rcut = MIN(cell%hmat(1,1),cell%hmat(2,2),cell%hmat(3,3))/2.0_dp
        CALL section_vals_val_get(multipole_section,"RCUT",n_rep_val=n_rep,error=error)
        IF (n_rep==1) CALL section_vals_val_get(multipole_section,"RCUT",r_val=rcut,error=error)
@@ -142,7 +144,7 @@ CONTAINS
        !
        DO iparticle1 = 1, SIZE(particle_set)
           !NB parallelization
-          IF (MOD(iparticle1, qs_env%para_env%num_pe) /= qs_env%para_env%mepos) CYCLE
+          IF (MOD(iparticle1, para_env%num_pe) /= para_env%mepos) CYCLE
           ip1 = (iparticle1-1)*SIZE(radii)
           q1t   = SUM(charges(ip1+1:ip1+SIZE(radii)))
           DO iparticle2 = 1, iparticle1
@@ -161,7 +163,7 @@ CONTAINS
                 IF (r2tmp<=rcut2) THEN
                    r  = SQRT(r2tmp)
                    t1 = erfc(alpha*r) / r
-                   drvec = ra / r * q1t * q2t * sfact
+                   drvec = ra / r * q1t * q2t * factor
                    t2 = -2.0_dp * alpha * EXP(-alpha*alpha*r*r) / (r*rootpi) - t1/r
                    d_el(1:3,iparticle1) = d_el(1:3,iparticle1) - t2 * drvec
                    d_el(1:3,iparticle2) = d_el(1:3,iparticle2) + t2 * drvec
@@ -178,7 +180,7 @@ CONTAINS
                       IF (r2tmp<=rcut2) THEN
                          r  = SQRT(r2tmp)
                          t1 = erfc(alpha*r) / r
-                         drvec = ra / r * q1t * q2t * sfact * ij_fac
+                         drvec = ra / r * q1t * q2t * factor * ij_fac
                          t2 = -2.0_dp * alpha * EXP(-alpha*alpha*r*r) / (r*rootpi) - t1/r
                          d_el(1,iparticle1) = d_el(1,iparticle1) - t2 * drvec(1)
                          d_el(2,iparticle1) = d_el(2,iparticle1) - t2 * drvec(2)
@@ -203,21 +205,21 @@ CONTAINS
                          gsq  = DOT_PRODUCT(gvec,gvec)
                          gsqi = fs/gsq
                          t1   = fac * gsqi * EXP(-galpha*gsq)
-                         t2 = -SIN(DOT_PRODUCT(gvec,rvec)) * t1 * q1t * q2t * sfact * fourpi
+                         t2 = -SIN(DOT_PRODUCT(gvec,rvec)) * t1 * q1t * q2t * factor * fourpi
                          d_el(1:3,iparticle1) = d_el(1:3,iparticle1) - t2 * gvec
                          d_el(1:3,iparticle2) = d_el(1:3,iparticle2) + t2 * gvec
                       END DO
                    END DO
                 END DO
              ELSE
-                gvec = Eval_d_Interp_Spl3_pbc( rvec, coeff, error ) * q1t * q2t * sfact * fourpi
+                gvec = Eval_d_Interp_Spl3_pbc( rvec, coeff, error ) * q1t * q2t * factor * fourpi
                 d_el(1:3,iparticle1) = d_el(1:3,iparticle1) -  gvec
                 d_el(1:3,iparticle2) = d_el(1:3,iparticle2) +  gvec
              END IF
              IF (iparticle1/=iparticle2) THEN
                 ra = rvec
                 r  = SQRT(DOT_PRODUCT(ra,ra))
-                t2    = - 1.0_dp /(r*r) * sfact
+                t2    = - 1.0_dp /(r*r) * factor
                 drvec = ra / r * q1t * q2t
                 d_el(1:3,iparticle1) = d_el(1:3,iparticle1) + t2 * drvec
                 d_el(1:3,iparticle2) = d_el(1:3,iparticle2) - t2 * drvec
@@ -225,7 +227,7 @@ CONTAINS
           END DO ! iparticle2
        END DO ! iparticle1
        !NB parallelization
-       CALL mp_sum(d_el, qs_env%para_env%group)
+       CALL mp_sum(d_el, para_env%group)
        M => qs_env%cp_ddapc_env%Md
        IF (apply_qmmm_periodic) M => qs_env%cp_ddapc_env%Mr
        CALL cp_decpl_ddapc_forces(qs_env, M, charges, dq, d_el, particle_set, error)
@@ -271,15 +273,18 @@ CONTAINS
       DIMENSION(:, :)                        :: chf
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
+    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(qs_force_type), DIMENSION(:), &
       POINTER                                :: force
 
     failure = .FALSE.
+    NULLIFY(para_env)
     CALL timeset(routineN,handle)
     IF (.NOT.failure) THEN
        natom = SIZE(particle_set)
        CALL get_qs_env(qs_env=qs_env,&
                        atomic_kind_set=atomic_kind_set,&
+                       para_env=para_env,&
                        force=force,error=error)
        ALLOCATE (atom_of_kind(natom),stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -300,7 +305,7 @@ CONTAINS
           END DO
        END DO
        !NB now that get_ddapc returns dq that's spread over nodes, must reduce chf here
-       CALL mp_sum(chf, qs_env%para_env%group)
+       CALL mp_sum(chf, para_env%group)
        DO iatom=1,natom
           ikind = kind_of(iatom)
           i = atom_of_kind(iatom)
@@ -462,15 +467,18 @@ CONTAINS
       DIMENSION(:, :)                        :: chf
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
+    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(qs_force_type), DIMENSION(:), &
       POINTER                                :: force
 
     failure = .FALSE.
+    NULLIFY(para_env)
     CALL timeset(routineN,handle)
     IF (.NOT.failure) THEN
        natom = SIZE(particle_set)
        CALL get_qs_env(qs_env=qs_env,&
                        atomic_kind_set=atomic_kind_set,&
+                       para_env=para_env,&
                        force=force,error=error)
        ALLOCATE (atom_of_kind(natom),stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -493,7 +501,7 @@ CONTAINS
           END DO
        END DO
        !NB now that get_ddapc returns dq that's spread over nodes, must reduce chf here
-       CALL mp_sum(chf, qs_env%para_env%group)
+       CALL mp_sum(chf, para_env%group)
        DO iatom=1,natom
           ikind = kind_of(iatom)
           i = atom_of_kind(iatom)
@@ -546,12 +554,12 @@ CONTAINS
 
     INTEGER                                  :: i, ip1, ip2, iparticle1, &
                                                 iparticle2, l, lmax, n_rep1, &
-                                                n_rep2, q1t, q2t, stat, weight
+                                                n_rep2, stat, weight
     INTEGER, DIMENSION(:), POINTER           :: list
     LOGICAL                                  :: failure, fixed_center
     REAL(KIND=dp) :: center(3), dcos1(3), dcos2(3), dpos1(3), dpos2(3), &
       eps_in, eps_out, factor1(3), factor2(3), lr, mass, mycos, pos1, pos1i, &
-      pos2, pos2i, ptcos, r1(3), r1s, r2(3), r2s, Rs, rvec(3)
+      pos2, pos2i, ptcos, q1t, q2t, r1(3), r1s, r2(3), r2s, Rs, rvec(3)
     REAL(KIND=dp), DIMENSION(:), POINTER     :: pos, R0
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: d_el, LocP, M
 

@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2014  CP2K developers group                          !
+!   Copyright (C) 2000 - 2015  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -22,7 +22,6 @@ MODULE qs_scf_wfn_mix
                                              cp_fm_release,&
                                              cp_fm_to_fm,&
                                              cp_fm_type
-  USE f77_blas
   USE input_section_types,             ONLY: section_vals_get,&
                                              section_vals_get_subs_vals,&
                                              section_vals_type,&
@@ -50,11 +49,8 @@ MODULE qs_scf_wfn_mix
 
 CONTAINS
 
-  ! *****************************************************************************
-  !> \brief writes a new 'mixed' set of mos to restart file, without touching the current MOs
-  ! *****************************************************************************
 ! *****************************************************************************
-!> \brief ...
+!> \brief writes a new 'mixed' set of mos to restart file, without touching the current MOs
 !> \param mos ...
 !> \param particle_set ...
 !> \param dft_section ...

@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2014  CP2K developers group                          !
+!   Copyright (C) 2000 - 2015  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -16,7 +16,8 @@ MODULE rt_propagation_methods
   USE cp_cfm_types,                    ONLY: cp_cfm_create,&
                                              cp_cfm_release,&
                                              cp_cfm_type
-  USE cp_control_types,                ONLY: rtp_control_type
+  USE cp_control_types,                ONLY: dft_control_type,&
+                                             rtp_control_type
   USE cp_dbcsr_cholesky,               ONLY: cp_dbcsr_cholesky_decompose,&
                                              cp_dbcsr_cholesky_invert
   USE cp_dbcsr_interface,              ONLY: &
@@ -47,7 +48,6 @@ MODULE rt_propagation_methods
   USE input_constants,                 ONLY: do_arnoldi,&
                                              do_bch,&
                                              do_em,&
-                                             do_etrs,&
                                              do_pade,&
                                              do_taylor
   USE iterate_matrix,                  ONLY: matrix_sqrt_Newton_Schulz
@@ -55,21 +55,22 @@ MODULE rt_propagation_methods
   USE mathlib,                         ONLY: binomial
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
-  USE qs_ks_methods,                   ONLY: qs_ks_did_change,&
-                                             qs_ks_update_qs_env
-  USE qs_ks_types,                     ONLY: qs_ks_env_type
+  USE qs_ks_methods,                   ONLY: qs_ks_update_qs_env
+  USE qs_ks_types,                     ONLY: qs_ks_did_change,&
+                                             qs_ks_env_type
   USE qs_rho_methods,                  ONLY: qs_rho_update_rho
-  USE qs_rho_types,                    ONLY: qs_rho_type
+  USE qs_rho_types,                    ONLY: qs_rho_get,&
+                                             qs_rho_set,&
+                                             qs_rho_type
+  USE rt_ls_matrix_exp,                ONLY: cp_complex_dbcsr_gemm_3
   USE rt_make_propagators,             ONLY: propagate_arnoldi,&
                                              propagate_bch,&
                                              propagate_exp,&
                                              propagate_exp_density
-  USE rt_matrix_exp_dbcsr,             ONLY: cp_complex_dbcsr_gemm_3
   USE rt_propagation_output,           ONLY: report_density_occupation,&
                                              rt_convergence,&
                                              rt_convergence_density
   USE rt_propagation_types,            ONLY: get_rtp,&
-                                             get_rtp_hfx,&
                                              rt_prop_type
   USE timings,                         ONLY: timeset,&
                                              timestop
@@ -113,7 +114,9 @@ CONTAINS
 
     INTEGER                                  :: aspc_order, handle, i
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
-      POINTER                                :: delta_P, rho_new
+      POINTER                                :: delta_P, matrix_ks, &
+                                                matrix_ks_im, matrix_s, &
+                                                rho_new
     TYPE(cp_fm_p_type), DIMENSION(:), &
       POINTER                                :: delta_mos, mos_new
     TYPE(qs_ks_env_type), POINTER            :: ks_env
@@ -124,20 +127,24 @@ CONTAINS
     ! get everything needed and set some values
     CALL get_qs_env(qs_env,&
          rho=rho,&
+         matrix_s=matrix_s,&
          ks_env=ks_env,&
          error=error)
     IF(rtp%iter==1)THEN
+       rtp%delta_iter=100.0_dp
+       rtp%mixing_factor=1.0_dp
+       rtp%mixing=.FALSE.
        aspc_order=rtp_control%aspc_order
-       CALL aspc_extrapolate(qs_env,rtp,aspc_order,error=error)
+       CALL aspc_extrapolate(rtp,matrix_s,aspc_order,error=error)
        IF(rtp%linear_scaling) THEN
           CALL calc_update_rho_sparse(qs_env,error=error)
        ELSE
           CALL calc_update_rho(qs_env,error=error)
        ENDIF
-       CALL qs_ks_update_qs_env(ks_env,qs_env=qs_env,calculate_forces=.FALSE.,&
-            error=error)
+       CALL qs_ks_update_qs_env(qs_env, calculate_forces=.FALSE., error=error)
     END IF
-    rtp%delta_iter=1.0_dp
+
+
     IF(rtp%linear_scaling) THEN
        ! keep temporary copy of the starting density matrix to check for convergence  
        CALL get_rtp(rtp=rtp,rho_new=rho_new,error=error)
@@ -161,7 +168,12 @@ CONTAINS
        END DO
     ENDIF
 
-    CALL compute_propagator_matrix(qs_env,error)
+    CALL get_qs_env(qs_env,&
+                    matrix_ks=matrix_ks,&
+                    matrix_ks_im=matrix_ks_im,&
+                    error=error)
+    CALL calc_SinvH(rtp,matrix_ks,matrix_ks_im,rtp_control,error)
+    CALL compute_propagator_matrix(rtp,rtp_control%propagator,error)
 
     SELECT CASE(rtp_control%mat_exp)
     CASE( do_pade, do_taylor)
@@ -216,80 +228,64 @@ CONTAINS
       routineP = moduleN//':'//routineN
     REAL(KIND=dp), PARAMETER                 :: one = 1.0_dp , zero = 0.0_dp
 
-    INTEGER                                  :: handle, i, ihist, im, ispin, &
-                                                re
-    REAL(KIND=dp)                            :: frob_norm
+    INTEGER                                  :: handle, i, ihist
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
-      POINTER                                :: exp_H_new, exp_H_old, PS, &
-                                                PSP, rho_new, rho_old, s_mat
+      POINTER                                :: exp_H_new, exp_H_old, &
+                                                matrix_ks, matrix_ks_im, &
+                                                rho_last_iter, rho_new, &
+                                                rho_old, s_mat
     TYPE(cp_fm_p_type), DIMENSION(:), &
-      POINTER                                :: mos_new, mos_old
+      POINTER                                :: mos_Last_iter, mos_new, &
+                                                mos_old
     TYPE(rt_prop_type), POINTER              :: rtp
 
     CALL timeset(routineN,handle)
 
-    CALL get_qs_env(qs_env=qs_env,rtp=rtp,matrix_s=s_mat,error=error)
+    CALL get_qs_env(qs_env=qs_env,rtp=rtp,matrix_s=s_mat,matrix_ks=matrix_ks,matrix_ks_im=matrix_ks_im,error=error)
     CALL get_rtp(rtp=rtp,exp_H_old=exp_H_old,exp_H_new=exp_H_new,error=error)
 
     IF(rtp_control%sc_check_start.LT.rtp%iter) THEN
+        rtp%delta_iter_old=rtp%delta_iter
         IF(rtp%linear_scaling) THEN
-           CALL rt_convergence_density(qs_env,delta_P,rtp%delta_iter,error)
+           CALL rt_convergence_density(rtp,delta_P,rtp%delta_iter,error)
         ELSE
-           CALL rt_convergence(qs_env,delta_mos,rtp%delta_iter,error)
+           CALL rt_convergence(rtp,s_mat(1)%matrix,delta_mos,rtp%delta_iter,error)
         END IF
+        !Apply mixing of scf loop is not converging
+        IF(rtp_control%sc_check_start.LT.rtp%iter+1) THEN
+           CALL rt_mixing(rtp,error=error)
+           IF(rtp%linear_scaling) THEN
+              CALL calc_update_rho_sparse(qs_env,error)
+           ELSE
+              CALL calc_update_rho(qs_env,error)
+           ENDIF
+        ENDIF
         rtp%converged=(rtp%delta_iter.LT.rtp_control%eps_ener)
+        IF(rtp%linear_scaling) THEN
+           CALL get_rtp(rtp=rtp,rho_new=rho_new,rho_last_iter=rho_last_iter,error=error)
+           DO i=1,SIZE(rho_new)
+             CALL cp_dbcsr_copy(rho_last_iter(i)%matrix,rho_new(i)%matrix,error=error)
+           ENDDO
+        ELSE
+           CALL get_rtp(rtp=rtp,mos_new=mos_new,mos_last_iter=mos_last_iter,error=error)
+           DO i=1,SIZE(mos_new)
+              CALL cp_fm_to_fm(mos_new(i)%matrix,mos_last_iter(i)%matrix,error)
+           END DO
+        ENDIF
     END IF
+
     IF(rtp%converged)THEN
        IF(rtp%linear_scaling) THEN
           CALL get_rtp(rtp=rtp,rho_old=rho_old,rho_new=rho_new,error=error) 
           IF(rtp_control%mcweeny_max_iter>0.OR.rtp_control%calc_idempotency) THEN
-             IF(SIZE(rho_new)==2) THEN
-                CALL cp_dbcsr_scale(rho_new(1)%matrix,one/2,error=error)
-                CALL cp_dbcsr_scale(rho_new(2)%matrix,one/2,error=error)
-             ENDIF
-             IF(rtp_control%mcweeny_max_iter>0) THEN
-                IF(rtp_control%orthonormal) THEN
-                   CALL purify_mcweeny_complex_orth(rho_new,s_mat,rtp%filter_eps,rtp%filter_eps_small,&
-                        rtp_control%mcweeny_max_iter,rtp_control%mcweeny_eps,error)
-                ELSE
-                   CALL purify_mcweeny_complex_nonorth(rho_new,s_mat,rtp%filter_eps,rtp%filter_eps_small,&
-                        rtp_control%mcweeny_max_iter,rtp_control%mcweeny_eps,error)
-                ENDIF
+             IF(rtp_control%orthonormal) THEN
+                CALL purify_mcweeny_complex_orth(rho_new,rtp%filter_eps,rtp%filter_eps_small,&
+                     rtp_control%mcweeny_max_iter,rtp_control%mcweeny_eps,error)
              ELSE
-                NULLIFY(PS,PSP)
-                CALL cp_dbcsr_allocate_matrix_set(PS,SIZE(rho_new),error=error)
-                CALL cp_dbcsr_allocate_matrix_set(PSP,SIZE(rho_new),error=error)
-                DO ispin=1,SIZE(rho_new)/2
-                   re=2*ispin-1
-                   im=2*ispin
-                   CALL cp_dbcsr_init_p(PS(re)%matrix,error=error)
-                   CALL cp_dbcsr_init_p(PS(im)%matrix,error=error)
-                   CALL cp_dbcsr_init_p(PSP(re)%matrix,error=error)
-                   CALL cp_dbcsr_init_p(PSP(im)%matrix,error=error)
-                   CALL cp_dbcsr_create(PS(re)%matrix,template=rho_new(re)%matrix,error=error)
-                   CALL cp_dbcsr_create(PS(im)%matrix,template=rho_new(im)%matrix,error=error)
-                   CALL cp_dbcsr_create(PSP(re)%matrix,template=rho_new(re)%matrix,error=error)
-                   CALL cp_dbcsr_create(PSP(im)%matrix,template=rho_new(im)%matrix,error=error)
-                   CALL cp_dbcsr_multiply("N","N",one,rho_new(re)%matrix,s_mat(1)%matrix,zero,&
-                        PS(re)%matrix,filter_eps=rtp%filter_eps_small,error=error)
-                   CALL cp_dbcsr_multiply("N","N",one,rho_new(im)%matrix,s_mat(1)%matrix,zero,&
-                        PS(im)%matrix,filter_eps=rtp%filter_eps_small,error=error)
-                   CALL cp_complex_dbcsr_gemm_3("N","N",one,PS(re)%matrix,PS(im)%matrix,&
-                        rho_new(re)%matrix,rho_new(im)%matrix,zero,PSP(re)%matrix,PSP(im)%matrix,&
-                        filter_eps=rtp%filter_eps_small,error=error)
-                END DO
-                !PSP works here as a work matrix to calculate the idempotency
-                CALL cp_dbcsr_add(PSP(re)%matrix,rho_new(re)%matrix,one,-one,error=error)
-                CALL cp_dbcsr_add(PSP(im)%matrix,rho_new(im)%matrix,one,-one,error=error)
-                CALL complex_frobenius_norm(frob_norm,PSP(re)%matrix,PSP(im)%matrix,error=error)
-                CALL cp_dbcsr_deallocate_matrix_set(PS,error)
-                CALL cp_dbcsr_deallocate_matrix_set(PSP,error)
+                CALL purify_mcweeny_complex_nonorth(rho_new,s_mat,rtp%filter_eps,rtp%filter_eps_small,&
+                     rtp_control%mcweeny_max_iter,rtp_control%mcweeny_eps,error)
              ENDIF
-             IF(SIZE(rho_new)==2) THEN
-                CALL cp_dbcsr_scale(rho_new(1)%matrix,one*2,error=error)
-                CALL cp_dbcsr_scale(rho_new(2)%matrix,one*2,error=error)
-             ENDIF
-             CALL calc_update_rho_sparse(qs_env,error)
+             IF(rtp_control%mcweeny_max_iter>0) CALL calc_update_rho_sparse(qs_env,error)
           ENDIF
           CALL report_density_occupation(rtp,rho_new,error=error)
           DO i=1,SIZE(rho_new)
@@ -301,13 +297,10 @@ CONTAINS
              CALL cp_fm_to_fm(mos_new(i)%matrix,mos_old(i)%matrix,error)
           END DO
        ENDIF
-       IF(rtp_control%propagator==do_etrs)THEN
-          DO i=1,SIZE(exp_H_new)
-             CALL cp_dbcsr_copy(exp_H_old(i)%matrix,exp_H_new(i)%matrix,error=error)
-          END DO
-       ELSE
-          CALL calc_SinvH(exp_H_old,qs_env,error)
-       END IF
+       IF(rtp_control%propagator==do_em) CALL calc_SinvH(rtp,matrix_ks,matrix_ks_im,rtp_control,error)
+       DO i=1,SIZE(exp_H_new)
+          CALL cp_dbcsr_copy(exp_H_old(i)%matrix,exp_H_new(i)%matrix,error=error)
+       END DO
        ihist=MOD(rtp%istep,rtp_control%aspc_order)+1
        IF(rtp_control%fixed_ions)THEN
           CALL  put_data_to_history(rtp,rho=rho_new,mos=mos_new,ihist=ihist,error=error)
@@ -321,13 +314,15 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief computes the propagator matrix for EM/ETRS, RTP/EMD
-!> \param qs_env ...
+!> \param rtp ...
+!> \param propagator ...
 !> \param error ...
 !> \author Florian Schiffmann (02.09)
 ! *****************************************************************************
 
-  SUBROUTINE compute_propagator_matrix(qs_env,error)
-    TYPE(qs_environment_type), POINTER       :: qs_env
+  SUBROUTINE compute_propagator_matrix(rtp,propagator,error)
+    TYPE(rt_prop_type), POINTER              :: rtp
+    INTEGER                                  :: propagator
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'compute_propagator_matrix', &
@@ -338,21 +333,16 @@ CONTAINS
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: exp_H_new, exp_H_old, &
                                                 propagator_matrix
-    TYPE(rt_prop_type), POINTER              :: rtp
-    TYPE(rtp_control_type), POINTER          :: rtp_control
 
     CALL timeset(routineN,handle)
-    CALL get_qs_env(qs_env=qs_env,rtp=rtp,error=error)
     CALL get_rtp(rtp=rtp,exp_H_new=exp_H_new,exp_H_old=exp_H_old,&
                  propagator_matrix=propagator_matrix,dt=dt,error=error)
-    rtp_control=>qs_env%dft_control%rtp_control
 
     prefac=-0.5_dp*dt
 
-    CALL calc_SinvH(exp_H_new,qs_env,error)
     DO i=1,SIZE(exp_H_new)
        CALL cp_dbcsr_add(propagator_matrix(i)%matrix,exp_H_new(i)%matrix,0.0_dp,prefac,error)
-       IF(rtp_control%propagator==do_em)&
+       IF(propagator==do_em)&
           CALL cp_dbcsr_add(propagator_matrix(i)%matrix,exp_H_old(i)%matrix,1.0_dp,prefac,error)
     END DO
 
@@ -362,16 +352,19 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief computes t*S_inv*H, if needed t*Sinv*B
-!> \param exp_H ...
-!> \param qs_env ...
+!> \param rtp ...
+!> \param matrix_ks ...
+!> \param matrix_ks_im ...
+!> \param rtp_control ...
 !> \param error ...
 !> \author Florian Schiffmann (02.09)
 ! *****************************************************************************
 
-  SUBROUTINE calc_SinvH(exp_H,qs_env,error)
+  SUBROUTINE calc_SinvH(rtp,matrix_ks,matrix_ks_im,rtp_control,error)
+    TYPE(rt_prop_type), POINTER              :: rtp
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
-      POINTER                                :: exp_H
-    TYPE(qs_environment_type), POINTER       :: qs_env
+      POINTER                                :: matrix_ks, matrix_ks_im
+    TYPE(rtp_control_type), POINTER          :: rtp_control
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'calc_SinvH', &
@@ -381,18 +374,12 @@ CONTAINS
     INTEGER                                  :: handle, im, ispin, re
     REAL(dp)                                 :: t
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_ks, SinvB, SinvH
+      POINTER                                :: exp_H, SinvB, SinvH
     TYPE(cp_dbcsr_type)                      :: matrix_ks_nosym, tmp
     TYPE(cp_dbcsr_type), POINTER             :: B_mat, S_inv, S_minus_half
-    TYPE(rt_prop_type), POINTER              :: rtp
-    TYPE(rtp_control_type), POINTER          :: rtp_control
 
     CALL timeset(routineN,handle)
-
-    rtp_control=>qs_env%dft_control%rtp_control
-
-    CALL get_qs_env(qs_env=qs_env,matrix_ks=matrix_ks,rtp=rtp,error=error)
-    CALL get_rtp(rtp=rtp,S_inv=S_inv,S_minus_half=S_minus_half,dt=t,error=error)
+    CALL get_rtp(rtp=rtp,S_inv=S_inv,S_minus_half=S_minus_half,exp_H_new=exp_H,dt=t,error=error)
     CALL cp_dbcsr_init(matrix_ks_nosym,error=error)
     CALL cp_dbcsr_create(matrix_ks_nosym,template=matrix_ks(1)%matrix,matrix_type="N",error=error)
     CALL cp_dbcsr_init(tmp,error=error)
@@ -410,23 +397,22 @@ CONTAINS
           CALL cp_dbcsr_multiply("N","N",one,S_inv,matrix_ks_nosym,zero,exp_H(im)%matrix,&
                filter_eps=rtp%filter_eps,error=error)
        ENDIF
-       IF(.NOT.qs_env%dft_control%rtp_control%fixed_ions)THEN
+       IF(.NOT.rtp_control%fixed_ions)THEN
           CALL get_rtp(rtp=rtp,SinvH=SinvH,error=error)
           CALL cp_dbcsr_copy(SinvH(ispin)%matrix,exp_H(im)%matrix,error=error)
        END IF
     END DO
-    IF(.NOT.qs_env%dft_control%rtp_control%fixed_ions.OR.rtp%do_hfx)THEN
+    IF(.NOT.rtp_control%fixed_ions.OR.rtp%do_hfx)THEN
        CALL get_rtp(rtp=rtp,B_mat=B_mat,SinvB=SinvB,error=error)
        IF(rtp%do_hfx)THEN
           DO ispin=1,SIZE(matrix_ks)
              re=ispin*2-1
              im=ispin*2           
              CALL cp_dbcsr_set(matrix_ks_nosym,0.0_dp,error)
-             CALL cp_dbcsr_desymmetrize (rtp%rtp_hfx%matrix_ks_im(ispin)%matrix, matrix_ks_nosym,&
-                     error=error)
+             CALL cp_dbcsr_desymmetrize(matrix_ks_im(ispin)%matrix,matrix_ks_nosym,error=error)
 
              ! take care of the EMD case and add the velocity scaled S_derivative
-             IF(.NOT.qs_env%dft_control%rtp_control%fixed_ions)&
+             IF(.NOT.rtp_control%fixed_ions)&
                 CALL cp_dbcsr_add(matrix_ks_nosym,B_mat,1.0_dp,-1.0_dp,error=error)
             
              IF(rtp_control%orthonormal) THEN
@@ -439,7 +425,7 @@ CONTAINS
                      filter_eps=rtp%filter_eps,error=error)
              ENDIF
 
-             IF(.NOT.qs_env%dft_control%rtp_control%fixed_ions)&
+             IF(.NOT.rtp_control%fixed_ions)&
                 CALL cp_dbcsr_copy(SinvB(ispin)%matrix,exp_H(re)%matrix,error=error)
           END DO
        ELSE
@@ -526,7 +512,7 @@ CONTAINS
 
   SUBROUTINE complex_frobenius_norm(frob_norm,mat_re,mat_im,error)
 
-    REAL(KIND=dp)                            :: frob_norm
+    REAL(KIND=dp), INTENT(out)               :: frob_norm
     TYPE(cp_dbcsr_type), POINTER             :: mat_re, mat_im
     TYPE(cp_error_type), INTENT(inout)       :: error
 
@@ -534,22 +520,14 @@ CONTAINS
       routineP = moduleN//':'//routineN
     REAL(KIND=dp), PARAMETER                 :: one = 1.0_dp , zero = 0.0_dp
 
-    INTEGER                                  :: col_atom, handle, row_atom, &
-                                                unit_nr
+    INTEGER                                  :: col_atom, handle, row_atom
     LOGICAL                                  :: found
     REAL(dp), DIMENSION(:), POINTER          :: block_values, block_values2
     TYPE(cp_dbcsr_iterator)                  :: iter
     TYPE(cp_dbcsr_type), POINTER             :: tmp
-    TYPE(cp_logger_type), POINTER            :: logger
 
     CALL timeset(routineN,handle)
 
-    logger   => cp_error_get_logger(error)
-    IF (logger%para_env%mepos==logger%para_env%source) THEN
-       unit_nr=cp_logger_get_default_unit_nr(logger,local=.TRUE.)
-    ELSE
-       unit_nr=-1
-    ENDIF
 
     NULLIFY(tmp)
     ALLOCATE(tmp)
@@ -575,7 +553,6 @@ CONTAINS
     END DO
     CALL cp_dbcsr_iterator_stop (iter)
     frob_norm=cp_dbcsr_frobenius_norm(tmp)
-    IF(unit_nr.gt.0) WRITE(unit_nr,'(t3,a,2f16.8)')"Deviation from idempotency: ",frob_norm
 
     CALL cp_dbcsr_deallocate_matrix(tmp,error=error)
 
@@ -599,9 +576,9 @@ CONTAINS
 
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: P, s_mat
-    REAL(KIND=dp)                            :: eps, eps_small
-    INTEGER                                  :: max_iter
-    REAL(KIND=dp)                            :: threshold
+    REAL(KIND=dp), INTENT(in)                :: eps, eps_small
+    INTEGER, INTENT(in)                      :: max_iter
+    REAL(KIND=dp), INTENT(in)                :: threshold
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: &
@@ -609,12 +586,21 @@ CONTAINS
       routineP = moduleN//':'//routineN
     REAL(KIND=dp), PARAMETER                 :: one = 1.0_dp , zero = 0.0_dp
 
-    INTEGER                                  :: handle, i, im, ispin, re
+    INTEGER                                  :: handle, i, im, imax, ispin, &
+                                                re, unit_nr
     REAL(KIND=dp)                            :: frob_norm
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: PS, PSP, tmp
+    TYPE(cp_logger_type), POINTER            :: logger
 
     CALL timeset(routineN,handle)
+
+    logger   => cp_error_get_logger(error)
+    IF (logger%para_env%mepos==logger%para_env%source) THEN
+       unit_nr=cp_logger_get_default_unit_nr(logger,local=.TRUE.)
+    ELSE
+       unit_nr=-1
+    ENDIF
 
     NULLIFY(tmp,PS,PSP)
     CALL cp_dbcsr_allocate_matrix_set(tmp,SIZE(P),error=error)
@@ -628,10 +614,15 @@ CONTAINS
        CALL cp_dbcsr_init_p(tmp(i)%matrix,error=error)
        CALL cp_dbcsr_create(tmp(i)%matrix,template=P(1)%matrix,error=error)
     ENDDO
+    IF(SIZE(P)==2) THEN
+        CALL cp_dbcsr_scale(P(1)%matrix,one/2,error=error)
+        CALL cp_dbcsr_scale(P(2)%matrix,one/2,error=error)
+    ENDIF
     DO ispin=1,SIZE(P)/2
        re=2*ispin-1
        im=2*ispin
-       DO i=1,max_iter
+       imax=MAX(max_iter,1) !if max_iter is 0 then only the deviation from idempotency needs to be calculated
+       DO i=1,imax
           CALL cp_dbcsr_multiply("N", "N", one, P(re)%matrix,s_mat(1)%matrix,&
                zero, PS(re)%matrix, filter_eps=eps_small,error=error)
           CALL cp_dbcsr_multiply("N", "N", one, P(im)%matrix,s_mat(1)%matrix,&
@@ -644,7 +635,8 @@ CONTAINS
           CALL cp_dbcsr_add(tmp(re)%matrix,P(re)%matrix,1.0_dp,-1.0_dp,error=error)
           CALL cp_dbcsr_add(tmp(im)%matrix,P(im)%matrix,1.0_dp,-1.0_dp,error=error)
           CALL complex_frobenius_norm(frob_norm,tmp(re)%matrix,tmp(im)%matrix,error=error)
-          IF(frob_norm.GT.threshold)THEN
+          IF(unit_nr.gt.0) WRITE(unit_nr,'(t3,a,2f16.8)')"Deviation from idempotency: ",frob_norm
+          IF(frob_norm.GT.threshold.AND.max_iter>0)THEN
              CALL cp_dbcsr_copy(P(re)%matrix,PSP(re)%matrix,error=error)
              CALL cp_dbcsr_copy(P(im)%matrix,PSP(im)%matrix,error=error)
              CALL cp_complex_dbcsr_gemm_3("N", "N", -2.0_dp, PS(re)%matrix,PS(im)%matrix,&
@@ -667,6 +659,10 @@ CONTAINS
        CALL cp_dbcsr_transposed(tmp(im)%matrix,P(im)%matrix,error=error)
        CALL cp_dbcsr_add(P(im)%matrix,tmp(im)%matrix,one/2,-one/2,error=error)
     END DO
+    IF(SIZE(P)==2) THEN
+       CALL cp_dbcsr_scale(P(1)%matrix,one*2,error=error)
+       CALL cp_dbcsr_scale(P(2)%matrix,one*2,error=error)
+    ENDIF
     CALL cp_dbcsr_deallocate_matrix_set(tmp,error)
     CALL cp_dbcsr_deallocate_matrix_set(PS,error)
     CALL cp_dbcsr_deallocate_matrix_set(PSP,error)
@@ -678,7 +674,6 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Does McWeeny for complex matrices in the orthonormal basis
 !> \param P ...
-!> \param s_mat ...
 !> \param eps ...
 !> \param eps_small ...
 !> \param max_iter ...
@@ -687,25 +682,34 @@ CONTAINS
 !> \author Samuel Andermatt (04.14)
 ! *****************************************************************************
 
-  SUBROUTINE purify_mcweeny_complex_orth(P,s_mat,eps,eps_small,max_iter,threshold,error)
+  SUBROUTINE purify_mcweeny_complex_orth(P,eps,eps_small,max_iter,threshold,error)
 
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
-      POINTER                                :: P, s_mat
-    REAL(KIND=dp)                            :: eps, eps_small
-    INTEGER                                  :: max_iter
-    REAL(KIND=dp)                            :: threshold
+      POINTER                                :: P
+    REAL(KIND=dp), INTENT(in)                :: eps, eps_small
+    INTEGER, INTENT(in)                      :: max_iter
+    REAL(KIND=dp), INTENT(in)                :: threshold
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'purify_mcweeny_complex_orth', &
       routineP = moduleN//':'//routineN
     REAL(KIND=dp), PARAMETER                 :: one = 1.0_dp , zero = 0.0_dp
 
-    INTEGER                                  :: handle, i, im, ispin, re
+    INTEGER                                  :: handle, i, im, imax, ispin, &
+                                                re, unit_nr
     REAL(KIND=dp)                            :: frob_norm
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: PP, tmp
+    TYPE(cp_logger_type), POINTER            :: logger
 
     CALL timeset(routineN,handle)
+
+    logger   => cp_error_get_logger(error)
+    IF (logger%para_env%mepos==logger%para_env%source) THEN
+       unit_nr=cp_logger_get_default_unit_nr(logger,local=.TRUE.)
+    ELSE
+       unit_nr=-1
+    ENDIF
 
     NULLIFY(tmp,PP)
     CALL cp_dbcsr_allocate_matrix_set(tmp,SIZE(P),error=error)
@@ -716,10 +720,15 @@ CONTAINS
        CALL cp_dbcsr_init_p(tmp(i)%matrix,error=error)
        CALL cp_dbcsr_create(tmp(i)%matrix,template=P(1)%matrix,error=error)
     ENDDO
+    IF(SIZE(P)==2) THEN
+        CALL cp_dbcsr_scale(P(1)%matrix,one/2,error=error)
+        CALL cp_dbcsr_scale(P(2)%matrix,one/2,error=error)
+    ENDIF
     DO ispin=1,SIZE(P)/2
        re=2*ispin-1
        im=2*ispin
-       DO i=1,max_iter
+       imax=MAX(max_iter,1) !if max_iter is 0 then only the deviation from idempotency needs to be calculated
+       DO i=1,imax
           CALL cp_complex_dbcsr_gemm_3("N","N",one,P(re)%matrix,P(im)%matrix,&
                P(re)%matrix,P(im)%matrix,zero,PP(re)%matrix,PP(im)%matrix,&
                filter_eps=eps_small,error=error)
@@ -728,7 +737,8 @@ CONTAINS
           CALL cp_dbcsr_add(tmp(re)%matrix,P(re)%matrix,1.0_dp,-1.0_dp,error=error)
           CALL cp_dbcsr_add(tmp(im)%matrix,P(im)%matrix,1.0_dp,-1.0_dp,error=error)
           CALL complex_frobenius_norm(frob_norm,tmp(re)%matrix,tmp(im)%matrix,error=error)
-          IF(frob_norm.GT.threshold)THEN
+          IF(unit_nr.gt.0) WRITE(unit_nr,'(t3,a,2f16.8)')"Deviation from idempotency: ",frob_norm
+          IF(frob_norm.GT.threshold.AND.max_iter>0)THEN
              CALL cp_dbcsr_copy(tmp(re)%matrix,P(re)%matrix,error=error)
              CALL cp_dbcsr_copy(tmp(im)%matrix,P(im)%matrix,error=error)
              CALL cp_dbcsr_copy(P(re)%matrix,PP(re)%matrix,error=error)
@@ -748,6 +758,10 @@ CONTAINS
           END IF
        END DO
     END DO
+    IF(SIZE(P)==2) THEN
+       CALL cp_dbcsr_scale(P(1)%matrix,one*2,error=error)
+       CALL cp_dbcsr_scale(P(2)%matrix,one*2,error=error)
+    ENDIF
     CALL cp_dbcsr_deallocate_matrix_set(tmp,error)
     CALL cp_dbcsr_deallocate_matrix_set(PP,error)
 
@@ -775,6 +789,8 @@ CONTAINS
 
     INTEGER                                  :: handle, i, im, ncol, re
     REAL(KIND=dp)                            :: alpha
+    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+      POINTER                                :: rho_ao, rho_ao_im
     TYPE(cp_fm_p_type), DIMENSION(:), &
       POINTER                                :: mos
     TYPE(qs_ks_env_type), POINTER            :: ks_env
@@ -784,19 +800,24 @@ CONTAINS
     CALL timeset(routineN,handle)
 
     NULLIFY (rho,ks_env,mos,rtp)
-    CALL get_qs_env(qs_env=qs_env,ks_env=ks_env,rho=rho,rtp=rtp,error=error)
+    CALL get_qs_env(qs_env,&
+                    ks_env=ks_env,&
+                    rho=rho,&
+                    rtp=rtp,&
+                    error=error)
     CALL get_rtp(rtp=rtp,mos_new=mos,error=error)
+    CALL qs_rho_get(rho_struct=rho,rho_ao=rho_ao,error=error)
     DO i=1,SIZE(mos)/2
        re=2*i-1 ; im =2*i
        alpha=3.0_dp-REAL(SIZE(mos)/2,dp)
-       CALL cp_dbcsr_set(rho%rho_ao(i)%matrix,0.0_dp,error=error)
+       CALL cp_dbcsr_set(rho_ao(i)%matrix,0.0_dp,error=error)
        CALL cp_fm_get_info(mos(re)%matrix,ncol_global=ncol,error=error)
-       CALL cp_dbcsr_plus_fm_fm_t(sparse_matrix=rho%rho_ao(i)%matrix,&
+       CALL cp_dbcsr_plus_fm_fm_t(sparse_matrix=rho_ao(i)%matrix,&
                                matrix_v=mos(re)%matrix,&
                                ncol=ncol,&
                                alpha=alpha,error=error)
        ! It is actually complex conjugate but i*i=-1 therfore it must be added
-       CALL cp_dbcsr_plus_fm_fm_t(sparse_matrix=rho%rho_ao(i)%matrix,&
+       CALL cp_dbcsr_plus_fm_fm_t(sparse_matrix=rho_ao(i)%matrix,&
                         matrix_v=mos(im)%matrix,&
                         ncol=ncol,&
                         alpha=alpha,error=error)
@@ -805,7 +826,9 @@ CONTAINS
     CALL qs_rho_update_rho(rho, qs_env, error=error)
 
     IF(rtp%do_hfx)THEN
-       CALL calculate_P_imaginary(rtp,qs_env%dft_control%do_admm,error)
+       CALL qs_rho_get(rho_struct=rho,rho_ao_im=rho_ao_im,error=error)
+       CALL calculate_P_imaginary(rtp, rho_ao_im, error)
+       CALL qs_rho_set(rho, rho_ao_im=rho_ao_im, error=error)
     END IF
 
     CALL qs_ks_did_change(ks_env,rho_changed=.TRUE.,error=error)
@@ -832,21 +855,28 @@ CONTAINS
       routineP = moduleN//':'//routineN
     REAL(KIND=dp), PARAMETER                 :: one = 1.0_dp , zero = 0.0_dp
 
-    INTEGER                                  :: handle, ispin, re
+    INTEGER                                  :: handle, im, ispin, re
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
-      POINTER                                :: rho_new
+      POINTER                                :: rho_ao, rho_ao_im, rho_new
     TYPE(cp_dbcsr_type), POINTER             :: S_minus_half, tmp, tmp2
+    TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(qs_ks_env_type), POINTER            :: ks_env
     TYPE(qs_rho_type), POINTER               :: rho
     TYPE(rt_prop_type), POINTER              :: rtp
     TYPE(rtp_control_type), POINTER          :: rtp_control
 
+    NULLIFY(rho,ks_env,rtp,tmp,tmp2,dft_control)
     CALL timeset(routineN,handle)
-
-    rtp_control=>qs_env%dft_control%rtp_control
-    NULLIFY(rho,ks_env,rtp,tmp,tmp2)
-    CALL get_qs_env(qs_env=qs_env,ks_env=ks_env,rho=rho,rtp=rtp,error=error)
+    CALL get_qs_env(qs_env,&
+                   ks_env=ks_env,&
+                   rho=rho,&
+                   rtp=rtp,&
+                   dft_control=dft_control,&
+                   error=error)
+    rtp_control=>dft_control%rtp_control
     CALL get_rtp(rtp=rtp,rho_new=rho_new,error=error)
+    CALL qs_rho_get(rho_struct=rho,rho_ao=rho_ao,error=error)
+    IF(rtp%do_hfx) CALL qs_rho_get(rho_struct=rho,rho_ao_im=rho_ao_im,error=error)
     IF(rtp_control%orthonormal) THEN
        CALL get_rtp(rtp=rtp,S_minus_half=S_minus_half,error=error)
        ALLOCATE(tmp)
@@ -855,19 +885,29 @@ CONTAINS
        ALLOCATE(tmp2)
        CALL cp_dbcsr_init(tmp2,error=error)
        CALL cp_dbcsr_create(tmp2,template=rho_new(1)%matrix,error=error)
-       DO ispin=1,SIZE(rho%rho_ao)
+       DO ispin=1,SIZE(rho_ao)
           re = 2*ispin-1
           CALL cp_dbcsr_multiply("N","N",one,S_minus_half,rho_new(re)%matrix,zero,tmp,filter_eps=rtp%filter_eps,error=error)
           CALL cp_dbcsr_multiply("N","N",one,tmp,S_minus_half,zero,tmp2,filter_eps=rtp%filter_eps,error=error)
-          CALL cp_dbcsr_set(rho%rho_ao(ispin)%matrix,zero,error=error)
-          CALL cp_dbcsr_copy_into_existing(rho%rho_ao(ispin)%matrix,tmp2,error=error)
+          CALL cp_dbcsr_set(rho_ao(ispin)%matrix,zero,error=error)
+          CALL cp_dbcsr_copy_into_existing(rho_ao(ispin)%matrix,tmp2,error=error)
        END DO
+       IF(rtp%do_hfx) THEN
+          DO ispin=1,SIZE(rho_ao_im)
+             im = 2*ispin
+             CALL cp_dbcsr_multiply("N","N",one,S_minus_half,rho_new(im)%matrix,zero,tmp,filter_eps=rtp%filter_eps,error=error)
+             CALL cp_dbcsr_multiply("N","N",one,tmp,S_minus_half,zero,tmp2,filter_eps=rtp%filter_eps,error=error)
+             CALL cp_dbcsr_set(rho_ao_im(ispin)%matrix,zero,error=error)
+             CALL cp_dbcsr_copy_into_existing(rho_ao_im(ispin)%matrix,tmp2,error=error)
+          END DO
+       ENDIF
        CALL cp_dbcsr_deallocate_matrix(tmp,error=error)
        CALL cp_dbcsr_deallocate_matrix(tmp2,error=error)
     ELSE
-       DO ispin=1,SIZE(rho%rho_ao)
-          CALL cp_dbcsr_set(rho%rho_ao(ispin)%matrix,zero,error=error)
-          CALL cp_dbcsr_copy_into_existing(rho%rho_ao(ispin)%matrix,rho_new(ispin*2-1)%matrix,error=error)
+       DO ispin=1,SIZE(rho_ao)
+          CALL cp_dbcsr_set(rho_ao(ispin)%matrix,zero,error=error)
+          CALL cp_dbcsr_copy_into_existing(rho_ao(ispin)%matrix,rho_new(ispin*2-1)%matrix,error=error)
+          IF(rtp%do_hfx) CALL cp_dbcsr_copy_into_existing(rho_ao_im(ispin)%matrix,rho_new(ispin*2)%matrix,error=error)
        END DO
     ENDIF
 
@@ -882,12 +922,13 @@ CONTAINS
 ! *****************************************************************************
 !> \brief ...
 !> \param rtp ...
-!> \param do_admm ...
+!> \param matrix_p_im ...
 !> \param error ...
 ! *****************************************************************************
-  SUBROUTINE calculate_P_imaginary(rtp,do_admm,error)
+  SUBROUTINE calculate_P_imaginary(rtp,matrix_p_im,error)
     TYPE(rt_prop_type), POINTER              :: rtp
-    LOGICAL                                  :: do_admm
+    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+      POINTER                                :: matrix_p_im
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'calculate_P_imaginary', &
@@ -895,13 +936,10 @@ CONTAINS
 
     INTEGER                                  :: i, im, ncol, re
     REAL(KIND=dp)                            :: alpha
-    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_p_im
     TYPE(cp_fm_p_type), DIMENSION(:), &
       POINTER                                :: mos
 
     CALL get_rtp(rtp=rtp,mos_new=mos,error=error)
-    CALL get_rtp_hfx(rtp_hfx=rtp%rtp_hfx,matrix_p_im=matrix_p_im,error=error)
 
     DO i=1,SIZE(mos)/2
        re=2*i-1 ; im =2*i
@@ -920,23 +958,22 @@ CONTAINS
                         matrix_g=mos(im)%matrix,&
                         ncol=ncol,&
                         alpha=alpha,error=error)
-       
-       
     END DO
   
   END SUBROUTINE calculate_P_imaginary
 
 ! *****************************************************************************
 !> \brief ...
-!> \param qs_env ...
 !> \param rtp ...
+!> \param matrix_s ...
 !> \param aspc_order ...
 !> \param error ...
 ! *****************************************************************************
-  SUBROUTINE aspc_extrapolate(qs_env,rtp,aspc_order,error)
-    TYPE(qs_environment_type), POINTER       :: qs_env
+  SUBROUTINE aspc_extrapolate(rtp,matrix_s,aspc_order,error)
     TYPE(rt_prop_type), POINTER              :: rtp
-    INTEGER                                  :: aspc_order
+    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+      POINTER                                :: matrix_s
+    INTEGER, INTENT(in)                      :: aspc_order
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'aspc_extrapolate', &
@@ -951,7 +988,7 @@ CONTAINS
     REAL(KIND=dp)                            :: alpha
     TYPE(cp_cfm_type), POINTER               :: cfm_tmp, cfm_tmp1, csc
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_s, rho_new, s_hist
+      POINTER                                :: rho_new, s_hist
     TYPE(cp_dbcsr_p_type), DIMENSION(:, :), &
       POINTER                                :: rho_hist
     TYPE(cp_fm_p_type), DIMENSION(:), &
@@ -961,22 +998,16 @@ CONTAINS
     TYPE(cp_fm_struct_type), POINTER         :: matrix_struct, &
                                                 matrix_struct_new
     TYPE(cp_fm_type), POINTER                :: fm_tmp, fm_tmp1, fm_tmp2
-    TYPE(rtp_control_type), POINTER          :: rtp_control
 
+    NULLIFY(rho_hist)
     CALL timeset(routineN,handle)
     CALL cite_reference(Kolafa2004)
 
-    rtp_control=>qs_env%dft_control%rtp_control
-    NULLIFY(rho_hist)
     IF(rtp%linear_scaling) THEN
        CALL get_rtp(rtp=rtp,rho_new=rho_new,error=error)
     ELSE
        CALL get_rtp(rtp=rtp,mos_new=mos_new,error=error)
     ENDIF
-
-    CALL get_qs_env(qs_env,&
-         matrix_s=matrix_s,&
-         error=error)
 
     naspc=MIN(rtp%istep,aspc_order)
     IF(rtp%linear_scaling)THEN
@@ -1123,7 +1154,6 @@ CONTAINS
        DO i=1,SIZE(mos)
           CALL cp_fm_to_fm(mos(i)%matrix,rtp%history%mo_history(i,ihist)%matrix,error)
        END DO
-   
        IF(PRESENT(s_mat))THEN
           IF (ASSOCIATED(rtp%history%s_history(ihist)%matrix)) THEN ! the sparsity might be different
              ! (future struct:check)
@@ -1136,5 +1166,53 @@ CONTAINS
     END IF
 
   END SUBROUTINE put_data_to_history
+
+! *****************************************************************************
+!> \brief Checks if the self copnsistent loop is not converging.
+!>        If the convergence is bad, then some mixing between the last and the
+!>        current iteration is applied to achieve to improve the convergence.
+!> \param rtp ...
+!> \param error ...
+!> \author Samuel Andermatt (11.14)
+! *****************************************************************************
+  SUBROUTINE rt_mixing(rtp,error)
+    TYPE(rt_prop_type), POINTER              :: rtp
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'rt_mixing', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, i
+    LOGICAL                                  :: mixing
+    REAL(KIND=dp)                            :: mixing_factor
+    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+      POINTER                                :: rho_last_iter, rho_new
+    TYPE(cp_fm_p_type), DIMENSION(:), &
+      POINTER                                :: mos_last_iter, mos_new
+
+    CALL timeset(routineN,handle)
+    CALL get_rtp(rtp=rtp,mixing=mixing,mixing_factor=mixing_factor,error=error)
+    IF(rtp%delta_iter>rtp%delta_iter_old) THEN
+       mixing_factor=mixing_factor/2.0_dp
+       mixing_factor=MAX(mixing_factor,0.125_dp)
+       mixing=.TRUE.
+    ENDIF
+    IF(mixing) THEN
+       IF(rtp%linear_scaling) THEN
+          CALL get_rtp(rtp=rtp,rho_new=rho_new,rho_last_iter=rho_last_iter,error=error)
+          DO i=1,SIZE(rho_new)
+             CALL cp_dbcsr_add(rho_new(i)%matrix,rho_last_iter(i)%matrix,mixing_factor,1.0_dp-mixing_factor,error)
+          ENDDO
+       ELSE
+          CALL get_rtp(rtp=rtp,mos_new=mos_new,mos_last_iter=mos_last_iter,error=error)
+          DO i=1,SIZE(rho_new)
+             CALL cp_fm_scale_and_add(mixing_factor,mos_new(i)%matrix,1.0_dp-mixing_factor,mos_last_iter(i)%matrix,error)
+          ENDDO
+       ENDIF
+    ENDIF
+
+    CALL timestop(handle)
+
+  END SUBROUTINE rt_mixing
 
 END MODULE rt_propagation_methods

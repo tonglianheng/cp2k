@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2014 CP2K developers group                           !
+!   Copyright (C) 2000 - 2015 CP2K developers group                           !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -20,6 +20,9 @@ MODULE acc_hostmem
                                              real_4_size,&
                                              real_8,&
                                              real_8_size
+  USE acc_stream,                      ONLY: acc_stream_associated,&
+                                             acc_stream_cptr,&
+                                             acc_stream_type
 
   IMPLICIT NONE
 
@@ -68,20 +71,21 @@ MODULE acc_hostmem
 #if defined (__ACC)
 
   INTERFACE
-     FUNCTION cuda_host_mem_alloc_cu(mem, n) RESULT (istat) BIND(C, name="acc_host_mem_allocate")
+     FUNCTION cuda_host_mem_alloc_cu(mem, n, stream_ptr) RESULT (istat) BIND(C, name="acc_host_mem_allocate")
        USE ISO_C_BINDING
     TYPE(C_PTR)                              :: mem
     INTEGER(KIND=C_SIZE_T), INTENT(IN), &
       VALUE                                  :: n
+    TYPE(C_PTR), VALUE                       :: stream_ptr
     INTEGER(KIND=C_INT)                      :: istat
 
      END FUNCTION cuda_host_mem_alloc_cu
   END INTERFACE
 
   INTERFACE
-     FUNCTION cuda_host_mem_dealloc_cu(mem) RESULT (istat) bind(C, name="acc_host_mem_deallocate")
+     FUNCTION cuda_host_mem_dealloc_cu(mem, stream_ptr) RESULT (istat) bind(C, name="acc_host_mem_deallocate")
        USE ISO_C_BINDING
-    TYPE(C_PTR), VALUE                       :: mem
+    TYPE(C_PTR), VALUE                       :: mem, stream_ptr
     INTEGER(KIND=C_INT)                      :: istat
 
      END FUNCTION cuda_host_mem_dealloc_cu
@@ -104,22 +108,55 @@ CONTAINS
 !> \brief Helper-routine performing allocation of host-pinned cuda memory.
 !> \param host_mem_c_ptr pointer to allocated memory
 !> \param n_bytes number of bytes to allocate
+!> \param stream ...
 ! *****************************************************************************
 #if defined (__ACC)
- SUBROUTINE acc_hostmem_alloc_raw (host_mem_c_ptr, n_bytes)
+ SUBROUTINE acc_hostmem_alloc_raw (host_mem_c_ptr, n_bytes, stream)
     TYPE(C_PTR), INTENT(OUT)                 :: host_mem_c_ptr
     INTEGER, INTENT(IN)                      :: n_bytes
+    TYPE(acc_stream_type), INTENT(IN)        :: stream
 
     CHARACTER(len=*), PARAMETER :: routineN = 'acc_hostmem_alloc_raw', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: istat
+    TYPE(C_PTR)                              :: stream_cptr
+
+    IF(.NOT. acc_stream_associated(stream)) &
+         STOP "acc_hostmem_alloc_raw: stream not associated"
+
+    stream_cptr = acc_stream_cptr(stream)
 
     istat = cuda_host_mem_alloc_cu(host_mem_c_ptr, &
-               INT(n_bytes, KIND=C_SIZE_T))
+               INT(n_bytes, KIND=C_SIZE_T), stream_cptr)
     IF (istat /= 0) STOP "acc_hostmem_alloc_raw: Could not allocate host pinned memory"
   END SUBROUTINE acc_hostmem_alloc_raw
 #endif
 
+#if defined (__ACC)
+! *****************************************************************************
+!> \brief ...
+!> \param host_mem_c_ptr ...
+!> \param stream ...
+! *****************************************************************************
+  SUBROUTINE acc_hostmem_dealloc_raw (host_mem_c_ptr, stream)
+    TYPE(C_PTR), INTENT(IN)                  :: host_mem_c_ptr
+    TYPE(acc_stream_type), INTENT(IN)        :: stream
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'acc_hostmem_dealloc_raw', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: istat
+    TYPE(C_PTR)                              :: stream_cptr
+
+    IF(.NOT. acc_stream_associated(stream)) &
+         STOP "acc_hostmem_dealloc_raw: stream not associated"
+
+    stream_cptr = acc_stream_cptr(stream)
+
+    istat = cuda_host_mem_dealloc_cu(host_mem_c_ptr, stream_cptr)
+    IF (istat /= 0 ) STOP "acc_hostmem_dealloc_raw: Could not deallocate host pinned memory"
+  END SUBROUTINE acc_hostmem_dealloc_raw
+#endif
 
 END MODULE acc_hostmem

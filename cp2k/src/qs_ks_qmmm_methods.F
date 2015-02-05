@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2014  CP2K developers group                          !
+!   Copyright (C) 2000 - 2015  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -13,7 +13,6 @@ MODULE qs_ks_qmmm_methods
   USE cube_utils,                      ONLY: cube_info_type,&
                                              init_cube_info
   USE d3_poly,                         ONLY: init_d3_poly_module
-  USE f77_blas
   USE input_constants,                 ONLY: do_qmmm_gauss,&
                                              do_qmmm_swave
   USE input_section_types,             ONLY: section_vals_type
@@ -115,15 +114,16 @@ CONTAINS
     ALLOCATE(ks_qmmm_env, stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
-    NULLIFY( ks_qmmm_env%pw_env,&
-             ks_qmmm_env%cube_info)
     IF (.not.failure) THEN
+       NULLIFY( ks_qmmm_env%pw_env,&
+                ks_qmmm_env%cube_info)
        NULLIFY( auxbas_pw_pool)
        CALL get_qs_env(qs_env=qs_env,&
             pw_env=ks_qmmm_env%pw_env,error=error)
        CALL pw_env_get(ks_qmmm_env%pw_env,auxbas_pw_pool=auxbas_pw_pool,error=error)
        CALL pw_env_retain(ks_qmmm_env%pw_env,error=error)
 
+       ks_qmmm_env%pc_ener=0.0_dp
        ks_qmmm_env%n_evals=0
        ks_qmmm_env%ref_count=1
        last_ks_qmmm_nr=last_ks_qmmm_nr+1

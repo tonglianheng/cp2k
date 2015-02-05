@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2014  CP2K developers group                          !
+!   Copyright (C) 2000 - 2015  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -17,7 +17,6 @@
 MODULE kg_vertex_coloring_methods
   USE bibliography,                    ONLY: Brelaz1979,&
                                              cite_reference
-  USE f77_blas
   USE input_constants,                 ONLY: kg_color_dsatur,&
                                              kg_color_greedy
   USE kg_environment_types,            ONLY: kg_environment_type
@@ -216,13 +215,11 @@ CONTAINS
 !> \param graph ...
 !> \param ncolors ...
 !> \param unit_nr ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE print_subsets(graph, ncolors, unit_nr, error)
+  SUBROUTINE print_subsets(graph, ncolors, unit_nr)
     TYPE(vertex_p_type), DIMENSION(:), &
       POINTER                                :: graph
     INTEGER, INTENT(IN)                      :: ncolors, unit_nr
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'print_subsets', &
       routineP = moduleN//':'//routineN
@@ -563,7 +560,6 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Checks if the color of two nodes can be exchanged legally
-!> \param graph ...
 !> \param this ...
 !> \param neighbor ...
 !> \param low_col ...
@@ -574,10 +570,8 @@ CONTAINS
 !>       2013.11 created [Samuel Andermatt]
 !> \author Samuel Andermatt
 ! *****************************************************************************
-  SUBROUTINE kg_check_switch(graph, this, neighbor, low_col, switchable, ncolors, color_present)
+  SUBROUTINE kg_check_switch(this, neighbor, low_col, switchable, ncolors, color_present)
 
-    TYPE(vertex_p_type), DIMENSION(:), &
-      POINTER                                :: graph
     TYPE(vertex), POINTER                    :: this, neighbor
     INTEGER, INTENT(OUT)                     :: low_col
     LOGICAL                                  :: switchable
@@ -661,7 +655,7 @@ CONTAINS
           DO j=1,this%degree
             neighbor => this%neighbors(j)%vertex
             IF(neighbor%color>this%color) CYCLE
-            CALL kg_check_switch(graph, this, neighbor, low_col_neigh, switchable, ncolors, color_present)
+            CALL kg_check_switch(this, neighbor, low_col_neigh, switchable, ncolors, color_present)
             IF(switchable .AND. low_col_neigh<low_col) THEN
               partner=j
               low_col=low_col_neigh
@@ -824,7 +818,7 @@ CONTAINS
       WRITE(unit_nr,'(T2,A,A,A)') REPEAT("-",30)," KG coloring result ",REPEAT("-",29)
       IF (.FALSE.) THEN ! more output for VMD
          WRITE(unit_nr,'()')
-         CALL print_subsets(graph, ncolors, unit_nr, error)
+         CALL print_subsets(graph, ncolors, unit_nr)
          WRITE(unit_nr,'()')
       ENDIF
       WRITE(unit_nr,'(T2, A16,50X,I6,1X,A6)') 'Number of colors', ncolors, 'colors'

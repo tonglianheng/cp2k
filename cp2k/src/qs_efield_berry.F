@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2014  CP2K developers group                          !
+!   Copyright (C) 2000 - 2015  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -18,7 +18,7 @@ MODULE qs_efield_berry
   USE basis_set_types,                 ONLY: gto_basis_set_p_type,&
                                              gto_basis_set_type
   USE block_p_types,                   ONLY: block_p_type
-  USE cell_methods,                    ONLY: cell_type,&
+  USE cell_types,                      ONLY: cell_type,&
                                              pbc
   USE cp_cfm_basic_linalg,             ONLY: cp_cfm_solve
   USE cp_cfm_types,                    ONLY: cp_cfm_create,&
@@ -54,8 +54,8 @@ MODULE qs_efield_berry
   USE orbital_pointers,                ONLY: indco,&
                                              ncoset
   USE orbital_symbols,                 ONLY: cgf_symbol
-  USE particle_types,                  ONLY: get_particle_set,&
-                                             particle_type
+  USE particle_methods,                ONLY: get_particle_set
+  USE particle_types,                  ONLY: particle_type
   USE qs_energy_types,                 ONLY: qs_energy_type
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type,&
@@ -114,10 +114,18 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle
+    LOGICAL                                  :: s_mstruct_changed
+    TYPE(dft_control_type), POINTER          :: dft_control
 
+    NULLIFY(dft_control)
     CALL timeset(routineN,handle)
-    IF(qs_env%dft_control%apply_period_efield)THEN
-       IF(calculate_forces.OR.ks_env%s_mstruct_changed)&
+    CALL get_qs_env(qs_env,&
+                    s_mstruct_changed=s_mstruct_changed,&
+                    dft_control=dft_control,&
+                    error=error)
+
+    IF(dft_control%apply_period_efield)THEN
+       IF(calculate_forces.OR.s_mstruct_changed)&
             CALL qs_efield_integrals (qs_env,calculate_forces,error)
        CALL qs_efield_mo_derivatives(qs_env,calculate_forces,error)
     END IF

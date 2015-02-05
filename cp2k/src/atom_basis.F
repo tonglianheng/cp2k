@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2014  CP2K developers group                          !
+!   Copyright (C) 2000 - 2015  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -22,7 +22,6 @@ MODULE atom_basis
                                              get_maxn_occ
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
-  USE f77_blas
   USE input_constants,                 ONLY: do_analytic
   USE input_section_types,             ONLY: section_vals_get,&
                                              section_vals_get_subs_vals,&
@@ -200,7 +199,7 @@ CONTAINS
           ! get and set the core occupations
           CALL section_vals_val_get(atom_section,"CORE", c_vals=tmpstringlist, error=error)
           CALL atom_set_occupation(tmpstringlist,state%core,pocc,error=error)
-          zcore = zval - SUM(state%core)
+          zcore = zval - NINT(SUM(state%core))
           CALL set_atom(atom_info(in,im)%atom,zcore=zcore,pp_calc=.TRUE.,error=error)
           had_pp = .TRUE.
           CALL set_atom(atom_info(in,im)%atom,basis=pp_basis,potential=p_pot,error=error)

@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2014  CP2K developers group                          !
+!   Copyright (C) 2000 - 2015  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -13,12 +13,11 @@
 MODULE qs_epr_hyp
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind
-  USE cell_methods,                    ONLY: cell_type,&
+  USE cell_types,                      ONLY: cell_type,&
                                              pbc
   USE cp_control_types,                ONLY: dft_control_type
   USE cp_output_handling,              ONLY: cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE f77_blas
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type,&
                                              section_vals_val_get
@@ -56,7 +55,8 @@ MODULE qs_epr_hyp
   USE qs_rho_atom_types,               ONLY: get_rho_atom,&
                                              rho_atom_coeff,&
                                              rho_atom_type
-  USE qs_rho_types,                    ONLY: qs_rho_type
+  USE qs_rho_types,                    ONLY: qs_rho_get,&
+                                             qs_rho_type
   USE util,                            ONLY: get_limit
 #include "./common/cp_common_uses.f90"
 
@@ -108,6 +108,7 @@ CONTAINS
       POINTER                                :: particle_set
     TYPE(pw_env_type), POINTER               :: pw_env
     TYPE(pw_grid_type), POINTER              :: pw_grid
+    TYPE(pw_p_type), DIMENSION(:), POINTER   :: rho_g
     TYPE(pw_p_type), POINTER                 :: hypaniso_gspace, &
                                                 rhototspin_elec_gspace
     TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
@@ -123,7 +124,7 @@ CONTAINS
 
     NULLIFY(pw_env, cell, atomic_kind_set, qs_kind_set, auxbas_pw_pool, dft_control, &
          logger, dft_section, para_env, particle_set, rho, rho_atom, &
-         rho_atom_set, rhototspin_elec_gspace, hypaniso_gspace)
+         rho_atom_set, rhototspin_elec_gspace, hypaniso_gspace, rho_g)
 
     logger => cp_error_get_logger(error)
     dft_section => section_vals_get_subs_vals(qs_env%input,"DFT",error=error)
@@ -310,9 +311,10 @@ CONTAINS
     pw_grid => rhototspin_elec_gspace%pw%pw_grid
 
     ! Load the contribution of the soft electronic density
-    CPPrecondition(SIZE(rho%rho_g)>1,cp_failure_level,routineP,error,failure)
-    CALL pw_axpy(rho%rho_g(1)%pw,rhototspin_elec_gspace%pw,error=error)
-    CALL pw_axpy(rho%rho_g(2)%pw,rhototspin_elec_gspace%pw,alpha=-1._dp,error=error)
+    CALL qs_rho_get(rho, rho_g=rho_g, error=error)
+    CPPrecondition(SIZE(rho_g)>1,cp_failure_level,routineP,error,failure)
+    CALL pw_axpy(rho_g(1)%pw,rhototspin_elec_gspace%pw,error=error)
+    CALL pw_axpy(rho_g(2)%pw,rhototspin_elec_gspace%pw,alpha=-1._dp,error=error)
     ! grid to assemble anisotropic hyperfine terms
     ALLOCATE (hypaniso_gspace,STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)

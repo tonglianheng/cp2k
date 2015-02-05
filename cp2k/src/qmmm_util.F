@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2014  CP2K developers group                          !
+!   Copyright (C) 2000 - 2015  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -9,10 +9,9 @@
 !> \author Teodoro Laino
 ! *****************************************************************************
 MODULE qmmm_util
-  USE cell_methods,                    ONLY: cell_copy,&
+  USE cell_types,                      ONLY: cell_copy,&
                                              cell_type
   USE cp_subsys_types,                 ONLY: cp_subsys_type
-  USE f77_blas
   USE force_env_types,                 ONLY: force_env_get,&
                                              force_env_type,&
                                              use_qmmm
@@ -25,9 +24,9 @@ MODULE qmmm_util
                                              section_vals_val_get
   USE kinds,                           ONLY: dp
   USE mathconstants,                   ONLY: pi
-  USE particle_types,                  ONLY: particle_type,&
-                                             write_fist_particle_coordinates,&
+  USE particle_methods,                ONLY: write_fist_particle_coordinates,&
                                              write_qs_particle_coordinates
+  USE particle_types,                  ONLY: particle_type
   USE qmmm_types,                      ONLY: fist_subsys,&
                                              force_mixing_core_subsys,&
                                              force_mixing_extended_subsys,&
@@ -677,6 +676,7 @@ CONTAINS
 !> \param particles_mm ...
 !> \param mm_cell ...
 !> \param qm_atom_index ...
+!> \retval qmmm_pbc_aware_mean ...
 ! *****************************************************************************
   FUNCTION qmmm_pbc_aware_mean(particles_mm, mm_cell, qm_atom_index)
     TYPE(particle_type), DIMENSION(:), &
@@ -690,10 +690,12 @@ CONTAINS
 
       mean_z = 0.0_dp
       DO ip=1,SIZE(qm_atom_index)
-        mean_z = mean_z + EXP(CMPLX(0.0_dp,1.0_dp)*2.0*pi*MATMUL(mm_cell%h_inv, particles_mm(qm_atom_index(ip))%r))
+        mean_z = mean_z + EXP(CMPLX(0.0_dp,1.0_dp,KIND=dp)*2.0*pi* &
+                              MATMUL(mm_cell%h_inv, particles_mm(qm_atom_index(ip))%r))
       END DO
       mean_z = mean_z / ABS(mean_z)
-      qmmm_pbc_aware_mean = MATMUL(mm_cell%hmat, REAL(LOG(mean_z)/(CMPLX(0.0_dp,1.0_dp)*2.0_dp*pi), dp))
+      qmmm_pbc_aware_mean = MATMUL(mm_cell%hmat, &
+                                   REAL(LOG(mean_z)/(CMPLX(0.0_dp,1.0_dp,KIND=dp)*2.0_dp*pi), dp))
   END FUNCTION
 
   ! minimum image lattice coordinates difference vector
@@ -702,6 +704,7 @@ CONTAINS
 !> \param mm_cell ...
 !> \param p1 ...
 !> \param p2 ...
+!> \retval qmmm_lat_dv ...
 ! *****************************************************************************
   FUNCTION qmmm_lat_dv(mm_cell, p1, p2)
     TYPE(cell_type), POINTER                 :: mm_cell

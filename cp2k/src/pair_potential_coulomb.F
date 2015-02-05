@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2014  CP2K developers group                          !
+!   Copyright (C) 2000 - 2015  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 MODULE pair_potential_coulomb
@@ -30,6 +30,7 @@ CONTAINS
 !> \param alpha ...
 !> \param beta ...
 !> \param interaction_cutoff ...
+!> \retval potential_coulomb ...
 !> \author Toon.Verstraelen@gmail.com
 ! *****************************************************************************
   FUNCTION potential_coulomb(r2, fscalar, qfac, ewald_type, alpha, beta, &

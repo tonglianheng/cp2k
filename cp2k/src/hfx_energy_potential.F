@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2014  CP2K developers group                          !
+!   Copyright (C) 2000 - 2015  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -10,19 +10,21 @@
 !> \author Manuel Guidon
 ! *****************************************************************************
 MODULE hfx_energy_potential
-
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind_set
   USE bibliography,                    ONLY: cite_reference,&
                                              guidon2008,&
                                              guidon2009
-  USE cell_methods,                    ONLY: cell_type,&
+  USE cell_types,                      ONLY: cell_type,&
                                              pbc
-  USE cp_dbcsr_interface,              ONLY: cp_dbcsr_get_matrix_type,&
+  USE cp_control_types,                ONLY: dft_control_type
+  USE cp_dbcsr_interface,              ONLY: cp_dbcsr_copy,&
+                                             cp_dbcsr_get_matrix_type,&
                                              cp_dbcsr_p_type,&
                                              cp_dbcsr_trace,&
                                              dbcsr_type_antisymmetric
-  USE cp_files,                        ONLY: get_unit_number
+  USE cp_files,                        ONLY: close_file,&
+                                             open_file
   USE cp_output_handling,              ONLY: cp_p_file,&
                                              cp_print_key_finished_output,&
                                              cp_print_key_should_output,&
@@ -181,6 +183,8 @@ MODULE hfx_energy_potential
                                                 zeta, zetb, zetc, zetd
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
+    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+      POINTER                                :: matrix_ks_aux_fit_hfx
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(hfx_basis_info_type), POINTER       :: basis_info
     TYPE(hfx_basis_type), DIMENSION(:), &
@@ -283,17 +287,12 @@ MODULE hfx_energy_potential
     REAL(dp), DIMENSION(:), POINTER          :: p_work
     LOGICAL, DIMENSION(:,:), POINTER         :: shm_atomic_pair_list
     LOGICAL                                  :: do_print_load_balance_info,is_anti_symmetric
+    TYPE(dft_control_type),  &
+      POINTER                                :: dft_control
 
-#if defined(__USE_PAT)
-    INTEGER :: istat
-#include "pat_apif.h"
-#endif
+    NULLIFY(dft_control)
 
     CALL timeset(routineN,handle)
-
-#if defined(__USE_PAT)
-  CALL PAT_sampling_state(PAT_STATE_ON,istat)
-#endif
 
     CALL cite_reference(Guidon2008)
     CALL cite_reference(Guidon2009)
@@ -319,7 +318,8 @@ MODULE hfx_energy_potential
                                        "HF_INFO", error=error)
     END IF
 
-    CALL get_qs_env(qs_env=qs_env, atomic_kind_set=atomic_kind_set, cell=cell, error=error)
+    CALL get_qs_env(qs_env=qs_env, atomic_kind_set=atomic_kind_set, cell=cell, &
+                    matrix_ks_aux_fit_hfx=matrix_ks_aux_fit_hfx, error=error)
 
     my_do_exx=.FALSE.
     IF(PRESENT(do_exx)) my_do_exx=do_exx
@@ -343,12 +343,11 @@ MODULE hfx_energy_potential
        x_data(1,1)%potential_parameter%potential_type == do_hfx_potential_mix_cl_trunc) THEN
       IF(l_max>init_t_c_g0_lmax) THEN
         IF( para_env%mepos == 0 ) THEN
-          unit_id = get_unit_number()
-          OPEN(unit_id,FILE=x_data(1,1)%potential_parameter%filename)
+          CALL open_file(unit_number=unit_id,file_name=x_data(1,1)%potential_parameter%filename)
         END IF
         CALL init(l_max, unit_id, para_env%mepos, para_env%group)
         IF(para_env%mepos == 0 ) THEN
-          CLOSE(unit_id)
+          CALL close_file(unit_id)
         END IF
         init_t_c_g0_lmax = l_max
       END IF
@@ -367,11 +366,12 @@ MODULE hfx_energy_potential
     shm_neris_disk = 0
     shm_stor_count_max_val = 0
 
-!$OMP PARALLEL DEFAULT(PRIVATE) SHARED(qs_env,&
+!$OMP PARALLEL DEFAULT(NONE) SHARED(qs_env,&
 !$OMP                                  x_data,&
 !$OMP                                  ks_matrix,&
 !$OMP                                  energy,&
 !$OMP                                  rho_ao,&
+!$OMP                                  matrix_ks_aux_fit_hfx,&
 !$OMP                                  hfx_section,&
 !$OMP                                  para_env,&
 !$OMP                                  geometry_did_change,&
@@ -416,7 +416,36 @@ MODULE hfx_energy_potential
 !$OMP                                  shm_pmax_block,&
 !$OMP                                  shm_atomic_pair_list,&
 !$OMP                                  shm_mem_compression_counter,&
-!$OMP                                  do_print_load_balance_info)
+!$OMP                                  do_print_load_balance_info) &
+!$OMP PRIVATE(ln_10,i_thread,actual_x_data,do_periodic,screening_parameter,potential_parameter,&
+!$OMP         general_parameter,load_balance_parameter,memory_parameter,cache_size,bits_max_val,&
+!$OMP         basis_parameter,basis_info,treat_lsd_in_core,ncpu,n_processes,neris_total,neris_incore,&
+!$OMP         neris_disk,neris_onthefly,mem_eris,mem_eris_disk,mem_max_val,compression_factor,&
+!$OMP         compression_factor_disk,nprim_ints,neris_tmp,max_val_memory,max_am,do_p_screening,&
+!$OMP         max_set,particle_set,atomic_kind_set,natom,kind_of,stat,failure,ncos_max,nsgf_max,ikind,&
+!$OMP         nseta,npgfa,la_max,nsgfa,primitive_integrals,pbd_buf,pbc_buf,pad_buf,pac_buf,kbd_buf,kbc_buf,&
+!$OMP         kad_buf,kac_buf,ee_work,ee_work2,ee_buffer1,ee_buffer2,ee_primitives_tmp,nspins,max_contraction,&
+!$OMP         max_pgf,jkind,lb_max,nsetb,npgfb,first_sgfb,sphi_b,nsgfb,ncob,sgfb,nneighbors,pgf_list_ij,pgf_list_kl,&
+!$OMP         pgf_product_list,nimages,ks_fully_occ,error_msg,subtr_size_mb,use_disk_storage,counter,do_disk_storage,&
+!$OMP         maxval_container_disk,maxval_cache_disk,integral_containers_disk,integral_caches_disk,eps_schwarz,&
+!$OMP         log10_eps_schwarz,eps_storage,hf_fraction,buffer_overflow,logger,private_lib,last_sgf_global,handle_getp,&
+!$OMP         p_work,fac,handle_load,do_dynamic_load_balancing,my_bin_size,maxval_container,integral_containers,maxval_cache,&
+!$OMP         integral_caches,tmp_task_list,tmp_task_list_cost,tmp_index,handle_main,coeffs_kind_max0,set_list_ij,&
+!$OMP         set_list_kl,iatom_start,iatom_end,jatom_start,jatom_end,nblocks,bins_left,do_it,distribution_energy,&
+!$OMP         my_thread_id,my_bin_id,handle_bin,bintime_start,my_istart,my_current_counter,latom_block,tmp_block,&
+!$OMP         katom_block,katom_start,katom_end,latom_start,latom_end,pmax_blocks,list_ij,list_kl,i_set_list_ij_start,&
+!$OMP         i_set_list_ij_stop,ra,rb,rab2,la_min,zeta,sphi_a_ext,nsgfl_a,sphi_a_u1,sphi_a_u2,sphi_a_u3,&
+!$OMP         lb_min,zetb,sphi_b_ext,nsgfl_b,sphi_b_u1,sphi_b_u2,sphi_b_u3,katom,latom,i_set_list_kl_start,i_set_list_kl_stop,&
+!$OMP         kkind,lkind,rc,rd,rcd2,pmax_atom,screen_kind_ij,screen_kind_kl,symm_fac,lc_max,lc_min,npgfc,zetc,nsgfc,sphi_c_ext,&
+!$OMP         nsgfl_c,sphi_c_u1,sphi_c_u2,sphi_c_u3,ld_max,ld_min,npgfd,zetd,nsgfd,sphi_d_ext,nsgfl_d,sphi_d_u1,sphi_d_u2,&
+!$OMP         sphi_d_u3,atomic_offset_bd,atomic_offset_bc,atomic_offset_ad,atomic_offset_ac,offset_bd_set,offset_bc_set,&
+!$OMP         offset_ad_set,offset_ac_set,swap_id,kind_kind_idx,ptr_p_1,ptr_p_2,ptr_p_3,ptr_p_4,mem_compression_counter,&
+!$OMP         mem_compression_counter_disk,max_val1,sphi_a_ext_set,sphi_b_ext_set,kset,lset,max_val2_set,max_val2,&
+!$OMP         sphi_c_ext_set,sphi_d_ext_set,pmax_entry,log10_pmax,current_counter,nints,estimate_to_store_int,&
+!$OMP         spherical_estimate,nbits,buffer_left,buffer_start,buffer_size,max_contraction_val,tmp_r_1,tmp_r_2,&
+!$OMP         tmp_screen_pgf1,tmp_screen_pgf2,cartesian_estimate,bintime_stop,iw,memsize_after,storage_counter_integrals,&
+!$OMP         stor_count_int_disk,stor_count_max_val,ene_x_aa,ene_x_bb,mb_size_p,mb_size_f,mb_size_buffers,afac,ene_x_aa_diag,&
+!$OMP         ene_x_bb_diag,act_atomic_block_offset,act_set_offset,j,handle_dist_ks,tmp_i8,dft_control)
 
 
     ln_10 = LOG(10.0_dp)
@@ -483,6 +512,7 @@ MODULE hfx_energy_potential
     CALL get_qs_env(qs_env=qs_env,&
                     atomic_kind_set=atomic_kind_set,&
                     particle_set=particle_set,&
+                    dft_control=dft_control,&
                     error=error)
 
     natom = SIZE(particle_set,1)
@@ -539,7 +569,7 @@ MODULE hfx_energy_potential
     ALLOCATE(ee_primitives_tmp(nsgf_max**4),STAT=stat) ! XXXXX could be wrong
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
-    nspins = qs_env%dft_control%nspins
+    nspins = dft_control%nspins
 
     ALLOCATE(max_contraction(max_set,natom),STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -1168,14 +1198,14 @@ MODULE hfx_energy_potential
       IF(distribution_energy%number_of_atom_quartets == 0 .OR. &
          my_istart == -1_int_8) my_istart = nblocks **4
       atomic_blocks:  DO atom_block = my_istart,nblocks**4-1,n_processes
-        latom_block = MODULO(atom_block,nblocks)+1
+        latom_block = INT(MODULO(atom_block,nblocks))+1
         tmp_block = atom_block/nblocks
-        katom_block = MODULO(tmp_block,nblocks)+1
+        katom_block = INT(MODULO(tmp_block,nblocks))+1
         IF(latom_block<katom_block) CYCLE
         tmp_block = tmp_block/nblocks
-        jatom_block = MODULO(tmp_block,nblocks)+1
+        jatom_block = INT(MODULO(tmp_block,nblocks))+1
         tmp_block = tmp_block/nblocks
-        iatom_block = MODULO(tmp_block,nblocks)+1
+        iatom_block = INT(MODULO(tmp_block,nblocks))+1
         IF(jatom_block<iatom_block) CYCLE
         my_current_counter = my_current_counter + 1
         IF(my_current_counter > distribution_energy%number_of_atom_quartets) EXIT atomic_blocks
@@ -1927,9 +1957,20 @@ MODULE hfx_energy_potential
       !! ** Calculate the exchange energy
       CALL cp_dbcsr_trace(ks_matrix(ispin)%matrix, rho_ao(ispin)%matrix, &
                           ene_x_aa, error=error)
+      !for ADMMS, we need the exchange matrix k(d) for both spins 
+      IF( dft_control%do_admm ) THEN
+        CALL cp_dbcsr_copy(matrix_ks_aux_fit_hfx(ispin)%matrix, ks_matrix(ispin)%matrix, &
+                           name="HF exch. part of matrix_ks_aux_fit for ADMMS", error=error) 
+      END IF
+
       IF( nspins == 2 .AND. .NOT. treat_lsd_in_core ) THEN
         CALL cp_dbcsr_trace(ks_matrix(2)%matrix, rho_ao(2)%matrix, &
                             ene_x_bb, error=error)
+        !for ADMMS, we need the exchange matrix k(d) for both spins
+        IF( dft_control%do_admm ) THEN
+          CALL cp_dbcsr_copy(matrix_ks_aux_fit_hfx(2)%matrix, ks_matrix(2)%matrix, &
+                             name="HF exch. part of matrix_ks_aux_fit for ADMMS", error=error)          
+        END IF
       END IF
 
       !! Update energy type
@@ -2149,10 +2190,6 @@ MODULE hfx_energy_potential
 
 !$OMP BARRIER
 !$OMP END PARALLEL
-
-#if defined(__USE_PAT)
-  CALL PAT_sampling_state(PAT_STATE_OFF,istat)
-#endif
 
     CALL timestop(handle)
   END SUBROUTINE integrate_four_center
@@ -2394,6 +2431,7 @@ MODULE hfx_energy_potential
 !> \param i 2d index
 !> \param j 2d index
 !> \param N matrix size
+!> \retval get_1D_idx ...
 !> \par History
 !>      03.2009 created [Manuel Guidon]
 !> \author Manuel Guidon

@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2014  CP2K developers group                          !
+!   Copyright (C) 2000 - 2015  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -21,72 +21,76 @@ MODULE cp_dbcsr_interface
        accdrv_posterior_buffers, accdrv_posterior_streams, &
        accdrv_priority_buffers, accdrv_priority_streams, add_work_coordinate, &
        array_data, array_hold, array_i1d_obj, array_new, array_nullify, &
-       array_release, array_size, block_add_on_diag, block_chol_inv, &
-       block_set, convert_offsets_to_sizes, convert_sizes_to_offsets, &
-       cp_dbcsr_iterator=>dbcsr_iterator, cp_test_multiplies, &
-       create_bl_distribution, dbcsr_add, dbcsr_add_on_diag, &
-       dbcsr_binary_read, dbcsr_binary_write, dbcsr_btriu, dbcsr_checksum, &
-       dbcsr_clear_mempools, dbcsr_complete_redistribute, dbcsr_copy, &
-       dbcsr_copy_into_existing, dbcsr_create, &
-       dbcsr_create_dist_block_cyclic, dbcsr_create_dist_r_unrot, &
-       dbcsr_data_clear_pointer, dbcsr_data_init, dbcsr_data_new, &
-       dbcsr_data_obj, dbcsr_data_release, dbcsr_desymmetrize_deep, &
-       dbcsr_distribute, dbcsr_distribution, dbcsr_distribution_col_dist, &
-       dbcsr_distribution_has_threads, dbcsr_distribution_init, &
-       dbcsr_distribution_local_cols, dbcsr_distribution_local_rows, &
-       dbcsr_distribution_mp, dbcsr_distribution_ncols, &
-       dbcsr_distribution_new, dbcsr_distribution_nlocal_cols, &
-       dbcsr_distribution_nlocal_rows, dbcsr_distribution_nrows, &
-       dbcsr_distribution_obj, dbcsr_distribution_release, &
-       dbcsr_distribution_row_dist, dbcsr_error_set, dbcsr_error_stop, &
-       dbcsr_error_type, dbcsr_filter, dbcsr_finalize, dbcsr_finalize_lib, &
-       dbcsr_frobenius_norm, dbcsr_func_artanh, dbcsr_func_asin, &
-       dbcsr_func_cos, dbcsr_func_ddsin, dbcsr_func_ddtanh, dbcsr_func_dsin, &
-       dbcsr_func_dtanh, dbcsr_func_inverse, dbcsr_func_inverse_special, &
-       dbcsr_func_sin, dbcsr_func_spread_from_zero, dbcsr_func_tanh, &
-       dbcsr_func_truncate, dbcsr_function_of_elements, &
-       dbcsr_gershgorin_norm, dbcsr_get_block, dbcsr_get_block_diag, &
-       dbcsr_get_block_p, dbcsr_get_conf_combtypes, &
+       array_release, array_size, convert_csr_to_dbcsr, convert_dbcsr_to_csr, &
+       convert_offsets_to_sizes, convert_sizes_to_offsets, &
+       cp_dbcsr_iterator=>dbcsr_iterator, create_bl_distribution, &
+       create_col_vec_from_matrix, create_replicated_col_vec_from_matrix, &
+       create_replicated_row_vec_from_matrix, create_row_vec_from_matrix, &
+       csr_create_from_dbcsr, csr_create_new, csr_create_template, &
+       csr_dbcsr_blkrow_dist, csr_destroy, csr_eqrow_ceil_dist, &
+       csr_eqrow_floor_dist, csr_type, dbcsr_add, dbcsr_add_on_diag, &
+       dbcsr_arnoldi_data, dbcsr_arnoldi_ev, dbcsr_binary_read, &
+       dbcsr_binary_write, dbcsr_checksum, dbcsr_clear_mempools, &
+       dbcsr_complete_redistribute, dbcsr_copy, dbcsr_copy_into_existing, &
+       dbcsr_create, dbcsr_create_dist_block_cyclic, &
+       dbcsr_create_dist_r_unrot, dbcsr_data_clear_pointer, dbcsr_data_init, &
+       dbcsr_data_new, dbcsr_data_obj, dbcsr_data_release, &
+       dbcsr_desymmetrize_deep, dbcsr_distribute, dbcsr_distribution, &
+       dbcsr_distribution_col_dist, dbcsr_distribution_has_threads, &
+       dbcsr_distribution_init, dbcsr_distribution_local_cols, &
+       dbcsr_distribution_local_rows, dbcsr_distribution_mp, &
+       dbcsr_distribution_ncols, dbcsr_distribution_new, &
+       dbcsr_distribution_nlocal_cols, dbcsr_distribution_nlocal_rows, &
+       dbcsr_distribution_nrows, dbcsr_distribution_obj, &
+       dbcsr_distribution_release, dbcsr_distribution_row_dist, &
+       dbcsr_error_set, dbcsr_error_stop, dbcsr_error_type, dbcsr_filter, &
+       dbcsr_finalize, dbcsr_finalize_lib, dbcsr_frobenius_norm, &
+       dbcsr_func_artanh, dbcsr_func_dtanh, dbcsr_func_inverse, &
+       dbcsr_func_tanh, dbcsr_function_of_elements, dbcsr_gershgorin_norm, &
+       dbcsr_get_block_diag, dbcsr_get_block_p, dbcsr_get_conf_combtypes, &
        dbcsr_get_conf_comm_thread_load, dbcsr_get_conf_max_ele_block, &
-       dbcsr_get_conf_mm_driver, dbcsr_get_conf_mm_stacksize, &
-       dbcsr_get_conf_mpi_mem, dbcsr_get_conf_nstacks, &
-       dbcsr_get_conf_subcomm, dbcsr_get_conf_use_comm_thread, &
-       dbcsr_get_data, dbcsr_get_data_p, dbcsr_get_data_size, &
+       dbcsr_get_conf_max_elements_images, dbcsr_get_conf_mm_driver, &
+       dbcsr_get_conf_mm_stacksize, dbcsr_get_conf_mpi_mem, &
+       dbcsr_get_conf_nstacks, dbcsr_get_conf_subcomm, &
+       dbcsr_get_conf_use_comm_thread, dbcsr_get_data_p, dbcsr_get_data_size, &
        dbcsr_get_data_type, dbcsr_get_diag, dbcsr_get_info, &
        dbcsr_get_matrix_type, dbcsr_get_num_blocks, dbcsr_get_occupation, &
-       dbcsr_get_stored_coordinates, dbcsr_hadamard_product, dbcsr_init, &
-       dbcsr_init_lib, dbcsr_init_random, dbcsr_iterator, &
-       dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, &
+       dbcsr_get_stored_coordinates, dbcsr_hadamard_product, &
+       dbcsr_has_symmetry, dbcsr_init, dbcsr_init_lib, dbcsr_init_random, &
+       dbcsr_iterator, dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, &
        dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_maxabs, &
-       dbcsr_mp_get_coordinates, dbcsr_mp_group, dbcsr_mp_hold, &
-       dbcsr_mp_mynode, dbcsr_mp_mypcol, dbcsr_mp_myprow, dbcsr_mp_new, &
+       dbcsr_mp_group, dbcsr_mp_hold, dbcsr_mp_mynode, dbcsr_mp_new, &
        dbcsr_mp_npcols, dbcsr_mp_nprows, dbcsr_mp_numnodes, dbcsr_mp_obj, &
-       dbcsr_mp_pgrid, dbcsr_mp_release, dbcsr_multiply, dbcsr_name, &
-       dbcsr_nblkcols_local, dbcsr_nblkcols_total, dbcsr_nblkrows_local, &
-       dbcsr_nblkrows_total, dbcsr_new_transposed, dbcsr_nfullcols_total, &
-       dbcsr_nfullrows_total, dbcsr_no_transpose, dbcsr_norm, &
-       dbcsr_norm_column, dbcsr_norm_frobenius, dbcsr_norm_maxabsnorm, &
-       dbcsr_obj, dbcsr_print, dbcsr_print_block_sum, dbcsr_put_block, &
+       dbcsr_mp_release, dbcsr_multiply, dbcsr_name, dbcsr_nblkcols_local, &
+       dbcsr_nblkcols_total, dbcsr_nblkrows_local, dbcsr_nblkrows_total, &
+       dbcsr_new_transposed, dbcsr_nfullcols_total, dbcsr_nfullrows_total, &
+       dbcsr_no_transpose, dbcsr_norm, dbcsr_norm_column, &
+       dbcsr_norm_frobenius, dbcsr_norm_maxabsnorm, dbcsr_obj, &
+       dbcsr_obj_type_p, dbcsr_print, dbcsr_print_block_sum, dbcsr_put_block, &
        dbcsr_release, dbcsr_repl_full, dbcsr_replicate, dbcsr_replicate_all, &
        dbcsr_reserve_all_blocks, dbcsr_reserve_block2d, dbcsr_reserve_blocks, &
-       dbcsr_reserve_diag_blocks, dbcsr_scalar, dbcsr_scalar_fill_all, &
-       dbcsr_scalar_get_type, dbcsr_scalar_get_value, dbcsr_scalar_set_type, &
-       dbcsr_scalar_type, dbcsr_scalar_zero, dbcsr_scale, &
-       dbcsr_scale_by_vector, dbcsr_scale_mat, dbcsr_set, &
+       dbcsr_reserve_diag_blocks, dbcsr_run_tests, dbcsr_scalar, &
+       dbcsr_scalar_fill_all, dbcsr_scalar_get_type, dbcsr_scalar_get_value, &
+       dbcsr_scalar_set_type, dbcsr_scalar_type, dbcsr_scalar_zero, &
+       dbcsr_scale, dbcsr_scale_by_vector, dbcsr_set, &
        dbcsr_set_conf_combtypes, dbcsr_set_conf_comm_thread_load, &
        dbcsr_set_conf_external_timing, dbcsr_set_conf_max_ele_block, &
-       dbcsr_set_conf_mm_driver, dbcsr_set_conf_mm_stacksize, &
-       dbcsr_set_conf_mpi_mem, dbcsr_set_conf_nstacks, &
-       dbcsr_set_conf_subcomm, dbcsr_set_conf_use_comm_thread, &
-       dbcsr_set_diag, dbcsr_sum_replicated, dbcsr_trace, dbcsr_triu, &
-       dbcsr_type_antisymmetric, dbcsr_type_complex_4, dbcsr_type_complex_8, &
+       dbcsr_set_conf_max_elements_images, dbcsr_set_conf_mm_driver, &
+       dbcsr_set_conf_mm_stacksize, dbcsr_set_conf_mpi_mem, &
+       dbcsr_set_conf_nstacks, dbcsr_set_conf_subcomm, &
+       dbcsr_set_conf_use_comm_thread, dbcsr_set_diag, dbcsr_setname, &
+       dbcsr_sum_replicated, dbcsr_test_arnoldi, dbcsr_test_binary_io, &
+       dbcsr_test_mm, dbcsr_trace, dbcsr_triu, dbcsr_type_antisymmetric, &
+       dbcsr_type_complex_4, dbcsr_type_complex_8, &
        dbcsr_type_complex_default, dbcsr_type_no_symmetry, dbcsr_type_real_4, &
        dbcsr_type_real_8, dbcsr_type_real_default, dbcsr_type_symmetric, &
        dbcsr_valid_index, dbcsr_verify_matrix, dbcsr_wm_use_mutable, &
-       dbcsr_work_create, has_acc, has_mpi, heap_fill, heap_get_first, &
-       heap_new, heap_release, heap_reset_first, heap_t, mm_driver_acc, &
-       mm_driver_blas, mm_driver_matmul, mm_driver_smm, mm_name_acc, &
-       mm_name_blas, mm_name_matmul, mm_name_smm, multrec_limit, swap
+       dbcsr_work_create, dbcsr_work_type, deallocate_arnoldi_data, &
+       get_selected_ritz_val, get_selected_ritz_vector, has_acc, has_mpi, &
+       heap_fill, heap_get_first, heap_new, heap_release, heap_reset_first, &
+       heap_t, mm_driver_acc, mm_driver_blas, mm_driver_matmul, &
+       mm_driver_smm, mm_name_acc, mm_name_blas, mm_name_matmul, mm_name_smm, &
+       multrec_limit, set_arnoldi_initial_vector, setup_arnoldi_data, swap
   USE kinds,                           ONLY: default_string_length,&
                                              dp,&
                                              int_8,&
@@ -104,33 +108,30 @@ MODULE cp_dbcsr_interface
   !
   ! Interface to libdbcsr (contains cp2k timing and error) 
   PUBLIC :: dbcsr_error_set, dbcsr_error_stop, dbcsr_get_conf_comm_thread_load,&
+            dbcsr_get_conf_max_elements_images, &
             dbcsr_get_conf_mm_stacksize, dbcsr_get_conf_nstacks,&
             dbcsr_set_conf_combtypes, dbcsr_set_conf_external_timing, dbcsr_set_conf_mm_stacksize, dbcsr_set_conf_mpi_mem
-  PUBLIC :: dbcsr_set_conf_comm_thread_load, dbcsr_set_conf_max_ele_block, dbcsr_set_conf_mm_driver, dbcsr_set_conf_nstacks,&
-            dbcsr_set_conf_subcomm, dbcsr_set_conf_use_comm_thread, has_mpi, add_work_coordinate, block_set,&
-            create_bl_distribution
+  PUBLIC :: dbcsr_set_conf_comm_thread_load, dbcsr_set_conf_max_ele_block, dbcsr_set_conf_mm_driver,&
+            dbcsr_set_conf_max_elements_images, dbcsr_set_conf_nstacks, dbcsr_set_conf_subcomm, dbcsr_set_conf_use_comm_thread,&
+            has_mpi, add_work_coordinate, create_bl_distribution
   PUBLIC :: has_acc, dbcsr_create_dist_block_cyclic, dbcsr_create_dist_r_unrot, dbcsr_distribution_local_cols,&
-            dbcsr_distribution_nlocal_rows, dbcsr_distribution_nrows, dbcsr_get_data, dbcsr_distribution_local_rows,&
-            dbcsr_distribution_ncols, dbcsr_distribution_nlocal_cols, dbcsr_get_data_p, dbcsr_mp_get_coordinates,&
-            dbcsr_mp_hold, dbcsr_mp_pgrid
+            dbcsr_distribution_nlocal_rows, dbcsr_distribution_nrows, dbcsr_distribution_local_rows,&
+            dbcsr_distribution_ncols, dbcsr_distribution_nlocal_cols, dbcsr_get_data_p,&
+            dbcsr_mp_hold
   PUBLIC :: dbcsr_type_no_symmetry, dbcsr_type_symmetric, dbcsr_type_antisymmetric
   PUBLIC :: array_i1d_obj, array_new, array_nullify, array_release, array_data
   PUBLIC :: dbcsr_type_complex_8, dbcsr_type_real_4, dbcsr_type_real_8, dbcsr_type_complex_4
   PUBLIC :: dbcsr_type_complex_default, dbcsr_type_real_default, dbcsr_distribution_new
   PUBLIC :: convert_offsets_to_sizes, dbcsr_distribution_obj, dbcsr_distribution_row_dist
   PUBLIC :: dbcsr_get_conf_use_comm_thread, dbcsr_data_clear_pointer, dbcsr_data_new, dbcsr_data_init
-  PUBLIC :: dbcsr_mp_group, dbcsr_mp_mynode, dbcsr_mp_numnodes, dbcsr_mp_nprows, dbcsr_mp_npcols, dbcsr_mp_mypcol, dbcsr_mp_myprow
+  PUBLIC :: dbcsr_mp_group, dbcsr_mp_mynode, dbcsr_mp_numnodes, dbcsr_mp_nprows, dbcsr_mp_npcols
   PUBLIC :: dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_data_obj, dbcsr_iterator, dbcsr_data_release
   PUBLIC :: dbcsr_get_data_type, dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, dbcsr_put_block
   PUBLIC :: dbcsr_error_type, dbcsr_mp_obj, dbcsr_norm_frobenius, dbcsr_repl_full
-  PUBLIC :: block_add_on_diag, block_chol_inv, dbcsr_scale_mat
-  PUBLIC :: cp_test_multiplies, dbcsr_norm_maxabsnorm, dbcsr_norm_column, dbcsr_init_random, dbcsr_distribution_has_threads
+  PUBLIC :: dbcsr_run_tests, dbcsr_test_mm, dbcsr_test_arnoldi, dbcsr_norm_maxabsnorm,&
+            dbcsr_norm_column, dbcsr_init_random, dbcsr_distribution_has_threads, dbcsr_test_binary_io
   PUBLIC :: dbcsr_distribution_col_dist, dbcsr_distribution_init, dbcsr_distribution_release, dbcsr_name
   PUBLIC :: dbcsr_func_artanh, dbcsr_func_dtanh, dbcsr_func_inverse, dbcsr_func_tanh
-  PUBLIC :: dbcsr_func_ddtanh, dbcsr_func_inverse_special
-  PUBLIC :: dbcsr_func_spread_from_zero, dbcsr_func_sin
-  PUBLIC :: dbcsr_func_dsin, dbcsr_func_ddsin, dbcsr_func_asin
-  PUBLIC :: dbcsr_func_truncate, dbcsr_func_cos
   PUBLIC :: dbcsr_distribution_mp
   PUBLIC :: convert_sizes_to_offsets
   PUBLIC :: cp_dbcsr_iterator
@@ -170,7 +171,6 @@ MODULE cp_dbcsr_interface
   PUBLIC :: cp_dbcsr_replicate
   PUBLIC :: cp_dbcsr_norm
   PUBLIC :: cp_dbcsr_get_info
-  PUBLIC :: cp_dbcsr_get_block
   PUBLIC :: cp_dbcsr_get_block_p
   PUBLIC :: cp_dbcsr_put_block
   PUBLIC :: cp_dbcsr_iterator_start
@@ -186,12 +186,11 @@ MODULE cp_dbcsr_interface
   PUBLIC :: cp_dbcsr_get_matrix_type
   PUBLIC :: cp_dbcsr_get_occupation
   PUBLIC :: cp_dbcsr_distribution
-  PUBLIC :: cp_dbcsr_nblkrows_local
-  PUBLIC :: cp_dbcsr_nblkcols_local
   PUBLIC :: cp_dbcsr_nblkrows_total
   PUBLIC :: cp_dbcsr_nblkcols_total
   PUBLIC :: cp_dbcsr_get_num_blocks
   PUBLIC :: cp_dbcsr_get_data_size
+  PUBLIC :: cp_dbcsr_has_symmetry
   PUBLIC :: cp_dbcsr_nfullrows_total
   PUBLIC :: cp_dbcsr_nfullcols_total
   !         1234567890123456789012345678901
@@ -208,7 +207,6 @@ MODULE cp_dbcsr_interface
   PUBLIC :: cp_dbcsr_binary_write
   PUBLIC :: cp_dbcsr_binary_read
   PUBLIC :: cp_dbcsr_function_of_elements
-  PUBLIC :: cp_dbcsr_btriu
   PUBLIC :: cp_dbcsr_triu
   PUBLIC :: cp_dbcsr_clear_mempools
   PUBLIC :: accdrv_avoid_after_busy, accdrv_binning_binsize, accdrv_binning_nbins,&
@@ -229,14 +227,26 @@ MODULE cp_dbcsr_interface
             heap_t
   PUBLIC :: cp_dbcsr_allocate_matrix_set, cp_dbcsr_deallocate_matrix_set, cp_dbcsr_deallocate_matrix
   PUBLIC :: cp_dbcsr_add_block_node
+  PUBLIC :: cp_dbcsr_maxabs
+  PUBLIC :: cp_dbcsr_arnoldi_ev, dbcsr_arnoldi_data, cp_dbcsr_setup_arnoldi_data, deallocate_arnoldi_data,&
+            get_selected_ritz_val, get_selected_ritz_vec, cp_set_arnoldi_initial_vector
+  PUBLIC :: csr_type, cp_convert_csr_to_dbcsr, cp_convert_dbcsr_to_csr,&
+            cp_csr_create_from_dbcsr, cp_csr_destroy, cp_csr_create,&
+            csr_dbcsr_blkrow_dist, csr_eqrow_ceil_dist, csr_eqrow_floor_dist
+  PUBLIC :: dbcsr_work_type
+  PUBLIC :: cp_add_work_coordinate, cp_dbcsr_get_data_p, & 
+            cp_dbcsr_row_block_sizes_data, cp_dbcsr_col_block_sizes_data, &
+            cp_dbcsr_init_random, cp_dbcsr_setname, cp_set_work_size
 
   TYPE cp_dbcsr_p_type
      TYPE(cp_dbcsr_type), POINTER :: matrix
   END TYPE cp_dbcsr_p_type
 
+  ! the components of this type must remain private to encapsulate better the internals 
+  ! of the dbcsr library.
   TYPE cp_dbcsr_type
      INTEGER, PRIVATE                     :: ref_count
-     TYPE(dbcsr_obj)                      :: matrix
+     TYPE(dbcsr_obj), PRIVATE             :: matrix
   END TYPE cp_dbcsr_type
 
   INTERFACE cp_dbcsr_create
@@ -308,14 +318,8 @@ MODULE cp_dbcsr_interface
                       cp_dbcsr_get_2d_block_p_c
   END INTERFACE
 
-  INTERFACE cp_dbcsr_get_block
-     MODULE PROCEDURE cp_dbcsr_get_block_d,&
-                      cp_dbcsr_get_block_s,&
-                      cp_dbcsr_get_block_z,&
-                      cp_dbcsr_get_block_c
-  END INTERFACE
-
   INTERFACE cp_dbcsr_put_block
+     MODULE PROCEDURE cp_dbcsr_put_block_area
      MODULE PROCEDURE cp_dbcsr_put_block_d,&
                       cp_dbcsr_put_block_s,&
                       cp_dbcsr_put_block_z,&
@@ -352,6 +356,17 @@ MODULE cp_dbcsr_interface
      MODULE PROCEDURE deallocate_dbcsr_matrix_set,&
                       deallocate_dbcsr_matrix_set_2d
   END INTERFACE
+
+  INTERFACE cp_csr_create
+     MODULE PROCEDURE cp_csr_create_new,&
+                      cp_csr_create_template
+  END INTERFACE
+
+  INTERFACE cp_dbcsr_get_data_p
+     MODULE PROCEDURE cp_dbcsr_get_data_c_s, cp_dbcsr_get_data_c_c,&
+                      cp_dbcsr_get_data_c_d, cp_dbcsr_get_data_c_z
+  END INTERFACE
+
 
   PRIVATE
 
@@ -422,6 +437,18 @@ CONTAINS
     name = dbcsr_name (matrix%matrix)
   END FUNCTION cp_dbcsr_name
 
+! *****************************************************************************
+!> \brief ...
+!> \param matrix ...
+!> \param newname ...
+! *****************************************************************************
+
+  SUBROUTINE cp_dbcsr_setname (matrix,newname)
+    TYPE(cp_dbcsr_type), INTENT(INOUT)       :: matrix
+    CHARACTER(len=*), INTENT(IN)             :: newname
+
+    CALL dbcsr_setname(matrix%matrix,newname)
+  END SUBROUTINE cp_dbcsr_setname
 
 ! *****************************************************************************
 !> \brief ...
@@ -572,6 +599,62 @@ CONTAINS
 ! *****************************************************************************
 !> \brief ...
 !> \param matrix ...
+!> \param index_matrix ...
+!> \param row ...
+!> \param col ...
+!> \param blk ...
+!> \param index ...
+!> \param error ...
+! *****************************************************************************
+  SUBROUTINE cp_add_work_coordinate(matrix, index_matrix, row, col, blk, index, error)
+    TYPE(cp_dbcsr_type), INTENT(INOUT)       :: matrix
+    INTEGER, INTENT(IN)                      :: index_matrix, row, col
+    INTEGER, INTENT(IN), OPTIONAL            :: blk
+    INTEGER, INTENT(OUT), OPTIONAL           :: index
+    TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_add_work_coordinate', &
+      routineP = moduleN//':'//routineN
+
+    CALL add_work_coordinate(matrix%matrix%m%wms(index_matrix), row, col, blk, index, error)
+  END SUBROUTINE cp_add_work_coordinate
+
+! *****************************************************************************
+!> \brief ...
+!> \param matrix ...
+!> \param index_matrix ...
+!> \param newvalue ...
+! *****************************************************************************
+  SUBROUTINE cp_set_work_size(matrix, index_matrix, newvalue)
+    TYPE(cp_dbcsr_type), INTENT(INOUT)       :: matrix
+    INTEGER, INTENT(IN)                      :: index_matrix, newvalue
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_set_work_size', &
+      routineP = moduleN//':'//routineN
+
+    matrix%matrix%m%wms(index_matrix)%datasize = newvalue
+  END SUBROUTINE cp_set_work_size
+
+! *****************************************************************************
+!> \brief ...
+!> \param matrix ...
+!> \param keep_sparsity ...
+!> \param error ...
+! *****************************************************************************
+  SUBROUTINE cp_dbcsr_init_random (matrix, keep_sparsity, error)
+    TYPE(cp_dbcsr_type), INTENT(INOUT)       :: matrix
+    LOGICAL, OPTIONAL                        :: keep_sparsity
+    TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_init_random', &
+      routineP = moduleN//':'//routineN
+
+    CALL dbcsr_init_random(matrix%matrix,keep_sparsity=keep_sparsity,error=error)
+  END SUBROUTINE cp_dbcsr_init_random
+
+! *****************************************************************************
+!> \brief ...
+!> \param matrix ...
 !> \retval data_type ...
 ! *****************************************************************************
   PURE FUNCTION cp_dbcsr_get_data_type (matrix) RESULT (data_type)
@@ -582,7 +665,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     data_type = dbcsr_get_data_type (matrix%matrix)
-
   END FUNCTION cp_dbcsr_get_data_type
 
 ! *****************************************************************************
@@ -1258,28 +1340,6 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief ...
-!> \param matrix_b ...
-!> \param matrix_a ...
-!> \param error ...
-! *****************************************************************************
-  SUBROUTINE cp_dbcsr_btriu(matrix_b, matrix_a, error)
-
-    TYPE(cp_dbcsr_type), INTENT(INOUT)       :: matrix_b
-    TYPE(cp_dbcsr_type), INTENT(IN)          :: matrix_a
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_btriu', &
-      routineP = moduleN//':'//routineN
-
-    TYPE(dbcsr_error_type)                   :: dbcsr_error
-
-    CALL cp_dbcsr_create (matrix_b, name="BTRIU of"//cp_dbcsr_name (matrix_a),&
-         template=matrix_a, error=error)
-    CALL dbcsr_btriu(matrix_b%matrix, matrix_a%matrix, dbcsr_error)
-  END SUBROUTINE cp_dbcsr_btriu
-
-! *****************************************************************************
-!> \brief ...
 !> \param matrix ...
 !> \param error ...
 ! *****************************************************************************
@@ -1319,19 +1379,17 @@ CONTAINS
 
     CALL dbcsr_verify_matrix(m%matrix, verbosity, local, dbcsr_error)
 
-
   END SUBROUTINE cp_dbcsr_verify_matrix
 
 ! *****************************************************************************
 !> \brief ...
 !> \param matrix ...
-!> \param resort ...
 !> \param reshuffle ...
 !> \param error ...
 ! *****************************************************************************
-  SUBROUTINE cp_dbcsr_finalize(matrix, resort, reshuffle, error)
+  SUBROUTINE cp_dbcsr_finalize(matrix, reshuffle, error)
     TYPE(cp_dbcsr_type), INTENT(INOUT)       :: matrix
-    LOGICAL, INTENT(IN), OPTIONAL            :: resort, reshuffle
+    LOGICAL, INTENT(IN), OPTIONAL            :: reshuffle
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_finalize', &
@@ -1339,7 +1397,7 @@ CONTAINS
 
     TYPE(dbcsr_error_type)                   :: dbcsr_error
 
-    CALL dbcsr_finalize(matrix%matrix, resort, reshuffle, error=dbcsr_error)
+    CALL dbcsr_finalize(matrix%matrix, reshuffle, error=dbcsr_error)
   END SUBROUTINE cp_dbcsr_finalize
 
 ! *****************************************************************************
@@ -1763,6 +1821,226 @@ CONTAINS
   END SUBROUTINE cp_dbcsr_transposed
 
 ! *****************************************************************************
+!> \brief creates a dbcsr col vector like object which lives on proc_col 0
+!>        and has the same row dist as the template matrix
+!>        the returned matrix is fully allocated and all blocks are set to 0
+!>        this is not a sparse object (and must never be)
+!> \param vec  the vector object to create must be allocated but not initialized
+!> \param matrix a dbcsr matrix used as template
+!> \param ncol number of vectors in the dbcsr_object (1 for vector, n for skinny matrix)
+!> \param error ...
+! *****************************************************************************
+   SUBROUTINE cp_dbcsr_create_col_vec_from_matrix(vec,matrix,ncol,error)
+    TYPE(cp_dbcsr_type), INTENT(INOUT)       :: vec
+    TYPE(cp_dbcsr_type), INTENT(IN)          :: matrix
+    INTEGER                                  :: ncol
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    CHARACTER(len=*), PARAMETER :: &
+      routineN = 'cp_dbcsr_create_col_vec_from_matrix', &
+      routineP = moduleN//':'//routineN
+
+    TYPE(dbcsr_error_type)                   :: dbcsr_error
+
+    CALL create_col_vec_from_matrix(vec%matrix,matrix%matrix,ncol,dbcsr_error)
+
+   END SUBROUTINE cp_dbcsr_create_col_vec_from_matrix
+
+! *****************************************************************************
+!> \brief creates a dbcsr row vector like object which lives on proc_row 0
+!>        and has the same row dist as the template matrix
+!>        the returned matrix is fully allocated and all blocks are set to 0
+!>        this is not a sparse object (and must never be)
+!> \param vec  the vector object to create must be allocated but not initialized
+!> \param matrix a dbcsr matrix used as template
+!> \param nrow number of vectors in the dbcsr_object (1 for vector, n for skinny matrix)
+!> \param error ...
+! *****************************************************************************
+   SUBROUTINE cp_dbcsr_create_row_vec_from_matrix(vec,matrix,nrow,error)
+    TYPE(cp_dbcsr_type), INTENT(INOUT)       :: vec
+    TYPE(cp_dbcsr_type), INTENT(IN)          :: matrix
+    INTEGER                                  :: nrow
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    CHARACTER(len=*), PARAMETER :: &
+      routineN = 'cp_dbcsr_create_row_vec_from_matrix', &
+      routineP = moduleN//':'//routineN
+
+    TYPE(dbcsr_error_type)                   :: dbcsr_error
+
+    CALL create_row_vec_from_matrix(vec%matrix,matrix%matrix,nrow,dbcsr_error)
+
+   END SUBROUTINE cp_dbcsr_create_row_vec_from_matrix
+
+! *****************************************************************************
+!> \brief creates a col vector like object whose blocks can be replicated
+!>        along the processor row and has the same row dist as the template matrix
+!>        the returned matrix is fully allocated and all blocks are set to 0
+!>        this is not a sparse object (and must never be)
+!> \param vec  the vector object to create must be allocated but not initialized
+!> \param matrix a dbcsr matrix used as template
+!> \param ncol number of vectors in the dbcsr_object (1 for vector, n for skinny matrix)
+!> \param error ...
+! *****************************************************************************
+   SUBROUTINE cp_dbcsr_create_rep_col_vec_from_matrix(vec,matrix,ncol,error)
+    TYPE(cp_dbcsr_type), INTENT(INOUT)       :: vec
+    TYPE(cp_dbcsr_type), INTENT(IN)          :: matrix
+    INTEGER                                  :: ncol
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    CHARACTER(len=*), PARAMETER :: &
+      routineN = 'cp_dbcsr_create_rep_col_vec_from_matrix', &
+      routineP = moduleN//':'//routineN
+
+    TYPE(dbcsr_error_type)                   :: dbcsr_error
+
+    CALL create_replicated_col_vec_from_matrix(vec%matrix,matrix%matrix,ncol,dbcsr_error)
+
+  END SUBROUTINE  cp_dbcsr_create_rep_col_vec_from_matrix
+
+! *****************************************************************************
+!> \brief creates a row vector like object whose blocks can be replicated
+!>        along the processor col and has the same col dist as the template matrix
+!>        the returned matrix is fully allocated and all blocks are set to 0
+!>        this is not a sparse object (and must never be)
+!> \param vec  the vector object to create must be allocated but not initialized
+!> \param matrix a dbcsr matrix used as template
+!> \param nrow number of vectors in the dbcsr_object (1 for vector, n for skinny matrix)
+!> \param error ...
+! *****************************************************************************
+   SUBROUTINE cp_dbcsr_create_rep_row_vec_from_matrix(vec,matrix,nrow,error)
+    TYPE(cp_dbcsr_type), INTENT(INOUT)       :: vec
+    TYPE(cp_dbcsr_type), INTENT(IN)          :: matrix
+    INTEGER                                  :: nrow
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    CHARACTER(len=*), PARAMETER :: &
+      routineN = 'cp_dbcsr_create_rep_row_vec_from_matrix', &
+      routineP = moduleN//':'//routineN
+
+    TYPE(dbcsr_error_type)                   :: dbcsr_error
+
+    CALL create_replicated_row_vec_from_matrix(vec%matrix,matrix%matrix,nrow,dbcsr_error)
+
+  END SUBROUTINE  cp_dbcsr_create_rep_row_vec_from_matrix
+
+! *****************************************************************************
+!> \brief ...
+!> \param matrix ...
+!> \param arnoldi_data ...
+!> \param error ...
+! *****************************************************************************
+  SUBROUTINE cp_dbcsr_arnoldi_ev(matrix,arnoldi_data,error)
+    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+      INTENT(IN)                             :: matrix
+    TYPE(dbcsr_arnoldi_data)                 :: arnoldi_data
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_arnoldi_ev', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: i
+    TYPE(dbcsr_error_type)                   :: dbcsr_error
+    TYPE(dbcsr_obj_type_p), ALLOCATABLE, &
+      DIMENSION(:)                           :: m_ptrs
+
+! convert cp_dbcsr_p_type to dbcsr_obj_type_p
+
+    ALLOCATE(m_ptrs(SIZE(matrix)))
+    DO i=1,SIZE(matrix)
+       m_ptrs(i)%matrix=>matrix(i)%matrix%matrix
+    END DO
+
+    CALL dbcsr_arnoldi_ev(m_ptrs,arnoldi_data,dbcsr_error)    
+    
+    DEALLOCATE(m_ptrs)
+    
+  END SUBROUTINE cp_dbcsr_arnoldi_ev  
+
+! *****************************************************************************
+!> \brief ...
+!> \param arnoldi_data ...
+!> \param matrix ...
+!> \param max_iter ...
+!> \param threshold ...
+!> \param selection_crit ...
+!> \param nval_request ...
+!> \param nrestarts ...
+!> \param generalized_ev ...
+!> \param iram ...
+! *****************************************************************************
+  SUBROUTINE cp_dbcsr_setup_arnoldi_data(arnoldi_data,matrix,max_iter, threshold, selection_crit, &
+                                         nval_request, nrestarts, generalized_ev, iram)
+    TYPE(dbcsr_arnoldi_data)                 :: arnoldi_data
+    TYPE(cp_dbcsr_p_type), DIMENSION(:)      :: matrix
+    INTEGER                                  :: max_iter
+    REAL(real_8)                             :: threshold
+    INTEGER                                  :: selection_crit, nval_request, &
+                                                nrestarts
+    LOGICAL                                  :: generalized_ev, iram
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_setup_arnoldi_data', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: i
+    TYPE(dbcsr_obj_type_p), ALLOCATABLE, &
+      DIMENSION(:)                           :: m_ptrs
+
+! convert cp_dbcsr_p_type to dbcsr_obj_type_p
+
+    ALLOCATE(m_ptrs(SIZE(matrix)))
+    DO i=1,SIZE(matrix)
+       m_ptrs(i)%matrix=>matrix(i)%matrix%matrix
+    END DO
+
+    CALL setup_arnoldi_data(arnoldi_data,m_ptrs ,max_iter, threshold,selection_crit, & 
+                            nval_request, nrestarts, generalized_ev, iram)
+      
+
+    DEALLOCATE(m_ptrs)
+  END SUBROUTINE cp_dbcsr_setup_arnoldi_data
+
+! *****************************************************************************
+!> \brief ...
+!> \param arnoldi_data ...
+!> \param vector ...
+! *****************************************************************************
+  SUBROUTINE cp_set_arnoldi_initial_vector(arnoldi_data,vector)
+    TYPE(dbcsr_arnoldi_data)                 :: arnoldi_data
+    TYPE(cp_dbcsr_type)                      :: vector
+
+    CHARACTER(len=*), PARAMETER :: &
+      routineN = 'cp_set_arnoldi_initial_vector', &
+      routineP = moduleN//':'//routineN
+
+    CALL set_arnoldi_initial_vector(arnoldi_data,vector%matrix)
+
+  END SUBROUTINE cp_set_arnoldi_initial_vector
+
+! *****************************************************************************
+!> \brief ...
+!> \param arnoldi_data ...
+!> \param ind ...
+!> \param matrix ...
+!> \param vector ...
+!> \param error ...
+! *****************************************************************************
+  SUBROUTINE get_selected_ritz_vec(arnoldi_data,ind,matrix,vector,error)
+    TYPE(dbcsr_arnoldi_data)                 :: arnoldi_data
+    INTEGER                                  :: ind
+    TYPE(cp_dbcsr_type)                      :: matrix, vector
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'get_selected_ritz_vec', &
+      routineP = moduleN//':'//routineN
+
+    TYPE(dbcsr_error_type)                   :: dbcsr_error
+
+    CALL get_selected_ritz_vector(arnoldi_data,ind,matrix%matrix,vector%matrix,dbcsr_error)
+
+  END SUBROUTINE get_selected_ritz_vec
+
+! *****************************************************************************
 !> \brief ...
 !> \param matrix_a ...
 !> \param func ...
@@ -2046,9 +2324,9 @@ CONTAINS
     new_data(1:sz) = old_data(1:sz)
     max_bin = MAXVAL (old_data)
     IF (max_bin .GT. 0) THEN
-       FORALL (i = sz+1 : new_size)
+       DO i = sz+1 , new_size
           new_data(i) = MOD (i, max_bin)
-       END FORALL
+       END DO
     ELSE
        new_data(sz+1:new_size) = 0
     ENDIF
@@ -2072,6 +2350,26 @@ CONTAINS
 ! *****************************************************************************
 !> \brief ...
 !> \param matrix ...
+!> \retval data ...
+! *****************************************************************************
+  FUNCTION cp_dbcsr_row_block_sizes_data (matrix) RESULT (DATA)
+    TYPE(cp_dbcsr_type), INTENT(IN)          :: matrix
+    INTEGER, DIMENSION(:), POINTER           :: DATA
+
+    CHARACTER(len=*), PARAMETER :: &
+      routineN = 'cp_dbcsr_row_block_sizes_data', &
+      routineP = moduleN//':'//routineN
+
+    TYPE(array_i1d_obj)                      :: row_blk_sizes
+
+    row_blk_sizes = cp_dbcsr_row_block_sizes(matrix)
+    DATA => row_blk_sizes%low%data
+
+  END FUNCTION cp_dbcsr_row_block_sizes_data
+
+! *****************************************************************************
+!> \brief ...
+!> \param matrix ...
 !> \retval col_blk_sizes ...
 ! *****************************************************************************
   FUNCTION cp_dbcsr_col_block_sizes (matrix) RESULT (col_blk_sizes)
@@ -2083,6 +2381,26 @@ CONTAINS
 
     col_blk_sizes = matrix%matrix%m%col_blk_size
   END FUNCTION cp_dbcsr_col_block_sizes
+
+! *****************************************************************************
+!> \brief ...
+!> \param matrix ...
+!> \retval data ...
+! *****************************************************************************
+  FUNCTION cp_dbcsr_col_block_sizes_data (matrix) RESULT (DATA)
+    TYPE(cp_dbcsr_type), INTENT(IN)          :: matrix
+    INTEGER, DIMENSION(:), POINTER           :: DATA
+
+    CHARACTER(len=*), PARAMETER :: &
+      routineN = 'cp_dbcsr_col_block_sizes_data', &
+      routineP = moduleN//':'//routineN
+
+    TYPE(array_i1d_obj)                      :: col_blk_sizes
+
+    col_blk_sizes = cp_dbcsr_col_block_sizes(matrix)
+    DATA => col_blk_sizes%low%data
+
+  END FUNCTION cp_dbcsr_col_block_sizes_data
 
 ! *****************************************************************************
 !> \brief Deallocates a DBCSR matrix for compatibility with CP2K
@@ -2227,6 +2545,153 @@ CONTAINS
     END IF
   END SUBROUTINE deallocate_dbcsr_matrix_set_2d
 
+! *****************************************************************************
+!> \brief ...
+!> \param matrix ...
+!> \retval has_symmetry ...
+! *****************************************************************************
+  PURE FUNCTION cp_dbcsr_has_symmetry (matrix) RESULT (has_symmetry)
+    TYPE(cp_dbcsr_type), INTENT(IN)          :: matrix
+    LOGICAL                                  :: has_symmetry
+
+    has_symmetry = dbcsr_has_symmetry(matrix%matrix)
+  END FUNCTION cp_dbcsr_has_symmetry
+
+! *****************************************************************************
+!> \brief ...
+!> \param dbcsr_mat ...
+!> \param csr_mat ...
+!> \param dist_format ...
+!> \param numnodes ...
+!> \param error ...
+! *****************************************************************************
+  SUBROUTINE cp_csr_create_from_dbcsr(dbcsr_mat, csr_mat, dist_format, numnodes, error)
+
+    TYPE(cp_dbcsr_type), INTENT(IN)          :: dbcsr_mat
+    TYPE(csr_type), INTENT(OUT)              :: csr_mat
+    INTEGER                                  :: dist_format
+    INTEGER, INTENT(IN), OPTIONAL            :: numnodes
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'cp_csr_create_from_dbcsr', &
+      routineP = moduleN//':'//routineN
+
+    TYPE(dbcsr_error_type)                   :: dbcsr_error
+
+    CALL csr_create_from_dbcsr(dbcsr_mat%matrix, csr_mat, dist_format, &
+                               numnodes=numnodes, error=dbcsr_error)
+  
+  END SUBROUTINE cp_csr_create_from_dbcsr
+
+! *****************************************************************************
+!> \brief ...
+!> \param dbcsr_mat ...
+!> \param csr_mat ...
+!> \param error ...
+! *****************************************************************************
+  SUBROUTINE cp_convert_csr_to_dbcsr(dbcsr_mat, csr_mat, error)
+
+    TYPE(cp_dbcsr_type), INTENT(INOUT)       :: dbcsr_mat
+    TYPE(csr_type), INTENT(INOUT)            :: csr_mat
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'cp_convert_csr_to_dbcsr', &
+      routineP = moduleN//':'//routineN
+
+    TYPE(dbcsr_error_type)                   :: dbcsr_error
+
+    CALL convert_csr_to_dbcsr(dbcsr_mat%matrix, csr_mat, dbcsr_error)
+
+  END SUBROUTINE cp_convert_csr_to_dbcsr
+
+! *****************************************************************************
+!> \brief ...
+!> \param dbcsr_mat ...
+!> \param csr_mat ...
+!> \param error ...
+! *****************************************************************************
+  SUBROUTINE cp_convert_dbcsr_to_csr(dbcsr_mat, csr_mat, error)
+    TYPE(cp_dbcsr_type), INTENT(IN)          :: dbcsr_mat
+    TYPE(csr_type), INTENT(INOUT)            :: csr_mat
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'cp_convert_dbcsr_to_csr', &
+      routineP = moduleN//':'//routineN
+
+    TYPE(dbcsr_error_type)                   :: dbcsr_error
+
+    CALL convert_dbcsr_to_csr(dbcsr_mat%matrix, csr_mat, dbcsr_error)
+
+  END SUBROUTINE cp_convert_dbcsr_to_csr
+
+! *****************************************************************************
+!> \brief ...
+!> \param csr_mat ...
+!> \param error ...
+! *****************************************************************************
+  SUBROUTINE cp_csr_destroy(csr_mat, error)
+    TYPE(csr_type), INTENT(INOUT)            :: csr_mat
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'cp_csr_destroy', &
+      routineP = moduleN//':'//routineN
+
+    TYPE(dbcsr_error_type)                   :: dbcsr_error
+
+    CALL csr_destroy(csr_mat, dbcsr_error)
+
+  END SUBROUTINE cp_csr_destroy
+
+
+! *****************************************************************************
+!> \brief ...
+!> \param csr_mat ...
+!> \param nrows_total ...
+!> \param ncols_total ...
+!> \param nze_total ...
+!> \param nze_local ...
+!> \param nrows_local ...
+!> \param data_type ...
+!> \param error ...
+! *****************************************************************************
+  SUBROUTINE cp_csr_create_new(csr_mat, nrows_total, ncols_total, nze_total,&
+                            nze_local, nrows_local, data_type, error)
+
+    TYPE(csr_type), INTENT(OUT)              :: csr_mat
+    INTEGER, INTENT(IN)                      :: nrows_total, ncols_total
+    INTEGER(KIND=int_8)                      :: nze_total
+    INTEGER, INTENT(IN)                      :: nze_local, nrows_local
+    INTEGER, INTENT(IN), OPTIONAL            :: data_type
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'cp_csr_create_new', &
+      routineP = moduleN//':'//routineN
+
+    TYPE(dbcsr_error_type)                   :: dbcsr_error
+
+    CALL csr_create_new(csr_mat, nrows_total, ncols_total, nze_total,&
+                            nze_local, nrows_local, data_type, dbcsr_error)
+  END SUBROUTINE
+
+! *****************************************************************************
+!> \brief ...
+!> \param matrix_b ...
+!> \param matrix_a ...
+!> \param error ...
+! *****************************************************************************
+  SUBROUTINE cp_csr_create_template(matrix_b, matrix_a, error)
+    TYPE(csr_type), INTENT(OUT)              :: matrix_b
+    TYPE(csr_type), INTENT(IN)               :: matrix_a
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'cp_csr_create_template', &
+      routineP = moduleN//':'//routineN
+
+    TYPE(dbcsr_error_type)                   :: dbcsr_error
+
+    CALL csr_create_template(matrix_b, matrix_a, dbcsr_error)
+
+  END SUBROUTINE
 
 ! *****************************************************************************
 !> \brief Emulation of sparse_matrix_types/add_block_node mapped
@@ -2290,6 +2755,34 @@ CONTAINS
     IF(.NOT.is_there) block(:,:) = 0.0_dp
   END SUBROUTINE cp_dbcsr_add_block_node
 
+! *****************************************************************************
+!> \brief ...
+!> \param matrix ...
+!> \param row ...
+!> \param col ...
+!> \param block ...
+!> \param summation ...
+!> \param scale ...
+! *****************************************************************************
+  SUBROUTINE cp_dbcsr_put_block_area (matrix, row, col, block,&
+       summation, scale)
+    TYPE(cp_dbcsr_type), INTENT(INOUT)       :: matrix
+    INTEGER, INTENT(IN)                      :: row, col
+    TYPE(dbcsr_data_obj)                     :: block
+    LOGICAL, INTENT(IN), OPTIONAL            :: summation
+    TYPE(dbcsr_scalar_type), INTENT(IN), &
+      OPTIONAL                               :: scale
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_put_block_area', &
+      routineP = moduleN//':'//routineN
+
+    TYPE(cp_error_type)                      :: error
+
+    CALL cp_error_init (error)
+    CALL dbcsr_put_block(matrix%matrix, row, col, block,&
+                         summation=summation, scale=scale)
+
+  END SUBROUTINE cp_dbcsr_put_block_area
 
 #include "cp_dbcsr_interface_s.f90"
 #include "cp_dbcsr_interface_d.f90"

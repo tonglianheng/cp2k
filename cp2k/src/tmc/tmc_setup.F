@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2014  CP2K developers group                          !
+!   Copyright (C) 2000 - 2015  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -341,17 +341,15 @@ CONTAINS
 !> \param input_declaration ...
 !> \param root_section ...
 !> \param para_env ...
-!> \param globenv ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 !> \param 
 !> \author Mandes 03.2013
 ! *****************************************************************************
-  SUBROUTINE do_analyze_files(input_declaration, root_section, para_env, globenv, error)
+  SUBROUTINE do_analyze_files(input_declaration, root_section, para_env, error)
     TYPE(section_type), POINTER              :: input_declaration
     TYPE(section_vals_type), POINTER         :: root_section
     TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(global_environment_type), POINTER   :: globenv
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'do_analyze_files', &
@@ -1098,7 +1096,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=80)                        :: c_tmp, fmt_tmp
-    INTEGER                                  :: file_nr, i
+    INTEGER                                  :: file_nr
     LOGICAL                                  :: failure
 
     failure = .FALSE.
@@ -1134,9 +1132,7 @@ CONTAINS
       IF(SIZE(tmc_env%params%Temp(:)).LE.7) THEN
         WRITE(fmt_tmp,*)'(T2,A,"| ",A,T25,A56)'
         c_tmp = ""
-        DO i = 1, SIZE(tmc_env%params%Temp(:))
-          WRITE(c_tmp,FMT="(A,1000F8.2)")TRIM(c_tmp), tmc_env%params%Temp(i)
-        END DO
+        WRITE(c_tmp,FMT="(1000F8.2)") tmc_env%params%Temp(:)
         WRITE(file_nr,FMT=fmt_tmp)plabel,"Temperature(s) [K]", TRIM(c_tmp)
       ELSE
         WRITE(file_nr,FMT='(A,1000F8.2)')" "//plabel//"| Temperature(s) [K]",&
@@ -1152,9 +1148,7 @@ CONTAINS
       IF(ANY(tmc_env%params%sub_box_size.GT.0.0_dp)) THEN
         WRITE(fmt_tmp,*)'(T2,A,"| ",A,T25,A56)'
         c_tmp = ""
-        DO i = 1, SIZE(tmc_env%params%sub_box_size)
-          WRITE(c_tmp,FMT="(A,1000F8.2)")TRIM(c_tmp), tmc_env%params%sub_box_size(i)*au2a
-        END DO
+        WRITE(c_tmp,FMT="(1000F8.2)") tmc_env%params%sub_box_size(:)*au2a
         WRITE(file_nr,FMT=fmt_tmp)plabel,"Sub box size [A]", TRIM(c_tmp)
       END IF
       IF(tmc_env%params%pressure.GT.0.0_dp) &

@@ -5,16 +5,16 @@
 !> \author Michele Ceriotti 03.2012
 ! *****************************************************************************
 MODULE ipi_driver
-
-  USE cell_methods,                    ONLY: cell_create,&
+  USE cell_types,                      ONLY: cell_create,&
                                              cell_type,&
                                              init_cell
   USE cp_external_control,             ONLY: external_control
-  USE cp_subsys_types,                 ONLY: cp_subsys_type
+  USE cp_subsys_types,                 ONLY: cp_subsys_get,&
+                                             cp_subsys_set,&
+                                             cp_subsys_type
   USE f77_interface,                   ONLY: default_para_env
   USE force_env_methods,               ONLY: force_env_calc_energy_force
   USE force_env_types,                 ONLY: force_env_get,&
-                                             force_env_set_cell,&
                                              force_env_type
   USE global_types,                    ONLY: global_environment_type
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
@@ -28,7 +28,7 @@ MODULE ipi_driver
                                              mp_sync
   USE termination,                     ONLY: stop_program
   USE virial_types,                    ONLY: virial_type
-#include "./common/cp_common_uses.f90"                                               
+#include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
   
@@ -238,8 +238,8 @@ MODULE ipi_driver
     CHARACTER(LEN=default_string_length)     :: header
     INTEGER                                  :: drv_port, i_drv_unix, idir, &
                                                 ii, inet, ip, nat, socket
-    LOGICAL                                  :: drv_unix, hasdata = .FALSE., &
-                                                ionode = .FALSE., should_stop
+    LOGICAL                                  :: drv_unix, hasdata, ionode, &
+                                                should_stop
     REAL(KIND=dp)                            :: cellh(3,3), cellih(3,3), &
                                                 mxmat(9), pot, vir(3,3)
     REAL(KIND=dp), ALLOCATABLE               :: combuf(:)
@@ -252,6 +252,8 @@ MODULE ipi_driver
 ! buffers and temporaries for communication
 ! access cp2k structures
 
+    hasdata = .FALSE.
+    ionode = .FALSE.
     ionode=(default_para_env%source==default_para_env%mepos)
 
     ! reads driver parameters from input
@@ -333,7 +335,7 @@ MODULE ipi_driver
           END DO
          END DO
          CALL init_cell(cpcell, hmat=cellh)
-         CALL force_env_set_cell(force_env,cell=cpcell,error=error)
+         CALL cp_subsys_set(subsys, cell=cpcell, error=error)
          
          CALL force_env_calc_energy_force(force_env,calc_force=.TRUE. ,error=error)
     
@@ -348,7 +350,8 @@ MODULE ipi_driver
           END DO
          END DO         
          CALL force_env_get(force_env, potential_energy=pot, error=error)
-         CALL force_env_get(force_env,cell=cpcell, virial=virial, error=error)
+         CALL force_env_get(force_env,cell=cpcell, error=error)
+         CALL cp_subsys_get(subsys, virial=virial, error=error)
          vir = TRANSPOSE(virial%pv_virial)
          
          CALL external_control(should_stop,"IPI",globenv=globenv,error=error)

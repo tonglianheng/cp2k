@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2014  CP2K developers group                          !
+!   Copyright (C) 2000 - 2015  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -9,14 +9,12 @@
 ! *****************************************************************************
 MODULE qmmm_pw_grid
   USE cell_types,                      ONLY: cell_type
-  USE f77_blas
   USE input_constants,                 ONLY: do_par_atom,&
                                              do_qmmm_gauss,&
                                              do_qmmm_swave
   USE kinds,                           ONLY: dp,&
                                              int_8
-  USE message_passing,                 ONLY: mp_cart_rank,&
-                                             mp_comm_dup,&
+  USE message_passing,                 ONLY: mp_comm_dup,&
                                              mp_environ
   USE pw_env_types,                    ONLY: pw_env_get,&
                                              pw_env_type
@@ -208,13 +206,9 @@ CONTAINS
        IF (PRODUCT(pw_grid_in % para % rs_dims)/=0) THEN
           CALL mp_comm_dup  ( pw_grid_in  % para % rs_group, &
                               pw_grid_out % para % rs_group )
-          CALL mp_cart_rank ( pw_grid_out % para % rs_group, &
-                              pw_grid_out % para % rs_pos, &
-                              pw_grid_out % para % rs_mpo )
-       ELSE
-          pw_grid_out % para % rs_mpo=HUGE(0) !FM copy also from pw_grid_in?
-          pw_grid_out % para % rs_pos=HUGE(0)
        END IF
+       pw_grid_out % para % rs_pos = pw_grid_in % para % rs_pos
+       pw_grid_out % para % rs_mpo = pw_grid_in % para % rs_mpo
 
        NULLIFY(pw_grid_out%g,pw_grid_out%gsq,pw_grid_out%g_hat)
        CPPrecondition(pw_grid_in%grid_span==FULLSPACE,cp_failure_level,routineP,error,failure)

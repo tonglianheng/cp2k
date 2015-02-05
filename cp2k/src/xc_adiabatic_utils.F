@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2014  CP2K developers group                          !
+!   Copyright (C) 2000 - 2015  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -29,7 +29,9 @@ MODULE xc_adiabatic_utils
   USE qs_energy_types,                 ONLY: qs_energy_type
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
-  USE qs_rho_types,                    ONLY: qs_rho_type
+  USE qs_ks_types,                     ONLY: qs_ks_env_type
+  USE qs_rho_types,                    ONLY: qs_rho_get,&
+                                             qs_rho_type
   USE qs_vxc,                          ONLY: qs_vxc_create
   USE qs_vxc_atom,                     ONLY: calculate_vxc_atom
   USE timings,                         ONLY: timeset,&
@@ -87,20 +89,30 @@ CONTAINS
                                                 do_hfx, failure, gapw, gapw_xc
     REAL(dp) :: adiabatic_lambda, adiabatic_omega, scale_dDFA, scale_ddW0, &
       scale_dEx1, scale_dEx2, total_energy_xc
+    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+      POINTER                                :: rho_ao
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(dft_control_type), POINTER          :: dft_control
+    TYPE(qs_ks_env_type), POINTER            :: ks_env
+    TYPE(qs_rho_type), POINTER               :: rho_xc
     TYPE(section_vals_type), POINTER         :: adiabatic_rescaling_section, &
                                                 hfx_sections, input, &
                                                 xc_section
 
     failure=.FALSE.
     CALL timeset(routineN,handle)
-    NULLIFY(para_env, dft_control, adiabatic_rescaling_section, hfx_sections, input, xc_section)
+    NULLIFY(para_env, dft_control, adiabatic_rescaling_section, hfx_sections,&
+            input, xc_section, rho_xc, ks_env, rho_ao)
 
-    CALL get_qs_env(qs_env=qs_env,&
-         dft_control=dft_control,&
-         para_env=para_env,&
-         input=input,error=error)
+    CALL get_qs_env(qs_env,&
+                    dft_control=dft_control,&
+                    para_env=para_env,&
+                    input=input,&
+                    rho_xc=rho_xc,&
+                    ks_env=ks_env,&
+                    error=error)
+
+    CALL qs_rho_get(rho, rho_ao=rho_ao, error=error)
 
     adiabatic_rescaling_section => section_vals_get_subs_vals(input,"DFT%XC%ADIABATIC_RESCALING",error=error)
     CALL section_vals_get(adiabatic_rescaling_section,explicit=do_adiabatic_rescaling,error=error)
@@ -141,20 +153,20 @@ CONTAINS
           IF( calculate_forces ) THEN
              CPPrecondition(.NOT.use_virial,cp_failure_level,routineP,error,failure)
              !! we also have to scale the forces!!!!
-             CALL derivatives_four_center(qs_env, rho%rho_ao, hfx_sections, para_env, 1, use_virial, &
+             CALL derivatives_four_center(qs_env, rho_ao, hfx_sections, para_env, 1, use_virial, &
                                           adiabatic_rescale_factor=scale_dEx1, error=error)
-             CALL derivatives_four_center(qs_env, rho%rho_ao, hfx_sections, para_env, 2, use_virial, &
+             CALL derivatives_four_center(qs_env, rho_ao, hfx_sections, para_env, 2, use_virial, &
                                           adiabatic_rescale_factor=scale_dEx2, error=error)
           END IF
 
           ! Calculate vxc and rescale it
           xc_section => section_vals_get_subs_vals(input,"DFT%XC",error=error)
           IF (gapw_xc) THEN
-            CALL qs_vxc_create(qs_env=qs_env, rho_struct=qs_env%rho_xc, xc_section=xc_section, &
+            CALL qs_vxc_create(ks_env=ks_env, rho_struct=rho_xc, xc_section=xc_section, &
                  vxc_rho=v_rspace_new, vxc_tau=v_tau_rspace, exc=energy%exc, &
                  just_energy=just_energy ,adiabatic_rescale_factor=scale_dDFA, error=error)
           ELSE
-            CALL qs_vxc_create(qs_env=qs_env, rho_struct=qs_env%rho, xc_section=xc_section, &
+            CALL qs_vxc_create(ks_env=ks_env, rho_struct=rho, xc_section=xc_section, &
                  vxc_rho=v_rspace_new, vxc_tau=v_tau_rspace, exc=energy%exc, &
                  just_energy=just_energy, adiabatic_rescale_factor=scale_dDFA, error=error)
           END IF

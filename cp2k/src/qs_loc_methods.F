@@ -1,5 +1,5 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2014  CP2K developers group                          !
+!   Copyright (C) 2000 - 2015  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -19,7 +19,7 @@ MODULE qs_loc_methods
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              deallocate_atomic_kind_set,&
                                              set_atomic_kind
-  USE cell_methods,                    ONLY: cell_type,&
+  USE cell_types,                      ONLY: cell_type,&
                                              pbc
   USE cp_control_types,                ONLY: dft_control_type
   USE cp_dbcsr_interface,              ONLY: cp_dbcsr_p_type
@@ -42,10 +42,7 @@ MODULE qs_loc_methods
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_realspace_grid_cube,          ONLY: cp_pw_to_cube
-  USE cp_subsys_types,                 ONLY: cp_subsys_get,&
-                                             cp_subsys_type
   USE cp_units,                        ONLY: cp_unit_from_cp2k
-  USE f77_blas
   USE input_constants,                 ONLY: &
        do_loc_crazy, do_loc_direct, do_loc_jacobi, do_loc_l1_norm_sd, &
        do_loc_none, dump_dcd, dump_dcd_aligned_cell, dump_xmol, op_loc_berry, &
@@ -65,11 +62,11 @@ MODULE qs_loc_methods
   USE memory_utilities,                ONLY: reallocate
   USE motion_utils,                    ONLY: get_output_format
   USE particle_list_types,             ONLY: particle_list_type
+  USE particle_methods,                ONLY: get_particle_set,&
+                                             write_particle_coordinates
   USE particle_types,                  ONLY: allocate_particle_set,&
                                              deallocate_particle_set,&
-                                             get_particle_set,&
-                                             particle_type,&
-                                             write_particle_coordinates
+                                             particle_type
   USE physcon,                         ONLY: angstrom
   USE pw_env_types,                    ONLY: pw_env_get,&
                                              pw_env_type
@@ -96,6 +93,8 @@ MODULE qs_loc_methods
   USE qs_matrix_pools,                 ONLY: mpools_get
   USE qs_mo_types,                     ONLY: get_mo_set,&
                                              mo_set_p_type
+  USE qs_subsys_types,                 ONLY: qs_subsys_get,&
+                                             qs_subsys_type
   USE string_utilities,                ONLY: xstring
   USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
@@ -942,7 +941,6 @@ CONTAINS
       POINTER                                :: atomic_kind_set
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_logger_type), POINTER            :: logger
-    TYPE(cp_subsys_type), POINTER            :: subsys
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(particle_list_type), POINTER        :: particles
     TYPE(particle_type), DIMENSION(:), &
@@ -952,6 +950,7 @@ CONTAINS
     TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
     TYPE(qs_kind_type), DIMENSION(:), &
       POINTER                                :: qs_kind_set
+    TYPE(qs_subsys_type), POINTER            :: subsys
 
     failure = .FALSE.
     CALL timeset(routineN,handle)
@@ -959,7 +958,7 @@ CONTAINS
     logger => cp_error_get_logger(error)
 
     CALL get_qs_env(qs_env=qs_env,pw_env=pw_env,subsys=subsys,error=error)
-    CALL cp_subsys_get(subsys,particles=particles,error=error)
+    CALL qs_subsys_get(subsys,particles=particles,error=error)
 
 
 

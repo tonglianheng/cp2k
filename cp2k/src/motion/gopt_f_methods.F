@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2014  CP2K developers group                          !
+!   Copyright (C) 2000 - 2015  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -10,11 +10,10 @@
 !>      none
 ! *****************************************************************************
 MODULE gopt_f_methods
-
   USE atomic_kind_list_types,          ONLY: atomic_kind_list_type
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind_set
-  USE cell_methods,                    ONLY: cell_copy,&
+  USE cell_types,                      ONLY: cell_copy,&
                                              cell_create,&
                                              cell_release,&
                                              cell_type,&
@@ -23,17 +22,16 @@ MODULE gopt_f_methods
                                              scaled_to_real
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_subsys_types,                 ONLY: cp_subsys_get,&
+                                             cp_subsys_set,&
                                              cp_subsys_type,&
                                              pack_subsys_particles
   USE cp_units,                        ONLY: cp_unit_from_cp2k
   USE dimer_types,                     ONLY: dimer_env_type
   USE dimer_utils,                     ONLY: update_dimer_vec
   USE distribution_1d_types,           ONLY: distribution_1d_type
-  USE f77_blas
   USE force_env_types,                 ONLY: force_env_get,&
                                              force_env_get_natom,&
                                              force_env_get_nparticle,&
-                                             force_env_set_cell,&
                                              force_env_type
   USE gopt_f_types,                    ONLY: gopt_f_type
   USE gopt_param_types,                ONLY: gopt_param_type
@@ -53,8 +51,8 @@ MODULE gopt_f_methods
                                              write_stress_tensor,&
                                              write_trajectory
   USE particle_list_types,             ONLY: particle_list_type
-  USE particle_types,                  ONLY: particle_type,&
-                                             write_structure_data
+  USE particle_methods,                ONLY: write_structure_data
+  USE particle_types,                  ONLY: particle_type
   USE qmmm_util,                       ONLY: apply_qmmm_translate
   USE virial_methods,                  ONLY: virial_evaluate
   USE virial_types,                    ONLY: virial_type
@@ -956,10 +954,10 @@ CONTAINS
     CALL write_geo_traj(force_env,  root_section, its, opt_energy, error)
 
     ! Write the stress Tensor
-    CALL force_env_get(force_env, cell=cell, virial=virial, para_env=para_env, &
+    CALL force_env_get(force_env, cell=cell, para_env=para_env, &
          subsys=subsys, error=error)
     CALL cp_subsys_get(subsys=subsys,atomic_kinds=atomic_kinds,local_particles=local_particles,&
-         particles=particles, error=error)
+         particles=particles, virial=virial, error=error)
     atomic_kind_set => atomic_kinds%els
     particle_set => particles%els
     CALL virial_evaluate(atomic_kind_set, particle_set,  local_particles, &
@@ -1056,7 +1054,7 @@ CONTAINS
           END DO
         END DO
         CALL init_cell(cell)
-        CALL force_env_set_cell(gopt_env%force_env,cell,error=error)
+        CALL cp_subsys_set(subsys,cell=cell,error=error)
 
         ! Retrieve particle coordinates for the current cell
         SELECT CASE (gopt_env%cell_method_id)

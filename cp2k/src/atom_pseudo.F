@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2014  CP2K developers group                          !
+!   Copyright (C) 2000 - 2015  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -29,7 +29,6 @@ MODULE atom_pseudo
                                              get_maxn_occ
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
-  USE f77_blas
   USE input_constants,                 ONLY: do_analytic
   USE input_section_types,             ONLY: section_vals_get,&
                                              section_vals_get_subs_vals,&
@@ -238,7 +237,7 @@ CONTAINS
         ! set occupations for pseudopotential calculation
         CALL section_vals_val_get(atom_section,"CORE", c_vals=tmpstringlist, error=error)
         CALL atom_set_occupation(tmpstringlist,statepp%core,pocc,error=error)
-        zcore = zval - SUM(statepp%core)
+        zcore = zval - NINT(SUM(statepp%core))
         CALL set_atom(atom_info(in,im)%atom,zcore=zcore,pp_calc=.TRUE.,error=error)
 
         statepp%occ = state%occ - statepp%core

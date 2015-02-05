@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2014  CP2K developers group                          !
+!   Copyright (C) 2000 - 2015  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -19,7 +19,7 @@ MODULE f77_interface
   USE acc_device,                      ONLY: acc_get_ndevices,&
                                              acc_set_active_device
   USE bibliography,                    ONLY: add_all_references
-  USE cell_methods,                    ONLY: cell_type,&
+  USE cell_types,                      ONLY: cell_type,&
                                              init_cell
   USE cp2k_info,                       ONLY: get_runtime_info
   USE cp_dbcsr_interface,              ONLY: cp_dbcsr_finalize_lib,&
@@ -41,22 +41,23 @@ MODULE f77_interface
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_result_methods,               ONLY: get_results,&
                                              test_for_result
-  USE cp_subsys_types,                 ONLY: cp_subsys_type,&
+  USE cp_result_types,                 ONLY: cp_result_type
+  USE cp_subsys_types,                 ONLY: cp_subsys_get,&
+                                             cp_subsys_set,&
+                                             cp_subsys_type,&
                                              unpack_subsys_particles
   USE eip_main,                        ONLY: eip_create_force_env
   USE environment,                     ONLY: cp2k_finalize,&
                                              cp2k_init,&
                                              cp2k_read,&
                                              cp2k_setup
-  USE f77_blas
   USE fist_main,                       ONLY: fist_create_force_env
-  USE force_env_methods,               ONLY: ep_create_force_env,&
-                                             force_env_calc_energy_force
+  USE force_env_methods,               ONLY: force_env_calc_energy_force
   USE force_env_types,                 ONLY: &
        force_env_get, force_env_get_frc, force_env_get_natom, &
        force_env_get_nparticle, force_env_get_pos, force_env_get_vel, &
-       force_env_release, force_env_retain, force_env_set, &
-       force_env_set_cell, force_env_type, multiple_fe_list
+       force_env_release, force_env_retain, force_env_set, force_env_type, &
+       multiple_fe_list
   USE force_env_utils,                 ONLY: force_env_shake
   USE fp_types,                        ONLY: fp_env_create,&
                                              fp_env_read,&
@@ -68,7 +69,6 @@ MODULE f77_interface
                                              globenv_release,&
                                              globenv_retain
   USE input_constants,                 ONLY: do_eip,&
-                                             do_ep,&
                                              do_fist,&
                                              do_mixed,&
                                              do_qmmm,&
@@ -861,11 +861,6 @@ CPSourceFileRef,&
           CALL section_vals_val_get(force_env_section,"METHOD",i_val=method_name_id,error=my_error)
 
           SELECT CASE (method_name_id)
-          CASE (do_ep)
-             ! does not support multi force_env_sections
-             CPPostcondition(nforce_eval==1,cp_fatal_level,routineP,my_error,failure)
-             CALL ep_create_force_env ( my_force_env, root_section, input_declaration, my_para_env, globenv,&
-                  force_env_section=force_env_section, error = my_error )
           CASE (do_fist)
              CALL fist_create_force_env ( my_force_env, root_section, my_para_env, globenv,&
                   force_env_section=force_env_section, subsys_section=subsys_section,&
@@ -1138,6 +1133,8 @@ CPSourceFileRef,&
 !> \param env_id id of the force_env
 !> \param description the tag of the result
 !> \param N ...
+!> \param RESULT ...
+!> \param res_exist ...
 !> \param ierr will return a number different from 0 if there was an error
 !> \author Joost VandeVondele
 ! *****************************************************************************
@@ -1152,30 +1149,28 @@ CPSourceFileRef,&
     INTEGER                                  :: nres
     LOGICAL                                  :: exist_res, failure
     TYPE(cp_error_type)                      :: error
+    TYPE(cp_result_type), POINTER            :: results
+    TYPE(cp_subsys_type), POINTER            :: subsys
     TYPE(f_env_type), POINTER                :: f_env
 
     failure = .FALSE.
-    NULLIFY (f_env)
+    NULLIFY (f_env, subsys, results)
     CALL f_env_add_defaults(env_id,f_env,error,failure)
 
     IF (.NOT. failure) THEN
+      CALL force_env_get(f_env%force_env, subsys=subsys, error=error)
+      CALL cp_subsys_get(subsys, results=results, error=error)
       ! first test for the result
       IF(PRESENT(res_exist)) THEN
-        res_exist = test_for_result(results=f_env%force_env%results,&
-                      description=description, error=error)
+        res_exist = test_for_result(results, description=description, error=error)
         exist_res = res_exist
       ELSE
         exist_res = .TRUE.
       END IF
       ! if existing (or assuming the existance) read the results
       IF(res_exist) THEN
-        CALL get_results(results=f_env%force_env%results,&
-             description=description,&
-             n_rep=nres,error=error)
-        CALL get_results(results=f_env%force_env%results,&
-             description=description,&
-             values=RESULT,&
-             nval=nres,error=error)
+        CALL get_results(results, description=description, n_rep=nres,error=error)
+        CALL get_results(results, description=description, values=RESULT, nval=nres,error=error)
       END IF
     ENDIF
 
@@ -1235,16 +1230,18 @@ CPSourceFileRef,&
     LOGICAL                                  :: failure
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_error_type)                      :: error
+    TYPE(cp_subsys_type), POINTER            :: subsys
     TYPE(f_env_type), POINTER                :: f_env
     TYPE(virial_type), POINTER               :: virial
 
     failure = .FALSE.
-    NULLIFY (f_env, virial, cell)
+    NULLIFY (f_env, subsys, virial, cell)
     stress_tensor(:,:) = 0.0_dp
 
     CALL f_env_add_defaults(env_id,f_env,error,failure)
     IF (.NOT.failure) THEN
-       CALL force_env_get(f_env%force_env, virial=virial, cell=cell, error=error)
+       CALL force_env_get(f_env%force_env, subsys=subsys, cell=cell, error=error)
+       CALL cp_subsys_get(subsys, virial=virial, error=error)
        IF(virial%pv_availability) THEN
           stress_tensor(:,:) = virial%pv_virial(:,:)/cell%deth
        ENDIF
@@ -1336,10 +1333,11 @@ CPSourceFileRef,&
     LOGICAL                                  :: failure
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_error_type)                      :: error
+    TYPE(cp_subsys_type), POINTER            :: subsys
     TYPE(f_env_type), POINTER                :: f_env
 
     failure = .FALSE.
-    NULLIFY (f_env)
+    NULLIFY (f_env, cell, subsys)
     CALL f_env_add_defaults(env_id,f_env,error,failure)
     IF (.NOT.failure) THEN
        NULLIFY (cell)
@@ -1351,7 +1349,8 @@ CPSourceFileRef,&
        IF (.NOT.failure) THEN
           cell%hmat = new_cell
           CALL init_cell(cell)
-          CALL force_env_set_cell(f_env%force_env, cell, error)
+          CALL force_env_get(f_env%force_env, subsys=subsys, error=error)
+          CALL cp_subsys_set(subsys, cell=cell, error=error)
        END IF
     END IF
     CALL f_env_rm_defaults(f_env,error,ierr)

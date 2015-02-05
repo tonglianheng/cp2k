@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2014  CP2K developers group                          !
+!   Copyright (C) 2000 - 2015  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -8,7 +8,6 @@
 ! *****************************************************************************
 MODULE atom_optimization
   USE atom_types,                      ONLY: atom_optimization_type
-  USE f77_blas
   USE kinds,                           ONLY: dp
   USE lapack,                          ONLY: lapack_sgelss
 #include "./common/cp_common_uses.f90"

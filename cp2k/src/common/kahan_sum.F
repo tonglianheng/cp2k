@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2014  CP2K developers group                          !
+!   Copyright (C) 2000 - 2015  CP2K developers group                          !
 !                                                                             !
 !   This program is free software; you can redistribute it and/or modify      !
 !   it under the terms of the GNU General Public License as published by      !
@@ -40,7 +40,7 @@
 !> \author Joost VandeVondele
 ! *****************************************************************************
 MODULE kahan_sum
-  USE f77_blas
+  
 
   IMPLICIT NONE
   PRIVATE

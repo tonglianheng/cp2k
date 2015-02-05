@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2014  CP2K developers group                          !
+!   Copyright (C) 2000 - 2015  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -21,7 +21,7 @@ MODULE hfx_libint_wrapper
                                              build_deriv1_eri_size
   USE orbital_pointers,                ONLY: nco
 
-  USE f77_blas
+  
 #include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE

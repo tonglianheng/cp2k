@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2014  CP2K developers group                          !
+!   Copyright (C) 2000 - 2015  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -10,7 +10,7 @@
 !> \author Florian Schiffmann
 ! *****************************************************************************
 MODULE input_optimize_basis
-  USE f77_blas
+  
   USE input_constants,                 ONLY: do_opt_all,&
                                              do_opt_coeff,&
                                              do_opt_exps,&

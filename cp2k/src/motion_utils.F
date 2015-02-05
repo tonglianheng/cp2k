@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2014  CP2K developers group                          !
+!   Copyright (C) 2000 - 2015  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -21,7 +21,6 @@ MODULE motion_utils
   USE cp_subsys_types,                 ONLY: cp_subsys_get,&
                                              cp_subsys_type
   USE cp_units,                        ONLY: cp_unit_from_cp2k
-  USE f77_blas
   USE force_env_types,                 ONLY: force_env_get,&
                                              force_env_type
   USE input_constants,                 ONLY: dump_atomic,&
@@ -40,8 +39,8 @@ MODULE motion_utils
   USE machine,                         ONLY: m_flush
   USE mathlib,                         ONLY: diamat_all
   USE particle_list_types,             ONLY: particle_list_type
-  USE particle_types,                  ONLY: particle_type,&
-                                             write_particle_coordinates
+  USE particle_methods,                ONLY: write_particle_coordinates
+  USE particle_types,                  ONLY: particle_type
   USE physcon,                         ONLY: angstrom
   USE timings,                         ONLY: timeset,&
                                              timestop

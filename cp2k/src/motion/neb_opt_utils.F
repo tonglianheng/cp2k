@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2014  CP2K developers group                          !
+!   Copyright (C) 2000 - 2015  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -16,9 +16,6 @@
 !> \author Teodoro Laino 10.2006
 ! *****************************************************************************
 MODULE neb_opt_utils
-  USE f77_blas
-  USE f77_blas_extra
-  USE f77_blas_generic
   USE input_section_types,             ONLY: section_vals_type,&
                                              section_vals_val_get
   USE kinds,                           ONLY: default_string_length,&
@@ -157,7 +154,7 @@ CONTAINS
  CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
              lwork=-1
              CALL DGESDD('S',np,np,work,np,S,U,np,vt,np,work_dgesdd,lwork,iwork,info)
-             lwork=work_dgesdd(1)
+             lwork=INT(work_dgesdd(1))
              DEALLOCATE(work_dgesdd,stat=stat)
  CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
              ALLOCATE(work_dgesdd(lwork),stat=stat)
@@ -173,7 +170,7 @@ CONTAINS
                 ENDIF
                 VT(k,:)=VT(k,:)*S(k)
              ENDDO
-             CALL BL_GEMM('T','T',np,np,np,1.0_dp,VT,np,U,np,0.0_dp,wrk_inv,np)
+             CALL DGEMM('T','T',np,np,np,1.0_dp,VT,np,U,np,0.0_dp,wrk_inv,np)
              DEALLOCATE(iwork,stat=stat)
  CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
              DEALLOCATE(S,stat=stat)

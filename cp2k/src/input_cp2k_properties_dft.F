@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2014  CP2K developers group                          !
+!   Copyright (C) 2000 - 2015  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -15,19 +15,19 @@ MODULE input_cp2k_properties_dft
                                              Putrino2002,&
                                              Sebastiani2001,&
                                              Weber2009
-  USE cp_output_handling,              ONLY: cp_print_key_section_create
+  USE cp_output_handling,              ONLY: add_last_numeric,&
+                                             cp_print_key_section_create,&
+                                             high_print_level,&
+                                             low_print_level
   USE cp_units,                        ONLY: cp_unit_to_cp2k
-  USE f77_blas
   USE input_constants,                 ONLY: &
-       add_last_numeric, current_gauge_atom, current_gauge_r, &
-       current_gauge_r_and_step_func, current_orb_center_atom, &
-       current_orb_center_box, current_orb_center_common, &
-       current_orb_center_wannier, do_ddapc_constraint, do_ddapc_restraint, &
-       do_et_becke, do_et_ddapc, do_full_density, do_no_et, do_spin_density, &
-       high_print_level, low_print_level, ot_precond_full_all, &
+       current_gauge_atom, current_gauge_r, current_gauge_r_and_step_func, &
+       current_orb_center_atom, current_orb_center_box, &
+       current_orb_center_common, current_orb_center_wannier, &
+       do_ddapc_constraint, do_ddapc_restraint, do_et_becke, do_et_ddapc, &
+       do_full_density, do_no_et, do_spin_density, ot_precond_full_all, &
        ot_precond_full_kinetic, ot_precond_full_single, &
-       ot_precond_full_single_inverse, ot_precond_none, ot_precond_s_inverse, &
-       ot_precond_sparse_diag, ot_precond_sparse_kinetic
+       ot_precond_full_single_inverse, ot_precond_none, ot_precond_s_inverse
   USE input_cp2k_atprop,               ONLY: create_atprop_section
   USE input_cp2k_dft,                  ONLY: create_interp_section,&
                                              create_localize_section
@@ -180,7 +180,7 @@ CONTAINS
             usage="PRECONDITIONER FULL_ALL",&
             default_i_val=ot_precond_none,&
             enum_c_vals=s2a("FULL_ALL","FULL_SINGLE_INVERSE","FULL_SINGLE","FULL_KINETIC","FULL_S_INVERSE",&
-            "SPARSE_DIAG","SPARSE_KINETIC","NONE"),&
+            "NONE"),&
             enum_desc=s2a("Most effective state selective preconditioner based on diagonalization, "//&
             "requires the ENERGY_GAP parameter to be an underestimate of the HOMO-LUMO gap. "//&
             "This preconditioner is recommended for almost all systems, except very large systems where "//&
@@ -192,12 +192,9 @@ CONTAINS
             "Cholesky inversion of S and T, fast construction, robust, and relatively good, "//&
             "use for very large systems.",&
             "Cholesky inversion of S, not as good as FULL_KINETIC, yet equally expensive.",&
-            "Only based on atomic blocks, very cheap in construction but quite poor.",&
-            "Toward -sparse- linear solver for T-eS.",&
             "skip preconditioning"),&
             enum_i_vals=(/ot_precond_full_all,ot_precond_full_single_inverse,ot_precond_full_single, &
-            ot_precond_full_kinetic,ot_precond_s_inverse,&
-            ot_precond_sparse_diag,ot_precond_sparse_kinetic,ot_precond_none/),&
+            ot_precond_full_kinetic,ot_precond_s_inverse,ot_precond_none/),&
             error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)

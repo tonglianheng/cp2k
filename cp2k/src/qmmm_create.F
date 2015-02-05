@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2014  CP2K developers group                          !
+!   Copyright (C) 2000 - 2015  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -14,18 +14,17 @@ MODULE qmmm_create
                                              Laino2005,&
                                              Laino2006,&
                                              cite_reference
-  USE cell_methods,                    ONLY: cell_clone,&
+  USE cell_methods,                    ONLY: write_cell
+  USE cell_types,                      ONLY: cell_clone,&
                                              cell_release,&
                                              cell_type,&
-                                             get_cell,&
-                                             write_cell
+                                             get_cell
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_subsys_methods,               ONLY: create_small_subsys
   USE cp_subsys_types,                 ONLY: cp_subsys_release,&
                                              cp_subsys_type
-  USE f77_blas
   USE fist_environment_types,          ONLY: fist_env_get,&
                                              fist_environment_type
   USE fist_main,                       ONLY: fist_create_force_env
@@ -50,6 +49,7 @@ MODULE qmmm_create
                                              section_vals_val_set
   USE kinds,                           ONLY: default_string_length,&
                                              dp
+  USE pw_env_types,                    ONLY: pw_env_type
   USE qmmm_force_mixing,               ONLY: setup_force_mixing_qmmm_sections,&
                                              update_force_mixing_labels
   USE qmmm_init,                       ONLY: &
@@ -65,7 +65,8 @@ MODULE qmmm_create
        force_mixing_extended_subsys, primary_subsys, qmmm_env_mm_create, &
        qmmm_env_mm_release, qmmm_env_mm_type, qmmm_env_qm_create, &
        qmmm_env_qm_release, qmmm_env_qm_type, qmmm_links_type, qs_subsys
-  USE qs_environment_types,            ONLY: qs_environment_type,&
+  USE qs_environment_types,            ONLY: get_qs_env,&
+                                             qs_environment_type,&
                                              set_qs_env
   USE qs_main,                         ONLY: quickstep_create_force_env
   USE termination,                     ONLY: stop_program
@@ -247,6 +248,7 @@ CONTAINS
     TYPE(fist_nonbond_env_type), POINTER     :: fist_nonbond_env
     TYPE(force_env_p_type), DIMENSION(:), &
       POINTER                                :: sub_force_env
+    TYPE(pw_env_type), POINTER               :: pw_env
     TYPE(qmmm_env_mm_type), POINTER          :: qmmm_env_mm
     TYPE(qmmm_env_qm_type), POINTER          :: qmmm_env_qm
     TYPE(qmmm_links_type), POINTER           :: qmmm_links
@@ -262,7 +264,7 @@ CONTAINS
          qs_env, mm_atom_chrg,mm_el_pot_radius, qmmm_env_mm, fist_env,   &
          mm_link_atoms, mm_link_scale_factor, qmmm_links, added_charges, &
          fist_scale_charge_link, print_section, fist_nonbond_env, &
-         print_gen, logger, mm_el_pot_radius_corr, super_cell)
+         print_gen, logger, mm_el_pot_radius_corr, super_cell, pw_env)
     logger => cp_error_get_logger(error)
     IF (.NOT. failure) THEN
        ! citations
@@ -482,11 +484,10 @@ CPSourceFileRef,&
             ignore_outside_box=ignore_outside_box, error=error)
        IF (qmmm_link_imomm) CALL qmmm_link_Imomm_coord(qmmm_links, subsys_qm%particles%els,&
             qm_atom_index, error)
-       CALL quickstep_create_force_env(sub_force_env(qs_subsys)%force_env,root_section,para_env,&
-            globenv, subsys=subsys_qm, cell=qm_cell_small, qmmm=.TRUE.,qmmm_env_qm=qmmm_env_qm,&
-            qmmm_periodic=qmmm_env_qm%periodic, force_env_section=force_env_section,&
-            subsys_section=subsys_section,use_motion_section=use_motion_section,&
-            error=error)
+       CALL quickstep_create_force_env(sub_force_env(qs_subsys)%force_env, root_section, para_env,&
+            globenv, subsys=subsys_qm, cell=qm_cell_small, qmmm=.TRUE., qmmm_env_qm=qmmm_env_qm,&
+            force_env_section=force_env_section, subsys_section=subsys_section,&
+            use_motion_section=use_motion_section, error=error)
        CALL cp_subsys_release(subsys_qm,error=error)
        CALL force_env_get(sub_force_env(qs_subsys)%force_env,qs_env=qs_env,error=error)
        IF (qmmm_env_qm%periodic) THEN
@@ -525,15 +526,15 @@ CPSourceFileRef,&
                                 qm_cell_small=qm_cell_small,&
                                 mm_cell=mm_cell,&
                                 para_env=para_env,&
-                                qs_env=qs_env,&
                                 added_charges=qmmm_env_qm%added_charges,&
                                 print_section=print_section,&
                                 error=error)
        !
        ! Initialize the qmmm_pw_grid
        !
+       CALL get_qs_env(qs_env, pw_env=pw_env, error=error)
        CALL qmmm_pw_grid_init(qmmm_env=qmmm_env_qm,&
-                              pw_env=qs_env%pw_env,&
+                              pw_env=pw_env,&
                               cell=qm_cell_small,&
                               error=error)
        !
@@ -553,7 +554,7 @@ CPSourceFileRef,&
        ! Preparing for PBC...
        !
        CALL setup_origin_mm_cell(qmmm_section, qmmm_env_qm, mm_cell, qm_cell_small,&
-            dr=qs_env%pw_env%pw_pools(qs_env%pw_env%auxbas_grid)%pool%pw_grid%dr,&
+            dr=pw_env%pw_pools(pw_env%auxbas_grid)%pool%pw_grid%dr,&
             error=error)
 
        CALL cell_release(qm_cell_small, error)

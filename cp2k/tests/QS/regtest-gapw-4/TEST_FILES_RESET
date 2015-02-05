@@ -315,3 +315,16 @@ CO_xastpxfh.inp
 H2O_Hnopaw_pp.inp
 # BFGS fix atoms parallel bug fix + tiny improvement 
 H2O_Onopaw_gop.inp
+#change in numerics
+H2O_Onopaw_gop.inp.out
+#  
+H2O_Onopaw_gop.inp
+new defaults for preconditioner
+H2O_gpw.inp
+H2O_gpw_full_gapw.inp
+new defaults for preconditioner
+H2O_Onopaw.inp
+new defaults for preconditioner
+H2O_allnopaw.inp
+H2O_Hnopaw_pp.inp
+H2O_Onopaw_gop.inp

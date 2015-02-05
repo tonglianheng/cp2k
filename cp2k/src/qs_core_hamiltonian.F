@@ -1,6 +1,6 @@
 !i----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2014  CP2K developers group                          !
+!   Copyright (C) 2000 - 2015  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -77,6 +77,7 @@ MODULE qs_core_hamiltonian
   USE core_ae,                         ONLY: build_core_ae
   USE core_ppl,                        ONLY: build_core_ppl
   USE core_ppnl,                       ONLY: build_core_ppnl
+  USE cp_control_types,                ONLY: dft_control_type
   USE cp_dbcsr_interface,              ONLY: &
        cp_dbcsr_add, cp_dbcsr_allocate_matrix_set, cp_dbcsr_copy, &
        cp_dbcsr_deallocate_matrix_set, cp_dbcsr_init, cp_dbcsr_iterator, &
@@ -90,7 +91,6 @@ MODULE qs_core_hamiltonian
                                              cp_print_key_should_output,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE ep_qs_types,                     ONLY: ep_qs_type
   USE input_constants,                 ONLY: do_ppl_analytic,&
                                              kg_tnadd_atomic,&
                                              rel_none,&
@@ -112,13 +112,16 @@ MODULE qs_core_hamiltonian
                                              get_qs_kind_set,&
                                              qs_kind_type
   USE qs_kinetic,                      ONLY: build_kinetic_matrix
+  USE qs_ks_types,                     ONLY: qs_ks_env_type,&
+                                             set_ks_env
   USE qs_neighbor_list_types,          ONLY: neighbor_list_set_p_type
   USE qs_oce_methods,                  ONLY: build_oce_matrices
   USE qs_oce_types,                    ONLY: allocate_oce_set,&
                                              create_oce_set,&
                                              oce_matrix_type
   USE qs_overlap,                      ONLY: build_overlap_matrix
-  USE qs_rho_types,                    ONLY: qs_rho_type
+  USE qs_rho_types,                    ONLY: qs_rho_get,&
+                                             qs_rho_type
   USE scf_control_types,               ONLY: scf_control_type
   USE timings,                         ONLY: timeset,&
                                              timestop
@@ -158,8 +161,8 @@ CONTAINS
     INTEGER                                  :: handle, maxder, natom, nder, &
                                                 nders, neighbor_list_id, &
                                                 nkind, stat
-    LOGICAL :: all_potential_present, do_ep, failure, gth_potential_present, &
-      kgpot, lrigpw, ofdft, ppl_present, use_virial
+    LOGICAL :: all_potential_present, failure, gth_potential_present, kgpot, &
+      lrigpw, ofdft, ppl_present, use_virial
     REAL(KIND=dp)                            :: eps_filter, eps_fit, eps_ppnl
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
@@ -168,7 +171,7 @@ CONTAINS
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(dbcsr_distribution_obj), POINTER    :: dbcsr_dist
-    TYPE(ep_qs_type), POINTER                :: ep_qs_env
+    TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(kg_environment_type), POINTER       :: kg_env
     TYPE(lri_environment_type), POINTER      :: lri_env
     TYPE(neighbor_list_set_p_type), &
@@ -183,6 +186,7 @@ CONTAINS
       POINTER                                :: force
     TYPE(qs_kind_type), DIMENSION(:), &
       POINTER                                :: qs_kind_set
+    TYPE(qs_ks_env_type), POINTER            :: ks_env
     TYPE(qs_rho_type), POINTER               :: rho
     TYPE(scf_control_type), POINTER          :: scf_control
     TYPE(virial_type), POINTER               :: virial
@@ -217,17 +221,8 @@ CONTAINS
     NULLIFY (matrix_w)
     NULLIFY (matrix_p)
     NULLIFY (para_env)
-
-    ! is this a orbital-free method calculation
-    ofdft = qs_env%dft_control%qs_control%ofgpw
-    ! is this a LRI method calculation
-    lrigpw = qs_env%dft_control%qs_control%lrigpw
-    ! is this a KG method calculation using atomic TNADD potentials
-    IF (qs_env%dft_control%qs_control%do_kg) THEN
-       kgpot = (qs_env%kg_env%tnadd_method==kg_tnadd_atomic)
-    ELSE
-       kgpot = .FALSE.
-    END IF
+    NULLIFY (ks_env)
+    NULLIFY (dft_control)
 
     CALL get_qs_env(qs_env=qs_env,&
                     atomic_kind_set=atomic_kind_set,&
@@ -247,7 +242,21 @@ CONTAINS
                     neighbor_list_id=neighbor_list_id,&
                     scf_control=scf_control,&
                     virial=virial,&
-                    para_env=para_env,error=error)
+                    para_env=para_env,&
+                    ks_env=ks_env,&
+                    dft_control=dft_control,&
+                    error=error)
+
+    ! is this a orbital-free method calculation
+    ofdft = dft_control%qs_control%ofgpw
+    ! is this a LRI method calculation
+    lrigpw = dft_control%qs_control%lrigpw
+    ! is this a KG method calculation using atomic TNADD potentials
+    IF (dft_control%qs_control%do_kg) THEN
+       kgpot = (qs_env%kg_env%tnadd_method==kg_tnadd_atomic)
+    ELSE
+       kgpot = .FALSE.
+    END IF
 
     nkind = SIZE(atomic_kind_set)
     natom = SIZE(particle_set)
@@ -258,23 +267,10 @@ CONTAINS
     IF (calculate_forces) THEN
        nder = 1
 
-       CALL get_qs_env(qs_env=qs_env,force=force,ep_qs_env=ep_qs_env,matrix_w=matrix_w,error=error)
-
-       do_ep=ASSOCIATED(ep_qs_env)
-       IF (do_ep) do_ep=ep_qs_env%ep_active.AND.calculate_forces
+       CALL get_qs_env(qs_env=qs_env,force=force,matrix_w=matrix_w,error=error)
 
        CALL get_qs_env(qs_env=qs_env, rho=rho,error=error)
-       matrix_p => rho%rho_ao
-
-       IF (do_ep) THEN
-          IF (ASSOCIATED(ep_qs_env%dH_coeffs)) THEN
-             matrix_p => ep_qs_env%dH_coeffs
-          END IF
-          IF (ASSOCIATED(ep_qs_env%dS_coeffs)) THEN
-             matrix_w => ep_qs_env%dS_coeffs
-
-          END IF
-       END IF
+       CALL qs_rho_get(rho, rho_ao=matrix_p, error=error)
 
        !     *** If LSD, then combine alpha density and beta density to
        !     *** total density: alpha <- alpha + beta   and
@@ -292,9 +288,7 @@ CONTAINS
        END IF
     ELSE
        IF (cp_print_key_should_output(logger%iter_info,qs_env%input,&
-            "DFT%PRINT%AO_MATRICES/DERIVATIVES",error=error)/=0.OR.&
-            BTEST(cp_print_key_should_output(logger%iter_info,qs_env%input,&
-            "DFT%PRINT%OPTICAL_CONDUCTIVITY",error=error),cp_p_file)) THEN
+            "DFT%PRINT%AO_MATRICES/DERIVATIVES",error=error)/=0) THEN
           nder = 1
        ELSE
           nder = 0
@@ -304,29 +298,27 @@ CONTAINS
     IF ((cp_print_key_should_output(logger%iter_info,qs_env%input,&
          "DFT%PRINT%AO_MATRICES/OVERLAP",error=error)/=0.AND.&
          BTEST(cp_print_key_should_output(logger%iter_info,qs_env%input,&
-         "DFT%PRINT%AO_MATRICES/DERIVATIVES",error=error),cp_p_file)).OR.&
-         BTEST(cp_print_key_should_output(logger%iter_info,qs_env%input,&
-         "DFT%PRINT%OPTICAL_CONDUCTIVITY",error=error),cp_p_file)) THEN
+         "DFT%PRINT%AO_MATRICES/DERIVATIVES",error=error),cp_p_file))) THEN
        nders = 1
     END IF
 
     ! the delta pulse in the periodic case needs the momentum operator,
     ! which is equivalent to the derivative of the overlap matrix
-    IF (ASSOCIATED(qs_env%dft_control%rtp_control)) THEN
-       IF (qs_env%dft_control%rtp_control%apply_delta_pulse .AND. &
-           qs_env%dft_control%rtp_control%periodic) THEN
+    IF (ASSOCIATED(dft_control%rtp_control)) THEN
+       IF (dft_control%rtp_control%apply_delta_pulse .AND. &
+           dft_control%rtp_control%periodic) THEN
            nders = 1
        ENDIF
     ENDIF
 
     ! filter for new matrices
-    eps_filter = qs_env%dft_control%qs_control%eps_filter_matrix
+    eps_filter = dft_control%qs_control%eps_filter_matrix
 
     maxder = ncoset(nder)
 
     IF (calculate_forces) THEN
        ! S matrix
-       CALL build_overlap_matrix(qs_env,nderivative=nders,matrix_s=matrix_s,&
+       CALL build_overlap_matrix(ks_env,nderivative=nders,matrix_s=matrix_s,&
                                  matrix_name="OVERLAP MATRIX",&
                                  basis_set_id_a=use_orb_basis_set,&
                                  basis_set_id_b=use_orb_basis_set, &
@@ -335,16 +327,16 @@ CONTAINS
                                  error=error)
        ! T matrix
        IF (.NOT.ofdft) &
-          CALL build_kinetic_matrix(qs_env,matrix_t=matrix_t,&
-                                 matrix_name="KINETIC ENERGY MATRIX",&
-                                 basis_set_id=use_orb_basis_set,&
-                                 sab_nl=sab_orb,calculate_forces=.TRUE.,&
-                                 matrix_p=matrix_p(1)%matrix,&
-                                 eps_filter=eps_filter,&
-                                 error=error)
+          CALL build_kinetic_matrix(ks_env,matrix_t=matrix_t,&
+                                    matrix_name="KINETIC ENERGY MATRIX",&
+                                    basis_set_id=use_orb_basis_set,&
+                                    sab_nl=sab_orb,calculate_forces=.TRUE.,&
+                                    matrix_p=matrix_p(1)%matrix,&
+                                    eps_filter=eps_filter,&
+                                    error=error)
     ELSE
        ! S matrix
-       CALL build_overlap_matrix(qs_env,nderivative=nders,matrix_s=matrix_s,&
+       CALL build_overlap_matrix(ks_env,nderivative=nders,matrix_s=matrix_s,&
                                  matrix_name="OVERLAP MATRIX",&
                                  basis_set_id_a=use_orb_basis_set,&
                                  basis_set_id_b=use_orb_basis_set, &
@@ -352,30 +344,31 @@ CONTAINS
                                  error=error)
        ! T matrix
        IF (.NOT.ofdft) &
-          CALL build_kinetic_matrix(qs_env,matrix_t=matrix_t,&
-                                 matrix_name="KINETIC ENERGY MATRIX",&
-                                 basis_set_id=use_orb_basis_set,&
-                                 sab_nl=sab_orb,&
-                                 eps_filter=eps_filter,&
-                                 error=error)
-       IF( qs_env%dft_control%do_admm) THEN
+          CALL build_kinetic_matrix(ks_env,matrix_t=matrix_t,&
+                                    matrix_name="KINETIC ENERGY MATRIX",&
+                                    basis_set_id=use_orb_basis_set,&
+                                    sab_nl=sab_orb,&
+                                    eps_filter=eps_filter,&
+                                    error=error)
+
+       IF(dft_control%do_admm) THEN
          NULLIFY(matrix_s_aux_fit,matrix_s_aux_fit_vs_orb)
          CALL get_qs_env(qs_env=qs_env, matrix_s_aux_fit=matrix_s_aux_fit, error=error)
-         CALL build_overlap_matrix(qs_env,matrix_s=matrix_s_aux_fit,&
+         CALL build_overlap_matrix(ks_env,matrix_s=matrix_s_aux_fit,&
                                    matrix_name="AUX_FIT_OVERLAP",&
                                    basis_set_id_a=use_aux_fit_basis_set,&
                                    basis_set_id_b=use_aux_fit_basis_set, &
                                    sab_nl=sab_aux_fit,&
                                    error=error)
-         CALL set_qs_env(qs_env=qs_env,matrix_s_aux_fit=matrix_s_aux_fit,error=error)
+         CALL set_ks_env(ks_env,matrix_s_aux_fit=matrix_s_aux_fit,error=error)
          CALL get_qs_env(qs_env=qs_env, matrix_s_aux_fit_vs_orb=matrix_s_aux_fit_vs_orb, error=error)
-         CALL build_overlap_matrix(qs_env,matrix_s=matrix_s_aux_fit_vs_orb,&
+         CALL build_overlap_matrix(ks_env,matrix_s=matrix_s_aux_fit_vs_orb,&
                                    matrix_name="MIXED_OVERLAP",&
                                    basis_set_id_a=use_aux_fit_basis_set,&
                                    basis_set_id_b=use_orb_basis_set, &
                                    sab_nl=sab_aux_fit_vs_orb,&
                                    error=error)
-         CALL set_qs_env(qs_env=qs_env,matrix_s_aux_fit_vs_orb=matrix_s_aux_fit_vs_orb,error=error)
+         CALL set_ks_env(ks_env,matrix_s_aux_fit_vs_orb=matrix_s_aux_fit_vs_orb,error=error)
        END IF
     END IF
 
@@ -396,11 +389,11 @@ CONTAINS
     END IF
 
     !   *** Allocate the matrix of coefficients for one center expansions
-    IF(qs_env%dft_control%qs_control%gapw .OR. qs_env%dft_control%qs_control%gapw_xc) THEN
+    IF(dft_control%qs_control%gapw .OR. dft_control%qs_control%gapw_xc) THEN
        CALL create_oce_set(oce,error=error)
        CALL allocate_oce_set(oce,natom,nkind,maxder,error=error)
        ! force analytic ppl calcuation for GAPW methods
-       qs_env%dft_control%qs_control%do_ppl_method=do_ppl_analytic
+       dft_control%qs_control%do_ppl_method=do_ppl_analytic
     ENDIF
 
     CALL get_qs_kind_set(qs_kind_set,&
@@ -423,7 +416,7 @@ CONTAINS
 
     ! *** compute the ppl contribution to the core hamiltonian ***
     IF (ppl_present) THEN
-      IF(qs_env%dft_control%qs_control%do_ppl_method==do_ppl_analytic) THEN
+      IF(dft_control%qs_control%do_ppl_method==do_ppl_analytic) THEN
         CALL build_core_ppl(matrix_h, matrix_p, force, virial, calculate_forces, use_virial, nder,&
                     qs_kind_set, atomic_kind_set, particle_set, sab_orb, sac_ppl, error)
       END IF
@@ -436,13 +429,13 @@ CONTAINS
     END IF
 
     ! *** compute the ppnl contribution to the core hamiltonian ***
-    eps_ppnl = qs_env%dft_control%qs_control%eps_ppnl
+    eps_ppnl = dft_control%qs_control%eps_ppnl
     CALL build_core_ppnl(matrix_h, matrix_p, force, virial, calculate_forces, use_virial, nder,&
                     qs_kind_set, atomic_kind_set, particle_set, sab_orb, sap_ppnl, eps_ppnl, error)
 
     ! *** GAPW one-center-expansion (oce) matrices
-    IF(qs_env%dft_control%qs_control%gapw .OR. qs_env%dft_control%qs_control%gapw_xc) THEN
-      eps_fit  = qs_env%dft_control%qs_control%gapw_control%eps_fit
+    IF(dft_control%qs_control%gapw .OR. dft_control%qs_control%gapw_xc) THEN
+      eps_fit  = dft_control%qs_control%gapw_control%eps_fit
       IF (ASSOCIATED(sap_oce)) &
          CALL build_oce_matrices(oce%intac,calculate_forces,nder,qs_kind_set,particle_set,&
               sap_oce,eps_fit,error)
@@ -462,11 +455,12 @@ CONTAINS
     END IF
 
     ! *** Put the core Hamiltonian matrix in the QS environment ***
-    CALL set_qs_env(qs_env=qs_env,&
+    CALL set_qs_env(qs_env, oce=oce, error=error)
+    CALL set_ks_env(ks_env,&
                     matrix_s=matrix_s,&
                     kinetic=matrix_t,&
                     matrix_h=matrix_h,&
-                    oce=oce,error=error)
+                    error=error)
 
     IF(qs_env%rel_control%rel_method /= rel_none)THEN
        IF(qs_env%rel_control%rel_transformation /= rel_trans_atom)THEN
@@ -477,8 +471,7 @@ CONTAINS
     END IF
 
     ! Print matrices if requested
-    CALL dump_info_core_hamiltonian(matrix_s, matrix_t, matrix_h, &
-         qs_env, calculate_forces, para_env, error)
+    CALL dump_info_core_hamiltonian(qs_env, calculate_forces, error)
     CALL timestop(handle)
 
   END SUBROUTINE build_core_hamiltonian_matrix
@@ -538,21 +531,13 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Possibly prints matrices after the construction of the Core
 !>     Hamiltonian Matrix
-!> \param matrix_s ...
-!> \param matrix_t ...
-!> \param matrix_h ...
 !> \param qs_env ...
 !> \param calculate_forces ...
-!> \param para_env ...
 !> \param error ...
 ! *****************************************************************************
-  SUBROUTINE dump_info_core_hamiltonian(matrix_s, matrix_t, matrix_h, qs_env, &
-       calculate_forces, para_env, error)
-    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_s, matrix_t, matrix_h
+  SUBROUTINE dump_info_core_hamiltonian(qs_env, calculate_forces, error)
     TYPE(qs_environment_type), POINTER       :: qs_env
     LOGICAL, INTENT(IN)                      :: calculate_forces
-    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'dump_info_core_hamiltonian', &
@@ -560,19 +545,23 @@ CONTAINS
 
     INTEGER                                  :: handle, i, iw, output_unit
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_v
+      POINTER                                :: matrix_h, matrix_s, matrix_t, &
+                                                matrix_v
     TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(cp_para_env_type), POINTER          :: para_env
 
     CALL timeset(routineN,handle)
 
-    NULLIFY(logger, matrix_v)
+    NULLIFY(logger, matrix_v, matrix_s, matrix_t, matrix_h, para_env)
     logger => cp_error_get_logger(error)
+    CALL get_qs_env(qs_env, para_env=para_env, error=error)
 
     ! *** Print the distribution of the overlap matrix blocks ***
     ! *** this duplicates causes duplicate printing at the force calc ***
     IF (.NOT. calculate_forces) THEN
        IF (BTEST(cp_print_key_should_output(logger%iter_info,&
          qs_env%input,"PRINT%DISTRIBUTION",error=error),cp_p_file)) THEN
+           CALL get_qs_env(qs_env, matrix_s=matrix_s, error=error)
            output_unit = cp_print_key_unit_nr(logger,qs_env%input,"PRINT%DISTRIBUTION",&
                                               extension=".distribution",error=error)
            CALL cp_dbcsr_write_matrix_dist(matrix_s(1)%matrix,output_unit,para_env,error)
@@ -586,6 +575,7 @@ CONTAINS
          qs_env%input,"DFT%PRINT%AO_MATRICES/OVERLAP",error=error),cp_p_file)) THEN
        iw = cp_print_key_unit_nr(logger,qs_env%input,"DFT%PRINT%AO_MATRICES/OVERLAP",&
             extension=".Log",error=error)
+       CALL get_qs_env(qs_env, matrix_s=matrix_s, error=error)
        CALL cp_dbcsr_write_sparse_matrix(matrix_s(1)%matrix,4,6,qs_env,para_env,output_unit=iw,error=error)
        IF (BTEST(cp_print_key_should_output(logger%iter_info,qs_env%input,&
            "DFT%PRINT%AO_MATRICES/DERIVATIVES",error=error),cp_p_file)) THEN
@@ -602,6 +592,7 @@ CONTAINS
          qs_env%input,"DFT%PRINT%AO_MATRICES/KINETIC_ENERGY",error=error),cp_p_file)) THEN
        iw = cp_print_key_unit_nr(logger,qs_env%input,"DFT%PRINT%AO_MATRICES/KINETIC_ENERGY",&
             extension=".Log",error=error)
+       CALL get_qs_env(qs_env, kinetic=matrix_t, error=error)
        CALL cp_dbcsr_write_sparse_matrix(matrix_t(1)%matrix,4,6,qs_env,para_env,output_unit=iw,error=error)
        CALL cp_print_key_finished_output(iw,logger,qs_env%input,&
             "DFT%PRINT%AO_MATRICES/KINETIC_ENERGY", error=error)
@@ -612,6 +603,7 @@ CONTAINS
          qs_env%input,"DFT%PRINT%AO_MATRICES/POTENTIAL_ENERGY",error=error),cp_p_file)) THEN
        iw = cp_print_key_unit_nr(logger,qs_env%input,"DFT%PRINT%AO_MATRICES/POTENTIAL_ENERGY",&
             extension=".Log",error=error)
+       CALL get_qs_env(qs_env, kinetic=matrix_t, error=error)
        CALL cp_dbcsr_allocate_matrix_set(matrix_v,1,error=error)
        ALLOCATE(matrix_v(1)%matrix)
        CALL cp_dbcsr_init(matrix_v(1)%matrix, error=error)
@@ -630,6 +622,7 @@ CONTAINS
          qs_env%input,"DFT%PRINT%AO_MATRICES/CORE_HAMILTONIAN",error=error),cp_p_file)) THEN
        iw = cp_print_key_unit_nr(logger,qs_env%input,"DFT%PRINT%AO_MATRICES/CORE_HAMILTONIAN",&
             extension=".Log",error=error)
+       CALL get_qs_env(qs_env, matrix_h=matrix_h, error=error)
        CALL cp_dbcsr_write_sparse_matrix(matrix_h(1)%matrix,4,6,qs_env,para_env,output_unit=iw,error=error)
        CALL cp_print_key_finished_output(iw,logger,qs_env%input,&
             "DFT%PRINT%AO_MATRICES/CORE_HAMILTONIAN", error=error)

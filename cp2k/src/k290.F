@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2014  CP2K developers group                          !
+!   Copyright (C) 2000 - 2015  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -8,7 +8,7 @@
 !> \author jgh
 ! *****************************************************************************
 MODULE k290
-  USE f77_blas
+  
   USE kinds,                           ONLY: dp
   USE mathlib,                         ONLY: invmat
   USE string_utilities,                ONLY: xstring
@@ -1055,7 +1055,7 @@ CONTAINS
        f0(49,i) = i
     END DO
     DO k2 = 2, nat
-       IF (ty(1)/=ty(k2)) GO TO 100
+       IF (ty(1)/=ty(k2)) CYCLE
        DO i = 1, 3
           xb(i) = x(i,k2) - x(i,1)
        END DO
@@ -1074,7 +1074,6 @@ CONTAINS
              tvec(i,ntvec) = vr(i)
           END DO
        END IF
-100    CONTINUE
     END DO
     !------------------------------------------------------------------------------!
     DO i = 1, 3
@@ -1111,11 +1110,10 @@ CONTAINS
                    END DO
                    !               Calculate new API
                    CALL calbrec(ap,api,error)
-                   GO TO 200
+                   EXIT
                 END IF
              END IF
           END DO
-200       CONTINUE
        END DO
     END IF
   END SUBROUTINE primlatt
@@ -1206,11 +1204,11 @@ CONTAINS
                 tr = tr + ABS(vr(i))
              END DO
              !           If VR.ne.0, then XA cannot be a multiple of a lattice vector
-             IF (tr>delta) GO TO 140
+             IF (tr>delta) EXIT
           END DO
+          IF (tr>delta) CYCLE
           nc = nc + 1
           ib(nc) = n
-140       CONTINUE
        END DO
        !------------------------------------------------------------------------------!
        !       IHG stands for holohedral group number.
@@ -1417,13 +1415,16 @@ CONTAINS
        !       IMPORTANT IF NOT UNIQUE ATOMS FOR DETERMINATION OF SYMMORPHIC
        CALL checkrlv3(n,nat,ty,rx,x,vr,f0,ai,isc,nodupli,oksym,delta,error)
        IF (oksym) THEN
-          GO TO 190
+         nca = nca + 1
+         DO i = 1, 3
+           v(i,nca) = vr(i)
+         END DO
+         CYCLE
        END IF
        !       Now we try other possible VR
        !       F0(49,1:NAT) has only inequivalent atom indexes for translation
        DO k2 = 1, nat
-          IF (f0(49,k2)<k2) GO TO 185
-          IF (ty(1)/=ty(k2)) GO TO 185
+          IF (f0(49,k2)<k2.OR.ty(1)/=ty(k2)) CYCLE
           DO i = 1, 3
              xb(i) = rx(i,1) - x(i,k2)
           END DO
@@ -1439,17 +1440,15 @@ CONTAINS
           !------------------------------------------------------------------------------!
           CALL checkrlv3(n,nat,ty,rx,x,vr,f0,ai,isc,nodupli,oksym,delta,error)
           IF (oksym) THEN
-             GO TO 190
+            nca = nca + 1
+            DO i = 1, 3
+              v(i,nca) = vr(i)
+            END DO
+            EXIT
           END IF
-185       CONTINUE
        END DO
+       IF (oksym) CYCLE
        iis(l) = 0
-       GO TO 210
-190    CONTINUE
-       nca = nca + 1
-       DO i = 1, 3
-          v(i,nca) = vr(i)
-       END DO
        !------------------------------------------------------------------------------!
        !          V(I,N) IS THE I-TH COMPONENT OF THE FRACTIONAL
        !          TRANSLATION ASSOCIATED WITH THE ROTATION N.
@@ -1457,7 +1456,6 @@ CONTAINS
        !          GIVEN IN THE SYSTEM A1,A2,A3.
        !          K.K., 23. 10. 1979
        !------------------------------------------------------------------------------!
-210    CONTINUE
     END DO
     !     Remove unused operations
     i = 0
@@ -1466,14 +1464,13 @@ CONTAINS
     li = 0
     DO n = 1, nc
        l = ib(n)
-       IF (iis(l)==0) GO TO 230
+       IF (iis(l)==0) CYCLE
        i = i + 1
        ib(i) = ib(n)
        IF (ib(i)==ni) li = i
        DO k = 1, nat
           f0(i,k) = f0(n,k)
        END DO
-230    CONTINUE
     END DO
     !------------------------------------------------------------------------------!
     nc = i
@@ -1835,13 +1832,13 @@ CONTAINS
                 f0(n,ia) = ib
                 !             IR+VR is the good one: another symmetry operation
                 !             Next atom
-                GO TO 100
+                EXIT
              END IF
           END IF
        END DO
+       IF (oksym) CYCLE
        !       VR is not the correct translation vector
        RETURN
-100    CONTINUE
     END DO
   END SUBROUTINE checkrlv3
 ! *****************************************************************************
@@ -2514,14 +2511,14 @@ CONTAINS
              !           Check (PROJA - PROJB): Is it integral ?
              DO k = 1, 3
                 diff = proja(k) - projb(k)
-                IF (ABS(REAL(NINT(diff),KIND=dp)-diff)>delta) GO TO 280
+                IF (ABS(REAL(NINT(diff),KIND=dp)-diff)>delta) EXIT
              END DO
+             IF (ABS(REAL(NINT(diff),KIND=dp)-diff)>delta) CYCLE
              !           DIFF is integral: remove WVK from mesh:
              CALL remove(wvk,jplace,igarb0,igarbg,nkpoint,nhash,list,rlist, &
                   delta,error)
              !           If WVK actually removed, increment IREMOV
              IF (jplace>0) iremov = iremov + 1
-280          CONTINUE
           END DO
        END DO
        IF (iremov>0 .AND. iout>0) WRITE (iout,'(A,A,/,A,I6,A,/)') &
@@ -2535,7 +2532,7 @@ CONTAINS
     !------------------------------------------------------------------------------!
     DO iwvk = 1, imesh
        !        IF(INCLUD(IWVK) .EQ. YES) GOTO 350
-       IF (BTEST(includ(iwvk),0)) GO TO 350
+       IF (BTEST(includ(iwvk),0)) CYCLE
        !       IWVK has not been encountered previously: new special point,
        !       (only if WVK is not a garbage vector, however.)
        !        INCLUD(IWVK) = YES
@@ -2545,7 +2542,7 @@ CONTAINS
             delta,error)
        !       Find out whether Wvk is in the garbage list
        CALL garbag(wvk,igarbage,igarb0,nkpoint,nhash,list,rlist,delta,error)
-       IF (igarbage>0) GO TO 350
+       IF (igarbage>0) CYCLE
        ntot = ntot + 1
        !       Give the index in the special k points table.
        includ(iwvk) = includ(iwvk) + ntot*2
@@ -2581,7 +2578,7 @@ CONTAINS
           END IF
           !         Find out whether WVA is in the garbage list
           CALL garbag(wva,igarbage,igarb0,nkpoint,nhash,list,rlist,delta,error)
-          IF (igarbage>0) GO TO 370
+          IF (igarbage>0) CYCLE
           !         Was WVA encountered before ?
           !          IF(INCLUD(IPLACE) .EQ. YES) GOTO 364
           IF (BTEST(includ(iplace),0)) GO TO 364
@@ -2594,7 +2591,7 @@ CONTAINS
           !         Put the index of the special k-point.
           includ(iplace) = includ(iplace) + ntot*2
 364       CONTINUE
-          IF (ibsign==-1 .OR. inv==0) GO TO 370
+          IF (ibsign==-1 .OR. inv==0) CYCLE
           !         The case where we also apply the inversion to WVA
           !         Repeat the search, but for -WVA
           ibsign = -1
@@ -2602,9 +2599,7 @@ CONTAINS
              wva(i) = -wva(i)
           END DO
           GO TO 363
-370       CONTINUE
        END DO
-350    CONTINUE
     END DO
     !------------------------------------------------------------------------------!
     !        TOTAL NUMBER OF SPECIAL POINTS: NTOT
@@ -2774,16 +2769,16 @@ CONTAINS
        !        Return a wavevector (IPLACE > 0)
        !------------------------------------------------------------------------------!
        ipoint = iplace
-       IF (ipoint>=istore) GO TO 190
-       DO i = 1, 3
-          wvk(i) = rlist(i,ipoint)
-       END DO
-       RETURN
+       IF (ipoint<istore) THEN
+          DO i = 1, 3
+             wvk(i) = rlist(i,ipoint)
+          END DO
+          RETURN
+       ENDIF
     END IF
     !------------------------------------------------------------------------------!
     !        Error - beyond list
     !------------------------------------------------------------------------------!
-190 CONTINUE
     IF (iout>0) WRITE (iout,'(A,/,A,I5,A,/)') &
          ' SUBROUTINE MESH *** WARNING ***', ' IPLACE = ', iplace, &
          ' IS BEYOND THE LISTS - WVK SET TO 1.0E38'
@@ -2849,8 +2844,14 @@ CONTAINS
        END IF
        !       Compare WVK with this element
        DO j = 1, 3
-          IF (ABS(wvk(j)-rlist(j,ipoint))>delta1) GO TO 215
+          IF (ABS(wvk(j)-rlist(j,ipoint))>delta1) EXIT
        END DO
+       IF (ABS(wvk(j)-rlist(j,ipoint))>delta1) THEN
+         !       Next element of list
+         ihash = ipoint
+         ipoint = list(ihash)
+         CYCLE
+       ENDIF
        !       WVK located, now remove it from the list:
        list(ihash) = list(ipoint)
        !       LIST(IHASH) now points to the next element in the list,
@@ -2866,10 +2867,6 @@ CONTAINS
        list(igarbg) = nil
        iplace = 1
        RETURN
-       !       Next element of list
-215    CONTINUE
-       ihash = ipoint
-       ipoint = list(ihash)
     END DO
     !     List too long
     CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
@@ -2926,15 +2923,17 @@ CONTAINS
        END IF
        !       Compare WVK with this element
        DO j = 1, 3
-          IF (ABS(wvk(j)-rlist(j,ipoint))>delta1) GO TO 315
+          IF (ABS(wvk(j)-rlist(j,ipoint))>delta1) THEN
+             !       Next element of list
+             ihash = ipoint
+             ipoint = list(ihash)
+             EXIT
+          ENDIF
        END DO
        !       WVK was located in the garbage list
        iplace = i
        RETURN
-       !       Next element of list
-315    CONTINUE
-       ihash = ipoint
-       ipoint = list(ihash)
+
     END DO
     !     List too long
     CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
@@ -3006,7 +3005,14 @@ CONTAINS
                 wva(i) = wvk(i) + REAL(i1,KIND=dp)*b1(i) + REAL(i2,KIND=dp)*b2(i) + &
                      REAL(i3,kind=dp)*b3(i)
              END DO
-             IF (inbz(wva,rsdir,nrsdir,nplane,delta)==yes) GO TO 210
+             IF (inbz(wva,rsdir,nrsdir,nplane,delta)==yes) THEN
+             !------------------------------------------------------------------------------!
+             !     The reduced vector
+                DO i = 1, 3
+                   wvk(i) = wva(i)
+                END DO
+                RETURN
+             ENDIF
           END DO
        END DO
     END DO
@@ -3015,12 +3021,7 @@ CONTAINS
     WRITE (*,'(A,/,A,3F10.4,A)') ' SUBROUTINE BZRDUC *** FATAL ERROR ***', &
          ' WAVEVECTOR ', wvk, ' COULD NOT BE REDUCED TO THE 1BZ'
     CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
-    !------------------------------------------------------------------------------!
-    !     The reduced vector
-210 CONTINUE
-    DO i = 1, 3
-       wvk(i) = wva(i)
-    END DO
+
   END SUBROUTINE bzrduc
 ! *****************************************************************************
 !> \brief ...
@@ -3029,6 +3030,7 @@ CONTAINS
 !> \param nrsdir ...
 !> \param nplane ...
 !> \param delta ...
+!> \retval inbz ...
 !> \par Original Header
 !>         IS WVK IN THE 1ST BRILLOUIN ZONE ?
 !>         CHECK WHETHER WVK LIES INSIDE ALL THE PLANES
@@ -3143,7 +3145,7 @@ CONTAINS
           i2 = nb2 + 1 - n2
           DO n3 = 1, nnb3
              i3 = nb3 + 1 - n3
-             IF (i1==0 .AND. i2==0 .AND. i3==0) GO TO 150
+             IF (i1==0 .AND. i2==0 .AND. i3==0) CYCLE
              DO i = 1, 3
                 bvec(i) = REAL(i1,KIND=dp)*b1(i) + REAL(i2,KIND=dp)*b2(i) + &
                      REAL(i3,KIND=dp)*b3(i)
@@ -3155,18 +3157,27 @@ CONTAINS
                 !             1/2*BVEC is outside the Bz - skip this direction
                 !             The 1.0E-6_dp takes care of single points touching the Bz,
                 !             and of the -(plane)
-                IF (ABS(projct)>0.5E0_dp-delta) GO TO 150
+                IF (ABS(projct)>0.5E0_dp-delta) EXIT
              END DO
+             IF (ABS(projct)>0.5E0_dp-delta) CYCLE
              !           1/2*BVEC further confines the 1Bz - include into RSDIR
              nplane = nplane + 1
              !           PRINT *,NPLANE,' PLANE INCLUDED, I1,2,3 = ',I1,I2,I3
-             IF (nplane>nrsdir) GO TO 470
+             IF (nplane>nrsdir) THEN
+                !------------------------------------------------------------------------------!
+                !     Error messages
+                IF (iout>0) THEN
+                   WRITE (iout,'(A)') ' SUBROUTINE BZDEFI *** FATAL ERROR ***'
+                   WRITE (iout,'(" TOO MANY PLANES, NRSDIR = ",I5)') nrsdir
+                END IF
+                CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
+                RETURN
+             ENDIF
              DO i = 1, 3
                 rsdir(i,nplane) = bvec(i)
              END DO
              !           Length squared
              rsdir(4,nplane) = bvec(1)**2 + bvec(2)**2 + bvec(3)**2
-150          CONTINUE
           END DO
        END DO
     END DO
@@ -3176,15 +3187,7 @@ CONTAINS
          ' THE 1ST BRILLOUIN ZONE IS CONFINED BY (AT MOST)', nplane, &
          ' PLANES', ' AS DEFINED BY THE +/- HALVES OF THE VECTORS:', &
          ((rsdir(i,n),i=1,3),n=1,nplane)
-    RETURN
-    !------------------------------------------------------------------------------!
-    !     Error messages
-470 CONTINUE
-    IF (iout>0) THEN
-       WRITE (iout,'(A)') ' SUBROUTINE BZDEFI *** FATAL ERROR ***'
-       WRITE (iout,'(" TOO MANY PLANES, NRSDIR = ",I5)') nrsdir
-    END IF
-    CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
+
   END SUBROUTINE bzdefi
 
 END MODULE k290
