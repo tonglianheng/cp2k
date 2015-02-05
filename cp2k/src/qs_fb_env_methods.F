@@ -200,6 +200,8 @@ CONTAINS
 
 !BEG:DEBUG:LT:2015/01/29
     INTEGER :: LT_UNIT
+    ! INTEGER, DIMENSION(:), POINTER :: nfunctions
+    ! INTEGER, DIMENSION(:,:), POINTER :: functions
 !END:DEBUG:LT:2015/01/29
 
     failure = .FALSE.
@@ -316,6 +318,16 @@ CONTAINS
                     trial_fns=trial_fns, &
                     error=error)
 
+
+!BEG:DEBUG:LT:2015/02/05
+    ! CALL fb_trial_fns_get(trial_fns, nfunctions=nfunctions, functions=functions, error=error)
+    ! write (LT_UNIT,*) "|LT| fb_env_do_diag: nfunctions = ", nfunctions
+    ! write (LT_UNIT,*) "|LT| fb_env_do_diag: functions: "
+    ! DO ispin = 1, SIZE(nfunctions)
+    !    write (LT_UNIT,*) functions(:,ispin)
+    ! END DO
+!END:DEBUG:LT:2015/02/05
+
     ! allocate filter matrix (matrix_filter(ispin)%matrix are
     ! nullified by cp_dbcsr_allocate_matrix_set)
     CALL cp_dbcsr_allocate_matrix_set(matrix_filter, nspin, error)
@@ -339,7 +351,7 @@ CONTAINS
        NULLIFY(matrix_s_desymm%matrix)
        ALLOCATE(matrix_s_desymm%matrix)
        CALL cp_dbcsr_init(matrix_s_desymm%matrix, error)
-       CALL cp_dbcsr_desymmetrize(matrix_s(ispin)%matrix, matrix_s_desymm%matrix, error)
+       CALL cp_dbcsr_desymmetrize(matrix_s(1)%matrix, matrix_s_desymm%matrix, error)
        ! ----------------------------------------------------------------------
 
        ! get filter matrix name
@@ -680,7 +692,10 @@ CONTAINS
                               0.0_dp, matrix_tmp, error=error)
        CALL cp_dbcsr_multiply("N", "T", 1.0_dp, &
                               matrix_tmp, matrix_filter(ispin)%matrix, &
-                              0.0_dp, scf_env%p_mix_new(ispin)%matrix, error=error)
+                              0.0_dp, scf_env%p_mix_new(ispin)%matrix, &
+                              retain_sparsity=.TRUE., error=error)
+       ! note that we want to retain the sparse structure of
+       ! scf_env%p_mix_new
 
 !BEG:DEBUG:LT:2015/02/02
        ! write (LT_UNIT,*) "|LT| fb_env_do_diag: after update density: scf_env%p_mix_new: (DBCSR)"
@@ -1330,6 +1345,16 @@ CONTAINS
 !BEG:DEBUG:LT:2015/01/20
     ! write (LT_UNIT,*) "|LT| fb_env_build_trial_fns_auto: trial_functions = ", functions
 !END:DEBUG:LT:2015/01/20
+
+!BEG:DEBUG:LT:2015/02/05
+    ! nfunctions(:) = 13
+    ! DEALLOCATE(functions)
+    ! ALLOCATE(functions(13,nkinds))
+    ! DO iset = 1, 13
+    !    functions(iset,:) = iset
+    ! END DO
+!END:DEBUG:LT:2015/02/05
+
 
     ! set trial_functions
     CALL fb_trial_fns_set(trial_fns=trial_fns, &

@@ -971,7 +971,6 @@ CONTAINS
   END SUBROUTINE fb_fltrmat_generate_com_pairs
 
 
-
   ! **********************************************************************
   !> \brief Build the atomic filter matrix for each atomic halo
   !> \param atomic_H : atomic KS matrix
@@ -1195,6 +1194,16 @@ CONTAINS
     !    write (LT_UNIT,fmt=fmt) atomic_filter_mat(ii,:)
     ! END DO
 !END:DEBUG:LT:2015/01/26
+
+    ! remove small negative terms due to numerical error, the filter
+    ! matrix must not be negative definite
+    DO jj = 1, SIZE(atomic_filter_mat,2)
+       DO ii = 1, SIZE(atomic_filter_mat,1)
+          IF (ABS(atomic_filter_mat(ii,jj)) < EPSILON(0.0_dp)) THEN
+             atomic_filter_mat(ii,jj) = 0.0_dp
+          END IF
+       END DO
+    END DO
 
     DEALLOCATE(filtered_eigenvectors, STAT=stat)
     CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)

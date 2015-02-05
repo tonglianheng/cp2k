@@ -586,11 +586,6 @@ CONTAINS
          CALL section_vals_val_get(smear_section,"ELECTRONIC_TEMPERATURE",&
                                    r_val=smear%electronic_temperature,&
                                    error=error)
-
-!BEG:DEBUG:LT:2015/02/04
-    print *, "|LT| smear%electronic_temperature = ", smear%electronic_temperature
-!END:DEBUG:LT:2015/02/04
-
          CALL section_vals_val_get(smear_section,"EPS_FERMI_DIRAC",&
                                    r_val=smear%eps_fermi_dirac,&
                                    error=error)
