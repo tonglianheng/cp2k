@@ -1010,7 +1010,8 @@ CONTAINS
                                    routineP = moduleN//':'//routineN
 
     LOGICAL :: failure, check_ok
-    INTEGER :: stat, info, mat_dim, work_array_size, ii, jj, handle
+    INTEGER :: stat, info, mat_dim, work_array_size, ii, jj, handle, &
+               handle_dsygv, handle_dgemm
     REAL(KIND=dp), DIMENSION(:), ALLOCATABLE :: filter_function, &
                                                 eigenvalues, work
     REAL(KIND=dp), DIMENSION(:,:), ALLOCATABLE :: filtered_eigenvectors, &
@@ -1059,6 +1060,9 @@ CONTAINS
     ALLOCATE(eigenvectors(SIZE(atomic_H,1),SIZE(atomic_H,2)), STAT=stat)
     CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
     eigenvectors = atomic_H
+
+    CALL timeset("atomic_filter: dsygv", handle_dsygv)
+
     CALL dsygv(1,             &
                'V',           &
                'U',           &
@@ -1099,6 +1103,8 @@ CONTAINS
        CPErrorMessage(cp_failure_level, routineP, "DSYGV failed", error)
        CPPrecondition(.FALSE., cp_failure_level, routineP, error, failure)
     END IF
+
+    CALL timestop(handle_dsygv)
 
     DEALLOCATE(work, STAT=stat)
     CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
@@ -1184,6 +1190,8 @@ CONTAINS
     DEALLOCATE(filter_function, STAT=stat)
     CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
 
+    CALL timeset("atomic_filter: dgemm", handle_dgemm)
+
     ! construct atomic filter matrix
     CALL dgemm("N",                   &
                "T",                   &
@@ -1198,6 +1206,8 @@ CONTAINS
                0.0_dp,                &
                atomic_filter_mat,     &
                mat_dim)
+
+    CALL timestop(handle_dgemm)
 
 !BEG:DEBUG:LT:2015/01/26
     ! write (LT_UNIT, *) "|LT| fb_fltrmat_build_atomic_fltrmat: atomic_filter_mat = "

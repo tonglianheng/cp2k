@@ -110,8 +110,8 @@ MODULE qs_scf_initialization
                                              fb_env_has_data
   USE qs_fb_env_methods,               ONLY: fb_env_read_input, &
                                              fb_env_write_info, &
-                                             fb_env_build_rcut_auto
-
+                                             fb_env_build_rcut_auto, &
+                                             fb_env_build_atomic_halos
 
 #include "./common/cp_common_uses.f90"
 
@@ -126,7 +126,7 @@ MODULE qs_scf_initialization
 CONTAINS
 
 ! *****************************************************************************
-!> \brief initializes input parameters if needed or restores values from 
+!> \brief initializes input parameters if needed or restores values from
 !>        previous runs to fill scf_env with the values required for scf
 !> \param qs_env the qs_environment where to perform the scf procedure
 !> \param scf_env ...
@@ -156,7 +156,7 @@ CONTAINS
 
     CALL get_qs_env(qs_env,error=error,input=input, rho=rho,&
                        dft_control=dft_control)
-    
+
     IF(PRESENT(scf_control)) THEN
       my_scf_control => scf_control
     ELSE
@@ -182,7 +182,7 @@ CONTAINS
     ! set parameters for mixing/DIIS during scf
     CALL qs_scf_ensure_mixing(my_scf_control,my_scf_section,scf_env,dft_control,error=error)
 
-    CALL qs_scf_ensure_work_matrices(qs_env,scf_env,error=error)    
+    CALL qs_scf_ensure_work_matrices(qs_env,scf_env,error=error)
 
     CALL qs_scf_ensure_mixing_store(qs_env,scf_env,error=error)
 
@@ -267,7 +267,7 @@ CONTAINS
        ALLOCATE(scf_env%outer_scf%energy(nhistory),STAT=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     ENDIF
- 
+
   END SUBROUTINE qs_scf_ensure_outer_loop_vars
 
 ! *****************************************************************************
@@ -289,7 +289,7 @@ CONTAINS
     NULLIFY(dft_control)
     CALL get_qs_env(qs_env=qs_env,dft_control=dft_control,&
                     error=error)
- 
+
     IF (scf_env%mixing_method>0) THEN
       CALL mixing_allocate(qs_env,scf_env,dft_control%nspins,error=error)
     ELSE
@@ -446,7 +446,7 @@ CONTAINS
   END SUBROUTINE qs_scf_ensure_work_matrices
 
 ! *****************************************************************************
-!> \brief performs allocation of the MO matrices  
+!> \brief performs allocation of the MO matrices
 !> \param qs_env ...
 !> \param scf_env ...
 !> \param error ...
@@ -624,7 +624,7 @@ CONTAINS
   END SUBROUTINE qs_scf_ensure_mos
 
 ! *****************************************************************************
-!> \brief sets flag for mixing/DIIS during scf 
+!> \brief sets flag for mixing/DIIS during scf
 !> \param scf_control ...
 !> \param scf_section ...
 !> \param scf_env ...
@@ -695,7 +695,7 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief sets flags for diagonalization and ensure that everything is
-!>        allocated  
+!>        allocated
 !> \param scf_env ...
 !> \param scf_section ...
 !> \param qs_env ...
@@ -731,7 +731,7 @@ CONTAINS
     scf_env%needs_ortho=.FALSE.
 
     IF (scf_control%use_diag) THEN
-! sanity check whether combinations are allowed
+      ! sanity check whether combinations are allowed
       CALL cp_assert(.NOT.dft_control%restricted,cp_failure_level,cp_assertion_failed,&
             routineP,"OT only for restricted (ROKS)",error,failure)
       SELECT CASE (scf_control%diagonalization%method)
@@ -741,19 +741,14 @@ CONTAINS
       END SELECT
       SELECT CASE (scf_control%diagonalization%method)
 
-!BEG:DEBUG:LT:2015/01/10
-         
-!END:DEBUG:LT:2015/01/10
-
-
-! Diagonalization: additional check whether we are in an orthonormal basis
+      ! Diagonalization: additional check whether we are in an orthonormal basis
       CASE(diag_standard)
         scf_env%method=general_diag_method_nr
         scf_env%needs_ortho = (.NOT.has_unit_metric) .AND. (.NOT.do_kpoints)
         IF (has_unit_metric) THEN
             scf_env%method=special_diag_method_nr
         END IF
-! OT Diagonalization: not possible with ROKS
+      ! OT Diagonalization: not possible with ROKS
       CASE ( diag_ot )
         CALL cp_assert(.NOT.(dft_control%roks),cp_failure_level,cp_assertion_failed,&
               routineP,"ROKS with OT diagonalization not possible",error,failure)
@@ -763,7 +758,7 @@ CONTAINS
          need_coeff_b=.TRUE.
       ! Block Krylov diagonlization: not possible with ROKS,
       ! allocation of additional matrices is needed
-      CASE ( diag_block_krylov ) 
+      CASE ( diag_block_krylov )
          CALL cp_assert(.NOT.(dft_control%roks),cp_failure_level,cp_assertion_failed,&
               routineP,"ROKS with block PF diagonalization not possible",error,failure)
          CALL cp_assert(.NOT.do_kpoints,cp_failure_level,cp_assertion_failed,&
@@ -795,6 +790,7 @@ CONTAINS
          END IF
          CALL fb_env_read_input(scf_env%filter_matrix_env, scf_section, error=error)
          CALL fb_env_build_rcut_auto(scf_env%filter_matrix_env, qs_env, error=error)
+         CALL fb_env_build_atomic_halos(scf_env%filter_matrix_env, qs_env, error=error)
          CALL fb_env_write_info(scf_env%filter_matrix_env, qs_env, scf_section, error=error)
       CASE DEFAULT
          CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
@@ -833,7 +829,7 @@ CONTAINS
  END SUBROUTINE qs_scf_ensure_diagonalization
 
 ! *****************************************************************************
-!> \brief computes properties for a given hamilonian using the current wfn 
+!> \brief computes properties for a given hamilonian using the current wfn
 !> \param qs_env ...
 !> \param dft_section ...
 !> \param error ...
@@ -1113,7 +1109,7 @@ CONTAINS
                     dft_control=dft_control,&
                     para_env=para_env,&
                     error=error)
- 
+
     IF (.NOT.failure) THEN
        extrapolation_method_nr=wfi_use_guess_method_nr
        IF (ASSOCIATED(qs_env%wf_history)) THEN
@@ -1181,4 +1177,4 @@ CONTAINS
 
   END SUBROUTINE scf_env_initial_rho_setup
 
-END MODULE qs_scf_initialization 
+END MODULE qs_scf_initialization

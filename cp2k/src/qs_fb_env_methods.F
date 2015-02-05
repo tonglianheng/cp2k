@@ -310,9 +310,7 @@ CONTAINS
                     filter_temperature=filter_temp, &
                     error=error)
 
-    ! construct atomic halos: atomic halos should be constructed
-    ! here because atoms would have moved at every MD step.
-    CALL fb_env_build_atomic_halos(fb_env, qs_env, error)
+    ! get atomic halos
     CALL fb_env_get(fb_env=fb_env, &
                     atomic_halos=atomic_halos, &
                     error=error)
