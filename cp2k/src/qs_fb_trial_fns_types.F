@@ -1,5 +1,5 @@
 MODULE qs_fb_trial_fns_types
-  
+
   USE kinds, ONLY: dp
   USE qs_integral_utils, ONLY: basis_set_list_setup
   USE qs_kind_types,     ONLY: qs_kind_type
@@ -29,24 +29,49 @@ MODULE qs_fb_trial_fns_types
             fb_trial_fns_init, &
             fb_trial_fns_get, &
             fb_trial_fns_set
-  
+
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_fb_trial_fns_types'
   INTEGER, PRIVATE, SAVE :: last_fb_trial_fns_id = 0
 
+  ! **********************************************************************
+  !> \brief data containing information on trial functions used by filter
+  !>        matrix diagonalisation method
+  !> \param nfunctions : nfunctions(ikind) = number of trial functions for
+  !>                     atomic kind ikind
+  !> \param functions  : functions(itrial,ikind) = the index of the
+  !>                     GTO atomic orbital corresponding to itrial-th trial
+  !>                     function for kind ikind
+  !> \param id_nr      : unique id for the object
+  !> \param ref_count  : reference counter for the object
+  !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
+  ! **********************************************************************
   TYPE fb_trial_fns_data
      INTEGER :: id_nr, ref_count
      INTEGER, DIMENSION(:), POINTER :: nfunctions
      INTEGER, DIMENSION(:,:), POINTER :: functions
   END type fb_trial_fns_data
-  
+
+
+  ! **********************************************************************
+  !> \brief the object container which allows for the creation of an array
+  !>        of pointers to fb_trial_fns objects
+  !> \param obj : pointer to the fb_trial_fns object
+  !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
+  ! **********************************************************************
   TYPE fb_trial_fns_obj
      TYPE(fb_trial_fns_data), POINTER, PRIVATE :: obj
   END type fb_trial_fns_obj
 
 
 CONTAINS
-  
-  
+
+
+  ! **********************************************************************
+  !> \brief retains given object
+  !> \param trial_fns : the fb_trial_fns object in question
+  !> \param error : cp2k error container
+  !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
+  ! **********************************************************************
   SUBROUTINE fb_trial_fns_retain(trial_fns, error)
     ! note INTENT(in) is okay because the obj pointer contained in the
     ! obj type will not be changed
@@ -67,6 +92,12 @@ CONTAINS
   END SUBROUTINE fb_trial_fns_retain
 
 
+  ! **********************************************************************
+  !> \brief releases given object
+  !> \param trial_fns : the fb_trial_fns object in question
+  !> \param error : cp2k error container
+  !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
+  ! **********************************************************************
   SUBROUTINE fb_trial_fns_release(trial_fns, error)
     TYPE(fb_trial_fns_obj), INTENT(inout) :: trial_fns
     TYPE(cp_error_type), INTENT(inout) :: error
@@ -100,7 +131,12 @@ CONTAINS
   END SUBROUTINE fb_trial_fns_release
 
 
-  
+  ! **********************************************************************
+  !> \brief nullifies the content of given object
+  !> \param trial_fns : the fb_trial_fns object in question
+  !> \param error : cp2k error container
+  !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
+  ! **********************************************************************
   SUBROUTINE fb_trial_fns_nullify(trial_fns)
     TYPE(fb_trial_fns_obj), INTENT(inout) :: trial_fns
 
@@ -111,7 +147,13 @@ CONTAINS
   END SUBROUTINE fb_trial_fns_nullify
 
 
-
+  ! **********************************************************************
+  !> \brief associates the content of an object to that of another object
+  !>        of the same type
+  !> \param a : the output object
+  !> \param b : the input object
+  !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
+  ! **********************************************************************
   SUBROUTINE fb_trial_fns_associate(a, b)
     TYPE(fb_trial_fns_obj), INTENT(in) :: b
     TYPE(fb_trial_fns_obj), INTENT(out) :: a
@@ -123,7 +165,12 @@ CONTAINS
   END SUBROUTINE fb_trial_fns_associate
 
 
-
+  ! **********************************************************************
+  !> \brief check if the object has data associated to it
+  !> \param trial_fns : the fb_trial_fns object in question
+  !> \param error : cp2k error container
+  !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
+  ! **********************************************************************
   FUNCTION fb_trial_fns_has_data(trial_fns) RESULT(res)
     TYPE(fb_trial_fns_obj), INTENT(in) :: trial_fns
     LOGICAL :: res
@@ -135,7 +182,12 @@ CONTAINS
   END FUNCTION fb_trial_fns_has_data
 
 
-
+  ! **********************************************************************
+  !> \brief creates an fb_trial_fns object and initialises it
+  !> \param trial_fns : the fb_trial_fns object in question
+  !> \param error : cp2k error container
+  !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
+  ! **********************************************************************
   SUBROUTINE fb_trial_fns_create(trial_fns, error)
     TYPE(fb_trial_fns_obj), INTENT(inout) :: trial_fns
     TYPE(cp_error_type), INTENT(inout) :: error
@@ -160,7 +212,12 @@ CONTAINS
   END SUBROUTINE fb_trial_fns_create
 
 
-
+  ! **********************************************************************
+  !> \brief initialises an fb_trial_fns object
+  !> \param trial_fns : the fb_trial_fns object in question
+  !> \param error : cp2k error container
+  !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
+  ! **********************************************************************
   SUBROUTINE fb_trial_fns_init(trial_fns, error)
     TYPE(fb_trial_fns_obj), INTENT(in) :: trial_fns
     TYPE(cp_error_type), INTENT(inout) :: error
@@ -189,6 +246,14 @@ CONTAINS
   END SUBROUTINE fb_trial_fns_init
 
 
+  ! **********************************************************************
+  !> \brief get values of the attributes of a fb_trial_fns object
+  !> \param trial_fns  : the fb_trial_fns object in question
+  !> \param nfunctions : outputs pointer to trial_fns%obj%nfunctions
+  !> \param functions  : outputs pointer to trial_fns%obj%functions
+  !> \param error : cp2k error container
+  !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
+  ! **********************************************************************
   SUBROUTINE fb_trial_fns_get(trial_fns, &
                               nfunctions, &
                               functions, &
@@ -212,6 +277,14 @@ CONTAINS
   END SUBROUTINE fb_trial_fns_get
 
 
+  ! **********************************************************************
+  !> \brief sets the attributes of a fb_trial_fns object
+  !> \param trial_fns  : the fb_trial_fns object in question
+  !> \param nfunctions : associates trial_fns%obj%nfunctions to this pointer
+  !> \param functions  : associates trial_fns%obj%nfunctions to this pointer
+  !> \param error : cp2k error container
+  !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
+  ! **********************************************************************
   SUBROUTINE fb_trial_fns_set(trial_fns, &
                               nfunctions, &
                               functions, &
@@ -246,139 +319,5 @@ CONTAINS
        END IF
     END IF
   END SUBROUTINE fb_trial_fns_set
-
-
-  ! SUBROUTINE fb_trial_fns_construct(trial_fns, basis_set_id, qs_kind_set, nelectrons, max_occ, error)
-  !   TYPE(fb_trial_fns_obj), INTENT(in) :: trial_fns
-  !   INTEGER, INTENT(in) :: basis_set_id
-  !   TYPE(qs_kind_type), DIMENSION(:), POINTER :: qs_kind_set
-  !   INTEGER, INTENT(in) :: nelectrons
-  !   REAL(KIND=dp), INTENT(in) :: max_occ
-  !   TYPE(cp_error_type), INTENT(inout) :: error
-
-  !   CHARACTER(len=*), PARAMETER :: routineN = 'fb_trial_fns_construct', &
-  !                                  routineP = moduleN//':'//routineN
-
-  !   LOGICAL :: failure
-  !   TYPE(gto_basis_set_p_type), DIMENSION(:), POINTER :: basis_set_list
-  !   TYPE(gto_basis_set_type), POINTER :: basis_set
-  !   INTEGER :: ikind, nkinds, z, icgf, itrial, max_n_trial, counter, stat
-  !   INTEGER, DIMENSION(:), POINTER :: nfunctions
-  !   INTEGER, DIMENSION(:,:), POINTER :: functions
-  !   REAL(KIND=dp), POINTER :: nelec_float
-
-  !   NULLIFY(nfunctions)
-
-  !   nkinds = SIZE(qs_kind_set)
-  !   nelec_float = REAL(nelectrons, dp)
-
-  !   ALLOCATE(nfunctions(nkinds), STAT=stat)
-  !   CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
-
-  !   ALLOCATE(basis_set_list(nkinds), STAT=istat)
-  !   CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-  !   CALL basis_set_list_setup(basis_set_list, basis_set_id, qs_kind_set)
-
-  !   DO ikind = 1, nkinds
-  !      CALL get_atomic_kind(atomic_kind=atomic_kind_set(ikind), &
-  !                           z=z)
-  !      ! "gto = gaussian type orbital"
-  !      basis_set => basis_set_list(ikind)%gto_basis_set
-  !      CALL get_gto_basis_set(gto_basis_set=basis_set, &
-  !                             nset=nset, &
-  !                             lmax=lmax)
-  !      basis_set: DO iset = 1, nset
-  !         old_lshell = lmax
-  !         DO ishell = 1, nshell(iset)
-  !            lshell = gto_basis_set%l(ishell,iset)
-  !            counter = 0
-  !            ! loop over orbitals within the same l
-  !            DO ico = ncoset(lshell-1)+1, ncoset(lshell)
-  !               counter = counter + 1
-  !               ! only include the first zeta orbitals
-  !               IF (counter .LE. nco(lshell)) THEN
-  !                  nfunctions(ikind) = nfunctions(ikind) + 1
-  !               END IF
-  !            END DO
-  !            ! we have got enough trial functions when we have more
-  !            ! basis functions than the number of electrons (obtained
-  !            ! from atomic z), AND that that we have included all the
-  !            ! first zeta orbitals of an angular momentum quantum
-  !            ! number l
-  !            IF (((lshell .GT. old_lshell) .OR. (lshell .EQ. lmax)) .AND. &
-  !                (max_occ * nfunctions(ikind) .GE. nelec_float)) THEN
-  !               EXIT basis_set
-  !            END IF
-  !            old_lshell = lshell
-  !         END DO
-  !      END DO basis_set
-  !   END DO ! ikind  
-
-  !   ! now that we have the number of trial functions get the trial
-  !   ! functions
-  !   max_n_trial = MAXVAL(nfunctions)
-  !   ALLOCATE(functions(max_n_trial,nkinds), STAT=stat)
-  !   CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-  !   functions(:,:) = 0
-  !   ! redo the loops to get the trial function indices within the basis set
-  !   DO ikind = 1, nkinds
-  !      CALL get_atomic_kind(atomic_kind=atomic_kind_set(ikind), &
-  !                           z=z)
-  !      ! "gto = gaussian type orbital"
-  !      basis_set => basis_set_list(ikind)%gto_basis_set
-  !      CALL get_gto_basis_set(gto_basis_set=gto_basis_set, &
-  !                             nset=nset, &
-  !                             lmax=lmax)
-  !      icgf = 0
-  !      basis_set: DO iset = 1, nset
-  !         old_lshell = lmax
-  !         DO ishell = 1, nshell(iset)
-  !            lshell = gto_basis_set%l(ishell,iset)
-  !            counter = 0
-  !            ! loop over orbitals within the same l
-  !            DO ico = ncoset(lshell-1)+1, ncoset(lshell)
-  !               icgf = icgf + 1
-  !               counter = counter + 1
-  !               ! only include the first zeta orbitals
-  !               IF (counter .LE. nco(lshell)) THEN
-  !                  itrial = itrial + 1
-  !                  functions(itrial,ikind) = icgf
-  !               END IF
-  !            END DO
-  !            ! we have got enough trial functions when we have more
-  !            ! basis functions than the number of electrons (obtained
-  !            ! from atomic z), AND that that we have included all the
-  !            ! first zeta orbitals of an angular momentum quantum
-  !            ! number l
-  !            IF (((lshell .GT. old_lshell) .OR. &
-  !                 (lshell .EQ. lmax)) .AND. &
-  !                (nfunctions(ikind) .GE. z)) THEN
-  !               EXIT basis_set
-  !            END IF
-  !            old_lshell = lshell
-  !         END DO
-  !      END DO basis_set
-  !   END DO ! ikind  
-
-  !   ! set trial_functions
-  !   CALL fb_trial_fns_set(trial_fns=trial_fns, &
-  !                         nfunctions=nfunctions, &
-  !                         functions=functions, &
-  !                         error=error)
-
-  !   ! cleanup
-  !   DEALLOCATE(basis_set_list, STAT=stat)
-  !   CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-
-  ! END SUBROUTINE fb_trial_fns_construct
-
-
-  ! FUNCTION fb_trial_fns_calc_gto_radius(gto_basis_set, l, threshold, epsin) RESULT(radius)
-
-  !   DO ipgf = npgf
-  !      radius = MAX(radius, exp_radius(l, alpha(ipgf), threshold, contract_coeff(ipgf), espin))
-  !   END DO
-    
-  ! END FUNCTION fb_trial_fns_calc_gto_radius
 
 END MODULE qs_fb_trial_fns_types
