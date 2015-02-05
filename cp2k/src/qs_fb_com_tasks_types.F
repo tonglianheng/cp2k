@@ -766,9 +766,9 @@ CONTAINS
     CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
 
 !BEG:DEBUG:LT:2015/01/20
-    write (LT_UNIT,*) "size(send_buf) = ", SIZE(send_buf)
-    write (LT_UNIT,*) "ntasks_in = ", ntasks_in
-    write (LT_UNIT,*) "size(tasks_in) = ", SIZE(tasks_in)
+    ! write (LT_UNIT,*) "size(send_buf) = ", SIZE(send_buf)
+    ! write (LT_UNIT,*) "ntasks_in = ", ntasks_in
+    ! write (LT_UNIT,*) "size(tasks_in) = ", SIZE(tasks_in)
 !END:DEBUG:LT:2015/01/20
 
     ! first count how many local recv/send tasks need to be sent to
@@ -780,14 +780,14 @@ CONTAINS
        rank = tasks_in(rank_pos,itask) + 1
 
 !BEG:DEBUG:LT:2015/01/20
-       write (LT_UNIT,*) "itask, rank", itask, rank
+       ! write (LT_UNIT,*) "itask, rank", itask, rank
 !END:DEBUG:LT:2015/01/20
 
        send_buf(rank) = send_buf(rank) + 1
     END DO
 
 !BEG:DEBUG:LT:2015/01/20
-    write (LT_UNIT,*) "send_buf = ", send_buf
+    ! write (LT_UNIT,*) "send_buf = ", send_buf
 !END:DEBUG:LT:2015/01/20
 
     CALL mp_alltoall(send_buf, recv_buf, 1, para_env%group)
@@ -1002,20 +1002,20 @@ CONTAINS
                                      rank, arow, acol, natoms_encode)
 
 !BEG:DEBUG:LT:2015/01/25
-       write (LT_UNIT,*) &
-             "|LT| fb_com_tasks_build_atom_pairs: itask = ", itask
-       write (LT_UNIT,*) &
-             "|LT| fb_com_tasks_build_atom_pairs: rank, arow, acol, natoms_encode = ", &
-             rank, arow, acol, natoms_encode
-       write (LT_UNIT,*) &
-             "|LT| fb_com_tasks_build_atom_pairs: pairs(itask) = ", pairs(itask)
+       ! write (LT_UNIT,*) &
+       !       "|LT| fb_com_tasks_build_atom_pairs: itask = ", itask
+       ! write (LT_UNIT,*) &
+       !       "|LT| fb_com_tasks_build_atom_pairs: rank, arow, acol, natoms_encode = ", &
+       !       rank, arow, acol, natoms_encode
+       ! write (LT_UNIT,*) &
+       !       "|LT| fb_com_tasks_build_atom_pairs: pairs(itask) = ", pairs(itask)
 !END:DEBUG:LT:2015/01/25
 
     END DO
 
 !BEG:DEBUG:LT:2015/01/25
-    write (LT_UNIT,*) "|LT| fb_com_tasks_build_atom_pairs: SIZE(pairs) = ", SIZE(pairs)
-    write (LT_UNIT,*) "|LT| fb_com_tasks_build_atom_pairs: pairs = ", pairs
+    ! write (LT_UNIT,*) "|LT| fb_com_tasks_build_atom_pairs: SIZE(pairs) = ", SIZE(pairs)
+    ! write (LT_UNIT,*) "|LT| fb_com_tasks_build_atom_pairs: pairs = ", pairs
 !END:DEBUG:LT:2015/01/25
 
     ! sort atom_pairs so that the pairs are ordered process blocks and
@@ -1030,10 +1030,11 @@ CONTAINS
        DEALLOCATE(tmp_index, STAT=stat)
        CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
     END IF
+
 !BEG:DEBUG:LT:2015/01/25
-    write (LT_UNIT,*) "|LT| fb_com_tasks_build_atom_pairs: After sort"
-    write (LT_UNIT,*) "|LT| fb_com_tasks_build_atom_pairs: SIZE(pairs) = ", SIZE(pairs)
-    write (LT_UNIT,*) "|LT| fb_com_tasks_build_atom_pairs: pairs = ", pairs
+    ! write (LT_UNIT,*) "|LT| fb_com_tasks_build_atom_pairs: After sort"
+    ! write (LT_UNIT,*) "|LT| fb_com_tasks_build_atom_pairs: SIZE(pairs) = ", SIZE(pairs)
+    ! write (LT_UNIT,*) "|LT| fb_com_tasks_build_atom_pairs: pairs = ", pairs
 !END:DEBUG:LT:2015/01/25
 
     ! remove duplicates
@@ -1057,14 +1058,14 @@ CONTAINS
                                error=error)
 
 !BEG:DEBUG:LT:2015/01/25
-    write (LT_UNIT,*) &
-          "|LT| fb_com_tasks_build_atom_pairs: After fb_com_atom_pairs_set"
-    CALL fb_com_atom_pairs_get(atom_pairs=atom_pairs, &
-                               pairs=pairs, &
-                               npairs=npairs, &
-                               error=error)
-    write (LT_UNIT,*) "|LT| fb_com_tasks_build_atom_pairs: npairs = ", npairs
-    write (LT_UNIT,*) "|LT| fb_com_tasks_build_atom_pairs: pairs = ", pairs
+    ! write (LT_UNIT,*) &
+    !       "|LT| fb_com_tasks_build_atom_pairs: After fb_com_atom_pairs_set"
+    ! CALL fb_com_atom_pairs_get(atom_pairs=atom_pairs, &
+    !                            pairs=pairs, &
+    !                            npairs=npairs, &
+    !                            error=error)
+    ! write (LT_UNIT,*) "|LT| fb_com_tasks_build_atom_pairs: npairs = ", npairs
+    ! write (LT_UNIT,*) "|LT| fb_com_tasks_build_atom_pairs: pairs = ", pairs
 !END:DEBUG:LT:2015/01/25
 
   END SUBROUTINE fb_com_tasks_build_atom_pairs
@@ -1180,7 +1181,39 @@ CONTAINS
   END SUBROUTINE fb_com_atom_pairs_decode
 
 
-
+  ! **********************************************************************
+  !> \brief Calculate the MPI send or recv buffer sizes according to the
+  !>        communication pairs (atom_pairs) and DBCSR matrix data.
+  !>        Each atom_pair corresponds to one DBCSR matrix block that
+  !>        needs to be sent or recerived.
+  !> \param atom_pairs : the communication pair object for either sending
+  !>                     or receiving
+  !> \param dbcsr_matrix : the DBCSR matrix the blocks originate from
+  !>                       or has to be sent to
+  !> \param nprocs : total number of MPI processes in communicator
+  !> \param row_blk_sizes : row_blk_sizes(iblkrow) = number of element rows
+  !>                        in each block in the iblkrow-th block row of
+  !>                        the DBCSR matrix
+  !> \param col_blk_sizes : col_blk_sizes(iblkcol) = number of element cols
+  !>                        in each block in the iblkcol-th block col of
+  !>                        the DBCSR matrix
+  !> \param sendrecv_sizes : size required for the send of recv buffer
+  !>                         for each dest/src process
+  !> \param sendrecv_disps : sendrecv_disps(ipe) + 1 = starting location
+  !>                         in send/recv buffer for data destined for
+  !>                         process ipe
+  !> \param sendrecv_pair_counts : sendrecv_pair_counts(ipe) = number of
+  !>                               pairs (blocks) to be sent to or recv
+  !>                               from process ipe
+  !> \param send_recv_pair_disps : send_recv_pair_disps(ipe) + 1 = start
+  !>                               location in atom_pairs array for
+  !>                               all the pairs to be sent to or recv
+  !>                               from process ipe
+  !> \param error : cp2k error container
+  !> \param row_map : optional blk row map for the DBCSR blocks
+  !> \param col_map : optional blk col map for the DBCSR blocks
+  !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
+  ! **********************************************************************
   SUBROUTINE fb_com_atom_pairs_calc_buffer_sizes(atom_pairs, &
                                                  dbcsr_matrix, &
                                                  nprocs, &
@@ -1214,8 +1247,7 @@ CONTAINS
                nrows_blk, ncols_blk, stat
     INTEGER :: nblkrows_total, nblkcols_total
     INTEGER(KIND=int_8), DIMENSION(:), POINTER :: pairs
-    ! INTEGER, DIMENSION(:), ALLOCATABLE :: first_row, last_row, &
-    !                                       first_col, last_col
+
     failure = .FALSE.
 
     NULLIFY(pairs)
@@ -1235,21 +1267,6 @@ CONTAINS
                                natoms_encode=natoms_encode, &
                                error=error)
 
-    ! CALL cp_dbcsr_get_info(dbcsr_matrix, &
-    !                        nblkrows_total=nblkrows_total, &
-    !                        nblkcols_total=nblkcols_total)
-    ! ALLOCATE(first_row(nblkrows_total), last_row(nblkrows_total), &
-    !          first_col(nblkcols_total), last_col(nblkcols_total), &
-    !          STAT=stat)
-    ! CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
-    ! CALL convert_sizes_to_offsets(array_data(cp_dbcsr_row_block_sizes(dbcsr_mat)), &
-    !                               first_row, last_row)
-    ! CALL convert_sizes_to_offsets(array_data(cp_dbcsr_col_block_sizes(dbcsr_mat)), &
-    !                               first_col, last_col)
-
-    ! row_block_size_data => array_data(cp_dbcsr_row_block_sizes(dbcsr_matrix))
-    ! col_block_size_data => array_data(cp_dbcsr_col_block_sizes(dbcsr_matrix))
-
     sendrecv_sizes = 0
     sendrecv_pair_counts = 0
     DO ipair = 1, npairs
@@ -1259,8 +1276,6 @@ CONTAINS
        pe = pe + 1 ! we need proc to count from 1
        IF (PRESENT(row_map)) iatom = row_map(iatom)
        IF (PRESENT(col_map)) jatom = row_map(jatom)
-       ! nrows_blk = last_row(iatom) - first_row(iatom) + 1
-       ! ncols_blk = last_col(jatom) - first_col(jatom) + 1
        nrows_blk = row_blk_sizes(iatom)
        ncols_blk = col_blk_sizes(jatom)
        sendrecv_sizes(pe) = sendrecv_sizes(pe) + nrows_blk * ncols_blk
@@ -1274,9 +1289,6 @@ CONTAINS
        sendrecv_disps(ipe) = sendrecv_disps(ipe-1) + sendrecv_sizes(ipe-1)
        sendrecv_pair_disps(ipe) = sendrecv_pair_disps(ipe-1) + sendrecv_pair_counts(ipe-1)
     END DO
-
-    ! DEALLOCATE(first_row, last_row, first_col, last_col, STAT=stat)
-    ! CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
 
   END SUBROUTINE fb_com_atom_pairs_calc_buffer_sizes
 
