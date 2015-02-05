@@ -33,6 +33,7 @@ MODULE qs_fb_env_methods
                                 cp_dbcsr_init, &
                                 cp_dbcsr_create, &
                                 cp_dbcsr_distribution, &
+                                cp_dbcsr_get_info, &
                                 dbcsr_type_no_symmetry, &
                                 cp_dbcsr_row_block_sizes, &
                                 cp_dbcsr_col_block_sizes, &
@@ -114,6 +115,8 @@ MODULE qs_fb_env_methods
   USE cp_units, ONLY: cp_unit_from_cp2k
   USE timings, ONLY: timeset, &
                      timestop
+  USE cp_control_types, ONLY: dft_control_type
+
   ! USE qs_neighbor_list_types, ONLY: neighbor_list_set_p_type
 
 #include "./common/cp_common_uses.f90"
@@ -655,8 +658,8 @@ CONTAINS
     ! in both spin channels.
     CALL cp_dbcsr_create(matrix=matrix_filtered_p, &
                          name=TRIM("FILTERED_MATRIX_P"), &
-                         dist=cp_dbcsr_distribution(scf_env%p_mix_new(1)%matrix), &
-                         matrix_type=cp_dbcsr_get_matrix_type(scf_env%p_mix_new(1)%matrix), &
+                         dist=cp_dbcsr_distribution(scf_env%p_mix_new(1,1)%matrix), &
+                         matrix_type=cp_dbcsr_get_matrix_type(scf_env%p_mix_new(1,1)%matrix), &
                          row_blk_size=filtered_rowORcol_block_sizes, &
                          col_blk_size=filtered_rowORcol_block_sizes, &
                          nblks=0, &
@@ -664,7 +667,7 @@ CONTAINS
                          error=error)
     CALL cp_dbcsr_finalize(matrix_filtered_p, error=error)
     CALL fb_dbcsr_copy_sparse_struct(matrix_filtered_p, &
-                                     scf_env%p_mix_new(1)%matrix, &
+                                     scf_env%p_mix_new(1,1)%matrix, &
                                      error)
     ! old implementation, using sab_orb to allocate the blocks in matrix_filtered_p
     ! CALL get_qs_env(qs_env=qs_env, sab_orb=sab_orb, error=error)
@@ -675,7 +678,7 @@ CONTAINS
 
 !BEG:DEBUG:LT:2015/02/02
        ! write (LT_UNIT,*) "|LT| fb_env_do_diag: before update density: scf_env%p_mix_new: (DBCSR)"
-       ! CALL cp_dbcsr_print(scf_env%p_mix_new(ispin)%matrix, unit_nr=LT_UNIT, error=error)
+       ! CALL cp_dbcsr_print(scf_env%p_mix_new(ispin,1)%matrix, unit_nr=LT_UNIT, error=error)
        ! CALL FLUSH(LT_UNIT)
 !END:DEBUG:LT:2015/02/02
 
@@ -696,14 +699,14 @@ CONTAINS
                               0.0_dp, matrix_tmp, error=error)
        CALL cp_dbcsr_multiply("N", "T", 1.0_dp, &
                               matrix_tmp, matrix_filter(ispin)%matrix, &
-                              0.0_dp, scf_env%p_mix_new(ispin)%matrix, &
+                              0.0_dp, scf_env%p_mix_new(ispin,1)%matrix, &
                               retain_sparsity=.TRUE., error=error)
        ! note that we want to retain the sparse structure of
        ! scf_env%p_mix_new
 
 !BEG:DEBUG:LT:2015/02/02
        ! write (LT_UNIT,*) "|LT| fb_env_do_diag: after update density: scf_env%p_mix_new: (DBCSR)"
-       ! CALL cp_dbcsr_print(scf_env%p_mix_new(ispin)%matrix, unit_nr=LT_UNIT, error=error)
+       ! CALL cp_dbcsr_print(scf_env%p_mix_new(ispin,1)%matrix, unit_nr=LT_UNIT, error=error)
        ! CALL FLUSH(LT_UNIT)
 !END:DEBUG:LT:2015/02/02
 
@@ -922,7 +925,7 @@ CONTAINS
     TYPE(qs_kind_type), DIMENSION(:), POINTER :: qs_kind_set
     TYPE(gto_basis_set_p_type), DIMENSION(:), POINTER :: basis_set_list
     TYPE(gto_basis_set_type), POINTER :: basis_set
-
+    TYPE(dft_control_type), POINTER :: dft_control
     REAL(KIND=dp), DIMENSION(:), POINTER :: rcut
     REAL(KIND=dp) :: kind_radius, auto_cutoff_scale
     INTEGER :: ikind, basis_set_id, nkinds, stat, handle
@@ -931,10 +934,11 @@ CONTAINS
 
     failure = .FALSE.
 
-    NULLIFY(rcut, qs_kind_set)
+    NULLIFY(rcut, qs_kind_set, dft_control)
 
     CALL get_qs_env(qs_env=qs_env, &
                     qs_kind_set=qs_kind_set, &
+                    dft_control=dft_control, &
                     error=error)
     CALL fb_env_get(fb_env=fb_env, &
                     auto_cutoff_scale=auto_cutoff_scale, &
@@ -951,7 +955,7 @@ CONTAINS
     ! basis_set_id is only set as input parameter for do_admm
     ! calculations, and if not set, the task list is generated using
     ! the default basis_set_id=use_orb_basis_set.
-    IF (qs_env%dft_control%do_admm) THEN
+    IF (dft_control%do_admm) THEN
        basis_set_id = use_aux_fit_basis_set
     ELSE
        basis_set_id = use_orb_basis_set
@@ -1205,6 +1209,7 @@ CONTAINS
     TYPE(qs_kind_type), DIMENSION(:), POINTER :: qs_kind_set
     TYPE(gto_basis_set_p_type), DIMENSION(:), POINTER :: basis_set_list
     TYPE(gto_basis_set_type), POINTER :: basis_set
+    TYPE(dft_control_type), POINTER :: dft_control
     INTEGER :: basis_set_id, old_lshell, iset, nset, ikind, nkinds, &
                ishell, lshell, icgf, itrial, max_n_trial, counter, &
                ico, stat, handle
@@ -1228,7 +1233,7 @@ CONTAINS
 
     failure = .FALSE.
     CPPrecondition(fb_env_has_data(fb_env), cp_failure_level, routineP, error, failure)
-    NULLIFY(nfunctions, functions, basis_set, basis_set_list, qs_kind_set)
+    NULLIFY(nfunctions, functions, basis_set, basis_set_list, qs_kind_set, dft_control)
     CALL fb_trial_fns_nullify(trial_fns)
 
     ! create a new trial_fn object
@@ -1236,6 +1241,7 @@ CONTAINS
 
     CALL get_qs_env(qs_env=qs_env, &
                     qs_kind_set=qs_kind_set, &
+                    dft_control=dft_control, &
                     error=error)
 
     ! reading from the other parts of the code, it seemed that
@@ -1245,7 +1251,7 @@ CONTAINS
     ! basis_set_id is only set as input parameter for do_admm
     ! calculations, and if not set, the task list is generated using
     ! the default basis_set_id=use_orb_basis_set.
-    IF (qs_env%dft_control%do_admm) THEN
+    IF (dft_control%do_admm) THEN
        basis_set_id = use_aux_fit_basis_set
     ELSE
        basis_set_id = use_orb_basis_set
@@ -1421,7 +1427,8 @@ CONTAINS
 
     LOGICAL :: failure
     TYPE(cp_dbcsr_iterator) :: iter
-    INTEGER :: iatom, jatom, iblk, nblks, stat
+    INTEGER :: iatom, jatom, iblk, nblks, stat, &
+               nblkrows_total, nblkcols_total
     REAL(dp), DIMENSION(:, :), POINTER :: mat_block
     INTEGER, DIMENSION(:), ALLOCATABLE :: rows, cols
 
@@ -1435,11 +1442,17 @@ CONTAINS
 
     failure = .FALSE.
 
-    nblks = matrix_in%matrix%m%nblks
+    CALL cp_dbcsr_get_info(matrix=matrix_in, &
+                           nblkrows_total=nblkrows_total, &
+                           nblkcols_total=nblkcols_total)
+
+    nblks = nblkrows_total * nblkcols_total
     ALLOCATE(rows(nblks), STAT=stat)
     CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
     ALLOCATE(cols(nblks), STAT=stat)
     CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
+    rows(:) = 0
+    cols(:) = 0
 
 !BEG:DEBUG:LT:2015/02/02
     ! write (LT_UNIT,*) "|LT| fb_dbcsr_copy_sparse_struct: nblks = ", nblks
@@ -1447,6 +1460,7 @@ CONTAINS
 !END:DEBUG:LT:2015/02/02
 
     iblk = 0
+    nblks = 0
     CALL cp_dbcsr_iterator_start(iter, matrix_in)
     DO WHILE (cp_dbcsr_iterator_blocks_left(iter))
        CALL cp_dbcsr_iterator_next_block(iter, iatom, jatom, mat_block, iblk)
@@ -1460,9 +1474,10 @@ CONTAINS
 
        rows(iblk) = iatom
        cols(iblk) = jatom
+       nblks = nblks + 1
     END DO
     CALL cp_dbcsr_iterator_stop(iter)
-    CALL cp_dbcsr_reserve_blocks(matrix_out, rows, cols, error=error)
+    CALL cp_dbcsr_reserve_blocks(matrix_out, rows(1:nblks), cols(1:nblks), error=error)
     CALL cp_dbcsr_finalize(matrix_out, error=error)
 
     ! cleanup
