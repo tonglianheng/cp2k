@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2014  CP2K developers group                          !
+!   Copyright (C) 2000 - 2015  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -11,18 +11,17 @@
 MODULE topology
   USE atomic_kind_types,               ONLY: atomic_kind_type
   USE atoms_input,                     ONLY: read_atoms_input
-  USE cell_methods,                    ONLY: cell_create,&
-                                             cell_retain,&
-                                             cell_type,&
-                                             read_cell,&
+  USE cell_methods,                    ONLY: read_cell,&
                                              write_cell
-  USE colvar_types,                    ONLY: colvar_p_type,&
-                                             post_process_colvar
+  USE cell_types,                      ONLY: cell_create,&
+                                             cell_retain,&
+                                             cell_type
+  USE colvar_types,                    ONLY: colvar_p_type
+  USE colvar_utils,                    ONLY: post_process_colvar
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE exclusion_types,                 ONLY: exclusion_type
-  USE f77_blas
   USE input_constants,                 ONLY: &
        do_conn_amb7, do_conn_g87, do_conn_g96, do_conn_generate, &
        do_conn_mol_set, do_conn_off, do_conn_psf, do_conn_psf_u, &

@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2014  CP2K developers group                          !
+!   Copyright (C) 2000 - 2015  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -10,7 +10,7 @@
 !> \author Luca Bellucci and Teodoro Laino - created [tlaino] - 01.2008
 ! *****************************************************************************
 MODULE dimer_types
-  USE f77_blas
+  
   USE global_types,                    ONLY: global_environment_type
   USE input_constants,                 ONLY: do_first_rotation_step
   USE input_section_types,             ONLY: section_vals_get,&

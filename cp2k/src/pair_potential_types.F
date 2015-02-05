@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2014  CP2K developers group                          !
+!   Copyright (C) 2000 - 2015  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -11,7 +11,7 @@
 ! *****************************************************************************
 MODULE pair_potential_types
 
-  USE f77_blas
+  
   USE kinds,                           ONLY: default_path_length,&
                                              default_string_length,&
                                              dp
@@ -701,34 +701,6 @@ CONTAINS
        END DO
     END IF
   END SUBROUTINE pair_potential_single_add
-
-! *****************************************************************************
-!> \brief Copy two potential parameter type
-!> \param potparm_source ...
-!> \param potparm_dest ...
-!> \param error ...
-!> \author Teodoro Laino [teo] 11.2005
-! *****************************************************************************
-  SUBROUTINE pair_potential_copy(potparm_source, potparm_dest, error)
-    TYPE(pair_potential_type), POINTER       :: potparm_source, potparm_dest
-    TYPE(cp_error_type), INTENT(inout)       :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'pair_potential_copy', &
-      routineP = moduleN//':'//routineN
-
-    LOGICAL                                  :: failure
-
-    failure = .FALSE.
-
-    CPPostcondition(ASSOCIATED(potparm_source),cp_failure_level,routineP,error,failure)
-    CPPostcondition(ASSOCIATED(potparm_dest),cp_failure_level,routineP,error,failure)
-    IF (.NOT.failure) THEN
-       IF (.NOT.ASSOCIATED(potparm_dest%pot)) THEN
-          CALL pair_potential_single_create(potparm_dest%pot, SIZE(potparm_source%pot%type), error)
-       END IF
-       CALL pair_potential_single_copy(potparm_source%pot, potparm_dest%pot, error=error)
-    END IF
-  END SUBROUTINE pair_potential_copy
 
 ! *****************************************************************************
 !> \brief Release Data-structure that constains potential parameters of a single pair

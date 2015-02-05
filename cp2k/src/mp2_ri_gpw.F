@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2014  CP2K developers group                          !
+!   Copyright (C) 2000 - 2015  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -9,12 +9,13 @@
 !>      06.2012 created [Mauro Del Ben]
 ! *****************************************************************************
 MODULE mp2_ri_gpw
+  USE ai_coulomb,                      ONLY: coulomb2_new
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind_set
   USE basis_set_types,                 ONLY: gto_basis_set_type
   USE bibliography,                    ONLY: DelBen2013,&
                                              cite_reference
-  USE cell_methods,                    ONLY: cell_type,&
+  USE cell_types,                      ONLY: cell_type,&
                                              pbc
   USE cp_blacs_env,                    ONLY: cp_blacs_env_create,&
                                              cp_blacs_env_release,&
@@ -43,7 +44,6 @@ MODULE mp2_ri_gpw
   USE cp_para_env,                     ONLY: cp_para_env_create,&
                                              cp_para_env_release
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE cp_subsys_types,                 ONLY: cp_subsys_type
   USE gaussian_gridlevels,             ONLY: gaussian_gridlevel
   USE input_constants,                 ONLY: use_orb_basis_set,&
                                              use_ri_aux_basis_set
@@ -51,6 +51,7 @@ MODULE mp2_ri_gpw
   USE machine,                         ONLY: m_flush,&
                                              m_memory,&
                                              m_walltime
+  USE mathconstants,                   ONLY: pi
   USE message_passing,                 ONLY: mp_allgather,&
                                              mp_comm_split_direct,&
                                              mp_max,&
@@ -66,7 +67,8 @@ MODULE mp2_ri_gpw
   USE particle_types,                  ONLY: particle_type
   USE pw_env_types,                    ONLY: pw_env_get,&
                                              pw_env_type
-  USE pw_methods,                      ONLY: pw_scale,&
+  USE pw_methods,                      ONLY: pw_copy,&
+                                             pw_scale,&
                                              pw_transfer
   USE pw_poisson_methods,              ONLY: pw_poisson_solve
   USE pw_poisson_types,                ONLY: pw_poisson_type
@@ -82,7 +84,12 @@ MODULE mp2_ri_gpw
   USE qs_integrate_potential,          ONLY: integrate_pgf_product_rspace,&
                                              integrate_v_rspace
   USE qs_kind_types,                   ONLY: qs_kind_type
-  USE qs_neighbor_list_types,          ONLY: neighbor_list_set_p_type
+  USE qs_neighbor_list_types,          ONLY: get_iterator_info,&
+                                             neighbor_list_iterate,&
+                                             neighbor_list_iterator_create,&
+                                             neighbor_list_iterator_p_type,&
+                                             neighbor_list_iterator_release,&
+                                             neighbor_list_set_p_type
   USE realspace_grid_types,            ONLY: realspace_grid_desc_p_type,&
                                              realspace_grid_p_type,&
                                              rs_grid_release,&
@@ -438,8 +445,9 @@ MODULE mp2_ri_gpw
     CALL calculate_Lmin1(qs_env,para_env,para_env_sub,para_env_L,mp2_memory,&
                          eps_filter,fm_matrix_L,ngroup,color_sub,dimen_RI,&
                          mo_coeff,dft_control,psi_L,rho_r,rho_g,pot_g,pw_env_sub,poisson_env,&
-                         my_group_L_size,my_group_L_start,my_group_L_end,&
-                         sizes_array,starts_array,ends_array,calc_PQ_cond_num,cond_num,num_small_eigen,error_sub,error)
+                         my_group_L_size,my_group_L_start,my_group_L_end,sab_orb_sub,&
+                         sizes_array,starts_array,ends_array,calc_PQ_cond_num,cond_num,&
+                         num_small_eigen,auxbas_pw_pool,error_sub,error)
 
     IF (unit_nr>0) WRITE (UNIT=unit_nr,FMT="(T3,A,T75,i6)")&
                       "RI_INFO| Cholesky decomposition group size:", para_env_L%num_pe
@@ -451,7 +459,7 @@ MODULE mp2_ri_gpw
     END IF
 
     ! replicate the necessary row of the L^{-1} matrix on each proc
-    CALL grep_Lcols(qs_env,para_env_L,dimen_RI,fm_matrix_L,&
+    CALL grep_Lcols(para_env_L,dimen_RI,fm_matrix_L,&
                     my_group_L_start,my_group_L_end,my_group_L_size,my_Lrows,&
                     error)
     ! clean the L^{-1} matrix
@@ -465,7 +473,7 @@ MODULE mp2_ri_gpw
       lll=itmp(2)-itmp(1)+1
       ALLOCATE(qs_env%mp2_env%ri_grad%PQ_half(lll,my_group_L_size),STAT=stat)
       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-      qs_env%mp2_env%ri_grad%PQ_half=my_Lrows(itmp(1):itmp(2),1:my_group_L_size)
+      qs_env%mp2_env%ri_grad%PQ_half(:,:)=my_Lrows(itmp(1):itmp(2),1:my_group_L_size)
     END IF
 
     IF (unit_nr>0) THEN
@@ -611,20 +619,23 @@ MODULE mp2_ri_gpw
 !> \param my_group_L_size ...
 !> \param my_group_L_start ...
 !> \param my_group_L_end ...
+!> \param sab_orb_sub ...
 !> \param sizes_array ...
 !> \param starts_array ...
 !> \param ends_array ...
 !> \param calc_PQ_cond_num ...
 !> \param cond_num ...
 !> \param num_small_eigen ...
+!> \param auxbas_pw_pool ...
 !> \param error_sub ...
 !> \param error ...
 ! *****************************************************************************
   SUBROUTINE calculate_Lmin1(qs_env,para_env,para_env_sub,para_env_L,mp2_memory,&
                              eps_filter,fm_matrix_L,ngroup,color_sub,dimen_RI,&
                              mo_coeff,dft_control,psi_L,rho_r,rho_g,pot_g,pw_env_sub,poisson_env,&
-                             my_group_L_size,my_group_L_start,my_group_L_end,&
-                             sizes_array,starts_array,ends_array,calc_PQ_cond_num,cond_num,num_small_eigen,error_sub,error)
+                             my_group_L_size,my_group_L_start,my_group_L_end,sab_orb_sub,&
+                             sizes_array,starts_array,ends_array,calc_PQ_cond_num,cond_num,&
+                             num_small_eigen,auxbas_pw_pool,error_sub,error)
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(cp_para_env_type), POINTER          :: para_env, para_env_sub, &
                                                 para_env_L
@@ -639,56 +650,79 @@ MODULE mp2_ri_gpw
     INTEGER                                  :: my_group_L_size, &
                                                 my_group_L_start, &
                                                 my_group_L_end
+    TYPE(neighbor_list_set_p_type), &
+      DIMENSION(:), POINTER                  :: sab_orb_sub
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: sizes_array, starts_array, &
                                                 ends_array
     LOGICAL                                  :: calc_PQ_cond_num
     REAL(KIND=dp)                            :: cond_num
     INTEGER                                  :: num_small_eigen
+    TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
     TYPE(cp_error_type), INTENT(inout)       :: error_sub, error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'calculate_Lmin1', &
       routineP = moduleN//':'//routineN
+    LOGICAL, PARAMETER                       :: debug = .FALSE.
 
-    INTEGER :: best_group_size, color_L, comm_exchange, comm_L, dir, &
-      group_size, handle, handle2, handle3, i, i_counter, i_global, iatom, &
-      igrid_level, igroup, iiB, ikind, info_chol, ipgf, iproc, iset, istat, &
-      itmp(2), j_global, jjB, lb(3), LLL, location(3), na1, na2, natom, ncoa, &
-      ncol_local, nkind, nrow_local, nseta, offset, proc_receive, &
-      proc_receive_static, proc_send, proc_send_static, proc_shift, &
-      rec_L_end, rec_L_size, rec_L_start, sgfa, stat, strat_group_size, &
-      sub_sub_color, tp(3), ub(3)
-    INTEGER, ALLOCATABLE, DIMENSION(:)       :: kind_of, proc_map, &
-                                                sub_ends_array, &
-                                                sub_sizes_array, &
-                                                sub_starts_array
+    INTEGER :: best_group_size, color_exc, color_L, comm_exc, comm_exchange, &
+      comm_L, dir, group_size, handle, handle2, handle3, i, i_bf, i_counter, &
+      i_counter_diff_bf, i_counter_diff_bf_at_any_atom, i_counter_diff_sets, &
+      i_global, iatom, igrid_level, igroup, iiB, ikind, info_chol, inode, &
+      ipgf, iproc, iset, istat, itmp(2), j, j_global, j_ref_atom, j_ref_bf, &
+      j_ref_kind, j_ref_set, jatom, jjB, jkind, jset, lb(3), LLL, &
+      location(3), m, my_group_L_q_end, my_group_L_q_size, &
+      my_group_L_q_start, my_group_pot_end, my_group_pot_size, &
+      my_group_pot_start, na1, na2, natom, ncoa, ncoa_a, ncoa_b, ncol_local
+    INTEGER :: nkind, nrow_local, nseta, nsetb, offset, offsetb, &
+      proc_receive, proc_receive_static, proc_send, proc_send_static, &
+      proc_shift, rec_L_end, rec_L_size, rec_L_start, sgfa, sgfb, stat, &
+      strat_group_size, sub_sub_color, tp(3), ub(3)
+    INTEGER, ALLOCATABLE, DIMENSION(:) :: diffbf_atom_arbitr_atom, &
+      diffbf_noinbas, diffbfatanyatom_noinbas, ends_array_pot, kind_of, &
+      proc_map, sizes_array_pot, starts_array_pot, sub_ends_array, &
+      sub_sizes_array, sub_starts_array
+    INTEGER, ALLOCATABLE, DIMENSION(:, :) :: atom_set_afo_diffbf, &
+      atom_set_afo_diffbf_atanyatom, diffsets_atom_set_bf, ref_matrix
+    INTEGER, ALLOCATABLE, DIMENSION(:, :, :) :: naolimits, ref_at_se_sgf_ofs
     INTEGER, DIMENSION(:), POINTER           :: col_indices, la_max, la_min, &
-                                                npgfa, nsgfa, row_indices
-    INTEGER, DIMENSION(:, :), POINTER        :: first_sgfa
-    LOGICAL                                  :: failure, map_it_here
+                                                lb_max, lb_min, npgfa, npgfb, &
+                                                nsgfa, nsgfb, row_indices
+    INTEGER, DIMENSION(:, :), POINTER        :: first_sgfa, first_sgfb
+    LOGICAL                                  :: check_i, check_j, do_mult_2c, &
+                                                failure, map_it_here
     REAL(KIND=dp)                            :: min_mem_for_QK, pair_energy, &
-                                                rab2
-    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: egen_L, wf_vector
+                                                rab2, rac2, scaling, zet_tmp
+    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: egen_L, f, wf_vector
     REAL(KIND=dp), ALLOCATABLE, &
-      DIMENSION(:, :)                        :: I_ab, L_external_col, &
-                                                L_local_col
-    REAL(KIND=dp), DIMENSION(3)              :: ra, rab
-    REAL(KIND=dp), DIMENSION(:), POINTER     :: set_radius_a
-    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: I_tmp2, rpgfa, sphi_a, zeta
+      DIMENSION(:, :)                        :: I_ab, I_tmp, L_external_col, &
+                                                L_local_col, L_local_col_q, &
+                                                vac
+    REAL(KIND=dp), ALLOCATABLE, &
+      DIMENSION(:, :, :)                     :: v
+    REAL(KIND=dp), DIMENSION(1)              :: exp_q
+    REAL(KIND=dp), DIMENSION(3)              :: ra, rab, rac
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: set_radius_a, set_radius_b
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: I_tmp2, rpgfa, rpgfb, sphi_a, &
+                                                sphi_b, zeta, zetb
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_blacs_env_type), POINTER         :: blacs_env_L
     TYPE(cp_fm_struct_type), POINTER         :: fm_struct
     TYPE(cp_fm_type), POINTER                :: fm_matrix_L_diag
-    TYPE(cp_para_env_type), POINTER          :: para_env_exchange
-    TYPE(cp_subsys_type), POINTER            :: subsys
-    TYPE(gto_basis_set_type), POINTER        :: basis_set_a
+    TYPE(cp_para_env_type), POINTER          :: para_env_exc, &
+                                                para_env_exchange
+    TYPE(gto_basis_set_type), POINTER        :: basis_set_a, basis_set_b
     TYPE(molecule_kind_type), DIMENSION(:), &
       POINTER                                :: molecule_kind_set
     TYPE(molecule_type), DIMENSION(:), &
       POINTER                                :: molecule_set
+    TYPE(neighbor_list_iterator_p_type), &
+      DIMENSION(:), POINTER                  :: nl_iterator
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
+    TYPE(pw_p_type), ALLOCATABLE, &
+      DIMENSION(:)                           :: rho_r_array
     TYPE(qs_kind_type), DIMENSION(:), &
       POINTER                                :: qs_kind_set
     TYPE(realspace_grid_desc_p_type), &
@@ -701,13 +735,11 @@ MODULE mp2_ri_gpw
 
 
     ! get stuff
-    subsys=>qs_env%subsys
-    particle_set => subsys%particles%els
-    CALL get_qs_env(qs_env, atomic_kind_set=atomic_kind_set, qs_kind_set=qs_kind_set, error=error)
-    molecule_set => subsys%molecules_new%els
-    molecule_kind_set => subsys%molecule_kinds_new%els
+    CALL get_qs_env(qs_env, atomic_kind_set=atomic_kind_set, qs_kind_set=qs_kind_set,&
+                    cell=cell, molecule_set=molecule_set,particle_set=particle_set,&
+                    molecule_kind_set=molecule_kind_set,error=error)
+
     ! blacs_env => qs_env%blacs_env
-    cell=>qs_env%cell
 
     nkind = SIZE(qs_kind_set)
     natom = SIZE(particle_set)
@@ -752,146 +784,990 @@ MODULE mp2_ri_gpw
     my_group_L_end=ends_array(color_sub)
 
     CALL timeset(routineN//"_loop_lm",handle2)
-    ALLOCATE(wf_vector(dimen_RI),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
-    ALLOCATE(L_local_col(dimen_RI,my_group_L_size),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    L_local_col=0.0_dp
+    do_mult_2c =  qs_env%mp2_env%mp2_gpw%do_mult_2c
 
-    i_counter=0
-    DO LLL=my_group_L_start, my_group_L_end
-      i_counter=i_counter+1
+    IF(do_mult_2c) THEN
 
-      wf_vector=0.0_dp
-      wf_vector(LLL)=1.0_dp
-      ! pseudo psi_L
-      CALL calculate_wavefunction(mo_coeff,1,psi_L,rho_g, atomic_kind_set,&
-                                  qs_kind_set,cell,dft_control,particle_set, &
-                                  pw_env_sub,basis_set_id=use_ri_aux_basis_set,&
-                                  external_vector=wf_vector,&
-                                  error=error_sub)
+      ! write arrays with number(=label) of every basis function, its quantum number (l,m)
+      ! and the reference to the first basis function with (l,m) 
+      ALLOCATE(ref_matrix(dimen_RI,10),STAT=stat)
+      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
-      CALL timeset(routineN//"_pot_lm",handle3)
-      rho_r%pw%cr3d = psi_L%pw%cr3d
-      CALL pw_transfer(rho_r%pw, rho_g%pw, error=error_sub)
-      CALL pw_poisson_solve(poisson_env,rho_g%pw, pair_energy, pot_g%pw,error=error_sub)
-      CALL pw_transfer(pot_g%pw, rho_r%pw, error=error_sub)
-      CALL pw_scale(rho_r%pw,rho_r%pw%pw_grid%dvol, error=error_sub)
-
-      NULLIFY(rs_v)
-      NULLIFY(rs_descs)
-      CALL pw_env_get(pw_env_sub, rs_descs=rs_descs, rs_grids=rs_v, error=error_sub)
-      DO i=1,SIZE(rs_v)
-        CALL rs_grid_retain(rs_v(i)%rs_grid,error=error_sub)
-      END DO
-      CALL potential_pw2rs(rs_v,rho_r,pw_env_sub,error_sub)
-
-      CALL timestop(handle3)
+      ! naolimits(iatom,iset,1/2)=begin/end reference entries in L_local_q 
+      ALLOCATE(naolimits(natom,100,2),STAT=stat)
+      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
  
-      ! integrate the little bastards
-      offset=0
+      ! array with reference (atom,set) for arbitrary (atom,set);
+      ALLOCATE(ref_at_se_sgf_ofs(natom,100,4),STAT=stat)
+      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+ 
+ 
+      i_counter=0
+      i_counter_diff_bf=0
+      i_counter_diff_sets=0
+      i_counter_diff_bf_at_any_atom=0
+ 
+      ! 1) build up reference matrices to get the reference q_alpha for every basis function alpha
+ 
+      offset = 0
+ 
       DO iatom=1, natom
         ikind=kind_of(iatom)
         basis_set_a => qs_kind_set(ikind)%ri_aux_basis_set
-
-        first_sgfa   =>  basis_set_a%first_sgf
+  
         la_max       =>  basis_set_a%lmax
         la_min       =>  basis_set_a%lmin
         npgfa        =>  basis_set_a%npgf
         nseta        =   basis_set_a%nset
         nsgfa        =>  basis_set_a%nsgf_set
-        rpgfa        =>  basis_set_a%pgf_radius
-        set_radius_a =>  basis_set_a%set_radius
-        sphi_a       =>  basis_set_a%sphi
         zeta         =>  basis_set_a%zet
-
-        ra(:) = pbc(particle_set(iatom)%r,cell)
-        rab=0.0_dp
-        rab2=0.0_dp
-
+        first_sgfa   =>  basis_set_a%first_sgf
+ 
+ 
         DO iset=1, nseta
-         ncoa = npgfa(iset)*ncoset(la_max(iset))
-         sgfa = first_sgfa(1,iset)
+ 
+          DO ipgf=1, npgfa(iset)
+             
+            !pseudo-m quantum number runs from 1 to 2l+1
+            DO m=1,nsgfa(iset)
+              i_counter=i_counter+1
+              !first entry: l; only in case of la_max(iset)==la_min(iset) the shortcut will work, see IF below
+              ref_matrix(i_counter,1) = la_max(iset)   
+              !second entry: pseudo-m quantum number runs from 1 to 2l+1
+              ref_matrix(i_counter,2) = m
+              ref_matrix(i_counter,3) = iatom
+              ref_matrix(i_counter,4) = iset
+              ref_matrix(i_counter,5) = ipgf
+              ref_matrix(i_counter,8) = first_sgfa(1,iset)
+ 
+ 
+              !Check, whether (l,m) combination already exists
+              IF(i_counter>=2) THEN
+                DO i_bf=1, i_counter-1
+                  ! 6th row of ref_matrix contains number of first basis function with identical (l,m)
+                  ! for set with la_min=/la_max at the same atom 
+                  IF( ref_matrix(i_bf,1)==la_max(iset) .AND. ref_matrix(i_bf,2)==m .AND. &
+                      la_max(iset)==la_min(iset) .AND. ref_matrix(i_bf,3)==iatom) THEN
+                    ref_matrix(i_counter,6) = i_bf
+    
+                    ! we are done with checking the basis functions in DO when a (l,m) match was found.
+                    EXIT 
+  
+                  END IF
+                    ! 0 if no basis function has this (l,m) combination
+                    ref_matrix(i_counter,6) = 0
+  
+                END DO !loop already existing basis functions
+  
+                DO i_bf=1, i_counter-1
+                  ! 6th row of ref_matrix contains number of first basis function with identical (l,m)
+                  ! for set with la_min=/la_max AT ANY ATOM (!!DIFFERENCE!!) 
+                  IF( ref_matrix(i_bf,1)==la_max(iset) .AND. ref_matrix(i_bf,2)==m .AND. &
+                      la_max(iset)==la_min(iset)) THEN
+                    ref_matrix(i_counter,9) = i_bf
+  
+                    ! we are done with checking the basis functions in DO when a (l,m) match was found.
+                    EXIT
+  
+                  END IF
+                    ! 0 if no basis function has this (l,m) combination
+                    ref_matrix(i_counter,9) = 0
+  
+                END DO !loop already existing basis functions
+  
+  
+  
+              ELSE 
+                ref_matrix(1,6) = 0
+                ref_matrix(1,9) = 0
+  
+              END IF 
+              ! for new (l,m) combination increase i_counter_diff_bf by 1 and set reference to itself 
+              IF(ref_matrix(i_counter,6) == 0) THEN
+                i_counter_diff_bf = i_counter_diff_bf + 1
+                ref_matrix(i_counter,7) = i_counter_diff_bf
+              ! for already existing (l,m) combination, 7th entry refers to number/label of first (l,m) combination
+              ELSE
+                ref_matrix(i_counter,7) = &
+                         ref_matrix(ref_matrix(i_counter,6),7)
+              END IF
+  
+              ! for new (l,m) at any atom combination increase i_counter_diff_bf_at_any_atom by 1
+              !  and set reference to itself 
+              IF(ref_matrix(i_counter,9) == 0) THEN
+                i_counter_diff_bf_at_any_atom = i_counter_diff_bf_at_any_atom + 1
+                ref_matrix(i_counter,10) = i_counter_diff_bf_at_any_atom
+              ! for already existing (l,m) combination, 7th entry refers to number/label of first (l,m) combination
+              ELSE
+                ref_matrix(i_counter,10) = &
+                         ref_matrix(ref_matrix(i_counter,9),10)
+              END IF
+  
+  
+            END DO !m
+  
+          END DO !prim. gf.
+  
+          IF(ref_matrix(i_counter,6) == 0) THEN
+            i_counter_diff_sets = i_counter_diff_sets + 1
+            ref_at_se_sgf_ofs(iatom,iset,1) = iatom
+            ref_at_se_sgf_ofs(iatom,iset,2) = iset
+            ref_at_se_sgf_ofs(iatom,iset,3) = first_sgfa(1,iset)
+  
+          ELSE
+            ref_at_se_sgf_ofs(iatom,iset,1) = ref_matrix(ref_matrix(i_counter,6),3)
+            ref_at_se_sgf_ofs(iatom,iset,2) = ref_matrix(ref_matrix(i_counter,6),4)
+            ref_at_se_sgf_ofs(iatom,iset,3) = ref_matrix(ref_matrix(i_counter,6),8)
+          END IF
+  
+          naolimits(iatom,iset,1) = ref_matrix(i_counter,7)-nsgfa(iset)+1
+          naolimits(iatom,iset,2) = ref_matrix(i_counter,7)
+  
+          ref_at_se_sgf_ofs(iatom,iset,4) = offset
+          offset=offset+nsgfa(iset)
+  
+  
+       END DO !sets
+     
+      END DO !atoms
+   
+      ! array with number of q_a basis function at an atom
+      ALLOCATE(diffbf_noinbas(i_counter_diff_bf),STAT=stat)
+      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+   
+      ! array with number of a basis function with first unique (l,m) combination
+      ALLOCATE(diffbfatanyatom_noinbas(i_counter_diff_bf_at_any_atom),STAT=stat)
+      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+   
+      ! array with number of q_a (at arbitrary atom) with q_a at specific atom
+      ALLOCATE(diffbf_atom_arbitr_atom(i_counter_diff_bf),STAT=stat)
+      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+   
+      ! array with atom and set number for every q_a bf
+      ALLOCATE(atom_set_afo_diffbf(i_counter_diff_bf,2),STAT=stat)
+      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+   
+      ! array with atom and set number for every q_a bf
+      ALLOCATE(atom_set_afo_diffbf_atanyatom(i_counter_diff_bf,2),STAT=stat)
+      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+   
+      j=1
+      DO i=1,dimen_RI
+        IF(ref_matrix(i,9)==0) THEN
+          diffbfatanyatom_noinbas(j)=i
+          atom_set_afo_diffbf_atanyatom(j,1)=ref_matrix(i,3)
+          atom_set_afo_diffbf_atanyatom(j,2)=ref_matrix(i,4)
+          j= j+1
+        END  IF
+      END DO 
+   
+     j=1
+     DO i=1,dimen_RI
+       IF(ref_matrix(i,6)==0) THEN
+       diffbf_noinbas(j)=i
+       atom_set_afo_diffbf(j,1)=ref_matrix(i,3)
+       atom_set_afo_diffbf(j,2)=ref_matrix(i,4)
+       diffbf_atom_arbitr_atom(j)=ref_matrix(i,10)
+       j=j+1
+       END IF
+     END DO
+  
+     ! array with number of first set with quantum number l
+     ALLOCATE(diffsets_atom_set_bf(i_counter_diff_sets,3),STAT=stat)
+     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+  
+     ! first set with new quantum number l is on atom 1, set 1
+     diffsets_atom_set_bf(1,1)=1
+     diffsets_atom_set_bf(1,2)=1
+     diffsets_atom_set_bf(1,3)=1
+  
+     j=2
+     DO i=2,dimen_RI
+       IF(ref_matrix(i,6)==0 .AND. ( diffsets_atom_set_bf(j-1,1)/=ref_matrix(i,3) .OR. &
+          diffsets_atom_set_bf(j-1,2)/=ref_matrix(i,4)) ) THEN
+          diffsets_atom_set_bf(j,1)=ref_matrix(i,3)
+          diffsets_atom_set_bf(j,2)=ref_matrix(i,4)
+          diffsets_atom_set_bf(j,3)=ref_matrix(i,7)
+          j=j+1
+       END IF
+     END DO
+  
+     IF(debug) THEN  
+       PRINT *, 'i_counter_diff_bf_at_any_atom = ', i_counter_diff_bf_at_any_atom
+   
+       DO i=1,dimen_RI
+         WRITE(*,*)(ref_matrix(i,j),j=1,10)
+       END DO
+   
+       PRINT *, 'diffbf_noinbas'
+       DO i=1,i_counter_diff_bf
+         WRITE(*,*)(diffbf_noinbas(i))
+       END DO
+   
+       PRINT *, 'diffbfatanyatom_noinbas'
+       DO i=1,i_counter_diff_bf_at_any_atom
+         WRITE(*,*)(diffbfatanyatom_noinbas(i))
+       END DO
+   
+       PRINT *, 'diffbf_atom_arbitr_atom'
+       DO i=1,i_counter_diff_bf
+         WRITE(*,*)(diffbf_atom_arbitr_atom(i))
+       END DO
+    
+       PRINT *, 'atom_set_afo_diffbf'
+       DO i=1,i_counter_diff_bf
+         PRINT *, atom_set_afo_diffbf(i,1), atom_set_afo_diffbf(i,2)
+       END DO
+   
+       PRINT *, 'atom_set_afo_diffbf_atanyatom'
+       DO i=1,i_counter_diff_bf_at_any_atom
+         PRINT *, atom_set_afo_diffbf_atanyatom(i,1), atom_set_afo_diffbf_atanyatom(i,2)
+       END DO
+   
+       PRINT *, 'diffsets_atom_set_bf'
+       DO i=1,i_counter_diff_sets
+         WRITE(*,*)(diffsets_atom_set_bf(i,j),j=1,3)
+       END DO
+   
+       PRINT *, 'naolimits'
+       DO iatom=1,natom
+          ikind=kind_of(iatom)
+          basis_set_a => qs_kind_set(ikind)%ri_aux_basis_set
+          nseta        =   basis_set_a%nset
+    
+          DO iset=1, nseta
+            WRITE(*,*)(naolimits(iatom,iset,j),j=1,2)
+          END DO
+       END DO
+   
+       PRINT *, 'ref_at_se_sgf_ofs'
+       DO iatom=1,natom
+          ikind=kind_of(iatom)
+          basis_set_a => qs_kind_set(ikind)%ri_aux_basis_set
+          nseta        =   basis_set_a%nset
+    
+          DO iset=1, nseta
+            WRITE(*,*)(ref_at_se_sgf_ofs(iatom,iset,j),j=1,4)
+          END DO
+       END DO
+   
+       PRINT *, 'i_counter_diff_bf(end) = ', i_counter_diff_bf
+       PRINT *, 'i_counter_diff_sets(end) = ', i_counter_diff_sets
+       PRINT *, 'i_counter(end) = ', i_counter
+       PRINT *, 'dimen_RI = ', dimen_RI
+       PRINT *, 'my_group_L_end = ' ,my_group_L_end
+       PRINT *, 'my_group_L_start = ' ,my_group_L_start 
 
-         ALLOCATE(I_tmp2(ncoa,1))
-         I_tmp2=0.0_dp
-         ALLOCATE(I_ab(nsgfa(iset),1))
-         I_ab=0.0_dp
-
-
-         igrid_level = gaussian_gridlevel(pw_env_sub%gridlevel_info,MINVAL(zeta(:,iset)))
-         map_it_here=.FALSE.
-         IF (.NOT. ALL (rs_v(igrid_level)%rs_grid%desc%perd == 1)) THEN
-            DO dir = 1,3
-                  ! bounds of local grid (i.e. removing the 'wings'), if periodic
-                  tp(dir) = FLOOR(DOT_PRODUCT(cell%h_inv(dir,:),ra)*rs_v(igrid_level)%rs_grid%desc%npts(dir))
-                  tp(dir) = MODULO ( tp(dir), rs_v(igrid_level)%rs_grid%desc%npts(dir) )
-                  IF (rs_v(igrid_level)%rs_grid%desc%perd(dir) .NE. 1) THEN
-                     lb(dir) = rs_v(igrid_level)%rs_grid%lb_local ( dir ) + rs_v(igrid_level)%rs_grid%desc%border
-                     ub(dir) = rs_v(igrid_level)%rs_grid%ub_local ( dir ) - rs_v(igrid_level)%rs_grid%desc%border
-                  ELSE
-                     lb(dir) = rs_v(igrid_level)%rs_grid%lb_local ( dir )
-                     ub(dir) = rs_v(igrid_level)%rs_grid%ub_local ( dir )
-                  ENDIF
-                  ! distributed grid, only map if it is local to the grid
-                  location(dir)=tp(dir)+rs_v(igrid_level)%rs_grid%desc%lb(dir)
-            ENDDO
-            IF  (lb(1)<=location(1) .AND. location(1)<=ub(1) .AND. &
-                 lb(2)<=location(2) .AND. location(2)<=ub(2) .AND. &
-                 lb(3)<=location(3) .AND. location(3)<=ub(3)) THEN
-               map_it_here=.TRUE.
-            ENDIF
-         ELSE
-            ! not distributed, just a round-robin distribution over the full set of CPUs
-            IF (MODULO(offset,para_env_sub%num_pe)==para_env_sub%mepos) map_it_here=.TRUE.
-         ENDIF
-
-         offset=offset+nsgfa(iset)
-
-         IF (map_it_here) THEN
-           DO ipgf=1, npgfa(iset)
-             na1=(ipgf - 1)*ncoset(la_max(iset)) + 1
-             na2=ipgf*ncoset(la_max(iset))
-             igrid_level = gaussian_gridlevel(pw_env_sub%gridlevel_info,zeta(ipgf,iset))
-
-             CALL integrate_pgf_product_rspace(la_max=la_max(iset),zeta=zeta(ipgf,iset)/2.0_dp,la_min=la_min(iset),&
-                                               lb_max=0,zetb=zeta(ipgf,iset)/2.0_dp,lb_min=0,&
-                                               ra=ra,rab=rab,rab2=rab2,&
-                                               rsgrid=rs_v(igrid_level)%rs_grid,&
-                                               cell=cell,&
-                                               cube_info=pw_env_sub%cube_info(igrid_level),&
-                                               hab=I_tmp2,&
-                                               o1=na1-1,&
-                                               o2=0,&
-                                               map_consistent=.TRUE.,&
-                                               eps_gvg_rspace=qs_env%dft_control%qs_control%eps_gvg_rspace,&
-                                               calculate_forces=.FALSE.,&
-                                               error=error_sub)
-           END DO
-
-           CALL dgemm("T","N",nsgfa(iset),1,ncoa,&
-                       1.0_dp,sphi_a(1,sgfa),SIZE(sphi_a,1),&
-                       I_tmp2(1,1),SIZE(I_tmp2,1),&
-                       1.0_dp,I_ab(1,1),SIZE(I_ab,1))
-
-           L_local_col(offset-nsgfa(iset)+1:offset,i_counter)=I_ab(1:nsgfa(iset),1)
-         END IF
-
-         DEALLOCATE(I_tmp2)
-         DEALLOCATE(I_ab)
-
+     END IF !debug
+ 
+     ! For parallelization: Check, which elements of L_local_col_q    
+     ! are needed for setting up L_local_q
+  
+     my_group_L_q_start = naolimits(ref_matrix(my_group_L_start,3),1,1)
+     IF(ref_matrix(my_group_L_end,3)/=natom) THEN
+       my_group_L_q_end = naolimits(ref_matrix(my_group_L_end,3)+1,1,1)-1
+     ELSE
+       nkind=kind_of(natom)
+       basis_set_a => qs_kind_set(nkind)%ri_aux_basis_set
+       nseta       =  basis_set_a%nset
+       my_group_L_q_end = naolimits(ref_matrix(my_group_L_end,3),nseta,2)
+     END IF
+     my_group_L_q_size = my_group_L_q_end - my_group_L_q_start + 1
+  
+     ! calculate which potentials to calculate
+     ALLOCATE(sizes_array_pot(0:ngroup-1),STAT=stat)
+     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+     sizes_array_pot=0
+     ALLOCATE(starts_array_pot(0:ngroup-1),STAT=stat)
+     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+     starts_array_pot=0
+     ALLOCATE(ends_array_pot(0:ngroup-1),STAT=stat)
+     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+     ends_array_pot=0
+  
+     DO igroup=0,ngroup-1
+        itmp=get_limit(i_counter_diff_bf_at_any_atom,ngroup,igroup)
+        starts_array_pot(igroup)=itmp(1)
+        ends_array_pot(igroup)=itmp(2)
+        sizes_array_pot(igroup)=itmp(2)-itmp(1)+1
+     ENDDO
+  
+     my_group_pot_size=sizes_array_pot(color_sub)
+     my_group_pot_start=starts_array_pot(color_sub)
+     my_group_pot_end=ends_array_pot(color_sub)
+  
+  
+     DEALLOCATE(ref_matrix)
+  
+     ! 2.0) calculate potential (q_alpha|_p for first (l,m) combination at an atom
+     i_counter = 0
+     exp_q = 0.5_dp
+  
+     ALLOCATE(rho_r_array(i_counter_diff_bf_at_any_atom),STAT=stat)
+     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+ 
+     ALLOCATE(wf_vector(dimen_RI),STAT=stat)
+     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+ 
+  
+     DO j=my_group_pot_start,my_group_pot_end
+        wf_vector=0.0_dp
+        ! only take one basis function unique l,m-combination at any atom
+        wf_vector(diffbfatanyatom_noinbas(j))=1.0_dp
+  
+        ! set exponent of aux basis set temporarily to exp_q since reference wavefunction
+        ! q_a/b should have exponent exp_q. Then integration (q_a|q_b) is numerically
+        ! feasible in reciprocal space      
+        jatom = atom_set_afo_diffbf_atanyatom(j,1)
+        jset  = atom_set_afo_diffbf_atanyatom(j,2)
+        jkind = kind_of(jatom)
+        basis_set_b  =>  qs_kind_set(jkind)%ri_aux_basis_set
+        zetb         =>  basis_set_b%zet
+        lb_max       =>  basis_set_b%lmax
+  
+        zet_tmp = zetb(1,jset)
+        zetb(1,jset) = exp_q(1)
+  
+        ! pseudo psi_L
+        CALL calculate_wavefunction(mo_coeff,1,psi_L,rho_g, atomic_kind_set,&
+                                    qs_kind_set,cell,dft_control,particle_set, &
+                                    pw_env_sub,basis_set_id=use_ri_aux_basis_set,&
+                                    external_vector=wf_vector,&
+                                    error=error_sub)
+  
+        ! set back the exponent
+        zetb(1,jset) = zet_tmp
+  
+        rho_r%pw%cr3d = psi_L%pw%cr3d
+        CALL pw_transfer(rho_r%pw, rho_g%pw, error=error_sub)
+        CALL pw_poisson_solve(poisson_env,rho_g%pw, pair_energy, pot_g%pw,error=error_sub)
+        CALL pw_transfer(pot_g%pw, rho_r%pw, error=error_sub)
+        CALL pw_scale(rho_r%pw,rho_r%pw%pw_grid%dvol, error=error_sub)
+  
+        ! Writing array of potential copied from xc/xc_rho_set_types.F
+  
+        NULLIFY(rho_r_array(j)%pw)
+  
+        rho_r_array(j)%pw => rho_r%pw
+  
+        CALL pw_pool_create_pw(auxbas_pw_pool,rho_r_array(j)%pw,&
+             use_data=REALDATA3D, in_space=REALSPACE, &
+             error=error)
+        CALL pw_copy(rho_r%pw,rho_r_array(j)%pw,error=error)
+  
+     END DO
+  
+     ! Fill pw_grid and zero-components cr3d, aso. into rho_r_array for parallization
+     ! If no potential was calculated because of my_group_pot_start>my_group_pot_end, 
+     ! calculate potential of my_group_pot_start-component to get a pw_grid  
+     IF(my_group_pot_start>my_group_pot_end) THEN
+        wf_vector=0.0_dp
+        ! pseudo psi_L 
+        CALL calculate_wavefunction(mo_coeff,1,psi_L,rho_g, atomic_kind_set,&
+                                    qs_kind_set,cell,dft_control,particle_set, &
+                                    pw_env_sub,basis_set_id=use_ri_aux_basis_set,&
+                                    external_vector=wf_vector,&
+                                    error=error_sub)
+  
+        rho_r%pw%cr3d = psi_L%pw%cr3d
+        CALL pw_transfer(rho_r%pw, rho_g%pw, error=error_sub)
+        CALL pw_poisson_solve(poisson_env,rho_g%pw, pair_energy, pot_g%pw,error=error_sub)
+        CALL pw_transfer(pot_g%pw, rho_r%pw, error=error_sub)
+        CALL pw_scale(rho_r%pw,rho_r%pw%pw_grid%dvol, error=error_sub)
+  
+     END IF
+     
+     DEALLOCATE(wf_vector)
+  
+     ! Fill pw_grid and 0.0_dp potential in every component of rho_r_array
+     DO j=1,i_counter_diff_bf_at_any_atom
+       IF(j<my_group_pot_start .OR. j>my_group_pot_end) THEN
+  
+         NULLIFY(rho_r_array(j)%pw)
+         rho_r%pw%cr3d = 0.0_dp
+         rho_r_array(j)%pw => rho_r%pw
+  
+         CALL pw_pool_create_pw(auxbas_pw_pool,rho_r_array(j)%pw,&
+              use_data=REALDATA3D, in_space=REALSPACE,&
+              error=error)
+         CALL pw_copy(rho_r%pw,rho_r_array(j)%pw,error=error)
+  
+       END IF
+     END DO
+   
+     color_exc=para_env_sub%mepos
+     CALL mp_comm_split_direct(para_env%group,comm_exc,color_exc)
+     NULLIFY(para_env_exc)
+     CALL cp_para_env_create(para_env_exc,comm_exc,error=error)
+  
+     ! collect all calculated potentials
+     DO j=1,i_counter_diff_bf_at_any_atom
+       CALL mp_sum(rho_r_array(j)%pw%cr3d,para_env_exc%group)
+     END DO
+  
+     CALL cp_para_env_release(para_env_exc,error=error)
+  
+     ALLOCATE(L_local_col_q(i_counter_diff_bf,my_group_L_q_size),STAT=stat)
+     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+  
+     L_local_col_q=0.0_dp
+  
+     i_counter = 0
+  
+  
+     ! 2.1) calculate (q_alpha|q_beta)_p for every (l_alpha,m_alpha), (l_beta,m_beta)
+     !      at every atom. Use the potential (q_alpha|_p calculated in 2.0)
+  
+     DO j=my_group_L_q_start, my_group_L_q_end
+        i_counter=i_counter+1
+  
+        jatom = atom_set_afo_diffbf(j,1)
+        jset  = atom_set_afo_diffbf(j,2)
+        
+        j_ref_bf   = diffbf_atom_arbitr_atom(j)
+        j_ref_atom = atom_set_afo_diffbf_atanyatom(j_ref_bf,1)
+        j_ref_set  = atom_set_afo_diffbf_atanyatom(j_ref_bf,2)
+  
+        j_ref_kind = kind_of(j_ref_atom)
+        basis_set_b  =>  qs_kind_set(j_ref_kind)%ri_aux_basis_set
+        zetb         =>  basis_set_b%zet
+        lb_max       =>  basis_set_b%lmax
+  
+  
+        NULLIFY(rs_v)
+        NULLIFY(rs_descs)
+        CALL pw_env_get(pw_env_sub, rs_descs=rs_descs, rs_grids=rs_v, error=error_sub)
+        DO i=1,SIZE(rs_v)
+          ! allocation
+          CALL rs_grid_retain(rs_v(i)%rs_grid,error=error_sub)
         END DO
+        CALL potential_pw2rs(rs_v,rho_r_array(j_ref_bf),pw_env_sub,error_sub)
+  
+        ! integrate the little bastards
+        offset=0
+        ! only take one single set once for every (l,m) combination
+        DO i=1,i_counter_diff_sets
+           iatom = diffsets_atom_set_bf(i,1)
+           iset  = diffsets_atom_set_bf(i,2)
+  
+           ikind=kind_of(iatom)
+           basis_set_a => qs_kind_set(ikind)%ri_aux_basis_set
+  
+           first_sgfa   =>  basis_set_a%first_sgf
+           la_max       =>  basis_set_a%lmax
+           la_min       =>  basis_set_a%lmin
+           npgfa        =>  basis_set_a%npgf
+           nseta        =   basis_set_a%nset
+           nsgfa        =>  basis_set_a%nsgf_set
+           rpgfa        =>  basis_set_a%pgf_radius
+           set_radius_a =>  basis_set_a%set_radius
+           sphi_a       =>  basis_set_a%sphi
+           zeta         =>  basis_set_a%zet
+  
+           ra(:) = pbc(particle_set(iatom)%r,cell)-&
+                   pbc(particle_set(jatom)%r,cell)+&
+                   pbc(particle_set(j_ref_atom)%r,cell)
+           rab=0.0_dp
+           rab2=0.0_dp
+  
+           ncoa = npgfa(iset)*ncoset(la_max(iset))
+           sgfa = first_sgfa(1,iset)
+  
+           ALLOCATE(I_tmp2(ncoa,1))
+           I_tmp2=0.0_dp
+           ALLOCATE(I_ab(nsgfa(iset),1))
+           I_ab=0.0_dp
+  
+           igrid_level = gaussian_gridlevel(pw_env_sub%gridlevel_info,MINVAL(exp_q(:)))
+           map_it_here=.FALSE.
+           IF (.NOT. ALL (rs_v(igrid_level)%rs_grid%desc%perd == 1)) THEN
+              DO dir = 1,3
+                    ! bounds of local grid (i.e. removing the 'wings'), if periodic
+                    tp(dir) = FLOOR(DOT_PRODUCT(cell%h_inv(dir,:),ra)*rs_v(igrid_level)%rs_grid%desc%npts(dir))
+                    tp(dir) = MODULO ( tp(dir), rs_v(igrid_level)%rs_grid%desc%npts(dir) )
+                    IF (rs_v(igrid_level)%rs_grid%desc%perd(dir) .NE. 1) THEN
+                       lb(dir) = rs_v(igrid_level)%rs_grid%lb_local ( dir ) + rs_v(igrid_level)%rs_grid%desc%border
+                       ub(dir) = rs_v(igrid_level)%rs_grid%ub_local ( dir ) - rs_v(igrid_level)%rs_grid%desc%border
+                    ELSE
+                       lb(dir) = rs_v(igrid_level)%rs_grid%lb_local ( dir )
+                       ub(dir) = rs_v(igrid_level)%rs_grid%ub_local ( dir )
+                    ENDIF
+                    ! distributed grid, only map if it is local to the grid
+                    location(dir)=tp(dir)+rs_v(igrid_level)%rs_grid%desc%lb(dir)
+              ENDDO
+              IF  (lb(1)<=location(1) .AND. location(1)<=ub(1) .AND. &
+                   lb(2)<=location(2) .AND. location(2)<=ub(2) .AND. &
+                   lb(3)<=location(3) .AND. location(3)<=ub(3)) THEN
+                 map_it_here=.TRUE.
+              ENDIF
+           ELSE
+              ! not distributed, just a round-robin distribution over the full set of CPUs
+              IF (MODULO(offset,para_env_sub%num_pe)==para_env_sub%mepos) map_it_here=.TRUE.
+           ENDIF
+  
+           offset=offset+nsgfa(iset)
+  
+           IF (map_it_here) THEN
+             DO ipgf=1, npgfa(iset)
+               na1=(ipgf - 1)*ncoset(la_max(iset)) + 1
+               na2=ipgf*ncoset(la_max(iset))
+               igrid_level = gaussian_gridlevel(pw_env_sub%gridlevel_info,exp_q(1))
+  
+               CALL integrate_pgf_product_rspace(la_max=la_max(iset),zeta=exp_q(1)/2.0_dp,la_min=la_min(iset),&
+                                                 lb_max=0,zetb=exp_q(1)/2.0_dp,lb_min=0,&
+                                                 ra=ra,rab=rab,rab2=rab2,&
+                                                 rsgrid=rs_v(igrid_level)%rs_grid,&
+                                                 cell=cell,&
+                                                 cube_info=pw_env_sub%cube_info(igrid_level),&
+                                                 hab=I_tmp2,&
+                                                 o1=na1-1,&
+                                                 o2=0,&
+                                                 map_consistent=.TRUE.,&
+                                                 eps_gvg_rspace=dft_control%qs_control%eps_gvg_rspace,&
+                                                 calculate_forces=.FALSE.,&
+                                                 error=error_sub)
+             END DO
+  
+            CALL dgemm("T","N",nsgfa(iset),1,ncoa,&
+                         1.0_dp,sphi_a(1,sgfa),SIZE(sphi_a,1),&
+                         I_tmp2(1,1),SIZE(I_tmp2,1),&
+                         1.0_dp,I_ab(1,1),SIZE(I_ab,1))
+  
+             ! integration result has to be scaled since from basis set differing exponent exp_q
+             ! causes different normalization
+             L_local_col_q(offset-nsgfa(iset)+1:offset,i_counter)=I_ab(1:nsgfa(iset),1)*&
+                                   (exp_q(1)/zeta(1,iset))**(la_max(iset)*0.5_dp+3.0_dp/4.0_dp)*&
+                                   (exp_q(1)/zetb(1,j_ref_set))**(lb_max(j_ref_set)*0.5_dp+3.0_dp/4.0_dp)
+           END IF
+  
+           DEALLOCATE(I_tmp2)
+           DEALLOCATE(I_ab)
+  
+  
+        END DO ! q_beta)-set loop      
+  
+        ! deallocation
+        DO i=1,SIZE(rs_v)
+          CALL rs_grid_release(rs_v(i)%rs_grid, error=error_sub)
+        END DO
+  
+     END DO !(q_alpha| loop
+  
+     ! post cleanup
+     DO j=1,i_counter_diff_bf_at_any_atom
+       CALL pw_pool_give_back_pw(auxbas_pw_pool, rho_r_array(j)%pw,&
+                 accept_non_compatible=.TRUE., error=error)
+     END DO
+  
+     DEALLOCATE(rho_r_array)
+  
+     DEALLOCATE(diffbf_noinbas)
+     DEALLOCATE(diffbfatanyatom_noinbas)
+  
+  
+  !  3) Distribute (q_alpha|q_beta)_p to L_local_col
+  
+     ALLOCATE(L_local_col(dimen_RI,my_group_L_size),STAT=stat)
+     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+     L_local_col=0.0_dp
+  
+     DO  iatom=1, natom
+       ikind=kind_of(iatom)
+       basis_set_a  =>  qs_kind_set(ikind)%ri_aux_basis_set
+       first_sgfa   =>  basis_set_a%first_sgf
+       la_max       =>  basis_set_a%lmax
+       la_min       =>  basis_set_a%lmin
+       npgfa        =>  basis_set_a%npgf
+       nseta        =   basis_set_a%nset
+       nsgfa        =>  basis_set_a%nsgf_set
+       rpgfa        =>  basis_set_a%pgf_radius
+       set_radius_a =>  basis_set_a%set_radius
+       sphi_a       =>  basis_set_a%sphi
+       zeta         =>  basis_set_a%zet
+  
+       DO iset=1, nseta
+  
+         offsetb = 0
+  
+         DO jatom=1, natom
+           jkind=kind_of(jatom)
+           basis_set_b  => qs_kind_set(jkind)%ri_aux_basis_set
+           first_sgfb   =>  basis_set_b%first_sgf
+           lb_max       =>  basis_set_b%lmax
+           lb_min       =>  basis_set_b%lmin
+           npgfb        =>  basis_set_b%npgf
+           nsetb        =   basis_set_b%nset
+           nsgfb        =>  basis_set_b%nsgf_set
+           rpgfb        =>  basis_set_b%pgf_radius
+           set_radius_b =>  basis_set_b%set_radius
+           sphi_b       =>  basis_set_b%sphi
+           zetb         =>  basis_set_b%zet
+  
+           DO jset=1, nsetb
+  
+             ! for parallelization: check, if jset is in paralleliz. range
+             IF(ref_at_se_sgf_ofs(jatom,jset,4) + nsgfb(jset) >= my_group_L_start .AND. &
+                ref_at_se_sgf_ofs(jatom,jset,4) + 1 <= my_group_L_end ) THEN
+  
+               ! add contribution from (q_a|q_b)_p
+               scaling = 1.0_dp/(zeta(1,iset))**(la_max(iset)*0.5_dp+3.0_dp/4.0_dp)/&
+                       (zetb(1,jset))**(lb_max(jset)*0.5_dp+3.0_dp/4.0_dp)*&
+                       exp_q(1)**(la_max(iset)*0.5_dp+3.0_dp/4.0_dp)*&
+                       exp_q(1)**(lb_max(jset)*0.5_dp+3.0_dp/4.0_dp)
+  
+               DO i=1,nsgfa(iset)
+                 DO j=1,nsgfb(jset)
+                   ! for parallelization: check, if sgf_j is in paralleliz. range
+                   IF(ref_at_se_sgf_ofs(jatom,jset,4) + j >= my_group_L_start .AND. &
+                      ref_at_se_sgf_ofs(jatom,jset,4) + j <= my_group_L_end ) THEN
+  
+                     ! Scale (q_a|q_b) by c_a*c_b, only implemented for uncontracted Gaussians and lmin=lmax
+                     L_local_col(ref_at_se_sgf_ofs(iatom,iset,4)+i,&
+                                     ref_at_se_sgf_ofs(jatom,jset,4)+j-my_group_L_start+1) =&
+                         L_local_col_q(naolimits(iatom,iset,1)+i-1,&
+                                       naolimits(jatom,jset,1)+j-1-my_group_L_q_start+1)*&
+                         scaling
+                     
+                   END IF
+                 END DO
+               END DO
+   
+               ! for s-functions alpha and beta, we need additional correction V_a(G=0)-V_q(G=0))*beta(G=0)
+               ! and V_b(G=0)-V_q(G=0))*alpha(G=0), only add once for every subgroup (for mepos==0)
+               IF (la_max(iset)==0 .AND. lb_max(jset)==0 .AND. para_env_sub%mepos == 0) THEN
+                 L_local_col(ref_at_se_sgf_ofs(iatom,iset,4)+1,&
+                                 ref_at_se_sgf_ofs(jatom,jset,4)-my_group_L_start+2) = &
+                   L_local_col(ref_at_se_sgf_ofs(iatom,iset,4)+1,&
+                                   ref_at_se_sgf_ofs(jatom,jset,4)-my_group_L_start+2) - &
+                   Pi/(rho_r%pw%pw_grid%vol)*(4.0_dp*Pi**2.0_dp/(zeta(1,iset)*zetb(1,jset)))**0.75_dp*&
+                   (2.0_dp/exp_q(1)-1.0_dp/zeta(1,iset)-1.0_dp/zetb(1,jset))
+               END IF
+  
+             END IF
+  
+           END DO !jset
+         END DO !jatom
+       END DO !iset
+     END DO !iatom
+  
+     DEALLOCATE(naolimits)
+     DEALLOCATE(L_local_col_q) 
+  
+  
+     ! End of calculation (q_alpha|q_beta) for every (l_alpha,m_alpha), (l_beta,m_beta) combination
+ 
+ 
+     ! 4) Calculate (a|b)_s - (q_alpha|q_beta)_s and add them to (q_a|q_b)_p
+  
+     ! Loop over neighbor list
+     CALL neighbor_list_iterator_create(nl_iterator,sab_orb_sub)
+     DO WHILE (neighbor_list_iterate(nl_iterator)==0)
+       CALL get_iterator_info(nl_iterator,ikind=ikind,jkind=jkind,inode=inode,&
+                              iatom=iatom,jatom=jatom,r=rac)
+  
+       ikind=kind_of(iatom)
+       basis_set_a  =>  qs_kind_set(ikind)%ri_aux_basis_set
+       first_sgfa   =>  basis_set_a%first_sgf
+       la_max       =>  basis_set_a%lmax
+       la_min       =>  basis_set_a%lmin
+       npgfa        =>  basis_set_a%npgf
+       nseta        =   basis_set_a%nset
+       nsgfa        =>  basis_set_a%nsgf_set
+       rpgfa        =>  basis_set_a%pgf_radius
+       set_radius_a =>  basis_set_a%set_radius
+       sphi_a       =>  basis_set_a%sphi
+       zeta         =>  basis_set_a%zet
+  
+       DO iset=1, nseta
+  
+           jkind=kind_of(jatom)
+           basis_set_b  => qs_kind_set(jkind)%ri_aux_basis_set
+           first_sgfb   =>  basis_set_b%first_sgf
+           lb_max       =>  basis_set_b%lmax
+           lb_min       =>  basis_set_b%lmin
+           npgfb        =>  basis_set_b%npgf
+           nsetb        =   basis_set_b%nset
+           nsgfb        =>  basis_set_b%nsgf_set
+           rpgfb        =>  basis_set_b%pgf_radius
+           set_radius_b =>  basis_set_b%set_radius
+           sphi_b       =>  basis_set_b%sphi
+           zetb         =>  basis_set_b%zet
+  
+           DO jset=1, nsetb
+  
+             ! for parallelization: check, if (jatom,jset) is in paralleliz. range
+             check_j = ref_at_se_sgf_ofs(jatom,jset,4) + nsgfb(jset) >= my_group_L_start .AND. &
+                       ref_at_se_sgf_ofs(jatom,jset,4) + 1 <= my_group_L_end  
+  
+             check_i = ref_at_se_sgf_ofs(iatom,iset,4) + nsgfa(iset) >= my_group_L_start .AND. &
+                       ref_at_se_sgf_ofs(iatom,iset,4) + 1 <= my_group_L_end .AND. &
+                       iatom/=jatom 
+  
+  
+             IF(check_j .OR. check_i) THEN
+  
+               ncoa_a = npgfa(iset)*ncoset(la_max(iset))
+               ncoa_b = npgfb(jset)*ncoset(lb_max(jset))
+               sgfa = first_sgfa(1,iset)
+               sgfb = first_sgfb(1,jset)
+  
+  
+               ALLOCATE(I_tmp(ncoa_a,nsgfb(jset)),STAT=istat)
+               CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+               ALLOCATE(I_tmp2(nsgfa(iset),nsgfb(jset)),STAT=istat)
+               CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+  
+               ALLOCATE(f(0:la_max(iset)+lb_max(jset)+2),&
+                        v(ncoa_a,ncoa_b,la_max(iset)+lb_max(jset)+1),&
+                        vac(ncoa_a,ncoa_b),STAT=istat)
+               CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+               f=0.0_dp
+               v=0.0_dp
+               vac=0.0_dp
+               I_tmp=0.0_dp
+               I_tmp2=0.0_dp
+  
+               rac2 = rac(1)*rac(1) + rac(2)*rac(2) + rac(3)*rac(3)
+  
+  
+               ! calculate spherical matrix elements (a|b)_s 
+               CALL coulomb2_new(la_max=la_max(iset),npgfa=npgfa(iset),zeta=zeta(:,iset),&
+                                 la_min=la_min(iset), &
+                                 lc_max=lb_max(jset),npgfc=npgfb(jset),zetc=zetb(:,jset),&
+                                 lc_min=lb_min(jset),rac=rac,&
+                                 rac2=rac2,vac=vac,v=v,f=f)
+  
+  
+               ! trafo to spherical and add (a|b)_s to L_local_col
+               I_tmp(1:ncoa_a,1:nsgfb(jset)) = MATMUL(vac(1:ncoa_a,1:ncoa_b),sphi_b(1:ncoa_b,sgfb:(sgfb+nsgfb(jset)-1)))
+               I_tmp2(1:nsgfa(iset),1:nsgfb(jset)) = MATMUL(TRANSPOSE(sphi_a(1:ncoa_a,sgfa:(sgfa+nsgfa(iset)-1))),&
+                                                     I_tmp(1:ncoa_a,1:nsgfb(jset)))
+  
+               f=0.0_dp
+               v=0.0_dp
+               vac=0.0_dp
+  
+               ! calculate -(q_a|q_b)_s
+               CALL coulomb2_new(la_max=la_max(iset),npgfa=npgfa(iset),zeta=exp_q(:),&
+                                 la_min=la_min(iset), &
+                                 lc_max=lb_max(jset),npgfc=npgfb(jset),zetc=exp_q(:),&
+                                 lc_min=lb_min(jset),rac=rac,&
+                                 rac2=rac2,vac=vac,v=v,f=f)
+  
+  
+               ! trafo to spherical and scale by c_a*c_b, only implemented for uncontracted Gaussians and lmin=lmax
+               I_tmp(1:ncoa_a,1:nsgfb(jset)) = MATMUL(vac(1:ncoa_a,1:ncoa_b),&
+                                   sphi_b(1:ncoa_b,ref_at_se_sgf_ofs(jatom,jset,3):&
+                                   (ref_at_se_sgf_ofs(jatom,jset,3)+nsgfb(jset)-1)))
+               I_tmp2(1:nsgfa(iset),1:nsgfb(jset)) = I_tmp2(1:nsgfa(iset),1:nsgfb(jset))- &
+                   MATMUL(TRANSPOSE(sphi_a(1:ncoa_a,ref_at_se_sgf_ofs(iatom,iset,3):&
+                                           (ref_at_se_sgf_ofs(iatom,iset,3)+nsgfa(iset)-1))),&
+                          I_tmp(1:ncoa_a,1:nsgfb(jset)))/&
+                          (zeta(1,iset))**(la_max(iset)*0.5_dp+3.0_dp/4.0_dp)/&
+                          (zetb(1,jset))**(lb_max(jset)*0.5_dp+3.0_dp/4.0_dp)*&
+                          exp_q(1)**(la_max(iset)*1.0_dp+3.0_dp/2.0_dp)*&
+                          exp_q(1)**(lb_max(jset)*1.0_dp+3.0_dp/2.0_dp)/&
+                          (zeta(1,ref_at_se_sgf_ofs(iatom,iset,2)))**(la_max(iset)*0.5_dp+3.0_dp/4.0_dp)/&
+                          (zetb(1,ref_at_se_sgf_ofs(jatom,jset,2)))**(lb_max(jset)*0.5_dp+3.0_dp/4.0_dp)
+  
+  
+               ! add contribution from (a|b)_s-(q_a|q_b)_s
+               DO i=1,nsgfa(iset)
+                 DO j=1,nsgfb(jset)
+                   ! for parallelization: check, if sgf_j is in paralleliz. range
+                   IF(ref_at_se_sgf_ofs(jatom,jset,4) + j >= my_group_L_start .AND. &
+                      ref_at_se_sgf_ofs(jatom,jset,4) + j <= my_group_L_end   .AND. &
+                      check_j) THEN
+  
+                       L_local_col(ref_at_se_sgf_ofs(iatom,iset,4)+i,&
+                                       ref_at_se_sgf_ofs(jatom,jset,4)+j-my_group_L_start+1) = &
+                                    L_local_col(ref_at_se_sgf_ofs(iatom,iset,4)+i,&
+                                                    ref_at_se_sgf_ofs(jatom,jset,4)+j-my_group_L_start+1)+&
+                                    I_tmp2(i,j) 
+                   END IF
+  
+                   IF(ref_at_se_sgf_ofs(iatom,iset,4) + i >= my_group_L_start .AND. &
+                      ref_at_se_sgf_ofs(iatom,iset,4) + i <= my_group_L_end   .AND. &
+                      check_i) THEN
+                     L_local_col(ref_at_se_sgf_ofs(jatom,jset,4)+j,&
+                                     ref_at_se_sgf_ofs(iatom,iset,4)+i-my_group_L_start+1) = &
+                                   L_local_col(ref_at_se_sgf_ofs(jatom,jset,4)+j,&
+                                                   ref_at_se_sgf_ofs(iatom,iset,4)+i-my_group_L_start+1)+&
+                                   I_tmp2(i,j)
+                   END IF
+                 END DO
+               END DO  
+  
+  
+               DEALLOCATE(f,v,vac,I_tmp,I_tmp2,STAT=istat)
+            
+             END IF !parallelization
+  
+           END DO !jset
+         END DO !iset
+  
+     END DO
+  
+     CALL neighbor_list_iterator_release(nl_iterator)
+ 
+     DEALLOCATE(diffsets_atom_set_bf,ref_at_se_sgf_ofs) !JW
+     DEALLOCATE(atom_set_afo_diffbf) !JW
+     DEALLOCATE(sizes_array_pot,starts_array_pot,ends_array_pot)
+ 
+     CALL mp_sum(L_local_col,para_env_sub%group)
+  
+     ! end if of new algorithm
+   ELSE  
+     ! old algorithm
+
+     ALLOCATE(L_local_col(dimen_RI,my_group_L_size),STAT=stat)
+     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+     L_local_col=0.0_dp
+  
+     ALLOCATE(wf_vector(dimen_RI),STAT=stat)
+     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+  
+     i_counter=0
+     DO LLL=my_group_L_start, my_group_L_end
+        i_counter=i_counter+1
+  
+        wf_vector=0.0_dp
+        wf_vector(LLL)=1.0_dp
+  
+        ! pseudo psi_L
+        CALL calculate_wavefunction(mo_coeff,1,psi_L,rho_g, atomic_kind_set,&
+                                    qs_kind_set,cell,dft_control,particle_set, &
+                                    pw_env_sub,basis_set_id=use_ri_aux_basis_set,&
+                                    external_vector=wf_vector,&
+                                    error=error_sub)
+  
+        CALL timeset(routineN//"_pot_lm",handle3)
+        rho_r%pw%cr3d = psi_L%pw%cr3d
+        CALL pw_transfer(rho_r%pw, rho_g%pw, error=error_sub)
+        CALL pw_poisson_solve(poisson_env,rho_g%pw, pair_energy, pot_g%pw,error=error_sub)
+        CALL pw_transfer(pot_g%pw, rho_r%pw, error=error_sub)
+        CALL pw_scale(rho_r%pw,rho_r%pw%pw_grid%dvol, error=error_sub)
+  
+        NULLIFY(rs_v)
+        NULLIFY(rs_descs)
+        CALL pw_env_get(pw_env_sub, rs_descs=rs_descs, rs_grids=rs_v, error=error_sub)
+        DO i=1,SIZE(rs_v)
+          CALL rs_grid_retain(rs_v(i)%rs_grid,error=error_sub)
+        END DO
+        CALL potential_pw2rs(rs_v,rho_r,pw_env_sub,error_sub)
+  
+        CALL timestop(handle3)
+   
+        ! integrate the little bastards
+        offset=0
+        DO iatom=1, natom
+          ikind=kind_of(iatom)
+          basis_set_a => qs_kind_set(ikind)%ri_aux_basis_set
+  
+          first_sgfa   =>  basis_set_a%first_sgf
+          la_max       =>  basis_set_a%lmax
+          la_min       =>  basis_set_a%lmin
+          npgfa        =>  basis_set_a%npgf
+          nseta        =   basis_set_a%nset
+          nsgfa        =>  basis_set_a%nsgf_set
+          rpgfa        =>  basis_set_a%pgf_radius
+          set_radius_a =>  basis_set_a%set_radius
+          sphi_a       =>  basis_set_a%sphi
+          zeta         =>  basis_set_a%zet
+  
+          ra(:) = pbc(particle_set(iatom)%r,cell)
+          rab=0.0_dp
+          rab2=0.0_dp
+  
+          DO iset=1, nseta
+           ncoa = npgfa(iset)*ncoset(la_max(iset))
+           sgfa = first_sgfa(1,iset)
+  
+           ALLOCATE(I_tmp2(ncoa,1))
+           I_tmp2=0.0_dp
+           ALLOCATE(I_ab(nsgfa(iset),1))
+           I_ab=0.0_dp
+  
+  
+           igrid_level = gaussian_gridlevel(pw_env_sub%gridlevel_info,MINVAL(zeta(:,iset)))
+           map_it_here=.FALSE.
+           IF (.NOT. ALL (rs_v(igrid_level)%rs_grid%desc%perd == 1)) THEN
+              DO dir = 1,3
+                    ! bounds of local grid (i.e. removing the 'wings'), if periodic
+                    tp(dir) = FLOOR(DOT_PRODUCT(cell%h_inv(dir,:),ra)*rs_v(igrid_level)%rs_grid%desc%npts(dir))
+                    tp(dir) = MODULO ( tp(dir), rs_v(igrid_level)%rs_grid%desc%npts(dir) )
+                    IF (rs_v(igrid_level)%rs_grid%desc%perd(dir) .NE. 1) THEN
+                       lb(dir) = rs_v(igrid_level)%rs_grid%lb_local ( dir ) + rs_v(igrid_level)%rs_grid%desc%border
+                       ub(dir) = rs_v(igrid_level)%rs_grid%ub_local ( dir ) - rs_v(igrid_level)%rs_grid%desc%border
+                    ELSE
+                       lb(dir) = rs_v(igrid_level)%rs_grid%lb_local ( dir )
+                       ub(dir) = rs_v(igrid_level)%rs_grid%ub_local ( dir )
+                    ENDIF
+                    ! distributed grid, only map if it is local to the grid
+                    location(dir)=tp(dir)+rs_v(igrid_level)%rs_grid%desc%lb(dir)
+              ENDDO
+              IF  (lb(1)<=location(1) .AND. location(1)<=ub(1) .AND. &
+                   lb(2)<=location(2) .AND. location(2)<=ub(2) .AND. &
+                   lb(3)<=location(3) .AND. location(3)<=ub(3)) THEN
+                 map_it_here=.TRUE.
+              ENDIF
+           ELSE
+              ! not distributed, just a round-robin distribution over the full set of CPUs
+              IF (MODULO(offset,para_env_sub%num_pe)==para_env_sub%mepos) map_it_here=.TRUE.
+           ENDIF
+  
+           offset=offset+nsgfa(iset)
+  
+           IF (map_it_here) THEN
+             DO ipgf=1, npgfa(iset)
+               sgfa = first_sgfa(1,iset)
+  
+               na1=(ipgf - 1)*ncoset(la_max(iset)) + 1
+               na2=ipgf*ncoset(la_max(iset))
+               igrid_level = gaussian_gridlevel(pw_env_sub%gridlevel_info,zeta(ipgf,iset))
+  
+               CALL integrate_pgf_product_rspace(la_max=la_max(iset),zeta=zeta(ipgf,iset)/2.0_dp,la_min=la_min(iset),&
+                                                 lb_max=0,zetb=zeta(ipgf,iset)/2.0_dp,lb_min=0,&
+                                                 ra=ra,rab=rab,rab2=rab2,&
+                                                 rsgrid=rs_v(igrid_level)%rs_grid,&
+                                                 cell=cell,&
+                                                 cube_info=pw_env_sub%cube_info(igrid_level),&
+                                                 hab=I_tmp2,&
+                                                 o1=na1-1,&
+                                                 o2=0,&
+                                                 map_consistent=.TRUE.,&
+                                                 eps_gvg_rspace=dft_control%qs_control%eps_gvg_rspace,&
+                                                 calculate_forces=.FALSE.,&
+                                                 error=error_sub)
+             END DO
+           
+             CALL dgemm("T","N",nsgfa(iset),1,ncoa,&
+                         1.0_dp,sphi_a(1,sgfa),SIZE(sphi_a,1),&
+                         I_tmp2(1,1),SIZE(I_tmp2,1),&
+                         1.0_dp,I_ab(1,1),SIZE(I_ab,1))
+   
+             L_local_col(offset-nsgfa(iset)+1:offset,i_counter)=I_ab(1:nsgfa(iset),1)
+           END IF
+  
+           DEALLOCATE(I_tmp2)
+           DEALLOCATE(I_ab)
+  
+          END DO
+        END DO
+  
+        DO i=1,SIZE(rs_v)
+          CALL rs_grid_release(rs_v(i)%rs_grid, error=error_sub)
+        END DO
+  
       END DO
+ 
+      DEALLOCATE(wf_vector)
+ 
+      CALL mp_sum(L_local_col,para_env_sub%group)
+  
+    END IF  !end old code
 
-      DO i=1,SIZE(rs_v)
-        CALL rs_grid_release(rs_v(i)%rs_grid, error=error_sub)
-      END DO
-
-    END DO
-
-    DEALLOCATE(wf_vector)
-    CALL mp_sum(L_local_col,para_env_sub%group)
     CALL timestop(handle2)
 
     ! split the total number of proc in a subgroup of the size of ~1/10 of the 
@@ -1106,7 +1982,6 @@ MODULE mp2_ri_gpw
 
 ! *****************************************************************************
 !> \brief ...
-!> \param qs_env ...
 !> \param para_env ...
 !> \param dimen_RI ...
 !> \param fm_matrix_L ...
@@ -1116,10 +1991,9 @@ MODULE mp2_ri_gpw
 !> \param my_Lrows ...
 !> \param error ...
 ! *****************************************************************************
-  SUBROUTINE grep_Lcols(qs_env,para_env,dimen_RI,fm_matrix_L,&
+  SUBROUTINE grep_Lcols(para_env,dimen_RI,fm_matrix_L,&
                         my_group_L_start,my_group_L_end,my_group_L_size,my_Lrows,&
                         error)
-    TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(cp_para_env_type), POINTER          :: para_env
     INTEGER                                  :: dimen_RI
     TYPE(cp_fm_type), POINTER                :: fm_matrix_L
@@ -1398,7 +2272,6 @@ MODULE mp2_ri_gpw
 !> \param Emp2_Cou ...
 !> \param Emp2_EX ...
 !> \param BIb_C ...
-!> \param qs_env ...
 !> \param mp2_env ...
 !> \param para_env ...
 !> \param para_env_sub ...
@@ -1426,7 +2299,7 @@ MODULE mp2_ri_gpw
 !> \param sizes_B_virtual_beta ...
 !> \param starts_B_virtual_beta ...
 ! *****************************************************************************
-  SUBROUTINE mp2_ri_gpw_compute_en(Emp2,Emp2_Cou,Emp2_EX,BIb_C,qs_env,mp2_env,para_env,para_env_sub,color_sub,&
+  SUBROUTINE mp2_ri_gpw_compute_en(Emp2,Emp2_Cou,Emp2_EX,BIb_C,mp2_env,para_env,para_env_sub,color_sub,&
                                    ends_array,ends_B_virtual,sizes_array,sizes_B_virtual,starts_array,starts_B_virtual,&
                                    Eigenval,nmo,homo,dimen_RI,unit_nr,calc_forces,calc_ex,error,error_sub,&
                                    open_shell_SS,BIb_C_beta,homo_beta,Eigenval_beta,&
@@ -1434,7 +2307,6 @@ MODULE mp2_ri_gpw
     REAL(KIND=dp)                            :: Emp2, Emp2_Cou, Emp2_EX
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :, :)                     :: BIb_C
-    TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(mp2_type), POINTER                  :: mp2_env
     TYPE(cp_para_env_type), POINTER          :: para_env, para_env_sub
     INTEGER                                  :: color_sub
@@ -1458,30 +2330,29 @@ MODULE mp2_ri_gpw
     CHARACTER(LEN=*), PARAMETER :: routineN = 'mp2_ri_gpw_compute_en', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: a, a_global, assigned_blocks, b, b_global, best_block_size, &
+    INTEGER :: a, a_global, b, b_global, best_block_size, &
       best_integ_group_size, block_size, comm_exchange, comm_P, end_point, &
-      first_I_block, first_J_block, handle, handle2, handle3, handle4, i, &
-      iiB, ij_block_counter, ij_counter, ij_counter_rec, ij_counter_send, &
-      ij_index, ijk_counter, ijk_counter_send, ijk_index, integ_group_size, &
-      irep, jjB, kkB, kkk, last_I_block, last_J_block, Lend_pos, lll, &
-      Lstart_pos, max_ij_pairs, max_ijk, min_integ_group_size, my_B_size, &
-      my_B_size_beta, my_B_virtual_end, my_B_virtual_end_beta, &
-      my_B_virtual_start, my_B_virtual_start_beta, my_block_size
-    INTEGER :: my_group_L_end, my_group_L_size, my_group_L_size_orig, &
-      my_group_L_start, my_homo_beta, my_i, my_ij_pairs, my_ijk, my_j, my_k, &
-      my_new_group_L_size, my_num_dgemm_call, ngroup, num_block_per_group, &
-      num_IJ_blocks, num_integ_group, num_sing_ij, pos_integ_group, &
-      proc_receive, proc_send, proc_shift, rec_B_size, rec_B_virtual_end, &
-      rec_B_virtual_start, rec_block_size, rec_i, rec_ij_index, rec_j, &
-      rec_L_size, send_B_size, send_B_virtual_end, send_B_virtual_start, &
-      send_block_size, send_i, send_ij_index, send_ijk_index, send_j, send_k, &
-      send_L_size, start_point, stat, sub_P_color, sub_sub_color
-    INTEGER :: total_ij_block, total_ij_pairs, total_ij_pairs_blocks, &
-      total_ijk, virtual, virtual_beta
+      handle, handle2, handle3, handle4, iiB, ij_counter, ij_counter_rec, &
+      ij_counter_send, ij_index, ijk_counter, ijk_counter_send, ijk_index, &
+      integ_group_size, irep, jjB, kkB, kkk, Lend_pos, lll, Lstart_pos, &
+      max_ij_pairs, max_ijk, min_integ_group_size, my_B_size, my_B_size_beta, &
+      my_B_virtual_end, my_B_virtual_end_beta, my_B_virtual_start, &
+      my_B_virtual_start_beta, my_block_size, my_group_L_end, &
+      my_group_L_size, my_group_L_size_orig, my_group_L_start, my_homo_beta, &
+      my_i
+    INTEGER :: my_ij_pairs, my_ijk, my_j, my_k, my_new_group_L_size, &
+      my_num_dgemm_call, ngroup, num_IJ_blocks, num_integ_group, num_sing_ij, &
+      pos_integ_group, proc_receive, proc_send, proc_shift, rec_B_size, &
+      rec_B_virtual_end, rec_B_virtual_start, rec_block_size, rec_i, &
+      rec_ij_index, rec_j, rec_L_size, send_B_size, send_B_virtual_end, &
+      send_B_virtual_start, send_block_size, send_i, send_ij_index, &
+      send_ijk_index, send_j, send_k, send_L_size, start_point, stat, &
+      sub_P_color, sub_sub_color, total_ij_pairs, total_ijk, virtual, &
+      virtual_beta
     INTEGER, ALLOCATABLE, DIMENSION(:) :: integ_group_pos2color_sub, &
       new_sizes_array, num_ij_pairs, num_ijk, proc_map, proc_map_rep, &
       sizes_array_orig, sub_proc_map
-    INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: ij_map, ij_marker, ijk_map
+    INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: ij_map, ijk_map
     INTEGER, ALLOCATABLE, DIMENSION(:, :, :) :: ranges_info_array
     LOGICAL                                  :: failure, my_alpha_beta_case, &
                                                 my_open_shell_SS
@@ -1516,102 +2387,11 @@ MODULE mp2_ri_gpw
     virtual=nmo-homo
     IF(my_alpha_beta_case) virtual_beta=nmo-homo_beta
 
-    ngroup=para_env%num_pe/para_env_sub%num_pe
-
-    ! Calculate available memory and create integral group according to that
-    ! mem_for_iaK is the memory needed for storing the 3 centre integrals
-    mem_for_iaK=REAL(homo,KIND=dp)*virtual*dimen_RI*8.0_dp/(1024_dp**2)
-    mem_for_aK=REAL(virtual,KIND=dp)*dimen_RI*8.0_dp/(1024_dp**2)
-
-    mem_real=m_memory()
-    mem_real=(mem_real+1024*1024-1)/(1024*1024)
-    ! mp_min .... a hack.. it should be mp_max, but as it turns out, on some processes the previously freed memory (hfx)
-    ! has not been given back to the OS yet. 
-    CALL mp_min(mem_real,para_env%group)
-
-    mem_min=2.0_dp*REAL(homo,KIND=dp)*MAXVAL(sizes_B_virtual)*MAXVAL(sizes_array)*8.0_dp/(1024**2)
-    mem_min=mem_min+3.0_dp*MAXVAL(sizes_B_virtual)*REAL(dimen_RI,KIND=dp)*8.0_dp/(1024**2)
- 
-    IF((.NOT.my_open_shell_SS).AND.(.NOT.my_alpha_beta_case)) THEN
-      IF (unit_nr>0) WRITE(unit_nr,'(T3,A,T69,F9.2,A3)') 'RI_INFO| Minimum required memory per MPI process:',&
-                                                          mem_min, ' MB'
-    END IF
-   
-    mem_real=mp2_env%mp2_memory
-
-    mem_per_group=mem_real*para_env_sub%num_pe
-    
-    ! here we try to find the best block_size and integ_group_size
-    best_integ_group_size=ngroup
-    best_block_size=1
-
-    ! in the open shell case no replication and no block communication is done 
-    IF((.NOT.my_open_shell_SS).AND.(.NOT.my_alpha_beta_case)) THEN
-      ! Here we split the memory half for the communication, half for replication
-      IF(mp2_env%ri_mp2%block_size>0) THEN
-        best_block_size=mp2_env%ri_mp2%block_size
-        mem_for_rep=MAX(mem_min,mem_per_group-2.0_dp*mem_for_aK*best_block_size)
-      ELSE
-        mem_for_rep=mem_per_group/2.0_dp
-      END IF
-      ! calculate the minimum replication group size according to the available memory
-      min_integ_group_size=CEILING(2.0_dp*mem_for_iaK/mem_for_rep)
-
-      integ_group_size=MIN(min_integ_group_size,ngroup)-1
-      DO iiB=min_integ_group_size+1, ngroup
-        integ_group_size=integ_group_size+1
-        ! check that the ngroup is a multiple of  integ_group_size
-        IF(MOD(ngroup,integ_group_size)/=0) CYCLE
-        ! check that the integ group size is not too small (10% is empirical for now)
-        IF(REAL(integ_group_size,KIND=dp)/REAL(ngroup,KIND=dp)<0.1_dp) CYCLE
-
-        best_integ_group_size=integ_group_size
-        EXIT
-      END DO
-
-      IF(.NOT.(mp2_env%ri_mp2%block_size>0)) THEN
-        mem_for_comm=mem_per_group-2.0_dp*mem_for_iaK/best_integ_group_size
-        ! calculate the maximum block size and make sure it is not smaller than 1
-        best_block_size=MAX(INT(mem_for_comm/(2.0_dp*mem_for_aK)),1)
-        DO 
-          num_IJ_blocks=(homo/best_block_size)
-          num_IJ_blocks=(num_IJ_blocks*num_IJ_blocks-num_IJ_blocks)/2
-          IF(num_IJ_blocks>ngroup.OR.best_block_size==1) THEN
-            EXIT
-          ELSE
-            best_block_size=best_block_size-1
-          END IF
-        END DO
-      END IF
- 
-      ! check that best_block_size is not bigger than homo/2-1
-      best_block_size=MIN(MAX(homo/2-1+MOD(homo,2),1),best_block_size)
-    END IF
-
-    integ_group_size=best_integ_group_size
-    block_size=best_block_size
-
-    IF((.NOT.my_open_shell_SS).AND.(.NOT.my_alpha_beta_case)) THEN
-      IF (unit_nr>0) THEN
-         WRITE (UNIT=unit_nr,FMT="(T3,A,T75,i6)")&
-                                 "RI_INFO| Group size for integral replication:", integ_group_size*para_env_sub%num_pe
-         WRITE (UNIT=unit_nr,FMT="(T3,A,T75,i6)")&
-                                 "RI_INFO| Block size:", block_size
-         CALL m_flush(unit_nr)
-      END IF
-    END IF
-    
-    num_integ_group=ngroup/integ_group_size
-
-    pos_integ_group=MOD(color_sub,integ_group_size)
-
-    my_group_L_size=sizes_array(color_sub)
-    my_group_L_start=starts_array(color_sub)
-    my_group_L_end=ends_array(color_sub)
-
-    my_B_virtual_start=starts_B_virtual(para_env_sub%mepos)
-    my_B_virtual_end=ends_B_virtual(para_env_sub%mepos)
-    my_B_size=sizes_B_virtual(para_env_sub%mepos)
+    CALL mp2_ri_get_sizes(mp2_env,para_env, para_env_sub,ends_array, ends_B_virtual,sizes_array, sizes_B_virtual,&
+    starts_array, starts_B_virtual,homo, dimen_RI, unit_nr,color_sub,best_block_size,best_integ_group_size, block_size, &
+    integ_group_size,min_integ_group_size, my_B_size,my_B_virtual_end, my_B_virtual_start, my_group_L_size, &
+    my_group_L_start, my_group_L_end, ngroup, num_IJ_blocks, num_integ_group,pos_integ_group, virtual,my_alpha_beta_case, &
+    my_open_shell_SS, actual_flop_rate, mem_for_aK, mem_for_comm, mem_for_iaK,mem_for_rep, mem_min, mem_per_group, mem_real)
 
     IF(my_alpha_beta_case) THEN
       my_B_virtual_start_beta=starts_B_virtual_beta(para_env_sub%mepos)
@@ -1628,64 +2408,12 @@ MODULE mp2_ri_gpw
     ! now create a group that contains all the proc that have the same virtual starting point
     ! in the integ group
     ! sub_sub_color=para_env_sub%mepos
-    sub_sub_color=para_env_sub%mepos*num_integ_group+color_sub/integ_group_size
-    CALL mp_comm_split_direct(para_env%group,comm_exchange,sub_sub_color)
-    NULLIFY(para_env_exchange)
-    CALL cp_para_env_create(para_env_exchange,comm_exchange,error=error_sub)
-
-    ! crate the proc maps
-    ALLOCATE(proc_map(-para_env_exchange%num_pe:2*para_env_exchange%num_pe-1))
-    DO i=0,para_env_exchange%num_pe-1
-      proc_map(i)=i
-      proc_map(-i-1)=para_env_exchange%num_pe-i-1
-      proc_map(para_env_exchange%num_pe+i)=i
-    END DO
-
-    ALLOCATE(sub_proc_map(-para_env_sub%num_pe:2*para_env_sub%num_pe-1))
-    DO i=0,para_env_sub%num_pe-1
-      sub_proc_map(i)=i
-      sub_proc_map(-i-1)=para_env_sub%num_pe-i-1
-      sub_proc_map(para_env_sub%num_pe+i)=i
-    END DO
-
-    CALL replicate_iaK_2intgroup(BIb_C,para_env,para_env_sub,para_env_exchange,para_env_rep,&
-                                 ngroup,integ_group_size,num_integ_group,homo,proc_map,proc_map_rep,&
-                                 ends_array,ends_B_virtual,sizes_array,sizes_B_virtual,starts_array,starts_B_virtual,&
-                                 my_B_size,my_B_virtual_start,my_B_virtual_end,&
-                                 my_group_L_size,my_group_L_start,my_group_L_end,&
-                                 my_new_group_L_size,new_sizes_array,ranges_info_array,&
-                                 error_sub)
-
-    ALLOCATE(integ_group_pos2color_sub(0:para_env_exchange%num_pe-1),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error_sub,failure)
-    integ_group_pos2color_sub=0
-    integ_group_pos2color_sub(para_env_exchange%mepos)=color_sub
-    CALL mp_sum(integ_group_pos2color_sub,para_env_exchange%group)
-
-    IF(calc_forces) THEN
-      iiB=SIZE(sizes_array)
-      ALLOCATE(sizes_array_orig(0:iiB-1),STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,error_sub,failure)
-      sizes_array_orig(:)=sizes_array
-    END IF  
- 
-    my_group_L_size_orig=my_group_L_size
-    my_group_L_size=my_new_group_L_size
-    DEALLOCATE(sizes_array)
-    ! IF(.NOT.my_open_shell_SS) THEN 
-    !   ! in the open shell case we need to keep the information on the data structure
-    !   ! also if forces are required
-    !   IF(.NOT.calc_forces) THEN
-    !     DEALLOCATE(starts_array)
-    !     DEALLOCATE(ends_array)
-    !   END IF
-    ! END IF
-
-    ALLOCATE(sizes_array(0:integ_group_size-1),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error_sub,failure)
-    sizes_array(:)=new_sizes_array
-      
-    DEALLOCATE(new_sizes_array)
+    CALL mp2_ri_create_group(BIb_C,para_env,para_env_sub,homo,color_sub, ends_array, ends_B_virtual, &
+                 sizes_array,sizes_B_virtual,starts_array,starts_B_virtual,calc_forces,error, error_sub,&
+                 comm_exchange,integ_group_size, my_B_size,iiB, my_B_virtual_end,my_B_virtual_start, my_group_L_end,&
+                 my_group_L_size, my_group_L_size_orig, my_group_L_start,my_new_group_L_size, ngroup, &
+                 sub_sub_color,integ_group_pos2color_sub,new_sizes_array, proc_map, proc_map_rep, sizes_array_orig,&
+                 sub_proc_map,ranges_info_array,para_env_exchange,para_env_rep,num_integ_group)
 
     ! *****************************************************************
     ! **********  REPLICATION-BLOCKED COMMUNICATION SCHEME  ***********
@@ -1695,93 +2423,8 @@ MODULE mp2_ri_gpw
 
     ! Calculate the maximum number of ij pairs that have to be computed
     ! among groups
-    IF(.NOT.my_alpha_beta_case) THEN
-      total_ij_pairs=homo*(1+homo)/2
-      num_IJ_blocks=homo/block_size-1
-
-      first_I_block=1
-      last_i_block=block_size*(num_IJ_blocks-1)
-
-      first_J_block=block_size+1
-      last_J_block=block_size*(num_IJ_blocks+1)
-
-      ij_block_counter=0
-      DO iiB=first_I_block, last_i_block, block_size
-        DO jjB=iiB+block_size, last_J_block, block_size
-          ij_block_counter=ij_block_counter+1
-        END DO
-      END DO
-
-      total_ij_block=ij_block_counter
-      num_block_per_group=total_ij_block/ngroup
-      assigned_blocks=num_block_per_group*ngroup
-
-      total_ij_pairs_blocks=assigned_blocks+(total_ij_pairs-assigned_blocks*(block_size**2))
-
-      ALLOCATE(ij_marker(homo,homo),STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,error_sub,failure)
-      ij_marker=0
-      ALLOCATE(ij_map(total_ij_pairs_blocks,3),STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,error_sub,failure)
-      ij_map=0
-      ij_counter=0
-      my_ij_pairs=0
-      DO iiB=first_I_block, last_i_block, block_size
-        DO jjB=iiB+block_size, last_J_block, block_size
-          IF(ij_counter+1>assigned_blocks) EXIT
-          ij_counter=ij_counter+1
-          ij_marker(iiB:iiB+block_size-1,jjB:jjB+block_size-1)=1
-          ij_map(ij_counter,1)=iiB
-          ij_map(ij_counter,2)=jjB
-          ij_map(ij_counter,3)=block_size
-          IF (MOD(ij_counter,ngroup)==color_sub) my_ij_pairs=my_ij_pairs+1
-        END DO
-      END DO
-      DO iiB=1, homo
-        DO jjB=iiB, homo
-          IF(ij_marker(iiB,jjB)==0) THEN
-            ij_counter=ij_counter+1
-            ij_map(ij_counter,1)=iiB
-            ij_map(ij_counter,2)=jjB
-            ij_map(ij_counter,3)=1
-            IF (MOD(ij_counter,ngroup)==color_sub) my_ij_pairs=my_ij_pairs+1
-          END IF
-        END DO
-      END DO
-      DEALLOCATE(ij_marker)
-
-      IF((.NOT.my_open_shell_SS)) THEN
-        IF (unit_nr>0) THEN
-          IF(block_size==1) THEN
-            WRITE (UNIT=unit_nr,FMT="(T3,A,T66,F15.1)")&
-                        "RI_INFO| Percentage of ij pairs communicated with block size 1:", 100.0_dp
-          ELSE
-            WRITE (UNIT=unit_nr,FMT="(T3,A,T66,F15.1)")&
-                        "RI_INFO| Percentage of ij pairs communicated with block size 1:", &
-                        100.0_dp*REAL((total_ij_pairs-assigned_blocks*(block_size**2)),KIND=dp)/REAL(total_ij_pairs,KIND=dp)
-          END IF
-          CALL m_flush(unit_nr)
-        END IF
-      END IF
-
-    ELSE
-      ! alpha-beta case no index symmetry
-      total_ij_pairs=homo*homo_beta
-      ALLOCATE(ij_map(total_ij_pairs,3),STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,error_sub,failure)
-      ij_map=0
-      ij_counter=0
-      my_ij_pairs=0
-      DO iiB=1, homo 
-        DO jjB=1, homo_beta
-          ij_counter=ij_counter+1
-          ij_map(ij_counter,1)=iiB
-          ij_map(ij_counter,2)=jjB
-          ij_map(ij_counter,3)=1
-          IF (MOD(ij_counter,ngroup)==color_sub) my_ij_pairs=my_ij_pairs+1
-        END DO
-      END DO
-    END IF
+    CALL mp2_ri_communication(my_alpha_beta_case,total_ij_pairs,homo,homo_beta,num_IJ_blocks,&
+               block_size,ngroup,ij_map,color_sub,my_ij_pairs,error_sub,my_open_shell_SS,unit_nr)
     
     ALLOCATE(num_ij_pairs(0:para_env_exchange%num_pe-1),STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error_sub,failure)
@@ -1792,30 +2435,9 @@ MODULE mp2_ri_gpw
     max_ij_pairs=MAXVAL(num_ij_pairs)
 
     ! start real stuff
-    ALLOCATE(local_i_aL(dimen_RI,my_B_size,block_size),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error_sub,failure)
-    ALLOCATE(local_j_aL(dimen_RI,my_B_size_beta,block_size),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error_sub,failure)
-    ALLOCATE(local_ab(virtual,my_B_size_beta),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error_sub,failure)
-
-    IF(calc_forces) THEN
-      ALLOCATE(mp2_env%ri_grad%P_ij(homo,homo),STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,error_sub,failure)
-      ALLOCATE(mp2_env%ri_grad%P_ab(my_B_size,virtual),STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,error_sub,failure)
-      ALLOCATE(mp2_env%ri_grad%Gamma_P_ia(homo,my_B_size,my_group_L_size),STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,error_sub,failure)
-      mp2_env%ri_grad%P_ij=0.0_dp
-      mp2_env%ri_grad%P_ab=0.0_dp
-      mp2_env%ri_grad%Gamma_P_ia=0.0_dp
-      ALLOCATE(Y_i_aP(my_B_size,dimen_RI,block_size),STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,error_sub,failure)
-      ALLOCATE(Y_j_aP(my_B_size,dimen_RI,block_size),STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,error_sub,failure)
-      ALLOCATE(t_ab(virtual,my_B_size_beta),STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,error_sub,failure)
-    END IF
+    CALL mp2_ri_allocate(local_ab, t_ab,mp2_env,homo,virtual,dimen_RI,my_B_size,&
+                                block_size,my_B_size_beta,my_group_L_size,Y_i_aP,&
+                                Y_j_aP,local_i_aL, local_j_aL,calc_forces,error_sub)
 
     CALL timeset(routineN//"_RI_loop",handle2)
     null_mat_rec=0.0_dp
@@ -3290,5 +3912,515 @@ MODULE mp2_ri_gpw
       END DO
       WRITE(*,*)
      END SUBROUTINE
+
+! *****************************************************************************
+!> \brief ...
+!> \param local_ab ...
+!> \param t_ab ...
+!> \param mp2_env ...
+!> \param homo ...
+!> \param virtual ...
+!> \param dimen_RI ...
+!> \param my_B_size ...
+!> \param block_size ...
+!> \param my_B_size_beta ...
+!> \param my_group_L_size ...
+!> \param Y_i_aP ...
+!> \param Y_j_aP ...
+!> \param local_i_aL ...
+!> \param local_j_aL ...
+!> \param calc_forces ...
+!> \param error_sub ...
+! *****************************************************************************
+    SUBROUTINE mp2_ri_allocate(local_ab, t_ab,mp2_env,homo,virtual,dimen_RI,my_B_size,&
+                                block_size,my_B_size_beta,my_group_L_size,Y_i_aP,&
+                                Y_j_aP,local_i_aL, local_j_aL,calc_forces,error_sub)
+    REAL(KIND=dp), ALLOCATABLE, &
+      DIMENSION(:, :)                        :: local_ab, t_ab
+    TYPE(mp2_type), POINTER                  :: mp2_env
+    INTEGER                                  :: homo, virtual, dimen_RI, &
+                                                my_B_size, block_size, &
+                                                my_B_size_beta, &
+                                                my_group_L_size
+    REAL(KIND=dp), ALLOCATABLE, &
+      DIMENSION(:, :, :)                     :: Y_i_aP, Y_j_aP, local_i_aL, &
+                                                local_j_aL
+    LOGICAL                                  :: calc_forces
+    TYPE(cp_error_type), INTENT(inout)       :: error_sub
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'mp2_ri_allocate', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, stat
+    LOGICAL                                  :: failure
+
+    CALL timeset(routineN,handle)
+    failure=.FALSE.
+
+    ALLOCATE(local_i_aL(dimen_RI,my_B_size,block_size),STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error_sub,failure)
+    ALLOCATE(local_j_aL(dimen_RI,my_B_size_beta,block_size),STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error_sub,failure)
+    ALLOCATE(local_ab(virtual,my_B_size_beta),STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error_sub,failure)
+
+    IF(calc_forces) THEN
+      ALLOCATE(mp2_env%ri_grad%P_ij(homo,homo),STAT=stat)
+      CPPostcondition(stat==0,cp_failure_level,routineP,error_sub,failure)
+      ALLOCATE(mp2_env%ri_grad%P_ab(my_B_size,virtual),STAT=stat)
+      CPPostcondition(stat==0,cp_failure_level,routineP,error_sub,failure)
+      ALLOCATE(mp2_env%ri_grad%Gamma_P_ia(homo,my_B_size,my_group_L_size),STAT=stat)
+      CPPostcondition(stat==0,cp_failure_level,routineP,error_sub,failure)
+      mp2_env%ri_grad%P_ij=0.0_dp
+      mp2_env%ri_grad%P_ab=0.0_dp
+      mp2_env%ri_grad%Gamma_P_ia=0.0_dp
+      ALLOCATE(Y_i_aP(my_B_size,dimen_RI,block_size),STAT=stat)
+      CPPostcondition(stat==0,cp_failure_level,routineP,error_sub,failure)
+      ALLOCATE(Y_j_aP(my_B_size,dimen_RI,block_size),STAT=stat)
+      CPPostcondition(stat==0,cp_failure_level,routineP,error_sub,failure)
+      ALLOCATE(t_ab(virtual,my_B_size_beta),STAT=stat)
+      CPPostcondition(stat==0,cp_failure_level,routineP,error_sub,failure)
+    END IF
+
+    CALL timestop(handle)
+
+    END SUBROUTINE mp2_ri_allocate
+
+! *****************************************************************************
+!> \brief ...
+!> \param my_alpha_beta_case ...
+!> \param total_ij_pairs ...
+!> \param homo ...
+!> \param homo_beta ...
+!> \param num_IJ_blocks ...
+!> \param block_size ...
+!> \param ngroup ...
+!> \param ij_map ...
+!> \param color_sub ...
+!> \param my_ij_pairs ...
+!> \param error_sub ...
+!> \param my_open_shell_SS ...
+!> \param unit_nr ...
+! *****************************************************************************
+    SUBROUTINE mp2_ri_communication(my_alpha_beta_case,total_ij_pairs,homo,homo_beta,num_IJ_blocks,&
+               block_size,ngroup,ij_map,color_sub,my_ij_pairs,error_sub,my_open_shell_SS,unit_nr)
+    LOGICAL                                  :: my_alpha_beta_case
+    INTEGER                                  :: total_ij_pairs, homo, &
+                                                homo_beta, num_IJ_blocks, &
+                                                block_size, ngroup
+    INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: ij_map
+    INTEGER                                  :: color_sub, my_ij_pairs
+    TYPE(cp_error_type), INTENT(inout)       :: error_sub
+    LOGICAL                                  :: my_open_shell_SS
+    INTEGER                                  :: unit_nr
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'mp2_ri_communication', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER :: assigned_blocks, first_I_block, first_J_block, handle, iiB, &
+      ij_block_counter, ij_counter, jjB, last_i_block, last_J_block, &
+      num_block_per_group, stat, total_ij_block, total_ij_pairs_blocks
+    INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: ij_marker
+    LOGICAL                                  :: failure
+
+! Calculate the maximum number of ij pairs that have to be computed
+! among groups
+
+    CALL timeset(routineN,handle)
+    failure=.FALSE.
+
+    IF(.NOT.my_alpha_beta_case) THEN
+      total_ij_pairs=homo*(1+homo)/2
+      num_IJ_blocks=homo/block_size-1
+
+      first_I_block=1
+      last_i_block=block_size*(num_IJ_blocks-1)
+
+      first_J_block=block_size+1
+      last_J_block=block_size*(num_IJ_blocks+1)
+
+      ij_block_counter=0
+      DO iiB=first_I_block, last_i_block, block_size
+        DO jjB=iiB+block_size, last_J_block, block_size
+          ij_block_counter=ij_block_counter+1
+        END DO
+      END DO
+
+      total_ij_block=ij_block_counter
+      num_block_per_group=total_ij_block/ngroup
+      assigned_blocks=num_block_per_group*ngroup
+
+      total_ij_pairs_blocks=assigned_blocks+(total_ij_pairs-assigned_blocks*(block_size**2))
+
+      ALLOCATE(ij_marker(homo,homo),STAT=stat)
+      CPPostcondition(stat==0,cp_failure_level,routineP,error_sub,failure)
+      ij_marker=0
+      ALLOCATE(ij_map(total_ij_pairs_blocks,3),STAT=stat)
+      CPPostcondition(stat==0,cp_failure_level,routineP,error_sub,failure)
+      ij_map=0
+      ij_counter=0
+      my_ij_pairs=0
+      DO iiB=first_I_block, last_i_block, block_size
+        DO jjB=iiB+block_size, last_J_block, block_size
+          IF(ij_counter+1>assigned_blocks) EXIT
+          ij_counter=ij_counter+1
+          ij_marker(iiB:iiB+block_size-1,jjB:jjB+block_size-1)=1
+          ij_map(ij_counter,1)=iiB
+          ij_map(ij_counter,2)=jjB
+          ij_map(ij_counter,3)=block_size
+          IF (MOD(ij_counter,ngroup)==color_sub) my_ij_pairs=my_ij_pairs+1
+        END DO
+      END DO
+      DO iiB=1, homo
+        DO jjB=iiB, homo
+          IF(ij_marker(iiB,jjB)==0) THEN
+            ij_counter=ij_counter+1
+            ij_map(ij_counter,1)=iiB
+            ij_map(ij_counter,2)=jjB
+            ij_map(ij_counter,3)=1
+            IF (MOD(ij_counter,ngroup)==color_sub) my_ij_pairs=my_ij_pairs+1
+          END IF
+        END DO
+      END DO
+      DEALLOCATE(ij_marker)
+
+      IF((.NOT.my_open_shell_SS)) THEN
+        IF (unit_nr>0) THEN
+          IF(block_size==1) THEN
+            WRITE (UNIT=unit_nr,FMT="(T3,A,T66,F15.1)")&
+                        "RI_INFO| Percentage of ij pairs communicated with block size 1:", 100.0_dp
+          ELSE
+            WRITE (UNIT=unit_nr,FMT="(T3,A,T66,F15.1)")&
+                        "RI_INFO| Percentage of ij pairs communicated with block size 1:", &
+                        100.0_dp*REAL((total_ij_pairs-assigned_blocks*(block_size**2)),KIND=dp)/REAL(total_ij_pairs,KIND=dp)
+          END IF
+          CALL m_flush(unit_nr)
+        END IF
+      END IF
+
+    ELSE
+      ! alpha-beta case no index symmetry
+      total_ij_pairs=homo*homo_beta
+      ALLOCATE(ij_map(total_ij_pairs,3),STAT=stat)
+      CPPostcondition(stat==0,cp_failure_level,routineP,error_sub,failure)
+      ij_map=0
+      ij_counter=0
+      my_ij_pairs=0
+      DO iiB=1, homo 
+        DO jjB=1, homo_beta
+          ij_counter=ij_counter+1
+          ij_map(ij_counter,1)=iiB
+          ij_map(ij_counter,2)=jjB
+          ij_map(ij_counter,3)=1
+          IF (MOD(ij_counter,ngroup)==color_sub) my_ij_pairs=my_ij_pairs+1
+        END DO
+      END DO
+    END IF
+
+    CALL timestop(handle)
+    
+    END SUBROUTINE mp2_ri_communication
+    
+! *****************************************************************************
+!> \brief ...
+!> \param BIb_C ...
+!> \param para_env ...
+!> \param para_env_sub ...
+!> \param homo ...
+!> \param color_sub ...
+!> \param ends_array ...
+!> \param ends_B_virtual ...
+!> \param sizes_array ...
+!> \param sizes_B_virtual ...
+!> \param starts_array ...
+!> \param starts_B_virtual ...
+!> \param calc_forces ...
+!> \param error ...
+!> \param error_sub ...
+!> \param comm_exchange ...
+!> \param integ_group_size ...
+!> \param my_B_size ...
+!> \param iiB ...
+!> \param my_B_virtual_end ...
+!> \param my_B_virtual_start ...
+!> \param my_group_L_end ...
+!> \param my_group_L_size ...
+!> \param my_group_L_size_orig ...
+!> \param my_group_L_start ...
+!> \param my_new_group_L_size ...
+!> \param ngroup ...
+!> \param sub_sub_color ...
+!> \param integ_group_pos2color_sub ...
+!> \param new_sizes_array ...
+!> \param proc_map ...
+!> \param proc_map_rep ...
+!> \param sizes_array_orig ...
+!> \param sub_proc_map ...
+!> \param ranges_info_array ...
+!> \param para_env_exchange ...
+!> \param para_env_rep ...
+!> \param num_integ_group ...
+! *****************************************************************************
+    SUBROUTINE mp2_ri_create_group(BIb_C,para_env,para_env_sub,homo,color_sub, ends_array, ends_B_virtual, &
+                 sizes_array,sizes_B_virtual,starts_array,starts_B_virtual,calc_forces,error, error_sub,&
+                 comm_exchange,integ_group_size, my_B_size,iiB, my_B_virtual_end,my_B_virtual_start, my_group_L_end,&
+                 my_group_L_size, my_group_L_size_orig, my_group_L_start,my_new_group_L_size, ngroup, &
+                 sub_sub_color,integ_group_pos2color_sub,new_sizes_array, proc_map, proc_map_rep, sizes_array_orig,&
+                 sub_proc_map,ranges_info_array,para_env_exchange,para_env_rep, num_integ_group)
+    REAL(KIND=dp), ALLOCATABLE, &
+      DIMENSION(:, :, :)                     :: BIb_C
+    TYPE(cp_para_env_type), POINTER          :: para_env, para_env_sub
+    INTEGER                                  :: homo, color_sub
+    INTEGER, ALLOCATABLE, DIMENSION(:) :: ends_array, ends_B_virtual, &
+      sizes_array, sizes_B_virtual, starts_array, starts_B_virtual
+    LOGICAL, INTENT(IN)                      :: calc_forces
+    TYPE(cp_error_type), INTENT(inout)       :: error, error_sub
+    INTEGER :: comm_exchange, integ_group_size, my_B_size, iiB, &
+      my_B_virtual_end, my_B_virtual_start, my_group_L_end, my_group_L_size, &
+      my_group_L_size_orig, my_group_L_start, my_new_group_L_size, ngroup, &
+      sub_sub_color
+    INTEGER, ALLOCATABLE, DIMENSION(:) :: integ_group_pos2color_sub, &
+      new_sizes_array, proc_map, proc_map_rep, sizes_array_orig, sub_proc_map
+    INTEGER, ALLOCATABLE, DIMENSION(:, :, :) :: ranges_info_array
+    TYPE(cp_para_env_type), POINTER          :: para_env_exchange, &
+                                                para_env_rep
+    INTEGER                                  :: num_integ_group
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'mp2_ri_create_group', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, i, stat
+    LOGICAL                                  :: failure
+
+!
+
+    CALL timeset(routineN,handle)
+    failure=.FALSE.
+    !
+    sub_sub_color=para_env_sub%mepos*num_integ_group+color_sub/integ_group_size
+    CALL mp_comm_split_direct(para_env%group,comm_exchange,sub_sub_color)
+    NULLIFY(para_env_exchange)
+    CALL cp_para_env_create(para_env_exchange,comm_exchange,error=error_sub)
+
+    ! create the proc maps
+    ALLOCATE(proc_map(-para_env_exchange%num_pe:2*para_env_exchange%num_pe-1))
+    DO i=0,para_env_exchange%num_pe-1
+      proc_map(i)=i
+      proc_map(-i-1)=para_env_exchange%num_pe-i-1
+      proc_map(para_env_exchange%num_pe+i)=i
+    END DO
+
+    ALLOCATE(sub_proc_map(-para_env_sub%num_pe:2*para_env_sub%num_pe-1))
+    DO i=0,para_env_sub%num_pe-1
+      sub_proc_map(i)=i
+      sub_proc_map(-i-1)=para_env_sub%num_pe-i-1
+      sub_proc_map(para_env_sub%num_pe+i)=i
+    END DO
+
+    CALL replicate_iaK_2intgroup(BIb_C,para_env,para_env_sub,para_env_exchange,para_env_rep,&
+                                 ngroup,integ_group_size,num_integ_group,homo,proc_map,proc_map_rep,&
+                                 ends_array,ends_B_virtual,sizes_array,sizes_B_virtual,starts_array,starts_B_virtual,&
+                                 my_B_size,my_B_virtual_start,my_B_virtual_end,&
+                                 my_group_L_size,my_group_L_start,my_group_L_end,&
+                                 my_new_group_L_size,new_sizes_array,ranges_info_array,&
+                                 error_sub)
+
+    ALLOCATE(integ_group_pos2color_sub(0:para_env_exchange%num_pe-1),STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error_sub,failure)
+    integ_group_pos2color_sub=0
+    integ_group_pos2color_sub(para_env_exchange%mepos)=color_sub
+    CALL mp_sum(integ_group_pos2color_sub,para_env_exchange%group)
+
+    IF(calc_forces) THEN
+      iiB=SIZE(sizes_array)
+      ALLOCATE(sizes_array_orig(0:iiB-1),STAT=stat)
+      CPPostcondition(stat==0,cp_failure_level,routineP,error_sub,failure)
+      sizes_array_orig(:)=sizes_array
+    END IF  
+ 
+    my_group_L_size_orig=my_group_L_size
+    my_group_L_size=my_new_group_L_size
+    DEALLOCATE(sizes_array)
+
+    ALLOCATE(sizes_array(0:integ_group_size-1),STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error_sub,failure)
+    sizes_array(:)=new_sizes_array
+      
+    DEALLOCATE(new_sizes_array)
+    !
+    CALL timestop(handle)
+
+    END SUBROUTINE mp2_ri_create_group
+
+! *****************************************************************************
+!> \brief ...
+!> \param mp2_env ...
+!> \param para_env ...
+!> \param para_env_sub ...
+!> \param ends_array ...
+!> \param ends_B_virtual ...
+!> \param sizes_array ...
+!> \param sizes_B_virtual ...
+!> \param starts_array ...
+!> \param starts_B_virtual ...
+!> \param homo ...
+!> \param dimen_RI ...
+!> \param unit_nr ...
+!> \param color_sub ...
+!> \param best_block_size ...
+!> \param best_integ_group_size ...
+!> \param block_size ...
+!> \param integ_group_size ...
+!> \param min_integ_group_size ...
+!> \param my_B_size ...
+!> \param my_B_virtual_end ...
+!> \param my_B_virtual_start ...
+!> \param my_group_L_size ...
+!> \param my_group_L_start ...
+!> \param my_group_L_end ...
+!> \param ngroup ...
+!> \param num_IJ_blocks ...
+!> \param num_integ_group ...
+!> \param pos_integ_group ...
+!> \param virtual ...
+!> \param my_alpha_beta_case ...
+!> \param my_open_shell_SS ...
+!> \param actual_flop_rate ...
+!> \param mem_for_aK ...
+!> \param mem_for_comm ...
+!> \param mem_for_iaK ...
+!> \param mem_for_rep ...
+!> \param mem_min ...
+!> \param mem_per_group ...
+!> \param mem_real ...
+! *****************************************************************************
+    SUBROUTINE mp2_ri_get_sizes(mp2_env,para_env, para_env_sub,ends_array, ends_B_virtual,sizes_array, sizes_B_virtual,&
+    starts_array, starts_B_virtual,homo, dimen_RI, unit_nr,color_sub,best_block_size,best_integ_group_size, block_size, &
+    integ_group_size,min_integ_group_size, my_B_size,my_B_virtual_end, my_B_virtual_start, my_group_L_size, &
+    my_group_L_start, my_group_L_end, ngroup, num_IJ_blocks, num_integ_group,pos_integ_group, virtual,my_alpha_beta_case,&
+    my_open_shell_SS,actual_flop_rate, mem_for_aK, mem_for_comm, mem_for_iaK,mem_for_rep, mem_min, mem_per_group, mem_real)
+    TYPE(mp2_type), POINTER                  :: mp2_env
+    TYPE(cp_para_env_type), POINTER          :: para_env, para_env_sub
+    INTEGER, ALLOCATABLE, DIMENSION(:) :: ends_array, ends_B_virtual, &
+      sizes_array, sizes_B_virtual, starts_array, starts_B_virtual
+    INTEGER :: homo, dimen_RI, unit_nr, color_sub, best_block_size, &
+      best_integ_group_size, block_size, integ_group_size, &
+      min_integ_group_size, my_B_size, my_B_virtual_end, my_B_virtual_start, &
+      my_group_L_size, my_group_L_start, my_group_L_end, ngroup, &
+      num_IJ_blocks, num_integ_group, pos_integ_group, virtual
+    LOGICAL                                  :: my_alpha_beta_case, &
+                                                my_open_shell_SS
+    REAL(KIND=dp) :: actual_flop_rate, mem_for_aK, mem_for_comm, mem_for_iaK, &
+      mem_for_rep, mem_min, mem_per_group, mem_real
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'mp2_ri_get_sizes', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, iiB
+    LOGICAL                                  :: failure
+
+    CALL timeset(routineN,handle)
+    failure=.FALSE.
+
+    ngroup=para_env%num_pe/para_env_sub%num_pe
+
+    ! Calculate available memory and create integral group according to that
+    ! mem_for_iaK is the memory needed for storing the 3 centre integrals
+    mem_for_iaK=REAL(homo,KIND=dp)*virtual*dimen_RI*8.0_dp/(1024_dp**2)
+    mem_for_aK=REAL(virtual,KIND=dp)*dimen_RI*8.0_dp/(1024_dp**2)
+
+    mem_real=m_memory()
+    mem_real=(mem_real+1024*1024-1)/(1024*1024)
+    ! mp_min .... a hack.. it should be mp_max, but as it turns out, on some processes the previously freed memory (hfx)
+    ! has not been given back to the OS yet. 
+    CALL mp_min(mem_real,para_env%group)
+
+    mem_min=2.0_dp*REAL(homo,KIND=dp)*MAXVAL(sizes_B_virtual)*MAXVAL(sizes_array)*8.0_dp/(1024**2)
+    mem_min=mem_min+3.0_dp*MAXVAL(sizes_B_virtual)*REAL(dimen_RI,KIND=dp)*8.0_dp/(1024**2)
+ 
+    IF((.NOT.my_open_shell_SS).AND.(.NOT.my_alpha_beta_case)) THEN
+      IF (unit_nr>0) WRITE(unit_nr,'(T3,A,T69,F9.2,A3)') 'RI_INFO| Minimum required memory per MPI process:',&
+                                                          mem_min, ' MB'
+    END IF
+   
+    mem_real=mp2_env%mp2_memory
+
+    mem_per_group=mem_real*para_env_sub%num_pe
+    
+    ! here we try to find the best block_size and integ_group_size
+    best_integ_group_size=ngroup
+    best_block_size=1
+
+    ! in the open shell case no replication and no block communication is done 
+    IF((.NOT.my_open_shell_SS).AND.(.NOT.my_alpha_beta_case)) THEN
+      ! Here we split the memory half for the communication, half for replication
+      IF(mp2_env%ri_mp2%block_size>0) THEN
+        best_block_size=mp2_env%ri_mp2%block_size
+        mem_for_rep=MAX(mem_min,mem_per_group-2.0_dp*mem_for_aK*best_block_size)
+      ELSE
+        mem_for_rep=mem_per_group/2.0_dp
+      END IF
+      ! calculate the minimum replication group size according to the available memory
+      min_integ_group_size=CEILING(2.0_dp*mem_for_iaK/mem_for_rep)
+
+      integ_group_size=MIN(min_integ_group_size,ngroup)-1
+      DO iiB=min_integ_group_size+1, ngroup
+        integ_group_size=integ_group_size+1
+        ! check that the ngroup is a multiple of  integ_group_size
+        IF(MOD(ngroup,integ_group_size)/=0) CYCLE
+        ! check that the integ group size is not too small (10% is empirical for now)
+        IF(REAL(integ_group_size,KIND=dp)/REAL(ngroup,KIND=dp)<0.1_dp) CYCLE
+
+        best_integ_group_size=integ_group_size
+        EXIT
+      END DO
+
+      IF(.NOT.(mp2_env%ri_mp2%block_size>0)) THEN
+        mem_for_comm=mem_per_group-2.0_dp*mem_for_iaK/best_integ_group_size
+        ! calculate the maximum block size and make sure it is not smaller than 1
+        best_block_size=MAX(INT(mem_for_comm/(2.0_dp*mem_for_aK)),1)
+        DO 
+          num_IJ_blocks=(homo/best_block_size)
+          num_IJ_blocks=(num_IJ_blocks*num_IJ_blocks-num_IJ_blocks)/2
+          IF(num_IJ_blocks>ngroup.OR.best_block_size==1) THEN
+            EXIT
+          ELSE
+            best_block_size=best_block_size-1
+          END IF
+        END DO
+      END IF
+ 
+      ! check that best_block_size is not bigger than homo/2-1
+      best_block_size=MIN(MAX(homo/2-1+MOD(homo,2),1),best_block_size)
+    END IF
+
+    integ_group_size=best_integ_group_size
+    block_size=best_block_size
+
+    IF((.NOT.my_open_shell_SS).AND.(.NOT.my_alpha_beta_case)) THEN
+      IF (unit_nr>0) THEN
+         WRITE (UNIT=unit_nr,FMT="(T3,A,T75,i6)")&
+                                 "RI_INFO| Group size for integral replication:", integ_group_size*para_env_sub%num_pe
+         WRITE (UNIT=unit_nr,FMT="(T3,A,T75,i6)")&
+                                 "RI_INFO| Block size:", block_size
+         CALL m_flush(unit_nr)
+      END IF
+    END IF
+    
+    num_integ_group=ngroup/integ_group_size
+
+    pos_integ_group=MOD(color_sub,integ_group_size)
+
+    my_group_L_size=sizes_array(color_sub)
+    my_group_L_start=starts_array(color_sub)
+    my_group_L_end=ends_array(color_sub)
+
+    my_B_virtual_start=starts_B_virtual(para_env_sub%mepos)
+    my_B_virtual_end=ends_B_virtual(para_env_sub%mepos)
+    my_B_size=sizes_B_virtual(para_env_sub%mepos)
+
+    CALL timestop(handle)
+
+    END SUBROUTINE mp2_ri_get_sizes
 
 END MODULE mp2_ri_gpw

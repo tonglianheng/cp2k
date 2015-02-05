@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2014  CP2K developers group                          !
+!   Copyright (C) 2000 - 2015  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -12,6 +12,7 @@
 !>      22-08-2002, TCH, started development
 ! *****************************************************************************
 MODULE qs_p_env_methods
+  USE cp_blacs_env,                    ONLY: cp_blacs_env_type
   USE cp_control_types,                ONLY: dft_control_type
   USE cp_dbcsr_interface,              ONLY: cp_dbcsr_allocate_matrix_set,&
                                              cp_dbcsr_copy,&
@@ -51,7 +52,6 @@ MODULE qs_p_env_methods
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE f77_blas
   USE hartree_local_methods,           ONLY: init_coulomb_local
   USE hartree_local_types,             ONLY: hartree_local_create
   USE input_constants,                 ONLY: ot_precond_none
@@ -60,6 +60,7 @@ MODULE qs_p_env_methods
                                              section_vals_type
   USE kinds,                           ONLY: dp
   USE preconditioner_types,            ONLY: init_preconditioner
+  USE qs_energy_types,                 ONLY: qs_energy_type
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
   USE qs_kpp1_env_methods,             ONLY: kpp1_calc_k_p_p1,&
@@ -67,9 +68,9 @@ MODULE qs_p_env_methods
                                              kpp1_create,&
                                              kpp1_did_change
   USE qs_kpp1_env_types,               ONLY: qs_kpp1_env_type
-  USE qs_ks_methods,                   ONLY: qs_ks_did_change,&
-                                             qs_ks_update_qs_env
-  USE qs_ks_types,                     ONLY: qs_ks_env_type
+  USE qs_ks_methods,                   ONLY: qs_ks_update_qs_env
+  USE qs_ks_types,                     ONLY: qs_ks_did_change,&
+                                             qs_ks_env_type
   USE qs_linres_types,                 ONLY: linres_control_type
   USE qs_local_rho_types,              ONLY: local_rho_set_create
   USE qs_matrix_pools,                 ONLY: mpools_get
@@ -80,7 +81,9 @@ MODULE qs_p_env_methods
   USE qs_rho_atom_methods,             ONLY: allocate_rho_atom_internals
   USE qs_rho_methods,                  ONLY: qs_rho_rebuild,&
                                              qs_rho_update_rho
-  USE qs_rho_types,                    ONLY: qs_rho_release,&
+  USE qs_rho_types,                    ONLY: qs_rho_create,&
+                                             qs_rho_get,&
+                                             qs_rho_release,&
                                              qs_rho_type
   USE string_utilities,                ONLY: compress
   USE timings,                         ONLY: timeset,&
@@ -138,18 +141,28 @@ CONTAINS
     INTEGER                                  :: handle, n_ao, n_mo, n_spins, &
                                                 natom, spin, stat
     LOGICAL                                  :: failure
+    TYPE(cp_blacs_env_type), POINTER         :: blacs_env
+    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+      POINTER                                :: matrix_s
     TYPE(cp_fm_pool_p_type), DIMENSION(:), &
       POINTER                                :: ao_mo_fm_pools, mo_mo_fm_pools
     TYPE(cp_fm_type), POINTER                :: qs_env_c
+    TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(dft_control_type), POINTER          :: dft_control
 
 ! code
 
     CALL timeset(routineN,handle)
-
-    n_spins = qs_env%dft_control%nspins
-
     failure=.FALSE.
-    NULLIFY( ao_mo_fm_pools, mo_mo_fm_pools)
+    NULLIFY( ao_mo_fm_pools, mo_mo_fm_pools, matrix_s, dft_control, para_env, blacs_env)
+    CALL get_qs_env(qs_env,&
+                    matrix_s=matrix_s,&
+                    dft_control=dft_control,&
+                    para_env=para_env,&
+                    blacs_env=blacs_env,&
+                    error=error)
+
+    n_spins = dft_control%nspins
 
     ALLOCATE(p_env,stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -184,10 +197,13 @@ CONTAINS
        p_env%etotal=0.0_dp
        p_env%gradient=0.0_dp
 
+       CALL qs_rho_create(p_env%rho1, error)
+       CALL qs_rho_create(p_env%rho1_xc, error)
+
        IF (PRESENT(kpp1_env)) THEN
           p_env%kpp1_env => kpp1_env
        ELSE
-          CALL kpp1_create(p_env%kpp1_env, qs_env=qs_env, error=error)
+          CALL kpp1_create(p_env%kpp1_env, error=error)
        END IF
 
        IF (PRESENT(p1_option)) THEN
@@ -198,7 +214,7 @@ CONTAINS
           DO spin=1, n_spins
              ALLOCATE(p_env%p1(spin)%matrix)
              CALL cp_dbcsr_init(p_env%p1(spin)%matrix,error=error)
-             CALL cp_dbcsr_copy(p_env%p1(spin)%matrix,qs_env%matrix_s(1)%matrix,&
+             CALL cp_dbcsr_copy(p_env%p1(spin)%matrix,matrix_s(1)%matrix,&
                   name="p_env"//TRIM(ADJUSTL(cp_to_string(p_env%id_nr)))//&
                   "%p1-"//TRIM(ADJUSTL(cp_to_string(spin))),error=error)
              CALL cp_dbcsr_set(p_env%p1(spin)%matrix,0.0_dp,error=error)
@@ -261,10 +277,10 @@ CONTAINS
        !----------------------!
        ! GAPW initializations !
        !----------------------!
-       IF (qs_env%dft_control%qs_control%gapw) THEN
+       IF (dft_control%qs_control%gapw) THEN
           CALL local_rho_set_create(p_env%local_rho_set,error=error)
           CALL allocate_rho_atom_internals(qs_env, p_env%local_rho_set%rho_atom_set,error=error)
-          CALL init_rho0(qs_env, qs_env%dft_control%qs_control%gapw_control, &
+          CALL init_rho0(qs_env, dft_control%qs_control%gapw_control, &
                          .TRUE., p_env%local_rho_set, error)
           CALL hartree_local_create(p_env%hartree_local,error=error)
           CALL get_qs_env(qs_env=qs_env,natom=natom,error=error)
@@ -284,7 +300,7 @@ CONTAINS
              CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
              DO spin =1,n_spins
                CALL init_preconditioner(p_env%preconditioner(spin),&
-                    para_env=qs_env%para_env,blacs_env=qs_env%blacs_env,error=error)
+                    para_env=para_env,blacs_env=blacs_env,error=error)
              END DO
              p_env%os_valid = .FALSE.
 
@@ -361,18 +377,9 @@ CONTAINS
 
           CALL qs_rho_rebuild(p_env%rho1, qs_env=qs_env, error=error)
           IF(gapw_xc) THEN
-             CALL qs_rho_rebuild(p_env%rho1_xc,qs_env=qs_env,gapw_xc=gapw_xc,error=error)
-             p_env%rho1_xc%rho_ao => p_env%rho1%rho_ao
+             CALL qs_rho_rebuild(p_env%rho1_xc,qs_env=qs_env,error=error)
           END IF
 
-       END IF
-
-       IF (.NOT.ASSOCIATED(p_env%rho1)) THEN
-          CALL qs_rho_rebuild(p_env%rho1, qs_env=qs_env, error=error)
-          IF(gapw_xc) THEN
-             CALL qs_rho_rebuild(p_env%rho1_xc,qs_env=qs_env,gapw_xc=gapw_xc,error=error)
-             p_env%rho1_xc%rho_ao => p_env%rho1%rho_ao
-          END IF
        END IF
     END IF
     CALL timestop(handle)
@@ -418,7 +425,6 @@ SUBROUTINE p_env_did_change(p_env, s_struct_changed, grid_changed,error)
      IF (PRESENT(grid_changed)) THEN
         IF (grid_changed) THEN
            IF(ASSOCIATED(p_env%rho1_xc)) THEN
-             NULLIFY(p_env%rho1_xc%rho_ao)
              CALL qs_rho_release(p_env%rho1_xc,error=error)
            END IF
            CALL qs_rho_release(p_env%rho1,error=error)
@@ -465,15 +471,17 @@ END SUBROUTINE p_env_did_change
     LOGICAL                                  :: failure, was_present
     REAL(KIND=dp)                            :: maxocc
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_s
+      POINTER                                :: matrix_ks, matrix_s, rho_ao
     TYPE(cp_fm_p_type), DIMENSION(:), &
       POINTER                                :: my_psi0
     TYPE(cp_fm_pool_p_type), DIMENSION(:), &
       POINTER                                :: ao_mo_fm_pools
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mos
+    TYPE(qs_energy_type), POINTER            :: energy
     TYPE(qs_ks_env_type), POINTER            :: ks_env
     TYPE(qs_rho_type), POINTER               :: rho
     TYPE(section_vals_type), POINTER         :: input, lr_section
@@ -482,19 +490,29 @@ END SUBROUTINE p_env_did_change
 
     failure=.FALSE.
     NULLIFY(ao_mo_fm_pools,mos,my_psi0,matrix_s,mos, para_env,ks_env, rho, &
-         logger, input,lr_section)
+         logger, input,lr_section, energy, matrix_ks, dft_control, rho_ao)
     logger => cp_error_get_logger(error)
-    n_spins = qs_env%dft_control%nspins
 
     CPPrecondition(ASSOCIATED(p_env),cp_failure_level,routineP,error,failure)
     CPPrecondition(p_env%ref_count>0,cp_failure_level,routineP,error,failure)
 
+    CALL get_qs_env(qs_env,&
+                    ks_env=ks_env,&
+                    mos=mos,&
+                    matrix_s=matrix_s,&
+                    matrix_ks=matrix_ks,&
+                    para_env=para_env,&
+                    rho=rho,&
+                    input=input,&
+                    energy=energy,&
+                    dft_control=dft_control,&
+                    error=error)
+
+    CALL qs_rho_get(rho, rho_ao=rho_ao, error=error)
+
+    n_spins = dft_control%nspins
     IF (.NOT. failure) THEN
        p_env%iter=p_env%iter+1
-
-       CALL get_qs_env(qs_env,&
-            mos=mos, matrix_s=matrix_s, para_env=para_env, ks_env=ks_env, rho=rho,&
-            input=input,error=error)
        CALL mpools_get(qs_env%mpools,&
             ao_mo_fm_pools=ao_mo_fm_pools, error=error)
        ! def my_psi0
@@ -576,12 +594,12 @@ END SUBROUTINE p_env_did_change
              CALL get_mo_set(mos(spin)%mo_set,lfomo=lfomo,&
                   nmo=nmo,maxocc=maxocc)
              IF (lfomo>nmo) THEN
-                CALL cp_dbcsr_set(qs_env%rho%rho_ao(spin)%matrix,0.0_dp,error=error)
-                CALL cp_dbcsr_plus_fm_fm_t(qs_env%rho%rho_ao(spin)%matrix,&
+                CALL cp_dbcsr_set(rho_ao(spin)%matrix,0.0_dp,error=error)
+                CALL cp_dbcsr_plus_fm_fm_t(rho_ao(spin)%matrix,&
                      matrix_v=my_psi0(spin)%matrix,&
                      matrix_g=p_env%psi0d(spin)%matrix,&
                      ncol=p_env%n_mo(spin),error=error)
-                CALL cp_dbcsr_scale(qs_env%rho%rho_ao(spin)%matrix,alpha_scalar=maxocc,&
+                CALL cp_dbcsr_scale(rho_ao(spin)%matrix,alpha_scalar=maxocc,&
                      error=error)
              ELSE
                 CALL cp_unimplemented_error(fromWhere=routineP,&
@@ -591,25 +609,22 @@ END SUBROUTINE p_env_did_change
           END DO
 
           ! updates rho
-          CALL qs_rho_update_rho(rho_struct=qs_env%rho, &
-               qs_env=qs_env, error=error)
+          CALL qs_rho_update_rho(rho_struct=rho, qs_env=qs_env, error=error)
 
           ! tells ks_env that p changed
-          CALL qs_ks_did_change(ks_env=ks_env,&
-               rho_changed=.TRUE., error=error)
+          CALL qs_ks_did_change(ks_env=ks_env, rho_changed=.TRUE., error=error)
 
        END IF
 
        ! updates K (if necessary)
-       CALL qs_ks_update_qs_env(ks_env=ks_env,qs_env=qs_env,&
-            error=error)
+       CALL qs_ks_update_qs_env(qs_env, error=error)
        output_unit = cp_print_key_unit_nr(logger,lr_section,"PRINT%PROGRAM_RUN_INFO",&
             extension=".linresLog",error=error)
        IF (output_unit>0) THEN
           CALL section_vals_get(lr_section,explicit=was_present,error=error)
           IF(was_present) THEN
             WRITE(UNIT=output_unit,FMT="(/,(T3,A,T55,F25.14))") &
-            "Total energy ground state:                     ", qs_env%energy%total
+            "Total energy ground state:                     ", energy%total
           END IF
        END IF
        CALL cp_print_key_finished_output(output_unit,logger,lr_section,&
@@ -621,7 +636,7 @@ END SUBROUTINE p_env_did_change
        !-----------------------------------------------------------------------|
        DO spin=1, n_spins
           ! S_psi0 = k times psi0d
-          CALL cp_dbcsr_sm_fm_multiply(qs_env%matrix_ks(spin)%matrix, &
+          CALL cp_dbcsr_sm_fm_multiply(matrix_ks(spin)%matrix, &
                p_env%psi0d(spin)%matrix, &
                p_env%S_psi0(spin)%matrix, p_env%n_mo(spin),error=error)
           IF (PRESENT(Hrho_psi0d)) THEN
@@ -697,6 +712,7 @@ END SUBROUTINE p_env_did_change
 
     INTEGER                                  :: n_spins, spin
     LOGICAL                                  :: failure
+    TYPE(dft_control_type), POINTER          :: dft_control
 
 ! code
 
@@ -704,8 +720,10 @@ END SUBROUTINE p_env_did_change
 
     CPPrecondition(ASSOCIATED(p_env),cp_failure_level,routineP,error,failure)
     CPPrecondition(p_env%ref_count>0,cp_failure_level,routineP,error,failure)
+    NULLIFY(dft_control)
+    CALL get_qs_env(qs_env, dft_control=dft_control, error=error)
 
-    n_spins = qs_env%dft_control%nspins
+    n_spins = dft_control%nspins
     DO spin=1, n_spins
        CALL p_op_l1_spin(p_env, qs_env, spin, v(spin)%matrix,&
             res(spin)%matrix,error)
@@ -742,30 +760,37 @@ END SUBROUTINE p_env_did_change
 
     INTEGER                                  :: handle, ncol
     LOGICAL                                  :: failure
+    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+      POINTER                                :: matrix_ks, matrix_s
     TYPE(cp_dbcsr_type), POINTER             :: k_p
     TYPE(cp_fm_pool_type), POINTER           :: maxao_maxmo_fm_pool
     TYPE(cp_fm_type), POINTER                :: tmp
     TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(dft_control_type), POINTER          :: dft_control
 
 ! code
 
     CALL timeset(routineN,handle)
-
-    NULLIFY(tmp)
+    NULLIFY(tmp, matrix_ks, matrix_s, dft_control)
     failure = .FALSE.
+
+    CALL get_qs_env(qs_env, &
+                    para_env=para_env,&
+                    matrix_s=matrix_s,&
+                    matrix_ks=matrix_ks,&
+                    dft_control=dft_control,&
+                    error=error)
 
     CPPrecondition(ASSOCIATED(p_env),cp_failure_level,routineP,error,failure)
     CPPrecondition(p_env%ref_count>0,cp_failure_level,routineP,error,failure)
     CPPrecondition(0<spin,cp_failure_level,routineP,error,failure)
-    CPPrecondition(spin<=qs_env%dft_control%nspins,cp_failure_level,routineP,error,failure)
+    CPPrecondition(spin<=dft_control%nspins,cp_failure_level,routineP,error,failure)
 
-    CALL get_qs_env(qs_env, &
-                    para_env=para_env, error=error)
     CALL mpools_get(qs_env%mpools, maxao_maxmo_fm_pool=maxao_maxmo_fm_pool,&
          error=error)
     CALL fm_pool_create_fm(maxao_maxmo_fm_pool, tmp, error=error)
 
-    k_p => qs_env%matrix_ks(spin)%matrix
+    k_p => matrix_ks(spin)%matrix
     CALL cp_fm_get_info(v, ncol_global=ncol,error=error)
 
     IF (p_env%orthogonal_orbitals) THEN
@@ -778,7 +803,7 @@ END SUBROUTINE p_env_did_change
 
     CALL cp_fm_symm('R', 'U', p_env%n_ao(spin), p_env%n_mo(spin), 1.0_dp, &
          p_env%m_epsilon(spin)%matrix, v, 0.0_dp, tmp,error=error)
-    CALL cp_dbcsr_sm_fm_multiply(qs_env%matrix_s(1)%matrix, tmp, &
+    CALL cp_dbcsr_sm_fm_multiply(matrix_s(1)%matrix, tmp, &
          res, p_env%n_mo(spin), alpha=1.0_dp,beta=1.0_dp,error=error)
     CALL fm_pool_give_back_fm(maxao_maxmo_fm_pool,tmp,error=error); NULLIFY(tmp)
 
@@ -824,40 +849,41 @@ END SUBROUTINE p_env_did_change
     INTEGER, SAVE                            :: iter = 0
     LOGICAL                                  :: failure, gapw, gapw_xc
     REAL(KIND=dp)                            :: my_alpha, my_beta
+    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+      POINTER                                :: rho1_ao
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(qs_rho_type), POINTER               :: rho
 
     CALL timeset(routineN,handle)
-
     failure=.FALSE.
+    NULLIFY(dft_control, rho, rho1_ao)
 
-    gapw=qs_env%dft_control%qs_control%gapw
-    gapw_xc=qs_env%dft_control%qs_control%gapw_xc
+    CALL get_qs_env(qs_env, dft_control=dft_control, rho=rho, error=error)
+
+    gapw=dft_control%qs_control%gapw
+    gapw_xc=dft_control%qs_control%gapw_xc
     my_alpha=1.0_dp
     IF (PRESENT(alpha)) my_alpha=alpha
     my_beta=0.0_dp
     IF (PRESENT(beta)) my_beta=beta
 
     iter=iter+1
-    NULLIFY(dft_control, rho)
 
     CPPrecondition(ASSOCIATED(p_env),cp_failure_level,routineP,error,failure)
     CPPrecondition(p_env%ref_count>0,cp_failure_level,routineP,error,failure)
 
     IF (.NOT. failure) THEN
        CALL p_env_check_i_alloc(p_env,qs_env=qs_env,error=error)
-
-       CALL get_qs_env(qs_env, dft_control=dft_control, rho=rho, error=error)
        n_spins = dft_control%nspins
 
+       CALL qs_rho_get(p_env%rho1, rho_ao=rho1_ao, error=error)
        DO ispin=1, SIZE(p1)
           ! hack to avoid crashes in ep regs
-          IF(.not.ASSOCIATED(p_env%rho1%rho_ao(ispin)%matrix,p1(ispin)%matrix)) THEN
-             CALL cp_dbcsr_copy(p_env%rho1%rho_ao(ispin)%matrix,p1(ispin)%matrix,error=error)
+          IF(.not.ASSOCIATED(rho1_ao(ispin)%matrix,p1(ispin)%matrix)) THEN
+             CALL cp_dbcsr_copy(rho1_ao(ispin)%matrix,p1(ispin)%matrix,error=error)
           ENDIF
        ENDDO
-       CALL qs_rho_update_rho(rho_struct=p_env%rho1, &
-                              qs_env=qs_env, error=error)
+       CALL qs_rho_update_rho(rho_struct=p_env%rho1, qs_env=qs_env, error=error)
 
        IF (fdiff) THEN
           CALL kpp1_calc_k_p_p1_fdiff(kpp1_env=p_env%kpp1_env,qs_env=qs_env,&
@@ -930,11 +956,10 @@ END SUBROUTINE p_env_did_change
     CPPrecondition(p_env%ref_count>0,cp_failure_level,routineP,error,failure)
 
     IF (.NOT. failure) THEN
-       CALL get_qs_env(qs_env, dft_control=dft_control,&
-            error=error)
+       CALL get_qs_env(qs_env, dft_control=dft_control, error=error)
        CALL mpools_get(qs_env%mpools,maxmo_maxmo_fm_pool=maxmo_maxmo_fm_pool,&
             error=error)
-       n_spins = qs_env%dft_control%nspins
+       n_spins = dft_control%nspins
        maxmo_maxmo_fmstruct => fm_pool_get_el_struct(maxmo_maxmo_fm_pool,error=error)
        CALL cp_fm_struct_get(maxmo_maxmo_fmstruct, nrow_global=nmo2,ncol_global=maxnmo,error=error)
        CPPrecondition(SIZE(v)>=n_spins,cp_failure_level,routineP,error,failure)
@@ -1183,7 +1208,7 @@ END SUBROUTINE p_env_did_change
             error=error)
        n_spins=dft_control%nspins
 
-       p1_new => p_env%rho1%rho_ao
+       CALL qs_rho_get(p_env%rho1, rho_ao=p1_new, error=error)
 
     END IF
     IF (.not.failure) THEN

@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2014 CP2K developers group                           !
+!   Copyright (C) 2000 - 2015 CP2K developers group                           !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -207,7 +207,7 @@ CONTAINS
        my_zero_pad = .FALSE.
        IF(PRESENT(zero_pad)) my_zero_pad=zero_pad
        IF(my_zero_pad) &
-          CALL acc_devmem_setzero_bytes(this, first_byte=old_size, stream=stream)
+          CALL acc_devmem_setzero_bytes(this, first_byte=old_size+1, stream=stream)
 
        my_nocopy = .FALSE.
        IF(PRESENT(nocopy)) my_nocopy=nocopy
@@ -370,7 +370,7 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE acc_devmem_setzero_bytes(this, first_byte, last_byte, stream)
     TYPE(acc_devmem_type), INTENT(INOUT) :: this
-    INTEGER, INTENT(IN), OPTIONAL               :: first_byte, last_byte
+    INTEGER, INTENT(IN), OPTIONAL        :: first_byte, last_byte
     TYPE(acc_stream_type), INTENT(IN)    :: stream
 
 #if ! defined (__ACC)

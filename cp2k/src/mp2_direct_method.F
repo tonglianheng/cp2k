@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2014  CP2K developers group                          !
+!   Copyright (C) 2000 - 2015  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -10,12 +10,13 @@
 !> \author Mauro Del Ben
 ! *****************************************************************************
 MODULE mp2_direct_method
-
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind_set
   USE cell_types,                      ONLY: cell_type
+  USE cp_control_types,                ONLY: dft_control_type
   USE cp_dbcsr_interface,              ONLY: cp_dbcsr_p_type
-  USE cp_files,                        ONLY: get_unit_number
+  USE cp_files,                        ONLY: close_file,&
+                                             open_file
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE gamma,                           ONLY: init_md_ftable
   USE hfx_energy_potential,            ONLY: coulomb4
@@ -49,7 +50,8 @@ MODULE mp2_direct_method
   USE particle_types,                  ONLY: particle_type
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
-  USE qs_rho_types,                    ONLY: qs_rho_type
+  USE qs_rho_types,                    ONLY: qs_rho_get,&
+                                             qs_rho_type
   USE t_sh_p_s_c,                      ONLY: free_C0,&
                                              init
   USE timings,                         ONLY: timeset,&
@@ -209,6 +211,7 @@ MODULE mp2_direct_method
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: rho_ao
     TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(hfx_basis_info_type), POINTER       :: basis_info
     TYPE(hfx_basis_type), DIMENSION(:), &
       POINTER                                :: basis_parameter
@@ -240,7 +243,8 @@ MODULE mp2_direct_method
       POINTER                                :: particle_set
 
     CALL timeset(routineN,handle)
- 
+    NULLIFY(dft_control)
+
     ! The Integ_MP2 will contain the (ia|jb) integrals, necessary for example
     ! for the RI-MP2 basis optimization. In this case the number of ij batches 
     ! has to be equal to 1 (all integrals over molecular orbitals are compituted
@@ -252,11 +256,15 @@ MODULE mp2_direct_method
 
     irep=1
 
-    rho_ao=>rho%rho_ao
+    CALL qs_rho_get(rho, rho_ao=rho_ao, error=error)
 
     logger => cp_error_get_logger(error)
 
-    CALL get_qs_env(qs_env=qs_env, atomic_kind_set=atomic_kind_set, cell=cell, error=error)
+    CALL get_qs_env(qs_env,&
+                    atomic_kind_set=atomic_kind_set,&
+                    cell=cell,&
+                    dft_control=dft_control,&
+                    error=error)
 
     !! Calculate l_max used in fgamma , because init_md_ftable is definitely not thread safe
     nkind = SIZE(atomic_kind_set,1)
@@ -270,12 +278,11 @@ MODULE mp2_direct_method
     IF(mp2_env%potential_parameter%potential_type == do_mp2_potential_TShPSC) THEN
       IF(l_max>init_TShPSC_lmax) THEN
         IF( para_env%mepos == 0 ) THEN
-          unit_id = get_unit_number()
-          OPEN(unit_id,FILE=mp2_env%potential_parameter%filename)
+          CALL open_file(unit_number=unit_id,file_name=mp2_env%potential_parameter%filename)
         END IF
         CALL init(l_max, unit_id, para_env%mepos, para_env%group)
         IF(para_env%mepos == 0 ) THEN
-          CLOSE(unit_id)
+          CALL close_file(unit_id)
         END IF
         init_TShPSC_lmax = l_max
       END IF
@@ -395,7 +402,7 @@ MODULE mp2_direct_method
     ALLOCATE(ee_primitives_tmp(nsgf_max**4),STAT=stat) ! XXXXX could be wrong
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
-    nspins = qs_env%dft_control%nspins
+    nspins = dft_control%nspins
 
     ALLOCATE(max_contraction(max_set,natom),STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)

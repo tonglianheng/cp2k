@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2014  CP2K developers group                          !
+!   Copyright (C) 2000 - 2015  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -27,7 +27,6 @@ MODULE replica_types
   USE cp_result_methods,               ONLY: cp_results_mp_bcast
   USE cp_result_types,                 ONLY: cp_result_p_type,&
                                              cp_result_release
-  USE f77_blas
   USE f77_interface,                   ONLY: destroy_force_env,&
                                              f_env_add_defaults,&
                                              f_env_rm_defaults,&
@@ -50,7 +49,7 @@ MODULE replica_types
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'replica_types'
 
   PUBLIC :: replica_env_type
-  PUBLIC :: rep_env_release, rep_env_write
+  PUBLIC :: rep_env_release
   PUBLIC :: rep_env_sync, rep_env_sync_results, rep_envs_add_rep_env
   PUBLIC :: rep_envs_get_rep_env, rep_env_local_index
 

@@ -26,7 +26,7 @@ def main():
 
     planned_pkgs = eval(open(sys.argv[1]).read())
 
-    srcdir = "../src"
+    srcdir = "../../src"
     abs_srcdir = abspath(srcdir)
 
     src_files = []
@@ -85,6 +85,12 @@ def main():
         if(pp.has_key('files')):
             for fn in pp['files']:
                 fn2pkg[fn] = p
+        if(pp.has_key('requires+')):
+            packages[p]['requires'] += pp['requires+']
+        if(pp.has_key('requires-')):
+            for i in  pp['requires-']:
+               while i in packages[p]['requires']:
+	               packages[p]['requires'].remove(i)
 
     # process the manifests
     for p in packages.keys():

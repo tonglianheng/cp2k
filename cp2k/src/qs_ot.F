@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2014  CP2K developers group                          !
+!   Copyright (C) 2000 - 2015  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -27,7 +27,7 @@ MODULE qs_ot
        cp_dbcsr_release_p, cp_dbcsr_scale, cp_dbcsr_scale_by_vector, &
        cp_dbcsr_set, cp_dbcsr_transposed, cp_dbcsr_type, &
        dbcsr_distribution_mp, dbcsr_mp_group
-  USE f77_blas
+  USE cp_dbcsr_util,                   ONLY: lanczos_alg_serial
   USE kinds,                           ONLY: dp
   USE message_passing,                 ONLY: mp_sum
   USE preconditioner,                  ONLY: apply_preconditioner
@@ -47,8 +47,6 @@ MODULE qs_ot
   PUBLIC  :: qs_ot_get_orbitals_ref
   PUBLIC  :: qs_ot_get_derivative_ref
   PUBLIC  :: qs_ot_new_preconditioner
-  PUBLIC  :: qs_ot_get_scp_nddo_derivative
-  PUBLIC  :: qs_ot_get_scp_nddo_coeffs
   PRIVATE :: qs_ot_p2m_diag
   PRIVATE :: qs_ot_sinc
   PRIVATE :: qs_ot_ref_poly
@@ -110,14 +108,6 @@ CONTAINS
           CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
           qs_ot_env%ener_dx = 0.0_dp
        ENDIF
-       ! ***SCP
-       IF ( qs_ot_env % settings % scp_nddo ) THEN
-          ALLOCATE(qs_ot_env % dxmat)
-          CALL cp_dbcsr_init(qs_ot_env % dxmat, error=error)
-          CALL cp_dbcsr_copy(qs_ot_env % dxmat, qs_ot_env % gxmat, "SCP_DXMAT", error=error)
-          CALL cp_dbcsr_set (qs_ot_env % dxmat, 0.0_dp, error=error )
-       ENDIF
-       ! ***SCP
     ENDIF
 
   END SUBROUTINE qs_ot_new_preconditioner
@@ -905,7 +895,9 @@ CONTAINS
       routineP = moduleN//':'//routineN
     REAL(KIND=dp), PARAMETER                 :: rone = 1.0_dp , rzero = 0.0_dp
 
-    INTEGER                                  :: handle, k, n
+    INTEGER                                  :: handle, k, max_iter, n
+    LOGICAL                                  :: converged
+    REAL(KIND=dp)                            :: max_ev, min_ev, threshold
 
     CALL timeset(routineN,handle)
 
@@ -914,8 +906,14 @@ CONTAINS
     ! get the overlap
     CALL cp_dbcsr_multiply('T','N',rone,matrix_x,matrix_sx,rzero,&
          qs_ot_env%matrix_p,error=error)
+
     ! get an upper bound for the largest eigenvalue
-    qs_ot_env % largest_eval_upper_bound = cp_dbcsr_gershgorin_norm(qs_ot_env%matrix_p)
+    ! try using lancos first and fall back to gershgorin norm if it fails
+    max_iter=30; threshold=1.0E-03_dp
+    CALL lanczos_alg_serial(qs_ot_env%matrix_p, max_ev, min_ev, converged, threshold, max_iter, error=error)
+    qs_ot_env % largest_eval_upper_bound=MAX(max_ev,ABS(min_ev))
+
+    IF(.NOT.converged)qs_ot_env % largest_eval_upper_bound = cp_dbcsr_gershgorin_norm(qs_ot_env%matrix_p)
     CALL decide_strategy(qs_ot_env)
     IF (qs_ot_env % do_taylor) THEN
        CALL qs_ot_p2m_taylor(qs_ot_env,error=error)
@@ -1100,6 +1098,7 @@ CONTAINS
 !> \brief ...
 !> \param e1 ...
 !> \param e2 ...
+!> \retval cint ...
 ! *****************************************************************************
     FUNCTION cint(e1,e2)
     REAL(KIND=dp)                            :: e1, e2
@@ -1210,36 +1209,6 @@ CONTAINS
 
   END SUBROUTINE qs_ot_get_orbitals
 
-! *****************************************************************************
-!> \brief ...
-!> \param qs_ot_env ...
-!> \param pscp ...
-!> \param error ...
-! *****************************************************************************
-  SUBROUTINE qs_ot_get_scp_nddo_coeffs ( qs_ot_env, pscp, error )
-    TYPE(qs_ot_type)                         :: qs_ot_env
-    TYPE(cp_dbcsr_type), POINTER             :: pscp
-    TYPE(cp_error_type), INTENT(inout)       :: error
-
-    CALL cp_dbcsr_copy(pscp,qs_ot_env%xmat,error=error)
-
-  END SUBROUTINE qs_ot_get_scp_nddo_coeffs
-! *****************************************************************************
-!> \brief ...
-!> \param qs_ot_env ...
-!> \param pscp ...
-!> \param fscp ...
-!> \param error ...
-! *****************************************************************************
-  SUBROUTINE qs_ot_get_scp_nddo_derivative ( qs_ot_env, pscp, fscp, error )
-    TYPE(qs_ot_type)                         :: qs_ot_env
-    TYPE(cp_dbcsr_type), POINTER             :: pscp, fscp
-    TYPE(cp_error_type), INTENT(inout)       :: error
-
-    CALL cp_dbcsr_copy(qs_ot_env%xmat,pscp,error=error)
-    CALL cp_dbcsr_copy(qs_ot_env%gxmat,fscp,error=error)
-
-  END SUBROUTINE qs_ot_get_scp_nddo_derivative
 ! *****************************************************************************
   ! this routines computes dE/dx=dx, with dx ortho to sc0
   ! needs dE/dC=hc,C0,X,SX,p
@@ -1627,7 +1596,7 @@ CONTAINS
        qs_ot_env%evals(i)=MAX(0.0_dp,qs_ot_env%evals(i))
     ENDDO
 
-    !$OMP PARALLEL DO
+    !$OMP PARALLEL DO DEFAULT(NONE) PRIVATE(i) SHARED(k,qs_ot_env)
     DO i=1,k
        qs_ot_env%dum(i)=COS(SQRT(qs_ot_env%evals(i)))
     ENDDO
@@ -1636,7 +1605,7 @@ CONTAINS
     CALL cp_dbcsr_multiply('N','T',rone,qs_ot_env%matrix_r,qs_ot_env%matrix_buf1, &
          rzero,qs_ot_env%matrix_cosp,error=error)
 
-    !$OMP PARALLEL DO
+    !$OMP PARALLEL DO DEFAULT(NONE) PRIVATE(i) SHARED(k,qs_ot_env)
     DO i=1,k
        qs_ot_env%dum(i)=qs_ot_sinc(SQRT(qs_ot_env%evals(i)))
     ENDDO
@@ -1644,17 +1613,6 @@ CONTAINS
     CALL cp_dbcsr_scale_by_vector(qs_ot_env%matrix_buf1,alpha=qs_ot_env%dum,side='right',error=error)
     CALL cp_dbcsr_multiply('N','T',rone,qs_ot_env%matrix_r,qs_ot_env%matrix_buf1, &
          rzero,qs_ot_env%matrix_sinp,error=error)
-
-!!$OMP PARALLEL DO PRIVATE(i,j,a,b)
-!DO j=1,ncol_local
-!   DO i=1,nrow_local
-!      a=(SQRT(qs_ot_env%evals(row_indices(i))) &
-!           -SQRT(qs_ot_env%evals(col_indices(j))))/2.0_dp
-!      b=(SQRT(qs_ot_env%evals(row_indices(i))) &
-!           +SQRT(qs_ot_env%evals(col_indices(j))))/2.0_dp
-!      qs_ot_env%matrix_cosp_b%local_data(i,j) = -0.5_dp*qs_ot_sinc(a)*qs_ot_sinc(b)
-!   ENDDO
-!ENDDO
 
     CALL cp_dbcsr_copy(qs_ot_env%matrix_cosp_b,qs_ot_env%matrix_cosp,error=error)
     CALL cp_dbcsr_iterator_start(iter, qs_ot_env%matrix_cosp_b)
@@ -1673,15 +1631,6 @@ CONTAINS
        ENDDO
     ENDDO
     CALL cp_dbcsr_iterator_stop(iter)
-
-!!$OMP PARALLEL DO PRIVATE(i,j,a,b)
-!DO j=1,ncol_local
-!   DO i=1,nrow_local
-!      a=SQRT(qs_ot_env%evals(row_indices(i)))
-!      b=SQRT(qs_ot_env%evals(col_indices(j)))
-!      qs_ot_env%matrix_sinp_b%local_data(i,j)=qs_ot_sincf(a,b)
-!   ENDDO
-!ENDDO
 
     CALL cp_dbcsr_copy(qs_ot_env%matrix_sinp_b,qs_ot_env%matrix_sinp,error=error)
     CALL cp_dbcsr_iterator_start(iter, qs_ot_env%matrix_sinp_b)
@@ -1707,6 +1656,7 @@ CONTAINS
 ! *****************************************************************************
 !> \brief ...
 !> \param x ...
+!> \retval qs_ot_sinc ...
 ! *****************************************************************************
   FUNCTION qs_ot_sinc(x)
 
@@ -1733,6 +1683,7 @@ CONTAINS
 !> \brief ...
 !> \param xa ...
 !> \param ya ...
+!> \retval qs_ot_sincf ...
 ! *****************************************************************************
   FUNCTION qs_ot_sincf(xa,ya)
 

@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2014  CP2K developers group                          !
+!   Copyright (C) 2000 - 2015  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -12,7 +12,7 @@
 !> \author Joost VandeVondele
 ! *****************************************************************************
 MODULE cp2k_info
-  USE f77_blas
+  
   USE input_constants,                 ONLY: id_development_version,&
                                              id_release_version
   USE kinds,                           ONLY: default_path_length,&
@@ -26,7 +26,7 @@ MODULE cp2k_info
   IMPLICIT NONE
   PRIVATE
 
-  PUBLIC :: cp2k_year,cp2k_version,cp2k_home,id_cp2k_version
+  PUBLIC :: cp2k_year,cp2k_version,cp2k_home,id_cp2k_version, cp2k_flags
   PUBLIC :: compile_arch,compile_date,compile_host,compile_revision
   PUBLIC :: print_cp2k_license, get_runtime_info, write_restart_header
 
@@ -44,8 +44,8 @@ MODULE cp2k_info
   CHARACTER(LEN=*), PARAMETER :: compile_revision = "unknown"
 #endif
 
-  CHARACTER(LEN=*), PARAMETER :: version_nr      = "2.6"
-  CHARACTER(LEN=*), PARAMETER :: cp2k_year       = "2014"
+  CHARACTER(LEN=*), PARAMETER :: version_nr      = "2.7"
+  CHARACTER(LEN=*), PARAMETER :: cp2k_year       = "2015"
   CHARACTER(LEN=*), PARAMETER :: cp2k_version    = "CP2K version "//TRIM(version_nr)
   CHARACTER(LEN=*), PARAMETER :: cp2k_home       = "http://www.cp2k.org/"
 
@@ -78,6 +78,62 @@ MODULE cp2k_info
 CONTAINS
 
 ! *****************************************************************************
+!> \brief list all compile time options that influence the capabilities of cp2k.
+!>        All new flags should be added here (and be unique grep-able)
+!> \retval flags ...
+! *****************************************************************************
+  FUNCTION cp2k_flags() RESULT(flags)
+    CHARACTER(len=default_string_length)     :: flags
+
+    flags="cp2kflags:"
+!$  flags=TRIM(flags)//" omp"
+
+#if defined(__LIBINT)
+    flags=TRIM(flags)//" libint"
+#endif
+#if defined(__FFTW3)
+    flags=TRIM(flags)//" fftw3"
+#endif
+#if defined(__LIBXC2)
+    flags=TRIM(flags)//" libxc2"
+#endif
+#if defined(__LIBPEXSI)
+    flags=TRIM(flags)//" pexsi"
+#endif
+#if defined(__ELPA)
+    flags=TRIM(flags)//" elpa"
+#endif
+#if defined(__parallel)
+    flags=TRIM(flags)//" parallel"
+#endif
+#if defined(__SCALAPACK)
+    flags=TRIM(flags)//" scalapack"
+#endif
+
+#if defined(__QUIP)
+    flags=TRIM(flags)//" quip"
+#endif
+#if defined(__PLUMED_CP2K)
+    flags=TRIM(flags)//" plumed"
+#endif
+
+#if defined(__ACC)
+    flags=TRIM(flags)//" acc"
+#endif
+#if defined(__PW_CUDA)
+    flags=TRIM(flags)//" pw_cuda"
+#endif
+#if defined __HAS_smm_dnn || __HAS_smm_snn || __HAS_smm_dnn || __HAS_smm_dnn
+    flags=TRIM(flags)//" smm"
+#endif
+
+#if defined __GEMINI || __SEASTAR || __BLUEGENE || __NET || __HWLOC || __LIBNUMA
+    flags=TRIM(flags)//" macharch"
+#endif
+
+  END FUNCTION cp2k_flags
+
+! *****************************************************************************
 !> \brief ...
 !> \param iunit ...
 ! *****************************************************************************
@@ -90,7 +146,7 @@ CONTAINS
      WRITE(iunit,'(T2,A)') '!   Copyright (C) 2000, 2001, 2002, 2003  CP2K developers group               !'
      WRITE(iunit,'(T2,A)') '!   Copyright (C) 2004, 2005, 2006, 2007  CP2K developers group               !'
      WRITE(iunit,'(T2,A)') '!   Copyright (C) 2008, 2009, 2010, 2011  CP2K developers group               !'
-     WRITE(iunit,'(T2,A)') '!   Copyright (C) 2012, 2013, 2014        CP2K developers group               !'
+     WRITE(iunit,'(T2,A)') '!   Copyright (C) 2012, 2013, 2014, 2015  CP2K developers group               !'
      WRITE(iunit,'(T2,A)') '!                                                                             !'
      WRITE(iunit,'(T2,A)') '!   This program is free software; you can redistribute it and/or modify      !'
      WRITE(iunit,'(T2,A)') '!   it under the terms of the GNU General Public License as published by      !'

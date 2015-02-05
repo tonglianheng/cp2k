@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2014  CP2K developers group                          !
+!   Copyright (C) 2000 - 2015  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -16,7 +16,7 @@ MODULE eip_silicon
   USE atomic_kind_list_types,          ONLY: atomic_kind_list_type
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind
-  USE cell_methods,                    ONLY: cell_type,&
+  USE cell_types,                      ONLY: cell_type,&
                                              get_cell
   USE cp_output_handling,              ONLY: cp_p_file,&
                                              cp_print_key_finished_output,&
@@ -27,7 +27,6 @@ MODULE eip_silicon
   USE distribution_1d_types,           ONLY: distribution_1d_type
   USE eip_environment_types,           ONLY: eip_env_get,&
                                              eip_environment_type
-  USE f77_blas
   USE force_env_types,                 ONLY: force_env_get,&
                                              force_env_type
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
@@ -710,7 +709,7 @@ CONTAINS
 
 ! determine number of threads
         npr=1
-!$omp parallel private(iam)  shared (npr)
+!$omp parallel private(iam)  shared (npr) default(none)
 !$       iam=omp_get_thread_num()
 !$       if (iam.eq.0) npr=omp_get_num_threads()
 !$omp end parallel
@@ -756,7 +755,7 @@ CONTAINS
      ELSE  ! parallel case
 
 ! periodization of particles can be done in parallel
-!$omp parallel do shared (alat,nat,rxyz0) private(iat)
+!$omp parallel do shared (alat,nat,rxyz0) private(iat) default(none)
         DO 5983,iat=1,nat
         rxyz0(1,iat)=MODULO(MODULO(rxyz0(1,iat),alat(1)),alat(1))
         rxyz0(2,iat)=MODULO(MODULO(rxyz0(2,iat),alat(2)),alat(2))
@@ -1191,7 +1190,7 @@ CONTAINS
 
         indlstx=0
 
-!$omp parallel  &
+!$omp parallel default(none) &
 !$omp private(iat,cut2,iam,ii,indlst,l1,l2,l3,myspace,npr) &
 !$omp shared (indlstx,nat,nn,nnbrx,ncx,ll1,ll2,ll3,icell,lsta,lstb,lay, &
 !$omp rel,rxyz,cut,myspaceout)
@@ -1240,7 +1239,7 @@ CONTAINS
 
         istopg=0
 
-!$omp parallel  &
+!$omp parallel default(none)  &
 !$omp private(iam,npr,iat,iat1,iat2,lot,istop,tcoord,tcoord2, &
 !$omp tener,tener2,txyz,s2,s3,sz,num2,num3,numz,max_nbrs) &
 !$omp shared (nat,nnbrx,lsta,lstb,rel,ener,ener2,fxyz,coord,coord2,istopg)
@@ -1791,7 +1790,7 @@ CONTAINS
         DO 6001,k1=l1-1,l1+1
         DO 6000,jj=1,icell(0,k1,k2,k3)
           jat=icell(jj,k1,k2,k3)
-          IF (jat.eq.iat) GOTO 6000
+          IF (jat.eq.iat) CYCLE
           xrel= rxyz(1,iat)-rxyz(1,jat)
           yrel= rxyz(2,iat)-rxyz(2,jat)
           zrel= rxyz(3,iat)-rxyz(3,jat)
@@ -1883,7 +1882,7 @@ CONTAINS
 
 ! determine number of threads
         npr=1
-!$omp parallel private(iam)  shared (npr)
+!$omp parallel private(iam)  shared (npr) default(none)
 !$       iam=omp_get_thread_num()
 !$       if (iam.eq.0) npr=omp_get_num_threads()
 !$omp end parallel
@@ -1903,9 +1902,9 @@ CONTAINS
 986     CONTINUE
 985     CONTINUE
 984     CONTINUE
-        rlc1i=ll1/alat(1)
-        rlc2i=ll2/alat(2)
-        rlc3i=ll3/alat(3)
+        rlc1i=INT(ll1/alat(1))
+        rlc2i=INT(ll2/alat(2))
+        rlc3i=INT(ll3/alat(3))
 
         DO 983,iat=1,nat
         rxyz0(1,iat)=MODULO(MODULO(rxyz0(1,iat),alat(1)),alat(1))
@@ -1929,7 +1928,7 @@ CONTAINS
      ELSE  ! parallel case
 
 ! periodization of particles can be done in parallel
-!$omp parallel do shared (alat,nat,rxyz0) private(iat)
+!$omp parallel do shared (alat,nat,rxyz0) private(iat) default(none)
         DO 5983,iat=1,nat
         rxyz0(1,iat)=MODULO(MODULO(rxyz0(1,iat),alat(1)),alat(1))
         rxyz0(2,iat)=MODULO(MODULO(rxyz0(2,iat),alat(2)),alat(2))
@@ -1949,9 +1948,9 @@ CONTAINS
 3986    CONTINUE
 3985    CONTINUE
 3984    CONTINUE
-        rlc1i=ll1/alat(1)
-        rlc2i=ll2/alat(2)
-        rlc3i=ll3/alat(3)
+        rlc1i=INT(ll1/alat(1))
+        rlc2i=INT(ll2/alat(2))
+        rlc3i=INT(ll3/alat(3))
 
         DO 6983,iat=1,nat
         l1=INT(rxyz0(1,iat)*rlc1i)
@@ -2363,7 +2362,7 @@ CONTAINS
 
         indlstx=0
 
-!$omp parallel  &
+!$omp parallel default(none)  &
 !$omp private(iat,cut2,iam,ii,indlst,l1,l2,l3,myspace,npr) &
 !$omp shared (indlstx,nat,nn,nnbrx,ncx,ll1,ll2,ll3,icell,lsta,lstb,lay, &
 !$omp rel,rxyz,cut,myspaceout)
@@ -2411,7 +2410,7 @@ CONTAINS
            ENDIF
 
         istopg=0
-!$omp parallel  &
+!$omp parallel default(none)  &
 !$omp private(iam,npr,iat,iat1,iat2,lot,istop,tcoord,tcoord2, &
 !$omp tener,tener2,txyz,f2ij,f3ij,f3ik,npjx,npjkx) &
 !$omp shared (nat,nnbrx,lsta,lstb,rel,ener,ener2,fxyz,coord,coord2,istopg)
@@ -2744,7 +2743,7 @@ CONTAINS
                 ( 2.e0_dp*dof_ggg(8-1)+dof_ggg(8-2) )*hsixth_ggg
                  gjik=cof_ggg(8-1) + (costheta-tmax_ggg)*gjikp
         ELSE
-           klo_ggg=tt_ggg
+           klo_ggg=INT(tt_ggg)
            khi_ggg=klo_ggg+1
            cof_ggg_klo=cof_ggg(klo_ggg)
            dof_ggg_klo=dof_ggg(klo_ggg)
@@ -2781,7 +2780,7 @@ CONTAINS
         tt_fff=tt_fff*hi_fff
         costheta=costheta+fyij*fyik
         fzik=rel(3,kbr)
-        klo_fff=tt_fff
+        klo_fff=INT(tt_fff)
         costheta=costheta+fzij*fzik
         sik=rel(5,kbr)
         tt_ggg=(costheta-tmin_ggg)*hi_ggg
@@ -2817,7 +2816,7 @@ CONTAINS
           fik=fik + (yt1_fff+yt2_fff)*h2sixth_fff
           fikp=fikp + ( ypt1_fff - ypt2_fff )*hsixth_fff
          ELSE
-              klo_ggg=tt_ggg
+              klo_ggg=INT(tt_ggg)
               khi_ggg=klo_ggg+1
            khi_fff=klo_fff+1
               cof_ggg_klo=cof_ggg(klo_ggg)
@@ -2940,7 +2939,6 @@ CONTAINS
 
 1000        CONTINUE
 
-        RETURN
         END SUBROUTINE subfeniat_l
 
 ! *****************************************************************************
@@ -2985,7 +2983,7 @@ CONTAINS
         DO 6365,k1=l1-1,l1+1
         DO 6366,jj=1,icell(0,k1,k2,k3)
           jat=icell(jj,k1,k2,k3)
-          IF (jat.eq.iat) GOTO 6363
+          IF (jat.eq.iat) GOTO 6363 !This looks like it should just be a CYCLE statement, but this GOTO exits three loops simultanuously
           xrel= rxyz(1,iat)-rxyz(1,jat)
           yrel= rxyz(2,iat)-rxyz(2,jat)
           zrel= rxyz(3,iat)-rxyz(3,jat)
@@ -3048,7 +3046,7 @@ CONTAINS
           y=ya(n-1) + (x-tmax)*yp
 ! otherwise evaluate cubic spline
         ELSE
-          klo=tt
+          klo=INT(tt)
           khi=klo+1
           ya_klo=ya(klo)
           y2a_klo=y2a(klo)

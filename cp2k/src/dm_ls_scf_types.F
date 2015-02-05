@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2014  CP2K developers group                          !
+!   Copyright (C) 2000 - 2015  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -20,6 +20,7 @@ MODULE dm_ls_scf_types
   USE input_section_types,             ONLY: section_vals_release,&
                                              section_vals_type
   USE kinds,                           ONLY: dp
+  USE pexsi_types,                     ONLY: lib_pexsi_env
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "./common/cp_common_uses.f90"
@@ -106,6 +107,10 @@ MODULE dm_ls_scf_types
 
      REAL(KIND=dp)         :: mixing_fraction
      INTEGER               :: max_scf
+     LOGICAL               :: ls_diis
+     INTEGER               :: iter_ini_diis
+     INTEGER               :: nmixing, max_diis
+     REAL(KIND=dp)         :: eps_diis
      REAL(KIND=dp)         :: energy_init
 
      TYPE(cp_dbcsr_type)   :: matrix_s_inv
@@ -121,6 +126,8 @@ MODULE dm_ls_scf_types
      TYPE(ls_scf_curvy_type) :: curvy_data
 
      TYPE(chebyshev_type) :: chebyshev
+
+     TYPE(lib_pexsi_env) :: pexsi
 
      TYPE(cp_para_env_type), POINTER :: para_env
   END TYPE ls_scf_env_type

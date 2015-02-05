@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2014  CP2K developers group                          !
+!   Copyright (C) 2000 - 2015  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -18,7 +18,7 @@ MODULE hfx_types
   USE bibliography,                    ONLY: cite_reference,&
                                              guidon2008,&
                                              guidon2009
-  USE cell_methods,                    ONLY: cell_type,&
+  USE cell_types,                      ONLY: cell_type,&
                                              get_cell,&
                                              plane_distance,&
                                              scaled_to_real
@@ -30,7 +30,6 @@ MODULE hfx_types
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_units,                        ONLY: cp_unit_from_cp2k
   USE erf_fn,                          ONLY: erfc
-  USE f77_blas
   USE hfx_helpers,                     ONLY: count_cells_perd,&
                                              next_image_cell_perd
   USE hfx_libint_wrapper,              ONLY: initialize_libderiv,&
@@ -1805,6 +1804,7 @@ MODULE hfx_types
 !> \param C ...
 !> \param D ...
 !> \param P ...
+!> \retval point_is_in_quadrilateral ...
 ! *****************************************************************************
   FUNCTION point_is_in_quadrilateral(A,B,C,D,P)
     REAL(dp)                                 :: A(3), B(3), C(3), D(3), P(3)

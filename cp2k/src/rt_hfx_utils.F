@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2014  CP2K developers group                          !
+!   Copyright (C) 2000 - 2015  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -18,12 +18,16 @@ MODULE rt_hfx_utils
        cp_dbcsr_create, cp_dbcsr_deallocate_matrix_set, &
        cp_dbcsr_distribution, cp_dbcsr_init, cp_dbcsr_p_type, &
        cp_dbcsr_row_block_sizes, cp_dbcsr_set, dbcsr_type_antisymmetric
-  USE f77_blas
   USE kinds,                           ONLY: default_string_length,&
                                              dp
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
+  USE qs_ks_types,                     ONLY: qs_ks_env_type,&
+                                             set_ks_env
   USE qs_neighbor_list_types,          ONLY: neighbor_list_set_p_type
+  USE qs_rho_types,                    ONLY: qs_rho_get,&
+                                             qs_rho_set,&
+                                             qs_rho_type
   USE rt_propagation_types,            ONLY: rt_prop_type
 #include "./common/cp_common_uses.f90"
 
@@ -50,24 +54,49 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_s
+      POINTER                                :: matrix_ks_aux_im, &
+                                                matrix_ks_im, matrix_s, &
+                                                matrix_s_aux, rho_ao_im, &
+                                                rho_aux_ao_im
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(neighbor_list_set_p_type), &
-      DIMENSION(:), POINTER                  :: sab_orb
+      DIMENSION(:), POINTER                  :: sab_aux, sab_orb
+    TYPE(qs_ks_env_type), POINTER            :: ks_env
+    TYPE(qs_rho_type), POINTER               :: rho, rho_aux
     TYPE(rt_prop_type), POINTER              :: rtp
 
-    CALL get_qs_env(qs_env=qs_env,dft_control=dft_control,rtp=rtp,error=error)
-    IF(dft_control%do_admm)THEN
-       CALL get_qs_env(qs_env=qs_env,matrix_s_aux_fit=matrix_s,&
-                       sab_aux_fit=sab_orb,error=error)
-       CALL rebuild_matrices(rtp%rtp_hfx%matrix_p_admm_im,rtp%rtp_hfx%matrix_ks_admm_im,&
-                             sab_orb,matrix_s,dft_control%nspins,error)
-    END IF
-    CALL get_qs_env(qs_env=qs_env,matrix_s=matrix_s,&
-                    sab_orb=sab_orb,error=error)
+    NULLIFY(ks_env,matrix_s,matrix_ks_im,dft_control,sab_orb,rtp,rho,rho_ao_im)
+    NULLIFY(sab_aux, rho_aux, rho_aux_ao_im, matrix_ks_aux_im, matrix_s_aux)
 
-    CALL rebuild_matrices(rtp%rtp_hfx%matrix_p_im,rtp%rtp_hfx%matrix_ks_im,&
-                          sab_orb,matrix_s,dft_control%nspins,error)
+    CALL get_qs_env(qs_env,&
+                    ks_env=ks_env,&
+                    dft_control=dft_control,&
+                    rtp=rtp,&
+                    matrix_s=matrix_s,&
+                    rho=rho,&
+                    matrix_ks_im=matrix_ks_im,&
+                    sab_orb=sab_orb,&
+                    error=error)
+
+    CALL qs_rho_get(rho, rho_ao_im=rho_ao_im, error=error)
+    CALL rebuild_matrices(rho_ao_im, matrix_ks_im, sab_orb, matrix_s,&
+                          dft_control%nspins, error)
+    CALL set_ks_env(ks_env, matrix_ks_im=matrix_ks_im, error=error)
+    CALL qs_rho_set(rho, rho_ao_im=rho_ao_im, error=error)
+
+    IF(dft_control%do_admm)THEN
+       CALL get_qs_env(qs_env,&
+                       matrix_s_aux_fit=matrix_s_aux,&
+                       sab_aux_fit=sab_aux,&
+                       rho_aux_fit=rho_aux,&
+                       matrix_ks_aux_fit_im=matrix_ks_aux_im,&
+                       error=error)
+       CALL qs_rho_get(rho_aux, rho_ao_im=rho_aux_ao_im, error=error)
+       CALL rebuild_matrices(rho_aux_ao_im, matrix_ks_aux_im, sab_aux, matrix_s_aux,&
+                             dft_control%nspins,error)
+       CALL set_ks_env(ks_env, matrix_ks_aux_fit_im=matrix_ks_aux_im, error=error)
+       CALL qs_rho_set(rho_aux, rho_ao_im=rho_aux_ao_im, error=error)
+    END IF
 
   END SUBROUTINE rtp_hfx_rebuild
 
@@ -89,7 +118,7 @@ CONTAINS
       DIMENSION(:), POINTER                  :: sab_orb
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: matrix_s
-    INTEGER                                  :: nspins
+    INTEGER, INTENT(in)                      :: nspins
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'rebuild_matrices', &

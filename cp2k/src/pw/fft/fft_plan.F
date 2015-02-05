@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2014  CP2K developers group                          !
+!   Copyright (C) 2000 - 2015  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -17,6 +17,7 @@ MODULE fft_plan
   USE fft_kinds,                       ONLY: integer8_kind
 
   IMPLICIT NONE
+  PRIVATE
 
   PUBLIC :: fft_plan_type
 

@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2014  CP2K developers group                          !
+!   Copyright (C) 2000 - 2015  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -28,8 +28,8 @@ MODULE glbopt_mincrawl
                                              delete_rng_stream,&
                                              next_random_number,&
                                              rng_stream_type
-  USE particle_types,                  ONLY: particle_type,&
-                                             write_particle_coordinates
+  USE particle_methods,                ONLY: write_particle_coordinates
+  USE particle_types,                  ONLY: particle_type
   USE physcon,                         ONLY: kelvin
   USE swarm_message,                   ONLY: swarm_message_add,&
                                              swarm_message_get,&
@@ -285,7 +285,7 @@ MODULE glbopt_mincrawl
 
    DO
       r = next_random_number(this%rng_stream, error=this%error)
-      step = r*SIZE(minima%tempdist) + 1
+      step = INT(r*SIZE(minima%tempdist)) + 1
       a = 1.0 -  2.0*ABS(minima%tempdist(step)-0.5)
       r = next_random_number(this%rng_stream, error=this%error)
       IF(r < a) EXIT
@@ -340,7 +340,7 @@ MODULE glbopt_mincrawl
     REAL(KIND=dp)                            :: temp_in_au
     INTEGER                                  :: step
 
-   step = LOG(temp_in_au*kelvin)/LOG(this%tempstep_base)
+   step = INT(LOG(temp_in_au*kelvin)/LOG(this%tempstep_base))
    !WRITE(*,*) "temp: ", temp_in_au*kelvin, this%tempstep_base
    !WRITE(*,*) "step: ", step
    IF(step > this%tempstep_max) STOP "temp2tempstep: step > tempstep_max"

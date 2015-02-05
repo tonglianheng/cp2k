@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2014  CP2K developers group                          !
+!   Copyright (C) 2000 - 2015  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -38,8 +38,8 @@ MODULE cp_dbcsr_output
                                              mp_sum,&
                                              mp_sync
   USE orbital_pointers,                ONLY: nso
-  USE particle_types,                  ONLY: get_particle_set,&
-                                             particle_type
+  USE particle_methods,                ONLY: get_particle_set
+  USE particle_types,                  ONLY: particle_type
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
   USE qs_kind_types,                   ONLY: get_qs_kind,&

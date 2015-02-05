@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2014  CP2K developers group                          !
+!   Copyright (C) 2000 - 2015  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -290,7 +290,7 @@ CONTAINS
 !> \param current actual tree element 
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
-!> \param parent parent tree element (last accepted one)
+!> \retval parent parent tree element (last accepted one)
 !> \author Mandes 12.2012
 !> \note routine searches last (assumed) accepted element in subtree
 ! *****************************************************************************

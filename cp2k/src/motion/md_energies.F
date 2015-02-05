@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2014  CP2K developers group                          !
+!   Copyright (C) 2000 - 2015  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -19,7 +19,7 @@ MODULE md_energies
                                              compute_averages
   USE barostat_types,                  ONLY: barostat_type
   USE barostat_utils,                  ONLY: print_barostat_status
-  USE cell_methods,                    ONLY: cell_type,&
+  USE cell_types,                      ONLY: cell_type,&
                                              get_cell
   USE cp_output_handling,              ONLY: cp_p_file,&
                                              cp_print_key_finished_output,&
@@ -29,7 +29,6 @@ MODULE md_energies
   USE cp_subsys_types,                 ONLY: cp_subsys_get,&
                                              cp_subsys_type
   USE cp_units,                        ONLY: cp_unit_from_cp2k
-  USE f77_blas
   USE force_env_types,                 ONLY: force_env_get,&
                                              force_env_type,&
                                              use_mixed_force
@@ -64,7 +63,7 @@ MODULE md_energies
                                              write_stress_tensor,&
                                              write_trajectory
   USE particle_list_types,             ONLY: particle_list_type
-  USE particle_types,                  ONLY: write_structure_data
+  USE particle_methods,                ONLY: write_structure_data
   USE physcon,                         ONLY: angstrom,&
                                              femtoseconds,&
                                              kelvin
@@ -334,13 +333,12 @@ CONTAINS
     root_section   => force_env%root_section
     motion_section => section_vals_get_subs_vals(root_section,"MOTION",error=error)
 
-    CALL force_env_get(force_env, cell=cell, subsys=subsys, qmmm_env=qmmm_env,&
-         virial=virial, error=error)
+    CALL force_env_get(force_env,cell=cell,subsys=subsys,qmmm_env=qmmm_env,error=error)
 
     qmmm     = calc_nfree_qm(md_env, md_ener, error) > 0
     is_mixed = (force_env%in_use == use_mixed_force)
 
-    CALL cp_subsys_get(subsys,particles=particles,error=error)
+    CALL cp_subsys_get(subsys,particles=particles, virial=virial, error=error)
     nat = particles%n_els
     dt  = simpar%dt*simpar%dt_fact
 

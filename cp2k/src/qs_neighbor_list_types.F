@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2014  CP2K developers group                          !
+!   Copyright (C) 2000 - 2015  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -117,7 +117,6 @@ MODULE qs_neighbor_list_types
             add_neighbor_node,&
             allocate_neighbor_list_set,&
             deallocate_neighbor_list_set,&
-            get_neighbor_list_set,&
             get_neighbor_list_set_p
 
 ! *** Iterator functions and types ***

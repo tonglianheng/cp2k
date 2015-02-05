@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2014  CP2K developers group                          !
+!   Copyright (C) 2000 - 2015  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -29,7 +29,6 @@ MODULE cp_parser_methods
                                              inpp_process_directive
   USE cp_parser_types,                 ONLY: cp_parser_type,&
                                              parser_reset
-  USE f77_blas
   USE kinds,                           ONLY: default_path_length,&
                                              default_string_length,&
                                              dp,&
@@ -320,7 +319,7 @@ CONTAINS
              ! On read failure try to go back from included file to previous i/o-stream.
              IF (istat==0) THEN
                 this_line_is_white_or_comment = is_comment_line(parser, parser%buffer%input_lines(iline))
-                IF (.NOT.this_line_is_white_or_comment) THEN
+                IF (.NOT.this_line_is_white_or_comment .AND. parser%apply_preprocessing) THEN
                    imark = INDEX(parser%buffer%input_lines(iline)(1:islen),"$")
                    IF (imark/=0) THEN
                       CALL inpp_expand_variables(parser%inpp, parser%buffer%input_lines(iline),&

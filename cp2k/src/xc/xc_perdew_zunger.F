@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2014  CP2K developers group                          !
+!   Copyright (C) 2000 - 2015  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -16,7 +16,6 @@ MODULE xc_perdew_zunger
   USE bibliography,                    ONLY: Ortiz1994,&
                                              Perdew1981,&
                                              cite_reference
-  USE f77_blas
   USE input_section_types,             ONLY: section_vals_type,&
                                              section_vals_val_get
   USE kinds,                           ONLY: dp
@@ -43,8 +42,8 @@ MODULE xc_perdew_zunger
   PRIVATE
 
   LOGICAL :: initialized = .FALSE.
-  REAL(KIND=dp), DIMENSION(0:1) :: A = (0,0), B = (0,0), C = (0,0), D = (0,0), &
-                               b1 = (0,0), b2 = (0,0), ga = (0,0)
+  REAL(KIND=dp), DIMENSION(0:1) :: A = 0.0_dp, B = 0.0_dp, C = 0.0_dp, D = 0.0_dp, &
+                               b1 = 0.0_dp, b2 = 0.0_dp, ga = 0.0_dp
 
   REAL(KIND=dp), PARAMETER :: epsilon = 5.E-13
   REAL(KIND=dp) :: eps_rho
@@ -256,7 +255,8 @@ SUBROUTINE pz_lda_calc(rho,e_0,e_rho, e_rho_rho, e_rho_rho_rho, npoints, order, 
     INTEGER                                  :: k
     REAL(KIND=dp), DIMENSION(0:3)            :: ed
 
-!$omp parallel do private ( k, ed )
+!$omp parallel do private ( k, ed ) default(none)&
+!$omp shared(npoints,rho,eps_rho,order,e_0,e_rho,e_rho_rho,e_rho_rho_rho,sc)
     DO k=1, npoints
 
        IF ( rho(k) > eps_rho ) THEN
@@ -446,7 +446,8 @@ SUBROUTINE pz_lda_calc(rho,e_0,e_rho, e_rho_rho, e_rho_rho_rho, npoints, order, 
 
     order_=ABS(order)
 
-!$omp parallel do private ( k, rho, ed ) shared(order,npoints,eps_rho)
+!$omp parallel do private ( k, rho, ed ) default(none)&
+!$omp shared(order_,order,npoints,eps_rho,a,b,sc,e_0,ea,eaa,eab,ebb,eaaa,eaab,eabb,ebbb)
     DO k=1, npoints
 
        rho = a(k) + b(k)

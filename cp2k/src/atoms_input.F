@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2014  CP2K developers group                          !
+!   Copyright (C) 2000 - 2015  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -18,14 +18,13 @@
 MODULE atoms_input
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind
-  USE cell_methods,                    ONLY: cell_type,&
+  USE cell_types,                      ONLY: cell_type,&
                                              pbc,&
                                              scaled_to_real
   USE cp_linked_list_val,              ONLY: cp_sll_val_next,&
                                              cp_sll_val_type
   USE cp_parser_methods,               ONLY: read_float_object
   USE cp_units,                        ONLY: cp_unit_to_cp2k
-  USE f77_blas
   USE input_section_types,             ONLY: section_vals_get,&
                                              section_vals_get_subs_vals,&
                                              section_vals_list_get,&

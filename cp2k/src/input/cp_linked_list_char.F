@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2014  CP2K developers group                          !
+!   Copyright (C) 2000 - 2015  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 #define CP_SLL_C_LESS_Q(el1,el2,error) ( el1 < el2 )
@@ -44,7 +44,6 @@
 !> \author Fawzi Mohamed
 ! *****************************************************************************
 MODULE cp_linked_list_char
-  USE f77_blas
   USE kinds,                           ONLY: default_string_length
 #include "../common/cp_common_uses.f90"
 
@@ -199,6 +198,7 @@ MODULE cp_linked_list_char
 
 CONTAINS
 
+
 ! *****************************************************************************
 !> \brief ...
 !> \param str ...
@@ -298,9 +298,9 @@ END SUBROUTINE write_string
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_sll_char_dealloc_node', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
     LOGICAL                                  :: failure
 
+    INTEGER:: stat
     failure=.FALSE.
 
     DEALLOCATE(sll, stat=stat)
@@ -1109,7 +1109,14 @@ END SUBROUTINE cp_sll_char_insert_ordered2
 !  lessQ = "CP_SLL_C_LESS_Q"
 !  nametype1 = "char"
 !  private_routines = 
-!    "subroutine write_string(str,unit_nr,error)
+!    "
+!     ! *****************************************************************************
+!     !> \brief ...
+!     !> \param str ...
+!     !> \param unit_nr ...
+!     !> \param error ...
+!     ! *****************************************************************************
+!     subroutine write_string(str,unit_nr,error)
 !       character(len=*),intent(in) :: str
 !       integer, intent(in) :: unit_nr
 !       type(cp_error_type), intent(inout) :: error

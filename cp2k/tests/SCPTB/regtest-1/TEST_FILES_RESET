@@ -29,3 +29,24 @@ hf_1.inp
 hf_2.inp  
 hf_3.inp  
 hf_4.inp  
+#change in numerics
+hf_1.inp.out
+hf_2.inp.out
+hf_3.inp.out
+hf_4.inp.out
+#  
+hf_1.inp
+#  
+hf_2.inp
+#  
+hf_3.inp
+#  
+hf_4.inp
+# new C9 code, new CN function
+h2.inp
+hf_1.inp
+hf_2.inp
+hf_3.inp
+hf_4.inp
+#do not accumulate shift in outer scf preconditioner
+h2.inp

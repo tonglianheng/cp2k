@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2014  CP2K developers group                          !
+!   Copyright (C) 2000 - 2015  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -14,11 +14,10 @@
 !> \author CJM & JGH
 ! *****************************************************************************
 MODULE topology_types
-  USE cell_methods,                    ONLY: cell_release,&
+  USE cell_types,                      ONLY: cell_release,&
                                              cell_type
   USE colvar_types,                    ONLY: colvar_p_type,&
                                              colvar_release
-  USE f77_blas
   USE input_constants,                 ONLY: do_bondparm_covalent,&
                                              do_conn_generate,&
                                              do_constr_none,&

@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2014  CP2K developers group                          !
+!   Copyright (C) 2000 - 2015  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -17,9 +17,8 @@
 MODULE manybody_siepmann
 
   USE atomic_kind_types,               ONLY: get_atomic_kind
-  USE cell_methods,                    ONLY: cell_type,&
+  USE cell_types,                      ONLY: cell_type,&
                                              pbc
-  USE f77_blas
   USE fist_neighbor_list_types,        ONLY: fist_neighbor_type,&
                                              neighbor_kind_pairs_type
   USE fist_nonbond_env_types,          ONLY: pos_type
@@ -105,6 +104,7 @@ CONTAINS
 !> \brief f2(r) corresponds to Equation (2) in J. Chem. Phys., Vol. 102, p.511
 !> \param siepmann ...
 !> \param r distance between oxygen and metal atom 
+!> \retval siep_f2 ...
 ! *****************************************************************************
   FUNCTION siep_f2(siepmann,r)
     TYPE(siepmann_pot_type), POINTER         :: siepmann
@@ -127,6 +127,7 @@ CONTAINS
 !> \brief f2(r)_d derivative of f2
 !> \param siepmann ...
 !> \param r distance between oxygen and metal atom 
+!> \retval siep_f2_d ...
 ! *****************************************************************************
   FUNCTION siep_f2_d(siepmann,r)
     TYPE(siepmann_pot_type), POINTER         :: siepmann
@@ -161,6 +162,7 @@ CONTAINS
 !> \param rcutsq ...
 !> \param particle_set ...
 !> \param cell ...
+!> \retval siep_a_ij ...
 !> \par History
 !>      Using a local list of neighbors
 ! *****************************************************************************
@@ -332,6 +334,7 @@ CONTAINS
 !> \param cell ...
 !> \param rcutsq ...
 !> \param particle_set ...
+!> \retval siep_Phi_ij ...
 !> \par History
 !>      Using a local list of neighbors
 ! *****************************************************************************

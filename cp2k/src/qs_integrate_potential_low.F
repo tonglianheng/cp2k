@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2014  CP2K developers group                          !
+!   Copyright (C) 2000 - 2015  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 MODULE qs_integrate_potential_low
   USE ao_util,                         ONLY: exp_radius_very_extended
@@ -333,7 +333,7 @@ CONTAINS
                   IF (my_use_virial .AND. PRESENT(a_hdab)) THEN
                     my_virial_a =0.0_dp
                     my_virial_b =0.0_dp
-                    CALL virial_update(my_virial_a,my_virial_b,rab,pabval,ftza,ftzb,ax,ay,az,bx,by,bz,vab)
+                   CALL virial_update(my_virial_a,my_virial_b,rab,pabval,ftza,ftzb,ax,ay,az,bx,by,bz,vab)
                     DO j=1,3
                       a_hdab(1:3,j,o1+ico,o2+jco) = a_hdab(1:3,j,o1+ico,o2+jco) + my_virial_a(1:3,j)
                     END DO

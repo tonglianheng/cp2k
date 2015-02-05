@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2014  CP2K developers group                          !
+!   Copyright (C) 2000 - 2015  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -11,7 +11,7 @@
 ! *****************************************************************************
 MODULE ao_util
 
-  USE f77_blas
+  
   USE kinds,                           ONLY: dp,&
                                              dp_size
   USE mathconstants,                   ONLY: &
@@ -374,6 +374,7 @@ CONTAINS
 !> \brief ...
 !> \param alpha ...
 !> \param l ...
+!> \retval gaussint_sph ...
 ! *****************************************************************************
   FUNCTION gaussint_sph(alpha,l)
 
@@ -405,6 +406,7 @@ CONTAINS
 !> \param ldb ...
 !> \param m ...
 !> \param n ...
+!> \retval trace_r_AxB ...
 ! *****************************************************************************
   FUNCTION trace_r_AxB(A,lda,B,ldb,m,n)
 
@@ -486,6 +488,7 @@ CONTAINS
 !> \param jb ...
 !> \param m ...
 !> \param n ...
+!> \retval trace_r_AxB_new ...
 ! *****************************************************************************
   FUNCTION trace_r_AxB_new(A,lda,ia,ja,B,ldb,ib,jb,m,n)
 

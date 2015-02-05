@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2014  CP2K developers group                          !
+!   Copyright (C) 2000 - 2015  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -13,7 +13,7 @@
 ! *****************************************************************************
 MODULE mc_moves
   USE atomic_kind_types,               ONLY: get_atomic_kind
-  USE cell_methods,                    ONLY: cell_clone,&
+  USE cell_types,                      ONLY: cell_clone,&
                                              cell_create,&
                                              cell_release,&
                                              cell_type,&
@@ -21,10 +21,8 @@ MODULE mc_moves
   USE cp_subsys_types,                 ONLY: cp_subsys_get,&
                                              cp_subsys_set,&
                                              cp_subsys_type
-  USE f77_blas
   USE force_env_methods,               ONLY: force_env_calc_energy_force
   USE force_env_types,                 ONLY: force_env_get,&
-                                             force_env_set_cell,&
                                              force_env_type,&
                                              use_fist_force
   USE global_types,                    ONLY: global_environment_type
@@ -570,7 +568,8 @@ END SUBROUTINE mc_conformation_change
 ! call a random number to figure out which direction we're moving
       IF(ionode) rand=next_random_number(rng_stream,error=error)
       CALL mp_bcast(rand,source,group)
-      move_direction=AINT(3*rand)+1
+      ! 1,2,3 with equal prob
+      move_direction=INT(3*rand)+1
 
 ! call a random number to figure out how far we're moving
       IF(ionode) rand=next_random_number(rng_stream,error=error)
@@ -818,7 +817,8 @@ END SUBROUTINE mc_conformation_change
       IF(ionode) rand=next_random_number(rng_stream,error=error)
 !      CALL RANDOM_NUMBER(rand)
       CALL mp_bcast(rand,source,group)
-      dir=AINT(3*rand)+1
+      ! 1,2,3 with equal prob
+      dir=INT(3*rand)+1
 
       IF (dir .EQ. 1) THEN
          lx = .TRUE.
@@ -1192,7 +1192,7 @@ END SUBROUTINE mc_conformation_change
       hmat_test(2,2)=new_cell_length(2)
       hmat_test(3,3)=new_cell_length(3)
       CALL cell_create(cell_test,hmat=hmat_test(:,:),periodic=cell%perd,error=error)
-      CALL force_env_set_cell(force_env,cell_test,error=error)
+      CALL cp_subsys_set(oldsys, cell=cell_test, error=error)
 
 ! now we need to scale the coordinates of all the molecules by the
 ! center of mass, using the minimum image (not all molecules are in
@@ -1246,7 +1246,7 @@ END SUBROUTINE mc_conformation_change
 !     end the timing
          CALL timestop(handle)
 ! reset the cell and particle positions
-         CALL force_env_set_cell(force_env,cell_old,error=error)
+         CALL cp_subsys_set(oldsys, cell=cell_old, error=error)
          DO iatom=1,nunits_tot(box_number)
             particles_old%els(iatom)%r(1:3)=r_old(1:3,iatom)
          ENDDO
@@ -1331,7 +1331,7 @@ END SUBROUTINE mc_conformation_change
       ELSE
 
 ! reset the cell and particle positions
-         CALL force_env_set_cell(force_env,cell_old,error=error)
+         CALL cp_subsys_set(oldsys, cell=cell_old, error=error)
          DO iatom=1,nunits_tot(box_number)
             particles_old%els(iatom)%r(1:3)=r_old(1:3,iatom)
          ENDDO
@@ -1442,8 +1442,8 @@ END SUBROUTINE mc_conformation_change
       ALLOCATE(atom_b(1:natom),STAT=istat)
       IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                        "atom_b",natom)
-      connection(:,:)=0.0_dp
-      connectivity(:,:)=0.0_dp
+      connection(:,:)=0
+      connectivity(:,:)=0
       counter(:)=0
       atom_a(:)=0
       atom_b(:)=0
@@ -1639,8 +1639,8 @@ END SUBROUTINE mc_conformation_change
       ALLOCATE(atom_c(1:natom),STAT=istat)
       IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                        "atom_c",natom)
-      connection(:,:)=0.0_dp
-      connectivity(:,:)=0.0_dp
+      connection(:,:)=0
+      connectivity(:,:)=0
       counter(:)=0
       atom_a(:)=0
       atom_c(:)=0
@@ -1929,8 +1929,8 @@ END SUBROUTINE mc_conformation_change
       ALLOCATE(atom_d(1:natom),STAT=istat)
       IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                        "atom_d",natom)
-      connection(:,:)=0.0_dp
-      connectivity(:,:)=0.0_dp
+      connection(:,:)=0
+      connectivity(:,:)=0
       counter(:)=0
       atom_a(:)=0
       atom_d(:)=0

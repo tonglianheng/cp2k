@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2014  CP2K developers group                          !
+!   Copyright (C) 2000 - 2015  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -681,8 +681,6 @@ CPSourceFileRef,&
 !> \param alpha ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
-!> \param transpose_tr if the triangular matrix should be transposed/complex comjugated
-!>        (defaults to false) UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \par History
 !>      08.2002 created [fawzi]
 !> \author Fawzi Mohamed

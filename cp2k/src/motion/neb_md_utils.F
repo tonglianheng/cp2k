@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2014  CP2K developers group                          !
+!   Copyright (C) 2000 - 2015  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -17,7 +17,6 @@
 ! *****************************************************************************
 MODULE neb_md_utils
   USE cp_units,                        ONLY: cp_unit_from_cp2k
-  USE f77_blas
   USE global_types,                    ONLY: global_environment_type
   USE input_constants,                 ONLY: band_md_opt,&
                                              do_band_collective

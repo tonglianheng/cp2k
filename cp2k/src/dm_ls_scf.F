@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2014  CP2K developers group                          !
+!   Copyright (C) 2000 - 2015  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -12,6 +12,8 @@
 ! *****************************************************************************
 MODULE dm_ls_scf
   USE bibliography,                    ONLY: Kolafa2004,&
+                                             Lin2009,&
+                                             Lin2013,&
                                              Niklasson2003,&
                                              Niklasson2014,&
                                              Shao2003,&
@@ -45,12 +47,12 @@ MODULE dm_ls_scf
                                              matrix_ls_to_qs,&
                                              matrix_qs_to_ls
   USE dm_ls_scf_types,                 ONLY: ls_scf_env_type
-  USE f77_blas
   USE input_constants,                 ONLY: &
        ls_cluster_atomic, ls_cluster_molecular, ls_s_inversion_hotelling, &
-       ls_s_inversion_sign_sqrt, ls_s_preconditioner_atomic, &
-       ls_s_preconditioner_molecular, ls_s_preconditioner_none, ls_scf_ns, &
-       ls_scf_tc2, ls_scf_trs4
+       ls_s_inversion_none, ls_s_inversion_sign_sqrt, &
+       ls_s_preconditioner_atomic, ls_s_preconditioner_molecular, &
+       ls_s_preconditioner_none, ls_scf_ns, ls_scf_pexsi, ls_scf_tc2, &
+       ls_scf_trs4
   USE input_section_types,             ONLY: section_vals_get,&
                                              section_vals_get_subs_vals,&
                                              section_vals_retain,&
@@ -67,6 +69,16 @@ MODULE dm_ls_scf
   USE molecule_types_new,              ONLY: molecule_of_atom,&
                                              molecule_type
   USE particle_types,                  ONLY: particle_type
+  USE pexsi_methods,                   ONLY: density_matrix_pexsi,&
+                                             pexsi_init_read_input,&
+                                             pexsi_to_qs
+  USE pexsi_types,                     ONLY: lib_pexsi_finalize,&
+                                             lib_pexsi_init
+  USE qs_diis,                         ONLY: qs_diis_b_clear_sparse,&
+                                             qs_diis_b_create_sparse,&
+                                             qs_diis_b_step_4lscf
+  USE qs_diis_types,                   ONLY: qs_diis_b_release_sparse,&
+                                             qs_diis_buffer_type_sparse
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type,&
                                              set_qs_env
@@ -74,6 +86,9 @@ MODULE dm_ls_scf
                                              write_mo_free_results
   USE timings,                         ONLY: timeset,&
                                              timestop
+  USE transport,                       ONLY: external_scf_method,&
+                                             transport_initialize
+  USE transport_env_types,             ONLY: transport_env_type
 #include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
@@ -279,6 +294,14 @@ CONTAINS
 
     ! get the initial guess for the SCF
     CALL ls_scf_initial_guess(qs_env,ls_scf_env,error)
+  
+    IF (ls_scf_env%purification_method .EQ. ls_scf_pexsi) THEN
+       CALL lib_pexsi_init(ls_scf_env%pexsi, ls_scf_env%matrix_s, nspin, error)
+    ENDIF
+
+    IF (qs_env%do_transport) THEN
+       CALL transport_initialize(qs_env%transport_env, ls_scf_env%matrix_s, error)
+    END IF
 
     CALL timestop(handle)
 
@@ -304,7 +327,7 @@ CONTAINS
                                                 atomic_guess = 1, &
                                                 restart_guess = 3
 
-    CHARACTER(LEN=default_path_length)       :: file_name
+    CHARACTER(LEN=default_path_length)       :: file_name, project_name
     INTEGER                                  :: handle, iaspc, &
                                                 initial_guess_type, ispin, &
                                                 istore, naspc, unit_nr
@@ -340,8 +363,9 @@ CONTAINS
     CASE(atomic_guess)
        CALL ls_scf_qs_atomic_guess(qs_env,ls_scf_env%energy_init,error)
     CASE(restart_guess)
+       project_name = logger%iter_info%project_name
        DO ispin=1,SIZE(ls_scf_env%matrix_p)
-          WRITE(file_name,'(A,I0,A)') "LS_DM_SPIN_",ispin,"_RESTART.dm"
+          WRITE(file_name,'(A,I0,A)') TRIM(project_name)//"_LS_DM_SPIN_",ispin,"_RESTART.dm"
           CALL cp_dbcsr_binary_read(file_name, distribution=cp_dbcsr_distribution(ls_scf_env%matrix_p(1)), &
                                     matrix_new=ls_scf_env%matrix_p(ispin), error=error)
           cs_pos = cp_dbcsr_checksum (ls_scf_env%matrix_p(ispin), pos=.TRUE., error=error)
@@ -369,30 +393,34 @@ CONTAINS
     CASE(atomic_guess)
       ! do nothing
     CASE(aspc_guess,restart_guess)
-       DO ispin=1,SIZE(ls_scf_env%matrix_p)
-          ! linear combination of P's is not idempotent. A bit of McWeeny is needed to ensure it is again
-          IF(SIZE(ls_scf_env%matrix_p)==1)CALL cp_dbcsr_scale(ls_scf_env%matrix_p(ispin),0.5_dp,error=error)
-          CALL purify_mcweeny(ls_scf_env%matrix_p(ispin:ispin),ls_scf_env%eps_filter,3,error)
-          IF(SIZE(ls_scf_env%matrix_p)==1)CALL cp_dbcsr_scale(ls_scf_env%matrix_p(ispin),2.0_dp,error=error)
+       ! purification can't be done on the pexsi matrix, which is not necessarily idempotent,
+       ! and not stored in an ortho basis form
+       IF (.NOT.(ls_scf_env%purification_method .EQ. ls_scf_pexsi)) THEN
+         DO ispin=1,SIZE(ls_scf_env%matrix_p)
+            ! linear combination of P's is not idempotent. A bit of McWeeny is needed to ensure it is again
+            IF(SIZE(ls_scf_env%matrix_p)==1)CALL cp_dbcsr_scale(ls_scf_env%matrix_p(ispin),0.5_dp,error=error)
+            CALL purify_mcweeny(ls_scf_env%matrix_p(ispin:ispin),ls_scf_env%eps_filter,3,error)
+            IF(SIZE(ls_scf_env%matrix_p)==1)CALL cp_dbcsr_scale(ls_scf_env%matrix_p(ispin),2.0_dp,error=error)
 
-          IF (ls_scf_env%use_s_sqrt) THEN
-             ! need to get P in the non-orthogonal basis if it was stored differently
-             CALL cp_dbcsr_init(matrix_tmp1,error=error)
-             CALL cp_dbcsr_create(matrix_tmp1,template=ls_scf_env%matrix_s,&
-                                  matrix_type=dbcsr_type_no_symmetry,error=error)
-             CALL cp_dbcsr_multiply("N", "N", 1.0_dp, ls_scf_env%matrix_s_sqrt_inv, ls_scf_env%matrix_p(ispin),&
-                                          0.0_dp, matrix_tmp1, filter_eps=ls_scf_env%eps_filter,error=error)
-             CALL cp_dbcsr_multiply("N", "N", 1.0_dp, matrix_tmp1, ls_scf_env%matrix_s_sqrt_inv, &
-                                          0.0_dp, ls_scf_env%matrix_p(ispin)  , &
-                                          filter_eps=ls_scf_env%eps_filter,error=error)
-             CALL cp_dbcsr_release(matrix_tmp1,error=error)
+            IF (ls_scf_env%use_s_sqrt) THEN
+               ! need to get P in the non-orthogonal basis if it was stored differently
+               CALL cp_dbcsr_init(matrix_tmp1,error=error)
+               CALL cp_dbcsr_create(matrix_tmp1,template=ls_scf_env%matrix_s,&
+                                    matrix_type=dbcsr_type_no_symmetry,error=error)
+               CALL cp_dbcsr_multiply("N", "N", 1.0_dp, ls_scf_env%matrix_s_sqrt_inv, ls_scf_env%matrix_p(ispin),&
+                                            0.0_dp, matrix_tmp1, filter_eps=ls_scf_env%eps_filter,error=error)
+               CALL cp_dbcsr_multiply("N", "N", 1.0_dp, matrix_tmp1, ls_scf_env%matrix_s_sqrt_inv, &
+                                            0.0_dp, ls_scf_env%matrix_p(ispin)  , &
+                                            filter_eps=ls_scf_env%eps_filter,error=error)
+               CALL cp_dbcsr_release(matrix_tmp1,error=error)
 
-             IF (ls_scf_env%has_s_preconditioner) THEN
-                 CALL apply_matrix_preconditioner(ls_scf_env%matrix_p(ispin),"forward", &
-                                ls_scf_env%matrix_bs_sqrt,ls_scf_env%matrix_bs_sqrt_inv,error)
-             ENDIF
-          ENDIF
-       ENDDO
+               IF (ls_scf_env%has_s_preconditioner) THEN
+                   CALL apply_matrix_preconditioner(ls_scf_env%matrix_p(ispin),"forward", &
+                                  ls_scf_env%matrix_bs_sqrt,ls_scf_env%matrix_bs_sqrt_inv,error)
+               ENDIF
+            ENDIF
+         ENDDO
+       ENDIF
 
        ! compute corresponding energy and ks matrix
        CALL ls_scf_dm_to_ks(qs_env,ls_scf_env,ls_scf_env%energy_init,error)
@@ -422,7 +450,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'ls_scf_store_result', &
       routineP = moduleN//':'//routineN
 
-    CHARACTER(LEN=default_path_length)       :: file_name
+    CHARACTER(LEN=default_path_length)       :: file_name, project_name
     INTEGER                                  :: handle, ispin, istore, unit_nr
     REAL(KIND=dp)                            :: cs_pos
     TYPE(cp_dbcsr_type)                      :: matrix_tmp1
@@ -467,7 +495,8 @@ CONTAINS
           ENDIF
 
           IF (ls_scf_env%restart_write) THEN
-             WRITE(file_name,'(A,I0,A)') "LS_DM_SPIN_",ispin,"_RESTART.dm"
+             project_name = logger%iter_info%project_name
+             WRITE(file_name,'(A,I0,A)') TRIM(project_name)//"_LS_DM_SPIN_",ispin,"_RESTART.dm"
              cs_pos = cp_dbcsr_checksum (ls_scf_env%scf_history%matrix(ispin,istore), pos=.TRUE., error=error)
              IF (unit_nr>0) THEN
                 WRITE(unit_nr,'(T2,A,E20.8)') "Writing restart DM "//TRIM(file_name)//" with checksum: ",cs_pos
@@ -641,7 +670,8 @@ CONTAINS
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: mu
     TYPE(section_vals_type), POINTER         :: chebyshev_section, &
-                                                curvy_section, ls_scf_section
+                                                curvy_section, &
+                                                ls_scf_section, pexsi_section
 
     CALL timeset(routineN,handle)
     CALL cite_reference(VandeVondele2012)
@@ -650,6 +680,11 @@ CONTAINS
     curvy_section => section_vals_get_subs_vals(ls_scf_section,"CURVY_STEPS",error=error)
 
     ! should come from input
+    CALL section_vals_val_get(ls_scf_section,"LS_DIIS",l_val=ls_scf_env%ls_diis,error=error)
+    CALL section_vals_val_get(ls_scf_section,"INI_DIIS",i_val=ls_scf_env%iter_ini_diis,error=error)
+    CALL section_vals_val_get(ls_scf_section,"MAX_DIIS",i_val=ls_scf_env%max_diis,error=error)
+    CALL section_vals_val_get(ls_scf_section,"NMIXING",i_val=ls_scf_env%nmixing,error=error)
+    CALL section_vals_val_get(ls_scf_section,"EPS_DIIS",r_val=ls_scf_env%eps_diis,error=error)
     CALL section_vals_val_get(ls_scf_section,"EPS_SCF",r_val=ls_scf_env%eps_scf,error=error)
     CALL section_vals_val_get(ls_scf_section,"EPS_FILTER",r_val=ls_scf_env%eps_filter,error=error)
     CALL section_vals_val_get(ls_scf_section,"MU",r_val=mu,error=error)
@@ -698,12 +733,26 @@ CONTAINS
       CALL section_vals_retain(ls_scf_env%chebyshev%print_key_cube,error=error)
     ENDIF
 
+    pexsi_section => section_vals_get_subs_vals(input,"DFT%LS_SCF%PEXSI",error=error)
+    CALL section_vals_get(pexsi_section, error=error)
+
+    IF (ls_scf_env%purification_method .EQ. ls_scf_pexsi) THEN
+      CALL pexsi_init_read_input(pexsi_section,ls_scf_env%pexsi, error)
+      ! Turn off S inversion (not used for PEXSI).
+      ! Methods such as purification must thus be avoided... which is OK, as the density matrix computed in pexsi is
+      ! a finite temperature one, and thus not idempotent
+      ls_scf_env%s_inversion_type=ls_s_inversion_none 
+    ENDIF
+
     SELECT CASE(ls_scf_env%s_inversion_type)
     CASE(ls_s_inversion_sign_sqrt)
         ls_scf_env%needs_s_inv=.TRUE.
         ls_scf_env%use_s_sqrt=.TRUE.
     CASE(ls_s_inversion_hotelling)
         ls_scf_env%needs_s_inv=.TRUE.
+        ls_scf_env%use_s_sqrt=.FALSE.
+    CASE(ls_s_inversion_none)
+        ls_scf_env%needs_s_inv=.FALSE.
         ls_scf_env%use_s_sqrt=.FALSE.
     CASE DEFAULT
         CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)
@@ -740,6 +789,12 @@ CONTAINS
        WRITE(unit_nr,'(T2,A,T38,E20.3)') "eps_filter:",ls_scf_env%eps_filter
        WRITE(unit_nr,'(T2,A,T38,E20.3)') "mixing_fraction:",ls_scf_env%mixing_fraction
        WRITE(unit_nr,'(T2,A,T38,I20)') "max_scf:",ls_scf_env%max_scf
+       IF (ls_scf_env%ls_diis) THEN
+       WRITE(unit_nr,'(T2,A,T38,I20)')   "DIIS: max_diis:",ls_scf_env%max_diis
+       WRITE(unit_nr,'(T2,A,T38,E20.3)') "DIIS: eps_diis:",ls_scf_env%eps_diis
+       WRITE(unit_nr,'(T2,A,T38,I20)')   "DIIS: ini_diis:",ls_scf_env%iter_ini_diis
+       WRITE(unit_nr,'(T2,A,T38,I20)')   "DIIS: nmixing:" ,ls_scf_env%nmixing
+       ENDIF
        WRITE(unit_nr,'(T2,A,T38,L20)') "fixed chemical potential (mu)",ls_scf_env%fixed_mu
        WRITE(unit_nr,'(T2,A,T38,L20)') "has unit metric:",ls_scf_env%has_unit_metric
        WRITE(unit_nr,'(T2,A,T38,L20)') "Computing inv(S):",ls_scf_env%needs_s_inv
@@ -772,6 +827,10 @@ CONTAINS
        CASE(ls_scf_trs4)
            CALL cite_reference(Niklasson2003)
            WRITE(unit_nr,'(T2,A,T38,A30)') "Purification method","Trace resetting 4th order"
+       CASE(ls_scf_pexsi)
+           CALL cite_reference(Lin2009)
+           CALL cite_reference(Lin2013)
+           WRITE(unit_nr,'(T2,A,T38,A20)') "Purification method","PEXSI"
        CASE DEFAULT
            CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)
        END SELECT
@@ -817,17 +876,22 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, iscf, ispin, &
-                                                nelectron_spin_real, nspin, &
-                                                unit_nr
-    LOGICAL                                  :: check_convergence, should_stop
+                                                nelectron_spin_real, nmixing, &
+                                                nspin, unit_nr
+    LOGICAL                                  :: check_convergence, diis_step, &
+                                                do_transport, failure, &
+                                                should_stop
     REAL(KIND=dp)                            :: energy_diff, energy_new, &
-                                                energy_old, t1, t2
+                                                energy_old, eps_diis, t1, t2
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_ks
+      POINTER                                :: matrix_ks, matrix_s
     TYPE(cp_dbcsr_type), ALLOCATABLE, &
       DIMENSION(:)                           :: matrix_ks_deviation, &
                                                 matrix_mixing_old
     TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(qs_diis_buffer_type_sparse), &
+      POINTER                                :: diis_buffer
+    TYPE(transport_env_type), POINTER        :: transport_env
 
     CALL timeset(routineN,handle)
 
@@ -858,6 +922,21 @@ CONTAINS
     IF(ls_scf_env%scf_history%istore>0)energy_old=ls_scf_env%energy_init
     check_convergence=.TRUE.
     iscf=0
+    IF (ls_scf_env%ls_diis) THEN
+     diis_step = .FALSE.
+     eps_diis  = ls_scf_env%eps_diis
+     nmixing   = ls_scf_env%nmixing
+     NULLIFY(diis_buffer)
+     IF (.NOT.ASSOCIATED(diis_buffer)) THEN
+        CALL qs_diis_b_create_sparse(diis_buffer, &
+                                     nbuffer=ls_scf_env%max_diis,  &
+                                     error=error)
+     END IF
+     CALL qs_diis_b_clear_sparse(diis_buffer,error=error)
+     CALL get_qs_env(qs_env,matrix_s=matrix_s,error=error)
+    END IF
+
+    CALL get_qs_env(qs_env, transport_env=transport_env, do_transport=do_transport, error=error)
 
     ! the real SCF loop
     DO
@@ -892,10 +971,62 @@ CONTAINS
                ! initialize the mixing matrix with the current state if needed
                CALL cp_dbcsr_copy(matrix_mixing_old(ispin), ls_scf_env%matrix_ks(ispin), error=error)
             ELSE
+             IF (ls_scf_env%ls_diis) THEN ! ------- IF-DIIS+MIX--- START
+              IF (diis_step.and.(iscf-1).ge.ls_scf_env%iter_ini_diis) THEN
+               IF (unit_nr>0) THEN
+                WRITE(unit_nr,'(A61)') &
+                       '*************************************************************'
+                WRITE(unit_nr,'(A50,2(I3,A1),L1,A1)') &
+                       " Using DIIS mixed KS:  (iscf,INI_DIIS,DIIS_STEP)=(" , &
+                       iscf,",",ls_scf_env%iter_ini_diis,",",diis_step,")"
+                WRITE(unit_nr,'(A52)') &
+                       " KS_nw= DIIS-Linear-Combination-Previous KS matrices"
+                WRITE(unit_nr,'(61A)') &
+                       "*************************************************************"
+               ENDIF
+               CALL cp_dbcsr_copy(matrix_mixing_old(ispin),   & ! out
+                                  ls_scf_env%matrix_ks(ispin),& ! in
+                                  error=error)
+              ELSE
+               IF (unit_nr>0) THEN
+                WRITE(unit_nr,'(A57)') &
+                      "*********************************************************"
+                WRITE(unit_nr,'(A23,F5.3,A25,I3)') &
+                      " Using MIXING_FRACTION=",ls_scf_env%mixing_fraction, &
+                      " to mix KS matrix:  iscf=",iscf 
+                WRITE(unit_nr,'(A7,F5.3,A6,F5.3,A7)') &
+                      " KS_nw=",ls_scf_env%mixing_fraction,"*KS + ", &
+                      1.0_dp-ls_scf_env%mixing_fraction,"*KS_old"
+                WRITE(unit_nr,'(A57)') &
+                      "*********************************************************"
+               ENDIF
                ! perform the mixing of ks matrices
-               CALL cp_dbcsr_add(matrix_mixing_old(ispin), ls_scf_env%matrix_ks(ispin), &
-                                 1.0_dp-ls_scf_env%mixing_fraction,ls_scf_env%mixing_fraction, &
+               CALL cp_dbcsr_add(matrix_mixing_old(ispin)   ,       &
+                                 ls_scf_env%matrix_ks(ispin),       &
+                                 1.0_dp-ls_scf_env%mixing_fraction, &
+                                 ls_scf_env%mixing_fraction,        &
                                  error=error)
+              ENDIF
+             ELSE ! otherwise
+               IF (unit_nr>0) THEN
+                WRITE(unit_nr,'(A57)') &
+                      "*********************************************************"
+                WRITE(unit_nr,'(A23,F5.3,A25,I3)') &
+                      " Using MIXING_FRACTION=", ls_scf_env%mixing_fraction, &
+                      " to mix KS matrix:  iscf=",iscf
+                WRITE(unit_nr,'(A7,F5.3,A6,F5.3,A7)') &
+                      " KS_nw=",ls_scf_env%mixing_fraction,"*KS + ", &
+                      1.0_dp-ls_scf_env%mixing_fraction,"*KS_old"
+                WRITE(unit_nr,'(A57)') &
+                      "*********************************************************"
+               ENDIF
+               ! perform the mixing of ks matrices
+               CALL cp_dbcsr_add(matrix_mixing_old(ispin)   ,       &
+                                 ls_scf_env%matrix_ks(ispin),       &
+                                 1.0_dp-ls_scf_env%mixing_fraction, &
+                                 ls_scf_env%mixing_fraction,        &
+                                 error=error)
+             ENDIF ! ------- IF-DIIS+MIX--- END
             ENDIF
 
             ! compute the density matrix that matches it
@@ -903,27 +1034,53 @@ CONTAINS
             nelectron_spin_real=ls_scf_env%nelectron_spin(ispin)
             IF (ls_scf_env%nspins==1) nelectron_spin_real=nelectron_spin_real/2
 
-            SELECT CASE(ls_scf_env%purification_method)
-            CASE(ls_scf_ns)
-              CALL density_matrix_sign(ls_scf_env%matrix_p(ispin),ls_scf_env%mu_spin(ispin), ls_scf_env%fixed_mu, &
-                                       matrix_mixing_old(ispin),ls_scf_env%matrix_s, ls_scf_env%matrix_s_inv, &
-                                       nelectron_spin_real,ls_scf_env%eps_filter,error)
-            CASE(ls_scf_tc2)
-              CALL density_matrix_tc2(ls_scf_env%matrix_p(ispin), matrix_mixing_old(ispin),  ls_scf_env%matrix_s_sqrt_inv,&
-                                       nelectron_spin_real, ls_scf_env%eps_filter, ls_scf_env%homo_spin(ispin),&
-                                       ls_scf_env%lumo_spin(ispin), non_monotonic=ls_scf_env%non_monotonic, &
-                                       eps_lanczos=ls_scf_env%eps_lanczos, max_iter_lanczos=ls_scf_env%max_iter_lanczos,&
-                                       error=error)
-            CASE(ls_scf_trs4)
-              CALL density_matrix_trs4(ls_scf_env%matrix_p(ispin), matrix_mixing_old(ispin),  ls_scf_env%matrix_s_sqrt_inv,&
-                                       nelectron_spin_real, ls_scf_env%eps_filter, ls_scf_env%homo_spin(ispin),&
-                                       ls_scf_env%lumo_spin(ispin), ls_scf_env%mu_spin(ispin), &
-                                       dynamic_threshold=ls_scf_env%dynamic_threshold,&
-                                       matrix_ks_deviation=matrix_ks_deviation(ispin), &
-                                       eps_lanczos=ls_scf_env%eps_lanczos, max_iter_lanczos=ls_scf_env%max_iter_lanczos,&
-                                       error=error)
-            END SELECT
-                                     
+            IF (do_transport) THEN
+               CALL cp_assert(.NOT.(ls_scf_env%has_s_preconditioner),cp_failure_level,cp_assertion_failed,&
+                              routineP,"NOT YET IMPLEMENTED with S preconditioner. ", error, failure)
+
+               CALL cp_assert(ls_scf_env%ls_mstruct%cluster_type .EQ. ls_cluster_atomic, cp_failure_level,&
+                              cp_assertion_failed, routineP,"NOT YET IMPLEMENTED with molecular clustering. ",& 
+                              error, failure)
+
+               ! get the current Kohn-Sham matrix (ks) and return matrix_p evaluated using an external C routine
+               CALL external_scf_method(transport_env, ls_scf_env%matrix_s, matrix_mixing_old(ispin), &
+                                        ls_scf_env%matrix_p(ispin), nelectron_spin_real, ls_scf_env%natoms, error)
+
+            ELSE 
+               SELECT CASE(ls_scf_env%purification_method)
+               CASE(ls_scf_ns)
+                 CALL density_matrix_sign(ls_scf_env%matrix_p(ispin),ls_scf_env%mu_spin(ispin), ls_scf_env%fixed_mu, &
+                                          matrix_mixing_old(ispin),ls_scf_env%matrix_s, ls_scf_env%matrix_s_inv, &
+                                          nelectron_spin_real,ls_scf_env%eps_filter,error)
+               CASE(ls_scf_tc2)
+                 CALL density_matrix_tc2(ls_scf_env%matrix_p(ispin), matrix_mixing_old(ispin),  ls_scf_env%matrix_s_sqrt_inv,&
+                                          nelectron_spin_real, ls_scf_env%eps_filter, ls_scf_env%homo_spin(ispin),&
+                                          ls_scf_env%lumo_spin(ispin), non_monotonic=ls_scf_env%non_monotonic, &
+                                          eps_lanczos=ls_scf_env%eps_lanczos, max_iter_lanczos=ls_scf_env%max_iter_lanczos,&
+                                          error=error)
+               CASE(ls_scf_trs4)
+                 CALL density_matrix_trs4(ls_scf_env%matrix_p(ispin), matrix_mixing_old(ispin),  ls_scf_env%matrix_s_sqrt_inv,&
+                                          nelectron_spin_real, ls_scf_env%eps_filter, ls_scf_env%homo_spin(ispin),&
+                                          ls_scf_env%lumo_spin(ispin), ls_scf_env%mu_spin(ispin), &
+                                          dynamic_threshold=ls_scf_env%dynamic_threshold,&
+                                          matrix_ks_deviation=matrix_ks_deviation(ispin), &
+                                          eps_lanczos=ls_scf_env%eps_lanczos, max_iter_lanczos=ls_scf_env%max_iter_lanczos,&
+                                          error=error)
+               CASE(ls_scf_pexsi)
+                 CALL cp_assert(.NOT.(ls_scf_env%has_s_preconditioner),cp_failure_level,cp_assertion_failed, routineP, &
+                                "S preconditioning not implemented in combination with the PEXSI library. ", &
+                                only_ionode=.TRUE., error=error)
+                 CALL cp_assert(ls_scf_env%ls_mstruct%cluster_type .EQ. ls_cluster_atomic, cp_failure_level, cp_assertion_failed, & 
+                                routineP,"Molecular clustering not implemented in combination with the PEXSI library. ", &
+                                only_ionode=.TRUE., error=error)
+                 CALL cp_assert(.NOT. ls_scf_env%ls_mstruct%single_precision,cp_failure_level,cp_assertion_failed, routineP, &
+                                "PEXSI library requires double precision datatype. ", only_ionode=.TRUE.,error=error)
+                 CALL density_matrix_pexsi(ls_scf_env%pexsi, ls_scf_env%matrix_p(ispin), ls_scf_env%pexsi%matrix_w(ispin),&
+                                           ls_scf_env%pexsi%kTS(ispin), matrix_mixing_old(ispin), ls_scf_env%matrix_s,& 
+                                           nelectron_spin_real,ls_scf_env%mu_spin(ispin),iscf,ispin,error)
+               END SELECT
+            END IF
+ 
             IF (ls_scf_env%has_s_preconditioner) THEN
                 CALL apply_matrix_preconditioner(ls_scf_env%matrix_p(ispin),"forward", &
                                ls_scf_env%matrix_bs_sqrt,ls_scf_env%matrix_bs_sqrt_inv,error)
@@ -937,6 +1094,10 @@ CONTAINS
 
       ! compute the corresponding new energy KS matrix and new energy
       CALL ls_scf_dm_to_ks(qs_env,ls_scf_env,energy_new,error)
+
+      IF (ls_scf_env%purification_method .EQ. ls_scf_pexsi) THEN 
+        CALL pexsi_to_qs(ls_scf_env, qs_env, kTS = ls_scf_env%pexsi%kTS, error = error)
+      ENDIF
 
       ! report current SCF loop
       energy_diff=energy_new-energy_old
@@ -952,9 +1113,21 @@ CONTAINS
       ! exit criterium on the energy only for the time being
       IF (check_convergence.AND.ABS(energy_diff)<ls_scf_env%eps_scf*ls_scf_env%nelectron_total) EXIT
 
+      IF (ls_scf_env%ls_diis) THEN
+! diis_buffer, buffer with 1) Kohn-Sham history matrix, 
+!                          2) KS error history matrix (f=KPS-SPK),
+!                          3) B matrix (for finding DIIS weighting coefficients)
+       CALL qs_diis_b_step_4lscf(diis_buffer,qs_env,ls_scf_env,unit_nr, & 
+                                 iscf,diis_step,eps_diis,nmixing,matrix_s(1)%matrix, & 
+                                 ls_scf_env%eps_filter,error)               
+      ENDIF
+
     ENDDO
 
     ! free storage
+    IF (ls_scf_env%ls_diis) THEN
+       CALL qs_diis_b_release_sparse(diis_buffer,error)
+    ENDIF
     DO ispin=1,nspin
        CALL cp_dbcsr_release(matrix_mixing_old(ispin),error=error)
        CALL cp_dbcsr_release(matrix_ks_deviation(ispin),error=error)
@@ -1010,7 +1183,11 @@ CONTAINS
     ! compute the matrix_w if associated
     CALL get_qs_env(qs_env,matrix_w=matrix_w,error=error)
     IF (ASSOCIATED(matrix_w)) THEN
-       CALL calculate_w_matrix(matrix_w,ls_scf_env,error=error)
+      IF (ls_scf_env%purification_method .EQ. ls_scf_pexsi) THEN
+        CALL pexsi_to_qs(ls_scf_env, qs_env, matrix_w = ls_scf_env%pexsi%matrix_w, error=error)
+      ELSE
+        CALL calculate_w_matrix(matrix_w,ls_scf_env,error=error) 
+      ENDIF
     ENDIF
 
     ! compute properties
@@ -1055,6 +1232,9 @@ CONTAINS
        CALL cp_dbcsr_release(ls_scf_env%matrix_ks(ispin),error=error)
     ENDDO
     DEALLOCATE(ls_scf_env%matrix_ks)
+
+    IF (ls_scf_env%purification_method .EQ. ls_scf_pexsi) &
+      CALL lib_pexsi_finalize(ls_scf_env%pexsi, error)
 
     CALL timestop(handle)
 
@@ -1462,13 +1642,7 @@ CONTAINS
        unit_nr=-1
     ENDIF
 
-!   CALL cp_dbcsr_binary_write(ls_scf_env%matrix_p(1),"pmatrix.dat",error)
-!   CALL cp_dbcsr_init(matrix_tmp1,error=error)
-!   CALL cp_dbcsr_binary_read("pmatrix.dat", distribution=cp_dbcsr_distribution(ls_scf_env%matrix_p(1)), &
-!            matrix_new=matrix_tmp1, error=error)
-
     CALL timestop(handle)
-
   END SUBROUTINE post_scf_experiment
 
 END MODULE dm_ls_scf

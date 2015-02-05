@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2014  CP2K developers group                          !
+!   Copyright (C) 2000 - 2015  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! less not much meningful...
@@ -45,7 +45,6 @@
 !> \author Fawzi Mohamed
 ! *****************************************************************************
 MODULE cp_linked_list_rs
-  USE f77_blas
   USE kinds,                           ONLY: dp
   USE realspace_grid_types,            ONLY: realspace_grid_p_type,&
                                              realspace_grid_type
@@ -287,9 +286,9 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_sll_rs_dealloc_node', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
     LOGICAL                                  :: failure
 
+    INTEGER:: stat
     failure=.FALSE.
 
     DEALLOCATE(sll, stat=stat)

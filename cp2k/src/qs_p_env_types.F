@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2014  CP2K developers group                          !
+!   Copyright (C) 2000 - 2015  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -16,7 +16,6 @@ MODULE qs_p_env_types
   USE cp_fm_vect,                      ONLY: cp_fm_vect_dealloc,&
                                              cp_fm_vect_write
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE f77_blas
   USE hartree_local_types,             ONLY: hartree_local_release,&
                                              hartree_local_type
   USE kinds,                           ONLY: dp
@@ -164,7 +163,6 @@ END SUBROUTINE p_env_retain
           CALL cp_fm_vect_dealloc(p_env%psi0d, error=error)
           CALL cp_fm_vect_dealloc(p_env%Smo_inv, error=error)
           IF(ASSOCIATED(p_env%rho1_xc)) THEN
-            NULLIFY(p_env%rho1_xc%rho_ao)
             CALL qs_rho_release(p_env%rho1_xc,error=error)
           ENDIF
           CALL qs_rho_release(p_env%rho1,error=error)

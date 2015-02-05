@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2014  CP2K developers group                          !
+!   Copyright (C) 2000 - 2015  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -38,7 +38,7 @@ MODULE qs_collocate_density
                                              get_atomic_kind_set
   USE basis_set_types,                 ONLY: get_gto_basis_set,&
                                              gto_basis_set_type
-  USE cell_methods,                    ONLY: cell_type,&
+  USE cell_types,                      ONLY: cell_type,&
                                              pbc
   USE cp_control_types,                ONLY: dft_control_type
   USE cp_dbcsr_interface,              ONLY: cp_dbcsr_copy,&
@@ -108,6 +108,8 @@ MODULE qs_collocate_density
   USE qs_kind_types,                   ONLY: get_qs_kind,&
                                              get_qs_kind_set,&
                                              qs_kind_type
+  USE qs_ks_types,                     ONLY: get_ks_env,&
+                                             qs_ks_env_type
   USE qs_modify_pab_block,             ONLY: &
        FUNC_AB, FUNC_ADBmDAB, FUNC_ARB, FUNC_ARDBmDARB, FUNC_DABpADB, &
        FUNC_DADB, FUNC_DER, FUNC_DX, FUNC_DXDX, FUNC_DXDY, FUNC_DY, &
@@ -116,7 +118,9 @@ MODULE qs_collocate_density
        prepare_dab_p_adb, prepare_dadb, prepare_diadib, prepare_diiadiib, &
        prepare_dijadijb
   USE qs_neighbor_list_types,          ONLY: neighbor_list_set_p_type
-  USE qs_rho_types,                    ONLY: qs_rho_type
+  USE qs_rho_types,                    ONLY: qs_rho_get,&
+                                             qs_rho_set,&
+                                             qs_rho_type
   USE realspace_grid_types,            ONLY: &
        realspace_grid_desc_p_type, realspace_grid_desc_type, &
        realspace_grid_p_type, realspace_grid_type, rs2pw, rs_grid_release, &
@@ -704,6 +708,7 @@ CONTAINS
     LOGICAL                                  :: failure, map_consistent
     REAL(KIND=dp)                            :: eps_rho_rspace
     REAL(KIND=dp), DIMENSION(3)              :: ra
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: tot_rho_r
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: pab, sphi_a, work, zeta
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
@@ -717,20 +722,21 @@ CONTAINS
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(pw_env_type), POINTER               :: pw_env
-    TYPE(pw_p_type), DIMENSION(:), POINTER   :: mgrid_gspace, mgrid_rspace
+    TYPE(pw_p_type), DIMENSION(:), POINTER   :: mgrid_gspace, mgrid_rspace, &
+                                                rho_g, rho_r
     TYPE(pw_pool_p_type), DIMENSION(:), &
       POINTER                                :: pw_pools
     TYPE(qs_kind_type), DIMENSION(:), &
       POINTER                                :: qs_kind_set
-    TYPE(qs_rho_type), POINTER               :: rho_struct
+    TYPE(qs_rho_type), POINTER               :: rho
     TYPE(realspace_grid_desc_p_type), &
       DIMENSION(:), POINTER                  :: rs_descs
     TYPE(realspace_grid_p_type), &
       DIMENSION(:), POINTER                  :: rs_rho
 
     NULLIFY(aux_basis_set, atomic_kind_set, qs_kind_set, npgfa, cell, particle_set, &
-            sphi_a, rs_rho, pw_env, cube_info, dft_control, rho_struct, atom_list, &
-            first_sgfa, pab, work)
+            sphi_a, rs_rho, pw_env, cube_info, dft_control, rho, rho_r, rho_g, atom_list, &
+            first_sgfa, pab, work, tot_rho_r)
     NULLIFY(gridlevel_info, rs_descs, pw_pools, mgrid_gspace, mgrid_rspace)
 
     CALL timeset(routineN,handle)
@@ -739,8 +745,10 @@ CONTAINS
 
     CALL get_qs_env(qs_env=qs_env, qs_kind_set=qs_kind_set, cell=cell, &
                     atomic_kind_set=atomic_kind_set,&
-                    particle_set=particle_set, pw_env=pw_env, rho=rho_struct, &
+                    particle_set=particle_set, pw_env=pw_env, rho=rho, &
                     dft_control=dft_control, error=error)
+
+    CALL qs_rho_get(rho, rho_r=rho_r, rho_g=rho_g, tot_rho_r=tot_rho_r, error=error)
 
     cube_info => pw_env%cube_info
     eps_rho_rspace = dft_control%qs_control%eps_rho_rspace
@@ -825,11 +833,11 @@ CONTAINS
     IF (ierr /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"work")
 
     IF (gridlevel_info%ngrid_levels==1) THEN
-      CALL rs_pw_transfer(rs=rs_rho(1)%rs_grid, pw=qs_env%rho%rho_r(1)%pw, dir=rs2pw,error=error)
+      CALL rs_pw_transfer(rs=rs_rho(1)%rs_grid, pw=rho_r(1)%pw, dir=rs2pw,error=error)
       CALL rs_grid_release(rs_rho(1)%rs_grid, error=error)
-      CALL pw_transfer(qs_env%rho%rho_r(1)%pw, qs_env%rho%rho_g(1)%pw,error=error)
-      IF (qs_env%rho%rho_r(1)%pw%pw_grid%spherical) THEN
-        CALL pw_transfer(qs_env%rho%rho_g(1)%pw, qs_env%rho%rho_r(1)%pw,error=error)
+      CALL pw_transfer(rho_r(1)%pw, rho_g(1)%pw,error=error)
+      IF (rho_r(1)%pw%pw_grid%spherical) THEN
+        CALL pw_transfer(rho_g(1)%pw, rho_r(1)%pw,error=error)
       END IF
     ELSE
       DO igrid_level = 1,gridlevel_info%ngrid_levels
@@ -838,19 +846,18 @@ CONTAINS
          CALL rs_grid_release(rs_rho(igrid_level)%rs_grid, error=error)
       END DO
 
-      CALL pw_zero(qs_env%rho%rho_g(1)%pw,error=error)
+      CALL pw_zero(rho_g(1)%pw,error=error)
       DO igrid_level=1, gridlevel_info%ngrid_levels
         CALL pw_transfer(mgrid_rspace(igrid_level)%pw, &
                                    mgrid_gspace(igrid_level)%pw,error=error)
-        CALL pw_axpy(mgrid_gspace(igrid_level)%pw, qs_env%rho%rho_g(1)%pw,&
+        CALL pw_axpy(mgrid_gspace(igrid_level)%pw, rho_g(1)%pw,&
              error=error)
       END DO
-      CALL pw_transfer(qs_env%rho%rho_g(1)%pw, qs_env%rho%rho_r(1)%pw,error=error)
+      CALL pw_transfer(rho_g(1)%pw, rho_r(1)%pw,error=error)
     END IF
 
-    total_rho = pw_integrate_function(qs_env%rho%rho_r(1)%pw,isign=-1,&
-                                      error=error)
-    qs_env%rho%tot_rho_r = total_rho
+    total_rho = pw_integrate_function(rho_r(1)%pw,isign=-1,error=error)
+    tot_rho_r(:) = total_rho
     unit_nr=cp_logger_get_default_io_unit(logger)
     IF (unit_nr>0) THEN
       WRITE (unit_nr,*) "Total Rho =", total_rho
@@ -860,8 +867,7 @@ CONTAINS
     CALL pw_pools_give_back_pws(pw_pools, mgrid_gspace, error=error)
     CALL pw_pools_give_back_pws(pw_pools, mgrid_rspace, error=error)
 
-    qs_env%rho%rho_r_valid = .TRUE.
-    qs_env%rho%rho_g_valid = .TRUE.
+    CALL qs_rho_set(rho, rho_r_valid=.TRUE., rho_g_valid=.TRUE., error=error)
 
     CALL timestop(handle)
 
@@ -1241,11 +1247,12 @@ CONTAINS
   END SUBROUTINE calculate_rho_core
 
 ! *****************************************************************************
-!> \brief collocate a single gaussian on the grid
-!> \param rho_gb ...
-!> \param qs_env ...
-!> \param iatom_in ...
-!> \param error ...
+!> \brief collocate a single Gaussian on the grid
+!> \param rho_gb charge density generated by a single gaussian
+!> \param qs_env qs environment
+!> \param iatom_in atom index
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \par History
 !>        12.2011 created
 !> \author Dorothea Golze
@@ -1305,15 +1312,15 @@ CONTAINS
        npme = npme + 1
     ENDIF
 
-   IF(npme.GT.0)THEN
-    atom_a = qs_env%qmmm_env_qm%image_charge_pot%image_mm_list(iatom)
-    ra(:) = pbc(qs_env%qmmm_env_qm%image_charge_pot%particles_all(atom_a)%r,cell)
-    subpatch_pattern=0
-    CALL collocate_pgf_product_rspace(0,qs_env%qmmm_env_qm%image_charge_pot%eta,&
-         0,0,0.0_dp,0,ra,(/0.0_dp,0.0_dp,0.0_dp/),0.0_dp,1.0_dp,pab,0,0,rs_rho,&
-         cell,pw_env%cube_info(1),eps_rho_rspace,ga_gb_function=FUNC_AB,&
-         use_subpatch=.TRUE.,subpatch_pattern=subpatch_pattern,error=error)
-   ENDIF
+    IF(npme.GT.0)THEN
+      atom_a = qs_env%qmmm_env_qm%image_charge_pot%image_mm_list(iatom)
+      ra(:) = pbc(qs_env%qmmm_env_qm%image_charge_pot%particles_all(atom_a)%r,cell)
+      subpatch_pattern=0
+      CALL collocate_pgf_product_rspace(0,qs_env%qmmm_env_qm%image_charge_pot%eta,&
+           0,0,0.0_dp,0,ra,(/0.0_dp,0.0_dp,0.0_dp/),0.0_dp,1.0_dp,pab,0,0,rs_rho,&
+           cell,pw_env%cube_info(1),eps_rho_rspace,ga_gb_function=FUNC_AB,&
+           use_subpatch=.TRUE.,subpatch_pattern=subpatch_pattern,error=error)
+    ENDIF
 
     DEALLOCATE (pab,STAT=ierr)
     IF (ierr /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"pab")
@@ -1330,20 +1337,22 @@ CONTAINS
 
     CALL timestop(handle)
 
-END SUBROUTINE calculate_rho_single_gaussian
+  END SUBROUTINE calculate_rho_single_gaussian
 
 ! *****************************************************************************
-!> \brief computes the image charge density on grid (including coeffcients)
-!> \param rho_metal ...
-!> \param coeff ...
-!> \param total_rho_metal ...
-!> \param qs_env ...
-!> \param error ...
+!> \brief computes the image charge density on the grid (including coeffcients)
+!> \param rho_metal image charge density
+!> \param coeff expansion coefficients of the image charge density, i.e.
+!>        rho_metal=sum_a c_a*g_a
+!> \param total_rho_metal total induced image charge density
+!> \param qs_env qs environment
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \par History
 !>        01.2012 created
 !> \author Dorothea Golze
 ! *****************************************************************************
-SUBROUTINE calculate_rho_metal(rho_metal,coeff,total_rho_metal,qs_env,error)
+  SUBROUTINE calculate_rho_metal(rho_metal,coeff,total_rho_metal,qs_env,error)
 
     TYPE(pw_p_type), INTENT(INOUT)           :: rho_metal
     REAL(KIND=dp), DIMENSION(:), POINTER     :: coeff
@@ -1370,84 +1379,86 @@ SUBROUTINE calculate_rho_metal(rho_metal,coeff,total_rho_metal,qs_env,error)
     TYPE(realspace_grid_desc_type), POINTER  :: auxbas_rs_desc
     TYPE(realspace_grid_type), POINTER       :: rs_rho
 
-  CALL timeset(routineN,handle)
+    CALL timeset(routineN,handle)
+   
+    NULLIFY(cell,dft_control,pab,pw_env,rs_rho,auxbas_rs_desc,auxbas_pw_pool,&
+            para_env,cores)
+   
+    ALLOCATE (pab(1,1),STAT=ierr)
+    IF (ierr /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+                                      "pab",dp_size)
+   
+    CALL get_qs_env(qs_env=qs_env,&
+                    cell=cell,&
+                    dft_control=dft_control,&
+                    para_env=para_env,pw_env=pw_env,error=error)
+    CALL pw_env_get(pw_env,auxbas_rs_desc=auxbas_rs_desc,auxbas_rs_grid=rs_rho,&
+         auxbas_pw_pool=auxbas_pw_pool,error=error)
+    CALL rs_grid_retain(rs_rho, error=error)
+    CALL rs_grid_zero(rs_rho)
+   
+    eps_rho_rspace = dft_control%qs_control%eps_rho_rspace
+    pab(1,1)=1.0_dp
+   
+    natom=SIZE(qs_env%qmmm_env_qm%image_charge_pot%image_mm_list)
+   
+    CALL reallocate ( cores, 1, natom )
+    npme = 0
+    cores = 0
+   
+    DO iatom=1, natom
+     IF(rs_rho%desc%parallel .AND. .NOT. rs_rho%desc%distributed) THEN
+        IF (MODULO(iatom,rs_rho%desc%group_size) == rs_rho % desc % my_pos ) THEN
+           npme = npme + 1
+           cores (npme) = iatom
+        ENDIF
+     ELSE
+        npme = npme + 1
+        cores (npme) = iatom
+     ENDIF
+    ENDDO
+   
+    IF(npme.GT.0)THEN
+     DO j=1,npme
+      iatom = cores(j)
+      atom_a = qs_env%qmmm_env_qm%image_charge_pot%image_mm_list(iatom)
+      ra(:) = pbc(qs_env%qmmm_env_qm%image_charge_pot%particles_all(atom_a)%r,cell)
+      subpatch_pattern=0
+      CALL collocate_pgf_product_rspace(0,qs_env%qmmm_env_qm%image_charge_pot%eta,&
+          0,0,0.0_dp,0,ra,(/0.0_dp,0.0_dp,0.0_dp/),0.0_dp,coeff(iatom),pab,0,0,rs_rho,&
+          cell,pw_env%cube_info(1),eps_rho_rspace,ga_gb_function=FUNC_AB,&
+          use_subpatch=.TRUE.,subpatch_pattern=subpatch_pattern,error=error)
+     ENDDO
+    ENDIF
+   
+    DEALLOCATE (pab,cores,stat=ierr)
+    IF (ierr /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"pab")
+   
+    CALL pw_pool_create_pw(auxbas_pw_pool, rhoc_r%pw, &
+         use_data=REALDATA3D,in_space=REALSPACE, error=error)
+   
+    CALL rs_pw_transfer(rs_rho,rhoc_r%pw,rs2pw,error=error)
+    CALL rs_grid_release(rs_rho, error=error)
+   
+    IF(PRESENT(total_rho_metal)) &
+    !minus sign: account for the fact that rho_metal has opposite sign
+    total_rho_metal = pw_integrate_function(rhoc_r%pw,isign=-1,error=error)
+   
+    CALL pw_transfer(rhoc_r%pw,rho_metal%pw,error=error)
+    CALL pw_pool_give_back_pw(auxbas_pw_pool, rhoc_r%pw, error=error)
+   
+    CALL timestop(handle)
 
-  NULLIFY(cell,dft_control,pab,pw_env,rs_rho,auxbas_rs_desc,auxbas_pw_pool,&
-          para_env,cores)
+  END SUBROUTINE calculate_rho_metal
 
-  ALLOCATE (pab(1,1),STAT=ierr)
-  IF (ierr /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                    "pab",dp_size)
-
-  CALL get_qs_env(qs_env=qs_env,&
-                  cell=cell,&
-                  dft_control=dft_control,&
-                  para_env=para_env,pw_env=pw_env,error=error)
-  CALL pw_env_get(pw_env,auxbas_rs_desc=auxbas_rs_desc,auxbas_rs_grid=rs_rho,&
-       auxbas_pw_pool=auxbas_pw_pool,error=error)
-  CALL rs_grid_retain(rs_rho, error=error)
-  CALL rs_grid_zero(rs_rho)
-
-  eps_rho_rspace = dft_control%qs_control%eps_rho_rspace
-  pab(1,1)=1.0_dp
-
-  natom=SIZE(qs_env%qmmm_env_qm%image_charge_pot%image_mm_list)
-
-  CALL reallocate ( cores, 1, natom )
-   npme = 0
-   cores = 0
-
-  DO iatom=1, natom
-   IF(rs_rho%desc%parallel .AND. .NOT. rs_rho%desc%distributed) THEN
-      IF (MODULO(iatom,rs_rho%desc%group_size) == rs_rho % desc % my_pos ) THEN
-         npme = npme + 1
-         cores (npme) = iatom
-      ENDIF
-   ELSE
-      npme = npme + 1
-      cores (npme) = iatom
-   ENDIF
-  ENDDO
-
-  IF(npme.GT.0)THEN
-   DO j=1,npme
-    iatom = cores(j)
-    atom_a = qs_env%qmmm_env_qm%image_charge_pot%image_mm_list(iatom)
-    ra(:) = pbc(qs_env%qmmm_env_qm%image_charge_pot%particles_all(atom_a)%r,cell)
-    subpatch_pattern=0
-    CALL collocate_pgf_product_rspace(0,qs_env%qmmm_env_qm%image_charge_pot%eta,&
-        0,0,0.0_dp,0,ra,(/0.0_dp,0.0_dp,0.0_dp/),0.0_dp,coeff(iatom),pab,0,0,rs_rho,&
-        cell,pw_env%cube_info(1),eps_rho_rspace,ga_gb_function=FUNC_AB,&
-        use_subpatch=.TRUE.,subpatch_pattern=subpatch_pattern,error=error)
-   ENDDO
-  ENDIF
-
-  DEALLOCATE (pab,cores,stat=ierr)
-  IF (ierr /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"pab")
-
-  CALL pw_pool_create_pw(auxbas_pw_pool, rhoc_r%pw, &
-       use_data=REALDATA3D,in_space=REALSPACE, error=error)
-
-  CALL rs_pw_transfer(rs_rho,rhoc_r%pw,rs2pw,error=error)
-  CALL rs_grid_release(rs_rho, error=error)
-
-  IF(PRESENT(total_rho_metal)) &
-  !minus sign: account for the fact that rho_metal has opposite sign
-  total_rho_metal = pw_integrate_function(rhoc_r%pw,isign=-1,error=error)
-
-  CALL pw_transfer(rhoc_r%pw,rho_metal%pw,error=error)
-  CALL pw_pool_give_back_pw(auxbas_pw_pool, rhoc_r%pw, error=error)
-
-  CALL timestop(handle)
-
-END SUBROUTINE calculate_rho_metal
 ! *****************************************************************************
-!> \brief collocate a single gaussian on the grid for periodic RESP fitting
-!> \param rho_gb ...
-!> \param qs_env ...
-!> \param eta ...
-!> \param iatom_in ...
-!> \param error ...
+!> \brief collocate a single Gaussian on the grid for periodic RESP fitting
+!> \param rho_gb charge density generated by a single gaussian
+!> \param qs_env qs environment
+!> \param eta width of single Gaussian
+!> \param iatom_in atom index
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \par History
 !>        06.2012 created
 !> \author Dorothea Golze
@@ -1510,14 +1521,14 @@ END SUBROUTINE calculate_rho_metal
        npme = npme + 1
     ENDIF
  
-   IF(npme.GT.0)THEN
-    ra(:) = pbc(particle_set(iatom)%r,cell)
-    subpatch_pattern=0
-    CALL collocate_pgf_product_rspace(0,eta,0,0,0.0_dp,0,ra,&
-         (/0.0_dp,0.0_dp,0.0_dp/),0.0_dp,1.0_dp,pab,0,0,rs_rho,&
-         cell,pw_env%cube_info(1),eps_rho_rspace,ga_gb_function=FUNC_AB,&
-         use_subpatch=.TRUE.,subpatch_pattern=subpatch_pattern,error=error)
-   ENDIF
+    IF(npme.GT.0)THEN
+      ra(:) = pbc(particle_set(iatom)%r,cell)
+      subpatch_pattern=0
+      CALL collocate_pgf_product_rspace(0,eta,0,0,0.0_dp,0,ra,&
+           (/0.0_dp,0.0_dp,0.0_dp/),0.0_dp,1.0_dp,pab,0,0,rs_rho,&
+           cell,pw_env%cube_info(1),eps_rho_rspace,ga_gb_function=FUNC_AB,&
+           use_subpatch=.TRUE.,subpatch_pattern=subpatch_pattern,error=error)
+    ENDIF
  
     DEALLOCATE (pab,STAT=ierr)
     IF (ierr /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"pab")
@@ -1534,20 +1545,23 @@ END SUBROUTINE calculate_rho_metal
 
     CALL timestop(handle)
  
- END SUBROUTINE calculate_rho_resp_single
+  END SUBROUTINE calculate_rho_resp_single
+
 ! *****************************************************************************
-!> \brief computes the RESP charge density on grid based on the RESP charges
-!> \param rho_resp ...
-!> \param coeff ...
-!> \param natom ...
-!> \param eta ...
-!> \param qs_env ...
-!> \param error ...
+!> \brief computes the RESP charge density on a grid based on the RESP charges
+!> \param rho_resp RESP charge density
+!> \param coeff RESP charges, take care of normalization factor
+!>        (eta/pi)**1.5 later
+!> \param natom number of atoms
+!> \param eta width of single Gaussian
+!> \param qs_env qs environment
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \par History
 !>        01.2012 created
 !> \author Dorothea Golze
 ! *****************************************************************************
-SUBROUTINE calculate_rho_resp_all(rho_resp,coeff,natom,eta,qs_env,error)
+  SUBROUTINE calculate_rho_resp_all(rho_resp,coeff,natom,eta,qs_env,error)
 
     TYPE(pw_p_type), INTENT(INOUT)           :: rho_resp
     REAL(KIND=dp), DIMENSION(:), POINTER     :: coeff
@@ -1576,71 +1590,71 @@ SUBROUTINE calculate_rho_resp_all(rho_resp,coeff,natom,eta,qs_env,error)
     TYPE(realspace_grid_desc_type), POINTER  :: auxbas_rs_desc
     TYPE(realspace_grid_type), POINTER       :: rs_rho
 
-  CALL timeset(routineN,handle)
+    CALL timeset(routineN,handle)
+   
+    NULLIFY(cell,dft_control,pab,pw_env,rs_rho,auxbas_rs_desc,auxbas_pw_pool,&
+            para_env,particle_set)
+   
+    ALLOCATE (pab(1,1),STAT=ierr)
+    IF (ierr /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+                                      "pab",dp_size)
+   
+    CALL get_qs_env(qs_env=qs_env,&
+                    cell=cell,&
+                    dft_control=dft_control,&
+                    particle_set=particle_set,&
+                    para_env=para_env,pw_env=pw_env,error=error)
+    CALL pw_env_get(pw_env,auxbas_rs_desc=auxbas_rs_desc,auxbas_rs_grid=rs_rho,&
+         auxbas_pw_pool=auxbas_pw_pool,error=error)
+    CALL rs_grid_retain(rs_rho, error=error)
+    CALL rs_grid_zero(rs_rho)
+   
+    eps_rho_rspace = dft_control%qs_control%eps_rho_rspace
+    pab(1,1)=1.0_dp
+   
+    CALL reallocate ( cores, 1, natom )
+    npme = 0
+    cores = 0
+   
+    DO iatom=1, natom
+     IF(rs_rho%desc%parallel .AND. .NOT. rs_rho%desc%distributed) THEN
+        IF (MODULO(iatom,rs_rho%desc%group_size) == rs_rho % desc % my_pos ) THEN
+           npme = npme + 1
+           cores (npme) = iatom
+        ENDIF
+     ELSE
+        npme = npme + 1
+        cores (npme) = iatom
+     ENDIF
+    ENDDO
+   
+    IF(npme.GT.0)THEN
+     DO j=1,npme
+      iatom = cores(j)
+      ra(:) = pbc(particle_set(iatom)%r,cell)
+      subpatch_pattern=0
+      CALL collocate_pgf_product_rspace(0,eta,&
+          0,0,0.0_dp,0,ra,(/0.0_dp,0.0_dp,0.0_dp/),0.0_dp,coeff(iatom),pab,0,0,rs_rho,&
+          cell,pw_env%cube_info(1),eps_rho_rspace,ga_gb_function=FUNC_AB,&
+          use_subpatch=.TRUE.,subpatch_pattern=subpatch_pattern,error=error)
+     ENDDO
+    ENDIF
+   
+    DEALLOCATE (pab,cores,stat=ierr)
+    IF (ierr /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"pab")
+   
+    CALL pw_pool_create_pw(auxbas_pw_pool, rhoc_r%pw, &
+         use_data=REALDATA3D,in_space=REALSPACE, error=error)
+   
+    CALL rs_pw_transfer(rs_rho,rhoc_r%pw,rs2pw,error=error)
+    CALL rs_grid_release(rs_rho, error=error)
+   
+    CALL pw_transfer(rhoc_r%pw,rho_resp%pw,error=error)
+    CALL pw_pool_give_back_pw(auxbas_pw_pool, rhoc_r%pw, error=error)
+   
+    CALL timestop(handle)
 
-  NULLIFY(cell,dft_control,pab,pw_env,rs_rho,auxbas_rs_desc,auxbas_pw_pool,&
-          para_env,particle_set)
-
-  ALLOCATE (pab(1,1),STAT=ierr)
-  IF (ierr /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                    "pab",dp_size)
-
-  CALL get_qs_env(qs_env=qs_env,&
-                  cell=cell,&
-                  dft_control=dft_control,&
-                  particle_set=particle_set,&
-                  para_env=para_env,pw_env=pw_env,error=error)
-  CALL pw_env_get(pw_env,auxbas_rs_desc=auxbas_rs_desc,auxbas_rs_grid=rs_rho,&
-       auxbas_pw_pool=auxbas_pw_pool,error=error)
-  CALL rs_grid_retain(rs_rho, error=error)
-  CALL rs_grid_zero(rs_rho)
-
-  eps_rho_rspace = dft_control%qs_control%eps_rho_rspace
-  pab(1,1)=1.0_dp
-
-  CALL reallocate ( cores, 1, natom )
-   npme = 0
-   cores = 0
-
-  DO iatom=1, natom
-   IF(rs_rho%desc%parallel .AND. .NOT. rs_rho%desc%distributed) THEN
-      IF (MODULO(iatom,rs_rho%desc%group_size) == rs_rho % desc % my_pos ) THEN
-         npme = npme + 1
-         cores (npme) = iatom
-      ENDIF
-   ELSE
-      npme = npme + 1
-      cores (npme) = iatom
-   ENDIF
-  ENDDO
-
-  IF(npme.GT.0)THEN
-   DO j=1,npme
-    iatom = cores(j)
-    ra(:) = pbc(particle_set(iatom)%r,cell)
-    subpatch_pattern=0
-    CALL collocate_pgf_product_rspace(0,eta,&
-        0,0,0.0_dp,0,ra,(/0.0_dp,0.0_dp,0.0_dp/),0.0_dp,coeff(iatom),pab,0,0,rs_rho,&
-        cell,pw_env%cube_info(1),eps_rho_rspace,ga_gb_function=FUNC_AB,&
-        use_subpatch=.TRUE.,subpatch_pattern=subpatch_pattern,error=error)
-   ENDDO
-  ENDIF
-
-  DEALLOCATE (pab,cores,stat=ierr)
-  IF (ierr /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"pab")
-
-  CALL pw_pool_create_pw(auxbas_pw_pool, rhoc_r%pw, &
-       use_data=REALDATA3D,in_space=REALSPACE, error=error)
-
-  CALL rs_pw_transfer(rs_rho,rhoc_r%pw,rs2pw,error=error)
-  CALL rs_grid_release(rs_rho, error=error)
-
-  CALL pw_transfer(rhoc_r%pw,rho_resp%pw,error=error)
-  CALL pw_pool_give_back_pw(auxbas_pw_pool, rhoc_r%pw, error=error)
-
-  CALL timestop(handle)
-
-END SUBROUTINE calculate_rho_resp_all
+  END SUBROUTINE calculate_rho_resp_all
 
 ! *****************************************************************************
 !> \brief computes the density corresponding to a given density matrix on the grid
@@ -1648,7 +1662,7 @@ END SUBROUTINE calculate_rho_resp_all
 !> \param rho ...
 !> \param rho_gspace ...
 !> \param total_rho ...
-!> \param qs_env ...
+!> \param ks_env ...
 !> \param soft_valid ...
 !> \param compute_tau ...
 !> \param compute_grad ...
@@ -1666,13 +1680,13 @@ END SUBROUTINE calculate_rho_resp_all
 !>      (in real and g-space respectively)
 ! *****************************************************************************
   SUBROUTINE calculate_rho_elec(matrix_p, rho,rho_gspace, total_rho,&
-       qs_env, soft_valid, compute_tau, compute_grad, basis_set_id, der_type, idir, &
+       ks_env, soft_valid, compute_tau, compute_grad, basis_set_id, der_type, idir, &
        task_list_external, pw_env_external, error)
 
     TYPE(cp_dbcsr_type), POINTER             :: matrix_p
     TYPE(pw_p_type), INTENT(INOUT)           :: rho, rho_gspace
     REAL(KIND=dp), INTENT(OUT)               :: total_rho
-    TYPE(qs_environment_type), POINTER       :: qs_env
+    TYPE(qs_ks_env_type), POINTER            :: ks_env
     LOGICAL, INTENT(IN), OPTIONAL            :: soft_valid, compute_tau, &
                                                 compute_grad
     INTEGER, INTENT(IN), OPTIONAL            :: basis_set_id, der_type, idir
@@ -1787,7 +1801,7 @@ END SUBROUTINE calculate_rho_resp_all
 
     SELECT CASE (my_basis_set_id)
     CASE (use_orb_basis_set)
-      CALL get_qs_env(qs_env=qs_env,&
+      CALL get_ks_env(ks_env,&
            qs_kind_set=qs_kind_set,&
            cell=cell,&
            dft_control=dft_control,&
@@ -1797,7 +1811,7 @@ END SUBROUTINE calculate_rho_resp_all
            task_list_soft=task_list_soft,&
            pw_env=pw_env,error=error)
     CASE (use_aux_fit_basis_set)
-      CALL get_qs_env(qs_env=qs_env,&
+      CALL get_ks_env(ks_env,&
            qs_kind_set=qs_kind_set,&
            cell=cell,&
            dft_control=dft_control,&

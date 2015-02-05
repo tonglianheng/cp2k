@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2014  CP2K developers group                          !
+!   Copyright (C) 2000 - 2015  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -10,7 +10,7 @@
 !> \author JGH
 ! *****************************************************************************
 MODULE pw_grid_info
-  USE f77_blas
+  
   USE fft_tools,                       ONLY: FFT_RADIX_NEXT,&
                                              FFT_RADIX_NEXT_ODD,&
                                              fft_radix_operations

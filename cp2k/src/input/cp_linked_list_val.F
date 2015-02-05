@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2014  CP2K developers group                          !
+!   Copyright (C) 2000 - 2015  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 #define CP_SLL_VAL_LESS_Q(el1,el2,error) el1%id_nr<el2%id_nr
@@ -44,7 +44,6 @@
 !> \author Fawzi Mohamed
 ! *****************************************************************************
 MODULE cp_linked_list_val
-  USE f77_blas
   USE input_val_types,                 ONLY: val_p_type,&
                                              val_type
 #include "../common/cp_common_uses.f90"
@@ -284,9 +283,9 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_sll_val_dealloc_node', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
     LOGICAL                                  :: failure
 
+    INTEGER:: stat
     failure=.FALSE.
 
     DEALLOCATE(sll, stat=stat)

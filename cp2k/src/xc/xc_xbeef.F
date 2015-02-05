@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2014  CP2K developers group                          !
+!   Copyright (C) 2000 - 2015  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -15,7 +15,6 @@ MODULE xc_xbeef
   USE bibliography,                    ONLY: Wellendorff2012,&
                                              cite_reference
   USE cp_array_r_utils,                ONLY: cp_3d_r_p_type
-  USE f77_blas
   USE input_section_types,             ONLY: section_vals_type,&
                                              section_vals_val_get
   USE kinds,                           ONLY: dp
@@ -293,8 +292,9 @@ SUBROUTINE xbeef_lda_calc(rho, rho_1_3, norm_drho,&
 
     CHARACTER(len=*), PARAMETER :: routineN = 'xbeef_lda_calc', &
       routineP = moduleN//':'//routineN
+    INTEGER, PARAMETER                       :: m = 30
 
-    INTEGER                                  :: i, ii, m = 30
+    INTEGER                                  :: i, ii
     LOGICAL                                  :: failure
     REAL(kind=dp)                            :: ds_ndrho, ds_rho, dt, e_ueg, &
                                                 e_ueg_drho, epsilon_rho43, &
@@ -563,8 +563,9 @@ SUBROUTINE xbeef_lsd_calc(rho_spin, rho_1_3_spin, norm_drho_spin,e_0,&
 
     CHARACTER(len=*), PARAMETER :: routineN = 'xbeef_lsd_calc', &
       routineP = moduleN//':'//routineN
+    INTEGER, PARAMETER                       :: m = 30
 
-    INTEGER                                  :: i, ii, m = 30
+    INTEGER                                  :: i, ii
     LOGICAL                                  :: failure
     REAL(kind=dp) :: ds_ndrho, ds_rho, dt, e_ueg, e_ueg_drho, epsilon_rho43, &
       k_lsd, kf, my_epsilon_rho, my_rho, my_rho_1_3, s, s2, t, t3

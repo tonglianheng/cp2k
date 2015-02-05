@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2014  CP2K developers group                          !
+!   Copyright (C) 2000 - 2015  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -18,7 +18,7 @@ MODULE qs_linres_atom_current
   USE basis_set_types,                 ONLY: get_gto_basis_set,&
                                              gto_basis_set_p_type,&
                                              gto_basis_set_type
-  USE cell_methods,                    ONLY: cell_type,&
+  USE cell_types,                      ONLY: cell_type,&
                                              pbc
   USE cp_control_types,                ONLY: dft_control_type
   USE cp_dbcsr_interface,              ONLY: cp_dbcsr_get_block_p,&
@@ -183,7 +183,7 @@ CONTAINS
                              maxsgf=max_nsgf,&
                              maxgtops=max_gau)
 
-    eps_cpc = qs_env%dft_control%qs_control%gapw_control%eps_cpc
+    eps_cpc = dft_control%qs_control%gapw_control%eps_cpc
 
     idir2 = 1
     IF(idir.NE.iB) THEN

@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2014  CP2K developers group                          !
+!   Copyright (C) 2000 - 2015  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -8,33 +8,38 @@
 ! *****************************************************************************
 MODULE cp_control_utils
   USE bibliography,                    ONLY: &
-       Dewar1977, Dewar1985, Elstner1998, Hu2007, Krack2000, Lippert1997, &
-       Lippert1999, Porezag1995, Repasky2002, Rocha2006, Schenter2008, &
-       Seifert1996, Stewart1989, Stewart2007, Thiel1992, VandeVondele2005a, &
-       VandeVondele2005b, Zhechkov2005, cite_reference
+       Andreussi2012, Dewar1977, Dewar1985, Elstner1998, Fattebert2002, &
+       Hu2007, Krack2000, Lippert1997, Lippert1999, Porezag1995, Repasky2002, &
+       Rocha2006, Schenter2008, Seifert1996, Stewart1989, Stewart2007, &
+       Thiel1992, VandeVondele2005a, VandeVondele2005b, Zhechkov2005, &
+       cite_reference
   USE cp_control_types,                ONLY: &
        admm_control_create, admm_control_type, ddapc_control_create, &
        ddapc_restraint_type, dft_control_create, dft_control_type, &
-       efield_type, qs_control_type, tddfpt_control_create, &
-       tddfpt_control_type, xas_control_create
+       efield_type, qs_control_type, sccs_control_create, &
+       tddfpt_control_create, tddfpt_control_type
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE f77_blas
+  USE cp_units,                        ONLY: cp_unit_from_cp2k
   USE input_constants,                 ONLY: &
-       constant_env, do_admm_basis_projection, do_admm_purify_mo_diag, &
-       do_admm_purify_mo_no_diag, do_ddapc_constraint, do_ddapc_restraint, &
-       do_method_am1, do_method_dftb, do_method_gapw, do_method_gapw_xc, &
-       do_method_gpw, do_method_lrigpw, do_method_mndo, do_method_mndod, &
-       do_method_ofgpw, do_method_pdg, do_method_pm3, do_method_pm6, &
-       do_method_pnnl, do_method_rm1, do_method_scptb, &
+       constant_env, do_admm_basis_projection, do_admm_blocked_projection, &
+       do_admm_blocking_purify_full, do_admm_charge_constrained_projection, &
+       do_admm_exch_scaling_merlot, do_admm_purify_mcweeny, &
+       do_admm_purify_mo_diag, do_admm_purify_mo_no_diag, &
+       do_admm_purify_none, do_admm_purify_none_dm, do_ddapc_constraint, &
+       do_ddapc_restraint, do_method_am1, do_method_dftb, do_method_gapw, &
+       do_method_gapw_xc, do_method_gpw, do_method_lrigpw, do_method_mndo, &
+       do_method_mndod, do_method_ofgpw, do_method_pdg, do_method_pm3, &
+       do_method_pm6, do_method_pnnl, do_method_rm1, do_method_scptb, &
        do_pwgrid_ns_fullspace, do_pwgrid_ns_halfspace, do_pwgrid_spherical, &
        do_s2_constraint, do_s2_restraint, do_se_is_kdso, do_se_is_kdso_d, &
        do_se_is_slater, do_se_lr_ewald, do_se_lr_ewald_gks, &
        do_se_lr_ewald_r3, do_se_lr_none, gaussian_env, numerical, ramp_env, &
-       real_time_propagation, sic_ad, sic_eo, sic_list_all, &
-       sic_list_unpaired, sic_mauri_spz, sic_mauri_us, sic_none, slater, &
-       tddfpt_excitations
+       real_time_propagation, sccs_andreussi, sccs_derivative_cd3, &
+       sccs_derivative_cd5, sccs_derivative_cd7, sccs_derivative_fft, &
+       sccs_fattebert_gygi, sic_ad, sic_eo, sic_list_all, sic_list_unpaired, &
+       sic_mauri_spz, sic_mauri_us, sic_none, slater, tddfpt_excitations
   USE input_cp2k_dft,                  ONLY: create_dft_section,&
                                              create_qs_section
   USE input_enumeration_types,         ONLY: enum_i2c,&
@@ -51,7 +56,6 @@ MODULE cp_control_utils
   USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
-  USE xas_control,                     ONLY: read_xas_control
   USE xc_derivatives,                  ONLY: xc_functionals_get_needs
   USE xc_input_constants,              ONLY: &
        xc_debug_new_routine, xc_deriv_collocate, xc_deriv_nn10_smooth, &
@@ -87,7 +91,13 @@ CONTAINS
 !> \param dft_section ...
 !> \param error ...
 ! *****************************************************************************
-  SUBROUTINE read_dft_control(dft_control,dft_section, error)
+  SUBROUTINE read_dft_control(dft_control,dft_section,error)
+!> \brief ...
+!> \param dft_control ...
+!> \param dft_section ...
+!> \param error ...
+! *****************************************************************************
+
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(section_vals_type), POINTER         :: dft_section
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -96,7 +106,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     CHARACTER(len=default_path_length)       :: basis_set_file_name, &
-                                                geminal_file_name, &
                                                 potential_file_name
     INTEGER                                  :: excitations, i, method_id, &
                                                 nrep, stat, xc_deriv_method_id
@@ -105,12 +114,17 @@ CONTAINS
     REAL(KIND=dp)                            :: density_cut, gradient_cut, &
                                                 tau_cut
     REAL(KIND=dp), DIMENSION(:), POINTER     :: pol
-    TYPE(section_vals_type), POINTER         :: scf_section, tmp_section, &
-                                                xc_fun_section, xc_section
+    TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(section_vals_type), POINTER         :: sccs_section, scf_section, &
+                                                tmp_section, xc_fun_section, &
+                                                xc_section
     TYPE(xc_rho_cflags_type)                 :: needs
 
-    failure=.FALSE.
+    failure = .FALSE.
     was_present = .FALSE.
+
+    logger => cp_error_get_logger(error)
+
     NULLIFY(tmp_section,xc_fun_section,xc_section)
     CALL dft_control_create(dft_control, error=error)
     ! determine wheather this is a semiempirical or DFTB run
@@ -187,31 +201,71 @@ CPSourceFileRef,&
     !! check if we do wavefunction fitting
     tmp_section => section_vals_get_subs_vals(dft_section,"AUXILIARY_DENSITY_MATRIX_METHOD",error=error)
     CALL section_vals_get(tmp_section,explicit=is_present,error=error)
-    dft_control%do_admm = is_present
+    dft_control%do_admm    = is_present
+    dft_control%do_admm_mo = .FALSE.
+    dft_control%do_admm_dm = .FALSE.
     IF(is_present) THEN
       do_ot = .FALSE.
       CALL section_vals_val_get(scf_section,"OT%_SECTION_PARAMETERS_",l_val=do_ot,error=error)
       CALL admm_control_create(dft_control%admm_control, error)
 
+      CALL section_vals_val_get(dft_section,"AUXILIARY_DENSITY_MATRIX_METHOD%EPS_FILTER",&
+                                r_val=dft_control%admm_control%eps_filter, error=error)
       CALL section_vals_val_get(dft_section,"AUXILIARY_DENSITY_MATRIX_METHOD%ADMM_PURIFICATION_METHOD",i_val=method_id,error=error)
       dft_control%admm_control%purification_method = method_id
 
       CALL section_vals_val_get(dft_section,"AUXILIARY_DENSITY_MATRIX_METHOD%METHOD",i_val=method_id,error=error)
       dft_control%admm_control%method = method_id
 
+      CALL section_vals_val_get(dft_section,"AUXILIARY_DENSITY_MATRIX_METHOD%EXCH_SCALING_MODEL",i_val=method_id,error=error)
+      dft_control%admm_control%scaling_model = method_id
+
+      CALL section_vals_val_get(dft_section,"AUXILIARY_DENSITY_MATRIX_METHOD%EXCH_CORRECTION_FUNC",i_val=method_id,error=error)
+      dft_control%admm_control%aux_exch_func = method_id
+
       CALL read_admm_block_list(dft_control%admm_control, dft_section, error)
 
-      IF(dft_control%admm_control%purification_method == do_admm_purify_mo_diag .OR. &
+      
+      !    In the case of charge-constrained projection (e.g. according to Merlot),
+      !    there is no purification needed and hence, do_admm_purify_none has to be set. 
+
+      IF( (dft_control%admm_control%method == do_admm_blocking_purify_full .OR. &
+           dft_control%admm_control%method == do_admm_blocked_projection) &
+           .AND. dft_control%admm_control%scaling_model == do_admm_exch_scaling_merlot ) THEN
+         CALL cp_unimplemented_error(fromWhere=routineP, &
+              message="ADMM: Blocking and Merlot scaling are mutually exclusive.", &
+                                        error=error, error_level=cp_failure_level)
+      END IF
+
+
+      IF( dft_control%admm_control%method == do_admm_charge_constrained_projection .AND. &
+         dft_control%admm_control%purification_method /= do_admm_purify_none ) THEN
+         CALL cp_unimplemented_error(fromWhere=routineP, &
+              message="ADMM: In the case of METHOD=CHARGE_CONSTRAINED_PROJECTION, "//&
+                      "ADMM_PURIFICATION_METHOD=NONE has to be set.", &
+                                        error=error, error_level=cp_failure_level)
+      END IF
+
+
+
+      IF(dft_control%admm_control%purification_method == do_admm_purify_mo_diag    .OR. &
          dft_control%admm_control%purification_method == do_admm_purify_mo_no_diag) THEN
           IF( dft_control%admm_control%method /= do_admm_basis_projection ) &
             CALL cp_unimplemented_error(fromWhere=routineP, &
-              message="ADMM: MO-based purification requires BASIS_PROJECTION", &
+              message="ADMM: Chosen purification requires BASIS_PROJECTION", &
                                         error=error, error_level=cp_failure_level)
 
            IF( .NOT. do_ot) CALL cp_unimplemented_error(fromWhere=routineP, &
                                message="ADMM: MO-based purification requires OT.", &
                                error=error, error_level=cp_failure_level)
       END IF
+
+      IF(dft_control%admm_control%purification_method == do_admm_purify_none_dm .OR. &
+         dft_control%admm_control%purification_method == do_admm_purify_mcweeny) THEN
+           dft_control%do_admm_dm = .TRUE.
+      ELSE
+           dft_control%do_admm_mo = .TRUE.
+      ENDIF
     END IF
 
     ! Set restricted to true, if both OT and ROKS are requested
@@ -254,8 +308,6 @@ CPSourceFileRef,&
 
     CALL section_vals_val_get(dft_section,"BASIS_SET_FILE_NAME",&
          c_val=basis_set_file_name , error=error)
-    CALL section_vals_val_get(dft_section,"GEMINAL_FILE_NAME",&
-         c_val=geminal_file_name , error=error)
     CALL section_vals_val_get(dft_section,"POTENTIAL_FILE_NAME",&
          c_val=potential_file_name , error=error)
 
@@ -290,10 +342,6 @@ CPSourceFileRef,&
        ! Override with section parameter
        CALL section_vals_val_get(tmp_section,"_SECTION_PARAMETERS_",&
             l_val=dft_control%do_xas_calculation,error=error)
-       IF (dft_control%do_xas_calculation) THEN
-          CALL xas_control_create(dft_control%xas_control,error=error)
-          CALL read_xas_control(dft_control%xas_control,dft_section,error=error)
-       END IF
     END IF
 
     ! Read the finite field input section
@@ -324,7 +372,88 @@ CPSourceFileRef,&
     tmp_section => section_vals_get_subs_vals(dft_section,"EXTERNAL_POTENTIAL",error=error)
     CALL section_vals_get(tmp_section,explicit=dft_control%apply_external_potential,error=error)
 
-! ZMP added input sections 
+    !MK Read the SCCS input section if present
+    sccs_section => section_vals_get_subs_vals(dft_section,"SCCS",error=error)
+    CALL section_vals_get(sccs_section,explicit=is_present,error=error)
+    IF (is_present) THEN
+       ! Check section parameter if SCCS is activated
+       CALL section_vals_val_get(sccs_section,"_SECTION_PARAMETERS_",&
+                                 l_val=dft_control%do_sccs,error=error)
+       IF (dft_control%do_sccs) THEN
+          CALL sccs_control_create(dft_control%sccs_control,error=error)
+          CALL section_vals_val_get(sccs_section,"ALPHA",&
+                                    r_val=dft_control%sccs_control%alpha_solvent,&
+                                    error=error)
+          CALL section_vals_val_get(sccs_section,"BETA",&
+                                    r_val=dft_control%sccs_control%beta_solvent,&
+                                    error=error)
+          CALL section_vals_val_get(sccs_section,"DELTA_RHO",&
+                                    r_val=dft_control%sccs_control%delta_rho,&
+                                    error=error)
+          CALL section_vals_val_get(sccs_section,"DERIVATIVE_METHOD",&
+                                    i_val=dft_control%sccs_control%derivative_method,&
+                                    error=error)
+          CALL section_vals_val_get(sccs_section,"METHOD",&
+                                    i_val=dft_control%sccs_control%method_id,&
+                                    error=error)
+          CALL section_vals_val_get(sccs_section,"DIELECTRIC_CONSTANT",&
+                                    r_val=dft_control%sccs_control%epsilon_solvent,&
+                                    error=error)
+          CALL section_vals_val_get(sccs_section,"EPS_SCCS",&
+                                    r_val=dft_control%sccs_control%eps_sccs,&
+                                    error=error)
+          CALL section_vals_val_get(sccs_section,"EPS_SCF",&
+                                    r_val=dft_control%sccs_control%eps_scf,&
+                                    error=error)
+          CALL section_vals_val_get(sccs_section,"GAMMA",&
+                                    r_val=dft_control%sccs_control%gamma_solvent,&
+                                    error=error)
+          CALL section_vals_val_get(sccs_section,"MAX_ITER",&
+                                    i_val=dft_control%sccs_control%max_iter,&
+                                    error=error)
+          CALL section_vals_val_get(sccs_section,"MIXING",&
+                                    r_val=dft_control%sccs_control%mixing,&
+                                    error=error)
+          SELECT CASE (dft_control%sccs_control%method_id)
+          CASE (sccs_andreussi)
+             tmp_section => section_vals_get_subs_vals(sccs_section,"ANDREUSSI",error=error)
+             CALL section_vals_val_get(tmp_section,"RHO_MAX",&
+                                       r_val=dft_control%sccs_control%rho_max,&
+                                       error=error)
+             CALL section_vals_val_get(tmp_section,"RHO_MIN",&
+                                       r_val=dft_control%sccs_control%rho_min,&
+                                       error=error)
+             IF (dft_control%sccs_control%rho_max < dft_control%sccs_control%rho_min) THEN
+                CALL stop_program(routineN,moduleN,__LINE__,&
+                                  "The SCCS parameter RHO_MAX is smaller than RHO_MIN. "//&
+                                  "Please, check your input!",&
+                                  logger%para_env)
+             END IF
+          CASE (sccs_fattebert_gygi)
+             tmp_section => section_vals_get_subs_vals(sccs_section,"FATTEBERT-GYGI",error=error)
+             CALL section_vals_val_get(tmp_section,"BETA",&
+                                       r_val=dft_control%sccs_control%beta,&
+                                       error=error)
+             IF (dft_control%sccs_control%beta < 0.5_dp) THEN
+                CALL stop_program(routineN,moduleN,__LINE__,&
+                                  "A value smaller than 0.5 for the SCCS parameter beta "//&
+                                  "causes numerical problems. Please, check your input!",&
+                                  logger%para_env)
+             END IF
+             CALL section_vals_val_get(tmp_section,"RHO_ZERO",&
+                                       r_val=dft_control%sccs_control%rho_zero,&
+                                       error=error)
+          CASE DEFAULT
+             CALL stop_program(routineN,moduleN,__LINE__,&
+                               "Invalid SCCS model specified. Please, check your input!",&
+                               logger%para_env)
+          END SELECT
+          CALL cite_reference(Fattebert2002)
+          CALL cite_reference(Andreussi2012)
+       END IF
+    END IF
+
+    ! ZMP added input sections
     ! Read the external density input section
     tmp_section => section_vals_get_subs_vals(dft_section,"EXTERNAL_DENSITY",error=error)
     CALL section_vals_get(tmp_section,explicit=dft_control%apply_external_density,error=error)
@@ -332,6 +461,7 @@ CPSourceFileRef,&
     ! Read the external vxc input section
     tmp_section => section_vals_get_subs_vals(dft_section,"EXTERNAL_VXC",error=error)
     CALL section_vals_get(tmp_section,explicit=dft_control%apply_external_vxc,error=error)
+
   END SUBROUTINE read_dft_control
 
 ! *****************************************************************************
@@ -575,7 +705,6 @@ CPSourceFileRef,&
     IF(qs_control%gapw_control%alpha0_hard/=0.0_dp) qs_control%gapw_control%alpha0_hard_from_input = .TRUE.
     CALL section_vals_val_get(qs_section,"FORCE_PAW",l_val=qs_control%gapw_control%force_paw,error=error)
     CALL section_vals_val_get(qs_section,"MAX_RAD_LOCAL",r_val=qs_control%gapw_control%max_rad_local,error=error)
-    CALL section_vals_val_get(qs_section,"BCSR_CODE",i_val=qs_control%bcsr_code,error=error)
 
     CALL section_vals_val_get(qs_section,"LS_SCF",l_val=qs_control%do_ls_scf,error=error)
     CALL section_vals_val_get(qs_section,"ALMO_SCF",l_val=qs_control%do_almo_scf,error=error)
@@ -583,7 +712,6 @@ CPSourceFileRef,&
 
     ! Logicals
     CALL section_vals_val_get(qs_section,"MAP_CONSISTENT",l_val=qs_control%map_consistent,error=error)
-    CALL section_vals_val_get(qs_section,"CHECK_BCSR_CODE",l_val=qs_control%check_bcsr_code,error=error)
 
     ! Integers gapw
     CALL section_vals_val_get(qs_section,"LMAXN1",i_val=qs_control%gapw_control%lmax_sphere,error=error)
@@ -799,9 +927,6 @@ CPSourceFileRef,&
           CALL section_vals_val_get(se_section,"SCREENING%RC_RANGE",&
                r_val=qs_control%se_control%range_scr,error=error)
        END IF
-       ! SCP
-       CALL section_vals_val_get(se_section,"SCP",&
-            l_val=qs_control%se_control%scp,error=error)
        ! Periodic Type Calculation
        CALL section_vals_val_get(se_section,"PERIODIC",&
             i_val=qs_control%se_control%periodic_type,error=error)
@@ -923,7 +1048,7 @@ CPSourceFileRef,&
        IF (qs_control%dftb_control%hb_sr_damp)      CALL cite_reference(Hu2007)
     END IF
 
-    ! SCP-TB code
+    ! SCPTB code
     IF (qs_control%scptb) THEN
        CALL section_vals_val_get(scptb_section,"DISPERSION",&
             l_val=qs_control%scptb_control%dispersion,error=error)
@@ -1033,14 +1158,16 @@ CPSourceFileRef,&
     CALL timeset(routineN,handle)
 
     failure = .FALSE.
-    NULLIFY(logger)
+    NULLIFY (logger)
     logger => cp_error_get_logger(error)
 
     output_unit = cp_print_key_unit_nr(logger,dft_section,&
-         "PRINT%DFT_CONTROL_PARAMETERS",extension=".Log",error=error)
-    IF (output_unit>0) THEN
-       xc_section => section_vals_get_subs_vals(dft_section,&
-            "XC",error=error)
+                  "PRINT%DFT_CONTROL_PARAMETERS",extension=".Log",error=error)
+
+    IF (output_unit > 0) THEN
+
+       xc_section => section_vals_get_subs_vals(dft_section,"XC",error=error)
+
        IF (dft_control%uks) THEN
           WRITE (UNIT=output_unit,FMT="(/,T2,A,T78,A)")&
                "DFT| Spin unrestricted (spin-polarized) Kohn-Sham calculation","UKS"
@@ -1120,7 +1247,7 @@ CPSourceFileRef,&
          CALL create_dft_section(section,error=error)
          keyword => section_get_keyword(section,"PLUS_U_METHOD",error=error)
          CALL keyword_get(keyword,enum=enum,error=error)
-         WRITE (UNIT=output_unit,FMT="(T2,A,T41,A40)")&
+         WRITE (UNIT=output_unit,FMT="(/,T2,A,T41,A40)")&
            "DFT+U| Method",ADJUSTR(TRIM(enum_i2c(enum,dft_control%plus_u_method_id,error=error)))
          WRITE (UNIT=output_unit,FMT="(T2,A)")&
            "DFT+U| Check atomic kind information for details"
@@ -1129,9 +1256,80 @@ CPSourceFileRef,&
 
        CALL xc_write(output_unit,xc_section,dft_control%lsd,error)
 
+       IF (dft_control%do_sccs) THEN
+          IF (dft_control%qs_control%gapw) THEN
+             CALL cp_unimplemented_error(fromWhere=routineP,&
+                                         message="SCCS is not yet implemented with GAPW",&
+                                         error=error,&
+                                         error_level=cp_failure_level)
+          END IF
+          WRITE (UNIT=output_unit,FMT="(/,T2,A)")&
+           "SCCS| Self-consistent continuum solvation model"
+          SELECT CASE (dft_control%sccs_control%method_id)
+          CASE (sccs_andreussi)
+             WRITE (UNIT=output_unit,FMT="(T2,A,/,(T2,A,T69,ES12.3))")&
+              "SCCS| Dielectric function proposed by Andreussi et al.",&
+              "SCCS|  rho_max",dft_control%sccs_control%rho_max,&
+              "SCCS|  rho_min",dft_control%sccs_control%rho_min
+          CASE (sccs_fattebert_gygi)
+             WRITE (UNIT=output_unit,FMT="(T2,A,/,(T2,A,T69,ES12.3))")&
+              "SCCS| Dielectric function proposed by Fattebert and Gygi",&
+              "SCCS|  beta",dft_control%sccs_control%beta,&
+              "SCCS|  rho_zero",dft_control%sccs_control%rho_zero
+          CASE DEFAULT
+             CALL stop_program(routineN,moduleN,__LINE__,&
+                               "Invalid SCCS model specified. Please, check your input!",&
+                               logger%para_env)
+          END SELECT
+          SELECT CASE (dft_control%sccs_control%derivative_method)
+          CASE (sccs_derivative_fft)
+             WRITE (UNIT=*,FMT="(T2,A,T46,A35)") "SCCS| Numerical derivative calculation",&
+              ADJUSTR("FFT")
+          CASE (sccs_derivative_cd3)
+             WRITE (UNIT=*,FMT="(T2,A,T46,A35)") "SCCS| Numerical derivative calculation",&
+              ADJUSTR("3-point stencil central differences")
+          CASE (sccs_derivative_cd5)
+             WRITE (UNIT=*,FMT="(T2,A,T46,A35)") "SCCS| Numerical derivative calculation",&
+              ADJUSTR("5-point stencil central differences")
+          CASE (sccs_derivative_cd7)
+             WRITE (UNIT=*,FMT="(T2,A,T46,A35)") "SCCS| Numerical derivative calculation",&
+              ADJUSTR("7-point stencil central differences")
+          CASE DEFAULT
+             CALL stop_program(routineN,moduleN,__LINE__,&
+                               "Invalid derivative method specified for SCCS model. "//&
+                               "Please, check your input!",&
+                               logger%para_env)
+          END SELECT
+          WRITE (UNIT=output_unit,FMT="(T2,A,T69,F12.3)")&
+           "SCCS| Repulsion parameter alpha [mN/m] = [dyn/cm]",&
+           cp_unit_from_cp2k(dft_control%sccs_control%alpha_solvent,"mN/m",error=error)
+          WRITE (UNIT=output_unit,FMT="(T2,A,T69,F12.3)")&
+           "SCCS| Dispersion parameter beta [GPa]",&
+           cp_unit_from_cp2k(dft_control%sccs_control%beta_solvent,"GPa",error=error)
+          WRITE (UNIT=output_unit,FMT="(T2,A,T69,F12.3)")&
+           "SCCS| Surface tension gamma [mN/m] = [dyn/cm]",&
+           cp_unit_from_cp2k(dft_control%sccs_control%gamma_solvent,"mN/m",error=error)
+          WRITE (UNIT=output_unit,FMT="(T2,A,T69,F12.3)")&
+           "SCCS| Mixing parameter applied during the iteration cycle",&
+           dft_control%sccs_control%mixing
+          WRITE (UNIT=output_unit,FMT="(T2,A,T69,ES12.3)")&
+           "SCCS| Tolerance for the convergence of the SCCS iteration cycle",&
+           dft_control%sccs_control%eps_sccs
+          WRITE (UNIT=output_unit,FMT="(T2,A,T69,I12)")&
+           "SCCS| Maximum number of iteration steps",&
+           dft_control%sccs_control%max_iter
+          WRITE (UNIT=output_unit,FMT="(T2,A,T69,ES12.3)")&
+           "SCCS| SCF convergence threshold for starting the SCCS iteration",&
+           dft_control%sccs_control%eps_scf
+          WRITE (UNIT=output_unit,FMT="(T2,A,T69,ES12.3)")&
+           "SCCS| Numerical increment for the cavity surface calculation",&
+           dft_control%sccs_control%delta_rho
+       END IF
+
     END IF
+
     CALL cp_print_key_finished_output(output_unit,logger,dft_section,&
-         "PRINT%DFT_CONTROL_PARAMETERS",error=error)
+                                      "PRINT%DFT_CONTROL_PARAMETERS",error=error)
 
     CALL timestop(handle)
 
@@ -1774,6 +1972,8 @@ CPSourceFileRef,&
       l_val=dft_control%rtp_control%calc_idempotency,error=error)
     CALL section_vals_val_get(rtp_section,"ORTHONORMAL",&
       l_val=dft_control%rtp_control%orthonormal,error=error)
+    CALL section_vals_val_get(rtp_section,"WRITE_RESTART",&
+      l_val=dft_control%rtp_control%write_restart,error=error)
     CALL section_vals_val_get(rtp_section,"MCWEENY_MAX_ITER",&
       i_val=dft_control%rtp_control%mcweeny_max_iter,error=error)
     CALL section_vals_val_get(rtp_section,"ACCURACY_REFINEMENT",&

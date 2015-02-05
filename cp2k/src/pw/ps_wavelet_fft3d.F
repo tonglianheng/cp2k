@@ -1,15 +1,16 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2014  CP2K developers group                          !
+!   Copyright (C) 2000 - 2015  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
 MODULE ps_wavelet_fft3d
 
-  USE f77_blas
+  
   USE kinds,                           ONLY: dp
 #include "../common/cp_common_uses.f90"
 
+ IMPLICIT NONE
   PRIVATE
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'ps_wavelet_fft3d'
@@ -112,10 +113,13 @@ CONTAINS
 
 !     Different factorizations affect the performance
 !     Factoring 64 as 4*4*4 might for example be faster on some machines than 8*8.
+    INTEGER                                  :: n
+    REAL(KIND=dp)                            :: trig
+    INTEGER                                  :: after, before, now, isign, ic
 
-          IMPLICIT REAL(KIND=dp) (a-h,o-z)
-          IMPLICIT INTEGER (i,j,m,n)
-          INTEGER after,before
+    INTEGER                                  :: i, itt, j, nh
+    REAL(KIND=dp)                            :: angle, trigc, trigs, twopi
+
           DIMENSION now(7),after(7),before(7),trig(2,ctrig_length)
           INTEGER, DIMENSION(7,149) :: idata
 ! The factor 6 is only allowed in the first place!
@@ -197,26 +201,27 @@ CONTAINS
          7680,   6, 8, 8, 5, 4, 1,    8000,   8, 8, 5, 5, 5, 1,   &
          8192,   8, 8, 8, 4, 4, 1 /
 
-        DO 111 i=1,149
-        IF (n.eq.idata(1,i)) THEN
-        ic=0
-        DO 11 j=1,6
-        itt=idata(1+j,i)
-        IF (itt.gt.1) THEN
-        ic=ic+1
-        now(j)=idata(1+j,i)
-        ELSE
-        GOTO 1000
-        ENDIF
-11        CONTINUE
-        GOTO 1000
-        ENDIF
-111        CONTINUE
-        PRINT*,'VALUE OF',n,'NOT ALLOWED FOR FFT, ALLOWED VALUES ARE:'
-37        FORMAT(15(i5))
-        WRITE(*,37) (idata(1,i),i=1,149)
-        STOP
-1000        CONTINUE
+        DO i=1,150
+          IF(i==150) THEN
+            PRINT*,'VALUE OF',n,'NOT ALLOWED FOR FFT, ALLOWED VALUES ARE:'
+  37        FORMAT(15(i5))
+            WRITE(*,37) (idata(1,j),j=1,149)
+            STOP
+          ENDIF
+          IF (n.eq.idata(1,i)) THEN
+            ic=0
+            DO j=1,6
+              itt=idata(1+j,i)
+              IF (itt.gt.1) THEN
+                ic=ic+1
+                now(j)=idata(1+j,i)
+              ELSE
+                EXIT
+              ENDIF
+            ENDDO
+            EXIT
+          ENDIF
+        ENDDO
 
         after(1)=1
         before(ic)=1
@@ -280,9 +285,19 @@ CONTAINS
 !  This file is distributed under the terms of the
 !  GNU General Public License, see http://www.gnu.org/copyleft/gpl.txt .
 
-        IMPLICIT REAL(KIND=dp) (a-h,o-z)
-        IMPLICIT INTEGER (i,j,m,n)
-        INTEGER after,before,atn,atb
+    INTEGER                                  :: mm, nfft, m, nn, n
+    REAL(KIND=dp)                            :: zin, zout, trig
+    INTEGER                                  :: after, now, before, isign
+
+    INTEGER :: atb, atn, ia, ias, ib, itrig, itt, j, nin1, nin2, nin3, nin4, &
+      nin5, nin6, nin7, nin8, nout1, nout2, nout3, nout4, nout5, nout6, &
+      nout7, nout8
+    REAL(KIND=dp) :: am, ap, bb, bm, bp, ci2, ci3, ci4, ci5, ci6, ci7, ci8, &
+      cm, cos2, cos4, cp, cr2, cr3, cr4, cr5, cr6, cr7, cr8, dm, dpp, r, r1, &
+      r2, r25, r3, r34, r4, r5, r6, r7, r8, rt2i, s, s1, s2, s25, s3, s34, &
+      s4, s5, s6, s7, s8, sin2, sin4, ui1, ui2, ui3, ur1, ur2, ur3, vi1, vi2, &
+      vi3, vr1, vr2, vr3
+
         DIMENSION trig(2,ctrig_length),zin(2,mm,m),zout(2,nn,n)
         atn=after*now
         atb=after*before

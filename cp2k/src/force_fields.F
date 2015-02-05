@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2014  CP2K developers group                          !
+!   Copyright (C) 2000 - 2015  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -24,8 +24,12 @@ MODULE force_fields
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_units,                        ONLY: cp_unit_from_cp2k
   USE ewald_environment_types,         ONLY: ewald_environment_type
-  USE f77_blas
   USE fist_nonbond_env_types,          ONLY: fist_nonbond_env_type
+  USE force_field_kind_types,          ONLY: do_ff_amber,&
+                                             do_ff_charmm,&
+                                             do_ff_g87,&
+                                             do_ff_g96,&
+                                             do_ff_undef
   USE force_field_types,               ONLY: deallocate_ff_type,&
                                              force_field_type,&
                                              init_ff_type
@@ -36,12 +40,7 @@ MODULE force_fields
   USE force_fields_util,               ONLY: clean_intra_force_kind,&
                                              force_field_pack,&
                                              force_field_qeff_output
-  USE input_constants,                 ONLY: do_ff_amber,&
-                                             do_ff_charmm,&
-                                             do_ff_g87,&
-                                             do_ff_g96,&
-                                             do_ff_undef,&
-                                             do_skip_14
+  USE input_constants,                 ONLY: do_skip_14
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type,&
                                              section_vals_val_get

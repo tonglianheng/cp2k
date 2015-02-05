@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2014  CP2K developers group                          !
+!   Copyright (C) 2000 - 2015  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -26,13 +26,14 @@
 ! *****************************************************************************
 
 MODULE tmc_worker
-  USE cell_methods,                    ONLY: cell_copy,&
+  USE cell_types,                      ONLY: cell_copy,&
                                              cell_type,&
                                              init_cell
   USE cp_external_control,             ONLY: set_external_comm
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_result_methods,               ONLY: cp_results_erase,&
                                              put_results
+  USE cp_result_types,                 ONLY: cp_result_type
   USE cp_subsys_types,                 ONLY: cp_subsys_get,&
                                              cp_subsys_type
   USE f77_interface,                   ONLY: f_env_get_from_id,&
@@ -958,10 +959,12 @@ CONTAINS
     CHARACTER(LEN=default_string_length)     :: description
     LOGICAL                                  :: failure
     REAL(KIND=dp), DIMENSION(3)              :: values
+    TYPE(cp_result_type), POINTER            :: results
+    TYPE(cp_subsys_type), POINTER            :: subsys
     TYPE(f_env_type), POINTER                :: f_env
 
     failure = .FALSE.
-
+    NULLIFY(results,subsys)
     CPPrecondition(env_id.GT.0,cp_failure_level,routineP,error,failure)
 
     CALL f_env_get_from_id(env_id,f_env,error)
@@ -980,9 +983,9 @@ CONTAINS
     description = "[EXT_SCF_ENER_COMM]"
 
     ! set the communicator information in the qs_env result container
-    CALL put_results(results=f_env%force_env%qs_env%results, &
-                     description=description, values=values, &
-                     error=error)
+    CALL force_env_get(f_env%force_env, subsys=subsys, error=error)
+    CALL cp_subsys_get(subsys, results=results, error=error)
+    CALL put_results(results, description=description, values=values, error=error)
   END SUBROUTINE set_intermediate_info_comm
 
 ! *****************************************************************************
@@ -1003,10 +1006,12 @@ CONTAINS
 
     CHARACTER(LEN=default_string_length)     :: description
     LOGICAL                                  :: failure
+    TYPE(cp_result_type), POINTER            :: results
+    TYPE(cp_subsys_type), POINTER            :: subsys
     TYPE(f_env_type), POINTER                :: f_env
 
     failure = .FALSE.
-
+    NULLIFY(subsys,results)
     CPPrecondition(env_id.GT.0,cp_failure_level,routineP,error,failure)
 
     CALL f_env_get_from_id(env_id,f_env,error)
@@ -1021,8 +1026,9 @@ CONTAINS
     description = "[EXT_SCF_ENER_COMM]"
 
     ! set the communicator information in the qs_env result container
-    CALL cp_results_erase(results=f_env%force_env%qs_env%results, &
-                          description=description, error=error)
+    CALL force_env_get(f_env%force_env, subsys=subsys, error=error)
+    CALL cp_subsys_get(subsys, results=results, error=error)
+    CALL cp_results_erase(results, description=description, error=error)
   END SUBROUTINE remove_intermediate_info_comm
 
 

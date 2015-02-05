@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2014  CP2K developers group                          !
+!   Copyright (C) 2000 - 2015  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -25,7 +25,6 @@ MODULE se_core_matrix
                                              cp_print_key_should_output,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE f77_blas
   USE input_constants,                 ONLY: &
        do_method_am1, do_method_mndo, do_method_mndod, do_method_pdg, &
        do_method_pm3, do_method_pm6, do_method_pnnl, do_method_rm1, &
@@ -33,12 +32,14 @@ MODULE se_core_matrix
   USE kinds,                           ONLY: dp
   USE particle_types,                  ONLY: particle_type
   USE physcon,                         ONLY: evolt
+  USE qs_energy_types,                 ONLY: qs_energy_type
   USE qs_environment_types,            ONLY: get_qs_env,&
-                                             qs_environment_type,&
-                                             set_qs_env
+                                             qs_environment_type
   USE qs_force_types,                  ONLY: qs_force_type
   USE qs_kind_types,                   ONLY: get_qs_kind,&
                                              qs_kind_type
+  USE qs_ks_types,                     ONLY: qs_ks_env_type,&
+                                             set_ks_env
   USE qs_neighbor_list_types,          ONLY: get_iterator_info,&
                                              neighbor_list_iterate,&
                                              neighbor_list_iterator_create,&
@@ -46,7 +47,8 @@ MODULE se_core_matrix
                                              neighbor_list_iterator_release,&
                                              neighbor_list_set_p_type
   USE qs_overlap,                      ONLY: build_overlap_matrix
-  USE qs_rho_types,                    ONLY: qs_rho_type
+  USE qs_rho_types,                    ONLY: qs_rho_get,&
+                                             qs_rho_type
   USE semi_empirical_int_arrays,       ONLY: rij_threshold
   USE semi_empirical_types,            ONLY: get_se_param,&
                                              semi_empirical_type
@@ -117,10 +119,12 @@ CONTAINS
       DIMENSION(:), POINTER                  :: sab_orb
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
+    TYPE(qs_energy_type), POINTER            :: energy
     TYPE(qs_force_type), DIMENSION(:), &
       POINTER                                :: force
     TYPE(qs_kind_type), DIMENSION(:), &
       POINTER                                :: qs_kind_set
+    TYPE(qs_ks_env_type), POINTER            :: ks_env
     TYPE(qs_rho_type), POINTER               :: rho
     TYPE(semi_empirical_type), POINTER       :: se_kind_a
     TYPE(virial_type), POINTER               :: virial
@@ -129,49 +133,50 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-    NULLIFY(logger)
+    NULLIFY(logger,energy)
     logger => cp_error_get_logger(error)
 
      NULLIFY ( rho,force,atomic_kind_set,qs_kind_set,sab_orb,&
-               diagmat_h,diagmat_p,particle_set, matrix_p )
+               diagmat_h,diagmat_p,particle_set, matrix_p, ks_env)
+
+     CALL get_qs_env(qs_env,&
+                     matrix_s=matrix_s,&
+                     matrix_h=matrix_h,&
+                     ks_env=ks_env,&
+                     particle_set=particle_set,&
+                     atomic_kind_set=atomic_kind_set,&
+                     qs_kind_set=qs_kind_set,&
+                     dft_control=dft_control,&
+                     energy=energy,&
+                     force=force,&
+                     virial=virial,&
+                     rho=rho,&
+                     sab_orb=sab_orb,&
+                     error=error)
 
      ! calculate overlap matrix
      IF(calculate_forces) THEN
-        CALL get_qs_env(qs_env=qs_env, matrix_s=matrix_s, error=error)
-        CALL build_overlap_matrix(qs_env,nderivative=1, matrix_s=matrix_s,&
-                              matrix_name="OVERLAP",&
-                              basis_set_id_a=use_orb_basis_set,&
-                              basis_set_id_b=use_orb_basis_set, &
-                              sab_nl=qs_env%sab_orb,&
-                              error=error)
-        CALL set_qs_env(qs_env=qs_env,matrix_s=matrix_s,error=error)
-        CALL get_qs_env(qs_env=qs_env, virial=virial, error=error)
+        CALL build_overlap_matrix(ks_env,nderivative=1, matrix_s=matrix_s,&
+                                  matrix_name="OVERLAP",&
+                                  basis_set_id_a=use_orb_basis_set,&
+                                  basis_set_id_b=use_orb_basis_set, &
+                                  sab_nl=sab_orb,&
+                                  error=error)
+        CALL set_ks_env(ks_env,matrix_s=matrix_s,error=error)
         use_virial = virial%pv_availability.AND.(.NOT.virial%pv_numer)
      ELSE
-        CALL get_qs_env(qs_env=qs_env, matrix_s=matrix_s, error=error)
-        CALL build_overlap_matrix(qs_env,matrix_s=matrix_s,&
-                              matrix_name="OVERLAP",&
-                              basis_set_id_a=use_orb_basis_set,&
-                              basis_set_id_b=use_orb_basis_set, &
-                              sab_nl=qs_env%sab_orb,&
-                              error=error)
-        CALL set_qs_env(qs_env=qs_env,matrix_s=matrix_s,error=error)
+        CALL build_overlap_matrix(ks_env,matrix_s=matrix_s,&
+                                  matrix_name="OVERLAP",&
+                                  basis_set_id_a=use_orb_basis_set,&
+                                  basis_set_id_b=use_orb_basis_set, &
+                                  sab_nl=sab_orb,&
+                                  error=error)
+        CALL set_ks_env(ks_env,matrix_s=matrix_s,error=error)
         use_virial = .FALSE.
      END IF
 
-     CALL get_qs_env(qs_env=qs_env,&
-                     matrix_h=matrix_h,&
-                     matrix_s=matrix_s,&
-                     atomic_kind_set=atomic_kind_set,&
-                     qs_kind_set=qs_kind_set,&
-                     dft_control=dft_control,error=error)
-
      IF(calculate_forces) THEN
-       CALL get_qs_env(qs_env=qs_env,&
-                       particle_set=particle_set,&
-                       rho=rho,&
-                       force=force,error=error)
-       matrix_p => rho%rho_ao
+       CALL qs_rho_get(rho, rho_ao=matrix_p, error=error)
 
        IF (SIZE(matrix_p) == 2) THEN
           CALL cp_dbcsr_add(matrix_p(1)%matrix, matrix_p(2)%matrix, alpha_scalar=1.0_dp, beta_scalar=1.0_dp, error=error)
@@ -204,8 +209,6 @@ CONTAINS
      CALL cp_dbcsr_get_block_diag(matrix_s(1)%matrix, diagmat_h, error=error)
      CALL cp_dbcsr_set(diagmat_h, 0.0_dp, error=error)
      CALL cp_dbcsr_replicate_all(diagmat_h,error=error)
-
-     CALL get_qs_env(qs_env=qs_env,sab_orb=sab_orb,error=error)
 
      ! kh might be set in qs_control
      itype = get_se_type(dft_control%qs_control%method_id)
@@ -250,7 +253,7 @@ CONTAINS
         nrt(ikind) = nr_a
 
      END DO
-     qs_env%energy%core_self    = econst
+     energy%core_self    = econst
 
      CALL neighbor_list_iterator_create(nl_iterator,sab_orb)
      DO WHILE (neighbor_list_iterate(nl_iterator)==0)
@@ -410,7 +413,7 @@ CONTAINS
      CALL cp_dbcsr_sum_replicated(diagmat_h, error=error)
      CALL cp_dbcsr_distribute(diagmat_h,error=error)
      CALL cp_dbcsr_add(matrix_h(1)%matrix, diagmat_h,1.0_dp,1.0_dp,error=error)
-     CALL set_qs_env(qs_env=qs_env,matrix_h=matrix_h,error=error)
+     CALL set_ks_env(ks_env,matrix_h=matrix_h,error=error)
 
      IF (BTEST(cp_print_key_should_output(logger%iter_info,&
          qs_env%input,"DFT%PRINT%AO_MATRICES/CORE_HAMILTONIAN",error=error),cp_p_file)) THEN
@@ -1493,6 +1496,7 @@ END SUBROUTINE makedS
 !> \brief ...
 !> \param n ...
 !> \param x ...
+!> \retval AA ...
 ! *****************************************************************************
 FUNCTION AA(n,x)
 
@@ -1601,6 +1605,7 @@ END FUNCTION AA
 !> \brief ...
 !> \param n ...
 !> \param y ...
+!> \retval BB ...
 ! *****************************************************************************
 FUNCTION BB(n,y)
 

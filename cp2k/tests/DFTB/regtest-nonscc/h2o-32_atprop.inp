@@ -1,8 +1,10 @@
 &FORCE_EVAL
   METHOD Quickstep
+  STRESS_TENSOR ANALYTICAL
   &PROPERTIES
      &ATOMIC
         ENERGY
+        PRESSURE
      &END ATOMIC
   &END PROPERTIES
   &DFT
@@ -12,7 +14,7 @@
         SELF_CONSISTENT    F
         DISPERSION         F
         &PARAMETER
-          PARAM_FILE_PATH  ../nonscc
+          PARAM_FILE_PATH  ../../../data/DFTB/nonscc
           PARAM_FILE_NAME  nonscc_parameter
         &END PARAMETER
       &END DFTB
@@ -133,7 +135,7 @@
 &GLOBAL
   PROJECT h2o-32_1
   RUN_TYPE MD
-  PRINT_LEVEL HIGH
+  PRINT_LEVEL MEDIUM
 &END GLOBAL
 &MOTION
   &MD

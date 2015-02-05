@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2014  CP2K developers group                          !
+!   Copyright (C) 2000 - 2015  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -17,6 +17,8 @@ MODULE mp2
                                              get_atomic_kind_set
   USE bibliography,                    ONLY: DelBen2012,&
                                              cite_reference
+  USE cp_blacs_env,                    ONLY: cp_blacs_env_type
+  USE cp_control_types,                ONLY: dft_control_type
   USE cp_dbcsr_interface,              ONLY: cp_dbcsr_get_info,&
                                              cp_dbcsr_p_type,&
                                              cp_dbcsr_set
@@ -37,7 +39,6 @@ MODULE mp2
   USE cp_para_env,                     ONLY: cp_para_env_create,&
                                              cp_para_env_release
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE f77_blas
   USE hfx_energy_potential,            ONLY: integrate_four_center
   USE hfx_types,                       ONLY: &
        alloc_containers, dealloc_containers, hfx_basis_info_type, &
@@ -79,11 +80,13 @@ MODULE mp2
                                              get_mo_set,&
                                              init_mo_set,&
                                              mo_set_p_type
-  USE qs_rho_types,                    ONLY: qs_rho_type
+  USE qs_rho_types,                    ONLY: qs_rho_get,&
+                                             qs_rho_type
   USE qs_scf_methods,                  ONLY: eigensolver
   USE qs_scf_types,                    ONLY: qs_scf_env_type
   USE timings,                         ONLY: timeset,&
                                              timestop
+  USE virial_types,                    ONLY: virial_type
 #include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
@@ -132,6 +135,7 @@ MODULE mp2
     TYPE(admm_type), POINTER                 :: admm_env
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
+    TYPE(cp_blacs_env_type), POINTER         :: blacs_env
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: matrix_ks, matrix_ks_aux, &
                                                 matrix_s
@@ -140,6 +144,7 @@ MODULE mp2
                                                 fm_matrix_work, mo_coeff
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(hfx_basis_info_type)                :: basis_info
     TYPE(hfx_basis_type), DIMENSION(:), &
       POINTER                                :: basis_parameter
@@ -160,21 +165,35 @@ MODULE mp2
     TYPE(qs_rho_type), POINTER               :: rho
     TYPE(qs_scf_env_type), POINTER           :: scf_env
     TYPE(section_vals_type), POINTER         :: hfx_sections, input
+    TYPE(virial_type), POINTER               :: virial
 
 !$  INTEGER :: omp_get_max_threads
 
+    NULLIFY(virial, dft_control, blacs_env)
     CALL timeset(routineN,handle)
     failure=.FALSE.
     logger => cp_error_get_logger(error)
 
     CALL cite_reference(DelBen2012)
 
-    CALL get_qs_env(qs_env=qs_env, input=input, atomic_kind_set=atomic_kind_set, &
-                  qs_kind_set=qs_kind_set,&
-                  particle_set=particle_set, para_env=para_env,   &
-                  energy=energy, rho=rho, mos=mos, scf_env=scf_env,&
-                  matrix_ks=matrix_ks, matrix_s=matrix_s, matrix_ks_aux_fit=matrix_ks_aux,&
-                  mp2_env=mp2_env, admm_env=admm_env, error=error)
+    CALL get_qs_env(qs_env,&
+                    input=input,&
+                    atomic_kind_set=atomic_kind_set,&
+                    qs_kind_set=qs_kind_set,&
+                    dft_control=dft_control,&
+                    particle_set=particle_set,&
+                    para_env=para_env,&
+                    blacs_env=blacs_env,&
+                    energy=energy,&
+                    rho=rho,&
+                    mos=mos,&
+                    scf_env=scf_env,virial=virial,&
+                    matrix_ks=matrix_ks,&
+                    matrix_s=matrix_s,&
+                    matrix_ks_aux_fit=matrix_ks_aux,&
+                    mp2_env=mp2_env,&
+                    admm_env=admm_env,&
+                    error=error)
 
     unit_nr = cp_print_key_unit_nr(logger,input,"DFT%XC%WF_CORRELATION%MP2_INFO",&
                                    extension=".mp2Log",error=error)
@@ -228,7 +247,7 @@ MODULE mp2
 
     IF (unit_nr>0) CALL m_flush(unit_nr)
 
-    nspins=qs_env%dft_control%nspins
+    nspins=dft_control%nspins
 
     IF (calc_forces.AND.nspins/=1) THEN
       CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
@@ -265,7 +284,7 @@ MODULE mp2
     NULLIFY(fm_matrix_work)
     NULLIFY(fm_struct)
     CALL cp_dbcsr_get_info(matrix_s(1)%matrix,nfullrows_total=nfullrows_total,nfullcols_total=nfullcols_total)
-    CALL cp_fm_struct_create(fm_struct,context=qs_env%blacs_env,nrow_global=nfullrows_total,&
+    CALL cp_fm_struct_create(fm_struct,context=blacs_env,nrow_global=nfullrows_total,&
                              ncol_global=nfullcols_total,para_env=para_env,error=error)
     CALL cp_fm_create(fm_matrix_s,fm_struct,name="fm_matrix_s",error=error)
     CALL copy_dbcsr_to_fm(matrix_s(1)%matrix, fm_matrix_s, error=error)
@@ -296,7 +315,7 @@ MODULE mp2
                            nelectron=nelectron,&
                            n_el_f=REAL(nelectron,dp),&
                            maxocc=maxocc,&
-                           flexible_electron_count=qs_env%dft_control%relax_multiplicity,&
+                           flexible_electron_count=dft_control%relax_multiplicity,&
                            error=error)
     END DO
 
@@ -304,21 +323,21 @@ MODULE mp2
     CALL mpools_create(mpools=my_mpools,error=error)
     CALL mpools_rebuild_fm_pools(mpools=my_mpools,&
                                  mos=mos_mp2,&
-                                 blacs_env=qs_env%blacs_env,&
+                                 blacs_env=blacs_env,&
                                  para_env=para_env,&
                                  error=error)
 
     DO ispin=1, nspins
 
       ! If ADMM we should make the ks matrix up-to-date
-      IF( qs_env%dft_control%do_admm ) THEN
+      IF(dft_control%do_admm) THEN
         CALL admm_correct_for_eigenvalues(ispin, admm_env, matrix_ks(ispin)%matrix, &
                                           error)
       END IF
 
       CALL copy_dbcsr_to_fm(matrix_ks(ispin)%matrix, fm_matrix_ks, error=error)
 
-      IF( qs_env%dft_control%do_admm ) THEN
+      IF(dft_control%do_admm) THEN
         CALL admm_uncorrect_for_eigenvalues(ispin, admm_env, matrix_ks(ispin)%matrix, &
                                           error)
       END IF
@@ -359,7 +378,7 @@ MODULE mp2
       free_hfx_buffer=.TRUE.
       IF(calc_forces.AND.(.NOT.mp2_env%ri_mp2%free_hfx_buffer)) free_hfx_buffer=.FALSE.
     END IF
-    IF(qs_env%virial%pv_numer) THEN
+    IF(virial%pv_numer) THEN
       ! in the case of numerical stress we don't have to free the HFX integrals
       free_hfx_buffer=.FALSE.
       mp2_env%ri_mp2%free_hfx_buffer=.FALSE.
@@ -952,7 +971,7 @@ MODULE mp2
                        (8*(2*dimen-occ_i)*INT(dimen,KIND=int_8)*my_J_batch_size/para_env_sub%num_pe))) &
                    ,my_I_batch_size)
     IF(max_batch_size<1) THEN
-       max_batch_size=(8*(occ_i+1)*INT(dimen,KIND=int_8)**2/para_env%num_pe)/1024**2
+       max_batch_size=INT((8*(occ_i+1)*INT(dimen,KIND=int_8)**2/para_env%num_pe)/1024**2)
        IF (unit_nr>0) WRITE(unit_nr,'(T3,A,T73,I6,A2)') 'More memory required, at least:',max_batch_size,'MB'
        max_batch_size=1
     END IF
@@ -1093,7 +1112,7 @@ MODULE mp2
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: t1, t2
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_ks
+      POINTER                                :: matrix_ks, rho_ao
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(qs_energy_type), POINTER            :: energy
     TYPE(qs_rho_type), POINTER               :: rho
@@ -1104,7 +1123,7 @@ MODULE mp2
 
     t1=m_walltime()
 
-    NULLIFY(hfx_sections, input, para_env, matrix_ks, rho)
+    NULLIFY(hfx_sections, input, para_env, matrix_ks, rho, rho_ao)
 
     CALL get_qs_env(qs_env=qs_env, &
                     input=input, &
@@ -1113,6 +1132,7 @@ MODULE mp2
                     rho=rho, &
                     matrix_ks=matrix_ks, &
                     error=error)
+    CALL qs_rho_get(rho, rho_ao=rho_ao, error=error)
 
     hfx_sections => section_vals_get_subs_vals(input,"DFT%XC%WF_CORRELATION%RI_RPA%HF",error=error)
 
@@ -1131,7 +1151,7 @@ MODULE mp2
     energy%ex=0.0_dp
 
     DO irep = 1,n_rep_hf
-      CALL integrate_four_center(qs_env, matrix_ks, energy, rho%rho_ao, hfx_sections,&
+      CALL integrate_four_center(qs_env, matrix_ks, energy, rho_ao, hfx_sections,&
                                  para_env, .TRUE., irep, .TRUE.,&
                                  ispin=1, error=error, do_exx=.TRUE.)
     END DO

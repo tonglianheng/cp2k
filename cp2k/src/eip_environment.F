@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2014  CP2K developers group                          !
+!   Copyright (C) 2000 - 2015  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -12,21 +12,21 @@
 MODULE eip_environment
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind
-  USE cell_methods,                    ONLY: cell_release,&
-                                             cell_type,&
-                                             get_cell,&
-                                             read_cell,&
+  USE cell_methods,                    ONLY: read_cell,&
                                              write_cell
+  USE cell_types,                      ONLY: cell_release,&
+                                             cell_type,&
+                                             get_cell
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_subsys_methods,               ONLY: cp_subsys_create
   USE cp_subsys_types,                 ONLY: cp_subsys_release,&
+                                             cp_subsys_set,&
                                              cp_subsys_type
   USE distribution_1d_types,           ONLY: distribution_1d_release,&
                                              distribution_1d_type
   USE distribution_methods,            ONLY: distribute_molecules_1d
   USE eip_environment_types,           ONLY: eip_env_set,&
                                              eip_environment_type
-  USE f77_blas
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type,&
                                              section_vals_val_get
@@ -35,10 +35,10 @@ MODULE eip_environment
   USE molecule_kind_types,             ONLY: molecule_kind_type,&
                                              write_molecule_kind_set
   USE molecule_types_new,              ONLY: molecule_type
-  USE particle_types,                  ONLY: particle_type,&
-                                             write_fist_particle_coordinates,&
+  USE particle_methods,                ONLY: write_fist_particle_coordinates,&
                                              write_particle_distances,&
                                              write_structure_data
+  USE particle_types,                  ONLY: particle_type
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "./common/cp_common_uses.f90"
@@ -216,7 +216,8 @@ CONTAINS
 
     eip_env%eip_forces(:,:) = 0.0_dp
 
-    CALL eip_env_set(eip_env=eip_env, subsys=subsys, cell=cell, &
+    CALL cp_subsys_set(subsys, cell=cell, error=error)
+    CALL eip_env_set(eip_env=eip_env, subsys=subsys, &
                      cell_ref=cell_ref, use_ref_cell=use_ref_cell, &
                      local_molecules=local_molecules, &
                      local_particles=local_particles, error=error)

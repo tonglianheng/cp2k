@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2014  CP2K developers group                          !
+!   Copyright (C) 2000 - 2015  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -15,15 +15,15 @@ MODULE input_cp2k_thermostats
                                              Jones2011,&
                                              Nose1984a,&
                                              Nose1984b
-  USE cp_output_handling,              ONLY: cp_print_key_section_create
+  USE cp_output_handling,              ONLY: cp_print_key_section_create,&
+                                             high_print_level,&
+                                             low_print_level
   USE cp_units,                        ONLY: cp_unit_to_cp2k
-  USE f77_blas
   USE input_constants,                 ONLY: &
        do_constr_atomic, do_constr_molec, do_constr_none, do_region_defined, &
        do_region_global, do_region_massive, do_region_molecule, &
        do_region_none, do_thermo_al, do_thermo_csvr, do_thermo_gle, &
-       do_thermo_nose, do_thermo_same_as_part, high_print_level, &
-       low_print_level
+       do_thermo_nose, do_thermo_same_as_part
   USE input_cp2k_subsys,               ONLY: create_rng_section
   USE input_keyword_types,             ONLY: keyword_create,&
                                              keyword_release,&
@@ -733,7 +733,11 @@ CONTAINS
     CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
     IF (.NOT. failure) THEN  
        CALL section_create(section,name="ad_langevin",&
-            description="Parameters of the adaptive-Langevin thermostat.",&
+            description="Parameters of the adaptive-Langevin thermostat."//&
+            " Known to work with NVT ensemble, but not tested with"//&
+            " other ensembles.  Also tested with FIXED_ATOMS constraints, but"//&
+            " may not work with other constraints (restraints should be OK, but"//&
+            " haven't been well tested)",&
             citations=(/Jones2011/),required=.TRUE.,error=error)
 
        NULLIFY(keyword, subsection)

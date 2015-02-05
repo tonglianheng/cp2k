@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2014  CP2K developers group                          !
+!   Copyright (C) 2000 - 2015  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -13,7 +13,7 @@
 MODULE qs_linres_nmr_shift
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind
-  USE cell_methods,                    ONLY: cell_type,&
+  USE cell_types,                      ONLY: cell_type,&
                                              pbc
   USE cp_control_types,                ONLY: dft_control_type
   USE cp_output_handling,              ONLY: cp_p_file,&
@@ -21,7 +21,6 @@ MODULE qs_linres_nmr_shift
                                              cp_print_key_should_output,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE f77_blas
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type,&
                                              section_vals_val_get
@@ -71,6 +70,7 @@ MODULE qs_linres_nmr_shift
                                              get_nmr_env,&
                                              jrho_atom_type,&
                                              nmr_env_type
+  USE qs_rho_types,                    ONLY: qs_rho_get
   USE realspace_grid_types,            ONLY: realspace_grid_desc_type
   USE timings,                         ONLY: timeset,&
                                              timestop
@@ -127,6 +127,7 @@ CONTAINS
     TYPE(pw_env_type), POINTER               :: pw_env
     TYPE(pw_p_type)                          :: pw_gspace_work, &
                                                 shift_pw_rspace
+    TYPE(pw_p_type), DIMENSION(:), POINTER   :: jrho1_g
     TYPE(pw_p_type), DIMENSION(:, :), &
       POINTER                                :: shift_pw_gspace
     TYPE(pw_p_type), POINTER                 :: jrho_gspace
@@ -141,7 +142,7 @@ CONTAINS
 
     NULLIFY(chemical_shift,chemical_shift_loc,chemical_shift_nics,chemical_shift_nics_loc,&
             cell,dft_control,pw_env,auxbas_rs_desc,auxbas_pw_pool,jrho_gspace,&
-            pw_pools,particle_set)
+            pw_pools,particle_set,jrho1_g)
 
     CALL get_qs_env(qs_env=qs_env,cell=cell,dft_control=dft_control,&
                     particle_set=particle_set,error=error)
@@ -189,7 +190,8 @@ CONTAINS
     DO ispin = 1,nspins
        !
        DO idir = 1,3
-          jrho_gspace => current_env%jrho1_set(idir)%rho%rho_g(ispin)
+          CALL qs_rho_get(current_env%jrho1_set(idir)%rho, rho_g=jrho1_g, error=error)
+          jrho_gspace => jrho1_g(ispin)
           ! Field gradient
           ! loop over the Gvec  components: x,y,z
           DO idir2 = 1,3

@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2014  CP2K developers group                          !
+!   Copyright (C) 2000 - 2015  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! less not much meningful... and defines oly a partial ordering.
@@ -46,7 +46,6 @@
 ! *****************************************************************************
 MODULE cp_linked_list_3d_r
   USE cp_array_r_utils,                ONLY: cp_3d_r_p_type
-  USE f77_blas
   USE kinds,                           ONLY: dp
 #include "../common//cp_common_uses.f90"
 
@@ -287,9 +286,9 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_sll_3d_r_dealloc_node', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
     LOGICAL                                  :: failure
 
+    INTEGER:: stat
     failure=.FALSE.
 
     DEALLOCATE(sll, stat=stat)

@@ -1,11 +1,11 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2014  CP2K developers group                          !
+!   Copyright (C) 2000 - 2015  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 ! *****************************************************************************
 MODULE qs_grid_atom
 
-  USE f77_blas
+  
   USE input_constants,                 ONLY: do_gapw_gcs,&
                                              do_gapw_gct,&
                                              do_gapw_log

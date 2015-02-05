@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2014  CP2K developers group                          !
+!   Copyright (C) 2000 - 2015  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -12,15 +12,16 @@
 MODULE input_cp2k_xc
   USE bibliography,                    ONLY: &
        Becke1988, Becke1997, BeckeRoussel1989, Goedecker1996, Grimme2006, &
-       Grimme2010, Heyd2004, Lee1988, Marques2012, Ortiz1994, Perdew1981, &
-       Perdew1996, Perdew2008, Proynov2007, Tao2003, Tran2013, Vosko1980, &
-       Wellendorff2012, Zhang1998
-  USE cp_output_handling,              ONLY: cp_print_key_section_create
-  USE f77_blas
+       Grimme2010, Grimme2011, Heyd2004, Lee1988, Marques2012, Ortiz1994, &
+       Perdew1981, Perdew1996, Perdew2008, Proynov2007, Tao2003, Tran2013, &
+       Vosko1980, Wellendorff2012, Zhang1998
+  USE cp_output_handling,              ONLY: add_last_numeric,&
+                                             cp_print_key_section_create,&
+                                             high_print_level
   USE input_constants,                 ONLY: &
-       add_last_numeric, do_adiabatic_hybrid_mcy3, do_adiabatic_model_pade, &
-       gaussian, high_print_level, slater, vdw_nl_drsll, vdw_nl_lmkll, &
-       vdw_nl_rvv10, vdw_pairpot_dftd2, vdw_pairpot_dftd3, xc_funct_b3lyp, &
+       do_adiabatic_hybrid_mcy3, do_adiabatic_model_pade, gaussian, slater, &
+       vdw_nl_drsll, vdw_nl_lmkll, vdw_nl_rvv10, vdw_pairpot_dftd2, &
+       vdw_pairpot_dftd3, vdw_pairpot_dftd3bj, xc_funct_b3lyp, &
        xc_funct_beefvdw, xc_funct_blyp, xc_funct_bp, xc_funct_hcth120, &
        xc_funct_no_shortcut, xc_funct_olyp, xc_funct_pade, xc_funct_pbe, &
        xc_funct_pbe0, xc_funct_tpss, xc_none, xc_pot_energy_none, &
@@ -336,10 +337,18 @@ CONTAINS
        CALL keyword_release(keyword,error=error)
        CALL keyword_create(keyword,name="FUNCTIONAL",&
             description="Which one of the KE_GGA functionals should be used",&
-            usage="FUNCTIONAL LLP",&
+            usage="FUNCTIONAL (OL1|OL2|LLP|PW86|PW91|LC|T92|PBE)",&
             enum_c_vals=(/"OL1 ","OL2 ","LLP ","PW86","PW91","LC  ","T92 ","PBE "/),&
             enum_i_vals=(/ke_ol1,ke_ol2,ke_llp,ke_pw86,ke_pw91,ke_lc,ke_t92,ke_pbe/),&
-            default_i_val=ke_ol1,error=error)
+            enum_desc=s2a("Uses first Ou-Yang and Levy functional, currently not producing correct results",&
+                          "Uses second Ou-Yang and Levy functional, currently not producing correct results",&
+                          "Uses Lee, Lee, and Parr functional",&
+                          "Uses Perdew and Wang’s 1986 functional",&
+                          "Uses Perdew and Wang’s 1991 functional",&
+                          "Uses Lembarki and Chermette functional",&
+                          "Uses Thakkar functional",&
+                          "Uses the 1996 functional of Perdew, Burke and Ernzerhof"),&
+            default_i_val=ke_llp,error=error)
        CALL section_add_keyword(subsection,keyword,error=error)
        CALL keyword_release(keyword,error=error)
        CALL section_add_subsection(section,subsection,error=error)
@@ -912,12 +921,13 @@ CONTAINS
        CALL keyword_release(keyword,error=error)
        CALL keyword_create(keyword,name="TYPE",&
             description="Type of potential",&
-            citations=(/grimme2006,grimme2010/),&
-            usage="TYPE (DFTD2|DFTD3)", &
-            enum_c_vals=s2a("DFTD2","DFTD3"),&
-            enum_i_vals=(/ vdw_pairpot_dftd2, vdw_pairpot_dftd3 /),&
+            citations=(/grimme2006,grimme2010,grimme2011/),&
+            usage="TYPE (DFTD2|DFTD3|DFTD3(BJ))", &
+            enum_c_vals=s2a("DFTD2","DFTD3","DFTD3(BJ)"),&
+            enum_i_vals=(/ vdw_pairpot_dftd2, vdw_pairpot_dftd3, vdw_pairpot_dftd3bj /),&
             enum_desc=s2a("Grimme D2 method",&
-                            "Grimme D3 method"),&
+                          "Grimme D3 method (zero damping)",&
+                          "Grimme D3 method (Becke-Johnson damping)"),&
             default_i_val=vdw_pairpot_dftd3, error=error)
        CALL section_add_keyword(subsection,keyword,error=error)
        CALL keyword_release(keyword,error=error)
@@ -929,10 +939,9 @@ CONTAINS
        CALL keyword_release(keyword,error=error)
        CALL keyword_create(keyword, name="REFERENCE_FUNCTIONAL",&
             description="Use parameters for this specific density functional. "&
-            //"For D3 the following options are available: <br/>B1B95, B2GPPLYP, "&
-            //"B2PLYP, DSD-BLYP, B3LYP, B97-D, BHLYP, BLYP, BP86, BPBE, MPWLYP, "&
-            //"PBE, PBE0, PW6B95, PWB6K, revPBE, TPSS, TPSS0, TPSSh, B3PW91, BMK, "&
-            //"CAMB3LYP, LCWPBE, M052X, M05, M062X, M06HF, M06L, and M06N.",&
+            //"For available D3 and D3(BJ) parameters see: "&
+            //"http://www.thch.uni-bonn.de/tc/downloads/DFT-D3/functionals.html, "&
+            //"http://www.thch.uni-bonn.de/tc/downloads/DFT-D3/functionalsbj.html",&
             usage="REFERENCE_FUNCTIONAL <functional>",required=.FALSE.,&
             type_of_var=char_t,error=error)
        CALL section_add_keyword(subsection,keyword,error=error)
@@ -955,9 +964,18 @@ CONTAINS
        CALL keyword_release(keyword,error=error)
        CALL keyword_create(keyword,name="D3_SCALING",&
             description="XC Functional dependent scaling parameters (s6,sr6,s8) for the DFT-D3 method,"//&
-                        "  if set to zero CP2K attempts"//&
+                        " if set to zero CP2K attempts"//&
                         " to guess the xc functional from REFERENCE_FUNCTIONAL and sets the associated scaling parameter.",&
-            usage="D3_SCALING 1.0 1.0 1.0", n_var=3, default_r_vals=(/0.0_dp,0.0_dp,0.0_dp/),required=.FALSE.,error=error)
+            usage="D3_SCALING 1.0 1.0 1.0", n_var=3, &
+            default_r_vals=(/0.0_dp,0.0_dp,0.0_dp/),required=.FALSE.,error=error)
+       CALL section_add_keyword(subsection,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+       CALL keyword_create(keyword,name="D3BJ_SCALING",&
+            description="XC Functional dependent scaling parameters (s6,a1,s8,a2) for the DFT-D3(BJ) method,"//&
+                        " if set to zero CP2K attempts"//&
+                        " to guess the xc functional from REFERENCE_FUNCTIONAL and sets the associated scaling parameter.",&
+            usage="D3BJ_SCALING 1.0 1.0 1.0 1.0", n_var=4, &
+            default_r_vals=(/0.0_dp,0.0_dp,0.0_dp,0.0_dp/),required=.FALSE.,error=error)
        CALL section_add_keyword(subsection,keyword,error=error)
        CALL keyword_release(keyword,error=error)
        CALL keyword_create(keyword, name="CALCULATE_C9_TERM",&

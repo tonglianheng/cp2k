@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2014  CP2K developers group                          !
+!   Copyright (C) 2000 - 2015  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -10,15 +10,17 @@
 
 MODULE rt_propagation_output
   USE atomic_kind_types,               ONLY: atomic_kind_type
+  USE cp_control_types,                ONLY: dft_control_type
   USE cp_dbcsr_interface,              ONLY: &
-       cp_dbcsr_add, cp_dbcsr_allocate_matrix_set, cp_dbcsr_copy, &
-       cp_dbcsr_create, cp_dbcsr_deallocate_matrix, &
-       cp_dbcsr_deallocate_matrix_set, cp_dbcsr_desymmetrize, &
-       cp_dbcsr_distribution, cp_dbcsr_filter, cp_dbcsr_get_occupation, &
-       cp_dbcsr_init, cp_dbcsr_init_p, cp_dbcsr_iterator, &
-       cp_dbcsr_iterator_blocks_left, cp_dbcsr_iterator_next_block, &
-       cp_dbcsr_iterator_start, cp_dbcsr_iterator_stop, cp_dbcsr_p_type, &
-       cp_dbcsr_type, dbcsr_distribution_mp, dbcsr_mp_group
+       cp_dbcsr_add, cp_dbcsr_allocate_matrix_set, cp_dbcsr_binary_write, &
+       cp_dbcsr_checksum, cp_dbcsr_copy, cp_dbcsr_create, &
+       cp_dbcsr_deallocate_matrix, cp_dbcsr_deallocate_matrix_set, &
+       cp_dbcsr_desymmetrize, cp_dbcsr_distribution, cp_dbcsr_filter, &
+       cp_dbcsr_get_occupation, cp_dbcsr_init, cp_dbcsr_init_p, &
+       cp_dbcsr_iterator, cp_dbcsr_iterator_blocks_left, &
+       cp_dbcsr_iterator_next_block, cp_dbcsr_iterator_start, &
+       cp_dbcsr_iterator_stop, cp_dbcsr_p_type, cp_dbcsr_type, &
+       dbcsr_distribution_mp, dbcsr_mp_group
   USE cp_dbcsr_operations,             ONLY: cp_dbcsr_sm_fm_multiply
   USE cp_fm_basic_linalg,              ONLY: cp_fm_scale_and_add
   USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
@@ -39,7 +41,8 @@ MODULE rt_propagation_output
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type
   USE kahan_sum,                       ONLY: accurate_sum
-  USE kinds,                           ONLY: dp
+  USE kinds,                           ONLY: default_path_length,&
+                                             dp
   USE machine,                         ONLY: m_flush
   USE message_passing,                 ONLY: mp_max
   USE particle_types,                  ONLY: particle_type
@@ -48,7 +51,8 @@ MODULE rt_propagation_output
   USE qs_kind_types,                   ONLY: get_qs_kind_set,&
                                              qs_kind_type
   USE qs_mo_io,                        ONLY: write_rt_mos_to_restart
-  USE qs_rho_types,                    ONLY: qs_rho_type
+  USE qs_rho_types,                    ONLY: qs_rho_get,&
+                                             qs_rho_type
   USE qs_scf_post_dftb,                ONLY: scf_post_calculation_dftb
   USE qs_scf_post_gpw,                 ONLY: qs_scf_post_moments,&
                                              write_available_results,&
@@ -83,19 +87,21 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE rt_prop_output(qs_env,run_type,delta_iter,used_time,error)
     TYPE(qs_environment_type), POINTER       :: qs_env
-    INTEGER                                  :: run_type
-    REAL(dp), OPTIONAL                       :: delta_iter, used_time
+    INTEGER, INTENT(in)                      :: run_type
+    REAL(dp), INTENT(in), OPTIONAL           :: delta_iter, used_time
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     INTEGER                                  :: n_electrons, output_unit
     REAL(dp)                                 :: orthonormality, tot_rho_r
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: qs_tot_rho_r
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_s
+      POINTER                                :: matrix_s, rho_new
     TYPE(cp_fm_p_type), DIMENSION(:), &
       POINTER                                :: mos_new
     TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(qs_kind_type), DIMENSION(:), &
@@ -105,17 +111,28 @@ CONTAINS
     TYPE(section_vals_type), POINTER         :: dft_section, input, &
                                                 rtp_section
 
-    NULLIFY(logger)
+    NULLIFY(logger, dft_control)
 
     logger => cp_error_get_logger(error)
-    CALL get_qs_env(qs_env=qs_env,rtp=rtp,matrix_s=matrix_s,input=input,rho=rho,particle_set=particle_set,&
-         atomic_kind_set=atomic_kind_set,qs_kind_set=qs_kind_set,error=error)
+    CALL get_qs_env(qs_env,&
+                    rtp=rtp,&
+                    matrix_s=matrix_s,&
+                    input=input,&
+                    rho=rho,&
+                    particle_set=particle_set,&
+                    atomic_kind_set=atomic_kind_set,&
+                    qs_kind_set=qs_kind_set,&
+                    dft_control=dft_control,&
+                    error=error)
+
     rtp_section => section_vals_get_subs_vals(input,"DFT%REAL_TIME_PROPAGATION",error=error)
 
     CALL get_qs_kind_set(qs_kind_set, nelectron=n_electrons)
-    n_electrons = n_electrons - qs_env%dft_control%charge
+    n_electrons = n_electrons - dft_control%charge
 
-    tot_rho_r = accurate_sum(rho%tot_rho_r)
+    CALL qs_rho_get(rho_struct=rho,tot_rho_r=qs_tot_rho_r,error=error)
+
+    tot_rho_r = accurate_sum(qs_tot_rho_r)
 
     output_unit=cp_print_key_unit_nr(logger,rtp_section,"PRINT%PROGRAM_RUN_INFO",&
             extension=".scfLog",error=error)
@@ -154,7 +171,7 @@ CONTAINS
     IF(rtp%converged) THEN
        IF(.NOT.rtp%linear_scaling) THEN
           CALL get_rtp(rtp=rtp,mos_new=mos_new,error=error)
-          CALL rt_calculate_orthonormality(output_unit,orthonormality,&
+          CALL rt_calculate_orthonormality(orthonormality,&
                mos_new,matrix_s(1)%matrix,error)
           IF(output_unit>0)&
                WRITE(output_unit,FMT="(/,(T3,A,T60,F20.10))")&
@@ -168,9 +185,11 @@ CONTAINS
          "PRINT%PROGRAM_RUN_INFO", error=error)
 
     IF(rtp%converged)THEN
-       IF(qs_env%dft_control%qs_control%dftb)THEN
+       IF(dft_control%qs_control%dftb)THEN
           IF (rtp%linear_scaling) THEN
-            !TODO: make a restart for density propagation
+             CALL make_moment(qs_env,error)
+             CALL get_rtp(rtp=rtp,rho_new=rho_new,error=error)
+             IF (rtp%write_restart) CALL write_rt_p_to_restart(rho_new,error)
           ELSE
              CALL make_moment(qs_env,error)
              CALL get_rtp(rtp=rtp,mos_new=mos_new,error=error)
@@ -179,14 +198,16 @@ CONTAINS
                             dft_section,atomic_kind_set,qs_kind_set,error)
           END IF
        ELSE
+          dft_section =>  section_vals_get_subs_vals(input,"DFT",error=error)
           IF (rtp%linear_scaling) THEN
+             CALL make_moment(qs_env,error)
              CALL write_mo_free_results(qs_env,error)
-             !TODO: make a restart for density propagation
+             CALL get_rtp(rtp=rtp,rho_new=rho_new,error=error)
+             IF (rtp%write_restart) CALL write_rt_p_to_restart(rho_new,error)
           ELSE
              CALL make_moment(qs_env,error)
              CALL write_available_results(qs_env=qs_env,error=error)
              CALL get_rtp(rtp=rtp,mos_new=mos_new,error=error)
-             dft_section =>  section_vals_get_subs_vals(input,"DFT",error=error)
              CALL write_rt_mos_to_restart(qs_env%mos,mos_new,particle_set,&
                                dft_section,atomic_kind_set,qs_kind_set,error)
           ENDIF
@@ -200,16 +221,14 @@ CONTAINS
 ! *****************************************************************************
 !> \brief computes the effective orthonormality of a set of mos given an s-matrix
 !>        orthonormality is the max deviation from unity of the C^T S C
-!> \param unit_nr ...
 !> \param orthonormality ...
 !> \param mos_new ...
 !> \param matrix_s ...
 !> \param error ...
 !> \author Florian Schiffmann (02.09)
 ! *****************************************************************************
-  SUBROUTINE rt_calculate_orthonormality(unit_nr,orthonormality,mos_new,matrix_s,error)
-    INTEGER                                  :: unit_nr
-    REAL(KIND=dp)                            :: orthonormality
+  SUBROUTINE rt_calculate_orthonormality(orthonormality,mos_new,matrix_s,error)
+    REAL(KIND=dp), INTENT(out)               :: orthonormality
     TYPE(cp_fm_p_type), DIMENSION(:), &
       POINTER                                :: mos_new
     TYPE(cp_dbcsr_type), OPTIONAL, POINTER   :: matrix_s
@@ -276,10 +295,6 @@ CONTAINS
    CALL mp_max(max_alpha,mos_new(1)%matrix%matrix_struct%para_env%group)
    CALL mp_max(max_beta,mos_new(1)%matrix%matrix_struct%para_env%group)
    orthonormality=max_alpha
-   IF(unit_nr>0)THEN
-
-   END IF
-
 
    CALL timestop(handle)
 
@@ -287,19 +302,21 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief computs the convergence criterium for RTP and EMD
-!> \param qs_env ...
+!> \param rtp ...
+!> \param matrix_s Overlap matrix without the derivatives
 !> \param delta_mos ...
 !> \param delta_eps ...
 !> \param error ...
 !> \author Florian Schiffmann (02.09)
 ! *****************************************************************************
 
- SUBROUTINE rt_convergence(qs_env,delta_mos,delta_eps,error)
+ SUBROUTINE rt_convergence(rtp,matrix_s,delta_mos,delta_eps,error)
 
-    TYPE(qs_environment_type), POINTER       :: qs_env
+    TYPE(rt_prop_type), POINTER              :: rtp
+    TYPE(cp_dbcsr_type), POINTER             :: matrix_s
     TYPE(cp_fm_p_type), DIMENSION(:), &
       POINTER                                :: delta_mos
-    REAL(dp)                                 :: delta_eps
+    REAL(dp), INTENT(out)                    :: delta_eps
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'rt_convergence', &
@@ -311,23 +328,17 @@ CONTAINS
                                                 nmo, nspin, re
     LOGICAL                                  :: double_col, double_row
     REAL(KIND=dp)                            :: alpha, max_alpha
-    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
-      POINTER                                :: matrixv_s
-    TYPE(cp_dbcsr_type), POINTER             :: matrix_s
     TYPE(cp_fm_p_type), DIMENSION(:), &
       POINTER                                :: mos_new
     TYPE(cp_fm_struct_type), POINTER         :: newstruct, newstruct1, &
                                                 tmp_fm_struct
     TYPE(cp_fm_type), POINTER                :: work, work1, work2
-    TYPE(rt_prop_type), POINTER              :: rtp
 
    NULLIFY(tmp_fm_struct)
 
    CALL timeset(routineN,handle)
 
-   CALL get_qs_env(qs_env=qs_env,matrix_s=matrixv_s,rtp=rtp,error=error)
    CALL get_rtp(rtp=rtp,mos_new=mos_new,error=error)
-   matrix_s=>matrixv_s(1)%matrix
 
    nspin=SIZE(delta_mos)/2
    max_alpha=0.0_dp
@@ -415,19 +426,19 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief computs the convergence criterium for RTP and EMD based on the density matrix
-!> \param qs_env ...
+!> \param rtp ...
 !> \param delta_P ...
 !> \param delta_eps ...
 !> \param error ...
 !> \author Samuel Andermatt (02.14)
 ! *****************************************************************************
 
- SUBROUTINE rt_convergence_density(qs_env,delta_P,delta_eps,error)
+ SUBROUTINE rt_convergence_density(rtp,delta_P,delta_eps,error)
 
-    TYPE(qs_environment_type), POINTER       :: qs_env
+    TYPE(rt_prop_type), POINTER              :: rtp
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: delta_P
-    REAL(dp)                                 :: delta_eps
+    REAL(dp), INTENT(out)                    :: delta_eps
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'rt_convergence_density', &
@@ -443,13 +454,11 @@ CONTAINS
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: rho_new
     TYPE(cp_dbcsr_type), POINTER             :: tmp
-    TYPE(rt_prop_type), POINTER              :: rtp
 
    CALL timeset(routineN,handle)
 
    failure=.FALSE.
 
-   CALL get_qs_env(qs_env=qs_env,rtp=rtp,error=error)
    CALL get_rtp(rtp=rtp,rho_new=rho_new,error=error)
 
    DO i=1,SIZE(rho_new)
@@ -508,17 +517,18 @@ CONTAINS
 
     INTEGER                                  :: handle, output_unit
     TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(section_vals_type), POINTER         :: dft_section, input
 
     CALL timeset(routineN,handle)
 
-    NULLIFY(input)
+    NULLIFY(input, dft_control)
 
     logger => cp_error_get_logger(error)
     output_unit= cp_logger_get_default_io_unit(logger)
-    CALL get_qs_env(qs_env,input=input,error=error)
+    CALL get_qs_env(qs_env, input=input, dft_control=dft_control, error=error)
     dft_section => section_vals_get_subs_vals(qs_env%input,"DFT",error=error)
-    IF(qs_env%dft_control%qs_control%dftb)THEN
+    IF(dft_control%qs_control%dftb)THEN
        CALL scf_post_calculation_dftb(dft_section, qs_env=qs_env, error=error) 
     ELSE
        CALL qs_scf_post_moments(input, logger, qs_env, output_unit, error)
@@ -587,5 +597,58 @@ CONTAINS
     CALL timestop(handle)
 
   END SUBROUTINE report_density_occupation
+
+! *****************************************************************************
+!> \brief Writes the density matrix and the atomic positions to a restart file
+!> \param rho_new ...
+!> \param error ...
+!> \author Samuel Andermatt (09.14)
+! *****************************************************************************
+
+  SUBROUTINE write_rt_p_to_restart(rho_new,error)
+
+    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+      POINTER                                :: rho_new
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'write_rt_p_to_restart', &
+      routineP = moduleN//':'//routineN
+
+    CHARACTER(LEN=default_path_length)       :: file_name, project_name
+    INTEGER                                  :: handle, im, ispin, re, unit_nr
+    LOGICAL                                  :: failure
+    REAL(KIND=dp)                            :: cs_pos
+    TYPE(cp_logger_type), POINTER            :: logger
+
+    CALL timeset(routineN,handle)
+    failure = .FALSE.
+    logger => cp_error_get_logger(error)
+    IF (logger%para_env%mepos==logger%para_env%source) THEN
+       unit_nr=cp_logger_get_default_unit_nr(logger,local=.TRUE.)
+    ELSE
+       unit_nr=-1
+    ENDIF
+
+    project_name = logger%iter_info%project_name
+    DO ispin=1,SIZE(rho_new)/2
+       re=2*ispin-1
+       im=2*ispin
+       WRITE(file_name,'(A,I0,A)') TRIM(project_name)//"_LS_DM_SPIN_RE",ispin,"_RESTART.dm"
+       cs_pos = cp_dbcsr_checksum (rho_new(re)%matrix, pos=.TRUE., error=error)
+       IF (unit_nr>0) THEN
+          WRITE(unit_nr,'(T2,A,E20.8)') "Writing restart DM "//TRIM(file_name)//" with checksum: ",cs_pos
+       ENDIF
+       CALL cp_dbcsr_binary_write(rho_new(re)%matrix,file_name,error)
+       WRITE(file_name,'(A,I0,A)') TRIM(project_name)//"_LS_DM_SPIN_IM",ispin,"_RESTART.dm"
+       cs_pos = cp_dbcsr_checksum (rho_new(im)%matrix, pos=.TRUE., error=error)
+       IF (unit_nr>0) THEN
+          WRITE(unit_nr,'(T2,A,E20.8)') "Writing restart DM "//TRIM(file_name)//" with checksum: ",cs_pos
+       ENDIF
+       CALL cp_dbcsr_binary_write(rho_new(im)%matrix,file_name,error)
+    ENDDO
+
+    CALL timestop(handle)
+
+  END SUBROUTINE write_rt_p_to_restart
 
 END MODULE rt_propagation_output

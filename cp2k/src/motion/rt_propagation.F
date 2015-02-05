@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2014  CP2K developers group                          !
+!   Copyright (C) 2000 - 2015  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -11,6 +11,7 @@
 MODULE rt_propagation
   USE cp_control_types,                ONLY: dft_control_type,&
                                              rtp_control_type
+  USE cp_dbcsr_interface,              ONLY: cp_dbcsr_p_type
   USE cp_external_control,             ONLY: external_control
   USE cp_fm_pool_types,                ONLY: cp_fm_pool_p_type
   USE cp_fm_types,                     ONLY: cp_fm_p_type,&
@@ -42,12 +43,11 @@ MODULE rt_propagation
   USE qs_energy_types,                 ONLY: qs_energy_type
   USE qs_energy_utils,                 ONLY: qs_energies_init
   USE qs_environment_types,            ONLY: get_qs_env,&
-                                             qs_environment_type,&
-                                             set_qs_env
+                                             qs_environment_type
   USE qs_external_potential,           ONLY: external_c_potential,&
                                              external_e_potential
-  USE qs_ks_methods,                   ONLY: qs_ks_did_change,&
-                                             qs_ks_update_qs_env
+  USE qs_ks_methods,                   ONLY: qs_ks_update_qs_env
+  USE qs_ks_types,                     ONLY: qs_ks_did_change
   USE qs_matrix_pools,                 ONLY: mpools_get
   USE qs_mo_types,                     ONLY: get_mo_set,&
                                              init_mo_set,&
@@ -56,6 +56,7 @@ MODULE rt_propagation
                                              apply_delta_pulse_periodic
   USE rt_hfx_utils,                    ONLY: rtp_hfx_rebuild
   USE rt_propagation_methods,          ONLY: calc_update_rho,&
+                                             calc_update_rho_sparse,&
                                              propagation_step
   USE rt_propagation_output,           ONLY: rt_prop_output
   USE rt_propagation_types,            ONLY: get_rtp,&
@@ -97,7 +98,11 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: aspc_order
+    INTEGER, DIMENSION(2)                    :: nelectron_spin
     LOGICAL                                  :: failure
+    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+      POINTER                                :: matrix_ks, matrix_s
+    TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(global_environment_type), POINTER   :: globenv
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(rt_prop_type), POINTER              :: rtp
@@ -107,11 +112,11 @@ CONTAINS
                                                 motion_section
 
     failure=.FALSE.
-    NULLIFY(qs_env,rtp_control)
+    NULLIFY(qs_env,rtp_control,dft_control)
 
     CALL force_env_get(force_env=force_env,qs_env=qs_env,globenv=globenv,error=error)
-    CALL set_qs_env(qs_env=qs_env,atprop=force_env%atprop_env,error=error)
-    rtp_control=>qs_env%dft_control%rtp_control
+    CALL get_qs_env(qs_env, dft_control=dft_control, error=error)
+    rtp_control=>dft_control%rtp_control
 
 
     ! Takes care that an initial wavefunction/density is available
@@ -134,6 +139,7 @@ CONTAINS
 
     ls_scf_section => section_vals_get_subs_vals(input,"DFT%LS_SCF",error=error)
     CALL section_vals_val_get(ls_scf_section,"EPS_FILTER",r_val=rtp%filter_eps,error=error)
+    IF(.NOT.qs_env%rtp%linear_scaling) rtp%filter_eps = 0.0_dp
     IF(rtp_control%acc_ref<1) rtp_control%acc_ref=1
     rtp%filter_eps_small=rtp%filter_eps/rtp_control%acc_ref
     CALL section_vals_val_get(ls_scf_section,"EPS_LANCZOS",r_val=rtp%lanzcos_threshold,error=error)
@@ -141,17 +147,20 @@ CONTAINS
     CALL section_vals_val_get(ls_scf_section,"SIGN_SQRT_ORDER",i_val=rtp%newton_schulz_order,error=error)
     CALL section_vals_get(hfx_sections,explicit=rtp%do_hfx,error=error)
 
-    IF(qs_env%rtp%linear_scaling.AND.rtp_control%initial_wfn==use_scf_wfn)&
-        CALL rt_initialize_rho_from_ks(qs_env,qs_env%rtp,rtp_control,error=error)
- 
     ! Hmm, not really like to initialize with the structure of S but I reckon it is
     ! done everywhere like this
-    IF(rtp%do_hfx)THEN
-       ALLOCATE(rtp%rtp_hfx)
-       NULLIFY(rtp%rtp_hfx%matrix_p_im,rtp%rtp_hfx%matrix_ks_im,&
-               rtp%rtp_hfx%matrix_p_admm_im,rtp%rtp_hfx%matrix_ks_admm_im)
+    IF(rtp%do_hfx)&
        CALL rtp_hfx_rebuild(qs_env,error)
-    END IF
+
+    IF(qs_env%rtp%linear_scaling.AND.rtp_control%initial_wfn==use_scf_wfn) THEN
+       CALL get_qs_env(qs_env,&
+                       matrix_ks=matrix_ks,&
+                       matrix_s=matrix_s,&
+                       nelectron_spin=nelectron_spin,&
+                       error=error)
+       CALL rt_initialize_rho_from_ks(rtp,matrix_ks,matrix_s,nelectron_spin,rtp_control%orthonormal,error=error)
+       CALL calc_update_rho_sparse(qs_env,error)
+    ENDIF
 
     IF(rtp_control%fixed_ions) THEN
        CALL init_propagation_run(qs_env,error)
@@ -177,25 +186,32 @@ CONTAINS
     REAL(KIND=dp), PARAMETER                 :: one = 1.0_dp , zero = 0.0_dp
 
     INTEGER                                  :: i
+    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+      POINTER                                :: matrix_s
     TYPE(cp_fm_p_type), DIMENSION(:), &
       POINTER                                :: mos_new, mos_old
+    TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mos
     TYPE(rt_prop_type), POINTER              :: rtp
     TYPE(rtp_control_type), POINTER          :: rtp_control
 
+    NULLIFY(matrix_s,dft_control)
+
     CALL get_qs_env(qs_env,&
-         rtp=rtp,&
-         error=error)
-    rtp_control=>qs_env%dft_control%rtp_control
+                    rtp=rtp,&
+                    matrix_s=matrix_s,&
+                    dft_control=dft_control,&
+                    error=error)
+    rtp_control=>dft_control%rtp_control
 
     IF(.NOT.rtp%linear_scaling) THEN
        CALL get_qs_env(qs_env,mos=mos,error=error)
        CALL get_rtp(rtp=rtp,mos_old=mos_old,mos_new=mos_new,error=error)
        IF(rtp_control%initial_wfn==use_scf_wfn)THEN
          IF (rtp_control%apply_delta_pulse) THEN
-            IF(qs_env%dft_control%qs_control%dftb)&
-               CALL build_dftb_overlap(qs_env,1,qs_env%matrix_s,error)
+            IF(dft_control%qs_control%dftb)&
+               CALL build_dftb_overlap(qs_env,1,matrix_s,error)
             IF (rtp_control%periodic) THEN
               CALL apply_delta_pulse_periodic(qs_env,mos_old,mos_new,error)
             ELSE
@@ -214,9 +230,8 @@ CONTAINS
        END DO
        CALL calc_update_rho(qs_env,error)
     END IF
-  
-    CALL qs_ks_update_qs_env(qs_env%ks_env,qs_env=qs_env,calculate_forces=.FALSE.,&
-                             error=error)
+
+    CALL qs_ks_update_qs_env(qs_env, calculate_forces=.FALSE., error=error)
 
     CALL init_propagators(qs_env,error)
 
@@ -241,18 +256,22 @@ CONTAINS
     INTEGER                                  :: i
     TYPE(cp_fm_p_type), DIMENSION(:), &
       POINTER                                :: mos_new, mos_old
+    TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mos
     TYPE(qs_energy_type), POINTER            :: energy
     TYPE(rt_prop_type), POINTER              :: rtp
     TYPE(rtp_control_type), POINTER          :: rtp_control
 
+    NULLIFY(dft_control)
+
      CALL get_qs_env(qs_env,&
-         mos=mos,&
-         rtp=rtp,&
-         energy=energy,&
-         error=error)
-     rtp_control=>qs_env%dft_control%rtp_control
+                     mos=mos,&
+                     rtp=rtp,&
+                     energy=energy,&
+                     dft_control=dft_control,&
+                     error=error)
+     rtp_control=>dft_control%rtp_control
 
      IF(.NOT.rtp%linear_scaling) THEN 
         CALL get_rtp(rtp=rtp,mos_old=mos_old,mos_new=mos_new,error=error)
@@ -343,8 +362,7 @@ CONTAINS
               CALL qs_ks_did_change(qs_env%ks_env,s_mstruct_changed=.TRUE., error=error)
           rtp%iter=i_iter
           CALL propagation_step(qs_env,rtp, rtp_control, error=error)
-          CALL qs_ks_update_qs_env(qs_env%ks_env,qs_env=qs_env,calculate_forces=.FALSE.,&
-               error=error)
+          CALL qs_ks_update_qs_env(qs_env, calculate_forces=.FALSE., error=error)
           rtp%energy_new=energy%total
           IF(rtp%converged)EXIT
           CALL rt_prop_output(qs_env,real_time_propagation,rtp%delta_iter,error=error)
@@ -361,8 +379,6 @@ CONTAINS
        ELSE
           EXIT
        END IF
-
-
     END DO
     CALL cp_rm_iter_level(logger%iter_info,"MD",error=error)
 
@@ -429,11 +445,17 @@ CONTAINS
       routineP = moduleN//':'//routineN
     REAL(KIND=dp), PARAMETER                 :: one = 1.0_dp , zero = 0.0_dp
 
-    INTEGER                                  :: homo, ispin, stat
+    INTEGER                                  :: homo, ispin
     LOGICAL                                  :: energy_consistency, failure
+    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+      POINTER                                :: matrix_s
     TYPE(cp_fm_pool_p_type), DIMENSION(:), &
       POINTER                                :: ao_mo_fm_pools_aux_fit
     TYPE(cp_fm_type), POINTER                :: mo_coeff, mo_coeff_aux_fit
+    TYPE(dft_control_type), POINTER          :: dft_control
+
+    NULLIFY(matrix_s,dft_control)
+    CALL get_qs_env(qs_env, dft_control=dft_control, error=error)
 
     SELECT CASE(rtp_control%initial_wfn)
     CASE(use_scf_wfn)
@@ -445,48 +467,45 @@ CONTAINS
        CALL force_env_calc_energy_force(force_env,calc_force=.FALSE.,&
             consistent_energies=energy_consistency,error=error)
        qs_env%run_rtp=.TRUE.
-       ALLOCATE(qs_env%rtp, stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-
-       CALL rt_prop_create(qs_env%rtp,qs_env%mos,qs_env%mpools,qs_env%dft_control,qs_env%matrix_s(1)%matrix,&
-                           rtp_control%linear_scaling,qs_env%mos_aux_fit,error)
+       ALLOCATE(qs_env%rtp)
+       CALL get_qs_env(qs_env, matrix_s=matrix_s, error=error)
+       CALL rt_prop_create(qs_env%rtp,qs_env%mos,qs_env%mpools,dft_control,matrix_s(1)%matrix,&
+                           rtp_control%linear_scaling,rtp_control%write_restart,qs_env%mos_aux_fit,error)
 
     CASE(use_restart_wfn,use_rt_restart)
        CALL qs_energies_init(qs_env, .FALSE. , error)
-       DO ispin=1,SIZE(qs_env%mos)
-          CALL get_mo_set(qs_env%mos(ispin)%mo_set,mo_coeff=mo_coeff,homo=homo)
-          IF (.NOT.ASSOCIATED(mo_coeff)) THEN
-             CALL init_mo_set(qs_env%mos(ispin)%mo_set,&
-                  qs_env%mpools%ao_mo_fm_pools(ispin)%pool,&
-                  name="qs_env"//TRIM(ADJUSTL(cp_to_string(qs_env%id_nr)))//&
-                  "%mo"//TRIM(ADJUSTL(cp_to_string(ispin))),&
-                  error=error)
-          END IF
-       END DO
-
-       IF(qs_env%dft_control%do_admm) THEN
-          CALL mpools_get(qs_env%mpools_aux_fit, ao_mo_fm_pools=ao_mo_fm_pools_aux_fit,&
-               error=error)
-          CPPrecondition(ASSOCIATED(qs_env%mos_aux_fit),cp_failure_level,routineP,error,failure)
-          DO ispin=1,SIZE(qs_env%mos_aux_fit)
-             CALL get_mo_set(qs_env%mos_aux_fit(ispin)%mo_set,mo_coeff=mo_coeff_aux_fit,homo=homo)
-             IF (.NOT.ASSOCIATED(mo_coeff_aux_fit)) THEN
-                CALL init_mo_set(qs_env%mos_aux_fit(ispin)%mo_set,&
-                     ao_mo_fm_pools_aux_fit(ispin)%pool,&
+       IF(.NOT.rtp_control%linear_scaling.OR.rtp_control%initial_wfn==use_restart_wfn) THEN
+          DO ispin=1,SIZE(qs_env%mos)
+             CALL get_mo_set(qs_env%mos(ispin)%mo_set,mo_coeff=mo_coeff,homo=homo)
+             IF (.NOT.ASSOCIATED(mo_coeff)) THEN
+                CALL init_mo_set(qs_env%mos(ispin)%mo_set,&
+                     qs_env%mpools%ao_mo_fm_pools(ispin)%pool,&
                      name="qs_env"//TRIM(ADJUSTL(cp_to_string(qs_env%id_nr)))//&
-                     "%mo_aux_fit"//TRIM(ADJUSTL(cp_to_string(ispin))),&
+                     "%mo"//TRIM(ADJUSTL(cp_to_string(ispin))),&
                      error=error)
              END IF
           END DO
-       END IF
-
-       ALLOCATE(qs_env%rtp, stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-
-       CALL rt_prop_create(qs_env%rtp,qs_env%mos,qs_env%mpools,qs_env%dft_control,qs_env%matrix_s(1)%matrix,&
-                           rtp_control%linear_scaling,qs_env%mos_aux_fit,error)
+          IF(dft_control%do_admm) THEN
+             CALL mpools_get(qs_env%mpools_aux_fit, ao_mo_fm_pools=ao_mo_fm_pools_aux_fit,&
+                  error=error)
+             CPPrecondition(ASSOCIATED(qs_env%mos_aux_fit),cp_failure_level,routineP,error,failure)
+             DO ispin=1,SIZE(qs_env%mos_aux_fit)
+                CALL get_mo_set(qs_env%mos_aux_fit(ispin)%mo_set,mo_coeff=mo_coeff_aux_fit,homo=homo)
+                IF (.NOT.ASSOCIATED(mo_coeff_aux_fit)) THEN
+                   CALL init_mo_set(qs_env%mos_aux_fit(ispin)%mo_set,&
+                        ao_mo_fm_pools_aux_fit(ispin)%pool,&
+                        name="qs_env"//TRIM(ADJUSTL(cp_to_string(qs_env%id_nr)))//&
+                        "%mo_aux_fit"//TRIM(ADJUSTL(cp_to_string(ispin))),&
+                        error=error)
+                END IF
+             END DO
+          END IF
+       ENDIF
+       ALLOCATE(qs_env%rtp)
+       CALL get_qs_env(qs_env, matrix_s=matrix_s, error=error)
+       CALL rt_prop_create(qs_env%rtp,qs_env%mos,qs_env%mpools,dft_control,matrix_s(1)%matrix,&
+                           rtp_control%linear_scaling,rtp_control%write_restart,qs_env%mos_aux_fit,error)
        CALL get_restart_wfn(qs_env,error)
-
 
        qs_env%run_rtp=.TRUE.
     END SELECT

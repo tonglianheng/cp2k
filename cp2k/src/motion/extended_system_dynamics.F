@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2014  CP2K developers group                          !
+!   Copyright (C) 2000 - 2015  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -18,7 +18,6 @@ MODULE extended_system_dynamics
   USE extended_system_types,           ONLY: lnhc_parameters_type,&
                                              map_info_type,&
                                              npt_info_type
-  USE f77_blas
   USE kinds,                           ONLY: dp
   USE molecule_kind_types,             ONLY: molecule_kind_type
   USE molecule_types_new,              ONLY: molecule_type

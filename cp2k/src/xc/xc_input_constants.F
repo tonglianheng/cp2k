@@ -1,11 +1,14 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2014  CP2K developers group                          !
+!   Copyright (C) 2000 - 2015  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 ! *****************************************************************************
 !> \brief input constants for xc
 ! *****************************************************************************
 MODULE xc_input_constants
+  IMPLICIT NONE
+  PRIVATE
+
   INTEGER, PARAMETER, PUBLIC               :: xc_deriv_pw=0,&
                                               xc_deriv_spline2=1,&
                                               xc_deriv_spline3=2,&

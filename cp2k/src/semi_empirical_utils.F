@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2014  CP2K developers group                          !
+!   Copyright (C) 2000 - 2015  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -12,10 +12,9 @@ MODULE semi_empirical_utils
                                              create_gto_from_sto_basis,&
                                              gto_basis_set_type,&
                                              set_sto_basis_set
-  USE cell_methods,                    ONLY: cell_type,&
+  USE cell_types,                      ONLY: cell_type,&
                                              plane_distance
   USE cp_control_types,                ONLY: semi_empirical_control_type
-  USE f77_blas
   USE input_constants,                 ONLY: &
        do_method_am1, do_method_mndo, do_method_mndod, do_method_pchg, &
        do_method_pdg, do_method_pm3, do_method_pm6, do_method_pnnl, &

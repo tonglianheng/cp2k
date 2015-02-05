@@ -1,13 +1,12 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2014  CP2K developers group                          !
+!   Copyright (C) 2000 - 2015  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 ! *****************************************************************************
 MODULE qs_rho0_types
 
   USE cp_units,                        ONLY: cp_unit_from_cp2k
   USE erf_fn,                          ONLY: erf
-  USE f77_blas
   USE kinds,                           ONLY: dp,&
                                              dp_size,&
                                              int_size
@@ -42,6 +41,7 @@ MODULE qs_rho0_types
                                                     Qlm_tot,&
                                                     Qlm_car
     REAL(dp)                                    ::  Qlm_z
+    REAL(dp), DIMENSION(2)                      ::  Q0
   END TYPE mpole_rho_atom
 
 ! *****************************************************************************
@@ -613,6 +613,7 @@ CONTAINS
    ELSE
       mp_rho%Qlm_z = 0.0_dp
    END IF
+   mp_rho%Q0 = 0.0_dp
 
   END SUBROUTINE initialize_mpole_rho
 

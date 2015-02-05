@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2014  CP2K developers group                          !
+!   Copyright (C) 2000 - 2015  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -17,7 +17,6 @@ MODULE cp_cfm_diag
   USE cp_cfm_types,                    ONLY: cp_cfm_get_info,&
                                              cp_cfm_to_cfm,&
                                              cp_cfm_type
-  USE f77_blas
   USE kinds,                           ONLY: dp,&
                                              dp_size,&
                                              int_size
@@ -94,14 +93,14 @@ CONTAINS
     descv(:) = eigenvectors%matrix_struct%descriptor(:)
     CALL PZHEEVD('V','U',n,m(1,1),1,1,descm,eigenvalues(1),v(1,1),1,1,descv,&
                   work(1),lwork,rwork(1),lrwork,iwork(1),liwork,info)
-    lwork  = work(1)
-    lrwork = rwork(1) + 1000000 ! needed to correct for a bug in scalapack, unclear how much the right number is
+    lwork  = INT(REAL(work(1)))
+    lrwork = INT(REAL(rwork(1))) + 1000000 ! needed to correct for a bug in scalapack, unclear how much the right number is
     liwork = iwork(1)
 #else
     CALL ZHEEVD('V','U',n,m(1,1),SIZE(m,1),eigenvalues(1),&
                 work(1),lwork,rwork(1),lrwork,iwork(1),liwork,info)
-    lwork  = work(1)
-    lrwork = rwork(1)
+    lwork  = INT(REAL(work(1)))
+    lrwork = INT(REAL(rwork(1)))
     liwork = iwork(1)
 #endif
 

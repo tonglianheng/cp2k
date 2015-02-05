@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2014  CP2K developers group                          !
+!   Copyright (C) 2000 - 2015  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -10,7 +10,7 @@
 !>      none
 ! *****************************************************************************
 MODULE gopt_param_types
-  USE f77_blas
+  
   USE input_constants,                 ONLY: default_bfgs_method_id,&
                                              default_cell_method_id,&
                                              default_cg_method_id,&

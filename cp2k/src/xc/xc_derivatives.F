@@ -1,11 +1,11 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2014  CP2K developers group                          !
+!   Copyright (C) 2000 - 2015  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
 MODULE xc_derivatives
-  USE f77_blas
+  
   USE input_section_types,             ONLY: section_vals_get_subs_vals2,&
                                              section_vals_type,&
                                              section_vals_val_get
@@ -421,7 +421,8 @@ SUBROUTINE xc_functional_eval(functional, lsd, rho_set, deriv_set, &
      CALL section_vals_val_get(functional,"_SECTION_PARAMETERS_",&
           l_val=fun_active,error=error)
      IF (.NOT.fun_active) THEN
-        go to 123
+        CALL timestop(handle)
+        RETURN
      END IF
 
      SELECT CASE(functional%section%name)
@@ -617,7 +618,7 @@ CPSourceFileRef,&
              error=error)
      END SELECT
   END IF
-123 CONTINUE
+
   CALL timestop(handle)
 END SUBROUTINE xc_functional_eval
 

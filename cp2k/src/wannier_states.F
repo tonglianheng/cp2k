@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2014  CP2K developers group                          !
+!   Copyright (C) 2000 - 2015  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -24,14 +24,14 @@ MODULE wannier_states
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_units,                        ONLY: cp_unit_from_cp2k
-  USE f77_blas
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type,&
                                              section_vals_val_get
   USE kinds,                           ONLY: default_string_length,&
                                              dp
   USE molecule_types_new,              ONLY: molecule_type
-  USE qs_environment_types,            ONLY: qs_environment_type
+  USE qs_environment_types,            ONLY: get_qs_env,&
+                                             qs_environment_type
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE wannier_states_types,            ONLY: wannier_centres_type
@@ -102,12 +102,12 @@ CONTAINS
 !-----------------------------------------------------------------------
 
     CALL timeset(routineN,handle)
+    NULLIFY(logger, para_env)
     failure = .FALSE.
 
-    para_env => qs_env % para_env
+    CALL get_qs_env(qs_env, para_env=para_env, error=error)
     nproc = para_env%num_pe
 
-    NULLIFY(logger)
     logger => cp_error_get_logger(error)
     output_unit = cp_logger_get_default_io_unit(logger)
     CALL cp_fm_get_info(mo_localized, &

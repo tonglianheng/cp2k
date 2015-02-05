@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2014  CP2K developers group                          !
+!   Copyright (C) 2000 - 2015  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -35,7 +35,7 @@ MODULE qs_linres_polar_utils
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_result_methods,               ONLY: cp_results_erase,&
                                              put_results
-  USE f77_blas
+  USE cp_result_types,                 ONLY: cp_result_type
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type,&
                                              section_vals_val_get
@@ -340,12 +340,15 @@ CONTAINS
     REAL(dp), DIMENSION(:, :), POINTER       :: polar
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(cp_result_type), POINTER            :: results
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(section_vals_type), POINTER         :: polar_section
 
     failure = .FALSE.
 
-    NULLIFY(logger,dft_control,para_env)
+    NULLIFY(logger,dft_control,para_env,results)
+    CALL get_qs_env(qs_env=qs_env, results=results, dft_control=dft_control,&
+                    para_env=para_env, error=error)
 
     logger => cp_error_get_logger(error)
     output_unit= cp_logger_get_default_io_unit(logger)
@@ -353,17 +356,11 @@ CONTAINS
     polar_section => section_vals_get_subs_vals(qs_env%input, &
          "PROPERTIES%LINRES%POLAR",error=error)
 
-    !
-   
-    CALL get_polar_env(polar_env=polar_env, &
-                     polar=polar, do_raman=do_raman, error=error)
-               description="[POLAR]"
-       CALL cp_results_erase(results=qs_env%results,description=description,error=error)
-       CALL put_results(results=qs_env%results,description=description,&
-                        values=polar(:,:),error=error)                     
-    CALL get_qs_env(qs_env=qs_env, &
-                   dft_control=dft_control, para_env=para_env, error=error)
+    CALL get_polar_env(polar_env=polar_env, polar=polar, do_raman=do_raman, error=error)
 
+    description = "[POLAR]"
+    CALL cp_results_erase(results,description=description,error=error)
+    CALL put_results(results,description=description,values=polar(:,:),error=error)
 
     IF(do_raman)  THEN
       IF(BTEST(cp_print_key_should_output(logger%iter_info,polar_section,&

@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2014  CP2K developers group                          !
+!   Copyright (C) 2000 - 2015  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -12,8 +12,7 @@
 MODULE almo_scf_qs
   USE almo_scf_methods,                ONLY: almo_scf_p_blk_to_t_blk,&
                                              almo_scf_t_blk_to_p,&
-                                             almo_scf_t_blk_to_t_blk_orthonormal,&
-                                             get_overlap
+                                             almo_scf_t_blk_to_t_blk_orthonormal
   USE almo_scf_types,                  ONLY: almo_mat_dim_aobasis,&
                                              almo_mat_dim_occ,&
                                              almo_mat_dim_virt,&
@@ -22,8 +21,8 @@ MODULE almo_scf_qs
                                              almo_scf_env_type
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind
-  USE cell_methods,                    ONLY: pbc
-  USE cell_types,                      ONLY: cell_type
+  USE cell_types,                      ONLY: cell_type,&
+                                             pbc
   USE cp_control_types,                ONLY: dft_control_type
   USE cp_dbcsr_cp2k_link,              ONLY: cp_dbcsr_alloc_block_from_nbl
   USE cp_dbcsr_interface,              ONLY: &
@@ -33,7 +32,7 @@ MODULE almo_scf_qs
        cp_dbcsr_desymmetrize, cp_dbcsr_distribution, &
        cp_dbcsr_distribution_release, cp_dbcsr_filter, cp_dbcsr_finalize, &
        cp_dbcsr_get_block_p, cp_dbcsr_get_info, cp_dbcsr_get_num_blocks, &
-       cp_dbcsr_get_stored_coordinates, cp_dbcsr_init, cp_dbcsr_multiply, &
+       cp_dbcsr_get_stored_coordinates, cp_dbcsr_init, &
        cp_dbcsr_nblkcols_total, cp_dbcsr_nblkrows_total, cp_dbcsr_p_type, &
        cp_dbcsr_release, cp_dbcsr_reserve_block2d, cp_dbcsr_row_block_sizes, &
        cp_dbcsr_set, cp_dbcsr_type, cp_dbcsr_work_create, &
@@ -41,36 +40,31 @@ MODULE almo_scf_qs
        dbcsr_distribution_new, dbcsr_distribution_obj, &
        dbcsr_distribution_row_dist, dbcsr_mp_group, dbcsr_mp_mynode, &
        dbcsr_mp_numnodes, dbcsr_type_no_symmetry
-  USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_units,                        ONLY: cp_unit_to_cp2k
-  USE input_constants,                 ONLY: almo_constraint_ao_overlap,&
-                                             almo_constraint_block_diagonal,&
-                                             almo_constraint_distance,&
-                                             almo_domain_layout_molecular,&
-                                             almo_mat_distr_atomic,&
-                                             almo_mat_distr_molecular,&
-                                             do_bondparm_covalent,&
-                                             do_bondparm_vdw
+  USE input_constants,                 ONLY: &
+       almo_constraint_ao_overlap, almo_constraint_block_diagonal, &
+       almo_constraint_distance, almo_domain_layout_molecular, &
+       almo_mat_distr_atomic, almo_mat_distr_molecular, atomic_guess, &
+       do_bondparm_covalent, do_bondparm_vdw, molecular_guess
   USE input_section_types,             ONLY: section_vals_type
-  USE iterate_matrix,                  ONLY: matrix_sqrt_Newton_Schulz
   USE kinds,                           ONLY: dp
   USE message_passing,                 ONLY: mp_allgather
   USE molecule_types_new,              ONLY: get_molecule_set_info,&
                                              molecule_type
+  USE mscfg_types,                     ONLY: get_matrix_from_submatrices,&
+                                             molecular_scf_guess_env_type
   USE particle_types,                  ONLY: particle_type
   USE qs_energy_types,                 ONLY: qs_energy_type
   USE qs_environment_types,            ONLY: get_qs_env,&
-                                             qs_environment_type,&
-                                             set_qs_env
+                                             qs_environment_type
   USE qs_initial_guess,                ONLY: calculate_atomic_block_dm,&
                                              calculate_mopac_dm
   USE qs_kind_types,                   ONLY: qs_kind_type
-  USE qs_ks_methods,                   ONLY: qs_ks_create,&
-                                             qs_ks_did_change,&
-                                             qs_ks_update_qs_env
-  USE qs_ks_types,                     ONLY: qs_ks_env_type,&
-                                             qs_ks_release
+  USE qs_ks_methods,                   ONLY: qs_ks_update_qs_env
+  USE qs_ks_types,                     ONLY: qs_ks_did_change,&
+                                             qs_ks_env_type,&
+                                             set_ks_env
   USE qs_neighbor_list_types,          ONLY: get_iterator_info,&
                                              neighbor_list_iterate,&
                                              neighbor_list_iterator_create,&
@@ -78,6 +72,8 @@ MODULE almo_scf_qs
                                              neighbor_list_iterator_release,&
                                              neighbor_list_set_p_type
   USE qs_rho_methods,                  ONLY: qs_rho_update_rho
+  USE qs_rho_types,                    ONLY: qs_rho_get,&
+                                             qs_rho_type
   USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
@@ -90,7 +86,7 @@ MODULE almo_scf_qs
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'almo_scf_qs'
 
   PUBLIC :: almo_scf_init_qs, matrix_almo_create, matrix_qs_to_almo,&
-            matrix_almo_to_qs, almo_scf_dm_to_ks, almo_return_to_qs,&
+            almo_scf_dm_to_ks,&
             almo_scf_construct_quencher, almo_scf_update_ks_energy
 
 CONTAINS
@@ -297,7 +293,6 @@ CONTAINS
     CALL array_release(col_sizes_new)
     CALL array_release(row_sizes_new)
     CALL cp_dbcsr_distribution_release(dist_new)
-    ! RZK-warning call cp_dbcsr_finalize (matrix_new, error=error)
 
     ! fill out reqired blocks with 1.0_dp to tell the dbcsr library
     ! which blocks to keep
@@ -534,35 +529,29 @@ CONTAINS
 
     INTEGER                                  :: handle, ispin, nspin, unit_nr
     INTEGER, DIMENSION(2)                    :: nelectron_spin
-    LOGICAL                                  :: has_unit_metric
+    LOGICAL                                  :: failure, has_unit_metric
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_ks, matrix_s
+      POINTER                                :: matrix_ks, matrix_s, rho_ao
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(dft_control_type), POINTER          :: dft_control
+    TYPE(molecular_scf_guess_env_type), &
+      POINTER                                :: mscfg_env
+    TYPE(neighbor_list_set_p_type), &
+      DIMENSION(:), POINTER                  :: sab_orb
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(qs_energy_type), POINTER            :: energy
     TYPE(qs_kind_type), DIMENSION(:), &
       POINTER                                :: qs_kind_set
     TYPE(qs_ks_env_type), POINTER            :: ks_env
+    TYPE(qs_rho_type), POINTER               :: rho
     TYPE(section_vals_type), POINTER         :: input
 
-! This variable might not be necessary
-!    TYPE(section_vals_type), POINTER         :: dft_section, &
-!                                                scf_section
-!    TYPE(qs_scf_env_type), POINTER           :: scf_env
-!    TYPE(scf_control_type), POINTER          :: scf_control
-!    TYPE(mo_set_p_type), DIMENSION(:), &
-!          POINTER                             :: mo_array
-!    TYPE(cp_fm_type), POINTER                 :: mo_coeff, sv
-!    INTEGER                                   :: homo, nao, nmo
-!   TYPE(dbcsr_error_type)                   :: dbcsr_error
-
     CALL timeset(routineN,handle)
-
+    NULLIFY(rho, sab_orb, rho_ao)
     ! get a useful output_unit
     logger => cp_error_get_logger(error)
     IF (logger%para_env%mepos==logger%para_env%source) THEN
@@ -570,8 +559,6 @@ CONTAINS
     ELSE
        unit_nr=-1
     ENDIF
-    
-!CALL timeset("init_qs.init",handle1)
 
     ! get basic quantities from the qs_env
     CALL get_qs_env(qs_env,&
@@ -587,10 +574,13 @@ CONTAINS
                     has_unit_metric=has_unit_metric,&
                     para_env=para_env,&
                     nelectron_spin=nelectron_spin,&
-!                    scf_control=scf_control,&
-!                    scf_env=scf_env,&
-!                    mos=mo_array,&                  
+                    mscfg_env=mscfg_env,&
+                    rho=rho,&
+                    sab_orb=sab_orb,&
                     error=error)
+
+    CALL qs_rho_get(rho, rho_ao=rho_ao, error=error)
+    CPPostcondition(ASSOCIATED(mscfg_env),cp_failure_level,routineP,error,failure)
 
     nspin=dft_control%nspins
 
@@ -602,88 +592,87 @@ CONTAINS
           CALL cp_dbcsr_init(matrix_ks(ispin)%matrix,error=error)
           CALL cp_dbcsr_create(matrix_ks(ispin)%matrix,&
                template=matrix_s(1)%matrix,error=error)
-          CALL cp_dbcsr_alloc_block_from_nbl(matrix_ks(ispin)%matrix,&
-               qs_env%sab_orb,error=error)
+          CALL cp_dbcsr_alloc_block_from_nbl(matrix_ks(ispin)%matrix,sab_orb,error=error)
           CALL cp_dbcsr_set(matrix_ks(ispin)%matrix,0.0_dp,error=error)
        ENDDO
-       CALL set_qs_env(qs_env=qs_env,matrix_ks=matrix_ks,error=error)
+       CALL set_ks_env(ks_env,matrix_ks=matrix_ks,error=error)
     ENDIF
-    ! and ks_env
-    IF (.NOT.ASSOCIATED(ks_env)) THEN
-       CALL qs_ks_create(ks_env,qs_env=qs_env,error=error)
-       CALL set_qs_env(qs_env, ks_env=ks_env,error=error)
-       CALL qs_ks_release(ks_env,error=error)
-    END IF
 
-!CALL timestop(handle1)
-
-!CALL timeset("init_qs.pguess",handle2)
- 
     ! create an initial guess
-    DO ispin=1,nspin
-       CALL cp_dbcsr_set(qs_env%rho%rho_ao(ispin)%matrix,0.0_dp,error=error)
-       IF (dft_control%qs_control%dftb .OR. dft_control%qs_control%semi_empirical) THEN
-          CALL calculate_mopac_dm(qs_env%rho%rho_ao(ispin)%matrix,&
-               matrix_s(1)%matrix, has_unit_metric, &
-               dft_control, particle_set, atomic_kind_set, qs_kind_set,&
-               ispin, nspin, nelectron_spin(ispin),&
-               para_env, error)
-       ELSE
-          CALL calculate_atomic_block_dm(qs_env%rho%rho_ao(ispin)%matrix,&
-               matrix_s(1)%matrix, particle_set, atomic_kind_set, qs_kind_set, &
-               ispin, nspin, nelectron_spin(ispin), unit_nr, error)
-       ENDIF
+    SELECT CASE (almo_scf_env%almo_scf_guess)
+    CASE(molecular_guess)
+       
+       DO ispin=1,nspin
+         
+          ! the calculations on "isolated" molecules has already been done
+          ! all we need to do is convert the MOs of molecules into
+          ! the ALMO matrix taking into account different distributions 
+          CALL get_matrix_from_submatrices(mscfg_env,&
+                  almo_scf_env%matrix_t_blk(ispin), ispin, error)
+          CALL cp_dbcsr_filter(almo_scf_env%matrix_t_blk(ispin),&
+                  almo_scf_env%eps_filter,error=error)
 
-       ! copy the atomic-block dm into matrix_p_blk
-       CALL matrix_qs_to_almo(qs_env%rho%rho_ao(ispin)%matrix,&
-                              almo_scf_env%matrix_p_blk(ispin),almo_scf_env,&
-                              .FALSE.,error)
-       CALL cp_dbcsr_filter(almo_scf_env%matrix_p_blk(ispin),&
-               almo_scf_env%eps_filter,error=error)
+       ENDDO
+       
+    CASE (atomic_guess)
 
-    ENDDO
+       DO ispin=1,nspin
+          CALL cp_dbcsr_set(rho_ao(ispin)%matrix,0.0_dp,error=error)
+          IF (dft_control%qs_control%dftb .OR. dft_control%qs_control%semi_empirical) THEN
+             CALL calculate_mopac_dm(rho_ao(ispin)%matrix,&
+                  matrix_s(1)%matrix, has_unit_metric, &
+                  dft_control, particle_set, atomic_kind_set, qs_kind_set,&
+                  ispin, nspin, nelectron_spin(ispin),&
+                  para_env, error)
+          ELSE
+             CALL calculate_atomic_block_dm(rho_ao(ispin)%matrix,&
+                  matrix_s(1)%matrix, particle_set, atomic_kind_set, qs_kind_set, &
+                  ispin, nspin, nelectron_spin(ispin), unit_nr, error)
+          ENDIF
 
-!CALL timestop(handle2)
-!CALL timeset("init_qs.p2t",handle3  )
-    ! obtain orbitals from density matrix (currently ALMO SCF needs orbitals)
-!CALL timeset("init_qs.p2t.pb2tb",handle31  )
-    ! RZK-warning currently the orbitals are generated
-    ! by diagonalizing p blocks and taking only the
-    ! eigenvectors with highest occupation
-    ! essentially producing the ionic orbitals
-    ! while it works for simple systems this guess
-    ! will lead to convergence problems with complex molecules
-    CALL almo_scf_p_blk_to_t_blk(almo_scf_env,error)
-!CALL timestop(handle31)
-!CALL timeset("init_qs.p2t.tb2tbo",handle32  )
+          ! copy the atomic-block dm into matrix_p_blk
+          CALL matrix_qs_to_almo(rho_ao(ispin)%matrix,&
+                                 almo_scf_env%matrix_p_blk(ispin),almo_scf_env,&
+                                 .FALSE.,error)
+          CALL cp_dbcsr_filter(almo_scf_env%matrix_p_blk(ispin),&
+                  almo_scf_env%eps_filter,error=error)
+
+       ENDDO
+       
+       ! obtain orbitals from density matrix (currently ALMO SCF needs orbitals)
+       ! RZK-warning currently the orbitals are generated
+       ! by diagonalizing p blocks and taking only the
+       ! eigenvectors with highest occupation
+       ! essentially producing the ionic orbitals
+       ! while it works for simple systems this guess
+       ! will lead to convergence problems with complex molecules
+       CALL almo_scf_p_blk_to_t_blk(almo_scf_env,error)
+    
+    END SELECT
+
     CALL almo_scf_t_blk_to_t_blk_orthonormal(almo_scf_env,error)
-!CALL timestop(handle32)
-!CALL timeset("init_qs.p2t.tb2p",handle33  )
     CALL almo_scf_t_blk_to_p(almo_scf_env,&
             use_sigma_inv_guess=.FALSE.,error=error)
-!CALL timestop(handle33)
-!CALL timeset("init_qs.p2t.p2p",handle34 )
 
     DO ispin=1,nspin
        CALL matrix_almo_to_qs(almo_scf_env%matrix_p(ispin),&
-                              qs_env%rho%rho_ao(ispin)%matrix,&
+                              rho_ao(ispin)%matrix,&
                               almo_scf_env,error)
     ENDDO
-!CALL timestop(handle34)
-!CALL timestop(handle3)
-!CALL timeset("init_qs.p2f",handle4)
 
-    CALL qs_rho_update_rho(qs_env%rho,qs_env=qs_env, error=error)
+    CALL qs_rho_update_rho(rho,qs_env=qs_env, error=error)
     CALL qs_ks_did_change(qs_env%ks_env,rho_changed=.TRUE., error=error)
-    CALL qs_ks_update_qs_env(qs_env%ks_env,qs_env=qs_env,&
-         calculate_forces=.FALSE., just_energy=.FALSE.,error=error)
+    CALL qs_ks_update_qs_env(qs_env, calculate_forces=.FALSE.,&
+                             just_energy=.FALSE.,error=error)
 
     IF (unit_nr>0) THEN
-       WRITE(unit_nr,'(T2,A,F20.9)') "Energy of the initial guess:",energy%total
+       IF (almo_scf_env%almo_scf_guess.eq.molecular_guess) THEN
+          WRITE(unit_nr,'(T2,A38,F40.10)') "Single-molecule energy:", &
+            SUM(mscfg_env%energy_of_frag)
+       ENDIF
+       WRITE(unit_nr,'(T2,A38,F40.10)') "Energy of the initial guess:",energy%total
        WRITE(unit_nr,'()') 
     ENDIF
-
-!CALL timestop(handle4)
 
     CALL timestop(handle)
 
@@ -710,27 +699,31 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, ispin, nspin
+    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+      POINTER                                :: rho_ao
     TYPE(qs_energy_type), POINTER            :: energy
+    TYPE(qs_rho_type), POINTER               :: rho
 
+    NULLIFY(rho, rho_ao)
     CALL timeset(routineN,handle)
 
     nspin=almo_scf_env%nspins
-    CALL get_qs_env(qs_env, energy=energy, error=error)
+    CALL get_qs_env(qs_env, energy=energy, rho=rho, error=error)
+    CALL qs_rho_get(rho, rho_ao=rho_ao, error=error)
 
     ! set the new density matrix 
     DO ispin=1,nspin
        CALL matrix_almo_to_qs(almo_scf_env%matrix_p(ispin),&
-                              qs_env%rho%rho_ao(ispin)%matrix,&
+                              rho_ao(ispin)%matrix,&
                               almo_scf_env,&
                               error)
     END DO
 
     ! compute the corresponding KS matrix and new energy
-    CALL qs_rho_update_rho(qs_env%rho,qs_env=qs_env, error=error)
+    CALL qs_rho_update_rho(rho,qs_env=qs_env, error=error)
     CALL qs_ks_did_change(qs_env%ks_env,rho_changed=.TRUE., error=error)
-    CALL qs_ks_update_qs_env(qs_env%ks_env,qs_env=qs_env,&
-         calculate_forces=.FALSE.,just_energy=.FALSE.,&
-         print_active=.TRUE., error=error)
+    CALL qs_ks_update_qs_env(qs_env, calculate_forces=.FALSE., just_energy=.FALSE.,&
+                             print_active=.TRUE., error=error)
     energy_new=energy%total
 
     CALL timestop(handle)
@@ -760,107 +753,6 @@ CONTAINS
     qs_energy%total=energy
 
   END SUBROUTINE almo_scf_update_ks_energy
-
-! *****************************************************************************
-!> \brief Returns computed quantities back to the qs_env.
-!> \param qs_env ...
-!> \param almo_scf_env ...
-!> \param error ...
-!> \par History
-!>       2011.11 created [Rustam Z Khaliullin]
-!> \author Rustam Z Khaliullin
-! *****************************************************************************
-  SUBROUTINE almo_return_to_qs(qs_env,almo_scf_env,error)
-    
-    TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(almo_scf_env_type)                  :: almo_scf_env
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'almo_return_to_qs', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: handle, ispin, unit_nr
-    LOGICAL                                  :: failure
-    TYPE(cp_dbcsr_type)                      :: matrix_sigma_sqrt, &
-                                                matrix_sigma_sqrt_inv, &
-                                                matrix_tmp1
-    TYPE(cp_logger_type), POINTER            :: logger
-
-!TYPE(mo_set_p_type), DIMENSION(:), &
-!      POINTER                             :: mo_array
-
-    CALL timeset(routineN,handle)
-    failure = .FALSE.
-
-    ! get a useful output_unit
-    logger => cp_error_get_logger(error)
-    IF (logger%para_env%mepos==logger%para_env%source) THEN
-       unit_nr=cp_logger_get_default_unit_nr(logger,local=.TRUE.)
-    ELSE
-       unit_nr=-1
-    ENDIF
-
-    IF (unit_nr>0) THEN
-       WRITE(unit_nr,*) "orthogonalize occupied orbitals"
-    ENDIF
-    
-!!! RZK-warning this procedure is not fail safe:
-!!! make sure that MOs, overlaps, and DM are all consistent
-    DO ispin=1,almo_scf_env%nspins
-
-       CALL cp_dbcsr_init(matrix_sigma_sqrt,error=error)
-       CALL cp_dbcsr_init(matrix_sigma_sqrt_inv,error=error)
-       CALL cp_dbcsr_create(matrix_sigma_sqrt,&
-               template=almo_scf_env%matrix_sigma(ispin),&
-               matrix_type=dbcsr_type_no_symmetry,error=error)
-       CALL cp_dbcsr_create(matrix_sigma_sqrt_inv,&
-               template=almo_scf_env%matrix_sigma(ispin),&
-               matrix_type=dbcsr_type_no_symmetry,error=error)
-       CALL get_overlap(bra=almo_scf_env%matrix_t(ispin),&
-               ket=almo_scf_env%matrix_t(ispin),&
-               overlap=almo_scf_env%matrix_sigma(ispin),&
-               metric=almo_scf_env%matrix_s(1),&
-               retain_overlap_sparsity=.FALSE.,&
-               eps_filter=almo_scf_env%eps_filter,&
-               error=error)
-       CALL matrix_sqrt_Newton_Schulz(matrix_sigma_sqrt,&
-                                      matrix_sigma_sqrt_inv,&
-                                      almo_scf_env%matrix_sigma(ispin),&
-                                      threshold=almo_scf_env%eps_filter,&
-                                      order=almo_scf_env%order_lanczos,&
-                                      eps_lanczos=almo_scf_env%eps_lanczos,&
-                                      max_iter_lanczos=almo_scf_env%max_iter_lanczos,&
-                                      error=error)
-       CALL cp_dbcsr_release(matrix_sigma_sqrt,error=error)
-       CALL cp_dbcsr_init(matrix_tmp1,error=error)
-       CALL cp_dbcsr_create(matrix_tmp1,&
-               template=almo_scf_env%matrix_t(ispin),&
-               matrix_type=dbcsr_type_no_symmetry,error=error)
-       CALL cp_dbcsr_multiply("N","N",1.0_dp,almo_scf_env%matrix_t(ispin),&
-               matrix_sigma_sqrt_inv,&
-               0.0_dp,matrix_tmp1,filter_eps=almo_scf_env%eps_filter,&
-               error=error)
-!CALL cp_dbcsr_print(matrix_tmp1,error=error)       
-       ! return orthogonalized mo coefficients
-       CALL copy_dbcsr_to_fm(matrix_tmp1,&
-               qs_env%mos(ispin)%mo_set%mo_coeff,error=error)
-       !CALL matrix_almo_to_qs(matrix_tmp1,&
-       !        qs_env%mos(ispin)%mo_set%mo_coeff_b,&
-       !        almo_scf_env,error)
-!CALL cp_dbcsr_print(qs_env%mos(ispin)%mo_set%mo_coeff_b,error=error)       
-       ! return density matrix
-       CALL matrix_almo_to_qs(almo_scf_env%matrix_p(ispin),&
-                              qs_env%rho%rho_ao(ispin)%matrix,&
-                              almo_scf_env,error)
-!CALL cp_dbcsr_print(qs_env%rho%rho_ao(ispin)%matrix,error=error)       
-
-       CALL cp_dbcsr_release(matrix_sigma_sqrt_inv,error=error)
-       CALL cp_dbcsr_release(matrix_tmp1,error=error)
-    ENDDO
-
-    CALL timestop(handle)
-
-  END SUBROUTINE almo_return_to_qs
 
 ! *****************************************************************************
 !> \brief Creates the matrix that imposes absolute locality on MOs 
@@ -897,8 +789,8 @@ CONTAINS
                                                 domain_neighbor_list, &
                                                 domain_neighbor_list_excessive
     LOGICAL                                  :: already_listed, block_active, &
-                                                failure, found, &
-                                                max_neig_fails, tr
+                                                delayed_increment, failure, &
+                                                found, max_neig_fails, tr
     REAL(KIND=dp) :: contact1_radius, contact2_radius, distance, &
       distance_squared, overlap, r0, r1, s0, s1, trial_distance_squared
     REAL(KIND=dp), DIMENSION(3)              :: rab
@@ -1459,7 +1351,6 @@ CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)
 
        ! check that both domain_map and quench_t have the same number of entries 
        nblks=cp_dbcsr_get_num_blocks(almo_scf_env%quench_t(ispin))
-!IF (unit_nr>0) WRITE(*,* ) "BLOCKS", nblks, domain_map_local_entries
        IF (nblks.ne.domain_map_local_entries) THEN
           CPErrorMessage(cp_failure_level,routineP,"number of blocks is wrong",error)
           CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)
@@ -1474,7 +1365,7 @@ CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)
        ! first, communicate map sizes on the other nodes
        ALLOCATE(domain_entries_cpu(nNodes),offset_for_cpu(nNodes))
        CALL mp_allgather(2*domain_map_local_entries,domain_entries_cpu,GroupID)
-   
+
        ! second, create 
        offset_for_cpu(1)=0
        DO iNode=2,nNodes
@@ -1502,39 +1393,64 @@ CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)
        almo_scf_env%domain_map(ispin)%pairs(:,:)=0
        almo_scf_env%domain_map(ispin)%index1(:)=0
        
-       ! unpack the received data into the env variable
+       ! unpack the received data into a local variable
+       ! since we do not know the maximum global number of neighbors
+       ! try one. if fails increase the maximum number and try again
+       ! until it succeeds
        max_neig=max_domain_neighbors
        max_neig_fails=.TRUE.
        max_neig_loop: DO WHILE (max_neig_fails)
           ALLOCATE(domain_grid(almo_scf_env%ndomains,0:max_neig))
           domain_grid(:,:)=0
+          ! init the number of collected neighbors
           domain_grid(:,0)=1
+          ! loop over the records
           global_entries=global_entries/2
           DO ientry=1,global_entries
+             ! get the center
              grid1=domain_map_global(2*ientry)
+             ! get the neighbor
              ineig=domain_map_global(2*(ientry-1)+1)
+             ! check boundaries
+             IF (domain_grid(grid1,0).gt.max_neig) THEN
+                ! this neighbor will overstep the boundaries
+                ! stop the trial and increase the max number of neigbors
+                DEALLOCATE(domain_grid)
+                max_neig=max_neig*2
+                CYCLE max_neig_loop
+             ENDIF
+             ! for the current center loop over the collected neighbors
+             ! to insert the current record in a numerical order
+             delayed_increment=.FALSE.
              DO igrid=1,domain_grid(grid1,0)
+                ! compare the current neighbor with that already in the 'book'
                 IF (ineig.lt.domain_grid(grid1,igrid)) THEN
+                   ! if this one is smaller then insert it here and pick up the one 
+                   ! from the book to continue inserting
                    neig_temp=ineig
                    ineig=domain_grid(grid1,igrid)
                    domain_grid(grid1,igrid)=neig_temp
                 ELSE
                    IF (domain_grid(grid1,igrid).eq.0) THEN
+                      ! got the empty slot now - insert the record
                       domain_grid(grid1,igrid)=ineig
-                      domain_grid(grid1,0)=domain_grid(grid1,0)+1
-                      IF (domain_grid(grid1,0).gt.max_neig) THEN
-                         DEALLOCATE(domain_grid)
-                         max_neig=max_neig*2
-                         CYCLE max_neig_loop
-                      ENDIF
+                      ! increase the record counter but do it outside the loop
+                      delayed_increment=.TRUE.
                    ENDIF
                 ENDIF
              ENDDO
+             IF (delayed_increment) THEN
+                domain_grid(grid1,0)=domain_grid(grid1,0)+1
+             ELSE
+                ! should not be here - all records must be inserted
+                CPErrorMessage(cp_failure_level,routineP,"all records must be inserted",error)
+                CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)
+             ENDIF
           ENDDO
           max_neig_fails=.FALSE.
        ENDDO max_neig_loop
        DEALLOCATE(domain_map_global)
-       
+
        ientry=1
        DO idomain=1,almo_scf_env%ndomains
           DO ineig=1,domain_grid(idomain,0)-1
@@ -1545,20 +1461,6 @@ CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)
           almo_scf_env%domain_map(ispin)%index1(idomain)=ientry
        ENDDO
        DEALLOCATE(domain_grid)
-
-!DO ientry=1,global_entries
-!   WRITE(*,*) "MAPD ", mynode, almo_scf_env%domain_map(ispin)%pairs(ientry,1),&
-!      almo_scf_env%domain_map(ispin)%pairs(ientry,2)
-!ENDDO
-!DO idomain=1,almo_scf_env%ndomains
-!   WRITE(*,*) "INDEXD ", mynode, almo_scf_env%domain_map(ispin)%index1(idomain)
-!ENDDO
-
-!occ=cp_dbcsr_get_occupation(almo_scf_env%quench_t(ispin))
-!IF (unit_nr>0) WRITE(unit_nr,'(T2,A15,F16.12,A25,I15)') "QUENCH_occ: ",&
-!   occ,", total size (blocks) ", nblkrows_tot*nblkcols_tot
-
-!CALL cp_dbcsr_print_block_sum(almo_scf_env%quench_t(ispin),error=error)
 
     !ENDDO ! ispin
     IF (almo_scf_env%nspins.eq.2) THEN
@@ -1578,22 +1480,22 @@ CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)
        DEALLOCATE(last_atom_of_molecule)
     ENDIF
 
-!mynode = dbcsr_mp_mynode(dbcsr_distribution_mp(&
-!   cp_dbcsr_distribution(almo_scf_env%quench_t(ispin))))
-!nblkrows_tot = cp_dbcsr_nblkrows_total(almo_scf_env%quench_t(ispin))
-!nblkcols_tot = cp_dbcsr_nblkcols_total(almo_scf_env%quench_t(ispin))
-!DO row = 1, nblkrows_tot
-!   DO col = 1, nblkcols_tot
-!      tr = .FALSE.
-!      iblock_row = row
-!      iblock_col = col
-!      CALL cp_dbcsr_get_stored_coordinates(almo_scf_env%quench_t(ispin),&
-!              iblock_row, iblock_col, tr, hold)
-!      CALL cp_dbcsr_get_block_p(almo_scf_env%quench_t(ispin),&
-!              row, col, p_new_block, found)
-!      write(*,*) "RST_NOTE:", mynode, row, col, hold, found  
-!   ENDDO
-!ENDDO
+    !mynode = dbcsr_mp_mynode(dbcsr_distribution_mp(&
+    !   cp_dbcsr_distribution(almo_scf_env%quench_t(ispin))))
+    !nblkrows_tot = cp_dbcsr_nblkrows_total(almo_scf_env%quench_t(ispin))
+    !nblkcols_tot = cp_dbcsr_nblkcols_total(almo_scf_env%quench_t(ispin))
+    !DO row = 1, nblkrows_tot
+    !   DO col = 1, nblkcols_tot
+    !      tr = .FALSE.
+    !      iblock_row = row
+    !      iblock_col = col
+    !      CALL cp_dbcsr_get_stored_coordinates(almo_scf_env%quench_t(ispin),&
+    !              iblock_row, iblock_col, tr, hold)
+    !      CALL cp_dbcsr_get_block_p(almo_scf_env%quench_t(ispin),&
+    !              row, col, p_new_block, found)
+    !      write(*,*) "RST_NOTE:", mynode, row, col, hold, found  
+    !   ENDDO
+    !ENDDO
 
     CALL timestop(handle)
   

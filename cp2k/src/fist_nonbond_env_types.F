@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2014  CP2K developers group                          !
+!   Copyright (C) 2000 - 2015  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -10,9 +10,8 @@
 ! *****************************************************************************
 MODULE fist_nonbond_env_types
   USE atomic_kind_types,               ONLY: atomic_kind_type
-  USE cell_methods,                    ONLY: cell_release,&
+  USE cell_types,                      ONLY: cell_release,&
                                              cell_type
-  USE f77_blas
   USE fist_neighbor_list_types,        ONLY: fist_neighbor_deallocate,&
                                              fist_neighbor_type
   USE kinds,                           ONLY: default_string_length,&

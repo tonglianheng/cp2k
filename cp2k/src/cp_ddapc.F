@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2014  CP2K developers group                          !
+!   Copyright (C) 2000 - 2015  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -14,7 +14,8 @@ MODULE cp_ddapc
   USE bibliography,                    ONLY: Blochl1995,&
                                              cite_reference
   USE cell_types,                      ONLY: cell_type
-  USE cp_control_types,                ONLY: ddapc_restraint_type
+  USE cp_control_types,                ONLY: ddapc_restraint_type,&
+                                             dft_control_type
   USE cp_dbcsr_interface,              ONLY: cp_dbcsr_copy,&
                                              cp_dbcsr_init,&
                                              cp_dbcsr_p_type,&
@@ -28,7 +29,6 @@ MODULE cp_ddapc
                                              restraint_functional_potential
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
-  USE f77_blas
   USE input_constants,                 ONLY: do_spin_density
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type
@@ -45,7 +45,8 @@ MODULE cp_ddapc
                                              REALDATA3D,&
                                              REALSPACE,&
                                              RECIPROCALSPACE,&
-                                             pw_p_type
+                                             pw_p_type,&
+                                             pw_type
   USE qs_energy_types,                 ONLY: qs_energy_type
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
@@ -110,7 +111,11 @@ CONTAINS
                                                 explicit_potential, failure
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(ddapc_restraint_type), POINTER      :: ddapc_restraint_control
+    TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(pw_p_type)                          :: v_spin_ddapc_rest_g
+    TYPE(pw_type), POINTER                   :: v_hartree_rspace
+
+    NULLIFY(v_hartree_rspace, dft_control)
 
     CALL timeset(routineN,handle)
     CALL cite_reference(Blochl1995)
@@ -119,9 +124,15 @@ CONTAINS
     logger         => cp_error_get_logger(error)
     ddapc_restraint_is_spin =.FALSE.
     et_coupling_calc        =.FALSE.
+    ddapc_size=0
 
-    IF(qs_env%dft_control%qs_control%ddapc_restraint)THEN
-       ddapc_size=SIZE(qs_env%dft_control%qs_control%ddapc_restraint_control)
+    CALL get_qs_env(qs_env,&
+                    v_hartree_rspace=v_hartree_rspace,&
+                    dft_control=dft_control,&
+                    error=error)
+
+    IF(dft_control%qs_control%ddapc_restraint)THEN
+       ddapc_size=SIZE(dft_control%qs_control%ddapc_restraint_control)
        IF(SIZE(energy%ddapc_restraint).NE.ddapc_size)THEN
           DEALLOCATE(energy%ddapc_restraint,stat=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -129,16 +140,16 @@ CONTAINS
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        END IF
 
-       DO i=1,SIZE( qs_env%dft_control%qs_control%ddapc_restraint_control )
-          my_id= qs_env%dft_control%qs_control%ddapc_restraint_control(i)%ddapc_restraint_control%density_type
+       DO i=1,SIZE(dft_control%qs_control%ddapc_restraint_control)
+          my_id=dft_control%qs_control%ddapc_restraint_control(i)%ddapc_restraint_control%density_type
           IF (my_id==do_spin_density.OR.ddapc_restraint_is_spin) ddapc_restraint_is_spin=.TRUE.
        END DO
-       et_coupling_calc= qs_env%dft_control%qs_control%et_coupling_calc
+       et_coupling_calc=dft_control%qs_control%et_coupling_calc
     ENDIF
 
     explicit_potential=ddapc_restraint_is_spin.OR.et_coupling_calc
-    qs_env%dft_control%qs_control%ddapc_explicit_potential = explicit_potential
-    qs_env%dft_control%qs_control%ddapc_restraint_is_spin = ddapc_restraint_is_spin
+    dft_control%qs_control%ddapc_explicit_potential = explicit_potential
+    dft_control%qs_control%ddapc_restraint_is_spin = ddapc_restraint_is_spin
     IF (explicit_potential) THEN
        CALL pw_pool_create_pw(auxbas_pw_pool,v_spin_ddapc_rest_g%pw,&
             use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE,error=error)
@@ -152,11 +163,11 @@ CONTAINS
     ! Decoupling/Recoupling
     CALL cp_ddapc_apply_CD(qs_env, rho_tot_gspace, energy%hartree, v_hartree_gspace,&
          calculate_forces, Itype_of_density="FULL DENSITY", error=error)
-    IF(qs_env%dft_control%qs_control%ddapc_restraint)THEN
+    IF(dft_control%qs_control%ddapc_restraint)THEN
        ! Restraints/Constraints
        DO i=1,ddapc_size
           NULLIFY(ddapc_restraint_control)
-          ddapc_restraint_control=> qs_env%dft_control%qs_control%ddapc_restraint_control(i)%ddapc_restraint_control
+          ddapc_restraint_control=>dft_control%qs_control%ddapc_restraint_control(i)%ddapc_restraint_control
 
           CALL cp_ddapc_apply_RS(qs_env, energy%hartree, energy%ddapc_restraint(i), v_hartree_gspace,&
                v_spin_ddapc_rest_g, i,ddapc_restraint_control,calculate_forces, error)
@@ -167,8 +178,8 @@ CONTAINS
 
     ! CJM Copying the real-space Hartree potential to KS_ENV
     IF ((.NOT. just_energy).OR.et_coupling_calc) THEN
-       CALL pw_transfer(v_hartree_gspace%pw, ks_env%v_hartree_rspace%pw, error=error)
-       CALL pw_scale(ks_env%v_hartree_rspace%pw, ks_env%v_hartree_rspace%pw%pw_grid%dvol, error=error)
+       CALL pw_transfer(v_hartree_gspace%pw, v_hartree_rspace, error=error)
+       CALL pw_scale(v_hartree_rspace, v_hartree_rspace%pw_grid%dvol, error=error)
        IF (explicit_potential) THEN
           CALL pw_transfer(v_spin_ddapc_rest_g%pw,v_spin_ddapc_rest_r%pw, error=error)
           CALL pw_scale(v_spin_ddapc_rest_r%pw,v_spin_ddapc_rest_r%pw%pw_grid%dvol, error=error)
@@ -185,8 +196,8 @@ CONTAINS
                         h=qs_env%et_coupling%rest_mat(1),&
                         qs_env=qs_env,calculate_forces=.FALSE.,error=error)
                    qs_env%et_coupling%order_p=&
-                        qs_env%dft_control%qs_control%ddapc_restraint_control(1)%ddapc_restraint_control%ddapc_order_p
-                   qs_env%et_coupling%e1=qs_env%dft_control%qs_control%ddapc_restraint_control(1)%ddapc_restraint_control%strength
+                        dft_control%qs_control%ddapc_restraint_control(1)%ddapc_restraint_control%ddapc_order_p
+                   qs_env%et_coupling%e1=dft_control%qs_control%ddapc_restraint_control(1)%ddapc_restraint_control%strength
                    qs_env%et_coupling%keep_matrix=.FALSE.
                 ELSE
                    NULLIFY(qs_env%et_coupling%rest_mat(2)%matrix)
@@ -403,6 +414,7 @@ CONTAINS
       POINTER                                :: dq
     TYPE(cell_type), POINTER                 :: cell, super_cell
     TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(section_vals_type), POINTER         :: density_fit_section, &
@@ -410,23 +422,24 @@ CONTAINS
                                                 restraint_section
 
     CALL timeset(routineN,handle)
+    NULLIFY(dft_control,restraint_section, force_env_section, particle_set, &
+            charges, radii, dq, cell, density_fit_section, super_cell)
     failure        = .FALSE.
     need_f         = .FALSE.
+
+    CALL get_qs_env(qs_env=qs_env,&
+                    input=force_env_section,&
+                    particle_set=particle_set,&
+                    cell=cell,&
+                    super_cell=super_cell,&
+                    dft_control=dft_control,&
+                    error=error)
+
     IF (PRESENT(calculate_forces)) need_f = calculate_forces
-    apply_restrain = qs_env%dft_control%qs_control%ddapc_restraint
+    apply_restrain = dft_control%qs_control%ddapc_restraint
     logger         => cp_error_get_logger(error)
     IF ((.NOT.failure).AND.apply_restrain) THEN
        ! Initialize
-       NULLIFY(restraint_section, force_env_section, particle_set, charges, &
-            radii, dq, cell, density_fit_section, super_cell)
-
-       CALL get_qs_env(qs_env=qs_env,&
-                       input=force_env_section,&
-                       particle_set=particle_set,&
-                       cell=cell,&
-                       super_cell=super_cell,&
-                       error=error)
-
        density_fit_section => section_vals_get_subs_vals(force_env_section,"DFT%DENSITY_FITTING",error=error)
        restraint_section => section_vals_get_subs_vals(force_env_section,"DFT%QS%DDAPC_RESTRAINT",&
                             error=error)
@@ -454,7 +467,7 @@ CONTAINS
        END IF
 
        ! Modify the Hartree potential due to the restrain or the v_spin_ddapc_rest_g
-       IF ((my_id==do_spin_density).OR.qs_env%dft_control%qs_control%et_coupling_calc) THEN
+       IF ((my_id==do_spin_density).OR.dft_control%qs_control%et_coupling_calc) THEN
           CALL restraint_functional_potential(v_spin_ddapc_rest_g, density_fit_section,&
                                            particle_set, qs_env%cp_ddapc_env%AmI, radii, charges, &
                                            ddapc_restraint_control, energy_res, error)

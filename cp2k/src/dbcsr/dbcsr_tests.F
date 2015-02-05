@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2014  CP2K developers group                          !
+!   Copyright (C) 2000 - 2015  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -17,7 +17,15 @@ MODULE dbcsr_tests
                                              array_i1d_obj,&
                                              array_release,&
                                              array_size
+  USE dbcsr_arnoldi,                   ONLY: dbcsr_arnoldi_ev
+  USE dbcsr_arnoldi_data_methods,      ONLY: dbcsr_arnoldi_data,&
+                                             deallocate_arnoldi_data,&
+                                             get_selected_ritz_val,&
+                                             setup_arnoldi_data
   USE dbcsr_data_methods,              ONLY: dbcsr_scalar
+  USE dbcsr_dist_methods,              ONLY: dbcsr_distribution_mp,&
+                                             dbcsr_distribution_new,&
+                                             dbcsr_distribution_release
   USE dbcsr_dist_operations,           ONLY: dbcsr_dist_bin
   USE dbcsr_error_handling,            ONLY: dbcsr_assert,&
                                              dbcsr_error_set,&
@@ -25,21 +33,30 @@ MODULE dbcsr_tests
                                              dbcsr_error_type,&
                                              dbcsr_fatal_level,&
                                              dbcsr_wrong_args_error
+  USE dbcsr_io,                        ONLY: dbcsr_binary_read,&
+                                             dbcsr_binary_write
   USE dbcsr_methods,                   ONLY: &
-       dbcsr_col_block_sizes, dbcsr_distribution, dbcsr_distribution_mp, &
-       dbcsr_distribution_new, dbcsr_distribution_release, &
-       dbcsr_get_data_type, dbcsr_init, dbcsr_mp_active, dbcsr_mp_group, &
-       dbcsr_mp_init, dbcsr_mp_new, dbcsr_mp_npcols, dbcsr_mp_nprows, &
-       dbcsr_mp_release, dbcsr_name, dbcsr_nblkcols_total, &
-       dbcsr_nblkrows_total, dbcsr_release, dbcsr_row_block_sizes
-  USE dbcsr_operations,                ONLY: dbcsr_copy,&
-                                             dbcsr_multiply
+       dbcsr_col_block_sizes, dbcsr_distribution, dbcsr_get_data_type, &
+       dbcsr_init, dbcsr_name, dbcsr_nblkcols_total, dbcsr_nblkrows_total, &
+       dbcsr_release, dbcsr_row_block_sizes
+  USE dbcsr_mp_methods,                ONLY: dbcsr_mp_active,&
+                                             dbcsr_mp_group,&
+                                             dbcsr_mp_init,&
+                                             dbcsr_mp_new,&
+                                             dbcsr_mp_npcols,&
+                                             dbcsr_mp_nprows,&
+                                             dbcsr_mp_release
+  USE dbcsr_multiply_api,              ONLY: dbcsr_multiply
+  USE dbcsr_operations,                ONLY: dbcsr_add,&
+                                             dbcsr_copy,&
+                                             dbcsr_frobenius_norm
   USE dbcsr_test_methods,              ONLY: dbcsr_make_random_block_sizes,&
                                              dbcsr_make_random_matrix
   USE dbcsr_transformations,           ONLY: dbcsr_redistribute
   USE dbcsr_types,                     ONLY: dbcsr_distribution_obj,&
                                              dbcsr_mp_obj,&
                                              dbcsr_obj,&
+                                             dbcsr_obj_type_p,&
                                              dbcsr_scalar_type,&
                                              dbcsr_type_no_symmetry
   USE dbcsr_util,                      ONLY: dbcsr_checksum
@@ -59,9 +76,13 @@ MODULE dbcsr_tests
 
   PRIVATE
 
-  PUBLIC :: cp_test_multiplies
+  PUBLIC :: dbcsr_run_tests, dbcsr_test_mm, dbcsr_test_arnoldi, dbcsr_test_binary_io
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'dbcsr_tests'
+
+  INTEGER, PARAMETER          :: dbcsr_test_mm = 1         
+  INTEGER, PARAMETER          :: dbcsr_test_arnoldi = 2
+  INTEGER, PARAMETER          :: dbcsr_test_binary_io = 3
 
 CONTAINS
 
@@ -81,16 +102,16 @@ CONTAINS
 !> \param[in] alpha alpha value to use in multiply
 !> \param[in] beta beta value to use in multiply
 !> \param[in] data_type         matrix data type
+!> \param test_type ...
 !> \param[in] n_loops           number of repetition for each multiplication
 !> \param[in] eps               eps value for filtering
 !> \param retain_sparsity ...
-!> \param[in] deterministic attempt deterministic behavior
 !> \param[in] always_checksum   checksum after each multiplication
 ! *****************************************************************************
-  SUBROUTINE cp_test_multiplies (mp_group, io_unit, nproc,&
+  SUBROUTINE dbcsr_run_tests (mp_group, io_unit, nproc,&
        matrix_sizes, matrix_types, trs, &
-       bs_m, bs_n, bs_k, sparsities, alpha, beta, data_type, &
-       n_loops, eps, retain_sparsity, deterministic, always_checksum)
+       bs_m, bs_n, bs_k, sparsities, alpha, beta, data_type, test_type,&
+       n_loops, eps, retain_sparsity, always_checksum)
     INTEGER, INTENT(IN)                      :: mp_group, io_unit
     INTEGER, DIMENSION(:), POINTER           :: nproc
     INTEGER, DIMENSION(:), INTENT(in)        :: matrix_sizes
@@ -99,14 +120,14 @@ CONTAINS
     INTEGER, DIMENSION(:), POINTER           :: bs_m, bs_n, bs_k
     REAL(kind=dp), DIMENSION(3), INTENT(in)  :: sparsities
     REAL(kind=dp), INTENT(in)                :: alpha, beta
-    INTEGER, INTENT(IN)                      :: data_type, n_loops
+    INTEGER, INTENT(IN)                      :: data_type, test_type, n_loops
     REAL(kind=dp), INTENT(in)                :: eps
     LOGICAL, INTENT(in)                      :: retain_sparsity, &
-                                                deterministic, always_checksum
+                                                always_checksum
 
     CHARACTER(len=*), PARAMETER :: &
       fmt_desc = '(A,3(1X,I6),1X,A,2(1X,I5),1X,A,2(1X,L1))', &
-      routineN = 'cp_test_multiplies', routineP = moduleN//':'//routineN
+      routineN = 'dbcsr_run_tests', routineP = moduleN//':'//routineN
 
     CHARACTER                                :: t_a, t_b
     INTEGER                                  :: bmax, bmin, cart_group, &
@@ -119,7 +140,7 @@ CONTAINS
     TYPE(dbcsr_distribution_obj)             :: dist_a, dist_b, dist_c
     TYPE(dbcsr_error_type)                   :: dbcsr_error
     TYPE(dbcsr_mp_obj)                       :: mp_env
-    TYPE(dbcsr_obj)                          :: matrix_a, matrix_b, matrix_c
+    TYPE(dbcsr_obj), TARGET                  :: matrix_a, matrix_b, matrix_c
 
 !   ---------------------------------------------------------------------------
 
@@ -163,7 +184,7 @@ CONTAINS
     CALL dbcsr_distribution_new (dist_c, mp_env, row_dist_c, col_dist_c)
     CALL dbcsr_make_random_matrix (matrix_c, sizes_m, sizes_n, "Matrix C",&
          REAL(sparsities(3), real_8),&
-         mp_group, data_type=data_type, dist=dist_c, nondet=.not.deterministic,&
+         mp_group, data_type=data_type, dist=dist_c, &
          error=dbcsr_error)
     CALL dbcsr_distribution_release (dist_c)
     IF (trs(1)) THEN
@@ -174,7 +195,7 @@ CONTAINS
        CALL dbcsr_distribution_new (dist_a, mp_env, row_dist_a, col_dist_a)
        CALL dbcsr_make_random_matrix (matrix_a, sizes_k, sizes_m, "Matrix A",&
             REAL(sparsities(1), real_8),&
-            mp_group, data_type=data_type, dist=dist_a, nondet=.not.deterministic,&
+            mp_group, data_type=data_type, dist=dist_a, &
             error=dbcsr_error)
        CALL array_release (row_dist_a)
        CALL array_release (col_dist_a)
@@ -184,7 +205,7 @@ CONTAINS
        CALL dbcsr_distribution_new (dist_a, mp_env, row_dist_c, col_dist_a)
        CALL dbcsr_make_random_matrix (matrix_a, sizes_m, sizes_k, "Matrix A",&
             REAL(sparsities(1), real_8),&
-            mp_group, data_type=data_type, dist=dist_a, nondet=.not.deterministic,&
+            mp_group, data_type=data_type, dist=dist_a, &
             error=dbcsr_error)
        CALL array_release (col_dist_a)
     ENDIF
@@ -197,7 +218,7 @@ CONTAINS
        CALL dbcsr_distribution_new (dist_b, mp_env, row_dist_b, col_dist_b)
        CALL dbcsr_make_random_matrix (matrix_b, sizes_n, sizes_k, "Matrix B",&
             REAL(sparsities(2), real_8),&
-            mp_group, data_type=data_type, dist=dist_b, nondet=.not.deterministic,&
+            mp_group, data_type=data_type, dist=dist_b, &
             error=dbcsr_error)
        CALL array_release (row_dist_b)
        CALL array_release (col_dist_b)
@@ -207,7 +228,7 @@ CONTAINS
        CALL dbcsr_distribution_new (dist_b, mp_env, row_dist_b, col_dist_c)
        CALL dbcsr_make_random_matrix (matrix_b, sizes_k, sizes_n, "Matrix B",&
             REAL(sparsities(2), real_8),&
-            mp_group, data_type=data_type, dist=dist_b, nondet=.not.deterministic,&
+            mp_group, data_type=data_type, dist=dist_b, &
             error=dbcsr_error)
        CALL array_release (row_dist_b)
     ENDIF
@@ -220,7 +241,7 @@ CONTAINS
     CALL array_release (sizes_k)
     ! Prepare test parameters
     IF (io_unit .GT. 0) THEN
-       WRITE(io_unit, fmt_desc)"Multiplication with sizes",matrix_sizes(1:3),&
+       WRITE(io_unit, fmt_desc)"Testing with sizes",matrix_sizes(1:3),&
             "min/max block sizes", bmin, bmax, "transposed?", trs(1:2)
     ENDIF
     CALL mp_environ (numnodes, mynode, mp_group)
@@ -240,19 +261,122 @@ CONTAINS
     ENDIF
     t_a = 'N' ; IF (trs(1)) t_a = 'T'
     t_b = 'N' ; IF (trs(2)) t_b = 'T'
-    CALL test_multiplies_multiproc (mp_group, group_sizes,&
-         matrix_a, matrix_b, matrix_c, t_a, t_b,&
-         dbcsr_scalar (REAL(alpha, real_8)), dbcsr_scalar (REAL(beta, real_8)),&
-         n_loops=n_loops, eps=eps,&
-         io_unit = io_unit, always_checksum=always_checksum,&
-         retain_sparsity=retain_sparsity)
+
+    SELECT CASE (test_type)
+    CASE(dbcsr_test_mm)
+       CALL test_multiplies_multiproc (mp_group, group_sizes,&
+            matrix_a, matrix_b, matrix_c, t_a, t_b,&
+            dbcsr_scalar (REAL(alpha, real_8)), dbcsr_scalar (REAL(beta, real_8)),&
+            n_loops=n_loops, eps=eps,&
+            io_unit = io_unit, always_checksum=always_checksum,&
+            retain_sparsity=retain_sparsity)
+    CASE(dbcsr_test_arnoldi)
+       CALL test_arnoldi(matrix_a,matrix_b, io_unit, n_loops, eps)
+    CASE(dbcsr_test_binary_io)
+       CALL test_binary_io(matrix_a,io_unit,dbcsr_error)
+    END SELECT
+
     CALL dbcsr_release (matrix_a)
     CALL dbcsr_release (matrix_b)
     CALL dbcsr_release (matrix_c)
     CALL mp_comm_free(cart_group)
     CALL dbcsr_error_stop (error_handle, error=dbcsr_error)
-  END SUBROUTINE cp_test_multiplies
+  END SUBROUTINE dbcsr_run_tests
 
+! *****************************************************************************
+!> \brief dumps and retrieves a dbcsr matrix, and checks a checksum
+!> \param matrix_a matrix to be written
+!> \param io_unit unit for status updates
+!> \param dbcsr_error ...
+! *****************************************************************************
+  SUBROUTINE test_binary_io(matrix_a, io_unit,dbcsr_error)
+    TYPE(dbcsr_obj)                          :: matrix_a
+    INTEGER                                  :: io_unit
+    TYPE(dbcsr_error_type)                   :: dbcsr_error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'test_binary_io', &
+      routineP = moduleN//':'//routineN
+
+    CHARACTER(LEN=100)                       :: file_name
+    REAL(kind=real_8)                        :: norm, post, pre
+    TYPE(dbcsr_obj)                          :: matrix_a_read
+
+    file_name="test_dbcsr_binary_io.dat"
+
+    pre=dbcsr_checksum (matrix_a, pos=.TRUE., error=dbcsr_error)
+
+    CALL dbcsr_binary_write(matrix_a, file_name, dbcsr_error)
+
+    ! needs a new matrix, reading into matrix_a does not work
+    CALL dbcsr_init(matrix_a_read)
+    CALL dbcsr_binary_read(file_name, distribution=dbcsr_distribution(matrix_a),&
+                                      matrix_new=matrix_a_read, error=dbcsr_error)
+
+    post=dbcsr_checksum (matrix_a_read, pos=.TRUE., error=dbcsr_error)
+    CALL dbcsr_add(matrix_a_read,matrix_a,-1.0_dp,1.0_dp,error=dbcsr_error)
+    norm=dbcsr_frobenius_norm(matrix_a_read)
+    IF (io_unit>0) THEN
+      WRITE(io_unit,*) "checksums",pre,post
+      WRITE(io_unit,*) "difference norm",norm
+    ENDIF
+
+    CALL dbcsr_assert (norm==0.0_dp, dbcsr_fatal_level,&
+         dbcsr_wrong_args_error, routineN,&
+         "bug in binary io",__LINE__,dbcsr_error)
+
+    CALL dbcsr_release(matrix_a_read)
+
+  END SUBROUTINE test_binary_io
+
+
+! *****************************************************************************
+!> \brief ...
+!> \param matrix_a ...
+!> \param matrix_b ...
+!> \param io_unit ...
+!> \param n_loops ...
+!> \param eps ...
+! *****************************************************************************
+  SUBROUTINE test_arnoldi(matrix_a,matrix_b, io_unit, n_loops, eps)
+    TYPE(dbcsr_obj), TARGET                  :: matrix_a, matrix_b
+    INTEGER                                  :: io_unit, n_loops
+    REAL(kind=dp), INTENT(in)                :: eps
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'test_arnoldi', &
+      routineP = moduleN//':'//routineN
+
+    COMPLEX(real_8)                          :: max_ev, min_ev
+    INTEGER                                  :: i
+    REAL(kind=real_8)                        :: t1, t2
+    TYPE(dbcsr_arnoldi_data)                 :: arnoldi_data
+    TYPE(dbcsr_error_type)                   :: dbcsr_error
+    TYPE(dbcsr_obj_type_p), ALLOCATABLE, &
+      DIMENSION(:)                           :: matrix_p
+
+    DO i=1, n_loops
+       t1 = m_walltime()
+       ALLOCATE(matrix_p(2))
+       matrix_p(1)%matrix=>matrix_a
+       matrix_p(2)%matrix=>matrix_b
+       CALL setup_arnoldi_data(arnoldi_data,matrix_p,30,1.0E-14_dp,1,2,0,.FALSE.,.FALSE.)
+       CALL dbcsr_arnoldi_ev(matrix_p, arnoldi_data, dbcsr_error)
+       max_eV=get_selected_ritz_val(arnoldi_data,2)
+       min_eV=get_selected_ritz_val(arnoldi_data,1)
+       CALL deallocate_arnoldi_data(arnoldi_data)
+       DEALLOCATE(matrix_p)
+       t2=  m_walltime()
+       IF (io_unit .GT. 0) THEN
+          WRITE(io_unit,'(A,I5,A,F12.3,A)')&
+               " loop ", i, " used ", t2-t1,"s "
+          CALL m_flush(io_unit)
+       ENDIF
+    END DO
+    IF (io_unit .GT. 0) THEN
+       WRITE(io_unit,'(A,1X,"(",ES12.3," , ",ES12.3,")")')'Maximum computed EV is: ', max_ev
+       WRITE(io_unit,'(A,1X,"(",ES12.3," , ",ES12.3,")")')'Minimum computed EV is: ', min_ev
+    END IF
+
+  END SUBROUTINE test_arnoldi
 ! *****************************************************************************
 !> \brief Performs a variety of matrix multiplies of same matrices on different
 !>        processor grids

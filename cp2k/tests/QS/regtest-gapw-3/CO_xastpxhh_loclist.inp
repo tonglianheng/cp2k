@@ -11,8 +11,8 @@
 
   &DFT
     LSD
-    BASIS_SET_FILE_NAME ../ALL_BASIS_SETS
-    POTENTIAL_FILE_NAME ../POTENTIAL
+    BASIS_SET_FILE_NAME ../../../data/ALL_BASIS_SETS
+    POTENTIAL_FILE_NAME ../../../data/POTENTIAL
     RESTART_FILE_NAME   CO-RESTART
     &XC
       &XC_FUNCTIONAL
@@ -66,11 +66,13 @@
     &END POISSON
 
     &XAS 
-      CONVERGENCE 0.000001
-      EPS_DIIS   0.4
+      &SCF
+        EPS_SCF 0.000001
+        EPS_DIIS   0.4
+        MAX_SCF    3
+      &END SCF
       METHOD        TP_XHH
       DIPOLE_FORM   VELOCITY
-      MAXSTEP       3
       STATE_TYPE    1s
       STATE_SEARCH  2
       ATOMS_LIST    1

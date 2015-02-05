@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2014  CP2K developers group                          !
+!   Copyright (C) 2000 - 2015  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -10,7 +10,6 @@
 !> \author JGH (20.07.2006)
 ! *****************************************************************************
 MODULE qs_moments
-
   USE ai_angmom,                       ONLY: angmom
   USE ai_moments,                      ONLY: contract_cossin,&
                                              cossin,&
@@ -20,7 +19,7 @@ MODULE qs_moments
   USE basis_set_types,                 ONLY: gto_basis_set_p_type,&
                                              gto_basis_set_type
   USE block_p_types,                   ONLY: block_p_type
-  USE cell_methods,                    ONLY: cell_type,&
+  USE cell_types,                      ONLY: cell_type,&
                                              pbc
   USE cp_cfm_basic_linalg,             ONLY: cp_cfm_lu_decompose
   USE cp_cfm_types,                    ONLY: cp_cfm_create,&
@@ -48,6 +47,7 @@ MODULE qs_moments
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_result_methods,               ONLY: cp_results_erase,&
                                              put_results
+  USE cp_result_types,                 ONLY: cp_result_type
   USE distribution_1d_types,           ONLY: distribution_1d_type
   USE kinds,                           ONLY: default_string_length,&
                                              dp
@@ -73,7 +73,8 @@ MODULE qs_moments
                                              neighbor_list_iterator_p_type,&
                                              neighbor_list_iterator_release,&
                                              neighbor_list_set_p_type
-  USE qs_rho_types,                    ONLY: qs_rho_type
+  USE qs_rho_types,                    ONLY: qs_rho_get,&
+                                             qs_rho_type
   USE rt_propagation_types,            ONLY: get_rtp,&
                                              rt_prop_type
   USE timings,                         ONLY: timeset,&
@@ -847,7 +848,7 @@ CONTAINS
     TYPE(cp_cfm_p_type), DIMENSION(:), &
       POINTER                                :: eigrmat
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_s
+      POINTER                                :: matrix_s, rho_ao
     TYPE(cp_dbcsr_type), POINTER             :: cosmat, sinmat
     TYPE(cp_fm_p_type), DIMENSION(:), &
       POINTER                                :: mos_new, opvec
@@ -856,6 +857,7 @@ CONTAINS
     TYPE(cp_fm_struct_type), POINTER         :: tmp_fm_struct
     TYPE(cp_fm_type), POINTER                :: mo_coeff
     TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(cp_result_type), POINTER            :: results
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(distribution_1d_type), POINTER      :: local_particles
     TYPE(mo_set_p_type), DIMENSION(:), &
@@ -899,14 +901,23 @@ CONTAINS
           mmom = 0._dp
        END IF
 
-       para_env => qs_env%para_env
-       NULLIFY ( dft_control, rho, cell, particle_set )
-       CALL get_qs_env ( qs_env, dft_control=dft_control, rho=rho, cell=cell,&
-                         particle_set=particle_set, qs_kind_set=qs_kind_set, error=error)
-       NULLIFY ( local_particles )
-       CALL get_qs_env ( qs_env, local_particles=local_particles, error=error)
-       NULLIFY ( matrix_s, mos )
-       CALL get_qs_env(qs_env=qs_env, matrix_s=matrix_s, mos=mos, error=error)
+       NULLIFY (dft_control,rho,cell,particle_set,results,para_env,&
+                local_particles,matrix_s,mos,rho_ao)
+
+       CALL get_qs_env(qs_env,&
+                       dft_control=dft_control,&
+                       rho=rho,&
+                       cell=cell,&
+                       results=results,&
+                       particle_set=particle_set,&
+                       qs_kind_set=qs_kind_set,&
+                       para_env=para_env,&
+                       local_particles=local_particles,&
+                       matrix_s=matrix_s,&
+                       mos=mos,&
+                       error=error)
+
+       CALL qs_rho_get(rho, rho_ao=rho_ao, error=error)
 
        NULLIFY ( cosmat, sinmat )
        ALLOCATE(cosmat, sinmat)
@@ -1071,7 +1082,7 @@ CONTAINS
        ! charge
        trace = 0.0_dp
        DO ispin=1,dft_control%nspins
-         CALL cp_dbcsr_trace(rho%rho_ao(ispin)%matrix,matrix_s(1)%matrix,trace,error=error)
+         CALL cp_dbcsr_trace(rho_ao(ispin)%matrix,matrix_s(1)%matrix,trace,error=error)
          rmom(1,1) = rmom(1,1) + trace
        END DO
 
@@ -1090,7 +1101,7 @@ CONTAINS
                 IF(qs_env%run_rtp)THEN
                    CALL get_qs_env(qs_env,rtp=rtp,error=error)
                    CALL get_rtp(rtp,mos_new=mos_new,error=error)
-                   CALL op_orbbas_rtp (cosmat,sinmat,mos,op_fm_set,opvec,mos_new,error)
+                   CALL op_orbbas_rtp (cosmat,sinmat,mos,op_fm_set,mos_new,error)
                 ELSE
                    CALL op_orbbas (cosmat,sinmat,mos,op_fm_set,opvec,error)
                 END IF
@@ -1123,7 +1134,7 @@ CONTAINS
                   IF(qs_env%run_rtp)THEN
                      CALL get_qs_env(qs_env,rtp=rtp,error=error)
                      CALL get_rtp(rtp,mos_new=mos_new,error=error)
-                     CALL op_orbbas_rtp (cosmat,sinmat,mos,op_fm_set,opvec,mos_new,error)
+                     CALL op_orbbas_rtp (cosmat,sinmat,mos,op_fm_set,mos_new,error)
                   ELSE
                      CALL op_orbbas (cosmat,sinmat,mos,op_fm_set,opvec,error)
                   END IF
@@ -1211,8 +1222,8 @@ CONTAINS
 
        rmom(:,3) = rmom(:,1) + rmom(:,2)
        description="[DIPOLE]"
-       CALL cp_results_erase(results=qs_env%results,description=description,error=error)
-       CALL put_results(results=qs_env%results,description=description,&
+       CALL cp_results_erase(results=results,description=description,error=error)
+       CALL put_results(results=results,description=description,&
                         values=rmom(2:4,3),error=error)
        IF(magnetic) THEN
           CALL print_moments(unit_number,nmom,rmom,rlab,rcc,cell,periodic=.TRUE.,mmom=mmom)
@@ -1293,11 +1304,10 @@ CONTAINS
 !> \param sinmat ...
 !> \param mos ...
 !> \param op_fm_set ...
-!> \param opvec ...
 !> \param mos_new ...
 !> \param error ...
 ! *****************************************************************************
-  SUBROUTINE op_orbbas_rtp (cosmat,sinmat,mos,op_fm_set,opvec,mos_new,error)
+  SUBROUTINE op_orbbas_rtp (cosmat,sinmat,mos,op_fm_set,mos_new,error)
 
     TYPE(cp_dbcsr_type), POINTER             :: cosmat, sinmat
     TYPE(mo_set_p_type), DIMENSION(:), &
@@ -1305,7 +1315,7 @@ CONTAINS
     TYPE(cp_fm_p_type), DIMENSION(:, :), &
       POINTER                                :: op_fm_set
     TYPE(cp_fm_p_type), DIMENSION(:), &
-      POINTER                                :: opvec, mos_new
+      POINTER                                :: mos_new
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     INTEGER                                  :: i, icol, lcol, nao, newdim, &
@@ -1421,8 +1431,10 @@ CONTAINS
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
-      POINTER                                :: magmom, matrix_s, moments
+      POINTER                                :: magmom, matrix_s, moments, &
+                                                rho_ao
     TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(cp_result_type), POINTER            :: results
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(distribution_1d_type), POINTER      :: local_particles
     TYPE(particle_type), DIMENSION(:), &
@@ -1446,12 +1458,20 @@ CONTAINS
        ! electronic contribution
        NULLIFY ( moments )
        CALL build_local_moment_matrix(qs_env,moments,nmom,ref_point=rcc,error=error)
-       NULLIFY ( dft_control, rho, cell, particle_set, qs_kind_set )
-       CALL get_qs_env ( qs_env, dft_control=dft_control, rho=rho, cell=cell,&
-                         particle_set=particle_set, qs_kind_set=qs_kind_set, error=error)
-       para_env => qs_env%para_env
-       NULLIFY ( matrix_s )
-       CALL get_qs_env(qs_env=qs_env, matrix_s=matrix_s,error=error)
+
+       NULLIFY (dft_control,rho,cell,particle_set,qs_kind_set,results,para_env,matrix_s,rho_ao)
+       CALL get_qs_env(qs_env,&
+                       dft_control=dft_control,&
+                       rho=rho,&
+                       cell=cell,&
+                       results=results,&
+                       particle_set=particle_set,&
+                       qs_kind_set=qs_kind_set,&
+                       para_env=para_env,&
+                       matrix_s=matrix_s,&
+                       error=error)
+
+       CALL qs_rho_get(rho, rho_ao=rho_ao, error=error)
 
        nm = SIZE(moments)
        ALLOCATE (rmom(nm+1,3),STAT=istat)
@@ -1463,14 +1483,14 @@ CONTAINS
 
        trace = 0.0_dp
        DO ispin=1,dft_control%nspins
-         CALL cp_dbcsr_trace(rho%rho_ao(ispin)%matrix,matrix_s(1)%matrix,trace,error=error)
+         CALL cp_dbcsr_trace(rho_ao(ispin)%matrix,matrix_s(1)%matrix,trace,error=error)
          rmom(1,1) = rmom(1,1) + trace
        END DO
 
        DO i = 1, SIZE(moments)
           strace = 0._dp
           DO ispin=1,dft_control%nspins
-            CALL cp_dbcsr_trace(rho%rho_ao(ispin)%matrix,moments(i)%matrix,trace,error=error)
+            CALL cp_dbcsr_trace(rho_ao(ispin)%matrix,moments(i)%matrix,trace,error=error)
             strace = strace + trace
           END DO
           rmom(i+1,1) = strace
@@ -1488,11 +1508,12 @@ CONTAINS
           DO i = 1, SIZE(magmom)
              strace = 0._dp
              DO ispin=1,dft_control%nspins
-               CALL cp_dbcsr_trace(rho%rho_ao(ispin)%matrix,magmom(i)%matrix,trace,error=error)
+               CALL cp_dbcsr_trace(rho_ao(ispin)%matrix,magmom(i)%matrix,trace,error=error)
                strace = strace + trace
              END DO
              mmom(i) = strace
           END DO
+          CALL cp_dbcsr_deallocate_matrix_set(magmom,error=error)
        END IF
 
        ! nuclear contribution
@@ -1526,8 +1547,8 @@ CONTAINS
        rmom(:,3) = rmom(:,1) + rmom(:,2)
 
        description="[DIPOLE]"
-       CALL cp_results_erase(results=qs_env%results,description=description,error=error)
-       CALL put_results(results=qs_env%results,description=description,&
+       CALL cp_results_erase(results=results,description=description,error=error)
+       CALL put_results(results=results,description=description,&
                         values=rmom(2:4,3),error=error)
        IF(magnetic) THEN
           CALL print_moments(unit_number,nmom,rmom,rlab,rcc,cell,periodic=.FALSE.,mmom=mmom)

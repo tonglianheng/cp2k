@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2014  CP2K developers group                          !
+!   Copyright (C) 2000 - 2015  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -15,20 +15,27 @@ MODULE cp_subsys_methods
                                              atomic_kind_list_release,&
                                              atomic_kind_list_type
   USE atomic_kind_types,               ONLY: atomic_kind_type
-  USE cell_methods,                    ONLY: cell_retain,&
+  USE atprop_types,                    ONLY: atprop_create
+  USE cell_types,                      ONLY: cell_retain,&
                                              cell_type
   USE colvar_methods,                  ONLY: colvar_read
   USE cp_para_env,                     ONLY: cp_para_env_retain
   USE cp_para_types,                   ONLY: cp_para_env_type
+  USE cp_result_types,                 ONLY: cp_result_create
   USE cp_subsys_types,                 ONLY: cp_subsys_get,&
                                              cp_subsys_set,&
                                              cp_subsys_type
   USE exclusion_types,                 ONLY: exclusion_type
-  USE f77_blas
-  USE input_constants,                 ONLY: do_conn_off
+  USE input_constants,                 ONLY: do_conn_off,&
+                                             do_stress_analytical,&
+                                             do_stress_diagonal_anal,&
+                                             do_stress_diagonal_numer,&
+                                             do_stress_none,&
+                                             do_stress_numerical
   USE input_section_types,             ONLY: section_vals_get,&
                                              section_vals_get_subs_vals,&
-                                             section_vals_type
+                                             section_vals_type,&
+                                             section_vals_val_get
   USE kinds,                           ONLY: default_string_length,&
                                              dp
   USE mol_kind_new_list_types,         ONLY: mol_kind_new_list_create,&
@@ -55,6 +62,8 @@ MODULE cp_subsys_methods
                                              init_topology,&
                                              topology_parameters_type
   USE topology_util,                   ONLY: check_subsys_element
+  USE virial_types,                    ONLY: virial_create,&
+                                             virial_set
 #include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
@@ -63,8 +72,7 @@ MODULE cp_subsys_methods
   LOGICAL, PRIVATE, PARAMETER :: debug_this_module = .FALSE.
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cp_subsys_methods'
 
-  PUBLIC :: create_small_subsys,&
-            cp_subsys_read_colvar, cp_subsys_create
+  PUBLIC :: create_small_subsys, cp_subsys_create
 
 CONTAINS
 
@@ -79,12 +87,13 @@ CONTAINS
 !> \param qmmm ...
 !> \param qmmm_env ...
 !> \param exclusions ...
+!> \param cell ...
 !> \param error ...
 !> \author Ole Schuett
 ! *****************************************************************************
   SUBROUTINE cp_subsys_create(subsys, para_env, &
                               root_section, force_env_section, subsys_section,&
-                              use_motion_section, qmmm, qmmm_env, exclusions, error)
+                              use_motion_section, qmmm, qmmm_env, exclusions, cell, error)
     TYPE(cp_subsys_type), POINTER            :: subsys
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(section_vals_type), POINTER         :: root_section
@@ -97,12 +106,15 @@ CONTAINS
       POINTER                                :: qmmm_env
     TYPE(exclusion_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: exclusions
+    TYPE(cell_type), OPTIONAL, POINTER       :: cell
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_subsys_create', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure, my_use_motion_section
+    INTEGER                                  :: stress_tensor
+    LOGICAL :: atomic_energy, atomic_stress, failure, my_use_motion_section, &
+      pv_availability, pv_diagonal, pv_numerical
     TYPE(atomic_kind_list_type), POINTER     :: atomic_kinds
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
@@ -147,7 +159,8 @@ CONTAINS
                        subsys%colvar_p, subsys%gci, root_section, para_env,&
                        force_env_section=my_force_env_section,&
                        subsys_section=my_subsys_section,use_motion_section=my_use_motion_section,&
-                       qmmm=qmmm, qmmm_env=qmmm_env, exclusions=exclusions, error=error)
+                       qmmm=qmmm, qmmm_env=qmmm_env, exclusions=exclusions,&
+                       error=error)
 
     CALL particle_list_create(particles,els_ptr=particle_set,error=error)
     CALL atomic_kind_list_create(atomic_kinds,els_ptr=atomic_kind_set,error=error)
@@ -161,6 +174,50 @@ CONTAINS
     CALL atomic_kind_list_release(atomic_kinds,error=error)
     CALL mol_new_list_release(mols,error=error)
     CALL mol_kind_new_list_release(mol_kinds,error=error)
+
+    ! Should we compute the virial?
+    CALL section_vals_val_get(my_force_env_section,"STRESS_TENSOR",i_val=stress_tensor,error=error)
+    SELECT CASE(stress_tensor)
+    CASE(do_stress_none)
+       pv_availability=.FALSE.
+       pv_numerical=.FALSE.
+       pv_diagonal=.FALSE.
+    CASE(do_stress_analytical)
+       pv_availability=.TRUE.
+       pv_numerical=.FALSE.
+       pv_diagonal=.FALSE.
+    CASE(do_stress_numerical)
+       pv_availability=.TRUE.
+       pv_numerical=.TRUE.
+       pv_diagonal=.FALSE.
+    CASE(do_stress_diagonal_anal)
+       pv_availability=.TRUE.
+       pv_numerical=.FALSE.
+       pv_diagonal=.TRUE.
+    CASE(do_stress_diagonal_numer)
+       pv_availability=.TRUE.
+       pv_numerical=.TRUE.
+       pv_diagonal=.TRUE.
+    END SELECT
+
+    CALL virial_create(subsys%virial, error=error)
+    CALL virial_set(virial=subsys%virial,&
+                   pv_availability=pv_availability,&
+                   pv_numer=pv_numerical,&
+                   pv_diagonal=pv_diagonal)
+
+    ! Should we compute atomic properties?
+    CALL atprop_create(subsys%atprop,error)
+    CALL section_vals_val_get(my_force_env_section,"PROPERTIES%ATOMIC%ENERGY",l_val=atomic_energy,error=error)
+    subsys%atprop%energy = atomic_energy
+    CALL section_vals_val_get(my_force_env_section,"PROPERTIES%ATOMIC%PRESSURE",l_val=atomic_stress,error=error)
+    IF (atomic_stress) THEN
+       CPPrecondition(pv_availability,cp_failure_level,routineP,error,failure)
+       CPPrecondition(.NOT.pv_numerical,cp_failure_level,routineP,error,failure)
+    END IF
+    subsys%atprop%stress = atomic_stress
+
+    CALL cp_result_create(subsys%results,error=error)
   END SUBROUTINE cp_subsys_create
 
 ! *****************************************************************************
@@ -361,6 +418,10 @@ CONTAINS
        CALL atomic_kind_list_release(atomic_kinds,error=error)
        CALL mol_new_list_release(mols,error=error)
        CALL mol_kind_new_list_release(mol_kinds,error=error)
+
+       CALL virial_create(small_subsys%virial, error=error)
+       CALL atprop_create(small_subsys%atprop,error)
+       CALL cp_result_create(small_subsys%results,error=error)
     END IF
   END SUBROUTINE create_small_subsys
 

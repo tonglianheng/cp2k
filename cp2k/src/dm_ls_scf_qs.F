@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2014  CP2K developers group                          !
+!   Copyright (C) 2000 - 2015  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -19,22 +19,20 @@ MODULE dm_ls_scf_qs
        cp_dbcsr_allocate_matrix_set, cp_dbcsr_complete_redistribute, &
        cp_dbcsr_copy, cp_dbcsr_copy_into_existing, cp_dbcsr_create, &
        cp_dbcsr_desymmetrize, cp_dbcsr_distribution, cp_dbcsr_finalize, &
-       cp_dbcsr_init, cp_dbcsr_nblkrows_total, cp_dbcsr_p_type, &
-       cp_dbcsr_release, cp_dbcsr_row_block_sizes, cp_dbcsr_set, &
-       cp_dbcsr_type, dbcsr_distribution_col_dist, dbcsr_distribution_init, &
-       dbcsr_distribution_mp, dbcsr_distribution_new, dbcsr_distribution_obj, &
-       dbcsr_distribution_release, dbcsr_distribution_row_dist, dbcsr_name, &
+       cp_dbcsr_init, cp_dbcsr_name, cp_dbcsr_nblkrows_total, &
+       cp_dbcsr_p_type, cp_dbcsr_release, cp_dbcsr_row_block_sizes, &
+       cp_dbcsr_set, cp_dbcsr_type, dbcsr_distribution_col_dist, &
+       dbcsr_distribution_init, dbcsr_distribution_mp, &
+       dbcsr_distribution_new, dbcsr_distribution_obj, &
+       dbcsr_distribution_release, dbcsr_distribution_row_dist, &
        dbcsr_type_no_symmetry, dbcsr_type_real_4, dbcsr_type_real_8, &
        dbcsr_type_symmetric
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_realspace_grid_cube,          ONLY: cp_pw_to_cube
-  USE cp_subsys_types,                 ONLY: cp_subsys_get,&
-                                             cp_subsys_type
   USE dm_ls_scf_types,                 ONLY: ls_cluster_atomic,&
                                              ls_cluster_molecular,&
                                              ls_mstruct_type,&
                                              ls_scf_env_type
-  USE f77_blas
   USE kinds,                           ONLY: dp
   USE particle_list_types,             ONLY: particle_list_type
   USE particle_types,                  ONLY: particle_type
@@ -53,17 +51,20 @@ MODULE dm_ls_scf_qs
   USE qs_collocate_density,            ONLY: calculate_rho_elec
   USE qs_energy_types,                 ONLY: qs_energy_type
   USE qs_environment_types,            ONLY: get_qs_env,&
-                                             qs_environment_type,&
-                                             set_qs_env
+                                             qs_environment_type
   USE qs_initial_guess,                ONLY: calculate_atomic_block_dm,&
                                              calculate_mopac_dm
   USE qs_kind_types,                   ONLY: qs_kind_type
-  USE qs_ks_methods,                   ONLY: qs_ks_create,&
-                                             qs_ks_did_change,&
-                                             qs_ks_update_qs_env
-  USE qs_ks_types,                     ONLY: qs_ks_env_type,&
-                                             qs_ks_release
+  USE qs_ks_methods,                   ONLY: qs_ks_update_qs_env
+  USE qs_ks_types,                     ONLY: qs_ks_did_change,&
+                                             qs_ks_env_type,&
+                                             set_ks_env
+  USE qs_neighbor_list_types,          ONLY: neighbor_list_set_p_type
   USE qs_rho_methods,                  ONLY: qs_rho_update_rho
+  USE qs_rho_types,                    ONLY: qs_rho_get,&
+                                             qs_rho_type
+  USE qs_subsys_types,                 ONLY: qs_subsys_get,&
+                                             qs_subsys_type
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "./common/cp_common_uses.f90"
@@ -182,7 +183,7 @@ CONTAINS
 
        ! the matrix
        CALL cp_dbcsr_init (matrix_ls, error=error)
-       CALL cp_dbcsr_create (matrix_ls, dbcsr_name (matrix_qs%matrix),&
+       CALL cp_dbcsr_create (matrix_ls, cp_dbcsr_name (matrix_qs),&
             clustered_distribution,&
             dbcsr_type_symmetric,&
             clustered_blk_sizes, clustered_blk_sizes,&
@@ -342,8 +343,11 @@ CONTAINS
       POINTER                                :: matrix_ks, matrix_s
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(dft_control_type), POINTER          :: dft_control
+    TYPE(neighbor_list_set_p_type), &
+      DIMENSION(:), POINTER                  :: sab_orb
     TYPE(qs_ks_env_type), POINTER            :: ks_env
 
+    NULLIFY(sab_orb)
     CALL timeset(routineN,handle)
 
     ! get a useful output_unit
@@ -359,6 +363,7 @@ CONTAINS
                            matrix_s=matrix_s,&
                            matrix_ks=matrix_ks,&
                            ks_env=ks_env,&
+                           sab_orb=sab_orb,&
                            error=error)
 
     nspin=dft_control%nspins
@@ -370,17 +375,11 @@ CONTAINS
           ALLOCATE(matrix_ks(ispin)%matrix)
           CALL cp_dbcsr_init(matrix_ks(ispin)%matrix,error=error)
           CALL cp_dbcsr_create(matrix_ks(ispin)%matrix,template=matrix_s(1)%matrix,error=error)
-          CALL cp_dbcsr_alloc_block_from_nbl(matrix_ks(ispin)%matrix,qs_env%sab_orb,error=error)
+          CALL cp_dbcsr_alloc_block_from_nbl(matrix_ks(ispin)%matrix,sab_orb,error=error)
           CALL cp_dbcsr_set(matrix_ks(ispin)%matrix,0.0_dp,error=error)
        ENDDO
-       CALL set_qs_env(qs_env=qs_env,matrix_ks=matrix_ks,error=error)
+       CALL set_ks_env(ks_env,matrix_ks=matrix_ks,error=error)
     ENDIF
-    ! and ks_env
-    IF (.NOT.ASSOCIATED(ks_env)) THEN
-       CALL qs_ks_create(ks_env,qs_env=qs_env,error=error)
-       CALL set_qs_env(qs_env, ks_env=ks_env,error=error)
-       CALL qs_ks_release(ks_env,error=error)
-    END IF
 
     CALL timestop(handle)
 
@@ -409,7 +408,7 @@ CONTAINS
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_ks, matrix_s
+      POINTER                                :: matrix_ks, matrix_s, rho_ao
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(dft_control_type), POINTER          :: dft_control
@@ -419,8 +418,10 @@ CONTAINS
     TYPE(qs_kind_type), DIMENSION(:), &
       POINTER                                :: qs_kind_set
     TYPE(qs_ks_env_type), POINTER            :: ks_env
+    TYPE(qs_rho_type), POINTER               :: rho
 
     CALL timeset(routineN,handle)
+    NULLIFY(rho,rho_ao)
 
     ! get a useful output_unit
     logger => cp_error_get_logger(error)
@@ -441,30 +442,33 @@ CONTAINS
                            particle_set=particle_set,&
                            has_unit_metric=has_unit_metric,&
                            para_env=para_env,&
-                           nelectron_spin=nelectron_spin,error=error)
+                           nelectron_spin=nelectron_spin,&
+                           rho=rho,&
+                           error=error)
+
+    CALL qs_rho_get(rho, rho_ao=rho_ao, error=error)
 
     nspin=dft_control%nspins
 
     ! create an initial atomic guess
     DO ispin=1,nspin
-       CALL cp_dbcsr_set(qs_env%rho%rho_ao(ispin)%matrix,0.0_dp,error=error)
+       CALL cp_dbcsr_set(rho_ao(ispin)%matrix,0.0_dp,error=error)
        IF (dft_control%qs_control%dftb .OR. dft_control%qs_control%semi_empirical) THEN
-          CALL calculate_mopac_dm(qs_env%rho%rho_ao(ispin)%matrix,matrix_s(1)%matrix, has_unit_metric, &
+          CALL calculate_mopac_dm(rho_ao(ispin)%matrix,matrix_s(1)%matrix, has_unit_metric, &
                                   dft_control,particle_set, atomic_kind_set, qs_kind_set,&
                                   ispin, nspin, nelectron_spin(ispin),&
                                   para_env, error)
        ELSE
-          CALL calculate_atomic_block_dm(qs_env%rho%rho_ao(ispin)%matrix,matrix_s(1)%matrix, &
+          CALL calculate_atomic_block_dm(rho_ao(ispin)%matrix,matrix_s(1)%matrix, &
                                          particle_set, atomic_kind_set, qs_kind_set, &
                                          ispin, nspin, nelectron_spin(ispin), &
                                          unit_nr, error)
        ENDIF
     ENDDO
 
-    CALL qs_rho_update_rho(qs_env%rho,qs_env=qs_env, error=error)
+    CALL qs_rho_update_rho(rho,qs_env=qs_env, error=error)
     CALL qs_ks_did_change(qs_env%ks_env,rho_changed=.TRUE., error=error)
-    CALL qs_ks_update_qs_env(qs_env%ks_env,qs_env=qs_env,calculate_forces=.FALSE.,&
-                             just_energy=.FALSE.,error=error)
+    CALL qs_ks_update_qs_env(qs_env, calculate_forces=.FALSE., just_energy=.FALSE., error=error)
 
     energy=qs_energy%total
 
@@ -492,22 +496,27 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, ispin, nspin
+    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+      POINTER                                :: rho_ao
     TYPE(qs_energy_type), POINTER            :: energy
+    TYPE(qs_rho_type), POINTER               :: rho
 
+    NULLIFY(energy, rho, rho_ao)
     CALL timeset(routineN,handle)
 
     nspin=ls_scf_env%nspins
-    CALL get_qs_env(qs_env, energy=energy, error=error)
+    CALL get_qs_env(qs_env, energy=energy, rho=rho, error=error)
+    CALL qs_rho_get(rho, rho_ao=rho_ao, error=error)
 
     ! set the new density matrix
     DO ispin=1,nspin
-         CALL matrix_ls_to_qs(qs_env%rho%rho_ao(ispin)%matrix, ls_scf_env%matrix_p(ispin), ls_scf_env%ls_mstruct, error=error)
+         CALL matrix_ls_to_qs(rho_ao(ispin)%matrix, ls_scf_env%matrix_p(ispin), ls_scf_env%ls_mstruct, error=error)
     END DO
 
     ! compute the corresponding KS matrix and new energy
-    CALL qs_rho_update_rho(qs_env%rho,qs_env=qs_env, error=error)
+    CALL qs_rho_update_rho(rho,qs_env=qs_env, error=error)
     CALL qs_ks_did_change(qs_env%ks_env,rho_changed=.TRUE., error=error)
-    CALL qs_ks_update_qs_env(qs_env%ks_env,qs_env=qs_env,calculate_forces=.FALSE.,&
+    CALL qs_ks_update_qs_env(qs_env, calculate_forces=.FALSE.,&
                              just_energy=.FALSE., print_active=.TRUE., error=error)
     energy_new=energy%total
 
@@ -540,26 +549,35 @@ CONTAINS
 
     INTEGER                                  :: handle
     REAL(KIND=dp)                            :: tot_rho
+    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+      POINTER                                :: matrix_ks
     TYPE(cp_dbcsr_type), POINTER             :: matrix_p_qs
-    TYPE(cp_subsys_type), POINTER            :: subsys
     TYPE(particle_list_type), POINTER        :: particles
     TYPE(pw_env_type), POINTER               :: pw_env
     TYPE(pw_p_type)                          :: wf_g, wf_r
     TYPE(pw_pool_p_type), DIMENSION(:), &
       POINTER                                :: pw_pools
     TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
+    TYPE(qs_ks_env_type), POINTER            :: ks_env
+    TYPE(qs_subsys_type), POINTER            :: subsys
 
     CALL timeset(routineN,handle)
 
-    NULLIFY(pw_env,auxbas_pw_pool, pw_pools, particles, subsys)
+    NULLIFY(ks_env, pw_env,auxbas_pw_pool, pw_pools, particles, subsys, matrix_ks)
 
-    CALL get_qs_env(qs_env=qs_env, subsys=subsys, pw_env=pw_env, error=error)
-    CALL cp_subsys_get(subsys,particles=particles,error=error)     
+    CALL get_qs_env(qs_env,&
+                    ks_env=ks_env,&
+                    subsys=subsys,&
+                    pw_env=pw_env,&
+                    matrix_ks=matrix_ks,&
+                    error=error)
+
+    CALL qs_subsys_get(subsys,particles=particles,error=error)
 
     ! convert the density matrix (ls style) to QS style
     ALLOCATE(matrix_p_qs)
     CALL cp_dbcsr_init(matrix_p_qs,error=error) !initialization
-    CALL cp_dbcsr_copy(matrix_p_qs,qs_env%matrix_ks(1)%matrix,error=error)
+    CALL cp_dbcsr_copy(matrix_p_qs,matrix_ks(1)%matrix,error=error)
     CALL cp_dbcsr_set(matrix_p_qs,0.0_dp,error=error) !zero matrix creation   
     CALL matrix_ls_to_qs(matrix_p_qs, matrix_p_ls,ls_scf_env%ls_mstruct,error=error) 
 
@@ -584,7 +602,7 @@ CONTAINS
                             rho=wf_r,&
                             rho_gspace=wf_g,&
                             total_rho=tot_rho,&
-                            qs_env=qs_env, &
+                            ks_env=ks_env, &
                             error=error)
 
     ! write this to a cube

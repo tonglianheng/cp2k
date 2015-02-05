@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2014  CP2K developers group                          !
+!   Copyright (C) 2000 - 2015  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -12,7 +12,7 @@
 !>      09.10.05  MJM combined the two subroutines in this module into one
 ! *****************************************************************************
 MODULE mc_ensembles
-  USE cell_methods,                    ONLY: cell_p_type,&
+  USE cell_types,                      ONLY: cell_p_type,&
                                              get_cell
   USE cp_external_control,             ONLY: external_control
   USE cp_files,                        ONLY: close_file,&
@@ -22,7 +22,6 @@ MODULE mc_ensembles
                                              cp_subsys_p_type,&
                                              cp_subsys_type
   USE cp_units,                        ONLY: cp_unit_from_cp2k
-  USE f77_blas
   USE force_env_methods,               ONLY: force_env_calc_energy_force
   USE force_env_types,                 ONLY: force_env_get,&
                                              force_env_p_type,&
@@ -78,7 +77,7 @@ MODULE mc_ensembles
                                              rng_stream_type
   USE particle_list_types,             ONLY: particle_list_p_type,&
                                              particle_list_type
-  USE particle_types,                  ONLY: write_particle_coordinates
+  USE particle_methods,                ONLY: write_particle_coordinates
   USE physcon,                         ONLY: angstrom,&
                                              boltzmann,&
                                              joule,&

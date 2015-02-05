@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2014  CP2K developers group                          !
+!   Copyright (C) 2000 - 2015  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -27,7 +27,6 @@ MODULE atom_fit
        get_maxn_occ, integrate_grid
   USE cp_files,                        ONLY: close_file,&
                                              open_file
-  USE f77_blas
   USE input_constants,                 ONLY: do_analytic
   USE input_section_types,             ONLY: section_vals_type,&
                                              section_vals_val_get

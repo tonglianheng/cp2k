@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2014  CP2K developers group                          !
+!   Copyright (C) 2000 - 2015  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -11,7 +11,7 @@
 ! *****************************************************************************
 MODULE pair_potential_util
 
-  USE f77_blas
+  
   USE fparser,                         ONLY: EvalErrType,&
                                              evalf
   USE kinds,                           ONLY: dp
@@ -162,6 +162,7 @@ CONTAINS
 !>        Only shell-model for interactions among pairs without repulsive term
 !> \param pot ...
 !> \param r ...
+!> \retval ener_zbl ...
 !> \author i soliti ignoti
 ! *****************************************************************************
   FUNCTION ener_zbl(pot, r)

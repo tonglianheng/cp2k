@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2014  CP2K developers group                          !
+!   Copyright (C) 2000 - 2015  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -29,25 +29,24 @@
     USE cell_opt_utils,                  ONLY: get_dg_dh,&
                                                gopt_new_error_create,&
                                                gopt_new_error_release
-    USE cell_methods,                      ONLY: cell_type,&
+    USE cell_types,                      ONLY: cell_type,&
                                                cell_copy,&
                                                cell_release,&
                                                cell_create,&
                                                init_cell,&
                                                real_to_scaled,&
-                                               scaled_to_real,&
-                                               write_cell
+                                               scaled_to_real
+                                       USE cell_methods, ONLY:  write_cell
     USE cp_para_types,                   ONLY: cp_para_env_type
     USE cp_subsys_types,                 ONLY: cp_subsys_get,&
                                                cp_subsys_type,&
                                                pack_subsys_particles,&
                                                unpack_subsys_particles
     USE dimer_methods,                   ONLY: cp_eval_at_ts
-    USE f77_blas
+    
     USE force_env_methods,               ONLY: force_env_calc_energy_force
     USE force_env_types,                 ONLY: force_env_get,&
-                                               force_env_get_nparticle,&
-                                               force_env_set_cell
+                                               force_env_get_nparticle
     USE geo_opt,                         ONLY: cp_geo_opt
     USE gopt_f_types,                    ONLY: gopt_f_type
     USE gopt_f_methods,                  ONLY: apply_cell_change
@@ -70,7 +69,7 @@
     USE kinds,                           ONLY: dp,&
                                                default_string_length
     USE particle_list_types,             ONLY: particle_list_type
-    USE particle_types,                  ONLY: write_structure_data
+    USE particle_methods,                  ONLY: write_structure_data
     USE timings,                         ONLY: timeset,&
                                                timestop
     USE virial_methods,                  ONLY: virial_update
@@ -128,6 +127,7 @@
                        core_particles=core_particles,&
                        particles=particles,&
                        shell_particles=shell_particles,&
+                       virial=virial,&
                        error=error)
 
     my_final_evaluation = .FALSE.
@@ -179,7 +179,6 @@
        CALL unpack_subsys_particles(subsys=subsys,r=x,error=error)
     CASE (default_cell_method_id)
        ! Check for VIRIAL
-       CALL force_env_get(gopt_env%force_env,virial=virial,error=error)
        CALL cp_assert(virial%pv_availability,cp_failure_level,cp_assertion_failed,routineP,&
             "Cell optimization requested but FORCE_EVAL%STRESS_TENSOR was not defined! "//&
             "Activate the evaluation of the stress tensor for cell optimization! "//&
@@ -197,7 +196,7 @@ CPSourceFileRef,&
                require_consistent_energy_force=gopt_env%require_consistent_energy_force,&
                error=error)
           ! Possibly take the potential energy
-          CALL force_env_get(gopt_env%force_env,potential_energy=potential_energy,virial=virial,error=error)
+          CALL force_env_get(gopt_env%force_env,potential_energy=potential_energy,error=error)
           CALL cp_virial(virial,virial_avg)
           CALL virial_update(virial_avg,subsys,para_env,error=error)
           IF (PRESENT(f)) THEN
@@ -253,7 +252,7 @@ CPSourceFileRef,&
                 CALL gopt_new_error_create(new_error, gopt_env%force_env%root_section, para_env,&
                      project_name, id_run=geo_opt_run, error=error)
                 CALL cp_geo_opt(gopt_env%force_env, gopt_env%globenv,eval_opt_geo=.FALSE.,error=new_error)
-                CALL force_env_get(gopt_env%force_env,potential_energy=potential_energy,virial=virial,error=error)
+                CALL force_env_get(gopt_env%force_env,potential_energy=potential_energy,error=error)
                 CALL cp_virial(virial, virial_avg)
              CASE(default_cell_md_id)
                 work         => section_vals_get_subs_vals(gopt_env%motion_section,"MD",error=error)

@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2014  CP2K developers group                          !
+!   Copyright (C) 2000 - 2015  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -13,11 +13,10 @@
 !> \author MI
 ! *****************************************************************************
 MODULE qs_linres_current
-
   USE basis_set_types,                 ONLY: get_gto_basis_set,&
                                              gto_basis_set_p_type,&
                                              gto_basis_set_type
-  USE cell_methods,                    ONLY: cell_type,&
+  USE cell_types,                      ONLY: cell_type,&
                                              pbc
   USE cp_array_i_utils,                ONLY: cp_2d_i_p_type
   USE cp_array_r_utils,                ONLY: cp_2d_r_p_type
@@ -53,8 +52,6 @@ MODULE qs_linres_current
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_realspace_grid_cube,          ONLY: cp_pw_to_cube
-  USE cp_subsys_types,                 ONLY: cp_subsys_get,&
-                                             cp_subsys_type
   USE cube_utils,                      ONLY: cube_info_type
   USE gaussian_gridlevels,             ONLY: gridlevel_info_type
   USE input_constants,                 ONLY: current_gauge_atom
@@ -70,8 +67,8 @@ MODULE qs_linres_current
   USE memory_utilities,                ONLY: reallocate
   USE orbital_pointers,                ONLY: ncoset
   USE particle_list_types,             ONLY: particle_list_type
-  USE particle_types,                  ONLY: get_particle_set,&
-                                             particle_type
+  USE particle_methods,                ONLY: get_particle_set
+  USE particle_types,                  ONLY: particle_type
   USE pw_env_types,                    ONLY: pw_env_get,&
                                              pw_env_type
   USE pw_methods,                      ONLY: pw_axpy,&
@@ -115,6 +112,9 @@ MODULE qs_linres_current
                                              neighbor_list_set_p_type
   USE qs_operators_ao,                 ONLY: build_lin_mom_matrix,&
                                              rRc_xyz_der_ao
+  USE qs_rho_types,                    ONLY: qs_rho_get
+  USE qs_subsys_types,                 ONLY: qs_subsys_get,&
+                                             qs_subsys_type
   USE realspace_grid_types,            ONLY: &
        realspace_grid_desc_p_type, realspace_grid_desc_type, &
        realspace_grid_p_type, realspace_grid_type, rs_grid_create, &
@@ -213,7 +213,6 @@ CONTAINS
     TYPE(cp_fm_type), POINTER                :: mo_coeff, psi_a_iB, psi_buf
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(cp_subsys_type), POINTER            :: subsys
     TYPE(dbcsr_distribution_obj), POINTER    :: dbcsr_dist
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(mo_set_p_type), DIMENSION(:), &
@@ -225,11 +224,13 @@ CONTAINS
       POINTER                                :: particle_set
     TYPE(pw_env_type), POINTER               :: pw_env
     TYPE(pw_p_type)                          :: wf_r
+    TYPE(pw_p_type), DIMENSION(:), POINTER   :: jrho1_g, jrho1_r
     TYPE(pw_p_type), POINTER                 :: jrho_gspace, jrho_rspace
     TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
     TYPE(qs_kind_type), DIMENSION(:), &
       POINTER                                :: qs_kind_set
     TYPE(qs_matrix_pools_type), POINTER      :: mpools
+    TYPE(qs_subsys_type), POINTER            :: subsys
     TYPE(realspace_grid_desc_type), POINTER  :: auxbas_rs_desc
     TYPE(section_vals_type), POINTER         :: current_section
 
@@ -239,7 +240,7 @@ CONTAINS
     NULLIFY(jrho_rspace,jrho_gspace,logger,current_section,density_matrix0,density_matrix_a,&
             density_matrix_ii,density_matrix_iii,cell,dft_control,mos,&
             particle_set,pw_env,auxbas_rs_desc,auxbas_pw_pool,&
-            para_env,center_list,mo_coeff,psi_a_iB,&
+            para_env,center_list,mo_coeff,psi_a_iB,jrho1_r, jrho1_g,&
             psi1,p_psi1,psi1_p,psi1_D,psi1_rxp,psi0_order,sab_all, qs_kind_set)
 
     logger => cp_error_get_logger(error)
@@ -271,7 +272,7 @@ CONTAINS
                     dbcsr_dist=dbcsr_dist,&
                     error=error)
 
-    CALL cp_subsys_get(subsys,particles=particles,error=error)
+    CALL qs_subsys_get(subsys,particles=particles,error=error)
 
     gapw  = dft_control%qs_control%gapw
     nspins = dft_control%nspins
@@ -438,8 +439,10 @@ CONTAINS
              ! idir is the cartesian component of the response current density
              ! generated by the magnetic field pointing in cartesian direction iB
              ! Use the qs_rho_type already  used for rho during the scf
-             jrho_rspace => current_env%jrho1_set(idir)%rho%rho_r(ispin)
-             jrho_gspace => current_env%jrho1_set(idir)%rho%rho_g(ispin)
+             CALL qs_rho_get(current_env%jrho1_set(idir)%rho, rho_r=jrho1_r, error=error)
+             CALL qs_rho_get(current_env%jrho1_set(idir)%rho, rho_g=jrho1_g, error=error)
+             jrho_rspace => jrho1_r(ispin)
+             jrho_gspace => jrho1_g(ispin)
              CALL pw_zero(jrho_rspace%pw,error=error)
              CALL pw_zero(jrho_gspace%pw,error=error)
              CALL calculate_jrho_resp(density_matrix0(ispin)%matrix, &
@@ -512,10 +515,9 @@ CONTAINS
           !
           DO idir = 1,3
              CALL pw_zero(wf_r%pw,error=error)
-             !
+             CALL qs_rho_get(current_env%jrho1_set(idir)%rho, rho_r=jrho1_r, error=error)
              DO ispin =1 ,nspins
-                CALL pw_axpy(current_env%jrho1_set(idir)%rho%rho_r(ispin)%pw,wf_r%pw,1.0_dp,&
-                     error=error)
+                CALL pw_axpy(jrho1_r(ispin)%pw,wf_r%pw,1.0_dp, error=error)
              ENDDO
              !
              IF(gapw) THEN

@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2014  CP2K developers group                          !
+!   Copyright (C) 2000 - 2015  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -10,15 +10,14 @@
 !> \author Teodoro Laino - created [tlaino] - 03.2008 - Zurich University
 ! *****************************************************************************
 MODULE cell_opt_types
-  USE cell_methods,                    ONLY: cell_clone,&
+  USE cell_opt_utils,                  ONLY: get_ut_cell_matrix,&
+                                             read_external_press_tensor
+  USE cell_types,                      ONLY: cell_clone,&
                                              cell_create,&
                                              cell_release,&
                                              cell_type
-  USE cell_opt_utils,                  ONLY: get_ut_cell_matrix,&
-                                             read_external_press_tensor
   USE cp_subsys_types,                 ONLY: cp_subsys_get,&
                                              cp_subsys_type
-  USE f77_blas
   USE force_env_types,                 ONLY: force_env_get,&
                                              force_env_type
   USE input_section_types,             ONLY: section_vals_type,&
@@ -101,7 +100,7 @@ CONTAINS
        CALL section_vals_val_get(geo_section,"PRESSURE_TOLERANCE",r_val=cell_env%pres_tol,error=error)
 
        ! First let's rotate the cell vectors in order to have an upper triangular matrix.
-       CALL get_ut_cell_matrix(force_env, error)
+       CALL get_ut_cell_matrix(cell, error)
 
        ! Compute the rotation matrix that give the cell vectors in the "canonical" orientation
        cell_env%rot_matrix = MATMUL(cell_env%ref_cell%hmat,cell%h_inv)

@@ -1,5 +1,5 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2014  CP2K developers group                          !
+!   Copyright (C) 2000 - 2015  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -12,7 +12,6 @@
 MODULE kg_environment_types
   USE cp_dbcsr_interface,              ONLY: cp_dbcsr_deallocate_matrix_set,&
                                              cp_dbcsr_p_type
-  USE f77_blas
   USE input_section_types,             ONLY: section_vals_release,&
                                              section_vals_type
   USE molecule_types_new,              ONLY: molecule_type

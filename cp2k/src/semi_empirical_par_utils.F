@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2014  CP2K developers group                          !
+!   Copyright (C) 2000 - 2015  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -12,7 +12,7 @@
 !> \date   03.2008 [tlaino]
 ! *****************************************************************************
 MODULE semi_empirical_par_utils
-  USE f77_blas
+  
   USE kinds,                           ONLY: dp
   USE mathconstants,                   ONLY: fac
   USE mathlib,                         ONLY: binomial

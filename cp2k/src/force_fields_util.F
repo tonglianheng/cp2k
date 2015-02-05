@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2014  CP2K developers group                          !
+!   Copyright (C) 2000 - 2015  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -15,6 +15,7 @@
 !> \author CJM
 ! *****************************************************************************
 MODULE force_fields_util
+
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind
   USE cell_types,                      ONLY: cell_type
@@ -24,19 +25,22 @@ MODULE force_fields_util
   USE cp_units,                        ONLY: cp_unit_to_cp2k
   USE ewald_environment_types,         ONLY: ewald_env_get,&
                                              ewald_environment_type
-  USE f77_blas
   USE fist_nonbond_env_types,          ONLY: fist_nonbond_env_create,&
                                              fist_nonbond_env_set,&
                                              fist_nonbond_env_type
-  USE force_field_types,               ONLY: &
+  USE force_field_kind_types,          ONLY: &
        allocate_bend_kind_set, allocate_bond_kind_set, &
        allocate_impr_kind_set, allocate_opbend_kind_set, &
-       allocate_torsion_kind_set, allocate_ub_kind_set, amber_info_type, &
-       bend_kind_type, bond_kind_type, charmm_info_type, &
-       deallocate_bend_kind_set, deallocate_bond_kind_set, force_field_type, &
-       gromos_info_type, impr_kind_dealloc_ref, impr_kind_type, &
-       input_info_type, opbend_kind_type, torsion_kind_dealloc_ref, &
-       torsion_kind_type, ub_kind_dealloc_ref, ub_kind_type
+       allocate_torsion_kind_set, allocate_ub_kind_set, bend_kind_type, &
+       bond_kind_type, deallocate_bend_kind_set, deallocate_bond_kind_set, &
+       do_ff_undef, impr_kind_dealloc_ref, impr_kind_type, opbend_kind_type, &
+       torsion_kind_dealloc_ref, torsion_kind_type, ub_kind_dealloc_ref, &
+       ub_kind_type
+  USE force_field_types,               ONLY: amber_info_type,&
+                                             charmm_info_type,&
+                                             force_field_type,&
+                                             gromos_info_type,&
+                                             input_info_type
   USE force_fields_all,                ONLY: &
        force_field_pack_bend, force_field_pack_bond, force_field_pack_charge, &
        force_field_pack_charges, force_field_pack_damp, &
@@ -48,7 +52,6 @@ MODULE force_fields_util
        force_field_unique_bend, force_field_unique_bond, &
        force_field_unique_impr, force_field_unique_opbend, &
        force_field_unique_tors, force_field_unique_ub
-  USE input_constants,                 ONLY: do_ff_undef
   USE input_section_types,             ONLY: section_vals_get,&
                                              section_vals_get_subs_vals,&
                                              section_vals_type,&

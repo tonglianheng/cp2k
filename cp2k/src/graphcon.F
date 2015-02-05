@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2014  CP2K developers group                          !
+!   Copyright (C) 2000 - 2015  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -19,7 +19,7 @@
 !> \author Joost VandeVondele
 ! *****************************************************************************
 MODULE graphcon
-  USE f77_blas
+  
   USE util,                            ONLY: sort
 #include "./common/cp_common_uses.f90"
 
@@ -502,7 +502,7 @@ loop:   DO I=1,SIZE(reference)
     hash=IAND(     hash+IAND(ISHFT(hash, 15),b32)  ,b32)
     ! hash is the real 32bit hash value of the string,
     ! hash_index is an index in the hash_table
-    hash_index=MOD(hash,INT(HUGE(hash_index),KIND=k64))
+    hash_index=INT(MOD(hash,INT(HUGE(hash_index),KIND=k64)),KIND=KIND(hash_index))
   END FUNCTION joaat_hash_i
 
 !===ACM Algorithm 323, Generation of Permutations in Lexicographic
@@ -558,12 +558,18 @@ loop:   DO I=1,SIZE(reference)
         q(k)=m-1
         k=k+1
 2       m=n
-3       t=x(m)
+        t=x(m)
         x(m)=x(k)
         x(k)=t
         m=m-1
         k=k+1
-        IF(k.lt.m) GOTO 3
+        DO WHILE (k.lt.m)
+          t=x(m)
+          x(m)=x(k)
+          x(k)=t
+          m=m-1
+          k=k+1
+        END DO
         END SUBROUTINE
 END MODULE graphcon
 

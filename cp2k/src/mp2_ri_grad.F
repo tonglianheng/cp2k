@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2014  CP2K developers group                          !
+!   Copyright (C) 2000 - 2015  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -9,11 +9,10 @@
 !>      10.2013 created [Mauro Del Ben]
 ! *****************************************************************************
 MODULE mp2_ri_grad
-! USE f77_blas
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind_set
   USE basis_set_types,                 ONLY: gto_basis_set_type
-  USE cell_methods,                    ONLY: cell_type,&
+  USE cell_types,                      ONLY: cell_type,&
                                              pbc
   USE cp_blacs_env,                    ONLY: cp_blacs_env_type
   USE cp_control_types,                ONLY: dft_control_type
@@ -38,7 +37,6 @@ MODULE mp2_ri_grad
   USE cp_para_env,                     ONLY: cp_para_env_create,&
                                              cp_para_env_release
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE cp_subsys_types,                 ONLY: cp_subsys_type
   USE gaussian_gridlevels,             ONLY: gaussian_gridlevel
   USE input_constants,                 ONLY: use_orb_basis_set,&
                                              use_ri_aux_basis_set
@@ -79,6 +77,7 @@ MODULE mp2_ri_grad
   USE qs_integrate_potential,          ONLY: integrate_pgf_product_rspace,&
                                              integrate_v_rspace
   USE qs_kind_types,                   ONLY: qs_kind_type
+  USE qs_ks_types,                     ONLY: qs_ks_env_type
   USE qs_neighbor_list_types,          ONLY: neighbor_list_set_p_type
   USE realspace_grid_types,            ONLY: realspace_grid_desc_p_type,&
                                              realspace_grid_p_type,&
@@ -206,7 +205,6 @@ MODULE mp2_ri_grad
     TYPE(cp_dbcsr_type), POINTER             :: mo_coeff_o, mo_coeff_v
     TYPE(cp_fm_struct_type), POINTER         :: fm_struct_tmp
     TYPE(cp_fm_type), POINTER                :: L1_mu_i, L2_nu_a
-    TYPE(cp_subsys_type), POINTER            :: subsys
     TYPE(gto_basis_set_type), POINTER        :: basis_set_a
     TYPE(molecule_kind_type), DIMENSION(:), &
       POINTER                                :: molecule_kind_set
@@ -215,6 +213,7 @@ MODULE mp2_ri_grad
     TYPE(pw_p_type)                          :: dvg(3), psi_L, temp_pw_g
     TYPE(qs_force_type), DIMENSION(:), &
       POINTER                                :: force
+    TYPE(qs_ks_env_type), POINTER            :: ks_env
     TYPE(realspace_grid_desc_p_type), &
       DIMENSION(:), POINTER                  :: rs_descs
     TYPE(realspace_grid_p_type), &
@@ -227,13 +226,13 @@ MODULE mp2_ri_grad
     dimen=nmo
     virtual=dimen-homo
     eps_filter=mp2_env%mp2_gpw%eps_filter
-    NULLIFY(mo_coeff_o, mo_coeff_v, G_P_ia)
+    NULLIFY(mo_coeff_o, mo_coeff_v, G_P_ia, ks_env)
     mo_coeff_o => mp2_env%ri_grad%mo_coeff_o
     mo_coeff_v => mp2_env%ri_grad%mo_coeff_v
     G_P_ia => mp2_env%ri_grad%G_P_ia
-    subsys=>qs_env%subsys
-    molecule_set => subsys%molecules_new%els
-    molecule_kind_set => subsys%molecule_kinds_new%els
+
+    CALL get_qs_env(qs_env, ks_env=ks_env, molecule_set=molecule_set, &
+                    molecule_kind_set=molecule_kind_set, error=error)
 
     nkind = SIZE(atomic_kind_set)
     natom = SIZE(particle_set)
@@ -506,7 +505,7 @@ MODULE mp2_ri_grad
                                                o1=na1-1,&
                                                o2=0,&
                                                map_consistent=.TRUE.,&
-                                               eps_gvg_rspace=qs_env%dft_control%qs_control%eps_gvg_rspace,&
+                                               eps_gvg_rspace=dft_control%qs_control%eps_gvg_rspace,&
                                                calculate_forces=.TRUE.,&
                                                force_a=force_a, force_b=force_b, &
                                                use_virial=use_virial,my_virial_a=my_virial_a,my_virial_b=my_virial_b,&
@@ -621,7 +620,7 @@ MODULE mp2_ri_grad
                               total_rho=total_rho,&
                               task_list_external=task_list_sub,&
                               pw_env_external=pw_env_sub,&
-                              qs_env=qs_env,error=error_sub)
+                              ks_env=ks_env,error=error_sub)
       ! calculate associated hartree potential
       ! CALL pw_transfer(rho_r%pw, rho_g%pw, error=error_sub)
       !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!1
@@ -769,7 +768,7 @@ MODULE mp2_ri_grad
                                                o1=na1-1,&
                                                o2=0,&
                                                map_consistent=.TRUE.,&
-                                               eps_gvg_rspace=qs_env%dft_control%qs_control%eps_gvg_rspace,&
+                                               eps_gvg_rspace=dft_control%qs_control%eps_gvg_rspace,&
                                                calculate_forces=.TRUE.,&
                                                force_a=force_a, force_b=force_b, &
                                                use_virial=use_virial,my_virial_a=my_virial_a,my_virial_b=my_virial_b,&
@@ -952,7 +951,8 @@ MODULE mp2_ri_grad
 
     ! create the globally distributed mixed lagrangian
     NULLIFY(blacs_env)
-    blacs_env => qs_env%blacs_env
+    CALL get_qs_env(qs_env, blacs_env=blacs_env, error=error)
+
     NULLIFY(L_mu_q, fm_struct_tmp)
     CALL cp_fm_struct_create(fm_struct_tmp,para_env=para_env,context=blacs_env, &
                              nrow_global=dimen,ncol_global=dimen,error=error)

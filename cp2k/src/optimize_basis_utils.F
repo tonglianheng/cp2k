@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2014  CP2K developers group                          !
+!   Copyright (C) 2000 - 2015  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 MODULE optimize_basis_utils
   USE cp_files,                        ONLY: close_file,&
@@ -11,7 +11,6 @@ MODULE optimize_basis_utils
   USE cp_parser_types,                 ONLY: cp_parser_type,&
                                              parser_create,&
                                              parser_release
-  USE f77_blas
   USE input_constants,                 ONLY: do_opt_all,&
                                              do_opt_coeff,&
                                              do_opt_exps,&

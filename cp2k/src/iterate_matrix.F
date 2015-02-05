@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2014  CP2K developers group                          !
+!   Copyright (C) 2000 - 2015  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 ! *****************************************************************************
 !> \brief Routines useful for iterative matrix calculations
@@ -10,14 +10,16 @@
 ! *****************************************************************************
 MODULE iterate_matrix
   USE cp_dbcsr_interface,              ONLY: &
-       cp_dbcsr_add, cp_dbcsr_add_on_diag, cp_dbcsr_copy, cp_dbcsr_create, &
-       cp_dbcsr_filter, cp_dbcsr_frobenius_norm, cp_dbcsr_gershgorin_norm, &
-       cp_dbcsr_get_occupation, cp_dbcsr_init, cp_dbcsr_multiply, &
-       cp_dbcsr_norm, cp_dbcsr_release, cp_dbcsr_scale, cp_dbcsr_set, &
-       cp_dbcsr_transposed, cp_dbcsr_type, dbcsr_norm_maxabsnorm, &
-       dbcsr_type_no_symmetry
+       cp_dbcsr_add, cp_dbcsr_add_on_diag, cp_dbcsr_arnoldi_ev, &
+       cp_dbcsr_copy, cp_dbcsr_create, cp_dbcsr_filter, &
+       cp_dbcsr_frobenius_norm, cp_dbcsr_gershgorin_norm, cp_dbcsr_get_info, &
+       cp_dbcsr_get_matrix_type, cp_dbcsr_get_occupation, cp_dbcsr_init, &
+       cp_dbcsr_multiply, cp_dbcsr_norm, cp_dbcsr_p_type, cp_dbcsr_release, &
+       cp_dbcsr_scale, cp_dbcsr_set, cp_dbcsr_setup_arnoldi_data, &
+       cp_dbcsr_transposed, cp_dbcsr_type, dbcsr_arnoldi_data, &
+       dbcsr_norm_maxabsnorm, dbcsr_type_no_symmetry, &
+       deallocate_arnoldi_data, get_selected_ritz_val
   USE cp_dbcsr_util,                   ONLY: lanczos_alg_serial
-  USE f77_blas
   USE kinds,                           ONLY: dp,&
                                              int_8
   USE machine,                         ONLY: m_flush,&
@@ -45,34 +47,41 @@ CONTAINS
 ! *****************************************************************************
 !> \brief invert a symmetric positive definite matrix by Hotelling's method
 !>        explicit symmetrization makes this code not suitable for other matrix types
+!>        Currently a bit messy with the options, to to be cleaned soon
 !> \param matrix_inverse ...
 !> \param matrix ...
-!> \param threshold ...
-!> \param use_inv_as_guess ...
+!> \param threshold convergence threshold nased on the max abs
+!> \param use_inv_as_guess logical whether input can be used as guess for inverse
+!> \param norm_convergence convergence threshold for the 2-norm, useful for approximate solutions
+!> \param filter_eps filter_eps for matrix multiplications, if not passed nothing is filteres
 !> \param error ...
 !> \par History
 !>       2010.10 created [Joost VandeVondele]
 !>       2011.10 guess option added [Rustam Z Khaliullin]
 !> \author Joost VandeVondele
 ! *****************************************************************************
-  SUBROUTINE invert_Hotelling(matrix_inverse,matrix,threshold,use_inv_as_guess,error)
+  SUBROUTINE invert_Hotelling(matrix_inverse,matrix,threshold,use_inv_as_guess,&
+                              norm_convergence,filter_eps,error)
 
-    TYPE(cp_dbcsr_type), INTENT(INOUT)       :: matrix_inverse, matrix
+    TYPE(cp_dbcsr_type), INTENT(INOUT), &
+      TARGET                                 :: matrix_inverse, matrix
     REAL(KIND=dp), INTENT(IN)                :: threshold
     LOGICAL, INTENT(IN), OPTIONAL            :: use_inv_as_guess
+    REAL(KIND=dp), INTENT(IN), OPTIONAL      :: norm_convergence, filter_eps
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'invert_Hotelling', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, i, unit_nr
+    INTEGER                                  :: handle, i, nrow, unit_nr
     INTEGER(KIND=int_8)                      :: flop1, flop2
-    LOGICAL                                  :: prepare_to_exit, use_inv_guess
-    REAL(KIND=dp)                            :: frob_matrix, gershgorin_norm, &
-                                                maxnorm_matrix, occ_matrix, &
-                                                t1, t2
+    LOGICAL                                  :: use_inv_guess
+    REAL(KIND=dp) :: convergence, frob_matrix, gershgorin_norm, max_abs_eig, &
+      max_ev, maxnorm_matrix, min_ev, occ_matrix, t1, t2
+    TYPE(cp_dbcsr_p_type), DIMENSION(2)      :: mymat
     TYPE(cp_dbcsr_type)                      :: tmp1, tmp2
     TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(dbcsr_arnoldi_data)                 :: my_arnoldi
 
 ! turn this off for the time being
 
@@ -85,74 +94,114 @@ CONTAINS
        unit_nr=-1
     ENDIF
 
-    use_inv_guess=.FALSE.
-    IF (PRESENT(use_inv_as_guess)) THEN
-       use_inv_guess=use_inv_as_guess
-    ENDIF
+    convergence=threshold
+    IF(PRESENT(norm_convergence))convergence=norm_convergence
 
+    use_inv_guess=.FALSE.
+    IF (PRESENT(use_inv_as_guess)) use_inv_guess=use_inv_as_guess
     IF (.NOT.use_inv_guess) THEN
+       ! initialize matrix to unity and use arnoldi to scale it into the convergence range
        gershgorin_norm=cp_dbcsr_gershgorin_norm(matrix)
        frob_matrix=cp_dbcsr_frobenius_norm(matrix)
        CALL cp_dbcsr_set(matrix_inverse,0.0_dp,error=error)
-       CALL cp_dbcsr_add_on_diag(matrix_inverse,1/MIN(gershgorin_norm,frob_matrix),error=error)
+       CALL cp_dbcsr_add_on_diag(matrix_inverse,1.0_dp,error=error) 
+      ! everything commutes, therefor our all products will be symmetric 
+       CALL cp_dbcsr_init(tmp1,error=error)
+       CALL cp_dbcsr_create(tmp1,template=matrix_inverse,error=error)
+    ELSE
+       ! It is unlikely that our guess will commute with the matrix, therefore the first product will
+       ! be non symmetric
+       CALL cp_dbcsr_init(tmp1,error=error)
+       CALL cp_dbcsr_create(tmp1,template=matrix_inverse,matrix_type=dbcsr_type_no_symmetry,error=error)
     ENDIF
 
-    CALL cp_dbcsr_init(tmp1,error=error)
-    CALL cp_dbcsr_create(tmp1,template=matrix_inverse,error=error)
+    CALL cp_dbcsr_get_info(matrix, nfullrows_total=nrow )
     CALL cp_dbcsr_init(tmp2,error=error)
     CALL cp_dbcsr_create(tmp2,template=matrix_inverse,error=error)
 
+
     IF (unit_nr>0) WRITE(unit_nr,*)
 
-    prepare_to_exit=.FALSE.
+    ! scale the approximate inverse to be within the convergence radius
+    mymat(1)%matrix=>matrix
+    mymat(2)%matrix=>matrix_inverse
+    CALL cp_dbcsr_setup_arnoldi_data(my_arnoldi,mymat,max_iter=30,threshold=1.0E-2_dp,selection_crit=1, &
+                                     nval_request=2, nrestarts=2, generalized_ev=.FALSE.,iram=.TRUE.)
+    CALL cp_dbcsr_arnoldi_ev(mymat,my_arnoldi,error)
+    max_eV=REAL(get_selected_ritz_val(my_arnoldi,2),dp)
+    min_eV=REAL(get_selected_ritz_val(my_arnoldi,1),dp)
+    max_abs_eig=MAX(max_eV,ABS(min_eV))
+    IF(ABS(min_ev).GT.max_ev)max_abs_eig=min_ev
+    CALL deallocate_arnoldi_data(my_arnoldi)
+    IF(max_abs_eig.gt.1.9_dp)THEN
+       occ_matrix=cp_dbcsr_get_occupation(matrix_inverse)
+       IF (unit_nr>0)WRITE(unit_nr,*)'scaling with',max_abs_eig, occ_matrix
+       CALL cp_dbcsr_scale(matrix_inverse,1.9_dp/max_abs_eig,error=error)
+    END IF
 
     DO i=1,100
-
+      
        t1 = m_walltime()
        ! tmp1 = S^-1 S
        CALL cp_dbcsr_multiply("N", "N", 1.0_dp, matrix_inverse, matrix,&
-                              0.0_dp, tmp1,flop=flop1, error=error)
+                              0.0_dp, tmp1,flop=flop1, filter_eps=filter_eps, error=error)
 
        ! for the convergence check
        !frob_matrix_base=cp_dbcsr_frobenius_norm(tmp1)
        CALL cp_dbcsr_add_on_diag(tmp1,-1.0_dp,error=error)
-       !frob_matrix=cp_dbcsr_frobenius_norm(tmp1)
+       frob_matrix=cp_dbcsr_frobenius_norm(tmp1)
+
        CALL cp_dbcsr_norm(tmp1,&
                dbcsr_norm_maxabsnorm, norm_scalar=maxnorm_matrix, error=error)
 
        CALL cp_dbcsr_add_on_diag(tmp1,+1.0_dp,error=error)
-       occ_matrix=cp_dbcsr_get_occupation(matrix_inverse)
 
        ! tmp2 = S^-1 S S^-1
        CALL cp_dbcsr_multiply("N", "N", 1.0_dp, tmp1, matrix_inverse, 0.0_dp, tmp2,&
-                              flop=flop2, error=error)
+                              flop=flop2, filter_eps=filter_eps, error=error)
        ! S^-1_{n+1} = 2 S^-1 - S^-1 S S^-1
        CALL cp_dbcsr_add(matrix_inverse, tmp2, 2.0_dp, -1.0_dp, error=error)
 
        CALL cp_dbcsr_filter(matrix_inverse, threshold, error=error)
        t2 = m_walltime()
+       occ_matrix=cp_dbcsr_get_occupation(matrix_inverse)
+
+       !use the eigenvalues of the matrix to check conevrgence
+       IF(PRESENT(norm_convergence))THEN
+          mymat(1)%matrix=>matrix
+          mymat(2)%matrix=>matrix_inverse
+          CALL cp_dbcsr_setup_arnoldi_data(my_arnoldi,mymat,max_iter=30,threshold=1.0E-2_dp,selection_crit=1,&
+                                           nval_request=2,nrestarts=2,generalized_ev=.FALSE.,iram=.TRUE.)
+          CALL cp_dbcsr_arnoldi_ev(mymat,my_arnoldi,error)
+          max_eV=REAL(get_selected_ritz_val(my_arnoldi,2),dp)
+          min_eV=REAL(get_selected_ritz_val(my_arnoldi,1),dp)
+          max_abs_eig=MAX(max_eV-1.0_dp,ABS(min_eV-1.0_dp))
+          maxnorm_matrix=max_abs_eig
+          CALL deallocate_arnoldi_data(my_arnoldi)
+       END IF
 
        IF (unit_nr>0) THEN
-          WRITE(unit_nr,'(T6,A,1X,I3,1X,F10.8,E12.3,F12.3,F13.3)') "Hotelling iter",i,occ_matrix, &
-                                                             maxnorm_matrix,t2-t1,&
+          WRITE(unit_nr,'(T6,A,1X,I3,1X,F10.8,E12.3,F12.3,F13.3)')  "Hotelling iter",i,occ_matrix, &
+                                                                     maxnorm_matrix,t2-t1,&
                                                                     (flop1+flop2)/(1.0E6_dp*MAX(0.001_dp,t2-t1))
           CALL m_flush(unit_nr)
        ENDIF
 
-       
-       ! use max_norm 
-       IF (maxnorm_matrix<threshold) EXIT 
+       IF(PRESENT(norm_convergence))THEN
+          IF( ABS(max_abs_eig) .LT. norm_convergence)EXIT
+       ELSE
+!       ! use max_norm 
+          IF (maxnorm_matrix<convergence) EXIT 
+       END IF
 
     ENDDO
 
-    !! this check is not really needed
-    !CALL cp_dbcsr_multiply("N", "N", 1.0_dp, matrix_inverse, matrix, 0.0_dp, tmp1,error=error)
-    !!frob_matrix_base=cp_dbcsr_frobenius_norm(tmp1)
-    !CALL cp_dbcsr_add_on_diag(tmp1,-1.0_dp,error=error)
-    !!frob_matrix=cp_dbcsr_frobenius_norm(tmp1)
-    !CALL cp_dbcsr_norm(tmp1,&
-    !        dbcsr_norm_maxabsnorm, norm_scalar=maxnorm_matrix, error=error)
-    !occ_matrix=cp_dbcsr_get_occupation(matrix_inverse)
+    ! try to symmetrize the output matrix
+    IF(cp_dbcsr_get_matrix_type(matrix_inverse)==dbcsr_type_no_symmetry)THEN
+       CALL cp_dbcsr_transposed(tmp2,matrix_inverse,error=error)
+       CALL cp_dbcsr_add(matrix_inverse,tmp2,0.5_dp,0.5_dp,error=error)
+    END IF
+
     IF (unit_nr>0) THEN
     !   WRITE(unit_nr,'(T6,A,1X,I3,1X,F10.8,E12.3)') "Final Hotelling ",i,occ_matrix,&
     !      !frob_matrix/frob_matrix_base
@@ -635,9 +684,15 @@ CONTAINS
     INTEGER                                  :: handle, i, ispin, unit_nr
     REAL(KIND=dp)                            :: frob_norm
     TYPE(cp_dbcsr_type)                      :: matrix_pp, matrix_tmp
+    TYPE(cp_logger_type), POINTER            :: logger
 
     CALL timeset(routineN,handle)
-    unit_nr = cp_logger_get_default_unit_nr()
+    logger => cp_error_get_logger(error)
+    IF (logger%para_env%mepos==logger%para_env%source) THEN
+       unit_nr=cp_logger_get_default_unit_nr(logger,local=.TRUE.)
+    ELSE
+       unit_nr=-1
+    ENDIF
 
     CALL cp_dbcsr_init(matrix_pp,error=error)
     CALL cp_dbcsr_create(matrix_pp,template=matrix_p(1),matrix_type=dbcsr_type_no_symmetry,error=error)
@@ -695,9 +750,16 @@ CONTAINS
     REAL(KIND=dp)                            :: frob_norm
     TYPE(cp_dbcsr_type)                      :: matrix_ps, matrix_psp, &
                                                 matrix_test
+    TYPE(cp_logger_type), POINTER            :: logger
 
     CALL timeset(routineN,handle)
-    unit_nr = cp_logger_get_default_unit_nr()
+
+    logger => cp_error_get_logger(error)
+    IF (logger%para_env%mepos==logger%para_env%source) THEN
+       unit_nr=cp_logger_get_default_unit_nr(logger,local=.TRUE.)
+    ELSE
+       unit_nr=-1
+    ENDIF
 
     CALL cp_dbcsr_init(matrix_ps,error=error)
     CALL cp_dbcsr_create(matrix_ps,template=matrix_p(1),matrix_type=dbcsr_type_no_symmetry,error=error)

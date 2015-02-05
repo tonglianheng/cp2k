@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2014  CP2K developers group                          !
+!   Copyright (C) 2000 - 2015  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -532,9 +532,9 @@ CONTAINS
       z11 = mii(idim)
       z22 = mjj(idim)
       z12 = mij(idim)
-      a12 = a12 + weights ( idim ) * REAL ( CONJG ( z12 ) * ( z11 - z22 ), dp )
-      b12 = b12 + weights ( idim ) * (  z12 * CONJG ( z12 ) -  &
-            0.25_dp * ( z11 - z22 ) * ( CONJG ( z11 ) - CONJG ( z22 ) ) )
+      a12 = a12 + weights ( idim ) * REAL ( CONJG ( z12 ) * ( z11 - z22 ), KIND=dp )
+      b12 = b12 + weights ( idim ) * REAL ( (  z12 * CONJG ( z12 ) -  &
+            0.25_dp * ( z11 - z22 ) * ( CONJG ( z11 ) - CONJG ( z22 ) ) ), KIND=dp)
     END DO
     IF ( ABS ( b12 ) > 1.e-10_dp ) THEN
       ratio = -a12/b12
@@ -640,7 +640,7 @@ CONTAINS
           zii = diag(row_indices(istate),idim)
           zjj = diag(col_indices(jstate),idim)
           gradsq_ij = gradsq_ij + weights ( idim ) * &
-                     4.0_dp * ( CONJG ( zii ) * zii + CONJG ( zjj ) * zjj )
+                     4.0_dp * REAL( ( CONJG ( zii ) * zii + CONJG ( zjj ) * zjj ), KIND=dp)
         END DO
         matrix % local_data ( istate, jstate ) = gradsq_ij
       END DO
@@ -1445,7 +1445,7 @@ CONTAINS
       DIMENSION(:, :, :)                     :: rmat_recv_all
     REAL(KIND=dp)                            :: ct, func, gmax, grad, ri, rj, &
                                                 st, t1, t2, theta, tolerance, &
-                                                xlow, xstate, xup
+                                                xlow, xstate, xup, zc, zr
     TYPE(cp_fm_type), POINTER                :: rmat
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(set_c_1d_type), DIMENSION(:), &
@@ -1591,7 +1591,14 @@ CONTAINS
       WRITE(output_unit,'(T20,A12,T32, A22,T60, A12,A8 )') "Iteration", "Functional", "Tolerance"," Time "
     END IF
 
-    DO sweeps = 1,max_iter
+    DO sweeps = 1,max_iter+1
+      IF(sweeps==max_iter+1) THEN
+        IF(output_unit>0) THEN
+          WRITE(output_unit,*) ' LOCALIZATION! loop did not converge within the maximum number of iterations.'
+          WRITE(output_unit,*) '               Present  Max. gradient = ', tolerance
+        END IF
+        EXIT
+      ENDIF
       t1= m_walltime()
 
       DO iperm = 1,nperm
@@ -1914,9 +1921,9 @@ CONTAINS
       DO i=ns_bound(para_env%mepos,1),  ns_bound(para_env%mepos,2)
         k = i-ns_bound(para_env%mepos,1) + 1
         DO idim = 1,dim2
-          zi=REAL(cz_ij_loc(idim)%c_array(i,k),dp)
-          zj= AIMAG(cz_ij_loc(idim)%c_array(i,k))
-          func = func + weights(idim) *(1.0_dp - (zi*zi+zj*zj))/twopi/twopi
+          zr=REAL(cz_ij_loc(idim)%c_array(i,k),dp)
+          zc=AIMAG(cz_ij_loc(idim)%c_array(i,k))
+          func = func + weights(idim) *(1.0_dp - (zr*zr+zc*zc))/twopi/twopi
         END DO
       END DO
       CALL mp_sum(func,para_env%group)
@@ -1926,20 +1933,12 @@ CONTAINS
          WRITE(output_unit,'(T20,I12,T35,F20.10,T60,E12.4,F8.3)') sweeps,func, tolerance,t2-t1
          CALL m_flush(output_unit)
       END IF
-      IF(tolerance < eps_localization) GOTO 1000
+      IF(tolerance < eps_localization) EXIT
       CALL external_control(should_stop,"LOC",target_time=target_time, start_time=start_time,error=error)
       IF(should_stop) EXIT
 
 
     END DO ! sweeps
-
-
-    IF(output_unit>0) THEN
-       WRITE(output_unit,*) ' LOCALIZATION! loop did not converge within the maximum number of iterations.'
-       WRITE(output_unit,*) '               Present  Max. gradient = ', tolerance
-    END IF
-
-1000 CONTINUE
 
     ! buffer for message passing
     DEALLOCATE(rmat_recv_all,STAT=istat)

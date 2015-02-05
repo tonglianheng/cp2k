@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2014  CP2K developers group                          !
+!   Copyright (C) 2000 - 2015  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 #define CP_L_LESS_Q(el1,el2) ( (.not.el1).and.el2 )
@@ -40,7 +40,6 @@
 !> \author Fawzi Mohamed
 ! *****************************************************************************
 MODULE cp_array_logical_utils
-  USE f77_blas
   USE machine,                         ONLY: m_flush
 #include "cp_common_uses.f90"
 

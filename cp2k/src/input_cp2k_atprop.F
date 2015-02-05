@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2014  CP2K developers group                          !
+!   Copyright (C) 2000 - 2015  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -11,17 +11,11 @@
 ! *****************************************************************************
 MODULE input_cp2k_atprop
   USE bibliography,                    ONLY: Kikuchi2009
-  USE cp_output_handling,              ONLY: cp_print_key_section_create
-  USE f77_blas
-  USE input_constants,                 ONLY: add_last_numeric,&
-                                             low_print_level
   USE input_keyword_types,             ONLY: keyword_create,&
                                              keyword_release,&
                                              keyword_type
   USE input_section_types,             ONLY: section_add_keyword,&
-                                             section_add_subsection,&
                                              section_create,&
-                                             section_release,&
                                              section_type
 #include "./common/cp_common_uses.f90"
 
@@ -51,14 +45,14 @@ CONTAINS
 
     LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
-    TYPE(section_type), POINTER              :: print_key
 
     failure=.FALSE.
 
     CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
     IF (.NOT. failure) THEN
        CALL section_create(section,name="ATOMIC",&
-            description="Controls the calculation and printing of atomic properties ",&
+            description="Controls the calculation of atomic properties. "//&
+                        "Printing is controled by FORCE_EVAL / PRINT / PROGRAM_RUN_INFO",&
             repeats=.FALSE., required=.FALSE.,&
             citations=(/Kikuchi2009/),&
             error=error)
@@ -88,22 +82,6 @@ CONTAINS
             error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
-
-       NULLIFY(print_key)
-       CALL cp_print_key_section_create(print_key,"PRINT",&
-            description="Controls the printing of basic information during the run", &
-            print_level=low_print_level,add_last=add_last_numeric,filename="__STD_OUT__",&
-            error=error)
-
-! additional print keywords
-!      CALL keyword_create(keyword, name="APPEND",&
-!           description="append the cube files when they already exist",&
-!           default_l_val=.FALSE., lone_keyword_l_val=.TRUE.,error=error)
-!      CALL section_add_keyword(print_key,keyword,error=error)
-!      CALL keyword_release(keyword,error=error)
-
-       CALL section_add_subsection(section, print_key, error=error)
-       CALL section_release(print_key,error=error)
 
     END IF
   END SUBROUTINE create_atprop_section

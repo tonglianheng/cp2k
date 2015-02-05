@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2014  CP2K developers group                          !
+!   Copyright (C) 2000 - 2015  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -9,7 +9,7 @@
 !>      01.2007 created [tlaino] Teodoro Laino
 ! *****************************************************************************
 MODULE free_energy_types
-  USE f77_blas
+  
   USE input_constants,                 ONLY: do_fe_ac,&
                                              do_fe_ui
   USE input_section_types,             ONLY: section_vals_get,&

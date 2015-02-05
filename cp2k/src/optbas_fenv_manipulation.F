@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2014  CP2K developers group                          !
+!   Copyright (C) 2000 - 2015  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 MODULE optbas_fenv_manipulation
   USE admm_types,                      ONLY: admm_env_create,&
@@ -25,10 +25,9 @@ MODULE optbas_fenv_manipulation
   USE cp_fm_types,                     ONLY: cp_fm_create,&
                                              cp_fm_release,&
                                              cp_fm_type
+  USE cp_output_handling,              ONLY: debug_print_level
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE f77_blas
-  USE input_constants,                 ONLY: debug_print_level,&
-                                             do_admm_basis_projection,&
+  USE input_constants,                 ONLY: do_admm_basis_projection,&
                                              do_admm_purify_mo_diag,&
                                              use_aux_fit_basis_set,&
                                              use_orb_basis_set
@@ -44,12 +43,14 @@ MODULE optbas_fenv_manipulation
   USE particle_types,                  ONLY: particle_type
   USE qs_energy_utils,                 ONLY: qs_energies_init
   USE qs_environment_types,            ONLY: get_qs_env,&
-                                             qs_environment_type,&
-                                             set_qs_env
+                                             qs_environment_type
   USE qs_interactions,                 ONLY: init_interaction_radii
   USE qs_kind_types,                   ONLY: qs_kind_type
-  USE qs_ks_methods,                   ONLY: qs_ks_did_change,&
-                                             qs_ks_update_qs_env
+  USE qs_ks_methods,                   ONLY: qs_ks_update_qs_env
+  USE qs_ks_types,                     ONLY: get_ks_env,&
+                                             qs_ks_did_change,&
+                                             qs_ks_env_type,&
+                                             set_ks_env
   USE qs_matrix_pools,                 ONLY: mpools_get
   USE qs_mo_io,                        ONLY: read_mo_set
   USE qs_mo_methods,                   ONLY: calculate_density_matrix
@@ -58,6 +59,8 @@ MODULE optbas_fenv_manipulation
   USE qs_neighbor_list_types,          ONLY: neighbor_list_set_p_type
   USE qs_overlap,                      ONLY: build_overlap_matrix
   USE qs_rho_methods,                  ONLY: qs_rho_update_rho
+  USE qs_rho_types,                    ONLY: qs_rho_get,&
+                                             qs_rho_type
   USE scf_control_types,               ONLY: scf_control_type
   USE string_utilities,                ONLY: uppercase
 #include "./common/cp_common_uses.f90"
@@ -171,6 +174,7 @@ CONTAINS
     TYPE(cp_fm_pool_p_type), DIMENSION(:), &
       POINTER                                :: ao_mo_fm_pools, &
                                                 ao_mo_fm_pools_aux_fit
+    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mos, mos_aux_fit
@@ -181,15 +185,17 @@ CONTAINS
     TYPE(scf_control_type), POINTER          :: scf_control
     TYPE(section_vals_type), POINTER         :: dft_section
 
-    CALL get_qs_env(qs_env=qs_env,dft_control=dft_control,&
+    NULLIFY(para_env)
+    CALL get_qs_env(qs_env=qs_env,&
+                    dft_control=dft_control,&
                     mos=mos,nelectron_spin=nelectron_spin,&
                     mos_aux_fit=mos_aux_fit,&
                     atomic_kind_set=atomic_kind_set,&
                     qs_kind_set=qs_kind_set,&
                     scf_control=scf_control,&
-                   particle_set=particle_set,&
-!                   matrix_s=matrix_s,&
+                    particle_set=particle_set,&
                     admm_env=admm_env,&
+                    para_env=para_env,&
                     error=error)
     dft_section =>  section_vals_get_subs_vals(qs_env%input,"DFT",error=error)
 
@@ -205,7 +211,7 @@ CONTAINS
        END IF
     END DO
  
-    CALL read_mo_set(mos,atomic_kind_set,qs_kind_set,particle_set,qs_env%para_env,&
+    CALL read_mo_set(mos,atomic_kind_set,qs_kind_set,particle_set,para_env,&
       id_nr=0,multiplicity=dft_control%multiplicity,dft_section=dft_section,&
       natom_mismatch=natom_mismatch,error=error)
    
@@ -236,18 +242,27 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: ispin
+    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+      POINTER                                :: rho_ao
+    TYPE(dft_control_type), POINTER          :: dft_control
+    TYPE(qs_rho_type), POINTER               :: rho
+
+    NULLIFY(rho, dft_control, rho_ao)
 
     CALL qs_energies_init(qs_env,.FALSE.,error)
-    DO ispin=1,qs_env%dft_control%nspins
-       CALL calculate_density_matrix(qs_env%mos(ispin)%mo_set,qs_env%rho%rho_ao(ispin)%matrix,error=error)
+    CALL get_qs_env(qs_env, rho=rho, dft_control=dft_control, error=error)
+    CALL qs_rho_get(rho, rho_ao=rho_ao, error=error)
+    DO ispin=1, dft_control%nspins
+       CALL calculate_density_matrix(qs_env%mos(ispin)%mo_set,rho_ao(ispin)%matrix,error=error)
     END DO
-    CALL qs_rho_update_rho(qs_env%rho, qs_env, error=error)
+    CALL qs_rho_update_rho(rho, qs_env, error=error)
     CALL qs_ks_did_change(qs_env%ks_env,rho_changed=.TRUE.,error=error)
     qs_env%requires_mo_derivs=.FALSE.
-    qs_env%dft_control%do_admm=.FALSE.
-    CALL qs_ks_update_qs_env(qs_env%ks_env,qs_env=qs_env,calculate_forces=.FALSE.,&
-            error=error)
-    qs_env%dft_control%do_admm=.TRUE.
+    dft_control%do_admm=.FALSE.
+    dft_control%do_admm_mo=.FALSE.
+    CALL qs_ks_update_qs_env(qs_env, calculate_forces=.FALSE., error=error)
+    dft_control%do_admm=.TRUE.
+    dft_control%do_admm_mo=.TRUE.
 
    END SUBROUTINE calculate_ks_matrix
 
@@ -291,12 +306,12 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief ...
-!> \param qs_env ...
+!> \param ks_env ...
 !> \param S_type ...
 !> \param error ...
 ! *****************************************************************************
-   SUBROUTINE calculate_overlap(qs_env,S_type,error)
-    TYPE(qs_environment_type), POINTER       :: qs_env
+   SUBROUTINE calculate_overlap(ks_env,S_type,error)
+    TYPE(qs_ks_env_type), POINTER            :: ks_env
     CHARACTER(LEN=*)                         :: S_type
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
@@ -311,35 +326,37 @@ CONTAINS
                                                 sab_aux_fit_vs_orb, sab_orb
 
     IF(S_type=="S_AB")THEN
-       CALL get_qs_env(qs_env=qs_env, matrix_s=matrix_s,&
-               sab_orb=sab_orb,&
-               error=error)
-       CALL build_overlap_matrix(qs_env,matrix_s=matrix_s,&
-                          matrix_name="OVERLAP",&
-                          basis_set_id_a=use_orb_basis_set,&
-                          basis_set_id_b=use_orb_basis_set, &
-                          sab_nl=sab_orb,&
-                          error=error)
-       CALL set_qs_env(qs_env=qs_env,matrix_s=matrix_s,error=error)
+       CALL get_ks_env(ks_env,&
+                       matrix_s=matrix_s,&
+                       sab_orb=sab_orb,&
+                       error=error)
+       CALL build_overlap_matrix(ks_env,matrix_s=matrix_s,&
+                                 matrix_name="OVERLAP",&
+                                 basis_set_id_a=use_orb_basis_set,&
+                                 basis_set_id_b=use_orb_basis_set, &
+                                 sab_nl=sab_orb,&
+                                 error=error)
+       CALL set_ks_env(ks_env,matrix_s=matrix_s,error=error)
     ELSE IF(S_type=="S_AB_AUX")THEN
-       CALL get_qs_env(qs_env=qs_env, matrix_s_aux_fit=matrix_s_aux_fit,&
-               matrix_s_aux_fit_vs_orb=matrix_s_aux_fit_vs_orb,&
-               sab_aux_fit=sab_aux_fit,&
-               sab_aux_fit_vs_orb=sab_aux_fit_vs_orb,&
-               error=error)
-       CALL build_overlap_matrix(qs_env,matrix_s=matrix_s_aux_fit,&
-                          matrix_name="AUX_FIT_OVERLAP",&
-                          basis_set_id_a=use_aux_fit_basis_set,&
-                          basis_set_id_b=use_aux_fit_basis_set, &
-                          sab_nl=sab_aux_fit,&
-                          error=error)
-       CALL build_overlap_matrix(qs_env,matrix_s=matrix_s_aux_fit_vs_orb,&
-                          matrix_name="MIXED_OVERLAP",&
-                          basis_set_id_a=use_aux_fit_basis_set,&
-                          basis_set_id_b=use_orb_basis_set, &
-                          sab_nl=sab_aux_fit_vs_orb,&
-                          error=error)
-       CALL set_qs_env(qs_env=qs_env,matrix_s_aux_fit_vs_orb=matrix_s_aux_fit_vs_orb,&
+       CALL get_ks_env(ks_env,&
+                       matrix_s_aux_fit=matrix_s_aux_fit,&
+                       matrix_s_aux_fit_vs_orb=matrix_s_aux_fit_vs_orb,&
+                       sab_aux_fit=sab_aux_fit,&
+                       sab_aux_fit_vs_orb=sab_aux_fit_vs_orb,&
+                       error=error)
+       CALL build_overlap_matrix(ks_env,matrix_s=matrix_s_aux_fit,&
+                                 matrix_name="AUX_FIT_OVERLAP",&
+                                 basis_set_id_a=use_aux_fit_basis_set,&
+                                 basis_set_id_b=use_aux_fit_basis_set, &
+                                 sab_nl=sab_aux_fit,&
+                                 error=error)
+       CALL build_overlap_matrix(ks_env,matrix_s=matrix_s_aux_fit_vs_orb,&
+                                 matrix_name="MIXED_OVERLAP",&
+                                 basis_set_id_a=use_aux_fit_basis_set,&
+                                 basis_set_id_b=use_orb_basis_set, &
+                                 sab_nl=sab_aux_fit_vs_orb,&
+                                 error=error)
+       CALL set_ks_env(ks_env,matrix_s_aux_fit_vs_orb=matrix_s_aux_fit_vs_orb,&
                        matrix_s_aux_fit=matrix_s_aux_fit,error=error)
     END IF
 
@@ -359,18 +376,25 @@ CONTAINS
 
     INTEGER                                  :: natoms
     TYPE(admm_type), POINTER                 :: admm_env
+    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mos, mos_aux_fit
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
 
-    NULLIFY(admm_env, dft_control, mos, mos_aux_fit, particle_set)
-    CALL get_qs_env(qs_env=qs_env, admm_env=admm_env, dft_control=dft_control,&
-                    mos=mos,mos_aux_fit=mos_aux_fit, particle_set=particle_set, error=error)
+    NULLIFY(admm_env, dft_control, mos, mos_aux_fit, particle_set, para_env)
+    CALL get_qs_env(qs_env,&
+                    admm_env=admm_env,&
+                    dft_control=dft_control,&
+                    mos=mos,&
+                    mos_aux_fit=mos_aux_fit,&
+                    particle_set=particle_set,&
+                    para_env=para_env,&
+                    error=error)
     natoms = SIZE(particle_set,1)
     CALL admm_env_create(qs_env%admm_env, dft_control%admm_control, mos, mos_aux_fit,&
-                         qs_env%para_env, natoms, error)
+                         para_env, natoms, error)
 
   END SUBROUTINE create_opt_admm_env
 

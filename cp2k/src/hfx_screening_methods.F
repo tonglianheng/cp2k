@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2014  CP2K developers group                          !
+!   Copyright (C) 2000 - 2015  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -12,7 +12,6 @@
 MODULE hfx_screening_methods
   USE ao_util,                         ONLY: exp_radius_very_extended
   USE basis_set_types,                 ONLY: gto_basis_set_type
-  USE f77_blas
   USE hfx_libint_interface,            ONLY: evaluate_eri_screen
   USE hfx_libint_wrapper_types,        ONLY: lib_int
   USE hfx_types,                       ONLY: hfx_basis_type,&
@@ -863,7 +862,7 @@ END SUBROUTINE calc_pair_dist_radii
      ! we restart afterwards for the assym.
      ! the assym function appears to have several local minima, depending on the data to fit
      ! the loop over k can make the switch gradual, but there is not much need, seemingly
-     DO k=0,4,5
+     DO k=0,4,4
 
         small_weight=1.0_dp
         large_weight=small_weight*(10.0_dp**k)
@@ -913,6 +912,7 @@ END SUBROUTINE calc_pair_dist_radii
 !> \param i 2d index
 !> \param j 2d index
 !> \param N matrix size
+!> \retval get_1D_idx ...
 !> \par History
 !>      03.2009 created [Manuel Guidon]
 !> \author Manuel Guidon

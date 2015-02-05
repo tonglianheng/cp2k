@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2014  CP2K developers group                          !
+!   Copyright (C) 2000 - 2015  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -12,7 +12,7 @@
 ! *****************************************************************************
 
 MODULE tmc_analysis
-  USE cell_methods,                    ONLY: cell_type,&
+  USE cell_types,                      ONLY: cell_type,&
                                              get_cell,&
                                              pbc
   USE cp_files,                        ONLY: close_file,&
@@ -1530,7 +1530,7 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(3, 3)           :: tmp_dip
 
     kB = boltzmann/joule
-    counter_tmp = ana_env%dip_ana%conf_counter
+    counter_tmp = INT(ana_env%dip_ana%conf_counter)
 
     ! TODO get correct constant using physcon
     e0 = 0.07957747154594767_dp !e^2*a0*me*hbar^-2

@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2014  CP2K developers group                          !
+!   Copyright (C) 2000 - 2015  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -20,11 +20,10 @@ MODULE se_fock_matrix_exchange
   USE cp_dbcsr_interface,              ONLY: cp_dbcsr_get_block_p,&
                                              cp_dbcsr_p_type
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE f77_blas
-  USE input_constants,                 ONLY: do_multipole_none,&
-                                             do_se_IS_kdso,&
+  USE input_constants,                 ONLY: do_se_IS_kdso,&
                                              do_se_IS_kdso_d
   USE kinds,                           ONLY: dp
+  USE multipole_types,                 ONLY: do_multipole_none
   USE particle_types,                  ONLY: particle_type
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type

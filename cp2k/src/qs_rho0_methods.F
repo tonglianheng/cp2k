@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2014  CP2K developers group                          !
+!   Copyright (C) 2000 - 2015  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -18,7 +18,6 @@ MODULE qs_rho0_methods
                                              gapw_control_type
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
-  USE f77_blas
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type,&
                                              section_vals_val_get
@@ -249,6 +248,7 @@ MODULE qs_rho0_methods
       rho0_atom_set(iatom)%rho0_rad_h%r_coef = 0.0_dp
       rho0_mp%mp_rho(iatom)%Qlm_tot = 0.0_dp
       rho0_mp%mp_rho(iatom)%Qlm_tot(1) = rho0_mp%mp_rho(iatom)%Qlm_z
+      rho0_mp%mp_rho(iatom)%Q0 = 0.0_dp
     ENDDO
 
     IF(.NOT.(.NOT. paw_atom .AND. gapw_control%nopaw_as_gpw)) THEN
@@ -274,6 +274,16 @@ MODULE qs_rho0_methods
             END DO
          END IF
 
+         ! Total charge (hard-soft) at atom
+         IF(paw_atom) THEN
+            DO ispin = 1,nspins
+               mpole_rho%Q0(ispin) = (trace_r_AxB(mpole_gau%Qlm_gg(:,:,1),nsotot,&
+                                      cpc_ah(:,:,ispin),nsotot,nsotot,nsotot) &
+                                     -trace_r_AxB(mpole_gau%Qlm_gg(:,:,1),nsotot,&
+                                      cpc_as(:,:,ispin),nsotot,nsotot,nsotot))/SQRT(fourpi)
+            END DO
+         END IF
+         ! Multipoles of local charge distribution
          DO iso = 1, nsoset(lmax0)
             l = indso(1,iso)
             IF(paw_atom) THEN

@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2014  CP2K developers group                          !
+!   Copyright (C) 2000 - 2015  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -21,7 +21,6 @@ MODULE timings_report
                                              dict_haskey,&
                                              dict_items
   USE dict_i4tuple_callstat,           ONLY: dict_i4tuple_callstat_item_type
-  USE f77_blas
   USE kinds,                           ONLY: default_string_length,&
                                              dp,&
                                              int_8
@@ -255,7 +254,7 @@ MODULE timings_report
     IF (maxcost >= 100000)  decimals = 1
     IF (maxcost >= 1000000) decimals = 0
     WRITE (UNIT=fmt,FMT="(A,I0,A)")&
-        "(T2,A31,I7,1X,F4.1,4(1X,F8.",decimals,"))"
+        "(T2,A30,1X,I7,1X,F4.1,4(1X,F8.",decimals,"))"
 
     !write output
     DO i=num_routines,1,-1

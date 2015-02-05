@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2014  CP2K developers group                          !
+!   Copyright (C) 2000 - 2015  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -17,7 +17,6 @@ MODULE thermostat_types
   USE extended_system_types,           ONLY: lnhc_dealloc,&
                                              lnhc_init,&
                                              lnhc_parameters_type
-  USE f77_blas
   USE gle_system_types,                ONLY: gle_dealloc,&
                                              gle_init,&
                                              gle_type

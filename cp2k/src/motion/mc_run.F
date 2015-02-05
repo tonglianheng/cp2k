@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2014  CP2K developers group                          !
+!   Copyright (C) 2000 - 2015  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -37,7 +37,6 @@
 ! *****************************************************************************
 MODULE mc_run
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE f77_blas
   USE force_env_types,                 ONLY: force_env_p_type,&
                                              force_env_release,&
                                              force_env_type,&

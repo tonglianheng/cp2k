@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2014  CP2K developers group                          !
+!   Copyright (C) 2000 - 2015  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -19,7 +19,7 @@
 ! *****************************************************************************
 MODULE pw_cuda
   USE ISO_C_BINDING
-  USE f77_blas
+  USE fast,                            ONLY: zero_c
   USE fft_tools,                       ONLY: &
        cube_transpose_1, cube_transpose_2, fft_scratch_sizes, &
        fft_scratch_type, get_fft_scratch, release_fft_scratch, x_to_yz, &
@@ -396,8 +396,8 @@ END SUBROUTINE pw_cuda_finalize
 
 #if defined (__PW_CUDA)
     INTEGER                                  :: handle, ierr
-    INTEGER                                  :: i, ngpts, stat, iout
-    INTEGER                                  :: lg, mg, mmax, lmax, rp, mx1, my1, mx2, mz2, n1, n2, nmax
+    INTEGER                                  :: ngpts, iout
+    INTEGER                                  :: lg, mg, mmax, lmax, rp, mx2, mz2, n1, n2, nmax
     INTEGER                                  :: g_pos, numtask, numtask_r, numtask_g
     INTEGER, DIMENSION(2)                    :: r_pos, r_dim
     INTEGER                                  :: gs_group, rs_group
@@ -591,8 +591,8 @@ END SUBROUTINE pw_cuda_finalize
 #if defined (__PW_CUDA)
     INTEGER                                  :: handle, ierr
 
-    INTEGER                                  :: i, ngpts, stat, iout
-    INTEGER                                  :: lg, mg, mmax, lmax, rp, mx1, my1, mx2, mz2, n1, n2, nmax, mcz1, mcx2, mcz2
+    INTEGER                                  :: ngpts, iout
+    INTEGER                                  :: lg, mg, mmax, lmax, rp, mx2, mz2, n1, n2, nmax
     INTEGER                                  :: g_pos, numtask, numtask_r, numtask_g
     INTEGER, DIMENSION(2)                    :: r_pos, r_dim
     INTEGER                                  :: gs_group, rs_group
@@ -705,7 +705,7 @@ END SUBROUTINE pw_cuda_finalize
           CALL pw_cuda_sf(pw1, pbuf, scale, error)
 
           ! Exchange data ( transpose of matrix ) and sort
-          IF (pw1%pw_grid%grid_span /= FULLSPACE) CALL zero_c(SIZE(qbuf),qbuf)
+          IF (pw1%pw_grid%grid_span /= FULLSPACE) CALL zero_c(qbuf)
           CALL yz_to_xz(pbuf, rs_group, r_dim, g_pos, p2p, yzp, nyzray, &
                bo(:,:,:,2), qbuf, fft_scratch, error)
 
@@ -716,7 +716,8 @@ END SUBROUTINE pw_cuda_finalize
           CALL pw_cuda_f(qbuf, rbuf, -1, n(2), mx2*mz2, error)
 
           ! Exchange data ( transpose of matrix )
-          IF (pw1%pw_grid%grid_span /= FULLSPACE) CALL zero_c(SIZE(sbuf),sbuf)
+          IF (pw1%pw_grid%grid_span /= FULLSPACE) CALL zero_c(sbuf)
+
           CALL cube_transpose_1(rbuf, rs_group, bo(:,:,:,2), bo(:,:,:,1), sbuf, fft_scratch, error)
 
           ! FFT along z
@@ -741,7 +742,7 @@ END SUBROUTINE pw_cuda_finalize
           CALL pw_cuda_sf(pw1, sbuf, scale, error)
 
           ! Exchange data ( transpose of matrix ) and sort
-          IF (pw1%pw_grid%grid_span /= FULLSPACE) CALL zero_c(SIZE(tbuf),tbuf)
+          IF (pw1%pw_grid%grid_span /= FULLSPACE) CALL zero_c(tbuf)
           CALL x_to_yz (sbuf, gs_group, g_pos, p2p, yzp, nyzray, &
                bo(:,:,:,2), tbuf, fft_scratch, error)
 
@@ -1042,10 +1043,6 @@ END SUBROUTINE pw_cuda_finalize
     INTEGER                                  :: mmax, mg, ngpts, handle, nmaps
     INTEGER, DIMENSION(:), POINTER           :: npts
 
-    COMPLEX(KIND=dp), DIMENSION(:), &
-      ALLOCATABLE, TARGET                    :: pwin
-    COMPLEX(KIND=dp), DIMENSION(:,:), &
-      ALLOCATABLE, TARGET                    :: pwout
     COMPLEX(KIND=dp), POINTER                :: ptr_pwin
     COMPLEX(KIND=dp), POINTER                :: ptr_pwout
     INTEGER, POINTER                         :: ptr_ghatmap

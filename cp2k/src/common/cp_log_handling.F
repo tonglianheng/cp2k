@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2014  CP2K developers group                          !
+!   Copyright (C) 2000 - 2015  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -44,7 +44,6 @@ MODULE cp_log_handling
                                              cp_iteration_info_retain,&
                                              cp_iteration_info_type
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE f77_blas
   USE kinds,                           ONLY: default_path_length,&
                                              default_string_length,&
                                              dp

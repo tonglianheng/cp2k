@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2014  CP2K developers group                          !
+!   Copyright (C) 2000 - 2015  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -11,7 +11,7 @@
 ! *****************************************************************************
 MODULE splines_methods
 
-  USE f77_blas
+  
   USE kinds,                           ONLY: dp,&
                                              dp_size
   USE splines_types,                   ONLY: spline_data_p_type,&
@@ -164,6 +164,7 @@ CONTAINS
 !> \param y1 1. derivative at xx
 !> \param spl_f ...
 !> \param logger ...
+!> \retval potential_s ...
 !> \par Output
 !>      spline interpolated value at xx
 !> \par History
@@ -204,7 +205,7 @@ CONTAINS
             '" not in the spline range. Using =",F11.6,T80,"*",/,80("*"))')SQRT(1.0_dp/xx), SQRT(1.0_dp/yy)
        xx = yy
     END IF
-    i = (xx-spl_p(1)%spline_data%x1)*invh + 1
+    i = INT((xx-spl_p(1)%spline_data%x1)*invh + 1)
     a = (spl_p(1)%spline_data%x1-xx)*invh + REAL(i,kind=dp)
     b = 1.0_dp - a
 
@@ -228,6 +229,7 @@ CONTAINS
 !> \param spl ...
 !> \param xx ...
 !> \param y1 ...
+!> \retval spline_value ...
 !> \author HAF
 ! *****************************************************************************
   FUNCTION spline_value ( spl, xx, y1 )
@@ -245,7 +247,7 @@ CONTAINS
 
     h26 = spl%h26
     invh = spl%invh
-    i = (xx-spl%x1)*invh + 1
+    i = INT((xx-spl%x1)*invh + 1)
 
     a = (spl%x1-xx)*invh + REAL(i,kind=dp)
     b = 1.0_dp - a

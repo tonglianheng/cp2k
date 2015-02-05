@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2014  CP2K developers group                          !
+!   Copyright (C) 2000 - 2015  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -17,15 +17,14 @@ MODULE scf_control_types
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
   USE cp_units,                        ONLY: cp_unit_from_cp2k
-  USE f77_blas
   USE input_constants,                 ONLY: &
        atomic_guess, core_guess, diag_ot, direct_p_mix, general_roks, &
        high_spin_roks, ot_algo_taylor_or_diag, outer_scf_becke_constraint, &
        outer_scf_ddapc_constraint, outer_scf_none, &
        outer_scf_optimizer_bisect, outer_scf_optimizer_diis, &
        outer_scf_optimizer_none, outer_scf_optimizer_sd, &
-       outer_scf_s2_constraint, outer_scf_scp, smear_energy_window, &
-       smear_fermi_dirac, smear_list
+       outer_scf_s2_constraint, smear_energy_window, smear_fermi_dirac, &
+       smear_list
   USE input_cp2k_dft,                  ONLY: create_scf_section
   USE input_enumeration_types,         ONLY: enum_i2c,&
                                              enumeration_type
@@ -344,17 +343,17 @@ CONTAINS
 ! *****************************************************************************
 !> \brief reads the parameters of the scf section into the given scf_control
 !> \param scf_control the object that wil contain the values read
-!> \param dft_section ...
+!> \param inp_section ...
 !> \param error controls log and error handling
 !> \par History
 !>      05.2001 created [Matthias]
 !>      09.2002 creaded separated scf_control type [fawzi]
 !> \author Matthias Krack
 ! *****************************************************************************
-  SUBROUTINE scf_c_read_parameters(scf_control,dft_section,error)
+  SUBROUTINE scf_c_read_parameters(scf_control,inp_section,error)
 
     TYPE(scf_control_type), POINTER          :: scf_control
-    TYPE(section_vals_type), POINTER         :: dft_section
+    TYPE(section_vals_type), POINTER         :: inp_section
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'scf_c_read_parameters', &
@@ -374,7 +373,7 @@ CONTAINS
     CPPrecondition(ASSOCIATED(scf_control),cp_failure_level,routineP,error,failure)
     CPPrecondition((scf_control%ref_count > 0),cp_failure_level,routineP,error,failure)
     IF (.NOT.failure) THEN
-       scf_section => section_vals_get_subs_vals(dft_section,"SCF",error=error)
+       scf_section => section_vals_get_subs_vals(inp_section,"SCF",error=error)
        CALL section_vals_val_get(scf_section,"DIAGONALIZATION%_SECTION_PARAMETERS_",&
             l_val=scf_control%use_diag,error=error)
        IF(scf_control%use_diag) THEN
@@ -756,8 +755,6 @@ CONTAINS
                    WRITE (output_unit,'(T25,A)') "S2 constraint enforced"
                 CASE (outer_scf_becke_constraint)
                    WRITE (output_unit,'(T25,A)') "Becke weight population constraint enforced"
-                CASE (outer_scf_scp)
-                   WRITE (output_unit,'(T25,A)') "SCP optimization with outer loop enforced"
                 CASE DEFAULT
                    CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)
                 END SELECT

@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2014  CP2K developers group                          !
+!   Copyright (C) 2000 - 2015  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -15,7 +15,7 @@ MODULE qs_loc_utils
   USE basis_set_types,                 ONLY: gto_basis_set_p_type,&
                                              gto_basis_set_type
   USE block_p_types,                   ONLY: block_p_type
-  USE cell_methods,                    ONLY: cell_type,&
+  USE cell_types,                      ONLY: cell_type,&
                                              pbc
   USE cp_array_r_utils,                ONLY: cp_1d_r_p_type
   USE cp_dbcsr_interface,              ONLY: cp_dbcsr_copy,&
@@ -101,7 +101,7 @@ MODULE qs_loc_utils
 ! *** Public ***
   PUBLIC :: jacobi_rotation_pipek, qs_loc_env_init, loc_write_restart,&
             retain_history, qs_loc_init,&
-            read_loc_section, set_loc_centers, set_loc_wfn_lists, qs_loc_control_init
+            set_loc_centers, set_loc_wfn_lists, qs_loc_control_init
 
 CONTAINS
 
@@ -955,7 +955,6 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief ...
-!> \param qs_env ...
 !> \param qs_loc_env ...
 !> \param section ...
 !> \param mo_array ...
@@ -964,9 +963,8 @@ CONTAINS
 !> \param evals ...
 !> \param error ...
 ! *****************************************************************************
-  SUBROUTINE loc_write_restart(qs_env,qs_loc_env,section,mo_array, coeff_localized,&
+  SUBROUTINE loc_write_restart(qs_loc_env,section,mo_array, coeff_localized,&
              do_homo, evals, error)
-    TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(qs_loc_env_new_type), POINTER       :: qs_loc_env
     TYPE(section_vals_type), POINTER         :: section
     TYPE(mo_set_p_type), DIMENSION(:), &
@@ -1311,11 +1309,8 @@ CONTAINS
 
   END SUBROUTINE  qs_loc_control_init
 
-  ! *****************************************************************************
-  !> \brief initializes everything needed for localization of the molecular orbitals
-  ! *****************************************************************************
 ! *****************************************************************************
-!> \brief ...
+!> \brief initializes everything needed for localization of the molecular orbitals
 !> \param qs_env ...
 !> \param qs_loc_env ...
 !> \param localize_section ...
@@ -1352,6 +1347,7 @@ CONTAINS
       POINTER                                :: ks_rmpv, mo_derivs
     TYPE(cp_fm_type), POINTER                :: mo_coeff
     TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(localized_wfn_control_type), &
       POINTER                                :: localized_wfn_control
     TYPE(mo_set_p_type), DIMENSION(:), &
@@ -1361,9 +1357,14 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-    NULLIFY(mos, mo_coeff, mo_eigenvalues, occupation, ks_rmpv, mo_derivs, scf_control)
-    CALL get_qs_env(qs_env,mos=mos,matrix_ks=ks_rmpv,mo_derivs=mo_derivs,&
-         scf_control=scf_control, error=error)
+    NULLIFY(mos,mo_coeff,mo_eigenvalues,occupation,ks_rmpv,mo_derivs,scf_control,para_env)
+    CALL get_qs_env(qs_env,&
+                    mos=mos,&
+                    matrix_ks=ks_rmpv,&
+                    mo_derivs=mo_derivs,&
+                    scf_control=scf_control,&
+                    para_env=para_env,&
+                    error=error)
 
     loc_print_section => section_vals_get_subs_vals(localize_section,"PRINT",error=error)
 
@@ -1387,7 +1388,7 @@ CONTAINS
       CALL get_qs_loc_env(qs_loc_env,localized_wfn_control=localized_wfn_control,error=error)
       IF(localized_wfn_control%loc_restart) THEN
          CALL loc_read_restart(qs_loc_env,mos,mos_localized,localize_section,&
-              loc_print_section,qs_env%para_env,my_do_homo,restart_found,evals=evals,error=error)
+              loc_print_section,para_env,my_do_homo,restart_found,evals=evals,error=error)
          IF (output_unit>0) WRITE(output_unit,"(/,T2,A,A)") "LOCALIZATION| ",&
                     "   The orbitals to be localized are read from localization restart file."
          nmoloc = localized_wfn_control%nloc_states

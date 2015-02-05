@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2014  CP2K developers group                          !
+!   Copyright (C) 2000 - 2015  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -67,11 +67,11 @@ MODULE qs_mo_io
   USE qs_kind_types,                   ONLY: get_qs_kind,&
                                              get_qs_kind_set,&
                                              qs_kind_type
+  USE qs_mo_occupation,                ONLY: set_mo_occupation
   USE qs_mo_types,                     ONLY: deallocate_mo_set,&
                                              duplicate_mo_set,&
                                              mo_set_p_type,&
-                                             mo_set_type,&
-                                             set_mo_occupation
+                                             mo_set_type
   USE string_utilities,                ONLY: compress
   USE timings,                         ONLY: timeset,&
                                              timestop
@@ -1696,13 +1696,15 @@ CPSourceFileRef,&
        fmtstr6 = "(A,T17,F24.  ,/)"
        WRITE (UNIT=fmtstr6(12:13),FMT="(I2)") after
        WRITE (UNIT=iw,FMT=fmtstr6) "  Fermi energy:",mo_set%mu
-       IF ((mo_set%uniform_occupation).AND.(last_mo > mo_set%homo)) THEN
+       IF ((mo_set%homo>0)) THEN
+         IF ((mo_set%occupation_numbers(mo_set%homo)==mo_set%maxocc).AND.(last_mo > mo_set%homo)) THEN
           gap = mo_set%eigenvalues(mo_set%homo+1) -&
                 mo_set%eigenvalues(mo_set%homo)
           fmtstr7 = "(A,T17,F24.  ,A,F6.2,A,/)"
           WRITE (UNIT=fmtstr7(12:13),FMT="(I2)") after
           WRITE (UNIT=iw,FMT=fmtstr7)&
                "  HOMO-LUMO gap:",gap," = ",gap*evolt," eV"
+         END IF
        END IF
 
     END IF ! iw

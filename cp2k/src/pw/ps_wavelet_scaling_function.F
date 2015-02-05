@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2014  CP2K developers group                          !
+!   Copyright (C) 2000 - 2015  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -11,6 +11,8 @@ MODULE ps_wavelet_scaling_function
   USE kinds,                           ONLY: dp
   USE lazy,                            ONLY: lazy_arrays
 #include "../common/cp_common_uses.f90"
+
+  IMPLICIT NONE
 
   PRIVATE
 

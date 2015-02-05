@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2014  CP2K developers group                          !
+!   Copyright (C) 2000 - 2015  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -18,7 +18,6 @@ MODULE cp_parser_inpp_methods
   USE cp_files,                        ONLY: close_file,&
                                              open_file
   USE cp_parser_inpp_types,            ONLY: inpp_type
-  USE f77_blas
   USE kinds,                           ONLY: default_path_length,&
                                              default_string_length
   USE machine,                         ONLY: default_output_unit
@@ -495,7 +494,7 @@ CONTAINS
        pos2=pos1+pos2-1
        varname=input_line(pos1:pos2)
        idx=inpp_find_variable(inpp,varname)
-       CPPostcondition(idx>0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(idx>=0,cp_failure_level,routineP,error,failure)
        IF(idx==0) THEN
           WRITE(UNIT=message,FMT="(5A,I6)") &
                "INPP_@SET: Variable $",TRIM(varname)," not defined in file: ",&

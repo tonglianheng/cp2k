@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2014  CP2K developers group                          !
+!   Copyright (C) 2000 - 2015  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -18,6 +18,9 @@ MODULE mdctrl_methods
   USE mdctrl_types,                    ONLY: mdctrl_type
   USE message_passing,                 ONLY: mp_abort
 #include "../common/cp_common_uses.f90"
+
+  IMPLICIT NONE
+  PRIVATE
 
  PUBLIC :: mdctrl_callback
 
@@ -42,8 +45,9 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'mdctrl_callback', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure = .FALSE.
+    LOGICAL                                  :: failure
 
+    failure = .FALSE.
     CPPrecondition(ASSOCIATED(md_env), cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED(mdctrl), cp_failure_level,routineP,error,failure)
 

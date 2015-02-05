@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2014  CP2K developers group                          !
+!   Copyright (C) 2000 - 2015  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -8,10 +8,9 @@
 ! *****************************************************************************
 MODULE fist_neighbor_list_types
 
-  USE cell_methods,                    ONLY: cell_type,&
+  USE cell_types,                      ONLY: cell_type,&
                                              pbc
   USE exclusion_types,                 ONLY: exclusion_type
-  USE f77_blas
   USE kinds,                           ONLY: dp
   USE memory_utilities,                ONLY: reallocate
   USE timings,                         ONLY: timeset,&

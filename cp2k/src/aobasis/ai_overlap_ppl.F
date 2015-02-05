@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2014  CP2K developers group                          !
+!   Copyright (C) 2000 - 2015  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -24,7 +24,6 @@
 ! *****************************************************************************
 MODULE ai_overlap_ppl
   USE ai_oneelectron,                  ONLY: os_3center
-  USE f77_blas
   USE kinds,                           ONLY: dp
   USE mathconstants,                   ONLY: fac,&
                                              pi
@@ -263,6 +262,7 @@ CONTAINS
 !> \brief ...
 !> \param n ...
 !> \param k ...
+!> \retval choose ...
 ! *****************************************************************************
   FUNCTION choose ( n, k )
 

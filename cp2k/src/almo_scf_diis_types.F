@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2014  CP2K developers group                          !
+!   Copyright (C) 2000 - 2015  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -500,6 +500,7 @@ CONTAINS
 !> \param d_A ...
 !> \param d_B ...
 !> \param error ...
+!> \retval almo_scf_diis_error_overlap ...
 !> \par History
 !>       2013.02 created [Rustam Z Khaliullin]
 !> \author Rustam Z Khaliullin

@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2014  CP2K developers group                          !
+!   Copyright (C) 2000 - 2015  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -23,7 +23,6 @@ MODULE metadynamics
                                              cp_rm_iter_level
   USE cp_subsys_types,                 ONLY: cp_subsys_get,&
                                              cp_subsys_type
-  USE f77_blas
   USE force_env_types,                 ONLY: force_env_get,&
                                              force_env_type
   USE input_constants,                 ONLY: do_wall_m,&
@@ -88,7 +87,7 @@ CONTAINS
 
     INTEGER                                  :: handle
     LOGICAL                                  :: failure
-#ifdef PLUMED_CP2K
+#ifdef __PLUMED_CP2K
     INTEGER                                  :: i_part, natom_plumed
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: force_plumed, pos_plumed
@@ -102,7 +101,7 @@ CONTAINS
     ! Apply Metadynamics
     IF (ASSOCIATED(force_env%meta_env)) THEN
         IF (force_env%meta_env%use_plumed .EQV. .TRUE.) THEN
-#ifdef PLUMED_CP2K
+#ifdef __PLUMED_CP2K
             CALL force_env_get(force_env, subsys=subsys,cell=cell, error=error)
             natom_plumed=subsys%particles%n_els
             ALLOCATE (pos_plumed(1:3,natom_plumed))

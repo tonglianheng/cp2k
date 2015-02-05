@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2014  CP2K developers group                          !
+!   Copyright (C) 2000 - 2015  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -13,15 +13,33 @@ MODULE input_cp2k_poisson
   USE bibliography,                    ONLY: &
        Aguado2003, Blochl1995, Darden1993, Essmann1995, Ewald1921, &
        Genovese2006, Genovese2007, Laino2008, Martyna1999, Toukmaji1996
-  USE cp_output_handling,              ONLY: cp_print_key_section_create
+  USE cell_types,                      ONLY: use_perd_none,&
+                                             use_perd_x,&
+                                             use_perd_xy,&
+                                             use_perd_xyz,&
+                                             use_perd_xz,&
+                                             use_perd_y,&
+                                             use_perd_yz,&
+                                             use_perd_z
+  USE cp_output_handling,              ONLY: add_last_numeric,&
+                                             cp_print_key_section_create,&
+                                             low_print_level,&
+                                             medium_print_level
   USE cp_units,                        ONLY: cp_unit_to_cp2k
-  USE f77_blas
-  USE input_constants,                 ONLY: &
-       add_last_numeric, do_fist_pol_cg, do_fist_pol_none, do_fist_pol_sc, &
-       do_multipole_charge, do_multipole_dipole, do_multipole_none, &
-       do_multipole_quadrupole, low_print_level, medium_print_level, &
-       use_perd_none, use_perd_x, use_perd_xy, use_perd_xyz, use_perd_xz, &
-       use_perd_y, use_perd_yz, use_perd_z
+  USE dielectric_types,                ONLY: derivative_cd3,&
+                                             derivative_cd5,&
+                                             derivative_cd7,&
+                                             derivative_fft,&
+                                             derivative_fft_use_deps,&
+                                             derivative_fft_use_drho
+  USE dirichlet_bc_types,              ONLY: CIRCUMSCRIBED,&
+                                             INSCRIBED,&
+                                             xy_aligned_rectangle,&
+                                             xz_aligned_rectangle,&
+                                             yz_aligned_rectangle
+  USE input_constants,                 ONLY: do_fist_pol_cg,&
+                                             do_fist_pol_none,&
+                                             do_fist_pol_sc
   USE input_cp2k_rsgrid,               ONLY: create_rsgrid_section
   USE input_keyword_types,             ONLY: keyword_create,&
                                              keyword_release,&
@@ -35,10 +53,17 @@ MODULE input_cp2k_poisson
                                              integer_t,&
                                              real_t
   USE kinds,                           ONLY: dp
+  USE multipole_types,                 ONLY: do_multipole_charge,&
+                                             do_multipole_dipole,&
+                                             do_multipole_none,&
+                                             do_multipole_quadrupole
+  USE ps_implicit_types,               ONLY: MIXED_BC,&
+                                             MIXED_PERIODIC_BC,&
+                                             PERIODIC_BC
   USE pw_poisson_types,                ONLY: &
        do_ewald_ewald, do_ewald_none, do_ewald_pme, do_ewald_spme, &
-       pw_poisson_analytic, pw_poisson_mt, pw_poisson_multipole, &
-       pw_poisson_periodic, pw_poisson_wavelet
+       pw_poisson_analytic, pw_poisson_implicit, pw_poisson_mt, &
+       pw_poisson_multipole, pw_poisson_periodic, pw_poisson_wavelet
   USE pw_spline_utils,                 ONLY: no_precond,&
                                              precond_spl3_1,&
                                              precond_spl3_2,&
@@ -92,8 +117,9 @@ CONTAINS
             variants=(/"POISSON", "PSOLVER"/),&
             description="Specify which kind of solver to use to solve the Poisson equation.",&
             usage="POISSON_SOLVER char",&
-            enum_c_vals=s2a( "PERIODIC", "ANALYTIC", "MT", "MULTIPOLE","WAVELET"),&
-            enum_i_vals=(/ pw_poisson_periodic, pw_poisson_analytic, pw_poisson_mt, pw_poisson_multipole,pw_poisson_wavelet/),&
+            enum_c_vals=s2a( "PERIODIC", "ANALYTIC", "MT", "MULTIPOLE", "WAVELET", "IMPLICIT" ),&
+            enum_i_vals=(/ pw_poisson_periodic, pw_poisson_analytic, pw_poisson_mt, pw_poisson_multipole, &
+                           pw_poisson_wavelet, pw_poisson_implicit/),&
             citations=(/Blochl1995,Martyna1999,Genovese2006,Genovese2007/),&
             default_i_val=pw_poisson_periodic, error=error)
        CALL section_add_keyword(section,keyword,error=error)
@@ -129,6 +155,13 @@ CONTAINS
        CALL section_add_subsection(section, subsection, error=error)
        CALL section_release(subsection,error=error)
 
+       CALL create_dielectric_section(subsection,error)
+       CALL section_add_subsection(section, subsection, error=error)
+       CALL section_release(subsection,error=error)
+
+       CALL create_implicit_ps_section(subsection,error)
+       CALL section_add_subsection(section, subsection, error=error)
+       CALL section_release(subsection,error=error)
     END IF
   END SUBROUTINE create_poisson_section
 
@@ -293,14 +326,9 @@ SUBROUTINE create_ewald_section(section,error)
 
     NULLIFY(keyword,print_key,subsection)
     CALL keyword_create(keyword, name="EWALD_TYPE",&
-         description="The type of ewald you want to perform."//&
-         " NONE standard real-space coulomb potential is computed together"//&
-         " with the non-bonded contributions."//&
-         " EWALD is the standard non-fft based ewald."//&
-         " SPME is the smooth particle mesh using beta-Euler splines (recommended)."//&
-         " PME is the particle mesh using fft interpolation.",&
+         description="The type of ewald you want to perform.",&
          citations=(/Ewald1921,Essmann1995,Darden1993/),&
-         usage="EWALD_TYPE {EWALD|SPME|PME|NONE}",&
+         usage="EWALD_TYPE (NONE|EWALD|PME|SPME)",&
          default_i_val=do_ewald_ewald,&
          enum_c_vals=(/"none     ",&
                        "ewald    ",&
@@ -309,7 +337,12 @@ SUBROUTINE create_ewald_section(section,error)
          enum_i_vals=(/do_ewald_none,&
                        do_ewald_ewald,&
                        do_ewald_pme,&
-                       do_ewald_spme/),error=error)
+                       do_ewald_spme/),&
+         enum_desc=s2a("NONE standard real-space coulomb potential is computed together with the non-bonded contributions",&
+                       "EWALD is the standard non-fft based ewald",&
+                       "PME is the particle mesh using fft interpolation",&
+                       "SPME is the smooth particle mesh using beta-Euler splines (recommended)"),&
+                       error=error)
     CALL section_add_keyword(section,keyword,error=error)
     CALL keyword_release(keyword,error=error)
 
@@ -589,5 +622,534 @@ END SUBROUTINE create_ewald_section
 
     END IF
   END SUBROUTINE create_wavelet_section
+
+! *****************************************************************************
+!> \brief Creates the section for the generalized (iterative) poisson solver
+!> \param section the section to be created
+!> \param error cp2k error
+!>
+!> \author Mohammad Hossein Bani-Hashemian
+! *****************************************************************************
+  SUBROUTINE create_implicit_ps_section(section,error)
+    TYPE(section_type), POINTER              :: section
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'create_implicit_ps_section', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+    TYPE(keyword_type), POINTER              :: keyword
+    TYPE(section_type), POINTER              :: subsection
+
+    failure=.FALSE.
+
+    CPPrecondition(.NOT.ASSOCIATED(section), cp_failure_level, routineP, error, failure)
+    IF (.NOT. failure) THEN
+       CALL section_create(section,name="IMPLICIT",&
+            description="Parameters for the implicit (generalized) Poisson solver.",&
+            n_keywords=4, n_subsections=2, repeats=.FALSE., required=.FALSE.,&
+            error=error)
+
+       NULLIFY(subsection, keyword)
+
+       CALL create_dielectric_section(subsection,error)
+       CALL section_add_subsection(section, subsection, error=error)
+       CALL section_release(subsection, error=error)
+
+       CALL create_dbc_section(subsection,error)
+       CALL section_add_subsection(section, subsection, error=error)
+       CALL section_release(subsection, error=error)
+
+       CALL keyword_create(keyword, name="BOUNDARY_CONDITIONS", &
+            enum_c_vals=s2a( 'PERIODIC', 'MIXED', 'MIXED_PERIODIC' ), &
+            enum_desc=s2a( 'PERIODIC', 'MIXED (Dirichlet + Neumann)', 'MIXED_PERIODIC (Dirichlet + Periodic)' ), &
+            enum_i_vals=(/ PERIODIC_BC, MIXED_BC, MIXED_PERIODIC_BC /), &
+            description="Specifies the type of boundary conditions. Dirichlet=fixed value, Neumann=zero normal deriv. "//&
+                        "Mixed boundaries essentially requires FFTW3 so that all grid sizes are FFT-able.", &
+            usage="BOUNDARY_CONDITIONS <bc_type>", default_i_val=PERIODIC_BC, error=error)
+       CALL section_add_keyword(section, keyword, error=error)
+       CALL keyword_release(keyword, error=error)
+
+       CALL keyword_create(keyword, name="ZERO_INITIAL_GUESS", &
+            description="Whether or not to use zero potential as initial guess.", &
+            usage="ZERO_INITIAL_GUESS <logical>", default_l_val=.FALSE., error=error)
+       CALL section_add_keyword(section, keyword, error=error)
+       CALL keyword_release(keyword, error=error)
+
+       CALL keyword_create(keyword, name="max_iter", &
+            description="Maximum number of iterations.", &
+            usage="max_iter <integer>", default_i_val=30, error=error)
+       CALL section_add_keyword(section, keyword, error=error)
+       CALL keyword_release(keyword, error=error)
+
+       CALL keyword_create(keyword, name="tol", &
+            description="Stopping tolerance.", &
+            usage="tol <real>", default_r_val=1.0E-8_dp, error=error)
+       CALL section_add_keyword(section, keyword, error=error)
+       CALL keyword_release(keyword, error=error)
+
+       CALL keyword_create(keyword, name="OR_PARAMETER", variants=s2a('omega'), &
+            description="Over-relaxation parameter (large epsilon requires smaller omega ~0.1).", &
+            usage="OR_PARAMETER <real>", default_r_val=1.0_dp, error=error)
+       CALL section_add_keyword(section, keyword, error=error)
+       CALL keyword_release(keyword, error=error)
+
+    END IF
+  END SUBROUTINE create_implicit_ps_section
+
+! *****************************************************************************
+!> \brief Creates the dielectric constant section.
+!>  The dielectric constant is defined as a function of electronic density.
+!>  [see O. Andreussi, I. Dabo, and N. Marzari, J. Chem. Phys., 136, 064102(2012)]
+!> \param section the section to be created
+!> \param error cp2k error
+!>
+!> \author Mohammad Hossein Bani-Hashemian
+! *****************************************************************************
+  SUBROUTINE create_dielectric_section(section,error)
+    TYPE(section_type), POINTER              :: section
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'create_dielectric_section', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+    TYPE(keyword_type), POINTER              :: keyword
+
+    failure=.FALSE.
+
+    CPPrecondition(.NOT.ASSOCIATED(section), cp_failure_level, routineP, error, failure)
+    IF (.NOT. failure) THEN
+       CALL section_create(section,name="DIELECTRIC", &
+            description="Parameters for the dielectric constant function as proposed in the SCCS model.", &
+            n_keywords=4, n_subsections=0, repeats=.FALSE., required=.FALSE., &
+            error=error)
+
+       NULLIFY(keyword)
+
+       CALL keyword_create(keyword, name="dielectric_constant", variants=s2a('epsilon'), &
+            description="Dielectric constant in the bulk of the solvent.", &
+            usage="dielectric_constant <real>", default_r_val=80.0_dp, error=error)
+       CALL section_add_keyword(section, keyword, error=error)
+       CALL keyword_release(keyword, error=error)
+
+       CALL keyword_create(keyword, name="rho_min", &
+            description="Lower density threshold.", &
+            usage="rho_min <real>", default_r_val=1.0E-4_dp, error=error)
+       CALL section_add_keyword(section, keyword, error=error)
+       CALL keyword_release(keyword, error=error)
+
+       CALL keyword_create(keyword, name="rho_max", &
+            description="Upper density threshold.", &
+            usage="rho_max <real>", default_r_val=1.0E-3_dp, error=error)
+       CALL section_add_keyword(section, keyword, error=error)
+       CALL keyword_release(keyword, error=error)
+
+       CALL keyword_create(keyword, name="DERIVATIVE_METHOD", &
+            enum_c_vals=s2a('fft', 'fft_use_deps', 'fft_use_drho', 'cd3', 'cd5', 'cd7'), &
+            enum_i_vals=(/ derivative_fft, derivative_fft_use_deps, derivative_fft_use_drho, &
+                           derivative_cd3, derivative_cd5, derivative_cd7 /), &
+           enum_desc=s2a("FFT based deriv of epsilon, without correction (high cutoff needed).",&
+                         "FFT based deriv of epsilon, with correction using gradient of epsilon (high cutoff needed).",&
+                         "FFT based deriv of epsilon, with correction using gradient of rho (high cutoff needed).",&
+                         "3-point central difference derivative.",&
+                         "5-point central difference derivative (recommended).",&
+                         "7-point central difference derivative."),&
+            description="Preferred method for evaluating the gradient of ln(eps).", &
+            usage="DERIVATIVE_METHOD  <method>", default_i_val=derivative_cd5, error=error)
+       CALL section_add_keyword(section, keyword, error=error)
+       CALL keyword_release(keyword, error=error)
+    END IF
+
+  END SUBROUTINE create_dielectric_section
+
+! *****************************************************************************
+!> \brief Creates the section for Dirichlet boundary conditions
+!> \param section the section to be created
+!> \param error cp2k error
+!>
+!> \author Mohammad Hossein Bani-Hashemian
+! *****************************************************************************
+  SUBROUTINE create_dbc_section(section,error)
+    TYPE(section_type), POINTER              :: section
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'create_dbc_section', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+    TYPE(section_type), POINTER              :: subsection
+
+    failure=.FALSE.
+
+    CPPrecondition(.NOT.ASSOCIATED(section), cp_failure_level, routineP, error, failure)
+    IF (.NOT. failure) THEN
+       CALL section_create(section,name="DIRICHLET_BC", &
+            description="Parameters for creating Dirichlet type boundary conditions.",&
+            n_keywords=1, n_subsections=4, repeats=.FALSE., required=.FALSE.,&
+            error=error)
+
+       NULLIFY(subsection)
+
+       CALL create_aa_planar_section(subsection, error)
+       CALL section_add_subsection(section, subsection, error=error)
+       CALL section_release(subsection, error=error)
+
+       CALL create_planar_section(subsection, error)
+       CALL section_add_subsection(section, subsection, error=error)
+       CALL section_release(subsection, error=error)
+
+       CALL create_xaa_cylindrical_section(subsection, error)
+       CALL section_add_subsection(section, subsection, error=error)
+       CALL section_release(subsection, error=error)
+
+       CALL create_aa_cuboidal_section(subsection, error)
+       CALL section_add_subsection(section, subsection, error=error)
+       CALL section_release(subsection, error=error)
+
+    END IF
+  END SUBROUTINE create_dbc_section
+
+! *****************************************************************************
+!> \brief Creates the section for creating axis-aligned planar Dirichlet BC.
+!> \param section the section to be created
+!> \param error cp2k error
+!>
+!> \author Mohammad Hossein Bani-Hashemian
+! *****************************************************************************
+  SUBROUTINE create_aa_planar_section(section,error)
+    TYPE(section_type), POINTER              :: section
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'create_aa_planar_section', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+    TYPE(keyword_type), POINTER              :: keyword
+
+    failure=.FALSE.
+
+    CPPrecondition(.NOT.ASSOCIATED(section), cp_failure_level, routineP, error, failure)
+    IF (.NOT. failure) THEN
+       CALL section_create(section,name="AA_PLANAR", &
+            description="Parameters for creating axis-aligned planar (rectangular) Dirichlet boundary region.",&
+            n_keywords=9, n_subsections=0, repeats=.TRUE., required=.FALSE.,&
+            error=error)
+
+       NULLIFY(keyword)
+
+       CALL keyword_create(keyword, name="v_D", &
+            description="value of the potential at the Dirichlet boundary (e.g. gate voltage).", &
+            usage="v_D <real>", unit_str="volt", type_of_var=real_t, error=error)
+       CALL section_add_keyword(section, keyword, error=error)
+       CALL keyword_release(keyword, error=error)
+
+       CALL keyword_create(keyword, name="PARALLEL_PLANE", &
+            enum_c_vals=s2a( 'XY', 'YZ' , 'XZ'), &
+            enum_i_vals=(/ xy_aligned_rectangle, yz_aligned_rectangle, xz_aligned_rectangle /), &
+            description="The coordinate plane that the region is parallel to.", &
+            usage="PARALLEL_PLANE <plane>", required=.TRUE., &
+            type_of_var=enum_t, error=error)
+       CALL section_add_keyword(section, keyword, error=error)
+       CALL keyword_release(keyword, error=error)
+
+       CALL keyword_create(keyword, name="INTERCEPT", &
+            description="The intercept of the rectangle's plane.", &
+            usage="INTERCEPT <real>", unit_str="angstrom", required=.TRUE., &
+            type_of_var=real_t, error=error)
+       CALL section_add_keyword(section, keyword, error=error)
+       CALL keyword_release(keyword, error=error)
+
+       CALL keyword_create(keyword, name="X_xtnt", &
+            description="The X extents of the plane.", &
+            usage="X_xtnt <xmin(real)> <xmax(real)>", unit_str="angstrom", &
+            n_var=2, type_of_var=real_t, error=error)
+       CALL section_add_keyword(section, keyword, error=error)
+       CALL keyword_release(keyword, error=error)
+
+       CALL keyword_create(keyword, name="Y_xtnt", &
+            description="The Y extents of the plane.", &
+            usage="Y_xtnt <ymin(real)> <ymax(real)>", unit_str="angstrom", &
+            n_var=2, type_of_var=real_t, error=error)
+       CALL section_add_keyword(section, keyword, error=error)
+       CALL keyword_release(keyword, error=error)
+
+       CALL keyword_create(keyword, name="Z_xtnt", &
+            description="The Z extents of the plane.", &
+            usage="Z_xtnt <zmin(real)> <zmax(real)>", unit_str="angstrom", &
+            n_var=2, type_of_var=real_t, error=error)
+       CALL section_add_keyword(section, keyword, error=error)
+       CALL keyword_release(keyword, error=error)
+
+       CALL keyword_create(keyword, name="N_PRTN", &
+            description="The number of partitions in xy, yz or xz directions for tiling the plane.", &
+            usage="N_PRTN <integer> <integer>", &
+            n_var=2, default_i_vals=(/1, 1/), error=error)
+       CALL section_add_keyword(section, keyword, error=error)
+       CALL keyword_release(keyword, error=error)
+
+       CALL keyword_create(keyword, name="SMOOTH", &
+            description="Whether or not to smoothen (mollify) the dirichlet boundary region to avoid "//&
+            "possible Gibbs phenomenon.", &
+            usage="SMOOTH <logical>", default_l_val=.FALSE., error=error)
+       CALL section_add_keyword(section, keyword, error=error)
+       CALL keyword_release(keyword, error=error)
+
+       CALL keyword_create(keyword, name="smoothing_width", variants = s2a('zeta'),  &
+            description="The width of the standard mollifier.", &
+            usage="smoothing_width <real>", unit_str="angstrom", default_r_val=0.2_dp, error=error)
+       CALL section_add_keyword(section, keyword, error=error)
+       CALL keyword_release(keyword, error=error)
+
+    END IF
+  END SUBROUTINE create_aa_planar_section
+
+! *****************************************************************************
+!> \brief Creates the section for creating axis-aligned planar Dirichlet BC.
+!> \param section the section to be created
+!> \param error cp2k error
+!>
+!> \author Mohammad Hossein Bani-Hashemian
+! *****************************************************************************
+  SUBROUTINE create_planar_section(section,error)
+    TYPE(section_type), POINTER              :: section
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'create_planar_section', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+    TYPE(keyword_type), POINTER              :: keyword
+
+    failure=.FALSE.
+
+    CPPrecondition(.NOT.ASSOCIATED(section), cp_failure_level, routineP, error, failure)
+    IF (.NOT. failure) THEN
+       CALL section_create(section,name="PLANAR", &
+            description="Parameters for creating an arbitrary planar Dirichlet boundary region.",&
+            n_keywords=7, n_subsections=0, repeats=.TRUE., required=.FALSE.,&
+            error=error)
+
+       NULLIFY(keyword)
+
+       CALL keyword_create(keyword, name="v_D", &
+            description="value of the potential at the Dirichlet boundary (e.g. gate voltage).", &
+            usage="v_D <real>", unit_str="volt", type_of_var=real_t, error=error)
+       CALL section_add_keyword(section, keyword, error=error)
+       CALL keyword_release(keyword, error=error)
+
+       CALL keyword_create(keyword, name="A", &
+            description="Coordinates of the vertex A.", &
+            usage="A <x(real)> <y(real)> <z(real)>", unit_str="angstrom", &
+            n_var=3, type_of_var=real_t, error=error)
+       CALL section_add_keyword(section, keyword, error=error)
+       CALL keyword_release(keyword, error=error)
+
+       CALL keyword_create(keyword, name="B", &
+            description="Coordinates of the vertex B.", &
+            usage="B <x(real)> <y(real)> <z(real)>", unit_str="angstrom", &
+            n_var=3, type_of_var=real_t, error=error)
+       CALL section_add_keyword(section, keyword, error=error)
+       CALL keyword_release(keyword, error=error)
+
+       CALL keyword_create(keyword, name="C", &
+            description="Coordinates of the vertex C.", &
+            usage="C <x(real)> <y(real)> <z(real)>", unit_str="angstrom", &
+            n_var=3, type_of_var=real_t, error=error)
+       CALL section_add_keyword(section, keyword, error=error)
+       CALL keyword_release(keyword, error=error)
+
+       CALL keyword_create(keyword, name="N_PRTN", &
+            description="The number of partitions in the x, y and z directions for tiling the plane.", &
+            usage="N_PRTN <integer> <integer> <integer>", &
+            n_var=3, default_i_vals=(/1, 1, 1/), error=error)
+       CALL section_add_keyword(section, keyword, error=error)
+       CALL keyword_release(keyword, error=error)
+
+       CALL keyword_create(keyword, name="SMOOTH", &
+            description="Whether or not to smoothen (mollify) the dirichlet boundary region to avoid "//&
+            "possible Gibbs phenomenon.", &
+            usage="SMOOTH <logical>", default_l_val=.FALSE., error=error)
+       CALL section_add_keyword(section, keyword, error=error)
+       CALL keyword_release(keyword, error=error)
+
+       CALL keyword_create(keyword, name="smoothing_width", variants = s2a('zeta'),  &
+            description="The width of the standard mollifier.", &
+            usage="smoothing_width <real>", unit_str="angstrom", default_r_val=0.2_dp, error=error)
+       CALL section_add_keyword(section, keyword, error=error)
+       CALL keyword_release(keyword, error=error)
+
+    END IF
+  END SUBROUTINE create_planar_section
+
+! *****************************************************************************
+!> \brief Creates the section for creating x-axis-aligned cylindrical Dirichlet BC.
+!> \param section the section to be created
+!> \param error cp2k error
+!>
+!> \author Mohammad Hossein Bani-Hashemian
+! *****************************************************************************
+  SUBROUTINE create_xaa_cylindrical_section(section,error)
+    TYPE(section_type), POINTER              :: section
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    CHARACTER(len=*), PARAMETER :: &
+      routineN = 'create_xaa_cylindrical_section', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+    TYPE(keyword_type), POINTER              :: keyword
+
+    failure=.FALSE.
+
+    CPPrecondition(.NOT.ASSOCIATED(section), cp_failure_level, routineP, error, failure)
+    IF (.NOT. failure) THEN
+       CALL section_create(section,name="XAA_CYLINDRICAL", &
+            description="Parameters for creating x-axis-aligned cylindrical Dirichlet boundary region.",&
+            n_keywords=9, n_subsections=0, repeats=.TRUE., required=.FALSE.,&
+            error=error)
+
+       NULLIFY(keyword)
+
+       CALL keyword_create(keyword, name="v_D", &
+            description="value of the potential at the Dirichlet boundary (e.g. gate voltage).", &
+            usage="v_D <real>", unit_str="volt", type_of_var=real_t,  error=error)
+       CALL section_add_keyword(section, keyword, error=error)
+       CALL keyword_release(keyword, error=error)
+
+       CALL keyword_create(keyword, name="X_xtnt", &
+            description="The X extents of the cylinder.", &
+            usage="X_xtnt <xmin(real)> <xmax(real)>", unit_str="angstrom", &
+            n_var=2, type_of_var=real_t, error=error)
+       CALL section_add_keyword(section, keyword, error=error)
+       CALL keyword_release(keyword, error=error)
+
+       CALL keyword_create(keyword, name="base_center", &
+            description="The y and z coordinates of the cylinder's base center.", &
+            usage="base_center <y(real)> <z(real)>", unit_str="angstrom", &
+            n_var=2, type_of_var=real_t, error=error)
+       CALL section_add_keyword(section, keyword, error=error)
+       CALL keyword_release(keyword, error=error)
+
+       CALL keyword_create(keyword, name="base_radius", &
+            description="The base radius of the cylinder.", &
+            usage="base_radius <real>", default_r_val=1.0_dp, unit_str="angstrom", error=error)
+       CALL section_add_keyword(section, keyword, error=error)
+       CALL keyword_release(keyword, error=error)
+
+       CALL keyword_create(keyword, name="n_sides", &
+            description="The number of sides os the n-gonal prism approximating the cylinder.", &
+            usage="n_sides <integer>", default_i_val=5, error=error)
+       CALL section_add_keyword(section, keyword, error=error)
+       CALL keyword_release(keyword, error=error)
+
+       CALL keyword_create(keyword, name="apx_type", &
+            enum_c_vals=s2a( 'CIRCUMSCRIBED', 'INSCRIBED' ), &
+            enum_i_vals=(/ CIRCUMSCRIBED, INSCRIBED /), &
+            description="Specifies the type of the n-gonal prism approximating the cylinder.", &
+            usage="apx_type <apx_type>", default_i_val=CIRCUMSCRIBED, error=error)
+       CALL section_add_keyword(section, keyword, error=error)
+       CALL keyword_release(keyword, error=error)
+
+       CALL keyword_create(keyword, name="N_PRTN", &
+            description="The number of partitions in the x, y and z directions for tiling the plane.", &
+            usage="N_PRTN <integer> <integer> <integer>", &
+            n_var=3, default_i_vals=(/1, 1, 1/), error=error)
+       CALL section_add_keyword(section, keyword, error=error)
+       CALL keyword_release(keyword, error=error)
+
+       CALL keyword_create(keyword, name="SMOOTH", &
+            description="Whether or not to smoothen (mollify) the dirichlet boundary region to avoid "//&
+            "possible Gibbs phenomenon.", &
+            usage="SMOOTH <logical>", default_l_val=.FALSE., error=error)
+       CALL section_add_keyword(section, keyword, error=error)
+       CALL keyword_release(keyword, error=error)
+
+       CALL keyword_create(keyword, name="smoothing_width", variants = s2a('zeta'),  &
+            description="The width of the standard mollifier.", &
+            usage="smoothing_width <real>", unit_str="angstrom", default_r_val=0.2_dp, error=error)
+       CALL section_add_keyword(section, keyword, error=error)
+       CALL keyword_release(keyword, error=error)
+
+    END IF
+  END SUBROUTINE create_xaa_cylindrical_section
+
+! *****************************************************************************
+!> \brief Creates the section for creating axis-aligned cuboidal Dirichlet region.
+!> \param section the section to be created
+!> \param error cp2k error
+!>
+!> \author Mohammad Hossein Bani-Hashemian
+! *****************************************************************************
+  SUBROUTINE create_aa_cuboidal_section(section,error)
+    TYPE(section_type), POINTER              :: section
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'create_aa_cuboidal_section', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+    TYPE(keyword_type), POINTER              :: keyword
+
+    failure=.FALSE.
+
+    CPPrecondition(.NOT.ASSOCIATED(section), cp_failure_level, routineP, error, failure)
+    IF (.NOT. failure) THEN
+       CALL section_create(section,name="AA_CUBOIDAL", &
+            description="Parameters for creating axis-aligned cuboidal region where a fixed voltage is applied.",&
+            n_keywords=7, n_subsections=0, repeats=.TRUE., required=.FALSE.,&
+            error=error)
+
+       NULLIFY(keyword)
+
+       CALL keyword_create(keyword, name="v_D", &
+            description="value of the potential at the Dirichlet boundary (e.g. gate voltage).", &
+            usage="v_D <real>", unit_str="volt", type_of_var=real_t, error=error)
+       CALL section_add_keyword(section, keyword, error=error)
+       CALL keyword_release(keyword, error=error)
+
+       CALL keyword_create(keyword, name="X_xtnt", &
+            description="The X extents of the cuboid.", &
+            usage="X_xtnt <xmin(real)> <xmax(real)>", unit_str="angstrom", &
+            n_var=2, type_of_var=real_t, error=error)
+       CALL section_add_keyword(section, keyword, error=error)
+       CALL keyword_release(keyword, error=error)
+
+       CALL keyword_create(keyword, name="Y_xtnt", &
+            description="The Y extents of the cuboid.", &
+            usage="Y_xtnt <ymin(real)> <ymax(real)>", unit_str="angstrom", &
+            n_var=2, type_of_var=real_t, error=error)
+       CALL section_add_keyword(section, keyword, error=error)
+       CALL keyword_release(keyword, error=error)
+
+       CALL keyword_create(keyword, name="Z_xtnt", &
+            description="The Z extents of the cuboid.", &
+            usage="Z_xtnt <zmin(real)> <zmax(real)>", unit_str="angstrom", &
+            n_var=2, type_of_var=real_t, error=error)
+       CALL section_add_keyword(section, keyword, error=error)
+       CALL keyword_release(keyword, error=error)
+
+       CALL keyword_create(keyword, name="N_PRTN", &
+            description="The number of partitions in the x, y and z directions for partitioning the cuboid.", &
+            usage="N_PRTN <integer> <integer> <integer>", &
+            n_var=3, default_i_vals=(/1, 1, 1/), error=error)
+       CALL section_add_keyword(section, keyword, error=error)
+       CALL keyword_release(keyword, error=error)
+
+       CALL keyword_create(keyword, name="SMOOTH", &
+            description="Whether or not to smoothen (mollify) the dirichlet region to avoid "//&
+            "possible Gibbs phenomenon.", &
+            usage="SMOOTH <logical>", default_l_val=.FALSE., error=error)
+       CALL section_add_keyword(section, keyword, error=error)
+       CALL keyword_release(keyword, error=error)
+
+       CALL keyword_create(keyword, name="smoothing_width", variants = s2a('zeta'),  &
+            description="The width of the standard mollifier.", &
+            usage="smoothing_width <real>", unit_str="angstrom", default_r_val=0.2_dp, error=error)
+       CALL section_add_keyword(section, keyword, error=error)
+       CALL keyword_release(keyword, error=error)
+
+    END IF
+  END SUBROUTINE create_aa_cuboidal_section
 
 END MODULE input_cp2k_poisson

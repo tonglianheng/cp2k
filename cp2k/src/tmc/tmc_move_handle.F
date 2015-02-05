@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2014  CP2K developers group                          !
+!   Copyright (C) 2000 - 2015  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -951,7 +951,7 @@ error)
     move_types%acc_prob(:,:) = 0.5_dp
     move_types%acc_count(:,:) = 0
     move_types%mv_count(:,:) = 0
-    move_types%subbox_acc_count(:,:) = 0.0_dp
+    move_types%subbox_acc_count(:,:) = 0
     move_types%subbox_count(:,:) = 0
   END SUBROUTINE clear_move_probs
 
@@ -961,7 +961,7 @@ error)
 !> \param rnd random number
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
-!> \param mv_type (result) move type
+!> \retval mv_type (result) move type
 !> \author Mandes 12.2012
 !> \note function returns a possible move type without the PT swap moves 
 !> \note (are selected in global tree, this routine is for sub tree elements)

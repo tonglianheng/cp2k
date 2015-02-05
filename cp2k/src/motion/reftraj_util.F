@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2014  CP2K developers group                          !
+!   Copyright (C) 2000 - 2015  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -25,7 +25,6 @@ MODULE reftraj_util
                                              cp_subsys_type
   USE cp_units,                        ONLY: cp_unit_to_cp2k
   USE distribution_1d_types,           ONLY: distribution_1d_type
-  USE f77_blas
   USE force_env_types,                 ONLY: force_env_get,&
                                              force_env_type
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&

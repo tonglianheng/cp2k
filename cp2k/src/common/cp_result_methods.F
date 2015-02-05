@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2014  CP2K developers group                          !
+!   Copyright (C) 2000 - 2015  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -19,7 +19,6 @@ MODULE cp_result_methods
        cp_result_type, cp_result_value_copy, cp_result_value_create, &
        cp_result_value_init, cp_result_value_p_reallocate, &
        result_type_integer, result_type_logical, result_type_real
-  USE f77_blas
   USE kinds,                           ONLY: default_string_length,&
                                              dp
   USE memory_utilities,                ONLY: reallocate

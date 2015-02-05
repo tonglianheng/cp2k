@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2014  CP2K developers group                          !
+!   Copyright (C) 2000 - 2015  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -18,7 +18,7 @@
 !> \author Joost VandeVondele
 ! *****************************************************************************
 MODULE string_table
-  USE f77_blas
+  
   USE kinds,                           ONLY: default_string_length,&
                                              int_8
 #include "cp_common_uses.f90"
@@ -234,6 +234,6 @@ CONTAINS
     hash=IAND(     hash+IAND(ISHFT(hash, 15),b32)  ,b32)
     ! hash is the real 32bit hash value of the string,
     ! hash_index is an index in the hash_table
-    hash_index=MOD(hash,INT(hash_table_size,KIND=int_8))
+    hash_index=INT(MOD(hash,INT(hash_table_size,KIND=int_8)))
   END FUNCTION joaat_hash
 END MODULE string_table

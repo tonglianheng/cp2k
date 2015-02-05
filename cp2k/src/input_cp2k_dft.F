@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2014  CP2K developers group                          !
+!   Copyright (C) 2000 - 2015  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -11,80 +11,89 @@
 ! *****************************************************************************
 MODULE input_cp2k_dft
   USE bibliography,                    ONLY: &
-       Avezac2005, Bengtsson1999, Blochl1995, Brelaz1979, Dewar1977, &
-       Dewar1985, Dudarev1997, Dudarev1998, Elstner1998, Guidon2010, Hu2007, &
-       Hunt2003, Iannuzzi2005, Iannuzzi2006, Iannuzzi2007, Kolafa2004, &
-       Krack2000, Krack2002, Kunert2003, Lippert1997, Lippert1999, &
-       Perdew1981, Porezag1995, Repasky2002, Rocha2006, Schenter2008, &
-       Seifert1996, Stewart1982, Stewart1989, Stewart2007, Thiel1992, &
-       Tozer1996, VandeVondele2003, VandeVondele2005a, VandeVondele2005b, &
-       VandeVondele2006, Weber2008, Zhao1994, Zhechkov2005
-  USE cp_output_handling,              ONLY: cp_print_key_section_create
+       Andreussi2012, Avezac2005, Bengtsson1999, Blochl1995, Brelaz1979, &
+       Dewar1977, Dewar1985, Dudarev1997, Dudarev1998, Elstner1998, &
+       Fattebert2002, Guidon2010, Hu2007, Hunt2003, Iannuzzi2005, &
+       Iannuzzi2006, Iannuzzi2007, Kolafa2004, Krack2000, Krack2002, &
+       Kunert2003, Lippert1997, Lippert1999, Perdew1981, Porezag1995, &
+       Repasky2002, Rocha2006, Schenter2008, Seifert1996, Stewart1982, &
+       Stewart1989, Stewart2007, Thiel1992, Tozer1996, VandeVondele2003, &
+       VandeVondele2005a, VandeVondele2005b, VandeVondele2006, Weber2008, &
+       Zhao1994, Zhechkov2005
+  USE cp_output_handling,              ONLY: add_last_numeric,&
+                                             cp_print_key_section_create,&
+                                             debug_print_level,&
+                                             high_print_level,&
+                                             low_print_level,&
+                                             medium_print_level,&
+                                             silent_print_level
   USE cp_units,                        ONLY: cp_unit_to_cp2k
-  USE f77_blas
   USE input_constants,                 ONLY: &
-       add_last_numeric, almo_scf_guess, atomic_guess, broy_mix, &
-       broy_mix_new, cholesky_dbcsr, cholesky_inverse, cholesky_off, &
-       cholesky_reduce, cholesky_restore, constant_env, core_guess, &
-       debug_print_level, densities_guess, diag_block_davidson, &
+       atomic_guess, broy_mix, broy_mix_new, cholesky_dbcsr, &
+       cholesky_inverse, cholesky_off, cholesky_reduce, cholesky_restore, &
+       constant_env, core_guess, densities_guess, diag_block_davidson, &
        diag_block_krylov, diag_ot, diag_standard, direct_p_mix, &
-       dispersion_d3, dispersion_uff, do_admm_basis_projection, &
-       do_admm_blocked_projection, do_admm_blocking_purify_full, &
+       dispersion_d3, dispersion_uff, do_admm_aux_exch_func_bee, &
+       do_admm_aux_exch_func_default, do_admm_aux_exch_func_none, &
+       do_admm_aux_exch_func_opt, do_admm_aux_exch_func_pbex, &
+       do_admm_basis_projection, do_admm_blocked_projection, &
+       do_admm_blocking_purify_full, do_admm_charge_constrained_projection, &
+       do_admm_exch_scaling_merlot, do_admm_exch_scaling_none, &
        do_admm_purify_cauchy, do_admm_purify_cauchy_subspace, &
        do_admm_purify_mcweeny, do_admm_purify_mo_diag, &
-       do_admm_purify_mo_no_diag, do_admm_purify_none, do_arnoldi, do_bch, &
-       do_cn, do_ddapc_constraint, do_ddapc_restraint, do_em, do_etrs, &
+       do_admm_purify_mo_no_diag, do_admm_purify_none, &
+       do_admm_purify_none_dm, do_arnoldi, do_bch, do_cn, &
+       do_ddapc_constraint, do_ddapc_restraint, do_em, do_etrs, &
        do_full_density, do_gapw_gcs, do_gapw_gct, do_gapw_log, do_loc_both, &
        do_loc_crazy, do_loc_direct, do_loc_homo, do_loc_jacobi, &
        do_loc_l1_norm_sd, do_loc_lumo, do_loc_max, do_loc_min, do_loc_none, &
-       do_method_am1, do_method_dftb, do_method_gapw, do_method_gapw_xc, &
-       do_method_gpw, do_method_lrigpw, do_method_mndo, do_method_mndod, &
-       do_method_ofgpw, do_method_pdg, do_method_pm3, do_method_pm6, &
-       do_method_pnnl, do_method_rm1, do_method_scptb, do_pade, &
-       do_ppl_analytic, do_ppl_grid, do_pwgrid_ns_fullspace, &
-       do_pwgrid_ns_halfspace, do_pwgrid_spherical, do_s2_constraint, &
-       do_s2_restraint, do_se_is_kdso, do_se_is_kdso_d, do_se_is_slater, &
-       do_se_lr_ewald, do_se_lr_ewald_gks, do_se_lr_ewald_r3, do_se_lr_none, &
-       do_spin_density, do_taylor, ehrenfest, gaussian, gaussian_env, &
-       general_roks, high_print_level, high_spin_roks, history_guess, &
-       kerker_mix, kg_color_dsatur, kg_color_greedy, kg_tnadd_atomic, &
-       kg_tnadd_embed, low_print_level, ls_2pnt, ls_3pnt, ls_gold, ls_none, &
-       medium_print_level, mopac_guess, multisec_mix, no_excitations, &
-       no_guess, no_mix, numerical, oe_gllb, oe_lb, oe_none, oe_saop, oe_sic, &
-       op_loc_berry, op_loc_boys, op_loc_pipek, orb_dx2, orb_dxy, orb_dy2, &
-       orb_dyz, orb_dz2, orb_dzx, orb_px, orb_py, orb_pz, orb_s, &
-       ot_algo_irac, ot_algo_taylor_or_diag, ot_chol_irac, ot_lwdn_irac, &
-       ot_mini_broyden, ot_mini_cg, ot_mini_diis, ot_mini_sd, ot_poly_irac, &
+       do_lri_opt_all, do_lri_opt_coeff, do_lri_opt_exps, do_method_am1, &
+       do_method_dftb, do_method_gapw, do_method_gapw_xc, do_method_gpw, &
+       do_method_lrigpw, do_method_mndo, do_method_mndod, do_method_ofgpw, &
+       do_method_pdg, do_method_pm3, do_method_pm6, do_method_pnnl, &
+       do_method_rm1, do_method_scptb, do_pade, do_ppl_analytic, do_ppl_grid, &
+       do_pwgrid_ns_fullspace, do_pwgrid_ns_halfspace, do_pwgrid_spherical, &
+       do_s2_constraint, do_s2_restraint, do_se_is_kdso, do_se_is_kdso_d, &
+       do_se_is_slater, do_se_lr_ewald, do_se_lr_ewald_gks, &
+       do_se_lr_ewald_r3, do_se_lr_none, do_spin_density, do_taylor, &
+       ehrenfest, gaussian, gaussian_env, general_roks, high_spin_roks, &
+       history_guess, kerker_mix, kg_color_dsatur, kg_color_greedy, &
+       kg_tnadd_atomic, kg_tnadd_embed, ls_2pnt, ls_3pnt, ls_gold, ls_none, &
+       mopac_guess, multisec_mix, no_excitations, no_guess, no_mix, &
+       numerical, oe_gllb, oe_lb, oe_none, oe_saop, oe_sic, op_loc_berry, &
+       op_loc_boys, op_loc_pipek, orb_dx2, orb_dxy, orb_dy2, orb_dyz, &
+       orb_dz2, orb_dzx, orb_px, orb_py, orb_pz, orb_s, ot_algo_irac, &
+       ot_algo_taylor_or_diag, ot_chol_irac, ot_lwdn_irac, ot_mini_broyden, &
+       ot_mini_cg, ot_mini_diis, ot_mini_sd, ot_poly_irac, &
        ot_precond_full_all, ot_precond_full_kinetic, ot_precond_full_single, &
        ot_precond_full_single_inverse, ot_precond_none, ot_precond_s_inverse, &
        ot_precond_solver_default, ot_precond_solver_direct, &
-       ot_precond_solver_inv_chol, ot_precond_solver_sainv, &
-       ot_precond_sparse_diag, ot_precond_sparse_kinetic, &
-       ot_precond_sparse_kinetic_sainv, outer_scf_becke_constraint, &
-       outer_scf_ddapc_constraint, outer_scf_none, &
-       outer_scf_optimizer_bisect, outer_scf_optimizer_diis, &
+       ot_precond_solver_inv_chol, ot_precond_solver_update, &
+       outer_scf_becke_constraint, outer_scf_ddapc_constraint, &
+       outer_scf_none, outer_scf_optimizer_bisect, outer_scf_optimizer_diis, &
        outer_scf_optimizer_none, outer_scf_optimizer_sd, &
-       outer_scf_s2_constraint, outer_scf_scp, plus_u_lowdin, &
-       plus_u_mulliken, plus_u_mulliken_charges, pulay_mix, pw_interp, &
-       ramp_env, random_guess, real_time_propagation, rel_dkh, rel_none, &
-       rel_pot_erfc, rel_pot_full, rel_sczora_mp, rel_trans_atom, &
-       rel_trans_full, rel_trans_molecule, rel_zora, rel_zora_full, &
-       rel_zora_mp, restart_guess, sic_ad, sic_eo, sic_list_all, &
-       sic_list_unpaired, sic_mauri_spz, sic_mauri_us, sic_none, &
-       silent_print_level, slater, smear_energy_window, smear_fermi_dirac, &
-       smear_list, sparse_guess, spline3_nopbc_interp, spline3_pbc_interp, &
-       tddfpt_davidson, tddfpt_excitations, tddfpt_lanczos, tddfpt_singlet, &
-       tddfpt_triplet, use_coulomb, use_diff, use_no, use_restart_wfn, &
-       use_rt_restart, use_scf_wfn, weight_type_mass, weight_type_unit, &
-       wfi_aspc_nr, wfi_frozen_method_nr, wfi_linear_p_method_nr, &
-       wfi_linear_ps_method_nr, wfi_linear_wf_method_nr, wfi_ps_method_nr, &
-       wfi_use_guess_method_nr, wfi_use_prev_p_method_nr, &
-       wfi_use_prev_rho_r_method_nr, wfi_use_prev_wf_method_nr, xas_1s_type, &
-       xas_2p_type, xas_2s_type, xas_dip_len2, xas_dip_vel, xas_dscf, &
-       xas_none, xas_scf_default, xas_scf_general, xas_tp_fh, xas_tp_hh, &
-       xas_tp_xfh, xas_tp_xhh, xes_tp_val
+       outer_scf_s2_constraint, plus_u_lowdin, plus_u_mulliken, &
+       plus_u_mulliken_charges, pulay_mix, pw_interp, ramp_env, random_guess, &
+       real_time_propagation, ref_charge_atomic, ref_charge_mulliken, &
+       rel_dkh, rel_none, rel_pot_erfc, rel_pot_full, rel_sczora_mp, &
+       rel_trans_atom, rel_trans_full, rel_trans_molecule, rel_zora, &
+       rel_zora_full, rel_zora_mp, restart_guess, sccs_andreussi, &
+       sccs_derivative_cd3, sccs_derivative_cd5, sccs_derivative_cd7, &
+       sccs_derivative_fft, sccs_fattebert_gygi, shape_function_density, &
+       shape_function_gaussian, sic_ad, sic_eo, sic_list_all, &
+       sic_list_unpaired, sic_mauri_spz, sic_mauri_us, sic_none, slater, &
+       smear_energy_window, smear_fermi_dirac, smear_list, sparse_guess, &
+       spline3_nopbc_interp, spline3_pbc_interp, tddfpt_davidson, &
+       tddfpt_excitations, tddfpt_lanczos, tddfpt_singlet, tddfpt_triplet, &
+       use_coulomb, use_diff, use_no, use_restart_wfn, use_rt_restart, &
+       use_scf_wfn, weight_type_mass, weight_type_unit, wfi_aspc_nr, &
+       wfi_frozen_method_nr, wfi_linear_p_method_nr, wfi_linear_ps_method_nr, &
+       wfi_linear_wf_method_nr, wfi_ps_method_nr, wfi_use_guess_method_nr, &
+       wfi_use_prev_p_method_nr, wfi_use_prev_rho_r_method_nr, &
+       wfi_use_prev_wf_method_nr, xas_1s_type, xas_2p_type, xas_2s_type, &
+       xas_dip_len2, xas_dip_vel, xas_dscf, xas_none, xas_tp_fh, xas_tp_flex, &
+       xas_tp_hh, xas_tp_xfh, xas_tp_xhh, xes_tp_val
   USE input_cp2k_almo,                 ONLY: create_almo_scf_section
-  USE input_cp2k_atom,                 ONLY: create_powell_section
   USE input_cp2k_distribution,         ONLY: create_distribution_section
   USE input_cp2k_kpoints,              ONLY: create_kpoints_section
   USE input_cp2k_ls,                   ONLY: create_ls_scf_section
@@ -93,6 +102,7 @@ MODULE input_cp2k_dft
   USE input_cp2k_motion_print,         ONLY: add_format_keyword
   USE input_cp2k_poisson,              ONLY: create_poisson_section
   USE input_cp2k_rsgrid,               ONLY: create_rsgrid_section
+  USE input_cp2k_transport,            ONLY: create_transport_section
   USE input_cp2k_xc,                   ONLY: create_xc_section
   USE input_keyword_types,             ONLY: keyword_create,&
                                              keyword_release,&
@@ -117,7 +127,8 @@ MODULE input_cp2k_dft
                                              precond_spl3_3,&
                                              precond_spl3_aint,&
                                              precond_spl3_aint2
-  USE string_utilities,                ONLY: s2a
+  USE string_utilities,                ONLY: newline,&
+                                             s2a
 #include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
@@ -127,180 +138,10 @@ MODULE input_cp2k_dft
 
   PUBLIC :: create_dft_section
   PUBLIC :: create_bsse_section, create_qs_section
-  PUBLIC :: create_scf_section, create_ep_section
+  PUBLIC :: create_scf_section
   PUBLIC :: create_interp_section, create_localize_section
 
 CONTAINS
-
-! *****************************************************************************
-!> \brief creates an ep section
-!> \param section the section to be created
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
-!> \author fawzi
-! *****************************************************************************
-  SUBROUTINE create_ep_section(section,error)
-    TYPE(section_type), POINTER              :: section
-    TYPE(cp_error_type), INTENT(inout)       :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'create_ep_section', &
-      routineP = moduleN//':'//routineN
-
-    LOGICAL                                  :: failure
-    TYPE(keyword_type), POINTER              :: keyword
-    TYPE(section_type), POINTER              :: print_key, print_section
-
-    failure=.FALSE.
-
-    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
-    CALL section_create(section,name="ep",&
-         description="parameter needed by an ep calculation",&
-         repeats=.FALSE., required=.TRUE.,&
-         error=error)
-
-    NULLIFY(keyword)
-    CALL keyword_create(keyword, name="EPS_LIN_SOLV",&
-         description="Requested convergence of the linear solver (for psi1)",&
-         usage="EPS_LIN_SOLV",&
-         default_r_val=1.e-5_dp,error=error)
-    CALL section_add_keyword(section,keyword,error=error)
-    CALL keyword_release(keyword,error=error)
-    CALL keyword_create(keyword, name="ROTATE",&
-         description="If rotations from a unique set of coefficients should"//&
-         " be used or if single molecule optimizations generate it",&
-         usage="ROTATE",&
-         default_l_val=.FALSE.,lone_keyword_l_val=.TRUE.,error=error)
-    CALL section_add_keyword(section,keyword,error=error)
-    CALL keyword_release(keyword,error=error)
-    CALL keyword_create(keyword, name="START_COEFFS",&
-         description="Starting coefficients for roatation based ep",&
-         usage="START_COEFFS 1.0 0.0 ...",&
-          type_of_var=real_t, n_var=-1,error=error)
-    CALL section_add_keyword(section,keyword,error=error)
-    CALL keyword_release(keyword,error=error)
-    CALL keyword_create(keyword, name="E0_ONLY",&
-         description="If only e0 should be calculated",&
-         usage="E0_ONLY",&
-         default_l_val=.FALSE.,lone_keyword_l_val=.TRUE.,error=error)
-    CALL section_add_keyword(section,keyword,error=error)
-    CALL keyword_release(keyword,error=error)
-    CALL keyword_create(keyword, name="COMP_INPUT",&
-         description="Path to the input to be used for the component of the main system",&
-         usage="COMP_INPUT comp.inp",&
-         default_lc_val="comp.inp",error=error)
-    CALL section_add_keyword(section,keyword,error=error)
-    CALL keyword_release(keyword,error=error)
-    CALL keyword_create(keyword, name="AT_PER_MOL",&
-         description="Number of atoms in each molecule (at the moment only uniform system cam be handled)",&
-         usage="at_per_mol 3",&
-         default_i_val=3,error=error)
-    CALL section_add_keyword(section,keyword,error=error)
-    CALL keyword_release(keyword,error=error)
-
-    NULLIFY(print_section)
-    CALL section_create(print_section,name="print",&
-         description="Section of possible print options for an EP calculation.",&
-         repeats=.FALSE., required=.TRUE.,error=error)
-
-    NULLIFY(print_key)
-    CALL cp_print_key_section_create(print_key,"ENERGY",&
-         description="Controls the printing of the various energies",&
-         print_level=medium_print_level,filename="",&
-         error=error)
-    CALL section_add_subsection(print_section,print_key,error=error)
-    CALL section_release(print_key,error=error)
-
-    CALL cp_print_key_section_create(print_key,"RUN_INFO",&
-         description="Prints various informations on the progress of the ep calculation",&
-         print_level=medium_print_level,filename="__STD_OUT__",&
-         error=error)
-    CALL keyword_create(keyword, name="LIN_SOLV",&
-         description="print the linear solver progress",&
-         usage="lin_solv",&
-         default_l_val=.TRUE.,lone_keyword_l_val=.TRUE.,error=error)
-    CALL section_add_keyword(print_key,keyword,error=error)
-    CALL keyword_release(keyword,error=error)
-
-    CALL section_add_subsection(print_section,print_key,error=error)
-    CALL section_release(print_key,error=error)
-
-    CALL cp_print_key_section_create(print_key,"EP_MATRIXES",&
-         description="Prints various matrixes of an ep calculation",&
-         print_level=debug_print_level,filename="__STD_OUT__",&
-         error=error)
-
-    CALL keyword_create(keyword, name="psi0",&
-         description="print the value of the psi0 matrix",&
-         usage="psi0",&
-         default_l_val=.TRUE.,lone_keyword_l_val=.TRUE.,error=error)
-    CALL section_add_keyword(print_key,keyword,error=error)
-    CALL keyword_release(keyword,error=error)
-
-    CALL keyword_create(keyword, name="psi0_blocks",&
-         description="print the value of the blocs of the psi0 matrix",&
-         usage="psi0_blocks",&
-         default_l_val=.FALSE.,lone_keyword_l_val=.TRUE.,error=error)
-    CALL section_add_keyword(print_key,keyword,error=error)
-    CALL keyword_release(keyword,error=error)
-
-    CALL keyword_create(keyword, name="psi1",&
-         description="print the value of the psi1 matrix",&
-         usage="psi1",&
-         default_l_val=.TRUE.,lone_keyword_l_val=.TRUE.,error=error)
-    CALL section_add_keyword(print_key,keyword,error=error)
-    CALL keyword_release(keyword,error=error)
-
-    CALL keyword_create(keyword, name="mo_s_inv",&
-         description="print the value of the inverse of the mo overlap matrix",&
-         usage="mo_s_inv",&
-         default_l_val=.TRUE.,lone_keyword_l_val=.TRUE.,error=error)
-    CALL section_add_keyword(print_key,keyword,error=error)
-    CALL keyword_release(keyword,error=error)
-
-    CALL section_add_subsection(print_section,print_key,error=error)
-    CALL section_release(print_key,error=error)
-
-    CALL cp_print_key_section_create(print_key,"EP_RHO_CUBE",&
-         description="Prints out a cube file with the calculated rho",&
-         print_level=debug_print_level,filename="EP_RHO",&
-         error=error)
-
-    CALL keyword_create(keyword, name="rho0",&
-         description="print the cube of rho0,the psi0 derived density matrix",&
-         usage="rho0 OFF",&
-         default_l_val=.TRUE.,lone_keyword_l_val=.TRUE.,error=error)
-    CALL section_add_keyword(print_key,keyword,error=error)
-    CALL keyword_release(keyword,error=error)
-
-    CALL keyword_create(keyword, name="rho1",&
-         description="print the value of the blocs of rho1, the psi1 (and psi0) derived density matrix",&
-         usage="rho1 F",&
-         default_l_val=.TRUE.,lone_keyword_l_val=.TRUE.,error=error)
-    CALL section_add_keyword(print_key,keyword,error=error)
-    CALL keyword_release(keyword,error=error)
-
-    CALL keyword_create(keyword, name="stride",&
-         description="The stride (X,Y,Z) used to write the cube file "//&
-         "(larger values result in smaller cube files). You can provide 3 numbers (for X,Y,Z) or"//&
-         " 1 number valid for all components.",&
-         usage="STRIDE 2 2 2",n_var=-1,default_i_vals=(/2,2,2/), type_of_var=integer_t,error=error)
-    CALL section_add_keyword(print_key,keyword,error=error)
-    CALL keyword_release(keyword,error=error)
-
-    CALL keyword_create(keyword, name="mo_s_inv",&
-         description="print the value of the inverse of the mo overlap matrix",&
-         usage="mo_s_inv",&
-         default_l_val=.TRUE.,lone_keyword_l_val=.TRUE.,error=error)
-    CALL section_add_keyword(print_key,keyword,error=error)
-    CALL keyword_release(keyword,error=error)
-
-    CALL section_add_subsection(print_section,print_key,error=error)
-    CALL section_release(print_key,error=error)
-
-    CALL section_add_subsection(section,print_section,error=error)
-    CALL section_release(print_section,error=error)
-
-  END SUBROUTINE create_ep_section
 
 ! *****************************************************************************
 !> \brief creates the dft section
@@ -341,13 +182,6 @@ CONTAINS
          description="Name of the pseudo potential file, may include a path",&
          usage="POTENTIAL_FILE_NAME <FILENAME>",&
          default_lc_val="POTENTIAL",error=error)
-    CALL section_add_keyword(section,keyword,error=error)
-    CALL keyword_release(keyword,error=error)
-
-    CALL keyword_create(keyword, name="GEMINAL_FILE_NAME",&
-         description="Name of the geminal basis set file, may include a path",&
-         usage="GEMINAL_FILE_NAME <FILENAME>",&
-         default_lc_val="BASIS_GEMINAL",error=error)
     CALL section_add_keyword(section,keyword,error=error)
     CALL keyword_release(keyword,error=error)
 
@@ -485,8 +319,6 @@ CONTAINS
          error=error)
     CALL section_add_keyword(section,keyword,error=error)
     CALL keyword_release(keyword,error=error)
-
-
     NULLIFY(subsection)
     CALL create_scf_section(subsection,error)
     CALL section_add_subsection(section, subsection, error=error)
@@ -547,6 +379,11 @@ CONTAINS
     CALL create_ext_pot_section(subsection,error)
     CALL section_add_subsection(section, subsection, error=error)
     CALL section_release(subsection,error=error)
+
+    CALL create_transport_section(subsection,error)
+    CALL section_add_subsection(section, subsection, error=error)
+    CALL section_release(subsection,error=error)
+
     ! ZMP sections to include the external density or v_xc potential
     CALL create_ext_den_section(subsection,error)
     CALL section_add_subsection(section, subsection, error=error)
@@ -587,6 +424,11 @@ CONTAINS
     CALL create_print_dft_section(subsection,error)
     CALL section_add_subsection(section, subsection, error=error)
     CALL section_release(subsection,error=error)
+
+    CALL create_sccs_section(subsection,error)
+    CALL section_add_subsection(section, subsection, error=error)
+    CALL section_release(subsection,error=error)
+
   END SUBROUTINE create_dft_section
 
 ! *****************************************************************************
@@ -1063,7 +905,7 @@ CONTAINS
     CALL section_add_keyword(print_key,keyword,error=error)
     CALL keyword_release(keyword,error=error)
 
-    CALL add_format_keyword(keyword, print_key, pos=.TRUE.,& 
+    CALL add_format_keyword(keyword, print_key, pos=.TRUE.,&
          description="Specifies the format of the output file when IONS+CENTERS is enabled.",&
          error=error)
     CALL section_add_subsection(section,print_key,error=error)
@@ -1103,13 +945,14 @@ CONTAINS
 
     LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
-    TYPE(section_type), POINTER              :: print_key, subsection
+    TYPE(section_type), POINTER              :: print_key, sub_print_key, &
+                                                subsection
 
-    failure=.FALSE.
+    failure = .FALSE.
 
     CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
     IF (.NOT. failure) THEN
-       CALL section_create(section,name="print",&
+       CALL section_create(section,name="PRINT",&
             description="Section of possible print options in DFT code.",&
             n_keywords=0, n_subsections=1, repeats=.FALSE., required=.TRUE.,&
             error=error)
@@ -1510,13 +1353,6 @@ CONTAINS
        CALL section_add_subsection(section,print_key,error=error)
        CALL section_release(print_key,error=error)
 
-       CALL cp_print_key_section_create(print_key,"OPTICAL_CONDUCTIVITY",&
-            description="Controls the printing of the optical conductivity.", &
-            print_level=high_print_level,filename="optical_conductivity",&
-            error=error)
-       CALL section_add_subsection(section,print_key,error=error)
-       CALL section_release(print_key,error=error)
-
        CALL cp_print_key_section_create(print_key,&
             name="E_DENSITY_CUBE",&
             description="Controls the printing of cube files with "//&
@@ -1621,6 +1457,45 @@ CONTAINS
        CALL section_add_subsection(section,print_key,error=error)
        CALL section_release(print_key,error=error)
 
+       CALL cp_print_key_section_create(print_key,"external_potential_cube",&
+            description="Controls the printing of a cube file with external "//&
+            " potential from the DFT%EXTERNAL_POTENTIAL section only.",&
+            print_level=high_print_level,filename="",&
+            error=error)
+       CALL keyword_create(keyword, name="stride",&
+            description="The stride (X,Y,Z) used to write the cube file "//&
+            "(larger values result in smaller cube files). You can provide 3 numbers (for X,Y,Z) or"//&
+            " 1 number valid for all components.",&
+            usage="STRIDE 2 2 2",n_var=-1,default_i_vals=(/2,2,2/), type_of_var=integer_t,error=error)
+       CALL section_add_keyword(print_key,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+       CALL keyword_create(keyword, name="APPEND",&
+            description="append the cube files when they already exist",&
+            default_l_val=.FALSE., lone_keyword_l_val=.TRUE.,error=error)
+       CALL section_add_keyword(print_key,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL section_add_subsection(section,print_key,error=error)
+       CALL section_release(print_key,error=error)
+
+       ! dielectric constant function
+       CALL cp_print_key_section_create(print_key,"dielectric_cube",&
+            description="", &
+            print_level=high_print_level,filename="",&
+            error=error)
+       CALL keyword_create(keyword, name="stride",&
+            description="",&
+            usage="STRIDE 2 2 2",n_var=-1,default_i_vals=(/2,2,2/), type_of_var=integer_t,error=error)
+       CALL section_add_keyword(print_key,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+       CALL keyword_create(keyword, name="APPEND",&
+            description="",&
+            default_l_val=.FALSE., lone_keyword_l_val=.TRUE.,error=error)
+       CALL section_add_keyword(print_key,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL section_add_subsection(section,print_key,error=error)
+       CALL section_release(print_key,error=error)
 
 ! ZMP adding the print section for  the v_xc cube 
        CALL cp_print_key_section_create(print_key,"v_xc_cube",&
@@ -1704,7 +1579,7 @@ CONTAINS
 
        CALL cp_print_key_section_create(print_key,"PDOS",&
             description="Print out the DOS projected per kind and per angular momentum  ",&
-            print_level=high_print_level,common_iter_levels=1,filename="",&
+            print_level=debug_print_level,common_iter_levels=1,filename="",&
             error=error)
        CALL keyword_create(keyword, name="COMPONENTS",&
             description="Print out pdos distinguishing all angular momentum components.",&
@@ -1720,7 +1595,8 @@ CONTAINS
        CALL section_add_keyword(print_key,keyword,error=error)
        CALL keyword_release(keyword,error=error)
        CALL keyword_create(keyword, name="NLUMO",&
-            description="Number of virtual orbitals to be added to the MO set (-1=all)",&
+            description="Number of virtual orbitals to be added to the MO set (-1=all)."//newline//&
+            "CAUTION: Setting this value to be higher than the number of states present may cause a Cholesky error.",&
             usage="NLUMO integer",default_i_val=0, error=error)
        CALL section_add_keyword(print_key,keyword,error=error)
        CALL keyword_release(keyword,error=error)
@@ -1803,7 +1679,7 @@ CONTAINS
        CALL create_dipoles_section(print_key,"MOMENTS",high_print_level,error)
        CALL keyword_create(keyword=keyword,&
             name="MAX_MOMENT",&
-            description="Maximum moment to be calculated",&
+            description="Maximum moment to be calculated. Values higher than 1 not implemented under periodic boundaries.",&
             usage="MAX_MOMENT {integer}",&
             repeats=.FALSE.,&
             required=.FALSE.,&
@@ -1815,7 +1691,7 @@ CONTAINS
        CALL keyword_release(keyword,error=error)
        CALL keyword_create(keyword=keyword,&
             name="MAGNETIC",&
-            description="Calculate also magnetic moments",&
+            description="Calculate also magnetic moments, only implemented without periodic boundaries",&
             usage="MAGNETIC yes",&
             repeats=.FALSE.,&
             required=.FALSE.,&
@@ -1897,6 +1773,44 @@ CONTAINS
        CALL section_add_subsection(section,print_key,error=error)
        CALL section_release(print_key,error=error)
 
+       ! Hirschfeld population analysis
+       CALL cp_print_key_section_create(print_key,"HIRSCHFELD",&
+            description="Controls the printing of the Hirschfeld (spin) population analysis", &
+            print_level=medium_print_level,filename="__STD_OUT__",&
+            common_iter_levels=1, error=error)
+       CALL keyword_create(keyword=keyword,name="SELF_CONSISTENT",&
+            description="Calculate charges from the Hirscheld-I (self_consistent) method."//&
+            " This scales only the full shape function, not the added charge as in the original scheme.",&
+            usage="SELF_CONSISTENT yes",repeats=.FALSE.,required=.FALSE.,n_var=1,&
+            default_l_val=.FALSE.,lone_keyword_l_val=.TRUE.,&
+            error=error)
+       CALL section_add_keyword(print_key,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+       CALL keyword_create(keyword=keyword,name="SHAPE_FUNCTION",&
+            description="Type of shape function used for Hirschfeld partitioning.",&
+            usage="SHAPE_FUNCTION {Gaussian,Density}",repeats=.FALSE.,required=.FALSE.,n_var=1,&
+            default_i_val=shape_function_gaussian,&
+            enum_c_vals=s2a("GAUSSIAN","DENSITY"),&
+            enum_desc=s2a("Single Gaussian with Colvalent radius", &
+            "Atomic density expanded in multiple Gaussians"), &
+            enum_i_vals=(/shape_function_gaussian,shape_function_density/),&
+            error=error)
+       CALL section_add_keyword(print_key,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+       CALL keyword_create(keyword=keyword,name="REFERENCE_CHARGE",&
+            description="Charge of atomic partitioning function for Hirschfeld method.",&
+            usage="REFERENCE_CHARGE {Atomic,Mulliken}",repeats=.FALSE.,required=.FALSE.,n_var=1,&
+            default_i_val=ref_charge_atomic,&
+            enum_c_vals=s2a("ATOMIC","MULLIKEN"),&
+            enum_desc=s2a("Use atomic core charges","Calculate Mulliken charges"), &
+            enum_i_vals=(/ref_charge_atomic,ref_charge_mulliken/),&
+            error=error)
+       CALL section_add_keyword(print_key,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+       CALL section_add_subsection(section,print_key,error=error)
+       CALL section_release(print_key,error=error)
+
+       ! Xray diffraction
        CALL cp_print_key_section_create(&
             print_key_section=print_key,&
             name="XRAY_DIFFRACTION_SPECTRUM",&
@@ -1977,7 +1891,7 @@ CONTAINS
             name="BASIS_MOLOPT_QUANTITIES",&
             description="Print the two quantities needed in the basis molopt generation:"//&
             " total energy and condition number of the overlap matrix (S matrix)",&
-            print_level=high_print_level,&
+            print_level=debug_print_level,&
             filename="__STD_OUT__",error=error)
        CALL section_add_subsection(section,print_key,error=error)
        CALL section_release(print_key,error=error)
@@ -2004,19 +1918,6 @@ CONTAINS
        CALL section_release(print_key,error=error)
 
        CALL cp_print_key_section_create(print_key_section=print_key,&
-            name="OPTIMIZE_GEMINALS",&
-            description="Optimize the parameters of the geminal basis set",&
-            print_level=debug_print_level,&
-            filename="__STD_OUT__",error=error)
-
-       CALL create_powell_section(subsection,error)
-       CALL section_add_subsection(print_key, subsection, error=error)
-       CALL section_release(subsection,error=error)
-
-       CALL section_add_subsection(section,print_key,error=error)
-       CALL section_release(print_key,error=error)
-
-       CALL cp_print_key_section_create(print_key_section=print_key,&
             name="OPTIMIZE_LRI_BASIS",&
             description="Optimize the exponents of the LRI basis set",&
             print_level=low_print_level,&
@@ -2034,11 +1935,135 @@ CONTAINS
             each_iter_values=(/0/),&
             citations=(/Dudarev1997,Dudarev1998/),&
             error=error)
+       CALL section_add_subsection(section,print_key,error=error)
+       CALL section_release(print_key,error=error)
+
+       CALL cp_print_key_section_create(&
+            print_key_section=print_key,&
+            name="SCCS",&
+            description="Controls the printing for the SCCS models",&
+            print_level=high_print_level,&
+            filename="__STD_OUT__",&
+            each_iter_names=s2a("QS_SCF"),&
+            each_iter_values=(/0/),&
+            citations=(/Fattebert2002,Andreussi2012/),&
+            error=error)
+
+       NULLIFY (sub_print_key)
+
+       CALL cp_print_key_section_create(&
+            print_key_section=sub_print_key,&
+            name="DENSITY_GRADIENT",&
+            description="Controls the printing of the cube files with "//&
+                        "the norm of the density gradient |&nabla;&rho;| "//&
+                        "used by the SCCS model.",&
+            print_level=debug_print_level,&
+            filename="",&
+            each_iter_names=s2a("QS_SCF"),&
+            each_iter_values=(/0/),&
+            error=error)
+       CALL keyword_create(keyword,name="STRIDE",&
+            description="The stride (X,Y,Z) used to write the cube file "//&
+                        "(larger values result in smaller cube files). You can provide 3 "//&
+                        "numbers (for X,Y,Z) or 1 number valid for all components.",&
+            n_var=-1,&
+            default_i_vals=(/2,2,2/),&
+            type_of_var=integer_t,&
+            repeats=.FALSE.,&
+            required=.FALSE.,&
+            error=error)
+       CALL section_add_keyword(sub_print_key,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+       CALL keyword_create(keyword,name="APPEND",&
+            description="Append the cube files when they already exist",&
+            default_l_val=.FALSE.,&
+            lone_keyword_l_val=.TRUE.,&
+            repeats=.FALSE.,&
+            required=.FALSE.,&
+            error=error)
+       CALL section_add_keyword(sub_print_key,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+       CALL section_add_subsection(print_key,sub_print_key,error=error)
+       CALL section_release(sub_print_key,error=error)
+
+       CALL cp_print_key_section_create(&
+            print_key_section=sub_print_key,&
+            name="DIELECTRIC_FUNCTION",&
+            description="Controls the printing of the cube files with "//&
+                        "the dielectric function used by the SCCS model. "//&
+                        "This function determines the cavity formed by a solute in "//&
+                        "a solvent and thus it can be used for the visualisaton of the cavity.",&
+            print_level=debug_print_level,&
+            filename="",&
+            each_iter_names=s2a("QS_SCF"),&
+            each_iter_values=(/0/),&
+            citations=(/Fattebert2002,Andreussi2012/),&
+            error=error)
+       CALL keyword_create(keyword,name="STRIDE",&
+            description="The stride (X,Y,Z) used to write the cube file "//&
+                        "(larger values result in smaller cube files). You can provide 3 "//&
+                        "numbers (for X,Y,Z) or 1 number valid for all components.",&
+            n_var=-1,&
+            default_i_vals=(/2,2,2/),&
+            type_of_var=integer_t,&
+            repeats=.FALSE.,&
+            required=.FALSE.,&
+            error=error)
+       CALL section_add_keyword(sub_print_key,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+       CALL keyword_create(keyword,name="APPEND",&
+            description="Append the cube files when they already exist",&
+            default_l_val=.FALSE.,&
+            lone_keyword_l_val=.TRUE.,&
+            repeats=.FALSE.,&
+            required=.FALSE.,&
+            error=error)
+       CALL section_add_keyword(sub_print_key,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+       CALL section_add_subsection(print_key,sub_print_key,error=error)
+       CALL section_release(sub_print_key,error=error)
+
+       CALL cp_print_key_section_create(&
+            print_key_section=sub_print_key,&
+            name="POLARISATION_POTENTIAL",&
+            description="Controls the printing of the cube files with the "//&
+                        "polarisation potential &phi;<sup>pol</sup> used by the SCCS model with "//&
+                        "total potential &phi;<sup>tot</sup> = &phi;<sup>sol</sup> + &phi;<sup>pol</sup>",&
+            print_level=debug_print_level,&
+            filename="",&
+            each_iter_names=s2a("QS_SCF"),&
+            each_iter_values=(/0/),&
+            citations=(/Fattebert2002,Andreussi2012/),&
+            error=error)
+       CALL keyword_create(keyword,name="STRIDE",&
+            description="The stride (X,Y,Z) used to write the cube file "//&
+                        "(larger values result in smaller cube files). You can provide 3 "//&
+                        "numbers (for X,Y,Z) or 1 number valid for all components.",&
+            n_var=-1,&
+            default_i_vals=(/2,2,2/),&
+            type_of_var=integer_t,&
+            repeats=.FALSE.,&
+            required=.FALSE.,&
+            error=error)
+       CALL section_add_keyword(sub_print_key,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+       CALL keyword_create(keyword,name="APPEND",&
+            description="Append the cube files when they already exist",&
+            default_l_val=.FALSE.,&
+            lone_keyword_l_val=.TRUE.,&
+            repeats=.FALSE.,&
+            required=.FALSE.,&
+            error=error)
+       CALL section_add_keyword(sub_print_key,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+       CALL section_add_subsection(print_key,sub_print_key,error=error)
+       CALL section_release(sub_print_key,error=error)
 
        CALL section_add_subsection(section,print_key,error=error)
        CALL section_release(print_key,error=error)
 
     END IF
+
   END SUBROUTINE create_print_dft_section
 
 ! *****************************************************************************
@@ -2089,42 +2114,11 @@ CONTAINS
     CALL section_add_keyword(print_key,keyword,error=error)
     CALL keyword_release(keyword,error=error)
 
-!    CALL keyword_create(keyword, name="STM",&
-!         description="do stm",&
-!         default_l_val=.FALSE., lone_keyword_l_val=.TRUE.,error=error)
-!    CALL section_add_keyword(print_key,keyword,error=error)
-!    CALL keyword_release(keyword,error=error)
-
     CALL keyword_create(keyword, name="APPEND",&
          description="append the cube files when they already exist",&
          default_l_val=.FALSE., lone_keyword_l_val=.TRUE.,error=error)
     CALL section_add_keyword(print_key,keyword,error=error)
     CALL keyword_release(keyword,error=error)
-
-!    CALL keyword_create(keyword, name="STM_BIAS",&
-!         description="Bias energy for scanning tunneling microscopy (STM) image generation."//&
-!                     "Orbital densities are summed according to the bias energy."//&
-!                     "For negative values, states in the range ]EF+bias,EF] are summed,"//&
-!                     "While positive values sum states in the range [EF,EF+bias[."//&
-!                     "If postive biases are used, sufficiently many unoccupied stated"//&
-!                     " (see ADDED_MOS and NLUMO ) should be computed.",&
-!         n_var=-1,type_of_var=real_t, default_r_vals=(/0.0_dp/), unit_str='eV', error=error)
-!    CALL section_add_keyword(print_key,keyword,error=error)
-!    CALL keyword_release(keyword,error=error)
-
-!    CALL keyword_create(keyword, name="TH_TORB",&
-!         description="Tip orbital symmetry in Tersoff-Hamann approximation to compute STM images",&
-!         required=.FALSE.,&
-!         repeats=.TRUE.,&
-!         default_i_val=orb_s,&
-!         usage="TH_TORB s dz2",&
-!         enum_c_vals=s2a("S","PX","PY","PZ","DXY","DYZ","DZX","DX2","DY2","DZ2"),&
-!         enum_i_vals=(/orb_s,orb_px,orb_py,orb_pz,orb_dxy,orb_dyz,orb_dzx,orb_dx2,orb_dy2,orb_dz2/),&
-!         enum_desc=s2a("s orbital","px orbital","py orbital","pz orbital",&
-!         "dxy orbital","dyz orbital","dzx orbital","x^2 orbital","y^2 orbital","z^2 orbital"),&
-!         error=error)
-!    CALL section_add_keyword(print_key,keyword,error=error)
-!    CALL keyword_release(keyword,error=error)
 
   END SUBROUTINE create_mo_cubes_section
 
@@ -2146,7 +2140,7 @@ CONTAINS
 
     CALL cp_print_key_section_create(print_key,"STM",&
          description="Controls the printing of cubes for the generation of STM images.", &
-         print_level=high_print_level,filename="",&
+         print_level=debug_print_level,filename="",&
          error=error)
     CALL keyword_create(keyword, name="stride",&
          description="The stride (X,Y,Z) used to write the cube file "//&
@@ -2620,14 +2614,6 @@ CONTAINS
        CALL keyword_release(keyword,error=error)
 
        ! Logicals
-       CALL keyword_create(keyword, name="SCP",&
-            description="Introduce additional self-consistent polarization through"//&
-            " additional response basis functions (read in through AUX_BASIS.",&
-            usage="SCP",lone_keyword_l_val=.TRUE.,&
-            default_l_val=.FALSE.,error=error)
-       CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-
        CALL keyword_create(keyword, name="LS_SCF",&
             description="Perform a linear scaling SCF",&
             usage="LS_SCF",lone_keyword_l_val=.TRUE.,&
@@ -2638,6 +2624,13 @@ CONTAINS
        CALL keyword_create(keyword, name="ALMO_SCF",&
             description="Perform ALMO SCF",&
             usage="ALMO_SCF",lone_keyword_l_val=.TRUE.,&
+            default_l_val=.FALSE.,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="TRANSPORT",&
+            description="Perform transport calculations (coupling CP2K and OMEN)",&
+            usage="TRANSPORT",lone_keyword_l_val=.TRUE.,&
             default_l_val=.FALSE.,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
@@ -2656,20 +2649,6 @@ CONTAINS
                         "especially for a tight EPS_SCF and a less tight EPS_DEFAULT.",&
             usage="MAP_CONSISTENT FALSE",&
             default_l_val=.TRUE.,lone_keyword_l_val=.TRUE.,error=error)
-       CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-
-       CALL keyword_create(keyword, name="CHECK_BCSR_CODE",&
-            description="Check the BCSR code on actual data, once per QS run.",&
-            usage="CHECK_BCSR_CODE TRUE",&
-            default_l_val=.FALSE.,lone_keyword_l_val=.TRUE.,error=error)
-       CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-
-       CALL keyword_create(keyword, name="BCSR_CODE",&
-            description="Selects BCSR pathway.",&
-            usage="BCSR_CODE 0",&
-            default_i_val=0,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
@@ -2860,10 +2839,6 @@ CONTAINS
        CALL section_release(subsection,error=error)
 
        CALL create_s2_restraint_section(subsection,error)
-       CALL section_add_subsection(section, subsection, error=error)
-       CALL section_release(subsection,error=error)
-
-       CALL create_harris_section(subsection,error)
        CALL section_add_subsection(section, subsection, error=error)
        CALL section_release(subsection,error=error)
 
@@ -3085,16 +3060,17 @@ CONTAINS
             keyword=keyword,&
             name="ADMM_PURIFICATION_METHOD",&
             description="Method that shall be used for wavefunction fitting. Use MO_DIAG for MD.",&
-            enum_c_vals=s2a("NONE","CAUCHY","CAUCHY_SUBSPACE","MO_DIAG", "MO_NO_DIAG", "MCWEENY"),&
+            enum_c_vals=s2a("NONE","CAUCHY","CAUCHY_SUBSPACE","MO_DIAG", "MO_NO_DIAG", "MCWEENY", "NONE_DM"),&
             enum_i_vals=(/do_admm_purify_none, do_admm_purify_cauchy, do_admm_purify_cauchy_subspace,&
                           do_admm_purify_mo_diag, do_admm_purify_mo_no_diag,&
-                          do_admm_purify_mcweeny/),&
+                          do_admm_purify_mcweeny, do_admm_purify_none_dm/),&
             enum_desc=s2a("Do not apply any purification", &
                           "Perform purification via general Cauchy representation", &
                           "Perform purification via Cauchy representation in occupied subspace", &
                           "Calculate MO derivatives via Cauchy representation by diagonalization", &
                           "Calculate MO derivatives via Cauchy representation by inversion",&
-                          "Perform original McWeeny purification via matrix multiplications"), &
+                          "Perform original McWeeny purification via matrix multiplications",&
+                          "Do not apply any purification, works directly with density matrix"), &
             default_i_val=do_admm_purify_mo_diag, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
@@ -3103,20 +3079,60 @@ CONTAINS
             keyword=keyword,&
             name="METHOD",&
             description="Method that shall be used for wavefunction fitting. Use BASIS_PROJECTION for MD.",&
-            enum_c_vals=s2a("BASIS_PROJECTION","BLOCKED_PROJECTION_PURIFY_FULL","BLOCKED_PROJECTION"),&
-            enum_i_vals=(/do_admm_basis_projection, do_admm_blocking_purify_full, do_admm_blocked_projection/),&
+            enum_c_vals=s2a("BASIS_PROJECTION","BLOCKED_PROJECTION_PURIFY_FULL","BLOCKED_PROJECTION",&
+            "CHARGE_CONSTRAINED_PROJECTION"),&
+            enum_i_vals=(/do_admm_basis_projection, do_admm_blocking_purify_full, do_admm_blocked_projection,&
+            do_admm_charge_constrained_projection/),&
             enum_desc=s2a("Construct auxiliary density matrix from auxiliary basis.",&
             "Construct auxiliary density from a blocked Fock matrix,"//&
             " but use the original matrix for purification.",&
-            "Construct auxiliary density from a blocked Fock matrix."),&
+            "Construct auxiliary density from a blocked Fock matrix.",&
+            "Construct auxiliary density from auxiliary basis enforcing charge constrain."),&
             default_i_val=do_admm_basis_projection, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
+
+
+       CALL keyword_create(&
+            keyword=keyword,&
+            name="EXCH_SCALING_MODEL",&
+            description="Scaling of the exchange correction calculated by the auxiliary density matrix.",&
+            enum_c_vals=s2a("NONE","MERLOT"),&
+            enum_i_vals=(/do_admm_exch_scaling_none, do_admm_exch_scaling_merlot/),&
+            enum_desc=s2a("No scaling is enabled, refers to methods ADMM1, ADMM2 or ADMMQ.",&
+            "Exchange scaling according to Merlot (2014)"),&
+            default_i_val=do_admm_exch_scaling_none, error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(&
+            keyword=keyword,&
+            name="EXCH_CORRECTION_FUNC",&
+            description="Exchange functional which is used for the ADMM correction.",&
+            enum_c_vals=s2a("DEFAULT","PBEX","NONE","OPTX","BECKE88X"),&
+            enum_i_vals=(/do_admm_aux_exch_func_default, do_admm_aux_exch_func_pbex, &
+            do_admm_aux_exch_func_none, do_admm_aux_exch_func_opt, do_admm_aux_exch_func_bee/),&
+            enum_desc=s2a("Use PBEX functional for exchange correction, also for truncated and"//&
+            " short Coulomb interaction.",&
+            "Use PBEX functional for exchange correction but always normal form.",&
+            "No correction: X(D)-x(d)-> 0.",&
+            "Use OPTX functional for exchange correction.",&
+            "Use Becke88X functional for exchange correction."),&
+            default_i_val=do_admm_aux_exch_func_default, error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
 
        CALL keyword_create(keyword, name="BLOCK_LIST",&
             description="Specifies a list of atoms.",&
             usage="LIST {integer} {integer} .. {integer}", required=.FALSE.,&
             n_var=-1, type_of_var=integer_t, repeats=.TRUE., error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="EPS_FILTER",&
+            description="Define accuracy of DBCSR operations",&
+            usage="EPS_FILTER",default_r_val=0.0_dp, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
@@ -3315,12 +3331,6 @@ CONTAINS
             "is active only for K-DSO integral screening type.",&
             "Use Ewald directly in Coulomb integral evaluation, works only with Slater screening"),&
             default_i_val=do_se_lr_none, error=error)
-       CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-
-       CALL keyword_create(keyword, name="SCP",&
-            description="Perform a SCP-NDDO calculation",&
-            usage="SCP",default_l_val=.FALSE., error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
@@ -4295,9 +4305,12 @@ CONTAINS
 
        CALL keyword_create(keyword, name="method",&
             description="type of relativistic correction used",&
-            usage="method DKH", default_i_val=rel_none,&
+            usage="method (NONE|DKH|ZORA)", default_i_val=rel_none,&
             enum_c_vals=s2a("NONE","DKH","ZORA"),&
-            enum_i_vals=(/ rel_none, rel_dkh, rel_zora /),error=error)
+            enum_i_vals=(/ rel_none, rel_dkh, rel_zora /),&
+            enum_desc=s2a("Use no relativistic correction",&
+                          "Use Douglas-Kroll-Hess method",&
+                          "Use ZORA method"), error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
@@ -4319,11 +4332,13 @@ CONTAINS
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="transformation",&
-            description="type of DKH transformation, full: use full matrix transformation,"//&
-             " molecule: use transformation blocked by molecule, atom: use atomic blocks ",&
-            usage="transformation full", default_i_val=rel_trans_full,&
-            enum_c_vals=s2a("FULL","MOLECULE","ATOM"), &
-            enum_i_vals=(/ rel_trans_full, rel_trans_molecule, rel_trans_atom/),error=error)
+            description="Type of DKH transformation",&
+            usage="transformation (FULL|MOLECULE|ATOM)", default_i_val=rel_trans_full,&
+            enum_c_vals=s2a("FULL","MOLECULE","ATOM"),&
+            enum_i_vals=(/ rel_trans_full, rel_trans_molecule, rel_trans_atom/),&
+            enum_desc=s2a("Use full matrix transformation",&
+                          "Use transformation blocked by molecule",&
+                          "Use atomic blocks"),error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
@@ -4480,7 +4495,7 @@ CONTAINS
             description="Change the initial guess for the wavefunction.",&
             usage="SCF_GUESS RESTART", default_i_val=atomic_guess,&
             enum_c_vals=s2a("ATOMIC","RESTART","RANDOM","CORE","DENSITIES",&
-            "HISTORY_RESTART","MOPAC","SPARSE","ALMO_SCF","NONE"),&
+            "HISTORY_RESTART","MOPAC","SPARSE","NONE"),&
             enum_desc=s2a("Generate an atomic density using the atomic code", &
             "Use the RESTART file as an initial guess (and ATOMIC if not present).", &
             "Use random wavefunction coefficients.", &
@@ -4489,10 +4504,9 @@ CONTAINS
             "Extrapolated from previous RESTART files.", &
             "Use same guess as MOPAC for semi-empirical methods or a simple diagonal density matrix for other methods", &
             "Generate a sparse wavefunction using the atomic code (for OT based methods)", &
-            "Accurate guess for molecular systems based on ALMO methods", &
             "Skip initial guess (only for NON-SCC DFTB)."), &
             enum_i_vals=(/atomic_guess,restart_guess,random_guess,core_guess,&
-            densities_guess,history_guess,mopac_guess,sparse_guess,almo_scf_guess,no_guess/),&
+            densities_guess,history_guess,mopac_guess,sparse_guess,no_guess/),&
             error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
@@ -4703,7 +4717,7 @@ CONTAINS
                         " into molecular subunits",&
             n_keywords=0, n_subsections=1, repeats=.FALSE., required=.FALSE.,&
             citations=(/Iannuzzi2006, Brelaz1979/),error=error)
-      
+
        NULLIFY (keyword, subsection, print_key)
 
        CALL keyword_create(keyword, name="COLORING_METHOD",&
@@ -4819,15 +4833,13 @@ CONTAINS
             description="Specifies which kind of outer SCF should be employed",&
             usage="TYPE DDAPC_CONSTRAINT ",&
             default_i_val=outer_scf_none,&
-            enum_c_vals=s2a( "DDAPC_CONSTRAINT", "S2_CONSTRAINT", "BECKE_CONSTRAINT",&
-             "SCP", "NONE" ),&
+            enum_c_vals=s2a( "DDAPC_CONSTRAINT", "S2_CONSTRAINT", "BECKE_CONSTRAINT", "NONE" ),&
             enum_desc=s2a("Enforce a constraint on the DDAPC, requires the corresponding section", &
             "Enforce a constraint on the S2, requires the corresponding section", &
             "Enforce a constraint on the Becke weight population,requires the corresponding section", &
-            "Enforce outer loop optimization for SCP, requires the corresponding metod (-DFT or -NDDO)", &
             "Do nothing in the outer loop, useful for resetting the inner loop,"),&
             enum_i_vals=(/outer_scf_ddapc_constraint,outer_scf_s2_constraint,&
-            outer_scf_becke_constraint,outer_scf_scp,outer_scf_none/),&
+            outer_scf_becke_constraint,outer_scf_none/),&
             error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
@@ -5136,53 +5148,6 @@ CONTAINS
   END SUBROUTINE create_gspace_interp_section
 
 ! *****************************************************************************
-!> \brief This section specifies the flags for the harris functional
-!> \param section the section to create
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
-!> \author Thomas D. Kuehne (tkuehne@phys.chem.ethz.ch)
-! *****************************************************************************
-  SUBROUTINE create_harris_section(section,error)
-    TYPE(section_type), POINTER              :: section
-    TYPE(cp_error_type), INTENT(inout)       :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'create_harris_section', &
-      routineP = moduleN//':'//routineN
-
-    LOGICAL                                  :: failure
-    TYPE(keyword_type), POINTER              :: keyword
-
-    failure=.FALSE.
-
-    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
-    IF (.NOT. failure) THEN
-       CALL section_create(section,name="HARRIS",&
-            description="This section specifies the flags for the calculation of the harris functional",&
-            n_keywords=2, n_subsections=0, repeats=.FALSE., required=.FALSE.,&
-            error=error)
-
-       NULLIFY(keyword)
-
-       CALL keyword_create(keyword, name="ACTIVATE", &
-            description="Activates the harris functional.", &
-            usage="ACTIVATE TRUE", required=.FALSE., &
-            default_l_val=.FALSE., lone_keyword_l_val=.TRUE., &
-            error=error)
-       CALL section_add_keyword(section, keyword, error=error)
-       CALL keyword_release(keyword, error=error)
-
-       CALL keyword_create(keyword, name="HARRIS_ENERGY",&
-            description="Overrides the QS Energy.", &
-            usage="HARRIS_ENERGY TRUE", required=.FALSE., &
-            default_l_val=.FALSE., lone_keyword_l_val=.TRUE., &
-            error=error)
-       CALL section_add_keyword(section, keyword, error=error)
-       CALL keyword_release(keyword, error=error)
-
-    END IF
-  END SUBROUTINE create_harris_section
-
-! *****************************************************************************
 !> \brief input section for optimization of the auxililary basis for LRIGPW
 !> \param section the section to create
 !> \param error variable to control error logging, stopping,...
@@ -5199,6 +5164,7 @@ CONTAINS
 
     LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
+    TYPE(section_type), POINTER              :: subsection
 
     failure=.FALSE.
 
@@ -5210,7 +5176,7 @@ CONTAINS
             n_keywords=1, n_subsections=0, repeats=.FALSE., required=.FALSE.,&
             error=error)
 
-       NULLIFY(keyword)
+       NULLIFY(keyword,subsection)
 
        CALL keyword_create(keyword, name="ACCURACY", &
             description="Target accuracy for the objective function (RHOEND)",&
@@ -5233,8 +5199,97 @@ CONTAINS
        CALL section_add_keyword(section, keyword, error=error)
        CALL keyword_release(keyword, error=error)
 
+       CALL keyword_create(keyword, name="CONDITION_WEIGHT", &
+            description="This keyword allows to give different weight "//&
+            "factors to the condition number (LOG(cond) is used).",&
+            usage="CONDITION_WEIGHT 1.0E-4", default_r_val=1.0E-6_dp,&
+            error=error)
+       CALL section_add_keyword(section, keyword, error=error)
+       CALL keyword_release(keyword, error=error)
+
+       CALL keyword_create(keyword, name="USE_CONDITION_NUMBER",&
+            description="Determines whether condition number should be part "//&
+            "of optimization or not",&
+            usage="USE_CONDITION_NUMBER",&
+            default_l_val=.FALSE.,lone_keyword_l_val=.TRUE.,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="GEOMETRIC_SEQUENCE",&
+            description="Exponents are assumed to be a geometric squence. "//&
+            "Only the minimal and maximal exponents of one set are optimized and "//&
+            "the other exponents are obtained by geometric progression.",&
+            usage="GEOMETRIC_SEQUENCE",&
+            default_l_val=.FALSE.,lone_keyword_l_val=.TRUE.,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="DEGREES_OF_FREEDOM",&
+            description="Specifies the degrees of freedom in the basis "//&
+                        "optimization.",&
+            usage="DEGREES_OF_FREEDOM ALL", &
+            enum_c_vals=s2a( "ALL", "COEFFICIENTS","EXPONENTS"),&
+            enum_desc=s2a("Set all parameters in the basis to be variable.",&
+                          "Set all coefficients in the basis set to be variable.",&
+                          "Set all exponents in the basis to be variable."),&
+            enum_i_vals=(/do_lri_opt_all, do_lri_opt_coeff, do_lri_opt_exps/),&
+            default_i_val=do_lri_opt_exps,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL create_constrain_exponents_section(subsection,error)
+       CALL section_add_subsection(section, subsection, error=error)
+       CALL section_release(subsection,error=error)
+
     END IF
   END SUBROUTINE create_optimize_lri_basis_section
+
+! *****************************************************************************
+!> \brief input section for constraints for auxiliary basis set optimization 
+!> \param section the section to create
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \author Dorothea Golze [11.2014]
+! *****************************************************************************
+  SUBROUTINE create_constrain_exponents_section(section,error)
+    TYPE(section_type), POINTER              :: section
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: &
+      routineN = 'create_constrain_exponents_section', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+    TYPE(keyword_type), POINTER              :: keyword
+
+    failure=.FALSE.
+
+    IF (.NOT. failure) THEN
+       CALL section_create(section,name="CONSTRAIN_EXPONENTS",&
+            description="specifies constraints for the exponents of the "//&
+            "lri auxiliary basis sets in the optimization.",&
+            n_keywords=1, n_subsections=0, repeats=.FALSE., required=.FALSE.,&
+            error=error)
+
+       NULLIFY(keyword)
+
+    CALL keyword_create(keyword, name="SCALE",&
+         description="Defines the upper and lower boundaries as "//&
+         "(1+scale)*exp and (1-scale)*exp. Fermi-like constraint "//&
+         "function",&
+         usage="SCALE 0.3", default_r_val=0.3_dp, required=.FALSE., error=error)
+    CALL section_add_keyword(section,keyword,error=error)
+    CALL keyword_release(keyword,error=error)
+
+    CALL keyword_create(keyword, name="FERMI_EXP",&
+         description="Exponent in the fermi-like constraint function. ",&
+         usage="FERMI_EXP 2.63", default_r_val=2.63391_dp, required=.FALSE., error=error)
+    CALL section_add_keyword(section,keyword,error=error)
+    CALL keyword_release(keyword,error=error)
+
+   ENDIF
+
+  END SUBROUTINE create_constrain_exponents_section
 
 ! *****************************************************************************
 !> \brief creates the multigrid
@@ -5652,6 +5707,22 @@ CONTAINS
             usage="ERROR_LIMIT <REAL>", default_r_val=1.0E-12_dp, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
+       
+       !keyword for reading the external potential from cube file
+       CALL keyword_create(keyword, name="READ_FROM_CUBE",&
+            description="Switch for reading the external potential from file pot.cube. The values "//&
+                        "of the potential must be on the grid points of the realspace grid.",&
+            usage="READ_FROM_CUBE T", default_l_val=.FALSE., lone_keyword_l_val=.TRUE., error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+       
+       !keyword for scaling the external potential that is read from file by a constant factor
+       CALL keyword_create(keyword, name="SCALING_FACTOR",&
+            description="A factor for scaling the the external potential that is read from file."//&
+                        "The value of the potential at each grid point is multiplied by this factor.",&
+            usage="SCALING_FACTOR <REAL>", default_r_val=1.0_dp, error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
     END IF
   END SUBROUTINE create_ext_pot_section
 
@@ -5853,7 +5924,7 @@ CONTAINS
        NULLIFY(keyword,subsection)
 
        CALL keyword_create(keyword, name="INTENSITY",&
-            description="Intensity of a laser field in W*cm-2 which corresponds "//&
+            description="Intensity of the electric field in W*cm-2 which corresponds "//&
             "to a maximal amplitude in a.u. of sqrt(I/(3.50944*10^16))",&
             usage="INTENSITY  0.001",&
             default_r_val=0._dp,error=error)
@@ -6158,9 +6229,11 @@ CONTAINS
 
        CALL keyword_create(keyword, name="STEPSIZE",&
             description="Initial stepsize used for the line search, sometimes this parameter can be reduced to stablize DIIS"//&
-            " or to improve the CG behavior in the first few steps",&
+            " or to improve the CG behavior in the first few steps."//&
+            " The optimal value depends on the quality of the preconditioner."//&
+            " A negative values leaves the choice to CP2K depending on the preconditioner.",&
             usage="STEPSIZE 0.4",&
-            default_r_val=0.15_dp,error=error)
+            default_r_val=-1.0_dp,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
@@ -6178,8 +6251,6 @@ CONTAINS
             usage="PRECONDITIONER FULL_ALL",&
             default_i_val=ot_precond_full_kinetic,&
             enum_c_vals=s2a("FULL_ALL","FULL_SINGLE_INVERSE","FULL_SINGLE","FULL_KINETIC","FULL_S_INVERSE",&
-            "SPARSE_DIAG","SPARSE_KINETIC",&
-            "SPARSE_STABLE_APPROXIMATE_INVERSE",&
             "NONE"),&
             enum_desc=s2a("Most effective state selective preconditioner based on diagonalization, "//&
             "requires the ENERGY_GAP parameter to be an underestimate of the HOMO-LUMO gap. "//&
@@ -6192,15 +6263,9 @@ CONTAINS
             "Cholesky inversion of S and T, fast construction, robust, and relatively good, "//&
             "use for very large systems.",&
             "Cholesky inversion of S, not as good as FULL_KINETIC, yet equally expensive.",&
-            "Only based on atomic blocks, very cheap in construction but quite poor.",&
-            "Toward -sparse- linear solver for T-eS.",&
-            "Stabilized Approximate INVerse preconditioning using DBCSR sparse matrices (not working yet).",&
             "skip preconditioning"),&
             enum_i_vals=(/ot_precond_full_all,ot_precond_full_single_inverse,ot_precond_full_single, &
-            ot_precond_full_kinetic,ot_precond_s_inverse,&
-            ot_precond_sparse_diag,ot_precond_sparse_kinetic,&
-            ot_precond_sparse_kinetic_sainv,&
-            ot_precond_none/),&
+            ot_precond_full_kinetic,ot_precond_s_inverse,ot_precond_none/),&
             citations=(/VandeVondele2003/),&
             error=error)
        CALL section_add_keyword(section,keyword,error=error)
@@ -6210,16 +6275,17 @@ CONTAINS
             description="How the preconditioner is applied to the residual.",&
             usage="PRECOND_SOLVER DIRECT",&
             default_i_val=ot_precond_solver_default,&
-            enum_c_vals=s2a( "DEFAULT", "DIRECT", "INVERSE_CHOLESKY","SAINV"),&
+            enum_c_vals=s2a( "DEFAULT", "DIRECT", "INVERSE_CHOLESKY","INVERSE_UPDATE"),&
             enum_desc=s2a("the default","Cholesky decomposition followed by triangular solve "//&
             "(works for FULL_KINETIC/SINGLE_INVERSE/S_INVERSE)",&
             "Cholesky decomposition followed by explicit inversion "//&
             "(works for FULL_KINETIC/SINGLE_INVERSE/S_INVERSE)",&
-            "SAINV inversion (works for FULL_KINETIC/SINGLE_INVERSE/S_INVERSE)"),&
+            "Performs a Hotelling update of the inverse if a previous preconditioner is present. "//&
+            "Mainly useful for GPU accelerated systems (works for FULL_KINETIC/SINGLE_INVERSE/S_INVERSE)"),&
             enum_i_vals=(/ot_precond_solver_default,&
             ot_precond_solver_direct,&
             ot_precond_solver_inv_chol,&
-            ot_precond_solver_sainv/),&
+            ot_precond_solver_update/),&
             error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
@@ -6227,10 +6293,12 @@ CONTAINS
        CALL keyword_create(keyword, name="ENERGY_GAP",&
             description="Should be an estimate for the energy gap [a.u.] (HOMO-LUMO) and is used in preconditioning, "//&
             "especially effective with the FULL_ALL preconditioner, in which case it should be an underestimate "//&
-            "of the gap (0.001 doing normally fine). For the other preconditioners, making this value larger (0.2)"//&
-            " will tame the preconditioner in case of poor initial guesses.",&
+            "of the gap (can be a small number, e.g. 0.002)."//&
+            " FULL_SINGLE_INVERSE takes it as lower bound (values below 0.05 can cause stability issues)."//&
+            " In general, heigher values will tame the preconditioner in case of poor initial guesses."//&
+            " A negative value will leave the choice to CP2K depending on type of preconditioner.",&
             usage="ENERGY_GAP 0.001",&
-            default_r_val=0.2_dp,error=error)
+            default_r_val=-1.0_dp,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
@@ -6256,14 +6324,6 @@ CONTAINS
             " a rotation of the occupied subspace such as non-singlet restricted calculations "//&
             " or fractional occupations.",&
             usage="ROTATION",lone_keyword_l_val=.TRUE.,&
-            default_l_val=.FALSE.,error=error)
-       CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-
-       CALL keyword_create(keyword, name="SCP_NDDO",&
-            description="Introduce additional self-consistent polarization through"//&
-            " response basis set = orbital basis set for NDDO.)",&
-            usage="SCP_NDDO",lone_keyword_l_val=.TRUE.,&
             default_l_val=.FALSE.,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
@@ -6472,16 +6532,14 @@ CONTAINS
             description="How the preconditioner is applied to the residual.",&
             usage="PRECOND_SOLVER DIRECT",&
             default_i_val=ot_precond_solver_default,&
-            enum_c_vals=s2a( "DEFAULT", "DIRECT", "INVERSE_CHOLESKY","SAINV"),&
+            enum_c_vals=s2a( "DEFAULT", "DIRECT", "INVERSE_CHOLESKY"),&
             enum_desc=s2a("the default","Cholesky decomposition followed by triangular solve "//&
             "(works for FULL_KINETIC/SINGLE_INVERSE/S_INVERSE)",&
             "Cholesky decomposition followed by explicit inversion "//&
-            "(works for FULL_KINETIC/SINGLE_INVERSE/S_INVERSE)",&
-            "SAINV inversion (works for FULL_KINETIC/SINGLE_INVERSE/S_INVERSE)"),&
+            "(works for FULL_KINETIC/SINGLE_INVERSE/S_INVERSE)"),&
             enum_i_vals=(/ot_precond_solver_default,&
             ot_precond_solver_direct,&
-            ot_precond_solver_inv_chol,&
-            ot_precond_solver_sainv/),&
+            ot_precond_solver_inv_chol/),&
             error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
@@ -6723,20 +6781,38 @@ CONTAINS
             description="Method to be used to calculate core-level excitation spectra",&
             usage="METHOD TP_HH",&
             default_i_val=xas_none,&
-            enum_c_vals=s2a( "NONE", "TP_HH", "TP_FH", "TP_VAL", "TP_XHH","TP_XFH", "DSCF"),&
+            enum_c_vals=s2a( "NONE", "TP_HH", "TP_FH", "TP_VAL", "TP_XHH","TP_XFH", "DSCF","TP_FLEX"),&
             enum_desc=s2a(&
             "No core electron spectroscopy", "Transition potential half-hole",&
             "Transition potential full-hole", "Hole in homo for X-ray emission only " , &
             "Transition potential excited half-hole", &
             "Transition potential excited full-hole " , &
-            "DSCF calculations to compute the first (core)excited state"),&
+            "DSCF calculations to compute the first (core)excited state", &
+            "Transition potential with generalized core occupation and total number of electrons"),&
             enum_i_vals=(/xas_none,xas_tp_hh,xas_tp_fh,xes_tp_val,xas_tp_xhh,&
-            xas_tp_xfh,xas_dscf/), error=error)
+            xas_tp_xfh,xas_dscf,xas_tp_flex/), error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
+       CALL keyword_create(keyword, name="XAS_CORE",&
+            description="Occupation of the core state in XAS calculation by TP_FLEX.",&
+            usage="XAS_CORE 0.5",&
+            default_r_val=0.5_dp,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="XAS_TOT_EL",&
+            description="Total number of electrons for spin channel alpha, in XAS calculation by TP_FLEX."//&
+            "If negative value, the number of electrons is set to GS number of electron "//&
+            " minus the amount subtracted from the core state",&
+            usage="XAS_TOT_EL 10",&
+            default_r_val=-1._dp,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+
        CALL keyword_create(keyword, name="XES_CORE",&
-            description="occupation of the core state in XES calculation by TP_VAL."//&
+            description="Occupation of the core state in XES calculation by TP_VAL."//&
             "The homo is emptied by the same amount",&
             usage="XES_CORE 0.5",&
             default_r_val=1._dp,error=error)
@@ -6763,42 +6839,17 @@ CONTAINS
                           "Velocity form &lang; i | d/dr | j &rang;"),&
             enum_i_vals=(/xas_dip_len2,xas_dip_vel/),error=error)
        CALL section_add_keyword(section,keyword,error=error)
-
-       CALL keyword_release(keyword,error=error)
-       CALL keyword_create(keyword, name="SCF_OPTIMIZER",&
-            description="Optimization algorithm: diagonalization or OT",&
-            usage="SCF_OPTIMIZER GENERAL",&
-            default_i_val=xas_scf_general,&
-            enum_c_vals=s2a( "DEFAULT", "GENERAL"),&
-            enum_desc=s2a("same as in std SCF", "diagonalization"),&
-            enum_i_vals=(/xas_scf_default,xas_scf_general/),&
-            error=error)
-       CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
-       CALL keyword_create(keyword, name="MAXSTEP",&
-            description="Max # of steps in the cls-scf for one excitation",&
-            usage="MAXSTEP 150",&
-            default_i_val=150,error=error)
-       CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
 
-       CALL keyword_create(keyword, name="CONVERGENCE",&
-            variants=(/"CONV"/),&
-            description="Convergence criterion for the xas-scf",&
-            usage="CONVERGENCE 0.00005",&
-            default_r_val=0.5E-6_dp,error=error)
-       CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
+!   replace the specialized keyword with standard scf section
+!    scf_env is added to xas_env
 
-       CALL keyword_create(keyword, name="EPS_DIIS",&
-            description="treshold on the convergence to start"//&
-            " using DIAG/DIIS for the cls-scf"//&
-            "if default, the scf_control value is used",&
-            usage="EPS_DIIS 0.5",&
-            default_r_val=-1._dp,error=error)
-       CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
+       NULLIFY(subsection)
+       CALL create_scf_section(subsection,error)
+       CALL section_add_subsection(section, subsection, error=error)
+       CALL section_release(subsection,error=error)
+
 
        CALL keyword_create(keyword, name="STATE_TYPE",&
             variants=(/"TYPE"/),&
@@ -6965,14 +7016,6 @@ CONTAINS
        CALL section_release(print_key,error=error)
 
        CALL section_add_subsection(section, subsection, error=error)
-       CALL section_release(subsection,error=error)
-
-       CALL create_mixing_section(subsection,error)
-       CALL section_add_subsection(section,subsection,error=error)
-       CALL section_release(subsection,error=error)
-
-       CALL create_smear_section(subsection,error)
-       CALL section_add_subsection(section,subsection,error=error)
        CALL section_release(subsection,error=error)
 
     END IF
@@ -7356,18 +7399,6 @@ CONTAINS
       CALL section_add_keyword(section,keyword,error=error)
       CALL keyword_release(keyword,error=error)
 
-      CALL keyword_create(keyword, name="KERKER_MIN",&
-                          description="Minimal Kerker damping factor: MAX(g^2/(g^2 + beta^2),KERKER_MIN)",&
-                          required=.FALSE.,&
-                          repeats=.FALSE.,&
-                          n_var=1,&
-                          type_of_var=real_t,&
-                          default_r_val=0.1_dp,&
-                          usage="KERKER_MIN 0.05",&
-                          error=error)
-      CALL section_add_keyword(section,keyword,error=error)
-      CALL keyword_release(keyword,error=error)
-
       CALL keyword_create(keyword, name="MAX_GVEC_EXP",&
                           description="Restricts the G-space mixing to lower part of G-vector spectrum,"//&
                           " up to a G0, by assigning the exponent of the Gaussian that can be "//&
@@ -7567,10 +7598,17 @@ CONTAINS
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
+       CALL keyword_create(keyword, name="WRITE_RESTART",&
+            description="For density propagation. It writes out the density matrix after each step",&
+            usage="WRITE_RESTART",&
+            default_l_val=.FALSE.,lone_keyword_l_val=.TRUE.,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
        CALL keyword_create(keyword, name="MCWEENY_MAX_ITER",&
             description="Determines the maximum amount of McWeeny steps used after each converged"//&
             " step in density propagation",&
-            usage="MCWEENY_MAX_ITER 2",default_i_val=0,error=error)
+            usage="MCWEENY_MAX_ITER 2",default_i_val=1,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
@@ -7792,5 +7830,305 @@ CONTAINS
 
   END SUBROUTINE create_ramp_env_section
 
+! *****************************************************************************
+!> \brief      Create CP2K input section for the SCCS model
+!> \param section ...
+!> \param error ...
+!> \par History:
+!>      - Creation (10.10.2013,MK)
+!> \author     Matthias Krack (MK)
+!> \version    1.0
+! *****************************************************************************
+  SUBROUTINE create_sccs_section(section,error)
+
+    TYPE(section_type), POINTER              :: section
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'create_sccs_section', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+    TYPE(keyword_type), POINTER              :: keyword
+    TYPE(section_type), POINTER              :: subsection
+
+    failure = .FALSE.
+
+    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
+
+    IF (.NOT.failure) THEN
+
+      CALL section_create(section,&
+           name="SCCS",&
+           description="Define the parameters for self-consistent continuum solvation (SCCS) model",&
+           citations=(/Fattebert2002,Andreussi2012/),&
+           n_keywords=8,&
+           n_subsections=2,&
+           repeats=.FALSE.,&
+           required=.FALSE.,&
+           error=error)
+
+      NULLIFY (keyword)
+
+      CALL keyword_create(keyword,&
+           name="_SECTION_PARAMETERS_",&
+           description="Controls the activation of the SCCS section",&
+           usage="&SCCS ON",&
+           default_l_val=.FALSE.,&
+           lone_keyword_l_val=.TRUE.,&
+           error=error)
+      CALL section_add_keyword(section,keyword,error=error)
+      CALL keyword_release(keyword,error=error)
+
+      CALL keyword_create(keyword,&
+           name="ALPHA",&
+           description="Solvent specific tunable parameter for the calculation of "//&
+                       "the repulsion term <i>G<sup>rep</sup> = &alpha; S</i> "//&
+                       "where <i>S</i> is the (quantum) surface of the cavity",&
+           required=.FALSE.,&
+           repeats=.FALSE.,&
+           n_var=1,&
+           type_of_var=real_t,&
+           default_r_val=0.0_dp,&
+           unit_str="mN/m",&
+           error=error)
+      CALL section_add_keyword(section,keyword,error=error)
+      CALL keyword_release(keyword,error=error)
+
+      CALL keyword_create(keyword,&
+           name="BETA",&
+           description="Solvent specific tunable parameter for the calculation of "//&
+                       "the dispersion term <i>G<sup>dis</sup> = &beta; V</i> "//&
+                       "where <i>V</i> is the (quantum) volume of the cavity",&
+           required=.FALSE.,&
+           repeats=.FALSE.,&
+           n_var=1,&
+           type_of_var=real_t,&
+           default_r_val=0.0_dp,&
+           unit_str="GPa",&
+           error=error)
+      CALL section_add_keyword(section,keyword,error=error)
+      CALL keyword_release(keyword,error=error)
+
+      CALL keyword_create(keyword,&
+           name="DELTA_RHO",&
+           description="Numerical increment for the calculation of the (quantum) "//&
+                       "surface of the solute cavity",&
+           required=.FALSE.,&
+           repeats=.FALSE.,&
+           n_var=1,&
+           type_of_var=real_t,&
+           default_r_val=2.0E-5_dp,&
+           error=error)
+      CALL section_add_keyword(section,keyword,error=error)
+      CALL keyword_release(keyword,error=error)
+
+      CALL keyword_create(keyword,&
+           name="DERIVATIVE_METHOD",&
+           description="Method for the calculation of the numerical derivatives on the real-space grids",&
+           usage="DERIVATIVE_METHOD cd5",&
+           required=.FALSE.,&
+           repeats=.FALSE.,&
+           n_var=1,&
+           default_i_val=sccs_derivative_fft,&
+           enum_c_vals=s2a("FFT","CD3","CD5","CD7"),&
+           enum_i_vals=(/sccs_derivative_fft,&
+                         sccs_derivative_cd3,&
+                         sccs_derivative_cd5,&
+                         sccs_derivative_cd7/),&
+           enum_desc=s2a("Fast Fourier transformation",&
+                         "3-point stencil central differences",&
+                         "5-point stencil central differences",&
+                         "7-point stencil central differences"),&
+           error=error)
+      CALL section_add_keyword(section,keyword,error=error)
+      CALL keyword_release(keyword,error=error)
+
+      CALL keyword_create(keyword,&
+           name="DIELECTRIC_CONSTANT",&
+           variants=(/"EPSILON_SOLVENT"/),&
+           description="Dielectric constant of the solvent",&
+           required=.FALSE.,&
+           repeats=.FALSE.,&
+           n_var=1,&
+           type_of_var=real_t,&
+           default_r_val=80.0_dp,&
+           usage="DIELECTRIC_CONSTANT 78.36",&
+           error=error)
+      CALL section_add_keyword(section,keyword,error=error)
+      CALL keyword_release(keyword,error=error)
+
+      CALL keyword_create(keyword,&
+           name="EPS_SCCS",&
+           variants=s2a("EPS_ITER","TAU_POL"),&
+           description="Tolerance for the convergence of the polarisation density, "//&
+                       "i.e. requested accuracy for the SCCS iteration cycle",&
+           required=.FALSE.,&
+           repeats=.FALSE.,&
+           n_var=1,&
+           type_of_var=real_t,&
+           default_r_val=1.0E-6_dp,&
+           usage="EPS_ITER 1.0E-7",&
+           error=error)
+      CALL section_add_keyword(section,keyword,error=error)
+      CALL keyword_release(keyword,error=error)
+
+      CALL keyword_create(keyword,&
+           name="EPS_SCF",&
+           description="The SCCS iteration cycle is activated only if the SCF iteration cycle "//&
+                       "is converged to this threshold value",&
+           required=.FALSE.,&
+           repeats=.FALSE.,&
+           n_var=1,&
+           type_of_var=real_t,&
+           default_r_val=0.5_dp,&
+           usage="EPS_SCF 1.0E-2",&
+           error=error)
+      CALL section_add_keyword(section,keyword,error=error)
+      CALL keyword_release(keyword,error=error)
+
+      CALL keyword_create(keyword,&
+           name="GAMMA",&
+           variants=s2a("SURFACE_TENSION"),&
+           description="Surface tension of the solvent used for the calculation of "//&
+                       "the cavitation term <i>G<sup>cav</sup> = &gamma; S</i> "//&
+                       "where <i>S</i> is the (quantum) surface of the cavity",&
+           required=.FALSE.,&
+           repeats=.FALSE.,&
+           n_var=1,&
+           type_of_var=real_t,&
+           default_r_val=0.0_dp,&
+           unit_str="mN/m",&
+           error=error)
+      CALL section_add_keyword(section,keyword,error=error)
+      CALL keyword_release(keyword,error=error)
+
+      CALL keyword_create(keyword,&
+           name="MAX_ITER",&
+           description="Maximum number of SCCS iteration steps performed to converge "//&
+                       "within the given tolerance",&
+           required=.FALSE.,&
+           repeats=.FALSE.,&
+           n_var=1,&
+           type_of_var=integer_t,&
+           default_i_val=100,&
+           usage="MAX_ITER 50",&
+           error=error)
+      CALL section_add_keyword(section,keyword,error=error)
+      CALL keyword_release(keyword,error=error)
+
+      CALL keyword_create(keyword,&
+           name="METHOD",&
+           description="Method used for the smoothing of the dielectric function",&
+           usage="METHOD Fattebert-Gygi",&
+           default_i_val=sccs_andreussi,&
+           enum_c_vals=s2a("ANDREUSSI","FATTEBERT-GYGI"),&
+           enum_i_vals=(/sccs_andreussi,sccs_fattebert_gygi/),&
+           enum_desc=s2a("Smoothing function proposed by Andreussi et al.",&
+                         "Smoothing function proposed by Fattebert and Gygi"),&
+           error=error)
+      CALL section_add_keyword(section,keyword,error=error)
+      CALL keyword_release(keyword,error=error)
+
+      CALL keyword_create(keyword,&
+           name="MIXING",&
+           variants=(/"ETA"/),&
+           description="Mixing parameter (Hartree damping) employed during the iteration procedure",&
+           required=.FALSE.,&
+           repeats=.FALSE.,&
+           n_var=1,&
+           type_of_var=real_t,&
+           default_r_val=0.6_dp,&
+           usage="MIXING 0.2",&
+           error=error)
+      CALL section_add_keyword(section,keyword,error=error)
+      CALL keyword_release(keyword,error=error)
+
+      NULLIFY (subsection)
+
+      CALL section_create(subsection,&
+           name="ANDREUSSI",&
+           description="Define the parameters of the dielectric smoothing function proposed by "//&
+                       "Andreussi et al.",&
+           citations=(/Andreussi2012/),&
+           n_keywords=2,&
+           n_subsections=0,&
+           repeats=.FALSE.,&
+           required=.FALSE.,&
+           error=error)
+
+      CALL keyword_create(keyword,&
+           name="RHO_MAX",&
+           description="Maximum density value used for the smoothing of the dielectric function",&
+           required=.FALSE.,&
+           repeats=.FALSE.,&
+           n_var=1,&
+           type_of_var=real_t,&
+           default_r_val=0.0035_dp,&
+           usage="RHO_MAX 0.01",&
+           error=error)
+      CALL section_add_keyword(subsection,keyword,error=error)
+      CALL keyword_release(keyword,error=error)
+
+      CALL keyword_create(keyword,&
+           name="RHO_MIN",&
+           description="Minimum density value used for the smoothing of the dielectric function",&
+           required=.FALSE.,&
+           repeats=.FALSE.,&
+           n_var=1,&
+           type_of_var=real_t,&
+           default_r_val=0.0001_dp,&
+           usage="RHO_MIN 0.0003",&
+           error=error)
+      CALL section_add_keyword(subsection,keyword,error=error)
+      CALL keyword_release(keyword,error=error)
+
+      CALL section_add_subsection(section,subsection,error=error)
+      CALL section_release(subsection,error=error)
+
+      CALL section_create(subsection,&
+           name="FATTEBERT-GYGI",&
+           description="Define the parameters of the dielectric smoothing function proposed by "//&
+                       "Fattebert and Gygi",&
+           citations=(/Fattebert2002/),&
+           n_keywords=2,&
+           n_subsections=0,&
+           repeats=.FALSE.,&
+           required=.FALSE.,&
+           error=error)
+
+      CALL keyword_create(keyword,&
+           name="BETA",&
+           description="Parameter &beta; changes the width of the interface solute-solvent",&
+           required=.FALSE.,&
+           repeats=.FALSE.,&
+           n_var=1,&
+           type_of_var=real_t,&
+           default_r_val=1.7_dp,&
+           usage="BETA 1.3",&
+           error=error)
+      CALL section_add_keyword(subsection,keyword,error=error)
+      CALL keyword_release(keyword,error=error)
+
+      CALL keyword_create(keyword,&
+           name="RHO_ZERO",&
+           variants=(/"RHO0"/),&
+           description="Parameter &rho;<sub>0</sub> defines the critical density in the middle "//&
+                       "of the interface solute-solvent",&
+           required=.FALSE.,&
+           repeats=.FALSE.,&
+           n_var=1,&
+           type_of_var=real_t,&
+           default_r_val=0.0006_dp,&
+           usage="RHO_ZERO 0.0004",&
+           error=error)
+      CALL section_add_keyword(subsection,keyword,error=error)
+      CALL keyword_release(keyword,error=error)
+
+      CALL section_add_subsection(section,subsection,error=error)
+      CALL section_release(subsection,error=error)
+
+    END IF
+
+  END SUBROUTINE create_sccs_section
 
 END MODULE input_cp2k_dft

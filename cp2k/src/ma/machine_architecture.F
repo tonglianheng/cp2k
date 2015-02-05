@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2014  CP2K developers group group!
+!   Copyright (C) 2000 - 2015  CP2K developers group group!
 !-----------------------------------------------------------------------------!
 !> \brief   Machine Hardware support for cp2k
 !           Interface to the HWLOC/LIBNUMA library
@@ -37,7 +37,7 @@ MODULE machine_architecture
 
   PUBLIC :: ma_init_machine, ma_finalize_machine
 
-  PUBLIC :: ma_get_id
+  PUBLIC :: ma_get_id, ma_get_thread_id
 
   PUBLIC :: ma_get_nnodes, ma_get_ncores
   PUBLIC :: ma_get_nmachines
@@ -49,11 +49,15 @@ MODULE machine_architecture
   PUBLIC :: ma_show_topology, ma_show_machine_branch
   PUBLIC :: ma_show_machine_full
 
-#if defined (__HWLOC)
-#endif
+  PUBLIC :: ma_get_netDev, ma_get_nnetDev
+  PUBLIC :: ma_get_node_netDev, ma_get_core_node
+  PUBLIC :: ma_hw_set_mempol
 
-#if defined (__LIBNUMA)
-#endif
+  PUBLIC :: ma_set_proc_cores, ma_set_thread_cores
+  PUBLIC :: ma_set_proc_core, ma_set_core
+  PUBLIC :: ma_hw_get_mempol
+  PUBLIC :: ma_set_thread_allnodes, ma_set_thread_node
+  PUBLIC :: ma_set_first_core
 
   ! These are for Machine architecture internal use.
   !
@@ -464,6 +468,164 @@ MODULE machine_architecture
 
 
 CONTAINS
+
+! *****************************************************************************
+!> \brief Empty routines needed to compile without HWLOC
+!> \param core ...
+!> \retval node ...
+! *****************************************************************************
+#if !defined (__HWLOC)
+ FUNCTION ma_get_core_node(core) RESULT (node)
+    INTEGER                                  :: core, node
+
+    node = -1
+    STOP "ma_get_core_node: HWLOC not compiled in"
+ END FUNCTION ma_get_core_node
+
+! *****************************************************************************
+!> \brief ...
+!> \param coreId ...
+!> \param myRank ...
+!> \retval netDev ...
+! *****************************************************************************
+ FUNCTION ma_get_netDev(coreId, myRank) RESULT (netDev)
+    INTEGER                                  :: coreId, myRank, netDev
+
+    netDev = -1
+    STOP "ma_get_netDev: HWLOC not compiled in"
+ END FUNCTION ma_get_netDev
+
+! *****************************************************************************
+!> \brief ...
+!> \param node ...
+!> \retval nnetDev ...
+! *****************************************************************************
+ FUNCTION ma_get_nnetDev(node) RESULT (nnetDev)
+    INTEGER                                  :: node, nnetDev
+
+    nnetDev = -1
+    STOP "ma_get_nnetDev: HWLOC not compiled in"
+ END FUNCTION ma_get_nnetDev
+
+! *****************************************************************************
+!> \brief ...
+!> \retval node ...
+! *****************************************************************************
+ FUNCTION ma_get_node_netDev() RESULT (node)
+    INTEGER                                  :: node
+
+    node = -1
+    STOP "ma_get_node_netDev: HWLOC not compiled in"
+ END FUNCTION ma_get_node_netDev
+
+! *****************************************************************************
+!> \brief ...
+!> \retval id ...
+! *****************************************************************************
+ FUNCTION ma_get_thread_id() RESULT (id)
+    INTEGER                                  :: id
+
+    id = -1
+    STOP "ma_get_thread_id: HWLOC not compiled in"
+ END FUNCTION ma_get_thread_id
+
+! *****************************************************************************
+!> \brief ...
+!> \param mempol ...
+!> \param node ...
+!> \retval error ...
+! *****************************************************************************
+ FUNCTION ma_hw_set_mempol(mempol, node) RESULT (error)
+    INTEGER                                  :: mempol, node, error
+
+    error = -1
+    STOP "ma_hw_set_mempol: HWLOC not compiled in"
+ END FUNCTION ma_hw_set_mempol
+
+! *****************************************************************************
+!> \brief ...
+!> \param mempol ...
+!> \param node ...
+! *****************************************************************************
+ SUBROUTINE ma_hw_get_mempol(mempol, node)
+    INTEGER                                  :: mempol, node
+
+    STOP "ma_hw_get_mempol: HWLOC not compiled in"
+ END SUBROUTINE ma_hw_get_mempol
+
+! *****************************************************************************
+!> \brief ...
+!> \param cpu ...
+! *****************************************************************************
+ SUBROUTINE ma_set_core(cpu)
+    INTEGER                                  :: cpu
+
+    STOP "ma_set_core: HWLOC not compiled in"
+ END SUBROUTINE ma_set_core
+
+! *****************************************************************************
+!> \brief ...
+!> \param node ...
+!> \param proc ...
+! *****************************************************************************
+ SUBROUTINE ma_set_first_core(node, proc)
+    INTEGER                                  :: node, proc
+
+    STOP "ma_set_first_core: HWLOC not compiled in"
+ END SUBROUTINE ma_set_first_core
+
+! *****************************************************************************
+!> \brief ...
+!> \param dist ...
+!> \param core ...
+! *****************************************************************************
+ SUBROUTINE ma_set_proc_cores(dist, core)
+    INTEGER                                  :: dist, core
+
+    STOP "ma_set_proc_cores: HWLOC not compiled in"
+ END SUBROUTINE ma_set_proc_cores
+
+! *****************************************************************************
+!> \brief ...
+!> \param cpu ...
+! *****************************************************************************
+ SUBROUTINE ma_set_proc_core(cpu)
+    INTEGER                                  :: cpu
+
+    STOP "ma_set_proc_core: HWLOC not compiled in"
+ END SUBROUTINE ma_set_proc_core
+
+! *****************************************************************************
+!> \brief ...
+! *****************************************************************************
+ SUBROUTINE ma_set_thread_allnodes()
+
+    STOP "ma_set_thread_allnodes: HWLOC not compiled in"
+ END SUBROUTINE ma_set_thread_allnodes
+
+! *****************************************************************************
+!> \brief ...
+!> \param dist ...
+!> \param core ...
+! *****************************************************************************
+ SUBROUTINE ma_set_thread_cores(dist, core)
+    INTEGER                                  :: dist, core
+
+    STOP "ma_set_thread_cores: HWLOC not compiled in"
+ END SUBROUTINE ma_set_thread_cores
+
+! *****************************************************************************
+!> \brief ...
+!> \param node ...
+! *****************************************************************************
+ SUBROUTINE ma_set_thread_node(node)
+    INTEGER                                  :: node
+
+    STOP "ma_set_thread_node: HWLOC not compiled in"
+ END SUBROUTINE ma_set_thread_node
+
+#endif
+
 
 ! *****************************************************************************
 !> \brief Initialize the machine abstraction library

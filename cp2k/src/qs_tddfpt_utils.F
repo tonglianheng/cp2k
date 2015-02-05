@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2014  CP2K developers group                          !
+!   Copyright (C) 2000 - 2015  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -8,8 +8,8 @@
 !>      09-JUL-2002, TCH, development started
 ! *****************************************************************************
 MODULE qs_tddfpt_utils
-
-  USE cp_control_types,                ONLY: tddfpt_control_type
+  USE cp_control_types,                ONLY: dft_control_type,&
+                                             tddfpt_control_type
   USE cp_dbcsr_interface,              ONLY: cp_dbcsr_p_type
   USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
                                              cp_dbcsr_sm_fm_multiply
@@ -28,7 +28,8 @@ MODULE qs_tddfpt_utils
                                              cp_fm_to_fm
   USE kinds,                           ONLY: dp
   USE physcon,                         ONLY: evolt
-  USE qs_environment_types,            ONLY: qs_environment_type
+  USE qs_environment_types,            ONLY: get_qs_env,&
+                                             qs_environment_type
   USE qs_mo_types,                     ONLY: get_mo_set
   USE qs_p_env_methods,                ONLY: p_env_create,&
                                              p_env_psi0_changed
@@ -116,11 +117,17 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: n_spins, spin
+    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+      POINTER                                :: matrix_s
+    TYPE(dft_control_type), POINTER          :: dft_control
 
-    n_spins = qs_env%dft_control%nspins
-    IF (qs_env%dft_control%tddfpt_control%invert_S) THEN
+    NULLIFY(matrix_s, dft_control)
+
+    CALL get_qs_env(qs_env, matrix_s=matrix_s, dft_control=dft_control, error=error)
+    n_spins = dft_control%nspins
+    IF (dft_control%tddfpt_control%invert_S) THEN
        DO spin=1, n_spins
-          CALL copy_dbcsr_to_fm(qs_env%matrix_s(1)%matrix, t_env%invS(spin)%matrix,error=error)
+          CALL copy_dbcsr_to_fm(matrix_s(1)%matrix, t_env%invS(spin)%matrix,error=error)
           CALL cp_fm_cholesky_decompose(t_env%invS(spin)%matrix,error=error)
           CALL cp_fm_cholesky_invert(t_env%invS(spin)%matrix,error=error)
        END DO
@@ -176,16 +183,19 @@ CONTAINS
     REAL(KIND=DP), ALLOCATABLE, &
       DIMENSION(:, :)                        :: guess, lumos
     REAL(KIND=DP), DIMENSION(:), POINTER     :: orbital_eigenvalues
+    TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(simple_solution_sorter), POINTER    :: sorter_iterator, &
                                                 sorter_pointer, sorter_start
     TYPE(tddfpt_control_type), POINTER       :: tddfpt_control
 
 ! number of vectors to initialize
 
+    NULLIFY(dft_control)
     failure=.FALSE.
 
-    tddfpt_control => qs_env%dft_control%tddfpt_control
-    n_spins = qs_env%dft_control%nspins
+    CALL get_qs_env(qs_env, dft_control=dft_control, error=error)
+    tddfpt_control => dft_control%tddfpt_control
+    n_spins = dft_control%nspins
     energies = 0.0_dp
 
     IF (.NOT.ASSOCIATED(tddfpt_control%lumos)) THEN
@@ -307,22 +317,26 @@ CONTAINS
                                                 summed_contributions
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: homo_coeff_col, lumo_coeff_col
+    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+      POINTER                                :: matrix_s
     TYPE(cp_fm_p_type), DIMENSION(:), &
       POINTER                                :: S_lumos
     TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(tddfpt_control_type)                :: t_control
 
-    NULLIFY(S_lumos, logger)
+    NULLIFY(S_lumos, logger, matrix_s, dft_control)
     failure = .FALSE.
     logger    => cp_error_get_logger(error)
     output_unit= cp_logger_get_default_io_unit(logger)
+    CALL get_qs_env(qs_env, matrix_s=matrix_s, dft_control=dft_control, error=error)
 
     IF (output_unit>0) WRITE (output_unit,*)
     IF (output_unit>0) WRITE (output_unit,*)
 
-    t_control = qs_env%dft_control%tddfpt_control
+    t_control = dft_control%tddfpt_control
     n_ev      = t_control%n_ev
-    n_spins   = qs_env%dft_control%nspins
+    n_spins   = dft_control%nspins
 
     ALLOCATE(S_lumos(n_spins), stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -333,7 +347,7 @@ CONTAINS
        nlumos(spin) = t_control%lumos(spin)%matrix%matrix_struct%ncol_global
        CALL cp_fm_create(S_lumos(spin)%matrix, t_control%lumos(spin)%matrix%matrix_struct, &
                          "S times lumos", error=error)
-       CALL cp_dbcsr_sm_fm_multiply(qs_env%matrix_s(1)%matrix, t_control%lumos(spin)%matrix, &
+       CALL cp_dbcsr_sm_fm_multiply(matrix_s(1)%matrix, t_control%lumos(spin)%matrix, &
                               S_lumos(spin)%matrix, nlumos(spin), 1.0_dp, 0.0_dp,error=error)
     END DO
 

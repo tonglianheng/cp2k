@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2014  CP2K developers group                          !
+!   Copyright (C) 2000 - 2015  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -10,17 +10,22 @@
 !> \author fawzi
 ! *****************************************************************************
 MODULE input_cp2k
-  USE cp_dbcsr_interface,              ONLY: dbcsr_type_complex_4,&
+  USE cp_dbcsr_interface,              ONLY: dbcsr_test_arnoldi,&
+                                             dbcsr_test_binary_io,&
+                                             dbcsr_test_mm,&
+                                             dbcsr_type_complex_4,&
                                              dbcsr_type_complex_8,&
                                              dbcsr_type_real_4,&
                                              dbcsr_type_real_8
-  USE cp_output_handling,              ONLY: cp_print_key_section_create
-  USE f77_blas
+  USE cp_output_handling,              ONLY: add_last_numeric,&
+                                             cp_print_key_section_create,&
+                                             low_print_level,&
+                                             medium_print_level,&
+                                             silent_print_level
   USE input_constants,                 ONLY: &
-       add_last_numeric, do_diag_syevd, do_diag_syevx, do_mat_random, &
-       do_mat_read, do_pwgrid_ns_fullspace, do_pwgrid_ns_halfspace, &
-       do_pwgrid_spherical, ehrenfest, low_print_level, medium_print_level, &
-       numerical, silent_print_level
+       do_diag_syevd, do_diag_syevx, do_mat_random, do_mat_read, &
+       do_pwgrid_ns_fullspace, do_pwgrid_ns_halfspace, do_pwgrid_spherical, &
+       ehrenfest, numerical
   USE input_cp2k_atom,                 ONLY: create_atom_section
   USE input_cp2k_force_eval,           ONLY: create_force_eval_section
   USE input_cp2k_global,               ONLY: create_global_section
@@ -1148,6 +1153,20 @@ CONTAINS
     CALL section_add_keyword(section,keyword,error=error)
     CALL keyword_release(keyword,error=error)
 
+    CALL keyword_create(keyword, name="TEST_TYPE",&
+         description="Which part of DBCSR is tested",&
+         usage="TEST_TYPE MM",&
+         default_i_val=dbcsr_test_mm,&
+         enum_c_vals=s2a("MM", "ARNOLDI","Binary_IO"),&
+         enum_i_vals=(/ dbcsr_test_mm, dbcsr_test_arnoldi, dbcsr_test_binary_io/),&
+         enum_desc=s2a(&
+         "Run matrix multiplications",&
+         "Run the Arnoldi eigenvalue routines (acts as check for the matrix vector part as well)",&
+         "Run binary IO checks"),&
+         error=error)
+    CALL section_add_keyword(section,keyword,error=error)
+    CALL keyword_release(keyword,error=error)
+
     CALL keyword_create(keyword, name="M",&
          description="Dimension 1 of C",&
          usage="A 1024",default_i_val=256,error=error)
@@ -1256,12 +1275,6 @@ CONTAINS
     CALL keyword_create(keyword, name="FILTER_EPS",&
          description="Threshold for on-the-fly and final filtering.",&
          usage="FILTER_EPS 1.0",default_r_val=-1.0_dp,error=error)
-    CALL section_add_keyword(section,keyword,error=error)
-    CALL keyword_release(keyword,error=error)
-
-    CALL keyword_create(keyword, name="DETERMINISTIC",&
-         description="Attempt deterministic behavior (turn off for speed).",&
-         usage="DETERMINISTIC",default_l_val=.TRUE.,lone_keyword_l_val=.TRUE., error=error)
     CALL section_add_keyword(section,keyword,error=error)
     CALL keyword_release(keyword,error=error)
 

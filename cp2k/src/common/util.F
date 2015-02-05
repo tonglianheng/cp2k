@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2014  CP2K developers group                          !
+!   Copyright (C) 2000 - 2015  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -13,7 +13,6 @@ MODULE util
   USE cp_array_i4_sort,                ONLY: cp_1d_i4_sort
   USE cp_array_i8_sort,                ONLY: cp_1d_i8_sort
   USE cp_array_r_sort,                 ONLY: cp_1d_r_sort
-  USE f77_blas
   USE kinds,                           ONLY: dp
 
   IMPLICIT NONE

@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2014  CP2K developers group                          !
+!   Copyright (C) 2000 - 2015  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -528,7 +528,7 @@ CONTAINS
              ALLOCATE(iwork(8*np),S(np),U(np,np),VT(np,np),work_dgesdd(1))
              lwork=-1
              CALL DGESDD('S',np,np,work,np,S,U,np,vt,np,work_dgesdd,lwork,iwork,info)
-             lwork=work_dgesdd(1)
+             lwork=INT(work_dgesdd(1))
              DEALLOCATE(work_dgesdd) ; ALLOCATE(work_dgesdd(lwork))
              CALL DGESDD('S',np,np,work,np,S,U,np,vt,np,work_dgesdd,lwork,iwork,info)
              ! construct the inverse

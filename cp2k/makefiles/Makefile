@@ -45,14 +45,21 @@ OBJDIR  := $(MAINOBJDIR)/$(ARCH)/$(ONEVERSION)
 ifeq ($(NVCC),)
 EXE_NAMES := $(basename $(notdir $(filter-out %.cu, $(ALL_EXE_FILES))))
 endif
+ifneq ($(LD_SHARED),)
+ ARCHIVE_EXT := .$(ONEVERSION).so
+else
+ ARCHIVE_EXT := .a
+endif
 endif
 
 # Declare PHONY targets =====================================================
 .PHONY : $(VERSION) $(EXE_NAMES) \
          dirs makedep default_target all \
+         toolversions libcp2k \
          doxifydir doxify doxifyclean \
          prettydir pretty prettyclean doxygen/clean doxygen \
-         install clean realclean distclean mrproper help templates instantiationdir templatesclean
+         install clean realclean distclean mrproper help templates \
+         instantiationdir templatesclean
 
 
 # Discover files and directories ============================================
@@ -79,7 +86,6 @@ ALL_OBJECTS        = $(addsuffix .o, $(basename $(notdir $(OBJ_SRC_FILES))))
 ALL_EXE_OBJECTS    = $(addsuffix .o, $(EXE_NAMES))
 ALL_NONEXE_OBJECTS = $(filter-out $(ALL_EXE_OBJECTS), $(ALL_OBJECTS))
 
-
 # Common Targets ============================================================
 default_target: all
 
@@ -90,15 +96,15 @@ ifeq ($(ONEVERSION),)
 ORIG_TARGET = default_target
 
 fes :
-	@$(MAKE) --no-print-directory -f $(MAKEFILE) $(VERSION) ORIG_TARGET=graph
+	@+$(MAKE) --no-print-directory -f $(MAKEFILE) $(VERSION) ORIG_TARGET=graph
 
-$(EXE_NAMES) all :
-	@$(MAKE) --no-print-directory -f $(MAKEFILE) $(VERSION) ORIG_TARGET=$@
+$(EXE_NAMES) all toolversions libcp2k:
+	@+$(MAKE) --no-print-directory -f $(MAKEFILE) $(VERSION) ORIG_TARGET=$@
 
 # stage 2: Store the version target in $(ONEVERSION),
 #          Call make recursively with $(ORIG_TARGET) as target.
 $(VERSION) :
-	@$(MAKE) --no-print-directory -f $(MAKEFILE) $(ORIG_TARGET) ORIG_TARGET="" VERSION="" ONEVERSION=$@
+	@+$(MAKE) --no-print-directory -f $(MAKEFILE) $(ORIG_TARGET) ORIG_TARGET="" VERSION="" ONEVERSION=$@
 
 else
 
@@ -106,24 +112,48 @@ else
 #          Afterwards, call make recursively again with -C $(OBJDIR) and INCLUDE_DEPS=true
 ifeq ($(INCLUDE_DEPS),)
 $(EXE_NAMES): dirs makedep
-	@$(MAKE) --no-print-directory -C $(OBJDIR) -f $(MAKEFILE) $(EXEDIR)/$@.$(ONEVERSION) INCLUDE_DEPS=true
+	@+$(MAKE) --no-print-directory -C $(OBJDIR) -f $(MAKEFILE) $(EXEDIR)/$@.$(ONEVERSION) INCLUDE_DEPS=true
 
 all: dirs makedep
-	@$(MAKE) --no-print-directory -C $(OBJDIR) -f $(MAKEFILE) all INCLUDE_DEPS=true
+	@+$(MAKE) --no-print-directory -C $(OBJDIR) -f $(MAKEFILE) all INCLUDE_DEPS=true
+
+libcp2k: dirs makedep
+	@+$(MAKE) --no-print-directory -C $(OBJDIR) -f $(MAKEFILE) $(LIBDIR)/libcp2k$(ARCHIVE_EXT) INCLUDE_DEPS=true
 
 dirs:
 	@mkdir -p $(OBJDIR)
 	@mkdir -p $(LIBDIR)
 	@mkdir -p $(EXEDIR)
 
+toolversions:
+ifneq ($(FC),)
+	@echo "=========== FC ($(ONEVERSION)) ==========="
+	$(FC) --version
+endif
+ifneq ($(CC),)
+	@echo "=========== CC ($(ONEVERSION)) ==========="
+	$(CC) --version
+endif
+ifneq ($(NVCC),)
+	@echo "========== NVCC ($(ONEVERSION)) =========="
+	$(NVCC) --version
+	@echo ""
+endif
+ifneq ($(AR),)
+	@echo "=========== AR ($(ONEVERSION)) ==========="
+	$(firstword $(AR)) V
+	@echo ""
+endif
 else
 
-# stage 4: Include $(OBJDIR)/all.dep, expand target all, and perform actual build.
+# stage 4: Include $(OBJDIR)/all.dep, expand target all and libcp2k, and perform actual build.
 all: $(foreach e, $(EXE_NAMES), $(EXEDIR)/$(e).$(ONEVERSION))
+$(LIBDIR)/libcp2k$(ARCHIVE_EXT) : $(ALL_NONEXE_OBJECTS)
 
 endif
 endif
 
+OTHER_HELP += "toolversions : Print versions of build tools"
 
 #   extract help text from doxygen "\brief"-tag
 help:
@@ -133,6 +163,7 @@ help:
 	basename  $$i | sed 's/^\(.*\)\..*/\1/' | awk '{printf "%-28s", $$1}'; \
 	grep "brief" $$i | head -n 1 | sed 's/^.*\\brief\s*//'; \
 	done
+	@echo "libcp2k                     Builds CP2K as a single library archive"
 	@echo ""
 	@echo "===================== Tools ====================="
 	@printf "%s\n" $(TOOL_HELP) | awk -F ':' '{printf "%-28s%s\n", $$1, $$2}'
@@ -141,6 +172,9 @@ help:
 	@printf "%s\n" $(OTHER_HELP) | awk -F ':' '{printf "%-28s%s\n", $$1, $$2}'
 	@echo "help                         Print this help text"
 
+#
+# so far CP2K does not install, but give a hint to the user
+#
 install:
 	@echo ""
 	@echo "The CP2K executable is $(foreach v, $(VERSION), $(EXEDIR)/cp2k.$(v))"
@@ -148,21 +182,29 @@ install:
 OTHER_HELP += "install : Print installation help"
 
 #
-# delete the intermediate files, but not the libraries and executables. 
-# Most useful to save space on the disk
+# delete the intermediate files, but not the libraries and executables, or created directories.
+# Most useful to save space on the disk or e.g. for recompiles with PGO that still needs the .gcda files in the objdir
 #
 # cleaning stuff ============================================================
 clean:
-	rm -rf $(foreach v, $(VERSION), $(MAINOBJDIR)/$(ARCH)/$(v)) $(LIBCUSMM_DIR)/libcusmm.cu
-OTHER_HELP += "clean : Remove intermediate files, but not the libraries and executables, for given ARCH and VERSION"
+	rm -rf  $(LIBCUSMM_DIR)/libcusmm.cu
+	rm -rf $(foreach v, $(VERSION), $(MAINOBJDIR)/$(ARCH)/$(v)/*.o)
+	rm -rf $(foreach v, $(VERSION), $(MAINOBJDIR)/$(ARCH)/$(v)/*.mod $(MAINOBJDIR)/$(ARCH)/$(v)/*.MOD) 
+	rm -rf $(foreach v, $(VERSION), $(MAINOBJDIR)/$(ARCH)/$(v)/*.dep) 
+OTHER_HELP += "clean : Remove intermediate object and mod files, but not the libraries and executables, for given ARCH and VERSION"
+
+execlean:
+	rm -rf $(foreach v, $(VERSION), $(EXEDIR)/*.$(v))
+OTHER_HELP += "execlean : Remove the executables, for given ARCH and VERSION"
 
 #
-# delete the intermediate files, the programs and libraries and anything that might be in the objdir directory
-# Use this if you want to rebuild the executable (for a given compiler and or VERSION)
+# delete the intermediate files, the programs and libraries and anything that might be in the objdir or libdir directory
+# Use this if you want to fully rebuild an executable (for a given compiler and or VERSION)
 #
-realclean: clean
-	rm -rf $(foreach v, $(VERSION), $(MAINLIBDIR)/$(ARCH)/$(v) $(EXEDIR)/*.$(v))
-OTHER_HELP += "realclean : Remove all file for given ARCH and VERSION"
+realclean: clean execlean
+	rm -rf $(foreach v, $(VERSION), $(MAINOBJDIR)/$(ARCH)/$(v))
+	rm -rf $(foreach v, $(VERSION), $(MAINLIBDIR)/$(ARCH)/$(v))
+OTHER_HELP += "realclean : Remove all files for given ARCH and VERSION"
 
 #
 # Remove all files from previous builds
@@ -197,10 +239,6 @@ TOOL_HELP += "templates : instantiate all templates"
 $(addprefix $(INSTANTIATEDDIR), %.instantiated): %.instantiation instantiateddir
 	@cd $(dir $<); $(TOOLSRC)/instantiateTemplates.py $(notdir $<)
 	@touch $@
-
-#
-# so far CP2K does not install, but give a hint to the user
-#
 
 # Prettyfier stuff ==========================================================
 vpath %.pretty $(PRETTYOBJDIR)
@@ -261,7 +299,7 @@ doxygen: doxygen/clean
 	cp $(ALL_SRC_FILES) $(DOXYGENDIR)
 	@for i in $(DOXYGENDIR)/*.F ; do mv $${i}  $${i%%.*}.f90; done ;
 	@cat $(TOOLSRC)/doxify/Doxyfile.template | sed "s/#revision#/`$(TOOLSRC)/build_utils/get_revision_number $(CP2KHOME)`/"  >$(DOXYGENDIR)/Doxyfile
-	cd $(DOXYGENDIR); doxygen ./Doxyfile
+	cd $(DOXYGENDIR); doxygen ./Doxyfile 2>&1 | tee ./html/doxygen.out
 TOOL_HELP += "doxygen : Generate the doxygen documentation"
 
 
@@ -280,14 +318,12 @@ else
  endif
 endif
 
-ifneq ($(LD_SHARED),)
- ARCHIVE_EXT = ".$(ONEVERSION).so"
-else
- ARCHIVE_EXT = ".a"
-endif
-
 # this happens on stage 3
 makedep: $(ALL_SRC_FILES) $(ALL_PKG_FILES)
+ifeq ($(LD_SHARED),)
+	@echo "Removing stale archives for $(ONEVERSION) ... "
+	@$(TOOLSRC)/build_utils/check_archives.py $(firstword $(AR)) $(SRCDIR) $(LIBDIR)
+endif
 	@echo "Resolving dependencies for $(ONEVERSION) ... "
 	@$(TOOLSRC)/build_utils/makedep.py $(OBJDIR)/all.dep $(MODDEPS) $(MAKEDEPMODE) $(ARCHIVE_EXT) $(OBJ_SRC_FILES)
 
@@ -345,7 +381,7 @@ ifneq ($(CPP),)
 	$(CPP) $(CPPFLAGS) -D__SHORT_FILE__="\"$(notdir $<)\"" $< > $*.f90
 	$(FC) -c $(FCFLAGS) $*.f90 $(FCLOGPIPE)
 else
-	$(FC) -c $(FCFLAGS) -D__SHORT_FILE__="\"$(notdir $<)\"" $< $(FCLOGPIPE)
+	$(FC) -c $(FCFLAGS) -D__SHORT_FILE__="\"$(notdir $<)\"" $< $(FCLOGPIPE) 
 endif
 
 %.o: %.c

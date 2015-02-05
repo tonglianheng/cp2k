@@ -1,10 +1,10 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2014  CP2K developers group                          !
+!   Copyright (C) 2000 - 2015  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 MODULE ai_os_rr
-  USE f77_blas
+  
   USE gamma,                           ONLY: fgamma=>fgamma_0
   USE kinds,                           ONLY: dp
   USE orbital_pointers,                ONLY: coset

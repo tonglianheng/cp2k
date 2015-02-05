@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2014  CP2K developers group                          !
+!   Copyright (C) 2000 - 2015  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -13,7 +13,6 @@ MODULE qs_force_types
   !USE cp_control_types,                ONLY: qs_control_type
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind
-  USE f77_blas
   USE kinds,                           ONLY: dp
 #include "./common/cp_common_uses.f90"
 
@@ -40,7 +39,6 @@ MODULE qs_force_types
                                          other,&
                                          ch_pulay,&
                                          fock_4c,&
-                                         hfx_ri,&
                                          ehrenfest,&
                                          efield,&
                                          eev,&
@@ -134,8 +132,6 @@ CONTAINS
       ! Always initialize ch_pulay to zero..
       qs_force(ikind)%ch_pulay  = 0.0_dp
       ALLOCATE (qs_force(ikind)%fock_4c(3,n),STAT=istat)
-      CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-      ALLOCATE (qs_force(ikind)%hfx_ri(3,n),STAT=istat)
       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
       ALLOCATE (qs_force(ikind)%mp2_sep(3,n),STAT=istat)
       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
@@ -278,11 +274,6 @@ CONTAINS
         CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
       END IF
 
-      IF (ASSOCIATED(qs_force(ikind)%hfx_ri)) THEN
-        DEALLOCATE (qs_force(ikind)%hfx_ri,STAT=istat)
-        CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-      END IF
-
       IF (ASSOCIATED(qs_force(ikind)%ehrenfest)) THEN
         DEALLOCATE (qs_force(ikind)%ehrenfest,STAT=istat)
         CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
@@ -345,7 +336,6 @@ CONTAINS
       qs_force(ikind)%dispersion(:,:) = 0.0_dp
       qs_force(ikind)%other(:,:) = 0.0_dp
       qs_force(ikind)%fock_4c(:,:) = 0.0_dp
-      qs_force(ikind)%hfx_ri(:,:) = 0.0_dp
       qs_force(ikind)%ehrenfest(:,:) = 0.0_dp
       qs_force(ikind)%efield(:,:) = 0.0_dp
       qs_force(ikind)%eev(:,:) = 0.0_dp
@@ -419,7 +409,6 @@ CONTAINS
            qs_force_input(ikind)%dispersion(:,:)
         qs_force_output(ikind)%other(:,:) = qs_force_input(ikind)%other(:,:)
         qs_force_output(ikind)%fock_4c(:,:) = qs_force_input(ikind)%fock_4c(:,:)
-        qs_force_output(ikind)%hfx_ri(:,:) = qs_force_input(ikind)%hfx_ri(:,:)
         qs_force_output(ikind)%ehrenfest(:,:) = qs_force_input(ikind)%ehrenfest(:,:)
         qs_force_output(ikind)%efield(:,:) = qs_force_input(ikind)%efield(:,:)
         qs_force_output(ikind)%eev(:,:) = qs_force_input(ikind)%eev(:,:)

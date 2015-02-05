@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2014  CP2K developers group                          !
+!   Copyright (C) 2000 - 2015  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -11,8 +11,12 @@
 ! *****************************************************************************
 
 MODULE cp_dbcsr_util
-  USE cp_dbcsr_interface,              ONLY: cp_dbcsr_get_info,&
+  USE cp_dbcsr_interface,              ONLY: cp_dbcsr_distribution,&
+                                             cp_dbcsr_get_data_type,&
+                                             cp_dbcsr_get_info,&
                                              cp_dbcsr_type,&
+                                             dbcsr_distribution_mp,&
+                                             dbcsr_mp_group,&
                                              dbcsr_type_real_4,&
                                              dbcsr_type_real_8
   USE cp_dbcsr_operations,             ONLY: cp_dbcsr_multiply_local
@@ -84,12 +88,12 @@ CONTAINS
        unit_nr=-1
     ENDIF
 
-    mp_group = matrix_a%matrix%m%dist%d%mp_env%mp%mp_group
+    mp_group = dbcsr_mp_group(dbcsr_distribution_mp(cp_dbcsr_distribution(matrix_a)))
 
     do_svd = .FALSE.
     IF(PRESENT(svd)) do_svd = svd
 
-    SELECT CASE(matrix_a%matrix%m%data_type)
+    SELECT CASE(cp_dbcsr_get_data_type(matrix_a))
       CASE (dbcsr_type_real_8)
         CALL lanczos_alg_serial_d(matrix_a, max_ev, min_ev, converged, threshold, max_iter, do_svd, mp_group, error)
       CASE (dbcsr_type_real_4)
@@ -295,7 +299,7 @@ CONTAINS
     CALL create_rng_stream(rng_stream,name="lanczos_alg_serial",distribution_type=UNIFORM,&
                            extended_precision=.TRUE.,error=error)
     DO i=1,n
-      v(i,1) = next_random_number(rng_stream,error=error) - 0.5_dp
+      v(i,1) = REAL(next_random_number(rng_stream,error=error) - 0.5_dp,KIND=sp)
     END DO
     CALL delete_rng_stream(rng_stream,error=error)
     CALL mp_sum(v, mp_group)

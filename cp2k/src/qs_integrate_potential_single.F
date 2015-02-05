@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2014  CP2K developers group                          !
+!   Copyright (C) 2000 - 2015  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -28,10 +28,11 @@
 MODULE qs_integrate_potential_single
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind
-  USE atprop_types,                    ONLY: atprop_array_init
+  USE atprop_types,                    ONLY: atprop_array_init,&
+                                             atprop_type
   USE basis_set_types,                 ONLY: get_gto_basis_set,&
                                              gto_basis_set_type
-  USE cell_methods,                    ONLY: cell_type,&
+  USE cell_types,                      ONLY: cell_type,&
                                              pbc
   USE cp_control_types,                ONLY: dft_control_type
   USE cp_para_types,                   ONLY: cp_para_env_type
@@ -695,7 +696,7 @@ CONTAINS
                                                 j, natom, natom_of_kind, &
                                                 npme, stat
     INTEGER, DIMENSION(:), POINTER           :: atom_list, cores
-    LOGICAL                                  :: atenergy, failure, paw_atom, &
+    LOGICAL                                  :: failure, paw_atom, &
                                                 skip_fcore, use_virial
     REAL(KIND=dp)                            :: alpha_core_charge, &
                                                 ccore_charge, eps_rho_rspace
@@ -704,6 +705,7 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: hab, pab
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
+    TYPE(atprop_type), POINTER               :: atprop
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(dft_control_type), POINTER          :: dft_control
@@ -719,16 +721,14 @@ CONTAINS
     TYPE(virial_type), POINTER               :: virial
 
     CALL timeset(routineN,handle)
+    NULLIFY(virial, atprop, dft_control)
+
+    CALL get_qs_env(qs_env=qs_env, dft_control=dft_control, error=error)
 
     !If gapw, check for gpw kinds
     skip_fcore = .FALSE.
-    IF(qs_env%dft_control%qs_control%gapw) THEN
-      IF(.NOT. qs_env%dft_control%qs_control%gapw_control%nopaw_as_gpw) skip_fcore = .TRUE.
-    END IF
-    ! atomic energy contributions
-    atenergy = .FALSE.
-    IF(ASSOCIATED(qs_env%atprop)) THEN
-      atenergy=qs_env%atprop%energy
+    IF(dft_control%qs_control%gapw) THEN
+      IF(.NOT. dft_control%qs_control%gapw_control%nopaw_as_gpw) skip_fcore = .TRUE.
     END IF
 
     failure = .FALSE.
@@ -753,11 +753,15 @@ CONTAINS
              dft_control=dft_control,&
              particle_set=particle_set,&
              para_env=para_env,pw_env=pw_env,&
-             force=force,virial=virial,error=error)
+             force=force,&
+             virial=virial,&
+             atprop=atprop,&
+             error=error)
 
-        IF(atenergy) THEN
+        ! atomic energy contributions
+        IF(ASSOCIATED(atprop)) THEN
            natom = SIZE(particle_set)
-           CALL atprop_array_init(qs_env%atprop%ateb,natom,error)
+           CALL atprop_array_init(atprop%ateb,natom,error)
         END IF
 
         use_virial = virial%pv_availability.AND.(.NOT.virial%pv_numer)
@@ -831,8 +835,8 @@ CONTAINS
             IF (use_virial) THEN
               virial%pv_virial = virial%pv_virial + my_virial_a
             END IF
-            IF (atenergy) THEN
-               qs_env%atprop%ateb(atom_a) = qs_env%atprop%ateb(atom_a) + 0.5_dp*hab(1,1)*pab(1,1)
+            IF (ASSOCIATED(atprop)) THEN
+               atprop%ateb(atom_a) = atprop%ateb(atom_a) + 0.5_dp*hab(1,1)*pab(1,1)
             END IF
 
          END DO
@@ -862,7 +866,7 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE integrate_v_rspace_one_center(v_rspace,qs_env,int_res,&
                                            calculate_forces,error)
-    TYPE(pw_p_type), INTENT(INOUT)           :: v_rspace
+    TYPE(pw_p_type), INTENT(IN)              :: v_rspace
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(lri_kind_type), DIMENSION(:), &
       POINTER                                :: int_res
@@ -884,6 +888,7 @@ CONTAINS
                                                 map_it_here, use_virial
     REAL(KIND=dp)                            :: eps_gvg_rspace, eps_rho_rspace
     REAL(KIND=dp), DIMENSION(3)              :: force_a, force_b, ra
+    REAL(KIND=dp), DIMENSION(3, 3)           :: my_virial_a, my_virial_b
     REAL(KIND=dp), DIMENSION(:), POINTER     :: set_radius_a
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: hab, pab, rpgfa, sphi_a, &
                                                 work_f, work_i, zeta
@@ -939,11 +944,6 @@ CONTAINS
          virial=virial,error=error)
     
     use_virial = virial%pv_availability.AND.(.NOT.virial%pv_numer)
-    IF (use_virial) THEN
-       CALL cp_unimplemented_error(fromWhere=routineP, &
-            message="Virial not implemented for LRI method", &
-            error=error, error_level=cp_failure_level)
-    END IF
 
     eps_rho_rspace = dft_control%qs_control%eps_rho_rspace
     map_consistent=dft_control%qs_control%map_consistent
@@ -987,6 +987,8 @@ CONTAINS
           ra(:) = pbc(particle_set(atom_a)%r,cell)
           force_a(:) = 0._dp
           force_b(:) = 0._dp
+          my_virial_a(:,:) = 0._dp
+          my_virial_b(:,:) = 0._dp
 
           DO iset = 1,nseta
              sgfa = first_sgfa(1,iset)
@@ -997,12 +999,12 @@ CONTAINS
 
              ! get fit coefficients for forces
              IF (calculate_forces) THEN
-              m1=sgfa+nsgf_seta(iset)-1
-              CALL reallocate(work_f,1,nsgf_seta(iset),1,1)
-              work_f(1:nsgf_seta(iset),1) = int_res(ikind)%acoef(iatom,sgfa:m1)  
-              CALL dgemm("N","N",ncoa,1,nsgf_seta(iset),1.0_dp,sphi_a(1,sgfa),&
-                   SIZE(sphi_a,1),work_f(1,1),SIZE(work_f,1),0.0_dp,pab(1,1),&
-                   SIZE(pab,1))
+                m1=sgfa+nsgf_seta(iset)-1
+                CALL reallocate(work_f,1,nsgf_seta(iset),1,1)
+                work_f(1:nsgf_seta(iset),1) = int_res(ikind)%acoef(iatom,sgfa:m1)  
+                CALL dgemm("N","N",ncoa,1,nsgf_seta(iset),1.0_dp,sphi_a(1,sgfa),&
+                     SIZE(sphi_a,1),work_f(1,1),SIZE(work_f,1),0.0_dp,pab(1,1),&
+                     SIZE(pab,1))
              ENDIF
              
              DO ipgf = 1,npgfa(iset)
@@ -1057,8 +1059,11 @@ CONTAINS
                            rsgrid=rs_grid ,cell=cell,&
                            cube_info=pw_env%cube_info(igrid_level),&
                            hab=hab,pab=pab,o1=na1,o2=0, eps_gvg_rspace=eps_rho_rspace,&
-                           calculate_forces=calculate_forces,force_a=force_a,&
-                           force_b=force_b,map_consistent=map_consistent,&
+                           calculate_forces=calculate_forces,&
+                           force_a=force_a,force_b=force_b,&
+                           use_virial=use_virial,&
+                           my_virial_a=my_virial_a,my_virial_b=my_virial_b,&
+                           map_consistent=map_consistent,&
                            error=error)
                    ENDIF
                 ENDIF               
@@ -1073,13 +1078,18 @@ CONTAINS
 
           ENDDO
 
-          IF(calculate_forces) int_res(ikind)%v_dfdr(iatom,:)=force_a(:)
+          IF (calculate_forces) THEN
+             int_res(ikind)%v_dfdr(iatom,:)=force_a(:)
+             IF (use_virial) THEN
+                virial%pv_virial = virial%pv_virial + my_virial_a
+             ENDIF
+          ENDIF
 
           DEALLOCATE (work_i, STAT=stat)
           CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
-          IF(calculate_forces) THEN
-           DEALLOCATE (work_f, STAT=stat)
-           CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+          IF (calculate_forces) THEN
+             DEALLOCATE (work_f, STAT=stat)
+             CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
           ENDIF
 
        END DO

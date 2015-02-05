@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2014  CP2K developers group                          !
+!   Copyright (C) 2000 - 2015  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 MODULE acc_device
@@ -68,8 +68,11 @@ CONTAINS
 #if defined (__ACC)
     INTEGER :: istat
 
+!$omp parallel default(none) private(istat) shared(dev_id)
     istat = acc_set_active_device_cu (dev_id)
     IF (istat /= 0) STOP 'acc_set_active_device: failed'
+!$omp end parallel
+
 #else
     STOP "__ACC not compiled in"
 #endif

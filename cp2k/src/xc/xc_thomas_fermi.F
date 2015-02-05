@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2014  CP2K developers group                          !
+!   Copyright (C) 2000 - 2015  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -15,7 +15,6 @@
 ! *****************************************************************************
 MODULE xc_thomas_fermi
   USE cp_array_r_utils,                ONLY: cp_3d_r_p_type
-  USE f77_blas
   USE kinds,                           ONLY: dp
   USE timings,                         ONLY: timeset,&
                                              timestop
@@ -302,7 +301,8 @@ CONTAINS
 
     INTEGER                                  :: ip
 
-!$omp parallel do private(ip)
+!$omp parallel do private(ip) default(none)&
+!$omp shared(npoints,rho,eps_rho,e_0,flda,r13)
     DO ip = 1, npoints
 
       IF ( rho(ip) > eps_rho ) THEN
@@ -336,7 +336,8 @@ CONTAINS
 
     f = f53 * flda
 
-!$omp parallel do private(ip)
+!$omp parallel do private(ip) default(none) &
+!$omp shared(npoints,rho,eps_rho,e_rho,f,r13)
     DO ip = 1, npoints
 
       IF ( rho(ip) > eps_rho ) THEN
@@ -370,7 +371,8 @@ CONTAINS
 
     f = f23 * f53 * flda
 
-!$omp parallel do private(ip)
+!$omp parallel do private(ip) default(none)&
+!$omp shared(npoints,rho,eps_rho,e_rho_rho,f,r13)
     DO ip = 1, npoints
 
       IF ( rho(ip) > eps_rho ) THEN
@@ -404,7 +406,8 @@ CONTAINS
 
     f = -f13 * f23 * f53 * flda
 
-!$omp parallel do private(ip)
+!$omp parallel do private(ip) default(none)&
+!$omp shared(npoints,rho,eps_rho,e_rho_rho_rho,f,r13)
     DO ip = 1, npoints
 
       IF ( rho(ip) > eps_rho ) THEN
@@ -435,7 +438,8 @@ CONTAINS
 
     INTEGER                                  :: ip
 
-!$omp parallel do private(ip)
+!$omp parallel do private(ip) default(none)&
+!$omp shared(npoints,rhoa,eps_rho,e_0,flsd,r13a)
     DO ip = 1, npoints
 
       IF ( rhoa(ip) > eps_rho ) THEN
@@ -467,7 +471,8 @@ CONTAINS
 
     f = f53 * flsd
 
-!$omp parallel do private(ip)
+!$omp parallel do private(ip) default(none)&
+!$omp shared(npoints,rhoa,eps_rho,e_rho,f,r13a)
     DO ip = 1, npoints
 
       IF ( rhoa(ip) > eps_rho ) THEN
@@ -499,7 +504,9 @@ CONTAINS
 
     f = f23 * f53 * flsd
 
-!$omp parallel do private(ip)
+!$omp parallel do private(ip) default(none)&
+!$omp shared(npoints,rhoa,eps_rho,e_rho_rho,f,r13a)
+
     DO ip = 1, npoints
 
       IF ( rhoa(ip) > eps_rho ) THEN
@@ -531,7 +538,8 @@ CONTAINS
 
     f = -f13 * f23 * f53 * flsd
 
-!$omp parallel do private(ip)
+!$omp parallel do private(ip) default(none)&
+!$omp shared(npoints,rhoa,eps_rho,e_rho_rho_rho,f,r13a)
     DO ip = 1, npoints
 
       IF ( rhoa(ip) > eps_rho ) THEN

@@ -21,15 +21,18 @@ MODULE fft_lib
                                              fftw3_get_lengths
 
   IMPLICIT NONE
+  PRIVATE
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'fft_lib'
 
-  PUBLIC :: fft_do_cleanup, fft_get_lengths, fft_create_plan_3d, fft_create_plan_1dm, fft_1dm, fft_library, fft_3d, fft_destroy_plan 
+  PUBLIC :: fft_do_cleanup, fft_do_init, fft_get_lengths, fft_create_plan_3d
+  PUBLIC :: fft_create_plan_1dm, fft_1dm, fft_library, fft_3d, fft_destroy_plan
 
 CONTAINS
 ! *****************************************************************************
 !> \brief Interface to FFT libraries
 !> \param fftlib ...
+!> \retval flib ...
 !> \par History
 !>      IAB 09-Jan-2009 : Modified to use fft_plan_type
 !>                        (c) The Numerical Algorithms Group (NAG) Ltd, 2009 on behalf of the HECToR project

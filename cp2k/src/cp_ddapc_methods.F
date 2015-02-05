@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2014  CP2K developers group                          !
+!   Copyright (C) 2000 - 2015  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -11,7 +11,6 @@ MODULE cp_ddapc_methods
   USE cell_types,                      ONLY: cell_type
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE erf_fn,                          ONLY: erfc
-  USE f77_blas
   USE input_constants,                 ONLY: weight_type_mass,&
                                              weight_type_unit
   USE input_section_types,             ONLY: section_vals_type,&
@@ -744,7 +743,7 @@ CONTAINS
 
     INTEGER :: ewmdim, handle, idim, idim1, idim2, idimo, igauss1, igauss2, &
       ip1, ip2, iparticle1, iparticle2, istart_g, k1, k2, k3, n_rep, ndim, &
-      nmax1, nmax2, nmax3, r1, r2, r3, rmax1, rmax2, rmax3, sfact, stat
+      nmax1, nmax2, nmax3, r1, r2, r3, rmax1, rmax2, rmax3, stat
     LOGICAL                                  :: analyt, failure
     REAL(KIND=dp) :: alpha, eps, ew_neut, fac, fac3, fs, g_ewald, galpha, &
       gsq, gsqi, ij_fac, my_val, r, r2tmp, r_ewald, rc1, rc12, rc2, rc22, &
@@ -759,7 +758,6 @@ CONTAINS
        CPPostcondition(.NOT.ASSOCIATED(M),cp_failure_level,routineP,error,failure)
        CPPostcondition(ASSOCIATED(radii),cp_failure_level,routineP,error,failure)
        CPPostcondition(cell%orthorhombic,cp_failure_level,routineP,error,failure)
-       sfact = factor
        rcut = MIN(cell%hmat(1,1),cell%hmat(2,2),cell%hmat(3,3))/2.0_dp
        CALL section_vals_val_get(multipole_section,"RCUT",n_rep_val=n_rep,error=error)
        IF (n_rep==1) CALL section_vals_val_get(multipole_section,"RCUT",r_val=rcut,error=error)
@@ -873,9 +871,9 @@ CONTAINS
              IF (iparticle1/=iparticle2) THEN
                 ra = rvec
                 r  = SQRT(DOT_PRODUCT(ra,ra))
-                my_val = sfact / r
+                my_val = factor / r
              END IF
-             EwM(idim) = my_val - sfact * g_ewald
+             EwM(idim) = my_val - factor * g_ewald
           END DO ! iparticle2
        END DO ! iparticle1
        !NB sum over parallelized contributions of different nodes
@@ -898,7 +896,7 @@ CONTAINS
                    idim1  = ip1 + igauss1
                    rc1    = radii(igauss1)
                    rc12   = rc1*rc1
-                   M(idim1,idim2) = EwM(idim)  - sfact * ew_neut - sfact * fac3 * (rc12+rc22)
+                   M(idim1,idim2) = EwM(idim)  - factor * ew_neut - factor * fac3 * (rc12+rc22)
                    M(idim2,idim1) = M(idim1,idim2)
                 END DO
              END DO

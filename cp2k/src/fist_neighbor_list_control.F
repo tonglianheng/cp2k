@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2014  CP2K developers group                          !
+!   Copyright (C) 2000 - 2015  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -14,7 +14,7 @@ MODULE fist_neighbor_list_control
 
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind_set
-  USE cell_methods,                    ONLY: cell_clone,&
+  USE cell_types,                      ONLY: cell_clone,&
                                              cell_create,&
                                              cell_release,&
                                              cell_type
@@ -23,7 +23,6 @@ MODULE fist_neighbor_list_control
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE distribution_1d_types,           ONLY: distribution_1d_type
   USE exclusion_types,                 ONLY: exclusion_type
-  USE f77_blas
   USE fist_neighbor_list_types,        ONLY: fist_neighbor_type
   USE fist_neighbor_lists,             ONLY: build_fist_neighbor_lists
   USE fist_nonbond_env_types,          ONLY: fist_nonbond_env_get,&

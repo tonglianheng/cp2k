@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2014  CP2K developers group                          !
+!   Copyright (C) 2000 - 2015  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -20,7 +20,6 @@ MODULE qs_ks_apply_restraints
                                              cp_fm_type
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE et_coupling,                     ONLY: becke_restraint
-  USE f77_blas
   USE kinds,                           ONLY: dp
   USE mulliken,                        ONLY: mulliken_restraint
   USE pw_methods,                      ONLY: pw_scale
@@ -34,7 +33,8 @@ MODULE qs_ks_apply_restraints
   USE qs_integrate_potential,          ONLY: integrate_v_rspace
   USE qs_mo_types,                     ONLY: get_mo_set,&
                                              mo_set_p_type
-  USE qs_rho_types,                    ONLY: qs_rho_type
+  USE qs_rho_types,                    ONLY: qs_rho_get,&
+                                             qs_rho_type
   USE s_square_methods,                ONLY: s2_restraint
 #include "./common/cp_common_uses.f90"
 
@@ -71,10 +71,14 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     REAL(KIND=dp)                            :: inv_vol
+    TYPE(dft_control_type), POINTER          :: dft_control
 
-    IF(qs_env%dft_control%qs_control%becke_restraint)THEN
+    NULLIFY(dft_control)
+    CALL get_qs_env(qs_env, dft_control=dft_control, error=error)
+
+    IF(dft_control%qs_control%becke_restraint)THEN
     !***** Check if becke potential is needed to constrain charges *****
-       becke => qs_env%dft_control%qs_control%becke_control
+       becke => dft_control%qs_control%becke_control
        IF(becke%need_pot.OR.calculate_forces)THEN
           CALL pw_pool_create_pw(auxbas_pw_pool,becke%becke_pot%pw,use_data=REALDATA3D,&
                in_space=REALSPACE,error=error)
@@ -90,7 +94,7 @@ CONTAINS
           CALL pw_scale(becke%becke_pot%pw,becke%becke_pot%pw%pw_grid%dvol,error=error)
        ENDIF
 
-       IF(qs_env%dft_control%qs_control%et_coupling_calc)THEN
+       IF(dft_control%qs_control%et_coupling_calc)THEN
           IF(qs_env%et_coupling%keep_matrix)THEN
              IF(qs_env%et_coupling%first_run)THEN
                 NULLIFY(qs_env%et_coupling%rest_mat(1)%matrix)
@@ -106,8 +110,8 @@ CONTAINS
                 CALL integrate_v_rspace(becke%becke_pot,&
                      h=qs_env%et_coupling%rest_mat(1),&
                      qs_env=qs_env,calculate_forces=.FALSE.,error=error)
-                qs_env%et_coupling%order_p=qs_env%dft_control%qs_control%becke_control%becke_order_p
-                qs_env%et_coupling%e1=qs_env%dft_control%qs_control%becke_control%strength
+                qs_env%et_coupling%order_p=dft_control%qs_control%becke_control%becke_order_p
+                qs_env%et_coupling%e1=dft_control%qs_control%becke_control%strength
                 qs_env%et_coupling%keep_matrix=.FALSE.
              ELSE
                 NULLIFY(qs_env%et_coupling%rest_mat(2)%matrix)
@@ -165,7 +169,7 @@ CONTAINS
     energy%mulliken = 0.0_dp
     IF (dft_control%qs_control%mulliken_restraint) THEN
 
-    rho_ao=>rho%rho_ao
+    CALL qs_rho_get(rho, rho_ao=rho_ao, error=error)
 
        IF (just_energy) THEN
           CALL mulliken_restraint(dft_control%qs_control%mulliken_restraint_control, &
@@ -187,21 +191,18 @@ CONTAINS
 !> \param dft_control ...
 !> \param qs_env ...
 !> \param matrix_s ...
-!> \param mo_array ...
 !> \param energy ...
 !> \param calculate_forces ...
 !> \param just_energy ...
 !> \param error ...
 ! *****************************************************************************
   SUBROUTINE qs_ks_s2_restraint(dft_control,qs_env,matrix_s,&
-       mo_array,energy,calculate_forces, just_energy,error)
+       energy,calculate_forces, just_energy,error)
 
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: matrix_s
-    TYPE(mo_set_p_type), DIMENSION(:), &
-      POINTER                                :: mo_array
     TYPE(qs_energy_type), POINTER            :: energy
     LOGICAL, INTENT(in)                      :: calculate_forces, just_energy
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -216,6 +217,10 @@ CONTAINS
     TYPE(cp_fm_p_type), DIMENSION(:), &
       POINTER                                :: fm_mo_derivs
     TYPE(cp_fm_type), POINTER                :: mo_coeff
+    TYPE(mo_set_p_type), DIMENSION(:), &
+      POINTER                                :: mo_array
+
+    NULLIFY (fm_mo_derivs,mo_array,mo_coeff,mo_derivs)
 
     IF (dft_control%qs_control%s2_restraint) THEN
     ! adds s2_restraint energy and orbital derivatives

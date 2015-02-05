@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2014  CP2K developers group                          !
+!   Copyright (C) 2000 - 2015  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -10,10 +10,9 @@
 !> \author Joost VandeVondele
 ! *****************************************************************************
 MODULE input_optimize_input
-  USE cp_output_handling,              ONLY: cp_print_key_section_create
-  USE f77_blas
-  USE input_constants,                 ONLY: low_print_level,&
-                                             opt_force_matching
+  USE cp_output_handling,              ONLY: cp_print_key_section_create,&
+                                             low_print_level
+  USE input_constants,                 ONLY: opt_force_matching
   USE input_keyword_types,             ONLY: keyword_create,&
                                              keyword_release,&
                                              keyword_type

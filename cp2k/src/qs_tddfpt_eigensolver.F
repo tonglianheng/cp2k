@@ -1,12 +1,15 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2014  CP2K developers group                          !
+!   Copyright (C) 2000 - 2015  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
 MODULE qs_tddfpt_eigensolver
-  USE cp_control_types,                ONLY: tddfpt_control_type
-  USE cp_dbcsr_interface,              ONLY: cp_dbcsr_set
+  USE cp_blacs_env,                    ONLY: cp_blacs_env_type
+  USE cp_control_types,                ONLY: dft_control_type,&
+                                             tddfpt_control_type
+  USE cp_dbcsr_interface,              ONLY: cp_dbcsr_p_type,&
+                                             cp_dbcsr_set
   USE cp_dbcsr_operations,             ONLY: cp_dbcsr_plus_fm_fm_t,&
                                              cp_dbcsr_sm_fm_multiply
   USE cp_fm_basic_linalg,              ONLY: cp_fm_scale_and_add,&
@@ -27,7 +30,7 @@ MODULE qs_tddfpt_eigensolver
                                              cp_fm_set_all,&
                                              cp_fm_set_element,&
                                              cp_fm_to_fm
-  USE f77_blas
+  USE cp_para_types,                   ONLY: cp_para_env_type
   USE input_constants,                 ONLY: tddfpt_davidson,&
                                              tddfpt_lanczos
   USE kinds,                           ONLY: default_string_length,&
@@ -82,17 +85,19 @@ CONTAINS
     LOGICAL                                  :: do_kernel_save, failure
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: ievals
     TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(dft_control_type), POINTER          :: dft_control
 
     CALL timeset(routineN,handle)
 
-    NULLIFY(logger)
+    NULLIFY(logger, dft_control)
     failure   = .FALSE.
 
     logger    => cp_error_get_logger(error)
     output_unit  = cp_logger_get_default_io_unit(logger)
 
-    n_ev      = qs_env%dft_control%tddfpt_control%n_ev
-    nspins    = qs_env%dft_control%nspins
+    CALL get_qs_env(qs_env, dft_control=dft_control, error=error)
+    n_ev      = dft_control%tddfpt_control%n_ev
+    nspins    = dft_control%nspins
 
     ALLOCATE(ievals(n_ev), stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -100,26 +105,26 @@ CONTAINS
     !---------------!
     ! initial guess !
     !---------------!
-    do_kernel_save = qs_env%dft_control%tddfpt_control%do_kernel
-    qs_env%dft_control%tddfpt_control%do_kernel = .FALSE.
+    do_kernel_save = dft_control%tddfpt_control%do_kernel
+    dft_control%tddfpt_control%do_kernel = .FALSE.
     IF (output_unit>0) THEN
        WRITE (output_unit,*) " Generating initial guess"
        WRITE (output_unit,*)
     END IF
-    IF (ASSOCIATED(qs_env%dft_control%tddfpt_control%lumos)) THEN
+    IF (ASSOCIATED(dft_control%tddfpt_control%lumos)) THEN
        CALL co_initial_guess(t_env%evecs, ievals, n_ev, qs_env, error=error)
     ELSE
        IF (output_unit>0) WRITE (output_unit,*) "LUMOS are needed in TDDFPT!"
        CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
     END IF
-    DO restarts=1, qs_env%dft_control%tddfpt_control%n_restarts
+    DO restarts=1, dft_control%tddfpt_control%n_restarts
        IF (iterative_solver(ievals, t_env, p_env, qs_env, ievals, error=error)) EXIT
        IF (output_unit>0) THEN
           WRITE (output_unit,*) " Restarting"
           WRITE (output_unit,*)
        END IF
     END DO
-    qs_env%dft_control%tddfpt_control%do_kernel = do_kernel_save
+    dft_control%tddfpt_control%do_kernel = do_kernel_save
 
     !-----------------!
     ! call the solver !
@@ -129,7 +134,7 @@ CONTAINS
        WRITE (output_unit,*) " Doing TDDFPT calculation"
        WRITE (output_unit,*)
     END IF
-    DO restarts=1, qs_env%dft_control%tddfpt_control%n_restarts
+    DO restarts=1, dft_control%tddfpt_control%n_restarts
           IF (iterative_solver(ievals, t_env, p_env, qs_env, t_env%evals, error=error)) EXIT
        IF (output_unit>0) THEN
           WRITE (output_unit,*) " Restarting"
@@ -191,6 +196,9 @@ CONTAINS
     REAL(kind=dp), ALLOCATABLE, DIMENSION(:) :: evals_difference, evals_tmp
     REAL(kind=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: evals
+    TYPE(cp_blacs_env_type), POINTER         :: blacs_env
+    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+      POINTER                                :: matrix_s
     TYPE(cp_fm_p_type)                       :: Atilde, Us
     TYPE(cp_fm_p_type), DIMENSION(:), &
       POINTER                                :: R, X
@@ -202,6 +210,8 @@ CONTAINS
       DIMENSION(:), POINTER                  :: kv_fm_struct
     TYPE(cp_fm_struct_type), POINTER         :: tilde_fm_struct
     TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(tddfpt_control_type), POINTER       :: tddfpt_control
 
     failure   = .FALSE.
@@ -210,17 +220,25 @@ CONTAINS
     CALL timeset(routineN,handle)
 
     NULLIFY(ao_mo_fm_pools, X, R, b, Ab, Sb, tddfpt_control, logger, &
-            tilde_fm_struct, Atilde%matrix, Us%matrix)
+            tilde_fm_struct, Atilde%matrix, Us%matrix, matrix_s, dft_control,&
+            para_env, blacs_env)
 
-    CALL get_qs_env(qs_env, tddfpt_control=tddfpt_control,error=error)
+    CALL get_qs_env(qs_env,&
+                    matrix_s=matrix_s,&
+                    dft_control=dft_control,&
+                    para_env=para_env,&
+                    blacs_env=blacs_env,&
+                    error=error)
+
+    tddfpt_control => dft_control%tddfpt_control
     logger    => cp_error_get_logger(error)
     output_unit  = cp_logger_get_default_io_unit(logger)
     n_ev      = tddfpt_control%n_ev
-    nspins    = qs_env%dft_control%nspins
+    nspins    = dft_control%nspins
 
-    IF (qs_env%dft_control%tddfpt_control%diag_method == tddfpt_lanczos) THEN
+    IF (dft_control%tddfpt_control%diag_method == tddfpt_lanczos) THEN
        mode = 'L'
-    ELSE IF (qs_env%dft_control%tddfpt_control%diag_method == tddfpt_davidson) THEN
+    ELSE IF (dft_control%tddfpt_control%diag_method == tddfpt_davidson) THEN
        mode = 'D'
     END IF
 
@@ -265,8 +283,7 @@ CONTAINS
 
     DO spin=1, nspins
        NULLIFY (kv_fm_struct(spin)%struct)
-       CALL cp_fm_struct_create(kv_fm_struct(spin)%struct, qs_env%para_env, &
-                                qs_env%blacs_env, &
+       CALL cp_fm_struct_create(kv_fm_struct(spin)%struct, para_env, blacs_env, &
                                 p_env%n_ao(spin), p_env%n_mo(spin),error=error)
     END DO
     DO spin=1, nspins
@@ -343,7 +360,7 @@ CONTAINS
                    !----------------!
                    ! preconditioner !
                    !----------------!
-                   IF (qs_env%dft_control%tddfpt_control%precond) THEN
+                   IF (dft_control%tddfpt_control%precond) THEN
                       DO col=1, p_env%n_mo(spin)
                          IF (col<=n_ev) THEN
                             tmp2 = ABS(evals(iev,iter-1) - in_evals(col))
@@ -374,15 +391,15 @@ CONTAINS
           DO j=1, tddfpt_control%n_reortho
              CALL reorthogonalize(b(k,:), b, Sb, R, k-1,error=error) ! R is temp
           END DO
-          CALL normalize(b(k,:), R, qs_env%matrix_s,error=error) ! R is temp
+          CALL normalize(b(k,:), R, matrix_s,error=error) ! R is temp
           DO spin=1, nspins
              CALL cp_fm_to_fm(b(k,spin)%matrix, X(spin)%matrix,error=error)
           END DO
           CALL apply_op(X, Ab(k,:),  p_env, qs_env, &
-               qs_env%dft_control%tddfpt_control%do_kernel,error=error)
+               dft_control%tddfpt_control%do_kernel,error=error)
           CALL p_postortho(p_env, qs_env, Ab(k,:),error=error)
           DO spin=1, nspins
-             CALL cp_dbcsr_sm_fm_multiply(qs_env%matrix_s(1)%matrix, &
+             CALL cp_dbcsr_sm_fm_multiply(matrix_s(1)%matrix, &
                   b(k,spin)%matrix, &
                   Sb(k,spin)%matrix, &
                   p_env%n_mo(spin),error=error)
@@ -399,10 +416,7 @@ CONTAINS
        !------------------------------------------!
        ! allocate memory for the reduced matrices !
        !------------------------------------------!
-       CALL cp_fm_struct_create(tilde_fm_struct, &
-            qs_env%para_env, &
-            qs_env%blacs_env, &
-            k, k,error=error)
+       CALL cp_fm_struct_create(tilde_fm_struct, para_env, blacs_env, k, k,error=error)
        CALL cp_fm_create(Atilde%matrix, &
             tilde_fm_struct, &
             routineP//"Atilde",error=error)
@@ -564,12 +578,15 @@ CONTAINS
 
     INTEGER                                  :: handle, nspins, spin
     INTEGER, SAVE                            :: counter = 0
+    TYPE(dft_control_type), POINTER          :: dft_control
+
+    NULLIFY(dft_control)
 
     CALL timeset(routineN,handle)
 
     counter = counter + 1
-
-    nspins = qs_env%dft_control%nspins
+    CALL get_qs_env(qs_env, dft_control=dft_control, error=error)
+    nspins = dft_control%nspins
 
     !------------!
     ! R = HX-SXL !

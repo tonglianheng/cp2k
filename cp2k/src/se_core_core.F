@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2014  CP2K developers group                          !
+!   Copyright (C) 2000 - 2015  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -12,7 +12,8 @@
 MODULE se_core_core
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind_set
-  USE atprop_types,                    ONLY: atprop_array_init
+  USE atprop_types,                    ONLY: atprop_array_init,&
+                                             atprop_type
   USE cell_types,                      ONLY: cell_type
   USE cp_control_types,                ONLY: dft_control_type,&
                                              semi_empirical_control_type
@@ -21,7 +22,6 @@ MODULE se_core_core
                                              ewald_environment_type
   USE ewald_pw_types,                  ONLY: ewald_pw_get,&
                                              ewald_pw_type
-  USE f77_blas
   USE input_constants,                 ONLY: do_method_am1,&
                                              do_method_mndo,&
                                              do_method_mndod,&
@@ -104,6 +104,7 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(3)              :: force_ab, rij
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
+    TYPE(atprop_type), POINTER               :: atprop
     TYPE(cell_type), POINTER                 :: cell
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(ewald_environment_type), POINTER    :: ewald_env
@@ -130,12 +131,13 @@ CONTAINS
 
     failure  = .FALSE.
     enuclear = 0.0_dp
-    NULLIFY(dft_control,cell,force,particle_set,se_control,se_taper,atomic_kind_set)
+    NULLIFY(dft_control,cell,force,particle_set,se_control,se_taper,atomic_kind_set,&
+            virial, atprop)
 
     CALL timeset(routineN,handle)
     CPPrecondition(ASSOCIATED(qs_env),cp_failure_level,routineP,error,failure)
     CALL get_qs_env(qs_env=qs_env, dft_control=dft_control, cell=cell, se_taper=se_taper,&
-         virial=virial,energy=energy, error=error)
+         virial=virial,atprop=atprop, energy=energy, error=error)
 
     CALL initialize_se_taper(se_taper,coulomb=.TRUE.,error=error)
     ! Parameters
@@ -148,11 +150,11 @@ CONTAINS
          max_multipole=se_control%max_multipole, pc_coulomb_int=.FALSE.)
 
     ! atomic energy decomposition
-    atener = qs_env%atprop%energy
+    atener = atprop%energy
     IF (atener) THEN
       CALL get_qs_env(qs_env=qs_env,particle_set=particle_set,error=error)
       natom = SIZE (particle_set)
-      CALL atprop_array_init(qs_env%atprop%atecc,natom,error)
+      CALL atprop_array_init(atprop%atecc,natom,error)
     END IF
 
     ! Retrieve some information if GKS ewald scheme is used
@@ -258,8 +260,8 @@ CONTAINS
              END IF
           END IF
           IF (atener) THEN
-            qs_env%atprop%atecc(iatom) = qs_env%atprop%atecc(iatom) + 0.5_dp*enucij
-            qs_env%atprop%atecc(jatom) = qs_env%atprop%atecc(jatom) + 0.5_dp*enucij
+            atprop%atecc(iatom) = atprop%atecc(iatom) + 0.5_dp*enucij
+            atprop%atecc(jatom) = atprop%atecc(jatom) + 0.5_dp*enucij
           END IF
           enuclear = enuclear + enucij
        END DO

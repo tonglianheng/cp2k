@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2014  CP2K developers group                          !
+!   Copyright (C) 2000 - 2015  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -10,7 +10,7 @@
 ! *****************************************************************************
 MODULE semi_empirical_store_int_types
 
-  USE f77_blas
+  
   USE hfx_compression_methods,         ONLY: hfx_decompress_first_cache,&
                                              hfx_flush_last_cache,&
                                              hfx_reset_cache_and_container

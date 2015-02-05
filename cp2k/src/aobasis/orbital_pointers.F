@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2014  CP2K developers group                          !
+!   Copyright (C) 2000 - 2015  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -23,7 +23,7 @@ MODULE orbital_pointers
 ! nsoset: Number of spherical orbitals up to the angular momentum quantum
 !         number l.
 
-  USE f77_blas
+  
   USE kinds,                           ONLY: int_size
   USE termination,                     ONLY: stop_memory,&
                                              stop_program

@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2014  CP2K developers group                          !
+!   Copyright (C) 2000 - 2015  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -9,8 +9,8 @@
 !> \author CJM
 ! *****************************************************************************
 MODULE mol_force
-  USE f77_blas
-  USE input_constants,                 ONLY: &
+  
+  USE force_field_kind_types,          ONLY: &
        do_ff_amber, do_ff_charmm, do_ff_cubic, do_ff_fues, do_ff_g87, &
        do_ff_g96, do_ff_harmonic, do_ff_mixed_bend_stretch, do_ff_mm2, &
        do_ff_mm3, do_ff_mm4, do_ff_morse, do_ff_quartic

@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2014  CP2K developers group                          !
+!   Copyright (C) 2000 - 2015  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -12,7 +12,7 @@
 ! *****************************************************************************
 MODULE mc_control
   USE atomic_kind_types,               ONLY: get_atomic_kind
-  USE cell_methods,                    ONLY: cell_type,&
+  USE cell_types,                      ONLY: cell_type,&
                                              get_cell
   USE cp_files,                        ONLY: close_file,&
                                              open_file
@@ -20,7 +20,6 @@ MODULE mc_control
   USE cp_subsys_types,                 ONLY: cp_subsys_get,&
                                              cp_subsys_type
   USE environment,                     ONLY: cp2k_read
-  USE f77_blas
   USE fist_main,                       ONLY: fist_create_force_env
   USE force_env_types,                 ONLY: force_env_get,&
                                              force_env_type

@@ -1,7 +1,7 @@
 
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2014  CP2K developers group                          !
+!   Copyright (C) 2000 - 2015  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -21,7 +21,10 @@
 !> \author apsi
 ! *****************************************************************************
 MODULE pw_methods
-  USE f77_blas
+  
+  USE fast,                            ONLY: copy_cr,&
+                                             copy_rc,&
+                                             zero_c
   USE fft_tools,                       ONLY: BWFFT,&
                                              FWFFT,&
                                              fft3d
@@ -37,9 +40,14 @@ MODULE pw_methods
                                              PW_MODE_DISTRIBUTED,&
                                              PW_MODE_LOCAL,&
                                              pw_grid_type
-  USE pw_types,                        ONLY: &
-       COMPLEXDATA1D, COMPLEXDATA3D, NOSPACE, REALDATA1D, REALDATA3D, &
-       REALSPACE, RECIPROCALSPACE, SQUARE, SQUAREROOT, pw_type
+  USE pw_types,                        ONLY: COMPLEXDATA1D,&
+                                             COMPLEXDATA3D,&
+                                             NOSPACE,&
+                                             REALDATA1D,&
+                                             REALDATA3D,&
+                                             REALSPACE,&
+                                             RECIPROCALSPACE,&
+                                             pw_type
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
   USE timings,                         ONLY: timeset,&
@@ -54,7 +62,6 @@ MODULE pw_methods
   PUBLIC :: pw_copy, pw_axpy, pw_transfer, pw_scale
   PUBLIC :: pw_derive, pw_dr2, pw_write
   PUBLIC :: pw_integral_ab, pw_integral_a2b
-  PUBLIC :: pw_integral_aa_fast, pw_integral_ab_fast
   PUBLIC :: pw_dr2_gg, pw_integrate_function
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'pw_methods'
@@ -156,12 +163,12 @@ CONTAINS
                 ng1 = SIZE ( pw1%cc )
                 ng2 = SIZE ( pw2%cc )
                 ng = MIN ( ng1, ng2 )
-!$omp parallel do private(i)
+!$omp parallel do private(i) default(none) shared(ng,pw1,pw2)
                 DO i = 1, ng
                    pw2%cc(i) = pw1%cc(i)
                 END DO
                 IF ( ng2 > ng ) THEN
-!$omp parallel do private(i)
+!$omp parallel do private(i) default(none) shared(ng,ng2,pw2)
                    DO i = ng+1, ng2
                       pw2%cc(i) = CMPLX ( 0.0_dp, 0.0_dp,KIND=dp)
                    END DO
@@ -196,14 +203,14 @@ CONTAINS
 
              IF ( ( pw1%pw_grid %id_nr == pw2%pw_grid%reference ) ) THEN
                 IF( ng1 >= ng2 ) THEN
-!$omp parallel do private(i,j)
+!$omp parallel do private(i,j) default(none) shared(ng2,pw1,pw2)
                    DO i = 1, ng2
                       j = pw2%pw_grid%gidx ( i )
                       pw2%cc ( i ) = pw1%cc ( j )
                    END DO
                 ELSE
                    CALL pw_zero ( pw2, error=error)
-!$omp parallel do private(i,j)
+!$omp parallel do private(i,j) default(none) shared(ng1,pw1,pw2)
                    DO i = 1, ng1
                       j = pw2%pw_grid%gidx ( i )
                       pw2%cc ( j ) = pw1%cc ( i )
@@ -211,14 +218,14 @@ CONTAINS
                 END IF
              ELSE IF ( ( pw2%pw_grid %id_nr == pw1%pw_grid%reference ) ) THEN
                 IF( ng1 >= ng2 ) THEN
-!$omp parallel do private(i,j)
+!$omp parallel do private(i,j) default(none) shared(pw1,pw2,ng2)
                    DO i = 1, ng2
                       j = pw1%pw_grid%gidx ( i )
                       pw2%cc ( i ) = pw1%cc ( j )
                    END DO
                 ELSE
                    CALL pw_zero ( pw2, error=error)
-!$omp parallel do private(i,j)
+!$omp parallel do private(i,j) default(none) shared(pw1,pw2,ng1)
                    DO i = 1, ng1
                       j = pw1%pw_grid%gidx ( i )
                       pw2%cc ( j ) = pw1%cc ( i )
@@ -258,14 +265,14 @@ CONTAINS
 
        IF ( pw1%in_use == REALDATA1D .AND. pw2%in_use == REALDATA1D ) THEN
           ns = SIZE ( pw1%cr )
-!$omp parallel do private(i)
+!$omp parallel do private(i) default(none) shared(ns,pw1,pw2)
           DO i = 1, ns
              pw2%cr(i) = pw1%cr(i)
           END DO
        ELSE IF ( pw1%in_use == COMPLEXDATA1D .AND. &
             pw2%in_use == COMPLEXDATA1D ) THEN
           ns = SIZE ( pw1%cc )
-!$omp parallel do private(i)
+!$omp parallel do private(i) default(none) shared(ns,pw2,pw1)
           DO i = 1, ns
              pw2%cc(i) = pw1%cc(i)
           END DO
@@ -377,39 +384,39 @@ CONTAINS
        cnt = SIZE ( pw%cc )
 
        IF ( n ( 1 ) == 1 ) THEN
-!$omp parallel do private (i)
+!$omp parallel do private (i) default(none) shared(cnt, pw)
           DO i = 1, cnt
              pw%cc ( i ) = pw%cc ( i ) * pw%pw_grid%g ( 1, i )
           END DO
           flop = flop + 6 * cnt
        ELSE IF ( n ( 1 ) > 1 ) THEN
-!$omp parallel do private (i)
+!$omp parallel do private (i) default(none) shared(cnt, pw,n)
           DO i = 1, cnt
              pw%cc ( i ) = pw%cc ( i ) * ( pw%pw_grid%g ( 1, i ) ** n ( 1 ) )
           END DO
           flop = flop + 7 * cnt
        END IF
        IF ( n ( 2 ) == 1 ) THEN
-!$omp parallel do private (i)
+!$omp parallel do private (i) default(none) shared(pw, cnt)
           DO i = 1, cnt
              pw%cc ( i ) = pw%cc ( i ) * pw%pw_grid%g ( 2, i )
           END DO
           flop = flop + 6 * cnt
        ELSE IF ( n ( 2 ) > 1 ) THEN
-!$omp parallel do private (i)
+!$omp parallel do private (i) default(none) shared(pw, cnt,n)
           DO i = 1, cnt
              pw%cc ( i ) = pw%cc ( i ) * ( pw%pw_grid%g ( 2, i ) ** n ( 2 ) )
           END DO
           flop = flop + 7 * cnt
        END IF
        IF ( n ( 3 ) == 1 ) THEN
-!$omp parallel do private (i)
+!$omp parallel do private (i) default(none) shared(pw,cnt)
           DO i = 1, cnt
              pw%cc ( i ) = pw%cc ( i ) * pw%pw_grid%g ( 3, i )
           END DO
           flop = flop + 6 * cnt
        ELSE IF ( n ( 3 ) > 1 ) THEN
-!$omp parallel do private (i)
+!$omp parallel do private (i) default(none) shared(pw,cnt,n)
           DO i = 1, cnt
              pw%cc ( i ) = pw%cc ( i ) * ( pw%pw_grid%g ( 3, i ) ** n ( 3 ) )
           END DO
@@ -419,7 +426,7 @@ CONTAINS
        ! im can take the values 1, -1, i, -i
        ! skip this if im == 1
        IF ( ABS ( REAL ( im,KIND=dp) - 1.0_dp ) > 1.e-10 ) THEN
-!$omp parallel do private (i)
+!$omp parallel do private (i) default(none) shared(pw,cnt,im)
           DO i = 1, cnt
              pw%cc ( i ) = im * pw%cc ( i )
           END DO
@@ -484,7 +491,7 @@ CONTAINS
           END DO
           flop = flop + 5 * cnt
        ELSE
-!$omp parallel do private (ig)
+!$omp parallel do private (ig) default(none) shared(pwdr2,pw,i,j,cnt)
           DO ig = 1, cnt
              pwdr2%cc(ig) = pw%cc(ig) * (pw%pw_grid%g(i,ig)*pw%pw_grid%g(j,ig))
           END DO
@@ -543,14 +550,14 @@ CONTAINS
        cnt = SIZE ( pw%cc )
 
        IF ( i == j ) THEN
-!$omp parallel do private (ig)
+!$omp parallel do private (ig) default(none) private(gg) shared(cnt,pw,o3,pwdr2_gg,i)
           DO ig = pw%pw_grid%first_gne0, cnt
              gg = pw%pw_grid%g(i,ig)**2 - o3*pw%pw_grid%gsq(ig)
              pwdr2_gg%cc(ig) = gg * pw%cc(ig) / pw%pw_grid%gsq(ig)
           END DO
           flop = flop + 6 * cnt
        ELSE
-!$omp parallel do private (ig)
+!$omp parallel do private (ig) default(none) shared(pwdr2_gg,pw,i,j,cnt)
           DO ig = pw%pw_grid%first_gne0, cnt
              pwdr2_gg%cc(ig) = pw%cc(ig) * (pw%pw_grid%g(i,ig)*pw%pw_grid%g(j,ig)) &
                   / pw%pw_grid%gsq(ig)
@@ -731,13 +738,13 @@ CONTAINS
 
        IF ( pw1%in_use == REALDATA1D .AND. pw2%in_use == REALDATA1D ) THEN
           IF (my_alpha==1.0_dp) THEN
-!$omp parallel do private(i)
+!$omp parallel do private(i) default(none) shared(pw2,pw1)
              DO i = 1, SIZE ( pw2%cr )
                 pw2%cr(i) = pw2%cr(i) + pw1%cr(i)
              END DO
              flop = REAL ( SIZE ( pw2%cr ),KIND=dp)
           ELSE
-!$omp parallel do private(i)
+!$omp parallel do private(i) default(none) shared(pw2,pw1,my_alpha)
              DO i = 1, SIZE ( pw2%cr )
                 pw2%cr(i) = pw2%cr(i) + my_alpha*pw1%cr(i)
              END DO
@@ -746,13 +753,13 @@ CONTAINS
        ELSE IF ( pw1%in_use == COMPLEXDATA1D .AND. &
             pw2%in_use == COMPLEXDATA1D ) THEN
           IF (my_alpha==1.0_dp) THEN
-!$omp parallel do private(i)
+!$omp parallel do private(i) default(none) shared(pw2,pw1)
              DO i = 1, SIZE ( pw2%cc )
                 pw2%cc(i) = pw2%cc(i) + pw1%cc(i)
              END DO
              flop = REAL ( 2 * SIZE ( pw2%cc ),KIND=dp)
           ELSE
-!$omp parallel do private(i)
+!$omp parallel do private(i) default(none) shared(pw2,my_alpha,pw1)
              DO i = 1, SIZE ( pw2%cc )
                 pw2%cc(i) = pw2%cc(i) + my_alpha*pw1%cc(i)
              END DO
@@ -794,12 +801,12 @@ CONTAINS
           IF ( pw1%pw_grid%spherical ) THEN
 
              IF (my_alpha==1.0_dp) THEN
-!$omp parallel do private(i)
+!$omp parallel do private(i) default(none) shared(pw2,pw1,ng)
                 DO i = 1, ng
                    pw2%cc (i) = pw2%cc (i) + pw1%cc (i)
                 END DO
              ELSE
-!$omp parallel do private(i)
+!$omp parallel do private(i) default(none) shared(pw2,pw1,my_alpha,ng)
                 DO i = 1, ng
                    pw2%cc (i) = pw2%cc (i) + my_alpha*pw1%cc (i)
                 END DO
@@ -809,13 +816,13 @@ CONTAINS
 
              IF (my_alpha==1.0_dp) THEN
                 IF( ng1 >= ng2 ) THEN
-!$omp parallel do private(i,j)
+!$omp parallel do private(i,j) default(none) shared(pw2,pw1,ng2)
                    DO i = 1, ng2
                       j = pw2%pw_grid%gidx ( i )
                       pw2%cc ( i ) = pw2%cc ( i ) + pw1%cc ( j )
                    END DO
                 ELSE
-!$omp parallel do private(i,j)
+!$omp parallel do private(i,j) default(none) shared(pw2,pw1,ng1)
                    DO i = 1, ng1
                       j = pw2%pw_grid%gidx ( i )
                       pw2%cc ( j ) = pw2%cc ( j ) + pw1%cc ( i )
@@ -823,13 +830,13 @@ CONTAINS
                 END IF
              ELSE
                 IF( ng1 >= ng2 ) THEN
-!$omp parallel do private(i,j)
+!$omp parallel do private(i,j) default(none) shared(pw2,pw1,my_alpha,ng2)
                    DO i = 1, ng2
                       j = pw2%pw_grid%gidx ( i )
                       pw2%cc ( i ) = pw2%cc ( i ) + my_alpha*pw1%cc ( j )
                    END DO
                 ELSE
-!$omp parallel do private(i,j)
+!$omp parallel do private(i,j) default(none) shared(pw2,pw1,my_alpha,ng1)
                    DO i = 1, ng1
                       j = pw2%pw_grid%gidx ( i )
                       pw2%cc ( j ) = pw2%cc ( j ) + my_alpha*pw1%cc ( i )
@@ -840,13 +847,13 @@ CONTAINS
 
              IF (my_alpha==1.0_dp) THEN
                 IF( ng1 >= ng2 ) THEN
-!$omp parallel do private(i,j)
+!$omp parallel do private(i,j) default(none) shared(pw2,pw1,ng2)
                    DO i = 1, ng2
                       j = pw1%pw_grid%gidx ( i )
                       pw2%cc ( i ) = pw2%cc ( i ) + pw1%cc ( j )
                    END DO
                 ELSE
-!$omp parallel do private(i,j)
+!$omp parallel do private(i,j) default(none) shared(pw2,pw1,ng1)
                    DO i = 1, ng1
                       j = pw1%pw_grid%gidx ( i )
                       pw2%cc ( j ) = pw2%cc ( j ) + pw1%cc ( i )
@@ -854,13 +861,13 @@ CONTAINS
                 END IF
              ELSE
                 IF( ng1 >= ng2 ) THEN
-!$omp parallel do private(i,j)
+!$omp parallel do private(i,j) default(none) shared(pw2,pw1,my_alpha,ng2)
                    DO i = 1, ng2
                       j = pw1%pw_grid%gidx ( i )
                       pw2%cc ( i ) = pw2%cc ( i ) + my_alpha* pw1%cc ( j )
                    END DO
                 ELSE
-!$omp parallel do private(i,j)
+!$omp parallel do private(i,j) default(none) shared(pw2,pw1,my_alpha,ng1)
                    DO i = 1, ng1
                       j = pw1%pw_grid%gidx ( i )
                       pw2%cc ( j ) = pw2%cc ( j ) + my_alpha*pw1%cc ( i )
@@ -952,7 +959,7 @@ CONTAINS
 
     IF ( PRESENT ( scale ) ) THEN
 
-!$omp parallel do private(gpt,l,m,n)
+!$omp parallel do private(gpt,l,m,n) default(none) shared(ngpts, mapl,mapm,mapn,ghat,scale,pw,c)
        DO gpt = 1, ngpts
 
           l = mapl ( ghat ( 1, gpt ) ) + 1
@@ -964,7 +971,7 @@ CONTAINS
 
     ELSE
 
-!$omp parallel do private(gpt,l,m,n)
+!$omp parallel do private(gpt,l,m,n) default(none) shared(ngpts, mapl,mapm,mapn,ghat,pw,c)
        DO gpt = 1, ngpts
 
           l = mapl ( ghat ( 1, gpt ) ) + 1
@@ -1117,7 +1124,7 @@ CONTAINS
 
     IF ( PRESENT ( scale ) ) THEN
 
-!$omp parallel do private(gpt,l,m,n)
+!$omp parallel do private(gpt,l,m,n) default(none) shared(ngpts, mapl,mapm,mapn,ghat,scale,pw,c)
        DO gpt = 1, ngpts
 
           l = mapl ( ghat ( 1, gpt ) ) + 1
@@ -1129,7 +1136,7 @@ CONTAINS
 
     ELSE
 
-!$omp parallel do private(gpt,l,m,n)
+!$omp parallel do private(gpt,l,m,n) default(none) shared(ngpts, mapl,mapm,mapn,ghat,pw,c)
        DO gpt = 1, ngpts
 
           l = mapl ( ghat ( 1, gpt ) ) + 1
@@ -1149,7 +1156,7 @@ CONTAINS
 
        IF ( PRESENT ( scale ) ) THEN
 
-!$omp parallel do private(gpt,l,m,n)
+!$omp parallel do private(gpt,l,m,n) default(none) shared(ngpts, mapl,mapm,mapn,ghat,scale,pw,c)
           DO gpt = 1, ngpts
 
              l = mapl ( ghat ( 1, gpt ) ) + 1
@@ -1161,7 +1168,7 @@ CONTAINS
 
        ELSE
 
-!$omp parallel do private(gpt,l,m,n)
+!$omp parallel do private(gpt,l,m,n) default(none) shared(ngpts, mapl,mapm,mapn,ghat,pw,c)
           DO gpt = 1, ngpts
 
              l = mapl ( ghat ( 1, gpt ) ) + 1
@@ -1230,7 +1237,7 @@ CONTAINS
 
     ngpts = SIZE ( pw%pw_grid%gsq  )
 
-    IF ( .NOT. PRESENT ( scale ) ) CALL zero_c(SIZE(c),c)
+    IF ( .NOT. PRESENT ( scale ) ) CALL zero_c(c)
 
     IF ( PRESENT ( scale ) ) THEN
 !$omp parallel do default(none), &
@@ -1336,7 +1343,7 @@ CONTAINS
     COMPLEX(KIND=dp), DIMENSION(:, :, :), &
       POINTER                                :: c_in, c_out
     INTEGER                                  :: dir, handle, handle2, my_pos, &
-                                                nrays, nsize, out_space, stat
+                                                nrays, out_space, stat
     INTEGER, DIMENSION(3)                    :: nloc
     INTEGER, DIMENSION(:), POINTER           :: n
     LOGICAL                                  :: failure, test, use_pw_cuda
@@ -1439,8 +1446,7 @@ CONTAINS
           ALLOCATE ( c_out( n(1), n(2), n(3) ), STAT = stat )
           IF (stat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                           "c_out",2*dp_size*PRODUCT(n(1:3)))
-          nsize=SIZE(pw1%cr3d,1)*SIZE(pw1%cr3d,2)*SIZE(pw1%cr3d,3)
-          CALL copy_rc(nsize,pw1%cr3d,c_out)
+          CALL copy_rc(pw1%cr3d,c_out)
           CALL fft3d ( dir, n, c_out, scale = norm, debug = test )
           CALL pw_gather ( pw2, c_out, error = error)
           DEALLOCATE ( c_out, STAT = stat )
@@ -1479,8 +1485,7 @@ CONTAINS
           CALL fft3d ( dir, n, c_out, scale = norm, debug = test )
           ! use real part only
           IF ( test ) WRITE ( *,'(A)') "  REAL part "
-          nsize=SIZE(pw2%cr3d,1)*SIZE(pw2%cr3d,2)*SIZE(pw2%cr3d,3)
-          CALL copy_cr(nsize,c_out,pw2%cr3d)
+          CALL copy_cr(c_out,pw2%cr3d)
           DEALLOCATE ( c_out, STAT = stat )
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 #endif
@@ -1497,6 +1502,7 @@ CONTAINS
        IF ( test .AND. pw1%pw_grid%para%group_head ) THEN
           WRITE ( *,'(A)') " FFT Protocol "
           IF ( dir == FWFFT ) WRITE ( *,'(A,T76,A)') "  Transform direction ","FWFFT"
+          IF ( dir == BWFFT ) WRITE ( *,'(A,T76,A)') "  Transform direction ","BWFFT"
           IF ( pw1%in_space == REALSPACE ) &
                WRITE ( *,'(A,T72,A)') "  in space ","REALSPACE"
           IF ( pw1%in_space == RECIPROCALSPACE ) &
@@ -1522,7 +1528,7 @@ CONTAINS
        CASE ( "FW_C3DC1D" )
           !..prepare input
           c_in => pw1%cc3d
-          CALL zero_c(SIZE(grays),grays)
+          CALL zero_c(grays)
           !..transform
           IF ( pw1%pw_grid%para%ray_distribution ) THEN
              CALL fft3d ( dir, n, c_in, grays, pw1%pw_grid%para%group, &
@@ -1552,9 +1558,8 @@ CONTAINS
              ALLOCATE ( c_in( nloc(1), nloc(2), nloc(3) ), STAT = stat)
              IF (stat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                              "c_in",2*dp_size*PRODUCT(nloc(1:3)))
-             nsize=nloc(1)*nloc(2)*nloc(3)
-             CALL copy_rc(nsize,pw1%cr3d,c_in)
-             CALL zero_c(SIZE(grays),grays)
+             CALL copy_rc(pw1%cr3d,c_in)
+             CALL zero_c(grays)
              !..transform
              IF ( pw1%pw_grid%para%ray_distribution ) THEN
                 CALL fft3d ( dir, n, c_in, grays, pw1%pw_grid%para%group, &
@@ -1576,7 +1581,7 @@ CONTAINS
           !..prepare input
           IF ( test .AND. pw1%pw_grid%para%group_head ) &
                WRITE ( *,'(A)') "  PW_SCATTER : 2d -> 1d "
-          CALL zero_c(SIZE(grays),grays)
+          CALL zero_c(grays)
           CALL pw_scatter ( pw1, grays, error=error)
           c_in => pw2%cc3d
           !..transform
@@ -1603,13 +1608,12 @@ CONTAINS
              !..prepare input
              IF ( test .AND. pw1%pw_grid%para%group_head ) &
                   WRITE ( *,'(A)') "  PW_SCATTER : 2d -> 1d "
-             CALL zero_c(SIZE(grays),grays)
+             CALL zero_c(grays)
              CALL pw_scatter ( pw1, grays, error=error)
              nloc = pw2%pw_grid%npts_local
              ALLOCATE ( c_in( nloc(1), nloc(2), nloc(3) ), STAT = stat )
              IF (stat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                              "c_in",2*dp_size*PRODUCT(nloc(1:3)))
-             nsize=nloc(1)*nloc(2)*nloc(3)
              !..transform
              IF ( pw1%pw_grid%para%ray_distribution ) THEN
                 CALL fft3d ( dir, n, c_in, grays, pw1%pw_grid%para%group, &
@@ -1623,7 +1627,7 @@ CONTAINS
              !..prepare output
              IF ( test .AND. pw1%pw_grid%para%group_head ) &
                   WRITE ( *,'(A)') "  Real part "
-             CALL copy_cr(nsize,c_in,pw2%cr3d)
+             CALL copy_cr(c_in,pw2%cr3d)
              DEALLOCATE ( c_in, STAT = stat )
              CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
           END IF
@@ -1649,6 +1653,7 @@ CONTAINS
 !> \param use2 ...
 !> \param space1 ...
 !> \param error ...
+!> \retval mode ...
 ! *****************************************************************************
   FUNCTION fftselect ( use1, use2, space1, error) RESULT ( mode )
     INTEGER, INTENT(IN)                      :: use1, use2, space1
@@ -1787,6 +1792,7 @@ CONTAINS
 !> \param grida ...
 !> \param gridb ...
 !> \param error ...
+!> \retval compat ...
 ! *****************************************************************************
   FUNCTION pw_compatible ( grida, gridb, error) RESULT ( compat )
     TYPE(pw_grid_type), INTENT(IN)           :: grida, gridb
@@ -1816,6 +1822,7 @@ CONTAINS
 !> \param pw1 ...
 !> \param pw2 ...
 !> \param error ...
+!> \retval integral_value ...
 !> \par History
 !>      JGH (14-Mar-2001) : Parallel sum and some tests, HALFSPACE case
 !> \author apsi
@@ -1842,29 +1849,29 @@ CONTAINS
             * pw2%cr3d ( :, :, : ) )
     ELSE IF ( pw1%in_use == REALDATA3D &
          .AND. pw2%in_use == COMPLEXDATA3D ) THEN
-       integral_value = accurate_sum (  pw1%cr3d ( :, :, : )  &
-            * pw2%cc3d ( :, :, : ) )
+       integral_value = REAL(accurate_sum (  pw1%cr3d ( :, :, : )  &
+            * pw2%cc3d ( :, :, : ) ), KIND=dp) !? complex bit
     ELSE IF ( pw1%in_use == COMPLEXDATA3D &
          .AND. pw2%in_use == REALDATA3D ) THEN
-       integral_value = accurate_sum ( pw1%cc3d ( :, :, : ) &
-            *  pw2%cr3d ( :, :, : ) )
+       integral_value = REAL(accurate_sum ( pw1%cc3d ( :, :, : ) &
+            *  pw2%cr3d ( :, :, : ) ), KIND=dp) !? complex bit
     ELSE IF ( pw1%in_use == COMPLEXDATA3D &
          .AND. pw2%in_use == COMPLEXDATA3D ) THEN
-       integral_value = accurate_sum ( CONJG ( pw1%cc3d ( :, :, : ) ) &
-            * pw2%cc3d ( :, :, : ) )
+       integral_value = REAL(accurate_sum ( CONJG ( pw1%cc3d ( :, :, : ) ) &
+            * pw2%cc3d ( :, :, : ) ), KIND=dp) !? complex bit
 
     ELSE IF ( pw1%in_use == REALDATA1D &
          .AND. pw2%in_use == REALDATA1D ) THEN
        integral_value = accurate_sum ( pw1%cr (:) *  pw2%cr (:) )
     ELSE IF ( pw1%in_use == REALDATA1D &
          .AND. pw2%in_use == COMPLEXDATA1D ) THEN
-       integral_value = accurate_sum ( pw1%cr (:) * pw2%cc (:) )
+       integral_value = REAL(accurate_sum ( pw1%cr (:) * pw2%cc (:) ) , KIND=dp) !? complex bit
     ELSE IF ( pw1%in_use == COMPLEXDATA1D &
          .AND. pw2%in_use == REALDATA1D ) THEN
-       integral_value = accurate_sum ( pw1%cc (:) * pw2%cr (:) )
+       integral_value = REAL(accurate_sum ( pw1%cc (:) * pw2%cr (:) ), KIND=dp) !? complex bit
     ELSE IF ( pw1%in_use == COMPLEXDATA1D &
          .AND. pw2%in_use == COMPLEXDATA1D ) THEN
-       integral_value = accurate_sum ( CONJG ( pw1%cc (:) ) * pw2%cc (:) )
+       integral_value = REAL(accurate_sum ( CONJG ( pw1%cc (:) ) * pw2%cc (:) ), KIND=dp) !? complex bit
     ELSE
        CALL stop_program(routineN,moduleN,__LINE__,"No possible DATA")
     END IF
@@ -1878,7 +1885,7 @@ CONTAINS
        IF ( pw1%pw_grid%grid_span == HALFSPACE ) THEN
           integral_value = 2.0_dp * integral_value
           IF ( pw1%pw_grid%have_g0 ) integral_value = integral_value - &
-               CONJG ( pw1%cc ( 1 ) ) * pw2%cc ( 1 )
+               REAL(CONJG ( pw1%cc ( 1 ) ) * pw2%cc ( 1 ), KIND=dp)
        END IF
     END IF
 
@@ -1888,156 +1895,11 @@ CONTAINS
   END FUNCTION pw_integral_ab
 
 ! *****************************************************************************
-!> \brief Calculate integral over unit cell for functions in plane wave basis
-!>      only returns the real part of it ......
-!> \param pw1 ...
-!> \param pw2 ...
-!> \param error ...
-!> \par History
-!>      JGH (14-Mar-2001) : Parallel sum and some tests, HALFSPACE case
-!> \author apsi
-! *****************************************************************************
-  FUNCTION pw_integral_ab_fast ( pw1, pw2, error) RESULT ( integral_value )
-
-    TYPE(pw_type), INTENT(IN)                :: pw1, pw2
-    TYPE(cp_error_type), INTENT(inout)       :: error
-    REAL(KIND=dp)                            :: integral_value
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'pw_integral_ab_fast', &
-      routineP = moduleN//':'//routineN
-
-    LOGICAL                                  :: failure
-
-    failure = .FALSE.
-    IF ( pw1%pw_grid %id_nr /= pw2%pw_grid %id_nr ) THEN
-       CALL stop_program(routineN,moduleN,__LINE__,"Grids incompatible")
-    END IF
-
-    ! since the return value is real, only do accurate sum on the real bit ?
-    IF ( pw1%in_use == REALDATA3D .AND. pw2%in_use == REALDATA3D ) THEN
-       integral_value = SUM ( pw1%cr3d ( :, :, : )  &
-            * pw2%cr3d ( :, :, : ) )
-    ELSE IF ( pw1%in_use == REALDATA3D &
-         .AND. pw2%in_use == COMPLEXDATA3D ) THEN
-       integral_value = SUM (  pw1%cr3d ( :, :, : )  &
-            * pw2%cc3d ( :, :, : ) )
-    ELSE IF ( pw1%in_use == COMPLEXDATA3D &
-         .AND. pw2%in_use == REALDATA3D ) THEN
-       integral_value = SUM ( pw1%cc3d ( :, :, : ) &
-            *  pw2%cr3d ( :, :, : ) )
-    ELSE IF ( pw1%in_use == COMPLEXDATA3D &
-         .AND. pw2%in_use == COMPLEXDATA3D ) THEN
-       integral_value = SUM ( CONJG ( pw1%cc3d ( :, :, : ) ) &
-            * pw2%cc3d ( :, :, : ) )
-
-    ELSE IF ( pw1%in_use == REALDATA1D &
-         .AND. pw2%in_use == REALDATA1D ) THEN
-       integral_value = SUM ( pw1%cr (:) *  pw2%cr (:) )
-    ELSE IF ( pw1%in_use == REALDATA1D &
-         .AND. pw2%in_use == COMPLEXDATA1D ) THEN
-       integral_value = SUM ( pw1%cr (:) * pw2%cc (:) )
-    ELSE IF ( pw1%in_use == COMPLEXDATA1D &
-         .AND. pw2%in_use == REALDATA1D ) THEN
-       integral_value = SUM ( pw1%cc (:) * pw2%cr (:) )
-    ELSE IF ( pw1%in_use == COMPLEXDATA1D &
-         .AND. pw2%in_use == COMPLEXDATA1D ) THEN
-       integral_value = SUM ( CONJG ( pw1%cc (:) ) * pw2%cc (:) )
-    ELSE
-       CALL stop_program(routineN,moduleN,__LINE__,"No possible DATA")
-    END IF
-
-    IF ( pw1%in_use == REALDATA3D .OR. pw1%in_use == COMPLEXDATA3D ) THEN
-       integral_value = integral_value * pw1%pw_grid%dvol
-    ELSE
-       integral_value = integral_value * pw1%pw_grid%vol
-    ENDIF
-    IF ( pw1%in_use == COMPLEXDATA1D ) THEN
-       IF ( pw1%pw_grid%grid_span == HALFSPACE ) THEN
-          integral_value = 2.0_dp * integral_value
-          IF ( pw1%pw_grid%have_g0 ) integral_value = integral_value - &
-               CONJG ( pw1%cc ( 1 ) ) * pw2%cc ( 1 )
-       END IF
-    END IF
-
-    IF ( pw1%pw_grid%para%mode == PW_MODE_DISTRIBUTED ) &
-         CALL mp_sum ( integral_value, pw1%pw_grid%para%group )
-
-  END FUNCTION pw_integral_ab_fast
-
-! *****************************************************************************
-!> \brief ...
-!> \param pw1 ...
-!> \param flag ...
-!> \param error ...
-! *****************************************************************************
-  FUNCTION pw_integral_aa_fast ( pw1, flag, error) RESULT ( integral_value )
-
-    TYPE(pw_type), INTENT(IN)                :: pw1
-    INTEGER, INTENT(IN), OPTIONAL            :: flag
-    TYPE(cp_error_type), INTENT(inout)       :: error
-    REAL(KIND=dp)                            :: integral_value
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'pw_integral_aa_fast', &
-      routineP = moduleN//':'//routineN
-
-    LOGICAL                                  :: failure
-
-    failure = .FALSE.
-    IF ( PRESENT ( flag ) ) THEN
-       IF ( flag == SQUARE ) THEN
-          IF ( pw1%in_use == REALDATA3D ) THEN
-             integral_value = SUM ( pw1%cr3d ( :, :, : )** 2 )
-          ELSE IF ( pw1%in_use == COMPLEXDATA3D ) THEN
-             integral_value = SUM ( CONJG ( pw1%cc3d ( :, :, : ) ) &
-                  * pw1%cc3d ( :, :, : )  )
-          ELSE IF ( pw1%in_use == REALDATA1D ) THEN
-             integral_value = SUM ( pw1%cr (:) ** 2 )
-          ELSE IF ( pw1%in_use == COMPLEXDATA1D ) THEN
-             integral_value = SUM ( CONJG ( pw1%cc (:) ) &
-                  * pw1%cc (:) )
-             IF ( pw1%pw_grid%grid_span == HALFSPACE ) THEN
-                integral_value = 2.0_dp * integral_value
-                IF ( pw1%pw_grid%have_g0 ) integral_value = integral_value - &
-                     CONJG ( pw1%cc ( 1 ) ) * pw1%cc ( 1 )
-             END IF
-          ELSE
-             CALL stop_program(routineN,moduleN,__LINE__,"No possible SQUARE DATA")
-          END IF
-
-       ELSE IF ( flag == SQUAREROOT ) THEN
-          CALL stop_program(routineN,moduleN,__LINE__,"No SQUAREROOT defined")
-       END IF
-
-    ELSE
-       IF ( pw1%in_use == REALDATA3D ) THEN
-          integral_value = SUM ( pw1%cr3d ( :, :, : ) )
-       ELSE IF ( pw1%in_use == COMPLEXDATA3D ) THEN
-          integral_value = SUM ( pw1%cc3d ( :, :, : ) )
-       ELSE IF ( pw1%in_use == REALDATA1D ) THEN
-          integral_value = SUM ( pw1%cr (:) )
-       ELSE IF ( pw1%in_use == COMPLEXDATA1D ) THEN
-          integral_value = SUM ( pw1%cc (:) )
-       ELSE
-          CALL stop_program(routineN,moduleN,__LINE__,"No possible DATA")
-       END IF
-    END IF
-
-    IF ( pw1%in_use == REALDATA3D .OR. pw1%in_use == COMPLEXDATA3D ) THEN
-       integral_value = integral_value * pw1%pw_grid%dvol
-    ELSE
-       integral_value = integral_value * pw1%pw_grid%vol
-    END IF
-
-    IF ( pw1%pw_grid%para%mode == PW_MODE_DISTRIBUTED ) &
-         CALL mp_sum ( integral_value, pw1%pw_grid%para%group )
-
-  END FUNCTION pw_integral_aa_fast
-
-! *****************************************************************************
 !> \brief ...
 !> \param pw1 ...
 !> \param pw2 ...
 !> \param error ...
+!> \retval integral_value ...
 ! *****************************************************************************
   FUNCTION pw_integral_a2b ( pw1, pw2, error) RESULT ( integral_value )
 
@@ -2182,13 +2044,8 @@ CONTAINS
        IF (iop==1) &
             CALL stop_program(routineN,moduleN,__LINE__,&
                               "Operator ABS not implemented")
-       IF (fun%in_use == COMPLEXDATA3D) THEN
-          total_fun = fun%pw_grid%vol*fun%cc3d(      &
-               fun%pw_grid%bounds(1,1), &
-               fun%pw_grid%bounds(1,2), &
-               fun%pw_grid%bounds(1,3))
-       ELSEIF (fun%in_use == COMPLEXDATA1D) THEN
-          IF ( fun%pw_grid%have_g0 ) total_fun = fun%pw_grid%vol*fun%cc(1)
+       IF (fun%in_use == COMPLEXDATA1D) THEN
+          IF ( fun%pw_grid%have_g0 ) total_fun = REAL(fun%pw_grid%vol*fun%cc(1),KIND=dp)
        ELSE
           CALL stop_program(routineN,moduleN,__LINE__,&
                             "In_space/in_use combination not implemented")

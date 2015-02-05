@@ -1,6 +1,6 @@
 /*****************************************************************************
  *  CP2K: A general program to perform molecular dynamics simulations        *
- *  Copyright (C) 2000 - 2014 the CP2K developers group                      *
+ *  Copyright (C) 2000 - 2015 the CP2K developers group                      *
  *****************************************************************************/
 
 #include <cuda_runtime.h>
@@ -8,6 +8,9 @@
 #include <math.h>
 #include "acc_cuda_error.h"
 #include "../include/acc.h"
+
+// for debug purpose
+static const int verbose_print = 1;
 
 /****************************************************************************/
 extern "C" int acc_get_ndevices(int *n_devices){
@@ -35,6 +38,17 @@ extern "C" int acc_set_active_device(int device_id){
 
   if (myDevice != device_id)
     return -1;
+
+  // establish context
+  cErr = cudaFree(0);
+  if (cuda_error_check (cErr))
+    return -1;
+
+  if (verbose_print){
+    cErr = cudaDeviceSetLimit(cudaLimitPrintfFifoSize, (size_t) 1000000000);
+    if (cuda_error_check (cErr))
+      return -1;
+  }
 
   return 0;
 }

@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2014  CP2K developers group                          !
+!   Copyright (C) 2000 - 2015  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -21,11 +21,10 @@ MODULE semi_empirical_int_gks
   USE dg_types,                        ONLY: dg_get,&
                                              dg_type
   USE erf_fn,                          ONLY: erfc
-  USE f77_blas
-  USE input_constants,                 ONLY: do_multipole_none
   USE kinds,                           ONLY: dp
   USE mathconstants,                   ONLY: fourpi,&
                                              oorootpi
+  USE multipole_types,                 ONLY: do_multipole_none
   USE pw_grid_types,                   ONLY: pw_grid_type
   USE pw_pool_types,                   ONLY: pw_pool_type
   USE semi_empirical_int_arrays,       ONLY: indexb,&
@@ -745,7 +744,7 @@ CONTAINS
     d3f = 0.0_dp
     d4f = 0.0_dp
 
-    DO gpt = 1, pw_grid%ngpts_cut
+    DO gpt = 1, pw_grid%ngpts_cut_local
        lp = pw_grid%mapl%pos(pw_grid%g_hat(1,gpt))
        mp = pw_grid%mapm%pos(pw_grid%g_hat(2,gpt))
        np = pw_grid%mapn%pos(pw_grid%g_hat(3,gpt))
@@ -992,7 +991,7 @@ CONTAINS
     d4f = 0.0_dp
     d5f = 0.0_dp
 
-    DO gpt = 1, pw_grid%ngpts_cut
+    DO gpt = 1, pw_grid%ngpts_cut_local
        lp = pw_grid%mapl%pos(pw_grid%g_hat(1,gpt))
        mp = pw_grid%mapm%pos(pw_grid%g_hat(2,gpt))
        np = pw_grid%mapn%pos(pw_grid%g_hat(3,gpt))
@@ -1266,7 +1265,7 @@ CONTAINS
     d2f = 0.0_dp
     d4f = 0.0_dp
 
-    DO gpt = 1, pw_grid%ngpts_cut
+    DO gpt = 1, pw_grid%ngpts_cut_local
        lp = pw_grid%mapl%pos(pw_grid%g_hat(1,gpt))
        mp = pw_grid%mapm%pos(pw_grid%g_hat(2,gpt))
        np = pw_grid%mapn%pos(pw_grid%g_hat(3,gpt))
