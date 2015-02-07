@@ -55,11 +55,15 @@ MODULE qs_scf_loop_utils
                                              ot_diag_method_nr,&
                                              ot_method_nr,&
                                              qs_scf_env_type,&
-                                             special_diag_method_nr
+                                             special_diag_method_nr,&
+                                             filter_matrix_diag_method_nr
   USE scf_control_types,               ONLY: scf_control_type,&
                                              smear_type
   USE timings,                         ONLY: timeset,&
                                              timestop
+  USE qs_fb_env_methods,               ONLY: fb_env_do_diag
+
+
 #include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
@@ -98,7 +102,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'qs_scf_set_loop_flags', &
       routineP = moduleN//':'//routineN
 
-! Some flags needed to be set at the beginning of the loop
+    ! Some flags needed to be set at the beginning of the loop
 
     diis_step = .FALSE.
     energy_only = .FALSE.
@@ -160,11 +164,21 @@ CONTAINS
                     error=error)
     scf_env%iter_param = 0.0_dp
 
+
     SELECT CASE (scf_env%method)
     CASE DEFAULT
        CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
             routineP,"unknown scf method: "//&
             cp_to_string(scf_env%method),error,failure)
+
+    ! ************************************************************************
+    ! Filter matrix diagonalisation: ugly implementation at this point of time
+    ! ************************************************************************
+    CASE(filter_matrix_diag_method_nr)
+
+       CALL fb_env_do_diag(scf_env%filter_matrix_env, qs_env, &
+                            matrix_ks, matrix_s, scf_section, diis_step, error)
+
     ! Diagonlization in non orthonormal case
     CASE(general_diag_method_nr)
        IF (dft_control%roks) THEN
@@ -244,9 +258,10 @@ CONTAINS
  
   END SUBROUTINE qs_scf_new_mos 
 
+
 ! *****************************************************************************
-!> \brief Updates MOs and density matrix using diagonalization    
-!>        Kpoint code           
+!> \brief Updates MOs and density matrix using diagonalization
+!>        Kpoint code
 !> \param qs_env ...
 !> \param scf_env ...
 !> \param scf_control ...
@@ -311,7 +326,7 @@ CONTAINS
                routineP,"KP code: Scf method not available: "//&
                cp_to_string(scf_env%method),error,failure)
     END SELECT
- 
+
   END SUBROUTINE qs_scf_new_mos_kp
 
 ! *****************************************************************************
@@ -404,7 +419,7 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Performs the requested density mixing if any needed
 !> \param scf_env   Holds SCF environment information
-!> \param rho       All data for the electron density 
+!> \param rho       All data for the electron density
 !> \param para_env  Parallel environment
 !> \param diis_step Did we do a DIIS step?
 !> \param do_kpoints Is this a kpoint run?
@@ -487,9 +502,9 @@ CONTAINS
             SIZE(scf_env%outer_scf%gradient,1)
        IF (outer_loop_eps<scf_control%outer_scf%eps_scf) outer_loop_converged=.TRUE.
     END IF
- 
+
     exit_outer_loop=should_stop .OR. outer_loop_converged.OR.&
-             scf_env%outer_scf%iter_count>scf_control%outer_scf%max_scf 
+             scf_env%outer_scf%iter_count>scf_control%outer_scf%max_scf
 
   END SUBROUTINE qs_scf_check_outer_exit
 
@@ -525,12 +540,19 @@ CONTAINS
      CALL external_control(should_stop,"SCF",target_time=qs_env%target_time, &
           start_time=qs_env%start_time,error=error)
      IF (scf_env%iter_delta < scf_control%eps_scf) THEN
+!BEG:ORIG:LT:2015/02/02
         IF (output_unit>0) THEN
            WRITE(UNIT=output_unit,FMT="(/,T3,A,I5,A/)")&
                 "*** SCF run converged in ",scf_env%iter_count," steps ***"
         END IF
         inner_loop_converged=.TRUE.
         exit_inner_loop = .TRUE.
+!END:ORIG:LT:2015/02/02
+!BEG:DEBUG:LT:2015/02/02
+        ! IF (output_unit > 0) THEN
+        !    WRITE (UNIT=output_unit,FMT=*) "|LT| qs_scf_check_inner_exit SKIP"
+        ! END IF
+!END:DEBUG:LT:2015/02/02
      ELSE IF (should_stop .OR.  scf_env%iter_count >= scf_control%max_scf) THEN
         IF (output_unit>0) THEN
            WRITE(UNIT=output_unit,FMT="(/,T3,A,/)")&
@@ -539,7 +561,7 @@ CONTAINS
         inner_loop_converged=.FALSE.
         exit_inner_loop = .TRUE.
      END IF
- 
+
   END SUBROUTINE qs_scf_check_inner_exit
 ! *****************************************************************************
 !> \brief undoing density mixing. Important upon convergence
@@ -718,6 +740,9 @@ CONTAINS
        CASE(special_diag_method_nr)
           !
        CASE(block_krylov_diag_method_nr,block_davidson_diag_method_nr)
+          !
+       CASE(filter_matrix_diag_method_nr)
+          !
        CASE DEFAULT
           CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
                routineP,"unknown scf method method:"//&
@@ -730,4 +755,4 @@ CONTAINS
 
   END SUBROUTINE cleanup_scf_loop
 
-END MODULE qs_scf_loop_utils 
+END MODULE qs_scf_loop_utils

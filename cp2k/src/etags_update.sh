@@ -25,12 +25,22 @@ ETAGS_REGEXP_FILE=./etags_regexp
 
 if [ "x$ETAGS_REGEXP_FILE" != "x" ] && \
    [ -f "$ETAGS_REGEXP_FILE" ] ; then
-    echo "$ETAGS_REGEXP_FILE file found, using -r option of etags"
+    cat >&2 <<EOF
+[32m$ETAGS_REGEXP_FILE file found[0m, using -r option of etags
+EOF
     etags_command="$ETAGS -r @etags_regexp"
 else
     etags_command="$ETAGS"
 fi
 
-find -E . -regex $INCLUDE_REGEXP -and \
-     -not -regex $IGNORE_REGEXP \
-     -print | xargs $etags_command
+# Linux find and Mac OS X find has different options, so need to call
+# them differently
+if (man find | grep "\-E" >& /dev/null) ; then
+    find -E . -regex $INCLUDE_REGEXP -and \
+         -not -regex $IGNORE_REGEXP \
+         -print | xargs $etags_command
+else
+    find . -regextype posix-extended -regex $INCLUDE_REGEXP -and \
+         -not -regex $IGNORE_REGEXP \
+         -print | xargs $etags_command
+fi
