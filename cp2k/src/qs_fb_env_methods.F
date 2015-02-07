@@ -1,3 +1,4 @@
+<<<<<<< .mine
 MODULE qs_fb_env_methods
 
   USE kinds, ONLY: dp, &
@@ -6,119 +7,94 @@ MODULE qs_fb_env_methods
                              fb_env_get, &
                              fb_env_set, &
                              fb_env_has_data
-  USE qs_environment_types,    ONLY: qs_environment_type, &
-                                     get_qs_env
-  USE qs_fb_atomic_halo_types, ONLY: fb_atomic_halo_obj, &
-                                     fb_atomic_halo_nullify, &
-                                     fb_atomic_halo_create, &
-                                     fb_atomic_halo_get, &
-                                     fb_atomic_halo_set, &
-                                     fb_atomic_halo_sort, &
-                                     fb_atomic_halo_nelectrons_estimate_Z, &
-                                     fb_atomic_halo_list_obj, &
-                                     fb_atomic_halo_list_init, &
-                                     fb_atomic_halo_list_create, &
-                                     fb_atomic_halo_list_get, &
-                                     fb_atomic_halo_list_set, &
-                                     fb_atomic_halo_list_has_data, &
-                                     fb_atomic_halo_list_nullify
-  USE particle_types,        ONLY: particle_type
-  USE atomic_kind_types,     ONLY: atomic_kind_type, &
-                                   get_atomic_kind
-  USE qs_neighbor_lists,      ONLY: pair_radius_setup
-  USE distribution_1d_types, ONLY: distribution_1d_type
-  USE cp_dbcsr_interface, ONLY: cp_dbcsr_type, &
-                                cp_dbcsr_p_type, &
-                                cp_dbcsr_allocate_matrix_set, &
-                                cp_dbcsr_init, &
-                                cp_dbcsr_create, &
-                                cp_dbcsr_distribution, &
-                                cp_dbcsr_get_info, &
-                                dbcsr_type_no_symmetry, &
-                                cp_dbcsr_row_block_sizes, &
-                                cp_dbcsr_col_block_sizes, &
-                                cp_dbcsr_nfullrows_total, &
-                                cp_dbcsr_nfullcols_total, &
-                                cp_dbcsr_finalize, &
-                                cp_dbcsr_multiply, &
-                                cp_dbcsr_release, &
-                                cp_dbcsr_set, &
-                                cp_dbcsr_reserve_blocks, &
-                                cp_dbcsr_iterator, &
-                                cp_dbcsr_iterator_start, &
-                                cp_dbcsr_iterator_stop, &
-                                cp_dbcsr_iterator_next_block, &
-                                cp_dbcsr_iterator_blocks_left, &
-                                cp_dbcsr_get_matrix_type, &
-                                array_i1d_obj, &
-                                cp_dbcsr_print, &
-                                cp_dbcsr_desymmetrize, &
-                                array_nullify
-  USE cp_dbcsr_operations, ONLY: copy_dbcsr_to_fm, &
-                                 cp_dbcsr_sm_fm_multiply
-  USE cp_dbcsr_cp2k_link, ONLY: cp_dbcsr_alloc_block_from_nbl
-  USE input_constants, ONLY: use_aux_fit_basis_set,&
-                             use_orb_basis_set, &
-                             cholesky_inverse
-  USE orbital_pointers, ONLY: ncoset, &
-                              nco
-  USE qs_mo_types, ONLY: mo_set_p_type, &
-                         get_mo_set, &
-                         set_mo_set, &
-                         init_mo_set, &
-                         allocate_mo_set, &
-                         deallocate_mo_set
-  USE qs_mo_methods, ONLY: calculate_density_matrix
-  USE qs_mo_occupation, ONLY: set_mo_occupation
-  USE string_utilities, ONLY: compress,&
-                              uppercase
-  USE qs_diis, ONLY: qs_diis_b_step
-  USE qs_scf_types, ONLY: qs_scf_env_type
-  USE scf_control_types, ONLY: scf_control_type
-  USE input_section_types, ONLY: section_vals_type, &
-                                 section_vals_val_get, &
-                                 section_vals_get_subs_vals
-  USE cp_para_types, ONLY: cp_para_env_type
-  USE cp_blacs_env, ONLY: cp_blacs_env_type
-  USE cp_fm_types, ONLY: cp_fm_type, &
-                         cp_fm_create, &
-                         cp_fm_set_all, &
-                         cp_fm_release, &
-                         cp_fm_to_fm, &
-                         cp_fm_write
-  USE qs_fb_trial_fns_types, ONLY: fb_trial_fns_obj, &
-                                   fb_trial_fns_nullify, &
-                                   fb_trial_fns_get, &
-                                   fb_trial_fns_set, &
-                                   fb_trial_fns_create
-  USE qs_fb_filter_matrix_methods, ONLY: fb_fltrmat_build
-  USE qs_matrix_pools, ONLY: qs_matrix_pools_type, &
-                             mpools_create, &
-                             mpools_rebuild_fm_pools, &
-                             mpools_release
-  USE cp_fm_struct, ONLY: cp_fm_struct_create, &
-                          cp_fm_struct_type, &
-                          cp_fm_struct_release
-  USE cp_fm_cholesky, ONLY: cp_fm_cholesky_decompose
-  USE cp_fm_basic_linalg, ONLY: cp_fm_triangular_invert
-  USE qs_scf_methods, ONLY: eigensolver
-  USE basis_set_types, ONLY: gto_basis_set_type, &
-                             gto_basis_set_p_type, &
-                             get_gto_basis_set
-  USE qs_integral_utils, ONLY: basis_set_list_setup
-  USE qs_kind_types, ONLY: qs_kind_type, &
-                           get_qs_kind
-  USE message_passing, ONLY: mp_max
-  USE cp_fm_basic_linalg, ONLY: cp_fm_gemm
-  USE cp_output_handling, ONLY: cp_print_key_finished_output, &
-                                cp_print_key_unit_nr
-  USE cp_units, ONLY: cp_unit_from_cp2k
-  USE timings, ONLY: timeset, &
-                     timestop
-  USE cp_control_types, ONLY: dft_control_type
+MODULE qs_fb_env_methods
 
-  ! USE qs_neighbor_list_types, ONLY: neighbor_list_set_p_type
-
+  USE atomic_kind_types,               ONLY: atomic_kind_type,&
+                                             get_atomic_kind
+  USE basis_set_types,                 ONLY: get_gto_basis_set,&
+                                             gto_basis_set_p_type,&
+                                             gto_basis_set_type
+  USE cp_blacs_env,                    ONLY: cp_blacs_env_type
+  USE cp_control_types,                ONLY: dft_control_type
+  USE cp_dbcsr_interface,              ONLY: &
+       array_i1d_obj, array_nullify, cp_dbcsr_allocate_matrix_set, &
+       cp_dbcsr_col_block_sizes, cp_dbcsr_create, cp_dbcsr_desymmetrize, &
+       cp_dbcsr_distribution, cp_dbcsr_finalize, cp_dbcsr_get_info, &
+       cp_dbcsr_get_matrix_type, cp_dbcsr_init, cp_dbcsr_iterator, &
+       cp_dbcsr_iterator_blocks_left, cp_dbcsr_iterator_next_block, &
+       cp_dbcsr_iterator_start, cp_dbcsr_iterator_stop, cp_dbcsr_multiply, &
+       cp_dbcsr_nfullcols_total, cp_dbcsr_nfullrows_total, cp_dbcsr_p_type, &
+       cp_dbcsr_release, cp_dbcsr_reserve_blocks, cp_dbcsr_row_block_sizes, &
+       cp_dbcsr_set, cp_dbcsr_type, dbcsr_type_no_symmetry
+  USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm
+  USE cp_fm_basic_linalg,              ONLY: cp_fm_gemm,&
+                                             cp_fm_triangular_invert
+  USE cp_fm_cholesky,                  ONLY: cp_fm_cholesky_decompose
+  USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
+                                             cp_fm_struct_release,&
+                                             cp_fm_struct_type
+  USE cp_fm_types,                     ONLY: cp_fm_create,&
+                                             cp_fm_release,&
+                                             cp_fm_set_all,&
+                                             cp_fm_type
+  USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
+                                             cp_print_key_unit_nr
+  USE cp_para_types,                   ONLY: cp_para_env_type
+  USE cp_units,                        ONLY: cp_unit_from_cp2k
+  USE distribution_1d_types,           ONLY: distribution_1d_type
+  USE input_constants,                 ONLY: cholesky_inverse,&
+                                             use_aux_fit_basis_set,&
+                                             use_orb_basis_set
+  USE input_section_types,             ONLY: section_vals_get_subs_vals,&
+                                             section_vals_type,&
+                                             section_vals_val_get
+  USE kinds,                           ONLY: default_string_length,&
+                                             dp
+  USE message_passing,                 ONLY: mp_max
+  USE orbital_pointers,                ONLY: nco,&
+                                             ncoset
+  USE particle_types,                  ONLY: particle_type
+  USE qs_diis,                         ONLY: qs_diis_b_step
+  USE qs_environment_types,            ONLY: get_qs_env,&
+                                             qs_environment_type
+  USE qs_fb_atomic_halo_types,         ONLY: &
+       fb_atomic_halo_create, fb_atomic_halo_list_create, &
+       fb_atomic_halo_list_nullify, fb_atomic_halo_list_obj, &
+       fb_atomic_halo_list_set, fb_atomic_halo_nelectrons_estimate_Z, &
+       fb_atomic_halo_nullify, fb_atomic_halo_obj, fb_atomic_halo_set, &
+       fb_atomic_halo_sort
+  USE qs_fb_env_types,                 ONLY: fb_env_get,&
+                                             fb_env_has_data,&
+                                             fb_env_obj,&
+                                             fb_env_set
+  USE qs_fb_filter_matrix_methods,     ONLY: fb_fltrmat_build
+  USE qs_fb_trial_fns_types,           ONLY: fb_trial_fns_create,&
+                                             fb_trial_fns_nullify,&
+                                             fb_trial_fns_obj,&
+                                             fb_trial_fns_set
+  USE qs_integral_utils,               ONLY: basis_set_list_setup
+  USE qs_kind_types,                   ONLY: get_qs_kind,&
+                                             qs_kind_type
+  USE qs_matrix_pools,                 ONLY: mpools_create,&
+                                             mpools_rebuild_fm_pools,&
+                                             mpools_release,&
+                                             qs_matrix_pools_type
+  USE qs_mo_methods,                   ONLY: calculate_density_matrix
+  USE qs_mo_occupation,                ONLY: set_mo_occupation
+  USE qs_mo_types,                     ONLY: allocate_mo_set,&
+                                             deallocate_mo_set,&
+                                             get_mo_set,&
+                                             init_mo_set,&
+                                             mo_set_p_type,&
+                                             set_mo_set
+  USE qs_neighbor_lists,               ONLY: pair_radius_setup
+  USE qs_scf_methods,                  ONLY: eigensolver
+  USE qs_scf_types,                    ONLY: qs_scf_env_type
+  USE scf_control_types,               ONLY: scf_control_type
+  USE string_utilities,                ONLY: compress,&
+                                             uppercase
+  USE timings,                         ONLY: timeset,&
+                                             timestop
 #include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
@@ -138,17 +114,17 @@ MODULE qs_fb_env_methods
 CONTAINS
 
 
-  ! **********************************************************************
-  !> \brief Do filtered matrix method diagonalisation
-  !> \param fb_env : the filter matrix environment
-  !> \param qs_env : quickstep environment
-  !> \param matrix_ks : DBCSR system (unfiltered) input KS matrix
-  !> \param matrix_s  : DBCSR system (unfiltered) input overlap matrix
-  !> \param scf_section : SCF input section
-  !> \param diis_step : whether we are doing a DIIS step
-  !> \param error : cp2k error container
-  !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
-  ! **********************************************************************
+! **********************************************************************
+!> \brief Do filtered matrix method diagonalisation
+!> \param fb_env : the filter matrix environment
+!> \param qs_env : quickstep environment
+!> \param matrix_ks : DBCSR system (unfiltered) input KS matrix
+!> \param matrix_s  : DBCSR system (unfiltered) input overlap matrix
+!> \param scf_section : SCF input section
+!> \param diis_step : whether we are doing a DIIS step
+!> \param error : cp2k error container
+!> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
+! *****************************************************************************
   SUBROUTINE fb_env_do_diag(fb_env, &
                             qs_env, &
                             matrix_ks, &
@@ -156,57 +132,56 @@ CONTAINS
                             scf_section, &
                             diis_step, &
                             error)
-    TYPE(fb_env_obj), INTENT(in) :: fb_env
-    TYPE(qs_environment_type), POINTER :: qs_env
-    TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER :: matrix_ks
-    TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER :: matrix_s
-    TYPE(section_vals_type), POINTER :: scf_section
-    LOGICAL, INTENT(INOUT) :: diis_step
-    TYPE(cp_error_type), INTENT(inout) :: error
+    TYPE(fb_env_obj), INTENT(INOUT)          :: fb_env
+    TYPE(qs_environment_type), POINTER       :: qs_env
+    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+      POINTER                                :: matrix_ks, matrix_s
+    TYPE(section_vals_type), POINTER         :: scf_section
+    LOGICAL, INTENT(INOUT)                   :: diis_step
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'fb_env_do_diag', &
-                                   routineP = moduleN//':'//routineN
+      routineP = moduleN//':'//routineN
 
-    LOGICAL :: failure, use_jacobi
-    INTEGER :: ispin, nspin, stat, &
-               original_nfullrowsORcols_total, &
-               filtered_nfullrowsORcols_total, &
-               nelectron, nfullrows_total, nfullcols_total, &
-               homo_filtered, lfomo_filtered, &
-               nmo_filtered, nmo, my_nmo, handle
-    REAL(kind=dp) :: diis_error, eps_diis
-    REAL(kind=dp) :: fermi_level, maxocc, flexible_electron_count, &
-                     filter_temp, mu_filtered, KTS_filtered
-    REAL(KIND=dp), DIMENSION(:), POINTER :: eigenvalues, eigenvalues_filtered, &
-                                            occ, occ_filtered
-    TYPE(cp_fm_type), POINTER :: mo_coeff_filtered, mo_coeff, &
-                                 fm_matrix_filtered_s, fm_matrix_filtered_ks, &
-                                 fm_matrix_work, fm_matrix_filter
-    TYPE(qs_scf_env_type), POINTER :: scf_env
-    TYPE(scf_control_type), POINTER :: scf_control
-    TYPE(cp_para_env_type), POINTER :: para_env
-    TYPE(cp_blacs_env_type), POINTER :: blacs_env
-    TYPE(mo_set_p_type), DIMENSION(:), POINTER :: mos, mos_filtered
-    TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER :: matrix_filter
-    TYPE(cp_dbcsr_p_type) :: matrix_ks_desymm, matrix_s_desymm
-    TYPE(cp_dbcsr_type), POINTER :: matrix_filtered_p
-    TYPE(cp_dbcsr_type) :: matrix_tmp, matrix_filtered_ks, &
-                           matrix_filtered_s
-    TYPE(fb_atomic_halo_list_obj) :: atomic_halos
-    TYPE(fb_trial_fns_obj) :: trial_fns
-    CHARACTER(len=2) :: spin_string
-    CHARACTER(len=default_string_length) :: name
-    TYPE(array_i1d_obj) :: filtered_rowORcol_block_sizes, &
-                           original_rowORcol_block_sizes
-    TYPE(particle_type), DIMENSION(:), POINTER :: particle_set
-    TYPE(qs_matrix_pools_type), POINTER :: my_mpools
-    TYPE(cp_fm_struct_type), POINTER  :: fm_struct, filter_fm_struct
+    CHARACTER(len=2)                         :: spin_string
+    CHARACTER(len=default_string_length)     :: name
+    INTEGER :: filtered_nfullrowsORcols_total, handle, homo_filtered, ispin, &
+      lfomo_filtered, LT_UNIT, my_nmo, nelectron, nmo, nmo_filtered, nspin, &
+      original_nfullrowsORcols_total, stat
+    LOGICAL                                  :: failure, use_jacobi
+    REAL(kind=dp) :: diis_error, eps_diis, fermi_level, filter_temp, &
+      flexible_electron_count, KTS_filtered, maxocc, mu_filtered
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: eigenvalues, &
+                                                eigenvalues_filtered, occ, &
+                                                occ_filtered
+    TYPE(array_i1d_obj)                      :: filtered_rowORcol_block_sizes,&
+                                                original_rowORcol_block_sizes
+    TYPE(cp_blacs_env_type), POINTER         :: blacs_env
+    TYPE(cp_dbcsr_p_type)                    :: matrix_ks_desymm, &
+                                                matrix_s_desymm
+    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+      POINTER                                :: matrix_filter
+    TYPE(cp_dbcsr_type)                      :: matrix_filtered_ks, &
+                                                matrix_filtered_s, matrix_tmp
+    TYPE(cp_dbcsr_type), POINTER             :: matrix_filtered_p
+    TYPE(cp_fm_struct_type), POINTER         :: filter_fm_struct, fm_struct
+    TYPE(cp_fm_type), POINTER :: fm_matrix_filter, fm_matrix_filtered_ks, &
+      fm_matrix_filtered_s, fm_matrix_work, mo_coeff, mo_coeff_filtered
+    TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(fb_atomic_halo_list_obj)            :: atomic_halos
+    TYPE(fb_trial_fns_obj)                   :: trial_fns
+    TYPE(mo_set_p_type), DIMENSION(:), &
+      POINTER                                :: mos, mos_filtered
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: particle_set
+    TYPE(qs_matrix_pools_type), POINTER      :: my_mpools
+    TYPE(qs_scf_env_type), POINTER           :: scf_env
+    TYPE(scf_control_type), POINTER          :: scf_control
+
 !    TYPE(neighbor_list_set_p_type), DIMENSION(:), POINTER :: sab_orb
-
 !BEG:DEBUG:LT:2015/01/29
-    INTEGER :: LT_UNIT
-    ! INTEGER, DIMENSION(:), POINTER :: nfunctions
-    ! INTEGER, DIMENSION(:,:), POINTER :: functions
+! INTEGER, DIMENSION(:), POINTER :: nfunctions
+! INTEGER, DIMENSION(:,:), POINTER :: functions
 !END:DEBUG:LT:2015/01/29
 
     CALL timeset(routineN, handle)
@@ -314,7 +289,6 @@ CONTAINS
     CALL fb_env_get(fb_env=fb_env, &
                     atomic_halos=atomic_halos, &
                     error=error)
-!TODO:LT:2015/01/19 can move the above into the outer MD loop sections?
 
     ! construct trial functions
     CALL get_mo_set(mo_set=mos(1)%mo_set, maxocc=maxocc)
@@ -360,7 +334,7 @@ CONTAINS
        ! ----------------------------------------------------------------------
 
        ! get filter matrix name
-       WRITE (spin_string, FMT="(I1)"), ispin
+       WRITE (spin_string, FMT="(I1)") ispin
        name = TRIM("FILTER MATRIX SPIN "//spin_string)
        CALL compress(name)
        CALL uppercase(name)
@@ -852,27 +826,26 @@ CONTAINS
   END SUBROUTINE fb_env_do_diag
 
 
-  ! **********************************************************************
-  !> \brief Read input sections for filter matrix method
-  !> \param fb_env : the filter matrix environment
-  !> \param scf_section : SCF input section
-  !> \param error : cp2k error container
-  !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
-  ! **********************************************************************
+! **********************************************************************
+!> \brief Read input sections for filter matrix method
+!> \param fb_env : the filter matrix environment
+!> \param scf_section : SCF input section
+!> \param error : cp2k error container
+!> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
+! *****************************************************************************
   SUBROUTINE fb_env_read_input(fb_env, scf_section, error)
 
-    TYPE(fb_env_obj), INTENT(in) :: fb_env
-    TYPE(section_vals_type), POINTER :: scf_section
-    TYPE(cp_error_type), INTENT(inout) :: error
+    TYPE(fb_env_obj), INTENT(INOUT)          :: fb_env
+    TYPE(section_vals_type), POINTER         :: scf_section
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'fb_env_read_input', &
-                                   routineP = moduleN//':'//routineN
+      routineP = moduleN//':'//routineN
 
-    LOGICAL :: failure
-    TYPE(section_vals_type), POINTER :: fb_section
-    REAL(KIND=dp) :: r_val
-    INTEGER :: handle
-
+    INTEGER                                  :: handle
+    LOGICAL                                  :: failure
+    REAL(KIND=dp)                            :: r_val
+    TYPE(section_vals_type), POINTER         :: fb_section
 
     CALL timeset(routineN, handle)
 
@@ -902,31 +875,34 @@ CONTAINS
   END SUBROUTINE fb_env_read_input
 
 
-  ! **********************************************************************
-  !> \brief Automatically generate the cutoff radii of atoms used for
-  !>        constructing the atomic halos, based on basis set cutoff
-  !>        ranges for each kind
-  !> \param fb_env : the filter matrix environment
-  !> \param qs_env : quickstep environment
-  !> \param error : cp2k error container
-  !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
-  ! **********************************************************************
+! **********************************************************************
+!> \brief Automatically generate the cutoff radii of atoms used for
+!>        constructing the atomic halos, based on basis set cutoff
+!>        ranges for each kind
+!> \param fb_env : the filter matrix environment
+!> \param qs_env : quickstep environment
+!> \param error : cp2k error container
+!> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
+! *****************************************************************************
   SUBROUTINE fb_env_build_rcut_auto(fb_env, qs_env, error)
-    TYPE(fb_env_obj), INTENT(in) :: fb_env
-    TYPE(qs_environment_type), POINTER :: qs_env
-    TYPE(cp_error_type), INTENT(INOUT) :: error
+    TYPE(fb_env_obj), INTENT(INOUT)          :: fb_env
+    TYPE(qs_environment_type), POINTER       :: qs_env
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'fb_env_build_rcut_auto', &
-                                   routineP = moduleN//':'//routineN
+      routineP = moduleN//':'//routineN
 
-    LOGICAL :: failure
-    TYPE(qs_kind_type), DIMENSION(:), POINTER :: qs_kind_set
-    TYPE(gto_basis_set_p_type), DIMENSION(:), POINTER :: basis_set_list
-    TYPE(gto_basis_set_type), POINTER :: basis_set
-    TYPE(dft_control_type), POINTER :: dft_control
-    REAL(KIND=dp), DIMENSION(:), POINTER :: rcut
-    REAL(KIND=dp) :: kind_radius, auto_cutoff_scale
-    INTEGER :: ikind, basis_set_id, nkinds, stat, handle
+    INTEGER                                  :: basis_set_id, handle, ikind, &
+                                                nkinds, stat
+    LOGICAL                                  :: failure
+    REAL(KIND=dp)                            :: auto_cutoff_scale, kind_radius
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: rcut
+    TYPE(dft_control_type), POINTER          :: dft_control
+    TYPE(gto_basis_set_p_type), &
+      DIMENSION(:), POINTER                  :: basis_set_list
+    TYPE(gto_basis_set_type), POINTER        :: basis_set
+    TYPE(qs_kind_type), DIMENSION(:), &
+      POINTER                                :: qs_kind_set
 
     CALL timeset(routineN, handle)
 
@@ -984,43 +960,44 @@ CONTAINS
   END SUBROUTINE fb_env_build_rcut_auto
 
 
-  ! **********************************************************************
-  !> \brief Builds an fb_atomic_halo_list object using information
-  !>        from fb_env
-  !> \param fb_env: the fb_env object
-  !> \param qs_env : quickstep environment (need this to access particle)
-  !>                 positions and their kinds as well as which particles
-  !>                 are local to this process
-  !> \param error: cp2k error container
-  !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
-  ! **********************************************************************
+! **********************************************************************
+!> \brief Builds an fb_atomic_halo_list object using information
+!>        from fb_env
+!> \param fb_env the fb_env object
+!> \param qs_env : quickstep environment (need this to access particle)
+!>                 positions and their kinds as well as which particles
+!>                 are local to this process
+!> \param error ...
+!> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
+! *****************************************************************************
   SUBROUTINE fb_env_build_atomic_halos(fb_env, qs_env, error)
-    TYPE(fb_env_obj), INTENT(in) :: fb_env
-    TYPE(qs_environment_type), POINTER :: qs_env
-    TYPE(cp_error_type), INTENT(INOUT) :: error
+    TYPE(fb_env_obj), INTENT(INOUT)          :: fb_env
+    TYPE(qs_environment_type), POINTER       :: qs_env
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'fb_env_build_atomic_halos', &
-                                   routineP = moduleN//':'//routineN
+      routineP = moduleN//':'//routineN
 
-    LOGICAL :: failure
-    REAL(KIND=dp), DIMENSION(:), POINTER :: rcut
-    TYPE(particle_type), DIMENSION(:), POINTER :: particle_set
-    TYPE(atomic_kind_type), DIMENSION(:), POINTER :: atomic_kind_set
-    TYPE(distribution_1d_type), POINTER :: local_particles
-    TYPE(cp_para_env_type), POINTER :: para_env
-    TYPE(fb_atomic_halo_list_obj) :: atomic_halos
-    TYPE(fb_atomic_halo_obj), DIMENSION(:), POINTER :: halos
-    INTEGER :: stat, natoms_local, natoms_global, nkinds, ikind, &
-               iatom, nkinds_global, jkind, jatom, iatom_local, &
-               n_local_atoms_in_kind, n_global_atoms_in_kind, &
-               jatom_in_kind, ii, ihalo, ihalo_atom, nhalo_atoms, &
-               nelectrons_in_halo, owner_id_in_halo, max_natoms_local, &
-               handle
-    INTEGER, DIMENSION(:), POINTER :: halo_atoms
-    INTEGER, DIMENSION(:), POINTER :: atom_list
-    REAL(KIND=dp) :: rij
-    REAL(KIND=dp), DIMENSION(:,:), ALLOCATABLE :: pair_radius
-    LOGICAL, DIMENSION(:), ALLOCATABLE :: present_ab
+    INTEGER :: handle, iatom, iatom_local, ihalo, ihalo_atom, ii, ikind, &
+      jatom, jatom_in_kind, jkind, max_natoms_local, n_global_atoms_in_kind, &
+      n_local_atoms_in_kind, natoms_global, natoms_local, nelectrons_in_halo, &
+      nhalo_atoms, nkinds, nkinds_global, owner_id_in_halo, stat
+    INTEGER, DIMENSION(:), POINTER           :: atom_list, halo_atoms
+    LOGICAL                                  :: failure
+    LOGICAL, ALLOCATABLE, DIMENSION(:)       :: present_ab
+    REAL(KIND=dp)                            :: rij
+    REAL(KIND=dp), ALLOCATABLE, &
+      DIMENSION(:, :)                        :: pair_radius
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: rcut
+    TYPE(atomic_kind_type), DIMENSION(:), &
+      POINTER                                :: atomic_kind_set
+    TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(distribution_1d_type), POINTER      :: local_particles
+    TYPE(fb_atomic_halo_list_obj)            :: atomic_halos
+    TYPE(fb_atomic_halo_obj), DIMENSION(:), &
+      POINTER                                :: halos
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: particle_set
 
     CALL timeset(routineN, handle)
 
@@ -1182,44 +1159,44 @@ CONTAINS
   END SUBROUTINE fb_env_build_atomic_halos
 
 
-  ! **********************************************************************
-  !> \brief Autoatically construct the trial functiosn used for generating
-  !>        the filter matrix. It tries to use the single zeta subset from
-  !>        the system GTO basis set as the trial functions
-  !> \param fb_env : the filter matrix environment
-  !> \param qs_env : quickstep environment
-  !> \param maxocc : maximum occupancy for an orbital
-  !> \param error : cp2k error container
-  !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
-  ! **********************************************************************
+! **********************************************************************
+!> \brief Automatically construct the trial functiosn used for generating
+!>        the filter matrix. It tries to use the single zeta subset from
+!>        the system GTO basis set as the trial functions
+!> \param fb_env : the filter matrix environment
+!> \param qs_env : quickstep environment
+!> \param maxocc : maximum occupancy for an orbital
+!> \param error : cp2k error container
+!> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
+! *****************************************************************************
   SUBROUTINE fb_env_build_trial_fns_auto(fb_env, qs_env, maxocc, error)
 
-    TYPE(fb_env_obj), INTENT(in) :: fb_env
-    TYPE(qs_environment_type), POINTER :: qs_env
-    REAL(KIND=dp), INTENT(in) :: maxocc
-    TYPE(cp_error_type), INTENT(INOUT) :: error
+    TYPE(fb_env_obj), INTENT(INOUT)          :: fb_env
+    TYPE(qs_environment_type), POINTER       :: qs_env
+    REAL(KIND=dp), INTENT(IN)                :: maxocc
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'fb_env_build_trial_fns_auto', &
-                                   routineP = moduleN//':'//routineN
+      routineP = moduleN//':'//routineN
 
-    LOGICAL :: failure
-    TYPE(fb_trial_fns_obj) :: trial_fns
-    TYPE(qs_kind_type), DIMENSION(:), POINTER :: qs_kind_set
-    TYPE(gto_basis_set_p_type), DIMENSION(:), POINTER :: basis_set_list
-    TYPE(gto_basis_set_type), POINTER :: basis_set
-    TYPE(dft_control_type), POINTER :: dft_control
-    INTEGER :: basis_set_id, old_lshell, iset, nset, ikind, nkinds, &
-               ishell, lshell, icgf, itrial, max_n_trial, counter, &
-               ico, stat, handle
-    INTEGER, DIMENSION(:), POINTER :: nfunctions, lmax, nshell
-    INTEGER, DIMENSION(:,:), POINTER :: functions
-    REAL(KIND=dp) :: zeff
+    INTEGER :: basis_set_id, counter, handle, icgf, ico, ikind, iset, ishell, &
+      itrial, lshell, LT_UNIT, max_n_trial, nkinds, nset, old_lshell, stat
+    INTEGER, DIMENSION(:), POINTER           :: lmax, nfunctions, nshell
+    INTEGER, DIMENSION(:, :), POINTER        :: functions
+    LOGICAL                                  :: failure
+    REAL(KIND=dp)                            :: zeff
+    TYPE(dft_control_type), POINTER          :: dft_control
+    TYPE(fb_trial_fns_obj)                   :: trial_fns
+    TYPE(gto_basis_set_p_type), &
+      DIMENSION(:), POINTER                  :: basis_set_list
+    TYPE(gto_basis_set_type), POINTER        :: basis_set
+    TYPE(qs_kind_type), DIMENSION(:), &
+      POINTER                                :: qs_kind_set
 
 !BEG:DEBUG:LT:2015/01/29
-    INTEGER :: LT_UNIT
 !END:DEBUG:LT:2015/01/29
-
 !BEG:DEBUG:LT:2015/01/30
+
     LT_UNIT = 200
 !END:DEBUG:LT:2015/01/30
 
@@ -1403,38 +1380,38 @@ CONTAINS
   END SUBROUTINE fb_env_build_trial_fns_auto
 
 
-  ! **********************************************************************
-  !> \brief Copy the sparse structure of a DBCSR matrix to another, this
-  !>        means the other matrix will have the same number of blocks
-  !>        and their corresponding logical locations allocated, although
-  !>        the blocks does not have to be the same size as the original
-  !> \param matrix_out : DBCSR matrix whose blocks are to be allocated
-  !> \param matrix_in  : DBCSR matrix with exising sparse structure that
-  !>                     is to be copied
-  !> \param error : cp2k error container
-  !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
-  ! **********************************************************************
+! **********************************************************************
+!> \brief Copy the sparse structure of a DBCSR matrix to another, this
+!>        means the other matrix will have the same number of blocks
+!>        and their corresponding logical locations allocated, although
+!>        the blocks does not have to be the same size as the original
+!> \param matrix_out : DBCSR matrix whose blocks are to be allocated
+!> \param matrix_in  : DBCSR matrix with exising sparse structure that
+!>                     is to be copied
+!> \param error : cp2k error container
+!> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
+! *****************************************************************************
   SUBROUTINE fb_dbcsr_copy_sparse_struct(matrix_out, matrix_in, error)
 
-    TYPE(cp_dbcsr_type), INTENT(in) :: matrix_in
-    TYPE(cp_dbcsr_type), INTENT(inout) :: matrix_out
-    TYPE(cp_error_type), INTENT(INOUT) :: error
+    TYPE(cp_dbcsr_type), INTENT(INOUT)       :: matrix_out
+    TYPE(cp_dbcsr_type), INTENT(IN)          :: matrix_in
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'fb_dbcsr_copy_sparse_struct', &
-                                   routineP = moduleN//':'//routineN
+      routineP = moduleN//':'//routineN
 
-    LOGICAL :: failure
-    TYPE(cp_dbcsr_iterator) :: iter
-    INTEGER :: iatom, jatom, iblk, nblks, stat, &
-               nblkrows_total, nblkcols_total
-    REAL(dp), DIMENSION(:, :), POINTER :: mat_block
-    INTEGER, DIMENSION(:), ALLOCATABLE :: rows, cols
+    INTEGER                                  :: iatom, iblk, jatom, LT_UNIT, &
+                                                nblkcols_total, &
+                                                nblkrows_total, nblks, stat
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: cols, rows
+    LOGICAL                                  :: failure
+    REAL(dp), DIMENSION(:, :), POINTER       :: mat_block
+    TYPE(cp_dbcsr_iterator)                  :: iter
 
 !BEG:DEBUG:LT:2015/02/02
-    INTEGER :: LT_UNIT
 !END:DEBUG:LT:2015/02/02
-
 !BEG:DEBUG:LT:2015/02/02
+
     LT_UNIT = 200
 !END:DEBUG:LT:2015/02/02
 
@@ -1487,31 +1464,33 @@ CONTAINS
   END SUBROUTINE fb_dbcsr_copy_sparse_struct
 
 
-  ! **********************************************************************
-  !> \brief Write out parameters used for the filter matrix method to
-  !>        output
-  !> \param fb_env : the filter matrix environment
-  !> \param qs_env : quickstep environment
-  !> \param scf_section : SCF input section
-  !> \param error : cp2k error container
-  !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
-  ! **********************************************************************
+! **********************************************************************
+!> \brief Write out parameters used for the filter matrix method to
+!>        output
+!> \param fb_env : the filter matrix environment
+!> \param qs_env : quickstep environment
+!> \param scf_section : SCF input section
+!> \param error : cp2k error container
+!> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
+! *****************************************************************************
   SUBROUTINE fb_env_write_info(fb_env, qs_env, scf_section, error)
-    TYPE(fb_env_obj), INTENT(in) :: fb_env
-    TYPE(qs_environment_type), POINTER :: qs_env
-    TYPE(section_vals_type), POINTER :: scf_section
-    TYPE(cp_error_type), INTENT(INOUT) :: error
+    TYPE(fb_env_obj), INTENT(IN)             :: fb_env
+    TYPE(qs_environment_type), POINTER       :: qs_env
+    TYPE(section_vals_type), POINTER         :: scf_section
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'fb_env_write_info', &
-                                   routineP = moduleN//':'//routineN
+      routineP = moduleN//':'//routineN
 
-    LOGICAL :: failure
-    INTEGER :: ikind, nkinds, unit_nr, handle
-    REAL(KIND=dp) :: filter_temperature, auto_cutoff_scale
-    REAL(KIND=dp), DIMENSION(:), POINTER :: rcut
-    TYPE(atomic_kind_type), DIMENSION(:), POINTER :: atomic_kind_set
-    TYPE(cp_logger_type), POINTER :: logger
-    CHARACTER(LEN=2) :: element_symbol
+    CHARACTER(LEN=2)                         :: element_symbol
+    INTEGER                                  :: handle, ikind, nkinds, unit_nr
+    LOGICAL                                  :: failure
+    REAL(KIND=dp)                            :: auto_cutoff_scale, &
+                                                filter_temperature
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: rcut
+    TYPE(atomic_kind_type), DIMENSION(:), &
+      POINTER                                :: atomic_kind_set
+    TYPE(cp_logger_type), POINTER            :: logger
 
     CALL timeset(routineN, handle)
 
