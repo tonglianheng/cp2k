@@ -303,8 +303,8 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'fb_fltrmat_add_blkcol', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: handle, iatom_global, iatom_in_halo, ind, ipair, ipe, &
-               itrial, jatom_global, jatom_in_halo, jkind, &
+    INTEGER :: handle, handle_mpi, iatom_global, iatom_in_halo, ind, &
+               ipair, ipe, itrial, jatom_global, jatom_in_halo, jkind,&
                natoms_global, natoms_in_halo, ncols_atmatrix, &
                ncols_blk, nrows_atmatrix, nrows_blk, numprocs, pe, &
                recv_encode, send_encode, stat
@@ -320,7 +320,8 @@ CONTAINS
                                           recv_pair_disps, recv_sizes,&
                                           send_disps, send_pair_count,&
                                           send_pair_disps, send_sizes
-    INTEGER, DIMENSION(:), POINTER           :: ntfns, row_block_size_data
+    INTEGER, DIMENSION(:), POINTER           :: halo_atoms, ntfns, &
+                                                row_block_size_data
     INTEGER, DIMENSION(:, :), POINTER        :: tfns
     LOGICAL                                  :: failure, found
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: recv_buf, send_buf
@@ -334,11 +335,10 @@ CONTAINS
 
     failure = .FALSE.
 
-    NULLIFY(pairs_send, pairs_recv, ntfns, tfns, atomic_kind, &
-            row_block_size_data)
+    NULLIFY(atomic_kind, halo_atoms, ntfns, pairs_send, pairs_recv, &
+            row_block_size_data, tfns)
     CALL fb_com_atom_pairs_nullify(com_pairs_send)
     CALL fb_com_atom_pairs_nullify(com_pairs_recv)
-
 
     ! ----------------------------------------------------------------------
     ! Get communication buffers ready
@@ -437,6 +437,7 @@ CONTAINS
 
     CALL fb_atomic_halo_get(atomic_halo=atomic_halo, &
                             natoms=natoms_in_halo, &
+                            halo_atoms=halo_atoms, &
                             error=error)
 
     ! construct atomic matrix for H for atomic_halo
@@ -506,7 +507,6 @@ CONTAINS
     ALLOCATE(ind_in_halo(natoms_global), STAT=stat)
     CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
     ind_in_halo = 0
-    CALL fb_atomic_halo_get(atomic_halo, halo_atoms=halo_atoms, error=error)
     DO iatom_in_halo = 1, natoms_in_halo
        iatom_global = halo_atoms(iatom_in_halo)
        ind_in_halo(iatom_global) = iatom_in_halo

@@ -881,6 +881,7 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:), POINTER     :: rcut
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
+    TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(distribution_1d_type), POINTER      :: local_particles
     TYPE(fb_atomic_halo_list_obj)            :: atomic_halos
@@ -895,9 +896,8 @@ CONTAINS
 
     CPPrecondition(fb_env_has_data(fb_env), cp_failure_level, routineP, error, failure)
 
-    NULLIFY(rcut, particle_set, atomic_kind_set, &
-            local_particles, halos, halo_atoms, para_env, &
-            cell)
+    NULLIFY(atomic_kind_set, cell, halos, halo_atoms, local_particles,&
+            rcut, particle_set, para_env)
     CALL fb_atomic_halo_list_nullify(atomic_halos)
 
     ! get relevant data from fb_env
