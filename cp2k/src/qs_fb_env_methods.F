@@ -116,6 +116,8 @@ MODULE qs_fb_env_methods
   USE timings, ONLY: timeset, &
                      timestop
   USE cp_control_types, ONLY: dft_control_type
+  USE cell_types, ONLY: cell_type,&
+                        pbc
 
   ! USE qs_neighbor_list_types, ONLY: neighbor_list_set_p_type
 
@@ -1008,6 +1010,7 @@ CONTAINS
     TYPE(atomic_kind_type), DIMENSION(:), POINTER :: atomic_kind_set
     TYPE(distribution_1d_type), POINTER :: local_particles
     TYPE(cp_para_env_type), POINTER :: para_env
+    TYPE(cell_type), POINTER :: cell
     TYPE(fb_atomic_halo_list_obj) :: atomic_halos
     TYPE(fb_atomic_halo_obj), DIMENSION(:), POINTER :: halos
     INTEGER :: stat, natoms_local, natoms_global, nkinds, ikind, &
@@ -1020,6 +1023,7 @@ CONTAINS
     INTEGER, DIMENSION(:), POINTER :: atom_list
     REAL(KIND=dp) :: rij
     REAL(KIND=dp), DIMENSION(:,:), ALLOCATABLE :: pair_radius
+    REAL(KIND=dp), DIMENSION(3) :: ri, rj, rij_pbc
     LOGICAL, DIMENSION(:), ALLOCATABLE :: present_ab
 
     CALL timeset(routineN, handle)
@@ -1029,7 +1033,8 @@ CONTAINS
     CPPrecondition(fb_env_has_data(fb_env), cp_failure_level, routineP, error, failure)
 
     NULLIFY(rcut, particle_set, atomic_kind_set, &
-            local_particles, halos, halo_atoms, para_env)
+            local_particles, halos, halo_atoms, para_env, &
+            cell)
     CALL fb_atomic_halo_list_nullify(atomic_halos)
 
     ! get relevant data from fb_env
@@ -1048,6 +1053,7 @@ CONTAINS
                     atomic_kind_set=atomic_kind_set, &
                     nkind=nkinds_global, &
                     para_env=para_env, &
+                    cell=cell, &
                     error=error)
 
     nkinds = SIZE(local_particles%list)
@@ -1055,17 +1061,6 @@ CONTAINS
     ! get the maximum number of local atoms across the procs.
     max_natoms_local = natoms_local
     CALL mp_max(max_natoms_local, para_env%group)
-
-!BEG:DEBUG:LT:2014/08/22
-    ! CALL cp_assert(nkinds .LE. SIZE(rcut), cp_failure_level, &
-    !                cp_assertion_failed, routineP, &
-    !                "array size of r_cut and number of local particle kinds mismatch", &
-    !                error, failure)
-    ! CALL cp_assert(nkinds == nkinds_global, cp_failure_level, &
-    !                cp_assertion_failed, routineP, &
-    !                "nkinds not equal to nkinds_global", &
-    !                error, failure)
-!END:DEBUG:LT:2014/08/22
 
     ! create the halos, one for each local atom
     ALLOCATE(halos(natoms_local), STAT=stat)
@@ -1106,11 +1101,15 @@ CONTAINS
                                   atom_list=atom_list)
              DO jatom_in_kind = 1, n_global_atoms_in_kind
                 jatom = atom_list(jatom_in_kind)
-                ! calculate distance between iatom and jatom
-                rij = 0.0_dp
-                DO ii = 1, 3
-                   rij = rij + (particle_set(iatom)%r(ii) - particle_set(jatom)%r(ii))**2
-                END DO
+                ! calculate the minimum distance between iatom and
+                ! jatom, taking account of the periodic boundary
+                ! conditions
+                ri(1:3) = particle_set(iatom)%r(1:3)
+                rj(1:3) = particle_set(jatom)%r(1:3)
+                rij_pbc = pbc(ri, rj, cell)
+                rij = rij_pbc(1)*rij_pbc(1) + &
+                      rij_pbc(2)*rij_pbc(2) + &
+                      rij_pbc(3)*rij_pbc(3)
                 rij = SQRT(rij)
                 IF (rij .LE. pair_radius(ikind, jkind)) THEN
                    ! jatom is in iatom's halo
@@ -1133,11 +1132,15 @@ CONTAINS
                 IF (jatom == iatom) THEN
                    owner_id_in_halo = ihalo_atom
                 END IF
-                ! calculate distance between iatom and jatom
-                rij = 0.0_dp
-                DO ii = 1, 3
-                   rij = rij + (particle_set(iatom)%r(ii) - particle_set(jatom)%r(ii))**2
-                END DO
+                ! calculate the minimum distance between iatom and
+                ! jatom, taking account of the periodic boundary
+                ! conditions
+                ri(1:3) = particle_set(iatom)%r(1:3)
+                rj(1:3) = particle_set(jatom)%r(1:3)
+                rij_pbc = pbc(ri, rj, cell)
+                rij = rij_pbc(1)*rij_pbc(1) + &
+                      rij_pbc(2)*rij_pbc(2) + &
+                      rij_pbc(3)*rij_pbc(3)
                 rij = SQRT(rij)
                 IF (rij .LE. pair_radius(ikind, jkind)) THEN
                    ! jatom is in iatom's halo
