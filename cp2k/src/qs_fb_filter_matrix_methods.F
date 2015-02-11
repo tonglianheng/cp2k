@@ -323,7 +323,7 @@ CONTAINS
     INTEGER, DIMENSION(:), POINTER           :: halo_atoms, ntfns, &
                                                 row_block_size_data
     INTEGER, DIMENSION(:, :), POINTER        :: tfns
-    LOGICAL                                  :: failure, found
+    LOGICAL                                  :: failure
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: recv_buf, send_buf
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: atomic_filter_mat, atomic_H, &

@@ -867,10 +867,12 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'fb_env_build_atomic_halos', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: handle, iatom, iatom_local, ihalo, ihalo_atom, ii, ikind, &
-      jatom, jatom_in_kind, jkind, max_natoms_local, n_global_atoms_in_kind, &
-      n_local_atoms_in_kind, natoms_global, natoms_local, nelectrons_in_halo, &
-      nhalo_atoms, nkinds, nkinds_global, owner_id_in_halo, stat
+    INTEGER :: handle, iatom, iatom_local, ihalo, ihalo_atom, ikind, &
+               jatom, jatom_in_kind, jkind, max_natoms_local, &
+               n_global_atoms_in_kind, n_local_atoms_in_kind, &
+               natoms_global, natoms_local, nelectrons_in_halo, &
+               nhalo_atoms, nkinds, nkinds_global, owner_id_in_halo, &
+               stat
     INTEGER, DIMENSION(:), POINTER           :: atom_list, halo_atoms
     LOGICAL                                  :: failure
     LOGICAL, ALLOCATABLE, DIMENSION(:)       :: present_ab
