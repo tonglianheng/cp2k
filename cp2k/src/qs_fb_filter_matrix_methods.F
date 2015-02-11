@@ -145,19 +145,6 @@ CONTAINS
     TYPE(fb_atomic_halo_obj) :: dummy_atomic_halo
     TYPE(fb_atomic_halo_obj), DIMENSION(:), POINTER :: halos
 
-
-!BEG:DEBUG:LT:2015/01/20
-    INTEGER, DIMENSION(:), POINTER :: halo_atoms
-!END:DEBUG:LT:2015/01/20
-
-!BEG:DEBUG:LT:2015/01/29
-    INTEGER :: LT_UNIT
-!END:DEBUG:LT:2015/01/29
-
-!BEG:DEBUG:LT:2015/01/30
-    LT_UNIT = 100 + para_env%mepos
-!END:DEBUG:LT:2015/01/30
-
     CALL timeset(routineN, handle)
 
     failure = .FALSE.
@@ -213,11 +200,6 @@ CONTAINS
                          nze=0, &
                          error=error)
 
-!BEG:DEBUG:LT:2015/01/30
-    ! write (LT_UNIT,*) "|LT| fb_fltrmat_build: atomic_halos associated = ", &
-    !       fb_atomic_halo_list_has_data(atomic_halos)
-!END:DEBUG:LT:2015/01/30
-
     CALL fb_atomic_halo_list_get(atomic_halos=atomic_halos, &
                                  nhalos=nhalos, &
                                  max_nhalos=max_nhalos, &
@@ -240,23 +222,11 @@ CONTAINS
     send_data_only = .FALSE.
 
     DO ihalo = 1, max_nhalos
-
-!BEG:DEBUG:LT:2015/01/29
-       ! write (LT_UNIT, *) "|LT| fb_fltrmat_build: nhalos = ", nhalos
-       ! write (LT_UNIT, *) "|LT| fb_fltrmat_build: max_nhalos = ", max_nhalos
-!END:DEBUG:LT:2015/01/29
-
        IF (ihalo > nhalos) THEN
           send_data_only = .TRUE.
        END IF
-
        ! construct the filter matrix block by block
        IF (send_data_only) THEN
-
-!BEG:DEBUG:LT:2015/01/29
-          ! write (LT_UNIT, *) "|LT| fb_fltrmat_build: doing dummy calculation"
-!END:DEBUG:LT:2015/01/29
-
           CALL fb_fltrmat_add_blkcol(H_mat, &
                                      S_mat, &
                                      dummy_atomic_halo, &
@@ -268,12 +238,6 @@ CONTAINS
                                      filter_mat, &
                                      error)
        ELSE
-
-!BEG:DEBUG:LT:2015/01/20
-          ! CALL fb_atomic_halo_get(halos(ihalo), halo_atoms=halo_atoms, error=error)
-          ! write (LT_UNIT, *) "|LT| fb_fltrmat_build: halo ", ihalo, " = ", halo_atoms
-!END:DEBUG:LT:2015/01/20
-
           CALL fb_fltrmat_add_blkcol(H_mat, &
                                      S_mat, &
                                      halos(ihalo), &
@@ -351,7 +315,7 @@ CONTAINS
                nrows_blk, ncols_blk, &
                send_encode, recv_encode, &
                natoms_in_halo, nrows_atmatrix, ncols_atmatrix, &
-               jkind, itrial, ind, natoms_global, handle
+               jkind, itrial, ind, natoms_global, handle, handle_mpi
     INTEGER(KIND=int_8), DIMENSION(:), POINTER :: pairs_send, pairs_recv
     INTEGER, DIMENSION(:), ALLOCATABLE :: send_sizes, send_disps, &
                                           send_pair_count, send_pair_disps, &
@@ -611,6 +575,15 @@ CONTAINS
     ! in send_buffer
     ! ----------------------------------------------------------------------
 
+    ! preconstruct iatom_global to iatom_in_halo map
+    ALLOCATE(ind_in_halo(natoms_global))
+    ind_in_halo = 0
+    CALL fb_atomic_halo_get(atomic_halo, halo_atoms=halo_atoms, error=error)
+    DO iatom_in_halo = 1, natoms_in_halo
+       iatom_global = halo_atoms(iatom_in_halo)
+       ind_in_halo(iatom_global) = iatom_in_halo
+    END DO
+
     ! initialise send buffer
     IF (SIZE(send_buf) > 0) send_buf = 0.0_dp
     ! assign values
@@ -630,14 +603,10 @@ CONTAINS
           CALL fb_com_atom_pairs_decode(pairs_send(send_pair_disps(ipe) + ipair), &
                                         pe, iatom_global, jatom_global, &
                                         send_encode)
-          CALL fb_atomic_halo_atom_global2halo(atomic_halo, &
-                                               iatom_global, iatom_in_halo, &
-                                               found, error)
-          CPPostcondition(found, cp_failure_level, routineP, error, failure)
-          CALL fb_atomic_halo_atom_global2halo(atomic_halo, &
-                                               jatom_global, jatom_in_halo, &
-                                               found, error)
-          CPPostcondition(found, cp_failure_level, routineP, error, failure)
+          iatom_in_halo = ind_in_halo(iatom_global)
+          CPPostcondition(iatom_in_halo>0, cp_failure_level, routineP, error, failure)
+          jatom_in_halo = ind_in_halo(jatom_global)
+          CPPostcondition(jatom_in_halo>0, cp_failure_level, routineP, error, failure)
           atomic_kind => particle_set(jatom_global)%atomic_kind
           CALL get_atomic_kind(atomic_kind=atomic_kind, &
                                kind_number=jkind)
@@ -756,9 +725,13 @@ CONTAINS
     ! Do communication
     ! ----------------------------------------------------------------------
 
+    CALL timeset("fb_fltrmat_add_blkcol_mpi", handle_mpi)
+
     CALL mp_alltoall(send_buf, send_sizes, send_disps, &
                      recv_buf, recv_sizes, recv_disps, &
                      para_env%group)
+
+    CALL timestop(handle_mpi)
 
     DEALLOCATE(send_buf, STAT=stat)
     CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
@@ -1061,7 +1034,7 @@ CONTAINS
     CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
     eigenvectors = atomic_H
 
-    CALL timeset("atomic_filter: dsygv", handle_dsygv)
+    CALL timeset("atomic_filter_dsygv", handle_dsygv)
 
     CALL dsygv(1,             &
                'V',           &
@@ -1190,7 +1163,7 @@ CONTAINS
     DEALLOCATE(filter_function, STAT=stat)
     CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
 
-    CALL timeset("atomic_filter: dgemm", handle_dgemm)
+    CALL timeset("atomic_filter_dgemm", handle_dgemm)
 
     ! construct atomic filter matrix
     CALL dgemm("N",                   &
