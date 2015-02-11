@@ -13,6 +13,8 @@ MODULE qs_fb_atomic_halo_types
   USE atomic_kind_types,   ONLY: atomic_kind_type, &
                                  get_atomic_kind
   USE util,                ONLY: sort, locate
+  USE timings,             ONLY: timeset, &
+                                 timestop
 
 #include "./common/cp_common_uses.f90"
 
@@ -474,6 +476,9 @@ CONTAINS
                                    routineP = moduleN//':'//routineN
 
     LOGICAL :: failure
+    INTEGER :: handle
+
+    CALL timeset(routineN, handle)
 
     failure = .FALSE.
     CPPrecondition(atomic_halo%obj%sorted, cp_failure_level, routineP, error, failure)
@@ -483,6 +488,9 @@ CONTAINS
     ELSE
        found = .TRUE.
     END IF
+
+    CALL timestop(handle)
+
   END SUBROUTINE fb_atomic_halo_atom_global2halo
 
 
