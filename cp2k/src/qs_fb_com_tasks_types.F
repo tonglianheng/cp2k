@@ -1,37 +1,32 @@
 MODULE qs_fb_com_tasks_types
 
-  USE kinds,           ONLY: int_8, int_4
-  USE cp_para_types,   ONLY: cp_para_env_type
-  USE message_passing, ONLY: mp_alltoall
-  USE util,            ONLY: sort
-  USE cp_dbcsr_interface, ONLY: cp_dbcsr_type, &
-                                cp_dbcsr_row_block_sizes, &
-                                cp_dbcsr_col_block_sizes, &
-                                cp_dbcsr_get_info, &
-                                array_new, &
-                                array_data
-  USE memory_utilities, ONLY: reallocate
-  USE timings, ONLY: timeset, &
-                     timestop
-
+  USE cp_dbcsr_interface,              ONLY: cp_dbcsr_type
+  USE cp_para_types,                   ONLY: cp_para_env_type
+  USE kinds,                           ONLY: int_4,&
+                                             int_8
+  USE memory_utilities,                ONLY: reallocate
+  USE message_passing,                 ONLY: mp_alltoall
+  USE timings,                         ONLY: timeset,&
+                                             timestop
+  USE util,                            ONLY: sort
 #include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
 
   PRIVATE
 
-  ! public parameters:
+! public parameters:
   PUBLIC :: TASK_N_RECORDS, &
             TASK_DEST,      &
             TASK_SRC,       &
             TASK_PAIR,      &
             TASK_COST
 
-  ! public types
+! public types
   PUBLIC :: fb_com_tasks_obj, &
             fb_com_atom_pairs_obj
 
-  ! public methods
+! public methods
   PUBLIC :: fb_com_tasks_retain,             &
             fb_com_tasks_release,            &
             fb_com_tasks_nullify,            &
@@ -62,41 +57,41 @@ MODULE qs_fb_com_tasks_types
   INTEGER, PRIVATE, SAVE :: last_fb_com_tasks_id = 0
   INTEGER, PRIVATE, SAVE :: last_fb_com_atom_pairs_id = 0
 
-  ! **********************************************************************
-  ! explaination on format of task lists (same for tasks_recv and tasks_send):
-  ! tasks_recv has dimension (4, ntasks_recv), and stores information on
-  ! the block to be copied or transfered
-  ! - tasks_recv(TASK_DEST,itask) = destination MPI rank of itask-th task
-  ! - tasks_recv(TASK_SRC,itask) = source MPI rank of itask-th task
-  ! - tasks_recv(TASK_PAIR,itask) = compressed pair indices of the block of itask-th task
-  ! - tasks_recv(TASK_COST,itask) = the cost of itask-th task
-  !
-  ! number of record slots in each task in the task lists
+! **********************************************************************
+! explaination on format of task lists (same for tasks_recv and tasks_send):
+! tasks_recv has dimension (4, ntasks_recv), and stores information on
+! the block to be copied or transfered
+! - tasks_recv(TASK_DEST,itask) = destination MPI rank of itask-th task
+! - tasks_recv(TASK_SRC,itask) = source MPI rank of itask-th task
+! - tasks_recv(TASK_PAIR,itask) = compressed pair indices of the block of itask-th task
+! - tasks_recv(TASK_COST,itask) = the cost of itask-th task
+!
+! number of record slots in each task in the task lists
   INTEGER, PARAMETER :: TASK_N_RECORDS = 4
-  ! the indices for the records (1:TASK_DIM) in a task
+! the indices for the records (1:TASK_DIM) in a task
   INTEGER, PARAMETER :: TASK_DEST = 1, &
                         TASK_SRC  = 2, &
                         TASK_PAIR = 3, &
                         TASK_COST = 4
-  ! **********************************************************************
+! **********************************************************************
 
 
-  ! **********************************************************************
-  !> \brief data content for communication tasks used for send and receive
-  !>        matrix blocks
-  !> \param id_nr     : unique id for the object
-  !> \param ref_count : reference count on the object
-  !> \param tasks     : the list of communication tasks, which is
-  !>                    represented by a 2D array, first dim stores
-  !>                    info for the communication: src and desc procs
-  !>                    and the atomic pair indexing the matrix block
-  !>                    to be communicated, etc.
-  !> \param task_dim  : the size of the first dimension of tasks
-  !> \param ntasks    : total number of local tasks
-  !> \param nencode   : the total number of atoms used for encoding
-  !>                    the block coordinates (iatom, jatom)
-  !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
-  ! **********************************************************************
+! **********************************************************************
+!> \brief data content for communication tasks used for send and receive
+!>        matrix blocks
+!> \param id_nr     : unique id for the object
+!> \param ref_count : reference count on the object
+!> \param tasks     : the list of communication tasks, which is
+!>                    represented by a 2D array, first dim stores
+!>                    info for the communication: src and desc procs
+!>                    and the atomic pair indexing the matrix block
+!>                    to be communicated, etc.
+!> \param task_dim  : the size of the first dimension of tasks
+!> \param ntasks    : total number of local tasks
+!> \param nencode   : the total number of atoms used for encoding
+!>                    the block coordinates (iatom, jatom)
+!> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
+! **********************************************************************
   TYPE fb_com_tasks_data
      INTEGER :: id_nr, ref_count
      ! use pure integer arrays to facilitate easier MPI coms
@@ -107,67 +102,67 @@ MODULE qs_fb_com_tasks_types
   END TYPE fb_com_tasks_data
 
 
-  !**********************************************************************
-  !> \brief defines a fb_com_tasks object
-  !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
-  !**********************************************************************
+!**********************************************************************
+!> \brief defines a fb_com_tasks object
+!> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
+!**********************************************************************
   TYPE fb_com_tasks_obj
      TYPE(fb_com_tasks_data), POINTER, PRIVATE :: obj
   END TYPE fb_com_tasks_obj
 
 
-  ! **********************************************************************
-  !> \brief data content for the list of block coordinates with the
-  !>        associated src/dest proc id for communication. These will be
-  !>        generated from the fb_com_tasks object
-  !> \param id_nr         : unique id for the object
-  !> \param ref_count     : reference count on the object
-  !> \param pairs         : the list of communication tasks, which is
-  !>                        represented by a 2D array, first dim stores
-  !>                        info for the communication: src and desc procs
-  !>                        and the atomic pair indexing the matrix block
-  !>                        to be communicated, etc.
-  !> \param npairs        : number of blks to be communicated in the atom
-  !>                        pair list
-  !> \param natoms_encode : the total number of atoms used for encoding
-  !>                        the proc + block coordinates (pe, iatom, jatom)
-  !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
-  ! **********************************************************************
+! **********************************************************************
+!> \brief data content for the list of block coordinates with the
+!>        associated src/dest proc id for communication. These will be
+!>        generated from the fb_com_tasks object
+!> \param id_nr         : unique id for the object
+!> \param ref_count     : reference count on the object
+!> \param pairs         : the list of communication tasks, which is
+!>                        represented by a 2D array, first dim stores
+!>                        info for the communication: src and desc procs
+!>                        and the atomic pair indexing the matrix block
+!>                        to be communicated, etc.
+!> \param npairs        : number of blks to be communicated in the atom
+!>                        pair list
+!> \param natoms_encode : the total number of atoms used for encoding
+!>                        the proc + block coordinates (pe, iatom, jatom)
+!> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
+! **********************************************************************
   TYPE fb_com_atom_pairs_data
      INTEGER :: id_nr, ref_count
      INTEGER(KIND=int_8), DIMENSION(:), POINTER :: pairs
      INTEGER :: npairs
      INTEGER :: natoms_encode
-  END type fb_com_atom_pairs_data
+  END TYPE fb_com_atom_pairs_data
 
 
-  ! **********************************************************************
-  !> \brief defines a fb_com_atom_pairs object
-  !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
-  ! **********************************************************************
+! **********************************************************************
+!> \brief defines a fb_com_atom_pairs object
+!> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
+! **********************************************************************
   TYPE fb_com_atom_pairs_obj
      TYPE(fb_com_atom_pairs_data), POINTER, PRIVATE :: obj
-  END type fb_com_atom_pairs_obj
+  END TYPE fb_com_atom_pairs_obj
 
 
 CONTAINS
 
 
-  ! **********************************************************************
-  !> \brief Retains an fb_com_tasks object
-  !> \param com_tasks: the fb_com_tasks object, its content must not be
-  !>                   NULL or UNDEFINED
-  !> \param error: CP2K data container for error logging
-  !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
-  ! **********************************************************************
+! **********************************************************************
+!> \brief Retains an fb_com_tasks object
+!> \param com_tasks the fb_com_tasks object, its content must not be
+!>                   NULL or UNDEFINED
+!> \param error CP2K data container for error logging
+!> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
+! *****************************************************************************
   SUBROUTINE fb_com_tasks_retain(com_tasks, error)
-    TYPE(fb_com_tasks_obj), INTENT(in) :: com_tasks
-    TYPE(cp_error_type), INTENT(inout) :: error
+    TYPE(fb_com_tasks_obj), INTENT(IN)       :: com_tasks
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'fb_com_tasks_retain', &
-                                   routineP = moduleN//':'//routineN
+      routineP = moduleN//':'//routineN
 
-    LOGICAL :: failure
+    LOGICAL                                  :: failure
 
     failure = .FALSE.
     CPPrecondition(ASSOCIATED(com_tasks%obj), cp_failure_level, routineP, error, failure)
@@ -178,21 +173,21 @@ CONTAINS
   END SUBROUTINE fb_com_tasks_retain
 
 
-  ! **********************************************************************
-  !> \brief Retains an fb_com_atom_pairs object
-  !> \param com_tasks: the fb_com_atom_pairs object, its content must not be
-  !>                   NULL or UNDEFINED
-  !> \param error: CP2K data container for error logging
-  !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
-  ! **********************************************************************
+! **********************************************************************
+!> \brief Retains an fb_com_atom_pairs object
+!> \param atom_pairs the fb_com_atom_pairs object, its content must not be
+!>                   NULL or UNDEFINED
+!> \param error CP2K data container for error logging
+!> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
+! *****************************************************************************
   SUBROUTINE fb_com_atom_pairs_retain(atom_pairs, error)
-    TYPE(fb_com_atom_pairs_obj), INTENT(in) :: atom_pairs
-    TYPE(cp_error_type), INTENT(inout) :: error
+    TYPE(fb_com_atom_pairs_obj), INTENT(IN)  :: atom_pairs
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'fb_com_atom_pairs_retain', &
-                                   routineP = moduleN//':'//routineN
+      routineP = moduleN//':'//routineN
 
-    LOGICAL :: failure
+    LOGICAL                                  :: failure
 
     failure = .FALSE.
     CPPrecondition(ASSOCIATED(atom_pairs%obj), cp_failure_level, routineP, error, failure)
@@ -203,23 +198,23 @@ CONTAINS
   END SUBROUTINE fb_com_atom_pairs_retain
 
 
-  ! **********************************************************************
-  !> \brief Releases an fb_com_tasks object
-  !> \param com_tasks: the fb_com_tasks object, its content must not be
-  !>                   UNDEFINED, and the subroutine does nothing if the
-  !>                   content points to NULL
-  !> \param error: CP2K data container for error logging
-  !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
-  ! **********************************************************************
+! **********************************************************************
+!> \brief Releases an fb_com_tasks object
+!> \param com_tasks the fb_com_tasks object, its content must not be
+!>                   UNDEFINED, and the subroutine does nothing if the
+!>                   content points to NULL
+!> \param error CP2K data container for error logging
+!> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
+! *****************************************************************************
   SUBROUTINE fb_com_tasks_release(com_tasks, error)
-    TYPE(fb_com_tasks_obj), INTENT(inout) :: com_tasks
-    TYPE(cp_error_type), INTENT(inout) :: error
+    TYPE(fb_com_tasks_obj), INTENT(INOUT)    :: com_tasks
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'fb_com_tasks_release', &
-                                   routineP = moduleN//':'//routineN
+      routineP = moduleN//':'//routineN
 
-    LOGICAL :: failure
-    INTEGER :: stat
+    INTEGER                                  :: stat
+    LOGICAL                                  :: failure
 
     failure = .FALSE.
     IF (ASSOCIATED(com_tasks%obj)) THEN
@@ -240,23 +235,24 @@ CONTAINS
   END SUBROUTINE fb_com_tasks_release
 
 
-  ! **********************************************************************
-  !> \brief Releases an fb_com_atom_pairs object
-  !> \param atom_pairs: the fb_com_atom_pairs object, its content must not
-  !>                    be UNDEFINED, and the subroutine does nothing if
-  !>                    the content points to NULL
-  !> \param error: CP2K data container for error logging
-  !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
-  ! **********************************************************************
+! **********************************************************************
+!> \brief Releases an fb_com_atom_pairs object
+!> \param atom_pairs the fb_com_atom_pairs object, its content must not
+!>                    be UNDEFINED, and the subroutine does nothing if
+!>                    the content points to NULL
+!> \param error CP2K data container for error logging
+!> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
+! *****************************************************************************
   SUBROUTINE fb_com_atom_pairs_release(atom_pairs, error)
-    TYPE(fb_com_atom_pairs_obj), INTENT(inout) :: atom_pairs
-    TYPE(cp_error_type), INTENT(inout) :: error
+    TYPE(fb_com_atom_pairs_obj), &
+      INTENT(INOUT)                          :: atom_pairs
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'fb_com_atom_pairs_release', &
-                                   routineP = moduleN//':'//routineN
+      routineP = moduleN//':'//routineN
 
-    LOGICAL :: failure
-    INTEGER :: stat
+    INTEGER                                  :: stat
+    LOGICAL                                  :: failure
 
     failure = .FALSE.
     IF (ASSOCIATED(atom_pairs%obj)) THEN
@@ -277,126 +273,129 @@ CONTAINS
   END SUBROUTINE fb_com_atom_pairs_release
 
 
-  ! **********************************************************************
-  !> \brief Nullifies a fb_com_tasks object, note that it does not release
-  !>        the original object. This procedure is used to nullify the
-  !>        pointer contained in the object which is used to associate to
-  !>        the actual object content
-  !> \param com_tasks: the com_tasks object
-  !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
-  ! **********************************************************************
+! **********************************************************************
+!> \brief Nullifies a fb_com_tasks object, note that it does not release
+!>        the original object. This procedure is used to nullify the
+!>        pointer contained in the object which is used to associate to
+!>        the actual object content
+!> \param com_tasks the com_tasks object
+!> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
+! *****************************************************************************
   SUBROUTINE fb_com_tasks_nullify(com_tasks)
-    TYPE(fb_com_tasks_obj), INTENT(inout) :: com_tasks
+    TYPE(fb_com_tasks_obj), INTENT(INOUT)    :: com_tasks
 
     CHARACTER(len=*), PARAMETER :: routineN = 'fb_com_tasks_nullify', &
-                                   routineP = moduleN//':'//routineN
+      routineP = moduleN//':'//routineN
 
     NULLIFY(com_tasks%obj)
   END SUBROUTINE fb_com_tasks_nullify
 
 
-  ! **********************************************************************
-  !> \brief Nullifies a fb_com_atom_pairs object, note that it does not
-  !>        release the original object. This procedure is used to nullify
-  !>        the pointer contained in the object which is used to associate
-  !>        to the actual object content
-  !> \param atom_pairs: the fb_com_atom_pairs object
-  !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
-  ! **********************************************************************
+! **********************************************************************
+!> \brief Nullifies a fb_com_atom_pairs object, note that it does not
+!>        release the original object. This procedure is used to nullify
+!>        the pointer contained in the object which is used to associate
+!>        to the actual object content
+!> \param atom_pairs the fb_com_atom_pairs object
+!> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
+! *****************************************************************************
   SUBROUTINE fb_com_atom_pairs_nullify(atom_pairs)
-    TYPE(fb_com_atom_pairs_obj), INTENT(inout) :: atom_pairs
+    TYPE(fb_com_atom_pairs_obj), &
+      INTENT(INOUT)                          :: atom_pairs
 
     CHARACTER(len=*), PARAMETER :: routineN = 'fb_com_atom_pairs_nullify', &
-                                   routineP = moduleN//':'//routineN
+      routineP = moduleN//':'//routineN
 
     NULLIFY(atom_pairs%obj)
   END SUBROUTINE fb_com_atom_pairs_nullify
 
 
-  ! **********************************************************************
-  !> \brief Associates one fb_com_tasks object to another
-  !> \param a: the fb_com_tasks object to be associated
-  !> \param b: the fb_com_tasks object that a is to be associated to
-  !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
-  ! **********************************************************************
+! **********************************************************************
+!> \brief Associates one fb_com_tasks object to another
+!> \param a the fb_com_tasks object to be associated
+!> \param b the fb_com_tasks object that a is to be associated to
+!> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
+! *****************************************************************************
   SUBROUTINE fb_com_tasks_associate(a, b)
-    TYPE(fb_com_tasks_obj), INTENT(in) :: b
-    TYPE(fb_com_tasks_obj), INTENT(out) :: a
+    TYPE(fb_com_tasks_obj), INTENT(OUT)      :: a
+    TYPE(fb_com_tasks_obj), INTENT(IN)       :: b
 
     CHARACTER(len=*), PARAMETER :: routineN = 'fb_com_tasks_associate', &
-                                   routineP = moduleN//':'//routineN
+      routineP = moduleN//':'//routineN
 
     a%obj => b%obj
   END SUBROUTINE fb_com_tasks_associate
 
 
-  ! **********************************************************************
-  !> \brief Associates one fb_com_atom_pairs object to another
-  !> \param a: the fb_com_atom_pairs object to be associated
-  !> \param b: the fb_com_atom_pairs object that a is to be associated to
-  !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
-  ! **********************************************************************
+! **********************************************************************
+!> \brief Associates one fb_com_atom_pairs object to another
+!> \param a the fb_com_atom_pairs object to be associated
+!> \param b the fb_com_atom_pairs object that a is to be associated to
+!> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
+! *****************************************************************************
   SUBROUTINE fb_com_atom_pairs_associate(a, b)
-    TYPE(fb_com_atom_pairs_obj), INTENT(in) :: b
-    TYPE(fb_com_atom_pairs_obj), INTENT(out) :: a
+    TYPE(fb_com_atom_pairs_obj), INTENT(OUT) :: a
+    TYPE(fb_com_atom_pairs_obj), INTENT(IN)  :: b
 
     CHARACTER(len=*), PARAMETER :: routineN = 'fb_com_atom_pairs_associate', &
-                                   routineP = moduleN//':'//routineN
+      routineP = moduleN//':'//routineN
 
     a%obj => b%obj
   END SUBROUTINE fb_com_atom_pairs_associate
 
 
-  ! **********************************************************************
-  !> \brief Checks if a fb_com_tasks object is associated with an actual
-  !>        data content or not
-  !> \param com_tasks: the fb_com_tasks object
-  !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
-  ! **********************************************************************
+! **********************************************************************
+!> \brief Checks if a fb_com_tasks object is associated with an actual
+!>        data content or not
+!> \param com_tasks the fb_com_tasks object
+!> \retval res ...
+!> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
+! *****************************************************************************
   FUNCTION fb_com_tasks_has_data(com_tasks) RESULT(res)
-    TYPE(fb_com_tasks_obj), INTENT(in) :: com_tasks
-    LOGICAL :: res
+    TYPE(fb_com_tasks_obj), INTENT(IN)       :: com_tasks
+    LOGICAL                                  :: res
 
     CHARACTER(len=*), PARAMETER :: routineN = 'fb_com_tasks_has_data', &
-                                   routineP = moduleN//':'//routineN
+      routineP = moduleN//':'//routineN
 
     res = ASSOCIATED(com_tasks%obj)
   END FUNCTION fb_com_tasks_has_data
 
 
-  ! **********************************************************************
-  !> \brief Checks if a fb_com_atom_pairs object is associated with an actual
-  !>        data content or not
-  !> \param atom_pairs: the fb_com_atom_pairs object
-  !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
-  ! **********************************************************************
+! **********************************************************************
+!> \brief Checks if a fb_com_atom_pairs object is associated with an actual
+!>        data content or not
+!> \param atom_pairs the fb_com_atom_pairs object
+!> \retval res ...
+!> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
+! *****************************************************************************
   FUNCTION fb_com_atom_pairs_has_data(atom_pairs) RESULT(res)
-    TYPE(fb_com_atom_pairs_obj), INTENT(in) :: atom_pairs
-    LOGICAL :: res
+    TYPE(fb_com_atom_pairs_obj), INTENT(IN)  :: atom_pairs
+    LOGICAL                                  :: res
 
     CHARACTER(len=*), PARAMETER :: routineN = 'fb_com_atom_pairs_has_data', &
-                                   routineP = moduleN//':'//routineN
+      routineP = moduleN//':'//routineN
 
     res = ASSOCIATED(atom_pairs%obj)
   END FUNCTION fb_com_atom_pairs_has_data
 
 
-  ! **********************************************************************
-  !> \brief Creates and initialises an empty fb_com_tasks object
-  !> \param com_tasks: the fb_com_tasks object, its content must be NULL
-  !>                   and cannot be UNDEFINED
-  !> \param error: CP2K data container for error logging
-  !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
-  ! **********************************************************************
+! **********************************************************************
+!> \brief Creates and initialises an empty fb_com_tasks object
+!> \param com_tasks the fb_com_tasks object, its content must be NULL
+!>                   and cannot be UNDEFINED
+!> \param error CP2K data container for error logging
+!> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
+! *****************************************************************************
   SUBROUTINE fb_com_tasks_create(com_tasks, error)
-    TYPE(fb_com_tasks_obj), INTENT(inout) :: com_tasks
-    TYPE(cp_error_type), INTENT(inout) :: error
+    TYPE(fb_com_tasks_obj), INTENT(INOUT)    :: com_tasks
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'fb_com_tasks_create', &
-                                   routineP = moduleN//':'//routineN
+      routineP = moduleN//':'//routineN
 
-    LOGICAL :: failure
-    INTEGER :: stat
+    INTEGER                                  :: stat
+    LOGICAL                                  :: failure
 
     failure = .FALSE.
     CPPrecondition(.NOT.ASSOCIATED(com_tasks%obj), cp_failure_level, routineP, error, failure)
@@ -414,22 +413,23 @@ CONTAINS
   END SUBROUTINE fb_com_tasks_create
 
 
-  ! **********************************************************************
-  !> \brief Creates and initialises an empty fb_com_atom_pairs object
-  !> \param atom_pairs: the fb_com_atom_pairs object, its content must be
-  !>                    NULL and cannot be UNDEFINED
-  !> \param error: CP2K data container for error logging
-  !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
-  ! **********************************************************************
+! **********************************************************************
+!> \brief Creates and initialises an empty fb_com_atom_pairs object
+!> \param atom_pairs the fb_com_atom_pairs object, its content must be
+!>                    NULL and cannot be UNDEFINED
+!> \param error CP2K data container for error logging
+!> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
+! *****************************************************************************
   SUBROUTINE fb_com_atom_pairs_create(atom_pairs, error)
-    TYPE(fb_com_atom_pairs_obj), INTENT(inout) :: atom_pairs
-    TYPE(cp_error_type), INTENT(inout) :: error
+    TYPE(fb_com_atom_pairs_obj), &
+      INTENT(INOUT)                          :: atom_pairs
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'fb_com_atom_pairs_create', &
-                                   routineP = moduleN//':'//routineN
+      routineP = moduleN//':'//routineN
 
-    LOGICAL :: failure
-    INTEGER :: stat
+    INTEGER                                  :: stat
+    LOGICAL                                  :: failure
 
     failure = .FALSE.
     CPPrecondition(.NOT.ASSOCIATED(atom_pairs%obj), cp_failure_level, routineP, error, failure)
@@ -446,22 +446,22 @@ CONTAINS
   END SUBROUTINE fb_com_atom_pairs_create
 
 
-  ! **********************************************************************
-  !> \brief Initialises an fb_com_tasks object, and makes it empty
-  !> \param com_tasks: the fb_com_tasks object, its content must not be
-  !>                   NULL or UNDEFINED
-  !> \param error: CP2K data container for error logging
-  !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
-  ! **********************************************************************
+! **********************************************************************
+!> \brief Initialises an fb_com_tasks object, and makes it empty
+!> \param com_tasks the fb_com_tasks object, its content must not be
+!>                   NULL or UNDEFINED
+!> \param error CP2K data container for error logging
+!> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
+! *****************************************************************************
   SUBROUTINE fb_com_tasks_init(com_tasks, error)
-    TYPE(fb_com_tasks_obj), INTENT(in) :: com_tasks
-    TYPE(cp_error_type), INTENT(inout) :: error
+    TYPE(fb_com_tasks_obj), INTENT(INOUT)    :: com_tasks
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'fb_com_tasks_init', &
-                                   routineP = moduleN//':'//routineN
+      routineP = moduleN//':'//routineN
 
-    LOGICAL :: failure
-    INTEGER :: stat
+    INTEGER                                  :: stat
+    LOGICAL                                  :: failure
 
     failure = .FALSE.
     CPPrecondition(ASSOCIATED(com_tasks%obj), cp_failure_level, routineP, error, failure)
@@ -478,22 +478,23 @@ CONTAINS
   END SUBROUTINE fb_com_tasks_init
 
 
-  ! **********************************************************************
-  !> \brief Initialises an fb_com_atom_pairs object, and makes it empty
-  !> \param atom_pairs: the fb_com_atom_pairs object, its content must not
-  !>                    be NULL or UNDEFINED
-  !> \param error: CP2K data container for error logging
-  !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
-  ! **********************************************************************
+! **********************************************************************
+!> \brief Initialises an fb_com_atom_pairs object, and makes it empty
+!> \param atom_pairs the fb_com_atom_pairs object, its content must not
+!>                    be NULL or UNDEFINED
+!> \param error CP2K data container for error logging
+!> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
+! *****************************************************************************
   SUBROUTINE fb_com_atom_pairs_init(atom_pairs, error)
-    TYPE(fb_com_atom_pairs_obj), INTENT(in) :: atom_pairs
-    TYPE(cp_error_type), INTENT(inout) :: error
+    TYPE(fb_com_atom_pairs_obj), &
+      INTENT(INOUT)                          :: atom_pairs
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'fb_com_atom_pairs_init', &
-                                   routineP = moduleN//':'//routineN
+      routineP = moduleN//':'//routineN
 
-    LOGICAL :: failure
-    INTEGER :: stat
+    INTEGER                                  :: stat
+    LOGICAL                                  :: failure
 
     failure = .FALSE.
     CPPrecondition(ASSOCIATED(atom_pairs%obj), cp_failure_level, routineP, error, failure)
@@ -509,36 +510,35 @@ CONTAINS
   END SUBROUTINE fb_com_atom_pairs_init
 
 
-  ! **********************************************************************
-  !> \brief Gets attributes from a fb_com_tasks object, one should only
-  !>        access the data content in a fb_com_tasks object outside this
-  !>        module via this procedure.
-  !> \param com_tasks: the fb_com_tasks object, its content must not be
-  !>                   NULL or UNDEFINED
-  !> \param task_dim [OPTIONAL]: if present, outputs com_tasks%obj%task_dim
-  !> \param ntasks [OPTIONAL]: if present, outputs com_tasks%obj%ntasks
-  !> \param nencode [OPTIONAL]: if present, outputs com_tasks%obj%nencode
-  !> \param tasks [OPTIONAL]: if present, outputs pointer com_tasks%obj%tasks
-  !> \param error: CP2K data container for error logging
-  !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
-  ! **********************************************************************
+! **********************************************************************
+!> \brief Gets attributes from a fb_com_tasks object, one should only
+!>        access the data content in a fb_com_tasks object outside this
+!>        module via this procedure.
+!> \param com_tasks the fb_com_tasks object, its content must not be
+!>                   NULL or UNDEFINED
+!> \param task_dim [OPTIONAL]: if present, outputs com_tasks%obj%task_dim
+!> \param ntasks [OPTIONAL]: if present, outputs com_tasks%obj%ntasks
+!> \param nencode [OPTIONAL]: if present, outputs com_tasks%obj%nencode
+!> \param tasks [OPTIONAL]: if present, outputs pointer com_tasks%obj%tasks
+!> \param error CP2K data container for error logging
+!> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
+! *****************************************************************************
   SUBROUTINE fb_com_tasks_get(com_tasks, &
                               task_dim, &
                               ntasks, &
                               nencode, &
                               tasks, &
                               error)
-    TYPE(fb_com_tasks_obj), INTENT(in) :: com_tasks
-    INTEGER, INTENT(out), OPTIONAL :: task_dim
-    INTEGER, INTENT(out), OPTIONAL :: ntasks
-    INTEGER, INTENT(out), OPTIONAL :: nencode
-    INTEGER(KIND=int_8), DIMENSION(:,:), POINTER, OPTIONAL :: tasks
-    TYPE(cp_error_type), INTENT(inout) :: error
+    TYPE(fb_com_tasks_obj), INTENT(IN)       :: com_tasks
+    INTEGER, INTENT(OUT), OPTIONAL           :: task_dim, ntasks, nencode
+    INTEGER(KIND=int_8), DIMENSION(:, :), &
+      OPTIONAL, POINTER                      :: tasks
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'fb_com_tasks_get', &
-                                   routineP = moduleN//':'//routineN
+      routineP = moduleN//':'//routineN
 
-    LOGICAL :: failure
+    LOGICAL                                  :: failure
 
     failure = .FALSE.
     CPPrecondition(ASSOCIATED(com_tasks%obj), cp_failure_level, routineP, error, failure)
@@ -551,33 +551,33 @@ CONTAINS
   END SUBROUTINE fb_com_tasks_get
 
 
-  ! **********************************************************************
-  !> \brief Gets attributes from a fb_com_atom_pairs object, one should
-  !>        only access the data content in a fb_com_atom_pairs object
-  !>        outside this module via this procedure.
-  !> \param atom_pairs: the fb_com_atom_pairs object, its content must not
-  !>                    be NULL or UNDEFINED
-  !> \param npairs [OPTIONAL]: if present, outputs atom_pairs%obj%npairs
-  !> \param natoms_encode [OPTIONAL]: if present, outputs atom_pairs%obj%natoms_encode
-  !> \param pairs [OPTIONAL]: if present, outputs pointer atom_pairs%obj%pairs
-  !> \param error: CP2K data container for error logging
-  !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
-  ! **********************************************************************
+! **********************************************************************
+!> \brief Gets attributes from a fb_com_atom_pairs object, one should
+!>        only access the data content in a fb_com_atom_pairs object
+!>        outside this module via this procedure.
+!> \param atom_pairs the fb_com_atom_pairs object, its content must not
+!>                    be NULL or UNDEFINED
+!> \param npairs [OPTIONAL]: if present, outputs atom_pairs%obj%npairs
+!> \param natoms_encode [OPTIONAL]: if present, outputs atom_pairs%obj%natoms_encode
+!> \param pairs [OPTIONAL]: if present, outputs pointer atom_pairs%obj%pairs
+!> \param error CP2K data container for error logging
+!> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
+! *****************************************************************************
   SUBROUTINE fb_com_atom_pairs_get(atom_pairs, &
                                    npairs, &
                                    natoms_encode, &
                                    pairs, &
                                    error)
-    TYPE(fb_com_atom_pairs_obj), INTENT(in) :: atom_pairs
-    INTEGER, INTENT(out), OPTIONAL :: npairs
-    INTEGER, INTENT(out), OPTIONAL :: natoms_encode
-    INTEGER(KIND=int_8), DIMENSION(:), POINTER, OPTIONAL :: pairs
-    TYPE(cp_error_type), INTENT(inout) :: error
+    TYPE(fb_com_atom_pairs_obj), INTENT(IN)  :: atom_pairs
+    INTEGER, INTENT(OUT), OPTIONAL           :: npairs, natoms_encode
+    INTEGER(KIND=int_8), DIMENSION(:), &
+      OPTIONAL, POINTER                      :: pairs
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'fb_com_atom_pairs_get', &
-                                   routineP = moduleN//':'//routineN
+      routineP = moduleN//':'//routineN
 
-    LOGICAL :: failure
+    LOGICAL                                  :: failure
 
     failure = .FALSE.
     CPPrecondition(ASSOCIATED(atom_pairs%obj), cp_failure_level, routineP, error, failure)
@@ -589,37 +589,36 @@ CONTAINS
   END SUBROUTINE fb_com_atom_pairs_get
 
 
-  ! **********************************************************************
-  !> \brief Sets attributes in a fb_com_tasks object, one should only
-  !>        access the data content in a fb_com_tasks object outside this
-  !>        module via this procedure.
-  !> \param com_tasks: the fb_com_tasks object, its content must not be
-  !>                   NULL or UNDEFINED
-  !> \param task_dim [OPTIONAL]: if present, sets com_tasks%obj%task_dim
-  !> \param ntasks [OPTIONAL]: if present, sets com_tasks%obj%ntasks
-  !> \param nencode [OPTIONAL]: if present, sets com_tasks%obj%nencode
-  !> \param tasks [OPTIONAL]: if present, associates pointer com_tasks%obj%tasks
-  !> \param error: CP2K data container for error logging
-  !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
-  ! **********************************************************************
+! **********************************************************************
+!> \brief Sets attributes in a fb_com_tasks object, one should only
+!>        access the data content in a fb_com_tasks object outside this
+!>        module via this procedure.
+!> \param com_tasks the fb_com_tasks object, its content must not be
+!>                   NULL or UNDEFINED
+!> \param task_dim [OPTIONAL]: if present, sets com_tasks%obj%task_dim
+!> \param ntasks [OPTIONAL]: if present, sets com_tasks%obj%ntasks
+!> \param nencode [OPTIONAL]: if present, sets com_tasks%obj%nencode
+!> \param tasks [OPTIONAL]: if present, associates pointer com_tasks%obj%tasks
+!> \param error CP2K data container for error logging
+!> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
+! *****************************************************************************
   SUBROUTINE fb_com_tasks_set(com_tasks, &
                               task_dim, &
                               ntasks, &
                               nencode, &
                               tasks, &
                               error)
-    TYPE(fb_com_tasks_obj), INTENT(in) :: com_tasks
-    INTEGER, INTENT(in), OPTIONAL :: task_dim
-    INTEGER, INTENT(in), OPTIONAL :: ntasks
-    INTEGER, INTENT(in), OPTIONAL :: nencode
-    INTEGER(KIND=int_8), DIMENSION(:,:), POINTER, OPTIONAL :: tasks
-    TYPE(cp_error_type), INTENT(inout) :: error
+    TYPE(fb_com_tasks_obj), INTENT(INOUT)    :: com_tasks
+    INTEGER, INTENT(IN), OPTIONAL            :: task_dim, ntasks, nencode
+    INTEGER(KIND=int_8), DIMENSION(:, :), &
+      OPTIONAL, POINTER                      :: tasks
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'fb_com_tasks_set', &
-                                   routineP = moduleN//':'//routineN
+      routineP = moduleN//':'//routineN
 
-    LOGICAL :: failure
-    INTEGER :: stat
+    INTEGER                                  :: stat
+    LOGICAL                                  :: failure
 
     failure = .FALSE.
     CPPrecondition(ASSOCIATED(com_tasks%obj), cp_failure_level, routineP, error, failure)
@@ -638,34 +637,35 @@ CONTAINS
   END SUBROUTINE fb_com_tasks_set
 
 
-  ! **********************************************************************
-  !> \brief Sets attributes in a fb_com_atom_pairs object, one should only
-  !>        access the data content in a fb_com_atom_pairs object outside
-  !>        this module via this procedure.
-  !> \param atom_pairs: the fb_com_atom_pairs object, its content must not
-  !>                    be NULL or UNDEFINED
-  !> \param npairs [OPTIONAL]: if present, sets atom_pairs%obj%npairs
-  !> \param natom_encode [OPTIONAL]: if present, sets atom_pairs%obj%natoms_encode
-  !> \param pairs [OPTIONAL]: if present, associates pointer atom_pairs%obj%pairs
-  !> \param error: CP2K data container for error logging
-  !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
-  ! **********************************************************************
+! **********************************************************************
+!> \brief Sets attributes in a fb_com_atom_pairs object, one should only
+!>        access the data content in a fb_com_atom_pairs object outside
+!>        this module via this procedure.
+!> \param atom_pairs the fb_com_atom_pairs object, its content must not
+!>                    be NULL or UNDEFINED
+!> \param npairs [OPTIONAL]: if present, sets atom_pairs%obj%npairs
+!> \param natoms_encode [OPTIONAL]: if present, sets atom_pairs%obj%natoms_encode
+!> \param pairs [OPTIONAL]: if present, associates pointer atom_pairs%obj%pairs
+!> \param error CP2K data container for error logging
+!> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
+! *****************************************************************************
   SUBROUTINE fb_com_atom_pairs_set(atom_pairs, &
                                    npairs, &
                                    natoms_encode, &
                                    pairs, &
                                    error)
-    TYPE(fb_com_atom_pairs_obj), INTENT(in) :: atom_pairs
-    INTEGER, INTENT(in), OPTIONAL :: npairs
-    INTEGER, INTENT(in), OPTIONAL :: natoms_encode
-    INTEGER(KIND=int_8), DIMENSION(:), POINTER, OPTIONAL :: pairs
-    TYPE(cp_error_type), INTENT(inout) :: error
+    TYPE(fb_com_atom_pairs_obj), &
+      INTENT(INOUT)                          :: atom_pairs
+    INTEGER, INTENT(IN), OPTIONAL            :: npairs, natoms_encode
+    INTEGER(KIND=int_8), DIMENSION(:), &
+      OPTIONAL, POINTER                      :: pairs
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'fb_com_atom_pairs_set', &
-                                   routineP = moduleN//':'//routineN
+      routineP = moduleN//':'//routineN
 
-    LOGICAL :: failure
-    INTEGER :: stat
+    INTEGER                                  :: stat
+    LOGICAL                                  :: failure
 
     failure = .FALSE.
     CPPrecondition(ASSOCIATED(atom_pairs%obj), cp_failure_level, routineP, error, failure)
@@ -683,50 +683,51 @@ CONTAINS
   END SUBROUTINE fb_com_atom_pairs_set
 
 
-  ! **********************************************************************
-  !> \brief Start from a local set of tasks that has desc/src process equal
-  !>        to the local MPI rank, communicate with other processes so
-  !>        that a new local set of tasks is constructed with src/desc
-  !>        process equal to the local MPI rank
-  !> \param tasks_dest_is_me: the local com_task object with all tasks
-  !>                          having the desc process id equal to my_id
-  !> \param direction: direction of operation:
-  !>                   ">" means from tasks_dest_is_me construct tasks_src_is_me
-  !>                   "<" means from tasks_src_is_me construct tasks_dest_is_me
-  !> \param tasks_src_is_me: the local com_task object with all tasks
-  !>                          having the src process id equal to my_id
-  !> \param para_env: CP2K parallel environment object that stores MPI related
-  !>                  information of the current run
-  !> \param error: CP2K data container for error logging
-  !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
-  ! **********************************************************************
+! **********************************************************************
+!> \brief Start from a local set of tasks that has desc/src process equal
+!>        to the local MPI rank, communicate with other processes so
+!>        that a new local set of tasks is constructed with src/desc
+!>        process equal to the local MPI rank
+!> \param tasks_dest_is_me the local com_task object with all tasks
+!>                          having the desc process id equal to my_id 
+!> \param direction direction of operation:
+!>                   ">" means from tasks_dest_is_me construct tasks_src_is_me
+!>                   "<" means from tasks_src_is_me construct tasks_dest_is_me 
+!> \param tasks_src_is_me the local com_task object with all tasks
+!>                          having the src process id equal to my_id 
+!> \param para_env CP2K parallel environment object that stores MPI related
+!>                  information of the current run 
+!> \param error CP2K data container for error logging 
+!> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
+! *****************************************************************************
   SUBROUTINE fb_com_tasks_transpose_dest_src(tasks_dest_is_me, &
                                              direction, &
                                              tasks_src_is_me, &
                                              para_env, &
                                              error)
-    TYPE(fb_com_tasks_obj), INTENT(in) :: tasks_dest_is_me
-    CHARACTER, INTENT(in) :: direction
-    TYPE(fb_com_tasks_obj), INTENT(in) :: tasks_src_is_me
-    TYPE(cp_para_env_type), POINTER :: para_env
-    TYPE(cp_error_type), INTENT(inout) :: error
+    TYPE(fb_com_tasks_obj), INTENT(INOUT)    :: tasks_dest_is_me
+    CHARACTER, INTENT(IN)                    :: direction
+    TYPE(fb_com_tasks_obj), INTENT(INOUT)    :: tasks_src_is_me
+    TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'fb_com_tasks_transpose_dest_src', &
-                                   routineP = moduleN//':'//routineN
+    CHARACTER(LEN=*), PARAMETER :: &
+      routineN = 'fb_com_tasks_transpose_dest_src', &
+      routineP = moduleN//':'//routineN
 
-    LOGICAL :: failure
-    INTEGER :: itask, ipe, rank, rank_pos, task_dim, ii, jj, ind, &
-               ntasks_in, ntasks_out, stat, nencode, handle
-    INTEGER(KIND=int_8), DIMENSION(:,:), POINTER :: tasks_in, tasks_out
-    INTEGER, DIMENSION(:), ALLOCATABLE :: send_sizes, send_disps, &
-                                          recv_sizes, recv_disps, &
-                                          send_buf, recv_buf
+    INTEGER :: handle, ii, ind, ipe, itask, jj, LT_UNIT, nencode, ntasks_in, &
+      ntasks_out, rank, rank_pos, stat, task_dim
+    INTEGER(KIND=int_8), DIMENSION(:, :), &
+      POINTER                                :: tasks_in, tasks_out
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: recv_buf, recv_disps, &
+                                                recv_sizes, send_buf, &
+                                                send_disps, send_sizes
+    LOGICAL                                  :: failure
 
 !BEG:DEBUG:LT:2015/01/29
-    INTEGER :: LT_UNIT
 !END:DEBUG:LT:2015/01/29
-
 !BEG:DEBUG:LT:2015/01/30
+
     LT_UNIT = 100 + para_env%mepos
 !END:DEBUG:LT:2015/01/30
 
@@ -781,7 +782,7 @@ CONTAINS
     send_buf = 0
     ! looping over local task list
     DO itask = 1, ntasks_in
-       rank = tasks_in(rank_pos,itask) + 1
+       rank = INT(tasks_in(rank_pos,itask)) + 1
 
 !BEG:DEBUG:LT:2015/01/20
        ! write (LT_UNIT,*) "itask, rank", itask, rank
@@ -834,10 +835,10 @@ CONTAINS
     IF (SIZE(recv_buf) > 0) recv_buf = 0
     send_sizes = 0
     DO itask = 1, ntasks_in
-       rank = tasks_in(rank_pos,itask) + 1
+       rank = INT(tasks_in(rank_pos,itask)) + 1
        DO ii = 1, task_dim
           ind = send_disps(rank) + send_sizes(rank) + ii
-          send_buf(ind) = tasks_in(ii,itask)
+          send_buf(ind) = INT(tasks_in(ii,itask))
        END DO
        send_sizes(rank) = send_sizes(rank) + task_dim
     END DO
@@ -902,55 +903,61 @@ CONTAINS
   END SUBROUTINE fb_com_tasks_transpose_dest_src
 
 
-  ! **********************************************************************
-  !> \brief Generate send or receive atom_pair lists from a com_tasks
-  !>        object. atom_pair list is used as a condensed index for the
-  !>        local/remote matrix blocks to be sent/received.
-  !> \param com_tasks: the com_tasks object
-  !> \param atom_pairs: fb_com_atom_pairs_obj containing  list of encoded
-  !>                    atomic pair indices and the dest/src proc id for
-  !>                    the matrix block to be sent/received.
-  !> \param natoms_encode: the total number of atoms the atomic pair indices
-  !>                       corresponds to, and it is used for encode the
-  !>                       atom_pairs values
-  !> \param send_or_recv: whether the atom_pair to be generated is for
-  !>                      the local matrix blocks to be sent or the
-  !>                      remote matrix blocks to be received for this MPI
-  !>                      process
-  !> \param symmetric: whether the matrix the blocks are to be taken from
-  !>                   is symmetric
-  !> \param error: CP2K data container for error logging
-  !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
-  ! **********************************************************************
+! **********************************************************************
+!> \brief Generate send or receive atom_pair lists from a com_tasks
+!>        object. atom_pair list is used as a condensed index for the
+!>        local/remote matrix blocks to be sent/received.
+!> \param com_tasks the com_tasks object 
+!> \param atom_pairs fb_com_atom_pairs_obj containing  list of encoded
+!>                    atomic pair indices and the dest/src proc id for
+!>                    the matrix block to be sent/received. 
+!> \param natoms_encode the total number of atoms the atomic pair indices
+!>                       corresponds to, and it is used for encode the
+!>                       atom_pairs values 
+!> \param send_or_recv whether the atom_pair to be generated is for
+!>                      the local matrix blocks to be sent or the
+!>                      remote matrix blocks to be received for this MPI
+!>                      process 
+!> \param symmetric whether the matrix the blocks are to be taken from
+!>                   is symmetric 
+!> \param error CP2K data container for error logging 
+!> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
+! *****************************************************************************
   SUBROUTINE fb_com_tasks_build_atom_pairs(com_tasks, &
                                            atom_pairs, &
                                            natoms_encode, &
                                            send_or_recv, &
                                            symmetric, &
                                            error)
-    TYPE(fb_com_tasks_obj), INTENT(in) :: com_tasks
-    TYPE(fb_com_atom_pairs_obj), INTENT(in) :: atom_pairs
-    INTEGER, INTENT(in) :: natoms_encode
-    CHARACTER(len=*), INTENT(in) :: send_or_recv
-    LOGICAL, INTENT(in), OPTIONAL :: symmetric
-    TYPE(cp_error_type), INTENT(inout) :: error
+    TYPE(fb_com_tasks_obj), INTENT(IN)       :: com_tasks
+    TYPE(fb_com_atom_pairs_obj), &
+      INTENT(INOUT)                          :: atom_pairs
+    INTEGER, INTENT(IN)                      :: natoms_encode
+    CHARACTER(len=*), INTENT(IN)             :: send_or_recv
+    LOGICAL, INTENT(IN), OPTIONAL            :: symmetric
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'fb_com_tasks_build_atom_pairs', &
-                                   routineP = moduleN//':'//routineN
+    CHARACTER(LEN=*), PARAMETER :: &
+      routineN = 'fb_com_tasks_build_atom_pairs', &
+      routineP = moduleN//':'//routineN
 
-    LOGICAL :: failure, my_symmetric, check_ok
-    INTEGER :: itask, ntasks, arow, acol, rank, &
-               rank_pos, iatom, jatom, stat, npairs, ii, handle
-    INTEGER(KIND=int_8) :: pair
-    INTEGER(KIND=int_8), DIMENSION(:,:), POINTER :: tasks
-    INTEGER(KIND=int_8), DIMENSION(:), POINTER :: pairs
-    INTEGER, DIMENSION(:), ALLOCATABLE :: tmp_index
+    INTEGER                                  :: acol, arow, handle, iatom, &
+                                                ii, itask, jatom, LT_UNIT, &
+                                                npairs, ntasks, rank, &
+                                                rank_pos, stat
+    INTEGER(KIND=int_8)                      :: pair
+    INTEGER(KIND=int_8), DIMENSION(:), &
+      POINTER                                :: pairs
+    INTEGER(KIND=int_8), DIMENSION(:, :), &
+      POINTER                                :: tasks
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: tmp_index
+    LOGICAL                                  :: check_ok, failure, &
+                                                my_symmetric
 
 !BEG:DEBUG:LT:2015/01/30
-    INTEGER :: LT_UNIT
 !END:DEBUG:LT:2015/01/30
-
 !BEG:DEBUG:LT:2015/01/30
+
     LT_UNIT = 200
 !END:DEBUG:LT:2015/01/30
 
@@ -1005,7 +1012,7 @@ CONTAINS
           arow = iatom
           acol = jatom
        END IF
-       rank = tasks(rank_pos,itask)
+       rank = INT(tasks(rank_pos,itask))
        CALL fb_com_atom_pairs_encode(pairs(itask), &
                                      rank, arow, acol, natoms_encode)
 
@@ -1081,23 +1088,23 @@ CONTAINS
   END SUBROUTINE fb_com_tasks_build_atom_pairs
 
 
-  ! **********************************************************************
-  !> \brief Encodes (iatom, jatom) pair index of a block into a single
-  !>        integer
-  !> \param int: encoded integer
-  !> \param iatom: the first index of the (iatom, jatom) block index
-  !> \param jatom: the second index of the (iatom, jatom) block index
-  !> \prarm natoms: the total number of atoms iatom and jatom indexes
-  !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
-  ! **********************************************************************
+! **********************************************************************
+!> \brief Encodes (iatom, jatom) pair index of a block into a single
+!>        integer
+!> \param ind encoded integer 
+!> \param iatom the first index of the (iatom, jatom) block index 
+!> \param jatom the second index of the (iatom, jatom) block index 
+!> \param natoms the total number of atoms iatom and jatom indexes
+!> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
+! *****************************************************************************
   SUBROUTINE fb_com_tasks_encode_pair(ind, iatom, jatom, natoms)
-    INTEGER(KIND=int_8), INTENT(out) :: ind
-    INTEGER, INTENT(in) :: iatom, jatom, natoms
+    INTEGER(KIND=int_8), INTENT(OUT)         :: ind
+    INTEGER, INTENT(IN)                      :: iatom, jatom, natoms
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'fb_com_tasks_encode_pair', &
-                                   routineP = moduleN//':'//routineN
+      routineP = moduleN//':'//routineN
 
-    INTEGER(KIND=int_8) :: natoms8, iatom8, jatom8
+    INTEGER(KIND=int_8)                      :: iatom8, jatom8, natoms8
 
     natoms8 = INT(natoms, int_8)
     iatom8 = INT(iatom, int_8)
@@ -1107,24 +1114,24 @@ CONTAINS
   END SUBROUTINE fb_com_tasks_encode_pair
 
 
-  ! **********************************************************************
-  !> \brief Dncodes a single integer into (iatom, jatom) pair index of
-  !>        a block into a single
-  !> \param int: encoded integer
-  !> \param iatom: the first index of the (iatom, jatom) block index
-  !> \param jatom: the second index of the (iatom, jatom) block index
-  !> \prarm natoms: the total number of atoms iatom and jatom indexes
-  !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
-  ! **********************************************************************
+! **********************************************************************
+!> \brief Dncodes a single integer into (iatom, jatom) pair index of
+!>        a block into a single
+!> \param ind encoded integer 
+!> \param iatom the first index of the (iatom, jatom) block index 
+!> \param jatom the second index of the (iatom, jatom) block index 
+!> \param natoms the total number of atoms iatom and jatom indexes
+!> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
+! *****************************************************************************
   SUBROUTINE fb_com_tasks_decode_pair(ind, iatom, jatom, natoms)
-    INTEGER(KIND=int_8), INTENT(in) :: ind
-    INTEGER, INTENT(in) :: natoms
-    INTEGER, INTENT(out) :: iatom, jatom
+    INTEGER(KIND=int_8), INTENT(IN)          :: ind
+    INTEGER, INTENT(OUT)                     :: iatom, jatom
+    INTEGER, INTENT(IN)                      :: natoms
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'fb_com_tasks_decode_pair', &
-                                   routineP = moduleN//':'//routineN
+      routineP = moduleN//':'//routineN
 
-    INTEGER(KIND=int_8) :: natoms8, iatom8, jatom8
+    INTEGER(KIND=int_8)                      :: iatom8, jatom8, natoms8
 
     natoms8 = INT(natoms, int_8)
     iatom8 = ind / natoms8 + 1_int_8
@@ -1134,56 +1141,58 @@ CONTAINS
   END SUBROUTINE fb_com_tasks_decode_pair
 
 
-  ! **********************************************************************
-  !> \brief Encodes (rank, iatom, jatom) index of a communication task---to
-  !>         send/receive a block to/from a process---into a single integer
-  !> \param int: encoded integer
-  !> \param pe: the rank of the process the block to be send to or receive
-  !>            from
-  !> \param iatom: the first index of the (iatom, jatom) block index
-  !> \param jatom: the second index of the (iatom, jatom) block index
-  !> \prarm natoms: the total number of atoms iatom and jatom indexes
-  !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
-  ! **********************************************************************
+! **********************************************************************
+!> \brief Encodes (rank, iatom, jatom) index of a communication task---to
+!>         send/receive a block to/from a process---into a single integer
+!> \param ind encoded integer 
+!> \param pe the rank of the process the block to be send to or receive
+!>            from 
+!> \param iatom the first index of the (iatom, jatom) block index 
+!> \param jatom the second index of the (iatom, jatom) block index 
+!> \param natoms the total number of atoms iatom and jatom indexes
+!> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
+! *****************************************************************************
   SUBROUTINE fb_com_atom_pairs_encode(ind, pe, iatom, jatom, natoms)
-    INTEGER(KIND=int_8), INTENT(out) :: ind
-    INTEGER, INTENT(in) :: pe, iatom, jatom, natoms
+    INTEGER(KIND=int_8), INTENT(OUT)         :: ind
+    INTEGER, INTENT(IN)                      :: pe, iatom, jatom, natoms
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'fb_atom_pair_encode', &
-                                   routineP = moduleN//':'//routineN
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'fb_com_atom_pairs_encode', &
+      routineP = moduleN//':'//routineN
 
-    INTEGER(KIND=int_8) :: natoms8, pair
+    INTEGER(KIND=int_8)                      :: natoms8, pair
 
-    ! pe must start count from 0 (i.e same as MPI convension)
+! pe must start count from 0 (i.e same as MPI convension)
+
     natoms8 = INT(natoms, int_8)
     CALL fb_com_tasks_encode_pair(pair, iatom, jatom, natoms)
     ind = INT(pe, int_8) * natoms8 * natoms8 + pair
   END SUBROUTINE fb_com_atom_pairs_encode
 
 
-  ! **********************************************************************
-  !> \brief Decodes a single integer into the (rank, iatom, jatom) index
-  !>        of a communication task to send/receive a block to/from a
-  !>        process
-  !> \param int: encoded integer
-  !> \param pe: the rank of the process the block to be send to or receive
-  !>            from
-  !> \param iatom: the first index of the (iatom, jatom) block index
-  !> \param jatom: the second index of the (iatom, jatom) block index
-  !> \prarm natoms: the total number of atoms iatom and jatom indexes
-  !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
-  ! **********************************************************************
+! **********************************************************************
+!> \brief Decodes a single integer into the (rank, iatom, jatom) index
+!>        of a communication task to send/receive a block to/from a
+!>        process
+!> \param ind    : encoded integer 
+!> \param pe     : the rank of the process the block to be send to or receive
+!>            from 
+!> \param iatom  : the first index of the (iatom, jatom) block index 
+!> \param jatom  : the second index of the (iatom, jatom) block index
+!> \param natoms : the total number of atoms iatom and jatom indexes 
+!> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
+! *****************************************************************************
   SUBROUTINE fb_com_atom_pairs_decode(ind, pe, iatom, jatom, natoms)
-    INTEGER(KIND=int_8), INTENT(in) :: ind
-    INTEGER, INTENT(in) :: natoms
-    INTEGER, INTENT(out) :: pe, iatom, jatom
+    INTEGER(KIND=int_8), INTENT(IN)          :: ind
+    INTEGER, INTENT(OUT)                     :: pe, iatom, jatom
+    INTEGER, INTENT(IN)                      :: natoms
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'fb_atom_pair_decode', &
-                                   routineP = moduleN//':'//routineN
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'fb_com_atom_pairs_decode', &
+      routineP = moduleN//':'//routineN
 
-    INTEGER(KIND=int_8) :: natoms8, pair, res
+    INTEGER(KIND=int_8)                      :: natoms8, pair
 
-    ! pe start count from 0 (i.e same as MPI convension)
+! pe start count from 0 (i.e same as MPI convension)
+
     natoms8 = INT(natoms, int_8)
     pe = INT(ind / (natoms8*natoms8), int_4)
     pair =  MOD(ind, natoms8*natoms8)
@@ -1191,39 +1200,39 @@ CONTAINS
   END SUBROUTINE fb_com_atom_pairs_decode
 
 
-  ! **********************************************************************
-  !> \brief Calculate the MPI send or recv buffer sizes according to the
-  !>        communication pairs (atom_pairs) and DBCSR matrix data.
-  !>        Each atom_pair corresponds to one DBCSR matrix block that
-  !>        needs to be sent or recerived.
-  !> \param atom_pairs : the communication pair object for either sending
-  !>                     or receiving
-  !> \param dbcsr_matrix : the DBCSR matrix the blocks originate from
-  !>                       or has to be sent to
-  !> \param nprocs : total number of MPI processes in communicator
-  !> \param row_blk_sizes : row_blk_sizes(iblkrow) = number of element rows
-  !>                        in each block in the iblkrow-th block row of
-  !>                        the DBCSR matrix
-  !> \param col_blk_sizes : col_blk_sizes(iblkcol) = number of element cols
-  !>                        in each block in the iblkcol-th block col of
-  !>                        the DBCSR matrix
-  !> \param sendrecv_sizes : size required for the send of recv buffer
-  !>                         for each dest/src process
-  !> \param sendrecv_disps : sendrecv_disps(ipe) + 1 = starting location
-  !>                         in send/recv buffer for data destined for
-  !>                         process ipe
-  !> \param sendrecv_pair_counts : sendrecv_pair_counts(ipe) = number of
-  !>                               pairs (blocks) to be sent to or recv
-  !>                               from process ipe
-  !> \param send_recv_pair_disps : send_recv_pair_disps(ipe) + 1 = start
-  !>                               location in atom_pairs array for
-  !>                               all the pairs to be sent to or recv
-  !>                               from process ipe
-  !> \param error : cp2k error container
-  !> \param row_map : optional blk row map for the DBCSR blocks
-  !> \param col_map : optional blk col map for the DBCSR blocks
-  !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
-  ! **********************************************************************
+! **********************************************************************
+!> \brief Calculate the MPI send or recv buffer sizes according to the
+!>        communication pairs (atom_pairs) and DBCSR matrix data.
+!>        Each atom_pair corresponds to one DBCSR matrix block that
+!>        needs to be sent or recerived.
+!> \param atom_pairs : the communication pair object for either sending
+!>                     or receiving
+!> \param dbcsr_matrix : the DBCSR matrix the blocks originate from
+!>                       or has to be sent to
+!> \param nprocs : total number of MPI processes in communicator
+!> \param row_blk_sizes : row_blk_sizes(iblkrow) = number of element rows
+!>                        in each block in the iblkrow-th block row of
+!>                        the DBCSR matrix
+!> \param col_blk_sizes : col_blk_sizes(iblkcol) = number of element cols
+!>                        in each block in the iblkcol-th block col of
+!>                        the DBCSR matrix
+!> \param sendrecv_sizes : size required for the send of recv buffer
+!>                         for each dest/src process
+!> \param sendrecv_disps : sendrecv_disps(ipe) + 1 = starting location
+!>                         in send/recv buffer for data destined for
+!>                         process ipe
+!> \param sendrecv_pair_counts : sendrecv_pair_counts(ipe) = number of
+!>                               pairs (blocks) to be sent to or recv
+!>                               from process ipe
+!> \param sendrecv_pair_disps send_recv_pair_disps(ipe) + 1 = start
+!>                               location in atom_pairs array for
+!>                               all the pairs to be sent to or recv
+!>                               from process ipe
+!> \param error : cp2k error container
+!> \param row_map : optional blk row map for the DBCSR blocks
+!> \param col_map : optional blk col map for the DBCSR blocks
+!> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
+! *****************************************************************************
   SUBROUTINE fb_com_atom_pairs_calc_buffer_sizes(atom_pairs, &
                                                  dbcsr_matrix, &
                                                  nprocs, &
@@ -1236,27 +1245,28 @@ CONTAINS
                                                  error, &
                                                  row_map, &
                                                  col_map)
-    TYPE(fb_com_atom_pairs_obj), INTENT(in) :: atom_pairs
-    TYPE(cp_dbcsr_type), POINTER :: dbcsr_matrix
-    INTEGER, INTENT(in) :: nprocs
-    INTEGER, DIMENSION(:), INTENT(in)  :: row_blk_sizes
-    INTEGER, DIMENSION(:), INTENT(in)  :: col_blk_sizes
-    INTEGER, DIMENSION(:), INTENT(out) :: sendrecv_sizes
-    INTEGER, DIMENSION(:), INTENT(out) :: sendrecv_disps
-    INTEGER, DIMENSION(:), INTENT(out) :: sendrecv_pair_counts
-    INTEGER, DIMENSION(:), INTENT(out) :: sendrecv_pair_disps
-    TYPE(cp_error_type), INTENT(inout) :: error
-    INTEGER, DIMENSION(:), INTENT(in), OPTIONAL :: row_map
-    INTEGER, DIMENSION(:), INTENT(in), OPTIONAL :: col_map
+    TYPE(fb_com_atom_pairs_obj), INTENT(IN)  :: atom_pairs
+    TYPE(cp_dbcsr_type), POINTER             :: dbcsr_matrix
+    INTEGER, INTENT(IN)                      :: nprocs
+    INTEGER, DIMENSION(:), INTENT(IN)        :: row_blk_sizes, col_blk_sizes
+    INTEGER, DIMENSION(:), INTENT(OUT)       :: sendrecv_sizes, &
+                                                sendrecv_disps, &
+                                                sendrecv_pair_counts, &
+                                                sendrecv_pair_disps
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+    INTEGER, DIMENSION(:), INTENT(IN), &
+      OPTIONAL                               :: row_map, col_map
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'fb_atom_pairs_calc_buffer_sizes', &
-                                   routineP = moduleN//':'//routineN
+    CHARACTER(LEN=*), PARAMETER :: &
+      routineN = 'fb_com_atom_pairs_calc_buffer_sizes', &
+      routineP = moduleN//':'//routineN
 
-    LOGICAL :: failure, check_ok
-    INTEGER :: ipe, ipair, npairs, pe, iatom, jatom, natoms_encode, &
-               nrows_blk, ncols_blk, stat
-    INTEGER :: nblkrows_total, nblkcols_total
-    INTEGER(KIND=int_8), DIMENSION(:), POINTER :: pairs
+    INTEGER                                  :: iatom, ipair, ipe, jatom, &
+                                                natoms_encode, ncols_blk, &
+                                                npairs, nrows_blk, pe
+    INTEGER(KIND=int_8), DIMENSION(:), &
+      POINTER                                :: pairs
+    LOGICAL                                  :: check_ok, failure
 
     failure = .FALSE.
 

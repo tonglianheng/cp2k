@@ -8,14 +8,24 @@
 ! *****************************************************************************
 MODULE qs_scf_initialization
   USE cp_control_types,                ONLY: dft_control_type
-  USE cp_dbcsr_interface,              ONLY: &
-       array_i1d_obj, array_release, cp_create_bl_distribution, &
-       cp_dbcsr_col_block_sizes, cp_dbcsr_create, cp_dbcsr_distribution, &
-       cp_dbcsr_distribution_release, cp_dbcsr_init_p, cp_dbcsr_p_type, &
-       cp_dbcsr_row_block_sizes, cp_dbcsr_type, dbcsr_distribution_mp, &
-       dbcsr_distribution_new, dbcsr_distribution_obj, &
-       dbcsr_distribution_row_dist, dbcsr_mp_npcols, dbcsr_type_no_symmetry, &
-       dbcsr_type_real_default
+  USE cp_dbcsr_interface,              ONLY: array_i1d_obj, &
+                                             array_release, &
+                                             cp_create_bl_distribution, &
+                                             cp_dbcsr_col_block_sizes, &
+                                             cp_dbcsr_create, &
+                                             cp_dbcsr_distribution, &
+                                             cp_dbcsr_distribution_release, &
+                                             cp_dbcsr_init_p, &
+                                             cp_dbcsr_p_type, &
+                                             cp_dbcsr_row_block_sizes, &
+                                             cp_dbcsr_type, &
+                                             dbcsr_distribution_mp, &
+                                             dbcsr_distribution_new, &
+                                             dbcsr_distribution_obj, &
+                                             dbcsr_distribution_row_dist, &
+                                             dbcsr_mp_npcols, &
+                                             dbcsr_type_no_symmetry, &
+                                             dbcsr_type_real_default
   USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
                                              copy_fm_to_dbcsr,&
                                              cp_dbcsr_sm_fm_multiply
@@ -41,12 +51,25 @@ MODULE qs_scf_initialization
                                              cp_print_key_should_output,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE input_constants,                 ONLY: &
-       broy_mix, broy_mix_new, cholesky_dbcsr, cholesky_inverse, &
-       cholesky_off, densities_guess, diag_block_davidson, diag_block_krylov, &
-       diag_ot, diag_standard, diag_filter_matrix, direct_p_mix, kerker_mix, multisec_mix, &
-       no_mix, plus_u_lowdin, pulay_mix, wfi_frozen_method_nr, &
-       wfi_use_guess_method_nr
+  USE input_constants,                 ONLY: broy_mix, &
+                                             broy_mix_new, &
+                                             cholesky_dbcsr, &
+                                             cholesky_inverse, &
+                                             cholesky_off, &
+                                             densities_guess, &
+                                             diag_block_davidson, &
+                                             diag_block_krylov, &
+                                             diag_filter_matrix, &
+                                             diag_ot, &
+                                             diag_standard, &
+                                             direct_p_mix, &
+                                             kerker_mix, &
+                                             multisec_mix, &
+                                             no_mix, &
+                                             plus_u_lowdin, &
+                                             pulay_mix, &
+                                             wfi_frozen_method_nr, &
+                                             wfi_use_guess_method_nr
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type,&
                                              section_vals_val_get
@@ -64,6 +87,12 @@ MODULE qs_scf_initialization
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type,&
                                              set_qs_env
+  USE qs_fb_env_methods,               ONLY: fb_env_build_atomic_halos,&
+                                             fb_env_build_rcut_auto,&
+                                             fb_env_read_input,&
+                                             fb_env_write_info
+  USE qs_fb_env_types,                 ONLY: fb_env_create,&
+                                             fb_env_has_data
   USE qs_gspace_mixing,                ONLY: mixing_allocate,&
                                              mixing_init
   USE qs_initial_guess,                ONLY: calculate_first_density_matrix
@@ -92,11 +121,17 @@ MODULE qs_scf_initialization
   USE qs_scf_post_gpw,                 ONLY: scf_post_calculation_gpw
   USE qs_scf_post_scptb,               ONLY: scf_post_calculation_scptb
   USE qs_scf_post_se,                  ONLY: scf_post_calculation_se
-  USE qs_scf_types,                    ONLY: &
-       block_davidson_diag_method_nr, block_krylov_diag_method_nr, &
-       diag_subspace_env_create, general_diag_method_nr, krylov_space_create, &
-       ot_diag_method_nr, ot_method_nr, qs_scf_env_type, scf_env_create, &
-       special_diag_method_nr, filter_matrix_diag_method_nr
+  USE qs_scf_types,                    ONLY: block_davidson_diag_method_nr, &
+                                             block_krylov_diag_method_nr, &
+                                             diag_subspace_env_create, &
+                                             filter_matrix_diag_method_nr, &
+                                             general_diag_method_nr, &
+                                             krylov_space_create, &
+                                             ot_diag_method_nr, &
+                                             ot_method_nr, &
+                                             qs_scf_env_type, &
+                                             scf_env_create, &
+                                             special_diag_method_nr
   USE qs_wf_history_methods,           ONLY: reorthogonalize_vectors,&
                                              wfi_extrapolate,&
                                              wfi_get_method_label,&
@@ -106,13 +141,6 @@ MODULE qs_scf_initialization
                                              timestop
   USE xas_env_types,                   ONLY: xas_environment_type
   USE xas_restart,                     ONLY: xas_initialize_rho
-  USE qs_fb_env_types,                 ONLY: fb_env_create, &
-                                             fb_env_has_data
-  USE qs_fb_env_methods,               ONLY: fb_env_read_input, &
-                                             fb_env_write_info, &
-                                             fb_env_build_rcut_auto, &
-                                             fb_env_build_atomic_halos
-
 #include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
@@ -135,7 +163,6 @@ CONTAINS
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 ! *****************************************************************************
-
   SUBROUTINE qs_scf_env_initialize(qs_env,scf_env,scf_control,scf_section,error)
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(qs_scf_env_type), POINTER           :: scf_env
@@ -234,6 +261,8 @@ CONTAINS
     END IF
 
    END SUBROUTINE qs_scf_ensure_scf_env
+
+
 ! *****************************************************************************
 !> \brief performs allocation of outer SCF variables
 !> \param scf_env ...
@@ -270,6 +299,7 @@ CONTAINS
 
   END SUBROUTINE qs_scf_ensure_outer_loop_vars
 
+
 ! *****************************************************************************
 !> \brief performs allocation of the mixing storage
 !> \param qs_env ...
@@ -297,6 +327,8 @@ CONTAINS
     END IF
 
   END SUBROUTINE qs_scf_ensure_mixing_store
+
+
 ! *****************************************************************************
 !> \brief Performs allocation of the SCF work matrices
 !>        In case of kpoints we probably don't need most of these matrices,
@@ -444,6 +476,7 @@ CONTAINS
     CALL timestop(handle)
 
   END SUBROUTINE qs_scf_ensure_work_matrices
+
 
 ! *****************************************************************************
 !> \brief performs allocation of the MO matrices
@@ -623,6 +656,7 @@ CONTAINS
 
   END SUBROUTINE qs_scf_ensure_mos
 
+
 ! *****************************************************************************
 !> \brief sets flag for mixing/DIIS during scf
 !> \param scf_control ...
@@ -693,6 +727,7 @@ CONTAINS
 
   END SUBROUTINE qs_scf_ensure_mixing
 
+
 ! *****************************************************************************
 !> \brief sets flags for diagonalization and ensure that everything is
 !>        allocated
@@ -703,7 +738,6 @@ CONTAINS
 !> \param has_unit_metric ...
 !> \param error ...
 ! *****************************************************************************
-
   SUBROUTINE qs_scf_ensure_diagonalization(scf_env,scf_section,qs_env,&
                                           scf_control,has_unit_metric,error)
     TYPE(qs_scf_env_type), POINTER           :: scf_env
@@ -731,7 +765,7 @@ CONTAINS
     scf_env%needs_ortho=.FALSE.
 
     IF (scf_control%use_diag) THEN
-      ! sanity check whether combinations are allowed
+! sanity check whether combinations are allowed
       CALL cp_assert(.NOT.dft_control%restricted,cp_failure_level,cp_assertion_failed,&
             routineP,"OT only for restricted (ROKS)",error,failure)
       SELECT CASE (scf_control%diagonalization%method)
@@ -740,7 +774,6 @@ CONTAINS
             routineP,"DFTB and SE not possible with OT diagonalization",error,failure)
       END SELECT
       SELECT CASE (scf_control%diagonalization%method)
-
       ! Diagonalization: additional check whether we are in an orthonormal basis
       CASE(diag_standard)
         scf_env%method=general_diag_method_nr
@@ -749,7 +782,7 @@ CONTAINS
             scf_env%method=special_diag_method_nr
         END IF
       ! OT Diagonalization: not possible with ROKS
-      CASE ( diag_ot )
+      CASE (diag_ot)
         CALL cp_assert(.NOT.(dft_control%roks),cp_failure_level,cp_assertion_failed,&
               routineP,"ROKS with OT diagonalization not possible",error,failure)
          CALL cp_assert(.NOT.do_kpoints,cp_failure_level,cp_assertion_failed,&
@@ -758,7 +791,7 @@ CONTAINS
          need_coeff_b=.TRUE.
       ! Block Krylov diagonlization: not possible with ROKS,
       ! allocation of additional matrices is needed
-      CASE ( diag_block_krylov )
+      CASE (diag_block_krylov)
          CALL cp_assert(.NOT.(dft_control%roks),cp_failure_level,cp_assertion_failed,&
               routineP,"ROKS with block PF diagonalization not possible",error,failure)
          CALL cp_assert(.NOT.do_kpoints,cp_failure_level,cp_assertion_failed,&
@@ -769,7 +802,7 @@ CONTAINS
               CALL krylov_space_create(scf_env%krylov_space, scf_section,error=error)
          CALL krylov_space_allocate(scf_env%krylov_space, scf_control, mos, error=error)
       ! Block davidson diagonlization: allocation of additional matrices is needed
-      CASE ( diag_block_davidson )
+      CASE (diag_block_davidson)
          CALL cp_assert(.NOT.do_kpoints,cp_failure_level,cp_assertion_failed,&
               routineP,"Block Davidson diagonalization not possible with kpoint calculations",error,failure)
         scf_env%method=block_davidson_diag_method_nr
@@ -796,7 +829,7 @@ CONTAINS
          CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
               routineP,"Unknown diagonalization method",error,failure)
       END SELECT
-! Check if subspace diagonlization is requested: allocation of additional matrices is needed
+      ! Check if subspace diagonlization is requested: allocation of additional matrices is needed
       IF(scf_control%do_diag_sub) THEN
         scf_env%needs_ortho=.TRUE.
         IF(.NOT.ASSOCIATED(scf_env%subspace_env))&
@@ -806,7 +839,7 @@ CONTAINS
         CALL cp_assert(.NOT.do_kpoints,cp_failure_level,cp_assertion_failed,&
               routineP,"No subspace diagonlization with kpoint calculation",error,failure)
       END IF
-! OT: check if OT is used instead of diagonlization. Not possible with added MOS at the moment
+    ! OT: check if OT is used instead of diagonlization. Not possible with added MOS at the moment
     ELSEIF (scf_control%use_ot) THEN
       scf_env%method=ot_method_nr
       need_coeff_b=.TRUE.
@@ -828,13 +861,13 @@ CONTAINS
 
  END SUBROUTINE qs_scf_ensure_diagonalization
 
+
 ! *****************************************************************************
 !> \brief computes properties for a given hamilonian using the current wfn
 !> \param qs_env ...
 !> \param dft_section ...
 !> \param error ...
 ! *****************************************************************************
-
  SUBROUTINE qs_scf_compute_properties(qs_env,dft_section,error)
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(section_vals_type), POINTER         :: dft_section
@@ -869,6 +902,7 @@ CONTAINS
     END IF
 
   END SUBROUTINE qs_scf_compute_properties
+
 
 ! *****************************************************************************
 !> \brief performs those initialisations that need to be done only once
@@ -1059,6 +1093,8 @@ CONTAINS
     CALL timestop(handle)
 
   END SUBROUTINE init_scf_run
+
+
 ! *****************************************************************************
 !> \brief Initializes rho and the mos, so that an scf cycle can start
 !> \param scf_env the scf env in which to do the scf

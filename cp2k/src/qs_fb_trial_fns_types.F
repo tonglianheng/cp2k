@@ -1,25 +1,14 @@
 MODULE qs_fb_trial_fns_types
 
-  USE kinds, ONLY: dp
-  USE qs_integral_utils, ONLY: basis_set_list_setup
-  USE qs_kind_types,     ONLY: qs_kind_type
-  USE atomic_kind_types, ONLY: atomic_kind_type, &
-                               get_atomic_kind
-  USE basis_set_types,   ONLY: gto_basis_set_type, &
-                               gto_basis_set_p_type, &
-                               get_gto_basis_set
-  USE orbital_pointers,  ONLY: co, coset
-
 #include "./common/cp_common_uses.f90"
-
   IMPLICIT NONE
 
   PRIVATE
 
-  ! public types
+! public types
   PUBLIC :: fb_trial_fns_obj
 
-  ! public methods
+! public methods
   PUBLIC :: fb_trial_fns_retain, &
             fb_trial_fns_release, &
             fb_trial_fns_nullify, &
@@ -33,55 +22,56 @@ MODULE qs_fb_trial_fns_types
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_fb_trial_fns_types'
   INTEGER, PRIVATE, SAVE :: last_fb_trial_fns_id = 0
 
-  ! **********************************************************************
-  !> \brief data containing information on trial functions used by filter
-  !>        matrix diagonalisation method
-  !> \param nfunctions : nfunctions(ikind) = number of trial functions for
-  !>                     atomic kind ikind
-  !> \param functions  : functions(itrial,ikind) = the index of the
-  !>                     GTO atomic orbital corresponding to itrial-th trial
-  !>                     function for kind ikind
-  !> \param id_nr      : unique id for the object
-  !> \param ref_count  : reference counter for the object
-  !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
-  ! **********************************************************************
+! *****************************************************************************
+!> \brief data containing information on trial functions used by filter
+!>        matrix diagonalisation method
+!> \param nfunctions : nfunctions(ikind) = number of trial functions for
+!>                     atomic kind ikind
+!> \param functions  : functions(itrial,ikind) = the index of the
+!>                     GTO atomic orbital corresponding to itrial-th trial
+!>                     function for kind ikind
+!> \param id_nr      : unique id for the object
+!> \param ref_count  : reference counter for the object
+!> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
+! *****************************************************************************
   TYPE fb_trial_fns_data
      INTEGER :: id_nr, ref_count
      INTEGER, DIMENSION(:), POINTER :: nfunctions
      INTEGER, DIMENSION(:,:), POINTER :: functions
-  END type fb_trial_fns_data
+  END TYPE fb_trial_fns_data
 
 
-  ! **********************************************************************
-  !> \brief the object container which allows for the creation of an array
-  !>        of pointers to fb_trial_fns objects
-  !> \param obj : pointer to the fb_trial_fns object
-  !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
-  ! **********************************************************************
+! *****************************************************************************
+!> \brief the object container which allows for the creation of an array
+!>        of pointers to fb_trial_fns objects
+!> \param obj : pointer to the fb_trial_fns object
+!> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
+! *****************************************************************************
   TYPE fb_trial_fns_obj
      TYPE(fb_trial_fns_data), POINTER, PRIVATE :: obj
-  END type fb_trial_fns_obj
+  END TYPE fb_trial_fns_obj
 
 
 CONTAINS
 
 
-  ! **********************************************************************
-  !> \brief retains given object
-  !> \param trial_fns : the fb_trial_fns object in question
-  !> \param error : cp2k error container
-  !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
-  ! **********************************************************************
+! *****************************************************************************
+!> \brief retains given object
+!> \brief ...
+!> \param trial_fns : the fb_trial_fns object in question
+!> \param error : cp2k error container
+!> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
+! *****************************************************************************
   SUBROUTINE fb_trial_fns_retain(trial_fns, error)
-    ! note INTENT(in) is okay because the obj pointer contained in the
+    ! note INTENT(IN) is okay because the obj pointer contained in the
     ! obj type will not be changed
-    TYPE(fb_trial_fns_obj), INTENT(in) :: trial_fns
-    TYPE(cp_error_type), INTENT(inout) :: error
+    TYPE(fb_trial_fns_obj), INTENT(IN)       :: trial_fns
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'fb_trial_fns_retain', &
-                                   routineP = moduleN//':'//routineN
+      routineP = moduleN//':'//routineN
 
-    LOGICAL :: failure
+    LOGICAL                                  :: failure
 
     failure = .FALSE.
     CPPrecondition(ASSOCIATED(trial_fns%obj), cp_failure_level, routineP, error, failure)
@@ -92,21 +82,22 @@ CONTAINS
   END SUBROUTINE fb_trial_fns_retain
 
 
-  ! **********************************************************************
-  !> \brief releases given object
-  !> \param trial_fns : the fb_trial_fns object in question
-  !> \param error : cp2k error container
-  !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
-  ! **********************************************************************
+! *****************************************************************************
+!> \brief releases given object
+!> \brief ...
+!> \param trial_fns : the fb_trial_fns object in question
+!> \param error : cp2k error container
+!> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
+! *****************************************************************************
   SUBROUTINE fb_trial_fns_release(trial_fns, error)
-    TYPE(fb_trial_fns_obj), INTENT(inout) :: trial_fns
-    TYPE(cp_error_type), INTENT(inout) :: error
+    TYPE(fb_trial_fns_obj), INTENT(INOUT)    :: trial_fns
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'fb_trial_fns_release', &
-                                   routineP = moduleN//':'//routineN
+      routineP = moduleN//':'//routineN
 
-    LOGICAL :: failure
-    INTEGER :: stat
+    INTEGER                                  :: stat
+    LOGICAL                                  :: failure
 
     failure = .FALSE.
     IF (ASSOCIATED(trial_fns%obj)) THEN
@@ -131,72 +122,71 @@ CONTAINS
   END SUBROUTINE fb_trial_fns_release
 
 
-  ! **********************************************************************
-  !> \brief nullifies the content of given object
-  !> \param trial_fns : the fb_trial_fns object in question
-  !> \param error : cp2k error container
-  !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
-  ! **********************************************************************
+! *****************************************************************************
+!> \brief nullifies the content of given object
+!> \param trial_fns : the fb_trial_fns object in question
+!> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
+! *****************************************************************************
   SUBROUTINE fb_trial_fns_nullify(trial_fns)
-    TYPE(fb_trial_fns_obj), INTENT(inout) :: trial_fns
+    TYPE(fb_trial_fns_obj), INTENT(INOUT)    :: trial_fns
 
     CHARACTER(len=*), PARAMETER :: routineN = 'fb_trial_fns_nullify', &
-                                   routineP = moduleN//':'//routineN
+      routineP = moduleN//':'//routineN
 
     NULLIFY(trial_fns%obj)
   END SUBROUTINE fb_trial_fns_nullify
 
 
-  ! **********************************************************************
-  !> \brief associates the content of an object to that of another object
-  !>        of the same type
-  !> \param a : the output object
-  !> \param b : the input object
-  !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
-  ! **********************************************************************
+! *****************************************************************************
+!> \brief associates the content of an object to that of another object
+!>        of the same type
+!> \param a : the output object
+!> \param b : the input object
+!> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
+! *****************************************************************************
   SUBROUTINE fb_trial_fns_associate(a, b)
-    TYPE(fb_trial_fns_obj), INTENT(in) :: b
-    TYPE(fb_trial_fns_obj), INTENT(out) :: a
+    TYPE(fb_trial_fns_obj), INTENT(OUT)      :: a
+    TYPE(fb_trial_fns_obj), INTENT(IN)       :: b
 
     CHARACTER(len=*), PARAMETER :: routineN = 'fb_trial_fns_associate', &
-                                   routineP = moduleN//':'//routineN
+      routineP = moduleN//':'//routineN
 
     a%obj => b%obj
   END SUBROUTINE fb_trial_fns_associate
 
 
-  ! **********************************************************************
-  !> \brief check if the object has data associated to it
-  !> \param trial_fns : the fb_trial_fns object in question
-  !> \param error : cp2k error container
-  !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
-  ! **********************************************************************
+! *****************************************************************************
+!> \brief check if the object has data associated to it
+!> \param trial_fns : the fb_trial_fns object in question
+!> \retval res : true if trial_fns%obj is associated, false otherwise
+!> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
+! *****************************************************************************
   FUNCTION fb_trial_fns_has_data(trial_fns) RESULT(res)
-    TYPE(fb_trial_fns_obj), INTENT(in) :: trial_fns
-    LOGICAL :: res
+    TYPE(fb_trial_fns_obj), INTENT(IN)       :: trial_fns
+    LOGICAL                                  :: res
 
     CHARACTER(len=*), PARAMETER :: routineN = 'fb_trial_fns_has_data', &
-                                   routineP = moduleN//':'//routineN
+      routineP = moduleN//':'//routineN
 
     res = ASSOCIATED(trial_fns%obj)
   END FUNCTION fb_trial_fns_has_data
 
 
-  ! **********************************************************************
-  !> \brief creates an fb_trial_fns object and initialises it
-  !> \param trial_fns : the fb_trial_fns object in question
-  !> \param error : cp2k error container
-  !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
-  ! **********************************************************************
+! *****************************************************************************
+!> \brief creates an fb_trial_fns object and initialises it
+!> \param trial_fns : the fb_trial_fns object in question
+!> \param error : cp2k error container
+!> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
+! *****************************************************************************
   SUBROUTINE fb_trial_fns_create(trial_fns, error)
-    TYPE(fb_trial_fns_obj), INTENT(inout) :: trial_fns
-    TYPE(cp_error_type), INTENT(inout) :: error
+    TYPE(fb_trial_fns_obj), INTENT(INOUT)    :: trial_fns
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'fb_trial_fns_create', &
-                                   routineP = moduleN//':'//routineN
+      routineP = moduleN//':'//routineN
 
-    LOGICAL :: failure
-    INTEGER :: stat
+    INTEGER                                  :: stat
+    LOGICAL                                  :: failure
 
     failure = .FALSE.
     CPPrecondition(.NOT.ASSOCIATED(trial_fns%obj), cp_failure_level, routineP, error, failure)
@@ -212,21 +202,21 @@ CONTAINS
   END SUBROUTINE fb_trial_fns_create
 
 
-  ! **********************************************************************
-  !> \brief initialises an fb_trial_fns object
-  !> \param trial_fns : the fb_trial_fns object in question
-  !> \param error : cp2k error container
-  !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
-  ! **********************************************************************
+! *****************************************************************************
+!> \brief initialises an fb_trial_fns object
+!> \param trial_fns : the fb_trial_fns object in question
+!> \param error : cp2k error container
+!> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
+! *****************************************************************************
   SUBROUTINE fb_trial_fns_init(trial_fns, error)
-    TYPE(fb_trial_fns_obj), INTENT(in) :: trial_fns
-    TYPE(cp_error_type), INTENT(inout) :: error
+    TYPE(fb_trial_fns_obj), INTENT(INOUT)    :: trial_fns
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'fb_trial_fns_init', &
-                                   routineP = moduleN//':'//routineN
+      routineP = moduleN//':'//routineN
 
-    LOGICAL :: failure
-    INTEGER :: stat
+    INTEGER                                  :: stat
+    LOGICAL                                  :: failure
 
     failure = .FALSE.
     CPPrecondition(ASSOCIATED(trial_fns%obj), cp_failure_level, routineP, error, failure)
@@ -246,27 +236,28 @@ CONTAINS
   END SUBROUTINE fb_trial_fns_init
 
 
-  ! **********************************************************************
-  !> \brief get values of the attributes of a fb_trial_fns object
-  !> \param trial_fns  : the fb_trial_fns object in question
-  !> \param nfunctions : outputs pointer to trial_fns%obj%nfunctions
-  !> \param functions  : outputs pointer to trial_fns%obj%functions
-  !> \param error : cp2k error container
-  !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
-  ! **********************************************************************
+! *****************************************************************************
+!> \brief get values of the attributes of a fb_trial_fns object
+!> \param trial_fns  : the fb_trial_fns object in question
+!> \param nfunctions : outputs pointer to trial_fns%obj%nfunctions
+!> \param functions  : outputs pointer to trial_fns%obj%functions
+!> \param error : cp2k error container
+!> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
+! *****************************************************************************
   SUBROUTINE fb_trial_fns_get(trial_fns, &
                               nfunctions, &
                               functions, &
                               error)
-    TYPE(fb_trial_fns_obj), INTENT(in) :: trial_fns
-    TYPE(cp_error_type), INTENT(inout) :: error
-    INTEGER, DIMENSION(:), POINTER, OPTIONAL :: nfunctions
-    INTEGER, DIMENSION(:,:), POINTER, OPTIONAL :: functions
+    TYPE(fb_trial_fns_obj), INTENT(IN)       :: trial_fns
+    INTEGER, DIMENSION(:), OPTIONAL, POINTER :: nfunctions
+    INTEGER, DIMENSION(:, :), OPTIONAL, &
+      POINTER                                :: functions
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'fb_trial_fns_get', &
-                                   routineP = moduleN//':'//routineN
+      routineP = moduleN//':'//routineN
 
-    LOGICAL :: failure
+    LOGICAL                                  :: failure
 
     failure = .FALSE.
     CPPrecondition(ASSOCIATED(trial_fns%obj), cp_failure_level, routineP, error, failure)
@@ -277,28 +268,29 @@ CONTAINS
   END SUBROUTINE fb_trial_fns_get
 
 
-  ! **********************************************************************
-  !> \brief sets the attributes of a fb_trial_fns object
-  !> \param trial_fns  : the fb_trial_fns object in question
-  !> \param nfunctions : associates trial_fns%obj%nfunctions to this pointer
-  !> \param functions  : associates trial_fns%obj%nfunctions to this pointer
-  !> \param error : cp2k error container
-  !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
-  ! **********************************************************************
+! *****************************************************************************
+!> \brief sets the attributes of a fb_trial_fns object
+!> \param trial_fns  : the fb_trial_fns object in question
+!> \param nfunctions : associates trial_fns%obj%nfunctions to this pointer
+!> \param functions  : associates trial_fns%obj%nfunctions to this pointer
+!> \param error : cp2k error container
+!> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
+! *****************************************************************************
   SUBROUTINE fb_trial_fns_set(trial_fns, &
                               nfunctions, &
                               functions, &
                               error)
-    TYPE(fb_trial_fns_obj), INTENT(in) :: trial_fns
-    TYPE(cp_error_type), INTENT(inout) :: error
-    INTEGER, DIMENSION(:), POINTER, OPTIONAL :: nfunctions
-    INTEGER, DIMENSION(:,:), POINTER, OPTIONAL :: functions
+    TYPE(fb_trial_fns_obj), INTENT(INOUT)    :: trial_fns
+    INTEGER, DIMENSION(:), OPTIONAL, POINTER :: nfunctions
+    INTEGER, DIMENSION(:, :), OPTIONAL, &
+      POINTER                                :: functions
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'fb_trial_fns_set', &
-                                   routineP = moduleN//':'//routineN
+      routineP = moduleN//':'//routineN
 
-    LOGICAL :: failure
-    INTEGER :: stat
+    INTEGER                                  :: stat
+    LOGICAL                                  :: failure
 
     failure = .FALSE.
     CPPrecondition(ASSOCIATED(trial_fns%obj), cp_failure_level, routineP, error, failure)
