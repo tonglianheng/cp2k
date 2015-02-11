@@ -16,10 +16,10 @@ MODULE input_cp2k_dft
        Fattebert2002, Guidon2010, Hu2007, Hunt2003, Iannuzzi2005, &
        Iannuzzi2006, Iannuzzi2007, Kolafa2004, Krack2000, Krack2002, &
        Kunert2003, Lippert1997, Lippert1999, Perdew1981, Porezag1995, &
-       Repasky2002, Rocha2006, Schenter2008, Seifert1996, Stewart1982, &
-       Stewart1989, Stewart2007, Thiel1992, Tozer1996, VandeVondele2003, &
-       VandeVondele2005a, VandeVondele2005b, VandeVondele2006, Weber2008, &
-       Zhao1994, Zhechkov2005, Rayson2009
+       Rayson2009, Repasky2002, Rocha2006, Schenter2008, Seifert1996, &
+       Stewart1982, Stewart1989, Stewart2007, Thiel1992, Tozer1996, &
+       VandeVondele2003, VandeVondele2005a, VandeVondele2005b, &
+       VandeVondele2006, Weber2008, Zhao1994, Zhechkov2005
   USE cp_output_handling,              ONLY: add_last_numeric,&
                                              cp_print_key_section_create,&
                                              debug_print_level,&
@@ -32,18 +32,18 @@ MODULE input_cp2k_dft
        atomic_guess, broy_mix, broy_mix_new, cholesky_dbcsr, &
        cholesky_inverse, cholesky_off, cholesky_reduce, cholesky_restore, &
        constant_env, core_guess, densities_guess, diag_block_davidson, &
-       diag_block_krylov, diag_ot, diag_standard, diag_filter_matrix, direct_p_mix, &
-       dispersion_d3, dispersion_uff, do_admm_aux_exch_func_bee, &
-       do_admm_aux_exch_func_default, do_admm_aux_exch_func_none, &
-       do_admm_aux_exch_func_opt, do_admm_aux_exch_func_pbex, &
-       do_admm_basis_projection, do_admm_blocked_projection, &
-       do_admm_blocking_purify_full, do_admm_charge_constrained_projection, &
-       do_admm_exch_scaling_merlot, do_admm_exch_scaling_none, &
-       do_admm_purify_cauchy, do_admm_purify_cauchy_subspace, &
-       do_admm_purify_mcweeny, do_admm_purify_mo_diag, &
-       do_admm_purify_mo_no_diag, do_admm_purify_none, &
-       do_admm_purify_none_dm, do_arnoldi, do_bch, do_cn, &
-       do_ddapc_constraint, do_ddapc_restraint, do_em, do_etrs, &
+       diag_block_krylov, diag_filter_matrix, diag_ot, diag_standard, &
+       direct_p_mix, dispersion_d3, dispersion_uff, &
+       do_admm_aux_exch_func_bee, do_admm_aux_exch_func_default, &
+       do_admm_aux_exch_func_none, do_admm_aux_exch_func_opt, &
+       do_admm_aux_exch_func_pbex, do_admm_basis_projection, &
+       do_admm_blocked_projection, do_admm_blocking_purify_full, &
+       do_admm_charge_constrained_projection, do_admm_exch_scaling_merlot, &
+       do_admm_exch_scaling_none, do_admm_purify_cauchy, &
+       do_admm_purify_cauchy_subspace, do_admm_purify_mcweeny, &
+       do_admm_purify_mo_diag, do_admm_purify_mo_no_diag, &
+       do_admm_purify_none, do_admm_purify_none_dm, do_arnoldi, do_bch, &
+       do_cn, do_ddapc_constraint, do_ddapc_restraint, do_em, do_etrs, &
        do_full_density, do_gapw_gcs, do_gapw_gct, do_gapw_log, do_loc_both, &
        do_loc_crazy, do_loc_direct, do_loc_homo, do_loc_jacobi, &
        do_loc_l1_norm_sd, do_loc_lumo, do_loc_max, do_loc_min, do_loc_none, &
@@ -6502,18 +6502,18 @@ CONTAINS
   END SUBROUTINE create_diagonalization_section
 
 
-  ! *****************************************************************************
-  !> \brief Input section for filter matrix diagonalisation method
-  !> \param section : section to be created
-  !> \param error   : cp2k error container
-  !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
-  ! *****************************************************************************
+! *****************************************************************************
+!> \brief Input section for filter matrix diagonalisation method
+!> \param section : section to be created
+!> \param error   : cp2k error container
+!> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
+! *****************************************************************************
   SUBROUTINE create_filtermatrix_section(section, error)
     TYPE(section_type), POINTER              :: section
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'create_filtermatrix_section', &
-                                   routineP = moduleN//':'//routineN
+      routineP = moduleN//':'//routineN
 
     LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword

@@ -38,17 +38,17 @@ CONTAINS
 !> \param   maxocc maximum occupation of an orbital
 !> \param   estate excited state in core level spectroscopy
 !> \param   festate occupation of the excited state in core level spectroscopy
-!> \param   History
-!>          - Made estate and festate optional (LT, 2014/02/26)
 !> \date    09.2008
+!> \par History
+!>          - Made estate and festate optional (LT, 2014/02/26)
 !> \author  Joost VandeVondele
 ! *****************************************************************************
  SUBROUTINE Fermi(f,N,kTS,e,mu,T,maxocc,estate,festate)
 
     REAL(KIND=dp), INTENT(out)               :: f(:), N, kTS
     REAL(KIND=dp), INTENT(IN)                :: e(:), mu, T, maxocc
-    INTEGER, OPTIONAL, INTENT(IN)            :: estate
-    REAL(KIND=dp), OPTIONAL, INTENT(IN)      :: festate
+    INTEGER, INTENT(IN), OPTIONAL            :: estate
+    REAL(KIND=dp), INTENT(IN), OPTIONAL      :: festate
 
     CHARACTER(len=*), PARAMETER :: routineN = 'Fermi', &
       routineP = moduleN//':'//routineN
@@ -204,31 +204,31 @@ CONTAINS
 !> \param   maxocc maximum occupation of an orbital
 !> \param   estate excited state in core level spectroscopy
 !> \param   festate occupation of the excited state in core level spectroscopy
-!> \param   History
-!>          - Made estate and festate optional (LT, 2014/02/26)
 !> \date    09.2008
+!> \par History
+!>          - Made estate and festate optional (LT, 2014/02/26)
 !> \author  Joost VandeVondele
 ! *****************************************************************************
  SUBROUTINE FermiFixed(f,mu,kTS,e,N,T,maxocc,estate,festate)
     REAL(KIND=dp), INTENT(OUT)               :: f(:), mu, kTS
     REAL(KIND=dp), INTENT(IN)                :: e(:), N, T, maxocc
-    INTEGER, OPTIONAL, INTENT(IN)            :: estate
-    REAL(KIND=dp), OPTIONAL, INTENT(IN)      :: festate
+    INTEGER, INTENT(IN), OPTIONAL            :: estate
+    REAL(KIND=dp), INTENT(IN), OPTIONAL      :: festate
 
     CHARACTER(len=*), PARAMETER :: routineN = 'FermiFixed', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: iter, my_estate
     REAL(KIND=dp)                            :: mu_max, mu_min, mu_now, &
-                                                N_max, N_min, N_now,    &
-                                                my_festate
+                                                my_festate, N_max, N_min, &
+                                                N_now
 
     IF (PRESENT(estate) .AND. PRESENT(festate)) THEN
        my_estate = estate
        my_festate = festate
     ELSE
-       my_estate = maxocc
-       my_festate = maxocc
+       my_estate = NINT(maxocc)
+       my_festate = my_estate
     END IF
 
 ! bisection search to find N
@@ -349,27 +349,26 @@ CONTAINS
 !> \param   N total number of electrons (output)
 !> \param   T  electronic temperature
 !> \param maxocc ...
+!> \param   l  typical lenght scale (~ 10 * T)
 !> \param estate ...
 !> \param festate ...
-!> \param   l  typical lenght scale (~ 10 * T)
-!> \param   History
+!> \date    09.2008
+!> \par   History
 !>          - Made estate and festate optional (LT, 2014/02/26)
 !>          - Changed order of input, so l is before the two optional varaibles
 !>            (LT, 2014/02/26)
-!> \date    09.2008
 !> \author  Joost VandeVondele
 ! *****************************************************************************
  SUBROUTINE FermiFixedDeriv(dfde,f,mu,kTS,e,N,T,maxocc,l,estate,festate)
     REAL(KIND=dp), INTENT(OUT)               :: dfde(:,:), f(:), mu, kTS
-    REAL(KIND=dp), INTENT(IN)                :: e(:), N, T, maxocc
-    REAL(KIND=dp), INTENT(IN)                :: l
-    INTEGER, OPTIONAL, INTENT(IN)            :: estate
-    REAL(KIND=dp), OPTIONAL, INTENT(IN)      :: festate
+    REAL(KIND=dp), INTENT(IN)                :: e(:), N, T, maxocc, l
+    INTEGER, INTENT(IN), OPTIONAL            :: estate
+    REAL(KIND=dp), INTENT(IN), OPTIONAL      :: festate
 
     CHARACTER(len=*), PARAMETER :: routineN = 'FermiFixedDeriv', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, I, Nstate, my_estate
+    INTEGER                                  :: handle, I, my_estate, Nstate
     REAL(KIND=dp)                            :: h, mux, my_festate
     REAL(KIND=dp), ALLOCATABLE               :: ex(:), fx(:)
 
@@ -382,8 +381,8 @@ CONTAINS
        my_estate = estate
        my_festate = festate
     ELSE
-       my_estate = maxocc
-       my_festate = maxocc
+       my_estate = NINT(maxocc)
+       my_festate = my_estate
     END IF
 
     DO I=1,Nstate

@@ -124,15 +124,15 @@ MODULE qs_scf
                                              qs_scf_loop_print,&
                                              qs_scf_outer_loop_info,&
                                              qs_scf_write_mos
-  USE qs_scf_types,                    ONLY: block_davidson_diag_method_nr,&
-                                             block_krylov_diag_method_nr,&
-                                             general_diag_method_nr,&
-                                             ot_diag_method_nr,&
-                                             ot_method_nr,&
-                                             qs_scf_env_type,&
-                                             scf_env_release,&
-                                             special_diag_method_nr, &
-                                             filter_matrix_diag_method_nr
+  USE qs_scf_types,                    ONLY: block_davidson_diag_method_nr, &
+                                             block_krylov_diag_method_nr, &
+                                             filter_matrix_diag_method_nr, &
+                                             general_diag_method_nr, &
+                                             ot_diag_method_nr, &
+                                             ot_method_nr, &
+                                             qs_scf_env_type, &
+                                             scf_env_release, &
+                                             special_diag_method_nr
   USE qs_wf_history_methods,           ONLY: wfi_update
   USE scf_control_types,               ONLY: scf_control_type
   USE termination,                     ONLY: stop_program
@@ -396,7 +396,7 @@ CONTAINS
 
           total_steps = total_steps + 1
           just_energy = energy_only
- 
+
           CALL qs_ks_update_qs_env(qs_env, just_energy=just_energy,&
                                    calculate_forces=.FALSE., error=error)
 
@@ -413,7 +413,7 @@ CONTAINS
 
           ! another heavy weight print object, print controlled by dft_section
           CALL qs_scf_write_mos(mos,atomic_kind_set,qs_kind_set,particle_set,dft_section,.FALSE.,error=error)
-          
+
           CALL qs_scf_density_mixing(scf_env,rho,para_env,diis_step,do_kpoints,error=error)
 
           t2 = m_walltime()
@@ -585,7 +585,7 @@ CONTAINS
                       cp_to_string(scf_env%method),error,failure)
 
     CASE (filter_matrix_diag_method_nr)
-       
+
        IF(.NOT.scf_env%skip_diis) THEN
           IF (.NOT.ASSOCIATED(scf_env%scf_diis_buffer)) THEN
              CALL qs_diis_b_create(scf_env%scf_diis_buffer,nbuffer=scf_control%max_diis,error=error)
