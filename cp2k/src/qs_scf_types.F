@@ -32,7 +32,8 @@ MODULE qs_scf_types
                                              mixing_storage_type
   USE qs_diis_types,                   ONLY: qs_diis_b_release,&
                                              qs_diis_buffer_type
-  USE qs_fb_env_types,                 ONLY: fb_env_nullify,&
+  USE qs_fb_env_types,                 ONLY: fb_env_has_data,&
+                                             fb_env_nullify,&
                                              fb_env_obj,&
                                              fb_env_release
   USE qs_ot_types,                     ONLY: qs_ot_destroy,&
@@ -385,7 +386,7 @@ CONTAINS
           IF (ASSOCIATED(scf_env%block_davidson_env)) THEN
              CALL block_davidson_release(scf_env%block_davidson_env,error=error)
           END IF
-          IF (ASSOCIATED(scf_env%filter_matrix_env)) THEN
+          IF (fb_env_has_data(scf_env%filter_matrix_env)) THEN
              CALL fb_env_release(scf_env%filter_matrix_env, error=error)
           END IF
           DEALLOCATE(scf_env, stat=stat)

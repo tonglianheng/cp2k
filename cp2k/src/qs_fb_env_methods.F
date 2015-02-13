@@ -945,7 +945,7 @@ CONTAINS
     ! create the halos, one for each local atom
     CALL fb_atomic_halo_list_get(atomic_halos=atomic_halos, &
                                  halos=halos, &
-                                 error)
+                                 error=error)
     ALLOCATE(halos(natoms_local), STAT=stat)
     CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
     DO ihalo = 1, natoms_local
