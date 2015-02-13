@@ -385,7 +385,9 @@ CONTAINS
           IF (ASSOCIATED(scf_env%block_davidson_env)) THEN
              CALL block_davidson_release(scf_env%block_davidson_env,error=error)
           END IF
-          CALL fb_env_release(scf_env%filter_matrix_env, error=error)
+          IF (ASSOCIATED(scf_env%filter_matrix_env)) THEN
+             CALL fb_env_release(scf_env%filter_matrix_env, error=error)
+          END IF
           DEALLOCATE(scf_env, stat=stat)
           CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
        END IF
