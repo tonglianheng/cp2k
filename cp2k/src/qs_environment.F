@@ -407,8 +407,11 @@ CONTAINS
        CALL lri_basis_init(lri_env,atomic_kind_set,error)
        !
        ! check for debug
-       CALL section_vals_val_get(force_env_section,"DFT%QS%DEBUG_LRI_INTEGRALS",&
+       CALL section_vals_val_get(force_env_section,"DFT%QS%LRIGPW%DEBUG_LRI_INTEGRALS",&
                                  l_val=lri_env%debug,error=error)
+       ! how to calculate inverse/pseuodinverse of overlap
+       CALL section_vals_val_get(force_env_section,"DFT%QS%LRIGPW%LRI_OVERLAP_MATRIX",&
+                                 i_val=lri_env%lri_overlap_inv,error=error)
        !
        CALL set_qs_env (qs_env,lri_env=lri_env,error=error)
     END IF
@@ -1256,7 +1259,7 @@ CONTAINS
     CALL write_molecule_kind_set(molecule_kind_set,subsys_section,error)
 
     ! Print the total number of kinds, atoms, basis functions etc.
-    CALL write_total_numbers(atomic_kind_set, qs_kind_set,particle_set,qs_env%input,error)
+    CALL write_total_numbers(qs_kind_set,particle_set,qs_env%input,error)
 
     ! Print the atomic coordinates
     CALL write_qs_particle_coordinates(particle_set, qs_kind_set, subsys_section,label="QUICKSTEP",error=error)
@@ -1293,17 +1296,14 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Write the total number of kinds, atoms, etc. to the logical unit
 !>      number lunit.
-!> \param atomic_kind_set ...
 !> \param qs_kind_set ...
 !> \param particle_set ...
 !> \param force_env_section ...
 !> \param error ...
 !> \author Creation (06.10.2000)
 ! *****************************************************************************
-  SUBROUTINE write_total_numbers(atomic_kind_set,qs_kind_set,particle_set,force_env_section,error)
+  SUBROUTINE write_total_numbers(qs_kind_set,particle_set,force_env_section,error)
 
-    TYPE(atomic_kind_type), DIMENSION(:), &
-      POINTER                                :: atomic_kind_set
     TYPE(qs_kind_type), DIMENSION(:), &
       POINTER                                :: qs_kind_set
     TYPE(particle_type), DIMENSION(:), &

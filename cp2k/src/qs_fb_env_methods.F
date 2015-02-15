@@ -706,16 +706,10 @@ CONTAINS
     DO ispin = 1, nspin
        CALL deallocate_mo_set(mo_set=mos_filtered(ispin)%mo_set, &
                               error=error)
-       CALL cp_dbcsr_release(matrix_filter(ispin)%matrix, error)
-       IF (ASSOCIATED(matrix_filter(ispin)%matrix)) THEN
-          DEALLOCATE(matrix_filter(ispin)%matrix, STAT=stat)
-          CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
-       END IF
     END DO
     DEALLOCATE(mos_filtered, STAT=stat)
     CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
-    DEALLOCATE(matrix_filter, STAT=stat)
-    CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
+    CALL cp_dbcsr_deallocate_matrix_set(matrix_filter, error)
 
     CALL timestop(handle)
 
