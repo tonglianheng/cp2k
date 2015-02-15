@@ -106,19 +106,20 @@ CONTAINS
        IF (trial_fns%obj%ref_count == 0) THEN
           trial_fns%obj%ref_count = 1
           IF (ASSOCIATED(trial_fns%obj%nfunctions)) THEN
-             DEALLOCATE(trial_fns%obj%nfunctions)
+             DEALLOCATE(trial_fns%obj%nfunctions, STAT=stat)
              CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
           END IF
           IF (ASSOCIATED(trial_fns%obj%functions)) THEN
-             DEALLOCATE(trial_fns%obj%functions)
+             DEALLOCATE(trial_fns%obj%functions, STAT=stat)
              CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
           END IF
           trial_fns%obj%ref_count = 0
-          DEALLOCATE(trial_fns%obj, stat=stat)
+          DEALLOCATE(trial_fns%obj, STAT=stat)
           CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
        END IF
+    ELSE
+       NULLIFY(trial_fns%obj)
     END IF
-    NULLIFY(trial_fns%obj)
   END SUBROUTINE fb_trial_fns_release
 
 

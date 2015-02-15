@@ -6,6 +6,7 @@ MODULE qs_fb_filter_matrix_methods
                                              array_i1d_obj, &
                                              array_new, &
                                              array_nullify, &
+                                             array_release,&
                                              cp_dbcsr_create, &
                                              cp_dbcsr_finalize, &
                                              cp_dbcsr_get_info, &
@@ -198,6 +199,10 @@ CONTAINS
                          nblks=0, &
                          nze=0, &
                          error=error)
+    ! col_blk_size is created as a tmp array here, so needs to be
+    ! released. Note that it is retained during cp_dbcsr_create, so
+    ! this temperary version shall be released.
+    CALL array_release(col_blk_size)
 
     CALL fb_atomic_halo_list_get(atomic_halos=atomic_halos, &
                                  nhalos=nhalos, &

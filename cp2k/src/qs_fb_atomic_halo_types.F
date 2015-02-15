@@ -174,15 +174,16 @@ CONTAINS
              ! by atomic_halo%obj%halo_atoms, their behaviour becomes undefined per
              ! FORTRAN standard (and thus becomes compiler dependent and unreliable)
              ! after the following DEALLOCATE
-             DEALLOCATE(atomic_halo%obj%halo_atoms)
+             DEALLOCATE(atomic_halo%obj%halo_atoms, STAT=stat)
              CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
           END IF
           atomic_halo%obj%ref_count = 0
-          DEALLOCATE(atomic_halo%obj, stat=stat)
+          DEALLOCATE(atomic_halo%obj, STAT=stat)
           CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
        END IF
+    ELSE
+       NULLIFY(atomic_halo%obj)
     END IF
-    NULLIFY(atomic_halo%obj)
   END SUBROUTINE fb_atomic_halo_release
 
 
@@ -229,8 +230,7 @@ CONTAINS
 !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
 ! *****************************************************************************
   FUNCTION fb_atomic_halo_has_data(atomic_halo) RESULT(res)
-    TYPE(fb_atomic_halo_list_obj), &
-      INTENT(IN)                             :: atomic_halo
+    TYPE(fb_atomic_halo_obj), INTENT(IN)     :: atomic_halo
     LOGICAL                                  :: res
 
     CHARACTER(len=*), PARAMETER :: routineN = 'fb_atomic_halo_has_data', &
@@ -591,8 +591,9 @@ CONTAINS
           DEALLOCATE(atomic_halos%obj, STAT=stat)
           CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
        END IF
+    ELSE
+       NULLIFY(atomic_halos%obj)
     END IF
-    NULLIFY(atomic_halos%obj)
   END SUBROUTINE fb_atomic_halo_list_release
 
 
@@ -791,11 +792,6 @@ CONTAINS
        IF (PRESENT(nhalos)) atomic_halos%obj%nhalos = nhalos
        IF (PRESENT(max_nhalos)) atomic_halos%obj%max_nhalos = max_nhalos
        IF (PRESENT(halos)) THEN
-          IF (ASSOCIATED(halos)) THEN
-             DO ihalo = 1, SIZE(halos)
-                CALL fb_atomic_halo_retain(halos(ihalo), error)
-             END DO
-          END IF
           IF (ASSOCIATED(atomic_halos%obj%halos)) THEN
              DO ihalo = 1, SIZE(atomic_halos%obj%halos)
                 CALL fb_atomic_halo_release(atomic_halos%obj%halos(ihalo), error)

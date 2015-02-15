@@ -67,17 +67,15 @@ MODULE qs_fb_env_methods
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
   USE qs_fb_atomic_halo_types,         ONLY: fb_atomic_halo_create,&
-                                             fb_atomic_halo_get,&
                                              fb_atomic_halo_list_create,&
-                                             fb_atomic_halo_list_get,&
-                                             fb_atomic_halo_list_has_data,&
-                                             fb_atomic_halo_list_init,&
-                                             fb_atomic_halo_list_nullify, &
-                                             fb_atomic_halo_list_obj,&
+                                             fb_atomic_halo_list_nullify,&
+                                             fb_atomic_halo_list_obj, &
+                                             fb_atomic_halo_list_release,&
                                              fb_atomic_halo_list_set,&
                                              fb_atomic_halo_nelectrons_estimate_Z,&
                                              fb_atomic_halo_nullify,&
                                              fb_atomic_halo_obj,&
+                                             fb_atomic_halo_release,&
                                              fb_atomic_halo_set,&
                                              fb_atomic_halo_sort
   USE qs_fb_env_types,                 ONLY: fb_env_get,&
@@ -86,11 +84,9 @@ MODULE qs_fb_env_methods
                                              fb_env_set
   USE qs_fb_filter_matrix_methods,     ONLY: fb_fltrmat_build
   USE qs_fb_trial_fns_types,           ONLY: fb_trial_fns_create,&
-                                             fb_trial_fns_get,&
-                                             fb_trial_fns_has_data,&
-                                             fb_trial_fns_init,&
                                              fb_trial_fns_nullify,&
                                              fb_trial_fns_obj,&
+                                             fb_trial_fns_release,&
                                              fb_trial_fns_set
   USE qs_integral_utils,               ONLY: basis_set_list_setup
   USE qs_kind_types,                   ONLY: get_qs_kind,&
@@ -711,6 +707,10 @@ CONTAINS
        CALL deallocate_mo_set(mo_set=mos_filtered(ispin)%mo_set, &
                               error=error)
        CALL cp_dbcsr_release(matrix_filter(ispin)%matrix, error)
+       IF (ASSOCIATED(matrix_filter(ispin)%matrix)) THEN
+          DEALLOCATE(matrix_filter(ispin)%matrix, STAT=stat)
+          CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
+       END IF
     END DO
     DEALLOCATE(mos_filtered, STAT=stat)
     CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
@@ -806,22 +806,15 @@ CONTAINS
 
     NULLIFY(rcut, qs_kind_set, dft_control)
 
-    CPPrecondition(fb_env_has_data(fb_env), cp_failure_level, routineP, error, failure)
-
     CALL get_qs_env(qs_env=qs_env, &
                     qs_kind_set=qs_kind_set, &
                     dft_control=dft_control, &
                     error=error)
     CALL fb_env_get(fb_env=fb_env, &
                     auto_cutoff_scale=auto_cutoff_scale, &
-                    rcut=rcut, &
                     error=error)
 
     nkinds = SIZE(qs_kind_set)
-    IF (ASSOCIATED(rcut)) THEN
-       DEALLOCATE(rcut, STAT=stat)
-       CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
-    END IF
     ALLOCATE(rcut(nkinds), STAT=stat)
     CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
 
@@ -849,6 +842,10 @@ CONTAINS
                               kind_radius=kind_radius)
        rcut(ikind) = kind_radius * auto_cutoff_scale
     END DO
+
+    CALL fb_env_set(fb_env=fb_env, &
+                    rcut=rcut, &
+                    error=error)
 
     ! cleanup
     DEALLOCATE(basis_set_list, STAT=stat)
@@ -915,15 +912,10 @@ CONTAINS
     ! get relevant data from fb_env
     CALL fb_env_get(fb_env=fb_env, &
                     rcut=rcut, &
-                    atomic_halos=atomic_halos, &
                     error=error)
 
-    ! init atomic_halos, create if required
-    IF (fb_atomic_halo_list_has_data(atomic_halos)) THEN
-       CALL fb_atomic_halo_list_init(atomic_halos, error)
-    ELSE
-       CALL fb_atomic_halo_list_create(atomic_halos, error)
-    END IF
+    ! create atomic_halos
+    CALL fb_atomic_halo_list_create(atomic_halos, error)
 
     ! get the number of atoms and kinds:
     CALL get_qs_env(qs_env=qs_env, &
@@ -943,9 +935,6 @@ CONTAINS
     CALL mp_max(max_natoms_local, para_env%group)
 
     ! create the halos, one for each local atom
-    CALL fb_atomic_halo_list_get(atomic_halos=atomic_halos, &
-                                 halos=halos, &
-                                 error=error)
     ALLOCATE(halos(natoms_local), STAT=stat)
     CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
     DO ihalo = 1, natoms_local
@@ -1000,11 +989,7 @@ CONTAINS
                 END IF
              END DO ! jatom_in_kind
           END DO ! jkind
-          ! get the pointer to halo_atoms, which should be null and allocate
-          NULLIFY(halo_atoms)
-          CALL fb_atomic_halo_get(halos(ihalo), &
-                                  halo_atoms=halo_atoms, &
-                                  error=error)
+          ! allocate
           ALLOCATE(halo_atoms(nhalo_atoms), STAT=stat)
           CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
           ! now find and store halo atoms
@@ -1043,6 +1028,7 @@ CONTAINS
           CALL fb_atomic_halo_set(atomic_halo=halos(ihalo), &
                                   owner_id_in_halo=owner_id_in_halo, &
                                   natoms=nhalo_atoms, &
+                                  halo_atoms=halo_atoms, &
                                   nelectrons=nelectrons_in_halo, &
                                   error=error)
           ! sort atomic halo
@@ -1053,6 +1039,15 @@ CONTAINS
           ihalo = ihalo + 1
        END DO ! iatom_local
     END DO ! ikind
+
+    ! finalise
+    CALL fb_atomic_halo_list_set(atomic_halos=atomic_halos, &
+                                 halos=halos, &
+                                 error=error)
+    CALL fb_env_set(fb_env=fb_env, &
+                    atomic_halos=atomic_halos, &
+                    error=error)
+    CALL fb_atomic_halo_list_release(atomic_halos, error)
 
     ! cleanup
     DEALLOCATE(pair_radius, STAT=stat)
@@ -1101,21 +1096,12 @@ CONTAINS
     CALL timeset(routineN, handle)
 
     failure = .FALSE.
-
     CPPrecondition(fb_env_has_data(fb_env), cp_failure_level, routineP, error, failure)
-   
     NULLIFY(nfunctions, functions, basis_set, basis_set_list, qs_kind_set, dft_control)
     CALL fb_trial_fns_nullify(trial_fns)
-    
-    ! init trial_fn object, create new if required
-    CALL fb_env_get(fb_env=fb_env, &
-                    trial_fns=trial_fns, &
-                    error=error)
-    IF (fb_trial_fns_has_data(trial_fns)) THEN
-       CALL fb_trial_fns_init(trial_fns, error)
-    ELSE
-       CALL fb_trial_fns_create(trial_fns, error)
-    END IF
+
+    ! create a new trial_fn object
+    CALL fb_trial_fns_create(trial_fns, error)
 
     CALL get_qs_env(qs_env=qs_env, &
                     qs_kind_set=qs_kind_set, &
@@ -1135,14 +1121,8 @@ CONTAINS
        basis_set_id = use_orb_basis_set
     END IF
 
-    CALL fb_trial_fns_get(trial_fns=trial_fns, &
-                          nfunctions=nfunctions, &
-                          functions=functions, &
-                          error=error)
-    ! nfunctions and functions should be null from fb_trial_fns_init
-    ! or fb_trial_fns_create
-
     nkinds = SIZE(qs_kind_set)
+
     ALLOCATE(nfunctions(nkinds), STAT=stat)
     CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
     nfunctions = 0
@@ -1234,6 +1214,17 @@ CONTAINS
           END DO
        END DO bset2
     END DO ! ikind
+
+    ! set trial_functions
+    CALL fb_trial_fns_set(trial_fns=trial_fns, &
+                          nfunctions=nfunctions, &
+                          functions=functions, &
+                          error=error)
+    ! set fb_env
+    CALL fb_env_set(fb_env=fb_env, &
+                    trial_fns=trial_fns, &
+                    error=error)
+    CALL fb_trial_fns_release(trial_fns, error)
 
     ! cleanup
     DEALLOCATE(basis_set_list, STAT=stat)
