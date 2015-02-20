@@ -151,10 +151,9 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'fb_atmatrix_construct', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: handle, iatom, iatom_in_halo, ii, ind, ipair, ipe, &
-               jatom, jatom_in_halo, jj, ncols_blk, npairs_recv, &
-               npairs_send, nrows_blk, numprocs, pe, recv_encode, &
-               send_encode, stat
+    INTEGER :: handle, iatom, iatom_in_halo, ii, ind, ipair, ipe, jatom, &
+      jatom_in_halo, jj, ncols_blk, npairs_recv, npairs_send, nrows_blk, &
+      numprocs, pe, recv_encode, send_encode, stat
     INTEGER(KIND=int_8), DIMENSION(:), &
       POINTER                                :: pairs_recv, pairs_send
     INTEGER, ALLOCATABLE, DIMENSION(:) :: recv_disps, recv_pair_count, &
@@ -393,9 +392,9 @@ CONTAINS
       routineN = 'fb_atmatrix_generate_com_pairs', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: counter, dest, handle, iatom, iatom_global, itask, &
-               jatom, jatom_global, natoms_in_halo, nblkrows_total, &
-               nencode, ntasks_recv, ntasks_send, src, stat
+    INTEGER :: counter, dest, handle, iatom, iatom_global, itask, jatom, &
+      jatom_global, natoms_in_halo, nblkrows_total, nencode, ntasks_recv, &
+      ntasks_send, src, stat
     INTEGER(KIND=int_8)                      :: pair
     INTEGER(KIND=int_8), DIMENSION(:, :), &
       POINTER                                :: tasks_recv, tasks_send

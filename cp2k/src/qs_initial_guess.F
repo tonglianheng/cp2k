@@ -141,10 +141,9 @@ CONTAINS
       has_unit_metric, natom_mismatch, ofgpw
     REAL(dp), ALLOCATABLE, DIMENSION(:, :)   :: buff, buff2
     REAL(dp), DIMENSION(:, :), POINTER       :: DATA
-    REAL(KIND=dp)                            :: checksum, length,&
-                                                eps, maxocc, occ, &
-                                                scale, total_rho, &
-                                                trps1, zeff
+    REAL(KIND=dp)                            :: checksum, eps, length, &
+                                                maxocc, occ, scale, &
+                                                total_rho, trps1, zeff
     REAL(KIND=dp), DIMENSION(0:3)            :: edftb
     TYPE(array_i1d_obj)                      :: col_blk_size, col_dist
     TYPE(atom_matrix_type), DIMENSION(:), &

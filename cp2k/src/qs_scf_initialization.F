@@ -8,24 +8,14 @@
 ! *****************************************************************************
 MODULE qs_scf_initialization
   USE cp_control_types,                ONLY: dft_control_type
-  USE cp_dbcsr_interface,              ONLY: array_i1d_obj, &
-                                             array_release, &
-                                             cp_create_bl_distribution, &
-                                             cp_dbcsr_col_block_sizes, &
-                                             cp_dbcsr_create, &
-                                             cp_dbcsr_distribution, &
-                                             cp_dbcsr_distribution_release, &
-                                             cp_dbcsr_init_p, &
-                                             cp_dbcsr_p_type, &
-                                             cp_dbcsr_row_block_sizes, &
-                                             cp_dbcsr_type, &
-                                             dbcsr_distribution_mp, &
-                                             dbcsr_distribution_new, &
-                                             dbcsr_distribution_obj, &
-                                             dbcsr_distribution_row_dist, &
-                                             dbcsr_mp_npcols, &
-                                             dbcsr_type_no_symmetry, &
-                                             dbcsr_type_real_default
+  USE cp_dbcsr_interface,              ONLY: &
+       array_i1d_obj, array_release, cp_create_bl_distribution, &
+       cp_dbcsr_col_block_sizes, cp_dbcsr_create, cp_dbcsr_distribution, &
+       cp_dbcsr_distribution_release, cp_dbcsr_init_p, cp_dbcsr_p_type, &
+       cp_dbcsr_row_block_sizes, cp_dbcsr_type, dbcsr_distribution_mp, &
+       dbcsr_distribution_new, dbcsr_distribution_obj, &
+       dbcsr_distribution_row_dist, dbcsr_mp_npcols, dbcsr_type_no_symmetry, &
+       dbcsr_type_real_default
   USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
                                              copy_fm_to_dbcsr,&
                                              cp_dbcsr_sm_fm_multiply
@@ -51,25 +41,12 @@ MODULE qs_scf_initialization
                                              cp_print_key_should_output,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE input_constants,                 ONLY: broy_mix, &
-                                             broy_mix_new, &
-                                             cholesky_dbcsr, &
-                                             cholesky_inverse, &
-                                             cholesky_off, &
-                                             densities_guess, &
-                                             diag_block_davidson, &
-                                             diag_block_krylov, &
-                                             diag_filter_matrix, &
-                                             diag_ot, &
-                                             diag_standard, &
-                                             direct_p_mix, &
-                                             kerker_mix, &
-                                             multisec_mix, &
-                                             no_mix, &
-                                             plus_u_lowdin, &
-                                             pulay_mix, &
-                                             wfi_frozen_method_nr, &
-                                             wfi_use_guess_method_nr
+  USE input_constants,                 ONLY: &
+       broy_mix, broy_mix_new, cholesky_dbcsr, cholesky_inverse, &
+       cholesky_off, densities_guess, diag_block_davidson, diag_block_krylov, &
+       diag_filter_matrix, diag_ot, diag_standard, direct_p_mix, kerker_mix, &
+       multisec_mix, no_mix, plus_u_lowdin, pulay_mix, wfi_frozen_method_nr, &
+       wfi_use_guess_method_nr
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type,&
                                              section_vals_val_get
@@ -121,17 +98,11 @@ MODULE qs_scf_initialization
   USE qs_scf_post_gpw,                 ONLY: scf_post_calculation_gpw
   USE qs_scf_post_scptb,               ONLY: scf_post_calculation_scptb
   USE qs_scf_post_se,                  ONLY: scf_post_calculation_se
-  USE qs_scf_types,                    ONLY: block_davidson_diag_method_nr, &
-                                             block_krylov_diag_method_nr, &
-                                             diag_subspace_env_create, &
-                                             filter_matrix_diag_method_nr, &
-                                             general_diag_method_nr, &
-                                             krylov_space_create, &
-                                             ot_diag_method_nr, &
-                                             ot_method_nr, &
-                                             qs_scf_env_type, &
-                                             scf_env_create, &
-                                             special_diag_method_nr
+  USE qs_scf_types,                    ONLY: &
+       block_davidson_diag_method_nr, block_krylov_diag_method_nr, &
+       diag_subspace_env_create, filter_matrix_diag_method_nr, &
+       general_diag_method_nr, krylov_space_create, ot_diag_method_nr, &
+       ot_method_nr, qs_scf_env_type, scf_env_create, special_diag_method_nr
   USE qs_wf_history_methods,           ONLY: reorthogonalize_vectors,&
                                              wfi_extrapolate,&
                                              wfi_get_method_label,&

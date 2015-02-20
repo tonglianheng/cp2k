@@ -79,7 +79,7 @@ CONTAINS
 
 
 ! *****************************************************************************
-!> \brief computes properties for a given hamilonian using the current wfn
+!> \brief computes properties for a given hamiltonian using the current wfn
 !> \param scf_control ...
 !> \param scf_env ...
 !> \param diis_step ...
@@ -100,7 +100,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'qs_scf_set_loop_flags', &
       routineP = moduleN//':'//routineN
 
-    ! Some flags needed to be set at the beginning of the loop
+! Some flags needed to be set at the beginning of the loop
 
     diis_step = .FALSE.
     energy_only = .FALSE.

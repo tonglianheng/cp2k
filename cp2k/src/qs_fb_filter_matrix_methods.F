@@ -2,21 +2,12 @@ MODULE qs_fb_filter_matrix_methods
 
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind
-  USE cp_dbcsr_interface,              ONLY: array_data, &
-                                             array_i1d_obj, &
-                                             array_new, &
-                                             array_nullify, &
-                                             array_release,&
-                                             cp_dbcsr_create, &
-                                             cp_dbcsr_finalize, &
-                                             cp_dbcsr_get_info, &
-                                             cp_dbcsr_get_stored_coordinates, &
-                                             cp_dbcsr_init, &
-                                             cp_dbcsr_put_block, &
-                                             cp_dbcsr_row_block_sizes, &
-                                             cp_dbcsr_type, &
-                                             dbcsr_distribution_obj, &
-                                             dbcsr_type_no_symmetry
+  USE cp_dbcsr_interface,              ONLY: &
+       array_data, array_i1d_obj, array_new, array_nullify, array_release, &
+       cp_dbcsr_create, cp_dbcsr_finalize, cp_dbcsr_get_info, &
+       cp_dbcsr_get_stored_coordinates, cp_dbcsr_init, cp_dbcsr_put_block, &
+       cp_dbcsr_row_block_sizes, cp_dbcsr_type, dbcsr_distribution_obj, &
+       dbcsr_type_no_symmetry
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE fermi_utils,                     ONLY: Fermi,&
                                              FermiFixed
@@ -25,39 +16,26 @@ MODULE qs_fb_filter_matrix_methods
                                              int_8
   USE message_passing,                 ONLY: mp_alltoall
   USE particle_types,                  ONLY: particle_type
-  USE qs_fb_atomic_halo_types,         ONLY: fb_atomic_halo_atom_global2halo, &
-                                             fb_atomic_halo_create, &
-                                             fb_atomic_halo_get, &
-                                             fb_atomic_halo_list_get, &
-                                             fb_atomic_halo_list_obj, &
-                                             fb_atomic_halo_nullify, &
-                                             fb_atomic_halo_obj, &
-                                             fb_atomic_halo_release, &
+  USE qs_fb_atomic_halo_types,         ONLY: fb_atomic_halo_create,&
+                                             fb_atomic_halo_get,&
+                                             fb_atomic_halo_list_get,&
+                                             fb_atomic_halo_list_obj,&
+                                             fb_atomic_halo_nullify,&
+                                             fb_atomic_halo_obj,&
+                                             fb_atomic_halo_release,&
                                              fb_atomic_halo_set
   USE qs_fb_atomic_matrix_methods,     ONLY: fb_atmatrix_calc_size,&
                                              fb_atmatrix_construct
-  USE qs_fb_com_tasks_types,           ONLY: TASK_COST, &
-                                             TASK_DEST, &
-                                             TASK_N_RECORDS, &
-                                             TASK_PAIR, &
-                                             TASK_SRC, &
-                                             fb_com_atom_pairs_calc_buffer_sizes, &
-                                             fb_com_atom_pairs_create, &
-                                             fb_com_atom_pairs_decode, &
-                                             fb_com_atom_pairs_get, &
-                                             fb_com_atom_pairs_has_data, &
-                                             fb_com_atom_pairs_init, &
-                                             fb_com_atom_pairs_nullify, &
-                                             fb_com_atom_pairs_obj, &
-                                             fb_com_atom_pairs_release, &
-                                             fb_com_tasks_build_atom_pairs, &
-                                             fb_com_tasks_create, &
-                                             fb_com_tasks_encode_pair, &
-                                             fb_com_tasks_nullify, &
-                                             fb_com_tasks_obj, &
-                                             fb_com_tasks_release, &
-                                             fb_com_tasks_set, &
-                                             fb_com_tasks_transpose_dest_src
+  USE qs_fb_com_tasks_types,           ONLY: &
+       TASK_COST, TASK_DEST, TASK_N_RECORDS, TASK_PAIR, TASK_SRC, &
+       fb_com_atom_pairs_calc_buffer_sizes, fb_com_atom_pairs_create, &
+       fb_com_atom_pairs_decode, fb_com_atom_pairs_get, &
+       fb_com_atom_pairs_has_data, fb_com_atom_pairs_init, &
+       fb_com_atom_pairs_nullify, fb_com_atom_pairs_obj, &
+       fb_com_atom_pairs_release, fb_com_tasks_build_atom_pairs, &
+       fb_com_tasks_create, fb_com_tasks_encode_pair, fb_com_tasks_nullify, &
+       fb_com_tasks_obj, fb_com_tasks_release, fb_com_tasks_set, &
+       fb_com_tasks_transpose_dest_src
   USE qs_fb_trial_fns_types,           ONLY: fb_trial_fns_get,&
                                              fb_trial_fns_obj
   USE string_utilities,                ONLY: compress,&
@@ -133,8 +111,7 @@ CONTAINS
     CHARACTER(LEN=default_string_length)     :: name_string
     INTEGER                                  :: handle, iblkcol, ihalo, &
                                                 ikind, max_nhalos, &
-                                                nblkcols_total, &
-                                                nhalos, stat
+                                                nblkcols_total, nhalos, stat
     INTEGER, DIMENSION(:), POINTER           :: col_blk_size_data, &
                                                 dummy_halo_atoms, ntfns
     LOGICAL                                  :: failure, send_data_only
@@ -308,23 +285,17 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'fb_fltrmat_add_blkcol', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: handle, handle_mpi, iatom_global, iatom_in_halo, ind, &
-               ipair, ipe, itrial, jatom_global, jatom_in_halo, jkind,&
-               natoms_global, natoms_in_halo, ncols_atmatrix, &
-               ncols_blk, nrows_atmatrix, nrows_blk, numprocs, pe, &
-               recv_encode, send_encode, stat
+    INTEGER :: handle, handle_mpi, iatom_global, iatom_in_halo, ind, ipair, &
+      ipe, itrial, jatom_global, jatom_in_halo, jkind, natoms_global, &
+      natoms_in_halo, ncols_atmatrix, ncols_blk, nrows_atmatrix, nrows_blk, &
+      numprocs, pe, recv_encode, send_encode, stat
     INTEGER(KIND=int_8), DIMENSION(:), &
       POINTER                                :: pairs_recv, pairs_send
     INTEGER, ALLOCATABLE, DIMENSION(:) :: atomic_H_blk_col_start, &
-                                          atomic_H_blk_row_start, &
-                                          atomic_S_blk_col_start, &
-                                          atomic_S_blk_row_start, &
-                                          col_block_size_data, &
-                                          ind_in_halo, &
-                                          recv_disps, recv_pair_count,&
-                                          recv_pair_disps, recv_sizes,&
-                                          send_disps, send_pair_count,&
-                                          send_pair_disps, send_sizes
+      atomic_H_blk_row_start, atomic_S_blk_col_start, atomic_S_blk_row_start, &
+      col_block_size_data, ind_in_halo, recv_disps, recv_pair_count, &
+      recv_pair_disps, recv_sizes, send_disps, send_pair_count, &
+      send_pair_disps, send_sizes
     INTEGER, DIMENSION(:), POINTER           :: halo_atoms, ntfns, &
                                                 row_block_size_data
     INTEGER, DIMENSION(:, :), POINTER        :: tfns
@@ -827,9 +798,8 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, handle_dgemm, &
-                                                handle_dsygv, ii, &
-                                                info, jj, mat_dim, &
-                                                stat, work_array_size
+                                                handle_dsygv, ii, info, jj, &
+                                                mat_dim, stat, work_array_size
     LOGICAL                                  :: check_ok, failure
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: eigenvalues, filter_function, &
                                                 work

@@ -11,7 +11,7 @@ MODULE qs_fb_atomic_halo_types
   USE kinds,                           ONLY: default_string_length
   USE particle_types,                  ONLY: particle_type
   USE string_utilities,                ONLY: compress
-  USE timings,                         ONLY: timeset, &
+  USE timings,                         ONLY: timeset,&
                                              timestop
   USE util,                            ONLY: locate,&
                                              sort
@@ -474,8 +474,8 @@ CONTAINS
       routineN = 'fb_atomic_halo_atom_global2halo', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     INTEGER                                  :: handle
+    LOGICAL                                  :: failure
 
     CALL timeset(routineN, handle)
 

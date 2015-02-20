@@ -124,15 +124,11 @@ MODULE qs_scf
                                              qs_scf_loop_print,&
                                              qs_scf_outer_loop_info,&
                                              qs_scf_write_mos
-  USE qs_scf_types,                    ONLY: block_davidson_diag_method_nr, &
-                                             block_krylov_diag_method_nr, &
-                                             filter_matrix_diag_method_nr, &
-                                             general_diag_method_nr, &
-                                             ot_diag_method_nr, &
-                                             ot_method_nr, &
-                                             qs_scf_env_type, &
-                                             scf_env_release, &
-                                             special_diag_method_nr
+  USE qs_scf_types,                    ONLY: &
+       block_davidson_diag_method_nr, block_krylov_diag_method_nr, &
+       filter_matrix_diag_method_nr, general_diag_method_nr, &
+       ot_diag_method_nr, ot_method_nr, qs_scf_env_type, scf_env_release, &
+       special_diag_method_nr
   USE qs_wf_history_methods,           ONLY: wfi_update
   USE scf_control_types,               ONLY: scf_control_type
   USE termination,                     ONLY: stop_program

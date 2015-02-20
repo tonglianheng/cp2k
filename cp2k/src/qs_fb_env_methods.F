@@ -9,33 +9,17 @@ MODULE qs_fb_env_methods
                                              pbc
   USE cp_blacs_env,                    ONLY: cp_blacs_env_type
   USE cp_control_types,                ONLY: dft_control_type
-  USE cp_dbcsr_interface,              ONLY: array_i1d_obj, &
-                                             array_nullify, &
-                                             cp_dbcsr_allocate_matrix_set, &
-                                             cp_dbcsr_col_block_sizes, &
-                                             cp_dbcsr_create, &
-                                             cp_dbcsr_deallocate_matrix_set,&
-                                             cp_dbcsr_desymmetrize, &
-                                             cp_dbcsr_distribution, &
-                                             cp_dbcsr_finalize, &
-                                             cp_dbcsr_get_info, &
-                                             cp_dbcsr_get_matrix_type, &
-                                             cp_dbcsr_init, &
-                                             cp_dbcsr_iterator, &
-                                             cp_dbcsr_iterator_blocks_left, &
-                                             cp_dbcsr_iterator_next_block, &
-                                             cp_dbcsr_iterator_start, &
-                                             cp_dbcsr_iterator_stop, &
-                                             cp_dbcsr_multiply, &
-                                             cp_dbcsr_nfullcols_total, &
-                                             cp_dbcsr_nfullrows_total, &
-                                             cp_dbcsr_p_type, &
-                                             cp_dbcsr_release, &
-                                             cp_dbcsr_reserve_blocks, &
-                                             cp_dbcsr_row_block_sizes, &
-                                             cp_dbcsr_set, &
-                                             cp_dbcsr_type, &
-                                             dbcsr_type_no_symmetry
+  USE cp_dbcsr_interface,              ONLY: &
+       array_i1d_obj, array_nullify, cp_dbcsr_allocate_matrix_set, &
+       cp_dbcsr_col_block_sizes, cp_dbcsr_create, &
+       cp_dbcsr_deallocate_matrix_set, cp_dbcsr_desymmetrize, &
+       cp_dbcsr_distribution, cp_dbcsr_finalize, cp_dbcsr_get_info, &
+       cp_dbcsr_get_matrix_type, cp_dbcsr_init, cp_dbcsr_iterator, &
+       cp_dbcsr_iterator_blocks_left, cp_dbcsr_iterator_next_block, &
+       cp_dbcsr_iterator_start, cp_dbcsr_iterator_stop, cp_dbcsr_multiply, &
+       cp_dbcsr_nfullcols_total, cp_dbcsr_nfullrows_total, cp_dbcsr_p_type, &
+       cp_dbcsr_release, cp_dbcsr_reserve_blocks, cp_dbcsr_row_block_sizes, &
+       cp_dbcsr_set, cp_dbcsr_type, dbcsr_type_no_symmetry
   USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm
   USE cp_fm_basic_linalg,              ONLY: cp_fm_gemm,&
                                              cp_fm_triangular_invert
@@ -67,18 +51,12 @@ MODULE qs_fb_env_methods
   USE qs_diis,                         ONLY: qs_diis_b_step
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
-  USE qs_fb_atomic_halo_types,         ONLY: fb_atomic_halo_create,&
-                                             fb_atomic_halo_list_create,&
-                                             fb_atomic_halo_list_nullify,&
-                                             fb_atomic_halo_list_obj, &
-                                             fb_atomic_halo_list_release,&
-                                             fb_atomic_halo_list_set,&
-                                             fb_atomic_halo_nelectrons_estimate_Z,&
-                                             fb_atomic_halo_nullify,&
-                                             fb_atomic_halo_obj,&
-                                             fb_atomic_halo_release,&
-                                             fb_atomic_halo_set,&
-                                             fb_atomic_halo_sort
+  USE qs_fb_atomic_halo_types,         ONLY: &
+       fb_atomic_halo_create, fb_atomic_halo_list_create, &
+       fb_atomic_halo_list_nullify, fb_atomic_halo_list_obj, &
+       fb_atomic_halo_list_release, fb_atomic_halo_list_set, &
+       fb_atomic_halo_nelectrons_estimate_Z, fb_atomic_halo_nullify, &
+       fb_atomic_halo_obj, fb_atomic_halo_set, fb_atomic_halo_sort
   USE qs_fb_env_types,                 ONLY: fb_env_get,&
                                              fb_env_has_data,&
                                              fb_env_obj,&
@@ -162,14 +140,12 @@ CONTAINS
 
     CHARACTER(len=2)                         :: spin_string
     CHARACTER(len=default_string_length)     :: name
-    INTEGER :: filtered_nfullrowsORcols_total, handle, homo_filtered, &
-               ispin, lfomo_filtered, my_nmo, nelectron, nmo, &
-               nmo_filtered, nspin, original_nfullrowsORcols_total, &
-               stat
+    INTEGER :: filtered_nfullrowsORcols_total, handle, homo_filtered, ispin, &
+      lfomo_filtered, my_nmo, nelectron, nmo, nmo_filtered, nspin, &
+      original_nfullrowsORcols_total, stat
     LOGICAL                                  :: failure, use_jacobi
     REAL(kind=dp) :: diis_error, eps_diis, fermi_level, filter_temp, &
-                     flexible_electron_count, KTS_filtered, maxocc, &
-                     mu_filtered
+      flexible_electron_count, KTS_filtered, maxocc, mu_filtered
     REAL(KIND=dp), DIMENSION(:), POINTER     :: eigenvalues, &
                                                 eigenvalues_filtered, occ, &
                                                 occ_filtered
@@ -184,10 +160,8 @@ CONTAINS
                                                 matrix_filtered_s, matrix_tmp
     TYPE(cp_dbcsr_type), POINTER             :: matrix_filtered_p
     TYPE(cp_fm_struct_type), POINTER         :: filter_fm_struct, fm_struct
-    TYPE(cp_fm_type), POINTER :: fm_matrix_filter, &
-                                 fm_matrix_filtered_ks, &
-                                 fm_matrix_filtered_s, fm_matrix_work,&
-                                 mo_coeff, mo_coeff_filtered
+    TYPE(cp_fm_type), POINTER :: fm_matrix_filter, fm_matrix_filtered_ks, &
+      fm_matrix_filtered_s, fm_matrix_work, mo_coeff, mo_coeff_filtered
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(fb_atomic_halo_list_obj)            :: atomic_halos
     TYPE(fb_trial_fns_obj)                   :: trial_fns
@@ -198,7 +172,8 @@ CONTAINS
     TYPE(qs_matrix_pools_type), POINTER      :: my_mpools
     TYPE(qs_scf_env_type), POINTER           :: scf_env
     TYPE(scf_control_type), POINTER          :: scf_control
-    ! TYPE(neighbor_list_set_p_type), DIMENSION(:), POINTER :: sab_orb
+
+! TYPE(neighbor_list_set_p_type), DIMENSION(:), POINTER :: sab_orb
 
     CALL timeset(routineN, handle)
 
@@ -522,7 +497,7 @@ CONTAINS
 
        ! now diagonalise
 
-       ! calculate S^(-1/2) (cholescky decomposition)
+       ! calculate S^(-1/2) (cholesky decomposition)
        CALL cp_fm_cholesky_decompose(fm_matrix_filtered_s, error=error)
        CALL cp_fm_triangular_invert(fm_matrix_filtered_s, error=error)
        ! setup matrix pools for the molecular orbitals
@@ -869,19 +844,17 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'fb_env_build_atomic_halos', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: handle, iatom, iatom_local, ihalo, ihalo_atom, ikind, &
-               jatom, jatom_in_kind, jkind, max_natoms_local, &
-               n_global_atoms_in_kind, n_local_atoms_in_kind, &
-               natoms_global, natoms_local, nelectrons_in_halo, &
-               nhalo_atoms, nkinds, nkinds_global, owner_id_in_halo, &
-               stat
+    INTEGER :: handle, iatom, iatom_local, ihalo, ihalo_atom, ikind, jatom, &
+      jatom_in_kind, jkind, max_natoms_local, n_global_atoms_in_kind, &
+      n_local_atoms_in_kind, natoms_global, natoms_local, nelectrons_in_halo, &
+      nhalo_atoms, nkinds, nkinds_global, owner_id_in_halo, stat
     INTEGER, DIMENSION(:), POINTER           :: atom_list, halo_atoms
     LOGICAL                                  :: failure
     LOGICAL, ALLOCATABLE, DIMENSION(:)       :: present_ab
     REAL(KIND=dp)                            :: rij
-    REAL(KIND=dp), DIMENSION(3)              :: ri, rj, rij_pbc
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: pair_radius
+    REAL(KIND=dp), DIMENSION(3)              :: ri, rij_pbc, rj
     REAL(KIND=dp), DIMENSION(:), POINTER     :: rcut
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
@@ -1073,9 +1046,8 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'fb_env_build_trial_fns_auto', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: basis_set_id, counter, handle, icgf, ico, ikind, iset, &
-               ishell, itrial, lshell, max_n_trial, nkinds, nset, &
-               old_lshell, stat
+    INTEGER :: basis_set_id, counter, handle, icgf, ico, ikind, iset, ishell, &
+      itrial, lshell, max_n_trial, nkinds, nset, old_lshell, stat
     INTEGER, DIMENSION(:), POINTER           :: lmax, nfunctions, nshell
     INTEGER, DIMENSION(:, :), POINTER        :: functions
     LOGICAL                                  :: failure
