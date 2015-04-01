@@ -1,6 +1,6 @@
 MODULE qs_fb_hash_bucket_types
 
-  USE kinds, ONLY: int_8
+  USE kinds,                           ONLY: int_8
 
 #include "./common/cp_common_uses.f90"
 
@@ -36,7 +36,7 @@ MODULE qs_fb_hash_bucket_types
      INTEGER :: id_nr, ref_count
      INTEGER(KIND=int_8) :: key
      INTEGER :: val
-  END type fb_hash_bucket_data
+  END TYPE fb_hash_bucket_data
 
 
 ! *****************************************************************************
@@ -47,7 +47,7 @@ MODULE qs_fb_hash_bucket_types
 ! *****************************************************************************
   TYPE fb_hash_bucket_obj
      TYPE(fb_hash_bucket_data), POINTER, PRIVATE :: obj
-  END type fb_hash_bucket_obj
+  END TYPE fb_hash_bucket_obj
 
 
 CONTAINS
@@ -60,8 +60,8 @@ CONTAINS
 !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
 ! *****************************************************************************
   SUBROUTINE fb_hash_bucket_associate(a, b)
-    TYPE(fb_hash_bucket_obj), INTENT(OUT)     :: a
-    TYPE(fb_hash_bucket_obj), INTENT(IN)      :: b
+    TYPE(fb_hash_bucket_obj), INTENT(OUT)    :: a
+    TYPE(fb_hash_bucket_obj), INTENT(IN)     :: b
 
     CHARACTER(len=*), PARAMETER :: routineN = 'fb_hash_bucket_associate', &
       routineP = moduleN//':'//routineN
@@ -79,8 +79,9 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE fb_hash_bucket_create(hash_bucket, key, val, error)
     TYPE(fb_hash_bucket_obj), INTENT(INOUT)  :: hash_bucket
-    INTEGER(KIND=int_8), INTENT(IN), OPTIONAL :: key
-    INTEGER, INTENT(IN), OPTIONAL :: val
+    INTEGER(KIND=int_8), INTENT(IN), &
+      OPTIONAL                               :: key
+    INTEGER, INTENT(IN), OPTIONAL            :: val
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'fb_hash_bucket_create', &
@@ -123,14 +124,15 @@ CONTAINS
                                 val, &
                                 error)
     TYPE(fb_hash_bucket_obj), INTENT(IN)     :: hash_bucket
-    INTEGER(KIND=int_8), INTENT(OUT), OPTIONAL :: key
+    INTEGER(KIND=int_8), INTENT(OUT), &
+      OPTIONAL                               :: key
     INTEGER, INTENT(OUT), OPTIONAL           :: val
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'fb_hash_bucket_get', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure, check_ok
+    LOGICAL                                  :: check_ok, failure
 
     failure = .FALSE.
     check_ok = ASSOCIATED(hash_bucket%obj)
@@ -172,8 +174,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'fb_hash_bucket_init', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
-    LOGICAL                                  :: failure, check_ok
+    LOGICAL                                  :: check_ok, failure
 
     failure = .FALSE.
     check_ok = ASSOCIATED(hash_bucket%obj)
@@ -191,7 +192,7 @@ CONTAINS
 !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
 ! *****************************************************************************
   SUBROUTINE fb_hash_bucket_nullify(hash_bucket)
-    TYPE(fb_hash_bucket_obj), INTENT(INOUT)   :: hash_bucket
+    TYPE(fb_hash_bucket_obj), INTENT(INOUT)  :: hash_bucket
 
     CHARACTER(len=*), PARAMETER :: routineN = 'fb_hash_bucket_nullify', &
       routineP = moduleN//':'//routineN
@@ -243,7 +244,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'fb_hash_bucket_retain', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure, check_ok
+    LOGICAL                                  :: check_ok, failure
 
     failure = .FALSE.
     check_ok = ASSOCIATED(hash_bucket%obj)
@@ -268,15 +269,15 @@ CONTAINS
                                 val, &
                                 error)
     TYPE(fb_hash_bucket_obj), INTENT(INOUT)  :: hash_bucket
-    INTEGER(KIND=int_8), INTENT(IN), OPTIONAL :: key
+    INTEGER(KIND=int_8), INTENT(IN), &
+      OPTIONAL                               :: key
     INTEGER, INTENT(IN), OPTIONAL            :: val
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'fb_hash_bucket_set', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
-    LOGICAL                                  :: failure, check_ok
+    LOGICAL                                  :: check_ok, failure
 
     failure = .FALSE.
     check_ok = ASSOCIATED(hash_bucket%obj)
