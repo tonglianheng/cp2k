@@ -944,7 +944,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: acol, arow, handle, iatom, &
-                                                ii, itask, jatom, LT_UNIT, &
+                                                ii, itask, jatom, &
                                                 npairs, ntasks, rank, &
                                                 rank_pos, stat
     INTEGER(KIND=int_8)                      :: pair
@@ -956,13 +956,6 @@ CONTAINS
     LOGICAL                                  :: check_ok, failure, &
                                                 my_symmetric
 
-!BEG:DEBUG:LT:2015/01/30
-!END:DEBUG:LT:2015/01/30
-!BEG:DEBUG:LT:2015/01/30
-
-    LT_UNIT = 200
-!END:DEBUG:LT:2015/01/30
-
     CALL timeset(routineN, handle)
 
     failure = .FALSE.
@@ -970,7 +963,7 @@ CONTAINS
     NULLIFY(pairs, tasks)
 
     check_ok = fb_com_atom_pairs_has_data(atom_pairs)
-    CPPrecondition(check_ok, cp_failure_level, routineP, error, failure)
+    CPPostcondition(check_ok, cp_failure_level, routineP, error, failure)
 
     ! initialise atom_pairs
     CALL fb_com_atom_pairs_init(atom_pairs, error)
@@ -1017,23 +1010,7 @@ CONTAINS
        rank = INT(tasks(rank_pos,itask))
        CALL fb_com_atom_pairs_encode(pairs(itask), &
                                      rank, arow, acol, natoms_encode)
-
-!BEG:DEBUG:LT:2015/01/25
-       ! write (LT_UNIT,*) &
-       !       "|LT| fb_com_tasks_build_atom_pairs: itask = ", itask
-       ! write (LT_UNIT,*) &
-       !       "|LT| fb_com_tasks_build_atom_pairs: rank, arow, acol, natoms_encode = ", &
-       !       rank, arow, acol, natoms_encode
-       ! write (LT_UNIT,*) &
-       !       "|LT| fb_com_tasks_build_atom_pairs: pairs(itask) = ", pairs(itask)
-!END:DEBUG:LT:2015/01/25
-
     END DO
-
-!BEG:DEBUG:LT:2015/01/25
-    ! write (LT_UNIT,*) "|LT| fb_com_tasks_build_atom_pairs: SIZE(pairs) = ", SIZE(pairs)
-    ! write (LT_UNIT,*) "|LT| fb_com_tasks_build_atom_pairs: pairs = ", pairs
-!END:DEBUG:LT:2015/01/25
 
     ! sort atom_pairs so that the pairs are ordered process blocks and
     ! that possible duplicates may be found (we don't want to send or
@@ -1047,12 +1024,6 @@ CONTAINS
        DEALLOCATE(tmp_index, STAT=stat)
        CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
     END IF
-
-!BEG:DEBUG:LT:2015/01/25
-    ! write (LT_UNIT,*) "|LT| fb_com_tasks_build_atom_pairs: After sort"
-    ! write (LT_UNIT,*) "|LT| fb_com_tasks_build_atom_pairs: SIZE(pairs) = ", SIZE(pairs)
-    ! write (LT_UNIT,*) "|LT| fb_com_tasks_build_atom_pairs: pairs = ", pairs
-!END:DEBUG:LT:2015/01/25
 
     ! remove duplicates
     IF (npairs > 1) THEN
@@ -1073,17 +1044,6 @@ CONTAINS
                                npairs=npairs, &
                                natoms_encode=natoms_encode, &
                                error=error)
-
-!BEG:DEBUG:LT:2015/01/25
-    ! write (LT_UNIT,*) &
-    !       "|LT| fb_com_tasks_build_atom_pairs: After fb_com_atom_pairs_set"
-    ! CALL fb_com_atom_pairs_get(atom_pairs=atom_pairs, &
-    !                            pairs=pairs, &
-    !                            npairs=npairs, &
-    !                            error=error)
-    ! write (LT_UNIT,*) "|LT| fb_com_tasks_build_atom_pairs: npairs = ", npairs
-    ! write (LT_UNIT,*) "|LT| fb_com_tasks_build_atom_pairs: pairs = ", pairs
-!END:DEBUG:LT:2015/01/25
 
     CALL timestop(handle)
 
