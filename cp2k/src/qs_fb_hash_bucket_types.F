@@ -8,10 +8,10 @@ MODULE qs_fb_hash_bucket_types
 
   PRIVATE
 
-  ! public types
+! public types
   PUBLIC :: fb_hash_bucket_obj
 
-  ! public methods
+! public methods
   PUBLIC :: fb_hash_bucket_associate, &
             fb_hash_bucket_create, &
             fb_hash_bucket_get, &
