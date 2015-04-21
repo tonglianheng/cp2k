@@ -471,30 +471,52 @@ CONTAINS
 !> \brief Find a prime number equal or larger than ii
 !> \param ii   : input integer
 !> \retval res : the prime number
+!> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
 ! *****************************************************************************
   PURE FUNCTION fb_hash_table_matching_prime(ii) RESULT(res)
     INTEGER, INTENT(IN)                      :: ii
     INTEGER                                  :: res
 
-    INTEGER                                  :: jj
-
-! Find prime by brute force. To check if res is a prime, go
-! through all integers jj > 2 and < res and see if res mod jj
-! gives 0. We start from res = ii and then increment by 1 checking
-! if res is a prime at every step until it is.
-
     res = ii
-    jj = 0
-    DO WHILE (jj < res)
-       check_prime: DO jj = 2, res-1
-          IF (MOD(res, jj) == 0) THEN
-             ! res is not a prime, increment
-             res = res + 1
-             EXIT check_prime
-          END IF
-       END DO check_prime
+    DO WHILE (is_positive_prime(res))
+       res = res + 1
     END DO
   END FUNCTION fb_hash_table_matching_prime
+
+! *****************************************************************************
+!> \brief Check if a number is a positive prime
+!> \param num  : number to check
+!> \retval res : returns TRUE if num is a positive prime, FALSE otherwise
+!> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
+! *****************************************************************************
+  PURE FUNCTION is_positive_prime(num) &
+       RESULT(res)
+    INTEGER, INTENT(IN)                      :: num
+    LOGICAL                                  :: res
+
+    INTEGER                                  :: ii
+
+    IF (num .LE. 3) THEN
+       res = num .GE. 2
+       RETURN
+    END IF
+    IF (MOD(num, 2) == 0 .OR. MOD(num, 3) == 0) THEN
+       res = .FALSE.
+       RETURN
+    END IF
+    ! all primes > 3 are of the form 6*kk +/- 1, kk=1,2,3...
+    ! (although not all 6*kk +/- 1 is a prime);
+    ! and we only have to check factors less than and equal to SQRT(num)
+    ii = 5
+    DO WHILE (ii*ii .LE. num)
+       IF (MOD(num, ii) == 0 .OR. MOD(num, ii+2) == 0) THEN
+          res = .FALSE.
+          RETURN
+       END IF
+       ii = ii + 6
+    END DO
+    res = .TRUE.
+  END FUNCTION is_positive_prime
 
 ! *****************************************************************************
 !> \brief Linear probing algorithm for the hash table
@@ -502,6 +524,7 @@ CONTAINS
 !> \param key        : key to locate
 !> \retval islot     : slot location in the table correspond to key, 0 if key
 !>                     not found
+!> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
 ! *****************************************************************************
   PURE FUNCTION fb_hash_table_linear_probe(hash_table, key) &
        RESULT(islot)
@@ -536,6 +559,7 @@ CONTAINS
 !> \param key        : key to locate
 !> \retval islot     : slot location in the table correspond to key, 0 if key
 !>                     not found
+!> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
 ! *****************************************************************************
   PURE FUNCTION fb_hash_table_hash_function(hash_table, key) RESULT(hash)
     TYPE(fb_hash_table_obj), INTENT(IN)      :: hash_table
