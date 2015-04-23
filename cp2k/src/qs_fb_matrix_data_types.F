@@ -1,14 +1,14 @@
 MODULE qs_fb_matrix_data_types
 
-  USE kinds, ONLY: dp, int_8
-  USE qs_fb_hash_table_types, ONLY: fb_hash_table_obj, &
-                                    fb_hash_table_add, &
-                                    fb_hash_table_create, &
-                                    fb_hash_table_get, &
-                                    fb_hash_table_has_data, &
-                                    fb_hash_table_nullify, &
-                                    fb_hash_table_release
-
+  USE kinds,                           ONLY: dp,&
+                                             int_8
+  USE qs_fb_hash_table_types,          ONLY: fb_hash_table_add,&
+                                             fb_hash_table_create,&
+                                             fb_hash_table_get,&
+                                             fb_hash_table_has_data,&
+                                             fb_hash_table_nullify,&
+                                             fb_hash_table_obj,&
+                                             fb_hash_table_release
 #include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
@@ -44,8 +44,8 @@ MODULE qs_fb_matrix_data_types
 !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
 ! *****************************************************************************
   TYPE fb_matrix_block
-     REAL(KIND=dp), DIMENSION(:,:), POINTER :: data => NULL()
-  END type fb_matrix_block
+     REAL(KIND=dp), DIMENSION(:,:), POINTER :: p => NULL()
+  END TYPE fb_matrix_block
 
 ! *****************************************************************************
 !> \brief data type for storing a list of matrix blocks
@@ -67,7 +67,7 @@ MODULE qs_fb_matrix_data_types
      INTEGER :: nencode
      TYPE(fb_hash_table_obj) :: ind
      TYPE(fb_matrix_block), DIMENSION(:), POINTER :: blks => NULL()
-  END type fb_matrix_data_data
+  END TYPE fb_matrix_data_data
 
 ! *****************************************************************************
 !> \brief the object container which allows for the creation of an array
@@ -77,7 +77,7 @@ MODULE qs_fb_matrix_data_types
 ! *****************************************************************************
   TYPE fb_matrix_data_obj
      TYPE(fb_matrix_data_data), POINTER, PRIVATE :: obj => NULL()
-  END type fb_matrix_data_obj
+  END TYPE fb_matrix_data_obj
 
 CONTAINS
 
@@ -91,18 +91,19 @@ CONTAINS
 !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
 ! *****************************************************************************
   SUBROUTINE fb_matrix_data_add(matrix_data, row, col, blk, error)
-    TYPE(fb_matrix_data_obj), INTENT(INOUT) :: matrix_data
-    INTEGER, INTENT(IN) :: row
-    INTEGER, INTENT(IN) :: col
-    REAL(KIND=dp), DIMENSION(:,:), INTENT(IN) :: blk
-    TYPE(cp_error_type), INTENT(INOUT) :: error
+    TYPE(fb_matrix_data_obj), INTENT(INOUT)  :: matrix_data
+    INTEGER, INTENT(IN)                      :: row, col
+    REAL(KIND=dp), DIMENSION(:, :), &
+      INTENT(IN)                             :: blk
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'fb_matrix_data_add', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: ii, nrows, ncols, existing_ii, stat
-    INTEGER(KIND=int_8) :: pair_ind
-    LOGICAL :: failure, check_ok, found
+    INTEGER                                  :: existing_ii, ii, ncols, &
+                                                nrows, stat
+    INTEGER(KIND=int_8)                      :: pair_ind
+    LOGICAL                                  :: check_ok, failure, found
 
     failure = .FALSE.
     check_ok = fb_matrix_data_has_data(matrix_data)
@@ -122,19 +123,19 @@ CONTAINS
     CALL fb_hash_table_get(matrix_data%obj%ind, pair_ind, existing_ii, found, error)
     IF (found) THEN
        ! matrix block aready stored, need to to reassign
-       IF (ASSOCIATED(matrix_data%obj%blks(existing_ii)%data)) THEN
-          DEALLOCATE(matrix_data%obj%blks(existing_ii)%data, STAT=stat)
+       IF (ASSOCIATED(matrix_data%obj%blks(existing_ii)%p)) THEN
+          DEALLOCATE(matrix_data%obj%blks(existing_ii)%p, STAT=stat)
           CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
        END IF
-       ALLOCATE(matrix_data%obj%blks(existing_ii)%data(nrows,ncols), STAT=stat)
+       ALLOCATE(matrix_data%obj%blks(existing_ii)%p(nrows,ncols), STAT=stat)
        CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
-       matrix_data%obj%blks(existing_ii)%data(:,:) = blk(:,:)
+       matrix_data%obj%blks(existing_ii)%p(:,:) = blk(:,:)
     ELSE
        matrix_data%obj%nblks = matrix_data%obj%nblks + 1
        ii = matrix_data%obj%nblks
-       ALLOCATE(matrix_data%obj%blks(ii)%data(nrows,ncols), STAT=stat)
+       ALLOCATE(matrix_data%obj%blks(ii)%p(nrows,ncols), STAT=stat)
        CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
-       matrix_data%obj%blks(ii)%data(:,:) = blk(:,:)
+       matrix_data%obj%blks(ii)%p(:,:) = blk(:,:)
        ! record blk index in the index table
        CALL fb_hash_table_add(matrix_data%obj%ind, pair_ind, ii, error)
     END IF
@@ -147,8 +148,8 @@ CONTAINS
 !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
 ! *****************************************************************************
   SUBROUTINE fb_matrix_data_associate(a, b)
-    TYPE(fb_matrix_data_obj), INTENT(OUT)     :: a
-    TYPE(fb_matrix_data_obj), INTENT(IN)      :: b
+    TYPE(fb_matrix_data_obj), INTENT(OUT)    :: a
+    TYPE(fb_matrix_data_obj), INTENT(IN)     :: b
 
     a%obj => b%obj
   END SUBROUTINE fb_matrix_data_associate
@@ -163,8 +164,7 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE fb_matrix_data_create(matrix_data, nmax, nencode, error)
     TYPE(fb_matrix_data_obj), INTENT(INOUT)  :: matrix_data
-    INTEGER, INTENT(IN)                      :: nmax
-    INTEGER, INTENT(IN)                      :: nencode
+    INTEGER, INTENT(IN)                      :: nmax, nencode
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'fb_matrix_data_create', &
@@ -208,18 +208,17 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE fb_matrix_data_get(matrix_data, row, col, blk_p, found, error)
     TYPE(fb_matrix_data_obj), INTENT(INOUT)  :: matrix_data
-    INTEGER, INTENT(IN) :: row
-    INTEGER, INTENT(IN) :: col
-    REAL(KIND=dp), DIMENSION(:,:), POINTER   :: blk_p
-    LOGICAL, INTENT(OUT) :: found
+    INTEGER, INTENT(IN)                      :: row, col
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: blk_p
+    LOGICAL, INTENT(OUT)                     :: found
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'fb_matrix_data_get', &
       routineP = moduleN//':'//routineN
 
-    INTEGER(KIND=int_8) :: pair_ind
-    INTEGER :: ind_in_blk
-    LOGICAL :: check_ok, failure
+    INTEGER                                  :: ind_in_blk
+    INTEGER(KIND=int_8)                      :: pair_ind
+    LOGICAL                                  :: check_ok, failure
 
     failure = .FALSE.
     check_ok = fb_matrix_data_has_data(matrix_data)
@@ -227,7 +226,7 @@ CONTAINS
     pair_ind = fb_matrix_data_encode_pair(row, col, matrix_data%obj%nencode)
     CALL fb_hash_table_get(matrix_data%obj%ind, pair_ind, ind_in_blk, found, error)
     IF (found) THEN
-       blk_p => matrix_data%obj%blks(ind_in_blk)%data
+       blk_p => matrix_data%obj%blks(ind_in_blk)%p
     ELSE
        NULLIFY(blk_p)
     END IF
@@ -259,8 +258,7 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE fb_matrix_data_init(matrix_data, nmax, nencode, error)
     TYPE(fb_matrix_data_obj), INTENT(INOUT)  :: matrix_data
-    INTEGER, INTENT(IN), OPTIONAL            :: nmax
-    INTEGER, INTENT(IN), OPTIONAL            :: nencode
+    INTEGER, INTENT(IN), OPTIONAL            :: nmax, nencode
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'fb_matrix_data_init', &
@@ -281,8 +279,8 @@ CONTAINS
     CALL fb_hash_table_create(matrix_data%obj%ind, my_nmax, error)
     IF (ASSOCIATED(matrix_data%obj%blks)) THEN
        DO ii = 1, SIZE(matrix_data%obj%blks)
-          IF (ASSOCIATED(matrix_data%obj%blks(ii)%data)) THEN
-             DEALLOCATE(matrix_data%obj%blks(ii)%data, STAT=stat)
+          IF (ASSOCIATED(matrix_data%obj%blks(ii)%p)) THEN
+             DEALLOCATE(matrix_data%obj%blks(ii)%p, STAT=stat)
              CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
           END IF
        END DO
@@ -294,7 +292,7 @@ CONTAINS
     matrix_data%obj%nmax = my_nmax
     ! nullify matrix blocks
     DO ii = 1, SIZE(matrix_data%obj%blks)
-       NULLIFY(matrix_data%obj%blks(ii)%data)
+       NULLIFY(matrix_data%obj%blks(ii)%p)
     END DO
     matrix_data%obj%nblks = 0
     IF (PRESENT(nencode)) matrix_data%obj%nencode = nencode
@@ -318,7 +316,7 @@ CONTAINS
 !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
 ! *****************************************************************************
   SUBROUTINE fb_matrix_data_release(matrix_data, error)
-    TYPE(fb_matrix_data_obj), INTENT(INOUT)   :: matrix_data
+    TYPE(fb_matrix_data_obj), INTENT(INOUT)  :: matrix_data
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'fb_matrix_data_release', &
@@ -339,8 +337,8 @@ CONTAINS
           END IF
           IF (ASSOCIATED(matrix_data%obj%blks)) THEN
              DO ii = 1, SIZE(matrix_data%obj%blks)
-                IF (ASSOCIATED(matrix_data%obj%blks(ii)%data)) THEN
-                   DEALLOCATE(matrix_data%obj%blks(ii)%data, STAT=stat)
+                IF (ASSOCIATED(matrix_data%obj%blks(ii)%p)) THEN
+                   DEALLOCATE(matrix_data%obj%blks(ii)%p, STAT=stat)
                    CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
                 END IF
              END DO
@@ -363,7 +361,7 @@ CONTAINS
 !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
 ! *****************************************************************************
   SUBROUTINE fb_matrix_data_retain(matrix_data, error)
-    TYPE(fb_matrix_data_obj), INTENT(INOUT)   :: matrix_data
+    TYPE(fb_matrix_data_obj), INTENT(INOUT)  :: matrix_data
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'fb_matrix_data_retain', &
@@ -389,16 +387,17 @@ CONTAINS
 !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
 ! *****************************************************************************
   SUBROUTINE fb_matrix_data_resize(matrix_data, nmax, error)
-    TYPE(fb_matrix_data_obj), INTENT(INOUT) :: matrix_data
-    INTEGER, INTENT(IN) :: nmax
-    TYPE(cp_error_type), INTENT(INOUT) :: error
+    TYPE(fb_matrix_data_obj), INTENT(INOUT)  :: matrix_data
+    INTEGER, INTENT(IN)                      :: nmax
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'fb_matrix_data_resize', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL :: failure, check_ok
-    INTEGER :: ii, my_nmax, stat
-    TYPE(fb_matrix_block), DIMENSION(:), ALLOCATABLE :: tmp_blks
+    INTEGER                                  :: ii, my_nmax, stat
+    LOGICAL                                  :: check_ok, failure
+    TYPE(fb_matrix_block), ALLOCATABLE, &
+      DIMENSION(:)                           :: tmp_blks
 
     failure = .FALSE.
     check_ok = fb_matrix_data_has_data(matrix_data)
@@ -411,20 +410,20 @@ CONTAINS
        ALLOCATE(tmp_blks(matrix_data%obj%nblks), STAT=stat)
        CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
        DO ii = 1, SIZE(tmp_blks)
-          NULLIFY(tmp_blks(ii)%data)
+          NULLIFY(tmp_blks(ii)%p)
        END DO
        DO ii = 1, matrix_data%obj%nblks
-          tmp_blks(ii)%data => matrix_data%obj%blks(ii)%data
+          tmp_blks(ii)%p => matrix_data%obj%blks(ii)%p
        END DO
        DEALLOCATE(matrix_data%obj%blks, STAT=stat)
        CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
        ALLOCATE(matrix_data%obj%blks(my_nmax), STAT=stat)
        CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
        DO ii = 1, SIZE(matrix_data%obj%blks)
-          NULLIFY(matrix_data%obj%blks(ii)%data)
+          NULLIFY(matrix_data%obj%blks(ii)%p)
        END DO
        DO ii = 1, matrix_data%obj%nblks
-          matrix_data%obj%blks(ii)%data => tmp_blks(ii)%data
+          matrix_data%obj%blks(ii)%p => tmp_blks(ii)%p
        END DO
        DEALLOCATE(tmp_blks, STAT=stat)
        CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
@@ -432,7 +431,7 @@ CONTAINS
        ALLOCATE(matrix_data%obj%blks(my_nmax), STAT=stat)
        CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
        DO ii = 1, SIZE(matrix_data%obj%blks)
-          NULLIFY(matrix_data%obj%blks(ii)%data)
+          NULLIFY(matrix_data%obj%blks(ii)%p)
        END DO
     END IF
     matrix_data%obj%nmax = my_nmax
@@ -448,16 +447,14 @@ CONTAINS
 !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
 ! *****************************************************************************
   SUBROUTINE fb_matrix_data_status(matrix_data, nmax, nblks, nencode, error)
-    TYPE(fb_matrix_data_obj), INTENT(INOUT) :: matrix_data
-    INTEGER, INTENT(OUT), OPTIONAL :: nmax
-    INTEGER, INTENT(OUT), OPTIONAL :: nblks
-    INTEGER, INTENT(OUT), OPTIONAL :: nencode
-    TYPE(cp_error_type), INTENT(INOUT) :: error
+    TYPE(fb_matrix_data_obj), INTENT(INOUT)  :: matrix_data
+    INTEGER, INTENT(OUT), OPTIONAL           :: nmax, nblks, nencode
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'fb_matrix_data_status', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL :: check_ok, failure
+    LOGICAL                                  :: check_ok, failure
 
     failure = .FALSE.
     check_ok = fb_matrix_data_has_data(matrix_data)
@@ -479,10 +476,11 @@ CONTAINS
 ! *****************************************************************************
   PURE FUNCTION fb_matrix_data_encode_pair(row, col, nencode) &
        RESULT(pair_ind)
-    INTEGER, INTENT(IN) :: row, col, nencode
-    INTEGER(KIND=int_8) :: pair_ind
+    INTEGER, INTENT(IN)                      :: row, col, nencode
+    INTEGER(KIND=int_8)                      :: pair_ind
 
-    INTEGER(KIND=int_8) :: row_8, col_8, nencode_8
+    INTEGER(KIND=int_8)                      :: col_8, nencode_8, row_8
+
     row_8 = INT(row, int_8)
     col_8 = INT(col, int_8)
     nencode_8 = INT(nencode, int_8)

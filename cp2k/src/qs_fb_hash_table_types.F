@@ -301,7 +301,7 @@ CONTAINS
 !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
 ! *****************************************************************************
   PURE SUBROUTINE fb_hash_table_nullify(hash_table)
-    TYPE(fb_hash_table_obj), INTENT(INOUT)  :: hash_table
+    TYPE(fb_hash_table_obj), INTENT(INOUT)   :: hash_table
 
     NULLIFY(hash_table%obj)
   END SUBROUTINE fb_hash_table_nullify
