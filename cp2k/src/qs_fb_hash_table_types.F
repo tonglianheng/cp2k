@@ -68,15 +68,17 @@ MODULE qs_fb_hash_table_types
 !> \brief data defining a hash table using open addressing for collision
 !>        resolvation. Uses simple entry structure to be memory efficient
 !>        as well as small overhead
-!> \param table     : array of buckets of (key, val) pairs
-!> \param val       : value of a hash table entry
+!> \param table     : hash table data area
+!> \param nelements : number of non-empty slots in table
+!> \param nmax      : max number of slots in table
+!> \param prime     : prime number used in the hash function
 !> \param id_nr     : unique id for the object
 !> \param ref_count : reference counter for the object
 !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
 ! *****************************************************************************
   TYPE fb_hash_table_data
      INTEGER :: id_nr, ref_count
-     TYPE(fb_hash_table_element), DIMENSION(:), POINTER :: table
+     TYPE(fb_hash_table_element), DIMENSION(:), POINTER :: table => NULL()
      INTEGER :: nelements
      INTEGER :: nmax
      INTEGER :: prime
@@ -368,11 +370,12 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: stat
-    LOGICAL                                  :: failure
+    LOGICAL                                  :: check_ok, failure
 
     failure = .FALSE.
     IF (ASSOCIATED(hash_table%obj)) THEN
-       CPPreconditionNoFail(hash_table%obj%ref_count>0, cp_failure_level, routineP, error)
+       check_ok = hash_table%obj%ref_count > 0
+       CPPreconditionNoFail(check_ok, cp_failure_level, routineP, error)
        hash_table%obj%ref_count = hash_table%obj%ref_count - 1
        IF (hash_table%obj%ref_count == 0) THEN
           hash_table%obj%ref_count = 1
@@ -450,7 +453,8 @@ CONTAINS
     check_ok = ASSOCIATED(hash_table%obj)
     CPPostcondition(check_ok, cp_failure_level, routineP, error, failure)
     IF (.NOT. failure) THEN
-       CPPreconditionNoFail(hash_table%obj%ref_count>0, cp_failure_level, routineP, error)
+       check_ok = hash_table%obj%ref_count > 0
+       CPPreconditionNoFail(check_ok, cp_failure_level, routineP, error)
        hash_table%obj%ref_count = hash_table%obj%ref_count + 1
     END IF
   END SUBROUTINE fb_hash_table_retain

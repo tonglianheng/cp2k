@@ -27,7 +27,8 @@ MODULE qs_fb_matrix_data_types
             fb_matrix_data_init, &
             fb_matrix_data_nullify, &
             fb_matrix_data_release, &
-            fb_matrix_data_retain
+            fb_matrix_data_retain, &
+            fb_matrix_data_status
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_fb_matrix_data_types'
   INTEGER, PRIVATE, SAVE :: last_fb_matrix_data_id = 0
@@ -37,10 +38,28 @@ MODULE qs_fb_matrix_data_types
   INTEGER, PARAMETER, PRIVATE :: ENLARGE_RATIO = 1
   INTEGER, PARAMETER, PRIVATE :: EXPAND_FACTOR = 2
 
+! *****************************************************************************
+!> \brief data type for one matrix block
+!> \param data : pointer to matrix block
+!> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
+! *****************************************************************************
   TYPE fb_matrix_block
      REAL(KIND=dp), DIMENSION(:,:), POINTER :: data => NULL()
   END type fb_matrix_block
 
+! *****************************************************************************
+!> \brief data type for storing a list of matrix blocks
+!> \param nmax      : maximum number of blocks can be stored
+!> \param nblks     : number of blocks currently stored
+!> \param nencode   : integer used to encode global block coordinate (row, col)
+!>                    into a single combined integer
+!> \param ind       : hash table maping the global combined index of the blocks
+!>                    to the location in the data area
+!> \param blks      : data area, well the matrix elements are actuaally stored
+!> \param id_nr     : unique id for the object
+!> \param ref_count : reference counter for the object
+!> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
+! *****************************************************************************
   TYPE fb_matrix_data_data
      INTEGER :: id_nr, ref_count
      INTEGER :: nmax
@@ -50,8 +69,14 @@ MODULE qs_fb_matrix_data_types
      TYPE(fb_matrix_block), DIMENSION(:), POINTER :: blks => NULL()
   END type fb_matrix_data_data
 
+! *****************************************************************************
+!> \brief the object container which allows for the creation of an array
+!>        of pointers to fb_matrix_data objects
+!> \param obj : pointer to the fb_matrix_data object
+!> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
+! *****************************************************************************
   TYPE fb_matrix_data_obj
-     TYPE(fb_matrix_data_data), POINTER, PRIVATE :: obj
+     TYPE(fb_matrix_data_data), POINTER, PRIVATE :: obj => NULL()
   END type fb_matrix_data_obj
 
 CONTAINS
@@ -371,11 +396,13 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'fb_matrix_data_resize', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL :: failure
+    LOGICAL :: failure, check_ok
     INTEGER :: ii, my_nmax, stat
     TYPE(fb_matrix_block), DIMENSION(:), ALLOCATABLE :: tmp_blks
 
     failure = .FALSE.
+    check_ok = fb_matrix_data_has_data(matrix_data)
+    CPPostcondition(check_ok, cp_failure_level, routineP, error, failure)
     my_nmax = MAX(nmax, matrix_data%obj%nblks)
     ! resize the blks array, no need to reindex, as blks in the blks
     ! are always added to the array sequencially, and so their address
@@ -410,6 +437,37 @@ CONTAINS
     END IF
     matrix_data%obj%nmax = my_nmax
   END SUBROUTINE fb_matrix_data_resize
+
+! *****************************************************************************
+!> \brief outputs the current information about fb_matrix_data object
+!> \param matrix_data : the fb_matrix_data object
+!> \param nmax        : outputs fb_matrix_data%obj%nmax
+!> \param nblks       : outputs fb_matrix_data%obj%nblks
+!> \param nencode     : outputs fb_matrix_data%obj%nencode
+!> \param error      : cp2k error container
+!> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
+! *****************************************************************************
+  SUBROUTINE fb_matrix_data_status(matrix_data, nmax, nblks, nencode, error)
+    TYPE(fb_matrix_data_obj), INTENT(INOUT) :: matrix_data
+    INTEGER, INTENT(OUT), OPTIONAL :: nmax
+    INTEGER, INTENT(OUT), OPTIONAL :: nblks
+    INTEGER, INTENT(OUT), OPTIONAL :: nencode
+    TYPE(cp_error_type), INTENT(INOUT) :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'fb_matrix_data_status', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL :: check_ok, failure
+
+    failure = .FALSE.
+    check_ok = fb_matrix_data_has_data(matrix_data)
+    CPPostcondition(check_ok, cp_failure_level, routineP, error, failure)
+    IF (PRESENT(nmax)) nmax = matrix_data%obj%nmax
+    IF (PRESENT(nblks)) nblks = matrix_data%obj%nblks
+    IF (PRESENT(nencode)) nencode = matrix_data%obj%nencode
+  END SUBROUTINE fb_matrix_data_status
+
+
 
 ! *****************************************************************************
 !> \brief Encodes (row, col) index pair into a single combined index
