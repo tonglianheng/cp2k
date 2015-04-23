@@ -34,6 +34,7 @@ MODULE qs_fb_hash_table_types
             fb_hash_table_get, &
             fb_hash_table_has_data, &
             fb_hash_table_init, &
+            fb_hash_table_nullify, &
             fb_hash_table_rehash, &
             fb_hash_table_release, &
             fb_hash_table_remove, &
@@ -175,6 +176,9 @@ CONTAINS
        ALLOCATE(hash_table%obj, STAT=stat)
        CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
        NULLIFY(hash_table%obj%table)
+       hash_table%obj%nmax = 0
+       hash_table%obj%nelements = 0
+       hash_table%obj%prime = 2
        my_nmax = 1
        IF (PRESENT(nmax)) my_nmax = nmax
        CALL fb_hash_table_init(hash_table=hash_table, &
@@ -288,6 +292,17 @@ CONTAINS
     END DO
     hash_table%obj%nelements = 0
   END SUBROUTINE fb_hash_table_init
+
+! *****************************************************************************
+!> \brief Nullifies a fb_hash_table object
+!> \param hash_table : the fb_hash_table object
+!> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
+! *****************************************************************************
+  PURE SUBROUTINE fb_hash_table_nullify(hash_table)
+    TYPE(fb_hash_table_obj), INTENT(INOUT)  :: hash_table
+
+    NULLIFY(hash_table%obj)
+  END SUBROUTINE fb_hash_table_nullify
 
 ! *****************************************************************************
 !> \brief Rehash table. If nmax is present, then also change the table size
