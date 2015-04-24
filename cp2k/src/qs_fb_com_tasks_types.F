@@ -1,19 +1,19 @@
 MODULE qs_fb_com_tasks_types
 
-  USE cp_dbcsr_interface,              ONLY: cp_dbcsr_type, &
-                                             cp_dbcsr_get_block_p, &
-                                             cp_dbcsr_put_block, &
-                                             cp_dbcsr_col_block_sizes, &
-                                             cp_dbcsr_row_block_sizes
+  USE cp_dbcsr_interface,              ONLY: cp_dbcsr_col_block_sizes,&
+                                             cp_dbcsr_get_block_p,&
+                                             cp_dbcsr_put_block,&
+                                             cp_dbcsr_row_block_sizes,&
+                                             cp_dbcsr_type
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE kinds,                           ONLY: int_4,&
                                              int_8
   USE memory_utilities,                ONLY: reallocate
   USE message_passing,                 ONLY: mp_alltoall
-  USE qs_fb_matrix_data_types,         ONLY: fb_matrix_data_obj, &
-                                             fb_matrix_data_add, &
-                                             fb_matrix_data_get, &
-                                             fb_matrix_data_has_data
+  USE qs_fb_matrix_data_types,         ONLY: fb_matrix_data_add,&
+                                             fb_matrix_data_get,&
+                                             fb_matrix_data_has_data,&
+                                             fb_matrix_data_obj
   USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
@@ -728,8 +728,10 @@ CONTAINS
       routineN = 'fb_com_tasks_transpose_dest_src', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: handle, ii, ind, ipe, itask, jj, LT_UNIT, nencode, ntasks_in, &
-      ntasks_out, rank, rank_pos, stat, task_dim
+    INTEGER                                  :: handle, ii, ind, ipe, itask, &
+                                                jj, nencode, ntasks_in, &
+                                                ntasks_out, rank, rank_pos, &
+                                                stat, task_dim
     INTEGER(KIND=int_8), DIMENSION(:, :), &
       POINTER                                :: tasks_in, tasks_out
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: recv_buf, recv_disps, &
@@ -933,9 +935,8 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: acol, arow, handle, iatom, &
-                                                ii, itask, jatom, &
-                                                npairs, ntasks, rank, &
-                                                rank_pos, stat
+                                                ii, itask, jatom, npairs, &
+                                                ntasks, rank, rank_pos, stat
     INTEGER(KIND=int_8)                      :: pair
     INTEGER(KIND=int_8), DIMENSION(:), &
       POINTER                                :: pairs
@@ -1287,18 +1288,19 @@ CONTAINS
                                            matrix_storage, &
                                            error)
     TYPE(cp_dbcsr_type), POINTER             :: dbcsr_mat
-    TYPE(fb_com_atom_pairs_obj), INTENT(IN)  :: atom_pairs_send
-    TYPE(fb_com_atom_pairs_obj), INTENT(IN)  :: atom_pairs_recv
+    TYPE(fb_com_atom_pairs_obj), INTENT(IN)  :: atom_pairs_send, &
+                                                atom_pairs_recv
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(fb_matrix_data_obj), INTENT(INOUT)  :: matrix_storage
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'fb_atmatrix_construct', &
+    CHARACTER(LEN=*), PARAMETER :: &
+      routineN = 'fb_com_atom_pairs_gather_blks', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: handle, iatom, ii, ind, ipair, ipe, jatom, jj, &
-      ncols_blk, npairs_recv, npairs_send, nrows_blk, numprocs, pe,&
-      recv_encode, send_encode, stat, nrows_blk_max, ncols_blk_max
+    INTEGER :: handle, iatom, ii, ind, ipair, ipe, jatom, jj, ncols_blk, &
+      ncols_blk_max, npairs_recv, npairs_send, nrows_blk, nrows_blk_max, &
+      numprocs, pe, recv_encode, send_encode, stat
     INTEGER(KIND=int_8), DIMENSION(:), &
       POINTER                                :: pairs_recv, pairs_send
     INTEGER, ALLOCATABLE, DIMENSION(:) :: recv_disps, recv_pair_count, &
@@ -1306,9 +1308,9 @@ CONTAINS
       send_pair_disps, send_sizes
     INTEGER, DIMENSION(:), POINTER           :: col_block_size_data, &
                                                 row_block_size_data
-    LOGICAL                                  :: failure, found, check_ok
+    LOGICAL                                  :: check_ok, failure, found
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: recv_buf, send_buf
-    REAL(KIND=dp), DIMENSION(:,:), POINTER   :: mat_block
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: mat_block
 
     CALL timeset(routineN, handle)
 
@@ -1514,18 +1516,19 @@ CONTAINS
                                                dbcsr_mat, &
                                                error)
     TYPE(fb_matrix_data_obj), INTENT(IN)     :: matrix_storage
-    TYPE(fb_com_atom_pairs_obj), INTENT(IN)  :: atom_pairs_send
-    TYPE(fb_com_atom_pairs_obj), INTENT(IN)  :: atom_pairs_recv
+    TYPE(fb_com_atom_pairs_obj), INTENT(IN)  :: atom_pairs_send, &
+                                                atom_pairs_recv
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cp_dbcsr_type), POINTER             :: dbcsr_mat
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'fb_atmatrix_construct', &
+    CHARACTER(LEN=*), PARAMETER :: &
+      routineN = 'fb_com_atom_pairs_distribute_blks', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: handle, iatom, ii, ind, ipair, ipe, jatom, jj, &
-      ncols_blk, npairs_recv, npairs_send, nrows_blk, numprocs, pe,&
-      recv_encode, send_encode, stat
+    INTEGER :: handle, iatom, ii, ind, ipair, ipe, jatom, jj, ncols_blk, &
+      npairs_recv, npairs_send, nrows_blk, numprocs, pe, recv_encode, &
+      send_encode, stat
     INTEGER(KIND=int_8), DIMENSION(:), &
       POINTER                                :: pairs_recv, pairs_send
     INTEGER, ALLOCATABLE, DIMENSION(:) :: recv_disps, recv_pair_count, &
@@ -1533,9 +1536,9 @@ CONTAINS
       send_pair_disps, send_sizes
     INTEGER, DIMENSION(:), POINTER           :: col_block_size_data, &
                                                 row_block_size_data
-    LOGICAL                                  :: failure, found, check_ok
+    LOGICAL                                  :: check_ok, failure, found
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: recv_buf, send_buf
-    REAL(KIND=dp), DIMENSION(:,:), POINTER   :: mat_block
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: mat_block
 
     CALL timeset(routineN, handle)
 

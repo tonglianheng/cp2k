@@ -143,7 +143,7 @@ CONTAINS
     INTEGER :: filtered_nfullrowsORcols_total, handle, homo_filtered, ispin, &
       lfomo_filtered, my_nmo, nelectron, nmo, nmo_filtered, nspin, &
       original_nfullrowsORcols_total, stat
-    LOGICAL                                  :: failure, use_jacobi
+    LOGICAL                                  :: failure, use_jacobi, collective_communication
     REAL(kind=dp) :: diis_error, eps_diis, fermi_level, filter_temp, &
       flexible_electron_count, KTS_filtered, maxocc, mu_filtered
     REAL(KIND=dp), DIMENSION(:), POINTER     :: eigenvalues, &
@@ -331,17 +331,32 @@ CONTAINS
        !                       error=error)
 !END:ORIG:LT:2015/01/2
 !BEG:REPL:LT:2015/01/2
-       CALL fb_fltrmat_build(H_mat=matrix_ks_desymm%matrix, &
-                             S_mat=matrix_s_desymm%matrix, &
-                             atomic_halos=atomic_halos, &
-                             trial_fns=trial_fns, &
-                             para_env=para_env, &
-                             particle_set=particle_set, &
-                             fermi_level=fermi_level, &
-                             filter_temp=filter_temp, &
-                             name=name, &
-                             filter_mat=matrix_filter(ispin)%matrix, &
-                             error=error)
+       IF (collective_communication) THEN
+          CALL fb_fltrmat_build_2(H_mat=matrix_ks_desymm%matrix, &
+                                  S_mat=matrix_s_desymm%matrix, &
+                                  atomic_halos=atomic_halos, &
+                                  trial_fns=trial_fns, &
+                                  para_env=para_env, &
+                                  particle_set=particle_set, &
+                                  fermi_level=fermi_level, &
+                                  filter_temp=filter_temp, &
+                                  name=name, &
+                                  filter_mat=matrix_filter(ispin)%matrix, &
+                                  error=error)
+       ELSE
+          CALL fb_fltrmat_build(H_mat=matrix_ks_desymm%matrix, &
+                                S_mat=matrix_s_desymm%matrix, &
+                                atomic_halos=atomic_halos, &
+                                trial_fns=trial_fns, &
+                                para_env=para_env, &
+                                particle_set=particle_set, &
+                                fermi_level=fermi_level, &
+                                filter_temp=filter_temp, &
+                                name=name, &
+                                filter_mat=matrix_filter(ispin)%matrix, &
+                                error=error)
+       END IF
+
 !END:REPL:LT:2015/01/2
 
        ! ----------------------------------------------------------------------

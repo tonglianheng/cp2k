@@ -13,9 +13,9 @@ MODULE qs_fb_atomic_matrix_methods
   USE message_passing,                 ONLY: mp_alltoall
   USE qs_fb_atomic_halo_types,         ONLY: fb_atomic_halo_atom_global2halo,&
                                              fb_atomic_halo_get,&
-                                             fb_atomic_halo_obj, &
-                                             fb_atomic_halo_list_obj, &
-                                             fb_atomic_halo_list_get
+                                             fb_atomic_halo_list_get,&
+                                             fb_atomic_halo_list_obj,&
+                                             fb_atomic_halo_obj
   USE qs_fb_com_tasks_types,           ONLY: &
        TASK_COST, TASK_DEST, TASK_N_RECORDS, TASK_PAIR, TASK_SRC, &
        fb_com_atom_pairs_calc_buffer_sizes, fb_com_atom_pairs_create, &
@@ -402,11 +402,13 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'fb_atmatrix_construct_2', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: handle, natomis_in_halo, iatom, jatom, iatom_global, &
-      jatom_global, irow, icol, ii, jj
-    INTEGER, DIMENSION(:), POINTER :: halo_atoms
-    REAL(KIND=dp), DIMENSION(:,:), POINTER :: blk_p
-    LOGICAL :: failure, check_ok, found
+    INTEGER                                  :: handle, iatom, iatom_global, &
+                                                icol, ii, irow, jatom, &
+                                                jatom_global, jj, &
+                                                natoms_in_halo
+    INTEGER, DIMENSION(:), POINTER           :: halo_atoms
+    LOGICAL                                  :: check_ok, failure, found
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: blk_p
 
     CALL timeset(routineN, handle)
 
@@ -691,7 +693,8 @@ CONTAINS
                                               atom_pairs_recv, &
                                               error)
     TYPE(cp_dbcsr_type), POINTER             :: dbcsr_mat
-    TYPE(fb_atomic_halo_list_obj), INTENT(IN) :: atomic_halos
+    TYPE(fb_atomic_halo_list_obj), &
+      INTENT(IN)                             :: atomic_halos
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(fb_com_atom_pairs_obj), &
       INTENT(INOUT)                          :: atom_pairs_send, &
@@ -702,31 +705,24 @@ CONTAINS
       routineN = 'fb_atmatrix_generate_com_pairs_2', &
       routineP = moduleN//':'//routineN
 
-
     INTEGER :: counter, dest, handle, iatom, iatom_global, itask, jatom, &
-      jatom_global, natoms_in_halo, nblkrows_total, nencode, ntasks_recv, &
-      ntasks_send, src, stat, nhalos
+      jatom_global, natoms_in_halo, nblkrows_total, nencode, nhalos, &
+      ntasks_recv, ntasks_send, src, stat
     INTEGER(KIND=int_8)                      :: pair
     INTEGER(KIND=int_8), DIMENSION(:, :), &
       POINTER                                :: tasks_recv, tasks_send
     INTEGER, DIMENSION(:), POINTER           :: halo_atoms
     LOGICAL                                  :: failure, found, transpose
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: mat_block
-    TYPE(fb_com_tasks_obj)                   :: com_tasks_recv, com_tasks_send
-    INTEGER, DIMENSION(:), POINTER           :: halo_atoms
     TYPE(fb_atomic_halo_obj), DIMENSION(:), &
       POINTER                                :: halos
-
-    INTEGER :: handle, ihalo, nhalos, natoms_in_halo, nblkrows_total, &
-               ntasks_recv, dest,
-    LOGICAL :: failure
-
     TYPE(fb_com_tasks_obj)                   :: com_tasks_recv, com_tasks_send
-
 
     CALL timeset(routineN, handle)
 
     failure = .FALSE.
+    
+    NULLIFY(halo_atoms, tasks_send, tasks_recv)
     CALL fb_com_tasks_nullify(com_tasks_send)
     CALL fb_com_tasks_nullify(com_tasks_recv)
 

@@ -25,24 +25,25 @@ MODULE qs_fb_filter_matrix_methods
                                              fb_atomic_halo_release,&
                                              fb_atomic_halo_set
   USE qs_fb_atomic_matrix_methods,     ONLY: fb_atmatrix_calc_size,&
-                                             fb_atmatrix_construct, &
-                                             fb_atmatrix_construct_2, &
+                                             fb_atmatrix_construct,&
+                                             fb_atmatrix_construct_2,&
                                              fb_fltrmat_geneate_com_pairs_2
   USE qs_fb_com_tasks_types,           ONLY: &
        TASK_COST, TASK_DEST, TASK_N_RECORDS, TASK_PAIR, TASK_SRC, &
        fb_com_atom_pairs_calc_buffer_sizes, fb_com_atom_pairs_create, &
-       fb_com_atom_pairs_decode, fb_com_atom_pairs_get, &
+       fb_com_atom_pairs_decode, fb_com_atom_pairs_distribute_blks, &
+       fb_com_atom_pairs_gather_blks, fb_com_atom_pairs_get, &
        fb_com_atom_pairs_has_data, fb_com_atom_pairs_init, &
        fb_com_atom_pairs_nullify, fb_com_atom_pairs_obj, &
-       fb_com_atom_pairs_release, fb_com_atom_pairs_gather_blks, &
-       fb_com_tasks_build_atom_pairs, fb_com_atom_pairs_distribute_blks, &
+       fb_com_atom_pairs_release, fb_com_tasks_build_atom_pairs, &
        fb_com_tasks_create, fb_com_tasks_encode_pair, fb_com_tasks_nullify, &
        fb_com_tasks_obj, fb_com_tasks_release, fb_com_tasks_set, &
        fb_com_tasks_transpose_dest_src
-  USE qs_fb_matrix_data_types,         ONLY: fb_matrix_data_obj, &
-                                             fb_matrix_data_add, &
-                                             fb_matrix_data_create, &
-                                             fb_matrix_data_has_data
+  USE qs_fb_matrix_data_types,         ONLY: fb_matrix_data_add,&
+                                             fb_matrix_data_create,&
+                                             fb_matrix_data_has_data,&
+                                             fb_matrix_data_obj
+
                                              fb_matrix_data_nullify, &
                                              fb_matrix_data_release
   USE qs_fb_trial_fns_types,           ONLY: fb_trial_fns_get,&
@@ -308,19 +309,17 @@ CONTAINS
 
     CHARACTER(LEN=default_string_length)     :: name_string
     INTEGER                                  :: handle, iblkcol, ikind, &
-                                                nblkcols_total, stat, &
-                                                nblks_recv, nmax, natoms_global
+                                                natoms_global, &
+                                                nblkcols_total, nblks_recv, &
+                                                nmax, stat
     INTEGER, DIMENSION(:), POINTER           :: col_blk_size_data
     LOGICAL                                  :: check_ok, failure
     TYPE(array_i1d_obj)                      :: col_blk_size, row_blk_size
     TYPE(dbcsr_distribution_obj)             :: dbcsr_dist
-    TYPE(fb_matrix_data_obj)                 :: H_mat_data, &
-                                                S_mat_data, &
-                                                filter_mat_data
-    TYPE(fb_com_atom_pairs_obj)              :: atmatrix_blks_send, &
-                                                atmatrix_blks_recv, &
-                                                filter_mat_blks_send, &
-                                                filter_mat_blks_recv
+    TYPE(fb_com_atom_pairs_obj) :: atmatrix_blks_recv, atmatrix_blks_send, &
+      filter_mat_blks_recv, filter_mat_blks_send
+    TYPE(fb_matrix_data_obj)                 :: filter_mat_data, H_mat_data, &
+                                                S_mat_data
 
     CALL timeset(routineN, handle)
 
@@ -901,8 +900,7 @@ CONTAINS
                                      filter_mat_data, &
                                      error)
     TYPE(cp_dbcsr_type), POINTER             :: H_mat, S_mat
-    TYPE(fb_matrix_data_obj), INTENT(IN)     :: H_mat_data, &
-                                                S_mat_data
+    TYPE(fb_matrix_data_obj), INTENT(IN)     :: H_mat_data, S_mat_data
     TYPE(fb_atomic_halo_obj), INTENT(IN)     :: atomic_halo
     TYPE(fb_trial_fns_obj), INTENT(IN)       :: trial_fns
     TYPE(cp_para_env_type), POINTER          :: para_env
@@ -915,17 +913,16 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'fb_fltrmat_add_blkcol_2', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: handle, iatom_global, iatom_in_halo, ipe, itrial, &
-      jatom_global, jatom_in_halo, jkind, natoms_global, &
-      natoms_in_halo, ncols_atmatrix, ncols_blk, ncols_blk_max, &
-      nrows_atmatrix, nrows_blk, nrows_blk_max, stat
+    INTEGER :: handle, iatom_global, iatom_in_halo, itrial, jatom_global, &
+      jatom_in_halo, jkind, natoms_global, natoms_in_halo, ncols_atmatrix, &
+      ncols_blk, ncols_blk_max, nrows_atmatrix, nrows_blk, nrows_blk_max, stat
     INTEGER, ALLOCATABLE, DIMENSION(:) :: atomic_H_blk_col_start, &
-      atomic_H_blk_row_start, atomic_S_blk_col_start, &
-      atomic_S_blk_row_start, col_block_size_data
+      atomic_H_blk_row_start, atomic_S_blk_col_start, atomic_S_blk_row_start, &
+      col_block_size_data
     INTEGER, DIMENSION(:), POINTER           :: halo_atoms, ntfns, &
                                                 row_block_size_data
     INTEGER, DIMENSION(:, :), POINTER        :: tfns
-    LOGICAL                                  :: failure, check_ok
+    LOGICAL                                  :: check_ok, failure
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: atomic_filter_mat, atomic_H, &
                                                 atomic_S, mat_blk
