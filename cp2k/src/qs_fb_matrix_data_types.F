@@ -443,17 +443,21 @@ CONTAINS
 !> \param nmax        : outputs fb_matrix_data%obj%nmax
 !> \param nblks       : outputs fb_matrix_data%obj%nblks
 !> \param nencode     : outputs fb_matrix_data%obj%nencode
-!> \param error      : cp2k error container
+!> \param blk_sizes   : blk_sizes(ii,jj) gives size of jj-th dim of the 
+!>                      ii-th block stored 
+!> \param error       : cp2k error container
 !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
 ! *****************************************************************************
-  SUBROUTINE fb_matrix_data_status(matrix_data, nmax, nblks, nencode, error)
+  SUBROUTINE fb_matrix_data_status(matrix_data, nmax, nblks, nencode, blk_sizes, error)
     TYPE(fb_matrix_data_obj), INTENT(INOUT)  :: matrix_data
     INTEGER, INTENT(OUT), OPTIONAL           :: nmax, nblks, nencode
+    INTEGER, DIMENSION(:,:), INTENT(OUT), OPTIONAL :: blk_sizes
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'fb_matrix_data_status', &
       routineP = moduleN//':'//routineN
 
+    INTEGER                                  :: ii
     LOGICAL                                  :: check_ok, failure
 
     failure = .FALSE.
@@ -462,8 +466,17 @@ CONTAINS
     IF (PRESENT(nmax)) nmax = matrix_data%obj%nmax
     IF (PRESENT(nblks)) nblks = matrix_data%obj%nblks
     IF (PRESENT(nencode)) nencode = matrix_data%obj%nencode
+    IF (PRESENT(blk_sizes)) THEN
+       check_ok = (SIZE(blk_sizes, 1) .GE. matrix_data%obj%nblks .AND. &
+                   SIZE(blk_sizes, 2) .GE. 2)
+       CPPostcondition(check_ok, cp_failure_level, routineP, error, failure)
+       blk_sizes(:,:) = 0
+       DO ii = 1, matrix_data%obj%nblks
+          blk_sizes(ii,1) = SIZE(matrix_data%obj%blks(ii)%p, 1)
+          blk_sizes(ii,2) = SIZE(matrix_data%obj%blks(ii)%p, 2)
+       END DO
+    END IF
   END SUBROUTINE fb_matrix_data_status
-
 
 
 ! *****************************************************************************
