@@ -5175,7 +5175,7 @@ CONTAINS
     CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
     IF (.NOT. failure) THEN
        CALL section_create(section,name="LRIGPW",&
-            description="This section specifies optional parameters for LRIGPW.",& 
+            description="This section specifies optional parameters for LRIGPW.",&
             n_keywords=2, n_subsections=0, repeats=.FALSE., required=.FALSE.,&
             error=error)
 
@@ -5209,7 +5209,7 @@ CONTAINS
 
     END IF
   END SUBROUTINE create_lrigpw_section
- 
+
 ! *****************************************************************************
 !> \brief input section for optimization of the auxililary basis for LRIGPW
 !> \param section the section to create
@@ -5308,7 +5308,7 @@ CONTAINS
   END SUBROUTINE create_optimize_lri_basis_section
 
 ! *****************************************************************************
-!> \brief input section for constraints for auxiliary basis set optimization 
+!> \brief input section for constraints for auxiliary basis set optimization
 !> \param section the section to create
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
@@ -5773,7 +5773,7 @@ CONTAINS
             usage="ERROR_LIMIT <REAL>", default_r_val=1.0E-12_dp, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
-       
+
        !keyword for reading the external potential from cube file
        CALL keyword_create(keyword, name="READ_FROM_CUBE",&
             description="Switch for reading the external potential from file pot.cube. The values "//&
@@ -5781,7 +5781,7 @@ CONTAINS
             usage="READ_FROM_CUBE T", default_l_val=.FALSE., lone_keyword_l_val=.TRUE., error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
-       
+
        !keyword for scaling the external potential that is read from file by a constant factor
        CALL keyword_create(keyword, name="SCALING_FACTOR",&
             description="A factor for scaling the the external potential that is read from file."//&
@@ -6618,6 +6618,26 @@ CONTAINS
                            default_r_val=1.0_dp, &
                            usage="AUTO_CUTOFF_SCALE 0.5_dp", &
                            citations=(/Rayson2009/), &
+                           error=error)
+       CALL section_add_keyword(section, keyword, error=error)
+       CALL keyword_release(keyword, error=error)
+
+       CALL keyword_create(keyword, &
+                           name="COLLECTIVE_COMMUNICATION", &
+                           description="If set to TRUE, then all MPI communications "//&
+                                       "required for the construction of the "//&
+                                       "filter matrix is done at the start and end "//&
+                                       "of each filter matrix calculation. This "//&
+                                       "makes communications more efficient, at "//&
+                                       "the expense of using more memory. If you "//&
+                                       "are running low on memory, then turn this "//&
+                                       "option to .FALSE."
+                           required=.FALSE., &
+                           repeats=.FALSE., &
+                           n_var=1, &
+                           type_of_var=logical_t, &
+                           default_l_val=.TRUE., &
+                           usage="COLLECTIVE_COMMUNICATION T", &
                            error=error)
        CALL section_add_keyword(section, keyword, error=error)
        CALL keyword_release(keyword, error=error)

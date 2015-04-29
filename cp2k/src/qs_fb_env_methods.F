@@ -143,7 +143,8 @@ CONTAINS
     INTEGER :: filtered_nfullrowsORcols_total, handle, homo_filtered, ispin, &
       lfomo_filtered, my_nmo, nelectron, nmo, nmo_filtered, nspin, &
       original_nfullrowsORcols_total, stat
-    LOGICAL                                  :: failure, use_jacobi, collective_communication
+    LOGICAL                                  :: failure, use_jacobi, &
+                                                collective_com
     REAL(kind=dp) :: diis_error, eps_diis, fermi_level, filter_temp, &
       flexible_electron_count, KTS_filtered, maxocc, mu_filtered
     REAL(KIND=dp), DIMENSION(:), POINTER     :: eigenvalues, &
@@ -331,7 +332,10 @@ CONTAINS
        !                       error=error)
 !END:ORIG:LT:2015/01/2
 !BEG:REPL:LT:2015/01/2
-       IF (collective_communication) THEN
+       CALL fb_env_get(fb_env=fb_env, &
+                       collective_com=collective_com, &
+                       error=error)
+       IF (collective_com) THEN
           CALL fb_fltrmat_build_2(H_mat=matrix_ks_desymm%matrix, &
                                   S_mat=matrix_s_desymm%matrix, &
                                   atomic_halos=atomic_halos, &
@@ -356,7 +360,6 @@ CONTAINS
                                 filter_mat=matrix_filter(ispin)%matrix, &
                                 error=error)
        END IF
-
 !END:REPL:LT:2015/01/2
 
        ! ----------------------------------------------------------------------
@@ -724,7 +727,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle
-    LOGICAL                                  :: failure
+    LOGICAL                                  :: failure, l_val
     REAL(KIND=dp)                            :: r_val
     TYPE(section_vals_type), POINTER         :: fb_section
 
@@ -749,6 +752,13 @@ CONTAINS
                               error=error)
     CALL fb_env_set(fb_env=fb_env, &
                     auto_cutoff_scale=r_val, &
+                    error=error)
+    ! communication model
+    CALL section_vals_val_get(fb_section, "COLLECTIVE_COMMUNICATION", &
+                              l_val=l_val, &
+                              error=error)
+    CALL fb_env_set(fb_env=fb_env, &
+                    collective_com=l_val, &
                     error=error)
 
     CALL timestop(handle)
