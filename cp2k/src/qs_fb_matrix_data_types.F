@@ -207,7 +207,7 @@ CONTAINS
 !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
 ! *****************************************************************************
   SUBROUTINE fb_matrix_data_get(matrix_data, row, col, blk_p, found, error)
-    TYPE(fb_matrix_data_obj), INTENT(INOUT)  :: matrix_data
+    TYPE(fb_matrix_data_obj), INTENT(IN)     :: matrix_data
     INTEGER, INTENT(IN)                      :: row, col
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: blk_p
     LOGICAL, INTENT(OUT)                     :: found

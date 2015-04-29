@@ -26,8 +26,8 @@ MODULE qs_fb_filter_matrix_methods
                                              fb_atomic_halo_set
   USE qs_fb_atomic_matrix_methods,     ONLY: fb_atmatrix_calc_size,&
                                              fb_atmatrix_construct,&
-                                             fb_atmatrix_construct_2,&
-                                             fb_fltrmat_geneate_com_pairs_2
+                                             fb_atmatrix_construct_2, &
+                                             fb_atmatrix_generate_com_pairs_2
   USE qs_fb_com_tasks_types,           ONLY: &
        TASK_COST, TASK_DEST, TASK_N_RECORDS, TASK_PAIR, TASK_SRC, &
        fb_com_atom_pairs_calc_buffer_sizes, fb_com_atom_pairs_create, &
@@ -42,8 +42,7 @@ MODULE qs_fb_filter_matrix_methods
   USE qs_fb_matrix_data_types,         ONLY: fb_matrix_data_add,&
                                              fb_matrix_data_create,&
                                              fb_matrix_data_has_data,&
-                                             fb_matrix_data_obj
-
+                                             fb_matrix_data_obj, &
                                              fb_matrix_data_nullify, &
                                              fb_matrix_data_release
   USE qs_fb_trial_fns_types,           ONLY: fb_trial_fns_get,&
@@ -311,19 +310,25 @@ CONTAINS
     INTEGER                                  :: handle, iblkcol, ikind, &
                                                 natoms_global, &
                                                 nblkcols_total, nblks_recv, &
-                                                nmax, stat
-    INTEGER, DIMENSION(:), POINTER           :: col_blk_size_data
+                                                nmax, stat, ihalo, &
+                                                natoms_in_halo, nhalos
+    INTEGER, DIMENSION(:), POINTER           :: col_blk_size_data, ntfns
     LOGICAL                                  :: check_ok, failure
     TYPE(array_i1d_obj)                      :: col_blk_size, row_blk_size
     TYPE(dbcsr_distribution_obj)             :: dbcsr_dist
+    TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(fb_com_atom_pairs_obj) :: atmatrix_blks_recv, atmatrix_blks_send, &
       filter_mat_blks_recv, filter_mat_blks_send
     TYPE(fb_matrix_data_obj)                 :: filter_mat_data, H_mat_data, &
                                                 S_mat_data
+    TYPE(fb_atomic_halo_obj), DIMENSION(:), &
+      POINTER                                :: halos
 
     CALL timeset(routineN, handle)
 
     failure = .FALSE.
+
+    NULLIFY(halos, atomic_kind, col_blk_size_data, ntfns)
 
     ! filter_mat must be of a dissassociated status (i.e. brand new)
     check_ok = .NOT. ASSOCIATED(filter_mat)
@@ -405,12 +410,12 @@ CONTAINS
                                        H_mat_data, &
                                        error)
     ! S matrix
-    CALL fb_atmatrix_geneate_com_pairs_2(S_mat, &
-                                         atomic_halos, &
-                                         para_env, &
-                                         atmatrix_blks_send, &
-                                         atmatrix_blks_recv, &
-                                         error)
+    CALL fb_atmatrix_generate_com_pairs_2(S_mat, &
+                                          atomic_halos, &
+                                          para_env, &
+                                          atmatrix_blks_send, &
+                                          atmatrix_blks_recv, &
+                                          error)
     CALL fb_com_atom_pairs_get(atom_pairs=atmatrix_blks_recv, &
                                npairs=nblks_recv, &
                                error=error)
@@ -436,7 +441,7 @@ CONTAINS
                                  halos=halos, &
                                  error=error)
     nmax = 0
-    DO ihalos = 1, nhalos
+    DO ihalo = 1, nhalos
        CALL fb_atomic_halo_get(atomic_halo=halos(ihalo), &
                                natoms=natoms_in_halo, &
                                error=error)
@@ -446,7 +451,7 @@ CONTAINS
                                nmax, &
                                natoms_global, &
                                error)
-    DO ihalos = 1, nhalos
+    DO ihalo = 1, nhalos
        CALL fb_fltrmat_add_blkcol_2(H_mat, &
                                     S_mat, &
                                     H_mat_data, &
@@ -470,12 +475,12 @@ CONTAINS
     CALL fb_com_atom_pairs_nullify(filter_mat_blks_recv)
     CALL fb_com_atom_pairs_create(filter_mat_blks_send, error)
     CALL fb_com_atom_pairs_create(filter_mat_blks_recv, error)
-    CALL fb_fltrmat_geneate_com_pairs_2(filter_mat, &
-                                        atomic_halos, &
-                                        para_env, &
-                                        filter_mat_blks_send, &
-                                        filter_mat_blks_recv, &
-                                        error)
+    CALL fb_fltrmat_generate_com_pairs_2(filter_mat, &
+                                         atomic_halos, &
+                                         para_env, &
+                                         filter_mat_blks_send, &
+                                         filter_mat_blks_recv, &
+                                         error)
     CALL fb_com_atom_pairs_distribute_blks(filter_mat_data, &
                                            filter_mat_blks_send, &
                                            filter_mat_blks_recv, &
@@ -907,7 +912,7 @@ CONTAINS
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     REAL(KIND=dp), INTENT(IN)                :: fermi_level, filter_temp
-    TYPE(fb_matrix_data_obj), POINTER        :: filter_mat_data
+    TYPE(fb_matrix_data_obj), INTENT(INOUT)  :: filter_mat_data
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'fb_fltrmat_add_blkcol_2', &
@@ -1028,7 +1033,7 @@ CONTAINS
                             error=error)
     nrows_blk_max = MAXVAL(row_block_size_data)
     ncols_blk_max = MAXVAL(ntfns)
-    ALLOCATE(mat_blk(nrows_blk_max,ncols_blk_max) STAT=stat)
+    ALLOCATE(mat_blk(nrows_blk_max,ncols_blk_max), STAT=stat)
     CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
     mat_blk(:,:) = 0.0_dp
     DO iatom_in_halo = 1, natoms_in_halo
@@ -1069,7 +1074,7 @@ CONTAINS
        CALL fb_matrix_data_add(filter_mat_data, &
                                iatom_global, &
                                jatom_global, &
-                               mat_blk(1:nrows_blk, 1:nols_blk), &
+                               mat_blk(1:nrows_blk, 1:ncols_blk), &
                                error)
        ! DEALLOCATE(mat_blk, STAT=stat)
        ! CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
@@ -1226,7 +1231,7 @@ CONTAINS
                           tasks=tasks_send, &
                           error=error)
 
-    ! genearte the recv task list (tasks_recv) from the send task list
+    ! generate the recv task list (tasks_recv) from the send task list
     CALL fb_com_tasks_transpose_dest_src(com_tasks_recv, "<", com_tasks_send, &
                                          para_env, error)
 
@@ -1394,7 +1399,7 @@ CONTAINS
                           tasks=tasks_send, &
                           error=error)
 
-    ! genearte the recv task list (tasks_recv) from the send task list
+    ! generate the recv task list (tasks_recv) from the send task list
     CALL fb_com_tasks_create(com_tasks_recv, error)
     CALL fb_com_tasks_transpose_dest_src(com_tasks_recv, "<", com_tasks_send, &
                                          para_env, error)

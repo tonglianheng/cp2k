@@ -1,13 +1,16 @@
 MODULE qs_fb_com_tasks_types
 
-  USE cp_dbcsr_interface,              ONLY: cp_dbcsr_col_block_sizes,&
+  USE cp_dbcsr_interface,              ONLY: array_data,&
+                                             cp_dbcsr_col_block_sizes,&
                                              cp_dbcsr_get_block_p,&
                                              cp_dbcsr_put_block,&
                                              cp_dbcsr_row_block_sizes,&
+                                             cp_dbcsr_col_block_sizes,&
                                              cp_dbcsr_type
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE kinds,                           ONLY: int_4,&
-                                             int_8
+                                             int_8, &
+                                             dp
   USE memory_utilities,                ONLY: reallocate
   USE message_passing,                 ONLY: mp_alltoall
   USE qs_fb_matrix_data_types,         ONLY: fb_matrix_data_add,&
@@ -1390,6 +1393,7 @@ CONTAINS
                                              recv_disps, &
                                              recv_pair_count, &
                                              recv_pair_disps, &
+                                             error)
 
     ! allocate recv buffer
     ALLOCATE(recv_buf(SUM(recv_sizes)), STAT=stat)
@@ -1460,12 +1464,12 @@ CONTAINS
              DO ii = 1, nrows_blk
                 ! column major format in blocks
                 ind = recv_disps(ipe) + recv_sizes(ipe) + ii + (jj-1)*nrows_blk
-                matrix_block(ii,jj) = recv_buf(ind)
+                mat_block(ii,jj) = recv_buf(ind)
              END DO ! ii
           END DO ! jj
           CALL fb_matrix_data_add(matrix_storage, &
                                   iatom, jatom, &
-                                  matrix_block(1:nrows_blk, 1:ncols_blk), &
+                                  mat_block(1:nrows_blk, 1:ncols_blk), &
                                   error)
           recv_sizes(ipe) = recv_sizes(ipe) + nrows_blk*ncols_blk
           ! DEALLOCATE(mat_block, STAT=stat)
@@ -1618,6 +1622,7 @@ CONTAINS
                                              recv_disps, &
                                              recv_pair_count, &
                                              recv_pair_disps, &
+                                             error)
 
     ! allocate recv buffer
     ALLOCATE(recv_buf(SUM(recv_sizes)), STAT=stat)

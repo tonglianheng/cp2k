@@ -6631,7 +6631,7 @@ CONTAINS
                                        "makes communications more efficient, at "//&
                                        "the expense of using more memory. If you "//&
                                        "are running low on memory, then turn this "//&
-                                       "option to .FALSE."
+                                       "option to .FALSE.", &
                            required=.FALSE., &
                            repeats=.FALSE., &
                            n_var=1, &

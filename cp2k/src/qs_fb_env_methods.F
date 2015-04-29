@@ -61,7 +61,8 @@ MODULE qs_fb_env_methods
                                              fb_env_has_data,&
                                              fb_env_obj,&
                                              fb_env_set
-  USE qs_fb_filter_matrix_methods,     ONLY: fb_fltrmat_build
+  USE qs_fb_filter_matrix_methods,     ONLY: fb_fltrmat_build, &
+                                             fb_fltrmat_build_2
   USE qs_fb_trial_fns_types,           ONLY: fb_trial_fns_create,&
                                              fb_trial_fns_nullify,&
                                              fb_trial_fns_obj,&

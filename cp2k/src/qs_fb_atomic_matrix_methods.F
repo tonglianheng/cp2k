@@ -14,6 +14,7 @@ MODULE qs_fb_atomic_matrix_methods
   USE qs_fb_atomic_halo_types,         ONLY: fb_atomic_halo_atom_global2halo,&
                                              fb_atomic_halo_get,&
                                              fb_atomic_halo_list_get,&
+                                             fb_atomic_halo_has_data,&
                                              fb_atomic_halo_list_obj,&
                                              fb_atomic_halo_obj
   USE qs_fb_com_tasks_types,           ONLY: &
@@ -27,6 +28,9 @@ MODULE qs_fb_atomic_matrix_methods
        fb_com_tasks_encode_pair, fb_com_tasks_get, fb_com_tasks_nullify, &
        fb_com_tasks_obj, fb_com_tasks_release, fb_com_tasks_set, &
        fb_com_tasks_transpose_dest_src
+  USE qs_fb_matrix_data_types,         ONLY: fb_matrix_data_obj, &
+                                             fb_matrix_data_get, &
+                                             fb_matrix_data_has_data
   USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
@@ -707,7 +711,7 @@ CONTAINS
 
     INTEGER :: counter, dest, handle, iatom, iatom_global, itask, jatom, &
       jatom_global, natoms_in_halo, nblkrows_total, nencode, nhalos, &
-      ntasks_recv, ntasks_send, src, stat
+      ntasks_recv, ntasks_send, src, stat, ihalo
     INTEGER(KIND=int_8)                      :: pair
     INTEGER(KIND=int_8), DIMENSION(:, :), &
       POINTER                                :: tasks_recv, tasks_send
@@ -763,7 +767,7 @@ CONTAINS
 
     ! destination proc is always the local process
     dest = para_env%mepos
-    itasks = 1
+    itask = 1
     DO ihalo = 1, nhalos
        CALL fb_atomic_halo_get(atomic_halo=halos(ihalo), &
                                natoms=natoms_in_halo, &
