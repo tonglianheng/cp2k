@@ -61,7 +61,7 @@ MODULE qs_fb_env_methods
                                              fb_env_has_data,&
                                              fb_env_obj,&
                                              fb_env_set
-  USE qs_fb_filter_matrix_methods,     ONLY: fb_fltrmat_build, &
+  USE qs_fb_filter_matrix_methods,     ONLY: fb_fltrmat_build,&
                                              fb_fltrmat_build_2
   USE qs_fb_trial_fns_types,           ONLY: fb_trial_fns_create,&
                                              fb_trial_fns_nullify,&
@@ -144,8 +144,8 @@ CONTAINS
     INTEGER :: filtered_nfullrowsORcols_total, handle, homo_filtered, ispin, &
       lfomo_filtered, my_nmo, nelectron, nmo, nmo_filtered, nspin, &
       original_nfullrowsORcols_total, stat
-    LOGICAL                                  :: failure, use_jacobi, &
-                                                collective_com
+    LOGICAL                                  :: collective_com, failure, &
+                                                use_jacobi
     REAL(kind=dp) :: diis_error, eps_diis, fermi_level, filter_temp, &
       flexible_electron_count, KTS_filtered, maxocc, mu_filtered
     REAL(KIND=dp), DIMENSION(:), POINTER     :: eigenvalues, &
@@ -1311,7 +1311,7 @@ CONTAINS
 
     CHARACTER(LEN=2)                         :: element_symbol
     INTEGER                                  :: handle, ikind, nkinds, unit_nr
-    LOGICAL                                  :: failure, collective_com
+    LOGICAL                                  :: collective_com, failure
     REAL(KIND=dp)                            :: auto_cutoff_scale, &
                                                 filter_temperature
     REAL(KIND=dp), DIMENSION(:), POINTER     :: rcut

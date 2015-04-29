@@ -26,7 +26,7 @@ MODULE qs_fb_filter_matrix_methods
                                              fb_atomic_halo_set
   USE qs_fb_atomic_matrix_methods,     ONLY: fb_atmatrix_calc_size,&
                                              fb_atmatrix_construct,&
-                                             fb_atmatrix_construct_2, &
+                                             fb_atmatrix_construct_2,&
                                              fb_atmatrix_generate_com_pairs_2
   USE qs_fb_com_tasks_types,           ONLY: &
        TASK_COST, TASK_DEST, TASK_N_RECORDS, TASK_PAIR, TASK_SRC, &
@@ -42,8 +42,8 @@ MODULE qs_fb_filter_matrix_methods
   USE qs_fb_matrix_data_types,         ONLY: fb_matrix_data_add,&
                                              fb_matrix_data_create,&
                                              fb_matrix_data_has_data,&
-                                             fb_matrix_data_obj, &
-                                             fb_matrix_data_nullify, &
+                                             fb_matrix_data_nullify,&
+                                             fb_matrix_data_obj,&
                                              fb_matrix_data_release
   USE qs_fb_trial_fns_types,           ONLY: fb_trial_fns_get,&
                                              fb_trial_fns_obj
@@ -307,22 +307,19 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=default_string_length)     :: name_string
-    INTEGER                                  :: handle, iblkcol, ikind, &
-                                                natoms_global, &
-                                                nblkcols_total, nblks_recv, &
-                                                nmax, stat, ihalo, &
-                                                natoms_in_halo, nhalos
+    INTEGER :: handle, iblkcol, ihalo, ikind, natoms_global, natoms_in_halo, &
+      nblkcols_total, nblks_recv, nhalos, nmax, stat
     INTEGER, DIMENSION(:), POINTER           :: col_blk_size_data, ntfns
     LOGICAL                                  :: check_ok, failure
     TYPE(array_i1d_obj)                      :: col_blk_size, row_blk_size
-    TYPE(dbcsr_distribution_obj)             :: dbcsr_dist
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
+    TYPE(dbcsr_distribution_obj)             :: dbcsr_dist
+    TYPE(fb_atomic_halo_obj), DIMENSION(:), &
+      POINTER                                :: halos
     TYPE(fb_com_atom_pairs_obj) :: atmatrix_blks_recv, atmatrix_blks_send, &
       filter_mat_blks_recv, filter_mat_blks_send
     TYPE(fb_matrix_data_obj)                 :: filter_mat_data, H_mat_data, &
                                                 S_mat_data
-    TYPE(fb_atomic_halo_obj), DIMENSION(:), &
-      POINTER                                :: halos
 
     CALL timeset(routineN, handle)
 

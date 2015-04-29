@@ -5,12 +5,11 @@ MODULE qs_fb_com_tasks_types
                                              cp_dbcsr_get_block_p,&
                                              cp_dbcsr_put_block,&
                                              cp_dbcsr_row_block_sizes,&
-                                             cp_dbcsr_col_block_sizes,&
                                              cp_dbcsr_type
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE kinds,                           ONLY: int_4,&
-                                             int_8, &
-                                             dp
+  USE kinds,                           ONLY: dp,&
+                                             int_4,&
+                                             int_8
   USE memory_utilities,                ONLY: reallocate
   USE message_passing,                 ONLY: mp_alltoall
   USE qs_fb_matrix_data_types,         ONLY: fb_matrix_data_add,&

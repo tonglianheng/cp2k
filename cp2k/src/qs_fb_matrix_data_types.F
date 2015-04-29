@@ -451,7 +451,8 @@ CONTAINS
   SUBROUTINE fb_matrix_data_status(matrix_data, nmax, nblks, nencode, blk_sizes, error)
     TYPE(fb_matrix_data_obj), INTENT(INOUT)  :: matrix_data
     INTEGER, INTENT(OUT), OPTIONAL           :: nmax, nblks, nencode
-    INTEGER, DIMENSION(:,:), INTENT(OUT), OPTIONAL :: blk_sizes
+    INTEGER, DIMENSION(:, :), INTENT(OUT), &
+      OPTIONAL                               :: blk_sizes
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'fb_matrix_data_status', &
