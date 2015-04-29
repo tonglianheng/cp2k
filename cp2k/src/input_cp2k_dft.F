@@ -47,25 +47,26 @@ MODULE input_cp2k_dft
        do_full_density, do_gapw_gcs, do_gapw_gct, do_gapw_log, do_loc_both, &
        do_loc_crazy, do_loc_direct, do_loc_homo, do_loc_jacobi, &
        do_loc_l1_norm_sd, do_loc_lumo, do_loc_max, do_loc_min, do_loc_none, &
-       do_lri_inv, do_lri_opt_all, do_lri_opt_coeff, do_lri_opt_exps, &
-       do_lri_pseudoinv_diag, do_lri_pseudoinv_svd, do_method_am1, &
-       do_method_dftb, do_method_gapw, do_method_gapw_xc, do_method_gpw, &
-       do_method_lrigpw, do_method_mndo, do_method_mndod, do_method_ofgpw, &
-       do_method_pdg, do_method_pm3, do_method_pm6, do_method_pnnl, &
-       do_method_rm1, do_method_scptb, do_pade, do_ppl_analytic, do_ppl_grid, &
-       do_pwgrid_ns_fullspace, do_pwgrid_ns_halfspace, do_pwgrid_spherical, &
-       do_s2_constraint, do_s2_restraint, do_se_is_kdso, do_se_is_kdso_d, &
-       do_se_is_slater, do_se_lr_ewald, do_se_lr_ewald_gks, &
-       do_se_lr_ewald_r3, do_se_lr_none, do_spin_density, do_taylor, &
-       ehrenfest, gaussian, gaussian_env, general_roks, high_spin_roks, &
-       history_guess, kg_color_dsatur, kg_color_greedy, kg_tnadd_atomic, &
-       kg_tnadd_embed, ls_2pnt, ls_3pnt, ls_gold, ls_none, mopac_guess, &
-       no_excitations, no_guess, numerical, oe_gllb, oe_lb, oe_none, oe_saop, &
-       oe_sic, op_loc_berry, op_loc_boys, op_loc_pipek, orb_dx2, orb_dxy, &
-       orb_dy2, orb_dyz, orb_dz2, orb_dzx, orb_px, orb_py, orb_pz, orb_s, &
-       ot_algo_irac, ot_algo_taylor_or_diag, ot_chol_irac, ot_lwdn_irac, &
-       ot_mini_broyden, ot_mini_cg, ot_mini_diis, ot_mini_sd, ot_poly_irac, &
-       ot_precond_full_all, ot_precond_full_kinetic, ot_precond_full_single, &
+       do_lri_inv, do_lri_inv_auto, do_lri_opt_all, do_lri_opt_coeff, &
+       do_lri_opt_exps, do_lri_pseudoinv_diag, do_lri_pseudoinv_svd, &
+       do_method_am1, do_method_dftb, do_method_gapw, do_method_gapw_xc, &
+       do_method_gpw, do_method_lrigpw, do_method_mndo, do_method_mndod, &
+       do_method_ofgpw, do_method_pdg, do_method_pm3, do_method_pm6, &
+       do_method_pnnl, do_method_rm1, do_method_scptb, do_pade, &
+       do_ppl_analytic, do_ppl_grid, do_pwgrid_ns_fullspace, &
+       do_pwgrid_ns_halfspace, do_pwgrid_spherical, do_s2_constraint, &
+       do_s2_restraint, do_se_is_kdso, do_se_is_kdso_d, do_se_is_slater, &
+       do_se_lr_ewald, do_se_lr_ewald_gks, do_se_lr_ewald_r3, do_se_lr_none, &
+       do_spin_density, do_taylor, ehrenfest, gaussian, gaussian_env, &
+       general_roks, high_spin_roks, history_guess, kg_color_dsatur, &
+       kg_color_greedy, kg_tnadd_atomic, kg_tnadd_embed, ls_2pnt, ls_3pnt, &
+       ls_gold, ls_none, mopac_guess, no_excitations, no_guess, numerical, &
+       oe_gllb, oe_lb, oe_none, oe_saop, oe_sic, op_loc_berry, op_loc_boys, &
+       op_loc_pipek, orb_dx2, orb_dxy, orb_dy2, orb_dyz, orb_dz2, orb_dzx, &
+       orb_px, orb_py, orb_pz, orb_s, ot_algo_irac, ot_algo_taylor_or_diag, &
+       ot_chol_irac, ot_lwdn_irac, ot_mini_broyden, ot_mini_cg, ot_mini_diis, &
+       ot_mini_sd, ot_poly_irac, ot_precond_full_all, &
+       ot_precond_full_kinetic, ot_precond_full_single, &
        ot_precond_full_single_inverse, ot_precond_none, ot_precond_s_inverse, &
        ot_precond_solver_default, ot_precond_solver_direct, &
        ot_precond_solver_inv_chol, ot_precond_solver_update, &
@@ -1173,6 +1174,11 @@ CONTAINS
             description="Controls the printing of the ao (i.e. contracted gaussian) matrices (debug).", &
             print_level=debug_print_level,filename="__STD_OUT__",&
             error=error)
+       CALL keyword_create(keyword=keyword, name="NDIGITS",&
+            description="Specify the number of digits used to print the AO matrices",&
+            default_i_val=6, error=error)
+       CALL section_add_keyword(print_key,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
        CALL keyword_create(keyword, name="CORE_HAMILTONIAN",&
             description="If the printkey is activated controls the printing of the hamiltonian matrix",&
             default_l_val=.FALSE., lone_keyword_l_val=.TRUE., error=error)
@@ -1481,16 +1487,41 @@ CONTAINS
 
        ! dielectric constant function
        CALL cp_print_key_section_create(print_key,"dielectric_cube",&
-            description="", &
+            description="Controls the printing of a cube file with dielectric constant from "//&
+            "the implicit Poisson solver.", &
             print_level=high_print_level,filename="",&
             error=error)
        CALL keyword_create(keyword, name="stride",&
-            description="",&
+            description="The stride (X,Y,Z) used to write the cube file "//&
+            "(larger values result in smaller cube files). You can provide 3 numbers (for X,Y,Z) or"//&
+            " 1 number valid for all components.",&
             usage="STRIDE 2 2 2",n_var=-1,default_i_vals=(/2,2,2/), type_of_var=integer_t,error=error)
        CALL section_add_keyword(print_key,keyword,error=error)
        CALL keyword_release(keyword,error=error)
        CALL keyword_create(keyword, name="APPEND",&
-            description="",&
+            description="append the cube files when they already exist",&
+            default_l_val=.FALSE., lone_keyword_l_val=.TRUE.,error=error)
+       CALL section_add_keyword(print_key,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL section_add_subsection(section,print_key,error=error)
+       CALL section_release(print_key,error=error)
+
+       ! dirichlet type constraints
+       CALL cp_print_key_section_create(print_key,"dirichlet_bc_cube",&
+            description="Controls the printing of cube files with Dirichlet type (boundary) regions "//&
+            "defined in the implicit Poisson solver section.", &
+            print_level=high_print_level,filename="",&
+            error=error)
+       CALL keyword_create(keyword, name="stride",&
+            description="The stride (X,Y,Z) used to write the cube file "//&
+            "(larger values result in smaller cube files). You can provide 3 numbers (for X,Y,Z) or"//&
+            " 1 number valid for all components.",&
+            usage="STRIDE 2 2 2",n_var=-1,default_i_vals=(/2,2,2/), type_of_var=integer_t,error=error)
+       CALL section_add_keyword(print_key,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+       CALL keyword_create(keyword, name="APPEND",&
+            description="append the cube files when they already exist",&
             default_l_val=.FALSE., lone_keyword_l_val=.TRUE.,error=error)
        CALL section_add_keyword(print_key,keyword,error=error)
        CALL keyword_release(keyword,error=error)
@@ -5176,7 +5207,7 @@ CONTAINS
     IF (.NOT. failure) THEN
        CALL section_create(section,name="LRIGPW",&
             description="This section specifies optional parameters for LRIGPW.",& 
-            n_keywords=2, n_subsections=0, repeats=.FALSE., required=.FALSE.,&
+            n_keywords=3, n_subsections=0, repeats=.FALSE., required=.FALSE.,&
             error=error)
 
        NULLIFY(keyword)
@@ -5185,20 +5216,36 @@ CONTAINS
             description="Specifies whether to calculate the inverse or the "//&
                         "pseudoinverse of the overlap matrix of the auxiliary "//&
                         "basis set. Calculating the pseudoinverse is necessary "//&
-                        "for very large auxiliary basis sets. Using the "//&
-                        "pseudoinverse, consistent forces are not guaranteed yet.",&
+                        "for very large auxiliary basis sets, but more expensive. "//&
+                        "Using the pseudoinverse, consistent forces are not "//&
+                        "guaranteed yet.",&
             usage="LRI_OVERLAP_MATRIX INVERSE", &
-            enum_c_vals=s2a( "INVERSE", "PSEUDO_INVERSE_SVD","PSEUDO_INVERSE_DIAG"),&
+            enum_c_vals=s2a("INVERSE", "PSEUDO_INVERSE_SVD","PSEUDO_INVERSE_DIAG",&
+                            "AUTOSELECT"),&
             enum_desc=s2a("Calculate inverse of the overlap matrix.",&
                           "Calculate the pseuodinverse of the overlap matrix "//&
                           "using singular value decomposition.",&
                           "Calculate the pseudoinverse of the overlap matrix "//&
-                          "by prior diagonalization."),&
+                          "by prior diagonalization.",&
+                          "Choose automatically for each pair whether to "//&
+                          "calculate the inverse or pseudoinverse based on the "//&
+                          "condition number of the overlap matrix for each pair. "//&
+                          "Calculating the pseudoinverse is much more expensive."),&
             enum_i_vals=(/do_lri_inv, do_lri_pseudoinv_svd,&
-                          do_lri_pseudoinv_diag/),&
+                          do_lri_pseudoinv_diag, do_lri_inv_auto/),&
             default_i_val=do_lri_inv,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="MAX_CONDITION_NUM", &
+            description="If AUTOSELECT is chosen for LRI_OVERLAP_MATRIX, this "//&
+                        "keyword specifies that the pseudoinverse is calculated "//&
+                        "only if the LOG of the condition number of the lri "//&
+                        "overlap matrix is larger than the given value.",&
+            usage="MAX_CONDITION_NUM 20.0", default_r_val=20.0_dp,&
+            error=error)
+       CALL section_add_keyword(section, keyword, error=error)
+       CALL keyword_release(keyword, error=error)
 
        CALL keyword_create(keyword, name="DEBUG_LRI_INTEGRALS",&
             description="Debug the integrals needed for LRIGPW.",&

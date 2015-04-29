@@ -11,20 +11,21 @@
 ! *****************************************************************************
 PROGRAM dbcsr_test_csr_conversions
   USE dbcsr_api,                       ONLY: &
-       array_data, array_i1d_obj, array_new, array_release, csr_destroy, &
-       csr_type, csr_write, dbcsr_col_block_sizes, dbcsr_create, &
+       csr_destroy, csr_type, dbcsr_col_block_sizes, dbcsr_create, &
        dbcsr_distribution, dbcsr_distribution_mp, dbcsr_distribution_new, &
        dbcsr_distribution_obj, dbcsr_distribution_release, dbcsr_error_type, &
        dbcsr_finalize, dbcsr_finalize_lib, dbcsr_get_stored_coordinates, &
        dbcsr_init, dbcsr_init_lib, dbcsr_max_col_size, dbcsr_max_row_size, &
        dbcsr_mp_mynode, dbcsr_mp_new, dbcsr_mp_obj, dbcsr_mp_release, &
-       dbcsr_nblkcols_total, dbcsr_nblkrows_total, dbcsr_obj, dbcsr_print, &
+       dbcsr_nblkcols_total, dbcsr_nblkrows_total, dbcsr_obj, &
        dbcsr_put_block, dbcsr_release, dbcsr_row_block_sizes, &
        dbcsr_set_default_config, dbcsr_type_no_symmetry, dbcsr_type_real_8
   USE dbcsr_csr_conversions,           ONLY: csr_conversion_test
-  USE kinds,                           ONLY: real_8
+  USE kinds,                           ONLY: dp,&
+                                             real_8
   USE machine,                         ONLY: default_output_unit
-  USE message_passing,                 ONLY: mp_cart_create,&
+  USE message_passing,                 ONLY: mp_bcast,&
+                                             mp_cart_create,&
                                              mp_cart_rank,&
                                              mp_comm_free,&
                                              mp_environ,&
@@ -37,16 +38,15 @@ PROGRAM dbcsr_test_csr_conversions
   TYPE(csr_type)               :: matrix_b
   TYPE(dbcsr_error_type)       :: error
 
-  TYPE(array_i1d_obj)          :: col_blk_sizes, row_blk_sizes
-  INTEGER                      :: nblkrows_total, nblkcols_total
+  INTEGER, DIMENSION(:), POINTER :: col_blk_sizes, row_blk_sizes
+  INTEGER                        :: nblkrows_total, nblkcols_total
 
-  TYPE(array_i1d_obj)          :: col_dist, row_dist
+  INTEGER, DIMENSION(:), POINTER :: col_dist, row_dist
 
   INTEGER                      :: mp_comm, group, numnodes, mynode, &
                                   prow, pcol, io_unit
   INTEGER, DIMENSION(:,:), POINTER         :: pgrid
 
-  INTEGER, DIMENSION(:), POINTER           :: rbs, cbs, rdist, cdist
   INTEGER, DIMENSION(2)                    :: npdims, myploc, coord
   TYPE(dbcsr_mp_obj)           :: mp_env
 
@@ -56,7 +56,7 @@ PROGRAM dbcsr_test_csr_conversions
   REAL                         :: rn
   REAL, ALLOCATABLE, DIMENSION(:)        :: rn_array
 
-  REAL(KIND=real_8)            :: norm, sparsity
+  REAL(KIND=real_8)            :: norm, norm_eps, sparsity, eps
  
   CHARACTER(LEN=10)            :: k_str,mynode_str 
 
@@ -91,12 +91,13 @@ PROGRAM dbcsr_test_csr_conversions
   max_blks_total = 50
   max_blk_size = 10
 
+  eps = 0.1_dp ! Filter threshold
+
   DO k=1,100 ! test 100 matrices
 
-    ! set seed to synchronize random numbers on different nodes
-    ! (for creating the global matrix data)
-
-    CALL RANDOM_SEED(put = seed + k*100)
+    CALL RANDOM_SEED(get = seed)
+    CALL mp_bcast(seed,0,mp_comm) 
+    CALL RANDOM_SEED(put = seed)
     
     CALL RANDOM_NUMBER(rn) 
     nblkrows_total = FLOOR(rn*(max_blks_total)) + 1
@@ -105,61 +106,43 @@ PROGRAM dbcsr_test_csr_conversions
     nblkcols_total = FLOOR(rn*(max_blks_total)) + 1
 
     ALLOCATE(rn_array(MAX(nblkcols_total,nblkrows_total)))
-    ALLOCATE(cbs(nblkcols_total))
-    ALLOCATE(rbs(nblkrows_total))
-    ALLOCATE(rdist(nblkrows_total))
-    ALLOCATE(cdist(nblkcols_total))
+    ALLOCATE(col_blk_sizes(nblkcols_total))
+    ALLOCATE(row_blk_sizes(nblkrows_total))
+    ALLOCATE(row_dist(nblkrows_total))
+    ALLOCATE(col_dist(nblkcols_total))
 
     CALL RANDOM_NUMBER(rn_array)
-    cbs = FLOOR(rn_array(1:nblkcols_total)*(max_blk_size)) + 1
+    col_blk_sizes = FLOOR(rn_array(1:nblkcols_total)*(max_blk_size)) + 1
 
     CALL RANDOM_NUMBER(rn_array)
-    rbs = FLOOR(rn_array(1:nblkrows_total)*(max_blk_size)) + 1
+    row_blk_sizes = FLOOR(rn_array(1:nblkrows_total)*(max_blk_size)) + 1
 
     CALL RANDOM_NUMBER(rn)
     sparsity = rn
 
-    CALL array_new (row_blk_sizes, rbs, gift=.TRUE.)
-    CALL array_new (col_blk_sizes, cbs, gift=.TRUE.)
-
     CALL RANDOM_NUMBER(rn_array)
-    rdist = FLOOR(rn_array(1:nblkrows_total) * npdims(1))
+    row_dist = FLOOR(rn_array(1:nblkrows_total) * npdims(1))
     CALL RANDOM_NUMBER(rn_array)
-    cdist = FLOOR(rn_array(1:nblkcols_total) * npdims(2))
-
-    CALL array_new (row_dist, rdist, gift=.TRUE.)
-    CALL array_new (col_dist, cdist, gift=.TRUE.)
+    col_dist = FLOOR(rn_array(1:nblkcols_total) * npdims(2))
 
     CALL make_random_dbcsr_matrix(matrix_a, mp_env,nblkcols_total,nblkrows_total,&
       col_blk_sizes, row_blk_sizes, col_dist, row_dist, sparsity, error)
 
-    CALL csr_conversion_test(matrix_a, matrix_b, norm, error=error)
     WRITE (UNIT=k_str,FMT='(I0)') k
     WRITE (UNIT=mynode_str, FMT='(I0)') mynode
 
-    !OPEN (UNIT=1000,FILE="test_mat"//TRIM(k_str),ACTION="write",STATUS="replace")
-    !CALL csr_write(matrix_b,1000,error=error)
-    !CLOSE(1000)
-
-    !IF (k .EQ. 1) THEN
-    !  OPEN (UNIT=200+mynode,FILE="dbcsr_mat"//TRIM(mynode_str),ACTION="write",STATUS="replace")
-    !  CALL dbcsr_print(matrix_a, matlab_format = .TRUE.,unit_nr = 200+mynode, error=error)
-    !  CLOSE(200+mynode)
-    !ENDIF
-
+    CALL csr_conversion_test(matrix_a, matrix_b, norm, 0.0_dp, error=error)
+    CALL csr_destroy(matrix_b, error)
+    CALL csr_conversion_test(matrix_a, matrix_b, norm_eps, eps, error=error)
     CALL csr_destroy(matrix_b, error)
 
-    IF (norm > EPSILON(norm)) THEN
+    IF ((norm > EPSILON(norm)) .OR. (norm_eps > eps)) THEN
       IF(io_unit > 0) WRITE(io_unit,*) "Conversion error > 0 for matrix no.", k_str
-    ELSE       
+    ELSE
       IF(io_unit > 0) WRITE(io_unit,*) "Conversion OK!"
     ENDIF
 
     CALL dbcsr_release (matrix_a)
-    CALL array_release (row_dist)
-    CALL array_release (col_dist)
-    CALL array_release (row_blk_sizes)
-    CALL array_release (col_blk_sizes)
     DEALLOCATE(rn_array)
 
   ENDDO
@@ -191,7 +174,7 @@ CONTAINS
     TYPE(dbcsr_obj), INTENT(OUT)             :: matrix_a
     TYPE(dbcsr_mp_obj), INTENT(IN)           :: mp_env
     INTEGER, INTENT(IN)                      :: nblkcols_total, nblkrows_total
-    TYPE(array_i1d_obj), INTENT(IN)          :: col_blk_sizes, row_blk_sizes, &
+    INTEGER, DIMENSION(:), POINTER           :: col_blk_sizes, row_blk_sizes, &
                                                 col_dist, row_dist
     REAL(real_8), INTENT(IN)                 :: sparsity
     TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
@@ -199,12 +182,13 @@ CONTAINS
     INTEGER                                  :: col, col_s, max_nze, &
                                                 node_holds_blk, nze, row, &
                                                 row_s
+    INTEGER, DIMENSION(:), POINTER           :: cbs, rbs
     LOGICAL                                  :: tr
     REAL(real_8)                             :: rn
     REAL(real_8), ALLOCATABLE, DIMENSION(:)  :: values
     TYPE(dbcsr_distribution_obj)             :: dist
 
-    CALL dbcsr_distribution_new (dist, mp_env, row_dist, col_dist)
+    CALL dbcsr_distribution_new (dist, mp_env, row_dist, col_dist, reuse_arrays=.TRUE.)
   
     CALL dbcsr_init (matrix_a)
   
@@ -215,10 +199,11 @@ CONTAINS
          row_blk_size=row_blk_sizes,&
          col_blk_size=col_blk_sizes,&
          data_type=dbcsr_type_real_8,&
+         reuse_arrays=.TRUE.,&
          error=error)
   
-    rbs => array_data (dbcsr_row_block_sizes (matrix_a))
-    cbs => array_data (dbcsr_col_block_sizes (matrix_a))
+    rbs => dbcsr_row_block_sizes (matrix_a)
+    cbs => dbcsr_col_block_sizes (matrix_a)
     mynode = dbcsr_mp_mynode (dbcsr_distribution_mp (dbcsr_distribution (matrix_a)))
     max_nze = dbcsr_max_row_size (matrix_a) * dbcsr_max_col_size (matrix_a)
   

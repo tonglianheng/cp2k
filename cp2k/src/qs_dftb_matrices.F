@@ -20,7 +20,6 @@ MODULE qs_dftb_matrices
   USE cp_control_types,                ONLY: dft_control_type,&
                                              dftb_control_type
   USE cp_dbcsr_interface,              ONLY: &
-       array_i1d_obj, array_new, array_nullify, array_release, &
        convert_offsets_to_sizes, cp_dbcsr_add, cp_dbcsr_add_block_node, &
        cp_dbcsr_allocate_matrix_set, cp_dbcsr_copy, cp_dbcsr_create, &
        cp_dbcsr_deallocate_matrix_set, cp_dbcsr_finalize, &
@@ -47,7 +46,8 @@ MODULE qs_dftb_matrices
                                              ewald_pw_type
   USE input_constants,                 ONLY: do_fist_pol_none
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
-                                             section_vals_type
+                                             section_vals_type,&
+                                             section_vals_val_get
   USE kinds,                           ONLY: default_string_length,&
                                              dp
   USE message_passing,                 ONLY: mp_sum
@@ -147,12 +147,12 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'build_dftb_matrices', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: atom_a, atom_b, handle, i, iatom, icol, ikind, inode, irow, &
-      istat, iw, jatom, jkind, l1, l2, la, last_jatom, lb, llm, lmaxi, lmaxj, &
-      m, n1, n2, n_urpoly, natom, natorb_a, natorb_b, ncol, nderivatives, &
-      neighbor_list_id, ngrd, ngrdcut, nkind, nmat, nrow, spdim
+    INTEGER :: after, atom_a, atom_b, handle, i, iatom, icol, ikind, inode, &
+      irow, istat, iw, jatom, jkind, l1, l2, la, last_jatom, lb, llm, lmaxi, &
+      lmaxj, m, n1, n2, n_urpoly, natom, natorb_a, natorb_b, ncol, &
+      nderivatives, neighbor_list_id, ngrd, ngrdcut, nkind, nmat, nrow, spdim
     INTEGER, DIMENSION(:), POINTER           :: atom_of_kind, felem, lelem, &
-                                                rbs
+                                                row_blk_sizes
     LOGICAL                                  :: defined, failure, found, &
                                                 hb_sr_damp, new_atom_b, &
                                                 use_virial
@@ -168,7 +168,6 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:, :), POINTER :: dfblock, dsblock, fblock, &
       fmatij, fmatji, gblock, pblock, sblock, scoeff, smatij, smatji, spxr, &
       wblock
-    TYPE(array_i1d_obj)                      :: row_blk_sizes
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(atprop_type), POINTER               :: atprop
@@ -269,12 +268,9 @@ CONTAINS
       CALL get_qs_env(qs_env=qs_env,&
                       gamma_matrix=gamma_matrix,error=error)
 
-      ALLOCATE (rbs(natom), STAT=istat)
+      ALLOCATE (row_blk_sizes(natom), STAT=istat)
       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-      CALL convert_offsets_to_sizes (felem, rbs, lelem)
-      CALL array_nullify (row_blk_sizes)
-      CALL array_new (row_blk_sizes, rbs, gift=.TRUE.)
-
+      CALL convert_offsets_to_sizes (felem, row_blk_sizes, lelem)
 
       CALL cp_dbcsr_allocate_matrix_set(gamma_matrix,nmat,error=error)
       ALLOCATE(gamma_matrix(1)%matrix)
@@ -299,7 +295,7 @@ CONTAINS
               error=error)
       END DO
 
-      CALL array_release (row_blk_sizes)
+      DEALLOCATE(row_blk_sizes)
 
       DEALLOCATE (felem,lelem,STAT=istat)
       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
@@ -598,16 +594,18 @@ CONTAINS
      energy%repulsive = erep
 
      IF (BTEST(cp_print_key_should_output(logger%iter_info,&
-         qs_env%input,"DFT%PRINT%AO_MATRICES/CORE_HAMILTONIAN",error=error),cp_p_file)) THEN
+               qs_env%input,"DFT%PRINT%AO_MATRICES/CORE_HAMILTONIAN",error=error),cp_p_file)) THEN
        iw = cp_print_key_unit_nr(logger,qs_env%input,"DFT%PRINT%AO_MATRICES/CORE_HAMILTONIAN",&
             extension=".Log",error=error)
-       CALL cp_dbcsr_write_sparse_matrix(matrix_h(1)%matrix,4,6,qs_env,para_env,&
+       CALL section_vals_val_get(qs_env%input,"DFT%PRINT%AO_MATRICES%NDIGITS",i_val=after,error=error)
+       after = MIN(MAX(after,1),16)
+       CALL cp_dbcsr_write_sparse_matrix(matrix_h(1)%matrix,4,after,qs_env,para_env,&
             output_unit=iw,error=error)
 
        IF (BTEST(cp_print_key_should_output(logger%iter_info,&
              qs_env%input,"DFT%PRINT%AO_MATRICES/DERIVATIVES",error=error),cp_p_file)) THEN
          DO i=2,SIZE(matrix_h)
-           CALL cp_dbcsr_write_sparse_matrix(matrix_h(i)%matrix,4,6,qs_env,para_env,&
+           CALL cp_dbcsr_write_sparse_matrix(matrix_h(i)%matrix,4,after,qs_env,para_env,&
                 output_unit=iw,error=error)
          END DO
        END IF
@@ -617,16 +615,18 @@ CONTAINS
      END IF
 
      IF (BTEST(cp_print_key_should_output(logger%iter_info,&
-         qs_env%input,"DFT%PRINT%AO_MATRICES/OVERLAP",error=error),cp_p_file)) THEN
+               qs_env%input,"DFT%PRINT%AO_MATRICES/OVERLAP",error=error),cp_p_file)) THEN
        iw = cp_print_key_unit_nr(logger,qs_env%input,"DFT%PRINT%AO_MATRICES/OVERLAP",&
             extension=".Log",error=error)
-       CALL cp_dbcsr_write_sparse_matrix(matrix_s(1)%matrix,4,6,qs_env,para_env,&
+       CALL section_vals_val_get(qs_env%input,"DFT%PRINT%AO_MATRICES%NDIGITS",i_val=after,error=error)
+       after = MIN(MAX(after,1),16)
+       CALL cp_dbcsr_write_sparse_matrix(matrix_s(1)%matrix,4,after,qs_env,para_env,&
              output_unit=iw,error=error)
 
        IF (BTEST(cp_print_key_should_output(logger%iter_info,&
-            qs_env%input,"DFT%PRINT%AO_MATRICES/DERIVATIVES",error=error),cp_p_file)) THEN
+                 qs_env%input,"DFT%PRINT%AO_MATRICES/DERIVATIVES",error=error),cp_p_file)) THEN
          DO i=2,SIZE(matrix_s)
-           CALL cp_dbcsr_write_sparse_matrix(matrix_s(i)%matrix,4,6,qs_env,para_env,&
+           CALL cp_dbcsr_write_sparse_matrix(matrix_s(i)%matrix,4,after,qs_env,para_env,&
                 output_unit=iw,error=error)
          END DO
        END IF
@@ -635,7 +635,7 @@ CONTAINS
             "DFT%PRINT%AO_MATRICES/OVERLAP", error=error)
      END IF
 
-     IF(calculate_forces) THEN
+     IF (calculate_forces) THEN
        IF (SIZE(matrix_p) == 2) THEN
           CALL cp_dbcsr_add(matrix_p(1)%matrix,matrix_p(2)%matrix,alpha_scalar=1.0_dp,&
                beta_scalar=-1.0_dp,error=error)
@@ -1171,15 +1171,13 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Constructs an empty 1-el DFTB hamiltonian
 !> \param qs_env ...
-!> \param qmmm_env ...
 !> \param para_env ...
 !> \param error ...
 !> \author JGH 10.2014 [created]
 ! *****************************************************************************
-  SUBROUTINE build_dftb_qmmm_matrix_zero(qs_env,qmmm_env,para_env,error)
+  SUBROUTINE build_dftb_qmmm_matrix_zero(qs_env,para_env,error)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(qmmm_env_qm_type), POINTER          :: qmmm_env
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cp_error_type), INTENT(inout)       :: error
 
@@ -2340,9 +2338,8 @@ CONTAINS
                                                 neighbor_list_id, nkind, &
                                                 nmat, nsgf
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: first_sgf, last_sgf
-    INTEGER, DIMENSION(:), POINTER           :: rbs
+    INTEGER, DIMENSION(:), POINTER           :: row_blk_sizes
     LOGICAL                                  :: failure
-    TYPE(array_i1d_obj)                      :: row_blk_sizes
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(dbcsr_distribution_obj), POINTER    :: dbcsr_dist
@@ -2383,11 +2380,9 @@ CONTAINS
     IF(nderivative==2)nmat=10
 
 
-    ALLOCATE (rbs(natom), STAT=istat)
+    ALLOCATE (row_blk_sizes(natom), STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-    CALL convert_offsets_to_sizes (first_sgf, rbs, last_sgf)
-    CALL array_nullify (row_blk_sizes)
-    CALL array_new (row_blk_sizes, rbs, gift=.TRUE.)
+    CALL convert_offsets_to_sizes (first_sgf, row_blk_sizes, last_sgf)
 
     CALL cp_dbcsr_allocate_matrix_set(matrices,nmat,error=error)
 
@@ -2416,7 +2411,7 @@ CONTAINS
     DEALLOCATE (last_sgf,STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
 
-    CALL array_release (row_blk_sizes)
+    DEALLOCATE(row_blk_sizes)
 
   END SUBROUTINE setup_matrices
 

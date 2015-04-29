@@ -14,7 +14,7 @@
 !> \author JGH (18-Mar-2001)
 ! *****************************************************************************
 MODULE realspace_grid_types
-  USE cp_array_r_utils,                ONLY: cp_1d_r_p_type
+  USE cp_array_utils_r,                ONLY: cp_1d_r_p_type
   USE fast,                            ONLY: copy_cr,&
                                              copy_rc
   USE kahan_sum,                       ONLY: accurate_sum
@@ -37,6 +37,9 @@ MODULE realspace_grid_types
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE util,                            ONLY: get_limit
+
+  !$ USE OMP_LIB
+
 #include "../common/cp_common_uses.f90"
 
   IMPLICIT NONE
@@ -1098,8 +1101,6 @@ CONTAINS
                                                 send_buf_3d_up
     TYPE(cp_1d_r_p_type), ALLOCATABLE, &
       DIMENSION(:)                           :: recv_bufs, send_bufs
-
-!$  INTEGER :: omp_get_max_threads, omp_get_thread_num
 
     num_threads = 1
     my_id = 0

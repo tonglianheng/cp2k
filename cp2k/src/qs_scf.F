@@ -377,7 +377,7 @@ CONTAINS
        CALL init_scf_loop(scf_env=scf_env, qs_env=qs_env, &
             scf_section=scf_section, error=error)
 
-       CALL qs_scf_set_loop_flags(scf_control,scf_env,diis_step,&
+       CALL qs_scf_set_loop_flags(scf_env,diis_step,&
                       energy_only,just_energy,exit_inner_loop,error=error)
 
        scf_loop: DO
@@ -401,7 +401,7 @@ CONTAINS
 
           IF(do_kpoints) THEN
              ! kpoints
-             CALL qs_scf_new_mos_kp(qs_env,scf_env,scf_control,scf_section,diis_step,energy_only,error=error)
+             CALL qs_scf_new_mos_kp(qs_env,scf_env,scf_control,diis_step,energy_only,error=error)
           ELSE
              ! Gamma points only
              CALL qs_scf_new_mos(qs_env,scf_env,scf_control,scf_section,diis_step,energy_only,error=error)

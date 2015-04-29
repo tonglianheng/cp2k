@@ -510,23 +510,9 @@ CONTAINS
                 END IF
                 IF (radius > 0.0_dp) THEN
                    beta = sqrthalf/radius
-#define SCREENED_COULOMB_GAUSS
-#define STORE_ENERGY
-#define STORE_FORCES
-#include "ewalds_multipole_sr.f90"
-#undef STORE_FORCES
-#undef STORE_ENERGY
-#undef SCREENED_COULOMB_GAUSS
+#include "ewalds_multipole_sr_gauss.f90"
                ELSE
-#define SCREENED_COULOMB_ERFC
-#define STORE_ENERGY
-#define STORE_FORCES
-#define DAMPING
-#include "ewalds_multipole_sr.f90"
-#undef DAMPING
-#undef STORE_FORCES
-#undef STORE_ENERGY
-#undef SCREENED_COULOMB_ERFC
+#include "ewalds_multipole_sr_erfc.f90"
                END IF
              END IF
           END DO Pairs
@@ -652,13 +638,7 @@ CONTAINS
              rab = particle_set(atom_b)%r - particle_set(atom_a)%r
              rab = pbc(rab, cell)
              rab2 = rab(1)**2 + rab(2)**2 + rab(3)**2
-#define SCREENED_COULOMB_ERF
-#define STORE_ENERGY
-#define STORE_FORCES
-#include "ewalds_multipole_sr.f90"
-#undef STORE_FORCES
-#undef STORE_ENERGY
-#undef SCREENED_COULOMB_ERF
+#include "ewalds_multipole_sr_erf.f90"
           END DO Pairs
        END DO Kind_Group_Loop
     END DO Lists
@@ -799,7 +779,7 @@ CONTAINS
           node = node + 1
           iparticle = local_particles%list(iparticle_kind)%array(iparticle_local)
           CALL matvec_3x3 (vec, cell%h_inv, particle_set(iparticle)%r)
-          CALL structure_factor_evaluate (vec, pw_grid%npts, exp_igr%lb, &
+          CALL structure_factor_evaluate (vec, exp_igr%lb, &
                exp_igr%ex(:,node), exp_igr%ey(:,node), exp_igr%ez(:,node))
 
           ! Computing the total charge, dipole and quadrupole trace (if any)

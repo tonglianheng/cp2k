@@ -11,7 +11,7 @@
 !>      05.2009
 ! *****************************************************************************
 MODULE qs_scf_diagonalization
-  USE cp_array_r_utils,                ONLY: cp_1d_r_p_type
+  USE cp_array_utils_r,                ONLY: cp_1d_r_p_type
   USE cp_cfm_basic_linalg,             ONLY: cp_cfm_add_fm
   USE cp_cfm_diag,                     ONLY: cp_cfm_geeig
   USE cp_cfm_types,                    ONLY: cp_cfm_create,&
@@ -325,7 +325,6 @@ CONTAINS
 !> \param matrix_s     Overlap matrices (RS indices, global)
 !> \param kpoints      Kpoint environment
 !> \param scf_control  SCF control variables
-!> \param scf_section  SCF section (input)
 !> \param diis_step    Have we done a DIIS step
 !> \param error        CP2K error handling
 !> \par History
@@ -333,14 +332,13 @@ CONTAINS
 ! *****************************************************************************
 
   SUBROUTINE do_general_diag_kp(scf_env,matrix_ks,matrix_s,kpoints,&
-                                scf_control,scf_section,diis_step,error)
+                                scf_control,diis_step,error)
 
     TYPE(qs_scf_env_type), POINTER           :: scf_env
     TYPE(cp_dbcsr_p_type), DIMENSION(:, :), &
       POINTER                                :: matrix_ks, matrix_s
     TYPE(kpoint_type), POINTER               :: kpoints
     TYPE(scf_control_type), POINTER          :: scf_control
-    TYPE(section_vals_type), POINTER         :: scf_section
     LOGICAL, INTENT(INOUT)                   :: diis_step
     TYPE(cp_error_type), INTENT(inout)       :: error
 

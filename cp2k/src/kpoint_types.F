@@ -43,7 +43,7 @@ MODULE kpoint_types
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'kpoint_types'
 
   PUBLIC :: kpoint_type
-  PUBLIC :: kpoint_create, kpoint_release, get_kpoint_info, set_kpoint_info
+  PUBLIC :: kpoint_create, kpoint_release, get_kpoint_info
   PUBLIC :: read_kpoint_section, write_kpoint_info
   PUBLIC :: kpoint_env_type, kpoint_env_p_type
   PUBLIC :: kpoint_env_create
@@ -502,6 +502,7 @@ CONTAINS
 
     IF(PRESENT(kp_env)) kpoint%kp_env => kp_env
     IF(PRESENT(mpools)) kpoint%mpools => mpools
+    IF(PRESENT(sab_nl)) kpoint%sab_nl => sab_nl
 
     IF(PRESENT(cell_to_index)) THEN
        IF(ASSOCIATED(kpoint%cell_to_index)) DEALLOCATE(kpoint%cell_to_index)

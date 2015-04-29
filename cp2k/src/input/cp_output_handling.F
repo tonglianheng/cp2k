@@ -55,7 +55,7 @@ MODULE cp_output_handling
   PUBLIC :: cp_print_key_should_output, cp_iterate, cp_add_iter_level, cp_rm_iter_level
   PUBLIC :: cp_iter_string, cp_print_key_section_create
   PUBLIC :: cp_print_key_unit_nr, cp_print_key_finished_output
-  PUBLIC :: cp_print_key_generate_filename, cp_print_key_log, cp_printkey_is_on
+  PUBLIC :: cp_print_key_generate_filename, cp_printkey_is_on
 
   INTEGER, PARAMETER, PUBLIC               :: add_last_no=0,&
                                               add_last_numeric=1,&
@@ -198,7 +198,7 @@ CONTAINS
 
        NULLIFY(keyword, subsection)
        CALL keyword_create(keyword, name="_SECTION_PARAMETERS_",&
-            description="Level starting at which this proprety is printed",&
+            description="Level starting at which this property is printed",&
             usage="silent",&
             default_i_val=my_print_level,lone_keyword_i_val=silent_print_level,&
             enum_c_vals=s2a("on","off","silent","low","medium","high","debug"),&
@@ -866,7 +866,7 @@ CONTAINS
 !> \param file_status ...
 !> \param do_backup ...
 !> \param on_file ...
-!> \param is_new_file ...
+!> \param is_new_file true if this rank created a new (or rewound) file, false otherwise
 !> \param error ...
 !> \retval res ...
 ! *****************************************************************************
@@ -921,6 +921,7 @@ CONTAINS
     IF (PRESENT(do_backup))     my_do_backup     = do_backup
     IF (PRESENT(on_file))       my_on_file       = on_file
     IF (PRESENT(local))         my_local         = local
+    IF (PRESENT(is_new_file))   is_new_file      = .FALSE.
     NULLIFY(print_key)
     CPPrecondition(ASSOCIATED(basis_section),cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED(logger),cp_failure_level,routineP,error,failure)

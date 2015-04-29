@@ -28,11 +28,12 @@ def main():
     triples += combinations(16,29,55)
     triples += combinations(32,29,55)
     triples += combinations(12)
+    triples += combinations(13,26,28,32,45)
 
     usage = "Generator of LibCuSMM. The Library for Cuda Small Matrix Multiplications."
     parser = OptionParser(usage)
     parser.add_option("-p", "--params", metavar="filename.txt",
-        default="parameters.txt",
+        default="parameters_K20X.txt",
         help="Default: %default")
 
     (options, args) = parser.parse_args()
@@ -68,10 +69,10 @@ def make_plan(triples, param_fn):
 
 #===============================================================================
 def gen_library(plan):
-    output  = "/******************************************************************************\n"
-    output += "*  CP2K: A general program to perform molecular dynamics simulations\n"
-    output += "*  Copyright (C) 2000 - 2013 the CP2K developers group\n"
-    output += "*****************************************************************************/\n"
+    output  = "/*****************************************************************************\n"
+    output += " *  CP2K: A general program to perform molecular dynamics simulations        *\n"
+    output += " *  Copyright (C) 2000 - 2015  CP2K developers group                         *\n"
+    output += " *****************************************************************************/\n"
 
     for i in get_includes(plan):
         output += '#include "%s"\n'%i

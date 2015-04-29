@@ -68,8 +68,6 @@ MODULE qs_environment
                                              ewald_pw_type
   USE fist_nonbond_env_types,          ONLY: fist_nonbond_env_create,&
                                              fist_nonbond_env_type
-  USE ga_environment_types,            ONLY: ga_environment_type,&
-                                             init_ga_env
   USE gamma,                           ONLY: init_md_ftable
   USE global_types,                    ONLY: global_environment_type
   USE hartree_local_methods,           ONLY: init_coulomb_local
@@ -169,7 +167,6 @@ MODULE qs_environment
                                              scf_c_write_parameters,&
                                              scf_control_type
   USE scptb_utils,                     ONLY: scptb_parameter_init
-  USE se_ga_tools,                     ONLY: se_ga_pair_list_init
   USE semi_empirical_expns3_methods,   ONLY: semi_empirical_expns3_setup
   USE semi_empirical_int_arrays,       ONLY: init_se_intd_array
   USE semi_empirical_mpole_methods,    ONLY: nddo_mpole_setup
@@ -246,7 +243,6 @@ CONTAINS
     TYPE(cell_type), POINTER                 :: my_cell, my_cell_ref
     TYPE(cp_blacs_env_type), POINTER         :: blacs_env
     TYPE(dft_control_type), POINTER          :: dft_control
-    TYPE(ga_environment_type), POINTER       :: ga_env
     TYPE(gto_basis_set_type), POINTER        :: lri_basis_set, orb_basis_set
     TYPE(kpoint_type), POINTER               :: kpoints
     TYPE(lri_environment_type), POINTER      :: lri_env
@@ -262,7 +258,7 @@ CONTAINS
 
     failure = .FALSE.
     NULLIFY(my_cell, my_cell_ref, atomic_kind_set, particle_set, &
-         qs_kind_set, kpoint_section, dft_section, ga_env, &
+         qs_kind_set, kpoint_section, dft_section, &
          subsys, ks_env, dft_control, blacs_env)
 
     CALL set_qs_env(qs_env,input=force_env_section,error=error)
@@ -412,14 +408,11 @@ CONTAINS
        ! how to calculate inverse/pseuodinverse of overlap
        CALL section_vals_val_get(force_env_section,"DFT%QS%LRIGPW%LRI_OVERLAP_MATRIX",&
                                  i_val=lri_env%lri_overlap_inv,error=error)
+       CALL section_vals_val_get(force_env_section,"DFT%QS%LRIGPW%MAX_CONDITION_NUM",&
+                                 r_val=lri_env%cond_max,error=error)
        !
        CALL set_qs_env (qs_env,lri_env=lri_env,error=error)
     END IF
-
-    ! GA option
-    CALL init_ga_env ( ga_env, error )
-    CALL set_qs_env ( qs_env, ga_env=ga_env, error=error )
-    CALL se_ga_pair_list_init ( qs_env, error )
 
     IF (dft_control%qs_control%do_ls_scf) THEN
        CALL ls_scf_create(qs_env,error)
@@ -902,7 +895,7 @@ CONTAINS
       ELSE IF ( dispersion_env%type == xc_vdw_fun_nonloc ) THEN
         NULLIFY(nl_section)
         nl_section =>  section_vals_get_subs_vals(xc_section,"VDW_POTENTIAL%NON_LOCAL",error=error)
-        CALL qs_dispersion_nonloc_init(dispersion_env,nl_section,para_env,error)
+        CALL qs_dispersion_nonloc_init(dispersion_env,para_env,error)
       END IF
       CALL set_qs_env(qs_env, dispersion_env=dispersion_env, error=error)
     ELSE IF (dft_control%qs_control%method_id == do_method_scptb) THEN

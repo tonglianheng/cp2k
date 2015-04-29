@@ -1,3 +1,8 @@
+!-----------------------------------------------------------------------------!
+!   CP2K: A general program to perform molecular dynamics simulations         !
+!   Copyright (C) 2000 - 2015  CP2K developers group                          !
+!-----------------------------------------------------------------------------!
+
 MODULE qs_fb_env_methods
 
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
@@ -10,16 +15,16 @@ MODULE qs_fb_env_methods
   USE cp_blacs_env,                    ONLY: cp_blacs_env_type
   USE cp_control_types,                ONLY: dft_control_type
   USE cp_dbcsr_interface,              ONLY: &
-       array_i1d_obj, array_nullify, cp_dbcsr_allocate_matrix_set, &
-       cp_dbcsr_col_block_sizes, cp_dbcsr_create, &
-       cp_dbcsr_deallocate_matrix_set, cp_dbcsr_desymmetrize, &
-       cp_dbcsr_distribution, cp_dbcsr_finalize, cp_dbcsr_get_info, &
-       cp_dbcsr_get_matrix_type, cp_dbcsr_init, cp_dbcsr_iterator, &
-       cp_dbcsr_iterator_blocks_left, cp_dbcsr_iterator_next_block, &
-       cp_dbcsr_iterator_start, cp_dbcsr_iterator_stop, cp_dbcsr_multiply, &
-       cp_dbcsr_nfullcols_total, cp_dbcsr_nfullrows_total, cp_dbcsr_p_type, &
-       cp_dbcsr_release, cp_dbcsr_reserve_blocks, cp_dbcsr_row_block_sizes, &
-       cp_dbcsr_set, cp_dbcsr_type, dbcsr_type_no_symmetry
+       cp_dbcsr_allocate_matrix_set, cp_dbcsr_col_block_sizes, &
+       cp_dbcsr_create, cp_dbcsr_deallocate_matrix_set, &
+       cp_dbcsr_desymmetrize, cp_dbcsr_distribution, cp_dbcsr_finalize, &
+       cp_dbcsr_get_info, cp_dbcsr_get_matrix_type, cp_dbcsr_init, &
+       cp_dbcsr_iterator, cp_dbcsr_iterator_blocks_left, &
+       cp_dbcsr_iterator_next_block, cp_dbcsr_iterator_start, &
+       cp_dbcsr_iterator_stop, cp_dbcsr_multiply, cp_dbcsr_nfullcols_total, &
+       cp_dbcsr_nfullrows_total, cp_dbcsr_p_type, cp_dbcsr_release, &
+       cp_dbcsr_reserve_blocks, cp_dbcsr_row_block_sizes, cp_dbcsr_set, &
+       cp_dbcsr_type, dbcsr_type_no_symmetry
   USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm
   USE cp_fm_basic_linalg,              ONLY: cp_fm_gemm,&
                                              cp_fm_triangular_invert
@@ -98,11 +103,10 @@ MODULE qs_fb_env_methods
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_fb_env_methods'
 
-  PUBLIC :: fb_env_do_diag, &
-            fb_env_read_input, &
-            fb_env_build_rcut_auto, &
-            fb_env_build_atomic_halos, &
-            fb_env_build_trial_fns_auto, &
+  PUBLIC :: fb_env_do_diag,&
+            fb_env_read_input,&
+            fb_env_build_rcut_auto,&
+            fb_env_build_atomic_halos,&
             fb_env_write_info
 
 
@@ -143,14 +147,14 @@ CONTAINS
     INTEGER :: filtered_nfullrowsORcols_total, handle, homo_filtered, ispin, &
       lfomo_filtered, my_nmo, nelectron, nmo, nmo_filtered, nspin, &
       original_nfullrowsORcols_total, stat
+    INTEGER, DIMENSION(:), POINTER           :: filtered_rowORcol_block_sizes,&
+                                                original_rowORcol_block_sizes
     LOGICAL                                  :: failure, use_jacobi
     REAL(kind=dp) :: diis_error, eps_diis, fermi_level, filter_temp, &
       flexible_electron_count, KTS_filtered, maxocc, mu_filtered
     REAL(KIND=dp), DIMENSION(:), POINTER     :: eigenvalues, &
                                                 eigenvalues_filtered, occ, &
                                                 occ_filtered
-    TYPE(array_i1d_obj)                      :: filtered_rowORcol_block_sizes,&
-                                                original_rowORcol_block_sizes
     TYPE(cp_blacs_env_type), POINTER         :: blacs_env
     TYPE(cp_dbcsr_p_type)                    :: matrix_ks_desymm, &
                                                 matrix_s_desymm
@@ -191,8 +195,7 @@ CONTAINS
     ! NULLIFY(sab_orb)
     CALL fb_atomic_halo_list_nullify(atomic_halos)
     CALL fb_trial_fns_nullify(trial_fns)
-    CALL array_nullify(original_rowORcol_block_sizes)
-    CALL array_nullify(filtered_rowORcol_block_sizes)
+    NULLIFY(original_rowORcol_block_sizes,filtered_rowORcol_block_sizes)
 
     ! get qs_env information
     CALL get_qs_env(qs_env=qs_env, &
@@ -365,8 +368,8 @@ CONTAINS
     ! and col_block_sizes equal to that of the filtered.  We assume
     ! also that the matrix dimensions are identical for both spin
     ! channels.
-    original_rowORcol_block_sizes = cp_dbcsr_row_block_sizes(matrix_ks(1)%matrix)
-    filtered_rowORcol_block_sizes = cp_dbcsr_col_block_sizes(matrix_filter(1)%matrix)
+    original_rowORcol_block_sizes => cp_dbcsr_row_block_sizes(matrix_ks(1)%matrix)
+    filtered_rowORcol_block_sizes => cp_dbcsr_col_block_sizes(matrix_filter(1)%matrix)
     original_nfullrowsORcols_total = cp_dbcsr_nfullrows_total(matrix_ks(1)%matrix)
     filtered_nfullrowsORcols_total = cp_dbcsr_nfullcols_total(matrix_filter(1)%matrix)
 

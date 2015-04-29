@@ -19,7 +19,7 @@ MODULE qs_scf_post_gpw
                                              get_atomic_kind
   USE cell_types,                      ONLY: cell_type,&
                                              pbc
-  USE cp_array_r_utils,                ONLY: cp_1d_r_p_type
+  USE cp_array_utils_r,                ONLY: cp_1d_r_p_type
   USE cp_blacs_env,                    ONLY: cp_blacs_env_type
   USE cp_control_types,                ONLY: dft_control_type
   USE cp_dbcsr_interface,              ONLY: cp_dbcsr_p_type,&
@@ -50,6 +50,7 @@ MODULE qs_scf_post_gpw
                                              get_results,&
                                              put_results
   USE cp_result_types,                 ONLY: cp_result_type
+  USE dirichlet_bc_utils,              ONLY: setup_grid_axes
   USE et_coupling_types,               ONLY: set_et_coupling_type
   USE hirshfeld_methods,               ONLY: comp_hirshfeld_charges,&
                                              comp_hirshfeld_i_charges,&
@@ -94,6 +95,7 @@ MODULE qs_scf_post_gpw
   USE population_analyses,             ONLY: lowdin_population_analysis,&
                                              mulliken_population_analysis
   USE preconditioner_types,            ONLY: preconditioner_type
+  USE ps_implicit_methods,             ONLY: pw_mollifier
   USE pw_env_types,                    ONLY: pw_env_get,&
                                              pw_env_type
   USE pw_grids,                        ONLY: get_pw_grid_info
@@ -785,7 +787,7 @@ CONTAINS
 
              wc(ispin)%centres(:,:)=scenter(1+(ispin-1)*3:ispin*3,:)
              lstates => qs_loc_env%localized_wfn_control%loc_states(:,ispin)
-             CALL construct_wannier_states(molecule_set, mo_local(ispin)%matrix,&
+             CALL construct_wannier_states(mo_local(ispin)%matrix,&
               ks_rmpv(ispin)%matrix, qs_env, loc_print_section=loc_print_section,&
               WannierCentres=wc(ispin),ns=ns,states=lstates, error=error)
           ENDIF
@@ -2231,14 +2233,18 @@ CONTAINS
     CHARACTER(LEN=2)                         :: element_symbol
     CHARACTER(LEN=default_path_length)       :: filename, my_pos_cube
     CHARACTER(LEN=default_string_length)     :: name
-    INTEGER :: handle, i, iat, id, ikind, iso, ispin, istat, iw, l, nd(3), &
-      ngto, niso, nkind, np, nr, output_unit, print_level, unit_nr
-    LOGICAL :: append_cube, do_dielectric_cube, failure, has_dielectric, &
-      print_it, print_total_density, rho_r_valid, write_ks, write_xc, &
+    INTEGER :: after, handle, i, iat, id, ikind, iso, ispin, istat, iw, j, l, &
+      n_cstr, n_tiles, nd(3), ngto, niso, nkind, np, nr, output_unit, &
+      print_level, tile_npts, unit_nr
+    LOGICAL :: append_cube, do_dielectric_cube, do_dirichlet_bc_cube, &
+      failure, has_dielectric, has_dirichlet_bc, print_it, &
+      print_total_density, rho_r_valid, smooth, write_ks, write_xc, &
       xrd_interface
+    REAL(dp), ALLOCATABLE, DIMENSION(:)      :: x_glbl, x_locl, y_glbl, &
+                                                y_locl, z_glbl, z_locl
     REAL(KIND=dp)                            :: q_max, rho_hard, rho_soft, &
                                                 rho_total, rho_total_rspace, &
-                                                udvol, volume
+                                                udvol, volume, zeta
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: bfun
     REAL(KIND=dp), ALLOCATABLE, &
@@ -2278,7 +2284,8 @@ CONTAINS
       POINTER                                :: rho_atom_set
     TYPE(rho_atom_type), POINTER             :: rho_atom
     TYPE(section_vals_type), POINTER         :: dft_section, &
-                                                dielectric_section, input, &
+                                                dielectric_section, &
+                                                dirichlet_bc_section, input, &
                                                 print_key, xc_section
 
     CALL timeset(routineN,handle)
@@ -2666,7 +2673,7 @@ CONTAINS
             "DFT%PRINT%V_HARTREE_CUBE",error=error),cp_p_file)) THEN
 
           CALL get_qs_env(qs_env=qs_env,pw_env=pw_env,error=error)
-          CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool,error=error)
+          CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool, error=error)
           CALL pw_pool_create_pw(auxbas_pw_pool,aux_r%pw,&
                                   use_data = REALDATA3D,&
                                   in_space = REALSPACE, error=error)
@@ -2801,13 +2808,80 @@ CONTAINS
           CALL pw_pool_give_back_pw(auxbas_pw_pool, aux_r%pw, error=error)
        ENDIF
 
+       ! Write Dirichlet type constranits into cube files
+       do_dirichlet_bc_cube = BTEST(cp_print_key_should_output(logger%iter_info,input,&
+                                  "DFT%PRINT%DIRICHLET_BC_CUBE",error=error),cp_p_file)
+       dirichlet_bc_section => section_vals_get_subs_vals(input,"DFT%POISSON%IMPLICIT%DIRICHLET_BC",error=error)
+       CALL section_vals_get(dirichlet_bc_section,explicit=has_dirichlet_bc,error=error)
+
+       IF (has_dirichlet_bc .AND. do_dirichlet_bc_cube) THEN
+          append_cube = section_get_lval(input,"DFT%PRINT%DIRICHLET_BC_CUBE%APPEND",error=error)
+          my_pos_cube="REWIND"
+          IF(append_cube) THEN
+             my_pos_cube="APPEND"
+          END IF
+
+          CALL get_qs_env(qs_env=qs_env, pw_env=pw_env, error=error)
+          CALL pw_env_get(pw_env, poisson_env=poisson_env, auxbas_pw_pool=auxbas_pw_pool, error=error)
+          CALL pw_pool_create_pw(auxbas_pw_pool, aux_r%pw, use_data=REALDATA3D, in_space=REALSPACE, error=error)
+
+          CALL setup_grid_axes(auxbas_pw_pool%pw_grid, x_glbl, y_glbl, z_glbl, x_locl, y_locl, z_locl, error)
+
+          n_cstr = SIZE(poisson_env%implicit_env%gates)
+          DO j = 1 , n_cstr
+             n_tiles = poisson_env%implicit_env%gates(j)%dirichlet_bc%n_tiles
+             smooth = poisson_env%implicit_env%gates(j)%dirichlet_bc%smooth 
+             zeta = poisson_env%implicit_env%gates(j)%dirichlet_bc%mollifier_zeta
+             IF (smooth) THEN
+                DO i = 1, n_tiles
+                   filename = "dirichlet_cstr_"//TRIM(ADJUSTL(cp_to_string(j)))//&
+                                       "_tile_"//TRIM(ADJUSTL(cp_to_string(i)))
+                   unit_nr=cp_print_key_unit_nr(logger,input,"DFT%PRINT%DIRICHLET_BC_CUBE", &
+                                                extension=".cube", middle_name=filename, &
+                                                file_position=my_pos_cube, error=error)
+
+                   CALL pw_mollifier(auxbas_pw_pool, zeta, x_glbl, y_glbl, z_glbl, &
+                                     poisson_env%implicit_env%gates(j)%dirichlet_bc%tiles(i)%tile%tile_pw,&
+                                     aux_r%pw, error)
+
+                   CALL cp_pw_to_cube(aux_r%pw, unit_nr, "DIRICHLET TYPE CONSTRAINT", particles=particles, &
+                                stride=section_get_ivals(dft_section, "PRINT%DIRICHLET_BC_CUBE%STRIDE", error=error), &
+                                error=error)
+                   CALL cp_print_key_finished_output(unit_nr, logger, input, "DFT%PRINT%DIRICHLET_BC_CUBE", error=error)
+                END DO
+             ELSE
+                DO i = 1, n_tiles
+                   filename = "dirichlet_cstr_"//TRIM(ADJUSTL(cp_to_string(j)))//&
+                                       "_tile_"//TRIM(ADJUSTL(cp_to_string(i)))
+                   unit_nr=cp_print_key_unit_nr(logger,input,"DFT%PRINT%DIRICHLET_BC_CUBE", &
+                                                extension=".cube", middle_name=filename, &
+                                                file_position=my_pos_cube, error=error)
+
+                   CALL pw_copy(poisson_env%implicit_env%gates(j)%dirichlet_bc%tiles(i)%tile%tile_pw, &
+                                aux_r%pw, error=error)
+                   tile_npts = poisson_env%implicit_env%gates(j)%dirichlet_bc%tiles(i)%tile%npts
+                   CALL pw_scale(aux_r%pw, REAL(tile_npts,kind=dp), error=error)
+
+                   CALL cp_pw_to_cube(aux_r%pw, unit_nr, "DIRICHLET TYPE CONSTRAINT", particles=particles, &
+                                stride=section_get_ivals(dft_section, "PRINT%DIRICHLET_BC_CUBE%STRIDE", error=error), &
+                                error=error)
+                   CALL cp_print_key_finished_output(unit_nr, logger, input, "DFT%PRINT%DIRICHLET_BC_CUBE", error=error)
+                END DO
+             END IF
+          END DO
+
+          CALL pw_pool_give_back_pw(auxbas_pw_pool, aux_r%pw, error=error)
+       ENDIF
+
        ! Write the density matrices
        IF (BTEST(cp_print_key_should_output(logger%iter_info,input,&
                  "DFT%PRINT%AO_MATRICES/DENSITY",error=error),cp_p_file)) THEN
           iw = cp_print_key_unit_nr(logger,input,"DFT%PRINT%AO_MATRICES/DENSITY",&
                                     extension=".Log",error=error)
+          CALL section_vals_val_get(input,"DFT%PRINT%AO_MATRICES%NDIGITS",i_val=after,error=error)
+          after = MIN(MAX(after,1),16)
           DO ispin=1,dft_control%nspins
-             CALL cp_dbcsr_write_sparse_matrix(rho_ao(ispin)%matrix,4,6,qs_env,&
+             CALL cp_dbcsr_write_sparse_matrix(rho_ao(ispin)%matrix,4,after,qs_env,&
                                             para_env,output_unit=iw,error=error)
           END DO
           CALL cp_print_key_finished_output(iw,logger,input,&
@@ -2816,25 +2890,27 @@ CONTAINS
        END IF
 
        ! Write the Kohn-Sham matrices
-       write_ks=BTEST(cp_print_key_should_output(logger%iter_info,input,&
-                 "DFT%PRINT%AO_MATRICES/KOHN_SHAM_MATRIX",error=error),cp_p_file)
-       write_xc=BTEST(cp_print_key_should_output(logger%iter_info,input,&
-                 "DFT%PRINT%AO_MATRICES/MATRIX_VXC",error=error),cp_p_file)
+       write_ks = BTEST(cp_print_key_should_output(logger%iter_info,input,&
+                        "DFT%PRINT%AO_MATRICES/KOHN_SHAM_MATRIX",error=error),cp_p_file)
+       write_xc = BTEST(cp_print_key_should_output(logger%iter_info,input,&
+                        "DFT%PRINT%AO_MATRICES/MATRIX_VXC",error=error),cp_p_file)
        ! we need to update stuff before writing, potentially computing the matrix_vxc
-       IF (write_ks .OR. write_xc) THEN
-          IF (write_xc) qs_env%requires_matrix_vxc=.TRUE.
+       IF (write_ks.OR.write_xc) THEN
+          IF (write_xc) qs_env%requires_matrix_vxc = .TRUE.
           CALL qs_ks_did_change(qs_env%ks_env,rho_changed=.TRUE.,error=error)
           CALL qs_ks_update_qs_env(qs_env, calculate_forces=.FALSE.,&
                                    just_energy=.FALSE., error=error)
-          IF (write_xc) qs_env%requires_matrix_vxc=.FALSE.
+          IF (write_xc) qs_env%requires_matrix_vxc = .FALSE.
        END IF
 
        ! Write the Kohn-Sham matrices
        IF (write_ks) THEN
           iw = cp_print_key_unit_nr(logger,input,"DFT%PRINT%AO_MATRICES/KOHN_SHAM_MATRIX",&
                                     extension=".Log",error=error)
+          CALL section_vals_val_get(input,"DFT%PRINT%AO_MATRICES%NDIGITS",i_val=after,error=error)
+          after = MIN(MAX(after,1),16)
           DO ispin=1,dft_control%nspins
-             CALL cp_dbcsr_write_sparse_matrix(ks_rmpv(ispin)%matrix,4,6,qs_env,&
+             CALL cp_dbcsr_write_sparse_matrix(ks_rmpv(ispin)%matrix,4,after,qs_env,&
                                             para_env,output_unit=iw,error=error)
           END DO
           CALL cp_print_key_finished_output(iw,logger,input,&
@@ -2844,11 +2920,14 @@ CONTAINS
 
        ! Write the xc matrix
        IF (write_xc) THEN
+          CPPrecondition(ASSOCIATED(matrix_vxc),cp_failure_level,routineP,error,failure)
           iw = cp_print_key_unit_nr(logger,input,"DFT%PRINT%AO_MATRICES/MATRIX_VXC",&
                                     extension=".Log",error=error)
+          CALL section_vals_val_get(input,"DFT%PRINT%AO_MATRICES%NDIGITS",i_val=after,error=error)
+          after = MIN(MAX(after,1),16)
           DO ispin=1,dft_control%nspins
-             CALL cp_dbcsr_write_sparse_matrix(matrix_vxc(ispin)%matrix,4,6,qs_env,&
-                                            para_env,output_unit=iw,error=error)
+             CALL cp_dbcsr_write_sparse_matrix(matrix_vxc(ispin)%matrix,4,after,qs_env,&
+                                               para_env,output_unit=iw,error=error)
           END DO
           CALL cp_print_key_finished_output(iw,logger,input,&
                                             "DFT%PRINT%AO_MATRICES/MATRIX_VXC",&

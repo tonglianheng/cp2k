@@ -12,7 +12,7 @@
 MODULE xc_xbecke88
   USE bibliography,                    ONLY: Becke1988,&
                                              cite_reference
-  USE cp_array_r_utils,                ONLY: cp_3d_r_p_type
+  USE cp_array_utils_r,                ONLY: cp_3d_r_p_type
   USE input_section_types,             ONLY: section_vals_type,&
                                              section_vals_val_get
   USE kinds,                           ONLY: dp
@@ -308,8 +308,6 @@ CONTAINS
 
     CHARACTER(len=*), PARAMETER :: routineN = 'xb88_lda_calc', &
       routineP = moduleN//':'//routineN
-    REAL(kind=dp), PARAMETER :: t_1_9 = 1.0_dp/9.0_dp, t_2_3 = 2.0_dp/3.0_dp, &
-      t_2_9 = 2.0_dp/9.0_dp, t_4_27 = 4.0_dp/27.0_dp, t_4_3 = 4.0_dp/3.0_dp
 
     INTEGER                                  :: ii
     LOGICAL                                  :: failure

@@ -89,7 +89,7 @@ MODULE qs_ks_methods
                                              pw_transfer,&
                                              pw_zero
   USE pw_poisson_methods,              ONLY: pw_poisson_solve
-  USE pw_poisson_types,                ONLY: PS_IMPLICIT,&
+  USE pw_poisson_types,                ONLY: pw_poisson_implicit,&
                                              pw_poisson_type
   USE pw_pool_types,                   ONLY: pw_pool_create_pw,&
                                              pw_pool_give_back_pw,&
@@ -145,7 +145,7 @@ MODULE qs_ks_methods
   USE rtp_admm_methods,                ONLY: rtp_admm_calc_rho_aux,&
                                              rtp_admm_merge_ks_matrix
   USE scptb_ks_matrix,                 ONLY: build_scptb_ks_matrix
-  USE se_fock_matrix_control,          ONLY: build_se_fock_matrix_control
+  USE se_fock_matrix,                  ONLY: build_se_fock_matrix
   USE surface_dipole,                  ONLY: calc_dipsurf_potential
   USE timings,                         ONLY: timeset,&
                                              timestop
@@ -406,6 +406,13 @@ CONTAINS
                                  use_data=REALDATA3D,&
                                  in_space=REALSPACE,&
                                  error=error)
+
+          IF (poisson_env%parameters%solver .EQ. pw_poisson_implicit) THEN
+             CALL cp_assert(.FALSE., cp_failure_level, cp_assertion_failed, routineP,&
+                       "The implicit Poisson solver cannot be used together with SCCS.",&
+                       error, failure)
+          END IF
+
           IF (use_virial.AND.calculate_forces) THEN
              CALL sccs(qs_env,rho_tot_gspace%pw,v_hartree_gspace%pw,v_sccs_rspace%pw,&
                        h_stress=h_stress,error=error)
@@ -429,18 +436,16 @@ CONTAINS
           END IF
        END IF
 
-       IF (ASSOCIATED(poisson_env%green_fft)) THEN
-         IF (poisson_env%green_fft%method .EQ. PS_IMPLICIT .AND. calculate_forces) THEN
-            CALL cp_assert(.FALSE., cp_warning_level, cp_assertion_failed, routineP,&
-               "The implicit Poisson solver might have inaccurate forces (dielectric deriv).", &
-               error, failure)
-         END IF
-       END IF 
+       IF (poisson_env%parameters%solver .EQ. pw_poisson_implicit .AND. calculate_forces) THEN
+          CALL cp_assert(.FALSE., cp_warning_level, cp_assertion_failed, routineP,&
+             "The implicit Poisson solver might have inaccurate forces (dielectric deriv).", &
+             error, failure)
+       END IF
 
        ! In case decouple periodic images and/or apply restraints to charges
        IF (do_ddapc) THEN
           CALL qs_ks_ddapc(qs_env, auxbas_pw_pool, rho_tot_gspace, v_hartree_gspace,&
-               v_spin_ddapc_rest_r, energy, calculate_forces, ks_env, ks_matrix,    &
+               v_spin_ddapc_rest_r, energy, calculate_forces, ks_matrix,    &
                just_energy, error)
        ELSE
           dft_control%qs_control%ddapc_explicit_potential = .FALSE.
@@ -464,7 +469,7 @@ CONTAINS
        END IF
 
        IF(dft_control%correct_surf_dip) THEN
-         CALL calc_dipsurf_potential(qs_env,ks_env,energy,error=error)
+         CALL calc_dipsurf_potential(qs_env,energy,error=error)
          energy%hartree = energy%hartree + energy%surf_dipole
        END IF
 
@@ -1175,7 +1180,7 @@ CONTAINS
 
            CALL get_mo_set(mo_set=mo_array(2)%mo_set,mo_coeff_b=mo_coeff_b)
            CALL cp_dbcsr_multiply('n','n',1.0_dp,ks_matrix(2)%matrix,mo_coeff_b,&
-                      1.0_dp, mo_derivs(1)%matrix, error=error)
+                      1.0_dp, mo_derivs(1)%matrix, match_matrix_sizes=.TRUE., error=error)
        ENDIF
 
     ENDDO
@@ -1344,8 +1349,8 @@ CONTAINS
 ! *****************************************************************************
  SUBROUTINE rebuild_ks_matrix(qs_env,calculate_forces,just_energy,print_active,error)
     TYPE(qs_environment_type), POINTER       :: qs_env
-    LOGICAL, INTENT(IN)                      :: calculate_forces, &
-                                                just_energy, print_active
+    LOGICAL, INTENT(IN)                      :: calculate_forces, just_energy
+    LOGICAL, INTENT(IN), OPTIONAL            :: print_active
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'rebuild_ks_matrix', &
@@ -1360,7 +1365,7 @@ CONTAINS
     CALL get_qs_env(qs_env, dft_control=dft_control, error=error)
 
     IF (dft_control%qs_control%semi_empirical) THEN
-       CALL build_se_fock_matrix_control(qs_env,&
+       CALL build_se_fock_matrix(qs_env,&
                                calculate_forces=calculate_forces,&
                                just_energy=just_energy,&
                                error=error)

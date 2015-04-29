@@ -10,17 +10,26 @@
 # updating version could be easy, just change here:
 #
 
-binutils_ver=2.24
-binutils_sha=4930b2886309112c00a279483eaef2f0f8e1b1b62010e0239c16b22af7c346d4
+#binutils_ver=2.24
+#binutils_sha=4930b2886309112c00a279483eaef2f0f8e1b1b62010e0239c16b22af7c346d4
 
-valgrind_ver=3.10.0
-valgrind_sha=03047f82dfc6985a4c7d9d2700e17bc05f5e1a0ca6ad902e5d6c81aeb720edc9
+binutils_ver=2.25
+binutils_sha=cccf377168b41a52a76f46df18feb8f7285654b3c1bd69fc8265cb0fc6902f2d
+
+#valgrind_ver=3.10.0
+#valgrind_sha=03047f82dfc6985a4c7d9d2700e17bc05f5e1a0ca6ad902e5d6c81aeb720edc9
+
+valgrind_ver=3.10.1
+valgrind_sha=fa253dc26ddb661b6269df58144eff607ea3f76a9bcfe574b0c7726e1dfcb997
 
 lcov_ver=1.11
 lcov_sha=c282de8d678ecbfda32ce4b5c85fc02f77c2a39a062f068bd8e774d29ddc9bf8
 
-gcc_ver=4.9.2
-gcc_sha=3e573826ec8b0d62d47821408fbc58721cd020df3e594cd492508de487a43b5e
+#gcc_ver=4.9.2
+#gcc_sha=3e573826ec8b0d62d47821408fbc58721cd020df3e594cd492508de487a43b5e
+
+gcc_ver=5.1.0
+gcc_sha=335275817b5ed845fee787e75efd76a6e240bfabbe0a0c20a81a04777e204617
 
 mpich_ver=3.1.2
 mpich_sha=37c3ba2d3cd3f4ea239497d9d34bd57a663a34e2ea25099c2cbef118c9156587
@@ -29,8 +38,11 @@ mpich_sha=37c3ba2d3cd3f4ea239497d9d34bd57a663a34e2ea25099c2cbef118c9156587
 scalapack_ver=XXXXXX
 scalapack_sha=8ecae0896a63c7980a71c22520afed6cfefb52b17c2496223026cc01caf07855
 
-libxc_ver=2.0.1
-libxc_sha=c332f08648ec2bc7ccce83e45a84776215aa5dfebc64fae2a23f2ac546d41ea4
+#libxc_ver=2.0.1
+#libxc_sha=c332f08648ec2bc7ccce83e45a84776215aa5dfebc64fae2a23f2ac546d41ea4
+
+libxc_ver=2.2.2
+libxc_sha=6ca1d0bb5fdc341d59960707bc67f23ad54de8a6018e19e02eee2b16ea7cc642
 
 libint_ver=1.1.4
 libint_sha=f67b13bdf1135ecc93b4cff961c1ff33614d9f8409726ddc8451803776885cff
@@ -82,10 +94,13 @@ nprocs=`nproc --all`
 export CC=gcc
 export FC=gfortran
 export F77=gfortran
+export F90=gfortran
 export CXX=g++
 export CFLAGS="-O2 -g -Wno-error"
 export FFLAGS="-O2 -g -Wno-error"
 export FCFLAGS="-O2 -g -Wno-error"
+export F90FLAGS="-O2 -g -Wno-error"
+export F77FLAGS="-O2 -g -Wno-error"
 export CXXFLAGS="-O2 -g -Wno-error"
 
 echo "==================== Installing binutils ================="
@@ -192,6 +207,8 @@ source ${SETUPFILE}
 # set some flags, leading to nice stack traces on crashes, yet, are optimized
 export CFLAGS="-O2 -ftree-vectorize -g -fno-omit-frame-pointer -march=native -ffast-math"
 export FFLAGS="-O2 -ftree-vectorize -g -fno-omit-frame-pointer -march=native -ffast-math"
+export F77FLAGS="-O2 -ftree-vectorize -g -fno-omit-frame-pointer -march=native -ffast-math"
+export F90FLAGS="-O2 -ftree-vectorize -g -fno-omit-frame-pointer -march=native -ffast-math"
 export FCFLAGS="-O2 -ftree-vectorize -g -fno-omit-frame-pointer -march=native -ffast-math"
 export CXXFLAGS="-O2 -ftree-vectorize -g -fno-omit-frame-pointer -march=native -ffast-math"
 
@@ -454,6 +471,8 @@ mkdir -p ${INSTALLDIR}/arch
 WFLAGS="-Waliasing -Wampersand -Wc-binding-type -Wintrinsic-shadow -Wintrinsics-std -Wline-truncation -Wno-tabs -Wrealloc-lhs-all -Wtarget-lifetime -Wunderflow -Wunused-but-set-variable -Wunused-variable -Wconversion -Werror"
 DEBFLAGS="-fcheck=bounds,do,recursion,pointer -fsanitize=leak"
 BASEFLAGS="-std=f2003 -fimplicit-none -ffree-form -fno-omit-frame-pointer -g -O1"
+PARAFLAGS="-D__parallel -D__SCALAPACK -D__LIBPEXSI -D__MPI_VERSION=3"
+CUDAFLAGS="-D__ACC -D__DBCSR_ACC -D__PW_CUDA"
 OPTFLAGS="-O3 -march=native -ffast-math \$(PROFOPT)"
 DFLAGS="-D__LIBINT -D__FFTW3 -D__LIBXC2 -D__LIBINT_MAX_AM=6 -D__LIBDERIV_MAX_AM1=5"
 CFLAGS="\$(DFLAGS) -I\$(CP2KINSTALLDIR)/include -fno-omit-frame-pointer -g -O1"
@@ -471,11 +490,11 @@ FC       = mpif90
 LD       = mpif90
 AR       = ar -r
 WFLAGS   = ${WFLAGS}
-DFLAGS   = ${DFLAGS} -D__parallel -D__SCALAPACK -D__LIBPEXSI
+DFLAGS   = ${DFLAGS} ${PARAFLAGS}
 FCFLAGS  = -I\$(CP2KINSTALLDIR)/include ${BASEFLAGS} ${DEBFLAGS} \$(DFLAGS) \$(WFLAGS)
 LDFLAGS  = -L\$(CP2KINSTALLDIR)/lib/ \$(FCFLAGS)
 CFLAGS   = ${CFLAGS}
-LIBS     = -lxc -lderiv -lint $LIB_PEXSI -lscalapack -lreflapack -lrefblas -lstdc++ -lfftw3
+LIBS     = -lxcf90 -lxc -lderiv -lint $LIB_PEXSI -lscalapack -lreflapack -lrefblas -lstdc++ -lfftw3
 EOF
 
 cat << EOF > ${INSTALLDIR}/arch/local.popt
@@ -485,11 +504,11 @@ FC       = mpif90
 LD       = mpif90
 AR       = ar -r
 WFLAGS   = ${WFLAGS}
-DFLAGS   = ${DFLAGS} -D__parallel -D__SCALAPACK -D__LIBPEXSI
+DFLAGS   = ${DFLAGS} ${PARAFLAGS}
 FCFLAGS  = -I\$(CP2KINSTALLDIR)/include ${BASEFLAGS} ${OPTFLAGS} \$(DFLAGS) \$(WFLAGS)
 LDFLAGS  = -L\$(CP2KINSTALLDIR)/lib \$(FCFLAGS)
 CFLAGS   = ${CFLAGS}
-LIBS     = -lxc -lderiv -lint $LIB_PEXSI -lscalapack -lreflapack -lrefblas -lstdc++ -lfftw3 
+LIBS     = -lxcf90 -lxc -lderiv -lint $LIB_PEXSI -lscalapack -lreflapack -lrefblas -lstdc++ -lfftw3 
 EOF
 
 cat << EOF > ${INSTALLDIR}/arch/local.psmp
@@ -499,11 +518,11 @@ FC       = mpif90
 LD       = mpif90
 AR       = ar -r
 WFLAGS   = ${WFLAGS}
-DFLAGS   = ${DFLAGS} -D__parallel -D__SCALAPACK -D__LIBPEXSI
+DFLAGS   = ${DFLAGS} ${PARAFLAGS}
 FCFLAGS  = -fopenmp -I\$(CP2KINSTALLDIR)/include ${BASEFLAGS} ${OPTFLAGS} \$(DFLAGS) \$(WFLAGS)
 LDFLAGS  = -L\$(CP2KINSTALLDIR)/lib/ \$(FCFLAGS)
 CFLAGS   = ${CFLAGS}
-LIBS     = -lxc -lderiv -lint $LIB_PEXSI -lscalapack -lreflapack -lrefblas -lstdc++ -lfftw3 -lfftw3_omp
+LIBS     = -lxcf90 -lxc -lderiv -lint $LIB_PEXSI -lscalapack -lreflapack -lrefblas -lstdc++ -lfftw3 -lfftw3_omp
 EOF
 
 cat << EOF > ${INSTALLDIR}/arch/local.sdbg
@@ -517,7 +536,7 @@ DFLAGS   = ${DFLAGS}
 FCFLAGS  = -I\$(CP2KINSTALLDIR)/include ${BASEFLAGS} ${DEBFLAGS} \$(DFLAGS) \$(WFLAGS)
 LDFLAGS  = -L\$(CP2KINSTALLDIR)/lib \$(FCFLAGS)
 CFLAGS   = ${CFLAGS}
-LIBS     = -lxc -lderiv -lint -lreflapack -lrefblas -lstdc++ -lfftw3
+LIBS     = -lxcf90 -lxc -lderiv -lint -lreflapack -lrefblas -lstdc++ -lfftw3
 EOF
 
 cat << EOF > ${INSTALLDIR}/arch/local.sopt
@@ -531,7 +550,7 @@ DFLAGS   = ${DFLAGS}
 FCFLAGS  = -I\$(CP2KINSTALLDIR)/include ${BASEFLAGS} ${OPTFLAGS} \$(DFLAGS) \$(WFLAGS)
 LDFLAGS  = -L\$(CP2KINSTALLDIR)/lib/ \$(FCFLAGS)
 CFLAGS   = ${CFLAGS}
-LIBS     = -lxc -lderiv -lint -lreflapack -lrefblas -lstdc++ -lfftw3
+LIBS     = -lxcf90 -lxc -lderiv -lint -lreflapack -lrefblas -lstdc++ -lfftw3
 EOF
 
 cat << EOF > ${INSTALLDIR}/arch/local.ssmp
@@ -545,7 +564,7 @@ DFLAGS   = ${DFLAGS}
 FCFLAGS  = -fopenmp -I\$(CP2KINSTALLDIR)/include ${BASEFLAGS} ${OPTFLAGS}  \$(DFLAGS) \$(WFLAGS)
 LDFLAGS  = -fopenmp -L\$(CP2KINSTALLDIR)/lib/ \$(FCFLAGS)
 CFLAGS   = ${CFLAGS}
-LIBS     = -lxc -lderiv -lint -lreflapack -lrefblas -lstdc++ -lfftw3 -lfftw3_omp
+LIBS     = -lxcf90 -lxc -lderiv -lint -lreflapack -lrefblas -lstdc++ -lfftw3 -lfftw3_omp
 EOF
 
 cat << EOF > ${INSTALLDIR}/arch/local_valgrind.sdbg
@@ -559,7 +578,7 @@ DFLAGS   = ${DFLAGS}
 FCFLAGS  = -I\$(CP2KINSTALLDIR)/include ${BASEFLAGS} -O3  \$(DFLAGS) \$(WFLAGS)
 LDFLAGS  = -L\$(CP2KINSTALLDIR)/lib \$(FCFLAGS)
 CFLAGS   = ${CFLAGS}
-LIBS     = -lxc -lderiv -lint -lreflapack -lrefblas -lstdc++ -lfftw3
+LIBS     = -lxcf90 -lxc -lderiv -lint -lreflapack -lrefblas -lstdc++ -lfftw3
 EOF
 
 cat << EOF > ${INSTALLDIR}/arch/local_valgrind.pdbg
@@ -569,11 +588,11 @@ FC       = mpif90
 LD       = mpif90
 AR       = ar -r
 WFLAGS   = ${WFLAGS}
-DFLAGS   = ${DFLAGS}  -D__parallel -D__SCALAPACK -D__LIBPEXSI
+DFLAGS   = ${DFLAGS} ${PARAFLAGS}
 FCFLAGS  = -I\$(CP2KINSTALLDIR)/include ${BASEFLAGS} -O3 \$(DFLAGS) \$(WFLAGS)
 LDFLAGS  = -L\$(CP2KINSTALLDIR)/lib \$(FCFLAGS)
 CFLAGS   = ${CFLAGS}
-LIBS     = -lxc -lderiv -lint $LIB_PEXSI -lscalapack -lreflapack -lrefblas -lstdc++ -lfftw3
+LIBS     = -lxcf90 -lxc -lderiv -lint $LIB_PEXSI -lscalapack -lreflapack -lrefblas -lstdc++ -lfftw3
 EOF
 
 cat << EOF > ${INSTALLDIR}/arch/local_cuda.psmp
@@ -584,12 +603,12 @@ FC       = mpif90
 LD       = mpif90
 AR       = ar -r
 WFLAGS   = ${WFLAGS}
-DFLAGS   = ${DFLAGS} -D__ACC -D__DBCSR_ACC -D__PW_CUDA -D__parallel -D__SCALAPACK -D__LIBPEXSI
+DFLAGS   = ${DFLAGS} ${CUDAFLAGS} ${PARAFLAGS}
 FCFLAGS  = -fopenmp -I\$(CP2KINSTALLDIR)/include ${BASEFLAGS} ${OPTFLAGS} \$(DFLAGS) \$(WFLAGS)
 LDFLAGS  = -L\$(CP2KINSTALLDIR)/lib/ -L/usr/local/cuda/lib64 \$(FCFLAGS)
 NVFLAGS  = \$(DFLAGS) -g -O2 -arch sm_35
 CFLAGS   = ${CFLAGS}
-LIBS     = -lxc -lderiv -lint $LIB_PEXSI -lscalapack -lreflapack -lrefblas -lstdc++ -lfftw3 -lfftw3_omp -lcudart -lcufft -lcublas -lrt
+LIBS     = -lxcf90 -lxc -lderiv -lint $LIB_PEXSI -lscalapack -lreflapack -lrefblas -lstdc++ -lfftw3 -lfftw3_omp -lcudart -lcufft -lcublas -lrt
 EOF
 
 cat << EOF > ${INSTALLDIR}/arch/local_cuda.ssmp
@@ -600,12 +619,12 @@ FC       = gfortran
 LD       = gfortran
 AR       = ar -r
 WFLAGS   = ${WFLAGS}
-DFLAGS   = ${DFLAGS} -D__ACC -D__DBCSR_ACC -D__PW_CUDA
+DFLAGS   = ${DFLAGS} ${CUDAFLAGS}
 FCFLAGS  = -fopenmp -I\$(CP2KINSTALLDIR)/include ${BASEFLAGS} ${OPTFLAGS} \$(DFLAGS) \$(WFLAGS)
 LDFLAGS  = -L\$(CP2KINSTALLDIR)/lib/ -L/usr/local/cuda/lib64 \$(FCFLAGS)
 NVFLAGS  = \$(DFLAGS) -g -O2 -arch sm_35
 CFLAGS   = ${CFLAGS}
-LIBS     = -lxc -lderiv -lint -lreflapack -lrefblas -lstdc++ -lfftw3 -lfftw3_omp -lcudart -lcufft -lcublas -lrt
+LIBS     = -lxcf90 -lxc -lderiv -lint -lreflapack -lrefblas -lstdc++ -lfftw3 -lfftw3_omp -lcudart -lcufft -lcublas -lrt
 EOF
 
 echo "========================== usage ========================="

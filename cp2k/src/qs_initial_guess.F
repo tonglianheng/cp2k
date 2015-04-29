@@ -17,22 +17,18 @@ MODULE qs_initial_guess
                                              gto_basis_set_type
   USE cp_control_types,                ONLY: dft_control_type
   USE cp_dbcsr_interface,              ONLY: &
-       array_i1d_obj, array_release, cp_create_bl_distribution, &
-       cp_dbcsr_checksum, cp_dbcsr_copy, cp_dbcsr_distribution, &
-       cp_dbcsr_distribution_release, cp_dbcsr_filter, cp_dbcsr_get_diag, &
+       cp_dbcsr_checksum, cp_dbcsr_copy, cp_dbcsr_filter, cp_dbcsr_get_diag, &
        cp_dbcsr_get_num_blocks, cp_dbcsr_get_occupation, cp_dbcsr_init, &
        cp_dbcsr_iterator, cp_dbcsr_iterator_blocks_left, &
        cp_dbcsr_iterator_next_block, cp_dbcsr_iterator_start, &
        cp_dbcsr_iterator_stop, cp_dbcsr_multiply, cp_dbcsr_nfullrows_total, &
-       cp_dbcsr_p_type, cp_dbcsr_release, cp_dbcsr_row_block_sizes, &
-       cp_dbcsr_scale, cp_dbcsr_set, cp_dbcsr_set_diag, cp_dbcsr_trace, &
-       cp_dbcsr_type, cp_dbcsr_verify_matrix, dbcsr_distribution_mp, &
-       dbcsr_distribution_new, dbcsr_distribution_obj, &
-       dbcsr_distribution_row_dist, dbcsr_mp_npcols
+       cp_dbcsr_p_type, cp_dbcsr_release, cp_dbcsr_scale, cp_dbcsr_set, &
+       cp_dbcsr_set_diag, cp_dbcsr_trace, cp_dbcsr_type, &
+       cp_dbcsr_verify_matrix
   USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
                                              copy_fm_to_dbcsr,&
-                                             cp_dbcsr_from_fm,&
-                                             cp_dbcsr_sm_fm_multiply
+                                             cp_dbcsr_sm_fm_multiply,&
+                                             cp_fm_to_dbcsr_row_template
   USE cp_fm_types,                     ONLY: &
        cp_fm_create, cp_fm_get_submatrix, cp_fm_init_random, cp_fm_p_type, &
        cp_fm_release, cp_fm_set_all, cp_fm_set_submatrix, cp_fm_to_fm, &
@@ -145,7 +141,6 @@ CONTAINS
                                                 maxocc, occ, scale, &
                                                 total_rho, trps1, zeff
     REAL(KIND=dp), DIMENSION(0:3)            :: edftb
-    TYPE(array_i1d_obj)                      :: col_blk_size, col_dist
     TYPE(atom_matrix_type), DIMENSION(:), &
       POINTER                                :: pmat
     TYPE(atomic_kind_type), DIMENSION(:), &
@@ -165,7 +160,6 @@ CONTAINS
                                                 sv, work2
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(dbcsr_distribution_obj)             :: dist
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(gto_basis_set_type), POINTER        :: orb_basis_set
     TYPE(kpoint_type), POINTER               :: kpoints
@@ -782,16 +776,8 @@ CALL copy_fm_to_dbcsr(mo_array(ispin)%mo_set%mo_coeff,mo_array(ispin)%mo_set%mo_
 
              ENDIF
              !
-             CALL cp_create_bl_distribution (col_dist, col_blk_size, nmo, &
-                  dbcsr_mp_npcols(dbcsr_distribution_mp(cp_dbcsr_distribution( s_sparse(1)%matrix ))))
-             CALL dbcsr_distribution_new (dist, dbcsr_distribution_mp (cp_dbcsr_distribution( s_sparse(1)%matrix )),&
-                  dbcsr_distribution_row_dist(cp_dbcsr_distribution( s_sparse(1)%matrix )), col_dist)
-             !
              CALL cp_dbcsr_init(mo_dbcsr, error=error)
-             CALL cp_dbcsr_from_fm(mo_dbcsr, mo_coeff, dist,&
-                                row_blk_size=cp_dbcsr_row_block_sizes (s_sparse(1)%matrix),&
-                                col_blk_size=col_blk_size,&
-                                error=error)
+             CALL cp_fm_to_dbcsr_row_template(mo_dbcsr,mo_coeff,s_sparse(1)%matrix,error) 
              !CALL cp_dbcsr_verify_matrix(mo_dbcsr, error=error)
              checksum = cp_dbcsr_checksum(mo_dbcsr, error=error)
 
@@ -844,8 +830,6 @@ CALL copy_fm_to_dbcsr(mo_array(ispin)%mo_set%mo_coeff,mo_array(ispin)%mo_set%mo_
 
              CALL cp_dbcsr_release(mo_dbcsr, error=error)
              CALL cp_dbcsr_release(mo_tmp_dbcsr, error=error)
-             CALL cp_dbcsr_distribution_release(dist)
-             CALL array_release(col_blk_size)
 
              ! and ortho the result
              CALL make_basis_sm(mo_coeff,nmo,s_sparse(1)%matrix,error=error)
@@ -887,7 +871,7 @@ CALL copy_fm_to_dbcsr(mo_array(ispin)%mo_set%mo_coeff,mo_array(ispin)%mo_set%mo_
           CALL get_mo_set(mo_set=mo_array(ispin)%mo_set, nelectron=nelectron)
 
           CALL calculate_mopac_dm(p_rmpv(ispin)%matrix,s_sparse(1)%matrix, has_unit_metric, dft_control,&
-                                  particle_set, atomic_kind_set, qs_kind_set, ispin, nspin, nelectron, para_env, error)
+                                  particle_set, atomic_kind_set, qs_kind_set, nspin, nelectron, para_env, error)
 
           ! The orbital transformation method (OT) requires not only an
           ! initial density matrix, but also an initial wavefunction (MO set)
@@ -1118,7 +1102,6 @@ CALL copy_fm_to_dbcsr(mo_array(ispin)%mo_set%mo_coeff,mo_array(ispin)%mo_set%mo_
 !> \param particle_set ...
 !> \param atomic_kind_set ...
 !> \param qs_kind_set ...
-!> \param ispin ...
 !> \param nspin ...
 !> \param nelectron_spin ...
 !> \param para_env ...
@@ -1126,7 +1109,7 @@ CALL copy_fm_to_dbcsr(mo_array(ispin)%mo_set%mo_coeff,mo_array(ispin)%mo_set%mo_
 ! *****************************************************************************
   SUBROUTINE calculate_mopac_dm(matrix_p,matrix_s, has_unit_metric, &
                                 dft_control, particle_set, atomic_kind_set, qs_kind_set, &
-                                ispin, nspin, nelectron_spin, para_env, error)
+                                nspin, nelectron_spin, para_env, error)
     TYPE(cp_dbcsr_type), INTENT(INOUT)       :: matrix_p, matrix_s
     LOGICAL                                  :: has_unit_metric
     TYPE(dft_control_type), POINTER          :: dft_control
@@ -1136,7 +1119,7 @@ CALL copy_fm_to_dbcsr(mo_array(ispin)%mo_set%mo_coeff,mo_array(ispin)%mo_set%mo_
       POINTER                                :: atomic_kind_set
     TYPE(qs_kind_type), DIMENSION(:), &
       POINTER                                :: qs_kind_set
-    INTEGER, INTENT(IN)                      :: ispin, nspin, nelectron_spin
+    INTEGER, INTENT(IN)                      :: nspin, nelectron_spin
     TYPE(cp_para_env_type)                   :: para_env
     TYPE(cp_error_type), INTENT(inout)       :: error
 

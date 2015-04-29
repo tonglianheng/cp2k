@@ -1,7 +1,8 @@
 /*****************************************************************************
  *  CP2K: A general program to perform molecular dynamics simulations        *
- *  Copyright (C) 2000 - 2013 the CP2K developers group                      *
+ *  Copyright (C) 2000 - 2015  CP2K developers group                         *
  *****************************************************************************/
+
 #if defined (__ACC)
 
 // double precision support
@@ -94,12 +95,10 @@ inline void load_gmem_into_smem(__global double    *from,
 {
     if (length < blockdim) { // are there enough threads to load in one step?
         if (get_local_id(0) < length)
-            //dest[get_local_id(0)] = __ldg(from + get_local_id(0));
-            dest[get_local_id(0)] = *(from + get_local_id(0));
+            dest[get_local_id(0)] = from[get_local_id(0)];
     } else {
         for (int i = get_local_id(0); i < length; i += blockdim)
-            //dest[i] = __ldg(from + i);
-            dest[i] = *(from + i);
+            dest[i] = from[i];
     }
 }
 
@@ -114,14 +113,12 @@ inline void load_gmem_into_regs(__global  double    *from,
 
     if (length < blockdim) { // are there enough threads to load in one step?
         if (get_local_id(0) < length)
-            //dest[0] = __ldg(from + get_local_id(0));
-            dest[0] = *(from + get_local_id(0));
+            dest[0] = from[get_local_id(0)];
     } else {
         int i = get_local_id(0);
         for (int ri = 0; ri < NR; ri++) {  //loop with fixed bounds
             if (i < length)
-                //dest[ri] = __ldg(from + i);
-                dest[ri] = *(from + i);
+                dest[ri] = from[i];
             i += blockdim;
         }
     }
@@ -205,4 +202,41 @@ inline void store_results_into_smem(__private double *from,
 
 }
 
+
+//**************************************************************************//
+inline void writeback_results(__private double *from,
+                              __global  double *dest,
+                              __local   double *buff,
+                                        const int m,
+                                        const int n,
+                                        const int M,
+                                        const int N,
+                                        const int v,
+                                        const int blockdim)
+{
+   // results are written in output-slabs of width v
+      for (int t = 0; t < (n / v) * v; t += v) {
+          // copy output slab from registers to shared memory
+          store_results_into_smem(from, buff, t, v, m, n, M, N, blockdim);
+          barrier(CLK_LOCAL_MEM_FENCE);
+          // Add our results to the accumulator in global memory
+          for (int i = get_local_id(0); i < m * v; i += blockdim)
+              add_atomic(dest + i, buff[i]);
+          dest += m * v;
+          barrier(CLK_LOCAL_MEM_FENCE);
+      }
+
+      // If the output slab witdh v is not a divisor of n,
+      // a smaller tail-slab of width va has to be process
+      const int va = n - (n / v) * v;
+      if (va != 0) {  // is there a tail-slab?
+          int t = (n / v) * v;
+          store_results_into_smem(from, buff, t, va, m, n, M, N, blockdim);
+          barrier(CLK_LOCAL_MEM_FENCE);
+          for (int i = get_local_id(0); i < m * va; i += blockdim)
+              add_atomic(dest + i, buff[i]);
+          barrier(CLK_LOCAL_MEM_FENCE);
+      }
+
+}
 #endif
