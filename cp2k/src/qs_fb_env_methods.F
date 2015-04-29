@@ -1311,7 +1311,7 @@ CONTAINS
 
     CHARACTER(LEN=2)                         :: element_symbol
     INTEGER                                  :: handle, ikind, nkinds, unit_nr
-    LOGICAL                                  :: failure
+    LOGICAL                                  :: failure, collective_com
     REAL(KIND=dp)                            :: auto_cutoff_scale, &
                                                 filter_temperature
     REAL(KIND=dp), DIMENSION(:), POINTER     :: rcut
@@ -1331,6 +1331,7 @@ CONTAINS
                     filter_temperature=filter_temperature, &
                     auto_cutoff_scale=auto_cutoff_scale, &
                     rcut=rcut, &
+                    collective_com=collective_com, &
                     error=error)
 
     nkinds = SIZE(atomic_kind_set)
@@ -1341,7 +1342,16 @@ CONTAINS
                                    extension="", &
                                    error=error)
     IF (unit_nr > 0) THEN
-       WRITE (UNIT=unit_nr, FMT="(/,A,T71,g10.4)") &
+       IF (collective_com) THEN
+          WRITE (UNIT=unit_nr, FMT="(/,A,T71,A)") &
+               "FILTER_MAT_DIAG| MPI communication method:", &
+               "Collective"
+       ELSE
+          WRITE (UNIT=unit_nr, FMT="(/,A,T71,A)") &
+               "FILTER_MAT_DIAG| MPI communication method:", &
+               "At each step"
+       END IF
+       WRITE (UNIT=unit_nr, FMT="(A,T71,g10.4)") &
              "FILTER_MAT_DIAG| Filter temperature [K]:", &
              cp_unit_from_cp2k(filter_temperature, "K", error=error)
        WRITE (UNIT=unit_nr, FMT="(A,T71,f10.4)") &

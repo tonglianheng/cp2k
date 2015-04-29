@@ -933,6 +933,8 @@ CONTAINS
                                                 atomic_S, mat_blk
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
 
+    CALL timeset(routineN, handle)
+
     NULLIFY(atomic_kind, halo_atoms, ntfns, row_block_size_data, tfns)
 
     check_ok = fb_matrix_data_has_data(H_mat_data)
