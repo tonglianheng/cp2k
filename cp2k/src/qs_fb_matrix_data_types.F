@@ -1,3 +1,8 @@
+!-----------------------------------------------------------------------------!
+!   CP2K: A general program to perform molecular dynamics simulations         !
+!   Copyright (C) 2000 - 2015  CP2K developers group                          !
+!-----------------------------------------------------------------------------!
+
 MODULE qs_fb_matrix_data_types
 
   USE kinds,                           ONLY: dp,&
@@ -159,6 +164,7 @@ CONTAINS
 !> \param matrix_data : the fb_matrix_data object, its content must be NULL
 !>                      and cannot be UNDEFINED
 !> \param nmax        : max number of matrix blks can be stored
+!> \param nencode ...
 !> \param error       : CP2K data container for error logging
 !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
 ! *****************************************************************************
