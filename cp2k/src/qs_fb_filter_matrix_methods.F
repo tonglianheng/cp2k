@@ -308,7 +308,8 @@ CONTAINS
     CHARACTER(LEN=default_string_length)     :: name_string
     INTEGER :: handle, iblkcol, ihalo, ikind, natoms_global, natoms_in_halo, &
       nblkcols_total, nblks_recv, nhalos, nmax, stat
-    INTEGER, DIMENSION(:), POINTER           :: col_blk_size, ntfns, row_blk_size
+    INTEGER, DIMENSION(:), POINTER           :: col_blk_size, ntfns, &
+                                                row_blk_size
     LOGICAL                                  :: check_ok, failure
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(dbcsr_distribution_obj)             :: dbcsr_dist
