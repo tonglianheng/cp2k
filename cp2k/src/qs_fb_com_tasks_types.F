@@ -5,8 +5,7 @@
 
 MODULE qs_fb_com_tasks_types
 
-  USE cp_dbcsr_interface,              ONLY: array_data,&
-                                             cp_dbcsr_col_block_sizes,&
+  USE cp_dbcsr_interface,              ONLY: cp_dbcsr_col_block_sizes,&
                                              cp_dbcsr_get_block_p,&
                                              cp_dbcsr_put_block,&
                                              cp_dbcsr_row_block_sizes,&
@@ -1348,8 +1347,8 @@ CONTAINS
     numprocs = para_env%num_pe
 
     ! get dbcsr row and col block sizes
-    row_block_size_data => array_data(cp_dbcsr_row_block_sizes(dbcsr_mat))
-    col_block_size_data => array_data(cp_dbcsr_col_block_sizes(dbcsr_mat))
+    row_block_size_data => cp_dbcsr_row_block_sizes(dbcsr_mat)
+    col_block_size_data => cp_dbcsr_col_block_sizes(dbcsr_mat)
 
     ! allocate temporary arrays for send
     ALLOCATE(send_sizes(numprocs), STAT=stat)
@@ -1577,8 +1576,8 @@ CONTAINS
     numprocs = para_env%num_pe
 
     ! get dbcsr row and col block sizes
-    row_block_size_data => array_data(cp_dbcsr_row_block_sizes(dbcsr_mat))
-    col_block_size_data => array_data(cp_dbcsr_col_block_sizes(dbcsr_mat))
+    row_block_size_data => cp_dbcsr_row_block_sizes(dbcsr_mat)
+    col_block_size_data => cp_dbcsr_col_block_sizes(dbcsr_mat)
 
     ! allocate temporary arrays for send
     ALLOCATE(send_sizes(numprocs), STAT=stat)
