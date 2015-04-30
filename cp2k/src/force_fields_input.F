@@ -49,8 +49,8 @@ MODULE force_fields_input
   USE memory_utilities,                ONLY: reallocate
   USE pair_potential_types,            ONLY: &
        b4_type, bm_type, do_potential_single_allocation, ea_type, &
-       eam_pot_type, ft_pot_type, ft_type, ftd_pot_type, ftd_type, gp_type, &
-       gw_type, ip_type, ipbv_pot_type, lj_charmm_type, &
+       eam_pot_type, ft_pot_type, ft_type, ftd_type, gp_type, gw_type, &
+       ip_type, ipbv_pot_type, lj_charmm_type, &
        no_potential_single_allocation, pair_potential_p_type, &
        pair_potential_reallocate, potential_single_allocation, quip_type, &
        siepmann_type, tersoff_type, wl_type
@@ -546,15 +546,10 @@ CPSourceFileRef,&
 
 ! *****************************************************************************
 !> \brief Set up of the BMHFTD force fields
-!> \param at1 ...
-!> \param at2 ...
-!> \param ftd ...
 !> \param error ...
 !> \author Mathieu Salanne 05.2010
 ! *****************************************************************************
-  SUBROUTINE set_BMHFTD_ff(at1, at2, ftd, error)
-    CHARACTER(LEN=*), INTENT(IN)             :: at1, at2
-    TYPE(ftd_pot_type), POINTER              :: ftd
+  SUBROUTINE set_BMHFTD_ff(error)
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'set_BMHFTD_ff', &
@@ -977,8 +972,7 @@ CPSourceFileRef,&
           map_atoms = atm_names
           CALL uppercase(map_atoms(1))
           CALL uppercase(map_atoms(2))
-          CALL set_BMHFTD_ff(map_atoms(1), map_atoms(2), nonbonded%pot(start+isec)%pot%set(1)%ftd,&
-                            error=error)
+          CALL set_BMHFTD_ff(error=error)
        END IF
        CALL section_vals_val_get(section,"RCUT",i_rep_section=isec,r_val=rcut,error=error)
        nonbonded%pot(start+isec)%pot%rcutsq     = rcut**2
@@ -1499,10 +1493,6 @@ CPSourceFileRef,&
       CALL section_vals_get(tmp_section,n_repetition=tmp_damp,error=error)
       n_damp=n_damp+tmp_damp
 
-#ifdef DEBUG_DAMPING
-      WRITE(*,*) 'DAMPING DEBUG',isec,tmp_damp
-#endif
-
     END DO
 
     IF (n_damp > 0) THEN
@@ -1510,9 +1500,6 @@ CPSourceFileRef,&
       ALLOCATE (damping_list(1:n_damp),STAT=stat)
       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     ENDIF
-#ifdef DEBUG_DAMPING
-    WRITE(*,*) 'DAMPING DEBUG',n_damp
-#endif
 
 ! *** Reads DIPOLE sections *****
     start_damp=0
@@ -1551,17 +1538,6 @@ CPSourceFileRef,&
        start_damp=start_damp+tmp_damp
 
     END DO
-
-#ifdef DEBUG_DAMPING
-    DO start_damp=1,n_damp
-     WRITE(*,*) 'DAMPING DEBUG', TRIM(damping_list(start_damp)%atm_name1),&
-                                 TRIM(damping_list(start_damp)%atm_name2),&
-                                 TRIM(damping_list(start_damp)%dtype),&
-                                 damping_list(start_damp)%order,&
-                                 damping_list(start_damp)%bij,&
-                                 damping_list(start_damp)%cij
-    END DO
-#endif
 
   END SUBROUTINE read_apol_section
 

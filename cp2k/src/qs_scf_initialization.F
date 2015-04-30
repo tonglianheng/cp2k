@@ -9,15 +9,12 @@
 MODULE qs_scf_initialization
   USE cp_control_types,                ONLY: dft_control_type
   USE cp_dbcsr_interface,              ONLY: &
-       array_i1d_obj, array_release, cp_create_bl_distribution, &
        cp_dbcsr_col_block_sizes, cp_dbcsr_create, cp_dbcsr_distribution, &
-       cp_dbcsr_distribution_release, cp_dbcsr_init_p, cp_dbcsr_p_type, &
-       cp_dbcsr_row_block_sizes, cp_dbcsr_type, dbcsr_distribution_mp, &
-       dbcsr_distribution_new, dbcsr_distribution_obj, &
-       dbcsr_distribution_row_dist, dbcsr_mp_npcols, dbcsr_type_no_symmetry, &
-       dbcsr_type_real_default
+       cp_dbcsr_init_p, cp_dbcsr_p_type, cp_dbcsr_row_block_sizes, &
+       cp_dbcsr_type, dbcsr_type_no_symmetry, dbcsr_type_real_default
   USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
                                              copy_fm_to_dbcsr,&
+                                             cp_dbcsr_m_by_n_from_row_template,&
                                              cp_dbcsr_sm_fm_multiply
   USE cp_dbcsr_output,                 ONLY: write_fm_with_basis_info
   USE cp_fm_basic_linalg,              ONLY: cp_fm_triangular_invert
@@ -184,7 +181,7 @@ CONTAINS
 
     CALL qs_scf_ensure_mixing_store(qs_env,scf_env,error=error)
 
-    CALL qs_scf_ensure_outer_loop_vars(scf_env,my_scf_control,dft_control,error=error)
+    CALL qs_scf_ensure_outer_loop_vars(scf_env,my_scf_control,error=error)
 
     CALL init_scf_run(scf_env, qs_env, my_scf_section, my_scf_control, error=error)
 
@@ -238,13 +235,11 @@ CONTAINS
 !> \brief performs allocation of outer SCF variables
 !> \param scf_env ...
 !> \param scf_control ...
-!> \param dft_control ...
 !> \param error ...
 ! *****************************************************************************
-   SUBROUTINE qs_scf_ensure_outer_loop_vars(scf_env,scf_control,dft_control,error)
+   SUBROUTINE qs_scf_ensure_outer_loop_vars(scf_env,scf_control,error)
     TYPE(qs_scf_env_type), POINTER           :: scf_env
     TYPE(scf_control_type), POINTER          :: scf_control
-    TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: &
@@ -468,7 +463,6 @@ CONTAINS
     INTEGER                                  :: handle, ic, ik, ikk, ispin, &
                                                 nmo, nmo_mat
     LOGICAL                                  :: failure
-    TYPE(array_i1d_obj)                      :: col_blk_size, col_dist
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: mo_derivs
     TYPE(cp_dbcsr_p_type), DIMENSION(:, :), &
@@ -480,7 +474,6 @@ CONTAINS
       POINTER                                :: ao_mo_fm_pools, &
                                                 ao_mo_fm_pools_aux_fit
     TYPE(cp_fm_type), POINTER                :: mo_coeff, mo_coeff_aux_fit
-    TYPE(dbcsr_distribution_obj)             :: dist
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(kpoint_type), POINTER               :: kpoints
     TYPE(mo_set_p_type), DIMENSION(:), &
@@ -525,17 +518,9 @@ CONTAINS
           END IF
           IF(.not.ASSOCIATED(mo_coeff_b)) THEN
              CALL cp_fm_get_info(mos(ispin)%mo_set%mo_coeff,ncol_global=nmo,error=error)
-             CALL cp_create_bl_distribution (col_dist, col_blk_size, nmo, &! fm->dbcsr
-                  dbcsr_mp_npcols(dbcsr_distribution_mp(cp_dbcsr_distribution(matrix_s(1,1)%matrix))))! fm->dbcsr
-             CALL dbcsr_distribution_new (dist, dbcsr_distribution_mp (cp_dbcsr_distribution(matrix_s(1,1)%matrix)),&! fm->dbcsr
-                  dbcsr_distribution_row_dist(cp_dbcsr_distribution(matrix_s(1,1)%matrix)), col_dist)! fm->dbcsr
              CALL cp_dbcsr_init_p(mos(ispin)%mo_set%mo_coeff_b,error=error)
-             CALL cp_dbcsr_create(mos(ispin)%mo_set%mo_coeff_b, "mo_coeff_b", dist, dbcsr_type_no_symmetry,&! fm->dbcsr
-                  cp_dbcsr_row_block_sizes(matrix_s(1,1)%matrix), col_blk_size, 0, 0, dbcsr_type_real_default,&!fm->dbcsr
-                  error=error)! fm->dbcsr
-             CALL cp_dbcsr_distribution_release (dist)! fm->dbcsr
-             CALL array_release (col_blk_size)! fm->dbcsr
-             CALL array_release (col_dist)! fm->dbcsr
+             CALL cp_dbcsr_m_by_n_from_row_template(mos(ispin)%mo_set%mo_coeff_b,template=matrix_s(1,1)%matrix,n=nmo,&
+                                                    sym=dbcsr_type_no_symmetry, error=error)
           ENDIF
        END DO
     END IF
@@ -900,8 +885,8 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'init_scf_run', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, ikind, iw, nao, ndep, &
-                                                output_unit
+    INTEGER                                  :: after, handle, ikind, iw, &
+                                                nao, ndep, output_unit
     LOGICAL :: dft_plus_u_atom, do_kpoints, failure, init_u_ramping_each_scf, &
       s_minus_half_available
     REAL(KIND=dp)                            :: u_ramping
@@ -974,12 +959,14 @@ CONTAINS
        END IF
 
        IF (BTEST(cp_print_key_should_output(logger%iter_info,&
-              qs_env%input,"DFT%PRINT%AO_MATRICES/ORTHO",error=error),cp_p_file)) THEN
-            iw = cp_print_key_unit_nr(logger,qs_env%input,"DFT%PRINT%AO_MATRICES/ORTHO",&
-                 extension=".Log",error=error)
-            CALL write_fm_with_basis_info(scf_env%ortho,4,6,qs_env,para_env,output_unit=iw,error=error)
-            CALL cp_print_key_finished_output(iw,logger,qs_env%input,&
-                 "DFT%PRINT%AO_MATRICES/ORTHO", error=error)
+           qs_env%input,"DFT%PRINT%AO_MATRICES/ORTHO",error=error),cp_p_file)) THEN
+          iw = cp_print_key_unit_nr(logger,qs_env%input,"DFT%PRINT%AO_MATRICES/ORTHO",&
+               extension=".Log",error=error)
+          CALL section_vals_val_get(qs_env%input,"DFT%PRINT%AO_MATRICES%NDIGITS",i_val=after,error=error)
+          after = MIN(MAX(after,1),16)
+          CALL write_fm_with_basis_info(scf_env%ortho,4,after,qs_env,para_env,output_unit=iw,error=error)
+          CALL cp_print_key_finished_output(iw,logger,qs_env%input,&
+               "DFT%PRINT%AO_MATRICES/ORTHO", error=error)
        END IF
     END IF
 

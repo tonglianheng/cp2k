@@ -555,20 +555,18 @@ CONTAINS
 !>         energies
 !> \param prior_sigma energy distribution of the already converged
 !>         energies
-!> \param p ... the random number, the criteria has to be smaller than this
+!> \param p the random number, the criteria has to be smaller than this
 !> \param beta ...
-!> \param N ... the numbers of steps of the integration
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 !> \retval prob return probability of acceptance
 !> \author Mandes 12.2012
 ! *****************************************************************************
   FUNCTION compute_prob(E_n_mu,E_n_sigma,E_o_mu,E_o_sigma,E_classical_diff,&
-                        prior_mu,prior_sigma,p,beta,N,error) RESULT(prob)
+                        prior_mu,prior_sigma,p,beta,error) RESULT(prob)
     REAL(KIND=dp)                            :: E_n_mu, E_n_sigma, E_o_mu, &
                                                 E_o_sigma, E_classical_diff, &
                                                 prior_mu, prior_sigma, p, beta
-    INTEGER                                  :: N
     TYPE(cp_error_type), INTENT(inout)       :: error
     REAL(KIND=dp)                            :: prob
 
@@ -593,7 +591,6 @@ CONTAINS
 !>        new configuration
 !> \param rnd_nr random number acceptance check will be done with
 !> \param beta 1/(kB*T) can differ for different acceptance checks
-!> \param N the numbers of steps of the integration
 !> \param tmc_params TMC environment parameters
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
@@ -601,10 +598,9 @@ CONTAINS
 !> \author Mandes 12.2012
 ! *****************************************************************************
   FUNCTION compute_estimated_prob(elem_old, elem_new, E_classical_diff, &
-                rnd_nr, beta, N, tmc_params, error) RESULT(prob)
+                rnd_nr, beta, tmc_params, error) RESULT(prob)
     TYPE(tree_type), POINTER                 :: elem_old, elem_new
     REAL(KIND=dp)                            :: E_classical_diff, rnd_nr, beta
-    INTEGER                                  :: N
     TYPE(tmc_param_type), POINTER            :: tmc_params
     TYPE(cp_error_type), INTENT(inout)       :: error
     REAL(KIND=dp)                            :: prob
@@ -674,7 +670,7 @@ CONTAINS
       prob = compute_prob(E_n_mu=E_n_mu,E_n_sigma=E_n_sigma,E_o_mu=E_o_mu,E_o_sigma=E_o_sigma,&
                           E_classical_diff=E_classical_diff,&
                           prior_mu=tmc_params%prior_NMC_acc%aver,prior_sigma=prior_sigma, &
-                          p=rnd_nr, beta=beta, N=N, error=error)
+                          p=rnd_nr, beta=beta, error=error)
     END IF
     ! end the timing
     CALL timestop(handle)

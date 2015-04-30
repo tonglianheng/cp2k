@@ -48,7 +48,7 @@ MODULE cp_fm_diag
   USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
-#if defined (__ELPA)
+#if defined (__ELPA)  || defined(__ELPA2)
   USE ELPA1
   USE ELPA2
 #endif
@@ -63,6 +63,7 @@ MODULE cp_fm_diag
 
   ! these saved variables are DIAGONALIZATION global
    INTEGER, SAVE :: diag_type = 0
+   INTEGER, SAVE :: kernel_type = 0
 
   ! Public subroutines
 
@@ -83,12 +84,14 @@ CONTAINS
 !>         It should change library to Scalapack if others are not available
 !> \param diag_lib diag_library flag from GLOBAL section in input
 !> \param switched ...
+!> \param k_elpa ...
 !> \param error ...
 !> \author  MI 11.2013       
 ! *****************************************************************************
-  SUBROUTINE diag_init(diag_lib,switched,error)
+  SUBROUTINE diag_init(diag_lib,switched,k_elpa,error)
     CHARACTER(LEN=*), INTENT(IN)             :: diag_lib
     LOGICAL, INTENT(INOUT)                   :: switched
+    INTEGER, INTENT(IN)                      :: k_elpa
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'diag_init', &
@@ -108,7 +111,7 @@ CONTAINS
     IF(try_library) THEN
         IF(diag_lib.EQ."ELPA") THEN
 
-#if defined (__ELPA)
+#if defined (__ELPA)  || defined (__ELPA2)
             diag_type = 3
 #else
           ! ELPA library not linked, switch to SL
@@ -125,6 +128,10 @@ CONTAINS
              switched = .TRUE.
 #endif
          END IF
+    END IF
+
+    IF(diag_type == 3) THEN
+       kernel_type = k_elpa
     END IF
 
     ! Check that one of the diagonalization type is set
@@ -952,10 +959,9 @@ CONTAINS
     INTEGER                                  :: comm_col, comm_row, group, &
                                                 istat, mypcol, &
                                                 myprow, n, n_rows, nblk, neig
-    INTEGER, DIMENSION(9)                    :: descm, descv
-    LOGICAL                                  :: failure
+    LOGICAL                                  :: failure, success
     REAL(KIND=dp), DIMENSION(:), POINTER     :: eval
-    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: m, m1, v
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: m, v
     TYPE(cp_blacs_env_type), POINTER         :: context
 #endif
 
@@ -964,6 +970,7 @@ CONTAINS
 #if defined(__SCALAPACK)
 
     failure = .FALSE.
+    success = .TRUE.
 
     n = matrix%matrix_struct%nrow_global
     m => matrix%local_data
@@ -971,22 +978,15 @@ CONTAINS
     myprow = context%mepos(1)
     mypcol = context%mepos(2)
     group =  matrix%matrix_struct%para_env%group
-    descm(:) = matrix%matrix_struct%descriptor(:)
 
 
     ! For ELPA, the MPI communicators along rows/cols are sufficient
     ! mpi communicators are created, needed for communicating within
     ! rows or columns of processes
-    CALL mp_comm_split_direct( group, comm_row, mypcol, myprow)
+    CALL mp_comm_split_direct(group, comm_row, mypcol, myprow)
     CALL mp_comm_split_direct(group, comm_col, myprow, mypcol)
 
     v => eigenvectors%local_data
-    descv(:) = eigenvectors%matrix_struct%descriptor(:)
-
-    ALLOCATE (m1(SIZE(m,1),SIZE(m,2)),STAT=istat)
-    CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
-
-    m1 = m
 
     ! elpa needs the full matrix
     CALL cp_fm_upper_to_full(matrix,eigenvectors,error=error)
@@ -997,16 +997,27 @@ CONTAINS
     ! the full eigenvalues vector is needed
     ALLOCATE(eval(n),STAT=istat)
     CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
-#if defined (__ELPA)
+
     ! Calculate eigenvalues/eigenvectors
-    CALL solve_evp_real_2stage(n,neig,m,n_rows, eval,v,n_rows,nblk,comm_row,comm_col,group)
+#if defined (__ELPA) || defined (__ELPA2)
+
+
+#if defined (__ELPA)
+    CALL solve_evp_real_2stage(n,neig,m,n_rows,eval,v,n_rows,nblk,comm_row,comm_col,group)
+#else
+    success = solve_evp_real_2stage(n,neig,m,n_rows,eval,v,n_rows,nblk,comm_row,comm_col,group,&
+              THIS_REAL_ELPA_KERNEL_API=kernel_type,useQR=.FALSE.)
+#endif
+
+ 
+    CPPrecondition(success,cp_failure_level,routineP,error,failure)
+
 #else
     CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)
 #endif
     eigenvalues(1:neig) = eval(1:neig)
 
-    DEALLOCATE(eval)
-    DEALLOCATE (m1,STAT=istat)
+    DEALLOCATE(eval,STAT=istat)
     CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
 
     ! mpi communicators are freed

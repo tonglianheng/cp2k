@@ -299,8 +299,11 @@ CONTAINS
         END DO
         CALL do_tmc_worker(tmc_env=tmc_env, ana_list=tmc_ana_env_list, error=error_sub) ! start the worker routine for analysis
         DO i=1, tmc_env%params%nr_temp
+          IF(ASSOCIATED(tmc_ana_env_list(i)%temp%last_elem)) &
+            CALL deallocate_sub_tree_node(tree_elem=tmc_ana_env_list(i)%temp%last_elem, error=error)
           CALL tmc_ana_env_release(tmc_ana_env_list(i)%temp, error)
         END DO
+        DEALLOCATE(tmc_ana_env_list)
         IF (bcast_output_unit .NE. output_unit) THEN
           CALL close_file(unit_number=tmc_env%m_env%io_unit)
         ENDIF
@@ -404,8 +407,7 @@ CONTAINS
                                     elem=elem, tmc_env=tmc_env,error=error)
       nr_dim = SIZE(elem%pos)
       ! we need a new tree element with all neccessay arrays, (e.g. dipoles could not be allocated already)
-      CALL deallocate_sub_tree_node(tmc_params=tmc_env%params, &
-               tree_elem=elem, error=error)
+      CALL deallocate_sub_tree_node(tree_elem=elem, error=error)
       CPPostconditionNoFail(SIZE(ana_list).GT.0,cp_failure_level,routineP,error)
 
       ! print initial test output (for single core tests, where no data is produced)
@@ -448,8 +450,7 @@ CONTAINS
           !  there is no weight for this element
           IF(dir_ind.LT.SIZE(ana_list(temp)%temp%dirs) .AND. &
              ASSOCIATED(ana_list(temp)%temp%last_elem)) &
-            CALL deallocate_sub_tree_node(tmc_params=tmc_env%params, &
-                   tree_elem=ana_list(temp)%temp%last_elem, error=error)
+            CALL deallocate_sub_tree_node(tree_elem=ana_list(temp)%temp%last_elem, error=error)
           IF(ASSOCIATED(ana_list(temp)%temp%last_elem)) &
             ana_list(temp)%temp%conf_offset = ana_list(temp)%temp%conf_offset&
               + ana_list(temp)%temp%last_elem%nr
@@ -462,11 +463,12 @@ CONTAINS
           CALL analysis_restart_print(ana_env=ana_list(temp)%temp, &
                                       error=error)
         IF(ASSOCIATED(ana_list(temp)%temp%last_elem)) &
-          CALL deallocate_sub_tree_node(tmc_params=tmc_env%params, &
-                 tree_elem=ana_list(temp)%temp%last_elem, error=error)
+          CALL deallocate_sub_tree_node(tree_elem=ana_list(temp)%temp%last_elem, error=error)
         IF(ASSOCIATED(elem)) &
-          CALL deallocate_sub_tree_node(tmc_params=tmc_env%params, &
-                 tree_elem=elem, error=error)
+          CALL deallocate_sub_tree_node(tree_elem=elem, error=error)
+
+        IF(ASSOCIATED(ana_list(temp)%temp%last_elem)) &
+          CALL deallocate_sub_tree_node(tree_elem=ana_list(temp)%temp%last_elem, error=error)
 
         CALL tmc_ana_env_release(ana_list(temp)%temp, error)
       END DO

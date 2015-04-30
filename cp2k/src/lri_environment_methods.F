@@ -32,6 +32,7 @@ MODULE lri_environment_methods
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE input_constants,                 ONLY: do_lri_inv,&
+                                             do_lri_inv_auto,&
                                              do_lri_pseudoinv_diag,&
                                              do_lri_pseudoinv_svd
   USE input_section_types,             ONLY: section_vals_type
@@ -47,7 +48,7 @@ MODULE lri_environment_methods
        lri_list_type, lri_rhoab_type
   USE mathlib,                         ONLY: get_pseudo_inverse_diag,&
                                              get_pseudo_inverse_svd,&
-                                             invmat
+                                             invmat_symm
   USE message_passing,                 ONLY: mp_max,&
                                              mp_sum
   USE orbital_pointers,                ONLY: ncoset
@@ -65,6 +66,7 @@ MODULE lri_environment_methods
                                              neighbor_list_set_p_type
   USE qs_rho_types,                    ONLY: qs_rho_get,&
                                              qs_rho_type
+  USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE virial_types,                    ONLY: virial_type
@@ -530,10 +532,12 @@ CONTAINS
             m = 0._dp
             IF(iatom == jatom.AND.dab < lri_env%delta) THEN
               m(1:nfa) = lrho%tvec(1:nfa) + lrho%lambda * lrii%n(1:nfa)
-              lrho%avec(1:nfa) = MATMUL(lrii%sinv(1:nfa,1:nfa),m(1:nfa))
+              CALL dgemv("N",nfa,nfa,1.0_dp,lrii%sinv(1,1),nfa,&
+                         m(1),1,0.0_dp,lrho%avec,1)
             ELSE
               m(1:nn) = lrho%tvec(1:nn) + lrho%lambda * lrii%n(1:nn)
-              lrho%avec(1:nn)  = MATMUL(lrii%sinv(1:nn,1:nn),m(1:nn))
+              CALL dgemv("N",nn,nn,1.0_dp,lrii%sinv(1,1),nn,&
+                         m(1),1,0.0_dp,lrho%avec,1)
             ENDIF
             DEALLOCATE(m,STAT=stat)
             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -665,7 +669,8 @@ CONTAINS
       END DO
 
       !distribute fitted density on the grid
-      CALL qs_rho_get(lri_rho_struct, rho_r=rho_r, rho_g=rho_g, tot_rho_r=tot_rho_r, error=error)
+      CALL qs_rho_get(lri_rho_struct, rho_r=rho_r, rho_g=rho_g,&
+                      tot_rho_r=tot_rho_r, error=error)
       DO ispin=1,nspin
        CALL calculate_lri_rho_elec(rho_g(ispin),&
                                    rho_r(ispin), qs_env, lri_env,&
@@ -732,7 +737,8 @@ CONTAINS
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :, :, :)                  :: sabda, sdaba, sdabda
     REAL(KIND=dp), DIMENSION(3)              :: rac, rbc
-    REAL(KIND=dp), DIMENSION(:), POINTER     :: set_radius_a, set_radius_b
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: set_radius_a, set_radius_b, &
+                                                set_radius_ca
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: rpgfa, rpgfb, rpgfca, sphi_a, &
                                                 sphi_b, sphi_ca, zeta, zetb, &
                                                 zetca
@@ -742,41 +748,43 @@ CONTAINS
     NULLIFY(la_max, la_min, lb_max, lb_min, lca_max, lca_min, npgfa, npgfb,&
              npgfca, nsgfa, nsgfb, nsgfca) 
     NULLIFY(first_sgfa, first_sgfb, first_sgfca, set_radius_a, set_radius_b,&
-            rpgfa, rpgfb, rpgfca, sphi_a, sphi_b, sphi_ca, zeta, zetb, zetca) 
+            set_radius_ca, rpgfa, rpgfb, rpgfca, sphi_a, sphi_b, sphi_ca,&
+            zeta, zetb, zetca) 
 
     ! basis ikind
-    first_sgfa   =>  oba%first_sgf
-    la_max       =>  oba%lmax
-    la_min       =>  oba%lmin
-    npgfa        =>  oba%npgf
-    nseta        =   oba%nset
-    nsgfa        =>  oba%nsgf_set
-    rpgfa        =>  oba%pgf_radius
-    set_radius_a =>  oba%set_radius
-    sphi_a       =>  oba%sphi
-    zeta         =>  oba%zet
+    first_sgfa    =>  oba%first_sgf
+    la_max        =>  oba%lmax
+    la_min        =>  oba%lmin
+    npgfa         =>  oba%npgf
+    nseta         =   oba%nset
+    nsgfa         =>  oba%nsgf_set
+    rpgfa         =>  oba%pgf_radius
+    set_radius_a  =>  oba%set_radius
+    sphi_a        =>  oba%sphi
+    zeta          =>  oba%zet
     ! basis jkind
-    first_sgfb   =>  obb%first_sgf
-    lb_max       =>  obb%lmax
-    lb_min       =>  obb%lmin
-    npgfb        =>  obb%npgf
-    nsetb        =   obb%nset
-    nsgfb        =>  obb%nsgf_set
-    rpgfb        =>  obb%pgf_radius
-    set_radius_b =>  obb%set_radius
-    sphi_b       =>  obb%sphi
-    zetb         =>  obb%zet
+    first_sgfb    =>  obb%first_sgf
+    lb_max        =>  obb%lmax
+    lb_min        =>  obb%lmin
+    npgfb         =>  obb%npgf
+    nsetb         =   obb%nset
+    nsgfb         =>  obb%nsgf_set
+    rpgfb         =>  obb%pgf_radius
+    set_radius_b  =>  obb%set_radius
+    sphi_b        =>  obb%sphi
+    zetb          =>  obb%zet
 
     ! basis RI A
-    first_sgfca  =>  fba%first_sgf
-    lca_max      =>  fba%lmax
-    lca_min      =>  fba%lmin
-    npgfca       =>  fba%npgf
-    nsetca       =   fba%nset
-    nsgfca       =>  fba%nsgf_set
-    rpgfca       =>  fba%pgf_radius
-    sphi_ca      =>  fba%sphi
-    zetca        =>  fba%zet
+    first_sgfca   =>  fba%first_sgf
+    lca_max       =>  fba%lmax
+    lca_min       =>  fba%lmin
+    npgfca        =>  fba%npgf
+    nsetca        =   fba%nset
+    nsgfca        =>  fba%nsgf_set
+    rpgfca        =>  fba%pgf_radius
+    set_radius_ca =>  fba%set_radius
+    sphi_ca       =>  fba%sphi
+    zetca         =>  fba%zet
 
     dab = SQRT( SUM(rab**2) )
 
@@ -799,7 +807,11 @@ CONTAINS
           dac = 0._dp
           rbc = -rab
           dbc = dab
+
           DO kaset=1,nsetca
+
+             IF (set_radius_b(jset) + set_radius_ca(kaset) < dab) CYCLE
+
              ncoc = npgfca(kaset)*ncoset(lca_max(kaset))
              sgfc = first_sgfca(1,kaset)
              m3=sgfc+nsgfca(kaset)-1
@@ -908,7 +920,8 @@ CONTAINS
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :, :, :)                  :: sdabb
     REAL(KIND=dp), DIMENSION(3)              :: rac, rbc
-    REAL(KIND=dp), DIMENSION(:), POINTER     :: set_radius_a, set_radius_b
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: set_radius_a, set_radius_b, &
+                                                set_radius_cb
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: rpgfa, rpgfb, rpgfcb, sphi_a, &
                                                 sphi_b, sphi_cb, zeta, zetb, &
                                                 zetcb
@@ -918,41 +931,43 @@ CONTAINS
     NULLIFY(la_max, la_min, lb_max, lb_min, lcb_max, lcb_min, npgfa, npgfb,&
             npgfcb, nsgfa, nsgfb, nsgfcb)
     NULLIFY(first_sgfa, first_sgfb, first_sgfcb, set_radius_a, set_radius_b,&
-            rpgfa, rpgfb, rpgfcb, sphi_a, sphi_b, sphi_cb, zeta, zetb, zetcb) 
+            set_radius_cb, rpgfa, rpgfb, rpgfcb, sphi_a, sphi_b, sphi_cb,&
+            zeta, zetb, zetcb) 
 
     ! basis ikind
-    first_sgfa   =>  oba%first_sgf
-    la_max       =>  oba%lmax
-    la_min       =>  oba%lmin
-    npgfa        =>  oba%npgf
-    nseta        =   oba%nset
-    nsgfa        =>  oba%nsgf_set
-    rpgfa        =>  oba%pgf_radius
-    set_radius_a =>  oba%set_radius
-    sphi_a       =>  oba%sphi
-    zeta         =>  oba%zet
+    first_sgfa    =>  oba%first_sgf
+    la_max        =>  oba%lmax
+    la_min        =>  oba%lmin
+    npgfa         =>  oba%npgf
+    nseta         =   oba%nset
+    nsgfa         =>  oba%nsgf_set
+    rpgfa         =>  oba%pgf_radius
+    set_radius_a  =>  oba%set_radius
+    sphi_a        =>  oba%sphi
+    zeta          =>  oba%zet
     ! basis jkind
-    first_sgfb   =>  obb%first_sgf
-    lb_max       =>  obb%lmax
-    lb_min       =>  obb%lmin
-    npgfb        =>  obb%npgf
-    nsetb        =   obb%nset
-    nsgfb        =>  obb%nsgf_set
-    rpgfb        =>  obb%pgf_radius
-    set_radius_b =>  obb%set_radius
-    sphi_b       =>  obb%sphi
-    zetb         =>  obb%zet
+    first_sgfb    =>  obb%first_sgf
+    lb_max        =>  obb%lmax
+    lb_min        =>  obb%lmin
+    npgfb         =>  obb%npgf
+    nsetb         =   obb%nset
+    nsgfb         =>  obb%nsgf_set
+    rpgfb         =>  obb%pgf_radius
+    set_radius_b  =>  obb%set_radius
+    sphi_b        =>  obb%sphi
+    zetb          =>  obb%zet
 
     ! basis RI B
-    first_sgfcb  =>  fbb%first_sgf
-    lcb_max      =>  fbb%lmax
-    lcb_min      =>  fbb%lmin
-    npgfcb       =>  fbb%npgf
-    nsetcb       =   fbb%nset
-    nsgfcb       =>  fbb%nsgf_set
-    rpgfcb       =>  fbb%pgf_radius
-    sphi_cb      =>  fbb%sphi
-    zetcb        =>  fbb%zet
+    first_sgfcb   =>  fbb%first_sgf
+    lcb_max       =>  fbb%lmax
+    lcb_min       =>  fbb%lmin
+    npgfcb        =>  fbb%npgf
+    nsetcb        =   fbb%nset
+    nsgfcb        =>  fbb%nsgf_set
+    rpgfcb        =>  fbb%pgf_radius
+    set_radius_cb =>  fbb%set_radius
+    sphi_cb       =>  fbb%sphi
+    zetcb         =>  fbb%zet
 
     dab = SQRT( SUM(rab**2) )
 
@@ -975,7 +990,11 @@ CONTAINS
           dac = dab
           rbc = 0._dp
           dbc = 0._dp
+
           DO kbset=1,nsetcb
+ 
+             IF (set_radius_a(iset) + set_radius_cb(kbset) < dab) CYCLE
+
              ncoc = npgfcb(kbset)*ncoset(lcb_max(kbset))
              sgfc = first_sgfcb(1,kbset)
              m3=sgfc+nsgfcb(kbset)-1
@@ -1598,8 +1617,10 @@ CONTAINS
       routineN = 'lri_calculate_derivative_acoef', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, i, j, nn, stat
+    INTEGER                                  :: handle, nn, stat
     LOGICAL                                  :: failure
+    REAL(KIND=dp), ALLOCATABLE, &
+      DIMENSION(:, :)                        :: dlambdadp
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :, :)                     :: abxint_work, Q, R
 
@@ -1610,42 +1631,51 @@ CONTAINS
  
     ALLOCATE(R(nba,nbb,nn),STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    ALLOCATE(dlambdadp(nba,nbb),STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     ALLOCATE(Q(nba,nbb,nn),STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     ALLOCATE(abxint_work(nba,nbb,nn),STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
-    R(:,:,:) = 0._dp
-    Q(:,:,:) = 0._dp
+    R(:,:,:)  = 0._dp
+    dlambdadp = 0._dp
+    Q(:,:,:)  = 0._dp
     abxint_work(:,:,:) = 0._dp
 
     abxint_work(1:nba,1:nbb,1:nfa)=lrii%abaint(1:nba,1:nbb,1:nfa)    !abaint
     abxint_work(1:nba,1:nbb,nfa+1:nn)=lrii%abbint(1:nba,1:nbb,1:nfb) !abbint
     IF(iatom == jatom.AND.dab < lri_env%delta) THEN
-      DO i=1,nba
-        DO j=1,nbb
-          R(i,j,1:nfa) = MATMUL(lrii%sinv(1:nfa,1:nfa),abxint_work(i,j,1:nfa))
-          Q(i,j,1:nfa) = lrii%soo(i,j)/lrii%nsn*lrii%sn(1:nfa) - &
-                         DOT_PRODUCT(lrii%sn(1:nfa),abxint_work(i,j,1:nfa))/lrii%nsn&
-                         *lrii%sn(1:nfa)
-        ENDDO
-      ENDDO
+      ! R = Sinv*abx_int 
+      CALL dgemm("N","N",nba*nbb,nfa,nfa,1.0_dp,abxint_work,nba*nbb,&
+                 lrii%sinv,nfa,0.0_dp,R,nba*nbb)
+      ! dlambda = soo/nsn - sn*abx_int/nsn
+      dlambdadp(1:nba,1:nbb) = lrii%soo(1:nba,1:nbb)
+      CALL dgemm("N","N",nba*nbb,1,nfa,-1.0_dp/lrii%nsn,abxint_work,nba*nbb,&
+                 lrii%sn,nfa,1.0_dp/lrii%nsn,dlambdadp,nba*nbb)
+      ! Q = dlambdadp * sn
+      CALL dgemm("N","T",nba*nbb,nfa,1,1.0_dp,dlambdadp,nba*nbb,&
+                 lrii%sn,nfa,0.0_dp,Q,nba*nbb)
       lrii%dacoef(1:nba,1:nbb,1:nfa)= R(1:nba,1:nbb,1:nfa)+Q(1:nba,1:nbb,1:nfa)
     ELSE
-      DO i=1,nba
-        DO j=1,nbb
-          R(i,j,1:nn) =  MATMUL(lrii%sinv(1:nn,1:nn),abxint_work(i,j,1:nn))
-          Q(i,j,1:nn) =  lrii%soo(i,j)/lrii%nsn*lrii%sn(1:nn) - &
-                         DOT_PRODUCT(lrii%sn(1:nn),abxint_work(i,j,1:nn))/lrii%nsn&
-                         *lrii%sn(1:nn)
-        ENDDO
-      ENDDO
+      ! R = Sinv*abx_int 
+      CALL dgemm("N","N",nba*nbb,nn,nn,1.0_dp,abxint_work,nba*nbb,&
+                 lrii%sinv,nn,0.0_dp,R,nba*nbb)
+      ! dlambda = soo/nsn - sn*abx_int/nsn
+      dlambdadp(1:nba,1:nbb) = lrii%soo(1:nba,1:nbb)
+      CALL dgemm("N","N",nba*nbb,1,nn,-1.0_dp/lrii%nsn,abxint_work,nba*nbb,&
+                 lrii%sn,nn,1.0_dp/lrii%nsn,dlambdadp,nba*nbb)
+      ! Q = dlambdadp * sn
+      CALL dgemm("N","T",nba*nbb,nn,1,1.0_dp,dlambdadp,nba*nbb,&
+                 lrii%sn,nn,0.0_dp,Q,nba*nbb)
       lrii%dacoef(1:nba,1:nbb,1:nn)= R(1:nba,1:nbb,1:nn)+Q(1:nba,1:nbb,1:nn)
     ENDIF
     
     DEALLOCATE(abxint_work,STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     DEALLOCATE(R,STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    DEALLOCATE(dlambdadp,STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     DEALLOCATE(Q,STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -1656,7 +1686,7 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief get inverse or pseudoinverse of lri overlap matrix for aux basis set
-!> \param lri_env ...
+!> \param lri_env lri environment
 !> \param sinv on entry overlap matrix, on exit its inverse
 !> \param error ...
 ! *****************************************************************************
@@ -1669,21 +1699,25 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'inverse_lri_overlap', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: n, stat
+    INTEGER                                  :: handle, info, n, stat
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: iwork
     LOGICAL                                  :: failure
-    REAL(KIND=dp)                            :: rskip
+    REAL(KIND=dp)                            :: anorm, rcond, rskip
+    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: work
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: s
+    REAL(KIND=dp), EXTERNAL                  :: dlange
 
     failure = .FALSE.
+    CALL timeset(routineN,handle)
+
     NULLIFY(s)
 
-    rskip = 1.E-8_dp ! parameter for pseudo inverse 
+    rskip = 1.E-8_dp ! parameter for pseudo inverse
     n=SIZE(sinv,1)
 
     SELECT CASE(lri_env%lri_overlap_inv)
     CASE(do_lri_inv)
-       CALL invmat(sinv,stat,error)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CALL invmat_symm(sinv,error=error)
     CASE(do_lri_pseudoinv_svd)
        ALLOCATE(s(n,n),STAT=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -1698,11 +1732,40 @@ CONTAINS
        CALL get_pseudo_inverse_diag(s,sinv,rskip,error)
        DEALLOCATE(s,STAT=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CASE(do_lri_inv_auto)
+       ! decide whether to calculate inverse or pseudoinverse
+       ALLOCATE(s(n,n),STAT=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       s(:,:) = sinv
+       ALLOCATE(work(3*n),iwork(n),STAT=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       ! norm of matrix
+       anorm = dlange('1',n,n,sinv,n,work)
+       ! Cholesky factorization (fails if matrix not positive definite)
+       CALL dpotrf('U',n,sinv,n,info)
+       IF (info == 0) THEN
+           ! condition number
+           CALL dpocon('U',n,sinv,n,anorm,rcond,work,iwork,info)
+           IF (info /= 0) THEN
+             CALL stop_program(routineN,moduleN,__LINE__,"DPOCON failed")
+           ENDIF
+           IF(LOG(1._dp/rcond) > lri_env%cond_max) THEN
+             CALL get_pseudo_inverse_svd(s,sinv,rskip,error)
+           ELSE
+             CALL invmat_symm(sinv,"U",error)
+           ENDIF
+       ELSE
+           CALL get_pseudo_inverse_svd(s,sinv,rskip,error)
+       END IF
+       DEALLOCATE(s,work,iwork,STAT=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     CASE DEFAULT
        CALL cp_assert(.FALSE.,cp_fatal_level,cp_assertion_failed,&
-                 routineP,"No initialization available?????",&
+                 routineP,"No initialization for LRI overlap available?",&
                  only_ionode=.TRUE.)
     END SELECT
+
+    CALL timestop(handle)
 
   END SUBROUTINE inverse_lri_overlap
 

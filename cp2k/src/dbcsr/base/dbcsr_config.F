@@ -32,15 +32,15 @@ MODULE dbcsr_config
   PUBLIC :: dbcsr_set_default_config
 
   PUBLIC :: dbcsr_set_conf_subcomm, dbcsr_get_conf_subcomm
-  PUBLIC :: dbcsr_set_conf_combtypes, dbcsr_get_conf_combtypes
   PUBLIC :: dbcsr_set_conf_mm_stacksize, dbcsr_get_conf_mm_stacksize
 
-  PUBLIC :: dbcsr_set_conf_mpi_mem, dbcsr_get_conf_mpi_mem
+  PUBLIC :: dbcsr_get_conf_mpi_mem
 
-  PUBLIC :: dbcsr_set_conf_mm_driver, dbcsr_get_conf_mm_driver, dbcsr_get_conf_max_elements_images
+  PUBLIC :: dbcsr_set_conf_mm_driver, dbcsr_get_conf_mm_driver, dbcsr_get_conf_avg_elements_images
 
-  PUBLIC :: dbcsr_set_conf_max_elements_images, dbcsr_set_conf_nstacks, dbcsr_get_conf_nstacks
+  PUBLIC :: dbcsr_set_conf_avg_elements_images, dbcsr_set_conf_nstacks, dbcsr_get_conf_nstacks
 
+  PUBLIC :: dbcsr_set_conf_use_mpi_rma, dbcsr_get_conf_use_mpi_rma
   PUBLIC :: dbcsr_set_conf_use_comm_thread, dbcsr_get_conf_use_comm_thread
   PUBLIC :: dbcsr_set_conf_comm_thread_load, dbcsr_get_conf_comm_thread_load
   PUBLIC :: dbcsr_set_conf_external_timing
@@ -52,7 +52,6 @@ MODULE dbcsr_config
   PUBLIC :: has_MPI
   PUBLIC :: has_acc
   PUBLIC :: use_subcommunicators
-  PUBLIC :: use_combined_types
   PUBLIC :: mm_stack_size
   PUBLIC :: mm_driver, mm_host_driver,&
             mm_driver_blas,&
@@ -64,8 +63,8 @@ MODULE dbcsr_config
             mm_name_matmul,&
             mm_name_smm,&
             mm_name_acc
-  PUBLIC :: use_comm_thread, comm_thread_load
-  PUBLIC :: max_elements_per_block
+  PUBLIC :: use_mpi_rma, use_comm_thread, comm_thread_load
+  PUBLIC :: max_elements_per_block, avg_elements_images
   !
   PUBLIC :: is_initialized
 
@@ -129,9 +128,6 @@ MODULE dbcsr_config
   ! Allocates subcommunicators for process rows and columns.
   LOGICAL, SAVE :: use_subcommunicators = .TRUE.
 
-  ! Use combined data types for MPI transfers.
-  LOGICAL, SAVE :: use_combined_types = .FALSE.
-
   ! Use MPI-allocated memory.
   LOGICAL, SAVE :: use_MPI_memory = has_MPI
 
@@ -155,12 +151,15 @@ MODULE dbcsr_config
   INTEGER, SAVE :: max_elements_per_block = 32
 
   ! Maximum number of elements for each image
-  INTEGER, SAVE :: max_elements_images = -1
+  INTEGER, SAVE :: avg_elements_images = -1
 
   ! Number of stacks to use
   INTEGER, SAVE :: nm_stacks = 3
   INTEGER, SAVE :: nn_stacks = 3
   INTEGER, SAVE :: nk_stacks = 3
+  
+  ! RMA algorithm
+  LOGICAL, SAVE :: use_mpi_rma = .FALSE.
 
   ! Configuration of an MPI progress thread
   LOGICAL, SAVE :: use_comm_thread = .TRUE.
@@ -292,39 +291,6 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief ...
-!> \param use_combtypes ...
-!> \param error ...
-! *****************************************************************************
-  SUBROUTINE dbcsr_set_conf_combtypes (use_combtypes, error)
-    LOGICAL, INTENT(IN)                      :: use_combtypes
-    TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_set_conf_combtypes', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: error_handle
-
-    CALL dbcsr_error_set(routineN, error_handle, error)
-    use_combined_types = use_combtypes
-    CALL dbcsr_error_stop(error_handle, error)
-  END SUBROUTINE dbcsr_set_conf_combtypes
-
-! *****************************************************************************
-!> \brief ...
-!> \retval use_combtypes ...
-! *****************************************************************************
-  FUNCTION dbcsr_get_conf_combtypes () RESULT (use_combtypes)
-    LOGICAL                                  :: use_combtypes
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_get_conf_combtypes', &
-      routineP = moduleN//':'//routineN
-
-    use_combtypes = use_combined_types
-  END FUNCTION dbcsr_get_conf_combtypes
-
-
-! *****************************************************************************
-!> \brief ...
 !> \param use_mpi_mem ...
 !> \param error ...
 ! *****************************************************************************
@@ -421,33 +387,33 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief ...
-!> \param new_max_elements_images ...
+!> \param new_avg_elements_images ...
 !> \param error ...
 ! *****************************************************************************
-  SUBROUTINE dbcsr_set_conf_max_elements_images (new_max_elements_images, error)
-    INTEGER, INTENT(IN)                      :: new_max_elements_images
+  SUBROUTINE dbcsr_set_conf_avg_elements_images (new_avg_elements_images, error)
+    INTEGER, INTENT(IN)                      :: new_avg_elements_images
     TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
 
     CHARACTER(len=*), PARAMETER :: &
-      routineN = 'dbcsr_set_conf_max_elements_images', &
+      routineN = 'dbcsr_set_conf_avg_elements_images', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: error_handle
 
     CALL dbcsr_error_set(routineN, error_handle, error)
-    max_elements_images = new_max_elements_images
+    avg_elements_images = new_avg_elements_images
     CALL dbcsr_error_stop(error_handle, error)
-  END SUBROUTINE dbcsr_set_conf_max_elements_images
+  END SUBROUTINE dbcsr_set_conf_avg_elements_images
 
 ! *****************************************************************************
 !> \brief ...
-!> \retval dbcsr_get_conf_max_elements_images ...
+!> \retval dbcsr_get_conf_avg_elements_images ...
 ! *****************************************************************************
-  FUNCTION dbcsr_get_conf_max_elements_images ()
-    INTEGER :: dbcsr_get_conf_max_elements_images
+  FUNCTION dbcsr_get_conf_avg_elements_images ()
+    INTEGER :: dbcsr_get_conf_avg_elements_images
 
-    dbcsr_get_conf_max_elements_images=max_elements_images
-  END FUNCTION dbcsr_get_conf_max_elements_images
+    dbcsr_get_conf_avg_elements_images=avg_elements_images
+  END FUNCTION dbcsr_get_conf_avg_elements_images
 
 ! *****************************************************************************
 !> \brief ...
@@ -496,6 +462,38 @@ CONTAINS
     nstacks(3) = nk_stacks
     CALL dbcsr_error_stop(error_handle, error)
   END SUBROUTINE dbcsr_get_conf_nstacks
+
+! *****************************************************************************
+!> \brief ...
+!> \param mpi_rma ...
+!> \param error ...
+! *****************************************************************************
+  SUBROUTINE dbcsr_set_conf_use_mpi_rma (mpi_rma, error)
+    LOGICAL, INTENT(IN)                      :: mpi_rma
+    TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_set_conf_use_mpi_rma', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: error_handle
+
+    CALL dbcsr_error_set(routineN, error_handle, error)
+    use_mpi_rma = mpi_rma
+    CALL dbcsr_error_stop(error_handle, error)
+  END SUBROUTINE dbcsr_set_conf_use_mpi_rma
+
+! *****************************************************************************
+!> \brief ...
+!> \retval mpi_rma ...
+! *****************************************************************************
+  FUNCTION dbcsr_get_conf_use_mpi_rma () RESULT (mpi_rma)
+    LOGICAL                                  :: mpi_rma
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_get_conf_use_mpi_rma', &
+      routineP = moduleN//':'//routineN
+
+    mpi_rma = use_mpi_rma
+  END FUNCTION dbcsr_get_conf_use_mpi_rma
 
 ! *****************************************************************************
 !> \brief ...
@@ -628,14 +626,12 @@ CONTAINS
                                                 error_handler, max_ele_block, &
                                                 mm_driver, mm_ss
     INTEGER, DIMENSION(3)                    :: nstacks
-    LOGICAL                                  :: use_combtypes, &
-                                                use_comm_thread, use_mpi_mem, &
+    LOGICAL                                  :: use_comm_thread, use_mpi_mem, &
                                                 use_subcomms
 
     CALL dbcsr_error_set (routineN, error_handler, error=error)
 
     use_subcomms = dbcsr_get_conf_subcomm()
-    use_combtypes = dbcsr_get_conf_combtypes()
     use_mpi_mem = dbcsr_get_conf_mpi_mem()
     mm_ss = -1
     mm_driver = dbcsr_get_conf_mm_driver()
@@ -646,7 +642,6 @@ CONTAINS
 
     CALL dbcsr_set_conf_mm_driver (mm_driver, error=error)
     CALL dbcsr_set_conf_subcomm (use_subcomms, error=error)
-    CALL dbcsr_set_conf_combtypes (use_combtypes, error=error)
     CALL dbcsr_set_conf_mpi_mem (use_mpi_mem, error=error)
     CALL dbcsr_set_conf_max_ele_block (max_ele_block, error=error)
     IF (mm_ss > 0) CALL dbcsr_set_conf_mm_stacksize (mm_ss, error=error)

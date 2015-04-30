@@ -1,7 +1,9 @@
 !-----------------------------------------------------------------------------!
-!   CP2K: A general program to perform molecular dynamics simulationsi        !
-!   Copyright (C) 2000 - 2015  CP2K developers group group!
+!   CP2K: A general program to perform molecular dynamics simulations         !
+!   Copyright (C) 2000 - 2015  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
+
+! *****************************************************************************
 !> \brief   network topology support for cp2k
 !> \author  Christiane Pousa Ribeiro
 !> \date    2012-05-02
@@ -9,8 +11,7 @@
 !>
 !> <b>Modification history:</b>
 !> - Created 2012-05-02
-
-
+! *****************************************************************************
 MODULE ma_topology
 
   USE ISO_C_BINDING
@@ -39,6 +40,7 @@ IMPLICIT NONE
  PRIVATE
  
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'ma_topology'
+  LOGICAL, PARAMETER, PRIVATE :: debug_this_module = .FALSE.
 
   !Maximum number of nodes in each direction
   PUBLIC :: ma_net_topology, ma_allocated_topology
@@ -238,9 +240,9 @@ CONTAINS
 
   CALL mp_environ(numtask,source,mp_group)
 
-#ifdef __DEBUG_HWTOPO
-   IF(source==0) WRITE(*,*) 'Extracting CRAY machine topology - accessing xtdb2proc'   
-#endif 
+   IF(debug_this_module) THEN
+      IF(source==0) WRITE(*,*) 'Extracting CRAY machine topology - accessing xtdb2proc'   
+   ENDIF
 
   IF (source==0) THEN
     CALL m_getpid(myid)
@@ -407,18 +409,18 @@ CONTAINS
   
 #if defined __GEMINI || __SEASTAR
 
-#ifdef __DEBUG_HWTOPO
-   IF(source==0) WRITE(*,*) 'Obtaining allocated nodes on the machine'  
-#endif
+   IF(debug_this_module) THEN
+      IF(source==0) WRITE(*,*) 'Obtaining allocated nodes on the machine'  
+   ENDIF
 
  CALL mp_proc_name(host_name)
  READ(host_name(4:LEN_TRIM(host_name)),*) allocated_topology(source+1) 
  
  CALL mp_sum(allocated_topology,mp_group) 
 
-#ifdef __DEBUG_HWTOPO
-   IF(source==0) WRITE(*,*) 'Allocated nodes on the machine: ', allocated_topology              
-#endif
+   IF(debug_this_module) THEN
+      IF(source==0) WRITE(*,*) 'Allocated nodes on the machine: ', allocated_topology              
+   ENDIF
 
 #elif defined __NET
 
@@ -803,9 +805,9 @@ END SUBROUTINE ma_comm_pattern_alltoall
 
  IF (.NOT. ASSOCIATED(comm_graph))THEN
 
-#ifdef __DEBUG_HWTOPO
-   IF(source==0) WRITE(*,*) 'Generating the communication graph'
-#endif
+   IF(debug_this_module) THEN
+      IF(source==0) WRITE(*,*) 'Generating the communication graph'
+   ENDIF
 
  !Cannon algorithm - each MPI has only for neighbors 
  ALLOCATE (comm_graph(0:numtask-1,0:3),STAT=istat)

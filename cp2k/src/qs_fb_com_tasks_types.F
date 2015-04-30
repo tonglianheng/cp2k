@@ -1,3 +1,8 @@
+!-----------------------------------------------------------------------------!
+!   CP2K: A general program to perform molecular dynamics simulations         !
+!   Copyright (C) 2000 - 2015  CP2K developers group                          !
+!-----------------------------------------------------------------------------!
+
 MODULE qs_fb_com_tasks_types
 
   USE cp_dbcsr_interface,              ONLY: array_data,&
@@ -27,14 +32,14 @@ MODULE qs_fb_com_tasks_types
   PRIVATE
 
 ! public parameters:
-  PUBLIC :: TASK_N_RECORDS, &
-            TASK_DEST,      &
-            TASK_SRC,       &
-            TASK_PAIR,      &
+  PUBLIC :: TASK_N_RECORDS,&
+            TASK_DEST,&
+            TASK_SRC,&
+            TASK_PAIR,&
             TASK_COST
 
 ! public types
-  PUBLIC :: fb_com_tasks_obj, &
+  PUBLIC :: fb_com_tasks_obj,&
             fb_com_atom_pairs_obj
 
 ! public methods

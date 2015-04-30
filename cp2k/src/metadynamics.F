@@ -11,7 +11,12 @@
 ! *****************************************************************************
 MODULE metadynamics
   USE bibliography,                    ONLY: VandenCic2006
+#if defined (__PLUMED_CP2K) || defined (__PLUMED2)
+  USE cell_types,                      ONLY: cell_type,&
+                                             pbc_cp2k_plumed_getset_cell
+#else
   USE cell_types,                      ONLY: cell_type
+#endif
   USE colvar_methods,                  ONLY: colvar_eval_glob_f
   USE colvar_types,                    ONLY: colvar_p_type,&
                                              torsion_colvar_id
@@ -45,11 +50,21 @@ MODULE metadynamics
                                              synchronize_multiple_walkers
   USE parallel_rng_types,              ONLY: next_random_number
   USE particle_list_types,             ONLY: particle_list_type
+#if defined (__PLUMED2)
+  USE physcon,                         ONLY: angstrom,&
+                                             boltzmann,&
+                                             femtoseconds,&
+                                             joule,&
+                                             kelvin,kjmol,&
+                                             picoseconds
+#else
   USE physcon,                         ONLY: boltzmann,&
                                              femtoseconds,&
                                              joule,&
                                              kelvin
+#endif
   USE reference_manager,               ONLY: cite_reference
+  USE simpar_types,                    ONLY: simpar_type
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "./common/cp_common_uses.f90"
@@ -61,11 +76,107 @@ MODULE metadynamics
 
   PUBLIC :: metadyn_forces, metadyn_integrator
   PUBLIC :: metadyn_velocities_colvar, metadyn_write_colvar
+  PUBLIC :: metadyn_initialise_plumed
 
 CONTAINS
+
+! *****************************************************************************
+!> \brief ...
+!> \param force_env ...
+!> \param simpar ...
+!> \param error ...
+! *****************************************************************************
+  SUBROUTINE metadyn_initialise_plumed(force_env, simpar, error)
+
+    TYPE(force_env_type), POINTER            :: force_env
+    TYPE(simpar_type), POINTER               :: simpar
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'metadyn_initialise_plumed', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle
+    LOGICAL                                  :: failure
+
+#if defined (__PLUMED_CP2K) || defined (__PLUMED2)
+    INTEGER                                  :: natom_plumed, nsp_plumed, i_kinds
+    INTEGER, DIMENSION(90)                   :: na_plumed
+    REAL(KIND=dp)                            :: timestep_plumed
+    REAL(KIND=dp), DIMENSION(90)             :: pma0_plumed
+    TYPE(cell_type), POINTER                 :: cell
+    TYPE(cp_subsys_type), POINTER            :: subsys
+#endif
+
+#if defined (__PLUMED2)
+    INTEGER :: plumedavailable
+#endif
+
+    CALL timeset(routineN,handle)
+    CPPrecondition(ASSOCIATED(simpar),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(force_env),cp_failure_level,routineP,error,failure)
+
+#if defined (__PLUMED_CP2K) || defined (__PLUMED2)
+    NULLIFY(cell,subsys)
+    CALL force_env_get(force_env, subsys=subsys, cell=cell, &
+                       error=error)
+
+    natom_plumed=subsys%particles%n_els
+    nsp_plumed=subsys%atomic_kinds%n_els
+    timestep_plumed=simpar%dt
+    DO i_kinds=1,nsp_plumed
+        na_plumed(i_kinds) = subsys%atomic_kinds%els(i_kinds)%natom
+        pma0_plumed(i_kinds) = subsys%atomic_kinds%els(i_kinds)%mass
+    END DO
+    CALL pbc_cp2k_plumed_getset_cell (cell, set=.TRUE.) !Store the cell pointer for later use.
+#endif
+
+#if defined (__PLUMED_CP2K)
+    !in a parallel run plumed only needs to be initialized on the master node
+    IF (force_env%para_env%ionode .EQV. .TRUE.) THEN
+        CALL INIT_METADYN(natom_plumed, nsp_plumed, na_plumed, &
+            timestep_plumed, itimes, pma0_plumed, force_env%meta_env%plumed_input_file)
+    END IF
+#endif
+
+#if defined (__PLUMED2)
+    CALL plumed_f_installed(plumedavailable)
+
+    IF(plumedavailable<=0)THEN
+        WRITE(*,*)"NO PLUMED IN YOUR LD_LIBRARY_PATH?"
+        STOP
+    ELSE
+        IF (force_env%para_env%ionode .EQV. .TRUE.) THEN
+            CALL plumed_f_gcreate()
+            CALL plumed_f_gcmd("setRealPrecision"//CHAR(0),8)
+            CALL plumed_f_gcmd("setMDEnergyUnits"//CHAR(0),kjmol) ! Hartree to kjoule/mol
+            CALL plumed_f_gcmd("setMDLengthUnits"//CHAR(0),angstrom*0.1_dp) ! Bohr to nm
+            CALL plumed_f_gcmd("setMDTimeUnits"//CHAR(0),picoseconds) !  atomic units to ps
+            CALL plumed_f_gcmd("setPlumedDat"//CHAR(0),force_env%meta_env%plumed_input_file//CHAR(0))
+            CALL plumed_f_gcmd("setLogFile"//CHAR(0),"PLUMED.OUT"//CHAR(0))
+            CALL plumed_f_gcmd("setNatoms"//CHAR(0),natom_plumed)
+            CALL plumed_f_gcmd("setMDEngine"//CHAR(0),"cp2k");
+            CALL plumed_f_gcmd("setTimestep"//CHAR(0),timestep_plumed);
+            CALL plumed_f_gcmd("init"//CHAR(0),0);
+        END IF
+    END IF
+#endif
+
+#if !defined (__PLUMED_CP2K) && !defined (__PLUMED2)
+    CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
+                   routineP,"Requested to use plumed for metadynamics, but cp2k was"//&
+                   " not compiled with plumed support."//&
+                   CPSourceFileRef,&
+                   error,failure)
+#endif
+
+    CALL timestop(handle)
+
+  END SUBROUTINE
+
 ! *****************************************************************************
 !> \brief  General driver for applying metadynamics
 !> \param force_env ...
+!> \param itimes ...
 !> \param vel ...
 !> \param rand ...
 !> \param error ...
@@ -74,8 +185,9 @@ CONTAINS
 !>      01.2009 created
 !> \author Teodoro Laino
 ! *****************************************************************************
-  SUBROUTINE metadyn_integrator(force_env, vel, rand, error)
+  SUBROUTINE metadyn_integrator(force_env, itimes, vel, rand, error)
     TYPE(force_env_type), POINTER            :: force_env
+    INTEGER, INTENT(IN)                      :: itimes
     REAL(KIND=dp), DIMENSION(:, :), &
       INTENT(INOUT), OPTIONAL                :: vel
     REAL(KIND=dp), DIMENSION(:), OPTIONAL, &
@@ -85,14 +197,28 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'metadyn_integrator', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle
+    INTEGER                                  :: handle, plumed_itimes
     LOGICAL                                  :: failure
-#ifdef __PLUMED_CP2K
+#if defined (__PLUMED_CP2K) || defined (__PLUMED2)
     INTEGER                                  :: i_part, natom_plumed
-    REAL(KIND=dp), ALLOCATABLE, &
-      DIMENSION(:, :)                        :: force_plumed, pos_plumed
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_subsys_type), POINTER            :: subsys
+#endif
+#if defined (__PLUMED_CP2K)
+    REAL(KIND=dp), ALLOCATABLE, &
+      DIMENSION(:, :)                        :: force_plumed, pos_plumed
+#endif
+#if defined (__PLUMED2)
+    TYPE(meta_env_type), POINTER             :: meta_env
+    INTEGER                                  :: i_kinds, nsp_plumed
+    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: pma0_plumed
+    REAL(KIND=dp), DIMENSION(3,3)            :: plu_vir, celltbt
+    REAL(KIND=dp)                            :: stpcfg
+    INTEGER, DIMENSION(90)                   :: na_plumed
+    REAL(KIND=dp), ALLOCATABLE, &
+      DIMENSION(:)                           :: pos_plumed_x, pos_plumed_y, pos_plumed_z
+    REAL(KIND=dp), ALLOCATABLE, &
+      DIMENSION(:)                           :: force_plumed_x, force_plumed_y, force_plumed_z
 #endif
 
     CALL timeset(routineN,handle)
@@ -101,12 +227,13 @@ CONTAINS
     ! Apply Metadynamics
     IF (ASSOCIATED(force_env%meta_env)) THEN
         IF (force_env%meta_env%use_plumed .EQV. .TRUE.) THEN
-#ifdef __PLUMED_CP2K
+            plumed_itimes = itimes
+#if defined (__PLUMED_CP2K)
             CALL force_env_get(force_env, subsys=subsys,cell=cell, error=error)
             natom_plumed=subsys%particles%n_els
             ALLOCATE (pos_plumed(1:3,natom_plumed))
             ALLOCATE (force_plumed(1:3,natom_plumed))
-            force_plumed=0
+            force_plumed(:,:)=0.0d0
 
             DO i_part=1,natom_plumed
               pos_plumed(:,i_part)=subsys%particles%els(i_part)%r(:)
@@ -116,11 +243,6 @@ CONTAINS
             !master node and then broadcast to the others.
             IF (force_env%para_env%ionode .EQV. .TRUE.) THEN
                 CALL META_FORCE_CALCULATION(pos_plumed,force_plumed,natom_plumed,cell)
-               !DO i_part=1,natom_plumed
-               !   WRITE (*,"(6F14.8)") subsys%particles%els(i_part)%f(:) , force_plumed(:,i_part)
-               !   subsys%particles%els(i_part)%f(:) = subsys%particles%els(i_part)%f(:) + force_plumed(:,i_part)
-               !END DO
-               !WRITE (*,*) " "
             END IF
             CALL mp_bcast (force_plumed,                     &
                            force_env%para_env%source,        &
@@ -132,6 +254,102 @@ CONTAINS
 
             DEALLOCATE (force_plumed, pos_plumed)
 #endif
+#if defined (__PLUMED2)
+            CALL force_env_get(force_env, meta_env=meta_env, subsys=subsys,cell=cell, error=error)
+            natom_plumed=subsys%particles%n_els
+            ALLOCATE (pos_plumed_x(natom_plumed))
+            ALLOCATE (pos_plumed_y(natom_plumed))
+            ALLOCATE (pos_plumed_z(natom_plumed))
+        
+            ALLOCATE (force_plumed_x(natom_plumed))
+            ALLOCATE (force_plumed_y(natom_plumed))
+            ALLOCATE (force_plumed_z(natom_plumed))
+
+
+            pos_plumed_x(:)=0.0d0 
+            pos_plumed_y(:)=0.0d0
+            pos_plumed_z(:)=0.0d0
+            force_plumed_x(:)=0.0d0 
+            force_plumed_y(:)=0.0d0
+            force_plumed_z(:)=0.0d0
+
+            DO i_part=1,natom_plumed
+              pos_plumed_x(i_part)=subsys%particles%els(i_part)%r(1)
+              pos_plumed_y(i_part)=subsys%particles%els(i_part)%r(2)
+              pos_plumed_z(i_part)=subsys%particles%els(i_part)%r(3)
+            END DO
+
+            nsp_plumed=subsys%atomic_kinds%n_els
+            ALLOCATE (pma0_plumed(nsp_plumed))
+            DO i_kinds=1,nsp_plumed
+                na_plumed(i_kinds) = subsys%atomic_kinds%els(i_kinds)%natom
+                pma0_plumed(i_kinds) = subsys%atomic_kinds%els(i_kinds)%mass
+            END DO
+ 
+            IF (force_env%para_env%ionode .EQV. .TRUE.) THEN
+               ! stupid cell conversion, to be fixed
+               celltbt(1,1)=cell%hmat(1,1)
+               celltbt(1,2)=cell%hmat(1,2)
+               celltbt(1,3)=cell%hmat(1,3)
+               celltbt(2,1)=cell%hmat(2,1)
+               celltbt(2,2)=cell%hmat(2,2)
+               celltbt(2,3)=cell%hmat(2,3)
+               celltbt(3,1)=cell%hmat(3,1)
+               celltbt(3,2)=cell%hmat(3,2)
+               celltbt(3,3)=cell%hmat(3,3)
+     
+               ! virial
+               plu_vir(:,:)=0.0d0
+     
+               CALL force_env_get(force_env, potential_energy=stpcfg, error=error)
+     
+               CALL plumed_f_gcmd("setStep"//CHAR(0),plumed_itimes)      
+               CALL plumed_f_gcmd("setPositionsX"//CHAR(0),pos_plumed_x(:)) ! PluMed Output !
+               CALL plumed_f_gcmd("setPositionsY"//CHAR(0),pos_plumed_y(:)) ! PluMed Output !
+               CALL plumed_f_gcmd("setPositionsZ"//CHAR(0),pos_plumed_z(:)) ! PluMed Output !
+               CALL plumed_f_gcmd("setMasses"//CHAR(0), pma0_plumed) 
+               CALL plumed_f_gcmd("setBox"//CHAR(0),celltbt)
+               CALL plumed_f_gcmd("setVirial"//CHAR(0),plu_vir)    ! PluMed Output, NOT ACTUALLY USED !
+               CALL plumed_f_gcmd("setEnergy"//CHAR(0),stpcfg) 
+               CALL plumed_f_gcmd("setForcesX"//CHAR(0),force_plumed_x(:)) ! PluMed Output !
+               CALL plumed_f_gcmd("setForcesY"//CHAR(0),force_plumed_y(:)) ! PluMed Output !
+               CALL plumed_f_gcmd("setForcesZ"//CHAR(0),force_plumed_z(:)) ! PluMed Output !
+               
+               !runnano plumed
+               CALL plumed_f_gcmd("prepareCalc"//CHAR(0),0) 
+               CALL plumed_f_gcmd("prepareDependencies"//CHAR(0),0)
+               CALL plumed_f_gcmd("shareData"//CHAR(0),0)
+               
+               CALL plumed_f_gcmd("performCalc"//CHAR(0),0)
+           
+            ENDIF
+ 
+            CALL mp_bcast (force_plumed_x,force_env%para_env%source,force_env%para_env%group)
+            CALL mp_bcast (force_plumed_y,force_env%para_env%source,force_env%para_env%group)
+            CALL mp_bcast (force_plumed_z,force_env%para_env%source,force_env%para_env%group)
+ 
+             
+            DO i_part=1,natom_plumed
+              subsys%particles%els(i_part)%f(1) = subsys%particles%els(i_part)%f(1) + force_plumed_x(i_part)
+              subsys%particles%els(i_part)%f(2) = subsys%particles%els(i_part)%f(2) + force_plumed_y(i_part)
+              subsys%particles%els(i_part)%f(3) = subsys%particles%els(i_part)%f(3) + force_plumed_z(i_part)
+           END DO
+ 
+           DEALLOCATE (pos_plumed_x, pos_plumed_y, pos_plumed_z)
+           DEALLOCATE (force_plumed_x, force_plumed_y, force_plumed_z, pma0_plumed)
+
+           ! Constraints ONLY of Fixed Atom type
+           CALL fix_atom_control(force_env, error=error)
+#endif
+
+#if !defined (__PLUMED_CP2K) && !defined (__PLUMED2)
+                CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
+                   routineP,"Requested to use plumed for metadynamics, but cp2k was"//&
+                   " not compiled with plumed support."//&
+                   CPSourceFileRef,&
+                   error,failure)
+#endif
+
 
         ELSE
             IF(force_env%meta_env%langevin) THEN

@@ -20,15 +20,16 @@ MODULE cp_dbcsr_interface
        accdrv_do_inhomogenous, accdrv_min_flop_process, accdrv_min_flop_sort, &
        accdrv_posterior_buffers, accdrv_posterior_streams, &
        accdrv_priority_buffers, accdrv_priority_streams, add_work_coordinate, &
-       array_data, array_hold, array_i1d_obj, array_new, array_nullify, &
-       array_release, array_size, convert_csr_to_dbcsr, convert_dbcsr_to_csr, &
+       array_data, convert_csr_to_dbcsr, convert_dbcsr_to_csr, &
        convert_offsets_to_sizes, convert_sizes_to_offsets, &
-       cp_dbcsr_iterator=>dbcsr_iterator, create_bl_distribution, &
-       create_col_vec_from_matrix, create_replicated_col_vec_from_matrix, &
+       cp_dbcsr_iterator=>dbcsr_iterator, &
+       cp_distribution_get_num_images=>dbcsr_distribution_get_num_images_1d, &
+       create_bl_distribution, create_col_vec_from_matrix, &
+       create_replicated_col_vec_from_matrix, &
        create_replicated_row_vec_from_matrix, create_row_vec_from_matrix, &
        csr_create_from_dbcsr, csr_create_new, csr_create_template, &
-       csr_dbcsr_blkrow_dist, csr_destroy, csr_eqrow_ceil_dist, &
-       csr_eqrow_floor_dist, csr_type, dbcsr_add, dbcsr_add_on_diag, &
+       csr_dbcsr_blkrow_dist, csr_destroy, csr_eqrow_floor_dist, &
+       csr_print_sparsity, csr_type, dbcsr_add, dbcsr_add_on_diag, &
        dbcsr_arnoldi_data, dbcsr_arnoldi_ev, dbcsr_binary_read, &
        dbcsr_binary_write, dbcsr_checksum, dbcsr_clear_mempools, &
        dbcsr_complete_redistribute, dbcsr_copy, dbcsr_copy_into_existing, &
@@ -47,14 +48,15 @@ MODULE cp_dbcsr_interface
        dbcsr_finalize, dbcsr_finalize_lib, dbcsr_frobenius_norm, &
        dbcsr_func_artanh, dbcsr_func_dtanh, dbcsr_func_inverse, &
        dbcsr_func_tanh, dbcsr_function_of_elements, dbcsr_gershgorin_norm, &
-       dbcsr_get_block_diag, dbcsr_get_block_p, dbcsr_get_conf_combtypes, &
-       dbcsr_get_conf_comm_thread_load, dbcsr_get_conf_max_ele_block, &
-       dbcsr_get_conf_max_elements_images, dbcsr_get_conf_mm_driver, &
+       dbcsr_get_block_diag, dbcsr_get_block_p, &
+       dbcsr_get_conf_avg_elements_images, dbcsr_get_conf_comm_thread_load, &
+       dbcsr_get_conf_max_ele_block, dbcsr_get_conf_mm_driver, &
        dbcsr_get_conf_mm_stacksize, dbcsr_get_conf_mpi_mem, &
        dbcsr_get_conf_nstacks, dbcsr_get_conf_subcomm, &
-       dbcsr_get_conf_use_comm_thread, dbcsr_get_data_p, dbcsr_get_data_size, &
-       dbcsr_get_data_type, dbcsr_get_diag, dbcsr_get_info, &
-       dbcsr_get_matrix_type, dbcsr_get_num_blocks, dbcsr_get_occupation, &
+       dbcsr_get_conf_use_comm_thread, dbcsr_get_conf_use_mpi_rma, &
+       dbcsr_get_data_p, dbcsr_get_data_size, dbcsr_get_data_type, &
+       dbcsr_get_diag, dbcsr_get_info, dbcsr_get_matrix_type, &
+       dbcsr_get_num_blocks, dbcsr_get_occupation, &
        dbcsr_get_stored_coordinates, dbcsr_hadamard_product, &
        dbcsr_has_symmetry, dbcsr_init, dbcsr_init_lib, dbcsr_init_random, &
        dbcsr_iterator, dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, &
@@ -67,30 +69,30 @@ MODULE cp_dbcsr_interface
        dbcsr_no_transpose, dbcsr_norm, dbcsr_norm_column, &
        dbcsr_norm_frobenius, dbcsr_norm_maxabsnorm, dbcsr_obj, &
        dbcsr_obj_type_p, dbcsr_print, dbcsr_print_block_sum, dbcsr_put_block, &
-       dbcsr_release, dbcsr_repl_full, dbcsr_replicate, dbcsr_replicate_all, &
+       dbcsr_release, dbcsr_replicate, dbcsr_replicate_all, &
        dbcsr_reserve_all_blocks, dbcsr_reserve_block2d, dbcsr_reserve_blocks, &
        dbcsr_reserve_diag_blocks, dbcsr_run_tests, dbcsr_scalar, &
        dbcsr_scalar_fill_all, dbcsr_scalar_get_type, dbcsr_scalar_get_value, &
        dbcsr_scalar_set_type, dbcsr_scalar_type, dbcsr_scalar_zero, &
        dbcsr_scale, dbcsr_scale_by_vector, dbcsr_set, &
-       dbcsr_set_conf_combtypes, dbcsr_set_conf_comm_thread_load, &
+       dbcsr_set_conf_avg_elements_images, dbcsr_set_conf_comm_thread_load, &
        dbcsr_set_conf_external_timing, dbcsr_set_conf_max_ele_block, &
-       dbcsr_set_conf_max_elements_images, dbcsr_set_conf_mm_driver, &
-       dbcsr_set_conf_mm_stacksize, dbcsr_set_conf_mpi_mem, &
+       dbcsr_set_conf_mm_driver, dbcsr_set_conf_mm_stacksize, &
        dbcsr_set_conf_nstacks, dbcsr_set_conf_subcomm, &
-       dbcsr_set_conf_use_comm_thread, dbcsr_set_diag, dbcsr_setname, &
-       dbcsr_sum_replicated, dbcsr_test_arnoldi, dbcsr_test_binary_io, &
-       dbcsr_test_mm, dbcsr_trace, dbcsr_triu, dbcsr_type_antisymmetric, &
-       dbcsr_type_complex_4, dbcsr_type_complex_8, &
-       dbcsr_type_complex_default, dbcsr_type_no_symmetry, dbcsr_type_real_4, &
-       dbcsr_type_real_8, dbcsr_type_real_default, dbcsr_type_symmetric, &
-       dbcsr_valid_index, dbcsr_verify_matrix, dbcsr_wm_use_mutable, &
-       dbcsr_work_create, dbcsr_work_type, deallocate_arnoldi_data, &
-       get_selected_ritz_val, get_selected_ritz_vector, has_acc, has_mpi, &
-       heap_fill, heap_get_first, heap_new, heap_release, heap_reset_first, &
-       heap_t, mm_driver_acc, mm_driver_blas, mm_driver_matmul, &
-       mm_driver_smm, mm_name_acc, mm_name_blas, mm_name_matmul, mm_name_smm, &
-       multrec_limit, set_arnoldi_initial_vector, setup_arnoldi_data, swap
+       dbcsr_set_conf_use_comm_thread, dbcsr_set_conf_use_mpi_rma, &
+       dbcsr_set_diag, dbcsr_setname, dbcsr_sum_replicated, &
+       dbcsr_test_arnoldi, dbcsr_test_binary_io, dbcsr_test_mm, dbcsr_trace, &
+       dbcsr_triu, dbcsr_type_antisymmetric, dbcsr_type_complex_4, &
+       dbcsr_type_complex_8, dbcsr_type_complex_default, &
+       dbcsr_type_no_symmetry, dbcsr_type_real_4, dbcsr_type_real_8, &
+       dbcsr_type_real_default, dbcsr_type_symmetric, dbcsr_valid_index, &
+       dbcsr_verify_matrix, dbcsr_wm_use_mutable, dbcsr_work_create, &
+       deallocate_arnoldi_data, get_selected_ritz_val, &
+       get_selected_ritz_vector, has_acc, has_mpi, heap_fill, heap_get_first, &
+       heap_new, heap_release, heap_reset_first, heap_t, mm_driver_acc, &
+       mm_driver_blas, mm_driver_matmul, mm_driver_smm, mm_name_acc, &
+       mm_name_blas, mm_name_matmul, mm_name_smm, multrec_limit, &
+       set_arnoldi_initial_vector, setup_arnoldi_data, swap
   USE kinds,                           ONLY: default_string_length,&
                                              dp,&
                                              int_8,&
@@ -108,29 +110,29 @@ MODULE cp_dbcsr_interface
   !
   ! Interface to libdbcsr (contains cp2k timing and error) 
   PUBLIC :: dbcsr_error_set, dbcsr_error_stop, dbcsr_get_conf_comm_thread_load,&
-            dbcsr_get_conf_max_elements_images, &
+            dbcsr_get_conf_avg_elements_images,&
             dbcsr_get_conf_mm_stacksize, dbcsr_get_conf_nstacks,&
-            dbcsr_set_conf_combtypes, dbcsr_set_conf_external_timing, dbcsr_set_conf_mm_stacksize, dbcsr_set_conf_mpi_mem
+            dbcsr_set_conf_external_timing, dbcsr_set_conf_mm_stacksize,&
+            dbcsr_get_conf_use_mpi_rma
   PUBLIC :: dbcsr_set_conf_comm_thread_load, dbcsr_set_conf_max_ele_block, dbcsr_set_conf_mm_driver,&
-            dbcsr_set_conf_max_elements_images, dbcsr_set_conf_nstacks, dbcsr_set_conf_subcomm, dbcsr_set_conf_use_comm_thread,&
-            has_mpi, add_work_coordinate, create_bl_distribution
+            dbcsr_set_conf_avg_elements_images, dbcsr_set_conf_nstacks, dbcsr_set_conf_subcomm, dbcsr_set_conf_use_comm_thread,&
+            has_mpi, dbcsr_set_conf_use_mpi_rma
   PUBLIC :: has_acc, dbcsr_create_dist_block_cyclic, dbcsr_create_dist_r_unrot, dbcsr_distribution_local_cols,&
             dbcsr_distribution_nlocal_rows, dbcsr_distribution_nrows, dbcsr_distribution_local_rows,&
-            dbcsr_distribution_ncols, dbcsr_distribution_nlocal_cols, dbcsr_get_data_p,&
-            dbcsr_mp_hold
+            dbcsr_distribution_ncols, dbcsr_distribution_nlocal_cols,&
+            dbcsr_mp_hold, cp_distribution_get_num_images
   PUBLIC :: dbcsr_type_no_symmetry, dbcsr_type_symmetric, dbcsr_type_antisymmetric
-  PUBLIC :: array_i1d_obj, array_new, array_nullify, array_release, array_data
   PUBLIC :: dbcsr_type_complex_8, dbcsr_type_real_4, dbcsr_type_real_8, dbcsr_type_complex_4
-  PUBLIC :: dbcsr_type_complex_default, dbcsr_type_real_default, dbcsr_distribution_new
+  PUBLIC :: dbcsr_type_complex_default, dbcsr_type_real_default
   PUBLIC :: convert_offsets_to_sizes, dbcsr_distribution_obj, dbcsr_distribution_row_dist
   PUBLIC :: dbcsr_get_conf_use_comm_thread, dbcsr_data_clear_pointer, dbcsr_data_new, dbcsr_data_init
   PUBLIC :: dbcsr_mp_group, dbcsr_mp_mynode, dbcsr_mp_numnodes, dbcsr_mp_nprows, dbcsr_mp_npcols
-  PUBLIC :: dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_data_obj, dbcsr_iterator, dbcsr_data_release
-  PUBLIC :: dbcsr_get_data_type, dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, dbcsr_put_block
-  PUBLIC :: dbcsr_error_type, dbcsr_mp_obj, dbcsr_norm_frobenius, dbcsr_repl_full
+  PUBLIC :: dbcsr_iterator_stop, dbcsr_data_obj, dbcsr_iterator, dbcsr_data_release
+  PUBLIC :: dbcsr_iterator_blocks_left, dbcsr_iterator_next_block
+  PUBLIC :: dbcsr_error_type, dbcsr_mp_obj, dbcsr_norm_frobenius
   PUBLIC :: dbcsr_run_tests, dbcsr_test_mm, dbcsr_test_arnoldi, dbcsr_norm_maxabsnorm,&
-            dbcsr_norm_column, dbcsr_init_random, dbcsr_distribution_has_threads, dbcsr_test_binary_io
-  PUBLIC :: dbcsr_distribution_col_dist, dbcsr_distribution_init, dbcsr_distribution_release, dbcsr_name
+            dbcsr_norm_column, dbcsr_distribution_has_threads, dbcsr_test_binary_io
+  PUBLIC :: dbcsr_distribution_col_dist, dbcsr_distribution_init, dbcsr_distribution_release
   PUBLIC :: dbcsr_func_artanh, dbcsr_func_dtanh, dbcsr_func_inverse, dbcsr_func_tanh
   PUBLIC :: dbcsr_distribution_mp
   PUBLIC :: convert_sizes_to_offsets
@@ -154,6 +156,7 @@ MODULE cp_dbcsr_interface
   PUBLIC :: cp_dbcsr_get_diag
   PUBLIC :: cp_dbcsr_filter
   PUBLIC :: cp_dbcsr_finalize
+  PUBLIC :: cp_dbcsr_distribution_new
   PUBLIC :: cp_dbcsr_create
   PUBLIC :: cp_dbcsr_work_create
   PUBLIC :: cp_dbcsr_verify_matrix
@@ -168,7 +171,6 @@ MODULE cp_dbcsr_interface
   PUBLIC :: cp_dbcsr_release_p
   PUBLIC :: cp_dbcsr_distribute
   PUBLIC :: cp_dbcsr_replicate_all
-  PUBLIC :: cp_dbcsr_replicate
   PUBLIC :: cp_dbcsr_norm
   PUBLIC :: cp_dbcsr_get_info
   PUBLIC :: cp_dbcsr_get_block_p
@@ -213,7 +215,7 @@ MODULE cp_dbcsr_interface
             accdrv_do_inhomogenous, accdrv_min_flop_process, accdrv_min_flop_sort,&
             accdrv_posterior_buffers, accdrv_posterior_streams,&
             accdrv_priority_buffers, accdrv_priority_streams,&
-            dbcsr_get_conf_combtypes, dbcsr_get_conf_max_ele_block,&
+            dbcsr_get_conf_max_ele_block,&
             dbcsr_get_conf_mm_driver, dbcsr_get_conf_mpi_mem,&
             dbcsr_get_conf_subcomm, mm_driver_acc,&
             mm_driver_blas, mm_driver_matmul, mm_driver_smm,&
@@ -232,12 +234,10 @@ MODULE cp_dbcsr_interface
             get_selected_ritz_val, get_selected_ritz_vec, cp_set_arnoldi_initial_vector
   PUBLIC :: csr_type, cp_convert_csr_to_dbcsr, cp_convert_dbcsr_to_csr,&
             cp_csr_create_from_dbcsr, cp_csr_destroy, cp_csr_create,&
-            csr_dbcsr_blkrow_dist, csr_eqrow_ceil_dist, csr_eqrow_floor_dist
-  PUBLIC :: dbcsr_work_type
-  PUBLIC :: cp_add_work_coordinate, cp_dbcsr_get_data_p, & 
-            cp_dbcsr_row_block_sizes_data, cp_dbcsr_col_block_sizes_data, &
+            csr_dbcsr_blkrow_dist, csr_eqrow_floor_dist,&
+            cp_csr_print_sparsity
+  PUBLIC :: cp_add_work_coordinate, cp_dbcsr_get_data_p,&
             cp_dbcsr_init_random, cp_dbcsr_setname, cp_set_work_size
-
   TYPE cp_dbcsr_p_type
      TYPE(cp_dbcsr_type), POINTER :: matrix
   END TYPE cp_dbcsr_p_type
@@ -248,6 +248,11 @@ MODULE cp_dbcsr_interface
      INTEGER, PRIVATE                     :: ref_count
      TYPE(dbcsr_obj), PRIVATE             :: matrix
   END TYPE cp_dbcsr_type
+
+  INTERFACE cp_dbcsr_distribution_new
+     MODULE PROCEDURE cp_dbcsr_distribution_new_blocks
+     MODULE PROCEDURE cp_dbcsr_distribution_new_clusters1
+  END INTERFACE
 
   INTERFACE cp_dbcsr_create
      MODULE PROCEDURE cp_dbcsr_create_new
@@ -512,8 +517,6 @@ CONTAINS
 
   END FUNCTION cp_dbcsr_maxabs
 
-
-
 ! *****************************************************************************
 !> \brief ...
 !> \param matrix ...
@@ -536,7 +539,6 @@ CONTAINS
     CALL dbcsr_complete_redistribute(matrix%matrix, redist%matrix, keep_sparsity, dbcsr_error)
 
   END SUBROUTINE cp_dbcsr_complete_redistribute
-
 
 ! *****************************************************************************
 !> \brief ...
@@ -887,7 +889,8 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE cp_create_bl_distribution (block_distribution,&
        block_size, nelements, nbins)
-    TYPE(array_i1d_obj), INTENT(OUT)         :: block_distribution, block_size
+    INTEGER, DIMENSION(:), INTENT(OUT), &
+      POINTER                                :: block_distribution, block_size
     INTEGER, INTENT(IN)                      :: nelements, nbins
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_create_bl_distribution', &
@@ -1055,8 +1058,8 @@ CONTAINS
       nfullrows_local, nfullcols_local, my_prow, my_pcol
     INTEGER, DIMENSION(:), OPTIONAL, POINTER :: local_rows, local_cols, &
                                                 proc_row_dist, proc_col_dist
-    TYPE(array_i1d_obj), INTENT(OUT), &
-      OPTIONAL                               :: row_blk_size, col_blk_size, &
+    INTEGER, DIMENSION(:), INTENT(OUT), &
+      OPTIONAL, POINTER                      :: row_blk_size, col_blk_size, &
                                                 row_blk_offset, col_blk_offset
     TYPE(dbcsr_distribution_obj), &
       INTENT(OUT), OPTIONAL                  :: distribution
@@ -1382,6 +1385,68 @@ CONTAINS
   END SUBROUTINE cp_dbcsr_verify_matrix
 
 ! *****************************************************************************
+!> \brief Creates new distribution from only block distributions
+!> \param[out] dist           distribution
+!> \param[in] mp_env          multiprocessing environment
+!> \param row_dist row distribution
+!> \param col_dist column distribution
+!> \param reuse_arrays ...
+! *****************************************************************************
+  SUBROUTINE cp_dbcsr_distribution_new_blocks(dist, mp_env, row_dist, col_dist, reuse_arrays)
+    TYPE(dbcsr_distribution_obj), &
+      INTENT(OUT)                            :: dist
+    TYPE(dbcsr_mp_obj), INTENT(IN)           :: mp_env
+    INTEGER, DIMENSION(:), INTENT(IN), &
+      POINTER                                :: row_dist, col_dist
+    LOGICAL, INTENT(IN), OPTIONAL            :: reuse_arrays
+
+    CHARACTER(len=*), PARAMETER :: &
+      routineN = 'cp_dbcsr_distribution_new_blocks', &
+      routineP = moduleN//':'//routineN
+
+    CALL dbcsr_distribution_new(dist, mp_env, row_dist, col_dist, reuse_arrays=reuse_arrays)
+
+  END SUBROUTINE cp_dbcsr_distribution_new_blocks
+
+! *****************************************************************************
+!> \brief Creates new distribution from block and cluster distributions
+!> \param[out] dist           distribution
+!> \param[in] mp_env          multiprocessing environment
+!> \param row_dist row distribution
+!> \param col_dist column distribution
+!> \param reuse_arrays ...
+! *****************************************************************************
+  SUBROUTINE cp_dbcsr_distribution_new_clusters1(dist, mp_env, row_dist, col_dist, reuse_arrays)
+    TYPE(dbcsr_distribution_obj), &
+      INTENT(OUT)                            :: dist
+    TYPE(dbcsr_mp_obj), INTENT(IN)           :: mp_env
+    INTEGER, DIMENSION(:, :), INTENT(IN), &
+      POINTER                                :: row_dist, col_dist
+    LOGICAL, INTENT(IN), OPTIONAL            :: reuse_arrays
+
+    CHARACTER(len=*), PARAMETER :: &
+      routineN = 'cp_dbcsr_distribution_new_clusters1', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER, DIMENSION(:), POINTER           :: col_dist_block, &
+                                                col_dist_cluster, &
+                                                row_dist_block, &
+                                                row_dist_cluster
+
+    row_dist_block => row_dist(:,1)
+    col_dist_block => col_dist(:,1)
+    row_dist_cluster => row_dist(:,2)
+    col_dist_cluster => col_dist(:,2)
+    IF (ANY(row_dist_cluster.eq.-1)) NULLIFY(row_dist_cluster)
+    IF (ANY(col_dist_cluster.eq.-1)) NULLIFY(col_dist_cluster)
+    CALL dbcsr_distribution_new(dist, mp_env, row_dist_block, col_dist_block, &
+                                row_dist_cluster=row_dist_cluster, &
+                                col_dist_cluster=col_dist_cluster, &
+                                reuse_arrays=reuse_arrays)
+
+  END SUBROUTINE cp_dbcsr_distribution_new_clusters1
+
+! *****************************************************************************
 !> \brief ...
 !> \param matrix ...
 !> \param reshuffle ...
@@ -1437,20 +1502,23 @@ CONTAINS
 !> \param nze ...
 !> \param data_type ...
 !> \param reuse ...
+!> \param reuse_arrays ...
 !> \param mutable_work ...
 !> \param replication_type ...
 !> \param error ...
 ! *****************************************************************************
   SUBROUTINE cp_dbcsr_create_new(matrix, name, dist, matrix_type,&
        row_blk_size, col_blk_size, nblks, nze, data_type, reuse,&
-       mutable_work, replication_type, error)
+       reuse_arrays, mutable_work, replication_type, error)
     TYPE(cp_dbcsr_type), INTENT(INOUT)       :: matrix
     CHARACTER(len=*), INTENT(IN)             :: name
     TYPE(dbcsr_distribution_obj), INTENT(IN) :: dist
     CHARACTER, INTENT(IN)                    :: matrix_type
-    TYPE(array_i1d_obj), INTENT(IN)          :: row_blk_size, col_blk_size
+    INTEGER, DIMENSION(:), INTENT(IN), &
+      POINTER                                :: row_blk_size, col_blk_size
     INTEGER, INTENT(IN), OPTIONAL            :: nblks, nze, data_type
-    LOGICAL, INTENT(IN), OPTIONAL            :: reuse, mutable_work
+    LOGICAL, INTENT(IN), OPTIONAL            :: reuse, reuse_arrays, &
+                                                mutable_work
     CHARACTER, INTENT(IN), OPTIONAL          :: replication_type
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
@@ -1462,6 +1530,7 @@ CONTAINS
     CALL dbcsr_create(matrix%matrix, name, dist,&
          matrix_type,&
          row_blk_size, col_blk_size, nblks, nze, data_type, reuse=reuse,&
+         reuse_arrays=reuse_arrays,&
          mutable_work=mutable_work, replication_type=replication_type,&
          error=dbcsr_error)
 
@@ -1482,6 +1551,7 @@ CONTAINS
 !> \param nze ...
 !> \param data_type ...
 !> \param reuse ...
+!> \param reuse_arrays ...
 !> \param mutable_work ...
 !> \param replication_type ...
 !> \param error ...
@@ -1489,17 +1559,18 @@ CONTAINS
   SUBROUTINE cp_dbcsr_create_template(matrix, name, template,&
        dist, matrix_type,&
        row_blk_size, col_blk_size, nblks, nze, data_type, reuse,&
-       mutable_work, replication_type, error)
+       reuse_arrays, mutable_work, replication_type, error)
     TYPE(cp_dbcsr_type), INTENT(INOUT)       :: matrix
     CHARACTER(len=*), INTENT(IN), OPTIONAL   :: name
     TYPE(cp_dbcsr_type), INTENT(IN)          :: template
     TYPE(dbcsr_distribution_obj), &
       INTENT(IN), OPTIONAL                   :: dist
     CHARACTER, INTENT(IN), OPTIONAL          :: matrix_type
-    TYPE(array_i1d_obj), INTENT(IN), &
-      OPTIONAL                               :: row_blk_size, col_blk_size
+    INTEGER, DIMENSION(:), INTENT(IN), &
+      OPTIONAL, POINTER                      :: row_blk_size, col_blk_size
     INTEGER, INTENT(IN), OPTIONAL            :: nblks, nze, data_type
-    LOGICAL, INTENT(IN), OPTIONAL            :: reuse, mutable_work
+    LOGICAL, INTENT(IN), OPTIONAL            :: reuse, reuse_arrays, &
+                                                mutable_work
     CHARACTER, INTENT(IN), OPTIONAL          :: replication_type
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
@@ -1512,13 +1583,12 @@ CONTAINS
          name=name, dist=dist, matrix_type=matrix_type,&
          row_blk_size=row_blk_size, col_blk_size=col_blk_size,&
          nblks=nblks, nze=nze, data_type=data_type,&
-         reuse=reuse, mutable_work=mutable_work,&
+         reuse=reuse, reuse_arrays=reuse_arrays, mutable_work=mutable_work,&
          replication_type=replication_type,&
          error=dbcsr_error)
     !
     matrix%ref_count = 1
   END SUBROUTINE cp_dbcsr_create_template
-
 
 ! *****************************************************************************
 !> \brief ...
@@ -2101,6 +2171,8 @@ CONTAINS
 !> <li> The rows of matrix_a are adjusted to fit the rows of matrix_c.
 !> </ul>
 !> Transformations are skipped if the sizes are already compatible.
+!> However, in any case a copy of matrix_a and matrix_b is made.
+!> It is the responsibility of the caller to release these new matrices.
 !>
 !> Some copies could be avoided with more code.
 !> \param matrix_c ...
@@ -2110,19 +2182,15 @@ CONTAINS
 !> \param tr_b ...
 !> \param new_a ...
 !> \param new_b ...
-!> \param new_a_is_new ...
-!> \param new_b_is_new ...
 !> \param error ...
 ! *****************************************************************************
   SUBROUTINE matrix_match_sizes (matrix_c, matrix_a, tr_a, matrix_b, tr_b,&
-       new_a, new_b, new_a_is_new, new_b_is_new,&
-       error)
+       new_a, new_b, error)
     TYPE(cp_dbcsr_type), INTENT(IN)          :: matrix_c, matrix_a
     CHARACTER, INTENT(IN)                    :: tr_a
     TYPE(cp_dbcsr_type), INTENT(IN)          :: matrix_b
     CHARACTER, INTENT(IN)                    :: tr_b
     TYPE(cp_dbcsr_type), INTENT(OUT)         :: new_a, new_b
-    LOGICAL, INTENT(OUT)                     :: new_a_is_new, new_b_is_new
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'matrix_match_sizes', &
@@ -2132,20 +2200,23 @@ CONTAINS
     INTEGER                                  :: a_cols_total, a_rows_total, &
                                                 b_cols_total, b_rows_total, &
                                                 c_cols_total, c_rows_total
-    LOGICAL                                  :: atr, btr, new_a_rows, &
-                                                new_b_cols, new_b_rows
-    TYPE(array_i1d_obj)                      :: new_col_dist, new_col_size, &
+    INTEGER, DIMENSION(:), POINTER           :: new_col_dist, new_col_size, &
                                                 new_row_dist, new_row_size
+    LOGICAL                                  :: atr, btr, create_col_dist, &
+                                                create_row_dist, new_a_rows, &
+                                                new_b_cols, new_b_rows
     TYPE(dbcsr_distribution_obj)             :: a_dist, b_dist, c_dist, &
                                                 new_dist
 
-!type(dbcsr_imagedistribution_obj) :: b_imgdist
 !   ---------------------------------------------------------------------------
 
     tr_a_l = tr_a
     CALL uppercase (tr_a_l)
     tr_b_l = tr_b
     CALL uppercase (tr_b_l)
+
+    create_col_dist = .FALSE.
+    create_row_dist = .FALSE.
 
     btr = tr_b_l .NE. dbcsr_no_transpose
     atr = tr_a_l .NE. dbcsr_no_transpose
@@ -2169,68 +2240,68 @@ CONTAINS
     b_dist = cp_dbcsr_distribution (matrix_b)
     c_dist = cp_dbcsr_distribution (matrix_c)
     IF (new_b_rows .OR. new_b_cols) THEN
-       new_b_is_new = .TRUE.
        CALL cp_dbcsr_init (new_b, error=error)
        IF (.NOT. btr) THEN
           IF (new_b_cols) THEN
              CALL match_1_dist (new_col_dist,&
                   dbcsr_distribution_col_dist (b_dist),&
                   dbcsr_distribution_col_dist (c_dist))
+             create_col_dist = .TRUE.
           ELSE
-             new_col_dist = dbcsr_distribution_col_dist (b_dist)
-             CALL array_hold (new_col_dist)
+             new_col_dist => dbcsr_distribution_col_dist (b_dist)
           ENDIF
-          new_col_size = cp_dbcsr_col_block_sizes (matrix_c)
+          new_col_size => cp_dbcsr_col_block_sizes (matrix_c)
           IF (new_b_rows) THEN
              IF (.NOT. atr) THEN
                 CALL match_1_dist (new_row_dist,&
                      dbcsr_distribution_row_dist(b_dist),&
                      dbcsr_distribution_col_dist(a_dist))
-                new_row_size = cp_dbcsr_col_block_sizes(matrix_a)
+                create_row_dist = .TRUE.
+                new_row_size => cp_dbcsr_col_block_sizes(matrix_a)
              ELSE
                 CALL match_1_dist (new_row_dist,&
                      dbcsr_distribution_row_dist(b_dist),&
                      dbcsr_distribution_row_dist(a_dist))
-                new_row_size = cp_dbcsr_row_block_sizes(matrix_a)
+                create_row_dist = .TRUE.
+                new_row_size => cp_dbcsr_row_block_sizes(matrix_a)
              ENDIF
           ELSE
-             new_row_dist = dbcsr_distribution_row_dist(b_dist)
-             CALL array_hold (new_row_dist)
-             new_row_size = cp_dbcsr_row_block_sizes (matrix_b)
+             new_row_dist => dbcsr_distribution_row_dist(b_dist)
+             new_row_size => cp_dbcsr_row_block_sizes(matrix_b)
           ENDIF
        ELSE
           IF (new_b_cols) THEN
              CALL match_1_dist (new_row_dist,&
                   dbcsr_distribution_row_dist (b_dist),&
                   dbcsr_distribution_col_dist (c_dist))
+             create_row_dist = .TRUE.
           ELSE
-             new_row_dist = dbcsr_distribution_row_dist (b_dist)
-             CALL array_hold (new_row_dist)
+             new_row_dist => dbcsr_distribution_row_dist (b_dist)
           ENDIF
-          new_row_size = cp_dbcsr_col_block_sizes (matrix_c)
+          new_row_size => cp_dbcsr_col_block_sizes(matrix_c)
           IF (new_b_rows) THEN
              IF (.not.atr) THEN
                 CALL match_1_dist (new_col_dist,&
                      dbcsr_distribution_col_dist (b_dist),&
                      dbcsr_distribution_col_dist (a_dist))
-                new_col_size = cp_dbcsr_col_block_sizes (matrix_a)
+                create_col_dist = .TRUE.
+                new_col_size => cp_dbcsr_col_block_sizes(matrix_a)
              ELSE
                 CALL match_1_dist (new_col_dist,&
                      dbcsr_distribution_col_dist (b_dist),&
                      dbcsr_distribution_row_dist (a_dist))
-                new_col_size = cp_dbcsr_row_block_sizes (matrix_a)
+                create_col_dist = .TRUE.
+                new_col_size => cp_dbcsr_row_block_sizes(matrix_a)
              ENDIF
           ELSE
-             new_col_dist = dbcsr_distribution_col_dist(b_dist)
-             CALL array_hold (new_col_dist)
-             new_col_size = cp_dbcsr_col_block_sizes (matrix_b)
+             new_col_dist => dbcsr_distribution_col_dist(b_dist)
+             new_col_size => cp_dbcsr_col_block_sizes(matrix_b)
           ENDIF
        ENDIF
        CALL dbcsr_distribution_new (new_dist, dbcsr_distribution_mp (c_dist),&
-            row_dist=new_row_dist,&
-            col_dist=new_col_dist)
-       CALL array_release (new_row_dist)
-       CALL array_release (new_col_dist)
+                                    new_row_dist, new_col_dist)
+       IF (create_col_dist) DEALLOCATE(new_col_dist)
+       IF (create_row_dist) DEALLOCATE(new_row_dist)
        CALL cp_dbcsr_create (new_b, template=matrix_b,&
             dist = new_dist,&
             row_blk_size = new_row_size,&
@@ -2239,39 +2310,38 @@ CONTAINS
        CALL dbcsr_distribution_release (new_dist)
        CALL cp_dbcsr_complete_redistribute (matrix_b, new_b, error=error)
     ELSE
-       !new_b_is_new = .FALSE.
-       !new_b = matrix_b
-       new_b_is_new = .TRUE.
        CALL cp_dbcsr_init (new_b, error=error)
        CALL cp_dbcsr_copy (new_b, matrix_b, shallow_data=.TRUE., error=error)
     ENDIF
+
+    create_col_dist = .FALSE.
+    create_row_dist = .FALSE.
     !
     ! Process matrix A
     new_a_rows = a_rows_total .NE. c_rows_total
     IF (new_a_rows) THEN
        CALL cp_dbcsr_init (new_a, error=error)
        IF (atr) THEN
-          new_row_dist = dbcsr_distribution_row_dist (a_dist)
-          CALL array_hold (new_row_dist)
-          new_row_size = cp_dbcsr_row_block_sizes (matrix_a)
+          new_row_dist => dbcsr_distribution_row_dist (a_dist)
+          new_row_size => cp_dbcsr_row_block_sizes(matrix_a)
           CALL match_1_dist (new_col_dist,&
                dbcsr_distribution_col_dist (a_dist),&
                dbcsr_distribution_row_dist (c_dist))
-          new_col_size = cp_dbcsr_row_block_sizes (matrix_c)
+          create_col_dist = .TRUE.
+          new_col_size => cp_dbcsr_row_block_sizes(matrix_c)
        ELSE
           CALL match_1_dist (new_row_dist,&
                dbcsr_distribution_row_dist (a_dist),&
                dbcsr_distribution_row_dist (c_dist))
-          new_row_size = cp_dbcsr_row_block_sizes (matrix_c)
-          new_col_dist = dbcsr_distribution_col_dist (a_dist)
-          CALL array_hold (new_col_dist)
-          new_col_size = cp_dbcsr_col_block_sizes (matrix_a)
+          create_row_dist = .TRUE.
+          new_row_size => cp_dbcsr_row_block_sizes(matrix_c)
+          new_col_dist => dbcsr_distribution_col_dist (a_dist)
+          new_col_size => cp_dbcsr_col_block_sizes(matrix_a)
        ENDIF
        CALL dbcsr_distribution_new (new_dist, dbcsr_distribution_mp (a_dist),&
-            row_dist = new_row_dist,&
-            col_dist = new_col_dist)
-       CALL array_release (new_row_dist)
-       CALL array_release (new_col_dist)
+                                    new_row_dist, new_col_dist)
+       IF (create_col_dist) DEALLOCATE(new_col_dist)
+       IF (create_row_dist) DEALLOCATE(new_row_dist)       
        CALL cp_dbcsr_create (new_a, template=matrix_a,&
             dist=new_dist,&
             row_blk_size = new_row_size,&
@@ -2280,9 +2350,6 @@ CONTAINS
        CALL dbcsr_distribution_release (new_dist)
        CALL cp_dbcsr_complete_redistribute (matrix_a, new_a, error=error)
     ELSE
-       !new_a_is_new = .FALSE.
-       !new_a = matrix_a
-       new_a_is_new = .TRUE.
        CALL cp_dbcsr_init (new_a, error=error)
        CALL cp_dbcsr_copy (new_a, matrix_a, shallow_data=.TRUE., error=error)
     ENDIF
@@ -2298,27 +2365,27 @@ CONTAINS
 !> \param template_dist ...
 ! *****************************************************************************
   SUBROUTINE match_1_dist (new_dist, old_dist, template_dist)
-    TYPE(array_i1d_obj), INTENT(out)         :: new_dist
-    TYPE(array_i1d_obj), INTENT(in)          :: old_dist, template_dist
+    INTEGER, DIMENSION(:), INTENT(out), &
+      POINTER                                :: new_dist
+    INTEGER, DIMENSION(:), INTENT(in), &
+      POINTER                                :: old_dist, template_dist
 
     INTEGER                                  :: i, max_bin, new_size, &
                                                 old_size, sz
-    INTEGER, DIMENSION(:), POINTER           :: new_data, old_data
 
-    old_size = array_size (old_dist)
-    new_size = array_size (template_dist)
+    old_size = SIZE(old_dist)
+    new_size = SIZE(template_dist)
     sz = MIN(old_size, new_size)
-    old_data => array_data (old_dist)
-    CALL array_new (new_dist, array_data (template_dist), lb=1)
-    new_data => array_data (new_dist)
-    new_data(1:sz) = old_data(1:sz)
-    max_bin = MAXVAL (old_data)
+    ALLOCATE(new_dist(new_size))
+    new_dist = template_dist
+    new_dist(1:sz) = old_dist(1:sz)
+    max_bin = MAXVAL (old_dist)
     IF (max_bin .GT. 0) THEN
        DO i = sz+1 , new_size
-          new_data(i) = MOD (i, max_bin)
+          new_dist(i) = MOD (i, max_bin)
        END DO
     ELSE
-       new_data(sz+1:new_size) = 0
+       new_dist(sz+1:new_size) = 0
     ENDIF
   END SUBROUTINE match_1_dist
 
@@ -2329,33 +2396,13 @@ CONTAINS
 ! *****************************************************************************
   FUNCTION cp_dbcsr_row_block_sizes (matrix) RESULT (row_blk_sizes)
     TYPE(cp_dbcsr_type), INTENT(IN)          :: matrix
-    TYPE(array_i1d_obj)                      :: row_blk_sizes
+    INTEGER, DIMENSION(:), POINTER           :: row_blk_sizes
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_row_block_sizes', &
       routineP = moduleN//':'//routineN
 
-    row_blk_sizes = matrix%matrix%m%row_blk_size
+    row_blk_sizes => array_data(matrix%matrix%m%row_blk_size)
   END FUNCTION cp_dbcsr_row_block_sizes
-
-! *****************************************************************************
-!> \brief ...
-!> \param matrix ...
-!> \retval data ...
-! *****************************************************************************
-  FUNCTION cp_dbcsr_row_block_sizes_data (matrix) RESULT (DATA)
-    TYPE(cp_dbcsr_type), INTENT(IN)          :: matrix
-    INTEGER, DIMENSION(:), POINTER           :: DATA
-
-    CHARACTER(len=*), PARAMETER :: &
-      routineN = 'cp_dbcsr_row_block_sizes_data', &
-      routineP = moduleN//':'//routineN
-
-    TYPE(array_i1d_obj)                      :: row_blk_sizes
-
-    row_blk_sizes = cp_dbcsr_row_block_sizes(matrix)
-    DATA => row_blk_sizes%low%data
-
-  END FUNCTION cp_dbcsr_row_block_sizes_data
 
 ! *****************************************************************************
 !> \brief ...
@@ -2364,33 +2411,13 @@ CONTAINS
 ! *****************************************************************************
   FUNCTION cp_dbcsr_col_block_sizes (matrix) RESULT (col_blk_sizes)
     TYPE(cp_dbcsr_type), INTENT(IN)          :: matrix
-    TYPE(array_i1d_obj)                      :: col_blk_sizes
+    INTEGER, DIMENSION(:), POINTER           :: col_blk_sizes
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_col_block_sizes', &
       routineP = moduleN//':'//routineN
 
-    col_blk_sizes = matrix%matrix%m%col_blk_size
+    col_blk_sizes => array_data(matrix%matrix%m%col_blk_size)
   END FUNCTION cp_dbcsr_col_block_sizes
-
-! *****************************************************************************
-!> \brief ...
-!> \param matrix ...
-!> \retval data ...
-! *****************************************************************************
-  FUNCTION cp_dbcsr_col_block_sizes_data (matrix) RESULT (DATA)
-    TYPE(cp_dbcsr_type), INTENT(IN)          :: matrix
-    INTEGER, DIMENSION(:), POINTER           :: DATA
-
-    CHARACTER(len=*), PARAMETER :: &
-      routineN = 'cp_dbcsr_col_block_sizes_data', &
-      routineP = moduleN//':'//routineN
-
-    TYPE(array_i1d_obj)                      :: col_blk_sizes
-
-    col_blk_sizes = cp_dbcsr_col_block_sizes(matrix)
-    DATA => col_blk_sizes%low%data
-
-  END FUNCTION cp_dbcsr_col_block_sizes_data
 
 ! *****************************************************************************
 !> \brief Deallocates a DBCSR matrix for compatibility with CP2K
@@ -2552,14 +2579,17 @@ CONTAINS
 !> \param dbcsr_mat ...
 !> \param csr_mat ...
 !> \param dist_format ...
+!> \param csr_sparsity ...
 !> \param numnodes ...
 !> \param error ...
 ! *****************************************************************************
-  SUBROUTINE cp_csr_create_from_dbcsr(dbcsr_mat, csr_mat, dist_format, numnodes, error)
+  SUBROUTINE cp_csr_create_from_dbcsr(dbcsr_mat, csr_mat, dist_format, csr_sparsity, numnodes, error)
 
     TYPE(cp_dbcsr_type), INTENT(IN)          :: dbcsr_mat
     TYPE(csr_type), INTENT(OUT)              :: csr_mat
     INTEGER                                  :: dist_format
+    TYPE(cp_dbcsr_type), INTENT(IN), &
+      OPTIONAL                               :: csr_sparsity
     INTEGER, INTENT(IN), OPTIONAL            :: numnodes
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
@@ -2568,8 +2598,13 @@ CONTAINS
 
     TYPE(dbcsr_error_type)                   :: dbcsr_error
 
-    CALL csr_create_from_dbcsr(dbcsr_mat%matrix, csr_mat, dist_format, &
-                               numnodes=numnodes, error=dbcsr_error)
+    IF (PRESENT(csr_sparsity)) THEN
+      CALL csr_create_from_dbcsr(dbcsr_mat%matrix, csr_mat, dist_format, &
+                                 csr_sparsity%matrix, numnodes, dbcsr_error)
+    ELSE
+      CALL csr_create_from_dbcsr(dbcsr_mat%matrix, csr_mat, dist_format, &
+                                 numnodes=numnodes, error=dbcsr_error)
+    ENDIF
   
   END SUBROUTINE cp_csr_create_from_dbcsr
 
@@ -2684,6 +2719,23 @@ CONTAINS
     CALL csr_create_template(matrix_b, matrix_a, dbcsr_error)
 
   END SUBROUTINE
+
+! *****************************************************************************
+!> \brief ...
+!> \param csr_mat ...
+!> \param unit_nr ...
+!> \param error ...
+! *****************************************************************************
+  SUBROUTINE cp_csr_print_sparsity(csr_mat, unit_nr, error)
+    TYPE(csr_type), INTENT(IN)               :: csr_mat
+    INTEGER, INTENT(IN)                      :: unit_nr
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    TYPE(dbcsr_error_type)                   :: dbcsr_error
+
+    CALL csr_print_sparsity(csr_mat, unit_nr, dbcsr_error)
+
+  END SUBROUTINE 
 
 ! *****************************************************************************
 !> \brief Emulation of sparse_matrix_types/add_block_node mapped

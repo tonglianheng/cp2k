@@ -111,8 +111,16 @@ CONTAINS
 #if defined(__ELPA)
     flags=TRIM(flags)//" elpa"
 #endif
+#if defined(__ELPA2)
+    flags=TRIM(flags)//" elpa2"
+#endif
 #if defined(__parallel)
     flags=TRIM(flags)//" parallel"
+#if __MPI_VERSION > 2
+    flags=TRIM(flags)//" mpi3"
+#else
+    flags=TRIM(flags)//" mpi2"
+#endif
 #endif
 #if defined(__SCALAPACK)
     flags=TRIM(flags)//" scalapack"
@@ -204,17 +212,11 @@ ENDIF
 #if defined __CRAY_PM_FAKE_ENERGY
    flags=TRIM(flags)//" cray_pm_fake_energy"
 #endif
-#if defined __CUBLASDP
-   flags=TRIM(flags)//" cublasdp"
-#endif
 #if defined __CUDA_PROFILING
    flags=TRIM(flags)//" cuda_profiling"
 #endif
 #if defined __DBCSR_ACC
    flags=TRIM(flags)//" dbcsr_acc"
-#endif
-#if defined __DEBUG_HWTOPO
-   flags=TRIM(flags)//" debug_hwtopo"
 #endif
 #if defined __HAS_LIBGRID
    flags=TRIM(flags)//" libgrid"
@@ -261,8 +263,11 @@ ENDIF
 #if defined __STATM_TOTAL
    flags=TRIM(flags)//" statm_total"
 #endif
-#if defined __USE_LEGACY_WEIGHTS
-   flags=TRIM(flags)//" use_legacy_weights"
+#if defined __PLUMED_CP2K
+   flags=TRIM(flags)//" plumed1.3"
+#endif
+#if defined __PLUMED2
+   flags=TRIM(flags)//" plumed2"
 #endif
 
   END FUNCTION cp2k_flags

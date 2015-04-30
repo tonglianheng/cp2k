@@ -12,7 +12,7 @@
 ! *****************************************************************************
 MODULE distribution_2d_types
 
-  USE cp_array_i_utils,                ONLY: cp_1d_i_p_type,&
+  USE cp_array_utils_i,                ONLY: cp_1d_i_p_type,&
                                              cp_1d_i_write
   USE cp_blacs_env,                    ONLY: cp_blacs_env_release,&
                                              cp_blacs_env_retain,&
@@ -60,8 +60,8 @@ MODULE distribution_2d_types
 !> \author Joost & Fawzi
 ! *****************************************************************************
   TYPE distribution_2d_type
-    INTEGER, DIMENSION(:), POINTER       :: row_distribution
-    INTEGER, DIMENSION(:), POINTER       :: col_distribution
+    INTEGER, DIMENSION(:,:), POINTER     :: row_distribution
+    INTEGER, DIMENSION(:,:), POINTER     :: col_distribution
     INTEGER                              :: n_row_distribution
     INTEGER                              :: n_col_distribution
     INTEGER, DIMENSION(:), POINTER       :: n_local_rows
@@ -84,7 +84,8 @@ CONTAINS
 !> \param local_rows_ptr ...
 !> \param n_local_rows ...
 !> \param local_cols_ptr ...
-!> \param row_distribution_ptr ...
+!> \param row_distribution_ptr 2D array, first is atom to processor 2nd is
+!>                             atom to cluster
 !> \param col_distribution_ptr ...
 !> \param n_local_cols ...
 !> \param n_row_distribution ...
@@ -108,7 +109,8 @@ SUBROUTINE distribution_2d_create(distribution_2d, blacs_env,&
       OPTIONAL                               :: n_local_rows
     TYPE(cp_1d_i_p_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: local_cols_ptr
-    INTEGER, DIMENSION(:), OPTIONAL, POINTER :: row_distribution_ptr, &
+    INTEGER, DIMENSION(:, :), OPTIONAL, &
+      POINTER                                :: row_distribution_ptr, &
                                                 col_distribution_ptr
     INTEGER, DIMENSION(:), INTENT(in), &
       OPTIONAL                               :: n_local_cols
@@ -144,7 +146,7 @@ SUBROUTINE distribution_2d_create(distribution_2d, blacs_env,&
       distribution_2d%n_col_distribution=-HUGE(0)
       IF (PRESENT(col_distribution_ptr)) THEN
          distribution_2d%col_distribution => col_distribution_ptr
-         distribution_2d%n_col_distribution =SIZE(distribution_2d%col_distribution)
+         distribution_2d%n_col_distribution =SIZE(distribution_2d%col_distribution,1)
       END IF
       IF(PRESENT(n_col_distribution)) THEN
          IF (ASSOCIATED(distribution_2d%col_distribution)) THEN
@@ -158,7 +160,7 @@ SUBROUTINE distribution_2d_create(distribution_2d, blacs_env,&
       distribution_2d%n_row_distribution=-HUGE(0)
       IF (PRESENT(row_distribution_ptr)) THEN
          distribution_2d%row_distribution => row_distribution_ptr
-         distribution_2d%n_row_distribution=SIZE(distribution_2d%row_distribution)
+         distribution_2d%n_row_distribution=SIZE(distribution_2d%row_distribution,1)
       END IF
       IF(PRESENT(n_row_distribution)) THEN
          IF (ASSOCIATED(distribution_2d%row_distribution)) THEN
@@ -381,17 +383,17 @@ SUBROUTINE distribution_2d_write(distribution_2d, unit_nr, local,&
         IF (ASSOCIATED(distribution_2d%row_distribution)) THEN
            IF (my_long_description) THEN
               WRITE (unit=unit_nr,fmt="('      row_distribution= (')", advance="no")
-              DO i=1,SIZE(distribution_2d%row_distribution)
-                 WRITE(unit=unit_nr,fmt="(i6,',')", advance="no")distribution_2d%row_distribution(i)
+              DO i=1,SIZE(distribution_2d%row_distribution,1)
+                 WRITE(unit=unit_nr,fmt="(i6,',')", advance="no")distribution_2d%row_distribution(i,1)
                  ! keep lines finite, so that we can open outputs in vi
-                 IF (MODULO(i,8)==0 .AND. i.NE.SIZE(distribution_2d%row_distribution)) &
+                 IF (MODULO(i,8)==0 .AND. i.NE.SIZE(distribution_2d%row_distribution,1)) &
                     WRITE(unit=unit_nr,fmt='()')
               END DO
               WRITE (unit=unit_nr,fmt="('),')")
            ELSE
               WRITE (unit=unit_nr,fmt="('      row_distribution= array(',i6,':',i6,'),')")&
-                   LBOUND(distribution_2d%row_distribution),&
-                   UBOUND(distribution_2d%row_distribution)
+                   LBOUND(distribution_2d%row_distribution(:,1)),&
+                   UBOUND(distribution_2d%row_distribution(:,1))
            END IF
         ELSE
            WRITE (unit=unit_nr,fmt="('       row_distribution=*null*,')")
@@ -402,17 +404,17 @@ SUBROUTINE distribution_2d_write(distribution_2d, unit_nr, local,&
         IF (ASSOCIATED(distribution_2d%col_distribution)) THEN
            IF (my_long_description) THEN
               WRITE (unit=unit_nr,fmt="('      col_distribution= (')", advance="no")
-              DO i=1,SIZE(distribution_2d%col_distribution)
-                 WRITE(unit=unit_nr,fmt="(i6,',')", advance="no")distribution_2d%col_distribution(i)
+              DO i=1,SIZE(distribution_2d%col_distribution,1)
+                 WRITE(unit=unit_nr,fmt="(i6,',')", advance="no")distribution_2d%col_distribution(i,1)
                  ! keep lines finite, so that we can open outputs in vi
-                 IF (MODULO(i,8)==0 .AND. i.NE.SIZE(distribution_2d%col_distribution)) &
+                 IF (MODULO(i,8)==0 .AND. i.NE.SIZE(distribution_2d%col_distribution,1)) &
                     WRITE(unit=unit_nr,fmt='()')
               END DO
               WRITE (unit=unit_nr,fmt="('),')")
            ELSE
               WRITE (unit=unit_nr,fmt="('      col_distribution= array(',i6,':',i6,'),')")&
-                   LBOUND(distribution_2d%col_distribution),&
-                   UBOUND(distribution_2d%col_distribution)
+                   LBOUND(distribution_2d%col_distribution(:,1)),&
+                   UBOUND(distribution_2d%col_distribution(:,1))
            END IF
         ELSE
            WRITE (unit=unit_nr,fmt="('       col_distribution=*null*,')")
@@ -555,7 +557,8 @@ SUBROUTINE distribution_2d_get(distribution_2d, row_distribution, &
      blacs_env, id_nr,&
      error)
     TYPE(distribution_2d_type), POINTER      :: distribution_2d
-    INTEGER, DIMENSION(:), OPTIONAL, POINTER :: row_distribution, &
+    INTEGER, DIMENSION(:, :), OPTIONAL, &
+      POINTER                                :: row_distribution, &
                                                 col_distribution
     INTEGER, INTENT(out), OPTIONAL           :: n_row_distribution, &
                                                 n_col_distribution

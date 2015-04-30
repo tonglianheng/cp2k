@@ -15,13 +15,7 @@ MODULE md_run
   USE barostat_types,                  ONLY: barostat_type,&
                                              create_barostat_type,&
                                              release_barostat_type
-#ifdef __PLUMED_CP2K
-  USE cell_types,                    ONLY: cell_type,&
-                                             pbc_cp2k_plumed_getset_cell,&
-                                             pbc_cp2k_plumed
-#else
-  USE cell_types,                    ONLY: cell_type
-#endif
+  USE cell_types,                      ONLY: cell_type
   USE cp_external_control,             ONLY: external_control
   USE cp_output_handling,              ONLY: cp_add_iter_level,&
                                              cp_iterate,&
@@ -34,7 +28,6 @@ MODULE md_run
   USE cp_subsys_types,                 ONLY: cp_subsys_get,&
                                              cp_subsys_type
   USE distribution_1d_types,           ONLY: distribution_1d_type
-  
   USE force_env_methods,               ONLY: force_env_calc_energy_force
   USE force_env_types,                 ONLY: force_env_get,&
                                              force_env_type
@@ -54,7 +47,6 @@ MODULE md_run
   USE kinds,                           ONLY: default_string_length,&
                                              dp
   USE machine,                         ONLY: m_walltime
-  USE mc_types,                        ONLY: mc_ekin_type
   USE md_ener_types,                   ONLY: create_md_ener,&
                                              md_ener_type,&
                                              release_md_ener
@@ -76,6 +68,7 @@ MODULE md_run
   USE mdctrl_methods,                  ONLY: mdctrl_callback
   USE mdctrl_types,                    ONLY: mdctrl_type
   USE metadynamics,                    ONLY: metadyn_forces,&
+                                             metadyn_initialise_plumed,&
                                              metadyn_write_colvar
   USE metadynamics_types,              ONLY: set_meta_env
   USE particle_list_types,             ONLY: particle_list_type
@@ -123,19 +116,20 @@ CONTAINS
 !> \param globenv ...
 !> \param averages ...
 !> \param rm_restart_info ...
-!> \param hmc_ekin ...
+!> \param hmc_e_initial ...
+!> \param hmc_e_final ...
 !> \param mdctrl ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 ! *****************************************************************************
-  SUBROUTINE qs_mol_dyn ( force_env, globenv, averages, rm_restart_info, hmc_ekin, mdctrl, error )
+  SUBROUTINE qs_mol_dyn ( force_env, globenv, averages, rm_restart_info, hmc_e_initial, hmc_e_final, mdctrl, error )
 
     TYPE(force_env_type), POINTER            :: force_env
     TYPE(global_environment_type), POINTER   :: globenv
     TYPE(average_quantities_type), &
       OPTIONAL, POINTER                      :: averages
     LOGICAL, INTENT(IN), OPTIONAL            :: rm_restart_info
-    TYPE(mc_ekin_type), OPTIONAL, POINTER    :: hmc_ekin
+    REAL(KIND=dp), OPTIONAL                  :: hmc_e_initial, hmc_e_final
     TYPE(mdctrl_type), OPTIONAL, POINTER     :: mdctrl
     TYPE(cp_error_type), INTENT(inout)       :: error
 
@@ -158,9 +152,9 @@ CONTAINS
     ! Real call to MD driver - Low Level
     CALL md_env_create(md_env, md_section, para_env, force_env=force_env, error=error)
     CALL set_md_env(md_env, averages=averages, error=error)
-    IF(PRESENT(hmc_ekin))THEN
+    IF(PRESENT(hmc_e_initial).AND.PRESENT(hmc_e_final))THEN
        CALL qs_mol_dyn_low(md_env, md_section, motion_section, force_env, globenv, &
-            hmc_ekin=hmc_ekin, error=error)
+            hmc_e_initial=hmc_e_initial,hmc_e_final=hmc_e_final, error=error)
     ELSE
        CALL qs_mol_dyn_low(md_env, md_section, motion_section, force_env, globenv, mdctrl=mdctrl, error=error)
     ENDIF
@@ -177,7 +171,8 @@ CONTAINS
 !> \param motion_section ...
 !> \param force_env ...
 !> \param globenv ...
-!> \param hmc_ekin ...
+!> \param hmc_e_initial ...
+!> \param hmc_e_final ...
 !> \param mdctrl ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
@@ -186,13 +181,13 @@ CONTAINS
 !>   - Added lines to print out langevin regions (2014/02/04, LT)
 !> \author Creation (07.11.2002,MK)
 ! *****************************************************************************
-  SUBROUTINE qs_mol_dyn_low(md_env, md_section, motion_section, force_env, globenv, hmc_ekin, mdctrl, error)
+  SUBROUTINE qs_mol_dyn_low(md_env, md_section, motion_section, force_env, globenv, hmc_e_initial,hmc_e_final, mdctrl, error)
 
     TYPE(md_environment_type), POINTER       :: md_env
     TYPE(section_vals_type), POINTER         :: md_section, motion_section
     TYPE(force_env_type), POINTER            :: force_env
     TYPE(global_environment_type), POINTER   :: globenv
-    TYPE(mc_ekin_type), OPTIONAL, POINTER    :: hmc_ekin
+    REAL(KIND=dp), OPTIONAL                  :: hmc_e_initial, hmc_e_final
     TYPE(mdctrl_type), OPTIONAL, POINTER     :: mdctrl
     TYPE(cp_error_type), INTENT(inout)       :: error
 
@@ -200,8 +195,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=default_string_length)     :: my_act, my_pos
-    INTEGER                                  :: handle, i, istep, &
-                                                md_stride, &
+    INTEGER                                  :: handle, i, istep, md_stride, &
                                                 run_type_id
     INTEGER, POINTER                         :: itimes
     LOGICAL                                  :: check, ehrenfest_md, failure, &
@@ -228,12 +222,6 @@ CONTAINS
     TYPE(thermal_regions_type), POINTER      :: thermal_regions
     TYPE(thermostats_type), POINTER          :: thermostats
     TYPE(virial_type), POINTER               :: virial
-#ifdef __PLUMED_CP2K
-    INTEGER                                  :: natom_plumed, nsp_plumed, i_kinds
-    INTEGER, DIMENSION(90)                   :: na_plumed
-    REAL(KIND=dp)                            :: timestep_plumed
-    REAL(KIND=dp), DIMENSION(90)             :: pma0_plumed
-#endif
 
     CALL timeset(routineN,handle)
     CPPrecondition(ASSOCIATED(globenv),cp_failure_level,routineP,error,failure)
@@ -362,6 +350,7 @@ CONTAINS
             "You may consider to switch on the virial evaluation with the keyword: STRESS_TENSOR."//&
             "Be sure the method you are using can compute the virial! "//&
  CPSourceFileRef,&
+                 
             error,failure)
        IF (ASSOCIATED(force_env%sub_force_env)) THEN
           DO i = 1, SIZE(force_env%sub_force_env)
@@ -412,31 +401,9 @@ CONTAINS
        IF (ASSOCIATED(force_env%meta_env)) THEN
            ! Setup stuff for plumed if needed
            IF (force_env%meta_env%use_plumed .EQV. .TRUE.) THEN
-#ifdef __PLUMED_CP2K
-               natom_plumed=subsys%particles%n_els
-               nsp_plumed=subsys%atomic_kinds%n_els
-               timestep_plumed=simpar%dt
-               DO i_kinds=1,nsp_plumed
-                   na_plumed(i_kinds) = subsys%atomic_kinds%els(i_kinds)%natom
-                   pma0_plumed(i_kinds) = subsys%atomic_kinds%els(i_kinds)%mass
-               END DO
-               CALL pbc_cp2k_plumed_getset_cell (cell, set=.TRUE.) !Store the cell pointer for later use.
-
-               !in a parallel run plumed only needs to be initialized on the
-               !master node.
-               IF (para_env%ionode .EQV. .TRUE.) THEN
-                   CALL INIT_METADYN(natom_plumed, nsp_plumed, na_plumed, &
-                       timestep_plumed, itimes, pma0_plumed, force_env%meta_env%plumed_input_file)
-               END IF
-#else
-           CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
-                routineP,"Requested to use plumed for metadynamics, but cp2k was"//&
-                " not compiled with plumed support."//&
-                CPSourceFileRef,&
-                error,failure)
-#endif
+               CALL metadyn_initialise_plumed(force_env, simpar, error)
            ELSE
-            IF(force_env%meta_env%langevin) THEN
+               IF(force_env%meta_env%langevin) THEN
                  CALL create_wiener_process_cv(force_env%meta_env, error=error)
                 ENDIF
                 IF (force_env%meta_env%well_tempered) THEN
@@ -485,27 +452,11 @@ CONTAINS
        CALL initialize_reftraj(reftraj, reftraj_section, md_env, error=error)
        itimes = reftraj%info%first_snapshot -1
        md_stride = reftraj%info%stride
-#ifdef __PLUMED_CP2K
        IF (ASSOCIATED(force_env%meta_env)) THEN
            IF (force_env%meta_env%use_plumed .EQV. .TRUE.) THEN
-               natom_plumed=subsys%particles%n_els
-               nsp_plumed=subsys%atomic_kinds%n_els
-               timestep_plumed=simpar%dt
-               DO i_kinds=1,nsp_plumed
-                   na_plumed(i_kinds) = subsys%atomic_kinds%els(i_kinds)%natom
-                   pma0_plumed(i_kinds) = subsys%atomic_kinds%els(i_kinds)%mass
-               END DO
-               CALL pbc_cp2k_plumed_getset_cell (cell, set=.TRUE.) !Store the cell pointer for later use.
-
-               !in a parallel run plumed only needs to be initialized on the
-               !master node.
-               IF (para_env%ionode .EQV. .TRUE.) THEN
-                   CALL INIT_METADYN(natom_plumed, nsp_plumed, na_plumed, &
-                       timestep_plumed, itimes, pma0_plumed, force_env%meta_env%plumed_input_file)
-               END IF
+               CALL metadyn_initialise_plumed(force_env, simpar, error)
             END IF
         END IF
-#endif
     END IF
 
     CALL cp_print_key_finished_output(simpar%info_constraint, logger,&
@@ -514,7 +465,7 @@ CONTAINS
          constraint_section,"LAGRANGE_MULTIPLIERS",error=error)
 
 ! if we need the initial kinetic energy for Hybrid Monte Carlo
-    IF(PRESENT(hmc_ekin)) hmc_ekin%initial_ekin=md_ener%ekin
+    IF(PRESENT(hmc_e_initial)) hmc_e_initial=md_ener%ekin
 
     ! Real MD Loop
     DO istep=1, simpar%nsteps, md_stride
@@ -596,7 +547,7 @@ CONTAINS
     END DO
 
 ! if we need the final kinetic energy for Hybrid Monte Carlo
-    IF(PRESENT(hmc_ekin)) hmc_ekin%final_ekin=md_ener%ekin
+    IF(PRESENT(hmc_e_final)) hmc_e_final=md_ener%ekin
 
     ! Remove the iteration level
     CALL cp_rm_iter_level(logger%iter_info,"MD",error=error)

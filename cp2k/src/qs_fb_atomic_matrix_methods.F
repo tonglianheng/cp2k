@@ -1,7 +1,11 @@
+!-----------------------------------------------------------------------------!
+!   CP2K: A general program to perform molecular dynamics simulations         !
+!   Copyright (C) 2000 - 2015  CP2K developers group                          !
+!-----------------------------------------------------------------------------!
+
 MODULE qs_fb_atomic_matrix_methods
 
-  USE cp_dbcsr_interface,              ONLY: array_data,&
-                                             cp_dbcsr_col_block_sizes,&
+  USE cp_dbcsr_interface,              ONLY: cp_dbcsr_col_block_sizes,&
                                              cp_dbcsr_get_block_p,&
                                              cp_dbcsr_get_info,&
                                              cp_dbcsr_get_stored_coordinates,&
@@ -95,8 +99,8 @@ CONTAINS
 
     NULLIFY(halo_atoms, row_block_size_data, col_block_size_data)
 
-    row_block_size_data => array_data(cp_dbcsr_row_block_sizes(dbcsr_mat))
-    col_block_size_data => array_data(cp_dbcsr_col_block_sizes(dbcsr_mat))
+    row_block_size_data => cp_dbcsr_row_block_sizes(dbcsr_mat)
+    col_block_size_data => cp_dbcsr_col_block_sizes(dbcsr_mat)
     CALL fb_atomic_halo_get(atomic_halo=atomic_halo, &
                             natoms=natoms_in_halo, &
                             halo_atoms=halo_atoms, &
@@ -215,8 +219,8 @@ CONTAINS
     numprocs = para_env%num_pe
 
     ! get dbcsr row and col block sizes
-    row_block_size_data => array_data(cp_dbcsr_row_block_sizes(dbcsr_mat))
-    col_block_size_data => array_data(cp_dbcsr_col_block_sizes(dbcsr_mat))
+    row_block_size_data => cp_dbcsr_row_block_sizes(dbcsr_mat)
+    col_block_size_data => cp_dbcsr_col_block_sizes(dbcsr_mat)
 
     ! allocate temporary arrays for send
     ALLOCATE(send_sizes(numprocs), STAT=stat)
@@ -888,10 +892,6 @@ CONTAINS
     CALL timestop(handle)
 
   END SUBROUTINE fb_atmatrix_generate_com_pairs_2
-
-
-
-
 
 
 END MODULE qs_fb_atomic_matrix_methods

@@ -14,8 +14,7 @@
 ! *****************************************************************************
 MODULE dbcsr_util
 
-  USE array_types,                     ONLY: array_data,&
-                                             array_i1d_obj
+  USE array_types,                     ONLY: array_data
   USE dbcsr_data_methods,              ONLY: dbcsr_data_get_size,&
                                              dbcsr_data_get_size_referenced,&
                                              dbcsr_get_data
@@ -54,6 +53,7 @@ MODULE dbcsr_util
        dbcsr_type_complex_8, dbcsr_type_real_4, dbcsr_type_real_8
   USE kinds,                           ONLY: dp,&
                                              int_4,&
+                                             int_8,&
                                              real_4,&
                                              real_8
   USE message_passing,                 ONLY: mp_sum
@@ -398,7 +398,8 @@ CONTAINS
     INTEGER, DIMENSION(dbcsr_meta_size), &
       INTENT(OUT)                            :: meta
     TYPE(dbcsr_distribution_obj), INTENT(IN) :: dist
-    TYPE(array_i1d_obj), INTENT(IN)          :: row_blk_size, col_blk_size
+    INTEGER, DIMENSION(:), INTENT(IN), &
+      POINTER                                :: row_blk_size, col_blk_size
 
     CHARACTER(len=*), PARAMETER :: routineN = 'meta_from_dist', &
       routineP = moduleN//':'//routineN
@@ -407,24 +408,21 @@ CONTAINS
                                                 nfullcols_total, &
                                                 nfullrows_local, &
                                                 nfullrows_total
-    INTEGER, DIMENSION(:), POINTER           :: blkcols_local, blkrows_local, &
-                                                cbs, rbs
+    INTEGER, DIMENSION(:), POINTER           :: blkcols_local, blkrows_local
 
 !   ---------------------------------------------------------------------------
 
-    blkrows_local => array_data (dbcsr_distribution_local_rows (dist))
-    blkcols_local => array_data (dbcsr_distribution_local_cols (dist))
-    rbs => array_data (row_blk_size)
-    cbs => array_data (col_blk_size)
-    nfullrows_total = SUM (rbs)
-    nfullcols_total = SUM (cbs)
+    blkrows_local => dbcsr_distribution_local_rows (dist)
+    blkcols_local => dbcsr_distribution_local_cols (dist)
+    nfullrows_total = SUM (row_blk_size)
+    nfullcols_total = SUM (col_blk_size)
     nfullrows_local = 0
     nfullcols_local = 0
     DO i = 1, dbcsr_distribution_nlocal_rows (dist)
-       nfullrows_local = nfullrows_local + rbs(blkrows_local(i))
+       nfullrows_local = nfullrows_local + row_blk_size(blkrows_local(i))
     ENDDO
     DO i = 1, dbcsr_distribution_nlocal_cols (dist)
-       nfullcols_local = nfullcols_local + cbs(blkcols_local(i))
+       nfullcols_local = nfullcols_local + col_blk_size(blkcols_local(i))
     ENDDO
     meta(:) = 0
     meta(5)  = dbcsr_distribution_nrows (dist)
@@ -700,8 +698,8 @@ CONTAINS
       r = moduleN//':'//routineN
 
     INTEGER :: bc, blk, blk_p, br, data_size_referenced, dbg, error_handler, &
-      i, mb, mn, n, n_full_blocks_total, n_have_blocks_local, &
-      n_have_blocks_total, prev_br
+      i, mb, mn, n, n_have_blocks_local, n_have_blocks_total, prev_br
+    INTEGER(KIND=int_8)                      :: n_full_blocks_total
     INTEGER, DIMENSION(:), POINTER           :: col_blk_size, row_blk_size
     LOGICAL                                  :: nocomm
     REAL(KIND=dp)                            :: sparsity_total
@@ -728,12 +726,12 @@ CONTAINS
     col_blk_size => array_data (m%m%col_blk_size)
     !
     IF(.NOT.dbcsr_has_symmetry (m)) THEN
-       n_full_blocks_total = m%m%nblkrows_total * m%m%nblkcols_total
+       n_full_blocks_total = INT(m%m%nblkrows_total,KIND=int_8) * INT(m%m%nblkcols_total,KIND=int_8)
     ELSE
        CALL dbcsr_assert(m%m%nblkrows_total, "EQ", m%m%nblkcols_total,&
             dbcsr_fatal_level, dbcsr_internal_error, r,&
             'Symmetric matrix is not square',__LINE__,error)
-       n_full_blocks_total = m%m%nblkrows_total * (m%m%nblkrows_total+1)/2
+       n_full_blocks_total = INT(m%m%nblkrows_total,KIND=int_8) * (m%m%nblkrows_total+1)/2
     ENDIF
     n_have_blocks_local = m%m%nblks
 2045 FORMAT (I5,1X,I5,1X,I5,1X,I5,1X,I5,1X,I5,1X,I5,1X,I5,1X,I5,1X,I5)

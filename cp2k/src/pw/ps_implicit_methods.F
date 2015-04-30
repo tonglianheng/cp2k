@@ -20,6 +20,7 @@ MODULE ps_implicit_methods
   USE dielectric_types,                ONLY: dielectric_type
   USE dirichlet_bc_methods,            ONLY: dirichlet_boundary_region_setup
   USE dirichlet_bc_utils,              ONLY: setup_grid_axes
+  USE kahan_sum,                       ONLY: accurate_sum
   USE kinds,                           ONLY: dp,&
                                              int_8
   USE mathconstants,                   ONLY: fourpi
@@ -34,6 +35,7 @@ MODULE ps_implicit_methods
                                              pw_copy,&
                                              pw_derive,&
                                              pw_integral_ab,&
+                                             pw_integrate_function,&
                                              pw_scale,&
                                              pw_transfer,&
                                              pw_zero
@@ -63,7 +65,8 @@ MODULE ps_implicit_methods
          implicit_poisson_solver_periodic, &
          implicit_poisson_solver_neumann, &
          implicit_poisson_solver_mixed_periodic, &
-         implicit_poisson_solver_mixed
+         implicit_poisson_solver_mixed, &
+         pw_mollifier
 
   INTERFACE apply_inv_laplace_operator
      MODULE PROCEDURE apply_inv_laplace_operator_fft, &
@@ -80,17 +83,13 @@ MODULE ps_implicit_methods
                       apply_poisson_operator_dct
   END INTERFACE apply_poisson_operator
 
-  INTERFACE ps_implicit_compute_ehartree
-     MODULE PROCEDURE compute_ehartree_periodic_bc, &
-                      compute_ehartree_dirichlet_bc
-  END INTERFACE ps_implicit_compute_ehartree
-
   INTERFACE ps_implicit_compute_error
      MODULE PROCEDURE compute_error_periodic_bc, &
                       compute_error_mixed_bc
   END INTERFACE ps_implicit_compute_error
 
   LOGICAL, PRIVATE, PARAMETER          :: adjust_local_bounds = .FALSE.
+  REAL(dp), PRIVATE, PARAMETER         :: large_error = 1.0E4_dp
 
 CONTAINS
 
@@ -142,6 +141,9 @@ CONTAINS
        CALL dielectric_create(ps_implicit_env%dielectric, pw_pool, poisson_params%dielectric_params, error)
 
        NULLIFY(ps_implicit_env%initial_guess)
+       NULLIFY(ps_implicit_env%v_eps)
+       CALL pw_pool_create_pw(pw_pool, ps_implicit_env%v_eps, use_data=REALDATA3D, in_space=REALSPACE, error=error)
+       CALL pw_zero(ps_implicit_env%v_eps, error)
 
        ps_implicit_env%ehartree = 0.0_dp
        ps_implicit_env%times_called = 0
@@ -167,8 +169,6 @@ CONTAINS
 !> \param density electron density 
 !> \param v_new functional derivative of the hartree energy wrt to rho 
 !>              (= electrostatic potential + v_eps) 
-!> \param v_eps extra contribution to the functional derivative of the Hartree
-!>     energy attributed to the dependency of the dielectric constant to the charge density                        
 !> \param ehartree Hartree energy
 !> \param error cp2k error
 !>
@@ -176,12 +176,11 @@ CONTAINS
 !>       07.2014 created [Hossein Bani-Hashemian]
 !> \author Mohammad Hossein Bani-Hashemian
 ! *****************************************************************************
-  SUBROUTINE implicit_poisson_solver_periodic(poisson_env, density, v_new, v_eps, ehartree, error)
+  SUBROUTINE implicit_poisson_solver_periodic(poisson_env, density, v_new, ehartree, error)
 
     TYPE(pw_poisson_type), POINTER           :: poisson_env
     TYPE(pw_type), INTENT(IN), POINTER       :: density
     TYPE(pw_type), INTENT(INOUT), POINTER    :: v_new
-    TYPE(pw_type), INTENT(OUT), POINTER      :: v_eps
     REAL(dp), INTENT(OUT), OPTIONAL          :: ehartree
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
@@ -227,7 +226,6 @@ CONTAINS
     CALL pw_pool_create_pw(pw_pool, res_new, use_data=REALDATA3D, in_space=REALSPACE, error=error)
     CALL pw_pool_create_pw(pw_pool, QAinvxres_old, use_data=REALDATA3D, in_space=REALSPACE, error=error)
     CALL pw_pool_create_pw(pw_pool, QAinvxres_new, use_data=REALDATA3D, in_space=REALSPACE, error=error)
-    CALL pw_pool_create_pw(pw_pool, v_eps, use_data=REALDATA3D, in_space=REALSPACE, error=error)
 
     IF (use_zero_initial_guess) THEN
        CALL pw_zero(v0, error=error)
@@ -267,7 +265,7 @@ CONTAINS
 ! output
        CALL ps_implicit_output(iter, pres_error, nabs_error, outp_unit, error)
        IF (PRESENT(ehartree)) THEN
-          CALL ps_implicit_compute_ehartree(pw_pool, dielectric, v_new, res_new, g, ehartree, error)
+          ehartree = 0.5_dp * pw_integral_ab(density, v_new, error) 
           CALL ps_implicit_report_ehartree(ps_implicit_env, outp_unit, ehartree, error)
           ps_implicit_env%ehartree = ehartree
        ELSE
@@ -277,6 +275,8 @@ CONTAINS
        iter = iter + 1
        reached_max_iter = iter .GT. max_iter
        reached_tol = pres_error .LE. tol
+       IF (pres_error .GT. large_error) CALL cp_assert( .FALSE. , cp_failure_level, cp_assertion_failed, &
+                                                    routineP, "Poisson solver did not converge.", error) 
        ps_implicit_env%times_called = ps_implicit_env%times_called + 1
        IF (reached_max_iter .OR. reached_tol)  EXIT
 
@@ -291,9 +291,8 @@ CONTAINS
        CALL pw_copy(v_new, ps_implicit_env%initial_guess, error)
 
     IF (PRESENT(ehartree)) ehartree = ps_implicit_env%ehartree
-    CALL ps_implicit_compute_veps(pw_pool, dielectric, v_new, v_eps, error)
-! functional derivative of the Hartree energy wrt the density: \frac{\delta E_{H}}{\delta \rho} = v + v_{\eps}
-    CALL pw_axpy(v_eps, v_new, error=error)
+! compute the extra contribution to the Hamiltonian due to the presence of dielectric
+    CALL ps_implicit_compute_veps(pw_pool, dielectric, v_new, ps_implicit_env%v_eps, error)
 
     CALL pw_pool_give_back_pw(pw_pool, g, error=error)
     CALL pw_pool_give_back_pw(pw_pool, v0, error=error)
@@ -314,8 +313,6 @@ CONTAINS
 !> \param density electron density
 !> \param v_new functional derivative of the hartree energy wrt to rho
 !>              (= electrostatic potential + v_eps)
-!> \param v_eps extra contribution to the functional derivative of the Hartree
-!>     energy attributed to the dependency of the dielectric constant to the charge density
 !> \param ehartree Hartree energy
 !> \param error cp2k error
 !>
@@ -323,12 +320,11 @@ CONTAINS
 !>       02.2015 created [Hossein Bani-Hashemian]
 !> \author Mohammad Hossein Bani-Hashemian
 ! *****************************************************************************
-  SUBROUTINE implicit_poisson_solver_neumann(poisson_env, density, v_new, v_eps, ehartree, error)
+  SUBROUTINE implicit_poisson_solver_neumann(poisson_env, density, v_new, ehartree, error)
 
     TYPE(pw_poisson_type), POINTER           :: poisson_env
     TYPE(pw_type), INTENT(IN), POINTER       :: density
     TYPE(pw_type), INTENT(INOUT), POINTER    :: v_new
-    TYPE(pw_type), INTENT(OUT), POINTER      :: v_eps
     REAL(dp), INTENT(OUT), OPTIONAL          :: ehartree
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
@@ -379,7 +375,6 @@ CONTAINS
     CALL pw_pool_create_pw(pw_pool, res_new, use_data=REALDATA3D, in_space=REALSPACE, error=error)
     CALL pw_pool_create_pw(pw_pool, QAinvxres_old, use_data=REALDATA3D, in_space=REALSPACE, error=error)
     CALL pw_pool_create_pw(pw_pool, QAinvxres_new, use_data=REALDATA3D, in_space=REALSPACE, error=error)
-    CALL pw_pool_create_pw(pw_pool, v_eps, use_data=REALDATA3D, in_space=REALSPACE, error=error)
 
     IF (use_zero_initial_guess) THEN
        CALL pw_zero(v0, error=error)
@@ -427,7 +422,7 @@ CONTAINS
 ! output
        CALL ps_implicit_output(iter, pres_error, nabs_error, outp_unit, error)
        IF (PRESENT(ehartree)) THEN
-          CALL ps_implicit_compute_ehartree(pw_pool, dielectric, v_new, res_new, g, ehartree, error)
+          ehartree = 0.5_dp * pw_integral_ab(density, v_new, error) 
           CALL ps_implicit_report_ehartree(ps_implicit_env, outp_unit, ehartree, error)
           ps_implicit_env%ehartree = ehartree
        ELSE
@@ -437,6 +432,8 @@ CONTAINS
        iter = iter + 1
        reached_max_iter = iter .GT. max_iter
        reached_tol = pres_error .LE. tol
+       IF (pres_error .GT. large_error) CALL cp_assert( .FALSE. , cp_failure_level, cp_assertion_failed, &
+                                                    routineP, "Poisson solver did not converge.", error) 
        ps_implicit_env%times_called = ps_implicit_env%times_called + 1
        IF (reached_max_iter .OR. reached_tol)  EXIT
 
@@ -451,9 +448,8 @@ CONTAINS
        CALL pw_copy(v_new, ps_implicit_env%initial_guess, error)
 
     IF (PRESENT(ehartree)) ehartree = ps_implicit_env%ehartree
-    CALL ps_implicit_compute_veps(pw_pool, dielectric, v_new, v_eps, error)
-! functional derivative of the Hartree energy wrt the density: \frac{\delta E_{H}}{\delta \rho} = v + v_{\eps}
-    CALL pw_axpy(v_eps, v_new, error=error)
+! compute the extra contribution to the Hamiltonian due to the presence of dielectric
+    CALL ps_implicit_compute_veps(pw_pool, dielectric, v_new, ps_implicit_env%v_eps, error)
 
     CALL pw_pool_give_back_pw(pw_pool, g, error=error)
     CALL pw_pool_give_back_pw(pw_pool, v0, error=error)
@@ -475,8 +471,6 @@ CONTAINS
 !> \param density electron density 
 !> \param v_new functional derivative of the hartree energy wrt to rho 
 !>              (= electrostatic potential + v_eps) 
-!> \param v_eps extra contribution to the functional derivative of the Hartree
-!>     energy attributed to the dependency of the dielectric constant to the charge density                        
 !> \param ehartree Hartree energy
 !> \param error cp2k error
 !>
@@ -484,12 +478,11 @@ CONTAINS
 !>       07.2014 created [Hossein Bani-Hashemian]
 !> \author Mohammad Hossein Bani-Hashemian
 ! *****************************************************************************
-  SUBROUTINE implicit_poisson_solver_mixed_periodic(poisson_env, density, v_new, v_eps, ehartree, error)
+  SUBROUTINE implicit_poisson_solver_mixed_periodic(poisson_env, density, v_new, ehartree, error)
 
     TYPE(pw_poisson_type), POINTER           :: poisson_env
     TYPE(pw_type), INTENT(IN), POINTER       :: density
     TYPE(pw_type), INTENT(INOUT), POINTER    :: v_new
-    TYPE(pw_type), INTENT(OUT), POINTER      :: v_eps
     REAL(dp), INTENT(OUT), OPTIONAL          :: ehartree
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
@@ -598,7 +591,6 @@ CONTAINS
     CALL pw_pool_create_pw(pw_pool, QAinvxres_old, use_data=REALDATA3D, in_space=REALSPACE, error=error)
     CALL pw_pool_create_pw(pw_pool, QAinvxres_new, use_data=REALDATA3D, in_space=REALSPACE, error=error)
     CALL pw_pool_create_pw(pw_pool, Axvbar, use_data=REALDATA3D, in_space=REALSPACE, error=error)
-    CALL pw_pool_create_pw(pw_pool, v_eps, use_data=REALDATA3D, in_space=REALSPACE, error=error)
 
     IF (use_zero_initial_guess) THEN
        CALL pw_zero(v0, error=error)
@@ -609,7 +601,7 @@ CONTAINS
     END IF
 
     g%cr3d = fourpi * density%cr3d / dielectric%eps%cr3d
-    g_avg = SUM(g%cr3d) / ngpts
+    g_avg = accurate_sum(g%cr3d) / ngpts
 
     CALL pw_copy(v0, v_old, error=error)
     lambda_old(:)= lambda0
@@ -637,7 +629,7 @@ CONTAINS
 
 ! evaluate 1^t * (g - \Delta(\bar{v}) - P(\bar{v})) 
        CALL apply_poisson_operator(pw_pool, green, dielectric, v_new, Axvbar, error)
-       Axvbar_avg = SUM(Axvbar%cr3d) / ngpts
+       Axvbar_avg = accurate_sum(Axvbar%cr3d) / ngpts
        gminusAxvbar_avg = g_avg - Axvbar_avg
        CALL mp_sum(gminusAxvbar_avg, pw_grid%para%group)
 
@@ -675,7 +667,7 @@ CONTAINS
 ! output
        CALL ps_implicit_output(iter, pres_error, nabs_error, outp_unit, error)
        IF (PRESENT(ehartree)) THEN
-          CALL ps_implicit_compute_ehartree(pw_pool, dielectric, v_new, res_new, g, Btxlambda_new3D, ehartree, error)
+          ehartree = 0.5_dp * pw_integral_ab(density, v_new, error) 
           CALL ps_implicit_report_ehartree(ps_implicit_env, outp_unit, ehartree, error)
           ps_implicit_env%ehartree = ehartree
        ELSE
@@ -707,6 +699,8 @@ CONTAINS
        reached_max_iter = iter .GT. max_iter
        reached_tol = pres_error .LE. tol
        ps_implicit_env%times_called = ps_implicit_env%times_called + 1
+       IF (pres_error .GT. large_error) CALL cp_assert( .FALSE. , cp_failure_level, cp_assertion_failed, &
+                                                    routineP, "Poisson solver did not converge.", error) 
        IF (reached_max_iter .OR. reached_tol)  EXIT
 
 ! update
@@ -724,9 +718,8 @@ CONTAINS
     END IF
        
     IF (PRESENT(ehartree)) ehartree = ps_implicit_env%ehartree
-    CALL ps_implicit_compute_veps(pw_pool, dielectric, v_new, v_eps, error)
-! functional derivative of the Hartree energy wrt the density: \frac{\delta E_{H}}{\delta \rho} = v + v_{\eps}
-    CALL pw_axpy(v_eps, v_new, error=error)
+! compute the extra contribution to the Hamiltonian due to the presence of dielectric
+    CALL ps_implicit_compute_veps(pw_pool, dielectric, v_new, ps_implicit_env%v_eps, error)
 
     CALL pw_pool_give_back_pw(pw_pool, g, error=error)
     CALL pw_pool_give_back_pw(pw_pool, v0, error=error)
@@ -747,8 +740,6 @@ CONTAINS
 !> \param density electron density 
 !> \param v_new functional derivative of the hartree energy wrt to rho 
 !>             (= electrostatic potential + v_eps) 
-!> \param v_eps extra contribution to the functional derivative of the Hartree
-!>     energy attributed to the dependency of the dielectric constant to the charge density                        
 !> \param ehartree Hartree energy
 !> \param error cp2k error
 !>
@@ -756,12 +747,11 @@ CONTAINS
 !>       10.2014 created [Hossein Bani-Hashemian]
 !> \author Mohammad Hossein Bani-Hashemian
 ! *****************************************************************************
-  SUBROUTINE implicit_poisson_solver_mixed(poisson_env, density, v_new, v_eps, ehartree, error)
+  SUBROUTINE implicit_poisson_solver_mixed(poisson_env, density, v_new, ehartree, error)
 
     TYPE(pw_poisson_type), POINTER           :: poisson_env
     TYPE(pw_type), INTENT(IN), POINTER       :: density
     TYPE(pw_type), INTENT(INOUT), POINTER    :: v_new
-    TYPE(pw_type), INTENT(OUT), POINTER      :: v_eps
     REAL(dp), INTENT(OUT), OPTIONAL          :: ehartree
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
@@ -875,7 +865,6 @@ CONTAINS
     CALL pw_pool_create_pw(pw_pool, QAinvxres_old, use_data=REALDATA3D, in_space=REALSPACE, error=error)
     CALL pw_pool_create_pw(pw_pool, QAinvxres_new, use_data=REALDATA3D, in_space=REALSPACE, error=error)
     CALL pw_pool_create_pw(pw_pool, Axvbar, use_data=REALDATA3D, in_space=REALSPACE, error=error)
-    CALL pw_pool_create_pw(pw_pool, v_eps, use_data=REALDATA3D, in_space=REALSPACE, error=error)
 
     IF (use_zero_initial_guess) THEN
        CALL pw_zero(v0, error=error)
@@ -886,7 +875,7 @@ CONTAINS
     END IF
 
     g%cr3d = fourpi * density%cr3d / dielectric%eps%cr3d
-    g_avg = SUM(g%cr3d) / ngpts
+    g_avg = accurate_sum(g%cr3d) / ngpts
 
     CALL pw_copy(v0, v_old, error=error)
     lambda_old(:)= lambda0
@@ -921,7 +910,7 @@ CONTAINS
 ! evaluate 1^t * (g - \Delta(\bar{v}) - P(\bar{v})) 
        CALL apply_poisson_operator(pw_pool, green, dielectric, pw_pool_xpndd, aux_pw_pool_xpndd, dct_env, &
                                    adjust_local_bounds, v_new, Axvbar, error)
-       Axvbar_avg = SUM(Axvbar%cr3d) / ngpts
+       Axvbar_avg = accurate_sum(Axvbar%cr3d) / ngpts
        gminusAxvbar_avg = g_avg - Axvbar_avg
        CALL mp_sum(gminusAxvbar_avg, pw_grid%para%group)
 
@@ -960,7 +949,7 @@ CONTAINS
 ! output
        CALL ps_implicit_output(iter, pres_error, nabs_error, outp_unit, error)
        IF (PRESENT(ehartree)) THEN
-          CALL ps_implicit_compute_ehartree(pw_pool, dielectric, v_new, res_new, g, Btxlambda_new3D, ehartree, error)
+          ehartree = 0.5_dp * pw_integral_ab(density, v_new, error) 
           CALL ps_implicit_report_ehartree(ps_implicit_env, outp_unit, ehartree, error)
           ps_implicit_env%ehartree = ehartree
        ELSE
@@ -992,6 +981,8 @@ CONTAINS
        reached_max_iter = iter .GT. max_iter
        reached_tol = pres_error .LE. tol
        ps_implicit_env%times_called = ps_implicit_env%times_called + 1
+       IF (pres_error .GT. large_error) CALL cp_assert( .FALSE. , cp_failure_level, cp_assertion_failed, &
+                                                    routineP, "Poisson solver did not converge.", error) 
        IF (reached_max_iter .OR. reached_tol)  EXIT
 
 ! update
@@ -1009,9 +1000,8 @@ CONTAINS
     END IF
 
     IF (PRESENT(ehartree)) ehartree = ps_implicit_env%ehartree
-    CALL ps_implicit_compute_veps(pw_pool, dielectric, v_new, v_eps, error)
-! functional derivative of the Hartree energy wrt the density: \frac{\delta E_{H}}{\delta \rho} = v + v_{\eps}
-    CALL pw_axpy(v_eps, v_new, error=error)
+! compute the extra contribution to the Hamiltonian due to the presence of dielectric
+    CALL ps_implicit_compute_veps(pw_pool, dielectric, v_new, ps_implicit_env%v_eps, error)
 
     CALL pw_pool_give_back_pw(pw_pool, g, error=error)
     CALL pw_pool_give_back_pw(pw_pool, v0, error=error)
@@ -1100,7 +1090,7 @@ CONTAINS
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: ipiv
     INTEGER, DIMENSION(2, 3)                 :: bounds, bounds_local
     INTEGER, DIMENSION(3)                    :: npts, npts_local
-    LOGICAL                                  :: smooth
+    LOGICAL                                  :: done_preparing, smooth
     REAL(dp)                                 :: smooth_tile_npts, zeta
     REAL(dp), ALLOCATABLE, DIMENSION(:)      :: Bxunit_vec, test_vec, &
                                                 work_arr, x_glbl, x_locl, &
@@ -1196,7 +1186,7 @@ CONTAINS
                 tile_pw => ps_implicit_env%gates(j)%dirichlet_bc%tiles(i)%tile%tile_pw
                 CALL pw_pool_create_pw(pw_pool_orig, pw_in, use_data=REALDATA3D, in_space=REALSPACE, error=error)
                 CALL pw_mollifier(pw_pool_orig, zeta, x_glbl, y_glbl, z_glbl, tile_pw, pw_in, error)
-                smooth_tile_npts = SUM(pw_in%cr3d)
+                smooth_tile_npts = accurate_sum(pw_in%cr3d)
                 CALL mp_sum(smooth_tile_npts, pw_grid_orig%para%group)
                 CALL pw_scale(pw_in, 1.0_dp / smooth_tile_npts, error)     ! normalize tile_pw
                 ps_implicit_env%Bt(ps_implicit_env%idx_3dto1d, indx1+i-1) = RESHAPE(pw_in%cr3d, (/data_size/))
@@ -1268,6 +1258,12 @@ CONTAINS
        CALL pw_pool_release(pw_pool_xpndd, error=error)
        CALL pw_pool_release(aux_pw_pool_xpndd, error=error)
 
+       done_preparing = .TRUE.
+       CALL mp_sum(done_preparing, pw_grid_orig%para%group)
+       IF ((unit_nr .GT. 0) .AND. done_preparing) THEN
+          WRITE(unit_nr,"(T3,A,/,T3,A,/,A)") "POISSON| ... Done. ", REPEAT('-', 78)
+       END IF
+
     CASE (MIXED_PERIODIC_BC)
 
        ALLOCATE(ps_implicit_env%idx_3dto1d(data_size))
@@ -1315,7 +1311,7 @@ CONTAINS
                 tile_pw => ps_implicit_env%gates(j)%dirichlet_bc%tiles(i)%tile%tile_pw
                 CALL pw_pool_create_pw(pw_pool_orig, pw_in, use_data=REALDATA3D, in_space=REALSPACE, error=error)
                 CALL pw_mollifier(pw_pool_orig, zeta, x_glbl, y_glbl, z_glbl, tile_pw, pw_in, error)
-                smooth_tile_npts = SUM(pw_in%cr3d)
+                smooth_tile_npts = accurate_sum(pw_in%cr3d)
                 CALL mp_sum(smooth_tile_npts, pw_grid_orig%para%group)
                 CALL pw_scale(pw_in, 1.0_dp / smooth_tile_npts, error)     ! normalize tile_pw
                 ps_implicit_env%Bt(ps_implicit_env%idx_3dto1d, indx1+i-1) = RESHAPE(pw_in%cr3d, (/data_size/))
@@ -1374,6 +1370,12 @@ CONTAINS
                         "Inversion of R failed!", error)
 
        DEALLOCATE(QAinvxBt, Bxunit_vec, R, work_arr, ipiv)
+
+       done_preparing = .TRUE.
+       CALL mp_sum(done_preparing, pw_grid_orig%para%group)
+       IF ((unit_nr .GT. 0) .AND. done_preparing) THEN
+          WRITE(unit_nr,"(T3,A,/,T3,A,/,A)") "POISSON| ... Done. ", REPEAT('-', 78)
+       END IF
 
     CASE (PERIODIC_BC, NEUMANN_BC)
 
@@ -1989,112 +1991,6 @@ CONTAINS
   END SUBROUTINE ps_implicit_compute_veps
 
 ! *****************************************************************************
-!> \brief Computes the Hartree energy
-!>          E_H = \frac{1}{2} * \int \rho * v dr
-!> \param pw_pool pool of the original plane-wave grid
-!> \param dielectric dielectric environment
-!> \param v Hartree potential
-!> \param res residual
-!> \param g the right-hand side
-!> \param ehartree Hartree energy
-!> \param error cp2k error
-!> \par History
-!>       08.2014 created [Hossein Bani-Hashemian]
-!> \author Mohammad Hossein Bani-Hashemian
-! *****************************************************************************
-  SUBROUTINE compute_ehartree_periodic_bc(pw_pool, dielectric, v, res, g, ehartree, error)
-
-    TYPE(pw_pool_type), INTENT(IN), POINTER  :: pw_pool
-    TYPE(dielectric_type), INTENT(IN), &
-      POINTER                                :: dielectric
-    TYPE(pw_type), INTENT(IN), POINTER       :: v, res, g
-    REAL(dp), INTENT(OUT)                    :: ehartree
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
-
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'compute_ehartree_periodic_bc', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: handle
-    REAL(dp)                                 :: eightpi
-    TYPE(pw_type), POINTER                   :: edensity, eps
-
-    CALL timeset(routineN,handle)
-
-    eightpi = 2 * fourpi
-    eps => dielectric%eps
-
-! \frac{\rho}{\eps} = \Delta(v) + P(v) = g - res
-    CALL pw_pool_create_pw(pw_pool, edensity, &
-                           use_data=REALDATA3D, in_space=REALSPACE, &
-                           error=error)
-    CALL pw_copy(g, edensity, error=error)
-    CALL pw_axpy(res, edensity, - 1.0_dp, error=error)
-! \rho = \frac{\rho}{\eps} * \eps
-    edensity%cr3d = edensity%cr3d * dielectric%eps%cr3d
-    ehartree = (1.0_dp / eightpi) * pw_integral_ab(v, edensity, error=error)
-    CALL pw_pool_give_back_pw(pw_pool, edensity, error=error)
-
-    CALL timestop(handle)
-
-  END SUBROUTINE compute_ehartree_periodic_bc
-
-! *****************************************************************************
-!> \brief Computes the Hartree energy
-!>          E_H = \frac{1}{2} * \int \rho * v dr
-!> \param pw_pool pool of the original plane-wave grid
-!> \param dielectric dielectric environment
-!> \param v Hartree potential
-!> \param res residual
-!> \param g the right-hand side
-!> \param Btxlambda B^t * \lambda (\lambda is the vector of Lagrange multipliers
-!>                  and B^t is the transpose of the boundary operator
-!> \param ehartree Hartree energy
-!> \param error cp2k error
-!> \par History
-!>       08.2014 created [Hossein Bani-Hashemian]
-!> \author Mohammad Hossein Bani-Hashemian
-! *****************************************************************************
-  SUBROUTINE compute_ehartree_dirichlet_bc(pw_pool, dielectric, v, res, g, Btxlambda, ehartree, error)
-
-    TYPE(pw_pool_type), INTENT(IN), POINTER  :: pw_pool
-    TYPE(dielectric_type), INTENT(IN), &
-      POINTER                                :: dielectric
-    TYPE(pw_type), INTENT(IN), POINTER       :: v, res, g
-    REAL(dp), ALLOCATABLE, &
-      DIMENSION(:, :, :), INTENT(IN)         :: Btxlambda
-    REAL(dp), INTENT(OUT)                    :: ehartree
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
-
-    CHARACTER(LEN=*), PARAMETER :: &
-      routineN = 'compute_ehartree_dirichlet_bc', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: handle
-    REAL(dp)                                 :: eightpi
-    TYPE(pw_type), POINTER                   :: edensity, eps
-
-    CALL timeset(routineN,handle)
-
-    eightpi = 2 * fourpi
-    eps => dielectric%eps
-
-! \frac{\rho}{\eps} = \Delta(v) + P(v) = g - res - B^t \lambda
-    CALL pw_pool_create_pw(pw_pool, edensity, &
-                           use_data=REALDATA3D, in_space=REALSPACE, &
-                           error=error)
-    CALL pw_copy(g, edensity, error=error)
-    CALL pw_axpy(res, edensity, - 1.0_dp, error=error)
-    edensity%cr3d = edensity%cr3d - Btxlambda
-! \rho = \frac{\rho}{\eps} * \eps
-    edensity%cr3d = edensity%cr3d * dielectric%eps%cr3d
-    ehartree = (1.0_dp / eightpi) * pw_integral_ab(v, edensity, error=error)
-    CALL pw_pool_give_back_pw(pw_pool, edensity, error=error)
-
-    CALL timestop(handle)
-
-  END SUBROUTINE compute_ehartree_dirichlet_bc
-
-! *****************************************************************************
 !> \brief  Computes the (normalized) preconditioned residual norm error and the
 !>         normalized absolute error
 !> \param pw_pool pool of the original plane-wave grid
@@ -2134,13 +2030,13 @@ CONTAINS
 ! evaluate \Delta^-1(res) = \Delta^-1 (g - \Delta(v_new) - P(v_new) - Bt \lambda)
     CALL apply_inv_laplace_operator(pw_pool, green, res_new, QAinvxres_new, error)
 ! (normalized) preconditioned residual norm error :
-    pres_error = SUM(QAinvxres_new%cr3d(:,:,:)**2)
+    pres_error = accurate_sum(QAinvxres_new%cr3d(:,:,:)**2)
     CALL mp_sum(pres_error, pw_pool%pw_grid%para%group)
     pres_error = SQRT(pres_error) / vol
 
 ! normalized absolute error :
 ! nabs_error := \frac{\| v_old - v_new \|}{volume}
-    nabs_error = SUM(ABS(v_old%cr3d - v_new%cr3d) ** 2)
+    nabs_error = accurate_sum(ABS(v_old%cr3d - v_new%cr3d) ** 2)
     CALL mp_sum(nabs_error, pw_pool%pw_grid%para%group)
     nabs_error = SQRT(nabs_error) / vol
 
@@ -2202,13 +2098,13 @@ CONTAINS
                                     dct_env%bounds_shftd, dct_env%bounds_local_shftd, &
                                     adjust_local_bounds, res_new, QAinvxres_new, error)
 ! (normalized) preconditioned residual norm error :
-    pres_error = SUM(QAinvxres_new%cr3d(:,:,:)**2)
+    pres_error = accurate_sum(QAinvxres_new%cr3d(:,:,:)**2)
     CALL mp_sum(pres_error, pw_pool%pw_grid%para%group)
     pres_error = SQRT(pres_error) / vol
 
 ! normalized absolute error :
 ! nabs_error := \frac{\| v_old - v_new \|}{volume}
-    nabs_error = SUM(ABS(v_old%cr3d - v_new%cr3d) ** 2)
+    nabs_error = accurate_sum(ABS(v_old%cr3d - v_new%cr3d) ** 2)
     CALL mp_sum(nabs_error, pw_pool%pw_grid%para%group)
     nabs_error = SQRT(nabs_error) / vol
 
@@ -2385,14 +2281,18 @@ CONTAINS
       END DO
     END DO
     CALL pw_scale(G, (1.0_dp/zeta)**3, error)
-    normfact = SUM ( G%cr3d ( :, :, : ) )
-    CALL mp_sum(normfact, pw_pool%pw_grid%para%group)
+    normfact = pw_integrate_function(G,error=error)
     CALL pw_scale(G, 1.0_dp/normfact, error)
 
     CALL pw_transfer(G, G_gs, error=error)
     CALL pw_transfer(pw_in, pw_in_gs, error=error)
     pw_out_gs%cc = G_gs%cc * pw_in_gs%cc
     CALL pw_transfer(pw_out_gs, pw_out, error=error)
+
+    ! multiply by the reciprocal of the forward Fourier transform normalization prefactor (here 1/N, by convention)
+    CALL pw_scale(pw_out, REAL(pw_grid%ngpts,KIND=dp), error=error)
+    ! from discrete convolution to continuous convolution
+    CALL pw_scale(pw_out, pw_grid%dvol, error=error)
 
     DO k = lb3, ub3
       DO j = lb2, ub2
@@ -2433,7 +2333,7 @@ CONTAINS
 
     TYPE(pw_type), POINTER                   :: f
     TYPE(pw_p_type), DIMENSION(3), &
-      INTENT(OUT)                            :: df
+      INTENT(INOUT)                          :: df
     TYPE(pw_pool_type), POINTER              :: pw_pool
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 

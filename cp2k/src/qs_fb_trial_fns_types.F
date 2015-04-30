@@ -1,3 +1,8 @@
+!-----------------------------------------------------------------------------!
+!   CP2K: A general program to perform molecular dynamics simulations         !
+!   Copyright (C) 2000 - 2015  CP2K developers group                          !
+!-----------------------------------------------------------------------------!
+
 MODULE qs_fb_trial_fns_types
 
 #include "./common/cp_common_uses.f90"
@@ -9,14 +14,14 @@ MODULE qs_fb_trial_fns_types
   PUBLIC :: fb_trial_fns_obj
 
 ! public methods
-  PUBLIC :: fb_trial_fns_retain, &
-            fb_trial_fns_release, &
-            fb_trial_fns_nullify, &
-            fb_trial_fns_associate, &
-            fb_trial_fns_has_data, &
-            fb_trial_fns_create, &
-            fb_trial_fns_init, &
-            fb_trial_fns_get, &
+  PUBLIC :: fb_trial_fns_retain,&
+            fb_trial_fns_release,&
+            fb_trial_fns_nullify,&
+            fb_trial_fns_associate,&
+            fb_trial_fns_has_data,&
+            fb_trial_fns_create,&
+            fb_trial_fns_init,&
+            fb_trial_fns_get,&
             fb_trial_fns_set
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_fb_trial_fns_types'
