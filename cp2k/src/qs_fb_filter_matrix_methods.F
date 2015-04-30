@@ -1494,6 +1494,7 @@ CONTAINS
 
     CALL timeset("atomic_filter_dsygv", handle_dsygv)
 
+    info = 0
     CALL dsygv(1,             &
                'V',           &
                'U',           &
@@ -1516,6 +1517,7 @@ CONTAINS
     ! do calculation
     atomic_S_copy(:,:) = atomic_S(:,:)
     eigenvectors(:,:) = atomic_H(:,:)
+    info = 0
     CALL dsygv(1,               &
                'V',             &
                'U',             &
