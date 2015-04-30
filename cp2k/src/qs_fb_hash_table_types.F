@@ -18,6 +18,8 @@
 MODULE qs_fb_hash_table_types
 
   USE kinds,                           ONLY: int_8
+  USE timings,                         ONLY: timeset,&
+                                             timestop
 #include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
@@ -113,8 +115,10 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'fb_hash_table_add', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: islot
+    INTEGER                                  :: handle, islot
     LOGICAL                                  :: check_ok, failure
+
+    CALL timeset(routineN, handle)
 
     failure = .FALSE.
     check_ok = fb_hash_table_has_data(hash_table)
@@ -136,6 +140,9 @@ CONTAINS
        hash_table%obj%table(islot)%key = key
     END IF
     hash_table%obj%table(islot)%val = val
+
+    CALL timestop(handle)
+
   END SUBROUTINE fb_hash_table_add
 
 ! *****************************************************************************
@@ -212,8 +219,10 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'fb_hash_table_get', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: islot
+    INTEGER                                  :: handle, islot
     LOGICAL                                  :: check_ok, failure
+
+    CALL timeset(routineN, handle)
 
     failure = .FALSE.
     check_ok = fb_hash_table_has_data(hash_table)
@@ -227,6 +236,9 @@ CONTAINS
           found = .TRUE.
        END IF
     END IF
+
+    CALL timestop(handle)
+
   END SUBROUTINE fb_hash_table_get
 
 ! *****************************************************************************
