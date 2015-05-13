@@ -71,6 +71,8 @@ MODULE qs_fb_atomic_halo_types
 !> \param nelectrons       : estimate of total number of electrons in halo
 !> \param halo_atoms       : the list of global id of atoms in the halo
 !> \param sorted           : whether the halo_atoms list is sorted or not
+!> \param cost             : computational cost for the atomic matrix associated
+!>                           to this atomic halo
 !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
 ! *****************************************************************************
   TYPE fb_atomic_halo_data
@@ -81,6 +83,7 @@ MODULE qs_fb_atomic_halo_types
      INTEGER :: nelectrons
      INTEGER, DIMENSION(:), POINTER :: halo_atoms
      LOGICAL :: sorted
+     INTEGER :: cost
   END TYPE fb_atomic_halo_data
 
 
@@ -272,6 +275,7 @@ CONTAINS
        atomic_halo%obj%natoms = 0
        atomic_halo%obj%nelectrons = 0
        atomic_halo%obj%sorted = .FALSE.
+       atomic_halo%obj%cost = 0
        NULLIFY(atomic_halo%obj%halo_atoms)
        atomic_halo%obj%ref_count = 1
        atomic_halo%obj%id_nr = last_fb_atomic_halo_id + 1
@@ -311,6 +315,7 @@ CONTAINS
        atomic_halo%obj%natoms = 0
        atomic_halo%obj%nelectrons = 0
        atomic_halo%obj%sorted = .FALSE.
+       atomic_halo%obj%cost = 0
     END IF
   END SUBROUTINE fb_atomic_halo_init
 
@@ -328,6 +333,7 @@ CONTAINS
 !> \param halo_atoms [OPTIONAL]: if present, outputs pointer
 !>                               atomic_halo%obj%halo_atoms
 !> \param sorted [OPTIONAL]: if present, outputs atomic_halo%obj%sorted
+!> \param cost [OPTIONAL: if present, outputs atomic_halo%obj%cost]
 !> \param error CP2K data container for error logging
 !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
 ! *****************************************************************************
@@ -338,12 +344,14 @@ CONTAINS
                                 nelectrons, &
                                 halo_atoms, &
                                 sorted, &
+                                cost, &
                                 error)
     TYPE(fb_atomic_halo_obj), INTENT(IN)     :: atomic_halo
     INTEGER, INTENT(OUT), OPTIONAL           :: owner_atom, owner_id_in_halo, &
                                                 natoms, nelectrons
     INTEGER, DIMENSION(:), OPTIONAL, POINTER :: halo_atoms
     LOGICAL, INTENT(OUT), OPTIONAL           :: sorted
+    INTEGER, INTENT(OUT), OPTIONAL           :: cost
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'fb_atomic_halo_get', &
@@ -360,6 +368,7 @@ CONTAINS
        IF (PRESENT(nelectrons)) nelectrons = atomic_halo%obj%nelectrons
        IF (PRESENT(halo_atoms)) halo_atoms => atomic_halo%obj%halo_atoms
        IF (PRESENT(sorted)) sorted = atomic_halo%obj%sorted
+       IF (PRESENT(cost)) cost = atomic_halo%obj%cost
     END IF
   END SUBROUTINE fb_atomic_halo_get
 
@@ -379,6 +388,7 @@ CONTAINS
 !>                               to the size of halo_atoms, and copies
 !>                               contents of halo_atoms to atomic_halo%obj%halo_atoms
 !> \param sorted [OPTIONAL]: if present, sets atomic_halo%obj%sorted = sorted
+!> \param cost [OPTIONAL]: if present, sets atomic_halo%obj%cost = cost
 !> \param error CP2K data container for error logging
 !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
 ! *****************************************************************************
@@ -389,12 +399,14 @@ CONTAINS
                                 nelectrons, &
                                 halo_atoms, &
                                 sorted, &
+                                cost,
                                 error)
     TYPE(fb_atomic_halo_obj), INTENT(INOUT)  :: atomic_halo
     INTEGER, INTENT(IN), OPTIONAL            :: owner_atom, owner_id_in_halo, &
                                                 natoms, nelectrons
     INTEGER, DIMENSION(:), OPTIONAL, POINTER :: halo_atoms
     LOGICAL, INTENT(IN), OPTIONAL            :: sorted
+    INTEGER, INTENT(IN), OPTIONAL            :: cost
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'fb_atomic_halo_set', &
@@ -419,6 +431,7 @@ CONTAINS
        END IF
        IF (PRESENT(nelectrons)) atomic_halo%obj%nelectrons = nelectrons
        IF (PRESENT(sorted)) atomic_halo%obj%sorted = sorted
+       IF (PRESENT(cost)) atomic_halo%obj%cost = cost
     END IF
   END SUBROUTINE fb_atomic_halo_set
 
