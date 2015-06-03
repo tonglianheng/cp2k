@@ -155,6 +155,7 @@ CONTAINS
                                natoms=nhalo_atoms, &
                                halo_atoms=halo_atoms, &
                                error=error)
+       NULLIFY(halo_atoms)
        cost_per_atom(iatom) = fb_atomic_halo_cost(atomic_halo, particle_set, qs_kind_set)
     END DO
     DEALLOCATE(pair_radii, STAT=stat)
@@ -192,8 +193,24 @@ CONTAINS
             MOD(pos_in_preferred_list(i_common_set), &
                 preferred_procs_set(iatom)%nprocs) + 1
        ipe = preferred_procs_set(iatom)%list(pos_in_preferred_list(i_common_set))
+
+!BEG:DEBUG:LT:2015/06/03
+       print *, "|LT| build: iatom = ", iatom
+       print *, "|LT| build: preferred_procs_set = ", preferred_procs_set(iatom)%list(:)
+       print *, "|LT| build: ipe = ", ipe
+!END:DEBUG:LT:2015/06/03
+
        CALL fb_distribution_add(dist(ipe), element, error)
+
+!BEG:DEBUG:LT:2015/06/03
+    print *, "|LT| dist(",ipe,") = "
+    DO ii = 1, dist(ipe)%nelements
+       print *, dist(ipe)%list(ii)%id, dist(ipe)%list(ii)%cost
     END DO
+!END:DEBUG:LT:2015/06/03
+
+    END DO
+
     DEALLOCATE(pos_in_preferred_list, STAT=stat)
     CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
     DEALLOCATE(common_set_ids, STAT=stat)
@@ -358,15 +375,17 @@ CONTAINS
        ALLOCATE(preferred_procs_set(icol)%list(nprows), STAT=stat)
        CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
        pcol = col_dist(icol)
-       DO prow = 1, nprows
-          preferred_procs_set(icol)%list(prow) = &
-               dbcsr_mp_get_process(dbcsr_mp, prow, pcol)
+       ! dbcsr prow and pcol counts from 0
+       DO prow = 0, nprows-1
+          ! here, we count processes from 1, so +1 from mpirank
+          preferred_procs_set(icol)%list(prow+1) = &
+               dbcsr_mp_get_process(dbcsr_mp, prow, pcol) + 1
        END DO
        preferred_procs_set(icol)%nprocs = nprows
     END DO
 
     common_set_ids(:) = 0
-    common_set_ids(1:natoms) = col_dist(1:natoms)
+    common_set_ids(1:natoms) = col_dist(1:natoms) + 1
     n_common_sets = dbcsr_mp_npcols(dbcsr_mp)
 
   END SUBROUTINE fb_build_preferred_procs
@@ -461,7 +480,7 @@ CONTAINS
     failure = .FALSE.
     IF (.NOT. ASSOCIATED(dist%list)) THEN
        my_nmax = MAX(nmax, 1)
-       ALLOCATE(dist%list(nmax), STAT=stat)
+       ALLOCATE(dist%list(my_nmax), STAT=stat)
        CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
     ELSE
        my_nmax = MAX(nmax, dist%nelements)
@@ -471,9 +490,29 @@ CONTAINS
           new_list(ii)%id = 0
           new_list(ii)%cost = 0
        END DO
+
+!BEG:DEBUG:LT:2015/06/03
+       print *, "|LT| resize: nmax = ", nmax
+       print *, "|LT| resize: my_nmax = ", my_nmax
+       print *, "|LT| resize: dist%nelements = ", dist%nelements
+       print *, "|LT| resize: SIZE(dist%list) = ", SIZE(dist%list)
+       print *, "|LT| resize: dist = "
+       DO ii = 1, SIZE(dist%list)
+          print *, dist%list(ii)%id, dist%list(ii)%cost
+       END DO
+!END:DEBUG:LT:2015/06/03
+
        DO ii = 1, dist%nelements
           new_list(ii) = dist%list(ii)
        END DO
+
+!BEG:DEBUG:LT:2015/06/03
+       print *, "|LT| resize: new_dist = "
+       DO ii = 1, SIZE(new_list)
+          print *, new_list(ii)%id, new_list(ii)%cost
+       END DO
+!END:DEBUG:LT:2015/06/03
+
        DEALLOCATE(dist%list, STAT=stat)
        CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
        dist%list => new_list
@@ -494,6 +533,12 @@ CONTAINS
 
     failure = .FALSE.
     new_nelements = dist%nelements + 1
+
+!BEG:DEBUG:LT:2015/06/03
+    print *, "|LT| add: dist%nelements = ", dist%nelements
+    print *, "|LT| add: new_nelements = ", new_nelements
+!END:DEBUG:LT:2015/06/03
+
     ! resize list if necessary
     IF (.NOT. ASSOCIATED(dist%list)) THEN
        CALL fb_distribution_resize(dist, new_nelements, error=error)
@@ -506,6 +551,12 @@ CONTAINS
        dist%list(1) = element
     ELSE
        pos = fb_distribution_find_slot(dist, element)
+
+!BEG:DEBUG:LT:2015/06/03
+       print *, "|LT| add: element = ", element
+       print *, "|LT| add: pos = ", pos
+!END:DEBUG:LT:2015/06/03
+
        DO ii = dist%nelements, pos, -1
           dist%list(ii + 1) = dist%list(ii)
        END DO
@@ -542,7 +593,7 @@ CONTAINS
           lower = middle
        END IF
     END DO
-    pos = lower
+    pos = upper
   END FUNCTION fb_distribution_find_slot
 
 

@@ -859,25 +859,6 @@ CONTAINS
   END SUBROUTINE fb_env_build_rcut_auto
 
 
-
-  SUBROUTINE fb_env_distribute_atoms(fb_env, error)
-    TYPE(fb_env_obj), INTENT(INOUT)          :: fb_env
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'fb_env_build_atomic_halos', &
-      routineP = moduleN//':'//routineN
-
-    
-    ! assemble cost array for all of the atomic halos
-    
-
-    ! distribure the halos to procs (construct local_atoms list)
-
-  END SUBROUTINE fb_env_distribute_atoms
-
-
-
-
 ! *****************************************************************************
 !> \brief Builds an fb_atomic_halo_list object using information
 !>        from fb_env
@@ -980,6 +961,10 @@ CONTAINS
                                natoms=nhalo_atoms, &
                                halo_atoms=halo_atoms, &
                                error=error)
+       ! prepare halo_atoms for another halo, do not deallocate, as
+       ! original data is being pointed at by the atomic halo data
+       ! structure
+       NULLIFY(halo_atoms)
        ! calculate the number of electrons in each halo
        nelectrons = fb_atomic_halo_nelectrons_estimate_Z(halos(ihalo), &
                                                          particle_set)

@@ -598,6 +598,8 @@ CONTAINS
                         ncgf=ncgf)
        cost = cost + ncgf
     END DO
+    ! diagonalisation is N**3 process, so cost must reflect that
+    cost = cost**3
   END FUNCTION fb_atomic_halo_cost
 
 
