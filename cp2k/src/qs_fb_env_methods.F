@@ -62,7 +62,8 @@ MODULE qs_fb_env_methods
        fb_atomic_halo_list_release, fb_atomic_halo_list_set, &
        fb_atomic_halo_nelectrons_estimate_Z, fb_atomic_halo_nullify, &
        fb_atomic_halo_obj, fb_atomic_halo_set, fb_atomic_halo_sort, &
-       fb_build_pair_radii, fb_atomic_halo_build_halo_atoms
+       fb_build_pair_radii, fb_atomic_halo_build_halo_atoms, &
+       fb_atomic_halo_cost
   USE qs_fb_env_types,                 ONLY: fb_env_get,&
                                              fb_env_has_data,&
                                              fb_env_obj,&

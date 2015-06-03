@@ -782,7 +782,7 @@ CONTAINS
          END IF
          CALL fb_env_read_input(scf_env%filter_matrix_env, scf_section, error=error)
          CALL fb_env_build_rcut_auto(scf_env%filter_matrix_env, qs_env, error=error)
-         CALL fb_distribution_build(scf_env%filter_matrix_env, qs_env, error=error))
+         CALL fb_distribution_build(scf_env%filter_matrix_env, qs_env, error=error)
          CALL fb_env_build_atomic_halos(scf_env%filter_matrix_env, qs_env, error=error)
          CALL fb_env_write_info(scf_env%filter_matrix_env, qs_env, scf_section, error=error)
       CASE DEFAULT

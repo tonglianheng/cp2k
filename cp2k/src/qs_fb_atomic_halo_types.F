@@ -7,7 +7,7 @@ MODULE qs_fb_atomic_halo_types
 
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind
-  USE cell_types                       ONLY: cell_type,&
+  USE cell_types,                      ONLY: cell_type,&
                                              pbc
   USE cp_output_handling,              ONLY: cp_p_file,&
                                              cp_print_key_finished_output,&
@@ -15,7 +15,7 @@ MODULE qs_fb_atomic_halo_types
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE input_section_types,             ONLY: section_vals_type
-  USE kinds,                           ONLY: default_string_length
+  USE kinds,                           ONLY: default_string_length, dp
   USE particle_types,                  ONLY: particle_type
   USE qs_kind_types,                   ONLY: qs_kind_type,&
                                              get_qs_kind
@@ -24,6 +24,8 @@ MODULE qs_fb_atomic_halo_types
                                              timestop
   USE util,                            ONLY: locate,&
                                              sort
+  USE memory_utilities,                ONLY: reallocate
+
 #include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
@@ -406,7 +408,7 @@ CONTAINS
                                 nelectrons, &
                                 halo_atoms, &
                                 sorted, &
-                                cost,
+                                cost, &
                                 error)
     TYPE(fb_atomic_halo_obj), INTENT(INOUT)  :: atomic_halo
     INTEGER, INTENT(IN), OPTIONAL            :: owner_atom, owner_id_in_halo, &
@@ -626,7 +628,7 @@ CONTAINS
     TYPE(particle_type), DIMENSION(:), INTENT(IN) :: particle_set
     TYPE(cell_type), POINTER :: cell
     REAL(KIND=dp), DIMENSION(:,:), INTENT(IN) :: pair_radii
-    INTEGER, DIMENSION(:), INTENT(OUT) :: halo_atoms
+    INTEGER, DIMENSION(:), POINTER :: halo_atoms
     INTEGER, INTENT(OUT) :: nhalo_atoms
     INTEGER, INTENT(OUT) :: owner_id_in_halo
     TYPE(cp_error_type), INTENT(INOUT) :: error
@@ -650,7 +652,7 @@ CONTAINS
     atomic_kind => particle_set(iatom)%atomic_kind
     CALL get_atomic_kind(atomic_kind=atomic_kind, &
                          kind_number=ikind)
-    natoms_global = SIZE(atoms_global)
+    natoms_global = SIZE(particle_set)
     ALLOCATE(halo_atoms(natoms_global), STAT=stat)
     CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
     owner_id_in_halo = 0
@@ -669,7 +671,7 @@ CONTAINS
              rij_pbc(2)*rij_pbc(2) + &
              rij_pbc(3)*rij_pbc(3)
        rij = SQRT(rij)
-       IF (rij .LE. pair_radius(ikind, jkind)) THEN
+       IF (rij .LE. pair_radii(ikind, jkind)) THEN
           ! jatom is in iatom's halo
           nhalo_atoms = nhalo_atoms + 1
           halo_atoms(nhalo_atoms) = jatom
@@ -1054,10 +1056,11 @@ CONTAINS
     INTEGER, INTENT(IN) :: nkinds
     REAL(KIND=dp), DIMENSION(:, :), INTENT(OUT) :: pair_radii
 
-    pair_radius = 0.0_dp
-    DO i = 1, nkinds
-       DO j = 1, nkinds
-          pair_radius(i,j) = rcut(i) + rcut(j)
+    INTEGER :: ii, jj
+    pair_radii = 0.0_dp
+    DO ii = 1, nkinds
+       DO jj = 1, nkinds
+          pair_radii(ii,jj) = rcut(ii) + rcut(jj)
        END DO
     END DO
   END SUBROUTINE fb_build_pair_radii

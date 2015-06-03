@@ -79,6 +79,7 @@ MODULE qs_fb_env_types
      REAL(KIND=dp) :: auto_cutoff_scale
      LOGICAL :: collective_com
      INTEGER, DIMENSION(:), POINTER :: local_atoms
+     INTEGER :: nlocal_atoms
   END TYPE fb_env_data
 
 
@@ -245,6 +246,7 @@ CONTAINS
        fb_env%obj%auto_cutoff_scale = 1.0_dp
        fb_env%obj%collective_com = .TRUE.
        NULLIFY(fb_env%obj%local_atoms)
+       fb_env%obj%nlocal_atoms = 0
        fb_env%obj%ref_count = 1
        fb_env%obj%id_nr = last_fb_env_id + 1
        last_fb_env_id = fb_env%obj%id_nr
@@ -289,6 +291,7 @@ CONTAINS
           CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
           NULLIFY(fb_env%obj%local_atoms)
        END IF
+       fb_env%obj%nlocal_atoms = 0
     END IF
   END SUBROUTINE fb_env_init
 
@@ -308,6 +311,7 @@ CONTAINS
 !>                             attribute of fb_env (optional)
 !> \param collective_com     : outputs pointer to trial_fns
 !> \param local_atoms        : outputs pointer to local_atoms
+!> \param nlocal_atoms       : outputs pointer to nlocal_atoms
 !> \param error  : variable to control error logging, stopping, ...
 !>                 see module cp_error_handling
 !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
@@ -320,6 +324,7 @@ CONTAINS
                         trial_fns, &
                         collective_com, &
                         local_atoms, &
+                        nlocal_atoms, &
                         error)
     TYPE(fb_env_obj), INTENT(IN)             :: fb_env
     REAL(KIND=dp), DIMENSION(:), OPTIONAL, &
@@ -332,6 +337,7 @@ CONTAINS
       OPTIONAL                               :: trial_fns
     LOGICAL, INTENT(OUT), OPTIONAL           :: collective_com
     INTEGER, DIMENSION(:), OPTIONAL, POINTER :: local_atoms
+    INTEGER, INTENT(OUT), OPTIONAL :: nlocal_atoms
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'fb_env_get', &
@@ -357,6 +363,8 @@ CONTAINS
             collective_com = fb_env%obj%collective_com
        IF (PRESENT(local_atoms)) &
             local_atoms => fb_env%obj%local_atoms
+       IF (PRESENT(nlocal_atoms)) &
+            nlocal_atoms = fb_env%obj%nlocal_atoms
     END IF
   END SUBROUTINE fb_env_get
 
@@ -372,6 +380,7 @@ CONTAINS
 !> \param trial_fns          : sets trial_fns attribute of fb_env (optional)
 !> \param collective_com     : sets collective_com attribute of fb_env (optional)
 !> \param local_atoms        : sets local_atoms attribute of fb_env (optional)
+!> \param nlocal_atoms       : sets nlocal_atoms attribute of fb_env (optional)
 !> \param error  : variable to control error logging, stopping, ...
 !>                 see module cp_error_handling
 !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
@@ -384,6 +393,7 @@ CONTAINS
                         trial_fns, &
                         collective_com, &
                         local_atoms, &
+                        nlocal_atoms, &
                         error)
     TYPE(fb_env_obj), INTENT(INOUT)          :: fb_env
     REAL(KIND=dp), DIMENSION(:), OPTIONAL, &
@@ -396,6 +406,7 @@ CONTAINS
       OPTIONAL                               :: trial_fns
     LOGICAL, INTENT(IN), OPTIONAL            :: collective_com
     INTEGER, DIMENSION(:), OPTIONAL, POINTER :: local_atoms
+    INTEGER, INTENT(IN), OPTIONAL            :: nlocal_atoms
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'fb_env_set', &
@@ -439,6 +450,8 @@ CONTAINS
           END IF
           fb_env%obj%local_atoms => local_atoms
        END IF
+       IF (PRESENT(nlocal_atoms)) &
+            fb_env%obj%nlocal_atoms = nlocal_atoms
     END IF
   END SUBROUTINE fb_env_set
 

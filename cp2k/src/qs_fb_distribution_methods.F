@@ -21,12 +21,15 @@ Module qs_fb_distribution_methods
   USE qs_kind_types, ONLY: qs_kind_type
   USE cp_dbcsr_interface, ONLY: cp_dbcsr_get_info,&
                                 cp_dbcsr_type,&
+                                cp_dbcsr_p_type,&
+                                cp_dbcsr_nblkcols_total,&
                                 dbcsr_distribution_obj,&
                                 dbcsr_distribution_mp,&
                                 dbcsr_mp_obj,&
                                 dbcsr_mp_nprows,&
                                 dbcsr_mp_npcols,&
                                 dbcsr_mp_get_process
+  USE cp_para_types, ONLY: cp_para_env_type
   USE util, ONLY: sort
   USE timings, ONLY: timeset,&
                      timestop
@@ -39,19 +42,21 @@ Module qs_fb_distribution_methods
 
   PUBLIC :: fb_distribution_build
 
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_distribution_methods'
+
   TYPE fb_distribution_element
      INTEGER :: id
      INTEGER :: cost
   END type fb_distribution_element
 
   TYPE fb_distribution_list
-     TYPE(fb_distribution_element), DIMENSION(:), POINTER :: list = NULL()
+     TYPE(fb_distribution_element), DIMENSION(:), POINTER :: list => NULL()
      INTEGER :: nelements
      INTEGER :: cost
   END type fb_distribution_list
 
   TYPE fb_preferred_procs_list
-     INTEGER, DIMENSION(:), POINTER :: list = NULL()
+     INTEGER, DIMENSION(:), POINTER :: list => NULL()
      INTEGER :: nprocs
   END type fb_preferred_procs_list
 
@@ -85,7 +90,8 @@ CONTAINS
     LOGICAL :: failure, move_happened
     INTEGER :: natoms, nkinds, nprocs, my_pe, stat, iatom, &
          owner_id_in_halo, nhalo_atoms, n_common_sets, ipe, &
-         average_cost, lowest_cost_ind, ii, i_common_set, handle
+         average_cost, lowest_cost_ind, ii, i_common_set, handle, lb, &
+         ub
     TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER :: mat_ks
     REAL(KIND=dp), DIMENSION(:), POINTER :: rcut
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :) :: pair_radii
@@ -96,9 +102,10 @@ CONTAINS
     TYPE(fb_atomic_halo_obj) :: atomic_halo
     INTEGER, DIMENSION(:), POINTER :: halo_atoms, local_atoms
     INTEGER, DIMENSION(:), ALLOCATABLE :: cost_per_atom, &
-         cost_per_procs, preferred_procs_set, common_set_ids, &
-         pos_in_preferred_list, pe, local_atoms_all, &
-         local_atoms_starts, local_atoms_sizes
+         cost_per_proc, common_set_ids, pos_in_preferred_list, pe, &
+         local_atoms_all, local_atoms_starts, local_atoms_sizes
+    TYPE(fb_preferred_procs_list), DIMENSION(:), ALLOCATABLE :: &
+         preferred_procs_set
     TYPE(fb_distribution_list), DIMENSION(:), ALLOCATABLE :: dist
     TYPE(fb_distribution_element) :: element
 
@@ -115,16 +122,16 @@ CONTAINS
                     rcut=rcut, &
                     error=error)
     CALL get_qs_env(qs_env=qs_env, &
-                    natoms=natoms, &
+                    natom=natoms, &
                     particle_set=particle_set, &
                     qs_kind_set=qs_kind_set, &
                     nkind=nkinds, &
                     cell=cell, &
                     para_env=para_env, &
-                    matrix_ks=mat_ks
+                    matrix_ks=mat_ks, &
                     error=error)
     nprocs = para_env%num_pe
-    my_pe = para_env%me_pos + 1 ! counting from 1
+    my_pe = para_env%mepos + 1 ! counting from 1
 
     ! for each global atom, build atomic halo and get the associated cost
     ALLOCATE(pair_radii(nkinds,nkinds), STAT=stat)
@@ -178,7 +185,7 @@ CONTAINS
     CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
     pos_in_preferred_list(:) = 0
     DO iatom = 1, natoms
-       element%index = iatom
+       element%id = iatom
        element%cost = cost_per_atom(iatom)
        i_common_set = common_set_ids(iatom)
        pos_in_preferred_list(i_common_set) = &
@@ -225,10 +232,10 @@ CONTAINS
     lowest_cost_ind = 1
     DO ipe = nprocs, 2, -1
        redistribute: DO WHILE (dist(pe(ipe))%cost .GT. average_cost)
-          iatom = dist(pe(ipe))%list(lowest_cost_ind)%index
+          iatom = dist(pe(ipe))%list(lowest_cost_ind)%id
           move_happened = .FALSE.
           ! first try to move to a preferred process
-          preferred: DO ii = 1, preferred_procs_set(iatom)
+          preferred: DO ii = 1, preferred_procs_set(iatom)%nprocs
              IF ((ii .NE. pe(ipe)) .AND. &
                  (dist(ii)%cost .LT. average_cost)) THEN
                 CALL fb_distribution_move(dist(pe(ipe)), &
@@ -285,14 +292,16 @@ CONTAINS
                                         error)
     ALLOCATE(local_atoms(local_atoms_sizes(my_pe)), STAT=stat)
     CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
-    local_atoms = local_atoms_all(local_atoms_start(my_pe) : &
-                                  local_atoms_start(my_pe)+local_atoms_sizes-1)
+    lb = local_atoms_starts(my_pe)
+    ub = local_atoms_starts(my_pe) + local_atoms_sizes(my_pe) - 1
+    local_atoms(1:local_atoms_sizes(my_pe)) = local_atoms_all(lb:ub)
     CALL fb_env_set(fb_env=fb_env, &
                     local_atoms=local_atoms, &
+                    nlocal_atoms=local_atoms_sizes(my_pe), &
                     error=error)
     DEALLOCATE(local_atoms_all, STAT=stat)
     CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
-    DEALLOCATE(local_atoms_starts. STAT=stat)
+    DEALLOCATE(local_atoms_starts, STAT=stat)
     CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
     DEALLOCATE(local_atoms_sizes, STAT=stat)
     CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
@@ -323,7 +332,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'fb_build_preferred_procs', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: icol, pe, prow, nprows, pcol
+    INTEGER :: icol, pe, prow, nprows, pcol, stat
     LOGICAL :: check_ok, failure
     TYPE(dbcsr_distribution_obj) :: dbcsr_dist
     TYPE(dbcsr_mp_obj) :: dbcsr_mp
@@ -350,7 +359,8 @@ CONTAINS
        CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
        pcol = col_dist(icol)
        DO prow = 1, nprows
-          preferred_procs(prow) = dbcsr_mp_get_process(dbcsr_mp, prow, pcol)
+          preferred_procs_set(icol)%list(prow) = &
+               dbcsr_mp_get_process(dbcsr_mp, prow, pcol)
        END DO
        preferred_procs_set(icol)%nprocs = nprows
     END DO
@@ -413,7 +423,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     LOGICAL :: failure
-    INTEGER :: ii, my_nmax
+    INTEGER :: ii, my_nmax, stat
 
     failure = .FALSE.
     my_nmax = 0
@@ -445,7 +455,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     LOGICAL :: failure
-    INTEGER :: my_nmax, ii
+    INTEGER :: my_nmax, ii, stat
     TYPE(fb_distribution_element), DIMENSION(:), POINTER :: new_list
 
     failure = .FALSE.
@@ -479,7 +489,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'fb_distribution_add', &
       routineP = moduleN//':'//routineN
 
-    INTEGER ii, jj, new_nelements
+    INTEGER ii, jj, new_nelements, pos
     LOGICAL :: failure
 
     failure = .FALSE.
@@ -524,7 +534,7 @@ CONTAINS
     END IF
     lower = 1
     upper = N
-    DO WHILE ((upper - lower) .GT. 1) THEN
+    DO WHILE ((upper - lower) .GT. 1)
        middle = (lower + upper) / 2
        IF (element%cost .LT. dist%list(middle)%cost) THEN
           upper = middle
@@ -599,7 +609,7 @@ CONTAINS
     TYPE(fb_distribution_element) :: element
 
     failure = .FALSE.
-    check_ok = ASSOCATED(dist_from%list)
+    check_ok = ASSOCIATED(dist_from%list)
     CPPostcondition(check_ok, cp_failure_level, routineP, error, failure)
     check_ok = pos .LE. dist_from%nelements
     CPPostcondition(check_ok, cp_failure_level, routineP, error, failure)
@@ -620,11 +630,11 @@ CONTAINS
     LOGICAL :: check_ok, failure
 
     failure = .FALSE.
-    check_ok = ASSOCATED(dist_from%list)
+    check_ok = ASSOCIATED(dist_from%list)
     CPPostcondition(check_ok, cp_failure_level, routineP, error, failure)
     CALL fb_distribution_add(dist_to, element, error)
     CALL fb_distribution_remove(dist_from, element, error)
-  END SUBROUTINE fb_distribution_move_ind
+  END SUBROUTINE fb_distribution_move_el
 
 
   SUBROUTINE fb_distribution_release(dist, error)
@@ -634,7 +644,8 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'fb_distribution_move_el', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL :: faiure
+    LOGICAL :: failure
+    INTEGER :: stat
 
     failure = .FALSE.
     IF (ASSOCIATED(dist%list)) THEN
