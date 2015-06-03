@@ -67,6 +67,7 @@ MODULE qs_scf_initialization
                                              fb_env_write_info
   USE qs_fb_env_types,                 ONLY: fb_env_create,&
                                              fb_env_has_data
+  USE qs_fb_distribution_methods,      ONLY: fb_distribution_build
   USE qs_gspace_mixing,                ONLY: mixing_allocate,&
                                              mixing_init
   USE qs_initial_guess,                ONLY: calculate_first_density_matrix
@@ -781,6 +782,7 @@ CONTAINS
          END IF
          CALL fb_env_read_input(scf_env%filter_matrix_env, scf_section, error=error)
          CALL fb_env_build_rcut_auto(scf_env%filter_matrix_env, qs_env, error=error)
+         CALL fb_distribution_build(scf_env%filter_matrix_env, qs_env, error=error))
          CALL fb_env_build_atomic_halos(scf_env%filter_matrix_env, qs_env, error=error)
          CALL fb_env_write_info(scf_env%filter_matrix_env, qs_env, scf_section, error=error)
       CASE DEFAULT
