@@ -337,7 +337,7 @@ CONTAINS
       OPTIONAL                               :: trial_fns
     LOGICAL, INTENT(OUT), OPTIONAL           :: collective_com
     INTEGER, DIMENSION(:), OPTIONAL, POINTER :: local_atoms
-    INTEGER, INTENT(OUT), OPTIONAL :: nlocal_atoms
+    INTEGER, INTENT(OUT), OPTIONAL           :: nlocal_atoms
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'fb_env_get', &

@@ -10,8 +10,7 @@ MODULE qs_fb_env_methods
   USE basis_set_types,                 ONLY: get_gto_basis_set,&
                                              gto_basis_set_p_type,&
                                              gto_basis_set_type
-  USE cell_types,                      ONLY: cell_type,&
-                                             pbc
+  USE cell_types,                      ONLY: cell_type
   USE cp_blacs_env,                    ONLY: cp_blacs_env_type
   USE cp_control_types,                ONLY: dft_control_type
   USE cp_dbcsr_interface,              ONLY: &
@@ -40,7 +39,6 @@ MODULE qs_fb_env_methods
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_units,                        ONLY: cp_unit_from_cp2k
-  USE distribution_1d_types,           ONLY: distribution_1d_type
   USE input_constants,                 ONLY: cholesky_inverse,&
                                              use_aux_fit_basis_set,&
                                              use_orb_basis_set
@@ -57,13 +55,13 @@ MODULE qs_fb_env_methods
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
   USE qs_fb_atomic_halo_types,         ONLY: &
+       fb_atomic_halo_build_halo_atoms, fb_atomic_halo_cost, &
        fb_atomic_halo_create, fb_atomic_halo_list_create, &
        fb_atomic_halo_list_nullify, fb_atomic_halo_list_obj, &
        fb_atomic_halo_list_release, fb_atomic_halo_list_set, &
        fb_atomic_halo_nelectrons_estimate_Z, fb_atomic_halo_nullify, &
        fb_atomic_halo_obj, fb_atomic_halo_set, fb_atomic_halo_sort, &
-       fb_build_pair_radii, fb_atomic_halo_build_halo_atoms, &
-       fb_atomic_halo_cost
+       fb_build_pair_radii
   USE qs_fb_env_types,                 ONLY: fb_env_get,&
                                              fb_env_has_data,&
                                              fb_env_obj,&
@@ -90,7 +88,6 @@ MODULE qs_fb_env_methods
                                              init_mo_set,&
                                              mo_set_p_type,&
                                              set_mo_set
-  USE qs_neighbor_lists,               ONLY: pair_radius_setup
   USE qs_scf_methods,                  ONLY: eigensolver
   USE qs_scf_types,                    ONLY: qs_scf_env_type
   USE scf_control_types,               ONLY: scf_control_type
@@ -877,12 +874,12 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'fb_env_build_atomic_halos', &
       routineP = moduleN//':'//routineN
 
-    REAL(KIND=dp) :: cost
-    INTEGER :: handle, iatom, ihalo, max_natoms_local, &
-      natoms_global, natoms_local, nelectrons, nhalo_atoms, &
-      nkinds_global, owner_id_in_halo, stat
-    INTEGER, DIMENSION(:), POINTER           :: atom_list, halo_atoms, local_atoms
+    INTEGER :: handle, iatom, ihalo, max_natoms_local, natoms_global, &
+      natoms_local, nelectrons, nhalo_atoms, nkinds_global, owner_id_in_halo, &
+      stat
+    INTEGER, DIMENSION(:), POINTER           :: halo_atoms, local_atoms
     LOGICAL                                  :: failure
+    REAL(KIND=dp)                            :: cost
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: pair_radii
     REAL(KIND=dp), DIMENSION(:), POINTER     :: rcut

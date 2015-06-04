@@ -3,40 +3,33 @@
 !   Copyright (C) 2000 - 2015  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
-Module qs_fb_distribution_methods
+MODULE qs_fb_distribution_methods
 
-  USE kinds, ONLY: dp
-  USE cell_types, ONLY: cell_type
-  USE qs_environment_types, ONLY: get_qs_env,&
-                                  qs_environment_type
-  USE particle_types, ONLY: particle_type
-  USE qs_fb_atomic_halo_types, ONLY: &
-       fb_atomic_halo_obj, fb_atomic_halo_set, fb_build_pair_radii, &
-       fb_atomic_halo_create, fb_atomic_halo_init, &
+  USE cell_types,                      ONLY: cell_type
+  USE cp_dbcsr_interface,              ONLY: &
+       cp_dbcsr_get_info, cp_dbcsr_nblkcols_total, cp_dbcsr_p_type, &
+       cp_dbcsr_type, dbcsr_distribution_mp, dbcsr_distribution_obj, &
+       dbcsr_mp_get_process, dbcsr_mp_npcols, dbcsr_mp_nprows, dbcsr_mp_obj
+  USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
+                                             cp_print_key_unit_nr
+  USE cp_para_types,                   ONLY: cp_para_env_type
+  USE input_section_types,             ONLY: section_vals_type
+  USE kinds,                           ONLY: dp
+  USE particle_types,                  ONLY: particle_type
+  USE qs_environment_types,            ONLY: get_qs_env,&
+                                             qs_environment_type
+  USE qs_fb_atomic_halo_types,         ONLY: &
        fb_atomic_halo_build_halo_atoms, fb_atomic_halo_cost, &
-       fb_atomic_halo_release, fb_atomic_halo_nullify
-  USE qs_fb_env_types, ONLY: fb_env_obj,&
-                             fb_env_get,&
-                             fb_env_set
-  USE qs_kind_types, ONLY: qs_kind_type
-  USE cp_dbcsr_interface, ONLY: cp_dbcsr_get_info,&
-                                cp_dbcsr_type,&
-                                cp_dbcsr_p_type,&
-                                cp_dbcsr_nblkcols_total,&
-                                dbcsr_distribution_obj,&
-                                dbcsr_distribution_mp,&
-                                dbcsr_mp_obj,&
-                                dbcsr_mp_nprows,&
-                                dbcsr_mp_npcols,&
-                                dbcsr_mp_get_process
-  USE cp_para_types, ONLY: cp_para_env_type
-  USE util, ONLY: sort
-  USE timings, ONLY: timeset,&
-                     timestop
-  USE input_section_types, ONLY: section_vals_type
-  USE cp_output_handling, ONLY: cp_print_key_finished_output,&
-                                cp_print_key_unit_nr
-
+       fb_atomic_halo_create, fb_atomic_halo_init, fb_atomic_halo_nullify, &
+       fb_atomic_halo_obj, fb_atomic_halo_release, fb_atomic_halo_set, &
+       fb_build_pair_radii
+  USE qs_fb_env_types,                 ONLY: fb_env_get,&
+                                             fb_env_obj,&
+                                             fb_env_set
+  USE qs_kind_types,                   ONLY: qs_kind_type
+  USE timings,                         ONLY: timeset,&
+                                             timestop
+  USE util,                            ONLY: sort
 #include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
@@ -45,23 +38,23 @@ Module qs_fb_distribution_methods
 
   PUBLIC :: fb_distribution_build
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_distribution_methods'
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_fb_distribution_methods'
 
   TYPE fb_distribution_element
      INTEGER :: id
      REAL(KIND=dp) :: cost
-  END type fb_distribution_element
+  END TYPE fb_distribution_element
 
   TYPE fb_distribution_list
      TYPE(fb_distribution_element), DIMENSION(:), POINTER :: list => NULL()
      INTEGER :: nelements
      REAL(KIND=dp) :: cost
-  END type fb_distribution_list
+  END TYPE fb_distribution_list
 
   TYPE fb_preferred_procs_list
      INTEGER, DIMENSION(:), POINTER :: list => NULL()
      INTEGER :: nprocs
-  END type fb_preferred_procs_list
+  END TYPE fb_preferred_procs_list
 
 ! Parameters related to automatic resizing of the hash_table:
 ! Resize by EXPAND_FACTOR if total no. slots / no. of filled slots < ENLARGE_RATIO
@@ -91,30 +84,33 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'fb_distribution_build', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL :: failure, move_happened, acceptable_move
-    INTEGER :: natoms, nkinds, nprocs, my_pe, stat, iatom, &
-         owner_id_in_halo, nhalo_atoms, n_common_sets, ipe, &
-         lowest_cost_ind, ii, i_common_set, handle, lb, ub, &
-         pref_pe
-    REAL(KIND=dp) :: average_cost
-    TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER :: mat_ks
-    REAL(KIND=dp), DIMENSION(:), POINTER :: rcut
-    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :) :: pair_radii
+    INTEGER :: handle, i_common_set, iatom, ii, ipe, lb, lowest_cost_ind, &
+      my_pe, n_common_sets, natoms, nhalo_atoms, nkinds, nprocs, &
+      owner_id_in_halo, pref_pe, stat, ub
+    INTEGER, ALLOCATABLE, DIMENSION(:) :: common_set_ids, local_atoms_all, &
+      local_atoms_sizes, local_atoms_starts, pe, pos_in_preferred_list
+    INTEGER, DIMENSION(:), POINTER           :: halo_atoms, local_atoms
+    LOGICAL                                  :: acceptable_move, failure, &
+                                                move_happened
+    REAL(KIND=dp)                            :: average_cost
+    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: cost_per_atom, cost_per_proc
+    REAL(KIND=dp), ALLOCATABLE, &
+      DIMENSION(:, :)                        :: pair_radii
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: rcut
     TYPE(cell_type), POINTER                 :: cell
+    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+      POINTER                                :: mat_ks
     TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(particle_type), DIMENSION(:), POINTER :: particle_set
-    TYPE(qs_kind_type), DIMENSION(:), POINTER :: qs_kind_set
-    TYPE(fb_atomic_halo_obj) :: atomic_halo
-    INTEGER, DIMENSION(:), POINTER :: halo_atoms, local_atoms
-    REAL(KIND=dp), DIMENSION(:), ALLOCATABLE :: cost_per_atom, &
-         cost_per_proc
-    INTEGER, DIMENSION(:), ALLOCATABLE :: common_set_ids, &
-         pos_in_preferred_list, pe, local_atoms_all, &
-         local_atoms_starts, local_atoms_sizes
-    TYPE(fb_preferred_procs_list), DIMENSION(:), ALLOCATABLE :: &
-         preferred_procs_set
-    TYPE(fb_distribution_list), DIMENSION(:), ALLOCATABLE :: dist
-    TYPE(fb_distribution_element) :: element
+    TYPE(fb_atomic_halo_obj)                 :: atomic_halo
+    TYPE(fb_distribution_element)            :: element
+    TYPE(fb_distribution_list), &
+      ALLOCATABLE, DIMENSION(:)              :: dist
+    TYPE(fb_preferred_procs_list), &
+      ALLOCATABLE, DIMENSION(:)              :: preferred_procs_set
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: particle_set
+    TYPE(qs_kind_type), DIMENSION(:), &
+      POINTER                                :: qs_kind_set
 
     CALL timeset(routineN, handle)
 
@@ -344,10 +340,12 @@ CONTAINS
                                                 dist_to, &
                                                 threshold) &
        RESULT(acceptable)
-    TYPE(fb_distribution_list), INTENT(IN) :: dist_from, dist_to
-    TYPE(fb_distribution_element), INTENT(IN) :: element
-    REAL(KIND=dp), INTENT(IN) :: threshold
-    LOGICAL :: acceptable
+    TYPE(fb_distribution_list), INTENT(IN)   :: dist_from
+    TYPE(fb_distribution_element), &
+      INTENT(IN)                             :: element
+    TYPE(fb_distribution_list), INTENT(IN)   :: dist_to
+    REAL(KIND=dp), INTENT(IN)                :: threshold
+    LOGICAL                                  :: acceptable
 
     acceptable = (dist_to%cost + element%cost .LT. dist_from%cost) .AND. &
                  (dist_to%cost .LT. threshold)
@@ -355,17 +353,20 @@ CONTAINS
 
 
   SUBROUTINE fb_distribution_write_info(dist_set, scf_section, error)
-    TYPE(fb_distribution_list), DIMENSION(:), INTENT(IN) :: dist_set
-    TYPE(section_vals_type), POINTER :: scf_section
-    TYPE(cp_error_type), INTENT(INOUT) :: error
+    TYPE(fb_distribution_list), &
+      DIMENSION(:), INTENT(IN)               :: dist_set
+    TYPE(section_vals_type), POINTER         :: scf_section
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'fb_distribution_write_info', &
-       routineP = moduleN//':'//routineN
+      routineP = moduleN//':'//routineN
 
-    LOGICAL :: failure
-    INTEGER :: ii, natoms, nprocs, max_natoms, min_natoms, unit_nr
-    REAL(KIND=dp) :: ave_natoms, ave_cost, max_cost, min_cost, total_cost
-    TYPE(cp_logger_type), POINTER :: logger
+    INTEGER                                  :: ii, max_natoms, min_natoms, &
+                                                natoms, nprocs, unit_nr
+    LOGICAL                                  :: failure
+    REAL(KIND=dp)                            :: ave_cost, ave_natoms, &
+                                                max_cost, min_cost, total_cost
+    TYPE(cp_logger_type), POINTER            :: logger
 
     failure = .FALSE.
 
@@ -425,21 +426,22 @@ CONTAINS
                                       common_set_ids, &
                                       n_common_sets, &
                                       error)
-    TYPE(cp_dbcsr_type), POINTER :: dbcsr_mat
-    INTEGER, INTENT(IN) :: natoms
-    TYPE(fb_preferred_procs_list), DIMENSION(:), INTENT(INOUT) :: preferred_procs_set
-    INTEGER, DIMENSION(:), INTENT(OUT) :: common_set_ids
-    INTEGER, INTENT(OUT) :: n_common_sets
-    TYPE(cp_error_type), INTENT(INOUT) :: error
+    TYPE(cp_dbcsr_type), POINTER             :: dbcsr_mat
+    INTEGER, INTENT(IN)                      :: natoms
+    TYPE(fb_preferred_procs_list), &
+      DIMENSION(:), INTENT(INOUT)            :: preferred_procs_set
+    INTEGER, DIMENSION(:), INTENT(OUT)       :: common_set_ids
+    INTEGER, INTENT(OUT)                     :: n_common_sets
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'fb_build_preferred_procs', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: icol, pe, prow, nprows, pcol, stat
-    LOGICAL :: check_ok, failure
-    TYPE(dbcsr_distribution_obj) :: dbcsr_dist
-    TYPE(dbcsr_mp_obj) :: dbcsr_mp
-    INTEGER, DIMENSION(:), POINTER :: col_dist
+    INTEGER                                  :: icol, nprows, pcol, prow, stat
+    INTEGER, DIMENSION(:), POINTER           :: col_dist
+    LOGICAL                                  :: check_ok, failure
+    TYPE(dbcsr_distribution_obj)             :: dbcsr_dist
+    TYPE(dbcsr_mp_obj)                       :: dbcsr_mp
 
     failure = .FALSE.
     check_ok = natoms .LE. cp_dbcsr_nblkcols_total(dbcsr_mat)
@@ -482,17 +484,19 @@ CONTAINS
                                             local_atoms_starts, &
                                             local_atoms_sizes, &
                                             error)
-    TYPE(fb_distribution_list), DIMENSION(:), INTENT(IN) :: dist_set
-    INTEGER, DIMENSION(:), INTENT(OUT) :: local_atoms
-    INTEGER, DIMENSION(:), INTENT(OUT) :: local_atoms_starts
-    INTEGER, DIMENSION(:), INTENT(OUT) :: local_atoms_sizes
-    TYPE(cp_error_type), INTENT(INOUT) :: error
+    TYPE(fb_distribution_list), &
+      DIMENSION(:), INTENT(IN)               :: dist_set
+    INTEGER, DIMENSION(:), INTENT(OUT)       :: local_atoms, &
+                                                local_atoms_starts, &
+                                                local_atoms_sizes
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'fb_distribution_to_local_atoms', &
+    CHARACTER(len=*), PARAMETER :: &
+      routineN = 'fb_distribution_to_local_atoms', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: ipe, iatom, n_procs, pos
-    LOGICAL :: check_ok, failure
+    INTEGER                                  :: iatom, ipe, n_procs, pos
+    LOGICAL                                  :: check_ok, failure
 
     failure = .FALSE.
 
@@ -520,15 +524,16 @@ CONTAINS
 
 
   SUBROUTINE fb_distribution_init(dist, nmax, error)
-    TYPE(fb_distribution_list), INTENT(INOUT) :: dist
-    INTEGER, OPTIONAL, INTENT(IN) :: nmax
-    TYPE(cp_error_type), INTENT(INOUT) :: error
+    TYPE(fb_distribution_list), &
+      INTENT(INOUT)                          :: dist
+    INTEGER, INTENT(IN), OPTIONAL            :: nmax
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'fb_distribution_init', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL :: failure
-    INTEGER :: ii, my_nmax, stat
+    INTEGER                                  :: ii, my_nmax, stat
+    LOGICAL                                  :: failure
 
     failure = .FALSE.
     my_nmax = 0
@@ -552,16 +557,18 @@ CONTAINS
 
 
   SUBROUTINE fb_distribution_resize(dist, nmax, error)
-    TYPE(fb_distribution_list), INTENT(INOUT) :: dist
-    INTEGER, INTENT(IN) :: nmax
+    TYPE(fb_distribution_list), &
+      INTENT(INOUT)                          :: dist
+    INTEGER, INTENT(IN)                      :: nmax
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'fb_distribution_resize', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL :: failure
-    INTEGER :: my_nmax, ii, stat
-    TYPE(fb_distribution_element), DIMENSION(:), POINTER :: new_list
+    INTEGER                                  :: ii, my_nmax, stat
+    LOGICAL                                  :: failure
+    TYPE(fb_distribution_element), &
+      DIMENSION(:), POINTER                  :: new_list
 
     failure = .FALSE.
     IF (.NOT. ASSOCIATED(dist%list)) THEN
@@ -587,15 +594,17 @@ CONTAINS
 
 
   SUBROUTINE fb_distribution_add(dist, element, error)
-    TYPE(fb_distribution_list), INTENT(INOUT) :: dist
-    TYPE(fb_distribution_element), INTENT(IN) :: element
+    TYPE(fb_distribution_list), &
+      INTENT(INOUT)                          :: dist
+    TYPE(fb_distribution_element), &
+      INTENT(IN)                             :: element
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'fb_distribution_add', &
       routineP = moduleN//':'//routineN
 
-    INTEGER ii, jj, new_nelements, pos
-    LOGICAL :: failure
+    INTEGER                                  :: ii, new_nelements, pos
+    LOGICAL                                  :: failure
 
     failure = .FALSE.
     new_nelements = dist%nelements + 1
@@ -623,11 +632,12 @@ CONTAINS
 
 
   PURE FUNCTION fb_distribution_find_slot(dist, element) RESULT(pos)
-    TYPE(fb_distribution_list), INTENT(IN) :: dist
-    TYPE(fb_distribution_element), INTENT(IN) :: element
-    INTEGER :: pos
+    TYPE(fb_distribution_list), INTENT(IN)   :: dist
+    TYPE(fb_distribution_element), &
+      INTENT(IN)                             :: element
+    INTEGER                                  :: pos
 
-    INTEGER :: lower, upper, middle, N
+    INTEGER                                  :: lower, middle, N, upper
 
     N = dist%nelements
     IF (element%cost .LT. dist%list(1)%cost) THEN
@@ -653,15 +663,16 @@ CONTAINS
 
 
   SUBROUTINE fb_distribution_remove_ind(dist, pos, error)
-    TYPE(fb_distribution_list), INTENT(INOUT) :: dist
-    INTEGER, INTENT(IN) :: pos
-    TYPE(cp_error_type), INTENT(INOUT) :: error
+    TYPE(fb_distribution_list), &
+      INTENT(INOUT)                          :: dist
+    INTEGER, INTENT(IN)                      :: pos
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'fb_hash_table_remove_ind', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'fb_distribution_remove_ind', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL :: failure, check_ok
-    INTEGER :: ii
+    INTEGER                                  :: ii
+    LOGICAL                                  :: check_ok, failure
 
     failure = .FALSE.
     check_ok = pos .GT. 0
@@ -683,14 +694,16 @@ CONTAINS
 
 
   SUBROUTINE fb_distribution_remove_el(dist, element, error)
-    TYPE(fb_distribution_list), INTENT(INOUT) :: dist
-    TYPE(fb_distribution_element), INTENT(IN) :: element
+    TYPE(fb_distribution_list), &
+      INTENT(INOUT)                          :: dist
+    TYPE(fb_distribution_element), &
+      INTENT(IN)                             :: element
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'fb_distribution_remove_el', &
       routineP = moduleN//':'//routineN
 
-    INTEGER ii, pos
+    INTEGER                                  :: ii, pos
 
     pos = dist%nelements + 1
     DO ii = 1, dist%nelements
@@ -704,15 +717,18 @@ CONTAINS
 
 
   SUBROUTINE fb_distribution_move_ind(dist_from, pos, dist_to, error)
-    TYPE(fb_distribution_list), INTENT(INOUT) :: dist_from, dist_to
-    INTEGER, INTENT(IN) :: pos
+    TYPE(fb_distribution_list), &
+      INTENT(INOUT)                          :: dist_from
+    INTEGER, INTENT(IN)                      :: pos
+    TYPE(fb_distribution_list), &
+      INTENT(INOUT)                          :: dist_to
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'fb_distribution_move_ind', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL :: check_ok, failure
-    TYPE(fb_distribution_element) :: element
+    LOGICAL                                  :: check_ok, failure
+    TYPE(fb_distribution_element)            :: element
 
     failure = .FALSE.
     check_ok = ASSOCIATED(dist_from%list)
@@ -726,14 +742,18 @@ CONTAINS
 
 
   SUBROUTINE fb_distribution_move_el(dist_from, element, dist_to, error)
-    TYPE(fb_distribution_list), INTENT(INOUT) :: dist_from, dist_to
-    TYPE(fb_distribution_element), INTENT(IN) :: element
+    TYPE(fb_distribution_list), &
+      INTENT(INOUT)                          :: dist_from
+    TYPE(fb_distribution_element), &
+      INTENT(IN)                             :: element
+    TYPE(fb_distribution_list), &
+      INTENT(INOUT)                          :: dist_to
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'fb_distribution_move_el', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL :: check_ok, failure
+    LOGICAL                                  :: check_ok, failure
 
     failure = .FALSE.
     check_ok = ASSOCIATED(dist_from%list)
@@ -744,14 +764,15 @@ CONTAINS
 
 
   SUBROUTINE fb_distribution_release(dist, error)
-    TYPE(fb_distribution_list), INTENT(INOUT) :: dist
+    TYPE(fb_distribution_list), &
+      INTENT(INOUT)                          :: dist
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'fb_distribution_move_el', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'fb_distribution_release', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL :: failure
-    INTEGER :: stat
+    INTEGER                                  :: stat
+    LOGICAL                                  :: failure
 
     failure = .FALSE.
     IF (ASSOCIATED(dist%list)) THEN
@@ -760,4 +781,4 @@ CONTAINS
     END IF
   END SUBROUTINE fb_distribution_release
 
-END Module qs_fb_distribution_methods
+END MODULE qs_fb_distribution_methods

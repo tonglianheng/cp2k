@@ -15,17 +15,17 @@ MODULE qs_fb_atomic_halo_types
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE input_section_types,             ONLY: section_vals_type
-  USE kinds,                           ONLY: default_string_length, dp
+  USE kinds,                           ONLY: default_string_length,&
+                                             dp
+  USE memory_utilities,                ONLY: reallocate
   USE particle_types,                  ONLY: particle_type
-  USE qs_kind_types,                   ONLY: qs_kind_type,&
-                                             get_qs_kind
+  USE qs_kind_types,                   ONLY: get_qs_kind,&
+                                             qs_kind_type
   USE string_utilities,                ONLY: compress
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE util,                            ONLY: locate,&
                                              sort
-  USE memory_utilities,                ONLY: reallocate
-
 #include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
@@ -578,16 +578,18 @@ CONTAINS
                                particle_set, &
                                qs_kind_set) &
     RESULT(cost)
-    TYPE(fb_atomic_halo_obj), INTENT(IN) :: atomic_halo
-    TYPE(particle_type), DIMENSION(:), INTENT(IN) :: particle_set
-    TYPE(qs_kind_type), DIMENSION(:), INTENT(IN) :: qs_kind_set
-    REAL(KIND=dp) :: cost
+    TYPE(fb_atomic_halo_obj), INTENT(IN)     :: atomic_halo
+    TYPE(particle_type), DIMENSION(:), &
+      INTENT(IN)                             :: particle_set
+    TYPE(qs_kind_type), DIMENSION(:), &
+      INTENT(IN)                             :: qs_kind_set
+    REAL(KIND=dp)                            :: cost
 
     CHARACTER(len=*), PARAMETER :: routineN = 'fb_atomic_halo_cost', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: ii, ikind, ncgf, iatom
-    TYPE(atomic_kind_type), POINTER :: atomic_kind
+    INTEGER                                  :: iatom, ii, ikind, ncgf
+    TYPE(atomic_kind_type), POINTER          :: atomic_kind
 
     cost = 0.0_dp
     DO ii = 1, atomic_halo%obj%natoms
@@ -626,23 +628,26 @@ CONTAINS
                                              nhalo_atoms, &
                                              owner_id_in_halo, &
                                              error)
-    INTEGER, INTENT(IN) :: owner_atom
-    TYPE(particle_type), DIMENSION(:), INTENT(IN) :: particle_set
-    TYPE(cell_type), POINTER :: cell
-    REAL(KIND=dp), DIMENSION(:,:), INTENT(IN) :: pair_radii
-    INTEGER, DIMENSION(:), POINTER :: halo_atoms
-    INTEGER, INTENT(OUT) :: nhalo_atoms
-    INTEGER, INTENT(OUT) :: owner_id_in_halo
-    TYPE(cp_error_type), INTENT(INOUT) :: error
+    INTEGER, INTENT(IN)                      :: owner_atom
+    TYPE(particle_type), DIMENSION(:), &
+      INTENT(IN)                             :: particle_set
+    TYPE(cell_type), POINTER                 :: cell
+    REAL(KIND=dp), DIMENSION(:, :), &
+      INTENT(IN)                             :: pair_radii
+    INTEGER, DIMENSION(:), POINTER           :: halo_atoms
+    INTEGER, INTENT(OUT)                     :: nhalo_atoms, owner_id_in_halo
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'fb_atomic_halo_build_halo_atoms', &
+    CHARACTER(len=*), PARAMETER :: &
+      routineN = 'fb_atomic_halo_build_halo_atoms', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL :: check_ok, failure
-    INTEGER :: iatom, jatom, ikind, jkind, natoms_global, stat
-    REAL(KIND=dp) :: rij
-    REAL(KIND=dp), DIMENSION(3) :: ri, rij_pbc, rj
-    TYPE(atomic_kind_type), POINTER :: atomic_kind
+    INTEGER                                  :: iatom, ikind, jatom, jkind, &
+                                                natoms_global, stat
+    LOGICAL                                  :: check_ok, failure
+    REAL(KIND=dp)                            :: rij
+    REAL(KIND=dp), DIMENSION(3)              :: ri, rij_pbc, rj
+    TYPE(atomic_kind_type), POINTER          :: atomic_kind
 
     failure = .FALSE.
     check_ok = .NOT. ASSOCIATED(halo_atoms)
@@ -1054,11 +1059,13 @@ CONTAINS
 !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
 ! *****************************************************************************
   PURE SUBROUTINE fb_build_pair_radii(rcut, nkinds, pair_radii)
-    REAL(KIND=dp), DIMENSION(:), INTENT(IN) :: rcut
-    INTEGER, INTENT(IN) :: nkinds
-    REAL(KIND=dp), DIMENSION(:, :), INTENT(OUT) :: pair_radii
+    REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: rcut
+    INTEGER, INTENT(IN)                      :: nkinds
+    REAL(KIND=dp), DIMENSION(:, :), &
+      INTENT(OUT)                            :: pair_radii
 
-    INTEGER :: ii, jj
+    INTEGER                                  :: ii, jj
+
     pair_radii = 0.0_dp
     DO ii = 1, nkinds
        DO jj = 1, nkinds
