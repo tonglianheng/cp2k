@@ -69,8 +69,9 @@ MODULE dbcsr_api
        dbcsr_distribution_local_rows, dbcsr_distribution_mp, &
        dbcsr_distribution_ncols, dbcsr_distribution_new, &
        dbcsr_distribution_nlocal_cols, dbcsr_distribution_nlocal_rows, &
-       dbcsr_distribution_nrows, dbcsr_distribution_release, &
-       dbcsr_distribution_row_clusters, dbcsr_distribution_row_dist
+       dbcsr_distribution_nrows, dbcsr_distribution_processor, &
+       dbcsr_distribution_release, dbcsr_distribution_row_clusters, &
+       dbcsr_distribution_row_dist
   USE dbcsr_dist_operations,           ONLY: create_bl_distribution,&
                                              dbcsr_create_dist_block_cyclic,&
                                              dbcsr_create_dist_r_unrot,&
@@ -99,12 +100,14 @@ MODULE dbcsr_api
        dbcsr_row_block_sizes, dbcsr_setname, dbcsr_valid_index, &
        dbcsr_wm_use_mutable
   USE dbcsr_mp_methods,                ONLY: dbcsr_mp_group,&
+                                             dbcsr_mp_get_process,&
                                              dbcsr_mp_hold,&
                                              dbcsr_mp_mynode,&
                                              dbcsr_mp_new,&
                                              dbcsr_mp_npcols,&
                                              dbcsr_mp_nprows,&
                                              dbcsr_mp_numnodes,&
+                                             dbcsr_mp_pgrid,&
                                              dbcsr_mp_release
   USE dbcsr_multiply_api,              ONLY: dbcsr_multiply
   USE dbcsr_operations,                ONLY: &
@@ -228,6 +231,7 @@ MODULE dbcsr_api
             dbcsr_distribution_nlocal_rows,&
             dbcsr_distribution_nrows,&
             dbcsr_distribution_obj,&
+            dbcsr_distribution_processor,&
             dbcsr_distribution_release,&
             dbcsr_distribution_row_dist,&
             dbcsr_distribution_row_clusters,&
@@ -281,6 +285,7 @@ MODULE dbcsr_api
             dbcsr_max_col_size,&
             dbcsr_max_row_size,&
             dbcsr_mp_group,&
+            dbcsr_mp_get_process,&
             dbcsr_mp_hold,&
             dbcsr_mp_mynode,&
             dbcsr_mp_new,&
@@ -288,6 +293,7 @@ MODULE dbcsr_api
             dbcsr_mp_nprows,&
             dbcsr_mp_numnodes,&
             dbcsr_mp_obj,&
+            dbcsr_mp_pgrid,&
             dbcsr_mp_release,&
             dbcsr_multiply,&
             dbcsr_name,&

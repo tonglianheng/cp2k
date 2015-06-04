@@ -45,12 +45,13 @@ MODULE cp_dbcsr_interface
        dbcsr_distribution_ncols, dbcsr_distribution_new, &
        dbcsr_distribution_nlocal_cols, dbcsr_distribution_nlocal_rows, &
        dbcsr_distribution_nrows, dbcsr_distribution_obj, &
-       dbcsr_distribution_release, dbcsr_distribution_row_clusters, &
-       dbcsr_distribution_row_dist, dbcsr_error_set, dbcsr_error_stop, &
-       dbcsr_error_type, dbcsr_filter, dbcsr_finalize, dbcsr_finalize_lib, &
-       dbcsr_frobenius_norm, dbcsr_func_artanh, dbcsr_func_dtanh, &
-       dbcsr_func_inverse, dbcsr_func_tanh, dbcsr_function_of_elements, &
-       dbcsr_gershgorin_norm, dbcsr_get_block_diag, dbcsr_get_block_p, &
+       dbcsr_distribution_processor, dbcsr_distribution_release, &
+       dbcsr_distribution_row_clusters, dbcsr_distribution_row_dist, &
+       dbcsr_error_set, dbcsr_error_stop, dbcsr_error_type, dbcsr_filter, &
+       dbcsr_finalize, dbcsr_finalize_lib, dbcsr_frobenius_norm, &
+       dbcsr_func_artanh, dbcsr_func_dtanh, dbcsr_func_inverse, &
+       dbcsr_func_tanh, dbcsr_function_of_elements, dbcsr_gershgorin_norm, &
+       dbcsr_get_block_diag, dbcsr_get_block_p, &
        dbcsr_get_conf_avg_elements_images, dbcsr_get_conf_comm_thread_load, &
        dbcsr_get_conf_max_ele_block, dbcsr_get_conf_mm_driver, &
        dbcsr_get_conf_mm_stacksize, dbcsr_get_conf_mpi_mem, &
@@ -65,6 +66,7 @@ MODULE cp_dbcsr_interface
        dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_maxabs, &
        dbcsr_mp_group, dbcsr_mp_hold, dbcsr_mp_mynode, dbcsr_mp_new, &
        dbcsr_mp_npcols, dbcsr_mp_nprows, dbcsr_mp_numnodes, dbcsr_mp_obj, &
+       dbcsr_mp_pgrid, dbcsr_mp_get_process, &
        dbcsr_mp_release, dbcsr_multiply, dbcsr_name, dbcsr_nblkcols_local, &
        dbcsr_nblkcols_total, dbcsr_nblkrows_local, dbcsr_nblkrows_total, &
        dbcsr_new_transposed, dbcsr_nfullcols_total, dbcsr_nfullrows_total, &
@@ -133,7 +135,8 @@ MODULE cp_dbcsr_interface
   PUBLIC :: dbcsr_distribution_row_clusters, dbcsr_distribution_col_clusters, &
             dbcsr_distribution_has_row_clusters, dbcsr_distribution_has_col_clusters
   PUBLIC :: dbcsr_get_conf_use_comm_thread, dbcsr_data_clear_pointer, dbcsr_data_new, dbcsr_data_init
-  PUBLIC :: dbcsr_mp_group, dbcsr_mp_mynode, dbcsr_mp_numnodes, dbcsr_mp_nprows, dbcsr_mp_npcols
+  PUBLIC :: dbcsr_mp_group, dbcsr_mp_mynode, dbcsr_mp_numnodes, dbcsr_mp_nprows, dbcsr_mp_npcols,&
+            dbcsr_mp_get_process, dbcsr_mp_pgrid
   PUBLIC :: dbcsr_iterator_stop, dbcsr_data_obj, dbcsr_iterator, dbcsr_data_release
   PUBLIC :: dbcsr_iterator_blocks_left, dbcsr_iterator_next_block
   PUBLIC :: dbcsr_error_type, dbcsr_mp_obj, dbcsr_norm_frobenius
@@ -142,6 +145,7 @@ MODULE cp_dbcsr_interface
   PUBLIC :: dbcsr_distribution_col_dist, dbcsr_distribution_init, dbcsr_distribution_release
   PUBLIC :: dbcsr_func_artanh, dbcsr_func_dtanh, dbcsr_func_inverse, dbcsr_func_tanh
   PUBLIC :: dbcsr_distribution_mp
+  PUBLIC :: dbcsr_distribution_processor
   PUBLIC :: convert_sizes_to_offsets
   PUBLIC :: cp_dbcsr_iterator
   PUBLIC :: cp_dbcsr_type
