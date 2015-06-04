@@ -1287,29 +1287,29 @@ CONTAINS
     IF (unit_nr > 0) THEN
        IF (collective_com) THEN
           WRITE (UNIT=unit_nr, FMT="(/,A,T71,A)") &
-               "FILTER_MAT_DIAG| MPI communication method:", &
+               " FILTER_MAT_DIAG| MPI communication method:", &
                "Collective"
        ELSE
           WRITE (UNIT=unit_nr, FMT="(/,A,T71,A)") &
-               "FILTER_MAT_DIAG| MPI communication method:", &
+               " FILTER_MAT_DIAG| MPI communication method:", &
                "At each step"
        END IF
        WRITE (UNIT=unit_nr, FMT="(A,T71,g10.4)") &
-             "FILTER_MAT_DIAG| Filter temperature [K]:", &
+             " FILTER_MAT_DIAG| Filter temperature [K]:", &
              cp_unit_from_cp2k(filter_temperature, "K", error=error)
        WRITE (UNIT=unit_nr, FMT="(A,T71,f10.4)") &
-             "FILTER_MAT_DIAG| Filter temperature [a.u.]:", &
+             " FILTER_MAT_DIAG| Filter temperature [a.u.]:", &
              filter_temperature
        WRITE (UNIT=unit_nr, FMT="(A,T71,f10.4)") &
-             "FILTER_MAT_DIAG| Auto atomic cutoff radius scale:", &
+             " FILTER_MAT_DIAG| Auto atomic cutoff radius scale:", &
              auto_cutoff_scale
        WRITE (UNIT=unit_nr, FMT="(A)") &
-             "FILTER_MAT_DIAG| atomic cutoff radii [a.u.]"
+             " FILTER_MAT_DIAG| atomic cutoff radii [a.u.]"
        DO ikind = 1, nkinds
           CALL get_atomic_kind(atomic_kind=atomic_kind_set(ikind), &
                                element_symbol=element_symbol)
           WRITE (UNIT=unit_nr, FMT="(A,A,T71,f10.4)") &
-                "FILTER_MAT_DIAG|   ", element_symbol, rcut(ikind)
+                " FILTER_MAT_DIAG|   ", element_symbol, rcut(ikind)
        END DO ! ikind
     END IF
     CALL cp_print_key_finished_output(unit_nr, logger, scf_section, &

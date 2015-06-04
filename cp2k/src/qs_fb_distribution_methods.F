@@ -399,20 +399,20 @@ CONTAINS
 
     IF (unit_nr > 0) THEN
        WRITE (UNIT=unit_nr, FMT="(/,A,I6,A)") &
-            "FILTER_MAT_DIAG| Load Distribution across ", nprocs, " processors:"
+            " FILTER_MAT_DIAG| Load distribution across ", nprocs, " processors:"
        WRITE (UNIT=unit_nr, &
               FMT="(A,T40,A,T55,A,T70,A,T85,A)") &
-            "FILTER_MAT_DIAG| ", "Total", "Average", "Max", "Min"
+            " FILTER_MAT_DIAG| ", "Total", "Average", "Max", "Min"
        WRITE (UNIT=unit_nr, &
               FMT="(A,T40,I12,T55,F12.1,T70,I12,T85,I10)") &
-            "FILTER_MAT_DIAG|   Atomic Matrices", &
+            " FILTER_MAT_DIAG|   Atomic Matrices", &
             natoms, ave_natoms, max_natoms, min_natoms
        WRITE (UNIT=unit_nr, &
               FMT="(A,T40,D12.7,T55,D12.7,T70,D12.7,T85,D12.7)") &
-            "FILTER_MAT_DIAG|   Cost*", &
+            " FILTER_MAT_DIAG|   Cost*", &
             total_cost, ave_cost, max_cost, min_cost
        WRITE (UNIT=unit_nr, FMT="(A)") &
-            "FILTER_MAT_DIAG| (* cost is calculated as sum of cube of atomic matrix sizes)"
+            " FILTER_MAT_DIAG| (* cost is calculated as sum of cube of atomic matrix sizes)"
     END IF
     CALL cp_print_key_finished_output(unit_nr, logger, scf_section, &
                                       "PRINT%FILTER_MATRIX", error=error)

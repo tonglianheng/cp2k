@@ -1490,7 +1490,7 @@ CONTAINS
     CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
     eigenvectors(:,:) = atomic_H(:,:)
 
-    CALL timeset("atomic_filter_dsygv", handle_dsygv)
+    CALL timeset("fb_atomic_filter_dsygv", handle_dsygv)
 
     info = 0
     CALL dsygv(1,             &
@@ -1567,7 +1567,7 @@ CONTAINS
     DEALLOCATE(filter_function, STAT=stat)
     CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
 
-    CALL timeset("atomic_filter_dgemm", handle_dgemm)
+    CALL timeset("fb_atomic_filter_dgemm", handle_dgemm)
 
     ! construct atomic filter matrix
     CALL dgemm("N",                   &
