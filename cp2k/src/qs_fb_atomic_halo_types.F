@@ -589,7 +589,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: iatom, ii, ikind, ncgf
-    TYPE(atomic_kind_type), POINTER          :: atomic_kind
 
     cost = 0.0_dp
     DO ii = 1, atomic_halo%obj%natoms

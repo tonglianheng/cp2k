@@ -331,6 +331,9 @@ CONTAINS
 
     DEALLOCATE(pe, STAT=stat)
     CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
+    DO ii = 1, SIZE(preferred_procs_set)
+       CALL fb_preferred_procs_list_release(preferred_procs_set(ii), error)
+    END DO
     DEALLOCATE(preferred_procs_set, STAT=stat)
     CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
 
@@ -365,7 +368,7 @@ CONTAINS
     CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
     DEALLOCATE(local_atoms_sizes, STAT=stat)
     CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
-    DO ipe = 1, nprocs
+    DO ipe = 1, SIZE(dist)
        CALL fb_distribution_release(dist(ipe), error)
     END DO
     DEALLOCATE(dist, STAT=stat)
@@ -545,6 +548,31 @@ CONTAINS
     n_common_sets = dbcsr_mp_npcols(dbcsr_mp)
 
   END SUBROUTINE fb_build_preferred_procs
+
+! *****************************************************************************
+!> \brief Release a preferred_procs_list
+!> \param preferred_procs_list  : the preferred procs list in question
+!> \param error                 : cp2k error container
+!> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
+! *****************************************************************************
+  SUBROUTINE fb_preferred_procs_list_release(preferred_procs_list, error)
+    TYPE(fb_preferred_procs_list), &
+      INTENT(INOUT)                          :: preferred_procs_list
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    CHARACTER(len=*), PARAMETER :: &
+      routineN = 'fb_preferred_procs_list_release', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: stat
+    LOGICAL                                  :: failure
+
+    failure = .FALSE.
+    IF (ASSOCIATED(preferred_procs_list%list)) THEN
+       DEALLOCATE(preferred_procs_list%list, STAT=stat)
+       CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
+    END IF
+  END SUBROUTINE fb_preferred_procs_list_release
 
 ! *****************************************************************************
 !> \brief Convert distribution data to 1D array containing information of

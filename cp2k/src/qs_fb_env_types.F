@@ -150,6 +150,10 @@ CONTAINS
              DEALLOCATE(fb_env%obj%rcut, STAT=stat)
              CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
           END IF
+          IF (ASSOCIATED(fb_env%obj%local_atoms)) THEN
+             DEALLOCATE(fb_env%obj%local_atoms, STAT=stat)
+             CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
+          END IF
           CALL fb_atomic_halo_list_release(fb_env%obj%atomic_halos, error)
           CALL fb_trial_fns_release(fb_env%obj%trial_fns, error)
           fb_env%obj%ref_count = 0
