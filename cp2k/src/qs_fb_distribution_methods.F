@@ -109,6 +109,10 @@ CONTAINS
     TYPE(fb_distribution_list), DIMENSION(:), ALLOCATABLE :: dist
     TYPE(fb_distribution_element) :: element
 
+!BEG:DEBUG:LT:2015/06/04
+    INTEGER, DIMENSION(:), ALLOCATABLE :: tmp_index
+!END:DEBUG:LT:2015/06/04
+
     CALL timeset(routineN, handle)
 
     failure = .FALSE.
@@ -195,18 +199,18 @@ CONTAINS
        ipe = preferred_procs_set(iatom)%list(pos_in_preferred_list(i_common_set))
 
 !BEG:DEBUG:LT:2015/06/03
-       print *, "|LT| build: iatom = ", iatom
-       print *, "|LT| build: preferred_procs_set = ", preferred_procs_set(iatom)%list(:)
-       print *, "|LT| build: ipe = ", ipe
+       write (my_pe+200,*) "|LT| build: iatom = ", iatom
+       write (my_pe+200,*) "|LT| build: preferred_procs_set = ", preferred_procs_set(iatom)%list(:)
+       write (my_pe+200,*) "|LT| build: ipe = ", ipe
 !END:DEBUG:LT:2015/06/03
 
        CALL fb_distribution_add(dist(ipe), element, error)
 
 !BEG:DEBUG:LT:2015/06/03
-    print *, "|LT| dist(",ipe,") = "
-    DO ii = 1, dist(ipe)%nelements
-       print *, dist(ipe)%list(ii)%id, dist(ipe)%list(ii)%cost
-    END DO
+       write (my_pe+200,*) "|LT| dist(",ipe,") = "
+       DO ii = 1, dist(ipe)%nelements
+          write (my_pe+200,*) dist(ipe)%list(ii)%id, dist(ipe)%list(ii)%cost
+       END DO
 !END:DEBUG:LT:2015/06/03
 
     END DO
@@ -316,13 +320,30 @@ CONTAINS
                     local_atoms=local_atoms, &
                     nlocal_atoms=local_atoms_sizes(my_pe), &
                     error=error)
+
+
+!BEG:DEBUG:LT:2015/06/03
+    write (my_pe+200,*) "|LT| local_atoms = "
+    DO ipe = 1, nprocs
+       write (my_pe+200,*) "MPI rank", ipe-1, ":"
+       DO ii = local_atoms_starts(ipe), local_atoms_starts(ipe) + local_atoms_sizes(ipe) - 1
+          write (my_pe+200,*) local_atoms_all(ii)
+       END DO
+    END DO
+    ALLOCATE(tmp_index(natoms))
+    CALL sort(local_atoms_all, natoms, tmp_index)
+    write (my_pe+200,*) "|LT| sorted_local_atoms_all ="
+    DO ii = 1, SIZE(local_atoms_all)
+       write (my_pe+200,*) local_atoms_all(ii)
+    END DO
+!END:DEBUG:LT:2015/06/03
+
     DEALLOCATE(local_atoms_all, STAT=stat)
     CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
     DEALLOCATE(local_atoms_starts, STAT=stat)
     CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
     DEALLOCATE(local_atoms_sizes, STAT=stat)
     CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
-
     DO ipe = 1, nprocs
        CALL fb_distribution_release(dist(ipe), error)
     END DO
