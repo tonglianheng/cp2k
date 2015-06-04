@@ -316,6 +316,10 @@ MODULE input_constants
                                               do_qmmm_image_calcmatrix=0,&
                                               do_qmmm_image_iter=1
 
+  INTEGER, PARAMETER, PUBLIC               :: calc_always=0,&
+                                              calc_once=1,&
+                                              calc_once_done=2
+
   INTEGER, PARAMETER, PUBLIC               :: do_fm_mom_conserv_none=0, &
                                               do_fm_mom_conserv_equal_f=1, &
                                               do_fm_mom_conserv_equal_a=2
@@ -818,6 +822,10 @@ MODULE input_constants
                                               mp2_ri_optimize_basis=10,&
                                               wfc_mm_style_gemm=11,&
                                               wfc_mm_style_syrk=12
+
+  ! G0W0 parameter
+  INTEGER, PARAMETER, PUBLIC               :: ri_rpa_g0w0_crossing_none=0,&
+                                              ri_rpa_g0w0_crossing_z_shot=1
 
   ! periodic RESP parameters
   INTEGER, PARAMETER, PUBLIC               :: do_resp_x_dir=0,&

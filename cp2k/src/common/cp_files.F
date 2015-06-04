@@ -27,7 +27,8 @@ MODULE cp_files
             init_preconnection_list,&
             open_file,&
             get_unit_number,&
-            file_exists
+            file_exists,&
+            get_data_dir
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cp_files'
 
@@ -395,7 +396,8 @@ CONTAINS
        IF (.NOT.exists) THEN
           WRITE (UNIT=message,FMT="(A)")&
             "The specified OLD file <"//TRIM(ADJUSTL(real_file_name))//&
-            "> cannot be opened. It does not exist."
+            "> cannot be opened. It does not exist. "//&
+            "Data directory path: "//TRIM(get_data_dir())
           CALL stop_program(routineN,moduleN,__LINE__,TRIM(message))
        END IF
     END IF
@@ -508,31 +510,78 @@ CONTAINS
     CHARACTER(LEN=*), INTENT(IN)             :: file_name
     CHARACTER(LEN=default_path_length)       :: real_file_name
 
-    CHARACTER(LEN=default_path_length)       :: candidates(3), data_path
-    INTEGER                                  :: i, stat
+    CHARACTER(LEN=default_path_length)       :: candidate, data_dir
+    INTEGER                                  :: stat
     LOGICAL                                  :: exists
 
-    candidates(:) = file_name
+    real_file_name = TRIM(file_name)
 
-    CALL GET_ENVIRONMENT_VARIABLE("CP2K_DATA_DIR", data_path, status=stat)
-    IF(stat == 0) &
-        candidates(2) = TRIM(data_path) // TRIM(file_name)
+    ! first try file-name directly
+    INQUIRE(file=TRIM(file_name), exist=exists, iostat=stat)
+    IF(stat==0 .AND. exists) THEN
+       real_file_name = file_name
+       RETURN
+    ENDIF
 
-#if defined(__DATA_DIR)
-     candidates(3) = __DATA_DIR // TRIM(file_name)
-#endif
-
-    real_file_name = file_name !fall back in case file not found
-
-    DO i=1, SIZE(candidates)
-       INQUIRE(file=TRIM(candidates(i)), exist=exists, iostat=stat)
+    ! then try the data-dir
+    data_dir = get_data_dir()
+    IF(LEN_TRIM(data_dir)>0) THEN
+       candidate = join_paths(data_dir, file_name)
+       INQUIRE(file=TRIM(candidate), exist=exists, iostat=stat)
        IF(stat==0 .AND. exists) THEN
-           real_file_name = candidates(i)
-           EXIT
+          real_file_name = candidate
+          RETURN
        ENDIF
-    ENDDO
+    ENDIF
+
+   ! fall back in case file not found
+   real_file_name = file_name
 
   END FUNCTION discover_file
+
+! *****************************************************************************
+!> \brief Returns path of data directory if set, otherwise an empty string
+!> \retval data_dir_path ...
+!> \author Ole Schuett
+! *****************************************************************************
+  FUNCTION get_data_dir() RESULT(data_dir_path)
+    CHARACTER(LEN=default_path_length)       :: data_dir_path
+
+    INTEGER                                  :: stat
+
+    CALL GET_ENVIRONMENT_VARIABLE("CP2K_DATA_DIR", data_dir_path, status=stat)
+    IF(stat == 0) RETURN
+
+#if defined(__DATA_DIR)
+    data_dir_path = __DATA_DIR
+#else
+    data_dir_path = ""  !data-dir not set
+#endif
+
+  END FUNCTION get_data_dir
+
+! *****************************************************************************
+!> \brief Joins two file-paths, inserting '/' as needed.
+!> \param path1 ...
+!> \param path2 ...
+!> \retval joined_path ...
+!> \author Ole Schuett
+! *****************************************************************************
+  FUNCTION join_paths(path1, path2) RESULT(joined_path)
+    CHARACTER(LEN=*), INTENT(IN)             :: path1, path2
+    CHARACTER(LEN=default_path_length)       :: joined_path
+
+    INTEGER                                  :: n
+
+    n = LEN_TRIM(path1)
+    IF(path2(1:1)=='/') THEN
+        joined_path = path2
+    ELSE IF(n==0 .OR. path1(n:n)=='/') THEN
+        joined_path = TRIM(path1) // path2
+    ELSE
+        joined_path = TRIM(path1) // '/' // path2
+    ENDIF
+  END FUNCTION join_paths
 
 ! *****************************************************************************
 !> \brief Print the list of preconnected units

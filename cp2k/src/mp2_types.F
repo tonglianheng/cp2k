@@ -98,6 +98,27 @@ MODULE mp2_types
        TYPE(hfx_type),DIMENSION(:,:), POINTER     &
                                 :: x_data
        LOGICAL                  :: minimax_quad
+       LOGICAL                  :: do_ri_g0w0
+  END TYPE
+
+  TYPE ri_g0w0_type
+       INTEGER                  :: corr_mos_occ
+       INTEGER                  :: corr_mos_virt
+       INTEGER                  :: corr_mos_occ_beta
+       INTEGER                  :: corr_mos_virt_beta
+       REAL(KIND=dp)            :: scaling
+       INTEGER                  :: num_poles
+       REAL(KIND=dp)            :: omega_max_fit
+       REAL(KIND=dp)            :: stop_crit
+       INTEGER                  :: max_iter_fit
+       LOGICAL                  :: check_fit
+       INTEGER                  :: crossing_search
+       REAL(KIND=dp)            :: fermi_level_offset
+       REAL(KIND=dp)            :: cutoff_rad_gw
+       LOGICAL                  :: do_truncation
+       INTEGER                  :: iter_ev_sc
+       LOGICAL                  :: hf_like_ev_start, print_gw_details
+       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:,:) ::vec_Sigma_x_minus_vxc_gw
   END TYPE
 
   TYPE ri_basis_opt
@@ -131,6 +152,7 @@ MODULE mp2_types
        TYPE(mp2_gpw_type)       :: mp2_gpw
        TYPE(ri_mp2_type)        :: ri_mp2
        TYPE(ri_rpa_type)        :: ri_rpa
+       TYPE(ri_g0w0_type)       :: ri_g0w0
        TYPE(ri_basis_opt)       :: ri_opt_param
        TYPE(grad_util)          :: ri_grad
        REAL(dp) :: mp2_memory

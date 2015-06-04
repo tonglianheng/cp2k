@@ -365,7 +365,7 @@ CONTAINS
          ! Retrieve particle_set and atomic_kind_set (needed for both kinds of initialization)
          natom=SIZE(particle_set)
          CALL hfx_create(qs_env%mp2_env%ri_rpa%x_data, para_env, hfx_section, natom, atomic_kind_set,&
-                         qs_kind_set, dft_control, my_cell, error=error)
+                         qs_kind_set, dft_control, my_cell, error=error, do_exx=.TRUE.)
        END IF
     END IF
 
@@ -1273,7 +1273,7 @@ CONTAINS
     ENDIF
 
     ! Sets up pw_env, qs_charges, mpools ...
-    CALL qs_env_setup(qs_env,error)
+    CALL qs_env_setup(qs_env,cp_logger_get_default_io_unit(logger),error)
 
     ! Allocate and Initialie rho0 soft on the global grid
     IF(dft_control%qs_control%method == "GAPW") THEN

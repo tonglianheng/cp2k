@@ -162,16 +162,17 @@ MODULE mp2_gpw
       routineP = moduleN//':'//routineN
 
     INTEGER :: blacs_grid_layout, color_sub, comm_sub, dimen, dimen_RI, &
-      handle, homo, homo_beta, i, i_multigrid, local_unit_nr, my_group_L_end, &
-      my_group_L_size, my_group_L_start, n_multigrid, natom, nelectron, &
-      nelectron_beta, nkind, nmo, nspins, stat
-    INTEGER, ALLOCATABLE, DIMENSION(:) :: ends_array, ends_B_virtual, &
-      ends_B_virtual_beta, sizes_array, sizes_B_virtual, &
-      sizes_B_virtual_beta, starts_array, starts_B_virtual, &
-      starts_B_virtual_beta
+      gw_corr_lev_occ, gw_corr_lev_occ_beta, gw_corr_lev_virt, &
+      gw_corr_lev_virt_beta, handle, homo, homo_beta, i, i_multigrid, &
+      local_unit_nr, my_group_L_end, my_group_L_size, my_group_L_start, &
+      n_multigrid, natom, nelectron, nelectron_beta, nkind, nmo, nspins, stat
+    INTEGER, ALLOCATABLE, DIMENSION(:) :: ends_array, ends_B_all, &
+      ends_B_virtual, ends_B_virtual_beta, sizes_array, sizes_B_all, &
+      sizes_B_virtual, sizes_B_virtual_beta, starts_array, starts_B_all, &
+      starts_B_virtual, starts_B_virtual_beta
     INTEGER, DIMENSION(:), POINTER           :: row_blk_sizes
-    LOGICAL :: blacs_repeatable, failure, my_do_ri_mp2, my_do_ri_rpa, &
-      my_do_ri_sos_laplace_mp2, skip_load_balance_distributed
+    LOGICAL :: blacs_repeatable, failure, my_do_gw, my_do_ri_mp2, &
+      my_do_ri_rpa, my_do_ri_sos_laplace_mp2, skip_load_balance_distributed
     LOGICAL, ALLOCATABLE, DIMENSION(:)       :: orb_present
     REAL(dp), ALLOCATABLE, DIMENSION(:)      :: orb_radius
     REAL(dp), ALLOCATABLE, DIMENSION(:, :)   :: pair_radius
@@ -181,15 +182,17 @@ MODULE mp2_gpw
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: e_cutoff_old, Eigenval, &
                                                 Eigenval_beta
     REAL(KIND=dp), ALLOCATABLE, &
-      DIMENSION(:, :, :)                     :: BIb_C, BIb_C_beta
+      DIMENSION(:, :, :)                     :: BIb_C, BIb_C_beta, BIb_C_gw, &
+                                                BIb_C_gw_beta
     REAL(KIND=dp), DIMENSION(:), POINTER     :: mo_eigenvalues
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_blacs_env_type), POINTER         :: blacs_env_sub
     TYPE(cp_dbcsr_p_type)                    :: mat_munu
-    TYPE(cp_dbcsr_type), POINTER             :: mo_coeff_o, mo_coeff_o_beta, &
-                                                mo_coeff_v, mo_coeff_v_beta
+    TYPE(cp_dbcsr_type), POINTER :: mo_coeff_all, mo_coeff_all_beta, &
+      mo_coeff_gw, mo_coeff_gw_beta, mo_coeff_o, mo_coeff_o_beta, mo_coeff_v, &
+      mo_coeff_v_beta
     TYPE(cp_error_type)                      :: error_sub
     TYPE(cp_fm_type), POINTER                :: mo_coeff, mo_coeff_beta
     TYPE(cp_logger_type), POINTER            :: logger, logger_sub
@@ -234,6 +237,10 @@ MODULE mp2_gpw
     IF(PRESENT(do_ri_sos_laplace_mp2)) my_do_ri_sos_laplace_mp2=do_ri_sos_laplace_mp2
 
     ! ... setup needed to be able to qs_integrate in a subgroup.
+    CALL get_qs_env(qs_env=qs_env, dft_control=dft_control, error=error)
+    CALL get_mo_set(mo_set=mos_mp2(1)%mo_set, nelectron=nelectron,&
+                    eigenvalues=mo_eigenvalues,nmo=nmo,homo=homo,&
+                    mo_coeff=mo_coeff,nao=dimen)
 
     ! a para_env
     color_sub=para_env%mepos/mp2_env%mp2_num_proc
@@ -350,7 +357,7 @@ MODULE mp2_gpw
     ! a dbcsr_dist
     ALLOCATE(dbcsr_dist_sub,STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    CALL cp_dbcsr_dist2d_to_dist (distribution_2d_sub, dbcsr_dist_sub, error_sub)
+    CALL cp_dbcsr_dist2d_to_dist (distribution_2d_sub, dbcsr_dist_sub, unit_nr, error_sub)
 
     ! build a dbcsr matrix the hard way
     natom = SIZE(particle_set)
@@ -368,11 +375,12 @@ MODULE mp2_gpw
     CALL cp_dbcsr_alloc_block_from_nbl(mat_munu%matrix,sab_orb_sub,error_sub)
     DEALLOCATE(row_blk_sizes)
 
+    ! check if we want to do ri-g0w0 on top of ri-rpa
+    my_do_gw=mp2_env%ri_rpa%do_ri_g0w0
+    gw_corr_lev_occ=mp2_env%ri_g0w0%corr_mos_occ
+    gw_corr_lev_virt=mp2_env%ri_g0w0%corr_mos_virt
+
     ! and the array of mos
-    CALL get_qs_env(qs_env=qs_env, dft_control=dft_control, error=error)
-    CALL get_mo_set(mo_set=mos_mp2(1)%mo_set, nelectron=nelectron,&
-                    eigenvalues=mo_eigenvalues,nmo=nmo,homo=homo,&
-                    mo_coeff=mo_coeff,nao=dimen)
     ALLOCATE(Eigenval(dimen),STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     Eigenval(:)=mo_eigenvalues(:)
@@ -381,7 +389,9 @@ MODULE mp2_gpw
     ! keeping the memory usage as small as possible in this case the 
     ! output the two part of the C matrix (virtual, occupied)
     CALL replicate_mat_to_subgroup(mp2_env,para_env,para_env_sub,mo_coeff,dimen,homo,mat_munu,&
-                                   mo_coeff_o,mo_coeff_v,blacs_env_sub,unit_nr,error,error_sub)
+                                   mo_coeff_o,mo_coeff_v,mo_coeff_all,mo_coeff_gw,my_do_gw,&
+                                   gw_corr_lev_occ,gw_corr_lev_virt,blacs_env_sub,&
+                                   unit_nr,error,error_sub)
 
     ! if open shell case replicate also the coefficient matrix for the beta orbitals 
     nspins=SIZE(mos_mp2)
@@ -393,8 +403,13 @@ MODULE mp2_gpw
       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
       Eigenval_beta(:)=mo_eigenvalues(:)
 
+      gw_corr_lev_occ_beta=mp2_env%ri_g0w0%corr_mos_occ_beta
+      gw_corr_lev_virt_beta=mp2_env%ri_g0w0%corr_mos_virt_beta
+
       CALL replicate_mat_to_subgroup(mp2_env,para_env,para_env_sub,mo_coeff_beta,dimen,homo_beta,mat_munu,&
-                                     mo_coeff_o_beta,mo_coeff_v_beta,blacs_env_sub,unit_nr,error,error_sub)
+                                     mo_coeff_o_beta,mo_coeff_v_beta,mo_coeff_all_beta,mo_coeff_gw_beta,&
+                                     my_do_gw,gw_corr_lev_occ_beta,gw_corr_lev_virt_beta,blacs_env_sub,&
+                                     unit_nr,error,error_sub)
     END IF
 
     ! hack hack hack XXXXXXXXXXXXXXX rebuilds the pw_en with the new cutoffs
@@ -456,22 +471,28 @@ MODULE mp2_gpw
       ! RI-GPW integrals (same stuff for both RPA and MP2)
       IF(nspins==2) THEN
         ! open shell case (RI) here the (ia|K) integrals are computed for both the alpha and beta components
-        CALL mp2_ri_gpw_compute_in(BIb_C,ends_array,ends_B_virtual,sizes_array,sizes_B_virtual,starts_array,starts_B_virtual,&
+        CALL mp2_ri_gpw_compute_in(BIb_C,BIb_C_gw,ends_array,ends_B_virtual,sizes_array,&
+                                   sizes_B_virtual,starts_array,starts_B_virtual,&
                                    dimen_RI,qs_env,para_env,para_env_sub,color_sub,dft_control,cell,particle_set,&
                                    atomic_kind_set, qs_kind_set,mo_coeff,nmo,homo,rho_r,rho_g,pot_g,&
                                    mat_munu,sab_orb_sub,pw_env_sub,poisson_env,auxbas_pw_pool,task_list_sub,&
-                                   mo_coeff_o,mo_coeff_v,mp2_env%mp2_gpw%eps_filter,unit_nr,&
-                                   mp2_env%mp2_memory,mp2_env%calc_PQ_cond_num,calc_forces,error,blacs_env_sub,error_sub,&
-                                   BIb_C_beta,ends_B_virtual_beta,sizes_B_virtual_beta,starts_B_virtual_beta,&
-                                   homo_beta,mo_coeff_o_beta,mo_coeff_v_beta)
+                                   mo_coeff_o,mo_coeff_v,mo_coeff_all,mo_coeff_gw,mp2_env%mp2_gpw%eps_filter,unit_nr,&
+                                   mp2_env%mp2_memory,mp2_env%calc_PQ_cond_num,calc_forces,error,blacs_env_sub,my_do_gw,&
+                                   starts_B_all,sizes_B_all,ends_B_all,gw_corr_lev_occ,gw_corr_lev_virt,&
+                                   mp2_env%ri_g0w0%cutoff_rad_gw,mp2_env%ri_g0w0%do_truncation,error_sub,&
+                                   BIb_C_beta,BIb_C_gw_beta,ends_B_virtual_beta,sizes_B_virtual_beta,starts_B_virtual_beta,&
+                                   homo_beta,mo_coeff_o_beta,mo_coeff_v_beta,mo_coeff_all_beta,mo_coeff_gw_beta)
       ELSE
         ! closed shell case (RI)
-        CALL mp2_ri_gpw_compute_in(BIb_C,ends_array,ends_B_virtual,sizes_array,sizes_B_virtual,starts_array,starts_B_virtual,&
+        CALL mp2_ri_gpw_compute_in(BIb_C,BIb_C_gw,ends_array,ends_B_virtual,sizes_array,&
+                                   sizes_B_virtual,starts_array,starts_B_virtual,&
                                    dimen_RI,qs_env,para_env,para_env_sub,color_sub,dft_control,cell,particle_set,&
                                    atomic_kind_set, qs_kind_set,mo_coeff,nmo,homo,rho_r,rho_g,pot_g,&
                                    mat_munu,sab_orb_sub,pw_env_sub,poisson_env,auxbas_pw_pool,task_list_sub,&
-                                   mo_coeff_o,mo_coeff_v,mp2_env%mp2_gpw%eps_filter,unit_nr,&
-                                   mp2_env%mp2_memory,mp2_env%calc_PQ_cond_num,calc_forces,error,blacs_env_sub,error_sub)
+                                   mo_coeff_o,mo_coeff_v,mo_coeff_all,mo_coeff_gw,mp2_env%mp2_gpw%eps_filter,unit_nr,&
+                                   mp2_env%mp2_memory,mp2_env%calc_PQ_cond_num,calc_forces,error,blacs_env_sub,my_do_gw,&
+                                   starts_B_all,sizes_B_all,ends_B_all,gw_corr_lev_occ,gw_corr_lev_virt,&
+                                   mp2_env%ri_g0w0%cutoff_rad_gw,mp2_env%ri_g0w0%do_truncation,error_sub)
       END IF
     ELSE
       ! Canonical MP2-GPW
@@ -537,6 +558,13 @@ MODULE mp2_gpw
     CALL cp_dbcsr_release(mo_coeff_v,error=error_sub)
     DEALLOCATE(mo_coeff_v, STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    IF(my_do_gw) THEN
+      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+      CALL cp_dbcsr_release(mo_coeff_all,error=error_sub)
+      DEALLOCATE(mo_coeff_all, STAT=stat)
+      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    END IF
+
     IF(nspins==2) THEN
       CALL cp_dbcsr_release(mo_coeff_o_beta,error=error_sub)
       DEALLOCATE(mo_coeff_o_beta, STAT=stat)
@@ -544,6 +572,12 @@ MODULE mp2_gpw
       CALL cp_dbcsr_release(mo_coeff_v_beta,error=error_sub)
       DEALLOCATE(mo_coeff_v_beta, STAT=stat)
       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+      IF(my_do_gw) THEN
+        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)   
+        CALL cp_dbcsr_release(mo_coeff_all_beta,error=error_sub)
+        DEALLOCATE(mo_coeff_all_beta, STAT=stat)
+        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+      END IF
     END IF
 
     IF(.NOT.calc_forces) THEN
@@ -572,15 +606,20 @@ MODULE mp2_gpw
     IF(my_do_ri_rpa.OR.my_do_ri_sos_laplace_mp2) THEN
       ! RI-RPA
       IF(nspins==2) THEN
-        CALL rpa_ri_compute_en(Emp2,mp2_env,BIb_C,para_env,para_env_sub,color_sub,&
-                               ends_array,ends_B_virtual,sizes_array,sizes_B_virtual,starts_array,starts_B_virtual,&
-                               Eigenval,nmo,homo,dimen_RI,unit_nr,error,error_sub,my_do_ri_sos_laplace_mp2,&
+        CALL rpa_ri_compute_en(Emp2,mp2_env,BIb_C,BIb_C_gw,para_env,para_env_sub,color_sub,&
+                               ends_array,ends_B_virtual,ends_B_all,sizes_array,sizes_B_virtual,sizes_B_all,&
+                               starts_array,starts_B_virtual,starts_B_all,&
+                               Eigenval,nmo,homo,dimen_RI,gw_corr_lev_occ,gw_corr_lev_virt,&
+                               unit_nr,error,error_sub,my_do_ri_sos_laplace_mp2,my_do_gw,&
                                BIb_C_beta,homo_beta,Eigenval_beta,&
-                               ends_B_virtual_beta,sizes_B_virtual_beta, starts_B_virtual_beta)
+                               ends_B_virtual_beta,sizes_B_virtual_beta, starts_B_virtual_beta,&
+                               BIb_C_gw_beta,gw_corr_lev_occ_beta,gw_corr_lev_virt_beta)
       ELSE
-        CALL rpa_ri_compute_en(Emp2,mp2_env,BIb_C,para_env,para_env_sub,color_sub,&
-                               ends_array,ends_B_virtual,sizes_array,sizes_B_virtual,starts_array,starts_B_virtual,&
-                               Eigenval,nmo,homo,dimen_RI,unit_nr,error,error_sub,my_do_ri_sos_laplace_mp2)
+        CALL rpa_ri_compute_en(Emp2,mp2_env,BIb_C,BIb_C_gw,para_env,para_env_sub,color_sub,&
+                               ends_array,ends_B_virtual,ends_B_all,sizes_array,sizes_B_virtual,sizes_B_all,&
+                               starts_array,starts_B_virtual,starts_B_all,&
+                               Eigenval,nmo,homo,dimen_RI,gw_corr_lev_occ,gw_corr_lev_virt,&
+                               unit_nr,error,error_sub,my_do_ri_sos_laplace_mp2,my_do_gw)
       END IF
     ELSE
       IF(my_do_ri_mp2) THEN
@@ -598,7 +637,6 @@ MODULE mp2_gpw
                                      sizes_B_virtual_beta,starts_array,starts_B_virtual_beta,&
                                      Eigenval_beta,nmo,homo_beta,dimen_RI,unit_nr,calc_forces,calc_ex,error,error_sub,&
                                      open_shell_SS=.TRUE.)
-
 
           ! alpha-beta case
           CALL mp2_ri_gpw_compute_en(Emp2_d_AB,Emp2_AB,Emp2_d2_AB,BIb_C,mp2_env,para_env,para_env_sub,color_sub,&
@@ -709,6 +747,18 @@ MODULE mp2_gpw
 
     !XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXx
     ! moved from above
+    IF(my_do_gw) THEN
+      CALL cp_dbcsr_release(mo_coeff_gw,error=error_sub)
+      DEALLOCATE(mo_coeff_gw, STAT=stat)
+      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+      IF(nspins==2) THEN
+        CALL cp_dbcsr_release(mo_coeff_gw_beta,error=error_sub)
+        DEALLOCATE(mo_coeff_gw_beta, STAT=stat)
+        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+      END IF
+    END IF
+
+
     CALL deallocate_task_list(task_list_sub,error=error_sub)
 
     CALL pw_env_release(pw_env_sub, error=error_sub)
@@ -1570,19 +1620,30 @@ MODULE mp2_gpw
 !> \param mat_munu ...
 !> \param mo_coeff_o ...
 !> \param mo_coeff_v ...
+!> \param mo_coeff_all ...
+!> \param mo_coeff_gw ...
+!> \param my_do_gw ...
+!> \param gw_corr_lev_occ ...
+!> \param gw_corr_lev_virt ...
 !> \param blacs_env_sub ...
 !> \param unit_nr ...
 !> \param error ...
 !> \param error_sub ...
 ! *****************************************************************************
   SUBROUTINE replicate_mat_to_subgroup(mp2_env,para_env,para_env_sub,mo_coeff,dimen,homo,mat_munu,&
-                                       mo_coeff_o,mo_coeff_v,blacs_env_sub,unit_nr,error,error_sub)
+                                       mo_coeff_o,mo_coeff_v,mo_coeff_all,mo_coeff_gw,my_do_gw,&
+                                       gw_corr_lev_occ,gw_corr_lev_virt,blacs_env_sub,&
+                                       unit_nr,error,error_sub)
     TYPE(mp2_type), POINTER                  :: mp2_env
     TYPE(cp_para_env_type), POINTER          :: para_env, para_env_sub
     TYPE(cp_fm_type), POINTER                :: mo_coeff
     INTEGER                                  :: dimen, homo
     TYPE(cp_dbcsr_p_type)                    :: mat_munu
-    TYPE(cp_dbcsr_type), POINTER             :: mo_coeff_o, mo_coeff_v
+    TYPE(cp_dbcsr_type), POINTER             :: mo_coeff_o, mo_coeff_v, &
+                                                mo_coeff_all, mo_coeff_gw
+    LOGICAL                                  :: my_do_gw
+    INTEGER                                  :: gw_corr_lev_occ, &
+                                                gw_corr_lev_virt
     TYPE(cp_blacs_env_type), POINTER         :: blacs_env_sub
     INTEGER                                  :: unit_nr
     TYPE(cp_error_type), INTENT(inout)       :: error, error_sub
@@ -1590,12 +1651,11 @@ MODULE mp2_gpw
     CHARACTER(LEN=*), PARAMETER :: routineN = 'replicate_mat_to_subgroup', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: blk, col, col_offset, col_size, handle, i, i_global, iiB, &
-      iproc, itmp(2), j, j_global, jjB, max_row_col_local, my_mu_end, &
-      my_mu_size, my_mu_start, ncol_local, ncol_rec, nrow_local, nrow_rec, &
-      proc_receive, proc_receive_static, proc_send, proc_send_static, &
-      proc_shift, rec_mu_end, rec_mu_size, rec_mu_start, row, row_offset, &
-      row_size, stat, virtual
+    INTEGER :: blk, col, col_offset, col_size, handle, i_global, iiB, iproc, &
+      itmp(2), j_global, jjB, max_row_col_local, my_mu_end, my_mu_size, &
+      my_mu_start, ncol_local, ncol_rec, nrow_local, nrow_rec, proc_receive, &
+      proc_receive_static, proc_send, proc_send_static, proc_shift, row, &
+      row_offset, row_size, stat, virtual
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: ends_array, proc_map, &
                                                 sizes_array, starts_array
     INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: local_col_row_info, &
@@ -1604,7 +1664,7 @@ MODULE mp2_gpw
                                                 row_indices, row_indices_rec
     LOGICAL                                  :: failure
     REAL(KIND=dp), ALLOCATABLE, &
-      DIMENSION(:, :)                        :: C, Cocc, Cvirt, rec_C
+      DIMENSION(:, :)                        :: C, Cgw, Cocc, Cvirt, rec_C
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: data_block, local_C, &
                                                 local_C_internal
     TYPE(cp_dbcsr_iterator)                  :: iter
@@ -1764,143 +1824,45 @@ MODULE mp2_gpw
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     Cvirt(1:my_mu_size,1:virtual)=C(1:my_mu_size,homo+1:dimen)
 
-    DEALLOCATE(C)
+    ! create and fill mo_coeff_o, mo_coeff_v and mo_coeff_all
+    CALL build_mo_coeff_v_o_all(mp2_env,para_env_sub,mo_coeff_o,Cocc,&
+                                homo,blk,row,col,row_size,col_size,row_offset,&
+                                col_offset,i_global,j_global,my_mu_start,my_mu_end,&
+                                mat_munu,iter,&
+                                data_block,ends_array,proc_map, &
+                                sizes_array,starts_array,error,error_sub)
 
-    ! the occupied
+    CALL build_mo_coeff_v_o_all(mp2_env,para_env_sub,mo_coeff_v,Cvirt,&
+                                virtual,blk,row,col,row_size,col_size,row_offset,&
+                                col_offset,i_global,j_global,my_mu_start,my_mu_end,&
+                                mat_munu,iter,&
+                                data_block,ends_array,proc_map, &
+                                sizes_array,starts_array,error,error_sub)
+    IF (my_do_gw) THEN
 
-    NULLIFY(mo_coeff_o)
-    CALL cp_dbcsr_init_p(mo_coeff_o,error=error_sub)
-    CALL cp_dbcsr_m_by_n_from_row_template(mo_coeff_o,template=mat_munu%matrix,n=homo,&
-                                           sym=dbcsr_type_no_symmetry, data_type=dbcsr_type_real_default, error=error)
-    CALL cp_dbcsr_reserve_all_blocks(mo_coeff_o,error)
-
-    ! accumulate data on mo_coeff_o starting from myself
-    CALL cp_dbcsr_iterator_start(iter, mo_coeff_o)
-    DO WHILE (cp_dbcsr_iterator_blocks_left (iter))
-       CALL cp_dbcsr_iterator_next_block(iter, row, col, data_block,blk,&
-            row_size=row_size, col_size=col_size, &
-            row_offset=row_offset, col_offset=col_offset)
-       DO i=1,row_size
-         i_global=row_offset+i-1
-         IF(i_global>=my_mu_start.AND.i_global<=my_mu_end) THEN
-           DO j=1,col_size
-             j_global=col_offset+j-1
-             data_block(i,j)=Cocc(i_global-my_mu_start+1,col_offset+j-1)
-           ENDDO
-         END IF
-       ENDDO
-    ENDDO
-    CALL cp_dbcsr_iterator_stop(iter)
-
-    ! start ring communication in the subgroup for collecting the data from the other
-    ! proc (occupied)
-    DO proc_shift=1, para_env_sub%num_pe-1
-      proc_send=proc_map(para_env_sub%mepos+proc_shift)
-      proc_receive=proc_map(para_env_sub%mepos-proc_shift)
-
-      rec_mu_start=starts_array(proc_receive)
-      rec_mu_end=ends_array(proc_receive)
-      rec_mu_size=sizes_array(proc_receive)
-
-      ALLOCATE(rec_C(rec_mu_size,homo),STAT=stat)
+      ! also cut levels homo-gw_corr_lev_occ+1, ..., lumo+gw_corr_lev_virt-1 of C
+      ALLOCATE(Cgw(my_mu_size,gw_corr_lev_occ+gw_corr_lev_virt),STAT=stat)
       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-      rec_C=0.0_dp
+      Cgw(1:my_mu_size,1:(gw_corr_lev_occ+gw_corr_lev_virt))=&
+                             C(1:my_mu_size,homo-gw_corr_lev_occ+1:homo+gw_corr_lev_virt)
+      CALL build_mo_coeff_v_o_all(mp2_env,para_env_sub,mo_coeff_gw,Cgw,&
+                                  gw_corr_lev_occ+gw_corr_lev_virt,&
+                                  blk,row,col,row_size,col_size,row_offset,&
+                                  col_offset,i_global,j_global,my_mu_start,my_mu_end,&
+                                  mat_munu,iter,&
+                                  data_block,ends_array,proc_map, &
+                                  sizes_array,starts_array,error,error_sub)
+      ! all levels
+      CALL build_mo_coeff_v_o_all(mp2_env,para_env_sub,mo_coeff_all,C,&
+                                  dimen,blk,row,col,row_size,col_size,row_offset,&
+                                  col_offset,i_global,j_global,my_mu_start,my_mu_end,&
+                                  mat_munu,iter,&
+                                  data_block,ends_array,proc_map, &
+                                  sizes_array,starts_array,error,error_sub)
 
-      ! then send and receive the real data
-      CALL  mp_sendrecv(Cocc,proc_send,rec_C,proc_receive,para_env_sub%group) 
-
-      ! accumulate data on mo_coeff_o the data received from proc_rec
-      CALL cp_dbcsr_iterator_start(iter, mo_coeff_o)
-      DO WHILE (cp_dbcsr_iterator_blocks_left (iter))
-         CALL cp_dbcsr_iterator_next_block(iter, row, col, data_block,blk,&
-              row_size=row_size, col_size=col_size, &
-              row_offset=row_offset, col_offset=col_offset)
-         DO i=1,row_size
-           i_global=row_offset+i-1
-           IF(i_global>=rec_mu_start.AND.i_global<=rec_mu_end) THEN
-             DO j=1,col_size
-               j_global=col_offset+j-1
-               data_block(i,j)=rec_C(i_global-rec_mu_start+1,col_offset+j-1)
-             ENDDO
-           END IF
-         ENDDO
-      ENDDO
-      CALL cp_dbcsr_iterator_stop(iter)
-
-      DEALLOCATE(rec_C)
-
-    END DO
-    CALL cp_dbcsr_filter(mo_coeff_o,mp2_env%mp2_gpw%eps_filter,error=error_sub)
-
-    DEALLOCATE(Cocc)
-
-!    ! the virtual
-
-    NULLIFY(mo_coeff_v)
-    CALL cp_dbcsr_init_p(mo_coeff_v,error=error_sub)
-    CALL cp_dbcsr_m_by_n_from_row_template(mo_coeff_v,template=mat_munu%matrix,n=virtual,&
-                                           sym=dbcsr_type_no_symmetry, data_type=dbcsr_type_real_default, error=error)
-    CALL cp_dbcsr_reserve_all_blocks(mo_coeff_v,error)
-
-    ! accumulate data on mo_coeff_v starting from myself
-    CALL cp_dbcsr_iterator_start(iter, mo_coeff_v)
-    DO WHILE (cp_dbcsr_iterator_blocks_left (iter))
-       CALL cp_dbcsr_iterator_next_block(iter, row, col, data_block,blk,&
-            row_size=row_size, col_size=col_size, &
-            row_offset=row_offset, col_offset=col_offset)
-       DO i=1,row_size
-         i_global=row_offset+i-1
-         IF(i_global>=my_mu_start.AND.i_global<=my_mu_end) THEN
-           DO j=1,col_size
-             j_global=col_offset+j-1
-             data_block(i,j)=Cvirt(i_global-my_mu_start+1,col_offset+j-1)
-           ENDDO
-         END IF
-       ENDDO
-    ENDDO
-    CALL cp_dbcsr_iterator_stop(iter)
-
-    ! start ring communication in the subgroup for collecting the data from the other
-    ! proc (virtual)
-    DO proc_shift=1, para_env_sub%num_pe-1
-      proc_send=proc_map(para_env_sub%mepos+proc_shift)
-      proc_receive=proc_map(para_env_sub%mepos-proc_shift)
-
-      rec_mu_start=starts_array(proc_receive)
-      rec_mu_end=ends_array(proc_receive)
-      rec_mu_size=sizes_array(proc_receive)
-
-      ALLOCATE(rec_C(rec_mu_size,virtual),STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-      rec_C=0.0_dp
-
-      ! then send and receive the real data
-      CALL  mp_sendrecv(Cvirt,proc_send,rec_C,proc_receive,para_env_sub%group)
-
-      ! accumulate data on mo_coeff_v the data received from proc_rec
-      CALL cp_dbcsr_iterator_start(iter, mo_coeff_v)
-      DO WHILE (cp_dbcsr_iterator_blocks_left (iter))
-         CALL cp_dbcsr_iterator_next_block(iter, row, col, data_block,blk,&
-              row_size=row_size, col_size=col_size, &
-              row_offset=row_offset, col_offset=col_offset)
-         DO i=1,row_size
-           i_global=row_offset+i-1
-           IF(i_global>=rec_mu_start.AND.i_global<=rec_mu_end) THEN
-             DO j=1,col_size
-               j_global=col_offset+j-1
-               data_block(i,j)=rec_C(i_global-rec_mu_start+1,col_offset+j-1)
-             ENDDO
-           END IF
-         ENDDO
-      ENDDO
-      CALL cp_dbcsr_iterator_stop(iter)
-
-      DEALLOCATE(rec_C)
-
-    END DO
-    CALL cp_dbcsr_filter(mo_coeff_v,mp2_env%mp2_gpw%eps_filter,error=error_sub)
-
-    DEALLOCATE(Cvirt)
+    ELSE
+      DEALLOCATE(C)
+    END IF
 
     DEALLOCATE(proc_map)
     DEALLOCATE(sizes_array)
@@ -1910,7 +1872,7 @@ MODULE mp2_gpw
 
     CALL timestop(handle)
 
-  END SUBROUTINE
+  END SUBROUTINE replicate_mat_to_subgroup
 
 ! *****************************************************************************
 !> \brief ...
@@ -2010,5 +1972,137 @@ MODULE mp2_gpw
     CALL timestop(handle)
 
   END SUBROUTINE grep_occ_virt_wavefunc
+
+! *****************************************************************************
+!> \brief Encapsulate the building of dbcsr_matrices mo_coeff_(v,o,all)
+!> \param mp2_env ...
+!> \param para_env_sub ...
+!> \param mo_coeff_to_build ...
+!> \param Cread ...
+!> \param number_of_level ...
+!> \param blk ...
+!> \param row ...
+!> \param col ...
+!> \param row_size ...
+!> \param col_size ...
+!> \param row_offset ...
+!> \param col_offset ...
+!> \param i_global ...
+!> \param j_global ...
+!> \param my_mu_start ...
+!> \param my_mu_end ...
+!> \param mat_munu ...
+!> \param iter ...
+!> \param data_block ...
+!> \param ends_array ...
+!> \param proc_map ...
+!> \param sizes_array ...
+!> \param starts_array ...
+!> \param error ...
+!> \param error_sub ...
+!> \author Jan Wilhelm
+! *****************************************************************************
+  SUBROUTINE build_mo_coeff_v_o_all(mp2_env,para_env_sub,mo_coeff_to_build,Cread,&
+                                    number_of_level,blk,row,col,row_size,col_size,row_offset,&
+                                    col_offset,i_global,j_global,my_mu_start,my_mu_end,&
+                                    mat_munu,iter,&
+                                    data_block,ends_array,proc_map, &
+                                    sizes_array,starts_array,error,error_sub)
+    TYPE(mp2_type), POINTER                  :: mp2_env
+    TYPE(cp_para_env_type), POINTER          :: para_env_sub
+    TYPE(cp_dbcsr_type), POINTER             :: mo_coeff_to_build
+    REAL(KIND=dp), ALLOCATABLE, &
+      DIMENSION(:, :)                        :: Cread
+    INTEGER :: number_of_level, blk, row, col, row_size, col_size, &
+      row_offset, col_offset, i_global, j_global, my_mu_start, my_mu_end
+    TYPE(cp_dbcsr_p_type)                    :: mat_munu
+    TYPE(cp_dbcsr_iterator)                  :: iter
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: data_block
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: ends_array, proc_map, &
+                                                sizes_array, starts_array
+    TYPE(cp_error_type), INTENT(inout)       :: error, error_sub
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'build_mo_coeff_v_o_all', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER :: handle, i, j, proc_receive, proc_send, proc_shift, rec_mu_end, &
+      rec_mu_size, rec_mu_start, stat
+    LOGICAL                                  :: failure
+    REAL(KIND=dp), ALLOCATABLE, &
+      DIMENSION(:, :)                        :: rec_C
+
+    CALL timeset(routineN,handle)
+    failure=.FALSE.
+
+    NULLIFY(mo_coeff_to_build)
+    CALL cp_dbcsr_init_p(mo_coeff_to_build,error=error_sub)
+    CALL cp_dbcsr_m_by_n_from_row_template(mo_coeff_to_build,template=mat_munu%matrix,n=number_of_level,&
+                                           sym=dbcsr_type_no_symmetry,data_type=dbcsr_type_real_default,error=error)
+    CALL cp_dbcsr_reserve_all_blocks(mo_coeff_to_build,error)
+
+
+    ! accumulate data on mo_coeff_to_build starting from myself
+    CALL cp_dbcsr_iterator_start(iter, mo_coeff_to_build)
+    DO WHILE (cp_dbcsr_iterator_blocks_left (iter))
+       CALL cp_dbcsr_iterator_next_block(iter, row, col, data_block,blk,&
+            row_size=row_size, col_size=col_size, &
+            row_offset=row_offset, col_offset=col_offset)
+       DO i=1,row_size
+         i_global=row_offset+i-1
+         IF(i_global>=my_mu_start.AND.i_global<=my_mu_end) THEN
+           DO j=1,col_size
+             j_global=col_offset+j-1
+             data_block(i,j)=Cread(i_global-my_mu_start+1,col_offset+j-1)
+           ENDDO
+         END IF
+       ENDDO
+    ENDDO
+    CALL cp_dbcsr_iterator_stop(iter)
+
+    ! start ring communication in the subgroup for collecting the data from the other
+    ! proc (occupied)
+    DO proc_shift=1, para_env_sub%num_pe-1
+      proc_send=proc_map(para_env_sub%mepos+proc_shift)
+      proc_receive=proc_map(para_env_sub%mepos-proc_shift)
+
+      rec_mu_start=starts_array(proc_receive)
+      rec_mu_end=ends_array(proc_receive)
+      rec_mu_size=sizes_array(proc_receive)
+
+      ALLOCATE(rec_C(rec_mu_size,number_of_level),STAT=stat)
+      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+      rec_C=0.0_dp
+
+      ! then send and receive the real data
+      CALL  mp_sendrecv(Cread,proc_send,rec_C,proc_receive,para_env_sub%group)
+
+      ! accumulate data on mo_coeff_to_build the data received from proc_rec
+      CALL cp_dbcsr_iterator_start(iter, mo_coeff_to_build)
+      DO WHILE (cp_dbcsr_iterator_blocks_left (iter))
+         CALL cp_dbcsr_iterator_next_block(iter, row, col, data_block,blk,&
+              row_size=row_size, col_size=col_size, &
+              row_offset=row_offset, col_offset=col_offset)
+         DO i=1,row_size
+           i_global=row_offset+i-1
+           IF(i_global>=rec_mu_start.AND.i_global<=rec_mu_end) THEN
+             DO j=1,col_size
+               j_global=col_offset+j-1
+               data_block(i,j)=rec_C(i_global-rec_mu_start+1,col_offset+j-1)
+             ENDDO
+           END IF
+         ENDDO
+      ENDDO
+      CALL cp_dbcsr_iterator_stop(iter)
+
+      DEALLOCATE(rec_C)
+
+    END DO
+    CALL cp_dbcsr_filter(mo_coeff_to_build,mp2_env%mp2_gpw%eps_filter,error=error_sub)
+
+    DEALLOCATE(Cread)
+
+    CALL timestop(handle)
+
+  END SUBROUTINE build_mo_coeff_v_o_all  
 
 END MODULE mp2_gpw

@@ -720,10 +720,18 @@ END SUBROUTINE create_ewald_section
     IF (.NOT. failure) THEN
        CALL section_create(section,name="DIELECTRIC", &
             description="Parameters for the dielectric constant function as proposed in the SCCS model.", &
-            n_keywords=4, n_subsections=0, repeats=.FALSE., required=.FALSE., &
+            n_keywords=5, n_subsections=0, repeats=.FALSE., required=.FALSE., &
             error=error)
 
        NULLIFY(keyword)
+
+       CALL keyword_create(keyword, name="DIELECTRIC_CORE_CORRECTION", &
+            description="Avoid spurious values of the dielectric constant at the ionic core for pseudopotentials "// &
+                        "where the electron density goes to zero at the core (e.g. GTH). "// &
+                        "The correction is based on rho_core.", &
+            usage="DIELECTRIC_CORE_CORRECTION <logical>", default_l_val=.TRUE., error=error)
+       CALL section_add_keyword(section, keyword, error=error)
+       CALL keyword_release(keyword, error=error)
 
        CALL keyword_create(keyword, name="dielectric_constant", variants=s2a('epsilon'), &
             description="Dielectric constant in the bulk of the solvent.", &
@@ -751,10 +759,10 @@ END SUBROUTINE create_ewald_section
                          "FFT based deriv of epsilon, with correction using gradient of epsilon (high cutoff needed).",&
                          "FFT based deriv of epsilon, with correction using gradient of rho (high cutoff needed).",&
                          "3-point central difference derivative.",&
-                         "5-point central difference derivative (recommended).",&
-                         "7-point central difference derivative."),&
+                         "5-point central difference derivative.",&
+                         "7-point central difference derivative (recommended)."),&
             description="Preferred method for evaluating the gradient of ln(eps).", &
-            usage="DERIVATIVE_METHOD  <method>", default_i_val=derivative_cd5, error=error)
+            usage="DERIVATIVE_METHOD  <method>", default_i_val=derivative_cd7, error=error)
        CALL section_add_keyword(section, keyword, error=error)
        CALL keyword_release(keyword, error=error)
     END IF
@@ -791,9 +799,8 @@ END SUBROUTINE create_ewald_section
        NULLIFY(keyword)
 
        CALL keyword_create(keyword, name="DEBUG", &
-            description="Whether or not to print out the values of the electrostatic potential "// &
-            "at Dirichlet regions, as well as the coordinates of the vertices of the region and "// &
-            "its tessellation.", &
+            description="Print out the values of the electrostatic potential at Dirichlet regions, "// &
+            "as well as the coordinates of the vertices defining the regions and their tessellations.", &
             usage="DEBUG <logical>", default_l_val=.FALSE., error=error)
        CALL section_add_keyword(section, keyword, error=error)
        CALL keyword_release(keyword, error=error)

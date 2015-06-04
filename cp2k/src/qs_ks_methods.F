@@ -69,7 +69,6 @@ MODULE qs_ks_methods
                                              section_vals_get_subs_vals,&
                                              section_vals_type,&
                                              section_vals_val_get
-  USE kahan_sum,                       ONLY: accurate_sum
   USE kg_correction,                   ONLY: kg_ekin_subset
   USE kinds,                           ONLY: default_string_length,&
                                              dp
@@ -84,6 +83,7 @@ MODULE qs_ks_methods
                                              pw_env_type
   USE pw_methods,                      ONLY: pw_axpy,&
                                              pw_copy,&
+                                             pw_integral_ab,&
                                              pw_integrate_function,&
                                              pw_scale,&
                                              pw_transfer,&
@@ -108,6 +108,7 @@ MODULE qs_ks_methods
   USE qs_core_energies,                ONLY: calculate_ptrace
   USE qs_dftb_matrices,                ONLY: build_dftb_ks_matrix
   USE qs_efield_berry,                 ONLY: qs_efield_berry_phase
+  USE qs_efield_local,                 ONLY: qs_efield_local_operator
   USE qs_energy_types,                 ONLY: qs_energy_type
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
@@ -236,13 +237,14 @@ CONTAINS
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(pw_env_type), POINTER               :: pw_env
     TYPE(pw_p_type) :: rho_tot_gspace, v_efield_rspace, v_hartree_gspace, &
-      v_hartree_rspace, v_sccs_rspace, v_sic_rspace, v_spin_ddapc_rest_r
+      v_hartree_rspace, v_minus_veps, v_sccs_rspace, v_sic_rspace, &
+      v_spin_ddapc_rest_r
     TYPE(pw_p_type), DIMENSION(:), POINTER   :: rho_r, v_rspace_new, &
                                                 v_rspace_new_aux_fit, &
                                                 v_tau_rspace, &
                                                 v_tau_rspace_aux_fit
-    TYPE(pw_p_type), POINTER                 :: rho_core, rho_nlcc, vee, &
-                                                vppl_rspace
+    TYPE(pw_p_type), POINTER                 :: rho0_s_rs, rho_core, &
+                                                rho_nlcc, vee, vppl_rspace
     TYPE(pw_poisson_type), POINTER           :: poisson_env
     TYPE(pw_pool_p_type), DIMENSION(:), &
       POINTER                                :: pw_pools
@@ -358,6 +360,11 @@ CONTAINS
                        pw_pools=pw_pools, poisson_env=poisson_env,error=error)
     END IF
 
+    IF (gapw .AND. (poisson_env%parameters%solver .EQ. pw_poisson_implicit)) THEN
+        CALL cp_assert(.FALSE., cp_failure_level, cp_assertion_failed, routineP,&
+             "The implicit Poisson solver cannot be used in conjunction with GAPW.", error, failure)
+    END IF
+
     ! ***  Prepare densities for gapw ***
     IF(gapw .OR. gapw_xc) THEN
        CALL prepare_gapw_den(qs_env,do_rho0=(.NOT.gapw_xc),error=error)
@@ -436,12 +443,6 @@ CONTAINS
           END IF
        END IF
 
-       IF (poisson_env%parameters%solver .EQ. pw_poisson_implicit .AND. calculate_forces) THEN
-          CALL cp_assert(.FALSE., cp_warning_level, cp_assertion_failed, routineP,&
-             "The implicit Poisson solver might have inaccurate forces (dielectric deriv).", &
-             error, failure)
-       END IF
-
        ! In case decouple periodic images and/or apply restraints to charges
        IF (do_ddapc) THEN
           CALL qs_ks_ddapc(qs_env, auxbas_pw_pool, rho_tot_gspace, v_hartree_gspace,&
@@ -487,10 +488,17 @@ CONTAINS
           ! Compute the energy due to the external potential
           ee_ener=0.0_dp
           DO ispin=1,nspins
-             ee_ener=ee_ener+accurate_sum(vee%pw%cr3d*rho_r(ispin)%pw%cr3d)*&
-                  vee%pw%pw_grid%dvol
+             ee_ener = ee_ener +  pw_integral_ab (rho_r(ispin)%pw, vee%pw, error=error)
           END DO
-          CALL mp_sum(ee_ener, para_env%group)
+          IF (.NOT.just_energy) THEN
+             IF (gapw) THEN
+                CALL get_qs_env(qs_env=qs_env,&
+                     rho0_s_rs=rho0_s_rs,&
+                     error=error)
+                CPPrecondition(ASSOCIATED(rho0_s_rs),cp_failure_level,routineP,error,failure)
+                ee_ener = ee_ener +  pw_integral_ab (rho0_s_rs%pw, vee%pw, error=error)
+             END IF
+          END IF
           ! the sign accounts for the charge of the electrons
           energy%ee=-ee_ener
        END IF
@@ -641,7 +649,16 @@ CONTAINS
        IF (.NOT.just_energy) THEN
           IF (calculate_forces) THEN
              ! Getting nuclear force contribution from the core charge density
-             CALL integrate_v_core_rspace(v_hartree_rspace,qs_env,error=error)
+             IF ((poisson_env%parameters%solver .EQ. pw_poisson_implicit) .AND. & 
+                 (poisson_env%parameters%dielectric_params%dielec_core_correction)) THEN
+                CALL pw_pool_create_pw(auxbas_pw_pool, v_minus_veps%pw, use_data=REALDATA3D, in_space=REALSPACE, error=error)
+                CALL pw_copy(v_hartree_rspace%pw, v_minus_veps%pw, error=error)
+                CALL pw_axpy(poisson_env%implicit_env%v_eps, v_minus_veps%pw, - v_hartree_rspace%pw%pw_grid%dvol, error=error)
+                CALL integrate_v_core_rspace(v_minus_veps, qs_env, error=error)
+                CALL pw_pool_give_back_pw(auxbas_pw_pool, v_minus_veps%pw, error=error)
+             ELSE
+                CALL integrate_v_core_rspace(v_hartree_rspace,qs_env,error=error)
+             END IF
           END IF
 
           IF (.NOT.do_hfx) THEN
@@ -686,7 +703,12 @@ CONTAINS
        END IF
 
        IF (gapw) THEN
-          ! Integrals of the Hartree potential with g0_soft
+          IF (dft_control%apply_external_potential) THEN
+             ! Integrals of the Hartree potential with g0_soft
+             CALL qmmm_modify_hartree_pot(v_hartree=v_hartree_rspace,&
+                                          v_qmmm=vee,scale=-1.0_dp,&
+                                          error=error)
+          ENDIF
           CALL integrate_vhg0_rspace(qs_env,v_hartree_rspace,calculate_forces,error=error)
        END IF
 
@@ -730,6 +752,9 @@ CONTAINS
          CALL admm_dm_merge_ks_matrix(ks_env, error)
        ENDIF
 
+       ! External field (nonperiodic case)
+       CALL qs_efield_local_operator(qs_env,just_energy,calculate_forces,error)
+
        ! Right now we can compute the orbital derivative here, as it depends currently only on the available
        ! Kohn-Sham matrix. This might change in the future, in which case more pieces might need to be assembled
        ! from this routine, notice that this part of the calculation in not linear scaling
@@ -746,7 +771,10 @@ CONTAINS
        ! deal with sic on explicit orbitals
        CALL sic_explicit_orbitals(energy,qs_env,dft_control,poisson_env,just_energy,&
                                   calculate_forces,auxbas_pw_pool,error)
-       CALL qs_efield_berry_phase(ks_env,qs_env,calculate_forces,error)
+
+       ! Periodic external field
+       CALL qs_efield_berry_phase(qs_env,just_energy,calculate_forces,error)
+
        ! adds s2_restraint energy and orbital derivatives
        CALL qs_ks_s2_restraint(dft_control,qs_env,matrix_s,&
             energy,calculate_forces, just_energy,error)
