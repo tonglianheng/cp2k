@@ -35,7 +35,7 @@ Module qs_fb_distribution_methods
                      timestop
   USE input_section_types, ONLY: section_vals_type
   USE cp_output_handling, ONLY: cp_print_key_finished_output,&
-                                cp_print_key_unit_nr                                            
+                                cp_print_key_unit_nr
 
 #include "./common/cp_common_uses.f90"
 
@@ -119,7 +119,7 @@ CONTAINS
     CALL timeset(routineN, handle)
 
     failure = .FALSE.
-    
+
     NULLIFY(mat_ks, rcut, cell, para_env, particle_set, qs_kind_set, &
             halo_atoms, local_atoms)
     CALL fb_atomic_halo_nullify(atomic_halo)
@@ -162,14 +162,6 @@ CONTAINS
                                natoms=nhalo_atoms, &
                                halo_atoms=halo_atoms, &
                                error=error)
-
-!BEG:DEBUG:LT:2015/06/04
-       write (my_pe+200,*) "atomic halo for atom: ", iatom
-       DO ii = 1, SIZE(halo_atoms)
-          write (my_pe+200,*) halo_atoms(ii)
-       END DO
-!END:DEBUG:LT:2015/06/04
-
        NULLIFY(halo_atoms)
        cost_per_atom(iatom) = fb_atomic_halo_cost(atomic_halo, particle_set, qs_kind_set)
     END DO
@@ -208,28 +200,8 @@ CONTAINS
             MOD(pos_in_preferred_list(i_common_set), &
                 preferred_procs_set(iatom)%nprocs) + 1
        ipe = preferred_procs_set(iatom)%list(pos_in_preferred_list(i_common_set))
-
-!BEG:DEBUG:LT:2015/06/03
-       write (my_pe+200,*) "|LT| build: iatom = ", iatom
-       write (my_pe+200,*) "|LT| build: preferred_procs_set = ", preferred_procs_set(iatom)%list(:)
-       write (my_pe+200,*) "|LT| build: ipe = ", ipe
-!END:DEBUG:LT:2015/06/03
-
        CALL fb_distribution_add(dist(ipe), element, error)
-
-!BEG:DEBUG:LT:2015/06/03
-       write (my_pe+200,*) "|LT| dist(",ipe,") = "
-       DO ii = 1, dist(ipe)%nelements
-          write (my_pe+200,*) dist(ipe)%list(ii)%id, dist(ipe)%list(ii)%cost
-       END DO
-       write (my_pe+200,*) "|LT|   cost for this dist = ", dist(ipe)%cost
-!END:DEBUG:LT:2015/06/03
-
     END DO
-
-!BEG:DEBUG:LT:2015/06/04
-    CALL fb_distribution_write_info(dist, scf_section, error)
-!END:DEBUG:LT:2015/06/04
 
     DEALLOCATE(pos_in_preferred_list, STAT=stat)
     CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
@@ -321,17 +293,6 @@ CONTAINS
        END DO redistribute ! while
     END DO ! ipe
 
-!BEG:DEBUG:LT:2015/06/03
-    write (my_pe+200,*) "|LT| after redistribution: "
-    DO ipe = 1, nprocs
-       write (my_pe+200,*) "|LT| dist(",ipe,") = "
-       DO ii = 1, dist(pe(ipe))%nelements
-          write (my_pe+200,*) dist(pe(ipe))%list(ii)%id, dist(pe(ipe))%list(ii)%cost
-       END DO
-       write (my_pe+200,*) "|LT|   cost for this dist = ", dist(pe(ipe))%cost
-    END DO
-!END:DEBUG:LT:2015/06/03
-
     DEALLOCATE(pe, STAT=stat)
     CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
     DEALLOCATE(preferred_procs_set, STAT=stat)
@@ -387,12 +348,12 @@ CONTAINS
     TYPE(fb_distribution_element), INTENT(IN) :: element
     REAL(KIND=dp), INTENT(IN) :: threshold
     LOGICAL :: acceptable
-    
+
     acceptable = (dist_to%cost + element%cost .LT. dist_from%cost) .AND. &
                  (dist_to%cost .LT. threshold)
   END FUNCTION fb_distribution_acceptable_move
 
-  
+
   SUBROUTINE fb_distribution_write_info(dist_set, scf_section, error)
     TYPE(fb_distribution_list), DIMENSION(:), INTENT(IN) :: dist_set
     TYPE(section_vals_type), POINTER :: scf_section
@@ -400,7 +361,7 @@ CONTAINS
 
     CHARACTER(len=*), PARAMETER :: routineN = 'fb_distribution_write_info', &
        routineP = moduleN//':'//routineN
-    
+
     LOGICAL :: failure
     INTEGER :: ii, natoms, nprocs, max_natoms, min_natoms, unit_nr
     REAL(KIND=dp) :: ave_natoms, ave_cost, max_cost, min_cost, total_cost
@@ -429,7 +390,7 @@ CONTAINS
        min_natoms = MIN(min_natoms, dist_set(ii)%nelements)
        min_cost = MIN(min_cost, dist_set(ii)%cost)
     END DO
-    
+
     logger => cp_error_get_logger(error=error)
     unit_nr = cp_print_key_unit_nr(logger, scf_section, &
                                    "PRINT%FILTER_MATRIX", &

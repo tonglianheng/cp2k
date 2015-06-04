@@ -926,11 +926,6 @@ CONTAINS
                     cell=cell, &
                     error=error)
 
-!BEG:DEBUG:LT:2015/06/04
-    write (400+para_env%mepos,*) "local_atoms = ", local_atoms
-    write (400+para_env%mepos,*) "natoms_local = ", natoms_local
-!END:DEBUG:LT:2015/06/04
-
     ! get the maximum number of local atoms across the procs.
     max_natoms_local = natoms_local
     CALL mp_max(max_natoms_local, para_env%group)
