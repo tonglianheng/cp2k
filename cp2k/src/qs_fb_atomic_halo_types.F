@@ -92,7 +92,7 @@ MODULE qs_fb_atomic_halo_types
      INTEGER :: nelectrons
      INTEGER, DIMENSION(:), POINTER :: halo_atoms
      LOGICAL :: sorted
-     INTEGER :: cost
+     REAL(KIND=dp) :: cost
   END TYPE fb_atomic_halo_data
 
 
@@ -284,7 +284,7 @@ CONTAINS
        atomic_halo%obj%natoms = 0
        atomic_halo%obj%nelectrons = 0
        atomic_halo%obj%sorted = .FALSE.
-       atomic_halo%obj%cost = 0
+       atomic_halo%obj%cost = 0.0_dp
        NULLIFY(atomic_halo%obj%halo_atoms)
        atomic_halo%obj%ref_count = 1
        atomic_halo%obj%id_nr = last_fb_atomic_halo_id + 1
@@ -324,7 +324,7 @@ CONTAINS
        atomic_halo%obj%natoms = 0
        atomic_halo%obj%nelectrons = 0
        atomic_halo%obj%sorted = .FALSE.
-       atomic_halo%obj%cost = 0
+       atomic_halo%obj%cost = 0.0_dp
     END IF
   END SUBROUTINE fb_atomic_halo_init
 
@@ -360,7 +360,7 @@ CONTAINS
                                                 natoms, nelectrons
     INTEGER, DIMENSION(:), OPTIONAL, POINTER :: halo_atoms
     LOGICAL, INTENT(OUT), OPTIONAL           :: sorted
-    INTEGER, INTENT(OUT), OPTIONAL           :: cost
+    REAL(KIND=dp), INTENT(OUT), OPTIONAL     :: cost
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'fb_atomic_halo_get', &
@@ -415,7 +415,7 @@ CONTAINS
                                                 natoms, nelectrons
     INTEGER, DIMENSION(:), OPTIONAL, POINTER :: halo_atoms
     LOGICAL, INTENT(IN), OPTIONAL            :: sorted
-    INTEGER, INTENT(IN), OPTIONAL            :: cost
+    REAL(KIND=dp), INTENT(IN), OPTIONAL      :: cost
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'fb_atomic_halo_set', &
@@ -581,7 +581,7 @@ CONTAINS
     TYPE(fb_atomic_halo_obj), INTENT(IN) :: atomic_halo
     TYPE(particle_type), DIMENSION(:), INTENT(IN) :: particle_set
     TYPE(qs_kind_type), DIMENSION(:), INTENT(IN) :: qs_kind_set
-    INTEGER :: cost
+    REAL(KIND=dp) :: cost
 
     CHARACTER(len=*), PARAMETER :: routineN = 'fb_atomic_halo_cost', &
       routineP = moduleN//':'//routineN
@@ -589,14 +589,14 @@ CONTAINS
     INTEGER :: ii, ikind, ncgf, iatom
     TYPE(atomic_kind_type), POINTER :: atomic_kind
 
-    cost = 0
+    cost = 0.0_dp
     DO ii = 1, atomic_halo%obj%natoms
        iatom = atomic_halo%obj%halo_atoms(ii)
        CALL get_atomic_kind(atomic_kind=particle_set(iatom)%atomic_kind, &
                             kind_number=ikind)
        CALL get_qs_kind(qs_kind=qs_kind_set(ikind), &
                         ncgf=ncgf)
-       cost = cost + ncgf
+       cost = cost + REAL(ncgf, dp)
     END DO
     ! diagonalisation is N**3 process, so cost must reflect that
     cost = cost**3

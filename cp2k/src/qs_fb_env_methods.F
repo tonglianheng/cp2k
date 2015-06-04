@@ -877,7 +877,8 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'fb_env_build_atomic_halos', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: cost, handle, iatom, ihalo, max_natoms_local, &
+    REAL(KIND=dp) :: cost
+    INTEGER :: handle, iatom, ihalo, max_natoms_local, &
       natoms_global, natoms_local, nelectrons, nhalo_atoms, &
       nkinds_global, owner_id_in_halo, stat
     INTEGER, DIMENSION(:), POINTER           :: atom_list, halo_atoms, local_atoms
@@ -925,6 +926,11 @@ CONTAINS
                     cell=cell, &
                     error=error)
 
+!BEG:DEBUG:LT:2015/06/04
+    write (400+para_env%mepos,*) "local_atoms = ", local_atoms
+    write (400+para_env%mepos,*) "natoms_local = ", natoms_local
+!END:DEBUG:LT:2015/06/04
+
     ! get the maximum number of local atoms across the procs.
     max_natoms_local = natoms_local
     CALL mp_max(max_natoms_local, para_env%group)
@@ -947,7 +953,7 @@ CONTAINS
     ihalo = 0
     DO iatom = 1, natoms_local
        ihalo = ihalo + 1
-       CALL fb_atomic_halo_build_halo_atoms(iatom, &
+       CALL fb_atomic_halo_build_halo_atoms(local_atoms(iatom), &
                                             particle_set, &
                                             cell, &
                                             pair_radii, &
@@ -956,7 +962,7 @@ CONTAINS
                                             owner_id_in_halo, &
                                             error)
        CALL fb_atomic_halo_set(atomic_halo=halos(ihalo), &
-                               owner_atom=iatom, &
+                               owner_atom=local_atoms(iatom), &
                                owner_id_in_halo=owner_id_in_halo, &
                                natoms=nhalo_atoms, &
                                halo_atoms=halo_atoms, &

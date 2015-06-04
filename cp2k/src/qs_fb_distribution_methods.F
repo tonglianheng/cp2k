@@ -33,6 +33,9 @@ Module qs_fb_distribution_methods
   USE util, ONLY: sort
   USE timings, ONLY: timeset,&
                      timestop
+  USE input_section_types, ONLY: section_vals_type
+  USE cp_output_handling, ONLY: cp_print_key_finished_output,&
+                                cp_print_key_unit_nr                                            
 
 #include "./common/cp_common_uses.f90"
 
@@ -46,13 +49,13 @@ Module qs_fb_distribution_methods
 
   TYPE fb_distribution_element
      INTEGER :: id
-     INTEGER :: cost
+     REAL(KIND=dp) :: cost
   END type fb_distribution_element
 
   TYPE fb_distribution_list
      TYPE(fb_distribution_element), DIMENSION(:), POINTER :: list => NULL()
      INTEGER :: nelements
-     INTEGER :: cost
+     REAL(KIND=dp) :: cost
   END type fb_distribution_list
 
   TYPE fb_preferred_procs_list
@@ -79,19 +82,21 @@ Module qs_fb_distribution_methods
 
 CONTAINS
 
-  SUBROUTINE fb_distribution_build(fb_env, qs_env, error)
+  SUBROUTINE fb_distribution_build(fb_env, qs_env, scf_section, error)
     TYPE(fb_env_obj), INTENT(INOUT)          :: fb_env
     TYPE(qs_environment_type), POINTER       :: qs_env
+    TYPE(section_vals_type), POINTER         :: scf_section
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'fb_distribution_build', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL :: failure, move_happened
+    LOGICAL :: failure, move_happened, acceptable_move
     INTEGER :: natoms, nkinds, nprocs, my_pe, stat, iatom, &
          owner_id_in_halo, nhalo_atoms, n_common_sets, ipe, &
-         average_cost, lowest_cost_ind, ii, i_common_set, handle, lb, &
-         ub
+         lowest_cost_ind, ii, i_common_set, handle, lb, ub, &
+         pref_pe
+    REAL(KIND=dp) :: average_cost
     TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER :: mat_ks
     REAL(KIND=dp), DIMENSION(:), POINTER :: rcut
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :) :: pair_radii
@@ -101,17 +106,15 @@ CONTAINS
     TYPE(qs_kind_type), DIMENSION(:), POINTER :: qs_kind_set
     TYPE(fb_atomic_halo_obj) :: atomic_halo
     INTEGER, DIMENSION(:), POINTER :: halo_atoms, local_atoms
-    INTEGER, DIMENSION(:), ALLOCATABLE :: cost_per_atom, &
-         cost_per_proc, common_set_ids, pos_in_preferred_list, pe, &
-         local_atoms_all, local_atoms_starts, local_atoms_sizes
+    REAL(KIND=dp), DIMENSION(:), ALLOCATABLE :: cost_per_atom, &
+         cost_per_proc
+    INTEGER, DIMENSION(:), ALLOCATABLE :: common_set_ids, &
+         pos_in_preferred_list, pe, local_atoms_all, &
+         local_atoms_starts, local_atoms_sizes
     TYPE(fb_preferred_procs_list), DIMENSION(:), ALLOCATABLE :: &
          preferred_procs_set
     TYPE(fb_distribution_list), DIMENSION(:), ALLOCATABLE :: dist
     TYPE(fb_distribution_element) :: element
-
-!BEG:DEBUG:LT:2015/06/04
-    INTEGER, DIMENSION(:), ALLOCATABLE :: tmp_index
-!END:DEBUG:LT:2015/06/04
 
     CALL timeset(routineN, handle)
 
@@ -159,6 +162,14 @@ CONTAINS
                                natoms=nhalo_atoms, &
                                halo_atoms=halo_atoms, &
                                error=error)
+
+!BEG:DEBUG:LT:2015/06/04
+       write (my_pe+200,*) "atomic halo for atom: ", iatom
+       DO ii = 1, SIZE(halo_atoms)
+          write (my_pe+200,*) halo_atoms(ii)
+       END DO
+!END:DEBUG:LT:2015/06/04
+
        NULLIFY(halo_atoms)
        cost_per_atom(iatom) = fb_atomic_halo_cost(atomic_halo, particle_set, qs_kind_set)
     END DO
@@ -211,9 +222,14 @@ CONTAINS
        DO ii = 1, dist(ipe)%nelements
           write (my_pe+200,*) dist(ipe)%list(ii)%id, dist(ipe)%list(ii)%cost
        END DO
+       write (my_pe+200,*) "|LT|   cost for this dist = ", dist(ipe)%cost
 !END:DEBUG:LT:2015/06/03
 
     END DO
+
+!BEG:DEBUG:LT:2015/06/04
+    CALL fb_distribution_write_info(dist, scf_section, error)
+!END:DEBUG:LT:2015/06/04
 
     DEALLOCATE(pos_in_preferred_list, STAT=stat)
     CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
@@ -237,7 +253,7 @@ CONTAINS
 
     ! work out the ideal average cost per proc if work load is evenly
     ! distributed
-    average_cost = NINT(REAL(SUM(cost_per_proc), dp) / REAL(nprocs, dp))
+    average_cost = SUM(cost_per_proc) / REAL(nprocs, dp)
 
     DEALLOCATE(cost_per_proc, STAT=stat)
     CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
@@ -251,29 +267,40 @@ CONTAINS
     ! repeat until the cost on this processor is less than or equal
     ! to the average cost
     lowest_cost_ind = 1
-    DO ipe = nprocs, 2, -1
+    DO ipe = nprocs, 1, -1
        redistribute: DO WHILE (dist(pe(ipe))%cost .GT. average_cost)
           iatom = dist(pe(ipe))%list(lowest_cost_ind)%id
           move_happened = .FALSE.
           ! first try to move to a preferred process
           preferred: DO ii = 1, preferred_procs_set(iatom)%nprocs
-             IF ((ii .NE. pe(ipe)) .AND. &
-                 (dist(ii)%cost .LT. average_cost)) THEN
+             pref_pe = preferred_procs_set(iatom)%list(ii)
+             acceptable_move = &
+                  fb_distribution_acceptable_move(dist(pe(ipe)), &
+                                                  dist(pe(ipe))%list(lowest_cost_ind), &
+                                                  dist(pref_pe), &
+                                                  average_cost)
+             IF ((pref_pe .NE. pe(ipe)) .AND. acceptable_move) THEN
                 CALL fb_distribution_move(dist(pe(ipe)), &
                                           lowest_cost_ind, &
-                                          dist(ii), &
+                                          dist(pref_pe), &
                                           error)
                 move_happened = .TRUE.
                 EXIT preferred
              END IF
           END DO preferred
-          ! if no preferred process is avaliable, move to the next
-          ! proc in the sorted list that has cost less than average.
-          ! remember that some of the proc may have already taken
-          ! redistributed atoms, and thus may beome unavaliable (full)
+          ! if no preferred process is avaliable, move to a proc in
+          ! the sorted list that has cost less than average.  remember
+          ! that some of the proc may have already taken redistributed
+          ! atoms, and thus may beome unavaliable (full)
           IF (.NOT. move_happened) THEN
-             next_in_line: DO ii = ipe - 1, 1, -1
-                IF (dist(pe(ii))%cost .LT. average_cost) THEN
+             ! searching from the proc with the least initial cost
+             next_in_line: DO ii = 1, nprocs
+                acceptable_move = &
+                  fb_distribution_acceptable_move(dist(pe(ipe)), &
+                                                  dist(pe(ipe))%list(lowest_cost_ind), &
+                                                  dist(pe(ii)), &
+                                                  average_cost)
+                IF ((pe(ii) .NE. pe(ipe)) .AND. acceptable_move) THEN
                    CALL fb_distribution_move(dist(pe(ipe)), &
                                              lowest_cost_ind, &
                                              dist(pe(ii)), &
@@ -293,6 +320,17 @@ CONTAINS
           END IF
        END DO redistribute ! while
     END DO ! ipe
+
+!BEG:DEBUG:LT:2015/06/03
+    write (my_pe+200,*) "|LT| after redistribution: "
+    DO ipe = 1, nprocs
+       write (my_pe+200,*) "|LT| dist(",ipe,") = "
+       DO ii = 1, dist(pe(ipe))%nelements
+          write (my_pe+200,*) dist(pe(ipe))%list(ii)%id, dist(pe(ipe))%list(ii)%cost
+       END DO
+       write (my_pe+200,*) "|LT|   cost for this dist = ", dist(pe(ipe))%cost
+    END DO
+!END:DEBUG:LT:2015/06/03
 
     DEALLOCATE(pe, STAT=stat)
     CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
@@ -321,22 +359,8 @@ CONTAINS
                     nlocal_atoms=local_atoms_sizes(my_pe), &
                     error=error)
 
-
-!BEG:DEBUG:LT:2015/06/03
-    write (my_pe+200,*) "|LT| local_atoms = "
-    DO ipe = 1, nprocs
-       write (my_pe+200,*) "MPI rank", ipe-1, ":"
-       DO ii = local_atoms_starts(ipe), local_atoms_starts(ipe) + local_atoms_sizes(ipe) - 1
-          write (my_pe+200,*) local_atoms_all(ii)
-       END DO
-    END DO
-    ALLOCATE(tmp_index(natoms))
-    CALL sort(local_atoms_all, natoms, tmp_index)
-    write (my_pe+200,*) "|LT| sorted_local_atoms_all ="
-    DO ii = 1, SIZE(local_atoms_all)
-       write (my_pe+200,*) local_atoms_all(ii)
-    END DO
-!END:DEBUG:LT:2015/06/03
+    ! write out info
+    CALL fb_distribution_write_info(dist, scf_section, error)
 
     DEALLOCATE(local_atoms_all, STAT=stat)
     CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
@@ -353,6 +377,86 @@ CONTAINS
     CALL timestop(handle)
 
   END SUBROUTINE fb_distribution_build
+
+  PURE FUNCTION fb_distribution_acceptable_move(dist_from, &
+                                                element, &
+                                                dist_to, &
+                                                threshold) &
+       RESULT(acceptable)
+    TYPE(fb_distribution_list), INTENT(IN) :: dist_from, dist_to
+    TYPE(fb_distribution_element), INTENT(IN) :: element
+    REAL(KIND=dp), INTENT(IN) :: threshold
+    LOGICAL :: acceptable
+    
+    acceptable = (dist_to%cost + element%cost .LT. dist_from%cost) .AND. &
+                 (dist_to%cost .LT. threshold)
+  END FUNCTION fb_distribution_acceptable_move
+
+  
+  SUBROUTINE fb_distribution_write_info(dist_set, scf_section, error)
+    TYPE(fb_distribution_list), DIMENSION(:), INTENT(IN) :: dist_set
+    TYPE(section_vals_type), POINTER :: scf_section
+    TYPE(cp_error_type), INTENT(INOUT) :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'fb_distribution_write_info', &
+       routineP = moduleN//':'//routineN
+    
+    LOGICAL :: failure
+    INTEGER :: ii, natoms, nprocs, max_natoms, min_natoms, unit_nr
+    REAL(KIND=dp) :: ave_natoms, ave_cost, max_cost, min_cost, total_cost
+    TYPE(cp_logger_type), POINTER :: logger
+
+    failure = .FALSE.
+
+    nprocs = SIZE(dist_set)
+    natoms = 0
+    total_cost = 0.0_dp
+    DO ii = 1, nprocs
+       natoms = natoms + dist_set(ii)%nelements
+       total_cost = total_cost + dist_set(ii)%cost
+    END DO
+    ave_natoms = REAL(natoms, dp) / REAL(nprocs, dp)
+    ave_cost = total_cost / REAL(nprocs, dp)
+    max_natoms = 0
+    max_cost = 0._dp
+    DO ii = 1, nprocs
+       max_natoms = MAX(max_natoms, dist_set(ii)%nelements)
+       max_cost = MAX(max_cost, dist_set(ii)%cost)
+    END DO
+    min_natoms = natoms
+    min_cost = total_cost
+    DO ii = 1, nprocs
+       min_natoms = MIN(min_natoms, dist_set(ii)%nelements)
+       min_cost = MIN(min_cost, dist_set(ii)%cost)
+    END DO
+    
+    logger => cp_error_get_logger(error=error)
+    unit_nr = cp_print_key_unit_nr(logger, scf_section, &
+                                   "PRINT%FILTER_MATRIX", &
+                                   extension="", &
+                                   error=error)
+
+    IF (unit_nr > 0) THEN
+       WRITE (UNIT=unit_nr, FMT="(/,A,I6,A)") &
+            "FILTER_MAT_DIAG| Load Distribution across ", nprocs, " processors:"
+       WRITE (UNIT=unit_nr, &
+              FMT="(A,T40,A,T55,A,T70,A,T85,A)") &
+            "FILTER_MAT_DIAG| ", "Total", "Average", "Max", "Min"
+       WRITE (UNIT=unit_nr, &
+              FMT="(A,T40,I12,T55,F12.1,T70,I12,T85,I10)") &
+            "FILTER_MAT_DIAG|   Atomic Matrices", &
+            natoms, ave_natoms, max_natoms, min_natoms
+       WRITE (UNIT=unit_nr, &
+              FMT="(A,T40,D12.7,T55,D12.7,T70,D12.7,T85,D12.7)") &
+            "FILTER_MAT_DIAG|   Cost*", &
+            total_cost, ave_cost, max_cost, min_cost
+       WRITE (UNIT=unit_nr, FMT="(A)") &
+            "FILTER_MAT_DIAG| (* cost is calculated as sum of cube of atomic matrix sizes)"
+    END IF
+    CALL cp_print_key_finished_output(unit_nr, logger, scf_section, &
+                                      "PRINT%FILTER_MATRIX", error=error)
+  END SUBROUTINE fb_distribution_write_info
+
 
   SUBROUTINE fb_build_preferred_procs(dbcsr_mat, &
                                       natoms, &
@@ -478,11 +582,11 @@ CONTAINS
        CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
        DO ii = 1, SIZE(dist%list)
           dist%list(ii)%id = 0
-          dist%list(ii)%cost = 0
+          dist%list(ii)%cost = 0.0_dp
        END DO
     END IF
     dist%nelements = 0
-    dist%cost = 0
+    dist%cost = 0.0_dp
   END SUBROUTINE fb_distribution_init
 
 
@@ -509,31 +613,11 @@ CONTAINS
        CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
        DO ii = 1, SIZE(new_list)
           new_list(ii)%id = 0
-          new_list(ii)%cost = 0
+          new_list(ii)%cost = 0.0_dp
        END DO
-
-!BEG:DEBUG:LT:2015/06/03
-       print *, "|LT| resize: nmax = ", nmax
-       print *, "|LT| resize: my_nmax = ", my_nmax
-       print *, "|LT| resize: dist%nelements = ", dist%nelements
-       print *, "|LT| resize: SIZE(dist%list) = ", SIZE(dist%list)
-       print *, "|LT| resize: dist = "
-       DO ii = 1, SIZE(dist%list)
-          print *, dist%list(ii)%id, dist%list(ii)%cost
-       END DO
-!END:DEBUG:LT:2015/06/03
-
        DO ii = 1, dist%nelements
           new_list(ii) = dist%list(ii)
        END DO
-
-!BEG:DEBUG:LT:2015/06/03
-       print *, "|LT| resize: new_dist = "
-       DO ii = 1, SIZE(new_list)
-          print *, new_list(ii)%id, new_list(ii)%cost
-       END DO
-!END:DEBUG:LT:2015/06/03
-
        DEALLOCATE(dist%list, STAT=stat)
        CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
        dist%list => new_list
@@ -555,11 +639,6 @@ CONTAINS
     failure = .FALSE.
     new_nelements = dist%nelements + 1
 
-!BEG:DEBUG:LT:2015/06/03
-    print *, "|LT| add: dist%nelements = ", dist%nelements
-    print *, "|LT| add: new_nelements = ", new_nelements
-!END:DEBUG:LT:2015/06/03
-
     ! resize list if necessary
     IF (.NOT. ASSOCIATED(dist%list)) THEN
        CALL fb_distribution_resize(dist, new_nelements, error=error)
@@ -572,12 +651,6 @@ CONTAINS
        dist%list(1) = element
     ELSE
        pos = fb_distribution_find_slot(dist, element)
-
-!BEG:DEBUG:LT:2015/06/03
-       print *, "|LT| add: element = ", element
-       print *, "|LT| add: pos = ", pos
-!END:DEBUG:LT:2015/06/03
-
        DO ii = dist%nelements, pos, -1
           dist%list(ii + 1) = dist%list(ii)
        END DO
@@ -638,7 +711,7 @@ CONTAINS
           dist%list(ii) = dist%list(ii+1)
        END DO
        dist%list(dist%nelements)%id = 0
-       dist%list(dist%nelements)%cost = 0
+       dist%list(dist%nelements)%cost = 0.0_dp
        dist%nelements = dist%nelements - 1
        ! auto resize if required
        IF (dist%nelements*REDUCE_RATIO .LT. SIZE(dist%list)) THEN
