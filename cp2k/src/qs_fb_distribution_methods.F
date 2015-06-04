@@ -40,17 +40,47 @@ MODULE qs_fb_distribution_methods
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_fb_distribution_methods'
 
+! *****************************************************************************
+!> \brief derived type containing cost data used for process distribution
+!> \param id               : global atomic index
+!> \param cost             : computational cost for the atomic matrix associated
+!>                           to this atom
+!> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
+! *****************************************************************************
   TYPE fb_distribution_element
      INTEGER :: id
      REAL(KIND=dp) :: cost
   END TYPE fb_distribution_element
 
+! *****************************************************************************
+!> \brief derived type containing the list of atoms currently allocated to a
+!>        processor
+!> \param list             : list of atoms and their associated costs
+!> \param cost             : total cost of the list
+!> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
+! *****************************************************************************
   TYPE fb_distribution_list
      TYPE(fb_distribution_element), DIMENSION(:), POINTER :: list => NULL()
      INTEGER :: nelements
      REAL(KIND=dp) :: cost
   END TYPE fb_distribution_list
 
+! *****************************************************************************
+!> \brief In filter matrix algorithm, each atomic matrix contributes to a
+!>        column in the filter matrix, which is stored in DBCSR format.
+!>        When distributing the atoms (and hence the atomic matrics) to the
+!>        processors, we want the processors to have atoms that would be
+!>        correspond to the block columns in the DBCSR format local to them.
+!>        This derived type stores this information. For each atom, it
+!>        corresponds to a DBCSR block column, and the list of processors
+!>        in the 2D processor grid responsible for this column will be the
+!>        preferred processors for this atom.
+!> \param list             : list of preferred processors for an atom
+!>                           note that here the processors are indexed from
+!>                           1, i.e. = MPI_RANK+1
+!> \param nprocs           : number of processors in the list
+!> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
+! *****************************************************************************
   TYPE fb_preferred_procs_list
      INTEGER, DIMENSION(:), POINTER :: list => NULL()
      INTEGER :: nprocs
@@ -75,6 +105,16 @@ MODULE qs_fb_distribution_methods
 
 CONTAINS
 
+! *****************************************************************************
+!> \brief Build local atoms associated to filter matrix algorithm for each
+!>        MPI process, trying to balance the load for calculating the
+!>        filter matrix
+!> \param fb_env : the filter matrix environment
+!> \param qs_env : quickstep environment
+!> \param scf_section : SCF input section
+!> \param error : cp2k error container
+!> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
+! *****************************************************************************
   SUBROUTINE fb_distribution_build(fb_env, qs_env, scf_section, error)
     TYPE(fb_env_obj), INTENT(INOUT)          :: fb_env
     TYPE(qs_environment_type), POINTER       :: qs_env
@@ -335,6 +375,16 @@ CONTAINS
 
   END SUBROUTINE fb_distribution_build
 
+! *****************************************************************************
+!> \brief Checks if moving an element from one distribution to another is
+!>        allowed in mind of load balancing.
+!> \param dist_from : the source distribution
+!> \param element   : the element in source distribution considered for the
+!>                    move
+!> \param dist_to   : the destination distribution
+!> \retval res : TRUE or FALSE
+!> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
+! *****************************************************************************
   PURE FUNCTION fb_distribution_acceptable_move(dist_from, &
                                                 element, &
                                                 dist_to, &
@@ -351,7 +401,13 @@ CONTAINS
                  (dist_to%cost .LT. threshold)
   END FUNCTION fb_distribution_acceptable_move
 
-
+! *****************************************************************************
+!> \brief Write out information on the load distribution on processors
+!> \param dist_set    : set of distributions for the processors
+!> \param scf_section : SCF input section
+!> \param error       : cp2k error container
+!> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
+! *****************************************************************************
   SUBROUTINE fb_distribution_write_info(dist_set, scf_section, error)
     TYPE(fb_distribution_list), &
       DIMENSION(:), INTENT(IN)               :: dist_set
@@ -419,7 +475,19 @@ CONTAINS
                                       "PRINT%FILTER_MATRIX", error=error)
   END SUBROUTINE fb_distribution_write_info
 
-
+! *****************************************************************************
+!> \brief Build the preferred list of processors for atoms
+!> \param dbcsr_mat   : the reference DBCSR matrix, from which the local block
+!>                      cols and the processor maps are obtained
+!> \param natoms      : total number of atoms globally
+!> \param preferred_procs_set : set of preferred procs list for each atom
+!> \param common_set_ids : atoms (block cols) local to the same processor grid
+!>                         col will have the same preferred list. This list
+!>                         maps each atom to their corresponding group
+!> \param n_common_sets  : number of unique preferred lists (groups)
+!> \param error       : cp2k error container
+!> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
+! *****************************************************************************
   SUBROUTINE fb_build_preferred_procs(dbcsr_mat, &
                                       natoms, &
                                       preferred_procs_set, &
@@ -478,7 +546,18 @@ CONTAINS
 
   END SUBROUTINE fb_build_preferred_procs
 
-
+! *****************************************************************************
+!> \brief Convert distribution data to 1D array containing information of
+!>        which atoms are distributed to which processor
+!> \param dist_set    : set of distributions for the processors
+!> \param local_atoms : continuous array of atoms arranged in order
+!>                      corresponding their allocated processors
+!> \param local_atoms_starts : starting position in local_atoms array for
+!>                             each processor
+!> \param local_atoms_sizes  : number of atoms local to each processor
+!> \param error       : cp2k error container
+!> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
+! *****************************************************************************
   SUBROUTINE fb_distribution_to_local_atoms(dist_set, &
                                             local_atoms, &
                                             local_atoms_starts, &
@@ -522,7 +601,13 @@ CONTAINS
     END DO
   END SUBROUTINE fb_distribution_to_local_atoms
 
-
+! *****************************************************************************
+!> \brief Initialise a distribution
+!> \param dist        : the distribution in question
+!> \param nmax        : [OPTIONAL] size of the list array to be allocated
+!> \param error       : cp2k error container
+!> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
+! *****************************************************************************
   SUBROUTINE fb_distribution_init(dist, nmax, error)
     TYPE(fb_distribution_list), &
       INTENT(INOUT)                          :: dist
@@ -555,7 +640,13 @@ CONTAINS
     dist%cost = 0.0_dp
   END SUBROUTINE fb_distribution_init
 
-
+! *****************************************************************************
+!> \brief Resize the list array in a distribution
+!> \param dist        : The distribution in question
+!> \param nmax        : new size of the list array
+!> \param error       : cp2k error container
+!> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
+! *****************************************************************************
   SUBROUTINE fb_distribution_resize(dist, nmax, error)
     TYPE(fb_distribution_list), &
       INTENT(INOUT)                          :: dist
@@ -592,7 +683,13 @@ CONTAINS
     END IF
   END SUBROUTINE fb_distribution_resize
 
-
+! *****************************************************************************
+!> \brief Add an atom (element) to a distribution
+!> \param dist        : the distribution in question
+!> \param element     : the element to be added
+!> \param error       : cp2k error container
+!> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
+! *****************************************************************************
   SUBROUTINE fb_distribution_add(dist, element, error)
     TYPE(fb_distribution_list), &
       INTENT(INOUT)                          :: dist
@@ -630,7 +727,14 @@ CONTAINS
     dist%cost = dist%cost + element%cost
   END SUBROUTINE fb_distribution_add
 
-
+! *****************************************************************************
+!> \brief Find the correct slot in the list array to add a new element, so that
+!>        the list will always be ordered with respect to cost
+!> \param dist        : the distribution in question
+!> \param element     : element to be added
+!> \retval pos        : the correct position to add the new element
+!> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
+! *****************************************************************************
   PURE FUNCTION fb_distribution_find_slot(dist, element) RESULT(pos)
     TYPE(fb_distribution_list), INTENT(IN)   :: dist
     TYPE(fb_distribution_element), &
@@ -661,7 +765,13 @@ CONTAINS
     pos = upper
   END FUNCTION fb_distribution_find_slot
 
-
+! *****************************************************************************
+!> \brief Remove the pos-th element from a distribution
+!> \param dist        : the distribution in question
+!> \param pos         : index of the element in the list array
+!> \param error       : cp2k error container
+!> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
+! *****************************************************************************
   SUBROUTINE fb_distribution_remove_ind(dist, pos, error)
     TYPE(fb_distribution_list), &
       INTENT(INOUT)                          :: dist
@@ -692,7 +802,13 @@ CONTAINS
     END IF
   END SUBROUTINE fb_distribution_remove_ind
 
-
+! *****************************************************************************
+!> \brief Remove a given element from a distribution
+!> \param dist        : the distribution in question
+!> \param element     : the element in question
+!> \param error       : cp2k error container
+!> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
+! *****************************************************************************
   SUBROUTINE fb_distribution_remove_el(dist, element, error)
     TYPE(fb_distribution_list), &
       INTENT(INOUT)                          :: dist
@@ -715,7 +831,14 @@ CONTAINS
     CALL fb_distribution_remove_ind(dist, pos, error)
   END SUBROUTINE fb_distribution_remove_el
 
-
+! *****************************************************************************
+!> \brief Move the pos-th element from a distribution to another
+!> \param dist_from   : the source distribution
+!> \param pos         : index of the element in the source distribution
+!> \param             : the destination distribution
+!> \param error       : cp2k error container
+!> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
+! *****************************************************************************
   SUBROUTINE fb_distribution_move_ind(dist_from, pos, dist_to, error)
     TYPE(fb_distribution_list), &
       INTENT(INOUT)                          :: dist_from
@@ -740,7 +863,14 @@ CONTAINS
     CALL fb_distribution_remove(dist_from, pos, error)
   END SUBROUTINE fb_distribution_move_ind
 
-
+! *****************************************************************************
+!> \brief Move a given element from a distribution to another
+!> \param dist_from   : the source distribution
+!> \param element     : the element in question
+!> \param             : the destination distribution
+!> \param error       : cp2k error container
+!> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
+! *****************************************************************************
   SUBROUTINE fb_distribution_move_el(dist_from, element, dist_to, error)
     TYPE(fb_distribution_list), &
       INTENT(INOUT)                          :: dist_from
@@ -762,7 +892,12 @@ CONTAINS
     CALL fb_distribution_remove(dist_from, element, error)
   END SUBROUTINE fb_distribution_move_el
 
-
+! *****************************************************************************
+!> \brief Release a distribution
+!> \param dist  : the distribution in question
+!> \param error : cp2k error container
+!> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
+! *****************************************************************************
   SUBROUTINE fb_distribution_release(dist, error)
     TYPE(fb_distribution_list), &
       INTENT(INOUT)                          :: dist
