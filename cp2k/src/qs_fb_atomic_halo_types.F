@@ -342,7 +342,7 @@ CONTAINS
 !> \param halo_atoms [OPTIONAL]: if present, outputs pointer
 !>                               atomic_halo%obj%halo_atoms
 !> \param sorted [OPTIONAL]: if present, outputs atomic_halo%obj%sorted
-!> \param cost [OPTIONAL: if present, outputs atomic_halo%obj%cost]
+!> \param cost [OPTIONAL]: if present, outputs atomic_halo%obj%cost
 !> \param error CP2K data container for error logging
 !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
 ! *****************************************************************************
@@ -561,7 +561,7 @@ CONTAINS
 !> \brief Estimates the computational cost with respect to the filter matrix
 !>        calculation associated to an atomic halo. Given the bottle neck
 !>        of the filter matrix generation will be the diagoanlisation of the
-!>        atomic matrics (each consists of atoms in an atomic halo), the cost
+!>        atomic matrices (each consists of atoms in an atomic halo), the cost
 !>        can be estimated by counting the total number of contracted gaussians
 !>        in the halo
 !> \param atomic_halo  : the atomic_halo object in question

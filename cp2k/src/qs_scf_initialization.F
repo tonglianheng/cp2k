@@ -61,13 +61,13 @@ MODULE qs_scf_initialization
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type,&
                                              set_qs_env
+  USE qs_fb_distribution_methods,      ONLY: fb_distribution_build
   USE qs_fb_env_methods,               ONLY: fb_env_build_atomic_halos,&
                                              fb_env_build_rcut_auto,&
                                              fb_env_read_input,&
                                              fb_env_write_info
   USE qs_fb_env_types,                 ONLY: fb_env_create,&
                                              fb_env_has_data
-  USE qs_fb_distribution_methods,      ONLY: fb_distribution_build
   USE qs_gspace_mixing,                ONLY: mixing_allocate,&
                                              mixing_init
   USE qs_initial_guess,                ONLY: calculate_first_density_matrix

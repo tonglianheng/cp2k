@@ -38,7 +38,6 @@ MODULE integrator
   USE constraint_util,                 ONLY: getold,&
                                              pv_constraint
   USE cp_control_types,                ONLY: dft_control_type
-  USE cp_dbcsr_interface,              ONLY: cp_dbcsr_p_type
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_parser_methods,               ONLY: parser_get_next_line,&
                                              parser_read_line
@@ -83,15 +82,12 @@ MODULE integrator
                                              femtoseconds
   USE qmmm_update,                     ONLY: qmmm_update_force_mixing_env
   USE qmmm_util,                       ONLY: apply_qmmm_walls_reflective
-  USE qs_energy_utils,                 ONLY: qs_energies_init
   USE qs_environment_types,            ONLY: get_qs_env
   USE reftraj_types,                   ONLY: reftraj_type
   USE reftraj_util,                    ONLY: compute_msd_reftraj
-  USE rt_propagation_methods,          ONLY: propagation_step,&
-                                             s_matrices_create
+  USE rt_propagation_methods,          ONLY: propagation_step
   USE rt_propagation_output,           ONLY: rt_prop_output
   USE rt_propagation_types,            ONLY: rt_prop_type
-  USE rt_propagation_utils,            ONLY: calc_S_derivs
   USE shell_opt,                       ONLY: optimize_shell_core
   USE simpar_types,                    ONLY: simpar_type
   USE termination,                     ONLY: stop_program
@@ -417,8 +413,10 @@ CONTAINS
     INTEGER                                  :: i_iter, n_iter, nparticle, &
                                                 nparticle_kind, nshell
     INTEGER, POINTER                         :: itimes
-    LOGICAL :: deallocate_vel, ehrenfest_md, failure, shell_adiabatic, &
-      shell_check_distance, shell_present
+    LOGICAL                                  :: deallocate_vel, ehrenfest_md, &
+                                                shell_adiabatic, &
+                                                shell_check_distance, &
+                                                shell_present
     REAL(KIND=dp)                            :: dt
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: v_old
@@ -426,8 +424,6 @@ CONTAINS
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(cell_type), POINTER                 :: cell
-    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
-      POINTER                                :: s_mat
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cp_subsys_type), POINTER            :: subsys
     TYPE(dft_control_type), POINTER          :: dft_control
@@ -453,8 +449,6 @@ CONTAINS
                                                 thermostat_shell
     TYPE(tmp_variables_type), POINTER        :: tmp
     TYPE(virial_type), POINTER               :: virial
-
-    failure = .FALSE.
 
     NULLIFY (thermostat_coeff, tmp)
     NULLIFY (subsys, simpar, para_env, cell, gci, force_env, virial)
@@ -498,7 +492,6 @@ CONTAINS
     END IF
 
     CALL allocate_tmp(md_env, tmp, nparticle,nshell,shell_adiabatic,error=error)
-    IF(ehrenfest_md) ALLOCATE(v_old(3,SIZE(tmp%vel,2)))
 
     ! Apply thermostat over the full set of shells if required
     IF(shell_adiabatic) THEN
@@ -541,6 +534,7 @@ CONTAINS
     ! Update forces
     ! In case of ehrenfest dynamics, velocities need to be iterated
     IF(ehrenfest_md)THEN
+       ALLOCATE(v_old(3,SIZE(tmp%vel,2)))
        v_old(:,:)=tmp%vel
        CALL vv_second(tmp, atomic_kind_set, local_particles, particle_set, &
             core_particle_set, shell_particle_set, nparticle_kind, shell_adiabatic, dt, error=error )
@@ -553,19 +547,13 @@ CONTAINS
     ELSE
        n_iter=1
     END IF
+    
     DO i_iter=1,n_iter
-
-       deallocate_vel=.TRUE.
+    
        IF(ehrenfest_md)THEN
-          force_env%qs_env%rtp%iter=i_iter
+          CALL get_qs_env(qs_env=force_env%qs_env,rtp=rtp,error=error)
+          rtp%iter=i_iter
           tmp%vel=v_old
-          deallocate_vel=.FALSE.
-          IF(force_env%qs_env%rtp%iter==1)THEN
-             CALL qs_energies_init(force_env%qs_env, .FALSE. , error=error)
-             CALL get_qs_env(qs_env=force_env%qs_env,rtp=rtp,matrix_s=s_mat,error=error)
-             CALL s_matrices_create (s_mat,rtp,error=error)
-          END IF
-          CALL calc_S_derivs(force_env%qs_env,error=error)
           CALL propagation_step(force_env%qs_env, rtp, dft_control%rtp_control, error=error)
        END IF
 
@@ -604,7 +592,7 @@ CONTAINS
           END IF
        END IF
 
-       IF(ehrenfest_md)deallocate_vel=force_env%qs_env%rtp%converged
+       IF(ehrenfest_md) deallocate_vel=force_env%qs_env%rtp%converged
        IF(i_iter.EQ.n_iter) deallocate_vel=.TRUE.
        ! Broadcast the new particle velocities and deallocate the full temporary
        CALL update_dealloc_tmp ( tmp, particle_set, shell_particle_set, &
@@ -612,12 +600,6 @@ CONTAINS
             should_deall_vel=deallocate_vel,error=error )
        IF(ehrenfest_md)THEN
           IF(force_env%qs_env%rtp%converged)EXIT
-          !  will be handled better in the next step of the implementation
-          IF(i_iter==n_iter)&
-             CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
-                 routineP,"EMD did not converge, either increase MAX_ITER "//&
-                 "or use a smaller TIMESTEP",&
-                 error,failure)
        END IF
 
     END DO

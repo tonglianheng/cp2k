@@ -99,16 +99,10 @@ MODULE dbcsr_api
        dbcsr_nfullcols_total, dbcsr_nfullrows_total, dbcsr_release, &
        dbcsr_row_block_sizes, dbcsr_setname, dbcsr_valid_index, &
        dbcsr_wm_use_mutable
-  USE dbcsr_mp_methods,                ONLY: dbcsr_mp_group,&
-                                             dbcsr_mp_get_process,&
-                                             dbcsr_mp_hold,&
-                                             dbcsr_mp_mynode,&
-                                             dbcsr_mp_new,&
-                                             dbcsr_mp_npcols,&
-                                             dbcsr_mp_nprows,&
-                                             dbcsr_mp_numnodes,&
-                                             dbcsr_mp_pgrid,&
-                                             dbcsr_mp_release
+  USE dbcsr_mp_methods,                ONLY: &
+       dbcsr_mp_get_process, dbcsr_mp_group, dbcsr_mp_hold, dbcsr_mp_mynode, &
+       dbcsr_mp_new, dbcsr_mp_npcols, dbcsr_mp_nprows, dbcsr_mp_numnodes, &
+       dbcsr_mp_pgrid, dbcsr_mp_release
   USE dbcsr_multiply_api,              ONLY: dbcsr_multiply
   USE dbcsr_operations,                ONLY: &
        dbcsr_add, dbcsr_add_on_diag, dbcsr_copy, dbcsr_copy_into_existing, &

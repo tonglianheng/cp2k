@@ -385,6 +385,7 @@ CONTAINS
 !> \param element   : the element in source distribution considered for the
 !>                    move
 !> \param dist_to   : the destination distribution
+!> \param threshold ...
 !> \retval res : TRUE or FALSE
 !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
 ! *****************************************************************************
@@ -863,7 +864,7 @@ CONTAINS
 !> \brief Move the pos-th element from a distribution to another
 !> \param dist_from   : the source distribution
 !> \param pos         : index of the element in the source distribution
-!> \param             : the destination distribution
+!> \param dist_to     : the destination distribution
 !> \param error       : cp2k error container
 !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
 ! *****************************************************************************
@@ -895,7 +896,7 @@ CONTAINS
 !> \brief Move a given element from a distribution to another
 !> \param dist_from   : the source distribution
 !> \param element     : the element in question
-!> \param             : the destination distribution
+!> \param dist_to     : the destination distribution
 !> \param error       : cp2k error container
 !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
 ! *****************************************************************************
