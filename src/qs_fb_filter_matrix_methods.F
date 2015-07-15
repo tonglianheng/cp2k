@@ -11,7 +11,8 @@ MODULE qs_fb_filter_matrix_methods
        cp_dbcsr_create, cp_dbcsr_finalize, cp_dbcsr_get_info, &
        cp_dbcsr_get_stored_coordinates, cp_dbcsr_init, cp_dbcsr_put_block, &
        cp_dbcsr_row_block_sizes, cp_dbcsr_type, dbcsr_distribution_obj, &
-       dbcsr_type_no_symmetry
+       dbcsr_type_no_symmetry, convert_sizes_to_offsets, &
+       cp_dbcsr_nfullrows_total, cp_dbcsr_nblkrows_total
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE fermi_utils,                     ONLY: Fermi,&
                                              FermiFixed
@@ -491,7 +492,7 @@ CONTAINS
                                                   accepted_vecs, &
                                                   n_accepted_vecs, &
                                                   error)
-    REAL(KIND_dp), DIMENSION(:,:), INTENT(IN) :: candidate_vecs
+    REAL(KIND=dp), DIMENSION(:,:), INTENT(IN) :: candidate_vecs
     INTEGER, INTENT(IN) :: nrows, ncols
     INTEGER, DIMENSION(:), INTENT(OUT) :: accepted_vecs
     INTEGER, INTENT(OUT) :: n_accepted_vecs
@@ -501,23 +502,25 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER :: ivec, stat
-    LOGICAL :: res
-    REAL(KIND=dp), DIMENSION(:,:), ALLOCATABLE :: overlap, accepted_vecs
+    LOGICAL :: res, failure
+    REAL(KIND=dp), DIMENSION(:,:), ALLOCATABLE :: overlap, my_accepted_vecs
 
-    ALLOCATE(accepted_vecs(nrows,ncols), STAT=stat)
+    failure = .FALSE.
+
+    ALLOCATE(my_accepted_vecs(nrows,ncols), STAT=stat)
     CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
     ALLOCATE(overlap(ncols,ncols), STAT=stat)
     CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
 
     overlap(:,:) = 0.0_dp
-    accepted_vecs(:,:) = 0.0_dp
+    my_accepted_vecs(:,:) = 0.0_dp
     accepted_vecs(:) = 0
     n_accepted_vecs = 0
 
     DO ivec = 1, ncols
        CALL fb_is_linear_independent(candidate_vecs(:,ivec), &
                                      nrows, &
-                                     accepted_vecs, &
+                                     my_accepted_vecs, &
                                      n_accepted_vecs, &
                                      ncols, &
                                      overlap, &
@@ -525,11 +528,11 @@ CONTAINS
        IF (res) THEN
           n_accepted_vecs = n_accepted_vecs + 1
           accepted_vecs(n_accepted_vecs) = ivec
-          CALL dcopy(nrows, candidate_vecs(:,ivec), 1, accepted_vecs(:,n_accepted_vecs), 1)
+          CALL dcopy(nrows, candidate_vecs(:,ivec), 1, my_accepted_vecs(:,n_accepted_vecs), 1)
        END IF
     END DO
 
-    DEALLOCATE(accepted_vecs, STAT=stat)
+    DEALLOCATE(my_accepted_vecs, STAT=stat)
     CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
     DEALLOCATE(overlap, STAT=stat)
     CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
@@ -540,19 +543,21 @@ CONTAINS
                                                trial_fns, &
                                                atomic_S, &
                                                atomic_S_blk_col_start, &
+                                               particle_set, &
                                                atomic_trial_fns_mat, &
                                                error)
     TYPE(fb_atomic_halo_obj), INTENT(IN) :: atomic_halo
     TYPE(fb_trial_fns_obj), INTENT(IN) :: trial_fns
     REAL(KIND=dp), DIMENSION(:,:), INTENT(IN) :: atomic_S
     INTEGER, DIMENSION(:), INTENT(IN) :: atomic_S_blk_col_start
+    TYPE(particle_type), DIMENSION(:), POINTER :: particle_set
     REAL(KIND=dp), DIMENSION(:,:), INTENT(IN) :: atomic_trial_fns_mat
     TYPE(cp_error_type), INTENT(INOUT) :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'fb_fltrmat_build_atomic_trial_fns', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: ii, dim, jatom_global, jatom_in_halo, ind
+    INTEGER :: ii, dim, jatom_global, jatom_in_halo, ind, jkind
     TYPE(atomic_kind_type), POINTER :: atomic_kind
     INTEGER, DIMENSION(:), POINTER :: ntfns
     INTEGER, DIMENSION(:,:), POINTER :: tfns
@@ -581,6 +586,7 @@ CONTAINS
                                             dbcsr_mat, &
                                             atomic_blk_row_start, &
                                             dim_atmatrix, &
+                                            atomic_halo, &
                                             ntfns, &
                                             blkcol_data, &
                                             accepted_tfns, &
@@ -591,6 +597,7 @@ CONTAINS
     TYPE(cp_dbcsr_type), POINTER :: dbcsr_mat
     INTEGER, DIMENSION(:), INTENT(IN) :: atomic_blk_row_start
     INTEGER, INTENT(IN) :: dim_atmatrix, ntfns
+    TYPE(fb_atomic_halo_obj), INTENT(IN) :: atomic_halo
     REAL(KIND=dp), DIMENSION(:,:), INTENT(IN) :: blkcol_data
     INTEGER, DIMENSION(:), INTENT(OUT) :: accepted_tfns
     INTEGER, INTENT(OUT) :: n_accepted_tfns
@@ -599,8 +606,15 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'fb_fltrmat_build_atomic_blkcol', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: itrial
+    LOGICAL :: failure
+    INTEGER :: ii, iatom_in_halo, atomic_row_start, atomic_row_end, nrows_blk, &
+               global_row_start, global_row_end, iatom_global, natoms_in_halo, &
+               nblkrows_total, nrows_global, stat
     REAL(KIND=dp), DIMENSION(:,:), ALLOCATABLE :: my_blkcol_data, candidate_mat
+    INTEGER, DIMENSION(:), ALLOCATABLE :: first_row, last_row
+    INTEGER, DIMENSION(:), POINTER :: halo_atoms
+
+    failure = .FALSE.
 
     ALLOCATE(my_blkcol_data(dim_atmatrix, ntfns), STAT=stat)
     CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
@@ -622,12 +636,16 @@ CONTAINS
     ALLOCATE(first_row(nblkrows_total), last_row(nblkrows_total), STAT=stat)
     CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
     CALL convert_sizes_to_offsets(cp_dbcsr_row_block_sizes(dbcsr_mat), first_row, last_row)
-    CALL convert_sizes_to_offsets(cp_dbcsr_col_block_sizes(dbcsr_mat), first_col, last_col)
 
     nrows_global = cp_dbcsr_nfullrows_total(dbcsr_mat)
     ALLOCATE(candidate_mat(nrows_global,ntfns), STAT=stat)
     CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
     candidate_mat(:,:) = 0.0_dp
+
+    CALL fb_atomic_halo_get(atomic_halo=atomic_halo, &
+                            natoms=natoms_in_halo, &
+                            halo_atoms=halo_atoms, &
+                            error=error)
 
     DO iatom_in_halo = 1, natoms_in_halo
        iatom_global = halo_atoms(iatom_in_halo)
@@ -656,16 +674,16 @@ CONTAINS
     CALL fb_fltrmat_check_linear_independence(candidate_mat, &
                                               nrows_global, &
                                               ntfns, &
-                                              accepted_cols, &
-                                              n_accepted_cols, &
+                                              accepted_tfns, &
+                                              n_accepted_tfns, &
                                               error)
     DEALLOCATE(candidate_mat, STAT=stat)
     CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
 
     ! constract blkcol_data
-    DO ii = 1, naccepted_cols
+    DO ii = 1, n_accepted_tfns
        CALL dcopy(dim_atmatrix, &
-                  my_blkcol_data(:,accepted_cols(ii)), 1, &
+                  my_blkcol_data(:,accepted_tfns(ii)), 1, &
                   blkcol_data(:,ii), 1)
     END DO
     DEALLOCATE(my_blkcol_data, STAT=stat)
@@ -1088,19 +1106,20 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'fb_fltrmat_add_blkcol_2', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: handle, iatom_global, iatom_in_halo, itrial, jatom_global, &
-      jatom_in_halo, jkind, natoms_global, natoms_in_halo, ncols_atmatrix, &
-      ncols_blk, ncols_blk_max, nrows_atmatrix, nrows_blk, nrows_blk_max, stat
+    INTEGER :: handle, iatom_global, iatom_in_halo, jatom_global, &
+      jkind, natoms_global, natoms_in_halo, ncols_atmatrix, nrows_atmatrix, &
+      stat, atomic_row_end, atomic_row_start, n_accepted_tfns
     INTEGER, ALLOCATABLE, DIMENSION(:) :: atomic_H_blk_col_start, &
       atomic_H_blk_row_start, atomic_S_blk_col_start, atomic_S_blk_row_start, &
-      col_block_size_data
+      col_block_size_data, accepted_tfns
     INTEGER, DIMENSION(:), POINTER           :: halo_atoms, ntfns, &
                                                 row_block_size_data
     INTEGER, DIMENSION(:, :), POINTER        :: tfns
     LOGICAL                                  :: check_ok, failure
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: atomic_filter_mat, atomic_H, &
-                                                atomic_S, mat_blk
+                                                atomic_S, atomic_trial_fns_mat, &
+                                                blkcol_data
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
 
     CALL timeset(routineN, handle)
@@ -1196,34 +1215,39 @@ CONTAINS
     ! ----------------------------------------------------------------------
     ! Construct filter matrix block and add to filter_mat_data
     ! ----------------------------------------------------------------------
+    CALL fb_atomic_halo_get(atomic_halo=atomic_halo, &
+                            owner_atom=jatom_global, &
+                            error=error)
 
-    ALLOCATE(atomic_trial_fns_mat(nrows_atmatrix,ntfns), STAT=stat)
+    atomic_kind => particle_set(jatom_global)%atomic_kind
+    CALL get_atomic_kind(atomic_kind=atomic_kind, kind_number=jkind)
+
+    ALLOCATE(atomic_trial_fns_mat(nrows_atmatrix,ntfns(jkind)), STAT=stat)
     CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
     CALL fb_fltrmat_build_atomic_trial_fns(atomic_halo, &
                                            trial_fns, &
                                            atomic_S, &
                                            atomic_S_blk_col_start, &
+                                           particle_set, &
                                            atomic_trial_fns_mat, &
                                            error)
     
-    ALLOCATE(blkcol_data(nrows_atmatrix,ntfns), STAT=stat)
+    ALLOCATE(blkcol_data(nrows_atmatrix,ntfns(jkind)), STAT=stat)
     CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
-    ALLOCATE(accepted_tfns(ntfns), STAT=stat)
+    ALLOCATE(accepted_tfns(ntfns(jkind)), STAT=stat)
     CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
     CALL fb_fltrmat_build_atomic_blkcol(atomic_filter_mat, &
                                         atomic_trial_fns_mat, &
-                                        mat_H, &
+                                        H_mat, &
                                         atomic_H_blk_row_start, &
                                         nrows_atmatrix, &
-                                        ntfns, &
+                                        atomic_halo, &
+                                        ntfns(jkind), &
                                         blkcol_data, &
                                         accepted_tfns, &
                                         n_accepted_tfns, &
                                         error)
     
-    CALL fb_atomic_halo_get(atomic_halo=atomic_halo, &
-                            owner_atom=jatom_global, &
-                            error=error)
     DO iatom_in_halo = 1, natoms_in_halo
        iatom_global = halo_atoms(iatom_in_halo)
        atomic_row_start = atomic_H_blk_row_start(iatom_in_halo)
@@ -1232,7 +1256,7 @@ CONTAINS
                                iatom_global, &
                                jatom_global, &
                                blkcol_data(atomic_row_start:atomic_row_end, &
-                                           1:ntfns), &
+                                           1:ntfns(jkind)), &
                                error)
     END DO
     DEALLOCATE(accepted_tfns, STAT=stat)
@@ -1910,12 +1934,15 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER :: ii, nn, stat, lwork, info, handle
+    INTEGER, EXTERNAL :: ddot
     REAL(KIND=dp), DIMENSION(:,:), ALLOCATABLE :: my_overlap
     REAL(KIND=dp), DIMENSION(:), ALLOCATABLE :: work, eigenvalues
     REAL(KIND=dp), PARAMETER :: TOLERANCE = 1e-12
+    LOGICAL :: failure
 
     CALL timeset(routineN, handle)
 
+    failure = .FALSE.
     res = .TRUE.
 
     ! calculating new elements of the overlap matrix in the UPPER triangular
