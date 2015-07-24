@@ -201,7 +201,8 @@ CONTAINS
         CALL calc_resp_matrix_nonper(qs_env,resp_env,atomic_kind_set, particles,cell,&
                                      resp_env%matrix,resp_env%rhs,natom,error)   
        CASE(use_perd_xyz)
-        CALL calc_resp_matrix_periodic(qs_env,resp_env,rep_sys,particles,cell,natom, error)
+!        CALL calc_resp_matrix_periodic(qs_env,resp_env,rep_sys,particles,cell,natom, error)
+         CALL calc_resp_matrix_periodic_repeat(qs_env,resp_env,rep_sys,particles,cell,natom, error)
        CASE DEFAULT
         CALL cp_unimplemented_error(fromWhere=routineP, &
              message="RESP charges only implemented for nonperiodic systems"//&
@@ -945,7 +946,7 @@ CPSourceFileRef,&
       ENDDO
       ! calculate vector resp_env%rhs
       CALL calculate_rhs(qs_env,resp_env,resp_env%rhs(i),vpot(:,i),error=error)
-    ENDDO
+    END DO
 
     DEALLOCATE(vpot,stat=stat)
     CPPostconditionNoFail(stat==0,cp_failure_level,routineP,error)
@@ -961,6 +962,143 @@ CPSourceFileRef,&
     CALL timestop(handle)
 
   END SUBROUTINE calc_resp_matrix_periodic
+
+
+  SUBROUTINE calc_resp_matrix_periodic_repeat(qs_env, &
+                                              resp_env, &
+                                              rep_sys, &
+                                              particles, &
+                                              cell, &
+                                              natom, &
+                                              error)
+
+    TYPE(qs_environment_type), POINTER       :: qs_env
+    TYPE(resp_type), POINTER                 :: resp_env
+    TYPE(resp_p_type), DIMENSION(:), POINTER :: rep_sys
+    TYPE(particle_list_type), POINTER        :: particles
+    TYPE(cell_type), POINTER                 :: cell
+    INTEGER, INTENT(IN)                      :: natom
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'calc_resp_matrix_periodic_repeat', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, ii, ip, jj, jx, jy, jz, &
+                                                stat
+    LOGICAL                                  :: failure
+    REAL(KIND=dp)                            :: normalize_factor
+    REAL(KIND=dp), ALLOCATABLE, &
+      DIMENSION(:, :)                        :: vpot
+    TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(pw_env_type), POINTER               :: pw_env
+    TYPE(pw_p_type)                          :: rho_ga, va_gspace, va_rspace
+    TYPE(pw_poisson_type), POINTER           :: poisson_env
+    TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
+
+    CALL timeset(routineN,handle)
+
+    failure = .FALSE.
+    NULLIFY(pw_env, para_env, auxbas_pw_pool, poisson_env)
+
+    IF (.NOT. ALL(cell%perd /= 0)) THEN
+        CALL stop_program(routineN, moduleN, __LINE__, &
+             "Periodic solution for RESP (with periodic Poisson solver)"//&
+             " can only be obtained with a cell that has XYZ periodicity")
+    ENDIF
+
+    CALL get_qs_env(qs_env, pw_env=pw_env, para_env=para_env, &
+                    error=error)   
+
+    CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool, &
+                    poisson_env=poisson_env, error=error)
+    CALL pw_pool_create_pw(auxbas_pw_pool, &
+                           rho_ga%pw, &
+                           use_data=COMPLEXDATA1D, &
+                           in_space=RECIPROCALSPACE, &
+                           error=error)
+    CALL pw_pool_create_pw(auxbas_pw_pool, &
+                           va_gspace%pw, &
+                           use_data=COMPLEXDATA1D, &
+                           in_space=RECIPROCALSPACE, &
+                           error=error)
+    CALL pw_pool_create_pw(auxbas_pw_pool, &
+                           va_rspace%pw, &
+                           use_data=REALDATA3D, &
+                           in_space=REALSPACE, &
+                           error=error)
+
+    !get fitting points and store them in resp_env%fitpoints
+    CALL get_fitting_points(qs_env, resp_env, rep_sys, particles=particles, &
+                            cell=cell, error=error)
+
+    resp_env%npoints_proc=resp_env%npoints
+    CALL mp_sum(resp_env%npoints, para_env%group)
+    
+    ALLOCATE(vpot(resp_env%npoints_proc,natom), STAT=stat)
+    CPPostcondition(stat==0, cp_failure_level, routineP, error, Failure)
+    ALLOCATE(av_vpot(natom), STAT=stat)
+    CPPostcondition(stat==0, cp_failure_level, routineP, error, Failure)
+
+    normalize_factor = SQRT((resp_env%eta/pi)**3)
+
+    DO ii = 1, natom
+     !collocate gaussian for each atom
+      CALL pw_zero(rho_ga%pw, error=error)
+      CALL calculate_rho_resp_single(rho_ga, qs_env, resp_env%eta, ii, error)
+     !calculate potential va and store the part needed for fitting in vpot
+      CALL pw_zero(va_gspace%pw, error=error)
+      CALL pw_poisson_solve(poisson_env, rho_ga%pw, vhartree=va_gspace%pw, error=error)
+      CALL pw_zero(va_rspace%pw, error=error)
+      CALL pw_transfer(va_gspace%pw, va_rspace%pw, error=error)
+      CALL pw_scale(va_rspace%pw, normalize_factor, error=error)
+      DO ip=1,resp_env%npoints_proc
+         jx = resp_env%fitpoints(1,ip)
+         jy = resp_env%fitpoints(2,ip)
+         jz = resp_env%fitpoints(3,ip)
+         vpot(ip,ii) = va_rspace%pw%cr3d(jx,jy,jz)
+      END DO
+    ENDDO
+
+    CALL pw_release(va_gspace%pw,error=error)
+    CALL pw_release(va_rspace%pw,error=error)
+    CALL pw_release(rho_ga%pw,error=error)
+
+    ! calculate average vpot
+    DO ii = 1, natom
+       av_vpot(ii) = SUM(vpot(:,ii)) / resp_env%npoints
+    END DO
+    CALL mp_sum(av_vpot, para_env%group)
+
+    ! offset vpot by av_vpot as accourding to REPEAT method
+    DO ii = 1, natom
+       vpot(:,ii) = vpot(:,ii) - av_vpot(ii)
+    END DO
+
+    DO ii = 1, natom
+       DO jj = 1, natom
+          ! calculate matrix
+          resp_env%matrix(i,j)=resp_env%matrix(i,j) + 2.0_dp*SUM(vpot(:,i)*vpot(:,j))
+       END DO
+       ! calculate vector resp_env%rhs
+       CALL calculate_rhs(qs_env,resp_env,resp_env%rhs(ii),vpot(:,ii),error=error)
+    END DO
+
+    DEALLOCATE(vpot, STAT=stat)
+    CPPostconditionNoFail(stat==0, cp_failure_level, routineP, error)
+    DEALLOCATE(av_vpot, STAT=stat)
+    CPPostconditionNoFail(stat==0, cp_failure_level, routineP, error)
+
+    CALL mp_sum(resp_env%matrix,para_env%group)
+    CALL mp_sum(resp_env%rhs,para_env%group)
+    !weighted sum
+    resp_env%matrix=resp_env%matrix/resp_env%npoints
+    resp_env%rhs=resp_env%rhs/resp_env%npoints
+
+    CALL timestop(handle)
+
+  END SUBROUTINE calc_resp_matrix_periodic_repeat
+
+
 
 ! *****************************************************************************
 !> \brief get RESP fitting points for the periodic fitting
