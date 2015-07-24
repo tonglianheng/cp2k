@@ -279,6 +279,8 @@ CONTAINS
   SUBROUTINE fb_trial_fns_get(trial_fns, &
                               nfunctions, &
                               functions, &
+                              nselected, &
+                              selected, &
                               error)
     TYPE(fb_trial_fns_obj), INTENT(IN)       :: trial_fns
     INTEGER, DIMENSION(:), OPTIONAL, POINTER :: nfunctions
