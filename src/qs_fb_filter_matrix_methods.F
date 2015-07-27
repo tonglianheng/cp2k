@@ -11,7 +11,8 @@ MODULE qs_fb_filter_matrix_methods
        cp_dbcsr_create, cp_dbcsr_finalize, cp_dbcsr_get_info, &
        cp_dbcsr_get_stored_coordinates, cp_dbcsr_init, cp_dbcsr_put_block, &
        cp_dbcsr_row_block_sizes, cp_dbcsr_type, dbcsr_distribution_obj, &
-       dbcsr_type_no_symmetry
+       dbcsr_type_no_symmetry, convert_sizes_to_offsets, &
+       cp_dbcsr_nfullrows_total, cp_dbcsr_nblkrows_total
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE fermi_utils,                     ONLY: Fermi,&
                                              FermiFixed
@@ -125,7 +126,7 @@ CONTAINS
                                                 ikind, max_nhalos, &
                                                 nblkcols_total, nhalos, stat
     INTEGER, DIMENSION(:), POINTER           :: col_blk_size, &
-                                                dummy_halo_atoms, ntfns, &
+                                                dummy_halo_atoms, n_selected_tfns, &
                                                 row_blk_size
     LOGICAL                                  :: failure, send_data_only
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
@@ -138,54 +139,12 @@ CONTAINS
 
     failure = .FALSE.
 
-    NULLIFY(halos, atomic_kind, ntfns, dummy_halo_atoms, row_blk_size, col_blk_size)
+    NULLIFY(halos, atomic_kind, n_selected_tfns, dummy_halo_atoms, &
+            row_blk_size, col_blk_size)
     CALL fb_atomic_halo_nullify(dummy_atomic_halo)
 
     ! filter_mat must be of a dissassociated status (i.e. brand new)
     CPPrecondition(.NOT.ASSOCIATED(filter_mat), cp_failure_level, routineP, error, failure)
-
-    ! get trial function information
-    CALL fb_trial_fns_get(trial_fns=trial_fns, &
-                          nfunctions=ntfns, &
-                          error=error)
-
-    ! calculate the row_blk_size and col_blk_size arrays for
-    ! constructing the filter matrix in DBCSR format
-    ! row_blk_size for the filter matrix is the same as H or S
-    CALL cp_dbcsr_get_info(H_mat, &
-                           nblkcols_total=nblkcols_total, &
-                           row_blk_size=row_blk_size, &
-                           distribution=dbcsr_dist)
-    ALLOCATE(col_blk_size(nblkcols_total), STAT=stat)
-    CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
-    col_blk_size = 0
-    DO iblkcol = 1, nblkcols_total
-       atomic_kind => particle_set(iblkcol)%atomic_kind
-       CALL get_atomic_kind(atomic_kind=atomic_kind, &
-                            kind_number=ikind)
-       col_blk_size(iblkcol) = ntfns(ikind)
-    END DO
-    ! DO NOT deallocate cbs if gift=.TRUE. as col_blk_sizes will only point to cbs
-    name_string = name
-    CALL compress(name_string)
-    CALL uppercase(name_string)
-    ! the filter matrix is non-square and is always non-symmetric
-    symmetry_string = dbcsr_type_no_symmetry
-    ! create empty filter matrix
-    ALLOCATE(filter_mat, STAT=stat)
-    CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
-    CALL cp_dbcsr_init(filter_mat, error=error)
-    CALL cp_dbcsr_create(matrix=filter_mat, &
-                         name=name_string, &
-                         dist=dbcsr_dist, &
-                         matrix_type=symmetry_string, &
-                         row_blk_size=row_blk_size, &
-                         col_blk_size=col_blk_size, &
-                         nblks=0, &
-                         nze=0, &
-                         error=error)
-    DEALLOCATE(col_blk_size, STAT=stat)
-    CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
 
     CALL fb_atomic_halo_list_get(atomic_halos=atomic_halos, &
                                  nhalos=nhalos, &
@@ -237,6 +196,48 @@ CONTAINS
                                      error)
        END IF ! send_data_only
     END DO
+
+    ! create new DBCSR matrix for filter matrix.
+    ! calculate the row_blk_size and col_blk_size arrays for
+    ! constructing the filter matrix in DBCSR format
+    ! row_blk_size for the filter matrix is the same as H or S
+    CALL fb_trial_fns_get(trial_fns=trial_fns, &
+                          nselected=n_selected_tfns, &
+                          error=error)
+    CALL cp_dbcsr_get_info(H_mat, &
+                           nblkcols_total=nblkcols_total, &
+                           row_blk_size=row_blk_size, &
+                           distribution=dbcsr_dist)
+    ALLOCATE(col_blk_size(nblkcols_total), STAT=stat)
+    CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
+    col_blk_size = 0
+    DO iblkcol = 1, nblkcols_total
+       atomic_kind => particle_set(iblkcol)%atomic_kind
+       CALL get_atomic_kind(atomic_kind=atomic_kind, &
+                            kind_number=ikind)
+       col_blk_size(iblkcol) = n_selected_tfns(ikind)
+    END DO
+    ! DO NOT deallocate cbs if gift=.TRUE. as col_blk_sizes will only point to cbs
+    name_string = name
+    CALL compress(name_string)
+    CALL uppercase(name_string)
+    ! the filter matrix is non-square and is always non-symmetric
+    symmetry_string = dbcsr_type_no_symmetry
+    ! create empty filter matrix
+    ALLOCATE(filter_mat, STAT=stat)
+    CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
+    CALL cp_dbcsr_init(filter_mat, error=error)
+    CALL cp_dbcsr_create(matrix=filter_mat, &
+                         name=name_string, &
+                         dist=dbcsr_dist, &
+                         matrix_type=symmetry_string, &
+                         row_blk_size=row_blk_size, &
+                         col_blk_size=col_blk_size, &
+                         nblks=0, &
+                         nze=0, &
+                         error=error)
+    DEALLOCATE(col_blk_size, STAT=stat)
+    CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
 
     ! finalise the filter matrix
     CALL cp_dbcsr_finalize(filter_mat, error=error)
@@ -489,11 +490,13 @@ CONTAINS
                                                   nrows, &
                                                   ncols, &
                                                   accepted_vecs, &
+                                                  accepted_inds, &
                                                   n_accepted_vecs, &
                                                   error)
-    REAL(KIND_dp), DIMENSION(:,:), INTENT(IN) :: candidate_vecs
+    REAL(KIND=dp), DIMENSION(:,:), INTENT(IN) :: candidate_vecs
     INTEGER, INTENT(IN) :: nrows, ncols
-    INTEGER, DIMENSION(:), INTENT(OUT) :: accepted_vecs
+    REAL(KIND=dp), DIMENSION(:,:), INTENT(OUT) :: accepted_vecs
+    INTEGER, DIMENSION(:), INTENT(OUT) :: accepted_inds
     INTEGER, INTENT(OUT) :: n_accepted_vecs
     TYPE(cp_error_type), INTENT(INOUT) :: error
 
@@ -501,18 +504,25 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER :: ivec, stat
-    LOGICAL :: res
-    REAL(KIND=dp), DIMENSION(:,:), ALLOCATABLE :: overlap, accepted_vecs
+    LOGICAL :: res, failure
+    REAL(KIND=dp), DIMENSION(:,:), ALLOCATABLE :: overlap
 
-    ALLOCATE(accepted_vecs(nrows,ncols), STAT=stat)
-    CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
+    failure = .FALSE.
+
     ALLOCATE(overlap(ncols,ncols), STAT=stat)
     CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
 
     overlap(:,:) = 0.0_dp
     accepted_vecs(:,:) = 0.0_dp
-    accepted_vecs(:) = 0
+    accepted_inds(:) = 0
     n_accepted_vecs = 0
+
+!BEG:DEBUG:LT:2015/07/16
+    print *, "candidate_vecs = "
+    DO stat = 1, SIZE(candidate_vecs, 1)
+       print *, candidate_vecs(stat, :)
+    END DO
+!END:DEBUG:LT:2015/07/16
 
     DO ivec = 1, ncols
        CALL fb_is_linear_independent(candidate_vecs(:,ivec), &
@@ -522,15 +532,37 @@ CONTAINS
                                      ncols, &
                                      overlap, &
                                      res)
+
+!BEG:DEBUG:LT:2015/07/16
+       print *, "overlap = "
+       DO stat = 1, SIZE(overlap, 1)
+          print *, overlap(stat, :)
+       END DO
+!END:DEBUG:LT:2015/07/16
+
+!BEG:DEBUG:LT:2015/07/16
+       ! res = .TRUE.
+!END:DEBUG:LT:2015/07/16
+
        IF (res) THEN
           n_accepted_vecs = n_accepted_vecs + 1
-          accepted_vecs(n_accepted_vecs) = ivec
+          accepted_inds(n_accepted_vecs) = ivec
           CALL dcopy(nrows, candidate_vecs(:,ivec), 1, accepted_vecs(:,n_accepted_vecs), 1)
+!BEG:DEBUG:LT:2015/07/16
+          print *, "n_accepted_vecs = ", n_accepted_vecs
+          print *, "my_accepted_vecs = "
+          DO stat = 1, SIZE(accepted_vecs, 1)
+             print *, accepted_vecs(stat, :)
+          END DO
+       ELSE
+          print *, "vector not accepted = "
+          DO stat = 1, SIZE(candidate_vecs, 1)
+             print *, candidate_vecs(stat,ivec)
+          END DO
+!END:DEBUG:LT:2015/07/16
        END IF
     END DO
 
-    DEALLOCATE(accepted_vecs, STAT=stat)
-    CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
     DEALLOCATE(overlap, STAT=stat)
     CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
   END SUBROUTINE fb_fltrmat_check_linear_independence
@@ -540,19 +572,21 @@ CONTAINS
                                                trial_fns, &
                                                atomic_S, &
                                                atomic_S_blk_col_start, &
+                                               particle_set, &
                                                atomic_trial_fns_mat, &
                                                error)
     TYPE(fb_atomic_halo_obj), INTENT(IN) :: atomic_halo
     TYPE(fb_trial_fns_obj), INTENT(IN) :: trial_fns
     REAL(KIND=dp), DIMENSION(:,:), INTENT(IN) :: atomic_S
     INTEGER, DIMENSION(:), INTENT(IN) :: atomic_S_blk_col_start
+    TYPE(particle_type), DIMENSION(:), POINTER :: particle_set
     REAL(KIND=dp), DIMENSION(:,:), INTENT(IN) :: atomic_trial_fns_mat
     TYPE(cp_error_type), INTENT(INOUT) :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'fb_fltrmat_build_atomic_trial_fns', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: ii, dim, jatom_global, jatom_in_halo, ind
+    INTEGER :: ii, dim, jatom_global, jatom_in_halo, ind, jkind
     TYPE(atomic_kind_type), POINTER :: atomic_kind
     INTEGER, DIMENSION(:), POINTER :: ntfns
     INTEGER, DIMENSION(:,:), POINTER :: tfns
@@ -591,7 +625,7 @@ CONTAINS
     TYPE(cp_dbcsr_type), POINTER :: dbcsr_mat
     INTEGER, DIMENSION(:), INTENT(IN) :: atomic_blk_row_start
     INTEGER, INTENT(IN) :: dim_atmatrix, ntfns
-    REAL(KIND=dp), DIMENSION(:,:), INTENT(IN) :: blkcol_data
+    REAL(KIND=dp), DIMENSION(:,:), INTENT(OUT) :: blkcol_data
     INTEGER, DIMENSION(:), INTENT(OUT) :: accepted_tfns
     INTEGER, INTENT(OUT) :: n_accepted_tfns
     TYPE(cp_error_type), INTENT(INOUT) :: error
@@ -599,11 +633,23 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'fb_fltrmat_build_atomic_blkcol', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: itrial
-    REAL(KIND=dp), DIMENSION(:,:), ALLOCATABLE :: my_blkcol_data, candidate_mat
+    LOGICAL :: failure
+    INTEGER :: ii, stat
+    REAL(KIND=dp), DIMENSION(:,:), ALLOCATABLE :: candidate_mat
 
-    ALLOCATE(my_blkcol_data(dim_atmatrix, ntfns), STAT=stat)
+    failure = .FALSE.
+
+    ALLOCATE(candidate_mat(dim_atmatrix, ntfns), STAT=stat)
     CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
+
+!BEG:DEBUG:LT:2015/07/15
+    ! print *, "SIZE(atomic_filter_mat) = ", &
+    !          SIZE(atomic_filter_mat, 1), SIZE(atomic_filter_mat, 2)
+    ! print *, "dim_atmatrix = ", dim_atmatrix
+    ! print *, "SIZE(atomic_trial_fns_mat) = ", &
+    !          SIZE(atomic_trial_fns_mat, 1), SIZE(atomic_trial_fns_mat, 2)
+    ! print *, "ntfns = ", ntfns
+!END:DEBUG:LT:2015/07/15
 
     CALL dsymm("L", &
                "U", &
@@ -613,40 +659,22 @@ CONTAINS
                atomic_filter_mat, &
                dim_atmatrix, &
                atomic_trial_fns_mat, &
+               dim_atmatrix, &
                0.0_dp, &
-               my_blkcol_data, &
+               candidate_mat, &
                dim_atmatrix)
 
-    ! constract the non-compact candidate_mat from blkcol_data
-    nblkrows_total = cp_dbcsr_nblkrows_total(dbcsr_mat)
-    ALLOCATE(first_row(nblkrows_total), last_row(nblkrows_total), STAT=stat)
-    CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
-    CALL convert_sizes_to_offsets(cp_dbcsr_row_block_sizes(dbcsr_mat), first_row, last_row)
-    CALL convert_sizes_to_offsets(cp_dbcsr_col_block_sizes(dbcsr_mat), first_col, last_col)
-
-    nrows_global = cp_dbcsr_nfullrows_total(dbcsr_mat)
-    ALLOCATE(candidate_mat(nrows_global,ntfns), STAT=stat)
-    CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
-    candidate_mat(:,:) = 0.0_dp
-
-    DO iatom_in_halo = 1, natoms_in_halo
-       iatom_global = halo_atoms(iatom_in_halo)
-       atomic_row_start = atomic_blk_row_start(iatom_in_halo)
-       atomic_row_end = atomic_blk_row_start(iatom_in_halo+1) - 1
-       nrows_blk = atomic_row_end - atomic_row_start + 1
-       global_row_start = first_row(iatom_global)
-       global_row_end = last_row(iatom_global)
-       CALL dlacpy("A", &
-                   nrows_blk, &
-                   ntfns, &
-                   my_blkcol_data(atomic_row_start:atomic_row_end, 1:ntfns), &
-                   nrows_blk, &
-                   candidate_mat(global_row_start:global_row_end, 1:ntfns), &
-                   nrows_blk)
-    END DO
-    
-    DEALLOCATE(first_row, last_row, STAT=stat)
-    CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
+    ! Note: at the moment candidate_mat is of the condensed format based on
+    ! only the halo atoms in the atomic matrix. The filter matrix block col
+    ! should be of the non-compact format in block rows, so that all of the
+    ! atomic blocks not in the halo are also present, with zero values. We
+    ! want to check for the linear independence of each column in the
+    ! filter matrix. Assuming that cols in each block col should be linearly
+    ! independent to cols in other block cols, we will only check for linear
+    ! independence of cols inside a block col. Now, given the halo atoms
+    ! in one block col are the same, we do not need to consider all the
+    ! zero non-halo atomic blocks in each block col. This means we can check
+    ! directly against the condensed format.
 
     ! check linear independence
     n_accepted_tfns = ntfns
@@ -654,22 +682,20 @@ CONTAINS
        accepted_tfns(ii) = ii
     END DO
     CALL fb_fltrmat_check_linear_independence(candidate_mat, &
-                                              nrows_global, &
+                                              dim_atmatrix, &
                                               ntfns, &
-                                              accepted_cols, &
-                                              n_accepted_cols, &
+                                              blkcol_data, &
+                                              accepted_tfns, &
+                                              n_accepted_tfns, &
                                               error)
     DEALLOCATE(candidate_mat, STAT=stat)
     CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
 
-    ! constract blkcol_data
-    DO ii = 1, naccepted_cols
-       CALL dcopy(dim_atmatrix, &
-                  my_blkcol_data(:,accepted_cols(ii)), 1, &
-                  blkcol_data(:,ii), 1)
-    END DO
-    DEALLOCATE(my_blkcol_data, STAT=stat)
-    CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
+!BEG:DEBUG:LT:2015/07/16
+    print *, "n_accepted_tfns = ", n_accepted_tfns
+    print *, "accepted_tfns = ", accepted_tfns
+!END:DEBUG:LT:2015/07/16
+
   END SUBROUTINE fb_fltrmat_build_atomic_blkcol
 
 
@@ -1088,19 +1114,20 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'fb_fltrmat_add_blkcol_2', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: handle, iatom_global, iatom_in_halo, itrial, jatom_global, &
-      jatom_in_halo, jkind, natoms_global, natoms_in_halo, ncols_atmatrix, &
-      ncols_blk, ncols_blk_max, nrows_atmatrix, nrows_blk, nrows_blk_max, stat
+    INTEGER :: handle, iatom_global, iatom_in_halo, jatom_global, &
+      jkind, natoms_global, natoms_in_halo, ncols_atmatrix, nrows_atmatrix, &
+      stat, atomic_row_end, atomic_row_start, n_accepted_tfns
     INTEGER, ALLOCATABLE, DIMENSION(:) :: atomic_H_blk_col_start, &
       atomic_H_blk_row_start, atomic_S_blk_col_start, atomic_S_blk_row_start, &
-      col_block_size_data
+      col_block_size_data, accepted_tfns
     INTEGER, DIMENSION(:), POINTER           :: halo_atoms, ntfns, &
                                                 row_block_size_data
     INTEGER, DIMENSION(:, :), POINTER        :: tfns
     LOGICAL                                  :: check_ok, failure
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: atomic_filter_mat, atomic_H, &
-                                                atomic_S, mat_blk
+                                                atomic_S, atomic_trial_fns_mat, &
+                                                blkcol_data
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
 
     CALL timeset(routineN, handle)
@@ -1193,37 +1220,58 @@ CONTAINS
                                             error)
     END IF
 
+
+
+!BEG:DEBUG:LT:2015/07/16
+    print *, "atomic_filter_mat = "
+    DO iatom_in_halo = 1, SIZE(atomic_filter_mat, 1)
+       print *, atomic_filter_mat(iatom_in_halo, :)
+    END DO
+!END:DEBUG:LT:2015/07/16
+
+
     ! ----------------------------------------------------------------------
     ! Construct filter matrix block and add to filter_mat_data
     ! ----------------------------------------------------------------------
+    CALL fb_atomic_halo_get(atomic_halo=atomic_halo, &
+                            owner_atom=jatom_global, &
+                            error=error)
 
-    ALLOCATE(atomic_trial_fns_mat(nrows_atmatrix,ntfns), STAT=stat)
+    atomic_kind => particle_set(jatom_global)%atomic_kind
+    CALL get_atomic_kind(atomic_kind=atomic_kind, kind_number=jkind)
+
+    ALLOCATE(atomic_trial_fns_mat(nrows_atmatrix,ntfns(jkind)), STAT=stat)
     CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
     CALL fb_fltrmat_build_atomic_trial_fns(atomic_halo, &
                                            trial_fns, &
                                            atomic_S, &
                                            atomic_S_blk_col_start, &
+                                           particle_set, &
                                            atomic_trial_fns_mat, &
                                            error)
+
+!BEG:DEBUG:LT:2015/07/16
+    print *, "atomic_trial_fns_mat = "
+    DO stat = 1, SIZE(atomic_trial_fns_mat, 1)
+       print *, atomic_trial_fns_mat(stat, :)
+    END DO
+!END:DEBUG:LT:2015/07/16
     
-    ALLOCATE(blkcol_data(nrows_atmatrix,ntfns), STAT=stat)
+    ALLOCATE(blkcol_data(nrows_atmatrix,ntfns(jkind)), STAT=stat)
     CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
-    ALLOCATE(accepted_tfns(ntfns), STAT=stat)
+    ALLOCATE(accepted_tfns(ntfns(jkind)), STAT=stat)
     CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
     CALL fb_fltrmat_build_atomic_blkcol(atomic_filter_mat, &
                                         atomic_trial_fns_mat, &
-                                        mat_H, &
+                                        H_mat, &
                                         atomic_H_blk_row_start, &
                                         nrows_atmatrix, &
-                                        ntfns, &
+                                        ntfns(jkind), &
                                         blkcol_data, &
                                         accepted_tfns, &
                                         n_accepted_tfns, &
                                         error)
     
-    CALL fb_atomic_halo_get(atomic_halo=atomic_halo, &
-                            owner_atom=jatom_global, &
-                            error=error)
     DO iatom_in_halo = 1, natoms_in_halo
        iatom_global = halo_atoms(iatom_in_halo)
        atomic_row_start = atomic_H_blk_row_start(iatom_in_halo)
@@ -1232,7 +1280,7 @@ CONTAINS
                                iatom_global, &
                                jatom_global, &
                                blkcol_data(atomic_row_start:atomic_row_end, &
-                                           1:ntfns), &
+                                           1:ntfns(jkind)), &
                                error)
     END DO
     DEALLOCATE(accepted_tfns, STAT=stat)
@@ -1706,10 +1754,13 @@ CONTAINS
     ! dsygv will overwrite part of atomic_H and atomic_S, thus need to copy them
     ALLOCATE(atomic_S_copy(SIZE(atomic_S,1),SIZE(atomic_S,2)), STAT=stat)
     CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
-    atomic_S_copy(:,:) = atomic_S(:,:)
     ALLOCATE(eigenvectors(SIZE(atomic_H,1),SIZE(atomic_H,2)), STAT=stat)
     CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
-    eigenvectors(:,:) = atomic_H(:,:)
+
+    CALL dlacpy("U", mat_dim, mat_dim, atomic_S, mat_dim, atomic_S_copy, mat_dim)
+    CALL dlacpy("U", mat_dim, mat_dim, atomic_H, mat_dim, eigenvectors, mat_dim)
+    ! eigenvectors(:,:) = atomic_H(:,:)
+    ! atomic_S_copy(:,:) = atomic_S(:,:)
 
     CALL timeset("fb_atomic_filter_dsygv", handle_dsygv)
 
@@ -1734,8 +1785,10 @@ CONTAINS
     CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
     work = 0.0_dp
     ! do calculation
-    atomic_S_copy(:,:) = atomic_S(:,:)
-    eigenvectors(:,:) = atomic_H(:,:)
+    CALL dlacpy("U", mat_dim, mat_dim, atomic_S, mat_dim, atomic_S_copy, mat_dim)
+    CALL dlacpy("U", mat_dim, mat_dim, atomic_H, mat_dim, eigenvectors, mat_dim)
+    ! atomic_S_copy(:,:) = atomic_S(:,:)
+    ! eigenvectors(:,:) = atomic_H(:,:)
     info = 0
     CALL dsygv(1,               &
                'V',             &
@@ -1784,6 +1837,22 @@ CONTAINS
                filter_function(jj) * eigenvectors(ii,jj)
        END DO ! ii
     END DO ! jj
+
+
+!BEG:DEBUG:LT:2015/07/16
+    print *, "filter_function = "
+    DO ii = 1, SIZE(filter_function)
+       print *, filter_function(ii)
+    END DO
+    print *, "eigenvectors = "
+    DO ii = 1, SIZE(eigenvectors, 1)
+       print *, eigenvectors(ii,:)
+    END DO
+    print *, "atomic_S = "
+    DO ii = 1, SIZE(atomic_S, 1)
+       print *, atomic_S(ii,:)
+    END DO
+!END:DEBUG:LT:2015/07/16
 
     DEALLOCATE(filter_function, STAT=stat)
     CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
@@ -1909,13 +1978,14 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'fb_is_linear_independent', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: ii, nn, stat, lwork, info, handle
+    INTEGER :: ii, nn, stat, lwork, info
+    REAL(KIND=dp), EXTERNAL :: ddot
     REAL(KIND=dp), DIMENSION(:,:), ALLOCATABLE :: my_overlap
     REAL(KIND=dp), DIMENSION(:), ALLOCATABLE :: work, eigenvalues
-    REAL(KIND=dp), PARAMETER :: TOLERANCE = 1e-12
+    REAL(KIND=dp), PARAMETER :: TOLERANCE = 1e-15
+    LOGICAL :: failure
 
-    CALL timeset(routineN, handle)
-
+    failure = .FALSE.
     res = .TRUE.
 
     ! calculating new elements of the overlap matrix in the UPPER triangular
@@ -1953,8 +2023,6 @@ CONTAINS
     DEALLOCATE(work, STAT=stat)
     DEALLOCATE(my_overlap, STAT=stat)
     DEALLOCATE(eigenvalues, STAT=stat)
-
-    CALL timestop(handle)
   END SUBROUTINE fb_is_linear_independent
 
 

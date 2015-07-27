@@ -29,19 +29,24 @@ MODULE qs_fb_trial_fns_types
 ! *****************************************************************************
 !> \brief data containing information on trial functions used by filter
 !>        matrix diagonalisation method
-!> \param nfunctions : nfunctions(ikind) = number of trial functions for
-!>                     atomic kind ikind
+!> \param nfunctions : nfunctions(ikind) = total number of available trial 
+!>                     functions for atomic kind ikind
+!> \param nselected  : nselected(ikind) = the number of used trial functions
+!>                     for atomic kind ikind
 !> \param functions  : functions(itrial,ikind) = the index of the
 !>                     GTO atomic orbital corresponding to itrial-th trial
 !>                     function for kind ikind
+!> \param selected   : selected(isele,ikind) = the index IN list functions(),
+!>                     of the isele-th trial function being used for kind
+!>                     ikind
 !> \param id_nr      : unique id for the object
 !> \param ref_count  : reference counter for the object
 !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
 ! *****************************************************************************
   TYPE fb_trial_fns_data
      INTEGER :: id_nr, ref_count
-     INTEGER, DIMENSION(:), POINTER :: nfunctions
-     INTEGER, DIMENSION(:,:), POINTER :: functions
+     INTEGER, DIMENSION(:), POINTER :: nfunctions, nselected
+     INTEGER, DIMENSION(:,:), POINTER :: functions, selected
   END TYPE fb_trial_fns_data
 
 
@@ -115,6 +120,14 @@ CONTAINS
           END IF
           IF (ASSOCIATED(trial_fns%obj%functions)) THEN
              DEALLOCATE(trial_fns%obj%functions, STAT=stat)
+             CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
+          END IF
+          IF (ASSOCIATED(trial_fns%obj%nselected)) THEN
+             DEALLOCATE(trial_fns%obj%nselected, STAT=stat)
+             CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
+          END IF
+          IF (ASSOCIATED(trial_fns%obj%selected)) THEN
+             DEALLOCATE(trial_fns%obj%selected, STAT=stat)
              CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
           END IF
           trial_fns%obj%ref_count = 0
@@ -200,6 +213,8 @@ CONTAINS
        CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
        NULLIFY(trial_fns%obj%nfunctions)
        NULLIFY(trial_fns%obj%functions)
+       NULLIFY(trial_fns%obj%nselected)
+       NULLIFY(trial_fns%obj%selected)
        trial_fns%obj%ref_count = 1
        trial_fns%obj%id_nr = last_fb_trial_fns_id + 1
        last_fb_trial_fns_id = trial_fns%obj%id_nr
@@ -237,6 +252,16 @@ CONTAINS
           CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
           NULLIFY(trial_fns%obj%functions)
        END IF
+       IF (ASSOCIATED(trial_fns%obj%nselected)) THEN
+          DEALLOCATE(trial_fns%obj%nselected, STAT=stat)
+          CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
+          NULLIFY(trial_fns%obj%nselected)
+       END IF
+       IF (ASSOCIATED(trial_fns%obj%selected)) THEN
+          DEALLOCATE(trial_fns%obj%selected, STAT=stat)
+          CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
+          NULLIFY(trial_fns%obj%selected)
+       END IF
     END IF
   END SUBROUTINE fb_trial_fns_init
 
@@ -246,6 +271,8 @@ CONTAINS
 !> \param trial_fns  : the fb_trial_fns object in question
 !> \param nfunctions : outputs pointer to trial_fns%obj%nfunctions
 !> \param functions  : outputs pointer to trial_fns%obj%functions
+!> \param nselected  : outputs pointer to trial_fns%obj%nselected
+!> \param selected   : outputs pointer to trial_fns%obj%selected
 !> \param error : cp2k error container
 !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
 ! *****************************************************************************
@@ -257,7 +284,10 @@ CONTAINS
     INTEGER, DIMENSION(:), OPTIONAL, POINTER :: nfunctions
     INTEGER, DIMENSION(:, :), OPTIONAL, &
       POINTER                                :: functions
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
+    INTEGER, DIMENSION(:), OPTIONAL, POINTER :: nselected
+    INTEGER, DIMENSION(:, :), OPTIONAL, &
+      POINTER                                :: selected 
+   TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'fb_trial_fns_get', &
       routineP = moduleN//':'//routineN
@@ -269,6 +299,8 @@ CONTAINS
     IF (.NOT. failure) THEN
        IF (PRESENT(nfunctions)) nfunctions => trial_fns%obj%nfunctions
        IF (PRESENT(functions)) functions => trial_fns%obj%functions
+       IF (PRESENT(nselected)) nselected => trial_fns%obj%nselected
+       IF (PRESENT(selected)) selected => trial_fns%obj%selected
     END IF
   END SUBROUTINE fb_trial_fns_get
 
@@ -278,17 +310,24 @@ CONTAINS
 !> \param trial_fns  : the fb_trial_fns object in question
 !> \param nfunctions : associates trial_fns%obj%nfunctions to this pointer
 !> \param functions  : associates trial_fns%obj%nfunctions to this pointer
+!> \param nselected  : associates trial_fns%obj%nselected to this pointer
+!> \param selected   : associates trial_fns%obj%nselected to this pointer
 !> \param error : cp2k error container
 !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
 ! *****************************************************************************
   SUBROUTINE fb_trial_fns_set(trial_fns, &
                               nfunctions, &
                               functions, &
+                              nselected, &
+                              selected, &
                               error)
     TYPE(fb_trial_fns_obj), INTENT(INOUT)    :: trial_fns
     INTEGER, DIMENSION(:), OPTIONAL, POINTER :: nfunctions
     INTEGER, DIMENSION(:, :), OPTIONAL, &
       POINTER                                :: functions
+    INTEGER, DIMENSION(:), OPTIONAL, POINTER :: nselected
+    INTEGER, DIMENSION(:, :), OPTIONAL, &
+      POINTER                                :: selected
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'fb_trial_fns_set', &
@@ -313,6 +352,20 @@ CONTAINS
              CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
           END IF
           trial_fns%obj%functions => functions
+       END IF
+       IF (PRESENT(nselected)) THEN
+          IF (ASSOCIATED(trial_fns%obj%nselected)) THEN
+             DEALLOCATE(trial_fns%obj%nselected, STAT=stat)
+             CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
+          END IF
+          trial_fns%obj%nselected => nselected
+       END IF
+       IF (PRESENT(selected)) THEN
+          IF (ASSOCIATED(trial_fns%obj%selected)) THEN
+             DEALLOCATE(trial_fns%obj%selected, STAT=stat)
+             CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
+          END IF
+          trial_fns%obj%selected => selected
        END IF
     END IF
   END SUBROUTINE fb_trial_fns_set
