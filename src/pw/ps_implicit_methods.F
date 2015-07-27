@@ -19,7 +19,6 @@ MODULE ps_implicit_methods
   USE dielectric_methods,              ONLY: dielectric_create
   USE dielectric_types,                ONLY: dielectric_type
   USE dirichlet_bc_methods,            ONLY: dirichlet_boundary_region_setup
-  USE dirichlet_bc_utils,              ONLY: setup_grid_axes
   USE kahan_sum,                       ONLY: accurate_sum
   USE kinds,                           ONLY: dp,&
                                              int_8
@@ -35,7 +34,6 @@ MODULE ps_implicit_methods
                                              pw_copy,&
                                              pw_derive,&
                                              pw_integral_ab,&
-                                             pw_integrate_function,&
                                              pw_scale,&
                                              pw_transfer,&
                                              pw_zero
@@ -53,6 +51,8 @@ MODULE ps_implicit_methods
                                              RECIPROCALSPACE,&
                                              pw_p_type,&
                                              pw_type
+  USE rs_methods,                      ONLY: pw_mollifier,&
+                                             setup_grid_axes
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "../common/cp_common_uses.f90"
@@ -65,8 +65,7 @@ MODULE ps_implicit_methods
          implicit_poisson_solver_periodic, &
          implicit_poisson_solver_neumann, &
          implicit_poisson_solver_mixed_periodic, &
-         implicit_poisson_solver_mixed, &
-         pw_mollifier
+         implicit_poisson_solver_mixed
 
   INTERFACE apply_inv_laplace_operator
      MODULE PROCEDURE apply_inv_laplace_operator_fft, &
@@ -150,6 +149,10 @@ CONTAINS
        CALL pw_pool_create_pw(pw_pool, ps_implicit_env%v_eps, use_data=REALDATA3D, in_space=REALSPACE, error=error)
        CALL pw_zero(ps_implicit_env%v_eps, error)
 
+       NULLIFY(ps_implicit_env%cstr_charge)
+       CALL pw_pool_create_pw(pw_pool, ps_implicit_env%cstr_charge, use_data=REALDATA3D, in_space=REALSPACE, error=error)
+       CALL pw_zero(ps_implicit_env%cstr_charge, error)
+
        ps_implicit_env%ehartree = 0.0_dp
        ps_implicit_env%times_called = 0
 
@@ -172,8 +175,7 @@ CONTAINS
 !> \brief  implicit Poisson solver for periodic boundary conditions
 !> \param poisson_env poisson environment 
 !> \param density electron density 
-!> \param v_new functional derivative of the hartree energy wrt to rho 
-!>              (= electrostatic potential + v_eps) 
+!> \param v_new electrostatic potential
 !> \param ehartree Hartree energy
 !> \param error cp2k error
 !>
@@ -250,7 +252,7 @@ CONTAINS
     DO
 
 ! evaluate \Delta^-1(res_old)
-    CALL apply_inv_laplace_operator(pw_pool, green, res_old, QAinvxres, error)
+       CALL apply_inv_laplace_operator(pw_pool, green, res_old, QAinvxres, error)
 
 ! v_new = v_old + \omega * QAinvxres_old
        CALL pw_scale(QAinvxres, omega, error=error)
@@ -315,8 +317,7 @@ CONTAINS
 !>         subject to homogeneous Neumann boundary conditions
 !> \param poisson_env poisson environment
 !> \param density electron density
-!> \param v_new functional derivative of the hartree energy wrt to rho
-!>              (= electrostatic potential + v_eps)
+!> \param v_new electrostatic potential
 !> \param ehartree Hartree energy
 !> \param error cp2k error
 !>
@@ -399,12 +400,12 @@ CONTAINS
     DO
 
 ! evaluate \Delta^-1(res_old)
-    CALL apply_inv_laplace_operator(pw_pool_xpndd, aux_pw_pool_xpndd, green, &
-                                    dct_env%recv_msgs_bnds, dct_env%dests_expand, &
-                                    dct_env%srcs_expand, dct_env%flipg_stat, &
-                                    dct_env%dests_shrink, dct_env%srcs_shrink, &
-                                    dct_env%bounds_shftd, dct_env%bounds_local_shftd, &
-                                    adjust_local_bounds, res_old, QAinvxres, error)
+       CALL apply_inv_laplace_operator(pw_pool_xpndd, aux_pw_pool_xpndd, green, &
+                                       dct_env%recv_msgs_bnds, dct_env%dests_expand, &
+                                       dct_env%srcs_expand, dct_env%flipg_stat, &
+                                       dct_env%dests_shrink, dct_env%srcs_shrink, &
+                                       dct_env%bounds_shftd, dct_env%bounds_local_shftd, &
+                                       adjust_local_bounds, res_old, QAinvxres, error)
 
 ! v_new = v_old + \omega * QAinvxres_old
        CALL pw_scale(QAinvxres, omega, error=error)
@@ -470,8 +471,7 @@ CONTAINS
 !> \brief  implicit Poisson solver for mixed-periodic boundary conditions (periodic + Dirichlet)
 !> \param poisson_env poisson environment 
 !> \param density electron density 
-!> \param v_new functional derivative of the hartree energy wrt to rho 
-!>              (= electrostatic potential + v_eps) 
+!> \param v_new electrostatic potential
 !> \param ehartree Hartree energy
 !> \param error cp2k error
 !>
@@ -516,8 +516,9 @@ CONTAINS
     TYPE(pw_grid_type), POINTER              :: pw_grid
     TYPE(pw_poisson_parameter_type), POINTER :: poisson_params
     TYPE(pw_pool_type), POINTER              :: pw_pool
-    TYPE(pw_type), POINTER                   :: Axvbar, g, QAinvxres, &
-                                                res_new, res_old, v0, v_old
+    TYPE(pw_type), POINTER                   :: Axvbar, g, PxQAinvxres, &
+                                                QAinvxres, res_new, res_old, &
+                                                v0, v_old
 
     CALL timeset(routineN,handle)
 
@@ -589,6 +590,7 @@ CONTAINS
     CALL pw_pool_create_pw(pw_pool, res_old, use_data=REALDATA3D, in_space=REALSPACE, error=error)
     CALL pw_pool_create_pw(pw_pool, res_new, use_data=REALDATA3D, in_space=REALSPACE, error=error)
     CALL pw_pool_create_pw(pw_pool, QAinvxres, use_data=REALDATA3D, in_space=REALSPACE, error=error)
+    CALL pw_pool_create_pw(pw_pool, PxQAinvxres, use_data=REALDATA3D, in_space=REALSPACE, error=error)
     CALL pw_pool_create_pw(pw_pool, Axvbar, use_data=REALDATA3D, in_space=REALSPACE, error=error)
 
     IF (use_zero_initial_guess) THEN
@@ -605,7 +607,7 @@ CONTAINS
     CALL pw_copy(v0, v_old, error=error)
     lambda_old(:)= lambda0
 
-! res_old = g - \Delta(v_old) - P(v_old) + B^t * \lambda_old
+! res_old = g - \Delta(v_old) - P(v_old) - B^t * \lambda_old
     CALL apply_poisson_operator(pw_pool, green, dielectric, v_old, res_old, error)
     CALL pw_scale(res_old, - 1.0_dp, error)
     CALL pw_axpy(g, res_old, error=error)
@@ -613,13 +615,13 @@ CONTAINS
        CALL DGEMV('N', data_size, n_tiles_tot, 1.0_dp, Bt, data_size, lambda_old, 1, 0.0_dp, Btxlambda_old, 1)
     END IF
     CALL convert_1dto3d(ps_implicit_env%idx_1dto3d, Btxlambda_old, Btxlambda_old3D, error)
-    res_old%cr3d = res_old%cr3d + Btxlambda_old3D
+    res_old%cr3d = res_old%cr3d - Btxlambda_old3D
 
     iter = 1
     DO
 
 ! evaluate \Delta^-1(res_old)
-    CALL apply_inv_laplace_operator(pw_pool, green, res_old, QAinvxres, error)
+       CALL apply_inv_laplace_operator(pw_pool, green, res_old, QAinvxres, error)
 
 ! v_new (v_bar) = v_old + \omega * QAinvxres_old
        CALL pw_scale(QAinvxres, omega, error=error)
@@ -627,19 +629,20 @@ CONTAINS
        CALL pw_axpy(v_old, v_new, error=error)
 
 ! evaluate 1^t * (g - \Delta(\bar{v}) - P(\bar{v})) 
-       CALL apply_poisson_operator(pw_pool, green, dielectric, v_new, Axvbar, error)
+!        = 1^t * (g - P(\bar{v})) 
+       CALL apply_P_operator(pw_pool, dielectric, v_new, Axvbar, error=error)
        Axvbar_avg = accurate_sum(Axvbar%cr3d) / ngpts
        gminusAxvbar_avg = g_avg - Axvbar_avg
        CALL mp_sum(gminusAxvbar_avg, pw_grid%para%group)
 
-! evaluate Q_S * \lambda - v_D + B * \bar{v}
+! evaluate Q_S * \lambda + v_D - B * \bar{v}
        CALL DGEMV('N', n_tiles_tot, n_tiles_tot, 1.0_dp, QS, n_tiles_tot, lambda_old, 1, 0.0_dp, QSxlambda, 1)
        v_bar1D(ps_implicit_env%idx_1dto3d) = RESHAPE(v_new%cr3d, (/data_size/))
        CALL DGEMV('N', n_tiles_tot, data_size, 1.0_dp, B, n_tiles_tot, v_bar1D, 1, 0.0_dp, Bxv_bar, 1)
        CALL mp_sum(Bxv_bar, pw_grid%para%group)
-! solve R [\lambda; \eta] = [Q_S * \lambda - v_D + B * \bar{v}; 1^t * (g - \Delta(\bar{v}) - P(\bar{v}))]
+! solve R [\lambda; \eta] = [Q_S * \lambda + v_D - B * \bar{v}; 1^t * (g - \Delta(\bar{v}) - P(\bar{v}))]
        w = 0.0_dp
-       w(:) = (/ QSxlambda - v_D + Bxv_bar, gminusAxvbar_avg /)
+       w(:) = (/ QSxlambda + v_D - Bxv_bar, gminusAxvbar_avg /)
        CALL DGEMV('N', n_tiles_tot+1, n_tiles_tot+1, 1.0_dp, Rinv, n_tiles_tot+1, w, 1, 0.0_dp, lambda_newNeta, 1)
        lambda_new(:) = lambda_newNeta(1:n_tiles_tot)
        eta = lambda_newNeta(n_tiles_tot+1)
@@ -653,12 +656,13 @@ CONTAINS
        END IF
        CALL convert_1dto3d(ps_implicit_env%idx_1dto3d, Btxlambda_new, Btxlambda_new3D, error)
 
-! res_new = res_old - \omega * ( \Delta(QAinvxres_old) + P(QAinvxres_old) ) + B^t * ( \lambda_new - \lambda_old )
-       CALL pw_scale(QAinvxres, 1.0_dp/omega, error=error)
-       CALL apply_poisson_operator(pw_pool, green, dielectric, QAinvxres, res_new, error)
-       CALL pw_scale(res_new, - omega , error)
-       CALL pw_axpy(res_old, res_new, error=error)
-       res_new%cr3d = res_new%cr3d + Btxlambda_new3D - Btxlambda_old3D
+! res_new = res_old - \omega * ( \Delta(QAinvxres_old) + P(QAinvxres_old) ) - B^t * ( \lambda_new - \lambda_old )
+!         = (1 - \omega) * res_old - \omega * P(QAinvxres_old) - B^t * ( \lambda_new - \lambda_old )
+       CALL pw_zero(res_new, error=error) 
+       CALL apply_P_operator(pw_pool, dielectric, QAinvxres, PxQAinvxres, error=error)
+       CALL pw_axpy(PxQAinvxres, res_new, - 1.0_dp, error=error)
+       CALL pw_axpy(res_old, res_new, 1.0_dp - omega, error=error)
+       res_new%cr3d = res_new%cr3d + Btxlambda_old3D - Btxlambda_new3D
 
 ! compute the error
        CALL ps_implicit_compute_error(pw_pool, green, res_new, v_old, v_new, QAinvxres, &
@@ -673,13 +677,13 @@ CONTAINS
           IF (outp_unit .GT. 0) WRITE(outp_unit, '(A1,/)')
        END IF
 
-! debugging
-       IF (poisson_params%dbc_params%debug) THEN
+! verbose output
+       IF (poisson_params%dbc_params%verbose_output) THEN
           v_new1D(ps_implicit_env%idx_1dto3d) = RESHAPE(v_new%cr3d, (/data_size/))
           CALL DGEMV('N', n_tiles_tot, data_size, 1.0_dp, B, n_tiles_tot, v_new1D, 1, 0.0_dp, Bxv_new, 1)
           CALL mp_sum(Bxv_new, pw_grid%para%group)
           IF (outp_unit .GT. 0) THEN
-             WRITE(outp_unit, '(T3,A,A)') "======== debug ", REPEAT('=', 63)
+             WRITE(outp_unit, '(T3,A,A)') "======== verbose ", REPEAT('=', 61)
              WRITE(outp_unit, '(T25,A)') "Drgn       tile      vhartree"
              WRITE(outp_unit, '(T24,A)') REPEAT('-', 32)
              nt_tot = 1
@@ -715,6 +719,7 @@ CONTAINS
        ps_implicit_env%initial_lambda = lambda_new
     END IF
        
+    ps_implicit_env%cstr_charge%cr3d = Btxlambda_new3D
     IF (PRESENT(ehartree)) ehartree = ps_implicit_env%ehartree
 ! compute the extra contribution to the Hamiltonian due to the presence of dielectric
     CALL ps_implicit_compute_veps(pw_pool, dielectric, v_new, ps_implicit_env%v_eps, error)
@@ -724,8 +729,9 @@ CONTAINS
     CALL pw_pool_give_back_pw(pw_pool, v_old, error=error)
     CALL pw_pool_give_back_pw(pw_pool, res_old, error=error)
     CALL pw_pool_give_back_pw(pw_pool, res_new, error=error)
-    CALL pw_pool_give_back_pw(pw_pool, Axvbar, error=error)
     CALL pw_pool_give_back_pw(pw_pool, QAinvxres, error=error)
+    CALL pw_pool_give_back_pw(pw_pool, PxQAinvxres, error=error)
+    CALL pw_pool_give_back_pw(pw_pool, Axvbar, error=error)
 
     CALL timestop(handle)
 
@@ -735,8 +741,7 @@ CONTAINS
 !> \brief  implicit Poisson solver for mixed boundary conditions (Neumann + Dirichlet)
 !> \param poisson_env poisson environment 
 !> \param density electron density 
-!> \param v_new functional derivative of the hartree energy wrt to rho 
-!>             (= electrostatic potential + v_eps) 
+!> \param v_new electrostatic potential
 !> \param ehartree Hartree energy
 !> \param error cp2k error
 !>
@@ -783,8 +788,9 @@ CONTAINS
     TYPE(pw_poisson_parameter_type), POINTER :: poisson_params
     TYPE(pw_pool_type), POINTER              :: aux_pw_pool_xpndd, pw_pool, &
                                                 pw_pool_xpndd
-    TYPE(pw_type), POINTER                   :: Axvbar, g, QAinvxres, &
-                                                res_new, res_old, v0, v_old
+    TYPE(pw_type), POINTER                   :: Axvbar, g, PxQAinvxres, &
+                                                QAinvxres, res_new, res_old, &
+                                                v0, v_old
 
     CALL timeset(routineN,handle)
 
@@ -859,6 +865,7 @@ CONTAINS
     CALL pw_pool_create_pw(pw_pool, res_old, use_data=REALDATA3D, in_space=REALSPACE, error=error)
     CALL pw_pool_create_pw(pw_pool, res_new, use_data=REALDATA3D, in_space=REALSPACE, error=error)
     CALL pw_pool_create_pw(pw_pool, QAinvxres, use_data=REALDATA3D, in_space=REALSPACE, error=error)
+    CALL pw_pool_create_pw(pw_pool, PxQAinvxres, use_data=REALDATA3D, in_space=REALSPACE, error=error)
     CALL pw_pool_create_pw(pw_pool, Axvbar, use_data=REALDATA3D, in_space=REALSPACE, error=error)
 
     IF (use_zero_initial_guess) THEN
@@ -875,7 +882,7 @@ CONTAINS
     CALL pw_copy(v0, v_old, error=error)
     lambda_old(:)= lambda0
 
-! res_old = g - \Delta(v_old) - P(v_old) + B^t * \lambda_old
+! res_old = g - \Delta(v_old) - P(v_old) - B^t * \lambda_old
     CALL apply_poisson_operator(pw_pool, green, dielectric, pw_pool_xpndd, aux_pw_pool_xpndd, dct_env, &
                                 adjust_local_bounds, v_old, res_old, error)
     CALL pw_scale(res_old, - 1.0_dp, error)
@@ -884,18 +891,18 @@ CONTAINS
        CALL DGEMV('N', data_size, n_tiles_tot, 1.0_dp, Bt, data_size, lambda_old, 1, 0.0_dp, Btxlambda_old, 1)
     END IF
     CALL convert_1dto3d(ps_implicit_env%idx_1dto3d, Btxlambda_old, Btxlambda_old3D, error)
-    res_old%cr3d = res_old%cr3d + Btxlambda_old3D
+    res_old%cr3d = res_old%cr3d - Btxlambda_old3D
 
     iter = 1
     DO
 
 ! evaluate \Delta^-1(res_old)
-    CALL apply_inv_laplace_operator(pw_pool_xpndd, aux_pw_pool_xpndd, green, &
-                                    dct_env%recv_msgs_bnds, dct_env%dests_expand, &
-                                    dct_env%srcs_expand, dct_env%flipg_stat, &
-                                    dct_env%dests_shrink, dct_env%srcs_shrink, &
-                                    dct_env%bounds_shftd, dct_env%bounds_local_shftd, &
-                                    adjust_local_bounds, res_old, QAinvxres, error)
+       CALL apply_inv_laplace_operator(pw_pool_xpndd, aux_pw_pool_xpndd, green, &
+                                       dct_env%recv_msgs_bnds, dct_env%dests_expand, &
+                                       dct_env%srcs_expand, dct_env%flipg_stat, &
+                                       dct_env%dests_shrink, dct_env%srcs_shrink, &
+                                       dct_env%bounds_shftd, dct_env%bounds_local_shftd, &
+                                       adjust_local_bounds, res_old, QAinvxres, error)
 
 ! v_new (v_bar) = v_old + \omega * QAinvxres_old
        CALL pw_scale(QAinvxres, omega, error=error)
@@ -903,20 +910,20 @@ CONTAINS
        CALL pw_axpy(v_old, v_new, error=error)
 
 ! evaluate 1^t * (g - \Delta(\bar{v}) - P(\bar{v})) 
-       CALL apply_poisson_operator(pw_pool, green, dielectric, pw_pool_xpndd, aux_pw_pool_xpndd, dct_env, &
-                                   adjust_local_bounds, v_new, Axvbar, error)
+!        = 1^t * (g - P(\bar{v})) 
+       CALL apply_P_operator(pw_pool, dielectric, v_new, Axvbar, error=error)
        Axvbar_avg = accurate_sum(Axvbar%cr3d) / ngpts
        gminusAxvbar_avg = g_avg - Axvbar_avg
        CALL mp_sum(gminusAxvbar_avg, pw_grid%para%group)
 
-! evaluate Q_S * \lambda - v_D + B * \bar{v}
+! evaluate Q_S * \lambda + v_D - B * \bar{v}
        CALL DGEMV('N', n_tiles_tot, n_tiles_tot, 1.0_dp, QS, n_tiles_tot, lambda_old, 1, 0.0_dp, QSxlambda, 1)
        v_bar1D(ps_implicit_env%idx_1dto3d) = RESHAPE(v_new%cr3d, (/data_size/))
        CALL DGEMV('N', n_tiles_tot, data_size, 1.0_dp, B, n_tiles_tot, v_bar1D, 1, 0.0_dp, Bxv_bar, 1)
        CALL mp_sum(Bxv_bar, pw_grid%para%group)
-! solve R [\lambda; \eta] = [Q_S * \lambda - v_D + B * \bar{v}; 1^t * (g - \Delta(\bar{v}) - P(\bar{v}))]
+! solve R [\lambda; \eta] = [Q_S * \lambda + v_D - B * \bar{v}; 1^t * (g - \Delta(\bar{v}) - P(\bar{v}))]
        w = 0.0_dp
-       w(:) = (/ QSxlambda - v_D + Bxv_bar, gminusAxvbar_avg /)
+       w(:) = (/ QSxlambda + v_D - Bxv_bar, gminusAxvbar_avg /)
        CALL DGEMV('N', n_tiles_tot+1, n_tiles_tot+1, 1.0_dp, Rinv, n_tiles_tot+1, w, 1, 0.0_dp, lambda_newNeta, 1)
        lambda_new(:) = lambda_newNeta(1:n_tiles_tot)
        eta = lambda_newNeta(n_tiles_tot+1)
@@ -930,13 +937,13 @@ CONTAINS
        END IF
        CALL convert_1dto3d(ps_implicit_env%idx_1dto3d, Btxlambda_new, Btxlambda_new3D, error)
 
-! res_new = res_old - \omega * ( \Delta(QAinvxres_old) + P(QAinvxres_old) ) + B^t * ( \lambda_new - \lambda_old )
-       CALL pw_scale(QAinvxres, 1.0_dp/omega, error=error)
-       CALL apply_poisson_operator(pw_pool, green, dielectric, pw_pool_xpndd, aux_pw_pool_xpndd, dct_env, &
-                                   adjust_local_bounds, QAinvxres, res_new, error)
-       CALL pw_scale(res_new, - omega , error)
-       CALL pw_axpy(res_old, res_new, error=error)
-       res_new%cr3d = res_new%cr3d + Btxlambda_new3D - Btxlambda_old3D
+! res_new = res_old - \omega * ( \Delta(QAinvxres_old) + P(QAinvxres_old) ) - B^t * ( \lambda_new - \lambda_old )
+!         = (1 - \omega) * res_old - \omega * P(QAinvxres_old) - B^t * ( \lambda_new - \lambda_old )
+       CALL pw_zero(res_new, error=error) 
+       CALL apply_P_operator(pw_pool, dielectric, QAinvxres, PxQAinvxres, error=error)
+       CALL pw_axpy(PxQAinvxres, res_new, - 1.0_dp, error=error)
+       CALL pw_axpy(res_old, res_new, 1.0_dp - omega, error=error)
+       res_new%cr3d = res_new%cr3d - Btxlambda_new3D + Btxlambda_old3D
 
 ! compute the error
        CALL ps_implicit_compute_error(pw_pool, green, pw_pool_xpndd, aux_pw_pool_xpndd, dct_env, res_new, &
@@ -951,13 +958,13 @@ CONTAINS
           IF (outp_unit .GT. 0) WRITE(outp_unit, '(A1,/)')
        END IF
 
-! debugging
-       IF (poisson_params%dbc_params%debug) THEN
+! verbose output
+       IF (poisson_params%dbc_params%verbose_output) THEN
           v_new1D(ps_implicit_env%idx_1dto3d) = RESHAPE(v_new%cr3d, (/data_size/))
           CALL DGEMV('N', n_tiles_tot, data_size, 1.0_dp, B, n_tiles_tot, v_new1D, 1, 0.0_dp, Bxv_new, 1)
           CALL mp_sum(Bxv_new, pw_grid%para%group)
           IF (outp_unit .GT. 0) THEN
-             WRITE(outp_unit, '(T3,A)') "======== debug "//REPEAT('=', 63)
+             WRITE(outp_unit, '(T3,A)') "======== verbose "//REPEAT('=', 61)
              WRITE(outp_unit, '(T25,A)') "Drgn       tile      vhartree"
              WRITE(outp_unit, '(T24,A)') REPEAT('-', 32)
              nt_tot = 1
@@ -993,6 +1000,7 @@ CONTAINS
        ps_implicit_env%initial_lambda = lambda_new
     END IF
 
+    ps_implicit_env%cstr_charge%cr3d = Btxlambda_new3D
     IF (PRESENT(ehartree)) ehartree = ps_implicit_env%ehartree
 ! compute the extra contribution to the Hamiltonian due to the presence of dielectric
     CALL ps_implicit_compute_veps(pw_pool, dielectric, v_new, ps_implicit_env%v_eps, error)
@@ -1003,6 +1011,7 @@ CONTAINS
     CALL pw_pool_give_back_pw(pw_pool, res_old, error=error)
     CALL pw_pool_give_back_pw(pw_pool, res_new, error=error)
     CALL pw_pool_give_back_pw(pw_pool, QAinvxres, error=error)
+    CALL pw_pool_give_back_pw(pw_pool, PxQAinvxres, error=error)
     CALL pw_pool_give_back_pw(pw_pool, Axvbar, error=error)
     CALL pw_pool_release(aux_pw_pool_xpndd, error=error)
     CALL pw_pool_release(pw_pool_xpndd, error=error)
@@ -1235,11 +1244,11 @@ CONTAINS
 ! evaluate B*1
        Bxunit_vec(:) = SUM(ps_implicit_env%B,2) / ngpts
        CALL mp_sum(Bxunit_vec, pw_grid_orig%para%group)
-! set up R = [QS -B*1; -(B*1)^t 0]
+! set up R = [QS B*1; (B*1)^t 0]
        R = 0.0_dp
        R(1:n_tiles_tot, 1:n_tiles_tot) = ps_implicit_env%QS
-       R(1:n_tiles_tot, n_tiles_tot+1) = -1.0_dp * Bxunit_vec
-       R(n_tiles_tot+1, 1:n_tiles_tot) = -1.0_dp * Bxunit_vec
+       R(1:n_tiles_tot, n_tiles_tot+1) = Bxunit_vec
+       R(n_tiles_tot+1, 1:n_tiles_tot) = Bxunit_vec
 ! evaluate R^(-1)
        ps_implicit_env%Rinv = R
        CALL DGETRF(n_tiles_tot+1, n_tiles_tot+1, ps_implicit_env%Rinv, n_tiles_tot+1, ipiv, info)
@@ -1353,11 +1362,11 @@ CONTAINS
 ! evaluate B*1
        Bxunit_vec(:) = SUM(ps_implicit_env%B,2) / ngpts
        CALL mp_sum(Bxunit_vec, pw_grid_orig%para%group)
-! set up R = [QS -B*1; -(B*1)^t 0]
+! set up R = [QS B*1; (B*1)^t 0]
        R = 0.0_dp
        R(1:n_tiles_tot, 1:n_tiles_tot) = ps_implicit_env%QS
-       R(1:n_tiles_tot, n_tiles_tot+1) = -1.0_dp * Bxunit_vec
-       R(n_tiles_tot+1, 1:n_tiles_tot) = -1.0_dp * Bxunit_vec
+       R(1:n_tiles_tot, n_tiles_tot+1) = Bxunit_vec
+       R(n_tiles_tot+1, 1:n_tiles_tot) = Bxunit_vec
 ! evaluate R^(-1)
        ps_implicit_env%Rinv = R
        CALL DGETRF(n_tiles_tot+1, n_tiles_tot+1, ps_implicit_env%Rinv, n_tiles_tot+1, ipiv, info)
@@ -2065,7 +2074,7 @@ CONTAINS
 
     dvol = pw_grid%dvol
 
-! E_H = \frac{1}{2} * \int \rho * v dr - \frac{1}{8 \pi} * \int Btxlambda * v dr
+! E_H = \frac{1}{2} * \int \rho * v dr + \frac{1}{8 \pi} * \int Btxlambda * v dr
 ! the sign of the second term depends on the sign chosen for the Lagrange multiplier 
 ! term in the variational form 
     ehartree_rho = accurate_sum(density%cr3d * v%cr3d)
@@ -2074,7 +2083,7 @@ CONTAINS
     ehartree_rho_cstr = 0.5_dp * ehartree_rho_cstr * dvol
     CALL mp_sum(ehartree_rho, pw_grid%para%group)
     CALL mp_sum(ehartree_rho_cstr, pw_grid%para%group)
-    ehartree = ehartree_rho - ehartree_rho_cstr
+    ehartree = ehartree_rho + ehartree_rho_cstr
 
     CALL timestop(handle)
 
@@ -2282,135 +2291,6 @@ CONTAINS
     CALL timestop(handle)
 
   END SUBROUTINE ps_implicit_report_ehartree
-
-! *****************************************************************************
-!> \brief convolutes a function with a smoothing kernel K_\zeta
-!>                         v * K_\zeta
-!> K_\zeta is the standard mollifier defined as:
-!>        K_\zeta(x) = \frac{1}{\zeta^3} K(\frac{x}{\zeta})
-!> where
-!>        K(x) = \kappa \exp (\frac{1}{|x|^2 - 1}),  if |x| <= 1
-!>             = 0,                                  otherwise
-!> \param pw_pool pool of pw grid
-!> \param zeta paramter \zeta defining the width of the mollifier
-!> \param x_glbl x grid vetor of the simulation box
-!> \param y_glbl y grid vetor of the simulation box
-!> \param z_glbl z grid vetor of the simulation box
-!> \param pw_in the input function
-!> \param pw_out the convoluted function
-!> \param error cp2k error
-!> \par History
-!>       10.2014 created [Hossein Bani-Hashemian]
-!> \author Mohammad Hossein Bani-Hashemian
-! *****************************************************************************
-  SUBROUTINE pw_mollifier(pw_pool, zeta, x_glbl, y_glbl, z_glbl, pw_in, pw_out, error)
-
-    TYPE(pw_pool_type), INTENT(IN), POINTER  :: pw_pool
-    REAL(dp), INTENT(IN)                     :: zeta
-    REAL(dp), ALLOCATABLE, DIMENSION(:), &
-      INTENT(IN)                             :: x_glbl, y_glbl, z_glbl
-    TYPE(pw_type), INTENT(IN), POINTER       :: pw_in
-    TYPE(pw_type), INTENT(INOUT), POINTER    :: pw_out
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
-
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'pw_mollifier', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: handle, i, j, k, lb1, lb2, &
-                                                lb3, ub1, ub2, ub3
-    INTEGER, DIMENSION(2, 3)                 :: bounds, bounds_local
-    REAL(dp)                                 :: normfact, xi, xmax, xmin, yj, &
-                                                ymax, ymin, zk, zmax, zmin
-    REAL(dp), DIMENSION(3, 3)                :: dh
-    TYPE(pw_grid_type), POINTER              :: pw_grid
-    TYPE(pw_type), POINTER                   :: G, G_gs, pw_in_gs, pw_out_gs
-
-    CALL timeset(routineN,handle)
-
-    pw_grid => pw_in%pw_grid
-    dh = pw_grid%dh
-    bounds_local = pw_grid%bounds_local
-    bounds = pw_grid%bounds
-
-    lb1 = bounds_local(1,1);     ub1 = bounds_local(2,1)
-    lb2 = bounds_local(1,2);     ub2 = bounds_local(2,2)
-    lb3 = bounds_local(1,3);     ub3 = bounds_local(2,3)
-
-    CALL pw_pool_create_pw(pw_pool, G, use_data=REALDATA3D, in_space=REALSPACE, error=error)
-    CALL pw_pool_create_pw(pw_pool, G_gs, use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE, error=error)
-    CALL pw_pool_create_pw(pw_pool, pw_in_gs, use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE, error=error)
-    CALL pw_pool_create_pw(pw_pool, pw_out_gs, use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE, error=error)
-
-    CALL pw_zero(G, error=error)
-    xmin = x_glbl(bounds(1,1));     xmax = x_glbl(bounds(2,1))
-    ymin = y_glbl(bounds(1,2));     ymax = y_glbl(bounds(2,2))
-    zmin = z_glbl(bounds(1,3));     zmax = z_glbl(bounds(2,3))
-
-    DO k = lb3, ub3
-      DO j = lb2, ub2
-        DO i = lb1, ub1
-          xi = x_glbl(i);     yj = y_glbl(j);     zk = z_glbl(k)
-          IF      (vec_norm2((/(xi - xmin), (yj - ymin), (zk - zmin)/)) .LT. zeta) THEN
-             G%cr3d(i,j,k) = EXP(1.0_dp / (vec_norm2((/(xi - xmin), (yj - ymin), (zk - zmin)/)/zeta)**2 - 1))
-          ELSE IF (vec_norm2((/(xi - xmax), (yj - ymax), (zk - zmax)/)) .LT. zeta) THEN
-             G%cr3d(i,j,k) = EXP(1.0_dp / (vec_norm2((/(xi - xmax), (yj - ymax), (zk - zmax)/)/zeta)**2 - 1))
-          ELSE IF (vec_norm2((/(xi - xmin), (yj - ymax), (zk - zmax)/)) .LT. zeta) THEN
-             G%cr3d(i,j,k) = EXP(1.0_dp / (vec_norm2((/(xi - xmin), (yj - ymax), (zk - zmax)/)/zeta)**2 - 1))
-          ELSE IF (vec_norm2((/(xi - xmax), (yj - ymin), (zk - zmax)/)) .LT. zeta) THEN
-             G%cr3d(i,j,k) = EXP(1.0_dp / (vec_norm2((/(xi - xmax), (yj - ymin), (zk - zmax)/)/zeta)**2 - 1))
-          ELSE IF (vec_norm2((/(xi - xmax), (yj - ymax), (zk - zmin)/)) .LT. zeta) THEN
-             G%cr3d(i,j,k) = EXP(1.0_dp / (vec_norm2((/(xi - xmax), (yj - ymax), (zk - zmin)/)/zeta)**2 - 1))
-          ELSE IF (vec_norm2((/(xi - xmin), (yj - ymin), (zk - zmax)/)) .LT. zeta) THEN
-             G%cr3d(i,j,k) = EXP(1.0_dp / (vec_norm2((/(xi - xmin), (yj - ymin), (zk - zmax)/)/zeta)**2 - 1))
-          ELSE IF (vec_norm2((/(xi - xmin), (yj - ymax), (zk - zmin)/)) .LT. zeta) THEN
-             G%cr3d(i,j,k) = EXP(1.0_dp / (vec_norm2((/(xi - xmin), (yj - ymax), (zk - zmin)/)/zeta)**2 - 1))
-          ELSE IF (vec_norm2((/(xi - xmax), (yj - ymin), (zk - zmin)/)) .LT. zeta) THEN
-             G%cr3d(i,j,k) = EXP(1.0_dp / (vec_norm2((/(xi - xmax), (yj - ymin), (zk - zmin)/)/zeta)**2 - 1))
-          END IF
-        END DO
-      END DO
-    END DO
-    CALL pw_scale(G, (1.0_dp/zeta)**3, error)
-    normfact = pw_integrate_function(G,error=error)
-    CALL pw_scale(G, 1.0_dp/normfact, error)
-
-    CALL pw_transfer(G, G_gs, error=error)
-    CALL pw_transfer(pw_in, pw_in_gs, error=error)
-    pw_out_gs%cc = G_gs%cc * pw_in_gs%cc
-    CALL pw_transfer(pw_out_gs, pw_out, error=error)
-
-    ! multiply by the reciprocal of the forward Fourier transform normalization prefactor (here 1/N, by convention)
-    CALL pw_scale(pw_out, REAL(pw_grid%ngpts,KIND=dp), error=error)
-    ! from discrete convolution to continuous convolution
-    CALL pw_scale(pw_out, pw_grid%dvol, error=error)
-
-    DO k = lb3, ub3
-      DO j = lb2, ub2
-        DO i = lb1, ub1
-          IF (ABS(pw_out%cr3d(i,j,k)) .LE. 1.0E-10_dp) pw_out%cr3d(i,j,k) = 0.0_dp
-        END DO
-      END DO
-    END DO
-
-    CALL pw_pool_give_back_pw(pw_pool, G, error=error)
-    CALL pw_pool_give_back_pw(pw_pool, G_gs, error=error)
-    CALL pw_pool_give_back_pw(pw_pool, pw_in_gs, error=error)
-    CALL pw_pool_give_back_pw(pw_pool, pw_out_gs, error=error)
-    CALL timestop(handle)
-
-    CONTAINS
-! *****************************************************************************
-!> \brief computes the norm 2 of a vector in the three-dimensional real space
-!> \param vec input vector
-!> \retval vec_norm2 ...
-! *****************************************************************************
-       PURE FUNCTION vec_norm2(vec)
-    REAL(dp), DIMENSION(3), INTENT(IN)       :: vec
-    REAL(dp)                                 :: vec_norm2
-
-          vec_norm2 = SQRT(SUM(vec**2))
-       END FUNCTION vec_norm2
-  END SUBROUTINE pw_mollifier
 
 ! *****************************************************************************
 !> \brief  computes the derivative of a function using FFT
