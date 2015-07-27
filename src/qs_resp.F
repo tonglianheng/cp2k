@@ -989,6 +989,8 @@ CPSourceFileRef,&
     REAL(KIND=dp)                            :: normalize_factor
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: vpot
+    REAL(KIND=dp), ALLOCATABLE, &
+      DIMENSION(:)                           :: av_vpot
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(pw_env_type), POINTER               :: pw_env
     TYPE(pw_p_type)                          :: rho_ga, va_gspace, va_rspace
@@ -1077,7 +1079,7 @@ CPSourceFileRef,&
     DO ii = 1, natom
        DO jj = 1, natom
           ! calculate matrix
-          resp_env%matrix(i,j)=resp_env%matrix(i,j) + 2.0_dp*SUM(vpot(:,i)*vpot(:,j))
+          resp_env%matrix(ii,jj)=resp_env%matrix(ii,jj) + 2.0_dp*SUM(vpot(:,ii)*vpot(:,jj))
        END DO
        ! calculate vector resp_env%rhs
        CALL calculate_rhs(qs_env,resp_env,resp_env%rhs(ii),vpot(:,ii),error=error)

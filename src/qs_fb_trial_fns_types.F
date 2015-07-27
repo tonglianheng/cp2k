@@ -29,7 +29,7 @@ MODULE qs_fb_trial_fns_types
 ! *****************************************************************************
 !> \brief data containing information on trial functions used by filter
 !>        matrix diagonalisation method
-!> \param nfunctions : nfunctions(ikind) = total number of available trial 
+!> \param nfunctions : nfunctions(ikind) = total number of available trial
 !>                     functions for atomic kind ikind
 !> \param nselected  : nselected(ikind) = the number of used trial functions
 !>                     for atomic kind ikind
@@ -288,7 +288,7 @@ CONTAINS
       POINTER                                :: functions
     INTEGER, DIMENSION(:), OPTIONAL, POINTER :: nselected
     INTEGER, DIMENSION(:, :), OPTIONAL, &
-      POINTER                                :: selected 
+      POINTER                                :: selected
    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'fb_trial_fns_get', &
