@@ -797,16 +797,16 @@ CPSourceFileRef,&
        ! check if the point is sufficiently close and  far. if OK, we can use
        ! the point for fitting, add/subtract 1.0E-13 to get rid of rounding errors when shifting atoms 
        IF(ANY(not_in_range(:,1)).OR.ALL(not_in_range(:,2))) CYCLE
-       resp_env%npoints = resp_env%npoints + 1
+       resp_env%npoints_proc = resp_env%npoints_proc + 1
        IF (BTEST(cp_print_key_should_output(logger%iter_info,resp_section,&
            "PRINT%V_RESP_CUBE",error=error),cp_p_file)) THEN
-        IF(resp_env%npoints > now) THEN
+        IF(resp_env%npoints_proc > now) THEN
            now = 2*now
            CALL reallocate(resp_env%fitpoints,1,3,1,now)
         ENDIF
-        resp_env%fitpoints(1,resp_env%npoints) = jx
-        resp_env%fitpoints(2,resp_env%npoints) = jy
-        resp_env%fitpoints(3,resp_env%npoints) = jz
+        resp_env%fitpoints(1,resp_env%npoints_proc) = jx
+        resp_env%fitpoints(2,resp_env%npoints_proc) = jy
+        resp_env%fitpoints(3,resp_env%npoints_proc) = jz
        ENDIF
        ! correct for the fact that v_hartree is scaled by dvol, and has the opposite sign
        IF (qs_env%qmmm) THEN
@@ -827,8 +827,10 @@ CPSourceFileRef,&
     ENDDO
     ENDDO
     
-    resp_env%npoints_proc=resp_env%npoints
+    ! get total number of fitting points
+    resp_env%npoints = resp_env%npoints_proc
     CALL mp_sum(resp_env%npoints,v_hartree_pw%pw_grid%para%group)
+
     CALL mp_sum(matrix,v_hartree_pw%pw_grid%para%group)
     CALL mp_sum(rhs,v_hartree_pw%pw_grid%para%group)
     !weighted sum
@@ -916,7 +918,7 @@ CPSourceFileRef,&
     !get fitting points and store them in resp_env%fitpoints
     CALL get_fitting_points(qs_env,resp_env,rep_sys,particles=particles,&
          cell=cell,error=error)
-    ALLOCATE(vpot(resp_env%npoints,natom),stat=stat)
+    ALLOCATE(vpot(resp_env%npoints_proc,natom),stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,Failure)
     normalize_factor=SQRT((resp_env%eta/pi)**3)
 
@@ -930,7 +932,7 @@ CPSourceFileRef,&
       CALL pw_zero(va_rspace%pw, error=error)
       CALL pw_transfer(va_gspace%pw,va_rspace%pw,error=error)
       CALL pw_scale(va_rspace%pw,normalize_factor,error=error)
-      DO ip=1,resp_env%npoints
+      DO ip=1,resp_env%npoints_proc
          jx = resp_env%fitpoints(1,ip)
          jy = resp_env%fitpoints(2,ip)
          jz = resp_env%fitpoints(3,ip)
@@ -954,8 +956,6 @@ CPSourceFileRef,&
     DEALLOCATE(vpot,stat=stat)
     CPPostconditionNoFail(stat==0,cp_failure_level,routineP,error)
     
-    resp_env%npoints_proc=resp_env%npoints
-    CALL mp_sum(resp_env%npoints,para_env%group)
     CALL mp_sum(resp_env%matrix,para_env%group)
     CALL mp_sum(resp_env%rhs,para_env%group)
     !weighted sum
@@ -1035,9 +1035,6 @@ CPSourceFileRef,&
     !get fitting points and store them in resp_env%fitpoints
     CALL get_fitting_points(qs_env, resp_env, rep_sys, particles=particles, &
                             cell=cell, error=error)
-
-    resp_env%npoints_proc=resp_env%npoints
-    CALL mp_sum(resp_env%npoints, para_env%group)
     
     ALLOCATE(vpot(resp_env%npoints_proc,natom), STAT=stat)
     CPPostcondition(stat==0, cp_failure_level, routineP, error, Failure)
@@ -1258,17 +1255,21 @@ CPSourceFileRef,&
          ENDDO
          IF(in_z*in_y*in_x==0) CYCLE
        ENDIF
-       resp_env%npoints=resp_env%npoints+1
-       IF(resp_env%npoints > now) THEN
+       resp_env%npoints_proc = resp_env%npoints_proc + 1
+       IF(resp_env%npoints_proc > now) THEN
           now = 2*now
           CALL reallocate(resp_env%fitpoints,1,3,1,now)
        ENDIF
-       resp_env%fitpoints(1,resp_env%npoints) = jx
-       resp_env%fitpoints(2,resp_env%npoints) = jy
-       resp_env%fitpoints(3,resp_env%npoints) = jz
+       resp_env%fitpoints(1,resp_env%npoints_proc) = jx
+       resp_env%fitpoints(2,resp_env%npoints_proc) = jy
+       resp_env%fitpoints(3,resp_env%npoints_proc) = jz
       ENDDO
      ENDDO
     ENDDO
+
+    ! get the total number of fitting points
+    resp_env%npoints = resp_env%npoints_proc
+    CALL mp_sum(resp_env%npoints, para_env%group)
 
     !print fitting points to file if requested 
     IF (BTEST(cp_print_key_should_output(logger%iter_info,&
@@ -1322,7 +1323,7 @@ CPSourceFileRef,&
     dvol=v_hartree_pw%pw_grid%dvol
     !multiply v_hartree and va_rspace and calculate the vector rhs
     !taking into account that v_hartree has opposite site; remove v_qmmm       
-    DO ip=1,resp_env%npoints
+    DO ip=1,resp_env%npoints_proc
        jx = resp_env%fitpoints(1,ip)
        jy = resp_env%fitpoints(2,ip)
        jz = resp_env%fitpoints(3,ip)
@@ -1404,7 +1405,7 @@ CPSourceFileRef,&
                                               particle_set(iatom)%r(1:3)*conv
      ENDDO
      !printing points of proc which is doing the output (should be proc 0)
-     DO ip=1,resp_env%npoints
+     DO ip=1,resp_env%npoints_proc
       jx=resp_env%fitpoints(1,ip)     
       jy=resp_env%fitpoints(2,ip)     
       jz=resp_env%fitpoints(3,ip)
@@ -1465,7 +1466,7 @@ CPSourceFileRef,&
      CALL mp_isend(msgin=resp_env%fitpoints,dest=para_env%source,comm=para_env%group,&
           request=req(4))
      CALL mp_wait(req(4))
-     tmp_npoints(1)=resp_env%npoints
+     tmp_npoints(1)=resp_env%npoints_proc
      CALL mp_isend(msgin=tmp_npoints,dest=para_env%source,comm=para_env%group,&
           request=req(6))
      CALL mp_wait(req(6))
