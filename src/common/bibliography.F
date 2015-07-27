@@ -67,12 +67,12 @@ MODULE bibliography
        VandeVondele2002, Dion2004, Romanperez2009, DelBen2012,         &
        Sabatini2013, DelBen2013, Kikuchi2009, Putrino2000,             &
        Putrino2002, Sebastiani2001, Weber2009, Tran2013, Golze2013,    &
-       Tuckerman1992,  Zhao1994, Tozer1996, Goedecker2004,             &
+       Golze2015, Tuckerman1992,  Zhao1994, Tozer1996, Goedecker2004,  &
        Khaliullin2013, Hutter2014, Bengtsson1999, Kantorovich2008,     &
        Kantorovich2008a, Wellendorff2012, Niklasson2014, Borstnik2014, &
        Rayson2009, Grimme2011, Fattebert2002, Andreussi2012,           &
        Khaliullin2007, Khaliullin2008, Merlot2014, Lin2009, Lin2013,   &
-       QUIP_ref, DelBen2015, Souza2002, Umari2002, Stengel2009
+       QUIP_ref, DelBen2015, Souza2002, Umari2002, Stengel2009, Luber2014
 
 CONTAINS
 
@@ -2518,7 +2518,7 @@ CONTAINS
          "TI Simulation of Adsorption Processes at Metallic Interfaces:",&
          "   An Image Charge Augmented QM/MM Approach",&
          "SO Journal of Chemical Theory and Computation",&
-         "SN 1549-9618^",&
+         "SN 1549-9618",&
          "PD NOV 12",&
          "PY 2013",&
          "VL 9",&
@@ -2528,6 +2528,28 @@ CONTAINS
          "DI 10.1021/ct400698y",&
          "ER"),&
          DOI="10.1021/ct400698y")
+
+    CALL add_reference(key=Golze2015, ISI_record=s2a(&
+         "PT J",&
+         "AU Golze, D",&
+         "   Hutter, J",&
+         "   Iannuzzi, M",&
+         "AF Golze, Dorothea",&
+         "   Hutter, Juerg",&
+         "   Iannuzzi, Marcella",&
+         "TI Wetting of water on hexagonal boron nitride@Rh(111): a QM/MM model",&
+         "   based on atomic charges derived for nano-structured substrates",&
+         "SO Physical Chemistry Chemical Physics",&
+         "SN 1463-9076",&
+         "PD JUN 14",&
+         "PY 2015",&
+         "VL 17",&
+         "IS 22",&
+         "BP 14307",&
+         "EP 14316",&
+         "DI 10.1039/C4CP04638B",&
+         "ER"),&
+         DOI="10.1039/C4CP04638B")
 
     CALL add_reference(key=Fattebert2002, ISI_record=s2a(&
          "PT J",&
@@ -2958,6 +2980,31 @@ CONTAINS
           "DI 10.1038/NPHYS1185",&
           "ER"),&
           DOI="10.1038/NPHYS1185")
+
+     CALL add_reference(key=Luber2014, ISI_record=s2a(&
+          "PT J",&
+          "AU Luber, S",&
+          "   Iannuzzi, M",&
+          "   Hutter, J",&
+          "AF Luber, Sandra",&
+          "   Iannuzzi, Marcella",&
+          "   Hutter, Juerg",&
+          "TI Raman spectra from ab initio molecular dynamics and its application to",&
+          "   liquid S-methyloxirane",&
+          "SO JOURNAL OF CHEMICAL PHYSICS",&
+          "RI Hutter, Juerg/E-9244-2011",&
+          "SN 0021-9606",&
+          "EI 1089-7690",&
+          "PD SEP 7",&
+          "PY 2014",&
+          "VL 141",&
+          "IS 9",&
+          "AR 094503",&
+          "DI 10.1063/1.4894425",&
+          "UT WOS:000342207400024",&
+          "PM 25194377",&
+          "ER"),&
+          DOI="10.1063/1.4894425")
 
   END SUBROUTINE add_all_references
 

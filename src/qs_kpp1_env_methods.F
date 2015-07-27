@@ -165,7 +165,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: excitations, handle, ispin, &
-                                                nspins, output_unit, &
+                                                ns, nspins, output_unit, &
                                                 res_etype, stat
     INTEGER, DIMENSION(2, 3)                 :: bo
     LOGICAL                                  :: explicit, failure, gapw, &
@@ -175,6 +175,8 @@ CONTAINS
                                                 energy_hartree_1c, fac
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: rho_ao
+    TYPE(cp_dbcsr_p_type), DIMENSION(:, :), &
+      POINTER                                :: ksmat, psmat
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(pw_env_type), POINTER               :: pw_env
     TYPE(pw_p_type)                          :: rho1_tot_gspace, &
@@ -414,8 +416,8 @@ CONTAINS
                 ! remove kpp1_env%v_ao and work directly on k_p_p1 ?
                 CALL cp_dbcsr_set(kpp1_env%v_ao(ispin)%matrix,0.0_dp,error=error)
                 CALL integrate_v_rspace(v_rspace=v_rspace_new(ispin),&
-                     p=rho_ao(ispin),&
-                     h=kpp1_env%v_ao(ispin),&
+                     pmat=rho_ao(ispin),&
+                     hmat=kpp1_env%v_ao(ispin),&
                      qs_env=qs_env,&
                      calculate_forces=.FALSE.,gapw=gapw_xc,error=error)
 
@@ -426,8 +428,8 @@ CONTAINS
                     v_rspace_new(1)%pw%cr3d  = 2.0_dp * v_hartree_rspace%pw%cr3d
 
                     CALL integrate_v_rspace(v_rspace=v_rspace_new(ispin),&
-                         p=rho_ao(ispin),&
-                         h=kpp1_env%v_ao(ispin),&
+                         pmat=rho_ao(ispin),&
+                         hmat=kpp1_env%v_ao(ispin),&
                          qs_env=qs_env,&
                          calculate_forces=.FALSE.,gapw=gapw,error=error)
                 END IF
@@ -435,8 +437,8 @@ CONTAINS
                ! remove kpp1_env%v_ao and work directly on k_p_p1 ?
                CALL cp_dbcsr_set(kpp1_env%v_ao(ispin)%matrix,0.0_dp,error=error)
                CALL integrate_v_rspace(v_rspace=v_rspace_new(ispin),&
-                    p=rho_ao(ispin),&
-                    h=kpp1_env%v_ao(ispin),&
+                    pmat=rho_ao(ispin),&
+                    hmat=kpp1_env%v_ao(ispin),&
                     qs_env=qs_env,&
                     calculate_forces=.FALSE.,gapw=gapw_xc,error=error)
 
@@ -446,8 +448,8 @@ CONTAINS
                END IF
                v_rspace_new(ispin)%pw%cr3d  = v_hartree_rspace%pw%cr3d
                CALL integrate_v_rspace(v_rspace=v_rspace_new(ispin),&
-                    p=rho_ao(ispin),&
-                    h=kpp1_env%v_ao(ispin),&
+                    pmat=rho_ao(ispin),&
+                    hmat=kpp1_env%v_ao(ispin),&
                     qs_env=qs_env,&
                     calculate_forces=.FALSE.,gapw=gapw,error=error)
              END IF
@@ -484,8 +486,8 @@ CONTAINS
             ! remove kpp1_env%v_ao and work directly on k_p_p1 ?
             CALL cp_dbcsr_set(kpp1_env%v_ao(ispin)%matrix,0.0_dp,error=error)
             CALL integrate_v_rspace(v_rspace=v_rspace_new(ispin),&
-                 p=rho_ao(ispin),&
-                 h=kpp1_env%v_ao(ispin),&
+                 pmat=rho_ao(ispin),&
+                 hmat=kpp1_env%v_ao(ispin),&
                  qs_env=qs_env,&
                  calculate_forces=.FALSE.,gapw=gapw,error=error)
 
@@ -502,7 +504,12 @@ CONTAINS
                                         .FALSE., .TRUE., p_env=p_env, error=error)
           END IF
 !         ***  Add single atom contributions to the KS matrix ***
-          CALL update_ks_atom(qs_env,k_p_p1,rho_ao,.FALSE.,.TRUE.,p_env,error)
+          ! remap pointer 
+          ns = SIZE(p_env%kpp1)
+          ksmat(1:ns,1:1) => k_p_p1(1:ns)
+          ns = SIZE(rho_ao)
+          psmat(1:ns,1:1) => rho_ao(1:ns)
+          CALL update_ks_atom(qs_env,ksmat,psmat,.FALSE.,.TRUE.,p_env,error)
        END IF
 
        CALL pw_pool_give_back_pw(auxbas_pw_pool,v_hartree_gspace%pw,&

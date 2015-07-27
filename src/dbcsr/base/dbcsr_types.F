@@ -173,8 +173,7 @@ MODULE dbcsr_types
      TYPE(array_i1d_obj)               :: row_dist_block, col_dist_block
      TYPE(array_i1d_obj)               :: local_rows, local_cols
      TYPE(array_i1d_obj)               :: row_dist_cluster, col_dist_cluster
-     TYPE(array_i1d_obj), DIMENSION(:), POINTER :: local_cluster_rows => Null(),&
-                                                   local_cluster_cols => Null()
+     INTEGER                           :: num_local_row_clusters, num_local_col_clusters
      TYPE(array_i1d_obj), DIMENSION(:), POINTER :: other_l_rows => Null(),&
                                                    other_l_cols => Null()
      LOGICAL                           :: has_other_l_rows, has_other_l_cols
@@ -617,7 +616,7 @@ MODULE dbcsr_types
      INTEGER(KIND=int_8), DIMENSION(2,3) :: data_size
      INTEGER(KIND=int_8), DIMENSION(2,3) :: index_size
      ! message size breakdown
-     INTEGER(KIND=int_8), DIMENSION(2,SIZE(dbcsr_mpi_size_limits)+1) :: data_size_breakdown
+     INTEGER(KIND=int_8), DIMENSION(SIZE(dbcsr_mpi_size_limits)+1,2,2) :: data_size_breakdown
   END TYPE dbcsr_mpi_statistics_type
   
 END MODULE dbcsr_types
