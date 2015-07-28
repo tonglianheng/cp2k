@@ -204,8 +204,8 @@ CONTAINS
                                      resp_env%matrix,resp_env%rhs,natom,error)   
        CASE(use_perd_xyz)
         CALL cite_reference(Golze2015) 
-!        CALL calc_resp_matrix_periodic(qs_env,resp_env,rep_sys,particles,cell,natom, error)
-        CALL calc_resp_matrix_periodic_repeat(qs_env, resp_env, rep_sys, particles, cell, natom, error)
+        CALL calc_resp_matrix_periodic(qs_env,resp_env,rep_sys,particles,cell,natom, error)
+!        CALL calc_resp_matrix_periodic_repeat(qs_env, resp_env, rep_sys, particles, cell, natom, error)
        CASE DEFAULT
         CALL cp_unimplemented_error(fromWhere=routineP, &
              message="RESP charges only implemented for nonperiodic systems"//&
