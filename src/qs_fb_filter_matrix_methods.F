@@ -146,6 +146,51 @@ CONTAINS
     ! filter_mat must be of a dissassociated status (i.e. brand new)
     CPPrecondition(.NOT.ASSOCIATED(filter_mat), cp_failure_level, routineP, error, failure)
 
+
+    ! create new DBCSR matrix for filter matrix.
+    ! calculate the row_blk_size and col_blk_size arrays for
+    ! constructing the filter matrix in DBCSR format
+    ! row_blk_size for the filter matrix is the same as H or S
+    CALL fb_trial_fns_get(trial_fns=trial_fns, &
+                          nselected=n_selected_tfns, &
+                          error=error)
+    CALL cp_dbcsr_get_info(H_mat, &
+                           nblkcols_total=nblkcols_total, &
+                           row_blk_size=row_blk_size, &
+                           distribution=dbcsr_dist)
+    ALLOCATE(col_blk_size(nblkcols_total), STAT=stat)
+    CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
+    col_blk_size = 0
+    DO iblkcol = 1, nblkcols_total
+       atomic_kind => particle_set(iblkcol)%atomic_kind
+       CALL get_atomic_kind(atomic_kind=atomic_kind, &
+                            kind_number=ikind)
+       col_blk_size(iblkcol) = n_selected_tfns(ikind)
+    END DO
+    ! DO NOT deallocate cbs if gift=.TRUE. as col_blk_sizes will only point to cbs
+    name_string = name
+    CALL compress(name_string)
+    CALL uppercase(name_string)
+    ! the filter matrix is non-square and is always non-symmetric
+    symmetry_string = dbcsr_type_no_symmetry
+    ! create empty filter matrix
+    ALLOCATE(filter_mat, STAT=stat)
+    CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
+    CALL cp_dbcsr_init(filter_mat, error=error)
+    CALL cp_dbcsr_create(matrix=filter_mat, &
+                         name=name_string, &
+                         dist=dbcsr_dist, &
+                         matrix_type=symmetry_string, &
+                         row_blk_size=row_blk_size, &
+                         col_blk_size=col_blk_size, &
+                         nblks=0, &
+                         nze=0, &
+                         error=error)
+    DEALLOCATE(col_blk_size, STAT=stat)
+    CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
+
+
+
     CALL fb_atomic_halo_list_get(atomic_halos=atomic_halos, &
                                  nhalos=nhalos, &
                                  max_nhalos=max_nhalos, &
@@ -196,48 +241,6 @@ CONTAINS
                                      error)
        END IF ! send_data_only
     END DO
-
-    ! create new DBCSR matrix for filter matrix.
-    ! calculate the row_blk_size and col_blk_size arrays for
-    ! constructing the filter matrix in DBCSR format
-    ! row_blk_size for the filter matrix is the same as H or S
-    CALL fb_trial_fns_get(trial_fns=trial_fns, &
-                          nselected=n_selected_tfns, &
-                          error=error)
-    CALL cp_dbcsr_get_info(H_mat, &
-                           nblkcols_total=nblkcols_total, &
-                           row_blk_size=row_blk_size, &
-                           distribution=dbcsr_dist)
-    ALLOCATE(col_blk_size(nblkcols_total), STAT=stat)
-    CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
-    col_blk_size = 0
-    DO iblkcol = 1, nblkcols_total
-       atomic_kind => particle_set(iblkcol)%atomic_kind
-       CALL get_atomic_kind(atomic_kind=atomic_kind, &
-                            kind_number=ikind)
-       col_blk_size(iblkcol) = n_selected_tfns(ikind)
-    END DO
-    ! DO NOT deallocate cbs if gift=.TRUE. as col_blk_sizes will only point to cbs
-    name_string = name
-    CALL compress(name_string)
-    CALL uppercase(name_string)
-    ! the filter matrix is non-square and is always non-symmetric
-    symmetry_string = dbcsr_type_no_symmetry
-    ! create empty filter matrix
-    ALLOCATE(filter_mat, STAT=stat)
-    CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
-    CALL cp_dbcsr_init(filter_mat, error=error)
-    CALL cp_dbcsr_create(matrix=filter_mat, &
-                         name=name_string, &
-                         dist=dbcsr_dist, &
-                         matrix_type=symmetry_string, &
-                         row_blk_size=row_blk_size, &
-                         col_blk_size=col_blk_size, &
-                         nblks=0, &
-                         nze=0, &
-                         error=error)
-    DEALLOCATE(col_blk_size, STAT=stat)
-    CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
 
     ! finalise the filter matrix
     CALL cp_dbcsr_finalize(filter_mat, error=error)

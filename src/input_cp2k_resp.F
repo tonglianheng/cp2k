@@ -363,6 +363,20 @@ CONTAINS
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
+       CALL keyword_create(keyword, name="AUTO_RMAX_SCALE",&
+            description="IF RMAX or RMAX_KIND keywords are not present, defines the "//&
+                        "maximumn distance a fit point is away from an atom based on "//&
+                        "the formula: rmax(kind) = AUTO_RMAX_SCALE * vdW_radius(kind). "//&
+                        "If RMIN or RMIN_KIND keywords are not present, then the minimum "//&
+                        "distance a fit point is away from an atom is given as the van "//&
+                        "der Waals radius of the element, based on data from "//&
+                        "Pure Appl. Chem. 81, 2131-2156 (2009)",&
+            usage="AUTO_RMAX_SCALE 10.0",&
+            default_r_val=10.0_dp,&
+            error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
        CALL keyword_create(keyword, name="RMAX",&
             description="Specifies the maximum distance a fit point is away from an atom. "//&
                         "Valid for all atomic kinds for which no RMAX_KIND are specified.",&

@@ -85,6 +85,7 @@ MODULE qs_resp
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE qs_ks_qmmm_types,                ONLY: qs_ks_qmmm_env_type
+  USE periodic_table,                  ONLY: get_ptable_info
 
 #include "./common/cp_common_uses.f90"
 
@@ -526,8 +527,8 @@ CPSourceFileRef,&
       DIMENSION(:), POINTER                  :: tmpstringlist
     INTEGER                                  :: ikind, j, kind_number, nkind, &
                                                 nrep_rmax, nrep_rmin, stat
-    LOGICAL                                  :: explicit, failure
-    REAL(KIND=dp)                            :: rmax, rmin
+    LOGICAL                                  :: explicit, has_rmin, has_rmax, failure
+    REAL(KIND=dp)                            :: rmax, rmin, auto_rmax_scale
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
 
     failure=.FALSE.
@@ -538,18 +539,31 @@ CPSourceFileRef,&
     CALL section_vals_get(sphere_section, explicit=explicit, error=error)
     IF(explicit) THEN
       resp_env%molecular_sys=.TRUE.
-      CALL section_vals_val_get(sphere_section,"RMIN",r_val=rmin,&
-                                                                    error=error)
-      CALL section_vals_val_get(sphere_section,"RMAX",r_val=rmax,&
-                                                                    error=error)
+      CALL section_vals_val_get(sphere_section,"AUTO_RMAX_SCALE",r_val=auto_rmax_scale,error=error)
+      CALL section_vals_val_get(sphere_section,"RMIN", explicit=has_rmin, r_val=rmin, error=error)
+      CALL section_vals_val_get(sphere_section,"RMAX", explicit=has_rmax, r_val=rmax, error=error)
       CALL section_vals_val_get(sphere_section,"RMIN_KIND", n_rep_val=nrep_rmin, error=error)
       CALL section_vals_val_get(sphere_section,"RMAX_KIND", n_rep_val=nrep_rmax, error=error)
       ALLOCATE(resp_env%rmin_kind(nkind),stat=stat)
       CPPostcondition(stat==0,cp_failure_level,routineP,error,Failure)
       ALLOCATE(resp_env%rmax_kind(nkind),stat=stat)
       CPPostcondition(stat==0,cp_failure_level,routineP,error,Failure)
-      resp_env%rmin_kind(:)=rmin
-      resp_env%rmax_kind(:)=rmax
+      ! define rmin_kind and rmax_kind to predefined vdW radii
+      DO ikind = 1, nkind
+         atomic_kind => atomic_kind_set(ikind)
+         CALL get_atomic_kind(atomic_kind,element_symbol=symbol,kind_number=kind_number)
+         CALL get_ptable_info(symbol,vdw_radius=resp_env%rmin_kind(kind_number))
+         resp_env%rmin_kind(kind_number)=cp_unit_to_cp2k(resp_env%rmin_kind(kind_number),&
+                                         "angstrom",error=error)
+         resp_env%rmax_kind(kind_number)=MAX(resp_env%rmin_kind(kind_number), &
+                                             resp_env%rmin_kind(kind_number)*auto_rmax_scale)
+      END DO
+      ! if RMIN or RMAX are present, overwrite the rmin_kind(:) and
+      ! rmax_kind(:) to those values
+      IF(has_rmin) resp_env%rmin_kind(:)=rmin
+      IF(has_rmax) resp_env%rmax_kind(:)=rmax
+      ! if RMIN_KIND's or RMAX_KIND's are present, overwrite the
+      ! rmin_kinds(:) or rmax_kind(:) to those values
       DO j=1, nrep_rmin
        CALL section_vals_val_get(sphere_section,"RMIN_KIND", i_rep_val=j,&
                        c_vals=tmpstringlist, error=error)
