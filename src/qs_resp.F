@@ -102,7 +102,7 @@ MODULE qs_resp
   TYPE resp_type
    LOGICAL                                :: equal_charges, itc,&
                                              molecular_sys, rheavies,&
-                                             level_correction
+                                             calculate_repeat_charges
    INTEGER                                :: nres, ncons,&
                                              nrest_sec, ncons_sec,&
                                              npoints, stride(3), my_fit,&
@@ -209,7 +209,7 @@ CONTAINS
                                      resp_env%matrix,resp_env%rhs,natom,error)
        CASE(use_perd_xyz)
         CALL cite_reference(Golze2015)
-        IF (resp_env%level_correction) THEN
+        IF (resp_env%calculate_repeat_charges) THEN
            CALL cite_reference(Campana2009)
         END IF
         CALL calc_resp_matrix_periodic(qs_env,resp_env,rep_sys,particles,cell,natom, error)
@@ -290,7 +290,7 @@ CONTAINS
     resp_env%itc=.FALSE.
     resp_env%molecular_sys=.FALSE.
     resp_env%rheavies=.FALSE.
-    resp_env%level_correction=.FALSE.
+    resp_env%calculate_repeat_charges=.FALSE.
 
     resp_env%box_hi=0.0_dp
     resp_env%box_low=0.0_dp
@@ -470,10 +470,10 @@ CONTAINS
     CALL section_vals_val_get(resp_section,"RESTRAIN_HEAVIES_TO_ZERO",&
                                     l_val=resp_env%rheavies,error=error)
 
-    CALL section_vals_val_get(resp_section,"LEVEL_CORRECTION",&
-                                    l_val=resp_env%level_correction,error=error)
-    IF (resp_env%level_correction) THEN
-       ! turn off RESTRAIN_HEAVIES_TO_ZERO if using LEVEL_CORRECTION
+    CALL section_vals_val_get(resp_section,"CALCULATE_REPEAT_CHARGES",&
+                                    l_val=resp_env%calculate_repeat_charges,error=error)
+    IF (resp_env%calculate_repeat_charges) THEN
+       ! turn off RESTRAIN_HEAVIES_TO_ZERO if using CALCULATE_REPEAT_CHARGES
        resp_env%rheavies = .FALSE.
     END IF
 
@@ -959,11 +959,11 @@ CPSourceFileRef,&
 
     ALLOCATE(vpot(resp_env%npoints_proc,natom),stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,Failure)
+    ALLOCATE(pot_qm(resp_env%npoints_proc),stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,Failure)
 
-    IF (resp_env%level_correction) THEN
+    IF (resp_env%calculate_repeat_charges) THEN
        ALLOCATE(sum_vpot(natom),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,Failure)
-       ALLOCATE(pot_qm(resp_env%npoints_proc),stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,Failure)
     END IF
 
@@ -1005,7 +1005,7 @@ CPSourceFileRef,&
     CALL pw_release(va_rspace%pw,error=error)
     CALL pw_release(rho_ga%pw,error=error)
 
-    IF (resp_env%level_correction) THEN
+    IF (resp_env%calculate_repeat_charges) THEN
        ! calculate average pot_qm and vpot
        sum_pot_qm = SUM(pot_qm)
        DO i = 1, natom
@@ -1036,11 +1036,11 @@ CPSourceFileRef,&
 
     DEALLOCATE(vpot,stat=stat)
     CPPostconditionNoFail(stat==0,cp_failure_level,routineP,error)
+    DEALLOCATE(pot_qm,stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,Failure)
 
-    IF (resp_env%level_correction) THEN
+    IF (resp_env%calculate_repeat_charges) THEN
        DEALLOCATE(sum_vpot,stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,Failure)
-       DEALLOCATE(pot_qm,stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,Failure)
     END IF
 
@@ -1599,6 +1599,9 @@ CPSourceFileRef,&
 
     IF (output_unit>0) THEN
      WRITE(output_unit,'(/,1X,A,/)')      "STARTING RESP FIT"
+     IF(resp_env%calculate_repeat_charges) THEN
+      WRITE(output_unit,'(T3,A)') "Calculating charges using REPEAT method."
+     ENDIF
      IF(.NOT.resp_env%equal_charges) THEN
       WRITE(output_unit,'(T3,A,T75,I6)') "Number of explicit constraints: ",resp_env%ncons_sec
      ELSE

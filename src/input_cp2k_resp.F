@@ -10,7 +10,8 @@
 !> \author Joost VandeVondele
 ! *****************************************************************************
 MODULE input_cp2k_resp
-  USE bibliography,                    ONLY: Golze2015
+  USE bibliography,                    ONLY: Golze2015,&
+                                             Campana2009
   USE cp_output_handling,              ONLY: add_last_numeric,&
                                              cp_print_key_section_create,&
                                              high_print_level,&
@@ -123,7 +124,7 @@ CONTAINS
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
-       CALL keyword_create(keyword, name="LEVEL_CORRECTION",&
+       CALL keyword_create(keyword, name="CALCULATE_REPEAT_CHARGES",&
             description="Offsets the atomic RESP and QM potential by their "//&
                         "respective mean values. When used in conjunction "//&
                         "with INTEGER_TOTAL_CHARGE = T and SPHERE_SAMPLING "//&
@@ -134,8 +135,11 @@ CONTAINS
                         "restraints. Note that by switching on this option, "//&
                         "RESTRAIN_HEAVIES_TO_ZERO will be switched off "//&
                         "automatically.",&
-            usage="LEVEL_CORRECTION TRUE",&
-            default_l_val=.FALSE., error=error)
+            usage="CALCULATE_REPEAT_CHARGES T",&
+            default_l_val=.FALSE., &
+            repeats=.FALSE., &
+            citations=(/Campana2009/),&
+            error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
