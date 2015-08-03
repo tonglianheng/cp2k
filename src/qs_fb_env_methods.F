@@ -1012,9 +1012,9 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER :: counter, handle, icgf, ico, ikind, iset, ishell, itrial, &
-      lshell, max_n_trial, nkinds, nset, old_lshell, stat
-    INTEGER, DIMENSION(:), POINTER           :: lmax, nfunctions, nshell
-    INTEGER, DIMENSION(:, :), POINTER        :: functions
+      lshell, max_n_trial, nkinds, nset, old_lshell, stat, max_n_selected
+    INTEGER, DIMENSION(:), POINTER           :: lmax, nfunctions, nselected, nshell
+    INTEGER, DIMENSION(:, :), POINTER        :: functions, selected
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: zeff
     TYPE(dft_control_type), POINTER          :: dft_control

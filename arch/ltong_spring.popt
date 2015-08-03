@@ -2,8 +2,8 @@
 
 CC       = mpicc
 CPP      =
-FC       = gfortran
-LD       = gfortran
+FC       = mpif90
+LD       = mpif90
 AR       = ar -r
 
 CPPFLAGS =
