@@ -671,7 +671,7 @@ CONTAINS
        CALL get_atomic_kind(atomic_kind_set(ikind), atom_list=atom_list, natom=natom)
 
        CALL get_qs_kind(qs_kind_set(ikind), paw_atom=paw_atom,&
-                            harmonics=harmonics, grid_atom=atomic_grid)
+                            harmonics=harmonics, grid_atom=atomic_grid, error=error)
        IF(.NOT. paw_atom) CYCLE
 
        nr = atomic_grid%nr
@@ -1287,8 +1287,6 @@ CONTAINS
 
     REAL(kind=dp), INTENT(in)                :: r, ngr, ec_unif, rc, ngrc
     REAL(kind=dp)                            :: res
-
-    REAL(kind=dp), PARAMETER                 :: ob3 = 1.0_dp/3.0_dp
 
     REAL(kind=dp)                            :: A, At2, H, kf, kl, ks, t2
 

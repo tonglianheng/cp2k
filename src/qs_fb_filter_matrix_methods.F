@@ -828,7 +828,6 @@ CONTAINS
     CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
     ! setup send buffer sizes
     CALL fb_com_atom_pairs_calc_buffer_sizes(com_pairs_send, &
-                                             filter_mat, &
                                              numprocs, &
                                              row_block_size_data, &
                                              col_block_size_data, &
@@ -852,7 +851,6 @@ CONTAINS
     CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
     ! setup recv buffer sizes
     CALL fb_com_atom_pairs_calc_buffer_sizes(com_pairs_recv, &
-                                             filter_mat, &
                                              numprocs, &
                                              row_block_size_data, &
                                              col_block_size_data, &

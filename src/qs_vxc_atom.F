@@ -220,8 +220,8 @@ CONTAINS
 
       DO ikind = 1, SIZE(atomic_kind_set)
         CALL get_atomic_kind(atomic_kind_set(ikind),atom_list=atom_list,natom=natom)
-        CALL get_qs_kind(qs_kind_set(ikind), paw_atom=paw_atom,&
-                             harmonics=harmonics,grid_atom=grid_atom)
+        CALL get_qs_kind(qs_kind_set(ikind),paw_atom=paw_atom,&
+                             harmonics=harmonics,grid_atom=grid_atom, error=error)
 
         IF (.NOT.paw_atom) CYCLE
 
@@ -483,8 +483,8 @@ CONTAINS
     LOGICAL                                  :: failure, gradient_functional, &
                                                 lsd, lsd_singlets, &
                                                 my_do_tddft, paw_atom, tau_f
-    REAL(KIND=dp)                            :: density_cut, exc, &
-                                                gradient_cut, rtot, tau_cut
+    REAL(KIND=dp)                            :: density_cut, gradient_cut, &
+                                                rtot, tau_cut
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: rho1_h, rho1_s, rho_h, rho_s, &
                                                 tau1_h, tau1_s, tau_h, tau_s, &
                                                 weight
@@ -593,7 +593,7 @@ CONTAINS
       NULLIFY(atom_list, harmonics, grid_atom)
       CALL get_atomic_kind(atomic_kind_set(ikind),atom_list=atom_list,natom=natom)
       CALL get_qs_kind(qs_kind_set(ikind),paw_atom=paw_atom,&
-                           harmonics=harmonics,grid_atom=grid_atom)
+                           harmonics=harmonics,grid_atom=grid_atom, error=error)
       IF (.NOT.paw_atom) CYCLE
 
       nr = grid_atom%nr
@@ -709,12 +709,12 @@ CONTAINS
 
          CALL xc_2nd_deriv_of_r(xc_section=xc_section, &
                                 rho_set=rho_set_h, rho1_set=rho1_set_h, &
-                                deriv_set=deriv_set, needs=needs, &
-                                w=weight, exc=exc, vxc=vxc_h, vxg=vxg_h, error=error)
+                                deriv_set=deriv_set, &
+                                w=weight, vxc=vxc_h, vxg=vxg_h, error=error)
          CALL xc_2nd_deriv_of_r(xc_section=xc_section, &
                                 rho_set=rho_set_s, rho1_set=rho1_set_s, &
-                                deriv_set=deriv_set, needs=needs, &
-                                w=weight, exc=exc, vxc=vxc_s, vxg=vxg_s, error=error)
+                                deriv_set=deriv_set, &
+                                w=weight, vxc=vxc_s, vxg=vxg_s, error=error)
 
          IF(gradient_functional) THEN
             CALL gaVxcgb_GC(vxc_h,vxc_s,vxg_h,vxg_s,qs_kind_set(ikind),&
@@ -1003,9 +1003,8 @@ CONTAINS
 
     NULLIFY (lmin,lmax,npgf,zet,my_CG,harmonics,grid_atom)
 
-    CALL get_qs_kind(qs_kind, orb_basis_set=orb_basis,&
-                         harmonics=harmonics,&
-                         grid_atom=grid_atom)
+    CALL get_qs_kind(qs_kind,basis_set=orb_basis,&
+                         harmonics=harmonics,grid_atom=grid_atom,error=error)
 
     CALL get_gto_basis_set(gto_basis_set=orb_basis,lmax=lmax,lmin=lmin,&
                            maxso=maxso,maxl=maxl,npgf=npgf,&
@@ -1208,9 +1207,8 @@ CONTAINS
 
     NULLIFY(lmin,lmax,npgf,zet,my_CG,my_CG_dxyz,harmonics,grid_atom)
 
-    CALL get_qs_kind(qs_kind, orb_basis_set=orb_basis,&
-                         harmonics=harmonics,&
-                         grid_atom=grid_atom)
+    CALL get_qs_kind(qs_kind,basis_set=orb_basis,&
+                         harmonics=harmonics,grid_atom=grid_atom,error=error)
 
     CALL get_gto_basis_set(gto_basis_set=orb_basis,lmax=lmax,lmin=lmin,&
                            maxso=maxso,maxl=maxl,npgf=npgf,&
@@ -1495,8 +1493,8 @@ CONTAINS
     failure = .FALSE.
 
     NULLIFY(harmonics,grid_atom)
-    CALL get_qs_kind(qs_kind,orb_basis_set=orb_basis,&
-                         harmonics=harmonics,grid_atom=grid_atom)
+    CALL get_qs_kind(qs_kind,basis_set=orb_basis,&
+                         harmonics=harmonics,grid_atom=grid_atom,error=error)
 
     NULLIFY(lmin,lmax,npgf,zet)
     CALL get_gto_basis_set(gto_basis_set=orb_basis,lmax=lmax,lmin=lmin,&

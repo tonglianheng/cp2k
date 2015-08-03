@@ -170,8 +170,7 @@ MODULE xc_xpbe_hole_t_c_lr
     INTEGER                                  :: handle, npoints, stat
     INTEGER, DIMENSION(:, :), POINTER        :: bo
     LOGICAL                                  :: failure
-    REAL(kind=dp)                            :: epsilon_norm_drho, &
-                                                epsilon_rho, R, sx
+    REAL(kind=dp)                            :: epsilon_rho, R, sx
     REAL(kind=dp), DIMENSION(:, :, :), &
       POINTER                                :: dummy, e_0, e_ndrho, e_rho, &
                                                 norm_drho, rho
@@ -194,8 +193,7 @@ MODULE xc_xpbe_hole_t_c_lr
     IF (.NOT.failure) THEN
 
       CALL xc_rho_set_get(rho_set,rho=rho,&
-           norm_drho=norm_drho,local_bounds=bo,rho_cutoff=epsilon_rho,&
-           drho_cutoff=epsilon_norm_drho,error=error)
+           norm_drho=norm_drho,local_bounds=bo,rho_cutoff=epsilon_rho,error=error)
       npoints=(bo(2,1)-bo(1,1)+1)*(bo(2,2)-bo(1,2)+1)*(bo(2,3)-bo(1,3)+1)
 
       ! meaningful default for the arrays we don't need: let us make compiler
@@ -238,12 +236,12 @@ MODULE xc_xpbe_hole_t_c_lr
 
       !$omp parallel default(none) &
       !$omp          shared(npoints, order, rho, norm_drho, e_0, e_rho) &
-      !$omp          shared(e_ndrho, epsilon_rho, epsilon_norm_drho) &
+      !$omp          shared(e_ndrho, epsilon_rho) &
       !$omp          shared(sx, r, error)
 
       CALL xpbe_hole_t_c_lr_lda_calc(npoints,order,rho=rho, norm_drho=norm_drho,&
            e_0=e_0,e_rho=e_rho,e_ndrho=e_ndrho,&
-           epsilon_rho=epsilon_rho,epsilon_norm_drho=epsilon_norm_drho,&
+           epsilon_rho=epsilon_rho,&
            sx=sx,R=R,error=error)
 
       !$omp end parallel
@@ -270,7 +268,6 @@ MODULE xc_xpbe_hole_t_c_lr
 !> \param e_rho derivatives of the energy on the grid 
 !> \param e_ndrho derivatives of the energy on the grid
 !> \param epsilon_rho cutoffs
-!> \param epsilon_norm_drho cutoffs
 !> \param sx functional parameters
 !> \param R functional parameters
 !> \param error variable to control error logging, stopping,...
@@ -282,15 +279,14 @@ MODULE xc_xpbe_hole_t_c_lr
 !>
 ! *****************************************************************************
   SUBROUTINE xpbe_hole_t_c_lr_lda_calc(npoints, order, rho, norm_drho, e_0, e_rho, e_ndrho,&
-                                       epsilon_rho, epsilon_norm_drho, sx, R,&
+                                       epsilon_rho, sx, R,&
                                        error)
 
     INTEGER, INTENT(in)                      :: npoints, order
     REAL(kind=dp), DIMENSION(1:npoints), &
       INTENT(inout)                          :: rho, norm_drho, e_0, e_rho, &
                                                 e_ndrho
-    REAL(kind=dp), INTENT(in)                :: epsilon_rho, &
-                                                epsilon_norm_drho, sx, R
+    REAL(kind=dp), INTENT(in)                :: epsilon_rho, sx, R
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'xpbe_hole_t_c_lr_lda_calc', &
@@ -367,8 +363,7 @@ MODULE xc_xpbe_hole_t_c_lr
     INTEGER                                  :: handle, npoints, stat
     INTEGER, DIMENSION(:, :), POINTER        :: bo
     LOGICAL                                  :: failure
-    REAL(kind=dp)                            :: epsilon_norm_drho, &
-                                                epsilon_rho, R, sx
+    REAL(kind=dp)                            :: epsilon_rho, R, sx
     REAL(kind=dp), DIMENSION(:, :, :), &
       POINTER                                :: dummy, e_0, e_ndrhoa, &
                                                 e_ndrhob, e_rhoa, e_rhob, &
@@ -393,8 +388,7 @@ MODULE xc_xpbe_hole_t_c_lr
     IF (.NOT.failure) THEN
 
       CALL xc_rho_set_get(rho_set,rhoa=rhoa,rhob=rhob,&
-           norm_drhoa=norm_drhoa,norm_drhob=norm_drhob,local_bounds=bo,rho_cutoff=epsilon_rho,&
-           drho_cutoff=epsilon_norm_drho,error=error)
+           norm_drhoa=norm_drhoa,norm_drhob=norm_drhob,local_bounds=bo,rho_cutoff=epsilon_rho,error=error)
       npoints=(bo(2,1)-bo(1,1)+1)*(bo(2,2)-bo(1,2)+1)*(bo(2,3)-bo(1,3)+1)
 
       ! meaningful default for the arrays we don't need: let us make compiler
@@ -445,17 +439,15 @@ MODULE xc_xpbe_hole_t_c_lr
 
       !$omp parallel default(none) &
       !$omp          shared(npoints, order, rhoa, norm_drhoa, e_0, e_rhoa) &
-      !$omp          shared(epsilon_rho, epsilon_norm_drho, sx, r, error) &
+      !$omp          shared(epsilon_rho, sx, r, error) &
       !$omp          shared(rhob, norm_drhob, e_rhob, e_ndrhoa, e_ndrhob)
 
       CALL xpbe_hole_t_c_lr_lsd_calc(npoints,order,rho=rhoa, norm_drho=norm_drhoa,&
            e_0=e_0,e_rho=e_rhoa,e_ndrho=e_ndrhoa,&
-           epsilon_rho=epsilon_rho,epsilon_norm_drho=epsilon_norm_drho,&
-           sx=sx,R=R,error=error)
+           epsilon_rho=epsilon_rho,sx=sx,R=R,error=error)
       CALL xpbe_hole_t_c_lr_lsd_calc(npoints,order,rho=rhob, norm_drho=norm_drhob,&
            e_0=e_0,e_rho=e_rhob,e_ndrho=e_ndrhob,&
-           epsilon_rho=epsilon_rho,epsilon_norm_drho=epsilon_norm_drho,&
-           sx=sx,R=R,error=error)
+           epsilon_rho=epsilon_rho,sx=sx,R=R,error=error)
 
       !$omp end parallel
 
@@ -481,7 +473,6 @@ MODULE xc_xpbe_hole_t_c_lr
 !> \param e_rho derivatives of the energy on the grid
 !> \param e_ndrho derivatives of the energy on the grid
 !> \param epsilon_rho cutoffs
-!> \param epsilon_norm_drho cutoffs
 !> \param sx functional parameters
 !> \param R functional parameters
 !> \param error variable to control error logging, stopping,...
@@ -493,15 +484,14 @@ MODULE xc_xpbe_hole_t_c_lr
 !>       the lda version applying spin scaling relations
 ! *****************************************************************************
   SUBROUTINE xpbe_hole_t_c_lr_lsd_calc(npoints, order, rho, norm_drho, e_0, e_rho, e_ndrho,&
-                                       epsilon_rho, epsilon_norm_drho, sx, R,&
+                                       epsilon_rho,  sx, R,&
                                        error)
 
     INTEGER, INTENT(in)                      :: npoints, order
     REAL(kind=dp), DIMENSION(1:npoints), &
       INTENT(inout)                          :: rho, norm_drho, e_0, e_rho, &
                                                 e_ndrho
-    REAL(kind=dp), INTENT(in)                :: epsilon_rho, &
-                                                epsilon_norm_drho, sx, R
+    REAL(kind=dp), INTENT(in)                :: epsilon_rho, sx, R
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'xpbe_hole_t_c_lr_lsd_calc', &
@@ -750,7 +740,7 @@ MODULE xc_xpbe_hole_t_c_lr
       t265 = t118 * t41
       prho = 0.9e1_dp / 0.2e1_dp * t256 * t257 * t218 + 0.9e1_dp / 0.4e1_dp * t14 * t262  &
       - 0.9e1_dp / 0.4e1_dp * t22 * t265 * t248
-      t269 = dsdndrho(rho, ndrho)
+      t269 = dsdndrho(rho)
       t273 = t13 * t269
       t276 = t19 * t269
       t279 = 2 * t223 * t273 + 4 * t228 * t276
@@ -1086,7 +1076,7 @@ MODULE xc_xpbe_hole_t_c_lr
       t221 = t86 * t41
       prho = 0.9e1_dp / 0.2e1_dp * t212 * t213 * t174 + 0.9e1_dp / 0.4e1_dp * t14 * t217  &
       * t41 - 0.9e1_dp / 0.4e1_dp * t22 * t221 * t204
-      t225 = dsdndrho(rho, ndrho)
+      t225 = dsdndrho(rho)
       t229 = t13 * t225
       t232 = t19 * t225
       t235 = 2 * t179 * t229 + 4 * t184 * t232
@@ -1317,11 +1307,10 @@ MODULE xc_xpbe_hole_t_c_lr
 ! *****************************************************************************
 !> \brief ...
 !> \param rho ...
-!> \param ndrho ...
 !> \retval dsdndrho ...
 ! *****************************************************************************
-  FUNCTION dsdndrho(rho,ndrho)
-    REAL(dp), INTENT(IN)                     :: rho, ndrho
+  FUNCTION dsdndrho(rho)
+    REAL(dp), INTENT(IN)                     :: rho
     REAL(dp)                                 :: dsdndrho
 
     dsdndrho = 1.0_dp/6.0_dp*3.0_dp**(2.0_dp/3.0_dp)

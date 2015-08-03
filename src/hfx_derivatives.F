@@ -47,12 +47,13 @@ MODULE hfx_derivatives
   USE hfx_screening_methods,           ONLY: update_pmax_mat
   USE hfx_types,                       ONLY: &
        alloc_containers, dealloc_containers, hfx_basis_info_type, &
-       hfx_basis_type, hfx_cache_type, hfx_cell_type, hfx_container_type, &
-       hfx_distribution, hfx_general_type, hfx_init_container, &
-       hfx_load_balance_type, hfx_memory_type, hfx_p_kind, hfx_pgf_list, &
-       hfx_pgf_product_list, hfx_potential_type, hfx_screen_coeff_type, &
-       hfx_screening_type, hfx_task_list_type, hfx_type, init_t_c_g0_lmax, &
-       log_zero, pair_list_type, pair_set_list_type
+       hfx_basis_type, hfx_cache_type, hfx_cell_loop_info_type, &
+       hfx_cell_type, hfx_container_type, hfx_distribution, hfx_general_type, &
+       hfx_init_container, hfx_load_balance_type, hfx_memory_type, &
+       hfx_p_kind, hfx_pgf_list, hfx_pgf_product_list, hfx_potential_type, &
+       hfx_screen_coeff_type, hfx_screening_type, hfx_task_list_type, &
+       hfx_type, init_t_c_g0_lmax, log_zero, pair_list_type, &
+       pair_set_list_type
   USE input_constants,                 ONLY: do_hfx_potential_mix_cl_trunc,&
                                              do_hfx_potential_truncated,&
                                              hfx_do_eval_forces
@@ -139,8 +140,8 @@ MODULE hfx_derivatives
     INTEGER :: kind_kind_idx, kkind, kset, l_atom, l_max, latom, latom_block, &
       latom_end, latom_start, lkind, lset, max_am, max_pgf, max_set, &
       my_bin_id, my_bin_size, my_thread_id, n_threads, natom, nbits, ncob, &
-      ncos_max, nints, nkind, nneighbors, nseta, nsetb, nsgf_max, nspins, &
-      sgfb, shm_task_counter, shm_total_bins, sphi_a_u1, sphi_a_u2, &
+      ncos_max, nints, nkimages, nkind, nneighbors, nseta, nsetb, nsgf_max, &
+      nspins, sgfb, shm_task_counter, shm_total_bins, sphi_a_u1, sphi_a_u2, &
       sphi_a_u3, sphi_b_u1, sphi_b_u2, sphi_b_u3, sphi_c_u1, sphi_c_u2, &
       sphi_c_u3, sphi_d_u1, sphi_d_u2, sphi_d_u3, stat, swap_id, tmp_i4, &
       unit_id
@@ -185,12 +186,10 @@ MODULE hfx_derivatives
     REAL(dp), ALLOCATABLE, DIMENSION(:), &
       TARGET                                 :: primitive_forces, &
                                                 primitive_forces_virial
-    REAL(dp), DIMENSION(:), POINTER          :: full_density, &
-                                                full_density_beta, &
-                                                full_density_mp2, T2
-    REAL(dp), DIMENSION(:, :), POINTER :: max_contraction, ptr_p_1, ptr_p_2, &
-      ptr_p_3, ptr_p_4, shm_pmax_atom, shm_pmax_block, sphi_b, zeta, zetb, &
-      zetc, zetd
+    REAL(dp), DIMENSION(:), POINTER          :: full_density_mp2, T2
+    REAL(dp), DIMENSION(:, :), POINTER :: full_density_alpha, &
+      full_density_beta, max_contraction, ptr_p_1, ptr_p_2, ptr_p_3, ptr_p_4, &
+      shm_pmax_atom, shm_pmax_block, sphi_b, zeta, zetb, zetc, zetd
     REAL(dp), DIMENSION(:, :, :), POINTER    :: sphi_a_ext_set, &
                                                 sphi_b_ext_set, &
                                                 sphi_c_ext_set, sphi_d_ext_set
@@ -211,6 +210,7 @@ MODULE hfx_derivatives
     TYPE(hfx_cache_type), DIMENSION(:), &
       POINTER                                :: integral_caches
     TYPE(hfx_cache_type), POINTER            :: maxval_cache
+    TYPE(hfx_cell_loop_info_type)            :: cell_loop_info
     TYPE(hfx_container_type), DIMENSION(:), &
       POINTER                                :: integral_containers
     TYPE(hfx_container_type), POINTER        :: maxval_container
@@ -263,6 +263,9 @@ MODULE hfx_derivatives
                     error=error)
 
     nspins = dft_control%nspins
+    nkimages = dft_control%nimages
+    CPPostcondition(nkimages==1,cp_failure_level,routineP,error,failure)
+    cell_loop_info%dokp = .FALSE.
 
     !! One atom systems have no contribution to forces
     IF( SIZE(particle_set,1) == 1) THEN
@@ -289,7 +292,6 @@ MODULE hfx_derivatives
       END IF
     END IF
 
-
     n_threads = 1
 !$  n_threads = omp_get_max_threads()
 
@@ -315,6 +317,7 @@ MODULE hfx_derivatives
 !$OMP                                  rho_ao_mp2,&
 !$OMP                                  with_mp2_density,&
 !$OMP                                  hfx_section,&
+!$OMP                                  cell_loop_info,&
 !$OMP                                  para_env,&
 !$OMP                                  irep,&
 !$OMP                                  error,&
@@ -322,7 +325,7 @@ MODULE hfx_derivatives
 !$OMP                                  nco,&
 !$OMP                                  nso,&
 !$OMP                                  n_threads,&
-!$OMP                                  full_density,&
+!$OMP                                  full_density_alpha,&
 !$OMP                                  full_density_mp2,&
 !$OMP                                  full_density_beta,&
 !$OMP                                  shm_initial_p,&
@@ -355,7 +358,7 @@ MODULE hfx_derivatives
 !$OMP                                  shm_pmax_atom,&
 !$OMP                                  use_virial,&
 !$OMP                                  do_print_load_balance_info,&
-!$OMP                                  nspins)&
+!$OMP                                  nkimages,nspins)&
 !$OMP  PRIVATE(actual_x_data,atomic_kind_set,atomic_offset_ac,atomic_offset_ad,atomic_offset_bc,&
 !$OMP  atomic_offset_bd,atom_of_kind,basis_info,&
 !$OMP  basis_parameter,bin,bins_left,bintime_start,bintime_stop,bits_max_val,buffer_left,buffer_overflow,buffer_size,&
@@ -517,15 +520,15 @@ MODULE hfx_derivatives
     shm_set_offset => actual_x_data%set_offset
     shm_block_offset => actual_x_data%block_offset
 
-    NULLIFY(full_density)
+    NULLIFY(full_density_alpha)
     NULLIFY(full_density_beta)
-    ALLOCATE(full_density(shm_block_offset(ncpu+1)),STAT=stat)
+    ALLOCATE(full_density_alpha(shm_block_offset(ncpu+1),nkimages),STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
 
     !! Get the full density from all the processors
     CALL timeset(routineN//"_getP",handle_getP)
-    CALL get_full_density(para_env, full_density, rho_ao(1,1)%matrix, shm_number_of_p_entries,&
+    CALL get_full_density(para_env, full_density_alpha(:,1), rho_ao(1,1)%matrix, shm_number_of_p_entries,&
                           shm_block_offset, natom, &
                           kind_of, basis_parameter, get_max_vals_spin=.FALSE.,&
                           antisymmetric=is_anti_symmetric,error=error)
@@ -541,9 +544,9 @@ MODULE hfx_derivatives
     END IF
 
     IF(nspins == 2) THEN
-      ALLOCATE(full_density_beta(shm_block_offset(ncpu+1)),STAT=stat)
+      ALLOCATE(full_density_beta(shm_block_offset(ncpu+1),1),STAT=stat)
       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-      CALL get_full_density(para_env, full_density_beta, rho_ao(2,1)%matrix, shm_number_of_p_entries,&
+      CALL get_full_density(para_env, full_density_beta(:,1), rho_ao(2,1)%matrix, shm_number_of_p_entries,&
                             shm_block_offset, natom, &
                             kind_of, basis_parameter, get_max_vals_spin=.FALSE.,&
                             antisymmetric=is_anti_symmetric,error=error)
@@ -567,7 +570,7 @@ MODULE hfx_derivatives
                              actual_x_data%set_offset, &
                              actual_x_data%atomic_block_offset, &
                              shm_pmax_atom,&
-                             full_density,full_density_beta,&
+                             full_density_alpha,full_density_beta,&
                              natom, kind_of, basis_parameter, &
                              nkind, actual_x_data%is_assoc_atomic_block)
       END IF
@@ -576,7 +579,7 @@ MODULE hfx_derivatives
     ! restore as full density the HF density
     ! maybe in the future
     IF(with_mp2_density) THEN
-      full_density=full_density-full_density_mp2
+      full_density_alpha(:,1)=full_density_alpha(:,1)-full_density_mp2
       ! full_density_mp2=full_density+full_density_mp2
     END IF
 
@@ -1363,7 +1366,8 @@ MODULE hfx_derivatives
                                ede_work,ede_work2,ede_work_forces, &
                                ede_buffer1,ede_buffer2,ede_primitives_tmp, &
                                nimages,do_periodic,use_virial, ede_work_virial, ede_work2_virial, &
-                               ede_primitives_tmp_virial, primitive_forces_virial, cartesian_estimate_virial)
+                               ede_primitives_tmp_virial, primitive_forces_virial, cartesian_estimate_virial,&
+                               cell_loop_info)
 
                   nints = nsgfa(iset)*nsgfb(jset)*nsgfc(kset)*nsgfd(lset)*12
                   neris_total = neris_total + nints
@@ -1445,7 +1449,7 @@ MODULE hfx_derivatives
                 END IF
                 IF(with_mp2_density) THEN
                   CALL prefetch_density_matrix(nsgfa(iset), nsgfb(jset), nsgfc(kset), nsgfd(lset), &
-                                               full_density, pbd_buf, pbc_buf, pad_buf, pac_buf, &
+                                               full_density_alpha(:,1), pbd_buf, pbc_buf, pad_buf, pac_buf, &
                                                iatom, jatom, katom, latom, &
                                                iset, jset, kset, lset, offset_bd_set, offset_bc_set,&
                                                offset_ad_set, offset_ac_set, atomic_offset_bd, atomic_offset_bc,&
@@ -1458,7 +1462,7 @@ MODULE hfx_derivatives
                                                atomic_offset_ad, atomic_offset_ac,is_anti_symmetric)
                 ELSE
                   CALL prefetch_density_matrix(nsgfa(iset), nsgfb(jset), nsgfc(kset), nsgfd(lset), &
-                                               full_density, pbd_buf, pbc_buf, pad_buf, pac_buf, &
+                                               full_density_alpha(:,1), pbd_buf, pbc_buf, pad_buf, pac_buf, &
                                                iatom, jatom, katom, latom, &
                                                iset, jset, kset, lset, offset_bd_set, offset_bc_set,&
                                                offset_ad_set, offset_ac_set, atomic_offset_bd, atomic_offset_bc,&
@@ -1466,7 +1470,7 @@ MODULE hfx_derivatives
                 END IF
                 IF( nspins == 2 ) THEN
                   CALL prefetch_density_matrix(nsgfa(iset), nsgfb(jset), nsgfc(kset), nsgfd(lset), &
-                                               full_density_beta, pbd_buf_beta, pbc_buf_beta, pad_buf_beta, pac_buf_beta, &
+                                               full_density_beta(:,1), pbd_buf_beta, pbc_buf_beta, pad_buf_beta, pac_buf_beta, &
                                                iatom, jatom, katom, latom, &
                                                iset, jset, kset, lset, offset_bd_set, offset_bc_set,&
                                                offset_ad_set, offset_ac_set, atomic_offset_bd, atomic_offset_bc,&
@@ -1696,7 +1700,7 @@ MODULE hfx_derivatives
     DEALLOCATE(last_sgf_global, STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 !$OMP MASTER
-    DEALLOCATE(full_density,STAT=stat)
+    DEALLOCATE(full_density_alpha,STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     IF(with_mp2_density) THEN
       DEALLOCATE(full_density_mp2,STAT=stat)
@@ -1863,6 +1867,7 @@ MODULE hfx_derivatives
 !> \param ede_primitives_tmp_virial ...
 !> \param primitive_integrals_virial ...
 !> \param cart_estimate_virial ...
+!> \param cell_loop_info ...
 ! *****************************************************************************
   SUBROUTINE forces4(deriv, ra, rb, rc, rd, npgfa, npgfb, npgfc, npgfd, &
                      la_min, la_max, lb_min, lb_max,&
@@ -1886,7 +1891,7 @@ MODULE hfx_derivatives
                      ede_buffer1,ede_buffer2,ede_primitives_tmp, &
                      nimages, do_periodic, use_virial, ede_work_virial, &
                      ede_work2_virial, ede_primitives_tmp_virial, primitive_integrals_virial,&
-                     cart_estimate_virial)
+                     cart_estimate_virial, cell_loop_info)
 
     TYPE(lib_deriv)                          :: deriv
     REAL(dp), INTENT(IN)                     :: ra(3), rb(3), rc(3), rd(3)
@@ -1933,6 +1938,7 @@ MODULE hfx_derivatives
     REAL(dp), DIMENSION(nsgfa, nsgfb, nsgfc,&
       nsgfd, 12, 3)                          :: primitive_integrals_virial
     REAL(dp)                                 :: cart_estimate_virial
+    TYPE(hfx_cell_loop_info_type)            :: cell_loop_info
 
     INTEGER :: ipgf, jpgf, kpgf, la, lb, lc, ld, list_ij, list_kl, lpgf, &
       max_l, ncoa, ncob, ncoc, ncod, nelements_ij, nelements_kl, nneighbors3, &
@@ -1977,7 +1983,7 @@ MODULE hfx_derivatives
         nneighbors3 = SIZE(neighbor_cells)*pgf_list_ij(list_ij)%nimages*pgf_list_kl(list_kl)%nimages
         CALL build_pgf_product_list(nneighbors3, pgf_list_ij(list_ij), pgf_list_kl(list_kl), pgf_product_list, &
                                     nproducts, log10_pmax, log10_eps_schwarz, neighbor_cells, cell, &
-                                    potential_parameter, max_l, do_periodic)
+                                    potential_parameter, max_l, do_periodic, cell_loop_info)
         s_offset_a = 0
         DO la = la_min,la_max
           s_offset_b = 0
