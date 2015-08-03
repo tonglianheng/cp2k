@@ -4,32 +4,48 @@
 # It compiles tools etc such that they are suitable for debugging cp2k.
 # Full installation / compilation can take a while.
 #
-# it does currently does not try to build an efficient blas,
-# nor libraries such as libsmm, which might be important for performance
+# trap errors
+
+error ()
+{
+  echo "Non-zero exit code in this script on line $1"
+  echo "Aborting, toolchain incomplete"
+  exit 1
+}
+
+trap 'error ${LINENO}' ERR
+
+checksum() {
+ filename=$1
+ if grep $filename ../checksums.sha256 | sha256sum --quiet --check ; then
+    echo "Checksum of ${filename} Ok"
+ else
+    echo "Checksum of ${filename} could not be verified, abort."
+    rm -v ${filename}
+    exit 255
+ fi
+}
+
+
 #
 # updating version could be easy, just change here:
 #
 
 #binutils_ver=2.24
-#binutils_sha=4930b2886309112c00a279483eaef2f0f8e1b1b62010e0239c16b22af7c346d4
-
 binutils_ver=2.25
-binutils_sha=cccf377168b41a52a76f46df18feb8f7285654b3c1bd69fc8265cb0fc6902f2d
 
 #valgrind_ver=3.10.0
-#valgrind_sha=03047f82dfc6985a4c7d9d2700e17bc05f5e1a0ca6ad902e5d6c81aeb720edc9
-
 valgrind_ver=3.10.1
-valgrind_sha=fa253dc26ddb661b6269df58144eff607ea3f76a9bcfe574b0c7726e1dfcb997
 
 lcov_ver=1.11
-lcov_sha=c282de8d678ecbfda32ce4b5c85fc02f77c2a39a062f068bd8e774d29ddc9bf8
 
 #gcc_ver=4.9.2
-#gcc_sha=3e573826ec8b0d62d47821408fbc58721cd020df3e594cd492508de487a43b5e
-
 gcc_ver=5.1.0
-gcc_sha=335275817b5ed845fee787e75efd76a6e240bfabbe0a0c20a81a04777e204617
+# should we build a toolchain to be used with tsan (-fsanitize=thread), 
+# this is not for normal (production) use, but suitable for
+# finding/testing/debugging threading issues during development
+# values : yes / no
+enable_tsan=no
 
 #
 # only one of the two should be installed, define mpichoice as needed
@@ -38,51 +54,35 @@ mpichoice=openmpi
 mpichoice=mpich
 
 mpich_ver=3.1.2
-mpich_sha=37c3ba2d3cd3f4ea239497d9d34bd57a663a34e2ea25099c2cbef118c9156587
-
 openmpi_ver=1.8.6
-openmpi_sha=167bdc76b44b7961871ea5973ffc545035d44f577152c4a9ab8d2be795ce27d1
 
 #
 # use openblas
 #
 openblas_ver=v0.2.14-0-gd0c51c4
-openblas_sha=1a897c063a57a20e3e36229db73318d80294fd29406dd96637b53e9647bcad5f
 
 # no version numbering used.
 scalapack_ver=XXXXXX
-scalapack_sha=8ecae0896a63c7980a71c22520afed6cfefb52b17c2496223026cc01caf07855
 
 #libxc_ver=2.0.1
-#libxc_sha=c332f08648ec2bc7ccce83e45a84776215aa5dfebc64fae2a23f2ac546d41ea4
-
 libxc_ver=2.2.2
-libxc_sha=6ca1d0bb5fdc341d59960707bc67f23ad54de8a6018e19e02eee2b16ea7cc642
 
 libint_ver=1.1.4
-libint_sha=f67b13bdf1135ecc93b4cff961c1ff33614d9f8409726ddc8451803776885cff
 
 fftw_ver=3.3.4
-fftw_sha=8f0cde90929bc05587c3368d2f15cd0530a60b8a9912a8e2979a72dbe5af0982
 
 # will need hand-checking for non-standard dir name in tar
 elpa_ver=2015.05.001
-elpa_sha=f45f8aa78c8fbe6612dc0509a6c8b9ecfc09d1e558680eecec83ada24a931db3
 
 cmake_ver=3.1.1
-cmake_sha=b58694e545d51cde5756a894f53107e3d9e469360e1d92e7f6892b55ebc0bebf
 
 parmetis_ver=4.0.2
-parmetis_sha=5acbb700f457d3bda7d4bb944b559d7f21f075bb6fa4c33f42c261019ef2f0b2
 
 scotch_ver=6.0.0
-scotch_sha=e57e16c965bab68c1b03389005ecd8a03745ba20fd9c23081c0bb2336972d879
 
 superlu_ver=3.3
-superlu_sha=d2fd8dc847ae63ed7980cff2ad4db8d117640ecdf0234c9711e0f6ee1398cac2
 
 pexsi_ver=0.8.0
-pexsi_sha=7a0cc2e78dea77164e582c80e9380974e3a7e4153836917dabe29b23614c5c45
 #
 #
 #
@@ -123,7 +123,7 @@ if [ -f binutils-${binutils_ver}.tar.gz  ]; then
   echo "Installation already started, skipping it."
 else
   wget http://ftp.gnu.org/gnu/binutils/binutils-${binutils_ver}.tar.gz
-  echo "${binutils_sha} *binutils-${binutils_ver}.tar.gz" | sha256sum  --check
+  checksum binutils-${binutils_ver}.tar.gz
   tar -xzf binutils-${binutils_ver}.tar.gz
   cd binutils-${binutils_ver}
   ./configure --prefix=${INSTALLDIR} --enable-gold --enable-plugins >& config.log
@@ -137,7 +137,7 @@ if [ -f valgrind-${valgrind_ver}.tar.bz2 ]; then
   echo "Installation already started, skipping it."
 else
   wget http://www.cp2k.org/static/downloads/valgrind-${valgrind_ver}.tar.bz2
-  echo "${valgrind_sha} *valgrind-${valgrind_ver}.tar.bz2" | sha256sum  --check
+  checksum valgrind-${valgrind_ver}.tar.bz2
   tar -xjf valgrind-${valgrind_ver}.tar.bz2
   cd valgrind-${valgrind_ver}
   ./configure --prefix=${INSTALLDIR} >& config.log
@@ -151,7 +151,7 @@ if [ -f lcov-${lcov_ver}.tar.gz ]; then
   echo "Installation already started, skipping it."
 else
   wget http://www.cp2k.org/static/downloads/lcov-${lcov_ver}.tar.gz
-  echo "${lcov_sha} *lcov-${lcov_ver}.tar.gz" | sha256sum  --check
+  checksum lcov-${lcov_ver}.tar.gz
   tar -xzf lcov-${lcov_ver}.tar.gz
   cd lcov-${lcov_ver}
   # note.... this installs in ${INSTALLDIR}/usr/bin
@@ -164,7 +164,7 @@ if [ -f cmake-${cmake_ver}.tar.gz ]; then
   echo "Installation already started, skipping it."
 else
   wget http://www.cp2k.org/static/downloads/cmake-${cmake_ver}.tar.gz
-  echo "${cmake_sha} *cmake-${cmake_ver}.tar.gz" | sha256sum  --check
+  checksum cmake-${cmake_ver}.tar.gz
   tar -xzf cmake-${cmake_ver}.tar.gz
   cd cmake-${cmake_ver}
   ./bootstrap --prefix=${INSTALLDIR} >& config.log
@@ -178,7 +178,7 @@ if [ -f gcc-${gcc_ver}.tar.gz ]; then
   echo "Installation already started, skipping it."
 else
   wget https://ftp.gnu.org/gnu/gcc/gcc-${gcc_ver}/gcc-${gcc_ver}.tar.gz
-  echo "${gcc_sha} *gcc-${gcc_ver}.tar.gz" | sha256sum  --check
+  checksum gcc-${gcc_ver}.tar.gz
   tar -xzf gcc-${gcc_ver}.tar.gz
   cd gcc-${gcc_ver}
   ./contrib/download_prerequisites >& prereq.log
@@ -188,15 +188,52 @@ else
   ${GCCROOT}/configure --prefix=${INSTALLDIR}  --enable-languages=c,c++,fortran --disable-multilib --disable-bootstrap --enable-lto --enable-plugins >& config.log
   make -j $nprocs >& make.log
   make -j $nprocs install >& install.log
+
+  if [ "$enable_tsan" == "yes" ]; then
+    # now the tricky bit... we need to recompile in particular libgomp with -fsanitize=thread.. there is not configure option for this (as far as I know). 
+    # we need to go in the build tree and recompile / reinstall with proper options...
+    # this is likely to break for later version of gcc, tested with 5.1.0
+    # based on https://gcc.gnu.org/bugzilla/show_bug.cgi?id=55374#c10
+    cd x86_64*/libgfortran
+    make clean >& clean.log
+    make -j $nprocs CFLAGS="-std=gnu99 -g -O2 -fsanitize=thread "  FCFLAGS="-g -O2 -fsanitize=thread" CXXFLAGS="-std=gnu99 -g -O2 -fsanitize=thread " LDFLAGS="-B`pwd`/../libsanitizer/tsan/.libs/ -Wl,-rpath,`pwd`/../libsanitizer/tsan/.libs/ -fsanitize=thread" >& make.log
+    make install >& install.log
+    cd ../libgomp
+    make clean >& clean.log
+    make -j $nprocs CFLAGS="-std=gnu99 -g -O2 -fsanitize=thread "  FCFLAGS="-g -O2 -fsanitize=thread" CXXFLAGS="-std=gnu99 -g -O2 -fsanitize=thread " LDFLAGS="-B`pwd`/../libsanitizer/tsan/.libs/ -Wl,-rpath,`pwd`/../libsanitizer/tsan/.libs/ -fsanitize=thread" >& make.log
+    make install >& install.log
+    cd $GCCROOT/obj/
+  else
+    TSANFLAGS=""
+  fi
+
   cd ../..
+
 fi
 
-# lsan suppressions for known leaks are created as well, this might need to be adjusted for the versions of the software employed
+if [ "$enable_tsan" == "yes" ]; then
+   TSANFLAGS="-fsanitize=thread"
+else
+   TSANFLAGS=""
+fi
+
+# lsan & tsan suppressions for known leaks are created as well, this might need to be adjusted for the versions of the software employed
 cat << EOF > ${INSTALLDIR}/lsan.supp
 # known leak either related to mpi or scalapack  (e.g. showing randomly for Fist/regtest-7-2/UO2-2x2x2-genpot_units.inp)
 leak:__cp_fm_types_MOD_cp_fm_write_unformatted
 # leaks related to PEXSI
 leak:PPEXSIDFTDriver
+# tsan bugs likely related to gcc
+# PR66756
+deadlock:_gfortran_st_open
+mutex:_gfortran_st_open
+# PR66761
+race:do_spin
+race:gomp_team_end
+# bugs related to removing/filtering blocks in DBCSR.. to be fixed
+race:__dbcsr_block_access_MOD_dbcsr_remove_block
+race:__dbcsr_operations_MOD_dbcsr_filter_anytype
+race:__dbcsr_transformations_MOD_dbcsr_make_untransposed_blocks
 EOF
 
 # now we need these tools and compiler to be in the path
@@ -215,17 +252,19 @@ else
 fi 
 CP2KINSTALLDIR=${INSTALLDIR} ; export CP2KINSTALLDIR
 LSAN_OPTIONS=suppressions=${INSTALLDIR}/lsan.supp ; export LSAN_OPTIONS
+TSAN_OPTIONS=suppressions=${INSTALLDIR}/lsan.supp ; export TSAN_OPTIONS
 EOF
 SETUPFILE=${INSTALLDIR}/setup
 source ${SETUPFILE}
 
 # set some flags, leading to nice stack traces on crashes, yet, are optimized
-export CFLAGS="-O2 -ftree-vectorize -g -fno-omit-frame-pointer -march=native -ffast-math"
-export FFLAGS="-O2 -ftree-vectorize -g -fno-omit-frame-pointer -march=native -ffast-math"
-export F77FLAGS="-O2 -ftree-vectorize -g -fno-omit-frame-pointer -march=native -ffast-math"
-export F90FLAGS="-O2 -ftree-vectorize -g -fno-omit-frame-pointer -march=native -ffast-math"
-export FCFLAGS="-O2 -ftree-vectorize -g -fno-omit-frame-pointer -march=native -ffast-math"
-export CXXFLAGS="-O2 -ftree-vectorize -g -fno-omit-frame-pointer -march=native -ffast-math"
+export CFLAGS="-O2 -ftree-vectorize -g -fno-omit-frame-pointer -march=native -ffast-math $TSANFLAGS"
+export FFLAGS="-O2 -ftree-vectorize -g -fno-omit-frame-pointer -march=native -ffast-math $TSANFLAGS"
+export F77FLAGS="-O2 -ftree-vectorize -g -fno-omit-frame-pointer -march=native -ffast-math $TSANFLAGS"
+export F90FLAGS="-O2 -ftree-vectorize -g -fno-omit-frame-pointer -march=native -ffast-math $TSANFLAGS"
+export FCFLAGS="-O2 -ftree-vectorize -g -fno-omit-frame-pointer -march=native -ffast-math $TSANFLAGS"
+export CXXFLAGS="-O2 -ftree-vectorize -g -fno-omit-frame-pointer -march=native -ffast-math $TSANFLAGS"
+export LDFLAGS=" $TSANFLAGS"
 
 if [ "$mpichoice" == "openmpi" ]; then
 echo "=================== Installing openmpi ====================="
@@ -233,7 +272,7 @@ if [ -f openmpi-${openmpi_ver}.tar.gz ]; then
   echo "Installation already started, skipping it."
 else
   wget http://www.open-mpi.org/software/ompi/v1.8/downloads/openmpi-${openmpi_ver}.tar.gz
-  echo "${openmpi_sha} *openmpi-${openmpi_ver}.tar.gz" | sha256sum  --check
+  checksum openmpi-${openmpi_ver}.tar.gz
   tar -xzf openmpi-${openmpi_ver}.tar.gz
   cd openmpi-${openmpi_ver}
   ./configure --prefix=${INSTALLDIR} >& config.log
@@ -253,7 +292,7 @@ else
   # needed to install mpich ??
   unset F90; unset F90FLAGS
   wget http://www.cp2k.org/static/downloads/mpich-${mpich_ver}.tar.gz
-  echo "${mpich_sha} *mpich-${mpich_ver}.tar.gz" | sha256sum  --check
+  checksum mpich-${mpich_ver}.tar.gz
   tar -xzf mpich-${mpich_ver}.tar.gz
   cd mpich-${mpich_ver}
   ./configure --prefix=${INSTALLDIR} >& config.log
@@ -265,18 +304,93 @@ fi
 mpiextralibs=""
 fi
 
+libsmm=""
+#
+# currently openblas is not thread safe (neither serial nor omp version), 
+# so ssmp and psmp codes need to link to netlib versions
+# the default for LIB_LAPACK_OPT is overwritten if openblas is installed
+#
+LIB_LAPACK_DEBUG="-lreflapack -lrefblas"
+LIB_LAPACK_OPT="$LIB_LAPACK_DEBUG"
+
+
 echo "================= Installing openblas ==================="
 if [ -f xianyi-OpenBLAS-${openblas_ver}.zip ]; then
   echo "Installation already started, skipping it."
 else
   wget http://www.cp2k.org/static/downloads/xianyi-OpenBLAS-${openblas_ver}.zip
-  echo "${openblas_sha} *xianyi-OpenBLAS-${openblas_ver}.zip" | sha256sum  --check
+  checksum xianyi-OpenBLAS-${openblas_ver}.zip
   unzip xianyi-OpenBLAS-${openblas_ver}.zip >& unzip.log
   cd xianyi-OpenBLAS-*
-  # we go for the serial version, less risky if called from an OMP region. We could use USE_THREADS=1 USE_OPENMP=1, but that's not tested
-  make -j $nprocs USE_THREAD=0 LIBNAMESUFFIX=serial PREFIX=${INSTALLDIR} >& make.log
-  make -j $nprocs USE_THREAD=0 LIBNAMESUFFIX=serial PREFIX=${INSTALLDIR} install >& install.log
+  # we install both the serial and the omp threaded version.
+  # Unfortunately, neither is thread-safe (i.e. the CP2K ssmp and psmp version need to link to something else, the omp version is unused)
+  make -j $nprocs USE_THREAD=0 LIBNAMESUFFIX=serial PREFIX=${INSTALLDIR} >& make.serial.log
+  make -j $nprocs USE_THREAD=0 LIBNAMESUFFIX=serial PREFIX=${INSTALLDIR} install >& install.serial.log
+  # make clean >& clean.log
+  # make -j $nprocs USE_THREAD=1 USE_OPENMP=1 LIBNAMESUFFIX=omp PREFIX=${INSTALLDIR} >& make.omp.log
+  # make -j $nprocs USE_THREAD=1 USE_OPENMP=1 LIBNAMESUFFIX=omp PREFIX=${INSTALLDIR} install >& install.omp.log
   cd ..
+fi
+LIB_LAPACK_OPT="-lopenblas_serial"
+
+if [ "$enable_tsan" == "yes" ]; then
+  echo "TSAN build ... not downloading libsmm"
+else
+#
+# Here we attempt to determine which libsmm to download, and do that if it exists.
+# We use info on the architecture / core from the openblas build.
+#
+echo "================= Installing libsmm ==================="
+# helper to check if libsmm is available (return 0) or not (return 8)
+libsmm_exists() {
+ wget --spider http://www.cp2k.org/static/downloads/libsmm/$1 >& /dev/null
+ echo $?
+}
+
+# where is the openblas configuration file, which gives us the core
+openblas_conf=`echo ${rootdir}/build/*OpenBLAS*/Makefile.conf`
+if [ -f "$openblas_conf" ]; then
+ openblas_libcore=`grep 'LIBCORE=' $openblas_conf | cut -f2 -d=`
+ openblas_arch=`grep 'ARCH=' $openblas_conf | cut -f2 -d=`
+ libsmm_libcore=libsmm_dnn_${openblas_libcore}.a
+ tst=`libsmm_exists $libsmm_libcore`
+ if [ "$tst" == "0" ]; then
+    libsmm=$libsmm_libcore
+    echo "An optimized libsmm $libsmm is available"
+ else
+    libsmm_arch=libsmm_dnn_${openblas_arch}.a
+    tst=`libsmm_exists $libsmm_arch`
+    if [ "$tst" == "0" ]; then
+       libsmm=$libsmm_arch
+       echo "A generic libsmm $libsmm is available."
+       echo "Consider building and contributing to CP2K an optimized libsmm for your $openblas_arch $openblas_libcore"
+    else
+       echo "No libsmm is available"
+       echo "Consider building and contributing to CP2K an optimized libsmm for your $openblas_arch $openblas_libcore"
+    fi
+ fi
+else
+ # info not found
+ echo "Not found: $openblas_conf"
+ false
+fi
+fi
+
+# we know what to get, proceed with install
+if [ "$libsmm" != "" ]; then
+  if [ -f $libsmm ]; then
+    echo "Installation already started, skipping it."
+  else
+    wget http://www.cp2k.org/static/downloads/libsmm/$libsmm
+    checksum $libsmm
+    cp $libsmm ${INSTALLDIR}/lib/
+    ln -s ${INSTALLDIR}/lib/$libsmm ${INSTALLDIR}/lib/libsmm_dnn.a
+  fi
+  LIBSMMFLAG="-D__HAS_smm_dnn"
+  LIBSMMLIB="-lsmm_dnn"
+else
+  LIBSMMFLAG=""
+  LIBSMMLIB=""
 fi
 
 echo "================= Installing scalapack ==================="
@@ -284,14 +398,17 @@ if [ -f scalapack_installer.tgz ]; then
   echo "Installation already started, skipping it."
 else
   wget http://www.cp2k.org/static/downloads/scalapack_installer.tgz
-  echo "${scalapack_sha} *scalapack_installer.tgz" | sha256sum  --check
+  checksum scalapack_installer.tgz
   tar -xzf scalapack_installer.tgz
   # we dont know the version
   cd scalapack_installer_*
   SLROOT=${PWD}
-  # needs fixing for compile options, we use echo as mpirun command to avoid testing,
-  # yet download blas / lapack... whole installer is a bit serial as well (and fails with --make="make -j32"
-  ./setup.py --mpirun=echo --downblas --downlapack >& make.log
+  # We use echo as mpirun command to avoid testing scalapack,
+  # (lapack is still tested, and the --notesting flag causes lapack/blas not to be build, seemingly.)
+  # yet download blas / lapack... whole installer is a bit serial as well (and fails with --make="make -j32")
+  # also, doesn't seem to stop if something goes wrong in the build process..
+  # finally, we should avoid -ffast-math as this seems to cause problems
+  ./setup.py --mpirun=echo --downblas --downlapack --fcflags="$FCFLAGS -fno-fast-math" --ccflags="$CFLAGS -fno-fast-math" --ldflags_c="$LDFLAGS -fno-fast-math" --ldflags_fc="$LDFLAGS -fno-fast-math" >& make.log
   # copy libraries where we like them
   cp install/lib/* ${INSTALLDIR}/lib/
   cd ..
@@ -302,7 +419,7 @@ if [ -f libxc-${libxc_ver}.tar.gz ]; then
   echo "Installation already started, skipping it."
 else
   wget http://www.cp2k.org/static/downloads/libxc-${libxc_ver}.tar.gz
-  echo "${libxc_sha} *libxc-${libxc_ver}.tar.gz" | sha256sum  --check
+  checksum libxc-${libxc_ver}.tar.gz
   tar -xzf libxc-${libxc_ver}.tar.gz
   cd libxc-${libxc_ver}
   ./configure  --prefix=${INSTALLDIR} >& config.log
@@ -316,10 +433,11 @@ if [ -f libint-${libint_ver}.tar.gz ]; then
   echo "Installation already started, skipping it."
 else
   wget http://www.cp2k.org/static/downloads/libint-${libint_ver}.tar.gz
-  echo "${libint_sha} *libint-${libint_ver}.tar.gz" | sha256sum  --check
+  checksum libint-${libint_ver}.tar.gz
   tar -xzf libint-${libint_ver}.tar.gz
   cd libint-${libint_ver}
-  ./configure  --prefix=${INSTALLDIR} --with-libint-max-am=5 --with-libderiv-max-am1=4 --with-cc-optflags="$CFLAGS" --with-cxx-optflags="$CXXFLAGS" >& config.log
+  # hack for -with-cc (needed for -fsanitize=thread that also needs to be passed to the linker, but seemingly ldflags is ignored by libint's configure)
+  ./configure  --prefix=${INSTALLDIR} --with-libint-max-am=5 --with-libderiv-max-am1=4 --with-cc="gcc $CFLAGS" --with-cc-optflags="$CFLAGS" --with-cxx-optflags="$CXXFLAGS" >& config.log
   make -j $nprocs >&  make.log
   make install >& install.log
   cd ..
@@ -330,7 +448,7 @@ if [ -f fftw-${fftw_ver}.tar.gz ]; then
   echo "Installation already started, skipping it."
 else
   wget http://www.cp2k.org/static/downloads/fftw-${fftw_ver}.tar.gz
-  echo "${fftw_sha} *fftw-${fftw_ver}.tar.gz" | sha256sum  --check
+  checksum fftw-${fftw_ver}.tar.gz
   tar -xzf fftw-${fftw_ver}.tar.gz
   cd fftw-${fftw_ver}
   ./configure  --prefix=${INSTALLDIR} --enable-openmp >& config.log
@@ -348,7 +466,7 @@ if [ -f elpa-${elpa_ver}.tar.gz ]; then
   echo "Installation already started, skipping it."
 else
   wget http://www.cp2k.org/static/downloads/elpa-${elpa_ver}.tar.gz
-  echo "${elpa_sha} *elpa-${elpa_ver}.tar.gz" | sha256sum  --check
+  checksum elpa-${elpa_ver}.tar.gz
   tar -xzf elpa-${elpa_ver}.tar.gz
 
   # need both flavors ?
@@ -372,7 +490,7 @@ if [ -f parmetis-${parmetis_ver}.tar.gz ]; then
   echo "Installation already started, skipping it."
 else
   wget http://www.cp2k.org/static/downloads/parmetis-${parmetis_ver}.tar.gz
-  echo "${parmetis_sha} *parmetis-${parmetis_ver}.tar.gz" | sha256sum  --check
+  checksum parmetis-${parmetis_ver}.tar.gz
   tar -xzf parmetis-${parmetis_ver}.tar.gz
 
   cd parmetis-${parmetis_ver}
@@ -393,7 +511,7 @@ if [ -f scotch_${scotch_ver}.tar.gz ]; then
   echo "Installation already started, skipping it."
 else
   wget  http://www.cp2k.org/static/downloads/scotch_${scotch_ver}.tar.gz
-  echo "${scotch_sha} *scotch_${scotch_ver}.tar.gz" | sha256sum  --check
+  checksum scotch_${scotch_ver}.tar.gz
   tar -xzf scotch_${scotch_ver}.tar.gz
   cd scotch_${scotch_ver}/src
   cat Make.inc/Makefile.inc.x86-64_pc_linux2 | \
@@ -411,7 +529,7 @@ if [ -f superlu_dist_${superlu_ver}.tar.gz ]; then
   echo "Installation already started, skipping it."
 else
   wget http://www.cp2k.org/static/downloads/superlu_dist_${superlu_ver}.tar.gz
-  echo "${superlu_sha} *superlu_dist_${superlu_ver}.tar.gz" | sha256sum  --check
+  checksum superlu_dist_${superlu_ver}.tar.gz
   tar -xzf superlu_dist_${superlu_ver}.tar.gz
 
   cd SuperLU_DIST_${superlu_ver}
@@ -448,7 +566,7 @@ if [ -f pexsi_v${pexsi_ver}.tar.gz ]; then
 else
   wget http://www.cp2k.org/static/downloads/pexsi_v${pexsi_ver}.tar.gz
   #wget https://math.berkeley.edu/~linlin/pexsi/download/pexsi_v${pexsi_ver}.tar.gz
-  echo "${pexsi_sha} *pexsi_v${pexsi_ver}.tar.gz" | sha256sum  --check
+  checksum pexsi_v${pexsi_ver}.tar.gz
 
   tar -xzf pexsi_v${pexsi_ver}.tar.gz
 
@@ -502,16 +620,15 @@ mkdir -p ${INSTALLDIR}/arch
 # unfortunately, optimal flags depend on compiler etc.
 #
 WFLAGS="-Waliasing -Wampersand -Wc-binding-type -Wintrinsic-shadow -Wintrinsics-std -Wline-truncation -Wno-tabs -Wrealloc-lhs-all -Wtarget-lifetime -Wunderflow -Wunused-but-set-variable -Wunused-variable -Wconversion -Werror"
-DEBFLAGS="-fcheck=bounds,do,recursion,pointer -fsanitize=leak"
-BASEFLAGS="-std=f2003 -fimplicit-none -ffree-form -fno-omit-frame-pointer -g -O1"
+DEBFLAGS="-fcheck=bounds,do,recursion,pointer -fsanitize=leak -ffpe-trap=invalid,zero,overflow -finit-real=snan -fno-fast-math -D__HAS_IEEE_EXCEPTIONS"
+BASEFLAGS="-std=f2003 -fimplicit-none -ffree-form -fno-omit-frame-pointer -g -O1 $TSANFLAGS"
 PARAFLAGS="-D__parallel -D__SCALAPACK -D__LIBPEXSI -D__MPI_VERSION=3 -D__ELPA2"
 CUDAFLAGS="-D__ACC -D__DBCSR_ACC -D__PW_CUDA"
 OPTFLAGS="-O3 -march=native -ffast-math \$(PROFOPT)"
 DFLAGS="-D__LIBINT -D__FFTW3 -D__LIBXC2 -D__LIBINT_MAX_AM=6 -D__LIBDERIV_MAX_AM1=5"
-CFLAGS="\$(DFLAGS) -I\$(CP2KINSTALLDIR)/include -fno-omit-frame-pointer -g -O1"
+DFLAGSOPT="$LIBSMMFLAG -D__MAX_CONTR=4"
+CFLAGS="\$(DFLAGS) -I\$(CP2KINSTALLDIR)/include -fno-omit-frame-pointer -g -O1 $TSANFLAGS"
 
-LIB_LAPACK_OPT="-lopenblas_serial"
-LIB_LAPACK_DEBUG="-lreflapack -lrefblas"
 
 # Link to SCOTCH
 LIB_PEXSI="-lpexsi_linux_v${pexsi_ver} -lsuperlu_dist_${superlu_ver} -lptscotchparmetis -lptscotch -lptscotcherr -lscotchmetis -lscotch -lscotcherr ${mpiextralibs}"
@@ -540,11 +657,11 @@ FC       = mpif90
 LD       = mpif90
 AR       = ar -r
 WFLAGS   = ${WFLAGS}
-DFLAGS   = ${DFLAGS} ${PARAFLAGS}
+DFLAGS   = ${DFLAGS} ${PARAFLAGS} $DFLAGSOPT
 FCFLAGS  = -I\$(CP2KINSTALLDIR)/include -I\$(CP2KINSTALLDIR)/include/elpa-${elpa_ver}/modules ${BASEFLAGS} ${OPTFLAGS} \$(DFLAGS) \$(WFLAGS)
 LDFLAGS  = -L\$(CP2KINSTALLDIR)/lib \$(FCFLAGS)
 CFLAGS   = ${CFLAGS}
-LIBS     = -lxcf90 -lxc -lderiv -lint $LIB_PEXSI -lelpa -lscalapack ${LIB_LAPACK_OPT}  -lstdc++ -lfftw3 
+LIBS     = -lxcf90 -lxc -lderiv -lint $LIB_PEXSI -lelpa -lscalapack $LIBSMMLIB ${LIB_LAPACK_OPT}  -lstdc++ -lfftw3 
 EOF
 
 cat << EOF > ${INSTALLDIR}/arch/local.psmp
@@ -554,11 +671,11 @@ FC       = mpif90
 LD       = mpif90
 AR       = ar -r
 WFLAGS   = ${WFLAGS}
-DFLAGS   = ${DFLAGS} ${PARAFLAGS}
+DFLAGS   = ${DFLAGS} ${PARAFLAGS} $DFLAGSOPT
 FCFLAGS  = -fopenmp -I\$(CP2KINSTALLDIR)/include -I\$(CP2KINSTALLDIR)/include/elpa_openmp-${elpa_ver}/modules ${BASEFLAGS} ${OPTFLAGS} \$(DFLAGS) \$(WFLAGS)
 LDFLAGS  = -L\$(CP2KINSTALLDIR)/lib/ \$(FCFLAGS)
 CFLAGS   = ${CFLAGS}
-LIBS     = -lxcf90 -lxc -lderiv -lint $LIB_PEXSI -lelpa_openmp -lscalapack ${LIB_LAPACK_OPT}  -lstdc++ -lfftw3 -lfftw3_omp
+LIBS     = -lxcf90 -lxc -lderiv -lint $LIB_PEXSI -lelpa_openmp -lscalapack $LIBSMMLIB ${LIB_LAPACK_DEBUG}  -lstdc++ -lfftw3 -lfftw3_omp
 EOF
 
 cat << EOF > ${INSTALLDIR}/arch/local.sdbg
@@ -582,11 +699,11 @@ FC       = gfortran
 LD       = gfortran
 AR       = ar -r
 WFLAGS   = ${WFLAGS}
-DFLAGS   = ${DFLAGS}
+DFLAGS   = ${DFLAGS} $DFLAGSOPT
 FCFLAGS  = -I\$(CP2KINSTALLDIR)/include ${BASEFLAGS} ${OPTFLAGS} \$(DFLAGS) \$(WFLAGS)
 LDFLAGS  = -L\$(CP2KINSTALLDIR)/lib/ \$(FCFLAGS)
 CFLAGS   = ${CFLAGS}
-LIBS     = -lxcf90 -lxc -lderiv -lint ${LIB_LAPACK_OPT}  -lstdc++ -lfftw3
+LIBS     = -lxcf90 -lxc -lderiv -lint  $LIBSMMLIB ${LIB_LAPACK_OPT}  -lstdc++ -lfftw3
 EOF
 
 cat << EOF > ${INSTALLDIR}/arch/local.ssmp
@@ -596,11 +713,11 @@ FC       = gfortran
 LD       = gfortran
 AR       = ar -r
 WFLAGS   = ${WFLAGS}
-DFLAGS   = ${DFLAGS}
+DFLAGS   = ${DFLAGS} $DFLAGSOPT
 FCFLAGS  = -fopenmp -I\$(CP2KINSTALLDIR)/include ${BASEFLAGS} ${OPTFLAGS}  \$(DFLAGS) \$(WFLAGS)
-LDFLAGS  = -fopenmp -L\$(CP2KINSTALLDIR)/lib/ \$(FCFLAGS)
+LDFLAGS  = -L\$(CP2KINSTALLDIR)/lib/ \$(FCFLAGS)
 CFLAGS   = ${CFLAGS}
-LIBS     = -lxcf90 -lxc -lderiv -lint ${LIB_LAPACK_OPT}  -lstdc++ -lfftw3 -lfftw3_omp
+LIBS     = -lxcf90 -lxc -lderiv -lint $LIBSMMLIB ${LIB_LAPACK_DEBUG}  -lstdc++ -lfftw3 -lfftw3_omp
 EOF
 
 cat << EOF > ${INSTALLDIR}/arch/local_valgrind.sdbg
@@ -639,12 +756,12 @@ FC       = mpif90
 LD       = mpif90
 AR       = ar -r
 WFLAGS   = ${WFLAGS}
-DFLAGS   = ${DFLAGS} ${CUDAFLAGS} ${PARAFLAGS}
+DFLAGS   = ${DFLAGS} ${CUDAFLAGS} ${PARAFLAGS} $DFLAGSOPT
 FCFLAGS  = -fopenmp -I\$(CP2KINSTALLDIR)/include -I\$(CP2KINSTALLDIR)/include/elpa_openmp-${elpa_ver}/modules ${BASEFLAGS} ${OPTFLAGS} \$(DFLAGS) \$(WFLAGS)
 LDFLAGS  = -L\$(CP2KINSTALLDIR)/lib/ -L/usr/local/cuda/lib64 \$(FCFLAGS)
 NVFLAGS  = \$(DFLAGS) -g -O2 -arch sm_35
 CFLAGS   = ${CFLAGS}
-LIBS     = -lxcf90 -lxc -lderiv -lint $LIB_PEXSI -lelpa_openmp -lscalapack ${LIB_LAPACK_OPT}  -lstdc++ -lfftw3 -lfftw3_omp -lcudart -lcufft -lcublas -lrt
+LIBS     = -lxcf90 -lxc -lderiv -lint $LIB_PEXSI -lelpa_openmp -lscalapack $LIBSMMLIB ${LIB_LAPACK_DEBUG}  -lstdc++ -lfftw3 -lfftw3_omp -lcudart -lcufft -lcublas -lrt
 EOF
 
 cat << EOF > ${INSTALLDIR}/arch/local_cuda.ssmp
@@ -655,12 +772,12 @@ FC       = gfortran
 LD       = gfortran
 AR       = ar -r
 WFLAGS   = ${WFLAGS}
-DFLAGS   = ${DFLAGS} ${CUDAFLAGS}
+DFLAGS   = ${DFLAGS} ${CUDAFLAGS} $DFLAGSOPT
 FCFLAGS  = -fopenmp -I\$(CP2KINSTALLDIR)/include ${BASEFLAGS} ${OPTFLAGS} \$(DFLAGS) \$(WFLAGS)
 LDFLAGS  = -L\$(CP2KINSTALLDIR)/lib/ -L/usr/local/cuda/lib64 \$(FCFLAGS)
 NVFLAGS  = \$(DFLAGS) -g -O2 -arch sm_35
 CFLAGS   = ${CFLAGS}
-LIBS     = -lxcf90 -lxc -lderiv -lint ${LIB_LAPACK_OPT}  -lstdc++ -lfftw3 -lfftw3_omp -lcudart -lcufft -lcublas -lrt
+LIBS     = -lxcf90 -lxc -lderiv -lint $LIBSMMLIB ${LIB_LAPACK_DEBUG}  -lstdc++ -lfftw3 -lfftw3_omp -lcudart -lcufft -lcublas -lrt
 EOF
 
 echo "========================== usage ========================="

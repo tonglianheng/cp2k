@@ -343,8 +343,7 @@ MODULE dbcsr_mm_csr
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_mm_csr_multiply_low', &
       routineP = moduleN//':'//routineN
-    LOGICAL, PARAMETER                       :: dbg = .FALSE., &
-                                                local_timing = .FALSE.
+    LOGICAL, PARAMETER                       :: dbg = .FALSE.
 
     INTEGER :: a_blk, a_col_l, a_row_l, b_blk, b_col_l, c_blk_id, &
       c_col_logical, c_nze, c_row_logical, ithread, k_size, m_size, &
@@ -676,7 +675,7 @@ MODULE dbcsr_mm_csr
     DEALLOCATE(flop_list,flop_index,tmp_descr)
 
     this%product_wm => product%wms(ithread+1)
-    CALL dbcsr_mm_sched_init(this%sched, left=left, right=right,&
+    CALL dbcsr_mm_sched_init(this%sched, &
                 product_wm=this%product_wm,error=error)
 
     CALL dbcsr_error_stop(error_handler, error)

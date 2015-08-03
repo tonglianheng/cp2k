@@ -30,7 +30,7 @@ MODULE qmmm_se_energy
        do_method_am1, do_method_mndo, do_method_mndod, do_method_pchg, &
        do_method_pdg, do_method_pm3, do_method_pm6, do_method_pnnl, &
        do_method_rm1, do_qmmm_coulomb, do_qmmm_gauss, do_qmmm_none, &
-       do_qmmm_pcharge, do_qmmm_swave, use_orb_basis_set
+       do_qmmm_pcharge, do_qmmm_swave
   USE kinds,                           ONLY: dp
   USE message_passing,                 ONLY: mp_sum
   USE multipole_types,                 ONLY: do_multipole_none
@@ -143,8 +143,8 @@ CONTAINS
 
     CALL build_overlap_matrix(ks_env,matrix_s=matrix_s,&
                               matrix_name="OVERLAP",&
-                              basis_set_id_a=use_orb_basis_set,&
-                              basis_set_id_b=use_orb_basis_set, &
+                              basis_type_a="ORB",&
+                              basis_type_b="ORB", &
                               sab_nl=sab_orb,&
                               error=error)
 
@@ -194,7 +194,7 @@ CONTAINS
        enuclear = 0.0_dp
        Kinds: DO ikind=1,nkind
           CALL get_atomic_kind(atomic_kind_set(ikind), natom=natom, atom_list=list)
-          CALL get_qs_kind(qs_kind_set(ikind), se_parameter=se_kind_a)
+          CALL get_qs_kind(qs_kind_set(ikind), se_parameter=se_kind_a, error=error)
           CALL get_se_param(se_kind_a,&
                             defined=defined,&
                             natorb=natorb_a)
@@ -215,9 +215,7 @@ CONTAINS
                                               qmmm_env%Potentials,&
                                               particles_mm,&
                                               qmmm_env%mm_atom_chrg,&
-                                              qmmm_env%mm_el_pot_radius,&
                                               qmmm_env%mm_atom_index,&
-                                              qmmm_env%num_mm_atoms,&
                                               mm_cell,&
                                               iatom,&
                                               enuclear,&
@@ -236,9 +234,7 @@ CONTAINS
                                                  qmmm_env%added_charges%potentials,&
                                                  qmmm_env%added_charges%added_particles,&
                                                  qmmm_env%added_charges%mm_atom_chrg,&
-                                                 qmmm_env%added_charges%mm_el_pot_radius,&
                                                  qmmm_env%added_charges%mm_atom_index,&
-                                                 qmmm_env%added_charges%num_mm_atoms,&
                                                  mm_cell,&
                                                  iatom,&
                                                  enuclear,&
@@ -282,9 +278,7 @@ CONTAINS
 !> \param potentials ...
 !> \param particles_mm ...
 !> \param mm_charges ...
-!> \param mm_el_pot_radius ...
 !> \param mm_atom_index ...
-!> \param num_mm_atoms ...
 !> \param mm_cell ...
 !> \param IndQM ...
 !> \param enuclear ...
@@ -298,7 +292,7 @@ CONTAINS
 !> \author Teodoro Laino 04.2007 [created]
 ! *****************************************************************************
   SUBROUTINE build_se_qmmm_matrix_low(h_block_a, se_kind_a, se_kind_mm, potentials,&
-       particles_mm, mm_charges, mm_el_pot_radius, mm_atom_index, num_mm_atoms,&
+       particles_mm, mm_charges, mm_atom_index,&
        mm_cell, IndQM, enuclear, itype, se_taper, se_int_control, anag, &
        qmmm_spherical_cutoff, particles_qm, error)
 
@@ -308,9 +302,8 @@ CONTAINS
       POINTER                                :: potentials
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particles_mm
-    REAL(KIND=dp), DIMENSION(:), POINTER     :: mm_charges, mm_el_pot_radius
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: mm_charges
     INTEGER, DIMENSION(:), POINTER           :: mm_atom_index
-    INTEGER, INTENT(IN)                      :: num_mm_atoms
     TYPE(cell_type), POINTER                 :: mm_cell
     INTEGER, INTENT(IN)                      :: IndQM
     REAL(KIND=dp), INTENT(INOUT)             :: enuclear
