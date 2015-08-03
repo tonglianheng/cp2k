@@ -27,7 +27,7 @@
 !> \author Joost VandeVondele
 ! *****************************************************************************
 MODULE bibliography
-  
+
   USE reference_manager,               ONLY: add_reference,&
                                              cite_reference
   USE string_utilities,                ONLY: s2a
@@ -72,7 +72,9 @@ MODULE bibliography
        Kantorovich2008a, Wellendorff2012, Niklasson2014, Borstnik2014, &
        Rayson2009, Grimme2011, Fattebert2002, Andreussi2012,           &
        Khaliullin2007, Khaliullin2008, Merlot2014, Lin2009, Lin2013,   &
-       QUIP_ref, DelBen2015, Souza2002, Umari2002, Stengel2009, Luber2014
+       QUIP_ref, DelBen2015, Souza2002, Umari2002, Stengel2009,        &
+       Luber2014, Campana2009
+
 
 CONTAINS
 
@@ -2793,7 +2795,7 @@ CONTAINS
          "UT WOS:000338614300001",&
          "ER"),&
          DOI="10.1016/j.parco.2014.03.012")
-    
+
     CALL add_reference(key=Rayson2009, ISI_record=s2a(&
          "PT J",&
          "AU Rayson, M. J.",&
@@ -3005,6 +3007,27 @@ CONTAINS
           "PM 25194377",&
           "ER"),&
           DOI="10.1063/1.4894425")
+
+     CALL add_reference(key=Campana2009, ISI_record=s2a(&
+          "PT J",&
+          "AU Campana, C",&
+          "   Mussard, B",&
+          "   Woo, T K",&
+          "AF Campana, Carlos",&
+          "   Mussard, Bastien",&
+          "   Woo, Tom K.",&
+          "TI Electrostatic Potential Derived Atomic Charges for ",&
+          "   Periodic Systems Using a Modified Error Functional",&
+          "SO JOURNAL OF CHEMICAL THEORY AND COMPUTATION",&
+          "SN 1549-9618",&
+          "PD OCT 13",&
+          "PY 2009",&
+          "VL 5",&
+          "IS 10",&
+          "AR 2866",&
+          "DI 10.1021/ct9003405",&
+          "ER"),&
+          DOI="10.1021/ct9003405")
 
   END SUBROUTINE add_all_references
 

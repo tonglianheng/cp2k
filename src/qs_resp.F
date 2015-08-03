@@ -16,6 +16,7 @@ MODULE qs_resp
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind
   USE bibliography,                    ONLY: Golze2015,&
+                                             Campana2009,&
                                              cite_reference
   USE cell_types,                      ONLY: cell_type,&
                                              pbc,&
@@ -83,6 +84,8 @@ MODULE qs_resp
   USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
+  USE qs_ks_qmmm_types,                ONLY: qs_ks_qmmm_env_type
+
 #include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
@@ -96,8 +99,9 @@ MODULE qs_resp
   PUBLIC :: resp_fit
 
   TYPE resp_type
-   LOGICAL                                :: equal_charges, itc,& 
-                                             molecular_sys, rheavies
+   LOGICAL                                :: equal_charges, itc,&
+                                             molecular_sys, rheavies,&
+                                             level_correction
    INTEGER                                :: nres, ncons,&
                                              nrest_sec, ncons_sec,&
                                              npoints, stride(3), my_fit,&
@@ -109,13 +113,13 @@ MODULE qs_resp
    REAL(KIND=dp), DIMENSION(3)            :: box_hi, box_low
    REAL(KIND=dp), DIMENSION(:), POINTER   :: rmin_kind,&
                                              rmax_kind
-   REAL(KIND=dp), DIMENSION(:), POINTER   :: range_surf 
+   REAL(KIND=dp), DIMENSION(:), POINTER   :: range_surf
    REAL(KIND=dp), DIMENSION(:), POINTER   :: rhs
    REAL(KIND=dp), DIMENSION(:, :),POINTER :: matrix
   END TYPE resp_type
 
   TYPE resp_p_type
-   TYPE (resp_type), POINTER              ::  p_resp 
+   TYPE (resp_type), POINTER              ::  p_resp
   END TYPE resp_p_type
 
 CONTAINS
@@ -171,21 +175,21 @@ CONTAINS
        logger => cp_error_get_logger(error)
        poisson_section => section_vals_get_subs_vals(input,"DFT%POISSON",error=error)
        CALL section_vals_val_get(poisson_section,"PERIODIC",i_val=my_per,error=error)
-       CALL create_resp_type(resp_env, rep_sys, error) 
+       CALL create_resp_type(resp_env, rep_sys, error)
        !initialize the RESP fitting, get all the keywords
        CALL init_resp(resp_env,rep_sys,subsys,atomic_kind_set,&
             cell,resp_section,cons_section,rest_section,error)
-       
+
        !print info
        CALL print_resp_parameter_info(qs_env,resp_env,rep_sys,my_per,error)
-       
+
        CALL qs_subsys_get(subsys,particles=particles,error=error)
        natom=particles%n_els
        nvar=natom+resp_env%ncons
 
        ALLOCATE(ipiv(nvar),stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,Failure)
-       IF(.NOT.ASSOCIATED(resp_env%matrix)) THEN 
+       IF(.NOT.ASSOCIATED(resp_env%matrix)) THEN
         ALLOCATE(resp_env%matrix(nvar,nvar),stat=stat)
         CPPostcondition(stat==0,cp_failure_level,routineP,error,Failure)
        ENDIF
@@ -196,23 +200,25 @@ CONTAINS
        ipiv =0
        resp_env%matrix = 0.0_dp
        resp_env%rhs = 0.0_dp
-      
-       ! calculate the matrix and the vector rhs 
+
+       ! calculate the matrix and the vector rhs
        SELECT CASE (my_per)
-       CASE(use_perd_none)  
+       CASE(use_perd_none)
         CALL calc_resp_matrix_nonper(qs_env,resp_env,atomic_kind_set, particles,cell,&
-                                     resp_env%matrix,resp_env%rhs,natom,error)   
+                                     resp_env%matrix,resp_env%rhs,natom,error)
        CASE(use_perd_xyz)
-        CALL cite_reference(Golze2015) 
+        CALL cite_reference(Golze2015)
+        IF (resp_env%level_correction) THEN
+           CALL cite_reference(Campana2009)
+        END IF
         CALL calc_resp_matrix_periodic(qs_env,resp_env,rep_sys,particles,cell,natom, error)
-!        CALL calc_resp_matrix_periodic_repeat(qs_env, resp_env, rep_sys, particles, cell, natom, error)
        CASE DEFAULT
         CALL cp_unimplemented_error(fromWhere=routineP, &
              message="RESP charges only implemented for nonperiodic systems"//&
              " or XYZ periodicity!", &
              error=error, error_level=cp_failure_level)
        END SELECT
-        
+
        output_unit=cp_print_key_unit_nr(logger,resp_section,"PRINT%PROGRAM_RUN_INFO",&
                                            extension=".resp",error=error)
        IF (output_unit>0) THEN
@@ -220,7 +226,7 @@ CONTAINS
                                               "points found: ",resp_env%npoints
           WRITE(output_unit,'()')
        ENDIF
-     
+
        !adding restraints and constraints
        CALL add_restraints_and_constraints(qs_env,resp_env,rest_section,&
             subsys,natom,cons_section,particle_set,error)
@@ -278,12 +284,13 @@ CONTAINS
                resp_env%rhs)
 
     ENDIF
-     
+
     resp_env%equal_charges=.FALSE.
     resp_env%itc=.FALSE.
     resp_env%molecular_sys=.FALSE.
     resp_env%rheavies=.FALSE.
- 
+    resp_env%level_correction=.FALSE.
+
     resp_env%box_hi=0.0_dp
     resp_env%box_low=0.0_dp
 
@@ -292,12 +299,12 @@ CONTAINS
     resp_env%nres=0
     resp_env%nrest_sec=0
     resp_env%npoints=0
-    resp_env%npoints_proc=0 
+    resp_env%npoints_proc=0
 
   END SUBROUTINE create_resp_type
 
 ! *****************************************************************************
-!> \brief deallocates the resp_type structure 
+!> \brief deallocates the resp_type structure
 !> \param resp_env the resp environment
 !> \param rep_sys structure for repeating input sections defining fit points
 !> \param error variable to control error logging, stopping,...
@@ -430,14 +437,14 @@ CONTAINS
       CALL build_atom_list(slab_section,subsys,rep_sys(i)%p_resp%atom_surf_list,rep=i,error=error)
      ENDDO
     ENDIF
-     
 
-    ! get the parameters for the constraint and restraint sections    
+
+    ! get the parameters for the constraint and restraint sections
     CALL section_vals_get(cons_section, explicit=explicit, error=error)
     IF (explicit) THEN
        CALL section_vals_get(cons_section,n_repetition=resp_env%ncons_sec,error=error)
        DO i=1,resp_env%ncons_sec
-        CALL section_vals_val_get(cons_section,"EQUAL_CHARGES",l_val=resp_env%equal_charges,& 
+        CALL section_vals_val_get(cons_section,"EQUAL_CHARGES",l_val=resp_env%equal_charges,&
                                   explicit=explicit,error=error)
         IF(.NOT.explicit) CYCLE
         CALL build_atom_list(cons_section,subsys,atom_list_cons,i,error=error)
@@ -453,7 +460,7 @@ CONTAINS
     ENDIF
     resp_env%ncons=resp_env%ncons+resp_env%ncons_sec
     resp_env%nres=resp_env%nres+resp_env%nrest_sec
-    
+
     ! get the general keywords
     CALL section_vals_val_get(resp_section,"INTEGER_TOTAL_CHARGE",&
                                      l_val=resp_env%itc,error=error)
@@ -461,6 +468,14 @@ CONTAINS
 
     CALL section_vals_val_get(resp_section,"RESTRAIN_HEAVIES_TO_ZERO",&
                                     l_val=resp_env%rheavies,error=error)
+
+    CALL section_vals_val_get(resp_section,"LEVEL_CORRECTION",&
+                                    l_val=resp_env%level_correction,error=error)
+    IF (resp_env%level_correction) THEN
+       ! turn off RESTRAIN_HEAVIES_TO_ZERO if using LEVEL_CORRECTION
+       resp_env%rheavies = .FALSE.
+    END IF
+
     IF (resp_env%rheavies) THEN
         CALL section_vals_val_get(resp_section,"RESTRAIN_HEAVIES_STRENGTH",&
                                r_val=resp_env%rheavies_strength,error=error)
@@ -561,7 +576,7 @@ CPSourceFileRef,&
         ENDIF
        ENDDO
       ENDDO
-      
+
       resp_env%box_hi=(/cell%hmat(1,1),cell%hmat(2,2),cell%hmat(3,3)/)
       resp_env%box_low=0.0_dp
       CALL section_vals_val_get(sphere_section,"X_HI",explicit=explicit,error=error)
@@ -590,9 +605,9 @@ CPSourceFileRef,&
 !> \brief building atom lists for different sections of RESP
 !> \param section input section
 !> \param subsys ...
-!> \param atom_list list of atoms for restraints, constraints and fit point 
+!> \param atom_list list of atoms for restraints, constraints and fit point
 !>        sampling for slab-like systems
-!> \param rep input section can be repeated, this param defines for which 
+!> \param rep input section can be repeated, this param defines for which
 !>        repetition of the input section the atom_list is built
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
@@ -615,11 +630,11 @@ CPSourceFileRef,&
     LOGICAL                                  :: failure, index_in_range
 
     CALL timeset(routineN,handle)
- 
+
     NULLIFY(indexes)
     failure=.FALSE.
     irep=1
-    IF(PRESENT(rep)) irep=rep 
+    IF(PRESENT(rep)) irep=rep
 
     CALL section_vals_val_get(section,"ATOM_LIST",i_rep_section=irep,&
                                           n_rep_val=n_var,error=error)
@@ -628,7 +643,7 @@ CPSourceFileRef,&
      CALL section_vals_val_get(section,"ATOM_LIST",i_rep_section=irep,&
                                 i_rep_val=i,i_vals=indexes,error=error)
      num_atom=num_atom + SIZE(indexes)
-    ENDDO 
+    ENDDO
     ALLOCATE(atom_list(num_atom),stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     atom_list=0
@@ -659,7 +674,7 @@ CPSourceFileRef,&
     CALL timestop(handle)
 
   END SUBROUTINE build_atom_list
- 
+
 ! *****************************************************************************
 !> \brief build matrix and vector for nonperiodic RESP fitting
 !> \param qs_env the qs environment
@@ -795,7 +810,7 @@ CPSourceFileRef,&
           IF(dist(i)>rmax-delta) not_in_range(i,2)=.TRUE.
        ENDDO
        ! check if the point is sufficiently close and  far. if OK, we can use
-       ! the point for fitting, add/subtract 1.0E-13 to get rid of rounding errors when shifting atoms 
+       ! the point for fitting, add/subtract 1.0E-13 to get rid of rounding errors when shifting atoms
        IF(ANY(not_in_range(:,1)).OR.ALL(not_in_range(:,2))) CYCLE
        resp_env%npoints_proc = resp_env%npoints_proc + 1
        IF (BTEST(cp_print_key_should_output(logger%iter_info,resp_section,&
@@ -812,7 +827,7 @@ CPSourceFileRef,&
        IF (qs_env%qmmm) THEN
           ! If it's a QM/MM run let's remove the contribution of the MM potential out of the Hartree pot
           vj=-v_hartree_pw%cr3d(jx,jy,jz)/dvol+qs_env%ks_qmmm_env%v_qmmm_rspace%pw%cr3d(jx,jy,jz)
-       ELSE                                                                                       
+       ELSE
           vj=-v_hartree_pw%cr3d(jx,jy,jz)/dvol
        END IF
        dist(:) = 1.0_dp/dist(:)
@@ -826,7 +841,7 @@ CPSourceFileRef,&
     ENDDO
     ENDDO
     ENDDO
-    
+
     ! get total number of fitting points
     resp_env%npoints = resp_env%npoints_proc
     CALL mp_sum(resp_env%npoints,v_hartree_pw%pw_grid%para%group)
@@ -845,7 +860,8 @@ CPSourceFileRef,&
     CALL timestop(handle)
 
   END SUBROUTINE calc_resp_matrix_nonper
- 
+
+
 ! *****************************************************************************
 !> \brief build matrix and vector for periodic RESP fitting
 !> \param qs_env the qs environment
@@ -874,19 +890,23 @@ CPSourceFileRef,&
     INTEGER                                  :: handle, i, ip, j, jx, jy, jz, &
                                                 stat
     LOGICAL                                  :: failure
-    REAL(KIND=dp)                            :: normalize_factor
+    REAL(KIND=dp)                            :: normalize_factor, sum_pot_qm, dvol
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: vpot
+    REAL(KIND=dp), ALLOCATABLE, &
+      DIMENSION(:)                           :: sum_vpot, pot_qm
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(pw_env_type), POINTER               :: pw_env
+    TYPE(pw_type), POINTER                   :: v_hartree_pw
     TYPE(pw_p_type)                          :: rho_ga, va_gspace, va_rspace
     TYPE(pw_poisson_type), POINTER           :: poisson_env
     TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
+    TYPE(qs_ks_qmmm_env_type), POINTER       :: ks_qmmm_env
 
-    CALL timeset(routineN,handle)
+    CALL timeset(routineN, handle)
 
     failure=.FALSE.
-    NULLIFY(pw_env, para_env,auxbas_pw_pool,poisson_env)
+    NULLIFY(pw_env, para_env, auxbas_pw_pool, poisson_env, ks_qmmm_env, v_hartree_pw)
 
     IF(.NOT.ALL(cell%perd/=0)) THEN
         CALL stop_program(routineN,moduleN,__LINE__,&
@@ -894,8 +914,12 @@ CPSourceFileRef,&
              " can only be obtained with a cell that has XYZ periodicity")
     ENDIF
 
-    CALL get_qs_env(qs_env, pw_env=pw_env,para_env=para_env,&
-                      error=error)   
+    CALL get_qs_env(qs_env, &
+                    pw_env=pw_env, &
+                    para_env=para_env, &
+                    v_hartree_rspace=v_hartree_pw, &
+                    ks_qmmm_env=ks_qmmm_env, &
+                    error=error)
 
     CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool,&
                       poisson_env=poisson_env, error=error)
@@ -918,9 +942,32 @@ CPSourceFileRef,&
     !get fitting points and store them in resp_env%fitpoints
     CALL get_fitting_points(qs_env,resp_env,rep_sys,particles=particles,&
          cell=cell,error=error)
+
     ALLOCATE(vpot(resp_env%npoints_proc,natom),stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,Failure)
+
+    IF (resp_env%level_correction) THEN
+       ALLOCATE(sum_vpot(natom),stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,Failure)
+       ALLOCATE(pot_qm(resp_env%npoints_proc),stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,Failure)
+    END IF
+
     normalize_factor=SQRT((resp_env%eta/pi)**3)
+
+    ! get hartree potential from QM calculation, and taking into
+    ! account that v_hartree has opposite sign, and remove v_qmmm
+    dvol=v_hartree_pw%pw_grid%dvol
+    DO ip = 1, resp_env%npoints_proc
+       jx = resp_env%fitpoints(1,ip)
+       jy = resp_env%fitpoints(2,ip)
+       jz = resp_env%fitpoints(3,ip)
+       pot_qm(ip) = -v_hartree_pw%cr3d(jx,jy,jz)/dvol
+       IF (qs_env%qmmm) THEN
+          ! taking into account that v_qmmm also has opposite sign
+          pot_qm(ip) = pot_qm(ip) + ks_qmmm_env%v_qmmm_rspace%pw%cr3d(jx,jy,jz)
+       END IF
+    END DO
 
     DO i=1,natom
      !collocate gaussian for each atom
@@ -938,11 +985,26 @@ CPSourceFileRef,&
          jz = resp_env%fitpoints(3,ip)
          vpot(ip,i) = va_rspace%pw%cr3d(jx,jy,jz)
       END DO
-    ENDDO
+    END DO
 
     CALL pw_release(va_gspace%pw,error=error)
     CALL pw_release(va_rspace%pw,error=error)
     CALL pw_release(rho_ga%pw,error=error)
+
+    IF (resp_env%level_correction) THEN
+       ! calculate average pot_qm and vpot
+       sum_pot_qm = SUM(pot_qm)
+       DO i = 1, natom
+          sum_vpot(i) = SUM(vpot(:,i))
+       END DO
+       CALL mp_sum(sum_pot_qm, para_env%group)
+       CALL mp_sum(sum_vpot, para_env%group)
+       ! offset by the average values as level correction in both vpot and pot_qm
+       pot_qm(:) = pot_qm(:) - sum_pot_qm/resp_env%npoints
+       DO i = 1, natom
+          vpot(:,i) = vpot(:,i) - sum_vpot(i)/resp_env%npoints
+       END DO
+    END IF
 
     DO i=1,natom
       DO j=1,natom
@@ -950,156 +1012,27 @@ CPSourceFileRef,&
          resp_env%matrix(i,j)=resp_env%matrix(i,j) + 2.0_dp*SUM(vpot(:,i)*vpot(:,j))
       ENDDO
       ! calculate vector resp_env%rhs
-      CALL calculate_rhs(qs_env,resp_env,resp_env%rhs(i),vpot(:,i),error=error)
+      resp_env%rhs(i)=resp_env%rhs(i) + 2.0_dp*SUM(pot_qm(:)*vpot(:,i))
     END DO
-
-    DEALLOCATE(vpot,stat=stat)
-    CPPostconditionNoFail(stat==0,cp_failure_level,routineP,error)
-    
     CALL mp_sum(resp_env%matrix,para_env%group)
     CALL mp_sum(resp_env%rhs,para_env%group)
     !weighted sum
     resp_env%matrix=resp_env%matrix/resp_env%npoints
     resp_env%rhs=resp_env%rhs/resp_env%npoints
+
+    DEALLOCATE(vpot,stat=stat)
+    CPPostconditionNoFail(stat==0,cp_failure_level,routineP,error)
+
+    IF (resp_env%level_correction) THEN
+       DEALLOCATE(sum_vpot,stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,Failure)
+       DEALLOCATE(pot_qm,stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,Failure)
+    END IF
 
     CALL timestop(handle)
 
   END SUBROUTINE calc_resp_matrix_periodic
-
-
-  SUBROUTINE calc_resp_matrix_periodic_repeat(qs_env, &
-                                              resp_env, &
-                                              rep_sys, &
-                                              particles, &
-                                              cell, &
-                                              natom, &
-                                              error)
-
-    TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(resp_type), POINTER                 :: resp_env
-    TYPE(resp_p_type), DIMENSION(:), POINTER :: rep_sys
-    TYPE(particle_list_type), POINTER        :: particles
-    TYPE(cell_type), POINTER                 :: cell
-    INTEGER, INTENT(IN)                      :: natom
-    TYPE(cp_error_type), INTENT(inout)       :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'calc_resp_matrix_periodic_repeat', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: handle, ii, ip, jj, jx, jy, jz, &
-                                                stat
-    LOGICAL                                  :: failure
-    REAL(KIND=dp)                            :: normalize_factor
-    REAL(KIND=dp), ALLOCATABLE, &
-      DIMENSION(:, :)                        :: vpot
-    REAL(KIND=dp), ALLOCATABLE, &
-      DIMENSION(:)                           :: av_vpot
-    TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(pw_env_type), POINTER               :: pw_env
-    TYPE(pw_p_type)                          :: rho_ga, va_gspace, va_rspace
-    TYPE(pw_poisson_type), POINTER           :: poisson_env
-    TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
-
-    CALL timeset(routineN,handle)
-
-    failure = .FALSE.
-    NULLIFY(pw_env, para_env, auxbas_pw_pool, poisson_env)
-
-    IF (.NOT. ALL(cell%perd /= 0)) THEN
-        CALL stop_program(routineN, moduleN, __LINE__, &
-             "Periodic solution for RESP (with periodic Poisson solver)"//&
-             " can only be obtained with a cell that has XYZ periodicity")
-    ENDIF
-
-    CALL get_qs_env(qs_env, pw_env=pw_env, para_env=para_env, &
-                    error=error)   
-
-    CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool, &
-                    poisson_env=poisson_env, error=error)
-    CALL pw_pool_create_pw(auxbas_pw_pool, &
-                           rho_ga%pw, &
-                           use_data=COMPLEXDATA1D, &
-                           in_space=RECIPROCALSPACE, &
-                           error=error)
-    CALL pw_pool_create_pw(auxbas_pw_pool, &
-                           va_gspace%pw, &
-                           use_data=COMPLEXDATA1D, &
-                           in_space=RECIPROCALSPACE, &
-                           error=error)
-    CALL pw_pool_create_pw(auxbas_pw_pool, &
-                           va_rspace%pw, &
-                           use_data=REALDATA3D, &
-                           in_space=REALSPACE, &
-                           error=error)
-
-    !get fitting points and store them in resp_env%fitpoints
-    CALL get_fitting_points(qs_env, resp_env, rep_sys, particles=particles, &
-                            cell=cell, error=error)
-    
-    ALLOCATE(vpot(resp_env%npoints_proc,natom), STAT=stat)
-    CPPostcondition(stat==0, cp_failure_level, routineP, error, Failure)
-    ALLOCATE(av_vpot(natom), STAT=stat)
-    CPPostcondition(stat==0, cp_failure_level, routineP, error, Failure)
-
-    normalize_factor = SQRT((resp_env%eta/pi)**3)
-
-    DO ii = 1, natom
-     !collocate gaussian for each atom
-      CALL pw_zero(rho_ga%pw, error=error)
-      CALL calculate_rho_resp_single(rho_ga, qs_env, resp_env%eta, ii, error)
-     !calculate potential va and store the part needed for fitting in vpot
-      CALL pw_zero(va_gspace%pw, error=error)
-      CALL pw_poisson_solve(poisson_env, rho_ga%pw, vhartree=va_gspace%pw, error=error)
-      CALL pw_zero(va_rspace%pw, error=error)
-      CALL pw_transfer(va_gspace%pw, va_rspace%pw, error=error)
-      CALL pw_scale(va_rspace%pw, normalize_factor, error=error)
-      DO ip=1,resp_env%npoints_proc
-         jx = resp_env%fitpoints(1,ip)
-         jy = resp_env%fitpoints(2,ip)
-         jz = resp_env%fitpoints(3,ip)
-         vpot(ip,ii) = va_rspace%pw%cr3d(jx,jy,jz)
-      END DO
-    ENDDO
-
-    CALL pw_release(va_gspace%pw,error=error)
-    CALL pw_release(va_rspace%pw,error=error)
-    CALL pw_release(rho_ga%pw,error=error)
-
-    ! calculate average vpot
-    DO ii = 1, natom
-       av_vpot(ii) = SUM(vpot(:,ii)) / resp_env%npoints
-    END DO
-    CALL mp_sum(av_vpot, para_env%group)
-
-    ! offset vpot by av_vpot as accourding to REPEAT method
-    DO ii = 1, natom
-       vpot(:,ii) = vpot(:,ii) - av_vpot(ii)
-    END DO
-
-    DO ii = 1, natom
-       DO jj = 1, natom
-          ! calculate matrix
-          resp_env%matrix(ii,jj)=resp_env%matrix(ii,jj) + 2.0_dp*SUM(vpot(:,ii)*vpot(:,jj))
-       END DO
-       ! calculate vector resp_env%rhs
-       CALL calculate_rhs(qs_env,resp_env,resp_env%rhs(ii),vpot(:,ii),error=error)
-    END DO
-
-    DEALLOCATE(vpot, STAT=stat)
-    CPPostconditionNoFail(stat==0, cp_failure_level, routineP, error)
-    DEALLOCATE(av_vpot, STAT=stat)
-    CPPostconditionNoFail(stat==0, cp_failure_level, routineP, error)
-
-    CALL mp_sum(resp_env%matrix,para_env%group)
-    CALL mp_sum(resp_env%rhs,para_env%group)
-    !weighted sum
-    resp_env%matrix=resp_env%matrix/resp_env%npoints
-    resp_env%rhs=resp_env%rhs/resp_env%npoints
-
-    CALL timestop(handle)
-
-  END SUBROUTINE calc_resp_matrix_periodic_repeat
-
 
 
 ! *****************************************************************************
@@ -1113,7 +1046,7 @@ CPSourceFileRef,&
 !>        see module cp_error_handling
 ! *****************************************************************************
   SUBROUTINE get_fitting_points(qs_env,resp_env,rep_sys,particles,cell,error)
- 
+
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(resp_type), POINTER                 :: resp_env
     TYPE(resp_p_type), DIMENSION(:), POINTER :: rep_sys
@@ -1144,10 +1077,10 @@ CPSourceFileRef,&
     CALL timeset(routineN,handle)
 
     NULLIFY(atomic_kind_set,v_hartree_pw,para_env,logger,input,particle_set,&
-            resp_section)   
+            resp_section)
     failure=.FALSE.
     delta = 1.0E-13_dp
- 
+
     CALL get_qs_env(qs_env,&
                     input=input,&
                     particle_set=particle_set,&
@@ -1164,7 +1097,7 @@ CPSourceFileRef,&
                                      extension=".xyz",&
                                      file_status="REPLACE",&
                                      file_action="WRITE",&
-                                     file_form="FORMATTED",& 
+                                     file_form="FORMATTED",&
                                      error=error)
 
     bo=v_hartree_pw%pw_grid%bounds_local
@@ -1232,20 +1165,20 @@ CPSourceFileRef,&
               vec_pbc = pbc(r,particles%els(iatom)%r,cell)
              END SELECT
              SELECT CASE(rep_sys(i)%p_resp%my_fit)
-             !subtract delta=1.0E-13 to get rid of rounding errors when shifting atoms 
+             !subtract delta=1.0E-13 to get rid of rounding errors when shifting atoms
              CASE(do_resp_x_dir, do_resp_minus_x_dir)
               IF(ABS(vec_pbc(3))<rep_sys(i)%p_resp%length-delta)       in_z=1
               IF(ABS(vec_pbc(2))<rep_sys(i)%p_resp%length-delta)       in_y=1
-              IF(vec_pbc(1)>rep_sys(i)%p_resp%range_surf(1)+delta.AND.&              
-                  vec_pbc(1)<rep_sys(i)%p_resp%range_surf(2)-delta)    in_x=1 
+              IF(vec_pbc(1)>rep_sys(i)%p_resp%range_surf(1)+delta.AND.&
+                  vec_pbc(1)<rep_sys(i)%p_resp%range_surf(2)-delta)    in_x=1
              CASE(do_resp_y_dir,do_resp_minus_y_dir)
               IF(ABS(vec_pbc(3))<rep_sys(i)%p_resp%length-delta)       in_z=1
-              IF(vec_pbc(2)>rep_sys(i)%p_resp%range_surf(1)+delta.AND.&              
-                  vec_pbc(2)<rep_sys(i)%p_resp%range_surf(2)-delta)    in_y=1 
+              IF(vec_pbc(2)>rep_sys(i)%p_resp%range_surf(1)+delta.AND.&
+                  vec_pbc(2)<rep_sys(i)%p_resp%range_surf(2)-delta)    in_y=1
               IF(ABS(vec_pbc(1))<rep_sys(i)%p_resp%length-delta)       in_x=1
              CASE(do_resp_z_dir, do_resp_minus_z_dir)
-              IF(vec_pbc(3)>rep_sys(i)%p_resp%range_surf(1)+delta.AND.&              
-                  vec_pbc(3)<rep_sys(i)%p_resp%range_surf(2)-delta)    in_z=1 
+              IF(vec_pbc(3)>rep_sys(i)%p_resp%range_surf(1)+delta.AND.&
+                  vec_pbc(3)<rep_sys(i)%p_resp%range_surf(2)-delta)    in_z=1
               IF(ABS(vec_pbc(2))<rep_sys(i)%p_resp%length-delta)       in_y=1
               IF(ABS(vec_pbc(1))<rep_sys(i)%p_resp%length-delta)       in_x=1
              END SELECT
@@ -1271,7 +1204,7 @@ CPSourceFileRef,&
     resp_env%npoints = resp_env%npoints_proc
     CALL mp_sum(resp_env%npoints, para_env%group)
 
-    !print fitting points to file if requested 
+    !print fitting points to file if requested
     IF (BTEST(cp_print_key_should_output(logger%iter_info,&
             resp_section,"PRINT%COORD_FIT_POINTS",error=error),&
             cp_p_file))THEN
@@ -1286,20 +1219,20 @@ CPSourceFileRef,&
     CPPostconditionNoFail(stat==0,cp_failure_level,routineP,error)
 
     CALL timestop(handle)
- 
+
   END SUBROUTINE get_fitting_points
 
 ! *****************************************************************************
 !> \brief calculate vector rhs
 !> \param qs_env the qs environment
 !> \param resp_env the resp environment
-!> \param rhs vector 
+!> \param rhs vector
 !> \param vpot single gaussian potential
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 ! *****************************************************************************
   SUBROUTINE calculate_rhs(qs_env,resp_env,rhs,vpot,error)
- 
+
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(resp_type), POINTER                 :: resp_env
     REAL(KIND=dp), INTENT(INOUT)             :: rhs
@@ -1322,7 +1255,7 @@ CPSourceFileRef,&
     CALL get_qs_env(qs_env, v_hartree_rspace=v_hartree_pw, error=error)
     dvol=v_hartree_pw%pw_grid%dvol
     !multiply v_hartree and va_rspace and calculate the vector rhs
-    !taking into account that v_hartree has opposite site; remove v_qmmm       
+    !taking into account that v_hartree has opposite sign; remove v_qmmm
     DO ip=1,resp_env%npoints_proc
        jx = resp_env%fitpoints(1,ip)
        jy = resp_env%fitpoints(2,ip)
@@ -1330,17 +1263,17 @@ CPSourceFileRef,&
        vj = -v_hartree_pw%cr3d(jx,jy,jz)/dvol
        IF (qs_env%qmmm) THEN
          !taking into account that v_qmmm has also opposite sign
-         vj = vj + qs_env%ks_qmmm_env%v_qmmm_rspace%pw%cr3d(jx,jy,jz) 
+         vj = vj + qs_env%ks_qmmm_env%v_qmmm_rspace%pw%cr3d(jx,jy,jz)
        ENDIF
        rhs = rhs + 2.0_dp*vj*vpot(ip)
     ENDDO
- 
+
     CALL timestop(handle)
- 
+
   END SUBROUTINE calculate_rhs
 
 ! *****************************************************************************
-!> \brief print the atom coordinates and the coordinates of the fitting points 
+!> \brief print the atom coordinates and the coordinates of the fitting points
 !>        to an xyz file
 !> \param qs_env the qs environment
 !> \param resp_env the resp environment
@@ -1351,7 +1284,7 @@ CPSourceFileRef,&
 !>        see module cp_error_handling
 ! *****************************************************************************
   SUBROUTINE print_fitting_points(qs_env,resp_env,dh,output_unit,gbo,error)
-  
+
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(resp_type), POINTER                 :: resp_env
     REAL(KIND=dp), INTENT(IN)                :: dh(3,3)
@@ -1380,11 +1313,11 @@ CPSourceFileRef,&
 
     failure=.FALSE.
     NULLIFY(para_env,input,logger,resp_section,print_key,particle_set,tmp_size,&
-            tmp_points,tmp_npoints)   
- 
+            tmp_points,tmp_npoints)
+
     CALL get_qs_env(qs_env, input=input, para_env=para_env,&
                        particle_set=particle_set,error=error)
- 
+
     resp_section => section_vals_get_subs_vals(input,"PROPERTIES%RESP",&
                                                 error=error)
     print_key => section_vals_get_subs_vals(resp_section,&
@@ -1406,18 +1339,18 @@ CPSourceFileRef,&
      ENDDO
      !printing points of proc which is doing the output (should be proc 0)
      DO ip=1,resp_env%npoints_proc
-      jx=resp_env%fitpoints(1,ip)     
-      jy=resp_env%fitpoints(2,ip)     
+      jx=resp_env%fitpoints(1,ip)
+      jy=resp_env%fitpoints(2,ip)
       jz=resp_env%fitpoints(3,ip)
       l=jx - gbo(1,1)
       k=jy - gbo(1,2)
-      p=jz - gbo(1,3) 
-      r(3)=p*dh(3,3)+k*dh(3,2)+l*dh(3,1) 
+      p=jz - gbo(1,3)
+      r(3)=p*dh(3,3)+k*dh(3,2)+l*dh(3,1)
       r(2)=p*dh(2,3)+k*dh(2,2)+l*dh(2,1)
-      r(1)=p*dh(1,3)+k*dh(1,2)+l*dh(1,1)  
-      r(:)=r(:)*conv 
+      r(1)=p*dh(1,3)+k*dh(1,2)+l*dh(1,1)
+      r(:)=r(:)*conv
       WRITE(UNIT=output_unit,FMT="(A,2X,3F10.5)") "X", r(1), r(2), r(3)
-     ENDDO 
+     ENDDO
     ENDIF
 
     ALLOCATE(tmp_size(1),stat=stat)
@@ -1425,7 +1358,7 @@ CPSourceFileRef,&
     ALLOCATE(tmp_npoints(1),stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,Failure)
 
-    !sending data of all other prosc to proc which makes the output (proc 0) 
+    !sending data of all other prosc to proc which makes the output (proc 0)
     IF(output_unit>0) THEN
       my_pos=para_env%mepos
       DO i=1,para_env%num_pe
@@ -1441,19 +1374,19 @@ CPSourceFileRef,&
        CALL mp_irecv(msgout=tmp_npoints,source=i-1,comm=para_env%group,&
             request=req(5))
        CALL mp_wait(req(5))
-       DO ip=1,tmp_npoints(1) 
-        jx=tmp_points(1,ip)     
-        jy=tmp_points(2,ip)     
+       DO ip=1,tmp_npoints(1)
+        jx=tmp_points(1,ip)
+        jy=tmp_points(2,ip)
         jz=tmp_points(3,ip)
         l=jx - gbo(1,1)
         k=jy - gbo(1,2)
-        p=jz - gbo(1,3) 
-        r(3)=p*dh(3,3)+k*dh(3,2)+l*dh(3,1) 
+        p=jz - gbo(1,3)
+        r(3)=p*dh(3,3)+k*dh(3,2)+l*dh(3,1)
         r(2)=p*dh(2,3)+k*dh(2,2)+l*dh(2,1)
-        r(1)=p*dh(1,3)+k*dh(1,2)+l*dh(1,1)  
-        r(:)=r(:)*conv 
+        r(1)=p*dh(1,3)+k*dh(1,2)+l*dh(1,1)
+        r(:)=r(:)*conv
         WRITE(UNIT=output_unit,FMT="(A,2X,3F10.5)") "X", r(1), r(2),r(3)
-       ENDDO 
+       ENDDO
        DEALLOCATE(tmp_points,stat=stat)
        CPPostconditionNoFail(stat==0,cp_failure_level,routineP,error)
       ENDDO
@@ -1478,7 +1411,7 @@ CPSourceFileRef,&
     CPPostconditionNoFail(stat==0,cp_failure_level,routineP,error)
 
     CALL timestop(handle)
- 
+
   END SUBROUTINE print_fitting_points
 
 ! *****************************************************************************
@@ -1614,13 +1547,13 @@ CPSourceFileRef,&
 !> \brief print input information
 !> \param qs_env the qs environment
 !> \param resp_env the resp environment
-!> \param rep_sys structure for repeating input sections defining fit points 
+!> \param rep_sys structure for repeating input sections defining fit points
 !> \param my_per ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 ! *****************************************************************************
   SUBROUTINE print_resp_parameter_info(qs_env,resp_env,rep_sys,my_per,error)
-   
+
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(resp_type), POINTER                 :: resp_env
     TYPE(resp_p_type), DIMENSION(:), POINTER :: rep_sys
@@ -1659,7 +1592,7 @@ CPSourceFileRef,&
        WRITE(output_unit,'(T3,A,T75,I6)') "Number of explicit constraints: ",resp_env%ncons-1
       ELSE
        WRITE(output_unit,'(T3,A,T75,I6)') "Number of explicit constraints: ",resp_env%ncons
-      ENDIF  
+      ENDIF
      ENDIF
      WRITE(output_unit,'(T3,A,T75,I6)') "Number of explicit restraints: ",resp_env%nrest_sec
      WRITE(output_unit,'(T3,A,T80,A)')  "Constrain total charge ",MERGE("T","F",resp_env%itc)
@@ -1670,9 +1603,9 @@ CPSourceFileRef,&
      ENDIF
      WRITE(output_unit,'(T3,A,T66,3I5)') "Stride: ",resp_env%stride
      IF(resp_env%molecular_sys) THEN
-       IF(ALL(resp_env%rmin_kind==resp_env%rmin_kind(1)))& 
+       IF(ALL(resp_env%rmin_kind==resp_env%rmin_kind(1)))&
         WRITE(output_unit,'(T3,A,T71,F10.5)') "Rmin [angstrom]: ",resp_env%rmin_kind(1)*conv
-       IF(ALL(resp_env%rmax_kind==resp_env%rmax_kind(1)))& 
+       IF(ALL(resp_env%rmax_kind==resp_env%rmax_kind(1)))&
         WRITE(output_unit,'(T3,A,T71,F10.5)')  "Rmax [angstrom]: ",resp_env%rmax_kind(1)*conv
        WRITE(output_unit,'(T3,A,T51,3F10.5)') "Box min [angstrom]: ",resp_env%box_low(1:3)*conv
        WRITE(output_unit,'(T3,A,T51,3F10.5)') "Box max [angstrom]: ",resp_env%box_hi(1:3)*conv
@@ -1740,7 +1673,7 @@ CPSourceFileRef,&
 
     failure=.FALSE.
     NULLIFY(particle_set,qs_kind_set,input,logger,resp_section,print_key)
- 
+
     CALL get_qs_env(qs_env,input=input,particle_set=particle_set,&
                     qs_kind_set=qs_kind_set, error=error)
 
@@ -1759,7 +1692,7 @@ CPSourceFileRef,&
                                       extension=".resp",&
                                       file_status="REPLACE",&
                                       file_action="WRITE",&
-                                      file_form="FORMATTED",& 
+                                      file_form="FORMATTED",&
                                       error=error)
      IF(output_file>0) THEN
       filename = cp_print_key_generate_filename(logger,&
@@ -1769,7 +1702,7 @@ CPSourceFileRef,&
                                              atomic_charges=resp_env%rhs(1:natom))
      IF(output_runinfo>0) WRITE(output_runinfo,'(2X,A,/)')  "PRINTED RESP CHARGES TO FILE"
      ENDIF
- 
+
      CALL cp_print_key_finished_output(output_file,logger,resp_section,&
                        "PRINT%RESP_CHARGES_TO_FILE", error=error)
     ELSE
@@ -1792,7 +1725,7 @@ CPSourceFileRef,&
 !>        see module cp_error_handling
 ! *****************************************************************************
   SUBROUTINE print_pot_from_resp_charges(qs_env,resp_env,particles,natom,output_runinfo,error)
- 
+
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(resp_type), POINTER                 :: resp_env
     TYPE(particle_list_type), POINTER        :: particles
@@ -1866,9 +1799,9 @@ CPSourceFileRef,&
      CALL pw_zero(v_resp_rspace%pw, error=error)
      CALL pw_transfer(v_resp_gspace%pw,v_resp_rspace%pw,error=error)
      CALL pw_scale(v_resp_rspace%pw,v_resp_rspace%pw%pw_grid%dvol,&
-                   error=error) 
+                   error=error)
      CALL pw_scale(v_resp_rspace%pw,-normalize_factor,&
-                   error=error)  
+                   error=error)
      CALL pw_release(v_resp_gspace%pw,error=error)
      CALL pw_release(rho_resp%pw,error=error)
      !now print the v_resp_rspace%pw to a cube file
@@ -1900,13 +1833,13 @@ CPSourceFileRef,&
     sum_hartree=0.0_dp
     rms=0.0_dp
     rrms=0.0_dp
-    DO ip=1,resp_env%npoints_proc 
+    DO ip=1,resp_env%npoints_proc
      jx = resp_env%fitpoints(1,ip)
      jy = resp_env%fitpoints(2,ip)
      jz = resp_env%fitpoints(3,ip)
      sum_diff=sum_diff+(v_hartree_rspace%cr3d(jx,jy,jz)-&
               v_resp_rspace%pw%cr3d(jx,jy,jz))**2
-     sum_hartree=sum_hartree+v_hartree_rspace%cr3d(jx,jy,jz)**2 
+     sum_hartree=sum_hartree+v_hartree_rspace%cr3d(jx,jy,jz)**2
     ENDDO
      CALL mp_sum(sum_diff,para_env%group)
      CALL mp_sum(sum_hartree,para_env%group)
@@ -1914,13 +1847,13 @@ CPSourceFileRef,&
      rrms=SQRT(sum_diff/sum_hartree)
      IF(output_runinfo > 0) THEN
       WRITE(output_runinfo,'(2X,A,T69,ES12.5)') "Root-mean-square (RMS) "//&
-                                                "error of RESP fit:",rms  
+                                                "error of RESP fit:",rms
       WRITE(output_runinfo,'(2X,A,T69,ES12.5,/)') "Relative root-mean-square "//&
-                                                  "(RRMS) error of RESP fit:",rrms  
+                                                  "(RRMS) error of RESP fit:",rrms
      ENDIF
      CALL pw_release(v_resp_rspace%pw,error=error)
     ENDIF
- 
+
     CALL timestop(handle)
 
   END SUBROUTINE print_pot_from_resp_charges

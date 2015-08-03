@@ -77,7 +77,7 @@ CONTAINS
             "system (i.e. isolated Poisson solver and big, nonperiodic cells), "//&
             "the nonperiodic RESP routines are automatically used. All restraints "//&
             "are harmonic!",&
-            n_keywords=2, n_subsections=2, repeats=.FALSE., citations=(/Golze2015/),& 
+            n_keywords=2, n_subsections=2, repeats=.FALSE., citations=(/Golze2015/),&
             error=error)
 
        NULLIFY(keyword, subsection)
@@ -120,6 +120,22 @@ CONTAINS
             usage="WIDTH <real> ",n_var=1,type_of_var=real_t,&
             default_r_val=cp_unit_to_cp2k(value=11.249_dp,unit_str="angstrom^-2",error=error), &
             unit_str="angstrom^-2",error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="LEVEL_CORRECTION",&
+            description="Offsets the atomic RESP and QM potential by their "//&
+                        "respective mean values. When used in conjunction "//&
+                        "with INTEGER_TOTAL_CHARGE = T and SPHERE_SAMPLING "//&
+                        "this is equivalent to the REPEAT method given in "//&
+                        "[J. Chem. Theory Comput. 5, 2866 (2009)]. In most "//&
+                        "cases switching on this option gives reasonable "//&
+                        "atomic charges without the need to define any "//&
+                        "restraints. Note that by switching on this option, "//&
+                        "RESTRAIN_HEAVIES_TO_ZERO will be switched off "//&
+                        "automatically.",&
+            usage="LEVEL_CORRECTION TRUE",&
+            default_l_val=.FALSE., error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
@@ -185,7 +201,7 @@ CONTAINS
 
        CALL keyword_create(keyword, name="EQUAL_CHARGES",&
             description="All atoms in ATOM_LIST are constrained to have the "//&
-            "same charges. When using this keyword, TARGET and ATOM_COEF do "//& 
+            "same charges. When using this keyword, TARGET and ATOM_COEF do "//&
             "not need to be set and will be ignored. Instead of using this "//&
             "keyword, the constraint section could be repeated.",&
             usage="EQUAL_CHARGES",&
@@ -279,8 +295,8 @@ CONTAINS
   END SUBROUTINE create_restraint_section
 
 ! *****************************************************************************
-!> \brief specifies the parameter for sampling the resp fitting points for 
-!>        molecular structures; sampling in spheres around the atoms 
+!> \brief specifies the parameter for sampling the resp fitting points for
+!>        molecular structures; sampling in spheres around the atoms
 !> \param section the section to create
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
@@ -386,8 +402,8 @@ CONTAINS
   END SUBROUTINE create_sphere_sampling_section
 
 ! *****************************************************************************
-!> \brief specifies the parameter for sampling the resp fitting points for 
-!>        slab-like periodic systems, i.e. systems that involve surfaces 
+!> \brief specifies the parameter for sampling the resp fitting points for
+!>        slab-like periodic systems, i.e. systems that involve surfaces
 !> \param section the section to create
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
@@ -471,7 +487,7 @@ CONTAINS
   END SUBROUTINE create_slab_sampling_section
 
 ! *****************************************************************************
-!> \brief create the resp print section 
+!> \brief create the resp print section
 !> \param section the section to create
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
