@@ -1629,9 +1629,9 @@ CONTAINS
     DO ikind = 1,nkind
        CALL get_atomic_kind(atomic_kind_set(ikind), atom_list=atom_list,natom=nat)
        CALL get_qs_kind(qs_kind_set(ikind),&
-                        basis_set=orb_basis_set, &
+                        orb_basis_set=orb_basis_set, &
                         harmonics=harmonics,&
-                        grid_atom=grid_atom, error=error)
+                        grid_atom=grid_atom)
 
        na = grid_atom%ng_sphere
        nr = grid_atom%nr

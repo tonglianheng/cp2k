@@ -46,6 +46,7 @@ MODULE mp2_gpw
                                              distribution_2d_type
   USE distribution_methods,            ONLY: distribute_molecules_1d,&
                                              distribute_molecules_2d
+  USE input_constants,                 ONLY: use_orb_basis_set
   USE input_section_types,             ONLY: section_vals_val_get
   USE kinds,                           ONLY: dp,&
                                              int_8
@@ -1277,7 +1278,7 @@ MODULE mp2_gpw
         CALL timeset(routineN//"_int",handle3)
         CALL cp_dbcsr_set(mat_munu%matrix,0.0_dp,error=error_sub)
         CALL integrate_v_rspace(rho_r,hmat=mat_munu,qs_env=qs_env,calculate_forces=.FALSE.,compute_tau=.FALSE.,gapw=.FALSE.,&
-             pw_env_external=pw_env_sub, task_list_external=task_list_sub, error=error_sub)
+           basis_set_id=use_orb_basis_set, pw_env_external=pw_env_sub, task_list_external=task_list_sub, error=error_sub)
         CALL timestop(handle3)
 
         ! multiply and goooooooo ...

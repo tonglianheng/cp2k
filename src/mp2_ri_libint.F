@@ -41,15 +41,17 @@ MODULE mp2_ri_libint
   USE hfx_screening_methods,           ONLY: calc_pair_dist_radii,&
                                              calc_screening_functions
   USE hfx_types,                       ONLY: &
-       hfx_basis_info_type, hfx_basis_type, hfx_cell_loop_info_type, &
-       hfx_create_neighbor_cells, hfx_general_type, hfx_load_balance_type, &
-       hfx_memory_type, hfx_pgf_list, hfx_pgf_product_list, &
-       hfx_potential_type, hfx_screen_coeff_type, hfx_screening_type, &
-       hfx_type, log_zero, pair_set_list_type
-  USE input_constants,                 ONLY: do_mp2_potential_TShPSC
+       hfx_basis_info_type, hfx_basis_type, hfx_create_neighbor_cells, &
+       hfx_general_type, hfx_load_balance_type, hfx_memory_type, &
+       hfx_pgf_list, hfx_pgf_product_list, hfx_potential_type, &
+       hfx_screen_coeff_type, hfx_screening_type, hfx_type, log_zero, &
+       pair_set_list_type
+  USE input_constants,                 ONLY: do_mp2_potential_TShPSC,&
+                                             use_ri_aux_basis_set
   USE input_section_types,             ONLY: section_vals_type
   USE kinds,                           ONLY: dp,&
                                              int_8
+  USE mathconstants,                   ONLY: zero
   USE message_passing,                 ONLY: mp_sum
   USE mp2_types,                       ONLY: init_TShPSC_lmax,&
                                              mp2_biel_type,&
@@ -136,6 +138,7 @@ MODULE mp2_ri_libint
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'libint_ri_mp2', &
       routineP = moduleN//':'//routineN
+    REAL(KIND=dp), PARAMETER                 :: due = 2.D+00, zero = 0.D+00
 
     INTEGER                                  :: handle, nkind
     LOGICAL                                  :: failure
@@ -224,13 +227,13 @@ MODULE mp2_ri_libint
     DO ikind = 1,nkind
       NULLIFY(atom_kind)
       atom_kind => qs_kind_set(ikind)
-      ! here we reset the initial RI basis such that we can
-      ! work with non-normalized auxiliary basis functions
-      CALL get_qs_kind(qs_kind=atom_kind,&
-                       basis_set=orb_basis_a,basis_type="RI_AUX",error=error)
-      IF(.NOT.(ASSOCIATED(orb_basis_a))) THEN
+      IF(.NOT.(ASSOCIATED(qs_kind_set(ikind)%ri_aux_basis_set))) THEN
         CALL stop_program(routineN,moduleN,__LINE__,"Initial RI auxiliary basis not specified.")
       END IF
+      CALL get_qs_kind(qs_kind=atom_kind,&
+                           ri_aux_basis_set=orb_basis_a)
+      ! here we reset the initial RI basis such that we can
+      ! work with non-normalized auxiliary basis functions
       orb_basis_a%gcc=1.0_dp
       orb_basis_a%norm_type = 1
       CALL init_aux_basis_set(orb_basis_a,error)
@@ -239,7 +242,7 @@ MODULE mp2_ri_libint
                                maxsgf=RI_basis_info%max_sgf,&
                                maxnset=RI_basis_info%max_set,&
                                maxlgto=RI_basis_info%max_am,&
-                               basis_type="RI_AUX",error=error)
+                               basis_set_id=use_ri_aux_basis_set)
       CALL get_gto_basis_set(gto_basis_set=orb_basis_a, &
                              lmax=RI_basis_parameter(ikind)%lmax, &
                              lmin=RI_basis_parameter(ikind)%lmin, &
@@ -560,7 +563,6 @@ MODULE mp2_ri_libint
     TYPE(hfx_basis_info_type), POINTER       :: basis_info
     TYPE(hfx_basis_type), DIMENSION(:), &
       POINTER                                :: basis_parameter
-    TYPE(hfx_cell_loop_info_type)            :: cell_loop_info
     TYPE(hfx_general_type)                   :: general_parameter
     TYPE(hfx_load_balance_type), POINTER     :: load_balance_parameter
     TYPE(hfx_memory_type), POINTER           :: memory_parameter
@@ -608,9 +610,6 @@ MODULE mp2_ri_libint
                     cell=cell,&
                     dft_control=dft_control,&
                     error=error)
-
-    ! kpoint variable needed inside coulomb4
-    cell_loop_info%dokp = .FALSE.
 
     !! Calculate l_max used in fgamma , because init_md_ftable is definitely not thread safe
     nkind = SIZE(qs_kind_set,1)
@@ -1025,7 +1024,7 @@ MODULE mp2_ri_libint
                           sphi_c_ext_set,&
                           sphi_d_ext_set,&
                           ee_work,ee_work2,ee_buffer1,ee_buffer2, ee_primitives_tmp,&
-                          nimages,do_periodic, p_work, cell_loop_info)
+                          nimages,do_periodic, p_work)
 
             primitive_counter=0
             DO llB=1, nsgfd(lset)
@@ -1296,7 +1295,7 @@ MODULE mp2_ri_libint
                              sphi_c_ext_set,&
                              sphi_d_ext_set,&
                              ee_work,ee_work2,ee_buffer1,ee_buffer2, ee_primitives_tmp,&
-                             nimages,do_periodic, p_work, cell_loop_info)
+                             nimages,do_periodic, p_work)
 
              nints = nsgfa(iset)*nsgfb(jset)*nsgfc(kset)*nsgfd(lset)
              neris_total = neris_total + nints

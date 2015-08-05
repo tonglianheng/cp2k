@@ -753,7 +753,8 @@ CONTAINS
       POINTER                                :: op_sm_set
     TYPE(gto_basis_set_p_type), &
       DIMENSION(:), POINTER                  :: basis_set_list
-    TYPE(gto_basis_set_type), POINTER        :: basis_set_a, basis_set_b
+    TYPE(gto_basis_set_type), POINTER        :: basis_set_a, basis_set_b, &
+                                                orb_basis_set
     TYPE(neighbor_list_iterator_p_type), &
       DIMENSION(:), POINTER                  :: nl_iterator
     TYPE(neighbor_list_set_p_type), &
@@ -768,7 +769,7 @@ CONTAINS
 
     failure = .FALSE.
     NULLIFY (qs_kind, qs_kind_set)
-    NULLIFY (cell, op_sm_set, particle_set)
+    NULLIFY ( cell, op_sm_set , orb_basis_set, particle_set)
     NULLIFY (sab_orb)
     NULLIFY (cosab, sinab, work)
     NULLIFY (la_max, la_min, lb_max, lb_min, npgfa, npgfb, nsgfa, nsgfb)
@@ -781,7 +782,7 @@ CONTAINS
     nkind = SIZE(qs_kind_set)
 
     CALL get_qs_kind_set(qs_kind_set=qs_kind_set,&
-                             maxco=ldwork, maxlgto=maxl,error=error )
+                             maxco=ldwork, maxlgto=maxl )
     ldab = ldwork
     ALLOCATE(cosab(ldab,ldab))
     cosab = 0.0_dp
@@ -821,7 +822,7 @@ CONTAINS
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
     DO ikind=1,nkind
       qs_kind => qs_kind_set(ikind)
-      CALL get_qs_kind(qs_kind=qs_kind,basis_set=basis_set_a,error=error)
+      CALL get_qs_kind(qs_kind=qs_kind,orb_basis_set=basis_set_a)
       IF (ASSOCIATED(basis_set_a)) THEN
         basis_set_list(ikind)%gto_basis_set => basis_set_a
       ELSE

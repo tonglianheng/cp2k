@@ -403,6 +403,7 @@ MODULE dbcsr_mm_multrec
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_mm_multrec_multiply', &
       routineP = moduleN//':'//routineN
+    LOGICAL, PARAMETER                       :: dbg = .FALSE.
 
     INTEGER                                  :: ithread, nthreads, t_a_f, &
                                                 t_a_l, t_b_f, t_b_l
@@ -499,6 +500,7 @@ MODULE dbcsr_mm_multrec
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_mm_multrec_finalize', &
       routineP = moduleN//':'//routineN
+    LOGICAL, PARAMETER                       :: dbg = .FALSE.
 
     INTEGER                                  :: error_handler, ithread
 

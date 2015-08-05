@@ -2168,6 +2168,8 @@ CONTAINS
       INTENT(INOUT)                          :: imgdist
     TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
 
+    LOGICAL, PARAMETER                       :: dbg = .FALSE.
+
     TYPE(dbcsr_distribution_obj)             :: dist
 
 !   ---------------------------------------------------------------------------

@@ -46,14 +46,9 @@ MODULE qs_ks_utils
                                              cp_print_key_finished_output,&
                                              cp_print_key_should_output,&
                                              cp_print_key_unit_nr
-  USE input_constants,                 ONLY: do_ppl_grid,&
-                                             sic_ad,&
-                                             sic_eo,&
-                                             sic_list_all,&
-                                             sic_list_unpaired,&
-                                             sic_mauri_spz,&
-                                             sic_mauri_us,&
-                                             sic_none
+  USE input_constants,                 ONLY: &
+       do_ppl_grid, sic_ad, sic_eo, sic_list_all, sic_list_unpaired, &
+       sic_mauri_spz, sic_mauri_us, sic_none, use_aux_fit_basis_set
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type,&
                                              section_vals_val_get
@@ -895,7 +890,7 @@ CONTAINS
                     dft_control=dft_control,&
                     error=error)
 
-    CALL get_qs_kind_set(qs_kind_set, nelectron=n_electrons, error=error)
+    CALL get_qs_kind_set(qs_kind_set, nelectron=n_electrons)
 
     scf_section => section_vals_get_subs_vals(input,"DFT%SCF",error=error)
     output_unit = cp_print_key_unit_nr(logger,scf_section,"PRINT%TOTAL_DENSITIES",&
@@ -1449,7 +1444,7 @@ CONTAINS
                                   force_adm=.TRUE.,& 
                                   ispin=ispin, &
                                   gapw=gapw_xc,&
-                                  basis_type="AUX_FIT",&
+                                  basis_set_id=use_aux_fit_basis_set,&
                                   error=error)
 
           ! matrix_ks_aux_fit_dft(x_DFT)=matrix_ks_aux_fit_dft(old,k_HF)-matrix_ks_aux_fit(k_HF-x_DFT)

@@ -22,7 +22,8 @@ MODULE admm_dm_methods
        cp_dbcsr_p_type, cp_dbcsr_release, cp_dbcsr_scale, cp_dbcsr_set, &
        cp_dbcsr_type
   USE input_constants,                 ONLY: do_admm_basis_projection,&
-                                             do_admm_blocked_projection
+                                             do_admm_blocked_projection,&
+                                             use_aux_fit_basis_set
   USE iterate_matrix,                  ONLY: invert_Hotelling
   USE kinds,                           ONLY: dp
   USE pw_types,                        ONLY: pw_p_type
@@ -290,7 +291,7 @@ MODULE admm_dm_methods
                                rho_gspace=rho_g_aux(ispin),&
                                total_rho=tot_rho_r_aux(ispin),&
                                soft_valid=.FALSE.,&
-                               basis_type="AUX_FIT",&
+                               basis_set_id=use_aux_fit_basis_set,&
                                error=error)
     END DO
 

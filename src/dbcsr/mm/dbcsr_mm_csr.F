@@ -343,7 +343,8 @@ MODULE dbcsr_mm_csr
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_mm_csr_multiply_low', &
       routineP = moduleN//':'//routineN
-    LOGICAL, PARAMETER                       :: dbg = .FALSE.
+    LOGICAL, PARAMETER                       :: dbg = .FALSE., &
+                                                local_timing = .FALSE.
 
     INTEGER :: a_blk, a_col_l, a_row_l, b_blk, b_col_l, c_blk_id, &
       c_col_logical, c_nze, c_row_logical, ithread, k_size, m_size, &

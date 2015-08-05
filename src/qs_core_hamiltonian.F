@@ -95,7 +95,9 @@ MODULE qs_core_hamiltonian
   USE input_constants,                 ONLY: do_ppl_analytic,&
                                              kg_tnadd_atomic,&
                                              rel_none,&
-                                             rel_trans_atom
+                                             rel_trans_atom,&
+                                             use_aux_fit_basis_set,&
+                                             use_orb_basis_set
   USE input_section_types,             ONLY: section_vals_val_get
   USE kg_environment_types,            ONLY: kg_environment_type
   USE kg_tnadd_mat,                    ONLY: build_tnadd_mat
@@ -303,8 +305,8 @@ CONTAINS
        ! S matrix
        CALL build_overlap_matrix(ks_env,nderivative=nders,matrixkp_s=matrix_s,&
                                  matrix_name="OVERLAP MATRIX",&
-                                 basis_type_a="ORB",&
-                                 basis_type_b="ORB", &
+                                 basis_set_id_a=use_orb_basis_set,&
+                                 basis_set_id_b=use_orb_basis_set, &
                                  sab_nl=sab_orb,calculate_forces=.TRUE.,&
                                  matrixkp_p=matrix_w,&
                                  error=error)
@@ -312,7 +314,7 @@ CONTAINS
        IF (.NOT.ofdft) &
           CALL build_kinetic_matrix(ks_env,matrixkp_t=matrix_t,&
                                     matrix_name="KINETIC ENERGY MATRIX",&
-                                    basis_type="ORB",&
+                                    basis_set_id=use_orb_basis_set,&
                                     sab_nl=sab_orb,calculate_forces=.TRUE.,&
                                     matrixkp_p=matrix_p,&
                                     eps_filter=eps_filter,&
@@ -321,15 +323,15 @@ CONTAINS
        ! S matrix
        CALL build_overlap_matrix(ks_env,nderivative=nders,matrixkp_s=matrix_s,&
                                  matrix_name="OVERLAP MATRIX",&
-                                 basis_type_a="ORB",&
-                                 basis_type_b="ORB", &
+                                 basis_set_id_a=use_orb_basis_set,&
+                                 basis_set_id_b=use_orb_basis_set, &
                                  sab_nl=sab_orb,&
                                  error=error)
        ! T matrix
        IF (.NOT.ofdft) &
           CALL build_kinetic_matrix(ks_env,matrixkp_t=matrix_t,&
                                     matrix_name="KINETIC ENERGY MATRIX",&
-                                    basis_type="ORB",&
+                                    basis_set_id=use_orb_basis_set,&
                                     sab_nl=sab_orb,&
                                     eps_filter=eps_filter,&
                                     error=error)
@@ -341,8 +343,8 @@ CONTAINS
                                         sab_aux_fit=sab_aux_fit, error=error)
          CALL build_overlap_matrix(ks_env,matrix_s=matrix_s_aux_fit,&
                                    matrix_name="AUX_FIT_OVERLAP",&
-                                   basis_type_a="AUX_FIT",&
-                                   basis_type_b="AUX_FIT", &
+                                   basis_set_id_a=use_aux_fit_basis_set,&
+                                   basis_set_id_b=use_aux_fit_basis_set, &
                                    sab_nl=sab_aux_fit,&
                                    error=error)
          CALL set_ks_env(ks_env,matrix_s_aux_fit=matrix_s_aux_fit,error=error)
@@ -350,8 +352,8 @@ CONTAINS
                                         sab_aux_fit_vs_orb=sab_aux_fit_vs_orb, error=error)
          CALL build_overlap_matrix(ks_env,matrix_s=matrix_s_aux_fit_vs_orb,&
                                    matrix_name="MIXED_OVERLAP",&
-                                   basis_type_a="AUX_FIT",&
-                                   basis_type_b="ORB", &
+                                   basis_set_id_a=use_aux_fit_basis_set,&
+                                   basis_set_id_b=use_orb_basis_set, &
                                    sab_nl=sab_aux_fit_vs_orb,&
                                    error=error)
          CALL set_ks_env(ks_env,matrix_s_aux_fit_vs_orb=matrix_s_aux_fit_vs_orb,error=error)
@@ -400,7 +402,7 @@ CONTAINS
                     error=error)
     CALL get_qs_kind_set(qs_kind_set,&
                          gth_potential_present=gth_potential_present,&
-                         all_potential_present=all_potential_present,error=error)
+                         all_potential_present=all_potential_present)
     ppl_present = ASSOCIATED(sac_ppl)
 
     IF (calculate_forces) THEN
@@ -527,7 +529,7 @@ CONTAINS
        CALL cp_dbcsr_iterator_next_block(iter, iatom, jatom, hblock, blk)
        IF (iatom==jatom) THEN
           ikind = kind_of(iatom)
-          CALL get_qs_kind(qs_kind_set(ikind),reltmat=reltmat,error=error)
+          CALL get_qs_kind(qs_kind_set(ikind),reltmat=reltmat)
           hblock = hblock + reltmat
        END IF
     END DO

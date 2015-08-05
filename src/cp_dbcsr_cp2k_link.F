@@ -36,6 +36,7 @@ MODULE cp_dbcsr_cp2k_link
        dbcsr_set_conf_use_mpi_rma, dbcsr_type_no_symmetry, has_acc, has_mpi, &
        mm_driver_acc, mm_driver_blas, mm_driver_matmul, mm_driver_smm, &
        mm_name_acc, mm_name_blas, mm_name_matmul, mm_name_smm, multrec_limit
+  USE input_constants,                 ONLY: use_orb_basis_set
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type,&
                                              section_vals_val_get
@@ -155,6 +156,13 @@ CONTAINS
          CALL dbcsr_set_conf_avg_elements_images(avg_elements_images, error=dbcsr_error)
     IF(nstacks(1) > 0) &
     CALL dbcsr_set_conf_nstacks(nstacks, error=dbcsr_error)
+
+    ! Force Communication thread to F and Communication thread load to 100 for RMA
+    IF (use_mpi_rma) THEN
+        use_comm_thread = .FALSE.
+        comm_thread_load = 100
+     ENDIF
+
     CALL dbcsr_set_conf_use_mpi_filtering(use_mpi_filtering, error=dbcsr_error)
     CALL dbcsr_set_conf_use_mpi_rma(use_mpi_rma, error=dbcsr_error)
     CALL dbcsr_set_conf_use_comm_thread(use_comm_thread, error=dbcsr_error)
@@ -227,11 +235,12 @@ CONTAINS
             "DBCSR| Use MPI memory allocation", dbcsr_get_conf_mpi_mem ()
            WRITE(UNIT=unit_num, FMT='(1X,A,T80,L1)')&
             "DBCSR| Use RMA algorithm", dbcsr_get_conf_use_mpi_rma ()
-           WRITE(UNIT=unit_num, FMT='(1X,A,T80,L1)')&
-             "DBCSR| Use Communication thread",  dbcsr_get_conf_use_comm_thread()
-           WRITE(UNIT=unit_num, FMT='(1X,A,T70,I11)')&
-             "DBCSR| Communication thread load", dbcsr_get_conf_comm_thread_load()
-           IF (dbcsr_get_conf_use_mpi_rma ()) THEN
+           IF (.NOT.dbcsr_get_conf_use_mpi_rma ()) THEN
+              WRITE(UNIT=unit_num, FMT='(1X,A,T80,L1)')&
+                   "DBCSR| Use Communication thread",  dbcsr_get_conf_use_comm_thread()
+              WRITE(UNIT=unit_num, FMT='(1X,A,T70,I11)')&
+                   "DBCSR| Communication thread load", dbcsr_get_conf_comm_thread_load()
+           ELSE
               WRITE(UNIT=unit_num, FMT='(1X,A,T80,L1)')&
                    "DBCSR| Use MPI filtering", dbcsr_get_conf_use_mpi_filtering ()
            ENDIF
@@ -439,8 +448,8 @@ CONTAINS
     CALL get_neighbor_list_set_p(neighbor_list_sets=neighbour_list,symmetric=do_symmetric)
     CPPrecondition(do_symmetric,cp_failure_level,routineP,error,failure)
     ALLOCATE (basis_set_list_a(nkind),basis_set_list_b(nkind))
-    CALL basis_set_list_setup(basis_set_list_a,"ORB",qs_kind_set,error=error)
-    CALL basis_set_list_setup(basis_set_list_b,"ORB",qs_kind_set,error=error)
+    CALL basis_set_list_setup(basis_set_list_a,use_orb_basis_set,qs_kind_set)
+    CALL basis_set_list_setup(basis_set_list_b,use_orb_basis_set,qs_kind_set)
 
     ! csr_sparsity can obtain values 0 (if zero element) or 1 (if non-zero element)
     CALL cp_dbcsr_set (csr_sparsity, 0.0, error)

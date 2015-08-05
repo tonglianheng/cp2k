@@ -332,8 +332,8 @@ CONTAINS
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_desymmetrize_deep', &
       routineP = moduleN//':'//routineN
-    INTEGER, PARAMETER                       :: idata = 2, imeta = 1, &
-                                                metalen = 3
+    INTEGER, PARAMETER                       :: debug_level = 0, idata = 2, &
+                                                imeta = 1, metalen = 3
 
     INTEGER :: blk, blk_l, blk_p, blk_ps, blks, col, col_size, dst_p, &
       error_handler, mp_group, nsymmetries, numproc, nze, pcol, prow, row, &
@@ -582,6 +582,7 @@ CONTAINS
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_distribute', &
       routineP = moduleN//':'//routineN
+    INTEGER, PARAMETER                       :: debug_level = 0, metalen = 2
 
     COMPLEX(KIND=dp), DIMENSION(:), POINTER  :: c_dp
     COMPLEX(KIND=sp), DIMENSION(:), POINTER  :: c_sp
@@ -1419,7 +1420,7 @@ CONTAINS
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_replicate', &
       routineP = moduleN//':'//routineN
-    INTEGER, PARAMETER                       :: metalen = 3
+    INTEGER, PARAMETER                       :: debug_level = 0, metalen = 3
     LOGICAL, PARAMETER                       :: dbg = .FALSE.
 
     CHARACTER                                :: rep_type
@@ -1703,7 +1704,7 @@ CONTAINS
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_complete_redistribute', &
       routineP = moduleN//':'//routineN
-    INTEGER, PARAMETER                       :: metalen = 7
+    INTEGER, PARAMETER                       :: debug_level = 0, metalen = 7
     LOGICAL, PARAMETER                       :: dbg = .FALSE.
 
     INTEGER :: blk, blk_col_new, blk_ps, blk_row_new, blks, cnt_fnd, cnt_new, &
@@ -2112,7 +2113,7 @@ CONTAINS
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_redistribute', &
       routineP = moduleN//':'//routineN
-    INTEGER, PARAMETER                       :: metalen = 2
+    INTEGER, PARAMETER                       :: debug_level = 0, metalen = 2
     LOGICAL, PARAMETER                       :: dbg = .FALSE.
 
     INTEGER :: blk, blk_ps, blks, col, col_size, data_type, dst_p, &
