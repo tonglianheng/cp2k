@@ -89,7 +89,6 @@ CONTAINS
 !> \param[in] io_unit           which unit to write to, if not negative
 !> \param[in] nproc             number of processors to test on
 !> \param[in] matrix_sizes      size of matrices to test
-!> \param[in] matrix_types      types of matrices to create
 !> \param[in] trs               transposes of the two matrices
 !> \param[in] bs_m block sizes of the 3 dimensions
 !> \param[in] bs_n block sizes of the 3 dimensions
@@ -105,13 +104,12 @@ CONTAINS
 !> \param[in] always_checksum   checksum after each multiplication
 ! *****************************************************************************
   SUBROUTINE dbcsr_run_tests (mp_group, io_unit, nproc,&
-       matrix_sizes, matrix_types, trs, &
+       matrix_sizes, trs, &
        bs_m, bs_n, bs_k, sparsities, alpha, beta, data_type, test_type,&
        n_loops, eps, retain_sparsity, always_checksum)
     INTEGER, INTENT(IN)                      :: mp_group, io_unit
     INTEGER, DIMENSION(:), POINTER           :: nproc
     INTEGER, DIMENSION(:), INTENT(in)        :: matrix_sizes
-    CHARACTER, DIMENSION(3), INTENT(in)      :: matrix_types
     LOGICAL, DIMENSION(2), INTENT(in)        :: trs
     INTEGER, DIMENSION(:), POINTER           :: bs_m, bs_n, bs_k
     REAL(kind=dp), DIMENSION(3), INTENT(in)  :: sparsities
@@ -255,14 +253,14 @@ CONTAINS
 
     SELECT CASE (test_type)
     CASE(dbcsr_test_mm)
-       CALL test_multiplies_multiproc (mp_group, group_sizes,&
+       CALL test_multiplies_multiproc (group_sizes,&
             matrix_a, matrix_b, matrix_c, t_a, t_b,&
             dbcsr_scalar (REAL(alpha, real_8)), dbcsr_scalar (REAL(beta, real_8)),&
             n_loops=n_loops, eps=eps,&
             io_unit = io_unit, always_checksum=always_checksum,&
             retain_sparsity=retain_sparsity)
     CASE(dbcsr_test_arnoldi)
-       CALL test_arnoldi(matrix_a,matrix_b, io_unit, n_loops, eps)
+       CALL test_arnoldi(matrix_a,matrix_b, io_unit, n_loops)
     CASE(dbcsr_test_binary_io)
        CALL test_binary_io(matrix_a,io_unit,dbcsr_error)
     END SELECT
@@ -326,12 +324,10 @@ CONTAINS
 !> \param matrix_b ...
 !> \param io_unit ...
 !> \param n_loops ...
-!> \param eps ...
 ! *****************************************************************************
-  SUBROUTINE test_arnoldi(matrix_a,matrix_b, io_unit, n_loops, eps)
+  SUBROUTINE test_arnoldi(matrix_a,matrix_b, io_unit, n_loops)
     TYPE(dbcsr_obj), TARGET                  :: matrix_a, matrix_b
     INTEGER                                  :: io_unit, n_loops
-    REAL(kind=dp), INTENT(in)                :: eps
 
     CHARACTER(len=*), PARAMETER :: routineN = 'test_arnoldi', &
       routineP = moduleN//':'//routineN
@@ -371,7 +367,6 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Performs a variety of matrix multiplies of same matrices on different
 !>        processor grids
-!> \param[in] mp_group          MPI communicator
 !> \param[in] group_sizes       array of (sub) communicator
 !>                              sizes to test (2-D)
 !> \param matrix_a matrices to multiply
@@ -388,12 +383,11 @@ CONTAINS
 !> \param[in] io_unit           which unit to write to, if not negative
 !> \param always_checksum ...
 ! *****************************************************************************
-  SUBROUTINE test_multiplies_multiproc (mp_group, group_sizes,&
+  SUBROUTINE test_multiplies_multiproc (group_sizes,&
        matrix_a, matrix_b, matrix_c,&
        transa, transb, alpha, beta, limits, retain_sparsity,&
        n_loops, eps,&
        io_unit, always_checksum)
-    INTEGER, INTENT(IN)                      :: mp_group
     INTEGER, DIMENSION(:, :)                 :: group_sizes
     TYPE(dbcsr_obj), INTENT(in)              :: matrix_a, matrix_b, matrix_c
     CHARACTER, INTENT(in)                    :: transa, transb

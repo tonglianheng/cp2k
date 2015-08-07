@@ -35,7 +35,6 @@ MODULE mp2_direct_method
        hfx_potential_type, hfx_screen_coeff_type, hfx_screening_type, &
        hfx_type, log_zero, pair_set_list_type
   USE input_constants,                 ONLY: do_mp2_potential_TShPSC
-  USE input_section_types,             ONLY: section_vals_type
   USE kinds,                           ONLY: dp,&
                                              int_8
   USE mathconstants,                   ONLY: zero
@@ -77,7 +76,6 @@ MODULE mp2_direct_method
 !> \param mp2_env ...
 !> \param qs_env ...
 !> \param rho density matrix
-!> \param hfx_section input_section HFX
 !> \param para_env ...
 !> \param mp2_biel ...
 !> \param dimen ...
@@ -100,7 +98,7 @@ MODULE mp2_direct_method
 !>      06.2011 created [Mauro Del Ben]
 !> \author Mauro Del Ben
 ! *****************************************************************************
-  SUBROUTINE mp2_canonical_direct_single_batch(Emp2,Emp2_Cou,Emp2_ex,mp2_env,qs_env,rho,hfx_section,para_env,&
+  SUBROUTINE mp2_canonical_direct_single_batch(Emp2,Emp2_Cou,Emp2_ex,mp2_env,qs_env,rho,para_env,&
                                                mp2_biel,dimen,C,Auto,i_batch_start,Ni_occupied,&
                                                occupied,elements_ij_proc, ij_list_proc,Nj_occupied,j_batch_start,&
                                                occupied_beta,C_beta,Auto_beta,Integ_MP2,error)
@@ -109,7 +107,6 @@ MODULE mp2_direct_method
     TYPE(mp2_type), POINTER                  :: mp2_env
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(qs_rho_type), POINTER               :: rho
-    TYPE(section_vals_type), POINTER         :: hfx_section
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(mp2_biel_type)                      :: mp2_biel
     INTEGER                                  :: dimen
@@ -933,26 +930,26 @@ MODULE mp2_direct_method
                 IF(.NOT.alpha_beta_case) THEN
                   IF(.NOT. mp2_env%direct_canonical%big_send) THEN
                     CALL transform_occupied_orbitals_second(dimen,iatom,jatom,iset,jset,&
-                                                     nsgfa(iset),nsgfb(jset),i_batch_start,Ni_occupied,Nj_occupied,j_batch_start,&
-                                                     BI1,C_T,mp2_biel,para_env,elements_ij_proc,ij_list_proc,&
+                                                     nsgfa(iset),nsgfb(jset),Ni_occupied,Nj_occupied,j_batch_start,&
+                                                     BI1,C_T,mp2_biel,para_env,elements_ij_proc,&
                                                      multiple,proc_map,BIb,error)
                   ELSE
                     CALL transform_occupied_orbitals_second_big(dimen,iatom,jatom,iset,jset,&
-                                                     nsgfa(iset),nsgfb(jset),i_batch_start,Ni_occupied,Nj_occupied,j_batch_start,&
-                                                     ij_elem_max,BI1,C_T,mp2_biel,para_env,elements_ij_proc,ij_list_proc,&
-                                                     multiple,proc_map,BIb,error)
+                                                     nsgfa(iset),nsgfb(jset),Ni_occupied,Nj_occupied,j_batch_start,&
+                                                     ij_elem_max,BI1,C_T,mp2_biel,para_env,elements_ij_proc,&
+                                                     proc_map,BIb,error)
                   END IF
                 ELSE
                   IF(.NOT. mp2_env%direct_canonical%big_send) THEN
                     CALL transform_occupied_orbitals_second(dimen,iatom,jatom,iset,jset,&
-                                                     nsgfa(iset),nsgfb(jset),i_batch_start,Ni_occupied,Nj_occupied,j_batch_start,&
-                                                     BI1,C_beta_T,mp2_biel,para_env,elements_ij_proc,ij_list_proc,&
+                                                     nsgfa(iset),nsgfb(jset),Ni_occupied,Nj_occupied,j_batch_start,&
+                                                     BI1,C_beta_T,mp2_biel,para_env,elements_ij_proc,&
                                                      multiple,proc_map,BIb,error)
                   ELSE
                     CALL transform_occupied_orbitals_second_big(dimen,iatom,jatom,iset,jset,&
-                                                     nsgfa(iset),nsgfb(jset),i_batch_start,Ni_occupied,Nj_occupied,j_batch_start,&
-                                                     ij_elem_max,BI1,C_beta_T,mp2_biel,para_env,elements_ij_proc,ij_list_proc,&
-                                                     multiple,proc_map,BIb,error)
+                                                     nsgfa(iset),nsgfb(jset),Ni_occupied,Nj_occupied,j_batch_start,&
+                                                     ij_elem_max,BI1,C_beta_T,mp2_biel,para_env,elements_ij_proc,&
+                                                     proc_map,BIb,error)
                   END IF
                 END IF
               END IF
@@ -1170,14 +1167,14 @@ MODULE mp2_direct_method
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
     IF(.NOT.alpha_beta_case) THEN
-      CALL transform_virtual_orbitals_and_accumulate(dimen,occupied,dimen-occupied,i_batch_start,Ni_occupied,&
-                                                     Nj_occupied,j_batch_start,BIb,C,Auto,para_env,elements_ij_proc,ij_list_proc,&
+      CALL transform_virtual_orbitals_and_accumulate(dimen,occupied,dimen-occupied,i_batch_start,&
+                                                     j_batch_start,BIb,C,Auto,elements_ij_proc,ij_list_proc,&
                                                      nspins,Emp2,Emp2_Cou,Emp2_ex,error=error)
     ELSE
       CALL transform_virtual_orbitals_and_accumulate_ABcase(dimen,occupied,occupied_beta,dimen-occupied,dimen-occupied_beta,&
-                                                     i_batch_start,Ni_occupied,Nj_occupied,j_batch_start,&
+                                                     i_batch_start,j_batch_start,&
                                                      BIb,C,C_beta,Auto,Auto_beta,&
-                                                     para_env,elements_ij_proc,ij_list_proc,Emp2,Emp2_Cou,Emp2_ex,error=error)
+                                                     elements_ij_proc,ij_list_proc,Emp2,Emp2_Cou,error=error)
       DEALLOCATE(C_beta_T)
     END IF
 
@@ -1338,7 +1335,6 @@ MODULE mp2_direct_method
 !> \param kset ...
 !> \param Ssize ...
 !> \param Rsize ...
-!> \param i_batch_start ...
 !> \param Ni_occupied ...
 !> \param Nj_occupied ...
 !> \param j_batch_start ...
@@ -1347,28 +1343,27 @@ MODULE mp2_direct_method
 !> \param mp2_biel ...
 !> \param para_env ...
 !> \param elements_ij_proc ...
-!> \param ij_list_proc ...
 !> \param multiple ...
 !> \param proc_map ...
 !> \param BIb ...
 !> \param error ...
 ! *****************************************************************************
   SUBROUTINE transform_occupied_orbitals_second(dimen,latom,katom,lset,kset,&
-                                             Ssize,Rsize,i_batch_start,Ni_occupied,Nj_occupied,j_batch_start,&
+                                             Ssize,Rsize,Ni_occupied,Nj_occupied,j_batch_start,&
                                              BI1,C_T,mp2_biel,para_env,&
-                                             elements_ij_proc,ij_list_proc,&
+                                             elements_ij_proc,&
                                              multiple,proc_map,BIb,error)
 
-    INTEGER :: dimen, latom, katom, lset, kset, Ssize, Rsize, i_batch_start, &
-      Ni_occupied, Nj_occupied, j_batch_start
+    INTEGER                                  :: dimen, latom, katom, lset, &
+                                                kset, Ssize, Rsize, &
+                                                Ni_occupied, Nj_occupied, &
+                                                j_batch_start
     REAL(KIND=dp), DIMENSION(dimen, &
       Ni_occupied, Rsize, Ssize)             :: BI1
     REAL(KIND=dp), DIMENSION(dimen, dimen)   :: C_T
     TYPE(mp2_biel_type)                      :: mp2_biel
     TYPE(cp_para_env_type), POINTER          :: para_env
-    INTEGER                                  :: elements_ij_proc
-    INTEGER, DIMENSION(elements_ij_proc, 2)  :: ij_list_proc
-    INTEGER                                  :: multiple
+    INTEGER                                  :: elements_ij_proc, multiple
     INTEGER, DIMENSION((-para_env%num_pe):(2&
       *para_env%num_pe-1))                   :: proc_map
     REAL(KIND=dp), DIMENSION(dimen, dimen, &
@@ -1526,7 +1521,6 @@ MODULE mp2_direct_method
 !> \param kset ...
 !> \param Ssize ...
 !> \param Rsize ...
-!> \param i_batch_start ...
 !> \param Ni_occupied ...
 !> \param Nj_occupied ...
 !> \param j_batch_start ...
@@ -1536,28 +1530,24 @@ MODULE mp2_direct_method
 !> \param mp2_biel ...
 !> \param para_env ...
 !> \param elements_ij_proc ...
-!> \param ij_list_proc ...
-!> \param multiple ...
 !> \param proc_map ...
 !> \param BIb ...
 !> \param error ...
 ! *****************************************************************************
   SUBROUTINE transform_occupied_orbitals_second_big(dimen,latom,katom,lset,kset,&
-                                             Ssize,Rsize,i_batch_start,Ni_occupied,Nj_occupied,j_batch_start,&
+                                             Ssize,Rsize,Ni_occupied,Nj_occupied,j_batch_start,&
                                              ij_elem_max,BI1,C_T,mp2_biel,para_env,&
-                                             elements_ij_proc,ij_list_proc,&
-                                             multiple,proc_map,BIb,error)
+                                             elements_ij_proc,&
+                                             proc_map,BIb,error)
 
-    INTEGER :: dimen, latom, katom, lset, kset, Ssize, Rsize, i_batch_start, &
-      Ni_occupied, Nj_occupied, j_batch_start, ij_elem_max
+    INTEGER :: dimen, latom, katom, lset, kset, Ssize, Rsize, Ni_occupied, &
+      Nj_occupied, j_batch_start, ij_elem_max
     REAL(KIND=dp), DIMENSION(dimen, &
       Ni_occupied, Rsize, Ssize)             :: BI1
     REAL(KIND=dp), DIMENSION(dimen, dimen)   :: C_T
     TYPE(mp2_biel_type)                      :: mp2_biel
     TYPE(cp_para_env_type), POINTER          :: para_env
     INTEGER                                  :: elements_ij_proc
-    INTEGER, DIMENSION(elements_ij_proc, 2)  :: ij_list_proc
-    INTEGER                                  :: multiple
     INTEGER, DIMENSION((-para_env%num_pe):(2&
       *para_env%num_pe-1))                   :: proc_map
     REAL(KIND=dp), DIMENSION(dimen, dimen, &
@@ -1704,13 +1694,10 @@ MODULE mp2_direct_method
 !> \param occupied ...
 !> \param virtual ...
 !> \param i_batch_start ...
-!> \param Ni_occupied ...
-!> \param Nj_occupied ...
 !> \param j_batch_start ...
 !> \param BIb ...
 !> \param C ...
 !> \param Auto ...
-!> \param para_env ...
 !> \param elements_ij_proc ...
 !> \param ij_list_proc ...
 !> \param nspins ...
@@ -1719,18 +1706,16 @@ MODULE mp2_direct_method
 !> \param Emp2_ex ...
 !> \param error ...
 ! *****************************************************************************
-  SUBROUTINE transform_virtual_orbitals_and_accumulate(dimen,occupied,virtual,i_batch_start,Ni_occupied,&
-                                                   Nj_occupied,j_batch_start,BIb,C,Auto,para_env,elements_ij_proc,&
+  SUBROUTINE transform_virtual_orbitals_and_accumulate(dimen,occupied,virtual,i_batch_start,&
+                                                   j_batch_start,BIb,C,Auto,elements_ij_proc,&
                                                    ij_list_proc,nspins,Emp2,Emp2_Cou,Emp2_ex,error)
 
     INTEGER                                  :: dimen, occupied, virtual, &
-                                                i_batch_start, Ni_occupied, &
-                                                Nj_occupied, j_batch_start
+                                                i_batch_start, j_batch_start
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :, :)                     :: BIb
     REAL(KIND=dp), DIMENSION(dimen, dimen)   :: C
     REAL(KIND=dp), DIMENSION(dimen)          :: Auto
-    TYPE(cp_para_env_type), POINTER          :: para_env
     INTEGER                                  :: elements_ij_proc
     INTEGER, DIMENSION(elements_ij_proc, 2)  :: ij_list_proc
     INTEGER                                  :: nspins
@@ -1815,38 +1800,32 @@ MODULE mp2_direct_method
 !> \param virt_i ...
 !> \param virt_j ...
 !> \param i_batch_start ...
-!> \param Ni_occupied ...
-!> \param Nj_occupied ...
 !> \param j_batch_start ...
 !> \param BIb ...
 !> \param C_i ...
 !> \param C_j ...
 !> \param Auto_i ...
 !> \param Auto_j ...
-!> \param para_env ...
 !> \param elements_ij_proc ...
 !> \param ij_list_proc ...
 !> \param Emp2 ...
 !> \param Emp2_Cou ...
-!> \param Emp2_ex ...
 !> \param error ...
 ! *****************************************************************************
-  SUBROUTINE transform_virtual_orbitals_and_accumulate_ABcase(dimen,occ_i,occ_j,virt_i,virt_j,i_batch_start,Ni_occupied,&
-                                                   Nj_occupied,j_batch_start,BIb,C_i,C_j,Auto_i,Auto_j,para_env,elements_ij_proc,&
-                                                   ij_list_proc,Emp2,Emp2_Cou,Emp2_ex,error)
+  SUBROUTINE transform_virtual_orbitals_and_accumulate_ABcase(dimen,occ_i,occ_j,virt_i,virt_j,i_batch_start,&
+                                                   j_batch_start,BIb,C_i,C_j,Auto_i,Auto_j,elements_ij_proc,&
+                                                   ij_list_proc,Emp2,Emp2_Cou,error)
 
     INTEGER                                  :: dimen, occ_i, occ_j, virt_i, &
                                                 virt_j, i_batch_start, &
-                                                Ni_occupied, Nj_occupied, &
                                                 j_batch_start
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :, :)                     :: BIb
     REAL(KIND=dp), DIMENSION(dimen, dimen)   :: C_i, C_j
     REAL(KIND=dp), DIMENSION(dimen)          :: Auto_i, Auto_j
-    TYPE(cp_para_env_type), POINTER          :: para_env
     INTEGER                                  :: elements_ij_proc
     INTEGER, DIMENSION(elements_ij_proc, 2)  :: ij_list_proc
-    REAL(KIND=dp)                            :: Emp2, Emp2_Cou, Emp2_ex
+    REAL(KIND=dp)                            :: Emp2, Emp2_Cou
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: &

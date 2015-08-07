@@ -388,11 +388,9 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Initializes DBCSR
-!> \param group ...
 !> \param error ...
 ! *****************************************************************************
-  SUBROUTINE cp_dbcsr_init_lib (group, error)
-    INTEGER, INTENT(IN)                      :: group
+  SUBROUTINE cp_dbcsr_init_lib (error)
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_init_lib', &
@@ -402,7 +400,7 @@ CONTAINS
 
     CALL cite_reference(Borstnik2014)
 
-    CALL dbcsr_init_lib (group, dbcsr_error)
+    CALL dbcsr_init_lib (dbcsr_error)
   END SUBROUTINE cp_dbcsr_init_lib
 
 ! *****************************************************************************
@@ -1603,7 +1601,6 @@ CONTAINS
 !> \param nblks ...
 !> \param nze ...
 !> \param data_type ...
-!> \param reuse ...
 !> \param reuse_arrays ...
 !> \param mutable_work ...
 !> \param replication_type ...
@@ -1611,7 +1608,7 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE cp_dbcsr_create_template(matrix, name, template,&
        dist, matrix_type,&
-       row_blk_size, col_blk_size, nblks, nze, data_type, reuse,&
+       row_blk_size, col_blk_size, nblks, nze, data_type,&
        reuse_arrays, mutable_work, replication_type, error)
     TYPE(cp_dbcsr_type), INTENT(INOUT)       :: matrix
     CHARACTER(len=*), INTENT(IN), OPTIONAL   :: name
@@ -1622,8 +1619,7 @@ CONTAINS
     INTEGER, DIMENSION(:), INTENT(IN), &
       OPTIONAL, POINTER                      :: row_blk_size, col_blk_size
     INTEGER, INTENT(IN), OPTIONAL            :: nblks, nze, data_type
-    LOGICAL, INTENT(IN), OPTIONAL            :: reuse, reuse_arrays, &
-                                                mutable_work
+    LOGICAL, INTENT(IN), OPTIONAL            :: reuse_arrays, mutable_work
     CHARACTER, INTENT(IN), OPTIONAL          :: replication_type
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
@@ -1636,7 +1632,7 @@ CONTAINS
          name=name, dist=dist, matrix_type=matrix_type,&
          row_blk_size=row_blk_size, col_blk_size=col_blk_size,&
          nblks=nblks, nze=nze, data_type=data_type,&
-         reuse=reuse, reuse_arrays=reuse_arrays, mutable_work=mutable_work,&
+         reuse_arrays=reuse_arrays, mutable_work=mutable_work,&
          replication_type=replication_type,&
          error=dbcsr_error)
     !

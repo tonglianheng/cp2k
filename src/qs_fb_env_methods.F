@@ -1012,9 +1012,9 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER :: counter, handle, icgf, ico, ikind, iset, ishell, itrial, &
-      lshell, max_n_trial, nkinds, nset, old_lshell, stat, max_n_selected
-    INTEGER, DIMENSION(:), POINTER           :: lmax, nfunctions, nselected, nshell
-    INTEGER, DIMENSION(:, :), POINTER        :: functions, selected
+      lshell, max_n_trial, nkinds, nset, old_lshell, stat
+    INTEGER, DIMENSION(:), POINTER           :: lmax, nfunctions, nshell
+    INTEGER, DIMENSION(:, :), POINTER        :: functions
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: zeff
     TYPE(dft_control_type), POINTER          :: dft_control
@@ -1029,8 +1029,7 @@ CONTAINS
 
     failure = .FALSE.
     CPPrecondition(fb_env_has_data(fb_env), cp_failure_level, routineP, error, failure)
-    NULLIFY(nfunctions, functions, nselected, selected, basis_set, &
-            basis_set_list, qs_kind_set, dft_control)
+    NULLIFY(nfunctions, functions, basis_set, basis_set_list, qs_kind_set, dft_control)
     CALL fb_trial_fns_nullify(trial_fns)
 
     ! create a new trial_fn object
@@ -1146,27 +1145,10 @@ CONTAINS
        END DO bset2
     END DO ! ikind
 
-    ! initially select all trial_functions
-    ALLOCATE(nselected(nkinds), STAT=stat)
-    CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
-    nselected(:) = nfunctions(:)
-    
-    max_n_selected = MAXVAL(nselected)
-    ALLOCATE(selected(max_n_selected,nkinds), STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    selected(:,:) = 0
-    DO ikind = 1, nkinds
-       DO itrial = 1, nselected(ikind)
-          selected(itrial,ikind) = itrial
-       END DO
-    END DO
-
     ! set trial_functions
     CALL fb_trial_fns_set(trial_fns=trial_fns, &
                           nfunctions=nfunctions, &
                           functions=functions, &
-                          nselected=nselected, &
-                          selected=selected, &
                           error=error)
     ! set fb_env
     CALL fb_env_set(fb_env=fb_env, &
