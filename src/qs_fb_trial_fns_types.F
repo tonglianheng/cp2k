@@ -79,8 +79,10 @@ CONTAINS
 
     failure = .FALSE.
     CPPrecondition(ASSOCIATED(trial_fns%obj), cp_failure_level, routineP, error, failure)
-    CPPreconditionNoFail(trial_fns%obj%ref_count>0, cp_failure_level, routineP, error)
-    trial_fns%obj%ref_count = trial_fns%obj%ref_count + 1
+    IF (.NOT. failure) THEN
+       CPPreconditionNoFail(trial_fns%obj%ref_count>0, cp_failure_level, routineP, error)
+       trial_fns%obj%ref_count = trial_fns%obj%ref_count + 1
+    END IF
   END SUBROUTINE fb_trial_fns_retain
 
 
@@ -193,13 +195,15 @@ CONTAINS
 
     failure = .FALSE.
     CPPrecondition(.NOT.ASSOCIATED(trial_fns%obj), cp_failure_level, routineP, error, failure)
-    ALLOCATE(trial_fns%obj, STAT=stat)
-    CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
-    NULLIFY(trial_fns%obj%nfunctions)
-    NULLIFY(trial_fns%obj%functions)
-    trial_fns%obj%ref_count = 1
-    trial_fns%obj%id_nr = last_fb_trial_fns_id + 1
-    last_fb_trial_fns_id = trial_fns%obj%id_nr
+    IF (.NOT. failure) THEN
+       ALLOCATE(trial_fns%obj, STAT=stat)
+       CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
+       NULLIFY(trial_fns%obj%nfunctions)
+       NULLIFY(trial_fns%obj%functions)
+       trial_fns%obj%ref_count = 1
+       trial_fns%obj%id_nr = last_fb_trial_fns_id + 1
+       last_fb_trial_fns_id = trial_fns%obj%id_nr
+    END IF
   END SUBROUTINE fb_trial_fns_create
 
 
@@ -221,16 +225,18 @@ CONTAINS
 
     failure = .FALSE.
     CPPrecondition(ASSOCIATED(trial_fns%obj), cp_failure_level, routineP, error, failure)
-    ! if halo_atoms are associated, then deallocate and de-associate
-    IF (ASSOCIATED(trial_fns%obj%nfunctions)) THEN
-       DEALLOCATE(trial_fns%obj%nfunctions, STAT=stat)
-       CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
-       NULLIFY(trial_fns%obj%nfunctions)
-    END IF
-    IF (ASSOCIATED(trial_fns%obj%functions)) THEN
-       DEALLOCATE(trial_fns%obj%functions, STAT=stat)
-       CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
-       NULLIFY(trial_fns%obj%functions)
+    IF (.NOT. failure) THEN
+       ! if halo_atoms are associated, then deallocate and de-associate
+       IF (ASSOCIATED(trial_fns%obj%nfunctions)) THEN
+          DEALLOCATE(trial_fns%obj%nfunctions, STAT=stat)
+          CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
+          NULLIFY(trial_fns%obj%nfunctions)
+       END IF
+       IF (ASSOCIATED(trial_fns%obj%functions)) THEN
+          DEALLOCATE(trial_fns%obj%functions, STAT=stat)
+          CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
+          NULLIFY(trial_fns%obj%functions)
+       END IF
     END IF
   END SUBROUTINE fb_trial_fns_init
 
@@ -260,8 +266,10 @@ CONTAINS
 
     failure = .FALSE.
     CPPrecondition(ASSOCIATED(trial_fns%obj), cp_failure_level, routineP, error, failure)
-    IF (PRESENT(nfunctions)) nfunctions => trial_fns%obj%nfunctions
-    IF (PRESENT(functions)) functions => trial_fns%obj%functions
+    IF (.NOT. failure) THEN
+       IF (PRESENT(nfunctions)) nfunctions => trial_fns%obj%nfunctions
+       IF (PRESENT(functions)) functions => trial_fns%obj%functions
+    END IF
   END SUBROUTINE fb_trial_fns_get
 
 
@@ -291,19 +299,21 @@ CONTAINS
 
     failure = .FALSE.
     CPPrecondition(ASSOCIATED(trial_fns%obj), cp_failure_level, routineP, error, failure)
-    IF (PRESENT(nfunctions)) THEN
-       IF (ASSOCIATED(trial_fns%obj%nfunctions)) THEN
-          DEALLOCATE(trial_fns%obj%nfunctions, STAT=stat)
-          CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
+    IF (.NOT. failure) THEN
+       IF (PRESENT(nfunctions)) THEN
+          IF (ASSOCIATED(trial_fns%obj%nfunctions)) THEN
+             DEALLOCATE(trial_fns%obj%nfunctions, STAT=stat)
+             CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
+          END IF
+          trial_fns%obj%nfunctions => nfunctions
        END IF
-       trial_fns%obj%nfunctions => nfunctions
-    END IF
-    IF (PRESENT(functions)) THEN
-       IF (ASSOCIATED(trial_fns%obj%functions)) THEN
-          DEALLOCATE(trial_fns%obj%functions, STAT=stat)
-          CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
+       IF (PRESENT(functions)) THEN
+          IF (ASSOCIATED(trial_fns%obj%functions)) THEN
+             DEALLOCATE(trial_fns%obj%functions, STAT=stat)
+             CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
+          END IF
+          trial_fns%obj%functions => functions
        END IF
-       trial_fns%obj%functions => functions
     END IF
   END SUBROUTINE fb_trial_fns_set
 
