@@ -64,7 +64,6 @@ CONTAINS
 !> \param para_env ...
 !> \param force_env_section ...
 !> \param subsys_section ...
-!> \param use_motion_section ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 !> \par History
@@ -72,13 +71,12 @@ CONTAINS
 !> \author Thomas D. Kuehne (tkuehne@phys.chem.ethz.ch)
 ! *****************************************************************************
   SUBROUTINE eip_init(eip_env, root_section, para_env, force_env_section,&
-       subsys_section, use_motion_section, error)
+       subsys_section, error)
     TYPE(eip_environment_type), POINTER      :: eip_env
     TYPE(section_vals_type), POINTER         :: root_section
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(section_vals_type), POINTER         :: force_env_section, &
                                                 subsys_section
-    LOGICAL, INTENT(IN)                      :: use_motion_section
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'eip_init', &
@@ -98,36 +96,34 @@ CONTAINS
 
     CPPrecondition(ASSOCIATED(eip_env), cp_failure_level, routineP, error, failure)
 
-    IF (.NOT. failure) THEN
-      ! nullifying  pointers
-      NULLIFY(cell_section, colvar_section, eip_section, cell, cell_ref, &
-           subsys)
+    ! nullifying  pointers
+    NULLIFY(cell_section, colvar_section, eip_section, cell, cell_ref, &
+         subsys)
 
-      IF (.NOT.ASSOCIATED(subsys_section)) THEN
-         subsys_section => section_vals_get_subs_vals(force_env_section,"SUBSYS",error=error)
-      END IF
-      cell_section => section_vals_get_subs_vals(subsys_section,"CELL", error=error)
-      colvar_section => section_vals_get_subs_vals(subsys_section,"COLVAR", error=error)
-      eip_section => section_vals_get_subs_vals(force_env_section,"EIP", error=error)
-
-      CALL eip_env_set(eip_env=eip_env, eip_input=eip_section, &
-                       force_env_input=force_env_section, error=error)
-
-      CALL read_cell(cell=cell, cell_ref=cell_ref, use_ref_cell=use_ref_cell,cell_section=cell_section, &
-                     para_env=para_env, error=error)
-      CALL get_cell(cell=cell, abc=abc)
-      CALL write_cell(cell=cell, subsys_section=subsys_section,error=error)
-
-      CALL cp_subsys_create(subsys, para_env, root_section, error=error)
-
-      CALL eip_init_subsys(eip_env=eip_env, subsys=subsys, cell=cell, &
-                           cell_ref=cell_ref, use_ref_cell=use_ref_cell, &
-                           subsys_section=subsys_section,error=error)
-
-      CALL cell_release(cell, error=error)
-      CALL cell_release(cell_ref, error=error)
-      CALL cp_subsys_release(subsys, error=error)
+    IF (.NOT.ASSOCIATED(subsys_section)) THEN
+       subsys_section => section_vals_get_subs_vals(force_env_section,"SUBSYS",error=error)
     END IF
+    cell_section => section_vals_get_subs_vals(subsys_section,"CELL", error=error)
+    colvar_section => section_vals_get_subs_vals(subsys_section,"COLVAR", error=error)
+    eip_section => section_vals_get_subs_vals(force_env_section,"EIP", error=error)
+
+    CALL eip_env_set(eip_env=eip_env, eip_input=eip_section, &
+                     force_env_input=force_env_section, error=error)
+
+    CALL read_cell(cell=cell, cell_ref=cell_ref, use_ref_cell=use_ref_cell,cell_section=cell_section, &
+                   para_env=para_env, error=error)
+    CALL get_cell(cell=cell, abc=abc)
+    CALL write_cell(cell=cell, subsys_section=subsys_section,error=error)
+
+    CALL cp_subsys_create(subsys, para_env, root_section, error=error)
+
+    CALL eip_init_subsys(eip_env=eip_env, subsys=subsys, cell=cell, &
+                         cell_ref=cell_ref, use_ref_cell=use_ref_cell, &
+                         subsys_section=subsys_section,error=error)
+
+    CALL cell_release(cell, error=error)
+    CALL cell_release(cell_ref, error=error)
+    CALL cp_subsys_release(subsys, error=error)
 
     CALL timestop(handle)
 

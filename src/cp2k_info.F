@@ -105,6 +105,9 @@ CONTAINS
 #if defined(__LIBXC2)
     flags=TRIM(flags)//" libxc2"
 #endif
+#if defined(__LIBXC3)
+    flags=TRIM(flags)//" libxc3"
+#endif
 #if defined(__LIBPEXSI)
     flags=TRIM(flags)//" pexsi"
 #endif
@@ -237,9 +240,6 @@ ENDIF
 #if defined __LIBINT_MAX_AM
    CALL integer_to_string(__LIBINT_MAX_AM, tmp_str)
    flags=TRIM(flags)//" libint_max_am="//TRIM(tmp_str)
-#endif
-#if defined __LINUMA
-   flags=TRIM(flags)//" linuma"
 #endif
 #if defined __MAX_CONTR
    CALL integer_to_string(__MAX_CONTR, tmp_str)
