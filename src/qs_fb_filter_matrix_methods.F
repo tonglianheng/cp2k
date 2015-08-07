@@ -144,13 +144,14 @@ CONTAINS
     ! filter_mat must be of a dissassociated status (i.e. brand new)
     CPPrecondition(.NOT.ASSOCIATED(filter_mat), cp_failure_level, routineP, error, failure)
 
-    ! create new DBCSR matrix for filter matrix.
+    ! get trial function information
+    CALL fb_trial_fns_get(trial_fns=trial_fns, &
+                          nfunctions=ntfns, &
+                          error=error)
+
     ! calculate the row_blk_size and col_blk_size arrays for
     ! constructing the filter matrix in DBCSR format
     ! row_blk_size for the filter matrix is the same as H or S
-    CALL fb_trial_fns_get(trial_fns=trial_fns, &
-                          nselected=n_selected_tfns, &
-                          error=error)
     CALL cp_dbcsr_get_info(H_mat, &
                            nblkcols_total=nblkcols_total, &
                            row_blk_size=row_blk_size, &
@@ -162,7 +163,7 @@ CONTAINS
        atomic_kind => particle_set(iblkcol)%atomic_kind
        CALL get_atomic_kind(atomic_kind=atomic_kind, &
                             kind_number=ikind)
-       col_blk_size(iblkcol) = n_selected_tfns(ikind)
+       col_blk_size(iblkcol) = ntfns(ikind)
     END DO
     ! DO NOT deallocate cbs if gift=.TRUE. as col_blk_sizes will only point to cbs
     name_string = name
