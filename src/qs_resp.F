@@ -15,8 +15,8 @@ MODULE qs_resp
   USE atomic_charges,                  ONLY: print_atomic_charges
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind
-  USE bibliography,                    ONLY: Golze2015,&
-                                             Campana2009,&
+  USE bibliography,                    ONLY: Campana2009,&
+                                             Golze2015,&
                                              cite_reference
   USE cell_types,                      ONLY: cell_type,&
                                              pbc,&
@@ -56,6 +56,7 @@ MODULE qs_resp
                                              mp_wait
   USE particle_list_types,             ONLY: particle_list_type
   USE particle_types,                  ONLY: particle_type
+  USE periodic_table,                  ONLY: get_ptable_info
   USE pw_env_types,                    ONLY: pw_env_get,&
                                              pw_env_type
   USE pw_methods,                      ONLY: pw_copy,&
@@ -79,14 +80,12 @@ MODULE qs_resp
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
   USE qs_kind_types,                   ONLY: qs_kind_type
+  USE qs_ks_qmmm_types,                ONLY: qs_ks_qmmm_env_type
   USE qs_subsys_types,                 ONLY: qs_subsys_get,&
                                              qs_subsys_type
   USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
-  USE qs_ks_qmmm_types,                ONLY: qs_ks_qmmm_env_type
-  USE periodic_table,                  ONLY: get_ptable_info
-
 #include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
@@ -522,8 +521,9 @@ CPSourceFileRef,&
       DIMENSION(:), POINTER                  :: tmpstringlist
     INTEGER                                  :: ikind, j, kind_number, nkind, &
                                                 nrep_rmax, nrep_rmin, stat
-    LOGICAL                                  :: explicit, has_rmin, has_rmax, failure
-    REAL(KIND=dp)                            :: rmax, rmin, auto_rmax_scale
+    LOGICAL                                  :: explicit, failure, has_rmax, &
+                                                has_rmin
+    REAL(KIND=dp)                            :: auto_rmax_scale, rmax, rmin
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
 
     failure=.FALSE.
@@ -899,17 +899,17 @@ CPSourceFileRef,&
     INTEGER                                  :: handle, i, ip, j, jx, jy, jz, &
                                                 stat
     LOGICAL                                  :: failure
-    REAL(KIND=dp)                            :: normalize_factor, sum_pot_qm, dvol
+    REAL(KIND=dp)                            :: dvol, normalize_factor, &
+                                                sum_pot_qm
+    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: pot_qm, sum_vpot
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: vpot
-    REAL(KIND=dp), ALLOCATABLE, &
-      DIMENSION(:)                           :: sum_vpot, pot_qm
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(pw_env_type), POINTER               :: pw_env
-    TYPE(pw_type), POINTER                   :: v_hartree_pw
     TYPE(pw_p_type)                          :: rho_ga, va_gspace, va_rspace
     TYPE(pw_poisson_type), POINTER           :: poisson_env
     TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
+    TYPE(pw_type), POINTER                   :: v_hartree_pw
     TYPE(qs_ks_qmmm_env_type), POINTER       :: ks_qmmm_env
 
     CALL timeset(routineN, handle)
