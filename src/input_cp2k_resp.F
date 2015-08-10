@@ -10,8 +10,8 @@
 !> \author Joost VandeVondele
 ! *****************************************************************************
 MODULE input_cp2k_resp
-  USE bibliography,                    ONLY: Golze2015,&
-                                             Campana2009
+  USE bibliography,                    ONLY: Campana2009,&
+                                             Golze2015
   USE cp_output_handling,              ONLY: add_last_numeric,&
                                              cp_print_key_section_create,&
                                              high_print_level,&
@@ -365,6 +365,20 @@ CONTAINS
          usage="RMAX 2.5",&
          default_r_val=cp_unit_to_cp2k(value=2.5_dp, unit_str="angstrom", error=error),&
          unit_str='angstrom', error=error)
+    CALL section_add_keyword(section,keyword,error=error)
+    CALL keyword_release(keyword,error=error)
+
+    CALL keyword_create(keyword, name="AUTO_RMAX_SCALE",&
+         description="IF RMAX or RMAX_KIND keywords are not present, defines the "//&
+                     "maximumn distance a fit point is away from an atom based on "//&
+                     "the formula: rmax(kind) = AUTO_RMAX_SCALE * vdW_radius(kind). "//&
+                     "If RMIN or RMIN_KIND keywords are not present, then the minimum "//&
+                     "distance a fit point is away from an atom is given as the van "//&
+                     "der Waals radius of the element, based on data from "//&
+                     "Pure Appl. Chem. 81, 2131-2156 (2009)",&
+         usage="AUTO_RMAX_SCALE 10.0",&
+         default_r_val=10.0_dp,&
+         error=error)
     CALL section_add_keyword(section,keyword,error=error)
     CALL keyword_release(keyword,error=error)
 
