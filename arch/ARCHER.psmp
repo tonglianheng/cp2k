@@ -1,0 +1,22 @@
+CC       = cc
+CPP      =
+FC       = ftn -fopenmp -ffree-form 
+LD       = ftn -fopenmp
+AR       = ar -r
+DFLAGS   = -D__FFTW3 -D__LIBINT \
+           -D__parallel -D__SCALAPACK -D__HAS_NO_SHARED_GLIBC \
+           -D__STATM_RESIDENT -D__LIBXC2 -D__HAS_smm_dnn -D__HAS_LIBGRID -D__PLUMED2
+LIB_LOC  = /usr/local/packages/cp2k/2.7.15248/libs
+CPPFLAGS = -traditional -C $(DFLAGS) -P
+CFLAGS   = $(DFLAGS) -I$(LIB_LOC)/hwloc/include
+FCFLAGS  = $(DFLAGS) -O3 -ffast-math -funroll-loops -fno-tree-vectorize -fno-omit-frame-pointer -g -march=core-avx-i -Waliasing -Wampersand -Wc-binding-type -Wconversion -Wintrinsic-shadow -Wintrinsics-std -Wline-truncation -Wno-tabs -Wrealloc-lhs-all -Wtarget-lifetime -Wunderflow -Wunused-but-set-variable -Wunused-variable -std=f2003
+LDFLAGS  = $(FCFLAGS)
+LIBS     = -L$(LIB_LOC)/libint/lib -lderiv -lint -lstdc++ \
+           -L$(LIB_LOC)/libgrid -lgrid \
+           -L$(LIB_LOC)/libsmm -lsmm_dnn \
+           -L$(LIB_LOC)/libxc/lib -lxcf90 -lxc \
+           -lfftw3 -lfftw3_threads -lz -ldl
+
+include $(LIB_LOC)/libs/plumed/lib/plumed/src/lib/Plumed.inc
+EXTERNAL_OBJECTS=$(PLUMED_STATIC_DEPENDENCIES)
+
