@@ -59,12 +59,12 @@ nh3_fixd_y.inp    2    1.0E-14    -0.546765909699E+00
 nh3_fixd_z.inp    2    1.0E-14    -0.558873806830E+00
 #Cell opt
 argon_opt_cell.inp                7     2e-04
-argon_opt_cell_ks.inp             7     3e-05
+argon_opt_cell_ks.inp             7     8e-05                               
 argon_opt_cell_md.inp    7    1.0E-14    0.1617110873
 Si_tersoff.inp    7    1.0E-14    -4.9278652447
 #initial orthorombic cells under npt_f dynamics
 nptf_ortho.inp                    2     4e-09
-nptf_ortho_screen.inp             2     3e-09
+nptf_ortho_screen.inp             2     8e-09                               
 # morse and cubic bonded potentials
 bonded-1.inp    2    1.0E-14    0.163326996014E-02
 bonded-2.inp    2    1.0E-14    -0.321706670827E+00

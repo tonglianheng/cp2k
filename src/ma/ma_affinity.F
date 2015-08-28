@@ -14,7 +14,7 @@
 !> - Created 2011-11-08
 ! *****************************************************************************
 MODULE ma_affinity
-  USE ISO_C_BINDING
+  USE ISO_C_BINDING,                   ONLY: C_INT
   USE ma_config,                       ONLY: &
        hasnet, isdefault, ma_get_conf_mempol, ma_get_conf_mpisched, memory, &
        print_proc, print_thread, process, thread
@@ -44,7 +44,7 @@ MODULE ma_affinity
                                              mp_proc_name,&
                                              mp_sum
 
-!$ USE OMP_LIB
+!$ USE OMP_LIB, ONLY: omp_get_max_threads, omp_get_thread_num, omp_get_num_threads
  IMPLICIT NONE
 
  PRIVATE

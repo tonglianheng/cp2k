@@ -30,7 +30,7 @@ H2O-PDDG.inp    3    1.0E-14    -327.87747718063764
 b2h6_pm6.inp    3    1.0E-14    -191.26932146375466
 ch2o_pm6.inp    3    1.0E-14    -440.23051289700749
 hcn_pm6.inp                       3     1e-09
-md.inp                           11     4e-14
+md.inp                           11     1e-09                               
 # d-orbitals analytical der
 O2-ROKS-PM6.inp    3    1.0E-14    -580.14588779285589
 Pt-cis-2xpet3Cl2.inp              3     8e-14           -3116.62376488246764
@@ -48,7 +48,7 @@ FeH_1cat.inp    3    1.0E-14    -427.83088810217504
 FeH_7cat.inp    3    1.0E-14    -144.32569270051397
 FeH_8cat.inp    3    1.0E-14    -46.77363824958222
 FeH_9cat.inp    29    1.0E-14    11798.83943644446481
-Pt-cis-2xpet3Cl2-si.inp     3
+Pt-cis-2xpet3Cl2-si.inp           3     2e-14                               
 Pt-cis-2xpet3Cl2-si-noc.inp       3     8e-14           -3116.62376488246764
 #covering all special core-core PM6 interactions
 CH3Cl2.inp    3    1.0E-14    -675.24590158166950

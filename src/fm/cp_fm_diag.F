@@ -13,7 +13,7 @@
 !> \author Joost VandeVondele (2003-08)
 ! *****************************************************************************
 MODULE cp_fm_diag
-
+  USE machine,                         ONLY: m_memory
   USE cp_blacs_calls,                  ONLY: cp_blacs_gridexit,&
                                              cp_blacs_gridinit
   USE cp_blacs_env,                    ONLY: cp_blacs_env_create,&
@@ -55,8 +55,7 @@ MODULE cp_fm_diag
 #endif
 
 #if defined (__ELPA)  || defined(__ELPA2)
-  USE ELPA1
-  USE ELPA2
+  USE ELPA2, ONLY: solve_evp_real_2stage
 #endif
 
 #include "../common/cp_common_uses.f90"
@@ -177,6 +176,9 @@ CONTAINS
     myinfo = 0
 
     nmo = SIZE(eigenvalues,1)
+
+    !sample peak memory
+    CALL m_memory()
 
     IF(diag_type==3) THEN
       CALL cp_fm_elpa(matrix,eigenvectors,eigenvalues,error=error)

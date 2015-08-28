@@ -40,7 +40,10 @@ valgrind_ver=3.10.1
 lcov_ver=1.11
 
 #gcc_ver=4.9.2
-gcc_ver=5.1.0
+#gcc_ver=5.1.0
+gcc_ver=5.2.0
+# gcc_ver=master will use gcc trunk as obtained from github (not intended for production)
+#gcc_ver=master
 # should we build a toolchain to be used with tsan (-fsanitize=thread), 
 # this is not for normal (production) use, but suitable for
 # finding/testing/debugging threading issues during development
@@ -86,7 +89,12 @@ pexsi_ver=0.8.0
 
 plumed_ver=2.2b
 
+# quip does not build with the tsan toolchain. 
+if [ "$enable_tsan" == "yes" ]; then
+quip_ver=
+else
 quip_ver=336cab5c03
+fi
 
 #
 #
@@ -179,12 +187,18 @@ else
 fi
 
 echo "==================== Installing gcc ======================"
-if [ -f gcc-${gcc_ver}.tar.gz ]; then
+if [ -f gcc-${gcc_ver}.tar.gz -o -f gcc-${gcc_ver}.zip ]; then
   echo "Installation already started, skipping it."
 else
-  wget https://ftp.gnu.org/gnu/gcc/gcc-${gcc_ver}/gcc-${gcc_ver}.tar.gz
-  checksum gcc-${gcc_ver}.tar.gz
-  tar -xzf gcc-${gcc_ver}.tar.gz
+  if [ "${gcc_ver}" == "master" ]; then
+     # no check since this follows the gcc trunk svn repo and changes constantly
+     wget -O gcc-master.zip https://github.com/gcc-mirror/gcc/archive/master.zip
+     unzip -q gcc-master.zip 
+  else
+     wget https://ftp.gnu.org/gnu/gcc/gcc-${gcc_ver}/gcc-${gcc_ver}.tar.gz
+     checksum gcc-${gcc_ver}.tar.gz
+     tar -xzf gcc-${gcc_ver}.tar.gz
+  fi
   cd gcc-${gcc_ver}
   ./contrib/download_prerequisites >& prereq.log
   GCCROOT=${PWD}
@@ -235,6 +249,8 @@ mutex:_gfortran_st_open
 # PR66761
 race:do_spin
 race:gomp_team_end
+#PR67303
+race:gomp_iter_guided_next
 # bugs related to removing/filtering blocks in DBCSR.. to be fixed
 race:__dbcsr_block_access_MOD_dbcsr_remove_block
 race:__dbcsr_operations_MOD_dbcsr_filter_anytype
@@ -430,6 +446,8 @@ else
   checksum libxc-${libxc_ver}.tar.gz
   tar -xzf libxc-${libxc_ver}.tar.gz
   cd libxc-${libxc_ver}
+  # patch buggy configure macro (fails with gcc trunk)
+  sed -i 's/ax_cv_f90_modext=`ls | sed/ax_cv_f90_modext=`ls -1 | grep -iv smod | sed/g' configure
   ./configure  --prefix=${INSTALLDIR} >& config.log
   make -j $nprocs >& make.log
   make install >& install.log
@@ -637,24 +655,32 @@ fi
 #fi
 
 echo "==================== Installing QUIP ================="
-if [ -f QUIP-${quip_ver}.zip  ]; then
-  echo "Installation already started, skipping it."
+if [ x${quip_VER} == x ]; then
+  echo "Not installing QUIP"
+  DEF_QUIP=""
+  LIB_QUIP=""
 else
-  wget http://www.cp2k.org/static/downloads/QUIP-${quip_ver}.zip
-  checksum QUIP-${quip_ver}.zip
-  unzip QUIP-${quip_ver}.zip > unzip.log
-  mv QUIP-public QUIP-${quip_ver}
-  cd QUIP-${quip_ver}
-  export QUIP_ARCH=linux_x86_64_gfortran
-  # hit enter a few times to accept decaults
-  echo -e "\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n" | make config > config.log
-  # make -j does not work :-(
-  make >& make.log
-
-  cp build/linux_x86_64_gfortran/quip_unified_wrapper_module.mod  ${INSTALLDIR}/include/
-  cp build/linux_x86_64_gfortran/*.a                              ${INSTALLDIR}/lib/
-  cp src/FoX-4.0.3/objs.linux_x86_64_gfortran/lib/*.a             ${INSTALLDIR}/lib/
-  cd ..
+  if [ -f QUIP-${quip_ver}.zip  ]; then
+    echo "Installation already started, skipping it."
+  else
+    wget http://www.cp2k.org/static/downloads/QUIP-${quip_ver}.zip
+    checksum QUIP-${quip_ver}.zip
+    unzip QUIP-${quip_ver}.zip >& unzip.log
+    mv QUIP-public QUIP-${quip_ver}
+    cd QUIP-${quip_ver}
+    export QUIP_ARCH=linux_x86_64_gfortran
+    # hit enter a few times to accept decaults
+    echo -e "\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n" | make config > config.log
+    # make -j does not work :-(
+    make >& make.log
+  
+    cp build/linux_x86_64_gfortran/quip_unified_wrapper_module.mod  ${INSTALLDIR}/include/
+    cp build/linux_x86_64_gfortran/*.a                              ${INSTALLDIR}/lib/
+    cp src/FoX-4.0.3/objs.linux_x86_64_gfortran/lib/*.a             ${INSTALLDIR}/lib/
+    cd ..
+  fi
+  DEF_QUIP="-D__QUIP"
+  LIB_QUIP="-lquip_core -latoms -lFoX_sax -lFoX_common -lFoX_utils -lFoX_fsys"
 fi
 
 echo "==================== generating arch files ===================="
@@ -663,14 +689,23 @@ mkdir -p ${INSTALLDIR}/arch
 
 #
 # unfortunately, optimal flags depend on compiler etc.
+# https://gcc.gnu.org/onlinedocs/gfortran/Error-and-Warning-Options.html
 #
-WFLAGS="-Waliasing -Wampersand -Wc-binding-type -Wintrinsic-shadow -Wintrinsics-std -Wline-truncation -Wno-tabs -Wrealloc-lhs-all -Wtarget-lifetime -Wunderflow -Wunused-but-set-variable -Wunused-variable -Wconversion -Werror"
+# we error out for these warnings
+WFLAGSERROR="-Werror=aliasing -Werror=ampersand -Werror=c-binding-type -Werror=intrinsic-shadow -Werror=intrinsics-std -Werror=line-truncation -Werror=tabs -Werror=realloc-lhs-all -Werror=target-lifetime -Werror=underflow -Werror=unused-but-set-variable -Werror=unused-variable -Werror=conversion"
+# we just warn for those (that eventually might be promoted to WFLAGSERROR). It is useless to put something here with 100s of warnings.
+WFLAGSWARN="-Wuse-without-only -Wzerotrip"
+# so these are the default
+WFLAGS="$WFLAGSERROR $WFLAGSWARN"
+# while here we collect all other warnings, some we'll ignore
+WFLAGS2="-pedantic -Wall -Wextra -Wsurprising -Wunused-dummy-argument -Wunused-parameter -Warray-temporaries -Wcharacter-truncation -Wconversion-extra -Wimplicit-interface -Wimplicit-procedure -Wreal-q-constant -Wunused-dummy-argument -Wunused-parameter -Walign-commons -Wfunction-elimination -Wrealloc-lhs -Wcompare-reals -Wzerotrip"
+
 DEBFLAGS="-fcheck=bounds,do,recursion,pointer -fsanitize=leak -ffpe-trap=invalid,zero,overflow -finit-real=snan -fno-fast-math -D__HAS_IEEE_EXCEPTIONS"
 BASEFLAGS="-std=f2003 -fimplicit-none -ffree-form -fno-omit-frame-pointer -g -O1 $TSANFLAGS"
 PARAFLAGS="-D__parallel -D__SCALAPACK -D__LIBPEXSI -D__MPI_VERSION=3 -D__ELPA2"
 CUDAFLAGS="-D__ACC -D__DBCSR_ACC -D__PW_CUDA"
 OPTFLAGS="-O3 -march=native -ffast-math \$(PROFOPT)"
-DFLAGS="-D__QUIP -D__LIBINT -D__FFTW3 -D__LIBXC2 -D__LIBINT_MAX_AM=6 -D__LIBDERIV_MAX_AM1=5"
+DFLAGS="$DEF_QUIP -D__LIBINT -D__FFTW3 -D__LIBXC2 -D__LIBINT_MAX_AM=6 -D__LIBDERIV_MAX_AM1=5"
 DFLAGSOPT="$LIBSMMFLAG -D__MAX_CONTR=4"
 CFLAGS="\$(DFLAGS) -I\$(CP2KINSTALLDIR)/include -fno-omit-frame-pointer -g -O1 $TSANFLAGS"
 
@@ -681,12 +716,11 @@ LIB_PEXSI="-lpexsi_linux_v${pexsi_ver} -lsuperlu_dist_${superlu_ver} -lptscotchp
 # Link to ParMETIS
 #LIB_PEXSI="-lpexsi_linux_v${pexsi_ver} -lsuperlu_dist_${superlu_ver} -lparmetis -lmetis"
 
-LIB_QUIP="-lquip_core -latoms -lFoX_sax -lFoX_common -lFoX_utils -lFoX_fsys"
 
 cat << EOF > ${INSTALLDIR}/arch/local.pdbg
 CC       = gcc
 CPP      =
-FC       = mpif90 
+FC       = mpif90
 LD       = mpif90
 AR       = ar -r
 WFLAGS   = ${WFLAGS}
@@ -700,7 +734,7 @@ EOF
 cat << EOF > ${INSTALLDIR}/arch/local.popt
 CC       = gcc
 CPP      =
-FC       = mpif90 
+FC       = mpif90
 LD       = mpif90
 AR       = ar -r
 WFLAGS   = ${WFLAGS}
@@ -714,7 +748,7 @@ EOF
 cat << EOF > ${INSTALLDIR}/arch/local.psmp
 CC       = gcc
 CPP      =
-FC       = mpif90 
+FC       = mpif90
 LD       = mpif90
 AR       = ar -r
 WFLAGS   = ${WFLAGS}
@@ -728,7 +762,7 @@ EOF
 cat << EOF > ${INSTALLDIR}/arch/local.sdbg
 CC       = gcc
 CPP      =
-FC       = gfortran 
+FC       = gfortran
 LD       = gfortran
 AR       = ar -r
 WFLAGS   = ${WFLAGS}
@@ -742,7 +776,7 @@ EOF
 cat << EOF > ${INSTALLDIR}/arch/local.sopt
 CC       = gcc
 CPP      =
-FC       = gfortran 
+FC       = gfortran
 LD       = gfortran
 AR       = ar -r
 WFLAGS   = ${WFLAGS}
@@ -756,7 +790,7 @@ EOF
 cat << EOF > ${INSTALLDIR}/arch/local.ssmp
 CC       = gcc
 CPP      =
-FC       = gfortran 
+FC       = gfortran
 LD       = gfortran
 AR       = ar -r
 WFLAGS   = ${WFLAGS}
@@ -770,7 +804,7 @@ EOF
 cat << EOF > ${INSTALLDIR}/arch/local_valgrind.sdbg
 CC       = gcc
 CPP      =
-FC       = gfortran 
+FC       = gfortran
 LD       = gfortran
 AR       = ar -r
 WFLAGS   = ${WFLAGS}
@@ -784,7 +818,7 @@ EOF
 cat << EOF > ${INSTALLDIR}/arch/local_valgrind.pdbg
 CC       = gcc
 CPP      =
-FC       = mpif90 
+FC       = mpif90
 LD       = mpif90
 AR       = ar -r
 WFLAGS   = ${WFLAGS}
@@ -799,7 +833,7 @@ cat << EOF > ${INSTALLDIR}/arch/local_cuda.psmp
 NVCC     = nvcc -D__GNUC_MINOR__=6  -D__GNUC__=4
 CC       = gcc
 CPP      =
-FC       = mpif90 
+FC       = mpif90
 LD       = mpif90
 AR       = ar -r
 WFLAGS   = ${WFLAGS}
@@ -811,11 +845,29 @@ CFLAGS   = ${CFLAGS}
 LIBS     = $LIB_QUIP -lxcf90 -lxc -lderiv -lint $LIB_PEXSI -lelpa_openmp -lscalapack $LIBSMMLIB ${LIB_LAPACK_DEBUG}  -lstdc++ -lfftw3 -lfftw3_omp -lcudart -lcufft -lcublas -lrt
 EOF
 
+cat << EOF > ${INSTALLDIR}/arch/local_cuda_warn.psmp
+NVCC     = nvcc -D__GNUC_MINOR__=6  -D__GNUC__=4
+CC       = gcc
+CPP      =
+FC       = mpif90
+LD       = mpif90
+AR       = ar -r
+WFLAGS   = ${WFLAGS}
+WFLAGS2  = ${WFLAGS2}
+DFLAGS   = ${DFLAGS} ${CUDAFLAGS} ${PARAFLAGS} $DFLAGSOPT
+FCFLAGS  = -fopenmp -I\$(CP2KINSTALLDIR)/include -I\$(CP2KINSTALLDIR)/include/elpa_openmp-${elpa_ver}/modules ${BASEFLAGS} ${OPTFLAGS} \$(DFLAGS) \$(WFLAGS) \$(WFLAGS2)
+LDFLAGS  = -L\$(CP2KINSTALLDIR)/lib/ -L/usr/local/cuda/lib64 \$(FCFLAGS)
+NVFLAGS  = \$(DFLAGS) -g -O2 -arch sm_35
+CFLAGS   = ${CFLAGS}
+LIBS     = $LIB_QUIP -lxcf90 -lxc -lderiv -lint $LIB_PEXSI -lelpa_openmp -lscalapack $LIBSMMLIB ${LIB_LAPACK_DEBUG}  -lstdc++ -lfftw3 -lfftw3_omp -lcudart -lcufft -lcublas -lrt
+FCLOGPIPE =  2> \$(notdir \$<).warn
+EOF
+
 cat << EOF > ${INSTALLDIR}/arch/local_cuda.ssmp
 NVCC     = nvcc -D__GNUC_MINOR__=6  -D__GNUC__=4
 CC       = gcc
 CPP      =
-FC       = gfortran 
+FC       = gfortran
 LD       = gfortran
 AR       = ar -r
 WFLAGS   = ${WFLAGS}
