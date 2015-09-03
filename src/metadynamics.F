@@ -38,7 +38,7 @@ MODULE metadynamics
                                              section_vals_type,&
                                              section_vals_val_get
   USE kinds,                           ONLY: dp
-  USE message_passing,                 ONLY: mp_bcast
+  USE message_passing,                 ONLY: mp_bcast, cp2k_is_parallel
   USE metadynamics_types,              ONLY: hills_env_type,&
                                              meta_env_type,&
                                              metavar_type,&
@@ -76,7 +76,7 @@ MODULE metadynamics
 
   PUBLIC :: metadyn_forces, metadyn_integrator
   PUBLIC :: metadyn_velocities_colvar, metadyn_write_colvar
-  PUBLIC :: metadyn_initialise_plumed
+  PUBLIC :: metadyn_initialise_plumed, metadyn_finalise_plumed
 
 CONTAINS
 
@@ -151,7 +151,7 @@ CONTAINS
         STOP
     ELSE
         CALL plumed_f_gcreate()
-        CALL plumed_f_gcmd("setMPIFComm"//CHAR(0),force_env%para_env%group)
+        IF (cp2k_is_parallel) CALL plumed_f_gcmd("setMPIFComm"//CHAR(0),force_env%para_env%group)
         CALL plumed_f_gcmd("setRealPrecision"//CHAR(0),8)
         CALL plumed_f_gcmd("setMDEnergyUnits"//CHAR(0),kjmol) ! Hartree to kjoule/mol
         CALL plumed_f_gcmd("setMDLengthUnits"//CHAR(0),angstrom*0.1_dp) ! Bohr to nm
@@ -176,6 +176,26 @@ CONTAINS
     CALL timestop(handle)
 
   END SUBROUTINE
+
+! *****************************************************************************
+!> \brief makes sure PLUMED is shut down cleanly 
+! *****************************************************************************
+SUBROUTINE metadyn_finalise_plumed()
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'metadyn_finalise_plumed', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle
+
+    CALL timeset(routineN,handle)
+
+#if defined (__PLUMED2)
+    CALL plumed_f_gfinalize()
+#endif
+
+    CALL timestop(handle)
+
+END SUBROUTINE
 
 ! *****************************************************************************
 !> \brief  General driver for applying metadynamics

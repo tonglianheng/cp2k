@@ -16,7 +16,7 @@
 MODULE library_tests
 
   USE ai_coulomb_test,                 ONLY: eri_test
-  USE cell_types,                    ONLY: cell_create,&
+  USE cell_types,                      ONLY: cell_create,&
                                              cell_release,&
                                              cell_type,&
                                              init_cell
@@ -105,9 +105,6 @@ MODULE library_tests
   USE termination,                     ONLY: stop_memory
   USE timings,                         ONLY: timeset,&
                                              timestop
-#if defined(__parallel) && ! defined(__HAS_NO_MPI_MOD)
-  USE mpi
-#endif
 #include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
@@ -168,6 +165,7 @@ CONTAINS
     IF ( runtest ( 5 ) /= 0 ) CALL matmul_test ( para_env,test_matmul=.FALSE.,test_dgemm=.TRUE.,iw=iw)
     !
     IF ( runtest ( 3 ) /= 0 ) CALL fft_test ( para_env, iw, globenv%fftw_plan_type, &
+                                              globenv%fftw_wisdom_file_name, &
                                               error=error )
     !
     IF ( runtest ( 4 ) /= 0 ) CALL eri_test ( iw, error )
@@ -176,7 +174,7 @@ CONTAINS
     !
     ! runtest 7 has been deleted and can be recycled
     !
-    IF ( runtest ( 8 ) /= 0 ) CALL mpi_perf_test ( para_env%group, runtest ( 8 ) )
+    IF ( runtest ( 8 ) /= 0 ) CALL mpi_perf_test ( para_env%group, runtest ( 8 ), iw )
     !
     IF ( runtest ( 9 ) /= 0 ) CALL rng_test( para_env, iw, error)
     !
@@ -568,15 +566,17 @@ CONTAINS
 !> \param para_env ...
 !> \param iw ...
 !> \param fftw_plan_type ...
+!> \param wisdom_file where FFTW3 should look to save/load wisdom
 !> \param error ...
 !> \par History
 !>      none
 !> \author JGH  6-NOV-2000
 ! *****************************************************************************
-  SUBROUTINE fft_test ( para_env, iw, fftw_plan_type, error )
+  SUBROUTINE fft_test ( para_env, iw, fftw_plan_type, wisdom_file, error )
 
     TYPE(cp_para_env_type), POINTER          :: para_env
     INTEGER                                  :: iw, fftw_plan_type
+    CHARACTER(LEN=*), INTENT(IN)             :: wisdom_file
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     INTEGER                                  :: iall, ierr, it, j, len, n(3), &
@@ -605,14 +605,14 @@ CONTAINS
        CASE DEFAULT
           EXIT
        CASE ( 1 )
-          CALL init_fft ( "FFTSG", alltoall=.FALSE., fftsg_sizes=.TRUE., wisdom_file="", &
+          CALL init_fft ( "FFTSG", alltoall=.FALSE., fftsg_sizes=.TRUE., wisdom_file=wisdom_file, &
                           pool_limit=10, plan_style=fftw_plan_type, &
                           error=error )
           method = "FFTSG  "
        CASE ( 2 )
           CYCLE
        CASE ( 3 )
-          CALL init_fft ( "FFTW3", alltoall=.FALSE., fftsg_sizes=.TRUE., wisdom_file="", &
+          CALL init_fft ( "FFTW3", alltoall=.FALSE., fftsg_sizes=.TRUE., wisdom_file=wisdom_file, &
                           pool_limit=10, plan_style=fftw_plan_type, &
                           error=error )
           method = "FFTW3  "
@@ -722,7 +722,7 @@ CONTAINS
           DEALLOCATE ( cc , STAT = ierr )
           IF (ierr /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"cc")
        END IF
-       CALL finalize_fft(para_env, wisdom_file="",error=error)
+       CALL finalize_fft(para_env, wisdom_file=wisdom_file,error=error)
     END DO
 
   END SUBROUTINE fft_test
@@ -768,7 +768,8 @@ CONTAINS
     !..set fft lib
     CALL init_fft ( globenv%default_fft_library, alltoall=.FALSE., fftsg_sizes=.TRUE., &
                     pool_limit=globenv%fft_pool_scratch_limit,&
-                    wisdom_file="", plan_style=globenv%fftw_plan_type,&
+                    wisdom_file=globenv%fftw_wisdom_file_name, &
+                    plan_style=globenv%fftw_plan_type,&
                     error=error )
 
     ! .. set cell (should otherwise be irrelevant)
@@ -840,7 +841,8 @@ CONTAINS
     CALL pw_release ( ca%pw ,error=error)
     CALL pw_grid_release ( grid ,error=error)
     CALL cell_release(box,error=error)
-    CALL finalize_fft(para_env,wisdom_file="",error=error)
+    CALL finalize_fft(para_env,wisdom_file=globenv%fftw_wisdom_file_name,&
+                      error=error)
 
     CALL timestop(handle)
 
@@ -890,7 +892,8 @@ CONTAINS
 
     CALL init_fft ( globenv%default_fft_library, alltoall=.FALSE., fftsg_sizes=.TRUE., &
                     pool_limit=globenv%fft_pool_scratch_limit,&
-                    wisdom_file="", plan_style=globenv%fftw_plan_type,&
+                    wisdom_file=globenv%fftw_wisdom_file_name,&
+                    plan_style=globenv%fftw_plan_type,&
                     error=error )
 
     !..the unit cell (should not really matter, the number of grid points do)
@@ -1071,7 +1074,8 @@ CONTAINS
 
     ! cleanup
     CALL cell_release(box,error=error)
-    CALL finalize_fft(para_env, wisdom_file="",error=error)
+    CALL finalize_fft(para_env, wisdom_file=globenv%fftw_wisdom_file_name,&
+                      error=error)
 
   END SUBROUTINE pw_fft_test
 

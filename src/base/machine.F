@@ -18,9 +18,9 @@ MODULE machine
   USE machine_internal,                ONLY: &
        m_abort, m_chdir, m_flush_internal=>m_flush, m_getarg, m_getcwd, &
        m_getlog, m_getpid, m_hostnm, m_iargc, m_memory, m_memory_details, &
-       m_mov, m_procrun
+       m_memory_max, m_mov, m_procrun
 
- !$ USE OMP_LIB
+ !$ USE OMP_LIB, ONLY: omp_get_max_threads, omp_get_thread_num, omp_get_num_threads, OMP_GET_WTIME
 
   IMPLICIT NONE
 
@@ -37,7 +37,7 @@ MODULE machine
 
   PUBLIC :: m_walltime, m_datum, m_flush, m_flush_internal,&
             m_hostnm, m_getcwd, m_getlog, m_getpid, m_getarg, m_procrun,&
-            m_memory, m_iargc, m_abort, m_chdir, m_mov, m_memory_details, m_energy
+            m_memory, m_iargc, m_abort, m_chdir, m_mov, m_memory_details, m_energy, m_memory_max
 
   ! should only be set according to the state in &GLOBAL
   LOGICAL, SAVE, PUBLIC :: flush_should_flush=.FALSE.

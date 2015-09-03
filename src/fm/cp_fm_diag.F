@@ -13,7 +13,7 @@
 !> \author Joost VandeVondele (2003-08)
 ! *****************************************************************************
 MODULE cp_fm_diag
-
+  USE machine,                         ONLY: m_memory
   USE cp_blacs_calls,                  ONLY: cp_blacs_gridexit,&
                                              cp_blacs_gridinit
   USE cp_blacs_env,                    ONLY: cp_blacs_env_create,&
@@ -55,8 +55,7 @@ MODULE cp_fm_diag
 #endif
 
 #if defined (__ELPA)  || defined(__ELPA2)
-  USE ELPA1
-  USE ELPA2
+  USE ELPA2, ONLY: solve_evp_real_2stage
 #endif
 
 #include "../common/cp_common_uses.f90"
@@ -177,6 +176,9 @@ CONTAINS
     myinfo = 0
 
     nmo = SIZE(eigenvalues,1)
+
+    !sample peak memory
+    CALL m_memory()
 
     IF(diag_type==3) THEN
       CALL cp_fm_elpa(matrix,eigenvectors,eigenvalues,error=error)
@@ -561,6 +563,9 @@ CONTAINS
     INTEGER, DIMENSION(:), ALLOCATABLE           :: iclustr
     REAL(KIND=dp), DIMENSION(:), ALLOCATABLE     :: gap
     INTEGER, EXTERNAL                            :: iceil, numroc
+#if defined (__HAS_IEEE_EXCEPTIONS)
+    LOGICAL, DIMENSION(5)                        :: halt
+#endif
 #else
     INTEGER, EXTERNAL                            :: ilaenv
 #endif
@@ -654,8 +659,19 @@ CONTAINS
     ALLOCATE (work(lwork),STAT=istat)
     CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
 
+    ! Scalapack takes advantage of IEEE754 exceptions for speedup.
+    ! Therefore, we disable floating point traps temporarily.
+#if defined (__HAS_IEEE_EXCEPTIONS)
+    CALL ieee_get_halting_mode(IEEE_ALL, halt)
+    CALL ieee_set_halting_mode(IEEE_ALL, .FALSE.)
+#endif
+
     CALL pdsyevx(job_type,"I","U",n,a(1,1),1,1,desca,vl,vu,1,neig_local,abstol,m,nz,w(1),orfac,&
                  z(1,1),1,1,descz,work(1),lwork,iwork(1),liwork,ifail(1),iclustr(1),gap,info)
+
+#if defined (__HAS_IEEE_EXCEPTIONS)
+    CALL ieee_set_halting_mode(IEEE_ALL, halt)
+#endif
 
     ! Error handling
 

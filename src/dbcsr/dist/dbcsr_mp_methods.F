@@ -20,14 +20,12 @@ MODULE dbcsr_mp_methods
                                              mp_cart_sub,&
                                              mp_comm_free
 
-  !$ USE OMP_LIB
+  !$ USE OMP_LIB, ONLY: omp_get_max_threads, omp_get_thread_num, omp_get_num_threads
   IMPLICIT NONE
 
   PRIVATE
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'dbcsr_mp_methods'
-
-  INTEGER, PUBLIC, SAVE :: dbcsr_matrix_counter = 111111
 
   PUBLIC :: dbcsr_mp_new, dbcsr_mp_hold, dbcsr_mp_release,&
             dbcsr_mp_pgrid, dbcsr_mp_numnodes, dbcsr_mp_mynode, dbcsr_mp_group,&

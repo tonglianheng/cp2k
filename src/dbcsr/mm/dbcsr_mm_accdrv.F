@@ -20,7 +20,6 @@
 
 
 MODULE dbcsr_mm_accdrv
-  USE ISO_C_BINDING
   USE acc_devmem,                      ONLY: acc_devmem_allocate_bytes,&
                                              acc_devmem_allocated,&
                                              acc_devmem_deallocate,&
@@ -74,7 +73,7 @@ MODULE dbcsr_mm_accdrv
                                              int_8
   USE message_passing,                 ONLY: mp_abort
 
- !$ USE OMP_LIB
+ !$ USE OMP_LIB, ONLY: omp_get_max_threads, omp_get_thread_num, omp_get_num_threads
 
   IMPLICIT NONE
 
@@ -427,7 +426,6 @@ MODULE dbcsr_mm_accdrv
 !> \author Ole Schuett
 ! *****************************************************************************
   SUBROUTINE dbcsr_mm_accdrv_finalize(this, error)
-    USE ISO_C_BINDING
     TYPE(dbcsr_mm_accdrv_type), &
       INTENT(INOUT)                          :: this
     TYPE(dbcsr_error_type), INTENT(INOUT)    :: error

@@ -98,7 +98,7 @@ MODULE mp2
                                              timestop
   USE virial_types,                    ONLY: virial_type
 
-  !$ USE OMP_LIB
+  !$ USE OMP_LIB, ONLY: omp_get_max_threads, omp_get_thread_num, omp_get_num_threads
 
 #include "./common/cp_common_uses.f90"
 
@@ -240,7 +240,7 @@ MODULE mp2
     ENDIF
     IF (unit_nr>0) WRITE(unit_nr,'(T3,A,T76,I5)')     'Used number of processes per group:', mp2_env%mp2_num_proc
     IF (unit_nr>0) WRITE(unit_nr,'(T3,A,T69,F9.2,A3)') 'Maximum allowed memory usage per MPI processes:',&
-                                                    mp2_env%mp2_memory, ' MB'
+                                                    mp2_env%mp2_memory, ' MiB'
 
     IF((mp2_env%method.NE.mp2_method_gpw).AND.&
        (mp2_env%method.NE.ri_mp2_method_gpw).AND.&
@@ -253,18 +253,18 @@ MODULE mp2
       IF(mp2_env%mp2_memory<0.0_dp) mp2_env%mp2_memory=1.0_dp
 
       IF (unit_nr>0) WRITE(unit_nr,'(T3,A,T69,F9.2,A3)') 'Available memory per MPI processes for MP2:',&
-                                                      mp2_env%mp2_memory, ' MB'
+                                                      mp2_env%mp2_memory, ' MiB'
     END IF
 
     IF (unit_nr>0) CALL m_flush(unit_nr)
 
     nspins=dft_control%nspins
 
-    IF (calc_forces.AND.nspins/=1) THEN
-      CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
-                     "No forces/gradients for LSD."//&
-                     CPSourceFileRef, only_ionode=.TRUE.)
-    END IF
+    !IF (calc_forces.AND.nspins/=1) THEN
+    !  CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
+    !                 "No forces/gradients for LSD."//&
+    !                 CPSourceFileRef, only_ionode=.TRUE.)
+    !END IF
 
     natom = SIZE(particle_set,1)
 
@@ -872,7 +872,7 @@ MODULE mp2
     minimum_memory_needed=(8*(max_set**4))/1024**2
     IF(minimum_memory_needed>mp2_env%mp2_memory) THEN
       IF (unit_nr>0) WRITE(unit_nr,'(T3,A,T67,F12.6,A2)') 'Memory required below the minimum, new memory:',&
-                                                          minimum_memory_needed,'MB'
+                                                          minimum_memory_needed,'MiB'
       mp2_env%mp2_memory=minimum_memory_needed
     END IF
 
@@ -971,7 +971,7 @@ MODULE mp2
                    ,my_I_batch_size)
     IF(max_batch_size<1) THEN
        max_batch_size=INT((8*(occ_i+1)*INT(dimen,KIND=int_8)**2/para_env%num_pe)/1024**2)
-       IF (unit_nr>0) WRITE(unit_nr,'(T3,A,T73,I6,A2)') 'More memory required, at least:',max_batch_size,'MB'
+       IF (unit_nr>0) WRITE(unit_nr,'(T3,A,T73,I6,A2)') 'More memory required, at least:',max_batch_size,'MiB'
        max_batch_size=1
     END IF
 
