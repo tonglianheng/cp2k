@@ -14,3 +14,4 @@ web/manual/cp2k_input.xml
 src/preprettify
 tools/formatting/*.pyc
 *.stdout
+regtesting
