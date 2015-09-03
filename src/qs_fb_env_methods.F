@@ -91,6 +91,7 @@ MODULE qs_fb_env_methods
                                              deallocate_mo_set,&
                                              get_mo_set,&
                                              init_mo_set,&
+                                             mo_set_type,&
                                              mo_set_p_type,&
                                              set_mo_set
   USE qs_scf_types,                    ONLY: qs_scf_env_type
@@ -735,7 +736,7 @@ CONTAINS
     CALL cp_fm_cholesky_decompose(fm_ortho, info_out=info, error=error)
     IF (info == 0) THEN
        ! we are able to use cholesky inverse method
-       CALL cp_fb_triangular_invert(fm_ortho, error=error)
+       CALL cp_fm_triangular_invert(fm_ortho, error=error)
        ! solve eigen equation using inverse of cholesky U
        CALL cp_fm_upper_to_full(fm_KS, fm_work, error=error)
        CALL cp_fm_triangular_multiply(fm_ortho, &
