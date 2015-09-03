@@ -71,7 +71,9 @@ def gen_frontpage(config, log, abook_fn, status_fn, outdir):
     print "threshold_rev: ", threshold_rev
 
     output  = html_header(title="CP2K Dashboard")
-    output += '<center><table border="1" cellspacing="3" cellpadding="5">\n'
+    output += '<div id="flex-container">\n'
+    output += html_linkbox()
+    output += '<table border="1" cellspacing="3" cellpadding="5">\n'
     output += '<tr><th>Name</th><th>Host</th><th>Status</th>'
     output += '<th>Revision</th><th>Summary</th><th>Last OK</th><th>Tickets</th></tr>\n\n'
 
@@ -129,7 +131,9 @@ def gen_frontpage(config, log, abook_fn, status_fn, outdir):
 
         output += '</tr>\n\n'
 
-    output += '</table></center>\n' + html_footer()
+    output += '</table>\n'
+    output += '<div id="dummybox"></div></div>\n' # complete flex-container
+    output += html_footer()
     write_file(outdir+"index.html", output)
     write_file(status_fn, pformat(status))
 
@@ -281,11 +285,45 @@ def html_header(title):
     output += '  transform: rotate(45deg);\n'
     output += '  box-shadow: 0 0 10px #888;\n'
     output += '}\n'
+    output += '#flex-container {\n'
+    output += '  display: -webkit-flex; /* Safari */\n'
+    output += '  display: flex;\n'
+    output += '  -webkit-flex-flow: row wrap; /* Safari */\n'
+    output += '  flex-flow:         row wrap;\n'
+    output += '  -webkit-justify-content: space-around; /* Safari */\n'
+    output += '  justify-content:         space-around;\n'
+    output += '  -webkit-align-items: flex-start; /* Safari */\n'
+    output += '  align-items:         flex-start;\n'
+    output += '}\n'
+    output += '#linkbox {\n'
+    output += '  width: 15em;\n'
+    output += '  border-radius: 1em;\n'
+    output += '  box-shadow: .2em .2em .7em 0 #777;\n'
+    output += '  background: #f7f7f0;\n'
+    output += '  font-size: 14px;\n'
+    output += '  padding: 1em;\n'
+    output += '  margin: 20px;\n'
+    output += '}\n'
+    output += '#linkbox h2 {\n'
+    output += '  margin: 0 0 0.5em 0;\n'
+    output += '}\n'
+    output += '#dummybox {\n'
+    output += '  width: 15em;\n'
+    output += '}\n'
     output += '</style>\n'
     output += '<title>%s</title>\n'%title
     output += '</head><body>\n'
     output += '<div class="ribbon"><a href="http://cp2k.org/dev:dashboard">Need Help?</a></div>\n'
     output += '<center><h1>%s</h1></center>\n'%title.upper()
+    return(output)
+
+#===============================================================================
+def html_linkbox():
+    output  = '<div id="linkbox">\n'
+    output += '<h2>More...</h2>\n'
+    output += '<a href="regtest_survey.html">Regtest Survey</a><br>\n'
+    output += '<a href="http://www.cp2k.org/static/coverage/">Test Coverage</a><br>\n'
+    output += '</div>\n'
     return(output)
 
 #===============================================================================
