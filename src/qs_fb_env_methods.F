@@ -27,26 +27,25 @@ MODULE qs_fb_env_methods
   USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm
   USE cp_fm_basic_linalg,              ONLY: cp_fm_gemm,&
                                              cp_fm_symm,&
+                                             cp_fm_triangular_invert,&
                                              cp_fm_triangular_multiply,&
-                                             cp_fm_upper_to_full,&
-                                             cp_fm_triangular_invert
+                                             cp_fm_upper_to_full
   USE cp_fm_cholesky,                  ONLY: cp_fm_cholesky_decompose
-  USE cp_fm_diag,                      ONLY: cp_fm_power,&
-                                             choose_eigv_solver
+  USE cp_fm_diag,                      ONLY: choose_eigv_solver,&
+                                             cp_fm_power
   USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                              cp_fm_struct_release,&
                                              cp_fm_struct_type
   USE cp_fm_types,                     ONLY: cp_fm_create,&
                                              cp_fm_release,&
                                              cp_fm_set_all,&
-                                             cp_fm_to_fm, &
+                                             cp_fm_to_fm,&
                                              cp_fm_type
   USE cp_gemm_interface,               ONLY: cp_gemm
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_units,                        ONLY: cp_unit_from_cp2k
-  USE input_constants,                 ONLY: cholesky_inverse
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type,&
                                              section_vals_val_get
@@ -91,8 +90,8 @@ MODULE qs_fb_env_methods
                                              deallocate_mo_set,&
                                              get_mo_set,&
                                              init_mo_set,&
-                                             mo_set_type,&
                                              mo_set_p_type,&
+                                             mo_set_type,&
                                              set_mo_set
   USE qs_scf_types,                    ONLY: qs_scf_env_type
   USE scf_control_types,               ONLY: scf_control_type
@@ -150,14 +149,13 @@ CONTAINS
     CHARACTER(len=2)                         :: spin_string
     CHARACTER(len=default_string_length)     :: name
     INTEGER :: filtered_nfullrowsORcols_total, handle, homo_filtered, ispin, &
-      lfomo_filtered, my_nmo, nelectron, nmo, nmo_filtered, nspin, &
-      original_nfullrowsORcols_total, ndep, stat
+      lfomo_filtered, my_nmo, ndep, nelectron, nmo, nmo_filtered, nspin, &
+      original_nfullrowsORcols_total, stat
     INTEGER, DIMENSION(:), POINTER           :: filtered_rowORcol_block_sizes,&
                                                 original_rowORcol_block_sizes
     LOGICAL                                  :: collective_com, failure
     REAL(kind=dp) :: diis_error, eps_diis, eps_eigval, fermi_level, &
-         filter_temp, flexible_electron_count, KTS_filtered, maxocc, &
-         mu_filtered
+      filter_temp, flexible_electron_count, KTS_filtered, maxocc, mu_filtered
     REAL(KIND=dp), DIMENSION(:), POINTER     :: eigenvalues, &
                                                 eigenvalues_filtered, occ, &
                                                 occ_filtered
@@ -171,7 +169,7 @@ CONTAINS
     TYPE(cp_dbcsr_type), POINTER             :: matrix_filtered_p
     TYPE(cp_fm_struct_type), POINTER         :: filter_fm_struct, fm_struct
     TYPE(cp_fm_type), POINTER :: fm_matrix_filter, fm_matrix_filtered_ks, &
-      fm_matrix_filtered_s, fm_matrix_work, fm_matrix_ortho, mo_coeff,&
+      fm_matrix_filtered_s, fm_matrix_ortho, fm_matrix_work, mo_coeff, &
       mo_coeff_filtered
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(fb_atomic_halo_list_obj)            :: atomic_halos
@@ -709,18 +707,19 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE fb_env_eigensolver(fm_KS, fm_S, mo_set, fm_ortho, &
                                 fm_work, eps_eigval, ndep, error)
-    TYPE(cp_fm_type), POINTER :: fm_KS, fm_S, fm_ortho, fm_work
-    TYPE(mo_set_type), POINTER :: mo_set
-    REAL(KIND=dp), INTENT(IN) :: eps_eigval
-    INTEGER, INTENT(OUT) :: ndep
-    TYPE(cp_error_type), INTENT(inout) :: error
+    TYPE(cp_fm_type), POINTER                :: fm_KS, fm_S
+    TYPE(mo_set_type), POINTER               :: mo_set
+    TYPE(cp_fm_type), POINTER                :: fm_ortho, fm_work
+    REAL(KIND=dp), INTENT(IN)                :: eps_eigval
+    INTEGER, INTENT(OUT)                     :: ndep
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'fb_env_eigensolver', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: info, nao, nmo, handle
-    REAL(KIND=dp), DIMENSION(:), POINTER :: mo_eigenvalues
-    TYPE(cp_fm_type), POINTER :: mo_coeff
+    INTEGER                                  :: handle, info, nao, nmo
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: mo_eigenvalues
+    TYPE(cp_fm_type), POINTER                :: mo_coeff
 
     CALL timeset(routineN, handle)
 
