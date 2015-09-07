@@ -476,9 +476,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_gershgorin_norm', &
       routineP = moduleN//':'//routineN
 
-    TYPE(cp_error_type)                      :: error
-
-    CALL cp_error_init (error)
     norm = dbcsr_gershgorin_norm(matrix%matrix)
 
   END FUNCTION cp_dbcsr_gershgorin_norm
@@ -498,9 +495,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_frobenius_norm', &
       routineP = moduleN//':'//routineN
 
-    TYPE(cp_error_type)                      :: error
-
-    CALL cp_error_init (error)
     norm = dbcsr_frobenius_norm(matrix%matrix, local)
 
   END FUNCTION cp_dbcsr_frobenius_norm
@@ -518,9 +512,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_maxabs', &
       routineP = moduleN//':'//routineN
 
-    TYPE(cp_error_type)                      :: error
-
-    CALL cp_error_init (error)
     norm = dbcsr_maxabs(matrix%matrix)
 
   END FUNCTION cp_dbcsr_maxabs
@@ -1016,9 +1007,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_iterator_start', &
       routineP = moduleN//':'//routineN
 
-    TYPE(cp_error_type)                      :: error
-
-    CALL cp_error_init (error)
     CALL dbcsr_iterator_start (iterator, matrix%matrix, shared, dynamic,&
        dynamic_byrows, contiguous_pointers, read_only)
 
@@ -1581,7 +1569,8 @@ CONTAINS
 
     CALL dbcsr_create(matrix%matrix, name, dist,&
          matrix_type,&
-         row_blk_size, col_blk_size, nblks, nze, data_type, reuse=reuse,&
+         row_blk_size, col_blk_size, nblks=nblks, nze=nze, &
+         data_type=data_type, reuse=reuse,&
          reuse_arrays=reuse_arrays,&
          mutable_work=mutable_work, replication_type=replication_type,&
          error=dbcsr_error)
@@ -2966,9 +2955,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_put_block_area', &
       routineP = moduleN//':'//routineN
 
-    TYPE(cp_error_type)                      :: error
-
-    CALL cp_error_init (error)
     CALL dbcsr_put_block(matrix%matrix, row, col, block,&
                          summation=summation, scale=scale)
 
