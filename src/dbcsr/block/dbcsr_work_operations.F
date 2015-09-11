@@ -119,7 +119,8 @@ MODULE dbcsr_work_operations
 
   PUBLIC :: dbcsr_create, dbcsr_work_create, dbcsr_finalize, dbcsr_special_finalize
   PUBLIC :: dbcsr_add_wm_from_matrix,&
-            add_work_coordinate
+            add_work_coordinate,&
+            dbcsr_work_destroy_all
 
   INTERFACE dbcsr_create
      MODULE PROCEDURE dbcsr_create_new, dbcsr_create_template
@@ -162,6 +163,7 @@ CONTAINS
 !> \param reuse_arrays ...
 !> \param[in] mutable_work    uses the mutable data for working and not the
 !>                            append-only data; default is append-only
+!> \param make_index ...
 !> \param[in] replication_type     replication to be used for this matrix;
 !>                                 default is dbcsr_repl_none
 !> \param[in,out] error       cp2k error
@@ -177,7 +179,8 @@ CONTAINS
        max_rbs, max_cbs,&
        row_blk_offset, col_blk_offset,&
        thread_dist,&
-       reuse, reuse_arrays, mutable_work, replication_type, error)
+       reuse, reuse_arrays, mutable_work, make_index, replication_type,&
+       error)
     TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix
     CHARACTER(len=*), INTENT(IN)             :: name
     TYPE(dbcsr_distribution_obj), INTENT(IN) :: dist
@@ -197,7 +200,7 @@ CONTAINS
     TYPE(dbcsr_distribution_obj), &
       INTENT(IN), OPTIONAL                   :: thread_dist
     LOGICAL, INTENT(IN), OPTIONAL            :: reuse, reuse_arrays, &
-                                                mutable_work
+                                                mutable_work, make_index
     CHARACTER, INTENT(IN), OPTIONAL          :: replication_type
     TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
 
@@ -210,7 +213,7 @@ CONTAINS
     INTEGER, DIMENSION(:), POINTER           :: vec_col_blk_offset, &
                                                 vec_row_blk_offset
     INTEGER, DIMENSION(dbcsr_meta_size)      :: new_meta
-    LOGICAL                                  :: hijack
+    LOGICAL                                  :: hijack, my_make_index
 
 !   ---------------------------------------------------------------------------
 
@@ -466,7 +469,11 @@ CONTAINS
     matrix%m%has_global_rows = .FALSE.
     matrix%m%has_local_cols  = .FALSE.
     matrix%m%has_global_cols = .FALSE.
-    CALL dbcsr_make_index_exist (matrix%m, error=error)
+    my_make_index = .TRUE.
+    IF (PRESENT(make_index)) my_make_index = make_index
+    IF (my_make_index) THEN
+       CALL dbcsr_make_index_exist (matrix%m, error=error)
+    ENDIF
     matrix%m%valid = .TRUE.
     CALL dbcsr_error_stop(error_handler, error)
   END SUBROUTINE dbcsr_create_new
@@ -492,6 +499,7 @@ CONTAINS
 !> \param col_blk_offset ...
 !> \param reuse_arrays ...
 !> \param mutable_work ...
+!> \param make_index ...
 !> \param replication_type ...
 !> \param error ...
 ! *****************************************************************************
@@ -500,7 +508,7 @@ CONTAINS
        data_memory_type, index_memory_type,&
        max_rbs, max_cbs,&
        row_blk_offset, col_blk_offset,&
-       reuse_arrays, mutable_work, replication_type, error)
+       reuse_arrays, mutable_work, make_index, replication_type, error)
     TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix
     TYPE(dbcsr_obj), INTENT(IN)              :: template
     CHARACTER(len=*), INTENT(IN), OPTIONAL   :: name
@@ -516,7 +524,8 @@ CONTAINS
     INTEGER, INTENT(IN), OPTIONAL            :: max_rbs, max_cbs
     TYPE(array_i1d_obj), INTENT(IN), &
       OPTIONAL                               :: row_blk_offset, col_blk_offset
-    LOGICAL, INTENT(IN), OPTIONAL            :: reuse_arrays, mutable_work
+    LOGICAL, INTENT(IN), OPTIONAL            :: reuse_arrays, mutable_work, &
+                                                make_index
     CHARACTER, INTENT(IN), OPTIONAL          :: replication_type
     TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
 
@@ -631,6 +640,7 @@ CONTAINS
             row_blk_offset=new_row_blk_offset,col_blk_offset=new_col_blk_offset,&
             reuse_arrays = reuse_arrays,&
             mutable_work = new_mutable_work,&
+            make_index=make_index,&
             replication_type = new_replication_type,&
             error=error)
     ELSE
@@ -649,6 +659,7 @@ CONTAINS
             thread_dist=dbcsr_distribution(template),&
             reuse_arrays = reuse_arrays,&
             mutable_work = new_mutable_work,&
+            make_index=make_index,&
             replication_type = new_replication_type,&
             error=error)
     ENDIF
