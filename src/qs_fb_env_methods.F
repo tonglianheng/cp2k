@@ -42,6 +42,8 @@ MODULE qs_fb_env_methods
                                              cp_fm_to_fm,&
                                              cp_fm_type
   USE cp_gemm_interface,               ONLY: cp_gemm
+  USE cp_log_handling,                 ONLY: cp_get_default_logger,&
+                                             cp_logger_type
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
@@ -720,6 +722,7 @@ CONTAINS
     INTEGER                                  :: handle, info, nao, nmo
     REAL(KIND=dp), DIMENSION(:), POINTER     :: mo_eigenvalues
     TYPE(cp_fm_type), POINTER                :: mo_coeff
+    TYPE(cp_logger_type), POINTER            :: logger
 
     CALL timeset(routineN, handle)
 
@@ -771,6 +774,7 @@ CONTAINS
                                       error=error)
        CALL cp_fm_to_fm(fm_work, mo_coeff, nmo, 1, 1)
     ELSE
+       logger => cp_get_default_logger()
        ! cholesky decomposition has failed, revert to calculating
        ! ortho as S^-1/2 using diagonalisation of S, and solve
        ! accordingly
