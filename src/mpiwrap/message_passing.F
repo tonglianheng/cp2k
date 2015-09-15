@@ -74,7 +74,6 @@ MODULE message_passing
   INTEGER, PARAMETER, PUBLIC :: mp_request_null=MPI_REQUEST_NULL
   INTEGER, PARAMETER, PUBLIC :: mp_win_null=MPI_WIN_NULL
   INTEGER, PARAMETER, PUBLIC :: mp_status_size=MPI_STATUS_SIZE
-  INTEGER, PARAMETER, PUBLIC :: mp_address_kind= MPI_ADDRESS_KIND
 
   INTEGER, PARAMETER, PUBLIC :: file_offset=MPI_OFFSET_KIND
   INTEGER, PARAMETER, PUBLIC :: file_amode_create=MPI_MODE_CREATE
@@ -97,7 +96,6 @@ MODULE message_passing
   INTEGER, PARAMETER, PUBLIC :: file_amode_wronly=4
   INTEGER, PARAMETER, PUBLIC :: file_amode_rdwr=8
   INTEGER, PARAMETER, PUBLIC :: file_amode_excl=64
-  INTEGER, PARAMETER, PUBLIC :: mp_address_kind=int_8
 #endif
 
   ! we need to fix this to a given number (crossing fingers)
@@ -3251,11 +3249,10 @@ CONTAINS
         WRITE(output_unit,*) "Running with ",nprocs
         WRITE(output_unit,*) "running messages with npow = ",npow
         WRITE(output_unit,*) "use MPI X in the input for larger (e.g. 6) of smaller (e.g. 3) messages"
-        IF (MODULO(nprocs,2).NE.0) THEN
-            WRITE(output_unit,*) "Testing only with an even number of tasks"
-            RETURN
-        ENDIF
+        IF (MODULO(nprocs,2).NE.0) WRITE(output_unit,*) "Testing only with an even number of tasks"
     ENDIF
+
+    IF (MODULO(nprocs,2).NE.0) RETURN
 
     ! equal loads
     Nloc=Ngrid/nprocs

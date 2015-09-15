@@ -7441,7 +7441,8 @@ CONTAINS
     CALL keyword_release(keyword,error=error)
 
     CALL keyword_create(keyword, name="ORTHONORMAL",&
-         description="Performs rtp in the orthonormal basis, currently only works with density propagation",&
+         description="Performs rtp in the orthonormal basis. This keyword is only intended for development purposes."//&
+         "It should not be used outside code development",&
          usage="ORTHONORMAL",&
          default_l_val=.FALSE.,lone_keyword_l_val=.TRUE.,error=error)
     CALL section_add_keyword(section,keyword,error=error)
@@ -7516,7 +7517,8 @@ CONTAINS
     CALL section_release(print_key,error=error)
     
     CALL cp_print_key_section_create(print_key,"CURRENT",&
-         description="Print the current during an EMD simulation to cube files.",&
+         description="Print the current during an EMD simulation to cube files."//&
+         "Under development, sign might be wrong. Does not yet work with orthonormal keyword in REAL_TIME_PROPAGATION section.",&
          print_level=high_print_level, common_iter_levels=0,&
          each_iter_names=s2a("MD"),&
          each_iter_values=(/20/), &
