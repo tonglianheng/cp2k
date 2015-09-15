@@ -1,0 +1,32 @@
+# -*- mode: makefile -*-
+
+CC       = gcc-5
+CPP      =
+FC       = gfortran-5
+LD       = gfortran-5
+AR       = ar -r
+RANLIB   = ranlib
+
+CPPFLAGS =
+
+FFTW3_INCLUDE = /opt/fftw-3.3.4/include
+FFTW3_LIB = /opt/fftw-3.3.4/lib
+LIBINT_INCLUDE = /opt/libint-1.1.4/include
+LIBINT_LIB = /opt/libint-1.1.4/lib
+LIBXC_INCLUDE = /opt/libxc-2.0.1/include
+LIBXC_LIB = /opt/libxc-2.0.1/lib
+
+WFLAGS  = -Waliasing -Wampersand -Wc-binding-type -Wconversion\
+          -Wintrinsics-std -Wline-truncation\
+          -Wno-tabs -Wrealloc-lhs-all -Wtarget-lifetime -Wunderflow\
+          -Wunused-but-set-variable -Werror
+DFLAGS   = -D__GFORTRAN -D__FFTSG -D__FFTW3 -D__LIBINT -D__LIBXC2 -D__NO_STATM_ACCESS
+FCFLAGS  = -g -march=native -ffree-form -ffree-line-length-none -ffast-math \
+           $(DFLAGS) -I${FFTW3_INCLUDE} -I${LIBINT_INCLUDE} -I${LIBXC_INCLUDE} \
+           $(WFLAGS)
+LDFLAGS  = $(FCFLAGS) -L${FFTW3_LIB} -L${LIBXC_LIB} -L${LIBINT_LIB}
+LIBS     = ${LIBINT_LIB}/libderiv.a \
+           ${LIBINT_LIB}/libint.a \
+           ${FFTW3_LIB}/libfftw3.a \
+           ${LIBXC_LIB}/libxc.a \
+           -lstdc++ -framework Accelerate
