@@ -28,31 +28,27 @@ CONTAINS
 ! *****************************************************************************
 !> \brief deallocate an array of pointers to blacs matrixes
 !> \param matrixes the array of matrixes to deallocate
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \par History
 !>      07.2002 created [fawzi]
 !> \author Fawzi Mohamed
 ! *****************************************************************************
-  SUBROUTINE cp_fm_vect_dealloc(matrixes, error)
+  SUBROUTINE cp_fm_vect_dealloc(matrixes)
     TYPE(cp_fm_p_type), DIMENSION(:), &
       POINTER                                :: matrixes
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_fm_vect_dealloc', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, stat
+    INTEGER                                  :: i
     LOGICAL                                  :: failure
 
     failure=.FALSE.
 
     IF (ASSOCIATED(matrixes)) THEN
        DO i=1,SIZE(matrixes)
-          CALL cp_fm_release(matrixes(i)%matrix,error=error)
+          CALL cp_fm_release(matrixes(i)%matrix)
        END DO
-       DEALLOCATE(matrixes,stat=stat)
-       CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
+       DEALLOCATE(matrixes)
     END IF
   END SUBROUTINE cp_fm_vect_dealloc
 
@@ -61,32 +57,28 @@ CONTAINS
 !>      the matrices)
 !> \param matrixes the matrixes to copy
 !> \param copy ...
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \par History
 !>      09.2002 created [fawzi]
 !> \author Fawzi Mohamed
 ! *****************************************************************************
-SUBROUTINE cp_fm_vect_copy(matrixes, copy, error)
+SUBROUTINE cp_fm_vect_copy(matrixes, copy)
     TYPE(cp_fm_p_type), DIMENSION(:), &
       INTENT(in)                             :: matrixes
     TYPE(cp_fm_p_type), DIMENSION(:), &
       POINTER                                :: copy
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_fm_vect_copy', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, stat
+    INTEGER                                  :: i
     LOGICAL                                  :: failure
 
   failure=.FALSE.
 
-  ALLOCATE(copy(SIZE(matrixes)),stat=stat)
-  CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+  ALLOCATE(copy(SIZE(matrixes)))
   DO i=1,SIZE(matrixes)
      copy(i)%matrix => matrixes(i)%matrix
-     CALL cp_fm_retain(matrixes(i)%matrix,error=error)
+     CALL cp_fm_retain(matrixes(i)%matrix)
   END DO
 END SUBROUTINE cp_fm_vect_copy
 

@@ -101,13 +101,10 @@ CONTAINS
 ! *****************************************************************************
 !> \brief retains the given parser
 !> \param parser the parser to retain
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \author fawzi
 ! *****************************************************************************
-  SUBROUTINE parser_retain(parser,error)
+  SUBROUTINE parser_retain(parser)
     TYPE(cp_parser_type), POINTER            :: parser
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'parser_retain', &
       routineP = moduleN//':'//routineN
@@ -115,46 +112,40 @@ CONTAINS
     LOGICAL                                  :: failure
 
     failure=.FALSE.
-    CPPrecondition(ASSOCIATED(parser),cp_failure_level,routineP,error,failure)
-    CPPreconditionNoFail(parser%ref_count>0,cp_failure_level,routineP,error)
+    CPASSERT(ASSOCIATED(parser))
+    CPASSERT(parser%ref_count>0)
     parser%ref_count=parser%ref_count+1
   END SUBROUTINE parser_retain
 
 ! *****************************************************************************
 !> \brief   releases the parser
 !> \param parser ...
-!> \param error ...
 !> \date    14.02.2001
 !> \author  MK
 !> \version 1.0
 ! *****************************************************************************
-  SUBROUTINE parser_release(parser, error)
+  SUBROUTINE parser_release(parser)
     TYPE(cp_parser_type), POINTER            :: parser
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'parser_release', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
-
     IF (ASSOCIATED(parser)) THEN
-       CPPreconditionNoFail(parser%ref_count>0,cp_failure_level,routineP,error)
+       CPASSERT(parser%ref_count>0)
        parser%ref_count=parser%ref_count-1
        IF (parser%ref_count==0) THEN
           IF (parser%input_unit >= 0) THEN
              CALL close_file(unit_number=parser%input_unit)
           END IF
-          CALL cp_para_env_release(parser%para_env,error=error)
-          CALL release_inpp_type(parser%inpp, error)
-          CALL release_ilist_type(parser%ilist, error)
-          CALL release_buffer_type(parser%buffer, error)
-          CALL release_status_type(parser%status, error)
+          CALL cp_para_env_release(parser%para_env)
+          CALL release_inpp_type(parser%inpp)
+          CALL release_ilist_type(parser%ilist)
+          CALL release_buffer_type(parser%buffer)
+          CALL release_status_type(parser%status)
           IF (ASSOCIATED(parser%initial_variables)) THEN
-             DEALLOCATE(parser%initial_variables,stat=stat)
-             CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+             DEALLOCATE(parser%initial_variables)
           ENDIF
-          DEALLOCATE(parser,stat=stat)
-          CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+          DEALLOCATE(parser)
        END IF
     END IF
   END SUBROUTINE parser_release
@@ -173,14 +164,13 @@ CONTAINS
 !> \param parse_white_lines ...
 !> \param initial_variables ...
 !> \param apply_preprocessing ...
-!> \param error ...
 !> \date    14.02.2001
 !> \author  MK
 !> \version 1.0
 ! *****************************************************************************
   SUBROUTINE parser_create(parser, file_name, unit_nr, para_env, end_section_label,&
        separator_chars, comment_char, continuation_char, section_char, parse_white_lines,&
-       initial_variables, apply_preprocessing, error)
+       initial_variables, apply_preprocessing)
     TYPE(cp_parser_type), POINTER            :: parser
     CHARACTER(LEN=*), INTENT(IN), OPTIONAL   :: file_name
     INTEGER, INTENT(in), OPTIONAL            :: unit_nr
@@ -195,18 +185,15 @@ CONTAINS
     CHARACTER(len=*), DIMENSION(:, :), &
       OPTIONAL                               :: initial_variables
     LOGICAL, INTENT(IN), OPTIONAL            :: apply_preprocessing
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'parser_create', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
     LOGICAL                                  :: failure
 
     failure=.FALSE.
-    CPPrecondition(.NOT.ASSOCIATED(parser),cp_failure_level,routineP,error,failure)
-    ALLOCATE(parser,stat=stat)
-    CPPostcondition(stat==0,cp_fatal_level,routineP,error,failure)
+    CPASSERT(.NOT.ASSOCIATED(parser))
+    ALLOCATE(parser)
     last_parser_id=last_parser_id+1
     parser%id_nr=last_parser_id
     parser%ref_count=1
@@ -242,11 +229,11 @@ CONTAINS
     ! para_env
     IF (PRESENT(para_env)) THEN
        parser%para_env => para_env
-       CALL cp_para_env_retain(para_env,error=error)
+       CALL cp_para_env_retain(para_env)
     ELSE
        NULLIFY(parser%para_env)
        CALL cp_para_env_create(parser%para_env, group=MPI_COMM_SELF, source=0,&
-            mepos=0, num_pe=1, owns_group=.FALSE.,error=error)
+            mepos=0, num_pe=1, owns_group=.FALSE.)
     END IF
 
     !   *** Get the logical output unit number for error messages ***
@@ -258,7 +245,7 @@ CONTAINS
           CALL cp_assert(PRESENT(file_name),cp_failure_level,cp_assertion_failed,&
                routineP,"at least one of filename and unit_nr must be present"//&
                CPSourceFileRef,&
-               error,failure)
+               failure)
           CALL open_file(file_name=TRIM(file_name),&
                unit_number=parser%input_unit)
           parser%input_file_name=file_name
@@ -267,8 +254,7 @@ CONTAINS
 
     IF (PRESENT(initial_variables)) THEN
        IF (SIZE(initial_variables,2)>0) THEN
-          ALLOCATE(parser%initial_variables(2,SIZE(initial_variables,2)),stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          ALLOCATE(parser%initial_variables(2,SIZE(initial_variables,2)))
           parser%initial_variables=initial_variables
        ENDIF
     ENDIF
@@ -282,23 +268,21 @@ CONTAINS
     NULLIFY(parser%status)
     NULLIFY(parser%inpp)
     NULLIFY(parser%ilist)
-    CALL create_inpp_type(parser%inpp, parser%initial_variables, error)
-    CALL create_ilist_type(parser%ilist, error)
-    CALL create_buffer_type(parser%buffer, error)
-    CALL create_status_type(parser%status, error)
+    CALL create_inpp_type(parser%inpp, parser%initial_variables)
+    CALL create_ilist_type(parser%ilist)
+    CALL create_buffer_type(parser%buffer)
+    CALL create_status_type(parser%status)
   END SUBROUTINE parser_create
 
 ! *****************************************************************************
 !> \brief   Resets the parser: rewinding the unit and re-initializing all
 !>          parser structures
 !> \param parser ...
-!> \param error ...
 !> \date    12.2008
 !> \author  Teodoro Laino [tlaino]
 ! *****************************************************************************
-  SUBROUTINE parser_reset(parser, error)
+  SUBROUTINE parser_reset(parser)
     TYPE(cp_parser_type), POINTER            :: parser
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'parser_reset', &
       routineP = moduleN//':'//routineN
@@ -306,7 +290,7 @@ CONTAINS
     LOGICAL                                  :: failure
 
     failure=.FALSE.
-    CPPrecondition(ASSOCIATED(parser),cp_failure_level,routineP,error,failure)
+    CPASSERT(ASSOCIATED(parser))
     ! Rewind units
     IF (parser%input_unit>0) REWIND(parser%input_unit)
     ! Restore initial settings
@@ -316,15 +300,15 @@ CONTAINS
     parser%icol2=0
     parser%first_separator=.TRUE.
     ! Release substructures
-    CALL release_inpp_type(parser%inpp, error)
-    CALL release_ilist_type(parser%ilist, error)
-    CALL release_buffer_type(parser%buffer, error)
-    CALL release_status_type(parser%status, error)
+    CALL release_inpp_type(parser%inpp)
+    CALL release_ilist_type(parser%ilist)
+    CALL release_buffer_type(parser%buffer)
+    CALL release_status_type(parser%status)
     ! Reallocate substructures
-    CALL create_inpp_type(parser%inpp, parser%initial_variables, error)
-    CALL create_ilist_type(parser%ilist, error)
-    CALL create_buffer_type(parser%buffer, error)
-    CALL create_status_type(parser%status, error)
+    CALL create_inpp_type(parser%inpp, parser%initial_variables)
+    CALL create_ilist_type(parser%ilist)
+    CALL create_buffer_type(parser%buffer)
+    CALL create_status_type(parser%status)
   END SUBROUTINE parser_reset
 
 END MODULE cp_parser_types

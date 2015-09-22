@@ -188,31 +188,28 @@ CONTAINS
 ! *****************************************************************************
 !> \brief ...
 !> \param mp2_env ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE mp2_env_release(mp2_env,error)
+  SUBROUTINE mp2_env_release(mp2_env)
     TYPE(mp2_type), POINTER                  :: mp2_env
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'mp2_env_release', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, stat
+    INTEGER                                  :: handle
     LOGICAL                                  :: failure
 
     failure=.FALSE.
 
     CALL timeset(routineN,handle)
 
-    CPPostcondition(ASSOCIATED(mp2_env),cp_failure_level,routineP,error,failure)
+    CPASSERT(ASSOCIATED(mp2_env))
 
     ! release the HFX section for the EXX calculation
     IF(ASSOCIATED(mp2_env%ri_rpa%x_data)) THEN
-      CALL hfx_release(mp2_env%ri_rpa%x_data, error=error)
+      CALL hfx_release(mp2_env%ri_rpa%x_data)
     END IF
 
-    DEALLOCATE(mp2_env,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    DEALLOCATE(mp2_env)
 
     CALL timestop(handle)
 
@@ -221,26 +218,23 @@ CONTAINS
 ! *****************************************************************************
 !> \brief ...
 !> \param mp2_env ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE mp2_env_create(mp2_env,error)
+  SUBROUTINE mp2_env_create(mp2_env)
     TYPE(mp2_type), POINTER                  :: mp2_env
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'mp2_env_create', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, stat
+    INTEGER                                  :: handle
     LOGICAL                                  :: failure
 
     failure=.FALSE.
 
     CALL timeset(routineN,handle)
 
-    CPPostcondition(.NOT.ASSOCIATED(mp2_env),cp_failure_level,routineP,error,failure)
+    CPASSERT(.NOT.ASSOCIATED(mp2_env))
 
-    ALLOCATE(mp2_env,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    ALLOCATE(mp2_env)
 
     NULLIFY(mp2_env%ri_rpa%x_data)
 

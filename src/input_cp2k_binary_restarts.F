@@ -62,21 +62,19 @@ CONTAINS
 !> \param para_env ...
 !> \param subsys_section ...
 !> \param binary_file_read ...
-!> \param error ...
 !> \par History
 !>      - Creation (10.02.2011,MK)
 !> \author  Matthias Krack (MK)
 !> \version 1.0
 ! *****************************************************************************
   SUBROUTINE read_binary_coordinates(topology,root_section,para_env,&
-                                     subsys_section,binary_file_read,error)
+                                     subsys_section,binary_file_read)
 
     TYPE(topology_parameters_type)           :: topology
     TYPE(section_vals_type), POINTER         :: root_section
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(section_vals_type), POINTER         :: subsys_section
     LOGICAL, INTENT(OUT)                     :: binary_file_read
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'read_binary_coordinates', &
       routineP = moduleN//':'//routineN
@@ -94,15 +92,15 @@ CONTAINS
 
     NULLIFY (logger)
     failure = .FALSE.
-    CPPrecondition(ASSOCIATED(root_section),cp_failure_level,routineP,error,failure)
-    CPPrecondition(ASSOCIATED(para_env),cp_failure_level,routineP,error,failure)
-    CPPrecondition(ASSOCIATED(subsys_section),cp_failure_level,routineP,error,failure)
-    logger => cp_error_get_logger(error)
+    CPASSERT(ASSOCIATED(root_section))
+    CPASSERT(ASSOCIATED(para_env))
+    CPASSERT(ASSOCIATED(subsys_section))
+    logger => cp_get_default_logger()
 
     binary_file_read = .FALSE.
 
     CALL section_vals_val_get(root_section,"EXT_RESTART%BINARY_RESTART_FILE_NAME",&
-                              c_val=binary_restart_file_name,error=error)
+                              c_val=binary_restart_file_name)
 
     IF (TRIM(ADJUSTL(binary_restart_file_name)) == "") THEN
        CALL timestop(handle)
@@ -110,7 +108,7 @@ CONTAINS
     END IF
 
     iw = cp_print_key_unit_nr(logger,subsys_section,"PRINT%TOPOLOGY_INFO/XYZ_INFO",&
-                              extension=".subsysLog",error=error)
+                              extension=".subsysLog")
 
     natomkind = 0
     natom = 0
@@ -240,9 +238,7 @@ CONTAINS
        atom_info%id_atmname(iatom) = id_name(ikind)
        atom_info%id_element(iatom) = id_name(ikind)
     END DO
-    DEALLOCATE (id_name,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                     "id_name",para_env)
+    DEALLOCATE (id_name)
 
     ! Read atomic coordinates
     IF (para_env%ionode) THEN
@@ -285,9 +281,7 @@ CONTAINS
           ikind = ibuf(iatom)
           atom_info%id_molname(iatom) = id_name(ikind)
        END DO
-       DEALLOCATE (id_name,STAT=istat)
-       IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"id_name",&
-                                        para_env)
+       DEALLOCATE (id_name)
        ! Read molecule index which is used also as residue id
        IF (para_env%ionode) THEN
           READ (UNIT=input_unit,IOSTAT=istat) atom_info%resid(1:natom)
@@ -301,8 +295,7 @@ CONTAINS
           atom_info%id_resname(iatom) = str2id(s2s(cp_to_string(atom_info%resid(iatom))))
        END DO
     END IF
-    DEALLOCATE (ibuf,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"ibuf",para_env)
+    DEALLOCATE (ibuf)
 
     !MK to be checked ...
     topology%aa_element = .TRUE.
@@ -342,21 +335,19 @@ CONTAINS
 !> \param root_section ...
 !> \param subsys_section ...
 !> \param binary_file_read ...
-!> \param error ...
 !> \par History
 !>      - Creation (17.02.2011,MK)
 !> \author  Matthias Krack (MK)
 !> \version 1.0
 ! *****************************************************************************
   SUBROUTINE read_binary_cs_coordinates(prefix,particle_set,root_section,&
-                                        subsys_section,binary_file_read,error)
+                                        subsys_section,binary_file_read)
 
     CHARACTER(LEN=*), INTENT(IN)             :: prefix
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(section_vals_type), POINTER         :: root_section, subsys_section
     LOGICAL, INTENT(OUT)                     :: binary_file_read
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'read_binary_cs_coordinates', &
       routineP = moduleN//':'//routineN
@@ -378,9 +369,9 @@ CONTAINS
 
     NULLIFY (logger)
     failure = .FALSE.
-    CPPrecondition(ASSOCIATED(root_section),cp_failure_level,routineP,error,failure)
-    CPPrecondition(ASSOCIATED(subsys_section),cp_failure_level,routineP,error,failure)
-    logger => cp_error_get_logger(error)
+    CPASSERT(ASSOCIATED(root_section))
+    CPASSERT(ASSOCIATED(subsys_section))
+    logger => cp_get_default_logger()
     para_env => logger%para_env
 
     binary_file_read = .FALSE.
@@ -394,7 +385,7 @@ CONTAINS
     END IF
 
     CALL section_vals_val_get(root_section,"EXT_RESTART%BINARY_RESTART_FILE_NAME",&
-                              c_val=binary_restart_file_name,error=error)
+                              c_val=binary_restart_file_name)
 
     IF (TRIM(ADJUSTL(binary_restart_file_name)) == "") THEN
        CALL timestop(handle)
@@ -402,7 +393,7 @@ CONTAINS
     END IF
 
     iw = cp_print_key_unit_nr(logger,subsys_section,"PRINT%TOPOLOGY_INFO/XYZ_INFO",&
-                              extension=".subsysLog",error=error)
+                              extension=".subsysLog")
 
     section_name = prefix//" COORDINATES"
 
@@ -445,8 +436,7 @@ CONTAINS
                                                " coordinates (IOSTAT = "//&
                                                TRIM(ADJUSTL(cp_to_string(istat)))//")",&
                                                input_unit,para_env)
-                DEALLOCATE (rbuf,STAT=istat)
-                IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"rbuf",para_env)
+                DEALLOCATE (rbuf)
                 ALLOCATE (ibuf(nbuf),STAT=istat)
                 IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                                  "ibuf",int_size*nbuf,&
@@ -457,8 +447,7 @@ CONTAINS
                                                TRIM(section_name)//" (IOSTAT = "//&
                                                TRIM(ADJUSTL(cp_to_string(istat)))//")",&
                                                input_unit,para_env)
-                DEALLOCATE (ibuf,STAT=istat)
-                IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"ibuf",para_env)
+                DEALLOCATE (ibuf)
              END IF
              exit_routine = .TRUE.
           ELSE
@@ -485,7 +474,7 @@ CONTAINS
        RETURN
     END IF
 
-    CPPrecondition((nparticle > 0),cp_failure_level,routineP,error,failure)
+    CPASSERT(nparticle > 0)
 
     ALLOCATE (rbuf(3,nparticle),STAT=istat)
     IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
@@ -506,8 +495,7 @@ CONTAINS
        particle_set(iparticle)%r(1:3) = rbuf(1:3,iparticle)
     END DO
 
-    DEALLOCATE (rbuf,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"rbuf",para_env)
+    DEALLOCATE (rbuf)
 
     ALLOCATE (ibuf(nparticle),STAT=istat)
     IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
@@ -529,8 +517,7 @@ CONTAINS
        particle_set(iparticle)%atom_index = ibuf(iparticle)
     END DO
 
-    DEALLOCATE (ibuf,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"ibuf",para_env)
+    DEALLOCATE (ibuf)
 
     IF (iw > 0) THEN
        WRITE (UNIT=iw,FMT="(T2,A)")&
@@ -567,14 +554,13 @@ CONTAINS
 !> \param para_env ...
 !> \param subsys_section ...
 !> \param binary_file_read ...
-!> \param error ...
 !> \par History
 !>      - Creation (17.02.2011,MK)
 !> \author  Matthias Krack (MK)
 !> \version 1.0
 ! *****************************************************************************
   SUBROUTINE read_binary_velocities(prefix,particle_set,root_section,para_env,&
-                                    subsys_section,binary_file_read,error)
+                                    subsys_section,binary_file_read)
 
     CHARACTER(LEN=*), INTENT(IN)             :: prefix
     TYPE(particle_type), DIMENSION(:), &
@@ -583,7 +569,6 @@ CONTAINS
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(section_vals_type), POINTER         :: subsys_section
     LOGICAL, INTENT(OUT)                     :: binary_file_read
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'read_binary_velocities', &
       routineP = moduleN//':'//routineN
@@ -603,15 +588,15 @@ CONTAINS
 
     NULLIFY (logger)
     failure = .FALSE.
-    CPPrecondition(ASSOCIATED(root_section),cp_failure_level,routineP,error,failure)
-    CPPrecondition(ASSOCIATED(para_env),cp_failure_level,routineP,error,failure)
-    CPPrecondition(ASSOCIATED(subsys_section),cp_failure_level,routineP,error,failure)
-    logger => cp_error_get_logger(error)
+    CPASSERT(ASSOCIATED(root_section))
+    CPASSERT(ASSOCIATED(para_env))
+    CPASSERT(ASSOCIATED(subsys_section))
+    logger => cp_get_default_logger()
 
     binary_file_read = .FALSE.
 
     CALL section_vals_val_get(root_section,"EXT_RESTART%BINARY_RESTART_FILE_NAME",&
-                              c_val=binary_restart_file_name,error=error)
+                              c_val=binary_restart_file_name)
 
     IF (TRIM(ADJUSTL(binary_restart_file_name)) == "") THEN
        CALL timestop(handle)
@@ -619,7 +604,7 @@ CONTAINS
     END IF
 
     iw = cp_print_key_unit_nr(logger,subsys_section,"PRINT%TOPOLOGY_INFO/XYZ_INFO",&
-                              extension=".subsysLog",error=error)
+                              extension=".subsysLog")
 
     IF (LEN_TRIM(prefix) == 0) THEN
        section_name = "VELOCITIES"
@@ -668,8 +653,7 @@ CONTAINS
                                                   " (IOSTAT = "//TRIM(ADJUSTL(cp_to_string(istat)))//")",&
                                                   input_unit,para_env)
                 END DO
-                DEALLOCATE (rbuf,STAT=istat)
-                IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"rbuf",para_env)
+                DEALLOCATE (rbuf)
                 IF (iw > 0) THEN
                    message = "INFO: Ignoring section <"//TRIM(ADJUSTL(section_label))//&
                              "> from binary restart file <"//TRIM(binary_restart_file_name)//">."
@@ -725,8 +709,7 @@ CONTAINS
           END IF
        END IF
 
-       DEALLOCATE (rbuf,STAT=istat)
-       IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"rbuf",para_env)
+       DEALLOCATE (rbuf)
 
     END IF
 
@@ -769,21 +752,19 @@ CONTAINS
 !> \param binary_restart_file_name ...
 !> \param restart ...
 !> \param para_env ...
-!> \param error ...
 !> \par History
 !>      - Creation (28.02.2011,MK)
 !> \author  Matthias Krack (MK)
 !> \version 1.0
 ! *****************************************************************************
   SUBROUTINE read_binary_thermostats_nose(prefix,nhc,binary_restart_file_name,&
-                                          restart,para_env,error)
+                                          restart,para_env)
 
     CHARACTER(LEN=*), INTENT(IN)             :: prefix
     TYPE(lnhc_parameters_type), POINTER      :: nhc
     CHARACTER(LEN=*), INTENT(IN)             :: binary_restart_file_name
     LOGICAL, INTENT(OUT)                     :: restart
     TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'read_binary_thermostats_nose', &
       routineP = moduleN//':'//routineN
@@ -799,12 +780,12 @@ CONTAINS
     CALL timeset(routineN,handle)
 
     failure = .FALSE.
-    CPPrecondition(ASSOCIATED(nhc),cp_failure_level,routineP,error,failure)
-    CPPrecondition(ASSOCIATED(para_env),cp_failure_level,routineP,error,failure)
+    CPASSERT(ASSOCIATED(nhc))
+    CPASSERT(ASSOCIATED(para_env))
 
     ! Set to .TRUE. for debug mode, i.e. all data read are written to stdout
     NULLIFY (logger)
-    logger => cp_error_get_logger(error)
+    logger => cp_get_default_logger()
     output_unit = cp_logger_get_default_io_unit(logger)
 
     IF (logger%iter_info%print_level >= debug_print_level) THEN
@@ -939,8 +920,7 @@ CONTAINS
           END DO
        END DO
 
-       DEALLOCATE (rbuf,STAT=istat)
-       IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"rbuf",para_env)
+       DEALLOCATE (rbuf)
 
        restart = .TRUE.
 

@@ -67,7 +67,6 @@ PROGRAM cp2k_shell
                                               shift2,env_id,last_env_id,&
                                               n_atom,stat,n_atom2,pid,n_lines
   INTEGER                                  :: sout, file_unit
-  TYPE(cp_error_type)                      :: error
   TYPE(cp_para_env_type), POINTER          :: para_env
   TYPE(cp_logger_type), POINTER            :: logger
   CHARACTER(LEN=default_path_length)       :: cmdStr, inp_filename, out_filename
@@ -147,7 +146,7 @@ PROGRAM cp2k_shell
   IF (ierr/=0) CALL mp_abort('init_cp2k failure')
 
   NULLIFY(input_declaration)
-  CALL create_cp2k_root_section(input_declaration, error)
+  CALL create_cp2k_root_section(input_declaration)
 
   pos_fact=1.0_dp
   e_fact=1.0_dp
@@ -155,7 +154,7 @@ PROGRAM cp2k_shell
   harsh=.FALSE.
   failure=.FALSE.
 
-  logger => cp_error_get_logger(error)
+  logger => cp_get_default_logger()
   para_env => logger%para_env
 
   eof=.FALSE.
@@ -414,8 +413,7 @@ PROGRAM cp2k_shell
            IF (iostat/=0) CALL mp_abort(cmd//' write coord')
            CALL m_flush(sout)
         END IF
-        DEALLOCATE(pos,stat=stat)
-        IF (stat/=0) CALL mp_abort(cmd//' failed dealloc')
+        DEALLOCATE(pos)
      CASE('GETE','GET_E')
         env_id=parse_env_id(str=cmdStr,startI=shift2+1,default_val=last_env_id)
         CALL my_assert(env_id>0,cmd//' invalid env_id',failure)
@@ -471,8 +469,7 @@ PROGRAM cp2k_shell
            IF (iostat/=0) CALL mp_abort(cmd//' write coord')
            CALL m_flush(sout)
         END IF
-        DEALLOCATE(pos,stat=stat)
-        IF (stat/=0) CALL mp_abort(cmd//' failed dealloc')
+        DEALLOCATE(pos)
      CASE('CALCEF','CALC_EF')
         env_id=parse_env_id(str=cmdStr,startI=shift2+1,default_val=last_env_id)
         CALL my_assert(env_id>0,cmd//' invalid env_id',failure)
@@ -503,8 +500,7 @@ PROGRAM cp2k_shell
            IF (iostat/=0) CALL mp_abort(cmd//' write coord')
            CALL m_flush(sout)
         END IF
-        DEALLOCATE(pos,stat=stat)
-        IF (stat/=0) CALL mp_abort(cmd//' failed dealloc')
+        DEALLOCATE(pos)
      CASE('UNITS_EVA','UNITS_EV_A')
         e_fact=evolt
         pos_fact=angstrom
@@ -559,7 +555,7 @@ PROGRAM cp2k_shell
      END IF
   END DO
 
-  CALL section_release(input_declaration,error=error)
+  CALL section_release(input_declaration)
 
   CALL finalize_cp2k(finalize_mpi=.TRUE.,ierr=ierr)
   IF (ierr/=0) CALL mp_abort('finalize_cp2k failure')

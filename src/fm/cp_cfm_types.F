@@ -77,22 +77,19 @@ CONTAINS
 !> \param matrix the matrix to be created
 !> \param matrix_struct the structure of matrix
 !> \param name ...
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \note
 !>      preferred allocation routine
 ! *****************************************************************************
-  SUBROUTINE cp_cfm_create(matrix,matrix_struct,name,error)
+  SUBROUTINE cp_cfm_create(matrix,matrix_struct,name)
     TYPE(cp_cfm_type), POINTER               :: matrix
     TYPE(cp_fm_struct_type), POINTER         :: matrix_struct
     CHARACTER(len=*), INTENT(in), OPTIONAL   :: name
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_cfm_create', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: ncol_local, npcol, nprow, &
-                                                nrow_local, stat
+                                                nrow_local
     LOGICAL                                  :: failure
     TYPE(cp_blacs_env_type), POINTER         :: context
 
@@ -101,16 +98,14 @@ CONTAINS
 #if defined(__parallel) && ! defined(__SCALAPACK)
      CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
      routineP,"full matrixes need scalapack for parallel runs "//&
-CPSourceFileRef,&
-     error)
+CPSourceFileRef)
 #endif
 
-    CPPrecondition(ASSOCIATED(matrix_struct),cp_failure_level,routineP,error,failure)
-    ALLOCATE(matrix,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPASSERT(ASSOCIATED(matrix_struct))
+    ALLOCATE(matrix)
     context => matrix_struct%context
     matrix%matrix_struct => matrix_struct
-    CALL cp_fm_struct_retain(matrix%matrix_struct,error=error)
+    CALL cp_fm_struct_retain(matrix%matrix_struct)
     last_cfm_id_nr=last_cfm_id_nr+1
     matrix%id_nr=last_cfm_id_nr
     matrix%ref_count=1
@@ -122,8 +117,7 @@ CPSourceFileRef,&
 
     nrow_local=matrix_struct%local_leading_dimension
     ncol_local=MAX(1,matrix_struct%ncol_locals(context%mepos(2)))
-    ALLOCATE(matrix%local_data(nrow_local,ncol_local),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    ALLOCATE(matrix%local_data(nrow_local,ncol_local))
 
     CALL dcopy(2*nrow_local*ncol_local,0.0_dp,0,matrix%local_data,1)
 ! matrix%local_data(:,:) = 0.0_dp
@@ -138,12 +132,9 @@ CPSourceFileRef,&
 ! *****************************************************************************
 !> \brief retains a full matrix
 !> \param matrix the matrix to retain
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 ! *****************************************************************************
-  SUBROUTINE cp_cfm_retain(matrix,error)
+  SUBROUTINE cp_cfm_retain(matrix)
     TYPE(cp_cfm_type), POINTER               :: matrix
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_cfm_retain', &
       routineP = moduleN//':'//routineN
@@ -152,41 +143,35 @@ CPSourceFileRef,&
 
     failure=.FALSE.
 
-    CPPrecondition(ASSOCIATED(matrix),cp_failure_level,routineP,error,failure)
-    CPPrecondition(matrix%ref_count>0,cp_failure_level,routineP,error,failure)
+    CPASSERT(ASSOCIATED(matrix))
+    CPASSERT(matrix%ref_count>0)
     matrix%ref_count=matrix%ref_count+1
   END SUBROUTINE cp_cfm_retain
 
 ! *****************************************************************************
 !> \brief releases a full matrix
 !> \param matrix the matrix to release
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 ! *****************************************************************************
-  SUBROUTINE cp_cfm_release(matrix,error)
+  SUBROUTINE cp_cfm_release(matrix)
     TYPE(cp_cfm_type), POINTER               :: matrix
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_cfm_release', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
     LOGICAL                                  :: failure
 
     failure=.FALSE.
 
     IF (ASSOCIATED(matrix)) THEN
-       CPPrecondition(matrix%ref_count>0,cp_failure_level,routineP,error,failure)
+       CPASSERT(matrix%ref_count>0)
        matrix%ref_count=matrix%ref_count-1
        IF (matrix%ref_count<1) THEN
           IF (ASSOCIATED(matrix%local_data)) THEN
-             DEALLOCATE(matrix%local_data,stat=stat)
-             CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
+             DEALLOCATE(matrix%local_data)
           END IF
           matrix%name=""
-          CALL cp_fm_struct_release(matrix%matrix_struct,error=error)
-          DEALLOCATE(matrix,stat=stat)
-          CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
+          CALL cp_fm_struct_release(matrix%matrix_struct)
+          DEALLOCATE(matrix)
        END IF
     END IF
     NULLIFY(matrix)
@@ -197,23 +182,21 @@ CPSourceFileRef,&
 !> \param matrix ...
 !> \param alpha ...
 !> \param beta ...
-!> \param error ...
 !> \date    12.06.2001
 !> \author  Matthias Krack
 !> \version 1.0
 ! *****************************************************************************
-  SUBROUTINE cp_cfm_set_all(matrix,alpha,beta,error)
+  SUBROUTINE cp_cfm_set_all(matrix,alpha,beta)
     TYPE(cp_cfm_type), POINTER               :: matrix
     COMPLEX(KIND=dp), INTENT(IN)             :: alpha
     COMPLEX(KIND=dp), INTENT(IN), OPTIONAL   :: beta
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     INTEGER                                  :: i
 
     matrix%local_data(:,:) = alpha
     IF (PRESENT(beta)) THEN
       DO i=1,matrix%matrix_struct%nrow_global
-         CALL cp_cfm_set_element(matrix,i,i,beta,error=error)
+         CALL cp_cfm_set_element(matrix,i,i,beta)
       ENDDO
     ENDIF
 
@@ -276,17 +259,15 @@ CPSourceFileRef,&
 !> \param irow_global ...
 !> \param icol_global ...
 !> \param alpha ...
-!> \param error ...
 !> \date    12.06.2001
 !> \author  Matthias Krack
 !> \version 1.0
 ! *****************************************************************************
-  SUBROUTINE cp_cfm_set_element(matrix,irow_global,icol_global,alpha,error)
+  SUBROUTINE cp_cfm_set_element(matrix,irow_global,icol_global,alpha)
 
     TYPE(cp_cfm_type), POINTER               :: matrix
     INTEGER, INTENT(IN)                      :: irow_global, icol_global
     COMPLEX(KIND=dp), INTENT(IN)             :: alpha
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     INTEGER                                  :: mypcol, myprow, npcol, nprow
     TYPE(cp_blacs_env_type), POINTER         :: context
@@ -344,7 +325,6 @@ CPSourceFileRef,&
 !> \param context ...
 !> \param matrix_struct ...
 !> \param para_env ...
-!> \param error ...
 !> \date    12.06.2001
 !> \author  Matthias Krack
 !> \version 1.0
@@ -352,7 +332,7 @@ CPSourceFileRef,&
   SUBROUTINE cp_cfm_get_info(matrix,name,nrow_global,ncol_global,&
        nrow_block,ncol_block,nrow_local,ncol_local,&
        row_indices,col_indices,local_data,context,&
-       matrix_struct,para_env,error)
+       matrix_struct,para_env)
     TYPE(cp_cfm_type), POINTER        :: matrix
     CHARACTER(LEN=*), OPTIONAL, INTENT(OUT) :: name
     INTEGER, OPTIONAL, INTENT(OUT)          :: ncol_block,ncol_global,&
@@ -362,12 +342,11 @@ CPSourceFileRef,&
     TYPE(cp_para_env_type), POINTER, OPTIONAL :: para_env
     TYPE(cp_blacs_env_type), POINTER, OPTIONAL :: context
     TYPE(cp_fm_struct_type),POINTER,OPTIONAL :: matrix_struct
-    TYPE(cp_error_type), INTENT(inout)  :: error
     COMPLEX(KIND = dp), DIMENSION(:,:), POINTER, OPTIONAL :: local_data
 
     CHARACTER(len=*), PARAMETER :: routineN='cp_cfm_get_info',&
          routineP=moduleN//':'//routineN
-    INTEGER i,nprow,npcol,myprow,mypcol, stat
+    INTEGER i,nprow,npcol,myprow,mypcol
     TYPE(cp_blacs_env_type), POINTER :: ctxt
     LOGICAL :: failure
 #if defined(__SCALAPACK)
@@ -402,8 +381,7 @@ CPSourceFileRef,&
        row_indices => matrix%matrix_struct%row_indices
        IF (.NOT.ASSOCIATED(row_indices)) THEN
           ALLOCATE(matrix%matrix_struct%row_indices &
-               (matrix%matrix_struct%nrow_locals(myprow)),stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+               (matrix%matrix_struct%nrow_locals(myprow)))
           row_indices => matrix%matrix_struct%row_indices
 #ifdef __SCALAPACK
           DO i=1,SIZE(row_indices)
@@ -423,8 +401,7 @@ CPSourceFileRef,&
        col_indices => matrix%matrix_struct%col_indices
        IF (.NOT.ASSOCIATED(col_indices)) THEN
           ALLOCATE(matrix%matrix_struct%col_indices &
-               (matrix%matrix_struct%ncol_locals(mypcol)),stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+               (matrix%matrix_struct%ncol_locals(mypcol)))
           col_indices => matrix%matrix_struct%col_indices
 #ifdef __SCALAPACK
           DO i=1,SIZE(col_indices)
@@ -448,12 +425,10 @@ CPSourceFileRef,&
 !> \brief copy one identically sized matrix in the other
 !> \param source ...
 !> \param destination ...
-!> \param error ...
 !> \author Joost VandeVondele
 ! *****************************************************************************
-  SUBROUTINE cp_cfm_to_cfm_matrix(source,destination,error)
+  SUBROUTINE cp_cfm_to_cfm_matrix(source,destination)
     TYPE(cp_cfm_type), POINTER               :: source, destination
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_cfm_to_cfm_matrix', &
       routineP = moduleN//':'//routineN
@@ -467,13 +442,12 @@ CPSourceFileRef,&
 
     IF(.NOT. cp2k_is_parallel .OR.&
          cp_fm_struct_equivalent(source%matrix_struct,&
-         destination%matrix_struct,error=error)) THEN
+         destination%matrix_struct)) THEN
       CALL cp_assert(SIZE(source%local_data,1)==SIZE(destination%local_data,1).AND.&
          SIZE(source%local_data,2)==SIZE(destination%local_data,2),cp_failure_level,&
          cp_assertion_failed, routineP, &
-         "internal error, local_data has different sizes"//&
-CPSourceFileRef,&
-         error=error)
+         "internal local_data has different sizes"//&
+CPSourceFileRef)
       CALL dcopy(SIZE(source%local_data,1)*SIZE(source%local_data,2)*2,&
            source%local_data(1,1),1,destination%local_data(1,1),1)
    ELSE
@@ -482,22 +456,20 @@ CPSourceFileRef,&
            cp_failure_level,&
            cp_assertion_failed, routineP, &
            "cannot copy between full matrixes of differen sizes"//&
-CPSourceFileRef,&
-           error=error)
+CPSourceFileRef)
       CALL cp_assert(source%matrix_struct%ncol_global==&
            destination%matrix_struct%ncol_global,&
            cp_failure_level,&
            cp_assertion_failed, routineP, &
            "cannot copy between full matrixes of differen sizes"//&
-CPSourceFileRef,&
-           error=error)
+CPSourceFileRef)
 #ifdef __SCALAPACK
       CALL pzcopy(source%matrix_struct%nrow_global*&
            source%matrix_struct%ncol_global,&
            source%local_data(1,1),1,1,source%matrix_struct%descriptor,1,&
            destination%local_data(1,1),1,1,destination%matrix_struct%descriptor,1)
 #else
-      CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
+      CPASSERT(.FALSE.)
 #endif
    END IF
   END SUBROUTINE cp_cfm_to_cfm_matrix
@@ -561,13 +533,11 @@ CPSourceFileRef,&
 !> \param msource ...
 !> \param mtargetr ...
 !> \param mtargeti ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE cp_cfm_to_fm(msource,mtargetr,mtargeti,error)
+  SUBROUTINE cp_cfm_to_fm(msource,mtargetr,mtargeti)
 
     TYPE(cp_cfm_type), POINTER               :: msource
     TYPE(cp_fm_type), POINTER                :: mtargetr, mtargeti
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'cp_cfm_to_fm', &
       routineP = moduleN//':'//routineN
@@ -585,23 +555,20 @@ CPSourceFileRef,&
 
     ! This routine is only for equivalent structures
     CALL cp_assert(cp_fm_struct_equivalent(msource%matrix_struct,&
-         mtargetr%matrix_struct,error=error),cp_failure_level,&
+         mtargetr%matrix_struct),cp_failure_level,&
          cp_assertion_failed, routineP, &
-         "internal error, local_data has different sizes"//&
-CPSourceFileRef,&
-         error=error)
+         "internal local_data has different sizes"//&
+CPSourceFileRef)
     CALL cp_assert(cp_fm_struct_equivalent(msource%matrix_struct,&
-         mtargeti%matrix_struct,error=error),cp_failure_level,&
+         mtargeti%matrix_struct),cp_failure_level,&
          cp_assertion_failed, routineP, &
-         "internal error, local_data has different sizes"//&
-CPSourceFileRef,&
-         error=error)
+         "internal local_data has different sizes"//&
+CPSourceFileRef)
     CALL cp_assert(SIZE(a,1)==SIZE(br,1).AND.SIZE(a,2)==SIZE(br,2)&
          .AND.SIZE(a,1)==SIZE(bi,1).AND.SIZE(a,2)==SIZE(bi,2),cp_failure_level,&
          cp_assertion_failed, routineP, &
-         "internal error, local_data has different sizes"//&
-CPSourceFileRef,&
-         error=error)
+         "internal local_data has different sizes"//&
+CPSourceFileRef)
 
     br = REAL(a)
     bi = AIMAG(a)

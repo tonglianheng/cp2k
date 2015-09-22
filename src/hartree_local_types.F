@@ -49,34 +49,28 @@ MODULE hartree_local_types
 !> \brief ...
 !> \param ecoul_1c ...
 !> \param natom ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE  allocate_ecoul_1center(ecoul_1c,natom,error)
+  SUBROUTINE  allocate_ecoul_1center(ecoul_1c,natom)
 
     TYPE(ecoul_1center_type), DIMENSION(:), &
       POINTER                                :: ecoul_1c
     INTEGER, INTENT(IN)                      :: natom
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'allocate_ecoul_1center', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: iat, istat
-    LOGICAL                                  :: failure
+    INTEGER                                  :: iat
 
     IF(ASSOCIATED(ecoul_1c)) THEN
-      CALL deallocate_ecoul_1center(ecoul_1c,error)
+      CALL deallocate_ecoul_1center(ecoul_1c)
     END IF
 
-    ALLOCATE(ecoul_1c(natom), STAT=istat)
-    CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+    ALLOCATE(ecoul_1c(natom))
 
     DO iat = 1,natom
-      ALLOCATE(ecoul_1c(iat)%Vh1_h,STAT=istat)
-    CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+      ALLOCATE(ecoul_1c(iat)%Vh1_h)
       NULLIFY(ecoul_1c(iat)%Vh1_h%r_coef)
-      ALLOCATE(ecoul_1c(iat)%Vh1_s,STAT=istat)
-    CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+      ALLOCATE(ecoul_1c(iat)%Vh1_s)
       NULLIFY(ecoul_1c(iat)%Vh1_s%r_coef)
     END DO
 
@@ -85,41 +79,33 @@ MODULE hartree_local_types
 ! *****************************************************************************
 !> \brief ...
 !> \param ecoul_1c ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE  deallocate_ecoul_1center(ecoul_1c,error)
+  SUBROUTINE  deallocate_ecoul_1center(ecoul_1c)
 
     TYPE(ecoul_1center_type), DIMENSION(:), &
       POINTER                                :: ecoul_1c
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'deallocate_ecoul_1center', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: iat, istat, natom
-    LOGICAL                                  :: failure
+    INTEGER                                  :: iat, natom
 
     natom = SIZE(ecoul_1c,1)
 
     DO iat= 1,natom
       IF (ASSOCIATED(ecoul_1c(iat)%Vh1_h%r_coef)) THEN
-          DEALLOCATE(ecoul_1c(iat)%Vh1_h%r_coef,STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+          DEALLOCATE(ecoul_1c(iat)%Vh1_h%r_coef)
       ENDIF
-      DEALLOCATE(ecoul_1c(iat)%Vh1_h,STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+      DEALLOCATE(ecoul_1c(iat)%Vh1_h)
 
       IF (ASSOCIATED(ecoul_1c(iat)%Vh1_s%r_coef)) THEN
-          DEALLOCATE(ecoul_1c(iat)%Vh1_s%r_coef,STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+          DEALLOCATE(ecoul_1c(iat)%Vh1_s%r_coef)
       ENDIF
-      DEALLOCATE(ecoul_1c(iat)%Vh1_s,STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+      DEALLOCATE(ecoul_1c(iat)%Vh1_s)
 
     END DO
 
-    DEALLOCATE(ecoul_1c, STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    DEALLOCATE(ecoul_1c)
 
   END SUBROUTINE deallocate_ecoul_1center
 
@@ -166,23 +152,19 @@ MODULE hartree_local_types
 ! *****************************************************************************
 !> \brief ...
 !> \param hartree_local ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE hartree_local_create(hartree_local, error)
+  SUBROUTINE hartree_local_create(hartree_local)
 
     TYPE(hartree_local_type), POINTER        :: hartree_local
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'hartree_local_create', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
     LOGICAL                                  :: failure
 
     failure=.FALSE.
 
-    ALLOCATE(hartree_local, stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    ALLOCATE(hartree_local)
 
     NULLIFY (hartree_local%ecoul_1c)
 
@@ -191,25 +173,20 @@ MODULE hartree_local_types
 ! *****************************************************************************
 !> \brief ...
 !> \param hartree_local ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE hartree_local_release(hartree_local, error)
+  SUBROUTINE hartree_local_release(hartree_local)
 
     TYPE(hartree_local_type), POINTER        :: hartree_local
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'hartree_local_release', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
-
     IF (ASSOCIATED(hartree_local)) THEN
       IF (ASSOCIATED(hartree_local%ecoul_1c)) THEN
-        CALL deallocate_ecoul_1center(hartree_local%ecoul_1c, error)
+        CALL deallocate_ecoul_1center(hartree_local%ecoul_1c)
       END IF
 
-      DEALLOCATE(hartree_local,stat=stat)
-      CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+      DEALLOCATE(hartree_local)
     END IF
 
   END SUBROUTINE hartree_local_release

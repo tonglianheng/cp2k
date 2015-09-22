@@ -50,14 +50,12 @@ CONTAINS
 !> \param output_unit ...
 !> \param gopt_param ...
 !> \param globenv ...
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \par History
 !>      10.2005 created [tlaino]
 !> \author Teodoro Laino
 ! *****************************************************************************
   RECURSIVE SUBROUTINE cg_linmin(gopt_env, xvec, xi, g, opt_energy, output_unit, gopt_param,&
-       globenv, error)
+       globenv)
 
     TYPE(gopt_f_type), POINTER               :: gopt_env
     REAL(KIND=dp), DIMENSION(:), POINTER     :: xvec, xi, g
@@ -65,7 +63,6 @@ CONTAINS
     INTEGER                                  :: output_unit
     TYPE(gopt_param_type), POINTER           :: gopt_param
     TYPE(global_environment_type), POINTER   :: globenv
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cg_linmin', &
       routineP = moduleN//':'//routineN
@@ -81,56 +78,56 @@ CONTAINS
        SELECT CASE(gopt_param%cg_ls%type_id)
        CASE(ls_2pnt)
           CALL linmin_2pnt(gopt_env, xvec, xi, g, opt_energy, gopt_param, use_only_grad=gopt_param%cg_ls%grad_only, &
-               output_unit=output_unit, error=error)
+               output_unit=output_unit)
        CASE(ls_fit)
           CALL linmin_fit(gopt_env, xvec, xi, opt_energy, gopt_param%cg_ls%brack_limit, &
-               gopt_param%cg_ls%initial_step, output_unit, gopt_param, globenv, error)
+               gopt_param%cg_ls%initial_step, output_unit, gopt_param, globenv)
        CASE(ls_gold)
           CALL linmin_gold(gopt_env, xvec, xi, opt_energy, gopt_param%cg_ls%brent_tol,&
                gopt_param%cg_ls%brent_max_iter, gopt_param%cg_ls%brack_limit, &
-               gopt_param%cg_ls%initial_step, output_unit, globenv, error)
+               gopt_param%cg_ls%initial_step, output_unit, globenv)
        CASE DEFAULT
           CALL cp_unimplemented_error(fromWhere=routineP, &
                message="Line Search type not yet implemented in CG.", &
-               error=error, error_level=cp_failure_level)
+               error_level=cp_failure_level)
        END SELECT
     CASE(default_ts_method_id)
        SELECT CASE(gopt_param%cg_ls%type_id)
        CASE(ls_2pnt)
           IF (gopt_env%dimer_rotation) THEN
-             CALL rotmin_2pnt(gopt_env, gopt_env%dimer_env, xvec, xi, opt_energy,error)
+             CALL rotmin_2pnt(gopt_env, gopt_env%dimer_env, xvec, xi, opt_energy)
           ELSE
              CALL tslmin_2pnt(gopt_env, gopt_env%dimer_env, xvec, xi, opt_energy, gopt_param,&
-                  output_unit, error)
+                  output_unit)
           END IF
        CASE DEFAULT
           CALL cp_unimplemented_error(fromWhere=routineP, &
                message="Line Search type not yet implemented in CG for TS search.", &
-               error=error, error_level=cp_failure_level)
+               error_level=cp_failure_level)
        END SELECT
     CASE(default_cell_method_id)
        SELECT CASE(gopt_param%cg_ls%type_id)
        CASE(ls_2pnt)
           CALL linmin_2pnt(gopt_env, xvec, xi, g, opt_energy, gopt_param, use_only_grad=.TRUE.,&
-               output_unit=output_unit, error=error)
+               output_unit=output_unit)
        CASE(ls_gold)
           CALL linmin_gold(gopt_env, xvec, xi, opt_energy, gopt_param%cg_ls%brent_tol,&
                gopt_param%cg_ls%brent_max_iter, gopt_param%cg_ls%brack_limit, &
-               gopt_param%cg_ls%initial_step, output_unit, globenv, error)
+               gopt_param%cg_ls%initial_step, output_unit, globenv)
        CASE DEFAULT
           CALL cp_unimplemented_error(fromWhere=routineP, &
                message="Line Search type not yet implemented in CG for cell optimization.", &
-               error=error, error_level=cp_failure_level)
+               error_level=cp_failure_level)
        END SELECT
     CASE(default_shellcore_method_id)
        SELECT CASE(gopt_param%cg_ls%type_id)
        CASE(ls_2pnt)
           CALL linmin_2pnt(gopt_env, xvec, xi, g, opt_energy, gopt_param, use_only_grad=.TRUE.,&
-               output_unit=output_unit, error=error)
+               output_unit=output_unit)
        CASE DEFAULT
           CALL cp_unimplemented_error(fromWhere=routineP, &
                message="Line Search type not yet implemented in CG for shellcore optimization.", &
-               error=error, error_level=cp_failure_level)
+               error_level=cp_failure_level)
        END SELECT
 
     END SELECT
@@ -150,24 +147,21 @@ CONTAINS
 !> \param gopt_param ...
 !> \param use_only_grad ...
 !> \param output_unit ...
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \author Teodoro Laino - created [tlaino] - 03.2008
 ! *****************************************************************************
   RECURSIVE SUBROUTINE linmin_2pnt(gopt_env, x0, ls_vec, g, opt_energy, gopt_param, use_only_grad,&
-       output_unit, error)
+       output_unit)
     TYPE(gopt_f_type), POINTER               :: gopt_env
     REAL(KIND=dp), DIMENSION(:), POINTER     :: x0, ls_vec, g
     REAL(KIND=dp), INTENT(INOUT)             :: opt_energy
     TYPE(gopt_param_type), POINTER           :: gopt_param
     LOGICAL, INTENT(IN), OPTIONAL            :: use_only_grad
     INTEGER, INTENT(IN)                      :: output_unit
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'linmin_2pnt', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, stat
+    INTEGER                                  :: handle
     LOGICAL                                  :: failure, my_use_only_grad, &
                                                 save_consistent_energy_force
     REAL(KIND=dp) :: a, b, c, dx, dx_min, dx_min_save, dx_thrs, norm_grad1, &
@@ -180,10 +174,8 @@ CONTAINS
     my_use_only_grad = .FALSE.
     IF (PRESENT(use_only_grad)) my_use_only_grad = use_only_grad
     IF (norm_ls_vec/=0.0_dp) THEN
-       ALLOCATE(ls_norm(SIZE(ls_vec)),stat=stat)
-       CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
-       ALLOCATE(gradient2(SIZE(ls_vec)),stat=stat)
-       CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+       ALLOCATE(ls_norm(SIZE(ls_vec)))
+       ALLOCATE(gradient2(SIZE(ls_vec)))
        ls_norm = ls_vec / norm_ls_vec
        dx      = norm_ls_vec
        dx_thrs = gopt_param%cg_ls%max_step
@@ -193,7 +185,7 @@ CONTAINS
        save_consistent_energy_force = gopt_env%require_consistent_energy_force
        gopt_env%require_consistent_energy_force = .NOT. my_use_only_grad
        CALL cp_eval_at(gopt_env, x0, opt_energy2, gradient2, master=gopt_env%force_env%para_env%mepos,&
-                       final_evaluation=.FALSE., para_env=gopt_env%force_env%para_env, error=error)
+                       final_evaluation=.FALSE., para_env=gopt_env%force_env%para_env)
        gopt_env%require_consistent_energy_force = save_consistent_energy_force
 
        norm_grad1 = -DOT_PRODUCT(        g,ls_norm)
@@ -239,10 +231,8 @@ CONTAINS
                "***","DX (FITTED   )=",dx_min_save,"DX (ACCEPTED )=",dx_min,"***"
           WRITE(UNIT=output_unit,FMT="(T2,A)") REPEAT("*",79)
        END IF
-       DEALLOCATE(ls_norm,stat=stat)
-       CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
-       DEALLOCATE(gradient2,stat=stat)
-       CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+       DEALLOCATE(ls_norm)
+       DEALLOCATE(gradient2)
     ELSE
        ! Do Nothing, since.. if the effective force is 0 means that we are already
        ! in the saddle point..
@@ -259,23 +249,20 @@ CONTAINS
 !> \param opt_energy ...
 !> \param gopt_param ...
 !> \param output_unit ...
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \author Luca Bellucci and Teodoro Laino - created [tlaino] - 01.2008
 ! *****************************************************************************
-  SUBROUTINE tslmin_2pnt(gopt_env, dimer_env, x0, tls_vec, opt_energy, gopt_param, output_unit, error)
+  SUBROUTINE tslmin_2pnt(gopt_env, dimer_env, x0, tls_vec, opt_energy, gopt_param, output_unit)
     TYPE(gopt_f_type), POINTER               :: gopt_env
     TYPE(dimer_env_type), POINTER            :: dimer_env
     REAL(KIND=dp), DIMENSION(:), POINTER     :: x0, tls_vec
     REAL(KIND=dp), INTENT(INOUT)             :: opt_energy
     TYPE(gopt_param_type), POINTER           :: gopt_param
     INTEGER, INTENT(IN)                      :: output_unit
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'tslmin_2pnt', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, stat
+    INTEGER                                  :: handle
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: dx, dx_min, dx_min_acc, &
                                                 dx_min_save, dx_thrs, &
@@ -286,8 +273,7 @@ CONTAINS
     CALL timeset(routineN,handle)
     norm_tls_vec = SQRT(DOT_PRODUCT(tls_vec,tls_vec))
     IF (norm_tls_vec/=0.0_dp) THEN
-       ALLOCATE(tls_norm(SIZE(tls_vec)),stat=stat)
-       CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+       ALLOCATE(tls_norm(SIZE(tls_vec)))
 
        tls_norm = tls_vec / norm_tls_vec
        dimer_env%tsl%tls_vec => tls_norm
@@ -298,8 +284,7 @@ CONTAINS
        IF (dimer_env%rot%curvature>0) dx = dx_thrs
        x0 = x0 + dx * tls_norm
        CALL cp_eval_at(gopt_env, x0, opt_energy2, master=gopt_env%force_env%para_env%mepos,&
-                       final_evaluation=.FALSE., para_env=gopt_env%force_env%para_env,&
-                       error=error)
+                       final_evaluation=.FALSE., para_env=gopt_env%force_env%para_env)
        IF (dimer_env%rot%curvature>0) THEN
           dx_min      = 0.0_dp
           dx_min_save = dx
@@ -333,11 +318,9 @@ CONTAINS
 
        ! Here we compute the value of the energy in point zero..
        CALL cp_eval_at(gopt_env, x0, opt_energy, master=gopt_env%force_env%para_env%mepos,&
-                       final_evaluation=.FALSE., para_env=gopt_env%force_env%para_env,&
-                       error=error)
+                       final_evaluation=.FALSE., para_env=gopt_env%force_env%para_env)
 
-       DEALLOCATE(tls_norm,stat=stat)
-       CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+       DEALLOCATE(tls_norm)
     ELSE
        ! Do Nothing, since.. if the effective force is 0 means that we are already
        ! in the saddle point..
@@ -353,21 +336,18 @@ CONTAINS
 !> \param x0 ...
 !> \param theta ...
 !> \param opt_energy ...
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \author Luca Bellucci and Teodoro Laino - created [tlaino] - 01.2008
 ! *****************************************************************************
-  SUBROUTINE rotmin_2pnt(gopt_env, dimer_env, x0, theta, opt_energy, error)
+  SUBROUTINE rotmin_2pnt(gopt_env, dimer_env, x0, theta, opt_energy)
     TYPE(gopt_f_type), POINTER               :: gopt_env
     TYPE(dimer_env_type), POINTER            :: dimer_env
     REAL(KIND=dp), DIMENSION(:), POINTER     :: x0, theta
     REAL(KIND=dp), INTENT(INOUT)             :: opt_energy
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'rotmin_2pnt', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, stat
+    INTEGER                                  :: handle
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: a0, a1, angle, b1, &
                                                 curvature0, curvature1, &
@@ -384,11 +364,10 @@ CONTAINS
     dimer_env%cg_rot%nvec_old = dimer_env%nvec
     IF (angle>dimer_env%rot%angle_tol) THEN
        ! Rotating the dimer of dtheta degrees
-       CALL rotate_dimer(dimer_env%nvec,theta,angle,error=error)
+       CALL rotate_dimer(dimer_env%nvec,theta,angle)
        ! Re-compute energy, gradients and rotation vector for new R1
        CALL cp_eval_at(gopt_env, x0, f, master=gopt_env%force_env%para_env%mepos,&
-                       final_evaluation=.FALSE., para_env=gopt_env%force_env%para_env,&
-                       error=error)
+                       final_evaluation=.FALSE., para_env=gopt_env%force_env%para_env)
 
        curvature1 = dimer_env%rot%curvature
        a1         = (curvature0 - curvature1 + b1 * SIN(2.0_dp*angle))/(1.0_dp - COS(2.0_dp*angle))
@@ -403,12 +382,11 @@ CONTAINS
        dimer_env%rot%curvature = curvature2
        ! Rotating the dimer the optimized (in plane) vector position
        dimer_env%nvec = dimer_env%cg_rot%nvec_old
-       CALL rotate_dimer(dimer_env%nvec,theta,angle,error=error)
+       CALL rotate_dimer(dimer_env%nvec,theta,angle)
 
        ! Evaluate (by interpolation) the norm of the rotational force in the
        ! minimum of the rotational search (this is for print-out only)
-       ALLOCATE(work(SIZE(dimer_env%nvec)),stat=stat)
-       CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+       ALLOCATE(work(SIZE(dimer_env%nvec)))
        work = dimer_env%rot%g1
        work = SIN(dimer_env%rot%angle1-dimer_env%rot%angle2)/SIN(dimer_env%rot%angle1)*dimer_env%rot%g1+&
               SIN(dimer_env%rot%angle2)/SIN(dimer_env%rot%angle1)*dimer_env%rot%g1p+&
@@ -417,8 +395,7 @@ CONTAINS
        work = -2.0_dp*(work-dimer_env%rot%g0)
        work = work  - DOT_PRODUCT(work, dimer_env%nvec) * dimer_env%nvec
        opt_energy = SQRT(DOT_PRODUCT(work, work))
-       DEALLOCATE(work,stat=stat)
-       CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+       DEALLOCATE(work)
     END IF
     dimer_env%rot%angle2 = angle
     CALL timestop(handle)
@@ -436,8 +413,6 @@ CONTAINS
 !> \param output_unit ...
 !> \param gopt_param ...
 !> \param globenv ...
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \par History
 !>      10.2005 created [tlaino]
 !> \author Teodoro Laino
@@ -447,19 +422,18 @@ CONTAINS
 !>      with the optimal value. Enhanced Version
 ! *****************************************************************************
   SUBROUTINE linmin_fit(gopt_env, xvec, xi, opt_energy, &
-       brack_limit, step, output_unit, gopt_param, globenv, error)
+       brack_limit, step, output_unit, gopt_param, globenv)
     TYPE(gopt_f_type), POINTER               :: gopt_env
     REAL(KIND=dp), DIMENSION(:), POINTER     :: xvec, xi
     REAL(KIND=dp)                            :: opt_energy, brack_limit, step
     INTEGER                                  :: output_unit
     TYPE(gopt_param_type), POINTER           :: gopt_param
     TYPE(global_environment_type), POINTER   :: globenv
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'linmin_fit', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, loc_iter, odim, stat
+    INTEGER                                  :: handle, loc_iter, odim
     LOGICAL                                  :: failure, should_stop
     REAL(KIND=dp)                            :: ax, bx, fprev, rms_dr, &
                                                 rms_force, scale, xmin, xx
@@ -472,10 +446,8 @@ CONTAINS
     NULLIFY(pcom,xicom,hist)
     rms_dr    = gopt_param%rms_dr
     rms_force = gopt_param%rms_force
-    ALLOCATE(pcom(SIZE(xvec)), stat=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
-    ALLOCATE(xicom(SIZE(xvec)), stat=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+    ALLOCATE(pcom(SIZE(xvec)))
+    ALLOCATE(xicom(SIZE(xvec)))
 
     pcom  = xvec
     xicom = xi
@@ -484,7 +456,7 @@ CONTAINS
     ax = 0.0_dp
     xx = step
     CALL cg_mnbrak(gopt_env, ax, xx, bx, pcom, xicom, brack_limit, output_unit, &
-         histpoint=hist,globenv=globenv, error=error)
+         histpoint=hist,globenv=globenv)
     !
     fprev      = 0.0_dp
     opt_energy = MINVAL(hist(:,2))
@@ -492,15 +464,15 @@ CONTAINS
     scale = 0.25_dp
     loc_iter = 0
     DO WHILE ( ABS(hist(odim,3)) > rms_force*scale .OR. ABS(hist(odim,1)-hist(odim-1,1)) > scale*rms_dr)
-       CALL external_control(should_stop,"LINFIT",globenv=globenv,error=error)
+       CALL external_control(should_stop,"LINFIT",globenv=globenv)
        IF(should_stop) EXIT
        !
        loc_iter = loc_iter + 1
        fprev = opt_energy
-       xmin  = FindMin(hist(:,1),hist(:,2),hist(:,3),error)
+       xmin  = FindMin(hist(:,1),hist(:,2),hist(:,3))
        CALL reallocate(hist,1,odim+1,1,3)
        hist(odim+1,1) = xmin
-       hist(odim+1,3) = cg_deval1d(gopt_env,xmin,pcom,xicom,opt_energy,error)
+       hist(odim+1,3) = cg_deval1d(gopt_env,xmin,pcom,xicom,opt_energy)
        hist(odim+1,2) = opt_energy
        odim = SIZE(hist,1)
     END DO
@@ -508,12 +480,9 @@ CONTAINS
     xicom = xmin*xicom
     step = xmin
     xvec  = xvec + xicom
-    DEALLOCATE(pcom,  stat=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
-    DEALLOCATE(xicom, stat=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
-    DEALLOCATE(hist, stat=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+    DEALLOCATE(pcom)
+    DEALLOCATE(xicom)
+    DEALLOCATE(hist)
     IF (output_unit>0) THEN
        WRITE(UNIT=output_unit,FMT="(/,T2,A)") REPEAT("*",79)
        WRITE(UNIT=output_unit,FMT="(T2,A,T22,A,I7,T78,A)")&
@@ -536,8 +505,6 @@ CONTAINS
 !> \param step ...
 !> \param output_unit ...
 !> \param globenv ...
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \par History
 !>      10.2005 created [tlaino]
 !> \author Teodoro Laino
@@ -547,7 +514,7 @@ CONTAINS
 !>      with the optimal value
 ! *****************************************************************************
   SUBROUTINE linmin_gold(gopt_env, xvec, xi, opt_energy, brent_tol, brent_max_iter, &
-       brack_limit, step, output_unit, globenv, error)
+       brack_limit, step, output_unit, globenv)
     TYPE(gopt_f_type), POINTER               :: gopt_env
     REAL(KIND=dp), DIMENSION(:), POINTER     :: xvec, xi
     REAL(KIND=dp)                            :: opt_energy, brent_tol
@@ -555,12 +522,11 @@ CONTAINS
     REAL(KIND=dp)                            :: brack_limit, step
     INTEGER                                  :: output_unit
     TYPE(global_environment_type), POINTER   :: globenv
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'linmin_gold', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, stat
+    INTEGER                                  :: handle
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: ax, bx, xmin, xx
     REAL(KIND=dp), DIMENSION(:), POINTER     :: pcom, xicom
@@ -569,10 +535,8 @@ CONTAINS
 
     failure = .FALSE.
     NULLIFY(pcom,xicom)
-    ALLOCATE(pcom(SIZE(xvec)), stat=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
-    ALLOCATE(xicom(SIZE(xvec)), stat=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+    ALLOCATE(pcom(SIZE(xvec)))
+    ALLOCATE(xicom(SIZE(xvec)))
 
     pcom  = xvec
     xicom = xi
@@ -581,17 +545,15 @@ CONTAINS
     ax = 0.0_dp
     xx = step
     CALL cg_mnbrak(gopt_env, ax, xx, bx, pcom, xicom, brack_limit, output_unit,&
-         globenv=globenv, error=error)
+         globenv=globenv)
 
     opt_energy = cg_dbrent(gopt_env, ax, xx, bx, brent_tol, brent_max_iter, &
-                           xmin, pcom, xicom, output_unit, globenv, error)
+                           xmin, pcom, xicom, output_unit, globenv)
     xicom = xmin*xicom
     step = xmin
     xvec  = xvec + xicom
-    DEALLOCATE(pcom,  stat=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
-    DEALLOCATE(xicom, stat=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+    DEALLOCATE(pcom)
+    DEALLOCATE(xicom)
     CALL timestop(handle)
   END SUBROUTINE linmin_gold
 
@@ -608,8 +570,6 @@ CONTAINS
 !> \param output_unit ...
 !> \param histpoint ...
 !> \param globenv ...
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \par History
 !>      10.2005 created [tlaino]
 !> \author Teodoro Laino
@@ -619,7 +579,7 @@ CONTAINS
 !>      bracket the minimum of the function
 ! *****************************************************************************
   SUBROUTINE cg_mnbrak(gopt_env, ax, bx, cx, pcom, xicom, brack_limit, output_unit,&
-       histpoint, globenv, error)
+       histpoint, globenv)
     TYPE(gopt_f_type), POINTER               :: gopt_env
     REAL(KIND=dp)                            :: ax, bx, cx
     REAL(KIND=dp), DIMENSION(:), POINTER     :: pcom, xicom
@@ -628,12 +588,11 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:, :), &
       OPTIONAL, POINTER                      :: histpoint
     TYPE(global_environment_type), POINTER   :: globenv
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cg_mnbrak', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, loc_iter, odim, stat
+    INTEGER                                  :: handle, loc_iter, odim
     LOGICAL                                  :: failure, hist, should_stop
     REAL(KIND=dp)                            :: dum, fa, fb, fc, fu, gold, q, &
                                                 r, u, ulim
@@ -642,21 +601,20 @@ CONTAINS
     failure = .FALSE.
     hist    = PRESENT(histpoint)
     IF (hist) THEN
-       CPPrecondition(.NOT.ASSOCIATED(histpoint),cp_failure_level,routineP,error,failure)
-       ALLOCATE(histpoint(3,3), stat=stat)
-       CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPASSERT(.NOT.ASSOCIATED(histpoint))
+       ALLOCATE(histpoint(3,3))
     END IF
     gold = (1.0_dp+SQRT(5.0_dp))/2.0_dp
     IF (hist) THEN
        histpoint(1,1) = ax
-       histpoint(1,3) = cg_deval1d(gopt_env,ax,pcom,xicom,fa,error)
+       histpoint(1,3) = cg_deval1d(gopt_env,ax,pcom,xicom,fa)
        histpoint(1,2) = fa
        histpoint(2,1) = bx
-       histpoint(2,3) = cg_deval1d(gopt_env,bx,pcom,xicom,fb,error)
+       histpoint(2,3) = cg_deval1d(gopt_env,bx,pcom,xicom,fb)
        histpoint(2,2) = fb
     ELSE
-       fa=cg_eval1d(gopt_env,ax,pcom,xicom,error=error)
-       fb=cg_eval1d(gopt_env,bx,pcom,xicom,error=error)
+       fa=cg_eval1d(gopt_env,ax,pcom,xicom)
+       fb=cg_eval1d(gopt_env,bx,pcom,xicom)
     END IF
     IF(fb.GT.fa)THEN
        dum=ax
@@ -669,14 +627,14 @@ CONTAINS
     cx=bx+gold*(bx-ax)
     IF (hist) THEN
        histpoint(3,1) = cx
-       histpoint(3,3) = cg_deval1d(gopt_env,cx,pcom,xicom,fc,error)
+       histpoint(3,3) = cg_deval1d(gopt_env,cx,pcom,xicom,fc)
        histpoint(3,2) = fc
     ELSE
-       fc=cg_eval1d(gopt_env,cx,pcom,xicom,error=error)
+       fc=cg_eval1d(gopt_env,cx,pcom,xicom)
     END IF
     loc_iter = 3
     DO WHILE (fb.GE.fc)
-       CALL external_control(should_stop,"MNBRACK",globenv=globenv,error=error)
+       CALL external_control(should_stop,"MNBRACK",globenv=globenv)
        IF(should_stop) EXIT
        !
        r=(bx-ax)*(fb-fc)
@@ -688,10 +646,10 @@ CONTAINS
              odim = SIZE(histpoint,1)
              CALL reallocate(histpoint,1,odim+1,1,3)
              histpoint(odim+1,1) = u
-             histpoint(odim+1,3) = cg_deval1d(gopt_env,u,pcom,xicom,fu,error)
+             histpoint(odim+1,3) = cg_deval1d(gopt_env,u,pcom,xicom,fu)
              histpoint(odim+1,2) = fu
           ELSE
-             fu=cg_eval1d(gopt_env,u,pcom,xicom,error=error)
+             fu=cg_eval1d(gopt_env,u,pcom,xicom)
           END IF
           loc_iter = loc_iter + 1
           IF(fu.LT.fc)THEN
@@ -710,10 +668,10 @@ CONTAINS
              odim = SIZE(histpoint,1)
              CALL reallocate(histpoint,1,odim+1,1,3)
              histpoint(odim+1,1) = u
-             histpoint(odim+1,3) = cg_deval1d(gopt_env,u,pcom,xicom,fu,error)
+             histpoint(odim+1,3) = cg_deval1d(gopt_env,u,pcom,xicom,fu)
              histpoint(odim+1,2) = fu
           ELSE
-             fu=cg_eval1d(gopt_env,u,pcom,xicom,error=error)
+             fu=cg_eval1d(gopt_env,u,pcom,xicom)
           END IF
           loc_iter = loc_iter + 1
        ELSE IF((cx-u)*(u-ulim).GT.0.)THEN
@@ -721,10 +679,10 @@ CONTAINS
              odim = SIZE(histpoint,1)
              CALL reallocate(histpoint,1,odim+1,1,3)
              histpoint(odim+1,1) = u
-             histpoint(odim+1,3) = cg_deval1d(gopt_env,u,pcom,xicom,fu,error)
+             histpoint(odim+1,3) = cg_deval1d(gopt_env,u,pcom,xicom,fu)
              histpoint(odim+1,2) = fu
           ELSE
-             fu=cg_eval1d(gopt_env,u,pcom,xicom,error=error)
+             fu=cg_eval1d(gopt_env,u,pcom,xicom)
           END IF
           loc_iter = loc_iter + 1
           IF(fu.LT.fc)THEN
@@ -737,10 +695,10 @@ CONTAINS
                 odim = SIZE(histpoint,1)
                 CALL reallocate(histpoint,1,odim+1,1,3)
                 histpoint(odim+1,1) = u
-                histpoint(odim+1,3) = cg_deval1d(gopt_env,u,pcom,xicom,fu,error)
+                histpoint(odim+1,3) = cg_deval1d(gopt_env,u,pcom,xicom,fu)
                 histpoint(odim+1,2) = fu
              ELSE
-                fu=cg_eval1d(gopt_env,u,pcom,xicom,error=error)
+                fu=cg_eval1d(gopt_env,u,pcom,xicom)
              END IF
              loc_iter = loc_iter + 1
           ENDIF
@@ -750,10 +708,10 @@ CONTAINS
              odim = SIZE(histpoint,1)
              CALL reallocate(histpoint,1,odim+1,1,3)
              histpoint(odim+1,1) = u
-             histpoint(odim+1,3) = cg_deval1d(gopt_env,u,pcom,xicom,fu,error)
+             histpoint(odim+1,3) = cg_deval1d(gopt_env,u,pcom,xicom,fu)
              histpoint(odim+1,2) = fu
           ELSE
-             fu=cg_eval1d(gopt_env,u,pcom,xicom,error=error)
+             fu=cg_eval1d(gopt_env,u,pcom,xicom)
           END IF
           loc_iter = loc_iter + 1
        ELSE
@@ -762,10 +720,10 @@ CONTAINS
              odim = SIZE(histpoint,1)
              CALL reallocate(histpoint,1,odim+1,1,3)
              histpoint(odim+1,1) = u
-             histpoint(odim+1,3) = cg_deval1d(gopt_env,u,pcom,xicom,fu,error)
+             histpoint(odim+1,3) = cg_deval1d(gopt_env,u,pcom,xicom,fu)
              histpoint(odim+1,2) = fu
           ELSE
-             fu=cg_eval1d(gopt_env,u,pcom,xicom,error=error)
+             fu=cg_eval1d(gopt_env,u,pcom,xicom)
           END IF
           loc_iter = loc_iter + 1
        ENDIF
@@ -801,8 +759,6 @@ CONTAINS
 !> \param xicom ...
 !> \param output_unit ...
 !> \param globenv ...
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \retval dbrent ...
 !> \par History
 !>      10.2005 created [tlaino]
@@ -815,7 +771,7 @@ CONTAINS
 !>      using derivatives
 ! *****************************************************************************
   FUNCTION cg_dbrent(gopt_env,ax,bx,cx,tol,itmax,xmin,pcom,xicom,output_unit,&
-       globenv, error) RESULT(dbrent)
+       globenv) RESULT(dbrent)
     TYPE(gopt_f_type), POINTER               :: gopt_env
     REAL(KIND=dp)                            :: ax, bx, cx, tol
     INTEGER                                  :: itmax
@@ -823,7 +779,6 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:), POINTER     :: pcom, xicom
     INTEGER                                  :: output_unit
     TYPE(global_environment_type), POINTER   :: globenv
-    TYPE(cp_error_type), INTENT(inout)       :: error
     REAL(KIND=dp)                            :: dbrent
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cg_dbrent', &
@@ -844,14 +799,14 @@ CONTAINS
     b  = MAX(ax,cx)
     v  = bx ; w  = v; x  = v
     e  = 0.0_dp
-    dx = cg_deval1d(gopt_env,x,pcom,xicom,fx,error)
+    dx = cg_deval1d(gopt_env,x,pcom,xicom,fx)
     fv = fx
     fw = fx
     dv = dx
     dw = dx
     loc_iter = 1
     DO  iter = 1, itmax
-       CALL external_control(should_stop,"BRENT",globenv=globenv,error=error)
+       CALL external_control(should_stop,"BRENT",globenv=globenv)
        IF(should_stop) EXIT
        !
        xm    = 0.5_dp * (a+b)
@@ -903,11 +858,11 @@ CONTAINS
        END IF
        IF(ABS(d).GE.tol1) THEN
           u=x+d
-          du=cg_deval1d(gopt_env,u,pcom,xicom,fu,error)
+          du=cg_deval1d(gopt_env,u,pcom,xicom,fu)
           loc_iter = loc_iter + 1
        ELSE
           u=x+SIGN(tol1,d)
-          du=cg_deval1d(gopt_env,u,pcom,xicom,fu,error)
+          du=cg_deval1d(gopt_env,u,pcom,xicom,fu)
           loc_iter = loc_iter + 1
           IF(fu.GT.fx) EXIT
        ENDIF
@@ -944,7 +899,7 @@ CONTAINS
             "***","BRENT - NUMBER OF ITERATIONS EXCEEDED ","***"
        WRITE(UNIT=output_unit,FMT="(T2,A)") REPEAT("*",79)
     END IF
-    CPPrecondition((iter/=itmax+1),cp_failure_level,routineP,error,failure)
+    CPASSERT(iter/=itmax+1)
     xmin=x
     dbrent=fx
     CALL timestop(handle)
@@ -958,38 +913,32 @@ CONTAINS
 !> \param x ...
 !> \param pcom ...
 !> \param xicom ...
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \retval my_val ...
 !> \par History
 !>      10.2005 created [tlaino]
 !> \author Teodoro Laino
 ! *****************************************************************************
-  FUNCTION cg_eval1d(gopt_env,x,pcom,xicom,error) RESULT(my_val)
+  FUNCTION cg_eval1d(gopt_env,x,pcom,xicom) RESULT(my_val)
     TYPE(gopt_f_type), POINTER               :: gopt_env
     REAL(KIND=dp)                            :: x
     REAL(KIND=dp), DIMENSION(:), POINTER     :: pcom, xicom
-    TYPE(cp_error_type), INTENT(inout)       :: error
     REAL(KIND=dp)                            :: my_val
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cg_eval1d', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, stat
+    INTEGER                                  :: handle
     LOGICAL                                  :: failure
     REAL(KIND=dp), DIMENSION(:), POINTER     :: xvec
 
     CALL timeset(routineN,handle)
 
     failure = .FALSE.
-    ALLOCATE(xvec(SIZE(pcom)), stat=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+    ALLOCATE(xvec(SIZE(pcom)))
     xvec = pcom + x*xicom
     CALL cp_eval_at(gopt_env, xvec, my_val, master=gopt_env%force_env%para_env%mepos,&
-                    final_evaluation=.FALSE., para_env=gopt_env%force_env%para_env,&
-                    error=error)
-    DEALLOCATE(xvec, stat=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+                    final_evaluation=.FALSE., para_env=gopt_env%force_env%para_env)
+    DEALLOCATE(xvec)
 
     CALL timestop(handle)
 
@@ -1003,25 +952,21 @@ CONTAINS
 !> \param pcom ...
 !> \param xicom ...
 !> \param fval ...
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \retval my_val ...
 !> \par History
 !>      10.2005 created [tlaino]
 !> \author Teodoro Laino
 ! *****************************************************************************
-  FUNCTION cg_deval1d(gopt_env,x,pcom,xicom,fval,error) RESULT(my_val)
+  FUNCTION cg_deval1d(gopt_env,x,pcom,xicom,fval) RESULT(my_val)
     TYPE(gopt_f_type), POINTER               :: gopt_env
     REAL(KIND=dp)                            :: x
     REAL(KIND=dp), DIMENSION(:), POINTER     :: pcom, xicom
-    REAL(KIND=dp)                            :: fval
-    TYPE(cp_error_type), INTENT(inout)       :: error
-    REAL(KIND=dp)                            :: my_val
+    REAL(KIND=dp)                            :: fval, my_val
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cg_deval1d', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, stat
+    INTEGER                                  :: handle
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: energy
     REAL(KIND=dp), DIMENSION(:), POINTER     :: grad, xvec
@@ -1029,19 +974,15 @@ CONTAINS
     CALL timeset(routineN,handle)
 
     failure = .FALSE.
-    ALLOCATE(xvec(SIZE(pcom)), stat=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
-    ALLOCATE(grad(SIZE(pcom)), stat=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+    ALLOCATE(xvec(SIZE(pcom)))
+    ALLOCATE(grad(SIZE(pcom)))
     xvec = pcom + x * xicom
     CALL cp_eval_at(gopt_env, xvec, energy, grad, master=gopt_env%force_env%para_env%mepos,&
-                    final_evaluation=.FALSE., para_env=gopt_env%force_env%para_env, error=error)
+                    final_evaluation=.FALSE., para_env=gopt_env%force_env%para_env)
     my_val = DOT_PRODUCT(grad,xicom)
     fval   = energy
-    DEALLOCATE(xvec, stat=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
-    DEALLOCATE(grad, stat=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+    DEALLOCATE(xvec)
+    DEALLOCATE(grad)
     CALL timestop(handle)
 
   END FUNCTION cg_deval1d
@@ -1051,23 +992,20 @@ CONTAINS
 !> \param x ...
 !> \param y ...
 !> \param dy ...
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \retval res ...
 !> \par History
 !>      10.2005 created [fawzi]
 !> \author Fawzi Mohamed
 ! *****************************************************************************
-  FUNCTION FindMin(x,y,dy,error) RESULT(res)
+  FUNCTION FindMin(x,y,dy) RESULT(res)
     REAL(kind=dp), DIMENSION(:)              :: x, y, dy
-    TYPE(cp_error_type), INTENT(inout)       :: error
     REAL(kind=dp)                            :: res
 
     CHARACTER(len=*), PARAMETER :: routineN = 'FindMin', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i, info, iwork(8*3), lwork, &
-                                                min_pos, np, stat
+                                                min_pos, np
     LOGICAL                                  :: failure
     REAL(kind=dp)                            :: diag(3), res1(3), res2(3), &
                                                 res3(3), spread, sum_x, &
@@ -1079,7 +1017,7 @@ CONTAINS
 
     failure=.FALSE.
     np=SIZE(x)
-    CPPrecondition(np>1,cp_failure_level,routineP,error,failure)
+    CPASSERT(np>1)
     sum_x=0._dp
     sum_xx=0._dp
     min_pos=1
@@ -1109,12 +1047,10 @@ CONTAINS
     CALL dgesdd('S',SIZE(f,1),SIZE(f,2),f,SIZE(f,1),diag,u,SIZE(u,1),vt,SIZE(vt,1),tmpw,lwork,&
          iwork,info)
     lwork=CEILING(tmpw(1))
-    ALLOCATE(work(lwork),stat=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+    ALLOCATE(work(lwork))
     CALL dgesdd('S',SIZE(f,1),SIZE(f,2),f,SIZE(f,1),diag,u,SIZE(u,1),vt,SIZE(vt,1),work,lwork,&
          iwork,info)
-    DEALLOCATE(work, stat=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+    DEALLOCATE(work)
     CALL dgemv('T',SIZE(u,1),SIZE(u,2),1._dp,u,SIZE(u,1),b,1,0._dp,res1,1)
     DO i=1,3
        res2(i)=res1(i)/diag(i)
@@ -1131,18 +1067,15 @@ CONTAINS
 !> \param xi contains the -theta of the present step.. (norm 1.0 vector)
 !> \param h contains the search direction of the previous step (must be orthogonal
 !>            to nvec of the previous step (nvec_old))
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \par   Info for DIMER method
 !> \par History
 !>      10.2005 created [tlaino]
 !> \author Teodoro Laino
 ! *****************************************************************************
-  SUBROUTINE get_conjugate_direction(gopt_env, Fletcher_Reeves, g, xi, h, error)
+  SUBROUTINE get_conjugate_direction(gopt_env, Fletcher_Reeves, g, xi, h)
     TYPE(gopt_f_type), POINTER               :: gopt_env
     LOGICAL, INTENT(IN)                      :: Fletcher_Reeves
     REAL(KIND=dp), DIMENSION(:), POINTER     :: g, xi, h
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'get_conjugate_direction', &
       routineP = moduleN//':'//routineN
@@ -1168,13 +1101,13 @@ CONTAINS
     ELSE
        dimer_env => gopt_env%dimer_env
        check = ABS(DOT_PRODUCT(g,g)-1.0_dp)<MAX(1.0E-9_dp,dimer_thrs)
-       CPPrecondition(check,cp_failure_level,routineP,error,failure)
+       CPASSERT(check)
 
        check = ABS(DOT_PRODUCT(xi,xi)-1.0_dp)<MAX(1.0E-9_dp,dimer_thrs)
-       CPPrecondition(check,cp_failure_level,routineP,error,failure)
+       CPASSERT(check)
 
        check = ABS(DOT_PRODUCT(h,dimer_env%cg_rot%nvec_old))<MAX(1.0E-9_dp,dimer_thrs)
-       CPPrecondition(check,cp_failure_level,routineP,error,failure)
+       CPASSERT(check)
        gg  = dimer_env%cg_rot%norm_theta_old**2
        IF (Fletcher_Reeves) THEN
           dgg = dimer_env%cg_rot%norm_theta**2
@@ -1183,7 +1116,7 @@ CONTAINS
           dgg = dimer_env%cg_rot%norm_theta**2 + DOT_PRODUCT(g,xi)*norm
        END IF
        ! Compute Theta** and store it in nvec_old
-       CALL rotate_dimer(dimer_env%cg_rot%nvec_old,g,dimer_env%rot%angle2+pi/2.0_dp,error)
+       CALL rotate_dimer(dimer_env%cg_rot%nvec_old,g,dimer_env%rot%angle2+pi/2.0_dp)
        gam = dgg/gg
        g   =    h
        h   = - xi * dimer_env%cg_rot%norm_theta + gam * dimer_env%cg_rot%norm_h * dimer_env%cg_rot%nvec_old

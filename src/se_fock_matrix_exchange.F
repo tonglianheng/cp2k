@@ -73,25 +73,22 @@ CONTAINS
 !> \param matrix_p ...
 !> \param calculate_forces ...
 !> \param store_int_env ...
-!> \param error ...
 !> \author JGH
 ! *****************************************************************************
   SUBROUTINE build_fock_matrix_exchange (qs_env, ks_matrix, matrix_p, calculate_forces,&
-       store_int_env, error)
+       store_int_env)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: ks_matrix, matrix_p
     LOGICAL, INTENT(in)                      :: calculate_forces
     TYPE(semi_empirical_si_type), POINTER    :: store_int_env
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'build_fock_matrix_exchange', &
       routineP = moduleN//':'//routineN
 
     INTEGER :: atom_a, atom_b, handle, iatom, icol, ikind, &
-      integral_screening, irow, jatom, jkind, natom, natorb_a, nkind, nspins, &
-      stat
+      integral_screening, irow, jatom, jkind, natom, natorb_a, nkind, nspins
     INTEGER, DIMENSION(2)                    :: size_p_block_a
     INTEGER, DIMENSION(:), POINTER           :: atom_of_kind
     LOGICAL                                  :: anag, check, defined, &
@@ -132,16 +129,16 @@ CONTAINS
 
     NULLIFY(dft_control,cell,force,particle_set,se_control,se_taper)
     CALL get_qs_env(qs_env=qs_env,dft_control=dft_control,cell=cell,se_taper=se_taper,&
-         para_env=para_env,virial=virial,error=error)
+         para_env=para_env,virial=virial)
 
-    CALL initialize_se_taper(se_taper,exchange=.TRUE.,error=error)
+    CALL initialize_se_taper(se_taper,exchange=.TRUE.)
     se_control => dft_control%qs_control%se_control
     anag       =  se_control%analytical_gradients
     use_virial = virial%pv_availability.AND.(.NOT.virial%pv_numer)
     nspins=dft_control%nspins
 
-    CPPrecondition(ASSOCIATED(matrix_p),cp_failure_level,routineP,error,failure)
-    CPPrecondition(SIZE(ks_matrix)>0,cp_failure_level,routineP,error,failure)
+    CPASSERT(ASSOCIATED(matrix_p))
+    CPASSERT(SIZE(ks_matrix)>0)
 
     ! Identify proper integral screening (according user requests)
     integral_screening = se_control%integral_screening
@@ -153,22 +150,20 @@ CONTAINS
          max_multipole=do_multipole_none, pc_coulomb_int=.FALSE.)
 
     CALL get_qs_env(qs_env=qs_env,sab_orb=sab_orb,&
-          atomic_kind_set=atomic_kind_set,qs_kind_set=qs_kind_set,error=error)
+          atomic_kind_set=atomic_kind_set,qs_kind_set=qs_kind_set)
 
     nkind = SIZE(atomic_kind_set)
     IF(calculate_forces) THEN
-       CALL get_qs_env(qs_env=qs_env,particle_set=particle_set,force=force,error=error)
+       CALL get_qs_env(qs_env=qs_env,particle_set=particle_set,force=force)
        natom = SIZE (particle_set)
-       ALLOCATE (atom_of_kind(natom),STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       ALLOCATE (atom_of_kind(natom))
        delta = se_control%delta
        CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,atom_of_kind=atom_of_kind)
     END IF
 
-  ALLOCATE (se_defined(nkind),se_kind_list(nkind),STAT=stat)
-  CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+  ALLOCATE (se_defined(nkind),se_kind_list(nkind))
   DO ikind=1,nkind
-     CALL get_qs_kind(qs_kind_set(ikind),se_parameter=se_kind_a, error=error)
+     CALL get_qs_kind(qs_kind_set(ikind),se_parameter=se_kind_a)
      se_kind_list(ikind)%se_param => se_kind_a
      CALL get_se_param(se_kind_a,defined=defined,natorb=natorb_a)
      se_defined(ikind) = (defined .AND. natorb_a >= 1)
@@ -194,10 +189,10 @@ CONTAINS
      ! Retrieve blocks for KS and P
      CALL cp_dbcsr_get_block_p(matrix=ks_matrix(1)%matrix,&
           row=irow,col=icol,BLOCK=ks_block_a,found=found)
-     CPPostcondition(ASSOCIATED(ks_block_a),cp_failure_level,routineP,error,failure)
+     CPASSERT(ASSOCIATED(ks_block_a))
      CALL cp_dbcsr_get_block_p(matrix=matrix_p(1)%matrix,&
           row=irow,col=icol,BLOCK=p_block_a,found=found)
-     CPPostcondition(ASSOCIATED(p_block_a),cp_failure_level,routineP,error,failure)
+     CPASSERT(ASSOCIATED(p_block_a))
      size_p_block_a(1) = SIZE(p_block_a,1)
      size_p_block_a(2) = SIZE(p_block_a,2)
      p_block_tot(1:size_p_block_a(1),1:size_p_block_a(2)) = 2.0_dp * p_block_a
@@ -206,12 +201,12 @@ CONTAINS
      IF ( nspins == 2 ) THEN
         CALL cp_dbcsr_get_block_p(matrix=ks_matrix(2)%matrix,&
              row=irow,col=icol,BLOCK=ks_block_b,found=found)
-        CPPostcondition(ASSOCIATED(ks_block_b),cp_failure_level,routineP,error,failure)
+        CPASSERT(ASSOCIATED(ks_block_b))
         CALL cp_dbcsr_get_block_p(matrix=matrix_p(2)%matrix,&
              row=irow,col=icol,BLOCK=p_block_b,found=found)
-        CPPostcondition(ASSOCIATED(p_block_b),cp_failure_level,routineP,error,failure)
+        CPASSERT(ASSOCIATED(p_block_b))
         check = (size_p_block_a(1)==SIZE(p_block_b,1)).AND.(size_p_block_a(2)==SIZE(p_block_b,2))
-        CPPostcondition(check,cp_failure_level,routineP,error,failure)
+        CPASSERT(check)
         p_block_tot(1:SIZE(p_block_a,1),1:SIZE(p_block_a,2)) = p_block_a + p_block_b
      END IF
 
@@ -219,25 +214,25 @@ CONTAINS
      IF ( iatom == jatom .AND. dr < rij_threshold ) THEN
         ! Once center - Two electron Terms
         IF      ( nspins == 1 ) THEN
-           CALL fock1_2el(se_kind_a,p_block_tot,p_block_a,ks_block_a,factor=0.5_dp,error=error)
+           CALL fock1_2el(se_kind_a,p_block_tot,p_block_a,ks_block_a,factor=0.5_dp)
         ELSE IF ( nspins == 2 ) THEN
-           CALL fock1_2el(se_kind_a,p_block_tot,p_block_a,ks_block_a,factor=1.0_dp,error=error)
-           CALL fock1_2el(se_kind_a,p_block_tot,p_block_b,ks_block_b,factor=1.0_dp,error=error)
+           CALL fock1_2el(se_kind_a,p_block_tot,p_block_a,ks_block_a,factor=1.0_dp)
+           CALL fock1_2el(se_kind_a,p_block_tot,p_block_b,ks_block_b,factor=1.0_dp)
         END IF
      ELSE
         ! Exchange Terms
         IF      ( nspins == 1 ) THEN
            CALL fock2E(se_kind_a, se_kind_b, rij, switch, size_p_block_a, p_block_a, ks_block_a,&
                 factor=0.5_dp, anag=anag, se_int_control=se_int_control, se_taper=se_taper, &
-                store_int_env=store_int_env, error=error)
+                store_int_env=store_int_env)
         ELSE IF ( nspins == 2 ) THEN
            CALL fock2E(se_kind_a, se_kind_b, rij, switch, size_p_block_a, p_block_a, ks_block_a,&
                 factor=1.0_dp, anag=anag, se_int_control=se_int_control, se_taper=se_taper, &
-                store_int_env=store_int_env, error=error)
+                store_int_env=store_int_env)
 
            CALL fock2E(se_kind_a, se_kind_b, rij, switch, size_p_block_a, p_block_b, ks_block_b,&
                 factor=1.0_dp, anag=anag, se_int_control=se_int_control, se_taper=se_taper, &
-                store_int_env=store_int_env, error=error)
+                store_int_env=store_int_env)
         END IF
         IF(calculate_forces) THEN
            atom_a = atom_of_kind(iatom)
@@ -246,15 +241,15 @@ CONTAINS
            IF      ( nspins == 1 ) THEN
               CALL dfock2E(se_kind_a, se_kind_b, rij, switch, size_p_block_a, p_block_a,&
                    factor=0.5_dp, anag=anag, se_int_control=se_int_control, se_taper=se_taper, force=force_ab,&
-                   delta=delta, error=error)
+                   delta=delta)
            ELSE IF ( nspins == 2 ) THEN
               CALL dfock2E(se_kind_a, se_kind_b, rij, switch, size_p_block_a, p_block_a,&
                    factor=1.0_dp, anag=anag, se_int_control=se_int_control, se_taper=se_taper, force=force_ab,&
-                   delta=delta, error=error)
+                   delta=delta)
 
               CALL dfock2E(se_kind_a, se_kind_b, rij, switch, size_p_block_a, p_block_b,&
                    factor=1.0_dp, anag=anag, se_int_control=se_int_control, se_taper=se_taper, force=force_ab,&
-                   delta=delta, error=error)
+                   delta=delta)
            END IF
            IF (switch) THEN
               force_ab(1) = -force_ab(1)
@@ -262,7 +257,7 @@ CONTAINS
               force_ab(3) = -force_ab(3)
            END IF
            IF (use_virial) THEN
-              CALL virial_pair_force ( virial%pv_virial, -1.0_dp, force_ab, rij, error)
+              CALL virial_pair_force ( virial%pv_virial, -1.0_dp, force_ab, rij)
            END IF
 
            force(ikind)%rho_elec(1,atom_a) = force(ikind)%rho_elec(1,atom_a) - force_ab(1)
@@ -278,14 +273,12 @@ CONTAINS
   END DO
   CALL neighbor_list_iterator_release(nl_iterator)
 
-  DEALLOCATE(se_kind_list,se_defined,stat=stat)
-  CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+  DEALLOCATE(se_kind_list,se_defined)
 
   IF (calculate_forces) THEN
-     DEALLOCATE(atom_of_kind,stat=stat)
-     CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+     DEALLOCATE(atom_of_kind)
   END IF
-    CALL finalize_se_taper(se_taper,error=error)
+    CALL finalize_se_taper(se_taper)
 
     CALL timestop(handle)
 
@@ -295,21 +288,19 @@ CONTAINS
 !> \brief ...
 !> \param qs_env ...
 !> \param ks_matrix ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE build_fock_matrix_ph(qs_env, ks_matrix, error)
+  SUBROUTINE build_fock_matrix_ph(qs_env, ks_matrix)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: ks_matrix
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'build_fock_matrix_ph', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, i, iatom, icol, &
                                                 ikind, irow, jatom, jkind, k, &
-                                                natorb_a, nkind, nspins, stat
+                                                natorb_a, nkind, nspins
     LOGICAL                                  :: anag, defined, failure, &
                                                 found, ifHi, ifHj, switch
     LOGICAL, ALLOCATABLE, DIMENSION(:)       :: se_defined
@@ -335,24 +326,23 @@ CONTAINS
 
     NULLIFY(dft_control, se_control)
     CALL get_qs_env(qs_env=qs_env,dft_control=dft_control,&
-         para_env=para_env,error=error)
+         para_env=para_env)
 
     se_control => dft_control%qs_control%se_control
     anag       =  se_control%analytical_gradients
     nspins=dft_control%nspins
 
-    CPPrecondition(SIZE(ks_matrix)>0,cp_failure_level,routineP,error,failure)
+    CPASSERT(SIZE(ks_matrix)>0)
 
 
     CALL get_qs_env(qs_env=qs_env,sab_orb=sab_orb,&
-      atomic_kind_set=atomic_kind_set,qs_kind_set=qs_kind_set,error=error)
+      atomic_kind_set=atomic_kind_set,qs_kind_set=qs_kind_set)
 
     nkind = SIZE(atomic_kind_set)
 
-  ALLOCATE (se_defined(nkind),se_kind_list(nkind),STAT=stat)
-  CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+  ALLOCATE (se_defined(nkind),se_kind_list(nkind))
   DO ikind=1,nkind
-     CALL get_qs_kind(qs_kind_set(ikind), se_parameter=se_kind_a, error=error)
+     CALL get_qs_kind(qs_kind_set(ikind), se_parameter=se_kind_a)
      se_kind_list(ikind)%se_param => se_kind_a
      CALL get_se_param(se_kind_a,defined=defined,natorb=natorb_a)
      se_defined(ikind) = (defined .AND. natorb_a >= 1)
@@ -378,7 +368,7 @@ CONTAINS
      ! Retrieve blocks for KS
      CALL cp_dbcsr_get_block_p(matrix=ks_matrix(1)%matrix,&
           row=irow,col=icol,BLOCK=ks_block_a,found=found)
-     CPPostcondition(ASSOCIATED(ks_block_a),cp_failure_level,routineP,error,failure)
+     CPASSERT(ASSOCIATED(ks_block_a))
 
                 ifHi= (atomic_kind_set(ikind)%element_symbol=='H ')
                 ifHj= (atomic_kind_set(jkind)%element_symbol=='H ')
@@ -428,14 +418,13 @@ CONTAINS
      IF ( nspins == 2 ) THEN
         CALL cp_dbcsr_get_block_p(matrix=ks_matrix(2)%matrix,&
              row=irow,col=icol,BLOCK=ks_block_b,found=found)
-        CPPostcondition(ASSOCIATED(ks_block_b),cp_failure_level,routineP,error,failure)
+        CPASSERT(ASSOCIATED(ks_block_b))
      END IF
 
   END DO
   CALL neighbor_list_iterator_release(nl_iterator)
 
-  DEALLOCATE(se_kind_list,se_defined,stat=stat)
-  CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+  DEALLOCATE(se_kind_list,se_defined)
 
 
     CALL timestop(handle)

@@ -54,10 +54,9 @@ CONTAINS
 !> \param Waux_mat matrix storing angular-dependent part
 !> \param dWaux_mat ...
 !> \param calculate_forces ...
-!> \param error ...
 ! *****************************************************************************
   SUBROUTINE precalc_angular_shg_part(oba,obb,fba,fbb,rab,Waux_mat,dWaux_mat,&
-                                      calculate_forces,error)
+                                      calculate_forces)
 
     TYPE(gto_basis_set_type), POINTER        :: oba, obb, fba, fbb
     REAL(KIND=dp), DIMENSION(3), INTENT(IN)  :: rab
@@ -66,16 +65,13 @@ CONTAINS
     REAL(KIND=dp), &
       DIMENSION(:, :, :, :, :), POINTER      :: dWaux_mat
     LOGICAL, INTENT(IN)                      :: calculate_forces
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'precalc_angular_shg_part', &
       routineP = moduleN//':'//routineN
 
     INTEGER :: handle, i, isize, j, k, la_max, laa_max, lb_max, lbb_max, &
-      lca_max, lcb_max, li_max, lj_max, lmax, mdim(4), size_int(4,2), stat, &
-      temp
+      lca_max, lcb_max, li_max, lj_max, lmax, mdim(4), size_int(4,2), temp
     INTEGER, DIMENSION(:), POINTER           :: li_max_all
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: rab2
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: Rc, Rs
@@ -103,20 +99,16 @@ CONTAINS
     lj_max = MAX(la_max, lb_max, lcb_max)
     lmax = li_max
  
-    ALLOCATE(li_max_all(0:lj_max),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    ALLOCATE(Rc(0:lmax,-2*lmax:2*lmax),Rs(0:lmax,-2*lmax:2*lmax),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    ALLOCATE(li_max_all(0:lj_max))
+    ALLOCATE(Rc(0:lmax,-2*lmax:2*lmax),Rs(0:lmax,-2*lmax:2*lmax))
     Rc=0._dp
     Rs=0._dp
     mdim(1) = nsoset(li_max) + 1
     mdim(2) = nsoset(lj_max) + 1
     mdim(3) = li_max+lj_max  + 1
     mdim(4) = 4
-    ALLOCATE(Waux_mat(mdim(1),mdim(2),mdim(3),mdim(4)),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    ALLOCATE(dWaux_mat(3,mdim(1),mdim(2),mdim(3),mdim(4)),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    ALLOCATE(Waux_mat(mdim(1),mdim(2),mdim(3),mdim(4)))
+    ALLOCATE(dWaux_mat(3,mdim(1),mdim(2),mdim(3),mdim(4)))
     !Waux_mat = 0._dp !.. takes time
 
     !*** Waux_mat (li_max,lj_max) contains elements not needed,
@@ -147,11 +139,10 @@ CONTAINS
     CALL get_real_scaled_solid_harmonic(Rc,Rs,lmax,-rab,rab2)
     CALL get_W_matrix(li_max_all,lj_max,lmax,Rc,Rs,Waux_mat)
     IF(calculate_forces) THEN
-     CALL get_dW_matrix(li_max_all,lj_max,Waux_mat,dWaux_mat,error)
+     CALL get_dW_matrix(li_max_all,lj_max,Waux_mat,dWaux_mat)
     ENDIF
 
-    DEALLOCATE(Rc,Rs,li_max_all,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    DEALLOCATE(Rc,Rs,li_max_all)
 
     CALL timestop(handle)
 
@@ -172,11 +163,10 @@ CONTAINS
 !> \param Waux_mat angular-depedent part
 !> \param dWaux_mat derivative of Waux_mat 
 !> \param calculate_forces ...
-!> \param error ...
 ! *****************************************************************************
   SUBROUTINE lri_int_aba_shg(lri_env,abaint,dabdaint,rab,oba,obb,fba,scona_shg,&
                              sconb_shg,sconca_shg,Waux_mat,dWaux_mat,&
-                             calculate_forces,error)
+                             calculate_forces)
 
     TYPE(lri_environment_type), POINTER      :: lri_env
     REAL(KIND=dp), DIMENSION(:, :, :), &
@@ -193,7 +183,6 @@ CONTAINS
     REAL(KIND=dp), &
       DIMENSION(:, :, :, :, :), POINTER      :: dWaux_mat
     LOGICAL, INTENT(IN)                      :: calculate_forces
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'lri_int_aba_shg', &
       routineP = moduleN//':'//routineN
@@ -202,7 +191,7 @@ CONTAINS
       jset, jshellb, kpgfa, kset, kshella, la_max_set, laa, laa_max_set, lai, &
       lak, lb_max_set, lbj, lca_max_set, ndev, nds, nds_max, nl, nl_set, &
       npgfa_set, npgfb_set, npgfca_set, nseta, nsetb, nsetca, nshella_set, &
-      nshellb_set, nshellca_set, stat
+      nshellb_set, nshellca_set
     INTEGER, DIMENSION(:), POINTER           :: la_max, lb_max, lca_max, &
                                                 npgfa, npgfb, npgfca, &
                                                 nshella, nshellb, nshellca
@@ -274,10 +263,8 @@ CONTAINS
     ! allocate some work storage....
     nds_max = laa_max_set + lb_max_set + ndev + 1
     nl_set = INT((laa_max_set)/2)
-    ALLOCATE(swork(npgfa_set,npgfb_set,npgfca_set,0:nl_set,nds_max),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    ALLOCATE(swork_cont(nshella_set,nshellb_set,nshellca_set,0:nl_set,nds_max),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    ALLOCATE(swork(npgfa_set,npgfb_set,npgfca_set,0:nl_set,nds_max))
+    ALLOCATE(swork_cont(nshella_set,nshellb_set,nshellca_set,0:nl_set,nds_max))
 
     DO iset=1,nseta
 
@@ -292,8 +279,7 @@ CONTAINS
              CALL s_overlap_abx(la_max(iset),npgfa(iset),zeta(:,iset),&
                                 lb_max(jset),npgfb(jset),zetb(:,jset),&
                                 lca_max(kset),npgfca(kset),zetca(:,kset),&
-                                rab,swork,calculate_forces,calc_aba=.TRUE.,&
-                                error=error)
+                                rab,swork,calculate_forces,calc_aba=.TRUE.)
 
              swork_cont = 0.0_dp
              DO ishella = 1, nshella(iset)
@@ -369,7 +355,7 @@ CONTAINS
                                       CALL cp_unimplemented_error(fromWhere=routineP, &
                                            message="SHG integrals not implemented when l quantum number"//&
                                            " of orbital and ri basis larger than 11", &
-                                           error=error, error_level=cp_failure_level)
+                                           error_level=cp_failure_level)
                                      ENDIF
                                   ENDDO
                                ENDDO
@@ -399,10 +385,8 @@ CONTAINS
        END DO
     END DO
 
-    DEALLOCATE(swork_cont,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    DEALLOCATE(swork,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    DEALLOCATE(swork_cont)
+    DEALLOCATE(swork)
 
     CALL timestop(handle)
 
@@ -423,11 +407,10 @@ CONTAINS
 !> \param Waux_mat angular-dependent part
 !> \param dWaux_mat derivative of Waux_mat
 !> \param calculate_forces ...
-!> \param error ...
 ! *****************************************************************************
   SUBROUTINE lri_int_abb_shg(lri_env,abbint,dabbint,rab,oba,obb,fbb,scona_shg,&
                              sconb_shg,sconcb_shg,Waux_mat,dWaux_mat,&
-                             calculate_forces,error)
+                             calculate_forces)
 
     TYPE(lri_environment_type), POINTER      :: lri_env
     REAL(KIND=dp), DIMENSION(:, :, :), &
@@ -444,7 +427,6 @@ CONTAINS
     REAL(KIND=dp), &
       DIMENSION(:, :, :, :, :), POINTER      :: dWaux_mat
     LOGICAL, INTENT(IN)                      :: calculate_forces
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'lri_int_abb_shg', &
       routineP = moduleN//':'//routineN
@@ -453,7 +435,7 @@ CONTAINS
       jset, jshellb, kpgfb, kset, kshellb, la_max_set, lai, lb_max_set, lbb, &
       lbb_max_set, lbj, lbk, lcb_max_set, ndev, nds, nds_max, nl, nl_set, &
       npgfa_set, npgfb_set, npgfcb_set, nseta, nsetb, nsetcb, nshella_set, &
-      nshellb_set, nshellcb_set, stat
+      nshellb_set, nshellcb_set
     INTEGER, DIMENSION(:), POINTER           :: la_max, lb_max, lcb_max, &
                                                 npgfa, npgfb, npgfcb, &
                                                 nshella, nshellb, nshellcb
@@ -525,10 +507,8 @@ CONTAINS
     ! allocate some work storage....
     nds_max = la_max_set + lbb_max_set + ndev + 1
     nl_set = INT((lbb_max_set)/2)
-    ALLOCATE(swork(1:npgfa_set,1:npgfb_set,1:npgfcb_set,0:nl_set,1:nds_max),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    ALLOCATE(swork_cont(nshella_set,nshellb_set,nshellcb_set,0:nl_set,nds_max),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    ALLOCATE(swork(1:npgfa_set,1:npgfb_set,1:npgfcb_set,0:nl_set,1:nds_max))
+    ALLOCATE(swork_cont(nshella_set,nshellb_set,nshellcb_set,0:nl_set,nds_max))
 
     DO iset=1,nseta
 
@@ -543,8 +523,7 @@ CONTAINS
              CALL s_overlap_abx(la_max(iset),npgfa(iset),zeta(:,iset),&
                                 lb_max(jset),npgfb(jset),zetb(:,jset),&
                                 lcb_max(kset),npgfcb(kset),zetcb(:,kset),&
-                                rab,swork,calculate_forces,calc_aba=.FALSE.,&
-                                error=error)
+                                rab,swork,calculate_forces,calc_aba=.FALSE.)
 
              swork_cont = 0.0_dp
              DO ishella = 1, nshella(iset)
@@ -620,7 +599,7 @@ CONTAINS
                                       CALL cp_unimplemented_error(fromWhere=routineP, &
                                            message="SHG integrals not implemented when l quantum number"//&
                                            " of orbital and ri basis larger than 11", &
-                                           error=error, error_level=cp_failure_level)
+                                           error_level=cp_failure_level)
                                      ENDIF
                                   ENDDO
                                ENDDO
@@ -649,10 +628,8 @@ CONTAINS
        END DO
     END DO
 
-    DEALLOCATE(swork_cont,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    DEALLOCATE(swork,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    DEALLOCATE(swork_cont)
+    DEALLOCATE(swork)
 
     CALL timestop(handle)
 
@@ -670,10 +647,9 @@ CONTAINS
 !> \param Waux_mat angular-dependent part
 !> \param dWaux_mat derivative of Waux_mat
 !> \param calculate_forces ...
-!> \param error ...
 ! *****************************************************************************
   SUBROUTINE lri_int_ab_shg(sab,dsab,rab,fba,fbb,scona_shg,sconb_shg,Waux_mat,&
-                            dWaux_mat,calculate_forces,error)
+                            dWaux_mat,calculate_forces)
 
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: sab
     REAL(KIND=dp), DIMENSION(:, :, :), &
@@ -687,14 +663,13 @@ CONTAINS
     REAL(KIND=dp), &
       DIMENSION(:, :, :, :, :), POINTER      :: dWaux_mat
     LOGICAL, INTENT(IN)                      :: calculate_forces
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'lri_int_ab_shg', &
       routineP = moduleN//':'//routineN
 
     INTEGER :: handle, ids, ids_start, ipgfa, iset, ishella, jpgfb, jset, &
       jshellb, la_max_set, lai, lb_max_set, lbj, ndev, nds, nds_max, &
-      npgfa_set, npgfb_set, nseta, nsetb, nshella_set, nshellb_set, stat
+      npgfa_set, npgfb_set, nseta, nsetb, nshella_set, nshellb_set
     INTEGER, DIMENSION(:), POINTER           :: la_max, lb_max, npgfa, npgfb, &
                                                 nshella, nshellb
     INTEGER, DIMENSION(:, :), POINTER        :: first_sgfa, first_sgfb, la, lb
@@ -742,10 +717,8 @@ CONTAINS
     ndev = 0
     IF(calculate_forces) ndev = 1
     nds_max = la_max_set + lb_max_set + ndev + 1
-    ALLOCATE(swork(npgfa_set,npgfb_set,nds_max),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    ALLOCATE(swork_cont(nshella_set,nshellb_set,nds_max),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    ALLOCATE(swork(npgfa_set,npgfb_set,nds_max))
+    ALLOCATE(swork_cont(nshella_set,nshellb_set,nds_max))
 
     DO iset=1,nseta
 
@@ -791,8 +764,7 @@ CONTAINS
        END DO
     END DO
 
-    DEALLOCATE(swork,swork_cont,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    DEALLOCATE(swork,swork_cont)
 
     CALL timestop(handle)
 
