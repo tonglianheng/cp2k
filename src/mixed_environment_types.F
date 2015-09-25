@@ -153,7 +153,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'get_mixed_env', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     TYPE(atomic_kind_list_type), POINTER     :: atomic_kinds
     TYPE(mol_kind_new_list_type), POINTER    :: molecule_kinds_new
     TYPE(mol_new_list_type), POINTER         :: molecules_new
@@ -255,7 +254,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'set_mixed_env', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     TYPE(atomic_kind_list_type), POINTER     :: atomic_kinds
     TYPE(mol_kind_new_list_type), POINTER    :: molecule_kinds_new
     TYPE(mol_new_list_type), POINTER         :: molecules_new
@@ -334,9 +332,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'mixed_env_create', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-
     ALLOCATE(mixed_env)
     CALL init_mixed_env(mixed_env,para_env=para_env)
   END SUBROUTINE mixed_env_create
@@ -351,9 +346,6 @@ CONTAINS
 
     CHARACTER(len=*), PARAMETER :: routineN = 'mixed_env_retain', &
       routineP = moduleN//':'//routineN
-
-    LOGICAL                                  :: failure
-
 
     CPASSERT(ASSOCIATED(mixed_env))
     CPASSERT(mixed_env%ref_count>0)
@@ -372,8 +364,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i, ngroups
-    LOGICAL                                  :: failure
-
 
     IF (ASSOCIATED(mixed_env)) THEN
        CPASSERT(mixed_env%ref_count>0)

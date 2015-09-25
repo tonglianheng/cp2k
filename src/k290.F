@@ -122,8 +122,6 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'release_csym_type', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
     CPASSERT(ASSOCIATED(csym))
 
     IF ( ASSOCIATED(csym%xkappa) ) THEN
@@ -176,7 +174,6 @@ CONTAINS
                                                 nhash, nkk, nkpts, nsp
     INTEGER, ALLOCATABLE                     :: f0(:,:), includ(:), isc(:), &
                                                 list(:), lrot(:,:), lwght(:)
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: wsum
     REAL(KIND=dp), ALLOCATABLE               :: rlist(:,:), rx(:,:), &
                                                 tvec(:,:), wvkl(:,:)
@@ -522,7 +519,6 @@ CONTAINS
 
     INTEGER :: f00(49,1), i, ib0(48), ihc0, ihg0, indpg0, invadd, istrin, &
       iswght, isy0, j, l, li0, lmax, n, nc0, ntot, ntvec0
-    LOGICAL                                  :: failure
     REAL(KIND=dp) :: a01(3), a02(3), a03(3), b01(3), b02(3), b03(3), b1(3), &
       b2(3), b3(3), dtotstr, origin0(3), proj1, proj2, proj3, r0(3,3,48), &
       totstr, tvec0(3,1), v0(3,48), volum, x0(3,1), xb0(3)
@@ -1339,7 +1335,7 @@ CONTAINS
 
     INTEGER                                  :: i, iis(48), il, info, j, k, &
                                                 k2, l, n, nca, ni
-    LOGICAL                                  :: failure, nodupli, oksym
+    LOGICAL                                  :: nodupli, oksym
     REAL(KIND=dp)                            :: vc(3,48), vr(3), vs
 
     nodupli = ntvec == 1
@@ -2326,14 +2322,12 @@ CONTAINS
                                                 igarb0, igarbage, igarbg, &
                                                 imesh, iop, iplace, iremov, &
                                                 iwvk, j, jplace, k, n, nplane
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: diff, proja(3), projb(3), &
                                                 rsdir(4,nrsdir), ur1, ur2, &
                                                 ur3, wva(3), wvk(3)
 
 !------------------------------------------------------------------------------!
-
-    !------------------------------------------------------------------------------!
+!------------------------------------------------------------------------------!
 
     ntot = 0
     DO i = 1, nkpoint
@@ -2635,7 +2629,6 @@ CONTAINS
 
     INTEGER                                  :: i, ihash, ipoint, j
     INTEGER, SAVE                            :: istore = 0
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: delta1, rhash
 
     delta1 = 10.0_dp*delta
@@ -2762,7 +2755,6 @@ CONTAINS
     INTEGER, PARAMETER                       :: nil = 0
 
     INTEGER                                  :: i, ihash, ipoint, j
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: delta1, rhash
 
     delta1 = 10.0_dp*delta
@@ -2841,7 +2833,6 @@ CONTAINS
     INTEGER, PARAMETER                       :: nil = 0
 
     INTEGER                                  :: i, ihash, ipoint, j
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: delta1
 
     delta1 = 10.0_dp*delta
@@ -2907,7 +2898,6 @@ CONTAINS
 
     INTEGER                                  :: i, i1, i2, i3, n1, n2, n3, &
                                                 nn1, nn2, nn3
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: wb(3), wva(3)
 
     IF (inbz(wvk,rsdir,nrsdir,nplane,delta)==yes) RETURN
@@ -3030,11 +3020,11 @@ CONTAINS
     INTEGER                                  :: i, i1, i2, i3, j, n, n1, n2, &
                                                 n3, nb1, nb2, nb3, nnb1, &
                                                 nnb2, nnb3
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: b1len, b2len, b3len, bmax, &
                                                 bvec(3), projct
 
-    !------------------------------------------------------------------------------!
+!------------------------------------------------------------------------------!
+
     b1len = b1(1)**2 + b1(2)**2 + b1(3)**2
     b2len = b2(1)**2 + b2(2)**2 + b2(3)**2
     b3len = b3(1)**2 + b3(2)**2 + b3(3)**2

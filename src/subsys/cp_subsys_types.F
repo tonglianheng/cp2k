@@ -138,9 +138,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_subsys_retain', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-
     CPASSERT(ASSOCIATED(subsys))
     CPASSERT(subsys%ref_count>0)
     subsys%ref_count=subsys%ref_count+1
@@ -237,9 +234,6 @@ CONTAINS
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_subsys_set', &
       routineP = moduleN//':'//routineN
-
-    LOGICAL                                  :: failure
-
 
     CPASSERT(ASSOCIATED(subsys))
     CPASSERT(subsys%ref_count>0)
@@ -406,7 +400,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: n_atom, n_core, n_shell
-    LOGICAL                                  :: failure
 
     n_atom = 0
     n_core = 0
@@ -491,7 +484,6 @@ CONTAINS
 
     INTEGER                                  :: i, iatom, j, k, natom, &
                                                 nparticle, nsize, shell_index
-    LOGICAL                                  :: failure
     REAL(KIND=dp), DIMENSION(3)              :: rs
     TYPE(particle_list_type), POINTER        :: core_particles, particles, &
                                                 shell_particles
@@ -648,7 +640,6 @@ CONTAINS
 
     INTEGER                                  :: i, iatom, j, k, natom, &
                                                 nparticle, nsize, shell_index
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: fc, fs, mass, my_fscale
     REAL(KIND=dp), DIMENSION(3)              :: rs
     TYPE(particle_list_type), POINTER        :: core_particles, particles, &

@@ -160,7 +160,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, ispin, istore
-    LOGICAL                                  :: failure
 
     CALL timeset(routineN,handle)
 

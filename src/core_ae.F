@@ -108,7 +108,7 @@ CONTAINS
                                                 lb_min, npgfa, npgfb, nsgfa, &
                                                 nsgfb
     INTEGER, DIMENSION(:, :), POINTER        :: first_sgfa, first_sgfb
-    LOGICAL                                  :: dokp, failure, found
+    LOGICAL                                  :: dokp, found
     REAL(KIND=dp)                            :: alpha_c, core_charge, &
                                                 core_radius, dab, dac, dbc, &
                                                 f0, rab2, rac2, rbc2, zeta_c

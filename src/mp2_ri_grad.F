@@ -178,9 +178,8 @@ MODULE mp2_ri_grad
     INTEGER, DIMENSION(3)                    :: comp
     INTEGER, DIMENSION(:), POINTER           :: la_max, la_min, npgfa, nsgfa
     INTEGER, DIMENSION(:, :), POINTER        :: first_sgfa
-    LOGICAL                                  :: alpha_beta, failure, &
-                                                map_it_here, skip_shell, &
-                                                use_virial
+    LOGICAL                                  :: alpha_beta, map_it_here, &
+                                                skip_shell, use_virial
     REAL(KIND=dp)                            :: e_hartree, eps_filter, &
                                                 factor, pair_energy, rab2, &
                                                 total_rho
@@ -1047,7 +1046,6 @@ MODULE mp2_ri_grad
       col_indeces_info_2a, row_indeces_info_1i, row_indeces_info_2a
     INTEGER, DIMENSION(:), POINTER :: col_indices, col_indices_1i, &
       col_indices_2a, row_indices, row_indices_1i, row_indices_2a
-    LOGICAL                                  :: failure
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: ab_rec, ab_send, mat_deb, &
                                                 mat_rec, mat_send

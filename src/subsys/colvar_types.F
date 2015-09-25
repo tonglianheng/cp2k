@@ -382,8 +382,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'colvar_create', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
     CPASSERT(.NOT.ASSOCIATED(colvar))
     ALLOCATE(colvar)
     ! Nullify all available COLVAR types
@@ -489,7 +487,6 @@ CONTAINS
     INTEGER                                  :: i, idum, iend, ii, istart, j, &
                                                 np, stat
     INTEGER, DIMENSION(:), POINTER           :: list
-    LOGICAL                                  :: failure
 
     CPASSERT(ASSOCIATED(colvar))
     SELECT CASE(colvar%type_id)
@@ -1015,7 +1012,6 @@ CPSourceFileRef)
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i
-    LOGICAL                                  :: failure
 
     CPASSERT(ASSOCIATED(colvar))
     IF (ASSOCIATED(colvar%dsdr)) THEN
@@ -1184,7 +1180,6 @@ CPSourceFileRef)
 
     INTEGER                                  :: i, my_offset, ndim, ndim2, &
                                                 stat
-    LOGICAL                                  :: failure
 
     my_offset = 0
     CPASSERT(ASSOCIATED(colvar_in))
@@ -1528,7 +1523,6 @@ CPSourceFileRef)
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i, natoms, npoints
-    LOGICAL                                  :: failure
 
     colvar_out%use_points = colvar_in%use_points
     IF (colvar_in%use_points) THEN
@@ -1575,7 +1569,6 @@ CPSourceFileRef)
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: j, lb1, lb1_old, ub1, ub1_old
-    LOGICAL                                  :: failure
     TYPE(colvar_p_type), DIMENSION(:), &
       POINTER                                :: work
 

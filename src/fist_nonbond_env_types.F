@@ -293,8 +293,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'fist_nonbond_env_create', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
     ALLOCATE(fist_nonbond_env)
     NULLIFY(fist_nonbond_env%potparm14)
     NULLIFY(fist_nonbond_env%potparm)
@@ -464,8 +462,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'fist_nonbond_env_retain', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
     CPASSERT(ASSOCIATED(fist_nonbond_env))
     CPASSERT(fist_nonbond_env%ref_count>0)
     fist_nonbond_env%ref_count=fist_nonbond_env%ref_count+1
@@ -483,8 +479,6 @@ CONTAINS
 
     CHARACTER(len=*), PARAMETER :: routineN = 'fist_nonbond_env_release', &
       routineP = moduleN//':'//routineN
-
-    LOGICAL                                  :: failure
 
     IF (ASSOCIATED(fist_nonbond_env)) THEN
        CPASSERT(fist_nonbond_env%ref_count>0)

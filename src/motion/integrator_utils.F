@@ -122,7 +122,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: idim, jdim, natoms
-    LOGICAL                                  :: failure
 
     natoms = SIZE ( particle_set)
     idim = SIZE ( npt, 1)
@@ -155,8 +154,6 @@ CONTAINS
 
     CHARACTER(len=*), PARAMETER :: routineN = 'deallocate_old', &
       routineP = moduleN//':'//routineN
-
-    LOGICAL                                  :: failure
 
     IF (ASSOCIATED(old)) THEN
        IF (ASSOCIATED(old%v)) THEN
@@ -199,8 +196,6 @@ CONTAINS
 
     CHARACTER(len=*), PARAMETER :: routineN = 'allocate_tmp', &
       routineP = moduleN//':'//routineN
-
-    LOGICAL                                  :: failure
 
     CPASSERT(.NOT.ASSOCIATED(tmp))
     ALLOCATE (tmp)
@@ -286,9 +281,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'update_dealloc_tmp', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure, my_deall, my_pos, &
-                                                my_vel
-
+    LOGICAL                                  :: my_deall, my_pos, my_vel
 
     CPASSERT(ASSOCIATED(tmp))
     my_pos =.FALSE.
@@ -990,11 +983,11 @@ CONTAINS
     INTEGER, INTENT(IN), OPTIONAL            :: virial_components
 
     INTEGER                                  :: ii
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: fdotr, trace, v, v0, v0i, vi
     REAL(KIND=dp), DIMENSION(3, 3)           :: unit
 
-    ! initialize unit
+! initialize unit
+
     unit = 0.0_dp
     unit(1,1) = 1.0_dp
     unit(2,2) = 1.0_dp

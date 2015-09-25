@@ -47,9 +47,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'pint_x2u', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     REAL(kind=dp), DIMENSION(:, :), POINTER  :: my_ux, my_x
-
 
     CPASSERT(ASSOCIATED(pint_env))
     CPASSERT(pint_env%ref_count>0)
@@ -87,9 +85,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'pint_u2x', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     REAL(kind=dp), DIMENSION(:, :), POINTER  :: my_ux, my_x
-
 
     CPASSERT(ASSOCIATED(pint_env))
     CPASSERT(pint_env%ref_count>0)
@@ -130,9 +126,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'pint_f2uf', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     REAL(kind=dp), DIMENSION(:, :), POINTER  :: my_f, my_uf
-
 
     CPASSERT(ASSOCIATED(pint_env))
     CPASSERT(pint_env%ref_count>0)

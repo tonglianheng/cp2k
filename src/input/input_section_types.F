@@ -161,8 +161,6 @@ CONTAINS
 
     INTEGER                                  :: i, my_n_keywords, &
                                                 my_n_subsections, n
-    LOGICAL                                  :: failure
-
 
     CPASSERT(.NOT.ASSOCIATED(section))
     my_n_keywords=10
@@ -218,9 +216,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'section_retain', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-
     CPASSERT(ASSOCIATED(section))
     CPASSERT(section%ref_count>0)
     section%ref_count=section%ref_count+1
@@ -238,8 +233,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i
-    LOGICAL                                  :: failure
-
 
     IF (ASSOCIATED(section)) THEN
        CPASSERT(section%ref_count>0)
@@ -320,7 +313,7 @@ CONTAINS
 
     CHARACTER(LEN=default_path_length)       :: message
     INTEGER                                  :: ikeyword, isub, my_recurse
-    LOGICAL                                  :: failure, my_hide_root
+    LOGICAL                                  :: my_hide_root
 
     IF (unit_nr>0) THEN
        my_hide_root =.FALSE.
@@ -390,7 +383,7 @@ CONTAINS
     CHARACTER(LEN=default_path_length)       :: message
     INTEGER                                  :: idepth, ikeyword, iref, isub, &
                                                 unit_nr
-    LOGICAL                                  :: failure, has_keywords
+    LOGICAL                                  :: has_keywords
 
     IF (ASSOCIATED(section)) THEN
        local_prefix=TRIM(prefix//"~"//TRIM(section%name))
@@ -492,7 +485,6 @@ CONTAINS
 
     CHARACTER(LEN=1000)                      :: local_prefix
     INTEGER                                  :: isub
-    LOGICAL                                  :: failure
 
     IF (ASSOCIATED(section)) THEN
        CPASSERT(section%ref_count>0)
@@ -528,8 +520,6 @@ CONTAINS
 
     CHARACTER(len=default_string_length)     :: upc_name
     INTEGER                                  :: isub
-    LOGICAL                                  :: failure
-
 
     CPASSERT(ASSOCIATED(section))
     CPASSERT(section%ref_count>0)
@@ -589,8 +579,6 @@ CONTAINS
 
     INTEGER                                  :: ik, in
     CHARACTER(len=default_string_length)     :: upc_name
-    LOGICAL                                  :: failure
-
 
     CPASSERT(ASSOCIATED(section))
     CPASSERT(section%ref_count>0)
@@ -634,7 +622,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: ik, my_index
-    LOGICAL                                  :: failure
 
     IF (INDEX(keyword_name,"%")/=0) THEN
        my_index = INDEX(keyword_name,"%") + 1
@@ -679,9 +666,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'section_get', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-
     CPASSERT(ASSOCIATED(section))
     CPASSERT(section%ref_count>0)
     IF (PRESENT(frozen)) frozen=section%frozen
@@ -710,7 +694,6 @@ CONTAINS
     LOGICAL                                  :: failure
     TYPE(keyword_p_type), DIMENSION(:), &
       POINTER                                :: new_keywords
-
 
     CPASSERT(ASSOCIATED(section))
     CPASSERT(section%ref_count>0)
@@ -771,7 +754,6 @@ CONTAINS
     TYPE(section_p_type), DIMENSION(:), &
       POINTER                                :: new_subsections
 
-
     CPASSERT(ASSOCIATED(section))
     CPASSERT(section%ref_count>0)
     CPASSERT(ASSOCIATED(subsection))
@@ -813,8 +795,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i
-    LOGICAL                                  :: failure
-
 
     CPASSERT(.NOT.ASSOCIATED(section_vals))
     ALLOCATE(section_vals)
@@ -845,8 +825,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'section_vals_retain', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
     CPASSERT(ASSOCIATED(section_vals))
     CPASSERT(section_vals%ref_count>0)
     section_vals%ref_count=section_vals%ref_count+1
@@ -864,10 +842,8 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i, j
-    LOGICAL                                  :: failure
     TYPE(cp_sll_val_type), POINTER           :: vals
     TYPE(val_type), POINTER                  :: el
-
 
     IF (ASSOCIATED(section_vals)) THEN
        CPASSERT(section_vals%ref_count>0)
@@ -921,9 +897,6 @@ CONTAINS
 
     CHARACTER(len=*), PARAMETER :: routineN = 'section_vals_get', &
       routineP = moduleN//':'//routineN
-
-    LOGICAL                                  :: failure
-
 
     CPASSERT(ASSOCIATED(section_vals))
     CPASSERT(section_vals%ref_count>0)
@@ -1017,7 +990,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i, irep, isect_att
-    LOGICAL                                  :: failure
 
     CPASSERT(ASSOCIATED(section_vals))
     CPASSERT(section_vals%ref_count>0)
@@ -1058,7 +1030,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i_section, irep
-    LOGICAL                                  :: failure
 
     CPASSERT(ASSOCIATED(section_vals))
     CPASSERT(section_vals%ref_count>0)
@@ -1082,12 +1053,10 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i, j
-    LOGICAL                                  :: failure
     TYPE(cp_sll_val_p_type), &
       DIMENSION(:, :), POINTER               :: new_values
     TYPE(section_vals_p_type), &
       DIMENSION(:, :), POINTER               :: new_sps
-
 
     CPASSERT(ASSOCIATED(section_vals))
     CPASSERT(section_vals%ref_count>0)
@@ -1135,12 +1104,10 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i, j
-    LOGICAL                                  :: failure
     TYPE(cp_sll_val_p_type), &
       DIMENSION(:, :), POINTER               :: new_values
     TYPE(cp_sll_val_type), POINTER           :: vals
     TYPE(val_type), POINTER                  :: el
-
 
     IF (ASSOCIATED(section_vals)) THEN
        CPASSERT(section_vals%ref_count>0)
@@ -1318,7 +1285,6 @@ CONTAINS
     TYPE(section_vals_type), POINTER         :: s_vals
     TYPE(val_type), POINTER                  :: my_val
 
-
     CPASSERT(ASSOCIATED(section_vals))
     CPASSERT(section_vals%ref_count>0)
 
@@ -1417,7 +1383,6 @@ CONTAINS
     TYPE(section_type), POINTER              :: section
     TYPE(section_vals_type), POINTER         :: s_vals
 
-
     CPASSERT(ASSOCIATED(section_vals))
     CPASSERT(section_vals%ref_count>0)
     NULLIFY(list)
@@ -1501,7 +1466,6 @@ CONTAINS
     TYPE(section_type), POINTER              :: section
     TYPE(section_vals_type), POINTER         :: s_vals
     TYPE(val_type), POINTER                  :: my_val, old_val
-
 
     CPASSERT(ASSOCIATED(section_vals))
     CPASSERT(section_vals%ref_count>0)
@@ -1823,8 +1787,6 @@ CONTAINS
     CHARACTER(LEN=3)                         :: repeats
     CHARACTER(LEN=8)                         :: short_string
     INTEGER                                  :: i, l0, l1, l2
-    LOGICAL                                  :: failure
-
 
     IF (ASSOCIATED(section)) THEN
 
@@ -1900,7 +1862,6 @@ CONTAINS
 
     CHARACTER(LEN=LEN(matching_string(1)))   :: line
     INTEGER                                  :: i, imatch, imax, irank
-    LOGICAL                                  :: failure
 
     IF (ASSOCIATED(section)) THEN
        CPASSERT(section%ref_count>0)
@@ -2013,9 +1974,6 @@ CONTAINS
 
     CHARACTER(len=*), PARAMETER :: routineN = 'section_vals_duplicate', &
       routineP = moduleN//':'//routineN
-
-    LOGICAL                                  :: failure
-
 
     CPASSERT(ASSOCIATED(section_vals_in))
     CPASSERT(.NOT.ASSOCIATED(section_vals_out))

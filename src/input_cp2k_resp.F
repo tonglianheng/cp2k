@@ -59,10 +59,8 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'create_resp_section', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
     TYPE(section_type), POINTER              :: subsection
-
 
     CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="RESP",&
@@ -150,9 +148,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'create_constraint_section', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
-
 
     CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="CONSTRAINT",&
@@ -209,9 +205,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'create_restraint_section', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
-
 
     CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="RESTRAINT",&
@@ -268,9 +262,7 @@ CONTAINS
       routineN = 'create_sphere_sampling_section', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
-
 
     CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="SPHERE_SAMPLING",&
@@ -368,9 +360,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'create_slab_sampling_section', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
-
 
     CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="SLAB_SAMPLING",&
@@ -443,7 +433,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'create_print_resp_section', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
     TYPE(section_type), POINTER              :: print_key
 

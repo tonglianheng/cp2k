@@ -154,8 +154,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i
-    LOGICAL                                  :: do_langevin, failure
-
+    LOGICAL                                  :: do_langevin
 
     CPASSERT(.NOT.ASSOCIATED(meta_env))
     ALLOCATE(meta_env)
@@ -248,8 +247,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'set_meta_env', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
     IF (ASSOCIATED(meta_env)) THEN
        IF (PRESENT(time)) THEN
           NULLIFY(meta_env%time)
@@ -269,9 +266,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'meta_env_retain', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-
     CPASSERT(ASSOCIATED(meta_env))
     CPASSERT(meta_env%ref_count>0)
     meta_env%ref_count=meta_env%ref_count+1
@@ -289,7 +283,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i
-    LOGICAL                                  :: failure
 
     IF (ASSOCIATED(meta_env)) THEN
        CPASSERT(meta_env%ref_count>0)
@@ -344,8 +337,6 @@ CONTAINS
 
     CHARACTER(len=*), PARAMETER :: routineN = 'hills_env_release', &
       routineP = moduleN//':'//routineN
-
-    LOGICAL                                  :: failure
 
     IF (ASSOCIATED(hills_env)) THEN
        IF (ASSOCIATED(hills_env%ss_history)) THEN

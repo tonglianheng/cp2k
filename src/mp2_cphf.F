@@ -150,8 +150,11 @@ MODULE mp2_cphf
       transf_type_out, virtual, virtual_beta
     INTEGER, DIMENSION(3)                    :: comp
     INTEGER, DIMENSION(:), POINTER           :: col_indices, row_indices
-    LOGICAL :: alpha_beta, do_dynamic_load_balancing, do_hfx, failure, &
-      hfx_treat_lsd_in_core, use_virial
+    LOGICAL                                  :: alpha_beta, &
+                                                do_dynamic_load_balancing, &
+                                                do_hfx, &
+                                                hfx_treat_lsd_in_core, &
+                                                use_virial
     REAL(KIND=dp)                            :: e_hartree, factor, out_alpha, &
                                                 pair_energy, tot_rho_r
     REAL(KIND=dp), ALLOCATABLE, &
@@ -1045,7 +1048,7 @@ MODULE mp2_cphf
                                                 j_global, jjB, ncol_local, &
                                                 nrow_local, ns
     INTEGER, DIMENSION(:), POINTER           :: col_indices, row_indices
-    LOGICAL                                  :: alpha_beta, failure, &
+    LOGICAL                                  :: alpha_beta, &
                                                 my_recalc_hfx_integrals
     REAL(KIND=dp)                            :: ex_energy, pair_energy, &
                                                 total_rho
@@ -1448,7 +1451,7 @@ MODULE mp2_cphf
       max_num_iter, ncol_local, nrow_local, transf_type_in, transf_type_out, &
       virtual_beta
     INTEGER, DIMENSION(:), POINTER           :: col_indices, row_indices
-    LOGICAL                                  :: alpha_beta, converged, failure
+    LOGICAL                                  :: alpha_beta, converged
     REAL(KIND=dp) :: alpha, beta, conv, eps_conv, factor, norm_b, &
       norm_b_beta, norms(3), norms_beta(3), out_alpha, rkrk, rkrk_beta, t1, t2
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: proj_bi_xj, temp_vals, &

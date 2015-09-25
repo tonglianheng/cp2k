@@ -76,8 +76,8 @@ CONTAINS
 
     INTEGER                                  :: handle
     LOGICAL                                  :: check_accepted, &
-                                                check_rejected, failure, &
-                                                keep_on, tmp_acc, tmp_nacc
+                                                check_rejected, keep_on, &
+                                                tmp_acc, tmp_nacc
     REAL(KIND=dp)                            :: prob_n_acc, prob_n_nacc
     TYPE(global_tree_type), POINTER          :: ptr_acc, ptr_nacc
     TYPE(tree_type), POINTER                 :: st_elem
@@ -237,7 +237,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle
-    LOGICAL                                  :: failure, flag
+    LOGICAL                                  :: flag
     REAL(KIND=dp)                            :: prob
 
     prob = 0.0_dp
@@ -288,7 +288,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle
-    LOGICAL                                  :: failure
 
     CPASSERT(ASSOCIATED(current))
 
@@ -383,7 +382,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle
-    LOGICAL                                  :: failure
 
     CPASSERT(ASSOCIATED(gt_act_elem))
 
@@ -488,7 +486,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle
-    LOGICAL                                  :: failure
 
     CPASSERT(ASSOCIATED(tree_ptr))
     CPASSERT(ASSOCIATED(last_acc))
@@ -607,7 +604,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, i
-    LOGICAL                                  :: failure
     TYPE(tree_type), POINTER                 :: begin_ptr
 
     NULLIFY(begin_ptr)
@@ -645,7 +641,6 @@ CONTAINS
       routineN = 'count_prepared_nodes_in_subtree', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     TYPE(tree_type), POINTER                 :: tmp_ptr
 
     NULLIFY(tmp_ptr)
@@ -705,7 +700,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, i
-    LOGICAL                                  :: failure
     TYPE(global_tree_type), POINTER          :: begin_gt_ptr
     TYPE(tree_type), POINTER                 :: begin_ptr
 
@@ -755,8 +749,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'count_nodes_in_global_tree', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
     CPASSERT(ASSOCIATED(ptr))
 
     counter = counter +1
@@ -779,8 +771,6 @@ CONTAINS
 
     CHARACTER(len=*), PARAMETER :: routineN = 'count_nodes_in_tree', &
       routineP = moduleN//':'//routineN
-
-    LOGICAL                                  :: failure
 
     CPASSERT(ASSOCIATED(ptr))
 

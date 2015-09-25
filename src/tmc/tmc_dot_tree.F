@@ -60,8 +60,6 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'get_dot_file_name', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
     filename = ""
 
     CPASSERT(ASSOCIATED(tmc_params))
@@ -90,7 +88,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: file_ptr, i
-    LOGICAL                                  :: failure
 
     CPASSERT(ASSOCIATED(tmc_params))
 
@@ -125,7 +122,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: file_ptr, i
-    LOGICAL                                  :: failure
 
     CPASSERT(ASSOCIATED(tmc_params))
 
@@ -154,8 +150,6 @@ CONTAINS
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'write_legend', &
       routineP = moduleN//':'//routineN
-
-    LOGICAL                                  :: failure
 
     CPASSERT(file_ptr.GT.0)
 
@@ -277,7 +271,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: file_ptr
-    LOGICAL                                  :: failure
 
     CPASSERT(ASSOCIATED(tmc_params))
 
@@ -307,8 +300,6 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'create_dot', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
     CPASSERT(ASSOCIATED(new_element))
     CPASSERT(conf.GT.0)
     CPASSERT(ASSOCIATED(tmc_params))
@@ -335,7 +326,6 @@ CONTAINS
 
     CHARACTER(len=1000)                      :: list_of_nr
     INTEGER                                  :: file_ptr, i, ref_count
-    LOGICAL                                  :: failure
     TYPE(gt_elem_list_type), POINTER         :: tmp_pt_list_elem
 
     NULLIFY(tmp_pt_list_elem)
@@ -416,7 +406,6 @@ CONTAINS
 
     CHARACTER(len=1000)                      :: list_of_nr
     INTEGER                                  :: ref_count
-    LOGICAL                                  :: failure
     TYPE(gt_elem_list_type), POINTER         :: tmp_pt_list_elem
 
     CPASSERT(ASSOCIATED(tree_element))
@@ -458,8 +447,6 @@ CONTAINS
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'create_global_tree_dot_color', &
       routineP = moduleN//':'//routineN
-
-    LOGICAL                                  :: failure
 
     CPASSERT(ASSOCIATED(gt_tree_element))
     CPASSERT(ASSOCIATED(tmc_params))

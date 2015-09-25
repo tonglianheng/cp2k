@@ -101,9 +101,8 @@ CONTAINS
                                                 potential_file_name
     INTEGER                                  :: excitations, i, method_id, &
                                                 nrep, stat, xc_deriv_method_id
-    LOGICAL                                  :: do_ot, do_rtp, failure, &
-                                                is_present, l_param, not_SE, &
-                                                was_present
+    LOGICAL                                  :: do_ot, do_rtp, is_present, &
+                                                l_param, not_SE, was_present
     REAL(KIND=dp)                            :: density_cut, gradient_cut, &
                                                 tau_cut
     REAL(KIND=dp), DIMENSION(:), POINTER     :: pol
@@ -1078,7 +1077,7 @@ CPSourceFileRef,&
     CHARACTER(LEN=*), PARAMETER :: routineN = 'read_tddfpt_control', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure, kenergy_den
+    LOGICAL                                  :: kenergy_den
     TYPE(section_vals_type), POINTER         :: sic_section, t_section
 
     kenergy_den = .FALSE.
@@ -1121,7 +1120,6 @@ CPSourceFileRef,&
 
     CHARACTER(LEN=20)                        :: tmpStr
     INTEGER                                  :: handle, output_unit
-    LOGICAL                                  :: failure
     REAL(kind=dp)                            :: density_cut, &
                                                 density_smooth_cut_range, &
                                                 gradient_cut, tau_cut
@@ -1326,7 +1324,6 @@ CPSourceFileRef,&
 
     INTEGER                                  :: handle, i, igrid_level, &
                                                 ngrid_level, output_unit
-    LOGICAL                                  :: failure
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(ddapc_restraint_type), POINTER      :: ddapc_restraint_control
     TYPE(enumeration_type), POINTER          :: enum
@@ -1524,9 +1521,6 @@ CPSourceFileRef,&
     CHARACTER(len=*), PARAMETER :: routineN = 'xc_get_rho_smooth_label', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-
     SELECT CASE(xc_rho_smooth_id)
     CASE (xc_rho_no_smooth)
        res="NONE"
@@ -1558,9 +1552,6 @@ CPSourceFileRef,&
 
     CHARACTER(len=*), PARAMETER :: routineN = 'xc_get_deriv_method_label', &
       routineP = moduleN//':'//routineN
-
-    LOGICAL                                  :: failure
-
 
     SELECT CASE(xc_deriv_method_id)
     CASE (xc_deriv_pw)
@@ -1814,11 +1805,9 @@ CPSourceFileRef,&
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i
-    LOGICAL                                  :: failure
     REAL(KIND=dp), DIMENSION(:), POINTER     :: tmp_vals
     TYPE(efield_type), POINTER               :: efield
     TYPE(section_vals_type), POINTER         :: tmp_section
-
 
     DO i=1,SIZE(dft_control%efield_fields)
        NULLIFY(dft_control%efield_fields(i)%efield)
@@ -1884,7 +1873,6 @@ CPSourceFileRef,&
       routineP = moduleN//':'//routineN
 
     INTEGER, DIMENSION(:), POINTER           :: tmp
-    LOGICAL                                  :: failure
 
     ALLOCATE(dft_control%rtp_control)
     CALL section_vals_val_get(rtp_section,"MAX_ITER",&

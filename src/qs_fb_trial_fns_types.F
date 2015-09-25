@@ -73,8 +73,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'fb_trial_fns_retain', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
     CPASSERT(ASSOCIATED(trial_fns%obj))
     CPASSERT(trial_fns%obj%ref_count>0)
     trial_fns%obj%ref_count = trial_fns%obj%ref_count + 1
@@ -92,8 +90,6 @@ CONTAINS
 
     CHARACTER(len=*), PARAMETER :: routineN = 'fb_trial_fns_release', &
       routineP = moduleN//':'//routineN
-
-    LOGICAL                                  :: failure
 
     IF (ASSOCIATED(trial_fns%obj)) THEN
        CPASSERT(trial_fns%obj%ref_count>0)
@@ -176,8 +172,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'fb_trial_fns_create', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
     CPASSERT(.NOT.ASSOCIATED(trial_fns%obj))
     ALLOCATE(trial_fns%obj)
     NULLIFY(trial_fns%obj%nfunctions)
@@ -198,8 +192,6 @@ CONTAINS
 
     CHARACTER(len=*), PARAMETER :: routineN = 'fb_trial_fns_init', &
       routineP = moduleN//':'//routineN
-
-    LOGICAL                                  :: failure
 
     CPASSERT(ASSOCIATED(trial_fns%obj))
     ! if halo_atoms are associated, then deallocate and de-associate
@@ -230,8 +222,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'fb_trial_fns_get', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
     CPASSERT(ASSOCIATED(trial_fns%obj))
     IF (PRESENT(nfunctions)) nfunctions => trial_fns%obj%nfunctions
     IF (PRESENT(functions)) functions => trial_fns%obj%functions
@@ -255,8 +245,6 @@ CONTAINS
 
     CHARACTER(len=*), PARAMETER :: routineN = 'fb_trial_fns_set', &
       routineP = moduleN//':'//routineN
-
-    LOGICAL                                  :: failure
 
     CPASSERT(ASSOCIATED(trial_fns%obj))
     IF (PRESENT(nfunctions)) THEN

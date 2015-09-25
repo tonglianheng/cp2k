@@ -120,7 +120,7 @@ CONTAINS
                                                 ikind, j, jj, l, lmaxscp, &
                                                 natom_of_kind, ni, nj, npme
     INTEGER, DIMENSION(:), POINTER           :: atom_list, cores
-    LOGICAL                                  :: defined, failure, use_virial
+    LOGICAL                                  :: defined, use_virial
     REAL(KIND=dp)                            :: alpha, dvol, eps_rho_rspace, &
                                                 norm, pp
     REAL(KIND=dp), DIMENSION(3)              :: force_a, force_b, ra
@@ -279,7 +279,7 @@ CONTAINS
                                                 j, lppl, n, natom_of_kind, &
                                                 ni, npme
     INTEGER, DIMENSION(:), POINTER           :: atom_list, cores
-    LOGICAL                                  :: failure, use_virial
+    LOGICAL                                  :: use_virial
     REAL(KIND=dp)                            :: alpha, eps_rho_rspace
     REAL(KIND=dp), DIMENSION(3)              :: force_a, force_b, ra
     REAL(KIND=dp), DIMENSION(3, 3)           :: my_virial_a, my_virial_b
@@ -469,7 +469,7 @@ CONTAINS
                                                 n, natom, nc, nexp_nlcc, ni, &
                                                 npme, nthread
     INTEGER, DIMENSION(:), POINTER           :: atom_list, cores, nct_nlcc
-    LOGICAL                                  :: failure, nlcc, use_virial
+    LOGICAL                                  :: nlcc, use_virial
     REAL(KIND=dp)                            :: alpha, eps_rho_rspace
     REAL(KIND=dp), DIMENSION(3)              :: force_a, force_b, ra
     REAL(KIND=dp), DIMENSION(3, 3)           :: my_virial_a, my_virial_b
@@ -668,8 +668,8 @@ CONTAINS
     INTEGER                                  :: atom_a, handle, iatom, ikind, &
                                                 j, natom, natom_of_kind, npme
     INTEGER, DIMENSION(:), POINTER           :: atom_list, cores
-    LOGICAL                                  :: failure, paw_atom, &
-                                                skip_fcore, use_virial
+    LOGICAL                                  :: paw_atom, skip_fcore, &
+                                                use_virial
     REAL(KIND=dp)                            :: alpha_core_charge, &
                                                 ccore_charge, eps_rho_rspace
     REAL(KIND=dp), DIMENSION(3)              :: force_a, force_b, ra
@@ -847,8 +847,8 @@ CONTAINS
     INTEGER, DIMENSION(:), POINTER           :: atom_list, la_max, la_min, &
                                                 npgfa, nsgf_seta
     INTEGER, DIMENSION(:, :), POINTER        :: first_sgfa
-    LOGICAL                                  :: failure, map_consistent, &
-                                                map_it_here, use_virial
+    LOGICAL                                  :: map_consistent, map_it_here, &
+                                                use_virial
     REAL(KIND=dp)                            :: eps_gvg_rspace, eps_rho_rspace
     REAL(KIND=dp), DIMENSION(3)              :: force_a, force_b, ra
     REAL(KIND=dp), DIMENSION(3, 3)           :: my_virial_a, my_virial_b

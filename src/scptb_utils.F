@@ -83,7 +83,7 @@ CONTAINS
     INTEGER                                  :: i, ikind, is, l, nkind, &
                                                 nshell, output_unit
     INTEGER, DIMENSION(:), POINTER           :: lq, nq
-    LOGICAL                                  :: failure, print_info
+    LOGICAL                                  :: print_info
     REAL(KIND=dp)                            :: a, c, d, eff, r, rmax, rmin
     REAL(KIND=dp), DIMENSION(:), POINTER     :: zet
     TYPE(cp_logger_type), POINTER            :: logger
@@ -566,8 +566,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: group, source
-    LOGICAL                                  :: failure
-
 
     source = para_env%source
     group = para_env%group
@@ -597,8 +595,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: group, source
-    LOGICAL                                  :: failure
-
 
     source = para_env%source
     group = para_env%group

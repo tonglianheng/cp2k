@@ -101,8 +101,7 @@ MODULE helium_methods
                                                 itmp, j, jtmp, nlines, ntab
     LOGICAL                                  :: cell_shape_supported, &
                                                 expl_cell, expl_dens, &
-                                                expl_nats, explicit, failure, &
-                                                ltmp
+                                                expl_nats, explicit, ltmp
     REAL(KIND=dp)                            :: cgeof, dx, rtmp, tcheck, x1
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: pot_transfer
@@ -705,8 +704,6 @@ MODULE helium_methods
     CHARACTER(len=*), PARAMETER :: routineN = 'helium_retain', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
     CPASSERT(ASSOCIATED(helium))
     CPASSERT(helium%ref_count>0)
     helium%ref_count=helium%ref_count+1
@@ -736,8 +733,7 @@ MODULE helium_methods
 
     INTEGER                                  :: handle
     LOGICAL                                  :: coords_presampled, explicit, &
-                                                explicit_presample, failure, &
-                                                presample
+                                                explicit_presample, presample
     TYPE(section_vals_type), POINTER         :: helium_section, sec
 
     CALL timeset(routineN,handle)
@@ -873,7 +869,6 @@ MODULE helium_methods
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: ia, ib, ic
-    LOGICAL                                  :: failure
     REAL(kind=dp)                            :: r1, r2
 
     CPASSERT(ASSOCIATED(helium))
@@ -914,7 +909,6 @@ MODULE helium_methods
     CHARACTER(len=default_string_length)     :: err_str, stmp
     INTEGER                                  :: actlen, msglen, &
                                                 num_env_restart, offset
-    LOGICAL                                  :: failure
     LOGICAL, DIMENSION(:, :, :), POINTER     :: m
     REAL(kind=dp), DIMENSION(:), POINTER     :: message
     REAL(kind=dp), DIMENSION(:, :, :), &
@@ -995,8 +989,6 @@ MODULE helium_methods
     CHARACTER(len=*), PARAMETER :: routineN = 'helium_force_init', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
     CPASSERT(ASSOCIATED(helium))
 
     IF ( helium%solute_present ) THEN
@@ -1025,7 +1017,6 @@ MODULE helium_methods
     CHARACTER(len=default_string_length)     :: err_str, stmp
     INTEGER                                  :: actlen, msglen, &
                                                 num_env_restart
-    LOGICAL                                  :: failure
     LOGICAL, DIMENSION(:, :), POINTER        :: m
     REAL(kind=dp), DIMENSION(:), POINTER     :: message
     REAL(kind=dp), DIMENSION(:, :), POINTER  :: f
@@ -1090,7 +1081,6 @@ MODULE helium_methods
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: ia
-    LOGICAL                                  :: failure
 
     CPASSERT(ASSOCIATED(helium))
 
@@ -1124,7 +1114,6 @@ MODULE helium_methods
     INTEGER                                  :: actlen, ia, ic, msglen, &
                                                 num_env_restart, offset
     INTEGER, DIMENSION(:), POINTER           :: message
-    LOGICAL                                  :: failure
     TYPE(cp_logger_type), POINTER            :: logger
 
     CPASSERT(ASSOCIATED(helium))
@@ -1216,7 +1205,6 @@ MODULE helium_methods
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: rank
-    LOGICAL                                  :: failure
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(rng_stream_type), POINTER           :: next_rngs, prev_rngs
 
@@ -1306,7 +1294,7 @@ MODULE helium_methods
     CHARACTER(len=default_string_length)     :: err_str, stmp
     INTEGER                                  :: actlen, msglen, &
                                                 num_env_restart, offset, rank
-    LOGICAL                                  :: failure, lbf
+    LOGICAL                                  :: lbf
     LOGICAL, DIMENSION(3, 2)                 :: m
     REAL(kind=dp)                            :: bf, bu
     REAL(kind=dp), DIMENSION(3, 2)           :: bg, cg, f, ig

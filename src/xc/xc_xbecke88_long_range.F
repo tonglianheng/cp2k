@@ -133,7 +133,6 @@ CONTAINS
 
     INTEGER                                  :: handle, npoints
     INTEGER, DIMENSION(:, :), POINTER        :: bo
-    LOGICAL                                  :: failure
     REAL(kind=dp)                            :: epsilon_rho, omega, sx
     REAL(kind=dp), DIMENSION(:, :, :), POINTER :: dummy, e_0, e_ndrho, &
       e_ndrho_ndrho, e_ndrho_ndrho_ndrho, e_ndrho_ndrho_rho, e_ndrho_rho, &
@@ -289,7 +288,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: ii
-    LOGICAL                                  :: failure
     REAL(kind=dp) :: Cx, epsilon_rho43, my_epsilon_rho, my_ndrho, my_rho, t1, &
       t10, t100, t1002, t1009, t101, t1013, t103, t104, t1044, t105, t1069, &
       t109, t1091, t11, t1102, t112, t113, t1136, t1141, t1146, t1153, t1156, &
@@ -877,7 +875,6 @@ CONTAINS
 
     INTEGER                                  :: handle, i, ispin, npoints
     INTEGER, DIMENSION(:, :), POINTER        :: bo
-    LOGICAL                                  :: failure
     REAL(kind=dp)                            :: epsilon_rho, omega, sx
     REAL(kind=dp), DIMENSION(:, :, :), &
       POINTER                                :: dummy, e_0
@@ -1085,7 +1082,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: ii
-    LOGICAL                                  :: failure
     REAL(kind=dp) :: Cx, epsilon_rho43, my_epsilon_rho, ndrho, rho, t1, t10, &
       t100, t1002, t1009, t101, t1013, t103, t104, t1044, t105, t1069, t109, &
       t1091, t11, t1102, t112, t113, t1136, t1141, t1146, t1153, t1156, t116, &

@@ -1508,7 +1508,6 @@ CONTAINS
     INTEGER                                  :: i, imom, ipgf, j, jpgf, lda, &
                                                 lda_min, ldb, ldb_min, lmax, &
                                                 na, nb
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: dab, rab(3), rab2
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :, :)                     :: difmab, mab

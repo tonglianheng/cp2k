@@ -79,9 +79,6 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'rel_c_create', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-
     ALLOCATE (rel_control)
 
 
@@ -113,9 +110,6 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'rel_c_retain', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-
     CPASSERT(ASSOCIATED(rel_control))
 
     CPASSERT(rel_control%ref_count > 0)
@@ -139,9 +133,6 @@ CONTAINS
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'rel_c_release', &
       routineP = moduleN//':'//routineN
-
-    LOGICAL                                  :: failure
-
 
     IF (ASSOCIATED(rel_control)) THEN
       CPASSERT(rel_control%ref_count>0)
@@ -173,9 +164,7 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'rel_c_read_parameters', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     TYPE(section_vals_type), POINTER         :: rel_section
-
 
     CPASSERT(ASSOCIATED(rel_control))
     CPASSERT(rel_control%ref_count > 0)

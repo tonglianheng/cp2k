@@ -95,7 +95,7 @@ CONTAINS
 
     CHARACTER(LEN=default_string_length)     :: headline
     INTEGER                                  :: handle, i, ic, nimg, nspins
-    LOGICAL                                  :: do_kpoints, failure, my_admm, &
+    LOGICAL                                  :: do_kpoints, my_admm, &
                                                 my_rebuild_ao, &
                                                 my_rebuild_grids
     REAL(KIND=dp), DIMENSION(:), POINTER     :: tot_rho_r
@@ -342,7 +342,7 @@ SUBROUTINE qs_rho_update_rho(rho_struct, qs_env, local_rho_set, task_list_extern
 
     INTEGER                                  :: handle, img, ispin, nimg, &
                                                 nspins
-    LOGICAL                                  :: failure, gapw, gapw_xc
+    LOGICAL                                  :: gapw, gapw_xc
     REAL(KIND=dp)                            :: dum
     REAL(KIND=dp), DIMENSION(:), POINTER     :: tot_rho_r, tot_rho_r_xc
     TYPE(atomic_kind_type), DIMENSION(:), &
@@ -552,7 +552,7 @@ END SUBROUTINE qs_rho_update_rho
 
     INTEGER                                  :: handle, i, nspins, &
                                                 rebuild_each_in
-    LOGICAL :: drho_g_valid_in, drho_r_valid_in, failure, rho_g_valid_in, &
+    LOGICAL :: drho_g_valid_in, drho_r_valid_in, rho_g_valid_in, &
       rho_r_valid_in, soft_valid_in, tau_g_valid_in, tau_r_valid_in
     REAL(KIND=dp), DIMENSION(:), POINTER     :: tot_rho_g_in, tot_rho_g_out, &
                                                 tot_rho_r_in, tot_rho_r_out

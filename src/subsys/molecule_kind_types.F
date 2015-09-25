@@ -243,7 +243,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: k
-    LOGICAL                                  :: failure
 
     ncolv%ndist          = 0
     ncolv%nangle         = 0
@@ -341,7 +340,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: imolecule_kind
-    LOGICAL                                  :: failure
 
     IF (ASSOCIATED(molecule_kind_set)) THEN
       CALL deallocate_molecule_kind_set(molecule_kind_set)
@@ -415,7 +413,6 @@ CONTAINS
 
     INTEGER                                  :: i, imolecule_kind, j, &
                                                 nmolecule_kind
-    LOGICAL                                  :: failure
 
     IF (ASSOCIATED(molecule_kind_set)) THEN
 
@@ -1022,7 +1019,6 @@ CONTAINS
     CHARACTER(LEN=default_string_length)     :: name
     INTEGER                                  :: iatom, imolecule, natom, &
                                                 nmolecule
-    LOGICAL                                  :: failure
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
 
     IF (output_unit>0) THEN
@@ -1103,7 +1099,7 @@ CONTAINS
 
     INTEGER :: handle, imolecule_kind, natom, nbend, nbond, nimpr, nmolecule, &
       nmolecule_kind, nopbend, ntors, ntotal, nub, output_unit
-    LOGICAL                                  :: all_single_atoms, failure
+    LOGICAL                                  :: all_single_atoms
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(molecule_kind_type), POINTER        :: molecule_kind
 

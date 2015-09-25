@@ -141,7 +141,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, i, ierr
-    LOGICAL                                  :: failure
 
     CALL timeset(routineN,handle)
     IF (ASSOCIATED(rep_env)) THEN
@@ -236,7 +235,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle
-    LOGICAL                                  :: failure
 
     CALL timeset(routineN,handle)
     CPASSERT(ASSOCIATED(rep_env))
@@ -259,8 +257,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle
-    LOGICAL                                  :: failure
-
 
     CALL timeset(routineN,handle)
     IF (ASSOCIATED(rep_env)) THEN
@@ -323,7 +319,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, irep
-    LOGICAL                                  :: failure
 
     CALL timeset(routineN,handle)
     CPASSERT(ASSOCIATED(rep_env))
@@ -354,7 +349,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, irep, nrep, source
-    LOGICAL                                  :: failure
 
     CALL timeset(routineN,handle)
     nrep=rep_env%nrep
@@ -417,11 +411,9 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i, stat
-    LOGICAL                                  :: failure
     TYPE(replica_env_p_type), DIMENSION(:), &
       POINTER                                :: new_rep_envs
     TYPE(replica_env_type), POINTER          :: rep_env2
-
 
     IF (ASSOCIATED(rep_env)) THEN
        rep_env2 => rep_envs_get_rep_env(rep_env%id_nr,ierr=stat)
@@ -458,10 +450,8 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i, ii
-    LOGICAL                                  :: failure
     TYPE(replica_env_p_type), DIMENSION(:), &
       POINTER                                :: new_rep_envs
-
 
     IF (ASSOCIATED(rep_env)) THEN
        CPASSERT(module_initialized)
@@ -498,8 +488,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, i
-    LOGICAL                                  :: failure
-
 
     CALL timeset(routineN,handle)
     CPASSERT(ASSOCIATED(rep_env))

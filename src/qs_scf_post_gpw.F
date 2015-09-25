@@ -222,7 +222,7 @@ CONTAINS
       nlumo_stm, nlumo_tddft, nlumos, nmo, output_unit, unit_nr
     INTEGER, DIMENSION(:, :, :), POINTER     :: marked_states
     LOGICAL :: check_write, compute_lumos, do_homo, do_kpoints, do_mo_cubes, &
-      do_stm, do_wannier_cubes, failure, has_homo, has_lumo, loc_explicit, &
+      do_stm, do_wannier_cubes, has_homo, has_lumo, loc_explicit, &
       loc_print_explicit, my_localized_wfn, p_loc, p_loc_homo, p_loc_lumo
     REAL(dp)                                 :: e_kin
     REAL(KIND=dp)                            :: gap, homo_lumo(2,2)
@@ -739,7 +739,7 @@ CONTAINS
     INTEGER                                  :: handle, ispin, mystate, ns, &
                                                 output_unit
     INTEGER, DIMENSION(:), POINTER           :: lstates, marked_states_spin
-    LOGICAL                                  :: do_homo, failure
+    LOGICAL                                  :: do_homo
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: scenter
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: ks_rmpv, matrix_s
@@ -1038,8 +1038,7 @@ CONTAINS
     COMPLEX(KIND=dp), DIMENSION(3)           :: ggamma, zphase
     INTEGER                                  :: handle, i, ikind, ispins, j, &
                                                 n_rep, reference, unit_nr
-    LOGICAL                                  :: do_berry, failure, &
-                                                first_time, ghost
+    LOGICAL                                  :: do_berry, first_time, ghost
     REAL(KIND=dp)                            :: charge_tot, theta, zeff, zwfc
     REAL(KIND=dp), DIMENSION(3)              :: ci, dipole, dipole_old, gvec, &
                                                 rcc, ria
@@ -1516,7 +1515,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, ispin
-    LOGICAL                                  :: do_et, failure
+    LOGICAL                                  :: do_et
     TYPE(cp_fm_p_type), DIMENSION(:), &
       POINTER                                :: my_mos
     TYPE(section_vals_type), POINTER         :: et_section
@@ -1568,8 +1567,7 @@ CONTAINS
     CHARACTER(LEN=default_path_length)       :: filename, my_pos_cube, title
     INTEGER                                  :: handle, ispin, output_unit, &
                                                 unit_nr
-    LOGICAL                                  :: append_cube, do_elf, failure, &
-                                                gapw
+    LOGICAL                                  :: append_cube, do_elf, gapw
     REAL(dp)                                 :: rho_cutoff
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(particle_list_type), POINTER        :: particles
@@ -1677,7 +1675,7 @@ CONTAINS
     INTEGER, DIMENSION(2, 3)                 :: bo
     INTEGER, DIMENSION(3, 3)                 :: nd
     LOGICAL                                  :: deriv_pw, drho_r_valid, &
-                                                failure, tau_r_valid
+                                                tau_r_valid
     REAL(kind=dp)                            :: cfermi, dum, elf_kernel, &
                                                 norm_drho, rho_53, udvol
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
@@ -1983,7 +1981,7 @@ CONTAINS
 
     INTEGER                                  :: handle, homo, ispin, nmo, &
                                                 output_unit
-    LOGICAL                                  :: all_equal, do_kpoints, failure
+    LOGICAL                                  :: all_equal, do_kpoints
     REAL(KIND=dp)                            :: maxocc, s_square, &
                                                 s_square_ideal, &
                                                 total_abs_spin_dens
@@ -2989,7 +2987,7 @@ CONTAINS
     INTEGER                                  :: i, iat, ikind, natom, nkind, &
                                                 nspin, refc, shapef
     INTEGER, DIMENSION(:), POINTER           :: atom_list
-    LOGICAL                                  :: do_sc, failure, paw_atom
+    LOGICAL                                  :: do_sc, paw_atom
     REAL(KIND=dp)                            :: zeff
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: charges
     TYPE(atomic_kind_type), DIMENSION(:), &
@@ -3008,7 +3006,6 @@ CONTAINS
       POINTER                                :: qs_kind_set
     TYPE(qs_rho_type), POINTER               :: rho
     TYPE(rho0_mpole_type), POINTER           :: rho0_mpole
-
 
     NULLIFY(hirshfeld_env)
     CALL create_hirshfeld_type(hirshfeld_env)
@@ -3104,10 +3101,8 @@ CONTAINS
 
     INTEGER                                  :: info, n
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: ipiv
-    LOGICAL                                  :: failure
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: smat, tmat, v
-
 
     n = SIZE(ca)
     ALLOCATE(smat(n,n),tmat(n,n),v(n,1),ipiv(n))
@@ -3143,11 +3138,9 @@ CONTAINS
 
     INTEGER                                  :: i, info, n, nr
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: ipiv
-    LOGICAL                                  :: failure
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: afun
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: smat, v
-
 
     n = SIZE(ca)
     nr = grid_atom%nr

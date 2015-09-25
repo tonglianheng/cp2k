@@ -58,10 +58,8 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'create_vib_section', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
     TYPE(section_type), POINTER              :: subsection
-
 
     CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="VIBRATIONAL_ANALYSIS",&
@@ -129,10 +127,8 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'create_print_vib_section', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
     TYPE(section_type), POINTER              :: print_key
-
 
     CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="PRINT",&
@@ -186,10 +182,8 @@ CONTAINS
       routineN = 'create_mode_selective_section', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
     TYPE(section_type), POINTER              :: print_key, subsection
-
 
     NULLIFY(keyword, subsection, print_key)
     CPASSERT(.NOT.ASSOCIATED(section))
@@ -287,9 +281,7 @@ CONTAINS
       routineN = 'create_involved_atoms_section', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
-
 
     NULLIFY(keyword)
     CPASSERT(.NOT.ASSOCIATED(section))

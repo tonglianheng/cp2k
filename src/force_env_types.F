@@ -167,9 +167,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'force_env_retain', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-
     CPASSERT(ASSOCIATED(force_env))
     CPASSERT(force_env%ref_count>0)
     force_env%ref_count=force_env%ref_count+1
@@ -191,7 +188,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i, my_group
-    LOGICAL                                  :: failure
     TYPE(cp_logger_type), POINTER            :: my_logger
 
     IF (ASSOCIATED(force_env)) THEN
@@ -456,7 +452,6 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'force_env_get_natom', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     TYPE(cp_subsys_type), POINTER            :: subsys
 
     n_atom = 0
@@ -481,7 +476,6 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'force_env_get_nparticle', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     TYPE(cp_subsys_type), POINTER            :: subsys
 
     n_particle = 0
@@ -509,7 +503,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle
-    LOGICAL                                  :: failure
     TYPE(cp_subsys_type), POINTER            :: subsys
 
     CALL timeset(routineN,handle)
@@ -539,7 +532,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle
-    LOGICAL                                  :: failure
     TYPE(cp_subsys_type), POINTER            :: subsys
 
     CALL timeset(routineN,handle)
@@ -569,7 +561,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle
-    LOGICAL                                  :: failure
     TYPE(cp_subsys_type), POINTER            :: subsys
 
     CALL timeset(routineN,handle)
@@ -606,8 +597,6 @@ CONTAINS
 
     CHARACTER(len=*), PARAMETER :: routineN = 'force_env_set', &
       routineP = moduleN//':'//routineN
-
-    LOGICAL                                  :: failure
 
     CPASSERT(ASSOCIATED(force_env))
     CPASSERT(force_env%ref_count>0)
@@ -660,9 +649,9 @@ CONTAINS
 
     INTEGER                                  :: iforce_eval, main_force_eval
     INTEGER, DIMENSION(:), POINTER           :: my_i_force_eval
-    LOGICAL                                  :: failure
 
-    ! Let's treat the case of Multiple force_eval
+! Let's treat the case of Multiple force_eval
+
     CALL section_vals_get(force_env_sections, n_repetition=nforce_eval)
     CALL section_vals_val_get(root_section,"MULTIPLE_FORCE_EVALS%FORCE_EVAL_ORDER",&
          i_vals=my_i_force_eval)

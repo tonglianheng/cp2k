@@ -633,7 +633,6 @@ CONTAINS
     TYPE(sto_basis_set_type), POINTER        :: sto_basis_set
     TYPE(xas_control_type), POINTER          :: xas_control
 
-
     n_mo(1:2) = 0
     CPASSERT(ASSOCIATED(xas_env))
 
@@ -1167,7 +1166,6 @@ CONTAINS
                                                 my_pos
     INTEGER                                  :: i, istate, out_sp_ab, &
                                                 out_sp_em
-    LOGICAL                                  :: failure
     REAL(dp)                                 :: ene2
     TYPE(cp_logger_type), POINTER            :: logger
 
@@ -1250,7 +1248,6 @@ CONTAINS
 
     CHARACTER(LEN=default_string_length)     :: my_mittle, my_pos
     INTEGER                                  :: homo, istate0, nspins, nstates
-    LOGICAL                                  :: failure
     REAL(dp), DIMENSION(:, :), POINTER       :: centers
     TYPE(section_vals_type), POINTER         :: print_key
 
@@ -1329,12 +1326,10 @@ CONTAINS
     COMPLEX(KIND=dp)                         :: z
     INTEGER                                  :: homo, i, i_abs, istate, j, &
                                                 lfomo, nao, nmo
-    LOGICAL                                  :: failure
     REAL(dp)                                 :: ene_f, ene_i, imagpart, &
                                                 ra(3), realpart
     REAL(dp), DIMENSION(:), POINTER          :: eigenvalues, &
                                                 occupation_numbers
-
 
     CPASSERT(ASSOCIATED(fm_set))
     CPASSERT(ASSOCIATED(mos))
@@ -1428,11 +1423,9 @@ CONTAINS
 
     INTEGER                                  :: homo, i, i_abs, istate, &
                                                 lfomo, nao, nmo
-    LOGICAL                                  :: failure
     REAL(dp)                                 :: dip(3), ene_f, ene_i
     REAL(dp), DIMENSION(:), POINTER          :: eigenvalues, &
                                                 occupation_numbers
-
 
     CPASSERT(ASSOCIATED(fm_set))
     CPASSERT(ASSOCIATED(mos))
@@ -1504,12 +1497,10 @@ CONTAINS
                                                 lb_min, npgfa, npgfb, &
                                                 nsgfa_set, nsgfb_set
     INTEGER, DIMENSION(:, :), POINTER        :: first_sgfa, first_sgfb
-    LOGICAL                                  :: failure
     REAL(dp)                                 :: rab(3)
     REAL(dp), ALLOCATABLE, DIMENSION(:, :)   :: sab, work
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: rpgfa, rpgfb, scon_a, scon_b, &
                                                 sphi_a, sphi_b, zeta, zetb
-
 
     NULLIFY(la_max,la_min,lb_max,lb_min)
     NULLIFY(npgfa,npgfb,nsgfa_set,nsgfb_set)
@@ -1597,7 +1588,6 @@ CONTAINS
                                                 mykind_of_kind, &
                                                 state_of_atom, &
                                                 state_of_mytype, type_of_state
-    LOGICAL                                  :: failure
     REAL(dp)                                 :: component, dist, distmin, &
                                                 maxocc, ra(3), rac(3), rc(3)
     REAL(dp), DIMENSION(:), POINTER          :: max_overlap, sto_state_overlap

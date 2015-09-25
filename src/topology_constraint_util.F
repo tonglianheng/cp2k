@@ -111,10 +111,10 @@ CONTAINS
       offset
     INTEGER, DIMENSION(:), POINTER           :: constr_x_glob, inds, &
                                                 molecule_list
-    LOGICAL :: exclude_mm, exclude_qm, failure, fix_atom_mm, &
-      fix_atom_molname, fix_atom_qm, fix_atom_qmmm, fix_fixed_atom, &
-      found_molname, is_qm, ishbond, ldummy, restart_restraint_clv, &
-      restart_restraint_pos, use_clv_info
+    LOGICAL :: exclude_mm, exclude_qm, fix_atom_mm, fix_atom_molname, &
+      fix_atom_qm, fix_atom_qmmm, fix_fixed_atom, found_molname, is_qm, &
+      ishbond, ldummy, restart_restraint_clv, restart_restraint_pos, &
+      use_clv_info
     LOGICAL, ALLOCATABLE, DIMENSION(:)       :: missed_molname
     REAL(KIND=dp)                            :: rmod, rvec(3)
     REAL(KIND=dp), DIMENSION(:), POINTER     :: hdist, r
@@ -923,7 +923,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: j, kdim, kk, ncolv_mol
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: rmod
     TYPE(colvar_type), POINTER               :: local_colvar
 
@@ -995,7 +994,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: j, ng3x3
-    LOGICAL                                  :: failure
 
     ng3x3_restraint = 0
     DO ng3x3 = 1, SIZE(ilist)
@@ -1035,7 +1033,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: j, ng4x6
-    LOGICAL                                  :: failure
 
     ng4x6 = 0
     ng4x6_restraint = 0
@@ -1079,7 +1076,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: j, nvsite
-    LOGICAL                                  :: failure
 
     nvsite = 0
     nvsite_restraint = 0
@@ -1131,7 +1127,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: ind, k, kk
-    LOGICAL                                  :: failure
     REAL(KIND=dp), DIMENSION(:), POINTER     :: r_vals
 
     DO kk=1,SIZE(ilist)
@@ -1225,7 +1220,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: kk
-    LOGICAL                                  :: failure
 
     DO kk = 1, SIZE(lg3x3)
        lg3x3(kk)%init      = .FALSE.
@@ -1281,7 +1275,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: kk
-    LOGICAL                                  :: failure
 
     DO kk = 1, SIZE(lg4x6)
        lg4x6(kk)%init      = .FALSE.
@@ -1427,8 +1420,6 @@ CPSourceFileRef,&
 
     CHARACTER(len=*), PARAMETER :: routineN = 'print_warning_molname', &
       routineP = moduleN//':'//routineN
-
-    LOGICAL                                  :: failure
 
     CALL cp_assert(found,cp_warning_level,cp_assertion_failed,routineP,&
          " MOLNAME ("//TRIM(name)//") was defined for constraints, but this molecule name "//&

@@ -128,8 +128,7 @@ CONTAINS
     INTEGER, ALLOCATABLE, DIMENSION(:) :: common_set_ids, local_atoms_all, &
       local_atoms_sizes, local_atoms_starts, pe, pos_in_preferred_list
     INTEGER, DIMENSION(:), POINTER           :: halo_atoms, local_atoms
-    LOGICAL                                  :: acceptable_move, failure, &
-                                                move_happened
+    LOGICAL                                  :: acceptable_move, move_happened
     REAL(KIND=dp)                            :: average_cost
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: cost_per_atom, cost_per_proc
     REAL(KIND=dp), ALLOCATABLE, &
@@ -386,11 +385,9 @@ CONTAINS
 
     INTEGER                                  :: ii, max_natoms, min_natoms, &
                                                 natoms, nprocs, unit_nr
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: ave_cost, ave_natoms, &
                                                 max_cost, min_cost, total_cost
     TYPE(cp_logger_type), POINTER            :: logger
-
 
     nprocs = SIZE(dist_set)
     natoms = 0
@@ -469,7 +466,7 @@ CONTAINS
 
     INTEGER                                  :: icol, nprows, pcol, prow
     INTEGER, DIMENSION(:), POINTER           :: col_dist
-    LOGICAL                                  :: check_ok, failure
+    LOGICAL                                  :: check_ok
     TYPE(dbcsr_distribution_obj)             :: dbcsr_dist
     TYPE(dbcsr_mp_obj)                       :: dbcsr_mp
 
@@ -518,8 +515,6 @@ CONTAINS
       routineN = 'fb_preferred_procs_list_release', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
     IF (ASSOCIATED(preferred_procs_list%list)) THEN
        DEALLOCATE(preferred_procs_list%list)
     END IF
@@ -551,8 +546,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: iatom, ipe, n_procs, pos
-    LOGICAL                                  :: check_ok, failure
-
+    LOGICAL                                  :: check_ok
 
     n_procs = SIZE(dist_set)
 
@@ -591,7 +585,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: ii, my_nmax
-    LOGICAL                                  :: failure
 
     my_nmax = 0
     IF (PRESENT(nmax)) my_nmax = nmax
@@ -625,7 +618,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: ii, my_nmax
-    LOGICAL                                  :: failure
     TYPE(fb_distribution_element), &
       DIMENSION(:), POINTER                  :: new_list
 
@@ -663,7 +655,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: ii, new_nelements, pos
-    LOGICAL                                  :: failure
 
     new_nelements = dist%nelements + 1
 
@@ -741,7 +732,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: ii
-    LOGICAL                                  :: check_ok, failure
+    LOGICAL                                  :: check_ok
 
     check_ok = pos .GT. 0
     CPASSERT(check_ok)
@@ -804,7 +795,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'fb_distribution_move_ind', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: check_ok, failure
+    LOGICAL                                  :: check_ok
     TYPE(fb_distribution_element)            :: element
 
     check_ok = ASSOCIATED(dist_from%list)
@@ -834,7 +825,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'fb_distribution_move_el', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: check_ok, failure
+    LOGICAL                                  :: check_ok
 
     check_ok = ASSOCIATED(dist_from%list)
     CPASSERT(check_ok)
@@ -853,8 +844,6 @@ CONTAINS
 
     CHARACTER(len=*), PARAMETER :: routineN = 'fb_distribution_release', &
       routineP = moduleN//':'//routineN
-
-    LOGICAL                                  :: failure
 
     IF (ASSOCIATED(dist%list)) THEN
        DEALLOCATE(dist%list)

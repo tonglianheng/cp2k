@@ -179,7 +179,6 @@ SUBROUTINE cp_2d_r_write(array, unit_nr, el_format)
     INTEGER                                  :: i, iostat
     LOGICAL                                  :: failure
 
-
   nRiga=cp_to_string(SIZE(array,2))
   DO i=1,SIZE(array,1)
      IF (PRESENT(el_format)) THEN
@@ -296,8 +295,6 @@ FUNCTION cp_1d_r_bsearch(array, el, l_index, u_index)&
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: aindex, lindex, uindex
-    LOGICAL                                  :: failure
-
 
   lindex=1
   uindex=SIZE(array)

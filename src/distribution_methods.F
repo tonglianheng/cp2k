@@ -564,7 +564,6 @@ CONTAINS
 
 !...
 
-
     CALL timeset(routineN, handle)
 
     logger => cp_get_default_logger()

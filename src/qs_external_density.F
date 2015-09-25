@@ -70,7 +70,6 @@ CONTAINS
     INTEGER, DIMENSION(3)                    :: lbounds, lbounds_local, &
                                                 npoints, npoints_local, &
                                                 ubounds, ubounds_local
-    LOGICAL                                  :: failure
     REAL(kind=dp), ALLOCATABLE, DIMENSION(:) :: buffer
     REAL(kind=dp), DIMENSION(3)              :: dr, rdum
     REAL(KIND=dp), DIMENSION(:), POINTER     :: tot_rho_r_ext
@@ -236,7 +235,6 @@ CONTAINS
                                                 nat, ndum
     INTEGER, DIMENSION(2, 3)                 :: bo_global, bo_local
     INTEGER, DIMENSION(3)                    :: lbounds, npoints, ubounds
-    LOGICAL                                  :: failure
     REAL(kind=dp)                            :: dvol
     REAL(kind=dp), DIMENSION(3)              :: dr, rdum
     TYPE(cell_type), POINTER                 :: cell

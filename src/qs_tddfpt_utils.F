@@ -169,7 +169,6 @@ CONTAINS
 
     INTEGER                                  :: i, n_cols, n_lumos, n_orbits, &
                                                 n_rows, n_spins, oo, spin, vo
-    LOGICAL                                  :: failure
     REAL(KIND=DP)                            :: evd
     REAL(KIND=DP), ALLOCATABLE, &
       DIMENSION(:, :)                        :: guess, lumos
@@ -299,7 +298,6 @@ CONTAINS
     INTEGER                                  :: i, j, n_ev, n_spins, occ, &
                                                 output_unit, spin, virt
     INTEGER, DIMENSION(2)                    :: nhomos, nlumos, nrows
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: contribution, &
                                                 summed_contributions
     REAL(KIND=dp), ALLOCATABLE, &

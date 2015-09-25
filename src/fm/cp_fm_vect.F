@@ -40,8 +40,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i
-    LOGICAL                                  :: failure
-
 
     IF (ASSOCIATED(matrixes)) THEN
        DO i=1,SIZE(matrixes)
@@ -70,8 +68,6 @@ SUBROUTINE cp_fm_vect_copy(matrixes, copy)
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i
-    LOGICAL                                  :: failure
-
 
   ALLOCATE(copy(SIZE(matrixes)))
   DO i=1,SIZE(matrixes)

@@ -85,7 +85,7 @@ CONTAINS
 
     INTEGER                                  :: i, ir, n_rep, nex_at
     INTEGER, DIMENSION(:), POINTER           :: list
-    LOGICAL                                  :: failure, hempty, was_present
+    LOGICAL                                  :: hempty, was_present
 
     was_present = .FALSE.
 
@@ -251,9 +251,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'xas_control_create', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-
     CPASSERT(.NOT.ASSOCIATED(xas_control))
     ALLOCATE(xas_control)
 
@@ -284,8 +281,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'xas_control_release', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
     IF(ASSOCIATED(xas_control)) THEN
       CPASSERT(xas_control%ref_count>0)
       xas_control%ref_count=xas_control%ref_count-1
@@ -312,9 +307,6 @@ CONTAINS
 
     CHARACTER(len=*), PARAMETER :: routineN = 'xas_control_retain', &
       routineP = moduleN//':'//routineN
-
-    LOGICAL                                  :: failure
-
 
     CPASSERT(ASSOCIATED(xas_control))
     xas_control%ref_count=xas_control%ref_count+1

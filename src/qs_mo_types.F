@@ -106,8 +106,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: nmo
-    LOGICAL                                  :: failure
-
 
     ALLOCATE (mo_set_new)
 
@@ -171,9 +169,6 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'allocate_mo_set', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-
     IF (ASSOCIATED(mo_set)) CALL deallocate_mo_set(mo_set)
 
     ALLOCATE (mo_set)
@@ -219,8 +214,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: nao, nmo, nomo
-    LOGICAL                                  :: failure
-
 
     CPASSERT(ASSOCIATED(mo_set))
     CPASSERT(ASSOCIATED(fm_pool))
@@ -280,7 +273,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle
-    LOGICAL                                  :: failure, my_convert_dbcsr
+    LOGICAL                                  :: my_convert_dbcsr
 
     CALL timeset(routineN,handle)
 
@@ -345,9 +338,6 @@ CONTAINS
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'deallocate_mo_set', &
       routineP = moduleN//':'//routineN
-
-    LOGICAL                                  :: failure
-
 
     IF (ASSOCIATED(mo_set)) THEN
       IF (ASSOCIATED(mo_set%eigenvalues)) THEN

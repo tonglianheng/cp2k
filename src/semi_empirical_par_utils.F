@@ -215,7 +215,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: natorb, z
-    LOGICAL                                  :: check, failure, use_p_orbitals
+    LOGICAL                                  :: check, use_p_orbitals
     REAL(KIND=dp)                            :: zeff
 
     use_p_orbitals = .TRUE.
@@ -259,8 +259,6 @@ CONTAINS
 
     CHARACTER(len=*), PARAMETER :: routineN = 'get_se_basis', &
       routineP = moduleN//':'//routineN
-
-    LOGICAL                                  :: failure
 
     IF ( sep%z < 0 .OR. sep%z > nelem ) THEN
        CALL stop_program(routineN,moduleN,__LINE__,"Invalid atomic number !")
@@ -344,7 +342,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: iod, iop, ios, j, jmax, k, l
-    LOGICAL                                  :: failure
     REAL(KIND=dp) :: ad, am, aq, d1, d2, d3, dd, df, eisol, gdd1, gp2, gp2c, &
       gpp, gppc, gqq, gsp, gspc, gss, gssc, hpp, hpp1, hpp2, hsp, hsp1, hsp2, &
       hspc, p, p4, q1, q2, q3, qf, qn, qq, udd, upp, uss, zp, zs
@@ -462,11 +459,11 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'calpar_d', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     REAL(KIND=dp), DIMENSION(6)              :: amn
 
-    ! Determine if this element owns d-orbitals (only if the parametrization
-    ! supports the d-orbitals)
+! Determine if this element owns d-orbitals (only if the parametrization
+! supports the d-orbitals)
+
     IF (sep%extended_basis_set) sep%dorb = element_has_d(sep)
     IF (sep%dorb) THEN
        CALL amn_l(sep, amn)
@@ -555,7 +552,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: nd, nsp
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: z1, z2, z3
 
     z1 = sep%sto_exponents(0)
@@ -607,7 +603,6 @@ CPSourceFileRef)
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: nd, nsp
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: z1, z2, z3
 
     z1 = sep%sto_exponents(0)
@@ -676,10 +671,10 @@ CPSourceFileRef)
     CHARACTER(len=*), PARAMETER :: routineN = 'eval_cs_ko', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: d, fg
 
-    ! SS term
+! SS term
+
     fg = sep%gss
     sep%ko(1) = ko_ij (0, 1.0_dp, fg)
     IF (sep%natorb>= 4) THEN
@@ -730,7 +725,6 @@ CPSourceFileRef)
     CHARACTER(len=*), PARAMETER :: routineN = 'eval_1c_2el_spd', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: r016, r036, r066, r125, r155, &
                                                 r234, r236, r244, r246, r266, &
                                                 r355, r466, s15, s3, s5
@@ -844,7 +838,6 @@ CPSourceFileRef)
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: nd, ns
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: ed, ep, es
 
     ns = nqs(sep%z)
@@ -902,7 +895,6 @@ CPSourceFileRef)
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i, m, m1, m2, n, nab, ncd
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: a2, aab, acd, ae, aea, aeb, &
                                                 aec, aed, c, e, eab, ecd, ff, &
                                                 s0, s1, s2, s3, tmp
@@ -972,8 +964,6 @@ CPSourceFileRef)
     CHARACTER(len=*), PARAMETER :: routineN = 'eisol_corr', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
     sep%eisol = sep%eisol + ir016(sep%z) * r016          +&
                             ir066(sep%z) * r066          -&
                             ir244(sep%z) * r244/5.0_dp   -&
@@ -1004,7 +994,6 @@ CPSourceFileRef)
                                                 g1 = 0.382_dp, g2 = 0.618_dp
 
     INTEGER                                  :: i
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: a1, a2, delta, dsq, ev4, ev8, &
                                                 f1, f2, y1, y2
 
@@ -1061,7 +1050,7 @@ CPSourceFileRef)
 
     INTEGER                                  :: i, ij, ij0, ind, ip, ipx, &
                                                 ipy, ipz, isize, kl, natorb
-    LOGICAL                                  :: defined, failure
+    LOGICAL                                  :: defined
     REAL(KIND=dp)                            :: gp2, gpp, gsp, gss, hsp
 
     CALL get_se_param(sep, defined=defined, natorb=natorb,&

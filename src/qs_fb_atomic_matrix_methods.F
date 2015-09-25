@@ -89,8 +89,7 @@ CONTAINS
     INTEGER, DIMENSION(:), POINTER           :: col_block_size_data, &
                                                 halo_atoms, &
                                                 row_block_size_data
-    LOGICAL                                  :: check_ok, failure
-
+    LOGICAL                                  :: check_ok
 
     NULLIFY(halo_atoms, row_block_size_data, col_block_size_data)
 
@@ -164,7 +163,7 @@ CONTAINS
       send_pair_disps, send_sizes
     INTEGER, DIMENSION(:), POINTER           :: col_block_size_data, &
                                                 row_block_size_data
-    LOGICAL                                  :: failure, found
+    LOGICAL                                  :: found
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: recv_buf, send_buf
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: mat_block
     TYPE(fb_com_atom_pairs_obj)              :: atom_pairs_recv, &
@@ -372,7 +371,7 @@ CONTAINS
                                                 jatom_global, jj, &
                                                 natoms_in_halo
     INTEGER, DIMENSION(:), POINTER           :: halo_atoms
-    LOGICAL                                  :: check_ok, failure, found
+    LOGICAL                                  :: check_ok, found
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: blk_p
 
     CALL timeset(routineN, handle)
@@ -460,7 +459,7 @@ CONTAINS
     INTEGER(KIND=int_8), DIMENSION(:, :), &
       POINTER                                :: tasks_recv, tasks_send
     INTEGER, DIMENSION(:), POINTER           :: halo_atoms
-    LOGICAL                                  :: failure, found, transpose
+    LOGICAL                                  :: found, transpose
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: mat_block
     TYPE(fb_com_tasks_obj)                   :: com_tasks_recv, com_tasks_send
 
@@ -660,7 +659,7 @@ CONTAINS
     INTEGER(KIND=int_8), DIMENSION(:, :), &
       POINTER                                :: tasks_recv, tasks_send
     INTEGER, DIMENSION(:), POINTER           :: halo_atoms
-    LOGICAL                                  :: failure, found, transpose
+    LOGICAL                                  :: found, transpose
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: mat_block
     TYPE(fb_atomic_halo_obj), DIMENSION(:), &
       POINTER                                :: halos

@@ -235,7 +235,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'terep_num', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: ft
     TYPE(se_int_screen_type)                 :: se_int_screen
 
@@ -286,7 +285,6 @@ CONTAINS
     INTEGER                                  :: i, ij, j, k, kl, l, lasti, &
                                                 lastj, li, lj, lk, ll, nold, &
                                                 numb
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: tmp
 
     lasti = sepi%natorb
@@ -352,7 +350,6 @@ CONTAINS
     INTEGER                                  :: i, ij, j, k, kl, l, lasti, &
                                                 lastj, li, lj, lk, ll, nold, &
                                                 numb
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: tmp
 
     lasti = sepi%natorb
@@ -756,12 +753,11 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'ssss_nucint_num', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: ft
     TYPE(se_int_screen_type)                 :: se_int_screen
 
+! Computing Tapering function
 
-    ! Computing Tapering function
     ft               = 1.0_dp
     IF (itype /=do_method_pchg) THEN
        ft = taper_eval(se_taper%taper, rij)
@@ -812,11 +808,11 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: ft
     TYPE(se_int_screen_type)                 :: se_int_screen
 
-    ! Computing the Tapering function
+! Computing the Tapering function
+
     ft               = 1.0_dp
     IF (itype /=do_method_pchg) THEN
        ft = taper_eval(se_taper%taper, rij)
@@ -882,8 +878,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: ij, kl
-    LOGICAL                                  :: failure, l_core, l_ssss, si, &
-                                                sj
+    LOGICAL                                  :: l_core, l_ssss, si, sj
 
     l_core  = PRESENT(core)
     l_ssss  = PRESENT(ssss)
@@ -966,9 +961,9 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: ij, kl
-    LOGICAL                                  :: failure
 
-    ! Check if d-orbitals are present
+! Check if d-orbitals are present
+
     IF (sepi%dorb.OR.sepj%dorb) THEN
        ij = indexa(1, 1)
        IF (sepj%dorb) THEN

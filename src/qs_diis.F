@@ -90,7 +90,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle
-    LOGICAL                                  :: failure
 
 ! -------------------------------------------------------------------------
 
@@ -140,7 +139,6 @@ CONTAINS
 
     INTEGER                                  :: handle, ibuffer, ispin, &
                                                 istat, nbuffer, output_unit
-    LOGICAL                                  :: failure
     TYPE(cp_logger_type), POINTER            :: logger
 
 ! -------------------------------------------------------------------------
@@ -263,7 +261,7 @@ CONTAINS
                                                 nb, nb1, nmo, nspin, &
                                                 output_unit
     LOGICAL                                  :: eigenvectors_discarded, &
-                                                failure, mo_uocc, my_roks
+                                                mo_uocc, my_roks
     REAL(KIND=dp)                            :: maxocc, tmp
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: ev, occ
     REAL(KIND=dp), DIMENSION(:), POINTER     :: occa, occb
@@ -546,7 +544,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle
-    LOGICAL                                  :: failure
 
 ! -------------------------------------------------------------------------
 
@@ -829,7 +826,6 @@ CONTAINS
 
     INTEGER                                  :: handle, ibuffer, ispin, &
                                                 istat, nbuffer
-    LOGICAL                                  :: failure
     TYPE(cp_logger_type), POINTER            :: logger
 
 ! -------------------------------------------------------------------------
@@ -907,7 +903,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle
-    LOGICAL                                  :: failure
 
 ! -------------------------------------------------------------------------
 
@@ -941,7 +936,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle
-    LOGICAL                                  :: failure
 
 ! -------------------------------------------------------------------------
 

@@ -72,7 +72,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i
-    LOGICAL                                  :: failure
 
     IF (ASSOCIATED(fist_neighbor)) THEN
        ! deallocate neighbor_kind_pairs
@@ -125,7 +124,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, i, list_size, nlistmin
-    LOGICAL                                  :: failure
     TYPE(neighbor_kind_pairs_type), &
       DIMENSION(:), POINTER                  :: new_pairs
 
@@ -251,8 +249,7 @@ CONTAINS
                                                 old_npairs
     INTEGER, DIMENSION(:), POINTER           :: new_id_kind
     INTEGER, DIMENSION(:, :), POINTER        :: new_list
-    LOGICAL                                  :: ex_ei, ex_vdw, failure, &
-                                                is_onfo
+    LOGICAL                                  :: ex_ei, ex_vdw, is_onfo
     REAL(KIND=dp), DIMENSION(3)              :: rabc
 
     IF (.NOT.PRESENT(exclusions)) THEN

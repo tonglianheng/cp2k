@@ -92,8 +92,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: precon_type
-    LOGICAL                                  :: failure
-
 
     precon_type=preconditioner_env%in_use                
     SELECT CASE (precon_type)
@@ -156,7 +154,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle
-    LOGICAL                                  :: failure
 
     CALL timeset(routineN,handle)
   
@@ -190,7 +187,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: shift
 
     CALL timeset(routineN,handle)

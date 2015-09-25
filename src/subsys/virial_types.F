@@ -255,9 +255,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'virial_retain', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-
     CPASSERT(ASSOCIATED(virial))
     CPASSERT(virial%ref_count>0)
     virial%ref_count=virial%ref_count+1
@@ -277,8 +274,6 @@ CONTAINS
 
     CHARACTER(len=*), PARAMETER :: routineN = 'virial_release', &
       routineP = moduleN//':'//routineN
-
-    LOGICAL                                  :: failure
 
     IF (ASSOCIATED(virial)) THEN
        CPASSERT(virial%ref_count>0)

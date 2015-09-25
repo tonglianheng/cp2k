@@ -80,9 +80,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'qs_subsys_retain', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-
     CPASSERT(ASSOCIATED(subsys))
     CPASSERT(subsys%ref_count>0)
     subsys%ref_count=subsys%ref_count+1

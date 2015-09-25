@@ -50,10 +50,8 @@ CONTAINS
       routineN = 'create_optimize_basis_section', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
     TYPE(section_type), POINTER              :: subsection
-
 
     CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="OPTIMIZE_BASIS",&
@@ -340,9 +338,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'create_training_section', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
-
 
     NULLIFY(keyword)
     CPASSERT(.NOT.ASSOCIATED(section))
@@ -377,9 +373,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'create_powell_section', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
-
 
     NULLIFY(keyword)
     CPASSERT(.NOT.ASSOCIATED(section))

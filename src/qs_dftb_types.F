@@ -140,8 +140,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i, j, n1, n2
-    LOGICAL                                  :: failure
-
 
     IF (ASSOCIATED(pairpot)) THEN
       n1 = SIZE(pairpot,1)

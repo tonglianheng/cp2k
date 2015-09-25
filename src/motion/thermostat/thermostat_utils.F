@@ -109,9 +109,9 @@ CONTAINS
                                                 nconstraint_int, &
                                                 nrestraints_int, rot_dof, &
                                                 roto_trasl_dof
-    LOGICAL                                  :: failure
 
-    ! Retrieve information on number of atoms, constraints (external and internal)
+! Retrieve information on number of atoms, constraints (external and internal)
+
     CALL get_molecule_kind_set(molecule_kind_set=molecule_kind_set,&
          natom=natom, nconstraint=nconstraint_int, nrestraints=nrestraints_int)
 
@@ -170,10 +170,10 @@ CONTAINS
                                                 nconstraint_int, &
                                                 nrestraints_int, rot_dof, &
                                                 roto_trasl_dof
-    LOGICAL                                  :: failure
     TYPE(cp_logger_type), POINTER            :: logger
 
-    ! Retrieve information on number of atoms, constraints (external and internal)
+! Retrieve information on number of atoms, constraints (external and internal)
+
     CALL get_molecule_kind_set(molecule_kind_set=molecule_kind_set,&
          natom=natom, nconstraint=nconstraint_int, nrestraints=nrestraints_int)
 
@@ -258,8 +258,8 @@ CONTAINS
       nmol_per_kind, nmolecule, nshell, number, stat, sum_of_thermostats
     INTEGER, POINTER                         :: molecule_list(:), &
                                                 thermolist(:)
-    LOGICAL                                  :: check, do_shell, failure, &
-                                                nointer, on_therm
+    LOGICAL                                  :: check, do_shell, nointer, &
+                                                on_therm
     TYPE(molecule_kind_type), POINTER        :: molecule_kind
     TYPE(molecule_type), POINTER             :: molecule, molecule_set( : )
 
@@ -448,7 +448,6 @@ CONTAINS
     INTEGER :: first_atom, i, ig, ikind, ilist, imol, ipart, itherm, jg, &
       last_atom, mregions, n_rep, nregions, output_unit
     INTEGER, DIMENSION(:), POINTER           :: tmplist
-    LOGICAL                                  :: failure
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(molecule_kind_type), POINTER        :: molecule_kind
     TYPE(molecule_type), DIMENSION(:), &
@@ -733,7 +732,6 @@ CONTAINS
     INTEGER :: first_atom, i, ig, ikind, ilist, imol, ipart, jg, last_atom, &
       mregions, n_rep, natom_local, nmol_per_kind, nregions, output_unit
     INTEGER, DIMENSION(:), POINTER           :: thermolist, tmp, tmplist
-    LOGICAL                                  :: failure
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(molecule_kind_type), POINTER        :: molecule_kind
     TYPE(molecule_type), DIMENSION(:), &
@@ -883,7 +881,7 @@ CONTAINS
                                                 ipart, last_atom, nrep, &
                                                 thermo1
     INTEGER, DIMENSION(:), POINTER           :: atom_index1
-    LOGICAL                                  :: explicit, failure
+    LOGICAL                                  :: explicit
     TYPE(molecule_type), POINTER             :: molecule
 
     label1               = "MM_SUBSYS"
@@ -961,7 +959,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i, j, ncoef
-    LOGICAL                                  :: failure
 
     map_info%v_scale = 1.0_dp
     map_info%s_kin   = 0.0_dp
@@ -1032,7 +1029,7 @@ CONTAINS
     INTEGER                                  :: first_atom, ii, ikind, imol, &
                                                 imol_local, ipart, last_atom, &
                                                 nmol_local
-    LOGICAL                                  :: failure, present_vel
+    LOGICAL                                  :: present_vel
     REAL(KIND=dp)                            :: mass
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(molecule_type), POINTER             :: molecule
@@ -1102,7 +1099,7 @@ CONTAINS
     INTEGER                                  :: first_atom, ii, ikind, imol, &
                                                 imol_local, ipart, last_atom, &
                                                 nmol_local
-    LOGICAL                                  :: failure, present_vel
+    LOGICAL                                  :: present_vel
     REAL(KIND=dp)                            :: mass
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(molecule_type), POINTER             :: molecule
@@ -1175,7 +1172,7 @@ CONTAINS
                                                 imol_local, ipart, jj, &
                                                 last_atom, nmol_local, &
                                                 shell_index
-    LOGICAL                                  :: failure, present_vel
+    LOGICAL                                  :: present_vel
     REAL(KIND=dp)                            :: fac_massc, fac_masss, mass, &
                                                 vc(3), vs(3)
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
@@ -1281,7 +1278,7 @@ CONTAINS
 
     INTEGER :: ii, iparticle, iparticle_kind, iparticle_local, &
       nparticle_kind, nparticle_local, shell_index
-    LOGICAL                                  :: failure, is_shell, present_vel
+    LOGICAL                                  :: is_shell, present_vel
     REAL(dp)                                 :: mass, mu_mass, v_sc(3)
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(shell_kind_type), POINTER           :: shell
@@ -1362,7 +1359,7 @@ CONTAINS
 
     INTEGER :: ii, iparticle, iparticle_kind, iparticle_local, &
       nparticle_kind, nparticle_local, shell_index
-    LOGICAL                                  :: failure, is_shell, present_vel
+    LOGICAL                                  :: is_shell, present_vel
     REAL(dp)                                 :: mass, massc, masss, umass, &
                                                 v(3), vc(3), vs(3)
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
@@ -1443,7 +1440,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: imap, l, n, number
-    LOGICAL                                  :: failure
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: akin, vpot
 
     number = nhc%glob_num_nhc
@@ -1520,7 +1516,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: imap, n, number
-    LOGICAL                                  :: failure
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: akin
 
     number = glob_num
@@ -1587,7 +1582,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i, imap, imap2, n, number
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: fdeg_of_free
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: akin, deg_of_free
 
@@ -1655,9 +1649,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i
-    LOGICAL                                  :: failure
     REAL(dp), ALLOCATABLE, DIMENSION(:)      :: thermo_energy
-
 
     thermostat_pot = 0.0_dp
     thermostat_kin = 0.0_dp
@@ -1717,9 +1709,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i
-    LOGICAL                                  :: failure
     REAL(dp), ALLOCATABLE, DIMENSION(:)      :: dof, nkt
-
 
     IF (ASSOCIATED(thermostat)) THEN
        IF      (thermostat%type_of_thermostat==do_thermo_nose) THEN
@@ -1802,9 +1792,6 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'print_thermostats_status', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-
     IF (ASSOCIATED(thermostats)) THEN
        IF (ASSOCIATED(thermostats%thermostat_part)) THEN
           CALL print_thermostat_status(thermostats%thermostat_part, para_env, my_pos, my_act, itimes, time)
@@ -1842,7 +1829,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i, unit
-    LOGICAL                                  :: failure, new_file
+    LOGICAL                                  :: new_file
     REAL(KIND=dp)                            :: thermo_kin, thermo_pot, &
                                                 tot_temperature
     REAL(KIND=dp), DIMENSION(:), POINTER     :: array_kin, array_pot, &
@@ -1923,7 +1910,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i, icheck, ncheck
-    LOGICAL                                  :: failure
     REAL(KIND=dp), DIMENSION(:), POINTER     :: work, work2
 
     ALLOCATE(work(para_env%num_pe))
@@ -1970,7 +1956,6 @@ CONTAINS
 
     INTEGER                                  :: i, icheck, j, ncheck
     INTEGER, DIMENSION(:, :), POINTER        :: work, work2
-    LOGICAL                                  :: failure
 
     ALLOCATE(work(number1,para_env%num_pe))
     DO i = 1, number2

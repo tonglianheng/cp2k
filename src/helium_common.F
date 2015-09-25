@@ -353,7 +353,6 @@ MODULE helium_common
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: bin, ia, ib
-    LOGICAL                                  :: failure
     REAL(kind=dp)                            :: ri
     REAL(kind=dp), DIMENSION(3)              :: r, r0
 
@@ -416,7 +415,7 @@ MODULE helium_common
 
     INTEGER                                  :: bx, by, bz, handle, ia, ib, &
                                                 itmp
-    LOGICAL                                  :: failure, ltmp
+    LOGICAL                                  :: ltmp
     REAL(kind=dp)                            :: c, delrinv
     REAL(kind=dp), DIMENSION(3)              :: r, r0
 
@@ -514,7 +513,6 @@ MODULE helium_common
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: b, i, j, k, n
-    LOGICAL                                  :: failure
 
     CPASSERT(ASSOCIATED(helium))
 

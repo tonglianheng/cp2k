@@ -156,9 +156,6 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'kpoint_create', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-
     CPASSERT(.NOT.ASSOCIATED(kpoint))
 
     ALLOCATE(kpoint)
@@ -207,8 +204,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: ik
-    LOGICAL                                  :: failure
-
 
     IF(ASSOCIATED(kpoint)) THEN
 
@@ -325,9 +320,6 @@ CONTAINS
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'get_kpoint_info', &
       routineP = moduleN//':'//routineN
-
-    LOGICAL                                  :: failure
-
 
     CPASSERT(ASSOCIATED(kpoint))
 
@@ -446,9 +438,6 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'set_kpoint_info', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-
     CPASSERT(ASSOCIATED(kpoint))
  
     IF(PRESENT(kp_scheme)) kpoint%kp_scheme = kp_scheme
@@ -505,7 +494,7 @@ CONTAINS
     CHARACTER(LEN=default_string_length), &
       DIMENSION(:), POINTER                  :: tmpstringlist
     INTEGER                                  :: i, n_rep, nval, wfntype
-    LOGICAL                                  :: available, failure
+    LOGICAL                                  :: available
     REAL(KIND=dp), DIMENSION(:), POINTER     :: reallist
 
     CPASSERT(ASSOCIATED(kpoint))
@@ -590,7 +579,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i, punit
-    LOGICAL                                  :: failure
     TYPE(cp_logger_type), POINTER            :: logger
 
     CPASSERT(ASSOCIATED(kpoint))
@@ -665,9 +653,6 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'kpoint_env_create', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-
     CPASSERT(.NOT.ASSOCIATED(kp_env))
 
     ALLOCATE(kp_env)
@@ -695,8 +680,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: ic, is
-    LOGICAL                                  :: failure
-
 
     IF(ASSOCIATED(kp_env)) THEN
 
@@ -754,9 +737,6 @@ CONTAINS
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'get_kpoint_env', &
       routineP = moduleN//':'//routineN
-
-    LOGICAL                                  :: failure
-
 
     CPASSERT(ASSOCIATED(kpoint_env))
 

@@ -141,7 +141,6 @@ CONTAINS
     INTEGER                                  :: shortcut
     LOGICAL                                  :: failure
 
-
     CALL section_vals_val_get(functionals,"_SECTION_PARAMETERS_",&
          i_val=shortcut)
     SELECT CASE(shortcut)
@@ -789,7 +788,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: isize
-    LOGICAL                                  :: failure
 
     isize = 0
     IF (ASSOCIATED(restarted_infos)) isize = SIZE(restarted_infos)
@@ -819,7 +817,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i, j
-    LOGICAL                                  :: failure
 
     IF (output_unit>0.AND.ASSOCIATED(restarted_infos)) THEN
        WRITE(output_unit,'(1X,79("*"))')
@@ -875,8 +872,7 @@ CONTAINS
 
     INTEGER                                  :: input_region, input_type, &
                                                 restart_region, restart_type
-    LOGICAL                                  :: check_loc, failure, &
-                                                skip_other_checks
+    LOGICAL                                  :: check_loc, skip_other_checks
     TYPE(section_vals_type), POINTER         :: section
 
     check_loc = check_restart(input_file, restart_file, TRIM(path))
@@ -969,7 +965,7 @@ CPSourceFileRef,&
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle
-    LOGICAL                                  :: explicit1, explicit2, failure
+    LOGICAL                                  :: explicit1, explicit2
     TYPE(section_vals_type), POINTER         :: work_section
 
     CALL timeset(routineN,handle)
@@ -997,7 +993,7 @@ CPSourceFileRef,&
 
     INTEGER                                  :: handle, iforce_eval, &
                                                 nforce_eval1
-    LOGICAL                                  :: explicit1, failure
+    LOGICAL                                  :: explicit1
     TYPE(section_vals_type), POINTER         :: md_section, motion_section, &
                                                 section1, section_to_delete, &
                                                 sections1, work_section
@@ -1101,7 +1097,7 @@ CPSourceFileRef,&
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, ik, nval
-    LOGICAL                                  :: failure, restart_default
+    LOGICAL                                  :: restart_default
     TYPE(keyword_type), POINTER              :: keyword
     TYPE(section_type), POINTER              :: section
 

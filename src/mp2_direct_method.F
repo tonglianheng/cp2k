@@ -1329,7 +1329,6 @@ MODULE mp2_direct_method
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: BIb_RS_mat_rec
     REAL(KIND=dp)                            :: C_T_R, C_T_S
-    LOGICAL                                  :: failure
     INTEGER, DIMENSION(5)                    :: size_parameter_rec, &
                                                 size_parameter_send
 
@@ -1509,7 +1508,6 @@ MODULE mp2_direct_method
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :, :)                     :: BIb_RS_mat_rec
     REAL(KIND=dp)                            :: C_T_R, C_T_S
-    LOGICAL                                  :: failure
     INTEGER, DIMENSION(5)                    :: size_parameter_rec, &
                                                 size_parameter_send
 
@@ -1668,7 +1666,6 @@ MODULE mp2_direct_method
     INTEGER                                  :: a, a_global, b, b_global, &
                                                 handle, i, i_global, &
                                                 index_ij, j, j_global
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: iajb, ibja, parz, two
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: BIa
@@ -1769,7 +1766,6 @@ MODULE mp2_direct_method
     INTEGER                                  :: a, a_global, b, b_global, &
                                                 handle, i, i_global, &
                                                 index_ij, j, j_global, n, s
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: iajb, parz
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: BIa

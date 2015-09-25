@@ -55,8 +55,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'ps_wavelet_release', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
     IF (ASSOCIATED(wavelet)) THEN
        IF (ASSOCIATED(wavelet%karray))&
             DEALLOCATE(wavelet%karray)

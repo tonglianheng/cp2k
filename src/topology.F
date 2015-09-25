@@ -148,8 +148,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, iw, iw2
-    LOGICAL                                  :: binary_coord_read, failure, &
-                                                my_qmmm
+    LOGICAL                                  :: binary_coord_read, my_qmmm
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(section_vals_type), POINTER         :: cell_section, &
                                                 constraint_section, &
@@ -293,7 +292,7 @@ CONTAINS
       ALLOCATABLE, DIMENSION(:)              :: elements
     INTEGER                                  :: handle, handle2, i, id, itmp, &
                                                 iw, j, k
-    LOGICAL                                  :: check, failure, my_qmmm, &
+    LOGICAL                                  :: check, my_qmmm, &
                                                 use_mm_map_first
     TYPE(cp_logger_type), POINTER            :: logger
 
@@ -654,7 +653,6 @@ CPSourceFileRef,&
       routineP = moduleN//':'//routineN
 
     INTEGER, DIMENSION(:), POINTER           :: multiple_unit_cell
-    LOGICAL                                  :: failure
     REAL(KIND=dp), DIMENSION(3, 3)           :: hmat_ref
 
     CPASSERT(.NOT.ASSOCIATED(cell_muc))

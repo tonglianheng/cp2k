@@ -710,9 +710,8 @@ SUBROUTINE cp_fm_triangular_multiply(triangular_matrix,matrix_b,side,&
     CHARACTER                                :: side_char, transa, unit_diag, &
                                                 uplo
     INTEGER                                  :: handle, m, n
-    LOGICAL                                  :: failure, invert
+    LOGICAL                                  :: invert
     REAL(KIND=dp)                            :: al
-
 
   CALL timeset(routineN,handle)
   side_char='L'
@@ -794,7 +793,6 @@ SUBROUTINE cp_fm_triangular_multiply(triangular_matrix,matrix_b,side,&
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, size_a
-    LOGICAL                                  :: failure
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: a
 
     CALL timeset(routineN,handle)

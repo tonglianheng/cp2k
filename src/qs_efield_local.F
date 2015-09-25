@@ -120,7 +120,6 @@ MODULE qs_efield_local
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, i
-    LOGICAL                                  :: failure
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: dipmat, matrix_s
     TYPE(dft_control_type), POINTER          :: dft_control

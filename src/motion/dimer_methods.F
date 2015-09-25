@@ -66,7 +66,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, iw
-    LOGICAL                                  :: eval_analytical, failure
+    LOGICAL                                  :: eval_analytical
     REAL(KIND=dp)                            :: angle1, angle2, f1, norm
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(dimer_env_type), POINTER            :: dimer_env
@@ -202,7 +202,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: dof, handle, i, j, natoms
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: norm, norm_gradient_old
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: D, mat
     TYPE(cp_subsys_type), POINTER            :: subsys

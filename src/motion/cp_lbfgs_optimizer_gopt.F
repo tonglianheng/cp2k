@@ -212,7 +212,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, lenwa, n
-    LOGICAL                                  :: failure
 
     CALL timeset(routineN,handle)
 
@@ -306,9 +305,6 @@ SUBROUTINE cp_opt_gopt_retain(optimizer)
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_opt_gopt_retain', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-
   CPASSERT(ASSOCIATED(optimizer))
   CPASSERT(optimizer%ref_count>0)
   optimizer%ref_count=optimizer%ref_count+1
@@ -329,7 +325,6 @@ SUBROUTINE cp_opt_gopt_release(optimizer)
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle
-    LOGICAL                                  :: failure
 
   CALL timeset(routineN,handle)
 
@@ -814,10 +809,8 @@ CPSourceFileRef,&
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_opt_gopt_next', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
+!call timeset(routineN,handle)
 
-
-    !call timeset(routineN,handle)
     CPASSERT(ASSOCIATED(optimizer))
     CPASSERT(optimizer%ref_count>0)
     CALL cp_opt_gopt_step(optimizer,n_iter=n_iter,f=f,&
@@ -844,10 +837,8 @@ CPSourceFileRef,&
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_opt_gopt_stop', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
+!  call timeset(routineN,handle)
 
-
-    !  call timeset(routineN,handle)
     CPASSERT(ASSOCIATED(optimizer))
     CPASSERT(optimizer%ref_count>0)
 

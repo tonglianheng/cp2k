@@ -120,7 +120,6 @@ MODULE mp2_ri_grad_util
                                                 mepos_2_grid_group, sizes, &
                                                 starts
     INTEGER, DIMENSION(:), POINTER           :: col_indices, row_indices
-    LOGICAL                                  :: failure
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: BIb_C_2D, Gamma_2D
     REAL(KIND=dp), ALLOCATABLE, &
@@ -661,7 +660,6 @@ MODULE mp2_ri_grad_util
     INTEGER, ALLOCATABLE, DIMENSION(:, :) :: blocks_ranges_col, &
       blocks_ranges_row, grid_2_mepos, grid_ref_2_send_pos, mepos_2_grid
     INTEGER, DIMENSION(:), POINTER           :: col_indices, row_indices
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: part_col, part_row
     TYPE(cp_fm_struct_type), POINTER         :: fm_struct
     TYPE(integ_mat_buffer_type), &
@@ -1075,7 +1073,6 @@ MODULE mp2_ri_grad_util
                                                 grid_ref_2_send_pos, &
                                                 mepos_2_grid
     INTEGER, DIMENSION(:), POINTER           :: col_indices, row_indices
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: part_col, part_row
     TYPE(integ_mat_buffer_type), &
       ALLOCATABLE, DIMENSION(:)              :: buffer_rec, buffer_send
@@ -1436,7 +1433,6 @@ MODULE mp2_ri_grad_util
                                                 grid_ref_2_send_pos, &
                                                 indeces_map_my, mepos_2_grid
     INTEGER, DIMENSION(:), POINTER           :: col_indices, row_indices
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: part_ia
     TYPE(cp_blacs_env_type), POINTER         :: blacs_env
     TYPE(cp_fm_struct_type), POINTER         :: fm_struct

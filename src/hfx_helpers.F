@@ -112,9 +112,6 @@ FUNCTION get_occupation(matrix,para_env)
     INTEGER                                  :: group, mype, natom, &
                                                 nblock_sum, nblock_tot, npe
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: nblock, nelement
-    LOGICAL                                  :: failure
-
-
 
     group = para_env%group
     mype = para_env%mepos + 1

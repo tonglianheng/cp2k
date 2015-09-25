@@ -143,7 +143,6 @@ CONTAINS
     INTEGER                                  :: handle, i, ii, j, k
     INTEGER, DIMENSION(2, 3)                 :: gbo
     INTEGER, DIMENSION(3)                    :: n_tot
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: c23, coeff
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: cosIVals, cosJVals, cosKVals
 
@@ -220,7 +219,6 @@ CONTAINS
     INTEGER                                  :: handle, i, ii, j, k
     INTEGER, DIMENSION(2, 3)                 :: gbo
     INTEGER, DIMENSION(3)                    :: n_tot
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: c23, coeff
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: cosIVals, cosJVals, cosKVals
 
@@ -300,7 +298,6 @@ CONTAINS
     INTEGER                                  :: handle, i, ii, j, k
     INTEGER, DIMENSION(2, 3)                 :: bo, gbo
     INTEGER, DIMENSION(3)                    :: n, n_tot
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: c23, coeff, inv64
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: cosIVals, cosJVals, cosKVals
 
@@ -383,7 +380,6 @@ CONTAINS
     INTEGER                                  :: handle, i, ii, j, k
     INTEGER, DIMENSION(2, 3)                 :: bo, gbo
     INTEGER, DIMENSION(3)                    :: n, n_tot
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: c23, coeff
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: cosIVals, cosJVals, cosKVals
     REAL(KIND=dp), DIMENSION(4)              :: r_coeffs
@@ -462,7 +458,6 @@ CONTAINS
     INTEGER                                  :: handle, i, ii, j, k
     INTEGER, DIMENSION(2, 3)                 :: bo, gbo
     INTEGER, DIMENSION(3)                    :: n, n_tot
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: c23, coeff, inv27
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: cosIVals, cosJVals, cosKVals
 
@@ -545,7 +540,7 @@ CONTAINS
     INTEGER                                  :: handle, i, idir, j, k
     INTEGER, DIMENSION(2, 3)                 :: bo
     INTEGER, DIMENSION(3)                    :: n_tot
-    LOGICAL                                  :: diag, failure, my_transpose
+    LOGICAL                                  :: diag, my_transpose
     REAL(KIND=dp)                            :: dVal1, dVal2, dVal3, &
                                                 my_scale, scalef
     REAL(KIND=dp), DIMENSION(3, 3)           :: dh_inv, h_grid
@@ -639,7 +634,6 @@ CONTAINS
     INTEGER                                  :: handle, i, ii, j, k
     INTEGER, DIMENSION(2, 3)                 :: bo, gbo
     INTEGER, DIMENSION(3)                    :: n, n_tot
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: coeff, tmp
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: csIVals, csJVals, csKVals
 
@@ -779,7 +773,6 @@ CONTAINS
     INTEGER                                  :: handle, i, ii, j, k
     INTEGER, DIMENSION(2, 3)                 :: bo
     INTEGER, DIMENSION(3)                    :: n, n_tot
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: coeff, tmp
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: csIVals, csJVals, csKVals
 
@@ -923,7 +916,6 @@ SUBROUTINE pw_compose_stripe(weights,in_val,in_val_first,in_val_last,&
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i
-    LOGICAL                                  :: failure
     REAL(kind=dp)                            :: v0, v1, v2
 
 !1:n_el), &
@@ -1035,7 +1027,6 @@ SUBROUTINE pw_compose_stripe2(weights,in_val,in_val_first,in_val_last,&
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i, n_el
-    LOGICAL                                  :: failure
     REAL(kind=dp)                            :: v0, v1, v2
 
   IF (last_val-first_val<0) RETURN
@@ -2944,9 +2935,6 @@ CPSourceFileRef,&
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_spline_precond_create', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-
     ALLOCATE(preconditioner)
     last_precond_id=last_precond_id+1
     preconditioner%id_nr=last_precond_id
@@ -2976,9 +2964,8 @@ CPSourceFileRef,&
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_spline_precond_set_kind', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: do_3d_coeff, failure
+    LOGICAL                                  :: do_3d_coeff
     REAL(kind=dp)                            :: s
-
 
     CPASSERT(ASSOCIATED(preconditioner))
     CPASSERT(preconditioner%ref_count>0)
@@ -3063,9 +3050,6 @@ CPSourceFileRef,&
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_spline_precond_retain', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-
     CPASSERT(ASSOCIATED(preconditioner))
     CPASSERT(preconditioner%ref_count>1)
     preconditioner%ref_count=preconditioner%ref_count+1
@@ -3081,9 +3065,6 @@ CPSourceFileRef,&
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_spline_precond_release', &
       routineP = moduleN//':'//routineN
-
-    LOGICAL                                  :: failure
-
 
     IF (ASSOCIATED(preconditioner)) THEN
        CPASSERT(preconditioner%ref_count>0)
@@ -3109,9 +3090,6 @@ CPSourceFileRef,&
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_spline_do_precond', &
       routineP = moduleN//':'//routineN
-
-    LOGICAL                                  :: failure
-
 
     CPASSERT(ASSOCIATED(preconditioner))
     CPASSERT(preconditioner%ref_count>0)
@@ -3183,7 +3161,7 @@ CPSourceFileRef,&
 
     INTEGER                                  :: i, iiter, iter, j, k
     INTEGER, DIMENSION(2, 3)                 :: bo
-    LOGICAL                                  :: failure, last
+    LOGICAL                                  :: last
     REAL(kind=dp)                            :: alpha, beta, eps_r_att, &
                                                 eps_x_att, r_z, r_z_new
     TYPE(cp_logger_type), POINTER            :: logger
@@ -3671,7 +3649,7 @@ CPSourceFileRef,&
     INTEGER                                  :: i, ivec(3), j, k, npts(3)
     INTEGER, DIMENSION(2, 3)                 :: bo, bo_l
     INTEGER, DIMENSION(4)                    :: ii, ij, ik
-    LOGICAL                                  :: failure, my_mpsum
+    LOGICAL                                  :: my_mpsum
     REAL(KIND=dp) :: a1, a2, a3, b1, b2, b3, c1, c2, c3, d1, d2, d3, dr1, &
       dr2, dr3, e1, e2, e3, f1, f2, f3, g1, g2, g3, h1, h2, h3, p1, p2, p3, &
       q1, q2, q3, r1, r2, r3, s1, s2, s3, s4, t1, t2, t3, t4, u1, u2, u3, v1, &
@@ -3825,7 +3803,7 @@ CPSourceFileRef,&
     INTEGER                                  :: i, ivec(3), j, k, npts(3)
     INTEGER, DIMENSION(2, 3)                 :: bo, bo_l
     INTEGER, DIMENSION(4)                    :: ii, ij, ik
-    LOGICAL                                  :: failure, my_mpsum
+    LOGICAL                                  :: my_mpsum
     REAL(KIND=dp) :: a1, a2, a3, b1, b2, b3, c1, c2, c3, d1, d2, d3, dr1, &
       dr1i, dr2, dr2i, dr3, dr3i, e1, e2, e3, f1, f2, f3, g1, g2, g3, h1, h2, &
       h3, p1, p2, p3, q1, q2, q3, r1, r2, r3, s1, s1d, s1o, s2, s2d, s2o, s3, &

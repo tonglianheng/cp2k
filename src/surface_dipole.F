@@ -70,7 +70,6 @@ CONTAINS
                                                 ispin, isurf, iup, jsurf
     INTEGER, DIMENSION(3)                    :: ngrid
     INTEGER, DIMENSION(:, :), POINTER        :: bo
-    LOGICAL                                  :: failure
     REAL(dp)                                 :: dh(3,3), dip_fac, dip_hh, &
                                                 dsurf, height_min, hh, &
                                                 rhoav_min, surfarea, vdip, &

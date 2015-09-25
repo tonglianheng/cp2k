@@ -75,7 +75,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: ip
-    LOGICAL                                  :: failure
     REAL(KIND=dp), DIMENSION(3)              :: r
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_subsys_type), POINTER            :: subsys
@@ -125,8 +124,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'cell_opt_env_retain', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
     CPASSERT(ASSOCIATED(cell_env))
     CPASSERT(cell_env%ref_count>0)
     cell_env%ref_count=cell_env%ref_count+1
@@ -144,8 +141,6 @@ CONTAINS
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cell_opt_env_release', &
       routineP = moduleN//':'//routineN
-
-    LOGICAL                                  :: failure
 
     IF (ASSOCIATED(cell_env)) THEN
        CPASSERT(cell_env%ref_count>0)

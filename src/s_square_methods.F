@@ -80,7 +80,7 @@ CONTAINS
     INTEGER                                  :: handle, i, j, na, nalpha, nb, &
                                                 nbeta, ncol_local, nrow, &
                                                 nrow_local
-    LOGICAL                                  :: failure, uniform_occupation
+    LOGICAL                                  :: uniform_occupation
     REAL(KIND=dp)                            :: tmp
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: local_data
     TYPE(cp_blacs_env_type), POINTER         :: context
@@ -188,7 +188,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle
-    LOGICAL                                  :: failure
     REAL(kind=dp)                            :: s_square, s_square_ideal
 
     CALL timeset(routineN,handle)

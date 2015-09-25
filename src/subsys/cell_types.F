@@ -101,8 +101,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'cell_clone', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
     CPASSERT(ASSOCIATED(cell_in))
     CPASSERT(ASSOCIATED(cell_out))
 
@@ -129,8 +127,6 @@ CONTAINS
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cell_copy', &
       routineP = moduleN//':'//routineN
-
-    LOGICAL                                  :: failure
 
     CPASSERT(ASSOCIATED(cell_in))
     CPASSERT(ASSOCIATED(cell_out))
@@ -167,7 +163,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i, j
-    LOGICAL                                  :: failure
 
     READ (input_line,*) cell_itimes, cell_time,&
          h(1,1),h(2,1),h(3,1), h(1,2),h(2,2),h(3,2), h(1,3),h(2,3),h(3,3),vol
@@ -305,7 +300,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'set_cell_param', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: cos_alpha, cos_beta, &
                                                 cos_gamma, eps, sin_gamma
 
@@ -779,9 +773,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'cell_create', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-
     CPASSERT(.NOT.ASSOCIATED(cell))
     ALLOCATE (cell)
     last_cell_id = last_cell_id + 1
@@ -813,9 +804,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'cell_retain', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-
     CPASSERT(ASSOCIATED(cell))
     CPASSERT(cell%ref_count>0)
     cell%ref_count=cell%ref_count+1
@@ -835,9 +823,6 @@ CONTAINS
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cell_release', &
       routineP = moduleN//':'//routineN
-
-    LOGICAL                                  :: failure
-
 
     IF (ASSOCIATED(cell)) THEN
        CPASSERT(cell%ref_count>0)

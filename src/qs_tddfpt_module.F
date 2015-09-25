@@ -69,7 +69,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, iw
-    LOGICAL                                  :: failure
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(qs_ks_env_type), POINTER            :: ks_env
     TYPE(qs_p_env_type), POINTER             :: p_env
@@ -130,7 +129,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: oe_corr, output_unit
-    LOGICAL                                  :: failure
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: matrix_ks
     TYPE(cp_logger_type), POINTER            :: logger

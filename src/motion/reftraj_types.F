@@ -90,8 +90,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=default_path_length)       :: filename
-    LOGICAL                                  :: failure
-
 
     CPASSERT(.NOT. ASSOCIATED(reftraj))
     ALLOCATE(reftraj)
@@ -139,9 +137,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'retain_reftraj', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-
     IF (ASSOCIATED(reftraj)) THEN
        CPASSERT(reftraj%ref_count>0)
        reftraj%ref_count=reftraj%ref_count+1
@@ -162,8 +157,6 @@ CONTAINS
 
     CHARACTER(len=*), PARAMETER :: routineN = 'release_reftraj', &
       routineP = moduleN//':'//routineN
-
-    LOGICAL                                  :: failure
 
     IF(ASSOCIATED(reftraj)) THEN
        CPASSERT(reftraj%ref_count>0)

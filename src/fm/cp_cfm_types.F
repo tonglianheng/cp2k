@@ -138,9 +138,6 @@ CPSourceFileRef)
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_cfm_retain', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-
     CPASSERT(ASSOCIATED(matrix))
     CPASSERT(matrix%ref_count>0)
     matrix%ref_count=matrix%ref_count+1
@@ -155,9 +152,6 @@ CPSourceFileRef)
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_cfm_release', &
       routineP = moduleN//':'//routineN
-
-    LOGICAL                                  :: failure
-
 
     IF (ASSOCIATED(matrix)) THEN
        CPASSERT(matrix%ref_count>0)
@@ -430,7 +424,6 @@ CPSourceFileRef)
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: npcol, nprow
-    LOGICAL                                  :: failure
 
     nprow = source%matrix_struct%context%num_pe(1)
     npcol = source%matrix_struct%context%num_pe(2)

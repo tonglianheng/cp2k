@@ -109,7 +109,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'neb_replica_distance', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure, my_rotate
+    LOGICAL                                  :: my_rotate
 
     my_rotate = .FALSE.
     IF (PRESENT(rotate)) my_rotate = rotate
@@ -156,8 +156,8 @@ CONTAINS
     INTEGER :: handle, i_rep, iatom, ic, input_nr_replica, is, ivar, j, &
       jtarg, n_rep, natom, neb_nr_replica, nr_replica_to_interpolate, nval, &
       nvar, shell_index
-    LOGICAL                                  :: check, explicit, failure, &
-                                                my_end, skip_vel_section
+    LOGICAL                                  :: check, explicit, my_end, &
+                                                skip_vel_section
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: distance
     REAL(KIND=dp), DIMENSION(3)              :: r
     REAL(KIND=dp), DIMENSION(:), POINTER     :: initial_colvars, rptr
@@ -385,7 +385,6 @@ CPSourceFileRef,&
 
     INTEGER                                  :: handle, i, irep, j, n_int, &
                                                 n_rep, n_rep_neb, nsize_wrk
-    LOGICAL                                  :: failure
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: tangent, tmp_a, tmp_b
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: cvalues, Mmatrix, Mmatrix_tmp
@@ -683,7 +682,6 @@ CPSourceFileRef,&
     CHARACTER(len=*), PARAMETER :: routineN = 'get_tangent', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     REAL(KINd=dp)                            :: distance0, distance1, &
                                                 distance2, DVmax, Dvmin
 
@@ -752,7 +750,6 @@ CPSourceFileRef,&
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: j, my_tag, nsize_wrk
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: distance1, distance2, fac, tmp
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: dtmp1, wrk
 
@@ -872,7 +869,7 @@ CPSourceFileRef,&
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: nsize_int
-    LOGICAL                                  :: check, failure
+    LOGICAL                                  :: check
 
     IF (neb_env%use_colvar) THEN
        nsize_int = neb_env%nsize_int
@@ -913,7 +910,7 @@ CPSourceFileRef,&
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i, k, kind
-    LOGICAL                                  :: check, failure
+    LOGICAL                                  :: check
     REAL(KIND=dp)                            :: xtmp
     REAL(KIND=dp), DIMENSION(3)              :: tmp
     REAL(KIND=dp), DIMENSION(3, 3)           :: rot
@@ -968,7 +965,6 @@ CPSourceFileRef,&
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i, j
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: avg_distance, xtmp
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: tmp_coords
@@ -1037,7 +1033,6 @@ CPSourceFileRef,&
 
     CHARACTER(LEN=3), DIMENSION(4)           :: labels
     INTEGER                                  :: iw
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: max_dr, max_force, my_max_dr, &
                                                 my_max_force, my_rms_dr, &
                                                 my_rms_force, rms_dr, &

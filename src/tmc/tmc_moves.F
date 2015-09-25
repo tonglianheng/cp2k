@@ -387,8 +387,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i
-    LOGICAL                                  :: failure
-
 
     start_ind = -1
     end_ind   = -1
@@ -438,9 +436,8 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle
-    LOGICAL                                  :: failure, flag
+    LOGICAL                                  :: flag
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: pos_tmp
-
 
     CPASSERT(ASSOCIATED(pos))
     CPASSERT(ASSOCIATED(subbox_center))
@@ -494,7 +491,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, i
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: rnd
     REAL(KIND=dp), DIMENSION(3)              :: box_size
     REAL(KIND=dp), DIMENSION(:), POINTER     :: atom_tmp, center_of_sub_box
@@ -576,7 +572,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: a1, a2, a3, q0, q1, q2, q3, &
                                                 rnd
     REAL(KIND=dp), DIMENSION(3, 3)           :: rot
@@ -641,7 +636,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: d
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: delta_vel, kB, rnd1, rnd2, &
                                                 rnd3, rnd_g
 
@@ -947,7 +941,6 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'check_donor_acceptor', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     REAL(KIND=dp), DIMENSION(4)              :: distances
 
     CPASSERT(ASSOCIATED(elem))
@@ -1009,7 +1002,6 @@ CONTAINS
 
     INTEGER                                  :: H_offset, handle, i, ind
     INTEGER, DIMENSION(:), POINTER           :: ind_arr
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: dihe_angle, dist_near, tmp
     REAL(KIND=dp), DIMENSION(3)              :: rot_axis, tmp_1, tmp_2, &
                                                 vec_1O, vec_2H_f, vec_2H_m, &
@@ -1166,7 +1158,6 @@ CONTAINS
 
     INTEGER                                  :: atom, dir, handle, ind, &
                                                 ind_e, mol
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: rnd, vol
     REAL(KIND=dp), DIMENSION(3)              :: box_length_new, &
                                                 box_length_orig, box_scale_old
@@ -1297,9 +1288,8 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: a_1, a_2, ind_1, ind_2
-    LOGICAL                                  :: failure, found
+    LOGICAL                                  :: found
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: pos_tmp
-
 
     CPASSERT(ASSOCIATED(conf))
     CPASSERT(ASSOCIATED(move_types))

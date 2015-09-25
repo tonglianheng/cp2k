@@ -76,7 +76,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: ierr
-    LOGICAL                                  :: failure, flag
+    LOGICAL                                  :: flag
     REAL(KIND=dp)                            :: e_pot, rnd
     TYPE(cell_type), POINTER                 :: tmp_cell
 
@@ -168,7 +168,7 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'get_scaled_cell', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure, new_scaled_cell
+    LOGICAL                                  :: new_scaled_cell
     TYPE(cell_type), POINTER                 :: tmp_cell
 
     CPASSERT(ASSOCIATED(cell))
@@ -216,7 +216,6 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'get_cell_scaling', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     REAL(KIND=dp), DIMENSION(3)              :: abc_new, abc_orig
     TYPE(cell_type), POINTER                 :: tmp_cell
 
@@ -253,7 +252,6 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'nearest_distance', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     REAL(KIND=dp), DIMENSION(3)              :: dist_vec
     REAL(KIND=dp), DIMENSION(:), POINTER     :: tmp_box_scale
 
@@ -291,7 +289,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, i
-    LOGICAL                                  :: failure
 
     CPASSERT(ASSOCIATED(center))
     CPASSERT(SIZE(pos).GE.SIZE(center))
@@ -569,7 +566,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: E_mu_tmp, E_n_mu, E_n_sigma, &
                                                 E_o_mu, E_o_sigma, &
                                                 E_sigma_tmp, prior_sigma
@@ -650,7 +646,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i
-    LOGICAL                                  :: failure
 
     CPASSERT(ASSOCIATED(tmc_env))
     CPASSERT(ASSOCIATED(tmc_env%params))

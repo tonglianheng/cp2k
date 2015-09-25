@@ -107,8 +107,7 @@ CONTAINS
 
     INTEGER                                  :: handle, n_rep_hf, natoms, &
                                                 nspins
-    LOGICAL                                  :: do_hfx, failure, &
-                                                s_mstruct_changed
+    LOGICAL                                  :: do_hfx, s_mstruct_changed
     TYPE(admm_dm_type), POINTER              :: admm_dm
     TYPE(admm_type), POINTER                 :: admm_env
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
@@ -227,7 +226,7 @@ CONTAINS
     INTEGER                                  :: handle, ikind, img, irep, &
                                                 ispin, mspin, n_rep_hf, &
                                                 nimages, ns, nspins
-    LOGICAL :: distribute_fock_matrix, do_adiabatic_rescaling, failure, &
+    LOGICAL :: distribute_fock_matrix, do_adiabatic_rescaling, &
       hfx_treat_lsd_in_core, s_mstruct_changed, use_virial
     REAL(dp), ALLOCATABLE, DIMENSION(:)      :: hf_energy
     TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER :: matrix_ks_1d, &
@@ -447,7 +446,7 @@ CONTAINS
     INTEGER                                  :: blocksize, handle, iloc, &
                                                 iorb, iorb_block, ispin, iw, &
                                                 jloc, jorb, jorb_block, norb
-    LOGICAL                                  :: do_pw_hfx, failure
+    LOGICAL                                  :: do_pw_hfx
     REAL(KIND=dp)                            :: exchange_energy, fraction, &
                                                 pair_energy, scaling
     TYPE(atomic_kind_type), DIMENSION(:), &
@@ -633,7 +632,7 @@ CONTAINS
 
     CHARACTER(LEN=20)                        :: name_x_func
     INTEGER                                  :: hfx_potential_type, ifun, nfun
-    LOGICAL                                  :: failure, funct_found
+    LOGICAL                                  :: funct_found
     REAL(dp)                                 :: cutoff_radius, hfx_fraction, &
                                                 omega, scale_x
     TYPE(section_vals_type), POINTER         :: xc_fun, xc_fun_section

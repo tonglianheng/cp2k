@@ -200,7 +200,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: ikind, nkind
-    LOGICAL                                  :: failure
 
     IF (ASSOCIATED(qs_kind_set)) THEN
 
@@ -2050,9 +2049,7 @@ CONTAINS
     CHARACTER(LEN=3)                         :: yon
     CHARACTER(LEN=default_string_length)     :: basis_type, bstring
     INTEGER                                  :: ibas
-    LOGICAL                                  :: failure
     TYPE(gto_basis_set_type), POINTER        :: tmp_basis
-
 
     IF (output_unit > 0) THEN
 
@@ -2162,7 +2159,6 @@ CONTAINS
 
     INTEGER                                  :: handle, ikind, nkind, &
                                                 output_unit
-    LOGICAL                                  :: failure
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(qs_kind_type), POINTER              :: qs_kind
 
@@ -2213,7 +2209,6 @@ CONTAINS
     CHARACTER(LEN=default_string_length)     :: basis_type, bstring
     INTEGER                                  :: handle, ibas, ikind, nkind, &
                                                 output_unit
-    LOGICAL                                  :: failure
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(gto_basis_set_type), POINTER        :: tmp_basis
     TYPE(qs_kind_type), POINTER              :: qs_kind

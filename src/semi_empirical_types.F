@@ -187,8 +187,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'semi_empirical_create', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
     CPASSERT(.NOT.ASSOCIATED(sep))
     ALLOCATE (sep)
     ALLOCATE (sep%beta(0:3))
@@ -214,7 +212,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i
-    LOGICAL                                  :: failure
 
     IF (ASSOCIATED(sep)) THEN
        CALL deallocate_sto_basis_set(sep%basis)
@@ -251,8 +248,6 @@ CONTAINS
 
     CHARACTER(len=*), PARAMETER :: routineN = 'zero_se_param', &
       routineP = moduleN//':'//routineN
-
-    LOGICAL                                  :: failure
 
     CPASSERT(ASSOCIATED(sep))
     sep%defined            = .FALSE.
@@ -547,8 +542,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'rotmat_create', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
     CPASSERT(.NOT.ASSOCIATED(rotmat))
     ALLOCATE (rotmat)
 
@@ -563,8 +556,6 @@ CONTAINS
 
     CHARACTER(len=*), PARAMETER :: routineN = 'rotmat_release', &
       routineP = moduleN//':'//routineN
-
-    LOGICAL                                  :: failure
 
     IF (ASSOCIATED(rotmat)) THEN
        DEALLOCATE (rotmat)
@@ -642,8 +633,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'se_taper_create', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
     CPASSERT(.NOT.ASSOCIATED(se_taper))
     ALLOCATE(se_taper)
     NULLIFY(se_taper%taper)
@@ -672,8 +661,6 @@ CONTAINS
 
     CHARACTER(len=*), PARAMETER :: routineN = 'se_taper_release', &
       routineP = moduleN//':'//routineN
-
-    LOGICAL                                  :: failure
 
     IF (ASSOCIATED(se_taper)) THEN
        CALL taper_release(se_taper%taper_cou)

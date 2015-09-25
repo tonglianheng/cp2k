@@ -155,7 +155,7 @@ CONTAINS
 
     INTEGER                                  :: m, m1, m2, mp, mt, mx(0:3,2), &
                                                 n
-    LOGICAL                                  :: calc(0:4), failure
+    LOGICAL                                  :: calc(0:4)
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: rs
 
     CALL setup_calculation(order,mx,calc,100)
@@ -208,7 +208,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: n
-    LOGICAL                                  :: calc(0:4), failure
+    LOGICAL                                  :: calc(0:4)
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: rs
     REAL(KIND=dp), DIMENSION(:, :, :), &
       POINTER                                :: e_0, e_r, e_rr, e_rrr

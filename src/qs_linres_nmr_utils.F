@@ -319,9 +319,6 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'nmr_env_cleanup', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-
     nmr_env%ref_count = nmr_env%ref_count - 1
     IF(nmr_env%ref_count == 0 ) THEN
        IF(ASSOCIATED(nmr_env%cs_atom_list)) THEN

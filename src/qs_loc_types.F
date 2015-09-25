@@ -173,9 +173,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'qs_loc_env_create', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-
     CPASSERT(.NOT.ASSOCIATED(qs_loc_env))
 
     ALLOCATE(qs_loc_env)
@@ -211,7 +208,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i, j
-    LOGICAL                                  :: failure
 
     CPASSERT(ASSOCIATED(qs_loc_env))
 
@@ -269,9 +265,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'qs_loc_env_release', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-
     IF (ASSOCIATED(qs_loc_env)) THEN
        CPASSERT(qs_loc_env%ref_count>0)
        qs_loc_env%ref_count = qs_loc_env%ref_count -1
@@ -297,9 +290,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'qs_loc_env_retain', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-
     CPASSERT(ASSOCIATED(qs_loc_env))
     CPASSERT(qs_loc_env%ref_count>0)
     qs_loc_env%ref_count = qs_loc_env%ref_count +1
@@ -319,9 +309,6 @@ CONTAINS
 
     CHARACTER(len=*), PARAMETER :: routineN = 'localized_wfn_control_create', &
       routineP = moduleN//':'//routineN
-
-    LOGICAL                                  :: failure
-
 
     CPASSERT(.NOT.ASSOCIATED(localized_wfn_control))
     ALLOCATE(localized_wfn_control)
@@ -355,8 +342,6 @@ CONTAINS
       routineN = 'localized_wfn_control_release', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
     IF(ASSOCIATED(localized_wfn_control)) THEN
        CPASSERT(localized_wfn_control%ref_count>0)
        localized_wfn_control%ref_count=localized_wfn_control%ref_count-1
@@ -388,8 +373,6 @@ CONTAINS
 
     CHARACTER(len=*), PARAMETER :: routineN = 'localized_wfn_control_retain', &
       routineP = moduleN//':'//routineN
-
-    LOGICAL                                  :: failure
 
     CPASSERT(ASSOCIATED(localized_wfn_control))
 
@@ -441,8 +424,6 @@ CONTAINS
 
     CHARACTER(len=*), PARAMETER :: routineN = 'get_qs_loc_env', &
       routineP = moduleN//':'//routineN
-
-    LOGICAL                                  :: failure
 
     CPASSERT(ASSOCIATED(qs_loc_env))
 
@@ -505,7 +486,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i
-    LOGICAL                                  :: failure
 
     CPASSERT(ASSOCIATED(qs_loc_env))
     IF (PRESENT(cell)) THEN

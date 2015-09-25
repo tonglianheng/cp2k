@@ -82,7 +82,6 @@ CONTAINS
     INTEGER                                  :: funit, handle, nqs, &
                                                 nr_points, q1_i, q2_i, &
                                                 vdw_type
-    LOGICAL                                  :: failure
 
     CALL timeset(routineN,handle)
 
@@ -189,7 +188,7 @@ CONTAINS
 
     INTEGER                                  :: handle, i, i_grid, idir, &
                                                 ispin, n1, n2, n3, np, nspin
-    LOGICAL                                  :: failure, use_virial
+    LOGICAL                                  :: use_virial
     REAL(KIND=dp)                            :: b_value, beta, Ec_nl, sumnp
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: dq0_dgradrho, dq0_drho, hpot, &
                                                 potential, q0, rho
@@ -475,7 +474,7 @@ CONTAINS
       DIMENSION(:, :)                        :: u_vdw(:,:)
     INTEGER                                  :: handle, ig, igs, iq, l, m, &
                                                 nqs, q1_i, q2_i
-    LOGICAL                                  :: failure, use_virial
+    LOGICAL                                  :: use_virial
     REAL(KIND=dp)                            :: g, g2, g2_last, g_multiplier, &
                                                 gm
     REAL(KIND=dp), ALLOCATABLE, &
@@ -605,7 +604,7 @@ CONTAINS
 
     INTEGER                                  :: handle, i_grid, l, m, nqs, &
                                                 P_i, q, q_hi, q_low
-    LOGICAL                                  :: failure, use_virial
+    LOGICAL                                  :: use_virial
     REAL(dp)                                 :: a, b, b_value, c, const, d, &
                                                 dP_dq0, dq, e, f, P, prefactor
     REAL(dp), ALLOCATABLE, DIMENSION(:)      :: y
@@ -1209,7 +1208,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: k_i, Nr_points, q1_i, q2_i
-    LOGICAL                                  :: failure
     REAL(dp)                                 :: A, B, C, D, dk, r_max
     REAL(dp), DIMENSION(:, :, :), POINTER    :: d2phi_dk2, kernel
 
@@ -1276,7 +1274,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: k_i, Nr_points, q1_i, q2_i
-    LOGICAL                                  :: failure
     REAL(dp)                                 :: A, B, dAdk, dBdk, dCdk, dDdk, &
                                                 dk, r_max
     REAL(dp), DIMENSION(:, :, :), POINTER    :: d2phi_dk2, kernel

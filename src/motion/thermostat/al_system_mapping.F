@@ -72,7 +72,6 @@ CONTAINS
                                                 sum_of_thermostats
     INTEGER, DIMENSION(:), POINTER           :: deg_of_freedom, &
                                                 massive_atom_list
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: fac
     TYPE(map_info_type), POINTER             :: map_info
 
@@ -165,7 +164,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: nkind, number, region
-    LOGICAL                                  :: do_shell, failure
+    LOGICAL                                  :: do_shell
     TYPE(map_info_type), POINTER             :: map_info
 
     do_shell = .FALSE.

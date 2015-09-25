@@ -482,7 +482,6 @@ CONTAINS
 
     INTEGER                                  :: col_atom, handle, i, ispin, &
                                                 row_atom
-    LOGICAL                                  :: failure
     REAL(dp)                                 :: alpha, max_alpha
     REAL(dp), DIMENSION(:), POINTER          :: block_values
     TYPE(cp_dbcsr_iterator)                  :: iter
@@ -644,7 +643,6 @@ CONTAINS
 
     CHARACTER(LEN=default_path_length)       :: file_name, project_name
     INTEGER                                  :: handle, im, ispin, re, unit_nr
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: cs_pos
     TYPE(cp_logger_type), POINTER            :: logger
 

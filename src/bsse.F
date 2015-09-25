@@ -82,7 +82,7 @@ CONTAINS
     INTEGER                                  :: i, istart, k, num_of_conf, &
                                                 Num_of_Frag
     INTEGER, DIMENSION(:, :), POINTER        :: conf
-    LOGICAL                                  :: explicit, failure, should_stop
+    LOGICAL                                  :: explicit, should_stop
     REAL(KIND=dp), DIMENSION(:), POINTER     :: Em
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(section_vals_type), POINTER         :: bsse_section, &
@@ -172,7 +172,6 @@ CONTAINS
     INTEGER                                  :: i, j, k, Num_of_sub_conf, &
                                                 Num_of_sub_frag
     INTEGER, DIMENSION(:, :), POINTER        :: conf_loc
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: my_energy
     REAL(KIND=dp), DIMENSION(:), POINTER     :: Em_loc
 
@@ -245,7 +244,6 @@ CONTAINS
       num_of_frag, old_size, present_charge, present_multpl
     INTEGER, DIMENSION(:), POINTER           :: atom_index, atom_list, &
                                                 my_conf, tmplist
-    LOGICAL                                  :: failure
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cp_subsys_type), POINTER            :: subsys, subsys_loc
@@ -374,7 +372,6 @@ CONTAINS
 
     INTEGER                                  :: i, istat, iw
     CHARACTER(len=20*SIZE(conf))             :: conf_loc_s, conf_s
-    LOGICAL                                  :: failure
     TYPE(cp_logger_type), POINTER            :: logger
 
     NULLIFY(logger)
@@ -432,7 +429,7 @@ CONTAINS
 
     INTEGER                                  :: i, nconf
     INTEGER, DIMENSION(:), POINTER           :: glb_conf, sub_conf
-    LOGICAL                                  :: explicit, failure
+    LOGICAL                                  :: explicit
     TYPE(section_vals_type), POINTER         :: configurations
 
     present_charge = 0
@@ -488,7 +485,6 @@ CPSourceFileRef,&
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i, iw
-    LOGICAL                                  :: failure
     TYPE(cp_logger_type), POINTER            :: logger
 
     NULLIFY(logger)
@@ -637,7 +633,6 @@ CPSourceFileRef,&
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: ires
-    LOGICAL                                  :: failure
     TYPE(cp_logger_type), POINTER            :: logger
 
     logger => cp_get_default_logger()

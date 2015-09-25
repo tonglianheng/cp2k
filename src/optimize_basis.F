@@ -154,7 +154,7 @@ CONTAINS
     INTEGER                                  :: handle, icalc, iopt, mp_id, &
                                                 stat
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: f_env_id
-    LOGICAL                                  :: failure, write_basis
+    LOGICAL                                  :: write_basis
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: tot_time
     TYPE(cp_fm_p_type), ALLOCATABLE, &
       DIMENSION(:)                           :: matrix_S_inv

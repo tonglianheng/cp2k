@@ -63,7 +63,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'create_band_section', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
     TYPE(section_type), POINTER              :: print_key, subsection, &
                                                 subsubsection
@@ -321,7 +320,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'create_opt_band_section', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
     TYPE(section_type), POINTER              :: print_key, subsection, &
                                                 subsubsection

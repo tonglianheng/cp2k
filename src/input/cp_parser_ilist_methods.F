@@ -39,7 +39,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: ind
-    LOGICAL                                  :: failure
 
     CPASSERT(ASSOCIATED(ilist))
     ind = INDEX(token,"..")
@@ -68,8 +67,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'ilist_update', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
     CPASSERT(ASSOCIATED(ilist))
     ilist%ipresent = ilist%ipresent + 1
     IF (ilist%ipresent>ilist%iend) THEN
@@ -88,8 +85,6 @@ CONTAINS
 
     CHARACTER(len=*), PARAMETER :: routineN = 'ilist_reset', &
       routineP = moduleN//':'//routineN
-
-    LOGICAL                                  :: failure
 
     CPASSERT(ASSOCIATED(ilist))
     IF (ilist%ipresent==ilist%iend) THEN

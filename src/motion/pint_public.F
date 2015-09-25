@@ -48,7 +48,6 @@ MODULE pint_public
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: ia, ib, ic
-    LOGICAL                                  :: failure
     REAL(kind=dp)                            :: tmass
 
     CPASSERT(ASSOCIATED(pint_env))
@@ -88,7 +87,6 @@ MODULE pint_public
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: ia, ib, ic, natoms
-    LOGICAL                                  :: failure
 
     CPASSERT(ASSOCIATED(pint_env))
 
@@ -134,7 +132,6 @@ MODULE pint_public
 
     INTEGER                                  :: dl, i1, i2, ib, ic, il, ip, &
                                                 j, nlevels, np
-    LOGICAL                                  :: failure
     REAL(kind=dp)                            :: rtmp, tcheck, vrnc, xc
     REAL(kind=dp), DIMENSION(3)              :: cntrd_r
 

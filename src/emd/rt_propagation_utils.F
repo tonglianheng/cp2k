@@ -94,7 +94,7 @@ MODULE  rt_propagation_utils
                                                 maxder, n, nder, &
                                                 neighbor_list_id, row_atom
     INTEGER, DIMENSION(6, 2)                 :: c_map_mat
-    LOGICAL                                  :: failure, return_s_derivatives
+    LOGICAL                                  :: return_s_derivatives
     REAL(dp), DIMENSION(:), POINTER          :: block_values
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set

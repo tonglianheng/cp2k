@@ -79,7 +79,6 @@ MODULE rpa_communication
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: index_counter, proc2counter
     INTEGER, DIMENSION(:), POINTER           :: col_indices_d, col_indices_s, &
                                                 row_indices_d, row_indices_s
-    LOGICAL                                  :: failure
 
     CALL timeset(routineN,handle)
 
@@ -339,7 +338,6 @@ MODULE rpa_communication
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: req_send
     INTEGER, DIMENSION(:), POINTER           :: col_indices_d, col_indices_s, &
                                                 row_indices_d, row_indices_s
-    LOGICAL                                  :: failure
 
     CALL timeset(routineN,handle)
 
@@ -524,7 +522,6 @@ MODULE rpa_communication
 
     INTEGER                                  :: handle, rec_counter, &
                                                 send_counter
-    LOGICAL                                  :: failure
 
     CALL timeset(routineN,handle)
 

@@ -230,7 +230,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: ig, ncol
-    LOGICAL                                  :: failure
 
     CALL section_vals_get(colvar_section,n_repetition=ncol)
     ALLOCATE(subsys%colvar_p(ncol))

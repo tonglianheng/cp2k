@@ -142,7 +142,7 @@ CONTAINS
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: first_sgf, last_sgf
     INTEGER, DIMENSION(:), POINTER           :: list_cubes, row_blk_sizes
     INTEGER, DIMENSION(:, :, :), POINTER     :: statetrueindex
-    LOGICAL                                  :: append_cube, failure, ionode, &
+    LOGICAL                                  :: append_cube, ionode, &
                                                 should_stop
     REAL(dp)                                 :: dk(3), dkl(3), dl(3)
     REAL(dp), DIMENSION(:), POINTER          :: dkl_vec_ii, dkl_vec_iii
@@ -1371,7 +1371,6 @@ CONTAINS
     TYPE(pw_env_type), POINTER               :: pw_env
     TYPE(realspace_grid_desc_p_type), &
       DIMENSION(:), POINTER                  :: rs_descs
-
 
     NULLIFY(pw_env,rs_descs)
 

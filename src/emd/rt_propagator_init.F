@@ -199,7 +199,7 @@ CONTAINS
     REAL(KIND=dp), PARAMETER                 :: one = 1.0_dp , zero = 0.0_dp
 
     INTEGER                                  :: handle, ispin, method, ndim
-    LOGICAL                                  :: emd, failure
+    LOGICAL                                  :: emd
     REAL(dp)                                 :: max_eval, min_eval, norm2, &
                                                 scale, t
     REAL(dp), ALLOCATABLE, DIMENSION(:)      :: eigval_H

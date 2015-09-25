@@ -80,8 +80,10 @@ CONTAINS
 
     INTEGER                                  :: my_per
     INTEGER, DIMENSION(:), POINTER           :: multiple_unit_cell
-    LOGICAL :: cell_read_a, cell_read_abc, cell_read_b, cell_read_c, &
-      cell_read_file, check, failure, my_check
+    LOGICAL                                  :: cell_read_a, cell_read_abc, &
+                                                cell_read_b, cell_read_c, &
+                                                cell_read_file, check, &
+                                                my_check
     REAL(KIND=dp), DIMENSION(:), POINTER     :: cell_angles, cell_par
     TYPE(section_vals_type), POINTER         :: cell_ref_section
 
@@ -207,7 +209,7 @@ CPSourceFileRef,&
     CHARACTER(len=*), PARAMETER :: routineN = 'parsed_cp2k_input', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure, my_check
+    LOGICAL                                  :: my_check
     TYPE(section_vals_type), POINTER         :: glob_section
 
     my_check = .FALSE.
@@ -240,10 +242,8 @@ CPSourceFileRef,&
     CHARACTER(len=*), PARAMETER :: routineN = 'set_multiple_unit_cell', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
+! Fail is one of the value is set to zero..
 
-
-    ! Fail is one of the value is set to zero..
     CALL cp_assert(ALL(multiple_unit_cell>0),cp_fatal_level,cp_assertion_failed,routineP,&
          "CELL%MULTIPLE_UNIT_CELL accepts only integer values larger than 0! "//&
          "A value of 0 or negative is meaningless!"//&
@@ -274,7 +274,7 @@ CPSourceFileRef)
 
     CHARACTER(LEN=default_path_length)       :: cell_file_name
     INTEGER                                  :: i, idum, j, my_format, n_rep
-    LOGICAL                                  :: explicit, failure, my_end
+    LOGICAL                                  :: explicit, my_end
     REAL(KIND=dp)                            :: xdum
     REAL(KIND=dp), DIMENSION(3, 3)           :: hmat
     REAL(KIND=dp), DIMENSION(:), POINTER     :: cell_par

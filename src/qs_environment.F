@@ -232,8 +232,10 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: ikind, method_id, natom, nkind
-    LOGICAL :: do_et, do_exx, do_hfx, do_kpoints, failure, mp2_present, &
-      my_qmmm, qmmm_decoupl, use_ref_cell
+    LOGICAL                                  :: do_et, do_exx, do_hfx, &
+                                                do_kpoints, mp2_present, &
+                                                my_qmmm, qmmm_decoupl, &
+                                                use_ref_cell
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: rtmat
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
@@ -436,8 +438,7 @@ CONTAINS
       n_ao_aux_fit, n_mo_add, natom, nelectron, output_unit
     INTEGER, DIMENSION(2)                    :: n_mo, nelectron_spin
     LOGICAL                                  :: all_potential_present, &
-                                                failure, has_unit_metric, &
-                                                was_present
+                                                has_unit_metric, was_present
     REAL(dp)                                 :: ewald_rcut, maxocc, &
                                                 verlet_skin
     TYPE(atomic_kind_type), DIMENSION(:), &

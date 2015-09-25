@@ -61,7 +61,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i, j, k, na, nb, nc
-    LOGICAL                                  :: failure
     REAL(dp)                                 :: a_max, a_min, b_max, b_min, &
                                                 c_max, c_min, delta_a, &
                                                 delta_b, delta_c
@@ -131,7 +130,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i, j, k
-    LOGICAL                                  :: failure
 
     IF (ASSOCIATED(subcell)) THEN
 

@@ -1935,7 +1935,6 @@ SUBROUTINE poly_cp2k2d3(poly_cp2k,grad,poly_d3)
                                                 mgrad2, sgrad, sgrad2, &
                                                 sgrad2k, sgrad3, sgrad3k, &
                                                 shifti, shiftj, shiftk, size_p
-    LOGICAL                                  :: failure
 
     size_p=(grad+1)*(grad+2)*(grad+3)/6
     CPASSERT(SIZE(poly_cp2k)>=size_p)
@@ -1989,7 +1988,6 @@ SUBROUTINE poly_d32cp2k(poly_cp2k,grad,poly_d3)
                                                 mgrad2, sgrad, sgrad2, &
                                                 sgrad2k, sgrad3, sgrad3k, &
                                                 shifti, shiftj, shiftk, size_p
-    LOGICAL                                  :: failure
 
     size_p=(grad+1)*(grad+2)*(grad+3)/6
     CPASSERT(SIZE(poly_cp2k)>=size_p)

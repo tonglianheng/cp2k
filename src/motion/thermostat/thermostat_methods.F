@@ -122,8 +122,7 @@ CONTAINS
     LOGICAL :: apply_general_thermo, apply_thermo_adiabatic, &
       apply_thermo_baro, apply_thermo_shell, explicit_adiabatic_fast, &
       explicit_adiabatic_slow, explicit_baro, explicit_barostat_section, &
-      explicit_part, explicit_shell, failure, save_mem, shell_adiabatic, &
-      shell_present
+      explicit_part, explicit_shell, save_mem, shell_adiabatic, shell_present
     TYPE(atomic_kind_list_type), POINTER     :: atomic_kinds
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_subsys_type), POINTER            :: subsys
@@ -476,7 +475,6 @@ CPSourceFileRef,&
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: iw
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: kin_energy, pot_energy, tmp
     TYPE(cp_logger_type), POINTER            :: logger
 
@@ -542,8 +540,6 @@ CPSourceFileRef,&
     CHARACTER(len=*), PARAMETER :: routineN = 'apply_thermostat_baro', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
     IF (ASSOCIATED(thermostat)) THEN
        IF      (thermostat%type_of_thermostat==do_thermo_nose) THEN
           ! Apply Nose-Hoover Thermostat
@@ -597,8 +593,6 @@ CPSourceFileRef,&
 
     CHARACTER(len=*), PARAMETER :: routineN = 'apply_thermostat_particles', &
       routineP = moduleN//':'//routineN
-
-    LOGICAL                                  :: failure
 
     IF (ASSOCIATED(thermostat)) THEN
        IF      (thermostat%type_of_thermostat==do_thermo_nose) THEN
@@ -660,8 +654,6 @@ CPSourceFileRef,&
 
     CHARACTER(len=*), PARAMETER :: routineN = 'apply_thermostat_shells', &
       routineP = moduleN//':'//routineN
-
-    LOGICAL                                  :: failure
 
     IF (ASSOCIATED(thermostat)) THEN
        IF      (thermostat%type_of_thermostat==do_thermo_nose) THEN

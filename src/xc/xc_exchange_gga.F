@@ -171,7 +171,6 @@ CONTAINS
     INTEGER                                  :: handle, ispin, m, npoints, &
                                                 nspin
     INTEGER, DIMENSION(:, :), POINTER        :: bo
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: drho_cutoff, rho_cutoff
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: s
     REAL(KIND=dp), ALLOCATABLE, &

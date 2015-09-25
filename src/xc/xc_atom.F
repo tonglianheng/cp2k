@@ -89,8 +89,8 @@ CONTAINS
 
     INTEGER                                  :: handle, ia, idir, ir, &
                                                 my_deriv_order
-    LOGICAL                                  :: failure, gradient_f, &
-                                                my_epr_xc, my_only_energy
+    LOGICAL                                  :: gradient_f, my_epr_xc, &
+                                                my_only_energy
     REAL(dp)                                 :: my_adiabatic_rescale_factor
     REAL(dp), DIMENSION(:, :, :), POINTER    :: deriv_data
     REAL(KIND=dp)                            :: drho_cutoff
@@ -349,7 +349,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, ispin, nspins
-    LOGICAL                                  :: failure, lsd
+    LOGICAL                                  :: lsd
     REAL(dp)                                 :: drho_cutoff
     TYPE(cp_sll_xc_deriv_type), POINTER      :: pos
     TYPE(pw_p_type), DIMENSION(:), POINTER   :: vxc_pw
@@ -587,8 +587,7 @@ CONTAINS
     REAL(KIND=dp), PARAMETER                 :: f13 = (1.0_dp/3.0_dp)
 
     INTEGER                                  :: ia, idir, my_nspins
-    LOGICAL                                  :: failure, gradient_f, &
-                                                tddft_split
+    LOGICAL                                  :: gradient_f, tddft_split
 
     my_nspins = nspins
     tddft_split = .FALSE.

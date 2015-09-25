@@ -1790,7 +1790,7 @@ MODULE admm_methods
     INTEGER                                  :: handle, ispin, iw, &
                                                 nao_aux_fit, nao_orb, natom, &
                                                 neighbor_list_id, nmo
-    LOGICAL                                  :: failure, omit_headers
+    LOGICAL                                  :: omit_headers
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: admm_force
     TYPE(admm_type), POINTER                 :: admm_env

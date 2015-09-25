@@ -1106,7 +1106,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: ispin
-    LOGICAL                                  :: failure, uniform_occupation
+    LOGICAL                                  :: uniform_occupation
     REAL(KIND=dp), DIMENSION(:), POINTER     :: occupation_numbers
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: matrix_ks_aux_fit
@@ -1216,7 +1216,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle
-    LOGICAL :: c_forces, do_rebuild, energy_only, failure, forces_up_to_date, &
+    LOGICAL :: c_forces, do_rebuild, energy_only, forces_up_to_date, &
       potential_changed, rho_changed, s_mstruct_changed
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(qs_ks_env_type), POINTER            :: ks_env
@@ -1401,7 +1401,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, imo
-    LOGICAL                                  :: failure
     REAL(KIND=dp), DIMENSION(:), POINTER     :: eigocc
     TYPE(cp_fm_type), POINTER                :: weighted_vectors
 
@@ -1458,7 +1457,6 @@ CONTAINS
     INTEGER                                  :: handle, ncol_block, &
                                                 ncol_global, nrow_block, &
                                                 nrow_global
-    LOGICAL                                  :: failure
     REAL(KIND=dp), DIMENSION(:), POINTER     :: occupation_numbers, &
                                                 scaling_factor
     TYPE(cp_fm_struct_type), POINTER         :: fm_struct_tmp

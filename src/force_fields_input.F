@@ -95,8 +95,7 @@ CONTAINS
     INTEGER :: nb4, nbends, nbm, nbmhft, nbmhftd, nbonds, nchg, neam, ngd, &
       ngp, nimpr, nipbv, nlj, nopbend, nquip, nshell, nsiepmann, ntersoff, &
       ntors, ntot, nubs, nwl
-    LOGICAL                                  :: explicit, failure, &
-                                                unique_spline
+    LOGICAL                                  :: explicit, unique_spline
     REAL(KIND=dp)                            :: min_eps_spline_allowed
     TYPE(input_info_type), POINTER           :: inp_info
     TYPE(section_vals_type), POINTER         :: tmp_section, tmp_section2
@@ -978,14 +977,12 @@ CPSourceFileRef,&
       DIMENSION(:), POINTER                  :: atm_names
     INTEGER                                  :: i, ir, isec, n_items, n_rep, &
                                                 np1, np2
-    LOGICAL                                  :: explicit_poly1, &
-                                                explicit_poly2, failure
+    LOGICAL                                  :: explicit_poly1, explicit_poly2
     REAL(KIND=dp)                            :: a, b, c, eval_error, r1, r2, &
                                                 r3, rcut
     REAL(KIND=dp), DIMENSION(10)             :: v, x
     REAL(KIND=dp), DIMENSION(10, 10)         :: p, p_inv
     REAL(KIND=dp), DIMENSION(:), POINTER     :: coeff1, coeff2, list
-
 
     NULLIFY (coeff1)
     NULLIFY (coeff2)
@@ -1170,7 +1167,6 @@ CPSourceFileRef,&
     CHARACTER(LEN=default_string_length), &
       DIMENSION(:), POINTER                  :: atm_names
     INTEGER                                  :: isec, n_items, n_rep
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: rcut
 
     CALL section_vals_get(section,n_repetition=n_items)
@@ -1329,7 +1325,6 @@ CPSourceFileRef,&
     CHARACTER(LEN=default_string_length), &
       DIMENSION(:), POINTER                  :: atm_names
     INTEGER                                  :: isec, n_items, n_rep
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: a1, a2, b1, b2, beta, c, d, &
                                                 f0, r0, rcut
 
@@ -1428,7 +1423,6 @@ CPSourceFileRef,&
     CHARACTER(LEN=default_string_length)     :: atm_name
     INTEGER                                  :: isec, isec_damp, n_damp, &
                                                 n_items, start_damp, tmp_damp
-    LOGICAL                                  :: failure
     TYPE(section_vals_type), POINTER         :: tmp_section
 
     CALL section_vals_get(section,n_repetition=n_items)
@@ -1599,7 +1593,6 @@ CPSourceFileRef,&
     CHARACTER(LEN=default_string_length), &
       DIMENSION(:), POINTER                  :: atm_names
     INTEGER                                  :: isec, k, n_items
-    LOGICAL                                  :: failure
     REAL(KIND=dp), DIMENSION(:), POINTER     :: Kvals
 
     NULLIFY(Kvals, atm_names)
@@ -1658,7 +1651,6 @@ CPSourceFileRef,&
     CHARACTER(LEN=default_string_length), &
       DIMENSION(:), POINTER                  :: atm_names
     INTEGER                                  :: isec, n_items
-    LOGICAL                                  :: failure
     REAL(KIND=dp), DIMENSION(:), POINTER     :: Kvals
 
     NULLIFY(Kvals, atm_names)
@@ -1711,7 +1703,7 @@ CPSourceFileRef,&
     CHARACTER(LEN=default_string_length), &
       DIMENSION(:), POINTER                  :: atm_names
     INTEGER                                  :: isec, k, n_items
-    LOGICAL                                  :: explicit, failure
+    LOGICAL                                  :: explicit
     REAL(KIND=dp), DIMENSION(:), POINTER     :: Kvals
     TYPE(section_vals_type), POINTER         :: subsection
 
@@ -1771,7 +1763,6 @@ CPSourceFileRef,&
     CHARACTER(LEN=default_string_length), &
       DIMENSION(:), POINTER                  :: atm_names
     INTEGER                                  :: isec, n_items
-    LOGICAL                                  :: failure
 
     NULLIFY( atm_names)
     CALL section_vals_get(section,n_repetition=n_items)
@@ -1820,7 +1811,6 @@ CPSourceFileRef,&
     CHARACTER(LEN=default_string_length), &
       DIMENSION(:), POINTER                  :: atm_names
     INTEGER                                  :: isec, n_items
-    LOGICAL                                  :: failure
 
     NULLIFY( atm_names)
     CALL section_vals_get(section,n_repetition=n_items)
@@ -1869,7 +1859,6 @@ CPSourceFileRef,&
     CHARACTER(LEN=default_string_length), &
       DIMENSION(:), POINTER                  :: atm_names
     INTEGER                                  :: isec, n_items
-    LOGICAL                                  :: failure
 
     NULLIFY( atm_names)
     CALL section_vals_get(section,n_repetition=n_items)
@@ -1926,7 +1915,6 @@ CPSourceFileRef,&
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, i, iw
-    LOGICAL                                  :: failure
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_parser_type), POINTER            :: parser
 

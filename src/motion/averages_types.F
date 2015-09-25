@@ -85,7 +85,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i, nint
-    LOGICAL                                  :: do_colvars, failure
+    LOGICAL                                  :: do_colvars
 
     ALLOCATE (averages)
     NULLIFY(averages%virial)
@@ -150,9 +150,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'retain_averages', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-
     CPASSERT(ASSOCIATED(averages))
     CPASSERT(averages%ref_count>0)
     averages%ref_count=averages%ref_count+1
@@ -169,7 +166,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'release_averages', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     TYPE(section_vals_type), POINTER         :: work_section
 
     IF (ASSOCIATED(averages)) THEN
@@ -237,7 +233,7 @@ CONTAINS
     CHARACTER(LEN=default_string_length)     :: ctmp
     INTEGER                                  :: delta_t, handle, i, nint, &
                                                 output_unit
-    LOGICAL                                  :: failure, restart_averages
+    LOGICAL                                  :: restart_averages
     REAL(KIND=dp)                            :: start_time
     REAL(KIND=dp), DIMENSION(:), POINTER     :: cvalues, Mmatrix, tmp
     TYPE(cp_logger_type), POINTER            :: logger
@@ -457,8 +453,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'get_averages_rs', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
     avg = (avg*REAL(delta_t-1,dp) + add)/REAL(delta_t,dp)
   END SUBROUTINE get_averages_rs
 
@@ -479,7 +473,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i
-    LOGICAL                                  :: check, failure
+    LOGICAL                                  :: check
 
     check = SIZE(avg)==SIZE(add)
     CPASSERT(check)
@@ -506,7 +500,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i, j
-    LOGICAL                                  :: check, failure
+    LOGICAL                                  :: check
 
     check = SIZE(avg,1)==SIZE(add,1)
     CPASSERT(check)

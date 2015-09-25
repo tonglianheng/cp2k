@@ -83,7 +83,6 @@ CONTAINS
 
     INTEGER                                  :: j, l, mc, mlc, mlo, mm(0:3), &
                                                 mo
-    LOGICAL                                  :: failure
 
     WRITE(iw,'(/,T2,A)') "Electronic structure"
     WRITE(iw,'(T5,A,T71,F10.2)') "Total number of core electrons",SUM(state%core)
@@ -289,7 +288,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i, j, l
-    LOGICAL                                  :: failure
 
     WRITE(iw,'(/,A)') TRIM(title)
     SELECT CASE (atom_basis%basis_type)
@@ -366,7 +364,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i, iw
-    LOGICAL                                  :: failure
 
     CALL open_file(file_name="OPT_BASIS",file_status="UNKNOWN",file_action="WRITE",unit_number=iw)
     SELECT CASE (atom_basis%basis_type)
@@ -448,7 +445,7 @@ CONTAINS
     CHARACTER(len=80), DIMENSION(:), POINTER :: func_name
     INTEGER                                  :: ifun, ifunc_name, il, meth, &
                                                 myfun, reltyp
-    LOGICAL                                  :: failure, lsd
+    LOGICAL                                  :: lsd
     TYPE(section_vals_type), POINTER         :: xc_fun, xc_fun_section, &
                                                 xc_section
 
@@ -598,7 +595,6 @@ CONTAINS
 
     CHARACTER(len=60)                        :: pline
     INTEGER                                  :: i, j, k, l
-    LOGICAL                                  :: failure
 
     SELECT CASE (potential%ppot_type)
       CASE (NO_PSEUDO)
@@ -727,9 +723,6 @@ CONTAINS
 
     CHARACTER(len=*), PARAMETER :: routineN = 'atom_print_orbitals', &
       routineP = moduleN//':'//routineN
-
-    LOGICAL                                  :: failure
-
 
     SELECT CASE (atom%method_type)
       CASE DEFAULT

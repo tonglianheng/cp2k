@@ -305,8 +305,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i, ikind, nkind
-    LOGICAL                                  :: failure
-
 
     IF (ASSOCIATED(lri_env)) THEN
        lri_env%ref_count=0
@@ -387,9 +385,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'lri_density_release', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-
     IF (ASSOCIATED(lri_density)) THEN
        lri_density%ref_count=0
 
@@ -427,7 +422,7 @@ CONTAINS
                                                 jatom, jkind, jneighbor, nba, &
                                                 nbb, nfa, nfb, nlist, nn, &
                                                 nneighbor
-    LOGICAL                                  :: failure, use_virial
+    LOGICAL                                  :: use_virial
     REAL(KIND=dp)                            :: dab, rab(3)
     TYPE(gto_basis_set_type), POINTER        :: fbasa, fbasb, obasa, obasb
     TYPE(lri_int_type), POINTER              :: lrii
@@ -652,7 +647,6 @@ CONTAINS
                                                 ispin, jatom, jkind, &
                                                 jneighbor, nfa, nfb, nlist, &
                                                 nn, nneighbor
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: dab, rab(3)
     TYPE(lri_int_type), POINTER              :: lrii
     TYPE(lri_list_type), POINTER             :: lri_rho
@@ -750,7 +744,6 @@ CONTAINS
 
     INTEGER                                  :: ikind, ispin, natom, nkind, &
                                                 nsgf, nspin
-    LOGICAL                                  :: failure
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(gto_basis_set_type), POINTER        :: fbas
     TYPE(lri_spin_type), DIMENSION(:), &
@@ -803,8 +796,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: nn
-    LOGICAL                                  :: failure
-
 
     nn = nfa + nfb
 
@@ -967,7 +958,6 @@ CONTAINS
 
     INTEGER                                  :: i, iatom, ijkind, inode, &
                                                 natom, nkind, nnode
-    LOGICAL                                  :: failure
     TYPE(lri_list_type), POINTER             :: lri_rho
 
     NULLIFY(lri_rho)
@@ -1022,8 +1012,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i, j
-    LOGICAL                                  :: failure
-
 
     IF (ASSOCIATED(lri_coefs)) THEN
        DO i=1,SIZE(lri_coefs)
@@ -1060,9 +1048,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: &
       routineN = 'deallocate_lri_force_components', &
       routineP = moduleN//':'//routineN
-
-    LOGICAL                                  :: failure
-
 
     IF (ASSOCIATED(lri_force)) THEN
 

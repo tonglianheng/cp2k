@@ -452,7 +452,6 @@ CONTAINS
     INTEGER, ALLOCATABLE, DIMENSION(:, :, :) :: cg_list
     INTEGER, DIMENSION(2)                    :: bo
     INTEGER, DIMENSION(:), POINTER           :: lmax, lmin, npgf, o2nindex
-    LOGICAL                                  :: failure
     REAL(dp)                                 :: zet12
     REAL(dp), ALLOCATABLE, DIMENSION(:, :)   :: CPC_sphere
     REAL(dp), DIMENSION(20)                  :: vgg

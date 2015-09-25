@@ -76,7 +76,7 @@ CONTAINS
 
     CHARACTER&
       (len=MAX_DERIVATIVE_DESC_LENGTH)       :: std_deriv_desc
-    LOGICAL                                  :: failure, my_allocate_deriv
+    LOGICAL                                  :: my_allocate_deriv
     REAL(kind=dp), DIMENSION(:, :, :), &
       POINTER                                :: cr3d_ptr
     TYPE(cp_sll_xc_deriv_type), POINTER      :: pos
@@ -166,10 +166,8 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'xc_dset_release', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     TYPE(cp_sll_xc_deriv_type), POINTER      :: pos
     TYPE(xc_derivative_type), POINTER        :: deriv_att
-
 
     NULLIFY(deriv_att,pos)
     CPASSERT(ASSOCIATED(derivative_set))
@@ -203,9 +201,6 @@ SUBROUTINE xc_dset_retain(deriv_set)
     CHARACTER(len=*), PARAMETER :: routineN = 'xc_dset_retain', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-
   CPASSERT(ASSOCIATED(deriv_set))
   CPASSERT(deriv_set%ref_count>0)
   deriv_set%ref_count=deriv_set%ref_count+1
@@ -222,7 +217,6 @@ SUBROUTINE xc_dset_zero_all(deriv_set)
     CHARACTER(len=*), PARAMETER :: routineN = 'xc_dset_zero_all', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     TYPE(cp_sll_xc_deriv_type), POINTER      :: pos
     TYPE(xc_derivative_type), POINTER        :: deriv_att
 

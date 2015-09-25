@@ -74,7 +74,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: ikind, n, nkind
-    LOGICAL                                  :: failure
 
     IF (ASSOCIATED(qs_force)) CALL deallocate_qs_force(qs_force)
 
@@ -130,7 +129,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: ikind, nkind
-    LOGICAL                                  :: failure
 
     CPASSERT(ASSOCIATED(qs_force))
 
@@ -254,7 +252,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: ikind
-    LOGICAL                                  :: failure
 
     CPASSERT(ASSOCIATED(qs_force))
 
@@ -310,7 +307,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: ia, iatom, ikind, natom_kind
-    LOGICAL                                  :: failure
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
 
 !   ------------------------------------------------------------------------

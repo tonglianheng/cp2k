@@ -159,7 +159,7 @@ CONTAINS
 
     INTEGER                                  :: ispin, istate, nmoloc(2), &
                                                 output_unit
-    LOGICAL                                  :: failure, my_centers_only
+    LOGICAL                                  :: my_centers_only
     TYPE(cp_fm_p_type), DIMENSION(:), &
       POINTER                                :: mos_localized
     TYPE(cp_fm_type), POINTER                :: mo_coeff
@@ -271,7 +271,7 @@ CONTAINS
     INTEGER                                  :: handle, ispin, iter, maxnmo, &
                                                 maxnmo_o, nao, ncol, nmo, &
                                                 nspins, output_unit
-    LOGICAL                                  :: failure, restart
+    LOGICAL                                  :: restart
     REAL(dp)                                 :: norm_res, t1, t2
     REAL(dp), DIMENSION(:), POINTER          :: alpha, beta, tr_pAp, tr_rz0, &
                                                 tr_rz00, tr_rz1
@@ -291,8 +291,8 @@ CONTAINS
     TYPE(section_vals_type), POINTER         :: lr_section
 
 !
+!
 
-    !
     CALL timeset(routineN,handle)
 
     NULLIFY(dft_control,linres_control,matrix_s,matrix_t,matrix_ks,para_env)
@@ -668,7 +668,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, ispin, nspins
-    LOGICAL                                  :: failure
     REAL(dp)                                 :: chksum
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: matrix_ks, matrix_s, rho1_ao
@@ -774,11 +773,9 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: ispin, ncol, nspins
-    LOGICAL                                  :: failure
 
 !
 !
-
 
     CPASSERT(ASSOCIATED(c0))
     CPASSERT(ASSOCIATED(c1))
@@ -821,11 +818,10 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, ncol, nrow
-    LOGICAL                                  :: failure
 
 !
+!
 
-    !
     CALL timeset(routineN,handle)
     !
     CPASSERT(ASSOCIATED(v))
@@ -1245,7 +1241,7 @@ CONTAINS
 
     CHARACTER(len=25)                        :: name
     INTEGER                                  :: handle, ispin, nspins
-    LOGICAL                                  :: failure, gapw_xc
+    LOGICAL                                  :: gapw_xc
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: matrix_s
     TYPE(dft_control_type), POINTER          :: dft_control
@@ -1305,7 +1301,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: ispin, nspins
-    LOGICAL                                  :: failure
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: matrix_s
     TYPE(pw_env_type), POINTER               :: pw_env
@@ -1406,11 +1401,10 @@ CONTAINS
 
     INTEGER                                  :: handle, ispin, mp, mt, mv, &
                                                 np, nspins, nt, nv
-    LOGICAL                                  :: failure
 
 !
+!
 
-    !
     CALL timeset(routineN,handle)
     !
     CPASSERT(ASSOCIATED(v))
@@ -1461,9 +1455,9 @@ CONTAINS
 
     INTEGER                                  :: handle, ispin, mp, mt, mv, &
                                                 np, nspins, nt, nv
-    LOGICAL                                  :: failure
 
-    !
+!
+
     CALL timeset(routineN,handle)
     !
     CPASSERT(ASSOCIATED(v))
@@ -1521,7 +1515,6 @@ CONTAINS
                                                 ispin, j, max_block, nao, &
                                                 nmo, nspins, output_unit, &
                                                 rst_unit
-    LOGICAL                                  :: failure
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: vecbuffer
     TYPE(cp_fm_type), POINTER                :: mo_coeff
     TYPE(cp_logger_type), POINTER            :: logger
@@ -1529,7 +1522,6 @@ CONTAINS
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mos
     TYPE(section_vals_type), POINTER         :: print_key
-
 
     NULLIFY(logger, mo_coeff, mos, para_env, print_key, vecbuffer)
 
@@ -1627,10 +1619,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, output_unit, rst_unit
-    LOGICAL                                  :: failure
     TYPE(cp_logger_type), POINTER            :: logger
-
-
 
     CALL timeset(routineN,handle)
 
@@ -1683,7 +1672,7 @@ CONTAINS
     INTEGER :: group, handle, i, i_block, ia, ie, iostat, ispin, iv, iv1, &
       ivec_tmp, j, max_block, n_rep_val, nao, nao_tmp, nmo, nmo_tmp, nspins, &
       nspins_tmp, output_unit, rst_unit, source
-    LOGICAL                                  :: failure, file_exists
+    LOGICAL                                  :: file_exists
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: vecbuffer
     TYPE(cp_fm_type), POINTER                :: mo_coeff
     TYPE(cp_logger_type), POINTER            :: logger
@@ -1846,8 +1835,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: ispin, ncol, nrow
-    LOGICAL                                  :: failure
-
 
     p_env%iter = 0
     p_env%only_energy = .FALSE.

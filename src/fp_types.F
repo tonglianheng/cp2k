@@ -68,7 +68,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle
-    LOGICAL                                  :: failure
 
     CALL timeset(routineN,handle)
 
@@ -95,7 +94,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle
-    LOGICAL                                  :: failure
 
     CALL timeset(routineN,handle)
 
@@ -124,8 +122,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'fp_env_retain', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
       CPASSERT(ASSOCIATED(fp_env))
       fp_env%ref_count=fp_env%ref_count+1
 
@@ -147,7 +143,6 @@ CONTAINS
 
     INTEGER                                  :: handle
     INTEGER, DIMENSION(:), POINTER           :: tmplist
-    LOGICAL                                  :: failure
 
     CALL timeset(routineN,handle)
     CPASSERT(ASSOCIATED(fp_env))
@@ -192,7 +187,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, output_unit
-    LOGICAL                                  :: failure
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(section_vals_type), POINTER         :: PRINT
 

@@ -271,7 +271,7 @@ CPSourceFileRef,&
     CHARACTER(len=*), PARAMETER :: routineN = 'read_md_low', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: explicit, failure
+    LOGICAL                                  :: explicit
     TYPE(section_vals_type), POINTER         :: tmp_section
 
     NULLIFY(tmp_section)

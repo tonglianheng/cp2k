@@ -85,8 +85,8 @@ CONTAINS
     INTEGER, DIMENSION(0:3)                  :: maxn
     INTEGER, DIMENSION(:), POINTER           :: cn
     LOGICAL                                  :: dm, do_zmp, doread, eri_c, &
-                                                eri_e, failure, had_ae, &
-                                                had_pp, pp_calc, read_vxc
+                                                eri_e, had_ae, had_pp, &
+                                                pp_calc, read_vxc
     REAL(KIND=dp)                            :: delta, lambda
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: ext_density, ext_vxc
     REAL(KIND=dp), DIMENSION(0:3, 10)        :: pocc
@@ -102,7 +102,6 @@ CONTAINS
     TYPE(section_vals_type), POINTER :: basis_section, external_vxc_section, &
       method_section, opt_section, potential_section, powell_section, &
       xc_section, zmp_restart_section, zmp_section
-
 
     CALL timeset(routineN,handle)
 
@@ -486,7 +485,6 @@ CONTAINS
 
     INTEGER                                  :: i, ider, j, k, l, lhomo, m, &
                                                 n, nhomo, s1, s2
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: dene, emax, expzet, fhomo, o, &
                                                 prefac, zeta
     REAL(KIND=dp), ALLOCATABLE, &
@@ -614,7 +612,7 @@ CONTAINS
     CHARACTER(LEN=default_string_length)     :: string
     INTEGER                                  :: i, ibeta, j, k, l, lmax, &
                                                 nbeta, nr, nwfc, nwfn
-    LOGICAL                                  :: failure, up
+    LOGICAL                                  :: up
     REAL(KIND=dp)                            :: pf, rl, rmax
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: beta, corden, dens, ef, &
                                                 locpot, rp

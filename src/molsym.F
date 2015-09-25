@@ -128,8 +128,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'create_molsym', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
     IF ( ASSOCIATED(sym) ) CALL release_molsym(sym)
 
     ALLOCATE(sym)
@@ -149,8 +147,6 @@ CONTAINS
 
     CHARACTER(len=*), PARAMETER :: routineN = 'release_molsym', &
       routineP = moduleN//':'//routineN
-
-    LOGICAL                                  :: failure
 
     CPASSERT(ASSOCIATED(sym))
 
@@ -201,7 +197,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: isec
-    LOGICAL                                  :: failure
     REAL(dp)                                 :: length_of_a, scapro
     REAL(dp), DIMENSION(3)                   :: d
 
@@ -242,7 +237,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: ises
-    LOGICAL                                  :: failure
     REAL(dp)                                 :: length_of_a, scapro
     REAL(dp), DIMENSION(3)                   :: d
 
@@ -281,7 +275,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: isig
-    LOGICAL                                  :: failure
     REAL(dp)                                 :: length_of_a, scapro
     REAL(dp), DIMENSION(3)                   :: d
 
@@ -1714,7 +1707,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: natoms
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: tt
 
 ! Find the vector center_of_mass to molecular center of mass

@@ -76,8 +76,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, ikind, imol
-    LOGICAL                                  :: failure, my_unique, &
-                                                skip_inter_colvar
+    LOGICAL                                  :: my_unique, skip_inter_colvar
     TYPE(colvar_counters)                    :: ncolv
     TYPE(cp_subsys_type), POINTER            :: subsys
     TYPE(global_constraint_type), POINTER    :: gci
@@ -141,7 +140,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, i, ikind, ind, nkind
-    LOGICAL                                  :: failure
     TYPE(cell_type), POINTER                 :: cell
     TYPE(colvar_constraint_type), &
       DIMENSION(:), POINTER                  :: colv_list
@@ -214,7 +212,7 @@ CONTAINS
                                                 n_tot, natom, nkind, &
                                                 nmol_per_kind, offset
     INTEGER, DIMENSION(:), POINTER           :: map, wrk
-    LOGICAL                                  :: check, failure
+    LOGICAL                                  :: check
     REAL(KIND=dp)                            :: inv_error
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: bwrk, Gmatrix, Gmatrix_i
@@ -402,7 +400,6 @@ CPSourceFileRef)
     CHARACTER(LEN=*), PARAMETER :: routineN = 'eval_colv_int', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     TYPE(colvar_constraint_type), POINTER    :: colv_list( : )
     TYPE(fixd_constraint_type), &
       DIMENSION(:), POINTER                  :: fixd_list
@@ -506,7 +503,6 @@ CPSourceFileRef)
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: iatm, iconst, ind, ival
-    LOGICAL                                  :: failure
 
     ival = offset
     DO iconst = 1, SIZE(colv_list)
@@ -559,7 +555,6 @@ CPSourceFileRef)
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i, j, k
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: tmp
     REAL(KIND=dp), DIMENSION(:), POINTER     :: MassI, wrk
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: Amatrix, Bmatrix
@@ -617,7 +612,6 @@ CPSourceFileRef)
     CHARACTER(len=3)                         :: name_kind
     INTEGER                                  :: i, ii, j, natoms, nkinds, &
                                                 nr_frame, stat
-    LOGICAL                                  :: failure
 
     natoms = SIZE(particles)
     IF (colvar%type_id == coord_colvar_id) THEN

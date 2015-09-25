@@ -46,9 +46,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'qmmmx_env_get', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-
     CPASSERT(ASSOCIATED(qmmmx_env))
     CPASSERT(qmmmx_env%ref_count>0)
 
@@ -73,9 +70,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'qmmmx_env_retain', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-
     CPASSERT(ASSOCIATED(qmmmx_env))
     CPASSERT(qmmmx_env%ref_count>0)
     qmmmx_env%ref_count = qmmmx_env%ref_count+1
@@ -92,9 +86,6 @@ CONTAINS
 
     CHARACTER(len=*), PARAMETER :: routineN = 'qmmmx_env_release', &
       routineP = moduleN//':'//routineN
-
-    LOGICAL                                  :: failure
-
 
     IF (ASSOCIATED(qmmmx_env)) THEN
        CPASSERT(qmmmx_env%ref_count>0)

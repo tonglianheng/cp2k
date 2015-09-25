@@ -324,8 +324,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=default_string_length)     :: functional
-    LOGICAL                                  :: failure
-
 
     CALL section_vals_val_get(vdw_section,"PAIR_POTENTIAL%REFERENCE_FUNCTIONAL",c_val=functional)
 
@@ -372,8 +370,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=default_string_length)     :: functional
-    LOGICAL                                  :: failure
-
 
     CALL section_vals_val_get(vdw_section,"PAIR_POTENTIAL%REFERENCE_FUNCTIONAL",c_val=functional)
 
@@ -611,8 +607,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=default_string_length)     :: functional
-    LOGICAL                                  :: failure
-
 
     CALL section_vals_val_get(vdw_section,"PAIR_POTENTIAL%REFERENCE_FUNCTIONAL",c_val=functional)
 
@@ -849,8 +843,10 @@ CONTAINS
     INTEGER, DIMENSION(3)                    :: cell_b, cell_c, ncell, &
                                                 periodic
     INTEGER, DIMENSION(:), POINTER           :: atom_list
-    LOGICAL :: atenergy, atstress, debug, debugall, debugx, failure, ghost_a, &
-      ghost_b, ghost_c, is000, use_virial
+    LOGICAL                                  :: atenergy, atstress, debug, &
+                                                debugall, debugx, ghost_a, &
+                                                ghost_b, ghost_c, is000, &
+                                                use_virial
     LOGICAL, ALLOCATABLE, DIMENSION(:)       :: dodisp, ghost
     REAL(KIND=dp) :: a1, a2, alp6, alp8, ang, c6, c8, c9, cc6ab, cc6bc, &
       cc6ca, cnab, cnum, dc6a, dc6b, dc8a, dc8b, dcc6aba, dcc6abb, dcc6bcb, &
@@ -1740,7 +1736,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: ix, iy, iz, nx, ny, nz
-    LOGICAL                                  :: failure
 
     CPASSERT(ALL(ABS(cell)<=ncell))
 
@@ -1838,7 +1833,6 @@ CONTAINS
 
     INTEGER                                  :: funit, iadr, iat, jadr, jat, &
                                                 kk, nl, nlines, nn
-    LOGICAL                                  :: failure
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: pars
 
     IF(para_env%source==para_env%mepos) THEN
@@ -2933,7 +2927,6 @@ CONTAINS
     INTEGER                                  :: group, i, ia, ipe, jn, n, &
                                                 natom, ntmax, ntot
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: list, nloc
-    LOGICAL                                  :: failure
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: dvals
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: rik

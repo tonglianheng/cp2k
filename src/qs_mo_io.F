@@ -128,7 +128,7 @@ CONTAINS
       keys = (/"SCF%PRINT%RESTART_HISTORY","SCF%PRINT%RESTART        "/)
 
     INTEGER                                  :: handle, ikey, ires, ispin
-    LOGICAL                                  :: failure, write_kp
+    LOGICAL                                  :: write_kp
     TYPE(cp_logger_type), POINTER            :: logger
 
     CALL timeset(routineN,handle)
@@ -196,7 +196,7 @@ CONTAINS
     INTEGER                                  :: handle, ic, ik, ikk, iogroup, &
                                                 is, mosource, nc, ns, &
                                                 request, tag
-    LOGICAL                                  :: failure, is_source, moalloc
+    LOGICAL                                  :: is_source, moalloc
     TYPE(cp_para_env_type), POINTER          :: para_env, para_env_inter_kp
     TYPE(mo_set_p_type), DIMENSION(:, :), &
       POINTER                                :: mos
@@ -326,7 +326,6 @@ CONTAINS
       "REAL_TIME_PROPAGATION%PRINT%RESTART        "/)
 
     INTEGER                                  :: handle, ikey, ires
-    LOGICAL                                  :: failure
     TYPE(cp_logger_type), POINTER            :: logger
 
     CALL timeset(routineN,handle)
@@ -626,7 +625,7 @@ CPSourceFileRef,&
     CHARACTER(LEN=default_path_length)       :: file_name
     INTEGER                                  :: group, handle, ispin, natom, &
                                                 nspin, restart_unit, source
-    LOGICAL                                  :: exist, failure
+    LOGICAL                                  :: exist
     TYPE(cp_logger_type), POINTER            :: logger
 
     CALL timeset(routineN,handle)
@@ -720,7 +719,7 @@ CPSourceFileRef,&
     CHARACTER(LEN=default_path_length)       :: file_name
     INTEGER                                  :: group, handle, ispin, natom, &
                                                 nspin, restart_unit, source
-    LOGICAL                                  :: exist, failure
+    LOGICAL                                  :: exist
     TYPE(cp_logger_type), POINTER            :: logger
 
     CALL timeset(routineN,handle)
@@ -1293,9 +1292,9 @@ CPSourceFileRef,&
       scf_step, to, width
     INTEGER, DIMENSION(:), POINTER           :: mo_index_range, nshell
     INTEGER, DIMENSION(:, :), POINTER        :: l
-    LOGICAL                                  :: failure, ionode, my_last, &
-                                                p_cart, p_eval, p_evec, &
-                                                p_occ, should_output
+    LOGICAL                                  :: ionode, my_last, p_cart, &
+                                                p_eval, p_evec, p_occ, &
+                                                should_output
     REAL(KIND=dp)                            :: gap
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: cmatrix, smatrix
     TYPE(cp_logger_type), POINTER            :: logger

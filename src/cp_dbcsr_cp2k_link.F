@@ -290,7 +290,7 @@ CONTAINS
     INTEGER                                  :: blk_cnt, handle, iatom, icol, &
                                                 inode, irow, jatom, last_jatom
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: cols, rows, tmp
-    LOGICAL                                  :: failure, new_atom_b
+    LOGICAL                                  :: new_atom_b
     TYPE(neighbor_list_iterator_p_type), &
       DIMENSION(:), POINTER                  :: nl_iterator
 

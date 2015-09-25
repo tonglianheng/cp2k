@@ -110,7 +110,6 @@ CONTAINS
 
     INTEGER                                  :: ikind, iparticle, isgf, &
                                                 nparticle, ns
-    LOGICAL                                  :: failure
 
     CPASSERT(ASSOCIATED(particle_set))
 
@@ -192,8 +191,7 @@ CONTAINS
     CHARACTER(LEN=4)                         :: name
     CHARACTER(LEN=default_string_length)     :: atm_name, my_format
     INTEGER                                  :: handle, iatom, natom, stat
-    LOGICAL                                  :: dummy, failure, &
-                                                my_charge_beta, &
+    LOGICAL                                  :: dummy, my_charge_beta, &
                                                 my_charge_extended, &
                                                 my_charge_occup
     REAL(KIND=dp)                            :: angle_alpha, angle_beta, &
@@ -640,7 +638,6 @@ CONTAINS
     INTEGER                                  :: handle, iatom, iw, jatom, &
                                                 natom
     INTEGER, DIMENSION(3)                    :: periodic
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: conv, dab
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: distance_matrix
@@ -706,7 +703,6 @@ CONTAINS
                                                 katom, my_el_per_part, natom, &
                                                 to
     INTEGER, DIMENSION(:), POINTER           :: my_list
-    LOGICAL                                  :: failure
 
     my_el_per_part = 1
     IF (PRESENT(el_per_part)) my_el_per_part = el_per_part
@@ -772,7 +768,7 @@ CONTAINS
                                                 wrk3(3), wrk4(4)
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: work
     INTEGER, DIMENSION(:), POINTER           :: atomic_indices, index_list
-    LOGICAL                                  :: failure, unique
+    LOGICAL                                  :: unique
     REAL(KIND=dp)                            :: conv, dab
     REAL(KIND=dp), DIMENSION(3)              :: r, rab, rbc, rcd, s
     TYPE(cp_logger_type), POINTER            :: logger

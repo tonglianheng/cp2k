@@ -780,9 +780,6 @@ END SUBROUTINE qs_ks_env_create
     CHARACTER(len=*), PARAMETER :: routineN = 'qs_ks_release', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-
     IF (ASSOCIATED(ks_env)) THEN
        CPASSERT(ks_env%ref_count>0)
        ks_env%ref_count=ks_env%ref_count-1
@@ -927,9 +924,6 @@ SUBROUTINE qs_ks_retain(ks_env)
     CHARACTER(len=*), PARAMETER :: routineN = 'qs_ks_retain', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-
   CPASSERT(ASSOCIATED(ks_env))
   CPASSERT(ks_env%ref_count>0)
   ks_env%ref_count=ks_env%ref_count+1
@@ -962,7 +956,7 @@ END SUBROUTINE qs_ks_retain
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle
-    LOGICAL                                  :: failure, my_mstruct_chg
+    LOGICAL                                  :: my_mstruct_chg
 
     CALL timeset(routineN,handle)
     my_mstruct_chg = .FALSE.

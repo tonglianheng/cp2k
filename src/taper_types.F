@@ -45,8 +45,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'taper_create', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
     CPASSERT(.NOT.ASSOCIATED(taper))
     ALLOCATE (taper)
     IF (range > EPSILON(0.0_dp)) THEN
@@ -69,8 +67,6 @@ CONTAINS
 
     CHARACTER(len=*), PARAMETER :: routineN = 'taper_release', &
       routineP = moduleN//':'//routineN
-
-    LOGICAL                                  :: failure
 
     IF (ASSOCIATED(taper)) THEN
        DEALLOCATE (taper)

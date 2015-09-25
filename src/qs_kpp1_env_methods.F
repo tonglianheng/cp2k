@@ -113,9 +113,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'kpp1_create', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-
     ALLOCATE(kpp1_env)
     NULLIFY(kpp1_env%v_rspace, kpp1_env%v_ao, kpp1_env%drho_r,&
          kpp1_env%rho_set, &
@@ -157,9 +154,8 @@ CONTAINS
                                                 ns, nspins, output_unit, &
                                                 res_etype
     INTEGER, DIMENSION(2, 3)                 :: bo
-    LOGICAL                                  :: explicit, failure, gapw, &
-                                                gapw_xc, ionode, lsd, &
-                                                lsd_singlets
+    LOGICAL                                  :: explicit, gapw, gapw_xc, &
+                                                ionode, lsd, lsd_singlets
     REAL(KIND=dp)                            :: energy_hartree, &
                                                 energy_hartree_1c, fac
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
@@ -612,8 +608,7 @@ CONTAINS
 
     INTEGER                                  :: excitations, ispin, nspins, &
                                                 res_etype
-    LOGICAL                                  :: explicit, failure, &
-                                                lsd_singlets
+    LOGICAL                                  :: explicit, lsd_singlets
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: matrix_s
     TYPE(pw_env_type), POINTER               :: pw_env
@@ -726,7 +721,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i
-    LOGICAL                                  :: failure, my_psi0_changed, &
+    LOGICAL                                  :: my_psi0_changed, &
                                                 my_s_struct_changed
 
     my_s_struct_changed=.FALSE.

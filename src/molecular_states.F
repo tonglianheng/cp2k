@@ -114,7 +114,7 @@ CONTAINS
     INTEGER, DIMENSION(:), POINTER           :: ind, mark_list
     INTEGER, DIMENSION(:, :), POINTER        :: mark_states
     INTEGER, POINTER                         :: nstates(:), states(:)
-    LOGICAL                                  :: explicit, failure
+    LOGICAL                                  :: explicit
     REAL(KIND=dp)                            :: tmp
     REAL(KIND=dp), ALLOCATABLE               :: evals( : )
     REAL(KIND=dp), DIMENSION(:), POINTER     :: eval_range

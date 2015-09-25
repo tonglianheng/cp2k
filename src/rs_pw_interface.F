@@ -78,7 +78,6 @@ CONTAINS
 
     INTEGER                                  :: handle, igrid_level, &
                                                 interp_kind
-    LOGICAL                                  :: failure
     TYPE(gridlevel_info_type), POINTER       :: gridlevel_info
     TYPE(pw_p_type), DIMENSION(:), POINTER   :: mgrid_gspace, mgrid_rspace
     TYPE(pw_pool_p_type), DIMENSION(:), &
@@ -171,7 +170,6 @@ CONTAINS
 
     INTEGER                                  :: handle, igrid_level, &
                                                 interp_kind
-    LOGICAL                                  :: failure
     TYPE(gridlevel_info_type), POINTER       :: gridlevel_info
     TYPE(pw_p_type), DIMENSION(:), POINTER   :: mgrid_gspace, mgrid_rspace
     TYPE(pw_pool_p_type), DIMENSION(:), &

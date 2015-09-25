@@ -131,8 +131,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i
-    LOGICAL                                  :: failure
-
 
     CPASSERT(.NOT.ASSOCIATED(rho_set))
     ALLOCATE(rho_set)
@@ -173,8 +171,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'xc_rho_set_retain', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
     CPASSERT(ASSOCIATED(rho_set))
     CPASSERT(rho_set%ref_count>0)
     rho_set%ref_count=rho_set%ref_count+1
@@ -193,8 +189,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i
-    LOGICAL                                  :: failure
-
 
     IF (ASSOCIATED(rho_set)) THEN
        CPASSERT(rho_set%ref_count>0)
@@ -351,7 +345,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i
-    LOGICAL                                  :: failure, my_can_return_null
+    LOGICAL                                  :: my_can_return_null
 
     my_can_return_null=.FALSE.
     IF (PRESENT(can_return_null)) my_can_return_null=can_return_null
@@ -467,8 +461,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: idir
-    LOGICAL                                  :: failure
-
 
     CPASSERT(ASSOCIATED(rho_set))
     CPASSERT(rho_set%ref_count>0)

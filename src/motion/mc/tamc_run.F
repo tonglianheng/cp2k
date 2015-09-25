@@ -708,7 +708,6 @@ SUBROUTINE qs_tamc(force_env, globenv,averages)
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, i_c
-    LOGICAL                                  :: failure
     REAL(kind=dp)                            :: dt, fft, sigma
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(meta_env_type), POINTER             :: meta_env
@@ -750,7 +749,6 @@ SUBROUTINE qs_tamc(force_env, globenv,averages)
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, i_c
-    LOGICAL                                  :: failure
     REAL(kind=dp)                            :: dt, sigma
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(meta_env_type), POINTER             :: meta_env
@@ -797,7 +795,7 @@ SUBROUTINE qs_tamc(force_env, globenv,averages)
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, i, i_c, icolvar, ii
-    LOGICAL                                  :: explicit, failure
+    LOGICAL                                  :: explicit
     REAL(kind=dp)                            :: diff_ss, dt, rval
     TYPE(colvar_p_type), DIMENSION(:), &
       POINTER                                :: colvar_p
@@ -931,7 +929,6 @@ SUBROUTINE qs_tamc(force_env, globenv,averages)
     INTEGER                                  :: iprint, ivar, nparticle, &
                                                 nparticle_kind, nstep, &
                                                 output_unit
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: dt, gamma, mass, sigma
     TYPE(atomic_kind_list_type), POINTER     :: atomic_kinds
     TYPE(atomic_kind_type), DIMENSION(:), &
@@ -1203,7 +1200,7 @@ SUBROUTINE qs_tamc(force_env, globenv,averages)
 
     INTEGER                                  :: group, handle, iatom, j, &
                                                 nAtoms, source
-    LOGICAL                                  :: failure, ionode, localise
+    LOGICAL                                  :: ionode, localise
     REAL(KIND=dp)                            :: BETA, energy_term, &
                                                 exp_max_val, exp_min_val, &
                                                 new_energy, new_epx, new_epz, &
@@ -1338,7 +1335,6 @@ SUBROUTINE metadyn_write_colvar_header(force_env)
     CHARACTER(len=255)                       :: label1, label2, label3, &
                                                 label4, label5, label6
     INTEGER                                  :: handle, i, iw, m
-    LOGICAL                                  :: failure
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(meta_env_type), POINTER             :: meta_env
 
@@ -1416,7 +1412,6 @@ SUBROUTINE metadyn_write_colvar_header(force_env)
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, i, i_c, iw
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: temp
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(meta_env_type), POINTER             :: meta_env

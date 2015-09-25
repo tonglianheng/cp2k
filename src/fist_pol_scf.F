@@ -165,7 +165,7 @@ CONTAINS
     INTEGER :: ewald_type, handle, i, iatom, ii, ikind, iter, iw, iw2, j, &
       max_ipol_iter, natom_of_kind, natoms, nkind, ntot
     INTEGER, DIMENSION(:), POINTER           :: atom_list
-    LOGICAL                                  :: failure, iwarn
+    LOGICAL                                  :: iwarn
     REAL(KIND=dp)                            :: apol, cpol, eps_pol, &
                                                 pot_nonbond_local, rmsd, &
                                                 tmp_trace
@@ -384,7 +384,7 @@ CONTAINS
     INTEGER :: ewald_type, handle, i, iatom, ii, ikind, iter, iw, iw2, &
       max_ipol_iter, natom_of_kind, natoms, nkind, ntot
     INTEGER, DIMENSION(:), POINTER           :: atom_list
-    LOGICAL                                  :: failure, iwarn
+    LOGICAL                                  :: iwarn
     REAL(KIND=dp)                            :: alpha, apol, beta, denom, &
                                                 eps_pol, pot_nonbond_local, &
                                                 rmsd
@@ -719,7 +719,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle
-    LOGICAL                                  :: failure
 
     CALL timeset(routineN,handle)
 

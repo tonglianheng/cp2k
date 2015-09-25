@@ -134,7 +134,6 @@ CONTAINS
 
     INTEGER                                  :: handle, npoints
     INTEGER, DIMENSION(:, :), POINTER        :: bo
-    LOGICAL                                  :: failure
     REAL(kind=dp)                            :: epsilon_norm_drho, &
                                                 epsilon_rho, lambda
     REAL(kind=dp), DIMENSION(:, :, :), &
@@ -362,7 +361,6 @@ CONTAINS
 
     INTEGER                                  :: handle, npoints
     INTEGER, DIMENSION(:, :), POINTER        :: bo
-    LOGICAL                                  :: failure
     REAL(kind=dp)                            :: epsilon_rho, lambda
     REAL(kind=dp), DIMENSION(:, :, :), POINTER :: dummy, e_0, e_ndr, &
       e_ndr_ndr, e_ndr_ra, e_ndr_rb, e_ndra, e_ndra_ndra, e_ndra_ra, &

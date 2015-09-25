@@ -104,7 +104,6 @@ CONTAINS
                                                 nsize, number_of_thermostats
     INTEGER, DIMENSION(:), POINTER           :: const_mol, tot_const
     INTEGER, DIMENSION(:, :), POINTER        :: point
-    LOGICAL                                  :: failure
 
     CALL timeset(routineN,handle)
 
@@ -198,8 +197,7 @@ CONTAINS
     INTEGER :: first_atom, first_shell, glob_therm_num, handle, icount, &
       ielement, ii, ikind, imol, imol_local, ipart, jj, k, kk, last_atom, &
       last_shell, nglob_cns, nmol_local, number
-    LOGICAL                                  :: check, failure, &
-                                                global_constraints, &
+    LOGICAL                                  :: check, global_constraints, &
                                                 have_thermostat
     REAL(dp), SAVE, TARGET                   :: unity
     TYPE(molecule_type), POINTER             :: molecule
@@ -572,7 +570,7 @@ CONTAINS
                                                 nsize, number_of_thermostats
     INTEGER, DIMENSION(:), POINTER           :: const_mol, tot_const
     INTEGER, DIMENSION(:, :), POINTER        :: point
-    LOGICAL                                  :: check, failure
+    LOGICAL                                  :: check
 
     CALL timeset(routineN,handle)
 
@@ -663,8 +661,7 @@ CONTAINS
       ikind, imap, imol, imol_local, ipart, itmp, jj, k, kk, last_atom, &
       last_shell, nglob_cns, nmol_local
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: tmp, wrk
-    LOGICAL                                  :: check, failure, &
-                                                global_constraints
+    LOGICAL                                  :: check, global_constraints
     TYPE(molecule_type), POINTER             :: molecule
 
     CALL timeset(routineN,handle)
@@ -1136,7 +1133,6 @@ CONTAINS
       num_massive_atm_local, offset, stat
     INTEGER, DIMENSION(:), POINTER           :: array_num_massive_atm, &
                                                 local_atm_list, work
-    LOGICAL                                  :: failure
     TYPE(molecule_kind_type), POINTER        :: molecule_kind
     TYPE(molecule_type), POINTER             :: molecule
 

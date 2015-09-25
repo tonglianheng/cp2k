@@ -127,7 +127,6 @@ CONTAINS
 
     INTEGER :: handle, iac, iatom, ikind, ilist, jatom, jkind, jneighbor, &
       nba, nbb, nfa, nfb, nkind, nlist, nn, nneighbor
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: dab
     REAL(KIND=dp), DIMENSION(3)              :: ra, rab, rb
     TYPE(cell_type), POINTER                 :: cell
@@ -263,7 +262,6 @@ CONTAINS
                                                 ilist, jatom, jkind, &
                                                 jneighbor, nba, nbb, nkind, &
                                                 nlist, nneighbor
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: dab
     REAL(KIND=dp), DIMENSION(3)              :: ra, rab, rb
     TYPE(cell_type), POINTER                 :: cell
@@ -390,7 +388,7 @@ CONTAINS
 
     INTEGER :: handle, i, iac, iatom, ikind, ilist, ispin, jatom, jkind, &
       jneighbor, nba, nbb, nfa, nfb, nkind, nlist, nn, nneighbor, nspin
-    LOGICAL                                  :: failure, found, trans
+    LOGICAL                                  :: found, trans
     REAL(KIND=dp)                            :: dab, rab(3)
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: m
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: pbij
@@ -542,7 +540,6 @@ CONTAINS
     INTEGER :: atom_a, atom_b, handle, iac, iatom, ikind, ilist, ispin, &
       jatom, jkind, jneighbor, nat, natom, nfa, nfb, nkind, nspin
     INTEGER, DIMENSION(:), POINTER           :: atom_of_kind
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: dab, rab(3)
     REAL(KIND=dp), DIMENSION(:), POINTER     :: aci, acj, tot_rho_r
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
@@ -744,7 +741,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, nba, nbb, nfa, nfb
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: dab
     REAL(KIND=dp), DIMENSION(:, :, :), &
       POINTER                                :: scon_orba, scon_orbb, &
@@ -835,7 +831,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, nn
-    LOGICAL                                  :: failure
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: dlambdadp
     REAL(KIND=dp), ALLOCATABLE, &
@@ -907,7 +902,6 @@ CONTAINS
 
     INTEGER                                  :: handle, info, n
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: iwork
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: anorm, rcond, rskip
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: work
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: s

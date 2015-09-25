@@ -473,7 +473,6 @@ CONTAINS
     INTEGER                                  :: i, j, max_kind, max_pos
     LOGICAL                                  :: failure, repeat
 
-
     CPASSERT(.NOT.ASSOCIATED(unit))
     CPASSERT(SIZE(kind_id)<=cp_unit_max_kinds)
     CPASSERT(SIZE(unit_id)<=cp_unit_max_kinds)
@@ -569,9 +568,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_unit_retain', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-
     CPASSERT(ASSOCIATED(unit))
     CPASSERT(unit%ref_count>0)
     unit%ref_count=unit%ref_count+1
@@ -589,9 +585,6 @@ CONTAINS
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_unit_release', &
       routineP = moduleN//':'//routineN
-
-    LOGICAL                                  :: failure
-
 
     IF (ASSOCIATED(unit)) THEN
        CPASSERT(unit%ref_count>0)
@@ -1197,7 +1190,6 @@ CONTAINS
     LOGICAL                                  :: check, failure, has_defaults, &
                                                 my_accept_undefined
 
-
     CPASSERT(ASSOCIATED(unit))
     res=""
     pos=1
@@ -1302,7 +1294,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: my_power
-    LOGICAL                                  :: failure
 
     my_power=1
     IF (PRESENT(power)) my_power=power
@@ -1503,9 +1494,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_unit_set_retain', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-
     CPASSERT(ASSOCIATED(unit_set))
     CPASSERT(unit_set%ref_count>0)
     unit_set%ref_count=unit_set%ref_count+1
@@ -1523,8 +1511,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i
-    LOGICAL                                  :: failure
-
 
     IF (ASSOCIATED(unit_set)) THEN
        CPASSERT(unit_set%ref_count>0)

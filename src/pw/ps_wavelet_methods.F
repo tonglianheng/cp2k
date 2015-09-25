@@ -130,9 +130,7 @@ CONTAINS
                                                 md1, md2, md3, n1, n2, n3, &
                                                 nd1, nd2, nd3, nproc, nx, ny, &
                                                 nz, z_dim
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: hx, hy, hz
-
 
     CALL timeset(routineN,handle)
     nproc=PRODUCT(pw_grid % para % rs_dims)
@@ -191,7 +189,6 @@ CONTAINS
                                                 sdispl, tmp
     INTEGER, DIMENSION(2)                    :: cart_pos, lox, loy
     INTEGER, DIMENSION(3)                    :: lb, ub
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: max_val_low, max_val_up
     REAL(KIND=dp), DIMENSION(:), POINTER     :: rbuf, sbuf
 
@@ -370,7 +367,6 @@ CONTAINS
     INTEGER, DIMENSION(2)                    :: cart_pos, lox, loy, min_x, &
                                                 min_y
     INTEGER, DIMENSION(3)                    :: lb, ub
-    LOGICAL                                  :: failure
     REAL(KIND=dp), DIMENSION(:), POINTER     :: rbuf, sbuf
 
     CPASSERT(ASSOCIATED(wavelet))

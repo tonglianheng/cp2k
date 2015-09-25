@@ -112,7 +112,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle
-    LOGICAL                                  :: failure
     TYPE(section_vals_type), POINTER         :: param_section, &
                                                 solvation_section
 
@@ -190,8 +189,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_ddapc_retain', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
     CPASSERT(ASSOCIATED(cp_ddapc_env))
     CPASSERT(cp_ddapc_env%ref_count>0)
     cp_ddapc_env%ref_count=cp_ddapc_env%ref_count+1
@@ -209,8 +206,6 @@ CONTAINS
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_ddapc_release', &
       routineP = moduleN//':'//routineN
-
-    LOGICAL                                  :: failure
 
     IF (ASSOCIATED(cp_ddapc_env)) THEN
        CPASSERT(cp_ddapc_env%ref_count>0)
@@ -268,8 +263,10 @@ CONTAINS
 
     INTEGER                                  :: my_val, npts(3), output_unit
     INTEGER, DIMENSION(:), POINTER           :: ngrids
-    LOGICAL :: analyt, decoupling, do_qmmm_periodic_decpl, do_restraint, &
-      do_restraintB, do_solvation, failure
+    LOGICAL                                  :: analyt, decoupling, &
+                                                do_qmmm_periodic_decpl, &
+                                                do_restraint, do_restraintB, &
+                                                do_solvation
     REAL(KIND=dp)                            :: hmat(3,3)
     REAL(KIND=dp), DIMENSION(:), POINTER     :: gx, gy, gz, LG
     TYPE(cell_type), POINTER                 :: dummy_cell, mm_cell
@@ -396,7 +393,6 @@ CONTAINS
 
     INTEGER                                  :: i, k1, k2, k3, n_rep, ndim, &
                                                 nmax1, nmax2, nmax3
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: alpha, eps, fac, fs, fvec(3), &
                                                 galpha, gsq, gsqi, rcut, tol, &
                                                 tol1
@@ -452,8 +448,6 @@ CONTAINS
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_ddapc_ewald_release', &
       routineP = moduleN//':'//routineN
-
-    LOGICAL                                  :: failure
 
     IF (ASSOCIATED(cp_ddapc_ewald)) THEN
        IF (ASSOCIATED(cp_ddapc_ewald%coeff_qm)) THEN

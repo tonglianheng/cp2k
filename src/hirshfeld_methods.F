@@ -149,7 +149,7 @@ CONTAINS
 
     CHARACTER(len=2)                         :: esym
     INTEGER                                  :: ikind, nkind
-    LOGICAL                                  :: failure, found
+    LOGICAL                                  :: found
     REAL(KIND=dp)                            :: al, rco, zeff
     REAL(KIND=dp), DIMENSION(ngto, 2)        :: ppdens
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
@@ -213,7 +213,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: is
-    LOGICAL                                  :: failure, rho_r_valid
+    LOGICAL                                  :: rho_r_valid
     REAL(KIND=dp)                            :: tnfun
     TYPE(pw_env_type), POINTER               :: pw_env
     TYPE(pw_p_type), DIMENSION(:), POINTER   :: rho_r
@@ -268,7 +268,6 @@ CONTAINS
     REAL(KIND=dp), PARAMETER                 :: small = 1.0e-12_dp
 
     INTEGER                                  :: i1, i2, i3, n1, n2, n3
-    LOGICAL                                  :: failure
 
     n1 = SIZE(fout,1)
     n2 = SIZE(fout,2)
@@ -315,7 +314,7 @@ CONTAINS
 
     CHARACTER(len=3)                         :: yesno
     INTEGER                                  :: iat, iloop, is, natom
-    LOGICAL                                  :: failure, rho_r_valid
+    LOGICAL                                  :: rho_r_valid
     REAL(KIND=dp)                            :: res, tnfun
     TYPE(pw_env_type), POINTER               :: pw_env
     TYPE(pw_p_type), DIMENSION(:), POINTER   :: rho_r
@@ -399,7 +398,6 @@ CONTAINS
                                                 npme, nthread, numexp
     INTEGER(KIND=int_8)                      :: subpatch_pattern
     INTEGER, DIMENSION(:), POINTER           :: atom_list, cores
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: alpha, coef, eps_rho_rspace
     REAL(KIND=dp), DIMENSION(3)              :: ra
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: pab
@@ -518,7 +516,7 @@ CONTAINS
                                                 npme, nthread, numexp
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: cores
     INTEGER, DIMENSION(:), POINTER           :: atom_list
-    LOGICAL                                  :: do_force, failure
+    LOGICAL                                  :: do_force
     REAL(KIND=dp)                            :: alpha, coef, dvol, &
                                                 eps_rho_rspace
     REAL(KIND=dp), DIMENSION(3)              :: force_a, force_b, ra

@@ -114,8 +114,8 @@ CONTAINS
                                                 natom_of_kind, wlist
     INTEGER, DIMENSION(:, :), POINTER        :: pairs
     LOGICAL :: autogen, check, disable_exclusion_lists, do_center, explicit, &
-      failure, found, my_ignore_outside_box, my_qmmm, &
-      present_12_excl_ei_list, present_12_excl_vdw_list
+      found, my_ignore_outside_box, my_qmmm, present_12_excl_ei_list, &
+      present_12_excl_vdw_list
     REAL(KIND=dp)                            :: bounds(2,3), cdims(3), &
                                                 dims(3), qeff, vec(3)
     REAL(KIND=dp), DIMENSION(:), POINTER     :: charge, cpoint, mass
@@ -780,7 +780,6 @@ CPSourceFileRef,&
     CHARACTER(LEN=default_string_length), &
       DIMENSION(:), POINTER                  :: names
     INTEGER                                  :: i, ind, j, k, l, m, n_rep
-    LOGICAL                                  :: failure
 
     CPASSERT(ASSOCIATED(ex_bond_list))
     CPASSERT(ASSOCIATED(ex_bond_list_w))

@@ -63,7 +63,7 @@ CONTAINS
                                                 lp, n_rep_val, ngroup_wish, &
                                                 output_unit, unit_nr
     INTEGER, DIMENSION(:), POINTER           :: group_partition, i_vals
-    LOGICAL                                  :: failure, group_size_wish_set, &
+    LOGICAL                                  :: group_size_wish_set, &
                                                 ngroup_wish_set
     TYPE(cp_logger_type), POINTER            :: logger
 

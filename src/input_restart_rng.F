@@ -54,7 +54,6 @@ CONTAINS
     TYPE(section_type), POINTER              :: section
     TYPE(val_type), POINTER                  :: my_val, old_val
 
-
     CPASSERT(ASSOCIATED(rng_section))
     CPASSERT(rng_section%ref_count > 0)
 

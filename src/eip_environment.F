@@ -80,7 +80,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle
-    LOGICAL                                  :: failure, use_ref_cell
+    LOGICAL                                  :: use_ref_cell
     REAL(KIND=dp), DIMENSION(3)              :: abc
     TYPE(cell_type), POINTER                 :: cell, cell_ref
     TYPE(cp_subsys_type), POINTER            :: subsys
@@ -148,7 +148,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, natom
-    LOGICAL                                  :: failure
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(distribution_1d_type), POINTER      :: local_molecules, &

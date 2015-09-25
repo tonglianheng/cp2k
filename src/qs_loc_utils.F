@@ -119,7 +119,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, i, ncol_hist, ncol_loc
-    LOGICAL                                  :: failure
 
     CALL timeset(routineN,handle)
 
@@ -157,7 +156,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, ncol, ncol_ref, nrow
-    LOGICAL                                  :: failure
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: eigenvalues
     TYPE(cp_fm_struct_type), POINTER         :: fm_struct_tmp
     TYPE(cp_fm_type), POINTER                :: o1, o2, o3, o4, smo
@@ -241,11 +239,9 @@ CONTAINS
 
     INTEGER                                  :: iatom, istate, jstate, natom, &
                                                 nstate
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: aij, bij, ct, mii, mij, mjj, &
                                                 ratio, st, theta, tolerance
     TYPE(cp_fm_type), POINTER                :: rmat
-
 
     NULLIFY(rmat)
 
@@ -404,11 +400,9 @@ CONTAINS
                                                 ncol_local, nrow_global, &
                                                 nrow_local
     INTEGER, DIMENSION(:), POINTER           :: col_indices, row_indices
-    LOGICAL                                  :: failure
     REAL(dp)                                 :: grad_ij, zii, zij, zjj
     REAL(dp), DIMENSION(:, :), POINTER       :: diag
     TYPE(cp_fm_type), POINTER                :: force
-
 
     NULLIFY( force , diag, col_indices, row_indices )
     natom = SIZE(zij_fm_set,1)
@@ -479,7 +473,6 @@ CONTAINS
 
     INTEGER :: dim_op, handle, i, iatom, imo, imoloc, ispin, j, l_spin, lb, &
       my_nspins, nao, naosub, natoms, nmo, nmosub, nspins, s_spin, ub
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: my_occ, occ_imo
     REAL(KIND=dp), DIMENSION(:), POINTER     :: occupations
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: vecbuffer
@@ -705,7 +698,7 @@ CONTAINS
                                                 lb_min, npgfa, npgfb, nsgfa, &
                                                 nsgfb
     INTEGER, DIMENSION(:, :), POINTER        :: first_sgfa, first_sgfb
-    LOGICAL                                  :: failure, found, new_atom_b
+    LOGICAL                                  :: found, new_atom_b
     REAL(KIND=dp)                            :: dab, kvec(3), rab2, &
                                                 vector_k(3,6)
     REAL(KIND=dp), DIMENSION(3)              :: ra, rab, rb
@@ -941,7 +934,6 @@ CONTAINS
     INTEGER                                  :: handle, ispin, max_block, &
                                                 nao, nloc, nmo, output_unit, &
                                                 rst_unit
-    LOGICAL                                  :: failure
     TYPE(cp_fm_type), POINTER                :: mo_coeff
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(section_vals_type), POINTER         :: print_key
@@ -1057,7 +1049,7 @@ CONTAINS
     INTEGER :: group, handle, homo_read, i, ispin, lfomo_read, max_nloc, &
       n_rep_val, nao, nelectron_read, nloc, nmo, nmo_read, nspin, &
       output_unit, rst_unit, source
-    LOGICAL                                  :: failure, file_exists
+    LOGICAL                                  :: file_exists
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: eig_read, occ_read
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: vecbuffer
     TYPE(cp_logger_type), POINTER            :: logger
@@ -1726,8 +1718,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: ispin
-    LOGICAL                                  :: failure
-
 
     DO ispin = 1,nspins
        ALLOCATE(localized_wfn_control%centers_set(ispin)%array(6,nmoloc(ispin)))
@@ -1756,7 +1746,6 @@ CONTAINS
 
     INTEGER                                  :: i, ispin, max_iloc, &
                                                 max_nmoloc, state
-    LOGICAL                                  :: failure
 
     CALL timeset(routineN,state)
 

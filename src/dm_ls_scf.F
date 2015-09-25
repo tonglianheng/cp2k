@@ -163,7 +163,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, unit_nr
-    LOGICAL                                  :: failure
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: matrix_s
     TYPE(cp_logger_type), POINTER            :: logger
@@ -724,7 +723,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: mu
     TYPE(enumeration_type), POINTER          :: enum
     TYPE(keyword_type), POINTER              :: keyword
@@ -1357,7 +1355,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, ispin, nspin, unit_nr
-    LOGICAL                                  :: converged, failure
+    LOGICAL                                  :: converged
     REAL(KIND=dp)                            :: eps_max, eps_min, homo, lumo
     TYPE(cp_dbcsr_type)                      :: matrix_k, matrix_p
     TYPE(cp_logger_type), POINTER            :: logger

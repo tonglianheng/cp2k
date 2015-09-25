@@ -132,8 +132,6 @@ SUBROUTINE val_create(val,l_val,l_vals,l_vals_ptr,i_val,i_vals,i_vals_ptr,&
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i, len_c, narg, nVal
-    LOGICAL                                  :: failure
-
 
   CPASSERT(.NOT.ASSOCIATED(val))
   ALLOCATE(val)
@@ -288,9 +286,6 @@ SUBROUTINE val_release(val)
     CHARACTER(len=*), PARAMETER :: routineN = 'val_release', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-
   IF (ASSOCIATED(val)) THEN
      CPASSERT(val%ref_count>0)
      val%ref_count=val%ref_count-1
@@ -325,9 +320,6 @@ SUBROUTINE val_retain(val)
 
     CHARACTER(len=*), PARAMETER :: routineN = 'val_retain', &
       routineP = moduleN//':'//routineN
-
-    LOGICAL                                  :: failure
-
 
   CPASSERT(ASSOCIATED(val))
   CPASSERT(val%ref_count>0)
@@ -383,7 +375,6 @@ SUBROUTINE val_get(val,has_l,has_i,has_r,has_lc,has_c,l_val,l_vals,i_val,&
 
     INTEGER                                  :: i, l_in, l_out
     LOGICAL                                  :: failure
-
 
   IF (PRESENT(has_l)) has_l=ASSOCIATED(val%l_val)
   IF (PRESENT(has_i)) has_i=ASSOCIATED(val%i_val)
@@ -522,7 +513,6 @@ SUBROUTINE val_write(val,unit_nr,unit,unit_str,fmt)
     INTEGER                                  :: i, iend, item, j, l
     LOGICAL                                  :: failure
     TYPE(cp_unit_type), POINTER              :: my_unit
-
 
   NULLIFY(my_unit)
   myfmt = ""
@@ -689,7 +679,6 @@ END SUBROUTINE val_write
 
 ! -------------------------------------------------------------------------
 
-
     string = ""
 
     IF (ASSOCIATED(val)) THEN
@@ -773,8 +762,6 @@ SUBROUTINE val_duplicate(val_in,val_out)
 
     CHARACTER(len=*), PARAMETER :: routineN = 'val_duplicate', &
       routineP = moduleN//':'//routineN
-
-    LOGICAL                                  :: failure
 
   CPASSERT(ASSOCIATED(val_in))
   CPASSERT(.NOT.ASSOCIATED(val_out))

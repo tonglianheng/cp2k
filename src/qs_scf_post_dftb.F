@@ -96,7 +96,7 @@ CONTAINS
     INTEGER                                  :: handle, iat, iatom, ikind, &
                                                 nat, natom, nkind, nspins, &
                                                 unit_nr
-    LOGICAL                                  :: explicit, failure
+    LOGICAL                                  :: explicit
     REAL(KIND=dp)                            :: zeff
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: mcharge
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: charges

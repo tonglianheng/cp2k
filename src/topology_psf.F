@@ -428,7 +428,6 @@ CPSourceFileRef,&
     INTEGER                                  :: handle, i, iatom, ibond, &
                                                 ionfo, iw, jatom, N, natom, &
                                                 nbond, nonfo, nphi, ntheta
-    LOGICAL                                  :: failure
     TYPE(array1_list_type), DIMENSION(:), &
       POINTER                                :: ex_bend_list, ex_bond_list
     TYPE(atom_info_type), POINTER            :: atom_info
@@ -580,7 +579,7 @@ CPSourceFileRef,&
                                                 mol_id, n_rep, natom, nbond, &
                                                 nimpr, noe, nphi, ntheta
     INTEGER, DIMENSION(:), POINTER           :: tag_mols, tmp, wrk
-    LOGICAL                                  :: explicit, failure
+    LOGICAL                                  :: explicit
     TYPE(array1_list_type), DIMENSION(:), &
       POINTER                                :: ex_bond_list
     TYPE(atom_info_type), POINTER            :: atom_info
@@ -747,7 +746,7 @@ CPSourceFileRef,&
       DIMENSION(:), POINTER                  :: charge_atm
     INTEGER                                  :: handle, i, iw, j, my_index, &
                                                 nchg
-    LOGICAL                                  :: explicit, failure, ldum
+    LOGICAL                                  :: explicit, ldum
     REAL(KIND=dp), DIMENSION(:), POINTER     :: charge_inp, charges
     TYPE(atom_info_type), POINTER            :: atom_info
     TYPE(connectivity_info_type), POINTER    :: conn_info

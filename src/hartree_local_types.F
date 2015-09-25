@@ -160,9 +160,6 @@ MODULE hartree_local_types
     CHARACTER(len=*), PARAMETER :: routineN = 'hartree_local_create', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-
     ALLOCATE(hartree_local)
 
     NULLIFY (hartree_local%ecoul_1c)

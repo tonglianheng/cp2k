@@ -70,7 +70,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i
-    LOGICAL                                  :: failure
 
      CPASSERT(.NOT.ASSOCIATED(damping))
      ALLOCATE ( damping)
@@ -91,8 +90,6 @@ CONTAINS
 
     CHARACTER(len=*), PARAMETER :: routineN = 'damping_p_release', &
       routineP = moduleN//':'//routineN
-
-    LOGICAL                                  :: failure
 
     IF(ASSOCIATED(damping)) THEN
       IF (ASSOCIATED(damping%damp)) THEN

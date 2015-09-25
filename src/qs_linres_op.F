@@ -118,7 +118,6 @@ CONTAINS
       natom, nbr_center(2), nmo, nsgf, nspins, nstates(2), output_unit
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: first_sgf, last_sgf
     INTEGER, DIMENSION(:), POINTER           :: row_blk_sizes
-    LOGICAL                                  :: failure
     REAL(dp)                                 :: chk(3), ck(3), ckdk(3), dk(3)
     REAL(dp), DIMENSION(:, :), POINTER       :: basisfun_center, vecbuf_c0
     TYPE(cell_type), POINTER                 :: cell
@@ -459,8 +458,7 @@ CONTAINS
 
     INTEGER                                  :: handle, idir, ispin, nmo, &
                                                 nspins, output_unit
-    LOGICAL                                  :: do_dso, do_fc, do_pso, do_sd, &
-                                                failure
+    LOGICAL                                  :: do_dso, do_fc, do_pso, do_sd
     REAL(dp)                                 :: chk(20), r_i(3)
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
@@ -482,7 +480,6 @@ CONTAINS
     TYPE(qs_kind_type), DIMENSION(:), &
       POINTER                                :: qs_kind_set
     TYPE(section_vals_type), POINTER         :: lr_section
-
 
     CALL timeset(routineN,handle)
 
@@ -678,7 +675,7 @@ CONTAINS
     INTEGER                                  :: handle, i, idim, ispin, nao, &
                                                 nmo, nspins, output_unit, &
                                                 tmp_dim, z
-    LOGICAL                                  :: do_raman, failure
+    LOGICAL                                  :: do_raman
     REAL(dp)                                 :: kvec(3), maxocc
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_cfm_p_type), DIMENSION(:), &

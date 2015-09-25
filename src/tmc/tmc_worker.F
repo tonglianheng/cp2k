@@ -126,7 +126,7 @@ CONTAINS
     INTEGER                                  :: calc_stat, handle, i1, i2, &
                                                 ierr, itmp, num_dim, work_stat
     INTEGER, DIMENSION(:), POINTER           :: ana_restart_conf
-    LOGICAL                                  :: failure, flag, master
+    LOGICAL                                  :: flag, master
     TYPE(cp_para_env_type), POINTER          :: para_env_m_w
     TYPE(tree_type), POINTER                 :: conf
 
@@ -802,7 +802,6 @@ CONTAINS
 
     INTEGER                                  :: handle, ierr, mol, ndim, &
                                                 nr_atoms
-    LOGICAL                                  :: failure
     TYPE(cp_subsys_type), POINTER            :: subsys
     TYPE(f_env_type), POINTER                :: f_env
     TYPE(mol_new_list_type), POINTER         :: molecule_new
@@ -854,7 +853,6 @@ CONTAINS
 
     INTEGER                                  :: iparticle, nr_atoms, &
                                                 nunits_tot
-    LOGICAL                                  :: failure
     TYPE(cell_type), POINTER                 :: cell_tmp
     TYPE(cp_subsys_type), POINTER            :: subsys
     TYPE(f_env_type), POINTER                :: f_env
@@ -901,7 +899,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=default_string_length)     :: description
-    LOGICAL                                  :: failure
     REAL(KIND=dp), DIMENSION(3)              :: values
     TYPE(cp_result_type), POINTER            :: results
     TYPE(cp_subsys_type), POINTER            :: subsys
@@ -945,7 +942,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=default_string_length)     :: description
-    LOGICAL                                  :: failure
     TYPE(cp_result_type), POINTER            :: results
     TYPE(cp_subsys_type), POINTER            :: subsys
     TYPE(f_env_type), POINTER                :: f_env

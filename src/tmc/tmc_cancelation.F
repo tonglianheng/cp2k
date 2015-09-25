@@ -62,7 +62,6 @@ CONTAINS
     INTEGER                                  :: handle
     LOGICAL                                  :: failure, need_to_cancel
 
-
     CPASSERT(ASSOCIATED(elem))
     CPASSERT(ASSOCIATED(tmc_env))
     CPASSERT(ASSOCIATED(tmc_env%m_env))
@@ -126,9 +125,7 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'free_cancelation_list', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     TYPE(elem_list_type), POINTER            :: tmp_element
-
 
     cancel_elem_loop: DO WHILE(ASSOCIATED(cancel_list))
       tmp_element => cancel_list%next

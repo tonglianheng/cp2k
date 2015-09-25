@@ -185,12 +185,10 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'advance_rng_state', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     REAL(KIND=dp), DIMENSION(3, 2)           :: x
     REAL(KIND=dp), DIMENSION(3, 3)           :: u1, u2, v1, v2, w1, w2
 
 ! -------------------------------------------------------------------------
-
 
     CPASSERT(ASSOCIATED(rng_stream))
 
@@ -447,7 +445,6 @@ CONTAINS
 
 ! -------------------------------------------------------------------------
 
-
     DO i=1,3
 
       ! Check condition: 0 <= seed(:,1) < m1
@@ -537,7 +534,6 @@ CONTAINS
 
 ! -------------------------------------------------------------------------
 
-
     IF (ASSOCIATED(rng_stream)) CALL delete_rng_stream(rng_stream)
 
     ALLOCATE (rng_stream)
@@ -611,10 +607,7 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'delete_rng_stream', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
 ! -------------------------------------------------------------------------
-
 
     CPASSERT(ASSOCIATED(rng_stream))
 
@@ -638,10 +631,7 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'dump_rng_stream', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
 ! -------------------------------------------------------------------------
-
 
     CPASSERT(ASSOCIATED(rng_stream))
 
@@ -696,10 +686,7 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'get_rng_stream', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
 ! -------------------------------------------------------------------------
-
 
     CPASSERT(ASSOCIATED(rng_stream))
 
@@ -1013,11 +1000,9 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'next_integer_random_number', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: r
 
 ! -------------------------------------------------------------------------
-
 
     CPASSERT(ASSOCIATED(rng_stream))
     CPASSERT(rng_stream%distribution_type == UNIFORM)
@@ -1045,11 +1030,9 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'next_real_random_number', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: f, r, u1, u2, var
 
 ! -------------------------------------------------------------------------
-
 
     CPASSERT(ASSOCIATED(rng_stream))
 
@@ -1133,10 +1116,8 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i
-    LOGICAL                                  :: failure
 
 ! -------------------------------------------------------------------------
-
 
     CPASSERT(ASSOCIATED(rng_stream))
 
@@ -1162,10 +1143,8 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i, j
-    LOGICAL                                  :: failure
 
 ! -------------------------------------------------------------------------
-
 
     CPASSERT(ASSOCIATED(rng_stream))
 
@@ -1193,10 +1172,8 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i, j, k
-    LOGICAL                                  :: failure
 
 ! -------------------------------------------------------------------------
-
 
     CPASSERT(ASSOCIATED(rng_stream))
 
@@ -1226,10 +1203,7 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'read_rng_stream', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
 ! -------------------------------------------------------------------------
-
 
     IF (ASSOCIATED(rng_stream)) CALL delete_rng_stream(rng_stream)
 
@@ -1261,10 +1235,7 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'reset_rng_stream', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
 ! -------------------------------------------------------------------------
-
 
     CPASSERT(ASSOCIATED(rng_stream))
 
@@ -1302,11 +1273,9 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'reset_to_next_rng_substream', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     REAL(KIND=dp), DIMENSION(3, 2)           :: u
 
 ! -------------------------------------------------------------------------
-
 
     CPASSERT(ASSOCIATED(rng_stream))
 
@@ -1435,10 +1404,7 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'set_rng_stream', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
 ! -------------------------------------------------------------------------
-
 
     CPASSERT(ASSOCIATED(rng_stream))
 
@@ -1527,10 +1493,9 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'write_rng_stream', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure, my_write_all
+    LOGICAL                                  :: my_write_all
 
 ! -------------------------------------------------------------------------
-
 
     CPASSERT(ASSOCIATED(rng_stream))
 

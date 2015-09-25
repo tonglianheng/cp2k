@@ -795,7 +795,6 @@ CONTAINS
                                                 nkinds, npairs, npairs_tot
     INTEGER, DIMENSION(:), POINTER           :: work_list, work_list2
     INTEGER, DIMENSION(:, :), POINTER        :: list
-    LOGICAL                                  :: failure
     REAL(KIND=dp), DIMENSION(3)              :: cell_v, cvi
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: rwork_list
     TYPE(neighbor_kind_pairs_type), POINTER  :: neighbor_kind_pair
@@ -891,8 +890,6 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'destroy_siepmann_arrays', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
     IF (ASSOCIATED(glob_loc_list)) THEN
        DEALLOCATE(glob_loc_list)
     END IF
@@ -921,7 +918,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: iw
-    LOGICAL                                  :: failure
     TYPE(cp_logger_type), POINTER            :: logger
 
     NULLIFY(logger)

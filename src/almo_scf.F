@@ -142,7 +142,6 @@ CONTAINS
 
     INTEGER :: ao, handle, i, iao, idomain, ispin, multip, naos, natoms, &
       ndomains, nelec, nelec_a, nelec_b, nmols, nspins, unit_nr
-    LOGICAL                                  :: failure
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: matrix_s
     TYPE(cp_logger_type), POINTER            :: logger
@@ -394,7 +393,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle
-    LOGICAL                                  :: failure
     TYPE(section_vals_type), POINTER :: almo_opt_diis_section, &
       almo_opt_pcg_section, almo_scf_section, xalmo_opt_pcg_section
 
@@ -955,7 +953,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, ispin, unit_nr
-    LOGICAL                                  :: failure
     TYPE(cp_logger_type), POINTER            :: logger
 
     CALL timeset(routineN,handle)
@@ -1019,7 +1016,7 @@ CONTAINS
 
     INTEGER :: col, handle, hold, iblock_col, iblock_row, ispin, mynode, &
       nblkcols_tot, nblkrows_tot, row, unit_nr
-    LOGICAL                                  :: almo_experimental, failure, tr
+    LOGICAL                                  :: almo_experimental, tr
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: p_new_block
     TYPE(cp_dbcsr_type), ALLOCATABLE, &
       DIMENSION(:)                           :: no_quench

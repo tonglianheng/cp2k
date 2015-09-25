@@ -111,7 +111,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: islot
-    LOGICAL                                  :: check_ok, failure
+    LOGICAL                                  :: check_ok
 
     check_ok = fb_hash_table_has_data(hash_table)
     CPASSERT(check_ok)
@@ -162,7 +162,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: my_nmax
-    LOGICAL                                  :: check_ok, failure
+    LOGICAL                                  :: check_ok
 
     check_ok = .NOT. fb_hash_table_has_data(hash_table)
     CPASSERT(check_ok)
@@ -199,7 +199,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: islot
-    LOGICAL                                  :: check_ok, failure
+    LOGICAL                                  :: check_ok
 
     check_ok = fb_hash_table_has_data(hash_table)
     CPASSERT(check_ok)
@@ -243,7 +243,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: ii, my_nmax, power
-    LOGICAL                                  :: check_ok, failure
+    LOGICAL                                  :: check_ok
 
     check_ok = fb_hash_table_has_data(hash_table)
     CPASSERT(check_ok)
@@ -300,7 +300,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: ii, my_nmax
-    LOGICAL                                  :: failure
     TYPE(fb_hash_table_element), &
       ALLOCATABLE, DIMENSION(:)              :: tmp_table
 
@@ -339,7 +338,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'fb_hash_table_release', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: check_ok, failure
+    LOGICAL                                  :: check_ok
 
     IF (ASSOCIATED(hash_table%obj)) THEN
        check_ok = hash_table%obj%ref_count > 0
@@ -372,7 +371,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: islot
-    LOGICAL                                  :: check_ok, failure
+    LOGICAL                                  :: check_ok
 
     check_ok = fb_hash_table_has_data(hash_table)
     CPASSERT(check_ok)
@@ -406,7 +405,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'fb_hash_table_retain', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: check_ok, failure
+    LOGICAL                                  :: check_ok
 
     check_ok = ASSOCIATED(hash_table%obj)
     CPASSERT(check_ok)
@@ -430,7 +429,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'fb_hash_table_status', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: check_ok, failure
+    LOGICAL                                  :: check_ok
 
     check_ok = fb_hash_table_has_data(hash_table)
     CPASSERT(check_ok)

@@ -314,7 +314,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: maxchrg
     REAL(KIND=dp), DIMENSION(:), POINTER     :: maxradius, maxradius2
     TYPE(pw_env_type), POINTER               :: pw_env
@@ -785,13 +784,13 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: n_gd, n_gp, n_lj, n_wl, np
-    LOGICAL                                  :: failure
     TYPE(section_vals_type), POINTER         :: gd_section, gp_section, &
                                                 lj_section, wl_section
 
-    !
-    ! NONBONDED
-    !
+!
+! NONBONDED
+!
+
     lj_section => section_vals_get_subs_vals(qmmm_ff_section,"NONBONDED%LENNARD-JONES")
     wl_section => section_vals_get_subs_vals(qmmm_ff_section,"NONBONDED%WILLIAMS")
     gd_section => section_vals_get_subs_vals(qmmm_ff_section,"NONBONDED%GOODWIN")
@@ -888,7 +887,7 @@ CONTAINS
                                                 link_type, mm_index, n_var, &
                                                 nkind, nlinks, num_qm_atom_tot
     INTEGER, DIMENSION(:), POINTER           :: mm_indexes
-    LOGICAL                                  :: explicit, failure
+    LOGICAL                                  :: explicit
     REAL(KIND=dp)                            :: scale_f
     TYPE(section_vals_type), POINTER         :: qm_kinds, qmmm_links
 
@@ -1022,7 +1021,6 @@ CONTAINS
                                                 n_rep_val, n_tot, nlinks, &
                                                 qm_index
     INTEGER, DIMENSION(:), POINTER           :: wrk_tmp
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: alpha, my_radius
     TYPE(section_vals_type), POINTER         :: qmmm_link_section
 
@@ -1147,7 +1145,7 @@ CONTAINS
 
     INTEGER :: i_add, icount, ikind, ind1, Index1, Index2, n_add_tot, n_adds, &
       n_move_tot, n_moves, n_rep_val, nlinks
-    LOGICAL                                  :: explicit, failure
+    LOGICAL                                  :: explicit
     REAL(KIND=dp)                            :: alpha, c_radius, charge, &
                                                 radius
     TYPE(section_vals_type), POINTER         :: add_section, move_section, &
@@ -1277,7 +1275,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i, my_move
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: my_c_radius, my_charge, &
                                                 my_radius
 
@@ -1328,11 +1325,12 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'setup_origin_mm_cell', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: center_grid, failure
+    LOGICAL                                  :: center_grid
     REAL(KIND=dp), DIMENSION(3)              :: tmp
     REAL(KINd=dp), DIMENSION(:), POINTER     :: vec
 
-     ! This is the vector that corrects position to apply properly the PBC
+! This is the vector that corrects position to apply properly the PBC
+
      tmp(1) =  qm_cell_small%hmat(1,1)
      tmp(2) =  qm_cell_small%hmat(2,2)
      tmp(3) =  qm_cell_small%hmat(3,3)
@@ -1376,8 +1374,7 @@ CONTAINS
                                                 num_const_atom, &
                                                 num_image_mm_atom
     INTEGER, DIMENSION(:), POINTER           :: mm_indexes
-    LOGICAL                                  :: failure, fix_xyz, &
-                                                imageind_in_range
+    LOGICAL                                  :: fix_xyz, imageind_in_range
     TYPE(molecule_kind_type), DIMENSION(:), &
       POINTER                                :: molecule_kind
 

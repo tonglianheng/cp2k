@@ -255,8 +255,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'allocate_all_potential', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
     IF (ASSOCIATED(potential)) CALL deallocate_potential(potential)
 
     ALLOCATE (potential)
@@ -279,8 +277,6 @@ CONTAINS
 
     CHARACTER(len=*), PARAMETER :: routineN = 'allocate_fist_potential', &
       routineP = moduleN//':'//routineN
-
-    LOGICAL                                  :: failure
 
     IF (ASSOCIATED(potential)) CALL deallocate_potential(potential)
 
@@ -310,8 +306,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'allocate_local_potential', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
     IF (ASSOCIATED(potential)) CALL deallocate_potential(potential)
 
     ALLOCATE (potential)
@@ -338,8 +332,6 @@ CONTAINS
 
     CHARACTER(len=*), PARAMETER :: routineN = 'allocate_gth_potential', &
       routineP = moduleN//':'//routineN
-
-    LOGICAL                                  :: failure
 
     IF (ASSOCIATED(potential)) CALL deallocate_potential(potential)
 
@@ -384,8 +376,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'deallocate_all_potential', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
     IF (ASSOCIATED(potential)) THEN
        DEALLOCATE (potential%elec_conf)
        DEALLOCATE (potential)
@@ -407,8 +397,6 @@ CONTAINS
 
     CHARACTER(len=*), PARAMETER :: routineN = 'deallocate_fist_potential', &
       routineP = moduleN//':'//routineN
-
-    LOGICAL                                  :: failure
 
     IF (ASSOCIATED(potential)) THEN
        ! Nothing exciting here yet.
@@ -432,9 +420,6 @@ CONTAINS
 
     CHARACTER(len=*), PARAMETER :: routineN = 'deallocate_local_potential', &
       routineP = moduleN//':'//routineN
-
-    LOGICAL                                  :: failure
-
 
     IF (ASSOCIATED(potential)) THEN
 
@@ -468,9 +453,6 @@ CONTAINS
 
     CHARACTER(len=*), PARAMETER :: routineN = 'deallocate_gth_potential', &
       routineP = moduleN//':'//routineN
-
-    LOGICAL                                  :: failure
-
 
     IF (ASSOCIATED(potential)) THEN
 
@@ -1093,7 +1075,7 @@ CONTAINS
     CHARACTER(LEN=LEN(potential_name)+2)     :: apname2
     INTEGER                                  :: irep, l, strlen1, strlen2
     INTEGER, DIMENSION(:), POINTER           :: elec_conf
-    LOGICAL                                  :: failure, found, is_ok, match, &
+    LOGICAL                                  :: found, is_ok, match, &
                                                 read_from_input
     REAL(KIND=dp)                            :: alpha, r
     TYPE(cp_parser_type), POINTER            :: parser
@@ -1271,7 +1253,7 @@ CONTAINS
     CHARACTER(LEN=LEN(potential_name)+2)     :: apname2
     INTEGER                                  :: igau, ipol, irep, l, ngau, &
                                                 npol, strlen1, strlen2
-    LOGICAL                                  :: failure, found, is_ok, match, &
+    LOGICAL                                  :: found, is_ok, match, &
                                                 read_from_input
     REAL(KIND=dp), DIMENSION(:), POINTER     :: alpha
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: cval
@@ -1453,7 +1435,7 @@ CONTAINS
     INTEGER :: i, ic, ipot, irep, istr, j, l, lppnl, lprj_ppnl_max, maxlppl, &
       n, nppnl, nprj_ppnl, nprj_ppnl_max, strlen1, strlen2
     INTEGER, DIMENSION(:), POINTER           :: elec_conf
-    LOGICAL                                  :: failure, found, is_ok, match, &
+    LOGICAL                                  :: found, is_ok, match, &
                                                 read_from_input
     REAL(KIND=dp)                            :: alpha, ci, r, rc2
     REAL(KIND=dp), DIMENSION(:), POINTER     :: tmp_vals

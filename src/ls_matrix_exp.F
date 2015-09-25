@@ -76,7 +76,6 @@ SUBROUTINE cp_complex_dbcsr_gemm_3(transa, transb, alpha, A_re, A_im,&
 
     CHARACTER(LEN=1)                         :: transa2, transb2
     INTEGER                                  :: handle
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: alpha2, alpha3, alpha4
     TYPE(cp_dbcsr_type), POINTER             :: a_plus_b, ac, bd, c_plus_d
 
@@ -179,7 +178,6 @@ END SUBROUTINE
     REAL(KIND=dp), PARAMETER                 :: one = 1.0_dp , zero = 0.0_dp
 
     INTEGER                                  :: handle, i, nloop
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: square_fac, Tfac, tmp
     TYPE(cp_dbcsr_type), POINTER             :: T1, T2, Tres_im, Tres_re
 
@@ -284,7 +282,6 @@ END SUBROUTINE
 
     COMPLEX(KIND=dp)                         :: square_fac
     INTEGER                                  :: handle, i
-    LOGICAL                                  :: failure
     TYPE(cp_dbcsr_type), POINTER             :: T1, T2, T3, Tres
 
     CALL timeset(routineN,handle)
@@ -382,7 +379,7 @@ END SUBROUTINE
     REAL(KIND=dp), PARAMETER                 :: one = 1.0_dp , zero = 0.0_dp
 
     INTEGER                                  :: handle, i, unit_nr
-    LOGICAL                                  :: convergence, failure
+    LOGICAL                                  :: convergence
     REAL(KIND=dp)                            :: alpha, max_alpha, prefac
     TYPE(cp_dbcsr_type), POINTER             :: comm, comm2, tmp, tmp2
     TYPE(cp_logger_type), POINTER            :: logger
@@ -484,7 +481,7 @@ END SUBROUTINE
     REAL(KIND=dp), PARAMETER                 :: one = 1.0_dp , zero = 0.0_dp
 
     INTEGER                                  :: handle, i, unit_nr
-    LOGICAL                                  :: convergence, failure
+    LOGICAL                                  :: convergence
     REAL(KIND=dp)                            :: alpha, max_alpha, prefac
     TYPE(cp_dbcsr_type), POINTER             :: comm, comm2, tmp, tmp2
     TYPE(cp_logger_type), POINTER            :: logger

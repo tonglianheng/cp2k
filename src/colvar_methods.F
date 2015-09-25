@@ -140,8 +140,7 @@ CONTAINS
       iw, iw1, j, k, kk, n_var, n_var_k, ncol, ndim, nr_frame, stat, v_count
     INTEGER, DIMENSION(:), POINTER           :: iatms
     INTEGER, DIMENSION(:, :), POINTER        :: p_bounds
-    LOGICAL                                  :: check, failure, &
-                                                use_mixed_energy
+    LOGICAL                                  :: check, use_mixed_energy
     LOGICAL, DIMENSION(23)                   :: my_subsection
     REAL(dp), DIMENSION(:), POINTER          :: s1, wei, weights
     REAL(dp), DIMENSION(:, :), POINTER       :: p_range, s1v
@@ -1361,7 +1360,7 @@ CPSourceFileRef)
     INTEGER                                  :: i, irep, natoms, npoints, &
                                                 nrep, nweights
     INTEGER, DIMENSION(:), POINTER           :: atoms
-    LOGICAL                                  :: explicit, failure
+    LOGICAL                                  :: explicit
     REAL(KIND=dp), DIMENSION(:), POINTER     :: r, weights
     TYPE(section_vals_type), POINTER         :: point_sections
 
@@ -1443,8 +1442,7 @@ CPSourceFileRef)
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i, j
-    LOGICAL                                  :: colvar_ok, failure
-
+    LOGICAL                                  :: colvar_ok
 
     colvar_ok=ASSOCIATED(colvar)
     CPASSERT(colvar_ok)
@@ -1531,7 +1529,7 @@ CPSourceFileRef)
     CHARACTER(len=*), PARAMETER :: routineN = 'colvar_eval_glob_f', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: colvar_ok, failure
+    LOGICAL                                  :: colvar_ok
     TYPE(cell_type), POINTER                 :: cell
     TYPE(colvar_type), POINTER               :: colvar
     TYPE(cp_subsys_type), POINTER            :: subsys
@@ -1616,10 +1614,8 @@ CPSourceFileRef)
     CHARACTER(len=*), PARAMETER :: routineN = 'colvar_recursive_eval', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
+! Initialize the content of the derivative
 
-
-    ! Initialize the content of the derivative
     colvar%dsdr=0.0_dp
     SELECT CASE(colvar%type_id)
     CASE (dist_colvar_id)
@@ -1756,7 +1752,6 @@ CPSourceFileRef)
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i
-    LOGICAL                                  :: failure
     REAL(dp)                                 :: fi(3), r, r0(3), ss(3), &
                                                 xi(3), xpi(3)
     TYPE(particle_list_type), POINTER        :: particles_i
@@ -1866,7 +1861,6 @@ CPSourceFileRef)
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i, k, l
-    LOGICAL                                  :: failure
     REAL(dp)                                 :: fi(3,2), r, r0(3), ss(3), &
                                                 xi(3,2), xpi(3)
     TYPE(particle_list_type), POINTER        :: particles_i
@@ -1958,7 +1952,6 @@ CPSourceFileRef)
                                                 iparticle, jparticle, natom, &
                                                 natom_iforce, nforce_eval
     INTEGER, DIMENSION(:), POINTER           :: glob_natoms, map_index
-    LOGICAL                                  :: failure
     REAL(dp)                                 :: dedf, dx, err, fi(3), lerr, &
                                                 potential_energy
     REAL(KIND=dp), DIMENSION(:), POINTER     :: values
@@ -2130,7 +2123,6 @@ CPSourceFileRef)
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i, j, k, l
-    LOGICAL                                  :: failure
     REAL(dp) :: a, b, dsdxpn(3), dxpndxi(3,3), dxpndxj(3,3), dxpndxk(3,3), &
       fi(3), fj(3), fk(3), fl(3), r12, ri(3), rj(3), rk(3), rl(3), ss(3), &
       xpij(3), xpkj(3), xpl(3), xpn(3)
@@ -2250,7 +2242,7 @@ CPSourceFileRef)
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i1, i2, j1, j2, k1, k2, np
-    LOGICAL                                  :: check, failure
+    LOGICAL                                  :: check
     REAL(dp) :: a1, a2, d, dnorm_dxpn(3), dprod12_dxpn(3), dsdxpn(3), &
       dt_dxpn(3), dxpndxi(3,3), dxpndxj(3,3), dxpndxk(3,3), fi(3), fj(3), &
       fk(3), fmod, norm1, norm2, prod_12, ri1(3), ri2(3), rj1(3), rj2(3), &
@@ -2473,7 +2465,6 @@ CPSourceFileRef)
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i, idum
-    LOGICAL                                  :: failure
     REAL(dp)                                 :: a, b, fmod, t0, t1, t2, t3, &
                                                 xdum(3), xij(3), xkj(3)
     REAL(KIND=dp)                            :: dp1b1(3), dp1b2(3), dp2b1(3), &
@@ -2562,7 +2553,6 @@ CPSourceFileRef)
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i, j, k, l
-    LOGICAL                                  :: failure
     REAL(dp)                                 :: fi(3), fj(3), fk(3), fl(3), &
                                                 r12, r34, ss(3), xij(3), &
                                                 xkl(3), xpi(3), xpj(3), &
@@ -2639,7 +2629,6 @@ CPSourceFileRef)
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i, j, k
-    LOGICAL                                  :: failure
     REAL(dp)                                 :: a, b, fi(3), fj(3), fk(3), &
                                                 fmod, ri(3), rj(3), rk(3), &
                                                 ss(3), t0, t1, t2, t3, &
@@ -2716,7 +2705,6 @@ CPSourceFileRef)
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i, j
-    LOGICAL                                  :: failure
     REAL(dp)                                 :: fi(3), fj(3), r12, ss(3), &
                                                 xij(3), xpi(3), xpj(3)
     TYPE(particle_list_type), POINTER        :: particles_i
@@ -2792,7 +2780,7 @@ CPSourceFileRef)
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i, ii
-    LOGICAL                                  :: failure, no_riemann_sheet
+    LOGICAL                                  :: no_riemann_sheet
     REAL(dp) :: angle, cosine, dedphi, dedxia, dedxib, dedxic, dedxid, dedxt, &
       dedxu, dedyia, dedyib, dedyic, dedyid, dedyt, dedyu, dedzia, dedzib, &
       dedzic, dedzid, dedzt, dedzu, dt, e, ftmp(3), o0, rcb, rt2, rtmp(3), &
@@ -2954,7 +2942,6 @@ CPSourceFileRef)
     COMPLEX(KIND=dp)                         :: ylm, ylm_calc, ylm_calc2
     INTEGER                                  :: i, ii, j, jj, l, m, &
                                                 n_atoms_from, n_atoms_to
-    LOGICAL                                  :: failure
     REAL(KIND=dp) :: alpha, bond, costheta, dplm, dylm, exp_fac, fact, fi, &
       ftmp(3), inv_n_atoms_from, nbond, plm, pre_fac, qlm, qlm2, qparm, r12, &
       r_tmp, rcut, ss(3), theta, x_tmp, xij(3), y_tmp, ymag, ymag1, z_tmp
@@ -3097,7 +3084,6 @@ CPSourceFileRef)
     INTEGER                                  :: i, ii, jj, n_hydrogens, &
                                                 n_oxygens, p, pnh, pno, q, &
                                                 qnh, qno
-    LOGICAL                                  :: failure
     REAL(dp)                                 :: fscalar, invden, lambda, nh, &
                                                 num, qtot, r12, r_OH, r_OO, &
                                                 rdist, ss(3), xij(3)
@@ -3288,7 +3274,6 @@ CPSourceFileRef)
                                                 n_atoms_from, n_atoms_to_a, &
                                                 n_atoms_to_b, p_a, p_b, q_a, &
                                                 q_b
-    LOGICAL                                  :: failure
     REAL(dp) :: dfunc_ij, dfunc_jk, func_ij, func_jk, func_k, &
       inv_n_atoms_from, invden_ij, invden_jk, ncoord, num_ij, num_jk, r_0_a, &
       r_0_b, rdist_ij, rdist_jk, rij, rjk
@@ -3298,8 +3283,9 @@ CPSourceFileRef)
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: my_particles
 
-    ! If we defined the coordination number with KINDS then we have still
-    ! to fill few missing informations...
+! If we defined the coordination number with KINDS then we have still
+! to fill few missing informations...
+
     NULLIFY(particles_i)
     CPASSERT(colvar%type_id==coord_colvar_id)
     IF (PRESENT(particles)) THEN
@@ -3421,7 +3407,6 @@ CPSourceFileRef)
 
     INTEGER                                  :: i, ii, j, jj, n_coord_from, &
                                                 n_coord_to, n_dist_from, p, q
-    LOGICAL                                  :: failure
     REAL(dp) :: den_n, den_Q, fscalar, ftemp_i(3), inv_den_n, inv_den_Q, &
       lambda, num_n, num_Q, Qfunc, r12, r_cut, rfact, rij(3), rpi(3), rpj(3)
     REAL(dp), DIMENSION(:), POINTER          :: dqfunc_dnL, expnL, nLcoord, &
@@ -3431,8 +3416,9 @@ CPSourceFileRef)
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: my_particles
 
-    ! If we defined the coordination number with KINDS then we have still
-    ! to fill few missing informations...
+! If we defined the coordination number with KINDS then we have still
+! to fill few missing informations...
+
     NULLIFY(particles_i)
     CPASSERT(colvar%type_id==mindist_colvar_id)
     IF (PRESENT(particles)) THEN
@@ -3597,7 +3583,6 @@ CPSourceFileRef)
     CHARACTER(LEN=default_string_length), &
       ALLOCATABLE, DIMENSION(:)              :: my_par
     INTEGER                                  :: i, ii, j, ncolv, ndim
-    LOGICAL                                  :: failure
     REAL(dp)                                 :: err
     REAL(dp), ALLOCATABLE, DIMENSION(:)      :: dss_vals, my_val, ss_vals
     REAL(dp), ALLOCATABLE, DIMENSION(:, :)   :: fi
@@ -3698,11 +3683,9 @@ CPSourceFileRef,&
     CHARACTER(len=*), PARAMETER :: routineN = 'reaction_path_colvar', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     TYPE(particle_list_type), POINTER        :: particles_i
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: my_particles
-
 
     CPASSERT(colvar%type_id==reaction_path_colvar_id)
     IF (PRESENT(particles)) THEN
@@ -3833,7 +3816,6 @@ CPSourceFileRef,&
     INTEGER                                  :: i, iat, ii, ik, natom, nconf, &
                                                 rmsd_atom
     INTEGER, DIMENSION(:), POINTER           :: iatom
-    LOGICAL                                  :: failure
     REAL(dp)                                 :: lambda, my_rmsd, s1(2), &
                                                 sum_exp
     REAL(dp), ALLOCATABLE, DIMENSION(:)      :: r, r0, vec_dif
@@ -3843,7 +3825,6 @@ CPSourceFileRef,&
     REAL(dp), ALLOCATABLE, &
       DIMENSION(:, :, :, :)                  :: ds1v
     REAL(dp), DIMENSION(:, :), POINTER       :: path_conf
-
 
     nconf=colvar%reaction_path_param%nr_frames
     rmsd_atom=colvar%reaction_path_param%n_components
@@ -3956,7 +3937,6 @@ CPSourceFileRef,&
     INTEGER                                  :: i, iat, ii, ik, natom, nconf, &
                                                 rmsd_atom
     INTEGER, DIMENSION(:), POINTER           :: iatom
-    LOGICAL                                  :: failure
     REAL(dp)                                 :: lambda, my_rmsd, s1(2)
     REAL(dp), ALLOCATABLE, DIMENSION(:)      :: r, r0
     REAL(dp), ALLOCATABLE, DIMENSION(:, :)   :: fi, riat, s1v
@@ -3968,7 +3948,6 @@ CPSourceFileRef,&
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: weight
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: drmsd
-
 
     nconf=colvar%reaction_path_param%nr_frames
     rmsd_atom=colvar%reaction_path_param%n_components
@@ -4085,11 +4064,9 @@ CPSourceFileRef,&
     CHARACTER(len=*), PARAMETER :: routineN = 'distance_from_path_colvar', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     TYPE(particle_list_type), POINTER        :: particles_i
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: my_particles
-
 
     CPASSERT(colvar%type_id==distance_from_path_colvar_id)
     IF (PRESENT(particles)) THEN
@@ -4211,14 +4188,12 @@ CPSourceFileRef,&
     INTEGER                                  :: i, iat, ii, ik, natom, nconf, &
                                                 rmsd_atom
     INTEGER, DIMENSION(:), POINTER           :: iatom
-    LOGICAL                                  :: failure
     REAL(dp)                                 :: lambda, s1, sum_exp
     REAL(dp), ALLOCATABLE, DIMENSION(:)      :: r, r0, s1v, vec_dif
     REAL(dp), ALLOCATABLE, DIMENSION(:, :)   :: ds1, dvec_dif, fi, riat
     REAL(dp), ALLOCATABLE, &
       DIMENSION(:, :, :)                     :: ds1v
     REAL(dp), DIMENSION(:, :), POINTER       :: path_conf
-
 
     nconf=colvar%reaction_path_param%nr_frames
     rmsd_atom=colvar%reaction_path_param%n_components
@@ -4319,7 +4294,6 @@ CPSourceFileRef,&
     INTEGER                                  :: i, iat, ii, ik, natom, nconf, &
                                                 rmsd_atom
     INTEGER, DIMENSION(:), POINTER           :: iatom
-    LOGICAL                                  :: failure
     REAL(dp)                                 :: lambda, my_rmsd, s1
     REAL(dp), ALLOCATABLE, DIMENSION(:)      :: r, r0, s1v
     REAL(dp), ALLOCATABLE, DIMENSION(:, :)   :: ds1, fi, riat
@@ -4329,7 +4303,6 @@ CPSourceFileRef,&
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: weight
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: drmsd
-
 
     nconf=colvar%reaction_path_param%nr_frames
     rmsd_atom=colvar%reaction_path_param%n_components
@@ -4437,7 +4410,6 @@ CPSourceFileRef,&
 
     INTEGER                                  :: i, ii, jj, n_atoms_from, &
                                                 n_atoms_to, ndcrd, nncrd
-    LOGICAL                                  :: failure
     REAL(dp) :: dfunc, dfunc_coord, ftmp(3), func, func_coord, &
       inv_n_atoms_from, invden, n_0, ncoord, norm, num, population, r12, r_0, &
       rdist, sigma, ss(3), xij(3)
@@ -4447,8 +4419,9 @@ CPSourceFileRef,&
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: my_particles
 
-    ! If we defined the coordination number with KINDS then we have still
-    ! to fill few missing informations...
+! If we defined the coordination number with KINDS then we have still
+! to fill few missing informations...
+
     NULLIFY(particles_i)
     CPASSERT(colvar%type_id==population_colvar_id)
     IF (PRESENT(particles)) THEN
@@ -4543,7 +4516,6 @@ CPSourceFileRef,&
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i, ii, n_atoms
-    LOGICAL                                  :: failure
     REAL(dp)                                 :: dri2, func, gyration, inv_n, &
                                                 mass_tot, mi
     REAL(dp), DIMENSION(3)                   :: dfunc, dxi, ftmp, ss, xpcom, &
@@ -4551,7 +4523,6 @@ CPSourceFileRef,&
     TYPE(particle_list_type), POINTER        :: particles_i
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: my_particles
-
 
     NULLIFY(particles_i,my_particles)
     CPASSERT(colvar%type_id==gyration_colvar_id)
@@ -4628,8 +4599,6 @@ CPSourceFileRef,&
     CHARACTER(len=*), PARAMETER :: routineN = 'rmsd_colvar', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
     CALL rmsd_colvar_low(colvar,subsys,particles)
   END SUBROUTINE rmsd_colvar
 
@@ -4657,7 +4626,6 @@ CPSourceFileRef,&
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i, ii, natom, nframes
-    LOGICAL                                  :: failure
     REAL(kind=dp)                            :: cv_val, f1, ftmp(3)
     REAL(kind=dp), ALLOCATABLE, DIMENSION(:) :: der, r, rmsd
     REAL(kind=dp), ALLOCATABLE, &
@@ -4668,7 +4636,6 @@ CPSourceFileRef,&
     TYPE(particle_list_type), POINTER        :: particles_i
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: my_particles
-
 
     NULLIFY(my_particles,particles_i,weights)
     CPASSERT(colvar%type_id==rmsd_colvar_id)
@@ -4772,7 +4739,6 @@ CPSourceFileRef,&
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i, ii, j, jj, m, nring
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: a, at, b, da, db, ds, kr, &
                                                 rpxpp, svar
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: cosj, sinj, z
@@ -4785,7 +4751,6 @@ CPSourceFileRef,&
     TYPE(particle_list_type), POINTER        :: particles_i
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: my_particles
-
 
     CPASSERT(colvar%type_id==ring_puckering_colvar_id)
     IF (PRESENT(particles)) THEN
@@ -5035,7 +5000,7 @@ CPSourceFileRef,&
     CHARACTER(LEN=default_path_length)       :: filename
     CHARACTER(LEN=default_string_length)     :: dummy_char
     INTEGER                                  :: i, j, natom
-    LOGICAL                                  :: explicit, failure, my_end
+    LOGICAL                                  :: explicit, my_end
     REAL(KIND=dp), DIMENSION(:), POINTER     :: rptr
     TYPE(cp_parser_type), POINTER            :: parser
     TYPE(section_vals_type), POINTER         :: coord_section

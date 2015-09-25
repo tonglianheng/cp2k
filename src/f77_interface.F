@@ -325,8 +325,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: ierr
-    LOGICAL                                  :: failure
-
 
     CPASSERT(ASSOCIATED(f_env))
     CALL force_env_release(f_env%force_env)
@@ -361,9 +359,6 @@ CONTAINS
 
     CHARACTER(len=*), PARAMETER :: routineN = 'f_env_create', &
       routineP = moduleN//':'//routineN
-
-    LOGICAL                                  :: failure
-
 
     ALLOCATE(f_env)
     f_env%force_env => force_env
@@ -485,11 +480,9 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: ierr2
-    LOGICAL                                  :: failure
     TYPE(cp_logger_type), POINTER            :: d_logger, logger
     TYPE(mp_perf_env_type), POINTER          :: d_mp_perf_env
     TYPE(timer_env_type), POINTER            :: d_timer_env
-
 
     IF (ASSOCIATED(f_env)) THEN
        IF (PRESENT(handle)) THEN
@@ -598,7 +591,6 @@ CONTAINS
       force_env_sections, fp_section, input_file, qmmm_section, &
       qmmmx_section, root_section, subsys_section, wrk_section
     TYPE(timer_env_type), POINTER            :: timer_env
-
 
     CPASSERT(ASSOCIATED(input_declaration))
     NULLIFY(para_env, force_env,timer_env,mp_perf_env, globenv,meta_env,&
@@ -1431,7 +1423,7 @@ CPSourceFileRef,&
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: unit_nr
-    LOGICAL                                  :: failure, my_echo_input
+    LOGICAL                                  :: my_echo_input
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(section_vals_type), POINTER         :: input_file
@@ -1499,7 +1491,6 @@ CPSourceFileRef,&
 
     LOGICAL                                  :: failure
     TYPE(f_env_type), POINTER                :: f_env
-
 
     NULLIFY(f_env)
     CALL f_env_add_defaults(f_env_id,f_env,failure)

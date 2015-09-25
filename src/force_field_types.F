@@ -224,12 +224,10 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'init_ff_type', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
+!-----------------------------------------------------------------------------
+! 1. Initialize
+!-----------------------------------------------------------------------------
 
-
-    !-----------------------------------------------------------------------------
-    ! 1. Initialize
-    !-----------------------------------------------------------------------------
     NULLIFY(ff_type%inp_info,ff_type%chm_info,ff_type%amb_info,ff_type%gro_info)
     ALLOCATE(ff_type%inp_info)
     ALLOCATE(ff_type%chm_info)
@@ -443,12 +441,10 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'deallocate_ff_type', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
+!-----------------------------------------------------------------------------
+! 1. DEALLOCATE things in ff_type%inp_info
+!-----------------------------------------------------------------------------
 
-
-    !-----------------------------------------------------------------------------
-    ! 1. DEALLOCATE things in ff_type%inp_info
-    !-----------------------------------------------------------------------------
     CALL deallocate_inp_info(ff_type%inp_info)
 
     !-----------------------------------------------------------------------------
@@ -494,8 +490,6 @@ CONTAINS
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'deallocate_gromos_info', &
       routineP = moduleN//':'//routineN
-
-    LOGICAL                                  :: failure
 
     IF(ASSOCIATED(gro_info%solvent_k)) THEN
        DEALLOCATE(gro_info%solvent_k)
@@ -563,8 +557,6 @@ CONTAINS
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'deallocate_chm_info', &
       routineP = moduleN//':'//routineN
-
-    LOGICAL                                  :: failure
 
     IF(ASSOCIATED(chm_info%bond_a)) THEN
        DEALLOCATE(chm_info%bond_a)
@@ -681,8 +673,6 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'deallocate_amb_info', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
     IF(ASSOCIATED(amb_info%bond_a)) THEN
        DEALLOCATE(amb_info%bond_a)
     END IF
@@ -755,8 +745,6 @@ CONTAINS
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'deallocate_inp_info', &
       routineP = moduleN//':'//routineN
-
-    LOGICAL                                  :: failure
 
     IF(ASSOCIATED(inp_info%charge_atm)) THEN
        DEALLOCATE(inp_info%charge_atm)

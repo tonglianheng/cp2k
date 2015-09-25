@@ -73,8 +73,7 @@ CONTAINS
 
     INTEGER                                  :: handle, iter_nr, its, &
                                                 output_unit
-    LOGICAL                                  :: converged, failure, &
-                                                should_stop
+    LOGICAL                                  :: converged, should_stop
     REAL(KIND=dp)                            :: trust_radius
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_lbfgs_opt_gopt_type), POINTER    :: optimizer

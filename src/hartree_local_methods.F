@@ -232,8 +232,8 @@ CONTAINS
     INTEGER, ALLOCATABLE, DIMENSION(:, :, :) :: cg_list
     INTEGER, DIMENSION(:), POINTER           :: atom_list, lmax, lmin, npgf
     LOGICAL                                  :: atenergy, core_charge, &
-                                                failure, my_periodic, &
-                                                my_tddft, paw_atom
+                                                my_periodic, my_tddft, &
+                                                paw_atom
     REAL(dp)                                 :: back_ch, factor
     REAL(dp), ALLOCATABLE, DIMENSION(:)      :: gexp, sqrtwr
     REAL(dp), ALLOCATABLE, DIMENSION(:, :)   :: aVh1b_00, aVh1b_hh, aVh1b_ss, &

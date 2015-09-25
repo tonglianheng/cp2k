@@ -90,7 +90,7 @@ CONTAINS
     INTEGER                                  :: handle, ispin, natom, &
                                                 ncol_global, nspins, &
                                                 output_unit
-    LOGICAL                                  :: failure, s_mstruct_changed
+    LOGICAL                                  :: s_mstruct_changed
     REAL(KIND=dp)                            :: ecoul, qmmm_el
     REAL(KIND=dp), DIMENSION(:), POINTER     :: occupation_numbers
     TYPE(atomic_kind_type), DIMENSION(:), &

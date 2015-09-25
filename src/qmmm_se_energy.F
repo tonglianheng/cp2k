@@ -102,7 +102,7 @@ CONTAINS
                                                 itype, iw, natom, natorb_a, &
                                                 nkind
     INTEGER, DIMENSION(:), POINTER           :: list
-    LOGICAL                                  :: anag, defined, failure, found
+    LOGICAL                                  :: anag, defined, found
     REAL(KIND=dp)                            :: enuclear
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: h_block_a
     TYPE(atomic_kind_type), DIMENSION(:), &

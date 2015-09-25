@@ -435,8 +435,6 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'finalize_mv_types', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
     CPASSERT(ASSOCIATED(tmc_params))
     CALL move_types_release(tmc_params%move_types)
     IF(ASSOCIATED(tmc_params%nmc_move_types)) &
@@ -468,8 +466,7 @@ CONTAINS
                                                 c_tit, c_tmp
     INTEGER                                  :: column_size, move, &
                                                 nr_nmc_moves, temper, typ
-    LOGICAL                                  :: failure, subbox_out, &
-                                                type_title
+    LOGICAL                                  :: subbox_out, type_title
     TYPE(tmc_move_type), POINTER             :: move_types
 
     NULLIFY(move_types)
@@ -754,7 +751,6 @@ cp_warning_level,cp_assertion_failed,routineP,&
     INTEGER                                  :: change_res, change_sb_type, &
                                                 change_type, conf_moved, &
                                                 handle, mv_type
-    LOGICAL                                  :: failure
 
     CPASSERT(ASSOCIATED(move_types))
     CPASSERT(.NOT.(PRESENT(pt_el).AND.PRESENT(subbox)))
@@ -865,8 +861,6 @@ cp_warning_level,cp_assertion_failed,routineP,&
     CHARACTER(LEN=*), PARAMETER :: routineN = 'add_mv_prob', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
     CPASSERT(ASSOCIATED(move_types))
     CPASSERT(PRESENT(mv_counter).OR.PRESENT(subbox_counter))
  
@@ -926,7 +920,6 @@ cp_warning_level,cp_assertion_failed,routineP,&
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, i
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: rnd_mv, total_moves
 
     CPASSERT(ASSOCIATED(move_types))

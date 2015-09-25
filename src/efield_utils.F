@@ -67,7 +67,6 @@ CONTAINS
 
     INTEGER                                  :: handle, i, j, k
     INTEGER, DIMENSION(2, 3)                 :: bo_global, bo_local
-    LOGICAL                                  :: failure
     REAL(kind=dp)                            :: dvol, efield_ener, field(3)
     REAL(kind=dp), DIMENSION(3)              :: dr, grid_p
     TYPE(cp_para_env_type), POINTER          :: para_env
@@ -192,7 +191,7 @@ CONTAINS
     INTEGER                                  :: atom_a, handle, iatom, ikind, &
                                                 natom, nkind
     INTEGER, DIMENSION(:), POINTER           :: list
-    LOGICAL                                  :: failure, my_force
+    LOGICAL                                  :: my_force
     REAL(KIND=dp)                            :: efield_ener, zeff
     REAL(KIND=dp), DIMENSION(3)              :: field, r
     TYPE(atomic_kind_type), DIMENSION(:), &

@@ -137,8 +137,7 @@ CONTAINS
     INTEGER, DIMENSION(3)                    :: cellind, periodic
     INTEGER, DIMENSION(:), POINTER           :: atom_of_kind, kind_of
     INTEGER, DIMENSION(:, :, :), POINTER     :: cell_to_index
-    LOGICAL                                  :: do_ewald, failure, found, &
-                                                use_virial
+    LOGICAL                                  :: do_ewald, found, use_virial
     REAL(KIND=dp)                            :: alpha, deth, dr, fi, gmij, &
                                                 zeff
     REAL(KIND=dp), DIMENSION(3)              :: fij, rij
@@ -479,7 +478,7 @@ CONTAINS
                                                 natom, nmat
     INTEGER, DIMENSION(3)                    :: periodic
     INTEGER, DIMENSION(:), POINTER           :: atom_of_kind, kind_of
-    LOGICAL                                  :: failure, found, use_virial
+    LOGICAL                                  :: found, use_virial
     REAL(KIND=dp)                            :: alpha, deth, dfr, dr, fi, fr, &
                                                 gmij
     REAL(KIND=dp), DIMENSION(3)              :: fij, rij
@@ -706,7 +705,6 @@ CONTAINS
                                                 j, n, npart, o_spline, p1
     INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: center
     INTEGER, DIMENSION(3)                    :: nd, npts
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: alpha, dvols, fat(3), ffa, &
                                                 ffb, fint, vgc
     REAL(KIND=dp), ALLOCATABLE, &

@@ -52,7 +52,6 @@ CONTAINS
     INTEGER                                  :: i, ii, l, la_max, la_min, &
                                                 lc_max, lc_min, ll, n, npgfa, &
                                                 npgfb, npgfc, npgfd
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: perf, rac2, t, tend, tstart
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: f
     REAL(KIND=dp), ALLOCATABLE, &

@@ -108,10 +108,10 @@ CONTAINS
     INTEGER                                  :: handle, hesunit_read, indf, &
                                                 info, iter_nr, its, maxiter, &
                                                 ndf, nfree, output_unit
-    LOGICAL                                  :: cell_opt, conv, failure, &
-                                                hesrest, ionode, &
-                                                shell_present, should_stop, &
-                                                use_mod_hes, use_rfo
+    LOGICAL                                  :: cell_opt, conv, hesrest, &
+                                                ionode, shell_present, &
+                                                should_stop, use_mod_hes, &
+                                                use_rfo
     REAL(KIND=dp)                            :: ediff, emin, eold, etot, &
                                                 pred, rad, rat, step, t_diff, &
                                                 t_now, t_old
@@ -951,7 +951,6 @@ CONTAINS
                                                 nrow_local, z
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: at_row
     INTEGER, DIMENSION(:), POINTER           :: col_indices, row_indices
-    LOGICAL                                  :: failure
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: d_ij, rho_ij
     REAL(KIND=dp), ALLOCATABLE, &

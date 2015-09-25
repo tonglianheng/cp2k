@@ -466,9 +466,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_green_retain', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-
     CPASSERT(ASSOCIATED(gftype))
     CPASSERT(gftype%ref_count>0)
     gftype%ref_count=gftype%ref_count+1
@@ -490,7 +487,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_green_release', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: can_give_back, failure
+    LOGICAL                                  :: can_give_back
 
     IF (ASSOCIATED(gftype)) THEN
        CPASSERT(gftype%ref_count>0)
@@ -541,7 +538,6 @@ CONTAINS
     INTEGER                                  :: dim, j, k, l, n, pt
     INTEGER, DIMENSION(3)                    :: npts
     INTEGER, DIMENSION(:), POINTER           :: lb, ub
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: l_arg, prod_arg, val
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: m_assign
 
@@ -642,9 +638,6 @@ END SUBROUTINE calc_p3m_charge
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_poisson_create', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-
     CPASSERT(.NOT.ASSOCIATED(poisson_env))
     ALLOCATE(poisson_env)
     last_poisson_id=last_poisson_id+1
@@ -676,9 +669,6 @@ END SUBROUTINE calc_p3m_charge
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_poisson_retain', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-
     CPASSERT(ASSOCIATED(poisson_env))
     CPASSERT(poisson_env%ref_count>0)
     poisson_env%ref_count=poisson_env%ref_count+1
@@ -697,8 +687,6 @@ END SUBROUTINE calc_p3m_charge
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_poisson_release', &
       routineP = moduleN//':'//routineN
-
-    LOGICAL                                  :: failure
 
     IF (ASSOCIATED(poisson_env)) THEN
        CPASSERT(poisson_env%ref_count>0)

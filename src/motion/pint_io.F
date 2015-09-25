@@ -432,8 +432,7 @@ MODULE pint_io
 
     CHARACTER(len=default_string_length)     :: stmp1, stmp2
     INTEGER                                  :: ic, unit_nr
-    LOGICAL                                  :: failure, new_file, &
-                                                should_output
+    LOGICAL                                  :: new_file, should_output
     REAL(kind=dp), DIMENSION(3)              :: com_r
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(section_vals_type), POINTER         :: print_key
@@ -592,7 +591,6 @@ MODULE pint_io
 
     CHARACTER(len=default_string_length)     :: msgstr, stmp, time_unit
     INTEGER                                  :: unit_nr
-    LOGICAL                                  :: failure
     REAL(kind=dp)                            :: time_used
     TYPE(cp_logger_type), POINTER            :: logger
 
@@ -654,8 +652,7 @@ MODULE pint_io
 
     CHARACTER(len=default_string_length)     :: unit_str
     INTEGER                                  :: ia, ib, ic, idim, unit_nr
-    LOGICAL                                  :: failure, new_file, &
-                                                should_output
+    LOGICAL                                  :: new_file, should_output
     REAL(kind=dp)                            :: nb, ss, unit_conv
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(section_vals_type), POINTER         :: print_key

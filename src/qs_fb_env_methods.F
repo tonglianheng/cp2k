@@ -150,7 +150,7 @@ CONTAINS
       original_nfullrowsORcols_total
     INTEGER, DIMENSION(:), POINTER           :: filtered_rowORcol_block_sizes,&
                                                 original_rowORcol_block_sizes
-    LOGICAL                                  :: collective_com, failure
+    LOGICAL                                  :: collective_com
     REAL(kind=dp) :: diis_error, eps_diis, eps_eigval, fermi_level, &
       filter_temp, flexible_electron_count, KTS_filtered, maxocc, mu_filtered
     REAL(KIND=dp), DIMENSION(:), POINTER     :: eigenvalues, &
@@ -763,7 +763,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle
-    LOGICAL                                  :: failure, l_val
+    LOGICAL                                  :: l_val
     REAL(KIND=dp)                            :: r_val
     TYPE(section_vals_type), POINTER         :: fb_section
 
@@ -810,7 +810,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, ikind, nkinds
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: auto_cutoff_scale, kind_radius
     REAL(KIND=dp), DIMENSION(:), POINTER     :: rcut
     TYPE(dft_control_type), POINTER          :: dft_control
@@ -886,7 +885,6 @@ CONTAINS
     INTEGER :: handle, iatom, ihalo, max_natoms_local, natoms_global, &
       natoms_local, nelectrons, nhalo_atoms, nkinds_global, owner_id_in_halo
     INTEGER, DIMENSION(:), POINTER           :: halo_atoms, local_atoms
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: cost
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: pair_radii
@@ -1015,7 +1013,6 @@ CONTAINS
       lshell, max_n_trial, nkinds, nset, old_lshell
     INTEGER, DIMENSION(:), POINTER           :: lmax, nfunctions, nshell
     INTEGER, DIMENSION(:, :), POINTER        :: functions
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: zeff
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(fb_trial_fns_obj)                   :: trial_fns
@@ -1179,10 +1176,8 @@ CONTAINS
                                                 nblkcols_total, &
                                                 nblkrows_total, nblks
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: cols, rows
-    LOGICAL                                  :: failure
     REAL(dp), DIMENSION(:, :), POINTER       :: mat_block
     TYPE(cp_dbcsr_iterator)                  :: iter
-
 
     CALL cp_dbcsr_get_info(matrix=matrix_in, &
                            nblkrows_total=nblkrows_total, &
@@ -1231,7 +1226,7 @@ CONTAINS
 
     CHARACTER(LEN=2)                         :: element_symbol
     INTEGER                                  :: handle, ikind, nkinds, unit_nr
-    LOGICAL                                  :: collective_com, failure
+    LOGICAL                                  :: collective_com
     REAL(KIND=dp)                            :: auto_cutoff_scale, &
                                                 filter_temperature
     REAL(KIND=dp), DIMENSION(:), POINTER     :: rcut

@@ -127,7 +127,7 @@ CONTAINS
 
     INTEGER                                  :: handle, ikey, ires, log_unit, &
                                                 nforce_eval
-    LOGICAL                                  :: failure, save_mem, &
+    LOGICAL                                  :: save_mem, &
                                                 write_binary_restart_file
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(section_vals_type), POINTER         :: global_section, &
@@ -226,7 +226,7 @@ CONTAINS
     INTEGER                                  :: handle, iforce_eval, myid, &
                                                 nforce_eval
     INTEGER, DIMENSION(:), POINTER           :: i_force_eval
-    LOGICAL                                  :: explicit, failure, scale, &
+    LOGICAL                                  :: explicit, scale, &
                                                 skip_vel_section
     TYPE(cp_subsys_type), POINTER            :: subsys
     TYPE(force_env_type), POINTER            :: my_force_b, my_force_env
@@ -424,7 +424,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle
-    LOGICAL                                  :: failure, lcond, my_save_mem, &
+    LOGICAL                                  :: lcond, my_save_mem, &
                                                 my_write_binary_restart_file
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(force_env_type), POINTER            :: my_force_env
@@ -520,7 +520,7 @@ CONTAINS
                                                 tot_nhcneed
     INTEGER, DIMENSION(:), POINTER           :: walkers_status
     INTEGER, POINTER                         :: itimes
-    LOGICAL                                  :: failure, my_save_mem, &
+    LOGICAL                                  :: my_save_mem, &
                                                 my_write_binary_restart_file
     REAL(KIND=dp), DIMENSION(:), POINTER     :: buffer, eta, fnhc, mnhc, &
                                                 veta, wrk
@@ -1021,7 +1021,7 @@ CONTAINS
     INTEGER                                  :: handle, i, itmp, iweight, &
                                                 msglen, nsteps, offset, reqlen
     INTEGER, DIMENSION(:), POINTER           :: int_msg_gather
-    LOGICAL                                  :: explicit, failure, lbf
+    LOGICAL                                  :: explicit, lbf
     REAL(kind=dp)                            :: bf, bu, rtmp
     REAL(kind=dp), DIMENSION(3, 2)           :: bg, cg, ig
     REAL(kind=dp), DIMENSION(:), POINTER     :: real_msg, real_msg_gather
@@ -1287,7 +1287,6 @@ CONTAINS
     TYPE(section_type), POINTER              :: section
     TYPE(val_type), POINTER                  :: my_val, old_val
 
-
     CPASSERT(ASSOCIATED(work_section))
     CPASSERT(work_section%ref_count>0)
 
@@ -1362,13 +1361,13 @@ CONTAINS
     CHARACTER(LEN=rng_record_length)         :: rng_record
     INTEGER                                  :: i, my_index
     INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: dwork
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: dum
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: thermo_energy
     REAL(KIND=dp), DIMENSION(:), POINTER     :: work
     TYPE(section_vals_type), POINTER         :: work_section
 
-    ! Thermostat Energies
+! Thermostat Energies
+
     ALLOCATE(work(csvr%glob_num_csvr))
 
     ALLOCATE(thermo_energy(csvr%loc_num_csvr))
@@ -1428,13 +1427,12 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: dum
     REAL(KIND=dp), DIMENSION(:), POINTER     :: t_array, work
     TYPE(section_vals_type), POINTER         :: work_section
 
+! chi and mass
 
-    ! chi and mass
     ALLOCATE(work(al%glob_num_al))
     ALLOCATE(t_array(al%loc_num_al))
 
@@ -1490,15 +1488,14 @@ CONTAINS
                                                 j, loc_num
     INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: dwork
     INTEGER, DIMENSION(:), POINTER           :: gle_per_proc, index
-    LOGICAL                                  :: failure
     REAL(dp)                                 :: dum
     REAL(dp), DIMENSION(:), POINTER          :: s_tmp
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: thermo_energy
     REAL(KIND=dp), DIMENSION(:), POINTER     :: work
     TYPE(section_vals_type), POINTER         :: work_section
 
+! Thermostat Energies
 
-    ! Thermostat Energies
     ALLOCATE(work(gle%glob_num_gle))
     ALLOCATE(thermo_energy(gle%loc_num_gle))
     DO i = 1,gle%loc_num_gle
@@ -1872,7 +1869,6 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'set_template_restart', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     TYPE(section_vals_type), POINTER         :: coord, force, mass, velocity
 
     NULLIFY (coord, force, velocity, mass)

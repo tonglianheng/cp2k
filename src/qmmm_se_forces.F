@@ -96,7 +96,7 @@ CONTAINS
                                                 natorb_a, nkind, &
                                                 number_qm_atoms
     INTEGER, DIMENSION(:), POINTER           :: list
-    LOGICAL                                  :: anag, defined, failure, found
+    LOGICAL                                  :: anag, defined, found
     REAL(KIND=dp)                            :: delta, enuclear
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: Forces_QM, p_block_a
     TYPE(atomic_kind_type), DIMENSION(:), &

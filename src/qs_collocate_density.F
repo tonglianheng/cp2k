@@ -189,7 +189,7 @@ CONTAINS
                                                 nthread
     INTEGER(KIND=int_8)                      :: subpatch_pattern
     INTEGER, DIMENSION(:), POINTER           :: atom_list, cores
-    LOGICAL                                  :: defined, failure
+    LOGICAL                                  :: defined
     REAL(KIND=dp)                            :: alpha, eps_rho_rspace, norm, &
                                                 pp
     REAL(KIND=dp), DIMENSION(3)              :: ra
@@ -317,7 +317,7 @@ CONTAINS
                                                 npme, nthread
     INTEGER(KIND=int_8)                      :: subpatch_pattern
     INTEGER, DIMENSION(:), POINTER           :: atom_list, cores, nct_nlcc
-    LOGICAL                                  :: failure, nlcc
+    LOGICAL                                  :: nlcc
     REAL(KIND=dp)                            :: alpha, eps_rho_rspace
     REAL(KIND=dp), DIMENSION(3)              :: ra
     REAL(KIND=dp), DIMENSION(:), POINTER     :: alpha_nlcc
@@ -500,7 +500,6 @@ CONTAINS
                                                 ni, npme, nthread
     INTEGER(KIND=int_8)                      :: subpatch_pattern
     INTEGER, DIMENSION(:), POINTER           :: atom_list, cores
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: alpha, eps_rho_rspace
     REAL(KIND=dp), DIMENSION(3)              :: ra
     REAL(KIND=dp), DIMENSION(:), POINTER     :: cexp_ppl
@@ -2178,8 +2177,8 @@ CONTAINS
                                                 lb_min, npgfa, npgfb, nsgfa, &
                                                 nsgfb
     INTEGER, DIMENSION(:, :), POINTER        :: first_sgfa, first_sgfb
-    LOGICAL :: atom_pair_changed, distributed_rs_grids, do_kp, failure, &
-      found, map_consistent, my_soft, use_subpatch
+    LOGICAL :: atom_pair_changed, distributed_rs_grids, do_kp, found, &
+      map_consistent, my_soft, use_subpatch
     REAL(KIND=dp)                            :: eps_rho_rspace, rab2, scale, &
                                                 zetp
     REAL(KIND=dp), DIMENSION(3)              :: ra, rab, rab_inv, rb
@@ -2590,7 +2589,7 @@ CONTAINS
     INTEGER, DIMENSION(3)                    :: lb, location, tp, ub
     INTEGER, DIMENSION(:), POINTER           :: la_max, la_min, npgfa, nsgfa
     INTEGER, DIMENSION(:, :), POINTER        :: first_sgfa
-    LOGICAL                                  :: failure, local, map_it_here
+    LOGICAL                                  :: local, map_it_here
     REAL(KIND=dp)                            :: dab, eps_rho_rspace, rab2, &
                                                 scale, zetp
     REAL(KIND=dp), DIMENSION(3)              :: ra, rab

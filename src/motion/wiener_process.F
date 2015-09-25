@@ -68,7 +68,6 @@ CONTAINS
     CHARACTER(LEN=40)                        :: name
     INTEGER :: iparticle, iparticle_kind, iparticle_local, nparticle, &
       nparticle_kind, nparticle_local
-    LOGICAL                                  :: failure
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :, :)                     :: seed
     REAL(KIND=dp), DIMENSION(3, 2)           :: initial_seed
@@ -181,10 +180,9 @@ CONTAINS
     INTEGER                                  :: iparticle, iparticle_kind, &
                                                 iparticle_local, &
                                                 nparticle_local
-    LOGICAL                                  :: explicit, failure
+    LOGICAL                                  :: explicit
 
 ! -------------------------------------------------------------------------
-
 
     CPASSERT(ASSOCIATED(distribution_1d))
 
@@ -230,7 +228,6 @@ CONTAINS
 
     CHARACTER(LEN=40)                        :: name
     INTEGER                                  :: i_c
-    LOGICAL                                  :: failure
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :, :)                     :: seed
     REAL(KIND=dp), DIMENSION(3, 2)           :: initial_seed

@@ -102,7 +102,6 @@ MODULE  rt_propagation_forces
                                                 natom, nmo, re
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: atom_of_kind, kind_of
     INTEGER, DIMENSION(:), POINTER           :: col_blk_size
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: alpha
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
@@ -121,7 +120,6 @@ MODULE  rt_propagation_forces
     TYPE(qs_force_type), DIMENSION(:), &
       POINTER                                :: force
     TYPE(rt_prop_type), POINTER              :: rtp
-
 
     CALL timeset(routineN,handle)
 
@@ -227,7 +225,6 @@ MODULE  rt_propagation_forces
     INTEGER                                  :: handle, i, im, ispin, natom, &
                                                 re
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: atom_of_kind, kind_of
-    LOGICAL                                  :: failure
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
@@ -452,7 +449,6 @@ MODULE  rt_propagation_forces
 
     INTEGER                                  :: im, ispin, nao, natom, naux, &
                                                 nmo, re
-    LOGICAL                                  :: failure
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: admm_force
     TYPE(atomic_kind_type), DIMENSION(:), &

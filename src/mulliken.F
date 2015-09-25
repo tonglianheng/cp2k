@@ -408,7 +408,6 @@ END SUBROUTINE rf_deriv_check
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, nblock, nspin
-    LOGICAL                                  :: failure
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: charges
 
     CALL timeset(routineN,handle)
@@ -519,7 +518,6 @@ END SUBROUTINE rf_deriv_check
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, ic, nblock, nspin
-    LOGICAL                                  :: failure
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: charges, charges_im
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: p_matrix
@@ -570,7 +568,6 @@ END SUBROUTINE rf_deriv_check
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, ic, natom, nspin
-    LOGICAL                                  :: failure
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: mcharge_im
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: p_matrix
@@ -623,7 +620,6 @@ END SUBROUTINE rf_deriv_check
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, ic, natom, nder, nspin
-    LOGICAL                                  :: failure
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: dmcharge_im, mcharge_im
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: p_matrix, s_matrix

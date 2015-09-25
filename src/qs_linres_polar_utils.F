@@ -86,7 +86,7 @@ CONTAINS
 
     INTEGER                                  :: handle, idir, ispin, nao, &
                                                 nmo, nspins, output_unit
-    LOGICAL                                  :: do_raman, failure, should_stop
+    LOGICAL                                  :: do_raman, should_stop
     REAL(dp)                                 :: chk, fro
     TYPE(cp_fm_p_type), DIMENSION(:), &
       POINTER                                :: h1_psi0, psi0_order, psi1
@@ -232,7 +232,7 @@ CONTAINS
 
     INTEGER                                  :: handle, i, ispin, nspins, &
                                                 output_unit, z
-    LOGICAL                                  :: do_raman, failure
+    LOGICAL                                  :: do_raman
     REAL(dp), DIMENSION(:, :), POINTER       :: polar, polar_tmp
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_fm_p_type), DIMENSION(:, :), &
@@ -321,14 +321,13 @@ CONTAINS
 
     CHARACTER(LEN=default_string_length)     :: description
     INTEGER                                  :: output_unit, unit_p
-    LOGICAL                                  :: do_raman, failure
+    LOGICAL                                  :: do_raman
     REAL(dp), DIMENSION(:, :), POINTER       :: polar
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cp_result_type), POINTER            :: results
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(section_vals_type), POINTER         :: polar_section
-
 
     NULLIFY(logger,dft_control,para_env,results)
     CALL get_qs_env(qs_env=qs_env, results=results, dft_control=dft_control,&
@@ -406,7 +405,6 @@ CONTAINS
 
     INTEGER                                  :: handle, idir, ispin, m, nao, &
                                                 nmo, nspins, output_unit
-    LOGICAL                                  :: failure
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: matrix_s
     TYPE(cp_fm_struct_type), POINTER         :: tmp_fm_struct
@@ -506,8 +504,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: idir, ispin
-    LOGICAL                                  :: failure
-
 
     polar_env%ref_count = polar_env%ref_count - 1
     IF(polar_env%ref_count == 0 ) THEN

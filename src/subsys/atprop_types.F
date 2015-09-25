@@ -52,8 +52,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'atprop_create', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
   CALL atprop_release(atprop_env)
   ALLOCATE(atprop_env)
   NULLIFY(atprop_env%atener,atprop_env%atstress)
@@ -75,8 +73,6 @@ CONTAINS
 
     CHARACTER(len=*), PARAMETER :: routineN = 'atprop_init', &
       routineP = moduleN//':'//routineN
-
-    LOGICAL                                  :: failure
 
   CPASSERT(ASSOCIATED(atprop_env))
 
@@ -114,9 +110,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'atprop_array_init', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-
     IF(ASSOCIATED(atarray)) THEN
       CPASSERT(SIZE(atarray)==natom)
     ELSE
@@ -136,9 +129,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'atprop_array_release', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-
     IF(ASSOCIATED(atarray)) THEN
       DEALLOCATE(atarray)
     END IF
@@ -155,9 +145,6 @@ CONTAINS
 
     CHARACTER(len=*), PARAMETER :: routineN = 'atprop_array_add', &
       routineP = moduleN//':'//routineN
-
-    LOGICAL                                  :: failure
-
 
     IF(ASSOCIATED(array_b)) THEN
       CPASSERT(ASSOCIATED(array_a))
@@ -176,8 +163,6 @@ SUBROUTINE atprop_release(atprop_env)
 
     CHARACTER(len=*), PARAMETER :: routineN = 'atprop_release', &
       routineP = moduleN//':'//routineN
-
-    LOGICAL                                  :: failure
 
   IF (ASSOCIATED(atprop_env)) THEN
      ! energy

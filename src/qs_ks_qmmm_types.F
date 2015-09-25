@@ -81,9 +81,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i
-    LOGICAL                                  :: failure
     TYPE(pw_pool_type), POINTER              :: pool
-
 
     IF (ASSOCIATED(ks_qmmm_env)) THEN
        CPASSERT(ks_qmmm_env%ref_count>0)
@@ -120,9 +118,6 @@ SUBROUTINE qs_ks_qmmm_retain(ks_qmmm_env)
 
     CHARACTER(len=*), PARAMETER :: routineN = 'qs_ks_qmmm_retain', &
       routineP = moduleN//':'//routineN
-
-    LOGICAL                                  :: failure
-
 
   CPASSERT(ASSOCIATED(ks_qmmm_env))
   CPASSERT(ks_qmmm_env%ref_count>0)

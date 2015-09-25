@@ -75,7 +75,6 @@ CONTAINS
                                                 nforce_eval, output_unit, &
                                                 stat_sign_points
     INTEGER, POINTER                         :: istep
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: beta, dx, lerr
     REAL(KIND=dp), DIMENSION(:), POINTER     :: my_val
     TYPE(cp_logger_type), POINTER            :: logger
@@ -212,7 +211,7 @@ CONTAINS
     INTEGER                                  :: handle, i, ii, j, k, &
                                                 my_reject, ncolvar, &
                                                 ng_points, rejected_points
-    LOGICAL                                  :: failure, test_avg, test_std
+    LOGICAL                                  :: test_avg, test_std
     REAL(KIND=dp)                            :: prob, tau, z
     REAL(KIND=dp), DIMENSION(:), POINTER     :: wrk
 
@@ -314,7 +313,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i
-    LOGICAL                                  :: failure
 
     ALLOCATE(fe_env%cg_data(ng_points))
     DO i = 1, ng_points
@@ -344,7 +342,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i
-    LOGICAL                                  :: failure
 
     DO i = 1, ng_points
        DEALLOCATE(fe_env%cg_data(i)%avg)
@@ -403,7 +400,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, ng_points
-    LOGICAL                                  :: failure
 
     CALL timeset(routineN,handle)
     test_passed = .FALSE.
@@ -444,7 +440,7 @@ CONTAINS
 
     INTEGER                                  :: handle, i, j, k, ncolvar, &
                                                 ng_points
-    LOGICAL                                  :: avg_test_passed, failure, &
+    LOGICAL                                  :: avg_test_passed, &
                                                 sdv_test_passed
     REAL(KIND=dp)                            :: prob, pw, r, u, w
     REAL(KIND=dp), DIMENSION(:), POINTER     :: wrk
@@ -539,7 +535,7 @@ CONTAINS
 
     INTEGER                                  :: handle, i, ic, ncolvar, &
                                                 ng_points
-    LOGICAL                                  :: failure, test_passed
+    LOGICAL                                  :: test_passed
     REAL(KIND=dp)                            :: max_error_avg, max_error_std
     REAL(KIND=dp), DIMENSION(:), POINTER     :: avg_std, avgmx
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: cov_std, covmx
@@ -635,12 +631,12 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i, ind, j, k, nvar
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: fac
     REAL(KIND=dp), DIMENSION(:), POINTER     :: awrk, eig, tmp
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: wrk
 
-    ! Averages
+! Averages
+
     nvar = ncolvar
     ALLOCATE(wrk(nvar,nvar))
     ALLOCATE(eig(nvar))
@@ -827,7 +823,6 @@ CONTAINS
     CHARACTER(LEN=default_string_length)     :: def_error, par, this_error
     INTEGER                                  :: i, iforce_eval, ipar, isize, &
                                                 iw, j, NEquilStep
-    LOGICAL                                  :: failure
     REAL(KIND=dp) :: avg_BP, avg_DET, avg_DUE, d_ene_w, dedf, ene_w, err, &
       Err_DET, Err_DUE, std_DET, std_DUE, tmp, tmp2, wfac
     TYPE(cp_logger_type), POINTER            :: logger

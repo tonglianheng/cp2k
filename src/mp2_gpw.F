@@ -169,8 +169,8 @@ MODULE mp2_gpw
       sizes_B_virtual, sizes_B_virtual_beta, starts_array, starts_B_all, &
       starts_B_virtual, starts_B_virtual_beta
     INTEGER, DIMENSION(:), POINTER           :: row_blk_sizes
-    LOGICAL :: blacs_repeatable, failure, my_do_gw, my_do_ri_mp2, &
-      my_do_ri_rpa, my_do_ri_sos_laplace_mp2, skip_load_balance_distributed
+    LOGICAL :: blacs_repeatable, my_do_gw, my_do_ri_mp2, my_do_ri_rpa, &
+      my_do_ri_sos_laplace_mp2, skip_load_balance_distributed
     LOGICAL, ALLOCATABLE, DIMENSION(:)       :: orb_present
     REAL(dp), ALLOCATABLE, DIMENSION(:)      :: orb_radius
     REAL(dp), ALLOCATABLE, DIMENSION(:, :)   :: pair_radius
@@ -909,7 +909,7 @@ MODULE mp2_gpw
                                                 exchange_group_sizes, &
                                                 local_col_row_info
     INTEGER, DIMENSION(:), POINTER           :: col_indices, row_indices
-    LOGICAL                                  :: do_alpha_beta, failure
+    LOGICAL                                  :: do_alpha_beta
     REAL(KIND=dp)                            :: mem_min, mem_real, mem_try, &
                                                 pair_energy, wfn_size
     REAL(KIND=dp), ALLOCATABLE, &
@@ -1493,9 +1493,7 @@ MODULE mp2_gpw
     INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: rec_col_row_info
     INTEGER, DIMENSION(:), POINTER           :: col_indices_rec, &
                                                 row_indices_rec
-    LOGICAL                                  :: failure
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: local_BI, rec_BI
-
 
     ALLOCATE(rec_col_row_info(0:max_row_col_local,2))
 
@@ -1618,7 +1616,6 @@ MODULE mp2_gpw
                                                 rec_col_row_info
     INTEGER, DIMENSION(:), POINTER           :: col_indices, col_indices_rec, &
                                                 row_indices, row_indices_rec
-    LOGICAL                                  :: failure
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: C, Cgw, Cocc, Cvirt, rec_C
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: data_block, local_C, &
@@ -1846,7 +1843,6 @@ MODULE mp2_gpw
                                                 col_size, handle, i, &
                                                 i_global, j, j_global, row, &
                                                 row_offset, row_size
-    LOGICAL                                  :: failure
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: data_block
     TYPE(cp_dbcsr_iterator)                  :: iter
 
@@ -1955,7 +1951,6 @@ MODULE mp2_gpw
                                                 proc_send, proc_shift, &
                                                 rec_mu_end, rec_mu_size, &
                                                 rec_mu_start
-    LOGICAL                                  :: failure
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: rec_C
 

@@ -91,10 +91,8 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle
-    LOGICAL                                  :: failure
     TYPE(section_vals_type), POINTER         :: input
     TYPE(transport_env_type), POINTER        :: transport_env
-
 
     CALL timeset(routineN,handle)
 

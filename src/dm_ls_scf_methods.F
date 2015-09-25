@@ -188,7 +188,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle
-    LOGICAL                                  :: failure
     TYPE(cp_dbcsr_type)                      :: matrix_tmp
 
     CALL timeset(routineN,handle)

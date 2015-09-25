@@ -113,7 +113,7 @@ CONTAINS
 
     INTEGER                                  :: exclude_ei, exclude_vdw, &
                                                 handle, iw
-    LOGICAL                                  :: failure, found
+    LOGICAL                                  :: found
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(force_field_type)                   :: ff_type
     TYPE(section_vals_type), POINTER         :: topology_section
@@ -228,7 +228,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, i, iw, m
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: eps, k, phi0, r0, sigma, &
                                                 theta0
     TYPE(cp_logger_type), POINTER            :: logger

@@ -97,7 +97,7 @@ CONTAINS
     INTEGER                                  :: col1, col2, group, &
                                                 ncol_global, nrow_global, &
                                                 nsgf, row1, row2
-    LOGICAL                                  :: failure, my_omit_headers
+    LOGICAL                                  :: my_omit_headers
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: matrix
     TYPE(qs_kind_type), DIMENSION(:), &
       POINTER                                :: qs_kind_set
@@ -189,8 +189,7 @@ CONTAINS
     CHARACTER(LEN=default_string_length)     :: matrix_name
     INTEGER                                  :: col1, col2, dim_col, dim_row, &
                                                 group, row1, row2
-    LOGICAL                                  :: failure, my_omit_headers, &
-                                                print_sym
+    LOGICAL                                  :: my_omit_headers, print_sym
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: matrix
     TYPE(qs_kind_type), DIMENSION(:), &
       POINTER                                :: qs_kind_set
@@ -288,10 +287,8 @@ CONTAINS
                                                 nblkrows_total, nc, nr, row
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: c_offset, r_offset
     INTEGER, DIMENSION(:), POINTER           :: col_blk_size, row_blk_size
-    LOGICAL                                  :: failure
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: DATA
     TYPE(cp_dbcsr_iterator)                  :: iter
-
 
     CALL timeset(routineN,handle)
 
@@ -381,7 +378,6 @@ CONTAINS
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: first_sgf, last_sgf
     INTEGER, DIMENSION(:), POINTER           :: nshell
     INTEGER, DIMENSION(:, :), POINTER        :: lshell
-    LOGICAL                                  :: failure
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(gto_basis_set_type), POINTER        :: orb_basis_set
@@ -549,7 +545,6 @@ CONTAINS
     INTEGER                                  :: from, group, icol, irow, &
                                                 jcol, left, ncol, ndigits, &
                                                 right, to, width
-    LOGICAL                                  :: failure
 
     group = para_env%group
 
@@ -644,7 +639,7 @@ CONTAINS
     INTEGER(KIND=int_8)                      :: nblock_sum, nblock_tot, &
                                                 nelement_sum
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: nblock, nelement
-    LOGICAL                                  :: failure, ionode
+    LOGICAL                                  :: ionode
     REAL(KIND=dp)                            :: occupation
     TYPE(cp_logger_type), POINTER            :: logger
 

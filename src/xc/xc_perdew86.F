@@ -129,7 +129,6 @@ CONTAINS
 
     INTEGER                                  :: handle, m, npoints
     INTEGER, DIMENSION(:, :), POINTER        :: bo
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: drho_cutoff, rho_cutoff
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: rs
     REAL(KIND=dp), DIMENSION(:, :, :), POINTER :: e_0, e_ndrho, &

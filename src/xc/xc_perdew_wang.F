@@ -227,7 +227,6 @@ CONTAINS
 
     INTEGER                                  :: npoints, timer_handle
     INTEGER, DIMENSION(:, :), POINTER        :: bo
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: rho_cutoff
     REAL(KIND=dp), DIMENSION(:, :, :), &
       POINTER                                :: dummy, e_0, e_rho, e_rho_rho, &
@@ -380,7 +379,6 @@ SUBROUTINE perdew_wang_lda_calc(rho,e_0,e_rho, e_rho_rho, e_rho_rho_rho, npoints
 
     INTEGER                                  :: npoints, timer_handle
     INTEGER, DIMENSION(:, :), POINTER        :: bo
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: rho_cutoff
     REAL(KIND=dp), DIMENSION(:, :, :), &
       POINTER                                :: a, b, dummy, e_0, ea, eaa, &

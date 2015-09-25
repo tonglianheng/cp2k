@@ -90,7 +90,7 @@ CONTAINS
     CHARACTER(LEN=default_string_length)     :: headline
     INTEGER                                  :: handle, ispin, ndep, nsgf, &
                                                 nspin
-    LOGICAL                                  :: failure, print_gop
+    LOGICAL                                  :: print_gop
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: orbpop
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
@@ -273,7 +273,7 @@ CONTAINS
                                                 ispin, jatom, jsgf, natom, &
                                                 nsgf, nspin, sgfa, sgfb
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: first_sgf_atom
-    LOGICAL                                  :: failure, found, print_gop
+    LOGICAL                                  :: found, print_gop
     REAL(KIND=dp)                            :: ps
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: orbpop, p_block, ps_block, &
                                                 s_block
@@ -482,7 +482,6 @@ CONTAINS
                                                 natom, nset, nsgf, nspin
     INTEGER, DIMENSION(:), POINTER           :: nshell
     INTEGER, DIMENSION(:, :), POINTER        :: lshell
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: zeff
     REAL(KIND=dp), DIMENSION(3)              :: sumorbpop, totsumorbpop
     TYPE(gto_basis_set_type), POINTER        :: orb_basis_set

@@ -125,7 +125,6 @@ MODULE mp2_ri_libint
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, nkind
-    LOGICAL                                  :: failure
 
     CALL timeset(routineN,handle)
 
@@ -185,13 +184,11 @@ MODULE mp2_ri_libint
       so_counter
     INTEGER, DIMENSION(:), POINTER           :: la_max, la_min, npgfa, nshell
     INTEGER, DIMENSION(:, :), POINTER        :: first_sgfa, nl_a
-    LOGICAL                                  :: failure
     REAL(dp), DIMENSION(:, :), POINTER       :: sphi_a
     TYPE(gto_basis_set_type), POINTER        :: orb_basis_a
     TYPE(qs_kind_type), DIMENSION(:), &
       POINTER                                :: qs_kind_set
     TYPE(qs_kind_type), POINTER              :: atom_kind
-
 
     NULLIFY(RI_basis_parameter)
 
@@ -376,10 +373,9 @@ MODULE mp2_ri_libint
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i
-    LOGICAL                                  :: failure
 
+! RI basis 
 
-    ! RI basis 
     DO i=1,SIZE(RI_basis_parameter)
        DEALLOCATE(RI_basis_parameter(i)%nsgfl)
        DEALLOCATE(RI_basis_parameter(i)%sphi_ext)

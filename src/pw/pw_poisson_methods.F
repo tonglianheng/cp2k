@@ -93,7 +93,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_poisson_cleanup', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     TYPE(pw_pool_type), POINTER              :: pw_pool
 
     CPASSERT(ASSOCIATED(poisson_env))
@@ -119,10 +118,9 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_poisson_check', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure, rebuild
+    LOGICAL                                  :: rebuild
     TYPE(greens_fn_type), POINTER            :: green
     TYPE(ps_wavelet_type), POINTER           :: wavelet
-
 
     CPASSERT(ASSOCIATED(poisson_env))
     CPASSERT(poisson_env%ref_count>0)
@@ -188,7 +186,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle
-    LOGICAL                                  :: failure
 
     CALL timeset(routineN,handle)
 

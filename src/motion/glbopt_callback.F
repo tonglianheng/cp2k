@@ -50,7 +50,7 @@ MODULE glbopt_callback
 
     INTEGER                                  :: i, iw, n_atoms
     INTEGER, POINTER                         :: itimes
-    LOGICAL                                  :: failure, passed_minimum
+    LOGICAL                                  :: passed_minimum
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: positions
     TYPE(cp_subsys_type), POINTER            :: subsys
     TYPE(force_env_type), POINTER            :: force_env

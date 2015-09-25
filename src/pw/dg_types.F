@@ -101,9 +101,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'dg_retain', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-
     CPASSERT(ASSOCIATED(dg))
     CPASSERT(dg%ref_count>0)
     dg%ref_count=dg%ref_count+1
@@ -123,9 +120,6 @@ CONTAINS
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dg_release', &
       routineP = moduleN//':'//routineN
-
-    LOGICAL                                  :: failure
-
 
     IF (ASSOCIATED(dg)) THEN
        CPASSERT(dg%ref_count>0)

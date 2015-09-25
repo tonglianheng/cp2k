@@ -136,7 +136,6 @@ CONTAINS
 
     INTEGER                                  :: handle, n_ao, n_mo, n_spins, &
                                                 natom, spin
-    LOGICAL                                  :: failure
     TYPE(cp_blacs_env_type), POINTER         :: blacs_env
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: matrix_s
@@ -325,7 +324,7 @@ CONTAINS
 
     CHARACTER(len=25)                        :: name
     INTEGER                                  :: handle, ispin, nspins
-    LOGICAL                                  :: failure, gapw_xc
+    LOGICAL                                  :: gapw_xc
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: matrix_s
     TYPE(dft_control_type), POINTER          :: dft_control
@@ -378,9 +377,6 @@ SUBROUTINE p_env_did_change(p_env, s_struct_changed, grid_changed)
     CHARACTER(len=*), PARAMETER :: routineN = 'p_env_did_change', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-
   CPASSERT(ASSOCIATED(p_env))
   CPASSERT(p_env%ref_count>0)
   IF (PRESENT(s_struct_changed)) THEN
@@ -431,7 +427,7 @@ END SUBROUTINE p_env_did_change
 
     INTEGER                                  :: handle, lfomo, n_spins, nmo, &
                                                 output_unit, spin
-    LOGICAL                                  :: failure, was_present
+    LOGICAL                                  :: was_present
     REAL(KIND=dp)                            :: maxocc
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: matrix_ks, matrix_s, rho_ao
@@ -659,11 +655,9 @@ END SUBROUTINE p_env_did_change
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: n_spins, spin
-    LOGICAL                                  :: failure
     TYPE(dft_control_type), POINTER          :: dft_control
 
 ! code
-
 
     CPASSERT(ASSOCIATED(p_env))
     CPASSERT(p_env%ref_count>0)
@@ -704,7 +698,6 @@ END SUBROUTINE p_env_did_change
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, ncol
-    LOGICAL                                  :: failure
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: matrix_ks, matrix_s
     TYPE(cp_dbcsr_type), POINTER             :: k_p
@@ -786,7 +779,7 @@ END SUBROUTINE p_env_did_change
 
     INTEGER                                  :: handle, ispin, n_spins
     INTEGER, SAVE                            :: iter = 0
-    LOGICAL                                  :: failure, gapw, gapw_xc
+    LOGICAL                                  :: gapw, gapw_xc
     REAL(KIND=dp)                            :: my_alpha, my_beta
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: rho1_ao
@@ -867,7 +860,6 @@ END SUBROUTINE p_env_did_change
     INTEGER                                  :: cols, handle, max_cols, &
                                                 maxnmo, n_spins, nmo2, spin, &
                                                 v_cols, v_rows
-    LOGICAL                                  :: failure
     TYPE(cp_fm_pool_type), POINTER           :: maxmo_maxmo_fm_pool
     TYPE(cp_fm_struct_type), POINTER         :: maxmo_maxmo_fmstruct, &
                                                 tmp_fmstruct
@@ -971,7 +963,6 @@ END SUBROUTINE p_env_did_change
     INTEGER                                  :: cols, handle, max_cols, &
                                                 maxnmo, n_spins, nmo2, spin, &
                                                 v_cols, v_rows
-    LOGICAL                                  :: failure
     TYPE(cp_fm_pool_type), POINTER           :: maxmo_maxmo_fm_pool
     TYPE(cp_fm_struct_type), POINTER         :: maxmo_maxmo_fmstruct, &
                                                 tmp_fmstruct

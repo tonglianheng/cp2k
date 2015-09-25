@@ -92,8 +92,6 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'check_if_group_master', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
     CPASSERT(ASSOCIATED(para_env))
 
     master = .FALSE.
@@ -407,8 +405,6 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'create_status_message', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
     CPASSERT(ASSOCIATED(m_send))
 
     ! nothing to do, send just the message tag
@@ -517,8 +513,6 @@ CONTAINS
 
     INTEGER                                  :: counter, msg_size_int, &
                                                 msg_size_real
-    LOGICAL                                  :: failure
-
 
     CPASSERT(ASSOCIATED(tmc_params))
     CPASSERT(ASSOCIATED(m_send))
@@ -569,7 +563,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: counter
-    LOGICAL                                  :: failure, flag
+    LOGICAL                                  :: flag
 
     CPASSERT(ASSOCIATED(tmc_params))
     CPASSERT(ASSOCIATED(m_send))
@@ -626,7 +620,6 @@ CONTAINS
 
     INTEGER                                  :: counter, i, msg_size_int, &
                                                 msg_size_real
-    LOGICAL                                  :: failure
 
     CPASSERT(ASSOCIATED(m_send))
     CPASSERT(ASSOCIATED(elem))
@@ -710,7 +703,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: counter, i
-    LOGICAL                                  :: failure, flag
+    LOGICAL                                  :: flag
 
     CPASSERT(ASSOCIATED(tmc_params))
     CPASSERT(.NOT.ASSOCIATED(tmc_params%atoms))
@@ -788,7 +781,6 @@ CONTAINS
 
     INTEGER                                  :: counter, msg_size_int, &
                                                 msg_size_real
-    LOGICAL                                  :: failure
 
     CPASSERT(ASSOCIATED(m_send))
     CPASSERT(.NOT.ALLOCATED(m_send%task_int))
@@ -845,7 +837,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: counter
-    LOGICAL                                  :: failure
 
     CPASSERT(ASSOCIATED(m_send))
     CPASSERT(m_send%info(3).GT.0)
@@ -897,7 +888,6 @@ CONTAINS
 
     INTEGER                                  :: counter, msg_size_int, &
                                                 msg_size_real
-    LOGICAL                                  :: failure
 
     CPASSERT(ASSOCIATED(m_send))
     CPASSERT(.NOT.ALLOCATED(m_send%task_int))
@@ -964,7 +954,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: counter
-    LOGICAL                                  :: failure
 
     CPASSERT(ASSOCIATED(elem))
     CPASSERT(ASSOCIATED(m_send))
@@ -1020,7 +1009,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: counter, msg_size_real
-    LOGICAL                                  :: failure
 
     CPASSERT(ASSOCIATED(m_send))
     CPASSERT(.NOT.ALLOCATED(m_send%task_int))
@@ -1066,7 +1054,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: counter
-    LOGICAL                                  :: failure
 
     CPASSERT(ASSOCIATED(elem))
     CPASSERT(ASSOCIATED(m_send))
@@ -1108,7 +1095,6 @@ CONTAINS
 
     INTEGER                                  :: counter, msg_size_int, &
                                                 msg_size_real
-    LOGICAL                                  :: failure
 
     CPASSERT(ASSOCIATED(m_send))
     CPASSERT(ASSOCIATED(elem))
@@ -1200,7 +1186,6 @@ CONTAINS
 
     INTEGER                                  :: counter, num_dim, &
                                                 rnd_seed_size
-    LOGICAL                                  :: failure
 
     CPASSERT(.NOT.ASSOCIATED(elem))
     CPASSERT(ASSOCIATED(m_send))
@@ -1281,7 +1266,6 @@ CONTAINS
 
     INTEGER                                  :: counter, msg_size_int, &
                                                 msg_size_real
-    LOGICAL                                  :: failure
 
     CPASSERT(ASSOCIATED(m_send))
     CPASSERT(.NOT.ALLOCATED(m_send%task_int))
@@ -1414,7 +1398,6 @@ CONTAINS
     INTEGER, DIMENSION(:, :), POINTER        :: acc_counter, mv_counter, &
                                                 subbox_acc_counter, &
                                                 subbox_counter
-    LOGICAL                                  :: failure
 
     NULLIFY(mv_counter, subbox_counter, acc_counter, subbox_acc_counter)
 
@@ -1531,7 +1514,6 @@ CONTAINS
 
     INTEGER                                  :: counter, msg_size_int, &
                                                 msg_size_real
-    LOGICAL                                  :: failure
 
     CPASSERT(ASSOCIATED(m_send))
     CPASSERT(.NOT.ALLOCATED(m_send%task_int))
@@ -1589,7 +1571,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: counter
-    LOGICAL                                  :: failure
 
     CPASSERT(ASSOCIATED(m_send))
     CPASSERT(m_send%info(3).GT.0)
@@ -1639,8 +1620,6 @@ CONTAINS
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'read_scf_step_ener', &
       routineP = moduleN//':'//routineN
-
-    LOGICAL                                  :: failure
 
     CPASSERT(ASSOCIATED(elem))
     CPASSERT(ASSOCIATED(m_send))

@@ -94,7 +94,7 @@ CONTAINS
                                                 n_colvar, n_rep, &
                                                 number_allocated_colvars
     INTEGER, DIMENSION(:), POINTER           :: walkers_status
-    LOGICAL                                  :: check, explicit, failure
+    LOGICAL                                  :: check, explicit
     REAL(kind=dp)                            :: dt
     TYPE(cp_subsys_type), POINTER            :: subsys
     TYPE(section_vals_type), POINTER         :: md_section, metadyn_section, &
@@ -448,7 +448,6 @@ CPSourceFileRef,&
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, i, n_walls
-    LOGICAL                                  :: failure
     TYPE(section_vals_type), POINTER         :: wall_section, work_section
 
     CALL timeset(routineN,handle)
@@ -529,7 +528,7 @@ CPSourceFileRef,&
     CHARACTER(LEN=default_path_length)       :: filename, tmpname
     INTEGER                                  :: delta_hills, handle, i, &
                                                 i_hills, ih, iw, unit_nr
-    LOGICAL                                  :: exist, failure
+    LOGICAL                                  :: exist
     REAL(KIND=dp)                            :: invdt, ww
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: delta_s_save, ss0_save
     REAL(KIND=dp), ALLOCATABLE, &
@@ -916,7 +915,6 @@ CPSourceFileRef,&
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: ih, iwall
-    LOGICAL                                  :: failure
     REAL(dp)                                 :: ddp, delta_s, dfunc, diff_ss, &
                                                 dp2, efunc, ww
     TYPE(metavar_type), DIMENSION(:), &

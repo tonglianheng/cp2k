@@ -161,7 +161,6 @@ SUBROUTINE xc_functional_get_info(functional,lsd,reference,shortform,&
     LOGICAL                                  :: failure
     REAL(kind=dp)                            :: r_param
 
-
   CPASSERT(ASSOCIATED(functional))
   SELECT CASE(functional%section%name)
   CASE("BECKE97")
@@ -369,7 +368,7 @@ SUBROUTINE xc_functional_eval(functional, lsd, rho_set, deriv_set, &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, i_param
-    LOGICAL                                  :: failure, fun_active
+    LOGICAL                                  :: fun_active
     REAL(KIND=dp)                            :: density_cut, gradient_cut, &
                                                 r_param
 
@@ -599,9 +598,7 @@ SUBROUTINE xc_functionals_eval(functionals, lsd, rho_set, deriv_set, &
     CHARACTER(len=default_string_length), &
       DIMENSION(:), POINTER                  :: func_name
     INTEGER                                  :: ifun, ifunc_name
-    LOGICAL                                  :: failure
     TYPE(section_vals_type), POINTER         :: xc_fun
-
 
   CPASSERT(ASSOCIATED(functionals))
   ifun=0
@@ -652,8 +649,7 @@ FUNCTION xc_functionals_get_needs(functionals, lsd, add_basic_components)&
 
     CHARACTER(len=80), DIMENSION(:), POINTER :: func_name
     INTEGER                                  :: ifun, ifunc_name
-    LOGICAL                                  :: failure, &
-                                                my_add_basic_components
+    LOGICAL                                  :: my_add_basic_components
     TYPE(section_vals_type), POINTER         :: xc_fun
 
   my_add_basic_components=.FALSE.

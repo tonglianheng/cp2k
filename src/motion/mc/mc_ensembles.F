@@ -148,10 +148,10 @@ CONTAINS
     CHARACTER(LEN=default_string_length)     :: unit_str
     CHARACTER(LEN=40), DIMENSION(1:nboxes) :: cell_file, coords_file, &
       data_file, displacement_file, energy_file, molecules_file, moves_file
-    LOGICAL                                  :: failure, ionode, lbias, &
-                                                ldiscrete, lhmc, &
-                                                lnew_bias_env, loverlap, &
-                                                lreject, lstop, should_stop
+    LOGICAL                                  :: ionode, lbias, ldiscrete, &
+                                                lhmc, lnew_bias_env, &
+                                                loverlap, lreject, lstop, &
+                                                should_stop
     REAL(dp), DIMENSION(:), POINTER          :: pbias, pmavbmc_mol, &
                                                 pmhmc_box, pmrot_mol, &
                                                 pmtraion_mol, pmtrans_mol, &
@@ -1181,7 +1181,7 @@ CONTAINS
       start_atom
     INTEGER, DIMENSION(:), POINTER           :: mol_type, nunits, nunits_tot
     INTEGER, DIMENSION(:, :), POINTER        :: nchains
-    LOGICAL                                  :: failure, ionode, loverlap
+    LOGICAL                                  :: ionode, loverlap
     REAL(dp), DIMENSION(:), POINTER          :: BETA, virial_cutoffs, &
                                                 virial_stepsize, virial_temps
     REAL(dp), DIMENSION(:, :), POINTER       :: mass, mayer, r_old

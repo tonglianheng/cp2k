@@ -66,8 +66,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'xc_rho_cflags_setall', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
     cflags%rho=value
     cflags%rho_spin=value
     cflags%drho=value
@@ -94,9 +92,6 @@ CONTAINS
 
     CHARACTER(len=*), PARAMETER :: routineN = 'xc_rho_cflags_or', &
       routineP = moduleN//':'//routineN
-
-    LOGICAL                                  :: failure
-
 
     cflags1%rho=cflags1%rho.OR.cflags2%rho
     cflags1%rho_spin=cflags1%rho_spin.OR.cflags2%rho_spin
@@ -127,9 +122,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'xc_rho_cflags_and', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-
     cflags1%rho=cflags1%rho.AND.cflags2%rho
     cflags1%rho_spin=cflags1%rho_spin.AND.cflags2%rho_spin
     cflags1%drho=cflags1%drho.AND.cflags2%drho
@@ -159,9 +151,6 @@ CONTAINS
 
     CHARACTER(len=*), PARAMETER :: routineN = 'xc_rho_cflags_equal', &
       routineP = moduleN//':'//routineN
-
-    LOGICAL                                  :: failure
-
 
     equal=((cflags1%rho.EQV.cflags2%rho).AND.&
          (cflags1%rho_spin.EQV.cflags2%rho_spin).AND.&
@@ -194,9 +183,6 @@ CONTAINS
 
     CHARACTER(len=*), PARAMETER :: routineN = 'xc_rho_cflags_contain', &
       routineP = moduleN//':'//routineN
-
-    LOGICAL                                  :: failure
-
 
     contain=((cflags1%rho.OR..NOT.cflags2%rho).AND.&
          (cflags1%rho_spin.OR..NOT.cflags2%rho_spin).AND.&

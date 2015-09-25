@@ -149,7 +149,7 @@ CONTAINS
 
     INTEGER                                  :: handle, i, ip, j, k, n, &
                                                 ncount, npoints_spline, ntype
-    LOGICAL                                  :: failure, found_locut
+    LOGICAL                                  :: found_locut
     REAL(KIND=dp)                            :: energy_cutoff, hicut, hicut0, &
                                                 locut
     TYPE(pair_potential_single_type), &
@@ -578,7 +578,7 @@ CPSourceFileRef,&
       ntype, nunique, nvar, pot_target, tmpij(2), tmpij0(2)
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: Iwork1, Iwork2, my_index
     INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: tmp_index
-    LOGICAL                                  :: at_least_one, check, failure
+    LOGICAL                                  :: at_least_one, check
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: Cwork, Rwork, wtmp
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: pot_par
@@ -942,7 +942,7 @@ CPSourceFileRef,&
     INTEGER                                  :: handle, i, min_val, nvalues, &
                                                 tmpij(2), value, zi, zj
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: wrk
-    LOGICAL                                  :: check, failure
+    LOGICAL                                  :: check
     REAL(KIND=dp)                            :: hicut0, l_epsilon, l_sigma6, &
                                                 m_epsilon, m_sigma6, &
                                                 min_sigma6, rcovi, rcovj

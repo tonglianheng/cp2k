@@ -468,9 +468,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'mulliken_control_create', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-
     CPASSERT(.NOT.ASSOCIATED(mulliken_restraint_control))
     ALLOCATE(mulliken_restraint_control)
 
@@ -492,8 +489,6 @@ CONTAINS
 
     CHARACTER(len=*), PARAMETER :: routineN = 'mulliken_control_release', &
       routineP = moduleN//':'//routineN
-
-    LOGICAL                                  :: failure
 
     CPASSERT(ASSOCIATED(mulliken_restraint_control))
     CPASSERT(mulliken_restraint_control%ref_count>0)
@@ -521,8 +516,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'mulliken_control_retain', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
     CPASSERT(ASSOCIATED(mulliken_restraint_control))
 
     mulliken_restraint_control%ref_count=mulliken_restraint_control%ref_count+1
@@ -539,9 +532,6 @@ CONTAINS
 
     CHARACTER(len=*), PARAMETER :: routineN = 'ddapc_control_create', &
       routineP = moduleN//':'//routineN
-
-    LOGICAL                                  :: failure
-
 
     CPASSERT(.NOT.ASSOCIATED(ddapc_restraint_control))
     ALLOCATE(ddapc_restraint_control)
@@ -569,8 +559,6 @@ CONTAINS
 
     CHARACTER(len=*), PARAMETER :: routineN = 'ddapc_control_release', &
       routineP = moduleN//':'//routineN
-
-    LOGICAL                                  :: failure
 
     CPASSERT(ASSOCIATED(ddapc_restraint_control))
     CPASSERT(ddapc_restraint_control%ref_count>0)
@@ -600,8 +588,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'ddapc_control_retain', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
     CPASSERT(ASSOCIATED(ddapc_restraint_control))
 
     ddapc_restraint_control%ref_count=ddapc_restraint_control%ref_count+1
@@ -618,9 +604,6 @@ CONTAINS
 
     CHARACTER(len=*), PARAMETER :: routineN = 'becke_control_create', &
       routineP = moduleN//':'//routineN
-
-    LOGICAL                                  :: failure
-
 
     CPASSERT(.NOT.ASSOCIATED(becke_control))
     ALLOCATE(becke_control)
@@ -650,8 +633,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'becke_control_release', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
     CPASSERT(ASSOCIATED(becke_control))
     CPASSERT(becke_control%ref_count>0)
     becke_control%ref_count=becke_control%ref_count-1
@@ -680,8 +661,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'becke_control_retain', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
     CPASSERT(ASSOCIATED(becke_control))
     becke_control%ref_count=becke_control%ref_count+1
   END SUBROUTINE becke_control_retain
@@ -697,9 +676,6 @@ CONTAINS
 
     CHARACTER(len=*), PARAMETER :: routineN = 's2_control_create', &
       routineP = moduleN//':'//routineN
-
-    LOGICAL                                  :: failure
-
 
     CPASSERT(.NOT.ASSOCIATED(s2_restraint_control))
     ALLOCATE(s2_restraint_control)
@@ -722,8 +698,6 @@ CONTAINS
 
     CHARACTER(len=*), PARAMETER :: routineN = 's2_control_release', &
       routineP = moduleN//':'//routineN
-
-    LOGICAL                                  :: failure
 
     CPASSERT(ASSOCIATED(s2_restraint_control))
     CPASSERT(s2_restraint_control%ref_count>0)
@@ -748,8 +722,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 's2_control_retain', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
     CPASSERT(ASSOCIATED(s2_restraint_control))
     s2_restraint_control%ref_count=s2_restraint_control%ref_count+1
   END SUBROUTINE s2_control_retain
@@ -766,9 +738,6 @@ CONTAINS
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dft_control_create', &
       routineP = moduleN//':'//routineN
-
-    LOGICAL                                  :: failure
-
 
     CPASSERT(.NOT.ASSOCIATED(dft_control))
     ALLOCATE (dft_control)
@@ -800,8 +769,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'dft_control_retain', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
     CPASSERT(ASSOCIATED(dft_control))
     CPASSERT(dft_control%ref_count>0)
     dft_control%ref_count=dft_control%ref_count+1
@@ -819,9 +786,6 @@ CONTAINS
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dft_control_release', &
       routineP = moduleN//':'//routineN
-
-    LOGICAL                                  :: failure
-
 
     IF (ASSOCIATED(dft_control)) THEN
        CPASSERT(dft_control%ref_count>0)
@@ -856,8 +820,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'gapw_control_create', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
     CPASSERT(.NOT.ASSOCIATED(gapw_control))
     ALLOCATE (gapw_control)
   END SUBROUTINE gapw_control_create
@@ -871,8 +833,6 @@ CONTAINS
 
     CHARACTER(len=*), PARAMETER :: routineN = 'qs_control_create', &
       routineP = moduleN//':'//routineN
-
-    LOGICAL                                  :: failure
 
     CPASSERT(.NOT.ASSOCIATED(qs_control))
     ALLOCATE (qs_control)
@@ -908,7 +868,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i
-    LOGICAL                                  :: failure
 
     IF (ASSOCIATED(qs_control)) THEN
        CALL mulliken_control_release(qs_control%mulliken_restraint_control)
@@ -944,8 +903,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'tddfpt_control_create', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
     CPASSERT(.NOT.ASSOCIATED(tddfpt_control))
     ALLOCATE (tddfpt_control)
     NULLIFY(tddfpt_control%lumos)
@@ -964,7 +921,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: ispin
-    LOGICAL                                  :: dummy, failure
+    LOGICAL                                  :: dummy
 
     IF (ASSOCIATED(tddfpt_control)) THEN
        IF (ASSOCIATED(tddfpt_control%lumos)) THEN
@@ -998,7 +955,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i
-    LOGICAL                                  :: failure
 
     IF (ASSOCIATED(efield_fields)) THEN
        DO i=1,SIZE(efield_fields)
@@ -1029,9 +985,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'dftb_control_create', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-
     CPASSERT(.NOT.ASSOCIATED(dftb_control))
     ALLOCATE(dftb_control)
 
@@ -1047,9 +1000,6 @@ CONTAINS
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dftb_control_release', &
       routineP = moduleN//':'//routineN
-
-    LOGICAL                                  :: failure
-
 
     IF (ASSOCIATED(dftb_control)) THEN
        IF (ASSOCIATED(dftb_control%sk_pair_list)) THEN
@@ -1069,9 +1019,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'scptb_control_create', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-
     CPASSERT(.NOT.ASSOCIATED(scptb_control))
     ALLOCATE(scptb_control)
 
@@ -1086,9 +1033,6 @@ CONTAINS
 
     CHARACTER(len=*), PARAMETER :: routineN = 'scptb_control_release', &
       routineP = moduleN//':'//routineN
-
-    LOGICAL                                  :: failure
-
 
     IF (ASSOCIATED(scptb_control)) THEN
        DEALLOCATE(scptb_control)
@@ -1106,9 +1050,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'se_control_create', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-
     CPASSERT(.NOT.ASSOCIATED(se_control))
     ALLOCATE(se_control)
   END SUBROUTINE se_control_create
@@ -1123,9 +1064,6 @@ CONTAINS
 
     CHARACTER(len=*), PARAMETER :: routineN = 'se_control_release', &
       routineP = moduleN//':'//routineN
-
-    LOGICAL                                  :: failure
-
 
     IF (ASSOCIATED(se_control)) THEN
        DEALLOCATE(se_control)
@@ -1142,9 +1080,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'admm_control_create', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-
     CPASSERT(.NOT.ASSOCIATED(admm_control))
     ALLOCATE(admm_control)
 
@@ -1159,9 +1094,6 @@ CONTAINS
 
     CHARACTER(len=*), PARAMETER :: routineN = 'admm_control_release', &
       routineP = moduleN//':'//routineN
-
-    LOGICAL                                  :: failure
-
 
     IF (ASSOCIATED(admm_control)) THEN
        DEALLOCATE(admm_control)
@@ -1181,9 +1113,6 @@ CONTAINS
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'sccs_control_create', &
       routineP = moduleN//':'//routineN
-
-    LOGICAL                                  :: failure
-
 
     CPASSERT(.NOT.ASSOCIATED(sccs_control))
     ALLOCATE (sccs_control)
@@ -1221,9 +1150,6 @@ CONTAINS
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'sccs_control_release', &
       routineP = moduleN//':'//routineN
-
-    LOGICAL                                  :: failure
-
 
     IF (ASSOCIATED(sccs_control)) THEN
        CPASSERT(sccs_control%ref_count > 0)

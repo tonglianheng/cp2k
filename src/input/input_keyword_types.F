@@ -198,7 +198,6 @@ CONTAINS
     INTEGER                                  :: i, n
     LOGICAL                                  :: check, failure
 
-
     CPASSERT(.NOT.ASSOCIATED(keyword))
     ALLOCATE(keyword)
     keyword%ref_count=1
@@ -421,8 +420,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'keyword_retain', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
     CPASSERT(ASSOCIATED(keyword))
     CPASSERT(keyword%ref_count>0)
     keyword%ref_count=keyword%ref_count+1
@@ -438,8 +435,6 @@ CONTAINS
 
     CHARACTER(len=*), PARAMETER :: routineN = 'keyword_release', &
       routineP = moduleN//':'//routineN
-
-    LOGICAL                                  :: failure
 
     IF (ASSOCIATED(keyword)) THEN
        CPASSERT(keyword%ref_count>0)
@@ -492,9 +487,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'keyword_get', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-
     CPASSERT(ASSOCIATED(keyword))
     CPASSERT(keyword%ref_count>0)
     IF (PRESENT(names)) names => keyword%names
@@ -528,7 +520,6 @@ CONTAINS
     CHARACTER(len=default_string_length)     :: c_string
     INTEGER                                  :: i, l
     LOGICAL                                  :: failure
-
 
     CPASSERT(ASSOCIATED(keyword))
     CPASSERT(keyword%ref_count>0)
@@ -665,8 +656,7 @@ CONTAINS
 
     CHARACTER(len=default_string_length)     :: c_string, my_unit
     INTEGER                                  :: i, iref
-    LOGICAL                                  :: any_description, failure
-
+    LOGICAL                                  :: any_description
 
     CPASSERT(ASSOCIATED(keyword))
     CPASSERT(keyword%ref_count>0)
@@ -821,7 +811,6 @@ CONTAINS
     CHARACTER(LEN=3)                         :: repeats
     CHARACTER(LEN=8)                         :: short_string
     INTEGER                                  :: i, l0, l1, l2, l3, l4
-    LOGICAL                                  :: failure
 
     CPASSERT(ASSOCIATED(keyword))
     CPASSERT(keyword%ref_count>0)
@@ -1003,7 +992,6 @@ CONTAINS
 
     CHARACTER(LEN=LEN(matching_string(1)))   :: line
     INTEGER                                  :: i, imatch, imax, irank, j, k
-    LOGICAL                                  :: failure
 
     CPASSERT(ASSOCIATED(keyword))
     CPASSERT(keyword%ref_count>0)

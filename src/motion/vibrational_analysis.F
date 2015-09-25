@@ -454,7 +454,6 @@ CONTAINS
                                                 ndim, nfixed_atoms, &
                                                 nfixed_atoms_total, nkind
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: ifixd_list, work
-    LOGICAL                                  :: failure
     TYPE(cp_subsys_type), POINTER            :: subsys
     TYPE(fixd_constraint_type), &
       DIMENSION(:), POINTER                  :: fixd_list
@@ -612,7 +611,7 @@ CONTAINS
 
     INTEGER                                  :: handle, i, ifound, iseq, j, &
                                                 nvib
-    LOGICAL                                  :: failure, my_full
+    LOGICAL                                  :: my_full
     REAL(KIND=dp)                            :: norm
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: work
     REAL(KIND=dp), ALLOCATABLE, &

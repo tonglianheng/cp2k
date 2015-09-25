@@ -300,7 +300,6 @@ CPSourceFileRef,&
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, iw
-    LOGICAL                                  :: failure
     TYPE(atom_info_type), POINTER            :: atom_info
     TYPE(connectivity_info_type), POINTER    :: conn_info
     TYPE(cp_logger_type), POINTER            :: logger
@@ -402,7 +401,7 @@ CPSourceFileRef,&
       icph, ict, icth, ip, iph, ipres, it, ith, iwork, jb, jbh, jp, jph, jt, &
       jth, kp, kph, kt, kth, lp, lph
     INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: full_torsions
-    LOGICAL                                  :: check, failure, valid_format
+    LOGICAL                                  :: check, valid_format
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: asol, bsol, cn1, cn2, phase, &
                                                 pk, pn, req, rk, teq, tk
     TYPE(cp_parser_type), POINTER            :: parser
@@ -963,7 +962,6 @@ CPSourceFileRef,&
     INTEGER                                  :: counter, gind, handle, iend, &
                                                 ind, isize, j, k, kend, kstart
     INTEGER, DIMENSION(:), POINTER           :: cindx, lindx
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: ctmp
     REAL(KIND=dp), DIMENSION(:), POINTER     :: cwork
 
@@ -1038,7 +1036,6 @@ CPSourceFileRef,&
 
     INTEGER                                  :: i
     LOGICAL                                  :: failure, my_end
-
 
     CALL parser_get_next_line(parser,1,at_end=my_end)
     i = 1
@@ -1251,7 +1248,6 @@ CPSourceFileRef,&
     INTEGER                                  :: i
     LOGICAL                                  :: failure, my_end
 
-
     CALL parser_get_next_line(parser,1,at_end=my_end)
     i = 1
     DO WHILE ((i<=dim).AND.(.NOT.my_end))
@@ -1288,7 +1284,6 @@ CPSourceFileRef,&
 
     INTEGER                                  :: i
     LOGICAL                                  :: failure, my_end
-
 
     CALL parser_get_next_line(parser,1,at_end=my_end)
     i = 1
@@ -1414,7 +1409,7 @@ CPSourceFileRef,&
       ALLOCATABLE, DIMENSION(:, :)           :: work_label
     INTEGER                                  :: handle, i
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: iwork
-    LOGICAL                                  :: failure, l_dum
+    LOGICAL                                  :: l_dum
 
     CALL timeset(routineN, handle)
     IF (nbond/=0) THEN
@@ -1505,7 +1500,7 @@ CPSourceFileRef,&
       ALLOCATABLE, DIMENSION(:, :)           :: work_label
     INTEGER                                  :: handle, i
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: iwork
-    LOGICAL                                  :: failure, l_dum
+    LOGICAL                                  :: l_dum
 
     CALL timeset(routineN,handle)
     IF (ntheta/=0) THEN
@@ -1612,7 +1607,7 @@ CPSourceFileRef,&
       ALLOCATABLE, DIMENSION(:, :)           :: work_label
     INTEGER                                  :: handle, i
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: iwork
-    LOGICAL                                  :: failure, l_dum
+    LOGICAL                                  :: l_dum
 
     CALL timeset(routineN, handle)
     IF (nphi/=0) THEN
@@ -1738,7 +1733,7 @@ CPSourceFileRef,&
       ALLOCATABLE, DIMENSION(:)              :: work_label
     INTEGER                                  :: handle, i
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: iwork
-    LOGICAL                                  :: check, failure, l_dum
+    LOGICAL                                  :: check, l_dum
     REAL(KIND=dp)                            :: F12, F6, my_eps, my_sigma, &
                                                 sigma6
 

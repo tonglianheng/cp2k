@@ -88,9 +88,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_retain', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-
     CPASSERT(ASSOCIATED(pw))
     CPASSERT(pw%ref_count>0)
     pw%ref_count=pw%ref_count+1
@@ -112,7 +109,6 @@ SUBROUTINE pw_release(pw)
       routineP = moduleN//':'//routineN
 
     LOGICAL                                  :: failure
-
 
   IF (ASSOCIATED(pw)) THEN
      CPASSERT(pw%ref_count>0)
@@ -173,7 +169,6 @@ SUBROUTINE pw_create(pw, pw_grid, use_data, in_space, cr3d_ptr)
     INTEGER, DIMENSION(:, :), POINTER        :: bounds
     LOGICAL                                  :: failure
     TYPE(cp_logger_type), POINTER            :: logger
-
 
   CALL timeset(routineN,handle)
   CPASSERT(.NOT.ASSOCIATED(pw))

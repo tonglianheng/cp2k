@@ -101,7 +101,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: natom, nshell
-    LOGICAL                                  :: failure
     TYPE(cp_subsys_type), POINTER            :: subsys
     TYPE(particle_list_type), POINTER        :: particles, shell_particles
     TYPE(section_vals_type), POINTER         :: dimer_section, rot_opt_section
@@ -188,9 +187,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'gopt_f_retain', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-
     CPASSERT(ASSOCIATED(gopt_env))
     CPASSERT(gopt_env%ref_count>0)
     gopt_env%ref_count=gopt_env%ref_count+1
@@ -207,9 +203,6 @@ CONTAINS
 
     CHARACTER(len=*), PARAMETER :: routineN = 'gopt_f_release', &
       routineP = moduleN//':'//routineN
-
-    LOGICAL                                  :: failure
-
 
     IF (ASSOCIATED(gopt_env)) THEN
        CPASSERT(gopt_env%ref_count>0)

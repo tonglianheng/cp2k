@@ -59,8 +59,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'create_inpp_type', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
     CPASSERT(.NOT.ASSOCIATED(inpp))
     ALLOCATE(inpp)
 
@@ -94,8 +92,6 @@ CONTAINS
 
     CHARACTER(len=*), PARAMETER :: routineN = 'release_inpp_type', &
       routineP = moduleN//':'//routineN
-
-    LOGICAL                                  :: failure
 
     CPASSERT(ASSOCIATED(inpp))
 

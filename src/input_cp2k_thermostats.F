@@ -70,10 +70,9 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'create_thermo_slow_section', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure, my_coupled_thermostat
+    LOGICAL                                  :: my_coupled_thermostat
     TYPE(keyword_type), POINTER              :: keyword
     TYPE(section_type), POINTER              :: nose_section, region_section
-
 
     CPASSERT(.NOT.ASSOCIATED(section))
     my_coupled_thermostat = .FALSE.
@@ -147,10 +146,9 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'create_thermo_fast_section', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure, my_coupled_thermostat
+    LOGICAL                                  :: my_coupled_thermostat
     TYPE(keyword_type), POINTER              :: keyword
     TYPE(section_type), POINTER              :: nose_section, region_section
-
 
     CPASSERT(.NOT.ASSOCIATED(section))
     my_coupled_thermostat = .FALSE.
@@ -225,12 +223,11 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'create_thermostat_section', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure, my_coupled_thermostat
+    LOGICAL                                  :: my_coupled_thermostat
     TYPE(keyword_type), POINTER              :: keyword
     TYPE(section_type), POINTER              :: al_section, csvr_section, &
                                                 gle_section, nose_section, &
                                                 region_section, subsection
-
 
     CPASSERT(.NOT.ASSOCIATED(section))
     my_coupled_thermostat = .FALSE.
@@ -318,9 +315,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'create_print_section', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     TYPE(section_type), POINTER              :: print_key
-
 
     CPASSERT(.NOT.ASSOCIATED(section))
     NULLIFY(print_key)
@@ -364,9 +359,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'create_region_section', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
-
 
     CPASSERT(.NOT.ASSOCIATED(section))
 
@@ -429,10 +422,8 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'create_nose_section', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
     TYPE(section_type), POINTER              :: subsection
-
 
     CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="nose",&
@@ -501,10 +492,8 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'create_gle_section', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
     TYPE(section_type), POINTER              :: subsection
-
 
     CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="GLE",&
@@ -575,9 +564,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'create_gles_section', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
-
 
     CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="s",&
@@ -604,10 +591,8 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'create_csvr_section', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
     TYPE(section_type), POINTER              :: subsection
-
 
     CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="csvr",&
@@ -648,10 +633,8 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'create_al_section', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
     TYPE(section_type), POINTER              :: subsection
-
 
     CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="ad_langevin",&
@@ -711,9 +694,7 @@ CONTAINS
       routineN = 'create_thermo_chi_mass_section', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
-
 
     CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name=TRIM(sec_name),&
@@ -741,9 +722,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'create_thermo_energy_section', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
-
 
     CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="THERMOSTAT_ENERGY",&
@@ -772,9 +751,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'create_force_section', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
-
 
     CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="force",&
@@ -803,9 +780,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'create_mass_section', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
-
 
     CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="mass",&
@@ -834,9 +809,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'create_velocity_section', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
-
 
     CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="velocity",&
@@ -865,9 +838,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'create_coord_section', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
-
 
     CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="coord",&

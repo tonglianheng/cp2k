@@ -170,7 +170,6 @@ CONTAINS
     TYPE(thermal_regions_type), POINTER      :: thermal_regions
     TYPE(virial_type), POINTER               :: virial
 
-
     NULLIFY(cell, para_env, gci, force_env)
     NULLIFY(atomic_kinds, local_particles,subsys,local_molecules,molecule_kinds,molecules)
     NULLIFY(molecule_kind_set,molecule_set,particles,particle_set,rng_stream,simpar,virial)
@@ -620,8 +619,7 @@ CONTAINS
     INTEGER                                  :: nparticle, nparticle_kind, &
                                                 nshell
     INTEGER, POINTER                         :: itimes
-    LOGICAL                                  :: failure, shell_adiabatic, &
-                                                shell_present
+    LOGICAL                                  :: shell_adiabatic, shell_present
     REAL(KIND=dp)                            :: dt
     TYPE(atomic_kind_list_type), POINTER     :: atomic_kinds
     TYPE(atomic_kind_type), DIMENSION(:), &
@@ -638,7 +636,6 @@ CONTAINS
                                                 shell_particle_set
     TYPE(simpar_type), POINTER               :: simpar
     TYPE(tmp_variables_type), POINTER        :: tmp
-
 
     NULLIFY(force_env, tmp, simpar, itimes)
     NULLIFY(atomic_kinds,para_env,subsys,local_particles)
@@ -748,7 +745,7 @@ CONTAINS
     INTEGER                                  :: ivar, nparticle, &
                                                 nparticle_kind, nshell
     INTEGER, POINTER                         :: itimes
-    LOGICAL                                  :: failure, shell_adiabatic, &
+    LOGICAL                                  :: shell_adiabatic, &
                                                 shell_check_distance, &
                                                 shell_present
     REAL(KIND=dp)                            :: dt
@@ -783,8 +780,6 @@ CONTAINS
                                                 thermostat_slow
     TYPE(tmp_variables_type), POINTER        :: tmp
     TYPE(virial_type), POINTER               :: virial
-
-
 
     NULLIFY(gci, force_env, thermostat_coeff, tmp, &
          thermostat_fast, thermostat_slow, thermostat_shell, cell, shell_particles, &
@@ -974,7 +969,7 @@ CONTAINS
     INTEGER                                  :: ivar, nparticle, &
                                                 nparticle_kind, nshell
     INTEGER, POINTER                         :: itimes
-    LOGICAL                                  :: failure, shell_adiabatic, &
+    LOGICAL                                  :: shell_adiabatic, &
                                                 shell_check_distance, &
                                                 shell_present
     REAL(KIND=dp)                            :: dt
@@ -1008,7 +1003,6 @@ CONTAINS
                                                 thermostat_shell
     TYPE(tmp_variables_type), POINTER        :: tmp
     TYPE(virial_type), POINTER               :: virial
-
 
     NULLIFY(gci, force_env, thermostat_coeff, tmp, &
          thermostat_part, thermostat_shell, cell, shell_particles, &
@@ -1233,7 +1227,7 @@ CONTAINS
     INTEGER                                  :: iroll, ivar, nparticle, &
                                                 nparticle_kind, nshell
     INTEGER, POINTER                         :: itimes
-    LOGICAL                                  :: failure, first, first_time, &
+    LOGICAL                                  :: first, first_time, &
                                                 shell_adiabatic, &
                                                 shell_check_distance, &
                                                 shell_present
@@ -1274,7 +1268,6 @@ CONTAINS
                                                 thermostat_shell
     TYPE(tmp_variables_type), POINTER        :: tmp
     TYPE(virial_type), POINTER               :: virial
-
 
     NULLIFY(gci,thermostat_baro,thermostat_part,thermostat_shell,force_env)
     NULLIFY(atomic_kinds,cell,para_env,subsys,local_molecules,local_particles)
@@ -1575,7 +1568,7 @@ CONTAINS
     INTEGER                                  :: cell_itimes, I, nparticle, &
                                                 Nread, trj_itimes
     INTEGER, POINTER                         :: itimes
-    LOGICAL                                  :: failure, init, my_end, test_ok
+    LOGICAL                                  :: init, my_end, test_ok
     REAL(KIND=dp)                            :: cell_time, h(3,3), trj_epot, &
                                                 trj_time, vol
     REAL(KIND=dp), POINTER                   :: time
@@ -1725,7 +1718,7 @@ CPSourceFileRef,&
     INTEGER                                  :: iroll, nparticle, &
                                                 nparticle_kind, nshell
     INTEGER, POINTER                         :: itimes
-    LOGICAL                                  :: failure, first, first_time, &
+    LOGICAL                                  :: first, first_time, &
                                                 shell_adiabatic, shell_present
     REAL(KIND=dp)                            :: dt, infree, kin, roll_tol, &
                                                 roll_tol_thrs
@@ -1758,7 +1751,6 @@ CPSourceFileRef,&
     TYPE(simpar_type), POINTER               :: simpar
     TYPE(tmp_variables_type), POINTER        :: tmp
     TYPE(virial_type), POINTER               :: virial
-
 
     NULLIFY(gci, force_env)
     NULLIFY(atomic_kinds,cell,para_env,subsys,local_molecules,local_particles)
@@ -1981,7 +1973,7 @@ CPSourceFileRef,&
     INTEGER                                  :: iroll, nparticle, &
                                                 nparticle_kind, nshell
     INTEGER, POINTER                         :: itimes
-    LOGICAL                                  :: failure, first, first_time, &
+    LOGICAL                                  :: first, first_time, &
                                                 shell_adiabatic, shell_present
     REAL(KIND=dp)                            :: aa, aax, dt, gamma1, infree, &
                                                 kin, roll_tol, roll_tol_thrs
@@ -2014,7 +2006,6 @@ CPSourceFileRef,&
     TYPE(simpar_type), POINTER               :: simpar
     TYPE(tmp_variables_type), POINTER        :: tmp
     TYPE(virial_type), POINTER               :: virial
-
 
     NULLIFY(gci, force_env)
     NULLIFY(atomic_kinds,cell,para_env,subsys,local_molecules,local_particles)
@@ -2248,7 +2239,7 @@ CPSourceFileRef,&
     INTEGER                                  :: i, iroll, j, nparticle, &
                                                 nparticle_kind, nshell
     INTEGER, POINTER                         :: itimes
-    LOGICAL                                  :: failure, first, first_time, &
+    LOGICAL                                  :: first, first_time, &
                                                 shell_adiabatic, &
                                                 shell_check_distance, &
                                                 shell_present
@@ -2561,7 +2552,6 @@ CPSourceFileRef,&
     INTEGER :: i_step, iparticle, iparticle_kind, iparticle_local, &
       n_time_steps, nparticle, nparticle_kind, nparticle_local
     INTEGER, POINTER                         :: itimes
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: dm, dt, mass
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: pos, vel
@@ -2587,7 +2577,6 @@ CPSourceFileRef,&
       POINTER                                :: particle_set, &
                                                 particle_set_respa
     TYPE(simpar_type), POINTER               :: simpar
-
 
     NULLIFY (para_env,cell,subsys_respa,particles_respa, particle_set_respa, gci, force_env, atomic_kinds)
     NULLIFY (atomic_kind_set,simpar,subsys,particles,particle_set)

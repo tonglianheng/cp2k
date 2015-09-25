@@ -151,7 +151,6 @@ CONTAINS
 
     INTEGER                                  :: handle, npoints
     INTEGER, DIMENSION(:, :), POINTER        :: bo
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: epsilon_rho, sc
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: x
     REAL(KIND=dp), DIMENSION(:, :, :), &

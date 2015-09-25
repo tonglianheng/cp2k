@@ -307,7 +307,6 @@ CONTAINS
                                                 j, jatom, k, np(3)
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: catom
     INTEGER, DIMENSION(2, 3)                 :: bo
-    LOGICAL                                  :: failure
     REAL(kind=dp)                            :: dE, dist1, dist2, dvol, my1, &
                                                 myexp, strength, &
                                                 sum_cell_f_all, &
@@ -481,7 +480,6 @@ CONTAINS
                                                 natom, np(3)
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: atom_of_kind, catom, kind_of
     INTEGER, DIMENSION(2, 3)                 :: bo
-    LOGICAL                                  :: failure
     LOGICAL, ALLOCATABLE, DIMENSION(:)       :: is_constraint
     REAL(kind=dp) :: dist1, dist2, dpolyn, dvol, f_3, my1, polyn, strength, &
       sum_cell_f_constr, sum_Pm, target_val, th, tmp_const

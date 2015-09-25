@@ -47,10 +47,8 @@ CONTAINS
       routineN = 'create_optimize_input_section', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
     TYPE(section_type), POINTER              :: sub_section, subsubsection
-
 
     CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="OPTIMIZE_INPUT",&

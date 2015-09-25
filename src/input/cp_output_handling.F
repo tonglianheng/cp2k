@@ -176,10 +176,9 @@ CONTAINS
     INTEGER                                  :: i_each, i_iter, my_add_last, &
                                                 my_comm_iter_levels, &
                                                 my_print_level, my_value
-    LOGICAL                                  :: check, ext_each, failure
+    LOGICAL                                  :: check, ext_each
     TYPE(keyword_type), POINTER              :: keyword
     TYPE(section_type), POINTER              :: subsection
-
 
     CPASSERT(.NOT.ASSOCIATED(print_key_section))
     my_print_level=debug_print_level
@@ -433,7 +432,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: print_level
-    LOGICAL                                  :: failure
 
     CPASSERT(ASSOCIATED(iteration_info))
     CPASSERT(iteration_info%ref_count>0)
@@ -469,7 +467,7 @@ CONTAINS
 
     INTEGER                                  :: add_last, ilevel, iter_nr, &
                                                 ival
-    LOGICAL                                  :: failure, first, level_passed
+    LOGICAL                                  :: first, level_passed
 
     CPASSERT(ASSOCIATED(iteration_info))
     CPASSERT(iteration_info%ref_count>0)
@@ -534,9 +532,8 @@ CONTAINS
 
     INTEGER                                  :: add_last, c_i_level, ilevel, &
                                                 n_rlevel, s_level
-    LOGICAL                                  :: failure, my_for_file
+    LOGICAL                                  :: my_for_file
     TYPE(section_vals_type), POINTER         :: my_print_key
-
 
     res=""
     my_for_file=.FALSE.
@@ -594,7 +591,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: my_increment
-    LOGICAL                                  :: failure, my_last
+    LOGICAL                                  :: my_last
 
     my_last=.FALSE.
     my_increment = 1
@@ -634,8 +631,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i
-    LOGICAL                                  :: failure, found
-
+    LOGICAL                                  :: found
 
     CPASSERT(ASSOCIATED(iteration_info))
     CPASSERT(iteration_info%ref_count>0)
@@ -681,8 +677,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_rm_iter_level', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: check, failure
-
+    LOGICAL                                  :: check
 
     CPASSERT(ASSOCIATED(iteration_info))
     CPASSERT(iteration_info%ref_count>0)
@@ -841,9 +836,9 @@ CONTAINS
     INTEGER                                  :: c_i_level, f_backup_level, i, &
                                                 my_backup_level, my_nbak, &
                                                 nbak, s_backup_level
-    LOGICAL                                  :: do_log, failure, found, &
-                                                my_do_backup, my_local, &
-                                                my_on_file, my_should_output
+    LOGICAL                                  :: do_log, found, my_do_backup, &
+                                                my_local, my_on_file, &
+                                                my_should_output
     TYPE(cp_iteration_info_type), POINTER    :: iteration_info
     TYPE(section_vals_type), POINTER         :: print_key
 
@@ -1003,8 +998,8 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     CHARACTER(len=default_string_length)     :: outPath
-    LOGICAL                                  :: failure, my_local, &
-                                                my_on_file, my_should_output
+    LOGICAL                                  :: my_local, my_on_file, &
+                                                my_should_output
     TYPE(section_vals_type), POINTER         :: print_key
 
     my_local=.FALSE.
@@ -1070,8 +1065,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: output_unit
-    LOGICAL                                  :: failure, my_local
-
+    LOGICAL                                  :: my_local
 
     my_local=.FALSE.
     IF (PRESENT(local)) my_local=local

@@ -249,7 +249,7 @@ CONTAINS
                                                 n, nb
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: iwork
     INTEGER, EXTERNAL                        :: ilaenv
-    LOGICAL                                  :: divide_and_conquer, failure
+    LOGICAL                                  :: divide_and_conquer
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: work
 
     EXTERNAL dsyev,dsyevd
@@ -425,7 +425,6 @@ CONTAINS
 
     INTEGER                                  :: lwork, n
     INTEGER, ALLOCATABLE                     :: ipiv(:)
-    LOGICAL                                  :: failure
     REAL(KIND=dp), ALLOCATABLE               :: work(:)
 
     n = SIZE(a,1)
@@ -460,7 +459,6 @@ CONTAINS
 
     CHARACTER(LEN=1)                         :: my_triangle
     INTEGER                                  :: handle, i, info, n
-    LOGICAL                                  :: failure
 
     CALL timeset(routineN,handle)
 
@@ -539,7 +537,7 @@ CONTAINS
     CHARACTER(LEN=default_string_length)     :: message
     INTEGER                                  :: info, iter, n
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: ipiv, iwork
-    LOGICAL                                  :: do_improve, failure
+    LOGICAL                                  :: do_improve
     REAL(KIND=dp)                            :: a_norm, old_eval_error, r_cond
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: berr, ferr, work
     REAL(KIND=dp), ALLOCATABLE, &
@@ -720,7 +718,6 @@ CONTAINS
       DIMENSION(:, :)                        :: a_lu, b
     INTEGER                                  :: info, iter, n
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: ipiv
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: a_norm, old_eval_error, r_cond
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: berr, ferr, rwork
     REAL(KIND=dp), EXTERNAL                  :: zlange
@@ -870,7 +867,6 @@ CONTAINS
 
     INTEGER                                  :: handle, i, info, lwork, n
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: iwork
-    LOGICAL                                  :: failure
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: sig, work
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: sig_plus, temp_mat, u, vt
@@ -944,7 +940,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, i, info, lwork, n
-    LOGICAL                                  :: failure
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: eig, work
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: dinv, temp_mat

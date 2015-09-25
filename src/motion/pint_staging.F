@@ -50,9 +50,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'staging_env_create', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-
     CPASSERT(.NOT.ASSOCIATED(staging_env))
     ALLOCATE(staging_env)
     last_staging_id=last_staging_id+1
@@ -84,9 +81,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'staging_release', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-
     IF (ASSOCIATED(staging_env)) THEN
      CPASSERT(staging_env%ref_count>0)
      staging_env%ref_count=staging_env%ref_count-1
@@ -108,9 +102,6 @@ CONTAINS
 
     CHARACTER(len=*), PARAMETER :: routineN = 'staging_retain', &
       routineP = moduleN//':'//routineN
-
-    LOGICAL                                  :: failure
-
 
     CPASSERT(ASSOCIATED(staging_env))
     CPASSERT(staging_env%ref_count>0)
@@ -143,9 +134,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i, iat, ib, iseg
-    LOGICAL                                  :: failure
     REAL(kind=dp), ALLOCATABLE, DIMENSION(:) :: scal
-
 
     IF (PRESENT(Q)) THEN
        Q=staging_env%Q_stage
@@ -204,8 +193,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: k, s
-    LOGICAL                                  :: failure
-
 
     CPASSERT(ASSOCIATED(staging_env))
     CPASSERT(staging_env%ref_count>0)
@@ -241,9 +228,7 @@ CONTAINS
 
     INTEGER                                  :: i, ist, j
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: iii, jjj
-    LOGICAL                                  :: failure
     REAL(kind=dp)                            :: const, const2
-
 
     CPASSERT(ASSOCIATED(staging_env))
     CPASSERT(staging_env%ref_count>0)
@@ -293,9 +278,7 @@ CONTAINS
 
     INTEGER                                  :: i, idim, ij, ist, k
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: iii, jjj, kkk
-    LOGICAL                                  :: failure
     REAL(kind=dp)                            :: const, sum_f
-
 
     CPASSERT(ASSOCIATED(staging_env))
     CPASSERT(staging_env%ref_count>0)
@@ -350,10 +333,7 @@ CONTAINS
 
     INTEGER                                  :: idim, isg, ist
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: iii, jjj, kkk
-    LOGICAL                                  :: failure
     REAL(kind=dp)                            :: d, f
-
-
 
     e_h = 0.0_dp
 

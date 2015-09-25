@@ -110,8 +110,7 @@ CONTAINS
       map_atom_type(:), map_mol_hash(:), mm_indexes_n(:), mm_indexes_v(:), &
       mol_bnd(:,:), mol_hash(:), mol_num(:), new_position(:), order(:), &
       tmp_n(:), tmp_v(:), wrk(:)
-    LOGICAL                                  :: explicit, failure, matches, &
-                                                my_qmmm
+    LOGICAL                                  :: explicit, matches, my_qmmm
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: tr
     REAL(KIND=dp), POINTER                   :: tatm_charge(:), tatm_mass(:)
     TYPE(array1_list_type), ALLOCATABLE, &
@@ -479,7 +478,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: ldim
-    LOGICAL                                  :: failure
     TYPE(graph_type), DIMENSION(:), POINTER  :: tmp_graph_set
 
     ldim = 0
@@ -513,7 +511,6 @@ CONTAINS
 
     INTEGER                                  :: b_dim, i, j, mydim_in, &
                                                 mydim_out, v_dim
-    LOGICAL                                  :: failure
 
     CPASSERT(.NOT.ASSOCIATED(graph_set_out))
     mydim_in  = 0
@@ -575,7 +572,6 @@ CONTAINS
 
     INTEGER                                  :: i, idim, ifirst, ilast, j, &
                                                 nbonds, nelement
-    LOGICAL                                  :: failure
 
     IF (PRESENT(atm_map3)) THEN
        CPASSERT(.NOT.ASSOCIATED(atm_map3))
@@ -625,7 +621,6 @@ CONTAINS
 
     INTEGER                                  :: i, iend, istart, ldim
     INTEGER, DIMENSION(:), POINTER           :: tmp, wrk
-    LOGICAL                                  :: failure
 
     CPASSERT(nsize>0)
     ALLOCATE(wrk(Ndim))
@@ -692,7 +687,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER, DIMENSION(:), POINTER           :: tmp_2, tmp_3, tmp_4
-    LOGICAL                                  :: failure
 
     SELECT CASE(nsize)
     CASE(2)
@@ -810,7 +804,6 @@ CONTAINS
 
     INTEGER                                  :: I, index1, index2, Nsize
     INTEGER, DIMENSION(:), POINTER           :: wrk_tmp
-    LOGICAL                                  :: failure
 
     DO I=1,N
        index1=list1(I)
@@ -855,7 +848,6 @@ CONTAINS
     INTEGER                                  :: I, index1, index2, index3, &
                                                 Nsize
     INTEGER, DIMENSION(:), POINTER           :: wrk_tmp
-    LOGICAL                                  :: failure
 
     DO I=1,N
        index1=list1(I)
@@ -973,7 +965,7 @@ CONTAINS
       DIMENSION(:), POINTER                  :: keyword
     INTEGER                                  :: handle, i, i_rep, iatom, &
                                                 ielem_found, iw, n_rep, natom
-    LOGICAL                                  :: failure, user_defined
+    LOGICAL                                  :: user_defined
     REAL(KIND=dp), DIMENSION(:), POINTER     :: mass
     TYPE(atom_info_type), POINTER            :: atom_info
     TYPE(cp_logger_type), POINTER            :: logger
@@ -1051,8 +1043,7 @@ CONTAINS
                                                 handle, i, iatom, iw, k, &
                                                 loc_counter, mol_num, &
                                                 mol_typ, n, natom
-    LOGICAL                                  :: failure, icheck_num, &
-                                                icheck_typ
+    LOGICAL                                  :: icheck_num, icheck_typ
     TYPE(array1_list_type), ALLOCATABLE, &
       DIMENSION(:)                           :: atom_bond_list
     TYPE(atom_info_type), POINTER            :: atom_info
@@ -1194,8 +1185,8 @@ CONTAINS
     CHARACTER(len=default_string_length)     :: atom_name, element_symbol, &
                                                 keyword
     INTEGER                                  :: i, i_rep, n_rep
-    LOGICAL                                  :: defined_kind_section, &
-                                                failure, found, in_ptable
+    LOGICAL                                  :: defined_kind_section, found, &
+                                                in_ptable
     TYPE(section_vals_type), POINTER         :: kind_section
 
     found          = .FALSE.

@@ -135,7 +135,7 @@ CONTAINS
     INTEGER, DIMENSION(:), POINTER           :: la_max, la_min, lb_max, &
                                                 lb_min, npgfa, npgfb
     INTEGER, DIMENSION(:, :, :), POINTER     :: cell_to_index
-    LOGICAL                                  :: dokp, failure, my_soft
+    LOGICAL                                  :: dokp, my_soft
     REAL(KIND=dp)                            :: kind_radius_a, kind_radius_b
     REAL(KIND=dp), DIMENSION(3)              :: ra, rab
     REAL(KIND=dp), DIMENSION(:), POINTER     :: set_radius_a, set_radius_b
@@ -923,7 +923,6 @@ CONTAINS
 
     INTEGER                                  :: handle
     INTEGER, DIMENSION(:, :, :), POINTER     :: list
-    LOGICAL                                  :: failure
 
     CALL timeset(routineN,handle)
 
@@ -1121,7 +1120,6 @@ CONTAINS
                                                 jcpu, maxdest, ncpu
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: load_all, load_per_source
     INTEGER, ALLOCATABLE, DIMENSION(:, :, :) :: list_global
-    LOGICAL                                  :: failure
 
     CALL timeset(routineN,handle)
 
@@ -1224,7 +1222,6 @@ CONTAINS
       DIMENSION(:)                           :: loads
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: all_dests, index
     INTEGER, DIMENSION(6)                    :: options
-    LOGICAL                                  :: failure
 
     CALL timeset(routineN,handle)
 
@@ -1439,8 +1436,6 @@ CONTAINS
     INTEGER                                  :: handle, i, icpu, j, maxcount, &
                                                 ncpu, ultimate_max
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: index, sublist
-    LOGICAL                                  :: failure
-
 
     CALL timeset(routineN,handle)
 
@@ -1522,7 +1517,6 @@ CONTAINS
     INTEGER(KIND=int_8)                      :: total_cost_local
     INTEGER(KIND=int_8), ALLOCATABLE, &
       DIMENSION(:)                           :: recv_buf_i, send_buf_i
-    LOGICAL                                  :: failure
     TYPE(realspace_grid_desc_type), POINTER  :: desc
 
     CALL timeset(routineN,handle)
@@ -1600,7 +1594,6 @@ CONTAINS
       DIMENSION(:)                           :: load_imbalance, loads, &
                                                 recv_buf_i
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: index
-    LOGICAL                                  :: failure
     TYPE(realspace_grid_desc_type), POINTER  :: desc
 
     CALL timeset(routineN,handle)
@@ -1764,7 +1757,6 @@ CONTAINS
       DIMENSION(:)                           :: recv_buf_i, send_buf_i
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: recv_disps, recv_sizes, &
                                                 send_disps, send_sizes
-    LOGICAL                                  :: failure
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: recv_buf_r, send_buf_r
     TYPE(realspace_grid_desc_type), POINTER  :: desc
 
@@ -1948,7 +1940,7 @@ CONTAINS
       POINTER                                :: loads, tasks_recv
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: index, real2virtual, &
                                                 total_index
-    LOGICAL                                  :: distributed_grids, failure, &
+    LOGICAL                                  :: distributed_grids, &
                                                 fixed_first_grid
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: rval_recv
     TYPE(realspace_grid_desc_type), POINTER  :: desc
@@ -2186,11 +2178,9 @@ CONTAINS
                                                 jpgf, jset
     INTEGER(KIND=int_8)                      :: natom8, nim8
     INTEGER, DIMENSION(:), POINTER           :: index
-    LOGICAL                                  :: failure
 
 ! calculate list of atom pairs
 ! fill pair list taking into acount symmetry
-
 
   natom8 = natoms
   nim8 = nimages
@@ -2613,7 +2603,7 @@ END SUBROUTINE rs_distribute_matrix
       itask, ix, iy, iz, lb_coord(3), lb_domain(3), lbc(3), ub_coord(3), &
       ub_domain(3), ubc(3)
     INTEGER(KIND=int_8)                      :: bit_pattern
-    LOGICAL                                  :: dir_periodic(3), failure
+    LOGICAL                                  :: dir_periodic(3)
 
     coord(1)=rs_desc % x2coord(cube_center(1))
     coord(2)=rs_desc % y2coord(cube_center(2))

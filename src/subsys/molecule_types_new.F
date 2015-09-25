@@ -546,11 +546,9 @@ CONTAINS
 
     INTEGER                                  :: first_atom, iatom, imol, &
                                                 last_atom, nbasis, nelec
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: charge
     TYPE(molecule_kind_type), POINTER        :: imol_kind
     TYPE(molecule_type), POINTER             :: molecule
-
 
     DO imol = 1,SIZE(molecule_set)
 

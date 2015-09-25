@@ -620,7 +620,7 @@ CONTAINS
                                                 nsgfb
     INTEGER, DIMENSION(:, :), POINTER        :: first_sgfa, first_sgfb
     LOGICAL :: atom_pair_changed, den_found, den_found_a, &
-      distributed_rs_grids, do_igaim, failure, map_consistent, my_rtp, my_soft
+      distributed_rs_grids, do_igaim, map_consistent, my_rtp, my_soft
     REAL(dp), DIMENSION(:, :, :), POINTER    :: my_current, my_gauge, my_rho
     REAL(KIND=dp)                            :: eps_rho_rspace, &
                                                 kind_radius_a, kind_radius_b, &
@@ -2173,7 +2173,7 @@ CONTAINS
       nstate_loc, nstates(2), output_unit
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: first_sgf, last_sgf
     INTEGER, DIMENSION(:), POINTER           :: row_blk_sizes
-    LOGICAL                                  :: chi_pbc, failure, gapw
+    LOGICAL                                  :: chi_pbc, gapw
     REAL(dp)                                 :: chi(3), chi_tmp, contrib, &
                                                 contrib2, dk(3), &
                                                 int_current(3), &
@@ -2208,7 +2208,8 @@ CONTAINS
     TYPE(qs_kind_type), DIMENSION(:), &
       POINTER                                :: qs_kind_set
 
-    !
+!
+
     CALL timeset(routineN,handle)
     !
     NULLIFY(dft_control,mos,para_env,mo_coeff,op_mom_ao,&
@@ -2617,7 +2618,7 @@ CONTAINS
       output_unit
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: first_sgf, last_sgf
     INTEGER, DIMENSION(:), POINTER           :: row_blk_sizes
-    LOGICAL                                  :: chi_pbc, failure, gapw
+    LOGICAL                                  :: chi_pbc, gapw
     REAL(dp)                                 :: chi(3), contrib, dk(3), &
                                                 int_current(3), maxocc
     TYPE(cell_type), POINTER                 :: cell
@@ -2648,7 +2649,8 @@ CONTAINS
     TYPE(qs_kind_type), DIMENSION(:), &
       POINTER                                :: qs_kind_set
 
-    !
+!
+
     CALL timeset(routineN,handle)
     !
     NULLIFY(dft_control,mos,para_env,mo_coeff,op_mom_ao,&

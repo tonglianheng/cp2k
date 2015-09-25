@@ -169,7 +169,7 @@ CONTAINS
     INTEGER, DIMENSION(:), POINTER           :: list, nshell
     INTEGER, DIMENSION(:, :), POINTER        :: bo, l
     LOGICAL                                  :: append, do_ldos, do_r_ldos, &
-                                                do_virt, failure, ionode, &
+                                                do_virt, ionode, &
                                                 separate_components, &
                                                 should_output
     LOGICAL, DIMENSION(:, :), POINTER        :: read_r
@@ -930,7 +930,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: nmo, nrow_global
-    LOGICAL                                  :: failure
     TYPE(cp_blacs_env_type), POINTER         :: context
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: ks_matrix, s_matrix

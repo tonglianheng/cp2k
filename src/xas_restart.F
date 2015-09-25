@@ -107,7 +107,7 @@ CONTAINS
       nexc_atoms, nexc_atoms_read, nexc_search, nexc_search_read, nmo, &
       nmo_read, output_unit, rst_unit, source, xas_estate, xas_estate_read, &
       xas_method_read
-    LOGICAL                                  :: failure, file_exists
+    LOGICAL                                  :: file_exists
     REAL(dp)                                 :: occ_estate, occ_estate_read, &
                                                 xas_nelectron, &
                                                 xas_nelectron_read
@@ -293,7 +293,6 @@ CPSourceFileRef,&
                                                 nexc_atoms, nexc_search, nmo, &
                                                 output_unit, rst_unit, &
                                                 xas_estate
-    LOGICAL                                  :: failure
     REAL(dp)                                 :: occ_estate, xas_nelectron
     REAL(dp), DIMENSION(:), POINTER          :: eigenvalues, &
                                                 occupation_numbers
@@ -384,7 +383,6 @@ CPSourceFileRef,&
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, ispin, nelectron
-    LOGICAL                                  :: failure
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: rho_ao
     TYPE(cp_para_env_type), POINTER          :: para_env
@@ -459,7 +457,6 @@ CPSourceFileRef,&
     INTEGER                                  :: i, ic_max, ir_max, m, n, nao, &
                                                 nexc_search, nmo, xas_estate
     INTEGER, DIMENSION(:), POINTER           :: col_indices
-    LOGICAL                                  :: failure
     REAL(dp)                                 :: a_max, b_max, ip_energy, &
                                                 occ_estate
     REAL(KIND=dp), DIMENSION(:), POINTER     :: eigenvalues, &

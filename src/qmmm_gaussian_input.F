@@ -264,7 +264,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: IRad, istart, Nog, Nval
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: my_radius, radius, rc
 
     Nval = SIZE(qmmm_gaussian_fns)
@@ -703,7 +702,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: IRad, istart, Nog, Nval
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: radius, rc
 
     Nval = SIZE(qmmm_gaussian_fns)

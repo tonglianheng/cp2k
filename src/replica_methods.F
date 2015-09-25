@@ -387,8 +387,6 @@ MODULE replica_methods
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, ierr, my_calc_f
-    LOGICAL                                  :: failure
-
 
     CALL timeset(routineN,handle)
     CPASSERT(ASSOCIATED(rep_env))

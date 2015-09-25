@@ -125,8 +125,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: f_routine
-    LOGICAL                                  :: failure
-
 
     CPASSERT(ASSOCIATED(rho_r))
     CPASSERT(ASSOCIATED(xc_section))
@@ -191,7 +189,6 @@ SUBROUTINE xc_vxc_pw_create_test_lsd(vxc_rho,vxc_tau,rho_r,rho_g,tau,&
       DIMENSION(:), POINTER                  :: split_desc
     INTEGER                                  :: i, ii, ispin, j, k
     INTEGER, DIMENSION(2, 3)                 :: bo
-    LOGICAL                                  :: failure
     REAL(kind=dp)                            :: diff, exc2, maxdiff, tmp
     REAL(KIND=dp), DIMENSION(3, 3)           :: virial_xc
     REAL(kind=dp), DIMENSION(:, :, :), &
@@ -533,7 +530,6 @@ SUBROUTINE xc_vxc_pw_create_debug(vxc_rho,vxc_tau,rho_r,rho_g,tau,exc,&
       DIMENSION(:), POINTER                  :: split_desc
     INTEGER                                  :: i, ispin, j, k
     INTEGER, DIMENSION(2, 3)                 :: bo
-    LOGICAL                                  :: failure
     REAL(KIND=dp), DIMENSION(3, 3)           :: virial_xc
     REAL(kind=dp), DIMENSION(:, :, :), &
       POINTER                                :: pot
@@ -826,7 +822,7 @@ SUBROUTINE xc_rho_set_and_dset_create(rho_set,deriv_set,deriv_order,&
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, nspins
-    LOGICAL                                  :: failure, lsd
+    LOGICAL                                  :: lsd
     TYPE(section_vals_type), POINTER         :: xc_fun_sections
 
   CALL timeset(routineN,handle)
@@ -897,7 +893,6 @@ END SUBROUTINE xc_rho_set_and_dset_create
 
     INTEGER                                  :: i, j, k
     INTEGER, DIMENSION(2, 3)                 :: bo
-    LOGICAL                                  :: failure
     REAL(kind=dp) :: my_e_0_scale_factor, my_rho, my_rho_n, my_rho_n2, &
       rho_smooth_cutoff, rho_smooth_cutoff_2, rho_smooth_cutoff_range_2
 
@@ -1861,7 +1856,6 @@ FUNCTION xc_exc_calc(rho_r,rho_g,tau,xc_section, pw_pool)&
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle
-    LOGICAL                                  :: failure
     REAL(dp)                                 :: density_smooth_cut_range, &
                                                 rho_cutoff
     REAL(dp), DIMENSION(:, :, :), POINTER    :: e_0
@@ -2959,7 +2953,7 @@ END SUBROUTINE xc_calc_2nd_deriv
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, ispin, nspins
-    LOGICAL                                  :: failure, lsd
+    LOGICAL                                  :: lsd
     TYPE(pw_p_type), DIMENSION(:), POINTER   :: rho_g, rho_r_pw, tau
 
     CALL timeset(routineN,handle)
@@ -3017,7 +3011,6 @@ END SUBROUTINE xc_calc_2nd_deriv
     TYPE(xc_derivative_type), POINTER        :: deriv_att
 
 ! check for unknown derivatives and divide by norm_drho where necessary
-
 
     bo = rho_set%local_bounds
     CALL xc_rho_set_get(rho_set, drho_cutoff=drho_cutoff)

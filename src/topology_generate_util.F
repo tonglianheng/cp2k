@@ -101,12 +101,13 @@ CONTAINS
 
     CHARACTER(LEN=default_string_length)     :: molname
     INTEGER                                  :: i, N, nmol
-    LOGICAL                                  :: check, failure
+    LOGICAL                                  :: check
     TYPE(array1_list_type), ALLOCATABLE, &
       DIMENSION(:)                           :: atom_bond_list
 
-    ! convert a simple list of bonds to a list of bonds per atom
-    ! (each bond is present in the forward and backward direction
+! convert a simple list of bonds to a list of bonds per atom
+! (each bond is present in the forward and backward direction
+
     ALLOCATE(atom_bond_list(natom))
     DO I=1,natom
        ALLOCATE(atom_bond_list(I)%array1(0))
@@ -153,7 +154,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: j, k
-    LOGICAL                                  :: failure
 
     IF (debug_this_module) THEN
        WRITE(*,*)"Entered with :",i
@@ -201,8 +201,7 @@ CONTAINS
       last, max_mol_num, mol_num, mol_res, mol_typ, myind, N, natom, nlocl, &
       ntype, resid
     INTEGER, DIMENSION(:), POINTER           :: qm_atom_index, wrk1, wrk2
-    LOGICAL                                  :: do_again, failure, found, &
-                                                my_qmmm
+    LOGICAL                                  :: do_again, found, my_qmmm
     TYPE(array1_list_type), ALLOCATABLE, &
       DIMENSION(:)                           :: atom_bond_list
     TYPE(atom_info_type), POINTER            :: atom_info
@@ -588,7 +587,7 @@ CONTAINS
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: bond_a, bond_b, list, map_nb
     INTEGER, DIMENSION(:), POINTER           :: isolated_atoms, tmp_v
     LOGICAL                                  :: connectivity_ok, explicit, &
-                                                failure, print_info
+                                                print_info
     LOGICAL, ALLOCATABLE, DIMENSION(:)       :: h_list
     REAL(KIND=dp)                            :: bondparm_factor, cell_v(3), &
                                                 dr(3), ksign, my_maxrad, r2, &
@@ -963,7 +962,6 @@ CONTAINS
     INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: mol_info_tmp
     INTEGER, DIMENSION(:), POINTER           :: mol_map, mol_map_o, wrk
     INTEGER, DIMENSION(:, :), POINTER        :: mol_info
-    LOGICAL                                  :: failure
     LOGICAL, DIMENSION(:), POINTER           :: icheck
     TYPE(array1_list_type), DIMENSION(:), &
       POINTER                                :: bond_list
@@ -1114,7 +1112,7 @@ CONTAINS
                                                 new_size, nsize
     INTEGER, DIMENSION(:), POINTER           :: atlist, Ilist1, Ilist2, &
                                                 Ilist3, Ilist4
-    LOGICAL                                  :: explicit, failure, ip3, ip4
+    LOGICAL                                  :: explicit, ip3, ip4
 
     natom   = topology%natoms
     ! Preliminary sort of arrays
@@ -1528,7 +1526,6 @@ CONTAINS
     INTEGER                                  :: handle, handle2, i, iw, &
                                                 natom, nbond, nsize, ntheta, &
                                                 output_unit
-    LOGICAL                                  :: failure
     TYPE(array1_list_type), DIMENSION(:), &
       POINTER                                :: bond_list
     TYPE(connectivity_info_type), POINTER    :: conn_info
@@ -1640,7 +1637,7 @@ CONTAINS
 
     INTEGER                                  :: i, ind, j, my_levl, natom
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: my_list
-    LOGICAL                                  :: check, failure
+    LOGICAL                                  :: check
     TYPE(array1_list_type), DIMENSION(:), &
       POINTER                                :: wrk
 
@@ -1775,7 +1772,6 @@ CONTAINS
 
     INTEGER                                  :: handle, itheta, iw, ntheta, &
                                                 output_unit
-    LOGICAL                                  :: failure
     TYPE(connectivity_info_type), POINTER    :: conn_info
     TYPE(cp_logger_type), POINTER            :: logger
 
@@ -1822,7 +1818,6 @@ CONTAINS
 
     INTEGER                                  :: handle, i, iw, natom, nbond, &
                                                 nphi, nsize, output_unit
-    LOGICAL                                  :: failure
     TYPE(array1_list_type), DIMENSION(:), &
       POINTER                                :: bond_list
     TYPE(connectivity_info_type), POINTER    :: conn_info
@@ -1913,7 +1908,7 @@ CONTAINS
     INTEGER                                  :: handle, i, ind, iw, j, natom, &
                                                 nbond, nimpr, nsize, &
                                                 output_unit
-    LOGICAL                                  :: accept_impr, failure
+    LOGICAL                                  :: accept_impr
     TYPE(array1_list_type), DIMENSION(:), &
       POINTER                                :: bond_list
     TYPE(atom_info_type), POINTER            :: atom_info
@@ -2023,7 +2018,6 @@ CONTAINS
     INTEGER                                  :: atom_a, atom_b, handle, i, &
                                                 ionfo, iw, natom, nbond, &
                                                 nphi, ntheta, output_unit
-    LOGICAL                                  :: failure
     TYPE(array1_list_type), DIMENSION(:), &
       POINTER                                :: bond_list, phi_list, &
                                                 theta_list

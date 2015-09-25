@@ -344,7 +344,7 @@ CONTAINS
     INTEGER                                  :: handle, i, unit_nr
     INTEGER(KIND=int_8)                      :: flop1, flop2, flop3, flop4, &
                                                 flop5
-    LOGICAL                                  :: converged, failure
+    LOGICAL                                  :: converged
     REAL(KIND=dp)                            :: a, b, c, d, frob_matrix, &
                                                 frob_matrix_base, max_ev, &
                                                 min_ev, oa, ob, oc, &

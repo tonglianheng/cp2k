@@ -59,10 +59,10 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER, DIMENSION(3)                    :: periodic
-    LOGICAL                                  :: failure
     REAL(KIND=dp), DIMENSION(3)              :: cell_angle, cell_length
 
-    ! orthorhombic cells are diagonal, and should stay exactly like this
+! orthorhombic cells are diagonal, and should stay exactly like this
+
     IF (.NOT. cell%orthorhombic) THEN
       CALL get_cell_param(cell,cell_length,cell_angle,cp_units_rad,periodic=periodic)
       CALL set_cell_param(cell,cell_length,cell_angle,periodic=periodic,&
@@ -96,7 +96,6 @@ CONTAINS
                                                 output_file_path
     CHARACTER(len=default_string_length)     :: label
     INTEGER                                  :: i, lp, unit_nr
-    LOGICAL                                  :: failure
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(enumeration_type), POINTER          :: enum
     TYPE(keyword_type), POINTER              :: keyword
@@ -195,7 +194,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i, ind, j
-    LOGICAL                                  :: check, failure
+    LOGICAL                                  :: check
     REAL(KIND=dp), DIMENSION(3, 3)           :: pres_ext_tens
     REAL(KIND=dp), DIMENSION(:), POINTER     :: pvals
 
@@ -267,7 +266,7 @@ CPSourceFileRef,&
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i
-    LOGICAL                                  :: failure, my_keep_angles, &
+    LOGICAL                                  :: my_keep_angles, &
                                                 my_keep_symmetry
     REAL(KIND=dp)                            :: a, cosa, cosah, g, norm, &
                                                 norm_b, norm_c, sina, sinah

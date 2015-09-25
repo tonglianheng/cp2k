@@ -61,7 +61,7 @@ CONTAINS
     INTEGER                                  :: a_var, handle, i, iatom, j, &
                                                 k, n_var, natom, rep
     INTEGER, DIMENSION(:), POINTER           :: iatms, nparticle
-    LOGICAL                                  :: failure, useall
+    LOGICAL                                  :: useall
     REAL(KIND=dp)                            :: dedf, dx, energy, err, lerr
     REAL(KIND=dp), DIMENSION(:), POINTER     :: my_val
     TYPE(cp_logger_type), POINTER            :: logger

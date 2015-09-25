@@ -146,8 +146,8 @@ CONTAINS
                                                 Nelectron, Nspin, Nterms
     INTEGER, DIMENSION(:), POINTER           :: ivec
     INTEGER, DIMENSION(:, :, :), POINTER     :: occupations
-    LOGICAL                                  :: compute_virial, failure, &
-                                                in_range, uniform_occupation
+    LOGICAL                                  :: compute_virial, in_range, &
+                                                uniform_occupation
     REAL(KIND=dp)                            :: exc, total_rho
     REAL(KIND=dp), DIMENSION(3, 3)           :: virial_xc_tmp
     REAL(KIND=dp), DIMENSION(:), POINTER     :: energy_scaling, rvec, scaling
@@ -400,7 +400,7 @@ CONTAINS
     INTEGER                                  :: handle, i, Iorb, k_alpha, &
                                                 k_beta, Norb
     INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: sic_orbital_list
-    LOGICAL                                  :: compute_virial, failure, &
+    LOGICAL                                  :: compute_virial, &
                                                 uniform_occupation
     REAL(KIND=dp)                            :: ener, exc, total_rho
     REAL(KIND=dp), DIMENSION(3, 3)           :: virial_xc_tmp
@@ -1221,7 +1221,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, ispin, nspins
-    LOGICAL                                  :: do_ppl, failure, gapw, gapw_xc
+    LOGICAL                                  :: do_ppl, gapw, gapw_xc
     REAL(dp)                                 :: dvol
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: ksmat, matrix_ks_aux_fit, &
@@ -1489,8 +1489,7 @@ CONTAINS
     INTEGER                                  :: handle, my_val, nelectron, &
                                                 nspins, stat
     INTEGER, DIMENSION(2)                    :: nelectron_spin
-    LOGICAL                                  :: do_zmp_read, failure, &
-                                                fermi_amaldi
+    LOGICAL                                  :: do_zmp_read, fermi_amaldi
     REAL(KIND=dp)                            :: factor, lambda, total_rho
     REAL(KIND=dp), DIMENSION(:), POINTER     :: tot_rho_ext_r
     TYPE(dft_control_type), POINTER          :: dft_control

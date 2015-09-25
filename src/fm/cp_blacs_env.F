@@ -268,8 +268,6 @@ SUBROUTINE cp_blacs_env_retain(blacs_env)
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_blacs_env_retain', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
   CPASSERT(ASSOCIATED(blacs_env))
   CPASSERT(blacs_env%ref_count>0)
   blacs_env%ref_count=blacs_env%ref_count+1
@@ -287,9 +285,6 @@ SUBROUTINE cp_blacs_env_release(blacs_env)
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_blacs_env_release', &
       routineP = moduleN//':'//routineN
-
-    LOGICAL                                  :: failure
-
 
   IF (ASSOCIATED(blacs_env)) THEN
      CPASSERT(blacs_env%ref_count>0)
@@ -322,8 +317,6 @@ SUBROUTINE cp_blacs_env_write(blacs_env, unit_nr)
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: iostat
-    LOGICAL                                  :: failure
-
 
   IF (ASSOCIATED(blacs_env)) THEN
      WRITE (unit=unit_nr,fmt="('  group=',i10,', ref_count=',i10,',')",&

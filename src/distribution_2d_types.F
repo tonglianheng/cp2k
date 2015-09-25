@@ -243,8 +243,6 @@ SUBROUTINE distribution_2d_retain(distribution_2d)
     CHARACTER(len=*), PARAMETER :: routineN = 'distribution_2d_retain', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
   CPASSERT(ASSOCIATED(distribution_2d))
   CPASSERT(distribution_2d%ref_count>0)
   distribution_2d%ref_count=distribution_2d%ref_count+1
@@ -261,7 +259,6 @@ SUBROUTINE distribution_2d_release(distribution_2d)
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i
-    LOGICAL                                  :: failure
 
    IF (ASSOCIATED(distribution_2d)) THEN
       CPASSERT(distribution_2d%ref_count>0)
@@ -325,8 +322,7 @@ SUBROUTINE distribution_2d_write(distribution_2d, unit_nr, local,&
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i
-    LOGICAL                                  :: failure, my_local, &
-                                                my_long_description
+    LOGICAL                                  :: my_local, my_long_description
     TYPE(cp_logger_type), POINTER            :: logger
 
   logger => cp_get_default_logger()
@@ -538,7 +534,6 @@ SUBROUTINE distribution_2d_get(distribution_2d, row_distribution, &
     INTEGER                                  :: iblock_atomic, iblock_min, &
                                                 ikind, ikind_min, stat
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: multiindex
-    LOGICAL                                  :: failure
 
   CPASSERT(ASSOCIATED(distribution_2d))
   CPASSERT(distribution_2d%ref_count>0)

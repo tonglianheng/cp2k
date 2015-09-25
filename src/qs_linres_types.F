@@ -245,9 +245,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'linres_control_create', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-
      CPASSERT(.NOT.ASSOCIATED(linres_control))
      ALLOCATE (linres_control)
      linres_control%ref_count=1
@@ -278,9 +275,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'linres_control_release', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-
      IF (ASSOCIATED(linres_control)) THEN
        CPASSERT(linres_control%ref_count>0)
        linres_control%ref_count=linres_control%ref_count-1
@@ -305,9 +299,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'linres_control_retain', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-
      CPASSERT(ASSOCIATED(linres_control))
      CPASSERT(linres_control%ref_count>0)
      linres_control%ref_count=linres_control%ref_count+1
@@ -324,9 +315,6 @@ CONTAINS
 
     CHARACTER(len=*), PARAMETER :: routineN = 'current_env_create', &
       routineP = moduleN//':'//routineN
-
-    LOGICAL                                  :: failure
-
 
     CPASSERT(current_env%ref_count==0)
     current_env%ref_count = 1
@@ -369,9 +357,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'nmr_env_create', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-
      CPASSERT(nmr_env%ref_count==0)
      nmr_env%ref_count = 1
      NULLIFY(nmr_env%chemical_shift)
@@ -394,9 +379,6 @@ CONTAINS
 
     CHARACTER(len=*), PARAMETER :: routineN = 'issc_env_create', &
       routineP = moduleN//':'//routineN
-
-    LOGICAL                                  :: failure
-
 
      CPASSERT(issc_env%ref_count==0)
      issc_env%ref_count = 1
@@ -427,9 +409,6 @@ CONTAINS
 
     CHARACTER(len=*), PARAMETER :: routineN = 'epr_env_create', &
       routineP = moduleN//':'//routineN
-
-    LOGICAL                                  :: failure
-
 
     CPASSERT(epr_env%ref_count==0)
     epr_env%ref_count = 1
@@ -520,11 +499,8 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'get_current_env', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
 !
 !
-
 
     CPASSERT(current_env%ref_count>0)
 
@@ -594,9 +570,6 @@ CONTAINS
 
     CHARACTER(len=*), PARAMETER :: routineN = 'get_nmr_env', &
       routineP = moduleN//':'//routineN
-
-    LOGICAL                                  :: failure
-
 
     CPASSERT(nmr_env%ref_count>0)
 
@@ -668,9 +641,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'get_issc_env', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-
     CPASSERT(issc_env%ref_count>0)
 
     IF(PRESENT(issc_on_atom_list)) issc_on_atom_list => issc_env%issc_on_atom_list
@@ -715,8 +685,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: idir
-    LOGICAL                                  :: failure
-
 
     CPASSERT(current_env%ref_count>0)
 
@@ -755,9 +723,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'set_nmr_env', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-
     CPASSERT(nmr_env%ref_count>0)
 
     IF(PRESENT(shift_factor   )) nmr_env%chi_factor      = chi_factor
@@ -776,9 +741,6 @@ CONTAINS
 
     CHARACTER(len=*), PARAMETER :: routineN = 'set_issc_env', &
       routineP = moduleN//':'//routineN
-
-    LOGICAL                                  :: failure
-
 
     CPASSERT(issc_env%ref_count>0)
 
@@ -812,9 +774,6 @@ CONTAINS
 
     CHARACTER(len=*), PARAMETER :: routineN = 'get_epr_env', &
       routineP = moduleN//':'//routineN
-
-    LOGICAL                                  :: failure
-
 
     CPASSERT(epr_env%ref_count>0)
 
@@ -856,8 +815,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: idir, ispin
-    LOGICAL                                  :: failure
-
 
     CPASSERT(epr_env%ref_count>0)
 
@@ -903,8 +860,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: iat
-    LOGICAL                                  :: failure
-
 
     ALLOCATE(nablavks_atom_set(natom))
 
@@ -927,8 +882,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i, iat, idir, n, natom
-    LOGICAL                                  :: failure
-
 
     CPASSERT(ASSOCIATED(nablavks_atom_set))
     natom = SIZE(nablavks_atom_set)
@@ -966,8 +919,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: iat
-    LOGICAL                                  :: failure
-
 
     ALLOCATE(jrho_atom_set(natom))
 
@@ -1118,7 +1069,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, idir
-    LOGICAL                                  :: failure
 
     CALL timeset(routineN,handle)
 
@@ -1179,9 +1129,8 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'set2zero_jrho_atom_rad', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
+!
 
-    !
     CPASSERT(ASSOCIATED(jrho1_atom))
     !
     jrho1_atom%jrho_h(ispin)%r_coef = 0.0_dp
@@ -1222,7 +1171,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, i
-    LOGICAL                                  :: failure
 
     CALL timeset(routineN,handle)
     CPASSERT(ASSOCIATED(jrho1_atom_set))
@@ -1264,7 +1212,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, i
-    LOGICAL                                  :: failure
 
     CALL timeset(routineN,handle)
     CPASSERT(ASSOCIATED(jrho1_atom_set))
@@ -1311,9 +1258,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'get_jrho_atom', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-
     CPASSERT(ASSOCIATED(jrho1_atom_set))
 
     IF(PRESENT(cjc_h         )) cjc_h          => jrho1_atom_set(iatom)%cjc_h
@@ -1347,7 +1291,6 @@ CONTAINS
                                                 ikind, ispin, nat, natom, &
                                                 nkind
     INTEGER, DIMENSION(:), POINTER           :: atom_list
-    LOGICAL                                  :: failure
 
     CALL timeset(routineN,handle)
 
@@ -1460,7 +1403,6 @@ CONTAINS
                                                 maxso, na, nat, natom, nkind, &
                                                 nr, nset, nsotot
     INTEGER, DIMENSION(:), POINTER           :: atom_list
-    LOGICAL                                  :: failure
     TYPE(grid_atom_type), POINTER            :: grid_atom
     TYPE(gto_basis_set_type), POINTER        :: orb_basis_set
     TYPE(harmonics_atom_type), POINTER       :: harmonics
@@ -1526,9 +1468,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'polar_env_create', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-
      CPASSERT(polar_env%ref_count==0)
      polar_env%ref_count = 1
 !        polar_env%do_raman=.FALSE.
@@ -1563,9 +1502,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'get_polar_env', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-
     CPASSERT(polar_env%ref_count>0)
 
     IF(PRESENT(polar))             polar => polar_env%polar
@@ -1587,9 +1523,6 @@ CONTAINS
 
     CHARACTER(len=*), PARAMETER :: routineN = 'set_polar_env', &
       routineP = moduleN//':'//routineN
-
-    LOGICAL                                  :: failure
-
 
     CPASSERT(polar_env%ref_count>0)
 

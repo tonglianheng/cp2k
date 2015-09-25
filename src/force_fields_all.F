@@ -149,7 +149,7 @@ CONTAINS
                                                 natom, nbond
     INTEGER, DIMENSION(:), POINTER           :: molecule_list
     INTEGER, POINTER                         :: map_bond_kind(:)
-    LOGICAL                                  :: failure, found
+    LOGICAL                                  :: found
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(bond_kind_type), DIMENSION(:), &
       POINTER                                :: bond_kind_set
@@ -252,14 +252,13 @@ CONTAINS
                                                 last, natom, nbend
     INTEGER, DIMENSION(:), POINTER           :: molecule_list
     INTEGER, POINTER                         :: map_bend_kind(:)
-    LOGICAL                                  :: failure, found
+    LOGICAL                                  :: found
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(bend_kind_type), DIMENSION(:), &
       POINTER                                :: bend_kind_set
     TYPE(bend_type), DIMENSION(:), POINTER   :: bend_list
     TYPE(molecule_kind_type), POINTER        :: molecule_kind
     TYPE(molecule_type), POINTER             :: molecule
-
 
     CALL timeset(routineN,handle2)
     DO i=1,SIZE(molecule_kind_set)
@@ -364,14 +363,13 @@ CONTAINS
                                                 last, natom, nub
     INTEGER, DIMENSION(:), POINTER           :: molecule_list
     INTEGER, POINTER                         :: map_ub_kind(:)
-    LOGICAL                                  :: failure, found
+    LOGICAL                                  :: found
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(molecule_kind_type), POINTER        :: molecule_kind
     TYPE(molecule_type), POINTER             :: molecule
     TYPE(ub_kind_type), DIMENSION(:), &
       POINTER                                :: ub_kind_set
     TYPE(ub_type), DIMENSION(:), POINTER     :: ub_list
-
 
     CALL timeset(routineN,handle2)
     DO i=1,SIZE(molecule_kind_set)
@@ -470,7 +468,7 @@ CONTAINS
                                                 j, k, last, natom, ntorsion
     INTEGER, DIMENSION(:), POINTER           :: molecule_list
     INTEGER, POINTER                         :: map_torsion_kind(:)
-    LOGICAL                                  :: failure, found
+    LOGICAL                                  :: found
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(molecule_kind_type), POINTER        :: molecule_kind
     TYPE(molecule_type), POINTER             :: molecule
@@ -594,14 +592,13 @@ CONTAINS
                                                 j, k, last, natom, nimpr
     INTEGER, DIMENSION(:), POINTER           :: molecule_list
     INTEGER, POINTER                         :: map_impr_kind(:)
-    LOGICAL                                  :: failure, found
+    LOGICAL                                  :: found
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(impr_kind_type), DIMENSION(:), &
       POINTER                                :: impr_kind_set
     TYPE(impr_type), DIMENSION(:), POINTER   :: impr_list
     TYPE(molecule_kind_type), POINTER        :: molecule_kind
     TYPE(molecule_type), POINTER             :: molecule
-
 
     CALL timeset(routineN,handle2)
     DO i=1,SIZE(molecule_kind_set)
@@ -720,14 +717,13 @@ CONTAINS
                                                 j, k, last, natom, nopbend
     INTEGER, DIMENSION(:), POINTER           :: molecule_list
     INTEGER, POINTER                         :: map_opbend_kind(:)
-    LOGICAL                                  :: failure, found
+    LOGICAL                                  :: found
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(molecule_kind_type), POINTER        :: molecule_kind
     TYPE(molecule_type), POINTER             :: molecule
     TYPE(opbend_kind_type), DIMENSION(:), &
       POINTER                                :: opbend_kind_set
     TYPE(opbend_type), DIMENSION(:), POINTER :: opbend_list
-
 
     CALL timeset(routineN,handle2)
     DO i=1,SIZE(molecule_kind_set)
@@ -852,7 +848,7 @@ CONTAINS
                                                 i, itype, j, k, last, natom, &
                                                 nbond
     INTEGER, DIMENSION(:), POINTER           :: molecule_list
-    LOGICAL                                  :: failure, found, only_qm
+    LOGICAL                                  :: found, only_qm
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(bond_type), DIMENSION(:), POINTER   :: bond_list
     TYPE(molecule_kind_type), POINTER        :: molecule_kind
@@ -1007,7 +1003,7 @@ CONTAINS
                                                 handle2, i, itype, j, k, &
                                                 last, natom, nbend
     INTEGER, DIMENSION(:), POINTER           :: molecule_list
-    LOGICAL                                  :: failure, found, only_qm
+    LOGICAL                                  :: found, only_qm
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(bend_type), DIMENSION(:), POINTER   :: bend_list
     TYPE(molecule_kind_type), POINTER        :: molecule_kind
@@ -1177,12 +1173,11 @@ CONTAINS
                                                 handle2, i, j, k, last, &
                                                 natom, nub
     INTEGER, DIMENSION(:), POINTER           :: molecule_list
-    LOGICAL                                  :: failure, found, only_qm
+    LOGICAL                                  :: found, only_qm
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(molecule_kind_type), POINTER        :: molecule_kind
     TYPE(molecule_type), POINTER             :: molecule
     TYPE(ub_type), DIMENSION(:), POINTER     :: ub_list
-
 
     CALL timeset(routineN,handle2)
     DO i=1,SIZE(molecule_kind_set)
@@ -1324,7 +1319,7 @@ CONTAINS
                                                 itype, j, k, last, natom, &
                                                 ntorsion
     INTEGER, DIMENSION(:), POINTER           :: molecule_list
-    LOGICAL                                  :: failure, found, only_qm
+    LOGICAL                                  :: found, only_qm
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(molecule_kind_type), POINTER        :: molecule_kind
     TYPE(molecule_type), POINTER             :: molecule
@@ -1592,7 +1587,7 @@ CONTAINS
                                                 first, handle2, i, itype, j, &
                                                 k, last, natom, nimpr
     INTEGER, DIMENSION(:), POINTER           :: molecule_list
-    LOGICAL                                  :: failure, found, only_qm
+    LOGICAL                                  :: found, only_qm
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(impr_type), DIMENSION(:), POINTER   :: impr_list
     TYPE(molecule_kind_type), POINTER        :: molecule_kind
@@ -1787,7 +1782,7 @@ CONTAINS
                                                 first, handle2, i, j, k, &
                                                 last, natom, nopbend
     INTEGER, DIMENSION(:), POINTER           :: molecule_list
-    LOGICAL                                  :: failure, found, only_qm
+    LOGICAL                                  :: found, only_qm
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(molecule_kind_type), POINTER        :: molecule_kind
     TYPE(molecule_type), POINTER             :: molecule
@@ -1917,8 +1912,7 @@ CONTAINS
 
     CHARACTER(LEN=default_string_length)     :: atmname
     INTEGER                                  :: handle, iatom, ilink, j, nval
-    LOGICAL                                  :: failure, found_p, &
-                                                is_link_atom, is_ok, &
+    LOGICAL                                  :: found_p, is_link_atom, is_ok, &
                                                 only_manybody, only_qm
     REAL(KIND=dp)                            :: charge, charge_tot, rval, &
                                                 scale_factor
@@ -1926,7 +1920,6 @@ CONTAINS
     TYPE(cp_sll_val_type), POINTER           :: list
     TYPE(fist_potential_type), POINTER       :: fist_potential
     TYPE(val_type), POINTER                  :: val
-
 
     CALL timeset(routineN,handle)
     charge_tot = 0.0_dp
@@ -2056,14 +2049,13 @@ CPSourceFileRef,&
     CHARACTER(LEN=default_string_length)     :: atmname
     INTEGER                                  :: handle, i, ilink, j
     INTEGER, DIMENSION(:), POINTER           :: my_atom_list
-    LOGICAL                                  :: failure, found, found_p, &
-                                                is_link_atom, is_shell, &
-                                                only_manybody, only_qm
+    LOGICAL                                  :: found, found_p, is_link_atom, &
+                                                is_shell, only_manybody, &
+                                                only_qm
     REAL(KIND=dp)                            :: charge, charge_tot, &
                                                 cs_charge, scale_factor
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(fist_potential_type), POINTER       :: fist_potential
-
 
     CALL timeset(routineN,handle)
     charge_tot = 0.0_dp
@@ -2445,9 +2437,8 @@ CPSourceFileRef,&
                                                 last_shell, n, natom, nmol, &
                                                 nshell_tot
     INTEGER, DIMENSION(:), POINTER           :: molecule_list, shell_list_tmp
-    LOGICAL :: core_coord_read, failure, found_shell, is_a_shell, &
-      is_link_atom, null_massfrac, only_qm, save_mem, shell_adiabatic, &
-      shell_coord_read
+    LOGICAL :: core_coord_read, found_shell, is_a_shell, is_link_atom, &
+      null_massfrac, only_qm, save_mem, shell_adiabatic, shell_coord_read
     REAL(KIND=dp)                            :: atmmass
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(molecule_kind_type), POINTER        :: molecule_kind
@@ -2455,7 +2446,6 @@ CPSourceFileRef,&
     TYPE(section_vals_type), POINTER         :: global_section
     TYPE(shell_kind_type), POINTER           :: shell
     TYPE(shell_type), DIMENSION(:), POINTER  :: shell_list
-
 
     CALL timeset(routineN,handle2)
     nshell_tot = 0
@@ -2660,8 +2650,8 @@ CPSourceFileRef,&
                                                 name_atm_b, name_atm_b_local
     INTEGER                                  :: handle2, i, ii, j, jj, k, &
                                                 match_names
-    LOGICAL                                  :: failure, found, found_a, &
-                                                found_b, only_qm, use_qmmm_ff
+    LOGICAL                                  :: found, found_a, found_b, &
+                                                only_qm, use_qmmm_ff
     REAL(KIND=dp)                            :: epsilon0, epsilon_a, &
                                                 epsilon_b, ewald_rcut, rmin, &
                                                 rmin2_a, rmin2_b
@@ -2959,7 +2949,7 @@ CPSourceFileRef,&
                                                 name_atm_b, name_atm_b_local
     INTEGER                                  :: handle2, i, ii, j, jj, k, &
                                                 match_names
-    LOGICAL                                  :: failure, found, is_a_shell, &
+    LOGICAL                                  :: found, is_a_shell, &
                                                 is_b_shell, only_qm, &
                                                 use_qmmm_ff
     REAL(KIND=dp)                            :: epsilon0, ewald_rcut, rmin
@@ -3280,7 +3270,6 @@ CPSourceFileRef,&
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle2, ikind, jkind, n
-    LOGICAL                                  :: failure
     TYPE(spline_data_p_type), DIMENSION(:), &
       POINTER                                :: spl_p
     TYPE(spline_environment_type), POINTER   :: spline_env
@@ -3336,7 +3325,6 @@ CPSourceFileRef,&
 
     INTEGER                                  :: ewald_type, handle, i1, i2, &
                                                 nkinds
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: alpha, beta, mm_radius1, &
                                                 mm_radius2, rcut2, &
                                                 rcut2_ewald, tmp
@@ -3423,7 +3411,6 @@ CPSourceFileRef,&
       routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=default_string_length)     :: item
-    LOGICAL                                  :: failure
 
     item="( "//TRIM(name_atm_a)
     IF (PRESENT(name_atm_b)) THEN
@@ -3469,7 +3456,7 @@ CPSourceFileRef,&
                                                 my_atm4
     CHARACTER(LEN=default_path_length)       :: my_format
     INTEGER                                  :: fmt, i, nsize
-    LOGICAL                                  :: failure, found
+    LOGICAL                                  :: found
 
     nsize   = 0
     fmt     = 1

@@ -90,7 +90,7 @@ CONTAINS
 
     INTEGER                                  :: handle, i, iparticle, iseq, &
                                                 iw, j, k, lrot(3)
-    LOGICAL                                  :: failure, present_mat
+    LOGICAL                                  :: present_mat
     REAL(KIND=dp)                            :: cp(3), Ip(3,3), Ip_eigval(3), &
                                                 mass, masst, norm, rcom(3), &
                                                 rm(3)
@@ -286,7 +286,7 @@ CONTAINS
                                                 outformat, traj_unit
     INTEGER, POINTER                         :: force_mixing_indices(:), &
                                                 force_mixing_labels(:)
-    LOGICAL :: charge_beta, charge_extended, charge_occup, explicit, failure, &
+    LOGICAL :: charge_beta, charge_extended, charge_occup, explicit, &
       my_extended_xmol_title, new_file
     REAL(dp), ALLOCATABLE                    :: fml_array(:)
     REAL(KIND=dp)                            :: unit_conv

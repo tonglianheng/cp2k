@@ -65,9 +65,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i, j, k
-    LOGICAL                                  :: failure
     TYPE(clist_type), POINTER                :: clist
-
 
     CPASSERT(ASSOCIATED(sap_int))
 
@@ -120,8 +118,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i
-    LOGICAL                                  :: failure
-
 
     NULLIFY(alist)
     i = locate(sap_int%asort,atom)
@@ -232,8 +228,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: iac, na
-    LOGICAL                                  :: failure
-
 
 ! *** Set up a sorting index
 

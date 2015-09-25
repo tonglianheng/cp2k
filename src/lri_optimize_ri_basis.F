@@ -202,7 +202,6 @@ CONTAINS
 
     INTEGER                                  :: ikind, iset, ishell, n, nset
     INTEGER, DIMENSION(:), POINTER           :: npgf, nshell
-    LOGICAL                                  :: failure
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: zet
     REAL(KIND=dp), DIMENSION(:, :, :), &
       POINTER                                :: gcc_orig
@@ -384,7 +383,6 @@ CONTAINS
     INTEGER                                  :: ikind, iset, ishell, n, nset, &
                                                 nvar_exp
     INTEGER, DIMENSION(:), POINTER           :: npgf, nshell
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: zet_max, zet_min
     REAL(KIND=dp), DIMENSION(:), POINTER     :: zet, zet_trans
     REAL(KIND=dp), DIMENSION(:, :, :), &
@@ -463,7 +461,6 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'transfer_exp', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: a
     REAL(KIND=dp), DIMENSION(:), POINTER     :: zet_max, zet_min
 
@@ -594,7 +591,7 @@ CONTAINS
     INTEGER :: handle, iac, iatom, ikind, ilist, isgfa, ispin, jatom, jkind, &
       jneighbor, jsgfa, ksgfb, lsgfb, nba, nbb, nfa, nfb, nkind, nlist, nn, &
       nneighbor, nspin
-    LOGICAL                                  :: failure, found, trans
+    LOGICAL                                  :: found, trans
     REAL(KIND=dp)                            :: obj_ab, rhoexact_sq, &
                                                 rhofit_sq, rhomix
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: pbij
@@ -755,7 +752,6 @@ CONTAINS
 
     INTEGER :: handle, iac, iatom, ikind, ilist, info, jatom, jkind, &
       jneighbor, lwork, nfa, nfb, nkind, nlist, nn, nneighbor
-    LOGICAL                                  :: failure
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: diag, off_diag, tau
     REAL(KIND=dp), DIMENSION(:), POINTER     :: work
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: smat

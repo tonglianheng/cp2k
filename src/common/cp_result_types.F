@@ -99,7 +99,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle
-    LOGICAL                                  :: failure
 
     CALL timeset(routineN,handle)
     ALLOCATE(results)
@@ -125,7 +124,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, i
-    LOGICAL                                  :: failure
 
     CALL timeset(routineN,handle)
     IF(ASSOCIATED(results))THEN
@@ -161,7 +159,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, i
-    LOGICAL                                  :: failure
 
     CALL timeset(routineN,handle)
     IF(ASSOCIATED(results))THEN
@@ -193,8 +190,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_result_retain', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
     CPASSERT(ASSOCIATED(results))
     CPASSERT(results%ref_count>0)
     results%ref_count=results%ref_count+1
@@ -212,7 +207,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle
-    LOGICAL                                  :: failure
 
     CALL timeset(routineN,handle)
     ALLOCATE(value)
@@ -238,7 +232,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle
-    LOGICAL                                  :: failure
 
     CALL timeset(routineN,handle)
     CPASSERT(ASSOCIATED(value))
@@ -269,7 +262,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle
-    LOGICAL                                  :: failure
 
     CALL timeset(routineN,handle)
     IF (ASSOCIATED(value)) THEN
@@ -314,7 +306,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, i, ndim
-    LOGICAL                                  :: check, failure
+    LOGICAL                                  :: check
 
     CALL timeset(routineN,handle)
     CPASSERT(ASSOCIATED(results_in))
@@ -348,7 +340,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, isize
-    LOGICAL                                  :: failure
 
     CALL timeset(routineN,handle)
     CPASSERT(ASSOCIATED(value_in))
@@ -390,7 +381,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, i, lb_size, ub_size
-    LOGICAL                                  :: failure
     TYPE(cp_result_value_p_type), &
       DIMENSION(:), POINTER                  :: tmp_value
 

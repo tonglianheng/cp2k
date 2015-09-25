@@ -179,7 +179,6 @@ CONTAINS
 
     CHARACTER(LEN=40)                        :: name
     INTEGER                                  :: i, ithermo, my_index
-    LOGICAL                                  :: failure
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :, :)                     :: seed
     REAL(KIND=dp), DIMENSION(3, 2)           :: initial_seed, my_seed
@@ -235,8 +234,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i
-    LOGICAL                                  :: failure
-
 
     IF (ASSOCIATED(gle)) THEN
        IF ( ASSOCIATED(gle%a_mat)) THEN

@@ -62,8 +62,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i
-    LOGICAL                                  :: failure
-
 
     ALLOCATE(oce_set%intac(nkind*nkind))
     DO i=1,nkind*nkind

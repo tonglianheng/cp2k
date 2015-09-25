@@ -190,7 +190,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'fist_env_get', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     TYPE(atomic_kind_list_type), POINTER     :: atomic_kinds
     TYPE(mol_kind_new_list_type), POINTER    :: molecule_kinds_new
     TYPE(mol_new_list_type), POINTER         :: molecules_new
@@ -333,7 +332,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'fist_env_set', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     TYPE(atomic_kind_list_type), POINTER     :: atomic_kinds
     TYPE(mol_kind_new_list_type), POINTER    :: molecule_kinds_new
     TYPE(mol_new_list_type), POINTER         :: molecules_new
@@ -439,9 +437,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'fist_env_create', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-
     ALLOCATE(fist_env)
     CALL init_fist_env(fist_env,para_env=para_env)
   END SUBROUTINE fist_env_create
@@ -458,8 +453,6 @@ CONTAINS
 
     CHARACTER(len=*), PARAMETER :: routineN = 'fist_env_retain', &
       routineP = moduleN//':'//routineN
-
-    LOGICAL                                  :: failure
 
     CPASSERT(ASSOCIATED(fist_env))
     CPASSERT(fist_env%ref_count>0)
@@ -478,9 +471,6 @@ CONTAINS
 
     CHARACTER(len=*), PARAMETER :: routineN = 'fist_env_release', &
       routineP = moduleN//':'//routineN
-
-    LOGICAL                                  :: failure
-
 
     IF (ASSOCIATED(fist_env)) THEN
        CPASSERT(fist_env%ref_count>0)

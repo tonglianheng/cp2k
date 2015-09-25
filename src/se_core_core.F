@@ -94,7 +94,7 @@ CONTAINS
                                                 jkind, natom, nkind
     INTEGER, DIMENSION(:), POINTER           :: atom_of_kind
     LOGICAL                                  :: anag, atener, defined, &
-                                                failure, use_virial
+                                                use_virial
     LOGICAL, ALLOCATABLE, DIMENSION(:)       :: se_defined
     REAL(KIND=dp)                            :: delta, dr1, dr3inv(3), enuc, &
                                                 enucij, enuclear, r2inv, &

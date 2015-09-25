@@ -101,7 +101,7 @@ CONTAINS
 
     INTEGER                                  :: existing_ii, ii, ncols, nrows
     INTEGER(KIND=int_8)                      :: pair_ind
-    LOGICAL                                  :: check_ok, failure, found
+    LOGICAL                                  :: check_ok, found
 
     check_ok = fb_matrix_data_has_data(matrix_data)
     CPASSERT(check_ok)
@@ -162,7 +162,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'fb_matrix_data_create', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: check_ok, failure
+    LOGICAL                                  :: check_ok
 
     check_ok = .NOT. fb_matrix_data_has_data(matrix_data)
     CPASSERT(check_ok)
@@ -202,7 +202,7 @@ CONTAINS
 
     INTEGER                                  :: ind_in_blk
     INTEGER(KIND=int_8)                      :: pair_ind
-    LOGICAL                                  :: check_ok, failure
+    LOGICAL                                  :: check_ok
 
     check_ok = fb_matrix_data_has_data(matrix_data)
     CPASSERT(check_ok)
@@ -246,7 +246,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: ii, my_nmax
-    LOGICAL                                  :: check_ok, failure
+    LOGICAL                                  :: check_ok
 
     check_ok = fb_matrix_data_has_data(matrix_data)
     CPASSERT(check_ok)
@@ -298,7 +298,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: ii
-    LOGICAL                                  :: check_ok, failure
+    LOGICAL                                  :: check_ok
 
     IF (ASSOCIATED(matrix_data%obj)) THEN
        check_ok = matrix_data%obj%ref_count > 0
@@ -336,7 +336,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'fb_matrix_data_retain', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: check_ok, failure
+    LOGICAL                                  :: check_ok
 
     check_ok = ASSOCIATED(matrix_data%obj)
     CPASSERT(check_ok)
@@ -359,7 +359,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: ii, my_nmax
-    LOGICAL                                  :: check_ok, failure
+    LOGICAL                                  :: check_ok
     TYPE(fb_matrix_block), ALLOCATABLE, &
       DIMENSION(:)                           :: tmp_blks
 
@@ -415,7 +415,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: ii
-    LOGICAL                                  :: check_ok, failure
+    LOGICAL                                  :: check_ok
 
     check_ok = fb_matrix_data_has_data(matrix_data)
     CPASSERT(check_ok)

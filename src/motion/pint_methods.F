@@ -416,9 +416,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'pint_retain', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-
     CPASSERT(ASSOCIATED(pint_env))
     CPASSERT(pint_env%ref_count>0)
     pint_env%ref_count=pint_env%ref_count+1
@@ -437,9 +434,6 @@ CONTAINS
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pint_release', &
       routineP = moduleN//':'//routineN
-
-    LOGICAL                                  :: failure
-
 
     IF (ASSOCIATED(pint_env)) THEN
       CPASSERT(pint_env%ref_count>0)
@@ -512,13 +506,11 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i, ib, idim
-    LOGICAL                                  :: failure
     REAL(kind=dp)                            :: c, e_h, err
     REAL(kind=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: x1
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(pint_env_type), POINTER             :: pint_env
-
 
   CPASSERT(ASSOCIATED(para_env))
   CPASSERT(ASSOCIATED(input))
@@ -1285,7 +1277,6 @@ CPSourceFileRef,&
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: ib, idim, inos
-    LOGICAL                                  :: failure
     REAL(kind=dp)                            :: e_h
 
     CPASSERT(ASSOCIATED(pint_env))
@@ -1368,7 +1359,7 @@ CPSourceFileRef,&
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: step
-    LOGICAL                                  :: failure, should_stop
+    LOGICAL                                  :: should_stop
     REAL(kind=dp)                            :: scal
 
     CPASSERT(ASSOCIATED(pint_env))
@@ -1448,7 +1439,6 @@ CPSourceFileRef,&
 
     INTEGER                                  :: handle, i, ib, idim, inos, &
                                                 iresp
-    LOGICAL                                  :: failure
     REAL(kind=dp)                            :: dti, dti2, dti22, e_h, rn, &
                                                 tdti, time_start, time_stop, &
                                                 tol
@@ -1660,9 +1650,6 @@ CPSourceFileRef,&
     CHARACTER(len=*), PARAMETER :: routineN = 'pint_calc_uf_h', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-
     IF (pint_env%transform == transformation_stage) THEN
       CALL staging_calc_uf_h(pint_env%staging_env,&
                              pint_env%mass_beads,&
@@ -1706,10 +1693,8 @@ CPSourceFileRef,&
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: ib, idim
-    LOGICAL                                  :: failure
     REAL(kind=dp), DIMENSION(:), POINTER     :: my_e
     REAL(kind=dp), DIMENSION(:, :), POINTER  :: my_f, my_x
-
 
     CPASSERT(ASSOCIATED(pint_env))
     CPASSERT(pint_env%ref_count>0)
@@ -1755,10 +1740,8 @@ CPSourceFileRef,&
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: ib, idim
-    LOGICAL                                  :: failure
     REAL(kind=dp)                            :: res
     REAL(kind=dp), DIMENSION(:, :), POINTER  :: my_uv
-
 
     CPASSERT(ASSOCIATED(pint_env))
     CPASSERT(pint_env%ref_count>0)
@@ -1793,9 +1776,7 @@ CPSourceFileRef,&
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: ib, idim
-    LOGICAL                                  :: failure
     REAL(kind=dp)                            :: res, xcentroid
-
 
     CPASSERT(ASSOCIATED(pint_env))
     CPASSERT(pint_env%ref_count>0)
@@ -1831,9 +1812,7 @@ CPSourceFileRef,&
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: ib, idim, inos
-    LOGICAL                                  :: failure
     REAL(kind=dp)                            :: ekin, epot
-
 
     CPASSERT(ASSOCIATED(pint_env))
     CPASSERT(pint_env%ref_count>0)

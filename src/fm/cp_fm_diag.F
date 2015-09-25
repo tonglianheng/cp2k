@@ -1409,7 +1409,6 @@ CPSourceFileRef)
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, nao, nmo
-    LOGICAL                                  :: failure
 
     CALL timeset(routineN,handle)
 

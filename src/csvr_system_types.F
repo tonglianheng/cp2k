@@ -98,7 +98,6 @@ CONTAINS
 
     CHARACTER(LEN=40)                        :: name
     INTEGER                                  :: i, ithermo, my_index
-    LOGICAL                                  :: failure
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :, :)                     :: seed
     REAL(KIND=dp), DIMENSION(3, 2)           :: initial_seed, my_seed
@@ -145,8 +144,6 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'csvr_dealloc', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
     IF (ASSOCIATED(csvr)) THEN
        CALL csvr_thermo_dealloc(csvr%nvt)
        CALL release_map_info_type(csvr%map_info)
@@ -168,7 +165,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i
-    LOGICAL                                  :: failure
 
     IF (ASSOCIATED(nvt)) THEN
        DO i = 1, SIZE(nvt)

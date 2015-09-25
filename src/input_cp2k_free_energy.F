@@ -59,7 +59,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'create_fe_section', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
     TYPE(section_type), POINTER              :: print_key, subsection
 
@@ -115,10 +114,8 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'create_metadyn_section', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
     TYPE(section_type), POINTER              :: print_key, subsection
-
 
     CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="metadyn",&
@@ -386,7 +383,6 @@ CONTAINS
       routineN = 'create_multiple_walkers_section', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
     TYPE(section_type), POINTER              :: subsection
 
@@ -453,7 +449,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'create_ac_section', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
 
     NULLIFY(keyword)
@@ -504,7 +499,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'create_ui_section', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     TYPE(section_type), POINTER              :: subsection
 
     CPASSERT(.NOT.ASSOCIATED(section))
@@ -537,9 +531,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'create_metadyn_history', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
-
 
     CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="SPAWNED_HILLS_POS",&
@@ -665,10 +657,8 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'create_metavar_section', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
     TYPE(section_type), POINTER              :: subsection, wall_section
-
 
     CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="METAVAR",&
@@ -846,9 +836,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'create_uvar_section', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
-
 
     CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="UVAR",&
@@ -877,9 +865,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'create_uvar_conv_section', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
-
 
     CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="CONVERGENCE_CONTROL",&

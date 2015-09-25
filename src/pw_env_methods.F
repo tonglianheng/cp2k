@@ -121,7 +121,6 @@ SUBROUTINE pw_env_create(pw_env)
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle
-    LOGICAL                                  :: failure
 
     CALL timeset(routineN,handle)
 
@@ -163,8 +162,8 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, external_para_env)
       xc_smooth_method_id
     INTEGER, DIMENSION(2)                    :: distribution_layout
     INTEGER, DIMENSION(3)                    :: higher_grid_layout
-    LOGICAL :: efg_present, failure, linres_present, odd, set_vdw_pool, &
-      should_output, smooth_required, spherical, uf_grid, use_ref_cell
+    LOGICAL :: efg_present, linres_present, odd, set_vdw_pool, should_output, &
+      smooth_required, spherical, uf_grid, use_ref_cell
     REAL(KIND=dp)                            :: cutilev, max_rpgf0_s, &
                                                 rel_cutoff, zet0
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: radius
@@ -730,7 +729,6 @@ SUBROUTINE compute_max_radius(radius, pw_env, qs_env)
       ngrid_level, nkind, nseta, nsetb
     INTEGER, DIMENSION(:), POINTER           :: npgfa, npgfb, nshella, nshellb
     INTEGER, DIMENSION(:, :), POINTER        :: lshella, lshellb
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: alpha, core_charge, &
                                                 max_rpgf0_s, maxradius, zet0, &
                                                 zetp
@@ -923,7 +921,7 @@ END SUBROUTINE compute_max_radius
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: iounit, my_val, nn(3), no(3)
-    LOGICAL                                  :: failure, mt_s_grid
+    LOGICAL                                  :: mt_s_grid
     REAL(KIND=dp)                            :: mt_rel_cutoff, my_cutilev
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(section_vals_type), POINTER         :: poisson_section

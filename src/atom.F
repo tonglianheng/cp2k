@@ -46,10 +46,8 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, iw, run_type_id
-    LOGICAL                                  :: failure
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(section_vals_type), POINTER         :: atom_section
-
 
     CALL timeset(routineN,handle)
 
@@ -97,7 +95,6 @@ CONTAINS
 
     CHARACTER(LEN=2)                         :: elem
     INTEGER                                  :: i, ie, z
-    LOGICAL                                  :: failure
 
     CALL section_vals_val_get(atom_section,"ATOMIC_NUMBER", i_val=z)
     CALL section_vals_val_get(atom_section,"ELEMENT", c_val=elem)

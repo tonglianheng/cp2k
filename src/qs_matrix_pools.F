@@ -91,9 +91,6 @@ SUBROUTINE mpools_retain(mpools)
     CHARACTER(len=*), PARAMETER :: routineN = 'mpools_retain', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-
   CPASSERT(ASSOCIATED(mpools))
   CPASSERT(mpools%ref_count>0)
   mpools%ref_count=mpools%ref_count+1
@@ -111,9 +108,6 @@ SUBROUTINE mpools_release(mpools)
 
     CHARACTER(len=*), PARAMETER :: routineN = 'mpools_release', &
       routineP = moduleN//':'//routineN
-
-    LOGICAL                                  :: failure
-
 
   IF (ASSOCIATED(mpools)) THEN
      CPASSERT(mpools%ref_count>0)
@@ -156,7 +150,6 @@ SUBROUTINE mpools_set(mpools,ao_mo_fm_pools,ao_ao_fm_pools,&
     CHARACTER(len=*), PARAMETER :: routineN = 'mpools_set', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     TYPE(cp_fm_pool_p_type), DIMENSION(:), &
       POINTER                                :: new_fm_pools
 
@@ -232,9 +225,6 @@ SUBROUTINE mpools_get(mpools,ao_mo_fm_pools,ao_ao_fm_pools,&
     CHARACTER(len=*), PARAMETER :: routineN = 'mpools_get', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-
   IF (PRESENT(ao_mo_fm_pools)) ao_mo_fm_pools => mpools%ao_mo_fm_pools
   IF (PRESENT(maxao_maxmo_fm_pool)) THEN
      IF (ASSOCIATED(mpools%ao_mo_fm_pools)) THEN
@@ -275,9 +265,6 @@ SUBROUTINE mpools_create(mpools)
 
     CHARACTER(len=*), PARAMETER :: routineN = 'mpools_create', &
       routineP = moduleN//':'//routineN
-
-    LOGICAL                                  :: failure
-
 
   ALLOCATE(mpools)
   NULLIFY(mpools%ao_ao_fm_pools, mpools%ao_mo_fm_pools, &

@@ -59,7 +59,6 @@ MODULE cell_opt
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, step_start_val
-    LOGICAL                                  :: failure
     REAL(KIND=dp), DIMENSION(:), POINTER     :: x0
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(gopt_f_type), POINTER               :: gopt_env
@@ -119,8 +118,6 @@ MODULE cell_opt
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_cell_opt_low', &
       routineP = moduleN//':'//routineN
-
-    LOGICAL                                  :: failure
 
     CPASSERT(ASSOCIATED(force_env))
     CPASSERT(ASSOCIATED(globenv))

@@ -143,9 +143,6 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'tmc_ana_env_create', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-
     CPASSERT(.NOT.ASSOCIATED(tmc_ana))
 
     ALLOCATE(tmc_ana)
@@ -192,9 +189,6 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'tmc_ana_env_release', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-
     CPASSERT(ASSOCIATED(tmc_ana))
 
     IF(ASSOCIATED(tmc_ana%dirs)) &
@@ -235,9 +229,6 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'tmc_ana_density_create', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-
     CPASSERT(.NOT.ASSOCIATED(ana_dens))
 
     ALLOCATE(ana_dens)
@@ -269,9 +260,6 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'tmc_ana_dens_release', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-
     CPASSERT(ASSOCIATED(ana_dens))
 
     DEALLOCATE(ana_dens%sum_density)
@@ -297,9 +285,6 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'tmc_ana_pair_correl_create', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-
     CPASSERT(.NOT.ASSOCIATED(ana_pair_correl))
     ALLOCATE(ana_pair_correl)
 
@@ -322,9 +307,6 @@ CONTAINS
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'tmc_ana_pair_correl_release', &
       routineP = moduleN//':'//routineN
-
-    LOGICAL                                  :: failure
-
 
     CPASSERT(ASSOCIATED(ana_pair_correl))
 
@@ -400,8 +382,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i
-    LOGICAL                                  :: failure
-
 
     CPASSERT(.NOT.ASSOCIATED(ana_dip_mom))
     ALLOCATE(ana_dip_mom)
@@ -433,9 +413,6 @@ CONTAINS
       routineN = 'tmc_ana_dipole_moment_release', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-
     CPASSERT(ASSOCIATED(ana_dip_mom))
 
     IF(ASSOCIATED(ana_dip_mom%charges_inp)) DEALLOCATE(ana_dip_mom%charges_inp)
@@ -456,9 +433,6 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: &
       routineN = 'tmc_ana_dipole_analysis_create', &
       routineP = moduleN//':'//routineN
-
-    LOGICAL                                  :: failure
-
 
     CPASSERT(.NOT.ASSOCIATED(ana_dip_ana))
     ALLOCATE(ana_dip_ana)
@@ -489,9 +463,6 @@ CONTAINS
       routineN = 'tmc_ana_dipole_analysis_release', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-
     CPASSERT(ASSOCIATED(ana_dip_ana))
 
     DEALLOCATE(ana_dip_ana%mu_psv)
@@ -520,8 +491,6 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'tmc_ana_displacement_create', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
     CPASSERT(.NOT.ASSOCIATED(ana_disp))
     CPASSERT(dim_per_elem.GT.0)
 
@@ -543,8 +512,6 @@ CONTAINS
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'tmc_ana_displacement_release', &
       routineP = moduleN//':'//routineN
-
-    LOGICAL                                  :: failure
 
     CPASSERT(ASSOCIATED(ana_disp))
 

@@ -78,9 +78,8 @@ CONTAINS
     CHARACTER(LEN=default_string_length)     :: description, iter
     INTEGER                                  :: ip, j, nres, output_unit
     INTEGER, DIMENSION(:), POINTER           :: qm_atom_index
-    LOGICAL                                  :: check, failure, &
-                                                qmmm_added_chrg, qmmm_link, &
-                                                qmmm_link_imomm
+    LOGICAL                                  :: check, qmmm_added_chrg, &
+                                                qmmm_link, qmmm_link_imomm
     REAL(KIND=dp)                            :: energy_mm, energy_qm
     REAL(KIND=dp), DIMENSION(3)              :: dip_mm, dip_qm, dip_qmmm, &
                                                 max_coord, min_coord

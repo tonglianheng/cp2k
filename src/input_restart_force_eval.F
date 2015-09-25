@@ -91,7 +91,7 @@ CONTAINS
 
     INTEGER                                  :: iforce_eval, myid, nforce_eval
     INTEGER, DIMENSION(:), POINTER           :: i_force_eval
-    LOGICAL                                  :: failure, multiple_subsys, &
+    LOGICAL                                  :: multiple_subsys, &
                                                 skip_vel_section
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_subsys_type), POINTER            :: subsys
@@ -164,7 +164,7 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'update_qmmm', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: explicit, failure
+    LOGICAL                                  :: explicit
     REAL(KIND=dp), DIMENSION(:), POINTER     :: work
 
     SELECT CASE(force_env%in_use)
@@ -264,7 +264,7 @@ CONTAINS
     INTEGER                                  :: coord_file_format, handle, &
                                                 output_unit
     INTEGER, DIMENSION(:), POINTER           :: multiple_unit_cell
-    LOGICAL                                  :: failure, scale, use_ref_cell
+    LOGICAL                                  :: scale, use_ref_cell
     REAL(KIND=dp)                            :: conv_factor
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_para_env_type), POINTER          :: para_env
@@ -791,8 +791,7 @@ CONTAINS
     CHARACTER(LEN=default_string_length)     :: kind_name, tag
     INTEGER                                  :: handle, imolecule, iparticle, &
                                                 last_atom
-    LOGICAL                                  :: failure, ldum, &
-                                                molname_generated
+    LOGICAL                                  :: ldum, molname_generated
     REAL(KIND=dp), DIMENSION(3)              :: r, s
     TYPE(molecule_type), POINTER             :: molecule
 

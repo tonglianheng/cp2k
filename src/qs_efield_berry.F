@@ -146,7 +146,6 @@ MODULE qs_efield_berry
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, i
-    LOGICAL                                  :: failure
     REAL(dp), DIMENSION(3)                   :: kvec
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &

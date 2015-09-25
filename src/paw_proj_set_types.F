@@ -100,8 +100,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'allocate_paw_proj_set', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
     IF (ASSOCIATED(paw_proj_set)) CALL deallocate_paw_proj_set(paw_proj_set)
 
     ALLOCATE (paw_proj_set)
@@ -148,9 +146,6 @@ CONTAINS
 
     CHARACTER(len=*), PARAMETER :: routineN = 'deallocate_paw_proj_set', &
       routineP = moduleN//':'//routineN
-
-    LOGICAL                                  :: failure
-
 
     DEALLOCATE (paw_proj_set%zisomin)
     DEALLOCATE (paw_proj_set%zprjisomin)

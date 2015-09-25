@@ -151,8 +151,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'allocate_gto_basis_set', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
     CALL deallocate_gto_basis_set(gto_basis_set)
 
     ALLOCATE (gto_basis_set)
@@ -201,8 +199,6 @@ CONTAINS
 
     CHARACTER(len=*), PARAMETER :: routineN = 'deallocate_gto_basis_set', &
       routineP = moduleN//':'//routineN
-
-    LOGICAL                                  :: failure
 
     IF (ASSOCIATED(gto_basis_set))  THEN
        IF (ASSOCIATED(gto_basis_set%cgf_symbol)) THEN
@@ -255,9 +251,7 @@ CONTAINS
 
     INTEGER                                  :: maxco, maxpgf, maxshell, &
                                                 ncgf, nset, nsgf
-    LOGICAL                                  :: failure
     TYPE(gto_basis_set_type), POINTER        :: bin, bout
-
 
     CPASSERT(ASSOCIATED(basis_set_in))
 
@@ -338,9 +332,7 @@ CONTAINS
     CHARACTER(LEN=6), DIMENSION(:), POINTER  :: sgf_symbol
     INTEGER :: iset, ishell, lshell, maxco, maxpgf, maxshell, nc, ncgf, &
       ncgfn, ncgfo, ns, nset, nsetn, nseto, nsgf, nsgfn, nsgfo
-    LOGICAL                                  :: failure
     TYPE(gto_basis_set_type), POINTER        :: bad, bout
-
 
     CPASSERT(ASSOCIATED(basis_set))
     CPASSERT(ASSOCIATED(basis_set_add))
@@ -778,7 +770,6 @@ CONTAINS
     INTEGER                                  :: icgf, ico, ipgf, iset, &
                                                 ishell, jco, jpgf, ll, lmax, &
                                                 lmin, lx, ly, lz, n, npgfa
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: fnorm, gcca, gccb
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: ff
     REAL(KIND=dp), ALLOCATABLE, &
@@ -1074,8 +1065,7 @@ CONTAINS
       maxl, maxpgf, maxshell, nbasis, ncgf, nmin, nset, nsgf, strlen1, strlen2
     INTEGER, DIMENSION(:), POINTER           :: lmax, lmin, npgf, nshell
     INTEGER, DIMENSION(:, :), POINTER        :: l, n
-    LOGICAL                                  :: basis_found, failure, found, &
-                                                match
+    LOGICAL                                  :: basis_found, found, match
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: zet
     REAL(KIND=dp), DIMENSION(:, :, :), &
       POINTER                                :: gcc
@@ -1407,7 +1397,7 @@ CONTAINS
                                                 nset, nsgf
     INTEGER, DIMENSION(:), POINTER           :: lmax, lmin, npgf, nshell
     INTEGER, DIMENSION(:, :), POINTER        :: l, n
-    LOGICAL                                  :: failure, is_ok
+    LOGICAL                                  :: is_ok
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: zet
     REAL(KIND=dp), DIMENSION(:, :, :), &
       POINTER                                :: gcc
@@ -1910,8 +1900,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'allocate_sto_basis_set', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
 ! -------------------------------------------------------------------------
 
     CALL deallocate_sto_basis_set(sto_basis_set)
@@ -1936,8 +1924,6 @@ CONTAINS
 
     CHARACTER(len=*), PARAMETER :: routineN = 'deallocate_sto_basis_set', &
       routineP = moduleN//':'//routineN
-
-    LOGICAL                                  :: failure
 
 ! -------------------------------------------------------------------------
 
@@ -2095,7 +2081,6 @@ CONTAINS
                                                 maxco, maxl, ncgf, ng, np, &
                                                 nset, nsgf, nshell
     INTEGER, DIMENSION(:), POINTER           :: lq, nq
-    LOGICAL                                  :: failure
     REAL(KIND=dp), DIMENSION(:), POINTER     :: zet
     REAL(KIND=dp), DIMENSION(maxng)          :: gcc, zetg
 

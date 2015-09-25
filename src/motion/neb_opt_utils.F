@@ -74,7 +74,7 @@ CONTAINS
                                                 info, istart, iv, iw, j, jv, &
                                                 k, lwork, np, nv
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: IWORK
-    LOGICAL                                  :: failure, increase_error
+    LOGICAL                                  :: increase_error
     REAL(dp), DIMENSION(:, :), POINTER       :: work
     REAL(KIND=dp)                            :: eps_svd
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: S, Work_dgesdd
@@ -333,7 +333,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i, np
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: a, b, max_stepsize, xa, xb, &
                                                 xc_cray, ya, yb
     REAL(KIND=dp), ALLOCATABLE, &

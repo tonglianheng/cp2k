@@ -107,7 +107,7 @@ CONTAINS
 
     INTEGER                                  :: bcast_output_unit, handle, i, &
                                                 ierr, output_unit
-    LOGICAL                                  :: failure, success
+    LOGICAL                                  :: success
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: init_rng_seed
     TYPE(cp_logger_type), POINTER            :: logger, logger_sub
@@ -116,7 +116,8 @@ CONTAINS
       POINTER                                :: tmc_ana_env_list
     TYPE(tmc_env_type), POINTER              :: tmc_env
 
-    ! start the timing
+! start the timing
+
     CALL timeset(routineN,handle)
 
     NULLIFY(logger, logger_sub, tmc_env, tmc_ana_env_list)
@@ -355,7 +356,6 @@ CONTAINS
     INTEGER                                  :: comm, dir_ind, handle, &
                                                 my_mpi_world, nr_dim, &
                                                 output_unit, temp
-    LOGICAL                                  :: failure
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(tmc_ana_list_type), DIMENSION(:), &
       POINTER                                :: ana_list
@@ -1059,7 +1059,6 @@ CONTAINS
 
     CHARACTER(LEN=80)                        :: c_tmp, fmt_tmp
     INTEGER                                  :: file_nr
-    LOGICAL                                  :: failure
 
     CPASSERT(ASSOCIATED(tmc_env))
     CPASSERT(ASSOCIATED(tmc_env%tmc_comp_set))

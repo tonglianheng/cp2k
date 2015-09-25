@@ -66,10 +66,11 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'se_cutoff_compatible', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: explicit1, explicit2, failure
+    LOGICAL                                  :: explicit1, explicit2
     REAL(KIND=dp)                            :: rc
 
-    ! Coulomb Cutoff Taper
+! Coulomb Cutoff Taper
+
     CALL section_vals_val_get(se_section,"COULOMB%CUTOFF",explicit=explicit1)
     CALL section_vals_val_get(se_section,"COULOMB%RC_TAPER",explicit=explicit2)
     IF ((.NOT.explicit1).AND.se_control%do_ewald_gks) THEN
@@ -173,8 +174,8 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'initialize_se_taper', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: check, failure, l_coulomb, &
-                                                l_exchange, l_lrc
+    LOGICAL                                  :: check, l_coulomb, l_exchange, &
+                                                l_lrc
 
     check = .NOT.ASSOCIATED(se_taper%taper)
     CPASSERT(check)
@@ -212,7 +213,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'finalize_se_taper', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: check, failure
+    LOGICAL                                  :: check
 
     check = ASSOCIATED(se_taper%taper)
     CPASSERT(check)
@@ -236,7 +237,6 @@ CONTAINS
     CHARACTER(LEN=6), DIMENSION(:), POINTER  :: symbol
     INTEGER                                  :: l, nshell
     INTEGER, DIMENSION(:), POINTER           :: lq, nq
-    LOGICAL                                  :: failure
     REAL(KIND=dp), DIMENSION(:), POINTER     :: zet
 
     IF (ASSOCIATED(sep)) THEN
@@ -293,8 +293,6 @@ CONTAINS
 
     CHARACTER(len=*), PARAMETER :: routineN = 'se_param_set_default', &
       routineP = moduleN//':'//routineN
-
-    LOGICAL                                  :: failure
 
     IF (ASSOCIATED(sep)) THEN
        IF (z<0) THEN

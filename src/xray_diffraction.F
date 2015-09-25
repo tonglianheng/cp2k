@@ -126,7 +126,6 @@ CONTAINS
     TYPE(rho_atom_type), DIMENSION(:), &
       POINTER                                :: rho_atom_set
 
-
     CPASSERT(ASSOCIATED(qs_env))
 
     IF (.NOT.failure) THEN
@@ -552,7 +551,6 @@ CONTAINS
     TYPE(rho_atom_type), DIMENSION(:), &
       POINTER                                :: rho_atom_set
     TYPE(rho_atom_type), POINTER             :: rho_atom
-
 
     CPASSERT(ASSOCIATED(qs_env))
     CPASSERT(ASSOCIATED(auxbas_pw_pool))

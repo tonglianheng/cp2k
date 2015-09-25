@@ -106,7 +106,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i, isize, j, k, n_rep_val
-    LOGICAL                                  :: explicit, failure
+    LOGICAL                                  :: explicit
     REAL(KIND=dp)                            :: norm, xval(3)
     REAL(KIND=dp), DIMENSION(:), POINTER     :: array
     TYPE(cp_logger_type), POINTER            :: logger
@@ -195,9 +195,6 @@ CPSourceFileRef,&
     CHARACTER(len=*), PARAMETER :: routineN = 'dimer_env_retain', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-
     CPASSERT(ASSOCIATED(dimer_env))
     CPASSERT(dimer_env%ref_count>0)
     dimer_env%ref_count=dimer_env%ref_count+1
@@ -215,9 +212,6 @@ CPSourceFileRef,&
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dimer_env_release', &
       routineP = moduleN//':'//routineN
-
-    LOGICAL                                  :: failure
-
 
     IF (ASSOCIATED(dimer_env)) THEN
        CPASSERT(dimer_env%ref_count>0)

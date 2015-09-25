@@ -56,9 +56,6 @@ MODULE et_coupling_types
     CHARACTER(len=*), PARAMETER :: routineN = 'et_coupling_create', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-
       ALLOCATE(et_coupling)
 
       NULLIFY(et_coupling%et_mo_coeff)

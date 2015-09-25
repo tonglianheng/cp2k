@@ -161,8 +161,8 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: max_scf_tmp
-    LOGICAL                                  :: converged, failure, &
-                                                outer_scf_loop, should_stop
+    LOGICAL                                  :: converged, outer_scf_loop, &
+                                                should_stop
     LOGICAL, SAVE                            :: first_step_flag = .TRUE.
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(dft_control_type), POINTER          :: dft_control
@@ -252,8 +252,7 @@ CONTAINS
     INTEGER :: ext_master_id, external_comm, handle, handle2, i_tmp, ic, &
       ispin, iter_count, output_unit, scf_energy_message_tag, total_steps
     LOGICAL :: diis_step, do_kpoints, energy_only, exit_inner_loop, &
-      exit_outer_loop, failure, inner_loop_converged, just_energy, &
-      outer_loop_converged
+      exit_outer_loop, inner_loop_converged, just_energy, outer_loop_converged
     REAL(KIND=dp)                            :: t1, t2
     REAL(KIND=dp), DIMENSION(3)              :: res_val_3
     TYPE(atomic_kind_type), DIMENSION(:), &

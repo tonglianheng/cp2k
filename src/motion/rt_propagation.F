@@ -98,7 +98,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: aspc_order
-    LOGICAL                                  :: failure
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(global_environment_type), POINTER   :: globenv
     TYPE(qs_energy_type), POINTER            :: energy

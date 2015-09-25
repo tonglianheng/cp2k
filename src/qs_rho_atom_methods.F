@@ -497,8 +497,8 @@ MODULE qs_rho_atom_methods
     INTEGER, DIMENSION(3)                    :: cell_b
     INTEGER, DIMENSION(:), POINTER           :: a_list, list_a, list_b
     INTEGER, DIMENSION(:, :, :), POINTER     :: cell_to_index
-    LOGICAL                                  :: dista, distab, distb, &
-                                                failure, found, paw_atom
+    LOGICAL                                  :: dista, distab, distb, found, &
+                                                paw_atom
     REAL(dp), ALLOCATABLE, DIMENSION(:, :)   :: p_matrix
     REAL(KIND=dp)                            :: eps_cpc, factor, pmax
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: CPC, PC1
@@ -781,7 +781,7 @@ MODULE qs_rho_atom_methods
       lc2, lcleb, ll, llmax, lmax_sphere, lp, m1, m2, max_s_harm, max_s_set, &
       maxl, maxlgto, maxs, mm, mp, na, nat, natom, nr, nspins, quadrature
     INTEGER, DIMENSION(:), POINTER           :: atom_list
-    LOGICAL                                  :: failure, paw_atom
+    LOGICAL                                  :: paw_atom
     REAL(dp), ALLOCATABLE, DIMENSION(:, :)   :: rga
     REAL(dp), DIMENSION(:, :, :), POINTER    :: my_CG
     TYPE(atomic_kind_type), DIMENSION(:), &
@@ -945,7 +945,7 @@ MODULE qs_rho_atom_methods
     INTEGER :: bo(2), handle, iat, iatom, ikind, ispin, istat, j, &
       max_iso_not0, mepos, nat, natom, nr, nsatbas, nsotot, nspins, num_pe
     INTEGER, DIMENSION(:), POINTER           :: atom_list
-    LOGICAL                                  :: failure, paw_atom
+    LOGICAL                                  :: paw_atom
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(cp_para_env_type), POINTER          :: para_env
@@ -1107,7 +1107,6 @@ MODULE qs_rho_atom_methods
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, istat, j
-    LOGICAL                                  :: failure
 
     CALL timeset(routineN,handle)
 
@@ -1171,8 +1170,6 @@ MODULE qs_rho_atom_methods
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: j
-    LOGICAL                                  :: failure
-
 
       rho_atom_set(iatom)%rho_rad_h(ispin)%r_coef = 0.0_dp
       rho_atom_set(iatom)%rho_rad_s(ispin)%r_coef = 0.0_dp

@@ -297,7 +297,6 @@ CONTAINS
                                                 nao, natom, ncol, nmoloc, &
                                                 output_unit, sweeps
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: first_sgf, last_sgf, nsgf
-    LOGICAL                                  :: failure
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: matrix_s
     TYPE(cp_fm_pool_p_type), DIMENSION(:), &
@@ -427,7 +426,7 @@ CONTAINS
     COMPLEX(KIND=dp)                         :: z
     INTEGER                                  :: idir, istate, jdir, nstates, &
                                                 output_unit, unit_out_s
-    LOGICAL                                  :: failure, my_only_init
+    LOGICAL                                  :: my_only_init
     REAL(dp)                                 :: spread_i, spread_ii, &
                                                 sum_spread_i, sum_spread_ii
     REAL(dp), DIMENSION(3)                   :: c, c2, cpbc
@@ -536,7 +535,6 @@ CONTAINS
     INTEGER                                  :: iatom, istate, natom, nstate, &
                                                 unit_out_s
     INTEGER, DIMENSION(:), POINTER           :: atom_of_state
-    LOGICAL                                  :: failure
     REAL(dp)                                 :: r(3)
     REAL(dp), ALLOCATABLE, DIMENSION(:)      :: Qii, ziimax
     REAL(dp), ALLOCATABLE, DIMENSION(:, :)   :: diag
@@ -631,8 +629,7 @@ CONTAINS
     INTEGER :: dim_op, handle, i, imo, imoloc, ir, ispin, istate, j, jstate, &
       l_spin, lb, loc_method, n_rep, nao, ncubes, nmo, nmosub, s_spin, ub
     INTEGER, DIMENSION(:), POINTER           :: bounds, list, list_cubes
-    LOGICAL                                  :: append_cube, failure, &
-                                                list_cubes_setup
+    LOGICAL                                  :: append_cube, list_cubes_setup
     LOGICAL, SAVE                            :: first_time = .TRUE.
     REAL(dp), DIMENSION(6)                   :: weights
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: centers, vecbuffer
@@ -893,7 +890,7 @@ CONTAINS
     INTEGER                                  :: handle, ia, ie, istate, &
                                                 ivector, my_ispin, my_state0, &
                                                 unit_out_c
-    LOGICAL                                  :: add_idir, add_spin, failure
+    LOGICAL                                  :: add_idir, add_spin
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(cell_type), POINTER                 :: cell

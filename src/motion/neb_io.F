@@ -189,7 +189,7 @@ CONTAINS
     CHARACTER(LEN=default_string_length)     :: line, title, unit_str
     INTEGER                                  :: crd, ener, frc, handle, i, &
                                                 irep, ndig, ndigl, ttst, vel
-    LOGICAL                                  :: explicit, failure, lval
+    LOGICAL                                  :: explicit, lval
     REAL(KIND=dp)                            :: f_ann, tmp_r1, unit_conv
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: ekin, temperatures
     TYPE(cell_type), POINTER                 :: cell
@@ -508,9 +508,9 @@ CONTAINS
 
     CHARACTER(LEN=default_string_length)     :: padding
     INTEGER                                  :: i, lp, ndigits
-    LOGICAL                                  :: failure
 
-    ! Setup new replica project name and output file
+! Setup new replica project name and output file
+
     replica_proj_name = rep_env%original_project_name
     ! Find padding
     ndigits = CEILING(LOG10(REAL(n_rep+1,KIND=dp)))-&

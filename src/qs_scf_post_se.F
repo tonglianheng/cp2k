@@ -91,8 +91,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, output_unit
-    LOGICAL                                  :: explicit, failure, &
-                                                my_localized_wfn
+    LOGICAL                                  :: explicit, my_localized_wfn
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(dft_control_type), POINTER          :: dft_control

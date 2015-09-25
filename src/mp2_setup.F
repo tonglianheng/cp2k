@@ -51,7 +51,6 @@ CONTAINS
 
     INTEGER                                  :: handle, ival, unit_nr
     INTEGER, DIMENSION(:), POINTER           :: tmplist
-    LOGICAL                                  :: failure
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(section_vals_type), POINTER         :: mp2_section
 

@@ -78,7 +78,6 @@ CONTAINS
 
     INTEGER :: handle, i, iparticle, iparticle_kind, iparticle_local, iw, &
       natom, nparticle_kind, nparticle_local
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: ekin, ener, ener_var, mass
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: rxyz
@@ -250,7 +249,6 @@ CONTAINS
 
     INTEGER :: handle, i, iparticle, iparticle_kind, iparticle_local, iw, &
       natom, nparticle_kind, nparticle_local
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: ekin, ener, ener_var, mass
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: rxyz

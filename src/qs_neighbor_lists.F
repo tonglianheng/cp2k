@@ -131,7 +131,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, ikind
-    LOGICAL                                  :: failure
 
     CALL timeset(routineN,handle)
     DO ikind=1,SIZE(atom2d)
@@ -200,7 +199,7 @@ CONTAINS
     INTEGER, DIMENSION(:), POINTER           :: atom_of_kind, &
                                                 local_cols_array, &
                                                 local_rows_array
-    LOGICAL                                  :: do_kg, failure
+    LOGICAL                                  :: do_kg
     TYPE(gto_basis_set_type), POINTER        :: orb_basis_set
     TYPE(qs_dftb_atom_type), POINTER         :: dftb_atom
 
@@ -342,8 +341,8 @@ CONTAINS
     INTEGER                                  :: handle, ikind, iw, maxatom, &
                                                 nkind, numshells, zat
     LOGICAL :: all_potential_present, almo, dftb, do_hfx, dokp, explicit, &
-      failure, gth_potential_present, lri_optbas, lrigpw, mic, molecule_only, &
-      nddo, paw_atom, paw_atom_present, scptb
+      gth_potential_present, lri_optbas, lrigpw, mic, molecule_only, nddo, &
+      paw_atom, paw_atom_present, scptb
     LOGICAL, ALLOCATABLE, DIMENSION(:) :: all_present, aux_fit_present, &
       aux_present, core_present, default_present, oce_present, orb_present, &
       ppl_present, ppnl_present
@@ -1340,8 +1339,6 @@ CONTAINS
 
     INTEGER                                  :: i, ib, na, nb
     INTEGER, DIMENSION(:), POINTER           :: lista, listb
-    LOGICAL                                  :: failure
-
 
     CPASSERT(.NOT.ASSOCIATED(list))
 
@@ -1438,7 +1435,6 @@ CONTAINS
                                                 nelement_max, nelement_sum, &
                                                 tmp(2)
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: nblock, nelement, nnsgf
-    LOGICAL                                  :: failure
     TYPE(gto_basis_set_type), POINTER        :: orb_basis_set
     TYPE(neighbor_list_iterator_p_type), &
       DIMENSION(:), POINTER                  :: nl_iterator
@@ -1555,7 +1551,6 @@ CONTAINS
     INTEGER                                  :: iatom, inode, iw, jatom, &
                                                 mype, nneighbor, nnode
     INTEGER, DIMENSION(3)                    :: cell_b
-    LOGICAL                                  :: failure
     REAL(dp)                                 :: dab, unit_conv
     REAL(dp), DIMENSION(3)                   :: ra, rab, rb
     TYPE(cp_logger_type), POINTER            :: logger

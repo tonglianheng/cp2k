@@ -298,8 +298,7 @@ CONTAINS
       ispin, max_iter, natom, nkind, nspins, output_unit, precond_kind
     INTEGER, DIMENSION(2)                    :: bo
     INTEGER, DIMENSION(:), POINTER           :: atom_list
-    LOGICAL                                  :: failure, gapw, paw_atom, &
-                                                success
+    LOGICAL                                  :: gapw, paw_atom, success
     REAL(dp)                                 :: eps_r, eps_x, hard_radius, &
                                                 temp_so_soft, vks_ra_idir2, &
                                                 vks_ra_idir3
@@ -577,8 +576,8 @@ CONTAINS
       max_iter, natom, nkind, nspins, output_unit, precond_kind
     INTEGER, DIMENSION(2)                    :: bo
     INTEGER, DIMENSION(:), POINTER           :: atom_list
-    LOGICAL                                  :: failure, gapw, paw_atom, &
-                                                soo_rho_hard, success
+    LOGICAL                                  :: gapw, paw_atom, soo_rho_hard, &
+                                                success
     REAL(dp)                                 :: bind_ra_idir1, &
                                                 chi_tensor(3,3,2), eps_r, &
                                                 eps_x, hard_radius, rho_spin, &
@@ -812,7 +811,7 @@ CONTAINS
     INTEGER                                  :: handle, idir, idir2, idir3, &
                                                 iiB, iiiB, ispin, natom, &
                                                 nspins
-    LOGICAL                                  :: failure, gapw
+    LOGICAL                                  :: gapw
     REAL(dp)                                 :: scale_fac
     TYPE(cell_type), POINTER                 :: cell
     TYPE(dft_control_type), POINTER          :: dft_control

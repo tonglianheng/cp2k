@@ -113,11 +113,9 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, i_var
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: random_number, seed(3,2)
     TYPE(oi_env_type)                        :: oi_env
     TYPE(rng_stream_type), POINTER           :: rng_stream
-
 
     CALL timeset(routineN,handle)
 
@@ -644,7 +642,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, ivar, n_var
-    LOGICAL                                  :: explicit, failure
+    LOGICAL                                  :: explicit
     TYPE(section_vals_type), POINTER         :: fm_section, oi_section, &
                                                 variable_section
 

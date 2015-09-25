@@ -46,8 +46,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'create_status_type', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
     CPASSERT(.NOT.ASSOCIATED(status))
     ALLOCATE(status)
     status%in_use                = .FALSE.
@@ -71,8 +69,6 @@ CONTAINS
 
     CHARACTER(len=*), PARAMETER :: routineN = 'release_status_type', &
       routineP = moduleN//':'//routineN
-
-    LOGICAL                                  :: failure
 
     CPASSERT(ASSOCIATED(status))
     CALL release_buffer_type(status%buffer)

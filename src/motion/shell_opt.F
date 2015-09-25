@@ -75,7 +75,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, i, iat, nshell
-    LOGICAL                                  :: do_update, explicit, failure, &
+    LOGICAL                                  :: do_update, explicit, &
                                                 my_check, optimize
     REAL(dp), DIMENSION(:), POINTER          :: dvec_sc, dvec_sc_0
     TYPE(atomic_kind_list_type), POINTER     :: atomic_kinds

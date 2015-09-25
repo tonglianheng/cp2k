@@ -93,7 +93,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: ikind, nkind
-    LOGICAL                                  :: failure
 
     IF (ASSOCIATED(atomic_kind_set)) THEN
 
@@ -363,8 +362,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: n
-    LOGICAL                                  :: failure
-
 
     IF (ASSOCIATED(atomic_kind)) THEN
 

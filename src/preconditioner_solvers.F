@@ -134,9 +134,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, info
-    LOGICAL                                  :: failure
     TYPE(cp_fm_type), POINTER                :: fm, fm_work
-
 
     CALL timeset(routineN, handle)
 
@@ -194,7 +192,6 @@ CONTAINS
     INTEGER                                  :: handle
     LOGICAL                                  :: failure
     TYPE(cp_fm_type), POINTER                :: fm
-
 
     CALL timeset(routineN, handle)
 

@@ -139,7 +139,7 @@ MODULE helium_sampling
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: irot, nslices
-    LOGICAL                                  :: failure, solute_present
+    LOGICAL                                  :: solute_present
     REAL(kind=dp)                            :: inv_iter_rot, inv_num_pe, &
                                                 rnd, rtmp
     TYPE(cp_logger_type), POINTER            :: logger
@@ -254,7 +254,6 @@ MODULE helium_sampling
 
     CHARACTER(len=default_string_length)     :: msgstr, stmp, time_unit
     INTEGER                                  :: handle
-    LOGICAL                                  :: failure
     REAL(kind=dp)                            :: time_start, time_stop, &
                                                 time_used
 

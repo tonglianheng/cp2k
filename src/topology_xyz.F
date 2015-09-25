@@ -53,7 +53,7 @@ CONTAINS
 
     CHARACTER(LEN=default_string_length)     :: my_default_index, strtmp
     INTEGER                                  :: frame, handle, iw, j, natom
-    LOGICAL                                  :: failure, my_end
+    LOGICAL                                  :: my_end
     TYPE(atom_info_type), POINTER            :: atom_info
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_parser_type), POINTER            :: parser

@@ -83,8 +83,7 @@ CONTAINS
 
     INTEGER :: handle, i, iparticle, iparticle_kind, iparticle_local, j, &
       my_lagrange_mult, my_log_unit, nparticle_kind, nparticle_local
-    LOGICAL                                  :: failure, has_pos, has_vel, &
-                                                my_dump_lm
+    LOGICAL                                  :: has_pos, has_vel, my_dump_lm
     REAL(KIND=dp)                            :: mydt
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: my_pos, my_vel
     TYPE(atomic_kind_list_type), POINTER     :: atomic_kinds
@@ -254,7 +253,7 @@ CONTAINS
 
     INTEGER :: handle, i, iparticle, iparticle_kind, iparticle_local, j, &
       my_lagrange_mult, my_log_unit, nparticle_kind, nparticle_local
-    LOGICAL                                  :: failure, has_vel, my_dump_lm
+    LOGICAL                                  :: has_vel, my_dump_lm
     REAL(KIND=dp)                            :: mydt
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: my_vel
     TYPE(atomic_kind_list_type), POINTER     :: atomic_kinds
@@ -266,7 +265,6 @@ CONTAINS
     TYPE(mol_kind_new_list_type), POINTER    :: molecule_kinds
     TYPE(mol_new_list_type), POINTER         :: molecules
     TYPE(particle_list_type), POINTER        :: particles
-
 
     CALL timeset(routineN,handle)
     CPASSERT(ASSOCIATED(force_env))
@@ -435,10 +433,8 @@ CONTAINS
     CHARACTER(LEN=27)                        :: fmtstr5
     CHARACTER(LEN=31)                        :: fmtstr1
     INTEGER                                  :: n
-    LOGICAL                                  :: failure
     REAL(KIND=dp), DIMENSION(3)              :: eigval
     REAL(KIND=dp), DIMENSION(3, 3)           :: eigvec, stress_tensor
-
 
     IF (output_unit > 0) THEN
       CPASSERT(ASSOCIATED(cell))
@@ -517,8 +513,6 @@ CONTAINS
     CHARACTER(LEN=36)                        :: fmtstr2
     CHARACTER(LEN=46)                        :: fmtstr1
     INTEGER                                  :: i, ikind, iparticle, n
-    LOGICAL                                  :: failure
-
 
     IF (output_unit > 0) THEN
       CPASSERT(ASSOCIATED(particles))

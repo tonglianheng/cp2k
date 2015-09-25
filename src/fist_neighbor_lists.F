@@ -127,8 +127,7 @@ CONTAINS
                                                 ikind, iw, maxatom, &
                                                 natom_local_a, nkind, &
                                                 output_unit
-    LOGICAL                                  :: failure, &
-                                                present_local_particles, &
+    LOGICAL                                  :: present_local_particles, &
                                                 print_subcell_grid
     LOGICAL, DIMENSION(:), POINTER           :: skip_kind
     LOGICAL, DIMENSION(:, :), POINTER        :: my_full_nl
@@ -314,8 +313,8 @@ CONTAINS
     INTEGER, DIMENSION(3)                    :: isubcell, ncell, nsubcell, &
                                                 periodic
     LOGICAL                                  :: any_full, atom_order, &
-                                                check_spline, failure, &
-                                                is_full, subcell000
+                                                check_spline, is_full, &
+                                                subcell000
     LOGICAL, ALLOCATABLE, DIMENSION(:, :, :) :: sphcub
     REAL(dp)                                 :: rab2, rab2_max, rab2_min, &
                                                 rab_max
@@ -763,7 +762,6 @@ CONTAINS
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: indj
     INTEGER, DIMENSION(:), POINTER           :: work
     INTEGER, DIMENSION(:, :), POINTER        :: list_copy
-    LOGICAL                                  :: failure
     TYPE(neighbor_kind_pairs_type), POINTER  :: neighbor_kind_pair
 
     NULLIFY(neighbor_kind_pair)

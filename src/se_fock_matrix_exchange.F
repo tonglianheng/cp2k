@@ -91,9 +91,8 @@ CONTAINS
       integral_screening, irow, jatom, jkind, natom, natorb_a, nkind, nspins
     INTEGER, DIMENSION(2)                    :: size_p_block_a
     INTEGER, DIMENSION(:), POINTER           :: atom_of_kind
-    LOGICAL                                  :: anag, check, defined, &
-                                                failure, found, switch, &
-                                                use_virial
+    LOGICAL                                  :: anag, check, defined, found, &
+                                                switch, use_virial
     LOGICAL, ALLOCATABLE, DIMENSION(:)       :: se_defined
     REAL(KIND=dp)                            :: delta, dr
     REAL(KIND=dp), DIMENSION(3)              :: force_ab, rij
@@ -300,8 +299,8 @@ CONTAINS
     INTEGER                                  :: handle, i, iatom, icol, &
                                                 ikind, irow, jatom, jkind, k, &
                                                 natorb_a, nkind, nspins
-    LOGICAL                                  :: anag, defined, failure, &
-                                                found, ifHi, ifHj, switch
+    LOGICAL                                  :: anag, defined, found, ifHi, &
+                                                ifHj, switch
     LOGICAL, ALLOCATABLE, DIMENSION(:)       :: se_defined
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: ks_block_a, ks_block_b
     TYPE(atomic_kind_type), DIMENSION(:), &

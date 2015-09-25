@@ -116,8 +116,8 @@ CONTAINS
       nsoctot, nspins, num_pe, output_unit
     INTEGER, DIMENSION(3)                    :: cell_b
     INTEGER, DIMENSION(:), POINTER           :: atom_list, list_a, list_b
-    LOGICAL :: den_found, dista, distab, distb, failure, is_not_associated, &
-      paw_atom, sgf_soft_only_a, sgf_soft_only_b
+    LOGICAL :: den_found, dista, distab, distb, is_not_associated, paw_atom, &
+      sgf_soft_only_a, sgf_soft_only_b
     REAL(dp)                                 :: eps_cpc, hard_radius_c, jmax, &
                                                 nbr_dbl, rab(3), rbc(3)
     REAL(dp), ALLOCATABLE, DIMENSION(:, :)   :: a_matrix, b_matrix, c_matrix, &
@@ -567,7 +567,7 @@ CONTAINS
     INTEGER, DIMENSION(2)                    :: bo
     INTEGER, DIMENSION(:), POINTER           :: atom_list, lmax, lmin, npgf, &
                                                 o2nindex
-    LOGICAL                                  :: failure, paw_atom
+    LOGICAL                                  :: paw_atom
     LOGICAL, ALLOCATABLE, DIMENSION(:, :)    :: is_set_to_0
     REAL(dp)                                 :: hard_radius
     REAL(dp), ALLOCATABLE, DIMENSION(:)      :: g1, g2, gauge_h, gauge_s
@@ -1347,8 +1347,7 @@ CONTAINS
                                                 natom, nkind, nspins
     INTEGER, DIMENSION(2)                    :: bo
     INTEGER, DIMENSION(:), POINTER           :: atom_list
-    LOGICAL                                  :: do_igaim, failure, gapw, &
-                                                paw_atom
+    LOGICAL                                  :: do_igaim, gapw, paw_atom
     REAL(dp)                                 :: hard_radius, r(3)
     REAL(dp), ALLOCATABLE, DIMENSION(:, :)   :: ratom
     TYPE(atomic_kind_type), DIMENSION(:), &
@@ -1365,7 +1364,6 @@ CONTAINS
       POINTER                                :: particle_set
     TYPE(qs_kind_type), DIMENSION(:), &
       POINTER                                :: qs_kind_set
-
 
     NULLIFY(para_env, dft_control)
     NULLIFY(jrho1_atom_set, grid_atom, harmonics)

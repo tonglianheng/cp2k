@@ -218,7 +218,7 @@ CONTAINS
                                                 j, k, l, lb( 2 ), &
                                                 n_slices(3), n_slices_tmp(3), &
                                                 neighbours(3), nmin
-    LOGICAL                                  :: failure, overlap
+    LOGICAL                                  :: overlap
     REAL(KIND=dp)                            :: ratio, ratio_best, volume, &
                                                 volume_dist
 
@@ -618,9 +618,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: dir, i, nn
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: pp( 3 )
-
 
     IF ( rs % desc % parallel ) THEN
        IF ( iounit>0) THEN
@@ -707,7 +705,6 @@ CONTAINS
     CHARACTER(LEN=5)                         :: dirname
     INTEGER                                  :: handle, handle2, i, im, j, &
                                                 jm, k, km
-    LOGICAL                                  :: failure
 
     CALL timeset(routineN,handle2)
     IF (dir.EQ.rs2pw) dirname="RS2PW"
@@ -867,7 +864,6 @@ CONTAINS
     INTEGER, DIMENSION(3)                    :: lb, ub
     INTEGER, DIMENSION(:, :), POINTER        :: pbo
     INTEGER, DIMENSION(:, :, :), POINTER     :: bo
-    LOGICAL                                  :: failure
     REAL(KIND=dp), DIMENSION(:), POINTER     :: recvbuf, sendbuf, swapptr
     REAL(KIND=dp), DIMENSION(:, :, :), &
       POINTER                                :: grid
@@ -2069,9 +2065,6 @@ SUBROUTINE rs_grid_mult_and_add ( rs1 ,rs2, rs3, scalar )
     CHARACTER(len=*), PARAMETER :: routineN = 'rs_grid_retain', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-
     CPASSERT(ASSOCIATED(rs_grid))
     CPASSERT(rs_grid%ref_count>0)
     rs_grid%ref_count=rs_grid%ref_count+1
@@ -2090,9 +2083,6 @@ SUBROUTINE rs_grid_mult_and_add ( rs1 ,rs2, rs3, scalar )
     CHARACTER(len=*), PARAMETER :: routineN = 'rs_grid_retain_descriptor', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-
     CPASSERT(ASSOCIATED(rs_desc))
     CPASSERT(rs_desc%ref_count>0)
     rs_desc%ref_count=rs_desc%ref_count+1
@@ -2110,9 +2100,6 @@ SUBROUTINE rs_grid_mult_and_add ( rs1 ,rs2, rs3, scalar )
 
     CHARACTER(len=*), PARAMETER :: routineN = 'rs_grid_release', &
       routineP = moduleN//':'//routineN
-
-    LOGICAL                                  :: failure
-
 
     IF (ASSOCIATED(rs_grid)) THEN
        CPASSERT(rs_grid%ref_count>0)
@@ -2143,9 +2130,6 @@ SUBROUTINE rs_grid_mult_and_add ( rs1 ,rs2, rs3, scalar )
 
     CHARACTER(len=*), PARAMETER :: routineN = 'rs_grid_release_descriptor', &
       routineP = moduleN//':'//routineN
-
-    LOGICAL                                  :: failure
-
 
     IF (ASSOCIATED(rs_desc)) THEN
        CPASSERT(rs_desc%ref_count>0)

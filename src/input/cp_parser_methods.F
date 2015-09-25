@@ -74,8 +74,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'parser_location', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
     CPASSERT(ASSOCIATED(parser))
     CPASSERT(parser%ref_count>0)
     res = ", File: '"//TRIM(parser%input_file_name)//"', Line: "//&
@@ -103,8 +101,6 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'parser_store_status', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
     CPASSERT(ASSOCIATED(parser))
     CPASSERT(parser%ref_count>0)
     CPASSERT(ASSOCIATED(parser%status))
@@ -131,8 +127,6 @@ CONTAINS
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'parser_retrieve_status', &
       routineP = moduleN//':'//routineN
-
-    LOGICAL                                  :: failure
 
     CPASSERT(ASSOCIATED(parser))
     CPASSERT(parser%ref_count>0)
@@ -266,7 +260,7 @@ CONTAINS
     INTEGER                                  :: handle, iline, imark, islen, &
                                                 istat, &
                                                 last_buffered_line_number
-    LOGICAL                                  :: failure, non_white_found, &
+    LOGICAL                                  :: non_white_found, &
                                                 this_line_is_white_or_comment
 
     CALL timeset(routineN,handle)
@@ -738,7 +732,7 @@ CONTAINS
 
     CHARACTER(LEN=max_line_length)           :: error_message, string
     INTEGER                                  :: iz, n
-    LOGICAL                                  :: failure, ilist_in_use
+    LOGICAL                                  :: ilist_in_use
     REAL(KIND=dp)                            :: fz
 
     test_result = ""

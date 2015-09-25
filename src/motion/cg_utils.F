@@ -68,7 +68,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle
-    LOGICAL                                  :: failure
 
     CALL timeset(routineN,handle)
     gopt_env%do_line_search = .TRUE.
@@ -161,7 +160,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle
-    LOGICAL                                  :: failure, my_use_only_grad, &
+    LOGICAL                                  :: my_use_only_grad, &
                                                 save_consistent_energy_force
     REAL(KIND=dp) :: a, b, c, dx, dx_min, dx_min_save, dx_thrs, norm_grad1, &
       norm_grad2, norm_ls_vec, opt_energy2, x_grad_zero
@@ -261,7 +260,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: dx, dx_min, dx_min_acc, &
                                                 dx_min_save, dx_thrs, &
                                                 norm_tls_vec, opt_energy2
@@ -345,7 +343,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: a0, a1, angle, b1, &
                                                 curvature0, curvature1, &
                                                 curvature2, dCdp, f
@@ -430,7 +427,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, loc_iter, odim
-    LOGICAL                                  :: failure, should_stop
+    LOGICAL                                  :: should_stop
     REAL(KIND=dp)                            :: ax, bx, fprev, rms_dr, &
                                                 rms_force, scale, xmin, xx
     REAL(KIND=dp), DIMENSION(:), POINTER     :: pcom, xicom
@@ -522,7 +519,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: ax, bx, xmin, xx
     REAL(KIND=dp), DIMENSION(:), POINTER     :: pcom, xicom
 
@@ -587,7 +583,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, loc_iter, odim
-    LOGICAL                                  :: failure, hist, should_stop
+    LOGICAL                                  :: hist, should_stop
     REAL(KIND=dp)                            :: dum, fa, fb, fc, fu, gold, q, &
                                                 r, u, ulim
 
@@ -779,8 +775,8 @@ CONTAINS
     REAL(KIND=dp), PARAMETER                 :: zeps = 1.0E-8_dp
 
     INTEGER                                  :: handle, iter, loc_iter
-    LOGICAL                                  :: failure, ok1, ok2, &
-                                                should_stop, skip0, skip1
+    LOGICAL                                  :: ok1, ok2, should_stop, skip0, &
+                                                skip1
     REAL(KIND=dp)                            :: a, b, d, d1, d2, du, dv, dw, &
                                                 dx, e, fu, fv, fw, fx, olde, &
                                                 tol1, tol2, u, u1, u2, v, w, &
@@ -920,7 +916,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle
-    LOGICAL                                  :: failure
     REAL(KIND=dp), DIMENSION(:), POINTER     :: xvec
 
     CALL timeset(routineN,handle)
@@ -958,7 +953,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: energy
     REAL(KIND=dp), DIMENSION(:), POINTER     :: grad, xvec
 
@@ -996,7 +990,6 @@ CONTAINS
 
     INTEGER                                  :: i, info, iwork(8*3), lwork, &
                                                 min_pos, np
-    LOGICAL                                  :: failure
     REAL(kind=dp)                            :: diag(3), res1(3), res2(3), &
                                                 res3(3), spread, sum_x, &
                                                 sum_xx, tmpw(1), vt(3,3)
@@ -1070,7 +1063,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle
-    LOGICAL                                  :: check, failure
+    LOGICAL                                  :: check
     REAL(KIND=dp)                            :: dgg, gam, gg, norm, norm_h
     TYPE(dimer_env_type), POINTER            :: dimer_env
 

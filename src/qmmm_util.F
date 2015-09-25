@@ -63,8 +63,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: iwall_type
-    LOGICAL                                  :: do_qmmm_force_mixing, &
-                                                explicit, failure
+    LOGICAL                                  :: do_qmmm_force_mixing, explicit
     TYPE(section_vals_type), POINTER         :: qmmmx_section, walls_section
 
     walls_section => section_vals_get_subs_vals(qmmm_env%qs_env%input,"QMMM%WALLS")
@@ -105,8 +104,8 @@ CONTAINS
 
     INTEGER                                  :: ip, iwall_type, qm_index
     INTEGER, DIMENSION(:), POINTER           :: qm_atom_index
-    LOGICAL                                  :: explicit, failure, is_x(2), &
-                                                is_y(2), is_z(2)
+    LOGICAL                                  :: explicit, is_x(2), is_y(2), &
+                                                is_z(2)
     REAL(KIND=dp), DIMENSION(3)              :: coord, qm_cell_diag, skin
     REAL(KIND=dp), DIMENSION(:), POINTER     :: list
     TYPE(cell_type), POINTER                 :: mm_cell, qm_cell
@@ -404,7 +403,6 @@ CONTAINS
                                                 min_ip, smaller_ip, tmp_ip, &
                                                 unit_nr
     INTEGER, DIMENSION(:), POINTER           :: qm_atom_index
-    LOGICAL                                  :: failure
     LOGICAL, ALLOCATABLE                     :: avoid(:)
     REAL(DP) :: bigger_lat_dv, center_p(3), lat_dv, lat_dv3(3), lat_min(3), &
       lat_p(3), max_coord_lat(3), min_coord_lat(3), smaller_lat_dv

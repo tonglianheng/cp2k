@@ -107,7 +107,6 @@ SUBROUTINE distribution_1d_create(distribution_1d,para_env,listbased_distributio
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: ilist, my_n_lists, stat
-    LOGICAL                                  :: failure
 
   my_n_lists=1
   IF(PRESENT(n_el)) my_n_lists=SIZE(n_el)
@@ -162,9 +161,6 @@ SUBROUTINE distribution_1d_retain(distribution_1d)
     CHARACTER(len=*), PARAMETER :: routineN = 'distribution_1d_retain', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-
   CPASSERT(ASSOCIATED(distribution_1d))
   CPASSERT(distribution_1d%ref_count>0)
   distribution_1d%ref_count=distribution_1d%ref_count+1
@@ -187,10 +183,8 @@ SUBROUTINE distribution_1d_release(distribution_1d)
                                                 iparticle_local, &
                                                 nparticle_kind, &
                                                 nparticle_local
-    LOGICAL                                  :: failure
     TYPE(local_particle_type), &
       DIMENSION(:), POINTER                  :: local_particle_set
-
 
   IF (ASSOCIATED(distribution_1d)) THEN
      CPASSERT(distribution_1d%ref_count>0)
@@ -249,8 +243,6 @@ SUBROUTINE distribution_1d_write(distribution_1d, unit_nr)
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i, ilist
-    LOGICAL                                  :: failure
-
 
   IF (ASSOCIATED(distribution_1d)) THEN
      WRITE(unit=unit_nr, fmt="(' <distribution_1d>{ id_nr=',i8,',ref_count=',i8,',')")&

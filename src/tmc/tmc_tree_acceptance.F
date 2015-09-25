@@ -92,7 +92,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: ekin_last_acc, elem_ener, kB, &
                                                 parent_ener
 
@@ -216,7 +215,6 @@ CPASSERT(.FALSE.)
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: delta, elem1_ener, &
                                                 elem2_ener, kB, vol1, vol2
 
@@ -293,7 +291,6 @@ CPASSERT(.FALSE.)
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: d_enthalpy, kB, n_vol, p_vol
 
     kB = boltzmann/joule
@@ -450,7 +447,7 @@ CPASSERT(.FALSE.)
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle
-    LOGICAL                                  :: failure, flag, result_acc
+    LOGICAL                                  :: flag, result_acc
     TYPE(global_tree_type), POINTER          :: tmp_gt_ptr
     TYPE(gt_elem_list_type), POINTER         :: tmp_gt_list_ptr
 
@@ -735,7 +732,7 @@ CPASSERT(.FALSE.)
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, itmp
-    LOGICAL                                  :: failure, found
+    LOGICAL                                  :: found
     TYPE(global_tree_type), POINTER          :: gt_act_elem
     TYPE(tree_type), POINTER                 :: act_element, tmp_element
 
@@ -898,8 +895,6 @@ CPASSERT(.FALSE.)
     CHARACTER(LEN=*), PARAMETER :: routineN = 'ready_for_update_acc_prob', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
     CPASSERT(ASSOCIATED(elem))
     ready = .FALSE.
     IF((elem%scf_energies_count.GE.4)&
@@ -925,7 +920,6 @@ CPASSERT(.FALSE.)
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle
-    LOGICAL                                  :: failure
     TYPE(tree_type), POINTER                 :: act_elem, parent_elem
 
     NULLIFY(parent_elem, act_elem)
@@ -999,7 +993,6 @@ CPASSERT(.FALSE.)
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, integration_steps
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: kB, tmp_prob
     TYPE(gt_elem_list_type), POINTER         :: tmp_pt_ptr
     TYPE(tree_type), POINTER                 :: tmp_elem, tmp_parent_elem

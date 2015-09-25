@@ -91,7 +91,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i, id_method
-    LOGICAL                                  :: explicit, failure
+    LOGICAL                                  :: explicit
     TYPE(section_vals_type), POINTER         :: ui_section, ui_var_section
 
     CPASSERT(.NOT.ASSOCIATED(fe_env))
@@ -161,8 +161,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i
-    LOGICAL                                  :: failure
-
 
     IF (ASSOCIATED(fe_env)) THEN
        IF (ASSOCIATED(fe_env%covmx)) THEN

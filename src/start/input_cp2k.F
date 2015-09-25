@@ -79,7 +79,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle
-    LOGICAL                                  :: failure
     TYPE(section_type), POINTER              :: section
 
     CALL timeset(routineN,handle)
@@ -345,9 +344,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'create_multi_force_section', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
-
 
     CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="MULTIPLE_FORCE_EVALS",&
@@ -386,9 +383,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'create_ext_restart_section', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
-
 
     CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="EXT_RESTART",&
@@ -617,10 +612,8 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'create_farming_section', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
     TYPE(section_type), POINTER              :: print_key, sub_section
-
 
     CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="farming",&
@@ -768,10 +761,8 @@ CONTAINS
       routineN = 'create_rs_pw_transfer_section', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
     TYPE(section_type), POINTER              :: subsection
-
 
     CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="RS_PW_TRANSFER",&
@@ -824,9 +815,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'create_pw_transfer_section', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
-
 
     CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="PW_TRANSFER",&
@@ -905,9 +894,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'create_cp_fm_gemm_section', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
-
 
     CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="CP_FM_GEMM",&
@@ -996,9 +983,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'create_eigensolver_section', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
-
 
     CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="EIGENSOLVER",&
@@ -1059,9 +1044,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'create_cp_dbcsr_section', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
-
 
     CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="CP_DBCSR",&

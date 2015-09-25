@@ -84,7 +84,7 @@ CONTAINS
 
     INTEGER                                  :: i, ilevel, j, Ndim, &
                                                 num_geep_gauss, output_unit
-    LOGICAL                                  :: Failure, Found, use_geep_lib
+    LOGICAL                                  :: Found, use_geep_lib
     REAL(KIND=dp)                            :: alpha, mymaxradius, Prefactor
     REAL(KIND=dp), DIMENSION(:), POINTER     :: c_radius, radius
     TYPE(cp_logger_type), POINTER            :: logger

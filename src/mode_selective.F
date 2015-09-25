@@ -114,7 +114,7 @@ CONTAINS
     CHARACTER(LEN=default_string_length)     :: description
     INTEGER                                  :: handle, i, ip1, j, natoms, &
                                                 ncoord
-    LOGICAL                                  :: converged, failure
+    LOGICAL                                  :: converged
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: mass, pos0
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: tmp_deriv
     REAL(KIND=dp), DIMENSION(:, :, :), &
@@ -855,7 +855,6 @@ CONTAINS
 
     INTEGER                                  :: i, j, jj, k, natoms, ncoord
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: ind
-    LOGICAL                                  :: failure
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: eigenval, freq
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: approx_H, H_save, residuum, &

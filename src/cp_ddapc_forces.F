@@ -94,7 +94,7 @@ CONTAINS
 
     INTEGER :: handle, ip1, ip2, iparticle1, iparticle2, k1, k2, k3, n_rep, &
       nmax1, nmax2, nmax3, r1, r2, r3, rmax1, rmax2, rmax3
-    LOGICAL                                  :: analyt, failure
+    LOGICAL                                  :: analyt
     REAL(KIND=dp)                            :: alpha, eps, fac, fac3, fs, &
                                                 galpha, gsq, gsqi, ij_fac, &
                                                 q1t, q2t, r, r2tmp, rcut, &
@@ -258,7 +258,6 @@ CONTAINS
     INTEGER                                  :: handle, i, iatom, ikind, j, &
                                                 k, natom
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: atom_of_kind, kind_of
-    LOGICAL                                  :: failure
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: uv
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: chf
@@ -317,10 +316,8 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, ind
-    LOGICAL                                  :: failure
     TYPE(qs_force_type), DIMENSION(:), &
       POINTER                                :: force
-
 
     CALL timeset(routineN,handle)
     CALL get_qs_env(qs_env=qs_env,&
@@ -359,7 +356,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: I, ind
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: dE, order_p
 
 ! order parameter (i.e. the sum of the charges of the selected atoms)
@@ -430,7 +426,6 @@ CONTAINS
     INTEGER                                  :: handle, i, iatom, ikind, j, &
                                                 k, natom
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: atom_of_kind, kind_of
-    LOGICAL                                  :: failure
     REAL(kind=dp)                            :: dum
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: uv
     REAL(KIND=dp), ALLOCATABLE, &
@@ -511,7 +506,7 @@ CONTAINS
                                                 iparticle2, l, lmax, n_rep1, &
                                                 n_rep2, weight
     INTEGER, DIMENSION(:), POINTER           :: list
-    LOGICAL                                  :: failure, fixed_center
+    LOGICAL                                  :: fixed_center
     REAL(KIND=dp) :: center(3), dcos1(3), dcos2(3), dpos1(3), dpos2(3), &
       eps_in, eps_out, factor1(3), factor2(3), lr, mass, mycos, pos1, pos1i, &
       pos2, pos2i, ptcos, q1t, q2t, r1(3), r1s, r2(3), r2s, Rs, rvec(3)

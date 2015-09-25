@@ -73,7 +73,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: iparticle
-    LOGICAL                                  :: failure
 
     IF (ASSOCIATED(particle_set)) THEN
        CALL deallocate_particle_set(particle_set)
@@ -106,8 +105,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'deallocate_particle_set', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
     IF (ASSOCIATED(particle_set)) THEN
       DEALLOCATE (particle_set)
     ELSE
@@ -139,7 +136,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, iparticle, nparticle
-    LOGICAL                                  :: failure, my_add, update_for, &
+    LOGICAL                                  :: my_add, update_for, &
                                                 update_pos, update_vel
 
     CALL timeset(routineN,handle)

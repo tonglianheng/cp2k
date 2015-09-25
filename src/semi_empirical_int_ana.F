@@ -361,7 +361,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: ig, nt
-    LOGICAL                                  :: failure, l_denuc, l_enuc
+    LOGICAL                                  :: l_denuc, l_enuc
     REAL(dp) :: aab, alpi, alpj, apdg, ax, dai, daj, dax, dbi, dbj, &
       denuc_loc, dqcorr, drija, dscale, dssss, dssss_sr, dtmp, dzz, enuc_loc, &
       pai, paj, pbi, pbj, qcorr, rij, rija, scale, ssss, ssss_sr, tmp, xab, &
@@ -673,7 +673,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'corecore_el_ana', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure, l_denuc, l_enuc
+    LOGICAL                                  :: l_denuc, l_enuc
     REAL(dp)                                 :: drij(3), dssss, dssss_sr, &
                                                 rij, ssss, ssss_sr, tmp, zz
     TYPE(se_int_control_type)                :: se_int_control_off
@@ -734,12 +734,12 @@ CONTAINS
                                                 ind, j, jmap, jnd, k, kmap, &
                                                 knd, l, lmap, lnd, ndim, &
                                                 sdim, tdim, tind
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: ifac, jfac, kfac, lfac
     REAL(KIND=dp), DIMENSION(2025)           :: tmp2el
     REAL(KIND=dp), DIMENSION(45)             :: tmp1el
 
-    ! One-electron integral
+! One-electron integral
+
     IF (PRESENT(int1el)) THEN
        fdim   = sepi%atm_int_size
        ndim   = 0
@@ -845,10 +845,10 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i, m
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: tmp
 
-    ! Integral part
+! Integral part
+
     DO i=1,3
        IF (PRESENT(dint1el)) THEN
           CALL invert_integral(sepi, sepj, int1el=dint1el(i,:))
@@ -911,12 +911,11 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'dssss_nucint_ana', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: dft, ft
     TYPE(se_int_screen_type)                 :: se_int_screen
 
+! Compute the Tapering function
 
-    ! Compute the Tapering function
     ft = 1.0_dp
     dft= 0.0_dp
     IF (itype/=do_method_pchg) THEN
@@ -997,11 +996,11 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: dft, ft
     TYPE(se_int_screen_type)                 :: se_int_screen
 
-    ! Compute the Tapering function
+! Compute the Tapering function
+
     ft = 1.0_dp
     dft= 0.0_dp
     IF (itype/=do_method_pchg) THEN
@@ -1107,8 +1106,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: ij, kl
-    LOGICAL                                  :: failure, l_core, l_ssss, si, &
-                                                sj
+    LOGICAL                                  :: l_core, l_ssss, si, sj
 
     l_core  = PRESENT(dcore)
     l_ssss  = PRESENT(dssss)
@@ -1191,9 +1189,9 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: ij, kl
-    LOGICAL                                  :: failure
 
-    ! Check if d-orbitals are present
+! Check if d-orbitals are present
+
     IF (sepi%dorb.OR.sepj%dorb) THEN
        ij = indexa(1, 1)
        IF (sepj%dorb) THEN
@@ -1605,11 +1603,11 @@ CONTAINS
 
     INTEGER                                  :: i, ij, j, k, kl, l, lasti, &
                                                 lastj, li, lj, lk, ll, numb
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: dft, ft, ft1
     TYPE(se_int_screen_type)                 :: se_int_screen
 
-    ! Compute the tapering function and its derivatives
+! Compute the tapering function and its derivatives
+
     ft  = taper_eval(se_taper%taper,rij)
     dft = 0.0_dp
     ft1 = ft
@@ -1714,7 +1712,6 @@ CONTAINS
     INTEGER                                  :: i, ij, j, k, kl, l, lasti, &
                                                 lastj, li, lj, lk, ll, nold, &
                                                 numb
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: tmp
 
     lasti = sepi%natorb
@@ -1781,7 +1778,6 @@ CONTAINS
     INTEGER                                  :: i, ij, j, k, kl, l, lasti, &
                                                 lastj, li, lj, lk, ll, nold, &
                                                 numb
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: tmp
 
     lasti = sepi%natorb

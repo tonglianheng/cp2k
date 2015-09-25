@@ -89,9 +89,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'fm_pool_create', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-
     ALLOCATE(pool)
     pool%el_struct=> el_struct
     CALL cp_fm_struct_retain(pool%el_struct)
@@ -115,9 +112,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'fm_pool_retain', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-
     CPASSERT(ASSOCIATED(pool))
     CPASSERT(pool%ref_count>0)
 
@@ -137,10 +131,8 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'fm_pool_flush_cache', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     TYPE(cp_fm_type), POINTER                :: el_att
     TYPE(cp_sll_fm_type), POINTER            :: iterator
-
 
     CPASSERT(ASSOCIATED(pool))
     CPASSERT(pool%ref_count>0)
@@ -164,9 +156,6 @@ CONTAINS
 
     CHARACTER(len=*), PARAMETER :: routineN = 'fm_pool_release', &
       routineP = moduleN//':'//routineN
-
-    LOGICAL                                  :: failure
-
 
     IF (ASSOCIATED(pool)) THEN
        CPASSERT(pool%ref_count>0)
@@ -201,9 +190,6 @@ CONTAINS
 
     CHARACTER(len=*), PARAMETER :: routineN = 'fm_pool_create_fm', &
       routineP = moduleN//':'//routineN
-
-    LOGICAL                                  :: failure
-
 
     CPASSERT(ASSOCIATED(pool))
     CPASSERT(pool%ref_count>0)
@@ -250,7 +236,6 @@ CONTAINS
 
     LOGICAL                                  :: did_insert, failure
 
-
     CPASSERT(ASSOCIATED(pool))
     CPASSERT(pool%ref_count>0)
     CPASSERT(ASSOCIATED(element))
@@ -286,9 +271,6 @@ FUNCTION fm_pool_get_el_struct(pool) RESULT(res)
     CHARACTER(len=*), PARAMETER :: routineN = 'fm_pool_get_el_struct', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-
   CPASSERT(ASSOCIATED(pool))
   CPASSERT(pool%ref_count>0)
   res => pool%el_struct
@@ -312,8 +294,6 @@ SUBROUTINE fm_pools_copy(source_pools, target_pools)
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i
-    LOGICAL                                  :: failure
-
 
   CPASSERT(ASSOCIATED(source_pools))
   ALLOCATE(target_pools(SIZE(source_pools)))
@@ -338,8 +318,6 @@ SUBROUTINE fm_pools_dealloc(pools)
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i
-    LOGICAL                                  :: failure
-
 
   IF (ASSOCIATED(pools)) THEN
      DO i=1,SIZE(pools)
@@ -370,7 +348,6 @@ SUBROUTINE fm_pools_create_fm_vect(pools,elements,&
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i
-    LOGICAL                                  :: failure
     TYPE(cp_fm_pool_type), POINTER           :: pool
 
   NULLIFY(pool)
@@ -412,8 +389,6 @@ SUBROUTINE fm_pools_give_back_fm_vect(pools,elements)
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i
-    LOGICAL                                  :: failure
-
 
   CPASSERT(ASSOCIATED(pools))
   CPASSERT(ASSOCIATED(elements))

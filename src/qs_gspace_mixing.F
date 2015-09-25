@@ -86,7 +86,6 @@ CONTAINS
 
     INTEGER                                  :: handle, ic, ispin, nimg, &
                                                 nspins
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: tmp
     TYPE(cp_dbcsr_p_type), DIMENSION(:, :), &
       POINTER                                :: matrix_q, p_in
@@ -145,7 +144,7 @@ CONTAINS
 
     INTEGER                                  :: handle, iatom, ig, ispin, &
                                                 natom, ng, nspin
-    LOGICAL                                  :: failure, gapw
+    LOGICAL                                  :: gapw
     REAL(dp)                                 :: alpha
     REAL(KIND=dp), DIMENSION(:), POINTER     :: tot_rho_r
     TYPE(dft_control_type), POINTER          :: dft_control
@@ -288,7 +287,7 @@ CONTAINS
     COMPLEX(dp), DIMENSION(:), POINTER       :: cc_new
     INTEGER                                  :: handle, iatom, ig, ispin, &
                                                 natom, ng, nspin
-    LOGICAL                                  :: failure, gapw
+    LOGICAL                                  :: gapw
     REAL(dp)                                 :: alpha, f_mix
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(pw_p_type), DIMENSION(:), POINTER   :: rho_g
@@ -372,7 +371,6 @@ CONTAINS
     INTEGER                                  :: handle, i, ib, ibb, ig, &
                                                 ispin, jb, nb, nb1, nbuffer, &
                                                 ng, nspin
-    LOGICAL                                  :: failure
     REAL(dp)                                 :: alpha_kerker, alpha_pulay, &
                                                 beta, f_mix, inv_err, norm, &
                                                 norm_c_inv, vol
@@ -544,7 +542,7 @@ CONTAINS
     INTEGER                                  :: handle, i, iatom, ib, ibb, &
                                                 ig, ispin, j, jb, kb, n1, n2, &
                                                 natom, nb, nbuffer, ng, nspin
-    LOGICAL                                  :: failure, gapw
+    LOGICAL                                  :: gapw
     REAL(dp)                                 :: alpha, beta, dcpc_h_res, &
                                                 dcpc_s_res, delta_norm, &
                                                 f_mix, inv_err, res_norm, &
@@ -822,7 +820,7 @@ CONTAINS
                                                 ispin, jb, kb, kkb, lwork, &
                                                 nb, nbuffer, ng, nspin
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: IWORK
-    LOGICAL                                  :: failure, skip_bq
+    LOGICAL                                  :: skip_bq
     REAL(dp) :: alpha, beta, delta, delta_p, delta_rhog, delta_rhog_p, f_mix, &
       imp, imp_j, inv_err, norm, norm_ig, rep, rep_j, sqt_uvol, sqt_vol, &
       uvol, vol, wc, wmax
@@ -1242,8 +1240,7 @@ CONTAINS
                                                 ig, ig_global, iig, ispin, &
                                                 jb, kb, nb, nbuffer, ng, &
                                                 ng_global, nspin
-    LOGICAL                                  :: failure, use_zgemm, &
-                                                use_zgemm_rev
+    LOGICAL                                  :: use_zgemm, use_zgemm_rev
     REAL(dp) :: alpha, f_mix, gn_norm, gn_norm_old, inv_err, n_low, n_up, &
       pgn_norm, prec, r_step, reg_par, sigma_max, sigma_tilde, step_size
     REAL(dp), ALLOCATABLE, DIMENSION(:)      :: norm_res, norm_res_low, &
@@ -1611,7 +1608,6 @@ CONTAINS
 
     INTEGER                                  :: handle, i, iat, ic, ispin, &
                                                 natom, nbuffer, nimg
-    LOGICAL                                  :: failure
     TYPE(cp_dbcsr_p_type), DIMENSION(:, :), &
       POINTER                                :: matrix_s
     TYPE(cp_dbcsr_type), POINTER             :: refmatrix
@@ -1620,7 +1616,6 @@ CONTAINS
       DIMENSION(:), POINTER                  :: sab_orb
     TYPE(rho_atom_type), DIMENSION(:), &
       POINTER                                :: rho_atom
-
 
     CALL timeset(routineN,handle)
 
@@ -1842,7 +1837,6 @@ CONTAINS
     INTEGER                                  :: handle, iat, ib, ig, ig1, &
                                                 ig_count, iproc, ispin, n1, &
                                                 n2, natom, nbuffer, ng, nspin
-    LOGICAL                                  :: failure
     REAL(dp)                                 :: bconst, beta, fdamp, g2max, &
                                                 g2min, kmin
     REAL(dp), DIMENSION(:), POINTER          :: g2

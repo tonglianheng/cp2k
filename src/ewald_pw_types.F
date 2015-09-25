@@ -84,9 +84,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'ewald_pw_retain', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-
     CPASSERT(ASSOCIATED(ewald_pw))
     CPASSERT(ewald_pw%ref_count>0)
     ewald_pw%ref_count=ewald_pw%ref_count+1
@@ -109,7 +106,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'ewald_pw_create', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     TYPE(dg_type), POINTER                   :: dg
 
     NULLIFY ( dg )
@@ -139,7 +135,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle
-    LOGICAL                                  :: failure
 
     CALL timeset(routineN,handle)
     IF (ASSOCIATED(ewald_pw)) THEN
@@ -185,7 +180,6 @@ CONTAINS
     INTEGER                                  :: bo(2,3), ewald_type, gmax(3), &
                                                 handle, npts_s( 3 ), ns_max, &
                                                 o_spline, output_unit
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: alpha, alphasq, &
                                                 cutoff_radius, epsilon, norm
     TYPE(cp_logger_type), POINTER            :: logger

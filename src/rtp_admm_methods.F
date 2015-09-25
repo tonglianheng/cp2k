@@ -85,7 +85,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, ispin, nspins
-    LOGICAL                                  :: failure, s_mstruct_changed
+    LOGICAL                                  :: s_mstruct_changed
     REAL(KIND=dp), DIMENSION(:), POINTER     :: tot_rho_r_aux
     TYPE(admm_type), POINTER                 :: admm_env
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
@@ -179,8 +179,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle
-    LOGICAL                                  :: failure
-
 
     CALL timeset(routineN,handle)
 
@@ -460,7 +458,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, ispin
-    LOGICAL                                  :: failure
     TYPE(admm_type), POINTER                 :: admm_env
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: matrix_ks, matrix_ks_aux_fit, &
@@ -520,10 +517,8 @@ CONTAINS
     INTEGER                                  :: handle, nao_aux_fit, nao_orb, &
                                                 nmo
     INTEGER, SAVE                            :: counter = 0
-    LOGICAL                                  :: failure
     TYPE(cp_dbcsr_type)                      :: matrix_ks_nosym
     TYPE(cp_dbcsr_type), POINTER             :: matrix_k_tilde
-
 
     CALL timeset(routineN,handle)
 

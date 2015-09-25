@@ -72,7 +72,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: akind, ia, iatom, ikind
-    LOGICAL                                  :: do_molecule, failure
+    LOGICAL                                  :: do_molecule
     REAL(dp)                                 :: charge, mass, mass_low, mtot, &
                                                 ztot
     REAL(dp), DIMENSION(3)                   :: center, ria

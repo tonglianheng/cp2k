@@ -117,7 +117,6 @@ CONTAINS
 
     INTEGER                                  :: npoints
     INTEGER, DIMENSION(:, :), POINTER        :: bo
-    LOGICAL                                  :: failure
     REAL(kind=dp)                            :: epsilon_drho, epsilon_rho, sx
     REAL(kind=dp), DIMENSION(:, :, :), &
       POINTER                                :: e_0, e_ndrho, e_rho, &
@@ -182,7 +181,6 @@ CONTAINS
 
     INTEGER                                  :: ispin, npoints
     INTEGER, DIMENSION(:, :), POINTER        :: bo
-    LOGICAL                                  :: failure
     REAL(kind=dp)                            :: epsilon_drho, epsilon_rho, sx
     REAL(kind=dp), DIMENSION(:, :, :), &
       POINTER                                :: e_0

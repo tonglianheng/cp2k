@@ -68,9 +68,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'create_md_ener', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-
     CPASSERT(.NOT.ASSOCIATED(md_ener))
     ALLOCATE(md_ener)
     last_md_ener_id=last_md_ener_id+1
@@ -99,9 +96,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'retain_md_ener', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-
     CPASSERT(ASSOCIATED(md_ener))
     CPASSERT(md_ener%ref_count>0)
     md_ener%ref_count=md_ener%ref_count+1
@@ -119,9 +113,6 @@ CONTAINS
 
     CHARACTER(len=*), PARAMETER :: routineN = 'release_md_ener', &
       routineP = moduleN//':'//routineN
-
-    LOGICAL                                  :: failure
-
 
     IF (ASSOCIATED(md_ener)) THEN
        CPASSERT(md_ener%ref_count>0)

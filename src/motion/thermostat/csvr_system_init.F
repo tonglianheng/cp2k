@@ -55,8 +55,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'initialize_csvr_baro', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
     CALL csvr_to_barostat_mapping ( simpar,  csvr)
     CALL restart_csvr( csvr, csvr_section)
 
@@ -91,8 +89,6 @@ CONTAINS
 
     CHARACTER(len=*), PARAMETER :: routineN = 'initialize_csvr_part', &
       routineP = moduleN//':'//routineN
-
-    LOGICAL                                  :: failure
 
     CALL csvr_to_particle_mapping ( thermostat_info, simpar, local_molecules,&
          molecule, molecule_kind_set, csvr, para_env, gci)
@@ -130,8 +126,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'initialize_csvr_shell', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
     CALL csvr_to_shell_mapping(thermostat_info, simpar, local_molecules,&
        molecule, molecule_kind_set, csvr, para_env, gci)
     CALL restart_csvr( csvr, csvr_section)
@@ -153,11 +147,11 @@ CONTAINS
 
     CHARACTER(LEN=rng_record_length)         :: rng_record
     INTEGER                                  :: i, my_index, n_rep
-    LOGICAL                                  :: explicit, failure
+    LOGICAL                                  :: explicit
     TYPE(section_vals_type), POINTER         :: work_section
 
+! Possibly restart the initial thermostat energy
 
-    ! Possibly restart the initial thermostat energy
     work_section => section_vals_get_subs_vals(section_vals=csvr_section,&
          subsection_name="THERMOSTAT_ENERGY")
     CALL section_vals_get(work_section,explicit=explicit)

@@ -646,7 +646,6 @@ CONTAINS
     INTEGER                                  :: iparticle, iparticle_kind, &
                                                 iparticle_local, &
                                                 nparticle_local, stat
-    LOGICAL                                  :: failure
     LOGICAL, ALLOCATABLE, DIMENSION(:)       :: wrk
 
     ALLOCATE (wrk(SIZE(particle_set)),stat=stat)

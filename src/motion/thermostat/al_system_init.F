@@ -64,7 +64,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'initialize_al_part', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure, restart
+    LOGICAL                                  :: restart
 
     restart=.FALSE.
     CALL al_to_particle_mapping ( thermostat_info, simpar, local_molecules,&

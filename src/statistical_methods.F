@@ -463,7 +463,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i, n
-    LOGICAL                                  :: failure
     REAL(KINd=dp)                            :: prob, pw, r, tau, u, w, z
     REAL(KIND=dp), DIMENSION(:), POINTER     :: ydata
 

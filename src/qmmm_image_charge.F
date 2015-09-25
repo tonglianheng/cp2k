@@ -107,7 +107,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle
-    LOGICAL                                  :: failure
 
     CALL timeset(routineN,handle)
 
@@ -167,7 +166,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, info, natom
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: eta, V0
     REAL(KIND=dp), DIMENSION(:), POINTER     :: pot_const
 
@@ -227,7 +225,6 @@ CONTAINS
 
     INTEGER                                  :: handle, iter_steps, natom, &
                                                 output_unit
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: alpha, eta, rsnew, rsold, V0
     REAL(KIND=dp), DIMENSION(:), POINTER     :: Ad, d, pot_const, r, &
                                                 vmetal_const, z
@@ -483,7 +480,7 @@ CONTAINS
     INTEGER                                  :: atom_a, handle, iatom, j, &
                                                 natom, npme
     INTEGER, DIMENSION(:), POINTER           :: cores
-    LOGICAL                                  :: failure, use_virial
+    LOGICAL                                  :: use_virial
     REAL(KIND=dp)                            :: eps_rho_rspace
     REAL(KIND=dp), DIMENSION(3)              :: force_a, force_b, ra
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: hab, pab
@@ -649,7 +646,6 @@ CONTAINS
 
     INTEGER                                  :: handle, iatom, iatom_ref, j, &
                                                 k, natom, output_unit, stat
-    LOGICAL                                  :: failure
     REAL(KIND=dp), DIMENSION(:), POINTER     :: int_res
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
@@ -787,7 +783,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: en_external, &
                                                 en_vmetal_rhohartree, &
                                                 total_rho_metal
@@ -864,7 +859,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, output_unit
-    LOGICAL                                  :: failure
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(section_vals_type), POINTER         :: input
 
@@ -907,7 +901,6 @@ CONTAINS
 
     CHARACTER(LEN=default_path_length)       :: filename
     INTEGER                                  :: handle, rst_unit
-    LOGICAL                                  :: failure
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(section_vals_type), POINTER         :: print_key, qmmm_section
@@ -970,7 +963,7 @@ CONTAINS
     CHARACTER(LEN=default_path_length)       :: image_filename
     INTEGER                                  :: handle, natom, output_unit, &
                                                 rst_unit
-    LOGICAL                                  :: exist, failure
+    LOGICAL                                  :: exist
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(section_vals_type), POINTER         :: qmmm_section

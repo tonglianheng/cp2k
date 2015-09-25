@@ -101,7 +101,7 @@ CONTAINS
     INTEGER                                  :: ddapc_size, handle, i, my_id
     LOGICAL                                  :: ddapc_restraint_is_spin, &
                                                 et_coupling_calc, &
-                                                explicit_potential, failure
+                                                explicit_potential
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(ddapc_restraint_type), POINTER      :: ddapc_restraint_control
     TYPE(dft_control_type), POINTER          :: dft_control

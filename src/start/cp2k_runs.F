@@ -853,9 +853,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: unit_nr
-    LOGICAL                                  :: failure
     TYPE(section_type), POINTER              :: root_section
-
 
     NULLIFY(root_section)
     CALL create_cp2k_root_section(root_section)
@@ -1001,7 +999,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i, ie, is, unit_number
-    LOGICAL                                  :: failure
     TYPE(section_type), POINTER              :: root_section
 
     NULLIFY(root_section)
@@ -1095,7 +1092,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: unit_nr
-    LOGICAL                                  :: failure, success
+    LOGICAL                                  :: success
     TYPE(cp_para_env_type), POINTER          :: para_env
 
     IF (PRESENT(mpi_comm)) THEN

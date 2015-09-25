@@ -123,7 +123,7 @@ CONTAINS
     INTEGER, DIMENSION(:), POINTER           :: la_max, la_min, lb_max, &
                                                 npgfa, npgfb, nsgfa, nsgfb
     INTEGER, DIMENSION(:, :), POINTER        :: first_sgfa, first_sgfb
-    LOGICAL                                  :: failure, found
+    LOGICAL                                  :: found
     REAL(KIND=dp)                            :: dab, rab2
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: work
@@ -364,7 +364,7 @@ CONTAINS
     INTEGER, DIMENSION(:), POINTER           :: la_max, la_min, lb_max, &
                                                 npgfa, npgfb, nsgfa, nsgfb
     INTEGER, DIMENSION(:, :), POINTER        :: first_sgfa, first_sgfb
-    LOGICAL                                  :: failure, found
+    LOGICAL                                  :: found
     REAL(KIND=dp)                            :: dab, rab2
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: work
@@ -612,7 +612,7 @@ CONTAINS
                                                 lb_min, npgfa, npgfb, nsgfa, &
                                                 nsgfb
     INTEGER, DIMENSION(:, :), POINTER        :: first_sgfa, first_sgfb
-    LOGICAL                                  :: failure, found
+    LOGICAL                                  :: found
     REAL(dp), DIMENSION(:, :), POINTER       :: cblock, cosab, sblock, sinab, &
                                                 work
     REAL(KIND=dp)                            :: dab
@@ -792,7 +792,7 @@ CONTAINS
                                                 ispin, ix, iy, iz, j, k, l, &
                                                 nao, nm, nmo, nmom, nmotot, &
                                                 tmp_dim
-    LOGICAL                                  :: failure, ghost, uniform
+    LOGICAL                                  :: ghost, uniform
     REAL(dp)                                 :: charge, ci(3), cij(3,3), dd, &
                                                 occ, trace
     REAL(dp), ALLOCATABLE, DIMENSION(:)      :: mmom
@@ -1357,7 +1357,6 @@ CONTAINS
     INTEGER                                  :: akind, handle, i, ia, iatom, &
                                                 ikind, ispin, ix, iy, iz, l, &
                                                 nm, nmom
-    LOGICAL                                  :: failure
     REAL(dp)                                 :: charge, dd, strace, trace
     REAL(dp), ALLOCATABLE, DIMENSION(:)      :: mmom
     REAL(dp), ALLOCATABLE, DIMENSION(:, :)   :: rmom

@@ -83,7 +83,7 @@ CONTAINS
       c_var_type, first_list, last_list, map_atom_mol, map_atom_type, &
       map_cvar_mol, map_cvars, map_var_mol, map_vars, molecule_list
     INTEGER, DIMENSION(:, :), POINTER        :: bnd_ctype, bnd_type
-    LOGICAL                                  :: failure, found, found_last
+    LOGICAL                                  :: found, found_last
     TYPE(atom_info_type), POINTER            :: atom_info
     TYPE(atom_type), DIMENSION(:), POINTER   :: atom_list
     TYPE(bend_type), DIMENSION(:), POINTER   :: bend_list
@@ -1220,7 +1220,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i, ibond, j
-    LOGICAL                                  :: failure
 
     ALLOCATE(map_vars(nvar1))
     CALL sort(map_var_mol,nvar1,map_vars)
@@ -1263,7 +1262,6 @@ CONTAINS
                                                 nimpr, nonfo, nphi, ntheta, &
                                                 nub
     INTEGER, DIMENSION(:), POINTER           :: multiple_unit_cell
-    LOGICAL                                  :: failure
     TYPE(connectivity_info_type), POINTER    :: conn_info
 
     NULLIFY(multiple_unit_cell)

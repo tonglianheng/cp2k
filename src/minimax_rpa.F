@@ -48,7 +48,6 @@
     CHARACTER(LEN=512)                       :: error_msg
     CHARACTER(LEN=64)                        :: Rc_cha
     INTEGER                                  :: handle, icoef, kkk
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: L_b, R_transf, Rc, U_b
     REAL(KIND=dp), DIMENSION(13, 2*k)        :: fit_coef
 

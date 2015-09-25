@@ -152,7 +152,6 @@ MODULE xc_xwpbe
 
     INTEGER                                  :: handle, npoints
     INTEGER, DIMENSION(:, :), POINTER        :: bo
-    LOGICAL                                  :: failure
     REAL(kind=dp)                            :: epsilon_norm_drho, &
                                                 epsilon_rho, omega, sx, sx0
     REAL(kind=dp), DIMENSION(:, :, :), &
@@ -5353,7 +5352,6 @@ MODULE xc_xwpbe
 
     INTEGER                                  :: handle, npoints
     INTEGER, DIMENSION(:, :), POINTER        :: bo
-    LOGICAL                                  :: failure
     REAL(kind=dp)                            :: epsilon_norm_drho, &
                                                 epsilon_rho, omega, sx, sx0
     REAL(kind=dp), DIMENSION(:, :, :), POINTER :: dummy, e_0, e_ndrhoa, &

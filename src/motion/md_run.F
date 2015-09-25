@@ -134,7 +134,7 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'qs_mol_dyn', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure, my_rm_restart_info
+    LOGICAL                                  :: my_rm_restart_info
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(md_environment_type), POINTER       :: md_env
     TYPE(section_vals_type), POINTER         :: md_section, motion_section

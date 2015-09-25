@@ -116,7 +116,6 @@ SUBROUTINE qs_env_setup(qs_env,unit_nr)
 
     INTEGER                                  :: handle, n_ao_aux_fit, &
                                                 nhistory, nvariables
-    LOGICAL                                  :: failure
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: outer_scf_history
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
@@ -237,7 +236,7 @@ SUBROUTINE qs_env_update_s_mstruct(qs_env)
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle
-    LOGICAL                                  :: do_ppl, failure
+    LOGICAL                                  :: do_ppl
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(pw_p_type), POINTER                 :: rho_core, rho_nlcc, &
                                                 rho_nlcc_g, vppl
@@ -331,8 +330,7 @@ SUBROUTINE qs_create_task_list(qs_env)
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, isub
-    LOGICAL                                  :: failure, &
-                                                skip_load_balance_distributed,&
+    LOGICAL                                  :: skip_load_balance_distributed,&
                                                 soft_valid
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(neighbor_list_set_p_type), &
@@ -432,7 +430,7 @@ SUBROUTINE qs_env_rebuild_pw_env(qs_env)
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle
-    LOGICAL                                  :: failure, nlcc
+    LOGICAL                                  :: nlcc
     TYPE(cell_type), POINTER                 :: cell
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(ewald_environment_type), POINTER    :: ewald_env

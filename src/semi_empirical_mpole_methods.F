@@ -66,7 +66,6 @@ CONTAINS
 
     INTEGER                                  :: a, b, i, ind1, ind2, j, k, &
                                                 k1, k2, mu, natorb, ndim, nr
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: dlm, tmp, wp, ws, zb, ZP, ZS, &
                                                 zt
     REAL(KIND=dp), DIMENSION(3, 3, 45)       :: M2
@@ -245,15 +244,14 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'quadrupole_sph_to_cart', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
+! Notation
+!          qs(1) - d3z2-r2
+!          qs(2) - dzx
+!          qs(3) - dzy
+!          qs(4) - dx2-y2
+!          qs(5) - dxy
+! Cartesian components
 
-    ! Notation
-    !          qs(1) - d3z2-r2
-    !          qs(2) - dzx
-    !          qs(3) - dzy
-    !          qs(4) - dx2-y2
-    !          qs(5) - dxy
-    ! Cartesian components
     qcart(1,1) =   (qsph(4) - qsph(1) / SQRT(3.0_dp))*SQRT(3.0_dp)/2.0_dp
     qcart(2,1) =    qsph(5)*SQRT(3.0_dp)/2.0_dp
     qcart(3,1) =    qsph(2)*SQRT(3.0_dp)/2.0_dp
@@ -282,7 +280,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle
-    LOGICAL                                  :: failure
 
     CALL timeset(routineN,handle)
 

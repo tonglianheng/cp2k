@@ -109,8 +109,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'parser_retain', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
     CPASSERT(ASSOCIATED(parser))
     CPASSERT(parser%ref_count>0)
     parser%ref_count=parser%ref_count+1
@@ -284,8 +282,6 @@ CONTAINS
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'parser_reset', &
       routineP = moduleN//':'//routineN
-
-    LOGICAL                                  :: failure
 
     CPASSERT(ASSOCIATED(parser))
     ! Rewind units

@@ -65,10 +65,8 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'create_force_eval_section', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
     TYPE(section_type), POINTER              :: subsection
-
 
     CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="force_eval",&
@@ -172,9 +170,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'create_ext_pot_section', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
-
 
     CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="EXTERNAL_POTENTIAL",&
@@ -246,9 +242,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'create_rescale_force_section', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
-
 
     CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="RESCALE_FORCES",&
@@ -280,10 +274,8 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'create_f_env_print_section', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
     TYPE(section_type), POINTER              :: print_key
-
 
     NULLIFY (keyword)
     NULLIFY (print_key)

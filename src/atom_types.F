@@ -650,9 +650,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'release_atom_basis', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-
     IF(ASSOCIATED(basis%am)) THEN
        DEALLOCATE (basis%am)
     END IF
@@ -687,9 +684,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'create_atom_type', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-
     CPASSERT(.NOT.ASSOCIATED(atom))
 
     ALLOCATE(atom)
@@ -712,9 +706,6 @@ CONTAINS
 
     CHARACTER(len=*), PARAMETER :: routineN = 'release_atom_type', &
       routineP = moduleN//':'//routineN
-
-    LOGICAL                                  :: failure
-
 
     CPASSERT(ASSOCIATED(atom))
 
@@ -769,9 +760,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'set_atom', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-
     CPASSERT(ASSOCIATED(atom))
 
     IF(PRESENT(basis)) atom%basis => basis
@@ -805,9 +793,6 @@ CONTAINS
 
     CHARACTER(len=*), PARAMETER :: routineN = 'create_atom_orbs', &
       routineP = moduleN//':'//routineN
-
-    LOGICAL                                  :: failure
-
 
     CPASSERT(.NOT.ASSOCIATED(orbs))
 
@@ -856,9 +841,6 @@ CONTAINS
 
     CHARACTER(len=*), PARAMETER :: routineN = 'release_atom_orbs', &
       routineP = moduleN//':'//routineN
-
-    LOGICAL                                  :: failure
-
 
     CPASSERT(ASSOCIATED(orbs))
 
@@ -922,7 +904,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: m
-    LOGICAL                                  :: failure
 
     m=MAXVAL(n)
 
@@ -946,8 +927,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'release_opmat', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
     CPASSERT(ASSOCIATED(opmat))
 
     opmat%n = 0
@@ -970,7 +949,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: nr
-    LOGICAL                                  :: failure
 
     CPASSERT(.NOT.ASSOCIATED(opgrid))
 
@@ -994,8 +972,6 @@ CONTAINS
 
     CHARACTER(len=*), PARAMETER :: routineN = 'release_opgrid', &
       routineP = moduleN//':'//routineN
-
-    LOGICAL                                  :: failure
 
     CPASSERT(ASSOCIATED(opgrid))
 
@@ -1021,8 +997,6 @@ CONTAINS
 
     CHARACTER(len=*), PARAMETER :: routineN = 'Clementi_geobas', &
       routineP = moduleN//':'//routineN
-
-    LOGICAL                                  :: failure
 
     ngto = 0
     ival = 0
@@ -1801,7 +1775,7 @@ CONTAINS
                                                 strlen2
     INTEGER, DIMENSION(maxpri, maxset)       :: l
     INTEGER, DIMENSION(maxset)               :: lmax, lmin, n, npgf, nshell
-    LOGICAL                                  :: failure, found, is_ok, match, &
+    LOGICAL                                  :: found, is_ok, match, &
                                                 read_from_input
     REAL(dp)                                 :: expzet, gcca, prefac, zeta
     REAL(dp), &
@@ -1810,7 +1784,6 @@ CONTAINS
     TYPE(cp_parser_type), POINTER            :: parser
     TYPE(cp_sll_val_type), POINTER           :: list
     TYPE(val_type), POINTER                  :: val
-
 
     bsname = basis_set_name
     symbol = element_symbol
@@ -2030,10 +2003,8 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=default_string_length)     :: pseudo_fn, pseudo_name
-    LOGICAL                                  :: failure
     REAL(dp), DIMENSION(:), POINTER          :: convals
     TYPE(section_vals_type), POINTER         :: gth_potential_section
-
 
     IF ( zval > 0 ) THEN
       CALL section_vals_val_get(potential_section,"PSEUDO_TYPE",i_val=potential%ppot_type)
@@ -2121,12 +2092,11 @@ CONTAINS
     INTEGER                                  :: i, ic, ipot, j, l, nlmax, &
                                                 strlen1, strlen2
     INTEGER, DIMENSION(0:4)                  :: elec_conf
-    LOGICAL                                  :: failure, found, is_ok, match, &
+    LOGICAL                                  :: found, is_ok, match, &
                                                 read_from_input
     TYPE(cp_parser_type), POINTER            :: parser
     TYPE(cp_sll_val_type), POINTER           :: list
     TYPE(val_type), POINTER                  :: val
-
 
     elec_conf = 0
 

@@ -68,7 +68,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, ig, iz
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: alpha2, g2, g3d, gxy, gz, &
                                                 zlength
     TYPE(pw_pool_type), POINTER              :: pw_pool_aux
@@ -154,7 +153,6 @@ CONTAINS
     INTEGER                                  :: handle, i, ii, j, jj, k, kk
     INTEGER, DIMENSION(:), POINTER           :: glb
     INTEGER, DIMENSION(:, :), POINTER        :: bo
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: dx, dy, dz, fact, omega, r, &
                                                 r2, x, y, y2, z, z2
     REAL(KIND=dp), DIMENSION(3)              :: box, box2
@@ -214,7 +212,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: dx, dy, dz, omega
     REAL(KIND=dp), DIMENSION(3)              :: box, box2
     TYPE(pw_grid_type), POINTER              :: grid

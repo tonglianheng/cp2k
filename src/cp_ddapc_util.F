@@ -230,7 +230,7 @@ CONTAINS
     CHARACTER(LEN=default_string_length)     :: type_of_density
     INTEGER :: handle, handle2, handle3, i, ii, iparticle, iparticle0, ispin, &
       iw, j, myid, n_rep_val, ndim, nparticles, num_gauss, pmax, pmin
-    LOGICAL                                  :: failure, need_f
+    LOGICAL                                  :: need_f
     REAL(KIND=dp)                            :: c1, c3, ch_dens, gcut, pfact, &
                                                 rcmin, Vol
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: AmI_bv, AmI_cv, bv, cv, &
@@ -568,7 +568,6 @@ SUBROUTINE restraint_functional_potential(v_hartree_gspace,&
     COMPLEX(KIND=dp)                         :: g_corr, phase
     INTEGER                                  :: handle, idim, ig, igauss, &
                                                 iparticle, n_gauss
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: arg, fac, fac2, g2, gcut, &
                                                 gcut2, gfunc, gvec(3), rc, &
                                                 rc2, rvec(3), sfac, Vol, w
@@ -648,7 +647,6 @@ SUBROUTINE restraint_functional_potential(v_hartree_gspace,&
     COMPLEX(KIND=dp)                         :: g_corr, phase
     INTEGER                                  :: handle, idim, ig, igauss, &
                                                 iparticle
-    LOGICAL                                  :: failure
     REAL(kind=dp)                            :: arg, fac, fac2, g2, gcut, &
                                                 gcut2, gfunc, gvec(3), rc, &
                                                 rc2, rvec(3), sfac, Vol, w
@@ -728,7 +726,6 @@ SUBROUTINE restraint_functional_potential(v_hartree_gspace,&
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, i, kk, ndim
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: dx, rvec(3), v0
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: bv1, bv2, ddbv
     TYPE(cp_ddapc_type), POINTER             :: cp_ddapc_env
@@ -805,7 +802,6 @@ SUBROUTINE restraint_functional_potential(v_hartree_gspace,&
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, i, kk, ll, ndim
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: dx, rvec(3), v0
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: Am1, Am2, ddAm, &
@@ -889,7 +885,6 @@ SUBROUTINE restraint_functional_potential(v_hartree_gspace,&
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, i, iparticle, kk, ndim
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: dx, rvec(3)
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: ddqv
     REAL(KIND=dp), DIMENSION(:), POINTER     :: qtot1, qtot2

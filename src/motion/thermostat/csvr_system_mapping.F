@@ -59,7 +59,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i, ndeg
-    LOGICAL                                  :: failure
     TYPE(map_info_type), POINTER             :: map_info
 
     SELECT CASE (simpar%ensemble)
@@ -126,7 +125,6 @@ CONTAINS
                                                 sum_of_thermostats
     INTEGER, DIMENSION(:), POINTER           :: deg_of_freedom, &
                                                 massive_atom_list
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: fac
     TYPE(map_info_type), POINTER             :: map_info
 
@@ -219,7 +217,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: nkind, number, region
-    LOGICAL                                  :: do_shell, failure
+    LOGICAL                                  :: do_shell
     TYPE(map_info_type), POINTER             :: map_info
 
     do_shell = .FALSE.
@@ -275,7 +273,6 @@ CONTAINS
                                                 sum_of_thermostats
     INTEGER, DIMENSION(:), POINTER           :: deg_of_freedom, &
                                                 massive_shell_list
-    LOGICAL                                  :: failure
     TYPE(map_info_type), POINTER             :: map_info
 
     NULLIFY (massive_shell_list, deg_of_freedom)

@@ -149,8 +149,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'fb_atomic_halo_retain', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
     CPASSERT(ASSOCIATED(atomic_halo%obj))
     CPASSERT(atomic_halo%obj%ref_count>0)
     atomic_halo%obj%ref_count = atomic_halo%obj%ref_count + 1
@@ -169,8 +167,6 @@ CONTAINS
 
     CHARACTER(len=*), PARAMETER :: routineN = 'fb_atomic_halo_release', &
       routineP = moduleN//':'//routineN
-
-    LOGICAL                                  :: failure
 
     IF (ASSOCIATED(atomic_halo%obj)) THEN
        CPASSERT(atomic_halo%obj%ref_count>0)
@@ -258,8 +254,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'fb_atomic_halo_create', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
     CPASSERT(.NOT.ASSOCIATED(atomic_halo%obj))
     ALLOCATE(atomic_halo%obj)
     atomic_halo%obj%owner_atom = 0
@@ -286,8 +280,6 @@ CONTAINS
 
     CHARACTER(len=*), PARAMETER :: routineN = 'fb_atomic_halo_init', &
       routineP = moduleN//':'//routineN
-
-    LOGICAL                                  :: failure
 
     CPASSERT(ASSOCIATED(atomic_halo%obj))
     ! if halo_atoms are associated, then deallocate and de-associate
@@ -337,8 +329,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'fb_atomic_halo_get', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
     CPASSERT(ASSOCIATED(atomic_halo%obj))
     IF (PRESENT(owner_atom)) owner_atom = atomic_halo%obj%owner_atom
     IF (PRESENT(owner_id_in_halo)) owner_id_in_halo = atomic_halo%obj%owner_id_in_halo
@@ -386,8 +376,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'fb_atomic_halo_set', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
     CPASSERT(ASSOCIATED(atomic_halo%obj))
     IF (PRESENT(owner_atom)) atomic_halo%obj%owner_atom = owner_atom
     IF (PRESENT(owner_id_in_halo)) atomic_halo%obj%owner_id_in_halo = owner_id_in_halo
@@ -418,7 +406,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: tmp_index
-    LOGICAL                                  :: failure
 
     CPASSERT(SIZE(atomic_halo%obj%halo_atoms) > 0)
     ALLOCATE(tmp_index(atomic_halo%obj%natoms))
@@ -453,7 +440,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle
-    LOGICAL                                  :: failure
 
     CALL timeset(routineN, handle)
 
@@ -490,7 +476,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: iatom_global, iatom_halo, z
-    LOGICAL                                  :: failure
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
 
     nelectrons = 0
@@ -589,7 +574,7 @@ CONTAINS
 
     INTEGER                                  :: iatom, ikind, jatom, jkind, &
                                                 natoms_global
-    LOGICAL                                  :: check_ok, failure
+    LOGICAL                                  :: check_ok
     REAL(KIND=dp)                            :: rij
     REAL(KIND=dp), DIMENSION(3)              :: ri, rij_pbc, rj
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
@@ -645,8 +630,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'fb_atomic_halo_list_retain', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
     CPASSERT(ASSOCIATED(atomic_halos%obj))
     CPASSERT(atomic_halos%obj%ref_count>0)
     atomic_halos%obj%ref_count = atomic_halos%obj%ref_count + 1
@@ -667,7 +650,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: ii
-    LOGICAL                                  :: failure
 
     IF (ASSOCIATED(atomic_halos%obj)) THEN
        CPASSERT(atomic_halos%obj%ref_count>0)
@@ -760,8 +742,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'fb_atomic_halo_list_create', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
     CPASSERT(.NOT.ASSOCIATED(atomic_halos%obj))
     ALLOCATE(atomic_halos%obj)
     atomic_halos%obj%nhalos = 0
@@ -787,7 +767,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: ii
-    LOGICAL                                  :: failure
 
     CPASSERT(ASSOCIATED(atomic_halos%obj))
     ! if the arrays are associated, then deallocate and de-associate
@@ -823,8 +802,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'fb_atomic_halo_list_get', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
     CPASSERT(ASSOCIATED(atomic_halos%obj))
     IF (PRESENT(nhalos)) nhalos = atomic_halos%obj%nhalos
     IF (PRESENT(max_nhalos)) max_nhalos = atomic_halos%obj%max_nhalos
@@ -855,7 +832,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: ihalo
-    LOGICAL                                  :: failure
 
     CPASSERT(ASSOCIATED(atomic_halos%obj))
     IF (PRESENT(nhalos)) atomic_halos%obj%nhalos = nhalos
@@ -894,7 +870,7 @@ CONTAINS
                                                 nhalo_atoms, nhalos, &
                                                 owner_atom, print_unit
     INTEGER, DIMENSION(:), POINTER           :: halo_atoms
-    LOGICAL                                  :: failure, new_file
+    LOGICAL                                  :: new_file
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(fb_atomic_halo_obj), DIMENSION(:), &
       POINTER                                :: halos
@@ -969,7 +945,6 @@ CONTAINS
 
     INTEGER :: ihalo, max_natoms, min_natoms, nhalo_atoms, nhalos, &
       total_n_halo_atoms, total_n_halos, unit_nr
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: ave_natoms
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(fb_atomic_halo_obj), DIMENSION(:), &

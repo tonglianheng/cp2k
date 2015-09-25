@@ -84,7 +84,7 @@ CONTAINS
                                                 memory_usage, nbits, &
                                                 new_size, nints
     INTEGER(KIND=int_8)                      :: mem_compression_counter
-    LOGICAL                                  :: buffer_overflow, failure
+    LOGICAL                                  :: buffer_overflow
     REAL(KIND=dp)                            :: eps_storage
 
     w(:) = 0.0_dp
@@ -240,7 +240,7 @@ CONTAINS
       memory_usage, nbits, new_size, nints, nints_1, nints_2
     INTEGER(KIND=int_8)                      :: mem_compression_counter
     LOGICAL                                  :: buffer_overflow, &
-                                                do_all_on_the_fly, failure
+                                                do_all_on_the_fly
     REAL(KIND=dp)                            :: eps_storage, w(90)
 
     do_all_on_the_fly = .TRUE.

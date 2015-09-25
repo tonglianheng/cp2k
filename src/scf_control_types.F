@@ -158,7 +158,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle
-    LOGICAL                                  :: failure
 
     CALL timeset(routineN,handle)
 
@@ -273,9 +272,6 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'scf_c_retain', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-
     CPASSERT(ASSOCIATED(scf_control))
 
     CPASSERT(scf_control%ref_count > 0)
@@ -298,9 +294,6 @@ CONTAINS
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'scf_c_release', &
       routineP = moduleN//':'//routineN
-
-    LOGICAL                                  :: failure
-
 
     IF (ASSOCIATED(scf_control)) THEN
       CPASSERT(scf_control%ref_count>0)
@@ -496,8 +489,6 @@ CONTAINS
 
     CHARACTER(len=*), PARAMETER :: routineN = 'init_smear', &
       routineP = moduleN//':'//routineN
-
-    LOGICAL                                  :: failure
 
     CPASSERT(.NOT.ASSOCIATED(smear))
     ALLOCATE(smear)
@@ -750,10 +741,9 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, output_unit
-    LOGICAL                                  :: explicit, failure
+    LOGICAL                                  :: explicit
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(section_vals_type), POINTER         :: ot_section
-
 
     CALL timeset(routineN,handle)
 

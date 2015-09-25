@@ -131,8 +131,7 @@ CONTAINS
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: se_natorb
     INTEGER, DIMENSION(:), POINTER           :: atom_of_kind
     LOGICAL                                  :: anag, atener, check, defined, &
-                                                failure, found, switch, &
-                                                use_virial
+                                                found, switch, use_virial
     LOGICAL, ALLOCATABLE, DIMENSION(:)       :: se_defined
     REAL(KIND=dp)                            :: delta, dr1, ecore2, ecores
     REAL(KIND=dp), DIMENSION(2)              :: ecab
@@ -505,8 +504,8 @@ CONTAINS
       ilist, indi, indj, ispin, itype, iw, jint, natoms, natorb_a, nkind, &
       nlocal_particles, node, nparticle_local, nspins, size_1c_int
     INTEGER, DIMENSION(:), POINTER           :: atom_of_kind
-    LOGICAL                                  :: anag, atener, defined, &
-                                                failure, found, use_virial
+    LOGICAL                                  :: anag, atener, defined, found, &
+                                                use_virial
     LOGICAL, DIMENSION(3)                    :: task
     REAL(KIND=dp)                            :: e_neut, e_self, energy_glob, &
                                                 energy_local, enuc, fac, tmp
@@ -886,8 +885,7 @@ CONTAINS
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: se_natorb
     INTEGER, DIMENSION(:), POINTER           :: atom_of_kind
     LOGICAL                                  :: anag, atener, check, defined, &
-                                                failure, found, switch, &
-                                                use_virial
+                                                found, switch, use_virial
     LOGICAL, ALLOCATABLE, DIMENSION(:)       :: se_defined
     REAL(KIND=dp) :: delta, dr1, ecore2, enuc, enuclear, ptens11, ptens12, &
       ptens13, ptens21, ptens22, ptens23, ptens31, ptens32, ptens33
@@ -1260,7 +1258,7 @@ CONTAINS
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: se_natorb
     INTEGER, DIMENSION(:), POINTER           :: atom_of_kind
     LOGICAL                                  :: anag, atener, check, defined, &
-                                                failure, found, switch
+                                                found, switch
     LOGICAL, ALLOCATABLE, DIMENSION(:)       :: se_defined
     REAL(KIND=dp)                            :: dr1, ecore2, r2inv, r3inv, &
                                                 rinv

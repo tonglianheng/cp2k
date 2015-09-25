@@ -98,9 +98,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'globenv_create', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-
     CPASSERT(.NOT.ASSOCIATED(globenv))
     ALLOCATE(globenv)
     last_globenv_id=last_globenv_id+1
@@ -129,9 +126,6 @@ SUBROUTINE globenv_retain(globenv)
     CHARACTER(len=*), PARAMETER :: routineN = 'globenv_retain', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-
   CPASSERT(ASSOCIATED(globenv))
   CPASSERT(globenv%ref_count>0)
   globenv%ref_count=globenv%ref_count+1
@@ -147,9 +141,6 @@ SUBROUTINE globenv_release(globenv)
 
     CHARACTER(len=*), PARAMETER :: routineN = 'globenv_release', &
       routineP = moduleN//':'//routineN
-
-    LOGICAL                                  :: failure
-
 
   IF (ASSOCIATED(globenv)) THEN
      CPASSERT(globenv%ref_count>0)

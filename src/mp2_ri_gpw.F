@@ -255,7 +255,7 @@ MODULE mp2_ri_gpw
     INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: local_col_row_info, &
                                                 local_col_row_info_beta, &
                                                 local_col_row_info_gw
-    LOGICAL                                  :: do_alpha_beta, failure
+    LOGICAL                                  :: do_alpha_beta
     REAL(KIND=dp)                            :: cond_num, g2, g3d, gg, &
                                                 mem_for_iaK, pair_energy, &
                                                 wfn_size
@@ -730,7 +730,6 @@ MODULE mp2_ri_gpw
 
     INTEGER                                  :: handle
     INTEGER, DIMENSION(:), POINTER           :: col_indices, row_indices
-    LOGICAL                                  :: failure
     TYPE(cp_fm_struct_type), POINTER         :: fm_struct
 
     CALL timeset(routineN,handle)
@@ -808,7 +807,6 @@ MODULE mp2_ri_gpw
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, iproc, itmp(2)
-    LOGICAL                                  :: failure
 
     CALL timeset(routineN,handle)
 
@@ -931,7 +929,7 @@ MODULE mp2_ri_gpw
                                                 nsgfa, nsgfb, row_indices
     INTEGER, DIMENSION(:, :), POINTER        :: first_sgfa, first_sgfb
     LOGICAL                                  :: check_i, check_j, do_mult_2c, &
-                                                failure, map_it_here
+                                                map_it_here
     REAL(KIND=dp)                            :: min_mem_for_QK, pair_energy, &
                                                 rab2, rac2, scaling, zet_tmp
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: egen_L, f, wf_vector
@@ -2365,9 +2363,7 @@ MODULE mp2_ri_gpw
     INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: rec_col_row_info
     INTEGER, DIMENSION(:), POINTER           :: col_indices_rec, &
                                                 row_indices_rec
-    LOGICAL                                  :: failure
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: local_BI, rec_BI
-
 
     ALLOCATE(rec_col_row_info(0:max_row_col_local,2))
 
@@ -2526,8 +2522,10 @@ MODULE mp2_ri_gpw
       sizes_array_orig, sub_proc_map
     INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: ij_map
     INTEGER, ALLOCATABLE, DIMENSION(:, :, :) :: ranges_info_array
-    LOGICAL :: failure, my_alpha_alpha_case, my_alpha_beta_case, &
-      my_beta_beta_case, my_open_shell_SS
+    LOGICAL                                  :: my_alpha_alpha_case, &
+                                                my_alpha_beta_case, &
+                                                my_beta_beta_case, &
+                                                my_open_shell_SS
     REAL(KIND=dp) :: actual_flop_rate, amp_fac, mem_for_aK, mem_for_comm, &
       mem_for_iaK, mem_for_rep, mem_min, mem_per_group, mem_real, &
       my_flop_rate, null_mat_rec(2,2,2), null_mat_send(2,2,2), sym_fac, &
@@ -3360,7 +3358,6 @@ MODULE mp2_ri_gpw
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: rep_ends_array, &
                                                 rep_sizes_array, &
                                                 rep_starts_array
-    LOGICAL                                  :: failure
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :, :)                     :: BIb_C_copy
     REAL(KIND=dp), ALLOCATABLE, &
@@ -3575,7 +3572,6 @@ MODULE mp2_ri_gpw
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle
-    LOGICAL                                  :: failure
 
     CALL timeset(routineN,handle)
     
@@ -3655,7 +3651,6 @@ MODULE mp2_ri_gpw
       ij_block_counter, ij_counter, jjB, last_i_block, last_J_block, &
       num_block_per_group, total_ij_block, total_ij_pairs_blocks
     INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: ij_marker
-    LOGICAL                                  :: failure
 
 ! Calculate the maximum number of ij pairs that have to be computed
 ! among groups
@@ -3807,7 +3802,6 @@ MODULE mp2_ri_gpw
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, i
-    LOGICAL                                  :: failure
 
 !
 
@@ -3931,7 +3925,6 @@ MODULE mp2_ri_gpw
 
     INTEGER                                  :: handle, iiB
     INTEGER(KIND=int_8)                      :: mem
-    LOGICAL                                  :: failure
 
     CALL timeset(routineN,handle)
 
@@ -4115,7 +4108,7 @@ MODULE mp2_ri_gpw
     INTEGER :: a, b, b_global, handle, proc_receive, proc_send, proc_shift, &
       rec_B_size, rec_B_virtual_end, rec_B_virtual_start, send_B_size, &
       send_B_virtual_end, send_B_virtual_start
-    LOGICAL                                  :: alpha_beta, failure
+    LOGICAL                                  :: alpha_beta
     REAL(KIND=dp)                            :: factor, P_ij_diag
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: external_ab, send_ab

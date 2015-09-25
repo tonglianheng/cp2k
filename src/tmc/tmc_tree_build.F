@@ -111,7 +111,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, itmp
-    LOGICAL                                  :: failure
 
     CPASSERT(.NOT.ASSOCIATED(next_el))
 
@@ -146,7 +145,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle
-    LOGICAL                                  :: failure
 
     CPASSERT(ASSOCIATED(gt_elem))
 
@@ -177,7 +175,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle
-    LOGICAL                                  :: failure
 
     CPASSERT(.NOT.ASSOCIATED(next_el))
 
@@ -237,7 +234,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle
-    LOGICAL                                  :: failure
 
     CPASSERT(ASSOCIATED(tree_elem))
 
@@ -444,7 +440,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, i
-    LOGICAL                                  :: failure
 
     CPASSERT(ASSOCIATED(gt_tree_ptr))
     CPASSERT(.NOT.ASSOCIATED(gt_tree_ptr%parent))
@@ -867,8 +862,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: conf, handle, itmp
-    LOGICAL                                  :: failure, mv_rejected, &
-                                                new_subbox
+    LOGICAL                                  :: mv_rejected, new_subbox
     REAL(KIND=dp)                            :: rnd
     TYPE(tree_type), POINTER                 :: new_elem, parent_elem
 
@@ -1028,8 +1022,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle
-    LOGICAL                                  :: failure
-
 
     CPASSERT(ASSOCIATED(gt_ptr))
     CPASSERT(ASSOCIATED(tmc_env))
@@ -1256,8 +1248,8 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, i
-    LOGICAL                                  :: acc_removed, failure, &
-                                                nacc_removed, remove_this
+    LOGICAL                                  :: acc_removed, nacc_removed, &
+                                                remove_this
     TYPE(tree_type), POINTER                 :: acc_ptr, nacc_ptr, tmp_ptr
 
     NULLIFY(acc_ptr, nacc_ptr, tmp_ptr)
@@ -1372,7 +1364,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle
-    LOGICAL                                  :: failure
     TYPE(global_tree_type), POINTER          :: tmp_ptr
 
     CPASSERT(ASSOCIATED(end_of_clean_tree))
@@ -1416,7 +1407,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle
-    LOGICAL                                  :: failure
     TYPE(tree_type), POINTER                 :: tmp_ptr
 
     CPASSERT(ASSOCIATED(end_of_clean_tree))
@@ -1467,7 +1457,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, i, tree
-    LOGICAL                                  :: change_trajec, failure, flag
+    LOGICAL                                  :: change_trajec, flag
     TYPE(global_tree_type), POINTER          :: tmp_gt_ptr
     TYPE(tree_type), POINTER                 :: last_acc_st_elem, tmp_ptr
 
@@ -1559,8 +1549,7 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'dealloc_whole_g_tree', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: acc_removed, failure, &
-                                                nacc_removed
+    LOGICAL                                  :: acc_removed, nacc_removed
     TYPE(global_tree_type), POINTER          :: acc_ptr, nacc_ptr, tmp_ptr
 
     CPASSERT(ASSOCIATED(begin_ptr))
@@ -1604,8 +1593,7 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'dealloc_whole_subtree', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: acc_removed, failure, &
-                                                nacc_removed
+    LOGICAL                                  :: acc_removed, nacc_removed
     TYPE(tree_type), POINTER                 :: acc_ptr, nacc_ptr, tmp_ptr
 
     CPASSERT(ASSOCIATED(begin_ptr))
@@ -1647,7 +1635,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i
-    LOGICAL                                  :: failure, flag
+    LOGICAL                                  :: flag
     TYPE(global_tree_type), POINTER          :: global_tree
 
     CPASSERT(ASSOCIATED(tmc_env))

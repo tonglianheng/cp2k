@@ -61,7 +61,7 @@ CONTAINS
     INTEGER :: atom_a, atom_b, handle, i, i_a, i_b, iend, igrp, ikind, ilist, &
       ipair, iparticle, istart, jkind, kind_a, kind_b, nkinds, nparticle
     INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: eam_kinds_index
-    LOGICAL                                  :: do_eam, failure
+    LOGICAL                                  :: do_eam
     REAL(KIND=dp)                            :: fac, rab2, rab2_max
     REAL(KIND=dp), DIMENSION(3)              :: cell_v, rab
     REAL(KIND=dp), DIMENSION(:), POINTER     :: rho

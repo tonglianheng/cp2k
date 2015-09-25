@@ -76,7 +76,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     CHARACTER(len=4)                         :: p_string
-    LOGICAL                                  :: failure
 
     SELECT CASE (method)
     CASE DEFAULT
@@ -149,7 +148,6 @@ CONTAINS
 
     INTEGER                                  :: npoints, timer_handle
     INTEGER, DIMENSION(:, :), POINTER        :: bo
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: rho_cutoff, sc
     REAL(KIND=dp), DIMENSION(:, :, :), &
       POINTER                                :: dummy, e_0, e_rho, e_rho_rho, &
@@ -302,7 +300,6 @@ SUBROUTINE pz_lda_calc(rho,e_0,e_rho, e_rho_rho, e_rho_rho_rho, npoints, order, 
 
     INTEGER                                  :: npoints, timer_handle
     INTEGER, DIMENSION(:, :), POINTER        :: bo
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: rho_cutoff, sc
     REAL(KIND=dp), DIMENSION(:, :, :), &
       POINTER                                :: a, b, dummy, e_0, ea, eaa, &

@@ -59,9 +59,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'allocate_grid_atom', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-
     IF (ASSOCIATED(grid_atom)) CALL deallocate_grid_atom(grid_atom)
 
     ALLOCATE (grid_atom)
@@ -96,8 +93,6 @@ CONTAINS
 
     CHARACTER(len=*), PARAMETER :: routineN = 'deallocate_grid_atom', &
       routineP = moduleN//':'//routineN
-
-    LOGICAL                                  :: failure
 
     IF (ASSOCIATED(grid_atom)) THEN
 

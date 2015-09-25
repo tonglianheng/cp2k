@@ -70,8 +70,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'allocate_harmonics_atom', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
     IF (ASSOCIATED(harmonics)) CALL deallocate_harmonics_atom(harmonics)
 
     ALLOCATE (harmonics)
@@ -107,8 +105,6 @@ CONTAINS
 
     CHARACTER(len=*), PARAMETER :: routineN = 'deallocate_harmonics_atom', &
       routineP = moduleN//':'//routineN
-
-    LOGICAL                                  :: failure
 
     IF (ASSOCIATED(harmonics)) THEN
 
@@ -191,7 +187,6 @@ CONTAINS
                                                 is2, iso, iso1, iso2, iso_mm, &
                                                 iso_mm1, iso_mp1, l, l1, l2, &
                                                 lx, ly, lz, m, m1, m2, n
-    LOGICAL                                  :: failure
     REAL(dp)                                 :: abs_m, cosmp1, drx, dry, drz, &
                                                 int1, int2, int3, l_r, m_r, &
                                                 rx, ry, rz, sinmp1
@@ -516,7 +511,6 @@ CONTAINS
                                                 dmax_iso_not0, handle, is1, &
                                                 is2, itmp, max_iso_not0, nset
     INTEGER, DIMENSION(:), POINTER           :: lmax, lmin
-    LOGICAL                                  :: failure
 
     CALL timeset(routineN,handle)
 

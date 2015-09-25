@@ -49,9 +49,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'create_transport_section', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
-
 
     CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,"TRANSPORT",&

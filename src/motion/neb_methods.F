@@ -240,8 +240,7 @@ CONTAINS
     INTEGER                                  :: handle, iatom, ic, is, istep, &
                                                 iw, max_steps, natom, &
                                                 shell_index
-    LOGICAL                                  :: converged, failure, &
-                                                should_stop
+    LOGICAL                                  :: converged, should_stop
     REAL(KIND=dp)                            :: dt
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: distances, energies
     REAL(KIND=dp), ALLOCATABLE, &
@@ -389,8 +388,8 @@ CONTAINS
                                                 n_diis
     INTEGER, DIMENSION(:), POINTER           :: set_err
     LOGICAL                                  :: check_diis, converged, &
-                                                diis_on, do_ls, failure, &
-                                                should_stop, skip_ls
+                                                diis_on, do_ls, should_stop, &
+                                                skip_ls
     REAL(KIND=dp)                            :: max_stepsize, norm, stepsize, &
                                                 stepsize0
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: distances, energies

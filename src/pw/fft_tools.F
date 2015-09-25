@@ -977,7 +977,7 @@ CONTAINS
     INTEGER :: handle, lg(2), lz(3), mcx2, mcy3, mcz1, mcz2, mx1, mx2, mx3, &
       my1, my2, my3, my_pos, mz1, mz2, mz3, np, output_unit, sign, stat
     INTEGER, DIMENSION(2)                    :: dim, pos
-    LOGICAL                                  :: failure, test
+    LOGICAL                                  :: test
     REAL(KIND=dp)                            :: norm, sum_data
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(fft_scratch_sizes)                  :: fft_scratch_size
@@ -2616,7 +2616,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i
-    LOGICAL                                  :: failure
 
     CALL release_fft_scratch_pool()
 
@@ -2867,10 +2866,8 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'release_fft_scratch_pool', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     TYPE(fft_scratch_pool_type), POINTER     :: fft_scratch, &
                                                 fft_scratch_current
-
 
     IF (init_fft_pool == 0) NULLIFY(fft_scratch_first)
 
@@ -2903,7 +2900,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: last_tick, nscratch
-    LOGICAL                                  :: failure
     TYPE(fft_scratch_pool_type), POINTER     :: fft_scratch_current, &
                                                 fft_scratch_old
 
@@ -3403,9 +3399,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: scratch_id
-    LOGICAL                                  :: failure
     TYPE(fft_scratch_pool_type), POINTER     :: fft_scratch_current
-
 
     scratch_id = fft_scratch%fft_scratch_id
 

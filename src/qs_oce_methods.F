@@ -97,8 +97,8 @@ CONTAINS
     INTEGER, DIMENSION(:), POINTER           :: fp_cara, fp_spha, lb_max, &
                                                 lb_min, npgfb, nprjla, nsgfb
     INTEGER, DIMENSION(:, :), POINTER        :: first_sgfb
-    LOGICAL                                  :: calculate_forces, failure, &
-                                                paw_atom_a, paw_atom_b
+    LOGICAL                                  :: calculate_forces, paw_atom_a, &
+                                                paw_atom_b
     REAL(dp)                                 :: dab, hard_radius_a, &
                                                 hard_radius_b, radius, rcprja
     REAL(dp), ALLOCATABLE, DIMENSION(:, :)   :: c2s, ovs, spa_sb
@@ -290,7 +290,7 @@ CONTAINS
                                                 nseta, nsgfa
     INTEGER, DIMENSION(:), POINTER           :: n2oindex, nsgf_seta
     INTEGER, DIMENSION(:, :), POINTER        :: first_sgfa
-    LOGICAL                                  :: failure, paw_atom_a
+    LOGICAL                                  :: paw_atom_a
     REAL(dp), ALLOCATABLE, DIMENSION(:, :)   :: prjloc_h, prjloc_s
     REAL(dp), DIMENSION(:, :), POINTER       :: local_oce_h, local_oce_s
     TYPE(gto_basis_set_type), POINTER        :: orb_basis_a
@@ -386,7 +386,7 @@ CONTAINS
                                                 la_min, npgfa, nprjla, &
                                                 nsgf_seta
     INTEGER, DIMENSION(:, :), POINTER        :: first_sgfa
-    LOGICAL                                  :: failure, local, paw_atom_b, &
+    LOGICAL                                  :: local, paw_atom_b, &
                                                 sgf_soft_only
     REAL(KIND=dp)                            :: dab, rcprj
     REAL(KIND=dp), ALLOCATABLE, &

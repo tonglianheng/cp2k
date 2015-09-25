@@ -93,9 +93,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'xbecke_roussel_lda_info', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-
     CALL cite_reference(BeckeRoussel1989)
     CALL cite_reference(Proynov2007)
     IF ( PRESENT ( reference ) ) THEN
@@ -136,9 +133,6 @@ CONTAINS
 
     CHARACTER(len=*), PARAMETER :: routineN = 'xbecke_roussel_lsd_info', &
       routineP = moduleN//':'//routineN
-
-    LOGICAL                                  :: failure
-
 
     CALL cite_reference(BeckeRoussel1989)
     CALL cite_reference(Proynov2007)
@@ -184,7 +178,6 @@ CONTAINS
 
     INTEGER                                  :: handle, npoints
     INTEGER, DIMENSION(:, :), POINTER        :: bo
-    LOGICAL                                  :: failure
     REAL(dp)                                 :: gamma, R, sx
     REAL(kind=dp)                            :: epsilon_rho
     REAL(kind=dp), DIMENSION(:, :, :), &
@@ -411,7 +404,6 @@ CONTAINS
 
     INTEGER                                  :: handle, npoints
     INTEGER, DIMENSION(:, :), POINTER        :: bo
-    LOGICAL                                  :: failure
     REAL(dp)                                 :: gamma, R, sx
     REAL(kind=dp)                            :: epsilon_rho
     REAL(kind=dp), DIMENSION(:, :, :), POINTER :: dummy, e_0, e_laplace_rhoa, &

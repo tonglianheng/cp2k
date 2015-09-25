@@ -156,9 +156,7 @@ CONTAINS
 
     INTEGER                                  :: handle, ncol_local, npcol, &
                                                 nprow, nrow_local
-    LOGICAL                                  :: failure
     TYPE(cp_blacs_env_type), POINTER         :: context
-
 
     CALL timeset(routineN,handle)
 
@@ -227,9 +225,6 @@ CPSourceFileRef)
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_fm_retain', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-
     CPASSERT(ASSOCIATED(matrix))
     CPASSERT(matrix%ref_count>0)
     matrix%ref_count=matrix%ref_count+1
@@ -250,8 +245,6 @@ CPSourceFileRef)
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle
-    LOGICAL                                  :: failure
-
 
     CALL timeset(routineN,handle)
 
@@ -295,13 +288,11 @@ CPSourceFileRef)
     INTEGER :: handle, icol_global, icol_local, irow_local, my_ncol, &
       my_start_col, ncol_global, ncol_local, nrow_global, nrow_local
     INTEGER, DIMENSION(:), POINTER           :: col_indices, row_indices
-    LOGICAL                                  :: failure
     LOGICAL, SAVE                            :: FIRST = .TRUE.
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: buff
     REAL(KIND=dp), DIMENSION(3, 2), SAVE     :: seed
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: local_data
     TYPE(rng_stream_type), POINTER           :: rng
-
 
     CALL timeset(routineN,handle)
 
@@ -382,7 +373,6 @@ CPSourceFileRef)
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, i, matrix_size, n
-    LOGICAL                                  :: failure
 
     CALL timeset(routineN,handle)
 
@@ -641,7 +631,7 @@ CPSourceFileRef)
     INTEGER :: i, i0, j, j0, ncol, ncol_block, ncol_global, ncol_local, nrow, &
       nrow_block, nrow_global, nrow_local, this_col, this_row
     INTEGER, DIMENSION(:), POINTER           :: col_indices, row_indices
-    LOGICAL                                  :: failure, tr_a
+    LOGICAL                                  :: tr_a
     REAL(KIND=dp)                            :: al, be
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: full_block
 
@@ -780,7 +770,7 @@ CPSourceFileRef)
     INTEGER :: handle, i, i0, j, j0, ncol, ncol_global, ncol_local, nrow, &
       nrow_global, nrow_local, this_col, this_row
     INTEGER, DIMENSION(:), POINTER           :: col_indices, row_indices
-    LOGICAL                                  :: failure, tr_a
+    LOGICAL                                  :: tr_a
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: full_block
     TYPE(cp_para_env_type), POINTER          :: para_env
 
@@ -953,7 +943,6 @@ CPSourceFileRef)
                                                 ncol_local, nrow_local, num_pe
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: ic_max_vec, ir_max_vec
     INTEGER, DIMENSION(:), POINTER           :: col_indices, row_indices
-    LOGICAL                                  :: failure
     REAL(dp)                                 :: my_max
     REAL(dp), ALLOCATABLE, DIMENSION(:)      :: a_max_vec
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: my_block
@@ -1096,9 +1085,7 @@ CPSourceFileRef)
     INTEGER                                  :: handle, i, j, ncol_global, &
                                                 ncol_local, nrow_local
     INTEGER, DIMENSION(:), POINTER           :: col_indices
-    LOGICAL                                  :: failure
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: my_block
-
 
     CALL timeset(routineN,handle)
 
@@ -1149,7 +1136,7 @@ CPSourceFileRef)
 
     CHARACTER(len=default_path_length)       :: filename
     INTEGER                                  :: data_unit, desc_unit, iostat
-    LOGICAL                                  :: exists, failure, loc, &
+    LOGICAL                                  :: exists, loc, &
                                                 my_long_description
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
@@ -1257,7 +1244,6 @@ CPSourceFileRef)
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, npcol, nprow
-    LOGICAL                                  :: failure
 
     CALL timeset(routineN,handle)
 

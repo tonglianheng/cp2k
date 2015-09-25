@@ -57,7 +57,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: l1, l2, lij, lkl
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: add, ccc, chrg, pij, pkl, sum
 
     sum = 0.0_dp
@@ -132,9 +131,8 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'charg_int_3', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
+! Computing only residual Integral Values
 
-    ! Computing only residual Integral Values
     charg = 0.0_dp
     ! Q - Q.
     IF (l1 == 0 .AND. l2 == 0) THEN
@@ -167,9 +165,8 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'coeff_int_3', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
+! Computing only residual Integral Values
 
-    ! Computing only residual Integral Values
     coeff = 0.0_dp
     ! Q - Q.
     IF (l1 == 0 .AND. l2 == 0) THEN
@@ -205,9 +202,8 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'dcharg_int_3', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
+! Computing only residual Integral Derivatives
 
-    ! Computing only residual Integral Derivatives
     charg = 0.0_dp
     ! Q - Q.
     IF (l1 == 0 .AND. l2 == 0) THEN

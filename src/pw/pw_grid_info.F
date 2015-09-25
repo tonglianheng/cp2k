@@ -106,13 +106,14 @@ CONTAINS
 
     INTEGER :: idir, my_icommensurate, my_ncommensurate, nsubgrid, &
       nsubgrid_new, ntest(3), t_icommensurate
-    LOGICAL                                  :: failure, ftest, subgrid_is_OK
+    LOGICAL                                  :: ftest, subgrid_is_OK
 
-    ! ncommensurate is the number of commensurate grids
-    ! in order to have non-commensurate grids ncommensurate must be 0
-    ! icommensurte  is the level number of communensurate grids
-    ! this implies that the number of grid points in each direction
-    ! is k*2**(ncommensurate-icommensurate)
+! ncommensurate is the number of commensurate grids
+! in order to have non-commensurate grids ncommensurate must be 0
+! icommensurte  is the level number of communensurate grids
+! this implies that the number of grid points in each direction
+! is k*2**(ncommensurate-icommensurate)
+
     my_ncommensurate=ncommensurate
     IF (my_ncommensurate > 0 ) THEN
        my_icommensurate=1
@@ -195,7 +196,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_grid_n_for_fft', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure, my_odd
+    LOGICAL                                  :: my_odd
 
     my_odd=.FALSE.
     IF (PRESENT(odd)) my_odd=odd
@@ -241,7 +242,6 @@ CONTAINS
     INTEGER                                  :: i
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: alat( 3 )
-
 
     DO i=1,3
        alat(i) = SUM ( hmat(:,i)**2 )

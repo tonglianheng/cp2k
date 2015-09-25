@@ -73,7 +73,6 @@ CONTAINS
                                                 lb_min, npgfa, npgfb, nsgfa, &
                                                 nsgfb
     INTEGER, DIMENSION(:, :), POINTER        :: first_sgfa, first_sgfb
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: dab
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: sint
@@ -228,7 +227,6 @@ CONTAINS
                                                 nsgfb, nsgfca
     INTEGER, DIMENSION(:, :), POINTER        :: first_sgfa, first_sgfb, &
                                                 first_sgfca
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: dab, dac, dbc
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :, :)                     :: saba
@@ -402,7 +400,6 @@ CONTAINS
                                                 nsgfb, nsgfcb
     INTEGER, DIMENSION(:, :), POINTER        :: first_sgfa, first_sgfb, &
                                                 first_sgfcb
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: dab, dac, dbc
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :, :)                     :: sabb
@@ -559,8 +556,7 @@ CONTAINS
                                                 lb_min, npgfa, npgfb, nsgfa, &
                                                 nsgfb
     INTEGER, DIMENSION(:, :), POINTER        :: first_sgfa, first_sgfb
-    LOGICAL                                  :: asets_equal, bsets_equal, &
-                                                failure
+    LOGICAL                                  :: asets_equal, bsets_equal
     REAL(KIND=dp)                            :: dab
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: swork

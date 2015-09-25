@@ -65,7 +65,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: isize, jsize
-    LOGICAL                                  :: check, failure
+    LOGICAL                                  :: check
 
     CPASSERT(ASSOCIATED(results))
     CPASSERT(description(1:1)=='[')
@@ -102,7 +102,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: isize, jsize
-    LOGICAL                                  :: check, failure
+    LOGICAL                                  :: check
 
     CPASSERT(ASSOCIATED(results))
     CPASSERT(description(1:1)=='[')
@@ -138,7 +138,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i, nlist
-    LOGICAL                                  :: failure
 
     CPASSERT(ASSOCIATED(results))
     nlist=SIZE(results%result_value)
@@ -177,7 +176,6 @@ CONTAINS
 
     INTEGER                                  :: i, k, nlist, nrep, size_res, &
                                                 size_values
-    LOGICAL                                  :: failure
 
     CPASSERT(ASSOCIATED(results))
     nlist=SIZE(results%result_value)
@@ -258,7 +256,6 @@ CPSourceFileRef,&
 
     INTEGER                                  :: i, k, nlist, nrep, size_res, &
                                                 size_values
-    LOGICAL                                  :: failure
 
     CPASSERT(ASSOCIATED(results))
     nlist=SIZE(results%result_value)
@@ -336,7 +333,6 @@ CPSourceFileRef,&
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: I, nlist
-    LOGICAL                                  :: failure
 
     CPASSERT(ASSOCIATED(results))
     nlist=SIZE(results%result_value)
@@ -399,7 +395,6 @@ CPSourceFileRef,&
 
     INTEGER                                  :: entry_deleted, i, k, &
                                                 new_size, nlist, nrep
-    LOGICAL                                  :: failure
     TYPE(cp_result_type), POINTER            :: clean_results
 
     CPASSERT(ASSOCIATED(results))
@@ -474,7 +469,6 @@ CPSourceFileRef,&
 
     INTEGER                                  :: i, nlist
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: size_value, type_in_use
-    LOGICAL                                  :: failure
 
     CPASSERT(ASSOCIATED(results))
     nlist = 0

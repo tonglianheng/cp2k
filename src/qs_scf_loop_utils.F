@@ -272,7 +272,6 @@ CONTAINS
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(kpoint_type), POINTER               :: kpoints
 
-
     NULLIFY(dft_control, kpoints, matrix_ks, matrix_s)
 
     CALL get_qs_env(qs_env=qs_env,dft_control=dft_control,&
@@ -351,7 +350,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, ispin
-    LOGICAL                                  :: failure
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: rho_ao
     TYPE(cp_dbcsr_type), POINTER             :: orthogonality_metric
@@ -547,7 +545,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: ic, ispin, nc
-    LOGICAL                                  :: failure
     TYPE(cp_dbcsr_p_type), DIMENSION(:, :), &
       POINTER                                :: rho_ao_kp
 
@@ -632,7 +629,7 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'qs_scf_inner_finalize', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: do_kpoints, failure
+    LOGICAL                                  :: do_kpoints
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(qs_energy_type), POINTER            :: energy

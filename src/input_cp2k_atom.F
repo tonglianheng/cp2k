@@ -62,10 +62,8 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'create_atom_section', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
     TYPE(section_type), POINTER              :: subsection
-
 
     CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="ATOM",&
@@ -199,10 +197,8 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'create_atom_print_section', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
     TYPE(section_type), POINTER              :: print_key
-
 
     CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="print",&
@@ -334,9 +330,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'create_atom_aebasis_section', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-
     CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="AE_BASIS",&
          description="Section of basis set information for all-electron calculations.",&
@@ -356,9 +349,6 @@ CONTAINS
 
     CHARACTER(len=*), PARAMETER :: routineN = 'create_atom_ppbasis_section', &
       routineP = moduleN//':'//routineN
-
-    LOGICAL                                  :: failure
-
 
     CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="PP_BASIS",&
@@ -380,10 +370,8 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'atom_basis_section', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
     TYPE(section_type), POINTER              :: subsection
-
 
     CPASSERT(ASSOCIATED(section))
     NULLIFY(keyword)
@@ -542,10 +530,8 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'create_atom_method_section', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
     TYPE(section_type), POINTER              :: subsection
-
 
     NULLIFY(subsection,keyword)
     CPASSERT(.NOT.ASSOCIATED(section))
@@ -630,10 +616,8 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'create_zmp_section', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
     TYPE(section_type), POINTER              :: subsection
-
 
     NULLIFY(subsection,keyword)
     CPASSERT(.NOT.ASSOCIATED(section))
@@ -684,9 +668,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'create_zmp_restart_section', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
-
 
     NULLIFY(keyword)
     CPASSERT(.NOT.ASSOCIATED(section))
@@ -716,9 +698,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'create_external_vxc', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
-
 
     NULLIFY(keyword)
     CPASSERT(.NOT.ASSOCIATED(section))
@@ -753,9 +733,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'create_optimization_section', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
-
 
     NULLIFY(keyword)
     CPASSERT(.NOT.ASSOCIATED(section))
@@ -806,10 +784,8 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'create_potential_section', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
     TYPE(section_type), POINTER              :: subsection
-
 
     NULLIFY(keyword)
     CPASSERT(.NOT.ASSOCIATED(section))
@@ -869,9 +845,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'create_gthpotential_section', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
-
 
     CALL section_create(section,name="GTH_POTENTIAL",&
          description="Section used to specify Potentials.",&
@@ -895,9 +869,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'create_basis_section', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
-
 
     CALL section_create(section,name="basis",&
          description="Section used to specify a general basis set for QM calculations.",&
@@ -921,9 +893,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'create_powell_section', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
-
 
     CALL section_create(section,name="powell",&
          description="Section defines basic parameters for Powell optimization",&

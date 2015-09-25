@@ -118,9 +118,6 @@ SUBROUTINE wfs_create(snapshot)
     CHARACTER(len=*), PARAMETER :: routineN = 'wfs_create', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-
   ALLOCATE(snapshot)
   last_wfs_id=last_wfs_id+1
   snapshot%id_nr=last_wfs_id
@@ -153,7 +150,6 @@ SUBROUTINE wfs_update(snapshot,wf_history,qs_env,dt)
 
     INTEGER                                  :: handle, img, ispin, nimg, &
                                                 nspins
-    LOGICAL                                  :: failure
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: matrix_s, rho_ao
     TYPE(cp_dbcsr_p_type), DIMENSION(:, :), &
@@ -456,7 +452,6 @@ FUNCTION wfi_get_method_label(method_nr) RESULT(res)
       routineP = moduleN//':'//routineN
 
     LOGICAL                                  :: failure
-
 
   res="unknown"
   SELECT CASE(method_nr)
@@ -989,7 +984,6 @@ CPSourceFileRef,&
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle
-    LOGICAL                                  :: failure
 
     CALL timeset(routineN,handle)
 
@@ -1031,9 +1025,6 @@ SUBROUTINE wfi_update(wf_history, qs_env, dt)
     CHARACTER(len=*), PARAMETER :: routineN = 'wfi_update', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-
   CPASSERT(ASSOCIATED(wf_history))
   CPASSERT(wf_history%ref_count>0)
   CPASSERT(ASSOCIATED(qs_env))
@@ -1067,7 +1058,7 @@ END SUBROUTINE wfi_update
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, my_n_col
-    LOGICAL                                  :: failure, has_unit_metric, &
+    LOGICAL                                  :: has_unit_metric, &
                                                 ortho_contains_cholesky, &
                                                 smearing_is_used
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &

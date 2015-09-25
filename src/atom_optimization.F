@@ -55,7 +55,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i, n1, n2, n3, ndiis
-    LOGICAL                                  :: failure
     REAL(dp)                                 :: damp, eps
 
     ndiis = optimization%n_diis
@@ -119,7 +118,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i
-    LOGICAL                                  :: failure
 
     history%max_history = 0
     history%hlen = 0
@@ -159,7 +157,6 @@ CONTAINS
 
     INTEGER                                  :: i, info, j, lwork, na, nb, &
                                                 nlen, nm, nmax, nnow, rank
-    LOGICAL                                  :: failure
     REAL(dp)                                 :: a, rcond, t
     REAL(dp), ALLOCATABLE, DIMENSION(:)      :: s, work
     REAL(dp), ALLOCATABLE, DIMENSION(:, :)   :: vec

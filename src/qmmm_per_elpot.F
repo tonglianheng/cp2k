@@ -290,7 +290,6 @@ CONTAINS
 
     INTEGER                                  :: npts(3)
     INTEGER, DIMENSION(:), POINTER           :: ngrids
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: hmat(3,3)
     TYPE(section_vals_type), POINTER         :: grid_print_section
 
@@ -349,7 +348,7 @@ CONTAINS
 
     INTEGER                                  :: ewald_type, gmax(3), iw, &
                                                 o_spline, ounit
-    LOGICAL                                  :: do_multipoles, failure
+    LOGICAL                                  :: do_multipoles
     REAL(KIND=dp)                            :: alpha, rcut
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(section_vals_type), POINTER         :: ewald_print_section, &

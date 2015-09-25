@@ -57,10 +57,8 @@ SUBROUTINE create_almo_scf_section(section)
     CHARACTER(len=*), PARAMETER :: routineN = 'create_almo_scf_section', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
     TYPE(section_type), POINTER              :: subsection
-
 
     CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,"ALMO_SCF",&
@@ -551,9 +549,7 @@ SUBROUTINE create_almo_eda_section(section)
     CHARACTER(len=*), PARAMETER :: routineN = 'create_almo_eda_section', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
-
 
     CPASSERT(.NOT.ASSOCIATED(section))
    
@@ -603,9 +599,7 @@ SUBROUTINE create_optimizer_section(section,optimizer_id)
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: optimizer_type
-    LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
-
 
     CPASSERT(.NOT.ASSOCIATED(section))
    

@@ -117,7 +117,6 @@ CONTAINS
 
     INTEGER                                  :: npoints
     INTEGER, DIMENSION(:, :), POINTER        :: bo
-    LOGICAL                                  :: failure
     REAL(kind=dp)                            :: epsilon_rho
     REAL(kind=dp), DIMENSION(:, :, :), &
       POINTER                                :: e_0, e_ndrho, e_rho, &
@@ -199,7 +198,6 @@ CONTAINS
       gamma_css = 0.200_dp, gamma_xss = 0.004_dp
 
     INTEGER                                  :: ii
-    LOGICAL                                  :: failure
     REAL(KIND=dp) :: cx_vwn_e, cx_vwn_v, dgcabddrho, dgcabdrho, dgcabds, &
       dgcssddrho, dgcssdrho, dgcssds, dgdrs, dgxssddrho, dgxssdrho, dgxssds, &
       drho, drhos, drsdrho, ecab, ecss, exss, g, gcab, gcss, gs2, gxss, &

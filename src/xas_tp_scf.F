@@ -398,7 +398,6 @@ CONTAINS
       nao, natom, nexc_search, nmo, nvirtual2, uno_iter, xas_estate
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: first_sgf
     INTEGER, DIMENSION(:), POINTER           :: mykind_of_kind
-    LOGICAL                                  :: failure
     REAL(dp), DIMENSION(:, :), POINTER       :: centers_wfn
     REAL(KIND=dp)                            :: component, dist, max_overlap, &
                                                 ra(3), rac(3), rc(3), &

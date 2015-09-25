@@ -839,7 +839,7 @@ CONTAINS
 
     INTEGER                                  :: after, handle, ikind, iw, &
                                                 nao, ndep, output_unit
-    LOGICAL :: dft_plus_u_atom, do_kpoints, failure, init_u_ramping_each_scf, &
+    LOGICAL :: dft_plus_u_atom, do_kpoints, init_u_ramping_each_scf, &
       omit_headers, s_minus_half_available
     REAL(KIND=dp)                            :: u_ramping
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
@@ -1023,7 +1023,7 @@ CONTAINS
     INTEGER                                  :: extrapolation_method_nr, &
                                                 handle, ispin, nmo, &
                                                 output_unit
-    LOGICAL                                  :: failure, orthogonal_wf
+    LOGICAL                                  :: orthogonal_wf
     TYPE(cp_fm_type), POINTER                :: mo_coeff
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env

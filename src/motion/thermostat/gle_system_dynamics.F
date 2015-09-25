@@ -95,7 +95,7 @@ CONTAINS
 
     INTEGER                                  :: handle, iadd, ideg, imap, &
                                                 ndim, num
-    LOGICAL                                  :: failure, my_shell_adiabatic, &
+    LOGICAL                                  :: my_shell_adiabatic, &
                                                 present_vel
     REAL(dp)                                 :: alpha, beta, rr
     REAL(dp), DIMENSION(:, :), POINTER       :: a_mat, e_tmp, h_tmp, s_tmp
@@ -210,7 +210,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'initialize_gle_part', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure, restart
+    LOGICAL                                  :: restart
     REAL(dp)                                 :: Mtmp(gle%ndim,gle%ndim)
 
     restart = .FALSE.
@@ -352,7 +352,7 @@ CONTAINS
                                                 region, sum_of_thermostats
     INTEGER, DIMENSION(:), POINTER           :: deg_of_freedom, &
                                                 massive_atom_list
-    LOGICAL                                  :: do_shell, failure
+    LOGICAL                                  :: do_shell
     REAL(KIND=dp)                            :: fac
     TYPE(map_info_type), POINTER             :: map_info
 
@@ -538,11 +538,9 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i, j
-    LOGICAL                                  :: failure
     REAL(dp)                                 :: rr(gle%ndim), &
                                                 cc(gle%ndim,gle%ndim)
     TYPE(rng_stream_type), POINTER           :: rng_stream
-
 
     CALL gle_cholesky_stab(gle%c_mat, cc, gle%ndim)
     DO i = 1, gle%loc_num_gle

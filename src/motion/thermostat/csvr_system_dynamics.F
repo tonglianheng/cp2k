@@ -219,7 +219,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i, imap, ndeg
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: kin_energy, kin_target, taut
     TYPE(rng_stream_type), POINTER           :: rng_stream
 
@@ -252,7 +251,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i, imap
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: kin_energy_ar, kin_energy_br
 
     DO i = 1, csvr%loc_num_csvr

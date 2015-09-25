@@ -54,8 +54,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'semi_empirical_expns3_create', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
     CPASSERT(.NOT.ASSOCIATED(expns3))
     ALLOCATE (expns3)
     expns3%core_core = 0.0_dp
@@ -76,8 +74,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: &
       routineN = 'semi_empirical_expns3_release', &
       routineP = moduleN//':'//routineN
-
-    LOGICAL                                  :: failure
 
     IF (ASSOCIATED(expns3)) THEN
        DEALLOCATE (expns3)

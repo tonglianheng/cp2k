@@ -123,8 +123,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: img, ispin, nimg, nspin
-    LOGICAL                                  :: failure, has_unit_metric, &
-                                                molecule_only
+    LOGICAL                                  :: has_unit_metric, molecule_only
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: matrix_w_mp2
     TYPE(cp_dbcsr_p_type), DIMENSION(:, :), &
@@ -267,7 +266,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle
-    LOGICAL                                  :: do_kpoints, failure
+    LOGICAL                                  :: do_kpoints
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(kpoint_type), POINTER               :: kpoints
@@ -362,8 +361,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, is, ispin, nao, nspin
-    LOGICAL                                  :: do_kpoints, failure, &
-                                                has_unit_metric
+    LOGICAL                                  :: do_kpoints, has_unit_metric
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: matrix_ks, matrix_s, &
                                                 matrix_w, matrix_w_mp2, &

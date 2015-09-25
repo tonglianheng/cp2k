@@ -97,9 +97,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'mixing_storage_create', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     REAL(dp)                                 :: alpha, eps, gcut
-
 
     CPASSERT(.NOT.ASSOCIATED(mixing_store))
     ALLOCATE(mixing_store)
@@ -193,8 +191,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i, j, k
-    LOGICAL                                  :: failure
-
 
   IF (ASSOCIATED(mixing_store)) THEN
      CPASSERT(mixing_store%ref_count>0)
@@ -391,9 +387,8 @@ CONTAINS
 
     CHARACTER(LEN=default_string_length)     :: section_name
     INTEGER                                  :: default_mix
-    LOGICAL                                  :: failure, ls
+    LOGICAL                                  :: ls
     TYPE(keyword_type), POINTER              :: keyword
-
 
     CPASSERT(.NOT.ASSOCIATED(section))
 

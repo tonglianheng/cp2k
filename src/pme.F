@@ -122,7 +122,7 @@ CONTAINS
     INTEGER                                  :: group, handle, i, ig, ipart, &
                                                 j, nd(3), npart, nshell, p1, &
                                                 p2
-    LOGICAL                                  :: failure, is1_core, is2_core
+    LOGICAL                                  :: is1_core, is2_core
     REAL(KIND=dp)                            :: alpha, dvols, fat1, ffa, ffb
     REAL(KIND=dp), DIMENSION(3)              :: fat
     REAL(KIND=dp), DIMENSION(3, 3)           :: f_stress, h_stress
@@ -530,9 +530,9 @@ CONTAINS
 
     COMPLEX(KIND=dp), DIMENSION(:), POINTER  :: ex1, ex2, ey1, ey2, ez1, ez2
     INTEGER, DIMENSION(:), POINTER           :: center1, center2
-    LOGICAL                                  :: failure, my_is1_core, &
-                                                my_is1_shell, my_is2_core, &
-                                                my_is2_shell, use_charge_array
+    LOGICAL                                  :: my_is1_core, my_is1_shell, &
+                                                my_is2_core, my_is2_shell, &
+                                                use_charge_array
     REAL(KIND=dp)                            :: q1, q2
     REAL(KIND=dp), DIMENSION(3)              :: r1, r2
     TYPE(atomic_kind_type), POINTER          :: atomic_kind

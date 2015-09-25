@@ -71,7 +71,7 @@ CONTAINS
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: iset_s2h
     INTEGER, DIMENSION(:), POINTER           :: lmax, lmin, npgf, nshell
     INTEGER, DIMENSION(:, :), POINTER        :: l, n
-    LOGICAL                                  :: failure, my_gpw_type_forced
+    LOGICAL                                  :: my_gpw_type_forced
     REAL(KIND=dp)                            :: minzet, radius
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: zet
     REAL(KIND=dp), DIMENSION(:, :, :), &

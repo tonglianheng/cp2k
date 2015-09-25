@@ -81,7 +81,7 @@ CONTAINS
     INTEGER                                  :: handle, iatom, icon, itemp, &
                                                 itype, iw, jatom, ncon, &
                                                 ntype, offset
-    LOGICAL                                  :: failure, found
+    LOGICAL                                  :: found
     REAL(KIND=dp)                            :: cosphi0, cost2, csq, sdet
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_parser_type), POINTER            :: parser
@@ -334,7 +334,7 @@ CONTAINS
     INTEGER                                  :: dummy, handle, ilab, iw, &
                                                 nbend, nbond, nimpr, &
                                                 nnonbond, nonfo, ntorsion, nub
-    LOGICAL                                  :: failure, found
+    LOGICAL                                  :: found
     TYPE(charmm_info_type), POINTER          :: chm_info
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_parser_type), POINTER            :: parser
@@ -697,7 +697,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, i, iw
-    LOGICAL                                  :: failure
     TYPE(amber_info_type), POINTER           :: amb_info
     TYPE(cp_logger_type), POINTER            :: logger
 

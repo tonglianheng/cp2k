@@ -54,7 +54,7 @@ CONTAINS
 
     CHARACTER(LEN=default_string_length)     :: prefix_lnk
     INTEGER                                  :: handle, iatm, iw
-    LOGICAL                                  :: failure, qmmm_index_in_range
+    LOGICAL                                  :: qmmm_index_in_range
     TYPE(cp_logger_type), POINTER            :: logger
 
     CALL timeset(routineN,handle)
@@ -122,7 +122,7 @@ CONTAINS
                                                 natom, output_unit, qm_mol_num
     INTEGER, DIMENSION(:), POINTER           :: qm_atom_index, &
                                                 qm_molecule_index
-    LOGICAL                                  :: detected_link, failure
+    LOGICAL                                  :: detected_link
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(molecule_kind_type), POINTER        :: molecule_kind
     TYPE(molecule_type), POINTER             :: molecule

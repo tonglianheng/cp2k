@@ -78,7 +78,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: ind
-    LOGICAL                                  :: failure
 
     CPASSERT(file_name.NE."")
 
@@ -109,7 +108,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: ind
-    LOGICAL                                  :: failure
 
     CPASSERT(file_name.NE."")
 
@@ -142,7 +140,6 @@ CONTAINS
 
     CHARACTER(LEN=18)                        :: rval_to_string
     INTEGER                                  :: ind
-    LOGICAL                                  :: failure
 
     CPASSERT(file_name.NE."")
 
@@ -183,7 +180,6 @@ CONTAINS
 
     CHARACTER(LEN=18)                        :: rval_to_string
     INTEGER                                  :: ind
-    LOGICAL                                  :: failure
 
     CPASSERT(file_name.NE."")
 
@@ -403,7 +399,6 @@ CONTAINS
 
     CHARACTER(LEN=default_path_length)       :: file_name
     INTEGER                                  :: handle, i
-    LOGICAL                                  :: failure
 
     file_name = ""
 
@@ -463,7 +458,7 @@ CONTAINS
     CHARACTER(LEN=default_path_length)       :: file_name_act, tmp_name
     CHARACTER(LEN=default_string_length)     :: header
     INTEGER                                  :: file_ptr, handle, i, nr_atoms
-    LOGICAL                                  :: failure, file_exists, print_it
+    LOGICAL                                  :: file_exists, print_it
     REAL(KIND=dp)                            :: vol
     REAL(KIND=dp), DIMENSION(3, 3)           :: hmat_scaled
 
@@ -799,7 +794,6 @@ CONTAINS
 
     CHARACTER(LEN=default_string_length)     :: c_tmp
     INTEGER                                  :: handle, i, i_tmp, status
-    LOGICAL                                  :: failure
 
     stat = TMC_STATUS_FAILED
 
@@ -877,7 +871,6 @@ CONTAINS
 
     CHARACTER(LEN=250)                       :: c_tmp
     INTEGER                                  :: handle, status
-    LOGICAL                                  :: failure
 
     stat = TMC_STATUS_FAILED
 
@@ -935,7 +928,6 @@ CONTAINS
 
     CHARACTER(LEN=250)                       :: c_tmp
     INTEGER                                  :: handle, status
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: r_tmp
     REAL(KIND=dp), DIMENSION(3, 3)           :: hmat
 
@@ -1005,7 +997,7 @@ CONTAINS
     CHARACTER(LEN=default_path_length)       :: dir_name, file_name_act, &
                                                 file_name_temp
     INTEGER                                  :: handle
-    LOGICAL                                  :: failure, file_exists
+    LOGICAL                                  :: file_exists
 
     CPASSERT(ASSOCIATED(tmc_ana))
 
@@ -1104,7 +1096,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle
-    LOGICAL                                  :: failure
 
     CPASSERT(ASSOCIATED(tmc_ana))
 

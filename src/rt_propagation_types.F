@@ -154,7 +154,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i, j, nao, nrow_block, nspin
-    LOGICAL                                  :: failure
     TYPE(cp_fm_pool_p_type), DIMENSION(:), &
       POINTER                                :: ao_mo_fm_pools
     TYPE(cp_fm_struct_type), POINTER         :: ao_mo_fmstruct
@@ -358,9 +357,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'get_rtp', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-
     CPASSERT(ASSOCIATED(rtp))
     IF (PRESENT(exp_H_old))exp_H_old=>rtp%exp_H_old
     IF (PRESENT(exp_H_new))exp_H_new=>rtp%exp_H_new
@@ -401,10 +397,6 @@ CONTAINS
 
     CHARACTER(len=*), PARAMETER :: routineN = 'rt_prop_release', &
       routineP = moduleN//':'//routineN
-
-    LOGICAL                                  :: failure
-
-
 
     CALL cp_dbcsr_deallocate_matrix_set(rtp%exp_H_old)
     CALL cp_dbcsr_deallocate_matrix_set(rtp%exp_H_new)
@@ -462,9 +454,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i, j, nmat
-    LOGICAL                                  :: failure
     TYPE(rtp_history_type), POINTER          :: history
-
 
     NULLIFY(history)
     ALLOCATE(rtp%history)
@@ -516,8 +506,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i, j
-    LOGICAL                                  :: failure
-
 
     IF (ASSOCIATED(rtp%history%rho_history)) THEN
        CALL cp_dbcsr_deallocate_matrix_set(rtp%history%rho_history)

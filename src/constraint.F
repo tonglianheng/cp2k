@@ -642,7 +642,7 @@ CONTAINS
                                                 my_index, n3x3con, n4x6con, &
                                                 nconstraint, nkind
     LOGICAL                                  :: do_ext_constraint, &
-                                                do_int_constraint, failure
+                                                do_int_constraint
     REAL(KIND=dp), DIMENSION(:), POINTER     :: lagr
     TYPE(colvar_counters)                    :: ncolv
     TYPE(molecule_kind_type), POINTER        :: molecule_kind
@@ -747,8 +747,6 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'shake_int_info', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
     IF (log_unit>0) THEN
        ! Dump info if requested
        WRITE(log_unit,'("SHAKE_INFO|",2X,2(A,I6),A,F15.9)')&
@@ -776,8 +774,6 @@ CPSourceFileRef)
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'shake_ext_info', &
       routineP = moduleN//':'//routineN
-
-    LOGICAL                                  :: failure
 
     IF (log_unit>0) THEN
        ! Dump info if requested
@@ -808,8 +804,6 @@ CPSourceFileRef)
     CHARACTER(LEN=*), PARAMETER :: routineN = 'rattle_int_info', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
     IF (log_unit>0) THEN
        ! Dump info if requested
        WRITE(log_unit,'("RATTLE_INFO|",1X,2(A,I6),A,F15.9)')&
@@ -837,8 +831,6 @@ CPSourceFileRef)
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'rattle_ext_info', &
       routineP = moduleN//':'//routineN
-
-    LOGICAL                                  :: failure
 
     IF (log_unit>0) THEN
        ! Dump info if requested

@@ -125,7 +125,7 @@ CONTAINS
     INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: center, core_center, &
                                                 shell_center
     INTEGER, DIMENSION(3)                    :: nd, npts
-    LOGICAL                                  :: do_shell, failure
+    LOGICAL                                  :: do_shell
     REAL(KIND=dp)                            :: alpha, dvols, fat1, ffa, ffb
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :, :)                     :: rhos
@@ -492,7 +492,6 @@ CONTAINS
                                                 npart_a, npart_b, o_spline, p1
     INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: center
     INTEGER, DIMENSION(3)                    :: npts
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: alpha, dvols, fat1
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :, :)                     :: rhos
@@ -633,7 +632,6 @@ CONTAINS
                                                 npart_a, npart_b, o_spline, p1
     INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: center
     INTEGER, DIMENSION(3)                    :: npts
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: alpha, dvols
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :, :)                     :: rhos

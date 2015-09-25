@@ -255,8 +255,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'add_format_keyword', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
     CPASSERT(ASSOCIATED(section))
     CPASSERT(.NOT.ASSOCIATED(keyword))
 

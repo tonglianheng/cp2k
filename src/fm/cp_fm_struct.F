@@ -313,9 +313,6 @@ SUBROUTINE cp_fm_struct_retain(fmstruct)
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_fm_struct_retain', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-
   CPASSERT(ASSOCIATED(fmstruct))
   CPASSERT(fmstruct%ref_count>0)
   fmstruct%ref_count=fmstruct%ref_count+1
@@ -333,9 +330,6 @@ SUBROUTINE cp_fm_struct_release(fmstruct)
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_fm_struct_release', &
       routineP = moduleN//':'//routineN
-
-    LOGICAL                                  :: failure
-
 
   IF (ASSOCIATED(fmstruct)) THEN
      CPASSERT(fmstruct%ref_count>0)
@@ -379,8 +373,6 @@ FUNCTION cp_fm_struct_equivalent(fmstruct1,fmstruct2) RESULT(res)
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i
-    LOGICAL                                  :: failure
-
 
   CPASSERT(ASSOCIATED(fmstruct1))
   CPASSERT(ASSOCIATED(fmstruct2))
@@ -419,7 +411,7 @@ SUBROUTINE cp_fm_struct_write(fmstruct, unit_nr, long_description)
 
     CHARACTER(LEN=default_string_length)     :: fmtstring
     INTEGER                                  :: iostat
-    LOGICAL                                  :: failure, l_desc
+    LOGICAL                                  :: l_desc
 
   l_desc=.FALSE.
 

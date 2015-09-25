@@ -111,7 +111,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i, stat, wg
-    LOGICAL                                  :: failure
     TYPE(elem_list_type), POINTER            :: tmp_element
 
     IF(.NOT.ASSOCIATED(cancel_list)) RETURN
@@ -967,8 +966,6 @@ CONTAINS
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'set_walltime_delay', &
       routineP = moduleN//':'//routineN
-
-    LOGICAL                                  :: failure
 
     CPASSERT(time.GE.0.0_dp)
 

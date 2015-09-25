@@ -109,7 +109,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: baro, nfree
-    LOGICAL                                  :: failure, new_file
+    LOGICAL                                  :: new_file
     REAL(KIND=dp)                            :: baro_kin, baro_pot, temp
     TYPE(cp_logger_type), POINTER            :: logger
 

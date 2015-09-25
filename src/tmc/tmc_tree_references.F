@@ -51,7 +51,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle
-    LOGICAL                                  :: failure
     TYPE(gt_elem_list_type), POINTER         :: tmp_pt_list_elem
 
     NULLIFY(tmp_pt_list_elem)
@@ -103,7 +102,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle
-    LOGICAL                                  :: failure
 
     CPASSERT(ASSOCIATED(gt_ptr))
     CPASSERT(ASSOCIATED(tmc_env))
@@ -216,7 +214,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle
-    LOGICAL                                  :: failure
     TYPE(gt_elem_list_type), POINTER         :: tmp_gt_list_last_ptr, &
                                                 tmp_gt_list_ptr
 

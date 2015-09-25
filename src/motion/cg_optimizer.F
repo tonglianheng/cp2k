@@ -74,7 +74,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, output_unit
-    LOGICAL                                  :: failure, my_do_update
+    LOGICAL                                  :: my_do_update
     TYPE(cp_logger_type), POINTER            :: logger
 
     CALL timeset(routineN,handle)
@@ -124,8 +124,7 @@ CONTAINS
     CHARACTER(LEN=5)                         :: wildcard
     INTEGER                                  :: handle, iter_nr, its, &
                                                 max_steep_steps, maxiter
-    LOGICAL                                  :: conv, failure, &
-                                                Fletcher_Reeves, &
+    LOGICAL                                  :: conv, Fletcher_Reeves, &
                                                 save_consistent_energy_force, &
                                                 should_stop
     REAL(KIND=dp)                            :: emin, eold, opt_energy, &

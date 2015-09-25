@@ -66,7 +66,7 @@ CONTAINS
     CHARACTER(LEN=default_string_length)     :: string
     INTEGER                                  :: handle, i, iw, natom, &
                                                 newsize, number_of_atoms
-    LOGICAL                                  :: eof, explicit, failure, &
+    LOGICAL                                  :: eof, explicit, &
                                                 scaled_coordinates
     REAL(KIND=dp)                            :: pfactor, unit_conv
     REAL(KIND=dp), DIMENSION(3)              :: r

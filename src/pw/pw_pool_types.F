@@ -122,7 +122,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_pool_create', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     TYPE(cp_logger_type), POINTER            :: logger
 
     logger => cp_get_default_logger()
@@ -158,7 +157,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_pool_retain', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     TYPE(cp_logger_type), POINTER            :: logger
 
     logger => cp_get_default_logger()
@@ -188,14 +186,12 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_pool_flush_cache', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     REAL(kind=dp), DIMENSION(:, :, :), &
       POINTER                                :: array_att
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_sll_3d_r_type), POINTER          :: array_iterator
     TYPE(cp_sll_pw_type), POINTER            :: iterator
     TYPE(pw_type), POINTER                   :: pw_el
-
 
     CPASSERT(ASSOCIATED(pool))
     CPASSERT(pool%ref_count>0)
@@ -266,7 +262,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_pool_release', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     TYPE(cp_logger_type), POINTER            :: logger
 
     logger => cp_get_default_logger()
@@ -336,11 +331,9 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle
-    LOGICAL                                  :: failure
     REAL(kind=dp), DIMENSION(:, :, :), &
       POINTER                                :: cr3d_ptr
     TYPE(cp_logger_type), POINTER            :: logger
-
 
     CALL timeset(routineN,handle)
     NULLIFY(pw)
@@ -576,7 +569,6 @@ SUBROUTINE pw_pool_create_cr3d(pw_pool,cr3d)
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: stat
-    LOGICAL                                  :: failure
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(pw_type), POINTER                   :: pw
 
@@ -637,7 +629,7 @@ SUBROUTINE pw_pool_give_back_cr3d(pw_pool,cr3d,accept_non_compatible)
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_pool_give_back_cr3d', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: compatible, failure, &
+    LOGICAL                                  :: compatible, &
                                                 my_accept_non_compatible
     TYPE(cp_logger_type), POINTER            :: logger
 
@@ -710,8 +702,6 @@ SUBROUTINE pw_pools_create_pws(pools, pws, use_data, in_space)
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i
-    LOGICAL                                  :: failure
-
 
   CPASSERT(ASSOCIATED(pools))
   ALLOCATE(pws(SIZE(pools)))
@@ -739,8 +729,6 @@ SUBROUTINE pw_pools_give_back_pws(pools, pws)
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i
-    LOGICAL                                  :: failure
-
 
   CPASSERT(ASSOCIATED(pools))
   CPASSERT(ASSOCIATED(pws))
@@ -767,8 +755,6 @@ SUBROUTINE pw_pools_copy(source_pools, target_pools)
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i
-    LOGICAL                                  :: failure
-
 
   CPASSERT(ASSOCIATED(source_pools))
   ALLOCATE(target_pools(SIZE(source_pools)))
@@ -794,8 +780,6 @@ SUBROUTINE pw_pools_dealloc(pools)
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i
-    LOGICAL                                  :: failure
-
 
   IF (ASSOCIATED(pools)) THEN
      DO i=1,SIZE(pools)
@@ -821,8 +805,6 @@ SUBROUTINE pw_pools_flush_cache(pools)
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i
-    LOGICAL                                  :: failure
-
 
   CPASSERT(ASSOCIATED(pools))
   DO i=1,SIZE(pools)
@@ -845,10 +827,8 @@ SUBROUTINE pw_pool_write(pw_pool,unit_nr)
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_pool_write', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     TYPE(cp_sll_pw_type), POINTER            :: iter
     TYPE(pw_type), POINTER                   :: pw_att
-
 
   IF (ASSOCIATED(pw_pool)) THEN
      WRITE (unit=unit_nr, &

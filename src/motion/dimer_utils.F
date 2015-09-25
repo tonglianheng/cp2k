@@ -47,7 +47,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: output_unit
-    LOGICAL                                  :: check, failure
+    LOGICAL                                  :: check
     TYPE(cp_logger_type), POINTER            :: logger
 
     logger => cp_get_default_logger()
@@ -81,7 +81,6 @@ CONTAINS
 
     INTEGER                                  :: i, i_rep_val, isize, j, &
                                                 size_array
-    LOGICAL                                  :: failure
     REAL(KIND=dp), DIMENSION(:), POINTER     :: array
     TYPE(section_vals_type), POINTER         :: nvec_section
 

@@ -78,7 +78,6 @@ CONTAINS
 
     INTEGER                                  :: handle, iatom, ikind, ispin, &
                                                 natom, nkind, nspin
-    LOGICAL                                  :: failure
     REAL(KIND=dp), DIMENSION(:), POINTER     :: v_dadr, v_dfdr
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(lri_kind_type), DIMENSION(:), &
@@ -154,7 +153,7 @@ CONTAINS
       jatom, jkind, jneighbor, k, natom, nba, nbb, nfa, nfb, nkind, nlist, &
       nn, nneighbor, nspin
     INTEGER, DIMENSION(:), POINTER           :: atom_of_kind
-    LOGICAL                                  :: failure, found, trans
+    LOGICAL                                  :: found, trans
     REAL(KIND=dp), DIMENSION(3)              :: dcharge, dlambda, force_a, &
                                                 force_b, nsdssn, nsdsst, &
                                                 nsdt, rab

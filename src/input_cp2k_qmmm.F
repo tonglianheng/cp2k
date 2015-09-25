@@ -93,10 +93,8 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'create_qmmm_section', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
     TYPE(section_type), POINTER              :: subsection
-
 
     CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="qmmm",&
@@ -285,7 +283,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'create_qmmm_mm_kinds', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
 
     NULLIFY(keyword)
@@ -327,7 +324,6 @@ CONTAINS
       routineN = 'create_qmmm_force_mixing_section', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
     TYPE(section_type), POINTER              :: link_subsection, print_key, &
                                                 qm_kinds_subsection, &
@@ -567,7 +563,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'create_qmmm_qm_kinds', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
 
     NULLIFY(keyword)
@@ -602,9 +597,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'create_qmmm_walls_section', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
-
 
     NULLIFY(keyword)
     CPASSERT(.NOT.ASSOCIATED(section))
@@ -657,9 +650,7 @@ CONTAINS
       routineN = 'create_qmmm_image_charge_section', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
-
 
     NULLIFY(keyword)
     CPASSERT(.NOT.ASSOCIATED(section))
@@ -736,10 +727,8 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'create_qmmm_periodic_section', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
     TYPE(section_type), POINTER              :: subsection
-
 
     NULLIFY(keyword, subsection)
     CPASSERT(.NOT.ASSOCIATED(section))
@@ -802,10 +791,8 @@ CONTAINS
       routineN = 'create_multipole_qmmm_section', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
     TYPE(section_type), POINTER              :: subsection
-
 
     CPASSERT(.NOT.ASSOCIATED(section))
 
@@ -886,10 +873,8 @@ CONTAINS
       routineN = 'create_qmmm_forcefield_section', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
     TYPE(section_type), POINTER              :: subsection
-
 
     NULLIFY(subsection,keyword)
     CPASSERT(.NOT.ASSOCIATED(section))
@@ -926,9 +911,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'create_qmmm_ff_nb_section', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     TYPE(section_type), POINTER              :: subsection
-
 
     NULLIFY(subsection )
     CPASSERT(.NOT.ASSOCIATED(section))
@@ -965,10 +948,8 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'create_qmmm_link_section', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
     TYPE(section_type), POINTER              :: subsection
-
 
     NULLIFY(keyword, subsection )
     CPASSERT(.NOT.ASSOCIATED(section))
@@ -1164,10 +1145,8 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'create_qmmm_interp_section', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
     TYPE(section_type), POINTER              :: print_key
-
 
     CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="interpolator",&
@@ -1265,10 +1244,8 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'create_print_qmmm_section', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
     TYPE(section_type), POINTER              :: print_key
-
 
     CPASSERT(.NOT.ASSOCIATED(section))
     NULLIFY(keyword, print_key)

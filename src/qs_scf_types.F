@@ -145,7 +145,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle
-    LOGICAL                                  :: failure
 
     CALL timeset(routineN,handle)
 
@@ -214,7 +213,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle
-    LOGICAL                                  :: failure
 
     CALL timeset(routineN,handle)
 
@@ -241,7 +239,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle
-    LOGICAL                                  :: failure
 
     CALL timeset(routineN,handle)
 
@@ -275,7 +272,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, i
-    LOGICAL                                  :: failure
 
     CALL timeset(routineN,handle)
 
@@ -385,9 +381,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'krylov_space_create', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-
     CPASSERT(.NOT.ASSOCIATED(krylov_space))
     ALLOCATE(krylov_space)
 
@@ -492,9 +485,8 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'diag_subspace_env_create', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: do_mixing, failure
+    LOGICAL                                  :: do_mixing
     TYPE(section_vals_type), POINTER         :: mixing_section
-
 
     CPASSERT(.NOT.ASSOCIATED(subspace_env))
     ALLOCATE(subspace_env)

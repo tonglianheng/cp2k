@@ -187,7 +187,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle
-    LOGICAL                                  :: failure, restart
+    LOGICAL                                  :: restart
     REAL(KIND=dp)                            :: temp
 
     CALL timeset(routineN,handle)
@@ -257,7 +257,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle
-    LOGICAL                                  :: failure, restart
+    LOGICAL                                  :: restart
 
     CALL timeset(routineN,handle)
 
@@ -324,7 +324,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle
-    LOGICAL                                  :: failure, restart
+    LOGICAL                                  :: restart
 
     CALL timeset(routineN,handle)
 
@@ -393,7 +393,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle
-    LOGICAL                                  :: failure, restart
+    LOGICAL                                  :: restart
 
     CALL timeset(routineN,handle)
 
@@ -463,7 +463,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle
-    LOGICAL                                  :: failure, restart
+    LOGICAL                                  :: restart
 
     CALL timeset(routineN,handle)
 
@@ -726,7 +726,6 @@ CONTAINS
 
     INTEGER                                  :: handle, i, icount, j, number, &
                                                 tot_rn
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: akin, dum, temp
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: array_of_rn
     TYPE(map_info_type), POINTER             :: map_info
@@ -864,7 +863,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, i, j, number
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: akin, temp, v
 
     CALL timeset(routineN,handle)
@@ -949,7 +947,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, i, j
-    LOGICAL                                  :: failure
 
     CALL timeset(routineN,handle)
 

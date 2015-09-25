@@ -125,7 +125,7 @@ CONTAINS
                                                 ikind, ispin, lmaxscp, natom, &
                                                 natom_kind, nkind, nspins, &
                                                 output_unit
-    LOGICAL                                  :: do_es, do_scp, failure
+    LOGICAL                                  :: do_es, do_scp
     REAL(KIND=dp)                            :: zeff
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: mcharge
     REAL(KIND=dp), DIMENSION(:), POINTER     :: occupation_numbers
@@ -1158,7 +1158,7 @@ CONTAINS
                                                 lmaxscp, nai, naj, ni, nj, &
                                                 nkind
     INTEGER, DIMENSION(:), POINTER           :: atomi_list, atomj_list
-    LOGICAL                                  :: defined, failure, use_virial
+    LOGICAL                                  :: defined, use_virial
     REAL(KIND=dp)                            :: alpha, beta, ehartree
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: aintegral, maint, paint
@@ -1333,7 +1333,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: mi, mj, ni, nj, nl
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: dr2
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: vij

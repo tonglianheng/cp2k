@@ -93,7 +93,7 @@ CONTAINS
       jatom, jkind, jneighbor, natom, nba, nbb, nfa, nfb, nkind, nlist, nn, &
       nneighbor, row
     INTEGER, DIMENSION(:), POINTER           :: atom_of_kind
-    LOGICAL                                  :: failure, found, trans
+    LOGICAL                                  :: found, trans
     REAL(KIND=dp)                            :: dab, rab(3)
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: h_work

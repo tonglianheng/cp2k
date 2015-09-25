@@ -54,7 +54,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'allocate_thermal_regions', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: check, failure
+    LOGICAL                                  :: check
 
     check = .NOT.ASSOCIATED(thermal_regions)
     CPASSERT(check)
@@ -78,8 +78,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'retain_thermal_regions', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
     IF (ASSOCIATED(thermal_regions)) THEN
        CPASSERT(thermal_regions%ref_count>0)
        thermal_regions%ref_count=thermal_regions%ref_count+1
@@ -100,7 +98,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: ireg
-    LOGICAL                                  :: check, failure
+    LOGICAL                                  :: check
 
     check = ASSOCIATED(thermal_regions)
     IF (check) THEN

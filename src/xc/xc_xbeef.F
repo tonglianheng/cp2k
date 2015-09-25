@@ -146,7 +146,6 @@ CONTAINS
 
     INTEGER                                  :: handle, npoints
     INTEGER, DIMENSION(:, :), POINTER        :: bo
-    LOGICAL                                  :: failure
     REAL(kind=dp)                            :: epsilon_rho, sx
     REAL(kind=dp), DIMENSION(:, :, :), &
       POINTER                                :: dummy, e_0, e_ndrho, e_rho, &
@@ -251,7 +250,6 @@ SUBROUTINE xbeef_lda_calc(rho, rho_1_3, norm_drho,&
     INTEGER, PARAMETER                       :: m = 30
 
     INTEGER                                  :: i, ii
-    LOGICAL                                  :: failure
     REAL(kind=dp)                            :: ds_ndrho, ds_rho, dt, e_ueg, &
                                                 e_ueg_drho, epsilon_rho43, &
                                                 k_lda, kf, my_rho, &
@@ -259,7 +257,6 @@ SUBROUTINE xbeef_lda_calc(rho, rho_1_3, norm_drho,&
     REAL(kind=dp), DIMENSION(0:29)           :: de_leg, e_leg
 
 !energies, first and second derivatives from legendre pol
-
 
     kf = (3.0_dp * pi**2)**(1.0_dp / 3.0_dp) !only constants, without n^1/3
     k_lda = -(2.0_dp / (2.0_dp**(4._dp/3._dp))) * (3.0_dp/2.0_dp) * (3.0_dp / (4.0_dp * pi))**(1.0_dp/3.0_dp) 
@@ -347,7 +344,6 @@ SUBROUTINE xbeef_lda_calc(rho, rho_1_3, norm_drho,&
 
     INTEGER                                  :: handle, i, ispin, npoints
     INTEGER, DIMENSION(:, :), POINTER        :: bo
-    LOGICAL                                  :: failure
     REAL(kind=dp)                            :: epsilon_rho, sx
     REAL(kind=dp), DIMENSION(:, :, :), &
       POINTER                                :: dummy, e_0
@@ -475,7 +471,6 @@ SUBROUTINE xbeef_lsd_calc(rho_spin, rho_1_3_spin, norm_drho_spin,e_0,&
     INTEGER, PARAMETER                       :: m = 30
 
     INTEGER                                  :: i, ii
-    LOGICAL                                  :: failure
     REAL(kind=dp) :: ds_ndrho, ds_rho, dt, e_ueg, e_ueg_drho, epsilon_rho43, &
       k_lsd, kf, my_epsilon_rho, my_rho, my_rho_1_3, s, s2, t, t3
     REAL(kind=dp), DIMENSION(0:29)           :: de_leg, e_leg

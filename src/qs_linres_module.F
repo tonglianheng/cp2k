@@ -161,9 +161,9 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, output_unit
-    LOGICAL                                  :: epr_present, failure, &
-                                                issc_present, lr_calculation, &
-                                                nmr_present, polar_present
+    LOGICAL                                  :: epr_present, issc_present, &
+                                                lr_calculation, nmr_present, &
+                                                polar_present
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(linres_control_type), POINTER       :: linres_control
@@ -271,7 +271,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: ispin, output_unit
-    LOGICAL                                  :: do_it, failure
+    LOGICAL                                  :: do_it
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: matrix_ks, rho_ao
     TYPE(cp_logger_type), POINTER            :: logger
@@ -281,7 +281,6 @@ CONTAINS
       POINTER                                :: mos
     TYPE(qs_rho_type), POINTER               :: rho
     TYPE(section_vals_type), POINTER         :: loc_section
-
 
     NULLIFY(logger)
     logger => cp_get_default_logger()

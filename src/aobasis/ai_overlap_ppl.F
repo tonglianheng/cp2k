@@ -117,7 +117,6 @@ CONTAINS
 
     INTEGER                                  :: iexp, ij, ipgf, jpgf, mmax, &
                                                 nexp
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: rho, sab, t, zetc
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: auxint

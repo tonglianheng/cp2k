@@ -95,8 +95,8 @@ CONTAINS
                                                 natom, nr, nspins, num_pe
     INTEGER, DIMENSION(2, 3)                 :: bounds
     INTEGER, DIMENSION(:), POINTER           :: atom_list
-    LOGICAL                                  :: epr_xc, failure, gradient_f, &
-                                                lsd, paw_atom, tau_f
+    LOGICAL                                  :: epr_xc, gradient_f, lsd, &
+                                                paw_atom, tau_f
     REAL(dp)                                 :: density_cut, exc_h, exc_s, &
                                                 gradient_cut, &
                                                 my_adiabatic_rescale_factor, &
@@ -459,9 +459,9 @@ CONTAINS
     INTEGER, DIMENSION(2)                    :: local_loop_limit
     INTEGER, DIMENSION(2, 3)                 :: bounds
     INTEGER, DIMENSION(:), POINTER           :: atom_list
-    LOGICAL                                  :: failure, gradient_functional, &
-                                                lsd, lsd_singlets, &
-                                                my_do_tddft, paw_atom, tau_f
+    LOGICAL                                  :: gradient_functional, lsd, &
+                                                lsd_singlets, my_do_tddft, &
+                                                paw_atom, tau_f
     REAL(KIND=dp)                            :: density_cut, gradient_cut, &
                                                 rtot, tau_cut
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: rho1_h, rho1_s, rho_h, rho_s, &
@@ -940,7 +940,6 @@ CONTAINS
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: cg_n_list
     INTEGER, ALLOCATABLE, DIMENSION(:, :, :) :: cg_list
     INTEGER, DIMENSION(:), POINTER           :: lmax, lmin, npgf
-    LOGICAL                                  :: failure
     REAL(dp), ALLOCATABLE, DIMENSION(:)      :: g1, g2
     REAL(dp), ALLOCATABLE, DIMENSION(:, :)   :: gg, gVg_h, gVg_s, matso_h, &
                                                 matso_s, vx
@@ -1415,7 +1414,6 @@ CONTAINS
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: cg_n_list, dcg_n_list
     INTEGER, ALLOCATABLE, DIMENSION(:, :, :) :: cg_list, dcg_list
     INTEGER, DIMENSION(:), POINTER           :: lmax, lmin, npgf
-    LOGICAL                                  :: failure
     REAL(dp), ALLOCATABLE, DIMENSION(:)      :: dd, g1, g2, gg, gr, ww
     REAL(dp), ALLOCATABLE, DIMENSION(:, :)   :: dgr, dvth, dvts, matso_h, &
                                                 matso_s, vth, vts

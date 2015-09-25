@@ -80,10 +80,10 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i1, i1L, i2, j1, j1L
-    LOGICAL                                  :: failure
     REAL(KIND=dp), DIMENSION(45)             :: e1b, e2a
 
-    ! Compute integrals
+! Compute integrals
+
     CALL rotnuc (sepi, sepj, rij, e1b=e1b, e2a=e2a, itype=itype, anag=anag,&
          se_int_control=se_int_control, se_taper=se_taper, store_int_env=store_int_env)
     !
@@ -163,11 +163,11 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i1, i1L, i2, j1, j1L
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: tmp
     REAL(KIND=dp), DIMENSION(3, 45)          :: de1b, de2a
 
-    ! Compute integrals
+! Compute integrals
+
     CALL drotnuc (sepi, sepj, rij, de1b=de1b, de2a=de2a, itype=itype, anag=anag,&
          se_int_control=se_int_control, se_taper=se_taper, delta=delta)
     !
@@ -238,14 +238,14 @@ CONTAINS
 
     INTEGER                                  :: i, ijw, ikw, iL, im, j, jL, &
                                                 jlw, jm, k, kL, klw, l, lL
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: sum
 
-    !   One-center coulomb and exchange terms for semiempirical_type sep
-    !
-    !  F(i,j)=F(i,j)+sum(k,l)((PA(k,l)+PB(k,l))*<i,j|k,l>
-    !                        -(PA(k,l)        )*<i,k|j,l>), k,l on type sep.
-    !
+!   One-center coulomb and exchange terms for semiempirical_type sep
+!
+!  F(i,j)=F(i,j)+sum(k,l)((PA(k,l)+PB(k,l))*<i,j|k,l>
+!                        -(PA(k,l)        )*<i,k|j,l>), k,l on type sep.
+!
+
     DO iL = 1, sep%natorb
        i = se_orbital_pointer(iL)
        DO jL = 1, iL
@@ -317,10 +317,10 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i1, i1L, i2, j1, j1L, n
-    LOGICAL                                  :: failure
     REAL(KIND=dp), DIMENSION(45)             :: e1b, e2a
 
-    ! Compute integrals
+! Compute integrals
+
     CALL rotnuc (sep, sep, rij, e1b=e1b, e2a=e2a, itype=itype, anag=anag,&
          se_int_control=se_int_control, se_taper=se_taper, store_int_env=store_int_env)
     !
@@ -378,11 +378,11 @@ CONTAINS
 
     INTEGER                                  :: i, iL, j, jL, k, kL, kr, l, &
                                                 lL, natorb
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: a, aa, bb
     REAL(KIND=dp), DIMENSION(2025)           :: w
 
-    ! Evaluate integrals
+! Evaluate integrals
+
     CALL rotint (sep,sep,rij,w,anag=anag,se_int_control=se_int_control,&
             se_taper=se_taper,store_int_env=store_int_env)
     kr = 0
@@ -457,11 +457,11 @@ CONTAINS
 
     INTEGER                                  :: i, iL, j, jL, k, kL, kr, l, &
                                                 lL, natorb(2)
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: a, aa, bb, irij(3)
     REAL(KIND=dp), DIMENSION(2025)           :: w
 
-    ! Evaluate integrals
+! Evaluate integrals
+
     IF (.NOT.switch) THEN
        CALL rotint (sepi,sepj, rij,w,anag=anag,se_int_control=se_int_control,&
             se_taper=se_taper,store_int_env=store_int_env)
@@ -551,12 +551,12 @@ CONTAINS
 
     INTEGER                                  :: i, iL, j, jL, k, kL, kr, l, &
                                                 lL, natorb(2)
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: aa, bb, tmp
     REAL(KIND=dp), DIMENSION(3)              :: a, irij
     REAL(KIND=dp), DIMENSION(3, 2025)        :: dw
 
-    ! Evaluate integrals' derivatives
+! Evaluate integrals' derivatives
+
     IF (.NOT.switch) THEN
        CALL drotint (sepi,sepj, rij,dw,delta,anag=anag,se_int_control=se_int_control,&
             se_taper=se_taper)
@@ -646,11 +646,11 @@ CONTAINS
 
     INTEGER                                  :: i, iL, j, jL, k, kL, kr, l, &
                                                 lL, natorb(2)
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: a, aa, bb, irij(3)
     REAL(KIND=dp), DIMENSION(2025)           :: w
 
-    ! Evaluate integrals
+! Evaluate integrals
+
     IF (.NOT.switch) THEN
        CALL rotint (sepi,sepj, rij,w,anag=anag,se_int_control=se_int_control,&
             se_taper=se_taper,store_int_env=store_int_env)
@@ -736,13 +736,13 @@ CONTAINS
 
     INTEGER                                  :: i, iL, j, jL, k, kL, kr, l, &
                                                 lL, natorb(2)
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: aa, bb, tmp, tmp1, tmp2, &
                                                 tmp3, tmp4
     REAL(KIND=dp), DIMENSION(3)              :: a, irij
     REAL(KIND=dp), DIMENSION(3, 2025)        :: dw
 
-    ! Evaluate integrals' derivatives
+! Evaluate integrals' derivatives
+
     IF (.NOT.switch) THEN
        CALL drotint (sepi,sepj, rij,dw,delta,anag=anag,se_int_control=se_int_control,&
             se_taper=se_taper)
@@ -841,11 +841,11 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i1, i1L, i2
-    LOGICAL                                  :: failure
 
-    !
-    ! Add the electron-nuclear residual attraction term for atom sepi
-    !
+!
+! Add the electron-nuclear residual attraction term for atom sepi
+!
+
     i2 = 0
     DO i1L = 1, sepi%natorb
        i2 = i2 + 1
@@ -897,12 +897,12 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i1, i1L, i2
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: tmp
 
-    !
-    ! Add the electron-nuclear residual attraction term for atom sepi
-    !
+!
+! Add the electron-nuclear residual attraction term for atom sepi
+!
+
     i2 = 0
     DO i1L = 1, sepi%natorb
        i1 = se_orbital_pointer(i1L)
@@ -962,7 +962,6 @@ CONTAINS
 
     INTEGER                                  :: i, iL, ind, j, k, kL, kr, &
                                                 natorb(2)
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: a, w_l(81)
 
     natorb(1) = sepi%natorb
@@ -1036,7 +1035,6 @@ CONTAINS
 
     INTEGER                                  :: i, iL, ind, j, k, kL, kr, &
                                                 natorb(2)
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: a(3), tmp, w_l(81)
 
     natorb(1) = sepi%natorb
@@ -1139,8 +1137,7 @@ CONTAINS
 
     INTEGER                                  :: a, b, c, d, e, i, j, k
     LOGICAL                                  :: do_efield0, do_efield1, &
-                                                do_efield2, failure, &
-                                                force_eval
+                                                do_efield2, force_eval
     LOGICAL, DIMENSION(3)                    :: do_task
     LOGICAL, DIMENSION(3, 3)                 :: task
     REAL(KIND=dp) :: ch_i, ch_j, ef0_i, ef0_j, eloc, energy, fac, fac_ij, ir, &

@@ -623,7 +623,6 @@ CONTAINS
     INTEGER                                  :: atom_a, handle, iatom, ikind, &
                                                 img, ispin, natom, nkind, &
                                                 nspins, output_unit
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: pc_ener, qmmm_el, zeff
     REAL(KIND=dp), DIMENSION(:), POINTER     :: mcharge, occupation_numbers
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: charges
@@ -1008,7 +1007,7 @@ CONTAINS
     INTEGER                                  :: blk, handle, i, iatom, ikind, &
                                                 jatom, natom, natorb, nkind
     INTEGER, DIMENSION(:), POINTER           :: list
-    LOGICAL                                  :: defined, failure, found
+    LOGICAL                                  :: defined, found
     REAL(KIND=dp)                            :: pc_ener, zeff
     REAL(KIND=dp), DIMENSION(0:3)            :: eta_a
     REAL(KIND=dp), DIMENSION(:), POINTER     :: qpot
@@ -1121,7 +1120,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle
-    LOGICAL                                  :: failure
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: matrix_h, matrix_s
     TYPE(qs_ks_qmmm_env_type), POINTER       :: ks_qmmm_env_loc
@@ -1175,8 +1173,7 @@ CONTAINS
     INTEGER :: blk, do_ipol, ewald_type, handle, i, iatom, ikind, imm, imp, &
       indmm, ipot, jatom, natom, natorb, nkind, nmm
     INTEGER, DIMENSION(:), POINTER           :: list
-    LOGICAL                                  :: defined, do_multipoles, &
-                                                failure, found
+    LOGICAL                                  :: defined, do_multipoles, found
     REAL(KIND=dp)                            :: alpha, pc_ener, zeff
     REAL(KIND=dp), DIMENSION(0:3)            :: eta_a
     REAL(KIND=dp), DIMENSION(2)              :: rcutoff
@@ -1429,7 +1426,7 @@ CONTAINS
                                                 natom, natorb, nkind, nspins, &
                                                 number_qm_atoms
     INTEGER, DIMENSION(:), POINTER           :: list
-    LOGICAL                                  :: defined, failure, found
+    LOGICAL                                  :: defined, found
     REAL(KIND=dp)                            :: fi, gmij, zeff
     REAL(KIND=dp), DIMENSION(0:3)            :: eta_a
     REAL(KIND=dp), DIMENSION(:), POINTER     :: mcharge, qpot
@@ -1631,8 +1628,7 @@ CONTAINS
       imm, imp, indmm, ipot, iqm, jatom, natom, natorb, nkind, nmm, nspins, &
       number_qm_atoms
     INTEGER, DIMENSION(:), POINTER           :: list
-    LOGICAL                                  :: defined, do_multipoles, &
-                                                failure, found
+    LOGICAL                                  :: defined, do_multipoles, found
     REAL(KIND=dp)                            :: alpha, fi, gmij, zeff
     REAL(KIND=dp), DIMENSION(0:3)            :: eta_a
     REAL(KIND=dp), DIMENSION(2)              :: rcutoff

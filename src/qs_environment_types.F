@@ -636,7 +636,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'get_qs_env', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     TYPE(rho0_mpole_type), POINTER           :: rho0_m
 
     NULLIFY(rho0_m)
@@ -1078,9 +1077,8 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'set_qs_env', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
 !    CPPrecondition(ASSOCIATED(qs_env),cp_failure_level,routineP,failure)
+
     CPASSERT(qs_env%ref_count>0)
     IF (PRESENT(mp2_env)) qs_env%mp2_env=>mp2_env
     IF (PRESENT(kg_env)) qs_env%kg_env => kg_env
@@ -1255,9 +1253,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'qs_env_create', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-
     ALLOCATE(qs_env)
     CALL init_qs_env(qs_env, globenv=globenv)
   END SUBROUTINE qs_env_create
@@ -1274,9 +1269,6 @@ CONTAINS
 
     CHARACTER(len=*), PARAMETER :: routineN = 'qs_env_retain', &
       routineP = moduleN//':'//routineN
-
-    LOGICAL                                  :: failure
-
 
     CPASSERT(ASSOCIATED(qs_env))
     CPASSERT(qs_env%ref_count>0)
@@ -1297,8 +1289,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i
-    LOGICAL                                  :: failure
-
 
     IF (ASSOCIATED(qs_env)) THEN
        CPASSERT(qs_env%ref_count>0)

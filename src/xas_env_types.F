@@ -194,8 +194,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'get_xas_env', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
      CPASSERT(ASSOCIATED(xas_env))
 
 
@@ -273,9 +271,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'set_xas_env', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-
     CPASSERT(ASSOCIATED(xas_env))
 
 
@@ -320,8 +315,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'xas_env_create', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
     ALLOCATE(xas_env)
 
 
@@ -360,8 +353,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i, ik, j
-    LOGICAL                                  :: failure
-
 
     IF (ASSOCIATED(xas_env)) THEN
        CPASSERT(xas_env%ref_count>0)
@@ -456,9 +447,6 @@ CONTAINS
 
     CHARACTER(len=*), PARAMETER :: routineN = 'xas_env_retain', &
       routineP = moduleN//':'//routineN
-
-    LOGICAL                                  :: failure
-
 
     CPASSERT(ASSOCIATED(xas_env))
     CPASSERT(xas_env%ref_count>0)
