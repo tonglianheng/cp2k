@@ -276,8 +276,7 @@ CPSourceFileRef)
           routineP,"local_leading_dimension too small ("//&
           cp_to_string(local_leading_dimension)//"<"//&
           cp_to_string(fmstruct%local_leading_dimension)//")"//&
-CPSourceFileRef,&
-          failure=failure)
+CPSourceFileRef)
      fmstruct%local_leading_dimension=local_leading_dimension
   END IF
 
@@ -426,7 +425,8 @@ SUBROUTINE cp_fm_struct_write(fmstruct, unit_nr, long_description)
     INTEGER                                  :: iostat
     LOGICAL                                  :: failure, l_desc
 
-  failure=.FALSE.; l_desc=.FALSE.
+  failure=.FALSE.
+  l_desc=.FALSE.
 
   IF (PRESENT(long_description)) l_desc=long_description
   IF (ASSOCIATED(fmstruct)) THEN

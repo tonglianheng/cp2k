@@ -335,8 +335,7 @@ CPSourceFileRef)
 
     CALL cp_assert(ncol_global>=(my_start_col+my_ncol-1),&
          cp_failure_level,cp_assertion_failed,routineP,&
-         "ncol_global>=(my_start_col+my_ncol-1)",&
-         failure)
+         "ncol_global>=(my_start_col+my_ncol-1)")
 
     ALLOCATE(buff(nrow_global))
 
@@ -1167,7 +1166,8 @@ CPSourceFileRef)
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
 
-     failure=.FALSE.; loc=.FALSE.; my_long_description=.FALSE.
+     failure=.FALSE.
+     loc=.FALSE.; my_long_description=.FALSE.
      filename=' '
 
      IF (PRESENT(local)) loc=local
