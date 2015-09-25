@@ -241,53 +241,51 @@ CONTAINS
 
     accepted = .TRUE.
     ALLOCATE(tmp(SIZE(step)))
-    IF (.NOT.failure) THEN
-       IF (accepted) THEN
-          ! (a) The direction of the DIIS step, can be compared to the reference step.
-          !     if the angle is grater than a specified value, the DIIS step is not
-          !     acceptable.
-          norm1 = SQRT(DOT_PRODUCT(ref,ref))
-          norm2 = SQRT(DOT_PRODUCT(step,step))
-          costh = DOT_PRODUCT(ref,step)/(norm1*norm2)
-          IF (check_diis) THEN
-             IF (costh < acceptance_factor(MIN(10,nv))) accepted = .FALSE.
-          ELSE
-             IF (costh <= 0.0_dp) accepted = .FALSE.
-          END IF
-          IF (output_unit > 0.AND.(.NOT.accepted))  THEN
-             WRITE(output_unit,'(T2,"DIIS|",A)')&
-                  "The direction of the DIIS step, can be compared to the reference step.",&
-                  "If the angle is grater than a specified value, the DIIS step is not",&
-                  "acceptable. Value exceeded. Reset DIIS!"
-             WRITE(output_unit,'(T2,"DIIS|",A,F6.3,A,F6.3,A)')&
-                  "Present Cosine <",costh,"> compared with the optimal value <",&
-                  acceptance_factor(MIN(10,nv)),"> ."
-          END IF
+    IF (accepted) THEN
+       ! (a) The direction of the DIIS step, can be compared to the reference step.
+       !     if the angle is grater than a specified value, the DIIS step is not
+       !     acceptable.
+       norm1 = SQRT(DOT_PRODUCT(ref,ref))
+       norm2 = SQRT(DOT_PRODUCT(step,step))
+       costh = DOT_PRODUCT(ref,step)/(norm1*norm2)
+       IF (check_diis) THEN
+          IF (costh < acceptance_factor(MIN(10,nv))) accepted = .FALSE.
+       ELSE
+          IF (costh <= 0.0_dp) accepted = .FALSE.
        END IF
-       IF (accepted.AND.check_diis) THEN
-          ! (b) The length of the DIIS step is limited to be no more than 10 times
-          !     the reference step
-          IF (norm1 > norm2*10.0_dp) accepted = .FALSE.
-          IF (output_unit > 0.AND.(.NOT.accepted))  THEN
-             WRITE(output_unit,'(T2,"DIIS|",A)')&
-                  "The length of the DIIS step is limited to be no more than 10 times",&
-                  "the reference step. Value exceeded. Reset DIIS!"
-          END IF
+       IF (output_unit > 0.AND.(.NOT.accepted))  THEN
+          WRITE(output_unit,'(T2,"DIIS|",A)')&
+               "The direction of the DIIS step, can be compared to the reference step.",&
+               "If the angle is grater than a specified value, the DIIS step is not",&
+               "acceptable. Value exceeded. Reset DIIS!"
+          WRITE(output_unit,'(T2,"DIIS|",A,F6.3,A,F6.3,A)')&
+               "Present Cosine <",costh,"> compared with the optimal value <",&
+               acceptance_factor(MIN(10,nv)),"> ."
        END IF
-       IF (accepted.AND.check_diis) THEN
-          ! (d) If the DIIS matrix is nearly singular, the norm of the DIIS step
-          !     vector becomes small and cwrk/norm1 becomes large, signaling a
-          !     numerical stability problems. If the magnitude of cwrk/norm1
-          !     exceeds 10^8 then the step size is assumed to be unacceptable
-          IF (ANY(ABS(cwrk(1:nv)/norm1)>10**8_dp)) accepted = .FALSE.
-          IF (output_unit > 0.AND.(.NOT.accepted))  THEN
-             WRITE(output_unit,'(T2,"DIIS|",A)')&
-                  "If the DIIS matrix is nearly singular, the norm of the DIIS step",&
-                  "vector becomes small and Coeff/E_norm becomes large, signaling a",&
-                  "numerical stability problems. IF the magnitude of Coeff/E_norm",&
-                  "exceeds 10^8 THEN the step size is assumed to be unacceptable.",&
-                  "Value exceeded. Reset DIIS!"
-          END IF
+    END IF
+    IF (accepted.AND.check_diis) THEN
+       ! (b) The length of the DIIS step is limited to be no more than 10 times
+       !     the reference step
+       IF (norm1 > norm2*10.0_dp) accepted = .FALSE.
+       IF (output_unit > 0.AND.(.NOT.accepted))  THEN
+          WRITE(output_unit,'(T2,"DIIS|",A)')&
+               "The length of the DIIS step is limited to be no more than 10 times",&
+               "the reference step. Value exceeded. Reset DIIS!"
+       END IF
+    END IF
+    IF (accepted.AND.check_diis) THEN
+       ! (d) If the DIIS matrix is nearly singular, the norm of the DIIS step
+       !     vector becomes small and cwrk/norm1 becomes large, signaling a
+       !     numerical stability problems. If the magnitude of cwrk/norm1
+       !     exceeds 10^8 then the step size is assumed to be unacceptable
+       IF (ANY(ABS(cwrk(1:nv)/norm1)>10**8_dp)) accepted = .FALSE.
+       IF (output_unit > 0.AND.(.NOT.accepted))  THEN
+          WRITE(output_unit,'(T2,"DIIS|",A)')&
+               "If the DIIS matrix is nearly singular, the norm of the DIIS step",&
+               "vector becomes small and Coeff/E_norm becomes large, signaling a",&
+               "numerical stability problems. IF the magnitude of Coeff/E_norm",&
+               "exceeds 10^8 THEN the step size is assumed to be unacceptable.",&
+               "Value exceeded. Reset DIIS!"
        END IF
     END IF
     DEALLOCATE(tmp)

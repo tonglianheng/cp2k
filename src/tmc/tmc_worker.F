@@ -983,19 +983,16 @@ CONTAINS
 !    CHARACTER(LEN=*), PARAMETER :: routineN = 'get_mimal_distances', &
 !      routineP = moduleN//':'//routineN
 !
-!    LOGICAL                                  :: failure
 !    TYPE(f_env_type), POINTER                :: f_env
 !
-!    CPPrecondition(env_id.GT.0,cp_failure_level,routineP,failure)
-!    CPPrecondition(.NOT.ASSOCIATED(rlist_lowsq),cp_failure_level,routineP,failure)
+!    CPASSERT(env_id.GT.0)
+!    CPASSERT(.NOT.ASSOCIATED(rlist_lowsq))
 !
 !    CALL f_env_get_from_id(env_id,f_env)
-!    IF (.NOT.failure) THEN
-!      IF(ASSOCIATED(f_env%force_env)) THEN
-!        IF(ASSOCIATED(f_env%force_env%fist_env)) THEN
-!          CALL fist_nonbond_env_get(f_env%force_env%fist_env%fist_nonbond_env, &
-!                 rlist_lowsq=rlist_lowsq)
-!        END IF
+!    IF(ASSOCIATED(f_env%force_env)) THEN
+!      IF(ASSOCIATED(f_env%force_env%fist_env)) THEN
+!        CALL fist_nonbond_env_get(f_env%force_env%fist_env%fist_nonbond_env, &
+!               rlist_lowsq=rlist_lowsq)
 !      END IF
 !    END IF
 !    

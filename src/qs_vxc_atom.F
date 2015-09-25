@@ -774,8 +774,6 @@ CONTAINS
       CPASSERT(ASSOCIATED(drho_s))
    END IF
 
-   IF (failure) RETURN
-
    na = grid_atom%ng_sphere
    rad = grid_atom%rad(ir)
    urad = grid_atom%oorad2l(ir,1)
@@ -883,8 +881,6 @@ CONTAINS
     CPASSERT(ASSOCIATED(trho_s))
     CPASSERT(ASSOCIATED(tau_h))
     CPASSERT(ASSOCIATED(tau_s))
-
-    IF (failure) RETURN
 
     na = grid_atom%ng_sphere
     tau_h = 0.0_dp
@@ -1207,7 +1203,7 @@ CONTAINS
           CPASSERT(max_iso_not0_local.LE.max_iso_not0)
           CALL get_none0_cg_list(my_CG_dxyz,lmin(iset1),lmax(iset1),lmin(iset2),lmax(iset2),&
                                  max_s_harm,lmax_expansion,dcg_list,dcg_n_list,dmax_iso_not0_local)
-          !CPPrecondition(dmax_iso_not0_local.LE.dmax_iso_not0,cp_failure_level,routineP,failure)
+          !CPASSERT(dmax_iso_not0_local.LE.dmax_iso_not0)
 
           n2 = nsoset(lmax(iset2))
           DO ipgf1  = 1,npgf(iset1)
@@ -1311,21 +1307,18 @@ CONTAINS
 
                     !test reduce expansion local densities
                     CPASSERT(l<=lmax_expansion)
-                    IF(.NOT. failure) THEN
-
-                       DO ia = 1,na
-                          matso_h(iso1,iso2) = matso_h(iso1,iso2) + &
-                                               gVXCg_h(ia,l)*&
-                                               harmonics%slm(ia,iso)*&
-                                               my_CG(iso1,iso2,iso)
-                          matso_s(iso1,iso2) = matso_s(iso1,iso2) + &
-                                               gVXCg_s(ia,l)*&
-                                               harmonics%slm(ia,iso)*&
-                                               my_CG(iso1,iso2,iso)
-                       END DO ! ia
+                    DO ia = 1,na
+                       matso_h(iso1,iso2) = matso_h(iso1,iso2) + &
+                                            gVXCg_h(ia,l)*&
+                                            harmonics%slm(ia,iso)*&
+                                            my_CG(iso1,iso2,iso)
+                       matso_s(iso1,iso2) = matso_s(iso1,iso2) + &
+                                            gVXCg_s(ia,l)*&
+                                            harmonics%slm(ia,iso)*&
+                                            my_CG(iso1,iso2,iso)
+                    END DO ! ia
 
                     !test reduce expansion local densities
-                    END IF ! failure
 
                  END DO
 
@@ -1339,25 +1332,22 @@ CONTAINS
                     l = indso(1,iso1) + indso(1,iso2)
                     !test reduce expansion local densities
                     CPASSERT(l<=lmax_expansion)
-                    IF(.NOT. failure) THEN
+                    DO ia = 1,na
+                       matso_h(iso1,iso2) = matso_h(iso1,iso2) + &
+                            (gVXGg_h(1,ia,l)*my_CG_dxyz(1,iso1,iso2,iso)+&
+                             gVXGg_h(2,ia,l)*my_CG_dxyz(2,iso1,iso2,iso)+&
+                             gVXGg_h(3,ia,l)*my_CG_dxyz(3,iso1,iso2,iso))*&
+                             harmonics%slm(ia,iso)
 
-                       DO ia = 1,na
-                          matso_h(iso1,iso2) = matso_h(iso1,iso2) + &
-                               (gVXGg_h(1,ia,l)*my_CG_dxyz(1,iso1,iso2,iso)+&
-                                gVXGg_h(2,ia,l)*my_CG_dxyz(2,iso1,iso2,iso)+&
-                                gVXGg_h(3,ia,l)*my_CG_dxyz(3,iso1,iso2,iso))*&
-                                harmonics%slm(ia,iso)
+                       matso_s(iso1,iso2) = matso_s(iso1,iso2) + &
+                            (gVXGg_s(1,ia,l)*my_CG_dxyz(1,iso1,iso2,iso)+&
+                             gVXGg_s(2,ia,l)*my_CG_dxyz(2,iso1,iso2,iso)+&
+                             gVXGg_s(3,ia,l)*my_CG_dxyz(3,iso1,iso2,iso))*&
+                             harmonics%slm(ia,iso)
 
-                          matso_s(iso1,iso2) = matso_s(iso1,iso2) + &
-                               (gVXGg_s(1,ia,l)*my_CG_dxyz(1,iso1,iso2,iso)+&
-                                gVXGg_s(2,ia,l)*my_CG_dxyz(2,iso1,iso2,iso)+&
-                                gVXGg_s(3,ia,l)*my_CG_dxyz(3,iso1,iso2,iso))*&
-                                harmonics%slm(ia,iso)
-
-                       END DO ! ia
+                    END DO ! ia
 
                     !test reduce expansion local densities
-                    END IF ! failure
 
                  END DO ! icg
               END DO ! iso

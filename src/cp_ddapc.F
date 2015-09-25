@@ -263,7 +263,7 @@ CONTAINS
     IF (PRESENT(calculate_forces)) need_f   = calculate_forces
     logger         => cp_get_default_logger()
     apply_decpl    = qs_env%cp_ddapc_ewald%do_decoupling.OR.qs_env%cp_ddapc_ewald%do_qmmm_periodic_decpl
-    IF ((.NOT.failure).AND.(apply_decpl)) THEN
+    IF (apply_decpl) THEN
        ! Initialize
        NULLIFY(multipole_section,&
                poisson_section,&
@@ -411,7 +411,7 @@ CONTAINS
     IF (PRESENT(calculate_forces)) need_f = calculate_forces
     apply_restrain = dft_control%qs_control%ddapc_restraint
     logger         => cp_get_default_logger()
-    IF ((.NOT.failure).AND.apply_restrain) THEN
+    IF (apply_restrain) THEN
        ! Initialize
        density_fit_section => section_vals_get_subs_vals(force_env_section,"DFT%DENSITY_FITTING")
        restraint_section => section_vals_get_subs_vals(force_env_section,"DFT%QS%DDAPC_RESTRAINT")
@@ -511,7 +511,7 @@ CONTAINS
     IF (PRESENT(calculate_forces)) need_f = calculate_forces
     logger          => cp_get_default_logger()
     apply_solvation = qs_env%cp_ddapc_ewald%do_solvation
-    IF ((.NOT.failure).AND.(apply_solvation)) THEN
+    IF (apply_solvation) THEN
        ! Initialize
        NULLIFY(force_env_section, particle_set, charges, &
             radii, dq, cell, super_cell)

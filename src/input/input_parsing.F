@@ -108,6 +108,7 @@ CONTAINS
 
     NULLIFY(previous_list,previous_last)
 
+    failure=.FALSE.
     root_sect=.TRUE.
     IF (PRESENT(root_section)) root_sect=root_section
 
@@ -369,6 +370,7 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
+    failure=.FALSE.
     CPASSERT(.NOT.ASSOCIATED(val))
     SELECT CASE(type_of_var)
     CASE(no_t)
@@ -673,7 +675,7 @@ CPSourceFileRef,&
        CALL cp_assert(cp_unit_compatible(unit,my_unit),&
             cp_failure_level,cp_assertion_failed,routineP,"Incompatible units. Defined as ("//&
             TRIM(cp_unit_desc(unit))//") specified in input as ("//&
-            TRIM(cp_unit_desc(my_unit))//"). These units are incompatible!",failure)
+            TRIM(cp_unit_desc(my_unit))//"). These units are incompatible!")
     END IF
     CALL parser_get_object(parser,r_val)
     IF (ASSOCIATED(unit)) THEN
