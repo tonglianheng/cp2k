@@ -1045,8 +1045,9 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-    IF (.NOT. ASSOCIATED(qs_kind_set)) &
+    IF (.NOT. ASSOCIATED(qs_kind_set)) THEN
        CPABORT("init_qs_kind_set: The pointer qs_kind_set is not associated")
+    ENDIF
 
     DO ikind=1, SIZE(qs_kind_set)
        qs_kind => qs_kind_set(ikind)
@@ -1833,8 +1834,8 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-    IF(ASSOCIATED(qs_kind_set)) STOP "create_qs_kind_set: qs_kind_set already associated"
-    IF(.NOT.ASSOCIATED(atomic_kind_set)) STOP "create_qs_kind_set: atomic_kind_set not associated"
+    IF(ASSOCIATED(qs_kind_set)) CPABORT("create_qs_kind_set: qs_kind_set already associated")
+    IF(.NOT.ASSOCIATED(atomic_kind_set)) CPABORT("create_qs_kind_set: atomic_kind_set not associated")
 
     no_fail = .FALSE.
 
