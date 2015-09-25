@@ -28,9 +28,9 @@ MODULE qs_linres_current
        cp_dbcsr_create, cp_dbcsr_deallocate_matrix, &
        cp_dbcsr_deallocate_matrix_set, cp_dbcsr_distribution, &
        cp_dbcsr_finalize, cp_dbcsr_get_block_p, cp_dbcsr_get_data_size, &
-       cp_dbcsr_get_matrix_type, cp_dbcsr_get_num_blocks, cp_dbcsr_init, &
-       cp_dbcsr_p_type, cp_dbcsr_row_block_sizes, cp_dbcsr_set, &
-       cp_dbcsr_type, dbcsr_distribution_obj, dbcsr_type_antisymmetric, &
+       cp_dbcsr_get_matrix_type, cp_dbcsr_init, cp_dbcsr_p_type, &
+       cp_dbcsr_row_block_sizes, cp_dbcsr_set, cp_dbcsr_type, &
+       dbcsr_distribution_obj, dbcsr_type_antisymmetric, &
        dbcsr_type_no_symmetry
   USE cp_dbcsr_operations,             ONLY: cp_dbcsr_plus_fm_fm_t,&
                                              cp_dbcsr_sm_fm_multiply
@@ -164,7 +164,6 @@ CONTAINS
 !> \param current_env ...
 !> \param qs_env ...
 !> \param iB ...
-!> \param error ...
 !> \author MI
 !> \note
 !>       The susceptibility is needed to compute the G=0 term of the shift
@@ -175,19 +174,18 @@ CONTAINS
 !>       This cannot be done on directly on the full J(r) because it is not localized
 !>       Therefore it is done state by state (see linres_nmr_shift)
 ! *****************************************************************************
-  SUBROUTINE current_build_current(current_env,qs_env,iB,error)
+  SUBROUTINE current_build_current(current_env,qs_env,iB)
     !
     TYPE(current_env_type)                   :: current_env
     TYPE(qs_environment_type), POINTER       :: qs_env
     INTEGER, INTENT(IN)                      :: iB
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'current_build_current', &
       routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=default_path_length)       :: ext, filename, my_pos
-    INTEGER :: handle, idir, iiB, iiiB, ispin, istat, istate, j, jstate, nao, &
-      natom, nmo, nspins, nstates(2), output_unit, unit_nr
+    INTEGER :: handle, idir, iiB, iiiB, ispin, istate, j, jstate, nao, natom, &
+      nmo, nspins, nstates(2), output_unit, unit_nr
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: first_sgf, last_sgf
     INTEGER, DIMENSION(:), POINTER           :: row_blk_sizes
     LOGICAL                                  :: append_cube, failure, gapw
@@ -241,7 +239,7 @@ CONTAINS
             para_env,center_list,mo_coeff,psi_a_iB,jrho1_r, jrho1_g,&
             psi1,p_psi1,psi1_p,psi1_D,psi1_rxp,psi0_order,sab_all, qs_kind_set)
 
-    logger => cp_error_get_logger(error)
+    logger => cp_get_default_logger()
     output_unit= cp_logger_get_default_io_unit(logger)
     !
     !
@@ -252,8 +250,7 @@ CONTAINS
                          psi1_p=psi1_p,&
                          psi0_order=psi0_order,&
                          nstates=nstates,&
-                         nao=nao,&
-                         error=error)
+                         nao=nao)
     !
     !
     CALL get_qs_env(qs_env=qs_env,&
@@ -267,84 +264,76 @@ CONTAINS
                     sab_all=sab_all,&
                     particle_set=particle_set,&
                     qs_kind_set=qs_kind_set,&
-                    dbcsr_dist=dbcsr_dist,&
-                    error=error)
+                    dbcsr_dist=dbcsr_dist)
 
-    CALL qs_subsys_get(subsys,particles=particles,error=error)
+    CALL qs_subsys_get(subsys,particles=particles)
 
     gapw  = dft_control%qs_control%gapw
     nspins = dft_control%nspins
     natom = SIZE(particle_set,1)
     !
     ! allocate temporary arrays
-    ALLOCATE(psi1(nspins),p_psi1(nspins),STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    ALLOCATE(psi1(nspins),p_psi1(nspins))
     DO ispin = 1,nspins
-       CALL cp_fm_create(  psi1(ispin)%matrix,psi0_order(ispin)%matrix%matrix_struct,error=error)
-       CALL cp_fm_create(p_psi1(ispin)%matrix,psi0_order(ispin)%matrix%matrix_struct,error=error)
-       CALL cp_fm_set_all(  psi1(ispin)%matrix,0.0_dp,error=error)
-       CALL cp_fm_set_all(p_psi1(ispin)%matrix,0.0_dp,error=error)
+       CALL cp_fm_create(  psi1(ispin)%matrix,psi0_order(ispin)%matrix%matrix_struct)
+       CALL cp_fm_create(p_psi1(ispin)%matrix,psi0_order(ispin)%matrix%matrix_struct)
+       CALL cp_fm_set_all(  psi1(ispin)%matrix,0.0_dp)
+       CALL cp_fm_set_all(p_psi1(ispin)%matrix,0.0_dp)
     ENDDO
     !
     !
-    CALL cp_dbcsr_allocate_matrix_set(density_matrix0,nspins,error=error)
-    CALL cp_dbcsr_allocate_matrix_set(density_matrix_a,nspins,error=error)
-    CALL cp_dbcsr_allocate_matrix_set(density_matrix_ii,nspins,error=error)
-    CALL cp_dbcsr_allocate_matrix_set(density_matrix_iii,nspins,error=error)
+    CALL cp_dbcsr_allocate_matrix_set(density_matrix0,nspins)
+    CALL cp_dbcsr_allocate_matrix_set(density_matrix_a,nspins)
+    CALL cp_dbcsr_allocate_matrix_set(density_matrix_ii,nspins)
+    CALL cp_dbcsr_allocate_matrix_set(density_matrix_iii,nspins)
     !
     ! prepare for allocation
-    ALLOCATE (first_sgf(natom),STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-    ALLOCATE (last_sgf(natom),STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    ALLOCATE (first_sgf(natom))
+    ALLOCATE (last_sgf(natom))
     CALL get_particle_set(particle_set, qs_kind_set,&
                           first_sgf=first_sgf,&
-                          last_sgf=last_sgf,error=error)
-    ALLOCATE (row_blk_sizes(natom), STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+                          last_sgf=last_sgf)
+    ALLOCATE (row_blk_sizes(natom))
     CALL convert_offsets_to_sizes (first_sgf, row_blk_sizes, last_sgf)
-    DEALLOCATE (first_sgf,STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-    DEALLOCATE (last_sgf,STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    DEALLOCATE (first_sgf)
+    DEALLOCATE (last_sgf)
     !
     !
     DO ispin = 1,nspins
        !
        !density_matrix0
        ALLOCATE(density_matrix0(ispin)%matrix)
-       CALL cp_dbcsr_init(density_matrix0(ispin)%matrix,error=error)
+       CALL cp_dbcsr_init(density_matrix0(ispin)%matrix)
        CALL cp_dbcsr_create(matrix=density_matrix0(ispin)%matrix, &
             name="density_matrix0", &
             dist=dbcsr_dist, matrix_type=dbcsr_type_no_symmetry,&
             row_blk_size=row_blk_sizes, col_blk_size=row_blk_sizes, &
-            nblks=0, nze=0, mutable_work=.TRUE., &
-            error=error)
-       CALL cp_dbcsr_alloc_block_from_nbl(density_matrix0(ispin)%matrix,sab_all,error=error)
+            nze=0, mutable_work=.TRUE.)
+       CALL cp_dbcsr_alloc_block_from_nbl(density_matrix0(ispin)%matrix,sab_all)
        !
        !density_matrix_a
        ALLOCATE(density_matrix_a(ispin)%matrix)
-       CALL cp_dbcsr_init(density_matrix_a(ispin)%matrix,error=error)
+       CALL cp_dbcsr_init(density_matrix_a(ispin)%matrix)
        CALL cp_dbcsr_copy(density_matrix_a(ispin)%matrix,density_matrix0(ispin)%matrix,&
-            name="density_matrix_a",error=error)
+            name="density_matrix_a")
        !
        !density_matrix_ii
        ALLOCATE(density_matrix_ii(ispin)%matrix)
-       CALL cp_dbcsr_init(density_matrix_ii(ispin)%matrix,error=error)
+       CALL cp_dbcsr_init(density_matrix_ii(ispin)%matrix)
        CALL cp_dbcsr_copy(density_matrix_ii(ispin)%matrix,density_matrix0(ispin)%matrix,&
-            name="density_matrix_ii",error=error)
+            name="density_matrix_ii")
        !
        !density_matrix_iii
        ALLOCATE(density_matrix_iii(ispin)%matrix)
-       CALL cp_dbcsr_init(density_matrix_iii(ispin)%matrix,error=error)
+       CALL cp_dbcsr_init(density_matrix_iii(ispin)%matrix)
        CALL cp_dbcsr_copy(density_matrix_iii(ispin)%matrix,density_matrix0(ispin)%matrix,&
-            name="density_matrix_iii",error=error)
+            name="density_matrix_iii")
     ENDDO
     !
     DEALLOCATE(row_blk_sizes)
     !
     !
-    current_section => section_vals_get_subs_vals(qs_env%input,"PROPERTIES%LINRES%CURRENT",error=error)
+    current_section => section_vals_get_subs_vals(qs_env%input,"PROPERTIES%LINRES%CURRENT")
     !
     IF(.NOT. failure) THEN
        !
@@ -363,22 +352,21 @@ CONTAINS
           !
           !
           ! Build the first density matrix
-          CALL cp_dbcsr_set(density_matrix0(ispin)%matrix,0.0_dp,error=error)
+          CALL cp_dbcsr_set(density_matrix0(ispin)%matrix,0.0_dp)
           CALL cp_dbcsr_plus_fm_fm_t(sparse_matrix=density_matrix0(ispin)%matrix ,&
                                   matrix_v=mo_coeff,matrix_g=mo_coeff,&
-                                  ncol=nmo,alpha=maxocc,error=error)
+                                  ncol=nmo,alpha=maxocc)
           !
           ! Allocate buffer vectors
-          ALLOCATE(ddk(3,nmo),STAT=istat)
-          CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+          ALLOCATE(ddk(3,nmo))
           !
           ! Construct the 3 density matrices for the field in direction iB
           !
           ! First the full matrix psi_a_iB
           psi_a_iB => psi1(ispin)%matrix
           psi_buf => p_psi1(ispin)%matrix
-          CALL cp_fm_set_all(psi_a_iB,0.0_dp,error=error)
-          CALL cp_fm_set_all(psi_buf,0.0_dp,error=error)
+          CALL cp_fm_set_all(psi_a_iB,0.0_dp)
+          CALL cp_fm_set_all(psi_buf,0.0_dp)
           ! psi_a_iB = - (R_\nu-dk)_ii psi1_piiiB + (R_\nu-dk)_iii psi1_piiB
           !
           ! contributions from the response psi1_p_ii and psi1_p_iii
@@ -394,66 +382,66 @@ CONTAINS
                 ddk(:,jstate) = dk(1:3)
              ENDDO
           ENDDO ! istate
-          CALL fm_scale_by_pbc_AC(psi_a_iB,current_env%basisfun_center,ddk,cell,iiiB,error)
-          CALL fm_scale_by_pbc_AC(psi_buf,current_env%basisfun_center,ddk,cell,iiB,error)
-          CALL cp_fm_scale_and_add(-1.0_dp,psi_a_iB,1.0_dp,psi_buf,error=error)
+          CALL fm_scale_by_pbc_AC(psi_a_iB,current_env%basisfun_center,ddk,cell,iiiB)
+          CALL fm_scale_by_pbc_AC(psi_buf,current_env%basisfun_center,ddk,cell,iiB)
+          CALL cp_fm_scale_and_add(-1.0_dp,psi_a_iB,1.0_dp,psi_buf)
           !
           !psi_a_iB = psi_a_iB + psi1_rxp
           !
           ! contribution from the response psi1_rxp
-          CALL cp_fm_scale_and_add(-1.0_dp,psi_a_iB,1.0_dp,psi1_rxp(ispin,iB)%matrix,error=error)
+          CALL cp_fm_scale_and_add(-1.0_dp,psi_a_iB,1.0_dp,psi1_rxp(ispin,iB)%matrix)
           !
           !psi_a_iB = psi_a_iB - psi1_D
           IF(current_env%full) THEN
              !
              ! contribution from the response psi1_D
-             CALL  cp_fm_scale_and_add(1.0_dp,psi_a_iB,-1.0_dp,psi1_D(ispin,iB)%matrix,error=error)
+             CALL  cp_fm_scale_and_add(1.0_dp,psi_a_iB,-1.0_dp,psi1_D(ispin,iB)%matrix)
           ENDIF
           !
           ! Multiply by the occupation number for the density matrix
           !
           ! Build the first density matrix
-          CALL cp_dbcsr_set(density_matrix_a(ispin)%matrix ,0.0_dp,error=error)
+          CALL cp_dbcsr_set(density_matrix_a(ispin)%matrix ,0.0_dp)
           CALL cp_dbcsr_plus_fm_fm_t(sparse_matrix=density_matrix_a(ispin)%matrix ,&
                                   matrix_v=mo_coeff,matrix_g=psi_a_iB,&
-                                  ncol=nmo,alpha=maxocc,error=error)
+                                  ncol=nmo,alpha=maxocc)
           !
           ! Build the second density matrix
-          CALL cp_dbcsr_set(density_matrix_iii(ispin)%matrix,0.0_dp,error=error)
+          CALL cp_dbcsr_set(density_matrix_iii(ispin)%matrix,0.0_dp)
           CALL cp_dbcsr_plus_fm_fm_t(sparse_matrix=density_matrix_iii(ispin)%matrix ,&
                                   matrix_v=mo_coeff,matrix_g=psi1_p(ispin,iiiB)%matrix,&
-                                  ncol=nmo,alpha=maxocc,error=error)
+                                  ncol=nmo,alpha=maxocc)
           !
           ! Build the third density matrix
-          CALL cp_dbcsr_set(density_matrix_ii(ispin)%matrix,0.0_dp,error=error)
+          CALL cp_dbcsr_set(density_matrix_ii(ispin)%matrix,0.0_dp)
           CALL cp_dbcsr_plus_fm_fm_t(sparse_matrix=density_matrix_ii(ispin)%matrix ,&
                                   matrix_v=mo_coeff,matrix_g=psi1_p(ispin,iiB)%matrix,&
-                                  ncol=nmo,alpha=maxocc,error=error)
+                                  ncol=nmo,alpha=maxocc)
           DO idir = 1,3
              !
              ! Calculate the current density on the pw grid (only soft if GAPW)
              ! idir is the cartesian component of the response current density
              ! generated by the magnetic field pointing in cartesian direction iB
              ! Use the qs_rho_type already  used for rho during the scf
-             CALL qs_rho_get(current_env%jrho1_set(idir)%rho, rho_r=jrho1_r, error=error)
-             CALL qs_rho_get(current_env%jrho1_set(idir)%rho, rho_g=jrho1_g, error=error)
+             CALL qs_rho_get(current_env%jrho1_set(idir)%rho, rho_r=jrho1_r)
+             CALL qs_rho_get(current_env%jrho1_set(idir)%rho, rho_g=jrho1_g)
              jrho_rspace => jrho1_r(ispin)
              jrho_gspace => jrho1_g(ispin)
-             CALL pw_zero(jrho_rspace%pw,error=error)
-             CALL pw_zero(jrho_gspace%pw,error=error)
+             CALL pw_zero(jrho_rspace%pw)
+             CALL pw_zero(jrho_gspace%pw)
              CALL calculate_jrho_resp(density_matrix0(ispin)%matrix, &
                                       density_matrix_a(ispin)%matrix, &
                                       density_matrix_ii(ispin)%matrix, &
                                       density_matrix_iii(ispin)%matrix, &
                                       iB,idir,jrho_rspace,jrho_gspace,qs_env, &
-                                      current_env,gapw,error=error)
+                                      current_env,gapw)
 
              scale_fac = cell%deth / twopi
-             CALL pw_scale(jrho_rspace%pw,scale_fac,error=error)
-             CALL pw_scale(jrho_gspace%pw,scale_fac,error=error)
+             CALL pw_scale(jrho_rspace%pw,scale_fac)
+             CALL pw_scale(jrho_gspace%pw,scale_fac)
 
-             jrho_tot_G(idir,iB) = pw_integrate_function(jrho_gspace%pw,isign=-1,error=error)
-             jrho_tot_R(idir,iB) = pw_integrate_function(jrho_rspace%pw,isign=-1,error=error)
+             jrho_tot_G(idir,iB) = pw_integrate_function(jrho_gspace%pw,isign=-1)
+             jrho_tot_R(idir,iB) = pw_integrate_function(jrho_rspace%pw,isign=-1)
 
              IF(output_unit>0) THEN
                 WRITE(output_unit,'(T2,2(A,E24.16))') 'Integrated j_'&
@@ -464,8 +452,7 @@ CONTAINS
           ENDDO ! idir
           !
           ! Deallocate buffer vectors
-          DEALLOCATE(ddk,STAT=istat)
-          CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+          DEALLOCATE(ddk)
           !
        ENDDO ! ispin
 
@@ -480,40 +467,39 @@ CONTAINS
                                             density_matrix_a, &
                                             density_matrix_ii, &
                                             density_matrix_iii, &
-                                            iB,idir,error=error)
+                                            iB,idir)
              !
              ! Then the radial parts are computed on the local radial grid, atom by atom
              ! 8 functions are computed for each atom, per grid point
              ! and per LM angular momentum. The multiplication by the Clebsh-Gordon
              ! coefficients or they correspondent for the derivatives, is also done here
-             CALL calculate_jrho_atom_rad(qs_env,current_env,idir,error=error)
+             CALL calculate_jrho_atom_rad(qs_env,current_env,idir)
              !
              ! The current on the atomic grids
-             CALL calculate_jrho_atom(current_env,qs_env,iB,idir,error=error)
+             CALL calculate_jrho_atom(current_env,qs_env,iB,idir)
           ENDDO ! idir
        ENDIF
        !
        ! Cube files
        IF(BTEST(cp_print_key_should_output(logger%iter_info,current_section,&
-            &   "PRINT%CURRENT_CUBES",error=error),cp_p_file)) THEN
-          append_cube = section_get_lval(current_section,"PRINT%CURRENT_CUBES%APPEND",error=error)
+            &   "PRINT%CURRENT_CUBES"),cp_p_file)) THEN
+          append_cube = section_get_lval(current_section,"PRINT%CURRENT_CUBES%APPEND")
           my_pos = "REWIND"
           IF(append_cube) THEN
             my_pos = "APPEND"
           END IF
           !
           CALL pw_env_get(pw_env, auxbas_rs_desc=auxbas_rs_desc,&
-                          auxbas_pw_pool=auxbas_pw_pool,&
-                          error=error)
+                          auxbas_pw_pool=auxbas_pw_pool)
           !
           CALL pw_pool_create_pw(auxbas_pw_pool,wf_r%pw,use_data=REALDATA3D,&
-                                  in_space=REALSPACE,error=error)
+                                  in_space=REALSPACE)
           !
           DO idir = 1,3
-             CALL pw_zero(wf_r%pw,error=error)
-             CALL qs_rho_get(current_env%jrho1_set(idir)%rho, rho_r=jrho1_r, error=error)
+             CALL pw_zero(wf_r%pw)
+             CALL qs_rho_get(current_env%jrho1_set(idir)%rho, rho_r=jrho1_r)
              DO ispin =1 ,nspins
-                CALL pw_axpy(jrho1_r(ispin)%pw,wf_r%pw,1.0_dp, error=error)
+                CALL pw_axpy(jrho1_r(ispin)%pw,wf_r%pw,1.0_dp)
              ENDDO
              !
              IF(gapw) THEN
@@ -527,18 +513,16 @@ CONTAINS
              WRITE(ext,'(a2,a1,a2,a1,a5)')  "iB",ACHAR(iB+119),"_d",ACHAR(idir+119),".cube"
              unit_nr=cp_print_key_unit_nr(logger,current_section,"PRINT%CURRENT_CUBES",&
                                           extension=TRIM(ext),middle_name=TRIM(filename),&
-                                          log_filename=.FALSE.,file_position=my_pos,&
-                                          error=error)
+                                          log_filename=.FALSE.,file_position=my_pos)
 
              CALL cp_pw_to_cube(wf_r%pw,unit_nr,"RESPONSE CURRENT DENSITY ",&
                              particles=particles,&
-                             stride=section_get_ivals(current_section,"PRINT%CURRENT_CUBES%STRIDE",&
-                             error=error),error=error)
+                             stride=section_get_ivals(current_section,"PRINT%CURRENT_CUBES%STRIDE"))
              CALL cp_print_key_finished_output(unit_nr,logger,current_section,&
-                  &                            "PRINT%CURRENT_CUBES",error=error)
+                  &                            "PRINT%CURRENT_CUBES")
           ENDDO
           !
-          CALL pw_pool_give_back_pw(auxbas_pw_pool,wf_r%pw,error=error)
+          CALL pw_pool_give_back_pw(auxbas_pw_pool,wf_r%pw)
        ENDIF ! current cube
        !
        ! Integrated current response checksum
@@ -550,16 +534,15 @@ CONTAINS
        !
        ! Dellocate grids for the calculation of jrho and the shift
        DO ispin = 1,nspins
-          CALL cp_fm_release(  psi1(ispin)%matrix,error)
-          CALL cp_fm_release(p_psi1(ispin)%matrix,error)
+          CALL cp_fm_release(  psi1(ispin)%matrix)
+          CALL cp_fm_release(p_psi1(ispin)%matrix)
        ENDDO
-       DEALLOCATE(psi1,p_psi1,STAT=istat)
-       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+       DEALLOCATE(psi1,p_psi1)
 
-       CALL cp_dbcsr_deallocate_matrix_set(density_matrix0,error=error)
-       CALL cp_dbcsr_deallocate_matrix_set(density_matrix_a,error=error)
-       CALL cp_dbcsr_deallocate_matrix_set(density_matrix_ii,error=error)
-       CALL cp_dbcsr_deallocate_matrix_set(density_matrix_iii,error=error)
+       CALL cp_dbcsr_deallocate_matrix_set(density_matrix0)
+       CALL cp_dbcsr_deallocate_matrix_set(density_matrix_a)
+       CALL cp_dbcsr_deallocate_matrix_set(density_matrix_ii)
+       CALL cp_dbcsr_deallocate_matrix_set(density_matrix_iii)
 
        !
     ENDIF ! failure
@@ -585,7 +568,6 @@ CONTAINS
 !> \param current_env ...
 !> \param soft_valid ...
 !> \param rtp If this subroutine is called form the rtp region
-!> \param error ...
 !> \note
 !>       The collocate is done in three parts, one for each density matrix
 !>       In all cases the density matrices and therefore the collocation
@@ -610,7 +592,7 @@ CONTAINS
 !>       All the terms sum up to the same grid
 ! *****************************************************************************
   SUBROUTINE calculate_jrho_resp(mat_d0,mat_jp,mat_jp_rii,mat_jp_riii,iB,idir,&
-       current_rs, current_gs, qs_env, current_env, soft_valid, rtp,error)
+       current_rs, current_gs, qs_env, current_env, soft_valid, rtp)
 
     TYPE(cp_dbcsr_type), POINTER             :: mat_d0, mat_jp, mat_jp_rii, &
                                                 mat_jp_riii
@@ -619,7 +601,6 @@ CONTAINS
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(current_env_type)                   :: current_env
     LOGICAL, INTENT(IN), OPTIONAL            :: soft_valid, rtp
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'calculate_jrho_resp', &
       routineP = moduleN//':'//routineN
@@ -627,7 +608,7 @@ CONTAINS
 
     INTEGER :: bcol, brow, cindex, curr_tasks, handle, i, iatom, iatom_old, &
       idir2, igrid_level, iiB, iiiB, ikind, ikind_old, ipgf, iset, iset_old, &
-      istat, itask, ithread, jatom, jatom_old, jkind, jkind_old, jpgf, jset, &
+      itask, ithread, jatom, jatom_old, jkind, jkind_old, jpgf, jset, &
       jset_old, maxco, maxpgf, maxset, maxsgf, maxsgf_set, na1, na2, natom, &
       nb1, nb2, ncoa, ncob, ngpts, nimages, nkind, nseta, nsetb, ntasks, &
       nthread, sgfa, sgfb
@@ -721,9 +702,9 @@ CONTAINS
          particle_set=particle_set,&
          sab_all=sab_orb,&
          para_env=para_env,&
-         pw_env=pw_env,error=error)
+         pw_env=pw_env)
 
-    IF(do_igaim) CALL get_current_env(current_env=current_env,rs_gauge=rs_gauge,error=error)
+    IF(do_igaim) CALL get_current_env(current_env=current_env,rs_gauge=rs_gauge)
 
     ! Component of appearing in the vector product rxp, iiB and iiiB
     CALL set_vecp(iB,iiB,iiiB)
@@ -741,10 +722,10 @@ CONTAINS
     cube_info=>pw_env%cube_info
 
     !   Check that the neighbor list with all the pairs is associated
-    CPPrecondition(ASSOCIATED(sab_orb),cp_failure_level,routineP,error,failure)
+    CPASSERT(ASSOCIATED(sab_orb))
     ! *** set up the pw multi-grids
-    CPPrecondition(ASSOCIATED(pw_env),cp_failure_level,routineP,error,failure)
-    CALL pw_env_get(pw_env, rs_descs=rs_descs, rs_grids=rs_rho, error=error)
+    CPASSERT(ASSOCIATED(pw_env))
+    CALL pw_env_get(pw_env, rs_descs=rs_descs, rs_grids=rs_rho)
 
     distributed_rs_grids=.FALSE.
     DO igrid_level=1,gridlevel_info%ngrid_levels
@@ -760,7 +741,7 @@ CONTAINS
     CALL get_qs_kind_set(qs_kind_set=qs_kind_set,&
          maxco=maxco,&
          maxsgf=maxsgf,&
-         maxsgf_set=maxsgf_set, error=error)
+         maxsgf_set=maxsgf_set)
 
     Lxo2 = SQRT ( SUM ( cell % hmat ( :, 1 ) ** 2 ) )/2.0_dp
     Lyo2 = SQRT ( SUM ( cell % hmat ( :, 2 ) ** 2 ) )/2.0_dp
@@ -790,14 +771,14 @@ CONTAINS
 
     ! hard code matrix index (no kpoints)
     nimages = dft_control%nimages
-    CPPostcondition(nimages==1,cp_failure_level,routineP,error,failure)
+    CPASSERT(nimages==1)
     cindex = 1
 
     DO ikind=1,nkind
        qs_kind => qs_kind_set(ikind)
 
        CALL get_qs_kind(qs_kind=qs_kind,&
-            basis_set=orb_basis_set, error=error)
+            basis_set=orb_basis_set)
 
        IF (.NOT.ASSOCIATED(orb_basis_set)) CYCLE
 
@@ -815,29 +796,29 @@ CONTAINS
     ALLOCATE(deltajp_a(1),deltajp_b(1),deltajp_c(1),deltajp_d(1))
     IF (distributed_rs_grids) THEN
        ALLOCATE(deltajp_a(1)%matrix,deltajp_b(1)%matrix,deltajp_c(1)%matrix)
-       CALL cp_dbcsr_init(deltajp_a(1)%matrix, error=error)
-       CALL cp_dbcsr_init(deltajp_b(1)%matrix, error=error)
-       CALL cp_dbcsr_init(deltajp_c(1)%matrix, error=error)
+       CALL cp_dbcsr_init(deltajp_a(1)%matrix)
+       CALL cp_dbcsr_init(deltajp_b(1)%matrix)
+       CALL cp_dbcsr_init(deltajp_c(1)%matrix)
        IF(do_igaim) THEN
           ALLOCATE(deltajp_d(1)%matrix)
-          CALL cp_dbcsr_init(deltajp_d(1)%matrix, error=error)
+          CALL cp_dbcsr_init(deltajp_d(1)%matrix)
        ENDIF
 
        CALL cp_dbcsr_create(deltajp_a(1)%matrix, ' deltajp_a ', cp_dbcsr_distribution (mat_a), cp_dbcsr_get_matrix_type (mat_a),&
-            cp_dbcsr_row_block_sizes(mat_a),cp_dbcsr_col_block_sizes(mat_a), cp_dbcsr_get_num_blocks(mat_a),&
-            cp_dbcsr_get_data_size(mat_a),error=error)
+            cp_dbcsr_row_block_sizes(mat_a),cp_dbcsr_col_block_sizes(mat_a), &
+            cp_dbcsr_get_data_size(mat_a))
             
        CALL cp_dbcsr_create(deltajp_b(1)%matrix, ' deltajp_b ', cp_dbcsr_distribution (mat_a), cp_dbcsr_get_matrix_type (mat_a),&
-            cp_dbcsr_row_block_sizes(mat_a),cp_dbcsr_col_block_sizes(mat_a), cp_dbcsr_get_num_blocks(mat_a),&
-            cp_dbcsr_get_data_size(mat_a),error=error)
+            cp_dbcsr_row_block_sizes(mat_a),cp_dbcsr_col_block_sizes(mat_a), &
+            cp_dbcsr_get_data_size(mat_a))
             
        CALL cp_dbcsr_create(deltajp_c(1)%matrix, ' deltajp_c ', cp_dbcsr_distribution (mat_a), cp_dbcsr_get_matrix_type (mat_a),&
-            cp_dbcsr_row_block_sizes(mat_a),cp_dbcsr_col_block_sizes(mat_a), cp_dbcsr_get_num_blocks(mat_a),&
-            cp_dbcsr_get_data_size(mat_a),error=error)
+            cp_dbcsr_row_block_sizes(mat_a),cp_dbcsr_col_block_sizes(mat_a), &
+            cp_dbcsr_get_data_size(mat_a))
             
        IF(do_igaim) CALL cp_dbcsr_create(deltajp_d(1)%matrix, ' deltajp_d ', cp_dbcsr_distribution (mat_a),&
             cp_dbcsr_get_matrix_type (mat_a),cp_dbcsr_row_block_sizes(mat_a),cp_dbcsr_col_block_sizes(mat_a),&
-            cp_dbcsr_get_num_blocks(mat_a), cp_dbcsr_get_data_size(mat_a),error=error)
+            cp_dbcsr_get_data_size(mat_a))
     ELSE
        deltajp_a(1)%matrix => mat_a !mat_jp
        deltajp_b(1)%matrix => mat_b !mat_jp_rii
@@ -845,11 +826,10 @@ CONTAINS
        IF(do_igaim) deltajp_d(1)%matrix => mat_d !mat_d0
     ENDIF
 
-    ALLOCATE (basis_set_list(nkind),STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    ALLOCATE (basis_set_list(nkind))
     DO ikind=1,nkind
       qs_kind => qs_kind_set(ikind)
-      CALL get_qs_kind(qs_kind=qs_kind,softb=my_soft,basis_set=basis_set_a,error=error)
+      CALL get_qs_kind(qs_kind=qs_kind,softb=my_soft,basis_set=basis_set_a)
       IF (ASSOCIATED(basis_set_a)) THEN
         basis_set_list(ikind)%gto_basis_set => basis_set_a
       ELSE
@@ -909,14 +889,14 @@ CONTAINS
 
        IF (distributed_rs_grids) THEN
           NULLIFY (jpblock_a,jpblock_b,jpblock_c,jpblock_d)
-          CALL cp_dbcsr_add_block_node ( deltajp_a(1)%matrix, brow, bcol, jpblock_a ,error=error)
+          CALL cp_dbcsr_add_block_node ( deltajp_a(1)%matrix, brow, bcol, jpblock_a)
           jpblock_a = jp_block_a
-          CALL cp_dbcsr_add_block_node ( deltajp_b(1)%matrix, brow, bcol, jpblock_b ,error=error)
+          CALL cp_dbcsr_add_block_node ( deltajp_b(1)%matrix, brow, bcol, jpblock_b)
           jpblock_b = jp_block_b
-          CALL cp_dbcsr_add_block_node ( deltajp_c(1)%matrix, brow, bcol, jpblock_c ,error=error)
+          CALL cp_dbcsr_add_block_node ( deltajp_c(1)%matrix, brow, bcol, jpblock_c)
           jpblock_c = jp_block_c
           IF(do_igaim) THEN
-              CALL cp_dbcsr_add_block_node ( deltajp_d(1)%matrix, brow, bcol, jpblock_d ,error=error)
+              CALL cp_dbcsr_add_block_node ( deltajp_d(1)%matrix, brow, bcol, jpblock_d)
               jpblock_d = jp_block_d
           END IF
        ELSE
@@ -937,42 +917,40 @@ CONTAINS
        CALL task_list_inner_loop(tasks, dist_ab, ntasks, curr_tasks, rs_descs,&
             dft_control,cube_info,gridlevel_info,cindex,&
             iatom,jatom,rpgfa,rpgfb,zeta,zetb,kind_radius_b,set_radius_a,set_radius_b,ra,rab,&
-            la_max,la_min,lb_max,lb_min,npgfa,npgfb,maxpgf,maxset,natom,nimages,nseta,nsetb,error)
+            la_max,la_min,lb_max,lb_min,npgfa,npgfb,maxpgf,maxset,natom,nimages,nseta,nsetb)
 
     END DO
     CALL neighbor_list_iterator_release(nl_iterator)
 
-    DEALLOCATE (basis_set_list,STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    DEALLOCATE (basis_set_list)
 
     IF (distributed_rs_grids) THEN
-       CALL cp_dbcsr_finalize(deltajp_a(1)%matrix, error=error)
-       CALL cp_dbcsr_finalize(deltajp_b(1)%matrix, error=error)
-       CALL cp_dbcsr_finalize(deltajp_c(1)%matrix, error=error)
-       IF(do_igaim) CALL cp_dbcsr_finalize(deltajp_d(1)%matrix, error=error)
+       CALL cp_dbcsr_finalize(deltajp_a(1)%matrix)
+       CALL cp_dbcsr_finalize(deltajp_b(1)%matrix)
+       CALL cp_dbcsr_finalize(deltajp_c(1)%matrix)
+       IF(do_igaim) CALL cp_dbcsr_finalize(deltajp_d(1)%matrix)
     ENDIF
 
     ! sorts / redistributes the task list
     CALL distribute_tasks ( rs_descs, ntasks, natom, maxset, maxpgf, nimages,&
          tasks, dist_ab, atom_pair_send, atom_pair_recv,&
          symmetric=.FALSE., reorder_rs_grid_ranks=.TRUE., &
-         skip_load_balance_distributed=.FALSE., error=error)
+         skip_load_balance_distributed=.FALSE.)
 
     ALLOCATE(rs_current(gridlevel_info%ngrid_levels))
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
 
     DO igrid_level=1,gridlevel_info%ngrid_levels
        ! Here we need to reallocate the distributed rs_grids, which may have been reordered
        ! by distribute_tasks
        IF (rs_descs(igrid_level)%rs_desc%distributed.AND..NOT.my_rtp) THEN
-         CALL rs_grid_release(rs_rho(igrid_level)%rs_grid, error=error)
+         CALL rs_grid_release(rs_rho(igrid_level)%rs_grid)
          NULLIFY (rs_rho(igrid_level)%rs_grid)
-         CALL rs_grid_create(rs_rho(igrid_level)%rs_grid, rs_descs(igrid_level)%rs_desc, error=error)
+         CALL rs_grid_create(rs_rho(igrid_level)%rs_grid, rs_descs(igrid_level)%rs_desc)
        ELSE
-         IF(.NOT.my_rtp) CALL rs_grid_retain(rs_rho(igrid_level)%rs_grid, error=error)
+         IF(.NOT.my_rtp) CALL rs_grid_retain(rs_rho(igrid_level)%rs_grid)
        ENDIF
        CALL rs_grid_zero(rs_rho(igrid_level)%rs_grid)
-       CALL rs_grid_create(rs_current(igrid_level)%rs_grid, rs_descs(igrid_level)%rs_desc, error=error)
+       CALL rs_grid_create(rs_current(igrid_level)%rs_grid, rs_descs(igrid_level)%rs_desc)
        CALL rs_grid_zero(rs_current(igrid_level)%rs_grid)
     ENDDO
 
@@ -988,7 +966,7 @@ CONTAINS
     !
     ! we need to build the gauge here
     IF(.NOT.current_env%gauge_init.AND.do_igaim) THEN
-       CALL current_set_gauge(current_env, qs_env, error=error)
+       CALL current_set_gauge(current_env, qs_env)
        current_env%gauge_init = .TRUE.
     ENDIF
     !
@@ -1034,13 +1012,13 @@ CONTAINS
 
     IF (distributed_rs_grids) THEN
         CALL rs_distribute_matrix (rs_descs, deltajp_a, atom_pair_send, atom_pair_recv, &
-             natom, nimages, scatter=.TRUE., error=error)
+             natom, nimages, scatter=.TRUE.)
         CALL rs_distribute_matrix (rs_descs, deltajp_b, atom_pair_send, atom_pair_recv, &
-             natom, nimages, scatter=.TRUE., error=error)
+             natom, nimages, scatter=.TRUE.)
         CALL rs_distribute_matrix (rs_descs, deltajp_c, atom_pair_send, atom_pair_recv, &
-             natom, nimages, scatter=.TRUE., error=error)
+             natom, nimages, scatter=.TRUE.)
         IF(do_igaim) CALL rs_distribute_matrix (rs_descs, deltajp_d, atom_pair_send, atom_pair_recv, &
-             natom, nimages, scatter=.TRUE., error=error)
+             natom, nimages, scatter=.TRUE.)
     ENDIF
 
     ithread = 0
@@ -1059,7 +1037,7 @@ CONTAINS
                      nimages,natom,maxset,maxpgf)
 
        ! apparently generalised collocation not implemented correctly yet
-       CPPostcondition(tasks(4,itask).NE.2,cp_failure_level,routineP,error,failure)
+       CPASSERT(tasks(4,itask).NE.2)
 
        IF (iatom .NE. iatom_old .OR. jatom .NE. jatom_old) THEN
 
@@ -1074,7 +1052,7 @@ CONTAINS
           IF (ikind .NE. ikind_old ) THEN
              CALL get_qs_kind(qs_kind_set(ikind),&
                   softb = my_soft, &
-                  basis_set=orb_basis_set, error=error)
+                  basis_set=orb_basis_set)
 
              CALL get_gto_basis_set(gto_basis_set=orb_basis_set,&
                   first_sgf=first_sgfa,&
@@ -1093,7 +1071,7 @@ CONTAINS
 
              CALL get_qs_kind(qs_kind_set(jkind),&
                   softb = my_soft, &
-                  basis_set=orb_basis_set, error=error)
+                  basis_set=orb_basis_set)
 
              CALL get_gto_basis_set(gto_basis_set=orb_basis_set,&
                   first_sgf=first_sgfb,&
@@ -1211,7 +1189,7 @@ CONTAINS
             eps_rho_rspace,&
             ga_gb_function=FUNC_ADBmDAB,&
             idir=idir,&
-            map_consistent=map_consistent,error=error)
+            map_consistent=map_consistent)
        IF(do_igaim) THEN
           ! here the decontracted mat_jb_{ab} is multiplied by
           !     f_{ab} = g_{a} * g_{b} ! THIS GOES OUTSIDE THE LOOP !
@@ -1222,7 +1200,7 @@ CONTAINS
                   rs_rho(igrid_level)%rs_grid,cell,cube_info(igrid_level),&
                   eps_rho_rspace,&
                   ga_gb_function=FUNC_AB,&
-                  map_consistent=map_consistent,error=error)
+                  map_consistent=map_consistent)
           ENDIF!rm
           ! here the decontracted mat_jp_rii{ab} is multiplied by
           !     f_{ab} = g_{a} (d(r) - R_{b})_{iiB} (dg_{b}/dr)_{idir} -
@@ -1237,7 +1215,7 @@ CONTAINS
                idir=idir,ir=iiiB,&
                rsgauge=rs_gauge(iiiB)%rs(igrid_level)%rs_grid,&
                rsbuf=current_env%rs_buf(igrid_level)%rs_grid,&
-               map_consistent=map_consistent,error=error)
+               map_consistent=map_consistent)
           ! here the decontracted mat_jp_riii{ab} is multiplied by
           !     f_{ab} = -g_{a} (d(r) - R_{b})_{iiB} (dg_{b}/dr)_{idir} +
           !             (dg_{a}/dr)_{idir} (d(r) - R_{b})_{iiB} g_{b}
@@ -1251,7 +1229,7 @@ CONTAINS
                idir=idir,ir=iiB,&
                rsgauge=rs_gauge(iiB)%rs(igrid_level)%rs_grid,&
                rsbuf=current_env%rs_buf(igrid_level)%rs_grid,&
-               map_consistent=map_consistent,error=error)
+               map_consistent=map_consistent)
        ELSE
           ! here the decontracted mat_jp_rii{ab} is multiplied by
           !     f_{ab} = g_{a} (r - R_{b})_{iiB} (dg_{b}/dr)_{idir} -
@@ -1264,7 +1242,7 @@ CONTAINS
                eps_rho_rspace,&
                ga_gb_function=FUNC_ARDBmDARB,&
                idir=idir,ir=iiiB,&
-               map_consistent=map_consistent,error=error)
+               map_consistent=map_consistent)
           ! here the decontracted mat_jp_riii{ab} is multiplied by
           !     f_{ab} = -g_{a} (r - R_{b})_{iiB} (dg_{b}/dr)_{idir} +
           !             (dg_{a}/dr)_{idir} (r - R_{b})_{iiB} g_{b}
@@ -1276,7 +1254,7 @@ CONTAINS
                eps_rho_rspace,&
                ga_gb_function=FUNC_ARDBmDARB,&
                idir=idir,ir=iiB,&
-               map_consistent=map_consistent,error=error)
+               map_consistent=map_consistent)
        ENDIF
 
     END DO loop_tasks
@@ -1291,37 +1269,33 @@ CONTAINS
     !   *** Release work storage ***
 
     IF (distributed_rs_grids) THEN
-       CALL cp_dbcsr_deallocate_matrix ( deltajp_a(1)%matrix ,error=error)
-       CALL cp_dbcsr_deallocate_matrix ( deltajp_b(1)%matrix ,error=error)
-       CALL cp_dbcsr_deallocate_matrix ( deltajp_c(1)%matrix ,error=error)
-       IF(do_igaim) CALL cp_dbcsr_deallocate_matrix ( deltajp_d(1)%matrix ,error=error)
+       CALL cp_dbcsr_deallocate_matrix ( deltajp_a(1)%matrix)
+       CALL cp_dbcsr_deallocate_matrix ( deltajp_b(1)%matrix)
+       CALL cp_dbcsr_deallocate_matrix ( deltajp_c(1)%matrix)
+       IF(do_igaim) CALL cp_dbcsr_deallocate_matrix ( deltajp_d(1)%matrix)
     END IF
     DEALLOCATE(deltajp_a,deltajp_b,deltajp_c,deltajp_d)
 
     IF ( nthread > 1 ) THEN
-       DEALLOCATE (lgrid%r,STAT=istat)
-       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+       DEALLOCATE (lgrid%r)
     END IF
 
-    DEALLOCATE (jpabt_a,jpabt_b,jpabt_c,jpabt_d,workt,tasks,dist_ab,STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    DEALLOCATE (jpabt_a,jpabt_b,jpabt_c,jpabt_d,workt,tasks,dist_ab)
 
     IF (distributed_rs_grids) THEN
-       DEALLOCATE(atom_pair_send,atom_pair_recv,STAT=istat)
-       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+       DEALLOCATE(atom_pair_send,atom_pair_recv)
     ENDIF
 
-    CALL density_rs2pw(pw_env,rs_current,current_rs,current_gs,error=error)
+    CALL density_rs2pw(pw_env,rs_current,current_rs,current_gs)
 
     IF (ASSOCIATED(rs_rho).AND..NOT.my_rtp) THEN !In emd/rtp we must not deallocate rs_rho
       DO i=1, SIZE(rs_rho)
-        CALL rs_grid_release(rs_rho(i)%rs_grid, error=error)
+        CALL rs_grid_release(rs_rho(i)%rs_grid)
       END DO
     END IF
 
     ! Free the array of grids (grids themselves are released in density_rs2pw)
-    DEALLOCATE (rs_current,STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    DEALLOCATE (rs_current)
 
     CALL timestop(handle)
 
@@ -1332,20 +1306,18 @@ CONTAINS
 !> \brief ...
 !> \param current_env ...
 !> \param qs_env ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE current_set_gauge(current_env,qs_env,error)
+  SUBROUTINE current_set_gauge(current_env,qs_env)
     !
     TYPE(current_env_type)                   :: current_env
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'current_set_gauge', &
       routineP = moduleN//':'//routineN
 
     REAL(dp)                                 :: dbox(3)
     REAL(dp), ALLOCATABLE, DIMENSION(:,:)    :: box_data
-    INTEGER                                  :: handle, igrid_level, nbox(3), gauge, istat
+    INTEGER                                  :: handle, igrid_level, nbox(3), gauge
     INTEGER, ALLOCATABLE, DIMENSION(:, :, :) :: box_ptr
     TYPE(realspace_grid_desc_p_type), DIMENSION(:), &
       POINTER                                :: rs_descs
@@ -1353,7 +1325,7 @@ CONTAINS
     TYPE(realspaces_grid_p_type), DIMENSION(:), POINTER :: rs_gauge
 
     TYPE(box_type), DIMENSION(:,:,:), POINTER :: box
-    LOGICAL :: use_old_gauge_atom, failure
+    LOGICAL                                   :: use_old_gauge_atom
 
     NULLIFY(rs_gauge,box)
 
@@ -1362,57 +1334,49 @@ CONTAINS
     CALL get_current_env(current_env=current_env,&
                          use_old_gauge_atom=use_old_gauge_atom,&
                          rs_gauge=rs_gauge,&
-                         gauge=gauge,&
-                         error=error)
+                         gauge=gauge)
 
     IF(gauge.EQ.current_gauge_atom) THEN
        CALL get_qs_env(qs_env=qs_env,&
-            pw_env=pw_env,&
-            error=error)
+            pw_env=pw_env)
        CALL pw_env_get(pw_env=pw_env,&
-            rs_descs=rs_descs,&
-            error=error)
+            rs_descs=rs_descs)
        !
        ! box the atoms
        IF(use_old_gauge_atom) THEN
-          CALL box_atoms(qs_env,error)
+          CALL box_atoms(qs_env)
        ELSE
-          CALL  box_atoms_new(current_env,qs_env,box,error)
+          CALL  box_atoms_new(current_env,qs_env,box)
        ENDIF
        !
        ! allocate and build the gauge
-       ALLOCATE (rs_gauge(1)%rs(pw_env%gridlevel_info%ngrid_levels),STAT=istat)
-       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-       ALLOCATE (rs_gauge(2)%rs(pw_env%gridlevel_info%ngrid_levels),STAT=istat)
-       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-       ALLOCATE (rs_gauge(3)%rs(pw_env%gridlevel_info%ngrid_levels),STAT=istat)
-       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+       ALLOCATE (rs_gauge(1)%rs(pw_env%gridlevel_info%ngrid_levels))
+       ALLOCATE (rs_gauge(2)%rs(pw_env%gridlevel_info%ngrid_levels))
+       ALLOCATE (rs_gauge(3)%rs(pw_env%gridlevel_info%ngrid_levels))
        DO igrid_level = pw_env%gridlevel_info%ngrid_levels,1,-1
 
-          CALL rs_grid_create(rs_gauge(1)%rs(igrid_level)%rs_grid, rs_descs(igrid_level)%rs_desc, error=error)
-          CALL rs_grid_create(rs_gauge(2)%rs(igrid_level)%rs_grid, rs_descs(igrid_level)%rs_desc, error=error)
-          CALL rs_grid_create(rs_gauge(3)%rs(igrid_level)%rs_grid, rs_descs(igrid_level)%rs_desc, error=error)
+          CALL rs_grid_create(rs_gauge(1)%rs(igrid_level)%rs_grid, rs_descs(igrid_level)%rs_desc)
+          CALL rs_grid_create(rs_gauge(2)%rs(igrid_level)%rs_grid, rs_descs(igrid_level)%rs_desc)
+          CALL rs_grid_create(rs_gauge(3)%rs(igrid_level)%rs_grid, rs_descs(igrid_level)%rs_desc)
 
           IF(use_old_gauge_atom) THEN
              CALL collocate_gauge(current_env,qs_env,&
                                   rs_gauge(1)%rs(igrid_level)%rs_grid,&
                                   rs_gauge(2)%rs(igrid_level)%rs_grid,&
-                                  rs_gauge(3)%rs(igrid_level)%rs_grid,&
-                                  error)
+                                  rs_gauge(3)%rs(igrid_level)%rs_grid)
           ELSE
              CALL collocate_gauge_new(current_env,qs_env,&
                                       rs_gauge(1)%rs(igrid_level)%rs_grid,&
                                       rs_gauge(2)%rs(igrid_level)%rs_grid,&
                                       rs_gauge(3)%rs(igrid_level)%rs_grid,&
-                                      box,error)
+                                      box)
           ENDIF
        ENDDO
        !
        ! allocate the buf
-       ALLOCATE (current_env%rs_buf(pw_env%gridlevel_info%ngrid_levels),STAT=istat)
-       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+       ALLOCATE (current_env%rs_buf(pw_env%gridlevel_info%ngrid_levels))
        DO igrid_level = 1,pw_env%gridlevel_info%ngrid_levels
-         CALL rs_grid_create(current_env%rs_buf(igrid_level)%rs_grid, rs_descs(igrid_level)%rs_desc, error=error)
+         CALL rs_grid_create(current_env%rs_buf(igrid_level)%rs_grid, rs_descs(igrid_level)%rs_desc)
        END DO
        !
        DEALLOCATE(box_ptr,box_data)
@@ -1426,11 +1390,9 @@ CONTAINS
 ! *****************************************************************************
 !> \brief ...
 !> \param qs_env ...
-!> \param error ...
 ! *****************************************************************************
-    SUBROUTINE box_atoms(qs_env,error)
+    SUBROUTINE box_atoms(qs_env)
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     REAL(kind=dp), PARAMETER                 :: box_size_guess = 5.0_dp
 
@@ -1447,8 +1409,7 @@ CONTAINS
       CALL get_qs_env(qs_env=qs_env,&
            qs_kind_set=qs_kind_set,&
            cell=cell,&
-           particle_set=particle_set,&
-           error=error)
+           particle_set=particle_set)
 
       natms = SIZE(particle_set,1)
       ALLOCATE(ratom(3,natms))
@@ -1518,15 +1479,13 @@ CONTAINS
 !> \param rs_grid_x ...
 !> \param rs_grid_y ...
 !> \param rs_grid_z ...
-!> \param error ...
 ! *****************************************************************************
-    SUBROUTINE collocate_gauge(current_env,qs_env,rs_grid_x,rs_grid_y,rs_grid_z,error)
+    SUBROUTINE collocate_gauge(current_env,qs_env,rs_grid_x,rs_grid_y,rs_grid_z)
       !
     TYPE(current_env_type)                   :: current_env
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(realspace_grid_type), POINTER       :: rs_grid_x, rs_grid_y, &
                                                 rs_grid_z
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     INTEGER :: i, iatom, ibeg, ibox, iend, imax, imin, j, jatom, jbox, jmax, &
       jmin, k, kbox, kmax, kmin, lb(3), lb_local(3), natms, natms_local, ng(3)
@@ -1546,14 +1505,12 @@ CONTAINS
 !
 
       CALL get_current_env(current_env=current_env,&
-           gauge_atom_radius=gauge_atom_radius,&
-           error=error)
+           gauge_atom_radius=gauge_atom_radius)
       !
       CALL get_qs_env(qs_env=qs_env,&
            qs_kind_set=qs_kind_set,&
            cell=cell,&
-           particle_set=particle_set,&
-           error=error)
+           particle_set=particle_set)
       !
       natms = SIZE(particle_set,1)
       dr(1) = rs_grid_x%desc%dh(1,1)
@@ -1685,14 +1642,12 @@ CONTAINS
 !> \param current_env ...
 !> \param qs_env ...
 !> \param box ...
-!> \param error ...
 ! *****************************************************************************
-    SUBROUTINE box_atoms_new(current_env,qs_env,box,error)
+    SUBROUTINE box_atoms_new(current_env,qs_env,box)
     TYPE(current_env_type)                   :: current_env
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(box_type), DIMENSION(:, :, :), &
       POINTER                                :: box
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'box_atoms_new', &
       routineP = moduleN//':'//routineN
@@ -1717,12 +1672,10 @@ CONTAINS
       CALL get_qs_env(qs_env=qs_env,&
            qs_kind_set=qs_kind_set,&
            cell=cell,&
-           particle_set=particle_set,&
-           error=error)
+           particle_set=particle_set)
 
       CALL get_current_env(current_env=current_env,&
-           gauge_atom_radius=gauge_atom_radius,&
-           error=error)
+           gauge_atom_radius=gauge_atom_radius)
 
       scale = 2.0_dp
 
@@ -1872,7 +1825,7 @@ CONTAINS
                      WRITE(*,*) 'error too many atoms'
                      WRITE(*,*) 'dist=',ABS(r(:))
                      WRITE(*,*) 'large_dist=',(scale+0.5_dp)*dbox
-                     STOP
+                     CPABORT("")
                   ENDIF
                ENDDO
             ENDIF
@@ -1904,7 +1857,7 @@ CONTAINS
                      WRITE(*,*) 'box_center',box_center
                      WRITE(*,*) 'ratom',ratom(:,iatom)
                      WRITE(*,*) 'gauge_atom_radius',gauge_atom_radius
-                     STOP
+                     CPABORT("")
                   ENDIF
                ENDIF
             ENDDO
@@ -1927,9 +1880,8 @@ CONTAINS
 !> \param rs_grid_y ...
 !> \param rs_grid_z ...
 !> \param box ...
-!> \param error ...
 ! *****************************************************************************
-    SUBROUTINE collocate_gauge_new(current_env,qs_env,rs_grid_x,rs_grid_y,rs_grid_z,box,error)
+    SUBROUTINE collocate_gauge_new(current_env,qs_env,rs_grid_x,rs_grid_y,rs_grid_z,box)
       !
     TYPE(current_env_type)                   :: current_env
     TYPE(qs_environment_type), POINTER       :: qs_env
@@ -1937,7 +1889,6 @@ CONTAINS
                                                 rs_grid_z
     TYPE(box_type), DIMENSION(:, :, :), &
       POINTER                                :: box
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'collocate_gauge_new', &
       routineP = moduleN//':'//routineN
@@ -1964,14 +1915,12 @@ CONTAINS
 
 !
       CALL get_current_env(current_env=current_env,&
-           gauge_atom_radius=gauge_atom_radius,&
-           error=error)
+           gauge_atom_radius=gauge_atom_radius)
       !
       CALL get_qs_env(qs_env=qs_env,&
            qs_kind_set=qs_kind_set,&
            cell=cell,&
-           particle_set=particle_set,&
-           error=error)
+           particle_set=particle_set)
       !
       natms = SIZE(particle_set,1)
       dr(1) = rs_grid_x%desc%dh(1,1)
@@ -2021,7 +1970,7 @@ CONTAINS
                WRITE(*,*) 'ibox',ibox,'jbox',jbox,'kbox',kbox
                WRITE(*,*) 'is,ie',is,ie,' js,je',js,je,' ks,ke',ks,ke
                WRITE(*,*) 'ibs,ibe',ibs,ibe,' jbs,jbe',jbs,jbe,' kbs,kbe',kbs,kbe
-               STOP 'we stop_k'
+               CPABORT("we stop_k")
             ENDIF
             IF(REAL(js-1+delta_lb(2),dp)*dr(2).LT.REAL(jb,dp)*dbox(2).OR.&
                REAL(je-1+delta_lb(2),dp)*dr(2).GT.REAL(jb+1,dp)*dbox(2)) THEN
@@ -2029,7 +1978,7 @@ CONTAINS
                WRITE(*,*) 'point_j',REAL(js-1+delta_lb(2),dp)*dr(2),REAL(je-1+delta_lb(2),dp)*dr(2)
                WRITE(*,*) 'is,ie',is,ie,' js,je',js,je,' ks,ke',ks,ke
                WRITE(*,*) 'ibs,ibe',ibs,ibe,' jbs,jbe',jbs,jbe,' kbs,kbe',kbs,kbe
-               STOP 'we stop_j'
+               CPABORT("we stop_j")
             ENDIF
             IF(REAL(is-1+delta_lb(1),dp)*dr(1).LT.REAL(ib,dp)*dbox(1).OR.&
                REAL(ie-1+delta_lb(1),dp)*dr(1).GT.REAL(ib+1,dp)*dbox(1)) THEN
@@ -2037,7 +1986,7 @@ CONTAINS
                WRITE(*,*) 'point_i',REAL(is-1+delta_lb(1),dp)*dr(1),REAL(ie-1+delta_lb(1),dp)*dr(1)
                WRITE(*,*) 'is,ie',is,ie,' js,je',js,je,' ks,ke',ks,ke
                WRITE(*,*) 'ibs,ibe',ibs,ibe,' jbs,jbe',jbs,jbe,' kbs,kbe',kbs,kbe
-               STOP 'we stop_i'
+               CPABORT("we stop_i")
             ENDIF
          ENDIF
          !
@@ -2189,19 +2138,17 @@ CONTAINS
 !> \param current_env ...
 !> \param qs_env ...
 !> \param iB ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE current_build_chi(current_env,qs_env,iB,error)
+  SUBROUTINE current_build_chi(current_env,qs_env,iB)
     !
     TYPE(current_env_type)                   :: current_env
     TYPE(qs_environment_type), POINTER       :: qs_env
     INTEGER, INTENT(IN)                      :: iB
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     IF(current_env%full) THEN
-       CALL current_build_chi_many_centers(current_env,qs_env,iB,error)
+       CALL current_build_chi_many_centers(current_env,qs_env,iB)
     ELSE
-       CALL current_build_chi_one_center(current_env,qs_env,iB,error)
+       CALL current_build_chi_one_center(current_env,qs_env,iB)
     ENDIF
 
   END SUBROUTINE current_build_chi
@@ -2212,22 +2159,20 @@ CONTAINS
 !> \param current_env ...
 !> \param qs_env ...
 !> \param iB ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE current_build_chi_many_centers(current_env,qs_env,iB,error)
+  SUBROUTINE current_build_chi_many_centers(current_env,qs_env,iB)
     !
     TYPE(current_env_type)                   :: current_env
     TYPE(qs_environment_type), POINTER       :: qs_env
     INTEGER, INTENT(IN)                      :: iB
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: &
       routineN = 'current_build_chi_many_centers', &
       routineP = moduleN//':'//routineN
 
     INTEGER :: handle, icenter, idir, idir2, ii, iiB, iii, iiiB, ispin, &
-      istat, istate, j, jstate, max_states, nao, natom, nbr_center(2), nmo, &
-      nspins, nstate_loc, nstates(2), output_unit
+      istate, j, jstate, max_states, nao, natom, nbr_center(2), nmo, nspins, &
+      nstate_loc, nstates(2), output_unit
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: first_sgf, last_sgf
     INTEGER, DIMENSION(:), POINTER           :: row_blk_sizes
     LOGICAL                                  :: chi_pbc, failure, gapw
@@ -2274,7 +2219,7 @@ CONTAINS
             op_p_ao,psi1_p,psi1_rxp,psi1_D,p_rxp,r_p1,r_p2,rr_rxp,rr_p1,rr_p2,&
             cell,psi0_order,particle_set,qs_kind_set)
 
-    logger => cp_error_get_logger(error)
+    logger => cp_get_default_logger()
     output_unit= cp_logger_get_default_io_unit(logger)
 
     CALL get_qs_env(qs_env=qs_env,&
@@ -2286,8 +2231,7 @@ CONTAINS
                     particle_set=particle_set,&
                     qs_kind_set=qs_kind_set,&
                     sab_all=sab_all,&
-                    sab_orb=sab_orb,&
-                    error=error)
+                    sab_orb=sab_orb)
 
     nspins = dft_control%nspins
     gapw = dft_control%qs_control%gapw
@@ -2302,8 +2246,7 @@ CONTAINS
                          psi1_rxp=psi1_rxp,&
                          psi1_D=psi1_D,&
                          nstates=nstates,&
-                         psi0_order=psi0_order,&
-                         error=error)
+                         psi0_order=psi0_order)
     !
     ! get max nbr of states per center
     max_states = 0
@@ -2316,73 +2259,66 @@ CONTAINS
     !
     ! Allocate sparse matrices for dipole, quadrupole and their derivatives => 9x3
     ! Remember the derivatives are antisymmetric
-    CALL cp_dbcsr_allocate_matrix_set(op_mom_ao,9,error=error)
-    CALL cp_dbcsr_allocate_matrix_set(op_mom_der_ao,9,3,error=error)
+    CALL cp_dbcsr_allocate_matrix_set(op_mom_ao,9)
+    CALL cp_dbcsr_allocate_matrix_set(op_mom_der_ao,9,3)
     !
     ! prepare for allocation
     natom = SIZE(particle_set,1)
-    ALLOCATE (first_sgf(natom),STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-    ALLOCATE (last_sgf(natom),STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    ALLOCATE (first_sgf(natom))
+    ALLOCATE (last_sgf(natom))
     CALL get_particle_set(particle_set, qs_kind_set,&
                           first_sgf=first_sgf,&
-                          last_sgf=last_sgf,error=error)
-    ALLOCATE (row_blk_sizes(natom), STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+                          last_sgf=last_sgf)
+    ALLOCATE (row_blk_sizes(natom))
     CALL convert_offsets_to_sizes (first_sgf, row_blk_sizes, last_sgf)
-    DEALLOCATE (first_sgf,STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-    DEALLOCATE (last_sgf,STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    DEALLOCATE (first_sgf)
+    DEALLOCATE (last_sgf)
     !
     !
     ALLOCATE(op_mom_ao(1)%matrix)
-    CALL cp_dbcsr_init(op_mom_ao(1)%matrix,error=error)
+    CALL cp_dbcsr_init(op_mom_ao(1)%matrix)
     CALL cp_dbcsr_create(matrix=op_mom_ao(1)%matrix, &
          name="op_mom", &
          dist=dbcsr_dist, matrix_type=dbcsr_type_no_symmetry,&
          row_blk_size=row_blk_sizes, col_blk_size=row_blk_sizes, &
-         nblks=0, nze=0, mutable_work=.TRUE., &
-         error=error)
-    CALL cp_dbcsr_alloc_block_from_nbl(op_mom_ao(1)%matrix,sab_all,error=error)
+         nze=0, mutable_work=.TRUE.)
+    CALL cp_dbcsr_alloc_block_from_nbl(op_mom_ao(1)%matrix,sab_all)
 
     DO idir2=1,3
        ALLOCATE(op_mom_der_ao(1,idir2)%matrix)
-       CALL cp_dbcsr_init(op_mom_der_ao(1,idir2)%matrix, error=error)
+       CALL cp_dbcsr_init(op_mom_der_ao(1,idir2)%matrix)
        CALL cp_dbcsr_copy(op_mom_der_ao(1,idir2)%matrix,op_mom_ao(1)%matrix,&
-            "op_mom_der_ao"//"-"//TRIM(ADJUSTL(cp_to_string(idir2))),error)
+            "op_mom_der_ao"//"-"//TRIM(ADJUSTL(cp_to_string(idir2))))
     ENDDO
 
     DO idir = 2,SIZE(op_mom_ao,1)
        ALLOCATE(op_mom_ao(idir)%matrix)
-       CALL cp_dbcsr_init(op_mom_ao(idir)%matrix, error=error)
+       CALL cp_dbcsr_init(op_mom_ao(idir)%matrix)
        CALL cp_dbcsr_copy(op_mom_ao(idir)%matrix,op_mom_ao(1)%matrix,&
-            "op_mom_ao"//"-"//TRIM(ADJUSTL(cp_to_string(idir))),error)
+            "op_mom_ao"//"-"//TRIM(ADJUSTL(cp_to_string(idir))))
        DO idir2=1,3
           ALLOCATE(op_mom_der_ao(idir,idir2)%matrix)
-          CALL cp_dbcsr_init(op_mom_der_ao(idir,idir2)%matrix, error=error)
+          CALL cp_dbcsr_init(op_mom_der_ao(idir,idir2)%matrix)
           CALL cp_dbcsr_copy(op_mom_der_ao(idir,idir2)%matrix,op_mom_ao(1)%matrix,&
-               "op_mom_der_ao"//"-"//TRIM(ADJUSTL(cp_to_string(idir*idir2))),error)
+               "op_mom_der_ao"//"-"//TRIM(ADJUSTL(cp_to_string(idir*idir2))))
        ENDDO
     ENDDO
     !
-    CALL cp_dbcsr_allocate_matrix_set(op_p_ao,3,error=error)
+    CALL cp_dbcsr_allocate_matrix_set(op_p_ao,3)
     ALLOCATE(op_p_ao(1)%matrix)
-    CALL cp_dbcsr_init(op_p_ao(1)%matrix,error=error)
+    CALL cp_dbcsr_init(op_p_ao(1)%matrix)
     CALL cp_dbcsr_create(matrix=op_p_ao(1)%matrix, &
          name="op_p_ao", &
          dist=dbcsr_dist, matrix_type=dbcsr_type_antisymmetric,&
          row_blk_size=row_blk_sizes, col_blk_size=row_blk_sizes, &
-         nblks=0, nze=0, mutable_work=.TRUE., &
-         error=error)
-    CALL cp_dbcsr_alloc_block_from_nbl(op_p_ao(1)%matrix, sab_orb, error=error)
+         nze=0, mutable_work=.TRUE.)
+    CALL cp_dbcsr_alloc_block_from_nbl(op_p_ao(1)%matrix, sab_orb)
 
     DO idir=2,3
        ALLOCATE(op_p_ao(idir)%matrix)
-       CALL cp_dbcsr_init(op_p_ao(idir)%matrix, error=error)
+       CALL cp_dbcsr_init(op_p_ao(idir)%matrix)
        CALL cp_dbcsr_copy(op_p_ao(idir)%matrix,op_p_ao(1)%matrix,&
-            "op_p_ao"//"-"//TRIM(ADJUSTL(cp_to_string(idir))),error)
+            "op_p_ao"//"-"//TRIM(ADJUSTL(cp_to_string(idir))))
     ENDDO
     !
     !
@@ -2394,38 +2330,35 @@ CONTAINS
     NULLIFY(tmp_fm_struct)
     CALL cp_fm_struct_create(tmp_fm_struct,nrow_global=nao,&
                              ncol_global=max_states,para_env=para_env,&
-                             context=mo_coeff%matrix_struct%context,&
-                             error=error)
-    CALL cp_fm_create(psi0,tmp_fm_struct,error=error)
-    CALL cp_fm_create(psi_D,tmp_fm_struct,error=error)
-    CALL cp_fm_create(psi_rxp,tmp_fm_struct,error=error)
-    CALL cp_fm_create(psi_p1,tmp_fm_struct,error=error)
-    CALL cp_fm_create(psi_p2,tmp_fm_struct,error=error)
-    CALL cp_fm_struct_release(tmp_fm_struct,error=error)
+                             context=mo_coeff%matrix_struct%context)
+    CALL cp_fm_create(psi0,tmp_fm_struct)
+    CALL cp_fm_create(psi_D,tmp_fm_struct)
+    CALL cp_fm_create(psi_rxp,tmp_fm_struct)
+    CALL cp_fm_create(psi_p1,tmp_fm_struct)
+    CALL cp_fm_create(psi_p2,tmp_fm_struct)
+    CALL cp_fm_struct_release(tmp_fm_struct)
     !
-    ALLOCATE(p_rxp(3),r_p1(3),r_p2(3),rr_rxp(9,3),rr_p1(9,3),rr_p2(9,3),STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    ALLOCATE(p_rxp(3),r_p1(3),r_p2(3),rr_rxp(9,3),rr_p1(9,3),rr_p2(9,3))
     CALL cp_fm_struct_create(tmp_fm_struct,nrow_global=nao,&
                              ncol_global=max_states,para_env=para_env,&
-                             context=mo_coeff%matrix_struct%context,&
-                             error=error)
+                             context=mo_coeff%matrix_struct%context)
     DO idir = 1,3
-       CALL cp_fm_create(p_rxp(idir)%matrix,tmp_fm_struct,error=error)
-       CALL cp_fm_create(r_p1(idir)%matrix,tmp_fm_struct,error=error)
-       CALL cp_fm_create(r_p2(idir)%matrix,tmp_fm_struct,error=error)
+       CALL cp_fm_create(p_rxp(idir)%matrix,tmp_fm_struct)
+       CALL cp_fm_create(r_p1(idir)%matrix,tmp_fm_struct)
+       CALL cp_fm_create(r_p2(idir)%matrix,tmp_fm_struct)
        DO idir2 = 1,9
-          CALL cp_fm_create(rr_rxp(idir2,idir)%matrix,tmp_fm_struct,error=error)
-          CALL cp_fm_create(rr_p1(idir2,idir)%matrix,tmp_fm_struct,error=error)
-          CALL cp_fm_create(rr_p2(idir2,idir)%matrix,tmp_fm_struct,error=error)
+          CALL cp_fm_create(rr_rxp(idir2,idir)%matrix,tmp_fm_struct)
+          CALL cp_fm_create(rr_p1(idir2,idir)%matrix,tmp_fm_struct)
+          CALL cp_fm_create(rr_p2(idir2,idir)%matrix,tmp_fm_struct)
        ENDDO
     ENDDO
-    CALL cp_fm_struct_release(tmp_fm_struct,error=error)
+    CALL cp_fm_struct_release(tmp_fm_struct)
     !
     !
     !
     ! recompute the linear momentum matrices
-    CALL build_lin_mom_matrix(qs_env,op_p_ao,error)
-    !CALL p_xyz_ao(op_p_ao,qs_env,minimum_image=.FALSE.,error=error)
+    CALL build_lin_mom_matrix(qs_env,op_p_ao)
+    !CALL p_xyz_ao(op_p_ao,qs_env,minimum_image=.FALSE.)
     !
     !
     ! get iiB and iiiB
@@ -2450,20 +2383,20 @@ CONTAINS
           ! Compute the multipole integrals for the state istate,
           ! using as reference center the corresponding Wannier center
           DO idir = 1,9
-             CALL cp_dbcsr_set(op_mom_ao(idir)%matrix,0.0_dp,error=error)
+             CALL cp_dbcsr_set(op_mom_ao(idir)%matrix,0.0_dp)
              DO idir2 = 1,3
-                CALL cp_dbcsr_set(op_mom_der_ao(idir,idir2)%matrix,0.0_dp,error=error)
+                CALL cp_dbcsr_set(op_mom_der_ao(idir,idir2)%matrix,0.0_dp)
              ENDDO
           ENDDO
           CALL rRc_xyz_der_ao(op_mom_ao,op_mom_der_ao,qs_env,dk,order=2,&
-                              minimum_image=.FALSE.,soft=gapw,error=error)
+                              minimum_image=.FALSE.,soft=gapw)
           !
           ! collecte the states that belong to a given center
-          CALL cp_fm_set_all(psi0,0.0_dp,error=error)
-          CALL cp_fm_set_all(psi_rxp,0.0_dp,error=error)
-          CALL cp_fm_set_all(psi_D,0.0_dp,error=error)
-          CALL cp_fm_set_all(psi_p1,0.0_dp,error=error)
-          CALL cp_fm_set_all(psi_p2,0.0_dp,error=error)
+          CALL cp_fm_set_all(psi0,0.0_dp)
+          CALL cp_fm_set_all(psi_rxp,0.0_dp)
+          CALL cp_fm_set_all(psi_D,0.0_dp)
+          CALL cp_fm_set_all(psi_p1,0.0_dp)
+          CALL cp_fm_set_all(psi_p2,0.0_dp)
           nstate_loc = center_list(ispin)%array(1,icenter+1)-center_list(ispin)%array(1,icenter)
           jstate = 1
           DO j = center_list(ispin)%array(1,icenter),center_list(ispin)%array(1,icenter+1)-1
@@ -2483,40 +2416,34 @@ CONTAINS
           ENDDO ! istate
           !
           ! scale the ordered mos
-          IF(current_env%full) CALL cp_fm_scale_and_add(1.0_dp,psi_rxp,-1.0_dp,psi_D,error=error)
+          IF(current_env%full) CALL cp_fm_scale_and_add(1.0_dp,psi_rxp,-1.0_dp,psi_D)
           !
           DO idir = 1,3
              CALL set_vecp(idir,ii,iii)
              CALL cp_dbcsr_sm_fm_multiply(op_p_ao(idir)%matrix,psi_rxp,&
-                                    p_rxp(idir)%matrix,ncol=nstate_loc,alpha=1.e0_dp,&
-                                    error=error)
+                                    p_rxp(idir)%matrix,ncol=nstate_loc,alpha=1.e0_dp)
              IF(iiiB.EQ.iii.OR.iiiB.EQ.ii) THEN
                 CALL cp_dbcsr_sm_fm_multiply(op_mom_ao(idir)%matrix,psi_p1,&
-                                       r_p1(idir)%matrix,ncol=nstate_loc,alpha=1.e0_dp,&
-                                       error=error)
+                                       r_p1(idir)%matrix,ncol=nstate_loc,alpha=1.e0_dp)
              ENDIF
              IF(iiB.EQ.iii.OR.iiB.EQ.ii) THEN
                 CALL cp_dbcsr_sm_fm_multiply(op_mom_ao(idir)%matrix,psi_p2,&
-                                       r_p2(idir)%matrix,ncol=nstate_loc,alpha=1.e0_dp,&
-                                       error=error)
+                                       r_p2(idir)%matrix,ncol=nstate_loc,alpha=1.e0_dp)
              ENDIF
              DO idir2 = 1,9
                 IF(idir2.EQ.ii.OR.idir2.EQ.iii) THEN
                    CALL cp_dbcsr_sm_fm_multiply(op_mom_der_ao(idir2,idir)%matrix,psi_rxp,&
-                                          rr_rxp(idir2,idir)%matrix,ncol=nstate_loc,alpha=1.e0_dp,&
-                                          error=error)
+                                          rr_rxp(idir2,idir)%matrix,ncol=nstate_loc,alpha=1.e0_dp)
                 ENDIF
                 !
                 IF(idir2.EQ.ind_m2(ii,iiiB).OR.idir2.EQ.ind_m2(iii,iiiB).OR.idir2.EQ.iiiB) THEN
                    CALL cp_dbcsr_sm_fm_multiply(op_mom_der_ao(idir2,idir)%matrix,psi_p1,&
-                                          rr_p1(idir2,idir)%matrix,ncol=nstate_loc,alpha=1.e0_dp,&
-                                          error=error)
+                                          rr_p1(idir2,idir)%matrix,ncol=nstate_loc,alpha=1.e0_dp)
                 ENDIF
                 !
                 IF(idir2.EQ.ind_m2(ii,iiB).OR.idir2.EQ.ind_m2(iii,iiB).OR.idir2.EQ.iiB) THEN
                    CALL cp_dbcsr_sm_fm_multiply(op_mom_der_ao(idir2,idir)%matrix,psi_p2,&
-                                          rr_p2(idir2,idir)%matrix,ncol=nstate_loc,alpha=1.e0_dp,&
-                                          error=error)
+                                          rr_p2(idir2,idir)%matrix,ncol=nstate_loc,alpha=1.e0_dp)
                 ENDIF
              ENDDO
           ENDDO
@@ -2537,22 +2464,22 @@ CONTAINS
              ! term: 2[C0| (r-dk)_ii |d_iii(C1(rxp-D))]-2[C0| (r-dk)_iii |d_ii(C1(rxp-D))]
              ! the factor 2 should be already included in the matrix elements
              contrib = 0.0_dp
-             CALL cp_fm_trace(psi0,rr_rxp(ii,iii)%matrix,contrib,error=error)
+             CALL cp_fm_trace(psi0,rr_rxp(ii,iii)%matrix,contrib)
              chi_tmp = chi_tmp + 2.0_dp * contrib
              !
              contrib = 0.0_dp
-             CALL cp_fm_trace(psi0,rr_rxp(iii,ii)%matrix,contrib,error=error)
+             CALL cp_fm_trace(psi0,rr_rxp(iii,ii)%matrix,contrib)
              chi_tmp = chi_tmp - 2.0_dp * contrib
              !
              ! correction: dk_ii*2[C0| d_iii(C1(rxp-D))] - dk_iii*2[C0| d_ii(C1(rxp-D))]
              ! factor 2 not included in the matrix elements
              contrib = 0.0_dp
-             CALL cp_fm_trace(psi0,p_rxp(iii)%matrix,contrib,error=error)
+             CALL cp_fm_trace(psi0,p_rxp(iii)%matrix,contrib)
              IF(.NOT.chi_pbc) chi_tmp = chi_tmp + 2.0_dp * dk(ii) * contrib
              int_current_tmp = int_current_tmp + 2.0_dp * contrib
              !
              contrib2 = 0.0_dp
-             CALL cp_fm_trace(psi0,p_rxp(ii)%matrix,contrib2,error=error)
+             CALL cp_fm_trace(psi0,p_rxp(ii)%matrix,contrib2)
              IF(.NOT.chi_pbc) chi_tmp = chi_tmp - 2.0_dp * dk(iii) * contrib2
              !
              ! term: -2[C0| (r-dk)_ii  (r-dk)_iiB | d_iii(C1(piiiB))] \
@@ -2560,21 +2487,21 @@ CONTAINS
              ! the factor 2 should be already included in the matrix elements
              contrib = 0.0_dp
              idir2 = ind_m2(ii,iiB)
-             CALL cp_fm_trace(psi0,rr_p2(idir2,iii)%matrix,contrib,error=error)
+             CALL cp_fm_trace(psi0,rr_p2(idir2,iii)%matrix,contrib)
              chi_tmp = chi_tmp - 2.0_dp * contrib
              contrib2 = 0.0_dp
              IF(iiB==iii) THEN
-                CALL cp_fm_trace(psi0,r_p2(ii)%matrix,contrib2,error=error)
+                CALL cp_fm_trace(psi0,r_p2(ii)%matrix,contrib2)
                 chi_tmp = chi_tmp - contrib2
              ENDIF
              !
              contrib = 0.0_dp
              idir2 = ind_m2(iii,iiB)
-             CALL cp_fm_trace(psi0,rr_p2(idir2,ii)%matrix,contrib,error=error)
+             CALL cp_fm_trace(psi0,rr_p2(idir2,ii)%matrix,contrib)
              chi_tmp = chi_tmp + 2.0_dp * contrib
              contrib2 = 0.0_dp
              IF(iiB==ii) THEN
-                CALL cp_fm_trace(psi0,r_p2(iii)%matrix,contrib2,error=error)
+                CALL cp_fm_trace(psi0,r_p2(iii)%matrix,contrib2)
                 chi_tmp = chi_tmp + contrib2
              ENDIF
              !
@@ -2583,12 +2510,12 @@ CONTAINS
              ! the factor 2 should be already included in the matrix elements
              ! no additional correction terms because of the orthogonality between C0 and C1
              contrib = 0.0_dp
-             CALL cp_fm_trace(psi0,rr_p2(iiB,iii)%matrix,contrib,error=error)
+             CALL cp_fm_trace(psi0,rr_p2(iiB,iii)%matrix,contrib)
              IF(.NOT.chi_pbc) chi_tmp = chi_tmp - 2.0_dp * dk(ii) * contrib
              int_current_tmp = int_current_tmp - 2.0_dp * contrib
              !
              contrib2 = 0.0_dp
-             CALL cp_fm_trace(psi0,rr_p2(iiB,ii)%matrix,contrib2,error=error)
+             CALL cp_fm_trace(psi0,rr_p2(iiB,ii)%matrix,contrib2)
              IF(.NOT.chi_pbc) chi_tmp = chi_tmp + 2.0_dp * dk(iii) * contrib2
              !
              ! term: +2[C0| (r-dk)_ii  (r-dk)_iiiB | d_iii(C1(piiB))] \
@@ -2596,21 +2523,21 @@ CONTAINS
              ! the factor 2 should be already included in the matrix elements
              contrib = 0.0_dp
              idir2 = ind_m2(ii,iiiB)
-             CALL cp_fm_trace(psi0,rr_p1(idir2,iii)%matrix,contrib,error=error)
+             CALL cp_fm_trace(psi0,rr_p1(idir2,iii)%matrix,contrib)
              chi_tmp = chi_tmp + 2.0_dp * contrib
              contrib2 = 0.0_dp
              IF(iiiB==iii) THEN
-                CALL cp_fm_trace(psi0,r_p1(ii)%matrix,contrib2,error=error)
+                CALL cp_fm_trace(psi0,r_p1(ii)%matrix,contrib2)
                 chi_tmp = chi_tmp + contrib2
              ENDIF
              !
              contrib = 0.0_dp
              idir2 = ind_m2(iii,iiiB)
-             CALL cp_fm_trace(psi0,rr_p1(idir2,ii)%matrix,contrib,error=error)
+             CALL cp_fm_trace(psi0,rr_p1(idir2,ii)%matrix,contrib)
              chi_tmp = chi_tmp - 2.0_dp * contrib
              contrib2 = 0.0_dp
              IF(iiiB==ii) THEN
-                CALL cp_fm_trace(psi0,r_p1(iii)%matrix,contrib2,error=error)
+                CALL cp_fm_trace(psi0,r_p1(iii)%matrix,contrib2)
                 chi_tmp = chi_tmp - contrib2
              ENDIF
              !
@@ -2618,12 +2545,12 @@ CONTAINS
              !             -dk_iii * 2[C0|(r-dk)_iiiB | d_ii(C1(piiB))]
              ! the factor 2 should be already included in the matrix elements
              contrib = 0.0_dp
-             CALL cp_fm_trace(psi0,rr_p1(iiiB,iii)%matrix,contrib,error=error)
+             CALL cp_fm_trace(psi0,rr_p1(iiiB,iii)%matrix,contrib)
              IF(.NOT.chi_pbc) chi_tmp = chi_tmp + 2.0_dp * dk(ii) * contrib
              int_current_tmp = int_current_tmp + 2.0_dp * contrib
              !
              contrib2 = 0.0_dp
-             CALL cp_fm_trace(psi0,rr_p1(iiiB,ii)%matrix,contrib2,error=error)
+             CALL cp_fm_trace(psi0,rr_p1(iiiB,ii)%matrix,contrib2)
              IF(.NOT.chi_pbc) chi_tmp = chi_tmp - 2.0_dp * dk(iii) * contrib2
              !
              ! accumulate
@@ -2647,27 +2574,26 @@ CONTAINS
     ENDDO ! ispin
     !
     ! deallocate the sparse matrices
-    CALL cp_dbcsr_deallocate_matrix_set(op_mom_ao,error=error)
-    CALL cp_dbcsr_deallocate_matrix_set(op_mom_der_ao,error=error)
-    CALL cp_dbcsr_deallocate_matrix_set(op_p_ao,error=error)
+    CALL cp_dbcsr_deallocate_matrix_set(op_mom_ao)
+    CALL cp_dbcsr_deallocate_matrix_set(op_mom_der_ao)
+    CALL cp_dbcsr_deallocate_matrix_set(op_p_ao)
 
-    CALL cp_fm_release(psi0,error=error)
-    CALL cp_fm_release(psi_rxp,error=error)
-    CALL cp_fm_release(psi_D,error=error)
-    CALL cp_fm_release(psi_p1,error=error)
-    CALL cp_fm_release(psi_p2,error=error)
+    CALL cp_fm_release(psi0)
+    CALL cp_fm_release(psi_rxp)
+    CALL cp_fm_release(psi_D)
+    CALL cp_fm_release(psi_p1)
+    CALL cp_fm_release(psi_p2)
     DO idir = 1,3
-       CALL cp_fm_release(p_rxp(idir)%matrix,error=error)
-       CALL cp_fm_release(r_p1(idir)%matrix,error=error)
-       CALL cp_fm_release(r_p2(idir)%matrix,error=error)
+       CALL cp_fm_release(p_rxp(idir)%matrix)
+       CALL cp_fm_release(r_p1(idir)%matrix)
+       CALL cp_fm_release(r_p2(idir)%matrix)
        DO idir2 = 1,9
-          CALL cp_fm_release(rr_rxp(idir2,idir)%matrix,error=error)
-          CALL cp_fm_release(rr_p1(idir2,idir)%matrix,error=error)
-          CALL cp_fm_release(rr_p2(idir2,idir)%matrix,error=error)
+          CALL cp_fm_release(rr_rxp(idir2,idir)%matrix)
+          CALL cp_fm_release(rr_p1(idir2,idir)%matrix)
+          CALL cp_fm_release(rr_p2(idir2,idir)%matrix)
        ENDDO
     ENDDO
-    DEALLOCATE(p_rxp,r_p1,r_p2,rr_rxp,rr_p1,rr_p2,STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    DEALLOCATE(p_rxp,r_p1,r_p2,rr_rxp,rr_p1,rr_p2)
 
     CALL timestop(handle)
 
@@ -2679,20 +2605,18 @@ CONTAINS
 !> \param current_env ...
 !> \param qs_env ...
 !> \param iB ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE current_build_chi_one_center(current_env,qs_env,iB,error)
+  SUBROUTINE current_build_chi_one_center(current_env,qs_env,iB)
     !
     TYPE(current_env_type)                   :: current_env
     TYPE(qs_environment_type), POINTER       :: qs_env
     INTEGER, INTENT(IN)                      :: iB
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'current_build_chi_one_center', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: handle, idir, idir2, iiB, iiiB, ispin, istat, jdir, jjdir, &
-      kdir, max_states, nao, natom, nbr_center(2), nmo, nspins, nstates(2), &
+    INTEGER :: handle, idir, idir2, iiB, iiiB, ispin, jdir, jjdir, kdir, &
+      max_states, nao, natom, nbr_center(2), nmo, nspins, nstates(2), &
       output_unit
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: first_sgf, last_sgf
     INTEGER, DIMENSION(:), POINTER           :: row_blk_sizes
@@ -2735,7 +2659,7 @@ CONTAINS
             op_mom_der_ao,center_list,centers_set,&
             op_p_ao,psi1_p,psi1_rxp,psi1_D,buf,cell,psi0_order)
 
-    logger => cp_error_get_logger(error)
+    logger => cp_get_default_logger()
     output_unit= cp_logger_get_default_io_unit(logger)
 
     CALL get_qs_env(qs_env=qs_env,&
@@ -2747,8 +2671,7 @@ CONTAINS
                     qs_kind_set=qs_kind_set,&
                     sab_all=sab_all,&
                     sab_orb=sab_orb,&
-                    dbcsr_dist=dbcsr_dist,&
-                    error=error)
+                    dbcsr_dist=dbcsr_dist)
 
     nspins = dft_control%nspins
     gapw = dft_control%qs_control%gapw
@@ -2763,80 +2686,72 @@ CONTAINS
                          psi1_rxp=psi1_rxp,&
                          psi1_D=psi1_D,&
                          nstates=nstates,&
-                         psi0_order=psi0_order,&
-                         error=error)
+                         psi0_order=psi0_order)
     !
     max_states = MAXVAL(nstates(1:nspins))
     !
     ! Allocate sparse matrices for dipole, quadrupole and their derivatives => 9x3
     ! Remember the derivatives are antisymmetric
-    CALL cp_dbcsr_allocate_matrix_set(op_mom_ao,9,error=error)
-    CALL cp_dbcsr_allocate_matrix_set(op_mom_der_ao,9,3,error=error)
+    CALL cp_dbcsr_allocate_matrix_set(op_mom_ao,9)
+    CALL cp_dbcsr_allocate_matrix_set(op_mom_der_ao,9,3)
     !
     ! prepare for allocation
     natom = SIZE(particle_set,1)
-    ALLOCATE (first_sgf(natom),STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-    ALLOCATE (last_sgf(natom),STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    ALLOCATE (first_sgf(natom))
+    ALLOCATE (last_sgf(natom))
     CALL get_particle_set(particle_set, qs_kind_set,&
                           first_sgf=first_sgf,&
-                          last_sgf=last_sgf,error=error)
-    ALLOCATE (row_blk_sizes(natom), STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+                          last_sgf=last_sgf)
+    ALLOCATE (row_blk_sizes(natom))
     CALL convert_offsets_to_sizes (first_sgf, row_blk_sizes, last_sgf)
-    DEALLOCATE (first_sgf,STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-    DEALLOCATE (last_sgf,STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    DEALLOCATE (first_sgf)
+    DEALLOCATE (last_sgf)
     !
     !
     ALLOCATE(op_mom_ao(1)%matrix)
-    CALL cp_dbcsr_init(op_mom_ao(1)%matrix,error=error)
+    CALL cp_dbcsr_init(op_mom_ao(1)%matrix)
     CALL cp_dbcsr_create(matrix=op_mom_ao(1)%matrix, &
          name="op_mom", &
          dist=dbcsr_dist, matrix_type=dbcsr_type_no_symmetry,&
          row_blk_size=row_blk_sizes, col_blk_size=row_blk_sizes, &
-         nblks=0, nze=0, mutable_work=.TRUE., &
-         error=error)
-    CALL cp_dbcsr_alloc_block_from_nbl(op_mom_ao(1)%matrix,sab_all,error=error)
+         nze=0, mutable_work=.TRUE.)
+    CALL cp_dbcsr_alloc_block_from_nbl(op_mom_ao(1)%matrix,sab_all)
 
     DO idir2=1,3
        ALLOCATE(op_mom_der_ao(1,idir2)%matrix)
-       CALL cp_dbcsr_init(op_mom_der_ao(1,idir2)%matrix, error=error)
+       CALL cp_dbcsr_init(op_mom_der_ao(1,idir2)%matrix)
        CALL cp_dbcsr_copy(op_mom_der_ao(1,idir2)%matrix,op_mom_ao(1)%matrix,&
-            "op_mom_der_ao"//"-"//TRIM(ADJUSTL(cp_to_string(idir2))),error)
+            "op_mom_der_ao"//"-"//TRIM(ADJUSTL(cp_to_string(idir2))))
     ENDDO
 
     DO idir = 2,SIZE(op_mom_ao,1)
        ALLOCATE(op_mom_ao(idir)%matrix)
-       CALL cp_dbcsr_init(op_mom_ao(idir)%matrix, error=error)
+       CALL cp_dbcsr_init(op_mom_ao(idir)%matrix)
        CALL cp_dbcsr_copy(op_mom_ao(idir)%matrix,op_mom_ao(1)%matrix,&
-            "op_mom_ao"//"-"//TRIM(ADJUSTL(cp_to_string(idir))),error)
+            "op_mom_ao"//"-"//TRIM(ADJUSTL(cp_to_string(idir))))
        DO idir2=1,3
           ALLOCATE(op_mom_der_ao(idir,idir2)%matrix)
-          CALL cp_dbcsr_init(op_mom_der_ao(idir,idir2)%matrix, error=error)
+          CALL cp_dbcsr_init(op_mom_der_ao(idir,idir2)%matrix)
           CALL cp_dbcsr_copy(op_mom_der_ao(idir,idir2)%matrix,op_mom_ao(1)%matrix,&
-               "op_mom_der_ao"//"-"//TRIM(ADJUSTL(cp_to_string(idir*idir2))),error)
+               "op_mom_der_ao"//"-"//TRIM(ADJUSTL(cp_to_string(idir*idir2))))
        ENDDO
     ENDDO
     !
-    CALL cp_dbcsr_allocate_matrix_set(op_p_ao,3,error=error)
+    CALL cp_dbcsr_allocate_matrix_set(op_p_ao,3)
     ALLOCATE(op_p_ao(1)%matrix)
-    CALL cp_dbcsr_init(op_p_ao(1)%matrix,error=error)
+    CALL cp_dbcsr_init(op_p_ao(1)%matrix)
     CALL cp_dbcsr_create(matrix=op_p_ao(1)%matrix, &
          name="op_p_ao", &
          dist=dbcsr_dist, matrix_type=dbcsr_type_antisymmetric,&
          row_blk_size=row_blk_sizes, col_blk_size=row_blk_sizes, &
-         nblks=0, nze=0, mutable_work=.TRUE., &
-         error=error)
-    CALL cp_dbcsr_alloc_block_from_nbl(op_p_ao(1)%matrix, sab_orb, error=error)
+         nze=0, mutable_work=.TRUE.)
+    CALL cp_dbcsr_alloc_block_from_nbl(op_p_ao(1)%matrix, sab_orb)
 
     DO idir=2,3
        ALLOCATE(op_p_ao(idir)%matrix)
-       CALL cp_dbcsr_init(op_p_ao(idir)%matrix, error=error)
+       CALL cp_dbcsr_init(op_p_ao(idir)%matrix)
        CALL cp_dbcsr_copy(op_p_ao(idir)%matrix,op_p_ao(1)%matrix,&
-            "op_p_ao"//"-"//TRIM(ADJUSTL(cp_to_string(idir))),error)
+            "op_p_ao"//"-"//TRIM(ADJUSTL(cp_to_string(idir))))
     ENDDO
     !
     !
@@ -2848,23 +2763,22 @@ CONTAINS
     NULLIFY(tmp_fm_struct)
     CALL cp_fm_struct_create(tmp_fm_struct,nrow_global=nao,&
                              ncol_global=max_states,para_env=para_env,&
-                             context=mo_coeff%matrix_struct%context,&
-                             error=error)
-    CALL cp_fm_create(buf,tmp_fm_struct,error=error)
-    CALL cp_fm_struct_release(tmp_fm_struct,error=error)
+                             context=mo_coeff%matrix_struct%context)
+    CALL cp_fm_create(buf,tmp_fm_struct)
+    CALL cp_fm_struct_release(tmp_fm_struct)
     !
     !
     !
     ! recompute the linear momentum matrices
-    CALL build_lin_mom_matrix(qs_env,op_p_ao,error)
-    !CALL p_xyz_ao(op_p_ao,qs_env,minimum_image=.FALSE.,error=error)
+    CALL build_lin_mom_matrix(qs_env,op_p_ao)
+    !CALL p_xyz_ao(op_p_ao,qs_env,minimum_image=.FALSE.)
     !
     !
     ! get iiB and iiiB
     CALL set_vecp(iB,iiB,iiiB)
     DO ispin = 1,nspins
        !
-       CPPostcondition(nbr_center(ispin)==1,cp_failure_level,routineP,error,failure)
+       CPASSERT(nbr_center(ispin)==1)
        !
        ! get ground state MOS
        nmo = nstates(ispin)
@@ -2882,13 +2796,13 @@ CONTAINS
        ! Compute the multipole integrals for the state istate,
        ! using as reference center the corresponding Wannier center
        DO idir = 1,9
-          CALL cp_dbcsr_set(op_mom_ao(idir)%matrix,0.0_dp,error=error)
+          CALL cp_dbcsr_set(op_mom_ao(idir)%matrix,0.0_dp)
           DO idir2 = 1,3
-             CALL cp_dbcsr_set(op_mom_der_ao(idir,idir2)%matrix,0.0_dp,error=error)
+             CALL cp_dbcsr_set(op_mom_der_ao(idir,idir2)%matrix,0.0_dp)
           ENDDO
        ENDDO
        CALL rRc_xyz_der_ao(op_mom_ao,op_mom_der_ao,qs_env,dk,order=2,&
-                           minimum_image=.FALSE.,soft=gapw,error=error)
+                           minimum_image=.FALSE.,soft=gapw)
        !
        !
        ! Multuply left and right by the appropriate coefficients and sum into the
@@ -2904,11 +2818,11 @@ CONTAINS
           ! term: dk_ii*2[C0| d_iii(C1(rxp-D))] - dk_iii*2[C0| d_ii(C1(rxp-D))]
           IF(.NOT.chi_pbc) THEN
              CALL cp_dbcsr_sm_fm_multiply(op_p_ao(idir)%matrix,mo_coeff,&
-                                    buf,ncol=nmo,alpha=1.e0_dp,error=error)
+                                    buf,ncol=nmo,alpha=1.e0_dp)
              DO jdir = 1,3
                 DO kdir = 1,3
                    IF(Levi_Civita(kdir,jdir,idir).EQ.0.0_dp) CYCLE
-                   CALL cp_fm_trace(buf,psi1_rxp(ispin,iB)%matrix,contrib,error=error)
+                   CALL cp_fm_trace(buf,psi1_rxp(ispin,iB)%matrix,contrib)
                    chi(kdir) = chi(kdir) - Levi_Civita(kdir,jdir,idir) * 2.0_dp * dk(jdir) * contrib
                 ENDDO
              ENDDO
@@ -2925,10 +2839,10 @@ CONTAINS
           !       -dk_iii * 2[C0|(r-dk)_iiiB | d_ii(C1(piiB))]
           DO jdir = 1,3
              CALL cp_dbcsr_sm_fm_multiply(op_mom_der_ao(jdir,idir)%matrix,mo_coeff,&
-                                    buf,ncol=nmo,alpha=1.e0_dp,error=error)
+                                    buf,ncol=nmo,alpha=1.e0_dp)
              DO kdir = 1,3
                 IF(Levi_Civita(kdir,jdir,idir).EQ.0.0_dp) CYCLE
-                CALL cp_fm_trace(buf,psi1_rxp(ispin,iB)%matrix,contrib,error=error)
+                CALL cp_fm_trace(buf,psi1_rxp(ispin,iB)%matrix,contrib)
                 chi(kdir) = chi(kdir) - Levi_Civita(kdir,jdir,idir) * 2.0_dp * contrib
              ENDDO
              !
@@ -2937,7 +2851,7 @@ CONTAINS
                    DO jjdir = 1,3
                       DO kdir = 1,3
                          IF(Levi_Civita(kdir,jjdir,idir).EQ.0.0_dp) CYCLE
-                         CALL cp_fm_trace(buf,psi1_p(ispin,iiiB)%matrix,contrib,error=error)
+                         CALL cp_fm_trace(buf,psi1_p(ispin,iiiB)%matrix,contrib)
                          chi(kdir) = chi(kdir) + Levi_Civita(kdir,jjdir,idir) * 2.0_dp * dk(jjdir) * contrib
                       ENDDO
                    ENDDO
@@ -2947,7 +2861,7 @@ CONTAINS
                    DO jjdir = 1,3
                       DO kdir = 1,3
                          IF(Levi_Civita(kdir,jjdir,idir).EQ.0.0_dp) CYCLE
-                         CALL cp_fm_trace(buf,psi1_p(ispin,iiB)%matrix,contrib,error=error)
+                         CALL cp_fm_trace(buf,psi1_p(ispin,iiB)%matrix,contrib)
                          chi(kdir) = chi(kdir) - Levi_Civita(kdir,jjdir,idir) * 2.0_dp * dk(jjdir) * contrib
                       ENDDO
                    ENDDO
@@ -2965,18 +2879,18 @@ CONTAINS
           ! HERE THERE IS ONE EXTRA MULTIPLY
           DO jdir = 1,3
              CALL cp_dbcsr_sm_fm_multiply(op_mom_der_ao(ind_m2(jdir,iiB),idir)%matrix,mo_coeff,&
-                                    buf,ncol=nmo,alpha=1.e0_dp,error=error)
+                                    buf,ncol=nmo,alpha=1.e0_dp)
              DO kdir = 1,3
                 IF(Levi_Civita(kdir,jdir,idir).EQ.0.0_dp) CYCLE
-                CALL cp_fm_trace(buf,psi1_p(ispin,iiiB)%matrix,contrib,error=error)
+                CALL cp_fm_trace(buf,psi1_p(ispin,iiiB)%matrix,contrib)
                 chi(kdir) = chi(kdir) + Levi_Civita(kdir,jdir,idir) * 2.0_dp * contrib
              ENDDO
              !
              CALL cp_dbcsr_sm_fm_multiply(op_mom_der_ao(ind_m2(jdir,iiiB),idir)%matrix,mo_coeff,&
-                                    buf,ncol=nmo,alpha=1.e0_dp,error=error)
+                                    buf,ncol=nmo,alpha=1.e0_dp)
              DO kdir = 1,3
                 IF(Levi_Civita(kdir,jdir,idir).EQ.0.0_dp) CYCLE
-                CALL cp_fm_trace(buf,psi1_p(ispin,iiB)%matrix,contrib,error=error)
+                CALL cp_fm_trace(buf,psi1_p(ispin,iiB)%matrix,contrib)
                 chi(kdir) = chi(kdir) - Levi_Civita(kdir,jdir,idir) * 2.0_dp * contrib
              ENDDO
           ENDDO
@@ -2989,12 +2903,12 @@ CONTAINS
           ! term2: +2[C0| (r-dk)_ii  (r-dk)_iiiB | d_iii(C1(piiB))] +
           !        -2[C0| (r-dk)_iii (r-dk)_iiiB | d_ii(C1(piiB))]
           CALL cp_dbcsr_sm_fm_multiply(op_mom_ao(idir)%matrix,mo_coeff,&
-                                 buf,ncol=nmo,alpha=1.e0_dp,error=error)
+                                 buf,ncol=nmo,alpha=1.e0_dp)
           DO jdir = 1,3
              DO kdir = 1,3
                 IF(Levi_Civita(kdir,idir,jdir).EQ.0.0_dp) CYCLE
                 IF(iiB==jdir) THEN
-                   CALL cp_fm_trace(buf,psi1_p(ispin,iiiB)%matrix,contrib,error=error)
+                   CALL cp_fm_trace(buf,psi1_p(ispin,iiiB)%matrix,contrib)
                    chi(kdir) = chi(kdir) + Levi_Civita(kdir,idir,jdir) * contrib
                 ENDIF
              ENDDO
@@ -3004,7 +2918,7 @@ CONTAINS
              DO kdir = 1,3
                 IF(Levi_Civita(kdir,idir,jdir).EQ.0.0_dp) CYCLE
                 IF(iiiB==jdir) THEN
-                   CALL cp_fm_trace(buf,psi1_p(ispin,iiB)%matrix,contrib,error=error)
+                   CALL cp_fm_trace(buf,psi1_p(ispin,iiB)%matrix,contrib)
                    chi(kdir) = chi(kdir) - Levi_Civita(kdir,idir,jdir) * contrib
                 ENDIF
                 !
@@ -3028,10 +2942,10 @@ CONTAINS
     ENDDO ! ispin
     !
     ! deallocate the sparse matrices
-    CALL cp_dbcsr_deallocate_matrix_set(op_mom_ao,error=error)
-    CALL cp_dbcsr_deallocate_matrix_set(op_mom_der_ao,error=error)
-    CALL cp_dbcsr_deallocate_matrix_set(op_p_ao,error=error)
-    CALL cp_fm_release(buf,error=error)
+    CALL cp_dbcsr_deallocate_matrix_set(op_mom_ao)
+    CALL cp_dbcsr_deallocate_matrix_set(op_mom_der_ao)
+    CALL cp_dbcsr_deallocate_matrix_set(op_p_ao)
+    CALL cp_fm_release(buf)
 
     CALL timestop(handle)
 

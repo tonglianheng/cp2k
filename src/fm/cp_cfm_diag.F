@@ -45,16 +45,14 @@ CONTAINS
 !> \param matrix ...
 !> \param eigenvectors ...
 !> \param eigenvalues ...
-!> \param error ...
 !> \par History
 !>      - (De)Allocation checks updated (15.02.2011,MK)
 !> \author Joost VandeVondele
 ! *****************************************************************************
-  SUBROUTINE cp_cfm_heevd(matrix,eigenvectors,eigenvalues,error)
+  SUBROUTINE cp_cfm_heevd(matrix,eigenvectors,eigenvalues)
 
     TYPE(cp_cfm_type), POINTER               :: matrix, eigenvectors
     REAL(KIND=dp), DIMENSION(:), INTENT(OUT) :: eigenvalues
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_cfm_heevd', &
       routineP = moduleN//':'//routineN
@@ -79,8 +77,8 @@ CONTAINS
     CALL timeset(routineN,handle)
     failure = .FALSE.
 
-    CPPrecondition(ASSOCIATED(matrix),cp_failure_level,routineP,error,failure)
-    CPPrecondition(ASSOCIATED(eigenvectors),cp_failure_level,routineP,error,failure)
+    CPASSERT(ASSOCIATED(matrix))
+    CPASSERT(ASSOCIATED(eigenvectors))
 
     n = matrix%matrix_struct%nrow_global
     m => matrix%local_data
@@ -112,12 +110,9 @@ CONTAINS
     liwork = iwork(1)
 #endif
 
-    DEALLOCATE (iwork,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"iwork")
-    DEALLOCATE (rwork,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"rwork")
-    DEALLOCATE (work,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"work")
+    DEALLOCATE (iwork)
+    DEALLOCATE (rwork)
+    DEALLOCATE (work)
     ALLOCATE (iwork(liwork),STAT=istat)
     IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"iwork",int_size*liwork)
     iwork(:) = 0
@@ -151,12 +146,9 @@ CONTAINS
     IF (info /= 0) THEN
        CALL stop_program(routineN,moduleN,__LINE__,"Diagonalisation complex matrix failed")
     END IF
-    DEALLOCATE (iwork,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"iwork")
-    DEALLOCATE (rwork,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"rwork")
-    DEALLOCATE (work,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"work")
+    DEALLOCATE (iwork)
+    DEALLOCATE (rwork)
+    DEALLOCATE (work)
 
     CALL timestop(handle)
 
@@ -170,19 +162,17 @@ CONTAINS
 !> \param eigenvectors ...
 !> \param eigenvalues ...
 !> \param work ...
-!> \param error ...
 ! *****************************************************************************
- SUBROUTINE cp_cfm_geeig(amatrix,bmatrix,eigenvectors,eigenvalues,work,error)
+ SUBROUTINE cp_cfm_geeig(amatrix,bmatrix,eigenvectors,eigenvalues,work)
 
     TYPE(cp_cfm_type), POINTER               :: amatrix, bmatrix, eigenvectors
     REAL(KIND=dp), DIMENSION(:)              :: eigenvalues
     TYPE(cp_cfm_type), POINTER               :: work
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_cfm_geeig', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, istat, nao, nmo
+    INTEGER                                  :: handle, nao, nmo
     LOGICAL                                  :: failure
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: evals
 
@@ -190,26 +180,24 @@ CONTAINS
 
     failure = .FALSE.
 
-    CALL cp_cfm_get_info(amatrix,nrow_global=nao,error=error)
-    ALLOCATE (evals(nao),STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    CALL cp_cfm_get_info(amatrix,nrow_global=nao)
+    ALLOCATE (evals(nao))
     ! Cholesky decompose S=U(T)U
-    CALL cp_cfm_cholesky_decompose(bmatrix,error=error)
+    CALL cp_cfm_cholesky_decompose(bmatrix)
     ! Invert to get U^(-1)
-    CALL cp_cfm_triangular_invert(bmatrix,error=error)
+    CALL cp_cfm_triangular_invert(bmatrix)
     ! Reduce to get U^(-T) * H * U^(-1)
-    CALL cp_cfm_triangular_multiply(bmatrix,amatrix,side="R",error=error)
-    CALL cp_cfm_triangular_multiply(bmatrix,amatrix,transa_tr="C",error=error)
+    CALL cp_cfm_triangular_multiply(bmatrix,amatrix,side="R")
+    CALL cp_cfm_triangular_multiply(bmatrix,amatrix,transa_tr="C")
     ! Diagonalize
-    CALL cp_cfm_heevd(matrix=amatrix,eigenvectors=work,eigenvalues=evals,error=error)
+    CALL cp_cfm_heevd(matrix=amatrix,eigenvectors=work,eigenvalues=evals)
     ! Restore vectors C = U^(-1) * C*
-    CALL cp_cfm_triangular_multiply(bmatrix,work,error=error)
+    CALL cp_cfm_triangular_multiply(bmatrix,work)
     nmo = SIZE(eigenvalues)
     CALL cp_cfm_to_cfm(work,eigenvectors,nmo)
     eigenvalues(1:nmo) = evals(1:nmo)
 
-    DEALLOCATE (evals,STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    DEALLOCATE (evals)
 
     CALL timestop(handle)
 

@@ -78,6 +78,10 @@ while [ $# -ge 1 ]; do
    shift
 done
 
+# disable known conflicts
+if $enable_tsan ; then
+   openblas_ver=
+fi
 
 # helper routine to check integrity of downloaded files
 checksum() {
@@ -237,6 +241,16 @@ race:__dbcsr_operations_MOD_dbcsr_filter_anytype
 race:__dbcsr_transformations_MOD_dbcsr_make_untransposed_blocks
 EOF
 
+#valgrind suppressions
+cat << EOF > ${INSTALLDIR}/valgrind.supp
+{
+   BuggySUPERLU
+   Memcheck:Cond
+   ...
+   fun:SymbolicFactorize
+}
+EOF
+
 # now we need these tools and compiler to be in the path
 cat << EOF > ${INSTALLDIR}/setup
 if [ -z "\${LD_LIBRARY_PATH}" ]
@@ -254,6 +268,7 @@ fi
 export CP2KINSTALLDIR=${INSTALLDIR}
 export LSAN_OPTIONS=suppressions=${INSTALLDIR}/lsan.supp
 export TSAN_OPTIONS=suppressions=${INSTALLDIR}/lsan.supp
+export VALGRIND_OPTIONS="--suppressions=${INSTALLDIR}/valgrind.supp --max-stackframe=2168152 --error-exitcode=42"
 export CC=gcc
 export CXX=g++
 export FC=gfortran
@@ -311,26 +326,30 @@ if [ "$mpichoice" == "mpich" ]; then
    DFLAGS="${DFLAGS} IF_MPI(-D__parallel -D__MPI_VERSION=3,)"
 fi
 
-
 echo "================= Installing openblas ==================="
-if [ -f xianyi-OpenBLAS-${openblas_ver}.zip ]; then
-   echo "Installation already started, skipping it."
+if [ "x${openblas_ver}" == "x" ]; then
+   echo "skipping openblas"
+   LIBS="-lreflapack -lrefblas ${LIBS}"
 else
-   wget http://www.cp2k.org/static/downloads/xianyi-OpenBLAS-${openblas_ver}.zip
-   checksum xianyi-OpenBLAS-${openblas_ver}.zip
-   unzip xianyi-OpenBLAS-${openblas_ver}.zip >& unzip.log
-   cd xianyi-OpenBLAS-*
-   # we install both the serial and the omp threaded version.
-   # Unfortunately, neither is thread-safe (i.e. the CP2K ssmp and psmp version need to link to something else, the omp version is unused)
-   make -j $nprocs USE_THREAD=0 LIBNAMESUFFIX=serial PREFIX=${INSTALLDIR} >& make.serial.log
-   make -j $nprocs USE_THREAD=0 LIBNAMESUFFIX=serial PREFIX=${INSTALLDIR} install >& install.serial.log
-   # make clean >& clean.log
-   # make -j $nprocs USE_THREAD=1 USE_OPENMP=1 LIBNAMESUFFIX=omp PREFIX=${INSTALLDIR} >& make.omp.log
-   # make -j $nprocs USE_THREAD=1 USE_OPENMP=1 LIBNAMESUFFIX=omp PREFIX=${INSTALLDIR} install >& install.omp.log
-   cd ..
+   if [ -f xianyi-OpenBLAS-${openblas_ver}.zip ]; then
+      echo "Installation already started, skipping it."
+   else
+      wget http://www.cp2k.org/static/downloads/xianyi-OpenBLAS-${openblas_ver}.zip
+      checksum xianyi-OpenBLAS-${openblas_ver}.zip
+      unzip xianyi-OpenBLAS-${openblas_ver}.zip >& unzip.log
+      cd xianyi-OpenBLAS-*
+      # we install both the serial and the omp threaded version.
+      # Unfortunately, neither is thread-safe (i.e. the CP2K ssmp and psmp version need to link to something else, the omp version is unused)
+      make -j $nprocs USE_THREAD=0 LIBNAMESUFFIX=serial PREFIX=${INSTALLDIR} >& make.serial.log
+      make -j $nprocs USE_THREAD=0 LIBNAMESUFFIX=serial PREFIX=${INSTALLDIR} install >& install.serial.log
+      # make clean >& clean.log
+      # make -j $nprocs USE_THREAD=1 USE_OPENMP=1 LIBNAMESUFFIX=omp PREFIX=${INSTALLDIR} >& make.omp.log
+      # make -j $nprocs USE_THREAD=1 USE_OPENMP=1 LIBNAMESUFFIX=omp PREFIX=${INSTALLDIR} install >& install.omp.log
+      cd ..
+   fi
+   # currently openblas is not thread safe (neither serial nor omp version),
+   LIBS="IF_VALGRIND(-lreflapack -lrefblas, IF_OMP(-lreflapack -lrefblas,-lopenblas_serial)) ${LIBS}"
 fi
-# currently openblas is not thread safe (neither serial nor omp version),
-LIBS="IF_VALGRIND(-lreflapack -lrefblas, IF_OMP(-lreflapack -lrefblas,-lopenblas_serial)) ${LIBS}"
 
 echo "================= Installing libsmm ==================="
 if $enable_tsan ; then
@@ -428,7 +447,7 @@ else
    make install >& install.log
    cd ..
 fi
-DFLAGS="${DFLAGS} -D__LIBXC2"
+DFLAGS="${DFLAGS} -D__LIBXC"
 LIBS="-lxcf90 -lxc ${LIBS}"
 
 
@@ -655,7 +674,6 @@ LIBS="IF_MPI(-lpexsi_linux_v${pexsi_ver},) ${LIBS}"
 echo "==================== Installing QUIP ================="
 if $enable_tsan ; then
    echo "TSAN build ... will not use QUIP"
-   libsmm=""
 else
    if [ -f QUIP-${quip_ver}.zip  ]; then
       echo "Installation already started, skipping it."

@@ -71,12 +71,10 @@ CONTAINS
 ! *****************************************************************************
 !> \brief   symmetrize the virial components
 !> \param virial ...
-!> \param error ...
 !> \version 1.0
 ! *****************************************************************************
-  SUBROUTINE sym_virial (virial, error)
+  SUBROUTINE sym_virial (virial)
     TYPE(virial_type), POINTER               :: virial
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'sym_virial', &
       routineP = moduleN//':'//routineN
@@ -226,20 +224,15 @@ CONTAINS
 ! *****************************************************************************
 !> \brief ...
 !> \param virial ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE virial_create ( virial, error )
+  SUBROUTINE virial_create ( virial)
 
     TYPE(virial_type), POINTER               :: virial
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'virial_create', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: istat
-
-    ALLOCATE ( virial, stat=istat )
-    CPPostconditionNoFail(istat==0,cp_warning_level,routineP,error)
+    ALLOCATE ( virial)
 
     CALL zero_virial ( virial )
     last_virial_id_nr=last_virial_id_nr+1
@@ -250,17 +243,14 @@ CONTAINS
 ! *****************************************************************************
 !> \brief retains the given virial_type
 !> \param virial the virial_type to retain
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \par History
 !>      04.2003 created [fawzi]
 !> \author fawzi
 !> \note
 !>      see doc/ReferenceCounting.html
 ! *****************************************************************************
-  SUBROUTINE virial_retain ( virial, error)
+  SUBROUTINE virial_retain ( virial)
     TYPE(virial_type), POINTER               :: virial
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'virial_retain', &
       routineP = moduleN//':'//routineN
@@ -269,39 +259,34 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(ASSOCIATED(virial),cp_failure_level,routineP,error,failure)
-    CPPreconditionNoFail(virial%ref_count>0,cp_failure_level,routineP,error)
+    CPASSERT(ASSOCIATED(virial))
+    CPASSERT(virial%ref_count>0)
     virial%ref_count=virial%ref_count+1
   END SUBROUTINE virial_retain
 
 ! *****************************************************************************
 !> \brief releases the given virial_type
 !> \param virial the virial_type to release
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \par History
 !>      04.2003 created [fawzi]
 !> \author fawzi
 !> \note
 !>      see doc/ReferenceCounting.html
 ! *****************************************************************************
-  SUBROUTINE virial_release(virial, error)
+  SUBROUTINE virial_release(virial)
     TYPE(virial_type), POINTER               :: virial
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'virial_release', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: istat
     LOGICAL                                  :: failure
 
     failure=.FALSE.
     IF (ASSOCIATED(virial)) THEN
-       CPPreconditionNoFail(virial%ref_count>0,cp_failure_level,routineP,error)
+       CPASSERT(virial%ref_count>0)
        virial%ref_count=virial%ref_count-1
        IF (virial%ref_count.EQ.0) THEN
-          DEALLOCATE(virial,STAT=istat)
-          CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+          DEALLOCATE(virial)
        ENDIF
        NULLIFY(virial)
     END IF

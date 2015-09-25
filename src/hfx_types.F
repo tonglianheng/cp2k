@@ -468,8 +468,6 @@ MODULE hfx_types
 !> \param qs_kind_set ...
 !> \param dft_control ...
 !> \param cell ...
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \param do_exx ...
 !> \par History
 !>      09.2007 created [Manuel Guidon]
@@ -479,7 +477,7 @@ MODULE hfx_types
 !>        unknown at invocation time
 ! *****************************************************************************
   SUBROUTINE hfx_create(x_data,para_env, hfx_section,natom,atomic_kind_set, qs_kind_set, &
-                        dft_control, cell, error, do_exx)
+                        dft_control, cell,do_exx)
     TYPE(hfx_type), DIMENSION(:, :), POINTER :: x_data
     TYPE(cp_para_env_type)                   :: para_env
     TYPE(section_vals_type), POINTER         :: hfx_section
@@ -490,7 +488,6 @@ MODULE hfx_types
       POINTER                                :: qs_kind_set
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(cell_type), POINTER                 :: cell
-    TYPE(cp_error_type), INTENT(inout)       :: error
     LOGICAL, OPTIONAL                        :: do_exx
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'hfx_create', &
@@ -500,7 +497,7 @@ MODULE hfx_types
     CHARACTER(LEN=default_path_length)       :: char_val
     INTEGER :: handle, i, i_thread, iatom, ikind, int_val, irep, jkind, &
       max_set, n_rep_hf, n_threads, natom_a, natom_b, nkind, nseta, nsetb, &
-      pbc_shells, stat, storage_id
+      pbc_shells, storage_id
     INTEGER, DIMENSION(:), POINTER           :: atom2kind, kind_of
     LOGICAL                                  :: failure, logic_val, my_do_exx
     REAL(dp)                                 :: real_val
@@ -513,34 +510,33 @@ MODULE hfx_types
     CALL cite_reference(Guidon2008)
     CALL cite_reference(Guidon2009)
     !! There might be 2 hf sections
-    CALL section_vals_get(hfx_section,n_repetition=n_rep_hf,error=error)
+    CALL section_vals_get(hfx_section,n_repetition=n_rep_hf)
     n_threads = 1
 !$  n_threads = omp_get_max_threads()
-    ALLOCATE(x_data(n_rep_hf,n_threads),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    ALLOCATE(x_data(n_rep_hf,n_threads))
     DO i_thread=1,n_threads
       DO irep=1,n_rep_hf
         actual_x_data => x_data(irep,i_thread)
         !! Get data from input file
         !!
         !! GENERAL params
-        CALL section_vals_val_get(hfx_section, "FRACTION", r_val=real_val, i_rep_section=irep,error=error)
+        CALL section_vals_val_get(hfx_section, "FRACTION", r_val=real_val, i_rep_section=irep)
         actual_x_data%general_parameter%fraction = real_val
         actual_x_data%n_rep_hf = n_rep_hf
 
         NULLIFY(actual_x_data%map_atoms_to_cpus)
 
-        CALL section_vals_val_get(hfx_section, "TREAT_LSD_IN_CORE", l_val=logic_val, i_rep_section=irep,error=error)
+        CALL section_vals_val_get(hfx_section, "TREAT_LSD_IN_CORE", l_val=logic_val, i_rep_section=irep)
         actual_x_data%general_parameter%treat_lsd_in_core = logic_val
 
         !! MEMORY section
-        hf_sub_section => section_vals_get_subs_vals(hfx_section,"MEMORY",i_rep_section=irep, error=error)
+        hf_sub_section => section_vals_get_subs_vals(hfx_section,"MEMORY",i_rep_section=irep)
         CALL parse_memory_section(actual_x_data%memory_parameter, hf_sub_section, storage_id, i_thread,&
-             n_threads, para_env, irep, skip_disk=.FALSE., skip_in_core_forces=.FALSE., error=error)
+             n_threads, para_env, irep, skip_disk=.FALSE., skip_in_core_forces=.FALSE.)
 
         !! PERIODIC section
-        hf_sub_section => section_vals_get_subs_vals(hfx_section,"PERIODIC", i_rep_section=irep, error=error)
-        CALL section_vals_val_get(hf_sub_section, "NUMBER_OF_SHELLS", i_val=int_val, error=error)
+        hf_sub_section => section_vals_get_subs_vals(hfx_section,"PERIODIC", i_rep_section=irep)
+        CALL section_vals_val_get(hf_sub_section, "NUMBER_OF_SHELLS", i_val=int_val)
         actual_x_data%periodic_parameter%number_of_shells = int_val
         actual_x_data%periodic_parameter%mode = int_val
         CALL get_cell(cell=cell,periodic=actual_x_data%periodic_parameter%perd)
@@ -551,34 +547,34 @@ MODULE hfx_types
         END IF
 
         !! SCREENING section
-        hf_sub_section => section_vals_get_subs_vals(hfx_section,"SCREENING",i_rep_section=irep, error=error)
-        CALL section_vals_val_get(hf_sub_section, "EPS_SCHWARZ", r_val=real_val, error=error)
+        hf_sub_section => section_vals_get_subs_vals(hfx_section,"SCREENING",i_rep_section=irep)
+        CALL section_vals_val_get(hf_sub_section, "EPS_SCHWARZ", r_val=real_val)
         actual_x_data%screening_parameter%eps_schwarz = real_val
-        CALL section_vals_val_get(hf_sub_section, "EPS_SCHWARZ_FORCES", r_val=real_val, error=error)
+        CALL section_vals_val_get(hf_sub_section, "EPS_SCHWARZ_FORCES", r_val=real_val)
         actual_x_data%screening_parameter%eps_schwarz_forces = real_val
-        CALL section_vals_val_get(hf_sub_section, "SCREEN_P_FORCES", l_val=logic_val, error=error)
+        CALL section_vals_val_get(hf_sub_section, "SCREEN_P_FORCES", l_val=logic_val)
         actual_x_data%screening_parameter%do_p_screening_forces = logic_val
-        CALL section_vals_val_get(hf_sub_section, "SCREEN_ON_INITIAL_P", l_val=logic_val, error=error)
+        CALL section_vals_val_get(hf_sub_section, "SCREEN_ON_INITIAL_P", l_val=logic_val)
         actual_x_data%screening_parameter%do_initial_p_screening = logic_val
         actual_x_data%screen_funct_is_initialized = .FALSE.
 
         !! INTERACTION_POTENTIAL section
-        hf_sub_section => section_vals_get_subs_vals(hfx_section,"INTERACTION_POTENTIAL",i_rep_section=irep,error=error)
-        CALL section_vals_val_get(hf_sub_section, "POTENTIAL_TYPE", i_val=int_val, error=error)
+        hf_sub_section => section_vals_get_subs_vals(hfx_section,"INTERACTION_POTENTIAL",i_rep_section=irep)
+        CALL section_vals_val_get(hf_sub_section, "POTENTIAL_TYPE", i_val=int_val)
         actual_x_data%potential_parameter%potential_type = int_val
-        CALL section_vals_val_get(hf_sub_section, "OMEGA", r_val=real_val, error=error)
+        CALL section_vals_val_get(hf_sub_section, "OMEGA", r_val=real_val)
         actual_x_data%potential_parameter%omega = real_val
-        CALL section_vals_val_get(hf_sub_section, "SCALE_COULOMB", r_val=real_val, error=error)
+        CALL section_vals_val_get(hf_sub_section, "SCALE_COULOMB", r_val=real_val)
         actual_x_data%potential_parameter%scale_coulomb = real_val
-        CALL section_vals_val_get(hf_sub_section, "SCALE_LONGRANGE", r_val=real_val, error=error)
+        CALL section_vals_val_get(hf_sub_section, "SCALE_LONGRANGE", r_val=real_val)
         actual_x_data%potential_parameter%scale_longrange = real_val
-        CALL section_vals_val_get(hf_sub_section, "SCALE_GAUSSIAN", r_val=real_val, error=error)
+        CALL section_vals_val_get(hf_sub_section, "SCALE_GAUSSIAN", r_val=real_val)
         actual_x_data%potential_parameter%scale_gaussian = real_val
         IF (actual_x_data%potential_parameter%potential_type == do_hfx_potential_truncated .OR. &
             actual_x_data%potential_parameter%potential_type == do_hfx_potential_mix_cl_trunc) THEN
-          CALL section_vals_val_get(hf_sub_section, "CUTOFF_RADIUS", r_val=real_val, error=error)
+          CALL section_vals_val_get(hf_sub_section, "CUTOFF_RADIUS", r_val=real_val)
           actual_x_data%potential_parameter%cutoff_radius = real_val
-          CALL section_vals_val_get(hf_sub_section, "T_C_G_DATA", c_val=char_val, error=error)
+          CALL section_vals_val_get(hf_sub_section, "T_C_G_DATA", c_val=char_val)
           CALL compress(char_val,.TRUE.)
           ! ** Check if file is there
           IF ( .NOT. file_exists(char_val) ) THEN
@@ -587,7 +583,6 @@ MODULE hfx_types
                  "in the INTERCATION_POTENTIAL section"
             CALL cp_assert( .FALSE. , cp_failure_level,cp_assertion_failed,routineP,&
                  error_msg , &
-                 error,&
                  only_ionode=.TRUE.)
           ELSE
             actual_x_data%potential_parameter%filename = char_val
@@ -596,23 +591,23 @@ MODULE hfx_types
         IF (actual_x_data%potential_parameter%potential_type == do_hfx_potential_short) THEN
             CALL erfc_cutoff(actual_x_data%screening_parameter%eps_schwarz,&
                            actual_x_data%potential_parameter%omega,&
-                           actual_x_data%potential_parameter%cutoff_radius, error)
+                           actual_x_data%potential_parameter%cutoff_radius)
         END IF
 
         !! LOAD_BALANCE section
-        hf_sub_section => section_vals_get_subs_vals(hfx_section,"LOAD_BALANCE",i_rep_section=irep, error=error)
-        CALL section_vals_val_get(hf_sub_section, "NBINS", i_val=int_val, error=error)
+        hf_sub_section => section_vals_get_subs_vals(hfx_section,"LOAD_BALANCE",i_rep_section=irep)
+        CALL section_vals_val_get(hf_sub_section, "NBINS", i_val=int_val)
         actual_x_data%load_balance_parameter%nbins = MAX(1,int_val)
         actual_x_data%load_balance_parameter%blocks_initialized = .FALSE.
 
-        CALL section_vals_val_get(hf_sub_section, "RANDOMIZE", l_val=logic_val, error=error)
+        CALL section_vals_val_get(hf_sub_section, "RANDOMIZE", l_val=logic_val)
         actual_x_data%load_balance_parameter%do_randomize = logic_val
 
         actual_x_data%load_balance_parameter%rtp_redistribute=.FALSE.
         IF(ASSOCIATED(dft_control%rtp_control))&
             actual_x_data%load_balance_parameter%rtp_redistribute=dft_control%rtp_control%hfx_redistribute
 
-        CALL section_vals_val_get(hf_sub_section, "BLOCK_SIZE", i_val=int_val, error=error)
+        CALL section_vals_val_get(hf_sub_section, "BLOCK_SIZE", i_val=int_val)
         ! negative values ask for a computed default
         IF (int_val<=0) THEN
            ! this gives a reasonable number of blocks for binning, yet typically results in blocking.
@@ -630,10 +625,10 @@ MODULE hfx_types
         ! in the case of RPA exchange (postprocessing after SCF), we do not use ADMM
         IF(my_do_exx) THEN
           CALL hfx_create_basis_types(actual_x_data%basis_parameter,actual_x_data%basis_info, qs_kind_set,&
-                          .FALSE., error)
+                          .FALSE.)
         ELSE
           CALL hfx_create_basis_types(actual_x_data%basis_parameter,actual_x_data%basis_info, qs_kind_set,&
-                          dft_control%do_admm, error) 
+                          dft_control%do_admm) 
         END IF
 
 !!**************************************************************************************************
@@ -734,15 +729,13 @@ MODULE hfx_types
 !! ****************************************************************************************************
 
         IF(actual_x_data%periodic_parameter%do_periodic) THEN
-          hf_pbc_section => section_vals_get_subs_vals(hfx_section,"PERIODIC",i_rep_section=irep, error=error)
-          CALL section_vals_val_get(hf_pbc_section,"NUMBER_OF_SHELLS",i_val=pbc_shells,error=error)
+          hf_pbc_section => section_vals_get_subs_vals(hfx_section,"PERIODIC",i_rep_section=irep)
+          CALL section_vals_val_get(hf_pbc_section,"NUMBER_OF_SHELLS",i_val=pbc_shells)
           actual_x_data%periodic_parameter%number_of_shells_from_input = pbc_shells
-          ALLOCATE(actual_x_data%neighbor_cells(1),STAT=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-          CALL hfx_create_neighbor_cells(actual_x_data,pbc_shells, cell, i_thread, error=error)
+          ALLOCATE(actual_x_data%neighbor_cells(1))
+          CALL hfx_create_neighbor_cells(actual_x_data,pbc_shells, cell, i_thread)
         ELSE
-          ALLOCATE(actual_x_data%neighbor_cells(1),STAT=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          ALLOCATE(actual_x_data%neighbor_cells(1))
           ! ** Initialize this guy to enable non periodic stress regtests
           actual_x_data%periodic_parameter%R_max_stress = 1.0_dp
         END IF
@@ -752,37 +745,27 @@ MODULE hfx_types
 
         !! ** This guy is allocated on the master thread only
         IF (i_thread == 1 ) THEN
-          ALLOCATE(actual_x_data%is_assoc_atomic_block(natom,natom),STAT=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-          ALLOCATE(actual_x_data%atomic_block_offset(natom,natom),STAT=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-          ALLOCATE(actual_x_data%set_offset(max_set, max_set, nkind, nkind),STAT=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-          ALLOCATE(actual_x_data%block_offset(para_env%num_pe+1),STAT=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          ALLOCATE(actual_x_data%is_assoc_atomic_block(natom,natom))
+          ALLOCATE(actual_x_data%atomic_block_offset(natom,natom))
+          ALLOCATE(actual_x_data%set_offset(max_set, max_set, nkind, nkind))
+          ALLOCATE(actual_x_data%block_offset(para_env%num_pe+1))
         END IF
 
-        ALLOCATE(actual_x_data%distribution_forces(1),STAT=stat)
-        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-        ALLOCATE(actual_x_data%distribution_energy(1),STAT=stat)
-        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+        ALLOCATE(actual_x_data%distribution_forces(1))
+        ALLOCATE(actual_x_data%distribution_energy(1))
 
         actual_x_data%memory_parameter%size_p_screen = 0_int_8
         IF( i_thread == 1 ) THEN
-          ALLOCATE(actual_x_data%atomic_pair_list(natom,natom),STAT=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-          ALLOCATE(actual_x_data%atomic_pair_list_forces(natom,natom),STAT=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          ALLOCATE(actual_x_data%atomic_pair_list(natom,natom))
+          ALLOCATE(actual_x_data%atomic_pair_list_forces(natom,natom))
         END IF
 
         IF(actual_x_data%screening_parameter%do_initial_p_screening .OR. &
            actual_x_data%screening_parameter%do_p_screening_forces) THEN
           !! ** This guy is allocated on the master thread only
           IF (i_thread == 1 ) THEN
-            ALLOCATE(actual_x_data%pmax_atom(natom,natom),STAT=stat)
-            CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-            ALLOCATE(actual_x_data%initial_p(nkind*(nkind+1)/2),STAT=stat)
-            CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+            ALLOCATE(actual_x_data%pmax_atom(natom,natom))
+            ALLOCATE(actual_x_data%initial_p(nkind*(nkind+1)/2))
             i = 1
             DO ikind=1,nkind
               CALL get_atomic_kind(atomic_kind_set(ikind), natom=natom_a)
@@ -790,19 +773,16 @@ MODULE hfx_types
               DO jkind=ikind,nkind
                 CALL get_atomic_kind(atomic_kind_set(jkind), natom=natom_b)
                 nsetb=actual_x_data%basis_parameter(jkind)%nset
-                ALLOCATE(actual_x_data%initial_p(i)%p_kind(nseta, nsetb, natom_a, natom_b),STAT=stat)
-                CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+                ALLOCATE(actual_x_data%initial_p(i)%p_kind(nseta, nsetb, natom_a, natom_b))
                 actual_x_data%memory_parameter%size_p_screen = &
                   actual_x_data%memory_parameter%size_p_screen + nseta*nsetb*natom_a*natom_b
                 i = i + 1
               END DO
             END DO
             IF( actual_x_data%memory_parameter%treat_forces_in_core ) THEN
-              ALLOCATE(actual_x_data%pmax_atom_forces(natom,natom),STAT=stat)
-              CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+              ALLOCATE(actual_x_data%pmax_atom_forces(natom,natom))
 
-              ALLOCATE(actual_x_data%initial_p_forces(nkind*(nkind+1)/2),STAT=stat)
-              CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+              ALLOCATE(actual_x_data%initial_p_forces(nkind*(nkind+1)/2))
               i = 1
               DO ikind=1,nkind
                 CALL get_atomic_kind(atomic_kind_set(ikind), natom=natom_a)
@@ -810,8 +790,7 @@ MODULE hfx_types
                 DO jkind=ikind,nkind
                   CALL get_atomic_kind(atomic_kind_set(jkind), natom=natom_b)
                   nsetb=actual_x_data%basis_parameter(jkind)%nset
-                  ALLOCATE(actual_x_data%initial_p_forces(i)%p_kind(nseta, nsetb, natom_a, natom_b),STAT=stat)
-                  CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+                  ALLOCATE(actual_x_data%initial_p_forces(i)%p_kind(nseta, nsetb, natom_a, natom_b))
                   actual_x_data%memory_parameter%size_p_screen = &
                   actual_x_data%memory_parameter%size_p_screen + nseta*nsetb*natom_a*natom_b
                   i = i + 1
@@ -819,12 +798,9 @@ MODULE hfx_types
               END DO
             END IF
           END IF
-          ALLOCATE(actual_x_data%map_atom_to_kind_atom(natom),STAT=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-          ALLOCATE(kind_of(natom),STAT=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-          ALLOCATE (atom2kind(nkind),STAT=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          ALLOCATE(actual_x_data%map_atom_to_kind_atom(natom))
+          ALLOCATE(kind_of(natom))
+          ALLOCATE (atom2kind(nkind))
           CALL get_atomic_kind_set(atomic_kind_set, kind_of=kind_of)
 
           atom2kind = 0
@@ -833,22 +809,19 @@ MODULE hfx_types
             atom2kind(ikind) = atom2kind(ikind) + 1
             actual_x_data%map_atom_to_kind_atom(iatom) = atom2kind(ikind)
           END DO
-          DEALLOCATE(kind_of, atom2kind, STAT=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          DEALLOCATE(kind_of, atom2kind)
         END IF
 
         ! ** Initialize libint type
-        CALL initialize_libint(actual_x_data%lib, actual_x_data%basis_info%max_am, error)
-        CALL initialize_libderiv(actual_x_data%lib_deriv, actual_x_data%basis_info%max_am, error)
+        CALL initialize_libint(actual_x_data%lib, actual_x_data%basis_info%max_am)
+        CALL initialize_libderiv(actual_x_data%lib_deriv, actual_x_data%basis_info%max_am)
 
-        CALL alloc_containers(actual_x_data, 1, hfx_do_eval_energy, error)
-        CALL alloc_containers(actual_x_data, 1, hfx_do_eval_forces, error)
+        CALL alloc_containers(actual_x_data, 1, hfx_do_eval_energy)
+        CALL alloc_containers(actual_x_data, 1, hfx_do_eval_forces)
 
         actual_x_data%maxval_cache_disk%element_counter = 1
-        ALLOCATE(actual_x_data%maxval_container_disk,STAT=stat)
-        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-        ALLOCATE(actual_x_data%maxval_container_disk%first,STAT=stat)
-        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+        ALLOCATE(actual_x_data%maxval_container_disk)
+        ALLOCATE(actual_x_data%maxval_container_disk%first)
         actual_x_data%maxval_container_disk%first%prev => NULL()
         actual_x_data%maxval_container_disk%first%next => NULL()
         actual_x_data%maxval_container_disk%current => actual_x_data%maxval_container_disk%first
@@ -860,14 +833,11 @@ MODULE hfx_types
         WRITE(actual_x_data%maxval_container_disk%filename,'(A,I0,A,A,A)') TRIM(actual_x_data%memory_parameter%storage_location), &
                                                            storage_id,"_",actual_x_data%maxval_container_disk%desc, "6"
         CALL compress(actual_x_data%maxval_container_disk%filename, .TRUE.)
-        ALLOCATE(actual_x_data%integral_containers_disk(64), STAT=stat)
-        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+        ALLOCATE(actual_x_data%integral_containers_disk(64))
         DO i=1,64
           actual_x_data%integral_caches_disk(i)%element_counter = 1
           actual_x_data%integral_caches_disk(i)%data = 0
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-          ALLOCATE(actual_x_data%integral_containers_disk(i)%first,STAT=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          ALLOCATE(actual_x_data%integral_containers_disk(i)%first)
           actual_x_data%integral_containers_disk(i)%first%prev => NULL()
           actual_x_data%integral_containers_disk(i)%first%next => NULL()
           actual_x_data%integral_containers_disk(i)%current => actual_x_data%integral_containers_disk(i)%first
@@ -889,7 +859,7 @@ MODULE hfx_types
 
     DO irep=1,n_rep_hf
       actual_x_data => x_data(irep,1)
-      CALL hfx_print_info(actual_x_data, hfx_section, irep, error=error)
+      CALL hfx_print_info(actual_x_data, hfx_section, irep)
     END DO
     CALL timestop(handle)
   END SUBROUTINE hfx_create
@@ -899,17 +869,15 @@ MODULE hfx_types
 !> \param eps target accuracy
 !> \param omg screening parameter
 !> \param r_cutoff cutoff radius 
-!> \param error ...
 !> \par History
 !>      10.2012 created [Hossein Banihashemian]
 !> \author Hossein Banihashemian
 ! *****************************************************************************
-  SUBROUTINE erfc_cutoff(eps,omg,r_cutoff,error)
+  SUBROUTINE erfc_cutoff(eps,omg,r_cutoff)
     IMPLICIT NONE
 
     REAL(dp), INTENT(in)  :: eps, omg
     REAL(dp), INTENT(out) :: r_cutoff
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'erfc_cutoff', &
       routineP = moduleN//':'//routineN
@@ -918,7 +886,6 @@ MODULE hfx_types
     REAL(dp) :: r0, f0, fprime0, delta_r
     INTEGER :: iter,handle
     INTEGER, PARAMETER :: iterMAX = 1000
-    LOGICAL :: failure
 
     CALL timeset(routineN,handle)
 
@@ -932,7 +899,7 @@ MODULE hfx_types
         CALL eval_transc_func(r0,eps,omg,f0,fprime0)
         IF (ABS(delta_r) .LT. abstol .OR. ABS(f0) .LT. soltol) EXIT
     END DO
-    CPPostcondition(iter<=itermax,cp_failure_level,routineP,error,failure)
+    CPASSERT(iter<=itermax)
     r_cutoff = r0
 
     CALL timestop(handle)
@@ -959,18 +926,16 @@ MODULE hfx_types
 !> \param basis_info ...
 !> \param qs_kind_set ...
 !> \param do_admm ...
-!> \param error ...
 !> \par History
 !>      07.2011 refactored
 ! *****************************************************************************
-  SUBROUTINE hfx_create_basis_types(basis_parameter,basis_info, qs_kind_set, do_admm, error)
+  SUBROUTINE hfx_create_basis_types(basis_parameter,basis_info, qs_kind_set, do_admm)
     TYPE(hfx_basis_type), DIMENSION(:), &
       POINTER                                :: basis_parameter
     TYPE(hfx_basis_info_type)                :: basis_info
     TYPE(qs_kind_type), DIMENSION(:), &
       POINTER                                :: qs_kind_set
     LOGICAL                                  :: do_admm
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'hfx_create_basis_types', &
       routineP = moduleN//':'//routineN
@@ -978,7 +943,7 @@ MODULE hfx_types
     INTEGER :: co_counter, handle, i, ikind, ipgf, iset, j, k, la, &
       max_am_kind, max_coeff, max_nsgfl, max_pgf, max_pgf_kind, max_set, &
       nkind, nl_count, nset, nseta, offset_a, offset_a1, s_offset_nl_a, sgfa, &
-      so_counter, stat
+      so_counter
     INTEGER, DIMENSION(:), POINTER           :: la_max, la_min, npgfa, nshell
     INTEGER, DIMENSION(:, :), POINTER        :: first_sgfa, nl_a
     LOGICAL                                  :: failure
@@ -991,24 +956,23 @@ MODULE hfx_types
 
     !! BASIS parameter
     nkind = SIZE(qs_kind_set,1)
-    ALLOCATE(basis_parameter(nkind), STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    ALLOCATE(basis_parameter(nkind))
     max_set = 0
     DO ikind = 1,nkind
         IF( .NOT. do_admm ) THEN
-          CALL get_qs_kind(qs_kind_set(ikind), basis_set=orb_basis_a, basis_type="ORB", error=error)
+          CALL get_qs_kind(qs_kind_set(ikind), basis_set=orb_basis_a, basis_type="ORB")
           CALL get_qs_kind_set(qs_kind_set,&
                                maxsgf=basis_info%max_sgf,&
                                maxnset=basis_info%max_set,&
-                               maxlgto=basis_info%max_am, error=error)
+                               maxlgto=basis_info%max_am)
 
         ELSE
-          CALL get_qs_kind(qs_kind_set(ikind), basis_set=orb_basis_a, basis_type="AUX_FIT", error=error)
+          CALL get_qs_kind(qs_kind_set(ikind), basis_set=orb_basis_a, basis_type="AUX_FIT")
           CALL get_qs_kind_set(qs_kind_set,&
                                maxsgf=basis_info%max_sgf,&
                                maxnset=basis_info%max_set,&
                                maxlgto=basis_info%max_am,&
-                               basis_type="AUX_FIT", error=error)
+                               basis_type="AUX_FIT")
         END IF
         IF (basis_info%max_set<max_set) STOP "UNEXPECTED MAX_SET"
         max_set = MAX(max_set,basis_info%max_set)
@@ -1064,8 +1028,7 @@ MODULE hfx_types
           max_am_kind = MAX(max_am_kind, la)
         END DO
       END DO
-      ALLOCATE(basis_parameter(ikind)%sphi_ext(max_coeff,0:max_am_kind, max_pgf_kind, nseta), STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+      ALLOCATE(basis_parameter(ikind)%sphi_ext(max_coeff,0:max_am_kind, max_pgf_kind, nseta))
       basis_parameter(ikind)%sphi_ext = 0.0_dp
     END DO
 
@@ -1107,17 +1070,15 @@ MODULE hfx_types
 ! *****************************************************************************
 !> \brief ...
 !> \param basis_parameter ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE hfx_release_basis_types(basis_parameter,error)
+  SUBROUTINE hfx_release_basis_types(basis_parameter)
     TYPE(hfx_basis_type), DIMENSION(:), &
       POINTER                                :: basis_parameter
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'hfx_release_basis_types', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, i, stat
+    INTEGER                                  :: handle, i
     LOGICAL                                  :: failure
 
     CALL timeset(routineN,handle)
@@ -1125,13 +1086,10 @@ MODULE hfx_types
 
     !! BASIS parameter
     DO i=1,SIZE(basis_parameter)
-       DEALLOCATE(basis_parameter(i)%nsgfl,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       DEALLOCATE(basis_parameter(i)%sphi_ext,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       DEALLOCATE(basis_parameter(i)%nsgfl)
+       DEALLOCATE(basis_parameter(i)%sphi_ext)
     END DO
-    DEALLOCATE(basis_parameter,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    DEALLOCATE(basis_parameter)
     CALL timestop(handle)
 
   END SUBROUTINE hfx_release_basis_types
@@ -1148,10 +1106,9 @@ MODULE hfx_types
 !> \param irep ...
 !> \param skip_disk ...
 !> \param skip_in_core_forces ...
-!> \param error ...
 ! *****************************************************************************
   SUBROUTINE parse_memory_section(memory_parameter, hf_sub_section, storage_id,&
-       i_thread, n_threads, para_env, irep, skip_disk, skip_in_core_forces, error)
+       i_thread, n_threads, para_env, irep, skip_disk, skip_in_core_forces)
     TYPE(hfx_memory_type)                    :: memory_parameter
     TYPE(section_vals_type), POINTER         :: hf_sub_section
     INTEGER, INTENT(OUT), OPTIONAL           :: storage_id
@@ -1159,7 +1116,6 @@ MODULE hfx_types
     TYPE(cp_para_env_type), OPTIONAL         :: para_env
     INTEGER, INTENT(IN), OPTIONAL            :: irep
     LOGICAL, INTENT(IN)                      :: skip_disk, skip_in_core_forces
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'parse_memory_section', &
       routineP = moduleN//':'//routineN
@@ -1175,13 +1131,13 @@ MODULE hfx_types
             (PRESENT(storage_id).EQV.PRESENT(n_threads)).AND.&
             (PRESENT(storage_id).EQV.PRESENT(para_env)) .AND.&
             (PRESENT(storage_id).EQV.PRESENT(irep))
-    CPPostcondition(check,cp_failure_level,routineP,error,failure)
+    CPASSERT(check)
 
     ! Memory Storage
-    CALL section_vals_val_get(hf_sub_section, "MAX_MEMORY", i_val=int_val, error=error)
+    CALL section_vals_val_get(hf_sub_section, "MAX_MEMORY", i_val=int_val)
     memory_parameter%max_memory = int_val
     memory_parameter%max_compression_counter = int_val*1024_int_8*128_int_8
-    CALL section_vals_val_get(hf_sub_section, "EPS_STORAGE", r_val=real_val, error=error)
+    CALL section_vals_val_get(hf_sub_section, "EPS_STORAGE", r_val=real_val)
     memory_parameter%eps_storage_scaling = real_val
     IF(int_val == 0) THEN
        memory_parameter%do_all_on_the_fly = .TRUE.
@@ -1192,7 +1148,7 @@ MODULE hfx_types
     memory_parameter%bits_max_val = BITS_MAX_VAL
     memory_parameter%actual_memory_usage = 1
     IF( .NOT. skip_in_core_forces) THEN
-      CALL section_vals_val_get(hf_sub_section, "TREAT_FORCES_IN_CORE", l_val=logic_val, error=error)
+      CALL section_vals_val_get(hf_sub_section, "TREAT_FORCES_IN_CORE", l_val=logic_val)
       memory_parameter%treat_forces_in_core = logic_val
     END IF
 
@@ -1202,14 +1158,14 @@ MODULE hfx_types
     ! Disk Storage
     IF (.NOT.skip_disk) THEN
        memory_parameter%actual_memory_usage_disk = 1
-       CALL section_vals_val_get(hf_sub_section, "MAX_DISK_SPACE", i_val=int_val, error=error)
+       CALL section_vals_val_get(hf_sub_section, "MAX_DISK_SPACE", i_val=int_val)
        memory_parameter%max_compression_counter_disk = int_val*1024_int_8*128_int_8
        IF( int_val == 0 ) THEN
           memory_parameter%do_disk_storage = .FALSE.
        ELSE
           memory_parameter%do_disk_storage = .TRUE.
        END IF
-       CALL section_vals_val_get(hf_sub_section, "STORAGE_LOCATION", c_val=char_val, error=error)
+       CALL section_vals_val_get(hf_sub_section, "STORAGE_LOCATION", c_val=char_val)
        CALL compress(char_val,.TRUE.)
        !! Add ending / if necessary
 
@@ -1229,7 +1185,7 @@ MODULE hfx_types
                TRIM(filename), ". Please check STORAGE_LOCATION"
           CALL cp_assert( .FALSE. , cp_failure_level,cp_assertion_failed,routineP,&
                error_msg , &
-               error,failure)
+               failure)
        END IF
        CALL m_chdir(orig_wd,stat)
 
@@ -1246,21 +1202,18 @@ MODULE hfx_types
 ! *****************************************************************************
 !> \brief - This routine deallocates all data structures
 !> \param x_data contains all relevant data structures for hfx runs
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \par History
 !>      09.2007 created [Manuel Guidon]
 !> \author Manuel Guidon
 ! *****************************************************************************
-  SUBROUTINE hfx_release(x_data, error)
+  SUBROUTINE hfx_release(x_data)
     TYPE(hfx_type), DIMENSION(:, :), POINTER :: x_data
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'hfx_release', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i, i_thread, irep, n_rep_hf, &
-                                                n_threads, stat
+                                                n_threads
     LOGICAL                                  :: failure
     TYPE(hfx_type), POINTER                  :: actual_x_data
 
@@ -1278,131 +1231,101 @@ MODULE hfx_types
     DO i_thread= 1,n_threads
       DO irep=1,n_rep_hf
         actual_x_data => x_data(irep,i_thread)
-        DEALLOCATE(actual_x_data%neighbor_cells,STAT=stat)
-        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-        DEALLOCATE(actual_x_data%distribution_energy,STAT=stat)
-        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-        DEALLOCATE(actual_x_data%distribution_forces,STAT=stat)
-        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+        DEALLOCATE(actual_x_data%neighbor_cells)
+        DEALLOCATE(actual_x_data%distribution_energy)
+        DEALLOCATE(actual_x_data%distribution_forces)
 
         IF( actual_x_data%load_balance_parameter%blocks_initialized ) THEN
-          DEALLOCATE(actual_x_data%blocks,STAT=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          DEALLOCATE(actual_x_data%blocks)
           IF( i_thread == 1 ) THEN
-            DEALLOCATE(actual_x_data%pmax_block,STAT=stat)
-            CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+            DEALLOCATE(actual_x_data%pmax_block)
           END IF
         END IF
 
         IF( i_thread == 1 ) THEN
-          DEALLOCATE(actual_x_data%atomic_pair_list, STAT=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-          DEALLOCATE(actual_x_data%atomic_pair_list_forces, STAT=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          DEALLOCATE(actual_x_data%atomic_pair_list)
+          DEALLOCATE(actual_x_data%atomic_pair_list_forces)
         END IF
 
         IF(actual_x_data%screening_parameter%do_initial_p_screening .OR. &
            actual_x_data%screening_parameter%do_p_screening_forces) THEN
           IF( i_thread == 1 ) THEN
-            DEALLOCATE(actual_x_data%pmax_atom, STAT=stat)
-            CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+            DEALLOCATE(actual_x_data%pmax_atom)
             DO i=1,SIZE(actual_x_data%initial_p)
-               DEALLOCATE(actual_x_data%initial_p(i)%p_kind,STAT=stat)
-               CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+               DEALLOCATE(actual_x_data%initial_p(i)%p_kind)
             END DO
-            DEALLOCATE(actual_x_data%initial_p,STAT=stat)
-            CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+            DEALLOCATE(actual_x_data%initial_p)
             IF( actual_x_data%memory_parameter%treat_forces_in_core) THEN
-              DEALLOCATE(actual_x_data%pmax_atom_forces, STAT=stat)
-              CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+              DEALLOCATE(actual_x_data%pmax_atom_forces)
               DO i=1,SIZE(actual_x_data%initial_p_forces)
-                 DEALLOCATE(actual_x_data%initial_p_forces(i)%p_kind,STAT=stat)
-                 CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+                 DEALLOCATE(actual_x_data%initial_p_forces(i)%p_kind)
               END DO
-              DEALLOCATE(actual_x_data%initial_p_forces,STAT=stat)
-              CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+              DEALLOCATE(actual_x_data%initial_p_forces)
             END IF
           END IF
-          DEALLOCATE(actual_x_data%map_atom_to_kind_atom,STAT=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          DEALLOCATE(actual_x_data%map_atom_to_kind_atom)
         END IF
         IF( i_thread == 1 ) THEN
-          DEALLOCATE(actual_x_data%is_assoc_atomic_block,STAT=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-          DEALLOCATE(actual_x_data%atomic_block_offset,STAT=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-          DEALLOCATE(actual_x_data%set_offset,STAT=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-          DEALLOCATE(actual_x_data%block_offset,STAT=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          DEALLOCATE(actual_x_data%is_assoc_atomic_block)
+          DEALLOCATE(actual_x_data%atomic_block_offset)
+          DEALLOCATE(actual_x_data%set_offset)
+          DEALLOCATE(actual_x_data%block_offset)
         END IF
 
         !! BASIS parameter
-        CALL hfx_release_basis_types(actual_x_data%basis_parameter,error)
+        CALL hfx_release_basis_types(actual_x_data%basis_parameter)
 
         !MK Release libint and libderiv data structure
         CALL terminate_libint(actual_x_data%lib)
         CALL terminate_libderiv(actual_x_data%lib_deriv)
 
         !! Deallocate containers
-        CALL dealloc_containers(actual_x_data, hfx_do_eval_energy, error)
-        CALL dealloc_containers(actual_x_data, hfx_do_eval_forces, error)
+        CALL dealloc_containers(actual_x_data, hfx_do_eval_energy)
+        CALL dealloc_containers(actual_x_data, hfx_do_eval_forces)
 
         !! Deallocate containers
         CALL hfx_init_container(actual_x_data%maxval_container_disk, &
                                 actual_x_data%memory_parameter%actual_memory_usage_disk, &
-                                .FALSE., error)
+                                .FALSE.)
         IF( actual_x_data%memory_parameter%do_disk_storage) THEN
           CALL close_file(unit_number=actual_x_data%maxval_container_disk%unit,file_status="DELETE")
         END IF
-        DEALLOCATE(actual_x_data%maxval_container_disk%first,STAT=stat)
-        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-        DEALLOCATE(actual_x_data%maxval_container_disk,STAT=stat)
-        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+        DEALLOCATE(actual_x_data%maxval_container_disk%first)
+        DEALLOCATE(actual_x_data%maxval_container_disk)
 
         DO i=1,64
           CALL hfx_init_container(actual_x_data%integral_containers_disk(i), &
                                   actual_x_data%memory_parameter%actual_memory_usage_disk, &
-                                  .FALSE., error)
+                                  .FALSE.)
           IF( actual_x_data%memory_parameter%do_disk_storage) THEN
             CALL close_file(unit_number=actual_x_data%integral_containers_disk(i)%unit,file_status="DELETE")
           END IF
-          DEALLOCATE(actual_x_data%integral_containers_disk(i)%first,STAT=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          DEALLOCATE(actual_x_data%integral_containers_disk(i)%first)
         END DO
-        DEALLOCATE(actual_x_data%integral_containers_disk,STAT=stat)
-        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+        DEALLOCATE(actual_x_data%integral_containers_disk)
 
 
         ! ** screening functions
         IF(actual_x_data%screen_funct_is_initialized) THEN
-          DEALLOCATE(actual_x_data%screen_funct_coeffs_set,STAT=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-          DEALLOCATE(actual_x_data%screen_funct_coeffs_kind,STAT=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-          DEALLOCATE(actual_x_data%pair_dist_radii_pgf,STAT=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-          DEALLOCATE(actual_x_data%screen_funct_coeffs_pgf,STAT=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          DEALLOCATE(actual_x_data%screen_funct_coeffs_set)
+          DEALLOCATE(actual_x_data%screen_funct_coeffs_kind)
+          DEALLOCATE(actual_x_data%pair_dist_radii_pgf)
+          DEALLOCATE(actual_x_data%screen_funct_coeffs_pgf)
           actual_x_data%screen_funct_is_initialized = .FALSE.
         END IF
 
         ! ** maps
         IF( ASSOCIATED(actual_x_data%map_atoms_to_cpus) ) THEN
           DO i=1,SIZE(actual_x_data%map_atoms_to_cpus)
-            DEALLOCATE(actual_x_data%map_atoms_to_cpus(i)%iatom_list,STAT=stat)
-            CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-            DEALLOCATE(actual_x_data%map_atoms_to_cpus(i)%jatom_list,STAT=stat)
-            CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+            DEALLOCATE(actual_x_data%map_atoms_to_cpus(i)%iatom_list)
+            DEALLOCATE(actual_x_data%map_atoms_to_cpus(i)%jatom_list)
           END DO
-          DEALLOCATE(actual_x_data%map_atoms_to_cpus,STAT=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          DEALLOCATE(actual_x_data%map_atoms_to_cpus)
         END IF
       END DO
 
     END DO
-    DEALLOCATE(x_data,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    DEALLOCATE(x_data)
   END SUBROUTINE hfx_release
 
 ! *****************************************************************************
@@ -1412,19 +1335,15 @@ MODULE hfx_types
 !> \param pbc_shells number of shells taken into account
 !> \param cell cell
 !> \param i_thread current thread ID
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \par History
 !>      09.2007 created [Manuel Guidon]
 !> \author Manuel Guidon
 ! *****************************************************************************
-  SUBROUTINE hfx_create_neighbor_cells(x_data, pbc_shells, cell, i_thread, &
-                                       error)
+  SUBROUTINE hfx_create_neighbor_cells(x_data, pbc_shells, cell, i_thread)
     TYPE(hfx_type), POINTER                  :: x_data
     INTEGER, INTENT(INOUT)                   :: pbc_shells
     TYPE(cell_type), POINTER                 :: cell
     INTEGER, INTENT(IN)                      :: i_thread
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'hfx_create_neighbor_cells', &
       routineP = moduleN//':'//routineN
@@ -1432,7 +1351,7 @@ MODULE hfx_types
     CHARACTER(LEN=512)                       :: error_msg
     CHARACTER(LEN=64)                        :: char_nshells
     INTEGER :: i, idx, ikind, ipgf, iset, ishell, j, jkind, jpgf, jset, &
-      jshell, k, kshell, l, m(3), max_shell, nseta, nsetb, stat, &
+      jshell, k, kshell, l, m(3), max_shell, nseta, nsetb, &
       total_number_of_cells, ub, ub_max
     INTEGER, DIMENSION(:), POINTER           :: la_max, lb_max, npgfa, npgfb
     LOGICAL                                  :: failure, image_cell_found, &
@@ -1509,10 +1428,8 @@ MODULE hfx_types
       max_shell = 0
       total_number_of_cells = 0
       ub = 1
-      DEALLOCATE(x_data%neighbor_cells,STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-      ALLOCATE(x_data%neighbor_cells(1), STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+      DEALLOCATE(x_data%neighbor_cells)
+      ALLOCATE(x_data%neighbor_cells(1))
       x_data%neighbor_cells(1)%cell = 0.0_dp
       x_data%neighbor_cells(1)%cell_r = 0.0_dp
 
@@ -1554,16 +1471,13 @@ MODULE hfx_types
       DO WHILE (.NOT. nothing_more_to_add)
         ! Calculate distances to the eight points P1 to P8
         image_cell_found = .FALSE.
-        ALLOCATE(tmp_neighbor_cells(1:ub),STAT=stat)
-        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+        ALLOCATE(tmp_neighbor_cells(1:ub))
         DO i = 1,ub-1
           tmp_neighbor_cells(i) = x_data%neighbor_cells(i)
         END DO
         ub_max = (2*max_shell+1)**3
-        DEALLOCATE(x_data%neighbor_cells, STAT=stat)
-        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-        ALLOCATE(x_data%neighbor_cells(1:ub_max), STAT=stat)
-        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+        DEALLOCATE(x_data%neighbor_cells)
+        ALLOCATE(x_data%neighbor_cells(1:ub_max))
         DO i = 1,ub-1
           x_data%neighbor_cells(i) = tmp_neighbor_cells(i)
         END DO
@@ -1572,8 +1486,7 @@ MODULE hfx_types
           x_data%neighbor_cells(i)%cell_r = 0.0_dp
         END DO
 
-        DEALLOCATE(tmp_neighbor_cells, STAT=stat)
-        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+        DEALLOCATE(tmp_neighbor_cells)
 
         DO ishell=-max_shell,max_shell
         DO jshell=-max_shell,max_shell
@@ -1715,31 +1628,26 @@ MODULE hfx_types
         END IF
       END DO
       ! now remove what is not needed
-      ALLOCATE(tmp_neighbor_cells(total_number_of_cells), STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+      ALLOCATE(tmp_neighbor_cells(total_number_of_cells))
       DO i=1,ub-1
         tmp_neighbor_cells(i) = x_data%neighbor_cells(i)
       END DO
-      DEALLOCATE(x_data%neighbor_cells, STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+      DEALLOCATE(x_data%neighbor_cells)
       ! If we only need the supercell, total_number_of_cells is still 0, repair
       IF( total_number_of_cells == 0 ) THEN
         total_number_of_cells = 1
-        ALLOCATE(x_data%neighbor_cells(total_number_of_cells), STAT=stat)
-        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+        ALLOCATE(x_data%neighbor_cells(total_number_of_cells))
         DO i=1,total_number_of_cells
           x_data%neighbor_cells(i)%cell = 0.0_dp
           x_data%neighbor_cells(i)%cell_r = 0.0_dp
         END DO
       ELSE
-        ALLOCATE(x_data%neighbor_cells(total_number_of_cells), STAT=stat)
-        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+        ALLOCATE(x_data%neighbor_cells(total_number_of_cells))
         DO i=1,total_number_of_cells
           x_data%neighbor_cells(i) = tmp_neighbor_cells(i)
         END DO
       END IF
-      DEALLOCATE(tmp_neighbor_cells, STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+      DEALLOCATE(tmp_neighbor_cells)
 
       IF(x_data%periodic_parameter%number_of_shells == do_hfx_auto_shells ) THEN
         ! Do nothing
@@ -1759,7 +1667,6 @@ MODULE hfx_types
 
             CALL cp_assert(.FALSE.,cp_warning_level,cp_assertion_failed,routineP,&
                            error_msg,&
-                           error,&
                            only_ionode=.TRUE.)
           END IF
         END IF
@@ -1767,11 +1674,9 @@ MODULE hfx_types
         DO i = 0,x_data%periodic_parameter%number_of_shells
           total_number_of_cells = total_number_of_cells + count_cells_perd(i,x_data%periodic_parameter%perd)
         END DO
-        DEALLOCATE(x_data%neighbor_cells, STAT=stat)
-        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+        DEALLOCATE(x_data%neighbor_cells)
 
-        ALLOCATE(x_data%neighbor_cells(total_number_of_cells), STAT=stat)
-        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+        ALLOCATE(x_data%neighbor_cells(total_number_of_cells))
         m = 0
         i = 1
         DO WHILE(SUM(m**2)<=x_data%periodic_parameter%number_of_shells)
@@ -1786,11 +1691,9 @@ MODULE hfx_types
       DO i = 0,pbc_shells
         total_number_of_cells = total_number_of_cells + count_cells_perd(i,x_data%periodic_parameter%perd)
       END DO
-      DEALLOCATE(x_data%neighbor_cells,STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+      DEALLOCATE(x_data%neighbor_cells)
 
-      ALLOCATE(x_data%neighbor_cells(total_number_of_cells), STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+      ALLOCATE(x_data%neighbor_cells(total_number_of_cells))
 
       m = 0
       i = 1
@@ -1905,22 +1808,18 @@ MODULE hfx_types
 !> \param container container that contains the compressed elements
 !> \param memory_usage ...
 !> \param do_disk_storage ...
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \par History
 !>      10.2007 created [Manuel Guidon]
 !> \author Manuel Guidon
 ! *****************************************************************************
-  SUBROUTINE hfx_init_container(container, memory_usage, do_disk_storage, error)
+  SUBROUTINE hfx_init_container(container, memory_usage, do_disk_storage)
     TYPE(hfx_container_type)                 :: container
     INTEGER                                  :: memory_usage
     LOGICAL                                  :: do_disk_storage
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'hfx_init_container', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
     LOGICAL                                  :: failure
     TYPE(hfx_container_node), POINTER        :: current, next
 
@@ -1936,8 +1835,7 @@ MODULE hfx_types
     END DO
 
     !! Allocate first list entry, init members
-    ALLOCATE(container%first,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    ALLOCATE(container%first)
     container%first%prev => NULL()
     container%first%next => NULL()
     container%current => container%first
@@ -1962,29 +1860,21 @@ MODULE hfx_types
 !>        for the energy
 !> \param ptr_to_distr contains data to store
 !> \param x_data contains all relevant data structures for hfx runs
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \par History
 !>      09.2007 created [Manuel Guidon]
 !> \author Manuel Guidon
 ! *****************************************************************************
-  SUBROUTINE hfx_set_distr_energy(ptr_to_distr,x_data, error)
+  SUBROUTINE hfx_set_distr_energy(ptr_to_distr,x_data)
     TYPE(hfx_distribution), DIMENSION(:), &
       POINTER                                :: ptr_to_distr
     TYPE(hfx_type), POINTER                  :: x_data
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'hfx_set_distr_energy', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
-    LOGICAL                                  :: failure
+    DEALLOCATE(x_data%distribution_energy)
 
-    DEALLOCATE(x_data%distribution_energy,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-
-    ALLOCATE(x_data%distribution_energy(SIZE(ptr_to_distr)),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    ALLOCATE(x_data%distribution_energy(SIZE(ptr_to_distr)))
     x_data%distribution_energy = ptr_to_distr
 
   END SUBROUTINE hfx_set_distr_energy
@@ -1994,29 +1884,21 @@ MODULE hfx_types
 !>        for the forces
 !> \param ptr_to_distr contains data to store
 !> \param x_data contains all relevant data structures for hfx runs
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \par History
 !>      09.2007 created [Manuel Guidon]
 !> \author Manuel Guidon
 ! *****************************************************************************
-  SUBROUTINE hfx_set_distr_forces(ptr_to_distr, x_data, error)
+  SUBROUTINE hfx_set_distr_forces(ptr_to_distr, x_data)
     TYPE(hfx_distribution), DIMENSION(:), &
       POINTER                                :: ptr_to_distr
     TYPE(hfx_type), POINTER                  :: x_data
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'hfx_set_distr_forces', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
-    LOGICAL                                  :: failure
+    DEALLOCATE(x_data%distribution_forces)
 
-    DEALLOCATE(x_data%distribution_forces,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-
-    ALLOCATE(x_data%distribution_forces(SIZE(ptr_to_distr)),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    ALLOCATE(x_data%distribution_forces(SIZE(ptr_to_distr)))
     x_data%distribution_forces = ptr_to_distr
 
   END SUBROUTINE hfx_set_distr_forces
@@ -2054,27 +1936,24 @@ MODULE hfx_types
 !> \param x_data contains all relevant data structures for hfx runs
 !> \param hfx_section HFX input section
 !> \param i_rep current replica ID
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \par History
 !>      03.2008 created [Manuel Guidon]
 !> \author Manuel Guidon
 ! *****************************************************************************
-  SUBROUTINE hfx_print_info(x_data, hfx_section, i_rep, error)
+  SUBROUTINE hfx_print_info(x_data, hfx_section, i_rep)
     TYPE(hfx_type), POINTER                  :: x_data
     TYPE(section_vals_type), POINTER         :: hfx_section
     INTEGER, INTENT(IN)                      :: i_rep
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     INTEGER                                  :: iw
     REAL(dp)                                 :: rc_ang
     TYPE(cp_logger_type), POINTER            :: logger
 
     NULLIFY(logger)
-    logger => cp_error_get_logger(error)
+    logger => cp_get_default_logger()
 
     iw = cp_print_key_unit_nr(logger,hfx_section,"HF_INFO",&
-         extension=".scfLog",error=error)
+         extension=".scfLog")
     IF (iw>0) THEN
       WRITE (UNIT=iw,FMT="(/,(T3,A,T61,I20))")&
             "HFX_INFO| Replica ID:     ",i_rep
@@ -2099,7 +1978,7 @@ MODULE hfx_types
             "HFX_INFO| Interaction Potential:    ", "SHORTRANGE"
           WRITE(iw,'(T3,A,T61,F20.10)') &
             "HFX_INFO| Omega:     ", x_data%potential_parameter%omega
-          rc_ang = cp_unit_from_cp2k(x_data%potential_parameter%cutoff_radius,"angstrom",error=error)
+          rc_ang = cp_unit_from_cp2k(x_data%potential_parameter%cutoff_radius,"angstrom")
           WRITE(iw,'(T3,A,T61,F20.10)') &
             "HFX_INFO| Cutoff Radius [angstrom]:     ", rc_ang
         CASE(do_hfx_potential_long)
@@ -2136,13 +2015,13 @@ MODULE hfx_types
         CASE(do_hfx_potential_truncated)
           WRITE (UNIT=iw,FMT="((T3,A,T72,A))")&
             "HFX_INFO| Interaction Potential:    ", "TRUNCATED"
-          rc_ang = cp_unit_from_cp2k(x_data%potential_parameter%cutoff_radius,"angstrom",error=error)
+          rc_ang = cp_unit_from_cp2k(x_data%potential_parameter%cutoff_radius,"angstrom")
           WRITE(iw,'(T3,A,T61,F20.10)') &
             "HFX_INFO| Cutoff Radius [angstrom]:     ", rc_ang
         CASE(do_hfx_potential_mix_cl_trunc)
           WRITE (UNIT=iw,FMT="((T3,A,T65,A))")&
             "HFX_INFO| Interaction Potential:    ", "TRUNCATED MIX_CL"
-          rc_ang = cp_unit_from_cp2k(x_data%potential_parameter%cutoff_radius,"angstrom",error=error)
+          rc_ang = cp_unit_from_cp2k(x_data%potential_parameter%cutoff_radius,"angstrom")
           WRITE(iw,'(T3,A,T61,F20.10)') &
             "HFX_INFO| Cutoff Radius [angstrom]:     ", rc_ang
       END SELECT
@@ -2166,24 +2045,22 @@ MODULE hfx_types
       END IF
     END IF
     CALL cp_print_key_finished_output(iw,logger,hfx_section,&
-                                     "HF_INFO", error=error)
+                                     "HF_INFO")
   END SUBROUTINE hfx_print_info
 
 ! *****************************************************************************
 !> \brief ...
 !> \param x_data ...
 !> \param eval_type ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE dealloc_containers(x_data, eval_type, error)
+  SUBROUTINE dealloc_containers(x_data, eval_type)
     TYPE(hfx_type), POINTER                  :: x_data
     INTEGER, INTENT(IN)                      :: eval_type
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'dealloc_containers', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: bin, i, stat
+    INTEGER                                  :: bin, i
     LOGICAL                                  :: failure
 
     failure = .FALSE.
@@ -2193,53 +2070,41 @@ MODULE hfx_types
     CASE (hfx_do_eval_energy)
       DO bin=1,SIZE(x_data%maxval_container)
         CALL hfx_init_container(x_data%maxval_container(bin), x_data%memory_parameter%actual_memory_usage, &
-                                 .FALSE., error)
-        DEALLOCATE(x_data%maxval_container(bin)%first,STAT=stat)
-        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+                                 .FALSE.)
+        DEALLOCATE(x_data%maxval_container(bin)%first)
       END DO
-      DEALLOCATE(x_data%maxval_container,STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-      DEALLOCATE(x_data%maxval_cache,STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+      DEALLOCATE(x_data%maxval_container)
+      DEALLOCATE(x_data%maxval_cache)
 
       DO bin = 1,SIZE(x_data%integral_containers,2)
         DO i=1,64
           CALL hfx_init_container(x_data%integral_containers(i,bin), x_data%memory_parameter%actual_memory_usage, &
-                                   .FALSE., error)
-          DEALLOCATE(x_data%integral_containers(i,bin)%first,STAT=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+                                   .FALSE.)
+          DEALLOCATE(x_data%integral_containers(i,bin)%first)
         END DO
       END DO
-      DEALLOCATE(x_data%integral_containers,STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+      DEALLOCATE(x_data%integral_containers)
 
-      DEALLOCATE(x_data%integral_caches, STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+      DEALLOCATE(x_data%integral_caches)
     CASE (hfx_do_eval_forces)
       DO bin=1,SIZE(x_data%maxval_container_forces)
         CALL hfx_init_container(x_data%maxval_container_forces(bin), x_data%memory_parameter%actual_memory_usage, &
-                                 .FALSE., error)
-        DEALLOCATE(x_data%maxval_container_forces(bin)%first,STAT=stat)
-        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+                                 .FALSE.)
+        DEALLOCATE(x_data%maxval_container_forces(bin)%first)
       END DO
-      DEALLOCATE(x_data%maxval_container_forces,STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-      DEALLOCATE(x_data%maxval_cache_forces,STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+      DEALLOCATE(x_data%maxval_container_forces)
+      DEALLOCATE(x_data%maxval_cache_forces)
 
       DO bin = 1,SIZE(x_data%integral_containers_forces,2)
         DO i=1,64
           CALL hfx_init_container(x_data%integral_containers_forces(i,bin), x_data%memory_parameter%actual_memory_usage, &
-                                   .FALSE., error)
-          DEALLOCATE(x_data%integral_containers_forces(i,bin)%first,STAT=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+                                   .FALSE.)
+          DEALLOCATE(x_data%integral_containers_forces(i,bin)%first)
         END DO
       END DO
-      DEALLOCATE(x_data%integral_containers_forces,STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+      DEALLOCATE(x_data%integral_containers_forces)
 
-      DEALLOCATE(x_data%integral_caches_forces, STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+      DEALLOCATE(x_data%integral_caches_forces)
 
     END SELECT
 
@@ -2250,17 +2115,15 @@ MODULE hfx_types
 !> \param x_data ...
 !> \param bin_size ...
 !> \param eval_type ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE alloc_containers(x_data, bin_size, eval_type, error)
+  SUBROUTINE alloc_containers(x_data, bin_size, eval_type)
     TYPE(hfx_type), POINTER                  :: x_data
     INTEGER, INTENT(IN)                      :: bin_size, eval_type
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'alloc_containers', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: bin, i, stat
+    INTEGER                                  :: bin, i
     LOGICAL                                  :: failure
 
     failure = .FALSE.
@@ -2268,16 +2131,13 @@ MODULE hfx_types
 
     SELECT CASE(eval_type)
     CASE (hfx_do_eval_energy)
-      ALLOCATE(x_data%maxval_cache(bin_size),STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+      ALLOCATE(x_data%maxval_cache(bin_size))
       DO bin = 1,bin_size
         x_data%maxval_cache(bin)%element_counter = 1
       END DO
-      ALLOCATE(x_data%maxval_container(bin_size),STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+      ALLOCATE(x_data%maxval_container(bin_size))
       DO bin = 1,bin_size
-        ALLOCATE(x_data%maxval_container(bin)%first,STAT=stat)
-        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+        ALLOCATE(x_data%maxval_container(bin)%first)
         x_data%maxval_container(bin)%first%prev => NULL()
         x_data%maxval_container(bin)%first%next => NULL()
         x_data%maxval_container(bin)%current => x_data%maxval_container(bin)%first
@@ -2285,17 +2145,14 @@ MODULE hfx_types
         x_data%maxval_container(bin)%element_counter = 1
       END DO
 
-      ALLOCATE(x_data%integral_containers(64,bin_size), STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-      ALLOCATE(x_data%integral_caches(64,bin_size), STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+      ALLOCATE(x_data%integral_containers(64,bin_size))
+      ALLOCATE(x_data%integral_caches(64,bin_size))
 
       DO bin = 1,bin_size
         DO i=1,64
           x_data%integral_caches(i,bin)%element_counter = 1
           x_data%integral_caches(i,bin)%data = 0
-          ALLOCATE(x_data%integral_containers(i,bin)%first,STAT=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          ALLOCATE(x_data%integral_containers(i,bin)%first)
           x_data%integral_containers(i,bin)%first%prev => NULL()
           x_data%integral_containers(i,bin)%first%next => NULL()
           x_data%integral_containers(i,bin)%current => x_data%integral_containers(i,bin)%first
@@ -2304,16 +2161,13 @@ MODULE hfx_types
         END DO
       END DO
     CASE (hfx_do_eval_forces)
-      ALLOCATE(x_data%maxval_cache_forces(bin_size),STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+      ALLOCATE(x_data%maxval_cache_forces(bin_size))
       DO bin = 1,bin_size
         x_data%maxval_cache_forces(bin)%element_counter = 1
       END DO
-      ALLOCATE(x_data%maxval_container_forces(bin_size),STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+      ALLOCATE(x_data%maxval_container_forces(bin_size))
       DO bin = 1,bin_size
-        ALLOCATE(x_data%maxval_container_forces(bin)%first,STAT=stat)
-        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+        ALLOCATE(x_data%maxval_container_forces(bin)%first)
         x_data%maxval_container_forces(bin)%first%prev => NULL()
         x_data%maxval_container_forces(bin)%first%next => NULL()
         x_data%maxval_container_forces(bin)%current => x_data%maxval_container_forces(bin)%first
@@ -2321,17 +2175,14 @@ MODULE hfx_types
         x_data%maxval_container_forces(bin)%element_counter = 1
       END DO
 
-      ALLOCATE(x_data%integral_containers_forces(64,bin_size), STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-      ALLOCATE(x_data%integral_caches_forces(64,bin_size), STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+      ALLOCATE(x_data%integral_containers_forces(64,bin_size))
+      ALLOCATE(x_data%integral_caches_forces(64,bin_size))
 
       DO bin = 1,bin_size
         DO i=1,64
           x_data%integral_caches_forces(i,bin)%element_counter = 1
           x_data%integral_caches_forces(i,bin)%data = 0
-          ALLOCATE(x_data%integral_containers_forces(i,bin)%first,STAT=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          ALLOCATE(x_data%integral_containers_forces(i,bin)%first)
           x_data%integral_containers_forces(i,bin)%first%prev => NULL()
           x_data%integral_containers_forces(i,bin)%first%next => NULL()
           x_data%integral_containers_forces(i,bin)%current => x_data%integral_containers_forces(i,bin)%first

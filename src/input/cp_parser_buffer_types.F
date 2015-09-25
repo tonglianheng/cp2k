@@ -42,29 +42,23 @@ CONTAINS
 ! ****************************************************************************
 !> \brief  Creates the parser buffer type
 !> \param buffer ...
-!> \param error ...
 !> \date   08.2008
 !> \author Teodoro Laino [tlaino] - University of Zurich
 ! *****************************************************************************
-  SUBROUTINE create_buffer_type(buffer, error)
+  SUBROUTINE create_buffer_type(buffer)
     TYPE(buffer_type), POINTER               :: buffer
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'create_buffer_type', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
     LOGICAL                                  :: failure
 
     failure = .FALSE.
-    CPPostcondition(.NOT.ASSOCIATED(buffer),cp_failure_level,routineP,error,failure)
-    ALLOCATE(buffer, stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPASSERT(.NOT.ASSOCIATED(buffer))
+    ALLOCATE(buffer)
     buffer%size = buffer_size
-    ALLOCATE(buffer%input_lines(buffer%size), stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    ALLOCATE(buffer%input_line_numbers(buffer%size), stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    ALLOCATE(buffer%input_lines(buffer%size))
+    ALLOCATE(buffer%input_line_numbers(buffer%size))
     buffer%buffer_id           = 0
     buffer%input_line_numbers  = 0
     buffer%istat               = 0
@@ -76,31 +70,25 @@ CONTAINS
 ! ****************************************************************************
 !> \brief  Releases the parser buffer type
 !> \param buffer ...
-!> \param error ...
 !> \date   08.2008
 !> \author Teodoro Laino [tlaino] - University of Zurich
 ! *****************************************************************************
-  RECURSIVE SUBROUTINE release_buffer_type(buffer, error)
+  RECURSIVE SUBROUTINE release_buffer_type(buffer)
     TYPE(buffer_type), POINTER               :: buffer
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'release_buffer_type', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
     LOGICAL                                  :: failure
 
     failure = .FALSE.
-    CPPostcondition(ASSOCIATED(buffer),cp_failure_level,routineP,error,failure)
-    DEALLOCATE(buffer%input_lines, stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    DEALLOCATE(buffer%input_line_numbers, stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPASSERT(ASSOCIATED(buffer))
+    DEALLOCATE(buffer%input_lines)
+    DEALLOCATE(buffer%input_line_numbers)
     IF (ASSOCIATED(buffer%sub_buffer)) THEN
-       CALL release_buffer_type(buffer%sub_buffer, error)
+       CALL release_buffer_type(buffer%sub_buffer)
     END IF
-    DEALLOCATE(buffer, stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    DEALLOCATE(buffer)
   END SUBROUTINE release_buffer_type
 
 ! ****************************************************************************
@@ -108,14 +96,12 @@ CONTAINS
 !> \param buffer_in ...
 !> \param buffer_out ...
 !> \param force ...
-!> \param error ...
 !> \date   08.2008
 !> \author Teodoro Laino [tlaino] - University of Zurich
 ! *****************************************************************************
-  RECURSIVE SUBROUTINE copy_buffer_type(buffer_in, buffer_out, force, error)
+  RECURSIVE SUBROUTINE copy_buffer_type(buffer_in, buffer_out, force)
     TYPE(buffer_type), POINTER               :: buffer_in, buffer_out
     LOGICAL, INTENT(IN), OPTIONAL            :: force
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'copy_buffer_type', &
       routineP = moduleN//':'//routineN
@@ -124,9 +110,9 @@ CONTAINS
     LOGICAL                                  :: failure, my_force
 
     failure = .FALSE.
-    CPPostcondition(ASSOCIATED(buffer_in),cp_failure_level,routineP,error,failure)
-    CPPostcondition(ASSOCIATED(buffer_out),cp_failure_level,routineP,error,failure)
-    CPPostcondition(buffer_in%size==buffer_out%size,cp_failure_level,routineP,error,failure)
+    CPASSERT(ASSOCIATED(buffer_in))
+    CPASSERT(ASSOCIATED(buffer_out))
+    CPASSERT(buffer_in%size==buffer_out%size)
     my_force = .FALSE.
     IF (PRESENT(force)) my_force = force
     ! Copy buffer structure
@@ -143,7 +129,7 @@ CONTAINS
        END DO
     END IF
     IF (ASSOCIATED(buffer_in%sub_buffer).AND.ASSOCIATED(buffer_out%sub_buffer)) THEN
-       CALL copy_buffer_type(buffer_in%sub_buffer, buffer_out%sub_buffer, force, error)
+       CALL copy_buffer_type(buffer_in%sub_buffer, buffer_out%sub_buffer, force)
     END IF
   END SUBROUTINE copy_buffer_type
 
@@ -151,13 +137,11 @@ CONTAINS
 !> \brief  Initializes sub buffer structure
 !> \param sub_buffer ...
 !> \param buffer ...
-!> \param error ...
 !> \date   08.2008
 !> \author Teodoro Laino [tlaino] - University of Zurich
 ! *****************************************************************************
-  SUBROUTINE initialize_sub_buffer(sub_buffer, buffer, error)
+  SUBROUTINE initialize_sub_buffer(sub_buffer, buffer)
     TYPE(buffer_type), POINTER               :: sub_buffer, buffer
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'initialize_sub_buffer', &
       routineP = moduleN//':'//routineN
@@ -165,10 +149,10 @@ CONTAINS
     LOGICAL                                  :: failure
 
     failure = .FALSE.
-    CPPostcondition(ASSOCIATED(buffer),cp_failure_level,routineP,error,failure)
-    CPPostcondition(.NOT.ASSOCIATED(sub_buffer),cp_failure_level,routineP,error,failure)
-    CALL create_buffer_type(sub_buffer, error)
-    CALL copy_buffer_type(buffer, sub_buffer,error=error)
+    CPASSERT(ASSOCIATED(buffer))
+    CPASSERT(.NOT.ASSOCIATED(sub_buffer))
+    CALL create_buffer_type(sub_buffer)
+    CALL copy_buffer_type(buffer, sub_buffer)
     sub_buffer%present_line_number = 0
   END SUBROUTINE initialize_sub_buffer
 
@@ -177,13 +161,11 @@ CONTAINS
 !> \brief  Finalizes sub buffer structure
 !> \param sub_buffer ...
 !> \param buffer ...
-!> \param error ...
 !> \date   08.2008
 !> \author Teodoro Laino [tlaino] - University of Zurich
 ! *****************************************************************************
-  SUBROUTINE finalize_sub_buffer(sub_buffer, buffer, error)
+  SUBROUTINE finalize_sub_buffer(sub_buffer, buffer)
     TYPE(buffer_type), POINTER               :: sub_buffer, buffer
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'finalize_sub_buffer', &
       routineP = moduleN//':'//routineN
@@ -191,10 +173,10 @@ CONTAINS
     LOGICAL                                  :: failure
 
     failure = .FALSE.
-    CPPostcondition(ASSOCIATED(buffer),cp_failure_level,routineP,error,failure)
-    CPPostcondition(ASSOCIATED(sub_buffer),cp_failure_level,routineP,error,failure)
-    CALL copy_buffer_type(sub_buffer,buffer,error=error)
-    CALL release_buffer_type(sub_buffer, error=error)
+    CPASSERT(ASSOCIATED(buffer))
+    CPASSERT(ASSOCIATED(sub_buffer))
+    CALL copy_buffer_type(sub_buffer,buffer)
+    CALL release_buffer_type(sub_buffer)
   END SUBROUTINE finalize_sub_buffer
 
 END MODULE cp_parser_buffer_types

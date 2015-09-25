@@ -94,7 +94,6 @@ CONTAINS
 !> \param basis_type ...
 !> \param pw_env_external ...
 !> \param sab_orb_external ...
-!> \param error ...
 !> \par History
 !>      01.2008 factored out of calculate_rho_elec [Joost VandeVondele]
 !>      04.2010 divides tasks into grid levels and atom pairs for integrate/collocate [Iain Bethune]
@@ -108,7 +107,7 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE generate_qs_task_list(ks_env, task_list,&
              reorder_rs_grid_ranks, skip_load_balance_distributed, &
-             soft_valid, basis_type, pw_env_external, sab_orb_external, error)
+             soft_valid, basis_type, pw_env_external, sab_orb_external)
 
     TYPE(qs_ks_env_type), POINTER            :: ks_env
     TYPE(task_list_type), POINTER            :: task_list
@@ -119,7 +118,6 @@ CONTAINS
     TYPE(pw_env_type), OPTIONAL, POINTER     :: pw_env_external
     TYPE(neighbor_list_set_p_type), &
       DIMENSION(:), OPTIONAL, POINTER        :: sab_orb_external
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'generate_qs_task_list', &
       routineP = moduleN//':'//routineN
@@ -129,7 +127,7 @@ CONTAINS
     INTEGER :: cindex, curr_tasks, handle, i, iatom, iatom_old, igrid_level, &
       igrid_level_old, ikind, ilevel, img, img_old, inode, ipair, ipgf, iset, &
       itask, jatom, jatom_old, jkind, jpgf, jset, maxpgf, maxset, natoms, &
-      nimages, nkind, nseta, nsetb, stat
+      nimages, nkind, nseta, nsetb
     INTEGER(kind=int_8), DIMENSION(:, :), &
       POINTER                                :: tasks
     INTEGER, ALLOCATABLE, DIMENSION(:, :, :) :: blocks
@@ -179,8 +177,7 @@ CONTAINS
          qs_kind_set=qs_kind_set,&
          cell=cell,&
          particle_set=particle_set,&
-         dft_control=dft_control,&
-         error=error)
+         dft_control=dft_control)
 
     IF( PRESENT(basis_type)) THEN
       my_basis_type = basis_type
@@ -188,12 +185,12 @@ CONTAINS
       my_basis_type = "ORB"
     END IF
 
-    CALL get_ks_env(ks_env,sab_orb=sab_orb,error=error)
+    CALL get_ks_env(ks_env,sab_orb=sab_orb)
     IF (PRESENT(sab_orb_external)) sab_orb=>sab_orb_external
 
-    CALL get_ks_env(ks_env,pw_env=pw_env,error=error)
+    CALL get_ks_env(ks_env,pw_env=pw_env)
     IF (PRESENT(pw_env_external)) pw_env=>pw_env_external
-    CALL pw_env_get(pw_env, rs_descs=rs_descs, rs_grids=rs_grids, error=error)
+    CALL pw_env_get(pw_env, rs_descs=rs_descs, rs_grids=rs_grids)
 
     ! *** assign from pw_env
     gridlevel_info=>pw_env%gridlevel_info
@@ -208,7 +205,7 @@ CONTAINS
        qs_kind => qs_kind_set(ikind)
        CALL get_qs_kind(qs_kind=qs_kind,&
             softb = my_soft, &
-            basis_set=orb_basis_set, basis_type=my_basis_type, error=error)
+            basis_set=orb_basis_set, basis_type=my_basis_type)
 
        IF (.NOT.ASSOCIATED(orb_basis_set)) CYCLE
        CALL get_gto_basis_set(gto_basis_set=orb_basis_set, npgf=npgfa, nset=nseta )
@@ -222,8 +219,8 @@ CONTAINS
     IF(nimages > 1) THEN
        dokp = .TRUE.
        NULLIFY(kpoints)
-       CALL get_ks_env(ks_env=ks_env,kpoints=kpoints,error=error)
-       CALL get_kpoint_info(kpoint=kpoints,cell_to_index=cell_to_index,error=error)
+       CALL get_ks_env(ks_env=ks_env,kpoints=kpoints)
+       CALL get_kpoint_info(kpoint=kpoints,cell_to_index=cell_to_index)
     ELSE
        dokp = .FALSE.
        NULLIFY(cell_to_index)
@@ -245,7 +242,7 @@ CONTAINS
     DO ikind=1,nkind
        qs_kind => qs_kind_set(ikind)
        CALL get_qs_kind(qs_kind=qs_kind,softb=my_soft,basis_set=basis_set_a,&
-                        basis_type=my_basis_type,error=error)
+                        basis_type=my_basis_type)
        IF (ASSOCIATED(basis_set_a)) THEN
           basis_set_list(ikind)%gto_basis_set => basis_set_a
        ELSE
@@ -289,7 +286,7 @@ CONTAINS
        CALL task_list_inner_loop(task_list%tasks,task_list%dist_ab,task_list%ntasks,curr_tasks,&
                 rs_descs,dft_control,cube_info,gridlevel_info,cindex,&
                 iatom,jatom,rpgfa,rpgfb,zeta,zetb,kind_radius_b,set_radius_a,set_radius_b,ra,rab,&
-                la_max,la_min,lb_max,lb_min,npgfa,npgfb,maxpgf,maxset,natoms,nimages,nseta,nsetb,error)
+                la_max,la_min,lb_max,lb_min,npgfa,npgfb,maxpgf,maxset,natoms,nimages,nseta,nsetb)
 
     END DO
     CALL neighbor_list_iterator_release(nl_iterator)
@@ -300,17 +297,16 @@ CONTAINS
     CALL distribute_tasks (rs_descs, task_list%ntasks, natoms, maxset, maxpgf, nimages,&
          task_list%tasks, rval=task_list%dist_ab, atom_pair_send=task_list%atom_pair_send,&
          atom_pair_recv=task_list%atom_pair_recv, symmetric=.TRUE., &
-         reorder_rs_grid_ranks=reorder_rs_grid_ranks, skip_load_balance_distributed=skip_load_balance_distributed,&
-         error=error)
+         reorder_rs_grid_ranks=reorder_rs_grid_ranks, skip_load_balance_distributed=skip_load_balance_distributed)
 
     ! If the rank order has changed, reallocate any of the distributed rs_grids
 
     IF (reorder_rs_grid_ranks) THEN
        DO i=1,gridlevel_info%ngrid_levels
           IF (rs_descs(i)%rs_desc%distributed) THEN
-             CALL rs_grid_release(rs_grids(i)%rs_grid, error)
+             CALL rs_grid_release(rs_grids(i)%rs_grid)
              NULLIFY(rs_grids(i)%rs_grid)
-             CALL rs_grid_create(rs_grids(i)%rs_grid, rs_descs(i)%rs_desc, error)
+             CALL rs_grid_create(rs_grids(i)%rs_grid, rs_descs(i)%rs_desc)
           END IF
        END DO
     END IF
@@ -319,22 +315,18 @@ CONTAINS
     ! data needed for the loops in integrate_v/calculate_rho
 
     IF (ASSOCIATED(task_list%taskstart)) THEN
-       DEALLOCATE (task_list%taskstart,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       DEALLOCATE (task_list%taskstart)
     END IF
     IF (ASSOCIATED(task_list%taskstop)) THEN
-       DEALLOCATE (task_list%taskstop,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       DEALLOCATE (task_list%taskstop)
     END IF
     IF (ASSOCIATED(task_list%npairs)) THEN
-       DEALLOCATE (task_list%npairs,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       DEALLOCATE (task_list%npairs)
     END IF
 
     ! First, count the number of unique atom pairs per grid level
 
-    ALLOCATE (task_list%npairs(SIZE(rs_descs)),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    ALLOCATE (task_list%npairs(SIZE(rs_descs)))
 
     iatom_old = -1 ; jatom_old = -1 ; igrid_level_old = -1 ; img_old = -1
     ipair = 0
@@ -368,10 +360,8 @@ CONTAINS
     ! of the first and last task
 
     ! Array sized for worst case
-    ALLOCATE (task_list%taskstart(MAXVAL(task_list%npairs),SIZE(rs_descs)), STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    ALLOCATE (task_list%taskstop(MAXVAL(task_list%npairs),SIZE(rs_descs)), STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    ALLOCATE (task_list%taskstart(MAXVAL(task_list%npairs),SIZE(rs_descs)))
+    ALLOCATE (task_list%taskstop(MAXVAL(task_list%npairs),SIZE(rs_descs)))
 
     iatom_old = -1 ; jatom_old = -1 ; igrid_level_old = -1 ; img_old = -1
     ipair = 0
@@ -417,8 +407,7 @@ CONTAINS
 
        DO igrid_level = 1, gridlevel_info%ngrid_levels
 
-          ALLOCATE (blocks(natoms,natoms,nimages),STAT=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          ALLOCATE (blocks(natoms,natoms,nimages))
           blocks = -1
           DO ipair = 1, task_list%npairs(igrid_level)
              itask = task_list%taskstart(ipair,igrid_level)
@@ -447,8 +436,7 @@ CONTAINS
 
              END DO
           END DO
-          DEALLOCATE (blocks,STAT=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          DEALLOCATE (blocks)
 
        END DO
 
@@ -492,14 +480,13 @@ CONTAINS
 !> \param nimages ...
 !> \param nseta ...
 !> \param nsetb ...
-!> \param error ...
 !> \par History
 !>      Joost VandeVondele: 10.2008 refactored
 ! *****************************************************************************
   SUBROUTINE task_list_inner_loop(tasks, dist_ab, ntasks, curr_tasks, rs_descs,dft_control,&
              cube_info,gridlevel_info,cindex,&
              iatom,jatom,rpgfa,rpgfb,zeta,zetb,kind_radius_b,set_radius_a,set_radius_b,ra,rab,&
-             la_max,la_min,lb_max,lb_min,npgfa,npgfb,maxpgf,maxset,natoms,nimages,nseta,nsetb,error)
+             la_max,la_min,lb_max,lb_min,npgfa,npgfb,maxpgf,maxset,natoms,nimages,nseta,nsetb)
 
     INTEGER(KIND=int_8), DIMENSION(:, :), &
       POINTER                                :: tasks
@@ -520,7 +507,6 @@ CONTAINS
                                                 lb_min, npgfa, npgfb
     INTEGER                                  :: maxpgf, maxset, natoms, &
                                                 nimages, nseta, nsetb
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'task_list_inner_loop', &
       routineP = moduleN//':'//routineN
@@ -556,13 +542,13 @@ CONTAINS
                            rs_descs(igrid_level)%rs_desc,cube_info(igrid_level),&
                            la_max(iset),zeta(ipgf,iset),la_min(iset),&
                            lb_max(jset),zetb(jpgf,jset),lb_min(jset),&
-                           ra,rab,rab2,dft_control%qs_control%eps_rho_rspace,error)
+                           ra,rab,rab2,dft_control%qs_control%eps_rho_rspace)
 
                 CALL pgf_to_tasks(tasks,dist_ab,ntasks,curr_tasks,&
                           rab,cindex,iatom,jatom,iset,jset,ipgf,jpgf,nimages,natoms,maxset,maxpgf,&
                           la_max(iset),lb_max(jset),rs_descs(igrid_level)%rs_desc,&
                           igrid_level,gridlevel_info%ngrid_levels,cube_center,&
-                          lb_cube,ub_cube,error)
+                          lb_cube,ub_cube)
 
              END DO loop_jpgf
 
@@ -595,7 +581,6 @@ CONTAINS
 !> \param rab ...
 !> \param rab2 ...
 !> \param eps ...
-!> \param error ...
 !> \par History
 !>      10.2008 refactored [Joost VandeVondele]
 !> \note
@@ -610,7 +595,7 @@ CONTAINS
 !>         a*(l+b)(r+c)**3+d which is based on the innerloop of the collocating routines
 ! *****************************************************************************
   SUBROUTINE compute_pgf_properties(cube_center,lb_cube,ub_cube,radius, &
-               rs_desc,cube_info,la_max,zeta,la_min,lb_max,zetb,lb_min,ra,rab,rab2,eps,error)
+               rs_desc,cube_info,la_max,zeta,la_min,lb_max,zetb,lb_min,ra,rab,rab2,eps)
 
     INTEGER, DIMENSION(3), INTENT(OUT)       :: cube_center, lb_cube, ub_cube
     REAL(KIND=dp), INTENT(OUT)               :: radius
@@ -622,7 +607,6 @@ CONTAINS
     REAL(KIND=dp), INTENT(IN)                :: zetb
     INTEGER, INTENT(IN)                      :: lb_min
     REAL(KIND=dp), INTENT(IN)                :: ra(3), rab(3), rab2, eps
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'compute_pgf_properties', &
       routineP = moduleN//':'//routineN
@@ -736,13 +720,12 @@ CONTAINS
 !> \param cube_center ...
 !> \param lb_cube ...
 !> \param ub_cube ...
-!> \param error ...
 !> \par History
 !>      10.2008 Refactored based on earlier routines by MattW [Joost VandeVondele]
 ! *****************************************************************************
   SUBROUTINE pgf_to_tasks(tasks,dist_ab,ntasks,curr_tasks,&
              rab,cindex,iatom,jatom,iset,jset,ipgf,jpgf,nimages,natoms,maxset,maxpgf,&
-             la_max,lb_max,rs_desc,igrid_level,n_levels,cube_center,lb_cube,ub_cube,error)
+             la_max,lb_max,rs_desc,igrid_level,n_levels,cube_center,lb_cube,ub_cube)
 
     INTEGER(KIND=int_8), DIMENSION(:, :), &
       POINTER                                :: tasks
@@ -756,7 +739,6 @@ CONTAINS
     TYPE(realspace_grid_desc_type), POINTER  :: rs_desc
     INTEGER, INTENT(IN)                      :: igrid_level, n_levels
     INTEGER, DIMENSION(3), INTENT(IN)        :: cube_center, lb_cube, ub_cube
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     INTEGER, PARAMETER                       :: add_tasks = 1000
     REAL(kind=dp), PARAMETER                 :: mult_tasks = 2.0_dp
@@ -776,7 +758,7 @@ CONTAINS
        ! finds the node(s) that need to process this task
        ! on exit tasks(4,:) is 1 for distributed tasks and 2 for generalised tasks
        CALL rs_find_node(rs_desc,igrid_level,n_levels,cube_center, &
-            ntasks=ntasks,tasks=tasks,lb_cube=lb_cube,ub_cube=ub_cube,added_tasks=added_tasks,error=error)
+            ntasks=ntasks,tasks=tasks,lb_cube=lb_cube,ub_cube=ub_cube,added_tasks=added_tasks)
 
     ELSE
        tasks(1,ntasks) = encode_rank(rs_desc % my_pos, igrid_level, n_levels)
@@ -923,12 +905,11 @@ CONTAINS
 !> \param natoms ...
 !> \param maxset ...
 !> \param maxpgf ...
-!> \param error ...
 !> \par History
 !>      created 2008-10-03 [Joost VandeVondele]
 ! *****************************************************************************
   SUBROUTINE load_balance_distributed (tasks, ntasks, rs_descs, grid_level, &
-                                       nimages, natoms, maxset, maxpgf, error)
+                                       nimages, natoms, maxset, maxpgf)
 
     INTEGER(KIND=int_8), DIMENSION(:, :), &
       POINTER                                :: tasks
@@ -937,12 +918,11 @@ CONTAINS
       DIMENSION(:), POINTER                  :: rs_descs
     INTEGER                                  :: grid_level, nimages, natoms, &
                                                 maxset, maxpgf
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'load_balance_distributed', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, stat
+    INTEGER                                  :: handle
     INTEGER, DIMENSION(:, :, :), POINTER     :: list
     LOGICAL                                  :: failure
 
@@ -952,21 +932,20 @@ CONTAINS
     NULLIFY(list)
     ! here we create for each cpu (0:ncpu-1) a list of possible destinations.
     ! if a destination would not be in this list, it is a bug
-    CALL create_destination_list(list,rs_descs,grid_level,error)
+    CALL create_destination_list(list,rs_descs,grid_level)
 
     ! now, walk over the tasks, filling in the loads of each destination
     CALL compute_load_list(list, rs_descs, grid_level, tasks, ntasks, nimages, natoms, maxset, maxpgf,&
-                           create_list=.TRUE., error=error)
+                           create_list=.TRUE.)
 
     ! optimize loads & fluxes
-    CALL optimize_load_list(list,rs_descs(1)%rs_desc%group,rs_descs(1)%rs_desc%my_pos, error)
+    CALL optimize_load_list(list,rs_descs(1)%rs_desc%group,rs_descs(1)%rs_desc%my_pos)
 
     ! now, walk over the tasks, using the list to set the destinations
     CALL compute_load_list(list, rs_descs,grid_level, tasks, ntasks, nimages, natoms, maxset, maxpgf,&
-                           create_list=.FALSE., error=error)
+                           create_list=.FALSE.)
 
-    DEALLOCATE (list,STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+    DEALLOCATE (list)
 
     CALL timestop(handle)
 
@@ -1130,20 +1109,18 @@ CONTAINS
 !> \param list ...
 !> \param group ...
 !> \param my_pos ...
-!> \param error ...
 !> \par History
 !>      created 2008-10-06 [Joost VandeVondele]
 ! *****************************************************************************
-  SUBROUTINE optimize_load_list(list,group,my_pos,error)
+  SUBROUTINE optimize_load_list(list,group,my_pos)
     INTEGER, DIMENSION(:, :, 0:)             :: list
     INTEGER, INTENT(IN)                      :: group, my_pos
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'optimize_load_list', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, i, icpu, idest, itmp, &
-                                                jcpu, maxdest, ncpu, stat
+                                                jcpu, maxdest, ncpu
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: load_all, load_per_source
     INTEGER, ALLOCATABLE, DIMENSION(:, :, :) :: list_global
     LOGICAL                                  :: failure
@@ -1155,15 +1132,12 @@ CONTAINS
     ncpu=SIZE(list,3)
     maxdest=SIZE(list,2)
 
-    ALLOCATE (load_all(maxdest*ncpu),STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+    ALLOCATE (load_all(maxdest*ncpu))
     !
     ! XXXXX this allocation can cause an out-of-memory if the number of MPI tasks is sufficient
     !
-    ALLOCATE (load_per_source(maxdest*ncpu*ncpu),STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
-    ALLOCATE (list_global(2,maxdest,ncpu),STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+    ALLOCATE (load_per_source(maxdest*ncpu*ncpu))
+    ALLOCATE (list_global(2,maxdest,ncpu))
 
     load_all(:)=RESHAPE(list(2,:,:),(/maxdest*ncpu/))
 
@@ -1202,12 +1176,9 @@ CONTAINS
     CALL mp_scatter(load_per_source,load_all,0,group)
     list(2,:,:)=RESHAPE(load_all,(/maxdest,ncpu/))
 
-    DEALLOCATE (load_all,STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
-    DEALLOCATE (load_per_source,STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
-    DEALLOCATE (list_global,STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+    DEALLOCATE (load_all)
+    DEALLOCATE (load_per_source)
+    DEALLOCATE (list_global)
 
     CALL timestop(handle)
 
@@ -1229,12 +1200,11 @@ CONTAINS
 !> \param maxset ...
 !> \param maxpgf ...
 !> \param create_list ...
-!> \param error ...
 !> \par History
 !>      created 2008-10-06 [Joost VandeVondele]
 ! *****************************************************************************
   SUBROUTINE compute_load_list(list,rs_descs,grid_level,tasks,&
-                               ntasks,nimages,natoms,maxset,maxpgf,create_list,error)
+                               ntasks,nimages,natoms,maxset,maxpgf,create_list)
     INTEGER, DIMENSION(:, :, 0:)             :: list
     TYPE(realspace_grid_desc_p_type), &
       DIMENSION(:), POINTER                  :: rs_descs
@@ -1244,7 +1214,6 @@ CONTAINS
     INTEGER                                  :: ntasks, nimages, natoms, &
                                                 maxset, maxpgf
     LOGICAL                                  :: create_list
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'compute_load_list', &
       routineP = moduleN//':'//routineN
@@ -1264,7 +1233,7 @@ CONTAINS
 
     ALLOCATE (loads(0:rs_descs(grid_level)%rs_desc%group_size-1))
     CALL get_current_loads(loads, rs_descs, grid_level, ntasks, nimages, natoms, maxset, maxpgf, &
-                           tasks, use_reordered_ranks=.FALSE. , error=error)
+                           tasks, use_reordered_ranks=.FALSE.)
 
     failure=.FALSE.
 
@@ -1422,7 +1391,7 @@ CONTAINS
                ENDIF
             ENDIF
           CASE DEFAULT
-            CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)
+            CPASSERT(.FALSE.)
           END SELECT
 
 
@@ -1459,22 +1428,20 @@ CONTAINS
 !> \param list ...
 !> \param rs_descs ...
 !> \param grid_level ...
-!> \param error ...
 !> \par History
 !>      created 2008-10-06 [Joost VandeVondele]
 ! *****************************************************************************
-  SUBROUTINE create_destination_list(list,rs_descs,grid_level,error)
+  SUBROUTINE create_destination_list(list,rs_descs,grid_level)
     INTEGER, DIMENSION(:, :, :), POINTER     :: list
     TYPE(realspace_grid_desc_p_type), &
       DIMENSION(:), POINTER                  :: rs_descs
     INTEGER, INTENT(IN)                      :: grid_level
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'create_destination_list', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, i, icpu, j, maxcount, &
-                                                ncpu, stat, ultimate_max
+                                                ncpu, ultimate_max
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: index, sublist
     LOGICAL                                  :: failure
 
@@ -1482,17 +1449,14 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-    CPPrecondition(.NOT.ASSOCIATED(list),cp_failure_level,routineP,error,failure)
+    CPASSERT(.NOT.ASSOCIATED(list))
     ncpu=rs_descs(grid_level)%rs_desc%group_size
     ultimate_max=7
 
-    ALLOCATE (list(2,ultimate_max,0:ncpu-1),STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+    ALLOCATE (list(2,ultimate_max,0:ncpu-1))
 
-    ALLOCATE (INDEX(ultimate_max),STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
-    ALLOCATE (sublist(ultimate_max),STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+    ALLOCATE (INDEX(ultimate_max))
+    ALLOCATE (sublist(ultimate_max))
     sublist=HUGE(sublist)
 
     maxcount=1
@@ -1539,13 +1503,12 @@ CONTAINS
 !> \param maxpgf ...
 !> \param tasks ...
 !> \param use_reordered_ranks ...
-!> \param error ...
 !> \par History
 !>      none
 !> \author MattW 21/11/2007
 ! *****************************************************************************
   SUBROUTINE get_current_loads(loads, rs_descs, grid_level, ntasks, nimages, natom, maxset, &
-                               maxpgf, tasks, use_reordered_ranks, error)
+                               maxpgf, tasks, use_reordered_ranks)
     INTEGER(KIND=int_8), DIMENSION(:)        :: loads
     TYPE(realspace_grid_desc_p_type), &
       DIMENSION(:), POINTER                  :: rs_descs
@@ -1554,14 +1517,13 @@ CONTAINS
     INTEGER(KIND=int_8), DIMENSION(:, :), &
       POINTER                                :: tasks
     LOGICAL, INTENT(IN)                      :: use_reordered_ranks
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'get_current_loads', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, i, iatom, ilevel, &
                                                 img, ipgf, iset, jatom, jpgf, &
-                                                jset, stat
+                                                jset
     INTEGER(KIND=int_8)                      :: total_cost_local
     INTEGER(KIND=int_8), ALLOCATABLE, &
       DIMENSION(:)                           :: recv_buf_i, send_buf_i
@@ -1575,10 +1537,8 @@ CONTAINS
     desc => rs_descs(grid_level)%rs_desc
 
     ! allocate local arrays
-    ALLOCATE (send_buf_i(desc%group_size),STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
-    ALLOCATE (recv_buf_i(desc%group_size),STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+    ALLOCATE (send_buf_i(desc%group_size))
+    ALLOCATE (recv_buf_i(desc%group_size))
 
     ! communication step 1 : compute the total local cost of the tasks
     !                        each proc needs to know the amount of work he will receive
@@ -1620,12 +1580,11 @@ CONTAINS
 !> \param natoms ...
 !> \param maxset ...
 !> \param maxpgf ...
-!> \param error ...
 !> \par History
 !>      none
 !> \author MattW 21/11/2007
 ! *****************************************************************************
-  SUBROUTINE load_balance_replicated ( rs_descs, ntasks, tasks, nimages, natoms, maxset, maxpgf, error)
+  SUBROUTINE load_balance_replicated ( rs_descs, ntasks, tasks, nimages, natoms, maxset, maxpgf)
 
     TYPE(realspace_grid_desc_p_type), &
       DIMENSION(:), POINTER                  :: rs_descs
@@ -1634,13 +1593,12 @@ CONTAINS
       POINTER                                :: tasks
     INTEGER, INTENT(IN)                      :: nimages, natoms, maxset, &
                                                 maxpgf
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'load_balance_replicated', &
       routineP = moduleN//':'//routineN
 
     INTEGER :: handle, i, iatom, ilevel, img, ipgf, iset, j, jatom, jpgf, &
-      jset, no_overloaded, no_underloaded, proc_receiving, stat
+      jset, no_overloaded, no_underloaded, proc_receiving
     INTEGER(KIND=int_8)                      :: average_cost, cost_task_rep, &
                                                 count, offset, &
                                                 total_cost_global
@@ -1658,15 +1616,13 @@ CONTAINS
     desc=>rs_descs(1)%rs_desc
 
     ! allocate local arrays
-    ALLOCATE (recv_buf_i(desc%group_size),STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
-    ALLOCATE (loads(desc%group_size),STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+    ALLOCATE (recv_buf_i(desc%group_size))
+    ALLOCATE (loads(desc%group_size))
 
     recv_buf_i = 0
     DO i = 1, SIZE(rs_descs)
       CALL get_current_loads ( loads, rs_descs, i, ntasks, nimages, natoms, maxset, maxpgf, &
-                               tasks, use_reordered_ranks=.TRUE. ,error=error )
+                               tasks, use_reordered_ranks=.TRUE.)
       recv_buf_i(:) = recv_buf_i + loads
     END DO
 
@@ -1679,10 +1635,8 @@ CONTAINS
 
     ! load imbalance measures the load of a given CPU relative 
     ! to the optimal load distribution (load=average)
-    ALLOCATE (load_imbalance(desc%group_size),STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
-    ALLOCATE (INDEX(desc%group_size),STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+    ALLOCATE (load_imbalance(desc%group_size))
+    ALLOCATE (INDEX(desc%group_size))
 
     load_imbalance(:) = recv_buf_i - average_cost
     no_overloaded = 0
@@ -1773,10 +1727,8 @@ CONTAINS
        ENDDO
     ENDIF
 
-    DEALLOCATE (index,STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
-    DEALLOCATE (load_imbalance,STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+    DEALLOCATE (index)
+    DEALLOCATE (load_imbalance)
 
     CALL timestop(handle)
 
@@ -1792,13 +1744,12 @@ CONTAINS
 !> \param ntasks_recv ...
 !> \param tasks_recv ...
 !> \param rval_recv ...
-!> \param error ...
 !> \par History
 !>      none
 !> \author MattW 21/11/2007
 ! *****************************************************************************
   SUBROUTINE create_local_tasks ( rs_descs, ntasks, tasks, rval, &
-                                  ntasks_recv, tasks_recv, rval_recv, error)
+                                  ntasks_recv, tasks_recv, rval_recv)
 
     TYPE(realspace_grid_desc_p_type), &
       DIMENSION(:), POINTER                  :: rs_descs
@@ -1810,13 +1761,12 @@ CONTAINS
     INTEGER(KIND=int_8), DIMENSION(:, :), &
       POINTER                                :: tasks_recv
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: rval_recv
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'create_local_tasks', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, i, j, k, l, rank, &
-                                                stat, task_dim
+                                                task_dim
     INTEGER(KIND=int_8), ALLOCATABLE, &
       DIMENSION(:)                           :: recv_buf_i, send_buf_i
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: recv_disps, recv_sizes, &
@@ -1832,18 +1782,12 @@ CONTAINS
     desc=>rs_descs(1)%rs_desc
 
     ! allocate local arrays
-    ALLOCATE (send_sizes(desc%group_size),STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
-    ALLOCATE (recv_sizes(desc%group_size),STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
-    ALLOCATE (send_disps(desc%group_size),STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
-    ALLOCATE (recv_disps(desc%group_size),STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
-    ALLOCATE (send_buf_i(desc%group_size),STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
-    ALLOCATE (recv_buf_i(desc%group_size),STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+    ALLOCATE (send_sizes(desc%group_size))
+    ALLOCATE (recv_sizes(desc%group_size))
+    ALLOCATE (send_disps(desc%group_size))
+    ALLOCATE (recv_disps(desc%group_size))
+    ALLOCATE (send_buf_i(desc%group_size))
+    ALLOCATE (recv_buf_i(desc%group_size))
 
     ! fill send buffer, now counting how many tasks will be send (stored in an int8 array for convenience only).
     send_buf_i=0
@@ -1873,16 +1817,12 @@ CONTAINS
     ENDDO
 
     ! deallocate old send/recv buffers
-    DEALLOCATE (send_buf_i,STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
-    DEALLOCATE (recv_buf_i,STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+    DEALLOCATE (send_buf_i)
+    DEALLOCATE (recv_buf_i)
 
     ! allocate them with new sizes
-    ALLOCATE (send_buf_i(SUM(send_sizes)),STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
-    ALLOCATE (recv_buf_i(SUM(recv_sizes)),STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+    ALLOCATE (send_buf_i(SUM(send_sizes)))
+    ALLOCATE (recv_buf_i(SUM(recv_sizes)))
 
     ! do packing
     send_buf_i = 0
@@ -1898,12 +1838,10 @@ CONTAINS
     ! do communication
     CALL mp_alltoall(send_buf_i, send_sizes, send_disps, recv_buf_i, recv_sizes, recv_disps, desc % group)
 
-    DEALLOCATE (send_buf_i,STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+    DEALLOCATE (send_buf_i)
 
     ntasks_recv=SUM(recv_sizes)/task_dim
-    ALLOCATE (tasks_recv(task_dim,ntasks_recv),STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+    ALLOCATE (tasks_recv(task_dim,ntasks_recv))
 
     ! do unpacking
     l = 0
@@ -1916,8 +1854,7 @@ CONTAINS
        ENDDO
     ENDDO
 
-    DEALLOCATE (recv_buf_i,STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+    DEALLOCATE (recv_buf_i)
 
     ! send rvals (to be removed :-)
 
@@ -1928,10 +1865,8 @@ CONTAINS
     recv_disps(:) = (recv_disps(:)/task_dim)*SIZE(rval,1)
     task_dim=SIZE(rval,1)
 
-    ALLOCATE (send_buf_r(SUM(send_sizes)),STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
-    ALLOCATE (recv_buf_r(SUM(recv_sizes)),STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+    ALLOCATE (send_buf_r(SUM(send_sizes)))
+    ALLOCATE (recv_buf_r(SUM(recv_sizes)))
 
     !do packing
     send_sizes = 0
@@ -1947,10 +1882,8 @@ CONTAINS
     CALL mp_alltoall(send_buf_r, send_sizes, send_disps,&
          recv_buf_r, recv_sizes, recv_disps, desc % group)
 
-    DEALLOCATE (send_buf_r,STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
-    ALLOCATE (rval_recv(task_dim,SUM(recv_sizes)/task_dim),STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+    DEALLOCATE (send_buf_r)
+    ALLOCATE (rval_recv(task_dim,SUM(recv_sizes)/task_dim))
 
     ! do unpacking
     l = 0
@@ -1963,16 +1896,11 @@ CONTAINS
        ENDDO
     ENDDO
 
-    DEALLOCATE (recv_buf_r,STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
-    DEALLOCATE (send_sizes,STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
-    DEALLOCATE (recv_sizes,STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
-    DEALLOCATE (send_disps,STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
-    DEALLOCATE (recv_disps,STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+    DEALLOCATE (recv_buf_r)
+    DEALLOCATE (send_sizes)
+    DEALLOCATE (recv_sizes)
+    DEALLOCATE (send_disps)
+    DEALLOCATE (recv_disps)
 
     CALL timestop(handle)
 
@@ -1993,14 +1921,13 @@ CONTAINS
 !> \param symmetric ...
 !> \param reorder_rs_grid_ranks ...
 !> \param skip_load_balance_distributed ...
-!> \param error ...
 !> \par History
 !>      none
 !> \author MattW 21/11/2007
 ! *****************************************************************************
   SUBROUTINE distribute_tasks ( rs_descs, ntasks, natoms, maxset, maxpgf, nimages,&
              tasks, rval, atom_pair_send, atom_pair_recv,&
-             symmetric, reorder_rs_grid_ranks, skip_load_balance_distributed, error)
+             symmetric, reorder_rs_grid_ranks, skip_load_balance_distributed)
 
     TYPE(realspace_grid_desc_p_type), &
       DIMENSION(:), POINTER                  :: rs_descs
@@ -2014,13 +1941,12 @@ CONTAINS
     LOGICAL, INTENT(IN)                      :: symmetric, &
                                                 reorder_rs_grid_ranks, &
                                                 skip_load_balance_distributed
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'distribute_tasks', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, igrid_level, irank, &
-                                                k, ntasks_recv, stat
+                                                k, ntasks_recv
     INTEGER(KIND=int_8)                      :: load_gap, max_load, &
                                                 replicated_load
     INTEGER(KIND=int_8), ALLOCATABLE, &
@@ -2038,7 +1964,7 @@ CONTAINS
     CALL timeset(routineN,handle)
 
     failure = .FALSE.
-    CPPrecondition(ASSOCIATED(tasks),cp_failure_level,routineP,error,failure)
+    CPASSERT(ASSOCIATED(tasks))
 
     ! *** figure out if we have distributed grids
     distributed_grids=.FALSE.
@@ -2051,10 +1977,8 @@ CONTAINS
 
     IF (distributed_grids) THEN
 
-       ALLOCATE (loads(0:desc%group_size-1,SIZE(rs_descs)),STAT=stat)
-       CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
-       ALLOCATE (total_loads(0:desc%group_size-1),STAT=stat)
-       CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+       ALLOCATE (loads(0:desc%group_size-1,SIZE(rs_descs)))
+       ALLOCATE (total_loads(0:desc%group_size-1))
 
        total_loads = 0
 
@@ -2065,10 +1989,10 @@ CONTAINS
          IF ( rs_descs(igrid_level)%rs_desc%distributed ) THEN
 
            IF (.NOT.skip_load_balance_distributed) &
-               CALL load_balance_distributed(tasks, ntasks, rs_descs, igrid_level, nimages, natoms, maxset,maxpgf, error)
+               CALL load_balance_distributed(tasks, ntasks, rs_descs, igrid_level, nimages, natoms, maxset,maxpgf)
 
            CALL get_current_loads( loads(:,igrid_level), rs_descs, igrid_level, ntasks, nimages, natoms, maxset,maxpgf, &
-                                   tasks, use_reordered_ranks=.FALSE. , error=error)
+                                   tasks, use_reordered_ranks=.FALSE.)
 
            total_loads(:)=total_loads+loads(:,igrid_level)
 
@@ -2082,7 +2006,7 @@ CONTAINS
        DO igrid_level=1,SIZE(rs_descs)
         IF (.NOT. rs_descs(igrid_level)%rs_desc%distributed) THEN
           CALL get_current_loads( loads(:,igrid_level), rs_descs, igrid_level, ntasks, nimages, natoms, maxset,maxpgf, &
-                                     tasks, use_reordered_ranks=.FALSE., error=error)
+                                     tasks, use_reordered_ranks=.FALSE.)
           replicated_load = replicated_load + SUM(loads(:,igrid_level))
         END IF
        END DO
@@ -2101,8 +2025,7 @@ CONTAINS
                total_loads(:) = loads(:,igrid_level)
                fixed_first_grid = .TRUE.
              ELSE
-               ALLOCATE (trial_loads(0:desc%group_size-1),STAT=stat)
-               CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+               ALLOCATE (trial_loads(0:desc%group_size-1))
 
                trial_loads(:) = total_loads + loads(:,igrid_level)
                max_load = MAXVAL(trial_loads)
@@ -2115,14 +2038,10 @@ CONTAINS
                ! then we will reorder this grid level
                IF (load_gap > replicated_load * 1.05_dp) THEN
 
-                 ALLOCATE (INDEX(0:desc%group_size-1),STAT=stat)
-                 CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
-                 ALLOCATE (total_index(0:desc%group_size-1),STAT=stat)
-                 CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
-                 ALLOCATE (total_loads_tmp(0:desc%group_size-1),STAT=stat)
-                 CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
-                 ALLOCATE (real2virtual(0:desc%group_size-1),STAT=stat)
-                 CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+                 ALLOCATE (INDEX(0:desc%group_size-1))
+                 ALLOCATE (total_index(0:desc%group_size-1))
+                 ALLOCATE (total_loads_tmp(0:desc%group_size-1))
+                 ALLOCATE (real2virtual(0:desc%group_size-1))
 
                  total_loads_tmp(:) = total_loads
                  CALL sort(total_loads_tmp, desc%group_size, total_index)
@@ -2136,22 +2055,17 @@ CONTAINS
                    real2virtual(total_index(irank)-1)=INDEX(desc%group_size - irank - 1) - 1
                  END DO
 
-                 CALL rs_grid_reorder_ranks(rs_descs(igrid_level)%rs_desc, real2virtual, error)
+                 CALL rs_grid_reorder_ranks(rs_descs(igrid_level)%rs_desc, real2virtual)
 
-                 DEALLOCATE (index,STAT=stat)
-                 CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
-                 DEALLOCATE (total_index,STAT=stat)
-                 CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
-                 DEALLOCATE (total_loads_tmp,STAT=stat)
-                 CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
-                 DEALLOCATE (real2virtual,STAT=stat)
-                 CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+                 DEALLOCATE (index)
+                 DEALLOCATE (total_index)
+                 DEALLOCATE (total_loads_tmp)
+                 DEALLOCATE (real2virtual)
                ELSE
                  total_loads(:) = trial_loads
                ENDIF
 
-               DEALLOCATE (trial_loads,STAT=stat)
-               CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+               DEALLOCATE (trial_loads)
 
              ENDIF
            ENDIF
@@ -2159,12 +2073,12 @@ CONTAINS
        END IF
 
        ! Now we use the replicated tasks to balance out the rest of the load
-       CALL load_balance_replicated(rs_descs, ntasks, tasks, nimages, natoms, maxset, maxpgf, error)
+       CALL load_balance_replicated(rs_descs, ntasks, tasks, nimages, natoms, maxset, maxpgf)
 
        !total_loads = 0
        !DO igrid_level=1,SIZE(rs_descs)
        !  CALL get_current_loads(loads(:,igrid_level), rs_descs, igrid_level, ntasks, nimages, natoms, maxset,maxpgf, &
-       !                         tasks, use_reordered_ranks=.TRUE. , error=error)
+       !                         tasks, use_reordered_ranks=.TRUE.)
        !  total_loads = total_loads + loads(:, igrid_level)
        !END DO
 
@@ -2177,17 +2091,16 @@ CONTAINS
        !ENDIF
 
        ! given a list of tasks, this will do the needed reshuffle so that all tasks will be local
-       CALL create_local_tasks ( rs_descs, ntasks, tasks, rval, ntasks_recv, tasks_recv, rval_recv, error)
+       CALL create_local_tasks ( rs_descs, ntasks, tasks, rval, ntasks_recv, tasks_recv, rval_recv)
 
        !
        ! tasks list are complete, we can compute the list of atomic blocks (atom pairs)
        ! we will be sending. These lists are needed for redistribute_matrix.
        !
-       ALLOCATE (atom_pair_send(ntasks),STAT=stat)
-       CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+       ALLOCATE (atom_pair_send(ntasks))
        CALL get_atom_pair ( atom_pair_send, tasks, send=.TRUE.,&
             symmetric=symmetric, natoms=natoms, maxset=maxset, maxpgf=maxpgf, &
-            nimages=nimages, rs_descs=rs_descs, error=error )
+            nimages=nimages, rs_descs=rs_descs)
 
        ! natom_send=SIZE(atom_pair_send)
        ! CALL mp_sum(natom_send,desc%group)
@@ -2196,21 +2109,16 @@ CONTAINS
        !     WRITE(*,*) "Total number of atomic blocks to be send:",natom_send
        ! ENDIF
 
-       ALLOCATE (atom_pair_recv(ntasks_recv),STAT=stat)
-       CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+       ALLOCATE (atom_pair_recv(ntasks_recv))
        CALL get_atom_pair ( atom_pair_recv, tasks_recv, send=.FALSE.,&
             symmetric=symmetric, natoms=natoms, maxset=maxset, maxpgf=maxpgf, &
-            nimages=nimages, rs_descs=rs_descs, error=error )
+            nimages=nimages, rs_descs=rs_descs)
 
        ! cleanup, at this point we  don't need the original tasks & rvals anymore
-       DEALLOCATE (tasks,STAT=stat)
-       CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
-       DEALLOCATE (rval,STAT=stat)
-       CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
-       DEALLOCATE (loads,STAT=stat)
-       CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
-       DEALLOCATE (total_loads,STAT=stat)
-       CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+       DEALLOCATE (tasks)
+       DEALLOCATE (rval)
+       DEALLOCATE (loads)
+       DEALLOCATE (total_loads)
 
     ELSE
 
@@ -2226,10 +2134,8 @@ CONTAINS
     !
     rval => rval_recv
 
-    ALLOCATE (taskid(ntasks_recv),STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
-    ALLOCATE (INDEX(ntasks_recv),STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+    ALLOCATE (taskid(ntasks_recv))
+    ALLOCATE (INDEX(ntasks_recv))
 
     taskid(:)=tasks_recv(3,1:ntasks_recv)
     CALL sort(taskid,SIZE(taskid),index)
@@ -2242,10 +2148,8 @@ CONTAINS
        rval(k,1:ntasks_recv)=rval(k,index)
     ENDDO
 
-    DEALLOCATE (taskid,STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
-    DEALLOCATE (index,STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+    DEALLOCATE (taskid)
+    DEALLOCATE (index)
 
     !
     ! final lists are ready
@@ -2269,10 +2173,9 @@ CONTAINS
 !> \param maxpgf ...
 !> \param nimages ...
 !> \param rs_descs ...
-!> \param error ...
 ! *****************************************************************************
   SUBROUTINE get_atom_pair ( atom_pair, my_tasks, send, symmetric, natoms, maxset, &
-                             maxpgf, nimages, rs_descs, error)
+                             maxpgf, nimages, rs_descs)
 
     INTEGER(KIND=int_8), DIMENSION(:), &
       POINTER                                :: atom_pair
@@ -2283,14 +2186,13 @@ CONTAINS
                                                 nimages
     TYPE(realspace_grid_desc_p_type), &
       DIMENSION(:), POINTER                  :: rs_descs
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'get_atom_pair', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: acol, arow, i, iatom, ilevel, &
                                                 img, ipgf, iset, j, jatom, &
-                                                jpgf, jset, stat
+                                                jpgf, jset
     INTEGER(KIND=int_8)                      :: natom8, nim8
     INTEGER, DIMENSION(:), POINTER           :: index
     LOGICAL                                  :: failure
@@ -2331,14 +2233,12 @@ CONTAINS
      ENDIF
   ENDDO
 
-  ALLOCATE (INDEX(SIZE(atom_pair)),STAT=stat)
-  CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+  ALLOCATE (INDEX(SIZE(atom_pair)))
 
   ! find unique atom pairs that I'm sending/receiving
   CALL sort(atom_pair,SIZE(atom_pair),index)
 
-  DEALLOCATE (index,STAT=stat)
-  CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+  DEALLOCATE (index)
 
   IF (SIZE(atom_pair)>1) THEN
      j=1
@@ -2367,10 +2267,9 @@ END SUBROUTINE get_atom_pair
 !> \param nimages ...
 !> \param scatter ...
 !> \param hmats ...
-!> \param error ...
 ! *****************************************************************************
 SUBROUTINE rs_distribute_matrix( rs_descs, pmats, atom_pair_send, atom_pair_recv, &
-     natoms, nimages, scatter, hmats, error )
+     natoms, nimages, scatter, hmats)
 
     TYPE(realspace_grid_desc_p_type), &
       DIMENSION(:), POINTER                  :: rs_descs
@@ -2382,13 +2281,12 @@ SUBROUTINE rs_distribute_matrix( rs_descs, pmats, atom_pair_send, atom_pair_recv
     LOGICAL                                  :: scatter
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: hmats
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'rs_distribute_matrix', &
       routineP = moduleN//':'//routineN
 
     INTEGER :: acol, arow, handle, i, img, j, k, l, me, nblkcols_total, &
-      nblkrows_total, ncol, nrow, nthread, nthread_left, stat
+      nblkrows_total, ncol, nrow, nthread, nthread_left
     INTEGER(KIND=int_8)                      :: natom8, nim8, pair
     INTEGER, ALLOCATABLE, DIMENSION(:) :: first_col, first_row, last_col, &
       last_row, recv_disps, recv_pair_count, recv_pair_disps, recv_sizes, &
@@ -2405,37 +2303,28 @@ SUBROUTINE rs_distribute_matrix( rs_descs, pmats, atom_pair_send, atom_pair_recv
 
   failure = .FALSE.
   IF (.not.scatter) THEN
-    CPPrecondition(PRESENT(hmats),cp_failure_level,routineP,error,failure)
+    CPASSERT(PRESENT(hmats))
   END IF
 
   desc => rs_descs(1)%rs_desc
   me = desc%my_pos+1
 
   ! allocate local arrays
-  ALLOCATE (send_sizes(desc%group_size),STAT=stat)
-  CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-  ALLOCATE (recv_sizes(desc%group_size),STAT=stat)
-  CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-  ALLOCATE (send_disps(desc%group_size),STAT=stat)
-  CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-  ALLOCATE (recv_disps(desc%group_size),STAT=stat)
-  CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-  ALLOCATE (send_pair_count(desc%group_size),STAT=stat)
-  CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-  ALLOCATE (recv_pair_count(desc%group_size),STAT=stat)
-  CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-  ALLOCATE (send_pair_disps(desc%group_size),STAT=stat)
-  CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-  ALLOCATE (recv_pair_disps(desc%group_size),STAT=stat)
-  CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+  ALLOCATE (send_sizes(desc%group_size))
+  ALLOCATE (recv_sizes(desc%group_size))
+  ALLOCATE (send_disps(desc%group_size))
+  ALLOCATE (recv_disps(desc%group_size))
+  ALLOCATE (send_pair_count(desc%group_size))
+  ALLOCATE (recv_pair_count(desc%group_size))
+  ALLOCATE (send_pair_disps(desc%group_size))
+  ALLOCATE (recv_pair_disps(desc%group_size))
 
   pmat => pmats(1)%matrix
   CALL cp_dbcsr_get_info (pmat, &
        nblkrows_total=nblkrows_total,&
        nblkcols_total=nblkcols_total)
   ALLOCATE (first_row(nblkrows_total), last_row(nblkrows_total),&
-            first_col(nblkcols_total), last_col(nblkcols_total),STAT=stat)
-  CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+            first_col(nblkcols_total), last_col(nblkcols_total))
   CALL convert_sizes_to_offsets (cp_dbcsr_row_block_sizes(pmat), first_row, last_row)
   CALL convert_sizes_to_offsets (cp_dbcsr_col_block_sizes(pmat), first_col, last_col)
   ! set up send buffer sizes
@@ -2469,8 +2358,7 @@ SUBROUTINE rs_distribute_matrix( rs_descs, pmats, atom_pair_send, atom_pair_recv
      send_pair_disps(i) = send_pair_disps(i-1) + send_pair_count(i-1)
   ENDDO
 
-  ALLOCATE (send_buf_r(SUM(send_sizes)),STAT=stat)
-  CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+  ALLOCATE (send_buf_r(SUM(send_sizes)))
 
   ! set up recv buffer
 
@@ -2500,8 +2388,7 @@ SUBROUTINE rs_distribute_matrix( rs_descs, pmats, atom_pair_send, atom_pair_recv
      recv_disps(i) = recv_disps(i-1) + recv_sizes(i-1)
      recv_pair_disps(i) = recv_pair_disps(i-1) + recv_pair_count(i-1)
   ENDDO
-  ALLOCATE (recv_buf_r(SUM(recv_sizes)),STAT=stat)
-  CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+  ALLOCATE (recv_buf_r(SUM(recv_sizes)))
 
 !$omp parallel default(none), &
 !$omp          shared(desc,send_pair_count,send_pair_disps,natom8,nim8,nimages),&
@@ -2511,8 +2398,7 @@ SUBROUTINE rs_distribute_matrix( rs_descs, pmats, atom_pair_send, atom_pair_recv
 !$omp          shared(atom_pair_recv,recv_buf_r,scatter,recv_pair_disps), &
 !$omp          shared(recv_sizes,recv_disps,recv_pair_count,locks), &
 !$omp          private(i,img,pair,arow,acol,nrow,ncol,p_block,found,j,k,l),&
-!$omp          private(nthread,h_block,error,nthread_left,hmat,pmat,failure),&
-!$omp          private(stat)
+!$omp          private(nthread,h_block,nthread_left,hmat,pmat,failure)
 
   nthread = 1
 !$ nthread = omp_get_num_threads()
@@ -2537,7 +2423,7 @@ SUBROUTINE rs_distribute_matrix( rs_descs, pmats, atom_pair_send, atom_pair_recv
      pmat => pmats(img)%matrix
      CALL cp_dbcsr_get_block_p(matrix=pmat,row=arow,col=acol,&
           block=p_block,found=found)
-     CPPostcondition(found,cp_failure_level,routineP,error,failure)
+     CPASSERT(found)
 
      DO k = 1, ncol
         DO j = 1, nrow
@@ -2588,10 +2474,10 @@ SUBROUTINE rs_distribute_matrix( rs_descs, pmats, atom_pair_send, atom_pair_recv
      pmat => pmats(img)%matrix
      CALL cp_dbcsr_get_block_p(matrix=hmat,row=arow,col=acol,&
           BLOCK=h_block,found=found)
-     CPPostcondition(found,cp_failure_level,routineP,error,failure)
+     CPASSERT(found)
      CALL cp_dbcsr_get_block_p(matrix=pmat,row=arow,col=acol,&
           BLOCK=p_block,found=found)
-     CPPostcondition(found,cp_failure_level,routineP,error,failure)
+     CPASSERT(found)
 
 !$  call omp_set_lock(locks((arow-1)*nthread*10/nblkrows_total+1))
         DO k = 1, ncol
@@ -2608,7 +2494,7 @@ SUBROUTINE rs_distribute_matrix( rs_descs, pmats, atom_pair_send, atom_pair_recv
        pmat => pmats(img)%matrix
        CALL cp_dbcsr_work_create(pmat,work_mutable=.TRUE.,&
          nblks_guess=SIZE(atom_pair_recv)/nthread,sizedata_guess=SIZE(recv_buf_r)/nthread,&
-         n=nthread,error=error)
+         n=nthread)
     END DO
   END IF
 
@@ -2639,7 +2525,7 @@ SUBROUTINE rs_distribute_matrix( rs_descs, pmats, atom_pair_send, atom_pair_recv
         hmat => hmats(img)%matrix
         CALL cp_dbcsr_get_block_p(matrix=hmat,row=arow,col=acol,&
              BLOCK=h_block,found=found)
-        CPPostcondition(found,cp_failure_level,routineP,error,failure)
+        CPASSERT(found)
      ENDIF
 
      IF(scatter .AND. .NOT. ASSOCIATED(p_block)) THEN
@@ -2670,8 +2556,7 @@ SUBROUTINE rs_distribute_matrix( rs_descs, pmats, atom_pair_send, atom_pair_recv
 
 !$omp single
 !$ IF (.not.scatter) THEN
-!$  DEALLOCATE (locks,STAT=stat)
-!$  CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+!$  DEALLOCATE(locks)
 !$ END IF
 !$omp end single nowait
 
@@ -2679,35 +2564,24 @@ SUBROUTINE rs_distribute_matrix( rs_descs, pmats, atom_pair_send, atom_pair_recv
     ! Blocks were added to P
     DO img=1,nimages
        pmat => pmats(img)%matrix
-       CALL cp_dbcsr_finalize(pmat, error=error)
+       CALL cp_dbcsr_finalize(pmat)
     END DO
   END IF
 !$omp end parallel
 
-  DEALLOCATE (send_buf_r,STAT=stat)
-  CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-  DEALLOCATE (recv_buf_r,STAT=stat)
-  CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+  DEALLOCATE (send_buf_r)
+  DEALLOCATE (recv_buf_r)
 
-  DEALLOCATE (send_sizes,STAT=stat)
-  CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-  DEALLOCATE (recv_sizes,STAT=stat)
-  CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-  DEALLOCATE (send_disps,STAT=stat)
-  CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-  DEALLOCATE (recv_disps,STAT=stat)
-  CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-  DEALLOCATE (send_pair_count,STAT=stat)
-  CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-  DEALLOCATE (recv_pair_count,STAT=stat)
-  CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-  DEALLOCATE (send_pair_disps,STAT=stat)
-  CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-  DEALLOCATE (recv_pair_disps,STAT=stat)
-  CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+  DEALLOCATE (send_sizes)
+  DEALLOCATE (recv_sizes)
+  DEALLOCATE (send_disps)
+  DEALLOCATE (recv_disps)
+  DEALLOCATE (send_pair_count)
+  DEALLOCATE (recv_pair_count)
+  DEALLOCATE (send_pair_disps)
+  DEALLOCATE (recv_pair_disps)
 
-  DEALLOCATE (first_row, last_row, first_col, last_col, STAT=stat)
-  CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+  DEALLOCATE (first_row, last_row, first_col, last_col)
 
   CALL timestop(handle)
 
@@ -2724,14 +2598,13 @@ END SUBROUTINE rs_distribute_matrix
 !> \param lb_cube ...
 !> \param ub_cube ...
 !> \param added_tasks ...
-!> \param error ...
 !> \par History
 !>      11.2007 created [MattW]
 !>      10.2008 rewritten [Joost VandeVondele]
 !> \author MattW
 ! *****************************************************************************
   SUBROUTINE rs_find_node(rs_desc,igrid_level,n_levels,cube_center,ntasks,tasks,&
-                          lb_cube,ub_cube,added_tasks,error)
+                          lb_cube,ub_cube,added_tasks)
 
     TYPE(realspace_grid_desc_type), POINTER  :: rs_desc
     INTEGER, INTENT(IN)                      :: igrid_level, n_levels
@@ -2741,7 +2614,6 @@ END SUBROUTINE rs_distribute_matrix
       POINTER                                :: tasks
     INTEGER, DIMENSION(3), INTENT(IN)        :: lb_cube, ub_cube
     INTEGER, INTENT(OUT)                     :: added_tasks
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'rs_find_node', &
       routineP = moduleN//':'//routineN

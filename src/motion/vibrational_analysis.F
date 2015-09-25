@@ -77,15 +77,13 @@ CONTAINS
 !> \param input_declaration ...
 !> \param para_env ...
 !> \param globenv ...
-!> \param error ...
 !> \author Teodoro Laino 08.2006
 ! *****************************************************************************
-  SUBROUTINE vb_anal(input, input_declaration, para_env, globenv, error)
+  SUBROUTINE vb_anal(input, input_declaration, para_env, globenv)
     TYPE(section_vals_type), POINTER         :: input
     TYPE(section_type), POINTER              :: input_declaration
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(global_environment_type), POINTER   :: globenv
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'vb_anal', &
       routineP = moduleN//':'//routineN
@@ -95,7 +93,7 @@ CONTAINS
     CHARACTER(LEN=default_string_length)     :: description
     INTEGER :: handle, i, icoord, icoordm, icoordp, ierr, imap, ip1, ip2, &
       iparticle1, iparticle2, iseq, iw, j, k, natoms, ncoord, nrep, nres, &
-      nRotTrM, nvib, output_unit, prep, proc_dist_type, stat
+      nRotTrM, nvib, output_unit, prep, proc_dist_type
     INTEGER, DIMENSION(:), POINTER           :: Clist, Mlist
     LOGICAL                                  :: calc_intens, &
                                                 do_mode_tracking, failure, &
@@ -111,7 +109,6 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: D, dip_deriv, RotTrM
     REAL(KIND=dp), DIMENSION(:, :, :), &
       POINTER                                :: tmp_dip
-    TYPE(cp_error_type)                      :: new_error
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_subsys_type), POINTER            :: subsys
     TYPE(f_env_type), POINTER                :: f_env
@@ -126,57 +123,51 @@ CONTAINS
     failure = .FALSE.
     NULLIFY(D, RotTrM, logger, subsys, f_env, particles, rep_env, intensities,&
             vib_section, print_section)
-    logger => cp_error_get_logger(error)
-    vib_section   => section_vals_get_subs_vals(input,"VIBRATIONAL_ANALYSIS",error=error)
-    print_section => section_vals_get_subs_vals(vib_section,"PRINT",error=error)
-    output_unit=cp_print_key_unit_nr(logger,print_section,"PROGRAM_RUN_INFO",extension=".vibLog",error=error)
+    logger => cp_get_default_logger()
+    vib_section   => section_vals_get_subs_vals(input,"VIBRATIONAL_ANALYSIS")
+    print_section => section_vals_get_subs_vals(vib_section,"PRINT")
+    output_unit=cp_print_key_unit_nr(logger,print_section,"PROGRAM_RUN_INFO",extension=".vibLog")
 
-    CALL section_vals_val_get(vib_section,"DX",r_val=dx, error=error)
-    CALL section_vals_val_get(vib_section,"NPROC_REP",i_val=prep, error=error)
-    CALL section_vals_val_get(vib_section,"PROC_DIST_TYPE",i_val=proc_dist_type, error=error)
+    CALL section_vals_val_get(vib_section,"DX",r_val=dx)
+    CALL section_vals_val_get(vib_section,"NPROC_REP",i_val=prep)
+    CALL section_vals_val_get(vib_section,"PROC_DIST_TYPE",i_val=proc_dist_type)
     row_force = (proc_dist_type==do_rep_blocked)
-    CALL section_vals_val_get(vib_section,"FULLY_PERIODIC",l_val=keep_rotations, error=error)
-    CALL section_vals_val_get(vib_section,"INTENSITIES",l_val=calc_intens, error=error)
-    mode_tracking_section=>section_vals_get_subs_vals(vib_section,"MODE_SELECTIVE",&
-         error=error)
-    CALL section_vals_get(mode_tracking_section,explicit=do_mode_tracking, error=error)
+    CALL section_vals_val_get(vib_section,"FULLY_PERIODIC",l_val=keep_rotations)
+    CALL section_vals_val_get(vib_section,"INTENSITIES",l_val=calc_intens)
+    mode_tracking_section=>section_vals_get_subs_vals(vib_section,"MODE_SELECTIVE")
+    CALL section_vals_get(mode_tracking_section,explicit=do_mode_tracking)
     nrep = MAX(1,para_env%num_pe/prep)
     prep = para_env%num_pe/nrep
-    iw=cp_print_key_unit_nr(logger,print_section,"BANNER",extension=".vibLog",error=error)
+    iw=cp_print_key_unit_nr(logger,print_section,"BANNER",extension=".vibLog")
     CALL vib_header(iw, nrep, prep)
-    CALL cp_print_key_finished_output(iw,logger,print_section,"BANNER",error=error)
+    CALL cp_print_key_finished_output(iw,logger,print_section,"BANNER")
     ! Just one force_env allowed
-    force_env_section => section_vals_get_subs_vals(input,"FORCE_EVAL",error=error)
+    force_env_section => section_vals_get_subs_vals(input,"FORCE_EVAL")
     ! Create Replica Environments
     CALL rep_env_create(rep_env, para_env=para_env, input=input,&
-          input_declaration=input_declaration,nrep=nrep,prep=prep,row_force=row_force,error=error)
+          input_declaration=input_declaration,nrep=nrep,prep=prep,row_force=row_force)
     IF (ASSOCIATED(rep_env)) THEN
        CALL f_env_add_defaults(f_env_id=rep_env%f_env_id,f_env=f_env,&
-            new_error=new_error, failure=failure)
-       CALL force_env_get(f_env%force_env,subsys=subsys,error=error)
+            failure=failure)
+       CALL force_env_get(f_env%force_env,subsys=subsys)
        particles => subsys%particles%els
        ! Decide which kind of Vibrational Analysis to perform
        IF (do_mode_tracking)THEN
           CALL ms_vb_anal(input,rep_env, para_env, globenv, particles,&
-                          nrep,calc_intens,dx,output_unit, logger, error)
-          CALL f_env_rm_defaults(f_env,new_error,ierr)
+                          nrep,calc_intens,dx,output_unit, logger)
+          CALL f_env_rm_defaults(f_env,ierr)
        ELSE
-          CALL get_moving_atoms(force_env=f_env%force_env,Ilist=Mlist,error=error)
+          CALL get_moving_atoms(force_env=f_env%force_env,Ilist=Mlist)
           something_frozen = SIZE(particles).NE.SIZE(Mlist)
           natoms=SIZE(Mlist)
           ncoord=natoms*3
-          ALLOCATE(Clist(ncoord), stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-          ALLOCATE(mass(natoms), stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-          ALLOCATE(pos0(ncoord), stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-          ALLOCATE(Hessian(ncoord,ncoord),stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          ALLOCATE(Clist(ncoord))
+          ALLOCATE(mass(natoms))
+          ALLOCATE(pos0(ncoord))
+          ALLOCATE(Hessian(ncoord,ncoord))
           IF(calc_intens)THEN
              description='[DIPOLE]'
-             ALLOCATE(tmp_dip(ncoord,3,2),stat=stat)
-             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+             ALLOCATE(tmp_dip(ncoord,3,2))
              tmp_dip=0._dp
           END IF
           Clist = 0
@@ -186,7 +177,7 @@ CONTAINS
              Clist((i-1)*3+2) = (imap-1)*3+2
              Clist((i-1)*3+3) = (imap-1)*3+3
              mass(i) = particles(imap)%atomic_kind%mass
-             CPPostcondition(mass(i)>0.0_dp,cp_failure_level,routineP,error,failure)
+             CPASSERT(mass(i)>0.0_dp)
              mass(i)= SQRT(mass(i))
              pos0((i-1)*3+1) = particles(imap)%r(1)
              pos0((i-1)*3+2) = particles(imap)%r(2)
@@ -198,15 +189,14 @@ CONTAINS
           !
           IF (something_frozen) THEN
              nRotTrM = 0
-             ALLOCATE(RotTrM(natoms*3,nRotTrM),stat=stat)
-             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+             ALLOCATE(RotTrM(natoms*3,nRotTrM))
           ELSE
              CALL rot_ana(particles,RotTrM,nRotTrM,print_section,&
-                  keep_rotations,mass_weighted=.TRUE.,natoms=natoms,error=error)
+                  keep_rotations,mass_weighted=.TRUE.,natoms=natoms)
           END IF
           ! Generate the suitable rototranslating basis set
           CALL build_D_matrix(RotTrM,nRotTrM,D,full=.FALSE.,&
-               natoms=natoms,error=error)
+               natoms=natoms)
           !
           ! Loop on atoms and coordinates
           !
@@ -224,18 +214,18 @@ CONTAINS
                    rep_env%r(imap,j) = rep_env%r(imap,j) + Dx
                 END IF
              END DO
-             CALL rep_env_calc_e_f(rep_env,calc_f=.TRUE.,error=error)
+             CALL rep_env_calc_e_f(rep_env,calc_f=.TRUE.)
 
              DO j = 1, nrep
                 IF(calc_intens)THEN
                    IF (icoord+j <= ncoord) THEN
                       CALL get_results(results=rep_env%results(j)%results,&
                            description=description,&
-                           n_rep=nres,error=error)
+                           n_rep=nres)
                       CALL get_results(results=rep_env%results(j)%results,&
                            description=description,&
                            values=tmp_dip(icoord+j,:,1),&
-                           nval=nres,error=error)
+                           nval=nres)
                    END IF
                 END IF
                 IF (icoord+j <= ncoord) THEN
@@ -278,7 +268,7 @@ CONTAINS
                    rep_env%r(imap,j) = rep_env%r(imap,j) - Dx
                 END IF
              END DO
-             CALL rep_env_calc_e_f(rep_env,calc_f=.TRUE.,error=error)
+             CALL rep_env_calc_e_f(rep_env,calc_f=.TRUE.)
 
              DO j = 1, nrep
                 IF (calc_intens) THEN
@@ -286,11 +276,11 @@ CONTAINS
                       k=(icoord+j+2)/3
                       CALL get_results(results=rep_env%results(j)%results,&
                            description=description,&
-                           n_rep=nres,error=error)
+                           n_rep=nres)
                       CALL get_results(results=rep_env%results(j)%results,&
                            description=description,&
                            values=tmp_dip(icoord+j,:,2),&
-                           nval=nres,error=error)
+                           nval=nres)
                       tmp_dip(icoord+j,:,1)=(tmp_dip(icoord+j,:,1)-tmp_dip(icoord+j,:,2))/(2.0_dp*Dx*mass(k))
                    END IF
                 END IF
@@ -342,7 +332,7 @@ CONTAINS
           IF (output_unit>0) THEN
              WRITE(output_unit,'(T2,A)')"VIB| Hessian in cartesian coordinates"
              CALL write_particle_matrix(Hessian,particles,output_unit,el_per_part=3,&
-                  Ilist=Mlist,error=error)
+                  Ilist=Mlist)
           END IF
           ! Enforce symmetry in the Hessian
           DO i =1, ncoord
@@ -352,28 +342,20 @@ CONTAINS
              END DO
           END DO
           nvib = ncoord-nRotTrM
-          ALLOCATE(H_eigval1(ncoord),stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-          ALLOCATE(H_eigval2(SIZE(D,2)),stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-          ALLOCATE(Hint1(ncoord,ncoord),stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-          ALLOCATE(Hint2(SIZE(D,2),SIZE(D,2)),stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-          ALLOCATE(rmass(SIZE(D,2)),stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-          ALLOCATE(konst(SIZE(D,2)),stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          ALLOCATE(H_eigval1(ncoord))
+          ALLOCATE(H_eigval2(SIZE(D,2)))
+          ALLOCATE(Hint1(ncoord,ncoord))
+          ALLOCATE(Hint2(SIZE(D,2),SIZE(D,2)))
+          ALLOCATE(rmass(SIZE(D,2)))
+          ALLOCATE(konst(SIZE(D,2)))
           IF(calc_intens)THEN
-             ALLOCATE(dip_deriv(3,SIZE(D,2)),stat=stat)
-             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+             ALLOCATE(dip_deriv(3,SIZE(D,2)))
              dip_deriv=0.0_dp
           END IF
-          ALLOCATE(intensities(SIZE(D,2)),stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          ALLOCATE(intensities(SIZE(D,2)))
           intensities=  0._dp
           Hint1(:,:) = Hessian
-          CALL diamat_all(Hint1,H_eigval1,error=error)
+          CALL diamat_all(Hint1,H_eigval1)
           IF (output_unit>0) THEN
              WRITE(output_unit,'(T2,"VIB| Cartesian Low frequencies ---",4G12.5)')&
                   (H_eigval1(i),i=1,MIN(9,ncoord))
@@ -385,7 +367,7 @@ CONTAINS
                    dip_deriv(i,:)=MATMUL(tmp_dip(:,i,1),D)
                 END DO
              END IF
-             CALL diamat_all(Hint2,H_eigval2,error=error)
+             CALL diamat_all(Hint2,H_eigval2)
              IF (output_unit>0) THEN
                 WRITE(output_unit,'(T2,"VIB| Frequencies after removal of the rotations and translations")')
                 ! Frequency at the moment are in a.u.
@@ -424,50 +406,35 @@ CONTAINS
                 CALL vib_out(iw,nvib,D,konst,rmass,H_eigval2,particles,Mlist, intensities)
              END IF
              IF(.NOT.something_frozen) CALL molden_out(input,particles,H_eigval2,D,intensities,calc_intens,&
-                                            dump_only_positive=.FALSE.,logger=logger,error=error)
+                                            dump_only_positive=.FALSE.,logger=logger)
           ELSE
              IF (output_unit>0) THEN
                 WRITE(output_unit,'(T2,"VIB| No further vibrational info. Detected a single atom")')
              END IF
           END IF
           ! Deallocate working arrays
-          DEALLOCATE(Clist,stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-          DEALLOCATE(Mlist,stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-          DEALLOCATE(H_eigval1,stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-          DEALLOCATE(H_eigval2,stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-          DEALLOCATE(Hint1,stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-          DEALLOCATE(Hint2,stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-          DEALLOCATE(rmass,stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-          DEALLOCATE(konst,stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-          DEALLOCATE(mass, stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-          DEALLOCATE(pos0, stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-          DEALLOCATE(D,stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-          DEALLOCATE(Hessian,stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          DEALLOCATE(Clist)
+          DEALLOCATE(Mlist)
+          DEALLOCATE(H_eigval1)
+          DEALLOCATE(H_eigval2)
+          DEALLOCATE(Hint1)
+          DEALLOCATE(Hint2)
+          DEALLOCATE(rmass)
+          DEALLOCATE(konst)
+          DEALLOCATE(mass)
+          DEALLOCATE(pos0)
+          DEALLOCATE(D)
+          DEALLOCATE(Hessian)
           IF(calc_intens)THEN
-             DEALLOCATE(dip_deriv,stat=stat)
-             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-             DEALLOCATE(tmp_dip,stat=stat)
-             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+             DEALLOCATE(dip_deriv)
+             DEALLOCATE(tmp_dip)
           END IF
-          DEALLOCATE(intensities,stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-          CALL f_env_rm_defaults(f_env,new_error,ierr)
+          DEALLOCATE(intensities)
+          CALL f_env_rm_defaults(f_env,ierr)
        END IF
     END IF
-    CALL cp_print_key_finished_output(output_unit,logger,print_section,"PROGRAM_RUN_INFO",error=error)
-    CALL rep_env_release(rep_env,error=error)
+    CALL cp_print_key_finished_output(output_unit,logger,print_section,"PROGRAM_RUN_INFO")
+    CALL rep_env_release(rep_env)
     CALL timestop(handle)
   END SUBROUTINE vb_anal
 
@@ -475,21 +442,18 @@ CONTAINS
 !> \brief give back a list of moving atoms
 !> \param force_env ...
 !> \param Ilist ...
-!> \param error ...
 !> \author Teodoro Laino 08.2006
 ! *****************************************************************************
-  SUBROUTINE get_moving_atoms(force_env, Ilist, error)
+  SUBROUTINE get_moving_atoms(force_env, Ilist)
     TYPE(force_env_type), POINTER            :: force_env
     INTEGER, DIMENSION(:), POINTER           :: Ilist
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'get_moving_atoms', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, i, ii, ikind, j, &
                                                 ndim, nfixed_atoms, &
-                                                nfixed_atoms_total, nkind, &
-                                                stat
+                                                nfixed_atoms_total, nkind
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: ifixd_list, work
     LOGICAL                                  :: failure
     TYPE(cp_subsys_type), POINTER            :: subsys
@@ -505,10 +469,10 @@ CONTAINS
 
     failure = .FALSE.
     CALL timeset(routineN,handle)
-    CALL force_env_get(force_env=force_env, subsys=subsys, error=error)
+    CALL force_env_get(force_env=force_env, subsys=subsys)
 
     CALL cp_subsys_get(subsys=subsys,particles=particles, &
-                       molecule_kinds_new=molecule_kinds, error=error)
+                       molecule_kinds_new=molecule_kinds)
 
     nkind             =  molecule_kinds % n_els
     molecule_kind_set => molecule_kinds % els
@@ -522,15 +486,12 @@ CONTAINS
        nfixed_atoms_total = nfixed_atoms_total + nfixed_atoms
     END DO
     ndim = SIZE(particle_set)-nfixed_atoms_total
-    CPPostcondition(ndim>=0,cp_failure_level,routineP,error,failure)
-    ALLOCATE(Ilist(ndim),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPASSERT(ndim>=0)
+    ALLOCATE(Ilist(ndim))
 
     IF (nfixed_atoms_total/=0) THEN
-       ALLOCATE(ifixd_list(nfixed_atoms_total),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       ALLOCATE(work(nfixed_atoms_total),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       ALLOCATE(ifixd_list(nfixed_atoms_total))
+       ALLOCATE(work(nfixed_atoms_total))
        nfixed_atoms_total = 0
        DO ikind = 1, nkind
           molecule_kind => molecule_kind_set(ikind)
@@ -558,10 +519,8 @@ CONTAINS
              Ilist(ndim) = i
           END IF
        END DO Loop_count
-       DEALLOCATE(ifixd_list,stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       DEALLOCATE(work,stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       DEALLOCATE(ifixd_list)
+       DEALLOCATE(work)
     ELSE
        i    = 1
        ndim = 0
@@ -641,22 +600,20 @@ CONTAINS
 !> \param Dout ...
 !> \param full ...
 !> \param natoms ...
-!> \param error ...
 !> \author Teodoro Laino 08.2006
 ! *****************************************************************************
-  SUBROUTINE build_D_matrix(mat,dof,Dout,full,natoms,error)
+  SUBROUTINE build_D_matrix(mat,dof,Dout,full,natoms)
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: mat
     INTEGER, INTENT(IN)                      :: dof
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: Dout
     LOGICAL, OPTIONAL                        :: full
     INTEGER, INTENT(IN)                      :: natoms
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'build_D_matrix', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, i, ifound, iseq, j, &
-                                                nvib, stat
+                                                nvib
     LOGICAL                                  :: failure, my_full
     REAL(KIND=dp)                            :: norm
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: work
@@ -669,16 +626,14 @@ CONTAINS
     IF (PRESENT(full)) my_full = full
     ! Generate the missing vectors of the orthogonal basis set
     nvib = 3*natoms-dof
-    ALLOCATE(work(3*natoms),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    ALLOCATE(D(3*natoms,3*natoms),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    ALLOCATE(work(3*natoms))
+    ALLOCATE(D(3*natoms,3*natoms))
     ! Check First orthogonality in the first element of the basis set
     DO i = 1, dof
        D(:,i) = mat(:,i)
        DO j = i+1, dof
           norm = DOT_PRODUCT(mat(:,i),mat(:,j))
-          CPPostcondition(ABS(norm)<thrs_motion,cp_failure_level,routineP,error,failure)
+          CPASSERT(ABS(norm)<thrs_motion)
        END DO
     END DO
     ! Generate the nvib orthogonal vectors
@@ -686,7 +641,7 @@ CONTAINS
     ifound = 0
     DO WHILE (ifound /= nvib)
        iseq = iseq + 1
-       CPPostcondition(iseq<=3*natoms,cp_failure_level,routineP,error,failure)
+       CPASSERT(iseq<=3*natoms)
        work       = 0.0_dp
        work(iseq) = 1.0_dp
        ! Gram Schmidt orthogonalization
@@ -702,22 +657,17 @@ CONTAINS
           D(:,dof+ifound) = work / norm
        END IF
     END DO
-    CPPostcondition(dof+ifound==3*natoms,cp_failure_level,routineP,error,failure)
+    CPASSERT(dof+ifound==3*natoms)
     IF (my_full) THEN
-       ALLOCATE(Dout(3*natoms,3*natoms),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       ALLOCATE(Dout(3*natoms,3*natoms))
        Dout = D
     ELSE
-       ALLOCATE(Dout(3*natoms,nvib),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       ALLOCATE(Dout(3*natoms,nvib))
        Dout = D(:,dof+1:)
     END IF
-    DEALLOCATE(work,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    DEALLOCATE(D,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    DEALLOCATE(mat,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    DEALLOCATE(work)
+    DEALLOCATE(D)
+    DEALLOCATE(mat)
     CALL timestop(handle)
   END SUBROUTINE build_D_matrix
 

@@ -1002,7 +1002,6 @@ CONTAINS
 !> \param sabc integrals [a|b|c]
 !> \param sdabc derivative [da/dAi|b|c] 
 !> \param sabdc derivative [a|b|dc/dCi] 
-!> \param error ...
 !> \par History
 !>      08.2011 created (JGH) 
 !>      04.2014 added derivatives (Dorothea Golze)
@@ -1012,7 +1011,7 @@ CONTAINS
   SUBROUTINE overlap3_slow(la_max_set,npgfa,zeta,rpgfa,la_min_set,&
                            lb_max_set,npgfb,zetb,rpgfb,lb_min_set,&
                            lc_max_set,npgfc,zetc,rpgfc,lc_min_set,&
-                           rab,dab,rac,dac,rbc,dbc,sabc,sdabc,sabdc,error)
+                           rab,dab,rac,dac,rbc,dbc,sabc,sdabc,sabdc)
 
     INTEGER, INTENT(IN)                      :: la_max_set, npgfa
     REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: zeta, rpgfa
@@ -1031,14 +1030,13 @@ CONTAINS
       INTENT(INOUT)                          :: sabc
     REAL(KIND=dp), DIMENSION(:, :, :, :), &
       INTENT(INOUT), OPTIONAL                :: sdabc, sabdc
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'overlap3_slow', &
       routineP = moduleN//':'//routineN
 
     INTEGER :: handle, i, ipgf, ix, j, jpgf, k, kpgf, l, la, la_max, la_min, &
       lai, lam, lamm, lb, lb_max, lb_min, lbi, lbm, lbmm, lc, lc_max, lc_min, &
-      lci, lcm, lcmm, na, nb, nc, nda, ndc, stat
+      lci, lcm, lcmm, na, nb, nc, nda, ndc
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: aai, aax, aay, f0, f1, f2, &
                                                 rcp2, zetg, zetp
@@ -1069,17 +1067,14 @@ CONTAINS
     lc_max = lc_max_set + lci
     lc_min = MAX(0,lc_min_set-lci)
 
-    ALLOCATE(s(ncoset(la_max), ncoset(lb_max),ncoset(lc_max)),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    ALLOCATE(s(ncoset(la_max), ncoset(lb_max),ncoset(lc_max)))
     s=0._dp
     IF(PRESENT(sdabc)) THEN
-     ALLOCATE(sda(ncoset(la_max), ncoset(lb_max),ncoset(lc_max),3),STAT=stat)
-     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+     ALLOCATE(sda(ncoset(la_max), ncoset(lb_max),ncoset(lc_max),3))
      sda=0._dp
     ENDIF
     IF(PRESENT(sabdc)) THEN
-     ALLOCATE(sdc(ncoset(la_max), ncoset(lb_max),ncoset(lc_max),3),STAT=stat)
-     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+     ALLOCATE(sdc(ncoset(la_max), ncoset(lb_max),ncoset(lc_max),3))
      sdc=0._dp
     ENDIF
 
@@ -1225,15 +1220,12 @@ CONTAINS
       nda = nda + ncoset(la_max_set)
     END DO
 
-    DEALLOCATE(s,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    DEALLOCATE(s)
     IF(PRESENT(sdabc)) THEN
-     DEALLOCATE(sda,STAT=stat)
-     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+     DEALLOCATE(sda)
     ENDIF
     IF(PRESENT(sabdc)) THEN
-     DEALLOCATE(sdc,STAT=stat)
-     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+     DEALLOCATE(sdc)
     ENDIF
 
     CALL timestop(handle)
@@ -1315,7 +1307,6 @@ CONTAINS
 !> \param sabc integrals [a|b|c]
 !> \param sdabc derivative [da/dAi|b|c] 
 !> \param sabdc derivative [a|b|dc/dCi] 
-!> \param error ...
 !> \par History
 !>      05.2014 created (Dorothea Golze) 
 !> \author Dorothea Golze
@@ -1325,7 +1316,7 @@ CONTAINS
   SUBROUTINE overlap3(la_max_set,npgfa,zeta,rpgfa,la_min_set,&
                       lb_max_set,npgfb,zetb,rpgfb,lb_min_set,&
                       lc_max_set,npgfc,zetc,rpgfc,lc_min_set,&
-                      rab,dab,rac,dac,rbc,dbc,sabc,sdabc,sabdc,error)
+                      rab,dab,rac,dac,rbc,dbc,sabc,sdabc,sabdc)
 
 
     INTEGER, INTENT(IN)                      :: la_max_set, npgfa
@@ -1345,7 +1336,6 @@ CONTAINS
       INTENT(INOUT)                          :: sabc
     REAL(KIND=dp), DIMENSION(:, :, :, :), &
       INTENT(INOUT), OPTIONAL                :: sdabc, sabdc
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'overlap3', &
       routineP = moduleN//':'//routineN
@@ -1353,7 +1343,7 @@ CONTAINS
     INTEGER :: ax, ay, az, bx, by, bz, coa, coax, coay, coaz, coc, cocx, &
       cocy, cocz, cx, cy, cz, handle, i, ipgf, j, jpgf, k, kpgf, l, la, &
       la_max, la_min, la_start, lai, lb, lb_max, lb_min, lbi, lc, lc_max, &
-      lc_min, lci, na, nb, nc, nda, ndc, stat
+      lc_min, lci, na, nb, nc, nda, ndc
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: f0, f1, f2, f3, fcx, fcy, &
                                                 fcz, fx, fy, fz, rcp2, zetg, &
@@ -1385,17 +1375,14 @@ CONTAINS
     lc_max = lc_max_set + lci
     lc_min = MAX(0,lc_min_set-lci)
 
-    ALLOCATE(s(ncoset(la_max), ncoset(lb_max),ncoset(lc_max)),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    ALLOCATE(s(ncoset(la_max), ncoset(lb_max),ncoset(lc_max)))
     s=0._dp
     IF(PRESENT(sdabc)) THEN
-     ALLOCATE(sda(ncoset(la_max), ncoset(lb_max),ncoset(lc_max),3),STAT=stat)
-     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+     ALLOCATE(sda(ncoset(la_max), ncoset(lb_max),ncoset(lc_max),3))
      sda=0._dp
     ENDIF
     IF(PRESENT(sabdc)) THEN
-     ALLOCATE(sdc(ncoset(la_max), ncoset(lb_max),ncoset(lc_max),3),STAT=stat)
-     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+     ALLOCATE(sdc(ncoset(la_max), ncoset(lb_max),ncoset(lc_max),3))
      sdc=0._dp
     ENDIF
 
@@ -2276,15 +2263,12 @@ CONTAINS
       nda = nda + ncoset(la_max_set)
     END DO
 
-    DEALLOCATE(s,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    DEALLOCATE(s)
     IF(PRESENT(sdabc)) THEN
-     DEALLOCATE(sda,STAT=stat)
-     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+     DEALLOCATE(sda)
     ENDIF
     IF(PRESENT(sabdc)) THEN
-     DEALLOCATE(sdc,STAT=stat)
-     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+     DEALLOCATE(sdc)
     ENDIF
 
     CALL timestop(handle)

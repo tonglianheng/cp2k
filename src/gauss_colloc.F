@@ -76,10 +76,9 @@ CONTAINS
 !>  Set it to posi to use the global reference system.
 !> \param scale a global scale factor
 !> \param lgrid ...
-!> \param error type to control the error handling
 ! *****************************************************************************
 SUBROUTINE collocGauss(h,h_inv,grid,poly,alphai,posi,max_r2,&
-        periodic,gdim,local_bounds,local_shift,poly_shift,scale,lgrid,error)
+        periodic,gdim,local_bounds,local_shift,poly_shift,scale,lgrid)
     REAL(dp), DIMENSION(0:2, 0:2), &
       INTENT(in)                             :: h, h_inv
     REAL(dp), DIMENSION(0:, 0:, 0:), &
@@ -100,14 +99,13 @@ SUBROUTINE collocGauss(h,h_inv,grid,poly,alphai,posi,max_r2,&
     REAL(dp), INTENT(in), OPTIONAL           :: scale
     TYPE(lgrid_type), INTENT(inout), &
       OPTIONAL                               :: lgrid
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'collocGauss', &
       routineP = moduleN//':'//routineN
 
     CALL colloc_int_body(h,h_inv,grid,poly,alphai,posi,max_r2,&
                          periodic,gdim,local_bounds,local_shift,&
-                         poly_shift,scale,lgrid,integrate=.FALSE.,error=error)
+                         poly_shift,scale,lgrid,integrate=.FALSE.)
 
 END SUBROUTINE
 
@@ -130,10 +128,9 @@ END SUBROUTINE
 !> \param local_shift ...
 !> \param poly_shift ...
 !> \param scale ...
-!> \param error ...
 ! *****************************************************************************
 SUBROUTINE integrateGaussFull(h,h_inv,grid,poly,alphai,posi,max_r2,&
-        periodic,gdim,local_bounds,local_shift,poly_shift,scale,error)
+        periodic,gdim,local_bounds,local_shift,poly_shift,scale)
     REAL(dp), DIMENSION(0:2, 0:2), &
       INTENT(in)                             :: h, h_inv
     REAL(dp), DIMENSION(0:, 0:, 0:), &
@@ -152,14 +149,13 @@ SUBROUTINE integrateGaussFull(h,h_inv,grid,poly,alphai,posi,max_r2,&
     REAL(dp), DIMENSION(0:2), INTENT(in), &
       OPTIONAL                               :: poly_shift
     REAL(dp), INTENT(in), OPTIONAL           :: scale
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'integrateGaussFull', &
       routineP = moduleN//':'//routineN
 
     CALL colloc_int_body(h,h_inv,grid,poly,alphai,posi,max_r2,&
                          periodic,gdim,local_bounds,local_shift,&
-                         poly_shift,scale,integrate=.TRUE.,error=error)
+                         poly_shift,scale,integrate=.TRUE.)
 
 
 END SUBROUTINE
@@ -183,10 +179,9 @@ END SUBROUTINE
 !> \param scale ...
 !> \param lgrid ...
 !> \param integrate ...
-!> \param error ...
 ! *****************************************************************************
 SUBROUTINE colloc_int_body(h,h_inv,grid,poly,alphai,posi,max_r2,&
-        periodic,gdim,local_bounds,local_shift,poly_shift,scale,lgrid,integrate,error)
+        periodic,gdim,local_bounds,local_shift,poly_shift,scale,lgrid,integrate)
     REAL(dp), DIMENSION(0:2, 0:2), &
       INTENT(in)                             :: h, h_inv
     REAL(dp), DIMENSION(0:, 0:, 0:), &
@@ -208,7 +203,6 @@ SUBROUTINE colloc_int_body(h,h_inv,grid,poly,alphai,posi,max_r2,&
     TYPE(lgrid_type), INTENT(inout), &
       OPTIONAL                               :: lgrid
     LOGICAL                                  :: integrate
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'colloc_int_body', &
         routineP=moduleN//':'//routineN
@@ -218,7 +212,7 @@ SUBROUTINE colloc_int_body(h,h_inv,grid,poly,alphai,posi,max_r2,&
       ijShift, iJump, ik, ikShift, ikShift2, ikstart, ikstart2, iend,iend2,&
       imax, imax1, imin, imin1, istart, istart2, j, jend, jJump, jmax, jmax1, jmin, &
       jmin1, jstart, k, kend, kend2, kgrad, kJump, kmax, kmax1, kmin, kmin1, &
-      kstart, kstart2, max_j, stat,size_jk,size_k,size_ijk,ig,ithread,nthread
+      kstart, kstart2, max_j, size_jk,size_k,size_ijk,ig,ithread,nthread
     INTEGER, ALLOCATABLE, DIMENSION(:, :, :) :: k_bounds
     INTEGER, DIMENSION(0:2)                  :: cellShift, l_shift, l_ub, &
                                                 ndim, period, shiftPos,ldim2
@@ -308,16 +302,16 @@ SUBROUTINE colloc_int_body(h,h_inv,grid,poly,alphai,posi,max_r2,&
     END IF
     l_ub=l_bounds(2,:)-l_bounds(1,:)+l_shift
     DO i=0,2
-        CPPrecondition(l_ub(i)<ldim2(i),cp_failure_level,routineP,error,failure)
+        CPASSERT(l_ub(i)<ldim2(i))
     END DO
     IF (failure) RETURN
 
     DO i=0,2
         period(permut(i))=periodic(i)
     END DO
-    CPPrecondition(ALL(l_bounds(2,:)<ndim.or.period(:)==1),cp_failure_level,routineP,error,failure)
-    CPPrecondition(ALL(l_bounds(1,:)>=0 .or.period(:)==1),cp_failure_level,routineP,error,failure)
-    CPPrecondition(ALL(l_bounds(2,:)-l_bounds(1,:)<ndim),cp_failure_level,routineP,error,failure)
+    CPASSERT(ALL(l_bounds(2,:)<ndim.or.period(:)==1))
+    CPASSERT(ALL(l_bounds(1,:)>=0 .or.period(:)==1))
+    CPASSERT(ALL(l_bounds(2,:)-l_bounds(1,:)<ndim))
     rPos=0.0_dp
     DO j=0,2
         DO i=0,2
@@ -512,8 +506,7 @@ SUBROUTINE colloc_int_body(h,h_inv,grid,poly,alphai,posi,max_r2,&
 
     ! k bounds (cache a la cube_info?)
     has_overlap=.FALSE.
-    ALLOCATE(k_bounds(0:1,0:max_j-1,0:MAX(0,imax-imin+1)),stat=stat)
-    CPPostconditionNoFail(stat==0,cp_fatal_level,routineP,error)
+    ALLOCATE(k_bounds(0:1,0:max_j-1,0:MAX(0,imax-imin+1)))
     ! k_bounds=0
     istart=imin
     iiShift=shiftPos(0)-l_bounds(2,0)+istart
@@ -596,23 +589,20 @@ SUBROUTINE colloc_int_body(h,h_inv,grid,poly,alphai,posi,max_r2,&
     size_ijk=poly_size3(grad)*npoly
     ALLOCATE(poly_ijk(size_ijk),&
         poly_jk(size_jk),&
-        xi(grad+1),stat=stat)
-    CPPostconditionNoFail(stat==0,cp_fatal_level,routineP,error)
+        xi(grad+1))
 
     IF(integrate) THEN
-        ALLOCATE(k_vals(0:grad),stat=stat)
-        CPPostconditionNoFail(stat==0,cp_fatal_level,routineP,error)
+        ALLOCATE(k_vals(0:grad))
     ELSE
-        ALLOCATE(poly_k(0:size_k-1),stat=stat)
-        CPPostconditionNoFail(stat==0,cp_fatal_level,routineP,error)
+        ALLOCATE(poly_k(0:size_k-1))
     ENDIF
 
     IF (integrate) THEN
-       CPPreconditionNoFail(SIZE(poly)==poly_size3(grad),cp_failure_level,routineP,error)
+       CPASSERT(SIZE(poly)==poly_size3(grad))
        poly_ijk=0.0_dp
     ELSE
        CALL poly_affine_t3(poly,scaled_h,-resPosReal+p_shift,poly_ijk,&
-           npoly=npoly,error=error)
+           npoly=npoly)
     ENDIF
 
     ij_coeff0=EXP(-2.0_dp*alphai*m(0,1))
@@ -739,7 +729,7 @@ SUBROUTINE colloc_int_body(h,h_inv,grid,poly,alphai,posi,max_r2,&
     ! the final cleanup
     IF(integrate) THEN
        CALL poly_affine_t3t(poly_ijk,scaled_h,-resPosReal+p_shift,poly,&
-           npoly=npoly,error=error)
+           npoly=npoly)
     END IF
 
     ! rely on compiler to deallocate ALLOCATABLEs
@@ -870,7 +860,7 @@ SUBROUTINE j_loop()
        CALL poly_padd_uneval3b(IF_CHECK(poly_ijk,poly_ijk(1)),size_ijk,REAL(i,dp),&
             IF_CHECK(poly_jk,poly_jk(1)),size_jk,&
            npoly=npoly,grad=grad,xi=IF_CHECK(xi,xi(1)))
-       !CALL poly_padd_uneval3(poly_ijk,REAL(i,dp),poly_jk,npoly=npoly,error=error)
+       !CALL poly_padd_uneval3(poly_ijk,REAL(i,dp),poly_jk,npoly=npoly)
     ENDIF
 END SUBROUTINE
 

@@ -90,14 +90,12 @@ CONTAINS
 !> \param diag_lib diag_library flag from GLOBAL section in input
 !> \param switched ...
 !> \param k_elpa ...
-!> \param error ...
 !> \author  MI 11.2013       
 ! *****************************************************************************
-  SUBROUTINE diag_init(diag_lib,switched,k_elpa,error)
+  SUBROUTINE diag_init(diag_lib,switched,k_elpa)
     CHARACTER(LEN=*), INTENT(IN)             :: diag_lib
     LOGICAL, INTENT(INOUT)                   :: switched
     INTEGER, INTENT(IN)                      :: k_elpa
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'diag_init', &
       routineP = moduleN//':'//routineN
@@ -156,17 +154,15 @@ CONTAINS
 !> \param eigenvectors ...
 !> \param eigenvalues ...
 !> \param info ...
-!> \param error ...
 !> \par     info If present returns error code and prevents program stops.
 !>               Works currently only for cp_fm_syevd with scalapack.
 !>               Other solvers will end the program regardless of PRESENT(info).
 ! *****************************************************************************
-  SUBROUTINE choose_eigv_solver(matrix,eigenvectors,eigenvalues,info,error)
+  SUBROUTINE choose_eigv_solver(matrix,eigenvectors,eigenvalues,info)
 
     TYPE(cp_fm_type), POINTER                :: matrix, eigenvectors
     REAL(KIND=dp), DIMENSION(:), INTENT(OUT) :: eigenvalues
     INTEGER, INTENT(OUT), OPTIONAL           :: info
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'choose_eigv_solver', &
       routineP = moduleN//':'//routineN
@@ -181,11 +177,11 @@ CONTAINS
     CALL m_memory()
 
     IF(diag_type==3) THEN
-      CALL cp_fm_elpa(matrix,eigenvectors,eigenvalues,error=error)
+      CALL cp_fm_elpa(matrix,eigenvectors,eigenvalues)
     ELSE IF(diag_type==2) THEN
-      CALL cp_fm_syevr(matrix,eigenvectors,eigenvalues,1,nmo,error=error)
+      CALL cp_fm_syevr(matrix,eigenvectors,eigenvalues,1,nmo)
     ELSE IF(diag_type==1) THEN
-      CALL cp_fm_syevd(matrix,eigenvectors,eigenvalues,info=myinfo,error=error)
+      CALL cp_fm_syevd(matrix,eigenvectors,eigenvalues,info=myinfo)
     END IF
 
     IF (PRESENT(info)) info = myinfo 
@@ -199,23 +195,21 @@ CONTAINS
 !> \param eigenvectors ...
 !> \param eigenvalues ...
 !> \param info ...
-!> \param error ...
 !> \par     matrix is supposed to be in upper triangular form, and overwritten by this routine
 !> \par     info If present returns error code and prevents program stops.
 !>               Works currently only for scalapack.
 !>               Other solvers will end the program regardless of PRESENT(info).
 ! *****************************************************************************
-  SUBROUTINE cp_fm_syevd(matrix,eigenvectors,eigenvalues,info,error)
+  SUBROUTINE cp_fm_syevd(matrix,eigenvectors,eigenvalues,info)
 
     TYPE(cp_fm_type), POINTER                :: matrix, eigenvectors
     REAL(KIND=dp), DIMENSION(:), INTENT(OUT) :: eigenvalues
     INTEGER, INTENT(OUT), OPTIONAL           :: info
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_fm_syevd', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, istat, myinfo, n, nmo
+    INTEGER                                  :: handle, myinfo, n, nmo
     LOGICAL                                  :: failure
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: eig
 #if defined(__SCALAPACK)
@@ -242,8 +236,7 @@ CONTAINS
     myinfo = 0
 
     n = matrix%matrix_struct%nrow_global
-    ALLOCATE(eig(n), STAT=istat)
-    CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+    ALLOCATE(eig(n))
 
 
 #if defined(__SCALAPACK)
@@ -272,22 +265,22 @@ CONTAINS
 
        IF (group_distribution(mepos_old)==0) THEN
 
-          ! create para_env, might need a proper error, bound to this para_env
+          ! create para_env, might need a proper bound to this para_env
           NULLIFY(para_env_new)
-          CALL cp_para_env_create(para_env_new,subgroup,error=error)
+          CALL cp_para_env_create(para_env_new,subgroup)
           ! test a sync
           CALL mp_sync(para_env_new%group)
 
           ! create blacs, should inherit the preferences for the layout and so on, from the higher level
           NULLIFY(blacs_env_new)
-          CALL cp_blacs_env_create(blacs_env=blacs_env_new, para_env=para_env_new, error=error)
+          CALL cp_blacs_env_create(blacs_env=blacs_env_new, para_env=para_env_new)
 
           ! create new matrix
           NULLIFY(fm_struct_new)
           CALL cp_fm_struct_create(fmstruct=fm_struct_new, para_env=para_env_new, context=blacs_env_new,&
-                                   nrow_global=n, ncol_global=n, error=error)
-          CALL cp_fm_create(matrix_new, matrix_struct=fm_struct_new, name="yevd_new_mat", error=error)
-          CALL cp_fm_create(eigenvectors_new, matrix_struct=fm_struct_new, name="yevd_new_vec", error=error)
+                                   nrow_global=n, ncol_global=n)
+          CALL cp_fm_create(matrix_new, matrix_struct=fm_struct_new, name="yevd_new_mat")
+          CALL cp_fm_create(eigenvectors_new, matrix_struct=fm_struct_new, name="yevd_new_vec")
 
           ! redistribute old
           CALL pdgemr2d(n,n,matrix%local_data(1,1),1,1,matrix%matrix_struct%descriptor, &
@@ -295,7 +288,7 @@ CONTAINS
                         matrix%matrix_struct%context%group)
 
           ! call scalapack
-          CALL cp_fm_syevd_base(matrix_new,eigenvectors_new,eig,myinfo,error)
+          CALL cp_fm_syevd_base(matrix_new,eigenvectors_new,eig,myinfo)
 
           ! redistribute results
           CALL pdgemr2d(n,n,eigenvectors_new%local_data(1,1),1,1,eigenvectors_new%matrix_struct%descriptor, &
@@ -303,11 +296,11 @@ CONTAINS
                         eigenvectors%matrix_struct%context%group)
 
           ! free stuff
-          CALL cp_fm_struct_release(fm_struct_new,error=error)
-          CALL cp_fm_release(matrix_new,error=error)
-          CALL cp_fm_release(eigenvectors_new,error=error)
-          CALL cp_blacs_env_release(blacs_env_new,error=error)
-          CALL cp_para_env_release(para_env_new,error=error)
+          CALL cp_fm_struct_release(fm_struct_new)
+          CALL cp_fm_release(matrix_new)
+          CALL cp_fm_release(eigenvectors_new)
+          CALL cp_blacs_env_release(blacs_env_new)
+          CALL cp_para_env_release(para_env_new)
 
        ELSE
           ! these tasks must help redistribute (they own part of the data),
@@ -334,7 +327,7 @@ CONTAINS
 
     ELSE
 
-        CALL cp_fm_syevd_base(matrix,eigenvectors,eig,myinfo,error)
+        CALL cp_fm_syevd_base(matrix,eigenvectors,eig,myinfo)
 
     ENDIF
 
@@ -347,11 +340,9 @@ CONTAINS
     m => matrix%local_data
     eig(:) = 0.0_dp
 
-    ALLOCATE (work(1),STAT=istat)
-    CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+    ALLOCATE (work(1))
     work(:) = 0.0_dp
-    ALLOCATE (iwork(1),STAT=istat)
-    CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+    ALLOCATE (iwork(1))
     iwork(:) = 0
 
     CALL dsyevd('V','U',n,m(1,1),n,eig(1),work(1),lwork,iwork(1),liwork,myinfo)
@@ -363,16 +354,12 @@ CONTAINS
 
     ! Reallocate work arrays and perform diagonalisation
     lwork = INT(work(1))
-    DEALLOCATE (work,STAT=istat)
-    CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
-    ALLOCATE(work(lwork),STAT=istat)
-    CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+    DEALLOCATE (work)
+    ALLOCATE(work(lwork))
 
     liwork = iwork(1)
-    DEALLOCATE (iwork,STAT=istat)
-    CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
-    ALLOCATE(iwork(liwork),STAT=istat)
-    CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+    DEALLOCATE (iwork)
+    ALLOCATE(iwork(liwork))
     iwork(:) = 0
 
     CALL dsyevd('V','U',n,m(1,1),n,eig(1),work(1),lwork,iwork(1),liwork,myinfo)
@@ -382,12 +369,10 @@ CONTAINS
                         "Matrix diagonalization failed")
     END IF
 
-    CALL cp_fm_to_fm(matrix,eigenvectors,error=error)
+    CALL cp_fm_to_fm(matrix,eigenvectors)
 
-    DEALLOCATE (iwork,STAT=istat)
-    CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
-    DEALLOCATE (work,STAT=istat)
-    CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+    DEALLOCATE (iwork)
+    DEALLOCATE (work)
 #endif
 
     IF(PRESENT(info)) myinfo = 0
@@ -399,8 +384,7 @@ CONTAINS
       eigenvalues(1:nmo) = eig(1:nmo)
     END IF
 
-    DEALLOCATE (eig,STAT=istat)
-    CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+    DEALLOCATE (eig)
     CALL timestop(handle)
 
   END SUBROUTINE cp_fm_syevd
@@ -411,14 +395,12 @@ CONTAINS
 !> \param eigenvectors ...
 !> \param eig ...
 !> \param info ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE cp_fm_syevd_base(matrix,eigenvectors,eig,info,error)
+  SUBROUTINE cp_fm_syevd_base(matrix,eigenvectors,eig,info)
 
     TYPE(cp_fm_type), POINTER                :: matrix, eigenvectors
     REAL(KIND=dp), DIMENSION(:)              :: eig
     INTEGER, INTENT(OUT)                     :: info
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_fm_syevd_base', &
       routineP = moduleN//':'//routineN
@@ -427,7 +409,7 @@ CONTAINS
     LOGICAL                                  :: failure
 #if defined(__SCALAPACK)
     TYPE(cp_blacs_env_type), POINTER         :: context
-    INTEGER                                  :: istat, liwork, lwork, &
+    INTEGER                                  :: liwork, lwork, &
                                                 mypcol, myprow, n
     INTEGER, DIMENSION(9)                    :: descm, descv
     INTEGER, DIMENSION(:), POINTER           :: iwork
@@ -455,13 +437,11 @@ CONTAINS
     descv(:) = eigenvectors%matrix_struct%descriptor(:)
 
     liwork = 7*n + 8*context%num_pe(2) + 2
-    ALLOCATE(iwork(liwork),STAT=istat)
-    CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+    ALLOCATE(iwork(liwork))
     ! work space query
 
     lwork = -1
-    ALLOCATE(work(1),STAT=istat)
-    CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+    ALLOCATE(work(1))
 
     CALL pdsyevd('V','U',n,m(1,1),1,1,descm,eig(1),v(1,1),1,1,descv, &
                  work(1),lwork,iwork(1),liwork,info)
@@ -474,10 +454,8 @@ CONTAINS
 
     lwork = NINT(work(1)+100000)
 !    lwork = NINT(work(1))
-    DEALLOCATE (work,STAT=istat)
-    CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
-    ALLOCATE(work(lwork),STAT=istat)
-    CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+    DEALLOCATE (work)
+    ALLOCATE(work(lwork))
 
     ! Scalapack takes advantage of IEEE754 exceptions for speedup.
     ! Therefore, we disable floating point traps temporarily.
@@ -496,11 +474,9 @@ CONTAINS
     IF(info /= 0) CALL stop_program &
        (routineN,moduleN,__LINE__, "Matrix diagonalization failed")
 
-    DEALLOCATE (work,STAT=istat)
-    CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+    DEALLOCATE (work)
 
-    DEALLOCATE (iwork,STAT=istat)
-    CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+    DEALLOCATE (iwork)
 
 #endif
 
@@ -517,13 +493,12 @@ CONTAINS
 !> \param eigenvalues ...
 !> \param neig ...
 !> \param work_syevx ...
-!> \param error ...
 !> \par     matrix is supposed to be in upper triangular form, and overwritten by this routine
 !>          neig   is the number of vectors needed (default all)
 !>          work_syevx evec calculation only, is the fraction of the working buffer allowed (1.0 use full buffer)
 !>                     reducing this saves time, but might cause the routine to fail
 ! *****************************************************************************
-  SUBROUTINE cp_fm_syevx(matrix,eigenvectors,eigenvalues,neig,work_syevx,error)
+  SUBROUTINE cp_fm_syevx(matrix,eigenvectors,eigenvalues,neig,work_syevx)
 
     ! Diagonalise the symmetric n by n matrix using the LAPACK library.
 
@@ -532,7 +507,6 @@ CONTAINS
     REAL(KIND = dp), OPTIONAL, INTENT(IN)        :: work_syevx
     INTEGER, INTENT(IN), OPTIONAL                :: neig
     REAL(KIND = dp), DIMENSION(:), INTENT(OUT)   :: eigenvalues
-    TYPE(cp_error_type), INTENT(inout)  :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = "cp_fm_syevx",&
                                    routineP = moduleN//":"//routineN
@@ -545,7 +519,7 @@ CONTAINS
     TYPE(cp_logger_type), POINTER                :: logger
     CHARACTER(LEN=1)                             :: job_type
     REAL(KIND=dp)                                :: abstol, work_syevx_local
-    INTEGER                                      :: handle, info, istat, &
+    INTEGER                                      :: handle, info, &
                                                     liwork, lwork, m, mypcol, &
                                                     myprow, n, nb, npcol, &
                                                     nprow, output_unit, &
@@ -581,7 +555,7 @@ CONTAINS
 
     needs_evecs=PRESENT(eigenvectors)
 
-    logger => cp_error_get_logger(error)
+    logger => cp_get_default_logger()
     ionode = logger%para_env%mepos==logger%para_env%source
     n = matrix%matrix_struct%nrow_global
 
@@ -607,8 +581,7 @@ CONTAINS
     npcol=context%num_pe(2)
 
 
-    ALLOCATE (w(n),STAT=istat)
-    CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+    ALLOCATE (w(n))
     eigenvalues(:) = 0.0_dp
 #if defined(__SCALAPACK)
 
@@ -645,19 +618,14 @@ CONTAINS
     ENDIF
     liwork = 6*MAX(N,npe+1,4)
 
-    ALLOCATE (gap(npe),STAT=istat)
-    CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+    ALLOCATE (gap(npe))
     gap = 0.0_dp
-    ALLOCATE (iclustr(2*npe),STAT=istat)
-    CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+    ALLOCATE (iclustr(2*npe))
     iclustr = 0
-    ALLOCATE (ifail(n),STAT=istat)
-    CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+    ALLOCATE (ifail(n))
     ifail = 0
-    ALLOCATE (iwork(liwork),STAT=istat)
-    CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
-    ALLOCATE (work(lwork),STAT=istat)
-    CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+    ALLOCATE (iwork(liwork))
+    ALLOCATE (work(lwork))
 
     ! Scalapack takes advantage of IEEE754 exceptions for speedup.
     ! Therefore, we disable floating point traps temporarily.
@@ -698,16 +666,11 @@ CONTAINS
 
     ! Release work storage
 
-    DEALLOCATE (gap,STAT=istat)
-    CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
-    DEALLOCATE (iclustr,STAT=istat)
-    CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
-    DEALLOCATE (ifail,STAT=istat)
-    CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
-    DEALLOCATE (iwork,STAT=istat)
-    CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
-    DEALLOCATE (work,STAT=istat)
-    CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+    DEALLOCATE (gap)
+    DEALLOCATE (iclustr)
+    DEALLOCATE (ifail)
+    DEALLOCATE (iwork)
+    DEALLOCATE (work)
 
 #else
 
@@ -727,13 +690,10 @@ CONTAINS
     lwork = MAX((nb + 3)*n,8*n)+n ! sun bug fix
     liwork = 5*n
 
-    ALLOCATE (ifail(n),STAT=istat)
-    CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+    ALLOCATE (ifail(n))
     ifail = 0
-    ALLOCATE (iwork(liwork),STAT=istat)
-    CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
-    ALLOCATE (work(lwork),STAT=istat)
-    CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+    ALLOCATE (iwork(liwork))
+    ALLOCATE (work(lwork))
     info = 0
 
     CALL dsyevx(job_type,"I","U",n,a(1,1),n,vl,vu,1,neig_local,abstol,m,w,z(1,1),n,work(1),lwork,&
@@ -755,17 +715,13 @@ CONTAINS
 
     ! Release work storage
 
-    DEALLOCATE (ifail,STAT=istat)
-    CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
-    DEALLOCATE (iwork,STAT=istat)
-    CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
-    DEALLOCATE (work,STAT=istat)
-    CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+    DEALLOCATE (ifail)
+    DEALLOCATE (iwork)
+    DEALLOCATE (work)
 
 #endif
     eigenvalues(1:neig_local) = w(1:neig_local)
-    DEALLOCATE (w,STAT=istat)
-    CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+    DEALLOCATE (w)
 
     CALL timestop(handle)
 
@@ -781,18 +737,16 @@ CONTAINS
 !> \param eigenvalues ...
 !> \param ilow ...
 !> \param iup ...
-!> \param error ...
 !> \par     matrix is supposed to be in upper triangular form, and overwritten by this routine
 !>          subsets of eigenvalues/vectors can be selected by
 !>          specifying a range of values or a range of indices for the desired eigenvalues.
 ! *****************************************************************************
-  SUBROUTINE cp_fm_syevr(matrix,eigenvectors,eigenvalues,ilow,iup,error)
+  SUBROUTINE cp_fm_syevr(matrix,eigenvectors,eigenvalues,ilow,iup)
 
     TYPE(cp_fm_type), POINTER                    :: matrix
     TYPE(cp_fm_type), POINTER, OPTIONAL          :: eigenvectors
     REAL(KIND = dp), DIMENSION(:), INTENT(OUT)   :: eigenvalues
     INTEGER, INTENT(IN), OPTIONAL                :: ilow,iup
-    TYPE(cp_error_type), INTENT(inout)  :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = "cp_fm_syevr",&
                                    routineP = moduleN//":"//routineN
@@ -801,7 +755,7 @@ CONTAINS
 
     CHARACTER(LEN=1)                           :: job_type
     INTEGER                                    :: handle, ilow_local,&
-                                                  info, istat, iup_local,&
+                                                  info, iup_local,&
                                                   lwork, liwork, mypcol,&
                                                   myprow, n, neig
     INTEGER, DIMENSION(:), ALLOCATABLE         :: iwork
@@ -843,7 +797,7 @@ CONTAINS
 
     needs_evecs=PRESENT(eigenvectors)
 
-    logger => cp_error_get_logger(error)
+    logger => cp_get_default_logger()
     ionode = logger%para_env%mepos==logger%para_env%source
     n = matrix%matrix_struct%nrow_global
 
@@ -858,15 +812,14 @@ CONTAINS
     myprow=context%mepos(1)
     mypcol=context%mepos(2)
 
-    ALLOCATE(w(n), STAT=istat)
-    CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+    ALLOCATE(w(n))
 
     eigenvalues(:) = 0.0_dp
 
 #if defined(__SCALAPACK)
 
     IF (matrix%matrix_struct%nrow_block /= matrix%matrix_struct%ncol_block) THEN
-      CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)
+      CPASSERT(.FALSE.)
     END IF
 
     a => matrix%local_data
@@ -883,10 +836,8 @@ CONTAINS
 
     ! First Call: Determine the needed work_space
     lwork = -1
-    ALLOCATE(work(5*n), STAT=istat)
-    CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
-    ALLOCATE(iwork(6*n), STAT=istat)
-    CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+    ALLOCATE(work(5*n))
+    ALLOCATE(iwork(6*n))
 #if defined (__SCALAPACK2)
     CALL pdsyevr(job_type,'I','U',n,a,1,1,desca,vl,vu,ilow_local,iup_local,m,nz,w(1),z,1,1,descz,work,lwork,iwork,liwork,info)
 #endif
@@ -894,14 +845,12 @@ CONTAINS
     lwork = NINT(work(1)+300000)
     liwork = iwork(1)
     IF(lwork>SIZE(work,1)) THEN
-      DEALLOCATE(work,STAT=istat)
-      ALLOCATE(work(lwork),STAT=istat)
-      CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+      DEALLOCATE(work)
+      ALLOCATE(work(lwork))
     END IF
     IF(liwork>SIZE(iwork,1)) THEN
-      DEALLOCATE(iwork,STAT=istat)
-      ALLOCATE(iwork(liwork),STAT=istat)
-      CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+      DEALLOCATE(iwork)
+      ALLOCATE(iwork(liwork))
     END IF
 
     !Second call: solve the eigenvalue problem
@@ -913,13 +862,11 @@ CONTAINS
     IF(info>0) THEN
       WRITE(*,*) 'Processor ', myprow, mypcol, ': Error! INFO code = ', INFO
     END IF
-    CPPrecondition(info==0,cp_failure_level,routineP,error,failure)
+    CPASSERT(info==0)
 
     ! Release work storage
-    DEALLOCATE (iwork,STAT=istat)
-    CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
-    DEALLOCATE (work,STAT=istat)
-    CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+    DEALLOCATE (iwork)
+    DEALLOCATE (work)
 
 #else
 
@@ -939,14 +886,11 @@ CONTAINS
     lwork = MAX((nb + 3)*n,8*n)+n ! sun bug fix
     liwork = 5*n
 
-    ALLOCATE (ifail(n),STAT=istat)
-    CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+    ALLOCATE (ifail(n))
     ifail = 0
 
-    ALLOCATE (iwork(liwork),STAT=istat)
-    CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
-    ALLOCATE (work(lwork),STAT=istat)
-    CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+    ALLOCATE (iwork(liwork))
+    ALLOCATE (work(lwork))
 
     ! target the most accurate calculation of the eigenvalues
     abstol = 2.0_dp*dlamch("S")
@@ -956,19 +900,16 @@ CONTAINS
                 iwork(1),ifail(1),info)
 
     ! Error handling
-    CPPrecondition(info==0,cp_failure_level,routineP,error,failure)
+    CPASSERT(info==0)
 
     ! Release work storage
-    DEALLOCATE (iwork,STAT=istat)
-    CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
-    DEALLOCATE (work,STAT=istat)
-    CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+    DEALLOCATE (iwork)
+    DEALLOCATE (work)
 
 #endif
 
     eigenvalues(ilow_local:iup_local) = w(ilow_local:iup_local)
-    DEALLOCATE (w,STAT=istat)
-    CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+    DEALLOCATE (w)
 
     CALL timestop(handle)
 
@@ -979,13 +920,11 @@ CONTAINS
 !> \param matrix ...
 !> \param eigenvectors ...
 !> \param eigenvalues ...
-!> \param error ...
 ! *****************************************************************************
- SUBROUTINE cp_fm_elpa(matrix,eigenvectors,eigenvalues,error)
+ SUBROUTINE cp_fm_elpa(matrix,eigenvectors,eigenvalues)
 
     TYPE(cp_fm_type), POINTER                :: matrix, eigenvectors
     REAL(KIND=dp), DIMENSION(:)              :: eigenvalues
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_fm_elpa', &
       routineP = moduleN//':'//routineN
@@ -993,7 +932,7 @@ CONTAINS
     INTEGER                                  :: handle
 #if defined(__SCALAPACK)
     INTEGER                                  :: comm_col, comm_row, group, &
-                                                istat, mypcol, &
+                                                mypcol, &
                                                 myprow, n, n_rows, nblk, neig
     LOGICAL                                  :: failure, success
     REAL(KIND=dp), DIMENSION(:), POINTER     :: eval
@@ -1025,14 +964,13 @@ CONTAINS
     v => eigenvectors%local_data
 
     ! elpa needs the full matrix
-    CALL cp_fm_upper_to_full(matrix,eigenvectors,error=error)
+    CALL cp_fm_upper_to_full(matrix,eigenvectors)
 
     n_rows = matrix%matrix_struct%local_leading_dimension
     nblk = matrix%matrix_struct%nrow_block
     neig = SIZE(eigenvalues,1)
     ! the full eigenvalues vector is needed
-    ALLOCATE(eval(n),STAT=istat)
-    CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+    ALLOCATE(eval(n))
 
     ! Calculate eigenvalues/eigenvectors
 #if defined (__ELPA) || defined (__ELPA2)
@@ -1045,17 +983,15 @@ CONTAINS
               THIS_REAL_ELPA_KERNEL_API=kernel_type,useQR=.FALSE.)
      CALL cp_assert(success,cp_failure_level,cp_assertion_failed,&
      routineP,"ELPA failed to diagonalize a matrix at "//&
-CPSourceFileRef,&
-     error)
+CPSourceFileRef)
 #endif
 
 #else
-    CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)
+    CPASSERT(.FALSE.)
 #endif
     eigenvalues(1:neig) = eval(1:neig)
 
-    DEALLOCATE(eval,STAT=istat)
-    CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+    DEALLOCATE(eval)
 
     ! mpi communicators are freed
     CALL mp_comm_free(comm_row)
@@ -1076,9 +1012,8 @@ CPSourceFileRef,&
 !> \param threshold ...
 !> \param n_dependent ...
 !> \param verbose ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE cp_fm_power(matrix,work,exponent,threshold,n_dependent,verbose,error)
+  SUBROUTINE cp_fm_power(matrix,work,exponent,threshold,n_dependent,verbose)
 
    ! Raise the real symmetric n by n matrix to the power given by
    ! the exponent. All eigenvectors with a corresponding eigenvalue lower
@@ -1091,12 +1026,11 @@ CPSourceFileRef,&
    REAL(KIND = dp), INTENT(IN)               :: exponent,threshold
    INTEGER, INTENT(OUT)                      :: n_dependent
    LOGICAL, INTENT(IN), OPTIONAL             :: verbose
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_fm_power', &
       routineP = moduleN//':'//routineN
 
-   INTEGER                                    :: handle,icol_global,istat,&
+   INTEGER                                    :: handle,icol_global,&
                                                  mypcol,myprow,&
                                                  ncol_global,npcol,nprow,&
                                                  nrow_global
@@ -1129,14 +1063,13 @@ CPSourceFileRef,&
     nrow_global = matrix%matrix_struct%nrow_global
     ncol_global = matrix%matrix_struct%ncol_global
 
-    ALLOCATE (eigenvalues(ncol_global),STAT=istat)
-    CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+    ALLOCATE (eigenvalues(ncol_global))
 
     eigenvalues(:) = 0.0_dp
 
     ! Compute the eigenvectors and eigenvalues
 
-    CALL choose_eigv_solver(matrix,work,eigenvalues,error=error)
+    CALL choose_eigv_solver(matrix,work,eigenvalues)
 
 #if defined(__SCALAPACK)
     nrow_block = work%matrix_struct%nrow_block
@@ -1219,8 +1152,8 @@ CPSourceFileRef,&
     END DO
 
 #endif
-    CALL cp_fm_syrk("U","N",ncol_global,1.0_dp,work,1,1,0.0_dp,matrix,error=error)
-    CALL cp_fm_upper_to_full(matrix,work,error=error)
+    CALL cp_fm_syrk("U","N",ncol_global,1.0_dp,work,1,1,0.0_dp,matrix)
+    CALL cp_fm_upper_to_full(matrix,work)
 
     ! Print some warnings/notes
 
@@ -1240,8 +1173,7 @@ CPSourceFileRef,&
       END IF
     END IF
 
-    DEALLOCATE (eigenvalues,STAT=istat)
-    CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+    DEALLOCATE (eigenvalues)
 
     CALL timestop(handle)
 
@@ -1472,14 +1404,12 @@ CPSourceFileRef,&
 !> \param eigenvectors ...
 !> \param eigenvalues ...
 !> \param work ...
-!> \param error ...
 ! *****************************************************************************
- SUBROUTINE cp_fm_geeig(amatrix,bmatrix,eigenvectors,eigenvalues,work,error)
+ SUBROUTINE cp_fm_geeig(amatrix,bmatrix,eigenvectors,eigenvalues,work)
 
     TYPE(cp_fm_type), POINTER                :: amatrix, bmatrix, eigenvectors
     REAL(KIND=dp), DIMENSION(:)              :: eigenvalues
     TYPE(cp_fm_type), POINTER                :: work
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_fm_geeig', &
       routineP = moduleN//':'//routineN
@@ -1491,20 +1421,20 @@ CPSourceFileRef,&
 
     failure = .FALSE.
 
-    CALL cp_fm_get_info(amatrix,nrow_global=nao,error=error)
+    CALL cp_fm_get_info(amatrix,nrow_global=nao)
     nmo = SIZE(eigenvalues)
     ! Cholesky decompose S=U(T)U
-    CALL cp_fm_cholesky_decompose(bmatrix,error=error)
+    CALL cp_fm_cholesky_decompose(bmatrix)
     ! Invert to get U^(-1)
-    CALL cp_fm_triangular_invert(bmatrix,error=error)
+    CALL cp_fm_triangular_invert(bmatrix)
     ! Reduce to get U^(-T) * H * U^(-1)
-    CALL cp_fm_triangular_multiply(bmatrix,amatrix,side="R",error=error)
-    CALL cp_fm_triangular_multiply(bmatrix,amatrix,transpose_tr=.TRUE.,error=error)
+    CALL cp_fm_triangular_multiply(bmatrix,amatrix,side="R")
+    CALL cp_fm_triangular_multiply(bmatrix,amatrix,transpose_tr=.TRUE.)
     ! Diagonalize
     CALL choose_eigv_solver(matrix=amatrix,eigenvectors=work,&
-                            eigenvalues=eigenvalues,error=error)
+                            eigenvalues=eigenvalues)
     ! Restore vectors C = U^(-1) * C*
-    CALL cp_fm_triangular_multiply(bmatrix,work,error=error)
+    CALL cp_fm_triangular_multiply(bmatrix,work)
     CALL cp_fm_to_fm(work,eigenvectors,nmo)
 
     CALL timestop(handle)

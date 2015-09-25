@@ -90,21 +90,18 @@ CONTAINS
 !>        (defaults to false)
 !> \param n_el number of elements in each list (defaults to 0)
 !> \param n_lists number of lists to create (defaults to 1, or size(n_el))
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \par History
 !>      05.2002 created [fawzi]
 !> \author Fawzi Mohamed
 ! *****************************************************************************
 SUBROUTINE distribution_1d_create(distribution_1d,para_env,listbased_distribution,&
-     n_el,n_lists,error)
+     n_el,n_lists)
     TYPE(distribution_1d_type), POINTER      :: distribution_1d
     TYPE(cp_para_env_type), POINTER          :: para_env
     LOGICAL, INTENT(in), OPTIONAL            :: listbased_distribution
     INTEGER, DIMENSION(:), INTENT(in), &
       OPTIONAL                               :: n_el
     INTEGER, INTENT(in), OPTIONAL            :: n_lists
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'distribution_1d_create', &
       routineP = moduleN//':'//routineN
@@ -117,15 +114,14 @@ SUBROUTINE distribution_1d_create(distribution_1d,para_env,listbased_distributio
   IF(PRESENT(n_el)) my_n_lists=SIZE(n_el)
   IF(PRESENT(n_lists)) my_n_lists=n_lists
 
-  ALLOCATE(distribution_1d,stat=stat)
-  CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+  ALLOCATE(distribution_1d)
   distribution_1d_last_id_nr=distribution_1d_last_id_nr+1
   distribution_1d%id_nr=distribution_1d_last_id_nr
 
   distribution_1d%ref_count=1
 
   distribution_1d%para_env => para_env
-  CALL cp_para_env_retain(para_env,error=error)
+  CALL cp_para_env_retain(para_env)
 
   NULLIFY(distribution_1d%list,distribution_1d%n_el)
 
@@ -135,13 +131,12 @@ SUBROUTINE distribution_1d_create(distribution_1d,para_env,listbased_distributio
 
   ALLOCATE(distribution_1d%n_el(my_n_lists), distribution_1d%list(my_n_lists),&
        stat=stat)
-  CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+  CPASSERT(stat==0)
 
   IF (PRESENT(n_el)) THEN
      distribution_1d%n_el(1:my_n_lists)=n_el(1:my_n_lists)
      DO ilist=1,my_n_lists
-       ALLOCATE(distribution_1d%list(ilist)%array(n_el(ilist)),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       ALLOCATE(distribution_1d%list(ilist)%array(n_el(ilist)))
        distribution_1d%list(ilist)%array=-1
      END DO
   ELSE
@@ -158,15 +153,12 @@ END SUBROUTINE distribution_1d_create
 ! *****************************************************************************
 !> \brief retains a distribution_1d
 !> \param distribution_1d  the object to retain
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \par History
 !>      05.2002 created [fawzi]
 !> \author Fawzi Mohamed
 ! *****************************************************************************
-SUBROUTINE distribution_1d_retain(distribution_1d,error)
+SUBROUTINE distribution_1d_retain(distribution_1d)
     TYPE(distribution_1d_type), POINTER      :: distribution_1d
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'distribution_1d_retain', &
       routineP = moduleN//':'//routineN
@@ -175,23 +167,20 @@ SUBROUTINE distribution_1d_retain(distribution_1d,error)
 
   failure=.FALSE.
 
-  CPPrecondition(ASSOCIATED(distribution_1d),cp_failure_level,routineP,error,failure)
-  CPPreconditionNoFail(distribution_1d%ref_count>0,cp_failure_level,routineP,error)
+  CPASSERT(ASSOCIATED(distribution_1d))
+  CPASSERT(distribution_1d%ref_count>0)
   distribution_1d%ref_count=distribution_1d%ref_count+1
 END SUBROUTINE distribution_1d_retain
 
 ! *****************************************************************************
 !> \brief releases the given distribution_1d
 !> \param distribution_1d the object to release
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \par History
 !>      05.2002 created [fawzi]
 !> \author Fawzi Mohamed
 ! *****************************************************************************
-SUBROUTINE distribution_1d_release(distribution_1d,error)
+SUBROUTINE distribution_1d_release(distribution_1d)
     TYPE(distribution_1d_type), POINTER      :: distribution_1d
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'distribution_1d_release', &
       routineP = moduleN//':'//routineN
@@ -199,7 +188,7 @@ SUBROUTINE distribution_1d_release(distribution_1d,error)
     INTEGER                                  :: ilist, iparticle_kind, &
                                                 iparticle_local, &
                                                 nparticle_kind, &
-                                                nparticle_local, stat
+                                                nparticle_local
     LOGICAL                                  :: failure
     TYPE(local_particle_type), &
       DIMENSION(:), POINTER                  :: local_particle_set
@@ -207,18 +196,15 @@ SUBROUTINE distribution_1d_release(distribution_1d,error)
   failure=.FALSE.
 
   IF (ASSOCIATED(distribution_1d)) THEN
-     CPPreconditionNoFail(distribution_1d%ref_count>0,cp_failure_level,routineP,error)
+     CPASSERT(distribution_1d%ref_count>0)
      distribution_1d%ref_count=distribution_1d%ref_count-1
      IF (distribution_1d%ref_count==0) THEN
-        DEALLOCATE(distribution_1d%n_el,stat=stat)
-        CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+        DEALLOCATE(distribution_1d%n_el)
 
         DO ilist=1,SIZE(distribution_1d%list)
-           DEALLOCATE(distribution_1d%list(ilist)%array,stat=stat)
-           CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+           DEALLOCATE(distribution_1d%list(ilist)%array)
         END DO
-        DEALLOCATE(distribution_1d%list,stat=stat)
-        CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+        DEALLOCATE(distribution_1d%list)
 
         !MK Delete Wiener process
 
@@ -233,21 +219,18 @@ SUBROUTINE distribution_1d_release(distribution_1d,error)
                 IF (ASSOCIATED(local_particle_set(iparticle_kind)%&
                                 rng(iparticle_local)%stream)) THEN
                   CALL delete_rng_stream(local_particle_set(iparticle_kind)%&
-                                          rng(iparticle_local)%stream,error=error)
+                                          rng(iparticle_local)%stream)
                 END IF
               END DO
-              DEALLOCATE (local_particle_set(iparticle_kind)%rng,STAT=stat)
-              CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+              DEALLOCATE (local_particle_set(iparticle_kind)%rng)
             END IF
           END DO
-          DEALLOCATE(local_particle_set,STAT=stat)
-          CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+          DEALLOCATE(local_particle_set)
         END IF
 
-        CALL cp_para_env_release(distribution_1d%para_env,error=error)
+        CALL cp_para_env_release(distribution_1d%para_env)
 
-        DEALLOCATE(distribution_1d,stat=stat)
-        CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+        DEALLOCATE(distribution_1d)
      END IF
   END IF
 
@@ -257,16 +240,13 @@ END SUBROUTINE distribution_1d_release
 !> \brief writes a description of the local distribution to the given unit
 !> \param distribution_1d the list to describe 
 !> \param unit_nr the unit to write to
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \par History
 !>      06.2003 created [fawzi]
 !> \author Fawzi Mohamed
 ! *****************************************************************************
-SUBROUTINE distribution_1d_write(distribution_1d, unit_nr, error)
+SUBROUTINE distribution_1d_write(distribution_1d, unit_nr)
     TYPE(distribution_1d_type), POINTER      :: distribution_1d
     INTEGER, INTENT(in)                      :: unit_nr
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'distribution_1d_write', &
       routineP = moduleN//':'//routineN

@@ -4,8 +4,8 @@
 !-----------------------------------------------------------------------------!
 
 ! less not much meningful...
-#define CP_SLL_RS_LESS_Q(el1,el2,error) ( el1%id_nr < el2%id_nr )
-#define CP_SLL_RS_EQUAL_Q(el1,el2,error) ( el1%id_nr == el2%id_nr )
+#define CP_SLL_RS_LESS_Q(el1,el2) ( el1%id_nr < el2%id_nr )
+#define CP_SLL_RS_EQUAL_Q(el1,el2) ( el1%id_nr == el2%id_nr )
 
 
 ! *****************************************************************************
@@ -209,33 +209,24 @@ CONTAINS
 !> \param sll the single linked list to initialize
 !> \param first_el the first element of this list
 !> \param rest the following elements (if not given: empty)
-!> \param error variable to control error logging, stopping,...
-!>             see module cp_error_handling
 !> \par History
 !>      none
 !> \author Fawzi Mohamed
 ! *****************************************************************************
-  SUBROUTINE cp_sll_rs_create(sll,first_el,rest,error)
+  SUBROUTINE cp_sll_rs_create(sll,first_el,rest)
     TYPE(cp_sll_rs_type), POINTER            :: sll
     TYPE(realspace_grid_type), OPTIONAL, &
       POINTER                                :: first_el
     TYPE(cp_sll_rs_type), OPTIONAL, POINTER  :: rest
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_sll_rs_create', &
       routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: stat
-    LOGICAL                                  :: failure
-
-    failure=.FALSE.
 
     IF (.NOT.PRESENT(first_el)) THEN
        NULLIFY(sll)
        IF (PRESENT(rest)) sll => rest
     ELSE
-       ALLOCATE(sll, stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       ALLOCATE(sll)
        sll%first_el => first_el
        NULLIFY(sll%rest)
        IF (PRESENT(rest)) sll%rest => rest
@@ -246,8 +237,6 @@ CONTAINS
 !> \brief deallocates the singly linked list starting at sll.
 !>      Does not work if loops are present!
 !> \param sll the list to be deallocated
-!> \param error variable to control error logging, stopping,...
-!>             see module cp_error_handling
 !> \par History
 !>      none
 !> \author Fawzi Mohamed
@@ -255,14 +244,13 @@ CONTAINS
 !>      does not deallocate the elments that are stored in the list
 !>      check more?
 ! *****************************************************************************
-  SUBROUTINE cp_sll_rs_dealloc(sll,error)
+  SUBROUTINE cp_sll_rs_dealloc(sll)
     TYPE(cp_sll_rs_type), POINTER            :: sll
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_sll_rs_dealloc', &
       routineP = moduleN//':'//routineN
 
-    CALL cp_sll_rs_rm_all_el(sll,error)
+    CALL cp_sll_rs_rm_all_el(sll)
   END SUBROUTINE cp_sll_rs_dealloc
 
 ! * low-level *
@@ -270,26 +258,17 @@ CONTAINS
 ! *****************************************************************************
 !> \brief deallocates a node of a singly linked list (low level)
 !> \param sll the node to be deallocated
-!> \param error variable to control error logging, stopping,...
-!>             see module cp_error_handling
 !> \par History
 !>      none
 !> \author Fawzi Mohamed
 ! *****************************************************************************
-  SUBROUTINE cp_sll_rs_dealloc_node(sll,error)
+  SUBROUTINE cp_sll_rs_dealloc_node(sll)
     TYPE(cp_sll_rs_type), POINTER            :: sll
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_sll_rs_dealloc_node', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-    INTEGER:: stat
-    failure=.FALSE.
-
-    DEALLOCATE(sll, stat=stat)
-    CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
+    DEALLOCATE(sll)
   END SUBROUTINE cp_sll_rs_dealloc_node
 
 ! ============= get/set ============
@@ -301,31 +280,24 @@ CONTAINS
 !> \param sll the single linked list to change
 !> \param first_el the element to replace the first element of this list
 !> \param rest the rest of the list (can be unassociated)
-!> \param error variable to control error logging, stopping,...
-!>             see module cp_error_handling
 !> \par History
 !>      none
 !> \author Fawzi Mohamed
 ! *****************************************************************************
-  SUBROUTINE cp_sll_rs_set(sll,first_el,rest,error)
+  SUBROUTINE cp_sll_rs_set(sll,first_el,rest)
     TYPE(cp_sll_rs_type), POINTER            :: sll
     TYPE(realspace_grid_type), OPTIONAL, &
       POINTER                                :: first_el
     TYPE(cp_sll_rs_type), OPTIONAL, POINTER  :: rest
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_sll_rs_set', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-    failure=.FALSE.
-
     IF (.NOT.ASSOCIATED(sll)) THEN
        IF (PRESENT(first_el)) THEN
-          CALL cp_sll_rs_create(sll,first_el,rest,error)
+          CALL cp_sll_rs_create(sll,first_el,rest)
        ELSE
-          CPAssert(.NOT.PRESENT(rest),cp_failure_level,routineP,error,failure)
+          CPASSERT(.NOT.PRESENT(rest))
        END IF
     ELSE
        IF (PRESENT(first_el)) sll%first_el => first_el
@@ -340,30 +312,23 @@ CONTAINS
 !> \param rest the rest of the list (can be unassociated)
 !> \param empty ...
 !> \param length the length of the list
-!> \param error variable to control error logging, stopping,...
-!>             see module cp_error_handling
 !> \par History
 !>      none
 !> \author Fawzi Mohamed
 ! *****************************************************************************
-  SUBROUTINE cp_sll_rs_get(sll,first_el,rest,empty,length,error)
+  SUBROUTINE cp_sll_rs_get(sll,first_el,rest,empty,length)
     TYPE(cp_sll_rs_type), POINTER            :: sll
     TYPE(realspace_grid_type), OPTIONAL, &
       POINTER                                :: first_el
     TYPE(cp_sll_rs_type), OPTIONAL, POINTER  :: rest
     LOGICAL, INTENT(out), OPTIONAL           :: empty
     INTEGER, INTENT(out), OPTIONAL           :: length
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_sll_rs_get', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-    failure=.FALSE.
-
     IF (.NOT.ASSOCIATED(sll)) THEN
-       CPPrecondition(.NOT.PRESENT(first_el),cp_failure_level,routineP,error,failure)
+       CPASSERT(.NOT.PRESENT(first_el))
        IF (PRESENT(rest)) NULLIFY(rest)
        IF (PRESENT(empty)) empty=.TRUE.
        IF (PRESENT(length)) length=0
@@ -372,34 +337,27 @@ CONTAINS
        IF (PRESENT(rest)) rest => sll%rest
        IF (PRESENT(empty)) empty = .FALSE.
        IF (PRESENT(length)) &
-            length = cp_sll_rs_get_length(sll,error=error)
+            length = cp_sll_rs_get_length(sll)
     END IF
   END SUBROUTINE cp_sll_rs_get
 
 ! *****************************************************************************
 !> \brief returns the first element stored in the list
 !> \param sll the single linked list to get the element from
-!> \param error variable to control error logging, stopping,...
-!>             see module cp_error_handling
 !> \retval res ...
 !> \par History
 !>      none
 !> \author Fawzi Mohamed
 ! *****************************************************************************
-  FUNCTION cp_sll_rs_get_first_el(sll,error) RESULT(res)
+  FUNCTION cp_sll_rs_get_first_el(sll) RESULT(res)
     TYPE(cp_sll_rs_type), POINTER            :: sll
-    TYPE(cp_error_type), INTENT(inout)       :: error
     TYPE(realspace_grid_type), POINTER       :: res
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_sll_rs_get_first_el', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-    failure=.FALSE.
-
     IF (cp_debug) THEN
-       CPPrecondition(ASSOCIATED(sll),cp_failure_level,routineP,error,failure)
+       CPASSERT(ASSOCIATED(sll))
     END IF
 
     res => sll%first_el
@@ -410,8 +368,6 @@ CONTAINS
 !> \param sll the single linked list to get the rest from
 !> \param iter how many times the call to rest should be iterated,
 !>            defaults to 1; -1 means till end of the list.
-!> \param error variable to control error logging, stopping,...
-!>             see module cp_error_handling
 !> \retval res ...
 !> \par History
 !>      none
@@ -419,19 +375,15 @@ CONTAINS
 !> \note
 !>      split the case iter=1 to make it more optimized?
 ! *****************************************************************************
-  FUNCTION cp_sll_rs_get_rest(sll, iter, error) RESULT(res)
+  FUNCTION cp_sll_rs_get_rest(sll, iter) RESULT(res)
     TYPE(cp_sll_rs_type), POINTER            :: sll
     INTEGER, OPTIONAL                        :: iter
-    TYPE(cp_error_type), INTENT(inout)       :: error
     TYPE(cp_sll_rs_type), POINTER            :: res
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_sll_rs_get_rest', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i
-    LOGICAL                                  :: failure
-
-    failure=.FALSE.
 
     IF (.NOT.ASSOCIATED(sll)) THEN
        NULLIFY(res)
@@ -444,8 +396,7 @@ CONTAINS
              ELSE
                 CALL cp_assert(.FALSE.,cp_warning_level,cp_assertion_failed,&
                      routineP, "tried to go past end in "// &
-                     CPSourceFileRef,&
-                     error,failure)
+                     CPSourceFileRef)
              END IF
           END DO
           IF (iter==-1) THEN
@@ -463,16 +414,13 @@ CONTAINS
 ! *****************************************************************************
 !> \brief ...
 !> \param sll the single linked list to get the rest from
-!> \param error variable to control error logging, stopping,...
-!>             see module cp_error_handling
 !> \retval res ...
 !> \par History
 !>      none
 !> \author Fawzi Mohamed
 ! *****************************************************************************
-  FUNCTION cp_sll_rs_get_empty(sll,error) RESULT(res)
+  FUNCTION cp_sll_rs_get_empty(sll) RESULT(res)
     TYPE(cp_sll_rs_type), POINTER            :: sll
-    TYPE(cp_error_type), INTENT(inout)       :: error
     LOGICAL                                  :: res
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_sll_rs_get_empty', &
@@ -484,8 +432,6 @@ CONTAINS
 ! *****************************************************************************
 !> \brief returns the length of the list
 !> \param sll the list you want to know the length of
-!> \param error variable to control error logging, stopping,...
-!>             see module cp_error_handling
 !> \retval res ...
 !> \par History
 !>      none
@@ -493,9 +439,8 @@ CONTAINS
 !> \note
 !>      slow (O(n))
 ! *****************************************************************************
-  FUNCTION cp_sll_rs_get_length(sll,error) RESULT(res)
+  FUNCTION cp_sll_rs_get_length(sll) RESULT(res)
     TYPE(cp_sll_rs_type), POINTER            :: sll
-    TYPE(cp_error_type), INTENT(inout)       :: error
     INTEGER                                  :: res
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_sll_rs_get_length', &
@@ -519,8 +464,6 @@ CONTAINS
 !> \brief returns the element at the given index
 !> \param sll the list you get the element from
 !> \param index the position of the element (stating at 1)
-!> \param error variable to control error logging, stopping,...
-!>             see module cp_error_handling
 !> \retval res ...
 !> \par History
 !>      none
@@ -528,29 +471,25 @@ CONTAINS
 !> \note
 !>      slow (O(index))
 ! *****************************************************************************
-  FUNCTION cp_sll_rs_get_el_at(sll,index,error) RESULT(res)
+  FUNCTION cp_sll_rs_get_el_at(sll,index) RESULT(res)
     TYPE(cp_sll_rs_type), POINTER            :: sll
     INTEGER, INTENT(in)                      :: index
-    TYPE(cp_error_type), INTENT(inout)       :: error
     TYPE(realspace_grid_type), POINTER       :: res
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_sll_rs_get_el_at', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     TYPE(cp_sll_rs_type), POINTER            :: pos
 
-    failure=.FALSE.
-
     IF (cp_debug) THEN
-       CPPrecondition(index>0.OR.index==-1,cp_failure_level,routineP,error,failure)
+       CPASSERT(index>0.OR.index==-1)
     END IF
     IF (index==-1) THEN
-       pos => cp_sll_rs_get_rest(sll, iter=-1,error=error)
+       pos => cp_sll_rs_get_rest(sll, iter=-1)
     ELSE
-       pos => cp_sll_rs_get_rest(sll, iter=index-1,error=error)
+       pos => cp_sll_rs_get_rest(sll, iter=index-1)
     END IF
-    CPPrecondition(ASSOCIATED(pos),cp_failure_level,routineP,error,failure)
+    CPASSERT(ASSOCIATED(pos))
 
     res => pos%first_el
   END FUNCTION cp_sll_rs_get_el_at
@@ -561,34 +500,28 @@ CONTAINS
 !> \param index the position of the element (stating at 1)
 !>             -1 means at the end
 !> \param value the new element
-!> \param error variable to control error logging, stopping,...
-!>             see module cp_error_handling
 !> \par History
 !>      none
 !> \author Fawzi Mohamed
 !> \note
 !>      slow (O(index))
 ! *****************************************************************************
-  SUBROUTINE cp_sll_rs_set_el_at(sll,index,value,error)
+  SUBROUTINE cp_sll_rs_set_el_at(sll,index,value)
     TYPE(cp_sll_rs_type), POINTER            :: sll
     INTEGER, INTENT(in)                      :: index
     TYPE(realspace_grid_type), POINTER       :: value
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_sll_rs_set_el_at', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     TYPE(cp_sll_rs_type), POINTER            :: pos
 
-    failure=.FALSE.
-
     IF (index==-1) THEN
-       pos => cp_sll_rs_get_rest(sll, iter=-1,error=error)
+       pos => cp_sll_rs_get_rest(sll, iter=-1)
     ELSE
-       pos => cp_sll_rs_get_rest(sll, iter=index-1,error=error)
+       pos => cp_sll_rs_get_rest(sll, iter=index-1)
     END IF
-    CPPrecondition(ASSOCIATED(pos),cp_failure_level,routineP,error,failure)
+    CPASSERT(ASSOCIATED(pos))
 
     pos%first_el => value
   END SUBROUTINE cp_sll_rs_set_el_at
@@ -600,18 +533,15 @@ CONTAINS
 !>      moves the iterator to the next element
 !> \param iterator iterator that moves along the list
 !> \param el_att the actual element (valid only if the function returns true)
-!> \param error variable to control error logging, stopping,...
-!>             see module cp_error_handling
 !> \retval res ...
 !> \par History
 !>      none
 !> \author Fawzi Mohamed
 ! *****************************************************************************
-  FUNCTION cp_sll_rs_next(iterator,el_att,error) RESULT(res)
+  FUNCTION cp_sll_rs_next(iterator,el_att) RESULT(res)
     TYPE(cp_sll_rs_type), POINTER            :: iterator
     TYPE(realspace_grid_type), OPTIONAL, &
       POINTER                                :: el_att
-    TYPE(cp_error_type), INTENT(inout)       :: error
     LOGICAL                                  :: res
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_sll_rs_next', &
@@ -633,18 +563,15 @@ CONTAINS
 !> \param sll the single linked list point at the beginning of which
 !>           you want to add the element
 !> \param el the element to add
-!> \param error variable to control error logging, stopping,...
-!>             see module cp_error_handling
 !> \par History
 !>      none
 !> \author Fawzi Mohamed
 !> \note
 !>      fast (O(1))
 ! *****************************************************************************
-  SUBROUTINE cp_sll_rs_insert_el(sll,el,error)
+  SUBROUTINE cp_sll_rs_insert_el(sll,el)
     TYPE(cp_sll_rs_type), POINTER            :: sll
     TYPE(realspace_grid_type), POINTER       :: el
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_sll_rs_insert_el', &
       routineP = moduleN//':'//routineN
@@ -654,42 +581,36 @@ CONTAINS
     NULLIFY(newSlot)
 
     CALL cp_sll_rs_create(newSlot,first_el=el,&
-         rest=sll,error=error)
+         rest=sll)
     sll => newSlot
   END SUBROUTINE cp_sll_rs_insert_el
 
 ! *****************************************************************************
 !> \brief remove the first element of the linked list
 !> \param sll the list whose first element has to be removed
-!> \param error variable to control error logging, stopping,...
-!>             see module cp_error_handling
 !> \par History
 !>      none
 !> \author Fawzi Mohamed
 !> \note
 !>      fast (O(1))
 ! *****************************************************************************
-  SUBROUTINE cp_sll_rs_rm_first_el(sll,error)
+  SUBROUTINE cp_sll_rs_rm_first_el(sll)
     TYPE(cp_sll_rs_type), POINTER            :: sll
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_sll_rs_rm_first_el', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     TYPE(cp_sll_rs_type), POINTER            :: node_to_rm
 
-    failure=.FALSE.
     node_to_rm => sll
 
     IF (ASSOCIATED(sll)) THEN
        sll => sll%rest
-       CALL cp_sll_rs_dealloc_node(node_to_rm,error=error)
+       CALL cp_sll_rs_dealloc_node(node_to_rm)
     ELSE
        CALL cp_assert(.FALSE.,cp_warning_level,cp_assertion_failed,&
             routineP,"tried to remove first el of an empty list in "//&
-            CPSourceFileRef,&
-            error,failure)
+            CPSourceFileRef)
     END IF
   END SUBROUTINE cp_sll_rs_rm_first_el
 
@@ -699,38 +620,32 @@ CONTAINS
 !> \param el the new element
 !> \param index the position of the element (stating at 1).
 !>             If it is -1, it means at end
-!> \param error variable to control error logging, stopping,...
-!>             see module cp_error_handling
 !> \par History
 !>      none
 !> \author Fawzi Mohamed
 !> \note
 !>      slow (O(index))
 ! *****************************************************************************
-  SUBROUTINE cp_sll_rs_insert_el_at(sll,el,index,error)
+  SUBROUTINE cp_sll_rs_insert_el_at(sll,el,index)
     TYPE(cp_sll_rs_type), POINTER            :: sll
     TYPE(realspace_grid_type), POINTER       :: el
     INTEGER, INTENT(in)                      :: index
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_sll_rs_insert_el_at', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     TYPE(cp_sll_rs_type), POINTER            :: pos
 
-    failure=.FALSE.
-
     IF (index==1) THEN
-       CALL cp_sll_rs_insert_el(sll,el,error=error)
+       CALL cp_sll_rs_insert_el(sll,el)
     ELSE
        IF (index==-1) THEN
-          pos => cp_sll_rs_get_rest(sll, iter=-1,error=error)
+          pos => cp_sll_rs_get_rest(sll, iter=-1)
        ELSE
-          pos => cp_sll_rs_get_rest(sll, iter=index-2,error=error)
+          pos => cp_sll_rs_get_rest(sll, iter=index-2)
        END IF
-       CPPrecondition(ASSOCIATED(pos),cp_failure_level,routineP,error,failure)
-       CALL cp_sll_rs_insert_el(pos%rest,el,error=error)
+       CPASSERT(ASSOCIATED(pos))
+       CALL cp_sll_rs_insert_el(pos%rest,el)
     END IF
   END SUBROUTINE cp_sll_rs_insert_el_at
 
@@ -738,57 +653,48 @@ CONTAINS
 !> \brief removes the element at the given index
 !> \param sll the list you get the element from
 !> \param index the position of the element (stating at 1)
-!> \param error variable to control error logging, stopping,...
-!>             see module cp_error_handling
 !> \par History
 !>      none
 !> \author Fawzi Mohamed
 !> \note
 !>      slow (O(index))
 ! *****************************************************************************
-  SUBROUTINE cp_sll_rs_rm_el_at(sll,index,error)
+  SUBROUTINE cp_sll_rs_rm_el_at(sll,index)
     TYPE(cp_sll_rs_type), POINTER            :: sll
     INTEGER, INTENT(in)                      :: index
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_sll_rs_rm_el_at', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     TYPE(cp_sll_rs_type), POINTER            :: pos
 
-    failure=.FALSE.
-
     IF (cp_debug) THEN
-       CPPrecondition(index>0.OR.index==-1,cp_failure_level,routineP,error,failure)
+       CPASSERT(index>0.OR.index==-1)
     END IF
     IF (index==1) THEN
-       CALL cp_sll_rs_rm_first_el(sll,error=error)
+       CALL cp_sll_rs_rm_first_el(sll)
     ELSE
        IF (index==-1) THEN
-          pos => cp_sll_rs_get_rest(sll, iter=-1,error=error)
+          pos => cp_sll_rs_get_rest(sll, iter=-1)
        ELSE
-          pos => cp_sll_rs_get_rest(sll, iter=index-2,error=error)
+          pos => cp_sll_rs_get_rest(sll, iter=index-2)
        END IF
-       CPPrecondition(ASSOCIATED(pos),cp_failure_level,routineP,error,failure)
-       CALL cp_sll_rs_rm_first_el(pos%rest,error=error)
+       CPASSERT(ASSOCIATED(pos))
+       CALL cp_sll_rs_rm_first_el(pos%rest)
     END IF
   END SUBROUTINE cp_sll_rs_rm_el_at
 
 ! *****************************************************************************
 !> \brief removes all the elements from the list
 !> \param sll the list that should be removed
-!> \param error variable to control error logging, stopping,...
-!>             see module cp_error_handling
 !> \par History
 !>      none
 !> \author Fawzi Mohamed
 !> \note
 !>      check more?
 ! *****************************************************************************
-  SUBROUTINE cp_sll_rs_rm_all_el(sll,error)
+  SUBROUTINE cp_sll_rs_rm_all_el(sll)
     TYPE(cp_sll_rs_type), POINTER            :: sll
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_sll_rs_rm_all_el', &
       routineP = moduleN//':'//routineN
@@ -799,7 +705,7 @@ CONTAINS
     DO
        IF (.NOT.ASSOCIATED(actual_node)) EXIT
        next_node => actual_node%rest
-       CALL cp_sll_rs_dealloc_node(actual_node,error=error)
+       CALL cp_sll_rs_dealloc_node(actual_node)
        actual_node => next_node
     END DO
     NULLIFY(sll)
@@ -809,54 +715,42 @@ CONTAINS
 !> \brief returns a newly allocated array with the same contents as
 !>      the linked list
 !> \param sll the list to trasform in array
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \retval res ...
 !> \par History
 !>      07.2002 created [fawzi]
 !> \author Fawzi Mohamed
 ! *****************************************************************************
-FUNCTION cp_sll_rs_to_array(sll,error) RESULT(res)
+FUNCTION cp_sll_rs_to_array(sll) RESULT(res)
     TYPE(cp_sll_rs_type), POINTER            :: sll
-    TYPE(cp_error_type), INTENT(inout)       :: error
     TYPE(realspace_grid_p_type), &
       DIMENSION(:), POINTER                  :: res
 
-    INTEGER                                  :: i, len, stat
+    INTEGER                                  :: i, len
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_sll_rs_to_array', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     TYPE(cp_sll_rs_type), POINTER            :: iter
 
-  failure=.FALSE.
-
-  len=cp_sll_rs_get_length(sll,error)
-  ALLOCATE(res(len),stat=stat)
-  CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+  len=cp_sll_rs_get_length(sll)
+  ALLOCATE(res(len))
   iter => sll
   DO i=1,len
      res(i)%rs_grid => iter%first_el
-     IF (.NOT.(cp_sll_rs_next(iter,error=error).OR.i==len)) THEN
-        CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
-     END IF
+     CPASSERT(cp_sll_rs_next(iter).OR.i==len)
   END DO
 END FUNCTION cp_sll_rs_to_array
 
 ! *****************************************************************************
 !> \brief returns a linked list with the same contents as the given array
 !> \param array the array you want to copy
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \retval res ...
 !> \par History
 !>      07.2002 created [fawzi]
 !> \author Fawzi Mohamed
 ! *****************************************************************************
-FUNCTION cp_sll_rs_from_array(array,error) RESULT(res)
+FUNCTION cp_sll_rs_from_array(array) RESULT(res)
     TYPE(realspace_grid_p_type), &
       DIMENSION(:), INTENT(in)               :: array
-    TYPE(cp_error_type), INTENT(inout)       :: error
     TYPE(cp_sll_rs_type), POINTER            :: res
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_sll_rs_from_array', &
@@ -868,14 +762,12 @@ FUNCTION cp_sll_rs_from_array(array,error) RESULT(res)
   NULLIFY(res,last_el)
   IF (SIZE(array)>0) THEN
      CALL cp_sll_rs_create(res,&
-          first_el=array(1)%rs_grid,&
-          error=error)
+          first_el=array(1)%rs_grid)
      last_el => res
   END IF
   DO i=2,SIZE(array)
      CALL cp_sll_rs_create(last_el%rest,&
-          first_el=array(i)%rs_grid,&
-          error=error)
+          first_el=array(i)%rs_grid)
      last_el => last_el%rest
   END DO
 END FUNCTION cp_sll_rs_from_array
@@ -889,28 +781,24 @@ END FUNCTION cp_sll_rs_from_array
 !> \param did_insert true if it did insert the element
 !> \param pos node where the element has been inserted (or of the same
 !>        element that was already in the list)
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \par History
 !>      07.2002 created [fawzi]
 !> \author Fawzi Mohamed
 ! *****************************************************************************
 SUBROUTINE cp_sll_rs_insert_ordered(sll,el,insert_equals,&
-     did_insert,pos,error)
+     did_insert,pos)
     TYPE(cp_sll_rs_type), POINTER            :: sll
     TYPE(realspace_grid_type), POINTER       :: el
     LOGICAL, INTENT(in), OPTIONAL            :: insert_equals
     LOGICAL, INTENT(out), OPTIONAL           :: did_insert
     TYPE(cp_sll_rs_type), OPTIONAL, POINTER  :: pos
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_sll_rs_insert_ordered', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure, i_eq
+    LOGICAL                                  :: i_eq
     TYPE(cp_sll_rs_type), POINTER            :: iter
 
-  failure=.FALSE.
   i_eq=.FALSE.
 
   IF (PRESENT(did_insert)) did_insert=.FALSE.
@@ -918,13 +806,13 @@ SUBROUTINE cp_sll_rs_insert_ordered(sll,el,insert_equals,&
 
   IF (PRESENT(insert_equals)) i_eq=insert_equals
   IF (.NOT.ASSOCIATED(sll)) THEN
-     CALL cp_sll_rs_create(sll,first_el=el,error=error)
+     CALL cp_sll_rs_create(sll,first_el=el)
      IF (PRESENT(did_insert)) did_insert=.TRUE.
      IF (PRESENT(pos)) pos=>sll
-  ELSE IF (.NOT.CP_SLL_RS_LESS_Q(sll%first_el,el,error=error)) THEN
+  ELSE IF (.NOT.CP_SLL_RS_LESS_Q(sll%first_el,el)) THEN
      IF (PRESENT(pos)) pos=>sll
-     IF (i_eq.OR.CP_SLL_RS_LESS_Q(el,sll%first_el,error=error)) THEN
-        CALL cp_sll_rs_insert_el(sll,el,error=error)
+     IF (i_eq.OR.CP_SLL_RS_LESS_Q(el,sll%first_el)) THEN
+        CALL cp_sll_rs_insert_el(sll,el)
         IF (PRESENT(did_insert)) did_insert=.TRUE.
         IF (PRESENT(pos)) pos=>sll
      END IF
@@ -932,22 +820,22 @@ SUBROUTINE cp_sll_rs_insert_ordered(sll,el,insert_equals,&
      iter => sll
      DO
         IF (.NOT.ASSOCIATED(iter%rest)) THEN
-           CALL cp_sll_rs_insert_el(iter%rest,el,error=error)
+           CALL cp_sll_rs_insert_el(iter%rest,el)
            IF (PRESENT(did_insert)) did_insert=.TRUE.
            IF (PRESENT(pos)) pos=>iter%rest
            EXIT
-        ELSE IF (.NOT.CP_SLL_RS_LESS_Q(iter%rest%first_el,el,error=error)) THEN
+        ELSE IF (.NOT.CP_SLL_RS_LESS_Q(iter%rest%first_el,el)) THEN
            IF (PRESENT(pos)) pos=>iter
-           IF (i_eq.OR. CP_SLL_RS_LESS_Q(el,iter%rest%first_el,error=error)) THEN
-              CALL cp_sll_rs_insert_el(iter%rest,el,error=error)
+           IF (i_eq.OR. CP_SLL_RS_LESS_Q(el,iter%rest%first_el)) THEN
+              CALL cp_sll_rs_insert_el(iter%rest,el)
               IF (PRESENT(did_insert)) did_insert=.TRUE.
               IF (PRESENT(pos)) pos=>iter%rest
            END IF
            EXIT
         END IF
-        CPInvariant(cp_sll_rs_next(iter,error=error),cp_failure_level,routineP,error,failure)
+        CPASSERT(cp_sll_rs_next(iter))
      END DO
-     CPAssert(ASSOCIATED(iter),cp_failure_level,routineP,error,failure)
+     CPASSERT(ASSOCIATED(iter))
   END IF
 END SUBROUTINE cp_sll_rs_insert_ordered
 
@@ -962,14 +850,12 @@ END SUBROUTINE cp_sll_rs_insert_ordered
 !>        (defaults to false)
 !> \param did_insert ...
 !> \param pos ...
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \par History
 !>      07.2002 created [fawzi]
 !> \author Fawzi Mohamed
 ! *****************************************************************************
 SUBROUTINE cp_sll_rs_insert_ordered2(sll,el,compare_function,&
-     insert_equals,did_insert,pos,error)
+     insert_equals,did_insert,pos)
     TYPE(cp_sll_rs_type), POINTER            :: sll
     TYPE(realspace_grid_type), POINTER       :: el
   INTERFACE
@@ -984,16 +870,14 @@ USE realspace_grid_types, ONLY: realspace_grid_type, realspace_grid_p_type
     LOGICAL, INTENT(in), OPTIONAL            :: insert_equals
     LOGICAL, INTENT(out), OPTIONAL           :: did_insert
     TYPE(cp_sll_rs_type), OPTIONAL, POINTER  :: pos
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_sll_rs_insert_ordered2', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: comp
-    LOGICAL                                  :: failure, i_eq
+    LOGICAL                                  :: i_eq
     TYPE(cp_sll_rs_type), POINTER            :: iter
 
-  failure=.FALSE.
   i_eq=.FALSE.
 
   IF (PRESENT(did_insert)) did_insert=.FALSE.
@@ -1001,7 +885,7 @@ USE realspace_grid_types, ONLY: realspace_grid_type, realspace_grid_p_type
 
   IF (PRESENT(insert_equals)) i_eq=insert_equals
   IF (.NOT.ASSOCIATED(sll)) THEN
-     CALL cp_sll_rs_create(sll,first_el=el,error=error)
+     CALL cp_sll_rs_create(sll,first_el=el)
      IF (PRESENT(did_insert)) did_insert=.TRUE.
      IF (PRESENT(pos)) pos=>sll%rest
      RETURN
@@ -1009,7 +893,7 @@ USE realspace_grid_types, ONLY: realspace_grid_type, realspace_grid_p_type
   comp=compare_function(sll%first_el,el)
   IF (comp>=0) THEN
      IF (i_eq.OR.comp/=0) THEN
-        CALL cp_sll_rs_insert_el(sll,el,error=error)
+        CALL cp_sll_rs_insert_el(sll,el)
         IF (PRESENT(did_insert)) did_insert=.TRUE.
         IF (PRESENT(pos)) pos=>sll%rest
      END IF
@@ -1017,7 +901,7 @@ USE realspace_grid_types, ONLY: realspace_grid_type, realspace_grid_p_type
      iter => sll
      DO
         IF (.NOT.ASSOCIATED(iter%rest)) THEN
-           CALL cp_sll_rs_insert_el(iter%rest,el,error=error)
+           CALL cp_sll_rs_insert_el(iter%rest,el)
            IF (PRESENT(did_insert)) did_insert=.TRUE.
            IF (PRESENT(pos)) pos=>iter%rest
            EXIT
@@ -1025,15 +909,15 @@ USE realspace_grid_types, ONLY: realspace_grid_type, realspace_grid_p_type
         comp=compare_function(iter%rest%first_el,el)
         IF (comp>=0) THEN
            IF (i_eq.OR. comp/=0) THEN
-              CALL cp_sll_rs_insert_el(iter%rest,el,error=error)
+              CALL cp_sll_rs_insert_el(iter%rest,el)
               IF (PRESENT(did_insert)) did_insert=.TRUE.
               IF (PRESENT(pos)) pos=>iter%rest
            END IF
            EXIT
         END IF
-        CPInvariant(cp_sll_rs_next(iter,error=error),cp_failure_level,routineP,error,failure)
+        CPASSERT(cp_sll_rs_next(iter))
      END DO
-     CPAssert(ASSOCIATED(iter),cp_failure_level,routineP,error,failure)
+     CPASSERT(ASSOCIATED(iter))
   END IF
 END SUBROUTINE cp_sll_rs_insert_ordered2
 
@@ -1050,8 +934,8 @@ END SUBROUTINE cp_sll_rs_insert_ordered2
 !  common_dir = "../common"
 !  defines = 
 !    "! less not much meningful...
-!     #define CP_SLL_RS_LESS_Q(el1,el2,error) ( el1%id_nr < el2%id_nr )
-!     #define CP_SLL_RS_EQUAL_Q(el1,el2,error) ( el1%id_nr == el2%id_nr )
+!     #define CP_SLL_RS_LESS_Q(el1,el2) ( el1%id_nr < el2%id_nr )
+!     #define CP_SLL_RS_EQUAL_Q(el1,el2) ( el1%id_nr == el2%id_nr )
 !     "
 !  equalQ = "CP_SLL_RS_EQUAL_Q"
 !  lessQ = "CP_SLL_RS_LESS_Q"

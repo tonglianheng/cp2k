@@ -136,8 +136,6 @@ CONTAINS
 !> \param enum_desc ...
 !> \param unit_str ...
 !> \param citations ...
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \author fawzi
 ! *****************************************************************************
   SUBROUTINE keyword_create(keyword, name, description, usage, type_of_var,&
@@ -147,7 +145,7 @@ CONTAINS
        lone_keyword_val, lone_keyword_l_val, lone_keyword_r_val, lone_keyword_c_val,&
        lone_keyword_i_val, lone_keyword_l_vals, lone_keyword_r_vals, &
        lone_keyword_c_vals, lone_keyword_i_vals, enum_c_vals, enum_i_vals, &
-       enum,enum_strict,enum_desc,unit_str,citations,error)
+       enum,enum_strict,enum_desc,unit_str,citations)
     TYPE(keyword_type), POINTER              :: keyword
     CHARACTER(len=*), INTENT(in)             :: name, description
     CHARACTER(len=*), INTENT(in), OPTIONAL   :: usage
@@ -193,34 +191,30 @@ CONTAINS
     CHARACTER(len=*), INTENT(in), OPTIONAL   :: unit_str
     INTEGER, DIMENSION(:), INTENT(in), &
       OPTIONAL                               :: citations
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'keyword_create', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, n, stat
+    INTEGER                                  :: i, n
     LOGICAL                                  :: check, failure
 
     failure=.FALSE.
 
-    CPPrecondition(.NOT.ASSOCIATED(keyword),cp_failure_level,routineP,error,failure)
-    ALLOCATE(keyword,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPASSERT(.NOT.ASSOCIATED(keyword))
+    ALLOCATE(keyword)
     keyword%ref_count=1
     last_keyword_id=last_keyword_id+1
     keyword%id_nr=last_keyword_id
     NULLIFY(keyword%unit)
 
     IF (PRESENT(variants)) THEN
-       ALLOCATE(keyword%names(SIZE(variants)+1),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       ALLOCATE(keyword%names(SIZE(variants)+1))
        keyword%names(1)=name
        DO i=1,SIZE(variants)
           keyword%names(i+1)=variants(i)
        END DO
     ELSE
-       ALLOCATE(keyword%names(1),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       ALLOCATE(keyword%names(1))
        IF (.not.failure) keyword%names(1)=name
     END IF
     DO i=1,SIZE(keyword%names)
@@ -228,7 +222,7 @@ CONTAINS
     END DO
 
     IF (PRESENT(usage)) THEN
-       CPPrecondition(LEN_TRIM(usage)<=LEN(keyword%usage),cp_failure_level,routineP,error,failure)
+       CPASSERT(LEN_TRIM(usage)<=LEN(keyword%usage))
        keyword%usage=usage
     ELSE
        keyword%usage=""
@@ -241,8 +235,7 @@ CONTAINS
     END DO
 
     IF (PRESENT(citations)) THEN
-       ALLOCATE(keyword%citations(SIZE(citations,1)),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       ALLOCATE(keyword%citations(SIZE(citations,1)))
        keyword%citations=citations
     ELSE
        NULLIFY(keyword%citations)
@@ -254,15 +247,15 @@ CONTAINS
     NULLIFY(keyword%enum)
     IF (PRESENT(enum)) THEN
        keyword%enum => enum
-       IF (ASSOCIATED(enum)) CALL enum_retain(enum,error=error)
+       IF (ASSOCIATED(enum)) CALL enum_retain(enum)
     END IF
     IF (PRESENT(enum_i_vals)) THEN
-       CPPrecondition(PRESENT(enum_c_vals),cp_failure_level,routineP,error,failure)
-       CPPrecondition(.NOT.ASSOCIATED(keyword%enum),cp_failure_level,routineP,error,failure)
+       CPASSERT(PRESENT(enum_c_vals))
+       CPASSERT(.NOT.ASSOCIATED(keyword%enum))
        CALL enum_create(keyword%enum,c_vals=enum_c_vals,i_vals=enum_i_vals,&
-            desc=enum_desc,strict=enum_strict,error=error)
+            desc=enum_desc,strict=enum_strict)
     ELSE
-       CPPrecondition(.NOT.PRESENT(enum_c_vals),cp_failure_level,routineP,error,failure)
+       CPASSERT(.NOT.PRESENT(enum_c_vals))
     END IF
 
     NULLIFY(keyword%default_value, keyword%lone_keyword_value)
@@ -273,30 +266,30 @@ CONTAINS
             PRESENT(default_c_val).OR.PRESENT(default_c_vals)),cp_failure_level,&
             cp_assertion_failed,routineP,&
             "you should pass either default_val or a default value, not both",&
-            error,failure)
+            failure)
        keyword%default_value => default_val
        IF (ASSOCIATED(default_val%enum)) THEN
           IF (ASSOCIATED(keyword%enum)) THEN
-             CPAssert(keyword%enum%id_nr==default_val%enum%id_nr,cp_failure_level,routineP,error,failure)
+             CPASSERT(keyword%enum%id_nr==default_val%enum%id_nr)
           ELSE
              keyword%enum => default_val%enum
-             CALL enum_retain(keyword%enum,error=error)
+             CALL enum_retain(keyword%enum)
           END IF
        ELSE
-          CPAssert(.NOT.ASSOCIATED(keyword%enum),cp_failure_level,routineP,error,failure)
+          CPASSERT(.NOT.ASSOCIATED(keyword%enum))
        END IF
-       CALL val_retain(default_val,error=error)
+       CALL val_retain(default_val)
     END IF
     IF (.not.ASSOCIATED(keyword%default_value)) THEN
        CALL val_create(keyword%default_value,l_val=default_l_val,&
             l_vals=default_l_vals,i_val=default_i_val,i_vals=default_i_vals,&
             r_val=default_r_val,r_vals=default_r_vals,c_val=default_c_val,&
-            c_vals=default_c_vals,lc_val=default_lc_val,enum=keyword%enum,error=error)
+            c_vals=default_c_vals,lc_val=default_lc_val,enum=keyword%enum)
     END IF
 
     keyword%type_of_var=keyword%default_value%type_of_var
     IF (keyword%default_value%type_of_var==no_t) THEN
-       CALL val_release(keyword%default_value,error=error)
+       CALL val_release(keyword%default_value)
     END IF
 
     IF (keyword%type_of_var==no_t) THEN
@@ -305,19 +298,19 @@ CONTAINS
        ELSE
           CALL cp_assert(.FALSE.,cp_warning_level,cp_assertion_failed,routineP,&
                "keyword "//TRIM(keyword%names(1))//&
-               " assumed undefined type by default",error,failure)
+               " assumed undefined type by default",failure)
        END IF
     ELSE IF (PRESENT(type_of_var)) THEN
        CALL cp_assert(keyword%type_of_var==type_of_var,cp_failure_level,&
             cp_assertion_failed,routineP, &
             "keyword "//TRIM(keyword%names(1))//&
             " has a type different from the type of the default_value",&
-            error,failure)
+            failure)
        keyword%type_of_var=type_of_var
     END IF
 
     IF (keyword%type_of_var==no_t) THEN
-       CALL val_create(keyword%default_value,error=error)
+       CALL val_create(keyword%default_value)
     END IF
 
     IF (PRESENT(lone_keyword_val)) THEN
@@ -327,42 +320,42 @@ CONTAINS
             PRESENT(lone_keyword_c_val).OR.PRESENT(lone_keyword_c_vals)),&
             cp_failure_level, cp_assertion_failed,routineP,&
             "you should pass either lone_keyword_val or a lone_keyword value, not both",&
-            error,failure)
+            failure)
        keyword%lone_keyword_value => lone_keyword_val
-       CALL val_retain(lone_keyword_val,error=error)
+       CALL val_retain(lone_keyword_val)
        IF (ASSOCIATED(lone_keyword_val%enum)) THEN
           IF (ASSOCIATED(keyword%enum)) THEN
              CALL cp_assert(keyword%enum%id_nr==lone_keyword_val%enum%id_nr, &
                   cp_failure_level,cp_assertion_failed,routineP, &
                   "keyword%enum%id_nr==lone_keyword_val%enum%id_nr", &
-                  error,failure)
+                  failure)
           ELSE
              IF (ASSOCIATED(keyword%lone_keyword_value)) THEN
                 CALL cp_assert(.FALSE., cp_failure_level, cp_precondition_failed, &
                      routineP, ".NOT. ASSOCIATED(keyword%lone_keyword_value)", &
-                     error, failure)
+                     failure)
              END IF
              keyword%enum => lone_keyword_val%enum
-             CALL enum_retain(keyword%enum,error=error)
+             CALL enum_retain(keyword%enum)
           END IF
        ELSE
-          CPAssert(.NOT.ASSOCIATED(keyword%enum),cp_failure_level,routineP,error,failure)
+          CPASSERT(.NOT.ASSOCIATED(keyword%enum))
        END IF
     END IF
     IF (.NOT.ASSOCIATED(keyword%lone_keyword_value)) THEN
        CALL val_create(keyword%lone_keyword_value,l_val=lone_keyword_l_val,&
             l_vals=lone_keyword_l_vals,i_val=lone_keyword_i_val,i_vals=lone_keyword_i_vals,&
             r_val=lone_keyword_r_val,r_vals=lone_keyword_r_vals,c_val=lone_keyword_c_val,&
-            c_vals=lone_keyword_c_vals,enum=keyword%enum,error=error)
+            c_vals=lone_keyword_c_vals,enum=keyword%enum)
     END IF
     IF (ASSOCIATED(keyword%lone_keyword_value)) THEN
        IF (keyword%lone_keyword_value%type_of_var==no_t) THEN
-          CALL val_release(keyword%lone_keyword_value,error=error)
+          CALL val_release(keyword%lone_keyword_value)
        ELSE
           CALL cp_assert(keyword%lone_keyword_value%type_of_var==keyword%type_of_var,&
                cp_failure_level,cp_assertion_failed,routineP,&
                "lone_keyword_value type incompatible with "//&
-               "keyword type",error,failure)
+               "keyword type",failure)
           ! lc_val cannot have lone_keyword_value!
           IF (keyword%type_of_var==enum_t) THEN
              IF (keyword%enum%strict) THEN
@@ -372,7 +365,7 @@ CONTAINS
                 END DO
                 CALL cp_assert(check,cp_failure_level,&
                      cp_assertion_failed,routineP,"default value not in enumeration : "//keyword%names(1), &
-                     error,failure)
+                     failure)
              ENDIF
           ENDIF
        END IF
@@ -393,7 +386,7 @@ CONTAINS
              END DO
              CALL cp_assert(check,cp_failure_level,&
                   cp_assertion_failed,routineP,"default value not in enumeration : "//&
-                  keyword%names(1), error,failure)
+                  keyword%names(1),failure)
           ENDIF
           keyword%n_var=SIZE(keyword%default_value%i_val)
        CASE(real_t)
@@ -405,29 +398,26 @@ CONTAINS
        CASE(no_t)
           keyword%n_var=0
        CASE default
-          CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
+          CPASSERT(.FALSE.)
        END SELECT
     END IF
     IF (PRESENT(n_var)) keyword%n_var=n_var
     CALL cp_assert(keyword%type_of_var/=lchar_t.or.keyword%n_var==1,cp_failure_level,&
          cp_assertion_failed,routineP,"arrays of lchar_t not supported : "&
-         //keyword%names(1), error,failure)
+         //keyword%names(1),failure)
 
     IF (PRESENT(unit_str)) THEN
-       CALL cp_unit_create(keyword%unit,unit_str,error=error)
+       CALL cp_unit_create(keyword%unit,unit_str)
     END IF
   END SUBROUTINE keyword_create
 
 ! *****************************************************************************
 !> \brief retains the given keyword (see doc/ReferenceCounting.html)
 !> \param keyword the keyword to retain
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \author fawzi
 ! *****************************************************************************
-  SUBROUTINE keyword_retain(keyword, error)
+  SUBROUTINE keyword_retain(keyword)
     TYPE(keyword_type), POINTER              :: keyword
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'keyword_retain', &
       routineP = moduleN//':'//routineN
@@ -435,46 +425,39 @@ CONTAINS
     LOGICAL                                  :: failure
 
     failure=.FALSE.
-    CPPrecondition(ASSOCIATED(keyword),cp_failure_level,routineP,error,failure)
-    CPPreconditionNoFail(keyword%ref_count>0,cp_failure_level,routineP,error)
+    CPASSERT(ASSOCIATED(keyword))
+    CPASSERT(keyword%ref_count>0)
     keyword%ref_count=keyword%ref_count+1
   END SUBROUTINE keyword_retain
 
 ! *****************************************************************************
 !> \brief releases the given keyword (see doc/ReferenceCounting.html)
 !> \param keyword the keyword to release
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \author fawzi
 ! *****************************************************************************
-  SUBROUTINE keyword_release(keyword, error)
+  SUBROUTINE keyword_release(keyword)
     TYPE(keyword_type), POINTER              :: keyword
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'keyword_release', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
     LOGICAL                                  :: failure
 
     failure=.FALSE.
     IF (ASSOCIATED(keyword)) THEN
-       CPPreconditionNoFail(keyword%ref_count>0,cp_failure_level,routineP,error)
+       CPASSERT(keyword%ref_count>0)
        keyword%ref_count=keyword%ref_count-1
        IF (keyword%ref_count==0) THEN
-          DEALLOCATE(keyword%names,stat=stat)
-          CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+          DEALLOCATE(keyword%names)
           DEALLOCATE(keyword%description)
-          CALL val_release(keyword%default_value,error=error)
-          CALL val_release(keyword%lone_keyword_value,error=error)
-          CALL enum_release(keyword%enum,error=error)
-          CALL cp_unit_release(keyword%unit,error=error)
+          CALL val_release(keyword%default_value)
+          CALL val_release(keyword%lone_keyword_value)
+          CALL enum_release(keyword%enum)
+          CALL cp_unit_release(keyword%unit)
           IF (ASSOCIATED(keyword%citations)) THEN
-             DEALLOCATE(keyword%citations,stat=stat)
-             CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+             DEALLOCATE(keyword%citations)
           ENDIF
-          DEALLOCATE(keyword,stat=stat)
-          CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+          DEALLOCATE(keyword)
        END IF
     END IF
     NULLIFY(keyword)
@@ -493,12 +476,10 @@ CONTAINS
 !> \param repeats ...
 !> \param enum ...
 !> \param citations ...
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \author fawzi
 ! *****************************************************************************
   SUBROUTINE keyword_get(keyword,names,usage,description,type_of_var,n_var,&
-       default_value, lone_keyword_value,repeats,enum,citations,error)
+       default_value, lone_keyword_value,repeats,enum,citations)
     TYPE(keyword_type), POINTER              :: keyword
     CHARACTER(len=default_string_length), &
       DIMENSION(:), OPTIONAL, POINTER        :: names
@@ -510,7 +491,6 @@ CONTAINS
     TYPE(enumeration_type), OPTIONAL, &
       POINTER                                :: enum
     INTEGER, DIMENSION(:), OPTIONAL, POINTER :: citations
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'keyword_get', &
       routineP = moduleN//':'//routineN
@@ -519,8 +499,8 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(ASSOCIATED(keyword),cp_failure_level,routineP,error,failure)
-    CPPrecondition(keyword%ref_count>0,cp_failure_level,routineP,error,failure)
+    CPASSERT(ASSOCIATED(keyword))
+    CPASSERT(keyword%ref_count>0)
     IF (PRESENT(names)) names => keyword%names
     IF (PRESENT(usage)) usage=keyword%usage
     IF (PRESENT(description)) description=a2s(keyword%description)
@@ -540,14 +520,11 @@ CONTAINS
 !> \param level the description level (0 no description, 1 name
 !>        2: +usage, 3: +variants+description+default_value+repeats
 !>        4: +type_of_var)
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \author fawzi
 ! *****************************************************************************
-  SUBROUTINE keyword_describe(keyword, unit_nr, level,error)
+  SUBROUTINE keyword_describe(keyword, unit_nr, level)
     TYPE(keyword_type), POINTER              :: keyword
     INTEGER, INTENT(in)                      :: unit_nr, level
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'keyword_describe', &
       routineP = moduleN//':'//routineN
@@ -558,8 +535,8 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(ASSOCIATED(keyword),cp_failure_level,routineP,error,failure)
-    CPPrecondition(keyword%ref_count>0,cp_failure_level,routineP,error,failure)
+    CPASSERT(ASSOCIATED(keyword))
+    CPASSERT(keyword%ref_count>0)
     IF (.NOT. failure.AND.level>0.AND.(unit_nr>0)) THEN
        WRITE(unit_nr,"(a,a,a)") "                           ---",&
             TRIM(keyword%names(1)),"---"
@@ -597,8 +574,7 @@ CONTAINS
                    WRITE(unit_nr,"(i6,' reals are expected')") keyword%n_var
                 END IF
                 IF (ASSOCIATED(keyword%unit)) THEN
-                   c_string=cp_unit_desc(keyword%unit,accept_undefined=.TRUE.,&
-                        error=error)
+                   c_string=cp_unit_desc(keyword%unit,accept_undefined=.TRUE.)
                    WRITE(unit_nr,"('the default unit of measure is ',a)")&
                         TRIM(c_string)
                 END IF
@@ -623,7 +599,7 @@ CONTAINS
              CASE (no_t)
                 WRITE(unit_nr,"('  Non-standard type.')")
              CASE default
-                CPAssert(.FALSE.,cp_warning_level,routineP,error,failure)
+                CPASSERT(.FALSE.)
              END SELECT
           END IF
           IF (keyword%type_of_var==enum_t) THEN
@@ -658,11 +634,11 @@ CONTAINS
           END IF
           IF (ASSOCIATED(keyword%default_value).AND.keyword%type_of_var/=no_t) THEN
              WRITE(unit_nr,"('default_value : ')",advance="NO")
-             CALL val_write(keyword%default_value,unit_nr=unit_nr,error=error)
+             CALL val_write(keyword%default_value,unit_nr=unit_nr)
           END IF
           IF (ASSOCIATED(keyword%lone_keyword_value).AND.keyword%type_of_var/=no_t) THEN
              WRITE(unit_nr,"('lone_keyword  : ')",advance="NO")
-             CALL val_write(keyword%lone_keyword_value,unit_nr=unit_nr,error=error)
+             CALL val_write(keyword%lone_keyword_value,unit_nr=unit_nr)
           END IF
           IF (keyword%repeats) THEN
              WRITE(unit_nr,"(' and it can be repeated more than once')",advance="NO")
@@ -683,14 +659,11 @@ CONTAINS
 !> \brief writes out a description of the keyword
 !> \param keyword the keyword to describe
 !> \param unit_nr the unit to write to
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \author Joost VandeVondele [10.2004], based on keyword_describe
 ! *****************************************************************************
-  SUBROUTINE keyword_describe_html(keyword, unit_nr, error)
+  SUBROUTINE keyword_describe_html(keyword, unit_nr)
     TYPE(keyword_type), POINTER              :: keyword
     INTEGER, INTENT(in)                      :: unit_nr
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'keyword_describe_html', &
       routineP = moduleN//':'//routineN
@@ -701,8 +674,8 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(ASSOCIATED(keyword),cp_failure_level,routineP,error,failure)
-    CPPrecondition(keyword%ref_count>0,cp_failure_level,routineP,error,failure)
+    CPASSERT(ASSOCIATED(keyword))
+    CPASSERT(keyword%ref_count>0)
     WRITE(unit_nr,'(a)') '<TR><TD WITDH="20%">'// &
          '<A NAME="'//TRIM(keyword%names(1))//'"><u>'//TRIM(keyword%names(1))//'</u></A>'// &
          '<TD WIDTH="80%">'
@@ -756,29 +729,29 @@ CONTAINS
     CASE (no_t)
        WRITE(unit_nr,'(a)',ADVANCE="NO") 'expects a non-standard input type'
     CASE DEFAULT
-       CPAssert(.FALSE.,cp_warning_level,routineP,error,failure)
+       CPASSERT(.FALSE.)
     END SELECT
     IF (keyword%repeats) THEN
        WRITE(unit_nr,"(', and may repeat')",ADVANCE="NO")
     END IF
     IF (ASSOCIATED(keyword%lone_keyword_value).AND.keyword%type_of_var/=no_t) THEN
        WRITE(unit_nr,'(a)',advance="NO") '<TR><TD WIDTH="10%"><TD>This keyword behaves as a switch'
-       CALL val_write(keyword%lone_keyword_value,unit_nr=unit_nr,error=error)
+       CALL val_write(keyword%lone_keyword_value,unit_nr=unit_nr)
     END IF
     IF (ASSOCIATED(keyword%default_value).AND.keyword%type_of_var/=no_t) THEN
        IF (ASSOCIATED(keyword%unit)) THEN
-          my_unit=cp_unit_desc(keyword%unit,accept_undefined=.TRUE.,error=error)
+          my_unit=cp_unit_desc(keyword%unit,accept_undefined=.TRUE.)
           WRITE(unit_nr,'(a)',advance="NO") '. Default unit: ' // '[' // TRIM(my_unit)// '], default value: '
        ELSE
           WRITE(unit_nr,'(a)',advance="NO") '. Default value: '
        ENDIF
-       CALL val_write(keyword%default_value,unit=keyword%unit,unit_nr=unit_nr,error=error)
+       CALL val_write(keyword%default_value,unit=keyword%unit,unit_nr=unit_nr)
        IF (ASSOCIATED(keyword%unit)) THEN
           WRITE(unit_nr,'(a)',advance="NO") TRIM(my_unit)
        END IF
     ELSE
        IF (ASSOCIATED(keyword%unit)) THEN
-          my_unit=cp_unit_desc(keyword%unit,accept_undefined=.TRUE.,error=error)
+          my_unit=cp_unit_desc(keyword%unit,accept_undefined=.TRUE.)
           WRITE(unit_nr,'(a)',advance="NO") '. Default unit: ' // '[' // TRIM(my_unit)// '].'
        END IF
     ENDIF
@@ -840,15 +813,12 @@ CONTAINS
 !> \param keyword The keyword to describe
 !> \param level ...
 !> \param unit_number Number of the output unit
-!> \param error Variable to control error logging, stopping ...
-!>        see module cp_error_handling
 !> \author Matthias Krack
 ! *****************************************************************************
-  SUBROUTINE write_keyword_xml(keyword,level,unit_number,error)
+  SUBROUTINE write_keyword_xml(keyword,level,unit_number)
 
     TYPE(keyword_type), POINTER              :: keyword
     INTEGER, INTENT(IN)                      :: level, unit_number
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'write_keyword_xml', &
       routineP = moduleN//':'//routineN
@@ -860,8 +830,8 @@ CONTAINS
     LOGICAL                                  :: failure
 
     failure = .FALSE.
-    CPPrecondition(ASSOCIATED(keyword),cp_failure_level,routineP,error,failure)
-    CPPrecondition(keyword%ref_count>0,cp_failure_level,routineP,error,failure)
+    CPASSERT(ASSOCIATED(keyword))
+    CPASSERT(keyword%ref_count>0)
 
 
     ! Indentation for current level, next level, etc.
@@ -941,7 +911,7 @@ CONTAINS
        WRITE (UNIT=unit_number,FMT="(A)")&
             REPEAT(" ",l1)//"<DATA_TYPE kind=""non-standard type"">"
     CASE DEFAULT
-       CPAssert(.FALSE.,cp_warning_level,routineP,error,failure)
+       CPASSERT(.FALSE.)
     END SELECT
 
     short_string = ""
@@ -963,12 +933,10 @@ CONTAINS
        IF (ASSOCIATED(keyword%unit)) THEN
           CALL val_write_internal(val=keyword%default_value,&
                string=string,&
-               unit=keyword%unit,&
-               error=error)
+               unit=keyword%unit)
        ELSE
           CALL val_write_internal(val=keyword%default_value,&
-               string=string,&
-               error=error)
+               string=string)
        END IF
        CALL compress(string)
        WRITE (UNIT=unit_number,FMT="(A)")&
@@ -977,7 +945,7 @@ CONTAINS
     END IF
 
     IF (ASSOCIATED(keyword%unit)) THEN
-       string = cp_unit_desc(keyword%unit,accept_undefined=.TRUE.,error=error)
+       string = cp_unit_desc(keyword%unit,accept_undefined=.TRUE.)
        WRITE (UNIT=unit_number,FMT="(A)")&
             REPEAT(" ",l1)//"<DEFAULT_UNIT>"//&
             TRIM(ADJUSTL(string))//"</DEFAULT_UNIT>"
@@ -986,8 +954,7 @@ CONTAINS
     IF (ASSOCIATED(keyword%lone_keyword_value).AND.&
          (keyword%type_of_var /= no_t)) THEN
        CALL val_write_internal(val=keyword%lone_keyword_value,&
-            string=string,&
-            error=error)
+            string=string)
        WRITE (UNIT=unit_number,FMT="(A)")&
             REPEAT(" ",l1)//"<LONE_KEYWORD_VALUE>"//&
             TRIM(ADJUSTL(string))//"</LONE_KEYWORD_VALUE>"
@@ -1028,9 +995,8 @@ CONTAINS
 !> \param location_string ...
 !> \param matching_rank ...
 !> \param matching_string ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE keyword_typo_match(keyword,unknown_string,location_string,matching_rank,matching_string,error)
+  SUBROUTINE keyword_typo_match(keyword,unknown_string,location_string,matching_rank,matching_string)
 
     TYPE(keyword_type), POINTER              :: keyword
     CHARACTER(LEN=*)                         :: unknown_string, &
@@ -1038,7 +1004,6 @@ CONTAINS
     INTEGER, DIMENSION(:), INTENT(INOUT)     :: matching_rank
     CHARACTER(LEN=*), DIMENSION(:), &
       INTENT(INOUT)                          :: matching_string
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'keyword_typo_match', &
       routineP = moduleN//':'//routineN
@@ -1048,8 +1013,8 @@ CONTAINS
     LOGICAL                                  :: failure
 
     failure = .FALSE.
-    CPPrecondition(ASSOCIATED(keyword),cp_failure_level,routineP,error,failure)
-    CPPrecondition(keyword%ref_count>0,cp_failure_level,routineP,error,failure)
+    CPASSERT(ASSOCIATED(keyword))
+    CPASSERT(keyword%ref_count>0)
 
 
     DO i=1,SIZE(keyword%names)

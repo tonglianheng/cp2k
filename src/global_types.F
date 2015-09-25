@@ -90,25 +90,20 @@ CONTAINS
 ! *****************************************************************************
 !> \brief creates a globenv
 !> \param globenv the globenv to create
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \author fawzi
 ! *****************************************************************************
-  SUBROUTINE globenv_create(globenv, error)
+  SUBROUTINE globenv_create(globenv)
     TYPE(global_environment_type), POINTER   :: globenv
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'globenv_create', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
     LOGICAL                                  :: failure
 
     failure=.FALSE.
 
-    CPPrecondition(.NOT.ASSOCIATED(globenv),cp_failure_level,routineP,error,failure)
-    ALLOCATE(globenv,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPASSERT(.NOT.ASSOCIATED(globenv))
+    ALLOCATE(globenv)
     last_globenv_id=last_globenv_id+1
     globenv%id_nr=last_globenv_id
     globenv%ref_count=1
@@ -127,13 +122,10 @@ CONTAINS
 ! *****************************************************************************
 !> \brief retains the global environment
 !> \param globenv the global environment to retain
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \author fawzi
 ! *****************************************************************************
-SUBROUTINE globenv_retain(globenv, error)
+SUBROUTINE globenv_retain(globenv)
     TYPE(global_environment_type), POINTER   :: globenv
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'globenv_retain', &
       routineP = moduleN//':'//routineN
@@ -142,39 +134,34 @@ SUBROUTINE globenv_retain(globenv, error)
 
   failure=.FALSE.
 
-  CPPrecondition(ASSOCIATED(globenv),cp_failure_level,routineP,error,failure)
-  CPPrecondition(globenv%ref_count>0,cp_failure_level,routineP,error,failure)
+  CPASSERT(ASSOCIATED(globenv))
+  CPASSERT(globenv%ref_count>0)
   globenv%ref_count=globenv%ref_count+1
 END SUBROUTINE globenv_retain
 
 ! *****************************************************************************
 !> \brief releases the global environment
 !> \param globenv the global environment to release
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \author fawzi
 ! *****************************************************************************
-SUBROUTINE globenv_release(globenv, error)
+SUBROUTINE globenv_release(globenv)
     TYPE(global_environment_type), POINTER   :: globenv
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'globenv_release', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
     LOGICAL                                  :: failure
 
   failure=.FALSE.
 
   IF (ASSOCIATED(globenv)) THEN
-     CPPrecondition(globenv%ref_count>0,cp_failure_level,routineP,error,failure)
+     CPASSERT(globenv%ref_count>0)
      globenv%ref_count=globenv%ref_count-1
      IF (globenv%ref_count==0) THEN
         IF (ASSOCIATED(globenv%gaussian_rng_stream)) THEN
-          CALL delete_rng_stream(globenv%gaussian_rng_stream,error=error)
+          CALL delete_rng_stream(globenv%gaussian_rng_stream)
         END IF
-        DEALLOCATE(globenv,stat=stat)
-        CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+        DEALLOCATE(globenv)
      END IF
   END IF
   NULLIFY(globenv)
