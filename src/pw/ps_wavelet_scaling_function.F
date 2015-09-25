@@ -53,7 +53,7 @@ SUBROUTINE scaling_function(itype,nd,nrange,a,x)
   ALLOCATE(y(0:nd),stat=i_all)
   IF (i_all /= 0) THEN
      WRITE(*,*)' scaling_function: problem of memory allocation'
-     STOP
+     CPABORT("")
   END IF
 
   ! plot scaling function
@@ -78,11 +78,7 @@ SUBROUTINE scaling_function(itype,nd,nrange,a,x)
   END DO
   !close(1)
   DEALLOCATE(ch,cg,cgt,cht)
-  DEALLOCATE(y,stat=i_all)
-  IF (i_all /= 0) THEN
-     WRITE(*,*)' scaling_function: problem of memory deallocation'
-     STOP
-  END IF
+  DEALLOCATE(y)
 END SUBROUTINE scaling_function
 
 ! *****************************************************************************
@@ -113,7 +109,7 @@ SUBROUTINE wavelet_function(itype,nd,a,x)
   ALLOCATE(y(0:nd),stat=i_all)
   IF (i_all /= 0) THEN
      WRITE(*,*)' wavelet_function: problem of memory allocation'
-     STOP
+     CPABORT("")
   END IF
 
   ! plot wavelet
@@ -138,11 +134,7 @@ SUBROUTINE wavelet_function(itype,nd,a,x)
   END DO
   !close(1)
   DEALLOCATE(ch,cg,cgt,cht)
-  DEALLOCATE(y,stat=i_all)
-  IF (i_all /= 0) THEN
-     WRITE(*,*)' wavelet_function: problem of memory deallocation'
-     STOP
-  END IF
+  DEALLOCATE(y)
 
 END SUBROUTINE wavelet_function
 

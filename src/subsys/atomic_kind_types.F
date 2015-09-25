@@ -80,21 +80,19 @@ CONTAINS
 ! *****************************************************************************
 !> \brief   Destructor routine for a set of atomic kinds
 !> \param atomic_kind_set ...
-!> \param error ...
 !> \date    02.01.2002
 !> \author  Matthias Krack (MK)
 !> \version 2.0
 ! *****************************************************************************
-  SUBROUTINE deallocate_atomic_kind_set(atomic_kind_set,error)
+  SUBROUTINE deallocate_atomic_kind_set(atomic_kind_set)
 
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'deallocate_atomic_kind_set', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: ikind, nkind, stat
+    INTEGER                                  :: ikind, nkind
     LOGICAL                                  :: failure
 
     failure = .FALSE.
@@ -104,18 +102,16 @@ CONTAINS
 
        DO ikind=1,nkind
           IF (ASSOCIATED(atomic_kind_set(ikind)%fist_potential)) THEN
-             CALL deallocate_potential(atomic_kind_set(ikind)%fist_potential,error)
+             CALL deallocate_potential(atomic_kind_set(ikind)%fist_potential)
           END IF
           IF (ASSOCIATED(atomic_kind_set(ikind)%atom_list)) THEN
-             DEALLOCATE (atomic_kind_set(ikind)%atom_list,STAT=stat)
-             CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
+             DEALLOCATE (atomic_kind_set(ikind)%atom_list)
           END IF
-          CALL shell_release(atomic_kind_set(ikind)%shell,error)
+          CALL shell_release(atomic_kind_set(ikind)%shell)
 
-          CALL damping_p_release(atomic_kind_set(ikind)%damping,error)
+          CALL damping_p_release(atomic_kind_set(ikind)%damping)
        END DO
-       DEALLOCATE (atomic_kind_set,STAT=stat)
-       CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
+       DEALLOCATE (atomic_kind_set)
     ELSE
        CALL stop_program(routineN,moduleN,__LINE__,&
             "The pointer atomic_kind_set is not associated and "//&
@@ -346,12 +342,11 @@ CONTAINS
 !> \param shell ...
 !> \param shell_active ...
 !> \param damping ...
-!> \param error ...
 ! *****************************************************************************
   SUBROUTINE set_atomic_kind(atomic_kind,element_symbol,name,mass,kind_number,&
        natom,atom_list,&
        fist_potential,shell,&
-       shell_active,damping,error)
+       shell_active,damping)
 
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     CHARACTER(LEN=*), INTENT(IN), OPTIONAL   :: element_symbol, name
@@ -364,13 +359,11 @@ CONTAINS
     TYPE(shell_kind_type), OPTIONAL, POINTER :: shell
     LOGICAL, INTENT(IN), OPTIONAL            :: shell_active
     TYPE(damping_p_type), OPTIONAL, POINTER  :: damping
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'set_atomic_kind', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: n, stat
+    INTEGER                                  :: n
     LOGICAL                                  :: failure
 
     failure = .FALSE.
@@ -386,11 +379,9 @@ CONTAINS
           n = SIZE(atom_list)
           IF (n > 0) THEN
              IF (ASSOCIATED(atomic_kind%atom_list)) THEN
-                DEALLOCATE (atomic_kind%atom_list,STAT=stat)
-                CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+                DEALLOCATE (atomic_kind%atom_list)
              END IF
-             ALLOCATE (atomic_kind%atom_list(n),STAT=stat)
-             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+             ALLOCATE (atomic_kind%atom_list(n))
              atomic_kind%atom_list(:) = atom_list(:)
              atomic_kind%natom = n
           ELSE
@@ -401,7 +392,7 @@ CONTAINS
        IF (PRESENT(fist_potential)) atomic_kind%fist_potential => fist_potential
        IF (PRESENT(shell)) THEN
           atomic_kind%shell => shell
-          CALL shell_retain(shell,error)
+          CALL shell_retain(shell)
        END IF
        IF (PRESENT(shell_active)) atomic_kind%shell_active=shell_active
 

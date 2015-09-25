@@ -20,7 +20,8 @@ MODULE dbcsr_vector_operations_low
                                              dbcsr_distribution_release,&
                                              dbcsr_distribution_row_clusters,&
                                              dbcsr_distribution_row_dist
-  USE dbcsr_error_handling,            ONLY: dbcsr_assert,&
+  USE dbcsr_error_handling,            ONLY: dbcsr_abort,&
+                                             dbcsr_assert,&
                                              dbcsr_caller_error,&
                                              dbcsr_error_set,&
                                              dbcsr_error_stop,&
@@ -181,7 +182,7 @@ CONTAINS
     CALL dbcsr_init(dbcsr_vec)
     CALL dbcsr_create(dbcsr_vec, "D", dist_col_vec, dbcsr_type_no_symmetry, &
             dbcsr_row_block_sizes(matrix), col_sizes,&
-            nblks=0, nze=0, data_type=matrix%m%data_type, error=error)    
+            nze=0, data_type=matrix%m%data_type, error=error)    
 
     CALL dbcsr_reserve_all_blocks(dbcsr_vec,error)    
 
@@ -230,7 +231,7 @@ CONTAINS
     CALL dbcsr_init(dbcsr_vec)
     CALL dbcsr_create(dbcsr_vec, "D", dist_row_vec, dbcsr_type_no_symmetry, &
             row_sizes, dbcsr_col_block_sizes(matrix), &
-            nblks=0, nze=0, data_type=matrix%m%data_type, error=error)    
+            nze=0, data_type=matrix%m%data_type, error=error)    
 
     CALL dbcsr_reserve_all_blocks(dbcsr_vec,error) 
 
@@ -283,7 +284,7 @@ CONTAINS
     CALL dbcsr_init(dbcsr_vec)
     CALL dbcsr_create(dbcsr_vec, "D", dist_col_vec, dbcsr_type_no_symmetry, &
             dbcsr_row_block_sizes(matrix), col_sizes,&
-            nblks=0, nze=0, data_type=matrix%m%data_type, error=error)
+            nze=0, data_type=matrix%m%data_type, error=error)
 
     CALL dbcsr_reserve_all_blocks(dbcsr_vec,error)
 
@@ -336,7 +337,7 @@ CONTAINS
     CALL dbcsr_init(dbcsr_vec)
     CALL dbcsr_create(dbcsr_vec, "D", dist_row_vec, dbcsr_type_no_symmetry, &
             row_sizes, dbcsr_col_block_sizes(matrix), &
-            nblks=0, nze=0, data_type=matrix%m%data_type, error=error)   
+            nze=0, data_type=matrix%m%data_type, error=error)   
 
     CALL dbcsr_reserve_all_blocks(dbcsr_vec,error)
 

@@ -69,14 +69,12 @@ CONTAINS
 !> \param pot_manybody ...
 !> \param para_env ...
 !> \param mm_section ...
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \par History
 !>      tlaino [2007] - New algorithm for tersoff potential
 !> \author CJM, I-Feng W. Kuo, Teodoro Laino
 ! *****************************************************************************
   SUBROUTINE energy_manybody ( fist_nonbond_env, atomic_kind_set, local_particles,&
-       particle_set, cell, pot_manybody, para_env, mm_section, error )
+       particle_set, cell, pot_manybody, para_env, mm_section)
 
     TYPE(fist_nonbond_env_type), POINTER     :: fist_nonbond_env
     TYPE(atomic_kind_type), POINTER          :: atomic_kind_set( : )
@@ -87,7 +85,6 @@ CONTAINS
     TYPE(cp_para_env_type), OPTIONAL, &
       POINTER                                :: para_env
     TYPE(section_vals_type), POINTER         :: mm_section
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'energy_manybody', &
       routineP = moduleN//':'//routineN
@@ -95,7 +92,7 @@ CONTAINS
     INTEGER :: atom_a, atom_b, handle, i, iend, ifirst, igrp, ikind, ilast, &
       ilist, indexa, ipair, iparticle, iparticle_local, istart, iunique, &
       jkind, junique, mpair, nkinds, nloc_size, npairs, nparticle, &
-      nparticle_local, nr_oh, nunique, stat
+      nparticle_local, nr_oh, nunique
     INTEGER, DIMENSION(:), POINTER           :: glob_loc_list_a, work_list
     INTEGER, DIMENSION(:, :), POINTER        :: glob_loc_list, list, sort_list
     LOGICAL                                  :: any_quip, any_siepmann, &
@@ -123,7 +120,7 @@ CONTAINS
     failure = .FALSE.
     CALL timeset ( routineN, handle )
     CALL fist_nonbond_env_get ( fist_nonbond_env, r_last_update_pbc=r_last_update_pbc,&
-         potparm = potparm , eam_data=eam_data, error=error)
+         potparm = potparm , eam_data=eam_data)
     ! EAM requires a single loop
     DO ikind = 1, SIZE ( atomic_kind_set )
        pot => potparm %pot ( ikind, ikind ) % pot
@@ -131,10 +128,9 @@ CONTAINS
          IF(pot%type(i) /= ea_type) CYCLE
          eam => pot%set(i)%eam
          nparticle = SIZE ( particle_set )
-         ALLOCATE(fembed(nparticle), stat=stat )
-         CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+         ALLOCATE(fembed(nparticle))
          fembed(:) = 0._dp
-         CPPostcondition(ASSOCIATED(eam_data),cp_failure_level,routineP,error,failure)
+         CPASSERT(ASSOCIATED(eam_data))
          ! computation of embedding function and energy
          nparticle_local = local_particles%n_el(ikind)
          DO iparticle_local=1,nparticle_local
@@ -156,8 +152,7 @@ CONTAINS
             END IF
          END DO
 
-         DEALLOCATE ( fembed, stat=stat )
-         CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+         DEALLOCATE ( fembed)
        END DO
     END DO
     ! Other manybody potential
@@ -169,17 +164,17 @@ CONTAINS
           any_siepmann = any_siepmann .OR. ANY(pot%type==siepmann_type)
        END DO
     END DO
-    CALL fist_nonbond_env_get(fist_nonbond_env,nonbonded=nonbonded,natom_types=nkinds,error=error)
+    CALL fist_nonbond_env_get(fist_nonbond_env,nonbonded=nonbonded,natom_types=nkinds)
     ! QUIP
     IF (any_quip) THEN
       CALL quip_energy_store_force_virial(particle_set, cell, atomic_kind_set, potparm, &
-         fist_nonbond_env, pot_quip, para_env, error=error)
+         fist_nonbond_env, pot_quip, para_env)
       pot_manybody = pot_manybody + pot_quip
     ENDIF
     ! TERSOFF
     IF (any_tersoff) THEN 
        NULLIFY(glob_loc_list, glob_cell_v, glob_loc_list_a)
-       CALL setup_tersoff_arrays(nonbonded, potparm, glob_loc_list, glob_cell_v, glob_loc_list_a, cell, error)
+       CALL setup_tersoff_arrays(nonbonded, potparm, glob_loc_list, glob_cell_v, glob_loc_list_a, cell)
        DO ilist=1,nonbonded%nlists
           neighbor_kind_pair => nonbonded%neighbor_kind_pairs(ilist)
           npairs=neighbor_kind_pair%npairs
@@ -200,8 +195,7 @@ CONTAINS
                 tersoff => pot%set(i)%tersoff
                 npairs  = iend-istart+1
                 IF (npairs /=0) THEN
-                   ALLOCATE(sort_list(2,npairs),work_list (npairs),stat=stat)
-                   CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+                   ALLOCATE(sort_list(2,npairs),work_list (npairs))
                    sort_list = list(:,istart:iend)
                    ! Sort the list of neighbors, this increases the efficiency for single
                    ! potential contributions
@@ -248,19 +242,18 @@ CONTAINS
                       ifirst = ilast + 1
                       IF (ipair<=npairs) junique = sort_list(1,ipair)
                    END DO
-                   DEALLOCATE(sort_list,work_list,stat=stat)
-                   CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+                   DEALLOCATE(sort_list,work_list)
                 END IF
              END DO
           END DO Kind_Group_Loop
        END DO
-       CALL destroy_tersoff_arrays(glob_loc_list, glob_cell_v, glob_loc_list_a, error)
+       CALL destroy_tersoff_arrays(glob_loc_list, glob_cell_v, glob_loc_list_a)
     END IF
 
     !SIEPMANN POTENTIAL
     IF (any_siepmann) THEN 
        NULLIFY(glob_loc_list, glob_cell_v, glob_loc_list_a)
-       CALL setup_siepmann_arrays(nonbonded, potparm, glob_loc_list, glob_cell_v, glob_loc_list_a, cell, error)
+       CALL setup_siepmann_arrays(nonbonded, potparm, glob_loc_list, glob_cell_v, glob_loc_list_a, cell)
        nr_oh = 0
        DO ilist=1,nonbonded%nlists
           neighbor_kind_pair => nonbonded%neighbor_kind_pairs(ilist)
@@ -282,8 +275,7 @@ CONTAINS
                 siepmann => pot%set(i)%siepmann
                 npairs  = iend-istart+1
                 IF (npairs /=0) THEN
-                   ALLOCATE(sort_list(2,npairs),work_list (npairs),stat=stat)
-                   CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+                   ALLOCATE(sort_list(2,npairs),work_list (npairs))
                    sort_list = list(:,istart:iend)
                    ! Sort the list of neighbors, this increases the efficiency for single
                    ! potential contributions
@@ -331,15 +323,14 @@ CONTAINS
                       ifirst = ilast + 1
                       IF (ipair<=npairs) junique = sort_list(1,ipair)
                    END DO
-                   DEALLOCATE(sort_list,work_list,stat=stat)
-                   CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+                   DEALLOCATE(sort_list,work_list)
                 END IF
              END DO
           END DO Kind_Group_Loop_2
        END DO
-       CALL destroy_siepmann_arrays(glob_loc_list, glob_cell_v, glob_loc_list_a, error)
+       CALL destroy_siepmann_arrays(glob_loc_list, glob_cell_v, glob_loc_list_a)
        IF(siepmann%allow_oh_formation) THEN
-         CALL print_nr_oh_siepmann(nr_oh,mm_section,para_env,error)
+         CALL print_nr_oh_siepmann(nr_oh,mm_section,para_env)
        ENDIF
     END IF
 
@@ -354,14 +345,12 @@ CONTAINS
 !> \param f_nonbond ...
 !> \param pv_nonbond ...
 !> \param use_virial ...
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \par History
 !>      Fast implementation of the tersoff potential - [tlaino] 2007
 !> \author I-Feng W. Kuo, Teodoro Laino
 ! *****************************************************************************
   SUBROUTINE force_nonbond_manybody ( fist_nonbond_env, particle_set, cell,  &
-       f_nonbond, pv_nonbond, use_virial, error )
+       f_nonbond, pv_nonbond, use_virial)
 
     TYPE(fist_nonbond_env_type), POINTER     :: fist_nonbond_env
     TYPE(particle_type), DIMENSION(:), &
@@ -370,14 +359,13 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:, :), &
       INTENT(INOUT)                          :: f_nonbond, pv_nonbond
     LOGICAL, INTENT(IN)                      :: use_virial
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'force_nonbond_manybody', &
       routineP = moduleN//':'//routineN
 
     INTEGER :: atom_a, atom_b, handle, i, i_a, i_b, iend, ifirst, igrp, &
       ikind, ilast, ilist, ipair, istart, iunique, jkind, junique, kind_a, &
-      kind_b, mpair, nkinds, nloc_size, npairs, nunique, stat
+      kind_b, mpair, nkinds, nloc_size, npairs, nunique
     INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: eam_kinds_index
     INTEGER, DIMENSION(:), POINTER           :: glob_loc_list_a, work_list
     INTEGER, DIMENSION(:, :), POINTER        :: glob_loc_list, list, sort_list
@@ -407,7 +395,7 @@ CONTAINS
     NULLIFY(eam_a, eam_b, tersoff, siepmann)
 
     CALL fist_nonbond_env_get(fist_nonbond_env,nonbonded=nonbonded,potparm=potparm,&
-         natom_types=nkinds, eam_data=eam_data, r_last_update_pbc=r_last_update_pbc,error=error)
+         natom_types=nkinds, eam_data=eam_data, r_last_update_pbc=r_last_update_pbc)
 
     ! Initializing the potential energy, pressure tensor and force
     IF (use_virial) THEN
@@ -417,16 +405,15 @@ CONTAINS
     END IF
 
     nkinds = SIZE(potparm%pot,1)
-    ALLOCATE(eam_kinds_index(nkinds,nkinds),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    ALLOCATE(eam_kinds_index(nkinds,nkinds))
     eam_kinds_index = -1
     DO ikind = 1, nkinds
        DO jkind = ikind, nkinds
           DO i = 1, SIZE(potparm%pot(ikind,jkind)%pot%type)
              IF (potparm%pot(ikind,jkind)%pot%type(i)==ea_type) THEN
                 ! At the moment we allow only 1 EAM per each kinds pair..
-                CPPostcondition(eam_kinds_index(ikind,jkind)==-1,cp_failure_level,routineP,error,failure)
-                CPPostcondition(eam_kinds_index(jkind,ikind)==-1,cp_failure_level,routineP,error,failure)
+                CPASSERT(eam_kinds_index(ikind,jkind)==-1)
+                CPASSERT(eam_kinds_index(jkind,ikind)==-1)
                 eam_kinds_index(ikind,jkind) = i
                 eam_kinds_index(jkind,ikind) = i
              END IF
@@ -436,7 +423,7 @@ CONTAINS
 
     ! QUIP
     IF (use_virial) &
-       CALL quip_add_force_virial(fist_nonbond_env, f_nonbond, pv_nonbond, error=error)
+       CALL quip_add_force_virial(fist_nonbond_env, f_nonbond, pv_nonbond)
 
     ! starting the force loop
     DO ilist=1,nonbonded%nlists
@@ -459,7 +446,7 @@ CONTAINS
           i = eam_kinds_index(ikind,jkind)
           IF (i==-1) CYCLE
           ! EAM
-          CPPostcondition(ASSOCIATED(eam_data),cp_failure_level,routineP,error,failure)
+          CPASSERT(ASSOCIATED(eam_data))
           DO ipair = istart, iend
              atom_a = list(1,ipair)
              atom_b = list(2,ipair)
@@ -506,13 +493,12 @@ CONTAINS
           END DO
        END DO Kind_Group_Loop1
     END DO
-    DEALLOCATE (eam_kinds_index, stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    DEALLOCATE (eam_kinds_index)
 
     ! Special way of handling the tersoff potential..
     IF (any_tersoff) THEN
        NULLIFY(glob_loc_list, glob_cell_v, glob_loc_list_a)
-       CALL setup_tersoff_arrays(nonbonded, potparm, glob_loc_list, glob_cell_v, glob_loc_list_a, cell, error)
+       CALL setup_tersoff_arrays(nonbonded, potparm, glob_loc_list, glob_cell_v, glob_loc_list_a, cell)
        DO ilist=1,nonbonded%nlists
           neighbor_kind_pair => nonbonded%neighbor_kind_pairs(ilist)
           npairs=neighbor_kind_pair%npairs
@@ -534,8 +520,7 @@ CONTAINS
                 IF (pot%type(i)==tersoff_type) THEN
                    npairs = iend-istart+1
                    tersoff => pot%set(i)%tersoff
-                   ALLOCATE(sort_list(2,npairs),work_list (npairs),stat=stat)
-                   CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+                   ALLOCATE(sort_list(2,npairs),work_list (npairs))
                    sort_list = list(:,istart:iend)
                    ! Sort the list of neighbors, this increases the efficiency for single
                    ! potential contributions
@@ -580,18 +565,17 @@ CONTAINS
                       ifirst = ilast + 1
                       IF (ipair<=npairs) junique = sort_list(1,ipair)
                    END DO
-                   DEALLOCATE(sort_list,work_list,stat=stat)
-                   CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+                   DEALLOCATE(sort_list,work_list)
                 END IF
              END DO
           END DO Kind_Group_Loop2
        END DO
-       CALL destroy_tersoff_arrays(glob_loc_list, glob_cell_v, glob_loc_list_a, error)
+       CALL destroy_tersoff_arrays(glob_loc_list, glob_cell_v, glob_loc_list_a)
     END IF
     ! Special way of handling the siepmann potential..
     IF (any_siepmann) THEN 
        NULLIFY(glob_loc_list, glob_cell_v, glob_loc_list_a)
-       CALL setup_siepmann_arrays(nonbonded, potparm, glob_loc_list, glob_cell_v, glob_loc_list_a, cell, error)
+       CALL setup_siepmann_arrays(nonbonded, potparm, glob_loc_list, glob_cell_v, glob_loc_list_a, cell)
        DO ilist=1,nonbonded%nlists
           neighbor_kind_pair => nonbonded%neighbor_kind_pairs(ilist)
           npairs=neighbor_kind_pair%npairs
@@ -613,8 +597,7 @@ CONTAINS
                 IF (pot%type(i)==siepmann_type) THEN
                    npairs = iend-istart+1
                    siepmann => pot%set(i)%siepmann
-                   ALLOCATE(sort_list(2,npairs),work_list (npairs),stat=stat)
-                   CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+                   ALLOCATE(sort_list(2,npairs),work_list (npairs))
                    sort_list = list(:,istart:iend)
                    ! Sort the list of neighbors, this increases the efficiency for single
                    ! potential contributions
@@ -654,23 +637,22 @@ CONTAINS
                              CALL siepmann_forces_v2 ( siepmann, r_last_update_pbc, cell_v, cell,&
                                   nloc_size, glob_loc_list(:,ifirst:ilast), glob_cell_v(:,ifirst:ilast),&
                                   atom_a, atom_b, f_nonbond, pv_nonbond, use_virial, siepmann%rcutsq,&
-                                  particle_set, error)
+                                  particle_set)
                              CALL siepmann_forces_v3( siepmann, r_last_update_pbc, cell_v,&
                                   nloc_size, glob_loc_list(:,ifirst:ilast), glob_cell_v(:,ifirst:ilast),&
                                   atom_a, atom_b, f_nonbond, pv_nonbond, use_virial, siepmann%rcutsq, &
-                                  cell, particle_set, error)
+                                  cell, particle_set)
                          END IF
                       END DO
                       ifirst = ilast + 1
                       IF (ipair<=npairs) junique = sort_list(1,ipair)
                    END DO
-                   DEALLOCATE(sort_list,work_list,stat=stat)
-                   CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+                   DEALLOCATE(sort_list,work_list)
                 END IF
              END DO
           END DO Kind_Group_Loop3
        END DO
-       CALL destroy_siepmann_arrays(glob_loc_list, glob_cell_v, glob_loc_list_a, error)
+       CALL destroy_siepmann_arrays(glob_loc_list, glob_cell_v, glob_loc_list_a)
     END IF
     IF (use_virial) THEN
        pv_nonbond(1,1) = pv_nonbond(1,1) + ptens11

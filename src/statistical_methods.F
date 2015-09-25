@@ -39,15 +39,13 @@ CONTAINS
 !> \param n ...
 !> \param w ...
 !> \param pw ...
-!> \param error ...
 !> \par History
 !>      Teodoro Laino (02.2007) [tlaino]
 ! *****************************************************************************
-  SUBROUTINE sw_test ( ix, n, w, pw, error)
+  SUBROUTINE sw_test ( ix, n, w, pw)
     REAL(KIND=dp), DIMENSION(:), POINTER     :: ix
     INTEGER, INTENT(IN)                      :: n
     REAL(KIND=dp), INTENT(OUT)               :: w, pw
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'sw_test', &
       routineP = moduleN//':'//routineN
@@ -64,8 +62,7 @@ CONTAINS
     REAL(KIND=dp), PARAMETER :: stqr = 1.047198_dp, th = 0.375_dp, &
       two = 2.0_dp, zero = 0.0_dp
 
-    INTEGER                                  :: i, i1, j, n2, output_unit, &
-                                                stat
+    INTEGER                                  :: i, i1, j, n2, output_unit
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: itmp
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: a1, a2, an, an25, asa, fac, &
@@ -78,7 +75,7 @@ CONTAINS
 
     failure = .FALSE.
     NULLIFY(logger)
-    logger => cp_error_get_logger(error)
+    logger => cp_get_default_logger()
     output_unit= cp_logger_get_default_io_unit(logger)
     ! Check for  N < 3
     IF (n  < 3 .OR. n > 5000)   THEN
@@ -94,12 +91,9 @@ CONTAINS
     ELSE
        n2 = (n-1)/2
     END IF
-    ALLOCATE(x(n),stat=stat)
-    CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
-    ALLOCATE(itmp(n),stat=stat)
-    CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
-    ALLOCATE(a(n2),stat=stat)
-    CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
+    ALLOCATE(x(n))
+    ALLOCATE(itmp(n))
+    ALLOCATE(a(n2))
     x(:) = ix
     CALL sort(x, n, itmp)
     ! Check for zero range
@@ -203,12 +197,9 @@ CONTAINS
           pw = alnorm((y - m)/s, .TRUE.)
        END IF
     END IF
-    DEALLOCATE(x,stat=stat)
-    CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
-    DEALLOCATE(itmp,stat=stat)
-    CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
-    DEALLOCATE(a,stat=stat)
-    CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
+    DEALLOCATE(x)
+    DEALLOCATE(itmp)
+    DEALLOCATE(a)
 
   END SUBROUTINE sw_test
 
@@ -368,7 +359,6 @@ CONTAINS
 !> \param tau ...
 !> \param z ...
 !> \param prob ...
-!> \param error ...
 !> \par History
 !>      Teodoro Laino (02.2007) [tlaino]
 !> \note
@@ -376,11 +366,10 @@ CONTAINS
 !>      z:    number of std devs from 0 of tau
 !>      prob: tau's probability
 ! *****************************************************************************
-  SUBROUTINE k_test(xdata,istart,n,tau,z,prob,error)
+  SUBROUTINE k_test(xdata,istart,n,tau,z,prob)
     REAL(KIND=dp), DIMENSION(:), POINTER     :: xdata
     INTEGER, INTENT(IN)                      :: istart, n
     REAL(KIND=dp)                            :: tau, z, prob
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'k_test', &
       routineP = moduleN//':'//routineN
@@ -419,15 +408,13 @@ CONTAINS
 !> \param r ...
 !> \param u ...
 !> \param prob ...
-!> \param error ...
 !> \par History
 !>      Teodoro Laino (02.2007) [tlaino]
 ! *****************************************************************************
-  SUBROUTINE vn_test(xdata,n,r,u,prob,error)
+  SUBROUTINE vn_test(xdata,n,r,u,prob)
     REAL(KIND=dp), DIMENSION(:), POINTER     :: xdata
     INTEGER, INTENT(IN)                      :: n
     REAL(KIND=dp)                            :: r, u, prob
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'vn_test', &
       routineP = moduleN//':'//routineN
@@ -467,19 +454,17 @@ CONTAINS
 !>      Debug use only
 !> \param xdata ...
 !> \param globenv ...
-!> \param error ...
 !> \par History
 !>      Teodoro Laino (02.2007) [tlaino]
 ! *****************************************************************************
-  SUBROUTINE tests(xdata, globenv, error)
+  SUBROUTINE tests(xdata, globenv)
     REAL(KIND=dp), DIMENSION(:), POINTER     :: xdata
     TYPE(global_environment_type), POINTER   :: globenv
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'tests', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, n, stat
+    INTEGER                                  :: i, n
     LOGICAL                                  :: failure
     REAL(KINd=dp)                            :: prob, pw, r, tau, u, w, z
     REAL(KIND=dp), DIMENSION(:), POINTER     :: ydata
@@ -488,39 +473,35 @@ CONTAINS
     IF (debug_this_module) THEN
        n = 50 ! original sample size
        NULLIFY(xdata)
-       ALLOCATE(xdata(n), stat=stat)
-       CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
+       ALLOCATE(xdata(n))
        DO i = 1, 10
           xdata(i) = 5.0_dp - REAL(i,KIND=dp)/2.0_dp + 0.1*&
-                     next_random_number(globenv%gaussian_rng_stream,error=error)
+                     next_random_number(globenv%gaussian_rng_stream)
           WRITE(3,*)xdata(i)
        END DO
        DO i = 11, n
-          xdata(i) = 0.1*next_random_number(globenv%gaussian_rng_stream,error=error)
+          xdata(i) = 0.1*next_random_number(globenv%gaussian_rng_stream)
        END DO
 
        ! Test for trend
        DO i = 1, n
-          CALL k_test(xdata,i,n,tau,z,prob,error)
+          CALL k_test(xdata,i,n,tau,z,prob)
           IF (prob<=0.2_dp) EXIT
        END DO
        WRITE(*,*)"Mann-Kendall test",i
 
        ! Test for normality distribution and for serial correlation
        DO i = 1,n
-         ALLOCATE(ydata(n-i+1), stat=stat)
-         CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
+         ALLOCATE(ydata(n-i+1))
          ydata = xdata(i:n)
-         CALL sw_test ( ydata, n-i+1, w, pw, error)
-         CALL vn_test(ydata,n-i+1,r,u,prob,error)
+         CALL sw_test ( ydata, n-i+1, w, pw)
+         CALL vn_test(ydata,n-i+1,r,u,prob)
          WRITE(*,*)"Shapiro Wilks test",i,w,pw
          WRITE(*,*)"Von Neu",i,r,u,prob
-         DEALLOCATE(ydata, stat=stat)
-         CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
+         DEALLOCATE(ydata)
        END DO
 
-       DEALLOCATE(xdata, stat=stat)
-       CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
+       DEALLOCATE(xdata)
     END IF
   END SUBROUTINE tests
 

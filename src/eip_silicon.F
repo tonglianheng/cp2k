@@ -56,8 +56,6 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Interface routine of Goedecker's Bazant EDIP to CP2K
 !> \param eip_env ...
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \par Literature
 !>      http://www-math.mit.edu/~bazant/EDIP
 !>      M.Z. Bazant & E. Kaxiras: Modeling of Covalent Bonding in Solids by
@@ -72,15 +70,14 @@ CONTAINS
 !>      03.2006 initial create [tdk]
 !> \author Thomas D. Kuehne (tkuehne@phys.chem.ethz.ch)
 ! *****************************************************************************
-  SUBROUTINE eip_bazant(eip_env, error)
+  SUBROUTINE eip_bazant(eip_env)
     TYPE(eip_environment_type), POINTER      :: eip_env
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'eip_bazant', &
       routineP = moduleN//':'//routineN
 
     INTEGER :: handle, i, iparticle, iparticle_kind, iparticle_local, iw, &
-      natom, nparticle_kind, nparticle_local, stat
+      natom, nparticle_kind, nparticle_local
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: ekin, ener, ener_var, mass
     REAL(KIND=dp), ALLOCATABLE, &
@@ -109,23 +106,21 @@ CONTAINS
     ekin = 0.0_dp
 
     failure = .FALSE.
-    logger => cp_error_get_logger(error)
+    logger => cp_get_default_logger()
 
-    CPPrecondition(ASSOCIATED(eip_env), cp_failure_level, routineP, error, failure)
+    CPASSERT(ASSOCIATED(eip_env))
 
 
     CALL eip_env_get(eip_env=eip_env, cell=cell, particle_set=particle_set, &
                      subsys=subsys, local_particles=local_particles, &
-                     atomic_kind_set=atomic_kind_set, error=error)
+                     atomic_kind_set=atomic_kind_set)
     CALL get_cell(cell=cell, abc=abc)
 
-    eip_section => section_vals_get_subs_vals(eip_env%force_env_input, "EIP", &
-                                                    error=error)
+    eip_section => section_vals_get_subs_vals(eip_env%force_env_input, "EIP")
     natom = SIZE(particle_set)
     !natom = local_particles%n_el(1)
 
-    ALLOCATE(rxyz(3,natom), stat=stat)
-    CPPostcondition(stat == 0, cp_failure_level, routineP, error, failure)
+    ALLOCATE(rxyz(3,natom))
 
     DO i = 1,natom
       !iparticle = local_particles%list(1)%array(i)
@@ -138,7 +133,7 @@ CONTAINS
                             coord_var=eip_env%coord_var, count=eip_env%count)
 
     !CALL get_part_ke(md_env, tbmd_energy%E_kinetic, int_grp=globalenv%para_env%group)
-    CALL cp_subsys_get(subsys=subsys, atomic_kinds=atomic_kinds,error=error)
+    CALL cp_subsys_get(subsys=subsys, atomic_kinds=atomic_kinds)
 
     nparticle_kind = atomic_kinds%n_els
 
@@ -156,7 +151,7 @@ CONTAINS
     END DO
 
     ! sum all contributions to energy over calculated parts on all processors
-    CALL cp_subsys_get(subsys=subsys, para_env=para_env, error=error)
+    CALL cp_subsys_get(subsys=subsys, para_env=para_env)
     CALL mp_sum(ekin, para_env%group)
     eip_env%eip_kinetic_energy = ekin
 
@@ -168,68 +163,67 @@ CONTAINS
       particle_set(i)%f(:) = eip_env%eip_forces(:,i)/evolt*angstrom
     END DO
 
-    DEALLOCATE(rxyz, stat=stat)
-    CPPostconditionNoFail(stat==0, cp_warning_level, routineP, error)
+    DEALLOCATE(rxyz)
 
     ! Print
     IF (BTEST(cp_print_key_should_output(logger%iter_info, &
-              eip_section, "PRINT%ENERGIES", error=error), cp_p_file)) THEN
+              eip_section, "PRINT%ENERGIES"), cp_p_file)) THEN
       iw = cp_print_key_unit_nr(logger, eip_section, "PRINT%ENERGIES", &
-                                extension=".mmLog", error=error)
+                                extension=".mmLog")
 
-      CALL eip_print_energies(eip_env=eip_env, output_unit=iw, error=error)
+      CALL eip_print_energies(eip_env=eip_env, output_unit=iw)
       CALL cp_print_key_finished_output(iw, logger, eip_section, &
-                                        "PRINT%ENERGIES", error=error)
+                                        "PRINT%ENERGIES")
     END IF
 
     IF (BTEST(cp_print_key_should_output(logger%iter_info, &
-              eip_section, "PRINT%ENERGIES_VAR", error=error), cp_p_file)) THEN
+              eip_section, "PRINT%ENERGIES_VAR"), cp_p_file)) THEN
       iw = cp_print_key_unit_nr(logger, eip_section, "PRINT%ENERGIES_VAR", &
-                                extension=".mmLog", error=error)
+                                extension=".mmLog")
 
-      CALL eip_print_energy_var(eip_env=eip_env, output_unit=iw, error=error)
+      CALL eip_print_energy_var(eip_env=eip_env, output_unit=iw)
       CALL cp_print_key_finished_output(iw, logger, eip_section, &
-                                        "PRINT%ENERGIES_VAR", error=error)
+                                        "PRINT%ENERGIES_VAR")
     END IF
 
     IF (BTEST(cp_print_key_should_output(logger%iter_info, &
-              eip_section, "PRINT%FORCES", error=error), cp_p_file)) THEN
+              eip_section, "PRINT%FORCES"), cp_p_file)) THEN
       iw = cp_print_key_unit_nr(logger, eip_section, "PRINT%FORCES", &
-                                extension=".mmLog", error=error)
+                                extension=".mmLog")
 
-      CALL eip_print_forces(eip_env=eip_env, output_unit=iw, error=error)
+      CALL eip_print_forces(eip_env=eip_env, output_unit=iw)
       CALL cp_print_key_finished_output(iw, logger, eip_section, &
-                                        "PRINT%FORCES", error=error)
+                                        "PRINT%FORCES")
     END IF
 
     IF (BTEST(cp_print_key_should_output(logger%iter_info, &
-              eip_section, "PRINT%COORD_AVG", error=error), cp_p_file)) THEN
+              eip_section, "PRINT%COORD_AVG"), cp_p_file)) THEN
       iw = cp_print_key_unit_nr(logger, eip_section, "PRINT%COORD_AVG", &
-                                extension=".mmLog", error=error)
+                                extension=".mmLog")
 
-      CALL eip_print_coord_avg(eip_env=eip_env, output_unit=iw, error=error)
+      CALL eip_print_coord_avg(eip_env=eip_env, output_unit=iw)
       CALL cp_print_key_finished_output(iw, logger, eip_section, &
-                                        "PRINT%COORD_AVG", error=error)
+                                        "PRINT%COORD_AVG")
     END IF
 
     IF (BTEST(cp_print_key_should_output(logger%iter_info, &
-              eip_section, "PRINT%COORD_VAR", error=error), cp_p_file)) THEN
+              eip_section, "PRINT%COORD_VAR"), cp_p_file)) THEN
       iw = cp_print_key_unit_nr(logger, eip_section, "PRINT%COORD_VAR", &
-                                extension=".mmLog", error=error)
+                                extension=".mmLog")
 
-      CALL eip_print_coord_var(eip_env=eip_env, output_unit=iw, error=error)
+      CALL eip_print_coord_var(eip_env=eip_env, output_unit=iw)
       CALL cp_print_key_finished_output(iw, logger, eip_section, &
-                                        "PRINT%COORD_VAR", error=error)
+                                        "PRINT%COORD_VAR")
     END IF
 
     IF (BTEST(cp_print_key_should_output(logger%iter_info, &
-              eip_section, "PRINT%COUNT", error=error), cp_p_file)) THEN
+              eip_section, "PRINT%COUNT"), cp_p_file)) THEN
       iw = cp_print_key_unit_nr(logger, eip_section, "PRINT%COUNT", &
-                                extension=".mmLog", error=error)
+                                extension=".mmLog")
 
-      CALL eip_print_count(eip_env=eip_env, output_unit=iw, error=error)
+      CALL eip_print_count(eip_env=eip_env, output_unit=iw)
       CALL cp_print_key_finished_output(iw, logger, eip_section, &
-                                        "PRINT%COUNT", error=error)
+                                        "PRINT%COUNT")
     END IF
 
 
@@ -240,8 +234,6 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Interface routine of Goedecker's Lenosky force field to CP2K
 !> \param eip_env ...
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \par Literature
 !>      T. Lenosky, et. al.: Highly optimized empirical potential model of silicon;
 !>                           Modelling Simul. Sci. Eng., 8 (2000)
@@ -251,15 +243,14 @@ CONTAINS
 !>      03.2006 initial create [tdk]
 !> \author Thomas D. Kuehne (tkuehne@phys.chem.ethz.ch)
 ! *****************************************************************************
-  SUBROUTINE eip_lenosky(eip_env, error)
+  SUBROUTINE eip_lenosky(eip_env)
     TYPE(eip_environment_type), POINTER      :: eip_env
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'eip_lenosky', &
       routineP = moduleN//':'//routineN
 
     INTEGER :: handle, i, iparticle, iparticle_kind, iparticle_local, iw, &
-      natom, nparticle_kind, nparticle_local, stat
+      natom, nparticle_kind, nparticle_local
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: ekin, ener, ener_var, mass
     REAL(KIND=dp), ALLOCATABLE, &
@@ -288,23 +279,21 @@ CONTAINS
     ekin = 0.0_dp
 
     failure = .FALSE.
-    logger => cp_error_get_logger(error)
+    logger => cp_get_default_logger()
 
-    CPPrecondition(ASSOCIATED(eip_env), cp_failure_level, routineP, error, failure)
+    CPASSERT(ASSOCIATED(eip_env))
 
 
     CALL eip_env_get(eip_env=eip_env, cell=cell, particle_set=particle_set, &
                      subsys=subsys, local_particles=local_particles, &
-                     atomic_kind_set=atomic_kind_set, error=error)
+                     atomic_kind_set=atomic_kind_set)
     CALL get_cell(cell=cell, abc=abc)
 
-    eip_section => section_vals_get_subs_vals(eip_env%force_env_input, "EIP", &
-                                                    error=error)
+    eip_section => section_vals_get_subs_vals(eip_env%force_env_input, "EIP")
     natom = SIZE(particle_set)
     !natom = local_particles%n_el(1)
 
-    ALLOCATE(rxyz(3,natom), stat=stat)
-    CPPostcondition(stat == 0, cp_failure_level, routineP, error, failure)
+    ALLOCATE(rxyz(3,natom))
 
     DO i = 1,natom
       !iparticle = local_particles%list(1)%array(i)
@@ -317,7 +306,7 @@ CONTAINS
                              coord_var=eip_env%coord_var, count=eip_env%count)
 
     !CALL get_part_ke(md_env, tbmd_energy%E_kinetic, int_grp=globalenv%para_env%group)
-    CALL cp_subsys_get(subsys=subsys, atomic_kinds=atomic_kinds,error=error)
+    CALL cp_subsys_get(subsys=subsys, atomic_kinds=atomic_kinds)
 
     nparticle_kind = atomic_kinds%n_els
 
@@ -335,7 +324,7 @@ CONTAINS
     END DO
 
     ! sum all contributions to energy over calculated parts on all processors
-    CALL cp_subsys_get(subsys=subsys, para_env=para_env, error=error)
+    CALL cp_subsys_get(subsys=subsys, para_env=para_env)
     CALL mp_sum(ekin, para_env%group)
     eip_env%eip_kinetic_energy = ekin
 
@@ -347,68 +336,67 @@ CONTAINS
       particle_set(i)%f(:) = eip_env%eip_forces(:,i)/evolt*angstrom
     END DO
 
-    DEALLOCATE(rxyz, stat=stat)
-    CPPostconditionNoFail(stat==0, cp_warning_level, routineP, error)
+    DEALLOCATE(rxyz)
 
     ! Print
     IF (BTEST(cp_print_key_should_output(logger%iter_info, &
-              eip_section, "PRINT%ENERGIES", error=error), cp_p_file)) THEN
+              eip_section, "PRINT%ENERGIES"), cp_p_file)) THEN
       iw = cp_print_key_unit_nr(logger, eip_section, "PRINT%ENERGIES", &
-                                extension=".mmLog", error=error)
+                                extension=".mmLog")
 
-      CALL eip_print_energies(eip_env=eip_env, output_unit=iw, error=error)
+      CALL eip_print_energies(eip_env=eip_env, output_unit=iw)
       CALL cp_print_key_finished_output(iw, logger, eip_section, &
-                                        "PRINT%ENERGIES", error=error)
+                                        "PRINT%ENERGIES")
     END IF
 
     IF (BTEST(cp_print_key_should_output(logger%iter_info, &
-              eip_section, "PRINT%ENERGIES_VAR", error=error), cp_p_file)) THEN
+              eip_section, "PRINT%ENERGIES_VAR"), cp_p_file)) THEN
       iw = cp_print_key_unit_nr(logger, eip_section, "PRINT%ENERGIES_VAR", &
-                                extension=".mmLog", error=error)
+                                extension=".mmLog")
 
-      CALL eip_print_energy_var(eip_env=eip_env, output_unit=iw, error=error)
+      CALL eip_print_energy_var(eip_env=eip_env, output_unit=iw)
       CALL cp_print_key_finished_output(iw, logger, eip_section, &
-                                        "PRINT%ENERGIES_VAR", error=error)
+                                        "PRINT%ENERGIES_VAR")
     END IF
 
     IF (BTEST(cp_print_key_should_output(logger%iter_info, &
-              eip_section, "PRINT%FORCES", error=error), cp_p_file)) THEN
+              eip_section, "PRINT%FORCES"), cp_p_file)) THEN
       iw = cp_print_key_unit_nr(logger, eip_section, "PRINT%FORCES", &
-                                extension=".mmLog", error=error)
+                                extension=".mmLog")
 
-      CALL eip_print_forces(eip_env=eip_env, output_unit=iw, error=error)
+      CALL eip_print_forces(eip_env=eip_env, output_unit=iw)
       CALL cp_print_key_finished_output(iw, logger, eip_section, &
-                                        "PRINT%FORCES", error=error)
+                                        "PRINT%FORCES")
     END IF
 
     IF (BTEST(cp_print_key_should_output(logger%iter_info, &
-              eip_section, "PRINT%COORD_AVG", error=error), cp_p_file)) THEN
+              eip_section, "PRINT%COORD_AVG"), cp_p_file)) THEN
       iw = cp_print_key_unit_nr(logger, eip_section, "PRINT%COORD_AVG", &
-                                extension=".mmLog", error=error)
+                                extension=".mmLog")
 
-      CALL eip_print_coord_avg(eip_env=eip_env, output_unit=iw, error=error)
+      CALL eip_print_coord_avg(eip_env=eip_env, output_unit=iw)
       CALL cp_print_key_finished_output(iw, logger, eip_section, &
-                                        "PRINT%COORD_AVG", error=error)
+                                        "PRINT%COORD_AVG")
     END IF
 
     IF (BTEST(cp_print_key_should_output(logger%iter_info, &
-              eip_section, "PRINT%COORD_VAR", error=error), cp_p_file)) THEN
+              eip_section, "PRINT%COORD_VAR"), cp_p_file)) THEN
       iw = cp_print_key_unit_nr(logger, eip_section, "PRINT%COORD_VAR", &
-                                extension=".mmLog", error=error)
+                                extension=".mmLog")
 
-      CALL eip_print_coord_var(eip_env=eip_env, output_unit=iw, error=error)
+      CALL eip_print_coord_var(eip_env=eip_env, output_unit=iw)
       CALL cp_print_key_finished_output(iw, logger, eip_section, &
-                                        "PRINT%COORD_VAR", error=error)
+                                        "PRINT%COORD_VAR")
     END IF
 
     IF (BTEST(cp_print_key_should_output(logger%iter_info, &
-              eip_section, "PRINT%COUNT", error=error), cp_p_file)) THEN
+              eip_section, "PRINT%COUNT"), cp_p_file)) THEN
       iw = cp_print_key_unit_nr(logger, eip_section, "PRINT%COUNT", &
-                                extension=".mmLog", error=error)
+                                extension=".mmLog")
 
-      CALL eip_print_count(eip_env=eip_env, output_unit=iw, error=error)
+      CALL eip_print_count(eip_env=eip_env, output_unit=iw)
       CALL cp_print_key_finished_output(iw, logger, eip_section, &
-                                        "PRINT%COUNT", error=error)
+                                        "PRINT%COUNT")
     END IF
 
 
@@ -420,8 +408,6 @@ CONTAINS
 !> \brief Print routine for the EIP energies
 !> \param eip_env The eip environment of matter
 !> \param output_unit The output unit
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \par History
 !>      03.2006 initial create [tdk]
 !> \author Thomas D. Kuehne (tkuehne@phys.chem.ethz.ch)
@@ -429,10 +415,9 @@ CONTAINS
 !>      As usual the EIP energies differ from the DFT energies!
 !>      Only the relative energy differneces are correctly reproduced.
 ! *****************************************************************************
-  SUBROUTINE eip_print_energies(eip_env, output_unit, error)
+  SUBROUTINE eip_print_energies(eip_env, output_unit)
     TYPE(eip_environment_type), POINTER      :: eip_env
     INTEGER, INTENT(IN)                      :: output_unit
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'eip_print_energies', &
       routineP = moduleN//':'//routineN
@@ -452,16 +437,13 @@ CONTAINS
 !> \brief Print routine for the variance of the energy/atom
 !> \param eip_env The eip environment of matter
 !> \param output_unit The output unit
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \par History
 !>      03.2006 initial create [tdk]
 !> \author Thomas D. Kuehne (tkuehne@phys.chem.ethz.ch)
 ! *****************************************************************************
-  SUBROUTINE eip_print_energy_var(eip_env, output_unit, error)
+  SUBROUTINE eip_print_energy_var(eip_env, output_unit)
     TYPE(eip_environment_type), POINTER      :: eip_env
     INTEGER, INTENT(IN)                      :: output_unit
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'eip_print_energy_var', &
       routineP = moduleN//':'//routineN
@@ -487,16 +469,13 @@ CONTAINS
 !> \brief Print routine for the forces
 !> \param eip_env The eip environment of matter
 !> \param output_unit The output unit
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \par History
 !>      03.2006 initial create [tdk]
 !> \author Thomas D. Kuehne (tkuehne@phys.chem.ethz.ch)
 ! *****************************************************************************
-  SUBROUTINE eip_print_forces(eip_env, output_unit, error)
+  SUBROUTINE eip_print_forces(eip_env, output_unit)
     TYPE(eip_environment_type), POINTER      :: eip_env
     INTEGER, INTENT(IN)                      :: output_unit
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'eip_print_forces', &
       routineP = moduleN//':'//routineN
@@ -513,7 +492,7 @@ CONTAINS
 
     IF (unit_nr > 0) THEN
 
-      CALL eip_env_get(eip_env=eip_env, particle_set=particle_set, error=error)
+      CALL eip_env_get(eip_env=eip_env, particle_set=particle_set)
 
       natom = SIZE(particle_set)
 
@@ -533,16 +512,13 @@ CONTAINS
 !> \brief Print routine for the average coordination number
 !> \param eip_env The eip environment of matter
 !> \param output_unit The output unit
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \par History
 !>      03.2006 initial create [tdk]
 !> \author Thomas D. Kuehne (tkuehne@phys.chem.ethz.ch)
 ! *****************************************************************************
-  SUBROUTINE eip_print_coord_avg(eip_env, output_unit, error)
+  SUBROUTINE eip_print_coord_avg(eip_env, output_unit)
     TYPE(eip_environment_type), POINTER      :: eip_env
     INTEGER, INTENT(IN)                      :: output_unit
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'eip_print_coord_avg', &
       routineP = moduleN//':'//routineN
@@ -568,16 +544,13 @@ CONTAINS
 !> \brief Print routine for the variance of the coordination number
 !> \param eip_env The eip environment of matter
 !> \param output_unit The output unit
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \par History
 !>      03.2006 initial create [tdk]
 !> \author Thomas D. Kuehne (tkuehne@phys.chem.ethz.ch)
 ! *****************************************************************************
-  SUBROUTINE eip_print_coord_var(eip_env, output_unit, error)
+  SUBROUTINE eip_print_coord_var(eip_env, output_unit)
     TYPE(eip_environment_type), POINTER      :: eip_env
     INTEGER, INTENT(IN)                      :: output_unit
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'eip_print_coord_var', &
       routineP = moduleN//':'//routineN
@@ -603,16 +576,13 @@ CONTAINS
 !> \brief Print routine for the function call counter
 !> \param eip_env The eip environment of matter
 !> \param output_unit The output unit
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \par History
 !>      03.2006 initial create [tdk]
 !> \author Thomas D. Kuehne (tkuehne@phys.chem.ethz.ch)
 ! *****************************************************************************
-  SUBROUTINE eip_print_count(eip_env, output_unit, error)
+  SUBROUTINE eip_print_count(eip_env, output_unit)
     TYPE(eip_environment_type), POINTER      :: eip_env
     INTEGER, INTENT(IN)                      :: output_unit
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'eip_print_count', &
       routineP = moduleN//':'//routineN
@@ -696,11 +666,11 @@ CONTAINS
 
 ! linear scaling calculation of verlet list
         ll1=INT(alat(1)/cut)
-        IF (ll1.lt.1) STOP 'alat(1) too small'
+        IF (ll1.lt.1) CPABORT("alat(1) too small")
         ll2=INT(alat(2)/cut)
-        IF (ll2.lt.1) STOP 'alat(2) too small'
+        IF (ll2.lt.1) CPABORT("alat(2) too small")
         ll3=INT(alat(3)/cut)
-        IF (ll3.lt.1) STOP 'alat(3) too small'
+        IF (ll3.lt.1) CPABORT("alat(3) too small")
 
 ! determine number of threads
         npr=1
@@ -806,7 +776,7 @@ CONTAINS
         DO ii=1,in
         i=icell(ii,l1,l2,0)
         il=il+1
-        IF (il.gt.nn) STOP 'enlarge laymx'
+        IF (il.gt.nn) CPABORT("enlarge laymx")
         lay(il)=i
         icell(ii,l1,l2,ll3)=il
         rxyz(1,il)=rxyz(1,i)
@@ -819,7 +789,7 @@ CONTAINS
         DO ii=1,in
         i=icell(ii,l1,l2,ll3-1)
         il=il+1
-        IF (il.gt.nn) STOP 'enlarge laymx'
+        IF (il.gt.nn) CPABORT("enlarge laymx")
         lay(il)=i
         icell(ii,l1,l2,-1)=il
         rxyz(1,il)=rxyz(1,i)
@@ -839,7 +809,7 @@ CONTAINS
         DO ii=1,in
         i=icell(ii,0,l2,l3)
         il=il+1
-        IF (il.gt.nn) STOP 'enlarge laymx'
+        IF (il.gt.nn) CPABORT("enlarge laymx")
         lay(il)=i
         icell(ii,ll1,l2,l3)=il
         rxyz(1,il)=rxyz(1,i)+alat(1)
@@ -852,7 +822,7 @@ CONTAINS
         DO ii=1,in
         i=icell(ii,ll1-1,l2,l3)
         il=il+1
-        IF (il.gt.nn) STOP 'enlarge laymx'
+        IF (il.gt.nn) CPABORT("enlarge laymx")
         lay(il)=i
         icell(ii,-1,l2,l3)=il
         rxyz(1,il)=rxyz(1,i)-alat(1)
@@ -872,7 +842,7 @@ CONTAINS
         DO ii=1,in
         i=icell(ii,l1,0,l3)
         il=il+1
-        IF (il.gt.nn) STOP 'enlarge laymx'
+        IF (il.gt.nn) CPABORT("enlarge laymx")
         lay(il)=i
         icell(ii,l1,ll2,l3)=il
         rxyz(1,il)=rxyz(1,i)
@@ -885,7 +855,7 @@ CONTAINS
         DO ii=1,in
         i=icell(ii,l1,ll2-1,l3)
         il=il+1
-        IF (il.gt.nn) STOP 'enlarge laymx'
+        IF (il.gt.nn) CPABORT("enlarge laymx")
         lay(il)=i
         icell(ii,l1,-1,l3)=il
         rxyz(1,il)=rxyz(1,i)
@@ -904,7 +874,7 @@ CONTAINS
         DO ii=1,in
         i=icell(ii,l1,0,0)
         il=il+1
-        IF (il.gt.nn) STOP 'enlarge laymx'
+        IF (il.gt.nn) CPABORT("enlarge laymx")
         lay(il)=i
         icell(ii,l1,ll2,ll3)=il
         rxyz(1,il)=rxyz(1,i)
@@ -917,7 +887,7 @@ CONTAINS
         DO ii=1,in
         i=icell(ii,l1,0,ll3-1)
         il=il+1
-        IF (il.gt.nn) STOP 'enlarge laymx'
+        IF (il.gt.nn) CPABORT("enlarge laymx")
         lay(il)=i
         icell(ii,l1,ll2,-1)=il
         rxyz(1,il)=rxyz(1,i)
@@ -930,7 +900,7 @@ CONTAINS
         DO ii=1,in
         i=icell(ii,l1,ll2-1,0)
         il=il+1
-        IF (il.gt.nn) STOP 'enlarge laymx'
+        IF (il.gt.nn) CPABORT("enlarge laymx")
         lay(il)=i
         icell(ii,l1,-1,ll3)=il
         rxyz(1,il)=rxyz(1,i)
@@ -943,7 +913,7 @@ CONTAINS
         DO ii=1,in
         i=icell(ii,l1,ll2-1,ll3-1)
         il=il+1
-        IF (il.gt.nn) STOP 'enlarge laymx'
+        IF (il.gt.nn) CPABORT("enlarge laymx")
         lay(il)=i
         icell(ii,l1,-1,-1)=il
         rxyz(1,il)=rxyz(1,i)
@@ -961,7 +931,7 @@ CONTAINS
         DO ii=1,in
         i=icell(ii,0,l2,0)
         il=il+1
-        IF (il.gt.nn) STOP 'enlarge laymx'
+        IF (il.gt.nn) CPABORT("enlarge laymx")
         lay(il)=i
         icell(ii,ll1,l2,ll3)=il
         rxyz(1,il)=rxyz(1,i)+alat(1)
@@ -974,7 +944,7 @@ CONTAINS
         DO ii=1,in
         i=icell(ii,0,l2,ll3-1)
         il=il+1
-        IF (il.gt.nn) STOP 'enlarge laymx'
+        IF (il.gt.nn) CPABORT("enlarge laymx")
         lay(il)=i
         icell(ii,ll1,l2,-1)=il
         rxyz(1,il)=rxyz(1,i)+alat(1)
@@ -987,7 +957,7 @@ CONTAINS
         DO ii=1,in
         i=icell(ii,ll1-1,l2,0)
         il=il+1
-        IF (il.gt.nn) STOP 'enlarge laymx'
+        IF (il.gt.nn) CPABORT("enlarge laymx")
         lay(il)=i
         icell(ii,-1,l2,ll3)=il
         rxyz(1,il)=rxyz(1,i)-alat(1)
@@ -1000,7 +970,7 @@ CONTAINS
         DO ii=1,in
         i=icell(ii,ll1-1,l2,ll3-1)
         il=il+1
-        IF (il.gt.nn) STOP 'enlarge laymx'
+        IF (il.gt.nn) CPABORT("enlarge laymx")
         lay(il)=i
         icell(ii,-1,l2,-1)=il
         rxyz(1,il)=rxyz(1,i)-alat(1)
@@ -1018,7 +988,7 @@ CONTAINS
         DO ii=1,in
         i=icell(ii,0,0,l3)
         il=il+1
-        IF (il.gt.nn) STOP 'enlarge laymx'
+        IF (il.gt.nn) CPABORT("enlarge laymx")
         lay(il)=i
         icell(ii,ll1,ll2,l3)=il
         rxyz(1,il)=rxyz(1,i)+alat(1)
@@ -1031,7 +1001,7 @@ CONTAINS
         DO ii=1,in
         i=icell(ii,ll1-1,0,l3)
         il=il+1
-        IF (il.gt.nn) STOP 'enlarge laymx'
+        IF (il.gt.nn) CPABORT("enlarge laymx")
         lay(il)=i
         icell(ii,-1,ll2,l3)=il
         rxyz(1,il)=rxyz(1,i)-alat(1)
@@ -1044,7 +1014,7 @@ CONTAINS
         DO ii=1,in
         i=icell(ii,0,ll2-1,l3)
         il=il+1
-        IF (il.gt.nn) STOP 'enlarge laymx'
+        IF (il.gt.nn) CPABORT("enlarge laymx")
         lay(il)=i
         icell(ii,ll1,-1,l3)=il
         rxyz(1,il)=rxyz(1,i)+alat(1)
@@ -1057,7 +1027,7 @@ CONTAINS
         DO ii=1,in
         i=icell(ii,ll1-1,ll2-1,l3)
         il=il+1
-        IF (il.gt.nn) STOP 'enlarge laymx'
+        IF (il.gt.nn) CPABORT("enlarge laymx")
         lay(il)=i
         icell(ii,-1,-1,l3)=il
         rxyz(1,il)=rxyz(1,i)-alat(1)
@@ -1073,7 +1043,7 @@ CONTAINS
         DO ii=1,in
         i=icell(ii,0,0,0)
         il=il+1
-        IF (il.gt.nn) STOP 'enlarge laymx'
+        IF (il.gt.nn) CPABORT("enlarge laymx")
         lay(il)=i
         icell(ii,ll1,ll2,ll3)=il
         rxyz(1,il)=rxyz(1,i)+alat(1)
@@ -1086,7 +1056,7 @@ CONTAINS
         DO ii=1,in
         i=icell(ii,ll1-1,0,0)
         il=il+1
-        IF (il.gt.nn) STOP 'enlarge laymx'
+        IF (il.gt.nn) CPABORT("enlarge laymx")
         lay(il)=i
         icell(ii,-1,ll2,ll3)=il
         rxyz(1,il)=rxyz(1,i)-alat(1)
@@ -1099,7 +1069,7 @@ CONTAINS
         DO ii=1,in
         i=icell(ii,0,ll2-1,0)
         il=il+1
-        IF (il.gt.nn) STOP 'enlarge laymx'
+        IF (il.gt.nn) CPABORT("enlarge laymx")
         lay(il)=i
         icell(ii,ll1,-1,ll3)=il
         rxyz(1,il)=rxyz(1,i)+alat(1)
@@ -1112,7 +1082,7 @@ CONTAINS
         DO ii=1,in
         i=icell(ii,ll1-1,ll2-1,0)
         il=il+1
-        IF (il.gt.nn) STOP 'enlarge laymx'
+        IF (il.gt.nn) CPABORT("enlarge laymx")
         lay(il)=i
         icell(ii,-1,-1,ll3)=il
         rxyz(1,il)=rxyz(1,i)-alat(1)
@@ -1125,7 +1095,7 @@ CONTAINS
         DO ii=1,in
         i=icell(ii,0,0,ll3-1)
         il=il+1
-        IF (il.gt.nn) STOP 'enlarge laymx'
+        IF (il.gt.nn) CPABORT("enlarge laymx")
         lay(il)=i
         icell(ii,ll1,ll2,-1)=il
         rxyz(1,il)=rxyz(1,i)+alat(1)
@@ -1138,7 +1108,7 @@ CONTAINS
         DO ii=1,in
         i=icell(ii,ll1-1,0,ll3-1)
         il=il+1
-        IF (il.gt.nn) STOP 'enlarge laymx'
+        IF (il.gt.nn) CPABORT("enlarge laymx")
         lay(il)=i
         icell(ii,-1,ll2,-1)=il
         rxyz(1,il)=rxyz(1,i)-alat(1)
@@ -1151,7 +1121,7 @@ CONTAINS
         DO ii=1,in
         i=icell(ii,0,ll2-1,ll3-1)
         il=il+1
-        IF (il.gt.nn) STOP 'enlarge laymx'
+        IF (il.gt.nn) CPABORT("enlarge laymx")
         lay(il)=i
         icell(ii,ll1,-1,-1)=il
         rxyz(1,il)=rxyz(1,i)+alat(1)
@@ -1164,7 +1134,7 @@ CONTAINS
         DO ii=1,in
         i=icell(ii,ll1-1,ll2-1,ll3-1)
         il=il+1
-        IF (il.gt.nn) STOP 'enlarge laymx'
+        IF (il.gt.nn) CPABORT("enlarge laymx")
         lay(il)=i
         icell(ii,-1,-1,-1)=il
         rxyz(1,il)=rxyz(1,i)-alat(1)
@@ -1308,7 +1278,7 @@ CONTAINS
 
 !         write(*,*) 'ener,norm force', &
 !                    ener,DNRM2(3*nat,fxyz,1)
-        IF (istopg.gt.0) STOP 'DIMENSION ERROR (see WARNING above)'
+        IF (istopg.gt.0) CPABORT("DIMENSION ERROR (see WARNING above)")
         ener_var=ener2/nat-(ener/nat)**2
         coord=coord/nat
         coord_var=coord2/nat-coord**2
@@ -1866,11 +1836,11 @@ CONTAINS
 
 ! linear scaling calculation of verlet list
         ll1=INT(alat(1)/cut)
-        IF (ll1.lt.1) STOP 'alat(1) too small'
+        IF (ll1.lt.1) CPABORT("alat(1) too small")
         ll2=INT(alat(2)/cut)
-        IF (ll2.lt.1) STOP 'alat(2) too small'
+        IF (ll2.lt.1) CPABORT("alat(2) too small")
         ll3=INT(alat(3)/cut)
-        IF (ll3.lt.1) STOP 'alat(3) too small'
+        IF (ll3.lt.1) CPABORT("alat(3) too small")
 
 ! determine number of threads
         npr=1
@@ -1975,7 +1945,7 @@ CONTAINS
         DO ii=1,in
         i=icell(ii,l1,l2,0)
         il=il+1
-        IF (il.gt.nn) STOP 'enlarge laymx'
+        IF (il.gt.nn) CPABORT("enlarge laymx")
         lay(il)=i
         icell(ii,l1,l2,ll3)=il
         rxyz(1,il)=rxyz(1,i)
@@ -1988,7 +1958,7 @@ CONTAINS
         DO ii=1,in
         i=icell(ii,l1,l2,ll3-1)
         il=il+1
-        IF (il.gt.nn) STOP 'enlarge laymx'
+        IF (il.gt.nn) CPABORT("enlarge laymx")
         lay(il)=i
         icell(ii,l1,l2,-1)=il
         rxyz(1,il)=rxyz(1,i)
@@ -2008,7 +1978,7 @@ CONTAINS
         DO ii=1,in
         i=icell(ii,0,l2,l3)
         il=il+1
-        IF (il.gt.nn) STOP 'enlarge laymx'
+        IF (il.gt.nn) CPABORT("enlarge laymx")
         lay(il)=i
         icell(ii,ll1,l2,l3)=il
         rxyz(1,il)=rxyz(1,i)+alat(1)
@@ -2021,7 +1991,7 @@ CONTAINS
         DO ii=1,in
         i=icell(ii,ll1-1,l2,l3)
         il=il+1
-        IF (il.gt.nn) STOP 'enlarge laymx'
+        IF (il.gt.nn) CPABORT("enlarge laymx")
         lay(il)=i
         icell(ii,-1,l2,l3)=il
         rxyz(1,il)=rxyz(1,i)-alat(1)
@@ -2041,7 +2011,7 @@ CONTAINS
         DO ii=1,in
         i=icell(ii,l1,0,l3)
         il=il+1
-        IF (il.gt.nn) STOP 'enlarge laymx'
+        IF (il.gt.nn) CPABORT("enlarge laymx")
         lay(il)=i
         icell(ii,l1,ll2,l3)=il
         rxyz(1,il)=rxyz(1,i)
@@ -2054,7 +2024,7 @@ CONTAINS
         DO ii=1,in
         i=icell(ii,l1,ll2-1,l3)
         il=il+1
-        IF (il.gt.nn) STOP 'enlarge laymx'
+        IF (il.gt.nn) CPABORT("enlarge laymx")
         lay(il)=i
         icell(ii,l1,-1,l3)=il
         rxyz(1,il)=rxyz(1,i)
@@ -2073,7 +2043,7 @@ CONTAINS
         DO ii=1,in
         i=icell(ii,l1,0,0)
         il=il+1
-        IF (il.gt.nn) STOP 'enlarge laymx'
+        IF (il.gt.nn) CPABORT("enlarge laymx")
         lay(il)=i
         icell(ii,l1,ll2,ll3)=il
         rxyz(1,il)=rxyz(1,i)
@@ -2086,7 +2056,7 @@ CONTAINS
         DO ii=1,in
         i=icell(ii,l1,0,ll3-1)
         il=il+1
-        IF (il.gt.nn) STOP 'enlarge laymx'
+        IF (il.gt.nn) CPABORT("enlarge laymx")
         lay(il)=i
         icell(ii,l1,ll2,-1)=il
         rxyz(1,il)=rxyz(1,i)
@@ -2099,7 +2069,7 @@ CONTAINS
         DO ii=1,in
         i=icell(ii,l1,ll2-1,0)
         il=il+1
-        IF (il.gt.nn) STOP 'enlarge laymx'
+        IF (il.gt.nn) CPABORT("enlarge laymx")
         lay(il)=i
         icell(ii,l1,-1,ll3)=il
         rxyz(1,il)=rxyz(1,i)
@@ -2112,7 +2082,7 @@ CONTAINS
         DO ii=1,in
         i=icell(ii,l1,ll2-1,ll3-1)
         il=il+1
-        IF (il.gt.nn) STOP 'enlarge laymx'
+        IF (il.gt.nn) CPABORT("enlarge laymx")
         lay(il)=i
         icell(ii,l1,-1,-1)=il
         rxyz(1,il)=rxyz(1,i)
@@ -2130,7 +2100,7 @@ CONTAINS
         DO ii=1,in
         i=icell(ii,0,l2,0)
         il=il+1
-        IF (il.gt.nn) STOP 'enlarge laymx'
+        IF (il.gt.nn) CPABORT("enlarge laymx")
         lay(il)=i
         icell(ii,ll1,l2,ll3)=il
         rxyz(1,il)=rxyz(1,i)+alat(1)
@@ -2143,7 +2113,7 @@ CONTAINS
         DO ii=1,in
         i=icell(ii,0,l2,ll3-1)
         il=il+1
-        IF (il.gt.nn) STOP 'enlarge laymx'
+        IF (il.gt.nn) CPABORT("enlarge laymx")
         lay(il)=i
         icell(ii,ll1,l2,-1)=il
         rxyz(1,il)=rxyz(1,i)+alat(1)
@@ -2156,7 +2126,7 @@ CONTAINS
         DO ii=1,in
         i=icell(ii,ll1-1,l2,0)
         il=il+1
-        IF (il.gt.nn) STOP 'enlarge laymx'
+        IF (il.gt.nn) CPABORT("enlarge laymx")
         lay(il)=i
         icell(ii,-1,l2,ll3)=il
         rxyz(1,il)=rxyz(1,i)-alat(1)
@@ -2169,7 +2139,7 @@ CONTAINS
         DO ii=1,in
         i=icell(ii,ll1-1,l2,ll3-1)
         il=il+1
-        IF (il.gt.nn) STOP 'enlarge laymx'
+        IF (il.gt.nn) CPABORT("enlarge laymx")
         lay(il)=i
         icell(ii,-1,l2,-1)=il
         rxyz(1,il)=rxyz(1,i)-alat(1)
@@ -2187,7 +2157,7 @@ CONTAINS
         DO ii=1,in
         i=icell(ii,0,0,l3)
         il=il+1
-        IF (il.gt.nn) STOP 'enlarge laymx'
+        IF (il.gt.nn) CPABORT("enlarge laymx")
         lay(il)=i
         icell(ii,ll1,ll2,l3)=il
         rxyz(1,il)=rxyz(1,i)+alat(1)
@@ -2200,7 +2170,7 @@ CONTAINS
         DO ii=1,in
         i=icell(ii,ll1-1,0,l3)
         il=il+1
-        IF (il.gt.nn) STOP 'enlarge laymx'
+        IF (il.gt.nn) CPABORT("enlarge laymx")
         lay(il)=i
         icell(ii,-1,ll2,l3)=il
         rxyz(1,il)=rxyz(1,i)-alat(1)
@@ -2213,7 +2183,7 @@ CONTAINS
         DO ii=1,in
         i=icell(ii,0,ll2-1,l3)
         il=il+1
-        IF (il.gt.nn) STOP 'enlarge laymx'
+        IF (il.gt.nn) CPABORT("enlarge laymx")
         lay(il)=i
         icell(ii,ll1,-1,l3)=il
         rxyz(1,il)=rxyz(1,i)+alat(1)
@@ -2226,7 +2196,7 @@ CONTAINS
         DO ii=1,in
         i=icell(ii,ll1-1,ll2-1,l3)
         il=il+1
-        IF (il.gt.nn) STOP 'enlarge laymx'
+        IF (il.gt.nn) CPABORT("enlarge laymx")
         lay(il)=i
         icell(ii,-1,-1,l3)=il
         rxyz(1,il)=rxyz(1,i)-alat(1)
@@ -2242,7 +2212,7 @@ CONTAINS
         DO ii=1,in
         i=icell(ii,0,0,0)
         il=il+1
-        IF (il.gt.nn) STOP 'enlarge laymx'
+        IF (il.gt.nn) CPABORT("enlarge laymx")
         lay(il)=i
         icell(ii,ll1,ll2,ll3)=il
         rxyz(1,il)=rxyz(1,i)+alat(1)
@@ -2255,7 +2225,7 @@ CONTAINS
         DO ii=1,in
         i=icell(ii,ll1-1,0,0)
         il=il+1
-        IF (il.gt.nn) STOP 'enlarge laymx'
+        IF (il.gt.nn) CPABORT("enlarge laymx")
         lay(il)=i
         icell(ii,-1,ll2,ll3)=il
         rxyz(1,il)=rxyz(1,i)-alat(1)
@@ -2268,7 +2238,7 @@ CONTAINS
         DO ii=1,in
         i=icell(ii,0,ll2-1,0)
         il=il+1
-        IF (il.gt.nn) STOP 'enlarge laymx'
+        IF (il.gt.nn) CPABORT("enlarge laymx")
         lay(il)=i
         icell(ii,ll1,-1,ll3)=il
         rxyz(1,il)=rxyz(1,i)+alat(1)
@@ -2281,7 +2251,7 @@ CONTAINS
         DO ii=1,in
         i=icell(ii,ll1-1,ll2-1,0)
         il=il+1
-        IF (il.gt.nn) STOP 'enlarge laymx'
+        IF (il.gt.nn) CPABORT("enlarge laymx")
         lay(il)=i
         icell(ii,-1,-1,ll3)=il
         rxyz(1,il)=rxyz(1,i)-alat(1)
@@ -2294,7 +2264,7 @@ CONTAINS
         DO ii=1,in
         i=icell(ii,0,0,ll3-1)
         il=il+1
-        IF (il.gt.nn) STOP 'enlarge laymx'
+        IF (il.gt.nn) CPABORT("enlarge laymx")
         lay(il)=i
         icell(ii,ll1,ll2,-1)=il
         rxyz(1,il)=rxyz(1,i)+alat(1)
@@ -2307,7 +2277,7 @@ CONTAINS
         DO ii=1,in
         i=icell(ii,ll1-1,0,ll3-1)
         il=il+1
-        IF (il.gt.nn) STOP 'enlarge laymx'
+        IF (il.gt.nn) CPABORT("enlarge laymx")
         lay(il)=i
         icell(ii,-1,ll2,-1)=il
         rxyz(1,il)=rxyz(1,i)-alat(1)
@@ -2320,7 +2290,7 @@ CONTAINS
         DO ii=1,in
         i=icell(ii,0,ll2-1,ll3-1)
         il=il+1
-        IF (il.gt.nn) STOP 'enlarge laymx'
+        IF (il.gt.nn) CPABORT("enlarge laymx")
         lay(il)=i
         icell(ii,ll1,-1,-1)=il
         rxyz(1,il)=rxyz(1,i)+alat(1)
@@ -2333,7 +2303,7 @@ CONTAINS
         DO ii=1,in
         i=icell(ii,ll1-1,ll2-1,ll3-1)
         il=il+1
-        IF (il.gt.nn) STOP 'enlarge laymx'
+        IF (il.gt.nn) CPABORT("enlarge laymx")
         lay(il)=i
         icell(ii,-1,-1,-1)=il
         rxyz(1,il)=rxyz(1,i)-alat(1)
@@ -2468,7 +2438,7 @@ CONTAINS
 
 !         write(*,*) 'ener,norm force', &
 !                    ener,DNRM2(3*nat,fxyz,1)
-        IF (istopg.gt.0) STOP 'DIMENSION ERROR (see WARNING above)'
+        IF (istopg.gt.0) CPABORT("DIMENSION ERROR (see WARNING above)")
         ener_var=ener2/nat-(ener/nat)**2
         coord=coord/nat
         coord_var=coord2/nat-coord**2

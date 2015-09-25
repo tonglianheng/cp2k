@@ -81,15 +81,12 @@ CONTAINS
 ! *****************************************************************************
 !> \brief retains the given qs_matrix_pools_type
 !> \param mpools the matrix pools type to retain
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \par History
 !>      04.2003 created [fawzi]
 !> \author fawzi
 ! *****************************************************************************
-SUBROUTINE mpools_retain(mpools, error)
+SUBROUTINE mpools_retain(mpools)
     TYPE(qs_matrix_pools_type), POINTER      :: mpools
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'mpools_retain', &
       routineP = moduleN//':'//routineN
@@ -98,47 +95,42 @@ SUBROUTINE mpools_retain(mpools, error)
 
   failure=.FALSE.
 
-  CPPrecondition(ASSOCIATED(mpools),cp_failure_level,routineP,error,failure)
-  CPPreconditionNoFail(mpools%ref_count>0,cp_failure_level,routineP,error)
+  CPASSERT(ASSOCIATED(mpools))
+  CPASSERT(mpools%ref_count>0)
   mpools%ref_count=mpools%ref_count+1
 END SUBROUTINE mpools_retain
 
 ! *****************************************************************************
 !> \brief releases the given mpools
 !> \param mpools the matrix pools type to retain
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \par History
 !>      04.2003 created [fawzi]
 !> \author fawzi
 ! *****************************************************************************
-SUBROUTINE mpools_release(mpools,error)
+SUBROUTINE mpools_release(mpools)
     TYPE(qs_matrix_pools_type), POINTER      :: mpools
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'mpools_release', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
     LOGICAL                                  :: failure
 
   failure=.FALSE.
 
   IF (ASSOCIATED(mpools)) THEN
-     CPPreconditionNoFail(mpools%ref_count>0,cp_failure_level,routineP,error)
+     CPASSERT(mpools%ref_count>0)
      mpools%ref_count=mpools%ref_count-1
      IF (mpools%ref_count==0) THEN
-        CALL fm_pools_dealloc(mpools%ao_mo_fm_pools, error=error)
-        CALL fm_pools_dealloc(mpools%ao_ao_fm_pools, error=error)
-        CALL fm_pools_dealloc(mpools%mo_mo_fm_pools, error=error)
+        CALL fm_pools_dealloc(mpools%ao_mo_fm_pools)
+        CALL fm_pools_dealloc(mpools%ao_ao_fm_pools)
+        CALL fm_pools_dealloc(mpools%mo_mo_fm_pools)
         IF (ASSOCIATED(mpools%ao_mosub_fm_pools)) THEN
-          CALL fm_pools_dealloc(mpools%ao_mosub_fm_pools,error=error)
+          CALL fm_pools_dealloc(mpools%ao_mosub_fm_pools)
         END IF
         IF (ASSOCIATED(mpools%mosub_mosub_fm_pools)) THEN
-          CALL fm_pools_dealloc(mpools%mosub_mosub_fm_pools,error=error)
+          CALL fm_pools_dealloc(mpools%mosub_mosub_fm_pools)
         END IF
-        DEALLOCATE(mpools, stat=stat)
-        CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+        DEALLOCATE(mpools)
      END IF
   END IF
   NULLIFY(mpools)
@@ -152,20 +144,16 @@ END SUBROUTINE mpools_release
 !> \param mo_mo_fm_pools ...
 !> \param ao_mosub_fm_pools ...
 !> \param mosub_mosub_fm_pools ...
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \par History
 !>      04.2003 created [fawzi]
 !> \author fawzi
 ! *****************************************************************************
 SUBROUTINE mpools_set(mpools,ao_mo_fm_pools,ao_ao_fm_pools,&
-     mo_mo_fm_pools,ao_mosub_fm_pools,mosub_mosub_fm_pools,&
-     error)
+     mo_mo_fm_pools,ao_mosub_fm_pools,mosub_mosub_fm_pools)
     TYPE(qs_matrix_pools_type), POINTER      :: mpools
     TYPE(cp_fm_pool_p_type), DIMENSION(:), OPTIONAL, POINTER :: &
       ao_mo_fm_pools, ao_ao_fm_pools, mo_mo_fm_pools, ao_mosub_fm_pools, &
       mosub_mosub_fm_pools
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'mpools_set', &
       routineP = moduleN//':'//routineN
@@ -177,41 +165,41 @@ SUBROUTINE mpools_set(mpools,ao_mo_fm_pools,ao_ao_fm_pools,&
   failure=.FALSE.
   NULLIFY(new_fm_pools )
 
-  CPPrecondition(ASSOCIATED(mpools),cp_failure_level,routineP,error,failure)
-  CPPrecondition(mpools%ref_count>0,cp_failure_level,routineP,error,failure)
+  CPASSERT(ASSOCIATED(mpools))
+  CPASSERT(mpools%ref_count>0)
   IF (PRESENT(ao_mo_fm_pools)) THEN
     IF (ASSOCIATED(ao_mo_fm_pools)) THEN
-      CALL fm_pools_copy(ao_mo_fm_pools,new_fm_pools,error=error)
+      CALL fm_pools_copy(ao_mo_fm_pools,new_fm_pools)
     END IF
-    CALL fm_pools_dealloc(mpools%ao_mo_fm_pools,error=error)
+    CALL fm_pools_dealloc(mpools%ao_mo_fm_pools)
     mpools%ao_mo_fm_pools => new_fm_pools
   END IF
   IF (PRESENT(ao_ao_fm_pools)) THEN
     IF (ASSOCIATED(ao_ao_fm_pools)) THEN
-      CALL fm_pools_copy(ao_ao_fm_pools,new_fm_pools,error=error)
+      CALL fm_pools_copy(ao_ao_fm_pools,new_fm_pools)
     END IF
-    CALL fm_pools_dealloc(mpools%ao_ao_fm_pools,error=error)
+    CALL fm_pools_dealloc(mpools%ao_ao_fm_pools)
     mpools%ao_ao_fm_pools => new_fm_pools
   END IF
   IF (PRESENT(mo_mo_fm_pools)) THEN
     IF (ASSOCIATED(mo_mo_fm_pools)) THEN
-      CALL fm_pools_copy(mo_mo_fm_pools,new_fm_pools,error=error)
+      CALL fm_pools_copy(mo_mo_fm_pools,new_fm_pools)
     END IF
-    CALL fm_pools_dealloc(mpools%mo_mo_fm_pools,error=error)
+    CALL fm_pools_dealloc(mpools%mo_mo_fm_pools)
     mpools%mo_mo_fm_pools => new_fm_pools
   END IF
   IF (PRESENT(ao_mosub_fm_pools)) THEN
     IF (ASSOCIATED(ao_mosub_fm_pools)) THEN
-      CALL fm_pools_copy(ao_mosub_fm_pools,new_fm_pools,error=error)
+      CALL fm_pools_copy(ao_mosub_fm_pools,new_fm_pools)
     END IF
-    CALL fm_pools_dealloc(mpools%ao_mosub_fm_pools,error=error)
+    CALL fm_pools_dealloc(mpools%ao_mosub_fm_pools)
     mpools%ao_mosub_fm_pools => new_fm_pools
   END IF
   IF (PRESENT(mosub_mosub_fm_pools)) THEN
     IF (ASSOCIATED(mosub_mosub_fm_pools)) THEN
-      CALL fm_pools_copy(mosub_mosub_fm_pools,new_fm_pools,error=error)
+      CALL fm_pools_copy(mosub_mosub_fm_pools,new_fm_pools)
     END IF
-    CALL fm_pools_dealloc(mpools%mosub_mosub_fm_pools,error=error)
+    CALL fm_pools_dealloc(mpools%mosub_mosub_fm_pools)
     mpools%mosub_mosub_fm_pools => new_fm_pools
   END IF
 
@@ -229,17 +217,13 @@ END SUBROUTINE mpools_set
 !> \param maxao_maxmo_fm_pool ...
 !> \param maxao_maxao_fm_pool ...
 !> \param maxmo_maxmo_fm_pool ...
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
-!>      see qs_matrix_pools_type attributes
 !> \par History
 !>      04.2003 created [fawzi]
 !> \author fawzi
 ! *****************************************************************************
 SUBROUTINE mpools_get(mpools,ao_mo_fm_pools,ao_ao_fm_pools,&
      mo_mo_fm_pools, ao_mosub_fm_pools, mosub_mosub_fm_pools,&
-     maxao_maxmo_fm_pool, maxao_maxao_fm_pool, maxmo_maxmo_fm_pool,&
-     error)
+     maxao_maxmo_fm_pool, maxao_maxao_fm_pool, maxmo_maxmo_fm_pool)
     TYPE(qs_matrix_pools_type), POINTER      :: mpools
     TYPE(cp_fm_pool_p_type), DIMENSION(:), OPTIONAL, POINTER :: &
       ao_mo_fm_pools, ao_ao_fm_pools, mo_mo_fm_pools, ao_mosub_fm_pools, &
@@ -247,7 +231,6 @@ SUBROUTINE mpools_get(mpools,ao_mo_fm_pools,ao_ao_fm_pools,&
     TYPE(cp_fm_pool_type), OPTIONAL, POINTER :: maxao_maxmo_fm_pool, &
                                                 maxao_maxao_fm_pool, &
                                                 maxmo_maxmo_fm_pool
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'mpools_get', &
       routineP = moduleN//':'//routineN
@@ -287,26 +270,21 @@ END SUBROUTINE mpools_get
 ! *****************************************************************************
 !> \brief creates a mpools
 !> \param mpools the mpools to create
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \par History
 !>      04.2003 created [fawzi]
 !> \author fawzi
 ! *****************************************************************************
-SUBROUTINE mpools_create(mpools,error)
+SUBROUTINE mpools_create(mpools)
     TYPE(qs_matrix_pools_type), POINTER      :: mpools
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'mpools_create', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
     LOGICAL                                  :: failure
 
   failure=.FALSE.
 
-  ALLOCATE(mpools, stat=stat)
-  CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+  ALLOCATE(mpools)
   NULLIFY(mpools%ao_ao_fm_pools, mpools%ao_mo_fm_pools, &
        mpools%mo_mo_fm_pools, mpools%ao_mosub_fm_pools, &
        mpools%mosub_mosub_fm_pools)
@@ -324,15 +302,13 @@ END SUBROUTINE mpools_create
 !> \param para_env the parallel environment of the matrixes
 !> \param nmosub number of the orbitals for the creation
 !>        of the pools containing only a subset of mos (OPTIONAL)
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \par History
 !>      08.2002 created [fawzi]
 !>      04.2005 added pools for a subset of mos [MI]
 !> \author Fawzi Mohamed
 ! *****************************************************************************
 SUBROUTINE mpools_rebuild_fm_pools(mpools, mos, blacs_env, para_env,&
-                                   nmosub,error)
+                                   nmosub)
     TYPE(qs_matrix_pools_type), POINTER      :: mpools
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mos
@@ -340,7 +316,6 @@ SUBROUTINE mpools_rebuild_fm_pools(mpools, mos, blacs_env, para_env,&
     TYPE(cp_para_env_type), POINTER          :: para_env
     INTEGER, DIMENSION(2), INTENT(IN), &
       OPTIONAL                               :: nmosub
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'mpools_rebuild_fm_pools', &
       routineP = moduleN//':'//routineN
@@ -348,7 +323,7 @@ SUBROUTINE mpools_rebuild_fm_pools(mpools, mos, blacs_env, para_env,&
     INTEGER                                  :: handle, ispin, max_nmo, &
                                                 min_nmo, nao, ncg, &
                                                 ncol_block, nmo, nrg, &
-                                                nrow_block, nspins, stat
+                                                nrow_block, nspins
     LOGICAL                                  :: failure, prepare_subset, &
                                                 should_rebuild
     TYPE(cp_fm_pool_type), POINTER           :: p_att
@@ -366,21 +341,20 @@ SUBROUTINE mpools_rebuild_fm_pools(mpools, mos, blacs_env, para_env,&
      IF(nmosub(1) > 0) prepare_subset = .TRUE.
   END IF
 
-  CPPrecondition(ASSOCIATED(mos),cp_failure_level,routineP,error,failure)
+  CPASSERT(ASSOCIATED(mos))
   IF (.NOT.ASSOCIATED(mpools)) THEN
-     CALL mpools_create(mpools,error=error)
+     CALL mpools_create(mpools)
   END IF
   IF (.NOT.failure) THEN
      nspins=SIZE(mos)
 
      IF (ASSOCIATED(mpools%ao_mo_fm_pools)) THEN
         IF (nspins/=SIZE(mpools%ao_mo_fm_pools)) THEN
-           CALL fm_pools_dealloc(mpools%ao_mo_fm_pools,error=error)
+           CALL fm_pools_dealloc(mpools%ao_mo_fm_pools)
         END IF
      END IF
      IF (.NOT.ASSOCIATED(mpools%ao_mo_fm_pools)) THEN
-        ALLOCATE(mpools%ao_mo_fm_pools(nspins), stat=stat)
-        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+        ALLOCATE(mpools%ao_mo_fm_pools(nspins))
         DO ispin=1,nspins
            NULLIFY(mpools%ao_mo_fm_pools(ispin)%pool)
         END DO
@@ -388,12 +362,11 @@ SUBROUTINE mpools_rebuild_fm_pools(mpools, mos, blacs_env, para_env,&
 
      IF (ASSOCIATED(mpools%ao_ao_fm_pools)) THEN
         IF (nspins/=SIZE(mpools%ao_ao_fm_pools)) THEN
-           CALL fm_pools_dealloc(mpools%ao_ao_fm_pools,error=error)
+           CALL fm_pools_dealloc(mpools%ao_ao_fm_pools)
         END IF
      END IF
      IF (.NOT.ASSOCIATED(mpools%ao_ao_fm_pools)) THEN
-        ALLOCATE(mpools%ao_ao_fm_pools(nspins), stat=stat)
-        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+        ALLOCATE(mpools%ao_ao_fm_pools(nspins))
         DO ispin=1,nspins
            NULLIFY(mpools%ao_ao_fm_pools(ispin)%pool)
         END DO
@@ -401,12 +374,11 @@ SUBROUTINE mpools_rebuild_fm_pools(mpools, mos, blacs_env, para_env,&
 
      IF (ASSOCIATED(mpools%mo_mo_fm_pools)) THEN
         IF (nspins/=SIZE(mpools%mo_mo_fm_pools)) THEN
-           CALL fm_pools_dealloc(mpools%mo_mo_fm_pools,error=error)
+           CALL fm_pools_dealloc(mpools%mo_mo_fm_pools)
         END IF
      END IF
      IF (.NOT.ASSOCIATED(mpools%mo_mo_fm_pools)) THEN
-        ALLOCATE(mpools%mo_mo_fm_pools(nspins), stat=stat)
-        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+        ALLOCATE(mpools%mo_mo_fm_pools(nspins))
         DO ispin=1,nspins
            NULLIFY(mpools%mo_mo_fm_pools(ispin)%pool)
         END DO
@@ -416,12 +388,11 @@ SUBROUTINE mpools_rebuild_fm_pools(mpools, mos, blacs_env, para_env,&
 
        IF (ASSOCIATED(mpools%ao_mosub_fm_pools)) THEN
           IF (nspins/=SIZE(mpools%ao_mosub_fm_pools)) THEN
-             CALL fm_pools_dealloc(mpools%ao_mosub_fm_pools,error=error)
+             CALL fm_pools_dealloc(mpools%ao_mosub_fm_pools)
           END IF
        END IF
        IF (.NOT.ASSOCIATED(mpools%ao_mosub_fm_pools)) THEN
-          ALLOCATE(mpools%ao_mosub_fm_pools(nspins), stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          ALLOCATE(mpools%ao_mosub_fm_pools(nspins))
           DO ispin=1,nspins
              NULLIFY(mpools%ao_mosub_fm_pools(ispin)%pool)
           END DO
@@ -429,12 +400,11 @@ SUBROUTINE mpools_rebuild_fm_pools(mpools, mos, blacs_env, para_env,&
 
        IF (ASSOCIATED(mpools%mosub_mosub_fm_pools)) THEN
           IF (nspins/=SIZE(mpools%mosub_mosub_fm_pools)) THEN
-             CALL fm_pools_dealloc(mpools%mosub_mosub_fm_pools,error=error)
+             CALL fm_pools_dealloc(mpools%mosub_mosub_fm_pools)
           END IF
        END IF
        IF (.NOT.ASSOCIATED(mpools%mosub_mosub_fm_pools)) THEN
-          ALLOCATE(mpools%mosub_mosub_fm_pools(nspins), stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          ALLOCATE(mpools%mosub_mosub_fm_pools(nspins))
           DO ispin=1,nspins
              NULLIFY(mpools%mosub_mosub_fm_pools(ispin)%pool)
           END DO
@@ -454,7 +424,6 @@ SUBROUTINE mpools_rebuild_fm_pools(mpools, mos, blacs_env, para_env,&
              routineP,&
              "the mo with the most orbitals must be the first "//&
 CPSourceFileRef,&
-             error=error,&
              failure=failure)
      END IF
      min_nmo=MIN(min_nmo,nmo)
@@ -467,29 +436,28 @@ CPSourceFileRef,&
         p_att => mpools%ao_ao_fm_pools(ispin)%pool
         should_rebuild = (should_rebuild.OR.(.NOT.ASSOCIATED(p_att)))
         IF (.NOT.should_rebuild) THEN
-           fmstruct => fm_pool_get_el_struct(mpools%ao_ao_fm_pools(ispin)%pool,&
-                error=error)
+           fmstruct => fm_pool_get_el_struct(mpools%ao_ao_fm_pools(ispin)%pool)
            CALL cp_fm_struct_get(fmstruct, nrow_global=nrg,&
-                ncol_global=ncg,error=error)
+                ncol_global=ncg)
            CALL get_mo_set(mos(1)%mo_set,nao=nao,nmo=nmo)
            should_rebuild = nao/=nrg.OR.nao/=ncg
         END IF
      END DO
      IF (should_rebuild) THEN
         DO ispin=1,nspins
-           CALL fm_pool_release(mpools%ao_ao_fm_pools(ispin)%pool,error=error)
+           CALL fm_pool_release(mpools%ao_ao_fm_pools(ispin)%pool)
         END DO
 
         CALL cp_fm_struct_create(fmstruct, nrow_global=nao,&
              ncol_global=nao, para_env=para_env,&
              context=blacs_env,&
              nrow_block=nrow_block,&
-             ncol_block=ncol_block,error=error)
-        CALL fm_pool_create(mpools%ao_ao_fm_pools(1)%pool,fmstruct,error=error)
-        CALL cp_fm_struct_release(fmstruct,error=error)
+             ncol_block=ncol_block)
+        CALL fm_pool_create(mpools%ao_ao_fm_pools(1)%pool,fmstruct)
+        CALL cp_fm_struct_release(fmstruct)
         DO ispin=2,SIZE(mos)
            mpools%ao_ao_fm_pools(ispin)%pool => mpools%ao_ao_fm_pools(1)%pool
-           CALL fm_pool_retain(mpools%ao_ao_fm_pools(1)%pool,error=error)
+           CALL fm_pool_retain(mpools%ao_ao_fm_pools(1)%pool)
         END DO
      END IF
 
@@ -500,16 +468,16 @@ CPSourceFileRef,&
         should_rebuild = (should_rebuild.OR.(.NOT.ASSOCIATED(p_att)))
         IF (.NOT.should_rebuild) THEN
            fmstruct => fm_pool_get_el_struct(mpools%ao_mo_fm_pools(ispin)&
-                %pool,error=error)
+                %pool)
            CALL cp_fm_struct_get(fmstruct, nrow_global=nrg,&
-                ncol_global=ncg,error=error)
+                ncol_global=ncg)
            CALL get_mo_set(mos(1)%mo_set,nao=nao,nmo=nmo)
            should_rebuild = nao/=nrg.OR.nmo/=ncg
         END IF
      END DO
      IF (should_rebuild) THEN
         DO ispin=1,nspins
-           CALL fm_pool_release(mpools%ao_mo_fm_pools(ispin)%pool,error=error)
+           CALL fm_pool_release(mpools%ao_mo_fm_pools(ispin)%pool)
         END DO
 
         IF (max_nmo==min_nmo) THEN
@@ -517,12 +485,12 @@ CPSourceFileRef,&
                 ncol_global=max_nmo, para_env=para_env,&
                 context=blacs_env,&
                 nrow_block=nrow_block,&
-                ncol_block=ncol_block,error=error)
-           CALL fm_pool_create(mpools%ao_mo_fm_pools(1)%pool,fmstruct,error=error)
-           CALL cp_fm_struct_release(fmstruct,error=error)
+                ncol_block=ncol_block)
+           CALL fm_pool_create(mpools%ao_mo_fm_pools(1)%pool,fmstruct)
+           CALL cp_fm_struct_release(fmstruct)
            DO ispin=2,SIZE(mos)
               mpools%ao_mo_fm_pools(ispin)%pool => mpools%ao_mo_fm_pools(1)%pool
-              CALL fm_pool_retain(mpools%ao_mo_fm_pools(1)%pool,error=error)
+              CALL fm_pool_retain(mpools%ao_mo_fm_pools(1)%pool)
            END DO
         ELSE
            DO ispin=1,SIZE(mos)
@@ -531,10 +499,10 @@ CPSourceFileRef,&
                    ncol_global=nmo, para_env=para_env,&
                    context=blacs_env,&
                    nrow_block=nrow_block,&
-                   ncol_block=ncol_block,error=error)
+                   ncol_block=ncol_block)
               CALL fm_pool_create(mpools%ao_mo_fm_pools(ispin)%pool,&
-                   fmstruct,error=error)
-              CALL cp_fm_struct_release(fmstruct,error=error)
+                   fmstruct)
+              CALL cp_fm_struct_release(fmstruct)
            END DO
         END IF
      END IF
@@ -545,16 +513,16 @@ CPSourceFileRef,&
         p_att => mpools%mo_mo_fm_pools(ispin)%pool
         should_rebuild = (should_rebuild.OR.(.NOT.ASSOCIATED(p_att)))
         IF (.NOT.should_rebuild) THEN
-           fmstruct => fm_pool_get_el_struct(p_att,error=error)
+           fmstruct => fm_pool_get_el_struct(p_att)
            CALL cp_fm_struct_get(fmstruct, nrow_global=nrg,&
-                ncol_global=ncg,error=error)
+                ncol_global=ncg)
            CALL get_mo_set(mos(1)%mo_set,nao=nao,nmo=nmo)
            should_rebuild = nmo/=nrg.OR.nmo/=ncg
         END IF
      END DO
      IF (should_rebuild) THEN
         DO ispin=1,nspins
-           CALL fm_pool_release(mpools%mo_mo_fm_pools(ispin)%pool,error=error)
+           CALL fm_pool_release(mpools%mo_mo_fm_pools(ispin)%pool)
         END DO
 
         IF (max_nmo==min_nmo) THEN
@@ -562,13 +530,13 @@ CPSourceFileRef,&
                 ncol_global=max_nmo, para_env=para_env,&
                 context=blacs_env,&
                 nrow_block=nrow_block,&
-                ncol_block=ncol_block,error=error)
+                ncol_block=ncol_block)
            CALL fm_pool_create(mpools%mo_mo_fm_pools(1)%pool,&
-                fmstruct,error=error)
-           CALL cp_fm_struct_release(fmstruct,error=error)
+                fmstruct)
+           CALL cp_fm_struct_release(fmstruct)
            DO ispin=2,SIZE(mos)
               mpools%mo_mo_fm_pools(ispin)%pool => mpools%mo_mo_fm_pools(1)%pool
-              CALL fm_pool_retain(mpools%mo_mo_fm_pools(1)%pool,error=error)
+              CALL fm_pool_retain(mpools%mo_mo_fm_pools(1)%pool)
            END DO
         ELSE
            DO ispin=1,SIZE(mos)
@@ -578,10 +546,10 @@ CPSourceFileRef,&
                    ncol_global=nmo, para_env=para_env,&
                    context=blacs_env,&
                    nrow_block=nrow_block,&
-                   ncol_block=ncol_block,error=error)
+                   ncol_block=ncol_block)
               CALL fm_pool_create(mpools%mo_mo_fm_pools(ispin)%pool,&
-                   fmstruct,error=error)
-              CALL cp_fm_struct_release(fmstruct,error=error)
+                   fmstruct)
+              CALL cp_fm_struct_release(fmstruct)
            END DO
         END IF
      END IF
@@ -594,16 +562,16 @@ CPSourceFileRef,&
           should_rebuild = (should_rebuild.OR.(.NOT.ASSOCIATED(p_att)))
           IF (.NOT.should_rebuild) THEN
              fmstruct => fm_pool_get_el_struct(mpools%ao_mosub_fm_pools(ispin)&
-                  %pool,error=error)
+                  %pool)
              CALL cp_fm_struct_get(fmstruct, nrow_global=nrg,&
-                  ncol_global=ncg,error=error)
+                  ncol_global=ncg)
              CALL get_mo_set(mos(1)%mo_set,nao=nao)
              should_rebuild = nao/=nrg .OR. nmosub(ispin)/=ncg
           END IF
        END DO
        IF (should_rebuild) THEN
           DO ispin=1,nspins
-             CALL fm_pool_release(mpools%ao_mosub_fm_pools(ispin)%pool,error=error)
+             CALL fm_pool_release(mpools%ao_mosub_fm_pools(ispin)%pool)
           END DO
 
           IF (nspins==1 .OR. nmosub(1)==nmosub(2)) THEN
@@ -611,12 +579,12 @@ CPSourceFileRef,&
                   ncol_global=nmosub(1), para_env=para_env,&
                   context=blacs_env,&
                   nrow_block=nrow_block,&
-                  ncol_block=ncol_block,error=error)
-             CALL fm_pool_create(mpools%ao_mosub_fm_pools(1)%pool,fmstruct,error=error)
-             CALL cp_fm_struct_release(fmstruct,error=error)
+                  ncol_block=ncol_block)
+             CALL fm_pool_create(mpools%ao_mosub_fm_pools(1)%pool,fmstruct)
+             CALL cp_fm_struct_release(fmstruct)
              DO ispin=2,SIZE(mos)
                 mpools%ao_mosub_fm_pools(ispin)%pool => mpools%ao_mosub_fm_pools(1)%pool
-                CALL fm_pool_retain(mpools%ao_mosub_fm_pools(1)%pool,error=error)
+                CALL fm_pool_retain(mpools%ao_mosub_fm_pools(1)%pool)
              END DO
           ELSE
              DO ispin=1,SIZE(mos)
@@ -625,10 +593,10 @@ CPSourceFileRef,&
                      ncol_global=nmosub(1), para_env=para_env,&
                      context=blacs_env,&
                      nrow_block=nrow_block,&
-                     ncol_block=ncol_block,error=error)
+                     ncol_block=ncol_block)
                 CALL fm_pool_create(mpools%ao_mosub_fm_pools(ispin)%pool,&
-                     fmstruct,error=error)
-                CALL cp_fm_struct_release(fmstruct,error=error)
+                     fmstruct)
+                CALL cp_fm_struct_release(fmstruct)
              END DO
           END IF
        END IF  ! should_rebuild
@@ -639,15 +607,15 @@ CPSourceFileRef,&
           p_att => mpools%mosub_mosub_fm_pools(ispin)%pool
           should_rebuild = (should_rebuild.OR.(.NOT.ASSOCIATED(p_att)))
           IF (.NOT.should_rebuild) THEN
-             fmstruct => fm_pool_get_el_struct(p_att,error=error)
+             fmstruct => fm_pool_get_el_struct(p_att)
              CALL cp_fm_struct_get(fmstruct, nrow_global=nrg,&
-                  ncol_global=ncg,error=error)
+                  ncol_global=ncg)
              should_rebuild = nmosub(ispin)/=nrg .OR. nmosub(ispin)/=ncg
           END IF
        END DO
        IF (should_rebuild) THEN
           DO ispin=1,nspins
-             CALL fm_pool_release(mpools%mosub_mosub_fm_pools(ispin)%pool,error=error)
+             CALL fm_pool_release(mpools%mosub_mosub_fm_pools(ispin)%pool)
           END DO
 
           IF ( nspins ==1 .OR. nmosub(1)==nmosub(2)) THEN
@@ -655,13 +623,13 @@ CPSourceFileRef,&
                   ncol_global=nmosub(1), para_env=para_env,&
                   context=blacs_env,&
                   nrow_block=nrow_block,&
-                  ncol_block=ncol_block,error=error)
+                  ncol_block=ncol_block)
              CALL fm_pool_create(mpools%mosub_mosub_fm_pools(1)%pool,&
-                  fmstruct,error=error)
-             CALL cp_fm_struct_release(fmstruct,error=error)
+                  fmstruct)
+             CALL cp_fm_struct_release(fmstruct)
              DO ispin=2,SIZE(mos)
                 mpools%mosub_mosub_fm_pools(ispin)%pool => mpools%mosub_mosub_fm_pools(1)%pool
-                CALL fm_pool_retain(mpools%mosub_mosub_fm_pools(1)%pool,error=error)
+                CALL fm_pool_retain(mpools%mosub_mosub_fm_pools(1)%pool)
              END DO
           ELSE
              DO ispin=1,SIZE(mos)
@@ -670,10 +638,10 @@ CPSourceFileRef,&
                      ncol_global=nmosub(ispin), para_env=para_env,&
                      context=blacs_env,&
                      nrow_block=nrow_block,&
-                     ncol_block=ncol_block,error=error)
+                     ncol_block=ncol_block)
                 CALL fm_pool_create(mpools%mosub_mosub_fm_pools(ispin)%pool,&
-                     fmstruct,error=error)
-                CALL cp_fm_struct_release(fmstruct,error=error)
+                     fmstruct)
+                CALL cp_fm_struct_release(fmstruct)
              END DO
           END IF
        END IF  ! should_rebuild

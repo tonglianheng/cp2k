@@ -41,23 +41,20 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Default parameter sets for SCPTB method
 !> \param param ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE scptb_default_parameter ( param, error)
+  SUBROUTINE scptb_default_parameter ( param)
     TYPE(scptb_parameter_type), &
       INTENT(INOUT)                          :: param
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'scptb_default_parameter', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i, l
-    LOGICAL                                  :: failure
 
     param%parameterization = "UZH.00.00"
     SELECT CASE (TRIM(param%key))
     CASE DEFAULT
-       CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
+       CPASSERT(.FALSE.)
     CASE ("XX")
        param%defined          = .TRUE.
     CASE ("H")

@@ -201,7 +201,6 @@ CONTAINS
                mp_group, data_type=TYPE, symmetry=b_symm, error=error)
 
           DEALLOCATE (sizes_m, sizes_n)
-          NULLIFY(sizes_m,sizes_n)
 
           !
           ! convert the dbcsr matrices to denses
@@ -480,9 +479,7 @@ CONTAINS
        !
        ! compute the residual
        residual     = dlange(norm, row_size, col_size, dense_a%d%r2_dp(1,1), ld, work)
-       DEALLOCATE(work, STAT=istat)
-       CALL dbcsr_assert (istat==0, dbcsr_fatal_level, dbcsr_internal_error, &
-            routineN, "deallocattion problem",__LINE__,error)
+       DEALLOCATE(work)
     CASE (dbcsr_type_real_4_2d)
        ALLOCATE(work_sp(lwork), STAT=istat)
        CALL dbcsr_assert (istat==0, dbcsr_fatal_level, dbcsr_internal_error, &
@@ -505,9 +502,7 @@ CONTAINS
        !
        ! compute the residual
        residual     = REAL(slange(norm, row_size, col_size, dense_a%d%r2_sp(1,1), ld, work_sp), real_8)
-       DEALLOCATE(work_sp, STAT=istat)
-       CALL dbcsr_assert (istat==0, dbcsr_fatal_level, dbcsr_internal_error, &
-            routineN, "deallocattion problem",__LINE__,error)
+       DEALLOCATE(work_sp)
     CASE (dbcsr_type_complex_8_2d)
        ALLOCATE(work(lwork), STAT=istat)
        CALL dbcsr_assert (istat==0, dbcsr_fatal_level, dbcsr_internal_error, &
@@ -530,9 +525,7 @@ CONTAINS
        !
        ! compute the residual
        residual     = zlange(norm, row_size, col_size, dense_a%d%c2_dp(1,1), ld, work)
-       DEALLOCATE(work, STAT=istat)
-       CALL dbcsr_assert (istat==0, dbcsr_fatal_level, dbcsr_internal_error, &
-            routineN, "deallocattion problem",__LINE__,error)
+       DEALLOCATE(work)
     CASE (dbcsr_type_complex_4_2d)
        ALLOCATE(work_sp(lwork), STAT=istat)
        CALL dbcsr_assert (istat==0, dbcsr_fatal_level, dbcsr_internal_error, &
@@ -588,9 +581,7 @@ CONTAINS
        !
        ! compute the residual
        residual     = REAL(clange(norm, row_size, col_size, dense_a%d%c2_sp(1,1), ld, work_sp), real_8)
-       DEALLOCATE(work_sp, STAT=istat)
-       CALL dbcsr_assert (istat==0, dbcsr_fatal_level, dbcsr_internal_error, &
-            routineN, "deallocattion problem",__LINE__,error)
+       DEALLOCATE(work_sp)
     CASE default
        CALL dbcsr_assert (.FALSE., dbcsr_fatal_level, dbcsr_caller_error,&
             routineN, "Incorrect or 1-D data type", __LINE__, error )

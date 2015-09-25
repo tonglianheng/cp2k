@@ -21,7 +21,8 @@ MODULE dbcsr_performance_multiply
                                              dbcsr_distribution_release,&
                                              dbcsr_distribution_row_dist
   USE dbcsr_dist_operations,           ONLY: dbcsr_dist_bin
-  USE dbcsr_error_handling,            ONLY: dbcsr_assert,&
+  USE dbcsr_error_handling,            ONLY: dbcsr_abort,&
+                                             dbcsr_assert,&
                                              dbcsr_error_set,&
                                              dbcsr_error_stop,&
                                              dbcsr_error_type,&
@@ -196,9 +197,7 @@ CONTAINS
           bs_m, bs_n, bs_k, sparsities, trans, symmetries, TYPE, &
           alpha, beta, limits, retain_sparsity, nrep, error=error)
 
-     DEALLOCATE(bs_m, bs_n, bs_k, STAT=istat)
-     CALL dbcsr_assert (istat==0, dbcsr_fatal_level, dbcsr_internal_error, &
-          routineN, "deallocattion problem",__LINE__,error)
+     DEALLOCATE(bs_m, bs_n, bs_k)
 
    END SUBROUTINE dbcsr_perf_multiply
 
@@ -290,9 +289,12 @@ CONTAINS
     b_symm = symmetries(2)
     c_symm = symmetries(3)
 
-    IF( a_symm.NE.dbcsr_type_no_symmetry .AND. matrix_sizes(1).NE.matrix_sizes(3) ) STOP
-    IF( b_symm.NE.dbcsr_type_no_symmetry .AND. matrix_sizes(2).NE.matrix_sizes(3) ) STOP
-    IF( c_symm.NE.dbcsr_type_no_symmetry .AND. matrix_sizes(1).NE.matrix_sizes(2) ) STOP
+    IF( a_symm.NE.dbcsr_type_no_symmetry .AND. matrix_sizes(1).NE.matrix_sizes(3) ) CALL dbcsr_abort(routineP,__LINE__,"",error)
+
+    IF( b_symm.NE.dbcsr_type_no_symmetry .AND. matrix_sizes(2).NE.matrix_sizes(3) ) CALL dbcsr_abort(routineP,__LINE__,"",error)
+
+    IF( c_symm.NE.dbcsr_type_no_symmetry .AND. matrix_sizes(1).NE.matrix_sizes(2) ) CALL dbcsr_abort(routineP,__LINE__,"",error)
+
 
     do_complex = data_type.EQ.dbcsr_type_complex_4.OR.data_type.EQ.dbcsr_type_complex_8
 
@@ -322,13 +324,15 @@ CONTAINS
             transa.EQ.dbcsr_no_transpose.AND.transb.EQ.dbcsr_conjugate_transpose.AND.&
             .NOT.do_complex.OR.&
             transa.EQ.dbcsr_conjugate_transpose.AND.transb.EQ.dbcsr_no_transpose.AND.&
-            .NOT.do_complex)) STOP
+            .NOT.do_complex)) CALL dbcsr_abort(routineP,__LINE__,"",error)
+
     ENDIF
     !
     ! if C has symmetry and special limits
     IF( c_symm.NE.dbcsr_type_no_symmetry ) THEN
        IF(limits(1).NE.1.OR.limits(2).NE.matrix_sizes(1).OR.&
-            limits(3).NE.1.OR.limits(4).NE.matrix_sizes(2)) STOP
+            limits(3).NE.1.OR.limits(4).NE.matrix_sizes(2)) CALL dbcsr_abort(routineP,__LINE__,"",error)
+
     ENDIF
 
     !
@@ -711,9 +715,7 @@ CONTAINS
     CALL dbcsr_release (m_c_orig)
 
     DEALLOCATE(times, flops, t_max, flops_node, flops_thread, flops_all, &
-         flop_sum, t_min, t, load_imb, STAT=istat)
-    CALL dbcsr_assert (istat==0, dbcsr_fatal_level, dbcsr_internal_error, &
-         routineN, "deallocattion problem",__LINE__,error)
+         flop_sum, t_min, t, load_imb)
 
     CALL dbcsr_error_stop(error_handler, error)
 

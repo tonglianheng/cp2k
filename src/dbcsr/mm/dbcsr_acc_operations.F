@@ -20,7 +20,8 @@ MODULE dbcsr_acc_operations
                                              acc_devmem_type
   USE acc_stream,                      ONLY: acc_stream_cptr,&
                                              acc_stream_type
-  USE dbcsr_error_handling,            ONLY: dbcsr_error_set,&
+  USE dbcsr_error_handling,            ONLY: dbcsr_abort,&
+                                             dbcsr_error_set,&
                                              dbcsr_error_stop,&
                                              dbcsr_error_type
   USE dbcsr_mm_types,                  ONLY: dbcsr_ps_width
@@ -132,7 +133,7 @@ CONTAINS
                              INT(k_max,KIND=C_INT),&
                              mnk, acc_stream_cptr(stream))
 
-    IF (istat == 100) STOP "dbcsr_acc_do_mm_stack: failed due to accGetLastError()."
+    IF (istat == 100) CALL dbcsr_abort(routineP,__LINE__,"failed due to accGetLastError().",error)
 
     success = (istat == 0) ! false if no suitable kernel was found
 
@@ -184,7 +185,7 @@ CONTAINS
                              INT(n,KIND=C_INT),&
                              acc_stream_cptr(stream))
 
-    IF (istat /= 0) STOP "dbcsr_acc_transpose: something went wrong."
+    IF (istat /= 0) CALL dbcsr_abort(routineP,__LINE__,"something went wrong.",error)
     IF (careful_mod) CALL dbcsr_error_stop (error_handle, error)
 #endif
   END SUBROUTINE dbcsr_acc_transpose

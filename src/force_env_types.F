@@ -45,12 +45,12 @@ MODULE force_env_types
   USE mixed_environment_types,         ONLY: get_mixed_env,&
                                              mixed_env_release,&
                                              mixed_environment_type
-  USE qmmm_types,                      ONLY: fist_subsys,&
-                                             force_mixing_extended_subsys,&
-                                             primary_subsys,&
-                                             qmmm_env_qm_release,&
-                                             qmmm_env_qm_type,&
-                                             qs_subsys
+  USE qmmm_types,                      ONLY: qmmm_env_get,&
+                                             qmmm_env_release,&
+                                             qmmm_env_type
+  USE qmmmx_types,                     ONLY: qmmmx_env_get,&
+                                             qmmmx_env_release,&
+                                             qmmmx_env_type
   USE qs_energy_types,                 ONLY: qs_energy_type
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_env_release,&
@@ -68,16 +68,18 @@ MODULE force_env_types
   INTEGER, PARAMETER, PUBLIC :: use_fist_force = 501, &
                                 use_qs_force   = 502, &
                                 use_qmmm       = 503, &
-                                use_eip_force  = 504, &
-                                use_mixed_force= 505
+                                use_qmmmx      = 504, &
+                                use_eip_force  = 505, &
+                                use_mixed_force= 506
+
 
   CHARACTER(LEN=10), DIMENSION(501:506), PARAMETER, PUBLIC :: &
        use_prog_name = (/&
        "FIST  ", &
        "QS    ", &
        "QMMM  ", &
+       "QMMMX ", &
        "EIP   ", &
-       "EP    ", &
        "MIXED "/)
 
   PUBLIC :: force_env_type,&
@@ -130,7 +132,8 @@ MODULE force_env_types
      TYPE ( global_environment_type ), POINTER           :: globenv
      TYPE ( cp_para_env_type ), POINTER                  :: para_env
      TYPE ( force_env_p_type ), DIMENSION(:), POINTER    :: sub_force_env
-     TYPE ( qmmm_env_qm_type ), POINTER                  :: qmmm_env
+     TYPE ( qmmm_env_type ), POINTER                     :: qmmm_env
+     TYPE ( qmmmx_env_type ), POINTER                    :: qmmmx_env
      TYPE ( mixed_environment_type ), POINTER            :: mixed_env
      TYPE ( section_vals_type), POINTER                  :: force_env_section
      TYPE ( section_vals_type), POINTER                  :: root_section
@@ -152,17 +155,14 @@ CONTAINS
 ! *****************************************************************************
 !> \brief retains the given force env
 !> \param force_env the force environment to retain
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \par History
 !>      04.2003 created [fawzi]
 !> \author fawzi
 !> \note
 !>      see doc/ReferenceCounting.html
 ! *****************************************************************************
-  SUBROUTINE force_env_retain(force_env, error)
+  SUBROUTINE force_env_retain(force_env)
     TYPE(force_env_type), POINTER            :: force_env
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'force_env_retain', &
       routineP = moduleN//':'//routineN
@@ -171,36 +171,33 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(ASSOCIATED(force_env),cp_failure_level,routineP,error,failure)
-    CPPreconditionNoFail(force_env%ref_count>0,cp_failure_level,routineP,error)
+    CPASSERT(ASSOCIATED(force_env))
+    CPASSERT(force_env%ref_count>0)
     force_env%ref_count=force_env%ref_count+1
   END SUBROUTINE force_env_retain
 
 ! *****************************************************************************
 !> \brief releases the given force env
 !> \param force_env the force environment to release
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \par History
 !>      04.2003 created [fawzi]
 !> \author fawzi
 !> \note
 !>      see doc/ReferenceCounting.html
 ! *****************************************************************************
-  RECURSIVE SUBROUTINE force_env_release(force_env, error)
+  RECURSIVE SUBROUTINE force_env_release(force_env)
     TYPE(force_env_type), POINTER            :: force_env
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'force_env_release', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, my_group, stat
+    INTEGER                                  :: i, my_group
     LOGICAL                                  :: failure
     TYPE(cp_logger_type), POINTER            :: my_logger
 
     failure=.FALSE.
     IF (ASSOCIATED(force_env)) THEN
-       CPPreconditionNoFail(force_env%ref_count>0,cp_failure_level,routineP,error)
+       CPASSERT(force_env%ref_count>0)
        force_env%ref_count=force_env%ref_count-1
        IF (force_env%ref_count==0) THEN
           ! Deallocate SUB_FORCE_ENV
@@ -213,38 +210,37 @@ CONTAINS
                    my_logger => force_env%mixed_env%sub_logger(my_group+1)%p
                    CALL cp_add_default_logger(my_logger)
                 END IF
-                CALL force_env_release(force_env%sub_force_env(i)%force_env,error=error)
+                CALL force_env_release(force_env%sub_force_env(i)%force_env)
                 IF (force_env%in_use==use_mixed_force) &
                    CALL cp_rm_default_logger()
              END DO
-             DEALLOCATE(force_env%sub_force_env,stat=stat)
-             CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+             DEALLOCATE(force_env%sub_force_env)
           END IF
 
           SELECT CASE ( force_env%in_use )
           CASE ( use_fist_force )
-             CALL fist_env_release(force_env%fist_env,error=error)
+             CALL fist_env_release(force_env%fist_env)
           CASE ( use_qs_force )
-             CALL qs_env_release(force_env%qs_env,error=error)
+             CALL qs_env_release(force_env%qs_env)
           CASE ( use_eip_force )
-             CALL eip_env_release(force_env%eip_env, error=error)
+             CALL eip_env_release(force_env%eip_env)
           CASE (use_mixed_force)
-             CALL mixed_env_release(force_env%mixed_env,error=error)
+             CALL mixed_env_release(force_env%mixed_env)
           END SELECT
-          CALL globenv_release(force_env%globenv,error=error)
-          CALL cp_para_env_release(force_env%para_env,error=error)
+          CALL globenv_release(force_env%globenv)
+          CALL cp_para_env_release(force_env%para_env)
           ! Not deallocated
-          CPAssert(.NOT.ASSOCIATED(force_env%fist_env),cp_warning_level,routineP,error,failure)
-          CPAssert(.NOT.ASSOCIATED(force_env%qs_env),cp_warning_level,routineP,error,failure)
-          CPAssert(.NOT.ASSOCIATED(force_env%eip_env),cp_warning_level,routineP,error,failure)
-          CPAssert(.NOT.ASSOCIATED(force_env%mixed_env),cp_warning_level,routineP,error,failure)
-          CALL meta_env_release(force_env%meta_env,error=error)
-          CALL fp_env_release(force_env%fp_env,error=error)
-          CALL qmmm_env_qm_release(force_env%qmmm_env,error=error)
-          CALL section_vals_release(force_env%force_env_section,error=error)
-          CALL section_vals_release(force_env%root_section,error=error)
-          DEALLOCATE(force_env,stat=stat)
-          CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+          CPASSERT(.NOT.ASSOCIATED(force_env%fist_env))
+          CPASSERT(.NOT.ASSOCIATED(force_env%qs_env))
+          CPASSERT(.NOT.ASSOCIATED(force_env%eip_env))
+          CPASSERT(.NOT.ASSOCIATED(force_env%mixed_env))
+          CALL meta_env_release(force_env%meta_env)
+          CALL fp_env_release(force_env%fp_env)
+          CALL qmmm_env_release(force_env%qmmm_env)
+          CALL qmmmx_env_release(force_env%qmmmx_env)
+          CALL section_vals_release(force_env%force_env_section)
+          CALL section_vals_release(force_env%root_section)
+          DEALLOCATE(force_env)
        END IF
     END IF
     NULLIFY(force_env)
@@ -268,6 +264,7 @@ CONTAINS
 !> \param cell ...
 !> \param sub_force_env ...
 !> \param qmmm_env ...
+!> \param qmmmx_env ...
 !> \param eip_env ...
 !> \param globenv ...
 !> \param input ...
@@ -275,9 +272,6 @@ CONTAINS
 !> \param method_name_id ...
 !> \param root_section ...
 !> \param mixed_env ...
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
-!>      for the orther arguments see the attributes of force_env_type
 !> \par History
 !>      04.2003 created [fawzi]
 !> \author fawzi
@@ -285,8 +279,8 @@ CONTAINS
   RECURSIVE SUBROUTINE force_env_get(force_env, in_use, fist_env, qs_env, &
        meta_env, fp_env, subsys, para_env, potential_energy, additional_potential, &
        kinetic_energy, harmonic_shell, kinetic_shell, cell, sub_force_env,&
-       qmmm_env, eip_env, globenv, input, force_env_section, &
-       method_name_id, root_section, mixed_env, error)
+       qmmm_env, qmmmx_env, eip_env, globenv, input, force_env_section, &
+       method_name_id, root_section, mixed_env)
     TYPE(force_env_type), POINTER            :: force_env
     INTEGER, INTENT(out), OPTIONAL           :: in_use
     TYPE(fist_environment_type), OPTIONAL, &
@@ -303,8 +297,8 @@ CONTAINS
     TYPE(cell_type), OPTIONAL, POINTER       :: cell
     TYPE(force_env_p_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: sub_force_env
-    TYPE(qmmm_env_qm_type), OPTIONAL, &
-      POINTER                                :: qmmm_env
+    TYPE(qmmm_env_type), OPTIONAL, POINTER   :: qmmm_env
+    TYPE(qmmmx_env_type), OPTIONAL, POINTER  :: qmmmx_env
     TYPE(eip_environment_type), OPTIONAL, &
       POINTER                                :: eip_env
     TYPE(global_environment_type), &
@@ -316,16 +310,13 @@ CONTAINS
       POINTER                                :: root_section
     TYPE(mixed_environment_type), OPTIONAL, &
       POINTER                                :: mixed_env
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'force_env_get', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: cur_subsys
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: eip_kinetic_energy, &
-                                                eip_potential_energy, &
-                                                penergy_mm, penergy_qm
+                                                eip_potential_energy
     TYPE(cp_subsys_type), POINTER            :: subsys_tmp
     TYPE(fist_energy_type), POINTER          :: thermo
     TYPE(mixed_energy_type), POINTER         :: mixed_energy
@@ -335,95 +326,70 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(ASSOCIATED(force_env),cp_failure_level,routineP,error,failure)
-    CPPrecondition(force_env%ref_count>0,cp_failure_level,routineP,error,failure)
+    CPASSERT(ASSOCIATED(force_env))
+    CPASSERT(force_env%ref_count>0)
 
     SELECT CASE(force_env%in_use)
     CASE (use_qs_force)
-       CPPrecondition(ASSOCIATED(force_env%qs_env),cp_failure_level,routineP,error,failure)
-       CPPreconditionNoFail(.NOT.PRESENT(fist_env),cp_warning_level,routineP,error)
-       CPPreconditionNoFail(.NOT.PRESENT(eip_env),cp_warning_level,routineP,error)
+       CPASSERT(ASSOCIATED(force_env%qs_env))
+       CPASSERT(.NOT.PRESENT(fist_env))
+       CPASSERT(.NOT.PRESENT(eip_env))
        CALL get_qs_env(force_env%qs_env,&
                        energy=qs_energy,&
                        input=input,&
-                       cp_subsys=subsys,&
-                       error=error)
+                       cp_subsys=subsys)
        IF (PRESENT(potential_energy)) potential_energy = qs_energy%total
-       CPPrecondition(.NOT.PRESENT(kinetic_energy),cp_failure_level,routineP,error,failure)
+       CPASSERT(.NOT.PRESENT(kinetic_energy))
     CASE (use_fist_force)
-       CPPrecondition(ASSOCIATED(force_env%fist_env),cp_failure_level,routineP,error,failure)
-!          CPPreconditionNoFail(.NOT.PRESENT(qs_env),cp_warning_level,routineP,error)
-!          CPPreconditionNoFail(.NOT.PRESENT(eip_env),cp_warning_level,routineP,error)
-       CPPrecondition(.NOT.PRESENT(input),cp_failure_level,routineP,error,failure)
+       CPASSERT(ASSOCIATED(force_env%fist_env))
+!          CPPreconditionNoFail(.NOT.PRESENT(qs_env),cp_warning_level,routineP)
+!          CPPreconditionNoFail(.NOT.PRESENT(eip_env),cp_warning_level,routineP)
+       CPASSERT(.NOT.PRESENT(input))
        CALL fist_env_get(force_env%fist_env,&
                          thermo=thermo,&
-                         subsys=subsys,&
-                         error=error)
+                         subsys=subsys)
        IF (PRESENT(potential_energy)) potential_energy = thermo%pot
        IF (PRESENT(kinetic_energy)) kinetic_energy = thermo%kin
        IF (PRESENT(kinetic_shell)) kinetic_shell = thermo%kin_shell
        IF (PRESENT(harmonic_shell)) harmonic_shell = thermo%harm_shell
     CASE (use_eip_force)
-       CPPrecondition(ASSOCIATED(force_env%eip_env), cp_failure_level, routineP, error, failure)
-       CPPreconditionNoFail(.NOT. PRESENT(qs_env), cp_warning_level, routineP, error)
-       CPPreconditionNoFail(.NOT. PRESENT(fist_env), cp_warning_level, routineP, error)
+       CPASSERT(ASSOCIATED(force_env%eip_env))
+       CPASSERT(.NOT. PRESENT(qs_env))
+       CPASSERT(.NOT. PRESENT(fist_env))
        CALL eip_env_get(force_env%eip_env,&
                         eip_potential_energy=eip_potential_energy,&
                         eip_kinetic_energy=eip_kinetic_energy,&
-                        subsys=subsys,&
-                        error=error)
+                        subsys=subsys)
        IF (PRESENT(potential_energy)) THEN
          potential_energy = eip_potential_energy
        END IF
        IF (PRESENT(kinetic_energy)) kinetic_energy = eip_kinetic_energy
-       CPPrecondition(.NOT.PRESENT(kinetic_energy),cp_failure_level,routineP,error,failure)
+       CPASSERT(.NOT.PRESENT(kinetic_energy))
     CASE (use_qmmm)
-         IF (PRESENT(kinetic_energy)) THEN
-            CALL force_env_get(force_env%sub_force_env(primary_subsys)%force_env,&
-                               kinetic_energy=kinetic_energy,&
-                               error=error)
-         END IF
-         IF (PRESENT(subsys)) THEN
-            CALL force_env_get(force_env%sub_force_env(primary_subsys)%force_env,&
-                               subsys=subsys, error=error)
-         ENDIF
-         IF (PRESENT(potential_energy)) THEN
-              ! get the underlying energies from primary subsys.  This is the only subsys
-              ! for conventional QM/MM, and force-mixing knows to put relevant energy there.
-              IF (SIZE(force_env%sub_force_env) == 1) THEN
-                cur_subsys = primary_subsys
-              ELSE IF (force_env%qmmm_env%do_force_mixing .AND. SIZE(force_env%sub_force_env) == 2) THEN ! force mixing
-                cur_subsys = force_mixing_extended_subsys
-              ELSE
-                 CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
-                      routineP,"bad number of sub_force_envs (or do_force_mixing setting) getting qmmm potential energy "//&
-                      CPSourceFileRef,&
-                      error,failure)
-              ENDIF
-              CALL force_env_get(force_env%sub_force_env(cur_subsys)%force_env%sub_force_env(fist_subsys)%force_env,&
-                                 potential_energy=penergy_mm,&
-                                 error=error)
-              CALL force_env_get(force_env%sub_force_env(cur_subsys)%force_env%sub_force_env(qs_subsys)%force_env,&
-                                 potential_energy=penergy_qm,&
-                                 error=error)
-              potential_energy = penergy_qm+penergy_mm
-         ENDIF
+       CALL qmmm_env_get(force_env%qmmm_env,&
+                         subsys=subsys,&
+                         potential_energy=potential_energy,&
+                         kinetic_energy=kinetic_energy)
+    CASE (use_qmmmx)
+       CALL qmmmx_env_get(force_env%qmmmx_env,&
+                          subsys=subsys,&
+                          potential_energy=potential_energy,&
+                          kinetic_energy=kinetic_energy)
     CASE (use_mixed_force)
-       CPPrecondition(ASSOCIATED(force_env%mixed_env),cp_failure_level,routineP,error,failure)
-!          CPPreconditionNoFail(.NOT.PRESENT(qs_env),cp_warning_level,routineP,error)
-!          CPPreconditionNoFail(.NOT.PRESENT(eip_env),cp_warning_level,routineP,error)
-       CPPrecondition(.NOT.PRESENT(input),cp_failure_level,routineP,error,failure)
+       CPASSERT(ASSOCIATED(force_env%mixed_env))
+!          CPPreconditionNoFail(.NOT.PRESENT(qs_env),cp_warning_level,routineP)
+!          CPPreconditionNoFail(.NOT.PRESENT(eip_env),cp_warning_level,routineP)
+       CPASSERT(.NOT.PRESENT(input))
        CALL get_mixed_env(force_env%mixed_env,&
                          mixed_energy=mixed_energy,&
-                         subsys=subsys,&
-                         error=error)
+                         subsys=subsys)
        IF (PRESENT(potential_energy)) potential_energy = mixed_energy%pot
        IF (PRESENT(kinetic_energy)) kinetic_energy = mixed_energy%kin
     CASE DEFAULT
        CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
             routineP,"unknown in_use flag value "//&
             CPSourceFileRef,&
-            error,failure)
+            failure)
     END SELECT
 
     IF (PRESENT(force_env_section)) force_env_section => force_env%force_env_section
@@ -464,13 +430,14 @@ CONTAINS
        additional_potential = force_env%additional_potential
     END IF
     IF (PRESENT(cell)) THEN
-       CALL force_env_get(force_env, subsys=subsys_tmp, error=error)
-       CALL cp_subsys_get(subsys_tmp, cell=cell, error=error)
+       CALL force_env_get(force_env, subsys=subsys_tmp)
+       CALL cp_subsys_get(subsys_tmp, cell=cell)
     END IF
     IF (PRESENT(fp_env)) fp_env => force_env%fp_env
     IF (PRESENT(meta_env)) meta_env => force_env%meta_env
     IF (PRESENT(sub_force_env)) sub_force_env => force_env%sub_force_env
     IF (PRESENT(qmmm_env))      qmmm_env      => force_env%qmmm_env
+    IF (PRESENT(qmmmx_env))     qmmmx_env     => force_env%qmmmx_env
     IF (PRESENT(mixed_env))     mixed_env     => force_env%mixed_env
     IF (PRESENT(globenv))       globenv       => force_env%globenv
     IF (PRESENT(root_section))  root_section  => force_env%root_section
@@ -480,16 +447,13 @@ CONTAINS
 ! *****************************************************************************
 !> \brief returns the number of atoms
 !> \param force_env the force_env you what information about
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \retval n_atom the number of atoms
 !> \date   22.11.2010 updated (MK)
 !> \author fawzi
 ! *****************************************************************************
-  FUNCTION force_env_get_natom(force_env,error) RESULT(n_atom)
+  FUNCTION force_env_get_natom(force_env) RESULT(n_atom)
 
     TYPE(force_env_type), POINTER            :: force_env
-    TYPE(cp_error_type), INTENT(inout)       :: error
     INTEGER                                  :: n_atom
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'force_env_get_natom', &
@@ -501,24 +465,21 @@ CONTAINS
     failure = .FALSE.
     n_atom = 0
     NULLIFY (subsys)
-    CALL force_env_get(force_env,subsys=subsys,error=error)
-    CALL cp_subsys_get(subsys,natom=n_atom,error=error)
+    CALL force_env_get(force_env,subsys=subsys)
+    CALL cp_subsys_get(subsys,natom=n_atom)
 
   END FUNCTION force_env_get_natom
 
 ! *****************************************************************************
 !> \brief returns the number of particles in a force environment
 !> \param force_env the force_env you what information about
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \retval n_particle the number of particles
 !> \date   22.11.2010 (MK)
 !> \author Matthias Krack
 ! *****************************************************************************
-  FUNCTION force_env_get_nparticle(force_env,error) RESULT(n_particle)
+  FUNCTION force_env_get_nparticle(force_env) RESULT(n_particle)
 
     TYPE(force_env_type), POINTER            :: force_env
-    TYPE(cp_error_type), INTENT(inout)       :: error
     INTEGER                                  :: n_particle
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'force_env_get_nparticle', &
@@ -530,8 +491,8 @@ CONTAINS
     failure = .FALSE.
     n_particle = 0
     NULLIFY (subsys)
-    CALL force_env_get(force_env,subsys=subsys,error=error)
-    CALL cp_subsys_get(subsys,nparticle=n_particle,error=error)
+    CALL force_env_get(force_env,subsys=subsys)
+    CALL cp_subsys_get(subsys,nparticle=n_particle)
 
   END FUNCTION force_env_get_nparticle
 
@@ -540,17 +501,14 @@ CONTAINS
 !> \param force_env the force_env you want to get the forces
 !> \param frc the array of the forces
 !> \param n ...
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \date   22.11.2010 Creation
 !> \author Matthias Krack
 ! *****************************************************************************
-  SUBROUTINE force_env_get_frc(force_env,frc,n,error)
+  SUBROUTINE force_env_get_frc(force_env,frc,n)
 
     TYPE(force_env_type), POINTER            :: force_env
     REAL(KIND=dp), DIMENSION(*), INTENT(OUT) :: frc
     INTEGER, INTENT(IN)                      :: n
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'force_env_get_frc', &
       routineP = moduleN//':'//routineN
@@ -561,10 +519,10 @@ CONTAINS
 
     failure = .FALSE.
     CALL timeset(routineN,handle)
-    CPPrecondition(ASSOCIATED(force_env),cp_failure_level,routineP,error,failure)
-    CPPrecondition((force_env%ref_count > 0),cp_failure_level,routineP,error,failure)
-    CALL force_env_get(force_env,subsys=subsys,error=error)
-    CALL pack_subsys_particles(subsys=subsys,f=frc(1:n),error=error)
+    CPASSERT(ASSOCIATED(force_env))
+    CPASSERT(force_env%ref_count > 0)
+    CALL force_env_get(force_env,subsys=subsys)
+    CALL pack_subsys_particles(subsys=subsys,f=frc(1:n))
     CALL timestop(handle)
 
   END SUBROUTINE force_env_get_frc
@@ -574,17 +532,14 @@ CONTAINS
 !> \param force_env the force_env you want to get the positions
 !> \param pos the array of the positions
 !> \param n ...
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \date   22.11.2010 updated (MK)
 !> \author fawzi
 ! *****************************************************************************
-  SUBROUTINE force_env_get_pos(force_env,pos,n,error)
+  SUBROUTINE force_env_get_pos(force_env,pos,n)
 
     TYPE(force_env_type), POINTER            :: force_env
     REAL(kind=dp), DIMENSION(*), INTENT(OUT) :: pos
     INTEGER, INTENT(IN)                      :: n
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'force_env_get_pos', &
       routineP = moduleN//':'//routineN
@@ -595,10 +550,10 @@ CONTAINS
 
     failure = .FALSE.
     CALL timeset(routineN,handle)
-    CPPrecondition(ASSOCIATED(force_env),cp_failure_level,routineP,error,failure)
-    CPPrecondition((force_env%ref_count > 0),cp_failure_level,routineP,error,failure)
-    CALL force_env_get(force_env,subsys=subsys,error=error)
-    CALL pack_subsys_particles(subsys=subsys,r=pos(1:n),error=error)
+    CPASSERT(ASSOCIATED(force_env))
+    CPASSERT(force_env%ref_count > 0)
+    CALL force_env_get(force_env,subsys=subsys)
+    CALL pack_subsys_particles(subsys=subsys,r=pos(1:n))
     CALL timestop(handle)
 
   END SUBROUTINE force_env_get_pos
@@ -608,17 +563,14 @@ CONTAINS
 !> \param force_env the force_env you want to get the velocities
 !> \param vel the array of the velocities
 !> \param n ...
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \date   22.11.2010 Creation (MK)
 !> \author Matthias Krack
 ! *****************************************************************************
-  SUBROUTINE force_env_get_vel(force_env,vel,n,error)
+  SUBROUTINE force_env_get_vel(force_env,vel,n)
 
     TYPE(force_env_type), POINTER            :: force_env
     REAL(KIND=dp), DIMENSION(*), INTENT(OUT) :: vel
     INTEGER, INTENT(IN)                      :: n
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'force_env_get_vel', &
       routineP = moduleN//':'//routineN
@@ -629,10 +581,10 @@ CONTAINS
 
     failure = .FALSE.
     CALL timeset(routineN,handle)
-    CPPrecondition(ASSOCIATED(force_env),cp_failure_level,routineP,error,failure)
-    CPPrecondition((force_env%ref_count > 0),cp_failure_level,routineP,error,failure)
-    CALL force_env_get(force_env,subsys=subsys,error=error)
-    CALL pack_subsys_particles(subsys=subsys,v=vel(1:n),error=error)
+    CPASSERT(ASSOCIATED(force_env))
+    CPASSERT(force_env%ref_count > 0)
+    CALL force_env_get(force_env,subsys=subsys)
+    CALL pack_subsys_particles(subsys=subsys,v=vel(1:n))
     CALL timestop(handle)
 
   END SUBROUTINE force_env_get_vel
@@ -645,14 +597,12 @@ CONTAINS
 !> \param force_env_section ...
 !> \param method_name_id ...
 !> \param additional_potential ...
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \par History
 !>      09.2003 created [fawzi]
 !> \author Fawzi Mohamed
 ! *****************************************************************************
   SUBROUTINE force_env_set(force_env, meta_env,fp_env, force_env_section,&
-     method_name_id, additional_potential, error)
+     method_name_id, additional_potential)
 
     TYPE(force_env_type), POINTER            :: force_env
     TYPE(meta_env_type), OPTIONAL, POINTER   :: meta_env
@@ -661,7 +611,6 @@ CONTAINS
       POINTER                                :: force_env_section
     INTEGER, OPTIONAL                        :: method_name_id
     REAL(KIND=dp), INTENT(IN), OPTIONAL      :: additional_potential
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'force_env_set', &
       routineP = moduleN//':'//routineN
@@ -669,24 +618,24 @@ CONTAINS
     LOGICAL                                  :: failure
 
     failure = .FALSE.
-    CPPrecondition(ASSOCIATED(force_env),cp_failure_level,routineP,error,failure)
-    CPPrecondition(force_env%ref_count>0,cp_failure_level,routineP,error,failure)
+    CPASSERT(ASSOCIATED(force_env))
+    CPASSERT(force_env%ref_count>0)
     IF (PRESENT(meta_env)) THEN
        IF (ASSOCIATED(meta_env)) THEN
-          CALL meta_env_retain(meta_env,error=error)
+          CALL meta_env_retain(meta_env)
        END IF
-       CALL meta_env_release(force_env%meta_env,error=error)
+       CALL meta_env_release(force_env%meta_env)
        force_env%meta_env => meta_env
     END IF
     IF (PRESENT(fp_env)) THEN
-       CALL fp_env_retain(fp_env,error=error)
-       CALL fp_env_release(force_env%fp_env,error=error)
+       CALL fp_env_retain(fp_env)
+       CALL fp_env_release(force_env%fp_env)
        force_env%fp_env => fp_env
     END IF
     IF (PRESENT(force_env_section)) THEN
        IF (ASSOCIATED(force_env_section)) THEN
-          CALL section_vals_retain(force_env_section,error=error)
-          CALL section_vals_release(force_env%force_env_section,error=error)
+          CALL section_vals_retain(force_env_section)
+          CALL section_vals_release(force_env%force_env_section)
           force_env%force_env_section => force_env_section
        END IF
     END IF
@@ -706,39 +655,34 @@ CONTAINS
 !> \param root_section ...
 !> \param i_force_eval ...
 !> \param nforce_eval ...
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
 !> \author teo
 ! *****************************************************************************
-  SUBROUTINE multiple_fe_list(force_env_sections, root_section, i_force_eval, nforce_eval, error)
+  SUBROUTINE multiple_fe_list(force_env_sections, root_section, i_force_eval, nforce_eval)
 
     TYPE(section_vals_type), POINTER         :: force_env_sections, &
                                                 root_section
     INTEGER, DIMENSION(:), POINTER           :: i_force_eval
     INTEGER                                  :: nforce_eval
-    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'multiple_fe_list', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: iforce_eval, main_force_eval, &
-                                                stat
+    INTEGER                                  :: iforce_eval, main_force_eval
     INTEGER, DIMENSION(:), POINTER           :: my_i_force_eval
     LOGICAL                                  :: failure
 
     failure = .FALSE.
     ! Let's treat the case of Multiple force_eval
-    CALL section_vals_get(force_env_sections, n_repetition=nforce_eval, error=error)
+    CALL section_vals_get(force_env_sections, n_repetition=nforce_eval)
     CALL section_vals_val_get(root_section,"MULTIPLE_FORCE_EVALS%FORCE_EVAL_ORDER",&
-         i_vals=my_i_force_eval,error=error)
-    ALLOCATE(i_force_eval(nforce_eval),stat=stat)
-    CPPostcondition(stat==0,cp_fatal_level,routineP,error,failure)
+         i_vals=my_i_force_eval)
+    ALLOCATE(i_force_eval(nforce_eval))
     IF (nforce_eval>0) THEN
        IF (nforce_eval==SIZE(my_i_force_eval)) THEN
           i_force_eval                = my_i_force_eval
        ELSE
           ! The difference in the amount of defined force_env MUST be one..
-          CPPostcondition(nforce_eval-SIZE(my_i_force_eval)==1,cp_fatal_level,routineP,error,failure)
+          CPASSERT(nforce_eval-SIZE(my_i_force_eval)==1)
           DO iforce_eval = 1, nforce_eval
              IF (ANY(my_i_force_eval==iforce_eval)) CYCLE
              main_force_eval = iforce_eval
