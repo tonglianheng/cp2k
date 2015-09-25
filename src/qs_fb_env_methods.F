@@ -775,6 +775,8 @@ CONTAINS
        CALL cp_fm_to_fm(fm_work, mo_coeff, nmo, 1, 1)
     ELSE
        logger => cp_get_default_logger()
+       unit_nr = cp_print_key_unit_nr(logger,, &
+                                      "P")
        ! cholesky decomposition has failed, revert to calculating
        ! ortho as S^-1/2 using diagonalisation of S, and solve
        ! accordingly
