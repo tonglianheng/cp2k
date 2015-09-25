@@ -330,7 +330,7 @@ CONTAINS
 
     INTEGER                                  :: cholesky_flag, handle, ialgo
     INTEGER, DIMENSION(:), POINTER           :: added_mos
-    LOGICAL                                  :: do_mixing, failure
+    LOGICAL                                  :: do_mixing
     REAL(KIND=dp), DIMENSION(:), POINTER     :: roks_parameter
     TYPE(section_vals_type), POINTER         :: mixing_section, &
                                                 outer_scf_section, &
@@ -511,7 +511,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'read_smear_section', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     REAL(KIND=dp), DIMENSION(:), POINTER     :: r_vals
 
     NULLIFY(r_vals)
@@ -558,7 +557,7 @@ CONTAINS
 
     INTEGER                                  :: handle, output_unit, &
                                                 roks_scheme
-    LOGICAL                                  :: failure, roks
+    LOGICAL                                  :: roks
     REAL(KIND=dp)                            :: elec_temp
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(enumeration_type), POINTER          :: enum

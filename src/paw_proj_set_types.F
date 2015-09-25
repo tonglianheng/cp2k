@@ -252,7 +252,6 @@ CONTAINS
     INTEGER, DIMENSION(:), POINTER           :: lmax, lmin, npgf, nshell
     INTEGER, DIMENSION(:, :), POINTER        :: first_cgf, first_sgf, l, &
                                                 last_cgf, last_sgf
-    LOGICAL                                  :: failure
     LOGICAL, ALLOCATABLE, DIMENSION(:)       :: isoprj
     REAL(dp)                                 :: expzet, my_error, prefac, &
                                                 radius, x, zetmin, zetval

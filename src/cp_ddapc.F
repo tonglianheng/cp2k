@@ -245,7 +245,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, iw
-    LOGICAL                                  :: apply_decpl, failure, need_f
+    LOGICAL                                  :: apply_decpl, need_f
     REAL(KINd=dp)                            :: e_decpl, e_recpl
     REAL(KIND=dp), DIMENSION(:), POINTER     :: charges, radii
     REAL(KIND=dp), DIMENSION(:, :, :), &
@@ -382,8 +382,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, iw, my_id
-    LOGICAL                                  :: apply_restrain, failure, &
-                                                need_f
+    LOGICAL                                  :: apply_restrain, need_f
     REAL(KIND=dp), DIMENSION(:), POINTER     :: charges, radii
     REAL(KIND=dp), DIMENSION(:, :, :), &
       POINTER                                :: dq
@@ -492,8 +491,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, iw
-    LOGICAL                                  :: apply_solvation, failure, &
-                                                need_f
+    LOGICAL                                  :: apply_solvation, need_f
     REAL(KINd=dp)                            :: e_recpl
     REAL(KIND=dp), DIMENSION(:), POINTER     :: charges, radii
     REAL(KIND=dp), DIMENSION(:, :, :), &

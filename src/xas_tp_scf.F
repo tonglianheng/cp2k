@@ -144,7 +144,7 @@ CONTAINS
     INTEGER                                  :: handle, handle2, ispin, &
                                                 iter_count, nspin, output_unit
     LOGICAL                                  :: diis_step, energy_only, &
-                                                exit_loop, failure, gapw
+                                                exit_loop, gapw
     REAL(KIND=dp)                            :: t1, t2
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
@@ -647,7 +647,6 @@ CONTAINS
     INTEGER                                  :: handle, ispin, istate, nmo, &
                                                 nvirtual, nvirtual2, &
                                                 output_unit
-    LOGICAL                                  :: failure
     REAL(KIND=dp), DIMENSION(:), POINTER     :: all_evals, eigenvalues
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: matrix_ks

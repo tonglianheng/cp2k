@@ -306,8 +306,7 @@ SUBROUTINE mpools_rebuild_fm_pools(mpools, mos, blacs_env, para_env,&
                                                 min_nmo, nao, ncg, &
                                                 ncol_block, nmo, nrg, &
                                                 nrow_block, nspins
-    LOGICAL                                  :: failure, prepare_subset, &
-                                                should_rebuild
+    LOGICAL                                  :: prepare_subset, should_rebuild
     TYPE(cp_fm_pool_type), POINTER           :: p_att
     TYPE(cp_fm_struct_type), POINTER         :: fmstruct
 

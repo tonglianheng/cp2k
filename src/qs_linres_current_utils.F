@@ -606,8 +606,7 @@ CONTAINS
     INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: state_list
     INTEGER, DIMENSION(:), POINTER           :: bounds, list, nbox, &
                                                 selected_states_on_atom_list
-    LOGICAL                                  :: failure, gapw, is0, &
-                                                uniform_occupation
+    LOGICAL                                  :: gapw, is0, uniform_occupation
     LOGICAL, ALLOCATABLE, DIMENSION(:, :)    :: state_done
     REAL(dp)                                 :: center(3), center2(3), dist, &
                                                 mdist, r(3), rab(3)
@@ -1365,7 +1364,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i, idir, ispin
-    LOGICAL                                  :: failure
     TYPE(pw_env_type), POINTER               :: pw_env
     TYPE(realspace_grid_desc_p_type), &
       DIMENSION(:), POINTER                  :: rs_descs

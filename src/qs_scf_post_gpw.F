@@ -2192,9 +2192,9 @@ CONTAINS
       n_cstr, n_tiles, nd(3), ngto, niso, nkind, np, nr, output_unit, &
       print_level, tile_npts, unit_nr
     LOGICAL :: append_cube, do_cstr_charge_cube, do_dielectric_cube, &
-      do_dirichlet_bc_cube, do_kpoints, failure, has_dirichlet_bc, &
-      has_implicit_ps, omit_headers, print_it, print_total_density, &
-      rho_r_valid, smooth, tile_cubes, write_ks, write_xc, xrd_interface
+      do_dirichlet_bc_cube, do_kpoints, has_dirichlet_bc, has_implicit_ps, &
+      omit_headers, print_it, print_total_density, rho_r_valid, smooth, &
+      tile_cubes, write_ks, write_xc, xrd_interface
     REAL(dp), ALLOCATABLE, DIMENSION(:)      :: x_glbl, x_locl, y_glbl, &
                                                 y_locl, z_glbl, z_locl
     REAL(KIND=dp)                            :: q_max, rho_hard, rho_soft, &

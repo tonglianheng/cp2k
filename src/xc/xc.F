@@ -1090,7 +1090,7 @@ SUBROUTINE xc_vxc_pw_create(vxc_rho,vxc_tau,exc,rho_r,rho_g,tau,xc_section,&
       order, xc_deriv_method_id, xc_rho_smooth_id
     INTEGER, DIMENSION(2, 3)                 :: bo
     INTEGER, DIMENSION(3, 3)                 :: nd, nd_laplace
-    LOGICAL                                  :: dealloc_pw_to_deriv, failure, &
+    LOGICAL                                  :: dealloc_pw_to_deriv, &
                                                 has_laplace, has_tau, lsd, &
                                                 use_virial, zero_result
     REAL(KIND=dp)                            :: density_smooth_cut_range, &
@@ -1953,8 +1953,8 @@ SUBROUTINE xc_calc_2nd_deriv(v_xc, deriv_set, rho_set, rho1_set, &
                                                 ispin, j, k, nspins, order, &
                                                 stat, xc_deriv_method_id
     INTEGER, DIMENSION(2, 3)                 :: bo
-    LOGICAL                                  :: failure, gradient_f, lsd, &
-                                                my_gapw, unknown_deriv
+    LOGICAL                                  :: gradient_f, lsd, my_gapw, &
+                                                unknown_deriv
     REAL(KIND=dp)                            :: dr1dr, fac, gradient_cut
     REAL(kind=dp), DIMENSION(:, :, :), &
       POINTER                                :: deriv_data, e_drhoa, e_drhob, &
@@ -3000,7 +3000,6 @@ END SUBROUTINE xc_calc_2nd_deriv
       DIMENSION(:), POINTER                  :: split_desc
     INTEGER                                  :: i, idesc, j, k, order
     INTEGER, DIMENSION(2, 3)                 :: bo
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: drho_cutoff
     TYPE(cp_sll_xc_deriv_type), POINTER      :: pos
     TYPE(xc_derivative_type), POINTER        :: deriv_att

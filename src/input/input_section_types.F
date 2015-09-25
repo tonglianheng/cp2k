@@ -691,7 +691,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i, j, k
-    LOGICAL                                  :: failure
     TYPE(keyword_p_type), DIMENSION(:), &
       POINTER                                :: new_keywords
 
@@ -750,7 +749,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i
-    LOGICAL                                  :: failure
     TYPE(section_p_type), DIMENSION(:), &
       POINTER                                :: new_subsections
 
@@ -930,8 +928,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: irep, isection, my_index
-    LOGICAL                                  :: failure, is_path, &
-                                                my_can_return_null
+    LOGICAL                                  :: is_path, my_can_return_null
 
     CPASSERT(ASSOCIATED(section_vals))
     CPASSERT(section_vals%ref_count>0)
@@ -1277,7 +1274,7 @@ CONTAINS
 
     INTEGER                                  :: ik, irk, irs, len_key, &
                                                 my_index, tmp_index
-    LOGICAL                                  :: failure, valRequested
+    LOGICAL                                  :: valRequested
     TYPE(cp_sll_val_type), POINTER           :: vals
     TYPE(keyword_type), POINTER              :: keyword
     TYPE(section_type), POINTER              :: section
@@ -1378,7 +1375,6 @@ CONTAINS
 
     INTEGER                                  :: ik, irs, len_key, my_index, &
                                                 tmp_index
-    LOGICAL                                  :: failure
     TYPE(section_type), POINTER              :: section
     TYPE(section_vals_type), POINTER         :: s_vals
 
@@ -1459,7 +1455,7 @@ CONTAINS
 
     INTEGER                                  :: ik, irk, irs, len_key, &
                                                 my_index, tmp_index
-    LOGICAL                                  :: failure, valSet
+    LOGICAL                                  :: valSet
     TYPE(cp_sll_val_type), POINTER           :: vals
     TYPE(keyword_type), POINTER              :: keyword
     TYPE(section_type), POINTER              :: section
@@ -1584,7 +1580,6 @@ CONTAINS
 
     INTEGER                                  :: ik, irk, irs, len_key, &
                                                 my_index, tmp_index
-    LOGICAL                                  :: failure
     TYPE(cp_sll_val_type), POINTER           :: pos
     TYPE(section_type), POINTER              :: section
     TYPE(section_vals_type), POINTER         :: s_vals
@@ -1662,8 +1657,7 @@ CONTAINS
                                                 nval
     INTEGER, SAVE                            :: indent = 1
     LOGICAL                                  :: defaultSection, explicit, &
-                                                failure, my_hide_defaults, &
-                                                my_hide_root
+                                                my_hide_defaults, my_hide_root
     TYPE(cp_sll_val_type), POINTER           :: new_pos, vals
     TYPE(keyword_type), POINTER              :: keyword
     TYPE(section_type), POINTER              :: section
@@ -1916,7 +1910,6 @@ CONTAINS
 
     INTEGER                                  :: irep, isection, len_key, &
                                                 my_index, tmp_index
-    LOGICAL                                  :: failure
     TYPE(section_vals_type), POINTER         :: s_vals
 
     CPASSERT(ASSOCIATED(section_vals))
@@ -1998,7 +1991,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: iend, irep, isec, istart, ival
-    LOGICAL                                  :: failure
     TYPE(cp_sll_val_type), POINTER           :: v1, v2
     TYPE(val_type), POINTER                  :: el
 

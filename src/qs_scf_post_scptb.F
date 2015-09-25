@@ -84,8 +84,8 @@ CONTAINS
     INTEGER                                  :: after, handle, ispin, iw, &
                                                 output_unit, print_level, &
                                                 unit_nr
-    LOGICAL                                  :: explicit, failure, &
-                                                omit_headers, print_it
+    LOGICAL                                  :: explicit, omit_headers, &
+                                                print_it
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(cell_type), POINTER                 :: cell

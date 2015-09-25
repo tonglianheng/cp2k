@@ -90,7 +90,7 @@ CONTAINS
     INTEGER                                  :: handle, i_B, idir, ispin, &
                                                 n_mo(2), nao, natom, nmoloc, &
                                                 nspins, output_unit
-    LOGICAL                                  :: failure, gapw
+    LOGICAL                                  :: gapw
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(cell_type), POINTER                 :: cell
@@ -253,7 +253,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i_B, idir, ispin
-    LOGICAL                                  :: failure
 
     epr_env%ref_count = epr_env%ref_count - 1
     IF(epr_env%ref_count == 0 ) THEN

@@ -741,7 +741,6 @@ CONTAINS
     INTEGER, PARAMETER :: my_error_level = cp_failure_level
 
     INTEGER                                  :: my_power
-    LOGICAL                                  :: failure
 
     my_power=1
     IF (PRESENT(power)) my_power=power
@@ -924,7 +923,7 @@ CONTAINS
     INTEGER, PARAMETER :: my_error_level = cp_failure_level
 
     INTEGER                                  :: a, my_power
-    LOGICAL                                  :: failure, my_accept_undefined
+    LOGICAL                                  :: my_accept_undefined
 
     my_power=1
     res=""
@@ -1167,7 +1166,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i, my_unit, pos
-    LOGICAL                                  :: check, failure, has_defaults, &
+    LOGICAL                                  :: check, has_defaults, &
                                                 my_accept_undefined
 
     CPASSERT(ASSOCIATED(unit))
@@ -1224,7 +1223,6 @@ CONTAINS
 
     INTEGER                                  :: i_unit, my_basic_unit, &
                                                 my_power
-    LOGICAL                                  :: failure
 
     my_power=1
     IF (PRESENT(power)) my_power=power
@@ -1390,7 +1388,6 @@ CONTAINS
 
     CHARACTER(len=default_string_length)     :: my_name
     INTEGER                                  :: i
-    LOGICAL                                  :: failure
 
     CPASSERT(.NOT.ASSOCIATED(unit_set))
     ALLOCATE(unit_set)

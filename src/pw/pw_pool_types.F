@@ -421,7 +421,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle
-    LOGICAL                                  :: did_insert, failure, &
+    LOGICAL                                  :: did_insert, &
                                                 my_accept_non_compatible
     TYPE(cp_logger_type), POINTER            :: logger
 

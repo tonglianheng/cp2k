@@ -121,7 +121,6 @@ SUBROUTINE cp_1d_logical_write(array, unit_nr, el_format)
       routineN = 'cp_1d_logical_write', routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i, iostat
-    LOGICAL                                  :: failure
 
   WRITE(unit=unit_nr,fmt="('( ')",advance="no", iostat=iostat)
   CPASSERT(iostat==0)
@@ -175,7 +174,6 @@ SUBROUTINE cp_2d_logical_write(array, unit_nr, el_format)
     CHARACTER(len=10)                        :: nRiga
     CHARACTER(len=200)                       :: fmtstr
     INTEGER                                  :: i, iostat
-    LOGICAL                                  :: failure
 
   nRiga=cp_to_string(SIZE(array,2))
   DO i=1,SIZE(array,1)

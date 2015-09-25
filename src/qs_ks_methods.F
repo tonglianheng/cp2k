@@ -216,9 +216,8 @@ CONTAINS
 
     INTEGER                                  :: handle, img, ispin, nimages, &
                                                 ns, nspins
-    LOGICAL :: do_adiabatic_rescaling, do_ddapc, do_hfx, do_ppl, failure, &
-      gapw, gapw_xc, hfx_treat_lsd_in_core, just_energy_xc, my_print, &
-      use_virial
+    LOGICAL :: do_adiabatic_rescaling, do_ddapc, do_hfx, do_ppl, gapw, &
+      gapw_xc, hfx_treat_lsd_in_core, just_energy_xc, my_print, use_virial
     REAL(KIND=dp)                            :: ecore_ppl, edisp, ee_ener, &
                                                 ekin_mol, mulliken_order_p
     REAL(KIND=dp), DIMENSION(3, 3)           :: h_stress
@@ -819,8 +818,8 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, ispin, nspins
-    LOGICAL                                  :: failure, just_energy_xc, &
-                                                my_print, use_virial
+    LOGICAL                                  :: just_energy_xc, my_print, &
+                                                use_virial
     REAL(KIND=dp)                            :: edisp
     REAL(KIND=dp), DIMENSION(3, 3)           :: h_stress
     TYPE(atomic_kind_type), DIMENSION(:), &

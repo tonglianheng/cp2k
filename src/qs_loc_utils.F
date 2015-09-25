@@ -1459,7 +1459,7 @@ CONTAINS
     INTEGER                                  :: i, ind, ir, n_list, n_rep, &
                                                 n_state, nline, output_unit
     INTEGER, DIMENSION(:), POINTER           :: list, loc_list
-    LOGICAL                                  :: failure, my_do_xas
+    LOGICAL                                  :: my_do_xas
     REAL(dp), POINTER                        :: ene(:)
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(section_vals_type), POINTER         :: loc_print_section

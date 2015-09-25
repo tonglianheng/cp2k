@@ -235,7 +235,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'check_diis_solution', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: costh, norm1, norm2
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: tmp
 

@@ -106,7 +106,6 @@ CONTAINS
     INTEGER, DIMENSION(:), POINTER           :: aux_index, ng_shell, &
                                                 ng_shell_gather, nshell_pe, &
                                                 offset_pe
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: cutoff, f, f2, q, rho_hard, &
                                                 rho_soft, rho_total
     REAL(KIND=dp), DIMENSION(3)              :: dg, dr
@@ -523,8 +522,7 @@ CONTAINS
       nsotot, nspin
     INTEGER, DIMENSION(:), POINTER           :: atom_list, lmax, lmin, npgf, &
                                                 o2nindex
-    LOGICAL                                  :: failure, orthorhombic, &
-                                                paw_atom
+    LOGICAL                                  :: orthorhombic, paw_atom
     REAL(KIND=dp)                            :: alpha, eps_rho_gspace, &
                                                 rho_total, scale, volume
     REAL(KIND=dp), DIMENSION(3)              :: ra

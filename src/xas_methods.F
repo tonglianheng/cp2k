@@ -164,8 +164,9 @@ CONTAINS
       output_unit, state_to_be_excited
     INTEGER, DIMENSION(2)                    :: added_mos
     INTEGER, DIMENSION(:), POINTER           :: state_of_atom
-    LOGICAL :: ch_method_flags, converged, failure, my_uocc(2), should_stop, &
-      skip_scf, transition_potential
+    LOGICAL                                  :: ch_method_flags, converged, &
+                                                my_uocc(2), should_stop, &
+                                                skip_scf, transition_potential
     REAL(dp)                                 :: maxocc, occ_estate, tmp, &
                                                 xas_nelectron
     REAL(dp), DIMENSION(:), POINTER          :: eigenvalues
@@ -603,7 +604,7 @@ CONTAINS
     INTEGER, DIMENSION(4, 7)                 :: ne
     INTEGER, DIMENSION(:), POINTER           :: bounds, list, lq, nq, &
                                                 row_blk_sizes
-    LOGICAL                                  :: failure, ihavethis
+    LOGICAL                                  :: ihavethis
     REAL(dp)                                 :: nele, occ_estate, occ_homo, &
                                                 occ_homo_plus, zatom
     REAL(dp), DIMENSION(:), POINTER          :: sto_zet
@@ -1042,7 +1043,7 @@ CONTAINS
     INTEGER                                  :: homo, i, lfomo, nabs, nmo, &
                                                 nvirtual, output_unit, &
                                                 xas_estate
-    LOGICAL                                  :: append_cube, failure, length
+    LOGICAL                                  :: append_cube, length
     REAL(dp)                                 :: rc(3)
     REAL(dp), DIMENSION(:), POINTER          :: all_evals
     REAL(dp), DIMENSION(:, :), POINTER       :: sp_ab, sp_em

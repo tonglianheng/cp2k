@@ -73,8 +73,7 @@ CONTAINS
 
     INTEGER                                  :: handle, iforce_eval, &
                                                 nforce_eval
-    LOGICAL                                  :: explicit, explicit_mix, &
-                                                failure
+    LOGICAL                                  :: explicit, explicit_mix
     TYPE(section_vals_type), POINTER         :: section, section1, section2, &
                                                 section3, sections
 
@@ -139,7 +138,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: shortcut
-    LOGICAL                                  :: failure
 
     CALL section_vals_val_get(functionals,"_SECTION_PARAMETERS_",&
          i_val=shortcut)
@@ -294,9 +292,8 @@ CONTAINS
     INTEGER, DIMENSION(:), POINTER           :: ivec, iwalkers_status, iwork, &
                                                 rwalkers_status
     LOGICAL                                  :: bsse_check, check, explicit1, &
-                                                explicit2, failure, flag, &
-                                                flag2, qmmm_check, &
-                                                subsys_check
+                                                explicit2, flag, flag2, &
+                                                qmmm_check, subsys_check
     REAL(KIND=dp)                            :: myt
     REAL(KIND=dp), DIMENSION(:), POINTER     :: vec, work
     TYPE(cp_parser_type), POINTER            :: cpparser

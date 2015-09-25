@@ -758,7 +758,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: ia, iso, ispin, na
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: rad, urad
 
    CPASSERT(ASSOCIATED(r_h))
@@ -875,7 +874,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: ia, iso, ispin, na
-    LOGICAL                                  :: failure
 
     CPASSERT(ASSOCIATED(trho_h))
     CPASSERT(ASSOCIATED(trho_s))
@@ -1128,7 +1126,6 @@ CONTAINS
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: cg_n_list, dcg_n_list
     INTEGER, ALLOCATABLE, DIMENSION(:, :, :) :: cg_list, dcg_list
     INTEGER, DIMENSION(:), POINTER           :: lmax, lmin, npgf
-    LOGICAL                                  :: failure
     REAL(dp)                                 :: urad
     REAL(dp), ALLOCATABLE, DIMENSION(:)      :: g1, g2
     REAL(dp), ALLOCATABLE, DIMENSION(:, :)   :: dgg, gg, gVXCg_h, gVXCg_s, &

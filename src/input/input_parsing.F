@@ -653,7 +653,7 @@ CPSourceFileRef,&
     CHARACTER(len=*), PARAMETER :: routineN = 'get_r_val', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: check, failure
+    LOGICAL                                  :: check
     TYPE(cp_unit_type), POINTER              :: my_unit
 
     NULLIFY(my_unit)

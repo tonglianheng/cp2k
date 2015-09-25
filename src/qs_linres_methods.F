@@ -869,8 +869,7 @@ CONTAINS
     INTEGER                                  :: handle, ispin, ncol, ns, &
                                                 nspins
     INTEGER, DIMENSION(2, 3)                 :: bo
-    LOGICAL                                  :: failure, gapw, gapw_xc, &
-                                                lr_triplet, lsd
+    LOGICAL                                  :: gapw, gapw_xc, lr_triplet, lsd
     REAL(KIND=dp)                            :: energy_hartree, &
                                                 energy_hartree_1c, fac
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &

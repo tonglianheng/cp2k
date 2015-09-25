@@ -122,7 +122,6 @@ MODULE qs_rho_atom_methods
     INTEGER, ALLOCATABLE, DIMENSION(:, :, :) :: cg_list, dacg_list, dbcg_list
     INTEGER, DIMENSION(2)                    :: bo
     INTEGER, DIMENSION(:), POINTER           :: lmax, lmin, npgf, o2nindex
-    LOGICAL                                  :: failure
     LOGICAL, ALLOCATABLE, DIMENSION(:, :)    :: done_vgg
     REAL(dp)                                 :: c1, c2, rho_h, rho_s, &
                                                 root_zet12, zet12

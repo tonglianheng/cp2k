@@ -188,7 +188,7 @@ CONTAINS
       nmo, nspins, nstates(2), output_unit, unit_nr
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: first_sgf, last_sgf
     INTEGER, DIMENSION(:), POINTER           :: row_blk_sizes
-    LOGICAL                                  :: append_cube, failure, gapw
+    LOGICAL                                  :: append_cube, gapw
     REAL(dp)                                 :: dk(3), jrho_tot_G(3,3), &
                                                 jrho_tot_R(3,3), maxocc, &
                                                 scale_fac

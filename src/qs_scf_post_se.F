@@ -629,7 +629,7 @@ CONTAINS
 
     INTEGER                                  :: after, handle, ispin, iw, &
                                                 output_unit
-    LOGICAL                                  :: failure, omit_headers
+    LOGICAL                                  :: omit_headers
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(cell_type), POINTER                 :: cell
