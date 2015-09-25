@@ -149,7 +149,6 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-    failure=.FALSE.
     n_tot(1:3) = spline_g%pw_grid%npts (1:3)
     gbo = spline_g%pw_grid%bounds
 
@@ -227,7 +226,6 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-    failure=.FALSE.
     n_tot(1:3) = spline_g%pw_grid%npts (1:3)
     gbo = spline_g%pw_grid%bounds
 
@@ -308,7 +306,6 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-    failure=.FALSE.
     n(1:3) = spline_g%pw_grid%npts_local (1:3)
     n_tot(1:3) = spline_g%pw_grid%npts (1:3)
     bo = spline_g%pw_grid%bounds_local
@@ -393,7 +390,6 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-    failure=.FALSE.
     n(1:3) = spline_g%pw_grid%npts_local (1:3)
     n_tot(1:3) = spline_g%pw_grid%npts (1:3)
     bo = spline_g%pw_grid%bounds_local
@@ -472,7 +468,6 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-    failure=.FALSE.
     n(1:3) = spline_g%pw_grid%npts_local (1:3)
     n_tot(1:3) = spline_g%pw_grid%npts (1:3)
     bo = spline_g%pw_grid%bounds_local
@@ -559,7 +554,6 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-    failure=.FALSE.
     my_transpose=.FALSE.
     IF (PRESENT(transpose)) my_transpose=transpose
     my_scale=1.0_dp
@@ -651,7 +645,6 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-    failure=.FALSE.
     n(1:3) = spline_g%pw_grid%npts_local (1:3)
     n_tot(1:3) = spline_g%pw_grid%npts (1:3)
     bo = spline_g%pw_grid%bounds_local
@@ -792,7 +785,6 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-    failure=.FALSE.
     n(1:3) = spline_g%pw_grid%npts_local (1:3)
     n_tot(1:3) = spline_g%pw_grid%npts (1:3)
     bo = spline_g%pw_grid%bounds
@@ -938,7 +930,6 @@ SUBROUTINE pw_compose_stripe(weights,in_val,in_val_first,in_val_last,&
 !1:n_el), &
 
   IF (n_el<1) RETURN
-  failure=.FALSE.
   v0=in_val_first
   v1=in_val(1)
   IF (weights(1)==0.0_dp) THEN
@@ -1048,7 +1039,6 @@ SUBROUTINE pw_compose_stripe2(weights,in_val,in_val_first,in_val_last,&
     REAL(kind=dp)                            :: v0, v1, v2
 
   IF (last_val-first_val<0) RETURN
-  failure=.FALSE.
   v0=in_val_first
   v1=in_val(first_val,myj,myk)
   IF (weights(1)==0.0_dp) THEN
@@ -1240,7 +1230,6 @@ SUBROUTINE pw_nn_compose_r(weights, pw_in, pw_out)
     LOGICAL                                  :: failure
 
   CALL timeset(routineN,handle)
-  failure=.FALSE.
   CPASSERT(ASSOCIATED(pw_in))
   CPASSERT(pw_in%in_space==REALSPACE)
   CPASSERT(pw_in%in_use==REALDATA3D)
@@ -1333,7 +1322,6 @@ END SUBROUTINE pw_nn_compose_r
     REAL(kind=dp), &
       DIMENSION(-1:1, -1:1, -1:1)            :: weights
 
-    failure=.FALSE.
     DO k=-1,1
        DO j=-1,1
           DO i=-1,1
@@ -1441,7 +1429,6 @@ END SUBROUTINE pw_nn_compose_r
 
     CALL timeset(routineN,handle)
 !    CALL timeset(routineN//"_pre",handle2)
-    failure=.FALSE.
     safe_calc=.FALSE.
     IF (PRESENT(safe_computation)) safe_calc=safe_computation
     CALL mp_comm_compare(coarse_coeffs_pw%pw_grid%para%group,&
@@ -2250,7 +2237,6 @@ CPSourceFileRef,&
     REAL(kind=dp), DIMENSION(:, :, :), &
       POINTER                                :: coarse_coeffs, fine_values
 
-    failure=.FALSE.
     CALL timeset(routineN,handle)
 
     safe_calc=.FALSE.
@@ -2960,7 +2946,6 @@ CPSourceFileRef,&
 
     LOGICAL                                  :: failure
 
-    failure=.FALSE.
 
     ALLOCATE(preconditioner)
     last_precond_id=last_precond_id+1
@@ -2994,7 +2979,6 @@ CPSourceFileRef,&
     LOGICAL                                  :: do_3d_coeff, failure
     REAL(kind=dp)                            :: s
 
-    failure=.FALSE.
 
     CPASSERT(ASSOCIATED(preconditioner))
     CPASSERT(preconditioner%ref_count>0)
@@ -3081,7 +3065,6 @@ CPSourceFileRef,&
 
     LOGICAL                                  :: failure
 
-    failure=.FALSE.
 
     CPASSERT(ASSOCIATED(preconditioner))
     CPASSERT(preconditioner%ref_count>1)
@@ -3101,7 +3084,6 @@ CPSourceFileRef,&
 
     LOGICAL                                  :: failure
 
-    failure=.FALSE.
 
     IF (ASSOCIATED(preconditioner)) THEN
        CPASSERT(preconditioner%ref_count>0)
@@ -3130,7 +3112,6 @@ CPSourceFileRef,&
 
     LOGICAL                                  :: failure
 
-    failure=.FALSE.
 
     CPASSERT(ASSOCIATED(preconditioner))
     CPASSERT(preconditioner%ref_count>0)
@@ -3208,7 +3189,6 @@ CPSourceFileRef,&
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(pw_type), POINTER                   :: Ap, p, r, z
 
-    failure=.FALSE.
     last=.FALSE.
 
     res=.FALSE.
@@ -3701,7 +3681,6 @@ CPSourceFileRef,&
       POINTER                                :: grid
 
     NULLIFY(grid)
-    failure=.FALSE.
     my_mpsum = (pw%pw_grid%para%mode/=PW_MODE_LOCAL)
     npts = pw%pw_grid%npts
     ivec = FLOOR(vec/pw%pw_grid%dr)
@@ -3858,7 +3837,6 @@ CPSourceFileRef,&
       POINTER                                :: grid
 
     NULLIFY(grid)
-    failure=.FALSE.
     my_mpsum = (pw%pw_grid%para%mode/=PW_MODE_LOCAL)
     npts = pw%pw_grid%npts
     ivec = FLOOR(vec/pw%pw_grid%dr)

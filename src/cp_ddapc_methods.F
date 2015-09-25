@@ -76,7 +76,6 @@ CONTAINS
 
     CALL timeset(routineN,handle)
     gcut2 = gcut * gcut
-    failure = .FALSE.
     !
     s_dim = rho_tot_g % pw_grid % first_gne0
     e_dim = rho_tot_g % pw_grid % ngpts_cut_local
@@ -137,7 +136,6 @@ CONTAINS
                                                 rvec(3)
     REAL(KIND=dp), DIMENSION(:), POINTER     :: my_bv, my_bvw
 
-    failure = .FALSE.
     CALL timeset(routineN,handle)
     NULLIFY(my_bv, my_bvw)
     gcut2 = gcut * gcut
@@ -218,7 +216,6 @@ CONTAINS
 
 !NB precalculate as many things outside of the innermost loop as possible, in particular w(ig)*gfunc(ig,igauus1)*gfunc(ig,igauss2)
 
-    failure = .FALSE.
 
     CALL timeset(routineN,handle)
     gcut2 = gcut * gcut
@@ -309,7 +306,6 @@ CONTAINS
       DIMENSION(:, :)                        :: my_dbv
     REAL(KIND=dp), DIMENSION(3)              :: gvec, rvec
 
-    failure = .FALSE.
     CALL timeset(routineN,handle)
     gcut2 = gcut * gcut
     s_dim = rho_tot_g % pw_grid % first_gne0
@@ -403,7 +399,6 @@ CONTAINS
     REAL(KIND=dp), ALLOCATABLE :: lhs(:,:), rhs(:,:)
     INTEGER :: Nr, Np, Ng, icomp, ipp
 
-    failure = .FALSE.
     CALL timeset(routineN,handle)
     gcut2 = gcut * gcut
     s_dim = rho_tot_g % pw_grid % first_gne0
@@ -593,7 +588,6 @@ CONTAINS
 
 !NB for precomputation of sin(g.r) and cos(g.r)
 
-    failure = .FALSE.
     CALL timeset(routineN,handle)
     ndim = SIZE(particle_set)*SIZE(radii)
     ALLOCATE(Am(ndim, ndim))
@@ -679,7 +673,6 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(3)              :: fvec, gvec, ra, rvec
     REAL(KIND=dp), DIMENSION(:), POINTER     :: EwM
 
-    failure = .FALSE.
     NULLIFY(EwM)
     CALL timeset(routineN,handle)
     CPASSERT(.NOT.ASSOCIATED(M))
@@ -864,7 +857,6 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: cost, LocP
     TYPE(cp_logger_type), POINTER            :: logger
 
-    failure = .FALSE.
     fixed_center = .FALSE.
     NULLIFY(logger)
     logger => cp_get_default_logger()

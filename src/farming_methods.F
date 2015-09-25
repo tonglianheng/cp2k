@@ -129,7 +129,6 @@ CONTAINS
     TYPE(section_vals_type), POINTER         :: farming_section, &
                                                 jobs_section, print_key
 
-    failure=.FALSE.
     NULLIFY(farming_section, jobs_section, print_key, logger, dependencies, i_vals)
     logger => cp_get_default_logger()
     farming_env%group_size_wish_set=.FALSE.

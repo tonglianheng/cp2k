@@ -745,7 +745,6 @@ CONTAINS
     TYPE(cp_fm_struct_type), POINTER         :: mo_struct, newstruct
     TYPE(cp_para_env_type), POINTER          :: para_env
 
-    failure=.FALSE.
     CALL timeset(routineN,handle)
     para_env=>mos_new(1)%matrix%matrix_struct%para_env
 

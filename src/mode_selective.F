@@ -122,7 +122,6 @@ CONTAINS
     TYPE(ms_vib_type)                        :: ms_vib
 
     CALL timeset(routineN,handle)
-    failure = .FALSE.
     converged=.FALSE.
     natoms=SIZE(particles)
     ncoord=3*natoms
@@ -282,7 +281,6 @@ CONTAINS
     TYPE(section_vals_type), POINTER         :: involved_at_section, &
                                                 ms_vib_section
 
-    failure = .FALSE.
     CALL timeset(routineN,handle)
     NULLIFY(ms_vib%eig_bfgs,ms_vib%f_range,ms_vib%hes_bfgs,ms_vib%inv_range)
     ms_vib_section => section_vals_get_subs_vals(input,"VIBRATIONAL_ANALYSIS%MODE_SELECTIVE")
@@ -868,7 +866,6 @@ CONTAINS
     natoms=SIZE(particles)
     ncoord=3*natoms
     nrep=SIZE(rep_env%f,2)
-    failure=.FALSE.
 
     !!!!!!!!   reallocate and update the davidson matrices   !!!!!!!!!!
      IF(ms_vib%mat_size.NE.0)THEN

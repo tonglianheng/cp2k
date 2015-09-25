@@ -88,7 +88,6 @@ CONTAINS
     NULLIFY(force_env, istep, subsys, cv, simpar)
     logger => cp_get_default_logger()
     CALL timeset(routineN,handle)
-    failure   = .FALSE.
     converged = .FALSE.
     CALL get_md_env(md_env, force_env=force_env, fe_env=fe_env, simpar=simpar,&
          itimes=istep)
@@ -218,7 +217,6 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:), POINTER     :: wrk
 
     CALL timeset(routineN,handle)
-    failure    = .FALSE.
     trend_free = .FALSE.
     test_avg   = .TRUE.
     test_std   = .TRUE.
@@ -318,7 +316,6 @@ CONTAINS
     INTEGER                                  :: i
     LOGICAL                                  :: failure
 
-    failure = .FALSE.
     ALLOCATE(fe_env%cg_data(ng_points))
     DO i = 1, ng_points
        ALLOCATE(fe_env%cg_data(i)%avg(ncolvar))
@@ -349,7 +346,6 @@ CONTAINS
     INTEGER                                  :: i
     LOGICAL                                  :: failure
 
-    failure = .FALSE.
     DO i = 1, ng_points
        DEALLOCATE(fe_env%cg_data(i)%avg)
        DEALLOCATE(fe_env%cg_data(i)%var)
@@ -410,7 +406,6 @@ CONTAINS
     LOGICAL                                  :: failure
 
     CALL timeset(routineN,handle)
-    failure     = .FALSE.
     test_passed = .FALSE.
     DO WHILE(fe_env%conv_par%cg_width<fe_env%conv_par%max_cg_width)
        ng_points = nr_points/fe_env%conv_par%cg_width
@@ -455,7 +450,6 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:), POINTER     :: wrk
 
     CALL timeset(routineN,handle)
-    failure     = .FALSE.
     ncolvar     = fe_env%ncolvar
     ! Compute the Coarse Grained data set using a reverse cumulative strategy
     fe_env%conv_par%test_sw = .FALSE.
@@ -551,7 +545,6 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: cov_std, covmx
 
     CALL timeset(routineN,handle)
-    failure   = .FALSE.
     converged = .FALSE.
     ncolvar   = fe_env%ncolvar
     NULLIFY(avgmx, avg_std, covmx, cov_std)
@@ -647,7 +640,6 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:), POINTER     :: awrk, eig, tmp
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: wrk
 
-    failure = .FALSE.
     ! Averages
     nvar = ncolvar
     ALLOCATE(wrk(nvar,nvar))
@@ -841,7 +833,6 @@ CONTAINS
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(section_vals_type), POINTER         :: alch_section
 
-    failure = .FALSE.
     logger => cp_get_default_logger()
     alch_section => section_vals_get_subs_vals(fe_section,"ALCHEMICAL_CHANGE")
     CALL section_vals_val_get(alch_section,"PARAMETER",c_val=par)

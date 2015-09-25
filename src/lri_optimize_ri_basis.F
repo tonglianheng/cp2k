@@ -209,7 +209,6 @@ CONTAINS
     TYPE(gto_basis_set_type), POINTER        :: fbas
 
     NULLIFY(fbas, gcc_orig, npgf, nshell, zet)
-    failure = .FALSE.
 
     ALLOCATE(lri_opt%ri_gcc_orig(nkind))
 
@@ -393,7 +392,6 @@ CONTAINS
     TYPE(gto_basis_set_type), POINTER        :: fbas
 
     NULLIFY(fbas,gcc_orig,npgf,nshell,zet_trans, zet)
-    failure = .FALSE.
 
     ! nvar_exp: number of exponents that are variables
     nvar_exp= SIZE(x) - lri_opt%ncoeff
@@ -469,7 +467,6 @@ CONTAINS
     REAL(KIND=dp)                            :: a
     REAL(KIND=dp), DIMENSION(:), POINTER     :: zet_max, zet_min
 
-    failure = .FALSE.
     ALLOCATE(zet_max(nvar),zet_min(nvar))
     
     zet_min(:) = zet_init(:)*(1.0_dp-lri_opt%scale_exp)
@@ -611,7 +608,6 @@ CONTAINS
     TYPE(neighbor_list_set_p_type), &
       DIMENSION(:), POINTER                  :: soo_list
 
-    failure = .FALSE.
     CALL timeset(routineN,handle)
     NULLIFY(lrii, lriir, lri_rho, lrho, nl_iterator, pmat, soo_list)
 
@@ -769,7 +765,6 @@ CONTAINS
     TYPE(neighbor_list_set_p_type), &
       DIMENSION(:), POINTER                  :: soo_list
 
-    failure = .FALSE.
     CALL timeset(routineN,handle)
     NULLIFY(lrii, nl_iterator, smat, soo_list)
 

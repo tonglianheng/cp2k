@@ -198,7 +198,6 @@ CONTAINS
     INTEGER                                  :: handle
     LOGICAL                                  :: failure
 
-    failure=.FALSE.
 
     CALL timeset(routineN,handle)
 
@@ -228,7 +227,6 @@ CONTAINS
     INTEGER                                  :: handle
     LOGICAL                                  :: failure
 
-    failure=.FALSE.
 
     CALL timeset(routineN,handle)
 

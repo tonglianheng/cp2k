@@ -94,7 +94,6 @@ CONTAINS
     NULLIFY(rho0_atom_set)
     NULLIFY(logger)
 
-    failure = .FALSE.
 
     my_do_rho0 = .TRUE.
     IF (PRESENT(do_rho0)) my_do_rho0 = do_rho0

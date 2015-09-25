@@ -80,7 +80,6 @@ CONTAINS
     INTEGER                                  :: ind
     LOGICAL                                  :: failure
 
-    failure = .FALSE.
     CPASSERT(file_name.NE."")
 
     ind = INDEX(file_name,".",BACK = .TRUE.)
@@ -112,7 +111,6 @@ CONTAINS
     INTEGER                                  :: ind
     LOGICAL                                  :: failure
 
-    failure = .FALSE.
     CPASSERT(file_name.NE."")
 
     ind = INDEX(file_name,".",BACK = .TRUE.)
@@ -146,7 +144,6 @@ CONTAINS
     INTEGER                                  :: ind
     LOGICAL                                  :: failure
 
-    failure = .FALSE.
     CPASSERT(file_name.NE."")
 
     rval_to_string = ""
@@ -188,7 +185,6 @@ CONTAINS
     INTEGER                                  :: ind
     LOGICAL                                  :: failure
 
-    failure = .FALSE.
     CPASSERT(file_name.NE."")
 
     rval_to_string = ""
@@ -235,7 +231,6 @@ CONTAINS
     INTEGER                                  :: f_unit, i
     LOGICAL                                  :: failure
 
-    failure = .FALSE.
     c_tmp=""
     CPASSERT(ASSOCIATED(tmc_env))
     CPASSERT(ASSOCIATED(tmc_env%m_env))
@@ -313,7 +308,6 @@ CONTAINS
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: tmp_temp
     REAL(KIND=dp), DIMENSION(nr_mv_types)    :: mv_weight_tmp
 
-    failure = .FALSE.
     CPASSERT(ASSOCIATED(tmc_env))
     CPASSERT(ASSOCIATED(tmc_env%m_env))
     CPASSERT(ASSOCIATED(tmc_env%params))
@@ -411,7 +405,6 @@ CONTAINS
     INTEGER                                  :: handle, i
     LOGICAL                                  :: failure
 
-    failure   = .FALSE.
     file_name = ""
 
     CPASSERT(ASSOCIATED(result_list))
@@ -474,7 +467,6 @@ CONTAINS
     REAL(KIND=dp)                            :: vol
     REAL(KIND=dp), DIMENSION(3, 3)           :: hmat_scaled
 
-    failure   = .FALSE.
     file_name_act = ""
     tmp_name  = ""
     header    = ""
@@ -671,7 +663,6 @@ CONTAINS
     LOGICAL                                  :: failure, &
                                                 files_conf_missmatch, flag
 
-    failure   = .FALSE.
     stat = TMC_STATUS_OK
     conf_nr_old = conf_nr
     files_conf_missmatch = .FALSE.
@@ -810,7 +801,6 @@ CONTAINS
     INTEGER                                  :: handle, i, i_tmp, status
     LOGICAL                                  :: failure
 
-    failure = .FALSE.
     stat = TMC_STATUS_FAILED
 
     CPASSERT(ASSOCIATED(elem))
@@ -889,7 +879,6 @@ CONTAINS
     INTEGER                                  :: handle, status
     LOGICAL                                  :: failure
 
-    failure = .FALSE.
     stat = TMC_STATUS_FAILED
 
     CPASSERT(ASSOCIATED(elem))
@@ -950,7 +939,6 @@ CONTAINS
     REAL(KIND=dp)                            :: r_tmp
     REAL(KIND=dp), DIMENSION(3, 3)           :: hmat
 
-    failure = .FALSE.
     stat = TMC_STATUS_FAILED
 
     CPASSERT(ASSOCIATED(elem))
@@ -1019,7 +1007,6 @@ CONTAINS
     INTEGER                                  :: handle
     LOGICAL                                  :: failure, file_exists
 
-    failure = .FALSE.
     CPASSERT(ASSOCIATED(tmc_ana))
 
     stat = TMC_STATUS_WAIT_FOR_NEW_TASK
@@ -1119,7 +1106,6 @@ CONTAINS
     INTEGER                                  :: handle
     LOGICAL                                  :: failure
 
-    failure = .FALSE.
     CPASSERT(ASSOCIATED(tmc_ana))
 
     ! start the timing

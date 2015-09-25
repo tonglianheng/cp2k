@@ -151,7 +151,6 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-    failure = .FALSE.
 
     NULLIFY(qs_kind_set,cell,dft_control,linres_control,&
             logger,particle_set,lr_section,fm_work1,&
@@ -484,7 +483,6 @@ CONTAINS
       POINTER                                :: qs_kind_set
     TYPE(section_vals_type), POINTER         :: lr_section
 
-    failure = .FALSE.
 
     CALL timeset(routineN,handle)
 
@@ -704,7 +702,6 @@ CONTAINS
       POINTER                                :: mos
     TYPE(section_vals_type), POINTER         :: lr_section
 
-    failure = .FALSE.
     CALL timeset(routineN,handle)
 
     NULLIFY(dBerry_psi0,inv_work,mo_derivs,&

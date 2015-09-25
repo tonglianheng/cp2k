@@ -133,7 +133,6 @@ CONTAINS
     INTEGER                                  :: i
     LOGICAL                                  :: failure
 
-    failure=.FALSE.
 
     CPASSERT(.NOT.ASSOCIATED(rho_set))
     ALLOCATE(rho_set)
@@ -176,7 +175,6 @@ CONTAINS
 
     LOGICAL                                  :: failure
 
-    failure=.FALSE.
     CPASSERT(ASSOCIATED(rho_set))
     CPASSERT(rho_set%ref_count>0)
     rho_set%ref_count=rho_set%ref_count+1
@@ -197,7 +195,6 @@ CONTAINS
     INTEGER                                  :: i
     LOGICAL                                  :: failure
 
-    failure=.FALSE.
 
     IF (ASSOCIATED(rho_set)) THEN
        CPASSERT(rho_set%ref_count>0)
@@ -356,7 +353,6 @@ CONTAINS
     INTEGER                                  :: i
     LOGICAL                                  :: failure, my_can_return_null
 
-    failure=.FALSE.
     my_can_return_null=.FALSE.
     IF (PRESENT(can_return_null)) my_can_return_null=can_return_null
 
@@ -473,7 +469,6 @@ CONTAINS
     INTEGER                                  :: idir
     LOGICAL                                  :: failure
 
-    failure=.FALSE.
 
     CPASSERT(ASSOCIATED(rho_set))
     CPASSERT(rho_set%ref_count>0)
@@ -621,7 +616,6 @@ CONTAINS
     TYPE(pw_p_type), DIMENSION(3, 2)         :: drho_r, laplace_rho_r
     TYPE(pw_type), POINTER                   :: my_rho_g, tmp_g
 
-    failure=.FALSE.
     DO ispin=1,2
        NULLIFY(my_rho_r(ispin)%pw)
        DO idir=1,3

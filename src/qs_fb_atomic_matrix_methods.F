@@ -91,7 +91,6 @@ CONTAINS
                                                 row_block_size_data
     LOGICAL                                  :: check_ok, failure
 
-    failure = .FALSE.
 
     NULLIFY(halo_atoms, row_block_size_data, col_block_size_data)
 
@@ -173,7 +172,6 @@ CONTAINS
 
     CALL timeset(routineN, handle)
 
-    failure = .FALSE.
 
     NULLIFY(pairs_send, pairs_recv, mat_block, &
             row_block_size_data, col_block_size_data)
@@ -379,7 +377,6 @@ CONTAINS
 
     CALL timeset(routineN, handle)
 
-    failure = .FALSE.
     check_ok = fb_matrix_data_has_data(matrix_storage)
     CPASSERT(check_ok)
     check_ok = fb_atomic_halo_has_data(atomic_halo)
@@ -469,7 +466,6 @@ CONTAINS
 
     CALL timeset(routineN, handle)
 
-    failure = .FALSE.
 
     NULLIFY(halo_atoms, tasks_send, tasks_recv)
     CALL fb_com_tasks_nullify(com_tasks_send)
@@ -672,7 +668,6 @@ CONTAINS
 
     CALL timeset(routineN, handle)
 
-    failure = .FALSE.
     
     NULLIFY(halo_atoms, tasks_send, tasks_recv)
     CALL fb_com_tasks_nullify(com_tasks_send)

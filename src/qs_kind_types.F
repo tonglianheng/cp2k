@@ -202,7 +202,6 @@ CONTAINS
     INTEGER                                  :: ikind, nkind
     LOGICAL                                  :: failure
 
-    failure = .FALSE.
     IF (ASSOCIATED(qs_kind_set)) THEN
 
        nkind = SIZE(qs_kind_set)
@@ -1187,7 +1186,6 @@ CONTAINS
 
     NULLIFY (elec_conf)
 
-    failure = .FALSE.
     basis_set_name(:) = ""
     basis_set_type(:) = ""
     aux_basis_set_name = ""
@@ -2055,7 +2053,6 @@ CONTAINS
     LOGICAL                                  :: failure
     TYPE(gto_basis_set_type), POINTER        :: tmp_basis
 
-    failure = .FALSE.
 
     IF (output_unit > 0) THEN
 
@@ -2171,7 +2168,6 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-    failure = .FALSE.
     NULLIFY (logger)
     logger => cp_get_default_logger()
     output_unit = cp_print_key_unit_nr(logger,subsys_section,&
@@ -2224,7 +2220,6 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-    failure = .FALSE.
     NULLIFY (logger)
     logger => cp_get_default_logger()
     output_unit = cp_print_key_unit_nr(logger,subsys_section,&

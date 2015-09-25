@@ -153,7 +153,6 @@ CONTAINS
     NULLIFY(logger,atomic_kind_set,cell,subsys,particles,particle_set,input,&
             resp_section,cons_section,rest_section,poisson_section,resp_env,rep_sys)
 
-    failure=.FALSE.
     CPASSERT(ASSOCIATED(qs_env))
 
     CALL get_qs_env(qs_env, atomic_kind_set=atomic_kind_set, input=input,&
@@ -250,7 +249,6 @@ CONTAINS
 
     LOGICAL                                  :: failure
 
-    failure = .FALSE.
     IF (ASSOCIATED(resp_env)) CALL resp_dealloc(resp_env,rep_sys)
     ALLOCATE(resp_env)
 
@@ -354,7 +352,6 @@ CONTAINS
     CALL timeset(routineN,handle)
 
     NULLIFY(atom_list_cons, my_stride, sphere_section, slab_section)
-    failure=.FALSE.
 
     ! get the subsections
     sphere_section=>section_vals_get_subs_vals(resp_section,"SPHERE_SAMPLING")
@@ -472,7 +469,6 @@ CPSourceFileRef,&
     REAL(KIND=dp)                            :: rmax, rmin
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
 
-    failure=.FALSE.
     nrep_rmin=0
     nrep_rmax=0
     nkind=SIZE(atomic_kind_set)
@@ -567,7 +563,6 @@ CPSourceFileRef,&
     CALL timeset(routineN,handle)
  
     NULLIFY(indexes)
-    failure=.FALSE.
     irep=1
     IF(PRESENT(rep)) irep=rep 
 
@@ -655,7 +650,6 @@ CPSourceFileRef,&
     CALL timeset(routineN,handle)
 
     NULLIFY(logger,input,particle_set,print_key,resp_section,v_hartree_pw)
-    failure=.FALSE.
     delta = 1.0E-13_dp
 
     IF (.NOT.cell%orthorhombic) THEN
@@ -818,7 +812,6 @@ CPSourceFileRef,&
 
     CALL timeset(routineN,handle)
 
-    failure=.FALSE.
     NULLIFY(pw_env, para_env,auxbas_pw_pool,poisson_env)
 
     IF(.NOT.ALL(cell%perd/=0)) THEN
@@ -934,7 +927,6 @@ CPSourceFileRef,&
 
     NULLIFY(atomic_kind_set,v_hartree_pw,para_env,logger,input,particle_set,&
             resp_section)   
-    failure=.FALSE.
     delta = 1.0E-13_dp
  
     CALL get_qs_env(qs_env,&
@@ -1090,7 +1082,6 @@ CPSourceFileRef,&
 
     CALL timeset(routineN,handle)
 
-    failure=.FALSE.
 
     NULLIFY(v_hartree_pw)
     CALL get_qs_env(qs_env, v_hartree_rspace=v_hartree_pw)
@@ -1148,7 +1139,6 @@ CPSourceFileRef,&
 
     CALL timeset(routineN,handle)
 
-    failure=.FALSE.
     NULLIFY(para_env,input,logger,resp_section,print_key,particle_set,tmp_size,&
             tmp_points,tmp_npoints)   
  
@@ -1280,7 +1270,6 @@ CPSourceFileRef,&
     CALL timeset(routineN,handle)
 
     NULLIFY(atom_coef,atom_list_res,atom_list_cons,dft_control)
-    failure=.FALSE.
 
     CALL get_qs_env(qs_env, dft_control=dft_control)
 
@@ -1485,7 +1474,6 @@ CPSourceFileRef,&
 
     CALL timeset(routineN,handle)
 
-    failure=.FALSE.
     NULLIFY(particle_set,qs_kind_set,input,logger,resp_section,print_key)
  
     CALL get_qs_env(qs_env,input=input,particle_set=particle_set,&
@@ -1561,7 +1549,6 @@ CPSourceFileRef,&
 
     CALL timeset(routineN,handle)
 
-    failure=.FALSE.
     NULLIFY(auxbas_pw_pool,logger,pw_env,poisson_env,input,print_key,&
             para_env,resp_section,v_hartree_rspace)
     normalize_factor=SQRT((resp_env%eta/pi)**3)

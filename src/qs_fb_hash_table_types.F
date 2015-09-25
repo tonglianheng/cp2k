@@ -113,7 +113,6 @@ CONTAINS
     INTEGER                                  :: islot
     LOGICAL                                  :: check_ok, failure
 
-    failure = .FALSE.
     check_ok = fb_hash_table_has_data(hash_table)
     CPASSERT(check_ok)
     ! check hash table size, if too small rehash in a larger table
@@ -165,7 +164,6 @@ CONTAINS
     INTEGER                                  :: my_nmax
     LOGICAL                                  :: check_ok, failure
 
-    failure = .FALSE.
     check_ok = .NOT. fb_hash_table_has_data(hash_table)
     CPASSERT(check_ok)
     ALLOCATE(hash_table%obj)
@@ -203,7 +201,6 @@ CONTAINS
     INTEGER                                  :: islot
     LOGICAL                                  :: check_ok, failure
 
-    failure = .FALSE.
     check_ok = fb_hash_table_has_data(hash_table)
     CPASSERT(check_ok)
     found = .FALSE.
@@ -248,7 +245,6 @@ CONTAINS
     INTEGER                                  :: ii, my_nmax, power
     LOGICAL                                  :: check_ok, failure
 
-    failure = .FALSE.
     check_ok = fb_hash_table_has_data(hash_table)
     CPASSERT(check_ok)
     my_nmax = hash_table%obj%nmax
@@ -308,7 +304,6 @@ CONTAINS
     TYPE(fb_hash_table_element), &
       ALLOCATABLE, DIMENSION(:)              :: tmp_table
 
-    failure = .FALSE.
     IF (.NOT. fb_hash_table_has_data(hash_table)) THEN
        CALL fb_hash_table_create(hash_table, nmax)
        RETURN
@@ -346,7 +341,6 @@ CONTAINS
 
     LOGICAL                                  :: check_ok, failure
 
-    failure = .FALSE.
     IF (ASSOCIATED(hash_table%obj)) THEN
        check_ok = hash_table%obj%ref_count > 0
        CPASSERT(check_ok)
@@ -380,7 +374,6 @@ CONTAINS
     INTEGER                                  :: islot
     LOGICAL                                  :: check_ok, failure
 
-    failure = .FALSE.
     check_ok = fb_hash_table_has_data(hash_table)
     CPASSERT(check_ok)
     islot = fb_hash_table_linear_probe(hash_table, key)
@@ -415,7 +408,6 @@ CONTAINS
 
     LOGICAL                                  :: check_ok, failure
 
-    failure = .FALSE.
     check_ok = ASSOCIATED(hash_table%obj)
     CPASSERT(check_ok)
     check_ok = hash_table%obj%ref_count > 0
@@ -440,7 +432,6 @@ CONTAINS
 
     LOGICAL                                  :: check_ok, failure
 
-    failure = .FALSE.
     check_ok = fb_hash_table_has_data(hash_table)
     CPASSERT(check_ok)
     IF (PRESENT(nelements)) nelements = hash_table%obj%nelements

@@ -98,7 +98,6 @@ CONTAINS
 
     min_coord        =  HUGE(0.0_dp)
     max_coord        = -HUGE(0.0_dp)
-    failure          = .FALSE.
     qmmm_link        = .FALSE.
     qmmm_link_imomm  = .FALSE.
     qmmm_added_chrg  = .FALSE.

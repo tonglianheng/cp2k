@@ -180,7 +180,6 @@ CONTAINS
     TYPE(xc_derivative_type), POINTER        :: deriv
 
     CALL timeset(routineN,handle)
-    failure=.FALSE.
     NULLIFY(bo)
 
     CALL cite_reference(tao2003)
@@ -300,7 +299,6 @@ CONTAINS
     TYPE(xc_derivative_type), POINTER        :: deriv
 
     CALL timeset(routineN,handle)
-    failure=.FALSE.
     NULLIFY(bo)
 
     CALL cite_reference(tao2003)
@@ -480,7 +478,6 @@ CONTAINS
       tildeq_b, tildeq_bnorm_drho, tildeq_brho, tildeq_btau, tnorm_drho, &
       trho, z, znorm_drho, zrho, ztau
 
-    failure=.FALSE.
 
     IF (.FALSE.) THEN
        ! useful for testing, we just hack in a well defined functional of tau, ndrho and rho
@@ -1075,7 +1072,6 @@ CONTAINS
     err_taua=0._dp
     err_taub=0._dp
 
-    failure=.FALSE.
 
     kappa = 0.804e0_dp
     beta = 0.66725e-1_dp

@@ -161,7 +161,6 @@ SUBROUTINE xc_functional_get_info(functional,lsd,reference,shortform,&
     LOGICAL                                  :: failure
     REAL(kind=dp)                            :: r_param
 
-  failure=.FALSE.
 
   CPASSERT(ASSOCIATED(functional))
   SELECT CASE(functional%section%name)
@@ -375,7 +374,6 @@ SUBROUTINE xc_functional_eval(functional, lsd, rho_set, deriv_set, &
                                                 r_param
 
   CALL timeset(routineN,handle)
-  failure=.FALSE.
 
   CALL xc_rho_set_get(rho_set,rho_cutoff=density_cut,&
        drho_cutoff=gradient_cut)
@@ -604,7 +602,6 @@ SUBROUTINE xc_functionals_eval(functionals, lsd, rho_set, deriv_set, &
     LOGICAL                                  :: failure
     TYPE(section_vals_type), POINTER         :: xc_fun
 
-  failure=.FALSE.
 
   CPASSERT(ASSOCIATED(functionals))
   ifun=0
@@ -659,7 +656,6 @@ FUNCTION xc_functionals_get_needs(functionals, lsd, add_basic_components)&
                                                 my_add_basic_components
     TYPE(section_vals_type), POINTER         :: xc_fun
 
-  failure=.FALSE.
   my_add_basic_components=.FALSE.
   IF (PRESENT(add_basic_components)) my_add_basic_components=add_basic_components
 

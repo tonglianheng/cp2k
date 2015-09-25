@@ -92,7 +92,6 @@ CONTAINS
     TYPE(section_vals_type), POINTER         :: msd_section
     TYPE(simpar_type), POINTER               :: simpar
 
-    failure = .FALSE.
 
     NULLIFY (force_env, msd_section, particles, simpar, subsys)
     CALL get_md_env(md_env=md_env, force_env=force_env, para_env=para_env,&
@@ -190,7 +189,6 @@ CPSourceFileRef,&
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
 
-    failure = .FALSE.
 
     NULLIFY (molecule, molecules, molecule_kind, molecule_kind_set,&
              molecule_kinds, molecule_set, subsys, force_env, particles, particle_set)
@@ -362,7 +360,6 @@ CPSourceFileRef,&
       POINTER                                :: molecule_set
     TYPE(molecule_type), POINTER             :: molecule
 
-    failure = .FALSE.
     NULLIFY(force_env,para_env,subsys)
     NULLIFY(atomic_kind,atomic_kinds,atom_list)
     NULLIFY(local_molecules, molecule, molecule_kind, molecule_kinds,&

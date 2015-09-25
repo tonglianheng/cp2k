@@ -1513,7 +1513,6 @@ CONTAINS
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :, :)                     :: difmab, mab
 
-    failure = .FALSE.
     CPASSERT(order==1)
 
     rab = rbc - rac

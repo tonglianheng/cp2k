@@ -199,7 +199,6 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-    failure = .FALSE.
     transition_potential = .FALSE.
     skip_scf = .FALSE.
     converged = .TRUE.
@@ -634,7 +633,6 @@ CONTAINS
     TYPE(sto_basis_set_type), POINTER        :: sto_basis_set
     TYPE(xas_control_type), POINTER          :: xas_control
 
-    failure=.FALSE.
 
     n_mo(1:2) = 0
     CPASSERT(ASSOCIATED(xas_env))
@@ -1064,7 +1062,6 @@ CONTAINS
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
 
-    failure =.FALSE.
     NULLIFY(logger)
     logger => cp_get_default_logger()
     output_unit= cp_logger_get_default_io_unit(logger)
@@ -1177,7 +1174,6 @@ CONTAINS
     NULLIFY(logger)
     logger => cp_get_default_logger()
 
-    failure = .FALSE.
 
     my_pos = "APPEND"
     my_act = "WRITE"
@@ -1258,7 +1254,6 @@ CONTAINS
     REAL(dp), DIMENSION(:, :), POINTER       :: centers
     TYPE(section_vals_type), POINTER         :: print_key
 
-    failure = .FALSE.
     nspins = SIZE(mos)
 
     print_key => section_vals_get_subs_vals(xas_section,"PRINT%CLS_FUNCTION_CUBES")
@@ -1340,7 +1335,6 @@ CONTAINS
     REAL(dp), DIMENSION(:), POINTER          :: eigenvalues, &
                                                 occupation_numbers
 
-    failure = .FALSE.
 
     CPASSERT(ASSOCIATED(fm_set))
     CPASSERT(ASSOCIATED(mos))
@@ -1439,7 +1433,6 @@ CONTAINS
     REAL(dp), DIMENSION(:), POINTER          :: eigenvalues, &
                                                 occupation_numbers
 
-    failure = .FALSE.
 
     CPASSERT(ASSOCIATED(fm_set))
     CPASSERT(ASSOCIATED(mos))
@@ -1517,7 +1510,6 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: rpgfa, rpgfb, scon_a, scon_b, &
                                                 sphi_a, sphi_b, zeta, zetb
 
-    failure = .FALSE.
 
     NULLIFY(la_max,la_min,lb_max,lb_min)
     NULLIFY(npgfa,npgfb,nsgfa_set,nsgfb_set)
@@ -1624,7 +1616,6 @@ CONTAINS
     TYPE(qs_kind_type), DIMENSION(:), &
       POINTER                                :: qs_kind_set
 
-    failure = .FALSE.
     NULLIFY(cell,mos,particle_set)
     NULLIFY(atom_of_state,centers_wfn,mykind_of_kind,state_of_atom)
     NULLIFY(stogto_overlap,type_of_state,max_overlap, qs_kind_set)

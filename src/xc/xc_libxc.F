@@ -388,7 +388,6 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-    failure = .FALSE.
     has_laplace = .FALSE.
     NULLIFY(bo, dummy)
     NULLIFY(rho, norm_drho, laplace_rho, tau)
@@ -670,7 +669,6 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-    failure = .FALSE.
     has_laplace = .FALSE.
     NULLIFY(bo, dummy)
     NULLIFY(rhoa, rhob, norm_drho, norm_drhoa, norm_drhob, laplace_rhoa, &

@@ -72,7 +72,6 @@ CONTAINS
     INTEGER                                  :: i
     LOGICAL                                  :: failure
 
-     failure=.FALSE.
      CPASSERT(.NOT.ASSOCIATED(damping))
      ALLOCATE ( damping)
      ALLOCATE ( damping%damp( nkinds ))
@@ -95,7 +94,6 @@ CONTAINS
 
     LOGICAL                                  :: failure
 
-    failure=.FALSE.
     IF(ASSOCIATED(damping)) THEN
       IF (ASSOCIATED(damping%damp)) THEN
          DEALLOCATE(damping%damp)

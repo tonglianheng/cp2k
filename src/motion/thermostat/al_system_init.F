@@ -67,7 +67,6 @@ CONTAINS
     LOGICAL                                  :: failure, restart
 
     restart=.FALSE.
-    failure = .FALSE.
     CALL al_to_particle_mapping ( thermostat_info, simpar, local_molecules,&
          molecule, molecule_kind_set, al, para_env, gci)
 
@@ -112,7 +111,6 @@ CONTAINS
     LOGICAL                                  :: explicit, failure
     TYPE(section_vals_type), POINTER         :: work_section
 
-    failure = .FALSE.
     restart = .FALSE.
 
     ! Possibly restart the initial thermostat DOF value

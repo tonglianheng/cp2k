@@ -125,7 +125,6 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-    failure = .FALSE.
     file_exists = .FALSE.
     rst_unit =  -1
 
@@ -305,7 +304,6 @@ CPSourceFileRef,&
     TYPE(section_vals_type), POINTER         :: print_key
 
     CALL timeset(routineN,handle)
-    failure = .FALSE.
     NULLIFY(mos,logger,print_key)
     logger => cp_get_default_logger()
 
@@ -398,7 +396,6 @@ CPSourceFileRef,&
     TYPE(xas_environment_type), POINTER      :: xas_env
 
     CALL timeset(routineN,handle)
-    failure=.FALSE.
 
     NULLIFY(mos,rho,xas_env,para_env,rho_ao)
 
@@ -471,7 +468,6 @@ CPSourceFileRef,&
     TYPE(cp_fm_type), POINTER                :: excvec_coeff, excvec_overlap, &
                                                 fm_work, mo_coeff
 
-    failure = .FALSE.
     NULLIFY(excvec_coeff,excvec_overlap,fm_work,mo_coeff)
     ! Some elements from the xas_env
     CALL get_xas_env(xas_env=xas_env,excvec_coeff=excvec_coeff,&

@@ -75,7 +75,6 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(6, 0:2)         :: amn
     TYPE(semi_empirical_mpole_type), POINTER :: mpole
 
-    failure = .FALSE.
     CPASSERT(.NOT.ASSOCIATED(mpoles))
     ! If there are atomic orbitals proceed with the expansion in multipoles
     natorb = se_parameter%natorb
@@ -248,7 +247,6 @@ CONTAINS
 
     LOGICAL                                  :: failure
 
-    failure = .FALSE.
     ! Notation
     !          qs(1) - d3z2-r2
     !          qs(2) - dzx
@@ -288,7 +286,6 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-    failure = .FALSE.
     IF (ASSOCIATED(nddo_mpole)) THEN
        CALL nddo_mpole_release(nddo_mpole)
     END IF

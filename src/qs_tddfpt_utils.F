@@ -182,7 +182,6 @@ CONTAINS
 ! number of vectors to initialize
 
     NULLIFY(dft_control)
-    failure=.FALSE.
 
     CALL get_qs_env(qs_env, dft_control=dft_control)
     tddfpt_control => dft_control%tddfpt_control
@@ -314,7 +313,6 @@ CONTAINS
     TYPE(tddfpt_control_type)                :: t_control
 
     NULLIFY(S_lumos, logger, matrix_s, dft_control)
-    failure = .FALSE.
     logger    => cp_get_default_logger()
     output_unit= cp_logger_get_default_io_unit(logger)
     CALL get_qs_env(qs_env, matrix_s=matrix_s, dft_control=dft_control)

@@ -104,7 +104,6 @@ CONTAINS
                                                 wfn_mix_section
 
     CALL timeset(routineN,handle)
-    failure=.FALSE.
     NULLIFY(dft_control, rho, input, para_env, rho_ao)
     logger => cp_get_default_logger()
     output_unit= cp_logger_get_default_io_unit(logger)

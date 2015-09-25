@@ -805,7 +805,6 @@ CONTAINS
     CPASSERT(.NOT.ASSOCIATED(glob_loc_list))
     CPASSERT(.NOT.ASSOCIATED(glob_loc_list_a))
     CPASSERT(.NOT.ASSOCIATED(glob_cell_v))
-    failure = .FALSE.
     CALL timeset ( routineN, handle )
     npairs_tot = 0
     nkinds = SIZE(potparm%pot, 1)
@@ -894,7 +893,6 @@ CONTAINS
 
     LOGICAL                                  :: failure
 
-    failure = .FALSE.
     IF (ASSOCIATED(glob_loc_list)) THEN
        DEALLOCATE(glob_loc_list)
     END IF
@@ -926,7 +924,6 @@ CONTAINS
     LOGICAL                                  :: failure
     TYPE(cp_logger_type), POINTER            :: logger
 
-    failure = .FALSE.
     NULLIFY(logger)
 
     CALL mp_sum(nr_oh,para_env%group)

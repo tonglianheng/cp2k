@@ -162,7 +162,6 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-    failure = .FALSE.
 
     ALLOCATE (scf_control)
 
@@ -276,7 +275,6 @@ CONTAINS
 
     LOGICAL                                  :: failure
 
-    failure = .FALSE.
 
     CPASSERT(ASSOCIATED(scf_control))
 
@@ -303,7 +301,6 @@ CONTAINS
 
     LOGICAL                                  :: failure
 
-    failure = .FALSE.
 
     IF (ASSOCIATED(scf_control)) THEN
       CPASSERT(scf_control%ref_count>0)
@@ -348,7 +345,6 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-    failure = .FALSE.
     CPASSERT(ASSOCIATED(scf_control))
     CPASSERT(scf_control%ref_count > 0)
     IF (.NOT.failure) THEN
@@ -503,7 +499,6 @@ CONTAINS
 
     LOGICAL                                  :: failure
 
-    failure=.FALSE.
     CPASSERT(.NOT.ASSOCIATED(smear))
     ALLOCATE(smear)
     smear%do_smear = .FALSE.
@@ -530,7 +525,6 @@ CONTAINS
     LOGICAL                                  :: failure
     REAL(KIND=dp), DIMENSION(:), POINTER     :: r_vals
 
-    failure=.FALSE.
     NULLIFY(r_vals)
 
     IF (.NOT.failure) THEN
@@ -587,7 +581,6 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-    failure = .FALSE.
 
     NULLIFY (logger)
     logger => cp_get_default_logger()
@@ -761,7 +754,6 @@ CONTAINS
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(section_vals_type), POINTER         :: ot_section
 
-    failure=.FALSE.
 
     CALL timeset(routineN,handle)
 

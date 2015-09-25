@@ -84,7 +84,6 @@ CONTAINS
     LOGICAL                                  :: failure
     TYPE(pw_pool_type), POINTER              :: pool
 
-    failure=.FALSE.
 
     IF (ASSOCIATED(ks_qmmm_env)) THEN
        CPASSERT(ks_qmmm_env%ref_count>0)
@@ -124,7 +123,6 @@ SUBROUTINE qs_ks_qmmm_retain(ks_qmmm_env)
 
     LOGICAL                                  :: failure
 
-  failure=.FALSE.
 
   CPASSERT(ASSOCIATED(ks_qmmm_env))
   CPASSERT(ks_qmmm_env%ref_count>0)

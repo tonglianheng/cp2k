@@ -123,7 +123,6 @@ SUBROUTINE cp_1d_i_write(array, unit_nr, el_format)
     INTEGER                                  :: i, iostat
     LOGICAL                                  :: failure
 
-  failure=.FALSE.
   WRITE(unit=unit_nr,fmt="('( ')",advance="no", iostat=iostat)
   CPASSERT(iostat==0)
   IF (.NOT.failure) THEN
@@ -180,7 +179,6 @@ SUBROUTINE cp_2d_i_write(array, unit_nr, el_format)
     INTEGER                                  :: i, iostat
     LOGICAL                                  :: failure
 
-  failure=.FALSE.
 
   nRiga=cp_to_string(SIZE(array,2))
   DO i=1,SIZE(array,1)
@@ -300,7 +298,6 @@ FUNCTION cp_1d_i_bsearch(array, el, l_index, u_index)&
     INTEGER                                  :: aindex, lindex, uindex
     LOGICAL                                  :: failure
 
-  failure=.FALSE.
 
   lindex=1
   uindex=SIZE(array)

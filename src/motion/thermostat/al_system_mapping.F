@@ -76,7 +76,6 @@ CONTAINS
     REAL(KIND=dp)                            :: fac
     TYPE(map_info_type), POINTER             :: map_info
 
-    failure = .FALSE.
     NULLIFY (massive_atom_list, deg_of_freedom)
     SELECT CASE ( simpar % ensemble )
     CASE DEFAULT
@@ -169,7 +168,6 @@ CONTAINS
     LOGICAL                                  :: do_shell, failure
     TYPE(map_info_type), POINTER             :: map_info
 
-    failure  = .FALSE.
     do_shell = .FALSE.
     IF (PRESENT(shell)) do_shell = shell
     map_info    => al%map_info

@@ -133,7 +133,6 @@ CONTAINS
 
     CALL timeset(routineN, handle)
 
-    failure = .FALSE.
 
     NULLIFY(halos, atomic_kind, ntfns, dummy_halo_atoms, row_blk_size, col_blk_size)
     CALL fb_atomic_halo_nullify(dummy_atomic_halo)
@@ -298,7 +297,6 @@ CONTAINS
 
     CALL timeset(routineN, handle)
 
-    failure = .FALSE.
 
     NULLIFY(halos, atomic_kind, row_blk_size, col_blk_size, ntfns)
 
@@ -513,7 +511,6 @@ CONTAINS
 
     CALL timeset(routineN, handle)
 
-    failure = .FALSE.
 
     NULLIFY(atomic_kind, halo_atoms, ntfns, pairs_send, pairs_recv, &
             row_block_size_data, tfns)
@@ -1014,7 +1011,6 @@ CONTAINS
 
     CALL timeset(routineN, handle)
 
-    failure = .FALSE.
 
     NULLIFY(tasks_send)
     CALL fb_com_tasks_nullify(com_tasks_send)
@@ -1169,7 +1165,6 @@ CONTAINS
 
     CALL timeset(routineN, handle)
 
-    failure = .FALSE.
 
     NULLIFY(tasks_send)
     CALL fb_com_tasks_nullify(com_tasks_send)
@@ -1323,7 +1318,6 @@ CONTAINS
 
     CALL timeset(routineN, handle)
 
-    failure = .FALSE.
 
     ! This subroutine assumes atomic_filter_mat is not zero size, in
     ! other words, it really has to be constructed, instead of just
@@ -1472,7 +1466,6 @@ CONTAINS
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: kTS, ne
 
-    failure = .FALSE.
     ! we want fermi function max at 1, so maxocc = 1 here
     CALL Fermi(f, ne, kTS, eigenvals, mu, T, 1.0_dp)
   END SUBROUTINE fb_fltrmat_fermi_dirac_mu
@@ -1499,7 +1492,6 @@ CONTAINS
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: kTS, mu
 
-    failure = .FALSE.
     ! mu is the calculated fermi level
     ! kTS is the calculated entropic contribution to the energy i.e. -TS
     ! kTS = kT*[f ln f + (1-f) ln (1-f)]

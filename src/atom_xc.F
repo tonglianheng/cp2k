@@ -87,7 +87,6 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: rho
 
     CALL timeset(routineN,handle)
-    failure = .FALSE.
 
     nr = atom%basis%grid%nr
     z  = atom%z
@@ -160,7 +159,6 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: rho
 
     CALL timeset(routineN,handle)
-    failure = .FALSE.
     nr = atom%basis%grid%nr
 
     ALLOCATE(rho(nr,1))
@@ -220,7 +218,6 @@ CONTAINS
     TYPE(xc_rho_cflags_type)                 :: needs
     TYPE(xc_rho_set_type), POINTER           :: rho_set
 
-    failure = .FALSE.
 ! -------------------------------------------------------------------------
 
     CALL timeset(routineN,handle)
@@ -401,7 +398,6 @@ CONTAINS
     TYPE(xc_rho_cflags_type)                 :: needs
     TYPE(xc_rho_set_type), POINTER           :: rho_set
 
-    failure = .FALSE.
 ! -------------------------------------------------------------------------
 
     CALL timeset(routineN,handle)
@@ -588,7 +584,6 @@ CONTAINS
     INTEGER                                  :: ia
     LOGICAL                                  :: failure
 
-    failure = .FALSE.
 
     SELECT CASE(nspins)
     CASE(1)
@@ -726,7 +721,6 @@ CONTAINS
     REAL(KIND=dp)                            :: depade, dpv, dq, epade, p, q, &
                                                 rs
 
-    failure = .FALSE.
 
     n = SIZE(rho)
     exc(1:n) = 0._dp
@@ -787,7 +781,6 @@ CONTAINS
 
 ! 1/(2^(4/3) - 2)
 
-    failure = .FALSE.
 
     n = SIZE(rhoa)
     exc(1:n) = 0._dp

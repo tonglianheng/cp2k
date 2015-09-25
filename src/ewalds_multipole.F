@@ -165,7 +165,6 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: efield1_lr, efield1_sr, &
                                                 efield2_lr, efield2_sr
 
-    failure = .FALSE.
     CALL cite_reference(Aguado2003)
     CALL cite_reference(Laino2008)
     CALL timeset(routineN,handle)
@@ -409,7 +408,6 @@ CONTAINS
     TYPE(pos_type), DIMENSION(:), POINTER    :: r_last_update, &
                                                 r_last_update_pbc
 
-    failure = .FALSE.
     CALL timeset ( routineN, handle )
     NULLIFY(nonbonded,r_last_update, r_last_update_pbc)
     do_efield0 = do_efield.AND.ASSOCIATED(efield0)

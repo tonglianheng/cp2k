@@ -141,7 +141,6 @@ MODULE xc_xlda_hole_t_c_lr
     TYPE(xc_derivative_type), POINTER        :: deriv
 
     CALL timeset(routineN,handle)
-    failure=.FALSE.
 
     NULLIFY(bo)
 
@@ -357,7 +356,6 @@ MODULE xc_xlda_hole_t_c_lr
     TYPE(xc_derivative_type), POINTER        :: deriv
 
     CALL timeset(routineN,handle)
-    failure=.FALSE.
 
     NULLIFY(bo)
 

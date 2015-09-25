@@ -85,7 +85,6 @@ SUBROUTINE cp_complex_dbcsr_gemm_3(transa, transb, alpha, A_re, A_im,&
     !(a+ib)*(c+id)=ac-bd+i((a+b)*(c+d) - ac - bd)
     !A_re=a, A_im=b, B_re=c, B_im=d
 
-    failure=.FALSE.
 
     alpha2=-alpha
     alpha3=alpha
@@ -186,7 +185,6 @@ END SUBROUTINE
 
     CALL timeset(routineN,handle)
 
-    failure=.FALSE.
 
     !The divider that comes from the scaling and squaring procedure
     square_fac=1.0_dp/(2.0_dp**REAL(nsquare,dp))
@@ -291,7 +289,6 @@ END SUBROUTINE
 
     CALL timeset(routineN,handle)
 
-    failure=.FALSE.
 
     !The divider that comes from the scaling and squaring procedure
     square_fac=CMPLX(1.0_dp/(2.0_dp**REAL(nsquare,dp)),0.0_dp,KIND=dp)
@@ -395,7 +392,6 @@ END SUBROUTINE
     logger => cp_get_default_logger()
     unit_nr = cp_logger_get_default_io_unit(logger)
 
-    failure=.FALSE.
     NULLIFY(tmp)
     ALLOCATE(tmp)
     CALL cp_dbcsr_init(tmp)
@@ -498,7 +494,6 @@ END SUBROUTINE
     logger => cp_get_default_logger()
     unit_nr = cp_logger_get_default_io_unit(logger)
 
-    failure=.FALSE.
     NULLIFY(tmp)
     ALLOCATE(tmp)
     CALL cp_dbcsr_init(tmp)

@@ -137,7 +137,6 @@ CONTAINS
     TYPE(local_atoms_type), ALLOCATABLE, &
       DIMENSION(:)                           :: atom
 
-    failure = .FALSE.
     CALL timeset(routineN,handle)
     NULLIFY(logger)
     logger => cp_get_default_logger()
@@ -331,7 +330,6 @@ CONTAINS
       POINTER                                :: subcell_a, subcell_b
 
     CALL timeset(routineN,handle)
-    failure = .FALSE.
     nkind = SIZE(atom)
     nsubcell = 1
     isubcell = 0
@@ -768,7 +766,6 @@ CONTAINS
     LOGICAL                                  :: failure
     TYPE(neighbor_kind_pairs_type), POINTER  :: neighbor_kind_pair
 
-    failure = .FALSE.
     NULLIFY(neighbor_kind_pair)
     CALL timeset(routineN,handle)
     ! define a lookup table to get jkind for a given id_kind

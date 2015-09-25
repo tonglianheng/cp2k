@@ -101,7 +101,6 @@ CONTAINS
                                                 subsys_section
     TYPE(virial_type), POINTER               :: virial
 
-    failure = .FALSE.
     NULLIFY(rng_section, subsys_section, cell_section, virial, subsys, cell)
     ! If it's not a dynamical run don't update the velocity section
     CALL section_vals_val_get(root_section,"GLOBAL%RUN_TYPE",i_val=myid)
@@ -168,7 +167,6 @@ CONTAINS
     LOGICAL                                  :: explicit, failure
     REAL(KIND=dp), DIMENSION(:), POINTER     :: work
 
-    failure = .FALSE.
     SELECT CASE(force_env%in_use)
     CASE(use_qmmm)
        CALL section_vals_get(qmmm_section, explicit=explicit)
@@ -277,7 +275,6 @@ CONTAINS
                                                 shell_particles
     TYPE(section_vals_type), POINTER         :: work_section
 
-    failure = .FALSE.
     NULLIFY (work_section, core_particles, particles, shell_particles, &
              subsys, cell, para_env, multipoles)
     CALL timeset(routineN,handle)
@@ -488,7 +485,6 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-    failure=.FALSE.
     NULLIFY(my_val, old_val, section, vals)
     my_shell = .FALSE.
     IF(PRESENT(shell)) my_shell = shell
@@ -624,7 +620,6 @@ CONTAINS
     TYPE(val_type), POINTER                  :: my_val, old_val
 
     CALL timeset(routineN,handle)
-    failure=.FALSE.
     NULLIFY(my_val, old_val, section, vals)
     CPASSERT(ASSOCIATED(dipoles_section))
     CPASSERT(dipoles_section%ref_count>0)
@@ -704,7 +699,6 @@ CONTAINS
     TYPE(val_type), POINTER                  :: my_val, old_val
 
     CALL timeset(routineN,handle)
-    failure=.FALSE.
     NULLIFY(my_val, old_val, section, vals)
     CPASSERT(ASSOCIATED(quadrupoles_section))
     CPASSERT(quadrupoles_section%ref_count>0)
@@ -804,7 +798,6 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-    failure = .FALSE.
     CPASSERT(ASSOCIATED(particles))
     IF (.NOT.core_or_shell) THEN
        CPASSERT(ASSOCIATED(molecules))

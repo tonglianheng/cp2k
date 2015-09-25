@@ -133,7 +133,6 @@ CONTAINS
 
 !   ------------------------------------------------------------------------
 
-    failure = .FALSE.
 
     CPASSERT(ASSOCIATED(eip_env))
     CPASSERT(eip_env%ref_count>0)
@@ -158,7 +157,6 @@ CONTAINS
 
 !   ------------------------------------------------------------------------
 
-    failure = .FALSE.
 
     IF (ASSOCIATED(eip_env)) THEN
       CPASSERT(eip_env%ref_count>0)
@@ -269,7 +267,6 @@ CONTAINS
 
 !   ------------------------------------------------------------------------
 
-    failure = .FALSE.
 
     NULLIFY(atomic_kinds, particles, molecules_new, molecule_kinds_new)
 
@@ -388,7 +385,6 @@ CONTAINS
 
 !   ------------------------------------------------------------------------
 
-    failure = .FALSE.
 
     CPASSERT(ASSOCIATED(eip_env))
     CPASSERT(eip_env%ref_count>0)
@@ -479,7 +475,6 @@ CONTAINS
 
 !   ------------------------------------------------------------------------
 
-    failure = .FALSE.
 
     CPASSERT(ASSOCIATED(eip_env))
 
@@ -524,7 +519,6 @@ CONTAINS
 
     LOGICAL                                  :: failure
 
-    failure = .FALSE.
 
     ALLOCATE(eip_env)
 

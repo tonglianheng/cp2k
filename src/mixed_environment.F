@@ -77,7 +77,6 @@ CONTAINS
     TYPE(section_vals_type), POINTER         :: cell_section, subsys_section
 
     CALL timeset(routineN,handle)
-    failure = .FALSE.
 
     NULLIFY (subsys, cell, cell_ref)
     NULLIFY ( cell_section)

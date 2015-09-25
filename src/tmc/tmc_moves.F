@@ -88,7 +88,6 @@ CONTAINS
     REAL(KIND=dp)                            :: rnd
     REAL(KIND=dp), DIMENSION(:), POINTER     :: direction, elem_center
 
-    failure = .FALSE.
     NULLIFY(direction, elem_center, mol_in_sb)
 
     CPASSERT(ASSOCIATED(tmc_params))
@@ -390,7 +389,6 @@ CONTAINS
     INTEGER                                  :: i
     LOGICAL                                  :: failure
 
-    failure = .FALSE.
 
     start_ind = -1
     end_ind   = -1
@@ -443,7 +441,6 @@ CONTAINS
     LOGICAL                                  :: failure, flag
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: pos_tmp
 
-    failure = .FALSE.
 
     CPASSERT(ASSOCIATED(pos))
     CPASSERT(ASSOCIATED(subbox_center))
@@ -502,7 +499,6 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(3)              :: box_size
     REAL(KIND=dp), DIMENSION(:), POINTER     :: atom_tmp, center_of_sub_box
 
-    failure = .FALSE.
     NULLIFY(center_of_sub_box, atom_tmp)
 
     CPASSERT(ASSOCIATED(tmc_params))
@@ -586,7 +582,6 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(3, 3)           :: rot
     REAL(KIND=dp), DIMENSION(:), POINTER     :: elem_center
 
-    failure = .FALSE.
     NULLIFY(elem_center)
 
     CPASSERT(ASSOCIATED(pos))
@@ -650,7 +645,6 @@ CONTAINS
     REAL(KIND=dp)                            :: delta_vel, kB, rnd1, rnd2, &
                                                 rnd3, rnd_g
 
-    failure = .FALSE.
     kB = boltzmann/joule
 
     CPASSERT(ASSOCIATED(rng_stream))
@@ -712,7 +706,6 @@ CONTAINS
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: rnd
 
-    failure = .FALSE.
     NULLIFY(mol_arr)
 
     CPASSERT(ASSOCIATED(elem))
@@ -819,7 +812,6 @@ CONTAINS
     REAL(KIND=dp)                            :: dist_tmp, rnd
     REAL(KIND=dp), DIMENSION(:), POINTER     :: distH1, distH2, distO
 
-    failure = .FALSE.
     NULLIFY(distO, distH1, distH2)
     CPASSERT(ASSOCIATED(elem))
     CPASSERT(ASSOCIATED(tmc_params))
@@ -958,7 +950,6 @@ CONTAINS
     LOGICAL                                  :: failure
     REAL(KIND=dp), DIMENSION(4)              :: distances
 
-    failure = .FALSE.
     CPASSERT(ASSOCIATED(elem))
     CPASSERT(i_orig.GE.1.AND.i_orig.LE.SIZE(elem%pos))
     CPASSERT(i_neighbor.GE.1.AND.i_neighbor.LE.SIZE(elem%pos))
@@ -1026,7 +1017,6 @@ CONTAINS
                                                 vec_rotated
     TYPE(cell_type), POINTER                 :: tmp_cell
 
-    failure = .FALSE.
     NULLIFY(ind_arr, tmp_cell)
 
     CPASSERT(ASSOCIATED(tmc_params))
@@ -1182,7 +1172,6 @@ CONTAINS
                                                 box_length_orig, box_scale_old
     REAL(KIND=dp), DIMENSION(:), POINTER     :: disp, scaling
 
-    failure = .FALSE.
     NULLIFY(scaling, disp)
 
     CPASSERT(ASSOCIATED(conf))
@@ -1311,7 +1300,6 @@ CONTAINS
     LOGICAL                                  :: failure, found
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: pos_tmp
 
-    failure = .FALSE.
 
     CPASSERT(ASSOCIATED(conf))
     CPASSERT(ASSOCIATED(move_types))

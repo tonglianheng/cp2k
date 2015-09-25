@@ -93,7 +93,6 @@ CONTAINS
     LOGICAL                                  :: failure
     TYPE(cp_blacs_env_type), POINTER         :: context
 
-    failure=.FALSE.
 
 #if defined(__parallel) && ! defined(__SCALAPACK)
      CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
@@ -141,7 +140,6 @@ CPSourceFileRef)
 
     LOGICAL                                  :: failure
 
-    failure=.FALSE.
 
     CPASSERT(ASSOCIATED(matrix))
     CPASSERT(matrix%ref_count>0)
@@ -160,7 +158,6 @@ CPSourceFileRef)
 
     LOGICAL                                  :: failure
 
-    failure=.FALSE.
 
     IF (ASSOCIATED(matrix)) THEN
        CPASSERT(matrix%ref_count>0)
@@ -353,7 +350,6 @@ CPSourceFileRef)
     INTEGER , EXTERNAL :: indxl2g
 #endif
 
-    failure=.FALSE.
     IF (PRESENT(name)) name = matrix%name
     IF (PRESENT(nrow_global)) nrow_global = matrix%matrix_struct%nrow_global
     IF (PRESENT(ncol_global)) ncol_global = matrix%matrix_struct%ncol_global
@@ -436,7 +432,6 @@ CPSourceFileRef)
     INTEGER                                  :: npcol, nprow
     LOGICAL                                  :: failure
 
-    failure=.TRUE.
     nprow = source%matrix_struct%context%num_pe(1)
     npcol = source%matrix_struct%context%num_pe(2)
 

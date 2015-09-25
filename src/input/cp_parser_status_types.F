@@ -48,7 +48,6 @@ CONTAINS
 
     LOGICAL                                  :: failure
 
-    failure = .FALSE.
     CPASSERT(.NOT.ASSOCIATED(status))
     ALLOCATE(status)
     status%in_use                = .FALSE.
@@ -75,7 +74,6 @@ CONTAINS
 
     LOGICAL                                  :: failure
 
-    failure = .FALSE.
     CPASSERT(ASSOCIATED(status))
     CALL release_buffer_type(status%buffer)
     DEALLOCATE(status)

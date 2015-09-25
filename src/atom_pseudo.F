@@ -88,7 +88,6 @@ CONTAINS
     TYPE(section_vals_type), POINTER :: basis_section, method_section, &
       opt_section, potential_section, powell_section, xc_section
 
-    failure = .FALSE.
 
     CALL timeset(routineN,handle)
 

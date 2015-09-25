@@ -86,7 +86,6 @@ CONTAINS
       DIMENSION(:, :)                        :: omat, vmat
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: eri
 
-    failure = .FALSE.
 
     CALL timeset(routineN,handle)
 
@@ -334,7 +333,6 @@ CONTAINS
       DIMENSION(:, :)                        :: omat, spmat
     REAL(KIND=dp), DIMENSION(:), POINTER     :: rad
 
-    failure = .FALSE.
 
     CALL timeset(routineN,handle)
 
@@ -612,7 +610,6 @@ CONTAINS
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :, :)                     :: hmat, pvp, sp, tp, vp, wfn
 
-    failure = .FALSE.
 
     CALL timeset(routineN,handle)
 
@@ -805,7 +802,6 @@ CONTAINS
     LOGICAL                                  :: failure
     REAL(dp), DIMENSION(:, :, :), POINTER    :: hdkh
 
-    failure = .FALSE.
     CPASSERT(order>=0)
 
     hdkh => integrals%hdkh
@@ -848,7 +844,6 @@ CONTAINS
     INTEGER                                  :: ll
     LOGICAL                                  :: failure
 
-    failure = .FALSE.
 
     IF ( ASSOCIATED(integrals%ovlp) ) THEN
       DEALLOCATE (integrals%ovlp)
@@ -889,7 +884,6 @@ CONTAINS
 
     LOGICAL                                  :: failure
 
-    failure = .FALSE.
 
     IF ( ASSOCIATED(integrals%hnl) ) THEN
       DEALLOCATE (integrals%hnl)
@@ -916,7 +910,6 @@ CONTAINS
 
     LOGICAL                                  :: failure
 
-    failure = .FALSE.
 
     IF ( ASSOCIATED(integrals%tzora) ) THEN
       DEALLOCATE (integrals%tzora)
@@ -1054,7 +1047,6 @@ CONTAINS
     LOGICAL                                  :: failure
     REAL(dp), ALLOCATABLE, DIMENSION(:, :)   :: amat, atran, bmat, btran, hint
 
-    failure = .FALSE.
     CALL timeset(routineN,handle)
 
     m1 = SIZE(cm1,1)

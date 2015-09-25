@@ -255,7 +255,6 @@ CONTAINS
                                                 scf_section, xc_section
     TYPE(virial_type), POINTER               :: virial
 
-    failure=.FALSE.
     CALL timeset(routineN,handle)
     NULLIFY(admm_env, becke, cell, dft_control, logger, &
          mo_derivs, my_rho, rho_struct, para_env, pw_env, virial, &
@@ -853,7 +852,6 @@ CONTAINS
     TYPE(section_vals_type), POINTER         :: input, xc_section
     TYPE(virial_type), POINTER               :: virial
 
-    failure=.FALSE.
     CALL timeset(routineN,handle)
     NULLIFY(dft_control, input,  mo_derivs, para_env, pw_env,&
             xc_section, ks_env, ks_matrix, rho, energy, auxbas_pw_pool, matrix_h,&
@@ -1121,7 +1119,6 @@ CONTAINS
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mo_array, mos_aux_fit
 
-    failure=.FALSE.
     NULLIFY(dft_control, mo_array, mo_coeff, mo_coeff_aux_fit, mo_coeff_b, &
             mo_derivs_aux_fit, mo_derivs_tmp, mos_aux_fit,&
             occupation_numbers, matrix_ks_aux_fit)
@@ -1224,7 +1221,6 @@ CONTAINS
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(qs_ks_env_type), POINTER            :: ks_env
 
-    failure=.FALSE.
     NULLIFY(logger,ks_env)
     logger => cp_get_default_logger()
 
@@ -1410,7 +1406,6 @@ CONTAINS
     TYPE(cp_fm_type), POINTER                :: weighted_vectors
 
     CALL timeset(routineN,handle)
-    failure=.FALSE.
     NULLIFY(weighted_vectors)
 
     CALL cp_dbcsr_set(w_matrix,0.0_dp)
@@ -1471,7 +1466,6 @@ CONTAINS
                                                 weighted_vectors
 
     CALL timeset(routineN,handle)
-    failure=.FALSE.
     NULLIFY(weighted_vectors,h_block,fm_struct_tmp)
 
     CALL cp_fm_get_info(matrix=mo_set%mo_coeff,&

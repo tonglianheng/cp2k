@@ -294,7 +294,6 @@ CONTAINS
     REAL(KIND=dp)                            :: hmat(3,3)
     TYPE(section_vals_type), POINTER         :: grid_print_section
 
-    failure = .FALSE.
     Pot%LG            => LG
     Pot%gx            => gx
     Pot%gy            => gy
@@ -356,7 +355,6 @@ CONTAINS
     TYPE(section_vals_type), POINTER         :: ewald_print_section, &
                                                 ewald_section, poisson_section
 
-    failure = .FALSE.
     logger => cp_get_default_logger()
     ounit = cp_logger_get_default_io_unit(logger)
     CPASSERT(.NOT.ASSOCIATED(ewald_env))

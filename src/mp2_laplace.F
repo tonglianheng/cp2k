@@ -111,7 +111,6 @@ MODULE mp2_laplace
                                                 buffer_send, buffer_send_beta
 
     CALL timeset(routineN,handle)
-    failure=.FALSE.
     
     my_open_shell=.FALSE.
     IF(PRESENT(homo_beta).AND.&

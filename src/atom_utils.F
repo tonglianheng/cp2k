@@ -99,7 +99,6 @@ CONTAINS
     LOGICAL                                  :: failure
     REAL(Kind=dp)                            :: e0, el, oo
 
-    failure = .FALSE.
 
     occupation = 0._dp
 
@@ -364,7 +363,6 @@ CONTAINS
     REAL(KIND=dp)                            :: ff
 
     my_typ = "RHO"
-    failure = .FALSE.
     IF(PRESENT(typ)) my_typ = typ(1:3)
     IF(my_typ == "KIN") THEN
       CPASSERT(PRESENT(rr))
@@ -662,7 +660,6 @@ CONTAINS
     REAL(KIND=dp)                            :: ff
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: den
 
-    failure = .FALSE.
     charge=0._dp
     m=SIZE(basis%bf,1)
     ALLOCATE(den(m))
@@ -705,7 +702,6 @@ CONTAINS
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: fe, rc
 
     my_typ = "RHO"
-    failure = .FALSE.
     IF(PRESENT(typ)) my_typ = typ(1:3)
 
     IF(gthpot%nlcc) THEN
@@ -754,7 +750,6 @@ CONTAINS
     REAL(KIND=dp)                            :: a
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: fe, rc
 
-    failure = .FALSE.
     m = SIZE(locpot)
     ALLOCATE(fe(m),rc(m))
     rc(:)=rr(:)/gthpot%rc
@@ -803,7 +798,6 @@ CONTAINS
     REAL(KIND=dp)                            :: ff
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: dorb
 
-    failure = .FALSE.
     m=SIZE(basis%bf,1)
     ALLOCATE(dorb(m))
     n=basis%nbas(l)
@@ -846,7 +840,6 @@ CONTAINS
     REAL(KIND=dp)                            :: ff
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: orb
 
-    failure = .FALSE.
     node=0
     m=SIZE(basis%bf,1)
     ALLOCATE(orb(m))
@@ -916,7 +909,6 @@ CONTAINS
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: a
 
-    failure = .FALSE.
     CPASSERT(ALL(nb >= nv))
 
     orb = 0._dp
@@ -1042,7 +1034,6 @@ CONTAINS
     REAL(dp)                                 :: int1, int2
     REAL(dp), DIMENSION(:), POINTER          :: r, wr
 
-    failure = .FALSE.
     nc = MIN(SIZE(cpot),SIZE(density))
     r => grid%rad
     wr => grid%wr
@@ -1090,7 +1081,6 @@ CONTAINS
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: unp
 
-    failure = .FALSE.
     m = SIZE(cpot)
     ALLOCATE ( erfa(1:m), expa(1:m), z(1:m))
 
@@ -1205,7 +1195,6 @@ CONTAINS
       DIMENSION(:, :)                        :: orb
     REAL(KIND=dp), DIMENSION(0:maxfac)       :: arho
 
-    failure = .FALSE.
     arho = 0._dp
     DO ll=0,maxfac,2
       lh=ll/2
@@ -1287,7 +1276,6 @@ CONTAINS
       DIMENSION(:, :, :)                     :: pot
     REAL(KIND=dp), DIMENSION(0:maxfac)       :: arho
 
-    failure = .FALSE.
     arho = 0._dp
     DO ll=0,maxfac,2
       lh=ll/2
@@ -1363,7 +1351,6 @@ CONTAINS
     REAL(dp)                                 :: int1, int2
     REAL(dp), DIMENSION(:), POINTER          :: r, wr
 
-    failure = .FALSE.
     nc = MIN(SIZE(cpot),SIZE(density))
     r => grid%rad
     wr => grid%wr
@@ -1403,7 +1390,6 @@ CONTAINS
     REAL(KIND=dp)                            :: a, b, oab, sab
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: erfa, expa, z
 
-    failure = .FALSE.
     m = SIZE(cpot,1)
     ALLOCATE ( erfa(1:m), expa(1:m), z(1:m))
 
@@ -1624,7 +1610,6 @@ CONTAINS
     INTEGER                                  :: i, j, l, n
     LOGICAL                                  :: failure
 
-    failure = .FALSE.
 
     SELECT CASE (derivatives)
       CASE (0)
@@ -1692,7 +1677,6 @@ CONTAINS
     LOGICAL                                  :: failure, have_all_nu
     REAL(KIND=dp)                            :: eint, f1, f2
 
-    failure = .FALSE.
     IF ( PRESENT(all_nu) ) THEN
       have_all_nu = all_nu
     ELSE
@@ -1769,7 +1753,6 @@ CONTAINS
     REAL(KIND=dp)                            :: almn, eint, f1, f2
     REAL(KIND=dp), DIMENSION(0:maxfac)       :: arho
 
-    failure = .FALSE.
 
     arho = 0._dp
     DO ll=0,maxfac,2
@@ -1850,7 +1833,6 @@ CONTAINS
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: tkmat, tpmat
 
-    failure = .FALSE.
     emat = 0._dp
     DO l=0,3
       n = nval(l)

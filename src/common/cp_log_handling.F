@@ -429,7 +429,6 @@ CONTAINS
 
     LOGICAL                                  :: failure
 
-    failure=.FALSE.
 
     IF (.NOT.ASSOCIATED(logger)) CALL mp_abort(routineP//&
          " logger not associated")
@@ -827,7 +826,6 @@ CONTAINS
     LOGICAL                                  :: failure, loc
     TYPE(cp_logger_type), POINTER            :: lggr
 
-    failure=.FALSE.
     loc=.FALSE.
     res=' '
     lggr => logger

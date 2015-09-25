@@ -171,7 +171,6 @@ CONTAINS
 
     LOGICAL                                  :: failure
 
-    failure = .FALSE.
     CPASSERT(ASSOCIATED(com_tasks%obj))
     CPASSERT(com_tasks%obj%ref_count>0)
     com_tasks%obj%ref_count = com_tasks%obj%ref_count + 1
@@ -192,7 +191,6 @@ CONTAINS
 
     LOGICAL                                  :: failure
 
-    failure = .FALSE.
     CPASSERT(ASSOCIATED(atom_pairs%obj))
     CPASSERT(atom_pairs%obj%ref_count>0)
     atom_pairs%obj%ref_count = atom_pairs%obj%ref_count + 1
@@ -214,7 +212,6 @@ CONTAINS
 
     LOGICAL                                  :: failure
 
-    failure = .FALSE.
     IF (ASSOCIATED(com_tasks%obj)) THEN
        CPASSERT(com_tasks%obj%ref_count>0)
        com_tasks%obj%ref_count = com_tasks%obj%ref_count - 1
@@ -248,7 +245,6 @@ CONTAINS
 
     LOGICAL                                  :: failure
 
-    failure = .FALSE.
     IF (ASSOCIATED(atom_pairs%obj)) THEN
        CPASSERT(atom_pairs%obj%ref_count>0)
        atom_pairs%obj%ref_count = atom_pairs%obj%ref_count - 1
@@ -387,7 +383,6 @@ CONTAINS
 
     LOGICAL                                  :: failure
 
-    failure = .FALSE.
     CPASSERT(.NOT.ASSOCIATED(com_tasks%obj))
     ALLOCATE(com_tasks%obj)
     com_tasks%obj%task_dim = TASK_N_RECORDS
@@ -415,7 +410,6 @@ CONTAINS
 
     LOGICAL                                  :: failure
 
-    failure = .FALSE.
     CPASSERT(.NOT.ASSOCIATED(atom_pairs%obj))
     ALLOCATE(atom_pairs%obj)
     atom_pairs%obj%npairs = 0
@@ -441,7 +435,6 @@ CONTAINS
 
     LOGICAL                                  :: failure
 
-    failure = .FALSE.
     CPASSERT(ASSOCIATED(com_tasks%obj))
     IF (ASSOCIATED(com_tasks%obj%tasks)) THEN
        DEALLOCATE(com_tasks%obj%tasks)
@@ -467,7 +460,6 @@ CONTAINS
 
     LOGICAL                                  :: failure
 
-    failure = .FALSE.
     CPASSERT(ASSOCIATED(atom_pairs%obj))
     IF (ASSOCIATED(atom_pairs%obj%pairs)) THEN
        DEALLOCATE(atom_pairs%obj%pairs)
@@ -504,7 +496,6 @@ CONTAINS
 
     LOGICAL                                  :: failure
 
-    failure = .FALSE.
     CPASSERT(ASSOCIATED(com_tasks%obj))
     IF (PRESENT(task_dim)) task_dim = com_tasks%obj%task_dim
     IF (PRESENT(ntasks)) ntasks = com_tasks%obj%ntasks
@@ -538,7 +529,6 @@ CONTAINS
 
     LOGICAL                                  :: failure
 
-    failure = .FALSE.
     CPASSERT(ASSOCIATED(atom_pairs%obj))
     IF (PRESENT(npairs)) npairs = atom_pairs%obj%npairs
     IF (PRESENT(natoms_encode)) natoms_encode = atom_pairs%obj%natoms_encode
@@ -573,7 +563,6 @@ CONTAINS
 
     LOGICAL                                  :: failure
 
-    failure = .FALSE.
     CPASSERT(ASSOCIATED(com_tasks%obj))
     IF (PRESENT(task_dim)) com_tasks%obj%task_dim = task_dim
     IF (PRESENT(ntasks)) com_tasks%obj%ntasks = ntasks
@@ -613,7 +602,6 @@ CONTAINS
 
     LOGICAL                                  :: failure
 
-    failure = .FALSE.
     CPASSERT(ASSOCIATED(atom_pairs%obj))
     IF (PRESENT(npairs)) atom_pairs%obj%npairs = npairs
     IF (PRESENT(natoms_encode)) atom_pairs%obj%natoms_encode = natoms_encode
@@ -668,7 +656,6 @@ CONTAINS
 
     CALL timeset(routineN, handle)
 
-    failure = .FALSE.
 
     NULLIFY(tasks_in, tasks_out)
 
@@ -851,7 +838,6 @@ CONTAINS
 
     CALL timeset(routineN, handle)
 
-    failure = .FALSE.
 
     NULLIFY(pairs, tasks)
 
@@ -1111,7 +1097,6 @@ CONTAINS
       POINTER                                :: pairs
     LOGICAL                                  :: check_ok, failure
 
-    failure = .FALSE.
 
     NULLIFY(pairs)
 
@@ -1201,7 +1186,6 @@ CONTAINS
 
     CALL timeset(routineN, handle)
 
-    failure = .FALSE.
 
     NULLIFY(pairs_send, pairs_recv, mat_block, &
             row_block_size_data, col_block_size_data)
@@ -1398,7 +1382,6 @@ CONTAINS
 
     CALL timeset(routineN, handle)
 
-    failure = .FALSE.
 
     NULLIFY(pairs_send, pairs_recv, mat_block, &
             row_block_size_data, col_block_size_data)

@@ -114,7 +114,6 @@ FUNCTION get_occupation(matrix,para_env)
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: nblock, nelement
     LOGICAL                                  :: failure
 
-    failure = .FALSE.
 
 
     group = para_env%group

@@ -58,7 +58,6 @@ SUBROUTINE lgrid_create(lgrid,rs_descs)
     INTEGER                                  :: i, ngpts
     LOGICAL                                  :: failure
 
-  failure=.FALSE.
 
   CPASSERT(.NOT.ASSOCIATED(lgrid))
   ALLOCATE(lgrid)
@@ -87,7 +86,6 @@ SUBROUTINE lgrid_retain(lgrid)
 
     LOGICAL                                  :: failure
 
-  failure=.FALSE.
 
   CPASSERT(ASSOCIATED(lgrid))
   CPASSERT(lgrid%ref_count>0)
@@ -109,7 +107,6 @@ SUBROUTINE lgrid_release(lgrid)
 
     LOGICAL                                  :: failure
 
-  failure=.FALSE.
   IF (ASSOCIATED(lgrid)) THEN
      CPASSERT(lgrid%ref_count>0)
      lgrid%ref_count=lgrid%ref_count-1
@@ -139,7 +136,6 @@ SUBROUTINE lgrid_allocate_grid(lgrid, nthreads)
 
     LOGICAL                                  :: failure
 
-    failure = .FALSE.
     CPASSERT(ASSOCIATED(lgrid))
     CPASSERT(.NOT. ASSOCIATED(lgrid%r))
     ALLOCATE(lgrid%r(lgrid%ldim*nthreads))

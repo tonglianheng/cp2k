@@ -83,7 +83,6 @@ CONTAINS
     LOGICAL                                  :: dip_exists, failure
     REAL(KIND=dp), DIMENSION(3)              :: dip_mix, dip_tmp
 
-    failure = .FALSE.
     ! Get Mapping index array
     natom = SIZE(global_forces(iforce_eval)%forces,2)
     CALL get_subsys_map_index(mapping_section, natom, iforce_eval, nforce_eval, map_index)
@@ -158,7 +157,6 @@ CONTAINS
     TYPE(section_vals_type), POINTER         :: fragments_loc, fragments_sys, &
                                                 map_force_ev, map_full_sys
 
-    failure = .FALSE.
     CPASSERT(.NOT.ASSOCIATED(map_index))
     ALLOCATE(map_index(natom))
     CALL section_vals_get(mapping_section, explicit=explicit)

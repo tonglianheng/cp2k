@@ -112,7 +112,6 @@ CONTAINS
                                                 nparticle, ns
     LOGICAL                                  :: failure
 
-    failure = .FALSE.
     CPASSERT(ASSOCIATED(particle_set))
 
     nparticle = SIZE(particle_set)
@@ -210,7 +209,6 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-    failure = .FALSE.
     natom = SIZE(particle_set)
     IF (PRESENT(array)) THEN
        SELECT CASE(TRIM(content))
@@ -651,7 +649,6 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-    failure = .FALSE.
     NULLIFY(logger)
     logger => cp_get_default_logger()
     iw = cp_print_key_unit_nr(logger,subsys_section,&
@@ -711,7 +708,6 @@ CONTAINS
     INTEGER, DIMENSION(:), POINTER           :: my_list
     LOGICAL                                  :: failure
 
-    failure = .FALSE.
     my_el_per_part = 1
     IF (PRESENT(el_per_part)) my_el_per_part = el_per_part
     IF (PRESENT(Ilist)) THEN
@@ -783,7 +779,6 @@ CONTAINS
     TYPE(section_vals_type), POINTER         :: section
 
     CALL timeset(routineN,handle)
-    failure = .FALSE.
     NULLIFY (atomic_indices)
     NULLIFY (index_list)
     NULLIFY (logger)

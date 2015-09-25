@@ -347,7 +347,6 @@ MODULE hfx_screening_methods
       POINTER                                :: qs_kind_set
     TYPE(qs_kind_type), POINTER              :: qs_kind
 
-    failure = .FALSE.
 
 !$OMP MASTER
     CALL timeset(routineN,handle)
@@ -706,7 +705,6 @@ MODULE hfx_screening_methods
       POINTER                                :: qs_kind_set
     TYPE(qs_kind_type), POINTER              :: qs_kind
 
-    failure = .FALSE.
 
 
 !$OMP MASTER

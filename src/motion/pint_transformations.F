@@ -50,7 +50,6 @@ CONTAINS
     LOGICAL                                  :: failure
     REAL(kind=dp), DIMENSION(:, :), POINTER  :: my_ux, my_x
 
-    failure=.FALSE.
 
     CPASSERT(ASSOCIATED(pint_env))
     CPASSERT(pint_env%ref_count>0)
@@ -91,7 +90,6 @@ CONTAINS
     LOGICAL                                  :: failure
     REAL(kind=dp), DIMENSION(:, :), POINTER  :: my_ux, my_x
 
-    failure=.FALSE.
 
     CPASSERT(ASSOCIATED(pint_env))
     CPASSERT(pint_env%ref_count>0)
@@ -135,7 +133,6 @@ CONTAINS
     LOGICAL                                  :: failure
     REAL(kind=dp), DIMENSION(:, :), POINTER  :: my_f, my_uf
 
-    failure=.FALSE.
 
     CPASSERT(ASSOCIATED(pint_env))
     CPASSERT(pint_env%ref_count>0)

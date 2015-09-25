@@ -86,7 +86,6 @@ CONTAINS
 
     LOGICAL                                  :: failure
 
-    failure=.FALSE.
 
     CPASSERT(ASSOCIATED(ewald_pw))
     CPASSERT(ewald_pw%ref_count>0)
@@ -114,7 +113,6 @@ CONTAINS
     TYPE(dg_type), POINTER                   :: dg
 
     NULLIFY ( dg )
-    failure=.FALSE.
     ALLOCATE ( ewald_pw)
     NULLIFY ( ewald_pw % pw_big_pool )
     NULLIFY ( ewald_pw % pw_small_pool )
@@ -144,7 +142,6 @@ CONTAINS
     LOGICAL                                  :: failure
 
     CALL timeset(routineN,handle)
-    failure=.FALSE.
     IF (ASSOCIATED(ewald_pw)) THEN
        CPASSERT(ewald_pw%ref_count>0)
        ewald_pw%ref_count=ewald_pw%ref_count-1
@@ -205,7 +202,6 @@ CONTAINS
                                                 rs_grid_section
 
     CALL timeset(routineN,handle)
-    failure=.FALSE.
 
     NULLIFY ( pw_big_grid )
     NULLIFY ( pw_small_grid, poisson_section )

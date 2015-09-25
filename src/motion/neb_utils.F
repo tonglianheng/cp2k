@@ -111,7 +111,6 @@ CONTAINS
 
     LOGICAL                                  :: failure, my_rotate
 
-    failure = .FALSE.
     my_rotate = .FALSE.
     IF (PRESENT(rotate)) my_rotate = rotate
     ! The rotation of the replica is enabled exclusively when working in
@@ -168,7 +167,6 @@ CONTAINS
 
     NULLIFY (parser)
     CALL timeset(routineN,handle)
-    failure = .FALSE.
     CPASSERT(ASSOCIATED(coords))
     CPASSERT(ASSOCIATED(vels))
     neb_nr_replica = neb_env%number_of_replica
@@ -393,7 +391,6 @@ CPSourceFileRef,&
       DIMENSION(:, :)                        :: cvalues, Mmatrix, Mmatrix_tmp
 
     CALL timeset(routineN,handle)
-    failure = .FALSE.
     n_int     = neb_env%nsize_int
     n_rep_neb = neb_env%number_of_replica
     n_rep     = rep_env%nrep
@@ -536,7 +533,6 @@ CPSourceFileRef,&
     TYPE(section_vals_type), POINTER         :: md_section, root_section
 
     CALL timeset(routineN,handle)
-    failure = .FALSE.
     CALL f_env_add_defaults(f_env_id=rep_env%f_env_id,f_env=f_env,&
          failure=failure, handle=handle2)
     logger => cp_get_default_logger()
@@ -614,7 +610,6 @@ CPSourceFileRef,&
     TYPE(section_vals_type), POINTER         :: geoopt_section, root_section
 
     CALL timeset(routineN,handle)
-    failure = .FALSE.
     CALL f_env_add_defaults(f_env_id=rep_env%f_env_id,f_env=f_env,&
          failure=failure, handle=handle2)
     logger => cp_get_default_logger()
@@ -692,7 +687,6 @@ CPSourceFileRef,&
     REAL(KINd=dp)                            :: distance0, distance1, &
                                                 distance2, DVmax, Dvmin
 
-    failure = .FALSE.
     CPASSERT(ASSOCIATED(coords))
     tangent(:) = 0.0_dp
     ! For the last point we don't need any tangent..
@@ -762,7 +756,6 @@ CPSourceFileRef,&
     REAL(KIND=dp)                            :: distance1, distance2, fac, tmp
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: dtmp1, wrk
 
-    failure = .FALSE.
     my_tag  = neb_env%id_type
     IF (PRESENT(tag)) my_tag = tag
     CPASSERT(ASSOCIATED(forces))
@@ -881,7 +874,6 @@ CPSourceFileRef,&
     INTEGER                                  :: nsize_int
     LOGICAL                                  :: check, failure
 
-    failure = .FALSE.
     IF (neb_env%use_colvar) THEN
        nsize_int = neb_env%nsize_int
        check =((SIZE(array1)/=SIZE(array2)).OR.&
@@ -926,7 +918,6 @@ CPSourceFileRef,&
     REAL(KIND=dp), DIMENSION(3)              :: tmp
     REAL(KIND=dp), DIMENSION(3, 3)           :: rot
 
-    failure = .FALSE.
     rot      = 0.0_dp
     rot(1,1) = 1.0_dp
     rot(2,2) = 1.0_dp
@@ -982,7 +973,6 @@ CPSourceFileRef,&
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: tmp_coords
 
-    failure = .FALSE.
     IF (reparametrize_frames) THEN
        ALLOCATE(tmp_coords(SIZE(coords,1),SIZE(coords,2)))
        tmp_coords(:,:) = coords
@@ -1055,7 +1045,6 @@ CPSourceFileRef,&
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(section_vals_type), POINTER         :: cc_section
 
-    failure = .FALSE.
     NULLIFY(logger,cc_section)
     logger => cp_get_default_logger()
     cc_section => section_vals_get_subs_vals(neb_env%neb_section,"CONVERGENCE_CONTROL")

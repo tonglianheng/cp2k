@@ -170,7 +170,6 @@ CONTAINS
     TYPE(semi_empirical_type), POINTER       :: se_kind_a, se_kind_b
     TYPE(virial_type), POINTER               :: virial
 
-    failure=.FALSE.
     CALL timeset(routineN,handle)
 
     NULLIFY(dft_control,cell,force,particle_set,diagmat_ks,diagmat_p,&
@@ -544,7 +543,6 @@ CONTAINS
     TYPE(semi_empirical_type), POINTER       :: se_kind_a
     TYPE(virial_type), POINTER               :: virial
 
-    failure=.FALSE.
     CALL timeset(routineN,handle)
 
     NULLIFY(dft_control, cell, force,particle_set, diagmat_ks, diagmat_p,local_particles,&
@@ -925,7 +923,6 @@ CONTAINS
       DIMENSION(:), POINTER                  :: se_kind_list
     TYPE(semi_empirical_type), POINTER       :: se_kind_a, se_kind_b
 
-    failure=.FALSE.
     CALL timeset(routineN,handle)
     NULLIFY(dft_control, cell, force, particle_set, se_control, se_taper,&
          efield0, efield1, efield2, atprop)
@@ -1304,7 +1301,6 @@ CONTAINS
       DIMENSION(:), POINTER                  :: se_kind_list
     TYPE(semi_empirical_type), POINTER       :: se_kind_a, se_kind_b
 
-      failure=.FALSE.
     CALL timeset(routineN,handle)
 
     CALL get_qs_env(qs_env=qs_env)!sm->dbcsr

@@ -140,7 +140,6 @@ CONTAINS
       work_section
 
     NULLIFY(qmmm_env,cell)
-    failure =.FALSE.
     CALL allocate_thermostats(thermostats)
     adiabatic_fast_section  => section_vals_get_subs_vals(md_section,"ADIABATIC_DYNAMICS%THERMOSTAT_FAST")
     adiabatic_slow_section  => section_vals_get_subs_vals(md_section,"ADIABATIC_DYNAMICS%THERMOSTAT_SLOW")
@@ -481,7 +480,6 @@ CPSourceFileRef,&
     REAL(KIND=dp)                            :: kin_energy, pot_energy, tmp
     TYPE(cp_logger_type), POINTER            :: logger
 
-    failure = .FALSE.
     NULLIFY(logger)
     logger => cp_get_default_logger()
     iw=cp_print_key_unit_nr(logger,section,"PRINT%THERMOSTAT_INFO",extension=".log")
@@ -546,7 +544,6 @@ CPSourceFileRef,&
 
     LOGICAL                                  :: failure
 
-    failure = .FALSE.
     IF (ASSOCIATED(thermostat)) THEN
        IF      (thermostat%type_of_thermostat==do_thermo_nose) THEN
           ! Apply Nose-Hoover Thermostat
@@ -603,7 +600,6 @@ CPSourceFileRef,&
 
     LOGICAL                                  :: failure
 
-    failure = .FALSE.
     IF (ASSOCIATED(thermostat)) THEN
        IF      (thermostat%type_of_thermostat==do_thermo_nose) THEN
           ! Apply Nose-Hoover Thermostat
@@ -667,7 +663,6 @@ CPSourceFileRef,&
 
     LOGICAL                                  :: failure
 
-    failure = .FALSE.
     IF (ASSOCIATED(thermostat)) THEN
        IF      (thermostat%type_of_thermostat==do_thermo_nose) THEN
           ! Apply Nose-Hoover Thermostat

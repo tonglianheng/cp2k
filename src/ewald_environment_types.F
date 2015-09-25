@@ -151,7 +151,6 @@ CONTAINS
 
     LOGICAL                                  :: failure
 
-    failure=.FALSE.
     CPASSERT(ASSOCIATED(ewald_env))
 
     IF (PRESENT(id_nr)) id_nr = ewald_env%id_nr
@@ -220,7 +219,6 @@ CONTAINS
 
     LOGICAL                                  :: failure
 
-    failure=.FALSE.
     CPASSERT(ASSOCIATED(ewald_env))
 
     IF (PRESENT(id_nr)) ewald_env%id_nr = id_nr
@@ -260,7 +258,6 @@ CONTAINS
 
     LOGICAL                                  :: failure
 
-    failure=.FALSE.
 
     ALLOCATE( ewald_env)
     ewald_env%ref_count=1
@@ -287,7 +284,6 @@ CONTAINS
 
     LOGICAL                                  :: failure
 
-    failure=.FALSE.
 
     CPASSERT(ASSOCIATED(ewald_env))
     CPASSERT(ewald_env%ref_count>0)
@@ -309,7 +305,6 @@ CONTAINS
 
     LOGICAL                                  :: failure
 
-    failure=.FALSE.
 
     IF (ASSOCIATED(ewald_env)) THEN
        CPASSERT(ewald_env%ref_count>0)
@@ -351,7 +346,6 @@ CONTAINS
 
     NULLIFY(enum, keyword, section, multipole_section)
     logger=>cp_get_default_logger()
-    failure = .FALSE.
     CALL section_vals_val_get(ewald_section,"EWALD_TYPE",i_val=ewald_env%ewald_type)
     CALL section_vals_val_get(ewald_section,"ALPHA",r_val=ewald_env%alpha)
     CALL section_vals_val_get(ewald_section,"EWALD_ACCURACY",r_val=ewald_env%precs)
@@ -477,7 +471,6 @@ CONTAINS
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: func, func1, func2, s, s1, s2
 
-    failure = .FALSE.
     s    =  0.1_dp
     func =  EXP(-s**2)/s**2 - precs
     CPASSERT(func>0.0_dp)

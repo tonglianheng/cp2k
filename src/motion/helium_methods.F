@@ -111,7 +111,6 @@ MODULE helium_methods
 
     CALL timeset(routineN,handle)
 
-    failure=.FALSE.
 
     CPASSERT(.NOT.ASSOCIATED(helium))
     CPASSERT(ASSOCIATED(input))
@@ -708,7 +707,6 @@ MODULE helium_methods
 
     LOGICAL                                  :: failure
 
-    failure=.FALSE.
     CPASSERT(ASSOCIATED(helium))
     CPASSERT(helium%ref_count>0)
     helium%ref_count=helium%ref_count+1
@@ -744,7 +742,6 @@ MODULE helium_methods
 
     CALL timeset(routineN,handle)
 
-    failure = .FALSE.
     CPASSERT(ASSOCIATED(helium))
     CPASSERT(ASSOCIATED(helium%input))
 
@@ -879,7 +876,6 @@ MODULE helium_methods
     LOGICAL                                  :: failure
     REAL(kind=dp)                            :: r1, r2
 
-    failure=.FALSE.
     CPASSERT(ASSOCIATED(helium))
 
     DO ia = 1, helium%atoms
@@ -925,7 +921,6 @@ MODULE helium_methods
       POINTER                                :: f
     TYPE(cp_logger_type), POINTER            :: logger
 
-    failure=.FALSE.
     CPASSERT(ASSOCIATED(helium))
 
     NULLIFY(logger)
@@ -1002,7 +997,6 @@ MODULE helium_methods
 
     LOGICAL                                  :: failure
 
-    failure=.FALSE.
     CPASSERT(ASSOCIATED(helium))
 
     IF ( helium%solute_present ) THEN
@@ -1036,7 +1030,6 @@ MODULE helium_methods
     REAL(kind=dp), DIMENSION(:), POINTER     :: message
     REAL(kind=dp), DIMENSION(:, :), POINTER  :: f
 
-    failure=.FALSE.
     CPASSERT(ASSOCIATED(helium))
 
     ! assign the pointer to the memory location of the input structure, where
@@ -1099,7 +1092,6 @@ MODULE helium_methods
     INTEGER                                  :: ia
     LOGICAL                                  :: failure
 
-    failure=.FALSE.
     CPASSERT(ASSOCIATED(helium))
 
     DO ia = 1, helium%atoms
@@ -1135,7 +1127,6 @@ MODULE helium_methods
     LOGICAL                                  :: failure
     TYPE(cp_logger_type), POINTER            :: logger
 
-    failure=.FALSE.
     CPASSERT(ASSOCIATED(helium))
 
     NULLIFY(logger)
@@ -1229,7 +1220,6 @@ MODULE helium_methods
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(rng_stream_type), POINTER           :: next_rngs, prev_rngs
 
-    failure=.FALSE.
     CPASSERT(ASSOCIATED(helium))
 
     NULLIFY(logger)
@@ -1324,7 +1314,6 @@ MODULE helium_methods
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(rng_stream_type), POINTER           :: next_rngs, prev_rngs
 
-    failure=.FALSE.
     CPASSERT(ASSOCIATED(helium))
 
     NULLIFY(logger)

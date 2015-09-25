@@ -521,7 +521,6 @@ CONTAINS
     REAL(kind=dp), DIMENSION(45, 45)         :: Coul, CoulE
     TYPE(se_int_control_type)                :: se_int_control_off
 
-    failure = .FALSE.
 
     rij=DOT_PRODUCT(rijv,rijv)
 

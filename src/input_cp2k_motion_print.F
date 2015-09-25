@@ -257,7 +257,6 @@ CONTAINS
 
     LOGICAL                                  :: failure
 
-    failure = .FALSE.
     CPASSERT(ASSOCIATED(section))
     CPASSERT(.NOT.ASSOCIATED(keyword))
 

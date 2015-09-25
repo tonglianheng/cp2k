@@ -158,7 +158,6 @@ CONTAINS
 
     LOGICAL                                  :: failure
 
-    failure=.FALSE.
 
     CPASSERT(.NOT.ASSOCIATED(kpoint))
 
@@ -210,7 +209,6 @@ CONTAINS
     INTEGER                                  :: ik
     LOGICAL                                  :: failure
 
-    failure=.FALSE.
 
     IF(ASSOCIATED(kpoint)) THEN
 
@@ -330,7 +328,6 @@ CONTAINS
 
     LOGICAL                                  :: failure
 
-    failure=.FALSE.
 
     CPASSERT(ASSOCIATED(kpoint))
 
@@ -451,7 +448,6 @@ CONTAINS
 
     LOGICAL                                  :: failure
 
-    failure=.FALSE.
 
     CPASSERT(ASSOCIATED(kpoint))
  
@@ -512,7 +508,6 @@ CONTAINS
     LOGICAL                                  :: available, failure
     REAL(KIND=dp), DIMENSION(:), POINTER     :: reallist
 
-    failure = .FALSE.
     CPASSERT(ASSOCIATED(kpoint))
 
     CALL section_vals_get(kpoint_section,explicit=available)
@@ -598,10 +593,8 @@ CONTAINS
     LOGICAL                                  :: failure
     TYPE(cp_logger_type), POINTER            :: logger
 
-    failure = .FALSE.
     CPASSERT(ASSOCIATED(kpoint))
 
-    failure = .FALSE.
     NULLIFY(logger)
     logger => cp_get_default_logger()
 
@@ -674,7 +667,6 @@ CONTAINS
 
     LOGICAL                                  :: failure
 
-    failure=.FALSE.
 
     CPASSERT(.NOT.ASSOCIATED(kp_env))
 
@@ -705,7 +697,6 @@ CONTAINS
     INTEGER                                  :: ic, is
     LOGICAL                                  :: failure
 
-    failure=.FALSE.
 
     IF(ASSOCIATED(kp_env)) THEN
 
@@ -766,7 +757,6 @@ CONTAINS
 
     LOGICAL                                  :: failure
 
-    failure=.FALSE.
 
     CPASSERT(ASSOCIATED(kpoint_env))
 

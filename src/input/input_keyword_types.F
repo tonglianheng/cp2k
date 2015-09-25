@@ -198,7 +198,6 @@ CONTAINS
     INTEGER                                  :: i, n
     LOGICAL                                  :: check, failure
 
-    failure=.FALSE.
 
     CPASSERT(.NOT.ASSOCIATED(keyword))
     ALLOCATE(keyword)
@@ -424,7 +423,6 @@ CONTAINS
 
     LOGICAL                                  :: failure
 
-    failure=.FALSE.
     CPASSERT(ASSOCIATED(keyword))
     CPASSERT(keyword%ref_count>0)
     keyword%ref_count=keyword%ref_count+1
@@ -443,7 +441,6 @@ CONTAINS
 
     LOGICAL                                  :: failure
 
-    failure=.FALSE.
     IF (ASSOCIATED(keyword)) THEN
        CPASSERT(keyword%ref_count>0)
        keyword%ref_count=keyword%ref_count-1
@@ -497,7 +494,6 @@ CONTAINS
 
     LOGICAL                                  :: failure
 
-    failure=.FALSE.
 
     CPASSERT(ASSOCIATED(keyword))
     CPASSERT(keyword%ref_count>0)
@@ -533,7 +529,6 @@ CONTAINS
     INTEGER                                  :: i, l
     LOGICAL                                  :: failure
 
-    failure=.FALSE.
 
     CPASSERT(ASSOCIATED(keyword))
     CPASSERT(keyword%ref_count>0)
@@ -672,7 +667,6 @@ CONTAINS
     INTEGER                                  :: i, iref
     LOGICAL                                  :: any_description, failure
 
-    failure=.FALSE.
 
     CPASSERT(ASSOCIATED(keyword))
     CPASSERT(keyword%ref_count>0)
@@ -829,7 +823,6 @@ CONTAINS
     INTEGER                                  :: i, l0, l1, l2, l3, l4
     LOGICAL                                  :: failure
 
-    failure = .FALSE.
     CPASSERT(ASSOCIATED(keyword))
     CPASSERT(keyword%ref_count>0)
 
@@ -1012,7 +1005,6 @@ CONTAINS
     INTEGER                                  :: i, imatch, imax, irank, j, k
     LOGICAL                                  :: failure
 
-    failure = .FALSE.
     CPASSERT(ASSOCIATED(keyword))
     CPASSERT(keyword%ref_count>0)
 

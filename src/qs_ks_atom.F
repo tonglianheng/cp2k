@@ -141,7 +141,6 @@ CONTAINS
     TYPE(rho_atom_type), POINTER             :: rho_at
     TYPE(virial_type), POINTER               :: virial
 
-    failure = .FALSE.
 
     CALL timeset(routineN,handle)
 

@@ -232,7 +232,6 @@ CONTAINS
     INTEGER                                  :: ig, ncol
     LOGICAL                                  :: failure
 
-    failure=.FALSE.
     CALL section_vals_get(colvar_section,n_repetition=ncol)
     ALLOCATE(subsys%colvar_p(ncol))
     DO ig= 1, ncol
@@ -296,7 +295,6 @@ CONTAINS
       POINTER                                :: particle_set
     TYPE(topology_parameters_type)           :: topology
 
-    failure=.FALSE.
     NULLIFY(mol_kinds,mols,particles,atomic_kinds, atomic_kind_set, particle_set, &
          molecule_kind_set,molecule_set,particles,atomic_kinds)
 

@@ -224,7 +224,6 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-    failure = .FALSE.
     CPASSERT(ASSOCIATED(pw_grid))
 
     IF (PRESENT(border_points)) THEN
@@ -622,7 +621,6 @@ CONTAINS
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: pp( 3 )
 
-    failure = .FALSE.
 
     IF ( rs % desc % parallel ) THEN
        IF ( iounit>0) THEN
@@ -711,7 +709,6 @@ CONTAINS
                                                 jm, k, km
     LOGICAL                                  :: failure
 
-    failure = .FALSE.
     CALL timeset(routineN,handle2)
     IF (dir.EQ.rs2pw) dirname="RS2PW"
     IF (dir.EQ.pw2rs) dirname="PW2RS"
@@ -875,7 +872,6 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:, :, :), &
       POINTER                                :: grid
 
-    failure = .FALSE.
     np = pw % pw_grid % para % group_size
     bo => pw % pw_grid % para % bo (1:2,1:3,0:np-1,1)
     pbo => pw % pw_grid % bounds
@@ -2075,7 +2071,6 @@ SUBROUTINE rs_grid_mult_and_add ( rs1 ,rs2, rs3, scalar )
 
     LOGICAL                                  :: failure
 
-    failure=.FALSE.
 
     CPASSERT(ASSOCIATED(rs_grid))
     CPASSERT(rs_grid%ref_count>0)
@@ -2097,7 +2092,6 @@ SUBROUTINE rs_grid_mult_and_add ( rs1 ,rs2, rs3, scalar )
 
     LOGICAL                                  :: failure
 
-    failure=.FALSE.
 
     CPASSERT(ASSOCIATED(rs_desc))
     CPASSERT(rs_desc%ref_count>0)
@@ -2119,7 +2113,6 @@ SUBROUTINE rs_grid_mult_and_add ( rs1 ,rs2, rs3, scalar )
 
     LOGICAL                                  :: failure
 
-    failure=.FALSE.
 
     IF (ASSOCIATED(rs_grid)) THEN
        CPASSERT(rs_grid%ref_count>0)
@@ -2153,7 +2146,6 @@ SUBROUTINE rs_grid_mult_and_add ( rs1 ,rs2, rs3, scalar )
 
     LOGICAL                                  :: failure
 
-    failure=.FALSE.
 
     IF (ASSOCIATED(rs_desc)) THEN
        CPASSERT(rs_desc%ref_count>0)

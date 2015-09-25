@@ -92,7 +92,6 @@ CONTAINS
     TYPE(section_vals_type), POINTER         :: coord_section
     TYPE(val_type), POINTER                  :: val
 
-    failure=.FALSE.
     my_overwrite = .FALSE.
     my_save_mem = .FALSE.
     error_message = ""
@@ -310,7 +309,6 @@ CPSourceFileRef,&
     TYPE(shell_kind_type), POINTER           :: shell
     TYPE(val_type), POINTER                  :: val
 
-    failure=.FALSE.
     my_save_mem = .FALSE.
     NULLIFY(logger, atomic_kind, list, shell_coord_section, shell, val)
     logger => cp_get_default_logger()

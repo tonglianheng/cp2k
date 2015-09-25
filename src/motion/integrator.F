@@ -170,7 +170,6 @@ CONTAINS
     TYPE(thermal_regions_type), POINTER      :: thermal_regions
     TYPE(virial_type), POINTER               :: virial
 
-    failure = .FALSE.
 
     NULLIFY(cell, para_env, gci, force_env)
     NULLIFY(atomic_kinds, local_particles,subsys,local_molecules,molecule_kinds,molecules)
@@ -640,7 +639,6 @@ CONTAINS
     TYPE(simpar_type), POINTER               :: simpar
     TYPE(tmp_variables_type), POINTER        :: tmp
 
-    failure = .FALSE.
 
     NULLIFY(force_env, tmp, simpar, itimes)
     NULLIFY(atomic_kinds,para_env,subsys,local_particles)
@@ -786,7 +784,6 @@ CONTAINS
     TYPE(tmp_variables_type), POINTER        :: tmp
     TYPE(virial_type), POINTER               :: virial
 
-    failure = .FALSE.
 
 
     NULLIFY(gci, force_env, thermostat_coeff, tmp, &
@@ -1012,7 +1009,6 @@ CONTAINS
     TYPE(tmp_variables_type), POINTER        :: tmp
     TYPE(virial_type), POINTER               :: virial
 
-    failure = .FALSE.
 
     NULLIFY(gci, force_env, thermostat_coeff, tmp, &
          thermostat_part, thermostat_shell, cell, shell_particles, &
@@ -1279,7 +1275,6 @@ CONTAINS
     TYPE(tmp_variables_type), POINTER        :: tmp
     TYPE(virial_type), POINTER               :: virial
 
-    failure = .FALSE.
 
     NULLIFY(gci,thermostat_baro,thermostat_part,thermostat_shell,force_env)
     NULLIFY(atomic_kinds,cell,para_env,subsys,local_molecules,local_particles)
@@ -1594,7 +1589,6 @@ CONTAINS
     TYPE(reftraj_type), POINTER              :: reftraj_env
     TYPE(simpar_type), POINTER               :: simpar
 
-    failure = .FALSE.
     NULLIFY(reftraj_env, particle_set, particles, force_env, subsys, simpar, para_env, cell, itimes, time)
     CALL get_md_env(md_env=md_env, init=init, reftraj=reftraj_env, force_env=force_env,&
          para_env=para_env, simpar=simpar)
@@ -1765,7 +1759,6 @@ CPSourceFileRef,&
     TYPE(tmp_variables_type), POINTER        :: tmp
     TYPE(virial_type), POINTER               :: virial
 
-    failure = .FALSE.
 
     NULLIFY(gci, force_env)
     NULLIFY(atomic_kinds,cell,para_env,subsys,local_molecules,local_particles)
@@ -2022,7 +2015,6 @@ CPSourceFileRef,&
     TYPE(tmp_variables_type), POINTER        :: tmp
     TYPE(virial_type), POINTER               :: virial
 
-    failure = .FALSE.
 
     NULLIFY(gci, force_env)
     NULLIFY(atomic_kinds,cell,para_env,subsys,local_molecules,local_particles)
@@ -2296,7 +2288,6 @@ CPSourceFileRef,&
     TYPE(tmp_variables_type), POINTER        :: tmp
     TYPE(virial_type), POINTER               :: virial
 
-    failure = .FALSE.
     NULLIFY(gci,thermostat_baro,thermostat_part,thermostat_shell,force_env)
     NULLIFY(atomic_kinds,cell,para_env,subsys,local_molecules,local_particles)
     NULLIFY(molecule_kinds,molecules,molecule_kind_set,npt,barostat)
@@ -2597,7 +2588,6 @@ CPSourceFileRef,&
                                                 particle_set_respa
     TYPE(simpar_type), POINTER               :: simpar
 
-    failure = .FALSE.
 
     NULLIFY (para_env,cell,subsys_respa,particles_respa, particle_set_respa, gci, force_env, atomic_kinds)
     NULLIFY (atomic_kind_set,simpar,subsys,particles,particle_set)

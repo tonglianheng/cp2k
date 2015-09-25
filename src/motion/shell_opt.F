@@ -88,7 +88,6 @@ CONTAINS
     TYPE(section_vals_type), POINTER         :: force_env_section, &
                                                 geo_section, root_section
 
-    failure = .FALSE.
     NULLIFY(logger)
     logger => cp_get_default_logger()
 

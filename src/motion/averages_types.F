@@ -87,7 +87,6 @@ CONTAINS
     INTEGER                                  :: i, nint
     LOGICAL                                  :: do_colvars, failure
 
-    failure = .FALSE.
     ALLOCATE (averages)
     NULLIFY(averages%virial)
     NULLIFY(averages%avecolvar)
@@ -153,7 +152,6 @@ CONTAINS
 
     LOGICAL                                  :: failure
 
-    failure=.FALSE.
 
     CPASSERT(ASSOCIATED(averages))
     CPASSERT(averages%ref_count>0)
@@ -174,7 +172,6 @@ CONTAINS
     LOGICAL                                  :: failure
     TYPE(section_vals_type), POINTER         :: work_section
 
-    failure=.FALSE.
     IF (ASSOCIATED(averages)) THEN
        CPASSERT(averages%ref_count>0)
        averages%ref_count=averages%ref_count-1
@@ -246,7 +243,6 @@ CONTAINS
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(section_vals_type), POINTER         :: restart_section
 
-    failure = .FALSE.
     CALL timeset(routineN,handle)
     CALL section_vals_val_get(averages%averages_section,"ACQUISITION_START_TIME",&
          r_val=start_time)
@@ -463,7 +459,6 @@ CONTAINS
 
     LOGICAL                                  :: failure
 
-    failure = .FALSE.
     avg = (avg*REAL(delta_t-1,dp) + add)/REAL(delta_t,dp)
   END SUBROUTINE get_averages_rs
 
@@ -486,7 +481,6 @@ CONTAINS
     INTEGER                                  :: i
     LOGICAL                                  :: check, failure
 
-    failure = .FALSE.
     check = SIZE(avg)==SIZE(add)
     CPASSERT(check)
     DO i = 1, SIZE(avg)
@@ -514,7 +508,6 @@ CONTAINS
     INTEGER                                  :: i, j
     LOGICAL                                  :: check, failure
 
-    failure = .FALSE.
     check = SIZE(avg,1)==SIZE(add,1)
     CPASSERT(check)
     check = SIZE(avg,2)==SIZE(add,2)

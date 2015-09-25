@@ -55,7 +55,6 @@ CONTAINS
     REAL(KIND=dp)                            :: alpha
     TYPE(qmmm_imomm_link_type), POINTER      :: my_link
 
-    failure = .FALSE.
     n_imomm = SIZE(qmmm_links%imomm)
     CPASSERT(n_imomm /= 0)
     DO ilink = 1, n_imomm
@@ -110,7 +109,6 @@ CPSourceFileRef,&
     REAL(KIND=dp)                            :: alpha
     TYPE(qmmm_imomm_link_type), POINTER      :: my_link
 
-    failure = .FALSE.
     n_imomm = SIZE(qmmm_links%imomm)
     CPASSERT(n_imomm /= 0)
     DO ilink = 1, n_imomm
@@ -163,7 +161,6 @@ CPSourceFileRef,&
     REAL(KIND=dp)                            :: alpha
     TYPE(add_set_type), POINTER              :: added_charges
 
-    failure = .FALSE.
     added_charges => qmmm_env%added_charges
 
     DO i = 1, added_charges%num_mm_atoms
@@ -196,7 +193,6 @@ CPSourceFileRef,&
     REAL(KIND=dp)                            :: alpha
     TYPE(add_set_type), POINTER              :: added_charges
 
-    failure = .FALSE.
     added_charges => qmmm_env%added_charges
 
     DO i = 1, added_charges%num_mm_atoms

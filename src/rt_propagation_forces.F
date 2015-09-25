@@ -122,7 +122,6 @@ MODULE  rt_propagation_forces
       POINTER                                :: force
     TYPE(rt_prop_type), POINTER              :: rtp
 
-    failure=.FALSE.
 
     CALL timeset(routineN,handle)
 
@@ -245,7 +244,6 @@ MODULE  rt_propagation_forces
     TYPE(rtp_control_type), POINTER          :: rtp_control
 
     CALL timeset(routineN,handle)
-    failure=.FALSE.
     NULLIFY(rtp,particle_set,atomic_kind_set,dft_control)
 
     CALL get_qs_env(qs_env,&
@@ -472,7 +470,6 @@ MODULE  rt_propagation_forces
     TYPE(qs_ks_env_type), POINTER            :: ks_env
 
     NULLIFY(sab_aux_fit_asymm, sab_aux_fit_vs_orb, ks_env)
-    failure = .FALSE.
 !   CALL cp_fm_create(tmp_aux_aux,admm_env%fm_struct_tmp,name="fm matrix")
 
     CALL get_qs_env(qs_env,&

@@ -53,7 +53,6 @@
     REAL(KIND=dp), DIMENSION(13, 2*k)        :: fit_coef
 
      CALL timeset(routineN,handle)
-     failure=.FALSE.
      Rc = E_range
      fit_coef = 0.0_dp
      ierr = 0

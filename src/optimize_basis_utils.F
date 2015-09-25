@@ -654,7 +654,6 @@ CONTAINS
     LOGICAL                                  :: explicit, failure
     TYPE(section_vals_type), POINTER         :: set_section
 
-      failure=.FALSE.
       CALL section_vals_get(kind_section,n_repetition=opt_bas%nkind)
       ALLOCATE(opt_bas%kind_basis(opt_bas%nkind))
 

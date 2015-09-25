@@ -56,7 +56,6 @@ CONTAINS
 
     LOGICAL                                  :: failure
 
-    failure = .FALSE.
     CPASSERT(.NOT.ASSOCIATED(expns3))
     ALLOCATE (expns3)
     expns3%core_core = 0.0_dp
@@ -80,7 +79,6 @@ CONTAINS
 
     LOGICAL                                  :: failure
 
-    failure = .FALSE.
     IF (ASSOCIATED(expns3)) THEN
        DEALLOCATE (expns3)
     END IF

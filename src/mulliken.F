@@ -413,7 +413,6 @@ END SUBROUTINE rf_deriv_check
 
     CALL timeset(routineN,handle)
 
-    failure = .FALSE.
     CPASSERT(ASSOCIATED(p_matrix))
     CPASSERT(ASSOCIATED(s_matrix))
     ! here we get the numbers for charges
@@ -528,7 +527,6 @@ END SUBROUTINE rf_deriv_check
 
     CALL timeset(routineN,handle)
 
-    failure = .FALSE.
     CPASSERT(ASSOCIATED(p_matrix_kp))
     CPASSERT(ASSOCIATED(s_matrix_kp))
 
@@ -580,7 +578,6 @@ END SUBROUTINE rf_deriv_check
 
     CALL timeset(routineN,handle)
 
-    failure = .FALSE.
     IF(ASSOCIATED(p_matrix_kp) .AND. ASSOCIATED(s_matrix_kp)) THEN
 
        mcharge = 0.0_dp
@@ -633,7 +630,6 @@ END SUBROUTINE rf_deriv_check
 
     CALL timeset(routineN,handle)
 
-    failure = .FALSE.
     IF(ASSOCIATED(p_matrix_kp) .AND. ASSOCIATED(s_matrix_kp)) THEN
 
        mcharge = 0.0_dp

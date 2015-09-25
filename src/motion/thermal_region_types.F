@@ -56,7 +56,6 @@ CONTAINS
 
     LOGICAL                                  :: check, failure
 
-    failure = .FALSE.
     check = .NOT.ASSOCIATED(thermal_regions)
     CPASSERT(check)
 
@@ -81,7 +80,6 @@ CONTAINS
 
     LOGICAL                                  :: failure
 
-    failure=.FALSE.
     IF (ASSOCIATED(thermal_regions)) THEN
        CPASSERT(thermal_regions%ref_count>0)
        thermal_regions%ref_count=thermal_regions%ref_count+1
@@ -104,7 +102,6 @@ CONTAINS
     INTEGER                                  :: ireg
     LOGICAL                                  :: check, failure
 
-    failure =.FALSE.
     check = ASSOCIATED(thermal_regions)
     IF (check) THEN
        check = thermal_regions%ref_count>0

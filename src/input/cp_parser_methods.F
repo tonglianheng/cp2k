@@ -76,7 +76,6 @@ CONTAINS
 
     LOGICAL                                  :: failure
 
-    failure = .FALSE.
     CPASSERT(ASSOCIATED(parser))
     CPASSERT(parser%ref_count>0)
     res = ", File: '"//TRIM(parser%input_file_name)//"', Line: "//&
@@ -106,7 +105,6 @@ CONTAINS
 
     LOGICAL                                  :: failure
 
-    failure = .FALSE.
     CPASSERT(ASSOCIATED(parser))
     CPASSERT(parser%ref_count>0)
     CPASSERT(ASSOCIATED(parser%status))
@@ -136,7 +134,6 @@ CONTAINS
 
     LOGICAL                                  :: failure
 
-    failure = .FALSE.
     CPASSERT(ASSOCIATED(parser))
     CPASSERT(parser%ref_count>0)
 
@@ -181,7 +178,6 @@ CONTAINS
 
     CALL timeset(routineN, handle)
 
-    failure = .FALSE.
     CPASSERT(ASSOCIATED(parser))
     CPASSERT(parser%ref_count>0)
     IF (PRESENT(at_end)) at_end = .FALSE.
@@ -275,7 +271,6 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-    failure=.FALSE.
     CPASSERT(ASSOCIATED(parser))
     CPASSERT(parser%ref_count>0)
     parser%buffer%input_lines = ""
@@ -380,7 +375,6 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-    failure=.FALSE.
     CPASSERT(ASSOCIATED(parser))
     CPASSERT(parser%ref_count>0)
     para_env => parser%para_env
@@ -507,7 +501,6 @@ CONTAINS
     INTEGER                                  :: i
     LOGICAL                                  :: failure
 
-    failure = .FALSE.
     CPASSERT(ASSOCIATED(parser))
     CPASSERT(parser%ref_count>0)
     ! Variable input string length (automatic search)
@@ -587,7 +580,6 @@ CONTAINS
                                                 len_trim_inputline, length
     LOGICAL                                  :: failure
 
-    failure=.FALSE.
     CPASSERT(ASSOCIATED(parser))
     CPASSERT(parser%ref_count>0)
     IF (PRESENT(string_length)) THEN
@@ -749,7 +741,6 @@ CONTAINS
     LOGICAL                                  :: failure, ilist_in_use
     REAL(KIND=dp)                            :: fz
 
-    failure = .FALSE.
     test_result = ""
     CPASSERT(ASSOCIATED(parser))
     CPASSERT(parser%ref_count>0)
@@ -854,7 +845,6 @@ CONTAINS
                                                 failure
 
     found   = .FALSE.
-    failure = .FALSE.
     begin   = .FALSE.
     do_reset= .FALSE.
     IF (PRESENT(begin_line)) begin=begin_line
@@ -1023,7 +1013,6 @@ CONTAINS
     INTEGER                                  :: nline
     LOGICAL                                  :: failure, my_at_end
 
-    failure = .FALSE.
     CPASSERT(ASSOCIATED(parser))
     CPASSERT(parser%ref_count>0)
     IF (PRESENT(skip_lines)) THEN
@@ -1115,7 +1104,6 @@ CONTAINS
     INTEGER                                  :: input_string_length, nline
     LOGICAL                                  :: failure, my_at_end
 
-    failure=.FALSE.
     CPASSERT(ASSOCIATED(parser))
     CPASSERT(parser%ref_count>0)
     CPASSERT(.NOT.parser%ilist%in_use)
@@ -1197,7 +1185,6 @@ CONTAINS
     INTEGER                                  :: nline
     LOGICAL                                  :: failure, my_at_end
 
-    failure=.FALSE.
     CPASSERT(ASSOCIATED(parser))
     CPASSERT(parser%ref_count>0)
     CPASSERT(.NOT.parser%ilist%in_use)
@@ -1273,7 +1260,6 @@ CONTAINS
     LOGICAL                                  :: failure, my_at_end
 
     object = ""
-    failure=.FALSE.
     CPASSERT(ASSOCIATED(parser))
     CPASSERT(parser%ref_count>0)
     CPASSERT(.NOT.parser%ilist%in_use)

@@ -162,7 +162,6 @@ MODULE hartree_local_types
 
     LOGICAL                                  :: failure
 
-    failure=.FALSE.
 
     ALLOCATE(hartree_local)
 

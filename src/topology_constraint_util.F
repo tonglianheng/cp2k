@@ -149,7 +149,6 @@ CONTAINS
     TYPE(vsite_constraint_type), &
       DIMENSION(:), POINTER                  :: vsite_list
 
-    failure = .FALSE.
     NULLIFY(logger, constr_x_mol, constr_x_glob)
     logger => cp_get_default_logger()
     iw = cp_print_key_unit_nr(logger,subsys_section,"PRINT%TOPOLOGY_INFO/UTIL_INFO",&
@@ -928,7 +927,6 @@ CONTAINS
     REAL(KIND=dp)                            :: rmod
     TYPE(colvar_type), POINTER               :: local_colvar
 
-    failure = .FALSE.
     ncolv_mol = 0
     DO kk = 1, SIZE(ilist)
        j = ilist(kk)
@@ -999,7 +997,6 @@ CONTAINS
     INTEGER                                  :: j, ng3x3
     LOGICAL                                  :: failure
 
-    failure = .FALSE.
     ng3x3_restraint = 0
     DO ng3x3 = 1, SIZE(ilist)
        j = ilist(ng3x3)
@@ -1040,7 +1037,6 @@ CONTAINS
     INTEGER                                  :: j, ng4x6
     LOGICAL                                  :: failure
 
-    failure = .FALSE.
     ng4x6 = 0
     ng4x6_restraint = 0
     DO ng4x6 = 1, SIZE(ilist)
@@ -1085,7 +1081,6 @@ CONTAINS
     INTEGER                                  :: j, nvsite
     LOGICAL                                  :: failure
 
-    failure = .FALSE.
     nvsite = 0
     nvsite_restraint = 0
     DO nvsite = 1, SIZE(ilist)
@@ -1139,7 +1134,6 @@ CONTAINS
     LOGICAL                                  :: failure
     REAL(KIND=dp), DIMENSION(:), POINTER     :: r_vals
 
-    failure = .FALSE.
     DO kk=1,SIZE(ilist)
        k = ilist(kk)
        lcolv(kk)%init      = .FALSE.
@@ -1233,7 +1227,6 @@ CONTAINS
     INTEGER                                  :: kk
     LOGICAL                                  :: failure
 
-    failure = .FALSE.
     DO kk = 1, SIZE(lg3x3)
        lg3x3(kk)%init      = .FALSE.
        lg3x3(kk)%scale     = 0.0_dp
@@ -1290,7 +1283,6 @@ CONTAINS
     INTEGER                                  :: kk
     LOGICAL                                  :: failure
 
-    failure = .FALSE.
     DO kk = 1, SIZE(lg4x6)
        lg4x6(kk)%init      = .FALSE.
        lg4x6(kk)%scale     = 0.0_dp
@@ -1371,7 +1363,6 @@ CONTAINS
     LOGICAL                                  :: failure, found_molname, is_qm
     TYPE(molecule_kind_type), POINTER        :: molecule_kind
 
-    failure = .FALSE.
     CALL timeset(routineN,handle)
     NULLIFY(molecule_kind)
     ALLOCATE(constr_x_mol(SIZE(molecule_kind_set)))
@@ -1439,7 +1430,6 @@ CPSourceFileRef,&
 
     LOGICAL                                  :: failure
 
-    failure = .FALSE.
     CALL cp_assert(found,cp_warning_level,cp_assertion_failed,routineP,&
          " MOLNAME ("//TRIM(name)//") was defined for constraints, but this molecule name "//&
          "is not defined. Please check carefully your PDB, PSF (has priority over PDB) or "//&

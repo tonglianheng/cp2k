@@ -164,7 +164,6 @@ CONTAINS
     NULLIFY(f_env)
 
     CALL timeset(routineN,handle)
-    failure=.FALSE.
 
     ! ======  initialize the f_env and precompute some matrices ===== 
     mp_id=opt_bas%opt_id

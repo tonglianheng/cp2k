@@ -100,7 +100,6 @@ CONTAINS
     TYPE(virial_type), POINTER               :: virial, virial_analytical, &
                                                 virial_numerical
 
-    failure = .FALSE.
 
     NULLIFY (analyt_forces, numer_forces, subsys, particles)
     

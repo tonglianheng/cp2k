@@ -48,7 +48,6 @@ CONTAINS
 
     LOGICAL                                  :: failure
 
-    failure=.FALSE.
 
     CPASSERT(ASSOCIATED(qmmmx_env))
     CPASSERT(qmmmx_env%ref_count>0)
@@ -76,7 +75,6 @@ CONTAINS
 
     LOGICAL                                  :: failure
 
-    failure=.FALSE.
 
     CPASSERT(ASSOCIATED(qmmmx_env))
     CPASSERT(qmmmx_env%ref_count>0)
@@ -97,7 +95,6 @@ CONTAINS
 
     LOGICAL                                  :: failure
 
-    failure=.FALSE.
 
     IF (ASSOCIATED(qmmmx_env)) THEN
        CPASSERT(qmmmx_env%ref_count>0)

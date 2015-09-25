@@ -69,7 +69,6 @@ CONTAINS
     LOGICAL                                  :: explicit1, explicit2, failure
     REAL(KIND=dp)                            :: rc
 
-    failure = .FALSE.
     ! Coulomb Cutoff Taper
     CALL section_vals_val_get(se_section,"COULOMB%CUTOFF",explicit=explicit1)
     CALL section_vals_val_get(se_section,"COULOMB%RC_TAPER",explicit=explicit2)
@@ -177,7 +176,6 @@ CONTAINS
     LOGICAL                                  :: check, failure, l_coulomb, &
                                                 l_exchange, l_lrc
 
-    failure = .FALSE.
     check = .NOT.ASSOCIATED(se_taper%taper)
     CPASSERT(check)
     l_coulomb  = .FALSE.
@@ -216,7 +214,6 @@ CONTAINS
 
     LOGICAL                                  :: check, failure
 
-    failure = .FALSE.
     check = ASSOCIATED(se_taper%taper)
     CPASSERT(check)
     NULLIFY(se_taper%taper)
@@ -242,7 +239,6 @@ CONTAINS
     LOGICAL                                  :: failure
     REAL(KIND=dp), DIMENSION(:), POINTER     :: zet
 
-    failure = .FALSE.
     IF (ASSOCIATED(sep)) THEN
        CALL allocate_sto_basis_set (sep%basis)
        nshell = 0
@@ -300,7 +296,6 @@ CONTAINS
 
     LOGICAL                                  :: failure
 
-    failure = .FALSE.
     IF (ASSOCIATED(sep)) THEN
        IF (z<0) THEN
           CALL stop_program(routineN,moduleN,__LINE__,&

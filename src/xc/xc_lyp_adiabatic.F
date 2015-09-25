@@ -144,7 +144,6 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-    failure=.FALSE.
     NULLIFY(bo)
 
     CALL section_vals_val_get(lyp_adiabatic_params,"LAMBDA",r_val=lambda)
@@ -372,7 +371,6 @@ CONTAINS
     TYPE(xc_derivative_type), POINTER        :: deriv
 
     CALL timeset(routineN,handle)
-    failure=.FALSE.
     NULLIFY(deriv, bo)
 
     CALL section_vals_val_get(lyp_adiabatic_params,"LAMBDA",r_val=lambda)

@@ -82,7 +82,6 @@ MODULE rpa_communication
     LOGICAL                                  :: failure
 
     CALL timeset(routineN,handle)
-    failure=.FALSE.
 
     ! create the RPA proc_map
     IF(.NOT.(ALLOCATED(RPA_proc_map))) THEN
@@ -343,7 +342,6 @@ MODULE rpa_communication
     LOGICAL                                  :: failure
 
     CALL timeset(routineN,handle)
-    failure=.FALSE.
 
     ! get info for the source
     CALL cp_fm_get_info(matrix=fm_mat_source,&
@@ -529,7 +527,6 @@ MODULE rpa_communication
     LOGICAL                                  :: failure
 
     CALL timeset(routineN,handle)
-    failure=.FALSE.
 
     IF(ALLOCATED(RPA_proc_map))   DEALLOCATE(RPA_proc_map)
     IF(ALLOCATED(map_send_size))  DEALLOCATE(map_send_size)

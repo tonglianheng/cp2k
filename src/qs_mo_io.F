@@ -132,7 +132,6 @@ CONTAINS
     TYPE(cp_logger_type), POINTER            :: logger
 
     CALL timeset(routineN,handle)
-    failure = .FALSE.
     logger => cp_get_default_logger()
 
     IF (BTEST(cp_print_key_should_output(logger%iter_info,&
@@ -204,7 +203,6 @@ CONTAINS
     TYPE(mo_set_type), POINTER               :: mo_set, mop
 
     CALL timeset(routineN,handle)
-    failure = .FALSE.
 
     ! first we dump the kpoint info
     IF (ires > 0) THEN
@@ -332,7 +330,6 @@ CONTAINS
     TYPE(cp_logger_type), POINTER            :: logger
 
     CALL timeset(routineN,handle)
-    failure = .FALSE.
     logger => cp_get_default_logger()
 
     IF (BTEST(cp_print_key_should_output(logger%iter_info,&
@@ -634,7 +631,6 @@ CPSourceFileRef,&
 
     CALL timeset(routineN,handle)
     logger => cp_get_default_logger()
-    failure = .FALSE.
 
     nspin = SIZE(mo_array)
     restart_unit = -1
@@ -729,7 +725,6 @@ CPSourceFileRef,&
 
     CALL timeset(routineN,handle)
     logger => cp_get_default_logger()
-    failure = .FALSE.
 
     nspin = SIZE(mo_array)
     restart_unit = -1
@@ -791,7 +786,6 @@ CPSourceFileRef,&
     TYPE(mo_set_type), POINTER               :: mo_set, mop
 
     CALL timeset(routineN,handle)
-    failure = .FALSE.
 
     ! first we read the kpoint info
     IF (ires > 0) THEN
@@ -1316,7 +1310,6 @@ CPSourceFileRef,&
 
     logger => cp_get_default_logger()
     ionode = logger%para_env%mepos==logger%para_env%source
-    failure = .FALSE.
     CALL section_vals_val_get(dft_section,"PRINT%MO%EIGENVALUES",l_val=p_eval)
     CALL section_vals_val_get(dft_section,"PRINT%MO%EIGENVECTORS",l_val=p_evec)
     CALL section_vals_val_get(dft_section,"PRINT%MO%OCCUPATION_NUMBERS",l_val=p_occ)

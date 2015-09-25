@@ -93,7 +93,6 @@ SUBROUTINE mpools_retain(mpools)
 
     LOGICAL                                  :: failure
 
-  failure=.FALSE.
 
   CPASSERT(ASSOCIATED(mpools))
   CPASSERT(mpools%ref_count>0)
@@ -115,7 +114,6 @@ SUBROUTINE mpools_release(mpools)
 
     LOGICAL                                  :: failure
 
-  failure=.FALSE.
 
   IF (ASSOCIATED(mpools)) THEN
      CPASSERT(mpools%ref_count>0)
@@ -162,7 +160,6 @@ SUBROUTINE mpools_set(mpools,ao_mo_fm_pools,ao_ao_fm_pools,&
     TYPE(cp_fm_pool_p_type), DIMENSION(:), &
       POINTER                                :: new_fm_pools
 
-  failure=.FALSE.
   NULLIFY(new_fm_pools )
 
   CPASSERT(ASSOCIATED(mpools))
@@ -237,7 +234,6 @@ SUBROUTINE mpools_get(mpools,ao_mo_fm_pools,ao_ao_fm_pools,&
 
     LOGICAL                                  :: failure
 
-  failure=.FALSE.
 
   IF (PRESENT(ao_mo_fm_pools)) ao_mo_fm_pools => mpools%ao_mo_fm_pools
   IF (PRESENT(maxao_maxmo_fm_pool)) THEN
@@ -282,7 +278,6 @@ SUBROUTINE mpools_create(mpools)
 
     LOGICAL                                  :: failure
 
-  failure=.FALSE.
 
   ALLOCATE(mpools)
   NULLIFY(mpools%ao_ao_fm_pools, mpools%ao_mo_fm_pools, &
@@ -334,7 +329,6 @@ SUBROUTINE mpools_rebuild_fm_pools(mpools, mos, blacs_env, para_env,&
   nrow_block=cp_fm_struct_get_nrow_block()
   ncol_block=cp_fm_struct_get_ncol_block()
 
-  failure=.FALSE.
   NULLIFY(fmstruct, p_att)
   prepare_subset = .FALSE.
   IF(PRESENT(nmosub)) THEN

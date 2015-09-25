@@ -92,7 +92,6 @@ CONTAINS
     TYPE(scptb_parameter_type), POINTER      :: scptb_parameter
     TYPE(sto_basis_set_type), POINTER        :: sto_basis
 
-    failure = .FALSE.
     output_unit = -1
     NULLIFY(logger)
     logger => cp_get_default_logger()
@@ -569,7 +568,6 @@ CONTAINS
     INTEGER                                  :: group, source
     LOGICAL                                  :: failure
 
-    failure = .FALSE.
 
     source = para_env%source
     group = para_env%group
@@ -601,7 +599,6 @@ CONTAINS
     INTEGER                                  :: group, source
     LOGICAL                                  :: failure
 
-    failure = .FALSE.
 
     source = para_env%source
     group = para_env%group

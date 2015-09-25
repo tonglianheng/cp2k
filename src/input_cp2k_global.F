@@ -84,7 +84,6 @@ CONTAINS
     TYPE(keyword_type), POINTER              :: keyword
     TYPE(section_type), POINTER              :: print_key, sub_section
 
-    failure=.FALSE.
     NULLIFY(print_key)
     CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="GLOBAL",&
@@ -506,7 +505,6 @@ CONTAINS
     TYPE(keyword_type), POINTER              :: keyword
     TYPE(section_type), POINTER              :: subsection
 
-    failure=.FALSE.
 
     CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="DBCSR",&

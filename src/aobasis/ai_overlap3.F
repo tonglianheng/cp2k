@@ -1050,7 +1050,6 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-    failure = .FALSE.
     NULLIFY(s, sda, sdc)
 
     lai = 0
@@ -1358,7 +1357,6 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-    failure = .FALSE.
     NULLIFY(s, sda, sdc)
 
     lai = 0

@@ -51,7 +51,6 @@ CONTAINS
     TYPE(keyword_type), POINTER              :: keyword
     TYPE(section_type), POINTER              :: subsection
 
-    failure=.FALSE.
 
     CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="TMC",&
@@ -381,7 +380,6 @@ CONTAINS
     TYPE(keyword_type), POINTER              :: keyword
     TYPE(section_type), POINTER              :: subsection
 
-    failure=.FALSE.
     NULLIFY(subsection)
 
     CPASSERT(.NOT.ASSOCIATED(section))
@@ -446,7 +444,6 @@ CONTAINS
     LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
 
-    failure=.FALSE.
 
     CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="MOVE_TYPE",&
@@ -523,7 +520,6 @@ CONTAINS
 
     LOGICAL                                  :: failure
 
-    failure=.FALSE.
 
     CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="TMC_ANALYSIS",&
@@ -549,7 +545,6 @@ CONTAINS
     TYPE(keyword_type), POINTER              :: keyword
 
     NULLIFY(keyword)
-    failure=.FALSE.
 
     CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="TMC_ANALYSIS_FILES",&
@@ -653,7 +648,6 @@ CONTAINS
 
     NULLIFY(subsection, keyword)
 
-    failure=.FALSE.
 
     CALL keyword_create(keyword=keyword,&
          name="RESTART",&

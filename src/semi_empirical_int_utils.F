@@ -362,7 +362,6 @@ CONTAINS
                                                 qqxx, qqzz, qxxqxx, qxxqyy, &
                                                 qxzqxz, xyxy, zzzz
 
-    failure = .FALSE.
     ! Computing only Integral Values
     IF      ( l1_i  < l2_i) THEN
        l1 = l1_i
@@ -569,7 +568,6 @@ CONTAINS
                                                 qqxx, qqzz, qxxqxx, qxxqyy, &
                                                 qxzqxz, xyxy, zzzz
 
-    failure = .FALSE.
     ! Computing only Integral Derivatives
     IF      ( l1_i  < l2_i) THEN
        l1 = l1_i
@@ -777,7 +775,6 @@ CONTAINS
                                                 qqxx, qqzz, qxxqxx, qxxqyy, &
                                                 qxzqxz, xyxy, zzzz
 
-    failure = .FALSE.
     ! Computing only Integral Derivatives
     IF      ( l1_i  < l2_i) THEN
        l1 = l1_i
@@ -1284,7 +1281,6 @@ CONTAINS
                                                 dxqxz, dzdz, dzqzz, fact, &
                                                 qqzz, qxzqxz, xyxy, zzzz
 
-    failure = .FALSE.
     IF      ( l1_i  <= l2_i) THEN
        l1 = l1_i
        l2 = l2_i
@@ -1423,7 +1419,6 @@ CONTAINS
                                                 dxqxz, dzdz, dzqzz, fact, &
                                                 qqzz, qxzqxz, xyxy, zzzz
 
-    failure = .FALSE.
     IF      ( l1_i  <= l2_i) THEN
        l1 = l1_i
        l2 = l2_i
@@ -1564,7 +1559,6 @@ CONTAINS
                                                 dxqxz, dzdz, dzqzz, fact, &
                                                 qqzz, qxzqxz, xyxy, zzzz
 
-    failure = .FALSE.
     IF      ( l1_i  <= l2_i) THEN
        l1 = l1_i
        l2 = l2_i
@@ -1710,7 +1704,6 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(3, 5, 5)        :: d_d
     REAL(KIND=dp), DIMENSION(5, 5)           :: d
 
-    failure = .FALSE.
     CPASSERT(ASSOCIATED(ij_matrix))
     IF (PRESENT(do_invert)) do_invert = .FALSE.
     IF ((sepi%natorb>1).OR.(sepj%natorb>1)) THEN
@@ -2132,7 +2125,6 @@ CONTAINS
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: wrepp, wrepp_d(3)
 
-    failure = .FALSE.
     IF (lgrad) THEN
        CPASSERT(PRESENT( rep_d))
        CPASSERT(PRESENT(   v_d))
@@ -2462,7 +2454,6 @@ CONTAINS
     INTEGER                                  :: ij, kl, l
     LOGICAL                                  :: failure
 
-    failure = .FALSE.
     l = 0
     IF      (PRESENT(ww).AND.PRESENT(w)) THEN
        DO ij = 1, limij

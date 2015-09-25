@@ -307,7 +307,6 @@ CONTAINS
     INTEGER                                  :: i, ikind, nkind
     LOGICAL                                  :: failure
 
-    failure=.FALSE.
 
     IF (ASSOCIATED(lri_env)) THEN
        lri_env%ref_count=0
@@ -390,7 +389,6 @@ CONTAINS
 
     LOGICAL                                  :: failure
 
-    failure=.FALSE.
 
     IF (ASSOCIATED(lri_density)) THEN
        lri_density%ref_count=0
@@ -436,7 +434,6 @@ CONTAINS
     TYPE(neighbor_list_iterator_p_type), &
       DIMENSION(:), POINTER                  :: nl_iterator
 
-    failure =.FALSE.
     NULLIFY(fbasa, fbasb, lrii, nl_iterator, obasa, obasb)
 
     use_virial = virial%pv_availability.AND.(.NOT.virial%pv_numer)
@@ -663,7 +660,6 @@ CONTAINS
     TYPE(neighbor_list_iterator_p_type), &
       DIMENSION(:), POINTER                  :: nl_iterator
 
-    failure =.FALSE.
     NULLIFY(lri_rho, lrho, lrii, nl_iterator)
 
     ALLOCATE(lri_rhos(nspin))
@@ -760,7 +756,6 @@ CONTAINS
     TYPE(lri_spin_type), DIMENSION(:), &
       POINTER                                :: lri_coefs
 
-    failure =.FALSE.
     NULLIFY(atomic_kind, fbas, lri_coefs)
     nkind = SIZE(atomic_kind_set)
     nspin = lri_density%nspin  
@@ -810,7 +805,6 @@ CONTAINS
     INTEGER                                  :: nn
     LOGICAL                                  :: failure
 
-    failure = .FALSE.
 
     nn = nfa + nfb
 
@@ -976,7 +970,6 @@ CONTAINS
     LOGICAL                                  :: failure
     TYPE(lri_list_type), POINTER             :: lri_rho
 
-    failure = .FALSE.
     NULLIFY(lri_rho)
 
     IF(ASSOCIATED(lri_rhos)) THEN
@@ -1031,7 +1024,6 @@ CONTAINS
     INTEGER                                  :: i, j
     LOGICAL                                  :: failure
 
-    failure=.FALSE.
 
     IF (ASSOCIATED(lri_coefs)) THEN
        DO i=1,SIZE(lri_coefs)
@@ -1071,7 +1063,6 @@ CONTAINS
 
     LOGICAL                                  :: failure
 
-    failure=.FALSE.
 
     IF (ASSOCIATED(lri_force)) THEN
 

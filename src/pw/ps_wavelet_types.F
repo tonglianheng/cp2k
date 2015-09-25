@@ -57,7 +57,6 @@ CONTAINS
 
     LOGICAL                                  :: failure
 
-    failure = .FALSE.
     IF (ASSOCIATED(wavelet)) THEN
        IF (ASSOCIATED(wavelet%karray))&
             DEALLOCATE(wavelet%karray)

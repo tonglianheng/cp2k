@@ -152,7 +152,6 @@ CONTAINS
     TYPE(section_vals_type), POINTER         :: input
 
     CALL timeset(routineN,handle)
-    failure = .FALSE.
 
     ! define the output_unit
     logger => cp_get_default_logger()
@@ -400,7 +399,6 @@ CONTAINS
       almo_opt_pcg_section, almo_scf_section, xalmo_opt_pcg_section
 
     CALL timeset(routineN,handle)
-    failure=.FALSE.
     
     almo_scf_section => section_vals_get_subs_vals(input,"DFT%ALMO_SCF")
     almo_opt_diis_section => section_vals_get_subs_vals(almo_scf_section,&
@@ -961,7 +959,6 @@ CONTAINS
     TYPE(cp_logger_type), POINTER            :: logger
 
     CALL timeset(routineN,handle)
-    failure=.FALSE.
 
     ! get a useful output_unit
     logger => cp_get_default_logger()
@@ -1030,7 +1027,6 @@ CONTAINS
     TYPE(optimizer_options_type)             :: arbitrary_optimizer
 
     CALL timeset(routineN,handle)
-    failure=.FALSE.
 
     ! get a useful output_unit
     logger => cp_get_default_logger()

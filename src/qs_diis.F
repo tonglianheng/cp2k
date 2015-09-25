@@ -96,7 +96,6 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-    failure = .FALSE.
 
     ALLOCATE(diis_buffer)
 
@@ -148,7 +147,6 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-    failure = .FALSE.
 
     logger => cp_get_default_logger()
 
@@ -281,7 +279,6 @@ CONTAINS
 
     nspin = SIZE(mo_array)
     diis_step = .FALSE.
-    failure = .FALSE.
 
     IF (PRESENT(roks)) THEN
       my_roks = .TRUE.
@@ -555,7 +552,6 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-    failure = .FALSE.
 
     CPASSERT(ASSOCIATED(diis_buffer))
     CPASSERT(diis_buffer%ref_count>0)
@@ -840,7 +836,6 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-    failure = .FALSE.
 
     logger => cp_get_default_logger()
 
@@ -918,7 +913,6 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-    failure = .FALSE.
 
     CPASSERT(ASSOCIATED(diis_buffer))
     CPASSERT(diis_buffer%ref_count>0)
@@ -953,7 +947,6 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-    failure = .FALSE.
 
     ALLOCATE(diis_buffer)
 

@@ -127,7 +127,6 @@ CONTAINS
     INTEGER                                  :: f_routine
     LOGICAL                                  :: failure
 
-    failure=.FALSE.
 
     CPASSERT(ASSOCIATED(rho_r))
     CPASSERT(ASSOCIATED(xc_section))
@@ -204,7 +203,6 @@ SUBROUTINE xc_vxc_pw_create_test_lsd(vxc_rho,vxc_tau,rho_r,rho_g,tau,&
     TYPE(xc_derivative_type), POINTER        :: deriv, deriv2, deriv3
     TYPE(xc_rho_set_type), POINTER           :: rho_set1, rho_set2
 
-  failure=.FALSE.
   NULLIFY(vxc_rho2,vxc_tau2,tau2,dSet1,dSet2,rho_set1,rho_set2,split_desc,pot,pot3,pot3,&
        deriv,deriv2,deriv3,rho2_g)
 
@@ -545,7 +543,6 @@ SUBROUTINE xc_vxc_pw_create_debug(vxc_rho,vxc_tau,rho_r,rho_g,tau,exc,&
     TYPE(xc_derivative_type), POINTER        :: deriv
     TYPE(xc_rho_set_type), POINTER           :: rho_set1
 
-  failure=.FALSE.
   NULLIFY(dSet1,rho_set1,split_desc,pot,&
        deriv)
   logger => cp_get_default_logger()
@@ -833,7 +830,6 @@ SUBROUTINE xc_rho_set_and_dset_create(rho_set,deriv_set,deriv_order,&
     TYPE(section_vals_type), POINTER         :: xc_fun_sections
 
   CALL timeset(routineN,handle)
-  failure=.FALSE.
 
   CPASSERT(.NOT.ASSOCIATED(rho_set))
   CPASSERT(.NOT.ASSOCIATED(deriv_set))
@@ -905,7 +901,6 @@ END SUBROUTINE xc_rho_set_and_dset_create
     REAL(kind=dp) :: my_e_0_scale_factor, my_rho, my_rho_n, my_rho_n2, &
       rho_smooth_cutoff, rho_smooth_cutoff_2, rho_smooth_cutoff_range_2
 
-    failure=.FALSE.
     CPASSERT(ASSOCIATED(pot))
     bo(1,:)=LBOUND(pot)
     bo(2,:)=UBOUND(pot)
@@ -1122,7 +1117,6 @@ SUBROUTINE xc_vxc_pw_create(vxc_rho,vxc_tau,exc,rho_r,rho_g,tau,xc_section,&
     TYPE(xc_rho_set_type), POINTER           :: rho_set
 
   CALL timeset(routineN,handle)
-  failure=.FALSE.
   NULLIFY(tmp_g, tmp_r, vxc_g, norm_drho_spin, norm_drho, drho_spin, drhoa, &
        drhob, pos, deriv_set, rho_set, virial_pw)
   nd = RESHAPE ((/1,0,0,0,1,0,0,0,1/),(/3,3/))
@@ -1877,7 +1871,6 @@ FUNCTION xc_exc_calc(rho_r,rho_g,tau,xc_section, pw_pool)&
 
   CALL timeset(routineN,handle)
   NULLIFY(rho_set, deriv_set, deriv,e_0)
-  failure=.FALSE.
   exc=0.0_dp
 
   ! this has to be consistent with what is done in xc_vxc_create
@@ -1989,7 +1982,6 @@ SUBROUTINE xc_calc_2nd_deriv(v_xc, deriv_set, rho_set, rho1_set, &
 
   CALL timeset(routineN,handle)
 
-  failure=.FALSE.
   NULLIFY(tmp_r, tmp_r2, tmp_a, tmp_b, e_drhoa, e_drhob, e_norm_drho, &
        split_desc)
 
@@ -2972,7 +2964,6 @@ END SUBROUTINE xc_calc_2nd_deriv
 
     CALL timeset(routineN,handle)
 
-    failure=.FALSE.
 
     CPASSERT(.NOT.ASSOCIATED(rho_set))
     CPASSERT(ASSOCIATED(xc_section))
@@ -3027,7 +3018,6 @@ END SUBROUTINE xc_calc_2nd_deriv
 
 ! check for unknown derivatives and divide by norm_drho where necessary
 
-    failure = .FALSE.
 
     bo = rho_set%local_bounds
     CALL xc_rho_set_get(rho_set, drho_cutoff=drho_cutoff)

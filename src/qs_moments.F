@@ -153,7 +153,6 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-    failure = .FALSE.
 
     NULLIFY (qs_kind_set,cell,particle_set,sab_orb)
 
@@ -397,7 +396,6 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-    failure = .FALSE.
 
     NULLIFY (qs_kind_set,cell,particle_set,sab_orb)
     NULLIFY (matrix_s)
@@ -638,7 +636,6 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-    failure = .FALSE.
 
     NULLIFY (qs_kind_set,particle_set,sab_orb,cell)
     CALL get_qs_env(qs_env=qs_env,&
@@ -827,7 +824,6 @@ CONTAINS
     TYPE(qs_rho_type), POINTER               :: rho
     TYPE(rt_prop_type), POINTER              :: rtp
 
-     failure = .FALSE.
      CPASSERT(ASSOCIATED(qs_env))
 
     IF(ASSOCIATED(qs_env%ls_scf_env)) THEN
@@ -1381,7 +1377,6 @@ CONTAINS
       POINTER                                :: qs_kind_set
     TYPE(qs_rho_type), POINTER               :: rho
 
-    failure = .FALSE.
     CPASSERT(ASSOCIATED(qs_env))
 
 

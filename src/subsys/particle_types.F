@@ -75,7 +75,6 @@ CONTAINS
     INTEGER                                  :: iparticle
     LOGICAL                                  :: failure
 
-    failure = .FALSE.
     IF (ASSOCIATED(particle_set)) THEN
        CALL deallocate_particle_set(particle_set)
     END IF
@@ -109,7 +108,6 @@ CONTAINS
 
     LOGICAL                                  :: failure
 
-    failure = .FALSE.
     IF (ASSOCIATED(particle_set)) THEN
       DEALLOCATE (particle_set)
     ELSE
@@ -146,7 +144,6 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-    failure = .FALSE.
     nparticle  = SIZE ( particle_set )
     update_pos = PRESENT(pos)
     update_vel = PRESENT(vel)

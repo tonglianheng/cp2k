@@ -111,7 +111,6 @@ CONTAINS
     TYPE(gto_basis_set_type), POINTER        :: orb_basis_a, orb_basis_b
     TYPE(paw_proj_set_type), POINTER         :: paw_proj_a, paw_proj_b
 
-   failure = .FALSE.
    NULLIFY(orb_basis_a,paw_proj_a)
    CALL get_qs_kind(qs_kind=atom_ka,basis_set=orb_basis_a,&
                         paw_proj_set=paw_proj_a,paw_atom=paw_atom_a,&
@@ -297,7 +296,6 @@ CONTAINS
     TYPE(gto_basis_set_type), POINTER        :: orb_basis_a
     TYPE(paw_proj_set_type), POINTER         :: paw_proj_a
 
-    failure = .FALSE.
     NULLIFY(orb_basis_a,paw_proj_a)
     CALL get_qs_kind(qs_kind=atom_ka,basis_set=orb_basis_a,&
                          paw_proj_set=paw_proj_a,paw_atom=paw_atom_a)
@@ -408,7 +406,6 @@ CONTAINS
     TYPE(paw_proj_set_type), POINTER         :: paw_proj_b
     TYPE(qs_kind_type), POINTER              :: at_a, at_b, qs_kind
 
-    failure = .FALSE.
     IF (calculate_forces) THEN
       CALL timeset(routineN//"_forces",handle)
     ELSE

@@ -155,7 +155,6 @@ CONTAINS
     TYPE(section_vals_type), POINTER         :: scf_section
 
     CALL timeset(routineN,handle)
-    failure=.FALSE.
     NULLIFY(dft_control, logger, scf_section)
     NULLIFY(particle_set, ks_env, ks_matrixkp, rho, energy)
     CPASSERT(ASSOCIATED(qs_env))
@@ -1188,7 +1187,6 @@ CONTAINS
     TYPE(scptb_parameter_type), POINTER      :: scptb_kind
     TYPE(virial_type), POINTER               :: virial
 
-    failure = .FALSE.
     CALL get_qs_env(qs_env=qs_env,pw_env=pw_env,force=force,virial=virial,para_env=para_env)
     use_virial = virial%pv_availability.AND.(.NOT.virial%pv_numer)
 
@@ -1344,7 +1342,6 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(0:9)            :: f
     REAL(KIND=dp), DIMENSION(1)              :: zi, zj
 
-    failure = .FALSE.
     dr2 = SUM(rij(:)**2)
     zi(1) = alpha
     zj(1) = beta

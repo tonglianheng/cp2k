@@ -163,7 +163,6 @@ MODULE xc_xwpbe
     TYPE(xc_derivative_type), POINTER        :: deriv
 
     CALL timeset(routineN,handle)
-    failure=.FALSE.
 
     NULLIFY(bo)
     CALL cite_reference(Heyd2004)
@@ -5364,7 +5363,6 @@ MODULE xc_xwpbe
     TYPE(xc_derivative_type), POINTER        :: deriv
 
     CALL timeset(routineN,handle)
-    failure=.FALSE.
 
     NULLIFY(bo)
 

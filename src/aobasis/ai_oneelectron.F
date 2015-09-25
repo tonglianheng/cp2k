@@ -125,7 +125,6 @@ CONTAINS
                                                 s2
     REAL(KIND=dp), DIMENSION(3)              :: pai, pbi, pci
 
-    failure = .FALSE.
     IF (PRESENT(pab)) THEN
       CPASSERT(PRESENT(fs))
       IF (PRESENT(force_a)) THEN

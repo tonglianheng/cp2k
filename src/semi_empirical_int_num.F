@@ -239,7 +239,6 @@ CONTAINS
     REAL(KIND=dp)                            :: ft
     TYPE(se_int_screen_type)                 :: se_int_screen
 
-    failure           = .FALSE.
     ft                = taper_eval(se_taper%taper, rij)
     ! In case of dumped integrals compute an additional taper term
     IF (se_int_control%integral_screening==do_se_IS_kdso_d) THEN
@@ -290,7 +289,6 @@ CONTAINS
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: tmp
 
-    failure = .FALSE.
     lasti = sepi%natorb
     lastj = sepj%natorb
     DO i = 1, MIN(lasti,4)
@@ -357,7 +355,6 @@ CONTAINS
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: tmp
 
-    failure = .FALSE.
     lasti = sepi%natorb
     lastj = sepj%natorb
     DO i = 1, lasti
@@ -763,7 +760,6 @@ CONTAINS
     REAL(KIND=dp)                            :: ft
     TYPE(se_int_screen_type)                 :: se_int_screen
 
-    failure   = .FALSE.
 
     ! Computing Tapering function
     ft               = 1.0_dp
@@ -820,7 +816,6 @@ CONTAINS
     REAL(KIND=dp)                            :: ft
     TYPE(se_int_screen_type)                 :: se_int_screen
 
-    failure   = .FALSE.
     ! Computing the Tapering function
     ft               = 1.0_dp
     IF (itype /=do_method_pchg) THEN
@@ -890,7 +885,6 @@ CONTAINS
     LOGICAL                                  :: failure, l_core, l_ssss, si, &
                                                 sj
 
-    failure = .FALSE.
     l_core  = PRESENT(core)
     l_ssss  = PRESENT(ssss)
     IF (.NOT.(l_core.OR.l_ssss)) RETURN
@@ -974,7 +968,6 @@ CONTAINS
     INTEGER                                  :: ij, kl
     LOGICAL                                  :: failure
 
-    failure = .FALSE.
     ! Check if d-orbitals are present
     IF (sepi%dorb.OR.sepj%dorb) THEN
        ij = indexa(1, 1)

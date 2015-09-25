@@ -87,7 +87,6 @@ CONTAINS
       POINTER                                :: force
     TYPE(virial_type), POINTER               :: virial
 
-    failure = .FALSE.
     CALL timeset(routineN,handle)
     NULLIFY(atomic_kind, force, lri_coef, v_dadr, v_dfdr, virial)
 
@@ -177,7 +176,6 @@ CONTAINS
     TYPE(neighbor_list_set_p_type), &
       DIMENSION(:), POINTER                  :: soo_list
 
-    failure = .FALSE.
     CALL timeset(routineN,handle)
     NULLIFY(atom_of_kind, lri_coef, lri_force, lrii, lri_rho, lrho, &
          nl_iterator, pbij, pmat, soo_list, v_dadra, v_dadrb, v_inta, &

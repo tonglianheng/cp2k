@@ -105,7 +105,6 @@ CONTAINS
 
     ekin = 0.0_dp
 
-    failure = .FALSE.
     logger => cp_get_default_logger()
 
     CPASSERT(ASSOCIATED(eip_env))
@@ -278,7 +277,6 @@ CONTAINS
 
     ekin = 0.0_dp
 
-    failure = .FALSE.
     logger => cp_get_default_logger()
 
     CPASSERT(ASSOCIATED(eip_env))

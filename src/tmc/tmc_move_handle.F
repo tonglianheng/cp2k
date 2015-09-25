@@ -437,7 +437,6 @@ CONTAINS
 
     LOGICAL                                  :: failure
 
-    failure = .FALSE.
     CPASSERT(ASSOCIATED(tmc_params))
     CALL move_types_release(tmc_params%move_types)
     IF(ASSOCIATED(tmc_params%nmc_move_types)) &
@@ -481,7 +480,6 @@ CONTAINS
     column_size = 10
     subbox_out = .FALSE.
     type_title = .FALSE.
-    failure    = .FALSE.
     CPASSERT(file_io.GT.0)
     CPASSERT(ASSOCIATED(tmc_params%move_types))
 
@@ -758,7 +756,6 @@ cp_warning_level,cp_assertion_failed,routineP,&
                                                 handle, mv_type
     LOGICAL                                  :: failure
 
-    failure = .FALSE.
     CPASSERT(ASSOCIATED(move_types))
     CPASSERT(.NOT.(PRESENT(pt_el).AND.PRESENT(subbox)))
 
@@ -870,7 +867,6 @@ cp_warning_level,cp_assertion_failed,routineP,&
 
     LOGICAL                                  :: failure
 
-    failure = .FALSE.
     CPASSERT(ASSOCIATED(move_types))
     CPASSERT(PRESENT(mv_counter).OR.PRESENT(subbox_counter))
  
@@ -933,7 +929,6 @@ cp_warning_level,cp_assertion_failed,routineP,&
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: rnd_mv, total_moves
 
-    failure = .FALSE.
     CPASSERT(ASSOCIATED(move_types))
     CPASSERT(rnd.GE.0.0_dp.AND.rnd.LT.1.0_dp)
 

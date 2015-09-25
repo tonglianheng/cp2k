@@ -135,7 +135,6 @@ CONTAINS
 
     LOGICAL                                  :: failure
 
-    failure=.FALSE.
 
     CPASSERT(ASSOCIATED(rho_struct))
     CPASSERT(rho_struct%ref_count>0)
@@ -159,7 +158,6 @@ CONTAINS
 
     LOGICAL                                  :: failure
 
-    failure=.FALSE.
 
     IF (ASSOCIATED(rho_struct)) THEN
        CPASSERT(rho_struct%ref_count>0)
@@ -294,7 +292,6 @@ CONTAINS
 
     LOGICAL                                  :: failure
 
-    failure=.FALSE.
 
     CPASSERT(ASSOCIATED(rho_struct))
     CPASSERT(rho_struct%ref_count>0)
@@ -374,7 +371,6 @@ CONTAINS
 
     LOGICAL                                  :: failure
 
-    failure=.FALSE.
 
     CPASSERT(ASSOCIATED(rho_struct))
     CPASSERT(rho_struct%ref_count>0)

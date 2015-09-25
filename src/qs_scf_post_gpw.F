@@ -271,7 +271,6 @@ CONTAINS
     ! Writes the data that is already available in qs_env
     CALL write_available_results(qs_env,scf_env)
 
-    failure=.FALSE.
     my_localized_wfn = .FALSE.
     NULLIFY(admm_env, dft_control, pw_env, auxbas_pw_pool, pw_pools, mos, rho, &
          mo_coeff, ks_rmpv, matrix_s, qs_loc_env_homo,qs_loc_env_lumo, scf_control, &
@@ -754,7 +753,6 @@ CONTAINS
       DIMENSION(:), POINTER                  :: wc
 
     CALL timeset(routineN,handle)
-    failure=.FALSE.
     NULLIFY(mos, ks_rmpv, dft_control, loc_print_section, marked_states_spin,&
             matrix_s, molecule_set, scenter,wc)
     CALL get_qs_env(qs_env,mos=mos,matrix_ks=ks_rmpv,molecule_set=molecule_set,&
@@ -1056,7 +1054,6 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-    failure = .FALSE.
     print_key => section_vals_get_subs_vals(input,"DFT%LOCALIZE%PRINT%TOTAL_DIPOLE")
     IF (BTEST(cp_print_key_should_output(logger%iter_info,print_key,first_time=first_time)&
          ,cp_p_file)) THEN
@@ -1525,7 +1522,6 @@ CONTAINS
     TYPE(section_vals_type), POINTER         :: et_section
 
     CALL timeset(routineN,handle)
-    failure=.FALSE.
 
     do_et=.FALSE.
     et_section =>  section_vals_get_subs_vals(input,"PROPERTIES%ET_COUPLING")
@@ -1586,7 +1582,6 @@ CONTAINS
     TYPE(section_vals_type), POINTER         :: elf_section
 
     CALL timeset(routineN,handle)
-    failure=.FALSE.
     output_unit= cp_logger_get_default_io_unit(logger)
 
     do_elf=.FALSE.
@@ -1704,7 +1699,6 @@ CONTAINS
 ! for spin restricted systems
 
     CALL timeset(routineN,handle)
-    failure=.FALSE.
 
     NULLIFY(rho_struct,rho_r, drho_g, drho_r, tau_r, tau_g, pw_env, auxbas_pw_pool, pw_pools,tmp_g, ks_env )
     NULLIFY(rho_struct_ao,rho_struct_r,tau_struct_r,drho_struct_r)
@@ -2026,7 +2020,6 @@ CONTAINS
     TYPE(section_vals_type), POINTER         :: dft_section, input
 
     CALL timeset(routineN,handle)
-    failure=.FALSE.
     NULLIFY(cell, dft_control, pw_env, auxbas_pw_pool, pw_pools, mo_coeff, &
          mo_coeff_deriv, mo_eigenvalues, mos, atomic_kind_set, qs_kind_set,&
          particle_set, rho, ks_rmpv, matrix_s, scf_control, dft_section, &
@@ -2251,7 +2244,6 @@ CONTAINS
                                                 print_key, xc_section
 
     CALL timeset(routineN,handle)
-    failure=.FALSE.
     NULLIFY(cell, dft_control, pw_env, auxbas_pw_pool, pw_pools, &
          atomic_kind_set, qs_kind_set, particle_set, rho, ks_rmpv, rho_ao, rho_r,&
          dft_section, xc_section, input, particles, subsys, matrix_vxc,v_hartree_rspace, vee)
@@ -3017,7 +3009,6 @@ CONTAINS
     TYPE(qs_rho_type), POINTER               :: rho
     TYPE(rho0_mpole_type), POINTER           :: rho0_mpole
 
-    failure = .FALSE.
 
     NULLIFY(hirshfeld_env)
     CALL create_hirshfeld_type(hirshfeld_env)
@@ -3117,7 +3108,6 @@ CONTAINS
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: smat, tmat, v
 
-    failure = .FALSE.
 
     n = SIZE(ca)
     ALLOCATE(smat(n,n),tmat(n,n),v(n,1),ipiv(n))
@@ -3158,7 +3148,6 @@ CONTAINS
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: smat, v
 
-    failure=.FALSE.
 
     n = SIZE(ca)
     nr = grid_atom%nr

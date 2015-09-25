@@ -134,7 +134,6 @@ MODULE mp2_ri_grad_util
                                                 fm_Y, PQ_half
 
     CALL timeset(routineN,handle)
-    failure=.FALSE.
 
     ! reshape the data into a 2D array
     ! reorder the local data in such a way to help the next stage of matrix creation
@@ -669,7 +668,6 @@ MODULE mp2_ri_grad_util
       ALLOCATABLE, DIMENSION(:)              :: buffer_rec, buffer_send
 
     CALL timeset(routineN,handle)
-    failure=.FALSE.
 
     ! create the full matrix, (num_rows x num_cols)
     NULLIFY(fm_mat)
@@ -1083,7 +1081,6 @@ MODULE mp2_ri_grad_util
       ALLOCATABLE, DIMENSION(:)              :: buffer_rec, buffer_send
 
     CALL timeset(routineN,handle)
-    failure=.FALSE.
 
     ! allocate the array
     ALLOCATE(mat2D(my_rows,my_cols))
@@ -1452,7 +1449,6 @@ MODULE mp2_ri_grad_util
 ! TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER :: G_P_ia
 
     CALL timeset(routineN,handle)
-    failure=.FALSE.
 
     ! allocate G_P_ia (DBCSR)
     IF (alpha_case) THEN

@@ -61,7 +61,6 @@ CONTAINS
 
     LOGICAL                                  :: failure
 
-    failure = .FALSE.
 
     IF (ASSOCIATED(grid_atom)) CALL deallocate_grid_atom(grid_atom)
 
@@ -100,7 +99,6 @@ CONTAINS
 
     LOGICAL                                  :: failure
 
-    failure = .FALSE.
     IF (ASSOCIATED(grid_atom)) THEN
 
        IF (ASSOCIATED(grid_atom%rad)) THEN

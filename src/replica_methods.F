@@ -113,7 +113,6 @@ MODULE replica_methods
     TYPE(cp_para_env_type), POINTER          :: para_env_f, para_env_full, &
                                                 para_env_inter_rep
 
-    failure=.FALSE.
     CPASSERT(.NOT.ASSOCIATED(rep_env))
     CPASSERT(ASSOCIATED(input_declaration))
 
@@ -309,7 +308,6 @@ MODULE replica_methods
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(replica_env_type), POINTER          :: rep_env
 
-    failure=.FALSE.
     rep_env => rep_envs_get_rep_env(rep_env_id,ierr=stat)
     CALL cp_assert(ASSOCIATED(rep_env),cp_failure_level,cp_assertion_failed,&
          routineP,"could not find rep_env with id_nr"//cp_to_string(rep_env_id),&
@@ -391,7 +389,6 @@ MODULE replica_methods
     INTEGER                                  :: handle, ierr, my_calc_f
     LOGICAL                                  :: failure
 
-    failure=.FALSE.
 
     CALL timeset(routineN,handle)
     CPASSERT(ASSOCIATED(rep_env))
@@ -429,7 +426,6 @@ MODULE replica_methods
     TYPE(f_env_type), POINTER                :: f_env
     TYPE(replica_env_type), POINTER          :: rep_env
 
-    failure=.FALSE.
     rep_env => rep_envs_get_rep_env(rep_env_id, ierr)
     IF (ASSOCIATED(rep_env)) THEN
        CALL f_env_add_defaults(f_env_id=rep_env%f_env_id,f_env=f_env,&
@@ -465,7 +461,6 @@ MODULE replica_methods
     TYPE(f_env_type), POINTER                :: f_env
     TYPE(qs_environment_type), POINTER       :: qs_env
 
-    failure=.FALSE.
     NULLIFY(f_env,qs_env,subsys)
     CPASSERT(ASSOCIATED(rep_env))
     CPASSERT(rep_env%ref_count>0)

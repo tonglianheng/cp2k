@@ -189,7 +189,6 @@ CONTAINS
     TYPE(particle_list_type), POINTER        :: particles_bias
     TYPE(section_vals_type), POINTER         :: root_section
 
-    failure = .FALSE.
     logger => cp_get_default_logger()
     CALL timeset(routineN,handle)
 
@@ -1202,7 +1201,6 @@ CONTAINS
     TYPE(particle_list_p_type), &
       DIMENSION(:), POINTER                  :: particles
 
-    failure = .FALSE.
     logger => cp_get_default_logger()
     ! these are current magic numbers for how we compute the virial...
     ! we break it up into three parts to integrate the function so provide

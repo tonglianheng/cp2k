@@ -104,7 +104,6 @@ CONTAINS
     INTEGER                                  :: ispin
     LOGICAL                                  :: failure
 
-    failure=.FALSE.
 
     IF (ASSOCIATED(kpp1_env)) THEN
        CPASSERT(kpp1_env%ref_count>0)
@@ -165,7 +164,6 @@ CONTAINS
 
     LOGICAL                                  :: failure
 
-    failure=.FALSE.
 
     CPASSERT(ASSOCIATED(kpp1_env))
     CPASSERT(kpp1_env%ref_count>0)
@@ -202,7 +200,6 @@ CONTAINS
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
 
-    failure=.FALSE.
     my_local=.FALSE.; my_long_description=.FALSE.
 
     IF (PRESENT(local)) my_local=local

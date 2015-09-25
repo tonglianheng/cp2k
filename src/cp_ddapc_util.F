@@ -106,7 +106,6 @@ CONTAINS
     TYPE(section_vals_type), POINTER         :: density_fit_section
 
     CALL timeset(routineN,handle)
-    failure         = .FALSE.
     logger => cp_get_default_logger()
     NULLIFY(dft_control, rho, rho_tot_g, rho_core, rho0_s_gs, pw_env,&
             radii, inp_radii, particle_set, qs_charges, para_env)
@@ -266,7 +265,6 @@ CONTAINS
     EXTERNAL dgemv, dgemm
 
     CALL timeset(routineN,handle)
-    failure         = .FALSE.
     need_f          = .FALSE.
     IF (PRESENT(calc_force))  need_f      = calc_force
     logger => cp_get_default_logger()
@@ -577,7 +575,6 @@ SUBROUTINE restraint_functional_potential(v_hartree_gspace,&
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: cv, uv
     TYPE(pw_type), POINTER                   :: g_hartree
 
-    failure=.FALSE.
     CALL timeset(routineN,handle)
     NULLIFY(g_hartree)
     n_gauss = SIZE(radii)
@@ -658,7 +655,6 @@ SUBROUTINE restraint_functional_potential(v_hartree_gspace,&
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: cv, uv
     TYPE(pw_type), POINTER                   :: g_hartree
 
-    failure=.FALSE.
     CALL timeset(routineN,handle)
     NULLIFY(g_hartree)
     CALL section_vals_val_get(density_fit_section,"GCUT",r_val=gcut)
@@ -738,7 +734,6 @@ SUBROUTINE restraint_functional_potential(v_hartree_gspace,&
     TYPE(cp_ddapc_type), POINTER             :: cp_ddapc_env
 
     NULLIFY(cp_ddapc_env)
-    failure = .FALSE.
     CALL timeset(routineN,handle)
     dx   = 0.01_dp
     ndim = SIZE(particle_set)*SIZE(radii)
@@ -819,7 +814,6 @@ SUBROUTINE restraint_functional_potential(v_hartree_gspace,&
 
 !NB new temporaries sin(g.r) and cos(g.r), as used in get_ddapc, to speed up build_der_A_matrix()
 
-    failure = .FALSE.
     NULLIFY(cp_ddapc_env)
     CALL timeset(routineN,handle)
     dx   = 0.01_dp
@@ -900,7 +894,6 @@ SUBROUTINE restraint_functional_potential(v_hartree_gspace,&
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: ddqv
     REAL(KIND=dp), DIMENSION(:), POINTER     :: qtot1, qtot2
 
-    failure = .FALSE.
     CALL timeset(routineN,handle)
     WRITE(*,*)"DEBUG_CHARGE_ROUTINE"
     ndim = SIZE(particle_set)*SIZE(radii)

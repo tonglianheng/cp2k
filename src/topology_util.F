@@ -126,7 +126,6 @@ CONTAINS
                                                 qmmm_section
     TYPE(vertex), DIMENSION(:), POINTER      :: reference, unordered
 
-    failure = .FALSE.
     NULLIFY(logger,generate_section,isolated_section,tmp_v,tmp_n)
     logger => cp_get_default_logger()
     iw = cp_print_key_unit_nr(logger,subsys_section,"PRINT%TOPOLOGY_INFO/UTIL_INFO",&
@@ -483,7 +482,6 @@ CONTAINS
     LOGICAL                                  :: failure
     TYPE(graph_type), DIMENSION(:), POINTER  :: tmp_graph_set
 
-    failure = .FALSE.
     ldim = 0
     NULLIFY(tmp_graph_set)
     IF (ASSOCIATED(graph_set)) THEN
@@ -517,7 +515,6 @@ CONTAINS
                                                 mydim_out, v_dim
     LOGICAL                                  :: failure
 
-    failure = .FALSE.
     CPASSERT(.NOT.ASSOCIATED(graph_set_out))
     mydim_in  = 0
     mydim_out = 0
@@ -580,7 +577,6 @@ CONTAINS
                                                 nbonds, nelement
     LOGICAL                                  :: failure
 
-    failure = .FALSE.
     IF (PRESENT(atm_map3)) THEN
        CPASSERT(.NOT.ASSOCIATED(atm_map3))
     END IF
@@ -631,7 +627,6 @@ CONTAINS
     INTEGER, DIMENSION(:), POINTER           :: tmp, wrk
     LOGICAL                                  :: failure
 
-    failure = .FALSE.
     CPASSERT(nsize>0)
     ALLOCATE(wrk(Ndim))
     CALL sort(Ilist1,Ndim,wrk)
@@ -699,7 +694,6 @@ CONTAINS
     INTEGER, DIMENSION(:), POINTER           :: tmp_2, tmp_3, tmp_4
     LOGICAL                                  :: failure
 
-    failure = .FALSE.
     SELECT CASE(nsize)
     CASE(2)
        ALLOCATE(tmp_2(ldim))
@@ -818,7 +812,6 @@ CONTAINS
     INTEGER, DIMENSION(:), POINTER           :: wrk_tmp
     LOGICAL                                  :: failure
 
-    failure = .FALSE.
     DO I=1,N
        index1=list1(I)
        index2=list2(I)
@@ -864,7 +857,6 @@ CONTAINS
     INTEGER, DIMENSION(:), POINTER           :: wrk_tmp
     LOGICAL                                  :: failure
 
-    failure = .FALSE.
     DO I=1,N
        index1=list1(I)
        index2=list2(I)
@@ -987,7 +979,6 @@ CONTAINS
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(section_vals_type), POINTER         :: kind_section
 
-    failure = .FALSE.
     NULLIFY(logger)
     logger => cp_get_default_logger()
     iw = cp_print_key_unit_nr(logger,subsys_section,"PRINT%TOPOLOGY_INFO/UTIL_INFO",&
@@ -1068,7 +1059,6 @@ CONTAINS
     TYPE(connectivity_info_type), POINTER    :: conn_info
     TYPE(cp_logger_type), POINTER            :: logger
 
-    failure = .FALSE.
     NULLIFY(logger)
     logger => cp_get_default_logger()
     iw = cp_print_key_unit_nr(logger,subsys_section,"PRINT%TOPOLOGY_INFO/UTIL_INFO",&
@@ -1208,7 +1198,6 @@ CONTAINS
                                                 failure, found, in_ptable
     TYPE(section_vals_type), POINTER         :: kind_section
 
-    failure = .FALSE.
     found          = .FALSE.
     element_symbol = element_in
     atom_name      = atom_name_in

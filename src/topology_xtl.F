@@ -94,7 +94,6 @@ CONTAINS
     TYPE(cp_parser_type), POINTER            :: parser
 
     NULLIFY(parser, logger)
-    failure = .FALSE.
     logger => cp_get_default_logger()
     iw = cp_print_key_unit_nr(logger,subsys_section,"PRINT%TOPOLOGY_INFO/XTL_INFO",&
          extension=".subsysLog")

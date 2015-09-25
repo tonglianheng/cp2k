@@ -76,7 +76,6 @@ CONTAINS
     TYPE(section_vals_type), POINTER         :: dft_section, input
     TYPE(tddfpt_env_type)                    :: t_env
 
-    failure = .FALSE.
     NULLIFY(logger)
     logger => cp_get_default_logger()
     NULLIFY(input,ks_env)
@@ -142,7 +141,6 @@ CONTAINS
 
     CPASSERT(ASSOCIATED(qs_env))
 
-    failure = .FALSE.
     NULLIFY(logger, scf_env, input, energy, matrix_ks, rho)
     logger => cp_get_default_logger()
     output_unit = cp_logger_get_default_io_unit(logger)

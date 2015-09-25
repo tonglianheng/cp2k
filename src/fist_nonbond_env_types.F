@@ -295,7 +295,6 @@ CONTAINS
 
     LOGICAL                                  :: failure
 
-    failure=.FALSE.
     ALLOCATE(fist_nonbond_env)
     NULLIFY(fist_nonbond_env%potparm14)
     NULLIFY(fist_nonbond_env%potparm)
@@ -467,7 +466,6 @@ CONTAINS
 
     LOGICAL                                  :: failure
 
-    failure=.FALSE.
     CPASSERT(ASSOCIATED(fist_nonbond_env))
     CPASSERT(fist_nonbond_env%ref_count>0)
     fist_nonbond_env%ref_count=fist_nonbond_env%ref_count+1
@@ -488,7 +486,6 @@ CONTAINS
 
     LOGICAL                                  :: failure
 
-    failure=.FALSE.
     IF (ASSOCIATED(fist_nonbond_env)) THEN
        CPASSERT(fist_nonbond_env%ref_count>0)
        fist_nonbond_env%ref_count=fist_nonbond_env%ref_count-1

@@ -103,7 +103,6 @@ MODULE qs_rho0_methods
     REAL(dp), DIMENSION(:, :), POINTER       :: zet
     REAL(dp), DIMENSION(:, :, :), POINTER    :: my_CG
 
-    failure = .FALSE.
 
     CALL timeset(routineN,handle)
 
@@ -225,7 +224,6 @@ MODULE qs_rho0_methods
     NULLIFY(mpole_rho)
     NULLIFY(g0_h, vg0_h)
     NULLIFY(norm_g0l_h)
-    failure = .FALSE.
 
     CALL get_rho0_mpole(rho0_mpole=rho0_mp,ikind=ikind, &
                         l0_ikind=lmax0,mp_gau_ikind=mpole_gau,&
@@ -402,7 +400,6 @@ MODULE qs_rho0_methods
 
     CALL timeset(routineN,handle)
 
-    failure = .FALSE.
     NULLIFY(logger)
     logger => cp_get_default_logger()
 

@@ -74,7 +74,6 @@ CONTAINS
     TYPE(keyword_type), POINTER              :: keyword
     TYPE(section_type), POINTER              :: subsection
 
-    failure=.FALSE.
 
     CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="PROPERTIES",&
@@ -135,7 +134,6 @@ CONTAINS
     TYPE(keyword_type), POINTER              :: keyword
     TYPE(section_type), POINTER              :: print_key, subsection
 
-    failure=.FALSE.
     NULLIFY(keyword,subsection,print_key)
 
     CPASSERT(.NOT.ASSOCIATED(section))
@@ -277,7 +275,6 @@ CONTAINS
     TYPE(keyword_type), POINTER              :: keyword
     TYPE(section_type), POINTER              :: print_key, subsection
 
-    failure=.FALSE.
     NULLIFY(keyword,print_key, subsection)
 
     CPASSERT(.NOT.ASSOCIATED(section))
@@ -471,7 +468,6 @@ CONTAINS
     TYPE(keyword_type), POINTER              :: keyword
     TYPE(section_type), POINTER              :: print_key, subsection
 
-    failure=.FALSE.
     NULLIFY(keyword,print_key, subsection)
 
     CPASSERT(.NOT.ASSOCIATED(section))
@@ -623,7 +619,6 @@ CONTAINS
     TYPE(keyword_type), POINTER              :: keyword
     TYPE(section_type), POINTER              :: print_key, subsection
 
-    failure=.FALSE.
     NULLIFY(keyword,print_key,subsection)
 
     CPASSERT(.NOT.ASSOCIATED(section))
@@ -730,7 +725,6 @@ CONTAINS
     TYPE(section_type), POINTER              :: print_key, subsection, &
                                                 subsubsection
 
-    failure=.FALSE.
     NULLIFY(keyword,print_key, subsection, subsubsection)
 
     CPASSERT(.NOT.ASSOCIATED(section))
@@ -868,7 +862,6 @@ CONTAINS
     TYPE(keyword_type), POINTER              :: keyword
     TYPE(section_type), POINTER              :: print_key, subsection
 
-    failure=.FALSE.
     NULLIFY(keyword,print_key,subsection)
 
     CPASSERT(.NOT.ASSOCIATED(section))
@@ -932,7 +925,6 @@ CONTAINS
     TYPE(keyword_type), POINTER              :: keyword
     TYPE(section_type), POINTER              :: print_key, subsection
 
-    failure=.FALSE.
     NULLIFY(keyword)
     CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,"ET_COUPLING",&
@@ -994,7 +986,6 @@ CONTAINS
     TYPE(keyword_type), POINTER              :: keyword
     TYPE(section_type), POINTER              :: print_key
 
-    failure=.FALSE.
     NULLIFY(keyword, print_key)
     CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,TRIM(ADJUSTL(section_name)),&

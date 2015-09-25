@@ -108,7 +108,6 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-    failure = .FALSE.
     NULLIFY ( const_mol, tot_const, point)
     CPASSERT(.NOT.ASSOCIATED(deg_of_freedom))
     CPASSERT(.NOT.ASSOCIATED(massive_atom_list))
@@ -207,7 +206,6 @@ CONTAINS
 
     CALL timeset(routineN,handle)
     unity          = 1.0_dp
-    failure        = .FALSE.
     global_constraints = ASSOCIATED(gci)
     deg_of_freedom = 0
     icount         = 0
@@ -578,7 +576,6 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-    failure = .FALSE.
     NULLIFY ( const_mol, tot_const, point)
     CPASSERT(.NOT.ASSOCIATED(deg_of_freedom))
     CPASSERT(.NOT.ASSOCIATED(massive_atom_list))
@@ -672,7 +669,6 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-    failure        = .FALSE.
     global_constraints = ASSOCIATED(gci)
     deg_of_freedom = 0
     icount         = 0
@@ -1146,7 +1142,6 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-    failure = .FALSE.
     num_massive_atm_local = 0
     NULLIFY(local_atm_list)
     CALL reallocate(local_atm_list,1,num_massive_atm_local)

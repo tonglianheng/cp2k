@@ -232,7 +232,6 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-    failure = .FALSE.
     myinfo = 0
 
     n = matrix%matrix_struct%nrow_global
@@ -422,7 +421,6 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-    failure = .FALSE.
 
 #if defined(__SCALAPACK)
 
@@ -544,7 +542,6 @@ CONTAINS
     INTEGER, EXTERNAL                            :: ilaenv
 #endif
 
-    failure = .FALSE.
     ! by default all
     n = matrix%matrix_struct%nrow_global
     neig_local=n
@@ -793,7 +790,6 @@ CONTAINS
     IF (neig <= 0) RETURN
 
     CALL timeset(routineN,handle)
-    failure =.FALSE.
 
     needs_evecs=PRESENT(eigenvectors)
 
@@ -944,7 +940,6 @@ CONTAINS
 
 #if defined(__SCALAPACK)
 
-    failure = .FALSE.
     success = .TRUE.
 
     n = matrix%matrix_struct%nrow_global
@@ -1048,7 +1043,6 @@ CPSourceFileRef)
 
     CALL timeset(routineN,handle)
 
-    failure = .FALSE.
     my_verbose = .FALSE.
     IF(PRESENT(verbose)) my_verbose = verbose
 
@@ -1419,7 +1413,6 @@ CPSourceFileRef)
 
     CALL timeset(routineN,handle)
 
-    failure = .FALSE.
 
     CALL cp_fm_get_info(amatrix,nrow_global=nao)
     nmo = SIZE(eigenvalues)

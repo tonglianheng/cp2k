@@ -84,7 +84,6 @@ CONTAINS
     INTEGER                                  :: i
     LOGICAL                                  :: failure
 
-    failure = .FALSE.
     CPASSERT(.NOT.ASSOCIATED(mpole))
     ALLOCATE (mpole(ndim))
     DO i = 1, ndim
@@ -110,7 +109,6 @@ CONTAINS
     INTEGER                                  :: i
     LOGICAL                                  :: failure
 
-    failure = .FALSE.
     IF (ASSOCIATED(mpole)) THEN
        DO i = 1, SIZE(mpole)
           CALL semi_empirical_mpole_release(mpole(i)%mpole)
@@ -133,7 +131,6 @@ CONTAINS
 
     LOGICAL                                  :: failure
 
-    failure = .FALSE.
     CPASSERT(.NOT.ASSOCIATED(mpole))
     ALLOCATE (mpole)
     mpole%task = .FALSE.
@@ -161,7 +158,6 @@ CONTAINS
 
     LOGICAL                                  :: failure
 
-    failure = .FALSE.
     IF (ASSOCIATED(mpole)) THEN
        DEALLOCATE (mpole)
     END IF
@@ -181,7 +177,6 @@ CONTAINS
 
     LOGICAL                                  :: failure
 
-    failure = .FALSE.
     CPASSERT(.NOT.ASSOCIATED(nddo_mpole))
     ALLOCATE (nddo_mpole)
     NULLIFY(nddo_mpole%charge)
@@ -205,7 +200,6 @@ CONTAINS
 
     LOGICAL                                  :: failure
 
-    failure = .FALSE.
     IF (ASSOCIATED(nddo_mpole)) THEN
        IF (ASSOCIATED(nddo_mpole%charge)) THEN
           DEALLOCATE(nddo_mpole%charge)

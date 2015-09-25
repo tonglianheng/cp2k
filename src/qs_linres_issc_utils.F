@@ -124,7 +124,6 @@ CONTAINS
     TYPE(qs_matrix_pools_type), POINTER      :: mpools
     TYPE(section_vals_type), POINTER         :: issc_section, lr_section
 
-    failure = .FALSE.
     CALL timeset(routineN,handle)
     !
     NULLIFY(dft_control, linres_control, lr_section, issc_section)
@@ -482,7 +481,6 @@ CONTAINS
       POINTER                                :: particle_set
     TYPE(section_vals_type), POINTER         :: issc_section
 
-    failure = .FALSE.
     CALL timeset(routineN,handle)
 
     NULLIFY(cell,dft_control,particle_set,issc,psi1_fc,psi1_efg,psi1_pso)
@@ -689,7 +687,6 @@ CONTAINS
       POINTER                                :: particle_set
     TYPE(section_vals_type), POINTER         :: issc_section
 
-    failure = .FALSE.
 
     NULLIFY(logger,particle_set,atom_kind_i,atom_kind_j,dft_control)
 
@@ -830,7 +827,6 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-    failure = .FALSE.
 
     NULLIFY(linres_control)
     NULLIFY(logger,issc_section)
@@ -1088,7 +1084,6 @@ CONTAINS
     INTEGER                                  :: idir, ispin
     LOGICAL                                  :: failure
 
-    failure = .FALSE.
 
     issc_env%ref_count = issc_env%ref_count - 1
     IF(issc_env%ref_count == 0 ) THEN

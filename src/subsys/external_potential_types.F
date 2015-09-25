@@ -257,7 +257,6 @@ CONTAINS
 
     LOGICAL                                  :: failure
 
-    failure = .FALSE.
     IF (ASSOCIATED(potential)) CALL deallocate_potential(potential)
 
     ALLOCATE (potential)
@@ -283,7 +282,6 @@ CONTAINS
 
     LOGICAL                                  :: failure
 
-    failure = .FALSE.
     IF (ASSOCIATED(potential)) CALL deallocate_potential(potential)
 
     ALLOCATE (potential)
@@ -314,7 +312,6 @@ CONTAINS
 
     LOGICAL                                  :: failure
 
-    failure = .FALSE.
     IF (ASSOCIATED(potential)) CALL deallocate_potential(potential)
 
     ALLOCATE (potential)
@@ -344,7 +341,6 @@ CONTAINS
 
     LOGICAL                                  :: failure
 
-    failure = .FALSE.
     IF (ASSOCIATED(potential)) CALL deallocate_potential(potential)
 
     ALLOCATE (potential)
@@ -390,7 +386,6 @@ CONTAINS
 
     LOGICAL                                  :: failure
 
-    failure = .FALSE.
     IF (ASSOCIATED(potential)) THEN
        DEALLOCATE (potential%elec_conf)
        DEALLOCATE (potential)
@@ -415,7 +410,6 @@ CONTAINS
 
     LOGICAL                                  :: failure
 
-    failure = .FALSE.
     IF (ASSOCIATED(potential)) THEN
        ! Nothing exciting here yet.
        DEALLOCATE (potential)
@@ -441,7 +435,6 @@ CONTAINS
 
     LOGICAL                                  :: failure
 
-    failure = .FALSE.
 
     IF (ASSOCIATED(potential)) THEN
 
@@ -478,7 +471,6 @@ CONTAINS
 
     LOGICAL                                  :: failure
 
-    failure = .FALSE.
 
     IF (ASSOCIATED(potential)) THEN
 
@@ -1112,7 +1104,6 @@ CONTAINS
     symbol2 = ""
     apname2 = ""
     NULLIFY(parser)
-    failure = .FALSE.
     CALL cite_reference(Krack2000)
 
     potential%name = potential_name
@@ -1292,7 +1283,6 @@ CONTAINS
     symbol2 = ""
     apname2 = ""
     NULLIFY(parser,alpha,cval)
-    failure = .FALSE.
 
     potential%name = potential_name
     read_from_input = .FALSE.
@@ -1477,7 +1467,6 @@ CONTAINS
     symbol2 = ""
     apname2 = ""
     NULLIFY(parser,tmp_vals)
-    failure = .FALSE.
     CALL cite_reference(Goedecker1996)
     CALL cite_reference(Hartwigsen1998)
     CALL cite_reference(Krack2005)

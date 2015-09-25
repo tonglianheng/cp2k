@@ -209,7 +209,6 @@ CONTAINS
                                                 tmp_mat_H
 
     CALL timeset(routineN,handle)
-    failure=.FALSE.
 
     CALL get_rtp(rtp=rtp,S_inv=S_inv,dt=t)
 

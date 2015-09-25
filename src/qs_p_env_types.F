@@ -117,7 +117,6 @@ SUBROUTINE p_env_retain(p_env)
 
     LOGICAL                                  :: failure
 
-  failure=.FALSE.
 
   CPASSERT(ASSOCIATED(p_env))
   CPASSERT(p_env%ref_count>0)
@@ -141,7 +140,6 @@ END SUBROUTINE p_env_retain
     INTEGER                                  :: ip
     LOGICAL                                  :: failure
 
-    failure=.FALSE.
 
     IF (ASSOCIATED(p_env)) THEN
        CPASSERT(p_env%ref_count>0)

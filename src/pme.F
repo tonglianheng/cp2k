@@ -142,7 +142,6 @@ CONTAINS
 
     CALL timeset ( routineN, handle )
     NULLIFY( poisson_env, rden, drpot)
-    failure = .FALSE.
     CALL cite_reference(Darden1993)
     CALL ewald_env_get (ewald_env, alpha=alpha, group = group)
     CALL ewald_pw_get (ewald_pw, pw_big_pool=pw_big_pool, &
@@ -541,7 +540,6 @@ CONTAINS
     TYPE(pw_p_type), POINTER                 :: rho0
     TYPE(shell_kind_type), POINTER           :: shell
 
-    failure = .FALSE.
     NULLIFY(shell)
     use_charge_array=PRESENT(charges)
     IF (use_charge_array) use_charge_array=ASSOCIATED(charges)

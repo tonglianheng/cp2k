@@ -252,7 +252,6 @@ CONTAINS
     TYPE(section_vals_type), POINTER :: dft_section, et_coupling_section, &
       hfx_section, kpoint_section, mp2_section, transport_section
 
-    failure = .FALSE.
     NULLIFY(my_cell, my_cell_ref, atomic_kind_set, particle_set, &
          qs_kind_set, kpoint_section, dft_section, &
          subsys, ks_env, dft_control, blacs_env)
@@ -485,7 +484,6 @@ CONTAINS
       POINTER                                :: se_control
     TYPE(semi_empirical_si_type), POINTER    :: se_store_int_env
 
-    failure = .FALSE.
     CALL timeset(routineN,handle)
     NULLIFY(logger)
     logger => cp_get_default_logger()

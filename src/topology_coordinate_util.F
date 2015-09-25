@@ -134,7 +134,6 @@ CONTAINS
     TYPE(section_vals_type), POINTER         :: exclude_section, &
                                                 topology_section
 
-    failure = .FALSE.
     NULLIFY(logger)
     logger => cp_get_default_logger()
     iw = cp_print_key_unit_nr(logger,subsys_section,"PRINT%TOPOLOGY_INFO/UTIL_INFO",&
@@ -783,7 +782,6 @@ CPSourceFileRef,&
     INTEGER                                  :: i, ind, j, k, l, m, n_rep
     LOGICAL                                  :: failure
 
-    failure = .FALSE.
     CPASSERT(ASSOCIATED(ex_bond_list))
     CPASSERT(ASSOCIATED(ex_bond_list_w))
     SELECT CASE(keyword)

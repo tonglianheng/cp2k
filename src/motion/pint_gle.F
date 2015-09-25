@@ -61,7 +61,6 @@ MODULE pint_gle
       cc(pint_env%gle%ndim,pint_env%gle%ndim)
     TYPE(rng_stream_type), POINTER           :: rng_stream
 
-    failure = .FALSE.
 
     CALL gle_cholesky_stab(pint_env%gle%c_mat, cc, pint_env%gle%ndim)
     DO i = 1, pint_env%gle%loc_num_gle

@@ -76,7 +76,6 @@ CONTAINS
     INTEGER                                  :: ikind, n, nkind
     LOGICAL                                  :: failure
 
-    failure = .FALSE.
     IF (ASSOCIATED(qs_force)) CALL deallocate_qs_force(qs_force)
 
     nkind = SIZE(natom_of_kind)
@@ -133,7 +132,6 @@ CONTAINS
     INTEGER                                  :: ikind, nkind
     LOGICAL                                  :: failure
 
-    failure = .FALSE.
     CPASSERT(ASSOCIATED(qs_force))
 
     nkind = SIZE(qs_force)
@@ -258,7 +256,6 @@ CONTAINS
     INTEGER                                  :: ikind
     LOGICAL                                  :: failure
 
-    failure = .FALSE.
     CPASSERT(ASSOCIATED(qs_force))
 
     DO ikind=1,SIZE(qs_force)
@@ -318,7 +315,6 @@ CONTAINS
 
 !   ------------------------------------------------------------------------
 
-    failure = .FALSE.
     CPASSERT(ASSOCIATED(qs_force))
 
     SELECT CASE (forcetype)

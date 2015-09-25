@@ -208,7 +208,6 @@ CONTAINS
 
     LOGICAL                                  :: failure
 
-    failure = .FALSE.
     !-----------------------------------------------------------------------------
     ! 1. Nullify and allocate things in topology
     !-----------------------------------------------------------------------------
@@ -313,7 +312,6 @@ CONTAINS
 
     LOGICAL                                  :: failure
 
-    failure = .FALSE.
     ! Bonds involving Hydrogens
 
     constraint_info%hbonds_restraint = .FALSE.
@@ -405,7 +403,6 @@ CONTAINS
 
     LOGICAL                                  :: failure
 
-    failure = .FALSE.
     !-----------------------------------------------------------------------------
     ! 1. DEALLOCATE things in topology%atom_info
     !-----------------------------------------------------------------------------
@@ -567,7 +564,6 @@ CONTAINS
     INTEGER                                  :: i
     LOGICAL                                  :: failure
 
-    failure = .FALSE.
     ! Fixed Atoms
     IF(ASSOCIATED(constraint_info%fixed_atoms)) THEN
        DEALLOCATE(constraint_info%fixed_atoms)
@@ -786,7 +782,6 @@ CONTAINS
     LOGICAL                                  :: failure
     TYPE(atom_info_type), POINTER            :: atom_info
 
-    failure = .FALSE.
     atom_info => topology%atom_info
 
     IF (ASSOCIATED(atom_info%id_molname)) THEN

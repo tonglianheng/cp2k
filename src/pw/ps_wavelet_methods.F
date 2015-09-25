@@ -73,7 +73,6 @@ CONTAINS
     CALL cite_reference(Genovese2006)
     CALL cite_reference(Genovese2007)
 
-    failure=.FALSE.
 
     ALLOCATE(wavelet)
 
@@ -134,7 +133,6 @@ CONTAINS
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: hx, hy, hz
 
-    failure=.FALSE.
 
     CALL timeset(routineN,handle)
     nproc=PRODUCT(pw_grid % para % rs_dims)
@@ -198,7 +196,6 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:), POINTER     :: rbuf, sbuf
 
     CALL timeset(routineN,handle)
-    failure=.FALSE.
 
     CPASSERT(ASSOCIATED(wavelet))
 
@@ -376,7 +373,6 @@ CONTAINS
     LOGICAL                                  :: failure
     REAL(KIND=dp), DIMENSION(:), POINTER     :: rbuf, sbuf
 
-    failure=.FALSE.
     CPASSERT(ASSOCIATED(wavelet))
 
     nproc=PRODUCT(pw_grid % para % rs_dims)

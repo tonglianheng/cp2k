@@ -103,7 +103,6 @@ CONTAINS
     INTEGER(KIND=int_8)                      :: pair_ind
     LOGICAL                                  :: check_ok, failure, found
 
-    failure = .FALSE.
     check_ok = fb_matrix_data_has_data(matrix_data)
     CPASSERT(check_ok)
     ! check if we need to resize the blks array
@@ -165,7 +164,6 @@ CONTAINS
 
     LOGICAL                                  :: check_ok, failure
 
-    failure = .FALSE.
     check_ok = .NOT. fb_matrix_data_has_data(matrix_data)
     CPASSERT(check_ok)
     ALLOCATE(matrix_data%obj)
@@ -206,7 +204,6 @@ CONTAINS
     INTEGER(KIND=int_8)                      :: pair_ind
     LOGICAL                                  :: check_ok, failure
 
-    failure = .FALSE.
     check_ok = fb_matrix_data_has_data(matrix_data)
     CPASSERT(check_ok)
     pair_ind = fb_matrix_data_encode_pair(row, col, matrix_data%obj%nencode)
@@ -251,7 +248,6 @@ CONTAINS
     INTEGER                                  :: ii, my_nmax
     LOGICAL                                  :: check_ok, failure
 
-    failure = .FALSE.
     check_ok = fb_matrix_data_has_data(matrix_data)
     CPASSERT(check_ok)
     my_nmax = matrix_data%obj%nmax
@@ -304,7 +300,6 @@ CONTAINS
     INTEGER                                  :: ii
     LOGICAL                                  :: check_ok, failure
 
-    failure = .FALSE.
     IF (ASSOCIATED(matrix_data%obj)) THEN
        check_ok = matrix_data%obj%ref_count > 0
        CPASSERT(check_ok)
@@ -343,7 +338,6 @@ CONTAINS
 
     LOGICAL                                  :: check_ok, failure
 
-    failure = .FALSE.
     check_ok = ASSOCIATED(matrix_data%obj)
     CPASSERT(check_ok)
     check_ok = matrix_data%obj%ref_count > 0
@@ -369,7 +363,6 @@ CONTAINS
     TYPE(fb_matrix_block), ALLOCATABLE, &
       DIMENSION(:)                           :: tmp_blks
 
-    failure = .FALSE.
     check_ok = fb_matrix_data_has_data(matrix_data)
     CPASSERT(check_ok)
     my_nmax = MAX(nmax, matrix_data%obj%nblks)
@@ -424,7 +417,6 @@ CONTAINS
     INTEGER                                  :: ii
     LOGICAL                                  :: check_ok, failure
 
-    failure = .FALSE.
     check_ok = fb_matrix_data_has_data(matrix_data)
     CPASSERT(check_ok)
     IF (PRESENT(nmax)) nmax = matrix_data%obj%nmax

@@ -62,7 +62,6 @@ CONTAINS
 
     LOGICAL                                  :: failure
 
-    failure = .FALSE.
     filename = ""
 
     CPASSERT(ASSOCIATED(tmc_params))
@@ -93,7 +92,6 @@ CONTAINS
     INTEGER                                  :: file_ptr, i
     LOGICAL                                  :: failure
 
-    failure = .FALSE.
     CPASSERT(ASSOCIATED(tmc_params))
 
     ! global tree
@@ -129,7 +127,6 @@ CONTAINS
     INTEGER                                  :: file_ptr, i
     LOGICAL                                  :: failure
 
-    failure = .FALSE.
     CPASSERT(ASSOCIATED(tmc_params))
 
     ! global tree
@@ -160,7 +157,6 @@ CONTAINS
 
     LOGICAL                                  :: failure
 
-    failure = .FALSE.
     CPASSERT(file_ptr.GT.0)
 
     WRITE(file_ptr,*)'//LEGEND'
@@ -216,7 +212,6 @@ CONTAINS
     INTEGER                                  :: file_ptr
     LOGICAL                                  :: failure
 
-    failure = .FALSE.
     CPASSERT(filename.NE."")
     CPASSERT(node_nr.GE.0)
 
@@ -284,7 +279,6 @@ CONTAINS
     INTEGER                                  :: file_ptr
     LOGICAL                                  :: failure
 
-    failure = .FALSE.
     CPASSERT(ASSOCIATED(tmc_params))
 
     CALL open_file(file_name=get_dot_file_name(tmc_params, tree), &
@@ -315,7 +309,6 @@ CONTAINS
 
     LOGICAL                                  :: failure
 
-    failure = .FALSE.
     CPASSERT(ASSOCIATED(new_element))
     CPASSERT(conf.GT.0)
     CPASSERT(ASSOCIATED(tmc_params))
@@ -345,7 +338,6 @@ CONTAINS
     LOGICAL                                  :: failure
     TYPE(gt_elem_list_type), POINTER         :: tmp_pt_list_elem
 
-    failure = .FALSE.
     NULLIFY(tmp_pt_list_elem)
 
     CPASSERT(ASSOCIATED(new_element))
@@ -427,7 +419,6 @@ CONTAINS
     LOGICAL                                  :: failure
     TYPE(gt_elem_list_type), POINTER         :: tmp_pt_list_elem
 
-    failure = .FALSE.
     CPASSERT(ASSOCIATED(tree_element))
     CPASSERT(ASSOCIATED(tmc_params))
 
@@ -470,7 +461,6 @@ CONTAINS
 
     LOGICAL                                  :: failure
 
-    failure = .FALSE.
     CPASSERT(ASSOCIATED(gt_tree_element))
     CPASSERT(ASSOCIATED(tmc_params))
 

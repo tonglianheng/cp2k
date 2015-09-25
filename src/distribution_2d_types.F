@@ -122,7 +122,6 @@ SUBROUTINE distribution_2d_create(distribution_2d, blacs_env,&
     INTEGER                                  :: i, stat
     LOGICAL                                  :: failure
 
-   failure=.FALSE.
    CPASSERT(ASSOCIATED(blacs_env))
    CPASSERT(.NOT.ASSOCIATED(distribution_2d))
 
@@ -246,7 +245,6 @@ SUBROUTINE distribution_2d_retain(distribution_2d)
 
     LOGICAL                                  :: failure
 
-  failure=.FALSE.
   CPASSERT(ASSOCIATED(distribution_2d))
   CPASSERT(distribution_2d%ref_count>0)
   distribution_2d%ref_count=distribution_2d%ref_count+1
@@ -265,7 +263,6 @@ SUBROUTINE distribution_2d_release(distribution_2d)
     INTEGER                                  :: i
     LOGICAL                                  :: failure
 
-   failure=.FALSE.
    IF (ASSOCIATED(distribution_2d)) THEN
       CPASSERT(distribution_2d%ref_count>0)
       distribution_2d%ref_count=distribution_2d%ref_count-1
@@ -332,7 +329,6 @@ SUBROUTINE distribution_2d_write(distribution_2d, unit_nr, local,&
                                                 my_long_description
     TYPE(cp_logger_type), POINTER            :: logger
 
-  failure=.FALSE.
   logger => cp_get_default_logger()
 
   my_long_description=.FALSE.
@@ -544,7 +540,6 @@ SUBROUTINE distribution_2d_get(distribution_2d, row_distribution, &
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: multiindex
     LOGICAL                                  :: failure
 
-  failure=.FALSE.
   CPASSERT(ASSOCIATED(distribution_2d))
   CPASSERT(distribution_2d%ref_count>0)
   IF (PRESENT(row_distribution)) row_distribution => distribution_2d%row_distribution

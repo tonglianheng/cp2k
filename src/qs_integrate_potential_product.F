@@ -228,7 +228,6 @@ CONTAINS
        CPASSERT(PRESENT(hmat_kp))
     END IF
 
-    failure=.FALSE.
     NULLIFY(pw_env, rs_descs, tasks, dist_ab, admm_env)
 
     debug_count=debug_count+1

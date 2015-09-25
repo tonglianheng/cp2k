@@ -72,7 +72,6 @@ CONTAINS
 
     LOGICAL                                  :: failure
 
-    failure = .FALSE.
     IF (ASSOCIATED(harmonics)) CALL deallocate_harmonics_atom(harmonics)
 
     ALLOCATE (harmonics)
@@ -111,7 +110,6 @@ CONTAINS
 
     LOGICAL                                  :: failure
 
-    failure = .FALSE.
     IF (ASSOCIATED(harmonics)) THEN
 
        IF(ASSOCIATED(harmonics%slm)) THEN
@@ -201,7 +199,6 @@ CONTAINS
     REAL(dp), DIMENSION(:, :), POINTER       :: dc, dy, slm
     REAL(dp), DIMENSION(:, :, :), POINTER    :: dslm_dxyz
 
-    failure = .FALSE.
     CALL timeset(routineN,handle)
 
     NULLIFY (y,dy,slm,dslm_dxyz,dc)
@@ -521,7 +518,6 @@ CONTAINS
     INTEGER, DIMENSION(:), POINTER           :: lmax, lmin
     LOGICAL                                  :: failure
 
-    failure = .FALSE.
     CALL timeset(routineN,handle)
 
     CPASSERT(ASSOCIATED(harmonics))

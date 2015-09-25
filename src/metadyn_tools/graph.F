@@ -62,7 +62,6 @@ PROGRAM graph
   TYPE(mep_input_data_type)                :: mep_input_data
 
 
-  failure=.FALSE.
   ! Initialize variables
   nprd    = 0
   ndim    = 1

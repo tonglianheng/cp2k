@@ -84,7 +84,6 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-    failure = .FALSE.
     NULLIFY (optimizer, para_env)
     logger => cp_get_default_logger()
     root_section => force_env%root_section

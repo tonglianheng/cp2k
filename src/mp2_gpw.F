@@ -220,7 +220,6 @@ MODULE mp2_gpw
     TYPE(task_list_type), POINTER            :: task_list_sub
 
     CALL timeset(routineN,handle)
-    failure=.FALSE.
 
     ! check if we want to do ri-mp2
     my_do_ri_mp2=.FALSE.
@@ -931,7 +930,6 @@ MODULE mp2_gpw
       DIMENSION(:)                           :: psi_i
 
     CALL timeset(routineN,handle)
-    failure=.FALSE.
 
     do_alpha_beta=.FALSE.
     IF(PRESENT(homo_beta).AND.&
@@ -1498,7 +1496,6 @@ MODULE mp2_gpw
     LOGICAL                                  :: failure
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: local_BI, rec_BI
 
-    failure=.FALSE.
 
     ALLOCATE(rec_col_row_info(0:max_row_col_local,2))
 
@@ -1630,7 +1627,6 @@ MODULE mp2_gpw
     TYPE(cp_fm_struct_type), POINTER         :: fm_struct_coeff
 
     CALL timeset(routineN,handle)
-    failure=.FALSE.
 
     ALLOCATE(sizes_array(0:para_env_sub%num_pe-1))
     ALLOCATE(starts_array(0:para_env_sub%num_pe-1))
@@ -1855,7 +1851,6 @@ MODULE mp2_gpw
     TYPE(cp_dbcsr_iterator)                  :: iter
 
     CALL timeset(routineN,handle)
-    failure=.FALSE.
 
     ALLOCATE(my_Cocc(dimen,my_I_batch_size))
     my_Cocc=0.0_dp
@@ -1965,7 +1960,6 @@ MODULE mp2_gpw
       DIMENSION(:, :)                        :: rec_C
 
     CALL timeset(routineN,handle)
-    failure=.FALSE.
 
     NULLIFY(mo_coeff_to_build)
     CALL cp_dbcsr_init_p(mo_coeff_to_build)

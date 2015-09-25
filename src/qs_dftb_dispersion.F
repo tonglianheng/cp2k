@@ -74,7 +74,6 @@ CONTAINS
     TYPE(qs_dispersion_type), POINTER        :: dispersion_env
     TYPE(qs_energy_type), POINTER            :: energy
 
-    failure = .FALSE.
     CALL get_qs_env(qs_env=qs_env,&
                     energy=energy,&
                     dft_control=dft_control)

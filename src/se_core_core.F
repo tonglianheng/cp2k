@@ -127,7 +127,6 @@ CONTAINS
     TYPE(semi_empirical_type), POINTER       :: se_kind_a, se_kind_b
     TYPE(virial_type), POINTER               :: virial
 
-    failure  = .FALSE.
     enuclear = 0.0_dp
     NULLIFY(dft_control,cell,force,particle_set,se_control,se_taper,atomic_kind_set,&
             virial, atprop)

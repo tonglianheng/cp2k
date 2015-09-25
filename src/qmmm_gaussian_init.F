@@ -96,7 +96,6 @@ CONTAINS
 ! Statements
 
     NULLIFY(mypgf, gridlevel_info, radius, c_radius, logger)
-    failure = .FALSE.
     logger => cp_get_default_logger()
     CALL section_vals_val_get(qmmm_section,"USE_GEEP_LIB",i_val=num_geep_gauss)
     IF (num_geep_gauss == 0) THEN

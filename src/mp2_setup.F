@@ -57,7 +57,6 @@ CONTAINS
 
     CALL timeset(routineN,handle)
     logger => cp_get_default_logger()
-    failure=.FALSE.
 
     mp2_section => section_vals_get_subs_vals(input,"DFT%XC%WF_CORRELATION")
 

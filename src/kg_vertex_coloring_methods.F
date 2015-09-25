@@ -295,7 +295,6 @@ CONTAINS
       DIMENSION(:)                           :: values
     LOGICAL                                  :: failure, heap_error
 
-    failure = .FALSE.
 
     nnodes = SIZE(graph)
 
@@ -329,7 +328,6 @@ CONTAINS
     INTEGER(KIND=valt)                       :: value
     LOGICAL                                  :: failure, found, heap_error
 
-    failure=.FALSE.
 
     CALL heap_pop (heap, key, value, found, heap_error)
     CALL cp_assert (.NOT. heap_error, cp_warning_level, cp_internal_error,&
@@ -414,7 +412,6 @@ CONTAINS
     TYPE(heap_t)                             :: heap
     TYPE(vertex), POINTER                    :: neighbor, this
 
-    failure=.FALSE.
 
     CALL timeset(routineN,handle)
 
@@ -714,7 +711,6 @@ CONTAINS
     TYPE(vertex_p_type), DIMENSION(:), &
       POINTER                                :: graph
 
-    failure = .FALSE.
 
     ! get a useful output_unit
     logger => cp_get_default_logger()

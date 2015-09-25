@@ -192,7 +192,6 @@ CONTAINS
     TYPE(cp_dbcsr_type)                      :: matrix_tmp
 
     CALL timeset(routineN,handle)
-    failure=.FALSE.
     CALL cp_dbcsr_init(matrix_tmp)
     CALL cp_dbcsr_create(matrix_tmp,template=matrix,matrix_type=dbcsr_type_no_symmetry)
 

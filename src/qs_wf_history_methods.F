@@ -120,7 +120,6 @@ SUBROUTINE wfs_create(snapshot)
 
     LOGICAL                                  :: failure
 
-  failure=.FALSE.
 
   ALLOCATE(snapshot)
   last_wfs_id=last_wfs_id+1
@@ -172,7 +171,6 @@ SUBROUTINE wfs_update(snapshot,wf_history,qs_env,dt)
 
   CALL timeset(routineN,handle)
 
-  failure=.FALSE.
   NULLIFY(pw_env, auxbas_pw_pool, ao_mo_pools, dft_control, mos, mo_coeff,&
        rho, rho_r,rho_g,rho_ao, matrix_s)
   CALL get_qs_env(qs_env, pw_env=pw_env,&
@@ -334,7 +332,6 @@ SUBROUTINE wfi_create(wf_history, interpolation_method_nr, extrapolation_order, 
 
     CALL timeset(routineN,handle)
 
-  failure=.FALSE.
 
   ALLOCATE(wf_history)
   last_wfi_id=last_wfi_id+1
@@ -419,7 +416,6 @@ SUBROUTINE wfi_create_for_kp(wf_history)
 
     LOGICAL                                  :: failure
 
-    failure=.FALSE.
     CPASSERT(ASSOCIATED(wf_history))
     IF(wf_history%store_rho_ao) THEN
        wf_history%store_rho_ao_kp = .TRUE.
@@ -461,7 +457,6 @@ FUNCTION wfi_get_method_label(method_nr) RESULT(res)
 
     LOGICAL                                  :: failure
 
-  failure=.FALSE.
 
   res="unknown"
   SELECT CASE(method_nr)
@@ -542,7 +537,6 @@ END FUNCTION wfi_get_method_label
 
     NULLIFY(mos, ao_mo_fm_pools, t0_state, t1_state, mo_coeff, &
          rho, rho_ao, rho_frozen_ao)
-    failure=.FALSE.
 
     use_overlap = wf_history%store_overlap
 
@@ -998,7 +992,6 @@ CPSourceFileRef,&
     LOGICAL                                  :: failure
 
     CALL timeset(routineN,handle)
-    failure = .FALSE.
 
     CPASSERT(ASSOCIATED(qs_env))
     CPASSERT(qs_env%ref_count>0)
@@ -1040,7 +1033,6 @@ SUBROUTINE wfi_update(wf_history, qs_env, dt)
 
     LOGICAL                                  :: failure
 
-  failure=.FALSE.
 
   CPASSERT(ASSOCIATED(wf_history))
   CPASSERT(wf_history%ref_count>0)
@@ -1086,7 +1078,6 @@ END SUBROUTINE wfi_update
     TYPE(qs_scf_env_type), POINTER           :: scf_env
     TYPE(scf_control_type), POINTER          :: scf_control
 
-    failure=.FALSE.
     NULLIFY(scf_env, scf_control, maxao_maxmo_fm_pool, matrix_s, mpools, dft_control)
     CALL timeset(routineN,handle)
 

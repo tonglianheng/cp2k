@@ -113,7 +113,6 @@ CONTAINS
     CALL timeset(routineN,handle)
     CALL cite_reference(Blochl1995)
     ! In case decouple periodic images and/or apply restraints to charges
-    failure        = .FALSE.
     logger         => cp_get_default_logger()
     ddapc_restraint_is_spin =.FALSE.
     et_coupling_calc        =.FALSE.
@@ -260,7 +259,6 @@ CONTAINS
       qmmm_periodic_section
 
     CALL timeset(routineN,handle)
-    failure        = .FALSE.
     need_f         = .FALSE.
     IF (PRESENT(calculate_forces)) need_f   = calculate_forces
     logger         => cp_get_default_logger()
@@ -401,7 +399,6 @@ CONTAINS
     CALL timeset(routineN,handle)
     NULLIFY(dft_control,restraint_section, force_env_section, particle_set, &
             charges, radii, dq, cell, density_fit_section, super_cell)
-    failure        = .FALSE.
     need_f         = .FALSE.
 
     CALL get_qs_env(qs_env=qs_env,&
@@ -510,7 +507,6 @@ CONTAINS
                                                 solvation_section
 
     CALL timeset(routineN,handle)
-    failure         = .FALSE.
     need_f          = .FALSE.
     IF (PRESENT(calculate_forces)) need_f = calculate_forces
     logger          => cp_get_default_logger()

@@ -75,7 +75,6 @@ CONTAINS
     TYPE(cp_fm_struct_type), POINTER         :: fm_struct_tmp
     TYPE(cp_fm_type), POINTER                :: mo_coeff
 
-    failure = .FALSE.
 
     CALL timeset(routineN,handle)
 
@@ -211,7 +210,6 @@ CONTAINS
                                                 t_mat, t_vec
 
     CALL timeset(routineN,handle)
-    failure = .FALSE.
 
     NULLIFY(fm_struct_tmp)
     NULLIFY(chc, evec)
@@ -555,7 +553,6 @@ CONTAINS
                                                 evec, hc, v_tmp
 
     CALL timeset(routineN,handle)
-    failure = .FALSE.
 
     NULLIFY(fm_struct_tmp)
     NULLIFY(chc, evec)

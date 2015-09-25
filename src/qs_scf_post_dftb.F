@@ -116,7 +116,6 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-    failure=.FALSE.
 
     logger => cp_get_default_logger()
 

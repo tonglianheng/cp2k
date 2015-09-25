@@ -1003,7 +1003,6 @@ CONTAINS
 ! distribution is not covered.
 !------------------------------------------------------------------------------
 
-    failure = .FALSE.
     CALL timeset(routineN,handle)
     logger => cp_get_default_logger()
     output_unit = cp_logger_get_default_io_unit(logger)
@@ -2619,7 +2618,6 @@ CONTAINS
     INTEGER                                  :: i
     LOGICAL                                  :: failure
 
-    failure = .FALSE.
     CALL release_fft_scratch_pool()
 
     ! Allocate first scratch and mark it as used
@@ -2691,7 +2689,6 @@ CONTAINS
     COMPLEX(KIND=dp), POINTER :: dummy_ptr_z
 #endif
 
-    failure = .FALSE.
     ! deallocate structures
     IF(ASSOCIATED(fft_scratch%ziptr)) THEN
        DEALLOCATE(fft_scratch%ziptr)
@@ -2874,7 +2871,6 @@ CONTAINS
     TYPE(fft_scratch_pool_type), POINTER     :: fft_scratch, &
                                                 fft_scratch_current
 
-    failure = .FALSE.
 
     IF (init_fft_pool == 0) NULLIFY(fft_scratch_first)
 
@@ -2911,7 +2907,6 @@ CONTAINS
     TYPE(fft_scratch_pool_type), POINTER     :: fft_scratch_current, &
                                                 fft_scratch_old
 
-    failure=.FALSE.
     nscratch=0
 
     last_tick=HUGE(last_tick)
@@ -3002,7 +2997,6 @@ CONTAINS
 #endif
     CALL timeset(routineN,handle)
 
-    failure = .FALSE.
 
     ! this is the place to check that the scratch_pool does not grow without limits
     ! before we add a new scratch check the size of the pool and release some of the list if needed
@@ -3412,7 +3406,6 @@ CONTAINS
     LOGICAL                                  :: failure
     TYPE(fft_scratch_pool_type), POINTER     :: fft_scratch_current
 
-    FAILURE = .FALSE.
 
     scratch_id = fft_scratch%fft_scratch_id
 

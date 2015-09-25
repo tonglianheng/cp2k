@@ -56,7 +56,6 @@ SUBROUTINE get_sto_ng ( zeta, n, nq, lq, alpha, coef)
     INTEGER                                  :: m, na, nc
     LOGICAL                                  :: failure
 
-  failure=.FALSE.
 
   na = SIZE ( alpha )
   nc = SIZE ( coef )

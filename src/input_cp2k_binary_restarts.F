@@ -91,7 +91,6 @@ CONTAINS
     CALL timeset(routineN,handle)
 
     NULLIFY (logger)
-    failure = .FALSE.
     CPASSERT(ASSOCIATED(root_section))
     CPASSERT(ASSOCIATED(para_env))
     CPASSERT(ASSOCIATED(subsys_section))
@@ -368,7 +367,6 @@ CONTAINS
     CALL timeset(routineN,handle)
 
     NULLIFY (logger)
-    failure = .FALSE.
     CPASSERT(ASSOCIATED(root_section))
     CPASSERT(ASSOCIATED(subsys_section))
     logger => cp_get_default_logger()
@@ -587,7 +585,6 @@ CONTAINS
     CALL timeset(routineN,handle)
 
     NULLIFY (logger)
-    failure = .FALSE.
     CPASSERT(ASSOCIATED(root_section))
     CPASSERT(ASSOCIATED(para_env))
     CPASSERT(ASSOCIATED(subsys_section))
@@ -779,7 +776,6 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-    failure = .FALSE.
     CPASSERT(ASSOCIATED(nhc))
     CPASSERT(ASSOCIATED(para_env))
 

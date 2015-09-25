@@ -133,7 +133,6 @@ CONTAINS
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(qs_ks_env_type), POINTER            :: ks_env
 
-    failure = .FALSE.
     NULLIFY(ks_env, matrix_w, matrix_w_mp2, matrix_s, dft_control)
 
     CALL qs_energies_init_kg(qs_env,molecule_only)
@@ -280,7 +279,6 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-    failure = .FALSE.
     CALL get_qs_env(qs_env,&
                     input=input,&
                     dft_control=dft_control,&
@@ -388,7 +386,6 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-    failure = .FALSE.
 
     ! if calculate forces, time to compute the w matrix
     CALL get_qs_env(qs_env, has_unit_metric=has_unit_metric)

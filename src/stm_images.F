@@ -133,7 +133,6 @@ CONTAINS
     TYPE(qs_rho_type), POINTER               :: rho
 
     CALL timeset(routineN,handle)
-    failure=.FALSE.
     logger => cp_get_default_logger()
     output_unit= cp_logger_get_default_io_unit(logger)
 
@@ -305,7 +304,6 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-    failure=.FALSE.
     logger => cp_get_default_logger()
     NULLIFY(fm_struct_tmp)
 

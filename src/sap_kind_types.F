@@ -68,7 +68,6 @@ CONTAINS
     LOGICAL                                  :: failure
     TYPE(clist_type), POINTER                :: clist
 
-    failure = .FALSE.
 
     CPASSERT(ASSOCIATED(sap_int))
 
@@ -123,7 +122,6 @@ CONTAINS
     INTEGER                                  :: i
     LOGICAL                                  :: failure
 
-    failure = .FALSE.
 
     NULLIFY(alist)
     i = locate(sap_int%asort,atom)
@@ -236,7 +234,6 @@ CONTAINS
     INTEGER                                  :: iac, na
     LOGICAL                                  :: failure
 
-    failure = .FALSE.
 
 ! *** Set up a sorting index
 

@@ -110,7 +110,6 @@ CONTAINS
     LOGICAL                                  :: failure
     TYPE(section_vals_type), POINTER         :: averages_section
 
-    failure = .FALSE.
     ALLOCATE(md_env)
     last_md_env_id=last_md_env_id+1
     md_env%id_nr=last_md_env_id
@@ -164,7 +163,6 @@ CONTAINS
 
     LOGICAL                                  :: failure
 
-    failure=.FALSE.
 
     CPASSERT(ASSOCIATED(md_env))
     CPASSERT(md_env%ref_count>0)
@@ -188,7 +186,6 @@ CONTAINS
 
     LOGICAL                                  :: failure
 
-    failure=.FALSE.
 
     IF (ASSOCIATED(md_env)) THEN
        CPASSERT(md_env%ref_count>0)
@@ -282,7 +279,6 @@ CONTAINS
 
     LOGICAL                                  :: check, failure
 
-    failure = .FALSE.
     check = ASSOCIATED(md_env)
     CPASSERT(check)
     IF (PRESENT(itimes)) itimes => md_env%itimes
@@ -386,7 +382,6 @@ CONTAINS
 
     LOGICAL                                  :: check, failure
 
-    failure = .FALSE.
     check = ASSOCIATED(md_env)
     CPASSERT(check)
     IF(PRESENT (init)) md_env%init = init

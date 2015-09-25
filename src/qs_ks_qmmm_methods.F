@@ -103,7 +103,6 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-    failure=.FALSE.
     CPASSERT(.NOT.ASSOCIATED(ks_qmmm_env))
     ALLOCATE(ks_qmmm_env)
 
@@ -173,7 +172,6 @@ CONTAINS
     TYPE(section_vals_type), POINTER         :: input
 
     CALL timeset(routineN,handle)
-    failure=.FALSE.
     CPASSERT(ASSOCIATED(rho))
     NULLIFY(dft_control,input,logger)
     logger => cp_get_default_logger()
@@ -227,7 +225,6 @@ CONTAINS
     REAL(KIND=dp)                            :: fac
 
     CALL timeset(routineN,handle)
-    failure=.FALSE.
 
     fac = v_qmmm%pw%pw_grid%dvol*scale
     v_hartree%pw%cr3d = v_hartree%pw%cr3d + fac*v_qmmm%pw%cr3d

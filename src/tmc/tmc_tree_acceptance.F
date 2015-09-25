@@ -96,7 +96,6 @@ CONTAINS
     REAL(KIND=dp)                            :: ekin_last_acc, elem_ener, kB, &
                                                 parent_ener
 
-    failure = .FALSE.
     CPASSERT(ASSOCIATED(tree_element))
     CPASSERT(ASSOCIATED(parent_element))
     CPASSERT(ASSOCIATED(tmc_params))
@@ -221,7 +220,6 @@ CPASSERT(.FALSE.)
     REAL(KIND=dp)                            :: delta, elem1_ener, &
                                                 elem2_ener, kB, vol1, vol2
 
-    failure = .FALSE.
     kB = boltzmann/joule
 
     CPASSERT(ASSOCIATED(tree_elem))
@@ -298,7 +296,6 @@ CPASSERT(.FALSE.)
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: d_enthalpy, kB, n_vol, p_vol
 
-    failure = .FALSE.
     kB = boltzmann/joule
 
     CPASSERT(ASSOCIATED(parent_elem))
@@ -375,7 +372,6 @@ CPASSERT(.FALSE.)
     LOGICAL                                  :: failure, parent_ready
     TYPE(tree_type), POINTER                 :: act_elem, parent_elem
 
-    failure = .FALSE.
     NULLIFY(parent_elem, act_elem)
 
     CPASSERT(ASSOCIATED(tmc_env))
@@ -458,7 +454,6 @@ CPASSERT(.FALSE.)
     TYPE(global_tree_type), POINTER          :: tmp_gt_ptr
     TYPE(gt_elem_list_type), POINTER         :: tmp_gt_list_ptr
 
-    failure = .FALSE.
     NULLIFY(tmp_gt_list_ptr, tmp_gt_ptr)
 
     ! start the timing
@@ -539,7 +534,6 @@ CPASSERT(.FALSE.)
     LOGICAL                                  :: failure
     TYPE(tree_type), POINTER                 :: ptr
 
-    failure = .FALSE.
     NULLIFY(ptr)
 
     CPASSERT(ASSOCIATED(gt_ptr))
@@ -591,7 +585,6 @@ CPASSERT(.FALSE.)
     INTEGER                                  :: handle
     LOGICAL                                  :: failure
 
-    failure = .FALSE.
     CPASSERT(ASSOCIATED(elem))
 
     ! start the timing
@@ -635,7 +628,6 @@ CPASSERT(.FALSE.)
     LOGICAL                                  :: act_ready, failure, tmp_ready
     TYPE(tree_type), POINTER                 :: act_element, tmp_element
 
-    failure = .FALSE.
     NULLIFY(act_element, tmp_element)
     check_done = .FALSE.
 
@@ -747,7 +739,6 @@ CPASSERT(.FALSE.)
     TYPE(global_tree_type), POINTER          :: gt_act_elem
     TYPE(tree_type), POINTER                 :: act_element, tmp_element
 
-    failure = .FALSE.
     NULLIFY(gt_act_elem, tmp_element, act_element)
 
     CPASSERT(ASSOCIATED(tmc_env))
@@ -909,7 +900,6 @@ CPASSERT(.FALSE.)
 
     LOGICAL                                  :: failure
 
-    failure = .FALSE.
     CPASSERT(ASSOCIATED(elem))
     ready = .FALSE.
     IF((elem%scf_energies_count.GE.4)&
@@ -938,7 +928,6 @@ CPASSERT(.FALSE.)
     LOGICAL                                  :: failure
     TYPE(tree_type), POINTER                 :: act_elem, parent_elem
 
-    failure = .FALSE.
     NULLIFY(parent_elem, act_elem)
 
     CPASSERT(ASSOCIATED(tree_elem))
@@ -1015,7 +1004,6 @@ CPASSERT(.FALSE.)
     TYPE(gt_elem_list_type), POINTER         :: tmp_pt_ptr
     TYPE(tree_type), POINTER                 :: tmp_elem, tmp_parent_elem
 
-    failure = .FALSE.
     kB = boltzmann/joule
 
     NULLIFY(tmp_pt_ptr,tmp_elem,tmp_parent_elem)

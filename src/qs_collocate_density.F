@@ -210,7 +210,6 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-    failure = .FALSE.
 
     NULLIFY(cell,dft_control,pab,qs_kind_set,particle_set,atomic_kind_set,&
          atom_list,pw_env,rs_rho,auxbas_pw_pool,cores)
@@ -339,7 +338,6 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-    failure = .FALSE.
 
     NULLIFY(cell,dft_control,pab,particle_set,atomic_kind_set,qs_kind_set,&
          atom_list,pw_env,rs_rho,auxbas_pw_pool,cores)
@@ -523,7 +521,6 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-    failure = .FALSE.
 
     NULLIFY(cell,dft_control,pab,atomic_kind_set,qs_kind_set,particle_set,&
          atom_list,pw_env,rs_rho,auxbas_pw_pool,cores)
@@ -1674,7 +1671,6 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-    failure=.FALSE.
     CPASSERT(PRESENT(matrix_p).OR.PRESENT(matrix_p_kp))
     do_kp = PRESENT(matrix_p_kp)
 
@@ -2216,7 +2212,6 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-    failure=.FALSE.
 
     CPASSERT(PRESENT(matrix_p).OR.PRESENT(matrix_p_kp))
     do_kp = PRESENT(matrix_p_kp)
@@ -2617,7 +2612,6 @@ CONTAINS
       my_basis_type = "ORB"
     END IF
 
-    failure=.FALSE.
 
     CALL timeset(routineN,handle)
 
@@ -2893,7 +2887,6 @@ CONTAINS
 
       REAL(kind=dp), POINTER, DIMENSION(:,:,:) :: grid_tmp,gauge
 
-    failure = .FALSE.
 
     subpatch_collocate = .FALSE.
 

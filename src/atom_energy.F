@@ -103,7 +103,6 @@ CONTAINS
       method_section, opt_section, potential_section, powell_section, &
       xc_section, zmp_restart_section, zmp_section
 
-    failure = .FALSE.
 
     CALL timeset(routineN,handle)
 
@@ -500,7 +499,6 @@ CONTAINS
       POINTER                                :: ovlp
     TYPE(atom_state), POINTER                :: state
 
-    failure = .FALSE.
     WRITE(iw,'(/," ",79("*"),/,T34,A,/," ",79("*"))') "RESPONSE BASIS"
 
     state => atom%state
@@ -624,7 +622,6 @@ CONTAINS
       DIMENSION(:, :)                        :: dij
     TYPE(atom_gthpot_type), POINTER          :: pot
 
-    failure = .FALSE.
     IF(.NOT.atom%pp_calc) RETURN
     IF(atom%potential%ppot_type /= GTH_PSEUDO) RETURN
     pot => atom%potential%gth_pot

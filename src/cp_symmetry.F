@@ -82,7 +82,6 @@ CONTAINS
     TYPE(molsym_type), POINTER               :: mol_sym
     TYPE(section_vals_type), POINTER         :: section
 
-    failure = .FALSE.
     CALL timeset(routineN,handle)
 
     NULLIFY (logger)

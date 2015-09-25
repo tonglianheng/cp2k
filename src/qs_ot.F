@@ -81,7 +81,6 @@ CONTAINS
     INTEGER                                  :: ncoef
     LOGICAL                                  :: failure, mixed_precision
 
-    failure = .FALSE.
 
     qs_ot_env%preconditioner => preconditioner
     qs_ot_env%os_valid = .FALSE.
@@ -301,7 +300,6 @@ CONTAINS
     REAL(dp), ALLOCATABLE, DIMENSION(:)      :: eig, fun
     TYPE(cp_dbcsr_type), POINTER             :: V, W
 
-    failure = .FALSE.
 
     CALL timeset(routineN,handle)
     !

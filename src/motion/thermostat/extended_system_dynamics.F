@@ -213,7 +213,6 @@ CONTAINS
     INTEGER                                  :: imap, n
     LOGICAL                                  :: failure
 
-    failure = .FALSE.
 
     ! Force on the first bead in every thermostat chain
     DO n = 1, nhc%loc_num_nhc

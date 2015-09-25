@@ -120,7 +120,6 @@ CONTAINS
 !INTEGER, DIMENSION(:, :), POINTER        :: addel, laddel, naddel 
 !LOGICAL                                  :: bs_occupation
 
-    failure = .FALSE.
     NULLIFY(atom)
     CALL create_atom_type(atom)
 
@@ -509,7 +508,6 @@ CONTAINS
     TYPE(grid_atom_type), POINTER            :: grid
     TYPE(gth_potential_type), POINTER        :: gth_potential
 
-    failure = .FALSE.
     NULLIFY(atom)
     CALL create_atom_type(atom)
 
@@ -914,7 +912,6 @@ CONTAINS
     TYPE(grid_atom_type), POINTER            :: grid
     TYPE(gto_basis_set_type), POINTER        :: orb_basis_set
 
-    failure = .FALSE.
 
     IF(rel_control%rel_method == rel_none) RETURN
 

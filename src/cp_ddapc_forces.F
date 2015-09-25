@@ -103,7 +103,6 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: d_el, M
     TYPE(cp_para_env_type), POINTER          :: para_env
 
-    failure = .FALSE.
     NULLIFY(d_el, M, para_env)
     CALL timeset(routineN,handle)
     CALL get_qs_env(qs_env, para_env=para_env)
@@ -269,7 +268,6 @@ CONTAINS
     TYPE(qs_force_type), DIMENSION(:), &
       POINTER                                :: force
 
-    failure = .FALSE.
     NULLIFY(para_env)
     CALL timeset(routineN,handle)
     natom = SIZE(particle_set)
@@ -323,7 +321,6 @@ CONTAINS
     TYPE(qs_force_type), DIMENSION(:), &
       POINTER                                :: force
 
-    failure = .FALSE.
 
     CALL timeset(routineN,handle)
     CALL get_qs_env(qs_env=qs_env,&
@@ -367,7 +364,6 @@ CONTAINS
 
 ! order parameter (i.e. the sum of the charges of the selected atoms)
 
-    failure = .FALSE.
     order_p = 0.0_dp
     DO I=1,ddapc_restraint_control%natoms
        ind     = (ddapc_restraint_control%atoms(I)-1)*n_gauss
@@ -445,7 +441,6 @@ CONTAINS
     TYPE(qs_force_type), DIMENSION(:), &
       POINTER                                :: force
 
-    failure = .FALSE.
     NULLIFY(para_env)
     CALL timeset(routineN,handle)
     natom = SIZE(particle_set)
@@ -523,7 +518,6 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:), POINTER     :: pos, R0
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: d_el, LocP, M
 
-    failure = .FALSE.
     fixed_center = .FALSE.
     NULLIFY(d_el, M)
     eps_in = 1.0_dp

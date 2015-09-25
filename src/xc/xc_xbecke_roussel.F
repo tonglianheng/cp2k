@@ -95,7 +95,6 @@ CONTAINS
 
     LOGICAL                                  :: failure
 
-    failure=.FALSE.
 
     CALL cite_reference(BeckeRoussel1989)
     CALL cite_reference(Proynov2007)
@@ -140,7 +139,6 @@ CONTAINS
 
     LOGICAL                                  :: failure
 
-    failure=.FALSE.
 
     CALL cite_reference(BeckeRoussel1989)
     CALL cite_reference(Proynov2007)
@@ -198,7 +196,6 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-    failure=.FALSE.
     NULLIFY(bo)
 
     CPASSERT(ASSOCIATED(rho_set))
@@ -425,7 +422,6 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-    failure=.FALSE.
     NULLIFY(bo)
 
     CPASSERT(ASSOCIATED(rho_set))

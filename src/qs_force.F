@@ -168,7 +168,6 @@ CONTAINS
     TYPE(virial_type), POINTER               :: virial
 
     CALL timeset(routineN,handle)
-    failure = .FALSE.
     NULLIFY (logger)
     logger => cp_get_default_logger()
 

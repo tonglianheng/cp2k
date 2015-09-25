@@ -97,7 +97,6 @@ CONTAINS
                                                 hfx_sections, input, &
                                                 xc_section
 
-    failure=.FALSE.
     CALL timeset(routineN,handle)
     NULLIFY(para_env, dft_control, adiabatic_rescaling_section, hfx_sections,&
             input, xc_section, rho_xc, ks_env, rho_ao)

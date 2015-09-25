@@ -91,7 +91,6 @@ CONTAINS
     TYPE(qs_environment_type), POINTER       :: qs_env
 
     CALL timeset(routineN,handle)
-    failure = .FALSE.
     NULLIFY(qs_env, sub_force_env)
     !Reference qs_env
     CALL qs_env_create(qs_env,globenv)

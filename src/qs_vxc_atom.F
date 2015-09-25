@@ -132,7 +132,6 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-    failure = .FALSE.
 
     NULLIFY (atom_list)
     NULLIFY (qs_kind_set)
@@ -499,7 +498,6 @@ CONTAINS
 
    CALL timeset(routineN,handle)
 
-   failure = .FALSE.
 
    NULLIFY(qs_kind_set, energy, para_env)
    NULLIFY(rho_h, rho_s, drho_h, drho_s, weight)
@@ -763,7 +761,6 @@ CONTAINS
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: rad, urad
 
-   failure = .FALSE.
    CPASSERT(ASSOCIATED(r_h))
    CPASSERT(ASSOCIATED(r_s))
    CPASSERT(ASSOCIATED(rho_h))
@@ -882,7 +879,6 @@ CONTAINS
     INTEGER                                  :: ia, iso, ispin, na
     LOGICAL                                  :: failure
 
-    failure = .FALSE.
     CPASSERT(ASSOCIATED(trho_h))
     CPASSERT(ASSOCIATED(trho_s))
     CPASSERT(ASSOCIATED(tau_h))
@@ -960,7 +956,6 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-    failure = .FALSE.
 
     NULLIFY (lmin,lmax,npgf,zet,my_CG,harmonics,grid_atom)
 
@@ -1158,7 +1153,6 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-    failure = .FALSE.
 
     NULLIFY(lmin,lmax,npgf,zet,my_CG,my_CG_dxyz,harmonics,grid_atom)
 
@@ -1439,7 +1433,6 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-    failure = .FALSE.
 
     NULLIFY(harmonics,grid_atom)
     CALL get_qs_kind(qs_kind,basis_set=orb_basis,&

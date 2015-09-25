@@ -179,7 +179,6 @@ MODULE mp2
 
     NULLIFY(virial, dft_control, blacs_env)
     CALL timeset(routineN,handle)
-    failure=.FALSE.
     logger => cp_get_default_logger()
 
     CALL cite_reference(DelBen2012)
@@ -811,7 +810,6 @@ MODULE mp2
     TYPE(cp_para_env_type), POINTER          :: para_env_sub
 
     CALL timeset(routineN,handle)
-    failure=.FALSE.
 
     alpha_beta_case=.FALSE.
     IF(PRESENT(C_j).AND.PRESENT(Auto_j)) alpha_beta_case=.TRUE.
@@ -1090,7 +1088,6 @@ MODULE mp2
     TYPE(section_vals_type), POINTER         :: hfx_sections, input
 
     CALL timeset(routineN,handle)
-    failure=.FALSE.
 
     t1=m_walltime()
 

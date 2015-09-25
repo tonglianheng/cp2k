@@ -75,7 +75,6 @@ MODULE helium_sampling
     LOGICAL                                  :: failure, should_stop
     TYPE(pint_env_type), POINTER             :: pint_env
 
-    failure=.FALSE.
     CPASSERT(ASSOCIATED(helium))
     IF (failure) THEN
       CPASSERT(.FALSE.)
@@ -148,7 +147,6 @@ MODULE helium_sampling
     NULLIFY(logger)
     logger => cp_get_default_logger()
 
-    failure=.FALSE.
     CPASSERT(ASSOCIATED(helium))
 
     solute_present = helium%solute_present
@@ -263,7 +261,6 @@ MODULE helium_sampling
     CALL timeset(routineN,handle)
     time_start = m_walltime()
 
-    failure=.FALSE.
     CPASSERT(ASSOCIATED(helium))
 
     ! perform the actual phase space sampling

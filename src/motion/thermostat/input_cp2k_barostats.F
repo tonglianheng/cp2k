@@ -61,7 +61,6 @@ CONTAINS
     TYPE(keyword_type), POINTER              :: keyword
     TYPE(section_type), POINTER              :: subsection, thermo_section
 
-    failure=.FALSE.
 
     CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="barostat",&
@@ -140,7 +139,6 @@ CONTAINS
     LOGICAL                                  :: failure
     TYPE(section_type), POINTER              :: print_key
 
-    failure=.FALSE.
 
     CPASSERT(.NOT.ASSOCIATED(section))
     NULLIFY(print_key)

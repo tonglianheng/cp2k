@@ -100,7 +100,6 @@ CONTAINS
 
     LOGICAL                                  :: failure
 
-    failure=.FALSE.
 
     CPASSERT(.NOT.ASSOCIATED(globenv))
     ALLOCATE(globenv)
@@ -132,7 +131,6 @@ SUBROUTINE globenv_retain(globenv)
 
     LOGICAL                                  :: failure
 
-  failure=.FALSE.
 
   CPASSERT(ASSOCIATED(globenv))
   CPASSERT(globenv%ref_count>0)
@@ -152,7 +150,6 @@ SUBROUTINE globenv_release(globenv)
 
     LOGICAL                                  :: failure
 
-  failure=.FALSE.
 
   IF (ASSOCIATED(globenv)) THEN
      CPASSERT(globenv%ref_count>0)

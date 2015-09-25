@@ -99,7 +99,6 @@ CONTAINS
           ca  = 13.0045_dp
           x0a = -0.00475840_dp
        CASE DEFAULT
-         failure = .FALSE.
          CALL cp_assert( .FALSE. , cp_failure_level,cp_assertion_failed,routineP,&
                         " Only functionals VWN3 and VWN5 are supported",failure)
 
@@ -161,7 +160,6 @@ CONTAINS
     TYPE(xc_derivative_type), POINTER        :: deriv
 
     CALL timeset(routineN,handle)
-    failure=.FALSE.
     NULLIFY(bo)
 
     CALL section_vals_val_get(vwn_params,"scale_c",r_val=sc)
@@ -537,7 +535,6 @@ CONTAINS
     TYPE(xc_derivative_type), POINTER        :: deriv
 
     CALL timeset(routineN,handle)
-    failure=.FALSE.
     NULLIFY(bo)
 
     CALL section_vals_val_get(vwn_params,"scale_c",r_val=sc)
@@ -656,7 +653,6 @@ CONTAINS
         !$omp end parallel
 
       CASE DEFAULT
-        failure = .FALSE.
         CALL cp_assert( .FALSE. , cp_failure_level,cp_assertion_failed,routineP,&
                       " Only functionals VWN3 and VWN5 are supported",failure)
     END SELECT

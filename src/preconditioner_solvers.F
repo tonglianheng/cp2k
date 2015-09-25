@@ -137,7 +137,6 @@ CONTAINS
     LOGICAL                                  :: failure
     TYPE(cp_fm_type), POINTER                :: fm, fm_work
 
-    failure = .FALSE.
 
     CALL timeset(routineN, handle)
 
@@ -196,7 +195,6 @@ CONTAINS
     LOGICAL                                  :: failure
     TYPE(cp_fm_type), POINTER                :: fm
 
-    failure = .FALSE.
 
     CALL timeset(routineN, handle)
 
@@ -210,7 +208,6 @@ CONTAINS
     !
     ! compute the inverse of SPD matrix fm using the Cholesky factorization
     CALL cp_fm_cholesky_decompose(fm)
-    failure = .FALSE.
     !
     ! if fm not SPD we go with the overlap matrix
     IF (failure) THEN

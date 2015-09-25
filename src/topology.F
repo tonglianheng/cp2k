@@ -156,7 +156,6 @@ CONTAINS
                                                 topology_section
     TYPE(topology_parameters_type)           :: topology
 
-    failure = .FALSE.
     NULLIFY(logger)
     logger => cp_get_default_logger()
     CALL timeset(routineN,handle)
@@ -298,7 +297,6 @@ CONTAINS
                                                 use_mm_map_first
     TYPE(cp_logger_type), POINTER            :: logger
 
-    failure = .FALSE.
     NULLIFY(logger)
     logger => cp_get_default_logger()
     iw = cp_print_key_unit_nr(logger,subsys_section,"PRINT%TOPOLOGY_INFO",&
@@ -464,7 +462,6 @@ CONTAINS
     LOGICAL                                  :: failure
     TYPE(section_vals_type), POINTER         :: section
 
-    failure = .FALSE.
     NULLIFY (section)
 
     SELECT CASE (conn_type)
@@ -541,7 +538,6 @@ CPSourceFileRef,&
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(section_vals_type), POINTER         :: global_section
 
-    failure = .FALSE.
     NULLIFY(logger)
     logger => cp_get_default_logger()
     iw = cp_print_key_unit_nr(logger,subsys_section,"PRINT%TOPOLOGY_INFO",&
@@ -661,7 +657,6 @@ CPSourceFileRef,&
     LOGICAL                                  :: failure
     REAL(KIND=dp), DIMENSION(3, 3)           :: hmat_ref
 
-    failure = .FALSE.
     CPASSERT(.NOT.ASSOCIATED(cell_muc))
 
     CALL section_vals_val_get(subsys_section, "CELL%MULTIPLE_UNIT_CELL",&

@@ -361,7 +361,6 @@ CONTAINS
       DIMENSION(:), POINTER                  :: sab_nl
     TYPE(qs_matrix_pools_type), POINTER      :: mpools
 
-    failure = .FALSE.
     diis_step = .FALSE.
     nspin = SIZE(matrix_ks,1)
     NULLIFY(fmdummy)
@@ -585,7 +584,6 @@ CONTAINS
     TYPE(rho_atom_type), DIMENSION(:), &
       POINTER                                :: rho_atom
 
-    failure = .FALSE.
     CALL timeset(routineN,handle)
     NULLIFY(c0, chc, energy, evec, matrix_ks, mo_coeff, mo_eigenvalues, &
          mo_occupations, work, dft_control, rho_ao, rho_ao_kp)
@@ -781,7 +779,6 @@ SUBROUTINE diag_subspace_allocate(subspace_env,qs_env,mos)
     TYPE(neighbor_list_set_p_type), &
       DIMENSION(:), POINTER                  :: sab_orb
 
-    failure = .FALSE.
 
     CALL timeset(routineN,handle)
 
@@ -1361,7 +1358,6 @@ END SUBROUTINE diag_subspace_allocate
                                                 mo_coeff, ortho, work
     TYPE(cp_logger_type), POINTER            :: logger
 
-    failure = .FALSE.
     logger => cp_get_default_logger()
     CALL timeset(routineN,handle)
 
@@ -1563,7 +1559,6 @@ END SUBROUTINE diag_subspace_allocate
                                                 my_check_moconv_only
     TYPE(cp_logger_type), POINTER            :: logger
 
-    failure = .FALSE.
     logger => cp_get_default_logger()
     CALL timeset(routineN,handle)
 

@@ -207,7 +207,6 @@ CONTAINS
     REAL(KIND=dp), &
       DIMENSION(:, :, :, :, :), POINTER      :: swork, swork_cont
 
-    failure = .FALSE.
     CALL timeset(routineN,handle)
     NULLIFY(la_max, lb_max, lca_max, npgfa, npgfb, npgfca) 
     NULLIFY(first_sgfa, first_sgfb, first_sgfca, set_radius_a, set_radius_b,&
@@ -451,7 +450,6 @@ CONTAINS
     REAL(KIND=dp), &
       DIMENSION(:, :, :, :, :), POINTER      :: swork, swork_cont
 
-    failure = .FALSE.
     CALL timeset(routineN,handle)
     NULLIFY(la_max, lb_max, lcb_max, npgfa, npgfb, npgfcb) 
     NULLIFY(first_sgfa, first_sgfb, first_sgfcb, set_radius_a, set_radius_b,&
@@ -680,7 +678,6 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:, :, :), &
       POINTER                                :: swork, swork_cont
 
-    failure = .FALSE.
     CALL timeset(routineN,handle)
     NULLIFY(la_max, lb_max, npgfa, npgfb, first_sgfa, first_sgfb, set_radius_a,&
              set_radius_b, zeta, zetb)

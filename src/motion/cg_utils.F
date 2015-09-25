@@ -70,7 +70,6 @@ CONTAINS
     INTEGER                                  :: handle
     LOGICAL                                  :: failure
 
-    failure = .FALSE.
     CALL timeset(routineN,handle)
     gopt_env%do_line_search = .TRUE.
     SELECT CASE(gopt_env%type_id)
@@ -168,7 +167,6 @@ CONTAINS
       norm_grad2, norm_ls_vec, opt_energy2, x_grad_zero
     REAL(KIND=dp), DIMENSION(:), POINTER     :: gradient2, ls_norm
 
-    failure = .FALSE.
     CALL timeset(routineN,handle)
     norm_ls_vec = SQRT(DOT_PRODUCT(ls_vec,ls_vec))
     my_use_only_grad = .FALSE.
@@ -269,7 +267,6 @@ CONTAINS
                                                 norm_tls_vec, opt_energy2
     REAL(KIND=dp), DIMENSION(:), POINTER     :: tls_norm
 
-    failure = .FALSE.
     CALL timeset(routineN,handle)
     norm_tls_vec = SQRT(DOT_PRODUCT(tls_vec,tls_vec))
     IF (norm_tls_vec/=0.0_dp) THEN
@@ -354,7 +351,6 @@ CONTAINS
                                                 curvature2, dCdp, f
     REAL(KIND=dp), DIMENSION(:), POINTER     :: work
 
-    failure = .FALSE.
     CALL timeset(routineN,handle)
     curvature0 =  dimer_env%rot%curvature
     dCdp       =  dimer_env%rot%dCdp
@@ -442,7 +438,6 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-    failure = .FALSE.
     NULLIFY(pcom,xicom,hist)
     rms_dr    = gopt_param%rms_dr
     rms_force = gopt_param%rms_force
@@ -533,7 +528,6 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-    failure = .FALSE.
     NULLIFY(pcom,xicom)
     ALLOCATE(pcom(SIZE(xvec)))
     ALLOCATE(xicom(SIZE(xvec)))
@@ -598,7 +592,6 @@ CONTAINS
                                                 r, u, ulim
 
     CALL timeset(routineN,handle)
-    failure = .FALSE.
     hist    = PRESENT(histpoint)
     IF (hist) THEN
        CPASSERT(.NOT.ASSOCIATED(histpoint))
@@ -794,7 +787,6 @@ CONTAINS
                                                 x, xm
 
     CALL timeset(routineN,handle)
-    failure = .FALSE.
     a  = MIN(ax,cx)
     b  = MAX(ax,cx)
     v  = bx ; w  = v; x  = v
@@ -933,7 +925,6 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-    failure = .FALSE.
     ALLOCATE(xvec(SIZE(pcom)))
     xvec = pcom + x*xicom
     CALL cp_eval_at(gopt_env, xvec, my_val, master=gopt_env%force_env%para_env%mepos,&
@@ -973,7 +964,6 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-    failure = .FALSE.
     ALLOCATE(xvec(SIZE(pcom)))
     ALLOCATE(grad(SIZE(pcom)))
     xvec = pcom + x * xicom
@@ -1015,7 +1005,6 @@ CONTAINS
     REAL(kind=dp), DIMENSION(2*SIZE(x))      :: b, w
     REAL(kind=dp)                            :: u(2*SIZE(x),3)
 
-    failure=.FALSE.
     np=SIZE(x)
     CPASSERT(np>1)
     sum_x=0._dp
@@ -1085,7 +1074,6 @@ CONTAINS
     REAL(KIND=dp)                            :: dgg, gam, gg, norm, norm_h
     TYPE(dimer_env_type), POINTER            :: dimer_env
 
-    failure = .FALSE.
     CALL timeset(routineN,handle)
     NULLIFY(dimer_env)
     IF (.NOT.gopt_env%dimer_rotation) THEN

@@ -160,7 +160,6 @@ CONTAINS
     TYPE(cp_fm_struct_type), POINTER         :: ao_mo_fmstruct
     TYPE(rtp_control_type), POINTER          :: rtp_control
 
-    failure=.FALSE.
     CALL cite_reference(Kunert2003)
 
     NULLIFY(rtp_control)
@@ -361,7 +360,6 @@ CONTAINS
 
     LOGICAL                                  :: failure
 
-    failure=.FALSE.
 
     CPASSERT(ASSOCIATED(rtp))
     IF (PRESENT(exp_H_old))exp_H_old=>rtp%exp_H_old
@@ -406,7 +404,6 @@ CONTAINS
 
     LOGICAL                                  :: failure
 
-    failure=.FALSE.
 
 
     CALL cp_dbcsr_deallocate_matrix_set(rtp%exp_H_old)
@@ -468,7 +465,6 @@ CONTAINS
     LOGICAL                                  :: failure
     TYPE(rtp_history_type), POINTER          :: history
 
-    failure=.FALSE.
 
     NULLIFY(history)
     ALLOCATE(rtp%history)
@@ -522,7 +518,6 @@ CONTAINS
     INTEGER                                  :: i, j
     LOGICAL                                  :: failure
 
-    failure=.FALSE.
 
     IF (ASSOCIATED(rtp%history%rho_history)) THEN
        CALL cp_dbcsr_deallocate_matrix_set(rtp%history%rho_history)

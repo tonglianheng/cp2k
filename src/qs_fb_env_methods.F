@@ -183,7 +183,6 @@ CONTAINS
 
     CALL timeset(routineN, handle)
 
-    failure = .FALSE.
 
     NULLIFY(scf_env, scf_control, para_env, blacs_env, particle_set)
     NULLIFY(eigenvalues, eigenvalues_filtered, occ, occ_filtered)
@@ -770,7 +769,6 @@ CONTAINS
 
     CALL timeset(routineN, handle)
 
-    failure = .FALSE.
 
     NULLIFY(fb_section)
     fb_section => section_vals_get_subs_vals(scf_section, &
@@ -824,7 +822,6 @@ CONTAINS
 
     CALL timeset(routineN, handle)
 
-    failure = .FALSE.
 
     NULLIFY(rcut, qs_kind_set, dft_control)
 
@@ -906,7 +903,6 @@ CONTAINS
 
     CALL timeset(routineN, handle)
 
-    failure = .FALSE.
 
     CPASSERT(fb_env_has_data(fb_env))
 
@@ -1031,7 +1027,6 @@ CONTAINS
 
     CALL timeset(routineN, handle)
 
-    failure = .FALSE.
     CPASSERT(fb_env_has_data(fb_env))
     NULLIFY(nfunctions, functions, basis_set, basis_set_list, qs_kind_set, dft_control)
     CALL fb_trial_fns_nullify(trial_fns)
@@ -1188,7 +1183,6 @@ CONTAINS
     REAL(dp), DIMENSION(:, :), POINTER       :: mat_block
     TYPE(cp_dbcsr_iterator)                  :: iter
 
-    failure = .FALSE.
 
     CALL cp_dbcsr_get_info(matrix=matrix_in, &
                            nblkrows_total=nblkrows_total, &
@@ -1247,7 +1241,6 @@ CONTAINS
 
     CALL timeset(routineN, handle)
 
-    failure = .FALSE.
     NULLIFY(rcut, atomic_kind_set, logger)
 
     CALL get_qs_env(qs_env=qs_env, &

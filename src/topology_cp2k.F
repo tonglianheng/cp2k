@@ -81,7 +81,6 @@ CONTAINS
     NULLIFY (coord_section)
     NULLIFY (logger)
     NULLIFY (parser)
-    failure = .FALSE.
     logger => cp_get_default_logger()
     iw = cp_print_key_unit_nr(logger,subsys_section,"PRINT%TOPOLOGY_INFO/XYZ_INFO",&
                               extension=".subsysLog")

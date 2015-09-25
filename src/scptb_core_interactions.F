@@ -95,7 +95,6 @@ CONTAINS
     TYPE(scptb_parameter_type), POINTER      :: scptb_kind_a, scptb_kind_b
     TYPE(virial_type), POINTER               :: virial
 
-    failure  = .FALSE.
     enuclear = 0.0_dp
     NULLIFY(atprop)
     CALL timeset(routineN,handle)

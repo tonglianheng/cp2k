@@ -133,7 +133,6 @@ CONTAINS
                                                 interp_section, print_section
 
     CALL timeset(routineN,handle)
-    failure=.FALSE.
     need_f = .TRUE.
     periodic = qmmm_env%periodic
     IF (PRESENT(calc_force)) need_f = calc_force
@@ -430,7 +429,6 @@ CONTAINS
 
 ! Statements
 
-    failure=.FALSE.
     CALL timeset(routineN,handle)
     NULLIFY(grids,tmp)
     CPASSERT(ASSOCIATED(mm_particles))
@@ -818,7 +816,6 @@ CONTAINS
     TYPE(pw_type), POINTER                   :: pw
     TYPE(qmmm_per_pot_type), POINTER         :: per_pot
 
-    failure = .FALSE.
     CALL timeset(routineN,handle)
     NULLIFY(grid)
     ALLOCATE(LForces(3,num_mm_atoms))
@@ -1233,7 +1230,6 @@ CONTAINS
     TYPE(qmmm_pot_type), POINTER             :: pot
 
     CALL timeset(routineN,handle)
-    failure = .FALSE.
     ALLOCATE(LForces(3,num_mm_atoms))
     LForces = 0.0_dp
     n1   = cgrid%pw_grid%npts(1)
@@ -1551,7 +1547,6 @@ CONTAINS
 
     DATA Icount /0/
     ! Statements
-    failure=.FALSE.
     CALL timeset(routineN,handle)
     NULLIFY(grids)
     !Statements

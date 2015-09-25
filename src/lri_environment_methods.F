@@ -143,7 +143,6 @@ CONTAINS
       POINTER                                :: particle_set
     TYPE(virial_type), POINTER               :: virial
 
-    failure = .FALSE.
     CALL timeset(routineN,handle)
     NULLIFY(cell, dft_control, fbasa, fbasb, lrii, lri_ints, nl_iterator, &
          obasa, obasb, particle_set, soo_list, virial)
@@ -278,7 +277,6 @@ CONTAINS
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
 
-    failure = .FALSE.
     CALL timeset(routineN,handle)
     NULLIFY(cell, lriir, lri_ints_rho, nl_iterator, obasa, obasb,&
             particle_set,soo_list)
@@ -405,7 +403,6 @@ CONTAINS
     TYPE(neighbor_list_set_p_type), &
       DIMENSION(:), POINTER                  :: soo_list
 
-    failure = .FALSE.
     CALL timeset(routineN,handle)
     NULLIFY(lrii, lri_rho, nl_iterator, pbij, pmat, soo_list)
 
@@ -559,7 +556,6 @@ CONTAINS
       DIMENSION(:), POINTER                  :: soo_list
     TYPE(pw_p_type), DIMENSION(:), POINTER   :: rho_g, rho_r
 
-    failure = .FALSE.
     CALL timeset(routineN,handle)
     NULLIFY(aci, acj, atomic_kind, atom_of_kind, lri_coef, lri_rho, &
          nl_iterator, soo_list, rho_r, rho_g, tot_rho_r)
@@ -760,7 +756,6 @@ CONTAINS
 
     CALL timeset(routineN,handle)
     NULLIFY(scon_orba,scon_orbb,scon_ria,scon_rib,Waux_mat,dWaux_mat)
-    failure = .FALSE.
 
     dab = SQRT(SUM(rab*rab))
     nba = obasa%nsgf
@@ -846,7 +841,6 @@ CONTAINS
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :, :)                     :: abxint_work, Q, R
 
-    failure = .FALSE.
     CALL timeset(routineN,handle)
 
     nn = nfa + nfb
@@ -919,7 +913,6 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: s
     REAL(KIND=dp), EXTERNAL                  :: dlange
 
-    failure = .FALSE.
     CALL timeset(routineN,handle)
 
     NULLIFY(s)

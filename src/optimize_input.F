@@ -118,7 +118,6 @@ CONTAINS
     TYPE(oi_env_type)                        :: oi_env
     TYPE(rng_stream_type), POINTER           :: rng_stream
 
-    failure=.FALSE.
 
     CALL timeset(routineN,handle)
 
@@ -650,7 +649,6 @@ CONTAINS
                                                 variable_section
 
     CALL timeset(routineN,handle)
-    failure=.FALSE.
 
     CALL section_vals_val_get(root_section,"GLOBAL%PROJECT",c_val=oi_env%project_name)
     CALL section_vals_val_get(root_section,"GLOBAL%SEED",i_val=oi_env%seed)

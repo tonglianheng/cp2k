@@ -57,7 +57,6 @@ CONTAINS
 
     LOGICAL                                  :: failure
 
-    failure = .FALSE.
     CALL csvr_to_barostat_mapping ( simpar,  csvr)
     CALL restart_csvr( csvr, csvr_section)
 
@@ -95,7 +94,6 @@ CONTAINS
 
     LOGICAL                                  :: failure
 
-    failure = .FALSE.
     CALL csvr_to_particle_mapping ( thermostat_info, simpar, local_molecules,&
          molecule, molecule_kind_set, csvr, para_env, gci)
     CALL restart_csvr( csvr, csvr_section)
@@ -134,7 +132,6 @@ CONTAINS
 
     LOGICAL                                  :: failure
 
-    failure = .FALSE.
     CALL csvr_to_shell_mapping(thermostat_info, simpar, local_molecules,&
        molecule, molecule_kind_set, csvr, para_env, gci)
     CALL restart_csvr( csvr, csvr_section)
@@ -159,7 +156,6 @@ CONTAINS
     LOGICAL                                  :: explicit, failure
     TYPE(section_vals_type), POINTER         :: work_section
 
-    failure = .FALSE.
 
     ! Possibly restart the initial thermostat energy
     work_section => section_vals_get_subs_vals(section_vals=csvr_section,&

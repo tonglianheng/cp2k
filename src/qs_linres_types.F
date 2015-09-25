@@ -247,7 +247,6 @@ CONTAINS
 
     LOGICAL                                  :: failure
 
-     failure =.FALSE.
 
      CPASSERT(.NOT.ASSOCIATED(linres_control))
      ALLOCATE (linres_control)
@@ -281,7 +280,6 @@ CONTAINS
 
     LOGICAL                                  :: failure
 
-     failure =.FALSE.
 
      IF (ASSOCIATED(linres_control)) THEN
        CPASSERT(linres_control%ref_count>0)
@@ -309,7 +307,6 @@ CONTAINS
 
     LOGICAL                                  :: failure
 
-     failure =.FALSE.
 
      CPASSERT(ASSOCIATED(linres_control))
      CPASSERT(linres_control%ref_count>0)
@@ -330,7 +327,6 @@ CONTAINS
 
     LOGICAL                                  :: failure
 
-    failure =.FALSE.
 
     CPASSERT(current_env%ref_count==0)
     current_env%ref_count = 1
@@ -375,7 +371,6 @@ CONTAINS
 
     LOGICAL                                  :: failure
 
-     failure =.FALSE.
 
      CPASSERT(nmr_env%ref_count==0)
      nmr_env%ref_count = 1
@@ -402,7 +397,6 @@ CONTAINS
 
     LOGICAL                                  :: failure
 
-     failure =.FALSE.
 
      CPASSERT(issc_env%ref_count==0)
      issc_env%ref_count = 1
@@ -436,7 +430,6 @@ CONTAINS
 
     LOGICAL                                  :: failure
 
-    failure =.FALSE.
 
     CPASSERT(epr_env%ref_count==0)
     epr_env%ref_count = 1
@@ -532,7 +525,6 @@ CONTAINS
 !
 !
 
-    failure =.FALSE.
 
     CPASSERT(current_env%ref_count>0)
 
@@ -605,7 +597,6 @@ CONTAINS
 
     LOGICAL                                  :: failure
 
-    failure =.FALSE.
 
     CPASSERT(nmr_env%ref_count>0)
 
@@ -679,7 +670,6 @@ CONTAINS
 
     LOGICAL                                  :: failure
 
-    failure =.FALSE.
 
     CPASSERT(issc_env%ref_count>0)
 
@@ -727,7 +717,6 @@ CONTAINS
     INTEGER                                  :: idir
     LOGICAL                                  :: failure
 
-    failure =.FALSE.
 
     CPASSERT(current_env%ref_count>0)
 
@@ -768,7 +757,6 @@ CONTAINS
 
     LOGICAL                                  :: failure
 
-    failure =.FALSE.
 
     CPASSERT(nmr_env%ref_count>0)
 
@@ -791,7 +779,6 @@ CONTAINS
 
     LOGICAL                                  :: failure
 
-    failure =.FALSE.
 
     CPASSERT(issc_env%ref_count>0)
 
@@ -828,7 +815,6 @@ CONTAINS
 
     LOGICAL                                  :: failure
 
-    failure =.FALSE.
 
     CPASSERT(epr_env%ref_count>0)
 
@@ -872,7 +858,6 @@ CONTAINS
     INTEGER                                  :: idir, ispin
     LOGICAL                                  :: failure
 
-    failure =.FALSE.
 
     CPASSERT(epr_env%ref_count>0)
 
@@ -920,7 +905,6 @@ CONTAINS
     INTEGER                                  :: iat
     LOGICAL                                  :: failure
 
-    failure = .FALSE.
 
     ALLOCATE(nablavks_atom_set(natom))
 
@@ -945,7 +929,6 @@ CONTAINS
     INTEGER                                  :: i, iat, idir, n, natom
     LOGICAL                                  :: failure
 
-    failure = .FALSE.
 
     CPASSERT(ASSOCIATED(nablavks_atom_set))
     natom = SIZE(nablavks_atom_set)
@@ -985,7 +968,6 @@ CONTAINS
     INTEGER                                  :: iat
     LOGICAL                                  :: failure
 
-    failure = .FALSE.
 
     ALLOCATE(jrho_atom_set(natom))
 
@@ -1140,7 +1122,6 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-    failure = .FALSE.
 
     CPASSERT(ASSOCIATED(jrho1_atom))
 
@@ -1200,7 +1181,6 @@ CONTAINS
 
     LOGICAL                                  :: failure
 
-    failure = .FALSE.
     !
     CPASSERT(ASSOCIATED(jrho1_atom))
     !
@@ -1245,7 +1225,6 @@ CONTAINS
     LOGICAL                                  :: failure
 
     CALL timeset(routineN,handle)
-    failure = .FALSE.
     CPASSERT(ASSOCIATED(jrho1_atom_set))
     DO i = 1,SIZE(jrho1_atom_set(iatom)%cjc0_h,1)
        ALLOCATE(jrho1_atom_set(iatom)%cjc0_h(i)%r_coef(nsotot,nsotot),&
@@ -1288,7 +1267,6 @@ CONTAINS
     LOGICAL                                  :: failure
 
     CALL timeset(routineN,handle)
-    failure = .FALSE.
     CPASSERT(ASSOCIATED(jrho1_atom_set))
     DO i = 1,SIZE(jrho1_atom_set(iatom)%cjc0_h,1)
        DEALLOCATE(jrho1_atom_set(iatom)%cjc0_h(i)%r_coef,&
@@ -1335,7 +1313,6 @@ CONTAINS
 
     LOGICAL                                  :: failure
 
-    failure = .FALSE.
 
     CPASSERT(ASSOCIATED(jrho1_atom_set))
 
@@ -1374,7 +1351,6 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-    failure = .FALSE.
 
     CPASSERT(ASSOCIATED(atomic_kind_set))
 
@@ -1491,7 +1467,6 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-    failure = .FALSE.
 
     CPASSERT(ASSOCIATED(qs_kind_set))
 
@@ -1553,7 +1528,6 @@ CONTAINS
 
     LOGICAL                                  :: failure
 
-     failure =.FALSE.
 
      CPASSERT(polar_env%ref_count==0)
      polar_env%ref_count = 1
@@ -1591,7 +1565,6 @@ CONTAINS
 
     LOGICAL                                  :: failure
 
-    failure =.FALSE.
 
     CPASSERT(polar_env%ref_count>0)
 
@@ -1617,7 +1590,6 @@ CONTAINS
 
     LOGICAL                                  :: failure
 
-    failure =.FALSE.
 
     CPASSERT(polar_env%ref_count>0)
 

@@ -350,7 +350,6 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-    failure=.FALSE.
 
     dim2 = SIZE(zij,2)
     NULLIFY(rmat,c_rmat,c_zij)
@@ -781,7 +780,6 @@ CONTAINS
     TYPE(cp_cfm_type), POINTER               :: cmat_A, cmat_R, cmat_t1
     TYPE(cp_fm_type), POINTER                :: mat_R, mat_t, mat_theta, mat_U
 
-    failure=.FALSE.
 
     CALL timeset(routineN,handle)
     NULLIFY(row_indices,col_indices)
@@ -1002,7 +1000,6 @@ CONTAINS
     n = zij(1,1)%matrix%matrix_struct%nrow_global
     ndim = (SIZE(zij,2))
 
-    failure=.FALSE.
 
     IF ( output_unit > 0) THEN
       WRITE(output_unit,'(T10,A )') "Localization by direct minimization of the functional; "
@@ -1413,7 +1410,6 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-    failure=.FALSE.
     NULLIFY(logger)
     logger => cp_get_default_logger()
     output_unit= cp_logger_get_default_io_unit(logger)

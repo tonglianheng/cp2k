@@ -87,7 +87,6 @@ CONTAINS
     INTEGER, DIMENSION(:), POINTER           :: list
     LOGICAL                                  :: failure, hempty, was_present
 
-    failure=.FALSE.
     was_present = .FALSE.
 
 
@@ -254,7 +253,6 @@ CONTAINS
 
     LOGICAL                                  :: failure
 
-    failure=.FALSE.
 
     CPASSERT(.NOT.ASSOCIATED(xas_control))
     ALLOCATE(xas_control)
@@ -288,7 +286,6 @@ CONTAINS
 
     LOGICAL                                  :: failure
 
-    failure=.FALSE.
     IF(ASSOCIATED(xas_control)) THEN
       CPASSERT(xas_control%ref_count>0)
       xas_control%ref_count=xas_control%ref_count-1
@@ -318,7 +315,6 @@ CONTAINS
 
     LOGICAL                                  :: failure
 
-    failure=.FALSE.
 
     CPASSERT(ASSOCIATED(xas_control))
     xas_control%ref_count=xas_control%ref_count+1

@@ -71,7 +71,6 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-    failure=.FALSE.
 
     CPASSERT(ASSOCIATED(fp_env))
     CPASSERT(fp_env%use_fp)

@@ -153,7 +153,6 @@ CONTAINS
 
     LOGICAL                                  :: failure
 
-    failure = .FALSE.
     CALL deallocate_gto_basis_set(gto_basis_set)
 
     ALLOCATE (gto_basis_set)
@@ -205,7 +204,6 @@ CONTAINS
 
     LOGICAL                                  :: failure
 
-    failure = .FALSE.
     IF (ASSOCIATED(gto_basis_set))  THEN
        IF (ASSOCIATED(gto_basis_set%cgf_symbol)) THEN
           DEALLOCATE (gto_basis_set%cgf_symbol)
@@ -260,7 +258,6 @@ CONTAINS
     LOGICAL                                  :: failure
     TYPE(gto_basis_set_type), POINTER        :: bin, bout
 
-    failure = .FALSE.
 
     CPASSERT(ASSOCIATED(basis_set_in))
 
@@ -344,7 +341,6 @@ CONTAINS
     LOGICAL                                  :: failure
     TYPE(gto_basis_set_type), POINTER        :: bad, bout
 
-    failure = .FALSE.
 
     CPASSERT(ASSOCIATED(basis_set))
     CPASSERT(ASSOCIATED(basis_set_add))
@@ -793,7 +789,6 @@ CONTAINS
 
 ! -------------------------------------------------------------------------
 
-    failure = .FALSE.
     n = 0
     ll = 0
     DO iset=1,gto_basis_set%nset
@@ -1086,7 +1081,6 @@ CONTAINS
       POINTER                                :: gcc
     TYPE(cp_parser_type), POINTER            :: parser
 
-    failure = .FALSE.
     line = ""
     line2 = ""
     symbol = ""
@@ -1420,7 +1414,6 @@ CONTAINS
     TYPE(cp_sll_val_type), POINTER           :: list
     TYPE(val_type), POINTER                  :: val
 
-    failure = .FALSE.
     line = ""
     line2 = ""
     symbol = ""
@@ -1921,7 +1914,6 @@ CONTAINS
 
 ! -------------------------------------------------------------------------
 
-    failure = .FALSE.
     CALL deallocate_sto_basis_set(sto_basis_set)
 
     ALLOCATE (sto_basis_set)
@@ -1949,7 +1941,6 @@ CONTAINS
 
 ! -------------------------------------------------------------------------
 
-    failure = .FALSE.
     IF (ASSOCIATED(sto_basis_set)) THEN
        IF (ASSOCIATED(sto_basis_set%symbol)) THEN
           DEALLOCATE (sto_basis_set%symbol)
@@ -2108,7 +2099,6 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:), POINTER     :: zet
     REAL(KIND=dp), DIMENSION(maxng)          :: gcc, zetg
 
-    failure = .FALSE.
     ng = 6
     IF (PRESENT(ngauss)) ng=ngauss
     IF (ng > maxng) CALL stop_program(routineN,moduleN,__LINE__,&

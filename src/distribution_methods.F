@@ -564,7 +564,6 @@ CONTAINS
 
 !...
 
-    failure = .FALSE.
 
     CALL timeset(routineN, handle)
 
@@ -975,11 +974,9 @@ CONTAINS
        CALL cp_assert (found, cp_fatal_level, cp_internal_error, &
             routineN, "No topmost heap element found.")
        !
-       failure = .FALSE.
        prow = INT (bin*pgrid_gcd / npcols)
        CALL cp_assert (prow .LT. nprows, cp_fatal_level, cp_internal_error, &
             routineN, "Invalid process row.", failure=failure)
-       failure = .TRUE.
        pcol = INT (bin*pgrid_gcd / nprows)
        CALL cp_assert (pcol .LT. npcols, cp_fatal_level, cp_internal_error, &
             routineN, "Invalid process column.", failure=failure)

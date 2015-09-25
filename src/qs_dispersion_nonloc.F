@@ -96,7 +96,6 @@ CONTAINS
     END SELECT
     CALL cite_reference(RomanPerez2009)
 
-    failure = .FALSE.
 
     vdw_type = dispersion_env%type
     SELECT CASE (vdw_type)
@@ -205,7 +204,6 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-    failure = .FALSE.
     CPASSERT(ASSOCIATED(rho_r))
     CPASSERT(ASSOCIATED(rho_g))
     CPASSERT(ASSOCIATED(pw_pool))
@@ -484,7 +482,6 @@ CONTAINS
       DIMENSION(:, :)                        :: dkernel_of_dk, kernel_of_k
     TYPE(pw_grid_type), POINTER              :: grid
 
-    failure = .FALSE.
     CALL timeset(routineN,handle)
     nqs = dispersion_env%nqs
     ALLOCATE(kernel_of_k(nqs,nqs),dkernel_of_dk(nqs,nqs))
@@ -615,7 +612,6 @@ CONTAINS
     REAL(dp), DIMENSION(:), POINTER          :: q_mesh
     REAL(dp), DIMENSION(:, :), POINTER       :: d2y_dx2
 
-    failure = .FALSE.
     CALL timeset(routineN,handle)
 
     IF (PRESENT(virial)) THEN
@@ -1217,7 +1213,6 @@ CONTAINS
     REAL(dp)                                 :: A, B, C, D, dk, r_max
     REAL(dp), DIMENSION(:, :, :), POINTER    :: d2phi_dk2, kernel
 
-    failure = .FALSE.
     Nr_points = dispersion_env%nr_points
     r_max = dispersion_env%r_max
     dk = dispersion_env%dk
@@ -1286,7 +1281,6 @@ CONTAINS
                                                 dk, r_max
     REAL(dp), DIMENSION(:, :, :), POINTER    :: d2phi_dk2, kernel
 
-    failure = .FALSE.
     Nr_points = dispersion_env%nr_points
     r_max = dispersion_env%r_max
     dk = dispersion_env%dk

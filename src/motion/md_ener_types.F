@@ -70,7 +70,6 @@ CONTAINS
 
     LOGICAL                                  :: failure
 
-    failure=.FALSE.
 
     CPASSERT(.NOT.ASSOCIATED(md_ener))
     ALLOCATE(md_ener)
@@ -102,7 +101,6 @@ CONTAINS
 
     LOGICAL                                  :: failure
 
-    failure=.FALSE.
 
     CPASSERT(ASSOCIATED(md_ener))
     CPASSERT(md_ener%ref_count>0)
@@ -124,7 +122,6 @@ CONTAINS
 
     LOGICAL                                  :: failure
 
-    failure=.FALSE.
 
     IF (ASSOCIATED(md_ener)) THEN
        CPASSERT(md_ener%ref_count>0)

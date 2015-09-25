@@ -159,7 +159,6 @@ CONTAINS
     LOGICAL                                  :: failure
     TYPE(cp_blacs_env_type), POINTER         :: context
 
-    failure=.FALSE.
 
     CALL timeset(routineN,handle)
 
@@ -230,7 +229,6 @@ CPSourceFileRef)
 
     LOGICAL                                  :: failure
 
-    failure=.FALSE.
 
     CPASSERT(ASSOCIATED(matrix))
     CPASSERT(matrix%ref_count>0)
@@ -254,7 +252,6 @@ CPSourceFileRef)
     INTEGER                                  :: handle
     LOGICAL                                  :: failure
 
-    failure=.FALSE.
 
     CALL timeset(routineN,handle)
 
@@ -305,7 +302,6 @@ CPSourceFileRef)
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: local_data
     TYPE(rng_stream_type), POINTER           :: rng
 
-    failure = .FALSE.
 
     CALL timeset(routineN,handle)
 
@@ -390,7 +386,6 @@ CPSourceFileRef)
 
     CALL timeset(routineN,handle)
 
-    failure = .FALSE.
 
     IF(matrix%use_sp) THEN
        matrix_size = SIZE(matrix%local_data_sp,1)*SIZE(matrix%local_data_sp,2)
@@ -441,7 +436,6 @@ CPSourceFileRef)
     REAL(KIND = sp), DIMENSION(:,:), POINTER :: a_sp
 #endif
 
-    failure = .FALSE.
 
     CALL cp_fm_get_info(matrix,nrow_global=nrow_global)
 
@@ -519,7 +513,6 @@ CPSourceFileRef)
     REAL(KIND = dp), DIMENSION(:,:), POINTER :: a
 #endif
 
-    failure = .FALSE.
 
 #if defined(__SCALAPACK)
     context => matrix%matrix_struct%context
@@ -578,7 +571,6 @@ CPSourceFileRef)
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: a
 #endif
 
-    failure = .FALSE.
 
     context => matrix%matrix_struct%context
     myprow = context%mepos(1)
@@ -657,7 +649,6 @@ CPSourceFileRef)
     ! can be called too many times, making it a bit useless
     ! CALL timeset(routineN//','//moduleN,handle)
 
-    failure=.FALSE.
 
     CPASSERT(ASSOCIATED(fm))
     CPASSERT(fm%ref_count>0)
@@ -796,7 +787,6 @@ CPSourceFileRef)
     CALL timeset(routineN,handle)
 
     i0=1; j0=1; tr_a=.FALSE.
-    failure=.FALSE.
 
     CPASSERT(ASSOCIATED(fm))
     CPASSERT(fm%ref_count>0)
@@ -971,7 +961,6 @@ CPSourceFileRef)
 
     CALL timeset(routineN,handle)
 
-    failure = .FALSE.
     my_block => matrix%local_data
     my_block_sp => matrix%local_data_sp
 
@@ -1110,7 +1099,6 @@ CPSourceFileRef)
     LOGICAL                                  :: failure
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: my_block
 
-    failure = .FALSE.
 
     CALL timeset(routineN,handle)
 
@@ -1166,7 +1154,6 @@ CPSourceFileRef)
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
 
-     failure=.FALSE.
      loc=.FALSE.; my_long_description=.FALSE.
      filename=' '
 
@@ -1274,7 +1261,6 @@ CPSourceFileRef)
 
     CALL timeset(routineN,handle)
 
-    failure=.TRUE.
 
     nprow = source%matrix_struct%context%num_pe(1)
     npcol = source%matrix_struct%context%num_pe(2)
@@ -1405,7 +1391,6 @@ CPSourceFileRef)
 
     CALL timeset(routineN,handle)
 
-    failure=.TRUE.
 
     nrow = msource%matrix_struct%nrow_global
     ncol = msource%matrix_struct%ncol_global
@@ -1456,7 +1441,6 @@ CPSourceFileRef)
 
     CALL timeset(routineN,handle)
 
-    failure = .FALSE.
 
     a => msource%local_data
     b => mtarget%local_data
@@ -1547,7 +1531,6 @@ CPSourceFileRef)
 
     CALL timeset(routineN,handle)
 
-    failure=.FALSE.
     debug = debug_this_module
 
     IF (.NOT. cp2k_is_parallel) THEN
@@ -1645,7 +1628,6 @@ CPSourceFileRef)
     INTEGER, DIMENSION(9)                    :: desca
 #endif
 
-    failure = .FALSE.
 
     CPASSERT(ASSOCIATED(matrix))
 
@@ -1706,7 +1688,6 @@ CPSourceFileRef)
     INTEGER, EXTERNAL                        :: numroc
 #endif
 
-   failure = .FALSE.
    CALL timeset(routineN,handle)
    CALL cp_fm_get_info(fm, nrow_global=nrow_global,ncol_global=ncol_global,ncol_block=max_block,&
         para_env=para_env)
@@ -1803,7 +1784,6 @@ CPSourceFileRef)
 #endif
 
    CALL timeset(routineN,handle)
-   failure=.FALSE.
 
    CALL cp_fm_get_info(fm, nrow_global=nrow_global,ncol_global=ncol_global,ncol_block=max_block,&
         para_env=para_env)

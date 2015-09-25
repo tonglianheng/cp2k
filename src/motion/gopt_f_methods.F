@@ -96,7 +96,6 @@ CONTAINS
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_subsys_type), POINTER            :: subsys
 
-    failure = .FALSE.
 
     NULLIFY (cell)
     NULLIFY (subsys)
@@ -266,7 +265,6 @@ CONTAINS
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: pres_diff, pres_int, pres_tol
 
-    failure = .FALSE.
     SELECT CASE (gopt_env%type_id)
     CASE (default_ts_method_id,default_minimization_method_id)
        ! Geometry Optimization (Minimization and Transition State Search)
@@ -731,7 +729,6 @@ CONTAINS
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
 
-    failure = .FALSE.
 
     CALL force_env_get(force_env, cell=cell, subsys=subsys)
     CALL cp_subsys_get(subsys=subsys, particles=particles)
@@ -781,7 +778,6 @@ CONTAINS
     TYPE(particle_list_type), POINTER        :: core_particles, &
                                                 shell_particles
 
-    failure = .FALSE.
 
     NULLIFY (atomic_kinds)
     NULLIFY (atomic_kind_set)
@@ -922,7 +918,6 @@ CONTAINS
       POINTER                                :: particle_set
     TYPE(virial_type), POINTER               :: virial
 
-    failure = .FALSE.
     NULLIFY(para_env, atomic_kind_set, subsys, particle_set, &
          local_particles, atomic_kinds, particles)
 
@@ -978,7 +973,6 @@ CONTAINS
     TYPE(particle_list_type), POINTER        :: core_particles, particles, &
                                                 shell_particles
 
-     failure = .FALSE.
 
      NULLIFY (cell_ref)
      NULLIFY (core_particles)

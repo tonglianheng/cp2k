@@ -171,7 +171,6 @@ CONTAINS
     TYPE(section_vals_type), POINTER         :: lr_section, prop_section
 
     CALL timeset(routineN,handle)
-    failure = .FALSE.
     lr_calculation = .FALSE.
     nmr_present = .FALSE.
     epr_present = .FALSE.
@@ -283,7 +282,6 @@ CONTAINS
     TYPE(qs_rho_type), POINTER               :: rho
     TYPE(section_vals_type), POINTER         :: loc_section
 
-    failure = .FALSE.
 
     NULLIFY(logger)
     logger => cp_get_default_logger()

@@ -228,7 +228,6 @@ CONTAINS
                                                 tmp_pos_file
     LOGICAL                                  :: failure
 
-    failure = .FALSE.
 
     CPASSERT(ASSOCIATED(ana_env))
     CPASSERT(nr_dim>0)
@@ -301,7 +300,6 @@ CONTAINS
     INTEGER                                  :: file_ptr
     LOGICAL                                  :: failure, l_tmp
 
-    failure = .FALSE.
     CPASSERT(ASSOCIATED(ana_env))
     CPASSERT(ASSOCIATED(ana_env%last_elem))
     IF(.NOT.ana_env%restart) RETURN
@@ -403,7 +401,6 @@ CONTAINS
     LOGICAL                                  :: failure, l_tmp
     REAL(KIND=dp)                            :: temp
 
-    failure = .FALSE.
     CPASSERT(ASSOCIATED(ana_env))
     CPASSERT(ASSOCIATED(elem))
     IF(.NOT.ana_env%restart) RETURN
@@ -506,7 +503,6 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(3)              :: dip_tmp
     TYPE(tree_type), POINTER                 :: elem_tmp
 
-    failure = .FALSE.
 
     CPASSERT(ASSOCIATED(elem))
     CPASSERT(ASSOCIATED(ana_env))
@@ -1055,7 +1051,6 @@ CONTAINS
     TYPE(atom_pairs_type), DIMENSION(:), &
       POINTER                                :: pairs_tmp
 
-    failure = .FALSE.
 
     CPASSERT(ASSOCIATED(ana_pair_correl))
     CPASSERT(.NOT.ASSOCIATED(ana_pair_correl%g_r))
@@ -1133,7 +1128,6 @@ CONTAINS
     REAL(KIND=dp)                            :: dist
     REAL(KIND=dp), DIMENSION(3)              :: cell_size
 
-    failure = .FALSE.
     CPASSERT(ASSOCIATED(elem))
     CPASSERT(ASSOCIATED(elem%pos))
     CPASSERT(ALL(elem%box_scale(:).GT.0.0_dp))
@@ -1192,7 +1186,6 @@ CONTAINS
     REAL(KIND=dp)                            :: aver_box_scale(3), vol, voldr
     REAL(KIND=dp), DIMENSION(3)              :: cell_size
 
-    failure = .FALSE.
 
     CPASSERT(ASSOCIATED(ana_env))
     CPASSERT(ASSOCIATED(ana_env%pair_correl))
@@ -1267,7 +1260,6 @@ CONTAINS
     INTEGER                                  :: atom, charge, handle
     LOGICAL                                  :: failure
 
-    failure = .FALSE.
 
     CPASSERT(ASSOCIATED(ana_dip_mom))
     CPASSERT(ASSOCIATED(ana_dip_mom%charges_inp))
@@ -1656,7 +1648,6 @@ CONTAINS
     REAL(KIND=dp)                            :: disp
     REAL(KIND=dp), DIMENSION(3)              :: atom_disp
 
-    failure = .FALSE.
     disp = 0.0_dp
 
     CPASSERT(ASSOCIATED(elem))

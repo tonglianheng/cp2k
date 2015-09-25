@@ -47,7 +47,6 @@ CONTAINS
 
     LOGICAL                                  :: failure
 
-    failure = .FALSE.
     CPASSERT(.NOT.ASSOCIATED(taper))
     ALLOCATE (taper)
     IF (range > EPSILON(0.0_dp)) THEN
@@ -73,7 +72,6 @@ CONTAINS
 
     LOGICAL                                  :: failure
 
-    failure = .FALSE.
     IF (ASSOCIATED(taper)) THEN
        DEALLOCATE (taper)
     END IF

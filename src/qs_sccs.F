@@ -174,7 +174,6 @@ CONTAINS
     TYPE(sccs_control_type), POINTER         :: sccs_control
     TYPE(section_vals_type), POINTER         :: input
 
-    failure = .FALSE.
 
     CALL timeset(routineN,handle)
 
@@ -988,7 +987,6 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-    failure = .FALSE.
 
     CPASSERT(ASSOCIATED(f))
     CPASSERT(ASSOCIATED(pw_env))

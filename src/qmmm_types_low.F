@@ -242,7 +242,6 @@ CONTAINS
 
     LOGICAL                                  :: failure
 
-    failure=.FALSE.
     CPASSERT(.NOT.ASSOCIATED(qmmm_env))
     ALLOCATE(qmmm_env)
     qmmm_env%ref_count=1
@@ -274,7 +273,6 @@ CONTAINS
 
     LOGICAL                                  :: failure
 
-    failure=.FALSE.
 
     CPASSERT(ASSOCIATED(qmmm_env))
     CPASSERT(qmmm_env%ref_count>0)
@@ -295,7 +293,6 @@ CONTAINS
 
     LOGICAL                                  :: failure
 
-    failure=.FALSE.
     IF (ASSOCIATED(qmmm_env)) THEN
        CPASSERT(qmmm_env%ref_count>0)
        qmmm_env%ref_count=qmmm_env%ref_count-1
@@ -339,7 +336,6 @@ CONTAINS
 
     LOGICAL                                  :: failure
 
-    failure=.FALSE.
     CPASSERT(.NOT.ASSOCIATED(qmmm_env))
     ALLOCATE(qmmm_env)
     qmmm_env%ref_count=1
@@ -387,7 +383,6 @@ CONTAINS
 
     LOGICAL                                  :: failure
 
-    failure=.FALSE.
 
     CPASSERT(ASSOCIATED(qmmm_env))
     CPASSERT(qmmm_env%ref_count>0)
@@ -408,7 +403,6 @@ CONTAINS
 
     LOGICAL                                  :: failure
 
-    failure=.FALSE.
     IF (ASSOCIATED(qmmm_env)) THEN
        CPASSERT(qmmm_env%ref_count>0)
        qmmm_env%ref_count=qmmm_env%ref_count-1
@@ -485,7 +479,6 @@ CONTAINS
     INTEGER                                  :: I
     LOGICAL                                  :: failure
 
-    failure = .FALSE.
     DO I=1,SIZE(pgfs)
        IF (ASSOCIATED(pgfs(I)%pgf)) THEN
           IF (ASSOCIATED(pgfs(I)%pgf%Ak)) THEN
@@ -693,7 +686,6 @@ CONTAINS
 
     LOGICAL                                  :: failure
 
-    failure = .FALSE.
     IF (ASSOCIATED(added_charges)) CALL add_set_release(added_charges)
     ALLOCATE(added_charges)
 
@@ -733,7 +725,6 @@ CONTAINS
 
     LOGICAL                                  :: failure
 
-    failure = .FALSE.
     IF (ASSOCIATED(image_charge_pot)) CALL qmmm_image_charge_dealloc(image_charge_pot)
     ALLOCATE(image_charge_pot)
 

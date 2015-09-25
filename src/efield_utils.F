@@ -77,7 +77,6 @@ CONTAINS
     TYPE(qs_rho_type), POINTER               :: rho
 
     NULLIFY(dft_control, para_env, rho_r)
-    failure=.FALSE.
     CALL timeset(routineN,handle)
 
     CALL get_qs_env(qs_env,&
@@ -213,7 +212,6 @@ CONTAINS
     CALL get_qs_env(qs_env, dft_control=dft_control)
     IF(dft_control%apply_efield_field)THEN
 
-       failure=.FALSE.
 
        my_force=.FALSE.
        IF(PRESENT(calculate_forces))my_force=calculate_forces

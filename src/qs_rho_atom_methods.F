@@ -141,7 +141,6 @@ MODULE qs_rho_atom_methods
 
     CALL timeset(routineN,handle)
 
-    failure = .FALSE.
     NULLIFY(orb_basis)
     NULLIFY(harmonics)
     NULLIFY(lmin,lmax,npgf,zet,my_CG,my_dCG,my_CG_dxyz,coeff)
@@ -532,7 +531,6 @@ MODULE qs_rho_atom_methods
 
     CALL timeset(routineN,handle)
 
-    failure = .FALSE.
 
     NULLIFY(dft_control)
     NULLIFY(qs_kind_set)
@@ -798,7 +796,6 @@ MODULE qs_rho_atom_methods
       POINTER                                :: rho_atom_set
 
     CALL timeset(routineN,handle)
-    failure=.FALSE.
 
     NULLIFY(rho_atom_set)
     NULLIFY(qs_kind_set, atomic_kind_set)
@@ -961,7 +958,6 @@ MODULE qs_rho_atom_methods
     CALL timeset(routineN,handle)
 
     NULLIFY(qs_kind_set,para_env,rho_atom_set,dft_control)
-    failure = .FALSE.
 
     CALL get_qs_env(qs_env,&
                     qs_kind_set=qs_kind_set, &
@@ -1114,7 +1110,6 @@ MODULE qs_rho_atom_methods
     LOGICAL                                  :: failure
 
     CALL timeset(routineN,handle)
-    failure = .FALSE.
 
          ALLOCATE(rho_atom_set(iatom)%rho_rad_h(ispin)%r_coef(1:nr,1:max_iso_not0), &
                   rho_atom_set(iatom)%rho_rad_s(ispin)%r_coef(1:nr,1:max_iso_not0), &
@@ -1178,7 +1173,6 @@ MODULE qs_rho_atom_methods
     INTEGER                                  :: j
     LOGICAL                                  :: failure
 
-    failure = .FALSE.
 
       rho_atom_set(iatom)%rho_rad_h(ispin)%r_coef = 0.0_dp
       rho_atom_set(iatom)%rho_rad_s(ispin)%r_coef = 0.0_dp

@@ -84,7 +84,6 @@ CONTAINS
 
     LOGICAL                                  :: failure
 
-    failure=.FALSE.
 
     ALLOCATE(gopt_param)
 
@@ -112,13 +111,11 @@ CONTAINS
 
     LOGICAL                                  :: failure
 
-    failure=.FALSE.
 
     CPASSERT(.NOT.ASSOCIATED(gopt_param))
     CPASSERT(ASSOCIATED(gopt_section))
     CALL gopt_param_create(gopt_param)
 
-    failure=.FALSE.
     IF (PRESENT(type_id)) THEN
        gopt_param%type_id = type_id
     ELSE
@@ -185,7 +182,6 @@ CONTAINS
 
     LOGICAL                                  :: failure
 
-    failure=.FALSE.
 
     CPASSERT(ASSOCIATED(gopt_param))
     CPASSERT(gopt_param%ref_count>0)
@@ -206,7 +202,6 @@ CONTAINS
 
     LOGICAL                                  :: failure
 
-    failure=.FALSE.
 
     IF (ASSOCIATED(gopt_param)) THEN
        CPASSERT(gopt_param%ref_count>0)

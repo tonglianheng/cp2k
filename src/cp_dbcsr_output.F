@@ -102,7 +102,6 @@ CONTAINS
     TYPE(qs_kind_type), DIMENSION(:), &
       POINTER                                :: qs_kind_set
 
-    failure = .FALSE.
     group = para_env%group
     IF (.NOT.ASSOCIATED(blacs_matrix)) RETURN
     CALL cp_fm_get_info(blacs_matrix,name=matrix_name,nrow_global=nrow_global,&
@@ -196,7 +195,6 @@ CONTAINS
     TYPE(qs_kind_type), DIMENSION(:), &
       POINTER                                :: qs_kind_set
 
-    failure = .FALSE.
     group = para_env%group
 
     NULLIFY (matrix)
@@ -294,7 +292,6 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: DATA
     TYPE(cp_dbcsr_iterator)                  :: iter
 
-    failure = .FALSE.
 
     CALL timeset(routineN,handle)
 
@@ -393,7 +390,6 @@ CONTAINS
     TYPE(qs_kind_type), DIMENSION(:), &
       POINTER                                :: qs_kind_set
 
-    failure = .FALSE.
     group = para_env%group
 
     IF (output_unit>0) THEN
@@ -555,7 +551,6 @@ CONTAINS
                                                 right, to, width
     LOGICAL                                  :: failure
 
-    failure = .FALSE.
     group = para_env%group
 
     IF (output_unit>0) THEN
@@ -653,7 +648,6 @@ CONTAINS
     REAL(KIND=dp)                            :: occupation
     TYPE(cp_logger_type), POINTER            :: logger
 
-    failure = .FALSE.
     NULLIFY(logger)
     logger => cp_get_default_logger()
 

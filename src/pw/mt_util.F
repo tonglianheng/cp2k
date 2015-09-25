@@ -75,7 +75,6 @@ CONTAINS
     TYPE(pw_type), POINTER                   :: Vloc, Vlocg
 
     CALL timeset(routineN,handle)
-    failure=.FALSE.
     NULLIFY(Vloc, Vlocg, pw_pool_aux)
     !
     ! For Martyna-Tuckerman we set up an auxiliary pw_pool at an higher cutoff
@@ -162,7 +161,6 @@ CONTAINS
     TYPE(pw_grid_type), POINTER              :: grid
 
     CALL timeset(routineN,handle)
-    failure=.FALSE.
 
     grid => Vloc%pw_grid
     bo   => grid%bounds_local
@@ -222,7 +220,6 @@ CONTAINS
     TYPE(pw_grid_type), POINTER              :: grid
 
     CALL timeset(routineN,handle)
-    failure=.FALSE.
     grid => screen_function%pw_grid
     box = REAL(grid%npts,kind=dp)*grid%dr
     box2 = box/2.0_dp

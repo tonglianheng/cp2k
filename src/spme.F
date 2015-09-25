@@ -142,7 +142,6 @@ CONTAINS
       DIMENSION(:), POINTER                  :: drpot
     TYPE(realspace_grid_type), POINTER       :: rden, rpot
 
-    failure = .FALSE.
     NULLIFY(drpot, grid_spme, green, poisson_env, phi_g, rhob_g, rhob_r, pw_pool, rden, rpot)
     CALL timeset ( routineN, handle )
     CALL cite_reference(Essmann1995)
@@ -505,7 +504,6 @@ CONTAINS
     TYPE(realspace_grid_desc_type), POINTER  :: rs_desc
     TYPE(realspace_grid_type), POINTER       :: rden, rpot
 
-    failure = .FALSE.
     NULLIFY(grid_spme, green, poisson_env, phi_g, rhob_g, rhob_r, pw_pool, &
          rden, rpot)
     CALL timeset ( routineN, handle )
@@ -651,7 +649,6 @@ CONTAINS
       DIMENSION(:), POINTER                  :: drpot
     TYPE(realspace_grid_type), POINTER       :: rden
 
-    failure = .FALSE.
     NULLIFY(drpot, grid_spme, green, poisson_env, phi_g, rhob_g, rhob_r, &
          pw_pool, rden)
     CALL timeset ( routineN, handle )

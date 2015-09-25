@@ -99,7 +99,6 @@ CONTAINS
       POINTER                                :: torsion_list
     TYPE(ub_type), DIMENSION(:), POINTER     :: ub_list
 
-    failure = .FALSE.
     NULLIFY(logger)
     logger => cp_get_default_logger()
     output_unit= cp_logger_get_default_io_unit(logger)
@@ -1223,7 +1222,6 @@ CONTAINS
     INTEGER                                  :: i, ibond, j
     LOGICAL                                  :: failure
 
-    failure = .FALSE.
     ALLOCATE(map_vars(nvar1))
     CALL sort(map_var_mol,nvar1,map_vars)
     ALLOCATE(bnd_type(2,nmol_type))
@@ -1268,7 +1266,6 @@ CONTAINS
     LOGICAL                                  :: failure
     TYPE(connectivity_info_type), POINTER    :: conn_info
 
-    failure = .FALSE.
     NULLIFY(multiple_unit_cell)
     CALL section_vals_val_get(subsys_section, "TOPOLOGY%MULTIPLE_UNIT_CELL",&
                               i_vals=multiple_unit_cell)

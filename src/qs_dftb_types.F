@@ -142,7 +142,6 @@ CONTAINS
     INTEGER                                  :: i, j, n1, n2
     LOGICAL                                  :: failure
 
-    failure=.FALSE.
 
     IF (ASSOCIATED(pairpot)) THEN
       n1 = SIZE(pairpot,1)

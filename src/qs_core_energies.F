@@ -238,7 +238,6 @@ CONTAINS
       POINTER                                :: qs_kind_set
     TYPE(virial_type), POINTER               :: virial
 
-    failure = .FALSE.
 
     CALL timeset(routineN,handle)
 

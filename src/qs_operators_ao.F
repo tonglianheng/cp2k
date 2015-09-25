@@ -112,7 +112,6 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-    failure = .FALSE.
 
     NULLIFY(cell,sab_orb,qs_kind_set,particle_set,para_env)
     NULLIFY(logger)
@@ -484,7 +483,6 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-    failure = .FALSE.
 
     NULLIFY(cell,sab_all,qs_kind_set,particle_set,para_env)
     NULLIFY(logger)
@@ -877,7 +875,6 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-    failure = .FALSE.
     NULLIFY (qs_kind, qs_kind_set)
     NULLIFY (cell, particle_set)
     NULLIFY (sab_orb)
@@ -1156,7 +1153,6 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-    failure = .FALSE.
     NULLIFY (qs_kind, qs_kind_set)
     NULLIFY (cell, particle_set)
     NULLIFY (sab_orb)
@@ -1436,7 +1432,6 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-    failure = .FALSE.
     CPASSERT(ASSOCIATED(op))
     CPASSERT(ASSOCIATED(op_der))
     !IF(.NOT.op_sm_der(1,1)%matrix%symmetry=="none") THEN

@@ -72,7 +72,6 @@ CONTAINS
     logger => cp_get_default_logger()
     output_unit = cp_logger_get_default_io_unit(logger)
 
-    failure = .TRUE.
     CPASSERT(ASSOCIATED(inpp))
 
     ! find location of directive in line and check whether it is commented out
@@ -409,7 +408,6 @@ CONTAINS
 
     LOGICAL                                  :: failure
 
-    failure = .FALSE.
     CPASSERT(ASSOCIATED(inpp))
     IF(inpp%io_stack_level > 0) THEN
        CALL close_file(input_unit)
@@ -448,7 +446,6 @@ CONTAINS
     INTEGER                                  :: idx, pos1, pos2
     LOGICAL                                  :: failure
 
-    failure = .TRUE.
     CPASSERT(ASSOCIATED(inpp))
 
     ! process line until all variables named with the convention ${VAR} are expanded

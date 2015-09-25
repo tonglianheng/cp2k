@@ -220,7 +220,6 @@ MODULE mp2_ri_grad
     TYPE(virial_type), POINTER               :: virial
 
     CALL timeset(routineN,handle)
-    failure=.FALSE.
 
     ! Find out whether we have a closed or open shell
     alpha_beta = .FALSE.
@@ -1062,7 +1061,6 @@ MODULE mp2_ri_grad
       ALLOCATABLE, DIMENSION(:)              :: buffer_cyclic
 
     CALL timeset(routineN,handle)
-    failure=.FALSE.
 
     ! create the globally distributed mixed lagrangian
     NULLIFY(blacs_env)

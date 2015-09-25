@@ -94,7 +94,6 @@ CONTAINS
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :, :)                     :: seed
 
-    failure = .FALSE.
     CPASSERT(ASSOCIATED(al))
     CPASSERT(.NOT.ASSOCIATED(al%nvt))
     
@@ -120,7 +119,6 @@ CONTAINS
 
     LOGICAL                                  :: failure
 
-    failure = .FALSE.
     IF (ASSOCIATED(al)) THEN
        CALL al_thermo_dealloc(al%nvt)
        CALL release_map_info_type(al%map_info)
@@ -143,7 +141,6 @@ CONTAINS
 
     LOGICAL                                  :: failure
 
-    failure = .FALSE.
     IF (ASSOCIATED(nvt)) THEN
        DEALLOCATE (nvt)
     ENDIF

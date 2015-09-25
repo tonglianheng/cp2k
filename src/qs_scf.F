@@ -172,7 +172,6 @@ CONTAINS
                                                 scf_section
 
     NULLIFY(scf_env)
-    failure=.FALSE.
     logger => cp_get_default_logger()
     CPASSERT(ASSOCIATED(qs_env))
     CALL get_qs_env(qs_env,scf_env=scf_env,input=input, &
@@ -283,7 +282,6 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-    failure=.FALSE.
 
     NULLIFY(dft_control,rho,energy, &
             logger,qs_charges,ks_env,mos,atomic_kind_set,qs_kind_set, &
@@ -532,7 +530,6 @@ CONTAINS
 
     NULLIFY(scf_control,matrix_s,matrix_ks,dft_control,mos,mo_coeff)
 
-    failure=.FALSE.
 
     CPASSERT(ASSOCIATED(scf_env))
     CPASSERT(scf_env%ref_count>0)
@@ -761,7 +758,6 @@ CPSourceFileRef)
 
     CALL timeset(routineN,handle)
 
-    failure=.FALSE.
 
     CPASSERT(ASSOCIATED(scf_env))
     CPASSERT(scf_env%ref_count>0)

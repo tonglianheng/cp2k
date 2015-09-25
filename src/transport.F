@@ -95,7 +95,6 @@ CONTAINS
     TYPE(section_vals_type), POINTER         :: input
     TYPE(transport_env_type), POINTER        :: transport_env
 
-    failure=.FALSE.
 
     CALL timeset(routineN,handle)
 

@@ -157,7 +157,6 @@ CONTAINS
     TYPE(molecule_kind_type), POINTER        :: molecule_kind
     TYPE(molecule_type), POINTER             :: molecule
 
-    failure = .FALSE.
     CALL timeset(routineN,handle2)
     DO i=1,SIZE(molecule_kind_set)
        molecule_kind => molecule_kind_set(i)
@@ -261,7 +260,6 @@ CONTAINS
     TYPE(molecule_kind_type), POINTER        :: molecule_kind
     TYPE(molecule_type), POINTER             :: molecule
 
-    failure = .FALSE.
 
     CALL timeset(routineN,handle2)
     DO i=1,SIZE(molecule_kind_set)
@@ -374,7 +372,6 @@ CONTAINS
       POINTER                                :: ub_kind_set
     TYPE(ub_type), DIMENSION(:), POINTER     :: ub_list
 
-    failure = .FALSE.
 
     CALL timeset(routineN,handle2)
     DO i=1,SIZE(molecule_kind_set)
@@ -482,7 +479,6 @@ CONTAINS
     TYPE(torsion_type), DIMENSION(:), &
       POINTER                                :: torsion_list
 
-    failure = .FALSE.
     CALL timeset(routineN,handle2)
     DO i=1,SIZE(molecule_kind_set)
        molecule_kind => molecule_kind_set(i)
@@ -606,7 +602,6 @@ CONTAINS
     TYPE(molecule_kind_type), POINTER        :: molecule_kind
     TYPE(molecule_type), POINTER             :: molecule
 
-    failure = .FALSE.
 
     CALL timeset(routineN,handle2)
     DO i=1,SIZE(molecule_kind_set)
@@ -733,7 +728,6 @@ CONTAINS
       POINTER                                :: opbend_kind_set
     TYPE(opbend_type), DIMENSION(:), POINTER :: opbend_list
 
-    failure = .FALSE.
 
     CALL timeset(routineN,handle2)
     DO i=1,SIZE(molecule_kind_set)
@@ -864,7 +858,6 @@ CONTAINS
     TYPE(molecule_kind_type), POINTER        :: molecule_kind
     TYPE(molecule_type), POINTER             :: molecule
 
-    failure = .FALSE.
     CALL timeset(routineN,handle2)
 
     DO i=1,SIZE(molecule_kind_set)
@@ -1021,7 +1014,6 @@ CONTAINS
     TYPE(molecule_type), POINTER             :: molecule
 
     CALL timeset(routineN,handle2)
-    failure = .FALSE.
 
     DO i=1,SIZE(molecule_kind_set)
        molecule_kind => molecule_kind_set(i)
@@ -1191,7 +1183,6 @@ CONTAINS
     TYPE(molecule_type), POINTER             :: molecule
     TYPE(ub_type), DIMENSION(:), POINTER     :: ub_list
 
-    failure = .FALSE.
 
     CALL timeset(routineN,handle2)
     DO i=1,SIZE(molecule_kind_set)
@@ -1341,7 +1332,6 @@ CONTAINS
       POINTER                                :: torsion_list
 
     CALL timeset(routineN,handle2)
-    failure = .FALSE.
 
     DO i=1,SIZE(molecule_kind_set)
        molecule_kind => molecule_kind_set(i)
@@ -1609,7 +1599,6 @@ CONTAINS
     TYPE(molecule_type), POINTER             :: molecule
 
     CALL timeset(routineN,handle2)
-    failure = .FALSE.
 
     DO i=1,SIZE(molecule_kind_set)
        molecule_kind => molecule_kind_set(i)
@@ -1805,7 +1794,6 @@ CONTAINS
     TYPE(opbend_type), DIMENSION(:), POINTER :: opbend_list
 
     CALL timeset(routineN,handle2)
-    failure = .FALSE.
 
     DO i=1,SIZE(molecule_kind_set)
        molecule_kind => molecule_kind_set(i)
@@ -1939,7 +1927,6 @@ CONTAINS
     TYPE(fist_potential_type), POINTER       :: fist_potential
     TYPE(val_type), POINTER                  :: val
 
-    failure = .FALSE.
 
     CALL timeset(routineN,handle)
     charge_tot = 0.0_dp
@@ -2077,7 +2064,6 @@ CPSourceFileRef,&
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(fist_potential_type), POINTER       :: fist_potential
 
-    failure = .FALSE.
 
     CALL timeset(routineN,handle)
     charge_tot = 0.0_dp
@@ -2470,7 +2456,6 @@ CPSourceFileRef,&
     TYPE(shell_kind_type), POINTER           :: shell
     TYPE(shell_type), DIMENSION(:), POINTER  :: shell_list
 
-    failure = .FALSE.
 
     CALL timeset(routineN,handle2)
     nshell_tot = 0
@@ -2684,7 +2669,6 @@ CPSourceFileRef,&
     TYPE(pair_potential_single_type), &
       POINTER                                :: pot
 
-    failure = .FALSE.
     use_qmmm_ff = qmmm_env%use_qmmm_ff
     NULLIFY(pot)
     CALL ewald_env_get(ewald_env, rcut=ewald_rcut)
@@ -2984,7 +2968,6 @@ CPSourceFileRef,&
       POINTER                                :: pot
 
     CALL timeset(routineN,handle2)
-    failure = .FALSE.
     use_qmmm_ff = qmmm_env%use_qmmm_ff
     NULLIFY(pot)
     CALL ewald_env_get(ewald_env, rcut=ewald_rcut)
@@ -3303,7 +3286,6 @@ CPSourceFileRef,&
     TYPE(spline_environment_type), POINTER   :: spline_env
 
     CALL timeset(routineN,handle2)
-    failure = .FALSE.
     ! Figure out which nonbonded interactions happen to be indentical, and
     ! prepare storage for these, avoiding duplicates.
     NULLIFY(spline_env)
@@ -3363,7 +3345,6 @@ CPSourceFileRef,&
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
 
     CALL timeset(routineN,handle)
-    failure = .FALSE.
 
     tmp = 0.0_dp
     nkinds = SIZE(atomic_kind_set)
@@ -3444,7 +3425,6 @@ CPSourceFileRef,&
     CHARACTER(LEN=default_string_length)     :: item
     LOGICAL                                  :: failure
 
-    failure = .FALSE.
     item="( "//TRIM(name_atm_a)
     IF (PRESENT(name_atm_b)) THEN
        item = TRIM(item)//" , "//TRIM(name_atm_b)
@@ -3491,7 +3471,6 @@ CPSourceFileRef,&
     INTEGER                                  :: fmt, i, nsize
     LOGICAL                                  :: failure, found
 
-    failure = .FALSE.
     nsize   = 0
     fmt     = 1
     my_format = '(T2,"FORCEFIELD| Missing ","'//TRIM(type_name)//&

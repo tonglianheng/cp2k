@@ -143,7 +143,6 @@ SUBROUTINE pw_env_get(pw_env, pw_pools, cube_info, gridlevel_info,&
 
     LOGICAL                                  :: failure
 
-  failure=.FALSE.
 
   CPASSERT(ASSOCIATED(pw_env))
   CPASSERT(pw_env%ref_count>0)
@@ -184,7 +183,6 @@ SUBROUTINE pw_env_retain(pw_env)
 
     LOGICAL                                  :: failure
 
-  failure=.FALSE.
 
   CPASSERT(ASSOCIATED(pw_env))
   CPASSERT(pw_env%ref_count>0)
@@ -209,7 +207,6 @@ SUBROUTINE pw_env_release(pw_env, kg)
     INTEGER                                  :: i, igrid_level
     LOGICAL                                  :: failure, my_kg
 
-  failure=.FALSE.
   my_kg = .FALSE.
   IF(PRESENT(kg)) my_kg = kg
   IF (ASSOCIATED(pw_env)) THEN
@@ -272,7 +269,6 @@ SUBROUTINE pw_env_flush_cache(pw_env)
 
     LOGICAL                                  :: failure
 
-  failure=.FALSE.
 
   CPASSERT(ASSOCIATED(pw_env))
   IF (ASSOCIATED(pw_env%pw_pools)) THEN

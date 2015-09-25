@@ -422,7 +422,6 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(3, 2)           :: initial_seed
     TYPE(cp_logger_type), POINTER            :: logger
 
-    failure = .FALSE.
 
     NULLIFY(logger)
     logger => cp_get_default_logger()
@@ -519,7 +518,6 @@ CONTAINS
                                                 global_section, qmmm_section, &
                                                 subsys_section
 
-    failure = .FALSE.
     NULLIFY(dft_section,global_section, i_force_eval)
 
     global_section => section_vals_get_subs_vals(root_section,"GLOBAL")
@@ -1087,7 +1085,6 @@ CONTAINS
 ! look if we inherited a failure, more care is needed if so
 ! i.e. the input is most likely not available
 
-    failure = .FALSE.
 
     ! Set flag if this is a development version
     dev_flag = ""

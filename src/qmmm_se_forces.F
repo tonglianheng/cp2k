@@ -114,7 +114,6 @@ CONTAINS
     TYPE(se_taper_type), POINTER             :: se_taper
     TYPE(semi_empirical_type), POINTER       :: se_kind_a, se_kind_mm
 
-    failure = .FALSE.
     CALL timeset(routineN,handle)
     IF (calc_force) THEN
        NULLIFY (rho, atomic_kind_set, qs_kind_set, se_taper)

@@ -327,7 +327,6 @@ CONTAINS
     TYPE(qs_energy_type), POINTER            :: energy
     TYPE(qs_rho_type), POINTER               :: rho
 
-    failure=.FALSE.
     NULLIFY(cell,particle_set,coeff,energy,rho,dft_control,para_env,rho_r)
     CALL timeset(routineN,handle)
 
@@ -507,7 +506,6 @@ CONTAINS
       POINTER                                :: force
     TYPE(qs_rho_type), POINTER               :: rho
 
-    failure=.FALSE.
     CALL timeset(routineN,handle)
     NULLIFY(dft_control,cell,particle_set,para_env,rho_r)
 

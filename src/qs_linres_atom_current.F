@@ -153,7 +153,6 @@ CONTAINS
 
     CALL timeset(routineN,handle)
     !
-    failure =.FALSE.
     NULLIFY(atom_list,atomic_kind_set,qs_kind_set,dft_control,orb_basis_set,sab_all,&
             jrho1_atom_set,oce,a_block,b_block,c_block,&
             d_block,jp_RARnu,jp2_RARnu,C_coeff_hh_a,C_coeff_hh_b,C_coeff_ss_a,&
@@ -599,7 +598,6 @@ CONTAINS
 
     CALL timeset(routineN,handle)
     !
-    failure =.FALSE.
     NULLIFY(atomic_kind_set,qs_kind_set,dft_control,para_env,&
             coeff,Fr_h,Fr_s,Fr_a_h,Fr_a_s,Fr_a_h_ii,Fr_a_s_ii,&
             Fr_a_h_iii,Fr_a_s_iii,Fr_b_h,Fr_b_s,Fr_b_h_ii,&
@@ -1145,7 +1143,6 @@ CONTAINS
     REAL(dp), DIMENSION(:,:,:), ALLOCATABLE :: g
 !
 !
-    failure = .FALSE.
     NULLIFY(Fr_h,Fr_s,Fr_a_h,Fr_a_s,Fr_a_h_ii,Fr_a_s_ii,Fr_a_h_iii,Fr_a_s_iii,&
             Fr_b_h,Fr_b_s,Fr_b_h_ii,Fr_b_s_ii,Fr_b_h_iii,Fr_b_s_iii,&
             a,slm)
@@ -1369,7 +1366,6 @@ CONTAINS
     TYPE(qs_kind_type), DIMENSION(:), &
       POINTER                                :: qs_kind_set
 
-    failure = .FALSE.
 
     NULLIFY(para_env, dft_control)
     NULLIFY(jrho1_atom_set, grid_atom, harmonics)

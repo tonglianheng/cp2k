@@ -143,7 +143,6 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-    failure=.FALSE.
     NULLIFY(pw_env,cores)
 
     CALL get_qs_env(qs_env=qs_env,pw_env=pw_env)
@@ -303,7 +302,6 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-    failure=.FALSE.
     NULLIFY(pw_env,cores)
 
     CALL get_qs_env(qs_env=qs_env,pw_env=pw_env)
@@ -494,7 +492,6 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-    failure=.FALSE.
     NULLIFY(pw_env,cores)
 
     CALL get_qs_env(qs_env=qs_env,pw_env=pw_env)
@@ -704,7 +701,6 @@ CONTAINS
       IF(.NOT. dft_control%qs_control%gapw_control%nopaw_as_gpw) skip_fcore = .TRUE.
     END IF
 
-    failure = .FALSE.
     IF(.NOT. skip_fcore) THEN
         NULLIFY(pw_env)
         ALLOCATE (cores(1))
@@ -884,7 +880,6 @@ CONTAINS
             rs_grid, rs_v, virial, set_radius_a, sphi_a,  work_f,&
             work_i, zeta)
 
-    failure = .FALSE.
 
     CALL get_qs_env(qs_env=qs_env,pw_env=pw_env)
 

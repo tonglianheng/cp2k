@@ -112,7 +112,6 @@ CONTAINS
     TYPE(cp_parser_type), POINTER            :: parser
     TYPE(qs_dftb_atom_type), POINTER         :: dftb_atom_a, dftb_atom_b
 
-    failure = .FALSE.
     output_unit = -1
     NULLIFY(logger)
     logger => cp_get_default_logger()

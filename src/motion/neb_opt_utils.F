@@ -86,7 +86,6 @@ CONTAINS
     NULLIFY(logger)
     logger => cp_get_default_logger()
     iw = cp_logger_get_default_io_unit(logger)
-    failure  = .FALSE.
     accepted = .FALSE.
     ! find the index with the minimum element of the set_err array
     nv = MINLOC(set_err,1)
@@ -240,7 +239,6 @@ CONTAINS
     REAL(KIND=dp)                            :: costh, norm1, norm2
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: tmp
 
-    failure  = .FALSE.
     accepted = .TRUE.
     ALLOCATE(tmp(SIZE(step)))
     IF (.NOT.failure) THEN
@@ -343,7 +341,6 @@ CONTAINS
 
 ! replaced xc by xc_cray to work around yet another bug in pgf90 on CRAY xt3
 
-    failure  = .FALSE.
     ALLOCATE(Icoord(coords%size_wrk(1),coords%size_wrk(2)))
     CALL section_vals_val_get(diis_section,"NP_LS", i_val=np)
     CALL section_vals_val_get(diis_section,"MAX_STEPSIZE", r_val=max_stepsize)

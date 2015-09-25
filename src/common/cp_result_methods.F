@@ -67,7 +67,6 @@ CONTAINS
     INTEGER                                  :: isize, jsize
     LOGICAL                                  :: check, failure
 
-    failure=.FALSE.
     CPASSERT(ASSOCIATED(results))
     CPASSERT(description(1:1)=='[')
     check  = SIZE(results%result_label)==SIZE(results%result_value)
@@ -105,7 +104,6 @@ CONTAINS
     INTEGER                                  :: isize, jsize
     LOGICAL                                  :: check, failure
 
-    failure=.FALSE.
     CPASSERT(ASSOCIATED(results))
     CPASSERT(description(1:1)=='[')
     check  = SIZE(results%result_label)==SIZE(results%result_value)
@@ -142,7 +140,6 @@ CONTAINS
     INTEGER                                  :: i, nlist
     LOGICAL                                  :: failure
 
-    failure = .FALSE.
     CPASSERT(ASSOCIATED(results))
     nlist=SIZE(results%result_value)
     res_exist = .FALSE.
@@ -182,7 +179,6 @@ CONTAINS
                                                 size_values
     LOGICAL                                  :: failure
 
-    failure = .FALSE.
     CPASSERT(ASSOCIATED(results))
     nlist=SIZE(results%result_value)
     CPASSERT(description(1:1)=='[')
@@ -264,7 +260,6 @@ CPSourceFileRef,&
                                                 size_values
     LOGICAL                                  :: failure
 
-    failure = .FALSE.
     CPASSERT(ASSOCIATED(results))
     nlist=SIZE(results%result_value)
     CPASSERT(description(1:1)=='[')
@@ -343,7 +338,6 @@ CPSourceFileRef,&
     INTEGER                                  :: I, nlist
     LOGICAL                                  :: failure
 
-    failure = .FALSE.
     CPASSERT(ASSOCIATED(results))
     nlist=SIZE(results%result_value)
     CPASSERT(description(1:1)=='[')
@@ -408,7 +402,6 @@ CPSourceFileRef,&
     LOGICAL                                  :: failure
     TYPE(cp_result_type), POINTER            :: clean_results
 
-    failure = .FALSE.
     CPASSERT(ASSOCIATED(results))
     new_size = 0
     IF(PRESENT(description))THEN
@@ -483,7 +476,6 @@ CPSourceFileRef,&
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: size_value, type_in_use
     LOGICAL                                  :: failure
 
-    failure = .FALSE.
     CPASSERT(ASSOCIATED(results))
     nlist = 0
     IF (para_env%mepos==source) nlist = SIZE(results%result_value)

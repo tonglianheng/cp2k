@@ -91,7 +91,6 @@ CONTAINS
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: work
 
-    failure = .FALSE.
 
     ! Should output matrix be transposed?
     IF(PRESENT(trans)) THEN
@@ -220,7 +219,6 @@ CONTAINS
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :, :)                     :: work1, work2, work3, work4
 
-    failure = .FALSE.
 
     ! Active matrix size
     IF(PRESENT(ca)) THEN
@@ -344,7 +342,6 @@ CONTAINS
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: work
 
-    failure = .FALSE.
 
     ! Should input matrix be transposed?
     IF(PRESENT(trans)) THEN
@@ -400,7 +397,6 @@ CONTAINS
     INTEGER                                  :: i
     LOGICAL                                  :: failure, my_trans
 
-    failure = .FALSE.
     CPASSERT(m<=SIZE(SAB,3))
     CPASSERT(m<=SIZE(force,1))
 
@@ -452,7 +448,6 @@ CONTAINS
     INTEGER                                  :: ja, jb
     LOGICAL                                  :: failure, my_trans
 
-    failure = .FALSE.
 
     IF(PRESENT(trans)) THEN
        my_trans = trans

@@ -230,7 +230,6 @@ CONTAINS
     TYPE(realspace_grid_desc_type), POINTER  :: auxbas_rs_desc
     TYPE(section_vals_type), POINTER         :: current_section
 
-    failure = .FALSE.
     CALL timeset(routineN,handle)
     !
     NULLIFY(jrho_rspace,jrho_gspace,logger,current_section,density_matrix0,density_matrix_a,&
@@ -668,7 +667,6 @@ CONTAINS
     TYPE(realspaces_grid_p_type), &
       DIMENSION(:), POINTER                  :: rs_gauge
 
-    failure=.FALSE.
     NULLIFY(qs_kind, cell, dft_control, orb_basis_set, rs_rho, &
          qs_kind_set, sab_orb, particle_set, rs_current, pw_env, &
          rs_descs, para_env, dist_ab, set_radius_a, set_radius_b, la_max, &
@@ -2210,7 +2208,6 @@ CONTAINS
     TYPE(qs_kind_type), DIMENSION(:), &
       POINTER                                :: qs_kind_set
 
-    failure = .FALSE.
     !
     CALL timeset(routineN,handle)
     !
@@ -2651,7 +2648,6 @@ CONTAINS
     TYPE(qs_kind_type), DIMENSION(:), &
       POINTER                                :: qs_kind_set
 
-    failure = .FALSE.
     !
     CALL timeset(routineN,handle)
     !

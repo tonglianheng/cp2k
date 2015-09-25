@@ -158,7 +158,6 @@ CONTAINS
     LOGICAL                                  :: calc(0:4), failure
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: rs
 
-    failure = .FALSE.
     CALL setup_calculation(order,mx,calc,100)
     mp = SIZE ( pot, 2 )
     m = ABS(order)
@@ -215,7 +214,6 @@ CONTAINS
       POINTER                                :: e_0, e_r, e_rr, e_rrr
     TYPE(xc_derivative_type), POINTER        :: deriv
 
-    failure = .FALSE.
     calc = .FALSE.
     IF (order >= 0) calc(0:order) = .TRUE.
     IF (order < 0) calc(-order) = .TRUE.

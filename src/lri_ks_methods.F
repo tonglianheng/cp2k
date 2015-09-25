@@ -104,7 +104,6 @@ CONTAINS
     TYPE(neighbor_list_set_p_type), &
       DIMENSION(:), POINTER                  :: soo_list
 
-    failure = .FALSE.
     CALL timeset(routineN,handle)
     NULLIFY(atom_of_kind, h_block, lrii, nl_iterator, soo_list)
 

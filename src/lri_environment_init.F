@@ -145,7 +145,6 @@ CONTAINS
       POINTER                                :: scon_orb, scon_ri
     TYPE(gto_basis_set_type), POINTER        :: orb_basis, ri_basis
 
-    failure=.FALSE.
 
     IF (ASSOCIATED(lri_env)) THEN
        IF (ASSOCIATED(lri_env%orb_basis)) THEN
@@ -502,7 +501,6 @@ CONTAINS
     LOGICAL                                  :: failure
     REAL(dp), ALLOCATABLE, DIMENSION(:, :)   :: rga
 
-    failure = .FALSE.
 
     nlist_max = 6
     nsfunc1 = nsoset(maxl1)

@@ -371,7 +371,6 @@ CONTAINS
                                                 fnj3
     TYPE(se_int_control_type)                :: se_int_control_off
 
-    failure = .FALSE.
     rij=DOT_PRODUCT(rijv,rijv)
     ! Initialization
     l_enuc = PRESENT(enuc)
@@ -679,7 +678,6 @@ CONTAINS
                                                 rij, ssss, ssss_sr, tmp, zz
     TYPE(se_int_control_type)                :: se_int_control_off
 
-    failure = .FALSE.
     rij=DOT_PRODUCT(rijv,rijv)
     ! Initialization
     l_enuc = PRESENT(enuc)
@@ -741,7 +739,6 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(2025)           :: tmp2el
     REAL(KIND=dp), DIMENSION(45)             :: tmp1el
 
-    failure = .FALSE.
     ! One-electron integral
     IF (PRESENT(int1el)) THEN
        fdim   = sepi%atm_int_size
@@ -851,7 +848,6 @@ CONTAINS
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: tmp
 
-    failure = .FALSE.
     ! Integral part
     DO i=1,3
        IF (PRESENT(dint1el)) THEN
@@ -919,7 +915,6 @@ CONTAINS
     REAL(KIND=dp)                            :: dft, ft
     TYPE(se_int_screen_type)                 :: se_int_screen
 
-    failure   = .FALSE.
 
     ! Compute the Tapering function
     ft = 1.0_dp
@@ -1006,7 +1001,6 @@ CONTAINS
     REAL(KIND=dp)                            :: dft, ft
     TYPE(se_int_screen_type)                 :: se_int_screen
 
-    failure   = .FALSE.
     ! Compute the Tapering function
     ft = 1.0_dp
     dft= 0.0_dp
@@ -1116,7 +1110,6 @@ CONTAINS
     LOGICAL                                  :: failure, l_core, l_ssss, si, &
                                                 sj
 
-    failure   = .FALSE.
     l_core  = PRESENT(dcore)
     l_ssss  = PRESENT(dssss)
     IF (.NOT.(l_core.OR.l_ssss)) RETURN
@@ -1200,7 +1193,6 @@ CONTAINS
     INTEGER                                  :: ij, kl
     LOGICAL                                  :: failure
 
-    failure = .FALSE.
     ! Check if d-orbitals are present
     IF (sepi%dorb.OR.sepj%dorb) THEN
        ij = indexa(1, 1)
@@ -1617,7 +1609,6 @@ CONTAINS
     REAL(KIND=dp)                            :: dft, ft, ft1
     TYPE(se_int_screen_type)                 :: se_int_screen
 
-    failure = .FALSE.
     ! Compute the tapering function and its derivatives
     ft  = taper_eval(se_taper%taper,rij)
     dft = 0.0_dp
@@ -1726,7 +1717,6 @@ CONTAINS
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: tmp
 
-    failure = .FALSE.
     lasti = sepi%natorb
     lastj = sepj%natorb
     DO i = 1, MIN(lasti,4)
@@ -1794,7 +1784,6 @@ CONTAINS
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: tmp
 
-    failure = .FALSE.
     lasti = sepi%natorb
     lastj = sepj%natorb
     DO i = 1, lasti

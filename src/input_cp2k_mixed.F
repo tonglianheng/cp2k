@@ -61,7 +61,6 @@ CONTAINS
     TYPE(section_type), POINTER              :: sub2section, sub3section, &
                                                 subsection
 
-    failure=.FALSE.
 
     CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="MIXED",&
@@ -310,7 +309,6 @@ CONTAINS
     LOGICAL                                  :: failure
     TYPE(section_type), POINTER              :: print_key
 
-    failure=.FALSE.
     CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="print",&
          description="Section of possible print options in MIXED env.",&

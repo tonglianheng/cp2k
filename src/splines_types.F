@@ -97,7 +97,6 @@ CONTAINS
     TYPE(spline_data_p_type), DIMENSION(:), &
       POINTER                                :: spl_p
 
-    failure=.FALSE.
 
     IF (ASSOCIATED(spline_env)) THEN
        CPASSERT(spline_env%ref_count>0)
@@ -128,7 +127,6 @@ CONTAINS
 
     LOGICAL                                  :: failure
 
-    failure=.FALSE.
 
     IF (ASSOCIATED(spline_data)) THEN
        CPASSERT(spline_data%ref_count>0)
@@ -160,7 +158,6 @@ CONTAINS
     INTEGER                                  :: i
     LOGICAL                                  :: failure, release_kind
 
-    failure=.FALSE.
 
     IF (ASSOCIATED(spl_p)) THEN
        release_kind = .TRUE.
@@ -188,7 +185,6 @@ CONTAINS
 
     LOGICAL                                  :: failure
 
-    failure=.FALSE.
     CPASSERT(ASSOCIATED(spline_data))
     CPASSERT(spline_data%ref_count>0)
     spline_data%ref_count=spline_data%ref_count+1
@@ -209,7 +205,6 @@ CONTAINS
     INTEGER                                  :: i
     LOGICAL                                  :: failure
 
-    failure=.FALSE.
     CPASSERT(ASSOCIATED(spl_p))
     DO i = 1, SIZE(spl_p)
        CALL spline_data_retain(spl_p(i)%spline_data)
@@ -231,7 +226,6 @@ CONTAINS
 
     LOGICAL                                  :: failure
 
-    failure=.FALSE.
     CPASSERT(ASSOCIATED(spline_env))
     CPASSERT(spline_env%ref_count>0)
     spline_env%ref_count=spline_env%ref_count+1
@@ -260,7 +254,6 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-    failure=.FALSE.
 
     ALLOCATE(spline_env)
     NULLIFY ( spline_env % spl_pp )
@@ -307,7 +300,6 @@ CONTAINS
     INTEGER                                  :: i, nsized, nsizes
     LOGICAL                                  :: failure
 
-    failure=.FALSE.
     CPASSERT(ASSOCIATED(spl_p_source))
     nsizes = SIZE(spl_p_source)
     IF (.NOT.ASSOCIATED(spl_p_dest)) THEN
@@ -342,7 +334,6 @@ CONTAINS
 
     LOGICAL                                  :: failure
 
-    failure=.FALSE.
     CPASSERT(ASSOCIATED(spline_data_source))
     IF (.NOT.ASSOCIATED(spline_data_dest)) CALL spline_data_create(spline_data_dest)
 
@@ -377,7 +368,6 @@ CONTAINS
 
     LOGICAL                                  :: failure
 
-    failure=.FALSE.
 
     ALLOCATE(spline_data)
     spline_data%ref_count=1
@@ -400,7 +390,6 @@ CONTAINS
 
     LOGICAL                                  :: failure
 
-    failure=.FALSE.
 
     IF (ASSOCIATED(spline_factor)) THEN
        IF (ASSOCIATED(spline_factor%rscale)) THEN
@@ -429,7 +418,6 @@ CONTAINS
 
     LOGICAL                                  :: failure
 
-    failure=.FALSE.
     CPASSERT(.NOT.ASSOCIATED(spline_factor))
     ALLOCATE(spline_factor)
     ALLOCATE(spline_factor%rscale(1))
@@ -458,7 +446,6 @@ CONTAINS
     INTEGER                                  :: isize, jsize, ksize
     LOGICAL                                  :: failure
 
-    failure=.FALSE.
 
     IF (ASSOCIATED(spline_factor_dest)) CALL spline_factor_release(spline_factor_dest)
     IF (ASSOCIATED(spline_factor_source)) THEN

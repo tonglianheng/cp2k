@@ -125,7 +125,6 @@ SUBROUTINE pw_env_create(pw_env)
 
     CALL timeset(routineN,handle)
 
-    failure=.FALSE.
 
     CPASSERT(.NOT.ASSOCIATED(pw_env))
     ALLOCATE(pw_env)
@@ -205,7 +204,6 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, external_para_env)
 ! Part one, deallocate old data if needed
 !
 !
-  failure=.FALSE.
   NULLIFY(cutoff, cell, pw_grid, old_pw_grid, dft_control, qs_kind_set, &
        pw_pools, rho0_mpole, rs_descs, para_env, cell_ref, &
        mt_super_ref_grid, input, poisson_section, xc_super_ref_grid, &
@@ -750,7 +748,6 @@ SUBROUTINE compute_max_radius(radius, pw_env, qs_env)
 ! parallel cost of rs_pw_transfer goes as safety_factor**3 so it is worthwhile keeping it tight
 
     CALL timeset(routineN,handle)
-    failure=.FALSE.
     NULLIFY(dft_control, qs_kind_set, rho0_mpole)
 
     CALL get_qs_env(qs_env=qs_env, qs_kind_set=qs_kind_set, &
@@ -931,7 +928,6 @@ END SUBROUTINE compute_max_radius
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(section_vals_type), POINTER         :: poisson_section
 
-    failure = .FALSE.
     NULLIFY(poisson_section)
     CPASSERT(.NOT.ASSOCIATED(mt_super_ref_pw_grid))
     CPASSERT(.NOT.ASSOCIATED(xc_super_ref_pw_grid))

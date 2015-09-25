@@ -155,7 +155,6 @@ CONTAINS
     TYPE(pair_potential_single_type), &
       POINTER                                :: pot
 
-    failure= .FALSE.
     n      = 0
     ncount = 0
 
@@ -584,7 +583,6 @@ CPSourceFileRef,&
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: pot_par
 
-    failure     = .FALSE.
     CALL timeset(routineN,handle)
 
     ntype = SIZE(atomic_kind_set)
@@ -956,7 +954,6 @@ CPSourceFileRef,&
     CALL timeset(routineN,handle)
 
     NULLIFY(pot, pot_ref)
-    failure = .FALSE.
     nvalues = SIZE(my_index)
     IF ((pot_target==lj_type).OR.(pot_target==lj_charmm_type)) THEN
        ALLOCATE(sigma6(nvalues))

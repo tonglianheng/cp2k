@@ -276,7 +276,6 @@ MODULE mp2_ri_gpw
 
     CALL timeset(routineN,handle)
 
-    failure=.FALSE.
 
 
     CALL cite_reference(DelBen2013)
@@ -735,7 +734,6 @@ MODULE mp2_ri_gpw
     TYPE(cp_fm_struct_type), POINTER         :: fm_struct
 
     CALL timeset(routineN,handle)
-    failure=.FALSE.
 
     ! initialize and create the matrix (K|jnu)
     CALL cp_dbcsr_init(matrix_ia_jnu)
@@ -813,7 +811,6 @@ MODULE mp2_ri_gpw
     LOGICAL                                  :: failure
 
     CALL timeset(routineN,handle)
-    failure=.FALSE.
 
     ! divide the b states in the sub_group in such a way to create
     ! b_start and b_end for each proc inside the sub_group
@@ -976,7 +973,6 @@ MODULE mp2_ri_gpw
       DIMENSION(:), POINTER                  :: rs_v
 
     CALL timeset(routineN,handle)
-    failure=.FALSE.
 
 
     ! get stuff
@@ -2372,7 +2368,6 @@ MODULE mp2_ri_gpw
     LOGICAL                                  :: failure
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: local_BI, rec_BI
 
-    failure=.FALSE.
 
     ALLOCATE(rec_col_row_info(0:max_row_col_local,2))
 
@@ -2549,7 +2544,6 @@ MODULE mp2_ri_gpw
                                                 para_env_P, para_env_rep
 
     CALL timeset(routineN,handle)
-    failure=.FALSE.
 
     my_open_shell_SS=.FALSE.
     IF(PRESENT(open_shell_SS)) my_open_shell_SS=open_shell_SS
@@ -3373,7 +3367,6 @@ MODULE mp2_ri_gpw
       DIMENSION(:, :, :, :)                  :: BIb_C_gather
 
     CALL timeset(routineN,handle)
-    failure=.FALSE.                                      
 
     ! create the replication group
     sub_sub_color=para_env_sub%mepos*para_env_exchange%num_pe+para_env_exchange%mepos
@@ -3585,7 +3578,6 @@ MODULE mp2_ri_gpw
     LOGICAL                                  :: failure
 
     CALL timeset(routineN,handle)
-    failure=.FALSE.
     
     ALLOCATE(local_i_aL(dimen_RI,my_B_size,block_size))
     ALLOCATE(local_j_aL(dimen_RI,my_B_size_beta,block_size))
@@ -3669,7 +3661,6 @@ MODULE mp2_ri_gpw
 ! among groups
 
     CALL timeset(routineN,handle)
-    failure=.FALSE.
 
     IF(.NOT.my_alpha_beta_case) THEN
       total_ij_pairs=homo*(1+homo)/2
@@ -3821,7 +3812,6 @@ MODULE mp2_ri_gpw
 !
 
     CALL timeset(routineN,handle)
-    failure=.FALSE.
     !
     sub_sub_color=para_env_sub%mepos*num_integ_group+color_sub/integ_group_size
     CALL mp_comm_split_direct(para_env%group,comm_exchange,sub_sub_color)
@@ -3944,7 +3934,6 @@ MODULE mp2_ri_gpw
     LOGICAL                                  :: failure
 
     CALL timeset(routineN,handle)
-    failure=.FALSE.
 
     ngroup=para_env%num_pe/para_env_sub%num_pe
 
@@ -4136,7 +4125,6 @@ MODULE mp2_ri_gpw
 !
 
     CALL timeset(routineN//"_Pia",handle)
-    failure=.FALSE.
 ! Find out whether we have an alpha-beta case
     alpha_beta = .FALSE.
     IF (PRESENT(Eigenval_beta) .AND. PRESENT(homo_beta) .AND. PRESENT(my_B_size_beta)) &
@@ -4351,7 +4339,6 @@ MODULE mp2_ri_gpw
     ! Now, Gamma_P_ia (made of Y_ia_P)
 
     CALL timeset(routineN//"_Gamma",handle)
-    failure=.FALSE.
     ! CALL dgemm('T','N',my_B_size,my_B_size_beta,dimen_RI,1.0_dp,&
     !                local_i_aL(:,:,iiB),dimen_RI,local_j_aL(:,:,jjB),dimen_RI,&
     !                0.0_dp,local_ab(my_B_virtual_start:my_B_virtual_end,1:my_B_size_beta),my_B_size)

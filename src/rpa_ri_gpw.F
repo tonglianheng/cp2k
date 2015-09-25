@@ -179,7 +179,6 @@ MODULE rpa_ri_gpw
     TYPE(cp_para_env_type), POINTER          :: para_env_RPA
 
     CALL timeset(routineN,handle)
-    failure=.FALSE.
   
     CALL cite_reference(DelBen2013)
     CALL cite_reference(DelBen2015)
@@ -819,7 +818,6 @@ MODULE rpa_ri_gpw
       ALLOCATABLE, DIMENSION(:)              :: buffer_rec, buffer_send
 
     CALL timeset(routineN,handle)
-    failure=.FALSE.
 
     my_beta_case=.FALSE.
     IF(PRESENT(beta_case)) my_beta_case=beta_case
@@ -1583,7 +1581,6 @@ MODULE rpa_ri_gpw
                                                 buffer_send, buffer_send_beta
 
     CALL timeset(routineN,handle)
-    failure=.FALSE.
     
     my_open_shell=.FALSE.
     IF(PRESENT(homo_beta).AND.&
@@ -2481,7 +2478,6 @@ MODULE rpa_ri_gpw
                                                 para_env_row_beta
 
     CALL timeset(routineN,handle)
-    failure=.FALSE.
 
     my_open_shell=.FALSE.
     IF(PRESENT(homo_beta).AND.&

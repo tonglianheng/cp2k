@@ -137,7 +137,6 @@ CONTAINS
 
     CALL timeset( routineN ,handle)
 
-    failure=.FALSE.
     CPASSERT(.NOT.ASSOCIATED(vxc_rho))
     CPASSERT(.NOT.ASSOCIATED(vxc_tau))
     NULLIFY(dft_control, pw_env, auxbas_pw_pool, xc_pw_pool, vdw_pw_pool, cell, my_vxc_rho, &

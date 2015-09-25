@@ -174,7 +174,6 @@ CONTAINS
                                                 subsys_section
 
     logger => cp_get_default_logger()
-    failure = .FALSE.
     NULLIFY(atomic_kind, qs_kind, mo_coeff, sv, orb_basis_set, atomic_kind_set,&
          qs_kind_set, particle_set, ortho, work2, work1, mo_array, s_sparse, &
          scf_control, dft_control, p_rmpv, ortho, work2, work1, para_env,&
@@ -986,7 +985,6 @@ CALL copy_fm_to_dbcsr(mo_array(ispin)%mo_set%mo_coeff,mo_array(ispin)%mo_set%mo_
     TYPE(cp_dbcsr_iterator)                  :: iter
     TYPE(qs_kind_type), POINTER              :: qs_kind
 
-    failure = .FALSE.
 
     CALL timeset(routineN,handle)
 

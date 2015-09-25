@@ -60,7 +60,6 @@ CONTAINS
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: add, ccc, chrg, pij, pkl, sum
 
-    failure = .FALSE.
     sum = 0.0_dp
     l1  = ABS (li-lj)
     lij = indexb(li+1, lj+1)
@@ -135,7 +134,6 @@ CONTAINS
 
     LOGICAL                                  :: failure
 
-    failure = .FALSE.
     ! Computing only residual Integral Values
     charg = 0.0_dp
     ! Q - Q.
@@ -171,7 +169,6 @@ CONTAINS
 
     LOGICAL                                  :: failure
 
-    failure = .FALSE.
     ! Computing only residual Integral Values
     coeff = 0.0_dp
     ! Q - Q.
@@ -210,7 +207,6 @@ CONTAINS
 
     LOGICAL                                  :: failure
 
-    failure = .FALSE.
     ! Computing only residual Integral Derivatives
     charg = 0.0_dp
     ! Q - Q.

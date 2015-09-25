@@ -171,7 +171,6 @@ CONTAINS
     TYPE(virial_type), POINTER               :: virial
 
     IF (.NOT. dft_control%low_spin_roks) RETURN
-    failure=.FALSE.
     NULLIFY(ks_env, rho_ao)
 
     CALL timeset(routineN,handle)
@@ -432,7 +431,6 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-    failure=.FALSE.
 
     NULLIFY(tau,vxc_tau, mo_derivs, ks_env,rho_ao)
 
@@ -741,7 +739,6 @@ CONTAINS
     TYPE(qs_force_type), DIMENSION(:), &
       POINTER                                :: force
 
-    failure = .FALSE.
     NULLIFY(mo_array, rho_g)
 
     IF (dft_control%sic_method_id == sic_none) RETURN
@@ -1242,7 +1239,6 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-    failure = .FALSE.
     NULLIFY (auxbas_pw_pool, dft_control, pw_env, matrix_ks_aux_fit, &
          v_rspace%pw, rho_aux_fit, vee, rho_ao, rho_ao_kp, rho_ao_aux, &
          ksmat, matrix_ks_aux_fit_dft)
@@ -1509,7 +1505,6 @@ CONTAINS
 
 !, v_h_gspace, &
 
-    failure = .FALSE.
     CALL timeset(routineN,handle)
     NULLIFY (auxbas_pw_pool)
     NULLIFY (pw_env)

@@ -115,7 +115,6 @@ CONTAINS
 
     LOGICAL                                  :: failure
 
-    failure=.FALSE.
 
     ALLOCATE(kpp1_env)
     NULLIFY(kpp1_env%v_rspace, kpp1_env%v_ao, kpp1_env%drho_r,&
@@ -185,7 +184,6 @@ CONTAINS
     TYPE(xc_rho_set_type), POINTER           :: rho1_set
 
     CALL timeset(routineN,handle)
-    failure=.FALSE.
 
     NULLIFY(auxbas_pw_pool, pw_pools, pw_env, v_rspace_new, &
             rho1_r, rho1_g_pw, tau_pw, v_xc, rho1_set,&
@@ -626,7 +624,6 @@ CONTAINS
 
 ! ------------------------------------------------------------------
 
-    failure=.FALSE.
     NULLIFY(pw_env,auxbas_pw_pool,matrix_s,rho,rho_r,input)
 
     CPASSERT(ASSOCIATED(kpp1_env))
@@ -732,7 +729,6 @@ CONTAINS
     LOGICAL                                  :: failure, my_psi0_changed, &
                                                 my_s_struct_changed
 
-    failure=.FALSE.
     my_s_struct_changed=.FALSE.
     my_psi0_changed=.FALSE.
 

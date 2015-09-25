@@ -65,7 +65,6 @@ CONTAINS
     TYPE(pw_pool_type), POINTER              :: pool
 
     NULLIFY(el_struct)
-    failure = .FALSE.
     Maxdr   = TINY(0.0_dp)
     Mindr   = HUGE(0.0_dp)
     IF ((qmmm_env%qmmm_coupl_type == do_qmmm_gauss).OR.(qmmm_env%qmmm_coupl_type == do_qmmm_swave)) THEN
@@ -130,7 +129,6 @@ CONTAINS
     INTEGER, DIMENSION(:), POINTER           :: pos_of_x
     LOGICAL                                  :: failure
 
-    failure = .FALSE.
 
     CPASSERT(pw_grid_in%ngpts_cut>0)
     CPASSERT(.NOT.ASSOCIATED(pw_grid_out))

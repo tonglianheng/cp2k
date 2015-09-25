@@ -128,7 +128,6 @@ CONTAINS
     TYPE(cp_subsys_type), POINTER            :: subsys
     TYPE(section_vals_type), POINTER         :: print_key, root_section
 
-    failure = .FALSE.
     NULLIFY(logger, g,blacs_env)
     logger       => cp_get_default_logger()
     para_env     => force_env%para_env
@@ -963,7 +962,6 @@ CONTAINS
     TYPE(cp_subsys_type), POINTER            :: subsys
     TYPE(particle_list_type), POINTER        :: particles
 
-    failure=.FALSE.
      CALL force_env_get(force_env=force_env,subsys=subsys,cell=cell)
      CALL cp_subsys_get(subsys,&
                  particles=particles)

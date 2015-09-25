@@ -114,7 +114,6 @@ CONTAINS
     LOGICAL                                  :: failure
     TYPE(elem_list_type), POINTER            :: tmp_element
 
-    failure = .FALSE.
     IF(.NOT.ASSOCIATED(cancel_list)) RETURN
     NULLIFY(tmp_element)
 
@@ -248,7 +247,6 @@ CONTAINS
     TYPE(global_tree_type), POINTER          :: gt_elem_tmp
     TYPE(tree_type), POINTER                 :: init_conf
 
-    failure = .FALSE.
     external_stop = .FALSE.
     restarted_elem_nr = 0
     NULLIFY(init_conf, worker_info, ana_worker_info, gt_elem_tmp, tree_elem_counters)
@@ -972,7 +970,6 @@ CONTAINS
 
     LOGICAL                                  :: failure
 
-    failure = .FALSE.
     CPASSERT(time.GE.0.0_dp)
 
     IF(time.GT.walltime_delay)THEN

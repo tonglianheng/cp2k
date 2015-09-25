@@ -296,7 +296,6 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-    failure = .FALSE.
 
     symmetry = cp_dbcsr_get_matrix_type(matrix)
 

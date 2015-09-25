@@ -93,7 +93,6 @@ CONTAINS
                                                 particle_set, &
                                                 shell_particle_set
 
-    failure = .FALSE.
 
     CALL timeset(routineN,handle)
 
@@ -456,7 +455,6 @@ CONTAINS
     TYPE(molecule_kind_type), POINTER        :: molecule_kind
 
     CALL timeset(routineN,handle)
-    failure = .FALSE.
     CPASSERT(.NOT.ASSOCIATED(lfixd_list))
     nsize = 0
     DO ikind = 1, nkind
@@ -567,7 +565,6 @@ CONTAINS
 
     LOGICAL                                  :: failure
 
-    failure = .FALSE.
     CPASSERT(ASSOCIATED(lfixd_list))
     DEALLOCATE(lfixd_list)
   END SUBROUTINE release_local_fixd_list

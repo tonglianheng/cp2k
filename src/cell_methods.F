@@ -85,7 +85,6 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:), POINTER     :: cell_angles, cell_par
     TYPE(section_vals_type), POINTER         :: cell_ref_section
 
-    failure  = .FALSE.
     my_check = .TRUE.
     NULLIFY(cell_ref_section, cell_par, multiple_unit_cell)
     IF (.NOT.ASSOCIATED(cell)) CALL cell_create(cell)
@@ -211,7 +210,6 @@ CPSourceFileRef,&
     LOGICAL                                  :: failure, my_check
     TYPE(section_vals_type), POINTER         :: glob_section
 
-    failure=.FALSE.
     my_check = .FALSE.
     IF (PRESENT(check_this_section)) my_check = check_this_section
     res=ASSOCIATED(input_file)
@@ -244,7 +242,6 @@ CPSourceFileRef,&
 
     LOGICAL                                  :: failure
 
-    failure = .FALSE.
 
     ! Fail is one of the value is set to zero..
     CALL cp_assert(ALL(multiple_unit_cell>0),cp_fatal_level,cp_assertion_failed,routineP,&
@@ -283,7 +280,6 @@ CPSourceFileRef)
     REAL(KIND=dp), DIMENSION(:), POINTER     :: cell_par
     TYPE(cp_parser_type), POINTER            :: parser
 
-    failure = .FALSE.
     NULLIFY(parser)
     CALL section_vals_val_get(cell_section,"CELL_FILE_NAME",c_val=cell_file_name)
     CALL section_vals_val_get(cell_section,"CELL_FILE_FORMAT",i_val=my_format)

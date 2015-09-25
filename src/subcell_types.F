@@ -66,7 +66,6 @@ CONTAINS
                                                 c_max, c_min, delta_a, &
                                                 delta_b, delta_c
 
-    failure = .FALSE.
     na = nsubcell(1)
     nb = nsubcell(2)
     nc = nsubcell(3)
@@ -134,7 +133,6 @@ CONTAINS
     INTEGER                                  :: i, j, k
     LOGICAL                                  :: failure
 
-    failure = .FALSE.
     IF (ASSOCIATED(subcell)) THEN
 
        DO k=1,SIZE(subcell,3)

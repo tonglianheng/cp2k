@@ -103,7 +103,6 @@ CONTAINS
 
     LOGICAL                                  :: failure
 
-    failure = .FALSE.
     CPASSERT(.NOT.ASSOCIATED(shell))
     ALLOCATE(shell)
     shell%ref_count = 1
@@ -127,7 +126,6 @@ CONTAINS
     INTEGER                                  :: i
     LOGICAL                                  :: failure
 
-    failure = .FALSE.
 
     CPASSERT(.NOT.ASSOCIATED(shell_list))
     ALLOCATE(shell_list(ndim))
@@ -153,7 +151,6 @@ CONTAINS
 
     LOGICAL                                  :: failure
 
-    failure = .FALSE.
 
     CPASSERT(ASSOCIATED(shell))
     CPASSERT(shell%ref_count>0)
@@ -174,7 +171,6 @@ CONTAINS
 
     LOGICAL                                  :: failure
 
-    failure = .FALSE.
     IF(ASSOCIATED(shell)) THEN
       CPASSERT(shell%ref_count>0)
       shell%ref_count=shell%ref_count-1

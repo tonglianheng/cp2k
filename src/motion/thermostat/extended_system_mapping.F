@@ -73,7 +73,6 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-    failure = .FALSE.
 
     SELECT CASE (simpar%ensemble)
     CASE  DEFAULT
@@ -162,7 +161,6 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-    failure = .FALSE.
     NULLIFY (massive_atom_list, deg_of_freedom)
 
     SELECT CASE ( simpar % ensemble )
@@ -270,7 +268,6 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-    failure  = .FALSE.
     do_shell = .FALSE.
     IF (PRESENT(shell)) do_shell = shell
     map_info    => nhc%map_info
@@ -336,7 +333,6 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-    failure = .FALSE.
     NULLIFY (massive_atom_list, deg_of_freedom)
 
     SELECT CASE ( simpar % ensemble )
@@ -436,7 +432,6 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-    failure = .FALSE.
     NULLIFY (massive_atom_list, deg_of_freedom)
 
     SELECT CASE ( simpar % ensemble )
@@ -541,7 +536,6 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-    failure  = .FALSE.
     do_shell = .FALSE.
     IF (PRESENT(shell)) do_shell = shell
     map_info    => nhc%map_info
@@ -605,7 +599,6 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-    failure = .FALSE.
     NULLIFY (massive_shell_list, deg_of_freedom)
 
     SELECT CASE ( simpar % ensemble )

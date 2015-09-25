@@ -58,7 +58,6 @@ MODULE et_coupling_types
 
     LOGICAL                                  :: failure
 
-      failure=.FALSE.
 
       ALLOCATE(et_coupling)
 

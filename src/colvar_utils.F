@@ -87,7 +87,6 @@ CONTAINS
                                                 molecule_kind_set(:)
     TYPE(molecule_type), POINTER             :: molecule, molecule_set( : )
 
-    failure = .FALSE.
     NULLIFY(subsys, molecules, molecule_kind, molecule, molecule_set, gci)
     CALL timeset(routineN,handle)
     skip_inter_colvar = .FALSE.
@@ -152,7 +151,6 @@ CONTAINS
     TYPE(mol_kind_new_list_type), POINTER    :: molecule_kinds
     TYPE(molecule_kind_type), POINTER        :: molecule_kind
 
-    failure = .FALSE.
     NULLIFY(cell, subsys, molecule_kinds, molecule_kind, gci, colv_list)
     CALL timeset(routineN,handle)
     CALL force_env_get(force_env=force_env, subsys=subsys, cell=cell)
@@ -233,7 +231,6 @@ CONTAINS
     TYPE(particle_list_type), POINTER        :: particles
     TYPE(particle_type), POINTER             :: particle_set( : )
 
-    failure = .FALSE.
     NULLIFY(cell, subsys, local_molecules, molecule_kinds, &
          molecules, molecule_kind, molecule, &
          molecule_set, particles, particle_set, gci)
@@ -415,7 +412,6 @@ CPSourceFileRef)
 
     NULLIFY(fixd_list)
 
-    failure = .FALSE.
     molecule_kind => molecule % molecule_kind
     CALL get_molecule_kind ( molecule_kind, colv_list = colv_list, fixd_list=fixd_list )
     CALL get_molecule ( molecule, lcolv=lcolv )
@@ -512,7 +508,6 @@ CPSourceFileRef)
     INTEGER                                  :: iatm, iconst, ind, ival
     LOGICAL                                  :: failure
 
-    failure = .FALSE.
     ival = offset
     DO iconst = 1, SIZE(colv_list)
        n_tot = n_tot  + 1
@@ -569,7 +564,6 @@ CPSourceFileRef)
     REAL(KIND=dp), DIMENSION(:), POINTER     :: MassI, wrk
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: Amatrix, Bmatrix
 
-    failure = .FALSE.
     ALLOCATE(Bmatrix(nsize_xyz,nsize_int))
     ALLOCATE(MassI(nsize_xyz))
     ! Transform gradients if requested
@@ -625,7 +619,6 @@ CPSourceFileRef)
                                                 nr_frame, stat
     LOGICAL                                  :: failure
 
-    failure = .FALSE.
     natoms = SIZE(particles)
     IF (colvar%type_id == coord_colvar_id) THEN
        IF (colvar%coord_param%use_kinds_from.OR.colvar%coord_param%use_kinds_to) THEN

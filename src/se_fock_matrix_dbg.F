@@ -55,7 +55,6 @@ CONTAINS
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: ecoul
 
-    failure = .FALSE.
     ! Zero structures only for debugging purpose
     CALL init_qs_energy(energy)
     DO ispin = 1, nspins

@@ -359,7 +359,6 @@ MODULE helium_common
 
 !    CALL timeset(routineN,handle)
 
-    failure = .FALSE.
     CPASSERT(ASSOCIATED(helium))
 
     ! calculate the histogram of distances
@@ -423,7 +422,6 @@ MODULE helium_common
 
     CALL timeset(routineN,handle)
 
-    failure = .FALSE.
     CPASSERT(ASSOCIATED(helium))
 
     helium%rho_inst(:,:,:,:) = 0.0_dp
@@ -518,7 +516,6 @@ MODULE helium_common
     INTEGER                                  :: b, i, j, k, n
     LOGICAL                                  :: failure
 
-    failure = .FALSE.
     CPASSERT(ASSOCIATED(helium))
 
     b = helium%beads

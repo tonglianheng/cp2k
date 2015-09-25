@@ -170,7 +170,6 @@ CONTAINS
 
     logger => cp_get_default_logger()
     t1 = m_walltime()
-    failure=.FALSE.
     converged = .TRUE.
 
     CPASSERT(ASSOCIATED(xas_env))
@@ -440,7 +439,6 @@ CONTAINS
     NULLIFY(centers_wfn,mykind_of_kind,qs_loc_env,localized_wfn_control,stogto_overlap)
     NULLIFY(all_evals,all_vectors,excvec_coeff,excvec_overlap,uno_evals,para_env,blacs_env)
 
-    failure=.FALSE.
 
     CPASSERT(ASSOCIATED(xas_env))
 
@@ -666,7 +664,6 @@ CONTAINS
                                                 xas_section
     TYPE(xas_control_type), POINTER          :: xas_control
 
-    failure = .FALSE.
     NULLIFY(dft_control,scf_control,scf_env,matrix_ks,mos,para_env,xas_control)
     NULLIFY(dft_section, xas_section,scf_section,all_vectors,mo_coeff,all_evals, eigenvalues)
     NULLIFY(logger)

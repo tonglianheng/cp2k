@@ -104,7 +104,6 @@ CONTAINS
 
     CALL timeset(routineN,handle)
     my_shell_adiabatic = .FALSE.
-    failure = .FALSE.
     IF(PRESENT(shell_adiabatic)) my_shell_adiabatic = shell_adiabatic
     NULLIFY( rng_stream)
     present_vel = PRESENT(vel)
@@ -214,7 +213,6 @@ CONTAINS
     LOGICAL                                  :: failure, restart
     REAL(dp)                                 :: Mtmp(gle%ndim,gle%ndim)
 
-    failure = .FALSE.
     restart = .FALSE.
 
     CALL gle_to_particle_mapping ( thermostat_info, simpar, local_molecules,&
@@ -358,7 +356,6 @@ CONTAINS
     REAL(KIND=dp)                            :: fac
     TYPE(map_info_type), POINTER             :: map_info
 
-    failure = .FALSE.
     do_shell = .FALSE.
     NULLIFY (massive_atom_list, deg_of_freedom)
     SELECT CASE ( simpar % ensemble )
@@ -546,7 +543,6 @@ CONTAINS
                                                 cc(gle%ndim,gle%ndim)
     TYPE(rng_stream_type), POINTER           :: rng_stream
 
-    failure = .FALSE.
 
     CALL gle_cholesky_stab(gle%c_mat, cc, gle%ndim)
     DO i = 1, gle%loc_num_gle

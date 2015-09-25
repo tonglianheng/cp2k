@@ -99,7 +99,6 @@ CONTAINS
     TYPE(section_vals_type), POINTER         :: update_section, &
                                                 wfn_mix_section
 
-    failure=.FALSE.
     CALL timeset(routineN,handle)
     wfn_mix_section => section_vals_get_subs_vals(dft_section,"PRINT%WFN_MIX")
     CALL section_vals_get(wfn_mix_section,explicit=explicit)

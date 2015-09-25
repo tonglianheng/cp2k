@@ -91,7 +91,6 @@ CONTAINS
 
     LOGICAL                                  :: failure
 
-    failure=.FALSE.
 
     ALLOCATE(pool)
     pool%el_struct=> el_struct
@@ -118,7 +117,6 @@ CONTAINS
 
     LOGICAL                                  :: failure
 
-    failure=.FALSE.
 
     CPASSERT(ASSOCIATED(pool))
     CPASSERT(pool%ref_count>0)
@@ -143,7 +141,6 @@ CONTAINS
     TYPE(cp_fm_type), POINTER                :: el_att
     TYPE(cp_sll_fm_type), POINTER            :: iterator
 
-    failure=.FALSE.
 
     CPASSERT(ASSOCIATED(pool))
     CPASSERT(pool%ref_count>0)
@@ -170,7 +167,6 @@ CONTAINS
 
     LOGICAL                                  :: failure
 
-    failure=.FALSE.
 
     IF (ASSOCIATED(pool)) THEN
        CPASSERT(pool%ref_count>0)
@@ -208,7 +204,6 @@ CONTAINS
 
     LOGICAL                                  :: failure
 
-    failure=.FALSE.
 
     CPASSERT(ASSOCIATED(pool))
     CPASSERT(pool%ref_count>0)
@@ -255,7 +250,6 @@ CONTAINS
 
     LOGICAL                                  :: did_insert, failure
 
-    failure=.FALSE.
 
     CPASSERT(ASSOCIATED(pool))
     CPASSERT(pool%ref_count>0)
@@ -294,7 +288,6 @@ FUNCTION fm_pool_get_el_struct(pool) RESULT(res)
 
     LOGICAL                                  :: failure
 
-  failure=.FALSE.
 
   CPASSERT(ASSOCIATED(pool))
   CPASSERT(pool%ref_count>0)
@@ -321,7 +314,6 @@ SUBROUTINE fm_pools_copy(source_pools, target_pools)
     INTEGER                                  :: i
     LOGICAL                                  :: failure
 
-  failure=.FALSE.
 
   CPASSERT(ASSOCIATED(source_pools))
   ALLOCATE(target_pools(SIZE(source_pools)))
@@ -348,7 +340,6 @@ SUBROUTINE fm_pools_dealloc(pools)
     INTEGER                                  :: i
     LOGICAL                                  :: failure
 
-  failure=.FALSE.
 
   IF (ASSOCIATED(pools)) THEN
      DO i=1,SIZE(pools)
@@ -382,7 +373,6 @@ SUBROUTINE fm_pools_create_fm_vect(pools,elements,&
     LOGICAL                                  :: failure
     TYPE(cp_fm_pool_type), POINTER           :: pool
 
-  failure=.FALSE.
   NULLIFY(pool)
 
   CPASSERT(ASSOCIATED(pools))
@@ -424,7 +414,6 @@ SUBROUTINE fm_pools_give_back_fm_vect(pools,elements)
     INTEGER                                  :: i
     LOGICAL                                  :: failure
 
-  failure=.FALSE.
 
   CPASSERT(ASSOCIATED(pools))
   CPASSERT(ASSOCIATED(elements))

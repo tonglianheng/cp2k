@@ -384,7 +384,6 @@ CONTAINS
 
     LOGICAL                                  :: failure
 
-    failure=.FALSE.
     CPASSERT(.NOT.ASSOCIATED(colvar))
     ALLOCATE(colvar)
     ! Nullify all available COLVAR types
@@ -493,7 +492,6 @@ CONTAINS
     LOGICAL                                  :: failure
 
     CPASSERT(ASSOCIATED(colvar))
-    failure=.FALSE.
     SELECT CASE(colvar%type_id)
     CASE(dist_colvar_id)
        np = 2
@@ -1019,7 +1017,6 @@ CPSourceFileRef)
     INTEGER                                  :: i
     LOGICAL                                  :: failure
 
-    failure=.FALSE.
     CPASSERT(ASSOCIATED(colvar))
     IF (ASSOCIATED(colvar%dsdr)) THEN
        DEALLOCATE(colvar%dsdr)
@@ -1190,7 +1187,6 @@ CPSourceFileRef)
     LOGICAL                                  :: failure
 
     my_offset = 0
-    failure=.FALSE.
     CPASSERT(ASSOCIATED(colvar_in))
     CPASSERT(.NOT.ASSOCIATED(colvar_out))
     IF (PRESENT(i_atom_offset)) my_offset = i_atom_offset
@@ -1534,7 +1530,6 @@ CPSourceFileRef)
     INTEGER                                  :: i, natoms, npoints
     LOGICAL                                  :: failure
 
-    failure=.FALSE.
     colvar_out%use_points = colvar_in%use_points
     IF (colvar_in%use_points) THEN
        CPASSERT(ASSOCIATED(colvar_in%points))
@@ -1584,7 +1579,6 @@ CPSourceFileRef)
     TYPE(colvar_p_type), DIMENSION(:), &
       POINTER                                :: work
 
-    failure = .FALSE.
     NULLIFY(work)
     IF (ASSOCIATED(colvar_set)) THEN
        lb1_old = LBOUND(colvar_set,1)

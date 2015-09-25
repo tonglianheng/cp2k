@@ -106,7 +106,6 @@ CONTAINS
     TYPE(particle_list_type), POINTER        :: particles, shell_particles
     TYPE(section_vals_type), POINTER         :: dimer_section, rot_opt_section
 
-    failure = .FALSE.
     CPASSERT(.NOT.ASSOCIATED(gopt_env))
     ALLOCATE (gopt_env)
     nshell = 0
@@ -191,7 +190,6 @@ CONTAINS
 
     LOGICAL                                  :: failure
 
-    failure=.FALSE.
 
     CPASSERT(ASSOCIATED(gopt_env))
     CPASSERT(gopt_env%ref_count>0)
@@ -212,7 +210,6 @@ CONTAINS
 
     LOGICAL                                  :: failure
 
-    failure=.FALSE.
 
     IF (ASSOCIATED(gopt_env)) THEN
        CPASSERT(gopt_env%ref_count>0)

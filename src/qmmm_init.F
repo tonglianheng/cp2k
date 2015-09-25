@@ -319,7 +319,6 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:), POINTER     :: maxradius, maxradius2
     TYPE(pw_env_type), POINTER               :: pw_env
 
-    failure=.FALSE.
     NULLIFY(maxradius, maxradius2, pw_env)
 
     maxchrg = MAXVAL(ABS(mm_atom_chrg(:)))
@@ -553,7 +552,6 @@ CONTAINS
     NULLIFY(mm_link_atoms, cell_section, tmp_sph_cut)
     NULLIFY(image_charge_section)
     qmmm_link = .FALSE.
-    failure   = .FALSE.
 
     CALL section_vals_get(qmmm_section,explicit=explicit)
     IF (explicit) THEN
@@ -791,7 +789,6 @@ CONTAINS
     TYPE(section_vals_type), POINTER         :: gd_section, gp_section, &
                                                 lj_section, wl_section
 
-    failure = .FALSE.
     !
     ! NONBONDED
     !
@@ -895,7 +892,6 @@ CONTAINS
     REAL(KIND=dp)                            :: scale_f
     TYPE(section_vals_type), POINTER         :: qm_kinds, qmmm_links
 
-    failure         = .FALSE.
     num_qm_atom_tot = 0
     link_involv_mm  = 0
     nlinks          = 0
@@ -1031,7 +1027,6 @@ CONTAINS
     TYPE(section_vals_type), POINTER         :: qmmm_link_section
 
     NULLIFY(wrk_tmp)
-    failure = .FALSE.
     n_imomm = 0
     n_gho   = 0
     n_pseudo= 0
@@ -1158,7 +1153,6 @@ CONTAINS
     TYPE(section_vals_type), POINTER         :: add_section, move_section, &
                                                 qmmm_link_section
 
-    failure = .FALSE.
     explicit = .FALSE.
     move_mm_charges = .FALSE.
     add_mm_charges  = .FALSE.
@@ -1287,7 +1281,6 @@ CONTAINS
     REAL(KIND=dp)                            :: my_c_radius, my_charge, &
                                                 my_radius
 
-     failure = .FALSE.
      my_move = 0
      my_radius   = radius
      my_c_radius = c_radius
@@ -1339,7 +1332,6 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(3)              :: tmp
     REAL(KINd=dp), DIMENSION(:), POINTER     :: vec
 
-     failure = .FALSE.
      ! This is the vector that corrects position to apply properly the PBC
      tmp(1) =  qm_cell_small%hmat(1,1)
      tmp(2) =  qm_cell_small%hmat(2,2)
@@ -1390,7 +1382,6 @@ CONTAINS
       POINTER                                :: molecule_kind
 
     NULLIFY(mm_indexes,molecule_kind)
-    failure=.FALSE.
     imageind_in_range=.FALSE.
     num_image_mm_atom=0
     max_index=0

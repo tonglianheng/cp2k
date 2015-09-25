@@ -136,7 +136,6 @@ MODULE qs_rho0_ggrid
 
     CALL timeset(routineN,handle)
 
-    failure = .FALSE.
     NULLIFY(atomic_kind_set,qs_kind_set,cores,pab,Qlm_c)
 
     NULLIFY(dft_control,pw_env,particle_set,para_env,cell,rho0_s_gs,rho0_s_rs)
@@ -306,7 +305,6 @@ MODULE qs_rho0_ggrid
     TYPE(pw_p_type), POINTER                 :: rho_gs, rho_rs
     TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
 
-  failure=.FALSE.
   my_tddft = .FALSE.
   IF(PRESENT(tddft)) my_tddft = tddft
 
@@ -423,7 +421,6 @@ MODULE qs_rho0_ggrid
     TYPE(rho_atom_type), POINTER             :: rho_atom
     TYPE(virial_type), POINTER               :: virial
 
-    failure=.FALSE.
     c4pi = fourpi
 
     CALL timeset(routineN,handle)

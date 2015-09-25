@@ -98,7 +98,6 @@ CONTAINS
     TYPE(cp_parser_type), POINTER            :: parser
 
     NULLIFY(parser, logger)
-    failure = .FALSE.
     logger => cp_get_default_logger()
     output_unit= cp_logger_get_default_io_unit(logger)
     iw = cp_print_key_unit_nr(logger,subsys_section,"PRINT%TOPOLOGY_INFO/PSF_INFO",&
@@ -437,7 +436,6 @@ CPSourceFileRef,&
     TYPE(cp_logger_type), POINTER            :: logger
 
     NULLIFY(logger)
-    failure = .FALSE.
     logger => cp_get_default_logger()
     iw = cp_print_key_unit_nr(logger,subsys_section,"PRINT%TOPOLOGY_INFO/PSF_INFO",&
          extension=".subsysLog")
@@ -591,7 +589,6 @@ CPSourceFileRef,&
     TYPE(section_vals_type), POINTER         :: subsection
 
     NULLIFY(logger)
-    failure = .FALSE.
     logger => cp_get_default_logger()
     iw = cp_print_key_unit_nr(logger,subsys_section,"PRINT%TOPOLOGY_INFO/PSF_INFO",&
          extension=".subsysLog")
@@ -757,7 +754,6 @@ CPSourceFileRef,&
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(section_vals_type), POINTER         :: print_key, tmp_section
 
-    failure = .FALSE.
     NULLIFY(logger)
     logger => cp_get_default_logger()
     print_key => section_vals_get_subs_vals(subsys_section,"TOPOLOGY%DUMP_PSF")

@@ -74,7 +74,6 @@ SUBROUTINE enum_create(enum,c_vals,i_vals,desc,strict)
     INTEGER                                  :: i, j, n
     LOGICAL                                  :: failure
 
-  failure=.FALSE.
 
   CPASSERT(.NOT.ASSOCIATED(enum))
   CPASSERT(SIZE(c_vals)==SIZE(i_vals))
@@ -122,7 +121,6 @@ SUBROUTINE enum_retain(enum)
 
     LOGICAL                                  :: failure
 
-  failure=.FALSE.
   CPASSERT(ASSOCIATED(enum))
   CPASSERT(enum%ref_count>0)
   enum%ref_count=enum%ref_count+1
@@ -142,7 +140,6 @@ SUBROUTINE enum_release(enum)
     INTEGER                                  :: i
     LOGICAL                                  :: failure
 
-  failure=.FALSE.
   IF (ASSOCIATED(enum)) THEN
        CPASSERT(enum%ref_count>0)
        enum%ref_count=enum%ref_count-1
@@ -177,7 +174,6 @@ FUNCTION enum_i2c(enum,i) RESULT(res)
     INTEGER                                  :: j
     LOGICAL                                  :: failure, found
 
-  failure=.FALSE.
 
   CPASSERT(ASSOCIATED(enum))
   CPASSERT(enum%ref_count>0)
@@ -224,7 +220,6 @@ FUNCTION enum_c2i(enum,c) RESULT(res)
     INTEGER                                  :: iostat, j
     LOGICAL                                  :: failure, found
 
-  failure=.FALSE.
 
   CPASSERT(ASSOCIATED(enum))
   CPASSERT(enum%ref_count>0)

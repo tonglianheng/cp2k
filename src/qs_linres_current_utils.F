@@ -178,7 +178,6 @@ CONTAINS
     TYPE(section_vals_type), POINTER         :: current_section, lr_section, &
                                                 print_key
 
-    failure = .FALSE.
     CALL timeset(routineN,handle)
     !
     NULLIFY(cell, dft_control, linres_control, lr_section, current_section,&
@@ -644,7 +643,6 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-    failure = .FALSE.
 
     NULLIFY(atomic_kind_set, qs_kind_set, cell, dft_control, linres_control, scf_control,&
             logger, mos, mpools, current_section, particle_set, mo_coeff,&
@@ -1374,7 +1372,6 @@ CONTAINS
     TYPE(realspace_grid_desc_p_type), &
       DIMENSION(:), POINTER                  :: rs_descs
 
-    failure=.FALSE.
 
     NULLIFY(pw_env,rs_descs)
 

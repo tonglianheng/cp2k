@@ -163,7 +163,6 @@ CONTAINS
                                                 my_n_subsections, n
     LOGICAL                                  :: failure
 
-    failure=.FALSE.
 
     CPASSERT(.NOT.ASSOCIATED(section))
     my_n_keywords=10
@@ -221,7 +220,6 @@ CONTAINS
 
     LOGICAL                                  :: failure
 
-    failure=.FALSE.
 
     CPASSERT(ASSOCIATED(section))
     CPASSERT(section%ref_count>0)
@@ -242,7 +240,6 @@ CONTAINS
     INTEGER                                  :: i
     LOGICAL                                  :: failure
 
-    failure=.FALSE.
 
     IF (ASSOCIATED(section)) THEN
        CPASSERT(section%ref_count>0)
@@ -325,7 +322,6 @@ CONTAINS
     INTEGER                                  :: ikeyword, isub, my_recurse
     LOGICAL                                  :: failure, my_hide_root
 
-    failure =.FALSE.
     IF (unit_nr>0) THEN
        my_hide_root =.FALSE.
        IF (PRESENT(hide_root)) my_hide_root=hide_root
@@ -396,7 +392,6 @@ CONTAINS
                                                 unit_nr
     LOGICAL                                  :: failure, has_keywords
 
-    failure=.FALSE.
     IF (ASSOCIATED(section)) THEN
        local_prefix=TRIM(prefix//"~"//TRIM(section%name))
        CPASSERT(section%ref_count>0)
@@ -499,7 +494,6 @@ CONTAINS
     INTEGER                                  :: isub
     LOGICAL                                  :: failure
 
-    failure=.FALSE.
     IF (ASSOCIATED(section)) THEN
        CPASSERT(section%ref_count>0)
        local_prefix=TRIM(prefix//"~"//TRIM(section%name))
@@ -536,7 +530,6 @@ CONTAINS
     INTEGER                                  :: isub
     LOGICAL                                  :: failure
 
-    failure=.FALSE.
 
     CPASSERT(ASSOCIATED(section))
     CPASSERT(section%ref_count>0)
@@ -598,7 +591,6 @@ CONTAINS
     CHARACTER(len=default_string_length)     :: upc_name
     LOGICAL                                  :: failure
 
-    failure=.FALSE.
 
     CPASSERT(ASSOCIATED(section))
     CPASSERT(section%ref_count>0)
@@ -644,7 +636,6 @@ CONTAINS
     INTEGER                                  :: ik, my_index
     LOGICAL                                  :: failure
 
-    failure = .FALSE.
     IF (INDEX(keyword_name,"%")/=0) THEN
        my_index = INDEX(keyword_name,"%") + 1
        CPASSERT(ASSOCIATED(section%subsections))
@@ -690,7 +681,6 @@ CONTAINS
 
     LOGICAL                                  :: failure
 
-    failure=.FALSE.
 
     CPASSERT(ASSOCIATED(section))
     CPASSERT(section%ref_count>0)
@@ -721,7 +711,6 @@ CONTAINS
     TYPE(keyword_p_type), DIMENSION(:), &
       POINTER                                :: new_keywords
 
-    failure=.FALSE.
 
     CPASSERT(ASSOCIATED(section))
     CPASSERT(section%ref_count>0)
@@ -782,7 +771,6 @@ CONTAINS
     TYPE(section_p_type), DIMENSION(:), &
       POINTER                                :: new_subsections
 
-    failure=.FALSE.
 
     CPASSERT(ASSOCIATED(section))
     CPASSERT(section%ref_count>0)
@@ -827,7 +815,6 @@ CONTAINS
     INTEGER                                  :: i
     LOGICAL                                  :: failure
 
-    failure=.FALSE.
 
     CPASSERT(.NOT.ASSOCIATED(section_vals))
     ALLOCATE(section_vals)
@@ -860,7 +847,6 @@ CONTAINS
 
     LOGICAL                                  :: failure
 
-    failure=.FALSE.
     CPASSERT(ASSOCIATED(section_vals))
     CPASSERT(section_vals%ref_count>0)
     section_vals%ref_count=section_vals%ref_count+1
@@ -882,7 +868,6 @@ CONTAINS
     TYPE(cp_sll_val_type), POINTER           :: vals
     TYPE(val_type), POINTER                  :: el
 
-    failure=.FALSE.
 
     IF (ASSOCIATED(section_vals)) THEN
        CPASSERT(section_vals%ref_count>0)
@@ -939,7 +924,6 @@ CONTAINS
 
     LOGICAL                                  :: failure
 
-    failure=.FALSE.
 
     CPASSERT(ASSOCIATED(section_vals))
     CPASSERT(section_vals%ref_count>0)
@@ -976,7 +960,6 @@ CONTAINS
     LOGICAL                                  :: failure, is_path, &
                                                 my_can_return_null
 
-    failure=.FALSE.
     CPASSERT(ASSOCIATED(section_vals))
     CPASSERT(section_vals%ref_count>0)
 
@@ -1036,7 +1019,6 @@ CONTAINS
     INTEGER                                  :: i, irep, isect_att
     LOGICAL                                  :: failure
 
-    failure=.FALSE.
     CPASSERT(ASSOCIATED(section_vals))
     CPASSERT(section_vals%ref_count>0)
     NULLIFY(res)
@@ -1078,7 +1060,6 @@ CONTAINS
     INTEGER                                  :: i_section, irep
     LOGICAL                                  :: failure
 
-    failure=.FALSE.
     CPASSERT(ASSOCIATED(section_vals))
     CPASSERT(section_vals%ref_count>0)
     NULLIFY(res)
@@ -1107,7 +1088,6 @@ CONTAINS
     TYPE(section_vals_p_type), &
       DIMENSION(:, :), POINTER               :: new_sps
 
-    failure=.FALSE.
 
     CPASSERT(ASSOCIATED(section_vals))
     CPASSERT(section_vals%ref_count>0)
@@ -1161,7 +1141,6 @@ CONTAINS
     TYPE(cp_sll_val_type), POINTER           :: vals
     TYPE(val_type), POINTER                  :: el
 
-    failure=.FALSE.
 
     IF (ASSOCIATED(section_vals)) THEN
        CPASSERT(section_vals%ref_count>0)
@@ -1339,7 +1318,6 @@ CONTAINS
     TYPE(section_vals_type), POINTER         :: s_vals
     TYPE(val_type), POINTER                  :: my_val
 
-    failure=.FALSE.
 
     CPASSERT(ASSOCIATED(section_vals))
     CPASSERT(section_vals%ref_count>0)
@@ -1439,7 +1417,6 @@ CONTAINS
     TYPE(section_type), POINTER              :: section
     TYPE(section_vals_type), POINTER         :: s_vals
 
-    failure=.FALSE.
 
     CPASSERT(ASSOCIATED(section_vals))
     CPASSERT(section_vals%ref_count>0)
@@ -1525,7 +1502,6 @@ CONTAINS
     TYPE(section_vals_type), POINTER         :: s_vals
     TYPE(val_type), POINTER                  :: my_val, old_val
 
-    failure=.FALSE.
 
     CPASSERT(ASSOCIATED(section_vals))
     CPASSERT(section_vals%ref_count>0)
@@ -1651,7 +1627,6 @@ CONTAINS
     TYPE(section_vals_type), POINTER         :: s_vals
     TYPE(val_type), POINTER                  :: old_val
 
-    failure=.FALSE.
     NULLIFY(pos)
     CPASSERT(ASSOCIATED(section_vals))
     CPASSERT(section_vals%ref_count>0)
@@ -1732,7 +1707,6 @@ CONTAINS
     TYPE(section_vals_type), POINTER         :: sval
     TYPE(val_type), POINTER                  :: val
 
-    failure=.FALSE.
     my_hide_root=.FALSE.
     my_hide_defaults=.TRUE.
     IF (PRESENT(hide_root)) my_hide_root=hide_root
@@ -1851,7 +1825,6 @@ CONTAINS
     INTEGER                                  :: i, l0, l1, l2
     LOGICAL                                  :: failure
 
-    failure = .FALSE.
 
     IF (ASSOCIATED(section)) THEN
 
@@ -1929,7 +1902,6 @@ CONTAINS
     INTEGER                                  :: i, imatch, imax, irank
     LOGICAL                                  :: failure
 
-    failure = .FALSE.
     IF (ASSOCIATED(section)) THEN
        CPASSERT(section%ref_count>0)
        imatch=typo_match(TRIM(section%name),TRIM(unknown_string))
@@ -1988,7 +1960,6 @@ CONTAINS
     LOGICAL                                  :: failure
     TYPE(section_vals_type), POINTER         :: s_vals
 
-    failure=.FALSE.
     CPASSERT(ASSOCIATED(section_vals))
     CPASSERT(section_vals%ref_count>0)
     CPASSERT(ASSOCIATED(new_section_vals))
@@ -2045,7 +2016,6 @@ CONTAINS
 
     LOGICAL                                  :: failure
 
-    failure=.FALSE.
 
     CPASSERT(ASSOCIATED(section_vals_in))
     CPASSERT(.NOT.ASSOCIATED(section_vals_out))
@@ -2077,7 +2047,6 @@ CONTAINS
     TYPE(cp_sll_val_type), POINTER           :: v1, v2
     TYPE(val_type), POINTER                  :: el
 
-    failure=.FALSE.
     NULLIFY(v2,el)
 
     CPASSERT(ASSOCIATED(section_vals_in))

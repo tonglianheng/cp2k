@@ -174,7 +174,6 @@ CONTAINS
     TYPE(xc_rho_cflags_type)                 :: needs
     TYPE(xc_rho_set_type), POINTER           :: rho_set
 
-    failure = .FALSE.
 
     NULLIFY(ks_env, pw_env, auxbas_pw_pool, input)
     NULLIFY(rho_g, rho_r, tau, rho_struct, rho_set, e_uniform)
@@ -578,7 +577,6 @@ CONTAINS
     TYPE(xc_rho_set_type), POINTER           :: orb_rho_set_h, orb_rho_set_s, &
                                                 rho_set_h, rho_set_s
 
-    failure = .FALSE.
 
     NULLIFY(weight, rho_h, rho_s, vxc_LB_h, vxc_LB_s, vxc_GLLB_h, vxc_GLLB_s, &
             vxc_tmp_h, vxc_tmp_s, vtau, dummy, e_uniform, drho_h, drho_s, vxg, atom_list, &

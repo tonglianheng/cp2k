@@ -347,7 +347,6 @@ CONTAINS
     output_unit = cp_print_key_unit_nr(logger,lr_section,"PRINT%PROGRAM_RUN_INFO",&
          extension=".linresLog")
 
-    failure = .FALSE.
 
     CALL get_qs_env(qs_env=qs_env,dft_control=dft_control,&
                     atomic_kind_set=atomic_kind_set,&
@@ -631,7 +630,6 @@ CONTAINS
 
     CALL section_vals_val_get(g_section,"soo_rho_hard",l_val=soo_rho_hard)
 
-    failure = .FALSE.
 
     CALL get_qs_env(qs_env=qs_env,atomic_kind_set=atomic_kind_set,qs_kind_set=qs_kind_set,&
                     dft_control=dft_control,para_env=para_env,particle_set=particle_set,&
@@ -832,7 +830,6 @@ CONTAINS
     TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
     TYPE(realspace_grid_desc_type), POINTER  :: auxbas_rs_desc
 
-    failure = .FALSE.
     CALL timeset(routineN,handle)
 
     NULLIFY(cell, dft_control, pw_env, auxbas_rs_desc, auxbas_pw_pool, &

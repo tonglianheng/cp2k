@@ -70,7 +70,6 @@ SUBROUTINE qs_charges_create(qs_charges,nspins,total_rho_core_rspace, &
 
     LOGICAL                                  :: failure
 
-  failure=.FALSE.
 
   ALLOCATE(qs_charges)
   qs_charges%total_rho_core_rspace=0.0_dp
@@ -105,7 +104,6 @@ SUBROUTINE qs_charges_retain(qs_charges)
 
     LOGICAL                                  :: failure
 
-  failure=.FALSE.
 
   CPASSERT(ASSOCIATED(qs_charges))
   CPASSERT(qs_charges%ref_count>0)

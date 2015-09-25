@@ -147,7 +147,6 @@ MODULE mp2_optimize_ri_basis
       POINTER                                :: qs_kind_set
 
     CALL timeset(routineN,handle)
-    failure=.FALSE.
     logger => cp_get_default_logger()
 
     open_shell_case=.FALSE.
@@ -653,7 +652,6 @@ MODULE mp2_optimize_ri_basis
     REAL(KIND=dp), VOLATILE                  :: step, temp
 
     CALL timeset(routineN,handle)
-    failure=.FALSE.
 
     step=eps
 
@@ -794,7 +792,6 @@ MODULE mp2_optimize_ri_basis
       DIMENSION(:, :, :)                     :: Lai, Lai_beta
 
     CALL timeset(routineN,handle)
-    failure=.FALSE.
 
     CALL libint_ri_mp2(dimen,dimen_RI,homo,natom,mp2_biel,mp2_env,C,&
                        kind_of,RI_basis_parameter,RI_basis_info,basis_S0,index_table_RI,&
@@ -945,7 +942,6 @@ MODULE mp2_optimize_ri_basis
                                                 old_lower_B, old_max_dev, &
                                                 old_max_rel_dev, old_pnew
 
-    failure=.FALSE.
 
     ! make a copy of the original parameters
     old_pnew        = pnew
@@ -1115,7 +1111,6 @@ MODULE mp2_optimize_ri_basis
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: mat_ab
 
-    failure=.FALSE.
 
     ALLOCATE(mat_ab(virtual,virtual_beta))
   
@@ -1178,7 +1173,6 @@ MODULE mp2_optimize_ri_basis
     INTEGER                                  :: i, ij_counter, j
     LOGICAL                                  :: failure
 
-    failure=.FALSE.
 
     elements_ij_proc=0
     ij_counter=-1
@@ -1265,7 +1259,6 @@ MODULE mp2_optimize_ri_basis
     TYPE(qs_kind_type), POINTER              :: atom_kind
 
     CALL timeset(routineN,handle)
-    failure = .FALSE.
 
     basis_quality=mp2_env%ri_opt_param%basis_quality
     external_num_of_func=.FALSE.
@@ -1659,7 +1652,6 @@ MODULE mp2_optimize_ri_basis
       POINTER                                :: gcc
 
     CALL timeset(routineN,handle)
-    failure = .FALSE.
     NULLIFY(lmax, lmin, npgf, nshell, l, n, zet, gcc)
 
     ! allocate the basis

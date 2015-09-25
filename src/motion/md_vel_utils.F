@@ -601,7 +601,6 @@ CONTAINS
     CALL timeset(routineN,handle)
 
     ! Initializing parameters
-    failure = .FALSE.
     natoms = SIZE(part)
     NULLIFY (atomic_kind, fixd_list, logger, molecule_kind)
     NULLIFY (molecule_kind_set)
@@ -1815,7 +1814,6 @@ CONTAINS
     TYPE(section_vals_type), POINTER         :: force_env_section, &
                                                 print_section, subsys_section
 
-    failure = .FALSE.
     
     CALL timeset(routineN,handle)
 
@@ -1960,7 +1958,6 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-    failure = .FALSE.
 
     NULLIFY (atom_list)
     NULLIFY (atom_list_section)

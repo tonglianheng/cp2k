@@ -62,7 +62,6 @@ CONTAINS
     INTEGER                                  :: handle
     LOGICAL                                  :: failure, need_to_cancel
 
-    failure = .FALSE.
 
     CPASSERT(ASSOCIATED(elem))
     CPASSERT(ASSOCIATED(tmc_env))
@@ -130,7 +129,6 @@ CONTAINS
     LOGICAL                                  :: failure
     TYPE(elem_list_type), POINTER            :: tmp_element
 
-    failure = .FALSE.
 
     cancel_elem_loop: DO WHILE(ASSOCIATED(cancel_list))
       tmp_element => cancel_list%next

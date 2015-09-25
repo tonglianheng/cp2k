@@ -551,7 +551,6 @@ CONTAINS
     TYPE(molecule_kind_type), POINTER        :: imol_kind
     TYPE(molecule_type), POINTER             :: molecule
 
-    failure=.FALSE.
 
     DO imol = 1,SIZE(molecule_set)
 

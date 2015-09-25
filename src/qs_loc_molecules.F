@@ -97,7 +97,6 @@ CONTAINS
     TYPE(qs_kind_type), DIMENSION(:), &
       POINTER                                :: qs_kind_set
 
-    failure = .FALSE.
     logger => cp_get_default_logger()
 
     ! Molecular Dipoles availables only for nspin == 1

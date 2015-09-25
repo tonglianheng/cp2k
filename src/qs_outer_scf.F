@@ -97,7 +97,6 @@ CONTAINS
     TYPE(scf_control_type), POINTER          :: scf_control
 
     CALL timeset(routineN,handle)
-    failure = .FALSE.
 
     CALL get_qs_env(qs_env=qs_env,scf_control=scf_control, &
          dft_control=dft_control,energy=energy)
@@ -177,7 +176,6 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-    failure=.FALSE.
     ihistory=scf_env%outer_scf%iter_count
     optimizer_type=scf_control%outer_scf%optimizer
 
@@ -298,7 +296,6 @@ CONTAINS
     TYPE(s2_restraint_type), POINTER         :: s2_restraint_control
     TYPE(scf_control_type), POINTER          :: scf_control
 
-    failure=.FALSE.
 
     CALL timeset(routineN,handle)
 
@@ -359,7 +356,6 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-    failure = .FALSE.
 
     CALL get_qs_env(qs_env,outer_scf_history=outer_scf_history, &
          outer_scf_ihistory=outer_scf_ihistory, &

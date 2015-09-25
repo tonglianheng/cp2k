@@ -301,7 +301,6 @@ CONTAINS
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: cosphi, phi
 
-    failure = .FALSE.
     cosphi = DOT_PRODUCT ( tm, tn ) * ism * isn
     IF(cosphi >  1.0_dp) cosphi = 1.0_dp
     IF(cosphi < -1.0_dp) cosphi = -1.0_dp
@@ -367,7 +366,6 @@ CONTAINS
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: cosphi, phi
 
-    failure = .FALSE.
     ! define cosphi
     cosphi = DOT_PRODUCT ( tm, tn ) * ism * isn
     IF(cosphi >  1.0_dp) cosphi = 1.0_dp
@@ -442,7 +440,6 @@ CONTAINS
                                                 dD_dq1, dD_dq2, dD_dq3, &
                                                 dE_dq1, dE_dq2, dE_dq3
 
-    failure = .FALSE.
 
     !compute the energy and the gradients of cos(phi), see
     !   "Efficient treatment of out-of-plane bend and improper torsion interactions in

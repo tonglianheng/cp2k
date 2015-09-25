@@ -113,7 +113,6 @@ CONTAINS
                                                 xc_section
     TYPE(xc_rho_cflags_type)                 :: needs
 
-    failure = .FALSE.
     was_present = .FALSE.
 
     logger => cp_get_default_logger()
@@ -486,7 +485,6 @@ CPSourceFileRef,&
 
     CALL timeset(routineN,handle)
 
-    failure=.FALSE.
     NULLIFY(mgrid_section, cutofflist)
     mgrid_section => section_vals_get_subs_vals(dft_section,"MGRID")
 
@@ -601,7 +599,6 @@ CPSourceFileRef,&
 
     CALL timeset(routineN,handle)
 
-    failure=.FALSE.
     was_present = .FALSE.
     NULLIFY(mull_section,se_section,dftb_section,scptb_section,lri_optbas_section)
 
@@ -1084,7 +1081,6 @@ CPSourceFileRef,&
     LOGICAL                                  :: failure, kenergy_den
     TYPE(section_vals_type), POINTER         :: sic_section, t_section
 
-    failure=.FALSE.
     kenergy_den = .FALSE.
     NULLIFY(sic_section, t_section)
     t_section => section_vals_get_subs_vals(dft_section,"TDDFPT")
@@ -1140,7 +1136,6 @@ CPSourceFileRef,&
     IF (dft_control%qs_control%scptb) RETURN
     CALL timeset(routineN,handle)
 
-    failure = .FALSE.
     NULLIFY (logger)
     logger => cp_get_default_logger()
 
@@ -1342,7 +1337,6 @@ CPSourceFileRef,&
     IF (qs_control%dftb)           RETURN
     IF (qs_control%scptb)           RETURN
     CALL timeset(routineN,handle)
-    failure = .FALSE.
     NULLIFY(logger, enum, keyword, section)
     logger => cp_get_default_logger()
 
@@ -1532,7 +1526,6 @@ CPSourceFileRef,&
 
     LOGICAL                                  :: failure
 
-    failure=.FALSE.
 
     SELECT CASE(xc_rho_smooth_id)
     CASE (xc_rho_no_smooth)
@@ -1568,7 +1561,6 @@ CPSourceFileRef,&
 
     LOGICAL                                  :: failure
 
-    failure=.FALSE.
 
     SELECT CASE(xc_deriv_method_id)
     CASE (xc_deriv_pw)
@@ -1827,7 +1819,6 @@ CPSourceFileRef,&
     TYPE(efield_type), POINTER               :: efield
     TYPE(section_vals_type), POINTER         :: tmp_section
 
-    failure=.FALSE.
 
     DO i=1,SIZE(dft_control%efield_fields)
        NULLIFY(dft_control%efield_fields(i)%efield)
@@ -1895,7 +1886,6 @@ CPSourceFileRef,&
     INTEGER, DIMENSION(:), POINTER           :: tmp
     LOGICAL                                  :: failure
 
-    failure=.FALSE.
     ALLOCATE(dft_control%rtp_control)
     CALL section_vals_val_get(rtp_section,"MAX_ITER",&
       i_val=dft_control%rtp_control%max_iter)

@@ -120,7 +120,6 @@ CONTAINS
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(csym_type), POINTER                 :: crys_sym
 
-    failure=.FALSE.
 
     CPASSERT(ASSOCIATED(kpoint))
 
@@ -248,7 +247,6 @@ CPSourceFileRef,&
       POINTER                                :: kp_env
     TYPE(kpoint_env_type), POINTER           :: kp
 
-    failure = .FALSE.
     CPASSERT(ASSOCIATED(kpoint))
     para_env => kpoint%para_env
     CPASSERT(ASSOCIATED(para_env))
@@ -405,7 +403,6 @@ CPSourceFileRef,&
     TYPE(kpoint_env_type), POINTER           :: kp
     TYPE(qs_matrix_pools_type), POINTER      :: mpools
 
-    failure = .FALSE.
     CPASSERT(ASSOCIATED(kpoint))
 
     IF (ASSOCIATED(mos)) THEN
@@ -524,7 +521,6 @@ CPSourceFileRef,&
     TYPE(neighbor_list_iterator_p_type), &
       DIMENSION(:), POINTER                  :: nl_iterator
 
-    failure = .FALSE.
     CPASSERT(ASSOCIATED(kpoint))
 
     ALLOCATE(list(3,125))
@@ -729,7 +725,6 @@ CPSourceFileRef,&
     TYPE(kpoint_env_type), POINTER           :: kp
     TYPE(mo_set_type), POINTER               :: mo_set
 
-    failure = .FALSE.
     ! first collect all the eigenvalues
     CALL get_kpoint_info(kpoint,nkp=nkp)
     kp => kpoint%kp_env(1)%kpoint_env
@@ -808,7 +803,6 @@ CPSourceFileRef,&
     TYPE(kpoint_env_type), POINTER           :: kp
     TYPE(mo_set_type), POINTER               :: mo_set
 
-    failure = .FALSE.
 
     ! which type of density matrix
     IF(PRESENT(energy_weighted)) THEN
@@ -925,7 +919,6 @@ CPSourceFileRef,&
     TYPE(neighbor_list_iterator_p_type), &
       DIMENSION(:), POINTER                  :: nl_iterator
 
-    failure = .FALSE.
 
     ! work storage
     ALLOCATE(rpmat,cpmat)

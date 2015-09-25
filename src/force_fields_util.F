@@ -154,7 +154,6 @@ CONTAINS
     TYPE(section_vals_type), POINTER         :: charges_section
 
     CALL timeset(routineN,handle)
-    failure = .FALSE.
     fatal   = .FALSE.
     ignore_fatal = ff_type%ignore_missing_critical
     NULLIFY(logger, Ainfo, charges_section, charges)
@@ -369,7 +368,6 @@ CONTAINS
     INTEGER                                  :: i
     LOGICAL                                  :: failure
 
-    failure = .FALSE.
     IF (ASSOCIATED(array)) THEN
        IF (output_unit>0) THEN
           WRITE(output_unit,*)
@@ -444,7 +442,6 @@ CONTAINS
     TYPE(shell_kind_type), POINTER           :: shell
 
     CALL timeset(routineN,handle)
-    failure = .FALSE.
     NULLIFY(logger)
     logger => cp_get_default_logger()
     iw = cp_print_key_unit_nr(logger,mm_section,"PRINT%FF_INFO",&
@@ -566,7 +563,6 @@ CONTAINS
     TYPE(ub_type), DIMENSION(:), POINTER     :: new_ub_list, ub_list
 
     CALL timeset(routineN,handle)
-    failure = .FALSE.
     NULLIFY(logger)
     logger => cp_get_default_logger()
     iw = cp_print_key_unit_nr(logger,mm_section,"PRINT%FF_INFO",&
@@ -1300,7 +1296,6 @@ CONTAINS
     LOGICAL                                  :: check, failure
     REAL(KIND=dp), DIMENSION(:), POINTER     :: my_val, my_val_tmp
 
-    failure = .FALSE.
     NULLIFY(my_var, my_par, my_val, my_par_tmp, my_val_tmp)
     NULLIFY (my_units)
     NULLIFY (my_units_tmp)

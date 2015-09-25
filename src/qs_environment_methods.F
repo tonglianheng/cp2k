@@ -140,7 +140,6 @@ SUBROUTINE qs_env_setup(qs_env,unit_nr)
 
     CALL timeset(routineN,handle)
 
-    failure = .FALSE.
 
     NULLIFY(qs_kind_set, atomic_kind_set, dft_control, scf_control, qs_charges, para_env,&
             distribution_2d, molecule_kind_set, molecule_set, particle_set, cell, &
@@ -244,7 +243,6 @@ SUBROUTINE qs_env_update_s_mstruct(qs_env)
                                                 rho_nlcc_g, vppl
 
     CALL timeset(routineN,handle)
-    failure=.FALSE.
 
     CPASSERT(ASSOCIATED(qs_env))
 
@@ -343,7 +341,6 @@ SUBROUTINE qs_create_task_list(qs_env)
     TYPE(task_list_type), POINTER            :: task_list
 
     CALL timeset(routineN,handle)
-    failure=.FALSE.
     NULLIFY(ks_env, dft_control)
     CALL get_qs_env(qs_env, ks_env=ks_env, dft_control=dft_control)
 
@@ -450,7 +447,6 @@ SUBROUTINE qs_env_rebuild_pw_env(qs_env)
     TYPE(rho0_mpole_type), POINTER           :: rho0_mpole
 
     CALL timeset(routineN,handle)
-    failure=.FALSE.
     ! rebuild pw_env
     NULLIFY(dft_control, cell, ks_env, v_hartree_rspace, auxbas_pw_pool)
     NULLIFY(rho0_mpole,rho0_gs,rho0_rs)

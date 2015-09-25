@@ -104,7 +104,6 @@ CONTAINS
 
     LOGICAL                                  :: failure
 
-    failure=.FALSE.
     CPASSERT(.NOT.ASSOCIATED(simpar))
     ALLOCATE(simpar)
   END SUBROUTINE create_simpar_type
@@ -122,7 +121,6 @@ CONTAINS
 
     LOGICAL                                  :: failure
 
-    failure=.FALSE.
     CPASSERT(ASSOCIATED(simpar))
     DEALLOCATE(simpar)
   END SUBROUTINE release_simpar_type

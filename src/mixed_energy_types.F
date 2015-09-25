@@ -54,7 +54,6 @@ CONTAINS
 
     LOGICAL                                  :: failure
 
-    failure = .FALSE.
     IF (.NOT.ASSOCIATED(mixed_energy)) THEN
       ALLOCATE (mixed_energy)
     END IF
@@ -76,7 +75,6 @@ CONTAINS
 
     LOGICAL                                  :: failure
 
-    failure = .FALSE.
     IF (ASSOCIATED(mixed_energy)) THEN
       DEALLOCATE (mixed_energy)
     END IF

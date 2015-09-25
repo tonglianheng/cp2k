@@ -45,7 +45,6 @@ CONTAINS
 
     LOGICAL                                  :: failure
 
-    failure = .FALSE.
     CPASSERT(.NOT.ASSOCIATED(ilist))
     ALLOCATE(ilist)
     ilist%istart   = HUGE(0)
@@ -70,7 +69,6 @@ CONTAINS
 
     LOGICAL                                  :: failure
 
-    failure = .FALSE.
     CPASSERT(ASSOCIATED(ilist))
     DEALLOCATE(ilist)
   END SUBROUTINE release_ilist_type

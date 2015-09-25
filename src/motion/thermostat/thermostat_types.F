@@ -114,7 +114,6 @@ CONTAINS
 
     LOGICAL                                  :: check, failure
 
-    failure =.FALSE.
     check = .NOT.ASSOCIATED(thermostats)
     CPASSERT(check)
 
@@ -162,7 +161,6 @@ CONTAINS
 
     LOGICAL                                  :: failure
 
-    failure=.FALSE.
 
     IF (ASSOCIATED(thermostats)) THEN
        CPASSERT(thermostats%ref_count>0)
@@ -186,7 +184,6 @@ CONTAINS
 
     LOGICAL                                  :: check, failure
 
-    failure =.FALSE.
     check = ASSOCIATED(thermostats)
     IF (check) THEN
        check = thermostats%ref_count>0
@@ -248,7 +245,6 @@ CONTAINS
     TYPE(section_vals_type), POINTER         :: al_section, csvr_section, &
                                                 gle_section, nose_section
 
-    failure = .FALSE.
     skip_region_loc = .FALSE.
     IF (PRESENT(skip_region)) skip_region_loc = skip_region
     ALLOCATE(thermostat)
@@ -306,7 +302,6 @@ CONTAINS
 
     LOGICAL                                  :: failure
 
-    failure =.FALSE.
     IF (ASSOCIATED(thermostat_info)) THEN
        IF (ASSOCIATED(thermostat_info%map_loc_thermo_gen)) THEN
           DEALLOCATE(thermostat_info%map_loc_thermo_gen)
@@ -330,7 +325,6 @@ CONTAINS
 
     LOGICAL                                  :: check, failure
 
-    failure =.FALSE.
     check = ASSOCIATED(thermostat)
     IF (check) THEN
        check = thermostat%ref_count>0
@@ -372,7 +366,6 @@ CONTAINS
 
     LOGICAL                                  :: failure
 
-    failure =.FALSE.
     IF (ASSOCIATED(thermostats)) THEN
        IF (PRESENT(dt_fact)) THEN
           ! Particles

@@ -175,7 +175,6 @@ CONTAINS
     LOGICAL                                  :: failure
     REAL(kind=dp)                            :: sc, sx
 
-    failure=.FALSE.
     CALL section_vals_val_get(b97_params,"parametrization",i_val=param)
     CALL section_vals_val_get(b97_params,"scale_x",r_val=sx)
     CALL section_vals_val_get(b97_params,"scale_c",r_val=sc)
@@ -213,7 +212,6 @@ CONTAINS
     LOGICAL                                  :: failure
     REAL(kind=dp)                            :: sc, sx
 
-    failure=.FALSE.
     CALL section_vals_val_get(b97_params,"parametrization",i_val=param)
     CALL section_vals_val_get(b97_params,"scale_x",r_val=sx)
     CALL section_vals_val_get(b97_params,"scale_c",r_val=sc)
@@ -259,7 +257,6 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-    failure=.FALSE.
     NULLIFY(bo)
 
     CPASSERT(ASSOCIATED(rho_set))
@@ -391,7 +388,6 @@ CONTAINS
     TYPE(xc_derivative_type), POINTER        :: deriv
 
     CALL timeset(routineN,handle)
-    failure=.FALSE.
     NULLIFY(deriv, bo)
 
     CPASSERT(ASSOCIATED(rho_set))
@@ -682,7 +678,6 @@ CONTAINS
       u_x_bnorm_drhobnorm_drhob, u_x_brhob, u_x_brhobnorm_drhob, u_x_brhobrhob
     REAL(kind=dp), DIMENSION(10)             :: coeffs
 
-    failure=.FALSE.
 
     p_1 = 0.10e1_dp
     A_1 = 0.31091e-1_dp
@@ -1722,7 +1717,6 @@ SUBROUTINE b97_lda_calc(rho_tot, norm_drho,&
       u_x_bnorm_drhobnorm_drhob, u_x_brhob, u_x_brhobnorm_drhob, u_x_brhobrhob
     REAL(kind=dp), DIMENSION(10)             :: coeffs
 
-  failure=.FALSE.
 
   p_1 = 0.10e1_dp
   A_1 = 0.31091e-1_dp

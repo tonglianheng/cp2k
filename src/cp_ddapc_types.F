@@ -116,7 +116,6 @@ CONTAINS
     TYPE(section_vals_type), POINTER         :: param_section, &
                                                 solvation_section
 
-    failure=.FALSE.
     CALL timeset(routineN,handle)
     ALLOCATE(cp_ddapc_env)
     cp_ddapc_env%ref_count=1
@@ -193,7 +192,6 @@ CONTAINS
 
     LOGICAL                                  :: failure
 
-    failure=.FALSE.
     CPASSERT(ASSOCIATED(cp_ddapc_env))
     CPASSERT(cp_ddapc_env%ref_count>0)
     cp_ddapc_env%ref_count=cp_ddapc_env%ref_count+1
@@ -214,7 +212,6 @@ CONTAINS
 
     LOGICAL                                  :: failure
 
-    failure=.FALSE.
     IF (ASSOCIATED(cp_ddapc_env)) THEN
        CPASSERT(cp_ddapc_env%ref_count>0)
        cp_ddapc_env%ref_count=cp_ddapc_env%ref_count-1
@@ -281,7 +278,6 @@ CONTAINS
       multipole_section, poisson_section, printC_section, qmmm_per_section, &
       restraint_section, restraint_sectionB, solvation_section
 
-    failure = .FALSE.
     logger => cp_get_default_logger()
     output_unit= cp_logger_get_default_io_unit(logger)
     CPASSERT(.NOT.ASSOCIATED(cp_ddapc_ewald))
@@ -405,7 +401,6 @@ CONTAINS
                                                 galpha, gsq, gsqi, rcut, tol, &
                                                 tol1
 
-    failure = .FALSE.
     rcut = MIN(hmat(1,1),hmat(2,2),hmat(3,3))/2.0_dp
     CALL section_vals_val_get(multipole_section,"RCUT",n_rep_val=n_rep)
     IF (n_rep==1) CALL section_vals_val_get(multipole_section,"RCUT",r_val=rcut)
@@ -460,7 +455,6 @@ CONTAINS
 
     LOGICAL                                  :: failure
 
-    failure = .FALSE.
     IF (ASSOCIATED(cp_ddapc_ewald)) THEN
        IF (ASSOCIATED(cp_ddapc_ewald%coeff_qm)) THEN
           CALL pw_pool_give_back_pw ( cp_ddapc_ewald%pw_pool_qm, cp_ddapc_ewald%coeff_qm)

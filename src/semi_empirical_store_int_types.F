@@ -79,7 +79,6 @@ CONTAINS
     LOGICAL                                  :: failure
     TYPE(section_vals_type), POINTER         :: se_mem_section
 
-    failure = .FALSE.
     CPASSERT(.NOT.ASSOCIATED(store_int_env))
     ALLOCATE (store_int_env)
     store_int_env%filling_containers = .TRUE.
@@ -139,7 +138,6 @@ CPSourceFileRef,&
     INTEGER                                  :: i
     LOGICAL                                  :: failure
 
-    failure = .FALSE.
     IF (ASSOCIATED(store_int_env)) THEN
        ! Deallocate containers/caches
        IF(.NOT.store_int_env%memory_parameter%do_all_on_the_fly) THEN
@@ -185,7 +183,6 @@ CPSourceFileRef,&
     INTEGER                                  :: i
     LOGICAL                                  :: failure
 
-    failure = .FALSE.
     IF (ASSOCIATED(store_int_env)) THEN
        IF(.NOT.store_int_env%memory_parameter%do_all_on_the_fly) THEN
           IF (geometry_did_change) THEN
@@ -242,7 +239,6 @@ CPSourceFileRef,&
     INTEGER                                  :: i
     LOGICAL                                  :: failure
 
-    failure = .FALSE.
     IF (ASSOCIATED(store_int_env)) THEN
        IF(.NOT.store_int_env%memory_parameter%do_all_on_the_fly) THEN
           IF (geometry_did_change) THEN

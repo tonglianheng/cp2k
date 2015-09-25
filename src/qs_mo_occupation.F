@@ -76,7 +76,6 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:), POINTER     :: eigval_a, eigval_b, occ_a, &
                                                 occ_b
 
-    failure = .FALSE.
     CPASSERT(ASSOCIATED(mo_array))
     CPASSERT((SIZE(mo_array) == 2))
     CALL timeset(routineN,handle)
@@ -215,7 +214,6 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-    failure = .FALSE.
     CPASSERT(ASSOCIATED(mo_array))
     mo_set_a => mo_array(1)%mo_set
     CPASSERT(ASSOCIATED(mo_set_a))
@@ -389,7 +387,6 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-    failure = .FALSE.
 
     CPASSERT(ASSOCIATED(mo_set))
     CPASSERT(ASSOCIATED(mo_set%eigenvalues))

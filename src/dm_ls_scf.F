@@ -177,7 +177,6 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-    failure=.FALSE.
 
     CALL cite_reference(VandeVondele2012)
 
@@ -737,7 +736,6 @@ CONTAINS
 
     CALL timeset(routineN,handle)
     CALL cite_reference(VandeVondele2012)
-    failure=.FALSE.
     ls_scf_section => section_vals_get_subs_vals(input,"DFT%LS_SCF")
     curvy_section => section_vals_get_subs_vals(ls_scf_section,"CURVY_STEPS")
 
@@ -1365,7 +1363,6 @@ CONTAINS
     TYPE(cp_logger_type), POINTER            :: logger
 
     CALL timeset(routineN,handle)
-    failure=.FALSE.
 
     ! get a useful output_unit
     logger => cp_get_default_logger()

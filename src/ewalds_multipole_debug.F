@@ -79,7 +79,6 @@ SUBROUTINE debug_ewald_multipoles(ewald_env, ewald_pw, nonbond_env, cell, &
   TYPE(multi_charge_type), DIMENSION(:),&
        POINTER                             :: multipoles
 
-  failure = .FALSE.
   NULLIFY(random_stream, multipoles, charges, dipoles, g_forces, g_pv,&
           r_forces, r_pv, e_field1, e_field2)
   CALL create_rng_stream(random_stream,name="DEBUG_EWALD_MULTIPOLE",&
@@ -351,7 +350,6 @@ CONTAINS
     TYPE(pos_type), DIMENSION(:), POINTER    :: r_last_update, &
                                                 r_last_update_pbc
 
-    failure = .FALSE.
     energy  = 0.0_dp
     CALL fist_nonbond_env_get (nonbond_env, nonbonded=nonbonded, natom_types = nkinds,&
          r_last_update=r_last_update,r_last_update_pbc=r_last_update_pbc)
@@ -483,7 +481,6 @@ CONTAINS
     INTEGER                                  :: i, isize, k, l, m
     REAL(KIND=dp)                            :: dx, rvec(3), rvec1(3), rvec2(3), r2
 
-    failure = .FALSE.
     IF (ASSOCIATED(multipoles)) THEN
        CPASSERT(SIZE(multipoles)==idim)
     ELSE
@@ -587,7 +584,6 @@ CONTAINS
     LOGICAL                                  :: failure
     INTEGER                                  :: i, j
 
-    failure = .FALSE.
     IF (ASSOCIATED(multipoles)) THEN
        DO i = 1, SIZE(multipoles)
           DO j = 1, SIZE(multipoles(i)%charge_typ)
@@ -621,7 +617,6 @@ CONTAINS
         TYPE(charge_mono_type), DIMENSION(:),&
          POINTER                             :: charge_typ_bk
 
-    failure = .FALSE.
     IF (ASSOCIATED(charge_typ)) THEN
        isize = SIZE(charge_typ)
        ALLOCATE(charge_typ_bk(1:isize))

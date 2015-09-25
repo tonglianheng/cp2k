@@ -68,7 +68,6 @@ CONTAINS
     TYPE(section_type), POINTER              :: print_key, subsection, &
                                                 subsubsection
 
-    failure=.FALSE.
     CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="band",&
          description="The section that controls a BAND run",&
@@ -327,7 +326,6 @@ CONTAINS
     TYPE(section_type), POINTER              :: print_key, subsection, &
                                                 subsubsection
 
-    failure=.FALSE.
     CPASSERT(ASSOCIATED(section))
     NULLIFY(keyword, print_key, subsection, subsubsection)
 

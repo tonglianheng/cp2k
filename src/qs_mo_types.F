@@ -108,7 +108,6 @@ CONTAINS
     INTEGER                                  :: nmo
     LOGICAL                                  :: failure
 
-    failure = .FALSE.
 
     ALLOCATE (mo_set_new)
 
@@ -174,7 +173,6 @@ CONTAINS
 
     LOGICAL                                  :: failure
 
-    failure = .FALSE.
 
     IF (ASSOCIATED(mo_set)) CALL deallocate_mo_set(mo_set)
 
@@ -223,7 +221,6 @@ CONTAINS
     INTEGER                                  :: nao, nmo, nomo
     LOGICAL                                  :: failure
 
-    failure = .FALSE.
 
     CPASSERT(ASSOCIATED(mo_set))
     CPASSERT(ASSOCIATED(fm_pool))
@@ -287,7 +284,6 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-    failure = .FALSE.
 
     my_convert_dbcsr = .FALSE.
     IF(PRESENT(convert_dbcsr)) my_convert_dbcsr = convert_dbcsr
@@ -352,7 +348,6 @@ CONTAINS
 
     LOGICAL                                  :: failure
 
-    failure = .FALSE.
 
     IF (ASSOCIATED(mo_set)) THEN
       IF (ASSOCIATED(mo_set%eigenvalues)) THEN

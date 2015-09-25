@@ -60,7 +60,6 @@ SUBROUTINE read_topology_section ( topology, topology_section)
     LOGICAL                                  :: failure
 
   CALL timeset(routineN,handle)
-  failure = .FALSE.
   CALL section_vals_val_get(topology_section,"CHARGE_OCCUP",l_val=topology%charge_occup)
   CALL section_vals_val_get(topology_section,"CHARGE_BETA",l_val=topology%charge_beta)
   CALL section_vals_val_get(topology_section,"CHARGE_EXTENDED",l_val=topology%charge_extended)
@@ -132,7 +131,6 @@ SUBROUTINE read_constraints_section(topology, colvar_p, constraint_section)
       g3x3_section, g4x6_section, hbonds_section, vsite_section
 
   cons_info => topology%cons_info
-  failure   = .FALSE.
   IF (ASSOCIATED(constraint_section)) THEN
      hbonds_section     => section_vals_get_subs_vals(constraint_section,"HBONDS")
      g3x3_section       => section_vals_get_subs_vals(constraint_section,"G3X3")
@@ -604,7 +602,6 @@ SUBROUTINE check_restraint(cons_section, is_restraint, k0, i_rep_section, label)
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(section_vals_type), POINTER         :: restraint_section
 
-  failure      = .FALSE.
   is_restraint = .FALSE.
   logger => cp_get_default_logger()
   output_unit= cp_logger_get_default_io_unit(logger)

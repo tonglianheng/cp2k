@@ -250,7 +250,6 @@ SUBROUTINE colloc_int_body(h,h_inv,grid,poly,alphai,posi,max_r2,&
     nthread = 1
 !$  nthread = omp_get_num_threads()
 
-    failure=.FALSE.
 
     IF (integrate) THEN
        poly=0.0_dp

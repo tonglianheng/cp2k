@@ -103,7 +103,6 @@ CONTAINS
 
     LOGICAL                                  :: failure
 
-    failure = .FALSE.
     CPASSERT(ASSOCIATED(cell_in))
     CPASSERT(ASSOCIATED(cell_out))
 
@@ -133,7 +132,6 @@ CONTAINS
 
     LOGICAL                                  :: failure
 
-    failure = .FALSE.
     CPASSERT(ASSOCIATED(cell_in))
     CPASSERT(ASSOCIATED(cell_out))
 
@@ -171,7 +169,6 @@ CONTAINS
     INTEGER                                  :: i, j
     LOGICAL                                  :: failure
 
-    failure = .FALSE.
     READ (input_line,*) cell_itimes, cell_time,&
          h(1,1),h(2,1),h(3,1), h(1,2),h(2,2),h(3,2), h(1,3),h(2,3),h(3,3),vol
     DO i = 1, 3
@@ -312,7 +309,6 @@ CONTAINS
     REAL(KIND=dp)                            :: cos_alpha, cos_beta, &
                                                 cos_gamma, eps, sin_gamma
 
-    failure = .FALSE.
     CPASSERT(ALL(cell_angle/=0.0_dp))
     eps = EPSILON(0.0_dp)
     cos_gamma = COS(cell_angle(3)); IF (ABS(cos_gamma)<eps) cos_gamma = 0.0_dp
@@ -785,7 +781,6 @@ CONTAINS
 
     LOGICAL                                  :: failure
 
-    failure = .FALSE.
 
     CPASSERT(.NOT.ASSOCIATED(cell))
     ALLOCATE (cell)
@@ -820,7 +815,6 @@ CONTAINS
 
     LOGICAL                                  :: failure
 
-    failure = .FALSE.
 
     CPASSERT(ASSOCIATED(cell))
     CPASSERT(cell%ref_count>0)
@@ -844,7 +838,6 @@ CONTAINS
 
     LOGICAL                                  :: failure
 
-    failure = .FALSE.
 
     IF (ASSOCIATED(cell)) THEN
        CPASSERT(cell%ref_count>0)

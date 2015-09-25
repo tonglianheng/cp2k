@@ -103,7 +103,6 @@ CONTAINS
 
     LOGICAL                                  :: failure
 
-    failure=.FALSE.
 
     CPASSERT(ASSOCIATED(dg))
     CPASSERT(dg%ref_count>0)
@@ -127,7 +126,6 @@ CONTAINS
 
     LOGICAL                                  :: failure
 
-    failure=.FALSE.
 
     IF (ASSOCIATED(dg)) THEN
        CPASSERT(dg%ref_count>0)

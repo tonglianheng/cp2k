@@ -136,7 +136,6 @@ SUBROUTINE p_proj_retain(p_proj)
 
     LOGICAL                                  :: failure
 
-  failure=.FALSE.
 
   CPASSERT(ASSOCIATED(p_proj))
   CPASSERT(p_proj%ref_count>0)
@@ -159,7 +158,6 @@ SUBROUTINE p_proj_release(p_proj)
 
     LOGICAL                                  :: failure
 
-  failure=.FALSE.
 
   IF (ASSOCIATED(p_proj)) THEN
      CPASSERT(p_proj%ref_count>0)
@@ -208,7 +206,6 @@ SUBROUTINE p_proj_transfer_blacs_to_f(p_proj, min_m, full_m,&
       DIMENSION(:, :)                        :: tmp_full, tmp_min
 
   CALL timeset(routineN,handle)
-  failure=.FALSE.
 
   CPASSERT(ASSOCIATED(p_proj))
   CPASSERT(p_proj%ref_count>0)
@@ -285,7 +282,6 @@ SUBROUTINE p_proj_restrain_f(p_proj, full_m,start_col, ncol)
 
   CALL timeset(routineN,handle)
 
-  failure=.FALSE.
   NULLIFY(row_indices,col_indices)
 
   CPASSERT(ASSOCIATED(p_proj))

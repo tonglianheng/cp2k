@@ -506,7 +506,6 @@ MODULE hfx_types
 
     CALL timeset(routineN,handle)
 
-    failure = .FALSE.
     CALL cite_reference(Guidon2008)
     CALL cite_reference(Guidon2009)
     !! There might be 2 hf sections
@@ -952,7 +951,6 @@ MODULE hfx_types
 
     CALL timeset(routineN,handle)
 
-    failure = .FALSE.
 
     !! BASIS parameter
     nkind = SIZE(qs_kind_set,1)
@@ -1082,7 +1080,6 @@ MODULE hfx_types
     LOGICAL                                  :: failure
 
     CALL timeset(routineN,handle)
-    failure = .FALSE.
 
     !! BASIS parameter
     DO i=1,SIZE(basis_parameter)
@@ -1126,7 +1123,6 @@ MODULE hfx_types
     LOGICAL                                  :: check, failure, logic_val
     REAL(dp)                                 :: real_val
 
-    failure = .FALSE.
     check = (PRESENT(storage_id).EQV.PRESENT(i_thread)) .AND.&
             (PRESENT(storage_id).EQV.PRESENT(n_threads)).AND.&
             (PRESENT(storage_id).EQV.PRESENT(para_env)) .AND.&
@@ -1217,7 +1213,6 @@ MODULE hfx_types
     LOGICAL                                  :: failure
     TYPE(hfx_type), POINTER                  :: actual_x_data
 
-    failure = .FALSE.
     !! There might be 2 hf sections
     n_rep_hf = x_data(1,1)%n_rep_hf
     n_threads = 1
@@ -1363,7 +1358,6 @@ MODULE hfx_types
     TYPE(hfx_cell_type), ALLOCATABLE, &
       DIMENSION(:)                           :: tmp_neighbor_cells
 
-    failure = .FALSE.
     total_number_of_cells = 0
 
     ! ** Check some settings
@@ -1823,7 +1817,6 @@ MODULE hfx_types
     LOGICAL                                  :: failure
     TYPE(hfx_container_node), POINTER        :: current, next
 
-    failure =.FALSE.
 
     !! DEALLOCATE memory
 
@@ -2063,7 +2056,6 @@ MODULE hfx_types
     INTEGER                                  :: bin, i
     LOGICAL                                  :: failure
 
-    failure = .FALSE.
 
 
     SELECT CASE(eval_type)
@@ -2126,7 +2118,6 @@ MODULE hfx_types
     INTEGER                                  :: bin, i
     LOGICAL                                  :: failure
 
-    failure = .FALSE.
 
 
     SELECT CASE(eval_type)

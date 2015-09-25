@@ -103,7 +103,6 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-    failure = .FALSE.
 
     NULLIFY(atomic_kind_set, cell, dft_control, linres_control, scf_control)
     NULLIFY(logger, mpools, nmr_section, particle_set)
@@ -322,7 +321,6 @@ CONTAINS
 
     LOGICAL                                  :: failure
 
-    failure = .FALSE.
 
     nmr_env%ref_count = nmr_env%ref_count - 1
     IF(nmr_env%ref_count == 0 ) THEN

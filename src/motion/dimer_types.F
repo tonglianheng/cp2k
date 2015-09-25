@@ -112,7 +112,6 @@ CONTAINS
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(section_vals_type), POINTER         :: nvec_section
 
-    failure=.FALSE.
     CPASSERT(.NOT.ASSOCIATED(dimer_env))
     ALLOCATE(dimer_env)
     logger => cp_get_default_logger()
@@ -198,7 +197,6 @@ CPSourceFileRef,&
 
     LOGICAL                                  :: failure
 
-    failure=.FALSE.
 
     CPASSERT(ASSOCIATED(dimer_env))
     CPASSERT(dimer_env%ref_count>0)
@@ -220,7 +218,6 @@ CPSourceFileRef,&
 
     LOGICAL                                  :: failure
 
-    failure=.FALSE.
 
     IF (ASSOCIATED(dimer_env)) THEN
        CPASSERT(dimer_env%ref_count>0)

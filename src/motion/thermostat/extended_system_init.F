@@ -94,7 +94,6 @@ CONTAINS
     NULLIFY (work_section2)
 
     explicit = .FALSE.
-    failure=.FALSE.
     restart = .FALSE.
 
     CPASSERT(.NOT.ASSOCIATED(npt_info))
@@ -193,7 +192,6 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-    failure = .FALSE.
     restart = .FALSE.
 
     CALL nhc_to_barostat_mapping ( simpar, nhc)
@@ -263,7 +261,6 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-    failure = .FALSE.
     restart = .FALSE.
     ! fire up the thermostats, if not NVE
 
@@ -331,7 +328,6 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-    failure = .FALSE.
     restart = .FALSE.
     ! fire up the thermostats, if not NVE
 
@@ -401,7 +397,6 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-    failure = .FALSE.
     restart = .FALSE.
     ! fire up the thermostats, if not NVE
 
@@ -472,7 +467,6 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-    failure = .FALSE.
     CALL nhc_to_shell_mapping(thermostat_info, simpar, local_molecules,&
        molecule, molecule_kind_set, nhc, para_env, gci)
 
@@ -739,7 +733,6 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-    failure = .FALSE.
     tot_rn = 0
 
     ! first initializing the mass of the nhc variables
@@ -876,7 +869,6 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-    failure = .FALSE.
     temp = 0.0_dp
 
     ! first initializing the mass of the nhc variables
@@ -961,7 +953,6 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-    failure = .FALSE.
 
     CPASSERT(ASSOCIATED(nhc))
     ! assign the forces

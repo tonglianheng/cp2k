@@ -51,7 +51,6 @@ MODULE pint_public
     LOGICAL                                  :: failure
     REAL(kind=dp)                            :: tmass
 
-    failure=.FALSE.
     CPASSERT(ASSOCIATED(pint_env))
 
     tmass = 0.0_dp
@@ -91,7 +90,6 @@ MODULE pint_public
     INTEGER                                  :: ia, ib, ic, natoms
     LOGICAL                                  :: failure
 
-    failure=.FALSE.
     CPASSERT(ASSOCIATED(pint_env))
 
     cntrd_r(:) = 0.0_dp
@@ -140,7 +138,6 @@ MODULE pint_public
     REAL(kind=dp)                            :: rtmp, tcheck, vrnc, xc
     REAL(kind=dp), DIMENSION(3)              :: cntrd_r
 
-    failure=.FALSE.
     nout = 0
 
     IF ( n < 1 ) THEN

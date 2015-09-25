@@ -40,7 +40,6 @@ SUBROUTINE check_rotmat_der( sepi, sepj, rjiv, ij_matrix, do_invert)
   INTEGER                                  :: imap(3),i,j,k,l
 
   NULLIFY(matrix_m, matrix_p, matrix_n, matrix)
-  failure = .FALSE.
   CALL rotmat_create(matrix_p)
   CALL rotmat_create(matrix_m)
   CALL rotmat_create(matrix_n)
@@ -184,7 +183,6 @@ SUBROUTINE rot_2el_2c_first_debug(sepi, sepj, rijv, se_int_control, se_taper, in
   INTEGER                                  :: imap(3),i,j,k, limkl
 
   NULLIFY(matrix)
-  failure = .FALSE.
   dx = 1.0E-6_dp
   imap(1) = 1
   imap(2) = 2

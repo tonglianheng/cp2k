@@ -156,7 +156,6 @@ CONTAINS
     INTEGER                                  :: i
     LOGICAL                                  :: do_langevin, failure
 
-    failure=.FALSE.
 
     CPASSERT(.NOT.ASSOCIATED(meta_env))
     ALLOCATE(meta_env)
@@ -251,7 +250,6 @@ CONTAINS
 
     LOGICAL                                  :: failure
 
-    failure=.FALSE.
     IF (ASSOCIATED(meta_env)) THEN
        IF (PRESENT(time)) THEN
           NULLIFY(meta_env%time)
@@ -273,7 +271,6 @@ CONTAINS
 
     LOGICAL                                  :: failure
 
-    failure=.FALSE.
 
     CPASSERT(ASSOCIATED(meta_env))
     CPASSERT(meta_env%ref_count>0)
@@ -294,7 +291,6 @@ CONTAINS
     INTEGER                                  :: i
     LOGICAL                                  :: failure
 
-    failure=.FALSE.
     IF (ASSOCIATED(meta_env)) THEN
        CPASSERT(meta_env%ref_count>0)
        meta_env%ref_count=meta_env%ref_count-1
@@ -351,7 +347,6 @@ CONTAINS
 
     LOGICAL                                  :: failure
 
-    failure = .FALSE.
     IF (ASSOCIATED(hills_env)) THEN
        IF (ASSOCIATED(hills_env%ss_history)) THEN
           DEALLOCATE(hills_env%ss_history)

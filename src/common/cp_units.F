@@ -174,7 +174,6 @@ CONTAINS
     INTEGER, DIMENSION(cp_unit_max_kinds)    :: kind_id, power, unit_id
     LOGICAL                                  :: failure
 
-    failure=.FALSE.
     unit_id=cp_units_none
     kind_id=cp_ukind_none
     power=0
@@ -474,7 +473,6 @@ CONTAINS
     INTEGER                                  :: i, j, max_kind, max_pos
     LOGICAL                                  :: failure, repeat
 
-    failure=.FALSE.
 
     CPASSERT(.NOT.ASSOCIATED(unit))
     CPASSERT(SIZE(kind_id)<=cp_unit_max_kinds)
@@ -573,7 +571,6 @@ CONTAINS
 
     LOGICAL                                  :: failure
 
-    failure=.FALSE.
 
     CPASSERT(ASSOCIATED(unit))
     CPASSERT(unit%ref_count>0)
@@ -595,7 +592,6 @@ CONTAINS
 
     LOGICAL                                  :: failure
 
-    failure=.FALSE.
 
     IF (ASSOCIATED(unit)) THEN
        CPASSERT(unit%ref_count>0)
@@ -627,7 +623,6 @@ CONTAINS
     INTEGER                                  :: my_error_level
     LOGICAL                                  :: failure
 
-    failure=.FALSE.
     my_error_level=cp_failure_level
     IF (PRESENT(error_level)) my_error_level=error_level
 
@@ -752,7 +747,6 @@ CONTAINS
     INTEGER                                  :: my_power
     LOGICAL                                  :: failure
 
-    failure=.FALSE.
     my_power=1
     IF (PRESENT(power)) my_power=power
     IF (basic_unit==cp_units_none.AND.basic_kind/=cp_ukind_undef) THEN
@@ -948,7 +942,6 @@ CONTAINS
     INTEGER                                  :: a, my_power
     LOGICAL                                  :: failure, my_accept_undefined
 
-    failure=.FALSE.
     my_power=1
     res=""
     my_accept_undefined=.FALSE.
@@ -1204,7 +1197,6 @@ CONTAINS
     LOGICAL                                  :: check, failure, has_defaults, &
                                                 my_accept_undefined
 
-    failure=.FALSE.
 
     CPASSERT(ASSOCIATED(unit))
     res=""
@@ -1263,7 +1255,6 @@ CONTAINS
                                                 my_power
     LOGICAL                                  :: failure
 
-    failure=.FALSE.
     my_power=1
     IF (PRESENT(power)) my_power=power
     res=value
@@ -1313,7 +1304,6 @@ CONTAINS
     INTEGER                                  :: my_power
     LOGICAL                                  :: failure
 
-    failure=.FALSE.
     my_power=1
     IF (PRESENT(power)) my_power=power
     IF (PRESENT(defaults)) THEN
@@ -1436,7 +1426,6 @@ CONTAINS
     INTEGER                                  :: i
     LOGICAL                                  :: failure
 
-    failure=.FALSE.
     CPASSERT(.NOT.ASSOCIATED(unit_set))
     ALLOCATE(unit_set)
     unit_set%ref_count=1
@@ -1516,7 +1505,6 @@ CONTAINS
 
     LOGICAL                                  :: failure
 
-    failure=.FALSE.
 
     CPASSERT(ASSOCIATED(unit_set))
     CPASSERT(unit_set%ref_count>0)
@@ -1537,7 +1525,6 @@ CONTAINS
     INTEGER                                  :: i
     LOGICAL                                  :: failure
 
-    failure=.FALSE.
 
     IF (ASSOCIATED(unit_set)) THEN
        CPASSERT(unit_set%ref_count>0)

@@ -195,7 +195,6 @@ CONTAINS
     TYPE(qs_rho_type), POINTER               :: rho
     TYPE(virial_type), POINTER               :: virial
 
-    failure = .FALSE.
     IF (calculate_forces) THEN
       CALL timeset(routineN//"_forces",handle)
     ELSE
@@ -500,7 +499,6 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: hblock, reltmat
     TYPE(cp_dbcsr_iterator)                  :: iter
 
-    failure = .FALSE.
     natom = SIZE(particle_set)
     ALLOCATE (kind_of(natom))
 

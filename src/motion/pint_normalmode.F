@@ -59,7 +59,6 @@ CONTAINS
     LOGICAL                                  :: failure
     REAL(kind=dp), DIMENSION(p)              :: lambda
 
-    failure=.FALSE.
 
     CPASSERT(.NOT.ASSOCIATED(normalmode_env))
     ALLOCATE(normalmode_env)
@@ -126,7 +125,6 @@ CONTAINS
 
     LOGICAL                                  :: failure
 
-    failure=.FALSE.
 
     IF (ASSOCIATED(normalmode_env)) THEN
       CPASSERT(normalmode_env%ref_count>0)
@@ -156,7 +154,6 @@ CONTAINS
 
     LOGICAL                                  :: failure
 
-    failure=.FALSE.
 
     CPASSERT(ASSOCIATED(normalmode_env))
     CPASSERT(normalmode_env%ref_count>0)
@@ -191,7 +188,6 @@ CONTAINS
     INTEGER                                  :: iat, ib
     LOGICAL                                  :: failure
 
-    failure=.FALSE.
 
     IF (PRESENT(Q)) THEN
       Q=normalmode_env%Q_bead
@@ -238,7 +234,6 @@ CONTAINS
 
     LOGICAL                                  :: failure
 
-    failure=.FALSE.
 
     CPASSERT(ASSOCIATED(normalmode_env))
     CPASSERT(normalmode_env%ref_count>0)
@@ -268,7 +263,6 @@ CONTAINS
 
     LOGICAL                                  :: failure
 
-    failure=.FALSE.
 
     CPASSERT(ASSOCIATED(normalmode_env))
     CPASSERT(normalmode_env%ref_count>0)
@@ -297,7 +291,6 @@ CONTAINS
 
     LOGICAL                                  :: failure
 
-    failure=.FALSE.
 
     CPASSERT(ASSOCIATED(normalmode_env))
     CPASSERT(normalmode_env%ref_count>0)
@@ -328,7 +321,6 @@ CONTAINS
     LOGICAL                                  :: failure
     REAL(kind=dp)                            :: f
 
-    failure=.FALSE.
 
     e_h = 0.0_dp
     DO idim = 1, SIZE(mass_beads,2)

@@ -124,7 +124,6 @@ CONTAINS
 
     LOGICAL                                  :: failure
 
-    failure = .FALSE.
     CPASSERT(ASSOCIATED(csym))
 
     IF ( ASSOCIATED(csym%xkappa) ) THEN
@@ -182,7 +181,6 @@ CONTAINS
     REAL(KIND=dp), ALLOCATABLE               :: rlist(:,:), rx(:,:), &
                                                 tvec(:,:), wvkl(:,:)
 
-    failure = .FALSE.
     CALL timeset(routineN,handle)
 
     CPASSERT(.NOT.ASSOCIATED(csym))
@@ -529,7 +527,6 @@ CONTAINS
       b2(3), b3(3), dtotstr, origin0(3), proj1, proj2, proj3, r0(3,3,48), &
       totstr, tvec0(3,1), v0(3,48), volum, x0(3,1), xb0(3)
 
-    failure = .FALSE.
     v(:,:) = 0.0_dp
     f00 = 0
     x0 = 0.0_dp
@@ -1345,7 +1342,6 @@ CONTAINS
     LOGICAL                                  :: failure, nodupli, oksym
     REAL(KIND=dp)                            :: vc(3,48), vr(3), vs
 
-    failure = .FALSE.
     nodupli = ntvec == 1
     nca = 0
     DO n = 1, 48
@@ -2337,7 +2333,6 @@ CONTAINS
 
 !------------------------------------------------------------------------------!
 
-    failure = .FALSE.
     !------------------------------------------------------------------------------!
 
     ntot = 0
@@ -2643,7 +2638,6 @@ CONTAINS
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: delta1, rhash
 
-    failure = .FALSE.
     delta1 = 10.0_dp*delta
     IF (iplace<=-2) THEN
        DO i = 1, nhash + nmesh
@@ -2771,7 +2765,6 @@ CONTAINS
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: delta1, rhash
 
-    failure = .FALSE.
     delta1 = 10.0_dp*delta
     !     The particular hash function used in this case:
     rhash = 0.7890E0_dp*wvk(1) + 0.6810E0_dp*wvk(2) + 0.5811E0_dp*wvk(3) + delta
@@ -2851,7 +2844,6 @@ CONTAINS
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: delta1
 
-    failure = .FALSE.
     delta1 = 10.0_dp*delta
     !     Search for WVK in linked list
     !     Point to the garbage list
@@ -2918,7 +2910,6 @@ CONTAINS
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: wb(3), wva(3)
 
-    failure = .FALSE.
     IF (inbz(wvk,rsdir,nrsdir,nplane,delta)==yes) RETURN
     !------------------------------------------------------------------------------!
     !     Look around +/- "NZONES" to locate vector
@@ -3043,7 +3034,6 @@ CONTAINS
     REAL(KIND=dp)                            :: b1len, b2len, b3len, bmax, &
                                                 bvec(3), projct
 
-    failure = .FALSE.
     !------------------------------------------------------------------------------!
     b1len = b1(1)**2 + b1(2)**2 + b1(3)**2
     b2len = b2(1)**2 + b2(2)**2 + b2(3)**2

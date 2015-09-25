@@ -114,7 +114,6 @@ CONTAINS
     LOGICAL                                  :: failure
 
     CALL timeset(routineN,handle)
-    failure=.FALSE.
 
     CPASSERT(ASSOCIATED(transport_env))
 

@@ -161,7 +161,6 @@ CONTAINS
 
     LOGICAL                                  :: failure
 
-    failure=.FALSE.
 
     CPASSERT(ASSOCIATED(dg_rho0))
     CPASSERT(dg_rho0%ref_count>0)
@@ -185,7 +184,6 @@ CONTAINS
 
     LOGICAL                                  :: failure
 
-    failure=.FALSE.
 
     IF (ASSOCIATED(dg_rho0)) THEN
        CPASSERT(dg_rho0%ref_count>0)

@@ -135,7 +135,6 @@ CONTAINS
     TYPE(realspace_grid_desc_type), POINTER  :: auxbas_rs_desc
     TYPE(section_vals_type), POINTER         :: nmr_section
 
-    failure = .FALSE.
     CALL timeset(routineN,handle)
 
     NULLIFY(chemical_shift,chemical_shift_loc,chemical_shift_nics,chemical_shift_nics_loc,&
@@ -305,7 +304,6 @@ CONTAINS
 
     CALL timeset(routineN,handle)
     !
-    failure =.FALSE.
     NULLIFY(atomic_kind_set,qs_kind_set,cell,dft_control,para_env,particle_set,&
             chemical_shift_loc,chemical_shift_nics_loc,jrho1_atom_set,&
             jrho1_atom,r_nics,jrho_h_grid,jrho_s_grid,&
@@ -549,7 +547,6 @@ CONTAINS
     TYPE(pw_spline_precond_type), POINTER    :: precond
     TYPE(section_vals_type), POINTER         :: interp_section
 
-    failure = .FALSE.
     !
     CALL timeset(routineN,handle)
     !
@@ -653,7 +650,6 @@ CONTAINS
 
 !
 
-    failure = .FALSE.
     !
     CALL timeset(routineN,handle)
     !
@@ -760,7 +756,6 @@ CONTAINS
       POINTER                                :: particle_set
     TYPE(section_vals_type), POINTER         :: nmr_section
 
-    failure = .FALSE.
 
     NULLIFY(cs,cs_nics,r_nics,cs_loc,cs_nics_loc,logger,particle_set,atom_kind,dft_control)
 

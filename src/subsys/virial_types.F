@@ -257,7 +257,6 @@ CONTAINS
 
     LOGICAL                                  :: failure
 
-    failure=.FALSE.
 
     CPASSERT(ASSOCIATED(virial))
     CPASSERT(virial%ref_count>0)
@@ -281,7 +280,6 @@ CONTAINS
 
     LOGICAL                                  :: failure
 
-    failure=.FALSE.
     IF (ASSOCIATED(virial)) THEN
        CPASSERT(virial%ref_count>0)
        virial%ref_count=virial%ref_count-1

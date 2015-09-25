@@ -74,7 +74,6 @@ CONTAINS
     LOGICAL                                  :: failure
     REAL(kind=dp)                            :: sc, sx
 
-    failure=.FALSE.
     CALL section_vals_val_get(pbe_params,"parametrization",i_val=param)
     CALL section_vals_val_get(pbe_params,"scale_x",r_val=sx)
     CALL section_vals_val_get(pbe_params,"scale_c",r_val=sc)
@@ -186,7 +185,6 @@ SUBROUTINE pbe_lsd_info(pbe_params,reference,shortform, needs, max_deriv)
     LOGICAL                                  :: failure
     REAL(kind=dp)                            :: sc, sx
 
-    failure=.FALSE.
     CALL section_vals_val_get(pbe_params,"parametrization",i_val=param)
     CALL section_vals_val_get(pbe_params,"scale_x",r_val=sx)
     CALL section_vals_val_get(pbe_params,"scale_c",r_val=sc)
@@ -307,7 +305,6 @@ SUBROUTINE pbe_lda_eval(rho_set,deriv_set,grad_deriv,pbe_params)
 
     CALL timeset(routineN,handle)
 
-  failure=.FALSE.
   NULLIFY(bo)
 
   CPASSERT(ASSOCIATED(rho_set))
@@ -517,7 +514,6 @@ SUBROUTINE pbe_lda_calc(rho, norm_drho,&
 !, param
 ! scale_ec, scale_ex, snorm_drho, snorm_drho1rho, snorm_drhorho, srho, &
 
-  failure=.FALSE.
 
   ! Parametrization of PBE
   SELECT CASE(param)
@@ -1397,7 +1393,6 @@ SUBROUTINE pbe_lsd_eval(rho_set,deriv_set,grad_deriv,pbe_params)
     TYPE(xc_derivative_type), POINTER        :: deriv
 
     CALL timeset(routineN,handle)
-  failure=.FALSE.
   NULLIFY(deriv, bo)
 
   CPASSERT(ASSOCIATED(rho_set))
@@ -1640,7 +1635,6 @@ SUBROUTINE pbe_lsd_calc(rhoa, rhob, norm_drho, norm_drhoa, norm_drhob,&
       t985, t998, t999, tnorm_drho, trhoa, trhoanorm_drho, trhoarhoa, &
       trhoarhob, trhob, trhobnorm_drho, trhobrhob
 
-  failure=.FALSE.
 
   ! Parametrization of PBE
   SELECT CASE(param)

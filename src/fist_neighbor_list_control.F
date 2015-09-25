@@ -112,7 +112,6 @@ CONTAINS
                                                 rcore_last_update_pbc, &
                                                 rshell_last_update_pbc
 
-    failure = .FALSE.
     CALL timeset(routineN,handle)
     NULLIFY(logger)
     logger => cp_get_default_logger()

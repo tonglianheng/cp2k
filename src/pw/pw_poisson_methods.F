@@ -96,7 +96,6 @@ CONTAINS
     LOGICAL                                  :: failure
     TYPE(pw_pool_type), POINTER              :: pw_pool
 
-    failure=.FALSE.
     CPASSERT(ASSOCIATED(poisson_env))
     CPASSERT(poisson_env%ref_count>0)
 
@@ -124,7 +123,6 @@ CONTAINS
     TYPE(greens_fn_type), POINTER            :: green
     TYPE(ps_wavelet_type), POINTER           :: wavelet
 
-    failure=.FALSE.
 
     CPASSERT(ASSOCIATED(poisson_env))
     CPASSERT(poisson_env%ref_count>0)
@@ -194,7 +192,6 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-    failure=.FALSE.
     CPASSERT(ASSOCIATED(poisson_env))
     CPASSERT(poisson_env%ref_count>0)
     CPASSERT(ASSOCIATED(poisson_env%pw_pools))
@@ -276,7 +273,6 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-    failure=.FALSE.
     CPASSERT(ASSOCIATED(poisson_env))
     CPASSERT(poisson_env%ref_count>0)
     CALL pw_poisson_rebuild(poisson_env,density)

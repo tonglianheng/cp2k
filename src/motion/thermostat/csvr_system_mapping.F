@@ -62,7 +62,6 @@ CONTAINS
     LOGICAL                                  :: failure
     TYPE(map_info_type), POINTER             :: map_info
 
-    failure = .FALSE.
     SELECT CASE (simpar%ensemble)
     CASE  DEFAULT
        CALL stop_program(routineN,moduleN,__LINE__,'Never reach this point!')
@@ -131,7 +130,6 @@ CONTAINS
     REAL(KIND=dp)                            :: fac
     TYPE(map_info_type), POINTER             :: map_info
 
-    failure = .FALSE.
     NULLIFY (massive_atom_list, deg_of_freedom)
     SELECT CASE ( simpar % ensemble )
     CASE DEFAULT
@@ -224,7 +222,6 @@ CONTAINS
     LOGICAL                                  :: do_shell, failure
     TYPE(map_info_type), POINTER             :: map_info
 
-    failure  = .FALSE.
     do_shell = .FALSE.
     IF (PRESENT(shell)) do_shell = shell
     map_info    => csvr%map_info
@@ -281,7 +278,6 @@ CONTAINS
     LOGICAL                                  :: failure
     TYPE(map_info_type), POINTER             :: map_info
 
-    failure = .FALSE.
     NULLIFY (massive_shell_list, deg_of_freedom)
 
     SELECT CASE ( simpar % ensemble )

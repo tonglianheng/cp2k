@@ -226,7 +226,6 @@ CONTAINS
 
     LOGICAL                                  :: failure
 
-    failure = .FALSE.
 
     !-----------------------------------------------------------------------------
     ! 1. Initialize
@@ -446,7 +445,6 @@ CONTAINS
 
     LOGICAL                                  :: failure
 
-    failure = .FALSE.
 
     !-----------------------------------------------------------------------------
     ! 1. DEALLOCATE things in ff_type%inp_info
@@ -499,7 +497,6 @@ CONTAINS
 
     LOGICAL                                  :: failure
 
-    failure = .FALSE.
     IF(ASSOCIATED(gro_info%solvent_k)) THEN
        DEALLOCATE(gro_info%solvent_k)
     END IF
@@ -569,7 +566,6 @@ CONTAINS
 
     LOGICAL                                  :: failure
 
-    failure = .FALSE.
     IF(ASSOCIATED(chm_info%bond_a)) THEN
        DEALLOCATE(chm_info%bond_a)
     END IF
@@ -687,7 +683,6 @@ CONTAINS
 
     LOGICAL                                  :: failure
 
-    failure = .FALSE.
     IF(ASSOCIATED(amb_info%bond_a)) THEN
        DEALLOCATE(amb_info%bond_a)
     END IF
@@ -763,7 +758,6 @@ CONTAINS
 
     LOGICAL                                  :: failure
 
-    failure = .FALSE.
     IF(ASSOCIATED(inp_info%charge_atm)) THEN
        DEALLOCATE(inp_info%charge_atm)
     END IF

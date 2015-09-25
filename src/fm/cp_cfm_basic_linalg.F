@@ -146,7 +146,6 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-    failure=.FALSE.
     my_beta=CMPLX(0.0_dp,0.0_dp,dp)
     IF(PRESENT(beta)) my_beta=beta
     NULLIFY(a,b)
@@ -240,7 +239,6 @@ CPSourceFileRef,&
 
     CALL timeset(routineN,handle)
 
-    failure=.FALSE.
     NULLIFY(a,b)
 
     CPASSERT(ASSOCIATED(matrix_a))
@@ -606,7 +604,6 @@ CPSourceFileRef,&
 
     CALL timeset(routineN,handle)
 
-    failure=.FALSE.
     my_n = MIN(matrix%matrix_struct%nrow_global,&
          matrix%matrix_struct%ncol_global)
     IF (PRESENT(n)) THEN
@@ -686,7 +683,6 @@ SUBROUTINE cp_cfm_triangular_multiply(triangular_matrix,matrix_b,side,&
     LOGICAL                                  :: failure, invert
     COMPLEX(KIND=dp)                            :: al
 
-  failure=.FALSE.
 
   CALL timeset(routineN,handle)
   side_char='L'
@@ -770,7 +766,6 @@ SUBROUTINE cp_cfm_triangular_multiply(triangular_matrix,matrix_b,side,&
     INTEGER, DIMENSION(9)                    :: desca
 #endif
 
-    failure = .FALSE.
 
     CALL timeset(routineN,handle)
 

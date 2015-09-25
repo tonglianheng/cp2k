@@ -1334,7 +1334,6 @@ MODULE mp2_direct_method
                                                 size_parameter_send
 
     CALL timeset(routineN,handle)
-    failure=.FALSE.
 
     S_offset=mp2_biel%index_table(latom,lset)-1
     R_offset=mp2_biel%index_table(katom,kset)-1
@@ -1515,7 +1514,6 @@ MODULE mp2_direct_method
                                                 size_parameter_send
 
     CALL timeset(routineN,handle)
-    failure=.FALSE.
 
     S_offset=mp2_biel%index_table(latom,lset)-1
     R_offset=mp2_biel%index_table(katom,kset)-1
@@ -1676,7 +1674,6 @@ MODULE mp2_direct_method
       DIMENSION(:, :)                        :: BIa
 
     CALL timeset(routineN,handle)
-    failure=.FALSE.
 
     ALLOCATE(BIa(dimen,virtual))
 
@@ -1778,7 +1775,6 @@ MODULE mp2_direct_method
       DIMENSION(:, :)                        :: BIa
 
     CALL timeset(routineN,handle)
-    failure=.FALSE.
 
     ALLOCATE(BIa(dimen,virt_i))
 

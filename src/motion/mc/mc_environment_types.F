@@ -129,7 +129,6 @@ SUBROUTINE mc_env_retain(mc_env)
 
     LOGICAL                                  :: failure
 
-  failure=.FALSE.
 
   CPASSERT(ASSOCIATED(mc_env))
   CPASSERT(mc_env%ref_count>0)
@@ -151,7 +150,6 @@ SUBROUTINE mc_env_release(mc_env)
 
     LOGICAL                                  :: failure
 
-  failure=.FALSE.
 
   IF (ASSOCIATED(mc_env)) THEN
      CPASSERT(mc_env%ref_count>0)

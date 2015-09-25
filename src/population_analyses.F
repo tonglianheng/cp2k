@@ -112,7 +112,6 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-    failure = .FALSE.
 
     NULLIFY (atomic_kind_set)
     NULLIFY (qs_kind_set)
@@ -293,7 +292,6 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-    failure = .FALSE.
 
     NULLIFY (atomic_kind_set)
     NULLIFY (qs_kind_set)
@@ -491,7 +489,6 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-    failure = .FALSE.
 
     NULLIFY (lshell)
     NULLIFY (nshell)

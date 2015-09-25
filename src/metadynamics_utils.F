@@ -104,7 +104,6 @@ CONTAINS
     NULLIFY(subsys)
     CALL timeset(routineN,handle)
 
-    failure = .FALSE.
     CALL section_vals_get(fe_section,explicit=explicit)
     IF (explicit) THEN
        number_allocated_colvars = 0
@@ -454,7 +453,6 @@ CPSourceFileRef,&
 
     CALL timeset(routineN,handle)
 
-    failure=.FALSE.
     CALL section_vals_val_get(metavar_section,"COLVAR",i_rep_section=icol,i_val=metavar%icolvar)
     CALL section_vals_val_get(metavar_section,"SCALE",i_rep_section=icol,r_val=metavar%delta_s)
     ! Walls
@@ -541,7 +539,6 @@ CPSourceFileRef,&
 
     CALL timeset(routineN,handle)
 
-    failure = .FALSE.
     logger  => cp_get_default_logger()
     para_env => logger%para_env
 
@@ -925,7 +922,6 @@ CPSourceFileRef,&
     TYPE(metavar_type), DIMENSION(:), &
       POINTER                                :: colvars
 
-    failure = .FALSE.
     colvars => meta_env%metavar
     ! Forces from the Walls
     DO ih=1,SIZE(colvars)

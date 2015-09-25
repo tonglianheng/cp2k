@@ -145,7 +145,6 @@ CONTAINS
 
     LOGICAL                                  :: failure
 
-    failure = .FALSE.
 
     CPASSERT(.NOT.ASSOCIATED(tmc_ana))
 
@@ -195,7 +194,6 @@ CONTAINS
 
     LOGICAL                                  :: failure
 
-    failure=.FALSE.
 
     CPASSERT(ASSOCIATED(tmc_ana))
 
@@ -239,7 +237,6 @@ CONTAINS
 
     LOGICAL                                  :: failure
 
-    failure = .FALSE.
 
     CPASSERT(.NOT.ASSOCIATED(ana_dens))
 
@@ -274,7 +271,6 @@ CONTAINS
 
     LOGICAL                                  :: failure
 
-    failure=.FALSE.
 
     CPASSERT(ASSOCIATED(ana_dens))
 
@@ -303,7 +299,6 @@ CONTAINS
 
     LOGICAL                                  :: failure
 
-    failure = .FALSE.
 
     CPASSERT(.NOT.ASSOCIATED(ana_pair_correl))
     ALLOCATE(ana_pair_correl)
@@ -330,7 +325,6 @@ CONTAINS
 
     LOGICAL                                  :: failure
 
-    failure=.FALSE.
 
     CPASSERT(ASSOCIATED(ana_pair_correl))
 
@@ -408,7 +402,6 @@ CONTAINS
     INTEGER                                  :: i
     LOGICAL                                  :: failure
 
-    failure = .FALSE.
 
     CPASSERT(.NOT.ASSOCIATED(ana_dip_mom))
     ALLOCATE(ana_dip_mom)
@@ -442,7 +435,6 @@ CONTAINS
 
     LOGICAL                                  :: failure
 
-    failure=.FALSE.
 
     CPASSERT(ASSOCIATED(ana_dip_mom))
 
@@ -467,7 +459,6 @@ CONTAINS
 
     LOGICAL                                  :: failure
 
-    failure = .FALSE.
 
     CPASSERT(.NOT.ASSOCIATED(ana_dip_ana))
     ALLOCATE(ana_dip_ana)
@@ -500,7 +491,6 @@ CONTAINS
 
     LOGICAL                                  :: failure
 
-    failure=.FALSE.
 
     CPASSERT(ASSOCIATED(ana_dip_ana))
 
@@ -532,7 +522,6 @@ CONTAINS
 
     LOGICAL                                  :: failure
 
-    failure = .FALSE.
     CPASSERT(.NOT.ASSOCIATED(ana_disp))
     CPASSERT(dim_per_elem.GT.0)
 
@@ -557,7 +546,6 @@ CONTAINS
 
     LOGICAL                                  :: failure
 
-    failure = .FALSE.
     CPASSERT(ASSOCIATED(ana_disp))
 
     DEALLOCATE(ana_disp)

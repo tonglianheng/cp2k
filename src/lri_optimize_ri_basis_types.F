@@ -111,7 +111,6 @@ CONTAINS
     INTEGER                                  :: i
     LOGICAL                                  :: failure
 
-   failure=.FALSE.
 
    IF(ASSOCIATED(lri_opt)) THEN
      IF(ASSOCIATED(lri_opt%subset)) THEN
@@ -160,7 +159,6 @@ CONTAINS
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: expzet, gcca, prefac, zeta
 
-    failure  = .FALSE.
     maxpgf   = SIZE(gto_basis_set%gcc,1)
     maxshell = SIZE(gto_basis_set%gcc,2)
     nset     = SIZE(gto_basis_set%gcc,3)
@@ -229,7 +227,6 @@ CONTAINS
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: gs_scale
 
-    failure  = .FALSE.
 
     CALL get_gto_basis_set(gto_basis_set=gto_basis_set,nset=nset,nshell=nshell)
  

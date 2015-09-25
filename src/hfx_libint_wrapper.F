@@ -125,7 +125,6 @@ MODULE hfx_libint_wrapper
                                                 max_prim
     LOGICAL                                  :: failure
 
-    failure = .FALSE.
     max_am_local= max_am
     max_prim = 1
     CALL init_base()
@@ -163,7 +162,6 @@ MODULE hfx_libint_wrapper
                                                 max_prim
     LOGICAL                                  :: failure
 
-    failure = .FALSE.
     max_am_local= max_am
     max_prim = 1
     max_classes = nco(max_am)**4
@@ -297,7 +295,6 @@ MODULE hfx_libint_wrapper
 
     LOGICAL                                  :: failure
 
-    failure = .FALSE.
     CALL cp_assert( .FALSE. , cp_failure_level,cp_assertion_failed,routineP,&
                    " This CP2K executable has not been linked against the library libint, required for HFX.", &
                    failure)
@@ -318,7 +315,6 @@ MODULE hfx_libint_wrapper
 
     LOGICAL                                  :: failure
 
-    failure = .FALSE.
     CALL cp_assert( .FALSE. , cp_failure_level,cp_assertion_failed,routineP,&
                    " This CP2K executable has not been linked against the library libint, required for HFX.", &
                    failure)

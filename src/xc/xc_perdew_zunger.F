@@ -78,7 +78,6 @@ CONTAINS
     CHARACTER(len=4)                         :: p_string
     LOGICAL                                  :: failure
 
-    failure=.FALSE.
     SELECT CASE (method)
     CASE DEFAULT
        CPASSERT(.FALSE.)
@@ -158,7 +157,6 @@ CONTAINS
     TYPE(xc_derivative_type), POINTER        :: deriv
 
     CALL timeset(routineN,timer_handle)
-    failure=.FALSE.
     NULLIFY(bo,rho, e_0,e_rho,e_rho_rho,e_rho_rho_rho, dummy)
 
     CALL section_vals_val_get(pz_params,"scale_c",r_val=sc)
@@ -313,7 +311,6 @@ SUBROUTINE pz_lda_calc(rho,e_0,e_rho, e_rho_rho, e_rho_rho_rho, npoints, order, 
     TYPE(xc_derivative_type), POINTER        :: deriv
 
     CALL timeset(routineN,timer_handle)
-    failure=.FALSE.
     NULLIFY(bo,a,b,e_0,ea,eaa,eab,ebb,eaaa,eaab,eabb,ebbb)
 
     CALL section_vals_val_get(pz_params,"scale_c",r_val=sc)

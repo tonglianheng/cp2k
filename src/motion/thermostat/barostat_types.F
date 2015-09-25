@@ -88,7 +88,6 @@ CONTAINS
     TYPE(cell_type), POINTER                 :: cell
     TYPE(section_vals_type), POINTER         :: barostat_section
 
-    failure =.FALSE.
     check = .NOT.ASSOCIATED(barostat)
     CPASSERT(check)
     barostat_section => section_vals_get_subs_vals(md_section,"BAROSTAT")
@@ -151,7 +150,6 @@ CPSourceFileRef,&
 
     LOGICAL                                  :: failure
 
-    failure=.FALSE.
 
     IF (ASSOCIATED(barostat)) THEN
        CPASSERT(barostat%ref_count>0)
@@ -174,7 +172,6 @@ CPSourceFileRef,&
 
     LOGICAL                                  :: check, failure
 
-    failure =.FALSE.
     IF (ASSOCIATED(barostat)) THEN
        check = barostat%ref_count>0
        CPASSERT(check)

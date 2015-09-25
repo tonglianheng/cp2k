@@ -182,7 +182,6 @@ CONTAINS
 
     NULLIFY (logger, virial, subsys, atprop_env, cell)
     logger => cp_get_default_logger()
-    failure = .FALSE.
     eval_ef = .TRUE.
     my_skip = .FALSE.
     calculate_forces = .TRUE.
@@ -480,7 +479,6 @@ CONTAINS
     nshell = 0
     numer_stress = 0.0_dp
 
-    failure = .FALSE.
     logger => cp_get_default_logger()
 
 
@@ -668,7 +666,6 @@ CONTAINS
 
     LOGICAL                                  :: failure
 
-    failure=.FALSE.
 
     ALLOCATE ( force_env)
     NULLIFY (force_env%fist_env, force_env%qs_env, &
@@ -808,7 +805,6 @@ CONTAINS
       POINTER                                :: virials
     TYPE(virial_type), POINTER               :: loc_virial, virial_mix
 
-    failure=.FALSE.
     logger => cp_get_default_logger()
     CPASSERT(ASSOCIATED(force_env))
     ! Get infos about the mixed subsys

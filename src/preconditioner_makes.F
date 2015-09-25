@@ -94,7 +94,6 @@ CONTAINS
     INTEGER                                  :: precon_type
     LOGICAL                                  :: failure
 
-    failure=.FALSE.
 
     precon_type=preconditioner_env%in_use                
     SELECT CASE (precon_type)
@@ -159,7 +158,6 @@ CONTAINS
     INTEGER                                  :: handle
     LOGICAL                                  :: failure
 
-    failure = .FALSE.
     CALL timeset(routineN,handle)
   
     CPASSERT(ASSOCIATED(matrix_s))
@@ -195,7 +193,6 @@ CONTAINS
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: shift
 
-    failure = .FALSE.
     CALL timeset(routineN,handle)
 
     CPASSERT(ASSOCIATED(matrix_t))

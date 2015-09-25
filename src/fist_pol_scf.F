@@ -175,7 +175,6 @@ CONTAINS
     TYPE(cp_logger_type), POINTER            :: logger
 
     CALL timeset(routineN,handle)
-    failure = .FALSE.
     NULLIFY(logger,atomic_kind)
     logger => cp_get_default_logger()
 
@@ -397,7 +396,6 @@ CONTAINS
     TYPE(cp_logger_type), POINTER            :: logger
 
     CALL timeset(routineN,handle)
-    failure = .FALSE.
     NULLIFY(logger,atomic_kind)
     logger => cp_get_default_logger()
 
@@ -724,7 +722,6 @@ CONTAINS
     LOGICAL                                  :: failure
 
     CALL timeset(routineN,handle)
-    failure = .FALSE.
 
     pot_nonbond = 0.0_dp ! Initialization..
     vg_coulomb  = 0.0_dp ! Initialization..

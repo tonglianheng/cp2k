@@ -167,7 +167,6 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-    failure=.FALSE.
 
     ! by default, the full density is calculated
     my_soft=.FALSE.
@@ -928,7 +927,6 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-    failure=.FALSE.
     NULLIFY(list)
     ! here we create for each cpu (0:ncpu-1) a list of possible destinations.
     ! if a destination would not be in this list, it is a bug
@@ -1127,7 +1125,6 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-    failure=.FALSE.
 
     ncpu=SIZE(list,3)
     maxdest=SIZE(list,2)
@@ -1235,7 +1232,6 @@ CONTAINS
     CALL get_current_loads(loads, rs_descs, grid_level, ntasks, nimages, natoms, maxset, maxpgf, &
                            tasks, use_reordered_ranks=.FALSE.)
 
-    failure=.FALSE.
 
     maxdest=SIZE(list,2)
     ncpu=SIZE(list,3)
@@ -1445,7 +1441,6 @@ CONTAINS
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: index, sublist
     LOGICAL                                  :: failure
 
-    failure=.FALSE.
 
     CALL timeset(routineN,handle)
 
@@ -1532,7 +1527,6 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-    failure = .FALSE.
 
     desc => rs_descs(grid_level)%rs_desc
 
@@ -1611,7 +1605,6 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-    failure = .FALSE.
 
     desc=>rs_descs(1)%rs_desc
 
@@ -1777,7 +1770,6 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-    failure = .FALSE.
 
     desc=>rs_descs(1)%rs_desc
 
@@ -1963,7 +1955,6 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-    failure = .FALSE.
     CPASSERT(ASSOCIATED(tasks))
 
     ! *** figure out if we have distributed grids
@@ -2200,7 +2191,6 @@ CONTAINS
 ! calculate list of atom pairs
 ! fill pair list taking into acount symmetry
 
-  failure = .FALSE.
 
   natom8 = natoms
   nim8 = nimages
@@ -2301,7 +2291,6 @@ SUBROUTINE rs_distribute_matrix( rs_descs, pmats, atom_pair_send, atom_pair_recv
 
   CALL timeset(routineN,handle)
 
-  failure = .FALSE.
   IF (.not.scatter) THEN
     CPASSERT(PRESENT(hmats))
   END IF
@@ -2631,7 +2620,6 @@ END SUBROUTINE rs_distribute_matrix
     coord(3)=rs_desc % z2coord(cube_center(3))
     dest=rs_desc%coord2rank(coord(1),coord(2),coord(3))
 
-    failure=.FALSE.
 
     ! the real cube coordinates
     lbc=lb_cube+cube_center

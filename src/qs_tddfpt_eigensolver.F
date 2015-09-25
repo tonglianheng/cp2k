@@ -88,7 +88,6 @@ CONTAINS
     CALL timeset(routineN,handle)
 
     NULLIFY(logger, dft_control)
-    failure   = .FALSE.
 
     logger    => cp_get_default_logger()
     output_unit  = cp_logger_get_default_io_unit(logger)
@@ -208,7 +207,6 @@ CONTAINS
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(tddfpt_control_type), POINTER       :: tddfpt_control
 
-    failure   = .FALSE.
     res       = .FALSE.
 
     CALL timeset(routineN,handle)

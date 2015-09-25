@@ -100,7 +100,6 @@ CONTAINS
     LOGICAL                                  :: failure
     REAL(dp)                                 :: alpha, eps, gcut
 
-    failure=.FALSE.
 
     CPASSERT(.NOT.ASSOCIATED(mixing_store))
     ALLOCATE(mixing_store)
@@ -196,7 +195,6 @@ CONTAINS
     INTEGER                                  :: i, j, k
     LOGICAL                                  :: failure
 
-  failure=.FALSE.
 
   IF (ASSOCIATED(mixing_store)) THEN
      CPASSERT(mixing_store%ref_count>0)
@@ -396,7 +394,6 @@ CONTAINS
     LOGICAL                                  :: failure, ls
     TYPE(keyword_type), POINTER              :: keyword
 
-    failure = .FALSE.
 
     CPASSERT(.NOT.ASSOCIATED(section))
 

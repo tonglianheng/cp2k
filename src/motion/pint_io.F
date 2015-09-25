@@ -128,7 +128,6 @@ MODULE pint_io
 
     CALL timeset(routineN,handle1)
 
-    failure=.FALSE.
     CPASSERT(ASSOCIATED(pint_env))
     CPASSERT(pint_env%ref_count>0)
     IF (failure) THEN
@@ -293,7 +292,6 @@ MODULE pint_io
 
     CALL timeset(routineN,handle1)
 
-    failure=.FALSE.
     CPASSERT(ASSOCIATED(pint_env))
     CPASSERT(pint_env%ref_count>0)
     IF (failure) THEN
@@ -440,7 +438,6 @@ MODULE pint_io
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(section_vals_type), POINTER         :: print_key
 
-    failure=.FALSE.
     CPASSERT(ASSOCIATED(pint_env))
 
     NULLIFY(logger)
@@ -511,7 +508,6 @@ MODULE pint_io
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(section_vals_type), POINTER         :: print_key
 
-    failure = .FALSE.
     CPASSERT(ASSOCIATED(pint_env))
     CPASSERT(pint_env%ref_count>0)
     IF ( failure ) RETURN
@@ -600,7 +596,6 @@ MODULE pint_io
     REAL(kind=dp)                            :: time_used
     TYPE(cp_logger_type), POINTER            :: logger
 
-    failure=.FALSE.
     CPASSERT(ASSOCIATED(pint_env))
 
     NULLIFY(logger)
@@ -665,7 +660,6 @@ MODULE pint_io
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(section_vals_type), POINTER         :: print_key
 
-    failure=.FALSE.
     CPASSERT(ASSOCIATED(pint_env))
 
     NULLIFY(logger)

@@ -97,7 +97,6 @@ CONTAINS
     TYPE(xc_derivative_type), POINTER        :: deriv_att
 
     CALL timeset(routineN,handle)
-    failure = .FALSE.
     my_only_energy = .FALSE.
     IF(PRESENT(energy_only)) my_only_energy=energy_only
 
@@ -359,7 +358,6 @@ CONTAINS
     TYPE(xc_derivative_type), POINTER        :: deriv_att
 
     CALL timeset(routineN,handle)
-    failure = .FALSE.
 
     nspins = SIZE(vxc,3)
     lsd = (nspins==2)
@@ -592,7 +590,6 @@ CONTAINS
     LOGICAL                                  :: failure, gradient_f, &
                                                 tddft_split
 
-    failure = .FALSE.
     my_nspins = nspins
     tddft_split = .FALSE.
     IF (lsd .AND. nspins==1) THEN

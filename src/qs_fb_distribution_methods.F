@@ -152,7 +152,6 @@ CONTAINS
 
     CALL timeset(routineN, handle)
 
-    failure = .FALSE.
 
     NULLIFY(mat_ks, rcut, cell, para_env, particle_set, qs_kind_set, &
             halo_atoms, local_atoms)
@@ -392,7 +391,6 @@ CONTAINS
                                                 max_cost, min_cost, total_cost
     TYPE(cp_logger_type), POINTER            :: logger
 
-    failure = .FALSE.
 
     nprocs = SIZE(dist_set)
     natoms = 0
@@ -475,7 +473,6 @@ CONTAINS
     TYPE(dbcsr_distribution_obj)             :: dbcsr_dist
     TYPE(dbcsr_mp_obj)                       :: dbcsr_mp
 
-    failure = .FALSE.
     check_ok = natoms .LE. cp_dbcsr_nblkcols_total(dbcsr_mat)
     CPASSERT(check_ok)
     check_ok = SIZE(preferred_procs_set) .GE. natoms
@@ -523,7 +520,6 @@ CONTAINS
 
     LOGICAL                                  :: failure
 
-    failure = .FALSE.
     IF (ASSOCIATED(preferred_procs_list%list)) THEN
        DEALLOCATE(preferred_procs_list%list)
     END IF
@@ -557,7 +553,6 @@ CONTAINS
     INTEGER                                  :: iatom, ipe, n_procs, pos
     LOGICAL                                  :: check_ok, failure
 
-    failure = .FALSE.
 
     n_procs = SIZE(dist_set)
 
@@ -598,7 +593,6 @@ CONTAINS
     INTEGER                                  :: ii, my_nmax
     LOGICAL                                  :: failure
 
-    failure = .FALSE.
     my_nmax = 0
     IF (PRESENT(nmax)) my_nmax = nmax
     IF (ASSOCIATED(dist%list)) THEN
@@ -635,7 +629,6 @@ CONTAINS
     TYPE(fb_distribution_element), &
       DIMENSION(:), POINTER                  :: new_list
 
-    failure = .FALSE.
     IF (.NOT. ASSOCIATED(dist%list)) THEN
        my_nmax = MAX(nmax, 1)
        ALLOCATE(dist%list(my_nmax))
@@ -672,7 +665,6 @@ CONTAINS
     INTEGER                                  :: ii, new_nelements, pos
     LOGICAL                                  :: failure
 
-    failure = .FALSE.
     new_nelements = dist%nelements + 1
 
     ! resize list if necessary
@@ -751,7 +743,6 @@ CONTAINS
     INTEGER                                  :: ii
     LOGICAL                                  :: check_ok, failure
 
-    failure = .FALSE.
     check_ok = pos .GT. 0
     CPASSERT(check_ok)
     IF (pos .LE. dist%nelements) THEN
@@ -816,7 +807,6 @@ CONTAINS
     LOGICAL                                  :: check_ok, failure
     TYPE(fb_distribution_element)            :: element
 
-    failure = .FALSE.
     check_ok = ASSOCIATED(dist_from%list)
     CPASSERT(check_ok)
     check_ok = pos .LE. dist_from%nelements
@@ -846,7 +836,6 @@ CONTAINS
 
     LOGICAL                                  :: check_ok, failure
 
-    failure = .FALSE.
     check_ok = ASSOCIATED(dist_from%list)
     CPASSERT(check_ok)
     CALL fb_distribution_add(dist_to, element)
@@ -867,7 +856,6 @@ CONTAINS
 
     LOGICAL                                  :: failure
 
-    failure = .FALSE.
     IF (ASSOCIATED(dist%list)) THEN
        DEALLOCATE(dist%list)
     END IF

@@ -93,7 +93,6 @@ CONTAINS
     LOGICAL                                  :: explicit, failure
     TYPE(section_vals_type), POINTER         :: wrk_section
 
-    failure = .FALSE.
     CPASSERT(ASSOCIATED(neb_env))
     neb_env%istep = 0
     CALL section_vals_val_get(neb_section,"BAND_TYPE",i_val=neb_env%id_type)
@@ -199,7 +198,6 @@ CONTAINS
     TYPE(section_type), POINTER              :: section
     TYPE(section_vals_type), POINTER         :: tc_section, vc_section
 
-    failure = .FALSE.
     CALL timeset(routineN,handle)
     ndig  = CEILING(LOG10(REAL(neb_env%number_of_replica+1,KIND=dp)))
     CALL force_env_get(neb_env%force_env, cell=cell)
@@ -428,7 +426,6 @@ CONTAINS
     TYPE(section_vals_type), POINTER         :: root_section
 
     CALL timeset(routineN,handle)
-    failure = .FALSE.
     CALL f_env_add_defaults(f_env_id=rep_env%f_env_id, f_env=f_env,&
          failure=failure, handle=handle2)
     logger => cp_get_default_logger()
@@ -513,7 +510,6 @@ CONTAINS
     INTEGER                                  :: i, lp, ndigits
     LOGICAL                                  :: failure
 
-    failure = .FALSE.
     ! Setup new replica project name and output file
     replica_proj_name = rep_env%original_project_name
     ! Find padding
@@ -550,7 +546,6 @@ CONTAINS
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(f_env_type), POINTER                :: f_env
 
-    failure = .FALSE.
     n_rep_neb = neb_env%number_of_replica
     n_rep     = rep_env%nrep
     CALL f_env_add_defaults(f_env_id=rep_env%f_env_id, f_env=f_env,&

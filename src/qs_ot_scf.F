@@ -77,7 +77,6 @@ CONTAINS
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(section_vals_type), POINTER         :: ot_section
 
-    failure=.FALSE.
 
     CALL timeset(routineN,handle)
 
@@ -159,7 +158,6 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-    failure=.FALSE.
     NULLIFY(logger)
     logger => cp_get_default_logger()
 

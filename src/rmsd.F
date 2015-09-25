@@ -74,7 +74,6 @@ CONTAINS
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: r0p, rp
 
-    failure   = .FALSE.
     CPASSERT(SIZE(r)==SIZE(r0))
     natom     = SIZE(particle_set)
     my_rotate = .FALSE.

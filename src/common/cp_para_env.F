@@ -54,7 +54,6 @@ CONTAINS
 
     LOGICAL                                  :: failure
 
-    failure=.FALSE.
 
     CPASSERT(.NOT.ASSOCIATED(para_env))
     ALLOCATE(para_env)
@@ -89,7 +88,6 @@ CONTAINS
 
     LOGICAL                                  :: failure
 
-    failure=.FALSE.
 
     CPASSERT(ASSOCIATED(para_env))
     CPASSERT(para_env%ref_count>0)
@@ -115,7 +113,6 @@ CONTAINS
 
     LOGICAL                                  :: failure
 
-    failure=.FALSE.
 
     IF (ASSOCIATED(para_env)) THEN
       CPASSERT(para_env%ref_count>0)
@@ -145,7 +142,6 @@ CONTAINS
 
     LOGICAL                                  :: failure
 
-    failure=.FALSE.
 
     CPASSERT(ASSOCIATED(para_env))
     CPASSERT(para_env%ref_count>0)
@@ -172,7 +168,6 @@ SUBROUTINE cp_para_env_write(para_env,unit_nr)
     INTEGER                                  :: iostat
     LOGICAL                                  :: failure
 
-  failure=.FALSE.
 
   IF (ASSOCIATED(para_env)) THEN
      WRITE (unit=unit_nr,&
@@ -217,7 +212,6 @@ SUBROUTINE cp_cart_create(cart, group, ndims,owns_group)
 
     LOGICAL                                  :: failure
 
-    failure=.FALSE.
 
     CPASSERT(.NOT.ASSOCIATED(cart))
     ALLOCATE(cart)
@@ -250,7 +244,6 @@ SUBROUTINE cp_cart_update(cart)
 
     LOGICAL                                  :: failure
 
-  failure=.FALSE.
 
   CPASSERT(ASSOCIATED(cart))
   CPASSERT(cart%ref_count>0)
@@ -272,7 +265,6 @@ SUBROUTINE cp_cart_release(cart)
 
     LOGICAL                                  :: failure
 
-  failure=.FALSE.
 
   IF (ASSOCIATED(cart)) THEN
      CPASSERT(cart%ref_count>0)
@@ -301,7 +293,6 @@ SUBROUTINE cp_cart_retain(cart)
 
     LOGICAL                                  :: failure
 
-  failure=.FALSE.
 
   CPASSERT(ASSOCIATED(cart))
   CPASSERT(cart%ref_count>0)
@@ -324,7 +315,6 @@ SUBROUTINE cp_cart_write(cart,unit_nr)
     INTEGER                                  :: iostat
     LOGICAL                                  :: failure
 
-  failure=.FALSE.
 
   IF (ASSOCIATED(cart)) THEN
      WRITE (unit=unit_nr,&

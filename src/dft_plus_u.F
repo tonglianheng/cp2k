@@ -113,7 +113,6 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-    failure = .FALSE.
     CPASSERT(ASSOCIATED(qs_env))
 
     NULLIFY (input, dft_control)
@@ -292,7 +291,6 @@ CONTAINS
     NULLIFY (para_env)
     NULLIFY (blacs_env)
 
-    failure = .FALSE.
 
     smear = .FALSE.
     max_scf = -1
@@ -952,7 +950,6 @@ CONTAINS
     NULLIFY (v_block)
     NULLIFY (para_env)
 
-    failure = .FALSE.
 
     smear = .FALSE.
     max_scf = -1
@@ -1605,7 +1602,6 @@ CONTAINS
     NULLIFY (w_block)
     NULLIFY (para_env)
 
-    failure = .FALSE.
 
     CALL get_qs_env(qs_env=qs_env,&
                     atomic_kind_set=atomic_kind_set,&

@@ -145,7 +145,6 @@ CONTAINS
     TYPE(sap_int_type), DIMENSION(:), &
       POINTER                                :: sap_int
 
-    failure = .FALSE.
     IF (calculate_forces) THEN
       CALL timeset(routineN//"_forces",handle)
     ELSE

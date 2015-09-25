@@ -54,7 +54,6 @@ CONTAINS
     LOGICAL                                  :: failure
     TYPE(gt_elem_list_type), POINTER         :: tmp_pt_list_elem
 
-    failure = .FALSE.
     NULLIFY(tmp_pt_list_elem)
 
     CPASSERT(ASSOCIATED(gt_elem))
@@ -106,7 +105,6 @@ CONTAINS
     INTEGER                                  :: handle
     LOGICAL                                  :: failure
 
-    failure = .FALSE.
     CPASSERT(ASSOCIATED(gt_ptr))
     CPASSERT(ASSOCIATED(tmc_env))
 
@@ -143,7 +141,6 @@ CONTAINS
     LOGICAL                                  :: failure
     TYPE(gt_elem_list_type), POINTER         :: tmp_gt_list_ptr
 
-    failure = .FALSE.
     NULLIFY(tmp_gt_list_ptr)
 
     CPASSERT(ASSOCIATED(ptr))
@@ -223,7 +220,6 @@ CONTAINS
     TYPE(gt_elem_list_type), POINTER         :: tmp_gt_list_last_ptr, &
                                                 tmp_gt_list_ptr
 
-    failure = .FALSE.
     NULLIFY(tmp_gt_list_ptr, tmp_gt_list_last_ptr)
 
     ! nothing to do, when subtree element is already deleted

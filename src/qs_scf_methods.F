@@ -110,7 +110,6 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-    failure=.FALSE.
     my_diis=.FALSE.
     IF (PRESENT(diis)) my_diis=diis
     my_invert=.FALSE.
@@ -482,7 +481,6 @@ CONTAINS
     TYPE(cp_dbcsr_iterator)                  :: iter
 
     CALL timeset(routineN,handle)
-    failure = .FALSE.
     delta = 0.0_dp
 
     CALL cp_dbcsr_iterator_start(iter, m1)
@@ -560,7 +558,6 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-    failure = .FALSE.
 
     CPASSERT(ASSOCIATED(ksa))
     CPASSERT(ASSOCIATED(ksb))
@@ -641,7 +638,6 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-    failure = .FALSE.
 
     CPASSERT(ASSOCIATED(ksa))
     CPASSERT(ASSOCIATED(ksb))

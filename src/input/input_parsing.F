@@ -108,7 +108,6 @@ CONTAINS
 
     NULLIFY(previous_list,previous_last)
 
-    failure=.FALSE.
     root_sect=.TRUE.
     IF (PRESENT(root_section)) root_sect=root_section
 
@@ -370,7 +369,6 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-    failure=.FALSE.
     CPASSERT(.NOT.ASSOCIATED(val))
     SELECT CASE(type_of_var)
     CASE(no_t)
@@ -656,7 +654,6 @@ CPSourceFileRef,&
     LOGICAL                                  :: check, failure
     TYPE(cp_unit_type), POINTER              :: my_unit
 
-    failure = .FALSE.
     NULLIFY(my_unit)
     IF (ASSOCIATED(unit)) THEN
        IF ('STR'==parser_test_next_token(parser)) THEN

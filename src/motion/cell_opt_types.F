@@ -81,7 +81,6 @@ CONTAINS
     TYPE(cp_subsys_type), POINTER            :: subsys
     TYPE(particle_list_type), POINTER        :: particles
 
-    failure=.FALSE.
     CPASSERT(.NOT.ASSOCIATED(cell_env))
     ALLOCATE(cell_env)
     NULLIFY(cell_env%ref_cell,cell,subsys,particles)
@@ -128,7 +127,6 @@ CONTAINS
 
     LOGICAL                                  :: failure
 
-    failure=.FALSE.
     CPASSERT(ASSOCIATED(cell_env))
     CPASSERT(cell_env%ref_count>0)
     cell_env%ref_count=cell_env%ref_count+1
@@ -149,7 +147,6 @@ CONTAINS
 
     LOGICAL                                  :: failure
 
-    failure=.FALSE.
     IF (ASSOCIATED(cell_env)) THEN
        CPASSERT(cell_env%ref_count>0)
        cell_env%ref_count=cell_env%ref_count-1

@@ -174,7 +174,6 @@ CONTAINS
     TYPE(virial_type), POINTER               :: virial
 
      NULLIFY(dft_control)
-     failure = .FALSE.
 
      CALL timeset(routineN,handle)
 
@@ -507,7 +506,6 @@ CONTAINS
       POINTER                                :: qs_kind_set
     TYPE(virial_type), POINTER               :: virial
 
-     failure = .FALSE.
 
      CALL timeset(routineN,handle)
 
@@ -688,7 +686,6 @@ CONTAINS
     TYPE(qs_kind_type), DIMENSION(:), &
       POINTER                                :: qs_kind_set
 
-     failure = .FALSE.
 
      CALL get_ks_env(ks_env=ks_env,particle_set=particle_set,&
                      qs_kind_set=qs_kind_set, dbcsr_dist=dbcsr_dist)
@@ -791,7 +788,6 @@ CONTAINS
     TYPE(qs_kind_type), DIMENSION(:), &
       POINTER                                :: qs_kind_set
 
-    failure = .FALSE.
 
     CALL get_ks_env(ks_env=ks_env,particle_set=particle_set,&
                     qs_kind_set=qs_kind_set, dbcsr_dist=dbcsr_dist)

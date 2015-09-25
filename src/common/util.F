@@ -131,7 +131,6 @@ CONTAINS
     INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: entries
     LOGICAL                                  :: failure
 
-    failure    = .FALSE.
     max_length = 0
     DO i = 1, n
       max_length = MAX(max_length,LEN_TRIM(arr(i)))
@@ -177,7 +176,6 @@ CONTAINS
                                                 work2
     LOGICAL                                  :: failure
 
-    failure = .FALSE.
 #include "sort_m.f90"
   END SUBROUTINE sort_im
 
@@ -205,7 +203,6 @@ CONTAINS
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: bck_index, tmp_index
     LOGICAL                                  :: failure
 
-    failure = .FALSE.
 #include "sort_m.f90"
   END SUBROUTINE sort_cm
 

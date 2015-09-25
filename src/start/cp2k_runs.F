@@ -189,7 +189,6 @@ CONTAINS
                                                 root_section
 
     cp2k_run_OK = .FALSE.
-    failure=.FALSE.
     was_present = .FALSE.
     NULLIFY(para_env, f_env, dft_control)
     CALL cp_para_env_create(para_env, group=mpi_comm,&
@@ -479,7 +478,6 @@ CONTAINS
     TYPE(section_vals_type), POINTER         :: g_data
 
 
-    failure=.FALSE.
     ! the primus of all slaves, talks to the master on topics concerning all slaves
     CALL timeset(routineN,handle)
     NULLIFY(my_parser,g_section,g_data,default_units)
@@ -858,7 +856,6 @@ CONTAINS
     LOGICAL                                  :: failure
     TYPE(section_type), POINTER              :: root_section
 
-    failure=.FALSE.
 
     NULLIFY(root_section)
     CALL create_cp2k_root_section(root_section)
@@ -1007,7 +1004,6 @@ CONTAINS
     LOGICAL                                  :: failure
     TYPE(section_type), POINTER              :: root_section
 
-    failure = .FALSE.
     NULLIFY(root_section)
     CALL create_cp2k_root_section(root_section)
     CALL keyword_release(root_section%keywords(0)%keyword)
@@ -1102,7 +1098,6 @@ CONTAINS
     LOGICAL                                  :: failure, success
     TYPE(cp_para_env_type), POINTER          :: para_env
 
-    failure=.FALSE.
     IF (PRESENT(mpi_comm)) THEN
        NULLIFY(para_env)
        CALL cp_para_env_create(para_env, group=mpi_comm, owns_group=.FALSE.) !XXXXXXXXXXXX uninitiliased error

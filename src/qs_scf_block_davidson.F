@@ -89,7 +89,6 @@ CONTAINS
     TYPE(cp_fm_struct_type), POINTER         :: fm_struct_tmp
     TYPE(cp_fm_type), POINTER                :: block_mat, matrix_tmp
 
-    failure=.FALSE.
 
     CALL timeset(routineN,handle)
 
@@ -176,7 +175,6 @@ CONTAINS
       h_block, h_fm, m_hc, m_sc, m_tmp, mo_coeff, mt_tmp, s_block, s_fm, &
       v_block, w_block
 
-    failure=.FALSE.
 
     CALL timeset(routineN,handle)
 
@@ -583,7 +581,6 @@ CONTAINS
       matrix_nm_fm, matrix_z_fm, mo_coeff, mo_conv_fm, mo_notconv_fm, &
       s_block, v_block, w_block
 
-    failure=.FALSE.
     CALL timeset(routineN,handle)
 
     do_apply_preconditioner = .FALSE.
@@ -1036,7 +1033,6 @@ CONTAINS
     INTEGER                                  :: handle, info
     LOGICAL                                  :: failure
 
-    failure=.FALSE.
 
     CALL timeset(routineN,handle)
 

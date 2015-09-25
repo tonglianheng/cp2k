@@ -84,7 +84,6 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-    failure = .FALSE.
 
     NULLIFY(fm_matrix, fm_eigenvectors, fm_struct)
     CALL cp_dbcsr_get_info(matrix,nfullrows_total=nfullrows_total)
@@ -254,7 +253,6 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-    failure=.FALSE.
 
     NULLIFY(fm_matrix, fm_eigenvectors, fm_struct)
     CALL cp_dbcsr_get_info(matrix,nfullrows_total=nfullrows_total)

@@ -102,7 +102,6 @@ CONTAINS
 
     LOGICAL                                  :: failure
 
-    failure = .FALSE.
     IF (ASSOCIATED(paw_proj_set)) CALL deallocate_paw_proj_set(paw_proj_set)
 
     ALLOCATE (paw_proj_set)
@@ -152,7 +151,6 @@ CONTAINS
 
     LOGICAL                                  :: failure
 
-    failure = .FALSE.
 
     DEALLOCATE (paw_proj_set%zisomin)
     DEALLOCATE (paw_proj_set%zprjisomin)
@@ -279,7 +277,6 @@ CONTAINS
     NULLIFY (first_cgf,first_sgf,last_cgf,last_sgf,gcc,l,set_radius,set_radius2)
     NULLIFY (cphi,sphi,lmax,lmin,npgf,nshell,zet,zetp,smat,work,gcca)
 
-    failure =.FALSE.
     CPASSERT(ASSOCIATED(paw_proj))
     CPASSERT(ASSOCIATED(orb_basis))
 

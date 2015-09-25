@@ -119,7 +119,6 @@ CONTAINS
     TYPE(section_vals_type), POINTER         :: topology_section
 
     CALL timeset(routineN,handle)
-    failure = .FALSE.
     logger => cp_get_default_logger()
 
     iw = cp_print_key_unit_nr(logger,mm_section,"PRINT%FF_INFO",&
@@ -235,7 +234,6 @@ CONTAINS
     TYPE(cp_logger_type), POINTER            :: logger
 
     CALL timeset(routineN,handle)
-    failure = .FALSE.
     logger => cp_get_default_logger()
     IF (BTEST(cp_print_key_should_output(logger%iter_info,mm_section,"PRINT%FF_PARAMETER_FILE")&
          ,cp_p_file)) THEN

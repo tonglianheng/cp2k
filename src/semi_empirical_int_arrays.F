@@ -164,7 +164,6 @@ CONTAINS
     INTEGER                                  :: i, j
     LOGICAL                                  :: failure
 
-    failure = .FALSE.
     DO i = 1, 9
        DO j = 1, i
           ! indexa:
@@ -210,7 +209,6 @@ CONTAINS
 
     LOGICAL                                  :: failure
 
-    failure = .FALSE.
     ! Setup indexes for integral rotations
     ! INDPP
     indpp(1, 1) =  1
@@ -283,7 +281,6 @@ CONTAINS
       ALMs20_49m, ALMs35, ALMs35m, ALMs45, ALMs5_49, ALMs5_49m, CLM23, &
       CLM23m, CLM43, CLM43m, CLMs13, CLMs13m, CLMs43, CLMs43m
 
-    failure = .FALSE.
     CLM1       =  1
     CLM1m      = -1
     CLMs13     =  SQRT(1.0_dp/3.0_dp)
@@ -492,7 +489,6 @@ CONTAINS
 
     LOGICAL                                  :: failure
 
-    failure = .FALSE.
     ! Address unique indexes (excluding those related by rotations)
     ! Indexes according:
     !           s   pz   px   py  dz2  dzx  dzy dx2-y2 dxy

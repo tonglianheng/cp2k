@@ -159,7 +159,6 @@ CONTAINS
     TYPE(mol_new_list_type), POINTER         :: molecules_new
     TYPE(particle_list_type), POINTER        :: particles
 
-    failure=.FALSE.
     NULLIFY( atomic_kinds, particles, molecules_new, molecule_kinds_new )
     CPASSERT(ASSOCIATED(mixed_env%subsys))
 
@@ -262,7 +261,6 @@ CONTAINS
     TYPE(mol_new_list_type), POINTER         :: molecules_new
     TYPE(particle_list_type), POINTER        :: particles
 
-    failure=.FALSE.
     CPASSERT(mixed_env%ref_count>0)
 
     IF (PRESENT(cell_ref)) THEN
@@ -338,7 +336,6 @@ CONTAINS
 
     LOGICAL                                  :: failure
 
-    failure=.FALSE.
 
     ALLOCATE(mixed_env)
     CALL init_mixed_env(mixed_env,para_env=para_env)
@@ -357,7 +354,6 @@ CONTAINS
 
     LOGICAL                                  :: failure
 
-    failure=.FALSE.
 
     CPASSERT(ASSOCIATED(mixed_env))
     CPASSERT(mixed_env%ref_count>0)
@@ -378,7 +374,6 @@ CONTAINS
     INTEGER                                  :: i, ngroups
     LOGICAL                                  :: failure
 
-    failure=.FALSE.
 
     IF (ASSOCIATED(mixed_env)) THEN
        CPASSERT(mixed_env%ref_count>0)

@@ -88,7 +88,6 @@ CONTAINS
     TYPE(gromos_info_type), POINTER          :: gro_info
 
     CALL timeset(routineN,handle)
-    failure = .FALSE.
     NULLIFY(logger,parser)
     logger => cp_get_default_logger()
     iw = cp_print_key_unit_nr(logger,mm_section,"PRINT%FF_INFO",&
@@ -341,7 +340,6 @@ CONTAINS
     TYPE(cp_parser_type), POINTER            :: parser
 
     CALL timeset(routineN,handle)
-    failure = .FALSE.
     NULLIFY(logger,parser)
     logger => cp_get_default_logger()
     iw = cp_print_key_unit_nr(logger,mm_section,"PRINT%FF_INFO",&
@@ -704,7 +702,6 @@ CONTAINS
     TYPE(cp_logger_type), POINTER            :: logger
 
     CALL timeset(routineN,handle)
-    failure = .FALSE.
     NULLIFY(logger)
     logger => cp_get_default_logger()
     iw = cp_print_key_unit_nr(logger,mm_section,"PRINT%FF_INFO",&

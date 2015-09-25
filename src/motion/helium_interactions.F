@@ -201,7 +201,6 @@ vkin = 0.0_dp
                                                 sig
     REAL(KIND=dp), DIMENSION(3)              :: dr, helium_r, solute_r
 
-    failure=.FALSE.
     CPASSERT(ASSOCIATED(helium))
     CPASSERT(ASSOCIATED(pint_env))
 

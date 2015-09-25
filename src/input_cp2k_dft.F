@@ -160,7 +160,6 @@ CONTAINS
     TYPE(keyword_type), POINTER              :: keyword
     TYPE(section_type), POINTER              :: subsection
 
-    failure=.FALSE.
 
     CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="dft",&
@@ -434,7 +433,6 @@ CONTAINS
     TYPE(keyword_type), POINTER              :: keyword
     TYPE(section_type), POINTER              :: print_key, subsection
 
-    failure=.FALSE.
 
     NULLIFY(keyword, subsection, print_key)
     CPASSERT(.NOT.ASSOCIATED(section))
@@ -484,7 +482,6 @@ CONTAINS
     TYPE(keyword_type), POINTER              :: keyword
     TYPE(section_type), POINTER              :: subsection
 
-    failure=.FALSE.
 
     NULLIFY(keyword, subsection)
     CPASSERT(.NOT.ASSOCIATED(section))
@@ -520,7 +517,6 @@ CONTAINS
     LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
 
-    failure=.FALSE.
 
     NULLIFY(keyword)
     CPASSERT(.NOT.ASSOCIATED(section))
@@ -580,7 +576,6 @@ CONTAINS
     TYPE(section_type), POINTER              :: print_key, print_section, &
                                                 subsection
 
-    failure=.FALSE.
 
     CPASSERT(.NOT.ASSOCIATED(section))
 
@@ -807,7 +802,6 @@ CONTAINS
     TYPE(keyword_type), POINTER              :: keyword
     TYPE(section_type), POINTER              :: print_key
 
-    failure=.FALSE.
     CPASSERT(ASSOCIATED(section))
     NULLIFY(print_key, keyword)
     CALL cp_print_key_section_create(print_key,"WANNIER_CUBES",&
@@ -896,7 +890,6 @@ CONTAINS
     TYPE(section_type), POINTER              :: print_key, sub_print_key, &
                                                 subsection
 
-    failure = .FALSE.
 
     CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="PRINT",&
@@ -2139,7 +2132,6 @@ CONTAINS
     TYPE(keyword_type), POINTER              :: keyword
     TYPE(section_type), POINTER              :: subsection
 
-    failure=.FALSE.
     NULLIFY(subsection)
     NULLIFY(keyword)
 
@@ -2250,7 +2242,6 @@ CONTAINS
     TYPE(keyword_type), POINTER              :: keyword
     TYPE(section_type), POINTER              :: print_key2
 
-    failure=.FALSE.
     CPASSERT(.NOT.ASSOCIATED(print_key))
     NULLIFY(print_key2, keyword)
     CALL cp_print_key_section_create(print_key,"MOLECULAR_STATES",&
@@ -2306,7 +2297,6 @@ CONTAINS
     TYPE(keyword_type), POINTER              :: keyword
     TYPE(section_type), POINTER              :: print_key2
 
-    failure=.FALSE.
     CPASSERT(.NOT.ASSOCIATED(print_key))
     NULLIFY(print_key2, keyword)
     CALL cp_print_key_section_create(print_key,"WANNIER_STATES",&
@@ -2361,7 +2351,6 @@ CONTAINS
     TYPE(keyword_type), POINTER              :: keyword
     TYPE(section_type), POINTER              :: subsection
 
-    failure=.FALSE.
     CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,"qs",&
          description="parameters needed to set up the Quickstep framework",&
@@ -2744,7 +2733,6 @@ CONTAINS
     TYPE(keyword_type), POINTER              :: keyword
     TYPE(section_type), POINTER              :: subsection
 
-    failure=.FALSE.
 
     CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,"DFTB",&
@@ -2821,7 +2809,6 @@ CONTAINS
     LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
 
-    failure=.FALSE.
 
     CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,"SCPTB",&
@@ -2914,7 +2901,6 @@ CONTAINS
     LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
 
-    failure=.FALSE.
     NULLIFY(keyword)
     CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,"AUXILIARY_DENSITY_MATRIX_METHOD",&
@@ -3019,7 +3005,6 @@ CONTAINS
     LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
 
-    failure=.FALSE.
 
     CPASSERT(.NOT.ASSOCIATED(section))
 
@@ -3122,7 +3107,6 @@ CONTAINS
     TYPE(keyword_type), POINTER              :: keyword
     TYPE(section_type), POINTER              :: subsection
 
-    failure=.FALSE.
 
     NULLIFY(keyword)
     CPASSERT(.NOT.ASSOCIATED(section))
@@ -3276,7 +3260,6 @@ CONTAINS
     LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
 
-    failure=.FALSE.
     CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="LR_CORRECTION",&
          description="Setup parameters for the evaluation of the long-range correction term in SE "//&
@@ -3321,7 +3304,6 @@ CONTAINS
     LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
 
-    failure=.FALSE.
     CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="COULOMB",&
          description="Setup parameters for the evaluation of the COULOMB term in SE "//&
@@ -3368,7 +3350,6 @@ CONTAINS
     LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
 
-    failure=.FALSE.
     CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="EXCHANGE",&
          description="Setup parameters for the evaluation of the EXCHANGE and "//&
@@ -3418,7 +3399,6 @@ CONTAINS
     LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
 
-    failure=.FALSE.
     CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="SCREENING",&
          description="Setup parameters for the tapering of the Coulomb/Exchange Screening in "//&
@@ -3455,7 +3435,6 @@ CONTAINS
     LOGICAL                                  :: failure
     TYPE(section_type), POINTER              :: print_key
 
-    failure=.FALSE.
     CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="print",&
          description="Section of possible print options in SE code.",&
@@ -3499,7 +3478,6 @@ CONTAINS
     LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
 
-    failure=.FALSE.
 
     CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,"GA",&
@@ -3532,7 +3510,6 @@ CONTAINS
     LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
 
-    failure=.FALSE.
 
     CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,"MEMORY",&
@@ -3581,7 +3558,6 @@ CONTAINS
     LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
 
-    failure=.FALSE.
     NULLIFY(keyword)
     CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,"MULLIKEN_RESTRAINT",&
@@ -3624,7 +3600,6 @@ CONTAINS
     TYPE(keyword_type), POINTER              :: keyword
     TYPE(section_type), POINTER              :: print_key
 
-    failure=.FALSE.
     NULLIFY(keyword, print_key)
     CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,"DENSITY_FITTING",&
@@ -3702,7 +3677,6 @@ CONTAINS
     TYPE(keyword_type), POINTER              :: keyword
     TYPE(section_type), POINTER              :: print_key
 
-    failure=.FALSE.
     NULLIFY(keyword, print_key)
     CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,"DDAPC_RESTRAINT",&
@@ -3779,7 +3753,6 @@ CONTAINS
     TYPE(keyword_type), POINTER              :: keyword
     TYPE(section_type), POINTER              :: print_key
 
-    failure=.FALSE.
     NULLIFY(keyword, print_key)
     CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,"BECKE_RESTRAINT",&
@@ -3854,7 +3827,6 @@ CONTAINS
     LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
 
-    failure=.FALSE.
     NULLIFY(keyword)
     CPASSERT(.NOT.ASSOCIATED(section))
 
@@ -3902,7 +3874,6 @@ CONTAINS
     TYPE(keyword_type), POINTER              :: keyword
     TYPE(section_type), POINTER              :: subsection
 
-    failure=.FALSE.
 
     CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,"tddfpt",&
@@ -4056,7 +4027,6 @@ CONTAINS
     LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
 
-    failure=.FALSE.
 
     CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,"relativistic",&
@@ -4135,7 +4105,6 @@ CONTAINS
     TYPE(keyword_type), POINTER              :: keyword
     TYPE(section_type), POINTER              :: print_key, subsection
 
-    failure=.FALSE.
     NULLIFY(print_key)
 
     CPASSERT(.NOT.ASSOCIATED(section))
@@ -4447,7 +4416,6 @@ CONTAINS
     TYPE(keyword_type), POINTER              :: keyword
     TYPE(section_type), POINTER              :: print_key, subsection
 
-    failure=.FALSE.
 
     CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,"KG_METHOD",&
@@ -4539,7 +4507,6 @@ CONTAINS
     LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
 
-    failure=.FALSE.
     CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,"OUTER_SCF",&
          description="parameters controlling the outer SCF loop",&
@@ -4642,7 +4609,6 @@ CONTAINS
     TYPE(keyword_type), POINTER              :: keyword
     TYPE(section_type), POINTER              :: subsection
 
-    failure=.FALSE.
 
     CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="BSSE",&
@@ -4739,7 +4705,6 @@ CONTAINS
     LOGICAL                                  :: failure
     TYPE(section_type), POINTER              :: print_key
 
-    failure=.FALSE.
 
     CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="print",&
@@ -4779,7 +4744,6 @@ CONTAINS
     TYPE(keyword_type), POINTER              :: keyword
     TYPE(section_type), POINTER              :: print_key
 
-    failure=.FALSE.
 
     CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="interpolator",&
@@ -4858,7 +4822,6 @@ CONTAINS
     LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
 
-    failure=.FALSE.
 
     CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="LRIGPW",&
@@ -4934,7 +4897,6 @@ CONTAINS
     TYPE(keyword_type), POINTER              :: keyword
     TYPE(section_type), POINTER              :: subsection
 
-    failure=.FALSE.
 
     CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="OPTIMIZE_LRI_BASIS",&
@@ -5020,7 +4982,6 @@ CONTAINS
     LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
 
-    failure=.FALSE.
 
     CALL section_create(section,name="CONSTRAIN_EXPONENTS",&
          description="specifies constraints for the exponents of the "//&
@@ -5061,7 +5022,6 @@ CONTAINS
     TYPE(keyword_type), POINTER              :: keyword
     TYPE(section_type), POINTER              :: subsection
 
-    failure=.FALSE.
 
     CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="mgrid",&
@@ -5162,7 +5122,6 @@ CONTAINS
     TYPE(keyword_type), POINTER              :: keyword
     TYPE(section_type), POINTER              :: print_key
 
-    failure=.FALSE.
 
     CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="interpolator",&
@@ -5258,7 +5217,6 @@ CONTAINS
     LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
 
-    failure=.FALSE.
 
     CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,"sic",&
@@ -5328,7 +5286,6 @@ CONTAINS
     LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
 
-    failure=.FALSE.
 
     CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,"LOW_SPIN_ROKS",&
@@ -5370,7 +5327,6 @@ CONTAINS
     LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
 
-    failure=.FALSE.
 
     CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="EXTERNAL_POTENTIAL",&
@@ -5463,7 +5419,6 @@ CONTAINS
     LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
 
-    failure=.FALSE.
 
     CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="EXTERNAL_DENSITY",&
@@ -5533,7 +5488,6 @@ CONTAINS
     LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
 
-    failure=.FALSE.
 
     CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="EXTERNAL_VXC",&
@@ -5570,7 +5524,6 @@ CONTAINS
     LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
 
-    failure=.FALSE.
 
     CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,"PERIODIC_EFIELD",&
@@ -5623,7 +5576,6 @@ CONTAINS
     TYPE(keyword_type), POINTER              :: keyword
     TYPE(section_type), POINTER              :: subsection
 
-    failure=.FALSE.
 
     CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,"EFIELD",&
@@ -5706,7 +5658,6 @@ CONTAINS
     LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
 
-    failure=.FALSE.
 
     CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,"OT",&
@@ -6075,7 +6026,6 @@ CONTAINS
     TYPE(keyword_type), POINTER              :: keyword
     TYPE(section_type), POINTER              :: subsection
 
-    failure=.FALSE.
 
     CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,"DIAGONALIZATION",&
@@ -6195,7 +6145,6 @@ CONTAINS
     LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
 
-    failure = .FALSE.
     CPASSERT(.NOT.ASSOCIATED(section))
 
     CALL section_create(section,"FILTER_MATRIX",&
@@ -6268,7 +6217,6 @@ CONTAINS
     LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
 
-    failure = .FALSE.
     CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,"DAVIDSON",&
          description=" ",&
@@ -6357,7 +6305,6 @@ CONTAINS
     LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
 
-    failure = .FALSE.
     CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,"KRYLOV",&
          description=" ",&
@@ -6422,7 +6369,6 @@ CONTAINS
     TYPE(keyword_type), POINTER              :: keyword
     TYPE(section_type), POINTER              :: subsection
 
-    failure = .FALSE.
     CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,"DIAG_SUB_SCF",&
          description="Activation of self-consistenf subspace refinement by diagonalization "//&
@@ -6490,7 +6436,6 @@ CONTAINS
     TYPE(keyword_type), POINTER              :: keyword
     TYPE(section_type), POINTER              :: print_key, subsection
 
-    failure=.FALSE.
 
     CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,"xas",&
@@ -6767,7 +6712,6 @@ CONTAINS
     LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
 
-    failure = .FALSE.
 
     CPASSERT(.NOT.ASSOCIATED(section))
 
@@ -6881,7 +6825,6 @@ CONTAINS
     TYPE(keyword_type), POINTER              :: keyword
     TYPE(section_type), POINTER              :: print_key, print_section
 
-    failure=.FALSE.
     NULLIFY(keyword)
     CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,"REAL_TIME_PROPAGATION",&
@@ -7139,7 +7082,6 @@ CONTAINS
     LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
 
-    failure=.FALSE.
 
     CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,"CONSTANT_ENV",&
@@ -7177,7 +7119,6 @@ CONTAINS
     LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
 
-    failure=.FALSE.
 
     CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,"GAUSSIAN_ENV",&
@@ -7216,7 +7157,6 @@ CONTAINS
     LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
 
-    failure=.FALSE.
 
     CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,"RAMP_ENV",&
@@ -7274,7 +7214,6 @@ CONTAINS
     TYPE(keyword_type), POINTER              :: keyword
     TYPE(section_type), POINTER              :: subsection
 
-    failure = .FALSE.
 
     CPASSERT(.NOT.ASSOCIATED(section))
 

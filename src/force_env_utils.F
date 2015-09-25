@@ -97,7 +97,6 @@ CONTAINS
     TYPE(mol_new_list_type), POINTER         :: molecules
     TYPE(particle_list_type), POINTER        :: particles
 
-    failure=.FALSE.
     CALL timeset(routineN,handle)
     CPASSERT(ASSOCIATED(force_env))
     CPASSERT(force_env%ref_count>0)
@@ -268,7 +267,6 @@ CONTAINS
     TYPE(mol_new_list_type), POINTER         :: molecules
     TYPE(particle_list_type), POINTER        :: particles
 
-    failure=.FALSE.
 
     CALL timeset(routineN,handle)
     CPASSERT(ASSOCIATED(force_env))
@@ -388,7 +386,6 @@ CONTAINS
     TYPE(particle_list_type), POINTER        :: particles
     TYPE(section_vals_type), POINTER         :: rescale_force_section
 
-    failure=.FALSE.
     CALL timeset(routineN,handle)
     CPASSERT(ASSOCIATED(force_env))
     CPASSERT(force_env%ref_count>0)
@@ -442,7 +439,6 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(3)              :: eigval
     REAL(KIND=dp), DIMENSION(3, 3)           :: eigvec, stress_tensor
 
-    failure = .FALSE.
 
     IF (output_unit > 0) THEN
       CPASSERT(ASSOCIATED(cell))
@@ -523,7 +519,6 @@ CONTAINS
     INTEGER                                  :: i, ikind, iparticle, n
     LOGICAL                                  :: failure
 
-    failure = .FALSE.
 
     IF (output_unit > 0) THEN
       CPASSERT(ASSOCIATED(particles))

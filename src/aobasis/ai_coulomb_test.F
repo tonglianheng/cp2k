@@ -62,7 +62,6 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(3)              :: ra, rb, rc, rd
     REAL(KIND=dp), DIMENSION(:), POINTER     :: rpgf, zeta, zetb, zetc, zetd
 
-    failure = .FALSE.
     IF ( iw>0 ) WRITE(iw,'(/,A)') " Test of Electron Repulsion Integrals (ERI) "
 
     CALL init_orbital_pointers(lmax)

@@ -149,7 +149,6 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-    failure=.FALSE.
     NULLIFY(f_env,subsys,particles, nose_section, gle_section)
 
     CPASSERT(.NOT.ASSOCIATED(pint_env))
@@ -419,7 +418,6 @@ CONTAINS
 
     LOGICAL                                  :: failure
 
-    failure=.FALSE.
 
     CPASSERT(ASSOCIATED(pint_env))
     CPASSERT(pint_env%ref_count>0)
@@ -442,7 +440,6 @@ CONTAINS
 
     LOGICAL                                  :: failure
 
-    failure=.FALSE.
 
     IF (ASSOCIATED(pint_env)) THEN
       CPASSERT(pint_env%ref_count>0)
@@ -522,7 +519,6 @@ CONTAINS
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(pint_env_type), POINTER             :: pint_env
 
-  failure=.FALSE.
 
   CPASSERT(ASSOCIATED(para_env))
   CPASSERT(ASSOCIATED(input))
@@ -601,7 +597,6 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-    failure=.FALSE.
 
     CPASSERT(ASSOCIATED(para_env))
     CPASSERT(ASSOCIATED(input))
@@ -701,7 +696,6 @@ CONTAINS
 
     LOGICAL                                  :: failure
 
-    failure=.FALSE.
     CPASSERT(ASSOCIATED(pint_env))
     CPASSERT(pint_env%ref_count>0)
     IF ( failure ) THEN
@@ -752,7 +746,6 @@ CONTAINS
     TYPE(rng_stream_type), POINTER           :: rng_gaussian
     TYPE(section_vals_type), POINTER         :: input_section
 
-    failure=.FALSE.
     CPASSERT(ASSOCIATED(pint_env))
     CPASSERT(pint_env%ref_count>0)
     IF ( failure ) THEN
@@ -940,7 +933,6 @@ CONTAINS
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(section_vals_type), POINTER         :: input_section
 
-    failure=.FALSE.
     CPASSERT(ASSOCIATED(pint_env))
     CPASSERT(pint_env%ref_count>0)
     IF ( failure ) THEN
@@ -1184,7 +1176,6 @@ CPSourceFileRef,&
     REAL(kind=dp), DIMENSION(:), POINTER     :: r_vals
     TYPE(section_vals_type), POINTER         :: input_section
 
-    failure=.FALSE.
     CPASSERT(ASSOCIATED(pint_env))
     CPASSERT(pint_env%ref_count>0)
     IF ( failure ) THEN
@@ -1297,7 +1288,6 @@ CPSourceFileRef,&
     LOGICAL                                  :: failure
     REAL(kind=dp)                            :: e_h
 
-    failure=.FALSE.
     CPASSERT(ASSOCIATED(pint_env))
     CPASSERT(pint_env%ref_count>0)
     CALL pint_x2u(pint_env)
@@ -1381,7 +1371,6 @@ CPSourceFileRef,&
     LOGICAL                                  :: failure, should_stop
     REAL(kind=dp)                            :: scal
 
-    failure=.FALSE.
     CPASSERT(ASSOCIATED(pint_env))
 
     NULLIFY(pint_env%logger)
@@ -1469,7 +1458,6 @@ CPSourceFileRef,&
     CALL timeset(routineN,handle)
     time_start = m_walltime()
 
-    failure=.FALSE.
     CPASSERT(ASSOCIATED(pint_env))
 
   rn=REAL(pint_env%nrespa,dp)
@@ -1674,7 +1662,6 @@ CPSourceFileRef,&
 
     LOGICAL                                  :: failure
 
-    failure=.FALSE.
 
     IF (pint_env%transform == transformation_stage) THEN
       CALL staging_calc_uf_h(pint_env%staging_env,&
@@ -1723,7 +1710,6 @@ CPSourceFileRef,&
     REAL(kind=dp), DIMENSION(:), POINTER     :: my_e
     REAL(kind=dp), DIMENSION(:, :), POINTER  :: my_f, my_x
 
-    failure=.FALSE.
 
     CPASSERT(ASSOCIATED(pint_env))
     CPASSERT(pint_env%ref_count>0)
@@ -1773,7 +1759,6 @@ CPSourceFileRef,&
     REAL(kind=dp)                            :: res
     REAL(kind=dp), DIMENSION(:, :), POINTER  :: my_uv
 
-    failure=.FALSE.
 
     CPASSERT(ASSOCIATED(pint_env))
     CPASSERT(pint_env%ref_count>0)
@@ -1811,7 +1796,6 @@ CPSourceFileRef,&
     LOGICAL                                  :: failure
     REAL(kind=dp)                            :: res, xcentroid
 
-    failure=.FALSE.
 
     CPASSERT(ASSOCIATED(pint_env))
     CPASSERT(pint_env%ref_count>0)
@@ -1850,7 +1834,6 @@ CPSourceFileRef,&
     LOGICAL                                  :: failure
     REAL(kind=dp)                            :: ekin, epot
 
-    failure=.FALSE.
 
     CPASSERT(ASSOCIATED(pint_env))
     CPASSERT(pint_env%ref_count>0)

@@ -146,7 +146,6 @@ SUBROUTINE cp_fm_struct_create(fmstruct,para_env,context, nrow_global,&
 #endif
 
   LOGICAL :: failure, my_square_blocks, my_force_block
-  failure=.FALSE.
 
 #if defined(__parallel) && ! defined(__SCALAPACK)
   CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
@@ -316,7 +315,6 @@ SUBROUTINE cp_fm_struct_retain(fmstruct)
 
     LOGICAL                                  :: failure
 
-  failure=.FALSE.
 
   CPASSERT(ASSOCIATED(fmstruct))
   CPASSERT(fmstruct%ref_count>0)
@@ -338,7 +336,6 @@ SUBROUTINE cp_fm_struct_release(fmstruct)
 
     LOGICAL                                  :: failure
 
-  failure=.FALSE.
 
   IF (ASSOCIATED(fmstruct)) THEN
      CPASSERT(fmstruct%ref_count>0)
@@ -384,7 +381,6 @@ FUNCTION cp_fm_struct_equivalent(fmstruct1,fmstruct2) RESULT(res)
     INTEGER                                  :: i
     LOGICAL                                  :: failure
 
-  failure=.FALSE.
 
   CPASSERT(ASSOCIATED(fmstruct1))
   CPASSERT(ASSOCIATED(fmstruct2))
@@ -425,7 +421,6 @@ SUBROUTINE cp_fm_struct_write(fmstruct, unit_nr, long_description)
     INTEGER                                  :: iostat
     LOGICAL                                  :: failure, l_desc
 
-  failure=.FALSE.
   l_desc=.FALSE.
 
   IF (PRESENT(long_description)) l_desc=long_description
@@ -563,7 +558,6 @@ SUBROUTINE cp_fm_struct_get(fmstruct, para_env, context,&
   INTEGER , EXTERNAL :: indxl2g
 #endif
 
-  failure=.FALSE.
 
   CPASSERT(ASSOCIATED(fmstruct))
   CPASSERT(fmstruct%ref_count>0)

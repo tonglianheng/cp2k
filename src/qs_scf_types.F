@@ -149,7 +149,6 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-    failure = .FALSE.
 
     ALLOCATE (scf_env)
     scf_env%ref_count = 1
@@ -219,7 +218,6 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-    failure = .FALSE.
 
     CPASSERT(ASSOCIATED(scf_env))
     CPASSERT(scf_env%ref_count>0)
@@ -247,7 +245,6 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-    failure = .FALSE.
 
     CPASSERT(ASSOCIATED(scf_env))
     CPASSERT(scf_env%ref_count>0)
@@ -282,7 +279,6 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-    failure = .FALSE.
 
     IF (ASSOCIATED(scf_env)) THEN
        CPASSERT(scf_env%ref_count>0)
@@ -391,7 +387,6 @@ CONTAINS
 
     LOGICAL                                  :: failure
 
-    failure=.FALSE.
 
     CPASSERT(.NOT.ASSOCIATED(krylov_space))
     ALLOCATE(krylov_space)
@@ -500,7 +495,6 @@ CONTAINS
     LOGICAL                                  :: do_mixing, failure
     TYPE(section_vals_type), POINTER         :: mixing_section
 
-    failure = .FALSE.
 
     CPASSERT(.NOT.ASSOCIATED(subspace_env))
     ALLOCATE(subspace_env)

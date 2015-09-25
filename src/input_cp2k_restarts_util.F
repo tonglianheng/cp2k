@@ -60,7 +60,6 @@ CONTAINS
     TYPE(val_type), POINTER                  :: my_val, old_val
 
     CALL timeset(routineN,handle)
-    failure=.FALSE.
     NULLIFY(my_val, old_val, section, vals)
     CPASSERT(ASSOCIATED(velocity_section))
     CPASSERT(velocity_section%ref_count>0)

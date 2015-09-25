@@ -143,7 +143,6 @@ CONTAINS
       CALL timeset(routineN,handle)
     ENDIF
 
-    failure = .FALSE.
 
     NULLIFY(matrix_kg)
     IF (ASSOCIATED(kg_env%tnadd_mat)) THEN

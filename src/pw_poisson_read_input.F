@@ -68,7 +68,6 @@ CONTAINS
                                                 wavelet_section
 
     NULLIFY(ewald_section, mt_section, wavelet_section)
-    failure=.FALSE.
 
     CALL section_vals_val_get(poisson_section,"POISSON_SOLVER",i_val=params%solver)
 
@@ -125,7 +124,6 @@ CONTAINS
 
     LOGICAL                                  :: failure
 
-    failure=.FALSE.
 
     SELECT CASE(periodic)
       CASE(use_perd_x)
@@ -169,7 +167,6 @@ CONTAINS
 
     LOGICAL                                  :: failure
 
-    failure=.FALSE.
 
     params%wavelet_special_dimension=0
 

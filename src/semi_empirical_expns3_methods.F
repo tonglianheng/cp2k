@@ -54,7 +54,6 @@ CONTAINS
     LOGICAL                                  :: check, failure
     TYPE(semi_empirical_type), POINTER       :: sepi, sepj
 
-    failure     = .FALSE.
     IF (se_control%do_ewald_r3) THEN
        NULLIFY(sepi, sepj)
        nkinds  = SIZE(qs_kind_set)
@@ -107,7 +106,6 @@ CONTAINS
     REAL(KIND=dp)                            :: core_core, e1b(9), e2a(9), r, &
                                                 zi, zj
 
-    failure = .FALSE.
     ! Set the distance to 0 (the coefficient is anyway independent of the atomic
     ! position)
     r   = 0.0_dp

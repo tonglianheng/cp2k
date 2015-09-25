@@ -113,7 +113,6 @@ CONTAINS
     INTEGER                                  :: handle, itmp
     LOGICAL                                  :: failure
 
-    failure = .FALSE.
     CPASSERT(.NOT.ASSOCIATED(next_el))
 
     ! start the timing
@@ -149,7 +148,6 @@ CONTAINS
     INTEGER                                  :: handle
     LOGICAL                                  :: failure
 
-    failure = .FALSE.
     CPASSERT(ASSOCIATED(gt_elem))
 
     ! start the timing
@@ -181,7 +179,6 @@ CONTAINS
     INTEGER                                  :: handle
     LOGICAL                                  :: failure
 
-    failure = .FALSE.
     CPASSERT(.NOT.ASSOCIATED(next_el))
 
     ! start the timing
@@ -242,7 +239,6 @@ CONTAINS
     INTEGER                                  :: handle
     LOGICAL                                  :: failure
 
-    failure = .FALSE.
     CPASSERT(ASSOCIATED(tree_elem))
 
     ! start the timing
@@ -450,7 +446,6 @@ CONTAINS
     INTEGER                                  :: handle, i
     LOGICAL                                  :: failure
 
-    failure = .FALSE.
     CPASSERT(ASSOCIATED(gt_tree_ptr))
     CPASSERT(.NOT.ASSOCIATED(gt_tree_ptr%parent))
     CPASSERT(ASSOCIATED(tmc_env))
@@ -524,7 +519,6 @@ CONTAINS
     TYPE(global_tree_type), POINTER          :: tmp_elem
     TYPE(tree_type), POINTER                 :: tree_elem
 
-    failure = .FALSE.
     NULLIFY(tmp_elem, tree_elem, new_elem)
 
     CPASSERT(ASSOCIATED(tmc_env))
@@ -878,7 +872,6 @@ CONTAINS
     REAL(KIND=dp)                            :: rnd
     TYPE(tree_type), POINTER                 :: new_elem, parent_elem
 
-    failure = .FALSE.
     NULLIFY(new_elem, parent_elem)
 
     CPASSERT(ASSOCIATED(act_gt_el))
@@ -1037,7 +1030,6 @@ CONTAINS
     INTEGER                                  :: handle
     LOGICAL                                  :: failure
 
-    failure = .FALSE.
 
     CPASSERT(ASSOCIATED(gt_ptr))
     CPASSERT(ASSOCIATED(tmc_env))
@@ -1101,7 +1093,6 @@ CONTAINS
     INTEGER                                  :: handle
     LOGICAL                                  :: failure, ready
 
-    failure = .FALSE.
     ready = .TRUE.
     CPASSERT(ASSOCIATED(ptr))
     CPASSERT(ASSOCIATED(tmc_env))
@@ -1189,7 +1180,6 @@ CONTAINS
                                                 nacc_removed
     TYPE(global_tree_type), POINTER          :: acc_ptr, nacc_ptr, tmp_ptr
 
-    failure = .FALSE.
     NULLIFY(acc_ptr, nacc_ptr, tmp_ptr)
 
     CPASSERT(ASSOCIATED(begin_ptr))
@@ -1270,7 +1260,6 @@ CONTAINS
                                                 nacc_removed, remove_this
     TYPE(tree_type), POINTER                 :: acc_ptr, nacc_ptr, tmp_ptr
 
-    failure = .FALSE.
     NULLIFY(acc_ptr, nacc_ptr, tmp_ptr)
     remove_this  = .FALSE.
     removed      = .FALSE.
@@ -1386,7 +1375,6 @@ CONTAINS
     LOGICAL                                  :: failure
     TYPE(global_tree_type), POINTER          :: tmp_ptr
 
-    failure = .FALSE.
     CPASSERT(ASSOCIATED(end_of_clean_tree))
     CPASSERT(ASSOCIATED(actual_ptr))
 
@@ -1431,7 +1419,6 @@ CONTAINS
     LOGICAL                                  :: failure
     TYPE(tree_type), POINTER                 :: tmp_ptr
 
-    failure = .FALSE.
     CPASSERT(ASSOCIATED(end_of_clean_tree))
     CPASSERT(ASSOCIATED(actual_ptr))
     CPASSERT(ASSOCIATED(tmc_env))
@@ -1484,7 +1471,6 @@ CONTAINS
     TYPE(global_tree_type), POINTER          :: tmp_gt_ptr
     TYPE(tree_type), POINTER                 :: last_acc_st_elem, tmp_ptr
 
-    failure = .FALSE.
     NULLIFY(last_acc_st_elem, tmp_ptr, tmp_gt_ptr)
 
     CPASSERT(ASSOCIATED(working_elem_list))
@@ -1577,7 +1563,6 @@ CONTAINS
                                                 nacc_removed
     TYPE(global_tree_type), POINTER          :: acc_ptr, nacc_ptr, tmp_ptr
 
-    failure = .FALSE.
     CPASSERT(ASSOCIATED(begin_ptr))
     CPASSERT(ASSOCIATED(tmc_env))
 
@@ -1623,7 +1608,6 @@ CONTAINS
                                                 nacc_removed
     TYPE(tree_type), POINTER                 :: acc_ptr, nacc_ptr, tmp_ptr
 
-    failure = .FALSE.
     CPASSERT(ASSOCIATED(begin_ptr))
     CPASSERT(ASSOCIATED(tmc_params))
 
@@ -1666,7 +1650,6 @@ CONTAINS
     LOGICAL                                  :: failure, flag
     TYPE(global_tree_type), POINTER          :: global_tree
 
-    failure = .FALSE.
     CPASSERT(ASSOCIATED(tmc_env))
     CPASSERT(ASSOCIATED(tmc_env%m_env))
 

@@ -78,7 +78,6 @@ CONTAINS
 
     TYPE(pw_type), POINTER                   :: frho, influence_fn
 
-    failure = .FALSE.
     CALL timeset(routineN,handle)
 
     CPASSERT(ASSOCIATED(cell))

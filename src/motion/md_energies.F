@@ -119,7 +119,6 @@ CONTAINS
     TYPE(cp_subsys_type), POINTER            :: subsys
     TYPE(particle_list_type), POINTER        :: particles, shell_particles
 
-    failure =.FALSE.
 
     NULLIFY(subsys)
     NULLIFY(atomic_kinds, atomic_kind_set, particles, shell_particles)
@@ -294,7 +293,6 @@ CONTAINS
     TYPE(thermostats_type), POINTER          :: thermostats
     TYPE(virial_type), POINTER               :: virial
 
-    failure = .FALSE.
     NULLIFY(logger)
     logger => cp_get_default_logger()
     CALL timeset(routineN,handle)
@@ -639,7 +637,6 @@ CPSourceFileRef,&
     TYPE(keyword_type), POINTER              :: keyword
     TYPE(section_type), POINTER              :: section
 
-    failure = .FALSE.
     NULLIFY(enum, keyword, section)
     ! Print to the screen info about MD
     iw = cp_print_key_unit_nr(logger,motion_section,"MD%PRINT%PROGRAM_RUN_INFO",&

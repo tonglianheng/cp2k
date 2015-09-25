@@ -73,7 +73,6 @@ CONTAINS
     TYPE(pw_spline_precond_type), POINTER    :: precond
     TYPE(pw_type), POINTER                   :: coeffs, values
 
-    failure=.FALSE.
     ifile=ifile+1
     CALL timeset(routineN,handle)
     CALL section_vals_val_get(param_section,"safe_computation", &
@@ -175,7 +174,6 @@ CONTAINS
     TYPE(pw_spline_precond_type), POINTER    :: precond
     TYPE(pw_type), POINTER                   :: coeffs
 
-    failure=.FALSE.
 
     ifile=ifile+1
     CALL timeset(routineN,handle)

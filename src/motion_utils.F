@@ -100,7 +100,6 @@ CONTAINS
 
     CALL timeset(routineN,handle)
     logger => cp_get_default_logger()
-    failure = .FALSE.
     present_mat = PRESENT(mat)
     CPASSERT(ASSOCIATED(particles))
     IF (present_mat) THEN
@@ -302,7 +301,6 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-    failure = .FALSE.
     NULLIFY(logger, cell, subsys, my_particles, particle_set)
     logger => cp_get_default_logger()
     id_label = logger%iter_info%level_name(logger%iter_info%n_rlevel)

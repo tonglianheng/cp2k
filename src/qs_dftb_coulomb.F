@@ -177,7 +177,6 @@ CONTAINS
 
     NULLIFY(gamma_matrix, matrix_p, matrix_s, virial, atprop, dft_control)
 
-    failure=.FALSE.
     use_virial=.FALSE.
 
     IF ( calculate_forces ) THEN
@@ -510,7 +509,6 @@ CONTAINS
 
     NULLIFY(gamma_matrix, matrix_p, matrix_s, virial, atprop, dft_control)
 
-    failure=.FALSE.
     use_virial=.FALSE.
 
     IF ( calculate_forces ) THEN
@@ -728,7 +726,6 @@ CONTAINS
 
     CALL timeset(routineN,handle)
     !-------------- INITIALISATION ---------------------
-    failure = .FALSE.
     CALL ewald_env_get ( ewald_env, alpha=alpha, o_spline = o_spline, group = group, &
          para_env=para_env)
     NULLIFY(green, poisson_env, pw_pool)

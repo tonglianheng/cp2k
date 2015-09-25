@@ -88,7 +88,6 @@ CONTAINS
     TYPE(cp_fm_p_type), DIMENSION(:), &
       POINTER                                :: mos_new, mos_next, mos_old
 
-    failure=.FALSE.
     CALL timeset(routineN,handle)
 
     CALL get_rtp(rtp=rtp, propagator_matrix=propagator_matrix, mos_old=mos_old, mos_new=mos_new,&
@@ -301,7 +300,6 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-    failure= .FALSE.
 
     CALL get_rtp(rtp=rtp, propagator_matrix=propagator_matrix,rho_old=rho_old,rho_new=rho_new,&
          rho_next=rho_next)

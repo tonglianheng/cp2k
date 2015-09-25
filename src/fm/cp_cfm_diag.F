@@ -75,7 +75,6 @@ CONTAINS
 #endif
 
     CALL timeset(routineN,handle)
-    failure = .FALSE.
 
     CPASSERT(ASSOCIATED(matrix))
     CPASSERT(ASSOCIATED(eigenvectors))
@@ -178,7 +177,6 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-    failure = .FALSE.
 
     CALL cp_cfm_get_info(amatrix,nrow_global=nao)
     ALLOCATE (evals(nao))

@@ -61,7 +61,6 @@ CONTAINS
 
     LOGICAL                                  :: failure
 
-    failure = .FALSE.
     CPASSERT(.NOT.ASSOCIATED(inpp))
     ALLOCATE(inpp)
 
@@ -98,7 +97,6 @@ CONTAINS
 
     LOGICAL                                  :: failure
 
-    failure = .FALSE.
     CPASSERT(ASSOCIATED(inpp))
 
     IF (ASSOCIATED(inpp%io_stack_channel)) THEN

@@ -116,7 +116,6 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-    failure=.FALSE.
 
     NULLIFY (pw_env,auxbas_pw_pool,matrix_s,matrix_s_kp,dft_control)
     NULLIFY (tot_rho_r,rho_ao_kp,rho_r,rho_g,drho_r,drho_g,tau_r,tau_g)
@@ -367,7 +366,6 @@ SUBROUTINE qs_rho_update_rho(rho_struct, qs_env, local_rho_set, task_list_extern
 
     CALL timeset(routineN,handle)
 
-    failure=.FALSE.
 
     NULLIFY(dft_control,rho_xc, ks_env, rho_ao, rho_r, rho_g, drho_r, drho_g, tau_r, tau_g)
     NULLIFY(rho_xc_ao,rho_xc_g,rho_xc_r,drho_xc_g, tau_xc_r, tau_xc_g, tot_rho_r, tot_rho_r_xc)
@@ -570,7 +568,6 @@ END SUBROUTINE qs_rho_update_rho
 
     CALL timeset(routineN,handle)
 
-    failure = .FALSE.
     NULLIFY(dft_control, pw_env, auxbas_pw_pool)
     NULLIFY(rho_ao_in, rho_ao_out)
     NULLIFY(rho_r_in, rho_r_out, rho_g_in, rho_g_out, drho_r_in, drho_r_out)

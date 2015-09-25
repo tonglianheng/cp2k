@@ -114,7 +114,6 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-    failure = .FALSE.
 
     NULLIFY(atomic_kind_set, qs_kind_set, cell, dft_control, linres_control, scf_control)
     NULLIFY(logger, mos, mpools, particle_set)
@@ -256,7 +255,6 @@ CONTAINS
     INTEGER                                  :: i_B, idir, ispin
     LOGICAL                                  :: failure
 
-    failure=.FALSE.
     IF(.NOT. failure) THEN
       epr_env%ref_count = epr_env%ref_count - 1
       IF(epr_env%ref_count == 0 ) THEN

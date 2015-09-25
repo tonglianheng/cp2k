@@ -196,7 +196,6 @@ MODULE mp2_cphf
     .AND. PRESENT(mo_coeff_beta) ) alpha_beta = .TRUE.
 
     CALL timeset(routineN,handle)
-    failure=.FALSE.
 
     ! start collecting stuff
     dimen=nmo
@@ -1061,7 +1060,6 @@ MODULE mp2_cphf
 
     NULLIFY(ks_env, rho_work_ao)
     CALL timeset(routineN,handle)
-    failure=.FALSE.
 
     my_recalc_hfx_integrals=.FALSE.
     IF(PRESENT(recalc_hfx_integrals)) my_recalc_hfx_integrals=recalc_hfx_integrals
@@ -1465,7 +1463,6 @@ MODULE mp2_cphf
                                                 xk, xk_b
 
     CALL timeset(routineN,handle)
-    failure=.FALSE.
 
     alpha_beta = .FALSE.
     factor = 4.0_dp

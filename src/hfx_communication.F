@@ -106,7 +106,6 @@ MODULE hfx_communication
 
 !debREAL(dp), DIMENSION(:), POINTER          :: full_density
 
-    failure = .FALSE.
 
     full_density = 0.0_dp
     ALLOCATE(sendbuffer(number_of_p_entries))
@@ -479,7 +478,6 @@ MODULE hfx_communication
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: sparse_block
     TYPE(cp_dbcsr_iterator)                  :: iter
 
-    failure=.FALSE.
 
     CALL timeset(routineN,handle)
 

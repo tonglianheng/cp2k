@@ -86,7 +86,6 @@ CONTAINS
       DIMENSION(:), POINTER                  :: rs_rho_ext
     TYPE(section_vals_type), POINTER         :: ext_den_section, input
 
-    failure=.FALSE.
     CALL timeset(routineN,handle)
     NULLIFY(cell, rs_rho_ext, input, ext_den_section, rs_descs, dft_control)
     NULLIFY(rho_ext_r, rho_ext_g, tot_rho_r_ext)
@@ -245,7 +244,6 @@ CONTAINS
     TYPE(pw_p_type), POINTER                 :: vxc_ext
     TYPE(section_vals_type), POINTER         :: ext_vxc_section, input
 
-    failure=.FALSE.
     NULLIFY(cell, vxc_ext, input, ext_vxc_section, dft_control)
     CALL timeset(routineN,handle)
     CALL get_qs_env(qs_env,&

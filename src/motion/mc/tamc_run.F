@@ -209,7 +209,6 @@ SUBROUTINE qs_tamc(force_env, globenv,averages)
     inittime=0.0_dp
 
     CALL timeset(routineN,handle)
-    failure = .FALSE.
     my_rm_restart_info = .TRUE.
     NULLIFY(md_env, para_env,fs_section, virial)
     para_env       => force_env%para_env
@@ -225,7 +224,6 @@ SUBROUTINE qs_tamc(force_env, globenv,averages)
     CPASSERT(ASSOCIATED(globenv))
     CPASSERT(ASSOCIATED(force_env))
 
-    failure=.FALSE.
     NULLIFY (particles, cell, simpar, itimes, used_time, subsys, &
          md_ener, thermostats, barostat, reftraj, force_env_section, &
          reftraj_section, work_section, atomic_kinds, &
@@ -716,7 +714,6 @@ SUBROUTINE qs_tamc(force_env, globenv,averages)
     TYPE(meta_env_type), POINTER             :: meta_env
     TYPE(metavar_type), POINTER              :: cv
 
-    failure=.FALSE.
     NULLIFY(logger,meta_env,cv)
     meta_env => force_env%meta_env
     CALL timeset(routineN,handle)
@@ -759,7 +756,6 @@ SUBROUTINE qs_tamc(force_env, globenv,averages)
     TYPE(meta_env_type), POINTER             :: meta_env
     TYPE(metavar_type), POINTER              :: cv
 
-    failure=.FALSE.
     NULLIFY(logger,meta_env,cv)
     meta_env => force_env%meta_env
 !     IF (.NOT.ASSOCIATED(meta_env)) RETURN
@@ -813,7 +809,6 @@ SUBROUTINE qs_tamc(force_env, globenv,averages)
     TYPE(section_vals_type), POINTER         :: ss0_section, ss_section, &
                                                 vvp_section
 
-    failure=.FALSE.
     NULLIFY(logger,meta_env)
     meta_env => force_env%meta_env
 !     IF (.NOT.ASSOCIATED(meta_env)) RETURN
@@ -968,7 +963,6 @@ SUBROUTINE qs_tamc(force_env, globenv,averages)
     output_unit = cp_logger_get_default_io_unit(logger)
 
     NULLIFY(rng_stream)
-    failure = .FALSE.
 ! quantitites to be nullified for the get_md_env
     NULLIFY(simpar,force_env,para_env)
 ! quantities to be nullified for the force_env_get environment
@@ -1224,7 +1218,6 @@ SUBROUTINE qs_tamc(force_env, globenv,averages)
 ! begin the timing of the subroutine
 
       CALL timeset(routineN,handle)
-      failure=.TRUE.
 
       NULLIFY(scf_env)
       CALL get_qs_env(force_env%qs_env,scf_env=scf_env,input=input)
@@ -1349,7 +1342,6 @@ SUBROUTINE metadyn_write_colvar_header(force_env)
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(meta_env_type), POINTER             :: meta_env
 
-    failure=.FALSE.
     NULLIFY(logger,meta_env)
     meta_env => force_env%meta_env
     IF (.NOT.ASSOCIATED(meta_env)) RETURN
@@ -1430,7 +1422,6 @@ SUBROUTINE metadyn_write_colvar_header(force_env)
     TYPE(meta_env_type), POINTER             :: meta_env
     TYPE(metavar_type), POINTER              :: cv
 
-    failure=.FALSE.
     NULLIFY(logger,meta_env,cv)
     meta_env => force_env%meta_env
     IF (.NOT.ASSOCIATED(meta_env)) RETURN

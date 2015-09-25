@@ -82,7 +82,6 @@ CONTAINS
 
     LOGICAL                                  :: failure
 
-    failure=.FALSE.
 
     CPASSERT(ASSOCIATED(subsys))
     CPASSERT(subsys%ref_count>0)

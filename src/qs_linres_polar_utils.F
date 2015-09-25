@@ -103,7 +103,6 @@ CONTAINS
     TYPE(qs_matrix_pools_type), POINTER      :: mpools
     TYPE(section_vals_type), POINTER         :: lr_section, polar_section
 
-    failure = .FALSE.
     CALL timeset(routineN,handle)
     !
     NULLIFY(dft_control, linres_control, lr_section, polar_section)
@@ -244,7 +243,6 @@ CONTAINS
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mos
 
-    failure = .FALSE.
     CALL timeset(routineN,handle)
 
     NULLIFY(cell,dft_control,polar,psi1_dBerry,logger)
@@ -331,7 +329,6 @@ CONTAINS
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(section_vals_type), POINTER         :: polar_section
 
-    failure = .FALSE.
 
     NULLIFY(logger,dft_control,para_env,results)
     CALL get_qs_env(qs_env=qs_env, results=results, dft_control=dft_control,&
@@ -425,7 +422,6 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-    failure = .FALSE.
 
     NULLIFY(linres_control)
     NULLIFY(logger,polar_section)
@@ -512,7 +508,6 @@ CONTAINS
     INTEGER                                  :: idir, ispin
     LOGICAL                                  :: failure
 
-    failure = .FALSE.
 
     polar_env%ref_count = polar_env%ref_count - 1
     IF(polar_env%ref_count == 0 ) THEN

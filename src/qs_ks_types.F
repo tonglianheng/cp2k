@@ -782,7 +782,6 @@ END SUBROUTINE qs_ks_env_create
 
     LOGICAL                                  :: failure
 
-    failure=.FALSE.
 
     IF (ASSOCIATED(ks_env)) THEN
        CPASSERT(ks_env%ref_count>0)
@@ -930,7 +929,6 @@ SUBROUTINE qs_ks_retain(ks_env)
 
     LOGICAL                                  :: failure
 
-  failure=.FALSE.
 
   CPASSERT(ASSOCIATED(ks_env))
   CPASSERT(ks_env%ref_count>0)
@@ -967,7 +965,6 @@ END SUBROUTINE qs_ks_retain
     LOGICAL                                  :: failure, my_mstruct_chg
 
     CALL timeset(routineN,handle)
-    failure = .FALSE.
     my_mstruct_chg = .FALSE.
 
     CPASSERT(ASSOCIATED(ks_env))

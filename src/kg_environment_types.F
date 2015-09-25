@@ -84,7 +84,6 @@ CONTAINS
     INTEGER                                  :: handle, iab, isub
     LOGICAL                                  :: failure
 
-    failure=.FALSE.
 
     CALL timeset(routineN, handle)
 

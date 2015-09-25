@@ -80,7 +80,6 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-    failure=.FALSE.
     IF (PRESENT(matrix_b)) THEN
        my_beta=1.0_dp
     ELSE
@@ -714,7 +713,6 @@ SUBROUTINE cp_fm_triangular_multiply(triangular_matrix,matrix_b,side,&
     LOGICAL                                  :: failure, invert
     REAL(KIND=dp)                            :: al
 
-  failure=.FALSE.
 
   CALL timeset(routineN,handle)
   side_char='L'
@@ -801,7 +799,6 @@ SUBROUTINE cp_fm_triangular_multiply(triangular_matrix,matrix_b,side,&
 
     CALL timeset(routineN,handle)
 
-    failure=.FALSE.
     NULLIFY(a)
 
     CPASSERT(ASSOCIATED(matrix_a))
@@ -841,7 +838,6 @@ SUBROUTINE cp_fm_triangular_multiply(triangular_matrix,matrix_b,side,&
     INTEGER                                  :: i, j
 #endif
 
-    failure = .FALSE.
     CPASSERT(ASSOCIATED(matrix))
     CPASSERT(ASSOCIATED(matrixt))
     IF (failure) RETURN
@@ -903,7 +899,6 @@ SUBROUTINE cp_fm_triangular_multiply(triangular_matrix,matrix_b,side,&
     REAL(KIND=sp), DIMENSION(:,:), POINTER   :: c_sp
 #endif
 
-    failure = .FALSE.
     CPASSERT(ASSOCIATED(matrix))
     CPASSERT(ASSOCIATED(work))
     IF (failure) RETURN
@@ -1095,7 +1090,6 @@ SUBROUTINE cp_fm_triangular_multiply(triangular_matrix,matrix_b,side,&
     REAL(KIND=dp)                            :: eps1
 #endif
 
-    failure=.FALSE.
 
     CALL cp_fm_create(matrix=matrix_lu,&
          matrix_struct=matrix_a%matrix_struct,&
@@ -1187,7 +1181,6 @@ SUBROUTINE cp_fm_triangular_multiply(triangular_matrix,matrix_b,side,&
     INTEGER, DIMENSION(9)                    :: desca
 #endif
 
-    failure = .FALSE.
 
     CALL timeset(routineN,handle)
 
@@ -1245,7 +1238,6 @@ SUBROUTINE cp_fm_triangular_multiply(triangular_matrix,matrix_b,side,&
     INTEGER, DIMENSION(9)                    :: desca
 #endif
 
-    failure = .FALSE.
 
     CALL timeset(routineN,handle)
 

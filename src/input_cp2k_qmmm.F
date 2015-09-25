@@ -97,7 +97,6 @@ CONTAINS
     TYPE(keyword_type), POINTER              :: keyword
     TYPE(section_type), POINTER              :: subsection
 
-    failure=.FALSE.
 
     CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="qmmm",&
@@ -289,7 +288,6 @@ CONTAINS
     LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
 
-    failure=.FALSE.
     NULLIFY(keyword)
     CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="MM_KIND",&
@@ -335,7 +333,6 @@ CONTAINS
                                                 qm_kinds_subsection, &
                                                 subsection
 
-    failure=.FALSE.
     NULLIFY(keyword)
     CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="FORCE_MIXING",&
@@ -573,7 +570,6 @@ CONTAINS
     LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
 
-    failure=.FALSE.
     NULLIFY(keyword)
     CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="QM_KIND",&
@@ -609,7 +605,6 @@ CONTAINS
     LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
 
-    failure=.FALSE.
 
     NULLIFY(keyword)
     CPASSERT(.NOT.ASSOCIATED(section))
@@ -665,7 +660,6 @@ CONTAINS
     LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
 
-    failure=.FALSE.
 
     NULLIFY(keyword)
     CPASSERT(.NOT.ASSOCIATED(section))
@@ -746,7 +740,6 @@ CONTAINS
     TYPE(keyword_type), POINTER              :: keyword
     TYPE(section_type), POINTER              :: subsection
 
-    failure=.FALSE.
 
     NULLIFY(keyword, subsection)
     CPASSERT(.NOT.ASSOCIATED(section))
@@ -813,7 +806,6 @@ CONTAINS
     TYPE(keyword_type), POINTER              :: keyword
     TYPE(section_type), POINTER              :: subsection
 
-    failure=.FALSE.
 
     CPASSERT(.NOT.ASSOCIATED(section))
 
@@ -898,7 +890,6 @@ CONTAINS
     TYPE(keyword_type), POINTER              :: keyword
     TYPE(section_type), POINTER              :: subsection
 
-    failure=.FALSE.
 
     NULLIFY(subsection,keyword)
     CPASSERT(.NOT.ASSOCIATED(section))
@@ -938,7 +929,6 @@ CONTAINS
     LOGICAL                                  :: failure
     TYPE(section_type), POINTER              :: subsection
 
-    failure=.FALSE.
 
     NULLIFY(subsection )
     CPASSERT(.NOT.ASSOCIATED(section))
@@ -979,7 +969,6 @@ CONTAINS
     TYPE(keyword_type), POINTER              :: keyword
     TYPE(section_type), POINTER              :: subsection
 
-    failure=.FALSE.
 
     NULLIFY(keyword, subsection )
     CPASSERT(.NOT.ASSOCIATED(section))
@@ -1179,7 +1168,6 @@ CONTAINS
     TYPE(keyword_type), POINTER              :: keyword
     TYPE(section_type), POINTER              :: print_key
 
-    failure=.FALSE.
 
     CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="interpolator",&
@@ -1281,7 +1269,6 @@ CONTAINS
     TYPE(keyword_type), POINTER              :: keyword
     TYPE(section_type), POINTER              :: print_key
 
-    failure=.FALSE.
 
     CPASSERT(.NOT.ASSOCIATED(section))
     NULLIFY(keyword, print_key)

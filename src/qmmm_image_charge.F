@@ -111,7 +111,6 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-    failure=.FALSE.
 
     IF(qmmm_env%image_charge_pot%coeff_iterative) THEN
        !calculate preconditioner matrix for CG if necessary
@@ -175,7 +174,6 @@ CONTAINS
     CALL timeset(routineN,handle)
 
     NULLIFY(pot_const)
-    failure=.FALSE.
     
     !minus sign V0: account for the fact that v_hartree has the opposite sign
     V0=-qmmm_env%image_charge_pot%V0
@@ -241,7 +239,6 @@ CONTAINS
     CALL timeset(routineN,handle)
    
     NULLIFY(pot_const,vmetal_const,logger,input)
-    failure=.FALSE.
     logger => cp_get_default_logger()
    
     !minus sign V0: account for the fact that v_hartree has the opposite sign
@@ -502,7 +499,6 @@ CONTAINS
    
     NULLIFY(cores,hab,pab,cell,auxbas_rs_desc,pw_env,para_env,&
            dft_control,rs_v,virial)
-    failure=.FALSE.
     use_virial=.FALSE.
    
     ALLOCATE (hab(1,1))
@@ -667,7 +663,6 @@ CONTAINS
    
     NULLIFY(pw_env, auxbas_pw_pool, poisson_env, para_env, int_res,&
             input, logger)
-    failure=.FALSE.
     logger => cp_get_default_logger()
    
     natom=SIZE(qmmm_env%image_charge_pot%image_mm_list)
@@ -804,7 +799,6 @@ CONTAINS
     CALL timeset(routineN,handle)
    
     NULLIFY(pw_env,auxbas_pw_pool,poisson_env)
-    failure=.FALSE.
     en_vmetal_rhohartree=0.0_dp
     en_external=0.0_dp
    
@@ -877,7 +871,6 @@ CONTAINS
     CALL timeset(routineN,handle)
    
     NULLIFY(input,logger)
-    failure=.FALSE.
     logger => cp_get_default_logger()
    
     !add image charge potential
@@ -923,7 +916,6 @@ CONTAINS
 
     NULLIFY(qmmm_section, print_key, logger, para_env)
     logger => cp_get_default_logger()
-    failure = .FALSE.
     rst_unit = -1
 
     CALL get_qs_env(qs_env=qs_env,para_env=para_env,&
@@ -987,7 +979,6 @@ CONTAINS
 
     NULLIFY(qmmm_section, logger, para_env)
     logger => cp_get_default_logger()
-    failure = .FALSE.
     exist= .FALSE.
     rst_unit=-1
 

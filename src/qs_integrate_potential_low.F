@@ -145,7 +145,6 @@ CONTAINS
     LOGICAL  :: failure
 
 
-    failure = .FALSE.
     subpatch_integrate = .FALSE.
 
     IF(PRESENT(use_subpatch)) THEN

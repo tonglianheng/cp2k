@@ -62,7 +62,6 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-    failure=.FALSE.
     my_zero_tails = .FALSE.
     IF(PRESENT(zero_tails)) my_zero_tails = zero_tails
     my_stride=1
@@ -236,7 +235,6 @@ CPSourceFileRef,&
     logger => cp_get_default_logger()
     output_unit = cp_logger_get_default_io_unit(logger)
 
-    failure=.FALSE.
     CALL timeset(routineN,handle)
 
     !get rs grids and parallel envnment

@@ -84,7 +84,6 @@ CONTAINS
       paw_atom = .TRUE.
       my_gpw_type_forced = .FALSE.
     END IF
-    failure = .FALSE.
     IF (.NOT.my_gpw_type_forced) THEN
        CALL get_gto_basis_set(gto_basis_set=orb_basis,name=bsname,&
             maxpgf=maxpgf,maxshell=maxshell,nset=nset)

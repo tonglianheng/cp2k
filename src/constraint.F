@@ -648,7 +648,6 @@ CONTAINS
     TYPE(molecule_kind_type), POINTER        :: molecule_kind
     TYPE(molecule_type), POINTER             :: molecule
 
-    failure = .FALSE.
     CALL timeset(routineN,handle)
     ! Total number of intramolecular constraints (distributed)
     CALL get_molecule_kind_set(molecule_kind_set=molecule_kind_set,&
@@ -750,7 +749,6 @@ CONTAINS
 
     LOGICAL                                  :: failure
 
-    failure = .FALSE.
     IF (log_unit>0) THEN
        ! Dump info if requested
        WRITE(log_unit,'("SHAKE_INFO|",2X,2(A,I6),A,F15.9)')&
@@ -781,7 +779,6 @@ CPSourceFileRef)
 
     LOGICAL                                  :: failure
 
-    failure = .FALSE.
     IF (log_unit>0) THEN
        ! Dump info if requested
        WRITE(log_unit,'("SHAKE_INFO|",2X,A,I6,A,F15.9)')&
@@ -813,7 +810,6 @@ CPSourceFileRef)
 
     LOGICAL                                  :: failure
 
-    failure = .FALSE.
     IF (log_unit>0) THEN
        ! Dump info if requested
        WRITE(log_unit,'("RATTLE_INFO|",1X,2(A,I6),A,F15.9)')&
@@ -844,7 +840,6 @@ CPSourceFileRef)
 
     LOGICAL                                  :: failure
 
-    failure = .FALSE.
     IF (log_unit>0) THEN
        ! Dump info if requested
        WRITE(log_unit,'("RATTLE_INFO|",1X,A,I6,A,F15.9)')&

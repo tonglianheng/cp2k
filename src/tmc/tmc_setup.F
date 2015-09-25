@@ -116,7 +116,6 @@ CONTAINS
       POINTER                                :: tmc_ana_env_list
     TYPE(tmc_env_type), POINTER              :: tmc_env
 
-    failure = .FALSE.
     ! start the timing
     CALL timeset(routineN,handle)
 
@@ -364,7 +363,6 @@ CONTAINS
     TYPE(tree_type), POINTER                 :: elem
 
     NULLIFY(ana_list, tmc_env, elem, logger)
-    failure = .FALSE.
 
     ! start the timing
     CALL timeset(routineN,handle)
@@ -496,7 +494,6 @@ CONTAINS
     TYPE(section_vals_type), POINTER         :: tmc_section
 
     NULLIFY(tmc_section, inp_Temp, Temps)
-    failure = .FALSE.
     CPASSERT(ASSOCIATED(input))
     CPASSERT(.NOT.ASSOCIATED(ana_list))
     CPASSERT(.NOT.ASSOCIATED(elem))
@@ -597,7 +594,6 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:), POINTER     :: inp_Temp
     TYPE(section_vals_type), POINTER         :: tmc_section
 
-    failure = .FALSE.
     NULLIFY(tmc_section, inp_Temp)
 
     CPASSERT(ASSOCIATED(input))
@@ -725,7 +721,6 @@ CONTAINS
 
     NULLIFY(tmc_section)
 
-    failure = .FALSE.
 
     CPASSERT(ASSOCIATED(input))
 
@@ -880,7 +875,6 @@ CONTAINS
     master_ana_rank  = -1
 
     master = .FALSE.
-    failure = .FALSE.
     flag = .FALSE.
     success = .TRUE.
 
@@ -1067,7 +1061,6 @@ CONTAINS
     INTEGER                                  :: file_nr
     LOGICAL                                  :: failure
 
-    failure = .FALSE.
     CPASSERT(ASSOCIATED(tmc_env))
     CPASSERT(ASSOCIATED(tmc_env%tmc_comp_set))
     ! only the master prints out

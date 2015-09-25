@@ -108,7 +108,6 @@ CONTAINS
       nsubgrid_new, ntest(3), t_icommensurate
     LOGICAL                                  :: failure, ftest, subgrid_is_OK
 
-    failure=.FALSE.
     ! ncommensurate is the number of commensurate grids
     ! in order to have non-commensurate grids ncommensurate must be 0
     ! icommensurte  is the level number of communensurate grids
@@ -198,7 +197,6 @@ CONTAINS
 
     LOGICAL                                  :: failure, my_odd
 
-    failure=.FALSE.
     my_odd=.FALSE.
     IF (PRESENT(odd)) my_odd=odd
     CPASSERT(ALL(n>=0))
@@ -244,7 +242,6 @@ CONTAINS
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: alat( 3 )
 
-    failure=.FALSE.
 
     DO i=1,3
        alat(i) = SUM ( hmat(:,i)**2 )

@@ -67,7 +67,6 @@ CONTAINS
                                                 ngroup_wish_set
     TYPE(cp_logger_type), POINTER            :: logger
 
-    failure = .FALSE.
     CALL timeset(routineN,handle)
     logger => cp_get_default_logger()
     output_unit=cp_print_key_unit_nr(logger,force_env_section,"MIXED%PRINT%PROGRAM_RUN_INFO",&

@@ -77,7 +77,6 @@ CONTAINS
     TYPE(pw_p_type), POINTER                 :: v_ee
     TYPE(section_vals_type), POINTER         :: ext_pot_section, input
 
-    failure=.FALSE.
     CALL timeset(routineN,handle)
     NULLIFY(v_ee, input, ext_pot_section, dft_control)
     CALL get_qs_env(qs_env,&
@@ -155,7 +154,6 @@ CONTAINS
       POINTER                                :: qs_kind_set
     TYPE(section_vals_type), POINTER         :: ext_pot_section, input
 
-    failure=.FALSE.
     CALL timeset(routineN,handle)
     NULLIFY(dft_control)
 
@@ -247,7 +245,6 @@ CONTAINS
     REAL(KIND=dp)                            :: dedf, dx, err, lerr
     REAL(KIND=dp), DIMENSION(:), POINTER     :: my_val
 
-    failure = .FALSE.
     CALL timeset(routineN,handle)
     NULLIFY(my_par, my_val)
     my_force = .FALSE.
@@ -320,7 +317,6 @@ CONTAINS
       DIMENSION(:, :, :, :)                  :: dgrid
     REAL(KIND=dp), DIMENSION(3)              :: dr, subgrid_origin
 
-    failure = .FALSE.
     CALL timeset(routineN,handle)
     my_force = .FALSE.
     IF (PRESENT(calc_derivatives)) my_force=calc_derivatives

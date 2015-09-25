@@ -213,7 +213,6 @@ CONTAINS
     TYPE(pw_pool_type), POINTER              :: pw_pool_xpndd
     TYPE(pw_type), POINTER                   :: dct_gf, gf
 
-    failure = .FALSE.
     CPASSERT(.NOT.(ASSOCIATED(green)))
     ALLOCATE(green)
     green%p3m=.FALSE.
@@ -469,7 +468,6 @@ CONTAINS
 
     LOGICAL                                  :: failure
 
-    failure=.FALSE.
 
     CPASSERT(ASSOCIATED(gftype))
     CPASSERT(gftype%ref_count>0)
@@ -494,7 +492,6 @@ CONTAINS
 
     LOGICAL                                  :: can_give_back, failure
 
-    failure = .FALSE.
     IF (ASSOCIATED(gftype)) THEN
        CPASSERT(gftype%ref_count>0)
        gftype%ref_count=gftype%ref_count-1
@@ -548,7 +545,6 @@ CONTAINS
     REAL(KIND=dp)                            :: l_arg, prod_arg, val
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: m_assign
 
-    failure=.FALSE.
     CPASSERT(ASSOCIATED(gftype))
     CPASSERT(gftype%ref_count>0)
     n = gftype % p3m_order
@@ -648,7 +644,6 @@ END SUBROUTINE calc_p3m_charge
 
     LOGICAL                                  :: failure
 
-    failure=.FALSE.
 
     CPASSERT(.NOT.ASSOCIATED(poisson_env))
     ALLOCATE(poisson_env)
@@ -683,7 +678,6 @@ END SUBROUTINE calc_p3m_charge
 
     LOGICAL                                  :: failure
 
-    failure=.FALSE.
 
     CPASSERT(ASSOCIATED(poisson_env))
     CPASSERT(poisson_env%ref_count>0)
@@ -706,7 +700,6 @@ END SUBROUTINE calc_p3m_charge
 
     LOGICAL                                  :: failure
 
-    failure=.FALSE.
     IF (ASSOCIATED(poisson_env)) THEN
        CPASSERT(poisson_env%ref_count>0)
        poisson_env%ref_count=poisson_env%ref_count-1

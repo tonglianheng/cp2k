@@ -92,7 +92,6 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-    failure=.FALSE.
 
     NULLIFY(fm_struct_tmp,matrix_sc_a,matrix_sc_b,matrix_overlap,para_env,context,local_data)
 
@@ -193,7 +192,6 @@ CONTAINS
     REAL(kind=dp)                            :: s_square, s_square_ideal
 
     CALL timeset(routineN,handle)
-    failure = .FALSE.
 
     SELECT CASE(s2_restraint_control%functional_form)
     CASE(do_s2_constraint)

@@ -90,7 +90,6 @@ CONTAINS
 
     LOGICAL                                  :: failure
 
-    failure=.FALSE.
 
     CPASSERT(ASSOCIATED(pw))
     CPASSERT(pw%ref_count>0)
@@ -114,7 +113,6 @@ SUBROUTINE pw_release(pw)
 
     LOGICAL                                  :: failure
 
-  failure=.FALSE.
 
   IF (ASSOCIATED(pw)) THEN
      CPASSERT(pw%ref_count>0)
@@ -176,7 +174,6 @@ SUBROUTINE pw_create(pw, pw_grid, use_data, in_space, cr3d_ptr)
     LOGICAL                                  :: failure
     TYPE(cp_logger_type), POINTER            :: logger
 
-  failure=.FALSE.
 
   CALL timeset(routineN,handle)
   CPASSERT(.NOT.ASSOCIATED(pw))

@@ -123,7 +123,6 @@ CONTAINS
       DIMENSION(:, :)                        :: auxint
     REAL(KIND=dp), DIMENSION(3)              :: pci
 
-    failure = .FALSE.
     IF (PRESENT(pab)) THEN
       CPASSERT(PRESENT(force_a))
       CPASSERT(PRESENT(force_b))

@@ -457,7 +457,6 @@ CONTAINS
     NULLIFY(ao_mo_fm_pools, dft_control, mos, ao_mo_fm_pools_aux_fit)
     NULLIFY( mo_derivs, mo_coeff, mo_coeff_aux_fit, mo_derivs_aux_fit, xas_env, matrix_s)
 
-    failure=.FALSE.
 
     CPASSERT(ASSOCIATED(scf_env))
     CPASSERT(scf_env%ref_count>0)
@@ -859,7 +858,6 @@ CONTAINS
     CALL timeset(routineN,handle)
 
     NULLIFY( qs_kind_set, matrix_s, dft_control, mos, qs_kind, rho,xas_env)
-    failure=.FALSE.
 !
     logger => cp_get_default_logger()
 
@@ -1037,7 +1035,6 @@ CONTAINS
       POINTER                                :: rho_atom
 
     CALL timeset(routineN,handle)
-    failure=.FALSE.
     NULLIFY(mo_coeff, rho, dft_control, para_env, mos)
     logger => cp_get_default_logger()
     CPASSERT(ASSOCIATED(scf_env))

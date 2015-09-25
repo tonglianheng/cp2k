@@ -171,7 +171,6 @@ CONTAINS
     TYPE(virial_type), POINTER               :: virial
 
     CALL timeset(routineN,handle)
-    failure = .FALSE.
     NULLIFY(logger)
     NULLIFY(subsys,virial,atprop_env,para_env,force_env_section)
     logger => cp_get_default_logger()

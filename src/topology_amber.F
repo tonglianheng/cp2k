@@ -306,7 +306,6 @@ CPSourceFileRef,&
     TYPE(cp_logger_type), POINTER            :: logger
 
     NULLIFY(logger)
-    failure = .FALSE.
     CALL timeset(routineN,handle)
     logger => cp_get_default_logger()
     iw = cp_print_key_unit_nr(logger,subsys_section,"PRINT%TOPOLOGY_INFO/AMBER_INFO",&
@@ -408,7 +407,6 @@ CPSourceFileRef,&
                                                 pk, pn, req, rk, teq, tk
     TYPE(cp_parser_type), POINTER            :: parser
 
-    failure = .FALSE.
     CALL timeset(routineN,handle)
     NULLIFY(parser)
     IF (output_unit>0) WRITE(output_unit,'(/,A)')" AMBER_INFO| Reading Amber Topology File: "//&
@@ -969,7 +967,6 @@ CPSourceFileRef,&
     REAL(KIND=dp)                            :: ctmp
     REAL(KIND=dp), DIMENSION(:), POINTER     :: cwork
 
-    failure = .FALSE.
     CALL timeset(routineN, handle)
     iend = i - 1
     isize= iend-istart+1
@@ -1042,7 +1039,6 @@ CPSourceFileRef,&
     INTEGER                                  :: i
     LOGICAL                                  :: failure, my_end
 
-    failure = .FALSE.
 
     CALL parser_get_next_line(parser,1,at_end=my_end)
     i = 1
@@ -1083,7 +1079,6 @@ CPSourceFileRef,&
     INTEGER                                  :: i
     LOGICAL                                  :: failure, my_end
 
-    failure = .FALSE.
     CALL parser_get_next_line(parser,1,at_end=my_end)
     i = 1
     DO WHILE ((i<=dim).AND.(.NOT.my_end))
@@ -1136,7 +1131,6 @@ CPSourceFileRef,&
     INTEGER                                  :: i
     LOGICAL                                  :: failure, my_end
 
-    failure = .FALSE.
     CALL parser_get_next_line(parser,1,at_end=my_end)
     i = 1
     DO WHILE ((i<=dim).AND.(.NOT.my_end))
@@ -1197,7 +1191,6 @@ CPSourceFileRef,&
     INTEGER                                  :: i
     LOGICAL                                  :: failure, my_end
 
-    failure = .FALSE.
     CALL parser_get_next_line(parser,1,at_end=my_end)
     i = 1
     DO WHILE ((i<=dim).AND.(.NOT.my_end))
@@ -1258,7 +1251,6 @@ CPSourceFileRef,&
     INTEGER                                  :: i
     LOGICAL                                  :: failure, my_end
 
-    failure = .FALSE.
 
     CALL parser_get_next_line(parser,1,at_end=my_end)
     i = 1
@@ -1297,7 +1289,6 @@ CPSourceFileRef,&
     INTEGER                                  :: i
     LOGICAL                                  :: failure, my_end
 
-    failure = .FALSE.
 
     CALL parser_get_next_line(parser,1,at_end=my_end)
     i = 1
@@ -1334,7 +1325,6 @@ CPSourceFileRef,&
     INTEGER                                  :: end_f, indflag, start_f
     LOGICAL                                  :: failure, found, my_end
 
-    failure = .FALSE.
     CALL parser_search_string(parser,"%FLAG",.TRUE.,found,begin_line=.TRUE.)
     IF (found) THEN
        ! section label
@@ -1377,7 +1367,6 @@ CPSourceFileRef,&
 
     LOGICAL                                  :: failure
 
-    failure        = .FALSE.
     CALL parser_search_string(parser,"%VERSION ",.TRUE.,found_AMBER_V8,begin_line=.TRUE.)
     CALL cp_assert(found_AMBER_V8, cp_failure_level, cp_assertion_failed, routineP,&
             "This is not an AMBER V.8 PRMTOP format file. Cannot interpret older "//&
@@ -1427,7 +1416,6 @@ CPSourceFileRef,&
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: iwork
     LOGICAL                                  :: failure, l_dum
 
-    failure        = .FALSE.
     CALL timeset(routineN, handle)
     IF (nbond/=0) THEN
        ALLOCATE(work_label(2,nbond))
@@ -1519,7 +1507,6 @@ CPSourceFileRef,&
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: iwork
     LOGICAL                                  :: failure, l_dum
 
-    failure        = .FALSE.
     CALL timeset(routineN,handle)
     IF (ntheta/=0) THEN
        ALLOCATE(work_label(3,ntheta))
@@ -1627,7 +1614,6 @@ CPSourceFileRef,&
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: iwork
     LOGICAL                                  :: failure, l_dum
 
-    failure        = .FALSE.
     CALL timeset(routineN, handle)
     IF (nphi/=0) THEN
        ALLOCATE(work_label(6,nphi))
@@ -1756,7 +1742,6 @@ CPSourceFileRef,&
     REAL(KIND=dp)                            :: F12, F6, my_eps, my_sigma, &
                                                 sigma6
 
-    failure = .FALSE.
     CALL timeset(routineN, handle)
     ALLOCATE(work_label(natom))
     ALLOCATE(iwork(natom))

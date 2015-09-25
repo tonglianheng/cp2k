@@ -106,7 +106,6 @@
     TYPE(average_quantities_type), POINTER   :: averages
     TYPE(section_vals_type), POINTER         :: work, avgs_section
 
-    failure = .FALSE.
 
     NULLIFY (averages)
     NULLIFY (cell)

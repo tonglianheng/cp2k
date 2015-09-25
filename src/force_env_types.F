@@ -169,7 +169,6 @@ CONTAINS
 
     LOGICAL                                  :: failure
 
-    failure=.FALSE.
 
     CPASSERT(ASSOCIATED(force_env))
     CPASSERT(force_env%ref_count>0)
@@ -195,7 +194,6 @@ CONTAINS
     LOGICAL                                  :: failure
     TYPE(cp_logger_type), POINTER            :: my_logger
 
-    failure=.FALSE.
     IF (ASSOCIATED(force_env)) THEN
        CPASSERT(force_env%ref_count>0)
        force_env%ref_count=force_env%ref_count-1
@@ -324,7 +322,6 @@ CONTAINS
 
     NULLIFY(subsys_tmp)
 
-    failure=.FALSE.
 
     CPASSERT(ASSOCIATED(force_env))
     CPASSERT(force_env%ref_count>0)
@@ -462,7 +459,6 @@ CONTAINS
     LOGICAL                                  :: failure
     TYPE(cp_subsys_type), POINTER            :: subsys
 
-    failure = .FALSE.
     n_atom = 0
     NULLIFY (subsys)
     CALL force_env_get(force_env,subsys=subsys)
@@ -488,7 +484,6 @@ CONTAINS
     LOGICAL                                  :: failure
     TYPE(cp_subsys_type), POINTER            :: subsys
 
-    failure = .FALSE.
     n_particle = 0
     NULLIFY (subsys)
     CALL force_env_get(force_env,subsys=subsys)
@@ -517,7 +512,6 @@ CONTAINS
     LOGICAL                                  :: failure
     TYPE(cp_subsys_type), POINTER            :: subsys
 
-    failure = .FALSE.
     CALL timeset(routineN,handle)
     CPASSERT(ASSOCIATED(force_env))
     CPASSERT(force_env%ref_count > 0)
@@ -548,7 +542,6 @@ CONTAINS
     LOGICAL                                  :: failure
     TYPE(cp_subsys_type), POINTER            :: subsys
 
-    failure = .FALSE.
     CALL timeset(routineN,handle)
     CPASSERT(ASSOCIATED(force_env))
     CPASSERT(force_env%ref_count > 0)
@@ -579,7 +572,6 @@ CONTAINS
     LOGICAL                                  :: failure
     TYPE(cp_subsys_type), POINTER            :: subsys
 
-    failure = .FALSE.
     CALL timeset(routineN,handle)
     CPASSERT(ASSOCIATED(force_env))
     CPASSERT(force_env%ref_count > 0)
@@ -617,7 +609,6 @@ CONTAINS
 
     LOGICAL                                  :: failure
 
-    failure = .FALSE.
     CPASSERT(ASSOCIATED(force_env))
     CPASSERT(force_env%ref_count>0)
     IF (PRESENT(meta_env)) THEN
@@ -671,7 +662,6 @@ CONTAINS
     INTEGER, DIMENSION(:), POINTER           :: my_i_force_eval
     LOGICAL                                  :: failure
 
-    failure = .FALSE.
     ! Let's treat the case of Multiple force_eval
     CALL section_vals_get(force_env_sections, n_repetition=nforce_eval)
     CALL section_vals_val_get(root_section,"MULTIPLE_FORCE_EVALS%FORCE_EVAL_ORDER",&

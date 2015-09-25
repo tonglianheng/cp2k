@@ -83,7 +83,6 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: rpgfa, rpgfb, sphi_a, sphi_b, &
                                                 zeta, zetb
 
-    failure = .FALSE.
     CALL timeset(routineN,handle)
     NULLIFY(la_max, la_min, lb_max, lb_min, npgfa, npgfb, nsgfa, nsgfb,&
             first_sgfa, first_sgfb, set_radius_a, set_radius_b, rpgfa, rpgfb,&
@@ -242,7 +241,6 @@ CONTAINS
                                                 sphi_b, sphi_ca, zeta, zetb, &
                                                 zetca
 
-    failure = .FALSE.
     CALL timeset(routineN,handle)
     NULLIFY(la_max, la_min, lb_max, lb_min, lca_max, lca_min, npgfa, npgfb,&
              npgfca, nsgfa, nsgfb, nsgfca) 
@@ -417,7 +415,6 @@ CONTAINS
                                                 sphi_b, sphi_cb, zeta, zetb, &
                                                 zetcb
 
-    failure = .FALSE.
     CALL timeset(routineN,handle)
     NULLIFY(la_max, la_min, lb_max, lb_min, lcb_max, lcb_min, npgfa, npgfb,&
             npgfcb, nsgfa, nsgfb, nsgfcb)
@@ -573,7 +570,6 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: rpgfa, rpgfb, sphi_a, sphi_b, &
                                                 zeta, zetb
 
-    failure = .FALSE.
     CALL timeset(routineN,handle)
     NULLIFY(la_max, la_min, lb_max, lb_min, npgfa, npgfb, nsgfa, nsgfb,&
             first_sgfa, first_sgfb, set_radius_a, set_radius_b, rpgfa, rpgfb,&

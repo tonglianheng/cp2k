@@ -139,7 +139,6 @@ CONTAINS
     TYPE(md_environment_type), POINTER       :: md_env
     TYPE(section_vals_type), POINTER         :: md_section, motion_section
 
-    failure = .FALSE.
     my_rm_restart_info = .TRUE.
     IF (PRESENT(rm_restart_info)) my_rm_restart_info = rm_restart_info
     NULLIFY(md_env, para_env)
@@ -222,7 +221,6 @@ CONTAINS
     CPASSERT(ASSOCIATED(globenv))
     CPASSERT(ASSOCIATED(force_env))
 
-    failure=.FALSE.
     NULLIFY (particles, cell, simpar, itimes, used_time, subsys, &
          md_ener, thermostats, barostat, reftraj, force_env_section, &
          reftraj_section, work_section, atomic_kinds, &

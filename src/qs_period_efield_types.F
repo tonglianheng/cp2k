@@ -52,7 +52,6 @@ CONTAINS
     REAL(KIND=dp)                            :: field_energy
     REAL(KIND=dp), DIMENSION(3)              :: polarisation
 
-    failure=.FALSE.
 
     ! retain possible values for energy and polarisation
     IF(ASSOCIATED(efield)) THEN
@@ -108,7 +107,6 @@ CONTAINS
 
     LOGICAL                                  :: failure
 
-    failure =.FALSE.
     IF(ASSOCIATED(efield))THEN
        IF(ASSOCIATED(efield%sinmat).AND.ASSOCIATED(efield%cosmat))THEN
           CALL cp_dbcsr_deallocate_matrix_set ( efield%cosmat)

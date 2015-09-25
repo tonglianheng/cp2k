@@ -109,7 +109,6 @@ CONTAINS
     ! Writes the data that is already available in qs_env
     CALL write_available_results(qs_env)
 
-    failure=.FALSE.
     my_localized_wfn = .FALSE.
     NULLIFY(dft_control, mos, rho, &
          subsys, particles, input, print_key, para_env)
@@ -652,7 +651,6 @@ CONTAINS
     TYPE(section_vals_type), POINTER         :: dft_section, input
 
     CALL timeset(routineN,handle)
-    failure=.FALSE.
     NULLIFY(cell, dft_control, mos, atomic_kind_set, particle_set, rho, &
          ks_rmpv, dft_section, input, &
          particles, subsys, para_env, rho_ao)

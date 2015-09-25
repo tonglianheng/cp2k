@@ -94,7 +94,6 @@ CONTAINS
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(pw_type), POINTER                   :: pw
 
-    failure = .FALSE.
     !
     ! Setting Up Fit Procedure
     !

@@ -81,7 +81,6 @@ CONTAINS
     TYPE(fist_potential_type), POINTER       :: fist_potential
     TYPE(section_vals_type), POINTER         :: work_section
 
-    failure = .FALSE.
     ALLOCATE(multipoles)
 
     last_multipole_id_nr=last_multipole_id_nr+1
@@ -171,7 +170,6 @@ CONTAINS
 
     LOGICAL                                  :: failure
 
-    failure =.FALSE.
     IF (ASSOCIATED(multipoles)) THEN
        CPASSERT(multipoles%ref_count>0)
        multipoles%ref_count=multipoles%ref_count-1
@@ -208,7 +206,6 @@ CONTAINS
 
     LOGICAL                                  :: failure
 
-    failure=.FALSE.
     IF (ASSOCIATED(multipoles)) THEN
        CPASSERT(multipoles%ref_count>0)
        multipoles%ref_count=multipoles%ref_count+1

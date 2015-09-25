@@ -66,7 +66,6 @@ MODULE qs_dispersion_utils
                                                 vdw_section, xc_fun_section
 
     CPASSERT(ASSOCIATED(dispersion_env))
-    failure = .FALSE.
 
     ! set general defaults
     dispersion_env%doabc=.FALSE.
@@ -198,7 +197,6 @@ MODULE qs_dispersion_utils
       POINTER                                :: qs_kind_set
     TYPE(section_vals_type), POINTER         :: dft_section
 
-    failure=.FALSE.
 
     IF(PRESENT(ounit)) THEN
        output_unit = ounit

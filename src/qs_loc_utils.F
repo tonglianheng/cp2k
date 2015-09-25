@@ -122,7 +122,6 @@ CONTAINS
     LOGICAL                                  :: failure
 
     CALL timeset(routineN,handle)
-    failure=.FALSE.
 
     IF (.NOT. ASSOCIATED(mo_loc_history)) THEN
        ALLOCATE(mo_loc_history(SIZE(mo_loc)))
@@ -164,7 +163,6 @@ CONTAINS
     TYPE(cp_fm_type), POINTER                :: o1, o2, o3, o4, smo
 
     CALL timeset(routineN,handle)
-    failure=.FALSE.
 
     CALL cp_fm_get_info(mo_new, nrow_global=nrow, ncol_global=ncol)
     CALL cp_fm_get_info(mo_ref, ncol_global=ncol_ref)
@@ -248,7 +246,6 @@ CONTAINS
                                                 ratio, st, theta, tolerance
     TYPE(cp_fm_type), POINTER                :: rmat
 
-    failure = .FALSE.
 
     NULLIFY(rmat)
 
@@ -326,7 +323,6 @@ CONTAINS
 #endif
     LOGICAL                                  :: failure
 
-    failure = .FALSE.
     CALL cp_fm_get_info(rmat, nrow_global=nstate)
 #if defined(__SCALAPACK)
     desc(:) = rmat%matrix_struct%descriptor(:)
@@ -365,7 +361,6 @@ CONTAINS
 #endif
     LOGICAL                                  :: failure
 
-    failure = .FALSE.
     CALL cp_fm_get_info(zij(1,1)%matrix,nrow_global = nstate)
 
     natom = SIZE(zij, 1)
@@ -414,7 +409,6 @@ CONTAINS
     REAL(dp), DIMENSION(:, :), POINTER       :: diag
     TYPE(cp_fm_type), POINTER                :: force
 
-    failure = .FALSE.
 
     NULLIFY( force , diag, col_indices, row_indices )
     natom = SIZE(zij_fm_set,1)
@@ -505,7 +499,6 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-    failure = .FALSE.
 
     NULLIFY(mos,matrix_s,moloc_coeff,particle_set,para_env,cell,local_molecules,occupations,mat_ptr)
     IF (PRESENT(do_localize)) qs_loc_env%do_localize = do_localize
@@ -740,7 +733,6 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-    failure = .FALSE.
     NULLIFY (qs_kind, qs_kind_set)
     NULLIFY (cell, op_sm_set, particle_set)
     NULLIFY (sab_orb)
@@ -955,7 +947,6 @@ CONTAINS
     TYPE(section_vals_type), POINTER         :: print_key
 
     CALL timeset(routineN,handle)
-    failure = .FALSE.
     NULLIFY (logger)
     logger => cp_get_default_logger()
     output_unit= cp_logger_get_default_io_unit(logger)
@@ -1075,7 +1066,6 @@ CONTAINS
     CALL timeset(routineN,handle)
 
     logger => cp_get_default_logger()
-    failure = .FALSE.
 
     nspin = SIZE(mos_localized)
     nao = mos(1)%mo_set%nao
@@ -1482,7 +1472,6 @@ CONTAINS
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(section_vals_type), POINTER         :: loc_print_section
 
-    failure=.FALSE.
     my_do_xas=.FALSE.
     IF(PRESENT(do_xas)) THEN
        my_do_xas=do_xas
@@ -1739,7 +1728,6 @@ CONTAINS
     INTEGER                                  :: ispin
     LOGICAL                                  :: failure
 
-    failure = .FALSE.
 
     DO ispin = 1,nspins
        ALLOCATE(localized_wfn_control%centers_set(ispin)%array(6,nmoloc(ispin)))
@@ -1772,7 +1760,6 @@ CONTAINS
 
     CALL timeset(routineN,state)
 
-    failure = .FALSE.
 
     localized_wfn_control%nloc_states(1:2) = nmoloc(1:2)
     max_nmoloc = MAX(nmoloc(1),nmoloc(2))

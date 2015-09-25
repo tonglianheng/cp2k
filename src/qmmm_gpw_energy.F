@@ -117,7 +117,6 @@ CONTAINS
                                                 interp_section, print_section
 
     CALL timeset(routineN,handle)
-    failure=.FALSE.
     logger => cp_get_default_logger()
     NULLIFY(ks_qmmm_env_loc, pw_pools, pw_env,input_section, dft_control)
     CALL get_qs_env(qs_env=qs_env,&
@@ -280,7 +279,6 @@ CONTAINS
     LOGICAL                                  :: failure
     TYPE(pw_p_type), DIMENSION(:), POINTER   :: grids
 
-    failure=.FALSE.
     CPASSERT(ASSOCIATED(mm_particles))
     CPASSERT(ASSOCIATED(qmmm_env%mm_atom_chrg))
     CPASSERT(ASSOCIATED(qmmm_env%mm_atom_index))
@@ -568,7 +566,6 @@ CONTAINS
     TYPE(pw_type), POINTER                   :: pw
     TYPE(qmmm_per_pot_type), POINTER         :: per_pot
 
-    failure = .FALSE.
     CALL timeset(routineN,handle)
     NULLIFY(grid, pw)
     dr1c = cgrid%pw_grid%dr(1)
@@ -781,7 +778,6 @@ CONTAINS
     TYPE(qmmm_pot_type), POINTER             :: pot
 
     CALL timeset(routineN,handle)
-    failure = .FALSE.
     n1   = grid%pw_grid%npts(1)
     n2   = grid%pw_grid%npts(2)
     n3   = grid%pw_grid%npts(3)

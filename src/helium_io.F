@@ -86,7 +86,6 @@ MODULE helium_io
     REAL(kind=dp), DIMENSION(3)              :: my_abc
     TYPE(cp_logger_type), POINTER            :: logger
 
-    failure=.FALSE.
     CPASSERT(ASSOCIATED(helium))
 
     NULLIFY(logger)
@@ -289,7 +288,6 @@ MODULE helium_io
 
     CALL timeset(routineN,handle)
 
-    failure=.FALSE.
     CPASSERT(ASSOCIATED(helium))
     CPASSERT(ASSOCIATED(helium%input))
 
@@ -366,7 +364,6 @@ MODULE helium_io
 
     CALL timeset(routineN,handle)
 
-    failure=.FALSE.
     CPASSERT(ASSOCIATED(helium))
     CPASSERT(ASSOCIATED(helium%input))
 
@@ -412,7 +409,6 @@ MODULE helium_io
 
     CALL timeset(routineN,handle)
 
-    failure=.FALSE.
     CPASSERT(ASSOCIATED(helium))
     CPASSERT(ASSOCIATED(helium%input))
 
@@ -471,7 +467,6 @@ MODULE helium_io
 
     CALL timeset(routineN,handle)
 
-    failure=.FALSE.
     CPASSERT(ASSOCIATED(helium))
     CPASSERT(ASSOCIATED(helium%input))
 
@@ -537,7 +532,6 @@ MODULE helium_io
 
     CALL timeset(routineN,handle)
 
-    failure=.FALSE.
     CPASSERT(ASSOCIATED(helium))
     CPASSERT(ASSOCIATED(helium%input))
 
@@ -616,7 +610,6 @@ MODULE helium_io
 
     CALL timeset(routineN,handle)
 
-    failure=.FALSE.
     CPASSERT(ASSOCIATED(helium))
 
     NULLIFY(logger,print_key)
@@ -836,7 +829,6 @@ MODULE helium_io
 
     CALL timeset(routineN,handle)
 
-    failure=.FALSE.
     CPASSERT(ASSOCIATED(helium))
     CPASSERT(ASSOCIATED(helium%input))
 
@@ -900,7 +892,6 @@ MODULE helium_io
 
     CALL timeset(routineN,handle)
 
-    failure=.FALSE.
     CPASSERT(ASSOCIATED(helium))
     CPASSERT(ASSOCIATED(helium%input))
 
@@ -1009,7 +1000,6 @@ MODULE helium_io
 
     CALL timeset(routineN,handle)
 
-    failure=.FALSE.
     CPASSERT(ASSOCIATED(helium))
     CPASSERT(ASSOCIATED(helium%input))
 
@@ -1065,7 +1055,6 @@ MODULE helium_io
 
     CALL timeset(routineN,handle)
 
-    failure=.FALSE.
     CPASSERT(ASSOCIATED(helium))
 
     NULLIFY(logger)
@@ -1143,7 +1132,6 @@ MODULE helium_io
 
     CALL timeset(routineN,handle)
 
-    failure=.FALSE.
     CPASSERT(ASSOCIATED(helium))
 
     NULLIFY(logger)

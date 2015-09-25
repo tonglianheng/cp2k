@@ -154,7 +154,6 @@ CONTAINS
     TYPE(xc_derivative_type), POINTER        :: deriv
 
     CALL timeset(routineN,handle)
-    failure=.FALSE.
     NULLIFY(bo)
 
     CALL section_vals_val_get(xbeef_params,"scale_x",r_val=sx)
@@ -261,7 +260,6 @@ SUBROUTINE xbeef_lda_calc(rho, rho_1_3, norm_drho,&
 
 !energies, first and second derivatives from legendre pol
 
-    failure=.FALSE.
 
     kf = (3.0_dp * pi**2)**(1.0_dp / 3.0_dp) !only constants, without n^1/3
     k_lda = -(2.0_dp / (2.0_dp**(4._dp/3._dp))) * (3.0_dp/2.0_dp) * (3.0_dp / (4.0_dp * pi))**(1.0_dp/3.0_dp) 
@@ -361,7 +359,6 @@ SUBROUTINE xbeef_lda_calc(rho, rho_1_3, norm_drho,&
 
     CALL cite_reference(Wellendorff2012)
 
-    failure=.FALSE.
     NULLIFY(deriv, bo)
     DO i=1,2
        NULLIFY(norm_drho(i)%array, rho(i)%array, rho_1_3(i)%array)
@@ -485,7 +482,6 @@ SUBROUTINE xbeef_lsd_calc(rho_spin, rho_1_3_spin, norm_drho_spin,e_0,&
 
 !energies and first derivatives from legendre pol
 
-    failure=.FALSE.
     kf = (3.0_dp * pi**2)**(1.0_dp / 3.0_dp) !only constants, without n^1/3
     k_lsd = (3.0_dp/2.0_dp) * (3.0_dp / (4.0_dp * pi))**(1.0_dp/3.0_dp) 
         !exchange energy density of the uniform electron gas, spin-polarized

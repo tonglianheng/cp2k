@@ -331,7 +331,6 @@ CONTAINS
 !   btyp = AA : high accuracy all-electron basis
 !   btyp = AP : high accuracy pseudopotential basis
 
-    failure = .FALSE.
     NULLIFY(basis%am,basis%cm,basis%as,basis%ns,basis%bf,basis%dbf)
     ! get information on quadrature type and number of grid points
     ! allocate and initialize the atomic grid
@@ -653,7 +652,6 @@ CONTAINS
 
     LOGICAL                                  :: failure
 
-    failure = .FALSE.
 
     IF(ASSOCIATED(basis%am)) THEN
        DEALLOCATE (basis%am)
@@ -691,7 +689,6 @@ CONTAINS
 
     LOGICAL                                  :: failure
 
-    failure = .FALSE.
 
     CPASSERT(.NOT.ASSOCIATED(atom))
 
@@ -718,7 +715,6 @@ CONTAINS
 
     LOGICAL                                  :: failure
 
-    failure = .FALSE.
 
     CPASSERT(ASSOCIATED(atom))
 
@@ -775,7 +771,6 @@ CONTAINS
 
     LOGICAL                                  :: failure
 
-    failure = .FALSE.
 
     CPASSERT(ASSOCIATED(atom))
 
@@ -813,7 +808,6 @@ CONTAINS
 
     LOGICAL                                  :: failure
 
-    failure = .FALSE.
 
     CPASSERT(.NOT.ASSOCIATED(orbs))
 
@@ -865,7 +859,6 @@ CONTAINS
 
     LOGICAL                                  :: failure
 
-    failure = .FALSE.
 
     CPASSERT(ASSOCIATED(orbs))
 
@@ -931,7 +924,6 @@ CONTAINS
     INTEGER                                  :: m
     LOGICAL                                  :: failure
 
-    failure = .FALSE.
     m=MAXVAL(n)
 
     CPASSERT(.NOT.ASSOCIATED(opmat))
@@ -956,7 +948,6 @@ CONTAINS
 
     LOGICAL                                  :: failure
 
-    failure = .FALSE.
     CPASSERT(ASSOCIATED(opmat))
 
     opmat%n = 0
@@ -981,7 +972,6 @@ CONTAINS
     INTEGER                                  :: nr
     LOGICAL                                  :: failure
 
-    failure = .FALSE.
     CPASSERT(.NOT.ASSOCIATED(opgrid))
 
     ALLOCATE(opgrid)
@@ -1007,7 +997,6 @@ CONTAINS
 
     LOGICAL                                  :: failure
 
-    failure = .FALSE.
     CPASSERT(ASSOCIATED(opgrid))
 
     NULLIFY(opgrid%grid)
@@ -1035,7 +1024,6 @@ CONTAINS
 
     LOGICAL                                  :: failure
 
-    failure = .FALSE.
     ngto = 0
     ival = 0
     cval = 0._dp
@@ -1823,7 +1811,6 @@ CONTAINS
     TYPE(cp_sll_val_type), POINTER           :: list
     TYPE(val_type), POINTER                  :: val
 
-    failure = .FALSE.
 
     bsname = basis_set_name
     symbol = element_symbol
@@ -2047,7 +2034,6 @@ CONTAINS
     REAL(dp), DIMENSION(:), POINTER          :: convals
     TYPE(section_vals_type), POINTER         :: gth_potential_section
 
-    failure = .FALSE.
 
     IF ( zval > 0 ) THEN
       CALL section_vals_val_get(potential_section,"PSEUDO_TYPE",i_val=potential%ppot_type)
@@ -2141,7 +2127,6 @@ CONTAINS
     TYPE(cp_sll_val_type), POINTER           :: list
     TYPE(val_type), POINTER                  :: val
 
-    failure = .FALSE.
 
     elec_conf = 0
 

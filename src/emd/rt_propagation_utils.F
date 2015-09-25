@@ -112,7 +112,6 @@ MODULE  rt_propagation_utils
     TYPE(qs_ks_env_type), POINTER            :: ks_env
     TYPE(rt_prop_type), POINTER              :: rtp
 
-    failure = .FALSE.
     CALL timeset(routineN,handle)
 
     return_s_derivatives=.TRUE.

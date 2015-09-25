@@ -58,7 +58,6 @@ CONTAINS
     LOGICAL                                  :: failure
     REAL(dp)                                 :: damp, eps
 
-    failure = .FALSE.
     ndiis = optimization%n_diis
     eps   = optimization%eps_diis
     damp  = optimization%damping
@@ -122,7 +121,6 @@ CONTAINS
     INTEGER                                  :: i
     LOGICAL                                  :: failure
 
-    failure = .FALSE.
     history%max_history = 0
     history%hlen = 0
     history%hpos = 0
@@ -166,7 +164,6 @@ CONTAINS
     REAL(dp), ALLOCATABLE, DIMENSION(:)      :: s, work
     REAL(dp), ALLOCATABLE, DIMENSION(:, :)   :: vec
 
-    failure = .FALSE.
     nmax = history%max_history
     nnow = history%hpos
     a = history%damping

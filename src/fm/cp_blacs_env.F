@@ -153,7 +153,6 @@ SUBROUTINE cp_blacs_env_create(blacs_env,para_env,blacs_grid_layout,blacs_repeat
                                                 my_row_major
 #endif
 
-  failure = .FALSE.
 
 #ifdef __parallel
 #ifndef __SCALAPACK
@@ -271,7 +270,6 @@ SUBROUTINE cp_blacs_env_retain(blacs_env)
 
     LOGICAL                                  :: failure
 
-  failure=.FALSE.
   CPASSERT(ASSOCIATED(blacs_env))
   CPASSERT(blacs_env%ref_count>0)
   blacs_env%ref_count=blacs_env%ref_count+1
@@ -292,7 +290,6 @@ SUBROUTINE cp_blacs_env_release(blacs_env)
 
     LOGICAL                                  :: failure
 
-  failure=.FALSE.
 
   IF (ASSOCIATED(blacs_env)) THEN
      CPASSERT(blacs_env%ref_count>0)
@@ -327,7 +324,6 @@ SUBROUTINE cp_blacs_env_write(blacs_env, unit_nr)
     INTEGER                                  :: iostat
     LOGICAL                                  :: failure
 
-  failure=.FALSE.
 
   IF (ASSOCIATED(blacs_env)) THEN
      WRITE (unit=unit_nr,fmt="('  group=',i10,', ref_count=',i10,',')",&

@@ -137,7 +137,6 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-    failure = .FALSE.
     NULLIFY(logger,mark_states,mark_list,para_env)
     logger => cp_get_default_logger()
     !-----------------------------------------------------------------------------

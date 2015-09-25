@@ -82,7 +82,6 @@ SUBROUTINE ewald_pw_grid_update( ewald_pw, ewald_env, cell_hmat)
     TYPE(pw_pool_type), POINTER              :: pw_big_pool, pw_small_pool
     TYPE(section_vals_type), POINTER         :: poisson_section
 
-  failure=.FALSE.
 
   NULLIFY ( pw_big_pool )
   NULLIFY ( pw_small_pool )

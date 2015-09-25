@@ -126,7 +126,6 @@ CONTAINS
                                                 mm_section, poisson_section
 
     CALL timeset(routineN,handle)
-    failure = .FALSE.
     logger => cp_get_default_logger()
 
     NULLIFY ( subsys, cell,cell_ref)

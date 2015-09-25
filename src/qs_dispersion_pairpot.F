@@ -128,7 +128,6 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-    failure = .FALSE.
 
     vdw_type = dispersion_env%type
     SELECT CASE (vdw_type)
@@ -327,7 +326,6 @@ CONTAINS
     CHARACTER(LEN=default_string_length)     :: functional
     LOGICAL                                  :: failure
 
-    failure = .FALSE.
 
     CALL section_vals_val_get(vdw_section,"PAIR_POTENTIAL%REFERENCE_FUNCTIONAL",c_val=functional)
 
@@ -376,7 +374,6 @@ CONTAINS
     CHARACTER(LEN=default_string_length)     :: functional
     LOGICAL                                  :: failure
 
-    failure = .FALSE.
 
     CALL section_vals_val_get(vdw_section,"PAIR_POTENTIAL%REFERENCE_FUNCTIONAL",c_val=functional)
 
@@ -616,7 +613,6 @@ CONTAINS
     CHARACTER(LEN=default_string_length)     :: functional
     LOGICAL                                  :: failure
 
-    failure = .FALSE.
 
     CALL section_vals_val_get(vdw_section,"PAIR_POTENTIAL%REFERENCE_FUNCTIONAL",c_val=functional)
 
@@ -898,7 +894,6 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-    failure = .FALSE.
 
     energy = 0._dp
 
@@ -1747,7 +1742,6 @@ CONTAINS
     INTEGER                                  :: ix, iy, iz, nx, ny, nz
     LOGICAL                                  :: failure
 
-    failure = .FALSE.
     CPASSERT(ALL(ABS(cell)<=ncell))
 
     ix = cell(1)
@@ -1847,7 +1841,6 @@ CONTAINS
     LOGICAL                                  :: failure
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: pars
 
-    failure = .FALSE.
     IF(para_env%source==para_env%mepos) THEN
       ! Read the DFT-D3 C6AB parameters from file "filename"
       CALL open_file(file_name=filename,unit_number=funit,file_form="FORMATTED")
@@ -2945,7 +2938,6 @@ CONTAINS
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: rik
 
-    failure = .FALSE.
 ! we only have to do something if this is a parallel run
 
     IF (para_env%num_pe > 1) THEN

@@ -124,7 +124,6 @@ MODULE hfx_compression_methods
                                                 tmp_nints
     LOGICAL                                  :: failure
 
-    failure = .FALSE.
 
     start_idx = container%element_counter
     increment_counter = (nbits*CACHE_SIZE + 63)/64

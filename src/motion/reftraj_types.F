@@ -92,7 +92,6 @@ CONTAINS
     CHARACTER(LEN=default_path_length)       :: filename
     LOGICAL                                  :: failure
 
-    failure = .FALSE.
 
     CPASSERT(.NOT. ASSOCIATED(reftraj))
     ALLOCATE(reftraj)
@@ -142,7 +141,6 @@ CONTAINS
 
     LOGICAL                                  :: failure
 
-    failure=.FALSE.
 
     IF (ASSOCIATED(reftraj)) THEN
        CPASSERT(reftraj%ref_count>0)
@@ -167,7 +165,6 @@ CONTAINS
 
     LOGICAL                                  :: failure
 
-    failure=.FALSE.
     IF(ASSOCIATED(reftraj)) THEN
        CPASSERT(reftraj%ref_count>0)
        reftraj%ref_count=reftraj%ref_count-1

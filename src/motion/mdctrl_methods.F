@@ -44,7 +44,6 @@ CONTAINS
 
     LOGICAL                                  :: failure
 
-    failure = .FALSE.
     CPASSERT(ASSOCIATED(md_env))
     CPASSERT(ASSOCIATED(mdctrl))
 

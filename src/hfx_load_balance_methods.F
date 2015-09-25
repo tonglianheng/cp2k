@@ -217,7 +217,6 @@ MODULE hfx_load_balance_methods
 !$OMP END MASTER
 !$OMP BARRIER
 
-    failure=.FALSE.
 
     log10_eps_schwarz = LOG10(eps_schwarz)
     log_2 = LOG10(2.0_dp)
@@ -1564,7 +1563,6 @@ END SUBROUTINE hfx_permute_binning
     TYPE(hfx_distribution), &
       DIMENSION(:, :), POINTER, SAVE         :: full_dist
 
-    failure=.FALSE.
 
 !$OMP BARRIER
 !$OMP MASTER
@@ -1904,7 +1902,6 @@ END SUBROUTINE hfx_permute_binning
     LOGICAL                                  :: failure
     TYPE(rng_stream_type), POINTER           :: rng_stream
 
-    failure = .FALSE.
 
     nstep=MAX(1,INT(number_of_processes)/2)
 
@@ -2433,7 +2430,6 @@ END SUBROUTINE hfx_permute_binning
     INTEGER, ALLOCATABLE, DIMENSION(:), SAVE :: shm_bins_per_rank, shm_displ
     LOGICAL                                  :: failure
 
-    failure = .FALSE.
 
 
     SELECT CASE (eval_type)

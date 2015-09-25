@@ -95,7 +95,6 @@ CONTAINS
 
     NULLIFY(matrix_q, p_in)
 
-    failure = .FALSE.
     CPASSERT(ASSOCIATED(p_out))
     NULLIFY(matrix_q, p_in)
     p_in => rho_ao
@@ -159,7 +158,6 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-    failure = .FALSE.
     CPASSERT(ASSOCIATED(mixing_store))
     NULLIFY(auxbas_pw_pool, dft_control, pw_env, rho_atom, rho_g, rho_r, tot_rho_r)
 
@@ -297,7 +295,6 @@ CONTAINS
     TYPE(rho_atom_type), DIMENSION(:), &
       POINTER                                :: rho_atom
 
-    failure = .FALSE.
     CPASSERT(ASSOCIATED(mixing_store%rhoin))
     CPASSERT(ASSOCIATED(mixing_store%kerker_factor))
 
@@ -383,7 +380,6 @@ CONTAINS
     REAL(dp), ALLOCATABLE, DIMENSION(:, :)   :: a, b, c, c_inv
     TYPE(pw_p_type), DIMENSION(:), POINTER   :: rho_g
 
-    failure = .FALSE.
     CPASSERT(ASSOCIATED(mixing_store%res_buffer))
     CPASSERT(ASSOCIATED(mixing_store%rhoin_buffer))
     NULLIFY(rho_g)
@@ -560,7 +556,6 @@ CONTAINS
     TYPE(rho_atom_type), DIMENSION(:), &
       POINTER                                :: rho_atom
 
-    failure = .FALSE.
     CPASSERT(ASSOCIATED(mixing_store%res_buffer))
     CPASSERT(ASSOCIATED(mixing_store%rhoin))
     CPASSERT(ASSOCIATED(mixing_store%rhoin_old))
@@ -842,7 +837,6 @@ CONTAINS
       POINTER                                :: delta_res, u_vec, z_vec
     TYPE(pw_p_type), DIMENSION(:), POINTER   :: rho_g
 
-    failure = .FALSE.
     CPASSERT(ASSOCIATED(mixing_store%rhoin_buffer))
 
     CALL timeset(routineN,handle)
@@ -1259,7 +1253,6 @@ CONTAINS
     REAL(dp), SAVE                           :: sigma_old = 1.0_dp
     TYPE(pw_p_type), DIMENSION(:), POINTER   :: rho_g
 
-    failure = .FALSE.
     CPASSERT(ASSOCIATED(mixing_store))
 
     CALL timeset(routineN,handle)
@@ -1628,7 +1621,6 @@ CONTAINS
     TYPE(rho_atom_type), DIMENSION(:), &
       POINTER                                :: rho_atom
 
-    failure = .FALSE.
 
     CALL timeset(routineN,handle)
 
@@ -1860,7 +1852,6 @@ CONTAINS
     CALL timeset(routineN,handle)
 
     NULLIFY(g2,g_vec,rho_g)
-    failure = .FALSE.
     CALL qs_rho_get(rho, rho_g=rho_g)
 
     nspin = SIZE(rho_g)

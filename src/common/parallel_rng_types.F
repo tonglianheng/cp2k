@@ -191,7 +191,6 @@ CONTAINS
 
 ! -------------------------------------------------------------------------
 
-    failure = .FALSE.
 
     CPASSERT(ASSOCIATED(rng_stream))
 
@@ -448,7 +447,6 @@ CONTAINS
 
 ! -------------------------------------------------------------------------
 
-    failure = .FALSE.
 
     DO i=1,3
 
@@ -539,7 +537,6 @@ CONTAINS
 
 ! -------------------------------------------------------------------------
 
-    failure = .FALSE.
 
     IF (ASSOCIATED(rng_stream)) CALL delete_rng_stream(rng_stream)
 
@@ -618,7 +615,6 @@ CONTAINS
 
 ! -------------------------------------------------------------------------
 
-    failure = .FALSE.
 
     CPASSERT(ASSOCIATED(rng_stream))
 
@@ -646,7 +642,6 @@ CONTAINS
 
 ! -------------------------------------------------------------------------
 
-    failure = .FALSE.
 
     CPASSERT(ASSOCIATED(rng_stream))
 
@@ -705,7 +700,6 @@ CONTAINS
 
 ! -------------------------------------------------------------------------
 
-    failure = .FALSE.
 
     CPASSERT(ASSOCIATED(rng_stream))
 
@@ -1024,7 +1018,6 @@ CONTAINS
 
 ! -------------------------------------------------------------------------
 
-    failure = .FALSE.
 
     CPASSERT(ASSOCIATED(rng_stream))
     CPASSERT(rng_stream%distribution_type == UNIFORM)
@@ -1057,7 +1050,6 @@ CONTAINS
 
 ! -------------------------------------------------------------------------
 
-    failure = .FALSE.
 
     CPASSERT(ASSOCIATED(rng_stream))
 
@@ -1145,7 +1137,6 @@ CONTAINS
 
 ! -------------------------------------------------------------------------
 
-    failure = .FALSE.
 
     CPASSERT(ASSOCIATED(rng_stream))
 
@@ -1175,7 +1166,6 @@ CONTAINS
 
 ! -------------------------------------------------------------------------
 
-    failure = .FALSE.
 
     CPASSERT(ASSOCIATED(rng_stream))
 
@@ -1207,7 +1197,6 @@ CONTAINS
 
 ! -------------------------------------------------------------------------
 
-    failure = .FALSE.
 
     CPASSERT(ASSOCIATED(rng_stream))
 
@@ -1241,7 +1230,6 @@ CONTAINS
 
 ! -------------------------------------------------------------------------
 
-    failure = .FALSE.
 
     IF (ASSOCIATED(rng_stream)) CALL delete_rng_stream(rng_stream)
 
@@ -1277,7 +1265,6 @@ CONTAINS
 
 ! -------------------------------------------------------------------------
 
-    failure = .FALSE.
 
     CPASSERT(ASSOCIATED(rng_stream))
 
@@ -1320,7 +1307,6 @@ CONTAINS
 
 ! -------------------------------------------------------------------------
 
-    failure = .FALSE.
 
     CPASSERT(ASSOCIATED(rng_stream))
 
@@ -1453,7 +1439,6 @@ CONTAINS
 
 ! -------------------------------------------------------------------------
 
-    failure = .FALSE.
 
     CPASSERT(ASSOCIATED(rng_stream))
 
@@ -1546,7 +1531,6 @@ CONTAINS
 
 ! -------------------------------------------------------------------------
 
-    failure = .FALSE.
 
     CPASSERT(ASSOCIATED(rng_stream))
 

@@ -67,7 +67,6 @@ CONTAINS
                                                 explicit, failure
     TYPE(section_vals_type), POINTER         :: qmmmx_section, walls_section
 
-    failure         = .FALSE.
     walls_section => section_vals_get_subs_vals(qmmm_env%qs_env%input,"QMMM%WALLS")
     qmmmx_section => section_vals_get_subs_vals(qmmm_env%qs_env%input,"QMMM%FORCE_MIXING")
     CALL section_vals_get(qmmmx_section,explicit=do_qmmm_force_mixing)
@@ -116,7 +115,6 @@ CONTAINS
       POINTER                                :: particles_mm
     TYPE(section_vals_type), POINTER         :: walls_section
 
-    failure         = .FALSE.
     NULLIFY(subsys_mm, subsys_qm, qm_atom_index,particles_mm, qm_cell, mm_cell,&
          walls_section)
 
@@ -421,7 +419,6 @@ CONTAINS
       POINTER                                :: qs_kind_set
     TYPE(section_vals_type), POINTER         :: subsys_section
 
-    failure         = .FALSE.
     logger => cp_get_default_logger()
     NULLIFY(subsys_mm, subsys_qm, qm_atom_index, particles_mm, particles_qm,&
             subsys_section, qm_cell, mm_cell, qs_kind_set)

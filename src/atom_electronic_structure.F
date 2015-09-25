@@ -69,7 +69,6 @@ CONTAINS
     INTEGER                                  :: handle, method
     LOGICAL                                  :: failure
 
-    failure = .FALSE.
 
     CALL timeset(routineN,handle)
 
@@ -116,7 +115,6 @@ CONTAINS
     TYPE(opmat_type), POINTER                :: fmat, hcore, jmat, kmat, xcmat
     TYPE(section_vals_type), POINTER         :: hfx_sections, xc_section
 
-    failure = .FALSE.
 
     CALL timeset(routineN,handle)
 
@@ -438,7 +436,6 @@ CONTAINS
                                                 xcmatb
     TYPE(section_vals_type), POINTER         :: hfx_sections, xc_section
 
-    failure = .FALSE.
 
     CALL timeset(routineN,handle)
 

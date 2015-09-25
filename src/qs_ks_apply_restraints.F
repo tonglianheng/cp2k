@@ -72,7 +72,6 @@ CONTAINS
     REAL(KIND=dp)                            :: inv_vol
     TYPE(dft_control_type), POINTER          :: dft_control
 
-    failure = .FALSE.
 
     NULLIFY(dft_control)
     CALL get_qs_env(qs_env, dft_control=dft_control)
@@ -160,7 +159,6 @@ CONTAINS
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: ksmat, rho_ao
 
-    failure = .FALSE.
 
     energy%mulliken = 0.0_dp
 

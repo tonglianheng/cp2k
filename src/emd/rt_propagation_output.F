@@ -492,7 +492,6 @@ CONTAINS
 
    CALL timeset(routineN,handle)
 
-   failure=.FALSE.
 
    CALL get_rtp(rtp=rtp,rho_new=rho_new)
 
@@ -650,7 +649,6 @@ CONTAINS
     TYPE(cp_logger_type), POINTER            :: logger
 
     CALL timeset(routineN,handle)
-    failure = .FALSE.
     logger => cp_get_default_logger()
     IF (logger%para_env%mepos==logger%para_env%source) THEN
        unit_nr=cp_logger_get_default_unit_nr(logger,local=.TRUE.)

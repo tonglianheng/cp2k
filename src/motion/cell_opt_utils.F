@@ -62,7 +62,6 @@ CONTAINS
     LOGICAL                                  :: failure
     REAL(KIND=dp), DIMENSION(3)              :: cell_angle, cell_length
 
-    failure  = .FALSE.
     ! orthorhombic cells are diagonal, and should stay exactly like this
     IF (.NOT. cell%orthorhombic) THEN
       CALL get_cell_param(cell,cell_length,cell_angle,cp_units_rad,periodic=periodic)
@@ -103,7 +102,6 @@ CONTAINS
     TYPE(keyword_type), POINTER              :: keyword
     TYPE(section_type), POINTER              :: section
 
-    failure = .FALSE.
     NULLIFY(new_logger, logger, enum, keyword, section)
     logger => cp_get_default_logger()
 
@@ -201,7 +199,6 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(3, 3)           :: pres_ext_tens
     REAL(KIND=dp), DIMENSION(:), POINTER     :: pvals
 
-    failure = .FALSE.
     NULLIFY(pvals)
     mtrx          = 0.0_dp
     pres_ext_tens = 0.0_dp
@@ -277,7 +274,6 @@ CPSourceFileRef,&
     REAL(KIND=dp), DIMENSION(3, 3)           :: correction, pten_hinv_old, &
                                                 ptens
 
-    failure = .FALSE.
     my_keep_angles = .FALSE.
     IF (PRESENT(keep_angles)) my_keep_angles =  keep_angles
     my_keep_symmetry = .FALSE.

@@ -58,7 +58,6 @@ CONTAINS
     TYPE(fist_energy_type), POINTER          :: thermo
     TYPE(qs_energy_type), POINTER            :: qs_energy
 
-    failure=.FALSE.
     NULLIFY(qs_energy, thermo)
 
     CPASSERT(ASSOCIATED(qmmm_env))
@@ -94,7 +93,6 @@ CONTAINS
 
     LOGICAL                                  :: failure
 
-    failure=.FALSE.
 
     IF (ASSOCIATED(qmmm_env)) THEN
        CPASSERT(qmmm_env%ref_count>0)
@@ -122,7 +120,6 @@ CONTAINS
 
     LOGICAL                                  :: failure
 
-    failure=.FALSE.
 
     CPASSERT(ASSOCIATED(qmmm_env))
     CPASSERT(qmmm_env%ref_count>0)

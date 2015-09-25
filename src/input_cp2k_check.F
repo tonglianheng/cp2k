@@ -79,7 +79,6 @@ CONTAINS
                                                 section3, sections
 
     CALL timeset(routineN,handle)
-    failure=.FALSE.
     CPASSERT(ASSOCIATED(input_file))
     CPASSERT(input_file%ref_count>0)
     ! ext_restart
@@ -142,7 +141,6 @@ CONTAINS
     INTEGER                                  :: shortcut
     LOGICAL                                  :: failure
 
-    failure=.FALSE.
 
     CALL section_vals_val_get(functionals,"_SECTION_PARAMETERS_",&
          i_val=shortcut)
@@ -312,7 +310,6 @@ CONTAINS
 
     NULLIFY(restarted_infos,iwalkers_status,rwalkers_status,vec,ivec,work,iwork)
     CALL timeset(routineN,handle)
-    failure=.FALSE.
     IF (.NOT. failure) THEN
        ! Handle restart file
        r_section => section_vals_get_subs_vals(input_file, "EXT_RESTART")
@@ -794,7 +791,6 @@ CONTAINS
     INTEGER                                  :: isize
     LOGICAL                                  :: failure
 
-    failure = .FALSE.
     isize = 0
     IF (ASSOCIATED(restarted_infos)) isize = SIZE(restarted_infos)
     isize = isize + 1
@@ -825,7 +821,6 @@ CONTAINS
     INTEGER                                  :: i, j
     LOGICAL                                  :: failure
 
-    failure = .FALSE.
     IF (output_unit>0.AND.ASSOCIATED(restarted_infos)) THEN
        WRITE(output_unit,'(1X,79("*"))')
        WRITE(output_unit,'(1X,"*",T30,A,T80,"*")')" RESTART INFORMATION "
@@ -884,7 +879,6 @@ CONTAINS
                                                 skip_other_checks
     TYPE(section_vals_type), POINTER         :: section
 
-    failure   = .FALSE.
     check_loc = check_restart(input_file, restart_file, TRIM(path))
     skip_other_checks = PRESENT(check)
     IF (skip_other_checks) check_loc = check
@@ -979,7 +973,6 @@ CPSourceFileRef,&
     TYPE(section_vals_type), POINTER         :: work_section
 
     CALL timeset(routineN,handle)
-    failure=.FALSE.
     NULLIFY(work_section)
     work_section => section_vals_get_subs_vals(input_file,TRIM(tag_section))
     CALL section_vals_get(work_section,explicit=explicit1)
@@ -1011,7 +1004,6 @@ CPSourceFileRef,&
 
     CALL timeset(routineN,handle)
 
-    failure=.FALSE.
     NULLIFY(work_section)
     section_to_delete => section_vals_get_subs_vals(input_file,"EXT_RESTART")
     CALL section_vals_remove_values(section_to_delete)
@@ -1114,7 +1106,6 @@ CPSourceFileRef,&
     TYPE(section_type), POINTER              :: section
 
     CALL timeset(routineN,handle)
-    failure=.FALSE.
     NULLIFY(keyword, section)
     CALL section_vals_get(r_section, section=section)
     CALL section_vals_val_get(r_section,"RESTART_DEFAULT",l_val=restart_default)

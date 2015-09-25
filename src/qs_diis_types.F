@@ -87,7 +87,6 @@ SUBROUTINE qs_diis_b_retain(diis_buffer)
 
     LOGICAL                                  :: failure
 
-  failure=.FALSE.
 
   CPASSERT(ASSOCIATED(diis_buffer))
   CPASSERT(diis_buffer%ref_count>0)
@@ -110,7 +109,6 @@ SUBROUTINE qs_diis_b_release(diis_buffer)
     INTEGER                                  :: i, j
     LOGICAL                                  :: failure
 
-  failure=.FALSE.
 
   IF (ASSOCIATED(diis_buffer)) THEN
      CPASSERT(diis_buffer%ref_count>0)
@@ -158,7 +156,6 @@ SUBROUTINE qs_diis_b_release_sparse(diis_buffer)
     INTEGER                                  :: i, j
     LOGICAL                                  :: failure
 
-  failure=.FALSE.
 
   IF (ASSOCIATED(diis_buffer)) THEN
         IF (ASSOCIATED(diis_buffer%b_matrix)) THEN

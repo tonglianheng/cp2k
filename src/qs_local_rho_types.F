@@ -215,7 +215,6 @@ MODULE qs_local_rho_types
 
     LOGICAL                                  :: failure
 
-    failure=.FALSE.
 
     ALLOCATE(local_rho_set)
 

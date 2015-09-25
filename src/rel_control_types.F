@@ -81,7 +81,6 @@ CONTAINS
 
     LOGICAL                                  :: failure
 
-    failure = .FALSE.
 
     ALLOCATE (rel_control)
 
@@ -116,7 +115,6 @@ CONTAINS
 
     LOGICAL                                  :: failure
 
-    failure = .FALSE.
 
     CPASSERT(ASSOCIATED(rel_control))
 
@@ -144,7 +142,6 @@ CONTAINS
 
     LOGICAL                                  :: failure
 
-    failure = .FALSE.
 
     IF (ASSOCIATED(rel_control)) THEN
       CPASSERT(rel_control%ref_count>0)
@@ -179,7 +176,6 @@ CONTAINS
     LOGICAL                                  :: failure
     TYPE(section_vals_type), POINTER         :: rel_section
 
-    failure = .FALSE.
 
     CPASSERT(ASSOCIATED(rel_control))
     CPASSERT(rel_control%ref_count > 0)

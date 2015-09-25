@@ -189,7 +189,6 @@ CONTAINS
                                                 tmp_r2
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: temperatures
 
-    failure = .FALSE.
     ! Temperature control
     CALL section_vals_get(tc_section,explicit=explicit)
     IF (explicit) THEN

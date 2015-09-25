@@ -313,7 +313,6 @@ CONTAINS
     TYPE(cp_blacs_env_type), POINTER         :: context
     TYPE(cp_para_env_type), POINTER          :: para_env
 
-    failure = .FALSE.
 
     CALL cite_reference(VandeVondele2003)
 
@@ -654,7 +653,6 @@ CONTAINS
 
     LOGICAL                                  :: failure
 
-    failure = .FALSE.
 
     CALL cp_para_env_release( qs_ot_env%para_env)
     CALL cp_blacs_env_release( qs_ot_env%blacs_env)
@@ -763,7 +761,6 @@ CONTAINS
                                                 ot_ortho_irac
     LOGICAL                                  :: failure
 
-    failure=.FALSE.
 
     CALL timeset(routineN,handle)
 

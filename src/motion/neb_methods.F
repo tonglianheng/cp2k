@@ -111,7 +111,6 @@ CONTAINS
       md_section, motion_section, neb_section, print_section
 
     CALL timeset(routineN,handle)
-    failure = .FALSE.
     NULLIFY(logger, subsys, f_env, rep_env)
     NULLIFY(forces, coords, vels, neb_env)
     logger => cp_get_default_logger()
@@ -251,7 +250,6 @@ CONTAINS
     TYPE(section_vals_type), POINTER         :: tc_section, vc_section
 
     CALL timeset(routineN,handle)
-    failure = .FALSE.
     NULLIFY( Dcoords, tc_section, vc_section)
     CPASSERT(ASSOCIATED(coords))
     CPASSERT(ASSOCIATED(vels))
@@ -400,7 +398,6 @@ CONTAINS
     TYPE(neb_var_type), POINTER              :: sline
 
     CALL timeset(routineN,handle)
-    failure = .FALSE.
     NULLIFY(sline, crr, err)
     neb_env%opt_type_label = "SD"
     do_ls = .TRUE.

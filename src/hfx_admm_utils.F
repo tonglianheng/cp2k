@@ -125,7 +125,6 @@ CONTAINS
     TYPE(section_vals_type), POINTER         :: hfx_sections, input, &
                                                 xc_section
 
-    failure=.FALSE.
     CALL timeset(routineN,handle)
     NULLIFY(admm_env, admm_dm, hfx_sections, mos, mos_aux_fit, para_env, &
          particle_set, xc_section, matrix_s_aux_fit, &
@@ -252,7 +251,6 @@ CONTAINS
 
     CALL timeset(routineN, handle)
 
-    failure = .FALSE.
     NULLIFY(auxbas_pw_pool, dft_control, force, hfx_sections, input, &
             para_env, poisson_env, pw_env, virial,&
             matrix_ks_im, matrix_ks_orb, rho_ao_orb,&
@@ -471,7 +469,6 @@ CONTAINS
       POINTER                                :: qs_kind_set
 
     CALL timeset(routineN,handle)
-    failure = .FALSE.
     logger => cp_get_default_logger()
 
     CALL section_vals_val_get(hfx_section, "PW_HFX", l_val=do_pw_hfx, i_rep_section=irep)
@@ -643,7 +640,6 @@ CONTAINS
 
     NULLIFY(admm_env%xc_section_aux, admm_env%xc_section_primary)
 
-    failure=.FALSE.
 
 
     CALL get_qs_env(qs_env)

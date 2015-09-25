@@ -111,7 +111,6 @@ CONTAINS
                                                 roto_trasl_dof
     LOGICAL                                  :: failure
 
-    failure = .FALSE.
     ! Retrieve information on number of atoms, constraints (external and internal)
     CALL get_molecule_kind_set(molecule_kind_set=molecule_kind_set,&
          natom=natom, nconstraint=nconstraint_int, nrestraints=nrestraints_int)
@@ -174,7 +173,6 @@ CONTAINS
     LOGICAL                                  :: failure
     TYPE(cp_logger_type), POINTER            :: logger
 
-    failure = .FALSE.
     ! Retrieve information on number of atoms, constraints (external and internal)
     CALL get_molecule_kind_set(molecule_kind_set=molecule_kind_set,&
          natom=natom, nconstraint=nconstraint_int, nrestraints=nrestraints_int)
@@ -265,7 +263,6 @@ CONTAINS
     TYPE(molecule_kind_type), POINTER        :: molecule_kind
     TYPE(molecule_type), POINTER             :: molecule, molecule_set( : )
 
-    failure = .FALSE.
     NULLIFY(molecule_kind,molecule,thermostat_info%map_loc_thermo_gen,thermolist)
     nkind = SIZE ( molecule_kind_set )
     do_shell = .FALSE.
@@ -458,7 +455,6 @@ CONTAINS
       POINTER                                :: molecule_set
     TYPE(molecule_type), POINTER             :: molecule
 
-    failure = .FALSE.
     NULLIFY(tmplist, tmpstringlist, thermolist, molecule_kind, molecule, molecule_set)
     NULLIFY(logger)
     logger      => cp_get_default_logger()
@@ -591,7 +587,6 @@ CONTAINS
                                                 nointer
     TYPE(molecule_kind_type), POINTER        :: molecule_kind
 
-    failure = .FALSE.
     NULLIFY(molecule_kind)
     nkind = SIZE ( molecule_kind_set )
     do_shell = .FALSE.
@@ -745,7 +740,6 @@ CONTAINS
       POINTER                                :: molecule_set
     TYPE(molecule_type), POINTER             :: molecule
 
-    failure = .FALSE.
     NULLIFY(tmplist, tmpstringlist, thermolist, molecule_kind, molecule, molecule_set)
     NULLIFY(logger)
     logger      => cp_get_default_logger()
@@ -892,7 +886,6 @@ CONTAINS
     LOGICAL                                  :: explicit, failure
     TYPE(molecule_type), POINTER             :: molecule
 
-    failure = .FALSE.
     label1               = "MM_SUBSYS"
     label2               = "QM_SUBSYS"
     IF (subsys_qm) THEN
@@ -970,7 +963,6 @@ CONTAINS
     INTEGER                                  :: i, j, ncoef
     LOGICAL                                  :: failure
 
-    failure = .FALSE.
     map_info%v_scale = 1.0_dp
     map_info%s_kin   = 0.0_dp
     ncoef = 0
@@ -1045,7 +1037,6 @@ CONTAINS
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(molecule_type), POINTER             :: molecule
 
-    failure = .FALSE.
     map_info%v_scale = 1.0_dp
     map_info%s_kin   = 0.0_dp
     present_vel = PRESENT(vel)
@@ -1116,7 +1107,6 @@ CONTAINS
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(molecule_type), POINTER             :: molecule
 
-    failure = .FALSE.
     map_info%v_scale = 1.0_dp
     map_info%s_kin   = 0.0_dp
     present_vel = PRESENT(vel)
@@ -1194,7 +1184,6 @@ CONTAINS
 
     ii = 0
     jj = 0
-    failure = .FALSE.
     present_vel = PRESENT(vel)
     ! Just few checks for consistency
     IF (present_vel) THEN
@@ -1297,7 +1286,6 @@ CONTAINS
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(shell_kind_type), POINTER           :: shell
 
-    failure = .FALSE.
     present_vel = PRESENT(shell_vel)
     ! Preliminary checks for consistency usage
     IF (present_vel) THEN
@@ -1380,7 +1368,6 @@ CONTAINS
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(shell_kind_type), POINTER           :: shell
 
-    failure = .FALSE.
     present_vel = PRESENT(vel)
     ! Preliminary checks for consistency usage
     IF (present_vel) THEN
@@ -1459,7 +1446,6 @@ CONTAINS
     LOGICAL                                  :: failure
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: akin, vpot
 
-    failure = .FALSE.
     number = nhc%glob_num_nhc
     ALLOCATE(akin(number))
     ALLOCATE(vpot(number))
@@ -1537,7 +1523,6 @@ CONTAINS
     LOGICAL                                  :: failure
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: akin
 
-    failure = .FALSE.
     number = glob_num
     ALLOCATE(akin(number))
     akin     = 0.0_dp
@@ -1606,7 +1591,6 @@ CONTAINS
     REAL(KIND=dp)                            :: fdeg_of_free
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: akin, deg_of_free
 
-    failure = .FALSE.
     number = glob_num
     ALLOCATE(akin(number))
     ALLOCATE(deg_of_free(number))
@@ -1674,7 +1658,6 @@ CONTAINS
     LOGICAL                                  :: failure
     REAL(dp), ALLOCATABLE, DIMENSION(:)      :: thermo_energy
 
-    failure = .FALSE.
 
     thermostat_pot = 0.0_dp
     thermostat_kin = 0.0_dp
@@ -1737,7 +1720,6 @@ CONTAINS
     LOGICAL                                  :: failure
     REAL(dp), ALLOCATABLE, DIMENSION(:)      :: dof, nkt
 
-    failure = .FALSE.
 
     IF (ASSOCIATED(thermostat)) THEN
        IF      (thermostat%type_of_thermostat==do_thermo_nose) THEN
@@ -1822,7 +1804,6 @@ CONTAINS
 
     LOGICAL                                  :: failure
 
-    failure = .FALSE.
 
     IF (ASSOCIATED(thermostats)) THEN
        IF (ASSOCIATED(thermostats%thermostat_part)) THEN
@@ -1869,7 +1850,6 @@ CONTAINS
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(section_vals_type), POINTER         :: print_key
 
-    failure = .FALSE.
     NULLIFY(logger, print_key, array_pot, array_kin, array_temp)
     logger => cp_get_default_logger()
 
@@ -1946,7 +1926,6 @@ CONTAINS
     LOGICAL                                  :: failure
     REAL(KIND=dp), DIMENSION(:), POINTER     :: work, work2
 
-    failure = .FALSE.
     ALLOCATE(work(para_env%num_pe))
     DO i = 1, number
        work = 0.0_dp
@@ -1993,7 +1972,6 @@ CONTAINS
     INTEGER, DIMENSION(:, :), POINTER        :: work, work2
     LOGICAL                                  :: failure
 
-    failure = .FALSE.
     ALLOCATE(work(number1,para_env%num_pe))
     DO i = 1, number2
        work = 0

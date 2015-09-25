@@ -63,7 +63,6 @@ CONTAINS
     TYPE(cp_unit_set_type), POINTER          :: default_units
 
     CALL timeset(routineN,handle)
-    failure=.FALSE.
     NULLIFY(res)
     NULLIFY(cpparser, default_units)
     CALL section_vals_create(res,input_declaration)

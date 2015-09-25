@@ -130,7 +130,6 @@ CONTAINS
     TYPE(cp_para_env_type), POINTER          :: para_env_m_w
     TYPE(tree_type), POINTER                 :: conf
 
-    failure = .FALSE.
     master  = .FALSE.
     i1 = -1
     i2 = -1
@@ -808,7 +807,6 @@ CONTAINS
     TYPE(f_env_type), POINTER                :: f_env
     TYPE(mol_new_list_type), POINTER         :: molecule_new
 
-    failure = .FALSE.
     CPASSERT(.NOT.ASSOCIATED(init_conf))
 
     ! start the timing
@@ -862,7 +860,6 @@ CONTAINS
     TYPE(f_env_type), POINTER                :: f_env
     TYPE(particle_list_type), POINTER        :: particles
 
-    failure = .FALSE.
     NULLIFY (f_env, subsys, particles)
     nr_atoms = 0
 
@@ -910,7 +907,6 @@ CONTAINS
     TYPE(cp_subsys_type), POINTER            :: subsys
     TYPE(f_env_type), POINTER                :: f_env
 
-    failure = .FALSE.
     NULLIFY(results,subsys)
     CPASSERT(env_id.GT.0)
 
@@ -954,7 +950,6 @@ CONTAINS
     TYPE(cp_subsys_type), POINTER            :: subsys
     TYPE(f_env_type), POINTER                :: f_env
 
-    failure = .FALSE.
     NULLIFY(subsys,results)
     CPASSERT(env_id.GT.0)
 

@@ -56,7 +56,6 @@ CONTAINS
 
 !   ------------------------------------------------------------------------
 
-    failure=.FALSE.
 
     CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="EIP", &
@@ -104,7 +103,6 @@ CONTAINS
 
 !   ------------------------------------------------------------------------
 
-    failure=.FALSE.
 
     CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section, name="PRINT", &

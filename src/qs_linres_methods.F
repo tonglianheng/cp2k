@@ -172,7 +172,6 @@ CONTAINS
     TYPE(section_vals_type), POINTER         :: loc_print_section, &
                                                 loc_section, lr_section
 
-    failure = .FALSE.
     NULLIFY(logger, lr_section, loc_section, loc_print_section,localized_wfn_control)
     logger => cp_get_default_logger()
     lr_section  => section_vals_get_subs_vals(qs_env%input,"PROPERTIES%LINRES")
@@ -293,7 +292,6 @@ CONTAINS
 
 !
 
-    failure = .FALSE.
     !
     CALL timeset(routineN,handle)
 
@@ -680,7 +678,6 @@ CONTAINS
 
 !
 
-    failure = .FALSE.
     NULLIFY(dft_control,matrix_ks,matrix_s,linres_control,rho1_ao)
     !
     !
@@ -782,7 +779,6 @@ CONTAINS
 !
 !
 
-    failure = .FALSE.
 
     CPASSERT(ASSOCIATED(c0))
     CPASSERT(ASSOCIATED(c1))
@@ -829,7 +825,6 @@ CONTAINS
 
 !
 
-    failure = .FALSE.
     !
     CALL timeset(routineN,handle)
     !
@@ -907,7 +902,6 @@ CONTAINS
     TYPE(xc_rho_set_type), POINTER           :: rho1_set
 
     CALL timeset(routineN,handle)
-    failure=.FALSE.
 
     NULLIFY(auxbas_pw_pool, pw_pools, pw_env, v_rspace_new, &
             rho1_r, rho1_g_pw, tau_pw, v_xc, rho1_set, rho1_ao, rho_ao, &
@@ -1258,7 +1252,6 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-    failure=.FALSE.
     NULLIFY(dft_control,matrix_s)
 
     CPASSERT(ASSOCIATED(p_env))
@@ -1323,7 +1316,6 @@ CONTAINS
 
 ! ------------------------------------------------------------------
 
-    failure=.FALSE.
     NULLIFY(pw_env,auxbas_pw_pool,matrix_s,rho,rho_r,input)
 
     CPASSERT(ASSOCIATED(kpp1_env))
@@ -1418,7 +1410,6 @@ CONTAINS
 
 !
 
-    failure = .FALSE.
     !
     CALL timeset(routineN,handle)
     !
@@ -1472,7 +1463,6 @@ CONTAINS
                                                 np, nspins, nt, nv
     LOGICAL                                  :: failure
 
-    failure = .FALSE.
     !
     CALL timeset(routineN,handle)
     !
@@ -1540,7 +1530,6 @@ CONTAINS
       POINTER                                :: mos
     TYPE(section_vals_type), POINTER         :: print_key
 
-    failure = .FALSE.
 
     NULLIFY(logger, mo_coeff, mos, para_env, print_key, vecbuffer)
 
@@ -1641,7 +1630,6 @@ CONTAINS
     LOGICAL                                  :: failure
     TYPE(cp_logger_type), POINTER            :: logger
 
-    failure = .FALSE.
 
 
     CALL timeset(routineN,handle)
@@ -1704,7 +1692,6 @@ CONTAINS
       POINTER                                :: mos
     TYPE(section_vals_type), POINTER         :: print_key
 
-    failure = .FALSE.
     file_exists = .FALSE.
 
     CALL timeset(routineN,handle)
@@ -1861,7 +1848,6 @@ CONTAINS
     INTEGER                                  :: ispin, ncol, nrow
     LOGICAL                                  :: failure
 
-    failure = .FALSE.
 
     p_env%iter = 0
     p_env%only_energy = .FALSE.

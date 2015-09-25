@@ -96,7 +96,6 @@ CONTAINS
 
     CALL timeset(routineN,handle)
     NULLIFY(logger, para_env)
-    failure = .FALSE.
 
     CALL get_qs_env(qs_env, para_env=para_env)
     nproc = para_env%num_pe

@@ -105,7 +105,6 @@ CONTAINS
     TYPE(array1_list_type), ALLOCATABLE, &
       DIMENSION(:)                           :: atom_bond_list
 
-    failure = .FALSE.
     ! convert a simple list of bonds to a list of bonds per atom
     ! (each bond is present in the forward and backward direction
     ALLOCATE(atom_bond_list(natom))
@@ -156,7 +155,6 @@ CONTAINS
     INTEGER                                  :: j, k
     LOGICAL                                  :: failure
 
-    failure = .FALSE.
     IF (debug_this_module) THEN
        WRITE(*,*)"Entered with :",i
        WRITE(*,*)TRIM(molname)//": entering with i:",i," full series to test:: ",atom_bond_list(i)%array1
@@ -211,7 +209,6 @@ CONTAINS
     TYPE(connectivity_info_type), POINTER    :: conn_info
     TYPE(cp_logger_type), POINTER            :: logger
 
-    failure = .FALSE.
     NULLIFY(logger)
     logger => cp_get_default_logger()
     iw = cp_print_key_unit_nr(logger,subsys_section,"PRINT%TOPOLOGY_INFO/UTIL_INFO",&
@@ -614,7 +611,6 @@ CONTAINS
                                                 generate_section, &
                                                 isolated_section
 
-    failure = .FALSE.
     NULLIFY(logger, particle_set, atomic_kind_set, nonbonded, bond_section, generate_section)
     NULLIFY(isolated_atoms, tmp_v)
     CALL timeset(routineN,handle)
@@ -974,7 +970,6 @@ CONTAINS
 
     CALL timeset(routineN,handle)
     conn_ok = .TRUE.
-    failure = .FALSE.
     natom   = SIZE(atom_info%id_atmname)
     ALLOCATE(bond_list(natom))
     DO I = 1, natom
@@ -1121,7 +1116,6 @@ CONTAINS
                                                 Ilist3, Ilist4
     LOGICAL                                  :: explicit, failure, ip3, ip4
 
-    failure = .FALSE.
     natom   = topology%natoms
     ! Preliminary sort of arrays
     ip3   = PRESENT(Iarray3)
@@ -1541,7 +1535,6 @@ CONTAINS
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(section_vals_type), POINTER         :: bend_section
 
-    failure = .FALSE.
     NULLIFY(logger)
     logger => cp_get_default_logger()
     iw = cp_print_key_unit_nr(logger,subsys_section,"PRINT%TOPOLOGY_INFO/GENERATE_INFO",&
@@ -1651,7 +1644,6 @@ CONTAINS
     TYPE(array1_list_type), DIMENSION(:), &
       POINTER                                :: wrk
 
-    failure = .FALSE.
     check   = max_levl>=2.AND.max_levl<=4
     CPASSERT(check)
     IF (.NOT.PRESENT(Ilist)) THEN
@@ -1787,7 +1779,6 @@ CONTAINS
     TYPE(connectivity_info_type), POINTER    :: conn_info
     TYPE(cp_logger_type), POINTER            :: logger
 
-    failure = .FALSE.
     NULLIFY(logger)
     logger => cp_get_default_logger()
     iw = cp_print_key_unit_nr(logger,subsys_section,"PRINT%TOPOLOGY_INFO/GENERATE_INFO",&
@@ -1838,7 +1829,6 @@ CONTAINS
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(section_vals_type), POINTER         :: torsion_section
 
-    failure = .FALSE.
     NULLIFY(logger)
     logger => cp_get_default_logger()
     iw = cp_print_key_unit_nr(logger,subsys_section,"PRINT%TOPOLOGY_INFO/GENERATE_INFO",&
@@ -1931,7 +1921,6 @@ CONTAINS
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(section_vals_type), POINTER         :: impr_section
 
-    failure = .FALSE.
     NULLIFY(logger)
     logger => cp_get_default_logger()
     iw = cp_print_key_unit_nr(logger,subsys_section,"PRINT%TOPOLOGY_INFO/GENERATE_INFO",&
@@ -2041,7 +2030,6 @@ CONTAINS
     TYPE(connectivity_info_type), POINTER    :: conn_info
     TYPE(cp_logger_type), POINTER            :: logger
 
-    failure = .FALSE.
     NULLIFY(logger)
     logger => cp_get_default_logger()
     iw = cp_print_key_unit_nr(logger,subsys_section,"PRINT%TOPOLOGY_INFO/GENERATE_INFO",&

@@ -58,7 +58,6 @@ CONTAINS
     TYPE(cp_logger_type), POINTER            :: logger
 
     CALL timeset(routineN,handle)
-    failure = .FALSE.
     NULLIFY(logger)
     logger => cp_get_default_logger()
     iw = cp_print_key_unit_nr(logger,subsys_section,"PRINT%TOPOLOGY_INFO/UTIL_INFO",&
@@ -129,7 +128,6 @@ CONTAINS
     TYPE(molecule_type), POINTER             :: molecule
 
     NULLIFY(qm_atom_index, qm_molecule_index, molecule, molecule_kind)
-    failure = .FALSE.
     detected_link = .FALSE.
     logger => cp_get_default_logger()
     output_unit= cp_logger_get_default_io_unit(logger)

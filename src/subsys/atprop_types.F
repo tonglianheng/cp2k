@@ -54,7 +54,6 @@ CONTAINS
 
     LOGICAL                                  :: failure
 
-  failure=.FALSE.
   CALL atprop_release(atprop_env)
   ALLOCATE(atprop_env)
   NULLIFY(atprop_env%atener,atprop_env%atstress)
@@ -79,7 +78,6 @@ CONTAINS
 
     LOGICAL                                  :: failure
 
-  failure=.FALSE.
   CPASSERT(ASSOCIATED(atprop_env))
 
   IF(atprop_env%energy) THEN
@@ -118,7 +116,6 @@ CONTAINS
 
     LOGICAL                                  :: failure
 
-    failure=.FALSE.
 
     IF(ASSOCIATED(atarray)) THEN
       CPASSERT(SIZE(atarray)==natom)
@@ -141,7 +138,6 @@ CONTAINS
 
     LOGICAL                                  :: failure
 
-    failure=.FALSE.
 
     IF(ASSOCIATED(atarray)) THEN
       DEALLOCATE(atarray)
@@ -162,7 +158,6 @@ CONTAINS
 
     LOGICAL                                  :: failure
 
-    failure=.FALSE.
 
     IF(ASSOCIATED(array_b)) THEN
       CPASSERT(ASSOCIATED(array_a))
@@ -184,7 +179,6 @@ SUBROUTINE atprop_release(atprop_env)
 
     LOGICAL                                  :: failure
 
-  failure=.FALSE.
   IF (ASSOCIATED(atprop_env)) THEN
      ! energy
      CALL atprop_array_release(atprop_env%atener)

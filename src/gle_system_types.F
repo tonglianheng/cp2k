@@ -78,7 +78,6 @@ CONTAINS
     REAL(dp), DIMENSION(:), POINTER          :: list
     REAL(KIND=dp)                            :: a_scale
 
-    failure = .FALSE.
     NULLIFY(gle%nvt)
     NULLIFY(gle%gle_s)
     NULLIFY(gle%gle_t)
@@ -185,7 +184,6 @@ CONTAINS
       DIMENSION(:, :, :)                     :: seed
     REAL(KIND=dp), DIMENSION(3, 2)           :: initial_seed, my_seed
 
-    failure = .FALSE.
     CPASSERT(ASSOCIATED(gle))
     CPASSERT(.NOT.ASSOCIATED(gle%nvt))
 
@@ -239,7 +237,6 @@ CONTAINS
     INTEGER                                  :: i
     LOGICAL                                  :: failure
 
-    failure = .FALSE.
 
     IF (ASSOCIATED(gle)) THEN
        IF ( ASSOCIATED(gle%a_mat)) THEN

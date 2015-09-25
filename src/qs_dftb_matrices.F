@@ -654,7 +654,6 @@ CONTAINS
     NULLIFY(dft_control, logger, scf_section,matrix_p, particle_set, ks_env,&
             ks_matrix, rho, energy)
     logger => cp_get_default_logger()
-    failure=.FALSE.
     CPASSERT(ASSOCIATED(qs_env))
 
     CALL get_qs_env(qs_env,&
@@ -1031,7 +1030,6 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-    failure = .FALSE.
 
     CALL get_qs_env(qs_env=qs_env,&
                     dft_control=dft_control,&
@@ -1130,7 +1128,6 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-    failure = .FALSE.
 
     CALL build_qs_neighbor_lists(qs_env,para_env,force_env_section=qs_env%input)
     NULLIFY(matrix_s)
@@ -1207,7 +1204,6 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-    failure = .FALSE.
 
     CALL get_qs_env(qs_env=qs_env,&
                     dft_control=dft_control,&
@@ -1454,7 +1450,6 @@ CONTAINS
     TYPE(qs_ks_qmmm_env_type), POINTER       :: ks_qmmm_env_loc
     TYPE(qs_rho_type), POINTER               :: rho
 
-    failure = .FALSE.
     CALL timeset(routineN,handle)
     IF (calc_force) THEN
        NULLIFY (rho, atomic_kind_set, qs_kind_set, particles_qm)
@@ -1664,7 +1659,6 @@ CONTAINS
     TYPE(section_vals_type), POINTER         :: ewald_section, &
                                                 poisson_section, print_section
 
-    failure = .FALSE.
     CALL timeset(routineN,handle)
     IF (calc_force) THEN
        NULLIFY (rho, atomic_kind_set, qs_kind_set, particles_qm)

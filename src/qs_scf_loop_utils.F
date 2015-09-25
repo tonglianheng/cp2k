@@ -144,7 +144,6 @@ CONTAINS
     TYPE(qs_ks_env_type), POINTER            :: ks_env
     TYPE(qs_rho_type), POINTER               :: rho
 
-    failure=.FALSE.
     NULLIFY(energy, ks_env, matrix_ks, matrix_s, rho, mos, dft_control)
 
     CALL get_qs_env(qs_env=qs_env,&
@@ -273,7 +272,6 @@ CONTAINS
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(kpoint_type), POINTER               :: kpoints
 
-    failure=.FALSE.
 
     NULLIFY(dft_control, kpoints, matrix_ks, matrix_s)
 
@@ -360,7 +358,6 @@ CONTAINS
 
     CALL timeset(routineN,handle)
     NULLIFY(rho_ao)
-    failure = .FALSE.
 
     CALL qs_rho_get(rho, rho_ao=rho_ao)
 
@@ -420,7 +417,6 @@ CONTAINS
     TYPE(cp_dbcsr_p_type), DIMENSION(:, :), &
       POINTER                                :: rho_ao_kp
 
-    failure=.FALSE.
     NULLIFY(rho_ao_kp)
 
     CALL qs_rho_get(rho, rho_ao_kp=rho_ao_kp)
@@ -555,7 +551,6 @@ CONTAINS
     TYPE(cp_dbcsr_p_type), DIMENSION(:, :), &
       POINTER                                :: rho_ao_kp
 
-     failure = .FALSE.
      NULLIFY(rho_ao_kp)
 
      IF (scf_env%mixing_method>0) THEN
@@ -644,7 +639,6 @@ CONTAINS
     TYPE(qs_ks_env_type), POINTER            :: ks_env
     TYPE(qs_rho_type), POINTER               :: rho
 
-    failure=.FALSE.
     NULLIFY(energy, rho, dft_control, ks_env)
 
     CALL get_qs_env(qs_env=qs_env, energy=energy,ks_env=ks_env,&
@@ -684,7 +678,6 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-    failure=.FALSE.
 
     CPASSERT(ASSOCIATED(scf_env))
     CPASSERT(scf_env%ref_count>0)

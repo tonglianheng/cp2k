@@ -124,7 +124,6 @@ CONTAINS
     INTEGER                                  :: idim, jdim, natoms
     LOGICAL                                  :: failure
 
-    failure = .FALSE.
     natoms = SIZE ( particle_set)
     idim = SIZE ( npt, 1)
     jdim = SIZE ( npt, 2)
@@ -159,7 +158,6 @@ CONTAINS
 
     LOGICAL                                  :: failure
 
-    failure = .FALSE.
     IF (ASSOCIATED(old)) THEN
        IF (ASSOCIATED(old%v)) THEN
           DEALLOCATE ( old%v)
@@ -204,7 +202,6 @@ CONTAINS
 
     LOGICAL                                  :: failure
 
-    failure = .FALSE.
     CPASSERT(.NOT.ASSOCIATED(tmp))
     ALLOCATE (tmp)
 
@@ -292,7 +289,6 @@ CONTAINS
     LOGICAL                                  :: failure, my_deall, my_pos, &
                                                 my_vel
 
-    failure = .FALSE.
 
     CPASSERT(ASSOCIATED(tmp))
     my_pos =.FALSE.
@@ -998,7 +994,6 @@ CONTAINS
     REAL(KIND=dp)                            :: fdotr, trace, v, v0, v0i, vi
     REAL(KIND=dp), DIMENSION(3, 3)           :: unit
 
-    failure = .FALSE.
     ! initialize unit
     unit = 0.0_dp
     unit(1,1) = 1.0_dp

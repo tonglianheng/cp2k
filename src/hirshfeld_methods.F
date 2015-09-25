@@ -155,7 +155,6 @@ CONTAINS
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(qs_kind_type), POINTER              :: qs_kind
 
-    failure = .FALSE.
     CPASSERT(ASSOCIATED(hirshfeld_env))
 
     nkind = SIZE(qs_kind_set)
@@ -223,7 +222,6 @@ CONTAINS
     TYPE(qs_rho_type), POINTER               :: rho
 
     NULLIFY(rho_r)
-    failure = .FALSE.
     ! normalization function on grid
     CALL calculate_hirshfeld_normalization(qs_env,hirshfeld_env)
     ! check normalization
@@ -272,7 +270,6 @@ CONTAINS
     INTEGER                                  :: i1, i2, i3, n1, n2, n3
     LOGICAL                                  :: failure
 
-    failure = .FALSE.
     n1 = SIZE(fout,1)
     n2 = SIZE(fout,2)
     n3 = SIZE(fout,3)
@@ -327,7 +324,6 @@ CONTAINS
     TYPE(qs_rho_type), POINTER               :: rho
 
     NULLIFY(rho_r)
-    failure = .FALSE.
 
     natom = SIZE(charges,1)
 
@@ -421,7 +417,6 @@ CONTAINS
     TYPE(realspace_grid_type), POINTER       :: rs_rho
 
     CALL timeset(routineN,handle)
-    failure = .FALSE.
 
     CALL get_qs_env(qs_env=qs_env,atomic_kind_set=atomic_kind_set,cell=cell,&
          dft_control=dft_control,particle_set=particle_set,pw_env=pw_env)
@@ -541,7 +536,6 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-    failure=.FALSE.
     do_force = PRESENT(fderiv)
     fval = 0.0_dp
     dvol = rfun%pw%pw_grid%dvol

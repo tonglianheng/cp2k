@@ -72,7 +72,6 @@ CONTAINS
     TYPE(dimer_env_type), POINTER            :: dimer_env
     TYPE(section_vals_type), POINTER         :: print_section
 
-    failure=.FALSE.
     NULLIFY(dimer_env,logger, print_section)
     CALL timeset(routineN,handle)
     logger => cp_get_default_logger()
@@ -210,7 +209,6 @@ CONTAINS
     TYPE(particle_list_type), POINTER        :: particles
 
     CALL timeset(routineN,handle)
-    failure = .FALSE.
     NULLIFY(mat)
     CALL force_env_get(gopt_env%force_env, subsys=subsys)
     CALL cp_subsys_get(subsys, particles=particles)

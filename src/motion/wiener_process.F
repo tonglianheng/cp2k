@@ -82,7 +82,6 @@ CONTAINS
                                                 subsys_section, work_section
     TYPE(simpar_type), POINTER               :: simpar
 
-    failure = .FALSE.
     NULLIFY(work_section,force_env)
     CPASSERT(ASSOCIATED(md_env))
 
@@ -186,7 +185,6 @@ CONTAINS
 
 ! -------------------------------------------------------------------------
 
-    failure = .FALSE.
 
     CPASSERT(ASSOCIATED(distribution_1d))
 
@@ -237,7 +235,6 @@ CONTAINS
       DIMENSION(:, :, :)                     :: seed
     REAL(KIND=dp), DIMENSION(3, 2)           :: initial_seed
 
-    failure=.FALSE.
     IF (.NOT.ASSOCIATED(meta_env)) RETURN
 
     initial_seed = next_rng_seed()

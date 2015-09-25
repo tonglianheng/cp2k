@@ -123,7 +123,6 @@ CONTAINS
 
     LOGICAL                                  :: failure
 
-    failure = .FALSE.
     ALLOCATE(map_info)
     NULLIFY(map_info%index, map_info%map_index)
     NULLIFY(map_info%v_scale)
@@ -146,7 +145,6 @@ CONTAINS
 
     LOGICAL                                  :: failure
 
-    failure = .FALSE.
 
     IF (ASSOCIATED(map_info)) THEN
        IF (ASSOCIATED (map_info%p_kin)) THEN
@@ -185,7 +183,6 @@ CONTAINS
 
     LOGICAL                                  :: failure
 
-    failure = .FALSE.
 
     IF (ASSOCIATED(lnhc)) THEN
        IF ( ASSOCIATED(lnhc%dt_yosh)) THEN

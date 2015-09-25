@@ -61,7 +61,6 @@ SUBROUTINE create_almo_scf_section(section)
     TYPE(keyword_type), POINTER              :: keyword
     TYPE(section_type), POINTER              :: subsection
 
-    failure=.FALSE.
 
     CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,"ALMO_SCF",&
@@ -555,7 +554,6 @@ SUBROUTINE create_almo_eda_section(section)
     LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
 
-    failure=.FALSE.
 
     CPASSERT(.NOT.ASSOCIATED(section))
    
@@ -608,7 +606,6 @@ SUBROUTINE create_optimizer_section(section,optimizer_id)
     LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
 
-    failure=.FALSE.
 
     CPASSERT(.NOT.ASSOCIATED(section))
    

@@ -94,7 +94,6 @@ CONTAINS
 
     LOGICAL                                  :: failure
 
-    failure = .FALSE.
     CPASSERT(ASSOCIATED(para_env))
 
     master = .FALSE.
@@ -410,7 +409,6 @@ CONTAINS
 
     LOGICAL                                  :: failure
 
-    failure = .FALSE.
     CPASSERT(ASSOCIATED(m_send))
 
     ! nothing to do, send just the message tag
@@ -521,7 +519,6 @@ CONTAINS
                                                 msg_size_real
     LOGICAL                                  :: failure
 
-    failure = .FALSE.
 
     CPASSERT(ASSOCIATED(tmc_params))
     CPASSERT(ASSOCIATED(m_send))
@@ -574,7 +571,6 @@ CONTAINS
     INTEGER                                  :: counter
     LOGICAL                                  :: failure, flag
 
-    failure = .FALSE.
     CPASSERT(ASSOCIATED(tmc_params))
     CPASSERT(ASSOCIATED(m_send))
     CPASSERT(m_send%info(3).GE.4)
@@ -632,7 +628,6 @@ CONTAINS
                                                 msg_size_real
     LOGICAL                                  :: failure
 
-    failure = .FALSE.
     CPASSERT(ASSOCIATED(m_send))
     CPASSERT(ASSOCIATED(elem))
     CPASSERT(ASSOCIATED(tmc_params))
@@ -717,7 +712,6 @@ CONTAINS
     INTEGER                                  :: counter, i
     LOGICAL                                  :: failure, flag
 
-    failure = .FALSE.
     CPASSERT(ASSOCIATED(tmc_params))
     CPASSERT(.NOT.ASSOCIATED(tmc_params%atoms))
     CPASSERT(ASSOCIATED(m_send))
@@ -796,7 +790,6 @@ CONTAINS
                                                 msg_size_real
     LOGICAL                                  :: failure
 
-    failure = .FALSE.
     CPASSERT(ASSOCIATED(m_send))
     CPASSERT(.NOT.ALLOCATED(m_send%task_int))
     CPASSERT(.NOT.ALLOCATED(m_send%task_real))
@@ -854,7 +847,6 @@ CONTAINS
     INTEGER                                  :: counter
     LOGICAL                                  :: failure
 
-    failure = .FALSE.
     CPASSERT(ASSOCIATED(m_send))
     CPASSERT(m_send%info(3).GT.0)
     CPASSERT(ASSOCIATED(tmc_params))
@@ -907,7 +899,6 @@ CONTAINS
                                                 msg_size_real
     LOGICAL                                  :: failure
 
-    failure = .FALSE.
     CPASSERT(ASSOCIATED(m_send))
     CPASSERT(.NOT.ALLOCATED(m_send%task_int))
     CPASSERT(.NOT.ALLOCATED(m_send%task_real))
@@ -975,7 +966,6 @@ CONTAINS
     INTEGER                                  :: counter
     LOGICAL                                  :: failure
 
-    failure = .FALSE.
     CPASSERT(ASSOCIATED(elem))
     CPASSERT(ASSOCIATED(m_send))
     CPASSERT(m_send%info(3).GT.0)
@@ -1032,7 +1022,6 @@ CONTAINS
     INTEGER                                  :: counter, msg_size_real
     LOGICAL                                  :: failure
 
-    failure = .FALSE.
     CPASSERT(ASSOCIATED(m_send))
     CPASSERT(.NOT.ALLOCATED(m_send%task_int))
     CPASSERT(.NOT.ALLOCATED(m_send%task_real))
@@ -1079,7 +1068,6 @@ CONTAINS
     INTEGER                                  :: counter
     LOGICAL                                  :: failure
 
-    failure = .FALSE.
     CPASSERT(ASSOCIATED(elem))
     CPASSERT(ASSOCIATED(m_send))
     CPASSERT(m_send%info(2).EQ.0.AND.m_send%info(3).GT.0)
@@ -1122,7 +1110,6 @@ CONTAINS
                                                 msg_size_real
     LOGICAL                                  :: failure
 
-    failure = .FALSE.
     CPASSERT(ASSOCIATED(m_send))
     CPASSERT(ASSOCIATED(elem))
     CPASSERT(.NOT.ALLOCATED(m_send%task_int))
@@ -1215,7 +1202,6 @@ CONTAINS
                                                 rnd_seed_size
     LOGICAL                                  :: failure
 
-    failure = .FALSE.
     CPASSERT(.NOT.ASSOCIATED(elem))
     CPASSERT(ASSOCIATED(m_send))
     CPASSERT(m_send%info(2).GT.5.AND.m_send%info(3).GT.8)
@@ -1297,7 +1283,6 @@ CONTAINS
                                                 msg_size_real
     LOGICAL                                  :: failure
 
-    failure = .FALSE.
     CPASSERT(ASSOCIATED(m_send))
     CPASSERT(.NOT.ALLOCATED(m_send%task_int))
     CPASSERT(.NOT.ALLOCATED(m_send%task_real))
@@ -1431,7 +1416,6 @@ CONTAINS
                                                 subbox_counter
     LOGICAL                                  :: failure
 
-    failure = .FALSE.
     NULLIFY(mv_counter, subbox_counter, acc_counter, subbox_acc_counter)
 
     CPASSERT(ASSOCIATED(elem))
@@ -1549,7 +1533,6 @@ CONTAINS
                                                 msg_size_real
     LOGICAL                                  :: failure
 
-    failure = .FALSE.
     CPASSERT(ASSOCIATED(m_send))
     CPASSERT(.NOT.ALLOCATED(m_send%task_int))
     CPASSERT(.NOT.ALLOCATED(m_send%task_real))
@@ -1608,7 +1591,6 @@ CONTAINS
     INTEGER                                  :: counter
     LOGICAL                                  :: failure
 
-    failure = .FALSE.
     CPASSERT(ASSOCIATED(m_send))
     CPASSERT(m_send%info(3).GT.0)
     CPASSERT(ASSOCIATED(tmc_params))
@@ -1660,7 +1642,6 @@ CONTAINS
 
     LOGICAL                                  :: failure
 
-    failure = .FALSE.
     CPASSERT(ASSOCIATED(elem))
     CPASSERT(ASSOCIATED(m_send))
 
@@ -1740,7 +1721,6 @@ CONTAINS
 
 !    INTEGER, DIMENSION(MPI_STATUS_SIZE)      :: status_single
 
-    failure = .FALSE.
     CPASSERT(ASSOCIATED(para_env))
     CPASSERT(ASSOCIATED(tmc_params))
 

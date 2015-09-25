@@ -82,7 +82,6 @@ CONTAINS
     TYPE(cp_sll_xc_deriv_type), POINTER      :: pos
     TYPE(xc_derivative_type), POINTER        :: deriv_att
 
-    failure=.FALSE.
     NULLIFY(pos,deriv_att,cr3d_ptr)
 
     CPASSERT(ASSOCIATED(derivative_set))
@@ -127,7 +126,6 @@ CONTAINS
     LOGICAL                                  :: failure
     TYPE(pw_grid_type), POINTER              :: pw_grid
 
-    failure=.FALSE.
     NULLIFY(pw_grid)
     CPASSERT(.not.ASSOCIATED(derivative_set))
 
@@ -172,7 +170,6 @@ CONTAINS
     TYPE(cp_sll_xc_deriv_type), POINTER      :: pos
     TYPE(xc_derivative_type), POINTER        :: deriv_att
 
-    failure=.FALSE.
 
     NULLIFY(deriv_att,pos)
     CPASSERT(ASSOCIATED(derivative_set))
@@ -208,7 +205,6 @@ SUBROUTINE xc_dset_retain(deriv_set)
 
     LOGICAL                                  :: failure
 
-  failure=.FALSE.
 
   CPASSERT(ASSOCIATED(deriv_set))
   CPASSERT(deriv_set%ref_count>0)
@@ -230,7 +226,6 @@ SUBROUTINE xc_dset_zero_all(deriv_set)
     TYPE(cp_sll_xc_deriv_type), POINTER      :: pos
     TYPE(xc_derivative_type), POINTER        :: deriv_att
 
-  failure = .FALSE.
   NULLIFY(pos, deriv_att)
 
   CPASSERT(ASSOCIATED(deriv_set))

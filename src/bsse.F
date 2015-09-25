@@ -89,7 +89,6 @@ CONTAINS
                                                 fragment_energies_section, &
                                                 n_frags, root_section
 
-    failure = .FALSE.
     NULLIFY(bsse_section, n_frags, Em, conf)
     logger => cp_get_default_logger()
     root_section => force_env%root_section
@@ -177,7 +176,6 @@ CONTAINS
     REAL(KIND=dp)                            :: my_energy
     REAL(KIND=dp), DIMENSION(:), POINTER     :: Em_loc
 
-    failure = .FALSE.
     NULLIFY(conf_loc, Em_loc)
     should_stop = .FALSE.
     ! Count the number of subconfiguration to evaluate..
@@ -258,7 +256,6 @@ CONTAINS
                                                 force_env_section, &
                                                 subsys_section
 
-    failure = .FALSE.
     CALL section_vals_get(n_frags,n_repetition=num_of_frag)
     CPASSERT(SIZE(conf)==num_of_frag)
     NULLIFY(subsys_loc, subsys, particles, para_env, cell, atom_index, atom_type, tmplist,&
@@ -380,7 +377,6 @@ CONTAINS
     LOGICAL                                  :: failure
     TYPE(cp_logger_type), POINTER            :: logger
 
-    failure = .FALSE.
     NULLIFY(logger)
     logger => cp_get_default_logger()
     iw=cp_print_key_unit_nr(logger,bsse_section,"PRINT%PROGRAM_RUN_INFO",&
@@ -441,7 +437,6 @@ CONTAINS
 
     present_charge = 0
     present_multpl = 0
-    failure = .FALSE.
     NULLIFY(configurations, glb_conf, sub_conf)
     ! Loop over all configurations to pick up the right one
     configurations => section_vals_get_subs_vals(bsse_section,"CONFIGURATION")
@@ -496,7 +491,6 @@ CPSourceFileRef,&
     LOGICAL                                  :: failure
     TYPE(cp_logger_type), POINTER            :: logger
 
-    failure = .FALSE.
     NULLIFY(logger)
     logger => cp_get_default_logger()
     iw=cp_print_key_unit_nr(logger,bsse_section,"PRINT%PROGRAM_RUN_INFO",&
@@ -646,7 +640,6 @@ CPSourceFileRef,&
     LOGICAL                                  :: failure
     TYPE(cp_logger_type), POINTER            :: logger
 
-    failure = .FALSE.
     logger => cp_get_default_logger()
     ires = cp_print_key_unit_nr(logger,bsse_section,"PRINT%RESTART",&
          extension=".restart",  do_backup=.FALSE., file_position="REWIND")

@@ -91,7 +91,6 @@ CONTAINS
     TYPE(molecule_kind_type), POINTER        :: molecule_kind
 
     NULLIFY(fixd_list)
-    failure = .FALSE.
     molecule_kind => molecule % molecule_kind
     CALL get_molecule_kind ( molecule_kind, colv_list=colv_list, fixd_list=fixd_list )
     CALL get_molecule ( molecule, lcolv=lcolv )
@@ -122,7 +121,6 @@ CONTAINS
     TYPE(colvar_constraint_type), POINTER    :: colv_list( : )
     TYPE(molecule_kind_type), POINTER        :: molecule_kind
 
-    failure = .FALSE.
     molecule_kind => molecule % molecule_kind
     CALL get_molecule_kind ( molecule_kind, colv_list=colv_list)
     ! Real update of the Shake target
@@ -528,7 +526,6 @@ CONTAINS
     REAL(KIND=dp)                            :: del_lam, dtby2, dtsqby2, &
                                                 fdotf_sum
 
-    failure = .FALSE.
     dtsqby2 = dt*dt*.5_dp
     dtby2   = dt*.5_dp
     IF (ishake==1) THEN
@@ -600,7 +597,6 @@ CONTAINS
                                                 new_clv_target, value
     TYPE(section_vals_type), POINTER         :: collective_sections
 
-    failure = .FALSE.
     ! Update globally for restart
     collective_sections => section_vals_get_subs_vals(motion_section,"CONSTRAINT%COLLECTIVE")
     CALL section_vals_get(collective_sections, n_repetition=n_rep)
@@ -929,7 +925,6 @@ CONTAINS
     LOGICAL                                  :: failure, my_roll
     REAL(KIND=dp), DIMENSION(3)              :: f_roll
 
-    failure = .FALSE.
     my_roll = .FALSE.
     IF (PRESENT(roll)) THEN
        my_roll = roll
@@ -977,7 +972,6 @@ CONTAINS
     LOGICAL                                  :: failure, my_roll
     REAL(KIND=dp), DIMENSION(3)              :: tmp1, tmp2, tmp3
 
-    failure = .FALSE.
     my_roll = .FALSE.
     IF (PRESENT(roll)) THEN
        my_roll = roll
@@ -1032,7 +1026,6 @@ CONTAINS
     REAL(KIND=dp)                            :: tmp(3)
     REAL(KIND=dp), DIMENSION(3)              :: f_roll, pos, v_roll
 
-    failure = .FALSE.
     my_roll = .FALSE.
     IF (PRESENT(roll)) THEN
        my_roll = roll

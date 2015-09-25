@@ -163,7 +163,6 @@ CONTAINS
     LOGICAL                                  :: failure
 
     CALL timeset(routineN,handle)
-    failure=.FALSE.
 
     CALL cp_para_env_release(ls_scf_env%para_env)
 

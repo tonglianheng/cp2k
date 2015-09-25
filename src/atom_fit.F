@@ -80,7 +80,6 @@ CONTAINS
     TYPE(opgrid_type), POINTER               :: density
     TYPE(opt_state_type)                     :: ostate
 
-    failure = .FALSE.
     ALLOCATE(co(num_gto))
     co = 0._dp
     NULLIFY(density)
@@ -188,7 +187,6 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:), POINTER     :: w
     TYPE(opt_state_type)                     :: ostate
 
-    failure = .FALSE.
 
     SELECT CASE (basis%basis_type)
        CASE DEFAULT
@@ -485,7 +483,6 @@ CONTAINS
     TYPE(atom_type), POINTER                 :: atom
     TYPE(opt_state_type)                     :: ostate
 
-    failure = .FALSE.
 ! weights for the optimization
 
     CALL section_vals_val_get(powell_section,"ACCURACY", r_val=ostate%rhoend)
@@ -864,7 +861,6 @@ CONTAINS
     REAL(dp), ALLOCATABLE, DIMENSION(:)      :: den, pe, uval
     REAL(dp), ALLOCATABLE, DIMENSION(:, :)   :: bf, smat, tval
 
-    failure = .FALSE.
 
     ALLOCATE(pe(n))
     nr = atom%basis%grid%nr
@@ -944,7 +940,6 @@ CONTAINS
     TYPE(atom_potential_type), POINTER       :: pot
     TYPE(atom_type), POINTER                 :: atom
 
-    failure = .FALSE.
 
     ALLOCATE(atint)
 
@@ -1333,7 +1328,6 @@ CONTAINS
     TYPE(opgrid_type), POINTER               :: density
     TYPE(opt_state_type)                     :: ostate
 
-    failure = .FALSE.
     ! at least one parameter to be optimized
     CPASSERT(num_pol*num_gau > 0)
 

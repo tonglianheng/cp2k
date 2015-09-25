@@ -128,7 +128,6 @@ MODULE mp2_ri_libint
     LOGICAL                                  :: failure
 
     CALL timeset(routineN,handle)
-    failure=.FALSE.              
 
     ! Get the RI basis set and store in to a nice form 
     IF(.NOT.(ASSOCIATED(RI_basis_parameter))) THEN
@@ -193,7 +192,6 @@ MODULE mp2_ri_libint
       POINTER                                :: qs_kind_set
     TYPE(qs_kind_type), POINTER              :: atom_kind
 
-    failure = .FALSE.
 
     NULLIFY(RI_basis_parameter)
 
@@ -380,7 +378,6 @@ MODULE mp2_ri_libint
     INTEGER                                  :: i
     LOGICAL                                  :: failure
 
-    failure = .FALSE.
 
     ! RI basis 
     DO i=1,SIZE(RI_basis_parameter)

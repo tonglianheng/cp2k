@@ -135,7 +135,6 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-    failure = .FALSE.
     logger => cp_get_default_logger()
     motion_section => section_vals_get_subs_vals(root_section,"MOTION")
 
@@ -238,7 +237,6 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-    failure = .FALSE.
     NULLIFY(core_particles,my_force_env, my_force_b, particles,&
          shell_particles,subsys,work_section)
 
@@ -434,7 +432,6 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-    failure = .FALSE.
 
     NULLIFY(logger,motion_section,my_force_env)
 
@@ -540,7 +537,6 @@ CONTAINS
                                                 thermostat_part, &
                                                 thermostat_shell
 
-    failure = .FALSE.
     CALL timeset(routineN,handle)
     NULLIFY (logger, thermostat_part, thermostat_baro, npt, para_env, nhc, &
          work_section, thermostat_shell, t, averages, constant, &
@@ -1036,7 +1032,6 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-    failure=.FALSE.
     CPASSERT(ASSOCIATED(helium))
 
     NULLIFY(logger)
@@ -1292,7 +1287,6 @@ CONTAINS
     TYPE(section_type), POINTER              :: section
     TYPE(val_type), POINTER                  :: my_val, old_val
 
-    failure = .FALSE.
 
     CPASSERT(ASSOCIATED(work_section))
     CPASSERT(work_section%ref_count>0)
@@ -1374,7 +1368,6 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:), POINTER     :: work
     TYPE(section_vals_type), POINTER         :: work_section
 
-    failure = .FALSE.
     ! Thermostat Energies
     ALLOCATE(work(csvr%glob_num_csvr))
 
@@ -1440,7 +1433,6 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:), POINTER     :: t_array, work
     TYPE(section_vals_type), POINTER         :: work_section
 
-    failure = .FALSE.    
 
     ! chi and mass
     ALLOCATE(work(al%glob_num_al))
@@ -1505,7 +1497,6 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:), POINTER     :: work
     TYPE(section_vals_type), POINTER         :: work_section
 
-    failure = .FALSE.
 
     ! Thermostat Energies
     ALLOCATE(work(gle%glob_num_gle))
@@ -1810,7 +1801,6 @@ CONTAINS
     TYPE(section_type), POINTER              :: section
     TYPE(val_type), POINTER                  :: my_val, old_val
 
-    failure = .FALSE.
     NULLIFY (my_val, old_val, section, vals)
     CPASSERT(ASSOCIATED(coord_section))
     CPASSERT(coord_section%ref_count>0)
@@ -1885,7 +1875,6 @@ CONTAINS
     LOGICAL                                  :: failure
     TYPE(section_vals_type), POINTER         :: coord, force, mass, velocity
 
-    failure = .FALSE.
     NULLIFY (coord, force, velocity, mass)
     IF (PRESENT(eta)) THEN
        IF (SIZE(eta) > 0) THEN
@@ -1945,7 +1934,6 @@ CONTAINS
     TYPE(section_type), POINTER              :: section
     TYPE(val_type), POINTER                  :: my_val, old_val
 
-    failure=.FALSE.
     NULLIFY(my_val, old_val, section, vals)
     CPASSERT(ASSOCIATED(ss_section))
     CPASSERT(ss_section%ref_count>0)
@@ -2018,7 +2006,6 @@ CONTAINS
     TYPE(section_type), POINTER              :: section
     TYPE(val_type), POINTER                  :: my_val, old_val
 
-    failure=.FALSE.
     NULLIFY(my_val, old_val, section, vals)
     CPASSERT(ASSOCIATED(ds_section))
     CPASSERT(ds_section%ref_count>0)
@@ -2090,7 +2077,6 @@ CONTAINS
     TYPE(section_type), POINTER              :: section
     TYPE(val_type), POINTER                  :: my_val, old_val
 
-    failure=.FALSE.
     NULLIFY(my_val, old_val, section, vals)
     CPASSERT(ASSOCIATED(ww_section))
     CPASSERT(ww_section%ref_count>0)
@@ -2159,7 +2145,6 @@ CONTAINS
     TYPE(section_type), POINTER              :: section
     TYPE(val_type), POINTER                  :: my_val, old_val
 
-    failure=.FALSE.
     NULLIFY(my_val, old_val, section, vals)
     CPASSERT(ASSOCIATED(invdt_section))
     CPASSERT(invdt_section%ref_count>0)

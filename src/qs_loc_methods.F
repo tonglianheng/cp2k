@@ -310,7 +310,6 @@ CONTAINS
       POINTER                                :: qs_kind_set
 
     CALL timeset(routineN,handle)
-    failure = .FALSE.
     logger => cp_get_default_logger()
     output_unit = cp_print_key_unit_nr(logger,print_loc_section,"PROGRAM_RUN_INFO",&
          extension=".locInfo")
@@ -438,7 +437,6 @@ CONTAINS
     TYPE(section_vals_type), POINTER         :: print_key
 
     NULLIFY(centers, logger, print_key)
-    failure = .FALSE.
     logger => cp_get_default_logger()
     my_only_init=.FALSE.
     IF(PRESENT(only_initial_out)) my_only_init=only_initial_out
@@ -547,7 +545,6 @@ CONTAINS
     TYPE(section_vals_type), POINTER         :: print_key
 
     NULLIFY(centers,logger, print_key)
-    failure = .FALSE.
     logger => cp_get_default_logger()
 
     CALL cp_fm_get_info ( zij_fm_set(1,1)%matrix, nrow_global = nstate)
@@ -659,7 +656,6 @@ CONTAINS
     CALL timeset(routineN,handle)
     NULLIFY(para_env, mos, dft_control, list_cubes)
     NULLIFY(cell, localized_wfn_control, moloc_coeff, op_sm_set, op_fm_set)
-    failure = .FALSE.
     qs_loc_env%first_time = first_time
     qs_loc_env%target_time = qs_env%target_time
     qs_loc_env%start_time = qs_env%start_time
@@ -913,7 +909,6 @@ CONTAINS
       POINTER                                :: qs_kind_set
     TYPE(qs_subsys_type), POINTER            :: subsys
 
-    failure = .FALSE.
     CALL timeset(routineN,handle)
     NULLIFY(auxbas_pw_pool, pw_env, logger)
     logger => cp_get_default_logger()

@@ -64,7 +64,6 @@ CONTAINS
     INTEGER                                  :: i
     LOGICAL                                  :: failure
 
-    failure = .FALSE.
 
     ALLOCATE(oce_set%intac(nkind*nkind))
     DO i=1,nkind*nkind

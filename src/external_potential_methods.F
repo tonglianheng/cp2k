@@ -69,7 +69,6 @@ CONTAINS
     TYPE(particle_list_type), POINTER        :: particles
     TYPE(section_vals_type), POINTER         :: ext_pot_section
 
-    failure = .FALSE.
     useall  = .FALSE.
     CALL timeset(routineN,handle)
     NULLIFY(my_par, my_val, logger, subsys, particles, ext_pot_section, nparticle)

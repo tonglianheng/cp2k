@@ -103,7 +103,6 @@ CONTAINS
       DIMENSION(:, :, :)                     :: seed
     REAL(KIND=dp), DIMENSION(3, 2)           :: initial_seed, my_seed
 
-    failure = .FALSE.
     CPASSERT(ASSOCIATED(csvr))
     CPASSERT(.NOT.ASSOCIATED(csvr%nvt))
 
@@ -148,7 +147,6 @@ CONTAINS
 
     LOGICAL                                  :: failure
 
-    failure = .FALSE.
     IF (ASSOCIATED(csvr)) THEN
        CALL csvr_thermo_dealloc(csvr%nvt)
        CALL release_map_info_type(csvr%map_info)
@@ -172,7 +170,6 @@ CONTAINS
     INTEGER                                  :: i
     LOGICAL                                  :: failure
 
-    failure = .FALSE.
     IF (ASSOCIATED(nvt)) THEN
        DO i = 1, SIZE(nvt)
           IF (ASSOCIATED(nvt(i)%gaussian_rng_stream)) THEN

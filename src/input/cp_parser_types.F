@@ -111,7 +111,6 @@ CONTAINS
 
     LOGICAL                                  :: failure
 
-    failure=.FALSE.
     CPASSERT(ASSOCIATED(parser))
     CPASSERT(parser%ref_count>0)
     parser%ref_count=parser%ref_count+1
@@ -191,7 +190,6 @@ CONTAINS
 
     LOGICAL                                  :: failure
 
-    failure=.FALSE.
     CPASSERT(.NOT.ASSOCIATED(parser))
     ALLOCATE(parser)
     last_parser_id=last_parser_id+1
@@ -289,7 +287,6 @@ CONTAINS
 
     LOGICAL                                  :: failure
 
-    failure=.FALSE.
     CPASSERT(ASSOCIATED(parser))
     ! Rewind units
     IF (parser%input_unit>0) REWIND(parser%input_unit)

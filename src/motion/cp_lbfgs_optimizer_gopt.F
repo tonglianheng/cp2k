@@ -216,7 +216,6 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-    failure=.FALSE.
 
     ALLOCATE(optimizer)
     NULLIFY(optimizer%kind_of_bound,&
@@ -309,7 +308,6 @@ SUBROUTINE cp_opt_gopt_retain(optimizer)
 
     LOGICAL                                  :: failure
 
-  failure=.FALSE.
 
   CPASSERT(ASSOCIATED(optimizer))
   CPASSERT(optimizer%ref_count>0)
@@ -334,7 +332,6 @@ SUBROUTINE cp_opt_gopt_release(optimizer)
     LOGICAL                                  :: failure
 
   CALL timeset(routineN,handle)
-  failure=.FALSE.
 
   IF (ASSOCIATED(optimizer)) THEN
      CPASSERT(optimizer%ref_count>0)
@@ -531,7 +528,6 @@ CPSourceFileRef,&
     NULLIFY(logger,xold)
     logger => cp_get_default_logger()
     CALL timeset(routineN,handle)
-    failure=.FALSE.
     justEntred=.TRUE.
     is_master=optimizer%master==optimizer%para_env%mepos
     IF (PRESENT(converged)) converged = optimizer%status==4
@@ -820,7 +816,6 @@ CPSourceFileRef,&
 
     LOGICAL                                  :: failure
 
-    failure=.FALSE.
 
     !call timeset(routineN,handle)
     CPASSERT(ASSOCIATED(optimizer))
@@ -851,7 +846,6 @@ CPSourceFileRef,&
 
     LOGICAL                                  :: failure
 
-    failure=.FALSE.
 
     !  call timeset(routineN,handle)
     CPASSERT(ASSOCIATED(optimizer))

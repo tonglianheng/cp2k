@@ -42,7 +42,6 @@ CONTAINS
     INTEGER                                  :: i
     LOGICAL                                  :: failure
 
-    failure=.FALSE.
 
     IF (ASSOCIATED(matrixes)) THEN
        DO i=1,SIZE(matrixes)
@@ -73,7 +72,6 @@ SUBROUTINE cp_fm_vect_copy(matrixes, copy)
     INTEGER                                  :: i
     LOGICAL                                  :: failure
 
-  failure=.FALSE.
 
   ALLOCATE(copy(SIZE(matrixes)))
   DO i=1,SIZE(matrixes)

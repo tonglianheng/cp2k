@@ -189,7 +189,6 @@ CONTAINS
 
     LOGICAL                                  :: failure
 
-    failure = .FALSE.
     CPASSERT(.NOT.ASSOCIATED(sep))
     ALLOCATE (sep)
     ALLOCATE (sep%beta(0:3))
@@ -217,7 +216,6 @@ CONTAINS
     INTEGER                                  :: i
     LOGICAL                                  :: failure
 
-    failure = .FALSE.
     IF (ASSOCIATED(sep)) THEN
        CALL deallocate_sto_basis_set(sep%basis)
        CALL semi_empirical_mpole_p_release(sep%w_mpole)
@@ -256,7 +254,6 @@ CONTAINS
 
     LOGICAL                                  :: failure
 
-    failure = .FALSE.
     CPASSERT(ASSOCIATED(sep))
     sep%defined            = .FALSE.
     sep%dorb               = .FALSE.
@@ -552,7 +549,6 @@ CONTAINS
 
     LOGICAL                                  :: failure
 
-    failure = .FALSE.
     CPASSERT(.NOT.ASSOCIATED(rotmat))
     ALLOCATE (rotmat)
 
@@ -570,7 +566,6 @@ CONTAINS
 
     LOGICAL                                  :: failure
 
-    failure = .FALSE.
     IF (ASSOCIATED(rotmat)) THEN
        DEALLOCATE (rotmat)
     END IF
@@ -649,7 +644,6 @@ CONTAINS
 
     LOGICAL                                  :: failure
 
-    failure = .FALSE.
     CPASSERT(.NOT.ASSOCIATED(se_taper))
     ALLOCATE(se_taper)
     NULLIFY(se_taper%taper)
@@ -681,7 +675,6 @@ CONTAINS
 
     LOGICAL                                  :: failure
 
-    failure = .FALSE.
     IF (ASSOCIATED(se_taper)) THEN
        CALL taper_release(se_taper%taper_cou)
        CALL taper_release(se_taper%taper_exc)

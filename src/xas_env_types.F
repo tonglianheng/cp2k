@@ -196,7 +196,6 @@ CONTAINS
 
     LOGICAL                                  :: failure
 
-     failure =.FALSE.
      CPASSERT(ASSOCIATED(xas_env))
 
 
@@ -276,7 +275,6 @@ CONTAINS
 
     LOGICAL                                  :: failure
 
-    failure =.FALSE.
 
     CPASSERT(ASSOCIATED(xas_env))
 
@@ -324,7 +322,6 @@ CONTAINS
 
     LOGICAL                                  :: failure
 
-    failure=.FALSE.
     ALLOCATE(xas_env)
 
 
@@ -365,7 +362,6 @@ CONTAINS
     INTEGER                                  :: i, ik, j
     LOGICAL                                  :: failure
 
-    failure=.FALSE.
 
     IF (ASSOCIATED(xas_env)) THEN
        CPASSERT(xas_env%ref_count>0)
@@ -463,7 +459,6 @@ CONTAINS
 
     LOGICAL                                  :: failure
 
-    failure=.FALSE.
 
     CPASSERT(ASSOCIATED(xas_env))
     CPASSERT(xas_env%ref_count>0)

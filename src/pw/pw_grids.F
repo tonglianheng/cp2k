@@ -122,7 +122,6 @@ CONTAINS
 
     LOGICAL                                  :: failure, my_local
 
-    failure =.FALSE.
     my_local=.FALSE.
     IF (PRESENT(local)) my_local = local
     CPASSERT(.NOT.ASSOCIATED(pw_grid))
@@ -240,7 +239,6 @@ CONTAINS
 
     LOGICAL                                  :: failure
 
-    failure=.FALSE.
     CPASSERT(pw_grid%ref_count>0)
 
     IF ( PRESENT(id_nr) ) id_nr = pw_grid%id_nr
@@ -286,7 +284,6 @@ CONTAINS
 
     LOGICAL                                  :: failure
 
-    failure=.FALSE.
     CPASSERT(pw_grid%ref_count>0)
 
     IF ( PRESENT(grid_span) ) THEN
@@ -486,7 +483,6 @@ CONTAINS
     CALL timeset(routineN,handle)
 
     ! some checks
-    failure=.FALSE.
     CPASSERT(ASSOCIATED(pw_grid))
     CPASSERT(pw_grid%ref_count>0)
 
@@ -605,7 +601,6 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-    failure=.FALSE.
     CPASSERT(ASSOCIATED(pw_grid))
     CPASSERT(pw_grid%ref_count>0)
 
@@ -1545,7 +1540,6 @@ CPASSERT(pw_grid%ngpts<HUGE(pw_grid%ngpts_local))
 
     CALL timeset(routineN,handle)
 
-    failure = .FALSE.
 
     bounds = pw_grid % bounds
     lby = pw_grid % bounds ( 1, 2 )
@@ -1866,7 +1860,6 @@ CPASSERT(pw_grid%ngpts<HUGE(pw_grid%ngpts_local))
 
     CALL timeset(routineN,handle)
 
-    failure = .FALSE.
 
     ng = SIZE ( pw_grid % gsq  )
     ALLOCATE ( idx ( ng ))
@@ -2052,7 +2045,6 @@ CPASSERT(pw_grid%ngpts<HUGE(pw_grid%ngpts_local))
 ! Juergs temporary hack to get the grids sorted for large (4000Ry) cutoffs.
 ! might need to call lapack for machine precision.
 
-    failure = .FALSE.
 
     ng = SIZE ( gsq )
     s_begin = -1.0_dp
@@ -2097,7 +2089,6 @@ CPASSERT(pw_grid%ngpts<HUGE(pw_grid%ngpts_local))
     LOGICAL                                  :: failure
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: slen
 
-    failure = .FALSE.
 
     IF ( s2 <= s1 ) RETURN
     ns = s2 - s1 + 1
@@ -2146,7 +2137,6 @@ CPASSERT(pw_grid%ngpts<HUGE(pw_grid%ngpts_local))
     INTEGER, DIMENSION(:), POINTER           :: mapm, mapn
     LOGICAL                                  :: failure
 
-    failure = .FALSE.
 
     IF ( pw_grid % para % mode == PW_MODE_LOCAL ) RETURN
 
@@ -2271,7 +2261,6 @@ CPASSERT(pw_grid%ngpts<HUGE(pw_grid%ngpts_local))
 
     LOGICAL                                  :: failure
 
-    failure=.FALSE.
 
     CPASSERT(ASSOCIATED(pw_grid))
     CPASSERT(pw_grid%ref_count>0)
@@ -2301,7 +2290,6 @@ CPASSERT(pw_grid%ngpts<HUGE(pw_grid%ngpts_local))
 
     LOGICAL                                  :: failure
 
-    failure=.FALSE.
 
     IF (ASSOCIATED(pw_grid)) THEN
        CPASSERT(pw_grid%ref_count>0)

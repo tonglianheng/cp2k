@@ -75,7 +75,6 @@ CONTAINS
 
     LOGICAL                                  :: failure
 
-    failure = .FALSE.
     CPASSERT(ASSOCIATED(trial_fns%obj))
     CPASSERT(trial_fns%obj%ref_count>0)
     trial_fns%obj%ref_count = trial_fns%obj%ref_count + 1
@@ -96,7 +95,6 @@ CONTAINS
 
     LOGICAL                                  :: failure
 
-    failure = .FALSE.
     IF (ASSOCIATED(trial_fns%obj)) THEN
        CPASSERT(trial_fns%obj%ref_count>0)
        trial_fns%obj%ref_count = trial_fns%obj%ref_count - 1
@@ -180,7 +178,6 @@ CONTAINS
 
     LOGICAL                                  :: failure
 
-    failure = .FALSE.
     CPASSERT(.NOT.ASSOCIATED(trial_fns%obj))
     ALLOCATE(trial_fns%obj)
     NULLIFY(trial_fns%obj%nfunctions)
@@ -204,7 +201,6 @@ CONTAINS
 
     LOGICAL                                  :: failure
 
-    failure = .FALSE.
     CPASSERT(ASSOCIATED(trial_fns%obj))
     ! if halo_atoms are associated, then deallocate and de-associate
     IF (ASSOCIATED(trial_fns%obj%nfunctions)) THEN
@@ -236,7 +232,6 @@ CONTAINS
 
     LOGICAL                                  :: failure
 
-    failure = .FALSE.
     CPASSERT(ASSOCIATED(trial_fns%obj))
     IF (PRESENT(nfunctions)) nfunctions => trial_fns%obj%nfunctions
     IF (PRESENT(functions)) functions => trial_fns%obj%functions
@@ -263,7 +258,6 @@ CONTAINS
 
     LOGICAL                                  :: failure
 
-    failure = .FALSE.
     CPASSERT(ASSOCIATED(trial_fns%obj))
     IF (PRESENT(nfunctions)) THEN
        IF (ASSOCIATED(trial_fns%obj%nfunctions)) THEN

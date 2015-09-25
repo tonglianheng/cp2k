@@ -117,7 +117,6 @@ CONTAINS
     any_tersoff = .FALSE.
     any_siepmann = .FALSE.
     any_quip = .FALSE.
-    failure = .FALSE.
     CALL timeset ( routineN, handle )
     CALL fist_nonbond_env_get ( fist_nonbond_env, r_last_update_pbc=r_last_update_pbc,&
          potparm = potparm , eam_data=eam_data)
@@ -387,7 +386,6 @@ CONTAINS
     TYPE(siepmann_pot_type), POINTER         :: siepmann
     TYPE(tersoff_pot_type), POINTER          :: tersoff
 
-    failure     = .FALSE.
     any_tersoff = .FALSE.
     any_quip = .FALSE.
     any_siepmann = .FALSE.

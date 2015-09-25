@@ -74,7 +74,6 @@ CONTAINS
     INTEGER                                  :: i
     LOGICAL                                  :: failure
 
-    failure = .FALSE.
     IF (ASSOCIATED(fist_neighbor)) THEN
        ! deallocate neighbor_kind_pairs
        IF (ASSOCIATED(fist_neighbor%neighbor_kind_pairs)) THEN
@@ -130,7 +129,6 @@ CONTAINS
     TYPE(neighbor_kind_pairs_type), &
       DIMENSION(:), POINTER                  :: new_pairs
 
-    failure=.FALSE.
     CALL timeset ( routineN, handle )
     IF (.NOT.ASSOCIATED(fist_neighbor)) THEN
        ALLOCATE(fist_neighbor)
@@ -337,7 +335,6 @@ CONTAINS
     ! Allocate more memory for the pair list if necessary.
     old_npairs=SIZE(neighbor_kind_pair%list,2)
     IF (old_npairs==neighbor_kind_pair%npairs) THEN
-       failure = .FALSE.
        ! just a choice that will also grow for zero size arrays:
        new_npairs = INT(5+1.2*old_npairs)
        ! Pair Atoms Info

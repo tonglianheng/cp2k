@@ -155,7 +155,6 @@ MODULE qs_efield_berry
     TYPE(efield_berry_type), POINTER         :: efield
 
     CALL timeset(routineN,handle)
-    failure = .FALSE.
     CPASSERT(ASSOCIATED(qs_env))
 
     CALL get_qs_env(qs_env=qs_env,dft_control=dft_control)

@@ -116,7 +116,6 @@ SUBROUTINE make_preconditioner(preconditioner_env, precon_type, solver_type, mat
     TYPE(cp_dbcsr_type), POINTER             :: mo_coeff_b
     TYPE(cp_fm_type), POINTER                :: mo_coeff
 
-    failure=.FALSE.
 
     CALL timeset(routineN,handle)
 
@@ -337,7 +336,6 @@ SUBROUTINE make_preconditioner(preconditioner_env, precon_type, solver_type, mat
 
     CALL timeset(routineN,handle)
     NULLIFY(matrix_t, mo_coeff_b, mo_coeff, kinetic, dft_control, para_env, blacs_env)
-    failure = .FALSE.
     my_has_unit_metric = .FALSE.
     IF(PRESENT(has_unit_metric)) my_has_unit_metric = has_unit_metric
     my_mixed_precision = .FALSE.

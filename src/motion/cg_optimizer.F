@@ -81,7 +81,6 @@ CONTAINS
 
     logger => cp_get_default_logger()
 
-    failure = .FALSE.
 
     output_unit = cp_print_key_unit_nr(logger,geo_section,"PRINT%PROGRAM_RUN_INFO",&
          extension=".geoLog")
@@ -143,7 +142,6 @@ CONTAINS
     root_section => force_env%root_section
     logger       => cp_get_default_logger()
     conv         = .FALSE.
-    failure      = .FALSE.
     maxiter            = gopt_param%max_iter
     max_steep_steps    = gopt_param%max_steep_steps
     Fletcher_Reeves    = gopt_param%Fletcher_Reeves

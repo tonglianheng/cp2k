@@ -89,7 +89,6 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-    failure = .FALSE.
 
     CPASSERT(ASSOCIATED(eip_env))
 
@@ -168,7 +167,6 @@ CONTAINS
     NULLIFY(atomic_kind_set, molecule_kind_set, particle_set, molecule_set, &
             local_molecules, local_particles)
 
-    failure = .FALSE.
 
     particle_set => subsys%particles%els
     atomic_kind_set => subsys%atomic_kinds%els

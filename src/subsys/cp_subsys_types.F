@@ -140,7 +140,6 @@ CONTAINS
 
     LOGICAL                                  :: failure
 
-    failure=.FALSE.
 
     CPASSERT(ASSOCIATED(subsys))
     CPASSERT(subsys%ref_count>0)
@@ -241,7 +240,6 @@ CONTAINS
 
     LOGICAL                                  :: failure
 
-    failure=.FALSE.
 
     CPASSERT(ASSOCIATED(subsys))
     CPASSERT(subsys%ref_count>0)
@@ -410,7 +408,6 @@ CONTAINS
     INTEGER                                  :: n_atom, n_core, n_shell
     LOGICAL                                  :: failure
 
-    failure = .FALSE.
     n_atom = 0
     n_core = 0
     n_shell = 0
@@ -499,7 +496,6 @@ CONTAINS
     TYPE(particle_list_type), POINTER        :: core_particles, particles, &
                                                 shell_particles
 
-    failure = .FALSE.
     CPASSERT(ASSOCIATED(subsys))
 
     IF (PRESENT(s)) THEN
@@ -658,7 +654,6 @@ CONTAINS
     TYPE(particle_list_type), POINTER        :: core_particles, particles, &
                                                 shell_particles
 
-    failure = .FALSE.
     CPASSERT(ASSOCIATED(subsys))
 
     NULLIFY (core_particles)

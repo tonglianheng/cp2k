@@ -67,7 +67,6 @@ MODULE cell_opt
     TYPE(section_vals_type), POINTER         :: force_env_section, &
                                                 geo_section, root_section
 
-    failure = .FALSE.
     CALL timeset(routineN,handle)
     logger => cp_get_default_logger()
     CPASSERT(ASSOCIATED(force_env))
@@ -123,7 +122,6 @@ MODULE cell_opt
 
     LOGICAL                                  :: failure
 
-    failure = .FALSE.
     CPASSERT(ASSOCIATED(force_env))
     CPASSERT(ASSOCIATED(globenv))
     CPASSERT(ASSOCIATED(gopt_param))

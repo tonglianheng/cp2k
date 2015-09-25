@@ -96,7 +96,6 @@ CONTAINS
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(simpar_type), POINTER               :: simpar
 
-    failure = .FALSE.
 
     NULLIFY(itimes, para_env, simpar)
 
@@ -509,7 +508,6 @@ CONTAINS
     TYPE(section_vals_type), POINTER         :: force_env_section
     TYPE(shell_kind_type), POINTER           :: shell
 
-    failure = .FALSE.
 
     NULLIFY(force_env, qmmm_env, qmmmx_env, subsys, force_env_section)
     CALL get_md_env ( md_env, force_env = force_env)

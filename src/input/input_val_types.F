@@ -134,7 +134,6 @@ SUBROUTINE val_create(val,l_val,l_vals,l_vals_ptr,i_val,i_vals,i_vals_ptr,&
     INTEGER                                  :: i, len_c, narg, nVal
     LOGICAL                                  :: failure
 
-  failure=.FALSE.
 
   CPASSERT(.NOT.ASSOCIATED(val))
   ALLOCATE(val)
@@ -291,7 +290,6 @@ SUBROUTINE val_release(val)
 
     LOGICAL                                  :: failure
 
-  failure=.FALSE.
 
   IF (ASSOCIATED(val)) THEN
      CPASSERT(val%ref_count>0)
@@ -330,7 +328,6 @@ SUBROUTINE val_retain(val)
 
     LOGICAL                                  :: failure
 
-  failure=.FALSE.
 
   CPASSERT(ASSOCIATED(val))
   CPASSERT(val%ref_count>0)
@@ -387,7 +384,6 @@ SUBROUTINE val_get(val,has_l,has_i,has_r,has_lc,has_c,l_val,l_vals,i_val,&
     INTEGER                                  :: i, l_in, l_out
     LOGICAL                                  :: failure
 
-  failure=.FALSE.
 
   IF (PRESENT(has_l)) has_l=ASSOCIATED(val%l_val)
   IF (PRESENT(has_i)) has_i=ASSOCIATED(val%i_val)
@@ -527,7 +523,6 @@ SUBROUTINE val_write(val,unit_nr,unit,unit_str,fmt)
     LOGICAL                                  :: failure
     TYPE(cp_unit_type), POINTER              :: my_unit
 
-  failure=.FALSE.
 
   NULLIFY(my_unit)
   myfmt = ""
@@ -694,7 +689,6 @@ END SUBROUTINE val_write
 
 ! -------------------------------------------------------------------------
 
-    failure = .FALSE.
 
     string = ""
 
@@ -782,7 +776,6 @@ SUBROUTINE val_duplicate(val_in,val_out)
 
     LOGICAL                                  :: failure
 
-  failure=.FALSE.
   CPASSERT(ASSOCIATED(val_in))
   CPASSERT(.NOT.ASSOCIATED(val_out))
   ALLOCATE(val_out)

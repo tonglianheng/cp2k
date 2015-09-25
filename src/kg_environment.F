@@ -90,7 +90,6 @@ CONTAINS
 
     LOGICAL                                  :: failure
 
-    failure=.FALSE.
 
     ALLOCATE(kg_env)
     CALL init_kg_env(kg_env, input)
@@ -118,7 +117,6 @@ CONTAINS
                                                 xc_fun_section_kg, &
                                                 xc_section, xc_section_kg
 
-    failure=.FALSE.
 
     CALL timeset(routineN, handle)
 
@@ -278,7 +276,6 @@ CONTAINS
 
     CALL timeset(routineN, handle)
     NULLIFY(para_env)
-    failure = .FALSE.
 
     molecule_only = .FALSE.
     IF (PRESENT(molecular)) molecule_only = molecular
@@ -455,7 +452,6 @@ CONTAINS
 
     CALL timeset(routineN, handle)
 
-    failure=.FALSE.
 
     ! get the number of disjunct pairs
     npairs=SIZE(pairs,2)

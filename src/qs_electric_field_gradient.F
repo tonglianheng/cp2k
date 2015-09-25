@@ -462,7 +462,6 @@ CONTAINS
     TYPE(harmonics_atom_type), POINTER       :: harmonics
     TYPE(paw_proj_set_type), POINTER         :: paw_proj
 
-    failure = .FALSE.
     NULLIFY(orb_basis)
     NULLIFY(harmonics)
     NULLIFY(lmin,lmax,npgf,zet,my_CG,coeff)

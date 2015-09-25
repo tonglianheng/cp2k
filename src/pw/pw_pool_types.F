@@ -125,7 +125,6 @@ CONTAINS
     LOGICAL                                  :: failure
     TYPE(cp_logger_type), POINTER            :: logger
 
-    failure=.FALSE.
     logger => cp_get_default_logger()
 
     ALLOCATE(pool)
@@ -162,7 +161,6 @@ CONTAINS
     LOGICAL                                  :: failure
     TYPE(cp_logger_type), POINTER            :: logger
 
-    failure=.FALSE.
     logger => cp_get_default_logger()
 
     CPASSERT(ASSOCIATED(pool))
@@ -198,7 +196,6 @@ CONTAINS
     TYPE(cp_sll_pw_type), POINTER            :: iterator
     TYPE(pw_type), POINTER                   :: pw_el
 
-    failure=.FALSE.
 
     CPASSERT(ASSOCIATED(pool))
     CPASSERT(pool%ref_count>0)
@@ -272,7 +269,6 @@ CONTAINS
     LOGICAL                                  :: failure
     TYPE(cp_logger_type), POINTER            :: logger
 
-    failure=.FALSE.
     logger => cp_get_default_logger()
 
     IF (ASSOCIATED(pool)) THEN
@@ -345,7 +341,6 @@ CONTAINS
       POINTER                                :: cr3d_ptr
     TYPE(cp_logger_type), POINTER            :: logger
 
-    failure=.FALSE.
 
     CALL timeset(routineN,handle)
     NULLIFY(pw)
@@ -437,7 +432,6 @@ CONTAINS
                                                 my_accept_non_compatible
     TYPE(cp_logger_type), POINTER            :: logger
 
-    failure=.FALSE.
     my_accept_non_compatible=.FALSE.
     logger => cp_get_default_logger()
     IF (PRESENT(accept_non_compatible)) my_accept_non_compatible=accept_non_compatible
@@ -447,7 +441,6 @@ CONTAINS
     CPASSERT(pool%ref_count>0)
     IF (.NOT.ASSOCIATED(pw)) THEN
        CPASSERT(my_accept_non_compatible)
-       failure=.TRUE.
     END IF
     IF (.NOT. failure) THEN
        CPASSERT(pw%ref_count==1)
@@ -467,7 +460,6 @@ CONTAINS
 CPSourceFileRef,&
                failure=failure)
           CALL pw_release(pw)
-          failure=.TRUE.
        END IF
     END IF
 
@@ -588,7 +580,6 @@ SUBROUTINE pw_pool_create_cr3d(pw_pool,cr3d)
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(pw_type), POINTER                   :: pw
 
-  failure=.FALSE.
   NULLIFY(pw)
   logger => cp_get_default_logger()
 
@@ -650,7 +641,6 @@ SUBROUTINE pw_pool_give_back_cr3d(pw_pool,cr3d,accept_non_compatible)
                                                 my_accept_non_compatible
     TYPE(cp_logger_type), POINTER            :: logger
 
-  failure=.FALSE.
   my_accept_non_compatible=.FALSE.
   logger => cp_get_default_logger()
   IF (PRESENT(accept_non_compatible)) my_accept_non_compatible=accept_non_compatible
@@ -722,7 +712,6 @@ SUBROUTINE pw_pools_create_pws(pools, pws, use_data, in_space)
     INTEGER                                  :: i
     LOGICAL                                  :: failure
 
-  failure=.FALSE.
 
   CPASSERT(ASSOCIATED(pools))
   ALLOCATE(pws(SIZE(pools)))
@@ -752,7 +741,6 @@ SUBROUTINE pw_pools_give_back_pws(pools, pws)
     INTEGER                                  :: i
     LOGICAL                                  :: failure
 
-  failure=.FALSE.
 
   CPASSERT(ASSOCIATED(pools))
   CPASSERT(ASSOCIATED(pws))
@@ -781,7 +769,6 @@ SUBROUTINE pw_pools_copy(source_pools, target_pools)
     INTEGER                                  :: i
     LOGICAL                                  :: failure
 
-  failure=.FALSE.
 
   CPASSERT(ASSOCIATED(source_pools))
   ALLOCATE(target_pools(SIZE(source_pools)))
@@ -809,7 +796,6 @@ SUBROUTINE pw_pools_dealloc(pools)
     INTEGER                                  :: i
     LOGICAL                                  :: failure
 
-  failure=.FALSE.
 
   IF (ASSOCIATED(pools)) THEN
      DO i=1,SIZE(pools)
@@ -837,7 +823,6 @@ SUBROUTINE pw_pools_flush_cache(pools)
     INTEGER                                  :: i
     LOGICAL                                  :: failure
 
-  failure=.FALSE.
 
   CPASSERT(ASSOCIATED(pools))
   DO i=1,SIZE(pools)
@@ -864,7 +849,6 @@ SUBROUTINE pw_pool_write(pw_pool,unit_nr)
     TYPE(cp_sll_pw_type), POINTER            :: iter
     TYPE(pw_type), POINTER                   :: pw_att
 
-  failure=.FALSE.
 
   IF (ASSOCIATED(pw_pool)) THEN
      WRITE (unit=unit_nr, &

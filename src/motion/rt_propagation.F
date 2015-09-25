@@ -109,7 +109,6 @@ CONTAINS
                                                 ls_scf_section, md_section, &
                                                 motion_section
 
-    failure=.FALSE.
     NULLIFY(qs_env,rtp_control,dft_control)
 
     CALL force_env_get(force_env=force_env,qs_env=qs_env,globenv=globenv)
@@ -275,7 +274,6 @@ CONTAINS
     TYPE(rt_prop_type), POINTER              :: rtp
     TYPE(rtp_control_type), POINTER          :: rtp_control
 
-    failure=.FALSE.
     should_stop=.FALSE.
     CALL timeset(routineN,handle)
     NULLIFY(logger,dft_control,energy,rtp,rtp_control)

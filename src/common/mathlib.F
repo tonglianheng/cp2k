@@ -254,7 +254,6 @@ CONTAINS
 
     EXTERNAL dsyev,dsyevd
 
-    failure = .FALSE.
     CALL timeset(routineN,handle)
 
     ! Get the size of the matrix a
@@ -429,7 +428,6 @@ CONTAINS
     LOGICAL                                  :: failure
     REAL(KIND=dp), ALLOCATABLE               :: work(:)
 
-    failure = .FALSE.
     n = SIZE(a,1)
     lwork = 20*n
     ALLOCATE (ipiv(n))
@@ -464,7 +462,6 @@ CONTAINS
     INTEGER                                  :: handle, i, info, n
     LOGICAL                                  :: failure
 
-    failure = .FALSE.
     CALL timeset(routineN,handle)
 
     n = SIZE(a,1)
@@ -551,7 +548,6 @@ CONTAINS
 
     EXTERNAL dgecon,dgerfs,dgetrf,dgetrs
 
-    failure = .FALSE.
 
     ! Check for optional parameter
     IF (PRESENT(option)) THEN
@@ -731,7 +727,6 @@ CONTAINS
 
     EXTERNAL zgecon,zgerfs,zgetrf,zgetrs
 
-    failure = .FALSE.
 
     ! Check for optional parameter
     IF (PRESENT(option)) THEN
@@ -880,7 +875,6 @@ CONTAINS
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: sig_plus, temp_mat, u, vt
 
-    failure = .FALSE. 
     CALL timeset(routineN,handle)
 
     n=SIZE(a,1)
@@ -955,7 +949,6 @@ CONTAINS
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: dinv, temp_mat
 
-    failure = .FALSE.
     CALL timeset(routineN,handle)
 
     n=SIZE(a,1)

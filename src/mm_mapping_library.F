@@ -54,7 +54,6 @@ CONTAINS
 
     LOGICAL                                  :: failure
 
-    failure = .FALSE.
     SELECT CASE(ff_type)
     CASE("AMBER")
        ALLOCATE(amber_map)
@@ -142,7 +141,6 @@ CONTAINS
 
     LOGICAL                                  :: failure
 
-    failure = .FALSE.
     SELECT CASE(ff_type)
     CASE("AMBER")
        ! deallocate substructures

@@ -142,7 +142,6 @@ CONTAINS
     TYPE(xc_derivative_type), POINTER        :: deriv
 
     CALL timeset(routineN,handle)
-    failure=.FALSE.
     NULLIFY(bo)
 
     CALL section_vals_val_get(xb88_params,"scale_x",r_val=sx)
@@ -295,7 +294,6 @@ CONTAINS
       t54, t6, t64, t67, t7, t72, t74, t75, t79, t83, t86, t90, t91, t98, &
       t99, x
 
-    failure=.FALSE.
     c= 1.5_dp*(0.75_dp/Pi)**(1.0_dp/3.0_dp)
     t1 = 2 ** (0.1e1_dp / 0.3e1_dp)
     t2 = t1 ** 2
@@ -688,7 +686,6 @@ CONTAINS
 
     CALL cite_reference(Becke1988)
 
-    failure=.FALSE.
     NULLIFY(deriv, bo)
     DO i=1,2
        NULLIFY(norm_drho(i)%array, rho(i)%array, rho_1_3(i)%array)
@@ -887,7 +884,6 @@ CONTAINS
       t28, t3, t30, t35, t36, t4, t42, t43, t44, t5, t51, t53, t57, t58, t59, &
       t6, t63, t64, t66, t67, t7, t75, t76, t79, t8, t87, x
 
-    failure=.FALSE.
     c= 1.5_dp*(0.75_dp/Pi)**(1.0_dp/3.0_dp)
     my_epsilon_rho=0.5_dp*epsilon_rho
     epsilon_rho43=my_epsilon_rho**(4._dp/3._dp)
