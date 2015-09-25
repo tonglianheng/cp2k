@@ -23,6 +23,12 @@ MODULE qs_scf_output
   USE particle_types,                  ONLY: particle_type
   USE physcon,                         ONLY: evolt,&
                                              kcalmol
+  USE ps_implicit_types,               ONLY: MIXED_BC,&
+                                             MIXED_PERIODIC_BC,&
+                                             NEUMANN_BC,&
+                                             PERIODIC_BC
+  USE pw_env_types,                    ONLY: pw_env_type
+  USE pw_poisson_types,                ONLY: pw_poisson_implicit
   USE qmmm_image_charge,               ONLY: print_image_coefficients
   USE qs_charges_types,                ONLY: qs_charges_type
   USE qs_energy_types,                 ONLY: qs_energy_type
@@ -289,12 +295,17 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'qs_scf_print_scf_summary', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, ispin
-    REAL(kind=dp)                            :: tot1_h, tot1_s
+    INTEGER                                  :: bc, handle, ispin, psolver
+    REAL(kind=dp)                            :: implicit_ps_ehartree, tot1_h, &
+                                                tot1_s
     REAL(KIND=dp), DIMENSION(:), POINTER     :: tot_rho_r
+    TYPE(pw_env_type), POINTER               :: pw_env
 
-     NULLIFY(tot_rho_r)
+    NULLIFY(tot_rho_r, pw_env)
     CALL timeset(routineN,handle)
+
+    CALL get_qs_env(qs_env=qs_env,pw_env=pw_env)
+    psolver = pw_env%poisson_env%parameters%solver 
 
     IF (output_unit>0) THEN
        CALL qs_rho_get(rho, tot_rho_r=tot_rho_r)
@@ -369,12 +380,34 @@ CONTAINS
               "Hartree energy:                                ",energy%hartree,&
               "Exchange-correlation energy:                   ",energy%exc+energy%exc_aux_fit
          ELSE
-           WRITE (UNIT=output_unit,FMT="(/,(T3,A,T56,F25.14))")&
-              "Overlap energy of the core charge distribution:",energy%core_overlap,&
-              "Self energy of the core charge distribution:   ",energy%core_self,&
-              "Core Hamiltonian energy:                       ",energy%core,&
-              "Hartree energy:                                ",energy%hartree,&
-              "Exchange-correlation energy:                   ",energy%exc
+           IF (psolver .EQ. pw_poisson_implicit) THEN
+             implicit_ps_ehartree = pw_env%poisson_env%implicit_env%ehartree
+             bc = pw_env%poisson_env%parameters%ps_implicit_params%boundary_condition 
+             SELECT CASE (bc)
+             CASE (MIXED_PERIODIC_BC, MIXED_BC)
+               WRITE (UNIT=output_unit,FMT="(/,(T3,A,T56,F25.14))")&
+                  "Overlap energy of the core charge distribution:",energy%core_overlap,&
+                  "Self energy of the core charge distribution:   ",energy%core_self,&
+                  "Core Hamiltonian energy:                       ",energy%core,&
+                  "Hartree energy:                                ",implicit_ps_ehartree,&
+                  "Electric enthalpy:                             ",energy%hartree,&
+                  "Exchange-correlation energy:                   ",energy%exc
+             CASE (PERIODIC_BC, NEUMANN_BC)
+               WRITE (UNIT=output_unit,FMT="(/,(T3,A,T56,F25.14))")&
+                  "Overlap energy of the core charge distribution:",energy%core_overlap,&
+                  "Self energy of the core charge distribution:   ",energy%core_self,&
+                  "Core Hamiltonian energy:                       ",energy%core,&
+                  "Hartree energy:                                ",energy%hartree,&
+                  "Exchange-correlation energy:                   ",energy%exc
+             END SELECT
+           ELSE
+             WRITE (UNIT=output_unit,FMT="(/,(T3,A,T56,F25.14))")&
+                "Overlap energy of the core charge distribution:",energy%core_overlap,&
+                "Self energy of the core charge distribution:   ",energy%core_self,&
+                "Core Hamiltonian energy:                       ",energy%core,&
+                "Hartree energy:                                ",energy%hartree,&
+                "Exchange-correlation energy:                   ",energy%exc
+           END IF
          END IF
          IF (energy%e_hartree /= 0.0_dp) &
               WRITE (UNIT=output_unit,FMT="(T3,A,/,T3,A,T56,F25.14)")&
@@ -466,7 +499,7 @@ END SUBROUTINE qs_scf_print_scf_summary
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: after, handle, ic, ispin, iw
-    LOGICAL                                  :: do_kpoints
+    LOGICAL                                  :: do_kpoints, omit_headers
     REAL(KIND=dp)                            :: mo_mag_max, mo_mag_min, &
                                                 orthonormality
     TYPE(cp_dbcsr_p_type), DIMENSION(:, :), &
@@ -488,7 +521,7 @@ END SUBROUTINE qs_scf_print_scf_summary
     dft_section => section_vals_get_subs_vals(input,"DFT")
     scf_section => section_vals_get_subs_vals(dft_section,"SCF")
 
-
+    CALL section_vals_val_get(input,"DFT%PRINT%AO_MATRICES%OMIT_HEADERS",l_val=omit_headers)
     DO ispin=1,dft_control%nspins
 
       IF (BTEST(cp_print_key_should_output(logger%iter_info,&
@@ -501,7 +534,7 @@ END SUBROUTINE qs_scf_print_scf_summary
          after = MIN(MAX(after,1),16)
          DO ic=1,SIZE(matrix_p,2)
             CALL cp_dbcsr_write_sparse_matrix(matrix_p(ispin,ic)%matrix,4,after,qs_env,para_env,&
-                 output_unit=iw)
+                 output_unit=iw,omit_headers=omit_headers)
          END DO
          CALL cp_print_key_finished_output(iw,logger,dft_section,&
               "PRINT%AO_MATRICES/DENSITY")
@@ -517,10 +550,10 @@ END SUBROUTINE qs_scf_print_scf_summary
          DO ic=1,SIZE(matrix_ks,2)
             IF (dft_control%qs_control%semi_empirical) THEN
                CALL cp_dbcsr_write_sparse_matrix(matrix_ks(ispin,ic)%matrix,4,after,qs_env,para_env,&
-                    scale=evolt,output_unit=iw)
+                    scale=evolt,output_unit=iw, omit_headers=omit_headers)
             ELSE
                CALL cp_dbcsr_write_sparse_matrix(matrix_ks(ispin,ic)%matrix,4,after,qs_env,para_env,&
-                    output_unit=iw)
+                    output_unit=iw,omit_headers=omit_headers)
             END IF
          END DO
          CALL cp_print_key_finished_output(iw,logger,dft_section,&
