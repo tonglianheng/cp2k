@@ -291,9 +291,8 @@ CONTAINS
     INTEGER, DIMENSION(:), POINTER           :: ivec, iwalkers_status, iwork, &
                                                 rwalkers_status
     LOGICAL                                  :: bsse_check, check, explicit1, &
-                                                explicit2, flag, &
-                                                flag2, qmmm_check, &
-                                                subsys_check
+                                                explicit2, flag, flag2, &
+                                                qmmm_check, subsys_check
     REAL(KIND=dp)                            :: myt
     REAL(KIND=dp), DIMENSION(:), POINTER     :: vec, work
     TYPE(cp_parser_type), POINTER            :: cpparser
@@ -863,8 +862,7 @@ CONTAINS
 
     INTEGER                                  :: input_region, input_type, &
                                                 restart_region, restart_type
-    LOGICAL                                  :: check_loc, &
-                                                skip_other_checks
+    LOGICAL                                  :: check_loc, skip_other_checks
     TYPE(section_vals_type), POINTER         :: section
 
     check_loc = check_restart(input_file, restart_file, TRIM(path))
