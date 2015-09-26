@@ -210,7 +210,7 @@ CONTAINS
           ! NOTHING TO BE DONE
        CASE DEFAULT
           ! this case has not yet been treated here
-          CALL cp_assert(.FALSE., cp_failure_level,cp_assertion_failed,routineP,"NYI")
+          CPABORT("NYI")
        END SELECT
 
        IF (dft_control%sic_scaling_b .EQ. 0.0_dp) THEN

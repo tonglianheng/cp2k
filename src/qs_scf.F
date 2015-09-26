@@ -556,9 +556,9 @@ CONTAINS
     SELECT CASE (scf_env%method)
     CASE DEFAULT
 
-       CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
-                      routineP,"unknown scf method method:"//&
-                      cp_to_string(scf_env%method))
+       CALL cp_abort(__SHORT_FILE__,__LINE__,&
+            "unknown scf method method:"//&
+            cp_to_string(scf_env%method))
 
     CASE (filter_matrix_diag_method_nr)
 
@@ -589,8 +589,7 @@ CONTAINS
 
        ! disable DFTB and SE for now
        IF (dft_control%qs_control%dftb .OR. dft_control%qs_control%semi_empirical) THEN
-         CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
-               routineP,"DFTB and SE not available with OT/DIAG")
+         CPABORT("DFTB and SE not available with OT/DIAG")
        END IF
 
        ! if an old preconditioner is still around (i.e. outer SCF is active),
@@ -806,8 +805,8 @@ CPSourceFileRef)
        CASE(filter_matrix_diag_method_nr)
    !
        CASE DEFAULT
-          CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
-               routineP,"unknown scf method method:"//&
+          CALL cp_abort(__SHORT_FILE__,__LINE__,&
+               "unknown scf method method:"//&
                cp_to_string(scf_env%method))
        END SELECT
 

@@ -222,8 +222,7 @@ CONTAINS
                 "XAS| Method:",&
                    "         DSCF for the first excited state"
         CASE default
-          CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
-             routineP,"unknown xas method "//TRIM(ADJUSTL(cp_to_string(xas_control%xas_method))))
+          CPABORT("unknown xas method "//TRIM(ADJUSTL(cp_to_string(xas_control%xas_method))))
       END SELECT
       IF(xas_control%xas_restart) THEN
           WRITE (UNIT=output_unit,FMT="(/,T2,A,T30,A)")&

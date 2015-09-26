@@ -108,8 +108,7 @@ CONTAINS
       IF(ASSOCIATED(list)) THEN
          DO i = 1,SIZE(list)
             IF(j>gle%ndim) THEN
-               CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
-                  routineP,"GLE: Too many elements in A_LIST")
+               CPABORT("GLE: Too many elements in A_LIST")
             END IF
             gle%a_mat(j,k) = list(i)
             k = k + 1
@@ -121,8 +120,7 @@ CONTAINS
       END IF
     END DO ! ir
     IF(j<gle%ndim+1) THEN
-       CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
-            routineP,"GLE: Too few elements in A_LIST")
+       CPABORT("GLE: Too few elements in A_LIST")
     END IF
     gle%a_mat = gle%a_mat * a_scale
 
@@ -138,8 +136,7 @@ CONTAINS
         IF(ASSOCIATED(list)) THEN
           DO i = 1,SIZE(list)
             IF(j>gle%ndim) THEN
-                 CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
-                    routineP,"GLE: Too many elements in C_LIST")
+                 CPABORT("GLE: Too many elements in C_LIST")
             END IF
             gle%c_mat(j,k) = list(i)
             k = k + 1
@@ -151,8 +148,7 @@ CONTAINS
         END IF
       END DO ! ir
       IF(j<gle%ndim+1) THEN
-         CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
-            routineP,"GLE: Too few elements in C_LIST")
+         CPABORT("GLE: Too few elements in C_LIST")
       END IF
     ELSE
       gle%c_mat = 0.0_dp

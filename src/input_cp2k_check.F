@@ -100,8 +100,8 @@ CONTAINS
 
     IF ((explicit.AND.(nforce_eval==1)).OR.(.NOT.explicit.AND.(nforce_eval>1)))THEN
        IF((explicit_mix.AND.(nforce_eval==1)).OR.(.NOT.explicit_mix.AND.(nforce_eval>1)))THEN
-          CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
-               routineP,"Error multiple force_env without RESPA or MIXED, or RESPA with one single "//&
+          CALL cp_abort(__SHORT_FILE__,__LINE__,&
+               "Error multiple force_env without RESPA or MIXED, or RESPA with one single "//&
                " or MIXED with only two force_env section.")
        END IF
     END IF
@@ -258,8 +258,7 @@ CONTAINS
        CALL section_vals_val_set(functionals,"_SECTION_PARAMETERS_",&
             i_val=xc_funct_no_shortcut)
     CASE default
-       CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
-            routineP,"unknown shortcut "//TRIM(ADJUSTL(cp_to_string(shortcut))))
+       CPABORT("unknown shortcut "//TRIM(ADJUSTL(cp_to_string(shortcut))))
     END SELECT
   END SUBROUTINE xc_functionals_expand
 
@@ -292,8 +291,9 @@ CONTAINS
     INTEGER, DIMENSION(:), POINTER           :: ivec, iwalkers_status, iwork, &
                                                 rwalkers_status
     LOGICAL                                  :: bsse_check, check, explicit1, &
-                                                explicit2, flag, flag2, &
-                                                qmmm_check, subsys_check
+                                                explicit2, flag, &
+                                                flag2, qmmm_check, &
+                                                subsys_check
     REAL(KIND=dp)                            :: myt
     REAL(KIND=dp), DIMENSION(:), POINTER     :: vec, work
     TYPE(cp_parser_type), POINTER            :: cpparser
@@ -328,8 +328,7 @@ CONTAINS
        sections2  => section_vals_get_subs_vals(input_file,"FORCE_EVAL")
        CALL section_vals_get(sections2, n_repetition=nforce_eval2)
        IF (nforce_eval1/=nforce_eval2) THEN
-          CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
-               routineP,"Restart and input file MUST have the number of force_env sections")
+          CPABORT("Restart and input file MUST have the number of force_env sections")
        END IF
        ! Handle default restarts
        CALL handle_defaults_restart(r_section)
@@ -410,8 +409,8 @@ CONTAINS
                 END IF
              END IF
           ELSE
-             CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
-                  routineP,"Error while reading the restart file. Two force_eval have incompatible"//&
+             CALL cp_abort(__SHORT_FILE__,__LINE__,&
+                  "Error while reading the restart file. Two force_eval have incompatible"//&
                   " subsys.One of them has an allocated subsys while the other has not! Check your"//&
                   " input file or whether the restart file is compatible with the input!")
           END IF
@@ -649,42 +648,42 @@ CONTAINS
        END DO
 
        CALL section_vals_val_get(r_section,"RESTART_RTP",l_val=flag)
-!       IF(flag.AND.check_restart(input_file, restart_file, "FORCE_EVAL%DFT%REAL_TIME_PROPAGATION")) THEN
+       !          IF(flag.AND.check_restart(input_file, restart_file, "FORCE_EVAL%DFT%REAL_TIME_PROPAGATION")) THEN
        IF(flag)THEN
-            section => section_vals_get_subs_vals(restart_file,&
+          section => section_vals_get_subs_vals(restart_file,&
                "FORCE_EVAL%DFT%REAL_TIME_PROPAGATION")
-            CALL section_vals_val_get(section,"INITIAL_WFN",i_val=myi)
-            CALL section_vals_val_set(input_file,"FORCE_EVAL%DFT%REAL_TIME_PROPAGATION%INITIAL_WFN",&
+          CALL section_vals_val_get(section,"INITIAL_WFN",i_val=myi)
+          CALL section_vals_val_set(input_file,"FORCE_EVAL%DFT%REAL_TIME_PROPAGATION%INITIAL_WFN",&
                i_val=myi)
-            CALL set_restart_info("REAL TIME PROPAGATION",restarted_infos)
+          CALL set_restart_info("REAL TIME PROPAGATION",restarted_infos)
        END IF
 
        ! PIMD
        CALL section_vals_val_get(r_section,"RESTART_PINT_POS",l_val=flag)
        IF(flag) THEN
-            section => section_vals_get_subs_vals(restart_file,"MOTION%PINT%BEADS%COORD")
-            CALL section_vals_set_subs_vals(input_file,"MOTION%PINT%BEADS%COORD",section)
-            CALL set_restart_info("PINT BEAD POSITIONS",restarted_infos)
+          section => section_vals_get_subs_vals(restart_file,"MOTION%PINT%BEADS%COORD")
+          CALL section_vals_set_subs_vals(input_file,"MOTION%PINT%BEADS%COORD",section)
+          CALL set_restart_info("PINT BEAD POSITIONS",restarted_infos)
        END IF
        CALL section_vals_val_get(r_section,"RESTART_PINT_VEL",l_val=flag)
        IF(flag) THEN
-            section => section_vals_get_subs_vals(restart_file,"MOTION%PINT%BEADS%VELOCITY")
-            CALL section_vals_set_subs_vals(input_file,"MOTION%PINT%BEADS%VELOCITY",section)
-            CALL set_restart_info("PINT BEAD VELOCITIES",restarted_infos)
+          section => section_vals_get_subs_vals(restart_file,"MOTION%PINT%BEADS%VELOCITY")
+          CALL section_vals_set_subs_vals(input_file,"MOTION%PINT%BEADS%VELOCITY",section)
+          CALL set_restart_info("PINT BEAD VELOCITIES",restarted_infos)
        END IF
        CALL section_vals_val_get(r_section,"RESTART_PINT_NOSE",l_val=flag)
        IF(flag) THEN
-            section => section_vals_get_subs_vals(restart_file,"MOTION%PINT%NOSE%COORD")
-            CALL section_vals_set_subs_vals(input_file,"MOTION%PINT%NOSE%COORD",section)
-            section => section_vals_get_subs_vals(restart_file,"MOTION%PINT%NOSE%VELOCITY")
-            CALL section_vals_set_subs_vals(input_file,"MOTION%PINT%NOSE%VELOCITY",section)
-            CALL set_restart_info("PINT NOSE THERMOSTAT",restarted_infos)
+          section => section_vals_get_subs_vals(restart_file,"MOTION%PINT%NOSE%COORD")
+          CALL section_vals_set_subs_vals(input_file,"MOTION%PINT%NOSE%COORD",section)
+          section => section_vals_get_subs_vals(restart_file,"MOTION%PINT%NOSE%VELOCITY")
+          CALL section_vals_set_subs_vals(input_file,"MOTION%PINT%NOSE%VELOCITY",section)
+          CALL set_restart_info("PINT NOSE THERMOSTAT",restarted_infos)
        END IF
        CALL section_vals_val_get(r_section,"RESTART_PINT_GLE",l_val=flag)
        IF(flag) THEN
-            section => section_vals_get_subs_vals(restart_file,"MOTION%PINT%GLE")
-            CALL section_vals_set_subs_vals(input_file,"MOTION%PINT%GLE",section)
-            CALL set_restart_info("PINT GLE THERMOSTAT",restarted_infos)
+          section => section_vals_get_subs_vals(restart_file,"MOTION%PINT%GLE")
+          CALL section_vals_set_subs_vals(input_file,"MOTION%PINT%GLE",section)
+          CALL set_restart_info("PINT GLE THERMOSTAT",restarted_infos)
        END IF
 
 
@@ -692,74 +691,74 @@ CONTAINS
        !
        CALL section_vals_val_get(r_section,"RESTART_HELIUM_POS",l_val=flag)
        IF(flag) THEN
-            CALL section_vals_val_get(input_file,"MOTION%PINT%HELIUM%NUM_ENV",&
-                 explicit=explicit1)
-            IF ( .NOT. explicit1 ) THEN
-                 CALL section_vals_val_get(restart_file,"MOTION%PINT%HELIUM%NUM_ENV",i_val=myi)
-                 CALL section_vals_val_set(input_file,"MOTION%PINT%HELIUM%NUM_ENV",i_val=myi)
-            END IF
-            section => section_vals_get_subs_vals(restart_file,"MOTION%PINT%HELIUM%COORD")
-            CALL section_vals_set_subs_vals(input_file,"MOTION%PINT%HELIUM%COORD",section)
-            CALL set_restart_info("HELIUM BEAD POSITIONS",restarted_infos)
+          CALL section_vals_val_get(input_file,"MOTION%PINT%HELIUM%NUM_ENV",&
+               explicit=explicit1)
+          IF ( .NOT. explicit1 ) THEN
+             CALL section_vals_val_get(restart_file,"MOTION%PINT%HELIUM%NUM_ENV",i_val=myi)
+             CALL section_vals_val_set(input_file,"MOTION%PINT%HELIUM%NUM_ENV",i_val=myi)
+          END IF
+          section => section_vals_get_subs_vals(restart_file,"MOTION%PINT%HELIUM%COORD")
+          CALL section_vals_set_subs_vals(input_file,"MOTION%PINT%HELIUM%COORD",section)
+          CALL set_restart_info("HELIUM BEAD POSITIONS",restarted_infos)
        END IF
        !
        CALL section_vals_val_get(r_section,"RESTART_HELIUM_PERMUTATION",l_val=flag)
        IF(flag) THEN
-            CALL section_vals_val_get(input_file,"MOTION%PINT%HELIUM%NUM_ENV",&
-                 explicit=explicit1)
-            IF ( .NOT. explicit1 ) THEN
-                 CALL section_vals_val_get(restart_file,"MOTION%PINT%HELIUM%NUM_ENV",i_val=myi)
-                 CALL section_vals_val_set(input_file,"MOTION%PINT%HELIUM%NUM_ENV",i_val=myi)
-            END IF
-            section => section_vals_get_subs_vals(restart_file,"MOTION%PINT%HELIUM%PERM")
-            CALL section_vals_set_subs_vals(input_file,"MOTION%PINT%HELIUM%PERM",section)
-            CALL set_restart_info("HELIUM PERMUTATION STATE",restarted_infos)
+          CALL section_vals_val_get(input_file,"MOTION%PINT%HELIUM%NUM_ENV",&
+               explicit=explicit1)
+          IF ( .NOT. explicit1 ) THEN
+             CALL section_vals_val_get(restart_file,"MOTION%PINT%HELIUM%NUM_ENV",i_val=myi)
+             CALL section_vals_val_set(input_file,"MOTION%PINT%HELIUM%NUM_ENV",i_val=myi)
+          END IF
+          section => section_vals_get_subs_vals(restart_file,"MOTION%PINT%HELIUM%PERM")
+          CALL section_vals_set_subs_vals(input_file,"MOTION%PINT%HELIUM%PERM",section)
+          CALL set_restart_info("HELIUM PERMUTATION STATE",restarted_infos)
        END IF
        !
        CALL section_vals_val_get(r_section,"RESTART_HELIUM_FORCE",l_val=flag)
        IF(flag) THEN
-            CALL section_vals_val_get(input_file,"MOTION%PINT%HELIUM%NUM_ENV",&
-                 explicit=explicit1)
-            IF ( .NOT. explicit1 ) THEN
-                 CALL section_vals_val_get(restart_file,"MOTION%PINT%HELIUM%NUM_ENV",i_val=myi)
-                 CALL section_vals_val_set(input_file,"MOTION%PINT%HELIUM%NUM_ENV",i_val=myi)
-            END IF
-            section => section_vals_get_subs_vals(restart_file,"MOTION%PINT%HELIUM%FORCE")
-            CALL section_vals_set_subs_vals(input_file,"MOTION%PINT%HELIUM%FORCE",section)
-            CALL set_restart_info("HELIUM FORCES ON SOLUTE",restarted_infos)
+          CALL section_vals_val_get(input_file,"MOTION%PINT%HELIUM%NUM_ENV",&
+               explicit=explicit1)
+          IF ( .NOT. explicit1 ) THEN
+             CALL section_vals_val_get(restart_file,"MOTION%PINT%HELIUM%NUM_ENV",i_val=myi)
+             CALL section_vals_val_set(input_file,"MOTION%PINT%HELIUM%NUM_ENV",i_val=myi)
+          END IF
+          section => section_vals_get_subs_vals(restart_file,"MOTION%PINT%HELIUM%FORCE")
+          CALL section_vals_set_subs_vals(input_file,"MOTION%PINT%HELIUM%FORCE",section)
+          CALL set_restart_info("HELIUM FORCES ON SOLUTE",restarted_infos)
        END IF
        !
        CALL section_vals_val_get(r_section,"RESTART_HELIUM_RNG",l_val=flag)
        IF(flag) THEN
-            CALL section_vals_val_get(input_file,"MOTION%PINT%HELIUM%NUM_ENV",&
-                 explicit=explicit1)
-            IF ( .NOT. explicit1 ) THEN
-                 CALL section_vals_val_get(restart_file,"MOTION%PINT%HELIUM%NUM_ENV",i_val=myi)
-                 CALL section_vals_val_set(input_file,"MOTION%PINT%HELIUM%NUM_ENV",i_val=myi)
-            END IF
-            section => section_vals_get_subs_vals(restart_file,"MOTION%PINT%HELIUM%RNG_STATE")
-            CALL section_vals_set_subs_vals(input_file,"MOTION%PINT%HELIUM%RNG_STATE",section)
-            CALL set_restart_info("HELIUM RNG STATE",restarted_infos)
+          CALL section_vals_val_get(input_file,"MOTION%PINT%HELIUM%NUM_ENV",&
+               explicit=explicit1)
+          IF ( .NOT. explicit1 ) THEN
+             CALL section_vals_val_get(restart_file,"MOTION%PINT%HELIUM%NUM_ENV",i_val=myi)
+             CALL section_vals_val_set(input_file,"MOTION%PINT%HELIUM%NUM_ENV",i_val=myi)
+          END IF
+          section => section_vals_get_subs_vals(restart_file,"MOTION%PINT%HELIUM%RNG_STATE")
+          CALL section_vals_set_subs_vals(input_file,"MOTION%PINT%HELIUM%RNG_STATE",section)
+          CALL set_restart_info("HELIUM RNG STATE",restarted_infos)
        END IF
        !
        !
        CALL section_vals_val_get(r_section,"RESTART_HELIUM_DENSITIES",l_val=flag)
        IF(flag) THEN
-            CALL section_vals_val_get(input_file,"MOTION%PINT%HELIUM%NUM_ENV",&
-                 explicit=explicit1)
-            IF ( .NOT. explicit1 ) THEN
-                 CALL section_vals_val_get(restart_file,"MOTION%PINT%HELIUM%NUM_ENV",i_val=myi)
-                 CALL section_vals_val_set(input_file,"MOTION%PINT%HELIUM%NUM_ENV",i_val=myi)
-            END IF
-            section => section_vals_get_subs_vals(restart_file,"MOTION%PINT%HELIUM%RHO")
-            CALL section_vals_set_subs_vals(input_file,"MOTION%PINT%HELIUM%RHO",section)
-            CALL set_restart_info("HELIUM DENSITIES",restarted_infos)
+          CALL section_vals_val_get(input_file,"MOTION%PINT%HELIUM%NUM_ENV",&
+               explicit=explicit1)
+          IF ( .NOT. explicit1 ) THEN
+             CALL section_vals_val_get(restart_file,"MOTION%PINT%HELIUM%NUM_ENV",i_val=myi)
+             CALL section_vals_val_set(input_file,"MOTION%PINT%HELIUM%NUM_ENV",i_val=myi)
+          END IF
+          section => section_vals_get_subs_vals(restart_file,"MOTION%PINT%HELIUM%RHO")
+          CALL section_vals_set_subs_vals(input_file,"MOTION%PINT%HELIUM%RHO",section)
+          CALL set_restart_info("HELIUM DENSITIES",restarted_infos)
        END IF
        !
        CALL section_vals_val_set(r_section,"RESTART_FILE_NAME", c_val=" ")
        CALL section_vals_release(restart_file)
        CALL release_restart_info(restarted_infos, r_file_path, binary_restart_file,&
-                                 output_unit)
+            output_unit)
     END IF
     CALL timestop(handle)
   END SUBROUTINE handle_ext_restart
@@ -864,7 +863,8 @@ CONTAINS
 
     INTEGER                                  :: input_region, input_type, &
                                                 restart_region, restart_type
-    LOGICAL                                  :: check_loc, skip_other_checks
+    LOGICAL                                  :: check_loc, &
+                                                skip_other_checks
     TYPE(section_vals_type), POINTER         :: section
 
     check_loc = check_restart(input_file, restart_file, TRIM(path))
