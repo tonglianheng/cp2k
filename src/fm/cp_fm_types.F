@@ -415,7 +415,6 @@ CPSourceFileRef)
 
     ! locals
     INTEGER :: i,nrow_global
-    LOGICAL :: failure
 
 #if defined(__SCALAPACK)
     INTEGER, DIMENSION(9) :: desca
@@ -492,7 +491,6 @@ CPSourceFileRef)
     INTEGER, INTENT(IN)                       :: icol_global,&
                                                  irow_global
     LOGICAL, INTENT(OUT), OPTIONAL            :: local
-    LOGICAL :: failure
 
     ! locals
 #if defined(__SCALAPACK)

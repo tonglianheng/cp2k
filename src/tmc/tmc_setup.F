@@ -856,7 +856,7 @@ CONTAINS
       master_ana_rank, master_first_e_worker_g, master_first_e_worker_r, &
       master_worker_group, master_worker_rank, my_mpi_undefined, &
       my_mpi_world, total_used
-    LOGICAL                                  :: failure, flag, master
+    LOGICAL                                  :: flag, master
 
     CPASSERT(ASSOCIATED(tmc_comp_set))
     CPASSERT(ASSOCIATED(para_env))

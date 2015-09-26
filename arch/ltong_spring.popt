@@ -11,11 +11,11 @@ WFLAGS  = -Waliasing -Wampersand -Wc-binding-type -Wconversion\
           -Wintrinsic-shadow -Wintrinsics-std -Wline-truncation\
           -Wno-tabs -Wrealloc-lhs-all -Wtarget-lifetime -Wunderflow\
           -Wunused-but-set-variable -Wunused-variable -Werror
-DFLAGS   = -D__GFORTRAN -D__FFTSG -D__FFTW3 -D__LIBINT -D__LIBXC2 -D__HAS_smm_dnn \
+DFLAGS   = -D__GFORTRAN -D__FFTSG -D__FFTW3 -D__LIBINT -D__LIBXC -D__HAS_smm_dnn \
            -D__parallel -D__BLACS -D__SCALAPACK
 FCFLAGS  = -g -march=native -ffree-form -ffree-line-length-none -ffast-math \
-           $(DFLAGS) -I${FFTW3_INCLUDE} -I${ACML_INCLUDE} -I${LIBINT_INCLUDE} \
+           $(DFLAGS) -I${FFTW3_INCLUDE} -I${OpenBLAS_INCLUDE} -I${LIBINT_INCLUDE} \
            -I${LIBXC_INCLUDE} $(WFLAGS)
-LDFLAGS  = $(FCFLAGS) -L${FFTW3_LIB} -L${ACML_LIB} -L${LIBXC_LIB} -L${LIBINT_LIB} \
+LDFLAGS  = $(FCFLAGS) -L${FFTW3_LIB} -L${OpenBLAS_LIB} -L${LIBXC_LIB} -L${LIBINT_LIB} \
            -L${LIBSMM_LIB} -L${SCALAPACK_LIB}
-LIBS     = -lderiv -lint -lstdc++ -lfftw3 -lacml -lscalapack -lsmm_dnn -lxc
+LIBS     = -lderiv -lint -lstdc++ -lfftw3 -lopenblas -lscalapack -lsmm_dnn -lxcf90 -lxc

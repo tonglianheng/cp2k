@@ -298,7 +298,8 @@ MODULE replica_methods
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i, in_use, stat
-    LOGICAL                                  :: do_kpoints, has_unit_metric
+    LOGICAL                                  :: do_kpoints, failure, &
+                                                has_unit_metric
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_subsys_type), POINTER            :: subsys
     TYPE(dft_control_type), POINTER          :: dft_control
@@ -306,11 +307,13 @@ MODULE replica_methods
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(replica_env_type), POINTER          :: rep_env
 
+    failure = .FALSE.
     rep_env => rep_envs_get_rep_env(rep_env_id,ierr=stat)
     CALL cp_assert(ASSOCIATED(rep_env),cp_failure_level,cp_assertion_failed,&
          routineP,"could not find rep_env with id_nr"//cp_to_string(rep_env_id))
     NULLIFY(qs_env,dft_control,subsys)
-    CALL f_env_add_defaults(f_env_id=rep_env%f_env_id,f_env=f_env)
+    CALL f_env_add_defaults(f_env_id=rep_env%f_env_id,f_env=f_env,&
+         failure=failure)
     logger => cp_get_default_logger()
     logger%iter_info%iteration(1)=rep_env%my_rep_group
     CALL cp_add_iter_level(iteration_info=logger%iter_info,&
