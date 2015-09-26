@@ -64,7 +64,6 @@ SUBROUTINE debug_ewald_multipoles(ewald_env, ewald_pw, nonbond_env, cell, &
        routineP = "ewalds_multipole_debug"//':'//routineN
 
   INTEGER                                  :: nparticles
-  LOGICAL                                  :: failure
   LOGICAL, DIMENSION(3)                    :: task
   REAL(KIND=dp)                            :: e_neut, e_self, g_energy, &
                                               r_energy, debug_energy
@@ -337,7 +336,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'debug_ewald_multipole_low', &
       routineP = "ewalds_multipole_debug"//':'//routineN
 
-    LOGICAL                                  :: failure
     INTEGER                                  :: atom_a, atom_b, iend, igrp, &
                                                 ikind, ilist, ipair, istart, &
                                                 jkind, nkinds, npairs,k,k1,l,l1,&
@@ -477,7 +475,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'create_multi_type', &
       routineP = "ewalds_multipole_debug"//':'//routineN
 
-    LOGICAL                                  :: failure
     INTEGER                                  :: i, isize, k, l, m
     REAL(KIND=dp)                            :: dx, rvec(3), rvec1(3), rvec2(3), r2
 
@@ -581,7 +578,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'release_multi_type', &
       routineP = "ewalds_multipole_debug"//':'//routineN
 
-    LOGICAL                                  :: failure
     INTEGER                                  :: i, j
 
     IF (ASSOCIATED(multipoles)) THEN
@@ -612,7 +608,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'reallocate_charge_type', &
       routineP = "ewalds_multipole_debug"//':'//routineN
 
-    LOGICAL                                  :: failure
     INTEGER                                  :: i, isize, jsize, jsize1, jsize2, j
         TYPE(charge_mono_type), DIMENSION(:),&
          POINTER                             :: charge_typ_bk

@@ -2271,7 +2271,7 @@ SUBROUTINE rs_distribute_matrix( rs_descs, pmats, atom_pair_send, atom_pair_recv
     INTEGER, ALLOCATABLE, DIMENSION(:) :: first_col, first_row, last_col, &
       last_row, recv_disps, recv_pair_count, recv_pair_disps, recv_sizes, &
       send_disps, send_pair_count, send_pair_disps, send_sizes
-    LOGICAL                                  :: failure, found
+    LOGICAL                                  :: found
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: recv_buf_r, send_buf_r
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: h_block, p_block
     TYPE(cp_dbcsr_type), POINTER             :: hmat, pmat
@@ -2377,7 +2377,7 @@ SUBROUTINE rs_distribute_matrix( rs_descs, pmats, atom_pair_send, atom_pair_recv
 !$omp          shared(atom_pair_recv,recv_buf_r,scatter,recv_pair_disps), &
 !$omp          shared(recv_sizes,recv_disps,recv_pair_count,locks), &
 !$omp          private(i,img,pair,arow,acol,nrow,ncol,p_block,found,j,k,l),&
-!$omp          private(nthread,h_block,nthread_left,hmat,pmat,failure)
+!$omp          private(nthread,h_block,nthread_left,hmat,pmat)
 
   nthread = 1
 !$ nthread = omp_get_num_threads()

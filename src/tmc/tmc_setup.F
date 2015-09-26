@@ -488,7 +488,7 @@ CONTAINS
     CHARACTER(len=default_string_length), &
       DIMENSION(:), POINTER                  :: directories
     INTEGER                                  :: env_id, ierr, nr_temp, t_act
-    LOGICAL                                  :: failure, flag
+    LOGICAL                                  :: flag
     REAL(KIND=dp)                            :: tmax, tmin
     REAL(KIND=dp), DIMENSION(:), POINTER     :: inp_Temp, Temps
     TYPE(section_vals_type), POINTER         :: tmc_section
@@ -516,7 +516,7 @@ CONTAINS
     CALL cp_assert(.NOT.((nr_temp .GT. 1).AND.(SIZE(inp_Temp).NE.2)),&
                      cp_failure_level,cp_assertion_failed,routineP,&
                      "specify each temperature, skip keyword NR_TEMPERATURE",&
-                     failure=flag, only_ionode=.TRUE.)
+                     only_ionode=.TRUE.)
     IF(nr_temp .EQ. 1) THEN
       nr_temp = SIZE(inp_Temp)
       ALLOCATE(Temps(nr_temp))
@@ -533,7 +533,7 @@ CONTAINS
                    cp_failure_level,cp_assertion_failed,routineP,&
                    "The temperatures are negative. Should be specified using "//&
                    "TEMPERATURE {T_min} {T_max} and NR_TEMPERATURE {#temperatures}",&
-                   failure=flag, only_ionode=.TRUE.)
+                   only_ionode=.TRUE.)
     END IF
 
     ! get multiple directories
@@ -589,7 +589,7 @@ CONTAINS
 
     CHARACTER(LEN=default_path_length)       :: c_tmp
     INTEGER                                  :: itmp
-    LOGICAL                                  :: explicit_key, failure, flag
+    LOGICAL                                  :: explicit_key, flag
     REAL(KIND=dp)                            :: tmax, tmin
     REAL(KIND=dp), DIMENSION(:), POINTER     :: inp_Temp
     TYPE(section_vals_type), POINTER         :: tmc_section
@@ -624,7 +624,7 @@ CONTAINS
                      "analysing on the fly is up to now not supported for multiple cores. "//&
                      " Restart file witing for this case and temperature "//&
                      "distribution has to be solved.!.",&
-                     failure=flag, only_ionode=.TRUE.)
+                     only_ionode=.TRUE.)
     CALL section_vals_val_get(tmc_section,"RESULT_LIST_IN_MEMORY",l_val=tmc_env%params%USE_REDUCED_TREE)
     ! swap the variable, because of oposit meaning
     tmc_env%params%USE_REDUCED_TREE = .NOT.tmc_env%params%USE_REDUCED_TREE
@@ -637,14 +637,14 @@ CONTAINS
       CALL cp_assert(.FALSE.,&
                      cp_failure_level,cp_assertion_failed,routineP,&
                      "no or a valid NMC input file has to be specified ",&
-                     failure=flag, only_ionode=.TRUE.)
+                     only_ionode=.TRUE.)
     ELSE IF(tmc_env%params%NMC_inp_file.EQ."") THEN
     ! no keyword
       CALL cp_assert(tmc_env%tmc_comp_set%group_cc_size.LE.0,&
                      cp_warning_level,cp_assertion_failed,routineP,&
                      "The configurational groups are deactivated, "//&
                      "because no approximated energy input is specified.",&
-                     failure=flag, only_ionode=.TRUE.)
+                     only_ionode=.TRUE.)
       tmc_env%tmc_comp_set%group_cc_size = 0
     ELSE
     ! check file existance
@@ -652,14 +652,14 @@ CONTAINS
       CALL cp_assert(flag .AND. itmp.EQ.0,&
                      cp_failure_level,cp_assertion_failed,routineP,&
                      "a valid NMC input file has to be specified ",&
-                     failure=flag, only_ionode=.TRUE.)
+                     only_ionode=.TRUE.)
     END IF
 
     CALL section_vals_val_get(tmc_section,"TEMPERATURE",r_vals=inp_Temp)
     CALL cp_assert(.NOT.((tmc_env%params%nr_temp .GT. 1).AND.(SIZE(inp_Temp).NE.2)),&
                      cp_failure_level,cp_assertion_failed,routineP,&
                      "specify each temperature, skip keyword NR_TEMPERATURE",&
-                     failure=flag, only_ionode=.TRUE.)
+                     only_ionode=.TRUE.)
     IF(tmc_env%params%nr_temp .EQ. 1) THEN
       tmc_env%params%nr_temp = SIZE(inp_Temp)
       ALLOCATE(tmc_env%params%Temp(tmc_env%params%nr_temp))
@@ -676,7 +676,7 @@ CONTAINS
                    cp_failure_level,cp_assertion_failed,routineP,&
                    "The temperatures are negative. Should be specified using "//&
                    "TEMPERATURE {T_min} {T_max} and NR_TEMPERATURE {#temperatures}",&
-                   failure=flag, only_ionode=.TRUE.)
+                   only_ionode=.TRUE.)
     END IF
 
     CALL section_vals_val_get(tmc_section,"TASK_TYPE" ,explicit=explicit_key)
@@ -692,7 +692,7 @@ CONTAINS
                cp_warning_level,cp_assertion_failed,routineP,&
                'unknown TMC task type "'//TRIM(c_tmp)//'" specified. '//&
                " Set to default.",&
-               failure=flag, only_ionode=.TRUE.)
+               only_ionode=.TRUE.)
         tmc_env%params%task_type = task_type_MC
       END SELECT
     END IF
@@ -714,7 +714,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: itmp
-    LOGICAL                                  :: explicit, failure, flag
+    LOGICAL                                  :: explicit, flag
     REAL(KIND=dp)                            :: r_tmp
     REAL(KIND=dp), DIMENSION(:), POINTER     :: r_arr_tmp
     TYPE(section_vals_type), POINTER         :: tmc_section
@@ -757,7 +757,7 @@ CONTAINS
                    "# > 0 to define the amount of Markov chain elements in between, "//&
                    "or 0 to deactivate the restart file writing. "//&
                    "Lonely keyword writes restart file only at the end of the run.",&
-                   failure=flag, only_ionode=.TRUE.)
+                   only_ionode=.TRUE.)
  
       CALL section_vals_val_get(tmc_section,"INFO_OUT_STEP_SIZE",i_val=tmc_env%m_env%info_out_step_size)
       CALL section_vals_val_get(tmc_section,"DOT_TREE",c_val=tmc_env%params%dot_file_name)
@@ -777,14 +777,14 @@ CONTAINS
     CALL cp_assert(tmc_env%params%energy_inp_file.NE."",&
                    cp_failure_level,cp_assertion_failed,routineP,&
                    "a valid exact energy input file has to be specified ",&
-                   failure=flag, only_ionode=.TRUE.)
+                   only_ionode=.TRUE.)
     ! check file existance
     INQUIRE (FILE=TRIM(tmc_env%params%energy_inp_file),EXIST=flag,IOSTAT=itmp)
     CALL cp_assert(flag.AND.itmp.EQ.0,&
                    cp_failure_level,cp_assertion_failed,routineP,&
                    "a valid exact energy input file has to be specified, "//&
                    TRIM(tmc_env%params%energy_inp_file)//" does not exist.",&
-                   failure=flag, only_ionode=.TRUE.)
+                   only_ionode=.TRUE.)
 
     CALL section_vals_val_get(tmc_section,"NUM_MV_ELEM_IN_CELL",i_val=tmc_env%params%nr_elem_mv)    
 
@@ -798,11 +798,11 @@ CONTAINS
       CALL cp_assert(SIZE(r_arr_tmp).EQ.tmc_env%params%dim_per_elem,&
                      cp_failure_level,cp_assertion_failed,routineP,&
                      "The entered sub box sizes does not fit in number of dimensions.",&
-                     failure=flag, only_ionode=.TRUE.)
+                     only_ionode=.TRUE.)
       CALL cp_assert(ALL(r_arr_tmp.GT.0.0_dp),&
                      cp_failure_level,cp_assertion_failed,routineP,&
                      "The entered sub box lenghts should be greater than 0.",&
-                     failure=flag, only_ionode=.TRUE.)
+                     only_ionode=.TRUE.)
       DO itmp=1, SIZE(tmc_env%params%sub_box_size)
         tmc_env%params%sub_box_size(itmp) = r_arr_tmp(itmp)/au2a
       END DO
@@ -882,21 +882,21 @@ CONTAINS
       CALL cp_assert(.FALSE.,&
                      cp_warning_level,cp_assertion_failed,routineP,&
                      "TMC need at least 2 cores (one for master, one for worker)",&
-                     failure=flag, only_ionode=.TRUE.) 
+                     only_ionode=.TRUE.) 
       success = .FALSE.
     ELSE
       ! check if there are enougth cores available
       CALL cp_assert(tmc_comp_set%group_ener_size*tmc_comp_set%group_ener_nr.LE.(para_env%num_pe-1),&
                      cp_warning_level,cp_assertion_failed,routineP,&
                      "The selected energy group size is too huge. ",&
-                     failure=flag, only_ionode=.TRUE.)
+                     only_ionode=.TRUE.)
       IF(flag)THEN
         tmc_comp_set%group_ener_nr = INT((para_env%num_pe-1)/&
           REAL(tmc_comp_set%group_ener_size,KIND=dp))
         CALL cp_assert(tmc_comp_set%group_ener_nr.GE.1,&
                      cp_warning_level,cp_assertion_failed,routineP,&
                      "The selected energy group size is too huge. ",&
-                     failure=flag, only_ionode=.TRUE.)
+                     only_ionode=.TRUE.)
         IF(flag) success = .FALSE.
       END IF
   
@@ -921,7 +921,7 @@ CONTAINS
                      cp_warning_level,cp_assertion_failed,routineP,&
                      cp_to_string(para_env%num_pe-1-total_used)//&
                      " mpi ranks are unused, but can be used for analysis.",&
-                     failure=flag, only_ionode=.TRUE.)
+                     only_ionode=.TRUE.)
   
       ! duplicate communicator 
       CALL mp_comm_dup(para_env%group, my_mpi_world)

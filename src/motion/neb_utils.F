@@ -532,6 +532,7 @@ CPSourceFileRef,&
     TYPE(section_vals_type), POINTER         :: md_section, root_section
 
     CALL timeset(routineN,handle)
+    failure = .FALSE.
     CALL f_env_add_defaults(f_env_id=rep_env%f_env_id,f_env=f_env,&
          failure=failure, handle=handle2)
     logger => cp_get_default_logger()
@@ -609,6 +610,7 @@ CPSourceFileRef,&
     TYPE(section_vals_type), POINTER         :: geoopt_section, root_section
 
     CALL timeset(routineN,handle)
+    failure = .FALSE.
     CALL f_env_add_defaults(f_env_id=rep_env%f_env_id,f_env=f_env,&
          failure=failure, handle=handle2)
     logger => cp_get_default_logger()

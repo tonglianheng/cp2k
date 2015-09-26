@@ -359,6 +359,8 @@ CONTAINS
     TYPE(section_vals_type), POINTER         :: input_file
 
     CALL timeset(routineN,handle)
+
+    failure = .FALSE.
     NULLIFY(matrix_s, blacs_env, ks_env)
 
     mp_id=opt_bas%opt_id

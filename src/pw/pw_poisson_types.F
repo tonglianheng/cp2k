@@ -204,7 +204,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: dim, i, ig, iz, n, nz
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: g2, g3d, gg, gxy, gz, j0g, &
                                                 j1g, k0g, k1g, rlength, &
                                                 zlength
@@ -238,7 +237,7 @@ CONTAINS
     NULLIFY (green%dct_influence_fn)
     NULLIFY (green%screen_fn)
 
-    !CPPrecondition(cell%orthorhombic,cp_failure_level,routineP,failure)
+    !CPASSERT(cell%orthorhombic)
     DO i=1,3
        abc(i)=cell_hmat(i,i)
     END DO
@@ -249,15 +248,13 @@ CONTAINS
        green%method = PERIODIC3D
        IF (dim /= 3) THEN
           CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
-               "Illegal combination of periodicity and Poisson solver periodic3d",&
-               failure=failure)
+               "Illegal combination of periodicity and Poisson solver periodic3d")
        END IF
     CASE (pw_poisson_multipole)
        green%method = MULTIPOLE0D
        IF (dim /= 0) THEN
           CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
-               "Illegal combination of periodicity and Poisson solver mulipole0d",&
-               failure=failure)
+               "Illegal combination of periodicity and Poisson solver mulipole0d")
        END IF
     CASE (pw_poisson_analytic)
        SELECT CASE (dim)
@@ -305,8 +302,7 @@ CONTAINS
           green%slab_size = abc(i)
        CASE (3)
           CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
-               "Illegal combination of periodicity and Poisson solver (MT)",&
-               failure=failure)
+               "Illegal combination of periodicity and Poisson solver (MT)")
        CASE DEFAULT
           CPASSERT(.FALSE.)
        END SELECT
@@ -314,7 +310,7 @@ CONTAINS
        green%method = PS_IMPLICIT
     CASE DEFAULT
        CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
-            "An unknown Poisson solver was specified",failure)
+            "An unknown Poisson solver was specified")
     END SELECT
 
     ! allocate influence function,...

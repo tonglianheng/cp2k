@@ -2681,8 +2681,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'deallocate_fft_scratch_type', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
 #if defined ( __PW_CUDA ) && !defined ( __PW_CUDA_NO_HOSTALLOC )
     INTEGER                   :: ierr
     COMPLEX(KIND=dp), POINTER :: dummy_ptr_z
@@ -2980,7 +2978,7 @@ CONTAINS
       mcx2, mcy3, mcz1, mcz2, mg, mmax, mx1, mx2, my1, my3, mz1, mz2, mz3, &
       nbx, nbz, nm, nmax, nmray, nn, np, nx, ny, nyzray, nz, pos(2)
     INTEGER, DIMENSION(3)                    :: pcoord
-    LOGICAL                                  :: equal, failure
+    LOGICAL                                  :: equal
     LOGICAL, DIMENSION(2)                    :: dims
     TYPE(fft_scratch_pool_type), POINTER     :: fft_scratch_current, &
                                                 fft_scratch_last, &

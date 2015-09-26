@@ -476,8 +476,7 @@ CPSourceFileRef,&
 
     INTEGER                                  :: handle, igrid_level, &
                                                 ngrid_level
-    LOGICAL                                  :: explicit, failure, &
-                                                multigrid_set
+    LOGICAL                                  :: explicit, multigrid_set
     REAL(dp)                                 :: cutoff
     REAL(dp), DIMENSION(:), POINTER          :: cutofflist
     TYPE(section_vals_type), POINTER         :: mgrid_section
@@ -533,7 +532,7 @@ CPSourceFileRef,&
       IF(ASSOCIATED(cutofflist)) THEN
          CALL cp_assert(SIZE(cutofflist,1) == ngrid_level,&
               cp_failure_level,cp_assertion_failed,routineN,&
-              "Inconsistent values for number of multi grids",failure)
+              "Inconsistent values for number of multi grids")
          DO igrid_level = 1,ngrid_level
             qs_control%e_cutoff(igrid_level) = cutofflist(igrid_level)*0.5_dp
          ENDDO
@@ -585,7 +584,7 @@ CPSourceFileRef,&
     INTEGER                                  :: handle, itmp, j, jj, k, &
                                                 n_rep, n_var, nrep
     INTEGER, DIMENSION(:), POINTER           :: tmplist
-    LOGICAL                                  :: explicit, failure, was_present
+    LOGICAL                                  :: explicit, was_present
     REAL(dp)                                 :: tmp, tmpsqrt, value
     REAL(dp), POINTER                        :: scal(:)
     TYPE(enumeration_type), POINTER          :: enum
@@ -862,8 +861,7 @@ CPSourceFileRef,&
           CALL cp_assert((qs_control%se_control%integral_screening==do_se_IS_slater),&
                cp_warning_level,cp_assertion_failed,routineP,&
                "PNNL semi-empirical parameterization supports only the Slater type "//&
-               "integral scheme. Revert to Slater and continue the calculation.",&
-               failure=failure)
+               "integral scheme. Revert to Slater and continue the calculation.")
           qs_control%se_control%integral_screening = do_se_IS_slater
        END IF
        ! Global Arrays variable
@@ -932,8 +930,7 @@ CPSourceFileRef,&
                cp_fatal_level,cp_assertion_failed,routineP,&
                "A periodic semi-empirical calculation was requested with a long-range  "//&
                "summation on the single integral evaluation. This scheme is supported  "//&
-               "only by the PNNL parameterization.",&
-               failure=failure)
+               "only by the PNNL parameterization.")
        CASE(do_se_lr_ewald_r3)
           qs_control%se_control%do_ewald     = .TRUE.
           qs_control%se_control%do_ewald_r3  = .TRUE.
@@ -943,8 +940,7 @@ CPSourceFileRef,&
                "A periodic semi-empirical calculation was requested with a long-range  "//&
                "summation for the slowly convergent part 1/R^3, which is not congruent "//&
                "with the integral screening chosen. The only integral screening supported "//&
-               "by this periodic type calculation is the standard Klopman-Dewar-Sabelli-Ohno.",&
-               failure=failure)
+               "by this periodic type calculation is the standard Klopman-Dewar-Sabelli-Ohno.")
        END SELECT
 
        ! dispersion pair potentials
@@ -1624,7 +1620,6 @@ CPSourceFileRef,&
 
     INTEGER                                  :: i, j, jj, k, n_rep
     INTEGER, DIMENSION(:), POINTER           :: tmplist
-    LOGICAL                                  :: failure
     REAL(KIND=dp), DIMENSION(:), POINTER     :: rtmplist
     TYPE(ddapc_restraint_type), POINTER      :: ddapc_restraint_control
     TYPE(section_vals_type), POINTER         :: ddapc_section
@@ -1633,8 +1628,7 @@ CPSourceFileRef,&
        IF(ASSOCIATED(qs_control%ddapc_restraint_control))THEN
           IF(SIZE(qs_control%ddapc_restraint_control).GE.2)&
                CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
-               "ET_COUPLING cannot be used in combination with a normal restraint",&
-               failure=failure)
+               "ET_COUPLING cannot be used in combination with a normal restraint")
        ELSE
           ddapc_section=> ddapc_restraint_section
           ALLOCATE(qs_control%ddapc_restraint_control(1))
@@ -1717,8 +1711,7 @@ CPSourceFileRef,&
             do_ddapc_constraint)k=k+1
     END DO
     IF(k==2)CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
-         "Only a single constraint possible yet, try to use restraints instead ",&
-         failure=failure)
+         "Only a single constraint possible yet, try to use restraints instead ")
 
   END SUBROUTINE read_ddapc_section
 

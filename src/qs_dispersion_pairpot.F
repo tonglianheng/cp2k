@@ -120,8 +120,7 @@ CONTAINS
     INTEGER                                  :: elem, handle, i, ikind, j, &
                                                 max_elem, maxc, n_rep, nkind, &
                                                 nl, vdw_pp_type, vdw_type
-    LOGICAL                                  :: at_end, failure, found, &
-                                                is_available
+    LOGICAL                                  :: at_end, found, is_available
     REAL(KIND=dp)                            :: dum
     TYPE(cp_parser_type), POINTER            :: parser
     TYPE(qs_atom_dispersion_type), POINTER   :: disp
@@ -300,8 +299,7 @@ CONTAINS
             "Dispersion parameters for element ("//TRIM(symbol)//") are not defined! "//&
             "Please provide a valid set of parameters through the input section or "//&
             "through an external file! "//&
- CPSourceFileRef,&
-            failure=failure)
+            CPSourceFileRef)
        CALL set_qs_kind(qs_kind_set(ikind),dispersion=disp)
     END DO
 

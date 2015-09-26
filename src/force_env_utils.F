@@ -378,7 +378,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, iparticle
-    LOGICAL                                  :: explicit, failure
+    LOGICAL                                  :: explicit
     REAL(KIND=dp)                            :: force(3), max_value, mod_force
     TYPE(cp_subsys_type), POINTER            :: subsys
     TYPE(particle_list_type), POINTER        :: particles
@@ -389,7 +389,7 @@ CONTAINS
     CPASSERT(force_env%ref_count>0)
     rescale_force_section => section_vals_get_subs_vals(force_env%force_env_section,"RESCALE_FORCES")
     CALL section_vals_get(rescale_force_section, explicit=explicit)
-    IF (.NOT.failure.AND.explicit) THEN
+    IF (explicit) THEN
        CALL section_vals_val_get(rescale_force_section,"MAX_FORCE",r_val=max_value)
        CALL force_env_get(force_env,subsys=subsys)
        CALL cp_subsys_get(subsys,particles=particles)

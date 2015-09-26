@@ -73,6 +73,7 @@ CONTAINS
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: a, x
     TYPE(cp_logger_type), POINTER            :: logger
 
+    failure = .FALSE.
     NULLIFY(logger)
     logger => cp_get_default_logger()
     output_unit= cp_logger_get_default_io_unit(logger)

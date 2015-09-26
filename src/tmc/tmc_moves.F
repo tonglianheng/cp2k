@@ -84,7 +84,6 @@ CONTAINS
                                                 i, ind, ind_e, m, nr_molec, &
                                                 nr_sub_box_elem
     INTEGER, DIMENSION(:), POINTER           :: mol_in_sb
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: rnd
     REAL(KIND=dp), DIMENSION(:), POINTER     :: direction, elem_center
 
@@ -112,9 +111,7 @@ CONTAINS
 
     ! at least one atom should be in the sub box
     CPASSERT(ANY(elem%elem_stat(:).EQ.status_ok))
-    IF(failure) THEN
-      act_nr_elem_mv = -1
-    ELSE IF(tmc_params%nr_elem_mv.EQ.0) THEN
+    IF(tmc_params%nr_elem_mv.EQ.0) THEN
       ! move all elements (could be all atoms or all molecules)
       act_nr_elem_mv = 0 
     ELSE
@@ -129,8 +126,7 @@ CONTAINS
     CASE(mv_type_gausian_adapt)
        ! just for Gaussian Adaptation
        CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
-                 "gaussian adaptation is not imlemented yet.",&
-                 failure)
+                 "gaussian adaptation is not imlemented yet.")
 !TODO       CALL new_pos_gauss_adapt(acc=ASSOCIATED(elem%parent%acc, elem), &
 !                    pos=elem%pos, covari=elem%frc, pot=elem%potential, &
 !                    step_size=elem%ekin, pos_aver=elem%vel, temp=elem%ekin_before_md, &
@@ -505,8 +501,7 @@ CONTAINS
 
     IF(ANY(tmc_params%sub_box_size(:).LE.0.1_dp)) THEN
       !CALL cp_assert(.FALSE.,cp_warning_level,cp_assertion_failed,routineP,&
-      !       "try to count elements in sub box without sub box.",&
-      !       failure)
+      !       "try to count elements in sub box without sub box.")
       elem%elem_stat = status_ok
       nr_of_sub_box_elements = SIZE(elem%elem_stat)
     ELSE
@@ -700,6 +695,7 @@ CONTAINS
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: rnd
 
+    failure = .FALSE.
     NULLIFY(mol_arr)
 
     CPASSERT(ASSOCIATED(elem))
@@ -802,7 +798,6 @@ CONTAINS
     INTEGER                                  :: handle, ind, ind_e, ind_n, &
                                                 mol_tmp, nr_mol
     INTEGER, DIMENSION(2)                    :: neighbor_mol
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: dist_tmp, rnd
     REAL(KIND=dp), DIMENSION(:), POINTER     :: distH1, distH2, distO
 
@@ -840,8 +835,7 @@ CONTAINS
       IF(MOD(ind_e-ind_n,3).GT.0) THEN
         CALL cp_assert(.FALSE.,cp_warning_level,cp_assertion_failed,&
                  routineP,"selected a molecule with more than 3 atoms, "//&
-                 "the proton reordering does not support, skip molecule",&
-                 failure)
+                 "the proton reordering does not support, skip molecule")
         CYCLE list_distances
       END IF
       IF(donor_acceptor.EQ.proton_acceptor) THEN

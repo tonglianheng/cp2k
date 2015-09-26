@@ -279,7 +279,6 @@ CONTAINS
 
     CHARACTER(len=default_string_length)     :: my_element, strtmp1
     INTEGER                                  :: iat, id_, nat
-    LOGICAL                                  :: failure
     TYPE(atomic_kind_list_type), POINTER     :: atomic_kinds
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
@@ -301,7 +300,7 @@ CONTAINS
     CPASSERT(ASSOCIATED(big_subsys))
     CALL cp_assert(big_subsys%para_env%group==small_para_env%group, &
          cp_failure_level, cp_assertion_failed, routineP, &
-         "big_subsys%para_env%group==small_para_env%group",failure)
+         "big_subsys%para_env%group==small_para_env%group")
 
     !-----------------------------------------------------------------------------
     !-----------------------------------------------------------------------------

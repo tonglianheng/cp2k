@@ -458,7 +458,7 @@ CONTAINS
     NULLIFY(logger)
     logger      => cp_get_default_logger()
     output_unit= cp_logger_get_default_io_unit(logger)
-!    CPPostcondition(.NOT.(ASSOCIATED(map_loc_thermo_gen)),cp_failure_level,routineP,failure)
+    ! CPASSERT(.NOT.(ASSOCIATED(map_loc_thermo_gen)))
     CALL section_vals_get(region_sections, n_repetition=nregions)
     ALLOCATE(thermolist(particles%n_els))
     thermolist = HUGE(0)
@@ -582,8 +582,7 @@ CONTAINS
                                                 nkind, nmol_local, nmolecule, &
                                                 nshell, number, &
                                                 sum_of_thermostats
-    LOGICAL                                  :: check, do_shell, failure, &
-                                                nointer
+    LOGICAL                                  :: check, do_shell, nointer
     TYPE(molecule_kind_type), POINTER        :: molecule_kind
 
     NULLIFY(molecule_kind)
@@ -640,8 +639,7 @@ CONTAINS
              CALL section_vals_get(region_sections, n_repetition=sum_of_thermostats)
              CALL cp_assert((sum_of_thermostats>=1),cp_failure_level,cp_assertion_failed,routineP,&
                   "Provide at least 1 region (&DEFINE_REGION) when using the thermostat type DEFINED"//&
- CPSourceFileRef,&
-                  failure=failure)
+                  CPSourceFileRef)
           END SELECT
 
           ! Here we decide which parallel algorithm to use.

@@ -728,7 +728,6 @@ CONTAINS
 
     INTEGER                                  :: i, nelec, nelec_a, nelec_b, &
                                                 nforce
-    LOGICAL                                  :: failure
     REAL(kind=dp)                            :: ener, full_scaling, scaling
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: store_forces
@@ -745,7 +744,7 @@ CONTAINS
     IF (dft_control%sic_method_id == sic_eo) RETURN
 
     CALL cp_assert(.NOT. dft_control%qs_control%gapw, cp_failure_level,cp_assertion_failed,routineP,&
-                   "sic and GAPW not yet compatible",failure)
+                   "sic and GAPW not yet compatible")
 
     ! OK, right now we like two spins to do sic, could be relaxed for AD
     CPASSERT(dft_control%nspins == 2)
@@ -778,7 +777,7 @@ CONTAINS
        CALL pw_poisson_solve(poisson_env,work_rho%pw, ener, work_v%pw)
     CASE DEFAULT
        CALL cp_assert( .FALSE., cp_failure_level,cp_assertion_failed,routineP,&
-            "Unknown sic method id",failure)
+            "Unknown sic method id")
     END SELECT
 
     ! Correct for  DDAP charges (if any)
@@ -812,7 +811,7 @@ CONTAINS
        full_scaling= - dft_control%sic_scaling_a * nelec
     CASE DEFAULT
        CALL cp_assert( .FALSE., cp_failure_level,cp_assertion_failed,routineP,&
-            "Unknown sic method id",failure)
+            "Unknown sic method id")
     END SELECT
     energy%hartree=energy%hartree + full_scaling * ener
 

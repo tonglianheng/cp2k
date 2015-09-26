@@ -144,7 +144,6 @@ SUBROUTINE cp_blacs_env_create(blacs_env,para_env,blacs_grid_layout,blacs_repeat
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: ipcol, iprow, stat
-    LOGICAL                                  :: failure
 #if defined(__parallel)
     INTEGER                                  :: gcd_max, ipe, jpe,&
                                                 my_blacs_grid_layout, &
@@ -159,7 +158,7 @@ SUBROUTINE cp_blacs_env_create(blacs_env,para_env,blacs_grid_layout,blacs_repeat
   CALL cp_assert(.FALSE.,cp_failure_level, cp_assertion_failed,&
        fromWhere=routineP,message="to USE the blacs environment "//&
        "you need the blacs/scalapack library : recompile with -D__SCALAPACK (and link scalapack and blacs) "//&
-CPSourceFileRef)
+       CPSourceFileRef)
 #endif
 #endif
 

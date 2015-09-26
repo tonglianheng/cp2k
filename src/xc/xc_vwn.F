@@ -69,7 +69,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: TYPE
-    LOGICAL                                  :: failure
 
     CALL section_vals_val_get(vwn_params,"functional_type",i_val=TYPE)
     eps_rho = cutoff
@@ -100,7 +99,7 @@ CONTAINS
           x0a = -0.00475840_dp
        CASE DEFAULT
          CALL cp_assert( .FALSE. , cp_failure_level,cp_assertion_failed,routineP,&
-                        " Only functionals VWN3 and VWN5 are supported",failure)
+                        " Only functionals VWN3 and VWN5 are supported")
 
     END SELECT
 
@@ -525,7 +524,6 @@ CONTAINS
 
     INTEGER                                  :: handle, npoints, TYPE
     INTEGER, DIMENSION(:, :), POINTER        :: bo
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: epsilon_rho, sc
     REAL(KIND=dp), DIMENSION(:, :, :), &
       POINTER                                :: dummy, e_0, e_a, e_aa, e_aaa, &
@@ -653,7 +651,7 @@ CONTAINS
 
       CASE DEFAULT
         CALL cp_assert( .FALSE. , cp_failure_level,cp_assertion_failed,routineP,&
-                      " Only functionals VWN3 and VWN5 are supported",failure)
+                      " Only functionals VWN3 and VWN5 are supported")
     END SELECT
 
     IF (cp_debug) THEN

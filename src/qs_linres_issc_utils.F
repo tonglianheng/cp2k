@@ -805,7 +805,7 @@ CONTAINS
                                                 output_unit
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: first_sgf, last_sgf
     INTEGER, DIMENSION(:), POINTER           :: list, row_blk_sizes
-    LOGICAL                                  :: failure, gapw
+    LOGICAL                                  :: gapw
     TYPE(cp_fm_struct_type), POINTER         :: tmp_fm_struct
     TYPE(cp_fm_type), POINTER                :: mo_coeff
     TYPE(cp_logger_type), POINTER            :: logger
@@ -870,11 +870,10 @@ CONTAINS
     natom = SIZE(particle_set,1)
     !
     ! check that the psi0 are localized and you have all the centers
-    CPASSERT(linres_control%localized_psi0)
-    IF(failure.AND.(output_unit>0)) THEN
-       WRITE(output_unit,'(A)') &
-            ' To get indirect spin-spin coupling parameters within PBC you need to localize zero order orbitals '
-    ENDIF
+    CALL cp_assert(linres_control%localized_psi0, cp_warning_level, &
+                   cp_assertion_failed, routineP, &
+                   ' To get indirect spin-spin coupling parameters within PBC you need to localize zero order orbitals ',&
+                   only_ionode=.TRUE.)
     !
     !
     ! read terms need to be calculated

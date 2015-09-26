@@ -308,7 +308,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'force_env_get', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: eip_kinetic_energy, &
                                                 eip_potential_energy
     TYPE(cp_subsys_type), POINTER            :: subsys_tmp
@@ -381,8 +380,7 @@ CONTAINS
     CASE DEFAULT
        CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
             routineP,"unknown in_use flag value "//&
-            CPSourceFileRef,&
-            failure)
+            CPSourceFileRef)
     END SELECT
 
     IF (PRESENT(force_env_section)) force_env_section => force_env%force_env_section

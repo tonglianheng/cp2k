@@ -1353,7 +1353,7 @@ CONTAINS
 
     CHARACTER(LEN=default_string_length)     :: myname, name
     INTEGER                                  :: handle, i, iglob, isize, k
-    LOGICAL                                  :: failure, found_molname, is_qm
+    LOGICAL                                  :: found_molname, is_qm
     TYPE(molecule_kind_type), POINTER        :: molecule_kind
 
     CALL timeset(routineN,handle)
@@ -1380,8 +1380,7 @@ CONTAINS
                   "A constraint has been specified providing the molecule index. But the "//&
                   " molecule index ("//cp_to_string(k)//") is out of range of the possible"//&
                   " molecule kinds ("//cp_to_string(SIZE(molecule_kind_set))//")."//&
-CPSourceFileRef,&
-                  failure=failure)
+                  CPSourceFileRef)
              isize = SIZE(constr_x_mol(k)%constr)
              CALL reallocate(constr_x_mol(k)%constr, 1, isize+1)
              constr_x_mol(k)%constr(isize+1) = i

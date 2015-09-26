@@ -189,8 +189,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'make_full_fact_cholesky', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle
-    LOGICAL                                  :: failure
+    INTEGER                                  :: handle, info_out
     TYPE(cp_fm_type), POINTER                :: fm
 
     CALL timeset(routineN, handle)
@@ -204,10 +203,10 @@ CONTAINS
     fm=>preconditioner_env%fm
     !
     ! compute the inverse of SPD matrix fm using the Cholesky factorization
-    CALL cp_fm_cholesky_decompose(fm)
+    CALL cp_fm_cholesky_decompose(fm, info_out=info_out)
     !
     ! if fm not SPD we go with the overlap matrix
-    IF (failure) THEN
+    IF (info_out .NE. 0) THEN
        !
        ! just the overlap matrix
        IF(PRESENT(matrix_s)) THEN

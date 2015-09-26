@@ -1218,7 +1218,6 @@ SUBROUTINE pw_nn_compose_r(weights, pw_in, pw_out)
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle
-    LOGICAL                                  :: failure
 
   CALL timeset(routineN,handle)
   CPASSERT(ASSOCIATED(pw_in))
@@ -1230,7 +1229,7 @@ SUBROUTINE pw_nn_compose_r(weights, pw_in, pw_out)
   IF (.NOT.ALL(pw_in%pw_grid%bounds_local(:,2:3) == pw_in%pw_grid%bounds(:,2:3))) THEN
      CALL cp_assert(.FALSE.,&
           cp_failure_level,cp_assertion_failed,routineP,&
-          "wrong pw distribution",failure)
+          "wrong pw distribution")
   END IF
   CALL pw_nn_compose_r_work(weights=weights,in_val=pw_in%cr3d,&
        out_val=pw_out%cr3d,pw_in=pw_in,bo=pw_in%pw_grid%bounds_local)
@@ -1309,7 +1308,6 @@ END SUBROUTINE pw_nn_compose_r
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i, idirVal, j, k
-    LOGICAL                                  :: failure
     REAL(kind=dp), &
       DIMENSION(-1:1, -1:1, -1:1)            :: weights
 
@@ -1325,8 +1323,7 @@ END SUBROUTINE pw_nn_compose_r
                 idirVal=k
              CASE default
                 CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
-                     routineP,"invalid idir ("//TRIM(cp_to_string(idir))//")",&
-                     failure)
+                     routineP,"invalid idir ("//TRIM(cp_to_string(idir))//")")
              END SELECT
              IF (idirVal==0) THEN
                 weights(i,j,k)=0.0_dp
@@ -1408,9 +1405,8 @@ END SUBROUTINE pw_nn_compose_r
                                                 fine_bo, fine_gbo, &
                                                 my_coarse_bo
     INTEGER, DIMENSION(:), POINTER           :: pos_of_x
-    LOGICAL                                  :: failure, has_i_lbound, &
-                                                has_i_ubound, is_split, &
-                                                safe_calc
+    LOGICAL                                  :: has_i_lbound, has_i_ubound, &
+                                                is_split, safe_calc
     REAL(kind=dp)                            :: v0, v1, v2, v3, wi, wj, wk
     REAL(kind=dp), ALLOCATABLE, DIMENSION(:) :: rcv_buf, send_buf
     REAL(kind=dp), DIMENSION(3)              :: w_0, ww0
@@ -1565,8 +1561,7 @@ END SUBROUTINE pw_nn_compose_r
           CALL cp_assert(.FALSE.,&
                cp_failure_level,cp_assertion_failed,routineP,&
                "Error calculating rcv_tot_size "//&
-CPSourceFileRef,&
-               failure)
+               CPSourceFileRef)
        END IF
        ALLOCATE(rcv_buf(0:rcv_tot_size-1))
 
@@ -1918,7 +1913,7 @@ CPSourceFileRef,&
                               cp_assertion_failed,routineN,&
                               "unexpected start index "//&
                               TRIM(cp_to_string(coarse_bo(1,1)))//" "//&
-                              TRIM(cp_to_string(fi)),failure)
+                              TRIM(cp_to_string(fi)))
                       END IF
                    END IF
                    fi=fi+1
@@ -2217,9 +2212,9 @@ CPSourceFileRef,&
                                                 fine_bo, fine_gbo, &
                                                 my_coarse_bo
     INTEGER, DIMENSION(:), POINTER           :: pos_of_x
-    LOGICAL                                  :: failure, has_i_lbound, &
-                                                has_i_ubound, is_split, &
-                                                local_data, safe_calc
+    LOGICAL                                  :: has_i_lbound, has_i_ubound, &
+                                                is_split, local_data, &
+                                                safe_calc
     REAL(kind=dp)                            :: vv0, vv1, vv2, vv3, vv4, vv5, &
                                                 vv6, vv7, wi, wj, wk
     REAL(kind=dp), ALLOCATABLE, DIMENSION(:) :: rcv_buf, send_buf
@@ -2497,8 +2492,7 @@ CPSourceFileRef,&
                    IF (.NOT.FLOOR((fine_bo(2,1)-f_shift(1))/2._dp)-coarse_bo(1,1)>=4) THEN
                       CALL cp_assert(.FALSE.,&
                            cp_failure_level,cp_assertion_failed,routineP,&
-                           "FLOOR((fine_bo(2,1)-f_shift(1))/2._dp)-coarse_bo(1,1)>=4",&
-                           failure)
+                           "FLOOR((fine_bo(2,1)-f_shift(1))/2._dp)-coarse_bo(1,1)>=4")
                    END IF
                    rest_b=MODULO(FLOOR((fine_bo(2,1)-f_shift(1))/2._dp)-coarse_bo(1,1)-6,4)
                    i=FLOOR((fine_bo(2,1)-f_shift(1))/2._dp)-3-rest_b+4
@@ -2792,8 +2786,7 @@ CPSourceFileRef,&
             (coarse_bo(2,1)-coarse_bo(1,1)+1)*coarse_slice_size,&
             cp_failure_level,cp_assertion_failed,routineP,&
             "Error calculating send_tot_size "//&
-CPSourceFileRef,&
-            failure)
+            CPSourceFileRef)
        ALLOCATE(send_buf(0:send_tot_size-1))
 
        rcv_tot_size=0
@@ -2821,13 +2814,11 @@ CPSourceFileRef,&
        CALL cp_assert(ALL(sent_size(0:n_procs-2)==send_offset(1:n_procs-1)),&
             cp_failure_level,cp_assertion_failed,routineP,&
             "error 1 filling send buffer "//&
-CPSourceFileRef,&
-            failure)
+            CPSourceFileRef)
        CALL cp_assert(sent_size(n_procs-1)==send_tot_size,&
             cp_failure_level,cp_assertion_failed,routineP,&
             "error 2 filling send buffer "//&
-CPSourceFileRef,&
-            failure)
+            CPSourceFileRef)
 
     IF (local_data) THEN
        DEALLOCATE(coarse_coeffs)
@@ -2895,13 +2886,11 @@ CPSourceFileRef,&
        CALL cp_assert(ALL(sent_size(0:n_procs-2)==rcv_offset(1:n_procs-1)),&
             cp_failure_level,cp_assertion_failed,routineP,&
             "error 1 handling the rcv buffer "//&
-CPSourceFileRef,&
-            failure)
+            CPSourceFileRef)
        CALL cp_assert(sent_size(n_procs-1)==rcv_tot_size,&
             cp_failure_level,cp_assertion_failed,routineP,&
             "error 2 handling the rcv buffer "//&
-CPSourceFileRef,&
-            failure)
+            CPSourceFileRef)
 
        ! dealloc
        DEALLOCATE(send_size,send_offset, rcv_size, rcv_offset)

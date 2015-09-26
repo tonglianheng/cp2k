@@ -778,7 +778,7 @@ CPSourceFileRef,&
 
     INTEGER                                  :: handle, ic, ik, ikk, is, jc, &
                                                 jk, js, nc, nkp, ns
-    LOGICAL                                  :: failure, is_source, moalloc
+    LOGICAL                                  :: is_source, moalloc
     REAL(KIND=dp)                            :: dd, wkp, xkp(3)
     TYPE(mo_set_p_type), DIMENSION(:, :), &
       POINTER                                :: mos
@@ -791,12 +791,12 @@ CPSourceFileRef,&
        READ (ires) 
        READ (ires) nkp
        CALL cp_assert(nkp==kpoints%nkp,cp_fatal_level,cp_assertion_failed,routineP,&
-                      "Different number of kpoints",failure)
+                      "Different number of kpoints")
        DO ik=1,kpoints%nkp
           READ (ires) wkp,xkp(1:3)
           dd = ABS(wkp-kpoints%wkp(ik)) + SUM(ABS(xkp(1:3)-kpoints%xkp(1:3,ik)))
           CALL cp_assert(dd > 1.0e-12_dp,cp_fatal_level,cp_assertion_failed,routineP,&
-                         "Different order/position of kpoints",failure)
+                         "Different order/position of kpoints")
        END DO
     END IF
 
@@ -813,7 +813,7 @@ CPSourceFileRef,&
           dd = ABS(ik-jk)
           dd = dd + ABS(wkp-kpoints%wkp(ik)) + SUM(ABS(xkp(1:3)-kpoints%xkp(1:3,ik)))
           CALL cp_assert(dd > 1.0e-12_dp,cp_fatal_level,cp_assertion_failed,routineP,&
-                         "Different order/position of kpoints",failure)
+                         "Different order/position of kpoints")
        END IF
        is_source = .FALSE.
        IF (ik >= kpoints%kp_range(1) .AND. ik <= kpoints%kp_range(2)) THEN
@@ -829,7 +829,7 @@ CPSourceFileRef,&
                 IF (ires > 0) THEN
                    READ (ires) jc,js
                    CALL cp_assert((ic==jc .AND. is==js),cp_fatal_level,cp_assertion_failed,routineP,&
-                         "Different order/position/type of kpoints",failure)
+                         "Different order/position/type of kpoints")
                 END IF
                 mo_set => mos(ic,is)%mo_set
                 CALL read_mo_set_basic(mo_set, ires)
@@ -1221,7 +1221,6 @@ CPSourceFileRef,&
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: mao, mmo, nao, nmo
-    LOGICAL                                  :: failure
 
     mao = mo_set%nao
     mmo = mo_set%nmo
@@ -1229,9 +1228,9 @@ CPSourceFileRef,&
     IF ((ires>0).AND.(nmo > 0)) THEN
        READ (ires) nao,nmo,mo_set%homo,mo_set%lfomo,mo_set%nelectron
        CALL cp_assert(mao==nao,cp_fatal_level,cp_assertion_failed,routineP,&
-                         "Different size of basis set",failure)
+                         "Different size of basis set")
        CALL cp_assert(mmo==nmo,cp_fatal_level,cp_assertion_failed,routineP,&
-                         "Different number of MOs",failure)
+                         "Different number of MOs")
        READ (ires) mo_set%eigenvalues(1:nmo),mo_set%occupation_numbers(1:nmo)
     END IF
     CALL cp_fm_read_unformatted(mo_set%mo_coeff,ires)

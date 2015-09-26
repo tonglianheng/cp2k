@@ -2273,9 +2273,6 @@ CPASSERT(pw_grid%ngpts<HUGE(pw_grid%ngpts_local))
     INTEGER          :: stat
 #endif
 
-    LOGICAL                                  :: failure
-
-
     IF (ASSOCIATED(pw_grid)) THEN
        CPASSERT(pw_grid%ref_count>0)
        pw_grid%ref_count=pw_grid%ref_count-1

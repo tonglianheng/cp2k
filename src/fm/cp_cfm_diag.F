@@ -63,7 +63,6 @@ CONTAINS
     INTEGER                                  :: handle, info, istat, liwork, &
                                                 lrwork, lwork, n
     INTEGER, DIMENSION(:), POINTER           :: iwork
-    LOGICAL                                  :: failure
     REAL(KIND=dp), DIMENSION(:), POINTER     :: rwork
 #if defined(__SCALAPACK)
     INTEGER, DIMENSION(9)                    :: descm, descv

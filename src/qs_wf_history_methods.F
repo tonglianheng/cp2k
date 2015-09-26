@@ -324,7 +324,6 @@ SUBROUTINE wfi_create(wf_history, interpolation_method_nr, extrapolation_order, 
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, i
-    LOGICAL                                  :: failure
 
     CALL timeset(routineN,handle)
 
@@ -384,8 +383,7 @@ SUBROUTINE wfi_create(wf_history, interpolation_method_nr, extrapolation_order, 
      CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
           routineP,"Unknown interpolation method: "//&
           TRIM(ADJUSTL(cp_to_string(interpolation_method_nr)))//" in "//&
-CPSourceFileRef,&
-          failure)
+          CPSourceFileRef)
      wf_history%interpolation_method_nr=wfi_use_prev_rho_r_method_nr
   END SELECT
   ALLOCATE(wf_history%past_states(wf_history%memory_depth))
@@ -410,8 +408,6 @@ SUBROUTINE wfi_create_for_kp(wf_history)
     CHARACTER(len=*), PARAMETER :: routineN = 'wfi_create_for_kp', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
     CPASSERT(ASSOCIATED(wf_history))
     IF(wf_history%store_rho_ao) THEN
        wf_history%store_rho_ao_kp = .TRUE.
@@ -420,18 +416,15 @@ SUBROUTINE wfi_create_for_kp(wf_history)
     ! Check for KP compatible methods
     IF(wf_history%store_wf) THEN
        CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
-            routineP,"WFN based interpolation method not possible for kpoints.",&
-            failure)
+            routineP,"WFN based interpolation method not possible for kpoints.")
     END IF
     IF(wf_history%store_frozen_density) THEN
        CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
-            routineP,"Frozen density initialization method not possible for kpoints.",&
-            failure)
+            routineP,"Frozen density initialization method not possible for kpoints.")
     END IF
     IF(wf_history%store_overlap) THEN
        CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
-            routineP,"Inconsistent interpolation method for kpoints.",&
-            failure)
+            routineP,"Inconsistent interpolation method for kpoints.")
     END IF
 
 END SUBROUTINE wfi_create_for_kp
@@ -450,8 +443,6 @@ FUNCTION wfi_get_method_label(method_nr) RESULT(res)
 
     CHARACTER(len=*), PARAMETER :: routineN = 'wfi_get_method_label', &
       routineP = moduleN//':'//routineN
-
-    LOGICAL                                  :: failure
 
   res="unknown"
   SELECT CASE(method_nr)
@@ -480,8 +471,7 @@ FUNCTION wfi_get_method_label(method_nr) RESULT(res)
           routineP,"Unknown interpolation method: "//&
           TRIM(ADJUSTL(cp_to_string(method_nr)))//&
           " in "//&
-CPSourceFileRef,&
-          failure)
+          CPSourceFileRef)
   END SELECT
 END FUNCTION wfi_get_method_label
 
@@ -512,8 +502,8 @@ END FUNCTION wfi_get_method_label
 
     INTEGER :: actual_extrapolation_method_nr, handle, i, img, ispin, k, n, &
       nmo, nvec, output_unit, print_level
-    LOGICAL                                  :: do_kpoints, failure, &
-                                                my_orthogonal_wf, use_overlap
+    LOGICAL                                  :: do_kpoints, my_orthogonal_wf, &
+                                                use_overlap
     REAL(KIND=dp)                            :: alpha, t0, t1, t2
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: rho_ao, rho_frozen_ao
@@ -958,8 +948,7 @@ END FUNCTION wfi_get_method_label
             routineP,"Unknown interpolation method: "//&
             TRIM(ADJUSTL(cp_to_string(wf_history%interpolation_method_nr)))//&
             " in "//&
-CPSourceFileRef,&
-            failure)
+            CPSourceFileRef)
     END SELECT
     IF (PRESENT(orthogonal_wf)) orthogonal_wf=my_orthogonal_wf
     CALL cp_print_key_finished_output(output_unit,logger,qs_env%input,&

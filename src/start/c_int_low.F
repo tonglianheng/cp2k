@@ -511,6 +511,7 @@ SUBROUTINE cp_c_ext_method_set_ptr(f_env_id,func,ierr) BIND(C,name="cp_c_ext_met
   TYPE(f_env_type), POINTER            :: f_env
   INTEGER                              :: in_use
 
+  failure = .FALSE.
   NULLIFY (f_env)
   CALL f_env_add_defaults(f_env_id,f_env,failure)
   CALL force_env_get(f_env%force_env,in_use=in_use)

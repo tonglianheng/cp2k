@@ -87,7 +87,7 @@ CONTAINS
 
     INTEGER                                  :: handle, i, iw, iw2, &
                                                 n_rep_val, num_gauss
-    LOGICAL                                  :: allocate_ddapc_env, failure, &
+    LOGICAL                                  :: allocate_ddapc_env, &
                                                 unimplemented
     REAL(KIND=dp)                            :: gcut, pfact, rcmin, Vol
     REAL(KIND=dp), DIMENSION(:), POINTER     :: inp_radii, radii
@@ -125,7 +125,7 @@ CONTAINS
     allocate_ddapc_env = allocate_ddapc_env .OR.&
                          qs_env%cp_ddapc_ewald%do_property
     allocate_ddapc_env = allocate_ddapc_env .AND.(.NOT.unimplemented)
-    IF (.NOT.failure.AND.allocate_ddapc_env) THEN
+    IF (allocate_ddapc_env) THEN
        CALL get_qs_env(qs_env=qs_env,&
                        dft_control=dft_control,&
                        rho=rho,&

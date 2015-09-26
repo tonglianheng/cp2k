@@ -514,8 +514,8 @@ CONTAINS
 
     INTEGER                                  :: handle, ispin, nmo, &
                                                 number_of_OT_envs
-    LOGICAL                                  :: do_rotation, failure, &
-                                                has_unit_metric, is_full_all
+    LOGICAL                                  :: do_rotation, has_unit_metric, &
+                                                is_full_all
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: matrix_ks, matrix_s
     TYPE(cp_dbcsr_type), POINTER             :: orthogonality_metric
@@ -558,7 +558,7 @@ CONTAINS
 
        CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
                       routineP,"unknown scf method method:"//&
-                      cp_to_string(scf_env%method),failure)
+                      cp_to_string(scf_env%method))
 
     CASE (filter_matrix_diag_method_nr)
 
@@ -590,7 +590,7 @@ CONTAINS
        ! disable DFTB and SE for now
        IF (dft_control%qs_control%dftb .OR. dft_control%qs_control%semi_empirical) THEN
          CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
-               routineP,"DFTB and SE not available with OT/DIAG",failure)
+               routineP,"DFTB and SE not available with OT/DIAG")
        END IF
 
        ! if an old preconditioner is still around (i.e. outer SCF is active),
@@ -753,7 +753,6 @@ CPSourceFileRef)
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, ispin
-    LOGICAL                                  :: failure
 
     CALL timeset(routineN,handle)
 
@@ -809,7 +808,7 @@ CPSourceFileRef)
        CASE DEFAULT
           CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
                routineP,"unknown scf method method:"//&
-               cp_to_string(scf_env%method),failure)
+               cp_to_string(scf_env%method))
        END SELECT
 
        IF (ASSOCIATED(scf_env%outer_scf%variables)) THEN

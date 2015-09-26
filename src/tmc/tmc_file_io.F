@@ -225,15 +225,12 @@ CONTAINS
 
     CHARACTER(LEN=default_path_length)       :: c_tmp, file_name
     INTEGER                                  :: f_unit, i
-    LOGICAL                                  :: failure
 
     c_tmp=""
     CPASSERT(ASSOCIATED(tmc_env))
     CPASSERT(ASSOCIATED(tmc_env%m_env))
     CPASSERT(ASSOCIATED(tmc_env%params))
     CPASSERT(ASSOCIATED(tmc_env%m_env%gt_act))
-
-    IF(failure) RETURN
 
     WRITE(c_tmp, FMT='(I9.9)') tmc_env%m_env%result_count(0)
     file_name=TRIM(expand_file_name_char(&
@@ -300,7 +297,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: file_ptr, i, temp_size
-    LOGICAL                                  :: failure, flag
+    LOGICAL                                  :: flag
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: tmp_temp
     REAL(KIND=dp), DIMENSION(nr_mv_types)    :: mv_weight_tmp
 
@@ -308,7 +305,6 @@ CONTAINS
     CPASSERT(ASSOCIATED(tmc_env%m_env))
     CPASSERT(ASSOCIATED(tmc_env%params))
     CPASSERT(ASSOCIATED(tmc_env%m_env%gt_act))
-    IF(failure) RETURN
 
     IF(file_name.EQ.tmc_default_restart_in_file_name) THEN
       INQUIRE(FILE=tmc_default_restart_in_file_name, EXIST=flag)
@@ -325,8 +321,7 @@ CONTAINS
     CALL cp_assert(temp_size.EQ. SIZE(tmc_env%params%Temp),&
                    cp_failure_level,cp_assertion_failed,routineP,&
                    "the actual specified temperatures does not "//&
-                   "fit in amount with the one from restart file ",&
-                   failure=flag)
+                   "fit in amount with the one from restart file ")
     ALLOCATE(tmp_temp(temp_size))
     READ(file_ptr) tmp_temp(:), &
                    tmc_env%m_env%gt_act%nr, &
@@ -347,12 +342,10 @@ CONTAINS
 
     CALL cp_assert(ALL(ABS(tmc_env%params%Temp(:)-tmp_temp(:)) .LT. 0.005),&
                    cp_failure_level,cp_assertion_failed,routineP,&
-                   "the temperatures differ from the previous calculation. There were the following temperatures used:",&
-                   failure=flag)
+                   "the temperatures differ from the previous calculation. There were the following temperatures used:")
     CALL cp_assert(ALL(mv_weight_tmp(:).EQ.tmc_env%params%move_types%mv_weight(:)),&
                    cp_warning_level,cp_assertion_failed,routineP,&
-                   "The amount of mv types differs between the original and the restart run. ",&
-                   failure=flag)
+                   "The amount of mv types differs between the original and the restart run. ")
 
     DO i=1, SIZE(tmc_env%params%Temp)
        tmc_env%m_env%gt_act%conf(i)%elem => tmc_env%m_env%result_list(i)%elem
@@ -655,8 +648,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: conf_nr_old, handle, i_tmp
-    LOGICAL                                  :: failure, &
-                                                files_conf_missmatch, flag
+    LOGICAL                                  :: files_conf_missmatch
 
     stat = TMC_STATUS_OK
     conf_nr_old = conf_nr
@@ -679,8 +671,7 @@ CONTAINS
              cp_warning_level,cp_assertion_failed,routineP,&
              'end of position file reached at line '//&
              cp_to_string(REAL(tmc_ana%lc_traj,KIND=dp))//", last element "//&
-             cp_to_string(tmc_ana%last_elem%nr),&
-             failure=flag, only_ionode=.TRUE.)
+             cp_to_string(tmc_ana%last_elem%nr), only_ionode=.TRUE.)
       ELSE
         CPASSERT(i_tmp.GT.conf_nr_old)
         conf_nr = i_tmp
@@ -701,8 +692,7 @@ CONTAINS
           CALL cp_assert(.FALSE.,&
                  cp_warning_level,cp_assertion_failed,routineP,&
                  'end of dipole file reached at line'//&
-                 cp_to_string(REAL(tmc_ana%lc_dip,KIND=dp)),&
-                 failure=flag, only_ionode=.TRUE.)
+                 cp_to_string(REAL(tmc_ana%lc_dip,KIND=dp)), only_ionode=.TRUE.)
           EXIT search_conf_dip
         END IF
         ! check consitence with pos file
@@ -733,8 +723,7 @@ CONTAINS
           CALL cp_assert(.FALSE.,&
                  cp_warning_level,cp_assertion_failed,routineP,&
                  'end of cell file reached at line at line'//&
-                 cp_to_string(REAL(tmc_ana%lc_cell, KIND=dp)),&
-                 failure=flag, only_ionode=.TRUE.)
+                 cp_to_string(REAL(tmc_ana%lc_cell, KIND=dp)), only_ionode=.TRUE.)
           EXIT search_conf_cell
         END IF
         ! check consitence with pos file
@@ -766,8 +755,7 @@ CONTAINS
            "Read number of lines (pos|cell|dip)"//&
            cp_to_string(tmc_ana%lc_traj)//"|"//&
            cp_to_string(tmc_ana%lc_cell)//"|"//&
-           cp_to_string(tmc_ana%lc_dip), &
-           failure=flag, only_ionode=.TRUE.)
+           cp_to_string(tmc_ana%lc_dip), only_ionode=.TRUE.)
 
     ! end the timing
     CALL timestop(handle)

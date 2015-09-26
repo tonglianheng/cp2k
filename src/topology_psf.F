@@ -91,7 +91,7 @@ CONTAINS
     INTEGER :: handle, i, iatom, ibond, idum, index_now, iphi, itheta, iw, &
       natom, natom_prev, nbond, nbond_prev, nphi, nphi_prev, ntheta, &
       ntheta_prev, output_unit
-    LOGICAL                                  :: failure, found
+    LOGICAL                                  :: found
     TYPE(atom_info_type), POINTER            :: atom_info
     TYPE(connectivity_info_type), POINTER    :: conn_info
     TYPE(cp_logger_type), POINTER            :: logger
@@ -156,8 +156,7 @@ CONTAINS
             "Number of atoms in connectivity control is larger than the "//&
             "number of atoms in coordinate control. check coordinates and "//&
             "connectivity. "//&
-CPSourceFileRef,&
-             failure=failure)
+            CPSourceFileRef)
        IF(iw>0) WRITE(iw,'(T2,A,'//TRIM(c_int)//')') 'PSF_INFO| NATOM = ',natom
        !malloc the memory that we need
        CALL reallocate(atom_info%id_molname,1,natom_prev+natom)

@@ -84,7 +84,7 @@ CONTAINS
                                                 n_rep, nao, nat_print, natom, &
                                                 nmoloc, nspins, output_unit
     INTEGER, DIMENSION(:), POINTER           :: bounds, list
-    LOGICAL                                  :: failure, gapw, my_end
+    LOGICAL                                  :: gapw, my_end
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(cell_type), POINTER                 :: cell
@@ -173,11 +173,11 @@ CONTAINS
     !ENDIF
     !
     ! check that the psi0 are localized and you have all the centers
-    CPASSERT(linres_control%localized_psi0)
-    IF(failure .AND. (output_unit>0)) THEN
-       WRITE(output_unit,'(A)') &
-            ' To get NMR parameters within PBC you need localized zero order orbitals '
-    ENDIF
+    CALL cp_assert(linres_control%localized_psi0, cp_warning_level, &
+                   cp_assertion_failed, routineP, &
+                   ' To get NMR parameters within PBC you need localized zero order orbitals ', &
+                   only_ionode=.TRUE.)
+    
     gapw = dft_control%qs_control%gapw
     nspins = dft_control%nspins
     natom = SIZE(particle_set,1)

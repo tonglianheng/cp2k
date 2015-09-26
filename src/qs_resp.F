@@ -133,7 +133,7 @@ CONTAINS
     INTEGER                                  :: handle, info, my_per, natom, &
                                                 nvar, output_unit
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: ipiv
-    LOGICAL                                  :: failure, has_resp
+    LOGICAL                                  :: has_resp
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(cell_type), POINTER                 :: cell
@@ -160,7 +160,7 @@ CONTAINS
     resp_section => section_vals_get_subs_vals(input,"PROPERTIES%RESP")
     CALL section_vals_get(resp_section, explicit=has_resp)
 
-    IF (.NOT. failure .AND. has_resp) THEN
+    IF (has_resp) THEN
        logger => cp_get_default_logger()
        poisson_section => section_vals_get_subs_vals(input,"DFT%POISSON")
        CALL section_vals_val_get(poisson_section,"PERIODIC",i_val=my_per)

@@ -676,13 +676,13 @@ CPSourceFileRef,&
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, i
-    LOGICAL                                  :: failure, wtcontrol
+    LOGICAL                                  :: wtcontrol
     REAL(KIND=dp), DIMENSION(:), POINTER     :: tnp
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: tmp
 
     CALL timeset(routineN,handle)
 
-    failure = .FALSE.; wtcontrol=PRESENT(invdt)
+    wtcontrol=PRESENT(invdt)
     NULLIFY(tmp, tnp)
     IF(SIZE(hills_env%ss_history,2)< n_hills+1)THEN
        ALLOCATE(tmp(n_colvar,n_hills+100))
@@ -760,14 +760,14 @@ CPSourceFileRef,&
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, i, j, ndum
-    LOGICAL                                  :: explicit, failure, wtcontrol
+    LOGICAL                                  :: explicit, wtcontrol
     REAL(KIND=dp)                            :: rval
     REAL(KIND=dp), DIMENSION(:), POINTER     :: rvals
     TYPE(section_vals_type), POINTER         :: hills_history
 
     CALL timeset(routineN,handle)
 
-    failure = .FALSE.; wtcontrol=PRESENT(invdt_history)
+    wtcontrol=PRESENT(invdt_history)
     NULLIFY(rvals)
     hills_history => section_vals_get_subs_vals(metadyn_section,"SPAWNED_HILLS_POS")
     CALL section_vals_get(hills_history, explicit=explicit)

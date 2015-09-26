@@ -275,8 +275,7 @@ CONTAINS
                                                 m, n_rep_val, natoms, ncoord
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: map_atoms
     INTEGER, DIMENSION(:), POINTER           :: tmplist
-    LOGICAL                                  :: do_involved_atoms, failure, &
-                                                ionode
+    LOGICAL                                  :: do_involved_atoms, ionode
     REAL(KIND=dp)                            :: my_val, norm
     TYPE(section_vals_type), POINTER         :: involved_at_section, &
                                                 ms_vib_section
@@ -335,8 +334,7 @@ CONTAINS
     END IF
     IF(ms_vib%select_id==0)&
          CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
-         routineP,"no frequency, range or involved atoms specified ",&
-         failure=failure)
+         routineP,"no frequency, range or involved atoms specified ")
     ionode=para_env%mepos==para_env%source
     SELECT CASE(guess)
     CASE(ms_guess_atomic)

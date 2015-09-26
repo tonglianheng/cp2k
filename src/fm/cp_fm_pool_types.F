@@ -234,7 +234,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'fm_pool_give_back_fm', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: did_insert, failure
+    LOGICAL                                  :: did_insert
 
     CPASSERT(ASSOCIATED(pool))
     CPASSERT(pool%ref_count>0)
@@ -242,8 +242,7 @@ CONTAINS
     CALL cp_assert(pool%el_struct%id_nr==element%matrix_struct%id_nr,&
       cp_failure_level, cp_assertion_failed, routineP,&
       "pool cannot reuse matrixes with another structure "//&
-CPSourceFileRef,&
-      failure=failure)
+      CPSourceFileRef)
 
     CPASSERT(element%ref_count==1)
     IF (cp_debug) THEN

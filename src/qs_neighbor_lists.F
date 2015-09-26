@@ -970,7 +970,7 @@ CONTAINS
     INTEGER, DIMENSION(3)                    :: cell_b, ncell, &
                                                 nsubcell, periodic
     INTEGER, DIMENSION(:), POINTER           :: index_list
-    LOGICAL                                  :: failure, include_ab, my_mic, &
+    LOGICAL                                  :: include_ab, my_mic, &
                                                 my_molecular, my_symmetric
     LOGICAL, ALLOCATABLE, DIMENSION(:)       :: pres_a, pres_b
     REAL(dp)                                 :: rab2, rab2_max, rab_max, rabm, deth, subcell_scale

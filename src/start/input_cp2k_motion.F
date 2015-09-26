@@ -1817,15 +1817,11 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'create_helium_section', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
     TYPE(section_type), POINTER              :: print_key, subsection, &
                                                 subsubsection
 
     CPASSERT(.NOT.ASSOCIATED(section))
-    IF (failure) THEN
-      CPASSERT(.FALSE.)
-    END IF
 
     CALL section_create(section,name="HELIUM",&
          description="The section that controls optional helium solvent"// &

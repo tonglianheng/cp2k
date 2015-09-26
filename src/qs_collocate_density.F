@@ -1636,9 +1636,8 @@ CONTAINS
                                                 lb_min, npgfa, npgfb, nsgfa, &
                                                 nsgfb
     INTEGER, DIMENSION(:, :), POINTER        :: first_sgfa, first_sgfb
-    LOGICAL :: atom_pair_changed, distributed_rs_grids, do_kp, failure, &
-      found, map_consistent, my_compute_grad, my_compute_tau, my_soft, &
-      use_subpatch
+    LOGICAL :: atom_pair_changed, distributed_rs_grids, do_kp, found, &
+      map_consistent, my_compute_grad, my_compute_tau, my_soft, use_subpatch
     REAL(KIND=dp)                            :: eps_rho_rspace, rab2, scale, &
                                                 zetp
     REAL(KIND=dp), DIMENSION(3)              :: ra, rab, rab_inv, rb
@@ -1862,7 +1861,7 @@ CONTAINS
 !$omp          private(npgfa,nseta,nsgfa,sphi_a,zeta,first_sgfb,lb_max,lb_min,npgfb), &
 !$omp          private(nsetb,nsgfb,sphi_b,zetb,p_block,found), &
 !$omp          private(atom_pair_changed,ncoa,sgfa,ncob,sgfb,rab,rab2,ra,rb,zetp), &
-!$omp          private(na1,na2,nb1,nb2,scale,use_subpatch,rab_inv,ithread,failure,lb,ub,n), &
+!$omp          private(na1,na2,nb1,nb2,scale,use_subpatch,rab_inv,ithread,lb,ub,n), &
 !$omp          private(itask,nz,nxy,nzsize,nrlevel,nblock,lbw,lbr,nr,igrid_level_dummy)
 
     ithread = 0
@@ -2862,7 +2861,7 @@ CONTAINS
       INTEGER, DIMENSION(3)                    :: cubecenter, lb_cube, ng, &
                                                   ub_cube
       INTEGER, DIMENSION(:), POINTER           :: sphere_bounds
-      LOGICAL                                  :: failure, my_collocate_rho0, &
+      LOGICAL                                  :: my_collocate_rho0, &
                                                   my_map_consistent,subpatch_collocate
       REAL(KIND=dp) :: a, b, binomial_k_lxa, binomial_l_lxb, cutoff, f, pg, &
         prefactor, radius, rpg, zetp

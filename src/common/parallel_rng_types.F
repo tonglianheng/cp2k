@@ -441,7 +441,6 @@ CONTAINS
 
     CHARACTER(LEN=default_string_length)     :: message
     INTEGER                                  :: i
-    LOGICAL                                  :: failure
 
 ! -------------------------------------------------------------------------
 
@@ -454,14 +453,14 @@ CONTAINS
           "seed(",i,",1) = ",seed(i,1)," < ",0.0_dp
         CALL compress(message)
         CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
-                       routineP,message,failure)
+                       routineP,message)
       END IF
       IF (seed(i,1) >= m1) THEN
         WRITE (UNIT=message,FMT=fmtstr)&
           "seed(",i,",1) = ",seed(i,1)," >= ",m1
         CALL compress(message)
         CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
-                       routineP,message,failure)
+                       routineP,message)
       END IF
 
       ! Check condition: 0 <= seed(:,2) < m2
@@ -471,14 +470,14 @@ CONTAINS
           "seed(",i,",2) = ",seed(i,2)," < ",0.0_dp
         CALL compress(message)
         CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
-                       routineP,message,failure)
+                       routineP,message)
       END IF
       IF (seed(i,2) >= m2) THEN
         WRITE (UNIT=message,FMT=fmtstr)&
           "seed(",i,",2) = ",seed(i,2)," >= ",m2
         CALL compress(message)
         CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
-                       routineP,message,failure)
+                       routineP,message)
       END IF
 
     END DO
@@ -487,12 +486,12 @@ CONTAINS
 
     IF (ALL(seed(:,1) < 1.0_dp)) THEN
       CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
-                     routineP,"First seed = 0",failure)
+                     routineP,"First seed = 0")
     END IF
 
     IF (ALL(seed(:,2) < 1.0_dp)) THEN
       CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
-                     routineP,"Second seed = 0",failure)
+                     routineP,"Second seed = 0")
     END IF
 
   END SUBROUTINE check_seed
@@ -530,8 +529,6 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'create_rng_stream', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
 ! -------------------------------------------------------------------------
 
     IF (ASSOCIATED(rng_stream)) CALL delete_rng_stream(rng_stream)
@@ -561,8 +558,7 @@ CONTAINS
         rng_stream%distribution_type = UNIFORM
       CASE DEFAULT
         CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
-                       routineP,"Invalid distribution type specified",&
-                       failure)
+                       routineP,"Invalid distribution type specified")
       END SELECT
     ELSE IF (PRESENT(last_rng_stream)) THEN
       rng_stream%distribution_type = last_rng_stream%distribution_type

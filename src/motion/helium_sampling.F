@@ -72,13 +72,10 @@ MODULE helium_sampling
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: step, tot_steps
-    LOGICAL                                  :: failure, should_stop
+    LOGICAL                                  :: should_stop
     TYPE(pint_env_type), POINTER             :: pint_env
 
     CPASSERT(ASSOCIATED(helium))
-    IF (failure) THEN
-      CPASSERT(.FALSE.)
-    END IF
 
     NULLIFY(pint_env)
 

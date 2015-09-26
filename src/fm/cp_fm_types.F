@@ -552,7 +552,6 @@ CPSourceFileRef)
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: mypcol, myprow, npcol, nprow
-    LOGICAL                                  :: failure
     TYPE(cp_blacs_env_type), POINTER         :: context
 #if defined(__SCALAPACK)
     INTEGER                                  :: icol_local, ipcol, iprow, &
@@ -1369,7 +1368,6 @@ CPSourceFileRef)
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, ncol, nrow
-    LOGICAL                                  :: failure
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: a, b
 #if defined(__SCALAPACK)
     INTEGER, DIMENSION(9)                    :: desca, descb
@@ -1419,7 +1417,6 @@ CPSourceFileRef)
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, i, na, nb, ss, ts
-    LOGICAL                                  :: failure
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: a, b
 #if defined(__SCALAPACK)
     INTEGER, DIMENSION(9)                    :: desca, descb
@@ -1506,7 +1503,7 @@ CPSourceFileRef)
     CHARACTER(LEN=*), PARAMETER :: routineN = 'cp_fm_copy_general', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure, debug
+    LOGICAL                                  :: debug
     INTEGER                                  :: handle
 #if defined(__SCALAPACK)
     INTEGER                                  :: sdat, ddat, m, n
@@ -1605,7 +1602,6 @@ CPSourceFileRef)
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: mypcol, myprow,npcol, nprow
-    LOGICAL                                  :: failure
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: a
     TYPE(cp_blacs_env_type), POINTER         :: context
 #if defined(__SCALAPACK)
@@ -1660,7 +1656,6 @@ CPSourceFileRef)
 
     INTEGER                                  :: handle, j, max_block,&
                                                 ncol_global, nrow_global
-    LOGICAL                                  :: failure
     TYPE(cp_para_env_type), POINTER          :: para_env
 #if defined(__SCALAPACK)
     INTEGER                                  :: i, i_block, icol_local,&
@@ -1762,7 +1757,6 @@ CPSourceFileRef)
 
     INTEGER                                  :: handle, j, max_block, &
                                                 ncol_global, nrow_global
-    LOGICAL                                  :: failure
     TYPE(cp_para_env_type), POINTER          :: para_env
 #if defined(__SCALAPACK)
     INTEGER                                  :: k, n_cols

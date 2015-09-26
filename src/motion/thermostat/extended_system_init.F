@@ -84,7 +84,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, i, ind, j
-    LOGICAL                                  :: explicit, failure, restart
+    LOGICAL                                  :: explicit, restart
     REAL(KIND=dp)                            :: temp
     REAL(KIND=dp), DIMENSION(:), POINTER     :: buffer
     TYPE(section_vals_type), POINTER         :: work_section2
@@ -130,8 +130,7 @@ CONTAINS
           work_section2 => section_vals_get_subs_vals(work_section,"MASS")
           CALL section_vals_get(work_section2, explicit=explicit)
           CALL cp_assert(restart.EQV.explicit,cp_failure_level,cp_assertion_failed,routineP,&
-               "You need to define both VELOCITY and MASS section (or none) in the BAROSTAT section",&
-               failure=failure)
+               "You need to define both VELOCITY and MASS section (or none) in the BAROSTAT section")
           restart=explicit.AND.restart
        END IF
 

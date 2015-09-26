@@ -108,7 +108,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i, my_index, n_rep
-    LOGICAL                                  :: explicit, failure
+    LOGICAL                                  :: explicit
     TYPE(section_vals_type), POINTER         :: work_section
 
     restart = .FALSE.
@@ -139,8 +139,7 @@ CONTAINS
          subsection_name="MASS")
     CALL section_vals_get(work_section,explicit=explicit)
     CALL cp_assert(restart.EQV.explicit,cp_failure_level,cp_assertion_failed,routineP,&
-         "You need to define both CHI and MASS sections (or none) in the AD_LANGEVIN section",&
-         failure=failure)
+         "You need to define both CHI and MASS sections (or none) in the AD_LANGEVIN section")
     restart = restart.and.explicit
     IF (explicit) THEN
        CALL section_vals_val_get(section_vals=work_section,keyword_name="_DEFAULT_KEYWORD_",&

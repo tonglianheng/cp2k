@@ -73,7 +73,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, size_a
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: my_beta
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: a, b
     REAL(KIND=sp), DIMENSION(:, :), POINTER  :: a_sp, b_sp
@@ -100,8 +99,7 @@ CONTAINS
                          cp_warning_level, cp_assertion_failed, &
                          fromWhere=routineP, &
                          message="Bad use of routine. Call cp_fm_scale instead: "// &
-CPSourceFileRef, &
-                         failure=failure)
+                         CPSourceFileRef)
           CALL cp_fm_scale(alpha+beta, matrix_a)
           CALL timestop(handle)
           RETURN
@@ -129,8 +127,7 @@ CPSourceFileRef, &
             matrix_b%matrix_struct%context%group,cp_failure_level,&
             cp_assertion_failed,fromWhere=routineP,&
             message="matrixes must be in the same blacs context"//&
-CPSourceFileRef,&
-            failure=failure)
+            CPSourceFileRef)
 
        IF (cp_fm_struct_equivalent(matrix_a%matrix_struct,&
             matrix_b%matrix_struct)) THEN
@@ -828,7 +825,6 @@ SUBROUTINE cp_fm_triangular_multiply(triangular_matrix,matrix_b,side,&
 
     INTEGER                                  :: handle, ncol_global, &
                                                 nrow_global
-    LOGICAL                                  :: failure
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: a, c
 #if defined(__SCALAPACK)
     INTEGER, DIMENSION(9)                    :: desca, descc
@@ -838,11 +834,9 @@ SUBROUTINE cp_fm_triangular_multiply(triangular_matrix,matrix_b,side,&
 
     CPASSERT(ASSOCIATED(matrix))
     CPASSERT(ASSOCIATED(matrixt))
-    IF (failure) RETURN
     nrow_global = matrix%matrix_struct%nrow_global
     ncol_global = matrix%matrix_struct%ncol_global
     CPASSERT(nrow_global==ncol_global)
-    IF (failure) RETURN
 
     CALL timeset(routineN,handle)
 
@@ -885,7 +879,6 @@ SUBROUTINE cp_fm_triangular_multiply(triangular_matrix,matrix_b,side,&
     REAL(KIND=dp), DIMENSION(:,:), POINTER   :: a
     REAL(KIND=sp), DIMENSION(:,:), POINTER   :: a_sp
     TYPE(cp_blacs_env_type), POINTER         :: context
-    LOGICAL                                  :: failure
 
 #if defined(__SCALAPACK)
     INTEGER                                  :: icol_local,irow_local,&
@@ -899,7 +892,6 @@ SUBROUTINE cp_fm_triangular_multiply(triangular_matrix,matrix_b,side,&
 
     CPASSERT(ASSOCIATED(matrix))
     CPASSERT(ASSOCIATED(work))
-    IF (failure) RETURN
     nrow_global = matrix%matrix_struct%nrow_global
     ncol_global = matrix%matrix_struct%ncol_global
     CPASSERT(nrow_global==ncol_global)
@@ -907,7 +899,6 @@ SUBROUTINE cp_fm_triangular_multiply(triangular_matrix,matrix_b,side,&
     ncol_global = work%matrix_struct%ncol_global
     CPASSERT(nrow_global==ncol_global)
     CPASSERT(matrix%use_sp.EQV.work%use_sp)
-    IF (failure) RETURN
 
     CALL timeset(routineN,handle)
 
@@ -1072,7 +1063,6 @@ SUBROUTINE cp_fm_triangular_multiply(triangular_matrix,matrix_b,side,&
 
     INTEGER                                  :: n
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: ipivot
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: determinant
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: a
     TYPE(cp_fm_type), POINTER                :: matrix_B, matrix_lu
@@ -1173,7 +1163,6 @@ SUBROUTINE cp_fm_triangular_multiply(triangular_matrix,matrix_b,side,&
 
     CHARACTER                                :: unit_diag, uplo
     INTEGER                                  :: handle, info, ncol_global
-    LOGICAL                                  :: failure
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: a
 #if defined(__SCALAPACK)
     INTEGER, DIMENSION(9)                    :: desca
@@ -1228,7 +1217,6 @@ SUBROUTINE cp_fm_triangular_multiply(triangular_matrix,matrix_b,side,&
     INTEGER                                  :: handle, i, icol, info, irow, &
                                                 j, lda, lwork, ncol, &
                                                 ndim, nrow
-    LOGICAL                                  :: failure
     REAL(dp), ALLOCATABLE, DIMENSION(:)      :: tau, work
     REAL(dp), ALLOCATABLE, DIMENSION(:, :)   :: r_mat
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: a

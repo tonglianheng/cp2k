@@ -210,7 +210,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, myinfo, n, nmo
-    LOGICAL                                  :: failure
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: eig
 #if defined(__SCALAPACK)
     TYPE(cp_blacs_env_type), POINTER         :: blacs_env_new
@@ -405,7 +404,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle
-    LOGICAL                                  :: failure
 #if defined(__SCALAPACK)
     TYPE(cp_blacs_env_type), POINTER         :: context
     INTEGER                                  :: liwork, lwork, &
@@ -522,7 +520,7 @@ CONTAINS
                                                     myprow, n, nb, npcol, &
                                                     nprow, output_unit, &
                                                     neig_local
-    LOGICAL                                      :: failure, ionode, needs_evecs
+    LOGICAL                                      :: ionode, needs_evecs
     INTEGER, DIMENSION(:), ALLOCATABLE           :: ifail, iwork
     REAL(KIND=dp), DIMENSION(:), ALLOCATABLE     :: w, work
     REAL(KIND=dp), DIMENSION(:,:), POINTER       :: a, z
@@ -756,7 +754,7 @@ CONTAINS
                                                   lwork, liwork, mypcol,&
                                                   myprow, n, neig
     INTEGER, DIMENSION(:), ALLOCATABLE         :: iwork
-    LOGICAL                                    :: failure, ionode, needs_evecs
+    LOGICAL                                    :: ionode, needs_evecs
     REAL(KIND=dp), DIMENSION(:), ALLOCATABLE   :: w, work
     REAL(KIND=dp), DIMENSION(:,:), POINTER     :: a, z
 
@@ -930,7 +928,7 @@ CONTAINS
     INTEGER                                  :: comm_col, comm_row, group, &
                                                 mypcol, &
                                                 myprow, n, n_rows, nblk, neig
-    LOGICAL                                  :: failure, success
+    LOGICAL                                  :: success
     REAL(KIND=dp), DIMENSION(:), POINTER     :: eval
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: m, v
     TYPE(cp_blacs_env_type), POINTER         :: context
@@ -978,7 +976,7 @@ CONTAINS
               THIS_REAL_ELPA_KERNEL_API=kernel_type,useQR=.FALSE.)
      CALL cp_assert(success,cp_failure_level,cp_assertion_failed,&
      routineP,"ELPA failed to diagonalize a matrix at "//&
-CPSourceFileRef)
+     CPSourceFileRef)
 #endif
 
 #else
@@ -1029,7 +1027,7 @@ CPSourceFileRef)
                                                  mypcol,myprow,&
                                                  ncol_global,npcol,nprow,&
                                                  nrow_global
-   LOGICAL                                    :: failure,my_verbose
+   LOGICAL                                    :: my_verbose
    REAL(KIND=dp)                              :: condition_number,f,p
    REAL(KIND=dp), DIMENSION(:), ALLOCATABLE   :: eigenvalues
    REAL(KIND=dp), DIMENSION(:,:), POINTER     :: eigenvectors

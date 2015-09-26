@@ -1035,7 +1035,7 @@ CPSourceFileRef,&
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i
-    LOGICAL                                  :: failure, my_end
+    LOGICAL                                  :: my_end
 
     CALL parser_get_next_line(parser,1,at_end=my_end)
     i = 1
@@ -1049,7 +1049,7 @@ CPSourceFileRef,&
     ! Trigger end of file aborting
     CALL cp_assert(.NOT.my_end.OR.(i>dim), cp_fatal_level, cp_assertion_failed, routineP,&
          "End of file while reading section "//TRIM(section)//" in amber topology file!"//&
-          CPSourceFileRef,failure=failure)
+          CPSourceFileRef)
   END SUBROUTINE rd_amber_section_i1
 
 ! *****************************************************************************
@@ -1074,7 +1074,7 @@ CPSourceFileRef,&
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i
-    LOGICAL                                  :: failure, my_end
+    LOGICAL                                  :: my_end
 
     CALL parser_get_next_line(parser,1,at_end=my_end)
     i = 1
@@ -1099,8 +1099,7 @@ CPSourceFileRef,&
     ! Trigger end of file aborting
     CALL cp_assert(.NOT.my_end.OR.(i>dim), cp_fatal_level, cp_assertion_failed, routineP,&
          "End of file while reading section "//TRIM(section)//" in amber topology file!"//&
-CPSourceFileRef,&
-         failure=failure)
+         CPSourceFileRef)
   END SUBROUTINE rd_amber_section_i3
 
 ! *****************************************************************************
@@ -1126,7 +1125,7 @@ CPSourceFileRef,&
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i
-    LOGICAL                                  :: failure, my_end
+    LOGICAL                                  :: my_end
 
     CALL parser_get_next_line(parser,1,at_end=my_end)
     i = 1
@@ -1156,8 +1155,7 @@ CPSourceFileRef,&
     ! Trigger end of file aborting
     CALL cp_assert(.NOT.my_end.OR.(i>dim), cp_fatal_level, cp_assertion_failed, routineP,&
          "End of file while reading section "//TRIM(section)//" in amber topology file!"//&
-CPSourceFileRef,&
-         failure=failure)
+         CPSourceFileRef)
   END SUBROUTINE rd_amber_section_i4
 
 ! *****************************************************************************
@@ -1186,7 +1184,7 @@ CPSourceFileRef,&
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i
-    LOGICAL                                  :: failure, my_end
+    LOGICAL                                  :: my_end
 
     CALL parser_get_next_line(parser,1,at_end=my_end)
     i = 1
@@ -1221,8 +1219,7 @@ CPSourceFileRef,&
     ! Trigger end of file aborting
     CALL cp_assert(.NOT.my_end.OR.(i>dim), cp_fatal_level, cp_assertion_failed, routineP,&
          "End of file while reading section "//TRIM(section)//" in amber topology file!"//&
-CPSourceFileRef,&
-         failure=failure)
+         CPSourceFileRef)
   END SUBROUTINE rd_amber_section_i5
 
 ! *****************************************************************************
@@ -1246,7 +1243,7 @@ CPSourceFileRef,&
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i
-    LOGICAL                                  :: failure, my_end
+    LOGICAL                                  :: my_end
 
     CALL parser_get_next_line(parser,1,at_end=my_end)
     i = 1
@@ -1260,7 +1257,7 @@ CPSourceFileRef,&
     ! Trigger end of file aborting
     CALL cp_assert(.NOT.my_end.OR.(i>dim), cp_fatal_level, cp_assertion_failed, routineP,&
          "End of file while reading section "//TRIM(section)//" in amber topology file!"//&
-          CPSourceFileRef,failure=failure)
+          CPSourceFileRef)
   END SUBROUTINE rd_amber_section_c1
 
 ! *****************************************************************************
@@ -1283,7 +1280,7 @@ CPSourceFileRef,&
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i
-    LOGICAL                                  :: failure, my_end
+    LOGICAL                                  :: my_end
 
     CALL parser_get_next_line(parser,1,at_end=my_end)
     i = 1
@@ -1297,7 +1294,7 @@ CPSourceFileRef,&
     ! Trigger end of file aborting
     CALL cp_assert(.NOT.my_end.OR.(i>dim), cp_fatal_level, cp_assertion_failed, routineP,&
          "End of file while reading section "//TRIM(section)//" in amber topology file!"//&
-          CPSourceFileRef,failure=failure)
+          CPSourceFileRef)
   END SUBROUTINE rd_amber_section_r1
 
 ! *****************************************************************************
@@ -1318,7 +1315,7 @@ CPSourceFileRef,&
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: end_f, indflag, start_f
-    LOGICAL                                  :: failure, found, my_end
+    LOGICAL                                  :: found, my_end
 
     CALL parser_search_string(parser,"%FLAG",.TRUE.,found,begin_line=.TRUE.)
     IF (found) THEN
@@ -1333,8 +1330,7 @@ CPSourceFileRef,&
        CALL cp_assert((INDEX(parser%input_line,"%FORMAT")/=0).AND.(.NOT.my_end),&
             cp_fatal_level, cp_assertion_failed, routineP,&
             "Expecting %FORMAT. Not found! Abort reading of AMBER topology file! "//&
-CPSourceFileRef,&
-            failure=failure)
+            CPSourceFileRef)
 
        start_f = INDEX(parser%input_line,"(")
        end_f   = INDEX(parser%input_line,")")
@@ -1360,14 +1356,11 @@ CPSourceFileRef,&
     CHARACTER(len=*), PARAMETER :: routineN = 'check_amber_8_std', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
     CALL parser_search_string(parser,"%VERSION ",.TRUE.,found_AMBER_V8,begin_line=.TRUE.)
     CALL cp_assert(found_AMBER_V8, cp_failure_level, cp_assertion_failed, routineP,&
             "This is not an AMBER V.8 PRMTOP format file. Cannot interpret older "//&
             "AMBER file formats. "//&
-CPSourceFileRef,&
-            failure=failure)
+            CPSourceFileRef)
     IF (output_unit>0) WRITE(output_unit,'(" AMBER_INFO| ",A)')"Amber PrmTop V.8 or greater.",&
          TRIM(parser%input_line)
 

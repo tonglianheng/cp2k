@@ -366,7 +366,7 @@ CPASSERT(.FALSE.)
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle
-    LOGICAL                                  :: failure, parent_ready
+    LOGICAL                                  :: parent_ready
     TYPE(tree_type), POINTER                 :: act_elem, parent_elem
 
     NULLIFY(parent_elem, act_elem)
@@ -397,7 +397,7 @@ CPASSERT(.FALSE.)
       parent_ready = .TRUE.
     CASE DEFAULT
       CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
-                 routineP,"unknown parent element status"//cp_to_string(parent_elem%stat),failure)
+                 routineP,"unknown parent element status"//cp_to_string(parent_elem%stat))
     END SELECT
 
     ! ready ?
@@ -528,7 +528,6 @@ CPASSERT(.FALSE.)
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle
-    LOGICAL                                  :: failure
     TYPE(tree_type), POINTER                 :: ptr
 
     NULLIFY(ptr)
@@ -555,7 +554,7 @@ CPASSERT(.FALSE.)
       CASE DEFAULT
         CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
                  routineP,"unknown global tree status"//&
-                 cp_to_string(stat),failure)
+                 cp_to_string(stat))
       END SELECT
 
       IF(tmc_params%DRAW_TREE) &
@@ -580,7 +579,6 @@ CPASSERT(.FALSE.)
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle
-    LOGICAL                                  :: failure
 
     CPASSERT(ASSOCIATED(elem))
 
@@ -599,7 +597,7 @@ CPASSERT(.FALSE.)
     CASE DEFAULT
       CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
                routineP,"status of actual tree node is unknown"&
-               //cp_to_string(elem%stat),failure)
+               //cp_to_string(elem%stat))
     END SELECT
     ! end the timing
     CALL timestop(handle)
@@ -622,7 +620,7 @@ CPASSERT(.FALSE.)
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle
-    LOGICAL                                  :: act_ready, failure, tmp_ready
+    LOGICAL                                  :: act_ready, tmp_ready
     TYPE(tree_type), POINTER                 :: act_element, tmp_element
 
     NULLIFY(act_element, tmp_element)
@@ -647,7 +645,7 @@ CPASSERT(.FALSE.)
       ELSE
         CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
                 routineP,"undefinite status of already checked elements:"&
-                //cp_to_string(gt_act_elem%stat),failure)
+                //cp_to_string(gt_act_elem%stat))
       END IF
     CASE DEFAULT
     END SELECT
@@ -706,7 +704,7 @@ CPASSERT(.FALSE.)
         CASE DEFAULT
           CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
                routineP,"status of actual checked node is unknown"&
-               //cp_to_string(gt_act_elem%stat),failure)
+               //cp_to_string(gt_act_elem%stat))
         END SELECT
       END IF
     END IF

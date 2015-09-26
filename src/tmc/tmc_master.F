@@ -122,7 +122,6 @@ CONTAINS
     CPASSERT(ASSOCIATED(work_list))
     CPASSERT(ASSOCIATED(para_env))
 
-
     stat = TMC_STATUS_FAILED
     wg   = -1
     cancel_elem_loop: DO
@@ -194,7 +193,6 @@ CONTAINS
     CPASSERT(ASSOCIATED(ana_worker_info))
     CPASSERT(ASSOCIATED(para_env))
 
-
     wg_loop:DO wg=1, SIZE(ana_worker_info)
       IF(.NOT.ASSOCIATED(ana_list)) EXIT wg_loop
       IF(.NOT.ana_worker_info(wg)%busy) THEN
@@ -246,6 +244,7 @@ CONTAINS
     TYPE(global_tree_type), POINTER          :: gt_elem_tmp
     TYPE(tree_type), POINTER                 :: init_conf
 
+    failure = .FALSE.
     external_stop = .FALSE.
     restarted_elem_nr = 0
     NULLIFY(init_conf, worker_info, ana_worker_info, gt_elem_tmp, tree_elem_counters)

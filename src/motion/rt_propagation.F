@@ -264,7 +264,7 @@ CONTAINS
 
     INTEGER                                  :: aspc_order, handle, i_iter, &
                                                 i_step, max_iter, max_steps
-    LOGICAL                                  :: failure, should_stop
+    LOGICAL                                  :: should_stop
     REAL(Kind=dp)                            :: eps_ener, time_iter_start, &
                                                 time_iter_stop, used_time
     TYPE(cp_logger_type), POINTER            :: logger
@@ -328,8 +328,7 @@ CONTAINS
 
     IF(.NOT.rtp%converged)&
          CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
-         routineP,"propagation did not converge, either increase MAX_ITER or use a smaller TIMESTEP",&
-         failure)
+         routineP,"propagation did not converge, either increase MAX_ITER or use a smaller TIMESTEP")
 
     CALL timestop(handle)
 

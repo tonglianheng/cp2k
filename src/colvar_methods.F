@@ -5084,7 +5084,6 @@ CPSourceFileRef,&
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: Od, H, Oa
-    LOGICAL                                  :: failure
     REAL(dp)                                 :: rOd(3), rOa(3), rH(3), &
                                                 x,y,s(3),xv(3),dmin,amin
     INTEGER                                  :: idmin, iamin,i,j
@@ -5199,7 +5198,6 @@ CPSourceFileRef,&
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: Od, H, Oa
-    LOGICAL                                  :: failure
     REAL(dp)                                 :: rOd(3), rOa(3), rH(3), &
                                                 x,y,s(3),xv(3),dmin,amin
     INTEGER                                  :: idmin, iamin,i,j,il,output_unit

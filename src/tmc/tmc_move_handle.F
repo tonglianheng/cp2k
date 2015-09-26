@@ -120,14 +120,14 @@ CONTAINS
       CALL cp_assert(tmc_params%NMC_inp_file.NE."",&
                      cp_failure_level,cp_assertion_failed,routineP,&
                      "Please specify a valid approximate potential.",&
-                     failure=flag, only_ionode=.TRUE.)
+                     only_ionode=.TRUE.)
 
       CALL section_vals_val_get(nmc_section,"NR_NMC_STEPS",&
                                 i_val=nmc_steps)
       CALL cp_assert(nmc_steps.GT.0,&
                      cp_failure_level,cp_assertion_failed,routineP,&
                      "Please specify a valid amount of NMC steps (NR_NMC_STEPS {INTEGER}).",&
-                     failure=flag, only_ionode=.TRUE.)
+                     only_ionode=.TRUE.)
 
       CALL section_vals_val_get(nmc_section,"PROB", r_val=nmc_prob)
 

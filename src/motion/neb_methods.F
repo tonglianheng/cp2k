@@ -110,6 +110,7 @@ CONTAINS
     TYPE(section_vals_type), POINTER :: diis_section, force_env_section, &
       md_section, motion_section, neb_section, print_section
 
+    failure = .FALSE.
     CALL timeset(routineN,handle)
     NULLIFY(logger, subsys, f_env, rep_env)
     NULLIFY(forces, coords, vels, neb_env)

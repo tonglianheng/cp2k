@@ -158,7 +158,6 @@ SUBROUTINE xc_functional_get_info(functional,lsd,reference,shortform,&
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i_param
-    LOGICAL                                  :: failure
     REAL(kind=dp)                            :: r_param
 
   CPASSERT(ASSOCIATED(functional))
@@ -252,8 +251,7 @@ SUBROUTINE xc_functional_get_info(functional,lsd,reference,shortform,&
      CALL section_vals_val_get(functional,"FUNCTIONAL",i_val=i_param)
      CALL ke_gga_info(i_param,lsd,reference,shortform,needs,max_deriv)
   CASE("P86C")
-     CPASSERT(.NOT.lsd)
-     IF(failure) THEN
+     IF(lsd) THEN
        CALL stop_program(routineN,moduleN,__LINE__,&
                          "BP functional not implemented with LSD")
      END IF

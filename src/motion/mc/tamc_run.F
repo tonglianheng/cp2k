@@ -168,7 +168,7 @@ SUBROUTINE qs_tamc(force_env, globenv,averages)
     INTEGER :: handle, i, initialStep, iprint, isos, istep, j, md_stride, &
       nmccycles, output_unit, rand2skip, run_type_id
     INTEGER, POINTER                         :: itimes
-    LOGICAL                                  :: check, explicit, failure, &
+    LOGICAL                                  :: check, explicit, &
                                                 my_rm_restart_info, save_mem, &
                                                 should_stop
     REAL(KIND=dp)                            :: auxRandom, inittime, rval, &
@@ -399,8 +399,7 @@ SUBROUTINE qs_tamc(force_env, globenv,averages)
             routineP,"Virial evaluation not requested for this run in the input file! "//&
             "You may consider to switch on the virial evaluation with the keyword: STRESS_TENSOR."//&
             "Be sure the method you are using can compute the virial! "//&
- CPSourceFileRef,&
-            failure)
+            CPSourceFileRef)
        IF (ASSOCIATED(force_env%sub_force_env)) THEN
           DO i = 1, SIZE(force_env%sub_force_env)
              IF (ASSOCIATED(force_env%sub_force_env(i)%force_env)) THEN
@@ -414,8 +413,7 @@ SUBROUTINE qs_tamc(force_env, globenv,averages)
             routineP,"Virial evaluation not requested for all the force_eval sections present in"//&
             " the input file! You have to switch on the virial evaluation with the keyword: STRESS_TENSOR "//&
             " in each force_eval section. Be sure the method you are using can compute the virial!"//&
-            CPSourceFileRef,&
-            failure)
+            CPSourceFileRef)
     END IF
 
     ! Computing Forces at zero MD step
@@ -470,8 +468,7 @@ SUBROUTINE qs_tamc(force_env, globenv,averages)
 !                    check=ABS(force_env%meta_env%delta_t-dummy)<1.E+3_dp*EPSILON(1._dp)
 !                    CALL cp_assert(check,cp_failure_level,cp_assertion_failed,routineP,&
 !                       "Inconsistency between DELTA_T and WTGAMMA (both specified):"//&
-!                       " please, verify that DELTA_T=(WTGAMMA-1)*TEMPERATURE",&
-!                       failure)
+!                       " please, verify that DELTA_T=(WTGAMMA-1)*TEMPERATURE")
 !                 ELSE
 !                    force_env%meta_env%delta_t = dummy
 !                 ENDIF
@@ -516,8 +513,7 @@ SUBROUTINE qs_tamc(force_env, globenv,averages)
       CALL init_mc_moves(moves)
       CALL init_mc_moves(gmoves)
       ALLOCATE (r(1:3,SIZE(particles%els)))
-!       ALLOCATE (r_old(1:3,size(particles%els)),STAT=isos)
-!       CPPostcondition(isos==0,cp_failure_level,routineP,failure)
+!       ALLOCATE (r_old(1:3,size(particles%els)))
       CALL mc_averages_create(MCaverages)
     !!!!! some more buffers
  ! Allocate random number for Langevin Thermostat acting on COLVARS
@@ -679,8 +675,7 @@ SUBROUTINE qs_tamc(force_env, globenv,averages)
     CALL MC_MOVES_RELEASE(moves)
     CALL MC_MOVES_RELEASE(gmoves)
     DEALLOCATE(r)
-!     DEALLOCATE(r_old,STAT=isos)
-!     CPPostcondition(isos==0,cp_failure_level,routineP,failure)
+!     DEALLOCATE(r_old)
     DEALLOCATE(xieta)
     DEALLOCATE(An)
     DEALLOCATE(fz)

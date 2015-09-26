@@ -199,8 +199,7 @@ CONTAINS
         CALL create_analysis_request_message(list_elem, m_send, tmc_params)
       CASE DEFAULT
         CALL cp_assert(.FALSE., cp_failure_level,cp_assertion_failed,routineP,&
-                       "try to send unknown message type "//cp_to_string(msg_type),&
-                       failure=flag)
+                       "try to send unknown message type "//cp_to_string(msg_type))
       END SELECT
       !set message info
       message_tag = msg_type
@@ -380,8 +379,7 @@ CONTAINS
       CASE DEFAULT
         CALL cp_assert(.FALSE., cp_failure_level,cp_assertion_failed,routineP,&
                        "try to receive unknown message type "//cp_to_string(msg_type)//&
-                       "from source "//cp_to_string(dest),&
-                       failure=flag)
+                       "from source "//cp_to_string(dest))
       END SELECT
       IF(m_send%info(2).GT.0) DEALLOCATE(m_send%task_int)
       IF(m_send%info(3).GT.0) DEALLOCATE(m_send%task_real)
@@ -1695,7 +1693,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: act_rank, dest_rank, stat
-    LOGICAL                                  :: failure, flag
+    LOGICAL                                  :: flag
     LOGICAL, ALLOCATABLE, DIMENSION(:)       :: rank_stoped
 
 !    INTEGER, DIMENSION(MPI_STATUS_SIZE)      :: status_single
@@ -1769,15 +1767,13 @@ CONTAINS
         CASE DEFAULT
           CALL cp_assert(.FALSE., cp_failure_level,cp_assertion_failed,routineP,&
                          "master received status "//cp_to_string(stat)//&
-                         " while stopping workers",&
-                         failure=flag)
+                         " while stopping workers")
         END SELECT
         IF(ALL(rank_stoped)) EXIT wait_for_receipts
       END DO wait_for_receipts
     ELSE
       CALL cp_assert(.FALSE., cp_failure_level,cp_assertion_failed,routineP,&
-                     "only (group) master should stop other participants",&
-                     failure=flag)
+                     "only (group) master should stop other participants")
     END IF
   END SUBROUTINE stop_whole_group
 

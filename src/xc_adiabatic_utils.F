@@ -84,7 +84,7 @@ CONTAINS
                                                 adiabatic_model, handle, &
                                                 n_rep_hf, nimages
     LOGICAL                                  :: do_adiabatic_rescaling, &
-                                                do_hfx, failure, gapw, gapw_xc
+                                                do_hfx, gapw, gapw_xc
     REAL(dp) :: adiabatic_lambda, adiabatic_omega, scale_dDFA, scale_ddW0, &
       scale_dEx1, scale_dEx2, total_energy_xc
     TYPE(cp_dbcsr_p_type), DIMENSION(:, :), &
@@ -136,8 +136,7 @@ CONTAINS
        CASE(do_adiabatic_model_pade)
           CALL cp_assert( n_rep_hf == 2 , cp_failure_level,cp_assertion_failed,routineP,&
                " For this kind of adiababatic hybrid functional 2 HF sections have to be provided. "//&
-               " Please check your input file.",&
-               failure)
+               " Please check your input file.")
           CALL rescale_MCY3_pade(qs_env, hf_energy, energy, adiabatic_lambda, &
                adiabatic_omega, scale_dEx1, scale_ddW0, scale_dDFA,&
                scale_dEx2, total_energy_xc)

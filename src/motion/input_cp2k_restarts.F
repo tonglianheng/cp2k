@@ -1282,7 +1282,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: ik, irk, Nlist
-    LOGICAL                                  :: failure
     TYPE(cp_sll_val_type), POINTER           :: new_pos, vals
     TYPE(section_type), POINTER              :: section
     TYPE(val_type), POINTER                  :: my_val, old_val
@@ -1298,7 +1297,7 @@ CONTAINS
 
     CALL cp_assert(ik/=-2,cp_failure_level,cp_assertion_failed,routineP,&
                    "section "//TRIM(section%name)//" does not contain keyword "//&
-                   "_DEFAULT_KEYWORD_",failure)
+                   "_DEFAULT_KEYWORD_")
 
     DO
        IF (SIZE(work_section%values,2)==1) EXIT
@@ -1792,7 +1791,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: ik, irk, Nlist
-    LOGICAL                                  :: failure
     REAL(KIND=dp), DIMENSION(:), POINTER     :: my_c
     TYPE(cp_sll_val_type), POINTER           :: new_pos, vals
     TYPE(section_type), POINTER              :: section
@@ -1805,7 +1803,7 @@ CONTAINS
     ik=section_get_keyword_index(section,"_DEFAULT_KEYWORD_")
     CALL cp_assert(ik/=-2,cp_failure_level,cp_assertion_failed,routineP,&
          "section "//TRIM(section%name)//" does not contain keyword "//&
-         "_DEFAULT_KEYWORD_",failure)
+         "_DEFAULT_KEYWORD_")
     DO
        IF (SIZE(coord_section%values,2)==1) EXIT
        CALL section_vals_add_values(coord_section)
@@ -1924,7 +1922,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: ik, irk, lsize, Nlist
-    LOGICAL                                  :: failure
     REAL(KIND=dp), DIMENSION(:), POINTER     :: ss_val
     TYPE(cp_sll_val_type), POINTER           :: new_pos, vals
     TYPE(section_type), POINTER              :: section
@@ -1937,7 +1934,7 @@ CONTAINS
     ik=section_get_keyword_index(section,"_DEFAULT_KEYWORD_")
     CALL cp_assert(ik/=-2,cp_failure_level,cp_assertion_failed,routineP,&
          "section "//TRIM(section%name)//" does not contain keyword "//&
-         "_DEFAULT_KEYWORD_",failure)
+         "_DEFAULT_KEYWORD_")
     DO
        IF (SIZE(ss_section%values,2)==1) EXIT
        CALL section_vals_add_values(ss_section)
@@ -1996,7 +1993,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: ik, irk, lsize, Nlist
-    LOGICAL                                  :: failure
     REAL(KIND=dp), DIMENSION(:), POINTER     :: ds_val
     TYPE(cp_sll_val_type), POINTER           :: new_pos, vals
     TYPE(section_type), POINTER              :: section
@@ -2009,7 +2005,7 @@ CONTAINS
     ik=section_get_keyword_index(section,"_DEFAULT_KEYWORD_")
     CALL cp_assert(ik/=-2,cp_failure_level,cp_assertion_failed,routineP,&
          "section "//TRIM(section%name)//" does not contain keyword "//&
-         "_DEFAULT_KEYWORD_",failure)
+         "_DEFAULT_KEYWORD_")
     DO
        IF (SIZE(ds_section%values,2)==1) EXIT
        CALL section_vals_add_values(ds_section)
@@ -2068,7 +2064,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: ik, irk, lsize, Nlist
-    LOGICAL                                  :: failure
     TYPE(cp_sll_val_type), POINTER           :: new_pos, vals
     TYPE(section_type), POINTER              :: section
     TYPE(val_type), POINTER                  :: my_val, old_val
@@ -2080,7 +2075,7 @@ CONTAINS
     ik=section_get_keyword_index(section,"_DEFAULT_KEYWORD_")
     CALL cp_assert(ik/=-2,cp_failure_level,cp_assertion_failed,routineP,&
          "section "//TRIM(section%name)//" does not contain keyword "//&
-         "_DEFAULT_KEYWORD_",failure)
+         "_DEFAULT_KEYWORD_")
     DO
        IF (SIZE(ww_section%values,2)==1) EXIT
        CALL section_vals_add_values(ww_section)
@@ -2136,7 +2131,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: ik, irk, lsize, Nlist
-    LOGICAL                                  :: failure
     TYPE(cp_sll_val_type), POINTER           :: new_pos, vals
     TYPE(section_type), POINTER              :: section
     TYPE(val_type), POINTER                  :: my_val, old_val
@@ -2148,7 +2142,7 @@ CONTAINS
     ik=section_get_keyword_index(section,"_DEFAULT_KEYWORD_")
     CALL cp_assert(ik/=-2,cp_failure_level,cp_assertion_failed,routineP,&
          "section "//TRIM(section%name)//" does not contain keyword "//&
-         "_DEFAULT_KEYWORD_",failure)
+         "_DEFAULT_KEYWORD_")
     DO
        IF (SIZE(invdt_section%values,2)==1) EXIT
        CALL section_vals_add_values(invdt_section)

@@ -260,7 +260,7 @@ CONTAINS
 
     INTEGER                                  :: alpha, beta, handle, i, ig, ng
     INTEGER, DIMENSION(3)                    :: n
-    LOGICAL                                  :: failure, has_dielectric
+    LOGICAL                                  :: has_dielectric
     REAL(KIND=dp)                            :: ffa
     TYPE(pw_grid_type), POINTER              :: pw_grid
     TYPE(pw_p_type)                          :: dvg( 3 )
@@ -286,7 +286,7 @@ CONTAINS
        CPASSERT(ASSOCIATED(vhartree))
        CALL cp_assert(pw_grid_compare(pw_pool%pw_grid,vhartree%pw_grid),cp_assertion_failed,&
             cp_failure_level,routineP,&
-            "vhartree has a different grid than the poisson solver",failure)
+            "vhartree has a different grid than the poisson solver")
     END IF
     ! density in G space
     CALL pw_pool_create_pw ( pw_pool, rhog, use_data=COMPLEXDATA1D,in_space = RECIPROCALSPACE)

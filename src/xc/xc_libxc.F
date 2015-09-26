@@ -375,7 +375,7 @@ CONTAINS
       DIMENSION(:), POINTER                  :: func_name
     INTEGER                                  :: func_id, handle, npoints
     INTEGER, DIMENSION(:, :), POINTER        :: bo
-    LOGICAL                                  :: failure, has_laplace
+    LOGICAL                                  :: has_laplace
     REAL(KIND=dp)                            :: epsilon_rho, epsilon_tau, sc
     REAL(KIND=dp), DIMENSION(:), POINTER     :: params, scale
     REAL(KIND=dp), DIMENSION(:, :, :), POINTER :: dummy, e_0, e_laplace_rho, &
@@ -639,7 +639,7 @@ CONTAINS
       DIMENSION(:), POINTER                  :: func_name
     INTEGER                                  :: func_id, handle, npoints
     INTEGER, DIMENSION(:, :), POINTER        :: bo
-    LOGICAL                                  :: failure, has_laplace
+    LOGICAL                                  :: has_laplace
     REAL(KIND=dp)                            :: epsilon_rho, epsilon_tau, sc
     REAL(KIND=dp), DIMENSION(:), POINTER     :: params, scale
     REAL(KIND=dp), DIMENSION(:, :, :), POINTER :: dummy, e_0, e_laplace_rhoa, &

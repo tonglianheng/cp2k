@@ -538,8 +538,7 @@ CONTAINS
                                                 my_type, n_rep_val, nkind, &
                                                 size_mm_system
     INTEGER, DIMENSION(:), POINTER           :: mm_link_atoms
-    LOGICAL                                  :: explicit, failure, is_mm, &
-                                                is_qm
+    LOGICAL                                  :: explicit, is_mm, is_qm
     REAL(KIND=dp)                            :: tmp_radius, tmp_radius_c
     REAL(KIND=dp), DIMENSION(:), POINTER     :: tmp_sph_cut
     TYPE(atomic_kind_list_type), POINTER     :: atomic_kinds
@@ -573,7 +572,7 @@ CONTAINS
           CALL cp_assert(tmp_radius>0.0_dp,cp_failure_level,cp_assertion_failed,routineP,&
                "SPHERICAL_CUTOFF(1) > 20*SPHERICAL_CUTOFF(1)! Please correct parameters for "//&
                "the Spherical Cutoff in order to satisfy the previous condition!"//&
-               CPSourceFileRef,failure)
+               CPSourceFileRef)
        END IF
        !
        ! Initialization of arrays and core_charge_radius...
@@ -651,7 +650,7 @@ CONTAINS
     ELSE
      CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
           "QMMM section not present in input file!"//&
-          CPSourceFileRef,failure)
+          CPSourceFileRef)
     ENDIF
     !
     ! Build MM atoms list

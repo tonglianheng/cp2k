@@ -240,18 +240,13 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: alat( 3 )
 
     DO i=1,3
        alat(i) = SUM ( hmat(:,i)**2 )
     ENDDO
     CPASSERT(ALL(alat/=0._dp))
-    IF ( failure ) THEN
-       n = -HUGE(0)
-    ELSE
-       n = 2*FLOOR ( SQRT ( 2.0_dp * cutoff * alat ) / twopi ) + 1
-    END IF
+    n = 2*FLOOR ( SQRT ( 2.0_dp * cutoff * alat ) / twopi ) + 1
 
   END FUNCTION pw_grid_n_from_cutoff
 

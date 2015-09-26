@@ -137,7 +137,6 @@ CONTAINS
     INTEGER :: iparticle, iparticle_kind, iparticle_local, iparticle_reg, &
       ireg, nparticle, nparticle_kind, nparticle_local, nshell
     INTEGER, POINTER                         :: itimes
-    LOGICAL                                  :: failure
     LOGICAL, ALLOCATABLE, DIMENSION(:)       :: do_langevin
     REAL(KIND=dp)                            :: c, c1, c2, c3, c4, dm, dt, &
                                                 gam, mass, reg_temp, sigma
@@ -199,8 +198,7 @@ CONTAINS
                        particles=particles,&
                        virial=virial)
     CALL cp_assert((nshell == 0),cp_failure_level,cp_assertion_failed,routineP,&
-                   "Langevin dynamics is not yet implemented for core-shell models",&
-                   failure)
+                   "Langevin dynamics is not yet implemented for core-shell models")
 
     nparticle_kind = atomic_kinds%n_els
     atomic_kind_set => atomic_kinds%els

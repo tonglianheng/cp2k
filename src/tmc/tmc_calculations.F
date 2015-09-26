@@ -325,7 +325,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, i
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: mass_sum, mass_tmp
 
     CPASSERT(ASSOCIATED(center))
@@ -345,8 +344,7 @@ CONTAINS
         mass_sum = mass_sum + mass_tmp
       ELSE
         CALL cp_assert(.FALSE.,cp_warning_level,cp_assertion_failed,routineP,&
-                 "try to calculate center of mass without any mass.",&
-                 failure)
+                 "try to calculate center of mass without any mass.")
         center(:) = center(:) + pos(i:i+SIZE(center)-1)/&
                     (SIZE(pos)/REAL(SIZE(center),KIND=dp))
         mass_sum = 1.0_dp
@@ -449,7 +447,6 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'three_point_extrapolate', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: e1,e2,e3
     REAL(KIND=dp)                            :: a,b,c,d12,d23,ddd
 

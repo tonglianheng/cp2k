@@ -152,6 +152,7 @@ PROGRAM cp2k_shell
   e_fact=1.0_dp
   units='au'
   harsh=.FALSE.
+  failure=.TRUE.
 
   logger => cp_get_default_logger()
   para_env => logger%para_env
@@ -548,6 +549,7 @@ PROGRAM cp2k_shell
            IF (iostat/=0) CALL mp_abort('writing error')
            CALL m_flush(sout)
         END IF
+        failure=.FALSE.
      END IF
   END DO
 
@@ -574,6 +576,7 @@ CONTAINS
        IF (para_env%mepos==para_env%source) THEN
           WRITE(sout,'("* ERROR ",a)') msg
        END IF
+       failure=.TRUE.
     END IF
   END SUBROUTINE my_assert
 

@@ -90,7 +90,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'read_neb_section', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: explicit, failure
+    LOGICAL                                  :: explicit
     TYPE(section_vals_type), POINTER         :: wrk_section
 
     CPASSERT(ASSOCIATED(neb_env))
@@ -116,8 +116,7 @@ CONTAINS
             "A potential energy function based on free energy or minimum energy"//&
             " was requested without enabling the usage of COLVARS. Both methods"//&
             " are based on COLVARS definition."//&
- CPSourceFileRef,&
-            failure=failure)
+ CPSourceFileRef)
        ! Moreover let's check if the proper sections have been defined..
        SELECT CASE(neb_env%pot_type)
        CASE(pot_neb_fe)
@@ -127,8 +126,7 @@ CONTAINS
                cp_failure_level,cp_assertion_failed,routineP,&
                "A free energy BAND (colvars projected) calculation is requested"//&
                " but NONE MD section was defined in the input."//&
- CPSourceFileRef,&
-                failure=failure)
+ CPSourceFileRef)
        CASE(pot_neb_me)
           wrk_section => section_vals_get_subs_vals(neb_env%root_section,"MOTION%GEO_OPT")
           CALL section_vals_get(wrk_section,explicit=explicit)
@@ -136,16 +134,14 @@ CONTAINS
                cp_failure_level,cp_assertion_failed,routineP,&
                "A minimum energy BAND (colvars projected) calculation is requested"//&
                " but NONE GEO_OPT section was defined in the input."//&
- CPSourceFileRef,&
-                failure=failure)
+               CPSourceFileRef)
        END SELECT
     ELSE
        CALL cp_assert(.NOT.neb_env%use_colvar,&
             cp_failure_level,cp_assertion_failed,routineP,&
             "A band calculation was requested with a full potential energy. USE_COLVAR cannot"//&
             " be set for this kind of calculation!"//&
- CPSourceFileRef,&
-            failure=failure)
+            CPSourceFileRef)
     END IF
     ! String Method
     CALL section_vals_val_get(neb_section,"STRING_METHOD%SMOOTHING",r_val=neb_env%smoothing)
@@ -425,6 +421,7 @@ CONTAINS
     TYPE(f_env_type), POINTER                :: f_env
     TYPE(section_vals_type), POINTER         :: root_section
 
+    failure = .FALSE.
     CALL timeset(routineN,handle)
     CALL f_env_add_defaults(f_env_id=rep_env%f_env_id, f_env=f_env,&
          failure=failure, handle=handle2)
@@ -546,6 +543,7 @@ CONTAINS
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(f_env_type), POINTER                :: f_env
 
+    failure = .FALSE.
     n_rep_neb = neb_env%number_of_replica
     n_rep     = rep_env%nrep
     CALL f_env_add_defaults(f_env_id=rep_env%f_env_id, f_env=f_env,&

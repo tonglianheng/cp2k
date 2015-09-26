@@ -344,7 +344,7 @@ CONTAINS
 
     INTEGER                                  :: end_str, my_control_val, &
                                                 to_path
-    LOGICAL                                  :: failure, flags, is_iter, is_on
+    LOGICAL                                  :: flags, is_iter, is_on
     TYPE(section_vals_type), POINTER         :: print_key
 
     res=0
@@ -352,10 +352,10 @@ CONTAINS
     CPASSERT(ASSOCIATED(basis_section))
     CPASSERT(basis_section%ref_count>0)
     IF (PRESENT(used_print_key)) NULLIFY(used_print_key)
-    IF (failure) THEN
-       IF (iteration_info%print_level>=debug_print_level) res=cp_out_default
-       RETURN
-    END IF
+    ! IF (failure) THEN
+    !    IF (iteration_info%print_level>=debug_print_level) res=cp_out_default
+    !    RETURN
+    ! END IF
 
     IF (PRESENT(print_key_path)) THEN
        end_str=LEN_TRIM(print_key_path)

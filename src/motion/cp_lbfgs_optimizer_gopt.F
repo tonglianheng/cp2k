@@ -426,8 +426,6 @@ END SUBROUTINE cp_opt_gopt_release
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_opt_gopt_get', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
 !  call timeset(routineN,handle)
 
     CPASSERT(ASSOCIATED(optimizer))
@@ -473,8 +471,7 @@ END SUBROUTINE cp_opt_gopt_release
             PRESENT(upper_bound).OR.PRESENT(kind_of_bound)),&
             cp_warning_level,cp_assertion_failed,&
             routineP, "asked undefined types in "//&
-CPSourceFileRef,&
-            failure)
+            CPSourceFileRef)
     END IF
 
     !  call timestop(handle)
@@ -514,8 +511,7 @@ CPSourceFileRef,&
 
     CHARACTER(LEN=5)                         :: wildcard
     INTEGER                                  :: dataunit, handle, its
-    LOGICAL                                  :: conv, failure, is_master, &
-                                                justEntred
+    LOGICAL                                  :: conv, is_master, justEntred
     REAL(KIND=dp)                            :: t_diff, t_now, t_old
     REAL(KIND=dp), DIMENSION(:), POINTER     :: xold
     TYPE(cp_logger_type), POINTER            :: logger
@@ -695,14 +691,12 @@ CPSourceFileRef)
           ! deallocated
           CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
                routineP,"step on a deallocated opt structure "//&
-CPSourceFileRef,&
-               failure)
+               CPSourceFileRef)
        CASE default
           CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
                routineP,"unknown status "//cp_to_string(optimizer%status)//&
                " in "//&
-CPSourceFileRef,&
-               failure)
+               CPSourceFileRef)
           optimizer%status=5
           EXIT
        END SELECT

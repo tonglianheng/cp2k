@@ -458,7 +458,6 @@ CONTAINS
     CHARACTER(len=default_path_length)       :: filename
     INTEGER                                  :: i_rep, imol, loc_conn_type, &
                                                 n_rep, nmol
-    LOGICAL                                  :: failure
     TYPE(section_vals_type), POINTER         :: section
 
     NULLIFY (section)
@@ -482,8 +481,7 @@ CONTAINS
              CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
                   "MOL_SET feature implemented only for PSF/UPSF, G87/G96 and AMBER "//&
                   "connectivity type."//&
-CPSourceFileRef,&
-                  failure=failure)
+                  CPSourceFileRef)
           END SELECT
        END DO
        CALL cp_assert(SIZE(topology%atom_info%id_molname)==topology%natoms,&
@@ -491,8 +489,7 @@ CPSourceFileRef,&
             "Number of atoms in connectivity control is larger than the "//&
             "number of atoms in coordinate control. check coordinates and "//&
             "connectivity. "//&
- CPSourceFileRef,&
-            failure=failure)
+            CPSourceFileRef)
 
        ! Merge defined structures
        section => section_vals_get_subs_vals(subsys_section,"TOPOLOGY%MOL_SET%MERGE_MOLECULES")
@@ -533,7 +530,7 @@ CPSourceFileRef,&
 
     CHARACTER(LEN=default_string_length)     :: message
     INTEGER                                  :: handle, handle2, istat, iw
-    LOGICAL                                  :: failure, found, save_mem
+    LOGICAL                                  :: found, save_mem
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(section_vals_type), POINTER         :: global_section
 
@@ -603,8 +600,7 @@ CPSourceFileRef,&
     ! Check on atom numbers
     CALL cp_assert(topology%natoms>0,cp_fatal_level,cp_assertion_failed,routineP,&
          "No atomic coordinates have been found! "//&
-CPSourceFileRef,&
-         failure)
+         CPSourceFileRef)
     CALL timestop(handle)
     CALL cp_print_key_finished_output(iw,logger,subsys_section,&
          "PRINT%TOPOLOGY_INFO")

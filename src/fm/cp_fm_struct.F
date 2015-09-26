@@ -145,7 +145,7 @@ SUBROUTINE cp_fm_struct_create(fmstruct,para_env,context, nrow_global,&
   TYPE(cp_logger_type), POINTER                :: logger
 #endif
 
-  LOGICAL :: failure, my_square_blocks, my_force_block
+  LOGICAL :: my_square_blocks, my_force_block
 
 #if defined(__parallel) && ! defined(__SCALAPACK)
   CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
@@ -542,7 +542,6 @@ SUBROUTINE cp_fm_struct_get(fmstruct, para_env, context,&
   INTEGER, DIMENSION(:), POINTER, OPTIONAL :: row_indices, col_indices,&
        nrow_locals, ncol_locals
 
-  LOGICAL :: failure
   CHARACTER(len=*), PARAMETER :: routineN='cp_fm_struct_get',&
        routineP=moduleN//':'//routineN
   INTEGER i,nprow,npcol,myprow,mypcol

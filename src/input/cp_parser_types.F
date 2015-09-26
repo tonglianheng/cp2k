@@ -186,8 +186,6 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'parser_create', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
     CPASSERT(.NOT.ASSOCIATED(parser))
     ALLOCATE(parser)
     last_parser_id=last_parser_id+1
@@ -240,8 +238,7 @@ CONTAINS
        ELSE
           CALL cp_assert(PRESENT(file_name),cp_failure_level,cp_assertion_failed,&
                routineP,"at least one of filename and unit_nr must be present"//&
-               CPSourceFileRef,&
-               failure)
+               CPSourceFileRef)
           CALL open_file(file_name=TRIM(file_name),&
                unit_number=parser%input_unit)
           parser%input_file_name=file_name

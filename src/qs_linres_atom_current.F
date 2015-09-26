@@ -1134,7 +1134,6 @@ CONTAINS
 
     INTEGER                                  :: ia, idir2, iiB, iiiB, ir, &
                                                 iso, max_max_iso_not0, na, nr
-    LOGICAL                                  :: failure
     REAL(dp)                                 :: rad_part, scale
     REAL(dp), DIMENSION(:, :), POINTER :: a, Fr_a_h, Fr_a_h_ii, Fr_a_h_iii, &
       Fr_a_s, Fr_a_s_ii, Fr_a_s_iii, Fr_b_h, Fr_b_h_ii, Fr_b_h_iii, Fr_b_s, &

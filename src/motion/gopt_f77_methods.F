@@ -92,7 +92,7 @@
 
     INTEGER                                  :: ensemble, handle, idg, idir, ip, &
                                                 nparticle, nsize, shell_index
-    LOGICAL                                  :: failure, explicit, my_final_evaluation
+    LOGICAL                                  :: explicit, my_final_evaluation
     REAL(KIND=dp)                            :: f_ts, potential_energy
     REAL(KIND=dp), DIMENSION(3,3)            :: av_ptens
     REAL(KIND=dp), DIMENSION(:), POINTER     :: cell_gradient, gradient_ts

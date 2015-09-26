@@ -108,8 +108,6 @@ SUBROUTINE pw_release(pw)
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_release', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
   IF (ASSOCIATED(pw)) THEN
      CPASSERT(pw%ref_count>0)
      pw%ref_count=pw%ref_count-1
@@ -132,7 +130,7 @@ SUBROUTINE pw_release(pw)
         CASE(NODATA)
         CASE default
            CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
-                "unknown data type "//cp_to_string(pw%in_use),failure)
+                "unknown data type "//cp_to_string(pw%in_use))
         END SELECT
         CALL pw_grid_release(pw%pw_grid)
         pw%ref_count=0
@@ -167,7 +165,6 @@ SUBROUTINE pw_create(pw, pw_grid, use_data, in_space, cr3d_ptr)
 
     INTEGER                                  :: handle
     INTEGER, DIMENSION(:, :), POINTER        :: bounds
-    LOGICAL                                  :: failure
     TYPE(cp_logger_type), POINTER            :: logger
 
   CALL timeset(routineN,handle)
@@ -236,7 +233,7 @@ SUBROUTINE pw_create(pw, pw_grid, use_data, in_space, cr3d_ptr)
   CASE(NODATA)
   CASE default
      CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
-          "unknown data type",failure)
+          "unknown data type")
   END SELECT
   IF (PRESENT(in_space)) pw%in_space=in_space
   CALL timestop(handle)

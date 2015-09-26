@@ -1448,7 +1448,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'create_colvar_rmsd_section', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
     TYPE(section_type), POINTER              :: subsection, subsubsection
 
@@ -1523,9 +1522,6 @@ CONTAINS
 
     CHARACTER(len=*), PARAMETER :: routineN = 'create_colvar_rpath_section', &
       routineP = moduleN//':'//routineN
-
-    LOGICAL                                  :: failure
-
 
     CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="REACTION_PATH",&

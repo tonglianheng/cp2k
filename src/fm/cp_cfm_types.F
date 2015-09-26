@@ -90,7 +90,6 @@ CONTAINS
 
     INTEGER                                  :: ncol_local, npcol, nprow, &
                                                 nrow_local
-    LOGICAL                                  :: failure
     TYPE(cp_blacs_env_type), POINTER         :: context
 
 
@@ -339,7 +338,6 @@ CPSourceFileRef)
          routineP=moduleN//':'//routineN
     INTEGER i,nprow,npcol,myprow,mypcol
     TYPE(cp_blacs_env_type), POINTER :: ctxt
-    LOGICAL :: failure
 #if defined(__SCALAPACK)
     INTEGER , EXTERNAL :: indxl2g
 #endif

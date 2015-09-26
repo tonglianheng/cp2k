@@ -168,7 +168,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, iline, istat
-    LOGICAL                                  :: failure
 
     CALL timeset(routineN, handle)
 
@@ -184,8 +183,7 @@ CONTAINS
        IF (istat /= 0) THEN
           IF (istat < 0) THEN ! EOF/EOR is negative other errors positive
              CALL cp_assert(PRESENT(at_end),cp_failure_level,cp_assertion_failed,&
-                  routineP,"Unexpected EOF"//TRIM(parser_location(parser)),&
-                  failure)
+                  routineP,"Unexpected EOF"//TRIM(parser_location(parser)))
              IF (PRESENT(at_end)) at_end = .TRUE.
              parser%icol  = -1
              parser%icol1 =  0
@@ -194,7 +192,7 @@ CONTAINS
              CALL cp_assert(.FALSE.,cp_failure_level,istat,routineP,&
                   "An I/O error occurred (IOSTAT = "//&
                   TRIM(ADJUSTL(cp_to_string(istat)))//")"//&
-                  TRIM(parser_location(parser)),failure)
+                  TRIM(parser_location(parser)))
           END IF
           CALL timestop(handle)
           RETURN
@@ -364,7 +362,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle
-    LOGICAL                                  :: failure
     TYPE(cp_para_env_type), POINTER          :: para_env
 
     CALL timeset(routineN,handle)
@@ -372,7 +369,7 @@ CONTAINS
     CPASSERT(ASSOCIATED(parser))
     CPASSERT(parser%ref_count>0)
     para_env => parser%para_env
-    IF (.NOT.failure .AND. para_env%num_pe>1) THEN
+    IF (para_env%num_pe>1) THEN
        CALL mp_bcast(parser%buffer%buffer_id,para_env%source,para_env%group)
        CALL mp_bcast(parser%buffer%present_line_number,para_env%source,para_env%group)
        CALL mp_bcast(parser%buffer%last_line_number,para_env%source,para_env%group)
@@ -493,7 +490,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i
-    LOGICAL                                  :: failure
 
     CPASSERT(ASSOCIATED(parser))
     CPASSERT(parser%ref_count>0)
@@ -539,7 +535,7 @@ CONTAINS
                 CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
                      "Found non-blank tokens after the line continuation character '"//&
                      parser%continuation_character//"' "//&
-                     TRIM(parser_location(parser)),failure)
+                     TRIM(parser_location(parser)))
                 EXIT
              END IF
           ELSE
@@ -572,7 +568,6 @@ CONTAINS
 
     INTEGER                                  :: i, len_inputline, &
                                                 len_trim_inputline, length
-    LOGICAL                                  :: failure
 
     CPASSERT(ASSOCIATED(parser))
     CPASSERT(parser%ref_count>0)
@@ -585,8 +580,7 @@ CONTAINS
     IF (length > 0) THEN
        ! Fixed input string length
        CALL cp_assert(parser%icol/=-1,cp_failure_level,cp_assertion_failed,routineP,&
-            "Unexpectetly reached EOF"//TRIM(parser_location(parser)),&
-            failure)
+            "Unexpectetly reached EOF"//TRIM(parser_location(parser)))
 
        length=MIN(LEN_TRIM(parser%input_line)-parser%icol1+1,length)
        parser%icol1 = parser%icol + 1
@@ -636,8 +630,7 @@ CONTAINS
                 parser%icol2 = i
                 CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
                      "Found non-blank tokens after the line continuation character '"//&
-                     parser%continuation_character//"' "//TRIM(parser_location(parser)),&
-                     failure)
+                     parser%continuation_character//"' "//TRIM(parser_location(parser)))
                 EXIT
              END IF
           END IF
@@ -654,7 +647,7 @@ CONTAINS
                 parser%icol2 = parser%icol
                 CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
                      "Unexpected separator token <"//parser%input_line(parser%icol:parser%icol)//&
-                     "> found"//TRIM(parser_location(parser)),failure)
+                     "> found"//TRIM(parser_location(parser)))
                 EXIT
              END IF
           ELSE IF (parser%input_line(parser%icol:parser%icol) == '"') THEN
@@ -666,8 +659,7 @@ CONTAINS
                 parser%icol1 = parser%icol
                 parser%icol2 = parser%icol
                 CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
-                     "Unmatched quotation mark found"//TRIM(parser_location(parser)),&
-                     failure)
+                     "Unmatched quotation mark found"//TRIM(parser_location(parser)))
              ELSE
                 parser%icol1 = parser%icol1 - 1
                 parser%icol  = parser%icol2
@@ -835,8 +827,7 @@ CONTAINS
     CHARACTER(LEN=LEN(string))               :: pattern
     CHARACTER(LEN=max_line_length+1)         :: current_line
     INTEGER                                  :: ipattern
-    LOGICAL                                  :: at_end, begin, do_reset, &
-                                                failure
+    LOGICAL                                  :: at_end, begin, do_reset
 
     found   = .FALSE.
     begin   = .FALSE.
@@ -873,7 +864,7 @@ CONTAINS
                   TRIM(ADJUSTL(cp_to_string(LEN(line))))//&
                   " characters and is therefore too long to fit in the "//&
                   "specified variable"//&
-                  TRIM(parser_location(parser)),failure)
+                  TRIM(parser_location(parser)))
           END IF
           EXIT
        END IF
@@ -1005,7 +996,7 @@ CONTAINS
 
     CHARACTER(LEN=max_line_length)           :: error_message
     INTEGER                                  :: nline
-    LOGICAL                                  :: failure, my_at_end
+    LOGICAL                                  :: my_at_end
 
     CPASSERT(ASSOCIATED(parser))
     CPASSERT(parser%ref_count>0)
@@ -1025,8 +1016,7 @@ CONTAINS
        IF (my_at_end) RETURN
     ELSE IF (my_at_end) THEN
        CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
-            "Unexpected EOF"//TRIM(parser_location(parser)),&
-            failure)
+            "Unexpected EOF"//TRIM(parser_location(parser)))
     END IF
 
     IF (parser%ilist%in_use) THEN
@@ -1038,7 +1028,7 @@ CONTAINS
           parser%icol2 = parser%icol
           CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
                "An integer type object was expected, found end of line"//&
-               TRIM(parser_location(parser)),failure)
+               TRIM(parser_location(parser)))
        END IF
        ! Checks for possible lists of integers
        IF (INDEX(parser%input_line(parser%icol1:parser%icol2),"..") /= 0) THEN
@@ -1054,15 +1044,14 @@ CONTAINS
           CALL read_integer_object(parser%input_line(parser%icol1:parser%icol2),object,error_message)
           IF (LEN_TRIM(error_message) > 0) THEN
              CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
-                  TRIM(error_message)//TRIM(parser_location(parser)),&
-                  failure)
+                  TRIM(error_message)//TRIM(parser_location(parser)))
           END IF
        END IF
     ELSE
        CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
             "An integer type object was expected, found <"//&
             parser%input_line(parser%icol1:parser%icol2)//">"//&
-            TRIM(parser_location(parser)),failure)
+            TRIM(parser_location(parser)))
     END IF
 
 
@@ -1096,7 +1085,7 @@ CONTAINS
 
     CHARACTER(LEN=max_line_length)           :: input_string
     INTEGER                                  :: input_string_length, nline
-    LOGICAL                                  :: failure, my_at_end
+    LOGICAL                                  :: my_at_end
 
     CPASSERT(ASSOCIATED(parser))
     CPASSERT(parser%ref_count>0)
@@ -1117,8 +1106,7 @@ CONTAINS
        IF (my_at_end) RETURN
     ELSE IF (my_at_end) THEN
        CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
-            "Unexpected EOF"//TRIM(parser_location(parser)),&
-            failure)
+            "Unexpected EOF"//TRIM(parser_location(parser)))
     END IF
 
     CALL parser_next_token(parser,string_length=string_length)
@@ -1130,7 +1118,7 @@ CONTAINS
        parser%icol2 = parser%icol
        CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
             "A string representing a logical object was expected, found end of line"//&
-            TRIM(parser_location(parser)),failure)
+            TRIM(parser_location(parser)))
     ELSE
        input_string = ""
        input_string(:input_string_length) = parser%input_line(parser%icol1:parser%icol2)
@@ -1145,8 +1133,7 @@ CONTAINS
     CASE DEFAULT
        CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
             "A string representing a logical object was expected, found <"//&
-            TRIM(input_string)//">"//TRIM(parser_location(parser)),&
-            failure)
+            TRIM(input_string)//">"//TRIM(parser_location(parser)))
     END SELECT
 
   END SUBROUTINE parser_get_logical
@@ -1177,7 +1164,7 @@ CONTAINS
 
     CHARACTER(LEN=max_line_length)           :: error_message
     INTEGER                                  :: nline
-    LOGICAL                                  :: failure, my_at_end
+    LOGICAL                                  :: my_at_end
 
     CPASSERT(ASSOCIATED(parser))
     CPASSERT(parser%ref_count>0)
@@ -1200,8 +1187,7 @@ CONTAINS
        IF (my_at_end) RETURN
     ELSE IF (my_at_end) THEN
        CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
-            "Unexpected EOF"//TRIM(parser_location(parser)),&
-            failure)
+            "Unexpected EOF"//TRIM(parser_location(parser)))
     END IF
 
     CALL parser_next_token(parser,string_length=string_length)
@@ -1211,15 +1197,14 @@ CONTAINS
        parser%icol2 = parser%icol
        CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
             "A floating point type object was expected, found end of the line"//&
-            TRIM(parser_location(parser)),failure)
+            TRIM(parser_location(parser)))
     END IF
 
     ! Possibility to have real numbers described in the input as division between two numbers
     CALL read_float_object(parser%input_line(parser%icol1:parser%icol2),object,error_message)
     IF (LEN_TRIM(error_message) > 0) THEN
        CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
-            TRIM(error_message)//TRIM(parser_location(parser)),&
-            failure)
+            TRIM(error_message)//TRIM(parser_location(parser)))
     END IF
 
 
@@ -1251,7 +1236,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: input_string_length, nline
-    LOGICAL                                  :: failure, my_at_end
+    LOGICAL                                  :: my_at_end
 
     object = ""
     CPASSERT(ASSOCIATED(parser))
@@ -1273,8 +1258,7 @@ CONTAINS
        IF (my_at_end) RETURN
     ELSE IF (my_at_end) THEN
        CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
-            "Unexpected EOF"//TRIM(parser_location(parser)),&
-            failure)
+            "Unexpected EOF"//TRIM(parser_location(parser)))
     END IF
 
     CALL parser_next_token(parser,string_length)
@@ -1284,14 +1268,13 @@ CONTAINS
     IF (input_string_length <= 0) THEN
        CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
             "A string type object was expected, found end of line"//&
-            TRIM(parser_location(parser)),failure)
+            TRIM(parser_location(parser)))
     ELSE IF (input_string_length > LEN(object)) THEN
        CALL cp_assert(.FALSE.,cp_warning_level,cp_assertion_failed,routineP,&
             "The input string <"//parser%input_line(parser%icol1:parser%icol2)//&
             "> has more than "//cp_to_string(LEN(object))//&
             " characters and is therefore too long to fit in the "//&
-            "specified variable"//TRIM(parser_location(parser)),&
-            failure)
+            "specified variable"//TRIM(parser_location(parser)))
        object = parser%input_line(parser%icol1:parser%icol1+LEN(object)-1)
     ELSE
        object(:input_string_length) = parser%input_line(parser%icol1:parser%icol2)

@@ -320,7 +320,6 @@ CONTAINS
     INTEGER, DIMENSION(0:3)                  :: starti
     INTEGER, DIMENSION(:), POINTER           :: nqm, num_gto, num_slater, &
                                                 sindex
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: al, amax, aval, cval, ear, &
                                                 pf, rk
     REAL(KIND=dp), DIMENSION(:), POINTER     :: expo
@@ -338,7 +337,7 @@ CONTAINS
     CALL section_vals_val_get(basis_section,"QUADRATURE",i_val=quadtype)
     CALL section_vals_val_get(basis_section,"GRID_POINTS",i_val=ngp)
     CALL cp_assert(ngp > 0,cp_failure_level,cp_assertion_failed,routineP,&
-                   "# point radial grid < 0",failure)
+                   "# point radial grid < 0")
     CALL create_grid_atom(basis%grid,ngp,1,1,0,quadtype)
     basis%grid%nr = ngp
     basis%geometrical = .FALSE.

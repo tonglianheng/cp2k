@@ -116,8 +116,7 @@ CONTAINS
                                                 npgfb, nsgfa, nsgfb
     INTEGER, DIMENSION(:, :), POINTER        :: first_sgfa, first_sgfb
     INTEGER, DIMENSION(nexp_max)             :: nct_ppl
-    LOGICAL                                  :: dokp, failure, found, &
-                                                lpotextended
+    LOGICAL                                  :: dokp, found, lpotextended
     REAL(KIND=dp)                            :: alpha, dab, dac, dbc, f0, &
                                                 ppl_radius
     REAL(KIND=dp), ALLOCATABLE, &
@@ -209,7 +208,7 @@ CONTAINS
 !$OMP          ppl_radius, nexp_lpot, nexp_ppl, alpha_ppl, alpha_lpot, nct_ppl, &                            
 !$OMP          nct_lpot, cval_ppl, cval_lpot, ap_iterator, rac, dac, rbc, dbc, &                             
 !$OMP          set_radius_a,  rpgfa, force_a, force_b, ppl_fwork, mepos, &                                   
-!$OMP          f0, failure, katom, ppl_work, atom_c, cellind, img, &                                                        
+!$OMP          f0, katom, ppl_work, atom_c, cellind, img, &                                                        
 !$OMP          ldai)                 
 
         mepos=0

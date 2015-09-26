@@ -388,14 +388,12 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: f_env_pos
-    LOGICAL                                  :: failure
 
     NULLIFY(f_env)
     f_env_pos = get_pos_of_env(f_env_id)
     IF (f_env_pos<1) THEN
        CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
-            "invalid env_id "//cp_to_string(f_env_id),&
-            failure=failure)
+            "invalid env_id "//cp_to_string(f_env_id))
     ELSE
        f_env => f_envs(f_env_pos)%f_env
     END IF
@@ -421,18 +419,16 @@ CONTAINS
   SUBROUTINE f_env_add_defaults(f_env_id,f_env,failure, handle)
     INTEGER, INTENT(in)                      :: f_env_id
     TYPE(f_env_type), POINTER                :: f_env
-    LOGICAL                                  :: failure
+    LOGICAL, INTENT(out)                     :: failure
     INTEGER, INTENT(out), OPTIONAL           :: handle
 
     CHARACTER(len=*), PARAMETER :: routineN = 'f_env_add_defaults', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: f_env_pos, ierr
-    LOGICAL                                  :: my_failure
     TYPE(cp_logger_type), POINTER            :: logger
 
-    my_failure=.FALSE.
-
+    failure = .FALSE.
     NULLIFY(f_env)
     f_env_pos = get_pos_of_env(f_env_id)
     IF (f_env_pos<1) THEN
@@ -498,7 +494,7 @@ CONTAINS
        CPASSERT(ASSOCIATED(d_timer_env))
        CPASSERT(ASSOCIATED(d_mp_perf_env))
        CPASSERT(logger%id_nr==d_logger%id_nr)
-       ! CPPrecondition(d_timer_env%id_nr==f_env%timer_env%id_nr,cp_failure_level,routineP,failure)
+       ! CPASSERT(d_timer_env%id_nr==f_env%timer_env%id_nr)
        CPASSERT(d_mp_perf_env%id_nr==f_env%mp_perf_env%id_nr)
        IF (f_env%old_path/=f_env%my_path) THEN
           CALL m_chdir(TRIM(f_env%old_path),ierr2)
@@ -568,8 +564,8 @@ CONTAINS
     INTEGER, DIMENSION(:), POINTER           :: group_distribution, &
                                                 i_force_eval, &
                                                 lgroup_distribution
-    LOGICAL :: check, do_qmmm_force_mixing, failure, multiple_subsys, &
-      my_echo, my_owns_out_unit, use_motion_section, use_multiple_para_env
+    LOGICAL :: check, do_qmmm_force_mixing, multiple_subsys, my_echo, &
+      my_owns_out_unit, use_motion_section, use_multiple_para_env
     TYPE(cp_logger_type), POINTER            :: logger, my_logger
     TYPE(cp_para_env_type), POINTER          :: my_para_env, para_env
     TYPE(eip_environment_type), POINTER      :: eip_env
@@ -816,8 +812,7 @@ CPSourceFileRef,&
           CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
                "Invalid METHOD <"//TRIM(enum_i2c(enum,method_name_id))//&
             "> was specified, "//&
-            CPSourceFileRef,&
-            failure)
+            CPSourceFileRef)
           CALL section_release(section)
        END SELECT
 
@@ -905,6 +900,7 @@ CPSourceFileRef,&
     TYPE(global_environment_type), POINTER   :: globenv
     TYPE(section_vals_type), POINTER         :: root_section
 
+    failure = .FALSE.
     NULLIFY(f_env)
     CALL f_env_add_defaults(env_id,f_env,failure)
     env_pos=get_pos_of_env(env_id)
@@ -946,6 +942,7 @@ CPSourceFileRef,&
     LOGICAL                                  :: failure
     TYPE(f_env_type), POINTER                :: f_env
 
+    failure = .FALSE.
     n_atom = 0
     NULLIFY (f_env)
     CALL f_env_add_defaults(env_id,f_env,failure)
@@ -973,6 +970,7 @@ CPSourceFileRef,&
     LOGICAL                                  :: failure
     TYPE(f_env_type), POINTER                :: f_env
 
+    failure = .FALSE.
     n_particle = 0
     NULLIFY (f_env)
     CALL f_env_add_defaults(env_id,f_env,failure)
@@ -1003,6 +1001,7 @@ CPSourceFileRef,&
     TYPE(cell_type), POINTER                 :: cell_full
     TYPE(f_env_type), POINTER                :: f_env
 
+    failure = .FALSE.
     NULLIFY (f_env)
     CALL f_env_add_defaults(env_id,f_env,failure)
     NULLIFY (cell_full)
@@ -1039,6 +1038,7 @@ CPSourceFileRef,&
     TYPE(cp_subsys_type), POINTER            :: subsys
     TYPE(f_env_type), POINTER                :: f_env
 
+    failure = .FALSE.
     NULLIFY (f_env, subsys, results)
     CALL f_env_add_defaults(env_id,f_env,failure)
 
@@ -1082,6 +1082,7 @@ CPSourceFileRef,&
     LOGICAL                                  :: failure
     TYPE(f_env_type), POINTER                :: f_env
 
+    failure = .FALSE.
     NULLIFY (f_env)
     CALL f_env_add_defaults(env_id,f_env,failure)
     CALL force_env_get_frc(f_env%force_env,frc,n_el)
@@ -1112,6 +1113,7 @@ CPSourceFileRef,&
     TYPE(f_env_type), POINTER                :: f_env
     TYPE(virial_type), POINTER               :: virial
 
+    failure = .FALSE.
     NULLIFY (f_env, subsys, virial, cell)
     stress_tensor(:,:) = 0.0_dp
 
@@ -1146,6 +1148,7 @@ CPSourceFileRef,&
     LOGICAL                                  :: failure
     TYPE(f_env_type), POINTER                :: f_env
 
+    failure = .FALSE.
     NULLIFY (f_env)
     CALL f_env_add_defaults(env_id,f_env,failure)
     CALL force_env_get_pos(f_env%force_env,pos,n_el)
@@ -1174,6 +1177,7 @@ CPSourceFileRef,&
     LOGICAL                                  :: failure
     TYPE(f_env_type), POINTER                :: f_env
 
+    failure = .FALSE.
     NULLIFY (f_env)
     CALL f_env_add_defaults(env_id,f_env,failure)
     CALL force_env_get_vel(f_env%force_env,vel,n_el)
@@ -1202,6 +1206,7 @@ CPSourceFileRef,&
     TYPE(cp_subsys_type), POINTER            :: subsys
     TYPE(f_env_type), POINTER                :: f_env
 
+    failure = .FALSE.
     NULLIFY (f_env, cell, subsys)
     CALL f_env_add_defaults(env_id,f_env,failure)
     NULLIFY (cell)
@@ -1237,6 +1242,7 @@ CPSourceFileRef,&
     TYPE(cp_subsys_type), POINTER            :: subsys
     TYPE(f_env_type), POINTER                :: f_env
 
+    failure = .FALSE.
     NULLIFY (f_env)
     CALL f_env_add_defaults(env_id,f_env,failure)
     NULLIFY (subsys)
@@ -1268,6 +1274,7 @@ CPSourceFileRef,&
     TYPE(cp_subsys_type), POINTER            :: subsys
     TYPE(f_env_type), POINTER                :: f_env
 
+    failure = .FALSE.
     NULLIFY (f_env)
     CALL f_env_add_defaults(env_id,f_env,failure)
     NULLIFY (subsys)
@@ -1298,6 +1305,7 @@ CPSourceFileRef,&
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(f_env_type), POINTER                :: f_env
 
+    failure = .FALSE.
     NULLIFY (f_env)
     CALL f_env_add_defaults(env_id,f_env,failure)
     logger => cp_get_default_logger()
@@ -1326,6 +1334,7 @@ CPSourceFileRef,&
     LOGICAL                                  :: failure
     TYPE(f_env_type), POINTER                :: f_env
 
+    failure = .FALSE.
     NULLIFY (f_env)
     CALL f_env_add_defaults(env_id,f_env,failure)
     CALL force_env_get(f_env%force_env,potential_energy=e_pot)
@@ -1492,6 +1501,7 @@ CPSourceFileRef,&
     LOGICAL                                  :: failure
     TYPE(f_env_type), POINTER                :: f_env
 
+    failure = .FALSE.
     NULLIFY(f_env)
     CALL f_env_add_defaults(f_env_id,f_env,failure)
     CALL force_env_shake(f_env%force_env,&

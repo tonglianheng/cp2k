@@ -65,7 +65,6 @@ CONTAINS
 
     INTEGER                                  :: handle, iproc, nproc, nx, ny, &
                                                 nz
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: hx, hy, hz
 
     CALL timeset(routineN,handle)
@@ -99,12 +98,10 @@ CONTAINS
     IF (poisson_params%wavelet_method==WAVELET0D) THEN
        IF (hx.NE.hy) &
           CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
-               "Poisson solver for non cubic cells not yet implemented",&
-                failure=failure)
+               "Poisson solver for non cubic cells not yet implemented")
         IF(hz.NE.hy) &
            CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
-                "Poisson solver for non cubic cells not yet implemented",&
-                 failure=failure)
+                "Poisson solver for non cubic cells not yet implemented")
     END IF
 
     CALL RS_z_slice_distribution(wavelet,pw_grid)

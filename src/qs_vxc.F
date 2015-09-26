@@ -115,9 +115,8 @@ CONTAINS
 
     INTEGER                                  :: handle, ispin, myfun, &
                                                 nelec_spin(2), vdw
-    LOGICAL :: compute_virial, do_adiabatic_rescaling, failure, &
-      my_just_energy, rho_g_valid, sic_scaling_b_zero, tau_r_valid, uf_grid, &
-      vdW_nl
+    LOGICAL :: compute_virial, do_adiabatic_rescaling, my_just_energy, &
+      rho_g_valid, sic_scaling_b_zero, tau_r_valid, uf_grid, vdW_nl
     REAL(KIND=dp)                            :: exc_m, factor, &
                                                 my_adiabatic_rescale_factor, &
                                                 my_scaling, nelec_s_inv
@@ -189,7 +188,7 @@ CONTAINS
        CPASSERT(ASSOCIATED(rho_struct))
        CALL cp_assert( dft_control%nspins == 1 .OR. dft_control%nspins == 2,&
             cp_failure_level,cp_assertion_failed,routineP,&
-            "nspins must be 1 or 2",failure)
+            "nspins must be 1 or 2")
        ! there are some options related to SIC here.
        ! Normal DFT computes E(rho_alpha,rho_beta) (or its variant E(2*rho_alpha) for non-LSD)
        ! SIC can             E(rho_alpha,rho_beta)-b*(E(rho_alpha,rho_beta)-E(rho_beta,rho_beta))
@@ -211,7 +210,7 @@ CONTAINS
           ! NOTHING TO BE DONE
        CASE DEFAULT
           ! this case has not yet been treated here
-          CALL cp_assert(.FALSE., cp_failure_level,cp_assertion_failed,routineP,"NYI",failure)
+          CALL cp_assert(.FALSE., cp_failure_level,cp_assertion_failed,routineP,"NYI")
        END SELECT
 
        IF (dft_control%sic_scaling_b .EQ. 0.0_dp) THEN

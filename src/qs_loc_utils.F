@@ -317,7 +317,6 @@ CONTAINS
 #if defined(__SCALAPACK)
     INTEGER, DIMENSION(9)                    :: desc
 #endif
-    LOGICAL                                  :: failure
 
     CALL cp_fm_get_info(rmat, nrow_global=nstate)
 #if defined(__SCALAPACK)
@@ -355,7 +354,6 @@ CONTAINS
 #else
     INTEGER                                  :: stride
 #endif
-    LOGICAL                                  :: failure
 
     CALL cp_fm_get_info(zij(1,1)%matrix,nrow_global = nstate)
 

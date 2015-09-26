@@ -149,6 +149,7 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
+    failure = .FALSE.
     NULLIFY(f_env,subsys,particles, nose_section, gle_section)
 
     CPASSERT(.NOT.ASSOCIATED(pint_env))
@@ -581,8 +582,8 @@ CONTAINS
                                                 solute_with_helium_mid = 3
 
     INTEGER                                  :: handle, mode
-    LOGICAL                                  :: explicit, failure, &
-                                                helium_only, solvent_present
+    LOGICAL                                  :: explicit, helium_only, &
+                                                solvent_present
     TYPE(helium_solvent_type), POINTER       :: helium
     TYPE(pint_env_type), POINTER             :: pint_env
     TYPE(section_vals_type), POINTER         :: helium_section
@@ -660,8 +661,7 @@ CONTAINS
 
     CASE DEFAULT
       CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
-        routineP,"Unknown mode ("//TRIM(ADJUSTL(cp_to_string(mode)))//")",&
-        failure)
+        routineP,"Unknown mode ("//TRIM(ADJUSTL(cp_to_string(mode)))//")")
     END SELECT
 
 
@@ -686,13 +686,8 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'pint_init', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
     CPASSERT(ASSOCIATED(pint_env))
     CPASSERT(pint_env%ref_count>0)
-    IF ( failure ) THEN
-      RETURN
-    END IF
 
     CALL pint_init_x( pint_env)
     CALL pint_init_v( pint_env)
@@ -729,7 +724,7 @@ CONTAINS
     INTEGER                                  :: ia, ib, ic, idim, input_seed, &
                                                 n_rep_val
     LOGICAL                                  :: done_init, done_levy, &
-                                                done_rand, explicit, failure, &
+                                                done_rand, explicit, &
                                                 levycorr, ltmp
     REAL(kind=dp)                            :: tcorr, var
     REAL(kind=dp), DIMENSION(3)              :: x0
@@ -740,9 +735,6 @@ CONTAINS
 
     CPASSERT(ASSOCIATED(pint_env))
     CPASSERT(pint_env%ref_count>0)
-    IF ( failure ) THEN
-      RETURN
-    END IF
 
     DO idim = 1, pint_env%ndim
       DO ib=1,pint_env%p
@@ -833,7 +825,7 @@ CONTAINS
              cp_failure_level,cp_assertion_failed,&
              "Invalid size of MOTION%PINT%BEADS%COORD "//&
              CPSourceFileRef,&
-             routineP,failure)
+             routineP)
         ic=0
         DO idim=1,pint_env%ndim
           DO ib=1,pint_env%p
@@ -917,8 +909,7 @@ CONTAINS
                                                 itmp, n_rep_val
     LOGICAL                                  :: done_init, done_quench, &
                                                 done_scale, done_sped, &
-                                                explicit, failure, ltmp, &
-                                                vels_present
+                                                explicit, ltmp, vels_present
     REAL(kind=dp)                            :: actual_t, ek, rtmp, target_t, &
                                                 unit_conv
     REAL(kind=dp), DIMENSION(:), POINTER     :: r_vals
@@ -927,9 +918,6 @@ CONTAINS
 
     CPASSERT(ASSOCIATED(pint_env))
     CPASSERT(pint_env%ref_count>0)
-    IF ( failure ) THEN
-      RETURN
-    END IF
 
     NULLIFY(logger)
     logger => cp_get_default_logger()
@@ -957,8 +945,8 @@ CONTAINS
       CALL cp_assert(3*n_rep_val==pint_env%ndim,&
                      cp_failure_level, cp_assertion_failed,&
                      routineP//" from "//&
-CPSourceFileRef,&
-                     msg,failure)
+                     CPSourceFileRef,&
+                     msg)
       DO ia = 1, pint_env%ndim/3
         CALL section_vals_val_get(input_section, "_DEFAULT_KEYWORD_",&
              i_rep_val=ia, r_vals=r_vals)
@@ -970,8 +958,8 @@ CPSourceFileRef,&
         CALL cp_assert(itmp==3,&
                        cp_failure_level, cp_assertion_failed,&
                        routineP//" from "//&
-CPSourceFileRef,&
-                       msg,failure)
+                       CPSourceFileRef,&
+                       msg)
         DO ib = 1, pint_env%p
           DO ic = 1, 3
           idim = 3*(ia-1)+ic
@@ -1093,7 +1081,7 @@ CPSourceFileRef,&
                        cp_failure_level,cp_assertion_failed,&
                        "Invalid size of MOTION%PINT%BEAD%VELOCITY "//&
                        CPSourceFileRef,&
-                       routineP,failure)
+                       routineP)
         itmp=0
         DO idim=1,pint_env%ndim
           DO ib=1,pint_env%p
@@ -1163,16 +1151,13 @@ CPSourceFileRef,&
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: ib, idim, ii, inos, n_rep_val
-    LOGICAL                                  :: explicit, failure, gle_restart
+    LOGICAL                                  :: explicit, gle_restart
     REAL(kind=dp)                            :: mykt
     REAL(kind=dp), DIMENSION(:), POINTER     :: r_vals
     TYPE(section_vals_type), POINTER         :: input_section
 
     CPASSERT(ASSOCIATED(pint_env))
     CPASSERT(pint_env%ref_count>0)
-    IF ( failure ) THEN
-      RETURN
-    END IF
 
     IF(pint_env%pimd_thermostat==thermostat_nose) THEN
 
@@ -1203,7 +1188,7 @@ CPSourceFileRef,&
                          cp_failure_level,cp_assertion_failed,&
                          "Invalid size of MOTION%PINT%NOSE%COORD "//&
                          CPSourceFileRef,&
-                         routineP,failure)
+                         routineP)
           ii=0
           DO idim=1,pint_env%ndim
             DO ib=1,pint_env%p
@@ -1231,7 +1216,7 @@ CPSourceFileRef,&
                          cp_failure_level,cp_assertion_failed,&
                          "Invalid size of MOTION%PINT%NOSE%VELOCITY "//&
                          CPSourceFileRef,&
-                         routineP,failure)
+                         routineP)
           ii=0
           DO idim=1,pint_env%ndim
             DO ib=1,pint_env%p

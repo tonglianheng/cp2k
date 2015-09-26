@@ -599,8 +599,7 @@ CONTAINS
 
     INTEGER                                  :: i, idir, ispin, j, k, nspins
     INTEGER, DIMENSION(3, 3)                 :: nd, nd_laplace
-    LOGICAL                                  :: failure, gradient_f, &
-                                                my_rho_g_local, &
+    LOGICAL                                  :: gradient_f, my_rho_g_local, &
                                                 my_rho_r_local, needs_rho_g
     REAL(kind=dp)                            :: rho_cutoff
     TYPE(pw_p_type), DIMENSION(2)            :: my_rho_r
@@ -625,7 +624,7 @@ CONTAINS
     CPASSERT(rho_set%ref_count>0)
     CALL cp_assert(ALL(rho_set%local_bounds==pw_pool%pw_grid%bounds_local),&
          cp_failure_level,cp_assertion_failed,routineP,&
-         "pw_pool cr3d have different size than expected",failure)
+         "pw_pool cr3d have different size than expected")
     nspins = SIZE(rho_r)
     rho_set%local_bounds=rho_r(1)%pw%pw_grid%bounds_local
     rho_cutoff=0.5*rho_set%rho_cutoff

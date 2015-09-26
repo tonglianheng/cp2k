@@ -1118,7 +1118,7 @@ MODULE hfx_types
     CHARACTER(LEN=512)                       :: error_msg
     CHARACTER(LEN=default_path_length)       :: char_val, filename, orig_wd
     INTEGER                                  :: int_val, stat
-    LOGICAL                                  :: check, failure, logic_val
+    LOGICAL                                  :: check, logic_val
     REAL(dp)                                 :: real_val
 
     check = (PRESENT(storage_id).EQV.PRESENT(i_thread)) .AND.&
@@ -1178,8 +1178,7 @@ MODULE hfx_types
           WRITE(error_msg,'(A,A,A)') "Request for disk storage failed due to unknown error while writing to ",&
                TRIM(filename), ". Please check STORAGE_LOCATION"
           CALL cp_assert( .FALSE. , cp_failure_level,cp_assertion_failed,routineP,&
-               error_msg , &
-               failure)
+               error_msg)
        END IF
        CALL m_chdir(orig_wd,stat)
 

@@ -53,7 +53,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, ik, irk, Nlist, nloop
-    LOGICAL                                  :: check, failure
+    LOGICAL                                  :: check
     REAL(KIND=dp), DIMENSION(:), POINTER     :: vel
     TYPE(cp_sll_val_type), POINTER           :: new_pos, vals
     TYPE(section_type), POINTER              :: section
@@ -67,7 +67,7 @@ CONTAINS
     ik=section_get_keyword_index(section,"_DEFAULT_KEYWORD_")
     CALL cp_assert(ik/=-2,cp_failure_level,cp_assertion_failed,routineP,&
          "section "//TRIM(section%name)//" does not contain keyword "//&
-         "_DEFAULT_KEYWORD_",failure)
+         "_DEFAULT_KEYWORD_")
 
     ! At least one of the two arguments must be present..
     check = PRESENT(particles).NEQV.PRESENT(velocity)

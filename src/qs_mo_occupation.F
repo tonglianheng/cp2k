@@ -69,7 +69,7 @@ CONTAINS
                                                 homo_b, i, lfomo_a, lfomo_b, &
                                                 nmo_a, nmo_b, stat, xas_estate
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: all_index
-    LOGICAL                                  :: failure, is_large
+    LOGICAL                                  :: is_large
     REAL(KIND=dp)                            :: all_nelec, kTS, mu, nelec_a, &
                                                 nelec_b, occ_estate
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: all_eigval, all_occ
@@ -119,20 +119,18 @@ CONTAINS
     is_large=ABS(MAXVAL(all_occ)-1.0_dp)> smear%eps_fermi_dirac
     ! this is not a real problem, but the temperature might be a bit large
         CALL cp_assert(.NOT.is_large,cp_warning_level,cp_assertion_failed,routineP,&
-                       "Fermi-Dirac smearing includes the first MO",&
-                       failure)
+                       "Fermi-Dirac smearing includes the first MO")
 
     is_large=ABS(MINVAL(all_occ))> smear%eps_fermi_dirac
     CALL cp_assert(.NOT.is_large,cp_warning_level,cp_assertion_failed,routineP,&
                    "Fermi-Dirac smearing includes the last MO => "//&
-                    "Add more MOs for proper smearing.",failure)
+                    "Add more MOs for proper smearing.")
 
     ! check that the total electron count is accurate
     is_large=(ABS(all_nelec - accurate_sum(all_occ(:))) > smear%eps_fermi_dirac*all_nelec)
     CALL cp_assert(.NOT.is_large,&
                    cp_warning_level,cp_assertion_failed,routineP,&
-                   "Total number of electrons is not accurate",&
-                    failure)
+                   "Total number of electrons is not accurate")
 
     DO i = 1,all_nmo
        IF(all_index(i)<=nmo_a) THEN
@@ -207,7 +205,6 @@ CONTAINS
     INTEGER                                  :: handle, i, lumo_a, lumo_b, &
                                                 multiplicity_new, &
                                                 multiplicity_old, nelec
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: nelec_f, threshold
     REAL(KIND=dp), DIMENSION(:), POINTER     :: eigval_a, eigval_b
     TYPE(mo_set_type), POINTER               :: mo_set_a, mo_set_b
@@ -339,7 +336,7 @@ CONTAINS
                    "Multiplicity changed from "//&
                    TRIM(ADJUSTL(cp_to_string(multiplicity_old)))//" to "//&
                    TRIM(ADJUSTL(cp_to_string(multiplicity_new))),&
-                   only_ionode=.TRUE.,failure=failure)
+                   only_ionode=.TRUE.)
 
     IF (PRESENT(eval_deriv)) THEN
        CALL set_mo_occupation_1(mo_set_a,smear=smear,eval_deriv=eval_deriv)
@@ -378,7 +375,7 @@ CONTAINS
 
     INTEGER                                  :: handle, i_first, imo, nmo, &
                                                 nomo, xas_estate
-    LOGICAL                                  :: equal_size, failure, is_large
+    LOGICAL                                  :: equal_size, is_large
     REAL(KIND=dp)                            :: e1, e2, edelta, edist, &
                                                 el_count, lengthscale, nelec, &
                                                 occ_estate, xas_nelectron
@@ -506,8 +503,7 @@ CONTAINS
         is_large=ABS(MAXVAL(mo_set%occupation_numbers)-mo_set%maxocc)> smear%eps_fermi_dirac
         ! this is not a real problem, but the temperature might be a bit large
         CALL cp_assert(.NOT.is_large,cp_warning_level,cp_assertion_failed,routineP,&
-                       "Fermi-Dirac smearing includes the first MO",&
-                       failure)
+                       "Fermi-Dirac smearing includes the first MO")
 
         ! Find the highest (fractional) occupied MO which will be now the HOMO
         DO imo=nmo,mo_set%lfomo,-1
@@ -519,14 +515,13 @@ CONTAINS
         is_large=ABS(MINVAL(mo_set%occupation_numbers))> smear%eps_fermi_dirac
         CALL cp_assert(.NOT.is_large,cp_warning_level,cp_assertion_failed,routineP,&
                        "Fermi-Dirac smearing includes the last MO => "//&
-                       "Add more MOs for proper smearing.",failure)
+                       "Add more MOs for proper smearing.")
 
         ! check that the total electron count is accurate
         is_large=(ABS(nelec - accurate_sum(mo_set%occupation_numbers(:))) > smear%eps_fermi_dirac*nelec)
         CALL cp_assert(.NOT.is_large,&
                        cp_warning_level,cp_assertion_failed,routineP,&
-                       "Total number of electrons is not accurate",&
-                       failure)
+                       "Total number of electrons is not accurate")
 
       CASE (smear_energy_window)
         ! not implemented
@@ -535,13 +530,12 @@ CONTAINS
         ! Define the energy window for the eigenvalues
         e1 = mo_set%eigenvalues(mo_set%homo) - 0.5_dp*smear%window_size
         CALL cp_assert((e1 > mo_set%eigenvalues(1)),cp_warning_level,cp_assertion_failed,routineP,&
-                       "Energy window for smearing includes the first MO",&
-                       failure)
+                       "Energy window for smearing includes the first MO")
 
         e2 = mo_set%eigenvalues(mo_set%homo) + 0.5_dp*smear%window_size
         CALL cp_assert((e2 < mo_set%eigenvalues(nmo)),cp_warning_level,cp_assertion_failed,routineP,&
                        "Energy window for smearing includes the last MO => "//&
-                       "Add more MOs for proper smearing.",failure)
+                       "Add more MOs for proper smearing.")
 
         ! Find the lowest fractional occupied MO (LFOMO)
         DO imo=i_first,nomo

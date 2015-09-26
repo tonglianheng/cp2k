@@ -161,8 +161,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'decode_periodic_wavelet', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
     params%wavelet_special_dimension=0
 
     SELECT CASE (periodic)
@@ -178,8 +176,7 @@ CONTAINS
        params%wavelet_method=WAVELET3D
     CASE(use_perd_x,use_perd_y,use_perd_z,use_perd_xy,use_perd_yz)
        CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
-            "Poisson solver for this periodicity not yet implemented",&
-            failure=failure)
+            "Poisson solver for this periodicity not yet implemented")
     CASE DEFAULT
        CPASSERT(.FALSE.)
     END SELECT

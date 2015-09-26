@@ -81,7 +81,7 @@ CONTAINS
     INTEGER                                  :: default_id, end_c, handle, &
                                                 iatom, j, natom, output_unit, &
                                                 start_c, wrd
-    LOGICAL                                  :: explicit, failure, is_ok, &
+    LOGICAL                                  :: explicit, is_ok, &
                                                 my_overwrite, my_save_mem, &
                                                 scaled_coordinates
     REAL(KIND=dp)                            :: r0(3), unit_conv
@@ -152,8 +152,7 @@ CPSourceFileRef,&
              END DO
              CALL cp_assert(LEN_TRIM(line_att(start_c:end_c-1))/=0,cp_failure_level,&
                   cp_assertion_failed,routineP,&
-                  "incorrectly formatted line in coord section'"//line_att//"'",&
-                  failure)
+                  "incorrectly formatted line in coord section'"//line_att//"'")
              IF (wrd==1) THEN
                 atom_info%id_atmname(iatom)=str2id(s2s(line_att(start_c:end_c-1)))
              ELSE
@@ -208,7 +207,7 @@ CPSourceFileRef,&
                             "Incorrectly formatted input line for atom "//&
                             TRIM(ADJUSTL(cp_to_string(iatom)))//&
                             " found in COORD section. Input line: <"//&
-                            TRIM(line_att)//"> ",failure)
+                            TRIM(line_att)//"> ")
              SELECT CASE (wrd)
              CASE (1)
                 atom_info%id_atmname(iatom) = str2id(s2s(line_att(start_c:end_c-1)))
@@ -220,7 +219,7 @@ CPSourceFileRef,&
                                "Incorrectly formatted input line for atom "//&
                                TRIM(ADJUSTL(cp_to_string(iatom)))//&
                                " found in COORD section. "//TRIM(error_message)//&
-                               " Input line: <"//TRIM(line_att)//"> ",failure)
+                               " Input line: <"//TRIM(line_att)//"> ")
              CASE (5)
                 READ (line_att(start_c:end_c-1),*) strtmp
                 atom_info%id_molname(iatom) = str2id(strtmp)
@@ -294,7 +293,7 @@ CPSourceFileRef,&
                                                 nshell, output_unit, &
                                                 sh_index, start_c, wrd
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: at_index, at_index_c
-    LOGICAL :: core_scaled_coordinates, explicit, failure, is_ok, is_shell, &
+    LOGICAL :: core_scaled_coordinates, explicit, is_ok, is_shell, &
       my_save_mem, shell_scaled_coordinates
     REAL(KIND=dp)                            :: dab, mass_com, rab(3), &
                                                 unit_conv_core, &
@@ -362,8 +361,7 @@ CPSourceFileRef,&
             END DO
             CALL cp_assert(wrd==5.OR.end_c<LEN(line_att)+1,cp_failure_level,&
                  cp_assertion_failed,routineP,&
-                 "incorrectly formatted line in coord section'"//line_att//"'",&
-                 failure)
+                 "incorrectly formatted line in coord section'"//line_att//"'")
             IF (wrd==1) THEN
                at_name(ishell)=line_att(start_c:end_c-1)
                CALL uppercase(at_name(ishell))
@@ -416,8 +414,7 @@ CPSourceFileRef,&
                 END DO
                 CALL cp_assert(wrd==5.OR.end_c<LEN(line_att)+1,cp_failure_level,&
                      cp_assertion_failed,routineP,&
-                     "incorrectly formatted line in coord section'"//line_att//"'",&
-                     failure)
+                     "incorrectly formatted line in coord section'"//line_att//"'")
                 IF (wrd==1) THEN
                    at_name_c(ishell)=line_att(start_c:end_c-1)
                    CALL uppercase(at_name_c(ishell))
@@ -483,8 +480,7 @@ CPSourceFileRef,&
          ELSE
            CALL cp_assert(.FALSE.,cp_failure_level,&
                  cp_assertion_failed,routineP,&
-                 "shell coordinate assigned to the wrong atom. check the shell indexes in the input",&
-                 failure)
+                 "shell coordinate assigned to the wrong atom. check the shell indexes in the input")
          END IF
       END DO
       DEALLOCATE(r,at_index,at_name)

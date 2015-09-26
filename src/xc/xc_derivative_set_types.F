@@ -123,7 +123,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'xc_dset_create', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     TYPE(pw_grid_type), POINTER              :: pw_grid
 
     NULLIFY(pw_grid)
@@ -141,7 +140,7 @@ CONTAINS
        IF (PRESENT(local_bounds)) THEN
           CALL cp_assert(ALL(pw_pool%pw_grid%bounds_local==local_bounds),&
                cp_failure_level,cp_assertion_failed,routineP,&
-               "incompatible local_bounds and pw_pool",failure)
+               "incompatible local_bounds and pw_pool")
        END IF
     ELSE
        !FM ugly hack, should be replaced by a pool only for 3d arrays
