@@ -266,9 +266,10 @@ CONTAINS
     CALL timeset(routineN,handle)
 
     CALL C_F_PROCPOINTER(transport_env%ext_c_method_ptr, c_method)
-    CALL cp_assert(C_ASSOCIATED(transport_env%ext_c_method_ptr),cp_fatal_level,cp_assertion_failed,routineP,&
-                  "MISSING C/C++ ROUTINE: The TRANSPORT section is meant to be used together with an external "//&
-                  "program, e.g. the quantum transport code OMEN, that provides CP2K with a density matrix.")
+    IF(.NOT.C_ASSOCIATED(transport_env%ext_c_method_ptr))&
+       CALL cp_abort(__SHORT_FILE__,__LINE__,&
+            "MISSING C/C++ ROUTINE: The TRANSPORT section is meant to be used together with an external "//&
+            "program, e.g. the quantum transport code OMEN, that provides CP2K with a density matrix.")
 
     transport_env%params%n_occ = nelectron_spin
     transport_env%params%n_atoms = natoms
@@ -371,9 +372,7 @@ CONTAINS
     csr_interop_mat%ncols_total = csr_mat%ncols_total
     csr_interop_mat%nze_local = csr_mat%nze_local
     IF (csr_mat%nze_total>HUGE(csr_interop_mat%nze_total)) THEN
-        ! overflow in nze
-        CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
-             routineP,CPSourceFileRef)
+        CPABORT("overflow in nze")
     ENDIF
     csr_interop_mat%nze_total = INT(csr_mat%nze_total,KIND=KIND(csr_interop_mat%nze_total))
     csr_interop_mat%nrows_local = csr_mat%nrows_local
