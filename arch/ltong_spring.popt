@@ -10,7 +10,8 @@ CPPFLAGS =
 WFLAGS  = -Waliasing -Wampersand -Wc-binding-type -Wconversion\
           -Wintrinsic-shadow -Wintrinsics-std -Wline-truncation\
           -Wno-tabs -Wrealloc-lhs-all -Wtarget-lifetime -Wunderflow\
-          -Wunused-but-set-variable -Wunused-variable -Werror
+          -Wunused-but-set-variable -Wunused-variable\
+          -Werror -fsanitize=leak
 DFLAGS   = -D__GFORTRAN -D__FFTSG -D__FFTW3 -D__LIBINT -D__LIBXC -D__HAS_smm_dnn \
            -D__parallel -D__BLACS -D__SCALAPACK
 FCFLAGS  = -g -march=native -ffree-form -ffree-line-length-none -ffast-math \
