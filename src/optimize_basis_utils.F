@@ -82,9 +82,8 @@ CONTAINS
       CALL generate_initial_basis(kind_section,opt_bas,para_env)
       
       CALL section_vals_get(train_section,n_repetition=opt_bas%ntraining_sets)
-      CALL cp_assert(opt_bas%ntraining_sets/=0,cp_fatal_level,cp_assertion_failed,&
-                      routineP,"No training set was specified in the Input",&
-                      only_ionode=.TRUE.)
+      IF(opt_bas%ntraining_sets==0)&
+         CPABORT("No training set was specified in the Input")
        
       ALLOCATE(opt_bas%training_input(opt_bas%ntraining_sets))
       ALLOCATE(opt_bas%training_dir(opt_bas%ntraining_sets))
@@ -307,13 +306,15 @@ CONTAINS
           CALL section_vals_val_get(optbas_section,"GROUP_PARTITION",i_vals=i_vals)
           isize=SIZE(i_vals)
           nptot=SUM(i_vals)
-          CALL cp_assert(nptot==nproc,cp_fatal_level,cp_assertion_failed,&
-                       routineP,"Number of processors in group distribution does not match number of MPI tasks."//&
-                       " Please change input.",only_ionode=.TRUE.)
-          CALL cp_assert(isize.le.ncalc,cp_fatal_level,cp_assertion_failed,&
-                       routineP,"Number of Groups larger than number of calculations"//&
-                       " Please change input.",only_ionode=.TRUE.)
-          IF(nptot.NE.nproc)STOP
+          IF(nptot/=nproc)&
+             CALL cp_abort(__LOCATION__,&
+                  "Number of processors in group distribution does not match number of MPI tasks."//&
+                  " Please change input.")
+          IF(.NOT.isize.le.ncalc)&
+             CALL cp_abort(__LOCATION__,&
+                  "Number of Groups larger than number of calculations"//&
+                  " Please change input.")
+          CPASSERT(nptot==nproc)
           ALLOCATE(opt_bas%comp_group(isize))
           ALLOCATE(opt_bas%group_partition(0:isize-1))
           IF(isize.lt.ncalc)THEN
@@ -651,10 +652,9 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: ikind, variable_counter
-    LOGICAL                                  :: explicit, failure
+    LOGICAL                                  :: explicit
     TYPE(section_vals_type), POINTER         :: set_section
 
-      failure=.FALSE.
       CALL section_vals_get(kind_section,n_repetition=opt_bas%nkind)
       ALLOCATE(opt_bas%kind_basis(opt_bas%nkind))
 
@@ -787,24 +787,27 @@ CONTAINS
                      CALL set_constraint(flex_basis,iset,ipgf,const_section,is_bound,is_varlim,irep)
                   END DO
                ELSE 
-                  CALL cp_assert(def_exp(2).gt.flex_basis%subset(iset)%nexp,cp_fatal_level,cp_assertion_failed,&
-                       routineP,"Exponent declared in constraint is larger than number of exponents in the set"//&
-                       " Please change input.",only_ionode=.TRUE.)
+                  IF(def_exp(2).LE.flex_basis%subset(iset)%nexp)&
+                     CALL cp_abort(__LOCATION__,&
+                          "Exponent declared in constraint is larger than number of exponents in the set"//&
+                          " Please change input.")
                   CALL set_constraint(flex_basis,iset,def_exp(2),const_section,is_bound,is_varlim,irep)
                END IF
             END DO
          ELSE
-            CALL cp_assert(def_exp(1).le.flex_basis%nsets,cp_fatal_level,cp_assertion_failed,&
-                   routineP,"Set number of constraint is larger than number of sets in the template basis set."//&
-                  " Please change input.",only_ionode=.TRUE.)
+            IF(.NOT.def_exp(1).le.flex_basis%nsets)&
+               CALL cp_abort(__LOCATION__,&
+                    "Set number of constraint is larger than number of sets in the template basis set."//&
+                    " Please change input.")
             IF(def_exp(2)==-1)THEN
                DO ipgf=1,flex_basis%subset(iset)%nexp
                   CALL set_constraint(flex_basis,def_exp(1),ipgf,const_section,is_bound,is_varlim,irep)
                END DO
             ELSE
-               CALL cp_assert(def_exp(2).le.flex_basis%subset(def_exp(1))%nexp,cp_fatal_level,cp_assertion_failed,&
-                       routineP,"Exponent declared in constraint is larger than number of exponents in the set"//&
-                       " Please change input.",only_ionode=.TRUE.)
+               IF(.NOT.def_exp(2).le.flex_basis%subset(def_exp(1))%nexp)&
+                  CALL cp_abort(__LOCATION__,&
+                       "Exponent declared in constraint is larger than number of exponents in the set"//&
+                       " Please change input.")
                 CALL set_constraint(flex_basis,def_exp(1),def_exp(2),const_section,is_bound,is_varlim,irep)
             END IF
          END IF
@@ -838,9 +841,10 @@ CONTAINS
     REAL(KIND=dp)                            :: r_val
     REAL(KIND=dp), DIMENSION(:), POINTER     :: r_vals
 
-      CALL cp_assert(.NOT.flex_basis%subset(iset)%exp_has_const(ipgf),cp_fatal_level,cp_assertion_failed,&
-            routineP,"Multiple constraints due to collision in CONSTRAIN_EXPONENTS."//&
-            " Please change input.",only_ionode=.TRUE.)
+      IF(flex_basis%subset(iset)%exp_has_const(ipgf))&
+         CALL cp_abort(__LOCATION__,&
+              "Multiple constraints due to collision in CONSTRAIN_EXPONENTS."//&
+              " Please change input.")
       flex_basis%subset(iset)%exp_has_const(ipgf)=.TRUE.
       IF(is_bound)THEN
          flex_basis%subset(iset)%exp_const(ipgf)%const_type=0
@@ -849,11 +853,11 @@ CONTAINS
          flex_basis%subset(iset)%exp_const(ipgf)%ulim=MAXVAL(r_vals)
          r_val=flex_basis%subset(iset)%exps(ipgf)
          IF(flex_basis%subset(iset)%exps(ipgf).gt.MAXVAL(r_vals).OR.flex_basis%subset(iset)%exps(ipgf).lt.MINVAL(r_vals))&
-         CALL cp_assert(.FALSE.,cp_fatal_level,cp_assertion_failed,&
-                       routineP,"Exponent "//cp_to_string(r_val)//&
-                       " declared in constraint is out of bounds of constraint"//cp_to_string(MINVAL(r_vals))//&
-                       " to"// cp_to_string(MAXVAL(r_vals))//&
-                       " Please change input.",only_ionode=.TRUE.)
+         CALL cp_abort(__LOCATION__,&
+              "Exponent "//cp_to_string(r_val)//&
+              " declared in constraint is out of bounds of constraint"//cp_to_string(MINVAL(r_vals))//&
+              " to"// cp_to_string(MAXVAL(r_vals))//&
+              " Please change input.")
          flex_basis%subset(iset)%exp_const(ipgf)%init=SUM(r_vals)/2.0_dp
          flex_basis%subset(iset)%exp_const(ipgf)%var_fac=MAXVAL(r_vals)/flex_basis%subset(iset)%exp_const(ipgf)%init-1.0_dp
       END IF
@@ -948,9 +952,7 @@ CONTAINS
          CASE(do_opt_exps)
             flex_basis%subset(iset)%opt_exps=.TRUE.
          CASE DEFAULT
-            CALL cp_assert(.FALSE.,cp_fatal_level,cp_assertion_failed,&
-                      routineP,"No initialization available?????",&
-                      only_ionode=.TRUE.)
+            CPABORT("No initialization available?????")
          END SELECT
       END DO
 
@@ -1000,9 +1002,7 @@ CONTAINS
                        .NOT.flex_basis%subset(switch(2))%opt_coeff(ipgf,icont)
                END DO
             CASE DEFAULT
-               CALL cp_assert(.FALSE.,cp_fatal_level,cp_assertion_failed,&
-                         routineP,"Invalid option in SWITCH_SET_STATE, 1st value has to be 0, 1 or 2",&
-                         only_ionode=.TRUE.)
+               CPABORT("Invalid option in SWITCH_SET_STATE, 1st value has to be 0, 1 or 2")
             END SELECT
          END DO
       END DO

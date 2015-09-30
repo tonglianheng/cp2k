@@ -76,10 +76,8 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i
-    LOGICAL                                  :: failure
     TYPE(section_vals_type), POINTER         :: se_mem_section
 
-    failure = .FALSE.
     CPASSERT(.NOT.ASSOCIATED(store_int_env))
     ALLOCATE (store_int_env)
     store_int_env%filling_containers = .TRUE.
@@ -102,10 +100,8 @@ CONTAINS
     END IF
 
     ! Disk Storage disabled for semi-empirical methods
-    CALL cp_assert(.NOT.store_int_env%memory_parameter%do_disk_storage,cp_failure_level,&
-         cp_assertion_failed,routineP,"Disk storage for SEMIEMPIRICAL methods disabled! "//&
-CPSourceFileRef,&
-         only_ionode=.TRUE.)
+    IF(store_int_env%memory_parameter%do_disk_storage)&
+       CPABORT("Disk storage for SEMIEMPIRICAL methods disabled! ")
 
     ! Allocate containers/caches for integral storage if requested
     IF(.NOT.store_int_env%memory_parameter%do_all_on_the_fly.AND.store_int_env%compress) THEN
@@ -137,9 +133,7 @@ CPSourceFileRef,&
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i
-    LOGICAL                                  :: failure
 
-    failure = .FALSE.
     IF (ASSOCIATED(store_int_env)) THEN
        ! Deallocate containers/caches
        IF(.NOT.store_int_env%memory_parameter%do_all_on_the_fly) THEN
@@ -183,9 +177,7 @@ CPSourceFileRef,&
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i
-    LOGICAL                                  :: failure
 
-    failure = .FALSE.
     IF (ASSOCIATED(store_int_env)) THEN
        IF(.NOT.store_int_env%memory_parameter%do_all_on_the_fly) THEN
           IF (geometry_did_change) THEN
@@ -240,9 +232,7 @@ CPSourceFileRef,&
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i
-    LOGICAL                                  :: failure
 
-    failure = .FALSE.
     IF (ASSOCIATED(store_int_env)) THEN
        IF(.NOT.store_int_env%memory_parameter%do_all_on_the_fly) THEN
           IF (geometry_did_change) THEN

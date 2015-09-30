@@ -101,8 +101,7 @@ MODULE helium_methods
                                                 itmp, j, jtmp, nlines, ntab
     LOGICAL                                  :: cell_shape_supported, &
                                                 expl_cell, expl_dens, &
-                                                expl_nats, explicit, failure, &
-                                                ltmp
+                                                expl_nats, explicit, ltmp
     REAL(KIND=dp)                            :: cgeof, dx, rtmp, tcheck, x1
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: pot_transfer
@@ -111,7 +110,6 @@ MODULE helium_methods
 
     CALL timeset(routineN,handle)
 
-    failure=.FALSE.
 
     CPASSERT(.NOT.ASSOCIATED(helium))
     CPASSERT(ASSOCIATED(input))
@@ -195,8 +193,7 @@ MODULE helium_methods
         msg_str = "DROP_UNUSED_ENVS set - proceeding anyways."
         CALL helium_write_line(msg_str)
       ELSE
-        CALL cp_assert( .FALSE., cp_failure_level, &
-             cp_assertion_failed, routineP, msg_str )
+        CPABORT(msg_str)
       END IF
     END IF
 
@@ -245,8 +242,7 @@ MODULE helium_methods
         msg_str = "PBC cell shape " // &
                   TRIM(ADJUSTL(stmp)) // &
                   " not supported for HELIUM"
-        CALL cp_assert( .FALSE., cp_failure_level, &
-          cp_assertion_failed, routineP, msg_str )
+        CPABORT(msg_str)
       END IF
     ELSE
       helium%cell_shape = helium_cell_shape_none
@@ -281,8 +277,7 @@ MODULE helium_methods
            IF ( expl_dens .AND. expl_nats ) THEN
               msg_str = "DENSITY, NATOMS and CELL_SIZE options "//&
                         "contradict each other"
-              CALL cp_assert( .FALSE., cp_failure_level, &
-                   cp_assertion_failed, routineP, msg_str )
+              CPABORT(msg_str)
            END IF
            !ok we have enough freedom to resolve the conflict:
            IF ( .NOT. expl_dens ) THEN
@@ -369,8 +364,7 @@ MODULE helium_methods
     rtmp = 2**(ANINT(LOG(REAL(itmp))/LOG(2.0_dp)))
     tcheck=ABS(REAL(itmp,KIND=dp)-rtmp)
     msg_str = "BISECTION should be integer power of 2."
-    CALL cp_assert(tcheck<100.0_dp*EPSILON(0.0_dp),cp_failure_level,&
-         cp_assertion_failed, routineP, msg_str)
+    IF(tcheck>=100.0_dp*EPSILON(0.0_dp)) CPABORT(msg_str)
     helium%bisctlog2 = NINT(LOG(REAL(itmp,KIND=dp))/LOG(2.0_dp))
 
     ! hard coded He4 directly (mass so i get my original hb2m value)
@@ -521,8 +515,7 @@ MODULE helium_methods
         CALL helium_densities_restore( helium)
       ELSE
         msg_str = "Inconsistent input: densities not calculated but restarted!"
-        CALL cp_assert(.FALSE.,cp_failure_level,&
-             cp_assertion_failed, routineP, msg_str)
+        CPABORT(msg_str)
       END IF
     END IF
 
@@ -552,8 +545,7 @@ MODULE helium_methods
       ! check if tau, temperature and bead number are consistent:
       tcheck=ABS( (helium%tau*helium%beads-solute%beta) / solute%beta )
       msg_str = "Tau, temperature and bead number are inconsistent."
-      CALL cp_assert(tcheck<1.0e-14_dp,cp_failure_level,&
-        cp_assertion_failed, routineP, msg_str)
+      IF(tcheck>=1.0e-14_dp) CPABORT(msg_str)
 
       CALL helium_set_solute_indices(helium,solute)
       CALL helium_set_solute_cell(helium,solute)
@@ -706,9 +698,6 @@ MODULE helium_methods
     CHARACTER(len=*), PARAMETER :: routineN = 'helium_retain', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-    failure=.FALSE.
     CPASSERT(ASSOCIATED(helium))
     CPASSERT(helium%ref_count>0)
     helium%ref_count=helium%ref_count+1
@@ -738,13 +727,11 @@ MODULE helium_methods
 
     INTEGER                                  :: handle
     LOGICAL                                  :: coords_presampled, explicit, &
-                                                explicit_presample, failure, &
-                                                presample
+                                                explicit_presample, presample
     TYPE(section_vals_type), POINTER         :: helium_section, sec
 
     CALL timeset(routineN,handle)
 
-    failure = .FALSE.
     CPASSERT(ASSOCIATED(helium))
     CPASSERT(ASSOCIATED(helium%input))
 
@@ -876,10 +863,8 @@ MODULE helium_methods
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: ia, ib, ic
-    LOGICAL                                  :: failure
     REAL(kind=dp)                            :: r1, r2
 
-    failure=.FALSE.
     CPASSERT(ASSOCIATED(helium))
 
     DO ia = 1, helium%atoms
@@ -918,14 +903,12 @@ MODULE helium_methods
     CHARACTER(len=default_string_length)     :: err_str, stmp
     INTEGER                                  :: actlen, msglen, &
                                                 num_env_restart, offset
-    LOGICAL                                  :: failure
     LOGICAL, DIMENSION(:, :, :), POINTER     :: m
     REAL(kind=dp), DIMENSION(:), POINTER     :: message
     REAL(kind=dp), DIMENSION(:, :, :), &
       POINTER                                :: f
     TYPE(cp_logger_type), POINTER            :: logger
 
-    failure=.FALSE.
     CPASSERT(ASSOCIATED(helium))
 
     NULLIFY(logger)
@@ -1000,9 +983,6 @@ MODULE helium_methods
     CHARACTER(len=*), PARAMETER :: routineN = 'helium_force_init', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-    failure=.FALSE.
     CPASSERT(ASSOCIATED(helium))
 
     IF ( helium%solute_present ) THEN
@@ -1031,12 +1011,10 @@ MODULE helium_methods
     CHARACTER(len=default_string_length)     :: err_str, stmp
     INTEGER                                  :: actlen, msglen, &
                                                 num_env_restart
-    LOGICAL                                  :: failure
     LOGICAL, DIMENSION(:, :), POINTER        :: m
     REAL(kind=dp), DIMENSION(:), POINTER     :: message
     REAL(kind=dp), DIMENSION(:, :), POINTER  :: f
 
-    failure=.FALSE.
     CPASSERT(ASSOCIATED(helium))
 
     ! assign the pointer to the memory location of the input structure, where
@@ -1062,8 +1040,7 @@ MODULE helium_methods
     WRITE(stmp,*) msglen
     err_str = TRIM(ADJUSTL(err_str)) // &
               TRIM(ADJUSTL(stmp)) // "'."
-    CALL cp_assert(actlen==msglen,cp_failure_level,&
-         cp_assertion_failed, routineP, err_str)
+    IF(actlen/=msglen) CPABORT(err_str)
 
     ! restore forces on all processors (no message passing)
     NULLIFY(m,f)
@@ -1097,9 +1074,7 @@ MODULE helium_methods
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: ia
-    LOGICAL                                  :: failure
 
-    failure=.FALSE.
     CPASSERT(ASSOCIATED(helium))
 
     DO ia = 1, helium%atoms
@@ -1132,10 +1107,8 @@ MODULE helium_methods
     INTEGER                                  :: actlen, ia, ic, msglen, &
                                                 num_env_restart, offset
     INTEGER, DIMENSION(:), POINTER           :: message
-    LOGICAL                                  :: failure
     TYPE(cp_logger_type), POINTER            :: logger
 
-    failure=.FALSE.
     CPASSERT(ASSOCIATED(helium))
 
     NULLIFY(logger)
@@ -1201,8 +1174,7 @@ MODULE helium_methods
     WRITE(stmp,*) msglen
     err_str = TRIM(ADJUSTL(err_str)) // &
               TRIM(ADJUSTL(stmp)) // ")."
-    CALL cp_assert(ic==msglen,cp_failure_level,&
-         cp_assertion_failed, routineP, err_str)
+    IF(ic/=msglen) CPABORT(err_str)
 
     NULLIFY(message)
 
@@ -1225,11 +1197,9 @@ MODULE helium_methods
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: rank
-    LOGICAL                                  :: failure
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(rng_stream_type), POINTER           :: next_rngs, prev_rngs
 
-    failure=.FALSE.
     CPASSERT(ASSOCIATED(helium))
 
     NULLIFY(logger)
@@ -1316,7 +1286,7 @@ MODULE helium_methods
     CHARACTER(len=default_string_length)     :: err_str, stmp
     INTEGER                                  :: actlen, msglen, &
                                                 num_env_restart, offset, rank
-    LOGICAL                                  :: failure, lbf
+    LOGICAL                                  :: lbf
     LOGICAL, DIMENSION(3, 2)                 :: m
     REAL(kind=dp)                            :: bf, bu
     REAL(kind=dp), DIMENSION(3, 2)           :: bg, cg, f, ig
@@ -1324,7 +1294,6 @@ MODULE helium_methods
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(rng_stream_type), POINTER           :: next_rngs, prev_rngs
 
-    failure=.FALSE.
     CPASSERT(ASSOCIATED(helium))
 
     NULLIFY(logger)
@@ -1551,8 +1520,7 @@ MODULE helium_methods
                 TRIM(ADJUSTL(stmp1)) // &
                 ") .NE. that in the runtime (" // &
                 TRIM(ADJUSTL(stmp2)) // ")."
-      CALL cp_assert(.FALSE.,cp_failure_level,&
-           cp_assertion_failed, routineP, err_str)
+      CPABORT(err_str)
     END IF
 
     itmp = helium%rho_nbin

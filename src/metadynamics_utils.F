@@ -94,7 +94,7 @@ CONTAINS
                                                 n_colvar, n_rep, &
                                                 number_allocated_colvars
     INTEGER, DIMENSION(:), POINTER           :: walkers_status
-    LOGICAL                                  :: check, explicit, failure
+    LOGICAL                                  :: check, explicit
     REAL(kind=dp)                            :: dt
     TYPE(cp_subsys_type), POINTER            :: subsys
     TYPE(section_vals_type), POINTER         :: md_section, metadyn_section, &
@@ -104,7 +104,6 @@ CONTAINS
     NULLIFY(subsys)
     CALL timeset(routineN,handle)
 
-    failure = .FALSE.
     CALL section_vals_get(fe_section,explicit=explicit)
     IF (explicit) THEN
        number_allocated_colvars = 0
@@ -142,22 +141,21 @@ CONTAINS
        CALL section_vals_val_get(metadyn_section,"LAGRANGE",l_val=meta_env%extended_lagrange)
        CALL section_vals_val_get(metadyn_section,"TAMCSteps",i_val=meta_env%TAMCSteps)
        IF (meta_env%TAMCSteps<0) THEN
-          CALL cp_assert(.FALSE.,cp_fatal_level,cp_assertion_failed,routineP,&
-             "TAMCSteps must be positive!",only_ionode=.TRUE.)
+          CPABORT("TAMCSteps must be positive!")
        ENDIF
        CALL section_vals_val_get(metadyn_section,"Timestep",r_val=meta_env%zdt)
        IF (meta_env%zdt<=0.0_dp) THEN
-          CALL cp_assert(.FALSE.,cp_fatal_level,cp_assertion_failed,routineP,&
-             "Timestep must be positive!",only_ionode=.TRUE.)
+          CPABORT("Timestep must be positive!")
        ENDIF
        CALL section_vals_val_get(metadyn_section,"WW",r_val=meta_env%hills_env%ww)
        CALL section_vals_val_get(metadyn_section,"NT_HILLS",i_val=meta_env%hills_env%nt_hills)
        CALL section_vals_val_get(metadyn_section,"MIN_NT_HILLS",i_val=meta_env%hills_env%min_nt_hills)
        IF (meta_env%hills_env%nt_hills<=0) THEN
           meta_env%hills_env%min_nt_hills=meta_env%hills_env%nt_hills
-          CALL cp_assert(.FALSE.,cp_warning_level,cp_assertion_failed,routineP,&
-                "NT_HILLS has a value <= 0; Setting MIN_NT_HILLS to the same value! Overriding input specification!",&
-                only_ionode=.TRUE.)
+          CALL cp_warn(__LOCATION__,&
+               "NT_HILLS has a value <= 0; "//&
+               "Setting MIN_NT_HILLS to the same value! "//&
+               "Overriding input specification!")
        END IF
        check=meta_env%hills_env%nt_hills>=meta_env%hills_env%min_nt_hills
        CALL cp_assert(check,cp_fatal_level,cp_assertion_failed,routineP,&
@@ -215,7 +213,7 @@ CONTAINS
                "Specified COLVAR #("//TRIM(ADJUSTL(cp_to_string(meta_env%metavar(i)%icolvar)))//") "//&
                "is larger than the maximum number of COLVARS defined in the SUBSYS ("//&
                TRIM(ADJUSTL(cp_to_string(number_allocated_colvars)))//") !"//&
-CPSourceFileRef,&
+__LOCATION__,&
                only_ionode=.TRUE.)
        END DO
 
@@ -244,7 +242,7 @@ CPSourceFileRef,&
                   "size of the WALKERS_STATUS. Please check your input and in case "//&
                   "this is a restart run consider the possibility to switch off the "//&
                   "RESTART_WALKERS in the EXT_RESTART section! "//&
-CPSourceFileRef,&
+__LOCATION__,&
                   only_ionode=.TRUE.)
              meta_env%multiple_walkers%walkers_status = walkers_status
           ELSE
@@ -261,7 +259,7 @@ CPSourceFileRef,&
                "number of Walkers File names provided. Please check your input and in case "//&
                "this is a restart run consider the possibility to switch off the "//&
                "RESTART_WALKERS in the EXT_RESTART section! "//&
-CPSourceFileRef,&
+__LOCATION__,&
                only_ionode=.TRUE.)
           DO i = 1, n_rep
              CALL section_vals_val_get(walkers_section,"WALKERS_FILE_NAME%_DEFAULT_KEYWORD_",&
@@ -449,12 +447,10 @@ CPSourceFileRef,&
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, i, n_walls
-    LOGICAL                                  :: failure
     TYPE(section_vals_type), POINTER         :: wall_section, work_section
 
     CALL timeset(routineN,handle)
 
-    failure=.FALSE.
     CALL section_vals_val_get(metavar_section,"COLVAR",i_rep_section=icol,i_val=metavar%icolvar)
     CALL section_vals_val_get(metavar_section,"SCALE",i_rep_section=icol,r_val=metavar%delta_s)
     ! Walls
@@ -531,7 +527,7 @@ CPSourceFileRef,&
     CHARACTER(LEN=default_path_length)       :: filename, tmpname
     INTEGER                                  :: delta_hills, handle, i, &
                                                 i_hills, ih, iw, unit_nr
-    LOGICAL                                  :: exist, failure
+    LOGICAL                                  :: exist
     REAL(KIND=dp)                            :: invdt, ww
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: delta_s_save, ss0_save
     REAL(KIND=dp), ALLOCATABLE, &
@@ -541,7 +537,6 @@ CPSourceFileRef,&
 
     CALL timeset(routineN,handle)
 
-    failure = .FALSE.
     logger  => cp_get_default_logger()
     para_env => logger%para_env
 
@@ -680,13 +675,13 @@ CPSourceFileRef,&
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, i
-    LOGICAL                                  :: failure, wtcontrol
+    LOGICAL                                  :: wtcontrol
     REAL(KIND=dp), DIMENSION(:), POINTER     :: tnp
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: tmp
 
     CALL timeset(routineN,handle)
 
-    failure = .FALSE.; wtcontrol=PRESENT(invdt)
+    wtcontrol=PRESENT(invdt)
     NULLIFY(tmp, tnp)
     IF(SIZE(hills_env%ss_history,2)< n_hills+1)THEN
        ALLOCATE(tmp(n_colvar,n_hills+100))
@@ -764,14 +759,14 @@ CPSourceFileRef,&
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, i, j, ndum
-    LOGICAL                                  :: explicit, failure, wtcontrol
+    LOGICAL                                  :: explicit, wtcontrol
     REAL(KIND=dp)                            :: rval
     REAL(KIND=dp), DIMENSION(:), POINTER     :: rvals
     TYPE(section_vals_type), POINTER         :: hills_history
 
     CALL timeset(routineN,handle)
 
-    failure = .FALSE.; wtcontrol=PRESENT(invdt_history)
+    wtcontrol=PRESENT(invdt_history)
     NULLIFY(rvals)
     hills_history => section_vals_get_subs_vals(metadyn_section,"SPAWNED_HILLS_POS")
     CALL section_vals_get(hills_history, explicit=explicit)
@@ -813,11 +808,9 @@ CPSourceFileRef,&
              delta_s_history(1:n_colvar,i)=rvals
           END DO
        ELSE
-          CALL cp_assert(.FALSE.,cp_warning_level,cp_assertion_failed,routineP,&
+          CALL cp_warn(__LOCATION__,&
                "Section SPAWNED_HILLS_SCALE is not present! Setting the scales of the"//&
-               "restarted hills according the parameters specified in the input file. "//&
-CPSourceFileRef,&
-               only_ionode=.TRUE.)
+               "restarted hills according the parameters specified in the input file. ")
           DO i = 1, n_hills
              DO j = 1, n_colvar
                 delta_s_history(j,i) = colvars(i)%delta_s
@@ -839,11 +832,9 @@ CPSourceFileRef,&
              ww_history(i)=rval
           END DO
        ELSE
-          CALL cp_assert(.FALSE.,cp_warning_level,cp_assertion_failed,routineP,&
+          CALL cp_warn(__LOCATION__,&
                "Section SPAWNED_HILLS_HEIGHT is not present! Setting the height of the"//&
-               " restarted hills according the parameters specified in the input file. "//&
-CPSourceFileRef,&
-               only_ionode=.TRUE.)
+               " restarted hills according the parameters specified in the input file. ")
           ww_history = ww
        END IF
        !
@@ -862,20 +853,16 @@ CPSourceFileRef,&
                 invdt_history(i)=rval
              END DO
           ELSE
-             CALL cp_assert(.FALSE.,cp_warning_level,cp_assertion_failed,routineP,&
+             CALL cp_warn(__LOCATION__,&
                   "Section SPAWNED_HILLS_INVDT is not present! Restarting from standard"//&
-                  " metadynamics run i.e. setting 1/(Delta T) equal to zero. "//&
-CPSourceFileRef,&
-               only_ionode=.TRUE.)
+                  " metadynamics run i.e. setting 1/(Delta T) equal to zero. ")
              invdt_history = 0._dp
           END IF
        ELSE
           IF (explicit) THEN
-             CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
-                     "Found section SPAWNED_HILLS_INVDT while restarting a standard metadynamics run..."//&
-                     " Cannot restart metadynamics from well-tempered MetaD runs. "//&
-CPSourceFileRef,&
-                  only_ionode=.TRUE.)
+             CALL cp_abort(__LOCATION__,&
+                  "Found section SPAWNED_HILLS_INVDT while restarting a standard metadynamics run..."//&
+                  " Cannot restart metadynamics from well-tempered MetaD runs. ")
           END IF
        END IF
     ENDIF
@@ -919,13 +906,11 @@ CPSourceFileRef,&
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: ih, iwall
-    LOGICAL                                  :: failure
     REAL(dp)                                 :: ddp, delta_s, dfunc, diff_ss, &
                                                 dp2, efunc, ww
     TYPE(metavar_type), DIMENSION(:), &
       POINTER                                :: colvars
 
-    failure = .FALSE.
     colvars => meta_env%metavar
     ! Forces from the Walls
     DO ih=1,SIZE(colvars)

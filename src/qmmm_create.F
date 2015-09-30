@@ -203,8 +203,7 @@ CONTAINS
        qmmm_env_qm%center_qm_subsys  = .TRUE.
        qmmm_env_qm%center_qm_subsys0  = .TRUE.
     ELSE
-       CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
-            "Unknown type of CENTER! "//CPSourceFileRef, only_ionode=.TRUE.)
+       CPABORT("Unknown type of CENTER! ")
     ENDIF
 
     CALL section_vals_val_get(qmmm_section,"CENTER_TYPE",i_val=center_i)
@@ -229,11 +228,11 @@ CONTAINS
     IF (explicit.and.use_multipole==do_multipole_section_on) qmmm_env_qm%multipole = .TRUE.
     IF (qmmm_env_qm%periodic.and.qmmm_env_qm%multipole) CALL cite_reference(Laino2006)
     IF (qmmm_coupl_type == do_qmmm_none) THEN
-       CALL cp_assert(.NOT.qmmm_env_qm%periodic,cp_warning_level,cp_assertion_failed,routineP,&
-            "QMMM periodic calculation with coupling NONE was requested! "//&
-            "Switching off the periodic keyword since periodic and non-periodic "//&
-            "calculation with coupling NONE represent the same method! "//&
-            CPSourceFileRef,only_ionode=.TRUE.)
+       IF(qmmm_env_qm%periodic)&
+          CALL cp_warn(__LOCATION__,&
+               "QMMM periodic calculation with coupling NONE was requested! "//&
+               "Switching off the periodic keyword since periodic and non-periodic "//&
+               "calculation with coupling NONE represent the same method! ")
        qmmm_env_qm%periodic = .FALSE.
     END IF
 

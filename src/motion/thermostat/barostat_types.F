@@ -84,11 +84,10 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'create_barostat_type', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: check, explicit, failure
+    LOGICAL                                  :: check, explicit
     TYPE(cell_type), POINTER                 :: cell
     TYPE(section_vals_type), POINTER         :: barostat_section
 
-    failure =.FALSE.
     check = .NOT.ASSOCIATED(barostat)
     CPASSERT(check)
     barostat_section => section_vals_get_subs_vals(md_section,"BAROSTAT")
@@ -124,13 +123,13 @@ CONTAINS
        check = barostat%virial_components == do_clv_xyz .OR. simpar%ensemble == npt_f_ensemble
        CALL cp_assert(check,cp_failure_level,cp_assertion_failed,routineP,&
           "The screening of the components of the virial is available only with the NPT_F ensemble!"//&
-CPSourceFileRef,&
+__LOCATION__,&
           only_ionode=.TRUE.)
     ELSE
        CALL cp_assert(.NOT.explicit,cp_warning_level,cp_assertion_failed,routineP,&
           "A barostat has been defined with an MD ensemble which does not support barostat! "//&
           "It's definition will be ignored!"//&
-CPSourceFileRef,&
+__LOCATION__,&
           only_ionode=.TRUE.)
     END IF
 
@@ -148,10 +147,6 @@ CPSourceFileRef,&
 
     CHARACTER(len=*), PARAMETER :: routineN = 'retain_barostat_type', &
       routineP = moduleN//':'//routineN
-
-    LOGICAL                                  :: failure
-
-    failure=.FALSE.
 
     IF (ASSOCIATED(barostat)) THEN
        CPASSERT(barostat%ref_count>0)
@@ -172,9 +167,8 @@ CPSourceFileRef,&
     CHARACTER(len=*), PARAMETER :: routineN = 'release_barostat_type', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: check, failure
+    LOGICAL                                  :: check
 
-    failure =.FALSE.
     IF (ASSOCIATED(barostat)) THEN
        check = barostat%ref_count>0
        CPASSERT(check)

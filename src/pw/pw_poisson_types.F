@@ -204,7 +204,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: dim, i, ig, iz, n, nz
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: g2, g3d, gg, gxy, gz, j0g, &
                                                 j1g, k0g, k1g, rlength, &
                                                 zlength
@@ -213,7 +212,6 @@ CONTAINS
     TYPE(pw_pool_type), POINTER              :: pw_pool_xpndd
     TYPE(pw_type), POINTER                   :: dct_gf, gf
 
-    failure = .FALSE.
     CPASSERT(.NOT.(ASSOCIATED(green)))
     ALLOCATE(green)
     green%p3m=.FALSE.
@@ -239,7 +237,7 @@ CONTAINS
     NULLIFY (green%dct_influence_fn)
     NULLIFY (green%screen_fn)
 
-    !CPPrecondition(cell%orthorhombic,cp_failure_level,routineP,failure)
+    !CPASSERT(cell%orthorhombic)
     DO i=1,3
        abc(i)=cell_hmat(i,i)
     END DO
@@ -249,16 +247,12 @@ CONTAINS
     CASE (pw_poisson_periodic)
        green%method = PERIODIC3D
        IF (dim /= 3) THEN
-          CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
-               "Illegal combination of periodicity and Poisson solver periodic3d",&
-               failure=failure)
+          CPABORT("Illegal combination of periodicity and Poisson solver periodic3d")
        END IF
     CASE (pw_poisson_multipole)
        green%method = MULTIPOLE0D
        IF (dim /= 0) THEN
-          CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
-               "Illegal combination of periodicity and Poisson solver mulipole0d",&
-               failure=failure)
+          CPABORT("Illegal combination of periodicity and Poisson solver mulipole0d")
        END IF
     CASE (pw_poisson_analytic)
        SELECT CASE (dim)
@@ -305,17 +299,14 @@ CONTAINS
           green%special_dimension = i
           green%slab_size = abc(i)
        CASE (3)
-          CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
-               "Illegal combination of periodicity and Poisson solver (MT)",&
-               failure=failure)
+          CPABORT("Illegal combination of periodicity and Poisson solver (MT)")
        CASE DEFAULT
           CPASSERT(.FALSE.)
        END SELECT
     CASE (pw_poisson_implicit)
        green%method = PS_IMPLICIT
     CASE DEFAULT
-       CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
-            "An unknown Poisson solver was specified",failure)
+       CPABORT("An unknown Poisson solver was specified")
     END SELECT
 
     ! allocate influence function,...
@@ -467,10 +458,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_green_retain', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-    failure=.FALSE.
-
     CPASSERT(ASSOCIATED(gftype))
     CPASSERT(gftype%ref_count>0)
     gftype%ref_count=gftype%ref_count+1
@@ -492,9 +479,8 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_green_release', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: can_give_back, failure
+    LOGICAL                                  :: can_give_back
 
-    failure = .FALSE.
     IF (ASSOCIATED(gftype)) THEN
        CPASSERT(gftype%ref_count>0)
        gftype%ref_count=gftype%ref_count-1
@@ -544,11 +530,9 @@ CONTAINS
     INTEGER                                  :: dim, j, k, l, n, pt
     INTEGER, DIMENSION(3)                    :: npts
     INTEGER, DIMENSION(:), POINTER           :: lb, ub
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: l_arg, prod_arg, val
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: m_assign
 
-    failure=.FALSE.
     CPASSERT(ASSOCIATED(gftype))
     CPASSERT(gftype%ref_count>0)
     n = gftype % p3m_order
@@ -646,10 +630,6 @@ END SUBROUTINE calc_p3m_charge
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_poisson_create', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-    failure=.FALSE.
-
     CPASSERT(.NOT.ASSOCIATED(poisson_env))
     ALLOCATE(poisson_env)
     last_poisson_id=last_poisson_id+1
@@ -681,10 +661,6 @@ END SUBROUTINE calc_p3m_charge
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_poisson_retain', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-    failure=.FALSE.
-
     CPASSERT(ASSOCIATED(poisson_env))
     CPASSERT(poisson_env%ref_count>0)
     poisson_env%ref_count=poisson_env%ref_count+1
@@ -704,9 +680,6 @@ END SUBROUTINE calc_p3m_charge
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_poisson_release', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-    failure=.FALSE.
     IF (ASSOCIATED(poisson_env)) THEN
        CPASSERT(poisson_env%ref_count>0)
        poisson_env%ref_count=poisson_env%ref_count-1

@@ -149,7 +149,7 @@ CONTAINS
                                                 natom, nbond
     INTEGER, DIMENSION(:), POINTER           :: molecule_list
     INTEGER, POINTER                         :: map_bond_kind(:)
-    LOGICAL                                  :: failure, found
+    LOGICAL                                  :: found
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(bond_kind_type), DIMENSION(:), &
       POINTER                                :: bond_kind_set
@@ -157,7 +157,6 @@ CONTAINS
     TYPE(molecule_kind_type), POINTER        :: molecule_kind
     TYPE(molecule_type), POINTER             :: molecule
 
-    failure = .FALSE.
     CALL timeset(routineN,handle2)
     DO i=1,SIZE(molecule_kind_set)
        molecule_kind => molecule_kind_set(i)
@@ -253,15 +252,13 @@ CONTAINS
                                                 last, natom, nbend
     INTEGER, DIMENSION(:), POINTER           :: molecule_list
     INTEGER, POINTER                         :: map_bend_kind(:)
-    LOGICAL                                  :: failure, found
+    LOGICAL                                  :: found
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(bend_kind_type), DIMENSION(:), &
       POINTER                                :: bend_kind_set
     TYPE(bend_type), DIMENSION(:), POINTER   :: bend_list
     TYPE(molecule_kind_type), POINTER        :: molecule_kind
     TYPE(molecule_type), POINTER             :: molecule
-
-    failure = .FALSE.
 
     CALL timeset(routineN,handle2)
     DO i=1,SIZE(molecule_kind_set)
@@ -366,15 +363,13 @@ CONTAINS
                                                 last, natom, nub
     INTEGER, DIMENSION(:), POINTER           :: molecule_list
     INTEGER, POINTER                         :: map_ub_kind(:)
-    LOGICAL                                  :: failure, found
+    LOGICAL                                  :: found
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(molecule_kind_type), POINTER        :: molecule_kind
     TYPE(molecule_type), POINTER             :: molecule
     TYPE(ub_kind_type), DIMENSION(:), &
       POINTER                                :: ub_kind_set
     TYPE(ub_type), DIMENSION(:), POINTER     :: ub_list
-
-    failure = .FALSE.
 
     CALL timeset(routineN,handle2)
     DO i=1,SIZE(molecule_kind_set)
@@ -473,7 +468,7 @@ CONTAINS
                                                 j, k, last, natom, ntorsion
     INTEGER, DIMENSION(:), POINTER           :: molecule_list
     INTEGER, POINTER                         :: map_torsion_kind(:)
-    LOGICAL                                  :: failure, found
+    LOGICAL                                  :: found
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(molecule_kind_type), POINTER        :: molecule_kind
     TYPE(molecule_type), POINTER             :: molecule
@@ -482,7 +477,6 @@ CONTAINS
     TYPE(torsion_type), DIMENSION(:), &
       POINTER                                :: torsion_list
 
-    failure = .FALSE.
     CALL timeset(routineN,handle2)
     DO i=1,SIZE(molecule_kind_set)
        molecule_kind => molecule_kind_set(i)
@@ -598,15 +592,13 @@ CONTAINS
                                                 j, k, last, natom, nimpr
     INTEGER, DIMENSION(:), POINTER           :: molecule_list
     INTEGER, POINTER                         :: map_impr_kind(:)
-    LOGICAL                                  :: failure, found
+    LOGICAL                                  :: found
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(impr_kind_type), DIMENSION(:), &
       POINTER                                :: impr_kind_set
     TYPE(impr_type), DIMENSION(:), POINTER   :: impr_list
     TYPE(molecule_kind_type), POINTER        :: molecule_kind
     TYPE(molecule_type), POINTER             :: molecule
-
-    failure = .FALSE.
 
     CALL timeset(routineN,handle2)
     DO i=1,SIZE(molecule_kind_set)
@@ -725,15 +717,13 @@ CONTAINS
                                                 j, k, last, natom, nopbend
     INTEGER, DIMENSION(:), POINTER           :: molecule_list
     INTEGER, POINTER                         :: map_opbend_kind(:)
-    LOGICAL                                  :: failure, found
+    LOGICAL                                  :: found
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(molecule_kind_type), POINTER        :: molecule_kind
     TYPE(molecule_type), POINTER             :: molecule
     TYPE(opbend_kind_type), DIMENSION(:), &
       POINTER                                :: opbend_kind_set
     TYPE(opbend_type), DIMENSION(:), POINTER :: opbend_list
-
-    failure = .FALSE.
 
     CALL timeset(routineN,handle2)
     DO i=1,SIZE(molecule_kind_set)
@@ -858,13 +848,12 @@ CONTAINS
                                                 i, itype, j, k, last, natom, &
                                                 nbond
     INTEGER, DIMENSION(:), POINTER           :: molecule_list
-    LOGICAL                                  :: failure, found, only_qm
+    LOGICAL                                  :: found, only_qm
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(bond_type), DIMENSION(:), POINTER   :: bond_list
     TYPE(molecule_kind_type), POINTER        :: molecule_kind
     TYPE(molecule_type), POINTER             :: molecule
 
-    failure = .FALSE.
     CALL timeset(routineN,handle2)
 
     DO i=1,SIZE(molecule_kind_set)
@@ -916,7 +905,7 @@ CONTAINS
                    bond_list(j)%bond_kind%id_type = do_ff_charmm
                    bond_list(j)%bond_kind%k(1) = chm_info%bond_k(k)
                    bond_list(j)%bond_kind%r0   = chm_info%bond_r0(k)
-                   CALL issue_duplications(found,routineP,"Bond", name_atm_a, name_atm_b)
+                   CALL issue_duplications(found, "Bond", name_atm_a, name_atm_b)
                    found = .TRUE.
                    EXIT
                 END IF
@@ -933,7 +922,7 @@ CONTAINS
                    bond_list(j)%bond_kind%id_type = do_ff_amber
                    bond_list(j)%bond_kind%k(1) = amb_info%bond_k(k)
                    bond_list(j)%bond_kind%r0   = amb_info%bond_r0(k)
-                   CALL issue_duplications(found,routineP,"Bond", name_atm_a, name_atm_b)
+                   CALL issue_duplications(found, "Bond", name_atm_a, name_atm_b)
                    found = .TRUE.
                    EXIT
                 END IF
@@ -951,7 +940,7 @@ CONTAINS
                    bond_list(j)%bond_kind%k(:)    = inp_info%bond_k(:,k)
                    bond_list(j)%bond_kind%r0      = inp_info%bond_r0(k)
                    bond_list(j)%bond_kind%cs      = inp_info%bond_cs(k)
-                   CALL issue_duplications(found,routineP,"Bond", name_atm_a, name_atm_b)
+                   CALL issue_duplications(found, "Bond", name_atm_a, name_atm_b)
                    found = .TRUE.
                    EXIT
                 END IF
@@ -1014,14 +1003,13 @@ CONTAINS
                                                 handle2, i, itype, j, k, &
                                                 last, natom, nbend
     INTEGER, DIMENSION(:), POINTER           :: molecule_list
-    LOGICAL                                  :: failure, found, only_qm
+    LOGICAL                                  :: found, only_qm
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(bend_type), DIMENSION(:), POINTER   :: bend_list
     TYPE(molecule_kind_type), POINTER        :: molecule_kind
     TYPE(molecule_type), POINTER             :: molecule
 
     CALL timeset(routineN,handle2)
-    failure = .FALSE.
 
     DO i=1,SIZE(molecule_kind_set)
        molecule_kind => molecule_kind_set(i)
@@ -1078,7 +1066,7 @@ CONTAINS
                    bend_list(j)%bend_kind%id_type = do_ff_charmm
                    bend_list(j)%bend_kind%k       = chm_info%bend_k(k)
                    bend_list(j)%bend_kind%theta0  = chm_info%bend_theta0(k)
-                   CALL issue_duplications(found,routineP, "Bend", name_atm_a, name_atm_b,&
+                   CALL issue_duplications(found, "Bend", name_atm_a, name_atm_b,&
                         name_atm_c)
                    found = .TRUE.
                    EXIT
@@ -1098,7 +1086,7 @@ CONTAINS
                    bend_list(j)%bend_kind%id_type = do_ff_amber
                    bend_list(j)%bend_kind%k       = amb_info%bend_k(k)
                    bend_list(j)%bend_kind%theta0  = amb_info%bend_theta0(k)
-                   CALL issue_duplications(found,routineP, "Bend", name_atm_a, name_atm_b,&
+                   CALL issue_duplications(found, "Bend", name_atm_a, name_atm_b,&
                         name_atm_c)
                    found = .TRUE.
                    EXIT
@@ -1124,7 +1112,7 @@ CONTAINS
                    bend_list(j)%bend_kind%kbs12   = inp_info%bend_kbs12(k)
                    bend_list(j)%bend_kind%kbs32   = inp_info%bend_kbs32(k)
                    bend_list(j)%bend_kind%kss     = inp_info%bend_kss(k)
-                   CALL issue_duplications(found,routineP, "Bend", name_atm_a, name_atm_b,&
+                   CALL issue_duplications(found, "Bend", name_atm_a, name_atm_b,&
                         name_atm_c)
                    found = .TRUE.
                    EXIT
@@ -1185,13 +1173,11 @@ CONTAINS
                                                 handle2, i, j, k, last, &
                                                 natom, nub
     INTEGER, DIMENSION(:), POINTER           :: molecule_list
-    LOGICAL                                  :: failure, found, only_qm
+    LOGICAL                                  :: found, only_qm
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(molecule_kind_type), POINTER        :: molecule_kind
     TYPE(molecule_type), POINTER             :: molecule
     TYPE(ub_type), DIMENSION(:), POINTER     :: ub_list
-
-    failure = .FALSE.
 
     CALL timeset(routineN,handle2)
     DO i=1,SIZE(molecule_kind_set)
@@ -1238,7 +1224,7 @@ CONTAINS
                    ub_list(j)%ub_kind%r0      = chm_info%ub_r0(k)
                    IF(iw>0) WRITE(iw,*) "    Found UB ",TRIM(name_atm_a)," ",&
                         TRIM(name_atm_b)," ",TRIM(name_atm_c)
-                   CALL issue_duplications(found,routineP, "Urey-Bradley", name_atm_a,&
+                   CALL issue_duplications(found, "Urey-Bradley", name_atm_a,&
                         name_atm_b, name_atm_c)
                    found = .TRUE.
                    EXIT
@@ -1261,7 +1247,7 @@ CONTAINS
                    ub_list(j)%ub_kind%id_type = inp_info%ub_kind(k)
                    ub_list(j)%ub_kind%k(:)    = inp_info%ub_k(:,k)
                    ub_list(j)%ub_kind%r0      = inp_info%ub_r0(k)
-                   CALL issue_duplications(found,routineP, "Urey-Bradley", name_atm_a,&
+                   CALL issue_duplications(found, "Urey-Bradley", name_atm_a,&
                         name_atm_b, name_atm_c)
                    found = .TRUE.
                    EXIT
@@ -1333,7 +1319,7 @@ CONTAINS
                                                 itype, j, k, last, natom, &
                                                 ntorsion
     INTEGER, DIMENSION(:), POINTER           :: molecule_list
-    LOGICAL                                  :: failure, found, only_qm
+    LOGICAL                                  :: found, only_qm
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(molecule_kind_type), POINTER        :: molecule_kind
     TYPE(molecule_type), POINTER             :: molecule
@@ -1341,7 +1327,6 @@ CONTAINS
       POINTER                                :: torsion_list
 
     CALL timeset(routineN,handle2)
-    failure = .FALSE.
 
     DO i=1,SIZE(molecule_kind_set)
        molecule_kind => molecule_kind_set(i)
@@ -1602,14 +1587,13 @@ CONTAINS
                                                 first, handle2, i, itype, j, &
                                                 k, last, natom, nimpr
     INTEGER, DIMENSION(:), POINTER           :: molecule_list
-    LOGICAL                                  :: failure, found, only_qm
+    LOGICAL                                  :: found, only_qm
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(impr_type), DIMENSION(:), POINTER   :: impr_list
     TYPE(molecule_kind_type), POINTER        :: molecule_kind
     TYPE(molecule_type), POINTER             :: molecule
 
     CALL timeset(routineN,handle2)
-    failure = .FALSE.
 
     DO i=1,SIZE(molecule_kind_set)
        molecule_kind => molecule_kind_set(i)
@@ -1673,7 +1657,7 @@ CONTAINS
                    impr_list(j)%impr_kind%id_type = do_ff_charmm
                    impr_list(j)%impr_kind%k    = chm_info%impr_k(k)
                    impr_list(j)%impr_kind%phi0 = chm_info%impr_phi0(k)
-                   CALL issue_duplications(found,routineP, "Impropers", name_atm_a, name_atm_b,&
+                   CALL issue_duplications(found, "Impropers", name_atm_a, name_atm_b,&
                         name_atm_c, name_atm_d)
                    found = .TRUE.
                    EXIT
@@ -1692,7 +1676,7 @@ CONTAINS
                       impr_list(j)%impr_kind%id_type = do_ff_charmm
                       impr_list(j)%impr_kind%k    = chm_info%impr_k(k)
                       impr_list(j)%impr_kind%phi0 = chm_info%impr_phi0(k)
-                      CALL issue_duplications(found,routineP, "Impropers", name_atm_a, name_atm_b,&
+                      CALL issue_duplications(found, "Impropers", name_atm_a, name_atm_b,&
                            name_atm_c,name_atm_d)
                       found = .TRUE.
                       EXIT
@@ -1730,7 +1714,7 @@ CONTAINS
                      ! similar problems with parameters from charmm pot file
                      ! above
                    END IF
-                   CALL issue_duplications(found,routineP, "Impropers", name_atm_a, name_atm_b,&
+                   CALL issue_duplications(found, "Impropers", name_atm_a, name_atm_b,&
                         name_atm_c,name_atm_d)
                    found = .TRUE.
                    EXIT
@@ -1798,14 +1782,13 @@ CONTAINS
                                                 first, handle2, i, j, k, &
                                                 last, natom, nopbend
     INTEGER, DIMENSION(:), POINTER           :: molecule_list
-    LOGICAL                                  :: failure, found, only_qm
+    LOGICAL                                  :: found, only_qm
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(molecule_kind_type), POINTER        :: molecule_kind
     TYPE(molecule_type), POINTER             :: molecule
     TYPE(opbend_type), DIMENSION(:), POINTER :: opbend_list
 
     CALL timeset(routineN,handle2)
-    failure = .FALSE.
 
     DO i=1,SIZE(molecule_kind_set)
        molecule_kind => molecule_kind_set(i)
@@ -1865,7 +1848,7 @@ CONTAINS
                      !    one, the sign of phi is changed in mol_force.f90
 
                    END IF
-                   CALL issue_duplications(found,routineP, "Out of plane bend", name_atm_a, name_atm_b,&
+                   CALL issue_duplications(found, "Out of plane bend", name_atm_a, name_atm_b,&
                         name_atm_c,name_atm_d)
                    found = .TRUE.
                    EXIT
@@ -1929,8 +1912,7 @@ CONTAINS
 
     CHARACTER(LEN=default_string_length)     :: atmname
     INTEGER                                  :: handle, iatom, ilink, j, nval
-    LOGICAL                                  :: failure, found_p, &
-                                                is_link_atom, is_ok, &
+    LOGICAL                                  :: found_p, is_link_atom, is_ok, &
                                                 only_manybody, only_qm
     REAL(KIND=dp)                            :: charge, charge_tot, rval, &
                                                 scale_factor
@@ -1938,8 +1920,6 @@ CONTAINS
     TYPE(cp_sll_val_type), POINTER           :: list
     TYPE(fist_potential_type), POINTER       :: fist_potential
     TYPE(val_type), POINTER                  :: val
-
-    failure = .FALSE.
 
     CALL timeset(routineN,handle)
     charge_tot = 0.0_dp
@@ -1976,12 +1956,11 @@ CONTAINS
 
        only_qm  = qmmm_ff_precond_only_qm(id1=atmname,is_link=is_link_atom)
        CALL uppercase(atmname)
-       CALL cp_assert(charge==-HUGE(0.0_dp),cp_warning_level,cp_assertion_failed,routineP,&
-            "The charge for atom index ("//cp_to_string(iatom)//") and atom name ("//&
-            TRIM(atmname)//") was already defined. The charge associated to this kind"//&
-            " will be set to an uninitialized value and only the atom specific charge will be used! "//&
-CPSourceFileRef,&
-               only_ionode=.TRUE.)
+       IF(charge/=-HUGE(0.0_dp))&
+          CALL cp_warn(__LOCATION__,&
+               "The charge for atom index ("//cp_to_string(iatom)//") and atom name ("//&
+               TRIM(atmname)//") was already defined. The charge associated to this kind"//&
+               " will be set to an uninitialized value and only the atom specific charge will be used! ")
        charge=-HUGE(0.0_dp)
 
        ! Check if the potential really requires the charge definition..
@@ -2069,15 +2048,13 @@ CPSourceFileRef,&
     CHARACTER(LEN=default_string_length)     :: atmname
     INTEGER                                  :: handle, i, ilink, j
     INTEGER, DIMENSION(:), POINTER           :: my_atom_list
-    LOGICAL                                  :: failure, found, found_p, &
-                                                is_link_atom, is_shell, &
-                                                only_manybody, only_qm
+    LOGICAL                                  :: found, found_p, is_link_atom, &
+                                                is_shell, only_manybody, &
+                                                only_qm
     REAL(KIND=dp)                            :: charge, charge_tot, &
                                                 cs_charge, scale_factor
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(fist_potential_type), POINTER       :: fist_potential
-
-    failure = .FALSE.
 
     CALL timeset(routineN,handle)
     charge_tot = 0.0_dp
@@ -2101,7 +2078,7 @@ CPSourceFileRef,&
              IF (iw>0) WRITE(iw,*)"Charge Checking ::",TRIM(inp_info%charge_atm(j)),atmname
              IF((inp_info%charge_atm(j))==atmname) THEN
                 charge = inp_info%charge(j)
-                CALL issue_duplications(found,routineP, "Charge", atmname)
+                CALL issue_duplications(found, "Charge", atmname)
                 found = .TRUE.
              END IF
           END DO
@@ -2117,11 +2094,10 @@ CPSourceFileRef,&
                             inp_info%shell_list(j)%shell%charge_shell
                 charge = 0.0_dp
                 IF (found) THEN
-                   CALL cp_assert(.NOT.found,cp_warning_level,cp_assertion_failed,routineP,&
-                        "CORE-SHELL model defined for KIND ("//TRIM(atmname)//")"//&
-                        " ignoring charge definition! "//&
-CPSourceFileRef,&
-                        only_ionode=.TRUE.)
+                   IF(found)&
+                      CALL cp_warn(__LOCATION__,&
+                           "CORE-SHELL model defined for KIND ("//TRIM(atmname)//")"//&
+                           " ignoring charge definition! ")
                 ELSE
                    found = .TRUE.
                 END IF
@@ -2250,7 +2226,7 @@ CPSourceFileRef,&
           IF (TRIM(kind_name)==TRIM(inp_kind_name)) THEN
              CALL section_vals_val_get(kind_section, i_rep_section=i_rep,&
                keyword_name="MM_RADIUS", r_val=mm_radius)
-             CALL issue_duplications(found, routineP, "MM_RADIUS", kind_name)
+             CALL issue_duplications(found, "MM_RADIUS", kind_name)
              found = .TRUE.
           END IF
        END DO
@@ -2302,7 +2278,7 @@ CPSourceFileRef,&
                 TRIM(kind_name), "' with '", TRIM(inp_info%apol_atm(j)), "'"
              IF((inp_info%apol_atm(j))==kind_name) THEN
                 apol = inp_info%apol(j)
-                CALL issue_duplications(found,routineP, "APOL", kind_name)
+                CALL issue_duplications(found, "APOL", kind_name)
                 found = .TRUE.
              END IF
           END DO
@@ -2314,7 +2290,7 @@ CPSourceFileRef,&
                 TRIM(kind_name), "' with '", TRIM(inp_info%cpol_atm(j)), "'"
              IF((inp_info%cpol_atm(j))==kind_name) THEN
                 cpol = inp_info%cpol(j)
-                CALL issue_duplications(found,routineP, "CPOL", kind_name)
+                CALL issue_duplications(found, "CPOL", kind_name)
                 found = .TRUE.
              END IF
           END DO
@@ -2379,8 +2355,7 @@ CPSourceFileRef,&
 
                  IF (my_atm_name2==atm_name2) THEN
                     IF(damping%damp(k)%bij/=HUGE(0.0_dp)) found=.TRUE.
-                    CALL issue_duplications(found,routineP, "Damping",&
-                       atm_name1)
+                    CALL issue_duplications(found,"Damping",atm_name1)
                     found=.TRUE.
 
                     SELECT CASE(TRIM(inp_info%damping_list(i)%dtype))
@@ -2396,13 +2371,11 @@ CPSourceFileRef,&
                  ENDIF
 
               END DO
-              CALL cp_assert(found,cp_warning_level,cp_assertion_failed,&
-                    routineP,&
-                    "Atom "//TRIM(my_atm_name2)//&
-                    " in damping parameters for atom "//TRIM(my_atm_name1)//&
-                    " not found! "//&
-CPSourceFileRef,&
-                   only_ionode=.TRUE.)
+              IF(.NOT.found)&
+                 CALL cp_warn(__LOCATION__,&
+                      "Atom "//TRIM(my_atm_name2)//&
+                      " in damping parameters for atom "//TRIM(my_atm_name1)//&
+                      " not found! ")
            ENDIF
          END DO
 
@@ -2459,9 +2432,8 @@ CPSourceFileRef,&
                                                 last_shell, n, natom, nmol, &
                                                 nshell_tot
     INTEGER, DIMENSION(:), POINTER           :: molecule_list, shell_list_tmp
-    LOGICAL :: core_coord_read, failure, found_shell, is_a_shell, &
-      is_link_atom, null_massfrac, only_qm, save_mem, shell_adiabatic, &
-      shell_coord_read
+    LOGICAL :: core_coord_read, found_shell, is_a_shell, is_link_atom, &
+      null_massfrac, only_qm, save_mem, shell_adiabatic, shell_coord_read
     REAL(KIND=dp)                            :: atmmass
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(molecule_kind_type), POINTER        :: molecule_kind
@@ -2469,8 +2441,6 @@ CPSourceFileRef,&
     TYPE(section_vals_type), POINTER         :: global_section
     TYPE(shell_kind_type), POINTER           :: shell
     TYPE(shell_type), DIMENSION(:), POINTER  :: shell_list
-
-    failure = .FALSE.
 
     CALL timeset(routineN,handle2)
     nshell_tot = 0
@@ -2514,7 +2484,7 @@ CPSourceFileRef,&
                 shell%shell_cutoff=inp_info%shell_list(j)%shell%shell_cutoff
                 shell%mass_shell=shell%massfrac*atmmass
                 shell%mass_core=atmmass-shell%mass_shell
-                CALL issue_duplications(found_shell,routineP, "Shell", atmname)
+                CALL issue_duplications(found_shell, "Shell", atmname)
                 found_shell = .TRUE.
                 CALL set_atomic_kind(atomic_kind=atomic_kind,&
                      shell=shell, shell_active=.TRUE.)
@@ -2675,8 +2645,8 @@ CPSourceFileRef,&
                                                 name_atm_b, name_atm_b_local
     INTEGER                                  :: handle2, i, ii, j, jj, k, &
                                                 match_names
-    LOGICAL                                  :: failure, found, found_a, &
-                                                found_b, only_qm, use_qmmm_ff
+    LOGICAL                                  :: found, found_a, found_b, &
+                                                only_qm, use_qmmm_ff
     REAL(KIND=dp)                            :: epsilon0, epsilon_a, &
                                                 epsilon_b, ewald_rcut, rmin, &
                                                 rmin2_a, rmin2_b
@@ -2684,7 +2654,6 @@ CPSourceFileRef,&
     TYPE(pair_potential_single_type), &
       POINTER                                :: pot
 
-    failure = .FALSE.
     use_qmmm_ff = qmmm_env%use_qmmm_ff
     NULLIFY(pot)
     CALL ewald_env_get(ewald_env, rcut=ewald_rcut)
@@ -2733,7 +2702,7 @@ CPSourceFileRef,&
                 pot%set(1)%lj%sigma6  = gro_info%nonbond_c6_14(ii,jj)
                 pot%set(1)%lj%sigma12 = gro_info%nonbond_c12_14(ii,jj)
                 pot%rcutsq     = (10.0_dp*bohr)**2
-                CALL issue_duplications(found,routineP, "Lennard-Jones", name_atm_a, name_atm_b)
+                CALL issue_duplications(found, "Lennard-Jones", name_atm_a, name_atm_b)
                 found = .TRUE.
              END IF
           END IF
@@ -2791,7 +2760,7 @@ CPSourceFileRef,&
              pot%set(1)%lj%sigma6  = 0.5_dp*rmin**6
              pot%set(1)%lj%sigma12 = 0.25_dp*rmin**12
              pot%rcutsq     = (10.0_dp*bohr)**2
-             CALL issue_duplications(found,routineP, "Lennard-Jones", name_atm_a, name_atm_b)
+             CALL issue_duplications(found, "Lennard-Jones", name_atm_a, name_atm_b)
              found = .TRUE.
           END IF
 
@@ -2829,7 +2798,7 @@ CPSourceFileRef,&
                 pot%set(1)%lj%sigma6  = 0.5_dp*rmin**6
                 pot%set(1)%lj%sigma12 = 0.25_dp*rmin**12
                 pot%rcutsq     = (10.0_dp*bohr)**2
-                CALL issue_duplications(found,routineP, "Lennard-Jones", name_atm_a,&
+                CALL issue_duplications(found, "Lennard-Jones", name_atm_a,&
                      name_atm_b)
                 found = .TRUE.
              END IF
@@ -2847,20 +2816,18 @@ CPSourceFileRef,&
                      ((name_atm_a)==(inp_info%nonbonded14%pot(k)%pot%at2))) ) THEN
                    IF (ff_type%multiple_potential) THEN
                       CALL pair_potential_single_add(inp_info%nonbonded14%pot(k)%pot,pot)
-                      CALL cp_assert(.NOT.found,cp_warning_level,cp_assertion_failed,routineP,&
-                           "Multiple ONFO declaration: "//TRIM(name_atm_a)//&
-                           " and "//TRIM(name_atm_b)//" ADDING! "//&
-CPSourceFileRef,&
-                           only_ionode=.TRUE.)
+                      IF(found)&
+                         CALL cp_warn(__LOCATION__,&
+                              "Multiple ONFO declaration: "//TRIM(name_atm_a)//&
+                              " and "//TRIM(name_atm_b)//" ADDING! ")
                       potparm_nonbond14%pot(i,j)%pot => pot
                       potparm_nonbond14%pot(j,i)%pot => pot
                    ELSE
                       CALL pair_potential_single_copy(inp_info%nonbonded14%pot(k)%pot,pot)
-                      CALL cp_assert(.NOT.found,cp_warning_level,cp_assertion_failed,routineP,&
-                           "Multiple ONFO declarations: "//TRIM(name_atm_a)//&
-                           " and "//TRIM(name_atm_b)//" OVERWRITING! "//&
-CPSourceFileRef,&
-                           only_ionode=.TRUE.)
+                      IF(found)&
+                         CALL cp_warn(__LOCATION__,&
+                              "Multiple ONFO declarations: "//TRIM(name_atm_a)//&
+                              " and "//TRIM(name_atm_b)//" OVERWRITING! ")
                    END IF
                    IF(iw>0) WRITE(iw,*) "    FOUND ",TRIM(name_atm_a)," ",TRIM(name_atm_b)
                    found = .TRUE.
@@ -2885,20 +2852,18 @@ CPSourceFileRef,&
                            ((name_atm_a) ==(qmmm_env%inp_info%nonbonded14%pot(k)%pot%at2))) ) THEN
                          IF (qmmm_env%multiple_potential) THEN
                             CALL pair_potential_single_add(qmmm_env%inp_info%nonbonded14%pot(k)%pot,pot)
-                            CALL cp_assert(.NOT.found,cp_warning_level,cp_assertion_failed,routineP,&
-                                 "Multiple ONFO declaration: "//TRIM(name_atm_a)//&
-                                 " and "//TRIM(name_atm_b)//" ADDING QM/MM forcefield specifications! "//&
-CPSourceFileRef,&
-                                 only_ionode=.TRUE.)
+                            IF(found)&
+                               CALL cp_warn(__LOCATION__,&
+                                    "Multiple ONFO declaration: "//TRIM(name_atm_a)//&
+                                    " and "//TRIM(name_atm_b)//" ADDING QM/MM forcefield specifications! ")
                             potparm_nonbond14%pot(i,j)%pot => pot
                             potparm_nonbond14%pot(j,i)%pot => pot
                          ELSE
                             CALL pair_potential_single_copy(qmmm_env%inp_info%nonbonded14%pot(k)%pot,pot)
-                            CALL cp_assert(.NOT.found,cp_warning_level,cp_assertion_failed,routineP,&
-                                 "Multiple ONFO declaration: "//TRIM(name_atm_a)//&
-                                 " and "//TRIM(name_atm_b)//" OVERWRITING QM/MM forcefield specifications! "//&
-CPSourceFileRef,&
-                                 only_ionode=.TRUE.)
+                            IF(found)&
+                               CALL cp_warn(__LOCATION__,&
+                                    "Multiple ONFO declaration: "//TRIM(name_atm_a)//&
+                                    " and "//TRIM(name_atm_b)//" OVERWRITING QM/MM forcefield specifications! ")
                          END IF
                          IF(iw>0) WRITE(iw,*) "    FOUND ",TRIM(name_atm_a),&
                               " ",TRIM(name_atm_b)
@@ -2975,7 +2940,7 @@ CPSourceFileRef,&
                                                 name_atm_b, name_atm_b_local
     INTEGER                                  :: handle2, i, ii, j, jj, k, &
                                                 match_names
-    LOGICAL                                  :: failure, found, is_a_shell, &
+    LOGICAL                                  :: found, is_a_shell, &
                                                 is_b_shell, only_qm, &
                                                 use_qmmm_ff
     REAL(KIND=dp)                            :: epsilon0, ewald_rcut, rmin
@@ -2984,7 +2949,6 @@ CPSourceFileRef,&
       POINTER                                :: pot
 
     CALL timeset(routineN,handle2)
-    failure = .FALSE.
     use_qmmm_ff = qmmm_env%use_qmmm_ff
     NULLIFY(pot)
     CALL ewald_env_get(ewald_env, rcut=ewald_rcut)
@@ -3031,7 +2995,7 @@ CPSourceFileRef,&
                 pot%set(1)%lj%sigma6  = gro_info%nonbond_c6(ii,jj)
                 pot%set(1)%lj%sigma12 = gro_info%nonbond_c12(ii,jj)
                 pot%rcutsq     = (10.0_dp*bohr)**2
-                CALL issue_duplications(found,routineP, "Lennard-Jones", name_atm_a, name_atm_b)
+                CALL issue_duplications(found, "Lennard-Jones", name_atm_a, name_atm_b)
                 found = .TRUE.
              END IF
           END IF
@@ -3063,7 +3027,7 @@ CPSourceFileRef,&
                 pot%set(1)%lj%sigma6  = 0.5_dp*rmin**6
                 pot%set(1)%lj%sigma12 = 0.25_dp*rmin**12
                 pot%rcutsq     = (10.0_dp*bohr)**2
-                CALL issue_duplications(found,routineP, "Lennard-Jones", name_atm_a, name_atm_b)
+                CALL issue_duplications(found, "Lennard-Jones", name_atm_a, name_atm_b)
                 found = .TRUE.
              END IF
           END IF
@@ -3094,7 +3058,7 @@ CPSourceFileRef,&
                 pot%set(1)%lj%sigma6  = 0.5_dp*rmin**6
                 pot%set(1)%lj%sigma12 = 0.25_dp*rmin**12
                 pot%rcutsq     = (10.0_dp*bohr)**2
-                CALL issue_duplications(found,routineP, "Lennard-Jones", name_atm_a, name_atm_b)
+                CALL issue_duplications(found, "Lennard-Jones", name_atm_a, name_atm_b)
                 found = .TRUE.
              END IF
           END IF
@@ -3114,20 +3078,18 @@ CPSourceFileRef,&
                      ((name_atm_a)==(inp_info%nonbonded%pot(k)%pot%at2))) ) THEN
                    IF (ff_type%multiple_potential) THEN
                       CALL pair_potential_single_add(inp_info%nonbonded%pot(k)%pot,pot)
-                      CALL cp_assert(.NOT.found,cp_warning_level,cp_assertion_failed,routineP,&
-                           "Multiple NONBONDED declaration: "//TRIM(name_atm_a)//&
-                           " and "//TRIM(name_atm_b)//" ADDING! "//&
-CPSourceFileRef,&
-                           only_ionode=.TRUE.)
+                      IF(found)&
+                         CALL cp_warn(__LOCATION__,&
+                              "Multiple NONBONDED declaration: "//TRIM(name_atm_a)//&
+                              " and "//TRIM(name_atm_b)//" ADDING! ")
                       potparm_nonbond%pot(i,j)%pot => pot
                       potparm_nonbond%pot(j,i)%pot => pot
                    ELSE
                       CALL pair_potential_single_copy(inp_info%nonbonded%pot(k)%pot,pot)
-                      CALL cp_assert(.NOT.found,cp_warning_level,cp_assertion_failed,routineP,&
-                           "Multiple NONBONDED declaration: "//TRIM(name_atm_a)//&
-                           " and "//TRIM(name_atm_b)//" OVERWRITING! "//&
-CPSourceFileRef,&
-                           only_ionode=.TRUE.)
+                      IF(found)&
+                         CALL cp_warn(__LOCATION__,&
+                              "Multiple NONBONDED declaration: "//TRIM(name_atm_a)//&
+                              " and "//TRIM(name_atm_b)//" OVERWRITING! ")
                    END IF
                    IF(iw>0) WRITE(iw,*) "    FOUND ",TRIM(name_atm_a)," ",TRIM(name_atm_b)
                    found = .TRUE.
@@ -3149,20 +3111,18 @@ CPSourceFileRef,&
                        (name_atm_a==inp_info%nonbonded%pot(k)%pot%at2) ) THEN
                       IF (ff_type%multiple_potential) THEN
                          CALL pair_potential_single_add(inp_info%nonbonded%pot(k)%pot,pot)
-                         CALL cp_assert(.NOT.found,cp_warning_level,cp_assertion_failed,routineP,&
-                              "Multiple NONBONDED declaration: "//TRIM(name_atm_a)//&
-                              " and "//TRIM(name_atm_b)//" ADDING! "//&
-CPSourceFileRef,&
-                              only_ionode=.TRUE.)
+                         IF(found)&
+                            CALL cp_warn(__LOCATION__,&
+                                 "Multiple NONBONDED declaration: "//TRIM(name_atm_a)//&
+                                 " and "//TRIM(name_atm_b)//" ADDING! ")
                          potparm_nonbond%pot(i,j)%pot => pot
                          potparm_nonbond%pot(j,i)%pot => pot
                       ELSE
                          CALL pair_potential_single_copy(inp_info%nonbonded%pot(k)%pot,pot)
-                         CALL cp_assert(.NOT.found,cp_warning_level,cp_assertion_failed,routineP,&
-                              "Multiple NONBONDED declaration: "//TRIM(name_atm_a)//&
-                              " and "//TRIM(name_atm_b)//" OVERWRITING! "//&
-CPSourceFileRef,&
-                              only_ionode=.TRUE.)
+                         IF(found)&
+                            CALL cp_warn(__LOCATION__,&
+                                 "Multiple NONBONDED declaration: "//TRIM(name_atm_a)//&
+                                 " and "//TRIM(name_atm_b)//" OVERWRITING! ")
                       END IF
                       IF(iw>0) WRITE(iw,*) "    FOUND (one WILDCARD)",TRIM(name_atm_a)," ",TRIM(name_atm_b)
                       found = .TRUE.
@@ -3181,20 +3141,18 @@ CPSourceFileRef,&
 
                    IF (ff_type%multiple_potential) THEN
                       CALL pair_potential_single_add(inp_info%nonbonded%pot(k)%pot,pot)
-                      CALL cp_assert(.NOT.found,cp_warning_level,cp_assertion_failed,routineP,&
-                           "Multiple NONBONDED declaration: "//TRIM(name_atm_a)//&
-                           " and "//TRIM(name_atm_b)//" ADDING! "//&
-CPSourceFileRef,&
-                           only_ionode=.TRUE.)
+                      IF(found)&
+                         CALL cp_warn(__LOCATION__,&
+                              "Multiple NONBONDED declaration: "//TRIM(name_atm_a)//&
+                              " and "//TRIM(name_atm_b)//" ADDING! ")
                       potparm_nonbond%pot(i,j)%pot => pot
                       potparm_nonbond%pot(j,i)%pot => pot
                    ELSE
                       CALL pair_potential_single_copy(inp_info%nonbonded%pot(k)%pot,pot)
-                      CALL cp_assert(.NOT.found,cp_warning_level,cp_assertion_failed,routineP,&
-                           "Multiple NONBONDED declaration: "//TRIM(name_atm_a)//&
-                           " and "//TRIM(name_atm_b)//" OVERWRITING! "//&
-CPSourceFileRef,&
-                           only_ionode=.TRUE.)
+                      IF(found)&
+                         CALL cp_warn(__LOCATION__,&
+                              "Multiple NONBONDED declaration: "//TRIM(name_atm_a)//&
+                              " and "//TRIM(name_atm_b)//" OVERWRITING! ")
                    END IF
                    IF(iw>0) WRITE(iw,*) "    FOUND (both WILDCARDS)",TRIM(name_atm_a)," ",TRIM(name_atm_b)
                    found = .TRUE.
@@ -3220,20 +3178,18 @@ CPSourceFileRef,&
                            ((name_atm_a) ==(qmmm_env%inp_info%nonbonded%pot(k)%pot%at2))) ) THEN
                          IF (qmmm_env%multiple_potential) THEN
                             CALL pair_potential_single_add(qmmm_env%inp_info%nonbonded%pot(k)%pot,pot)
-                            CALL cp_assert(.NOT.found,cp_warning_level,cp_assertion_failed,routineP,&
-                                 "Multiple NONBONDED declaration: "//TRIM(name_atm_a)//&
-                                 " and "//TRIM(name_atm_b)//" ADDING QM/MM forcefield specifications! "//&
-CPSourceFileRef,&
-                                 only_ionode=.TRUE.)
+                            IF(found)&
+                               CALL cp_warn(__LOCATION__,&
+                                    "Multiple NONBONDED declaration: "//TRIM(name_atm_a)//&
+                                    " and "//TRIM(name_atm_b)//" ADDING QM/MM forcefield specifications! ")
                             potparm_nonbond%pot(i,j)%pot => pot
                             potparm_nonbond%pot(j,i)%pot => pot
                          ELSE
                             CALL pair_potential_single_copy(qmmm_env%inp_info%nonbonded%pot(k)%pot,pot)
-                            CALL cp_assert(.NOT.found,cp_warning_level,cp_assertion_failed,routineP,&
-                                 "Multiple NONBONDED declaration: "//TRIM(name_atm_a)//&
-                                 " and "//TRIM(name_atm_b)//" OVERWRITING QM/MM forcefield specifications! "//&
-CPSourceFileRef,&
-                                 only_ionode=.TRUE.)
+                            IF(found)&
+                               CALL cp_warn(__LOCATION__,&
+                                    "Multiple NONBONDED declaration: "//TRIM(name_atm_a)//&
+                                    " and "//TRIM(name_atm_b)//" OVERWRITING QM/MM forcefield specifications! ")
                          END IF
                          IF(iw>0) WRITE(iw,*) "    FOUND ",TRIM(name_atm_a)," ",TRIM(name_atm_b)
                          found = .TRUE.
@@ -3297,13 +3253,11 @@ CPSourceFileRef,&
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle2, ikind, jkind, n
-    LOGICAL                                  :: failure
     TYPE(spline_data_p_type), DIMENSION(:), &
       POINTER                                :: spl_p
     TYPE(spline_environment_type), POINTER   :: spline_env
 
     CALL timeset(routineN,handle2)
-    failure = .FALSE.
     ! Figure out which nonbonded interactions happen to be indentical, and
     ! prepare storage for these, avoiding duplicates.
     NULLIFY(spline_env)
@@ -3354,7 +3308,6 @@ CPSourceFileRef,&
 
     INTEGER                                  :: ewald_type, handle, i1, i2, &
                                                 nkinds
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: alpha, beta, mm_radius1, &
                                                 mm_radius2, rcut2, &
                                                 rcut2_ewald, tmp
@@ -3363,7 +3316,6 @@ CPSourceFileRef,&
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
 
     CALL timeset(routineN,handle)
-    failure = .FALSE.
 
     tmp = 0.0_dp
     nkinds = SIZE(atomic_kind_set)
@@ -3421,7 +3373,6 @@ CPSourceFileRef,&
 !> \brief Issues on screen a warning when repetitions are present in the
 !>        definition of the forcefield
 !> \param found ...
-!> \param routinePext ...
 !> \param tag_label ...
 !> \param name_atm_a ...
 !> \param name_atm_b ...
@@ -3429,12 +3380,11 @@ CPSourceFileRef,&
 !> \param name_atm_d ...
 !> \author Teodoro Laino [tlaino] - University of Zurich 10.2008
 ! *****************************************************************************
-  SUBROUTINE issue_duplications(found, routinePext, tag_label, name_atm_a, name_atm_b,&
+  SUBROUTINE issue_duplications(found, tag_label, name_atm_a, name_atm_b,&
        name_atm_c, name_atm_d)
 
     LOGICAL, INTENT(IN)                      :: found
-    CHARACTER(LEN=*), INTENT(IN)             :: routinePext, tag_label, &
-                                                name_atm_a
+    CHARACTER(LEN=*), INTENT(IN)             :: tag_label, name_atm_a
     CHARACTER(LEN=*), INTENT(IN), OPTIONAL   :: name_atm_b, name_atm_c, &
                                                 name_atm_d
 
@@ -3442,9 +3392,7 @@ CPSourceFileRef,&
       routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=default_string_length)     :: item
-    LOGICAL                                  :: failure
 
-    failure = .FALSE.
     item="( "//TRIM(name_atm_a)
     IF (PRESENT(name_atm_b)) THEN
        item = TRIM(item)//" , "//TRIM(name_atm_b)
@@ -3456,10 +3404,8 @@ CPSourceFileRef,&
        item = TRIM(item)//" , "//TRIM(name_atm_d)
     END IF
     item = TRIM(item)//" )"
-    CALL cp_assert(.NOT.found,cp_warning_level,cp_assertion_failed,routinePext,&
-         "Multiple "//TRIM(tag_label)//" declarations: "//TRIM(item)//" overwriting! "//&
-CPSourceFileRef,&
-         only_ionode=.TRUE.)
+    IF(found)&
+       CPWARN("Multiple "//TRIM(tag_label)//" declarations: "//TRIM(item)//" overwriting! ")
 
   END SUBROUTINE issue_duplications
 
@@ -3489,9 +3435,8 @@ CPSourceFileRef,&
                                                 my_atm4
     CHARACTER(LEN=default_path_length)       :: my_format
     INTEGER                                  :: fmt, i, nsize
-    LOGICAL                                  :: failure, found
+    LOGICAL                                  :: found
 
-    failure = .FALSE.
     nsize   = 0
     fmt     = 1
     my_format = '(T2,"FORCEFIELD| Missing ","'//TRIM(type_name)//&

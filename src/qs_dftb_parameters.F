@@ -97,8 +97,8 @@ CONTAINS
                                                 skfn
     INTEGER :: ikind, isp, jkind, k, l, l1, l2, llm, lmax, lmax_a, lmax_b, &
       lp, m, n_urpoly, ngrd, nkind, output_unit, runit, spdim, z
-    LOGICAL                                  :: at_end, failure, found, ldum, &
-                                                search, sklist
+    LOGICAL                                  :: at_end, found, ldum, search, &
+                                                sklist
     REAL(dp)                                 :: da, db, dgrd, dij, energy, &
                                                 eps_disp, ra, radmax, rb, &
                                                 rcdisp, rmax6, s_cut, xij, &
@@ -112,7 +112,6 @@ CONTAINS
     TYPE(cp_parser_type), POINTER            :: parser
     TYPE(qs_dftb_atom_type), POINTER         :: dftb_atom_a, dftb_atom_b
 
-    failure = .FALSE.
     output_unit = -1
     NULLIFY(logger)
     logger => cp_get_default_logger()
@@ -207,11 +206,10 @@ CONTAINS
           END DO
           CALL parser_release(parser)
         END IF
-        CALL cp_assert(found,cp_fatal_level,cp_assertion_failed,routineP,&
-             "Failure in assigning KINDS <"//TRIM(iname)//"> and <"//TRIM(jname)//&
-             "> to a DFTB interaction pair!"//&
-CPSourceFileRef,&
-             only_ionode=.TRUE.)
+        IF(.NOT.found)&
+           CALL cp_abort(__LOCATION__,&
+                "Failure in assigning KINDS <"//TRIM(iname)//"> and <"//TRIM(jname)//&
+                "> to a DFTB interaction pair!")
       END DO
     END DO
     ! reading the files

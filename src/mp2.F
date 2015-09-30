@@ -133,8 +133,7 @@ MODULE mp2
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: kind_of
     LOGICAL                                  :: calc_ex, &
                                                 do_dynamic_load_balancing, &
-                                                do_exx, failure, &
-                                                free_hfx_buffer
+                                                do_exx, free_hfx_buffer
     REAL(KIND=dp) :: E_ex_from_GW, Emp2, Emp2_AA, Emp2_AA_Cou, Emp2_AA_ex, &
       Emp2_AB, Emp2_AB_Cou, Emp2_AB_ex, Emp2_BB, Emp2_BB_Cou, Emp2_BB_ex, &
       Emp2_Cou, Emp2_ex, Emp2_S, Emp2_T, maxocc, mem_real, t1, t2, t3
@@ -179,7 +178,6 @@ MODULE mp2
 
     NULLIFY(virial, dft_control, blacs_env)
     CALL timeset(routineN,handle)
-    failure=.FALSE.
     logger => cp_get_default_logger()
 
     CALL cite_reference(DelBen2012)
@@ -223,9 +221,7 @@ MODULE mp2
 
     IF (calc_forces) THEN
        IF(mp2_env%method/=ri_mp2_method_gpw) THEN
-         CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
-                        "No forces/gradients for the selected method."//&
-                        CPSourceFileRef, only_ionode=.TRUE.)
+         CPABORT("No forces/gradients for the selected method.")
        END IF
     ENDIF
 
@@ -259,7 +255,7 @@ MODULE mp2
     !IF (calc_forces.AND.nspins/=1) THEN
     !  CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
     !                 "No forces/gradients for LSD."//&
-    !                 CPSourceFileRef, only_ionode=.TRUE.)
+    !                 __LOCATION__, only_ionode=.TRUE.)
     !END IF
 
     natom = SIZE(particle_set,1)
@@ -442,7 +438,7 @@ MODULE mp2
        !   IF (nmo.NE.nao) THEN
        !      CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
        !          " Direct MP2 needs the full set of virtual MOs, use ADDED_MOS in the input"//&
-       !          CPSourceFileRef,&
+       !          __LOCATION__,&
        !          only_ionode=.TRUE.)
        !   ENDIF
        !ENDDO
@@ -807,11 +803,10 @@ MODULE mp2
       vector_batch_I_size_group, vector_batch_J_size_group
     INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: ij_list_proc, &
                                                 ij_list_proc_temp, ij_matrix
-    LOGICAL                                  :: alpha_beta_case, failure
+    LOGICAL                                  :: alpha_beta_case
     TYPE(cp_para_env_type), POINTER          :: para_env_sub
 
     CALL timeset(routineN,handle)
-    failure=.FALSE.
 
     alpha_beta_case=.FALSE.
     IF(PRESENT(C_j).AND.PRESENT(Auto_j)) alpha_beta_case=.TRUE.
@@ -827,10 +822,7 @@ MODULE mp2
     ! communication takes place only inside the group
     number_groups=para_env%num_pe/mp2_env%mp2_num_proc
     IF(number_groups*mp2_env%mp2_num_proc/=para_env%num_pe) THEN
-      CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
-          " The number of processors needs to be a multiple of the processors per group. "//&
-          CPSourceFileRef,&
-          only_ionode=.TRUE.)
+      CPABORT(" The number of processors needs to be a multiple of the processors per group. ")
     END IF
     IF(number_groups>occ_i*occ_j) THEN
       IF (unit_nr>0) WRITE(unit_nr,'(T3,A)') 'Number of groups greater then the number of IJ pairs!'
@@ -1078,7 +1070,6 @@ MODULE mp2
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, i, irep, n_rep_hf, ns
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: t1, t2
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: matrix_ks, rho_ao
@@ -1090,7 +1081,6 @@ MODULE mp2
     TYPE(section_vals_type), POINTER         :: hfx_sections, input
 
     CALL timeset(routineN,handle)
-    failure=.FALSE.
 
     t1=m_walltime()
 

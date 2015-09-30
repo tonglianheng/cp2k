@@ -65,9 +65,8 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: isize, jsize
-    LOGICAL                                  :: check, failure
+    LOGICAL                                  :: check
 
-    failure=.FALSE.
     CPASSERT(ASSOCIATED(results))
     CPASSERT(description(1:1)=='[')
     check  = SIZE(results%result_label)==SIZE(results%result_value)
@@ -103,9 +102,8 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: isize, jsize
-    LOGICAL                                  :: check, failure
+    LOGICAL                                  :: check
 
-    failure=.FALSE.
     CPASSERT(ASSOCIATED(results))
     CPASSERT(description(1:1)=='[')
     check  = SIZE(results%result_label)==SIZE(results%result_value)
@@ -140,9 +138,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i, nlist
-    LOGICAL                                  :: failure
 
-    failure = .FALSE.
     CPASSERT(ASSOCIATED(results))
     nlist=SIZE(results%result_value)
     res_exist = .FALSE.
@@ -180,9 +176,7 @@ CONTAINS
 
     INTEGER                                  :: i, k, nlist, nrep, size_res, &
                                                 size_values
-    LOGICAL                                  :: failure
 
-    failure = .FALSE.
     CPASSERT(ASSOCIATED(results))
     nlist=SIZE(results%result_value)
     CPASSERT(description(1:1)=='[')
@@ -196,18 +190,14 @@ CONTAINS
        n_rep=nrep
     END IF
 
-    CALL cp_assert(nrep.GT.0,cp_failure_level,cp_assertion_failed,routineP,&
-         " Trying to access result ("//TRIM(description)//") which was never stored! "//&
-CPSourceFileRef,&
-         only_ionode=.TRUE.)
+    IF(nrep.LE.0)&
+       CALL cp_abort(__LOCATION__,&
+            " Trying to access result ("//TRIM(description)//") which was never stored!")
 
     DO i=1,nlist
        IF(TRIM(results%result_label(i))==TRIM(description))THEN
-          CALL cp_assert(results%result_value(i)%value%type_in_use==result_type_real,&
-               cp_failure_level,cp_assertion_failed,routineP,&
-               "Attempt to retrieve a RESULT which is not a REAL! "//&
-CPSourceFileRef,&
-               only_ionode=.TRUE.)
+          IF(results%result_value(i)%value%type_in_use/=result_type_real)&
+             CPABORT("Attempt to retrieve a RESULT which is not a REAL!")
 
           size_res=SIZE(results%result_value(i)%value%real_type)
           EXIT
@@ -262,9 +252,7 @@ CPSourceFileRef,&
 
     INTEGER                                  :: i, k, nlist, nrep, size_res, &
                                                 size_values
-    LOGICAL                                  :: failure
 
-    failure = .FALSE.
     CPASSERT(ASSOCIATED(results))
     nlist=SIZE(results%result_value)
     CPASSERT(description(1:1)=='[')
@@ -278,18 +266,14 @@ CPSourceFileRef,&
        n_rep=nrep
     END IF
 
-    CALL cp_assert(nrep.GT.0,cp_failure_level,cp_assertion_failed,routineP,&
-         " Trying to access result ("//TRIM(description)//") which was never stored! "//&
-CPSourceFileRef,&
-         only_ionode=.TRUE.)
+    IF(nrep.LE.0)&
+       CALL cp_abort(__LOCATION__,&
+            " Trying to access result ("//TRIM(description)//") which was never stored!")
 
     DO i=1,nlist
        IF(TRIM(results%result_label(i))==TRIM(description))THEN
-          CALL cp_assert(results%result_value(i)%value%type_in_use==result_type_real,&
-               cp_failure_level,cp_assertion_failed,routineP,&
-               "Attempt to retrieve a RESULT which is not a REAL! "//&
-CPSourceFileRef,&
-               only_ionode=.TRUE.)
+          IF(results%result_value(i)%value%type_in_use/=result_type_real)&
+             CPABORT("Attempt to retrieve a RESULT which is not a REAL!")
 
           size_res=SIZE(results%result_value(i)%value%real_type)
           EXIT
@@ -341,9 +325,7 @@ CPSourceFileRef,&
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: I, nlist
-    LOGICAL                                  :: failure
 
-    failure = .FALSE.
     CPASSERT(ASSOCIATED(results))
     nlist=SIZE(results%result_value)
     CPASSERT(description(1:1)=='[')
@@ -405,10 +387,8 @@ CPSourceFileRef,&
 
     INTEGER                                  :: entry_deleted, i, k, &
                                                 new_size, nlist, nrep
-    LOGICAL                                  :: failure
     TYPE(cp_result_type), POINTER            :: clean_results
 
-    failure = .FALSE.
     CPASSERT(ASSOCIATED(results))
     new_size = 0
     IF(PRESENT(description))THEN
@@ -481,9 +461,7 @@ CPSourceFileRef,&
 
     INTEGER                                  :: i, nlist
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: size_value, type_in_use
-    LOGICAL                                  :: failure
 
-    failure = .FALSE.
     CPASSERT(ASSOCIATED(results))
     nlist = 0
     IF (para_env%mepos==source) nlist = SIZE(results%result_value)

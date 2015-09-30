@@ -78,9 +78,8 @@ CONTAINS
     CHARACTER(LEN=default_string_length)     :: description, iter
     INTEGER                                  :: ip, j, nres, output_unit
     INTEGER, DIMENSION(:), POINTER           :: qm_atom_index
-    LOGICAL                                  :: check, failure, &
-                                                qmmm_added_chrg, qmmm_link, &
-                                                qmmm_link_imomm
+    LOGICAL                                  :: check, qmmm_added_chrg, &
+                                                qmmm_link, qmmm_link_imomm
     REAL(KIND=dp)                            :: energy_mm, energy_qm
     REAL(KIND=dp), DIMENSION(3)              :: dip_mm, dip_qm, dip_qmmm, &
                                                 max_coord, min_coord
@@ -98,7 +97,6 @@ CONTAINS
 
     min_coord        =  HUGE(0.0_dp)
     max_coord        = -HUGE(0.0_dp)
-    failure          = .FALSE.
     qmmm_link        = .FALSE.
     qmmm_link_imomm  = .FALSE.
     qmmm_added_chrg  = .FALSE.
@@ -139,10 +137,10 @@ CONTAINS
             WRITE (unit=output_unit, fmt='("ip, j, pos, lat_pos ",2I6,6F12.5)') ip, j, &
                particles_qm(ip)%r, DOT_PRODUCT(qm_cell%h_inv(j,:),particles_qm(ip)%r)
           ENDIF
-          CALL cp_assert(check, cp_failure_level, cp_assertion_failed, routinep,&
+          IF(.NOT.check)&
+             CALL cp_abort(__LOCATION__,&
                   "QM/MM QM atoms must be fully contained in the same image of the QM box "//&
-                  "- No wrapping of coordinates is allowed! "//&
-                  CPSourceFileRef)
+                  "- No wrapping of coordinates is allowed! ")
        END DO
     END DO
 

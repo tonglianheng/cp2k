@@ -80,16 +80,13 @@ CONTAINS
     INTEGER, DIMENSION(:), POINTER           :: tmplist
     LOGICAL                                  :: apply_thermostat, &
                                                 do_langevin, &
-                                                do_langevin_default, &
-                                                explicit, failure
+                                                do_langevin_default, explicit
     REAL(KIND=dp)                            :: temp, temp_tol
     TYPE(cp_subsys_type), POINTER            :: subsys
     TYPE(particle_list_type), POINTER        :: particles
     TYPE(section_vals_type), POINTER         :: region_sections, &
                                                 thermal_region_section
     TYPE(thermal_region_type), POINTER       :: t_region
-
-    failure =.FALSE.
 
     NULLIFY(region_sections,t_region,thermal_region_section, particles,subsys,tmplist)
     CALL allocate_thermal_regions(thermal_regions)
@@ -100,20 +97,16 @@ CONTAINS
                          (simpar%ensemble == npt_f_ensemble).OR.&
                          (simpar%ensemble == npt_i_ensemble)
        IF (apply_thermostat) THEN
-          CALL cp_assert(.FALSE.,cp_warning_level,cp_assertion_failed,routineP,&
+          CALL cp_warn(__LOCATION__,&
                "With the chosen ensemble the temperature is "//&
                "controlled by thermostats. The definition of different thermal "//&
-               "regions might result inconsistent with the presence of thermostats."//&
-               CPSourceFileRef,&
-               only_ionode=.TRUE.)
+               "regions might result inconsistent with the presence of thermostats.")
        END IF
        IF (simpar%temp_tol > 0.0_dp) THEN
-          CALL cp_assert(.FALSE.,cp_warning_level,cp_assertion_failed,routineP,&
+          CALL cp_warn(__LOCATION__,&
                "Control of the global temperature by rescaling of the velocity"//&
                "is not consistent with the presence of different thermal regions."//&
-               "The temperature of different regions is rescaled separatedly."//&
-               CPSourceFileRef,&
-               only_ionode=.TRUE.)
+               "The temperature of different regions is rescaled separatedly.")
        END IF
        CALL section_vals_val_get(thermal_region_section, "FORCE_RESCALING", &
                                  l_val=thermal_regions%force_rescaling)
@@ -206,12 +199,11 @@ CONTAINS
 
     CHARACTER(LEN=default_string_length)     :: fmd
     INTEGER                                  :: ireg, nregions, unit
-    LOGICAL                                  :: failure, new_file
+    LOGICAL                                  :: new_file
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: temp
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(section_vals_type), POINTER         :: print_key
 
-    failure = .FALSE.
     NULLIFY(logger)
     logger => cp_get_default_logger()
 
@@ -268,12 +260,11 @@ CONTAINS
     INTEGER                                  :: ipart, ipart_reg, ireg, &
                                                 natoms, print_unit
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: region_id
-    LOGICAL                                  :: failure, new_file
+    LOGICAL                                  :: new_file
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: temperature
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(section_vals_type), POINTER         :: print_key
 
-    failure = .FALSE.
     NULLIFY(logger)
     logger => cp_get_default_logger()
 

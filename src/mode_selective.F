@@ -114,7 +114,7 @@ CONTAINS
     CHARACTER(LEN=default_string_length)     :: description
     INTEGER                                  :: handle, i, ip1, j, natoms, &
                                                 ncoord
-    LOGICAL                                  :: converged, failure
+    LOGICAL                                  :: converged
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: mass, pos0
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: tmp_deriv
     REAL(KIND=dp), DIMENSION(:, :, :), &
@@ -122,7 +122,6 @@ CONTAINS
     TYPE(ms_vib_type)                        :: ms_vib
 
     CALL timeset(routineN,handle)
-    failure = .FALSE.
     converged=.FALSE.
     natoms=SIZE(particles)
     ncoord=3*natoms
@@ -276,13 +275,11 @@ CONTAINS
                                                 m, n_rep_val, natoms, ncoord
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: map_atoms
     INTEGER, DIMENSION(:), POINTER           :: tmplist
-    LOGICAL                                  :: do_involved_atoms, failure, &
-                                                ionode
+    LOGICAL                                  :: do_involved_atoms, ionode
     REAL(KIND=dp)                            :: my_val, norm
     TYPE(section_vals_type), POINTER         :: involved_at_section, &
                                                 ms_vib_section
 
-    failure = .FALSE.
     CALL timeset(routineN,handle)
     NULLIFY(ms_vib%eig_bfgs,ms_vib%f_range,ms_vib%hes_bfgs,ms_vib%inv_range)
     ms_vib_section => section_vals_get_subs_vals(input,"VIBRATIONAL_ANALYSIS%MODE_SELECTIVE")
@@ -336,9 +333,7 @@ CONTAINS
        END IF
     END IF
     IF(ms_vib%select_id==0)&
-         CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
-         routineP,"no frequency, range or involved atoms specified ",&
-         failure=failure)
+         CPABORT("no frequency, range or involved atoms specified ")
     ionode=para_env%mepos==para_env%source
     SELECT CASE(guess)
     CASE(ms_guess_atomic)
@@ -857,7 +852,6 @@ CONTAINS
 
     INTEGER                                  :: i, j, jj, k, natoms, ncoord
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: ind
-    LOGICAL                                  :: failure
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: eigenval, freq
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: approx_H, H_save, residuum, &
@@ -868,7 +862,6 @@ CONTAINS
     natoms=SIZE(particles)
     ncoord=3*natoms
     nrep=SIZE(rep_env%f,2)
-    failure=.FALSE.
 
     !!!!!!!!   reallocate and update the davidson matrices   !!!!!!!!!!
      IF(ms_vib%mat_size.NE.0)THEN

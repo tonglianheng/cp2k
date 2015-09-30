@@ -156,17 +156,12 @@ CONTAINS
 
     INTEGER                                  :: handle, ncol_local, npcol, &
                                                 nprow, nrow_local
-    LOGICAL                                  :: failure
     TYPE(cp_blacs_env_type), POINTER         :: context
-
-    failure=.FALSE.
 
     CALL timeset(routineN,handle)
 
 #if defined(__parallel) && ! defined(__SCALAPACK)
-     CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
-     routineP,"full matrixes need scalapack for parallel runs "//&
-CPSourceFileRef)
+     CPABORT("full matrixes need scalapack for parallel runs ")
 #endif
 
     CPASSERT(ASSOCIATED(matrix_struct))
@@ -228,10 +223,6 @@ CPSourceFileRef)
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_fm_retain', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-    failure=.FALSE.
-
     CPASSERT(ASSOCIATED(matrix))
     CPASSERT(matrix%ref_count>0)
     matrix%ref_count=matrix%ref_count+1
@@ -252,9 +243,6 @@ CPSourceFileRef)
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle
-    LOGICAL                                  :: failure
-
-    failure=.FALSE.
 
     CALL timeset(routineN,handle)
 
@@ -298,14 +286,11 @@ CPSourceFileRef)
     INTEGER :: handle, icol_global, icol_local, irow_local, my_ncol, &
       my_start_col, ncol_global, ncol_local, nrow_global, nrow_local
     INTEGER, DIMENSION(:), POINTER           :: col_indices, row_indices
-    LOGICAL                                  :: failure
     LOGICAL, SAVE                            :: FIRST = .TRUE.
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: buff
     REAL(KIND=dp), DIMENSION(3, 2), SAVE     :: seed
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: local_data
     TYPE(rng_stream_type), POINTER           :: rng
-
-    failure = .FALSE.
 
     CALL timeset(routineN,handle)
 
@@ -335,8 +320,7 @@ CPSourceFileRef)
 
     CALL cp_assert(ncol_global>=(my_start_col+my_ncol-1),&
          cp_failure_level,cp_assertion_failed,routineP,&
-         "ncol_global>=(my_start_col+my_ncol-1)",&
-         failure)
+         "ncol_global>=(my_start_col+my_ncol-1)")
 
     ALLOCATE(buff(nrow_global))
 
@@ -387,11 +371,9 @@ CPSourceFileRef)
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, i, matrix_size, n
-    LOGICAL                                  :: failure
 
     CALL timeset(routineN,handle)
 
-    failure = .FALSE.
 
     IF(matrix%use_sp) THEN
        matrix_size = SIZE(matrix%local_data_sp,1)*SIZE(matrix%local_data_sp,2)
@@ -431,7 +413,6 @@ CPSourceFileRef)
 
     ! locals
     INTEGER :: i,nrow_global
-    LOGICAL :: failure
 
 #if defined(__SCALAPACK)
     INTEGER, DIMENSION(9) :: desca
@@ -442,7 +423,6 @@ CPSourceFileRef)
     REAL(KIND = sp), DIMENSION(:,:), POINTER :: a_sp
 #endif
 
-    failure = .FALSE.
 
     CALL cp_fm_get_info(matrix,nrow_global=nrow_global)
 
@@ -509,7 +489,6 @@ CPSourceFileRef)
     INTEGER, INTENT(IN)                       :: icol_global,&
                                                  irow_global
     LOGICAL, INTENT(OUT), OPTIONAL            :: local
-    LOGICAL :: failure
 
     ! locals
 #if defined(__SCALAPACK)
@@ -520,7 +499,6 @@ CPSourceFileRef)
     REAL(KIND = dp), DIMENSION(:,:), POINTER :: a
 #endif
 
-    failure = .FALSE.
 
 #if defined(__SCALAPACK)
     context => matrix%matrix_struct%context
@@ -570,7 +548,6 @@ CPSourceFileRef)
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: mypcol, myprow, npcol, nprow
-    LOGICAL                                  :: failure
     TYPE(cp_blacs_env_type), POINTER         :: context
 #if defined(__SCALAPACK)
     INTEGER                                  :: icol_local, ipcol, iprow, &
@@ -579,7 +556,6 @@ CPSourceFileRef)
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: a
 #endif
 
-    failure = .FALSE.
 
     context => matrix%matrix_struct%context
     myprow = context%mepos(1)
@@ -650,7 +626,7 @@ CPSourceFileRef)
     INTEGER :: i, i0, j, j0, ncol, ncol_block, ncol_global, ncol_local, nrow, &
       nrow_block, nrow_global, nrow_local, this_col, this_row
     INTEGER, DIMENSION(:), POINTER           :: col_indices, row_indices
-    LOGICAL                                  :: failure, tr_a
+    LOGICAL                                  :: tr_a
     REAL(KIND=dp)                            :: al, be
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: full_block
 
@@ -658,7 +634,6 @@ CPSourceFileRef)
     ! can be called too many times, making it a bit useless
     ! CALL timeset(routineN//','//moduleN,handle)
 
-    failure=.FALSE.
 
     CPASSERT(ASSOCIATED(fm))
     CPASSERT(fm%ref_count>0)
@@ -790,14 +765,13 @@ CPSourceFileRef)
     INTEGER :: handle, i, i0, j, j0, ncol, ncol_global, ncol_local, nrow, &
       nrow_global, nrow_local, this_col, this_row
     INTEGER, DIMENSION(:), POINTER           :: col_indices, row_indices
-    LOGICAL                                  :: failure, tr_a
+    LOGICAL                                  :: tr_a
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: full_block
     TYPE(cp_para_env_type), POINTER          :: para_env
 
     CALL timeset(routineN,handle)
 
     i0=1; j0=1; tr_a=.FALSE.
-    failure=.FALSE.
 
     CPASSERT(ASSOCIATED(fm))
     CPASSERT(fm%ref_count>0)
@@ -964,7 +938,6 @@ CPSourceFileRef)
                                                 ncol_local, nrow_local, num_pe
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: ic_max_vec, ir_max_vec
     INTEGER, DIMENSION(:), POINTER           :: col_indices, row_indices
-    LOGICAL                                  :: failure
     REAL(dp)                                 :: my_max
     REAL(dp), ALLOCATABLE, DIMENSION(:)      :: a_max_vec
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: my_block
@@ -972,7 +945,6 @@ CPSourceFileRef)
 
     CALL timeset(routineN,handle)
 
-    failure = .FALSE.
     my_block => matrix%local_data
     my_block_sp => matrix%local_data_sp
 
@@ -1108,10 +1080,7 @@ CPSourceFileRef)
     INTEGER                                  :: handle, i, j, ncol_global, &
                                                 ncol_local, nrow_local
     INTEGER, DIMENSION(:), POINTER           :: col_indices
-    LOGICAL                                  :: failure
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: my_block
-
-    failure = .FALSE.
 
     CALL timeset(routineN,handle)
 
@@ -1162,12 +1131,12 @@ CPSourceFileRef)
 
     CHARACTER(len=default_path_length)       :: filename
     INTEGER                                  :: data_unit, desc_unit, iostat
-    LOGICAL                                  :: exists, failure, loc, &
+    LOGICAL                                  :: exists, loc, &
                                                 my_long_description
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
 
-     failure=.FALSE.; loc=.FALSE.; my_long_description=.FALSE.
+     loc=.FALSE.; my_long_description=.FALSE.
      filename=' '
 
      IF (PRESENT(local)) loc=local
@@ -1270,11 +1239,9 @@ CPSourceFileRef)
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, npcol, nprow
-    LOGICAL                                  :: failure
 
     CALL timeset(routineN,handle)
 
-    failure=.TRUE.
 
     nprow = source%matrix_struct%context%num_pe(1)
     npcol = source%matrix_struct%context%num_pe(2)
@@ -1289,7 +1256,7 @@ CPSourceFileRef)
                "Cannot copy full matrix <"//TRIM(source%name)//&
                "> to full matrix <"//TRIM(destination%name)//&
                ">. The local_data blocks have different sizes."//&
-CPSourceFileRef)
+__LOCATION__)
           CALL scopy(SIZE(source%local_data_sp,1)*SIZE(source%local_data_sp,2),&
                source%local_data_sp(1,1),1,destination%local_data_sp(1,1),1)
        ELSEIF(source%use_sp.AND..NOT.destination%use_sp) THEN
@@ -1299,7 +1266,7 @@ CPSourceFileRef)
                "Cannot copy full matrix <"//TRIM(source%name)//&
                "> to full matrix <"//TRIM(destination%name)//&
                ">. The local_data blocks have different sizes."//&
-CPSourceFileRef)
+__LOCATION__)
           destination%local_data=REAL(source%local_data_sp,dp)
        ELSEIF(.NOT.source%use_sp.AND.destination%use_sp) THEN
           CALL cp_assert(SIZE(source%local_data,1)==SIZE(destination%local_data_sp,1).AND.&
@@ -1308,7 +1275,7 @@ CPSourceFileRef)
                "Cannot copy full matrix <"//TRIM(source%name)//&
                "> to full matrix <"//TRIM(destination%name)//&
                ">. The local_data blocks have different sizes."//&
-CPSourceFileRef)
+__LOCATION__)
           destination%local_data_sp=REAL(source%local_data,sp)
        ELSE
           CALL cp_assert(SIZE(source%local_data,1)==SIZE(destination%local_data,1).AND.&
@@ -1317,7 +1284,7 @@ CPSourceFileRef)
                "Cannot copy full matrix <"//TRIM(source%name)//&
                "> to full matrix <"//TRIM(destination%name)//&
                ">. The local_data blocks have different sizes."//&
-CPSourceFileRef)
+__LOCATION__)
           CALL dcopy(SIZE(source%local_data,1)*SIZE(source%local_data,2),&
                source%local_data(1,1),1,destination%local_data(1,1),1)
        ENDIF
@@ -1397,7 +1364,6 @@ CPSourceFileRef)
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, ncol, nrow
-    LOGICAL                                  :: failure
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: a, b
 #if defined(__SCALAPACK)
     INTEGER, DIMENSION(9)                    :: desca, descb
@@ -1405,7 +1371,6 @@ CPSourceFileRef)
 
     CALL timeset(routineN,handle)
 
-    failure=.TRUE.
 
     nrow = msource%matrix_struct%nrow_global
     ncol = msource%matrix_struct%ncol_global
@@ -1448,7 +1413,6 @@ CPSourceFileRef)
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, i, na, nb, ss, ts
-    LOGICAL                                  :: failure
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: a, b
 #if defined(__SCALAPACK)
     INTEGER, DIMENSION(9)                    :: desca, descb
@@ -1456,7 +1420,6 @@ CPSourceFileRef)
 
     CALL timeset(routineN,handle)
 
-    failure = .FALSE.
 
     a => msource%local_data
     b => mtarget%local_data
@@ -1468,22 +1431,22 @@ CPSourceFileRef)
     CALL cp_assert(nrow<=na, cp_failure_level,&
            cp_assertion_failed, routineP, &
            "cannot copy because nrow > number of rows of source matrix"//&
-CPSourceFileRef)
+__LOCATION__)
     CALL cp_assert(nrow<=nb, cp_failure_level,&
            cp_assertion_failed, routineP, &
            "cannot copy because nrow > number of rows of target matrix"//&
-CPSourceFileRef)
+__LOCATION__)
     na = msource%matrix_struct%ncol_global
     nb = mtarget%matrix_struct%ncol_global
 !    ncol must be <= na_col and nb_col
     CALL cp_assert(ncol<=na, cp_failure_level,&
            cp_assertion_failed, routineP, &
            "cannot copy because nrow > number of rows of source matrix"//&
-CPSourceFileRef)
+__LOCATION__)
     CALL cp_assert(ncol<=nb, cp_failure_level,&
            cp_assertion_failed, routineP, &
            "cannot copy because nrow > number of rows of target matrix"//&
-CPSourceFileRef)
+__LOCATION__)
 
 #if defined(__SCALAPACK)
     desca(:) = msource%matrix_struct%descriptor(:)
@@ -1536,7 +1499,7 @@ CPSourceFileRef)
     CHARACTER(LEN=*), PARAMETER :: routineN = 'cp_fm_copy_general', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure, debug
+    LOGICAL                                  :: debug
     INTEGER                                  :: handle
 #if defined(__SCALAPACK)
     INTEGER                                  :: sdat, ddat, m, n
@@ -1547,7 +1510,6 @@ CPSourceFileRef)
 
     CALL timeset(routineN,handle)
 
-    failure=.FALSE.
     debug = debug_this_module
 
     IF (.NOT. cp2k_is_parallel) THEN
@@ -1565,7 +1527,7 @@ CPSourceFileRef)
           CALL cp_assert(.NOT.source%use_sp,&
                cp_failure_level, cp_assertion_failed, routineP, &
                "only DP kind implemnted"//&
-CPSourceFileRef)
+__LOCATION__)
           m = source%matrix_struct%nrow_global
           n = source%matrix_struct%ncol_global
           smat => source%local_data
@@ -1579,7 +1541,7 @@ CPSourceFileRef)
           CALL cp_assert(.NOT.destination%use_sp,&
                cp_failure_level, cp_assertion_failed, routineP, &
                "only DP kind implemnted"//&
-CPSourceFileRef)
+__LOCATION__)
           m = destination%matrix_struct%nrow_global
           n = destination%matrix_struct%ncol_global
           dmat => destination%local_data
@@ -1594,13 +1556,13 @@ CPSourceFileRef)
                cp_failure_level,&
                cp_assertion_failed, routineP, &
                "cannot copy between full matrixes of different sizes"//&
-CPSourceFileRef)
+__LOCATION__)
           CALL cp_assert(source%matrix_struct%ncol_global==&
                destination%matrix_struct%ncol_global,&
                cp_failure_level,&
                cp_assertion_failed, routineP, &
                "cannot copy between full matrixes of differen sizes"//&
-CPSourceFileRef)
+__LOCATION__)
        END IF
 
        CALL pdgemr2d(m,n,smat,1,1,desca,dmat,1,1,descb,global_context)
@@ -1636,7 +1598,6 @@ CPSourceFileRef)
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: mypcol, myprow,npcol, nprow
-    LOGICAL                                  :: failure
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: a
     TYPE(cp_blacs_env_type), POINTER         :: context
 #if defined(__SCALAPACK)
@@ -1645,7 +1606,6 @@ CPSourceFileRef)
     INTEGER, DIMENSION(9)                    :: desca
 #endif
 
-    failure = .FALSE.
 
     CPASSERT(ASSOCIATED(matrix))
 
@@ -1692,7 +1652,6 @@ CPSourceFileRef)
 
     INTEGER                                  :: handle, j, max_block,&
                                                 ncol_global, nrow_global
-    LOGICAL                                  :: failure
     TYPE(cp_para_env_type), POINTER          :: para_env
 #if defined(__SCALAPACK)
     INTEGER                                  :: i, i_block, icol_local,&
@@ -1706,7 +1665,6 @@ CPSourceFileRef)
     INTEGER, EXTERNAL                        :: numroc
 #endif
 
-   failure = .FALSE.
    CALL timeset(routineN,handle)
    CALL cp_fm_get_info(fm, nrow_global=nrow_global,ncol_global=ncol_global,ncol_block=max_block,&
         para_env=para_env)
@@ -1795,7 +1753,6 @@ CPSourceFileRef)
 
     INTEGER                                  :: handle, j, max_block, &
                                                 ncol_global, nrow_global
-    LOGICAL                                  :: failure
     TYPE(cp_para_env_type), POINTER          :: para_env
 #if defined(__SCALAPACK)
     INTEGER                                  :: k, n_cols
@@ -1803,7 +1760,6 @@ CPSourceFileRef)
 #endif
 
    CALL timeset(routineN,handle)
-   failure=.FALSE.
 
    CALL cp_fm_get_info(fm, nrow_global=nrow_global,ncol_global=ncol_global,ncol_block=max_block,&
         para_env=para_env)

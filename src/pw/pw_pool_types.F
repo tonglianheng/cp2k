@@ -122,10 +122,8 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_pool_create', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     TYPE(cp_logger_type), POINTER            :: logger
 
-    failure=.FALSE.
     logger => cp_get_default_logger()
 
     ALLOCATE(pool)
@@ -159,10 +157,8 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_pool_retain', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     TYPE(cp_logger_type), POINTER            :: logger
 
-    failure=.FALSE.
     logger => cp_get_default_logger()
 
     CPASSERT(ASSOCIATED(pool))
@@ -190,15 +186,12 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_pool_flush_cache', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     REAL(kind=dp), DIMENSION(:, :, :), &
       POINTER                                :: array_att
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_sll_3d_r_type), POINTER          :: array_iterator
     TYPE(cp_sll_pw_type), POINTER            :: iterator
     TYPE(pw_type), POINTER                   :: pw_el
-
-    failure=.FALSE.
 
     CPASSERT(ASSOCIATED(pool))
     CPASSERT(pool%ref_count>0)
@@ -269,10 +262,8 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_pool_release', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     TYPE(cp_logger_type), POINTER            :: logger
 
-    failure=.FALSE.
     logger => cp_get_default_logger()
 
     IF (ASSOCIATED(pool)) THEN
@@ -340,12 +331,9 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle
-    LOGICAL                                  :: failure
     REAL(kind=dp), DIMENSION(:, :, :), &
       POINTER                                :: cr3d_ptr
     TYPE(cp_logger_type), POINTER            :: logger
-
-    failure=.FALSE.
 
     CALL timeset(routineN,handle)
     NULLIFY(pw)
@@ -438,6 +426,7 @@ CONTAINS
     TYPE(cp_logger_type), POINTER            :: logger
 
     failure=.FALSE.
+
     my_accept_non_compatible=.FALSE.
     logger => cp_get_default_logger()
     IF (PRESENT(accept_non_compatible)) my_accept_non_compatible=accept_non_compatible
@@ -447,7 +436,7 @@ CONTAINS
     CPASSERT(pool%ref_count>0)
     IF (.NOT.ASSOCIATED(pw)) THEN
        CPASSERT(my_accept_non_compatible)
-       failure=.TRUE.
+       failure = .TRUE.
     END IF
     IF (.NOT. failure) THEN
        CPASSERT(pw%ref_count==1)
@@ -460,19 +449,14 @@ CONTAINS
                   pw=pw)
              CALL print_stack(cp_logger_get_default_unit_nr(logger,local=.TRUE.))
           END IF
-
-          CALL cp_assert(my_accept_non_compatible,&
-               cp_failure_level, cp_assertion_failed, routineP,&
-               "pool cannot reuse pw of another grid "//&
-CPSourceFileRef,&
-               failure=failure)
+          
+          IF(.NOT.my_accept_non_compatible)&
+             CPABORT("pool cannot reuse pw of another grid")
           CALL pw_release(pw)
-          failure=.TRUE.
+          failure = .TRUE.
        END IF
     END IF
-
     IF (.NOT. failure) THEN
-
        IF (debug_this_module) THEN
           WRITE (unit=cp_logger_get_default_unit_nr(logger,local=.TRUE.),&
                fmt="(' *** pw_pool ',i4,' giving back pw ',i4)")&
@@ -493,9 +477,8 @@ CPSourceFileRef,&
                 CALL cp_sll_pw_insert_el(pool%real1d_pw, el=pw)
              END IF
           ELSE
-             CALL cp_assert(max_max_cache<0,cp_warning_level,cp_assertion_failed,&
-                  routineP,"hit max_cache"//&
-CPSourceFileRef)
+             IF(max_max_cache>=0)&
+                CPWARN("hit max_cache")
              CALL pw_release(pw)
           END IF
        CASE(REALDATA3D)
@@ -509,9 +492,8 @@ CPSourceFileRef)
                    CALL cp_sll_pw_insert_el(pool%real3d_pw, el=pw)
                 END IF
              ELSE
-                CALL cp_assert(max_max_cache<0,cp_warning_level,cp_assertion_failed,&
-                     routineP,"hit max_cache"//&
-CPSourceFileRef)
+                IF(max_max_cache>=0)&
+                   CPWARN("hit max_cache")
                 CALL pw_release(pw)
              END IF
           ELSE
@@ -534,9 +516,8 @@ CPSourceFileRef)
                 CALL cp_sll_pw_insert_el(pool%complex1d_pw, el=pw)
              END IF
           ELSE
-             CALL cp_assert(max_max_cache<0,cp_warning_level,cp_assertion_failed,&
-                  routineP,"hit max_cache"//&
-CPSourceFileRef)
+             IF(max_max_cache>=0)&
+                CPWARN("hit max_cache")
              CALL pw_release(pw)
           END IF
        CASE(COMPLEXDATA3D)
@@ -549,9 +530,8 @@ CPSourceFileRef)
                 CALL cp_sll_pw_insert_el(pool%complex3d_pw, el=pw)
              END IF
           ELSE
-             CALL cp_assert(max_max_cache<0,cp_warning_level,cp_assertion_failed,&
-                  routineP,"hit max_cache"//&
-CPSourceFileRef)
+             IF(max_max_cache>=0)&
+                CPWARN("hit max_cache")
              CALL pw_release(pw)
           END IF
        CASE default
@@ -584,11 +564,9 @@ SUBROUTINE pw_pool_create_cr3d(pw_pool,cr3d)
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: stat
-    LOGICAL                                  :: failure
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(pw_type), POINTER                   :: pw
 
-  failure=.FALSE.
   NULLIFY(pw)
   logger => cp_get_default_logger()
 
@@ -646,11 +624,10 @@ SUBROUTINE pw_pool_give_back_cr3d(pw_pool,cr3d,accept_non_compatible)
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_pool_give_back_cr3d', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: compatible, failure, &
+    LOGICAL                                  :: compatible, &
                                                 my_accept_non_compatible
     TYPE(cp_logger_type), POINTER            :: logger
 
-  failure=.FALSE.
   my_accept_non_compatible=.FALSE.
   logger => cp_get_default_logger()
   IF (PRESENT(accept_non_compatible)) my_accept_non_compatible=accept_non_compatible
@@ -672,9 +649,8 @@ SUBROUTINE pw_pool_give_back_cr3d(pw_pool,cr3d,accept_non_compatible)
         IF (cp_sll_3d_r_get_length(pw_pool%real3d_array)<pw_pool%max_cache) THEN
            CALL cp_sll_3d_r_insert_el(pw_pool%real3d_array, el=cr3d)
         ELSE
-           CALL cp_assert(max_max_cache<0,cp_warning_level,cp_assertion_failed,&
-                routineP,"hit max_cache"//&
-CPSourceFileRef)
+           IF(max_max_cache>=0)&
+              CPWARN("hit max_cache")
            DEALLOCATE(cr3d)
         END IF
      ELSE
@@ -720,9 +696,6 @@ SUBROUTINE pw_pools_create_pws(pools, pws, use_data, in_space)
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i
-    LOGICAL                                  :: failure
-
-  failure=.FALSE.
 
   CPASSERT(ASSOCIATED(pools))
   ALLOCATE(pws(SIZE(pools)))
@@ -750,9 +723,6 @@ SUBROUTINE pw_pools_give_back_pws(pools, pws)
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i
-    LOGICAL                                  :: failure
-
-  failure=.FALSE.
 
   CPASSERT(ASSOCIATED(pools))
   CPASSERT(ASSOCIATED(pws))
@@ -779,9 +749,6 @@ SUBROUTINE pw_pools_copy(source_pools, target_pools)
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i
-    LOGICAL                                  :: failure
-
-  failure=.FALSE.
 
   CPASSERT(ASSOCIATED(source_pools))
   ALLOCATE(target_pools(SIZE(source_pools)))
@@ -807,9 +774,6 @@ SUBROUTINE pw_pools_dealloc(pools)
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i
-    LOGICAL                                  :: failure
-
-  failure=.FALSE.
 
   IF (ASSOCIATED(pools)) THEN
      DO i=1,SIZE(pools)
@@ -835,9 +799,6 @@ SUBROUTINE pw_pools_flush_cache(pools)
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i
-    LOGICAL                                  :: failure
-
-  failure=.FALSE.
 
   CPASSERT(ASSOCIATED(pools))
   DO i=1,SIZE(pools)
@@ -860,11 +821,8 @@ SUBROUTINE pw_pool_write(pw_pool,unit_nr)
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_pool_write', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     TYPE(cp_sll_pw_type), POINTER            :: iter
     TYPE(pw_type), POINTER                   :: pw_att
-
-  failure=.FALSE.
 
   IF (ASSOCIATED(pw_pool)) THEN
      WRITE (unit=unit_nr, &

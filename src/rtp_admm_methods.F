@@ -85,7 +85,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, ispin, nspins
-    LOGICAL                                  :: failure, s_mstruct_changed
+    LOGICAL                                  :: s_mstruct_changed
     REAL(KIND=dp), DIMENSION(:), POINTER     :: tot_rho_r_aux
     TYPE(admm_type), POINTER                 :: admm_env
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
@@ -104,7 +104,6 @@ CONTAINS
     TYPE(qs_rho_type), POINTER               :: rho, rho_aux_fit
     TYPE(rt_prop_type), POINTER              :: rtp
 
-    failure=.FALSE.
     CALL timeset(routineN,handle)
     NULLIFY(admm_env, matrix_p_aux, matrix_p_aux_im, mos, &
          mos_aux_fit, para_env,matrix_s_aux_fit,matrix_s_aux_fit_vs_orb, rho,&
@@ -180,9 +179,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle
-    LOGICAL                                  :: failure
-
-    failure = .FALSE.
 
     CALL timeset(routineN,handle)
 
@@ -191,10 +187,7 @@ CONTAINS
        CALL calculate_rtp_admm_density(density_matrix_aux,density_matrix_aux_im,&
             rtp_coeff_aux_fit,ispin)
     CASE DEFAULT
-       CALL cp_assert(.FALSE.,cp_warning_level,cp_assertion_failed,routineP,&
-                      "only purification NONE possible with RTP/EMD at the moment"//&
-                       CPSourceFileRef,&
-                       only_ionode=.TRUE.)
+       CPWARN("only purification NONE possible with RTP/EMD at the moment")
     END SELECT
 
     CALL timestop(handle)
@@ -256,9 +249,7 @@ CONTAINS
                                   admm_env=admm_env)
 
       IF(admm_control%method /= do_admm_basis_projection) THEN
-           CALL cp_assert(.FALSE.,cp_warning_level,cp_assertion_failed,routineP,&
-                "RTP requires BASIS_PROJECTION."//&
-                CPSourceFileRef, only_ionode=.TRUE.)
+           CPWARN("RTP requires BASIS_PROJECTION.")
       END IF
     END IF
 
@@ -269,10 +260,7 @@ CONTAINS
        CALL rtp_fit_mo_coeffs_none(qs_env, admm_env, para_env, matrix_s_aux_fit, matrix_s_mixed, &
             mos, mos_aux_fit,rtp,rtp_coeff_aux_fit,recalc_S)
     CASE DEFAULT
-       CALL cp_assert(.FALSE.,cp_warning_level,cp_assertion_failed,routineP,&
-            "Purification method not implemented in combination with RTP"//&
-            CPSourceFileRef,&
-            only_ionode=.TRUE.)
+       CPWARN("Purification method not implemented in combination with RTP")
      END SELECT
 
     CALL timestop(handle)
@@ -462,7 +450,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, ispin
-    LOGICAL                                  :: failure
     TYPE(admm_type), POINTER                 :: admm_env
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: matrix_ks, matrix_ks_aux_fit, &
@@ -470,7 +457,6 @@ CONTAINS
                                                 matrix_ks_im
     TYPE(dft_control_type), POINTER          :: dft_control
 
-    failure = .FALSE.
     NULLIFY(admm_env, dft_control,&
             matrix_ks, matrix_ks_im, matrix_ks_aux_fit, matrix_ks_aux_fit_im)
     CALL timeset(routineN,handle)
@@ -492,9 +478,7 @@ CONTAINS
           CALL rt_merge_ks_matrix_none(ispin, admm_env,&
                                        matrix_ks_im, matrix_ks_aux_fit_im)
        CASE DEFAULT
-          CALL cp_assert(.FALSE.,cp_warning_level,cp_assertion_failed,routineP,&
-                         "only purification NONE possible with RTP/EMD at the moment"//&
-                          CPSourceFileRef, only_ionode=.TRUE.)
+          CPWARN("only purification NONE possible with RTP/EMD at the moment")
        END SELECT
 
     ENDDO !spin loop
@@ -523,11 +507,8 @@ CONTAINS
     INTEGER                                  :: handle, nao_aux_fit, nao_orb, &
                                                 nmo
     INTEGER, SAVE                            :: counter = 0
-    LOGICAL                                  :: failure
     TYPE(cp_dbcsr_type)                      :: matrix_ks_nosym
     TYPE(cp_dbcsr_type), POINTER             :: matrix_k_tilde
-
-    failure = .FALSE.
 
     CALL timeset(routineN,handle)
 

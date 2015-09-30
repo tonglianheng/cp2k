@@ -61,7 +61,7 @@ CONTAINS
     INTEGER                                  :: a_var, handle, i, iatom, j, &
                                                 k, n_var, natom, rep
     INTEGER, DIMENSION(:), POINTER           :: iatms, nparticle
-    LOGICAL                                  :: failure, useall
+    LOGICAL                                  :: useall
     REAL(KIND=dp)                            :: dedf, dx, energy, err, lerr
     REAL(KIND=dp), DIMENSION(:), POINTER     :: my_val
     TYPE(cp_logger_type), POINTER            :: logger
@@ -69,7 +69,6 @@ CONTAINS
     TYPE(particle_list_type), POINTER        :: particles
     TYPE(section_vals_type), POINTER         :: ext_pot_section
 
-    failure = .FALSE.
     useall  = .FALSE.
     CALL timeset(routineN,handle)
     NULLIFY(my_par, my_val, logger, subsys, particles, ext_pot_section, nparticle)
@@ -120,10 +119,10 @@ CONTAINS
                 WRITE(def_error,"(A,G12.6,A)")"(",lerr,")"
                 CALL compress(this_error,.TRUE.)
                 CALL compress(def_error,.TRUE.)
-                CALL cp_assert(.FALSE.,cp_warning_level,-300,routineP,&
+                CALL cp_warn(__LOCATION__,&
                      'ASSERTION (cond) failed at line '//cp_to_string(__LINE__)//&
                      ' Error '//TRIM(this_error)//' in computing numerical derivatives larger then'//&
-                     TRIM(def_error)//' .',only_ionode=.TRUE.)
+                     TRIM(def_error)//' .')
              END IF
              particles%els(iatom)%f(j)=particles%els(iatom)%f(j)-dedf
           END DO

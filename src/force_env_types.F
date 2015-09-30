@@ -167,10 +167,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'force_env_retain', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-    failure=.FALSE.
-
     CPASSERT(ASSOCIATED(force_env))
     CPASSERT(force_env%ref_count>0)
     force_env%ref_count=force_env%ref_count+1
@@ -192,10 +188,8 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i, my_group
-    LOGICAL                                  :: failure
     TYPE(cp_logger_type), POINTER            :: my_logger
 
-    failure=.FALSE.
     IF (ASSOCIATED(force_env)) THEN
        CPASSERT(force_env%ref_count>0)
        force_env%ref_count=force_env%ref_count-1
@@ -314,7 +308,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'force_env_get', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: eip_kinetic_energy, &
                                                 eip_potential_energy
     TYPE(cp_subsys_type), POINTER            :: subsys_tmp
@@ -324,7 +317,6 @@ CONTAINS
 
     NULLIFY(subsys_tmp)
 
-    failure=.FALSE.
 
     CPASSERT(ASSOCIATED(force_env))
     CPASSERT(force_env%ref_count>0)
@@ -386,10 +378,7 @@ CONTAINS
        IF (PRESENT(potential_energy)) potential_energy = mixed_energy%pot
        IF (PRESENT(kinetic_energy)) kinetic_energy = mixed_energy%kin
     CASE DEFAULT
-       CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
-            routineP,"unknown in_use flag value "//&
-            CPSourceFileRef,&
-            failure)
+       CPABORT("unknown in_use flag value ")
     END SELECT
 
     IF (PRESENT(force_env_section)) force_env_section => force_env%force_env_section
@@ -459,10 +448,8 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'force_env_get_natom', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     TYPE(cp_subsys_type), POINTER            :: subsys
 
-    failure = .FALSE.
     n_atom = 0
     NULLIFY (subsys)
     CALL force_env_get(force_env,subsys=subsys)
@@ -485,10 +472,8 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'force_env_get_nparticle', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     TYPE(cp_subsys_type), POINTER            :: subsys
 
-    failure = .FALSE.
     n_particle = 0
     NULLIFY (subsys)
     CALL force_env_get(force_env,subsys=subsys)
@@ -514,10 +499,8 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle
-    LOGICAL                                  :: failure
     TYPE(cp_subsys_type), POINTER            :: subsys
 
-    failure = .FALSE.
     CALL timeset(routineN,handle)
     CPASSERT(ASSOCIATED(force_env))
     CPASSERT(force_env%ref_count > 0)
@@ -545,10 +528,8 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle
-    LOGICAL                                  :: failure
     TYPE(cp_subsys_type), POINTER            :: subsys
 
-    failure = .FALSE.
     CALL timeset(routineN,handle)
     CPASSERT(ASSOCIATED(force_env))
     CPASSERT(force_env%ref_count > 0)
@@ -576,10 +557,8 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle
-    LOGICAL                                  :: failure
     TYPE(cp_subsys_type), POINTER            :: subsys
 
-    failure = .FALSE.
     CALL timeset(routineN,handle)
     CPASSERT(ASSOCIATED(force_env))
     CPASSERT(force_env%ref_count > 0)
@@ -615,9 +594,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'force_env_set', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-    failure = .FALSE.
     CPASSERT(ASSOCIATED(force_env))
     CPASSERT(force_env%ref_count>0)
     IF (PRESENT(meta_env)) THEN
@@ -669,10 +645,9 @@ CONTAINS
 
     INTEGER                                  :: iforce_eval, main_force_eval
     INTEGER, DIMENSION(:), POINTER           :: my_i_force_eval
-    LOGICAL                                  :: failure
 
-    failure = .FALSE.
-    ! Let's treat the case of Multiple force_eval
+! Let's treat the case of Multiple force_eval
+
     CALL section_vals_get(force_env_sections, n_repetition=nforce_eval)
     CALL section_vals_val_get(root_section,"MULTIPLE_FORCE_EVALS%FORCE_EVAL_ORDER",&
          i_vals=my_i_force_eval)

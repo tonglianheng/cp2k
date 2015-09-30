@@ -259,6 +259,7 @@ ewalds_multipole_debug.F: Found WRITE statement with hardcoded unit in "debug_ew
 ewalds_multipole_debug.h: Copyright banner malformed
 extended_system_init.F: Found WRITE statement with hardcoded unit in "init_barostat_variables"
 f77_int.h: Copyright banner malformed
+f77_interface.F: Unused dummy argument ‘failure’ at (1) [-Wunused-dummy-argument]
 farming_methods.F: Found CLOSE statement in procedure "farming_parse_input"
 farming_methods.F: Found OPEN statement in procedure "farming_parse_input"
 fft_lib.F: Unused parameter ‘dp’ which has been explicitly imported at (1) [-Wunused-parameter]
@@ -484,3 +485,7 @@ xyz_to_vab_optimised.F: Unused dummy argument ‘lb_min_local’ at (1) [-Wunuse
 xyz_to_vab_optimised.F: Unused dummy argument ‘rab’ at (1) [-Wunused-dummy-argument]
 xyz_to_vab_optimised.F: Unused dummy argument ‘ra’ at (1) [-Wunused-dummy-argument]
 xyz_to_vab_optimised.F: Unused dummy argument ‘rp’ at (1) [-Wunused-dummy-argument]
+message_passing.F: Found STOP statement in procedure "mp_abort"
+machine_internal.F: Found WRITE statement with hardcoded unit in "m_getarg"
+machine_internal.F: Found WRITE statement with hardcoded unit in "m_getcwd"
+machine_internal.F: Found WRITE statement with hardcoded unit in "m_hostnm"

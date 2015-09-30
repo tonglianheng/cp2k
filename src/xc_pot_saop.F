@@ -135,8 +135,8 @@ CONTAINS
       xc_deriv_method_id, xc_rho_smooth_id
     INTEGER, DIMENSION(2)                    :: ncol, nrow
     INTEGER, DIMENSION(2, 3)                 :: bo
-    LOGICAL                                  :: compute_virial, failure, &
-                                                gapw, ionode, lsd
+    LOGICAL                                  :: compute_virial, gapw, ionode, &
+                                                lsd
     REAL(KIND=dp)                            :: density_cut, efac, &
                                                 gradient_cut, tau_cut, &
                                                 tot_rho_psi, we_GLLB, we_LB, &
@@ -173,8 +173,6 @@ CONTAINS
     TYPE(xc_derivative_type), POINTER        :: deriv
     TYPE(xc_rho_cflags_type)                 :: needs
     TYPE(xc_rho_set_type), POINTER           :: rho_set
-
-    failure = .FALSE.
 
     NULLIFY(ks_env, pw_env, auxbas_pw_pool, input)
     NULLIFY(rho_g, rho_r, tau, rho_struct, rho_set, e_uniform)
@@ -523,11 +521,11 @@ CONTAINS
 
     INTEGER                                  :: ia, iat, iatom, ikind, ir, &
                                                 ispin, mepos, na, natom, nr, &
-                                                ns, nspins, num_pe, orb, stat
+                                                ns, nspins, num_pe, orb
     INTEGER, DIMENSION(2)                    :: bo, homo, ncol, nrow
     INTEGER, DIMENSION(2, 3)                 :: bounds
     INTEGER, DIMENSION(:), POINTER           :: atom_list
-    LOGICAL                                  :: failure, lsd, paw_atom
+    LOGICAL                                  :: lsd, paw_atom
     REAL(dp), DIMENSION(:, :), POINTER       :: tau
     REAL(KIND=dp)                            :: density_cut, efac, exc, &
                                                 gradient_cut, tau_cut, &
@@ -578,8 +576,6 @@ CONTAINS
     TYPE(xc_rho_set_type), POINTER           :: orb_rho_set_h, orb_rho_set_s, &
                                                 rho_set_h, rho_set_s
 
-    failure = .FALSE.
-
     NULLIFY(weight, rho_h, rho_s, vxc_LB_h, vxc_LB_s, vxc_GLLB_h, vxc_GLLB_s, &
             vxc_tmp_h, vxc_tmp_s, vtau, dummy, e_uniform, drho_h, drho_s, vxg, atom_list, &
             atomic_kind_set, qs_kind_set,  deriv_set, deriv, atomic_grid, rho_struct_ao, &
@@ -626,10 +622,7 @@ CONTAINS
     CALL calculate_rho_atom_coeff(qs_env,psmat)
     CALL prepare_gapw_den(qs_env)
 
-    ALLOCATE(mo_coeff(nspins), single_mo_coeff(nspins), &
-             mo_eigenvalues(nspins),&
-             stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(mo_coeff(nspins), single_mo_coeff(nspins), mo_eigenvalues(nspins))
 
     CALL cp_dbcsr_allocate_matrix_set(orbital_density_matrix,nspins)
 

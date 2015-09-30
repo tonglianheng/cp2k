@@ -232,8 +232,10 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: ikind, method_id, natom, nkind
-    LOGICAL :: do_et, do_exx, do_hfx, do_kpoints, failure, mp2_present, &
-      my_qmmm, qmmm_decoupl, use_ref_cell
+    LOGICAL                                  :: do_et, do_exx, do_hfx, &
+                                                do_kpoints, mp2_present, &
+                                                my_qmmm, qmmm_decoupl, &
+                                                use_ref_cell
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: rtmat
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
@@ -252,7 +254,6 @@ CONTAINS
     TYPE(section_vals_type), POINTER :: dft_section, et_coupling_section, &
       hfx_section, kpoint_section, mp2_section, transport_section
 
-    failure = .FALSE.
     NULLIFY(my_cell, my_cell_ref, atomic_kind_set, particle_set, &
          qs_kind_set, kpoint_section, dft_section, &
          subsys, ks_env, dft_control, blacs_env)
@@ -437,8 +438,7 @@ CONTAINS
       n_ao_aux_fit, n_mo_add, natom, nelectron, output_unit
     INTEGER, DIMENSION(2)                    :: n_mo, nelectron_spin
     LOGICAL                                  :: all_potential_present, &
-                                                failure, has_unit_metric, &
-                                                was_present
+                                                has_unit_metric, was_present
     REAL(dp)                                 :: ewald_rcut, maxocc, &
                                                 verlet_skin
     TYPE(atomic_kind_type), DIMENSION(:), &
@@ -485,7 +485,6 @@ CONTAINS
       POINTER                                :: se_control
     TYPE(semi_empirical_si_type), POINTER    :: se_store_int_env
 
-    failure = .FALSE.
     CALL timeset(routineN,handle)
     NULLIFY(logger)
     logger => cp_get_default_logger()
@@ -1051,11 +1050,10 @@ CONTAINS
                        nelectron_spin=nelectron_spin)
 
     ! Check and set number of added (unoccupied) MOs
-    CALL cp_assert((scf_control%added_mos(1) <= n_ao - n_mo(1)),cp_warning_level,&
-                   cp_assertion_failed,routineP,&
-                   "More added MOs requested than available. "//&
-                   "The full set of unoccupied MOs will be used.",&
-                   only_ionode=.TRUE.)
+    IF(scf_control%added_mos(1) > n_ao - n_mo(1))&
+       CALL cp_warn(__LOCATION__,&
+            "More added MOs requested than available. "//&
+            "The full set of unoccupied MOs will be used.")
     scf_control%added_mos(1) = MIN(scf_control%added_mos(1),n_ao - n_mo(1))
     n_mo(1) = n_mo(1) + scf_control%added_mos(1)
 
@@ -1065,17 +1063,14 @@ CONTAINS
       ELSE
         n_mo_add = scf_control%added_mos(1)
       END IF
-      CALL cp_assert((n_mo_add <= n_ao - n_mo(2)),cp_warning_level,&
-                     cp_assertion_failed,routineP,&
-                     "More added MOs requested for beta spin than available.",&
-                     only_ionode=.TRUE.)
+      IF(n_mo_add > n_ao - n_mo(2))&
+         CPWARN("More added MOs requested for beta spin than available.")
       scf_control%added_mos(2) = MIN(n_mo_add,n_ao - n_mo(2))
       n_mo(2) = n_mo(2) + scf_control%added_mos(2)
-      CALL cp_assert((n_mo(2) <= n_mo(1)),cp_warning_level,&
-                     cp_assertion_failed,routineP,&
-                     "More beta than alpha MOs requested. "//&
-                     "The number of beta MOs will be reduced to the number alpha MOs.",&
-                     only_ionode=.TRUE.)
+      IF(n_mo(2) > n_mo(1))&
+         CALL cp_warn(__LOCATION__,&
+              "More beta than alpha MOs requested. "//&
+              "The number of beta MOs will be reduced to the number alpha MOs.")
       n_mo(2) = MIN(n_mo(1),n_mo(2))
     END IF
 
@@ -1100,10 +1095,8 @@ CONTAINS
 
     ! Compatibility checks for ROKS
     IF (dft_control%roks.AND.(.NOT.scf_control%use_ot)) THEN
-       CALL cp_assert((scf_control%roks_scheme /= general_roks),cp_warning_level,&
-            cp_assertion_failed,routineP,&
-            "General ROKS scheme is not yet tested!",&
-            only_ionode=.TRUE.)
+       IF(scf_control%roks_scheme == general_roks)&
+          CPWARN("General ROKS scheme is not yet tested!")
 
        IF (scf_control%smear%do_smear) THEN
          CALL stop_program(routineN,moduleN,__LINE__,&

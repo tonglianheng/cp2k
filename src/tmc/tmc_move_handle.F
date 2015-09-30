@@ -120,14 +120,14 @@ CONTAINS
       CALL cp_assert(tmc_params%NMC_inp_file.NE."",&
                      cp_failure_level,cp_assertion_failed,routineP,&
                      "Please specify a valid approximate potential.",&
-                     failure=flag, only_ionode=.TRUE.)
+                     only_ionode=.TRUE.)
 
       CALL section_vals_val_get(nmc_section,"NR_NMC_STEPS",&
                                 i_val=nmc_steps)
       CALL cp_assert(nmc_steps.GT.0,&
                      cp_failure_level,cp_assertion_failed,routineP,&
                      "Please specify a valid amount of NMC steps (NR_NMC_STEPS {INTEGER}).",&
-                     failure=flag, only_ionode=.TRUE.)
+                     only_ionode=.TRUE.)
 
       CALL section_vals_val_get(nmc_section,"PROB", r_val=nmc_prob)
 
@@ -217,9 +217,7 @@ CONTAINS
           CASE("MOL_TRANS")
             ind = mv_type_mol_trans
           CASE DEFAULT
-            CALL cp_assert(.FALSE.,&
-                      cp_failure_level,cp_assertion_failed,routineP,&
-                      "move type is not defined in the translation types")
+            CPABORT("move type is not defined in the translation types")
           END SELECT
           ! convert units
           SELECT CASE(tmc_params%task_type)
@@ -228,9 +226,7 @@ CONTAINS
           CASE(task_type_gaussian_adaptation)
              !nothing to do (no unit conversion)
           CASE DEFAULT
-            CALL cp_assert(.FALSE.,&
-                   cp_failure_level,cp_assertion_failed,routineP,&
-                   "move type atom / mol trans is not defined for this TMC run type")
+            CPABORT("move type atom / mol trans is not defined for this TMC run type")
           END SELECT
         ! molecule rotation
         CASE("MOL_ROT")
@@ -240,9 +236,7 @@ CONTAINS
           CASE(task_type_MC, task_type_ideal_gas)
             delta_x = delta_x *PI/180.0_dp
           CASE DEFAULT
-            CALL cp_assert(.FALSE.,&
-                   cp_failure_level,cp_assertion_failed,routineP,&
-                   "move type MOL_ROT is not defined for this TMC run type")
+            CPABORT("move type MOL_ROT is not defined for this TMC run type")
           END SELECT
         ! proton reordering
         CASE("PROT_REORDER")
@@ -262,10 +256,9 @@ CONTAINS
           IF(tmc_params%nr_temp.LE.1) THEN
             ! no configurational swapping if only one temperature
             mv_prob = 0.0_dp
-            CALL cp_assert(.FALSE.,&
-                   cp_warning_level,cp_assertion_failed,routineP,&
-                   "Configurational swap disabled, because "//&
-                   "Parallel Tempering requires more than one temperature.")
+            CALL cp_warn(__LOCATION__,&
+                 "Configurational swap disabled, because "//&
+                 "Parallel Tempering requires more than one temperature.")
            END IF
         ! volume moves
         CASE("VOL_MOVE")
@@ -275,8 +268,7 @@ CONTAINS
             delta_x = delta_x /au2a
             tmc_params%print_cell = .TRUE. ! print the cell sizes by default
           ELSE
-            CALL cp_assert(.FALSE.,&
-                 cp_warning_level,cp_assertion_failed,routineP,&
+            CALL cp_warn(__LOCATION__,&
                  "no valid pressure defined, but volume move defined. "//&
                  "Consequently, the volume move is disabled.")
             mv_prob = 0.0_dp
@@ -305,9 +297,7 @@ CONTAINS
           ind = mv_type_gausian_adapt
           init_acc_prob = 0.5_dp
         CASE DEFAULT
-          CALL cp_assert(.FALSE.,&
-                      cp_failure_level,cp_assertion_failed,routineP,&
-                      "A unknown move type is selected: "//inp_kind_name)
+          CPABORT("A unknown move type is selected: "//inp_kind_name)
         END SELECT
         ! check for valid move sizes
         CALL cp_assert(delta_x.GE.0.0_dp,&
@@ -316,9 +306,7 @@ CONTAINS
                       "for the move type "//inp_kind_name)
         ! check if not already set
         IF(move_types%mv_weight(ind).GT.0.0) THEN
-          CALL cp_assert(.FALSE.,&
-                         cp_failure_level,cp_assertion_failed,routineP,&
-                         "TMC: Each move type can be set only once. ")
+          CPABORT("TMC: Each move type can be set only once. ")
         END IF
 
         ! set the move size
@@ -329,9 +317,7 @@ CONTAINS
         move_types%acc_prob(ind,:) = init_acc_prob
       END DO
     ELSE
-      CALL cp_assert(.FALSE.,&
-                     cp_failure_level,cp_assertion_failed,routineP,&
-                     "No move type selected, please select at least one.")
+      CPABORT("No move type selected, please select at least one.")
     END IF
     mv_prob_sum = SUM(tmc_params%move_types%mv_weight(:))
     flag = .TRUE.
@@ -369,11 +355,10 @@ CONTAINS
       ! if there is no molecule information available, 
       !   molecules moves can not be performed
       IF(mol_array(SIZE(mol_array)).EQ.SIZE(mol_array)) &
-        CALL cp_assert(.FALSE., &
-                       cp_failure_level,cp_assertion_failed,&
-                       routineP, "molecule move: there is no molecule "//&
-                       "information available. Please specify molecules when "//&
-                       "using molecule moves.")
+        CALL cp_abort(__LOCATION__,&
+             "molecule move: there is no molecule "//&
+             "information available. Please specify molecules when "//&
+             "using molecule moves.")
     END IF
 
     ! for the atom swap move
@@ -398,10 +383,10 @@ CONTAINS
             ! check if not be swapped with the same atom type
             IF(ANY(move_types%atom_lists(list_i)%atoms(atom_j).EQ.&
                    move_types%atom_lists(list_i)%atoms(atom_j+1:))) THEN
-              CALL cp_assert(.FALSE., cp_failure_level,cp_assertion_failed,&
-                     routineP, "ATOM_SWAP can not swap two atoms of same kind ("//&
-                     TRIM(move_types%atom_lists(list_i)%atoms(atom_j))//&
-                     ")")
+              CALL cp_abort(__LOCATION__,&
+                   "ATOM_SWAP can not swap two atoms of same kind ("//&
+                   TRIM(move_types%atom_lists(list_i)%atoms(atom_j))//&
+                   ")")
             END IF
           END DO
         END DO
@@ -435,9 +420,6 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'finalize_mv_types', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-    failure = .FALSE.
     CPASSERT(ASSOCIATED(tmc_params))
     CALL move_types_release(tmc_params%move_types)
     IF(ASSOCIATED(tmc_params%nmc_move_types)) &
@@ -469,8 +451,7 @@ CONTAINS
                                                 c_tit, c_tmp
     INTEGER                                  :: column_size, move, &
                                                 nr_nmc_moves, temper, typ
-    LOGICAL                                  :: failure, subbox_out, &
-                                                type_title
+    LOGICAL                                  :: subbox_out, type_title
     TYPE(tmc_move_type), POINTER             :: move_types
 
     NULLIFY(move_types)
@@ -481,7 +462,6 @@ CONTAINS
     column_size = 10
     subbox_out = .FALSE.
     type_title = .FALSE.
-    failure    = .FALSE.
     CPASSERT(file_io.GT.0)
     CPASSERT(ASSOCIATED(tmc_params%move_types))
 
@@ -642,9 +622,7 @@ CONTAINS
                        move_types%mv_size(typ,temper)/(PI/180.0_dp)
                    END IF
                 CASE(mv_type_MD)
-CALL cp_assert(.FALSE.,&
-cp_warning_level,cp_assertion_failed,routineP,&
-"md_time_step and nr md_steps not implemented...")
+                    CPWARN("md_time_step and nr md_steps not implemented...")
 !                   IF(type_title) WRITE(c_tit,TRIM(FMT_c)) TRIM(c_tit), "HybridMC"
 !                   IF(init) WRITE(c_c,TRIM(FMT_c)) TRIM(c_c), "s.above"
 !                   IF(init) THEN
@@ -712,9 +690,9 @@ cp_warning_level,cp_assertion_failed,routineP,&
                        move_types%mv_size(typ,temper)
                    END IF
                 CASE DEFAULT
-                   CALL cp_assert(.FALSE.,cp_warning_level,cp_assertion_failed,routineP,&
-                                  "unknown move type "//cp_to_string(typ)//" with weight"//&
-                                  cp_to_string(move_types%mv_weight(typ)))
+                   CALL cp_warn(__LOCATION__,&
+                        "unknown move type "//cp_to_string(typ)//" with weight"//&
+                        cp_to_string(move_types%mv_weight(typ)))
                 END SELECT
              END IF
           END IF
@@ -756,9 +734,7 @@ cp_warning_level,cp_assertion_failed,routineP,&
     INTEGER                                  :: change_res, change_sb_type, &
                                                 change_type, conf_moved, &
                                                 handle, mv_type
-    LOGICAL                                  :: failure
 
-    failure = .FALSE.
     CPASSERT(ASSOCIATED(move_types))
     CPASSERT(.NOT.(PRESENT(pt_el).AND.PRESENT(subbox)))
 
@@ -791,9 +767,9 @@ cp_warning_level,cp_assertion_failed,routineP,&
           change_type = -1 
         END IF
       CASE DEFAULT
-        CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
-              routineP,"global elem"//cp_to_string(pt_el%nr)//&
-              "has unknown status"//cp_to_string(pt_el%stat))
+        CALL cp_abort(__LOCATION__,&
+             "global elem"//cp_to_string(pt_el%nr)//&
+             "has unknown status"//cp_to_string(pt_el%stat))
       END SELECT
     END IF 
 
@@ -868,9 +844,6 @@ cp_warning_level,cp_assertion_failed,routineP,&
     CHARACTER(LEN=*), PARAMETER :: routineN = 'add_mv_prob', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-    failure = .FALSE.
     CPASSERT(ASSOCIATED(move_types))
     CPASSERT(PRESENT(mv_counter).OR.PRESENT(subbox_counter))
  
@@ -930,10 +903,8 @@ cp_warning_level,cp_assertion_failed,routineP,&
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, i
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: rnd_mv, total_moves
 
-    failure = .FALSE.
     CPASSERT(ASSOCIATED(move_types))
     CPASSERT(rnd.GE.0.0_dp.AND.rnd.LT.1.0_dp)
 

@@ -81,7 +81,7 @@ CONTAINS
     INTEGER                                  :: default_id, end_c, handle, &
                                                 iatom, j, natom, output_unit, &
                                                 start_c, wrd
-    LOGICAL                                  :: explicit, failure, is_ok, &
+    LOGICAL                                  :: explicit, is_ok, &
                                                 my_overwrite, my_save_mem, &
                                                 scaled_coordinates
     REAL(KIND=dp)                            :: r0(3), unit_conv
@@ -92,7 +92,6 @@ CONTAINS
     TYPE(section_vals_type), POINTER         :: coord_section
     TYPE(val_type), POINTER                  :: val
 
-    failure=.FALSE.
     my_overwrite = .FALSE.
     my_save_mem = .FALSE.
     error_message = ""
@@ -126,11 +125,9 @@ CONTAINS
     topology%natoms = natom
     IF (my_overwrite) THEN
        CPASSERT(SIZE(atom_info%r,2)==natom)
-       CALL cp_assert(.FALSE.,cp_warning_level,cp_assertion_failed,routineP,&
+       CALL cp_warn(__LOCATION__,&
             "Overwriting coordinates. Active coordinates read from &COORD section."//&
-            " Active coordinates READ from &COORD section "//&
-CPSourceFileRef,&
-          only_ionode=.TRUE.)
+            " Active coordinates READ from &COORD section ")
        CALL section_vals_list_get(coord_section,"_DEFAULT_KEYWORD_",list=list)
        DO iatom=1,natom
           is_ok=cp_sll_val_next(list,val)
@@ -151,10 +148,8 @@ CPSourceFileRef,&
                    EXIT
                 END IF
              END DO
-             CALL cp_assert(LEN_TRIM(line_att(start_c:end_c-1))/=0,cp_failure_level,&
-                  cp_assertion_failed,routineP,&
-                  "incorrectly formatted line in coord section'"//line_att//"'",&
-                  failure)
+             IF(LEN_TRIM(line_att(start_c:end_c-1))==0)&
+                CPABORT("incorrectly formatted line in coord section'"//line_att//"'")
              IF (wrd==1) THEN
                 atom_info%id_atmname(iatom)=str2id(s2s(line_att(start_c:end_c-1)))
              ELSE
@@ -204,24 +199,24 @@ CPSourceFileRef,&
                    EXIT
                 END IF
              END DO
-             CALL cp_assert((LEN_TRIM(line_att(start_c:end_c-1)) /= 0),cp_failure_level,&
-                            cp_assertion_failed,routineP,&
-                            "Incorrectly formatted input line for atom "//&
-                            TRIM(ADJUSTL(cp_to_string(iatom)))//&
-                            " found in COORD section. Input line: <"//&
-                            TRIM(line_att)//"> ",failure)
+             IF(LEN_TRIM(line_att(start_c:end_c-1)) == 0)&
+                CALL cp_abort(__LOCATION__,&
+                     "Incorrectly formatted input line for atom "//&
+                     TRIM(ADJUSTL(cp_to_string(iatom)))//&
+                     " found in COORD section. Input line: <"//&
+                     TRIM(line_att)//"> ")
              SELECT CASE (wrd)
              CASE (1)
                 atom_info%id_atmname(iatom) = str2id(s2s(line_att(start_c:end_c-1)))
              CASE (2:4)
                 CALL read_float_object(line_att(start_c:end_c-1),&
                                        atom_info%r(wrd-1,iatom),error_message)
-                CALL cp_assert((LEN_TRIM(error_message) == 0),cp_failure_level,&
-                               cp_assertion_failed,routineP,&
-                               "Incorrectly formatted input line for atom "//&
-                               TRIM(ADJUSTL(cp_to_string(iatom)))//&
-                               " found in COORD section. "//TRIM(error_message)//&
-                               " Input line: <"//TRIM(line_att)//"> ",failure)
+                IF(LEN_TRIM(error_message) /= 0)&
+                   CALL cp_abort(__LOCATION__,&
+                        "Incorrectly formatted input line for atom "//&
+                        TRIM(ADJUSTL(cp_to_string(iatom)))//&
+                        " found in COORD section. "//TRIM(error_message)//&
+                        " Input line: <"//TRIM(line_att)//"> ")
              CASE (5)
                 READ (line_att(start_c:end_c-1),*) strtmp
                 atom_info%id_molname(iatom) = str2id(strtmp)
@@ -295,7 +290,7 @@ CPSourceFileRef,&
                                                 nshell, output_unit, &
                                                 sh_index, start_c, wrd
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: at_index, at_index_c
-    LOGICAL :: core_scaled_coordinates, explicit, failure, is_ok, is_shell, &
+    LOGICAL :: core_scaled_coordinates, explicit, is_ok, is_shell, &
       my_save_mem, shell_scaled_coordinates
     REAL(KIND=dp)                            :: dab, mass_com, rab(3), &
                                                 unit_conv_core, &
@@ -310,7 +305,6 @@ CPSourceFileRef,&
     TYPE(shell_kind_type), POINTER           :: shell
     TYPE(val_type), POINTER                  :: val
 
-    failure=.FALSE.
     my_save_mem = .FALSE.
     NULLIFY(logger, atomic_kind, list, shell_coord_section, shell, val)
     logger => cp_get_default_logger()
@@ -337,11 +331,9 @@ CPSourceFileRef,&
     IF (ASSOCIATED(shell_particle_set)) THEN
       CPASSERT((SIZE(shell_particle_set,1) == nshell))
       ALLOCATE (r(3,nshell),at_name(nshell),at_index(nshell))
-      CALL cp_assert(.FALSE.,cp_warning_level,cp_assertion_failed,routineP,&
+      CALL cp_warn(__LOCATION__,&
            "Overwriting shell coordinates. "//&
-           "Active coordinates READ from &SHELL_COORD section. "//&
-CPSourceFileRef,&
-           only_ionode=.TRUE.)
+           "Active coordinates READ from &SHELL_COORD section. ")
       CALL section_vals_list_get(shell_coord_section,"_DEFAULT_KEYWORD_",list=list)
       DO ishell=1,nshell
          ! we use only the first default_string_length characters of each line
@@ -364,8 +356,7 @@ CPSourceFileRef,&
             END DO
             CALL cp_assert(wrd==5.OR.end_c<LEN(line_att)+1,cp_failure_level,&
                  cp_assertion_failed,routineP,&
-                 "incorrectly formatted line in coord section'"//line_att//"'",&
-                 failure)
+                 "incorrectly formatted line in coord section'"//line_att//"'")
             IF (wrd==1) THEN
                at_name(ishell)=line_att(start_c:end_c-1)
                CALL uppercase(at_name(ishell))
@@ -391,11 +382,9 @@ CPSourceFileRef,&
 
           CPASSERT((SIZE(core_particle_set,1) == nshell))
           ALLOCATE (rc(3,nshell),at_name_c(nshell),at_index_c(nshell))
-          CALL cp_assert(.FALSE.,cp_warning_level,cp_assertion_failed,routineP,&
+          CALL cp_warn(__LOCATION__,&
                "Overwriting cores coordinates. "//&
-               " Active coordinates READ from &CORE_COORD section. "//&
-CPSourceFileRef,&
-               only_ionode=.TRUE.)
+               " Active coordinates READ from &CORE_COORD section. ")
           CALL section_vals_list_get(core_coord_section,"_DEFAULT_KEYWORD_",list=list)
           DO ishell=1,nshell
              ! we use only the first default_string_length characters of each line
@@ -418,8 +407,7 @@ CPSourceFileRef,&
                 END DO
                 CALL cp_assert(wrd==5.OR.end_c<LEN(line_att)+1,cp_failure_level,&
                      cp_assertion_failed,routineP,&
-                     "incorrectly formatted line in coord section'"//line_att//"'",&
-                     failure)
+                     "incorrectly formatted line in coord section'"//line_att//"'")
                 IF (wrd==1) THEN
                    at_name_c(ishell)=line_att(start_c:end_c-1)
                    CALL uppercase(at_name_c(ishell))
@@ -483,10 +471,7 @@ CPSourceFileRef,&
            END IF
 
          ELSE
-           CALL cp_assert(.FALSE.,cp_failure_level,&
-                 cp_assertion_failed,routineP,&
-                 "shell coordinate assigned to the wrong atom. check the shell indexes in the input",&
-                 failure)
+           CPABORT("shell coordinate assigned to the wrong atom. check the shell indexes in the input")
          END IF
       END DO
       DEALLOCATE(r,at_index,at_name)

@@ -108,10 +108,10 @@ CONTAINS
     INTEGER                                  :: handle, hesunit_read, indf, &
                                                 info, iter_nr, its, maxiter, &
                                                 ndf, nfree, output_unit
-    LOGICAL                                  :: cell_opt, conv, failure, &
-                                                hesrest, ionode, &
-                                                shell_present, should_stop, &
-                                                use_mod_hes, use_rfo
+    LOGICAL                                  :: cell_opt, conv, hesrest, &
+                                                ionode, shell_present, &
+                                                should_stop, use_mod_hes, &
+                                                use_rfo
     REAL(KIND=dp)                            :: ediff, emin, eold, etot, &
                                                 pred, rad, rat, step, t_diff, &
                                                 t_now, t_old
@@ -128,7 +128,6 @@ CONTAINS
     TYPE(cp_subsys_type), POINTER            :: subsys
     TYPE(section_vals_type), POINTER         :: print_key, root_section
 
-    failure = .FALSE.
     NULLIFY(logger, g,blacs_env)
     logger       => cp_get_default_logger()
     para_env     => force_env%para_env
@@ -161,13 +160,13 @@ CONTAINS
 
     ndf   = SIZE(x0)
     nfree = gopt_env%nfree
-    CALL cp_assert((ndf <= 3000),cp_note_level,cp_assertion_failed,routineP,&
-                   "The dimension of the Hessian matrix ("//&
-                   TRIM(ADJUSTL(cp_to_string(ndf)))//") is greater than 3000. "//&
-                   "The diagonalisation of the full Hessian  matrix needed for BFGS "//&
-                   "is computationally expensive. You should consider to use the linear "//&
-                   "scaling variant L-BFGS instead.",&
-                   only_ionode=.TRUE.)
+    IF(ndf > 3000)&
+       CALL cp_warn(__LOCATION__,&
+            "The dimension of the Hessian matrix ("//&
+            TRIM(ADJUSTL(cp_to_string(ndf)))//") is greater than 3000. "//&
+            "The diagonalisation of the full Hessian  matrix needed for BFGS "//&
+            "is computationally expensive. You should consider to use the linear "//&
+            "scaling variant L-BFGS instead.")
 
     ! Initialize hessian (hes = unitary matrix or model hessian )
     CALL cp_blacs_env_create(blacs_env,para_env,globenv%blacs_grid_layout,&
@@ -184,10 +183,10 @@ CONTAINS
     CALL cp_subsys_get(subsys,atomic_kinds=atomic_kinds)
     CALL get_atomic_kind_set(atomic_kind_set=atomic_kinds%els,shell_present=shell_present)
     IF (shell_present) THEN
-      CALL cp_assert((.NOT.use_mod_hes),cp_warning_level,cp_assertion_failed,routineP,&
-                     "No model Hessian available for core-shell models. "//&
-                     "An unit matrix is used for the initial Hessian.",&
-                      only_ionode=.TRUE.)
+      IF(use_mod_hes)&
+         CALL cp_warn(__LOCATION__,&
+              "No model Hessian available for core-shell models. "//&
+              "An unit matrix is used for the initial Hessian.")
       use_mod_hes = .FALSE.
     END IF
 
@@ -952,7 +951,6 @@ CONTAINS
                                                 nrow_local, z
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: at_row
     INTEGER, DIMENSION(:), POINTER           :: col_indices, row_indices
-    LOGICAL                                  :: failure
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: d_ij, rho_ij
     REAL(KIND=dp), ALLOCATABLE, &
@@ -963,7 +961,6 @@ CONTAINS
     TYPE(cp_subsys_type), POINTER            :: subsys
     TYPE(particle_list_type), POINTER        :: particles
 
-    failure=.FALSE.
      CALL force_env_get(force_env=force_env,subsys=subsys,cell=cell)
      CALL cp_subsys_get(subsys,&
                  particles=particles)

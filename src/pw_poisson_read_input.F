@@ -63,12 +63,10 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: periodic
-    LOGICAL                                  :: failure
     TYPE(section_vals_type), POINTER         :: ewald_section, mt_section, &
                                                 wavelet_section
 
     NULLIFY(ewald_section, mt_section, wavelet_section)
-    failure=.FALSE.
 
     CALL section_vals_val_get(poisson_section,"POISSON_SOLVER",i_val=params%solver)
 
@@ -123,10 +121,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'decode_periodic_green', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-    failure=.FALSE.
-
     SELECT CASE(periodic)
       CASE(use_perd_x)
          params%periodic = (/1,0,0/)
@@ -167,10 +161,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'decode_periodic_wavelet', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-    failure=.FALSE.
-
     params%wavelet_special_dimension=0
 
     SELECT CASE (periodic)
@@ -185,9 +175,7 @@ CONTAINS
        params%wavelet_geocode="P"
        params%wavelet_method=WAVELET3D
     CASE(use_perd_x,use_perd_y,use_perd_z,use_perd_xy,use_perd_yz)
-       CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
-            "Poisson solver for this periodicity not yet implemented",&
-            failure=failure)
+       CPABORT("Poisson solver for this periodicity not yet implemented")
     CASE DEFAULT
        CPASSERT(.FALSE.)
     END SELECT

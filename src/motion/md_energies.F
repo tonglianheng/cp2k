@@ -112,14 +112,12 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: nkind
-    LOGICAL                                  :: failure, shell_adiabatic
+    LOGICAL                                  :: shell_adiabatic
     TYPE(atomic_kind_list_type), POINTER     :: atomic_kinds
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(cp_subsys_type), POINTER            :: subsys
     TYPE(particle_list_type), POINTER        :: particles, shell_particles
-
-    failure =.FALSE.
 
     NULLIFY(subsys)
     NULLIFY(atomic_kinds, atomic_kind_set, particles, shell_particles)
@@ -264,9 +262,9 @@ CONTAINS
                                                 nat, nkind, shene, tempkind, &
                                                 trsl
     INTEGER, POINTER                         :: itimes
-    LOGICAL                                  :: failure, init, is_mixed, &
-                                                new_file, qmmm, &
-                                                shell_adiabatic, shell_present
+    LOGICAL                                  :: init, is_mixed, new_file, &
+                                                qmmm, shell_adiabatic, &
+                                                shell_present
     REAL(dp)                                 :: abc( 3 ), cell_angle( 3 ), &
                                                 dt, econs, pv_scalar, pv_xx, &
                                                 pv_xx_nc
@@ -294,7 +292,6 @@ CONTAINS
     TYPE(thermostats_type), POINTER          :: thermostats
     TYPE(virial_type), POINTER               :: virial
 
-    failure = .FALSE.
     NULLIFY(logger)
     logger => cp_get_default_logger()
     CALL timeset(routineN,handle)
@@ -492,7 +489,7 @@ CONTAINS
                "The print_key MD%PRINT%TEMP_KIND has been activated but the "//&
                "calculation of the temperature per kind has not been requested. "//&
                "Please switch on the keyword MD%TEMP_KIND. "//&
-CPSourceFileRef,&
+__LOCATION__,&
                only_ionode=.TRUE.)
        END IF
        !Thermal Region
@@ -564,7 +561,7 @@ CPSourceFileRef,&
                      "The print_key MD%PRINT%TEMP_SHELL_KIND has been activated but the "//&
                      "calculation of the temperature per kind has not been requested. "//&
                      "Please switch on the keyword MD%TEMP_KIND. "//&
-CPSourceFileRef,&
+__LOCATION__,&
                      only_ionode=.TRUE.)
              END IF
           END IF
@@ -634,12 +631,10 @@ CPSourceFileRef,&
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: iw
-    LOGICAL                                  :: failure
     TYPE(enumeration_type), POINTER          :: enum
     TYPE(keyword_type), POINTER              :: keyword
     TYPE(section_type), POINTER              :: section
 
-    failure = .FALSE.
     NULLIFY(enum, keyword, section)
     ! Print to the screen info about MD
     iw = cp_print_key_unit_nr(logger,motion_section,"MD%PRINT%PROGRAM_RUN_INFO",&

@@ -200,9 +200,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: ikind, nkind
-    LOGICAL                                  :: failure
 
-    failure = .FALSE.
     IF (ASSOCIATED(qs_kind_set)) THEN
 
        nkind = SIZE(qs_kind_set)
@@ -1175,8 +1173,7 @@ CONTAINS
                                                 stat, z
     INTEGER, DIMENSION(:), POINTER           :: add_el, elec_conf, orbitals
     LOGICAL :: check, explicit, explicit_basis, explicit_kgpot, &
-      explicit_potential, failure, nobasis, section_enabled, &
-      subsection_enabled
+      explicit_potential, nobasis, section_enabled, subsection_enabled
     REAL(KIND=dp)                            :: zeff_correction
     TYPE(gto_basis_set_type), POINTER        :: sup_basis_set, tmp_basis_set
     TYPE(section_vals_type), POINTER :: basis_section, bs_section, &
@@ -1187,7 +1184,6 @@ CONTAINS
 
     NULLIFY (elec_conf)
 
-    failure = .FALSE.
     basis_set_name(:) = ""
     basis_set_type(:) = ""
     aux_basis_set_name = ""
@@ -1373,22 +1369,19 @@ CONTAINS
           CALL section_vals_val_get(kind_section,i_rep_section=k_rep,&
                keyword_name="RHO0_EXP_RADIUS",r_val=qs_kind%hard0_radius)
        ENDIF
-       CALL cp_assert(qs_kind%hard_radius>=qs_kind%hard0_radius,&
-            cp_failure_level,cp_assertion_failed,routineP,&
-            "rc0 should be <= rc",failure)
+       IF(qs_kind%hard_radius<qs_kind%hard0_radius)&
+          CPABORT("rc0 should be <= rc")
 
        CALL section_vals_val_get(kind_section,i_rep_section=k_rep,&
             keyword_name="MAX_RAD_LOCAL",r_val=qs_kind%max_rad_local)
        CALL section_vals_val_get(kind_section,i_rep_section=k_rep,&
             keyword_name="LEBEDEV_GRID",i_val=qs_kind%ngrid_ang)
-       CALL cp_assert(qs_kind%ngrid_ang > 0,&
-            cp_failure_level,cp_assertion_failed,routineP,&
-            "# point lebedev grid < 0",failure)
+       IF(qs_kind%ngrid_ang <= 0)&
+          CPABORT("# point lebedev grid < 0")
        CALL section_vals_val_get(kind_section,i_rep_section=k_rep,&
             keyword_name="RADIAL_GRID",i_val=qs_kind%ngrid_rad)
-       CALL cp_assert(qs_kind%ngrid_rad > 0,&
-            cp_failure_level,cp_assertion_failed,routineP,&
-            "# point radial grid < 0",failure)
+       IF(qs_kind%ngrid_rad <= 0)&
+          CPABORT("# point radial grid < 0")
        CALL section_vals_val_get(kind_section,i_rep_section=k_rep,&
             keyword_name="GPW_TYPE",l_val=qs_kind%gpw_type_forced)
        CALL section_vals_val_get(kind_section,i_rep_section=k_rep,&
@@ -1494,10 +1487,8 @@ CONTAINS
                                     keyword_name="L",&
                                     i_val=l)
           qs_kind%dft_plus_u%l = l
-          CALL cp_assert((l >= 0),cp_failure_level,&
-                         cp_assertion_failed,routineP,&
-                         "DFT+U| Invalid orbital angular momentum quantum number specified: l < 0",&
-                         failure)
+          IF(l < 0)&
+             CPABORT("DFT+U| Invalid orbital angular momentum quantum number specified: l < 0")
           CALL section_vals_val_get(dft_plus_u_section,&
                                     keyword_name="U_MINUS_J",&
                                     r_val=qs_kind%dft_plus_u%u_minus_j_target)
@@ -1530,26 +1521,19 @@ CONTAINS
                                        i_vals=orbitals)
              norbitals = SIZE(orbitals)
              CALL cp_assert(((norbitals > 0).AND.(norbitals <= 2*l+1)),cp_failure_level,cp_assertion_failed,routineP,&
-                            "DFT+U| Invalid number of ORBITALS specified: 1 to 2*L+1 integer numbers are expected",&
-                            failure)
+                            "DFT+U| Invalid number of ORBITALS specified: 1 to 2*L+1 integer numbers are expected")
              ALLOCATE (qs_kind%dft_plus_u%orbitals(norbitals))
              qs_kind%dft_plus_u%orbitals(:) = orbitals(:)
              NULLIFY (orbitals)
              DO m=1,norbitals
-                CALL cp_assert((qs_kind%dft_plus_u%orbitals(m) <= l),cp_failure_level,&
-                               cp_assertion_failed,routineP,&
-                               "DFT+U| Invalid orbital magnetic quantum number specified: m > l",&
-                               failure)
-                CALL cp_assert((qs_kind%dft_plus_u%orbitals(m) >= -l),cp_failure_level,&
-                               cp_assertion_failed,routineP,&
-                               "DFT+U| Invalid orbital magnetic quantum number specified: m < -l",&
-                               failure)
+                IF(qs_kind%dft_plus_u%orbitals(m) > l)&
+                   CPABORT("DFT+U| Invalid orbital magnetic quantum number specified: m > l")
+                IF(qs_kind%dft_plus_u%orbitals(m) < -l)&
+                   CPABORT("DFT+U| Invalid orbital magnetic quantum number specified: m < -l")
                 DO j=1,norbitals
                    IF (j /= m) THEN
-                      CALL cp_assert((qs_kind%dft_plus_u%orbitals(j) /= qs_kind%dft_plus_u%orbitals(m)),&
-                                     cp_failure_level,cp_assertion_failed,routineP,&
-                                     "DFT+U| An orbital magnetic quantum number was specified twice",&
-                                     failure)
+                      IF(qs_kind%dft_plus_u%orbitals(j) == qs_kind%dft_plus_u%orbitals(m))&
+                         CPABORT("DFT+U| An orbital magnetic quantum number was specified twice")
                    END IF
                 END DO
              END DO
@@ -1652,18 +1636,16 @@ CONTAINS
        END SELECT
 
        check = ((potential_name /= '').OR.explicit_potential)
-       CALL cp_assert(.NOT.check,cp_warning_level,cp_assertion_failed,routineP,&
-            "Information provided in the input file regarding POTENTIAL for KIND <"//&
-            TRIM(qs_kind%name)//"> will be ignored!"//&
-            CPSourceFileRef,&
-            only_ionode=.TRUE.)
+       IF(check)&
+          CALL cp_warn(__LOCATION__,&
+               "Information provided in the input file regarding POTENTIAL for KIND <"//&
+               TRIM(qs_kind%name)//"> will be ignored!")
 
        check = ((orb_basis_set_name /= '').OR.explicit_basis)
-       CALL cp_assert(.NOT.check,cp_warning_level,cp_assertion_failed,routineP,&
-            "Information provided in the input file regarding BASIS for KIND <"//&
-            TRIM(qs_kind%name)//"> will be ignored!"//&
-            CPSourceFileRef,&
-            only_ionode=.TRUE.)
+       IF(check)&
+          CALL cp_warn(__LOCATION__,&
+               "Information provided in the input file regarding BASIS for KIND <"//&
+               TRIM(qs_kind%name)//"> will be ignored!")
 
     CASE DEFAULT
 
@@ -2052,10 +2034,7 @@ CONTAINS
     CHARACTER(LEN=3)                         :: yon
     CHARACTER(LEN=default_string_length)     :: basis_type, bstring
     INTEGER                                  :: ibas
-    LOGICAL                                  :: failure
     TYPE(gto_basis_set_type), POINTER        :: tmp_basis
-
-    failure = .FALSE.
 
     IF (output_unit > 0) THEN
 
@@ -2165,13 +2144,11 @@ CONTAINS
 
     INTEGER                                  :: handle, ikind, nkind, &
                                                 output_unit
-    LOGICAL                                  :: failure
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(qs_kind_type), POINTER              :: qs_kind
 
     CALL timeset(routineN,handle)
 
-    failure = .FALSE.
     NULLIFY (logger)
     logger => cp_get_default_logger()
     output_unit = cp_print_key_unit_nr(logger,subsys_section,&
@@ -2217,14 +2194,12 @@ CONTAINS
     CHARACTER(LEN=default_string_length)     :: basis_type, bstring
     INTEGER                                  :: handle, ibas, ikind, nkind, &
                                                 output_unit
-    LOGICAL                                  :: failure
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(gto_basis_set_type), POINTER        :: tmp_basis
     TYPE(qs_kind_type), POINTER              :: qs_kind
 
     CALL timeset(routineN,handle)
 
-    failure = .FALSE.
     NULLIFY (logger)
     logger => cp_get_default_logger()
     output_unit = cp_print_key_unit_nr(logger,subsys_section,&

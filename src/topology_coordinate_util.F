@@ -114,8 +114,8 @@ CONTAINS
                                                 natom_of_kind, wlist
     INTEGER, DIMENSION(:, :), POINTER        :: pairs
     LOGICAL :: autogen, check, disable_exclusion_lists, do_center, explicit, &
-      failure, found, my_ignore_outside_box, my_qmmm, &
-      present_12_excl_ei_list, present_12_excl_vdw_list
+      found, my_ignore_outside_box, my_qmmm, present_12_excl_ei_list, &
+      present_12_excl_vdw_list
     REAL(KIND=dp)                            :: bounds(2,3), cdims(3), &
                                                 dims(3), qeff, vec(3)
     REAL(KIND=dp), DIMENSION(:), POINTER     :: charge, cpoint, mass
@@ -134,7 +134,6 @@ CONTAINS
     TYPE(section_vals_type), POINTER         :: exclude_section, &
                                                 topology_section
 
-    failure = .FALSE.
     NULLIFY(logger)
     logger => cp_get_default_logger()
     iw = cp_print_key_unit_nr(logger,subsys_section,"PRINT%TOPOLOGY_INFO/UTIL_INFO",&
@@ -347,7 +346,7 @@ CONTAINS
     CALL cp_assert(my_ignore_outside_box .OR. check,cp_failure_level,cp_assertion_failed,routineP,&
          "A non-periodic calculation has been requested but the system size "//&
          "exceeds the cell size in at least one of the non-periodic directions! "//&
-CPSourceFileRef,&
+__LOCATION__,&
          only_ionode=.TRUE.)
     IF (do_center) THEN
        CALL section_vals_val_get(subsys_section,&
@@ -781,9 +780,7 @@ CPSourceFileRef,&
     CHARACTER(LEN=default_string_length), &
       DIMENSION(:), POINTER                  :: names
     INTEGER                                  :: i, ind, j, k, l, m, n_rep
-    LOGICAL                                  :: failure
 
-    failure = .FALSE.
     CPASSERT(ASSOCIATED(ex_bond_list))
     CPASSERT(ASSOCIATED(ex_bond_list_w))
     SELECT CASE(keyword)

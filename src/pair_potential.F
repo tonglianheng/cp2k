@@ -149,13 +149,12 @@ CONTAINS
 
     INTEGER                                  :: handle, i, ip, j, k, n, &
                                                 ncount, npoints_spline, ntype
-    LOGICAL                                  :: failure, found_locut
+    LOGICAL                                  :: found_locut
     REAL(KIND=dp)                            :: energy_cutoff, hicut, hicut0, &
                                                 locut
     TYPE(pair_potential_single_type), &
       POINTER                                :: pot
 
-    failure= .FALSE.
     n      = 0
     ncount = 0
 
@@ -433,10 +432,7 @@ CONTAINS
           WRITE(message,'(A,I8,A,G12.6,A)') "SPLINE_INFO| Number of points: ",npoints,&
                " obtained accuracy ",diffmax,". MM SPLINE: no convergence on required"//&
                " accuracy (adjust EPS_SPLINE and rerun)"
-          CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed, routineP,&
-               TRIM(message)//" "//&
-CPSourceFileRef,&
-               only_ionode=.TRUE.)
+          CALL cp_abort(__LOCATION__,TRIM(message))
        END IF
        ! accuracy is poor or we have found no points below max_energy, refine mesh
        IF (diffmax > eps_spline .OR. diffmax < 0.0_dp ) THEN
@@ -579,12 +575,11 @@ CPSourceFileRef,&
       ntype, nunique, nvar, pot_target, tmpij(2), tmpij0(2)
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: Iwork1, Iwork2, my_index
     INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: tmp_index
-    LOGICAL                                  :: at_least_one, check, failure
+    LOGICAL                                  :: at_least_one, check
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: Cwork, Rwork, wtmp
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: pot_par
 
-    failure     = .FALSE.
     CALL timeset(routineN,handle)
 
     ntype = SIZE(atomic_kind_set)
@@ -944,7 +939,7 @@ CPSourceFileRef,&
     INTEGER                                  :: handle, i, min_val, nvalues, &
                                                 tmpij(2), value, zi, zj
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: wrk
-    LOGICAL                                  :: check, failure
+    LOGICAL                                  :: check
     REAL(KIND=dp)                            :: hicut0, l_epsilon, l_sigma6, &
                                                 m_epsilon, m_sigma6, &
                                                 min_sigma6, rcovi, rcovj
@@ -956,7 +951,6 @@ CPSourceFileRef,&
     CALL timeset(routineN,handle)
 
     NULLIFY(pot, pot_ref)
-    failure = .FALSE.
     nvalues = SIZE(my_index)
     IF ((pot_target==lj_type).OR.(pot_target==lj_charmm_type)) THEN
        ALLOCATE(sigma6(nvalues))

@@ -106,13 +106,12 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i, isize, j, k, n_rep_val
-    LOGICAL                                  :: explicit, failure
+    LOGICAL                                  :: explicit
     REAL(KIND=dp)                            :: norm, xval(3)
     REAL(KIND=dp), DIMENSION(:), POINTER     :: array
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(section_vals_type), POINTER         :: nvec_section
 
-    failure=.FALSE.
     CPASSERT(.NOT.ASSOCIATED(dimer_env))
     ALLOCATE(dimer_env)
     logger => cp_get_default_logger()
@@ -166,10 +165,8 @@ CONTAINS
        END DO
     END IF
     norm = SQRT(SUM(dimer_env%nvec**2))
-    CALL cp_assert(norm>EPSILON(0.0_dp),cp_failure_level,cp_assertion_failed,routineP,&
-         "The norm of the dimer vector is 0! Calculation cannot proceed further. "//&
-CPSourceFileRef,&
-         only_ionode=.TRUE.)
+    IF(norm<=EPSILON(0.0_dp))&
+       CPABORT("The norm of the dimer vector is 0! Calculation cannot proceed further.")
     dimer_env%nvec = dimer_env%nvec / norm
     dimer_env%rot%rotation_step= do_first_rotation_step
     CALL section_vals_val_get(dimer_section,"DR",r_val=dimer_env%dr)
@@ -196,10 +193,6 @@ CPSourceFileRef,&
     CHARACTER(len=*), PARAMETER :: routineN = 'dimer_env_retain', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-    failure=.FALSE.
-
     CPASSERT(ASSOCIATED(dimer_env))
     CPASSERT(dimer_env%ref_count>0)
     dimer_env%ref_count=dimer_env%ref_count+1
@@ -217,10 +210,6 @@ CPSourceFileRef,&
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dimer_env_release', &
       routineP = moduleN//':'//routineN
-
-    LOGICAL                                  :: failure
-
-    failure=.FALSE.
 
     IF (ASSOCIATED(dimer_env)) THEN
        CPASSERT(dimer_env%ref_count>0)

@@ -585,7 +585,7 @@ CONTAINS
                                                 imolecule_kind, iw, natoms, &
                                                 num_x
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: is_fixed
-    LOGICAL                                  :: failure, success
+    LOGICAL                                  :: success
     REAL(KIND=dp)                            :: ecom, ekin, mass, mass_tot, &
                                                 temp, tmp_r1
     REAL(KIND=dp), DIMENSION(3)              :: rcom, vang, vcom
@@ -601,7 +601,6 @@ CONTAINS
     CALL timeset(routineN,handle)
 
     ! Initializing parameters
-    failure = .FALSE.
     natoms = SIZE(part)
     NULLIFY (atomic_kind, fixd_list, logger, molecule_kind)
     NULLIFY (molecule_kind_set)
@@ -1799,8 +1798,8 @@ CONTAINS
 
     INTEGER                                  :: handle, nconstraint, &
                                                 nconstraint_fixd
-    LOGICAL                                  :: apply_cns0, failure, &
-                                                shell_adiabatic, shell_present
+    LOGICAL                                  :: apply_cns0, shell_adiabatic, &
+                                                shell_present
     TYPE(atomic_kind_list_type), POINTER     :: atomic_kinds
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_para_env_type), POINTER          :: para_env
@@ -1815,8 +1814,6 @@ CONTAINS
     TYPE(section_vals_type), POINTER         :: force_env_section, &
                                                 print_section, subsys_section
 
-    failure = .FALSE.
-    
     CALL timeset(routineN,handle)
 
     NULLIFY (atomic_kinds,cell,para_env,subsys,molecule_kinds,core_particles,particles)
@@ -1854,10 +1851,8 @@ CONTAINS
        CALL get_molecule_kind_set(molecule_kind_set=molecule_kinds%els,&
                                   nconstraint=nconstraint,&
                                   nconstraint_fixd=nconstraint_fixd)
-       CALL cp_assert((nconstraint - nconstraint_fixd == 0),&
-                      cp_fatal_level,cp_assertion_failed,routineP,&
-                      "Only the fixed atom constraint is implemented for core-shell models",&
-                      only_ionode=.TRUE.)
+       IF(nconstraint - nconstraint_fixd /= 0)&
+          CPABORT("Only the fixed atom constraint is implemented for core-shell models")
 !MK    CPPostcondition(.NOT.simpar%constraint,cp_failure_level,routineP,failure)
        CPASSERT(ASSOCIATED(shell_particles))
        CPASSERT(ASSOCIATED(core_particles))
@@ -1938,7 +1933,7 @@ CONTAINS
                                                 imolecule_kind, iparticle, &
                                                 iw, natom, nparticle
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: atom_index, is_fixed
-    LOGICAL                                  :: failure, init_cascade, is_ok, &
+    LOGICAL                                  :: init_cascade, is_ok, &
                                                 no_read_error
     REAL(KIND=dp)                            :: ecom, ekin, energy, norm, &
                                                 temp, temperature
@@ -1960,7 +1955,6 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-    failure = .FALSE.
 
     NULLIFY (atom_list)
     NULLIFY (atom_list_section)
@@ -1984,9 +1978,8 @@ CONTAINS
     IF (init_cascade) THEN
 
        CALL section_vals_val_get(cascade_section,"ENERGY",r_val=energy)
-       CALL cp_assert((energy >= 0.0_dp),cp_fatal_level,cp_assertion_failed,routineP,&
-                      "Error occurred reading &CASCADE section: Negative energy found",&
-                      only_ionode=.TRUE.)
+       IF(energy < 0.0_dp)&
+          CPABORT("Error occurred reading &CASCADE section: Negative energy found")
 
        IF (iw > 0) THEN
           ekin = cp_unit_from_cp2k(energy,"keV")
@@ -2000,9 +1993,8 @@ CONTAINS
        atom_list_section => section_vals_get_subs_vals(cascade_section,"ATOM_LIST")
        CALL section_vals_val_get(atom_list_section,"_DEFAULT_KEYWORD_",n_rep_val=natom)
        CALL section_vals_list_get(atom_list_section,"_DEFAULT_KEYWORD_",list=atom_list)
-       CALL cp_assert((natom > 0),cp_fatal_level,cp_assertion_failed,routineP,&
-                      "Error occurred reading &CASCADE section: No atom list found",&
-                      only_ionode=.TRUE.)
+       IF(natom <= 0)&
+          CPABORT("Error occurred reading &CASCADE section: No atom list found")
 
        IF (iw > 0) THEN
           WRITE (UNIT=iw,FMT="(T2,A,T11,A,3(11X,A),9X,A)")&
@@ -2028,9 +2020,8 @@ CONTAINS
                          cp_fatal_level,cp_assertion_failed,routineP,&
                          "Error occurred reading &CASCADE section: Invalid atom index found",&
                          only_ionode=.TRUE.)
-          CALL cp_assert((weight(iatom) >= 0.0_dp),cp_fatal_level,cp_assertion_failed,routineP,&
-                         "Error occurred reading &CASCADE section: Negative weight found",&
-                         only_ionode=.TRUE.)
+          IF(weight(iatom) < 0.0_dp)&
+             CPABORT("Error occurred reading &CASCADE section: Negative weight found")
           IF (iw > 0) THEN
              WRITE (UNIT=iw,FMT="(T2,A,I10,4(1X,F14.6))")&
               "CASCADE| ",atom_index(iatom),vatom(1:3,iatom),weight(iatom)
@@ -2041,10 +2032,8 @@ CONTAINS
        norm = 0.0_dp
        DO iatom=1,natom
           iparticle = atom_index(iatom)
-          CALL cp_assert((particle_set(iparticle)%shell_index == 0),&
-                         cp_warning_level,cp_assertion_failed,routineP,&
-                         "Warning: The primary knock-on atom is a core-shell atom",&
-                         only_ionode=.TRUE.)
+          IF(particle_set(iparticle)%shell_index /= 0)&
+             CPWARN("Warning: The primary knock-on atom is a core-shell atom")
           atomic_kind => particle_set(iparticle)%atomic_kind
           CALL get_atomic_kind(atomic_kind=atomic_kind,mass=matom(iatom))
           norm = norm + matom(iatom)*weight(iatom)

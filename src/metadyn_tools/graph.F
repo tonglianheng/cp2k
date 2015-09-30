@@ -49,7 +49,7 @@ PROGRAM graph
                                               inds(:), iperd(:), iprd(:), &
                                               ngrid(:), nn(:,:), nn_max(:), &
                                               tmp(:)
-  LOGICAL                                  :: failure, fix, l_cp2k, l_cpmd, &
+  LOGICAL                                  :: fix, l_cp2k, l_cpmd, &
                                               l_dp, l_fes_int, l_fmin, &
                                               l_grid, l_math, l_orac, &
                                               l_pmin, lstride, l_popt, l_int,&
@@ -62,7 +62,6 @@ PROGRAM graph
   TYPE(mep_input_data_type)                :: mep_input_data
 
 
-  failure=.FALSE.
   ! Initialize variables
   nprd    = 0
   ndim    = 1
@@ -123,7 +122,7 @@ PROGRAM graph
      WRITE(iw,*)''
      WRITE(iw,*)'DEFAULT OUTPUT: fes.dat'
      WRITE(iw,*)''
-     STOP  "Please provide arguments to run FES!"
+     CPABORT("Please provide arguments to run FES!")
   ENDIF
   
   DO i=1,argcount
@@ -198,7 +197,7 @@ PROGRAM graph
 
   END DO
   IF (COUNT((/l_orac,l_cp2k,l_cpmd/))/=1) &
-       STOP "Error! You've to specify either ORAC, CP2K or CPMD!!"
+       CPABORT("Error! You've to specify either ORAC, CP2K or CPMD!!")
 
   ! For CPMD move filename to colvar_mtd
   IF (l_cpmd) THEN
@@ -341,7 +340,7 @@ PROGRAM graph
 
      END DO
      IF (ANY(mep_input_data%minima==HUGE(0.0_dp))) &
-          STOP "-find-path requires the specification of -point-a and -point-b !"
+          CPABORT("-find-path requires the specification of -point-a and -point-b !")
   ELSE
      ALLOCATE(mep_input_data%minima(0,0))
   END IF

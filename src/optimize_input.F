@@ -113,12 +113,9 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, i_var
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: random_number, seed(3,2)
     TYPE(oi_env_type)                        :: oi_env
     TYPE(rng_stream_type), POINTER           :: rng_stream
-
-    failure=.FALSE.
 
     CALL timeset(routineN,handle)
 
@@ -547,7 +544,7 @@ CONTAINS
     filename=oi_env%fm_env%ref_traj_file_name
     CALL cp_assert(filename.NE."",cp_fatal_level,cp_assertion_failed,routineP,&
             "The reference trajectory file name is empty"//&
-            CPSourceFileRef,&
+            __LOCATION__,&
             only_ionode=.TRUE.)
     CALL parser_create(local_parser,filename,para_env=para_env)
     DO
@@ -583,7 +580,7 @@ CONTAINS
     filename=oi_env%fm_env%ref_force_file_name
     CALL cp_assert(filename.NE."",cp_fatal_level,cp_assertion_failed,routineP,&
             "The reference force file name is empty"//&
-            CPSourceFileRef,&
+            __LOCATION__,&
             only_ionode=.TRUE.)
     CALL parser_create(local_parser,filename,para_env=para_env)
     DO iframe=1,n_frames
@@ -597,10 +594,7 @@ CONTAINS
        test_ok = .TRUE.
 999    CONTINUE
        IF (.NOT. test_ok) THEN
-           CALL cp_assert(.FALSE.,cp_fatal_level,cp_assertion_failed,routineP,&
-            "Could not parse the title line of the trajectory file"//&
-            CPSourceFileRef,&
-            only_ionode=.TRUE.)
+           CPABORT("Could not parse the title line of the trajectory file")
        END IF
        energy_traj(iframe)=trj_epot
 
@@ -645,12 +639,11 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, ivar, n_var
-    LOGICAL                                  :: explicit, failure
+    LOGICAL                                  :: explicit
     TYPE(section_vals_type), POINTER         :: fm_section, oi_section, &
                                                 variable_section
 
     CALL timeset(routineN,handle)
-    failure=.FALSE.
 
     CALL section_vals_val_get(root_section,"GLOBAL%PROJECT",c_val=oi_env%project_name)
     CALL section_vals_val_get(root_section,"GLOBAL%SEED",i_val=oi_env%seed)
