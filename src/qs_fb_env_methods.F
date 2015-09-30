@@ -681,7 +681,6 @@ CONTAINS
     INTEGER                                  :: handle, info, nao, nmo
     REAL(KIND=dp), DIMENSION(:), POINTER     :: mo_eigenvalues
     TYPE(cp_fm_type), POINTER                :: mo_coeff
-    TYPE(cp_logger_type), POINTER            :: logger
 
     CALL timeset(routineN, handle)
 
@@ -730,9 +729,12 @@ CONTAINS
                                       alpha=1.0_dp)
        CALL cp_fm_to_fm(fm_work, mo_coeff, nmo, 1, 1)
     ELSE
-       logger => cp_get_default_logger()
-       unit_nr = cp_print_key_unit_nr(logger,, &
-                                      "P")
+       CALL cp_warn(__LOCATION__,&
+            "Unable to perform Cholesky decomposition on the overlap "//&
+            "matrix. The new filtered basis may not be linearly "//&
+            "independent set. Revert to using inverse square-root "//&
+            "of the overlap. To avoid this warning, you can try"//&
+            "to use a higher filter termperature.")
        ! cholesky decomposition has failed, revert to calculating
        ! ortho as S^-1/2 using diagonalisation of S, and solve
        ! accordingly
