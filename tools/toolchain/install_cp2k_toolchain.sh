@@ -35,7 +35,8 @@ quip_ver=cc83ceea5776c40fcb5ab224a25ab04d62175449
 #binutils_ver=2.24
 binutils_ver=2.25
 #valgrind_ver=3.10.0
-valgrind_ver=3.10.1
+#valgrind_ver=3.10.1
+valgrind_ver=3.11.0
 lcov_ver=1.11
 #gcc_ver=4.9.2
 #gcc_ver=5.1.0
@@ -689,7 +690,7 @@ else
       echo "CPLUSPLUSFLAGS += -g" >> arch/Makefile.linux_x86_64_gfortran
       export QUIP_ARCH=linux_x86_64_gfortran
       # hit enter a few times to accept defaults
-      echo -e "\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n" | make config > config.log
+      echo -e "-lreflapack -lrefblas\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n" | make config > config.log
       # make -j does not work :-(
       make >& make.log
       cp build/linux_x86_64_gfortran/quip_unified_wrapper_module.mod  ${INSTALLDIR}/include/
@@ -713,7 +714,7 @@ LIBS="${LIBS} -lstdc++ "
 # Flags which both gfortran and gcc understand.
 BASEFLAGS="IF_OMP(-fopenmp,)"
 BASEFLAGS="${BASEFLAGS} -march=native -fno-omit-frame-pointer -g ${TSANFLAGS}"
-BASEFLAGS="${BASEFLAGS} IF_VALGRIND(-mno-avx,)" #not supported by valgrind 3.10.1
+#BASEFLAGS="${BASEFLAGS} IF_VALGRIND(-mno-avx,)" #not supported by valgrind 3.10.1
 BASEFLAGS="${BASEFLAGS} IF_COVERAGE(-O0 -coverage, IF_DEBUG(-O1,-O3 -ffast-math))"
 BASEFLAGS="${BASEFLAGS} IF_DEBUG(-fsanitize=leak -ffpe-trap='invalid,zero,overflow' -finit-real=snan -fno-fast-math -D__HAS_IEEE_EXCEPTIONS,)"
 BASEFLAGS="${BASEFLAGS} \$(PROFOPT)"
@@ -743,7 +744,7 @@ NVFLAGS="-arch sm_35 \$(DFLAGS) "
 gen_arch_file() {
  filename=$1
  flags=$2
- TMPL=`cat ../../arch.tmpl`
+ TMPL=`cat ${rootdir}/arch.tmpl`
  eval "printf \"$TMPL\"" | cpp -traditional-cpp -P ${flags} - > $filename
  echo "Wrote install/arch/"$filename
 }

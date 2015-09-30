@@ -218,19 +218,19 @@ CONTAINS
        END IF
        ! Print warning for temp_tol
        IF (simpar%temp_tol > 0.0_dp) THEN
-          CALL cp_warn(__SHORT_FILE__,__LINE__,&
+          CALL cp_warn(__LOCATION__,&
                "A temperature tolerance (TEMP_TOL) is used during the MD. "//&
-               "Due to the velocity rescaling algorithm jumps may appear in the conserved quantity. ")
+               "Due to the velocity rescaling algorithm jumps may appear in the conserved quantity.")
        END IF
        ! Print warning for annealing
        IF(simpar%annealing ) THEN
          IF ( simpar%ensemble == nvt_ensemble .OR. &
               simpar%ensemble == npt_i_ensemble .OR. &
               simpar%ensemble == npt_f_ensemble )  THEN
-              CALL cp_abort(__SHORT_FILE__,__LINE__,&
+              CALL cp_abort(__LOCATION__,&
                    "Annealing of the ions has been required "//&
                    "even if the thermostat is active (nvt or npt_i or npt_f) "//&
-                   "These two methods to control the temperature act one against the other. ")
+                   "These two methods to control the temperature act one against the other.")
          END IF
        END IF
        ! Print warning for variable time step
@@ -238,10 +238,10 @@ CONTAINS
          IF ( simpar%ensemble == langevin_ensemble .OR. &
               simpar%ensemble == reftraj_ensemble .OR. &
               simpar%do_respa )  THEN
-              CALL cp_warn(__SHORT_FILE__,__LINE__,&
+              CALL cp_warn(__LOCATION__,&
                    "The variable timestep  has been required, however "//&
                    "this option is not available either with the Langevin ensemble or with the multiple timestep schme. "//&
-                   "The run will proceed with constant timestep, as read from input. ")
+                   "The run will proceed with constant timestep, as read from input.")
          END IF
        END IF
     END IF
@@ -295,19 +295,17 @@ CONTAINS
     CALL section_vals_get(tmp_section,explicit=simpar%constraint)
     IF (simpar%constraint) THEN
        CALL section_vals_val_get(tmp_section,"SHAKE_TOLERANCE",r_val=simpar%shake_tol)
-       CALL cp_assert(simpar%shake_tol>EPSILON(0.0_dp)*1000.0_dp,cp_warning_level,cp_assertion_failed,routineP,&
-            "Shake tolerance lower than 1000*EPSILON, where EPSILON is the machine precision. "//&
-            "This may lead to numerical problems. Setting up shake_tol to 1000*EPSILON! "//&
-CPSourceFileRef,&
-            only_ionode=.TRUE.)
+       IF(simpar%shake_tol<=EPSILON(0.0_dp)*1000.0_dp)&
+          CALL cp_warn(__LOCATION__,&
+               "Shake tolerance lower than 1000*EPSILON, where EPSILON is the machine precision. "//&
+               "This may lead to numerical problems. Setting up shake_tol to 1000*EPSILON!")
        simpar%shake_tol = MAX(EPSILON(0.0_dp)*1000.0_dp,simpar%shake_tol)
 
        CALL section_vals_val_get(tmp_section,"ROLL_TOLERANCE",r_val=simpar%roll_tol)
-       CALL cp_assert(simpar%roll_tol>EPSILON(0.0_dp)*1000.0_dp,cp_warning_level,cp_assertion_failed,routineP,&
-            "Roll tolerance lower than 1000*EPSILON, where EPSILON is the machine precision. "//&
-            "This may lead to numerical problems. Setting up roll_tol to 1000*EPSILON! "//&
-CPSourceFileRef,&
-            only_ionode=.TRUE.)
+       IF(simpar%roll_tol<=EPSILON(0.0_dp)*1000.0_dp)&
+          CALL cp_warn(__LOCATION__,&
+               "Roll tolerance lower than 1000*EPSILON, where EPSILON is the machine precision. "//&
+               "This may lead to numerical problems. Setting up roll_tol to 1000*EPSILON!")
        simpar%roll_tol = MAX(EPSILON(0.0_dp)*1000.0_dp,simpar%roll_tol)
     END IF
 
