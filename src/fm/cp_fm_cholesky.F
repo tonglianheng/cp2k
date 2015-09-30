@@ -206,10 +206,8 @@ CONTAINS
 
     ! this is supposed to be one in current version of lapack
     ! if not, eigenvalues have to be scaled by this number
-    CALL cp_assert(scale == 1.0_dp, cp_failure_level,cp_assertion_failed,&
-         routineP,&
-         "scale not equal 1 (scale="//cp_to_string(scale)//")"//&
-         CPSourceFileRef)
+    IF(scale /= 1.0_dp)&
+       CPABORT("scale not equal 1 (scale="//cp_to_string(scale)//")")
 #else
 
     CALL dsygst(my_itype,'U',n,a(1,1),n,b(1,1),n,info)
@@ -270,7 +268,7 @@ CONTAINS
     CALL cp_assert(op == "SOLVE" .OR. op == "MULTIPLY",&
          cp_failure_level,cp_assertion_failed,routineP,&
          "wrong argument op"//&
-         CPSourceFileRef)
+         __LOCATION__)
 
     IF (PRESENT(pos)) THEN
        SELECT CASE(pos)
@@ -292,7 +290,7 @@ CONTAINS
          cp_failure_level,cp_assertion_failed,&
          routineP,&
          "not the same precision"//&
-         CPSourceFileRef)
+         __LOCATION__)
 
     ! notice b is the cholesky guy
     a => matrix%local_data

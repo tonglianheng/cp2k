@@ -63,10 +63,8 @@ SUBROUTINE read_topology_section ( topology, topology_section)
   CALL section_vals_val_get(topology_section,"CHARGE_BETA",l_val=topology%charge_beta)
   CALL section_vals_val_get(topology_section,"CHARGE_EXTENDED",l_val=topology%charge_extended)
   ival = COUNT((/topology%charge_occup,topology%charge_beta,topology%charge_extended/))
-  CALL cp_assert(ival<=1,cp_failure_level,cp_assertion_failed,routineP,&
-       "Only one between <CHARGE_OCCUP,CHARGE_BETA,CHARGE_EXTENDED> can be defined! "//&
-CPSourceFileRef,&
-       only_ionode=.TRUE.)
+  IF(ival>1)&
+     CPABORT("Only one between <CHARGE_OCCUP,CHARGE_BETA,CHARGE_EXTENDED> can be defined! ")
   CALL section_vals_val_get(topology_section,"PARA_RES",l_val=topology%para_res)
   CALL section_vals_val_get(topology_section,"GENERATE%REORDER",l_val=topology%reorder_atom)
   CALL section_vals_val_get(topology_section,"GENERATE%CREATE_MOLECULES",l_val=topology%create_molecules)
@@ -546,7 +544,7 @@ SUBROUTINE read_constraints_section(topology, colvar_p, constraint_section)
            END IF
            IF  ((cons_info%const_colv_mol(ig)==0).AND.(cons_info%const_colv_molname(ig)=="UNDEF").AND.&
                 (.NOT.cons_info%colv_intermolecular(ig))) THEN
-              CALL cp_abort(__SHORT_FILE__,__LINE__,&
+              CALL cp_abort(__LOCATION__,&
                    "Constraint section error: you have to specify at least one of the "//&
                    "following keywords: MOLECULE, MOLNAME or INTERMOLECULAR! ")
            END IF
