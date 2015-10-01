@@ -202,14 +202,12 @@ CONTAINS
 
     INTEGER                                  :: ikind, iset, ishell, n, nset
     INTEGER, DIMENSION(:), POINTER           :: npgf, nshell
-    LOGICAL                                  :: failure
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: zet
     REAL(KIND=dp), DIMENSION(:, :, :), &
       POINTER                                :: gcc_orig
     TYPE(gto_basis_set_type), POINTER        :: fbas
 
     NULLIFY(fbas, gcc_orig, npgf, nshell, zet)
-    failure = .FALSE.
 
     ALLOCATE(lri_opt%ri_gcc_orig(nkind))
 
@@ -337,9 +335,7 @@ CONTAINS
     CASE(do_lri_opt_exps)
        lri_opt%opt_exps=.TRUE.
     CASE DEFAULT
-       CALL cp_assert(.FALSE.,cp_fatal_level,cp_assertion_failed,&
-                 routineP,"No initialization available?????",&
-                 only_ionode=.TRUE.)
+       CPABORT("No initialization available?????")
     END SELECT
 
     ! *** restraint
@@ -385,7 +381,6 @@ CONTAINS
     INTEGER                                  :: ikind, iset, ishell, n, nset, &
                                                 nvar_exp
     INTEGER, DIMENSION(:), POINTER           :: npgf, nshell
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: zet_max, zet_min
     REAL(KIND=dp), DIMENSION(:), POINTER     :: zet, zet_trans
     REAL(KIND=dp), DIMENSION(:, :, :), &
@@ -393,7 +388,6 @@ CONTAINS
     TYPE(gto_basis_set_type), POINTER        :: fbas
 
     NULLIFY(fbas,gcc_orig,npgf,nshell,zet_trans, zet)
-    failure = .FALSE.
 
     ! nvar_exp: number of exponents that are variables
     nvar_exp= SIZE(x) - lri_opt%ncoeff
@@ -465,11 +459,9 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'transfer_exp', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: a
     REAL(KIND=dp), DIMENSION(:), POINTER     :: zet_max, zet_min
 
-    failure = .FALSE.
     ALLOCATE(zet_max(nvar),zet_min(nvar))
     
     zet_min(:) = zet_init(:)*(1.0_dp-lri_opt%scale_exp)
@@ -597,7 +589,7 @@ CONTAINS
     INTEGER :: handle, iac, iatom, ikind, ilist, isgfa, ispin, jatom, jkind, &
       jneighbor, jsgfa, ksgfb, lsgfb, nba, nbb, nfa, nfb, nkind, nlist, nn, &
       nneighbor, nspin
-    LOGICAL                                  :: failure, found, trans
+    LOGICAL                                  :: found, trans
     REAL(KIND=dp)                            :: obj_ab, rhoexact_sq, &
                                                 rhofit_sq, rhomix
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: pbij
@@ -611,7 +603,6 @@ CONTAINS
     TYPE(neighbor_list_set_p_type), &
       DIMENSION(:), POINTER                  :: soo_list
 
-    failure = .FALSE.
     CALL timeset(routineN,handle)
     NULLIFY(lrii, lriir, lri_rho, lrho, nl_iterator, pmat, soo_list)
 
@@ -759,7 +750,6 @@ CONTAINS
 
     INTEGER :: handle, iac, iatom, ikind, ilist, info, jatom, jkind, &
       jneighbor, lwork, nfa, nfb, nkind, nlist, nn, nneighbor
-    LOGICAL                                  :: failure
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: diag, off_diag, tau
     REAL(KIND=dp), DIMENSION(:), POINTER     :: work
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: smat
@@ -769,7 +759,6 @@ CONTAINS
     TYPE(neighbor_list_set_p_type), &
       DIMENSION(:), POINTER                  :: soo_list
 
-    failure = .FALSE.
     CALL timeset(routineN,handle)
     NULLIFY(lrii, nl_iterator, smat, soo_list)
 

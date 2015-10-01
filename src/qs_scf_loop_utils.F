@@ -133,8 +133,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: ispin
-    LOGICAL                                  :: failure, has_unit_metric, &
-                                                skip_diag_sub
+    LOGICAL                                  :: has_unit_metric, skip_diag_sub
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: matrix_ks, matrix_s
     TYPE(dft_control_type), POINTER          :: dft_control
@@ -144,7 +143,6 @@ CONTAINS
     TYPE(qs_ks_env_type), POINTER            :: ks_env
     TYPE(qs_rho_type), POINTER               :: rho
 
-    failure=.FALSE.
     NULLIFY(energy, ks_env, matrix_ks, matrix_s, rho, mos, dft_control)
 
     CALL get_qs_env(qs_env=qs_env,&
@@ -158,9 +156,9 @@ CONTAINS
 
     SELECT CASE (scf_env%method)
     CASE DEFAULT
-       CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
-            routineP,"unknown scf method: "//&
-            cp_to_string(scf_env%method),failure)
+       CALL cp_abort(__LOCATION__,&
+            "unknown scf method: "//&
+            cp_to_string(scf_env%method))
 
     ! *************************************************************************
     ! Filter matrix diagonalisation: ugly implementation at this point of time
@@ -267,13 +265,11 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'qs_scf_new_mos_kp', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure, has_unit_metric
+    LOGICAL                                  :: has_unit_metric
     TYPE(cp_dbcsr_p_type), DIMENSION(:, :), &
       POINTER                                :: matrix_ks, matrix_s
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(kpoint_type), POINTER               :: kpoints
-
-    failure=.FALSE.
 
     NULLIFY(dft_control, kpoints, matrix_ks, matrix_s)
 
@@ -281,14 +277,14 @@ CONTAINS
                     kpoints=kpoints)
     scf_env%iter_param = 0.0_dp
 
-    CALL cp_assert(.NOT.dft_control%roks,cp_failure_level,cp_assertion_failed,&
-         routineP,"KP code: ROKS method not available: ",failure)
+    IF(dft_control%roks)&
+       CPABORT("KP code: ROKS method not available: ")
 
     SELECT CASE (scf_env%method)
        CASE DEFAULT
-          CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
-               routineP,"KP code: Unknown scf method: "//&
-               cp_to_string(scf_env%method),failure)
+          CALL cp_abort(__LOCATION__,&
+               "KP code: Unknown scf method: "//&
+               cp_to_string(scf_env%method))
        CASE(general_diag_method_nr)
           ! Diagonlization in non orthonormal case
           CALL get_qs_env(qs_env,matrix_ks_kp=matrix_ks,matrix_s_kp=matrix_s)
@@ -300,16 +296,16 @@ CONTAINS
           ! Diagonlization in orthonormal case
 !         CALL do_special_diag(scf_env,mos,matrix_ks,&
 !                              scf_control,scf_section,diis_step)
-          CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
-               routineP,"KP code: Scf method not available: "//&
-               cp_to_string(scf_env%method),failure)
+          CALL cp_abort(__LOCATION__,&
+               "KP code: Scf method not available: "//&
+               cp_to_string(scf_env%method))
        CASE(ot_diag_method_nr,&
             block_krylov_diag_method_nr,&
             block_davidson_diag_method_nr,&
             ot_method_nr)
-          CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
-               routineP,"KP code: Scf method not available: "//&
-               cp_to_string(scf_env%method),failure)
+          CALL cp_abort(__LOCATION__,&
+               "KP code: Scf method not available: "//&
+               cp_to_string(scf_env%method))
     END SELECT
 
   END SUBROUTINE qs_scf_new_mos_kp
@@ -353,14 +349,12 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, ispin
-    LOGICAL                                  :: failure
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: rho_ao
     TYPE(cp_dbcsr_type), POINTER             :: orthogonality_metric
 
     CALL timeset(routineN,handle)
     NULLIFY(rho_ao)
-    failure = .FALSE.
 
     CALL qs_rho_get(rho, rho_ao=rho_ao)
 
@@ -416,11 +410,9 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'qs_scf_density_mixing', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     TYPE(cp_dbcsr_p_type), DIMENSION(:, :), &
       POINTER                                :: rho_ao_kp
 
-    failure=.FALSE.
     NULLIFY(rho_ao_kp)
 
     CALL qs_rho_get(rho, rho_ao_kp=rho_ao_kp)
@@ -437,9 +429,9 @@ CONTAINS
             delta=scf_env%iter_delta)
     CASE(no_mixing_nr)
     CASE DEFAULT
-       CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
-            routineP,"unknown scf mixing method: "//&
-            cp_to_string(scf_env%mixing_method),failure)
+       CALL cp_abort(__LOCATION__,&
+            "unknown scf mixing method: "//&
+            cp_to_string(scf_env%mixing_method))
     END SELECT
 
   END SUBROUTINE qs_scf_density_mixing
@@ -551,11 +543,9 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: ic, ispin, nc
-    LOGICAL                                  :: failure
     TYPE(cp_dbcsr_p_type), DIMENSION(:, :), &
       POINTER                                :: rho_ao_kp
 
-     failure = .FALSE.
      NULLIFY(rho_ao_kp)
 
      IF (scf_env%mixing_method>0) THEN
@@ -637,14 +627,13 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'qs_scf_inner_finalize', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: do_kpoints, failure
+    LOGICAL                                  :: do_kpoints
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(qs_energy_type), POINTER            :: energy
     TYPE(qs_ks_env_type), POINTER            :: ks_env
     TYPE(qs_rho_type), POINTER               :: rho
 
-    failure=.FALSE.
     NULLIFY(energy, rho, dft_control, ks_env)
 
     CALL get_qs_env(qs_env=qs_env, energy=energy,ks_env=ks_env,&
@@ -680,11 +669,9 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, ispin
-    LOGICAL                                  :: failure
 
     CALL timeset(routineN,handle)
 
-    failure=.FALSE.
 
     CPASSERT(ASSOCIATED(scf_env))
     CPASSERT(scf_env%ref_count>0)
@@ -706,9 +693,9 @@ CONTAINS
        CASE(filter_matrix_diag_method_nr)
    !
        CASE DEFAULT
-          CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
-               routineP,"unknown scf method method:"//&
-               cp_to_string(scf_env%method),failure)
+          CALL cp_abort(__LOCATION__,&
+               "unknown scf method method:"//&
+               cp_to_string(scf_env%method))
        END SELECT
 
 

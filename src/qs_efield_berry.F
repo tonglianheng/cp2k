@@ -146,7 +146,6 @@ MODULE qs_efield_berry
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, i
-    LOGICAL                                  :: failure
     REAL(dp), DIMENSION(3)                   :: kvec
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
@@ -155,7 +154,6 @@ MODULE qs_efield_berry
     TYPE(efield_berry_type), POINTER         :: efield
 
     CALL timeset(routineN,handle)
-    failure = .FALSE.
     CPASSERT(ASSOCIATED(qs_env))
 
     CALL get_qs_env(qs_env=qs_env,dft_control=dft_control)
@@ -632,9 +630,7 @@ MODULE qs_efield_berry
     IF(calculate_forces)THEN
        ! check for smoothness of energy surface
        IF( ABS(efield%field_energy-ener_field) > pi*ABS(SUM(fpolvec))) THEN
-          CALL cp_assert(.FALSE.,cp_warning_level,cp_assertion_failed,routineP,&
-               "Large change of e-field energy detected. Correct for non-smooth energy surface",&
-               only_ionode=.TRUE.)
+          CPWARN("Large change of e-field energy detected. Correct for non-smooth energy surface")
        END IF
        efield%field_energy = ener_field
        efield%polarisation(:) = cqi(:)
@@ -1135,9 +1131,7 @@ MODULE qs_efield_berry
        ener_field=SUM(ci)
        ! check for smoothness of energy surface
        IF( ABS(efield%field_energy-ener_field) > pi*ABS(SUM(hmat)) ) THEN
-          CALL cp_assert(.FALSE.,cp_warning_level,cp_assertion_failed,routineP,&
-               "Large change of e-field energy detected. Correct for non-smooth energy surface",&
-               only_ionode=.TRUE.)
+          CPWARN("Large change of e-field energy detected. Correct for non-smooth energy surface")
        END IF
        efield%field_energy = ener_field
        efield%polarisation(:) = cqi(:)

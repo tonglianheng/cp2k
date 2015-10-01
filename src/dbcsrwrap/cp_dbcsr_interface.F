@@ -207,6 +207,7 @@ MODULE cp_dbcsr_interface
   PUBLIC :: cp_dbcsr_get_stored_coordinates
   PUBLIC :: cp_dbcsr_valid_index
   PUBLIC :: cp_dbcsr_get_data_type
+  PUBLIC :: cp_dbcsr_reserve_diag_blocks
   PUBLIC :: cp_dbcsr_reserve_block2d
   PUBLIC :: cp_dbcsr_reserve_blocks
   PUBLIC :: cp_dbcsr_reserve_all_blocks
@@ -1093,8 +1094,7 @@ CONTAINS
        CALL dbcsr_norm (matrix%matrix, which_norm, norm_vector=norm_vector,&
             error=dbcsr_error)
     ELSE
-       CALL cp_assert (.FALSE., cp_wrong_args_error, cp_internal_error,&
-            routineN, "Must pass either scalar or vector norm.")
+       CPABORT("Must pass either scalar or vector norm.")
     ENDIF
 
   END SUBROUTINE cp_dbcsr_norm

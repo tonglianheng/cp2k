@@ -16,7 +16,7 @@ MODULE atom_electronic_structure
                                              atom_print_zmp_iteration
   USE atom_types,                      ONLY: &
        GTH_PSEUDO, NO_PSEUDO, atom_type, create_opgrid, create_opmat, &
-       opgrid_type, opmat_type, release_opgrid, release_opmat
+       opgrid_type, opmat_type, release_opgrid, release_opmat, set_atom
   USE atom_utils,                      ONLY: &
        atom_denmat, atom_density, atom_read_external_density, &
        atom_read_external_vxc, atom_read_zmp_restart, atom_solve, atom_trace, &
@@ -67,9 +67,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, method
-    LOGICAL                                  :: failure
-
-    failure = .FALSE.
 
     CALL timeset(routineN,handle)
 
@@ -106,17 +103,14 @@ CONTAINS
 
     INTEGER                                  :: handle, i, iter, l, max_iter, &
                                                 method, reltyp
-    LOGICAL                                  :: do_hfx, doguess, failure, &
-                                                need_vxc, need_x, need_xc, &
-                                                need_zmp
+    LOGICAL                                  :: do_hfx, doguess, need_vxc, &
+                                                need_x, need_xc, need_zmp
     REAL(KIND=dp)                            :: deps, eps_scf, hf_frac
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: ext_density, ext_vxc, tmp_dens
     TYPE(atom_history_type)                  :: history
     TYPE(opgrid_type), POINTER               :: cpot, density
     TYPE(opmat_type), POINTER                :: fmat, hcore, jmat, kmat, xcmat
     TYPE(section_vals_type), POINTER         :: hfx_sections, xc_section
-
-    failure = .FALSE.
 
     CALL timeset(routineN,handle)
 
@@ -394,7 +388,8 @@ CONTAINS
 
     CALL atom_history_release(history)
 
-    CALL release_opmat(fmat)
+    ! conserve fmat within atom_type
+    CALL set_atom(atom,fmat=fmat)
     CALL release_opmat(jmat)
     CALL release_opmat(kmat)
     CALL release_opmat(xcmat)
@@ -427,8 +422,8 @@ CONTAINS
 
     INTEGER                                  :: handle, i, iter, k, l, &
                                                 max_iter, method, reltyp
-    LOGICAL                                  :: do_hfx, doguess, failure, &
-                                                lsdpot, need_x, need_xc
+    LOGICAL                                  :: do_hfx, doguess, lsdpot, &
+                                                need_x, need_xc
     REAL(KIND=dp)                            :: deps, depsa, depsb, eps_scf, &
                                                 hf_frac, ne, nm
     TYPE(atom_history_type)                  :: historya, historyb
@@ -437,8 +432,6 @@ CONTAINS
                                                 jmat, kmata, kmatb, xcmata, &
                                                 xcmatb
     TYPE(section_vals_type), POINTER         :: hfx_sections, xc_section
-
-    failure = .FALSE.
 
     CALL timeset(routineN,handle)
 
@@ -757,7 +750,8 @@ CONTAINS
     CALL release_opgrid(rhob)
     CALL release_opgrid(cpot)
 
-    CALL release_opmat(fmata)
+    ! conserve fmata as fmat within atom_type.
+    CALL set_atom(atom,fmat=fmata)
     CALL release_opmat(fmatb)
     CALL release_opmat(jmat)
     CALL release_opmat(kmata)

@@ -63,11 +63,9 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: iwall_type
-    LOGICAL                                  :: do_qmmm_force_mixing, &
-                                                explicit, failure
+    LOGICAL                                  :: do_qmmm_force_mixing, explicit
     TYPE(section_vals_type), POINTER         :: qmmmx_section, walls_section
 
-    failure         = .FALSE.
     walls_section => section_vals_get_subs_vals(qmmm_env%qs_env%input,"QMMM%WALLS")
     qmmmx_section => section_vals_get_subs_vals(qmmm_env%qs_env%input,"QMMM%FORCE_MIXING")
     CALL section_vals_get(qmmmx_section,explicit=do_qmmm_force_mixing)
@@ -77,9 +75,9 @@ CONTAINS
        SELECT CASE(iwall_type)
        CASE(do_qmmm_wall_quadratic)
           IF(do_qmmm_force_mixing) THEN
-            CALL cp_assert(.FALSE., cp_warning_level,cp_assertion_failed,routineP,&
-            "Quadratic walls for QM/MM are not implemented (or useful), when "//&
-            "force mixing is active.  Skipping!"//CPSourceFileRef)
+            CALL cp_warn(__LOCATION__,&
+                 "Quadratic walls for QM/MM are not implemented (or useful), when "//&
+                 "force mixing is active.  Skipping!")
           ELSE
             CALL apply_qmmm_walls_quadratic(qmmm_env, walls_section)
           ENDIF
@@ -106,8 +104,8 @@ CONTAINS
 
     INTEGER                                  :: ip, iwall_type, qm_index
     INTEGER, DIMENSION(:), POINTER           :: qm_atom_index
-    LOGICAL                                  :: explicit, failure, is_x(2), &
-                                                is_y(2), is_z(2)
+    LOGICAL                                  :: explicit, is_x(2), is_y(2), &
+                                                is_z(2)
     REAL(KIND=dp), DIMENSION(3)              :: coord, qm_cell_diag, skin
     REAL(KIND=dp), DIMENSION(:), POINTER     :: list
     TYPE(cell_type), POINTER                 :: mm_cell, qm_cell
@@ -116,7 +114,6 @@ CONTAINS
       POINTER                                :: particles_mm
     TYPE(section_vals_type), POINTER         :: walls_section
 
-    failure         = .FALSE.
     NULLIFY(subsys_mm, subsys_qm, qm_atom_index,particles_mm, qm_cell, mm_cell,&
          walls_section)
 
@@ -136,10 +133,10 @@ CONTAINS
     END IF
 
     IF (force_env%in_use==use_qmmmx) THEN
-       CALL cp_assert(iwall_type == do_qmmm_wall_none, &
-         cp_warning_level,cp_assertion_failed,routineP,&
-         "Reflective walls for QM/MM are not implemented (or useful) when "//&
-         "force mixing is active.  Skipping!"//CPSourceFileRef)
+       IF(iwall_type /= do_qmmm_wall_none)&
+          CALL cp_warn(__LOCATION__,&
+               "Reflective walls for QM/MM are not implemented (or useful) when "//&
+               "force mixing is active.  Skipping!")
        RETURN
     END IF
 
@@ -197,13 +194,11 @@ CONTAINS
              ENDIF
           ELSE
              ! Otherwise print a warning and continue crossing cp2k's finger..
-             CALL cp_assert(.FALSE.,cp_warning_level,cp_assertion_failed,routineP,&
-             "One or few QM atoms are within the SKIN of the quantum box. Check your run "//&
-             "and you may possibly consider: the activation of the QMMM WALLS "//&
-             "around the QM box, switching ON the centering of the QM box or increase "//&
-             "the size of the QM cell. CP2K CONTINUE but results could be meaningless. "//&
-             CPSourceFileRef,&
-             only_ionode=.TRUE.)
+             CALL cp_warn(__LOCATION__,&
+                  "One or few QM atoms are within the SKIN of the quantum box. Check your run "//&
+                  "and you may possibly consider: the activation of the QMMM WALLS "//&
+                  "around the QM box, switching ON the centering of the QM box or increase "//&
+                  "the size of the QM cell. CP2K CONTINUE but results could be meaningless. ")
           END IF
        END IF
     END DO
@@ -406,14 +401,12 @@ CONTAINS
                                                 min_ip, smaller_ip, tmp_ip, &
                                                 unit_nr
     INTEGER, DIMENSION(:), POINTER           :: qm_atom_index
-    LOGICAL                                  :: failure
     LOGICAL, ALLOCATABLE                     :: avoid(:)
     REAL(DP) :: bigger_lat_dv, center_p(3), lat_dv, lat_dv3(3), lat_min(3), &
       lat_p(3), max_coord_lat(3), min_coord_lat(3), smaller_lat_dv
     REAL(DP), POINTER                        :: charges(:)
     REAL(KIND=dp), DIMENSION(3)              :: max_coord, min_coord, transl_v
     TYPE(cell_type), POINTER                 :: mm_cell, qm_cell
-    TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_subsys_type), POINTER            :: subsys_mm, subsys_qm
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particles_mm, particles_qm
@@ -421,8 +414,6 @@ CONTAINS
       POINTER                                :: qs_kind_set
     TYPE(section_vals_type), POINTER         :: subsys_section
 
-    failure         = .FALSE.
-    logger => cp_get_default_logger()
     NULLIFY(subsys_mm, subsys_qm, qm_atom_index, particles_mm, particles_qm,&
             subsys_section, qm_cell, mm_cell, qs_kind_set)
 
@@ -521,7 +512,7 @@ CONTAINS
        DO ip=1,subsys_mm%particles%n_els
           particles_mm(ip)%r = particles_mm(ip)%r - transl_v
        END DO
-       unit_nr=cp_logger_get_default_io_unit(logger)
+       unit_nr=cp_logger_get_default_io_unit()
        IF (unit_nr>0) WRITE (unit=unit_nr,fmt='(/1X,A)')&
             " Translating the system in order to center the QM fragment in the QM box."
        IF (.NOT.qmmm_env%qm%center_qm_subsys) qmmm_env%qm%do_translate = .FALSE.

@@ -53,7 +53,7 @@ CONTAINS
 
     CHARACTER(LEN=default_string_length)     :: my_default_index, strtmp
     INTEGER                                  :: frame, handle, iw, j, natom
-    LOGICAL                                  :: failure, my_end
+    LOGICAL                                  :: my_end
     TYPE(atom_info_type), POINTER            :: atom_info
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_parser_type), POINTER            :: parser
@@ -61,7 +61,6 @@ CONTAINS
     CALL timeset(routineN,handle)
 
     NULLIFY (parser,logger)
-    failure = .FALSE.
     logger => cp_get_default_logger()
     iw = cp_print_key_unit_nr(logger,subsys_section,"PRINT%TOPOLOGY_INFO/XYZ_INFO",&
                               extension=".subsysLog")
@@ -134,12 +133,11 @@ CONTAINS
           CALL parser_get_next_line(parser,1,at_end=my_end)
           my_end = my_end.OR.(LEN_TRIM(parser%input_line) == 0)
           IF (my_end) THEN
-             CALL cp_assert(j==natom,cp_fatal_level,cp_assertion_failed,routineP,&
-                  "Number of lines in XYZ format not equal to the number of atoms."//&
-                  " Error in XYZ format. Very probably the line with title is missing or is empty."//&
-                  " Please check the XYZ file and rerun your job!"//&
-CPSourceFileRef,&
-                  only_ionode=.TRUE.)
+             IF(j/=natom)&
+                CALL cp_abort(__LOCATION__,&
+                     "Number of lines in XYZ format not equal to the number of atoms."//&
+                     " Error in XYZ format. Very probably the line with title is missing or is empty."//&
+                     " Please check the XYZ file and rerun your job!")
              EXIT Frames
           END IF
        END DO

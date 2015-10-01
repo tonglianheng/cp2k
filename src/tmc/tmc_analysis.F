@@ -138,10 +138,7 @@ CONTAINS
         ELSE IF(SIZE(i_arr_tmp(:)).EQ.0) THEN
           nr_bins(:) = 1
         ELSE
-          CALL cp_assert(.FALSE.,&
-                 cp_failure_level,cp_assertion_failed,routineP,&
-                 "unknown amount of dimentions for the binning.",&
-                 failure=flag, only_ionode=.TRUE.)
+          CPABORT("unknown amount of dimentions for the binning.")
         END IF
         CALL tmc_ana_density_create(tmc_ana%density_3d, nr_bins)
       END IF
@@ -166,10 +163,9 @@ CONTAINS
           ALLOCATE(charge(i_tmp))
           CALL read_chrg_section(charge_atm,charge,tmp_section,ntot)
         ELSE 
-          CALL cp_assert(.FALSE., cp_failure_level,cp_assertion_failed,routineP,&
-                       "to calculate the classical cell dipole moment "// &
-                       "the charges has to be specified",&
-                       failure=flag)
+          CALL cp_abort(__LOCATION__,&
+               "to calculate the classical cell dipole moment "// &
+               "the charges has to be specified")
         END IF
         
         CALL tmc_ana_dipole_moment_create(tmc_ana%dip_mom, charge_atm,charge,&
@@ -192,11 +188,7 @@ CONTAINS
         CASE ("SYM_XYZ")
           tmc_ana%dip_ana%ana_type = ana_type_sym_xyz
         CASE DEFAULT
-          CALL cp_assert(.FALSE.,&
-                 cp_warning_level,cp_assertion_failed,routineP,&
-                 'unknown analysis type "'//TRIM(c_tmp)//'" specified. '//&
-                 " Set to default.",&
-                 failure=flag, only_ionode=.TRUE.)
+          CPWARN('unknown analysis type "'//TRIM(c_tmp)//'" specified. Set to default.')
           tmc_ana%dip_ana%ana_type = ana_type_default
         END SELECT
       END IF
@@ -226,9 +218,6 @@ CONTAINS
 
     CHARACTER(LEN=default_path_length)       :: tmp_cell_file, tmp_dip_file, &
                                                 tmp_pos_file
-    LOGICAL                                  :: failure
-
-    failure = .FALSE.
 
     CPASSERT(ASSOCIATED(ana_env))
     CPASSERT(nr_dim>0)
@@ -299,9 +288,8 @@ CONTAINS
     CHARACTER(LEN=default_path_length)       :: file_name, file_name_tmp, &
                                                 restart_file_name
     INTEGER                                  :: file_ptr
-    LOGICAL                                  :: failure, l_tmp
+    LOGICAL                                  :: l_tmp
 
-    failure = .FALSE.
     CPASSERT(ASSOCIATED(ana_env))
     CPASSERT(ASSOCIATED(ana_env%last_elem))
     IF(.NOT.ana_env%restart) RETURN
@@ -400,10 +388,9 @@ CONTAINS
 
     CHARACTER(LEN=default_path_length)       :: file_name, file_name_tmp
     INTEGER                                  :: file_ptr
-    LOGICAL                                  :: failure, l_tmp
+    LOGICAL                                  :: l_tmp
     REAL(KIND=dp)                            :: temp
 
-    failure = .FALSE.
     CPASSERT(ASSOCIATED(ana_env))
     CPASSERT(ASSOCIATED(elem))
     IF(.NOT.ana_env%restart) RETURN
@@ -502,11 +489,8 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, weight_act
-    LOGICAL                                  :: failure
     REAL(KIND=dp), DIMENSION(3)              :: dip_tmp
     TYPE(tree_type), POINTER                 :: elem_tmp
-
-    failure = .FALSE.
 
     CPASSERT(ASSOCIATED(elem))
     CPASSERT(ASSOCIATED(ana_env))
@@ -1050,12 +1034,9 @@ CONTAINS
 
     INTEGER                                  :: counter, f_n, handle, list, &
                                                 list_ind, s_n
-    LOGICAL                                  :: failure
     REAL(KIND=dp), DIMENSION(3)              :: cell_size
     TYPE(atom_pairs_type), DIMENSION(:), &
       POINTER                                :: pairs_tmp
-
-    failure = .FALSE.
 
     CPASSERT(ASSOCIATED(ana_pair_correl))
     CPASSERT(.NOT.ASSOCIATED(ana_pair_correl%g_r))
@@ -1129,11 +1110,9 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, i, ind, j, pair_ind
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: dist
     REAL(KIND=dp), DIMENSION(3)              :: cell_size
 
-    failure = .FALSE.
     CPASSERT(ASSOCIATED(elem))
     CPASSERT(ASSOCIATED(elem%pos))
     CPASSERT(ALL(elem%box_scale(:).GT.0.0_dp))
@@ -1188,11 +1167,8 @@ CONTAINS
 
     CHARACTER(LEN=default_path_length)       :: file_name
     INTEGER                                  :: bin, file_ptr, handle, pair
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: aver_box_scale(3), vol, voldr
     REAL(KIND=dp), DIMENSION(3)              :: cell_size
-
-    failure = .FALSE.
 
     CPASSERT(ASSOCIATED(ana_env))
     CPASSERT(ASSOCIATED(ana_env%pair_correl))
@@ -1265,9 +1241,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: atom, charge, handle
-    LOGICAL                                  :: failure
-
-    failure = .FALSE.
 
     CPASSERT(ASSOCIATED(ana_dip_mom))
     CPASSERT(ASSOCIATED(ana_dip_mom%charges_inp))
@@ -1493,11 +1466,7 @@ CONTAINS
       file_name_tmp = TRIM(expand_file_name_char(file_name_tmp,&
                          "diel_const_tensor_sym"))
     CASE DEFAULT
-      CALL cp_assert(.FALSE.,&
-             cp_warning_level,cp_assertion_failed,routineP,&
-             'unknown analysis type "'//cp_to_string(ana_env%dip_ana%ana_type)//&
-             '" used. ',&
-             failure=flag, only_ionode=.TRUE.)
+      CPWARN('unknown analysis type "'//cp_to_string(ana_env%dip_ana%ana_type)//'" used.')
     END SELECT
 
     ! calc the dielectric constant
@@ -1652,11 +1621,10 @@ CONTAINS
 
     CHARACTER(LEN=default_path_length)       :: file_name, file_name_tmp
     INTEGER                                  :: file_ptr, handle, ind
-    LOGICAL                                  :: failure, flag
+    LOGICAL                                  :: flag
     REAL(KIND=dp)                            :: disp
     REAL(KIND=dp), DIMENSION(3)              :: atom_disp
 
-    failure = .FALSE.
     disp = 0.0_dp
 
     CPASSERT(ASSOCIATED(elem))

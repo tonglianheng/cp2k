@@ -93,6 +93,7 @@ MODULE qs_initial_guess
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_initial_guess'
 
   PUBLIC ::  calculate_first_density_matrix, calculate_atomic_block_dm, calculate_mopac_dm
+  PUBLIC ::  calculate_atomic_fock_matrix
 
   TYPE atom_matrix_type
     REAL(KIND=dp), DIMENSION(:,:), POINTER   :: mat
@@ -131,8 +132,10 @@ CONTAINS
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: first_sgf, kind_of, last_sgf
     INTEGER, DIMENSION(:), POINTER           :: atom_list, elec_conf, &
                                                 nelec_kind, sort_kind
-    LOGICAL :: did_guess, do_kpoints, do_std_diag, exist, failure, &
-      has_unit_metric, natom_mismatch, ofgpw
+    LOGICAL                                  :: did_guess, do_kpoints, &
+                                                do_std_diag, exist, &
+                                                has_unit_metric, &
+                                                natom_mismatch, ofgpw
     REAL(dp), ALLOCATABLE, DIMENSION(:, :)   :: buff, buff2
     REAL(dp), DIMENSION(:, :), POINTER       :: DATA
     REAL(KIND=dp)                            :: checksum, eps, length, &
@@ -174,7 +177,6 @@ CONTAINS
                                                 subsys_section
 
     logger => cp_get_default_logger()
-    failure = .FALSE.
     NULLIFY(atomic_kind, qs_kind, mo_coeff, sv, orb_basis_set, atomic_kind_set,&
          qs_kind_set, particle_set, ortho, work2, work1, mo_array, s_sparse, &
          scf_control, dft_control, p_rmpv, ortho, work2, work1, para_env,&
@@ -266,13 +268,11 @@ CONTAINS
         CALL mp_bcast(exist, para_env%source, para_env%group)
         CALL mp_bcast(file_name, para_env%source, para_env%group)
         IF (.NOT.exist) THEN
-           CALL cp_assert(.FALSE.,cp_warning_level,cp_assertion_failed,routineP,&
+           CALL cp_warn(__LOCATION__,&
                 "User requested to restart the wavefunction from the file named: "//&
                 TRIM(file_name)//". This file does not exist. Please check the existence of"//&
                 " the file or change properly the value of the keyword WFN_RESTART_FILE_NAME."//&
-                " Calculation continues using ATOMIC GUESS. "//&
-CPSourceFileRef,&
-                only_ionode=.TRUE.)
+                " Calculation continues using ATOMIC GUESS. ")
            density_guess = safe_density_guess
         END IF
     ELSE IF (density_guess == history_guess) THEN
@@ -301,15 +301,13 @@ CPSourceFileRef,&
              INQUIRE(FILE=filename,exist=exist)
           CALL mp_bcast(exist, para_env%source, para_env%group)
           IF (.NOT. exist) THEN
-             CALL cp_assert(.FALSE.,cp_warning_level,cp_assertion_failed,routineP,&
+             CALL cp_warn(__LOCATION__,&
                   "User requested to restart the wavefunction from a series of restart files named: "//&
                   TRIM(file_name)//" with extensions (.bak-n). These files do not exist."//&
                   " Even trying to switch to a plain restart wave-function failes because the"//&
                   " file named: "//TRIM(file_name)//" does not exist. Please check the existence of"//&
                   " the file or change properly the value of the keyword WFN_RESTART_FILE_NAME. "//&
-                  " Calculation continues using ATOMIC GUESS. "//&
-CPSourceFileRef,&
-                  only_ionode=.TRUE.)
+                  " Calculation continues using ATOMIC GUESS. ")
              density_guess = safe_density_guess
           END IF
        END IF
@@ -977,7 +975,6 @@ CALL copy_fm_to_dbcsr(mo_array(ispin)%mo_set%mo_coeff,mo_array(ispin)%mo_set%mo_
     INTEGER                                  :: blk, handle, icol, ikind, &
                                                 irow, natom
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: kind_of
-    LOGICAL                                  :: failure
     REAL(dp), DIMENSION(:, :), POINTER       :: DATA
     REAL(KIND=dp)                            :: scale, trps1
     TYPE(atom_matrix_type), ALLOCATABLE, &
@@ -985,8 +982,6 @@ CALL copy_fm_to_dbcsr(mo_array(ispin)%mo_set%mo_coeff,mo_array(ispin)%mo_set%mo_
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(cp_dbcsr_iterator)                  :: iter
     TYPE(qs_kind_type), POINTER              :: qs_kind
-
-    failure = .FALSE.
 
     CALL timeset(routineN,handle)
 
@@ -1059,6 +1054,82 @@ CALL copy_fm_to_dbcsr(mo_array(ispin)%mo_set%mo_coeff,mo_array(ispin)%mo_set%mo_
     CALL timestop(handle)
 
   END SUBROUTINE calculate_atomic_block_dm
+
+! *****************************************************************************
+!> \brief returns a block diagonal fock matrix.
+!> \param matrix_f ...
+!> \param particle_set ...
+!> \param atomic_kind_set ...
+!> \param qs_kind_set ...
+!> \param output_unit ...
+! *****************************************************************************
+  SUBROUTINE calculate_atomic_fock_matrix(matrix_f, particle_set, atomic_kind_set, &
+                                       qs_kind_set, output_unit)
+    TYPE(cp_dbcsr_type), INTENT(INOUT)       :: matrix_f
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: particle_set
+    TYPE(atomic_kind_type), DIMENSION(:), &
+      POINTER                                :: atomic_kind_set
+    TYPE(qs_kind_type), DIMENSION(:), &
+      POINTER                                :: qs_kind_set
+    INTEGER, INTENT(IN)                      :: output_unit
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'calculate_atomic_fock_matrix', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, icol, ikind, irow
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: kind_of
+    LOGICAL                                  :: failure
+    REAL(dp), DIMENSION(:, :), POINTER       :: block
+    TYPE(atom_matrix_type), ALLOCATABLE, &
+      DIMENSION(:)                           :: fmat
+    TYPE(atomic_kind_type), POINTER          :: atomic_kind
+    TYPE(cp_dbcsr_iterator)                  :: iter
+    TYPE(qs_kind_type), POINTER              :: qs_kind
+
+    failure = .FALSE.
+
+    CALL timeset(routineN,handle)
+
+
+    ALLOCATE (kind_of(SIZE(particle_set)))
+    CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,kind_of=kind_of)
+    ALLOCATE (fmat(SIZE(atomic_kind_set)))
+
+    ! precompute the atomic blocks for each atomic-kind
+    DO ikind=1,SIZE(atomic_kind_set)
+      atomic_kind => atomic_kind_set(ikind)
+      qs_kind     => qs_kind_set(ikind)
+      NULLIFY(fmat(ikind)%mat)
+      IF (output_unit>0) WRITE (UNIT=output_unit,FMT="(/,T2,A)")&
+        "Calculating atomic Fock matrix for atomic kind: "//TRIM(atomic_kind%name)
+
+      !Currently only ispin=1 is supported
+      CALL calculate_atomic_orbitals(atomic_kind,qs_kind,iunit=output_unit,&
+                                     fmat=fmat(ikind)%mat,ispin=1)
+    END DO
+
+    ! zero result matrix
+    CALL cp_dbcsr_set(matrix_f,0.0_dp)
+
+    ! copy precomputed blocks onto diagonal of result matrix
+    CALL cp_dbcsr_iterator_start(iter, matrix_f)
+    DO WHILE (cp_dbcsr_iterator_blocks_left(iter))
+       CALL cp_dbcsr_iterator_next_block(iter, irow, icol, block)
+       ikind = kind_of(irow)
+       IF(icol.EQ.irow) block(:,:) = fmat(ikind)%mat(:,:)
+    ENDDO
+    CALL cp_dbcsr_iterator_stop(iter)
+
+    ! cleanup
+    DO ikind=1,SIZE(atomic_kind_set)
+      DEALLOCATE (fmat(ikind)%mat)
+    END DO
+    DEALLOCATE(fmat, kind_of)
+
+    CALL timestop(handle)
+
+  END SUBROUTINE calculate_atomic_fock_matrix
 
 ! *****************************************************************************
 !> \brief returns a block diagonal density matrix. Blocks correspond to the mopac initial guess.

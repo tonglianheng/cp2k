@@ -499,14 +499,13 @@ MODULE hfx_types
       max_set, n_rep_hf, n_threads, natom_a, natom_b, nkind, nseta, nsetb, &
       pbc_shells, storage_id
     INTEGER, DIMENSION(:), POINTER           :: atom2kind, kind_of
-    LOGICAL                                  :: failure, logic_val, my_do_exx
+    LOGICAL                                  :: logic_val, my_do_exx
     REAL(dp)                                 :: real_val
     TYPE(hfx_type), POINTER                  :: actual_x_data
     TYPE(section_vals_type), POINTER         :: hf_pbc_section, hf_sub_section
 
     CALL timeset(routineN,handle)
 
-    failure = .FALSE.
     CALL cite_reference(Guidon2008)
     CALL cite_reference(Guidon2009)
     !! There might be 2 hf sections
@@ -581,9 +580,7 @@ MODULE hfx_types
             WRITE(error_msg,'(A,A,A)') "Truncated hfx calculation requested. The file containing "//&
                  "the data could not be found at ", TRIM(char_val), " Please check T_C_G_DATA "//&
                  "in the INTERCATION_POTENTIAL section"
-            CALL cp_assert( .FALSE. , cp_failure_level,cp_assertion_failed,routineP,&
-                 error_msg , &
-                 only_ionode=.TRUE.)
+            CPABORT(error_msg)
           ELSE
             actual_x_data%potential_parameter%filename = char_val
           END IF
@@ -946,13 +943,11 @@ MODULE hfx_types
       so_counter
     INTEGER, DIMENSION(:), POINTER           :: la_max, la_min, npgfa, nshell
     INTEGER, DIMENSION(:, :), POINTER        :: first_sgfa, nl_a
-    LOGICAL                                  :: failure
     REAL(dp), DIMENSION(:, :), POINTER       :: sphi_a
     TYPE(gto_basis_set_type), POINTER        :: orb_basis_a
 
     CALL timeset(routineN,handle)
 
-    failure = .FALSE.
 
     !! BASIS parameter
     nkind = SIZE(qs_kind_set,1)
@@ -1079,10 +1074,8 @@ MODULE hfx_types
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, i
-    LOGICAL                                  :: failure
 
     CALL timeset(routineN,handle)
-    failure = .FALSE.
 
     !! BASIS parameter
     DO i=1,SIZE(basis_parameter)
@@ -1123,10 +1116,9 @@ MODULE hfx_types
     CHARACTER(LEN=512)                       :: error_msg
     CHARACTER(LEN=default_path_length)       :: char_val, filename, orig_wd
     INTEGER                                  :: int_val, stat
-    LOGICAL                                  :: check, failure, logic_val
+    LOGICAL                                  :: check, logic_val
     REAL(dp)                                 :: real_val
 
-    failure = .FALSE.
     check = (PRESENT(storage_id).EQV.PRESENT(i_thread)) .AND.&
             (PRESENT(storage_id).EQV.PRESENT(n_threads)).AND.&
             (PRESENT(storage_id).EQV.PRESENT(para_env)) .AND.&
@@ -1183,9 +1175,7 @@ MODULE hfx_types
        IF(stat/=0) THEN
           WRITE(error_msg,'(A,A,A)') "Request for disk storage failed due to unknown error while writing to ",&
                TRIM(filename), ". Please check STORAGE_LOCATION"
-          CALL cp_assert( .FALSE. , cp_failure_level,cp_assertion_failed,routineP,&
-               error_msg , &
-               failure)
+          CPABORT(error_msg)
        END IF
        CALL m_chdir(orig_wd,stat)
 
@@ -1214,11 +1204,10 @@ MODULE hfx_types
 
     INTEGER                                  :: i, i_thread, irep, n_rep_hf, &
                                                 n_threads
-    LOGICAL                                  :: failure
     TYPE(hfx_type), POINTER                  :: actual_x_data
 
-    failure = .FALSE.
-    !! There might be 2 hf sections
+!! There might be 2 hf sections
+
     n_rep_hf = x_data(1,1)%n_rep_hf
     n_threads = 1
 !$  n_threads = omp_get_max_threads()
@@ -1354,7 +1343,7 @@ MODULE hfx_types
       jshell, k, kshell, l, m(3), max_shell, nseta, nsetb, &
       total_number_of_cells, ub, ub_max
     INTEGER, DIMENSION(:), POINTER           :: la_max, lb_max, npgfa, npgfb
-    LOGICAL                                  :: failure, image_cell_found, &
+    LOGICAL                                  :: image_cell_found, &
                                                 nothing_more_to_add
     REAL(dp) :: cross_product(3), dist_min, distance(14), l_min, normal(3,6), &
       P(3,14), plane_vector(3,2), point_in_plane(3), r(3), R1, R_max, &
@@ -1363,7 +1352,6 @@ MODULE hfx_types
     TYPE(hfx_cell_type), ALLOCATABLE, &
       DIMENSION(:)                           :: tmp_neighbor_cells
 
-    failure = .FALSE.
     total_number_of_cells = 0
 
     ! ** Check some settings
@@ -1371,26 +1359,22 @@ MODULE hfx_types
       IF( x_data%potential_parameter%potential_type /= do_hfx_potential_truncated .AND. &
           x_data%potential_parameter%potential_type /= do_hfx_potential_short .AND. &
           x_data%potential_parameter%potential_type /= do_hfx_potential_mix_cl_trunc) THEN
-        CALL cp_assert(.FALSE.,cp_warning_level,cp_assertion_failed,routineP,&
-                   "Periodic Hartree Fock calculation requested without use "//&
-                   "of a truncated or shortrange potential. This may lead to unphysical total energies. "//&
-                   "Use a truncated  potential to avoid possible problems. "//&
-                   CPSourceFileRef,&
-                   only_ionode=.TRUE.)
+      CALL cp_warn(__LOCATION__,&
+           "Periodic Hartree Fock calculation requested without use "//&
+           "of a truncated or shortrange potential. This may lead to unphysical total energies. "//&
+           "Use a truncated  potential to avoid possible problems.")
       ELSE
         l_min = MIN( plane_distance(1,0,0,cell), &
                      plane_distance(0,1,0,cell), &
                      plane_distance(0,0,1,cell) )
         l_min = 0.5_dp * l_min
         IF( x_data%potential_parameter%cutoff_radius >= l_min ) THEN
-          CALL cp_assert(.FALSE.,cp_warning_level,cp_assertion_failed,routineP,&
-                   "Periodic Hartree Fock calculation requested with use "//&
-                   "of a truncated or shortrange potential. The cutoff radius is larger than half "//&
-                   "the minimal cell dimension. This may lead to unphysical "//&
-                   "total energies. Reduce the cutoff radius in order to avoid "//&
-                   "possible problems. "//&
-                   CPSourceFileRef,&
-                   only_ionode=.TRUE.)
+          CALL cp_warn(__LOCATION__,&
+               "Periodic Hartree Fock calculation requested with use "//&
+               "of a truncated or shortrange potential. The cutoff radius is larger than half "//&
+               "the minimal cell dimension. This may lead to unphysical "//&
+               "total energies. Reduce the cutoff radius in order to avoid "//&
+               "possible problems.")
         END IF
       END IF
     END IF
@@ -1664,10 +1648,7 @@ MODULE hfx_types
                      "of a truncated potential. The number of shells to be considered "//&
                      "might be too small. CP2K conservatively estimates to need "//TRIM(char_nshells)//" periodic images "//&
                      "Please carefully check if you get converged results."
-
-            CALL cp_assert(.FALSE.,cp_warning_level,cp_assertion_failed,routineP,&
-                           error_msg,&
-                           only_ionode=.TRUE.)
+            CPWARN(error_msg)
           END IF
         END IF
         total_number_of_cells = 0
@@ -1820,12 +1801,9 @@ MODULE hfx_types
     CHARACTER(LEN=*), PARAMETER :: routineN = 'hfx_init_container', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     TYPE(hfx_container_node), POINTER        :: current, next
 
-    failure =.FALSE.
-
-    !! DEALLOCATE memory
+!! DEALLOCATE memory
 
     current => container%first
     DO WHILE(ASSOCIATED(current))
@@ -2061,10 +2039,6 @@ MODULE hfx_types
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: bin, i
-    LOGICAL                                  :: failure
-
-    failure = .FALSE.
-
 
     SELECT CASE(eval_type)
     CASE (hfx_do_eval_energy)
@@ -2124,10 +2098,6 @@ MODULE hfx_types
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: bin, i
-    LOGICAL                                  :: failure
-
-    failure = .FALSE.
-
 
     SELECT CASE(eval_type)
     CASE (hfx_do_eval_energy)

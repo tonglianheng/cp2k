@@ -90,7 +90,7 @@ CONTAINS
 
     INTEGER                                  :: handle, i, iparticle, iseq, &
                                                 iw, j, k, lrot(3)
-    LOGICAL                                  :: failure, present_mat
+    LOGICAL                                  :: present_mat
     REAL(KIND=dp)                            :: cp(3), Ip(3,3), Ip_eigval(3), &
                                                 mass, masst, norm, rcom(3), &
                                                 rm(3)
@@ -100,7 +100,6 @@ CONTAINS
 
     CALL timeset(routineN,handle)
     logger => cp_get_default_logger()
-    failure = .FALSE.
     present_mat = PRESENT(mat)
     CPASSERT(ASSOCIATED(particles))
     IF (present_mat) THEN
@@ -287,7 +286,7 @@ CONTAINS
                                                 outformat, traj_unit
     INTEGER, POINTER                         :: force_mixing_indices(:), &
                                                 force_mixing_labels(:)
-    LOGICAL :: charge_beta, charge_extended, charge_occup, explicit, failure, &
+    LOGICAL :: charge_beta, charge_extended, charge_occup, explicit, &
       my_extended_xmol_title, new_file
     REAL(dp), ALLOCATABLE                    :: fml_array(:)
     REAL(KIND=dp)                            :: unit_conv
@@ -302,7 +301,6 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-    failure = .FALSE.
     NULLIFY(logger, cell, subsys, my_particles, particle_set)
     logger => cp_get_default_logger()
     id_label = logger%iter_info%level_name(logger%iter_info%n_rlevel)
@@ -398,10 +396,8 @@ CONTAINS
              CALL section_vals_val_get(root_section,"MOTION%PRINT%TRAJECTORY%CHARGE_EXTENDED",&
                                        l_val=charge_extended)
              i = COUNT((/charge_occup,charge_beta,charge_extended/))
-             CALL cp_assert((i <= 1),cp_failure_level,cp_assertion_failed,routineP,&
-                            "Either only CHARGE_OCCUP, CHARGE_BETA, or CHARGE_EXTENDED can be selected, "//&
-CPSourceFileRef,&
-                            only_ionode=.TRUE.)
+             IF(i > 1)&
+                CPABORT("Either only CHARGE_OCCUP, CHARGE_BETA, or CHARGE_EXTENDED can be selected, ")
           END IF
           IF (new_file) THEN
              ! COLUMNS        DATA TYPE       FIELD          DEFINITION

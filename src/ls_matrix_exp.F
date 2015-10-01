@@ -76,7 +76,6 @@ SUBROUTINE cp_complex_dbcsr_gemm_3(transa, transb, alpha, A_re, A_im,&
 
     CHARACTER(LEN=1)                         :: transa2, transb2
     INTEGER                                  :: handle
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: alpha2, alpha3, alpha4
     TYPE(cp_dbcsr_type), POINTER             :: a_plus_b, ac, bd, c_plus_d
 
@@ -85,7 +84,6 @@ SUBROUTINE cp_complex_dbcsr_gemm_3(transa, transb, alpha, A_re, A_im,&
     !(a+ib)*(c+id)=ac-bd+i((a+b)*(c+d) - ac - bd)
     !A_re=a, A_im=b, B_re=c, B_im=d
 
-    failure=.FALSE.
 
     alpha2=-alpha
     alpha3=alpha
@@ -180,13 +178,11 @@ END SUBROUTINE
     REAL(KIND=dp), PARAMETER                 :: one = 1.0_dp , zero = 0.0_dp
 
     INTEGER                                  :: handle, i, nloop
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: square_fac, Tfac, tmp
     TYPE(cp_dbcsr_type), POINTER             :: T1, T2, Tres_im, Tres_re
 
     CALL timeset(routineN,handle)
 
-    failure=.FALSE.
 
     !The divider that comes from the scaling and squaring procedure
     square_fac=1.0_dp/(2.0_dp**REAL(nsquare,dp))
@@ -286,12 +282,10 @@ END SUBROUTINE
 
     COMPLEX(KIND=dp)                         :: square_fac
     INTEGER                                  :: handle, i
-    LOGICAL                                  :: failure
     TYPE(cp_dbcsr_type), POINTER             :: T1, T2, T3, Tres
 
     CALL timeset(routineN,handle)
 
-    failure=.FALSE.
 
     !The divider that comes from the scaling and squaring procedure
     square_fac=CMPLX(1.0_dp/(2.0_dp**REAL(nsquare,dp)),0.0_dp,KIND=dp)
@@ -385,17 +379,14 @@ END SUBROUTINE
     REAL(KIND=dp), PARAMETER                 :: one = 1.0_dp , zero = 0.0_dp
 
     INTEGER                                  :: handle, i, unit_nr
-    LOGICAL                                  :: convergence, failure
+    LOGICAL                                  :: convergence
     REAL(KIND=dp)                            :: alpha, max_alpha, prefac
     TYPE(cp_dbcsr_type), POINTER             :: comm, comm2, tmp, tmp2
-    TYPE(cp_logger_type), POINTER            :: logger
 
     CALL timeset(routineN,handle)
 
-    logger => cp_get_default_logger()
-    unit_nr = cp_logger_get_default_io_unit(logger)
+    unit_nr = cp_logger_get_default_io_unit()
 
-    failure=.FALSE.
     NULLIFY(tmp)
     ALLOCATE(tmp)
     CALL cp_dbcsr_init(tmp)
@@ -448,10 +439,8 @@ END SUBROUTINE
     CALL cp_dbcsr_filter(density_re,filter_eps)
     CALL cp_dbcsr_filter(density_im,filter_eps)
 
-    CALL cp_assert(convergence,cp_warning_level,cp_assertion_failed,routineP,&
-         "BCH method did not converge"//&
-         CPSourceFileRef,&
-         only_ionode=.TRUE.)
+    IF(.NOT.convergence)&
+       CPWARN("BCH method did not converge")
 
     CALL cp_dbcsr_deallocate_matrix(tmp)
     CALL cp_dbcsr_deallocate_matrix(tmp2)
@@ -488,17 +477,14 @@ END SUBROUTINE
     REAL(KIND=dp), PARAMETER                 :: one = 1.0_dp , zero = 0.0_dp
 
     INTEGER                                  :: handle, i, unit_nr
-    LOGICAL                                  :: convergence, failure
+    LOGICAL                                  :: convergence
     REAL(KIND=dp)                            :: alpha, max_alpha, prefac
     TYPE(cp_dbcsr_type), POINTER             :: comm, comm2, tmp, tmp2
-    TYPE(cp_logger_type), POINTER            :: logger
 
     CALL timeset(routineN,handle)
 
-    logger => cp_get_default_logger()
-    unit_nr = cp_logger_get_default_io_unit(logger)
+    unit_nr = cp_logger_get_default_io_unit()
 
-    failure=.FALSE.
     NULLIFY(tmp)
     ALLOCATE(tmp)
     CALL cp_dbcsr_init(tmp)
@@ -550,10 +536,8 @@ END SUBROUTINE
     CALL cp_dbcsr_filter(density_re,filter_eps)
     CALL cp_dbcsr_filter(density_im,filter_eps)
 
-    CALL cp_assert(convergence,cp_warning_level,cp_assertion_failed,routineP,&
-         "BCH method did not converge "//&
-         CPSourceFileRef,&
-         only_ionode=.TRUE.)
+    IF(.NOT.convergence)&
+       CPWARN("BCH method did not converge ")
 
     CALL cp_dbcsr_deallocate_matrix(tmp)
     CALL cp_dbcsr_deallocate_matrix(tmp2)

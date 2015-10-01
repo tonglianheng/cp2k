@@ -107,8 +107,7 @@ CONTAINS
 
     INTEGER                                  :: handle, n_rep_hf, natoms, &
                                                 nspins
-    LOGICAL                                  :: do_hfx, failure, &
-                                                s_mstruct_changed
+    LOGICAL                                  :: do_hfx, s_mstruct_changed
     TYPE(admm_dm_type), POINTER              :: admm_dm
     TYPE(admm_type), POINTER                 :: admm_env
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
@@ -125,7 +124,6 @@ CONTAINS
     TYPE(section_vals_type), POINTER         :: hfx_sections, input, &
                                                 xc_section
 
-    failure=.FALSE.
     CALL timeset(routineN,handle)
     NULLIFY(admm_env, admm_dm, hfx_sections, mos, mos_aux_fit, para_env, &
          particle_set, xc_section, matrix_s_aux_fit, &
@@ -152,12 +150,8 @@ CONTAINS
     hfx_sections => section_vals_get_subs_vals(input,"DFT%XC%HF")
     CALL section_vals_get(hfx_sections,explicit=do_hfx)
     !! ** ADMM can only be used with HFX
-    IF ( .NOT. do_hfx ) THEN
-       CALL cp_assert(.FALSE.,cp_warning_level,cp_assertion_failed,routineP,&
-                      "Wavefunction fitting requested without Hartree-Fock."//&
-                       CPSourceFileRef,&
-                       only_ionode=.TRUE.)
-    END IF
+    IF ( .NOT. do_hfx )&
+       CPWARN("Wavefunction fitting requested without Hartree-Fock.")
 
     ! ** Method only implemented for GPW
     IF( dft_control%qs_control%gapw ) THEN
@@ -168,12 +162,8 @@ CONTAINS
 
 
     CALL section_vals_get(hfx_sections,n_repetition=n_rep_hf)
-    IF ( n_rep_hf > 1 ) THEN
-       CALL cp_assert(.FALSE.,cp_warning_level,cp_assertion_failed,routineP,&
-                      "ADMM can handle only one HF section."//&
-                       CPSourceFileRef,&
-                       only_ionode=.TRUE.)
-    END IF
+    IF ( n_rep_hf > 1 )&
+       CPWARN("ADMM can handle only one HF section.")
 
     IF (.NOT. ASSOCIATED(admm_env)) THEN
       ! setup admm environment
@@ -228,7 +218,7 @@ CONTAINS
     INTEGER                                  :: handle, ikind, img, irep, &
                                                 ispin, mspin, n_rep_hf, &
                                                 nimages, ns, nspins
-    LOGICAL :: distribute_fock_matrix, do_adiabatic_rescaling, failure, &
+    LOGICAL :: distribute_fock_matrix, do_adiabatic_rescaling, &
       hfx_treat_lsd_in_core, s_mstruct_changed, use_virial
     REAL(dp), ALLOCATABLE, DIMENSION(:)      :: hf_energy
     TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER :: matrix_ks_1d, &
@@ -252,7 +242,6 @@ CONTAINS
 
     CALL timeset(routineN, handle)
 
-    failure = .FALSE.
     NULLIFY(auxbas_pw_pool, dft_control, force, hfx_sections, input, &
             para_env, poisson_env, pw_env, virial,&
             matrix_ks_im, matrix_ks_orb, rho_ao_orb,&
@@ -449,7 +438,7 @@ CONTAINS
     INTEGER                                  :: blocksize, handle, iloc, &
                                                 iorb, iorb_block, ispin, iw, &
                                                 jloc, jorb, jorb_block, norb
-    LOGICAL                                  :: do_pw_hfx, failure
+    LOGICAL                                  :: do_pw_hfx
     REAL(KIND=dp)                            :: exchange_energy, fraction, &
                                                 pair_energy, scaling
     TYPE(atomic_kind_type), DIMENSION(:), &
@@ -471,7 +460,6 @@ CONTAINS
       POINTER                                :: qs_kind_set
 
     CALL timeset(routineN,handle)
-    failure = .FALSE.
     logger => cp_get_default_logger()
 
     CALL section_vals_val_get(hfx_section, "PW_HFX", l_val=do_pw_hfx, i_rep_section=irep)
@@ -636,14 +624,13 @@ CONTAINS
 
     CHARACTER(LEN=20)                        :: name_x_func
     INTEGER                                  :: hfx_potential_type, ifun, nfun
-    LOGICAL                                  :: failure, funct_found
+    LOGICAL                                  :: funct_found
     REAL(dp)                                 :: cutoff_radius, hfx_fraction, &
                                                 omega, scale_x
     TYPE(section_vals_type), POINTER         :: xc_fun, xc_fun_section
 
     NULLIFY(admm_env%xc_section_aux, admm_env%xc_section_primary)
 
-    failure=.FALSE.
 
 
     CALL get_qs_env(qs_env)

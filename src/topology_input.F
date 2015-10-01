@@ -57,18 +57,14 @@ SUBROUTINE read_topology_section ( topology, topology_section)
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, ival
-    LOGICAL                                  :: failure
 
   CALL timeset(routineN,handle)
-  failure = .FALSE.
   CALL section_vals_val_get(topology_section,"CHARGE_OCCUP",l_val=topology%charge_occup)
   CALL section_vals_val_get(topology_section,"CHARGE_BETA",l_val=topology%charge_beta)
   CALL section_vals_val_get(topology_section,"CHARGE_EXTENDED",l_val=topology%charge_extended)
   ival = COUNT((/topology%charge_occup,topology%charge_beta,topology%charge_extended/))
-  CALL cp_assert(ival<=1,cp_failure_level,cp_assertion_failed,routineP,&
-       "Only one between <CHARGE_OCCUP,CHARGE_BETA,CHARGE_EXTENDED> can be defined! "//&
-CPSourceFileRef,&
-       only_ionode=.TRUE.)
+  IF(ival>1)&
+     CPABORT("Only one between <CHARGE_OCCUP,CHARGE_BETA,CHARGE_EXTENDED> can be defined! ")
   CALL section_vals_val_get(topology_section,"PARA_RES",l_val=topology%para_res)
   CALL section_vals_val_get(topology_section,"GENERATE%REORDER",l_val=topology%reorder_atom)
   CALL section_vals_val_get(topology_section,"GENERATE%CREATE_MOLECULES",l_val=topology%create_molecules)
@@ -125,14 +121,13 @@ SUBROUTINE read_constraints_section(topology, colvar_p, constraint_section)
                                                 isize_old, itype, jg, msize, &
                                                 msize_old, n_rep, ncons, nrep
     INTEGER, DIMENSION(:), POINTER           :: ilist, tmplist
-    LOGICAL                                  :: explicit, failure
+    LOGICAL                                  :: explicit
     REAL(KIND=dp), DIMENSION(:), POINTER     :: rlist
     TYPE(constraint_info_type), POINTER      :: cons_info
     TYPE(section_vals_type), POINTER :: collective_section, fix_atom_section, &
       g3x3_section, g4x6_section, hbonds_section, vsite_section
 
   cons_info => topology%cons_info
-  failure   = .FALSE.
   IF (ASSOCIATED(constraint_section)) THEN
      hbonds_section     => section_vals_get_subs_vals(constraint_section,"HBONDS")
      g3x3_section       => section_vals_get_subs_vals(constraint_section,"G3X3")
@@ -545,18 +540,13 @@ SUBROUTINE read_constraints_section(topology, colvar_p, constraint_section)
                    c_val=cons_info%const_colv_molname(ig))
            END IF
            IF  (((cons_info%const_colv_mol(ig)/=0).AND.(cons_info%const_colv_molname(ig)/="UNDEF"))) THEN
-              CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
-                   "Both MOLNAME and MOLECULE specified for CONSTRAINT section. "//&
-CPSourceFileRef,&
-                   only_ionode=.TRUE.)
+              CPABORT("Both MOLNAME and MOLECULE specified for CONSTRAINT section. ")
            END IF
            IF  ((cons_info%const_colv_mol(ig)==0).AND.(cons_info%const_colv_molname(ig)=="UNDEF").AND.&
                 (.NOT.cons_info%colv_intermolecular(ig))) THEN
-              CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
+              CALL cp_abort(__LOCATION__,&
                    "Constraint section error: you have to specify at least one of the "//&
-                   "following keywords: MOLECULE, MOLNAME or INTERMOLECULAR! "//&
-CPSourceFileRef,&
-                   only_ionode=.TRUE.)
+                   "following keywords: MOLECULE, MOLNAME or INTERMOLECULAR! ")
            END IF
            NULLIFY(cons_info%colvar_set(ig)%colvar)
            CALL section_vals_val_get(collective_section,"COLVAR",i_rep_section=ig,&
@@ -600,14 +590,11 @@ SUBROUTINE check_restraint(cons_section, is_restraint, k0, i_rep_section, label)
 
     CHARACTER(LEN=default_string_length)     :: nlabel
     INTEGER                                  :: output_unit
-    LOGICAL                                  :: explicit, failure
-    TYPE(cp_logger_type), POINTER            :: logger
+    LOGICAL                                  :: explicit
     TYPE(section_vals_type), POINTER         :: restraint_section
 
-  failure      = .FALSE.
   is_restraint = .FALSE.
-  logger => cp_get_default_logger()
-  output_unit= cp_logger_get_default_io_unit(logger)
+  output_unit= cp_logger_get_default_io_unit()
   CALL section_vals_get(cons_section,explicit=explicit)
   IF (explicit) THEN
      restraint_section => section_vals_get_subs_vals(cons_section,"RESTRAINT",&

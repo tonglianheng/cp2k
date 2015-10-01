@@ -52,13 +52,11 @@ CONTAINS
     INTEGER                                  :: handle, i, ind, j, k, m, n, &
                                                 natoms, nrep
     INTEGER, DIMENSION(:), POINTER           :: iwork, multiple_unit_cell
-    LOGICAL                                  :: check, explicit, failure, &
-                                                scale
+    LOGICAL                                  :: check, explicit, scale
     REAL(KIND=dp), DIMENSION(3)              :: trsl, trsl_i, trsl_j, trsl_k
     TYPE(cell_type), POINTER                 :: cell
     TYPE(section_vals_type), POINTER         :: work_section
 
-    failure = .FALSE.
     CALL timeset(routineN,handle)
     NULLIFY(multiple_unit_cell,iwork,cell)
     CALL section_vals_val_get(subsys_section, "TOPOLOGY%MULTIPLE_UNIT_CELL",&
@@ -66,16 +64,14 @@ CONTAINS
     ! Fail is one of the value is set to zero..
     CALL cp_assert(ALL(multiple_unit_cell>0),cp_fatal_level,cp_assertion_failed,routineP,&
          "SUBSYS%TOPOLOGY%MULTIPLE_UNIT_CELL accepts only integer values larger than 0! "//&
-         "A value of 0 or negative is meaningless!"//&
-CPSourceFileRef)
+         "A value of 0 or negative is meaningless!")
     IF (ANY(multiple_unit_cell/=1)) THEN
        ! Check that the setup between CELL and TOPOLOGY is the same..
        CALL section_vals_val_get(subsys_section, "CELL%MULTIPLE_UNIT_CELL",&
                                  i_vals=iwork)
        CALL cp_assert(ALL(iwork==multiple_unit_cell),cp_fatal_level,cp_assertion_failed,routineP,&
          "SUBSYS%TOPOLOGY%MULTIPLE_UNIT_CELL and SUBSYS%CELL%MULTIPLE_UNIT_CELL have been "//&
-         "setup to two different values!! Correct this error!!"//&
-CPSourceFileRef)
+         "setup to two different values!! Correct this error!!")
        cell => topology%cell_muc
        natoms = topology%natoms*PRODUCT(multiple_unit_cell)
 
@@ -85,10 +81,9 @@ CPSourceFileRef)
        IF (explicit) THEN
           CALL section_vals_val_get(work_section,'_DEFAULT_KEYWORD_',n_rep_val=nrep)
           check = nrep==natoms
-          CALL cp_assert(check,cp_fatal_level,cp_assertion_failed,routineP,&
-               "Number of available entries in VELOCITY section is not compatible with the number "//&
-               "of atoms!"//&
-CPSourceFileRef)
+          IF(.NOT.check)&
+             CALL cp_abort(__LOCATION__,&
+                  "Number of available entries in VELOCITY section is not compatible with the number of atoms!")
        END IF
 
        CALL reallocate(topology%atom_info%id_molname, 1,    natoms)

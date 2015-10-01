@@ -69,17 +69,18 @@ CONTAINS
 !> \param qs_kind ...
 !> \param iunit ...
 !> \param pmat ...
+!> \param fmat ...
 !> \param ispin ...
 !> \param confine ...
 !> \param xc_section ...
 ! *****************************************************************************
-  SUBROUTINE calculate_atomic_orbitals (atomic_kind,qs_kind,iunit,pmat,ispin,confine,&
-                                        xc_section)
+  SUBROUTINE calculate_atomic_orbitals (atomic_kind,qs_kind,iunit,pmat,fmat,&
+                                        ispin,confine,xc_section)
     TYPE(atomic_kind_type), INTENT(IN)       :: atomic_kind
     TYPE(qs_kind_type), INTENT(IN)           :: qs_kind
     INTEGER, INTENT(IN), OPTIONAL            :: iunit
     REAL(KIND=dp), DIMENSION(:, :), &
-      OPTIONAL, POINTER                      :: pmat
+      OPTIONAL, POINTER                      :: pmat, fmat
     INTEGER, INTENT(IN)                      :: ispin
     LOGICAL, INTENT(IN), OPTIONAL            :: confine
     TYPE(section_vals_type), OPTIONAL, &
@@ -96,8 +97,8 @@ CONTAINS
                                                 nct_lsd, nct_nlcc, npgf, &
                                                 nppnl, nshell, ppeconf
     INTEGER, DIMENSION(:, :), POINTER        :: first_sgf, last_sgf, ls
-    LOGICAL                                  :: failure, lpot_present, &
-                                                lsd_present, nlcc_present
+    LOGICAL                                  :: lpot_present, lsd_present, &
+                                                nlcc_present
     REAL(KIND=dp)                            :: ac, al, ear, rk, scal, zeff
     REAL(KIND=dp), DIMENSION(:), POINTER     :: alpha_lpot, alpha_lsd, &
                                                 alpha_nlcc, ap, ce
@@ -120,7 +121,6 @@ CONTAINS
 !INTEGER, DIMENSION(:, :), POINTER        :: addel, laddel, naddel 
 !LOGICAL                                  :: bs_occupation
 
-    failure = .FALSE.
     NULLIFY(atom)
     CALL create_atom_type(atom)
 
@@ -445,6 +445,28 @@ CONTAINS
       ENDDO
     END IF
 
+    IF (PRESENT(fmat)) THEN
+       ! recover fock matrix in CP2K/GPW order.
+       ! Caution: Normalization is not take care of, so it's probably weird.
+       IF(ispin/=1) CPABORT("calculate_atomic_orbitals: only ispin==1 is implemented")
+       IF(ASSOCIATED(fmat)) CPABORT("fmat already associated")
+       IF(.NOT.ASSOCIATED(atom%fmat)) CPABORT("atom%fmat not associated")
+       ALLOCATE(fmat(nsgf,nsgf))
+       fmat = 0.0_dp
+       DO l=0,3
+          ll = 2*l
+          DO k1=1,atom%basis%nbas(l)
+          DO k2=1,atom%basis%nbas(l)
+             i=first_sgf(shell_index(l,k1),set_index(l,k1))
+             j=first_sgf(shell_index(l,k2),set_index(l,k2))
+             DO m=0,ll
+               fmat(i+m,j+m) = atom%fmat%op(k1,k2,l)
+             END DO
+          END DO
+          END DO
+       ENDDO
+    END IF
+
     ! clean up
     CALL atom_int_release(integrals)
     CALL atom_ppint_release(integrals)
@@ -490,8 +512,8 @@ CONTAINS
     INTEGER, DIMENSION(0:3, 10)              :: ncalc, ncore, nelem
     INTEGER, DIMENSION(:), POINTER           :: econf, nct_lpot, nct_lsd, &
                                                 nct_nlcc, nppnl, ppeconf
-    LOGICAL                                  :: failure, lpot_present, &
-                                                lsd_present, nlcc_present
+    LOGICAL                                  :: lpot_present, lsd_present, &
+                                                nlcc_present
     REAL(KIND=dp)                            :: ac, al, aval, cc, cval, ear, &
                                                 rk, xx, zeff
     REAL(KIND=dp), DIMENSION(:), POINTER     :: alpha_lpot, alpha_lsd, &
@@ -509,7 +531,6 @@ CONTAINS
     TYPE(grid_atom_type), POINTER            :: grid
     TYPE(gth_potential_type), POINTER        :: gth_potential
 
-    failure = .FALSE.
     NULLIFY(atom)
     CALL create_atom_type(atom)
 
@@ -898,7 +919,6 @@ CONTAINS
     INTEGER, DIMENSION(0:3, 100)             :: set_index, shell_index
     INTEGER, DIMENSION(:), POINTER           :: lmax, lmin, npgf, nshell
     INTEGER, DIMENSION(:, :), POINTER        :: first_sgf, last_sgf, ls
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: al, alpha, ear, prefac, rk, &
                                                 zeff
     REAL(KIND=dp), ALLOCATABLE, &
@@ -913,8 +933,6 @@ CONTAINS
     TYPE(atom_type), POINTER                 :: atom
     TYPE(grid_atom_type), POINTER            :: grid
     TYPE(gto_basis_set_type), POINTER        :: orb_basis_set
-
-    failure = .FALSE.
 
     IF(rel_control%rel_method == rel_none) RETURN
 

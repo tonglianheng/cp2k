@@ -131,12 +131,13 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'add_saop_pot', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: dft_method_id, homo, i, ispin, j, k, nspins, orb, output_unit, &
-      xc_deriv_method_id, xc_rho_smooth_id
+    INTEGER                                  :: dft_method_id, homo, i, &
+                                                ispin, j, k, nspins, orb, &
+                                                xc_deriv_method_id, &
+                                                xc_rho_smooth_id
     INTEGER, DIMENSION(2)                    :: ncol, nrow
     INTEGER, DIMENSION(2, 3)                 :: bo
-    LOGICAL                                  :: compute_virial, failure, &
-                                                gapw, ionode, lsd
+    LOGICAL                                  :: compute_virial, gapw, lsd
     REAL(KIND=dp)                            :: density_cut, efac, &
                                                 gradient_cut, tau_cut, &
                                                 tot_rho_psi, we_GLLB, we_LB, &
@@ -153,7 +154,6 @@ CONTAINS
     TYPE(cp_fm_p_type), DIMENSION(:), &
       POINTER                                :: single_mo_coeff
     TYPE(cp_fm_type), POINTER                :: mo_coeff
-    TYPE(cp_logger_type), POINTER            :: logger
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: molecular_orbitals
     TYPE(pw_env_type), POINTER               :: pw_env
@@ -174,18 +174,11 @@ CONTAINS
     TYPE(xc_rho_cflags_type)                 :: needs
     TYPE(xc_rho_set_type), POINTER           :: rho_set
 
-    failure = .FALSE.
-
     NULLIFY(ks_env, pw_env, auxbas_pw_pool, input)
     NULLIFY(rho_g, rho_r, tau, rho_struct, rho_set, e_uniform)
     NULLIFY(vxc_GLLB, vxc_LB, vxc_tmp, vxc_SAOP, vxc_tau)
     NULLIFY(mo_eigenvalues, deriv_set, deriv, rho_struct_r, rho_struct_ao)
     NULLIFY(orbital_density_matrix, dummy,xc_section_tmp,xc_fun_section_tmp)
-    logger => cp_get_default_logger()
-    ionode = (logger%para_env%mepos==logger%para_env%source)
-    output_unit = cp_logger_get_default_io_unit(logger)
-
-    IF (ionode .AND. output_unit > 0) WRITE (output_unit, *) " in "//routineP
 
     CALL get_qs_env(qs_env,&
                     ks_env=ks_env,&
@@ -523,11 +516,11 @@ CONTAINS
 
     INTEGER                                  :: ia, iat, iatom, ikind, ir, &
                                                 ispin, mepos, na, natom, nr, &
-                                                ns, nspins, num_pe, orb, stat
+                                                ns, nspins, num_pe, orb
     INTEGER, DIMENSION(2)                    :: bo, homo, ncol, nrow
     INTEGER, DIMENSION(2, 3)                 :: bounds
     INTEGER, DIMENSION(:), POINTER           :: atom_list
-    LOGICAL                                  :: failure, lsd, paw_atom
+    LOGICAL                                  :: lsd, paw_atom
     REAL(dp), DIMENSION(:, :), POINTER       :: tau
     REAL(KIND=dp)                            :: density_cut, efac, exc, &
                                                 gradient_cut, tau_cut, &
@@ -578,8 +571,6 @@ CONTAINS
     TYPE(xc_rho_set_type), POINTER           :: orb_rho_set_h, orb_rho_set_s, &
                                                 rho_set_h, rho_set_s
 
-    failure = .FALSE.
-
     NULLIFY(weight, rho_h, rho_s, vxc_LB_h, vxc_LB_s, vxc_GLLB_h, vxc_GLLB_s, &
             vxc_tmp_h, vxc_tmp_s, vtau, dummy, e_uniform, drho_h, drho_s, vxg, atom_list, &
             atomic_kind_set, qs_kind_set,  deriv_set, deriv, atomic_grid, rho_struct_ao, &
@@ -626,10 +617,7 @@ CONTAINS
     CALL calculate_rho_atom_coeff(qs_env,psmat)
     CALL prepare_gapw_den(qs_env)
 
-    ALLOCATE(mo_coeff(nspins), single_mo_coeff(nspins), &
-             mo_eigenvalues(nspins),&
-             stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(mo_coeff(nspins), single_mo_coeff(nspins), mo_eigenvalues(nspins))
 
     CALL cp_dbcsr_allocate_matrix_set(orbital_density_matrix,nspins)
 

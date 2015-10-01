@@ -145,13 +145,10 @@ SUBROUTINE cp_fm_struct_create(fmstruct,para_env,context, nrow_global,&
   TYPE(cp_logger_type), POINTER                :: logger
 #endif
 
-  LOGICAL :: failure, my_square_blocks, my_force_block
-  failure=.FALSE.
+  LOGICAL :: my_square_blocks, my_force_block
 
 #if defined(__parallel) && ! defined(__SCALAPACK)
-  CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
-       routineP,"full matrixes need scalapack for parallel runs "//&
-CPSourceFileRef)
+  CPABORT("full matrixes need scalapack for parallel runs ")
 #endif
 
   ALLOCATE(fmstruct)
@@ -255,11 +252,11 @@ CPSourceFileRef)
   CALL cp_assert(SUM(fmstruct%ncol_locals).EQ.fmstruct%ncol_global,&
        cp_failure_level,cp_assertion_failed,routineP,&
        "sum of local cols not equal global cols"//&
-CPSourceFileRef)
+__LOCATION__)
   CALL cp_assert(SUM(fmstruct%nrow_locals).EQ.fmstruct%nrow_global,&
        cp_failure_level,cp_assertion_failed,routineP,&
        "sum of local row not equal global rows"//&
-CPSourceFileRef)
+__LOCATION__)
 #else
   ! block = full matrix
   fmstruct%nrow_block=fmstruct%nrow_global
@@ -276,8 +273,7 @@ CPSourceFileRef)
           routineP,"local_leading_dimension too small ("//&
           cp_to_string(local_leading_dimension)//"<"//&
           cp_to_string(fmstruct%local_leading_dimension)//")"//&
-CPSourceFileRef,&
-          failure=failure)
+__LOCATION__)
      fmstruct%local_leading_dimension=local_leading_dimension
   END IF
 
@@ -315,10 +311,6 @@ SUBROUTINE cp_fm_struct_retain(fmstruct)
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_fm_struct_retain', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-  failure=.FALSE.
-
   CPASSERT(ASSOCIATED(fmstruct))
   CPASSERT(fmstruct%ref_count>0)
   fmstruct%ref_count=fmstruct%ref_count+1
@@ -336,10 +328,6 @@ SUBROUTINE cp_fm_struct_release(fmstruct)
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_fm_struct_release', &
       routineP = moduleN//':'//routineN
-
-    LOGICAL                                  :: failure
-
-  failure=.FALSE.
 
   IF (ASSOCIATED(fmstruct)) THEN
      CPASSERT(fmstruct%ref_count>0)
@@ -383,9 +371,6 @@ FUNCTION cp_fm_struct_equivalent(fmstruct1,fmstruct2) RESULT(res)
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i
-    LOGICAL                                  :: failure
-
-  failure=.FALSE.
 
   CPASSERT(ASSOCIATED(fmstruct1))
   CPASSERT(ASSOCIATED(fmstruct2))
@@ -424,9 +409,9 @@ SUBROUTINE cp_fm_struct_write(fmstruct, unit_nr, long_description)
 
     CHARACTER(LEN=default_string_length)     :: fmtstring
     INTEGER                                  :: iostat
-    LOGICAL                                  :: failure, l_desc
+    LOGICAL                                  :: l_desc
 
-  failure=.FALSE.; l_desc=.FALSE.
+  l_desc=.FALSE.
 
   IF (PRESENT(long_description)) l_desc=long_description
   IF (ASSOCIATED(fmstruct)) THEN
@@ -555,7 +540,6 @@ SUBROUTINE cp_fm_struct_get(fmstruct, para_env, context,&
   INTEGER, DIMENSION(:), POINTER, OPTIONAL :: row_indices, col_indices,&
        nrow_locals, ncol_locals
 
-  LOGICAL :: failure
   CHARACTER(len=*), PARAMETER :: routineN='cp_fm_struct_get',&
        routineP=moduleN//':'//routineN
   INTEGER i,nprow,npcol,myprow,mypcol
@@ -563,7 +547,6 @@ SUBROUTINE cp_fm_struct_get(fmstruct, para_env, context,&
   INTEGER , EXTERNAL :: indxl2g
 #endif
 
-  failure=.FALSE.
 
   CPASSERT(ASSOCIATED(fmstruct))
   CPASSERT(fmstruct%ref_count>0)

@@ -85,9 +85,8 @@ CONTAINS
 
     INTEGER                                  :: i, ir, n_rep, nex_at
     INTEGER, DIMENSION(:), POINTER           :: list
-    LOGICAL                                  :: failure, hempty, was_present
+    LOGICAL                                  :: hempty, was_present
 
-    failure=.FALSE.
     was_present = .FALSE.
 
 
@@ -187,7 +186,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: output_unit
-    LOGICAL                                  :: failure
     TYPE(cp_logger_type), POINTER            :: logger
 
     logger => cp_get_default_logger()
@@ -224,9 +222,7 @@ CONTAINS
                 "XAS| Method:",&
                    "         DSCF for the first excited state"
         CASE default
-          CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
-             routineP,"unknown xas method "//TRIM(ADJUSTL(cp_to_string(xas_control%xas_method))),&
-             failure)
+          CPABORT("unknown xas method "//TRIM(ADJUSTL(cp_to_string(xas_control%xas_method))))
       END SELECT
       IF(xas_control%xas_restart) THEN
           WRITE (UNIT=output_unit,FMT="(/,T2,A,T30,A)")&
@@ -251,10 +247,6 @@ CONTAINS
 
     CHARACTER(len=*), PARAMETER :: routineN = 'xas_control_create', &
       routineP = moduleN//':'//routineN
-
-    LOGICAL                                  :: failure
-
-    failure=.FALSE.
 
     CPASSERT(.NOT.ASSOCIATED(xas_control))
     ALLOCATE(xas_control)
@@ -286,9 +278,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'xas_control_release', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-    failure=.FALSE.
     IF(ASSOCIATED(xas_control)) THEN
       CPASSERT(xas_control%ref_count>0)
       xas_control%ref_count=xas_control%ref_count-1
@@ -315,10 +304,6 @@ CONTAINS
 
     CHARACTER(len=*), PARAMETER :: routineN = 'xas_control_retain', &
       routineP = moduleN//':'//routineN
-
-    LOGICAL                                  :: failure
-
-    failure=.FALSE.
 
     CPASSERT(ASSOCIATED(xas_control))
     xas_control%ref_count=xas_control%ref_count+1

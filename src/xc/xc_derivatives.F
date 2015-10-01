@@ -158,10 +158,7 @@ SUBROUTINE xc_functional_get_info(functional,lsd,reference,shortform,&
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i_param
-    LOGICAL                                  :: failure
     REAL(kind=dp)                            :: r_param
-
-  failure=.FALSE.
 
   CPASSERT(ASSOCIATED(functional))
   SELECT CASE(functional%section%name)
@@ -254,8 +251,7 @@ SUBROUTINE xc_functional_get_info(functional,lsd,reference,shortform,&
      CALL section_vals_val_get(functional,"FUNCTIONAL",i_val=i_param)
      CALL ke_gga_info(i_param,lsd,reference,shortform,needs,max_deriv)
   CASE("P86C")
-     CPASSERT(.NOT.lsd)
-     IF(failure) THEN
+     IF(lsd) THEN
        CALL stop_program(routineN,moduleN,__LINE__,&
                          "BP functional not implemented with LSD")
      END IF
@@ -329,10 +325,7 @@ SUBROUTINE xc_functional_get_info(functional,lsd,reference,shortform,&
        CALL xbr_pbe_lda_hole_tc_lr_lda_info(reference,shortform,needs,max_deriv)
      END IF
   CASE default
-     CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
-          message="unknown functional '"//TRIM(functional%section%name)//&
-          "' in "//&
-CPSourceFileRef)
+     CPABORT("unknown functional '"//TRIM(functional%section%name)//"'")
   END SELECT
 END SUBROUTINE xc_functional_get_info
 
@@ -370,12 +363,11 @@ SUBROUTINE xc_functional_eval(functional, lsd, rho_set, deriv_set, &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, i_param
-    LOGICAL                                  :: failure, fun_active
+    LOGICAL                                  :: fun_active
     REAL(KIND=dp)                            :: density_cut, gradient_cut, &
                                                 r_param
 
   CALL timeset(routineN,handle)
-  failure=.FALSE.
 
   CALL xc_rho_set_get(rho_set,rho_cutoff=density_cut,&
        drho_cutoff=gradient_cut)
@@ -560,10 +552,7 @@ SUBROUTINE xc_functional_eval(functional, lsd, rho_set, deriv_set, &
                                              functional)
      END IF
   CASE default
-     CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
-          message="unknown functional '"//TRIM(functional%section%name)//&
-          "' in "//&
-CPSourceFileRef)
+     CPABORT("unknown functional '"//TRIM(functional%section%name)//"'")
   END SELECT
 
   CALL timestop(handle)
@@ -601,10 +590,7 @@ SUBROUTINE xc_functionals_eval(functionals, lsd, rho_set, deriv_set, &
     CHARACTER(len=default_string_length), &
       DIMENSION(:), POINTER                  :: func_name
     INTEGER                                  :: ifun, ifunc_name
-    LOGICAL                                  :: failure
     TYPE(section_vals_type), POINTER         :: xc_fun
-
-  failure=.FALSE.
 
   CPASSERT(ASSOCIATED(functionals))
   ifun=0
@@ -655,11 +641,9 @@ FUNCTION xc_functionals_get_needs(functionals, lsd, add_basic_components)&
 
     CHARACTER(len=80), DIMENSION(:), POINTER :: func_name
     INTEGER                                  :: ifun, ifunc_name
-    LOGICAL                                  :: failure, &
-                                                my_add_basic_components
+    LOGICAL                                  :: my_add_basic_components
     TYPE(section_vals_type), POINTER         :: xc_fun
 
-  failure=.FALSE.
   my_add_basic_components=.FALSE.
   IF (PRESENT(add_basic_components)) my_add_basic_components=add_basic_components
 

@@ -105,7 +105,7 @@ CONTAINS
 
     INTEGER                                  :: handle, output_unit, &
                                                 print_level
-    LOGICAL                                  :: failure, orthonormal_basis, &
+    LOGICAL                                  :: orthonormal_basis, &
                                                 should_output
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(dft_control_type), POINTER          :: dft_control
@@ -113,7 +113,6 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-    failure = .FALSE.
     CPASSERT(ASSOCIATED(qs_env))
 
     NULLIFY (input, dft_control)
@@ -163,8 +162,7 @@ CONTAINS
       CALL mulliken_charges(qs_env,orthonormal_basis,matrix_h,matrix_w,&
                             should_output,output_unit,print_level)
     CASE DEFAULT
-      CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
-                     "Invalid DFT+U method requested",only_ionode=.TRUE.)
+      CPABORT("Invalid DFT+U method requested")
     END SELECT
 
     CALL cp_print_key_finished_output(output_unit,logger,input,"DFT%PRINT%PLUS_U",&
@@ -226,7 +224,7 @@ CONTAINS
     INTEGER, DIMENSION(1)                    :: iloc
     INTEGER, DIMENSION(:), POINTER           :: atom_list, nshell, orbitals
     INTEGER, DIMENSION(:, :), POINTER        :: first_sgf, l, last_sgf
-    LOGICAL :: debug, dft_plus_u_atom, failure, fm_work1_local_alloc, &
+    LOGICAL :: debug, dft_plus_u_atom, fm_work1_local_alloc, &
       fm_work2_local_alloc, found, just_energy, smear
     LOGICAL, ALLOCATABLE, DIMENSION(:)       :: orb_occ
     REAL(KIND=dp)                            :: eps_scf, eps_u_ramping, &
@@ -292,7 +290,6 @@ CONTAINS
     NULLIFY (para_env)
     NULLIFY (blacs_env)
 
-    failure = .FALSE.
 
     smear = .FALSE.
     max_scf = -1
@@ -801,9 +798,7 @@ CONTAINS
 
       IF (ASSOCIATED(sm_w)) THEN
 
-        CALL cp_assert(.FALSE.,cp_warning_level,cp_assertion_failed,routineP,&
-                       "Forces are not yet fully implemented for DFT+U method LOWDIN",&
-                       only_ionode=.TRUE.)
+        CPWARN("Forces are not yet fully implemented for DFT+U method LOWDIN")
 
       END IF ! W matrix update requested
 
@@ -813,12 +808,11 @@ CONTAINS
 
     CALL mp_sum(energy%dft_plus_u, para_env%group)
 
-    CALL cp_assert(energy%dft_plus_u >= 0.0_dp,cp_warning_level,&
-                   cp_assertion_failed,routineP,&
-                   "DFT+U energy contibution is negative possibly due "//&
-                   "to unphysical Lowdin charges. Check your input, "//&
-                   "if this warning persists or try a different method!",&
-                   only_ionode=.TRUE.)
+    IF(energy%dft_plus_u < 0.0_dp)&
+       CALL cp_warn(__LOCATION__,&
+            "DFT+U energy contibution is negative possibly due "//&
+            "to unphysical Lowdin charges. Check your input, "//&
+            "if this warning persists or try a different method!")
 
     ! Release (local) full matrices
 
@@ -893,8 +887,7 @@ CONTAINS
     INTEGER, DIMENSION(:), POINTER           :: atom_list, nshell, orbitals
     INTEGER, DIMENSION(:, :), POINTER        :: first_sgf, l, last_sgf
     LOGICAL                                  :: debug, dft_plus_u_atom, &
-                                                failure, found, just_energy, &
-                                                smear
+                                                found, just_energy, smear
     LOGICAL, ALLOCATABLE, DIMENSION(:)       :: is_plus_u_kind, orb_occ
     REAL(KIND=dp)                            :: eps_scf, eps_u_ramping, &
                                                 fspin, occ, trq, trq2, &
@@ -952,7 +945,6 @@ CONTAINS
     NULLIFY (v_block)
     NULLIFY (para_env)
 
-    failure = .FALSE.
 
     smear = .FALSE.
     max_scf = -1
@@ -1481,12 +1473,11 @@ CONTAINS
 
     CALL mp_sum(energy%dft_plus_u, para_env%group)
 
-    CALL cp_assert(energy%dft_plus_u >= 0.0_dp,cp_warning_level,&
-                   cp_assertion_failed,routineP,&
-                   "DFT+U energy contibution is negative possibly due "//&
-                   "to unphysical Mulliken charges. Check your input, "//&
-                   "if this warning persists or try a different method!",&
-                   only_ionode=.TRUE.)
+    IF(energy%dft_plus_u < 0.0_dp)&
+       CALL cp_warn(__LOCATION__,&
+            "DFT+U energy contibution is negative possibly due "//&
+            "to unphysical Mulliken charges. Check your input, "//&
+            "if this warning persists or try a different method!")
 
     CALL cp_dbcsr_deallocate_matrix(sm_q)
     CALL cp_dbcsr_deallocate_matrix(sm_v)
@@ -1554,8 +1545,8 @@ CONTAINS
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: first_sgf_atom
     INTEGER, DIMENSION(:), POINTER           :: atom_list, nshell
     INTEGER, DIMENSION(:, :), POINTER        :: first_sgf, l, last_sgf
-    LOGICAL                                  :: dft_plus_u_atom, failure, &
-                                                found, just_energy
+    LOGICAL                                  :: dft_plus_u_atom, found, &
+                                                just_energy
     REAL(KIND=dp)                            :: eps_u_ramping, fspin, q, &
                                                 u_minus_j, u_minus_j_target, &
                                                 u_ramping, v
@@ -1605,7 +1596,6 @@ CONTAINS
     NULLIFY (w_block)
     NULLIFY (para_env)
 
-    failure = .FALSE.
 
     CALL get_qs_env(qs_env=qs_env,&
                     atomic_kind_set=atomic_kind_set,&
@@ -2044,12 +2034,11 @@ CONTAINS
 
     CALL mp_sum(energy%dft_plus_u, para_env%group)
 
-    CALL cp_assert(energy%dft_plus_u >= 0.0_dp,cp_warning_level,&
-                   cp_assertion_failed,routineP,&
-                   "DFT+U energy contibution is negative possibly due "//&
-                   "to unphysical Mulliken charges. Check your input, "//&
-                   "if this warning persists or try a different method!",&
-                   only_ionode=.TRUE.)
+    IF(energy%dft_plus_u < 0.0_dp)&
+       CALL cp_warn(__LOCATION__,&
+            "DFT+U energy contibution is negative possibly due "//&
+            "to unphysical Mulliken charges. Check your input, "//&
+            "if this warning persists or try a different method!")
 
     ! Release local work storage
 

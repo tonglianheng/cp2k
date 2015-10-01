@@ -153,11 +153,9 @@ CONTAINS
                                                 Nval, output_unit
     LOGICAL                                  :: Found, Found_Radius
     REAL(KIND=dp)                            :: fconv, my_radius, Radius
-    TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_parser_type), POINTER            :: parser
 
-    logger => cp_get_default_logger()
-    output_unit= cp_logger_get_default_io_unit(logger)
+    output_unit= cp_logger_get_default_io_unit()
     Nval = SIZE(qmmm_gaussian_fns)
     Ival = 0
     CALL section_vals_val_get(qmmm_section,"MM_POTENTIAL_FILE_NAME",&
@@ -264,10 +262,8 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: IRad, istart, Nog, Nval
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: my_radius, radius, rc
 
-    failure = .FALSE.
     Nval = SIZE(qmmm_gaussian_fns)
     DO IRad = 1, Nval
        qmmm_gaussian_fns(IRad)%pgf%Number_of_Gaussians = num_geep_gauss
@@ -704,10 +700,8 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: IRad, istart, Nog, Nval
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: radius, rc
 
-    failure = .FALSE.
     Nval = SIZE(qmmm_gaussian_fns)
     DO IRad = 1, Nval
        qmmm_gaussian_fns(IRad)%pgf%Number_of_Gaussians = num_geep_gauss

@@ -164,7 +164,7 @@ CONTAINS
     resp_section => section_vals_get_subs_vals(input,"PROPERTIES%RESP")
     CALL section_vals_get(resp_section, explicit=has_resp)
 
-    IF (.AND. has_resp) THEN
+    IF (has_resp) THEN
        logger => cp_get_default_logger()
        poisson_section => section_vals_get_subs_vals(input,"DFT%POISSON")
        CALL section_vals_val_get(poisson_section,"PERIODIC",i_val=my_per)
@@ -437,7 +437,7 @@ CONTAINS
     CALL section_vals_val_get(resp_section,"STRIDE",i_vals=my_stride)
     CALL cp_assert(SIZE(my_stride)==1.OR.SIZE(my_stride)==3,cp_fatal_level,cp_assertion_failed,routineP,&
          "STRIDE keyword can accept only 1 (the same for X,Y,Z) or 3 values. Correct your input file."//&
-CPSourceFileRef,&
+__LOCATION__,&
          only_ionode=.TRUE.)
     IF (SIZE(my_stride)==1) THEN
        DO i = 1,3
@@ -997,6 +997,7 @@ CPSourceFileRef,&
 
     NULLIFY(atomic_kind_set,v_hartree_pw,para_env,logger,input,particle_set,&
             resp_section)
+
     delta = 1.0E-13_dp
 
     CALL get_qs_env(qs_env,&
@@ -1140,7 +1141,7 @@ CPSourceFileRef,&
 !> \param vpot single gaussian potential
 ! *****************************************************************************
   SUBROUTINE calculate_rhs(qs_env,resp_env,rhs,vpot)
- 
+
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(resp_type), POINTER                 :: resp_env
     REAL(KIND=dp), INTENT(INOUT)             :: rhs
@@ -1186,7 +1187,7 @@ CPSourceFileRef,&
 !> \param gbo lower and upper bounds for the grid points
 ! *****************************************************************************
   SUBROUTINE print_fitting_points(qs_env,resp_env,dh,output_unit,gbo)
-  
+
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(resp_type), POINTER                 :: resp_env
     REAL(KIND=dp), INTENT(IN)                :: dh(3,3)
@@ -1432,7 +1433,7 @@ CPSourceFileRef,&
 !> \param my_per ...
 ! *****************************************************************************
   SUBROUTINE print_resp_parameter_info(qs_env,resp_env,rep_sys,my_per)
-   
+
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(resp_type), POINTER                 :: resp_env
     TYPE(resp_p_type), DIMENSION(:), POINTER :: rep_sys

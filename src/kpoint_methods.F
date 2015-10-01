@@ -113,14 +113,11 @@ CONTAINS
       DIMENSION(:)                           :: element
     INTEGER                                  :: i, ik, iounit, natom
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: atype
-    LOGICAL                                  :: failure, inv, spez, symmo
+    LOGICAL                                  :: inv, spez, symmo
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: weight, zeff
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: coord
-    TYPE(cp_logger_type), POINTER            :: logger
     TYPE(csym_type), POINTER                 :: crys_sym
-
-    failure=.FALSE.
 
     CPASSERT(ASSOCIATED(kpoint))
 
@@ -154,9 +151,7 @@ CONTAINS
              END DO
           END IF
           IF(kpoint%verbose) THEN
-             NULLIFY(logger)
-             logger => cp_get_default_logger()
-             iounit = cp_logger_get_default_io_unit(logger)
+             iounit = cp_logger_get_default_io_unit()
           ELSE
              iounit = -1
           END IF
@@ -210,11 +205,9 @@ CONTAINS
        END DO ikloop
        IF (.NOT.spez .AND. .NOT.(inv .AND. symmo)) THEN
           ! Warning: real wfn might be wrong for this system
-          CALL cp_assert(.FALSE.,cp_warning_level,cp_assertion_failed,routineP,&
+          CALL cp_warn(__LOCATION__,&
                "A calculation using real wavefunctions is requested. "//&
-               "We could not determine if the symmetry of the system allows real wavefunctions. "//&
-CPSourceFileRef,&
-               only_ionode=.TRUE.)
+               "We could not determine if the symmetry of the system allows real wavefunctions. ")
 
        END IF
     END IF
@@ -238,9 +231,7 @@ CPSourceFileRef,&
                                                 niogrp, nkp, nkp_grp, &
                                                 nkp_loc, npe, unit_nr
     INTEGER, DIMENSION(2)                    :: dims, pos
-    LOGICAL                                  :: failure
     LOGICAL, DIMENSION(2)                    :: rdim
-    TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_cart_type), POINTER         :: cart
     TYPE(cp_para_env_type), POINTER          :: para_env, para_env_full, &
                                                 para_env_inter_kp, para_env_kp
@@ -248,7 +239,6 @@ CPSourceFileRef,&
       POINTER                                :: kp_env
     TYPE(kpoint_env_type), POINTER           :: kp
 
-    failure = .FALSE.
     CPASSERT(ASSOCIATED(kpoint))
     para_env => kpoint%para_env
     CPASSERT(ASSOCIATED(para_env))
@@ -364,8 +354,7 @@ CPSourceFileRef,&
 
        kpoint%kp_env => kp_env
 
-       logger => cp_get_default_logger()
-       unit_nr=cp_logger_get_default_io_unit(logger)
+       unit_nr=cp_logger_get_default_io_unit()
        IF (unit_nr>0) THEN
           WRITE(unit_nr,*)
           WRITE(unit_nr,FMT="(T2,A,T71,I10)") "KPOINTS| Number of kpoint groups ",nkp_grp
@@ -394,7 +383,6 @@ CPSourceFileRef,&
 
     INTEGER                                  :: ic, ik, is, nao, nc, &
                                                 nelectron, nkp_loc, nmo, nspin
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: flexible_electron_count, &
                                                 maxocc, n_el_f
     TYPE(cp_blacs_env_type), POINTER         :: blacs_env
@@ -405,7 +393,6 @@ CPSourceFileRef,&
     TYPE(kpoint_env_type), POINTER           :: kp
     TYPE(qs_matrix_pools_type), POINTER      :: mpools
 
-    failure = .FALSE.
     CPASSERT(ASSOCIATED(kpoint))
 
     IF (ASSOCIATED(mos)) THEN
@@ -520,11 +507,10 @@ CPSourceFileRef,&
     INTEGER, DIMENSION(3)                    :: cell, itm
     INTEGER, DIMENSION(:, :), POINTER        :: list
     INTEGER, DIMENSION(:, :, :), POINTER     :: cti
-    LOGICAL                                  :: failure, new
+    LOGICAL                                  :: new
     TYPE(neighbor_list_iterator_p_type), &
       DIMENSION(:), POINTER                  :: nl_iterator
 
-    failure = .FALSE.
     CPASSERT(ASSOCIATED(kpoint))
 
     ALLOCATE(list(3,125))
@@ -720,7 +706,6 @@ CPSourceFileRef,&
     INTEGER                                  :: ik, ikpgr, ispin, kplocal, &
                                                 nb, nelectron, nkp, nmo, nspin
     INTEGER, DIMENSION(2)                    :: kp_range
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: kTS, mu, nel
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :, :)                     :: weig, wocc
@@ -729,8 +714,8 @@ CPSourceFileRef,&
     TYPE(kpoint_env_type), POINTER           :: kp
     TYPE(mo_set_type), POINTER               :: mo_set
 
-    failure = .FALSE.
-    ! first collect all the eigenvalues
+! first collect all the eigenvalues
+
     CALL get_kpoint_info(kpoint,nkp=nkp)
     kp => kpoint%kp_env(1)%kpoint_env
     nspin = SIZE(kp%mos,2)
@@ -801,16 +786,15 @@ CPSourceFileRef,&
     INTEGER                                  :: ikpgr, ispin, kplocal, nao, &
                                                 nmo, nspin
     INTEGER, DIMENSION(2)                    :: kp_range
-    LOGICAL                                  :: failure, wtype
+    LOGICAL                                  :: wtype
     REAL(KIND=dp), DIMENSION(:), POINTER     :: eigenvalues, occupation
     TYPE(cp_fm_struct_type), POINTER         :: matrix_struct
     TYPE(cp_fm_type), POINTER                :: cpmat, fwork, pmat, rpmat
     TYPE(kpoint_env_type), POINTER           :: kp
     TYPE(mo_set_type), POINTER               :: mo_set
 
-    failure = .FALSE.
+! which type of density matrix
 
-    ! which type of density matrix
     IF(PRESENT(energy_weighted)) THEN
        wtype = energy_weighted
     ELSE
@@ -913,7 +897,7 @@ CPSourceFileRef,&
                                                 jatom, nc, nimg, nkp, nspin
     INTEGER, DIMENSION(3)                    :: cell
     INTEGER, DIMENSION(:, :, :), POINTER     :: cell_to_index
-    LOGICAL                                  :: do_symmetric, failure, found, &
+    LOGICAL                                  :: do_symmetric, found, &
                                                 my_kpgrp, real_only
     REAL(KIND=dp)                            :: arg, coskl, fc, sinkl
     REAL(KIND=dp), DIMENSION(:), POINTER     :: wkp
@@ -925,9 +909,8 @@ CPSourceFileRef,&
     TYPE(neighbor_list_iterator_p_type), &
       DIMENSION(:), POINTER                  :: nl_iterator
 
-    failure = .FALSE.
+! work storage
 
-    ! work storage
     ALLOCATE(rpmat,cpmat)
     CALL cp_dbcsr_init(rpmat)
     CALL cp_dbcsr_init(cpmat)

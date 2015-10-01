@@ -96,8 +96,7 @@ CONTAINS
        CASE(xgga_ev93)
           reference = "E. Engel and S.H. Vosko, Phys. Rev. B, 47, 13164 (1993)"
        CASE default
-          CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
-               "Invalid functional requested ("//cp_to_string(functional)//")")
+          CPABORT("Invalid functional requested ("//cp_to_string(functional)//")")
        END SELECT
        IF (.not.lsd) THEN
           IF (LEN_TRIM(reference)+6<LEN(reference)) THEN
@@ -122,8 +121,7 @@ CONTAINS
        CASE(xgga_ev93)
           shortform = "Engel-Vosko exchange energy from virial relation"
        CASE default
-          CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
-               "Invalid functional requested ("//cp_to_string(functional)//")")
+          CPABORT("Invalid functional requested ("//cp_to_string(functional)//")")
        END SELECT
        IF (.not.lsd) THEN
           IF (LEN_TRIM(shortform)+6<LEN(shortform)) THEN
@@ -171,7 +169,6 @@ CONTAINS
     INTEGER                                  :: handle, ispin, m, npoints, &
                                                 nspin
     INTEGER, DIMENSION(:, :), POINTER        :: bo
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: drho_cutoff, rho_cutoff
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: s
     REAL(KIND=dp), ALLOCATABLE, &
@@ -183,7 +180,6 @@ CONTAINS
     TYPE(xc_derivative_type), POINTER        :: deriv
 
     CALL timeset(routineN,handle)
-    failure=.FALSE.
     NULLIFY(bo,e_0,e_ndrho, e_ndrho_ndrho, e_ndrho_ndrho_ndrho, e_rho_ndrho_ndrho, &
          e_rho_ndrho, e_rho_rho_ndrho, e_rho, e_rho_rho, e_rho_rho_rho)
     DO ispin=1,2

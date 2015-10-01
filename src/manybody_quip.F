@@ -69,11 +69,10 @@ SUBROUTINE quip_energy_store_force_virial(particle_set, cell, atomic_kind_set, p
     INTEGER                                  :: i, iat, iat_use, ikind, &
                                                 jkind, n_atoms, n_atoms_use, &
                                                 output_unit
-    LOGICAL                                  :: do_parallel, failure
+    LOGICAL                                  :: do_parallel
     LOGICAL, ALLOCATABLE                     :: use_atom(:)
     REAL(kind=dp)                            :: lattice(3,3), virial(3,3)
     REAL(kind=dp), ALLOCATABLE               :: force(:,:), pos(:,:)
-    TYPE(cp_logger_type), POINTER            :: logger
     TYPE(pair_potential_single_type), &
       POINTER                                :: pot
     TYPE(quip_data_type), POINTER            :: quip_data
@@ -84,7 +83,6 @@ SUBROUTINE quip_energy_store_force_virial(particle_set, cell, atomic_kind_set, p
     CALL stop_program(routineN,moduleN,__LINE__,&
         "In order to use QUIP you need to download and install the libAtoms/QUIP library (check CP2K manual for details)")
 #else
-    failure = .FALSE.
     n_atoms = SIZE(particle_set)
     ALLOCATE(use_atom(n_atoms))
     use_atom = .FALSE.
@@ -115,8 +113,7 @@ SUBROUTINE quip_energy_store_force_virial(particle_set, cell, atomic_kind_set, p
       elem_symbol(iat_use) = particle_set(iat)%atomic_kind%element_symbol
     END DO
     IF (iat_use > 0) CALL cite_reference(QUIP_ref)
-    logger => cp_get_default_logger()
-    output_unit = cp_logger_get_default_io_unit(logger)
+    output_unit = cp_logger_get_default_io_unit()
     lattice = cell%hmat * angstrom
     do_parallel = .FALSE.
     IF (PRESENT(para_env)) THEN
@@ -198,14 +195,12 @@ SUBROUTINE quip_add_force_virial(fist_nonbond_env, force, virial)
 
 #ifdef __QUIP
     INTEGER                                  :: iat, iat_use
-    LOGICAL                                  :: failure
     TYPE(quip_data_type), POINTER            :: quip_data
 #endif
 
 #ifndef __QUIP
     RETURN
 #else
-    failure = .FALSE.
     CALL fist_nonbond_env_get ( fist_nonbond_env, quip_data=quip_data)
     IF (.NOT. ASSOCIATED(quip_data)) RETURN
 

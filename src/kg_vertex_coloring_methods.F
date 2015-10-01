@@ -293,9 +293,7 @@ CONTAINS
     INTEGER                                  :: i, nnodes
     INTEGER(kind=valt), ALLOCATABLE, &
       DIMENSION(:)                           :: values
-    LOGICAL                                  :: failure, heap_error
-
-    failure = .FALSE.
+    LOGICAL                                  :: heap_error
 
     nnodes = SIZE(graph)
 
@@ -307,8 +305,8 @@ CONTAINS
 
     ! fill the heap
     CALL heap_fill (heap, values, heap_error)
-    CALL cp_assert (.NOT. heap_error, cp_warning_level, cp_internal_error,&
-         routineP, "Error initially filling heap.")
+    IF(heap_error)&
+       CPWARN("Error initially filling heap.")
 
     DEALLOCATE (values)
 
@@ -327,13 +325,11 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER(KIND=valt)                       :: value
-    LOGICAL                                  :: failure, found, heap_error
-
-    failure=.FALSE.
+    LOGICAL                                  :: found, heap_error
 
     CALL heap_pop (heap, key, value, found, heap_error)
-    CALL cp_assert (.NOT. heap_error, cp_warning_level, cp_internal_error,&
-         routineP, "Error getting topmost heap element.")
+    IF(heap_error)&
+       CPWARN("Error getting topmost heap element.")
 
   END SUBROUTINE
 
@@ -354,8 +350,8 @@ CONTAINS
     LOGICAL                                  :: heap_error
 
     CALL heap_reset_node (heap, key, value, heap_error)
-    CALL cp_assert (.NOT. heap_error, cp_warning_level, cp_internal_error,&
-         routineP, "Error changing value of heap element.")
+    IF(heap_error)&
+       CPWARN("Error changing value of heap element.")
 
   END SUBROUTINE
 
@@ -409,12 +405,9 @@ CONTAINS
     INTEGER                                  :: color_limit, handle, i, j, &
                                                 key, maxdegree, nneighbors, &
                                                 nnodes
-    LOGICAL                                  :: failure
     LOGICAL, ALLOCATABLE, DIMENSION(:)       :: color_present
     TYPE(heap_t)                             :: heap
     TYPE(vertex), POINTER                    :: neighbor, this
-
-    failure=.FALSE.
 
     CALL timeset(routineN,handle)
 
@@ -709,14 +702,13 @@ CONTAINS
 
     INTEGER                                  :: color, handle, i, nnodes, &
                                                 unit_nr
-    LOGICAL                                  :: failure, valid
+    LOGICAL                                  :: valid
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(vertex_p_type), DIMENSION(:), &
       POINTER                                :: graph
 
-    failure = .FALSE.
+! get a useful output_unit
 
-    ! get a useful output_unit
     logger => cp_get_default_logger()
     IF (logger%para_env%mepos==logger%para_env%source) THEN
        unit_nr=cp_logger_get_default_unit_nr(logger,local=.TRUE.)
@@ -736,16 +728,15 @@ CONTAINS
        ! color with max degree of saturation
        CALL kg_dsatur(kg_env, graph, ncolors)
     CASE DEFAULT
-       CALL cp_assert (.FALSE., cp_fatal_level, cp_internal_error,&
-            routineP, "Coloring method not known.")
+       CPABORT("Coloring method not known.")
     END SELECT
 
     CALL kg_pair_switching(graph,ncolors)
 
     valid=.FALSE.
     CALL check_coloring(graph, valid)
-    CALL cp_assert (valid, cp_fatal_level, cp_internal_error,&
-         routineP, "Coloring not valid.")
+    IF(.NOT.valid)&
+       CPABORT("Coloring not valid.")
 
     nnodes = SIZE(kg_env%molecule_set)
 

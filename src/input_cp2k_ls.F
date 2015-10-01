@@ -33,6 +33,7 @@ MODULE input_cp2k_ls
   USE input_val_types,                 ONLY: integer_t,&
                                              real_t
   USE kinds,                           ONLY: dp
+  USE pao_input,                       ONLY: create_pao_section
   USE qs_density_mixing_types,         ONLY: create_mixing_section
   USE string_utilities,                ONLY: s2a
 #include "./common/cp_common_uses.f90"
@@ -56,11 +57,8 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'create_ls_scf_section', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
     TYPE(section_type), POINTER              :: subsection
-
-    failure=.FALSE.
 
     CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,"LS_SCF",&
@@ -277,6 +275,9 @@ CONTAINS
     CALL section_add_subsection(section, subsection)
     CALL section_release(subsection)
 
+    CALL create_pao_section(subsection)
+    CALL section_add_subsection(section, subsection)
+    CALL section_release(subsection)
 
   END SUBROUTINE create_ls_scf_section
 
@@ -291,11 +292,8 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'create_chebyshev_section', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
     TYPE(section_type), POINTER              :: print_key
-
-    failure=.FALSE.
 
     CPASSERT(.NOT.ASSOCIATED(section))
 
@@ -373,10 +371,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'create_ls_curvy_section', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
-
-    failure=.FALSE.
 
     CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,"CURVY_STEPS",&
@@ -449,10 +444,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'create_pexsi_section', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
-
-    failure=.FALSE.
 
     CPASSERT(.NOT.ASSOCIATED(section))
 
@@ -593,5 +585,6 @@ CONTAINS
      CALL keyword_release(keyword)
 
   END SUBROUTINE create_pexsi_section
+
 
 END MODULE input_cp2k_ls

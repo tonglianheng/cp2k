@@ -92,11 +92,9 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: ekin_last_acc, elem_ener, kB, &
                                                 parent_ener
 
-    failure = .FALSE.
     CPASSERT(ASSOCIATED(tree_element))
     CPASSERT(ASSOCIATED(parent_element))
     CPASSERT(ASSOCIATED(tmc_params))
@@ -217,11 +215,9 @@ CPASSERT(.FALSE.)
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: delta, elem1_ener, &
                                                 elem2_ener, kB, vol1, vol2
 
-    failure = .FALSE.
     kB = boltzmann/joule
 
     CPASSERT(ASSOCIATED(tree_elem))
@@ -295,10 +291,8 @@ CPASSERT(.FALSE.)
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: d_enthalpy, kB, n_vol, p_vol
 
-    failure = .FALSE.
     kB = boltzmann/joule
 
     CPASSERT(ASSOCIATED(parent_elem))
@@ -372,10 +366,9 @@ CPASSERT(.FALSE.)
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle
-    LOGICAL                                  :: failure, parent_ready
+    LOGICAL                                  :: parent_ready
     TYPE(tree_type), POINTER                 :: act_elem, parent_elem
 
-    failure = .FALSE.
     NULLIFY(parent_elem, act_elem)
 
     CPASSERT(ASSOCIATED(tmc_env))
@@ -403,8 +396,7 @@ CPASSERT(.FALSE.)
          status_accepted, status_rejected, status_calculated)
       parent_ready = .TRUE.
     CASE DEFAULT
-      CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
-                 routineP,"unknown parent element status"//cp_to_string(parent_elem%stat),failure)
+      CPABORT("unknown parent element status"//cp_to_string(parent_elem%stat))
     END SELECT
 
     ! ready ?
@@ -454,11 +446,10 @@ CPASSERT(.FALSE.)
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle
-    LOGICAL                                  :: failure, flag, result_acc
+    LOGICAL                                  :: flag, result_acc
     TYPE(global_tree_type), POINTER          :: tmp_gt_ptr
     TYPE(gt_elem_list_type), POINTER         :: tmp_gt_list_ptr
 
-    failure = .FALSE.
     NULLIFY(tmp_gt_list_ptr, tmp_gt_ptr)
 
     ! start the timing
@@ -536,10 +527,8 @@ CPASSERT(.FALSE.)
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle
-    LOGICAL                                  :: failure
     TYPE(tree_type), POINTER                 :: ptr
 
-    failure = .FALSE.
     NULLIFY(ptr)
 
     CPASSERT(ASSOCIATED(gt_ptr))
@@ -562,9 +551,9 @@ CPASSERT(.FALSE.)
       CASE(status_accepted, status_rejected)
         ptr%stat = stat
       CASE DEFAULT
-        CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
-                 routineP,"unknown global tree status"//&
-                 cp_to_string(stat),failure)
+        CALL cp_abort(__LOCATION__,&
+             "unknown global tree status"//&
+             cp_to_string(stat))
       END SELECT
 
       IF(tmc_params%DRAW_TREE) &
@@ -589,9 +578,7 @@ CPASSERT(.FALSE.)
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle
-    LOGICAL                                  :: failure
 
-    failure = .FALSE.
     CPASSERT(ASSOCIATED(elem))
 
     ! start the timing
@@ -607,9 +594,9 @@ CPASSERT(.FALSE.)
     CASE(status_calculated, status_accepted_result, status_accepted, status_rejected, status_rejected_result)
        ready = .TRUE.
     CASE DEFAULT
-      CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
-               routineP,"status of actual tree node is unknown"&
-               //cp_to_string(elem%stat),failure)
+      CALL cp_abort(__LOCATION__,&
+           "status of actual tree node is unknown"&
+           //cp_to_string(elem%stat))
     END SELECT
     ! end the timing
     CALL timestop(handle)
@@ -632,10 +619,9 @@ CPASSERT(.FALSE.)
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle
-    LOGICAL                                  :: act_ready, failure, tmp_ready
+    LOGICAL                                  :: act_ready, tmp_ready
     TYPE(tree_type), POINTER                 :: act_element, tmp_element
 
-    failure = .FALSE.
     NULLIFY(act_element, tmp_element)
     check_done = .FALSE.
 
@@ -656,9 +642,9 @@ CPASSERT(.FALSE.)
       ELSE IF(gt_act_elem%stat .EQ. status_rejected) THEN
         result_acc = .FALSE.
       ELSE
-        CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
-                routineP,"undefinite status of already checked elements:"&
-                //cp_to_string(gt_act_elem%stat),failure)
+        CALL cp_abort(__LOCATION__,&
+             "undefinite status of already checked elements:"&
+             //cp_to_string(gt_act_elem%stat))
       END IF
     CASE DEFAULT
     END SELECT
@@ -715,9 +701,9 @@ CPASSERT(.FALSE.)
             gt_act_elem%stat = gt_act_elem%conf(gt_act_elem%mv_conf)%elem%stat
         CASE(status_calculated)
         CASE DEFAULT
-          CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
-               routineP,"status of actual checked node is unknown"&
-               //cp_to_string(gt_act_elem%stat),failure)
+          CALL cp_abort(__LOCATION__,&
+               "status of actual checked node is unknown"&
+               //cp_to_string(gt_act_elem%stat))
         END SELECT
       END IF
     END IF
@@ -743,11 +729,10 @@ CPASSERT(.FALSE.)
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, itmp
-    LOGICAL                                  :: failure, found
+    LOGICAL                                  :: found
     TYPE(global_tree_type), POINTER          :: gt_act_elem
     TYPE(tree_type), POINTER                 :: act_element, tmp_element
 
-    failure = .FALSE.
     NULLIFY(gt_act_elem, tmp_element, act_element)
 
     CPASSERT(ASSOCIATED(tmc_env))
@@ -907,9 +892,6 @@ CPASSERT(.FALSE.)
     CHARACTER(LEN=*), PARAMETER :: routineN = 'ready_for_update_acc_prob', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-    failure = .FALSE.
     CPASSERT(ASSOCIATED(elem))
     ready = .FALSE.
     IF((elem%scf_energies_count.GE.4)&
@@ -935,10 +917,8 @@ CPASSERT(.FALSE.)
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle
-    LOGICAL                                  :: failure
     TYPE(tree_type), POINTER                 :: act_elem, parent_elem
 
-    failure = .FALSE.
     NULLIFY(parent_elem, act_elem)
 
     CPASSERT(ASSOCIATED(tree_elem))
@@ -1010,12 +990,10 @@ CPASSERT(.FALSE.)
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, integration_steps
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: kB, tmp_prob
     TYPE(gt_elem_list_type), POINTER         :: tmp_pt_ptr
     TYPE(tree_type), POINTER                 :: tmp_elem, tmp_parent_elem
 
-    failure = .FALSE.
     kB = boltzmann/joule
 
     NULLIFY(tmp_pt_ptr,tmp_elem,tmp_parent_elem)

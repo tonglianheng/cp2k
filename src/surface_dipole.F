@@ -70,7 +70,6 @@ CONTAINS
                                                 ispin, isurf, iup, jsurf
     INTEGER, DIMENSION(3)                    :: ngrid
     INTEGER, DIMENSION(:, :), POINTER        :: bo
-    LOGICAL                                  :: failure
     REAL(dp)                                 :: dh(3,3), dip_fac, dip_hh, &
                                                 dsurf, height_min, hh, &
                                                 rhoav_min, surfarea, vdip, &
@@ -90,7 +89,6 @@ CONTAINS
     TYPE(qs_subsys_type), POINTER            :: subsys
 
     CALL timeset(routineN,handle)
-    failure=.FALSE.
     NULLIFY(cell, dft_control, rho, pw_env, rho_core, rho0_s_gs, auxbas_pw_pool, &
              pw_pools,subsys,v_hartree_rspace,rho_r)
 
@@ -133,9 +131,9 @@ CONTAINS
        IF(i /= idir_surfdip) THEN
            IF(ABS(wf_r%pw%pw_grid%dh(idir_surfdip,i)) > 1.E-7_dp) THEN
              ! stop surface dipole defined only for slab perpendigular to one of the Cartesian axis
-              CALL cp_assert(.FALSE., cp_failure_level,cp_assertion_failed,&
-                   routineP, " Dipole correction only for surface perpendicular to "//&
-                   " one Cartesian axis",only_ionode=.TRUE.)
+              CALL cp_abort(__LOCATION__,&
+                   " Dipole correction only for surface perpendicular to "//&
+                   " one Cartesian axis")
 !  not properly general, we assume that vectors A, B, and C are along x y and z respectively, 
 !  in the ortorhombic cell, but in principle it does not need to be this way, importan
 !  is that the cell angles are 90 degrees.
@@ -192,9 +190,8 @@ CONTAINS
       rhoavsurf(ilow:iup) = rhoavsurf(ilow:iup)/surfarea
       ilayer_min = ilow -1 + MINLOC(ABS(rhoavsurf(ilow:iup)),1)  
       rhoav_min = ABS(rhoavsurf(ilayer_min))
-      CALL cp_assert(rhoav_min<1.E-5_dp, cp_failure_level,cp_assertion_failed,&
-                routineP, " Dipole correction needs more vacuum space above the surface ",&
-                only_ionode=.TRUE.)
+      IF(rhoav_min>=1.E-5_dp)&
+         CPABORT(" Dipole correction needs more vacuum space above the surface ")
       height_min =  REAL((ilayer_min - ilow),dp)*dh(idir_surfdip,idir_surfdip)
 
 

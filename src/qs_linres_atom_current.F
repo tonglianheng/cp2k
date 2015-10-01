@@ -116,8 +116,8 @@ CONTAINS
       nsoctot, nspins, num_pe, output_unit
     INTEGER, DIMENSION(3)                    :: cell_b
     INTEGER, DIMENSION(:), POINTER           :: atom_list, list_a, list_b
-    LOGICAL :: den_found, dista, distab, distb, failure, is_not_associated, &
-      paw_atom, sgf_soft_only_a, sgf_soft_only_b
+    LOGICAL :: den_found, dista, distab, distb, is_not_associated, paw_atom, &
+      sgf_soft_only_a, sgf_soft_only_b
     REAL(dp)                                 :: eps_cpc, hard_radius_c, jmax, &
                                                 nbr_dbl, rab(3), rbc(3)
     REAL(dp), ALLOCATABLE, DIMENSION(:, :)   :: a_matrix, b_matrix, c_matrix, &
@@ -130,7 +130,6 @@ CONTAINS
       POINTER                                :: atomic_kind_set
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: mat_a, mat_b, mat_c, mat_d
-    TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(gto_basis_set_p_type), &
@@ -153,7 +152,6 @@ CONTAINS
 
     CALL timeset(routineN,handle)
     !
-    failure =.FALSE.
     NULLIFY(atom_list,atomic_kind_set,qs_kind_set,dft_control,orb_basis_set,sab_all,&
             jrho1_atom_set,oce,a_block,b_block,c_block,&
             d_block,jp_RARnu,jp2_RARnu,C_coeff_hh_a,C_coeff_hh_b,C_coeff_ss_a,&
@@ -527,8 +525,7 @@ CONTAINS
     ENDDO ! ikind
     !
     !
-    logger => cp_get_default_logger()
-    output_unit= cp_logger_get_default_io_unit(logger)
+    output_unit= cp_logger_get_default_io_unit()
     IF(output_unit>0) THEN
        WRITE(output_unit,'(A,E8.2)') 'calculate_jrho_atom_coeff: nbr_dbl=',nbr_dbl
     ENDIF
@@ -568,7 +565,7 @@ CONTAINS
     INTEGER, DIMENSION(2)                    :: bo
     INTEGER, DIMENSION(:), POINTER           :: atom_list, lmax, lmin, npgf, &
                                                 o2nindex
-    LOGICAL                                  :: failure, paw_atom
+    LOGICAL                                  :: paw_atom
     LOGICAL, ALLOCATABLE, DIMENSION(:, :)    :: is_set_to_0
     REAL(dp)                                 :: hard_radius
     REAL(dp), ALLOCATABLE, DIMENSION(:)      :: g1, g2, gauge_h, gauge_s
@@ -599,7 +596,6 @@ CONTAINS
 
     CALL timeset(routineN,handle)
     !
-    failure =.FALSE.
     NULLIFY(atomic_kind_set,qs_kind_set,dft_control,para_env,&
             coeff,Fr_h,Fr_s,Fr_a_h,Fr_a_s,Fr_a_h_ii,Fr_a_s_ii,&
             Fr_a_h_iii,Fr_a_s_iii,Fr_b_h,Fr_b_s,Fr_b_h_ii,&
@@ -1136,7 +1132,6 @@ CONTAINS
 
     INTEGER                                  :: ia, idir2, iiB, iiiB, ir, &
                                                 iso, max_max_iso_not0, na, nr
-    LOGICAL                                  :: failure
     REAL(dp)                                 :: rad_part, scale
     REAL(dp), DIMENSION(:, :), POINTER :: a, Fr_a_h, Fr_a_h_ii, Fr_a_h_iii, &
       Fr_a_s, Fr_a_s_ii, Fr_a_s_iii, Fr_b_h, Fr_b_h_ii, Fr_b_h_iii, Fr_b_s, &
@@ -1145,7 +1140,6 @@ CONTAINS
     REAL(dp), DIMENSION(:,:,:), ALLOCATABLE :: g
 !
 !
-    failure = .FALSE.
     NULLIFY(Fr_h,Fr_s,Fr_a_h,Fr_a_s,Fr_a_h_ii,Fr_a_s_ii,Fr_a_h_iii,Fr_a_s_iii,&
             Fr_b_h,Fr_b_s,Fr_b_h_ii,Fr_b_s_ii,Fr_b_h_iii,Fr_b_s_iii,&
             a,slm)
@@ -1350,8 +1344,7 @@ CONTAINS
                                                 natom, nkind, nspins
     INTEGER, DIMENSION(2)                    :: bo
     INTEGER, DIMENSION(:), POINTER           :: atom_list
-    LOGICAL                                  :: do_igaim, failure, gapw, &
-                                                paw_atom
+    LOGICAL                                  :: do_igaim, gapw, paw_atom
     REAL(dp)                                 :: hard_radius, r(3)
     REAL(dp), ALLOCATABLE, DIMENSION(:, :)   :: ratom
     TYPE(atomic_kind_type), DIMENSION(:), &
@@ -1368,8 +1361,6 @@ CONTAINS
       POINTER                                :: particle_set
     TYPE(qs_kind_type), DIMENSION(:), &
       POINTER                                :: qs_kind_set
-
-    failure = .FALSE.
 
     NULLIFY(para_env, dft_control)
     NULLIFY(jrho1_atom_set, grid_atom, harmonics)

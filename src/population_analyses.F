@@ -90,7 +90,7 @@ CONTAINS
     CHARACTER(LEN=default_string_length)     :: headline
     INTEGER                                  :: handle, ispin, ndep, nsgf, &
                                                 nspin
-    LOGICAL                                  :: failure, print_gop
+    LOGICAL                                  :: print_gop
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: orbpop
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
@@ -112,7 +112,6 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-    failure = .FALSE.
 
     NULLIFY (atomic_kind_set)
     NULLIFY (qs_kind_set)
@@ -197,9 +196,10 @@ CONTAINS
        ! Build full S^(1/2) matrix (computationally expensive)
        CALL copy_dbcsr_to_fm(sm_s,fm_s_half)
        CALL cp_fm_power(fm_s_half,fm_work1,0.5_dp,scf_control%eps_eigval,ndep)
-       CALL cp_assert((ndep == 0),cp_warning_level,cp_assertion_failed,routineP,&
-                      "Overlap matrix exhibits linear dependencies. At least some "//&
-                      "eigenvalues have been quenched.",only_ionode=.TRUE.)
+       IF(ndep /= 0)&
+          CALL cp_warn(__LOCATION__,&
+               "Overlap matrix exhibits linear dependencies. At least some "//&
+               "eigenvalues have been quenched.")
 
        ! Build Lowdin population matrix for each spin
        DO ispin=1,nspin
@@ -274,7 +274,7 @@ CONTAINS
                                                 ispin, jatom, jsgf, natom, &
                                                 nsgf, nspin, sgfa, sgfb
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: first_sgf_atom
-    LOGICAL                                  :: failure, found, print_gop
+    LOGICAL                                  :: found, print_gop
     REAL(KIND=dp)                            :: ps
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: orbpop, p_block, ps_block, &
                                                 s_block
@@ -293,7 +293,6 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-    failure = .FALSE.
 
     NULLIFY (atomic_kind_set)
     NULLIFY (qs_kind_set)
@@ -484,14 +483,12 @@ CONTAINS
                                                 natom, nset, nsgf, nspin
     INTEGER, DIMENSION(:), POINTER           :: nshell
     INTEGER, DIMENSION(:, :), POINTER        :: lshell
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: zeff
     REAL(KIND=dp), DIMENSION(3)              :: sumorbpop, totsumorbpop
     TYPE(gto_basis_set_type), POINTER        :: orb_basis_set
 
     CALL timeset(routineN,handle)
 
-    failure = .FALSE.
 
     NULLIFY (lshell)
     NULLIFY (nshell)

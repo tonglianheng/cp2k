@@ -66,8 +66,8 @@ CONTAINS
                                                 n_rep, reltyp, zcore, zval, zz
     INTEGER, DIMENSION(0:3)                  :: maxn
     INTEGER, DIMENSION(:), POINTER           :: cn
-    LOGICAL                                  :: eri_c, eri_e, failure, &
-                                                had_ae, had_pp, pp_calc
+    LOGICAL                                  :: eri_c, eri_e, had_ae, had_pp, &
+                                                pp_calc
     REAL(KIND=dp), DIMENSION(0:3, 10)        :: pocc
     TYPE(atom_basis_type), POINTER           :: ae_basis, pp_basis
     TYPE(atom_integrals), POINTER            :: ae_int, pp_int
@@ -80,8 +80,6 @@ CONTAINS
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(section_vals_type), POINTER :: basis_section, method_section, &
       opt_section, potential_section, powell_section, xc_section
-
-    failure = .FALSE.
 
     CALL timeset(routineN,handle)
 
@@ -228,9 +226,7 @@ CONTAINS
           END IF
           CALL cp_print_key_finished_output(iw,logger,atom_section,"PRINT%POTENTIAL")
         ELSE
-          CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
-                         "METHOD_TYPE and MULTIPLICITY are incompatible",&
-                         only_ionode=.TRUE.)
+          CPABORT("METHOD_TYPE and MULTIPLICITY are incompatible")
         END IF
 
         NULLIFY(orbitals)

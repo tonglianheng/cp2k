@@ -382,9 +382,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'colvar_create', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-    failure=.FALSE.
     CPASSERT(.NOT.ASSOCIATED(colvar))
     ALLOCATE(colvar)
     ! Nullify all available COLVAR types
@@ -490,10 +487,8 @@ CONTAINS
     INTEGER                                  :: i, idum, iend, ii, istart, j, &
                                                 np, stat
     INTEGER, DIMENSION(:), POINTER           :: list
-    LOGICAL                                  :: failure
 
     CPASSERT(ASSOCIATED(colvar))
-    failure=.FALSE.
     SELECT CASE(colvar%type_id)
     CASE(dist_colvar_id)
        np = 2
@@ -650,11 +645,11 @@ CONTAINS
        IF (colvar%plane_plane_angle_param%plane1%type_of_def==plane_def_atoms) np = np +3
        IF (colvar%plane_plane_angle_param%plane2%type_of_def==plane_def_atoms) np = np +3
        ! if np is equal to zero this means that this is not a COLLECTIVE variable..
-       CALL cp_assert(np/=0,cp_fatal_level,cp_assertion_failed,routineP,&
-            "PLANE_PLANE_ANGLE Colvar defined using two normal vectors! This is "//&
-            "not a COLLECTIVE VARIABLE! One of the two planes must be defined "//&
-            "using atomic positions. "//&
-CPSourceFileRef)
+       IF(np==0)&
+          CALL cp_abort(__LOCATION__,&
+               "PLANE_PLANE_ANGLE Colvar defined using two normal vectors! This is "//&
+               "not a COLLECTIVE VARIABLE! One of the two planes must be defined "//&
+               "using atomic positions.")
 
        ! Number of real atoms involved in the colvar
        colvar%n_atom_s= 0
@@ -1017,9 +1012,7 @@ CPSourceFileRef)
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i
-    LOGICAL                                  :: failure
 
-    failure=.FALSE.
     CPASSERT(ASSOCIATED(colvar))
     IF (ASSOCIATED(colvar%dsdr)) THEN
        DEALLOCATE(colvar%dsdr)
@@ -1187,10 +1180,8 @@ CPSourceFileRef)
 
     INTEGER                                  :: i, my_offset, ndim, ndim2, &
                                                 stat
-    LOGICAL                                  :: failure
 
     my_offset = 0
-    failure=.FALSE.
     CPASSERT(ASSOCIATED(colvar_in))
     CPASSERT(.NOT.ASSOCIATED(colvar_out))
     IF (PRESENT(i_atom_offset)) my_offset = i_atom_offset
@@ -1532,9 +1523,7 @@ CPSourceFileRef)
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i, natoms, npoints
-    LOGICAL                                  :: failure
 
-    failure=.FALSE.
     colvar_out%use_points = colvar_in%use_points
     IF (colvar_in%use_points) THEN
        CPASSERT(ASSOCIATED(colvar_in%points))
@@ -1580,11 +1569,9 @@ CPSourceFileRef)
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: j, lb1, lb1_old, ub1, ub1_old
-    LOGICAL                                  :: failure
     TYPE(colvar_p_type), DIMENSION(:), &
       POINTER                                :: work
 
-    failure = .FALSE.
     NULLIFY(work)
     IF (ASSOCIATED(colvar_set)) THEN
        lb1_old = LBOUND(colvar_set,1)

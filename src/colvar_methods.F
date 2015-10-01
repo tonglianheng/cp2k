@@ -140,8 +140,7 @@ CONTAINS
       iw, iw1, j, k, kk, n_var, n_var_k, ncol, ndim, nr_frame, stat, v_count
     INTEGER, DIMENSION(:), POINTER           :: iatms
     INTEGER, DIMENSION(:, :), POINTER        :: p_bounds
-    LOGICAL                                  :: check, failure, &
-                                                use_mixed_energy
+    LOGICAL                                  :: check, use_mixed_energy
     LOGICAL, DIMENSION(23)                   :: my_subsection
     REAL(dp), DIMENSION(:), POINTER          :: s1, wei, weights
     REAL(dp), DIMENSION(:, :), POINTER       :: p_range, s1v
@@ -162,7 +161,6 @@ CONTAINS
       rotation_section, torsion_section, u_section, Wc_section, wrk_section, &
       xyz_diag_section, xyz_outerdiag_section
 
-    failure=.FALSE.
     CALL timeset(routineN,handle)
     NULLIFY(logger, c_kinds, iatms)
     logger => cp_get_default_logger()
@@ -493,9 +491,7 @@ CONTAINS
        CALL section_vals_val_get(path_section,"DISTANCES_RMSD",l_val=colvar%reaction_path_param%dist_rmsd)
        CALL section_vals_val_get(path_section,"RMSD",l_val=colvar%reaction_path_param%rmsd)
        IF(colvar%reaction_path_param%dist_rmsd .AND. colvar%reaction_path_param%rmsd)THEN
-          CALL cp_assert(.FALSE.,cp_fatal_level,cp_assertion_failed,routineP,&
-                     "CV REACTION PATH: only one between DISTANCES_RMSD and RMSD can be used "//&
-                     CPSourceFileRef)
+          CPABORT("CV REACTION PATH: only one between DISTANCES_RMSD and RMSD can be used ")
        END IF
        IF(colvar%reaction_path_param%dist_rmsd .OR. colvar%reaction_path_param%rmsd) THEN
           NULLIFY(colvar%reaction_path_param%i_rmsd, colvar%reaction_path_param%r_ref)
@@ -525,9 +521,7 @@ CONTAINS
                 END DO
                 colvar%reaction_path_param%n_components = ndim
              ELSE
-                CALL cp_assert(.FALSE.,cp_fatal_level,cp_assertion_failed,routineP,&
-                     "CV REACTION PATH: if SUBSET_TYPE=LIST a list of atoms needs to be provided "//&
-                     CPSourceFileRef)
+                CPABORT("CV REACTION PATH: if SUBSET_TYPE=LIST a list of atoms needs to be provided ")
              END IF
           END IF
 
@@ -542,9 +536,7 @@ CONTAINS
                 CALL colvar_read(colvar%reaction_path_param%colvar_p(i)%colvar,i,colvar_subsection, para_env)
              ENDDO
           ELSE
-             CALL cp_assert(.FALSE.,cp_fatal_level,cp_assertion_failed,routineP,&
-                    "CV REACTION PATH: the number of CV to define the path must be >0 "//&
-                    CPSourceFileRef)
+             CPABORT("CV REACTION PATH: the number of CV to define the path must be >0 ")
           ENDIF
           colvar%reaction_path_param%n_components=ncol
           NULLIFY(range)
@@ -644,7 +636,7 @@ CONTAINS
             "Number of defined COLVAR for COMBINE_COLVAR is different from the "//&
             "number of variables! It is not possible to define COLVARs in a COMBINE_COLVAR "//&
             "and avoid their usage in the combininig function!"//&
-CPSourceFileRef)
+__LOCATION__)
        ! Parameters
        ALLOCATE(colvar%combine_cvs_param%c_parameters(0))
        CALL section_vals_val_get(combine_section,"PARAMETERS",n_rep_val=ncol)
@@ -750,7 +742,7 @@ CPSourceFileRef)
        CALL section_vals_get(plane_sections, n_repetition=n_var)
        CALL cp_assert(n_var==2,cp_fatal_level,cp_assertion_failed,routineP,&
                "PLANE_PLANE_ANGLE Colvar section: Two PLANE sections must be provided!"//&
-CPSourceFileRef)
+__LOCATION__)
        ! Plane 1
        CALL section_vals_val_get(plane_sections,"DEF_TYPE",i_rep_section=1,&
             i_val=colvar%plane_plane_angle_param%plane1%type_of_def)
@@ -853,9 +845,7 @@ CPSourceFileRef)
              END DO
              colvar%rmsd_param%n_atoms = ndim
           ELSE
-             CALL cp_assert(.FALSE.,cp_fatal_level,cp_assertion_failed,routineP,&
-                  "CV RMSD: if SUBSET_TYPE=LIST a list of atoms needs to be provided "//&
-                  CPSourceFileRef)
+             CPABORT("CV RMSD: if SUBSET_TYPE=LIST a list of atoms needs to be provided ")
           END IF
        ELSE IF (colvar%rmsd_param%subset==rmsd_weightlist) THEN
           CALL section_vals_val_get(rmsd_section,"ATOMS",n_rep_val=n_var)
@@ -870,9 +860,7 @@ CPSourceFileRef)
              END DO
              colvar%rmsd_param%n_atoms = ndim
           ELSE
-             CALL cp_assert(.FALSE.,cp_fatal_level,cp_assertion_failed,routineP,&
-                  "CV RMSD: if SUBSET_TYPE=WEIGHT_LIST a list of atoms needs to be provided "//&
-                  CPSourceFileRef)
+             CPABORT("CV RMSD: if SUBSET_TYPE=WEIGHT_LIST a list of atoms needs to be provided ")
           END IF
           CALL section_vals_val_get(rmsd_section,"WEIGHTS",n_rep_val=n_var)
           ndim = 0
@@ -886,22 +874,18 @@ CPSourceFileRef)
              END DO
              CALL cp_assert(ndim==colvar%rmsd_param%n_atoms,cp_fatal_level,cp_assertion_failed,routineP,&
                   "CV RMSD: list of atoms and list of weights need to contain same number of entries. "//&
-                  CPSourceFileRef)
+                  __LOCATION__)
              DO i = 1, ndim
                 ii = colvar%rmsd_param%i_rmsd(i)
                 colvar%rmsd_param%weights(ii) = weights(i)
              END DO
              DEALLOCATE (weights)
           ELSE
-             CALL cp_assert(.FALSE.,cp_fatal_level,cp_assertion_failed,routineP,&
-                  "CV RMSD: if SUBSET_TYPE=WEIGHT_LIST a list of weights need to be provided. "//&
-                  CPSourceFileRef)
+             CPABORT("CV RMSD: if SUBSET_TYPE=WEIGHT_LIST a list of weights need to be provided. ")
           END IF
 
        ELSE
-          CALL cp_assert(.FALSE.,cp_fatal_level,cp_assertion_failed,routineP,&
-               "CV RMSD: unknown SUBSET_TYPE."//&
-               CPSourceFileRef)
+          CPABORT("CV RMSD: unknown SUBSET_TYPE.")
        END IF
 
        CALL section_vals_val_get(rmsd_section,"ALIGN_FRAMES",l_val=colvar%rmsd_param%align_frames)
@@ -973,12 +957,12 @@ CPSourceFileRef)
        ndim = colvar%ring_puckering_param%nring
        CALL cp_assert(ndim > 3,cp_fatal_level,cp_assertion_failed,routineP,&
             "CV Ring Puckering: Ring size has to be 4 or larger. "//&
-            CPSourceFileRef)
+            __LOCATION__)
        ii = colvar%ring_puckering_param%iq
        CALL cp_assert( (ABS(ii)/=1 .AND. ii>=-(ndim-1)/2 .AND. ii<=ndim/2) ,&
             cp_fatal_level,cp_assertion_failed,routineP,&
             "CV Ring Puckering: Invalid coordinate number. "//&
-            CPSourceFileRef)
+            __LOCATION__)
     ELSE IF (my_subsection(23)) THEN
        ! Minimum Distance
        wrk_section => mindist_section
@@ -1362,11 +1346,10 @@ CPSourceFileRef)
     INTEGER                                  :: i, irep, natoms, npoints, &
                                                 nrep, nweights
     INTEGER, DIMENSION(:), POINTER           :: atoms
-    LOGICAL                                  :: explicit, failure
+    LOGICAL                                  :: explicit
     REAL(KIND=dp), DIMENSION(:), POINTER     :: r, weights
     TYPE(section_vals_type), POINTER         :: point_sections
 
-    failure=.FALSE.
     NULLIFY(point_sections)
     NULLIFY(atoms)
     NULLIFY(weights)
@@ -1445,9 +1428,7 @@ CPSourceFileRef)
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i, j
-    LOGICAL                                  :: colvar_ok, failure
-
-    failure=.FALSE.
+    LOGICAL                                  :: colvar_ok
 
     colvar_ok=ASSOCIATED(colvar)
     CPASSERT(colvar_ok)
@@ -1534,13 +1515,12 @@ CPSourceFileRef)
     CHARACTER(len=*), PARAMETER :: routineN = 'colvar_eval_glob_f', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: colvar_ok, failure
+    LOGICAL                                  :: colvar_ok
     TYPE(cell_type), POINTER                 :: cell
     TYPE(colvar_type), POINTER               :: colvar
     TYPE(cp_subsys_type), POINTER            :: subsys
     TYPE(qs_environment_type), POINTER       :: qs_env
 
-    failure=.FALSE.
     NULLIFY(subsys,cell,colvar,qs_env)
     CALL force_env_get(force_env,subsys=subsys,cell=cell,qs_env=qs_env)
     colvar_ok=ASSOCIATED(subsys%colvar_p)
@@ -1620,11 +1600,8 @@ CPSourceFileRef)
     CHARACTER(len=*), PARAMETER :: routineN = 'colvar_recursive_eval', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
+! Initialize the content of the derivative
 
-    failure=.FALSE.
-
-    ! Initialize the content of the derivative
     colvar%dsdr=0.0_dp
     SELECT CASE(colvar%type_id)
     CASE (dist_colvar_id)
@@ -1761,14 +1738,12 @@ CPSourceFileRef)
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i
-    LOGICAL                                  :: failure
     REAL(dp)                                 :: fi(3), r, r0(3), ss(3), &
                                                 xi(3), xpi(3)
     TYPE(particle_list_type), POINTER        :: particles_i
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: my_particles
 
-    failure=.FALSE.
     NULLIFY(particles_i)
 
     CPASSERT(colvar%type_id==xyz_diag_colvar_id)
@@ -1872,14 +1847,12 @@ CPSourceFileRef)
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i, k, l
-    LOGICAL                                  :: failure
     REAL(dp)                                 :: fi(3,2), r, r0(3), ss(3), &
                                                 xi(3,2), xpi(3)
     TYPE(particle_list_type), POINTER        :: particles_i
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: my_particles
 
-    failure=.FALSE.
     NULLIFY(particles_i)
 
     CPASSERT(colvar%type_id==xyz_outerdiag_colvar_id)
@@ -1965,7 +1938,6 @@ CPSourceFileRef)
                                                 iparticle, jparticle, natom, &
                                                 natom_iforce, nforce_eval
     INTEGER, DIMENSION(:), POINTER           :: glob_natoms, map_index
-    LOGICAL                                  :: failure
     REAL(dp)                                 :: dedf, dx, err, fi(3), lerr, &
                                                 potential_energy
     REAL(KIND=dp), DIMENSION(:), POINTER     :: values
@@ -1980,7 +1952,6 @@ CPSourceFileRef)
     TYPE(section_vals_type), POINTER         :: force_env_section, &
                                                 mapping_section, wrk_section
 
-    failure = .FALSE.
     IF (PRESENT(force_env)) THEN
        NULLIFY(particles_main, subsys_main)
        CALL force_env_get(force_env=force_env,subsys=subsys_main)
@@ -2080,10 +2051,10 @@ CPSourceFileRef)
                 WRITE(def_error,"(A,G12.6,A)")"(",lerr,")"
                 CALL compress(this_error,.TRUE.)
                 CALL compress(def_error,.TRUE.)
-                CALL cp_assert(.FALSE.,cp_warning_level,-300,routineP,&
+                CALL cp_warn(__LOCATION__,&
                      'ASSERTION (cond) failed at line '//cp_to_string(__LINE__)//&
                      ' Error '//TRIM(this_error)//' in computing numerical derivatives larger then'//&
-                     TRIM(def_error)//' .',only_ionode=.TRUE.)
+                     TRIM(def_error)//' .')
              END IF
              ! General Mapping of forces...
              ! First: Get Mapping index array
@@ -2138,7 +2109,6 @@ CPSourceFileRef)
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i, j, k, l
-    LOGICAL                                  :: failure
     REAL(dp) :: a, b, dsdxpn(3), dxpndxi(3,3), dxpndxj(3,3), dxpndxk(3,3), &
       fi(3), fj(3), fk(3), fl(3), r12, ri(3), rj(3), rk(3), rl(3), ss(3), &
       xpij(3), xpkj(3), xpl(3), xpn(3)
@@ -2146,7 +2116,6 @@ CPSourceFileRef)
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: my_particles
 
-    failure=.FALSE.
     NULLIFY(particles_i)
 
     CPASSERT(colvar%type_id==plane_distance_colvar_id)
@@ -2259,7 +2228,7 @@ CPSourceFileRef)
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i1, i2, j1, j2, k1, k2, np
-    LOGICAL                                  :: check, failure
+    LOGICAL                                  :: check
     REAL(dp) :: a1, a2, d, dnorm_dxpn(3), dprod12_dxpn(3), dsdxpn(3), &
       dt_dxpn(3), dxpndxi(3,3), dxpndxj(3,3), dxpndxk(3,3), fi(3), fj(3), &
       fk(3), fmod, norm1, norm2, prod_12, ri1(3), ri2(3), rj1(3), rj2(3), &
@@ -2269,7 +2238,6 @@ CPSourceFileRef)
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: my_particles
 
-    failure=.FALSE.
     NULLIFY(particles_i)
 
     check = colvar%type_id==plane_plane_angle_colvar_id
@@ -2483,7 +2451,6 @@ CPSourceFileRef)
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i, idum
-    LOGICAL                                  :: failure
     REAL(dp)                                 :: a, b, fmod, t0, t1, t2, t3, &
                                                 xdum(3), xij(3), xkj(3)
     REAL(KIND=dp)                            :: dp1b1(3), dp1b2(3), dp2b1(3), &
@@ -2493,7 +2460,6 @@ CPSourceFileRef)
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: my_particles
 
-    failure=.FALSE.
     NULLIFY(particles_i)
 
     CPASSERT(colvar%type_id==rotation_colvar_id)
@@ -2573,7 +2539,6 @@ CPSourceFileRef)
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i, j, k, l
-    LOGICAL                                  :: failure
     REAL(dp)                                 :: fi(3), fj(3), fk(3), fl(3), &
                                                 r12, r34, ss(3), xij(3), &
                                                 xkl(3), xpi(3), xpj(3), &
@@ -2582,7 +2547,6 @@ CPSourceFileRef)
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: my_particles
 
-    failure=.FALSE.
     NULLIFY(particles_i)
 
     CPASSERT(colvar%type_id==dfunct_colvar_id)
@@ -2651,7 +2615,6 @@ CPSourceFileRef)
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i, j, k
-    LOGICAL                                  :: failure
     REAL(dp)                                 :: a, b, fi(3), fj(3), fk(3), &
                                                 fmod, ri(3), rj(3), rk(3), &
                                                 ss(3), t0, t1, t2, t3, &
@@ -2660,7 +2623,6 @@ CPSourceFileRef)
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: my_particles
 
-    failure=.FALSE.
     NULLIFY(particles_i)
 
     CPASSERT(colvar%type_id==angle_colvar_id)
@@ -2729,14 +2691,12 @@ CPSourceFileRef)
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i, j
-    LOGICAL                                  :: failure
     REAL(dp)                                 :: fi(3), fj(3), r12, ss(3), &
                                                 xij(3), xpi(3), xpj(3)
     TYPE(particle_list_type), POINTER        :: particles_i
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: my_particles
 
-    failure=.FALSE.
     NULLIFY(particles_i)
 
     CPASSERT(colvar%type_id==dist_colvar_id)
@@ -2806,7 +2766,7 @@ CPSourceFileRef)
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i, ii
-    LOGICAL                                  :: failure, no_riemann_sheet
+    LOGICAL                                  :: no_riemann_sheet
     REAL(dp) :: angle, cosine, dedphi, dedxia, dedxib, dedxic, dedxid, dedxt, &
       dedxu, dedyia, dedyib, dedyic, dedyid, dedyt, dedyu, dedzia, dedzib, &
       dedzic, dedzid, dedzt, dedzu, dt, e, ftmp(3), o0, rcb, rt2, rtmp(3), &
@@ -2817,7 +2777,6 @@ CPSourceFileRef)
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: my_particles
 
-    failure=.FALSE.
     NULLIFY(particles_i)
     CPASSERT(colvar%type_id==torsion_colvar_id)
     IF (PRESENT(particles)) THEN
@@ -2969,7 +2928,6 @@ CPSourceFileRef)
     COMPLEX(KIND=dp)                         :: ylm, ylm_calc, ylm_calc2
     INTEGER                                  :: i, ii, j, jj, l, m, &
                                                 n_atoms_from, n_atoms_to
-    LOGICAL                                  :: failure
     REAL(KIND=dp) :: alpha, bond, costheta, dplm, dylm, exp_fac, fact, fi, &
       ftmp(3), inv_n_atoms_from, nbond, plm, pre_fac, qlm, qlm2, qparm, r12, &
       r_tmp, rcut, ss(3), theta, x_tmp, xij(3), y_tmp, ymag, ymag1, z_tmp
@@ -2979,7 +2937,6 @@ CPSourceFileRef)
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: my_particles
 
-    failure=.FALSE.
     n_atoms_to=colvar%qparm_param%n_atoms_to
     n_atoms_from=colvar%qparm_param%n_atoms_from
     rcut=colvar%qparm_param%rcut
@@ -3113,7 +3070,6 @@ CPSourceFileRef)
     INTEGER                                  :: i, ii, jj, n_hydrogens, &
                                                 n_oxygens, p, pnh, pno, q, &
                                                 qnh, qno
-    LOGICAL                                  :: failure
     REAL(dp)                                 :: fscalar, invden, lambda, nh, &
                                                 num, qtot, r12, r_OH, r_OO, &
                                                 rdist, ss(3), xij(3)
@@ -3128,7 +3084,6 @@ CPSourceFileRef)
     TYPE(particle_type), DIMENSION(:), &
          POINTER                                :: my_particles
 
-    failure=.FALSE.
     n_oxygens=colvar%hydronium_param%n_oxygens
     n_hydrogens=colvar%hydronium_param%n_hydrogens
     nh=colvar%hydronium_param%nh
@@ -3305,7 +3260,6 @@ CPSourceFileRef)
                                                 n_atoms_from, n_atoms_to_a, &
                                                 n_atoms_to_b, p_a, p_b, q_a, &
                                                 q_b
-    LOGICAL                                  :: failure
     REAL(dp) :: dfunc_ij, dfunc_jk, func_ij, func_jk, func_k, &
       inv_n_atoms_from, invden_ij, invden_jk, ncoord, num_ij, num_jk, r_0_a, &
       r_0_b, rdist_ij, rdist_jk, rij, rjk
@@ -3315,9 +3269,9 @@ CPSourceFileRef)
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: my_particles
 
-    failure=.FALSE.
-    ! If we defined the coordination number with KINDS then we have still
-    ! to fill few missing informations...
+! If we defined the coordination number with KINDS then we have still
+! to fill few missing informations...
+
     NULLIFY(particles_i)
     CPASSERT(colvar%type_id==coord_colvar_id)
     IF (PRESENT(particles)) THEN
@@ -3439,7 +3393,6 @@ CPSourceFileRef)
 
     INTEGER                                  :: i, ii, j, jj, n_coord_from, &
                                                 n_coord_to, n_dist_from, p, q
-    LOGICAL                                  :: failure
     REAL(dp) :: den_n, den_Q, fscalar, ftemp_i(3), inv_den_n, inv_den_Q, &
       lambda, num_n, num_Q, Qfunc, r12, r_cut, rfact, rij(3), rpi(3), rpj(3)
     REAL(dp), DIMENSION(:), POINTER          :: dqfunc_dnL, expnL, nLcoord, &
@@ -3449,9 +3402,9 @@ CPSourceFileRef)
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: my_particles
 
-    failure=.FALSE.
-    ! If we defined the coordination number with KINDS then we have still
-    ! to fill few missing informations...
+! If we defined the coordination number with KINDS then we have still
+! to fill few missing informations...
+
     NULLIFY(particles_i)
     CPASSERT(colvar%type_id==mindist_colvar_id)
     IF (PRESENT(particles)) THEN
@@ -3616,7 +3569,6 @@ CPSourceFileRef)
     CHARACTER(LEN=default_string_length), &
       ALLOCATABLE, DIMENSION(:)              :: my_par
     INTEGER                                  :: i, ii, j, ncolv, ndim
-    LOGICAL                                  :: failure
     REAL(dp)                                 :: err
     REAL(dp), ALLOCATABLE, DIMENSION(:)      :: dss_vals, my_val, ss_vals
     REAL(dp), ALLOCATABLE, DIMENSION(:, :)   :: fi
@@ -3624,7 +3576,6 @@ CPSourceFileRef)
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: my_particles
 
-    failure=.FALSE.
     CPASSERT(colvar%type_id==combine_colvar_id)
     IF (PRESENT(particles)) THEN
        my_particles => particles
@@ -3663,12 +3614,10 @@ CPSourceFileRef)
           WRITE(def_error,"(A,G12.6,A)")"(",colvar%combine_cvs_param%lerr,")"
           CALL compress(this_error,.TRUE.)
           CALL compress(def_error,.TRUE.)
-          CALL cp_assert(.FALSE.,cp_warning_level,cp_assertion_failed,routineP,&
+          CALL cp_warn(__LOCATION__,&
                'ASSERTION (cond) failed at line '//cp_to_string(__LINE__)//&
                ' Error '//TRIM(this_error)//' in computing numerical derivatives larger then'//&
-               TRIM(def_error)//' . '//&
-CPSourceFileRef,&
-               only_ionode=.TRUE.)
+               TRIM(def_error)//' . ')
        END IF
     END DO
     DEALLOCATE(my_val)
@@ -3718,12 +3667,9 @@ CPSourceFileRef,&
     CHARACTER(len=*), PARAMETER :: routineN = 'reaction_path_colvar', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     TYPE(particle_list_type), POINTER        :: particles_i
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: my_particles
-
-    failure=.FALSE.
 
     CPASSERT(colvar%type_id==reaction_path_colvar_id)
     IF (PRESENT(particles)) THEN
@@ -3854,7 +3800,6 @@ CPSourceFileRef,&
     INTEGER                                  :: i, iat, ii, ik, natom, nconf, &
                                                 rmsd_atom
     INTEGER, DIMENSION(:), POINTER           :: iatom
-    LOGICAL                                  :: failure
     REAL(dp)                                 :: lambda, my_rmsd, s1(2), &
                                                 sum_exp
     REAL(dp), ALLOCATABLE, DIMENSION(:)      :: r, r0, vec_dif
@@ -3864,8 +3809,6 @@ CPSourceFileRef,&
     REAL(dp), ALLOCATABLE, &
       DIMENSION(:, :, :, :)                  :: ds1v
     REAL(dp), DIMENSION(:, :), POINTER       :: path_conf
-
-    failure=.FALSE.
 
     nconf=colvar%reaction_path_param%nr_frames
     rmsd_atom=colvar%reaction_path_param%n_components
@@ -3978,7 +3921,6 @@ CPSourceFileRef,&
     INTEGER                                  :: i, iat, ii, ik, natom, nconf, &
                                                 rmsd_atom
     INTEGER, DIMENSION(:), POINTER           :: iatom
-    LOGICAL                                  :: failure
     REAL(dp)                                 :: lambda, my_rmsd, s1(2)
     REAL(dp), ALLOCATABLE, DIMENSION(:)      :: r, r0
     REAL(dp), ALLOCATABLE, DIMENSION(:, :)   :: fi, riat, s1v
@@ -3990,8 +3932,6 @@ CPSourceFileRef,&
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: weight
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: drmsd
-
-    failure=.FALSE.
 
     nconf=colvar%reaction_path_param%nr_frames
     rmsd_atom=colvar%reaction_path_param%n_components
@@ -4108,12 +4048,9 @@ CPSourceFileRef,&
     CHARACTER(len=*), PARAMETER :: routineN = 'distance_from_path_colvar', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     TYPE(particle_list_type), POINTER        :: particles_i
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: my_particles
-
-    failure=.FALSE.
 
     CPASSERT(colvar%type_id==distance_from_path_colvar_id)
     IF (PRESENT(particles)) THEN
@@ -4235,15 +4172,12 @@ CPSourceFileRef,&
     INTEGER                                  :: i, iat, ii, ik, natom, nconf, &
                                                 rmsd_atom
     INTEGER, DIMENSION(:), POINTER           :: iatom
-    LOGICAL                                  :: failure
     REAL(dp)                                 :: lambda, s1, sum_exp
     REAL(dp), ALLOCATABLE, DIMENSION(:)      :: r, r0, s1v, vec_dif
     REAL(dp), ALLOCATABLE, DIMENSION(:, :)   :: ds1, dvec_dif, fi, riat
     REAL(dp), ALLOCATABLE, &
       DIMENSION(:, :, :)                     :: ds1v
     REAL(dp), DIMENSION(:, :), POINTER       :: path_conf
-
-    failure=.FALSE.
 
     nconf=colvar%reaction_path_param%nr_frames
     rmsd_atom=colvar%reaction_path_param%n_components
@@ -4344,7 +4278,6 @@ CPSourceFileRef,&
     INTEGER                                  :: i, iat, ii, ik, natom, nconf, &
                                                 rmsd_atom
     INTEGER, DIMENSION(:), POINTER           :: iatom
-    LOGICAL                                  :: failure
     REAL(dp)                                 :: lambda, my_rmsd, s1
     REAL(dp), ALLOCATABLE, DIMENSION(:)      :: r, r0, s1v
     REAL(dp), ALLOCATABLE, DIMENSION(:, :)   :: ds1, fi, riat
@@ -4354,8 +4287,6 @@ CPSourceFileRef,&
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: weight
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: drmsd
-
-    failure=.FALSE.
 
     nconf=colvar%reaction_path_param%nr_frames
     rmsd_atom=colvar%reaction_path_param%n_components
@@ -4463,7 +4394,6 @@ CPSourceFileRef,&
 
     INTEGER                                  :: i, ii, jj, n_atoms_from, &
                                                 n_atoms_to, ndcrd, nncrd
-    LOGICAL                                  :: failure
     REAL(dp) :: dfunc, dfunc_coord, ftmp(3), func, func_coord, &
       inv_n_atoms_from, invden, n_0, ncoord, norm, num, population, r12, r_0, &
       rdist, sigma, ss(3), xij(3)
@@ -4473,9 +4403,9 @@ CPSourceFileRef,&
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: my_particles
 
-    failure=.FALSE.
-    ! If we defined the coordination number with KINDS then we have still
-    ! to fill few missing informations...
+! If we defined the coordination number with KINDS then we have still
+! to fill few missing informations...
+
     NULLIFY(particles_i)
     CPASSERT(colvar%type_id==population_colvar_id)
     IF (PRESENT(particles)) THEN
@@ -4570,7 +4500,6 @@ CPSourceFileRef,&
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i, ii, n_atoms
-    LOGICAL                                  :: failure
     REAL(dp)                                 :: dri2, func, gyration, inv_n, &
                                                 mass_tot, mi
     REAL(dp), DIMENSION(3)                   :: dfunc, dxi, ftmp, ss, xpcom, &
@@ -4578,8 +4507,6 @@ CPSourceFileRef,&
     TYPE(particle_list_type), POINTER        :: particles_i
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: my_particles
-
-    failure=.FALSE.
 
     NULLIFY(particles_i,my_particles)
     CPASSERT(colvar%type_id==gyration_colvar_id)
@@ -4656,9 +4583,6 @@ CPSourceFileRef,&
     CHARACTER(len=*), PARAMETER :: routineN = 'rmsd_colvar', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-    failure = .FALSE.
     CALL rmsd_colvar_low(colvar,subsys,particles)
   END SUBROUTINE rmsd_colvar
 
@@ -4686,7 +4610,6 @@ CPSourceFileRef,&
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i, ii, natom, nframes
-    LOGICAL                                  :: failure
     REAL(kind=dp)                            :: cv_val, f1, ftmp(3)
     REAL(kind=dp), ALLOCATABLE, DIMENSION(:) :: der, r, rmsd
     REAL(kind=dp), ALLOCATABLE, &
@@ -4697,8 +4620,6 @@ CPSourceFileRef,&
     TYPE(particle_list_type), POINTER        :: particles_i
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: my_particles
-
-    failure=.FALSE.
 
     NULLIFY(my_particles,particles_i,weights)
     CPASSERT(colvar%type_id==rmsd_colvar_id)
@@ -4802,7 +4723,6 @@ CPSourceFileRef,&
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i, ii, j, jj, m, nring
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: a, at, b, da, db, ds, kr, &
                                                 rpxpp, svar
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: cosj, sinj, z
@@ -4815,8 +4735,6 @@ CPSourceFileRef,&
     TYPE(particle_list_type), POINTER        :: particles_i
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: my_particles
-
-    failure=.FALSE.
 
     CPASSERT(colvar%type_id==ring_puckering_colvar_id)
     IF (PRESENT(particles)) THEN
@@ -5066,12 +4984,11 @@ CPSourceFileRef,&
     CHARACTER(LEN=default_path_length)       :: filename
     CHARACTER(LEN=default_string_length)     :: dummy_char
     INTEGER                                  :: i, j, natom
-    LOGICAL                                  :: explicit, failure, my_end
+    LOGICAL                                  :: explicit, my_end
     REAL(KIND=dp), DIMENSION(:), POINTER     :: rptr
     TYPE(cp_parser_type), POINTER            :: parser
     TYPE(section_vals_type), POINTER         :: coord_section
 
-     failure = .FALSE.
      NULLIFY(rptr)
 
      DO i = 1,nr_frames
@@ -5115,7 +5032,7 @@ CPSourceFileRef,&
                  "Number of lines in XYZ format not equal to the number of atoms."//&
                  " Error in XYZ format for COORD_A (CV rmsd). Very probably the"//&
                  " line with title is missing or is empty. Please check the XYZ file and rerun your job!"//&
-CPSourceFileRef,&
+__LOCATION__,&
             only_ionode=.TRUE.)
             READ(parser%input_line,*) dummy_char,rptr(1:3)
             r_ref((j-1)*3+1,i) = cp_unit_to_cp2k(rptr(1),"angstrom")
@@ -5151,7 +5068,6 @@ CPSourceFileRef,&
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: Od, H, Oa
-    LOGICAL                                  :: failure
     REAL(dp)                                 :: rOd(3), rOa(3), rH(3), &
                                                 x,y,s(3),xv(3),dmin,amin
     INTEGER                                  :: idmin, iamin,i,j
@@ -5163,7 +5079,6 @@ CPSourceFileRef,&
     INTEGER                                  :: nwca,nwcd
     REAL(dp)                                 :: rcut
 
-    failure=.FALSE.
     NULLIFY(particles_i,wc)
 
     CPASSERT(colvar%type_id==Wc_colvar_id)
@@ -5267,7 +5182,6 @@ CPSourceFileRef,&
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: Od, H, Oa
-    LOGICAL                                  :: failure
     REAL(dp)                                 :: rOd(3), rOa(3), rH(3), &
                                                 x,y,s(3),xv(3),dmin,amin
     INTEGER                                  :: idmin, iamin,i,j,il,output_unit
@@ -5279,15 +5193,11 @@ CPSourceFileRef,&
     INTEGER, ALLOCATABLE                     :: wcai(:),wcdi(:) ! contains the indeces of the wannier centres closed to the donor and acceptor
     INTEGER                                  :: nwca,nwcd
     REAL(dp)                                 :: rcut
-!     real(dp)                                 :: zero(3)
-    TYPE(cp_logger_type), POINTER            :: logger
 
 
 
-    failure=.FALSE.
-    NULLIFY(particles_i,wc,logger)
-    logger => cp_get_default_logger()
-    output_unit= cp_logger_get_default_io_unit(logger)
+    NULLIFY(particles_i,wc)
+    output_unit= cp_logger_get_default_io_unit()
 
     CPASSERT(colvar%type_id==HBP_colvar_id)
     IF (PRESENT(particles)) THEN

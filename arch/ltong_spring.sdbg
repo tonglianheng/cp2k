@@ -1,0 +1,20 @@
+# -*- mode: makefile -*-
+
+CC       = gcc
+CPP      =
+FC       = gfortran
+LD       = gfortran
+AR       = ar -r
+
+CPPFLAGS =
+WFLAGS  = -Waliasing -Wampersand -Wc-binding-type -Wconversion\
+          -Wintrinsic-shadow -Wintrinsics-std -Wline-truncation\
+          -Wno-tabs -Wrealloc-lhs-all -Wtarget-lifetime -Wunderflow\
+          -Wunused-but-set-variable -Wunused-variable\
+          -Werror -fsanitize=leak
+DFLAGS   = -D__GFORTRAN -D__FFTSG -D__FFTW3 -D__LIBINT -D__LIBXC -D__HAS_smm_dnn
+FCFLAGS  = -g -march=native -ffree-form -ffree-line-length-none -ffast-math \
+           $(DFLAGS) -I${FFTW3_INCLUDE} -I${OpenBLAS_INCLUDE} -I${LIBINT_INCLUDE} \
+           -I${LIBXC_INCLUDE} $(WFLAGS)
+LDFLAGS  = $(FCFLAGS) -L${FFTW3_LIB} -L${OpenBLAS_LIB} -L${LIBXC_LIB} -L${LIBINT_LIB} -L${LIBSMM_LIB}
+LIBS     = -lderiv -lint -lstdc++ -lfftw3 -lopenblas -lsmm_dnn -lxcf90 -lxc

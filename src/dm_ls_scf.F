@@ -48,11 +48,11 @@ MODULE dm_ls_scf
                                              rho_mixing_ls_init
   USE dm_ls_scf_types,                 ONLY: ls_scf_env_type
   USE input_constants,                 ONLY: &
-       ls_cluster_atomic, ls_cluster_molecular, ls_s_inversion_hotelling, &
-       ls_s_inversion_none, ls_s_inversion_sign_sqrt, &
-       ls_s_preconditioner_atomic, ls_s_preconditioner_molecular, &
-       ls_s_preconditioner_none, ls_scf_ns, ls_scf_pexsi, ls_scf_tc2, &
-       ls_scf_trs4
+       ls_cluster_atomic, ls_cluster_molecular, ls_cluster_pao, &
+       ls_s_inversion_hotelling, ls_s_inversion_none, &
+       ls_s_inversion_sign_sqrt, ls_s_preconditioner_atomic, &
+       ls_s_preconditioner_molecular, ls_s_preconditioner_none, ls_scf_ns, &
+       ls_scf_pexsi, ls_scf_tc2, ls_scf_trs4
   USE input_enumeration_types,         ONLY: enum_i2c,&
                                              enumeration_type
   USE input_keyword_types,             ONLY: keyword_get,&
@@ -76,6 +76,10 @@ MODULE dm_ls_scf
   USE mathlib,                         ONLY: binomial
   USE molecule_types_new,              ONLY: molecule_of_atom,&
                                              molecule_type
+  USE pao_main,                        ONLY: pao_finalize,&
+                                             pao_init,&
+                                             pao_scf_init,&
+                                             pao_update
   USE particle_types,                  ONLY: particle_type
   USE pexsi_methods,                   ONLY: density_matrix_pexsi,&
                                              pexsi_finalize_scf,&
@@ -129,21 +133,23 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle
+    LOGICAL                                  :: pao_is_done
     TYPE(ls_scf_env_type), POINTER           :: ls_scf_env
 
     CALL timeset(routineN,handle)
-
-    ! get scf env
     CALL get_qs_env(qs_env,ls_scf_env=ls_scf_env)
+    CALL pao_init(qs_env, ls_scf_env)
 
-    ! initialize the scf phase
-    CALL ls_scf_init_scf(qs_env,ls_scf_env)
+    pao_is_done = .FALSE.
+    DO WHILE(.NOT. pao_is_done)
+        CALL ls_scf_init_scf(qs_env, ls_scf_env)
+        CALL pao_scf_init(ls_scf_env)
+        CALL ls_scf_main(qs_env, ls_scf_env)
+        CALL pao_update(qs_env, ls_scf_env, pao_is_done)
+        CALL ls_scf_post(qs_env, ls_scf_env)
+     END DO
 
-    ! perform the actual scf
-    CALL ls_scf_main(qs_env,ls_scf_env)
-
-    ! do post scf processing
-    CALL ls_scf_post(qs_env,ls_scf_env)
+    CALL pao_finalize(ls_scf_env)
 
     CALL timestop(handle)
 
@@ -163,7 +169,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, unit_nr
-    LOGICAL                                  :: failure
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: matrix_s
     TYPE(cp_logger_type), POINTER            :: logger
@@ -177,7 +182,6 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-    failure=.FALSE.
 
     CALL cite_reference(VandeVondele2012)
 
@@ -230,10 +234,8 @@ CONTAINS
 
     ! initialize PEXSI
     IF (ls_scf_env%purification_method .EQ. ls_scf_pexsi) THEN
-      CALL cp_assert(dft_control%qs_control%eps_filter_matrix .EQ. 0.0_dp, &
-                     cp_failure_level, cp_assertion_failed, routineP, &
-                     "EPS_FILTER_MATRIX must be set to 0 for PEXSI.", &
-                     only_ionode=.TRUE.)
+      IF(dft_control%qs_control%eps_filter_matrix .NE. 0.0_dp)&
+         CPABORT("EPS_FILTER_MATRIX must be set to 0 for PEXSI.")
        CALL lib_pexsi_init(ls_scf_env%pexsi, ls_scf_env%para_env%group, ls_scf_env%nspins)
     ENDIF
  
@@ -333,6 +335,7 @@ CONTAINS
     CALL timestop(handle)
 
   END SUBROUTINE ls_scf_init_scf
+
 
 ! *****************************************************************************
 !> \brief deal with the scf initial guess
@@ -609,7 +612,7 @@ CONTAINS
        CALL cp_dbcsr_set(ls_scf_env%matrix_s,0.0_dp)
        CALL cp_dbcsr_add_on_diag(ls_scf_env%matrix_s,1.0_dp)
     ELSE
-       CALL matrix_qs_to_ls(ls_scf_env%matrix_s,matrix_s,ls_scf_env%ls_mstruct)
+       CALL matrix_qs_to_ls(ls_scf_env%matrix_s,matrix_s,ls_scf_env%ls_mstruct,covariant=.TRUE.)
     ENDIF
 
     CALL cp_dbcsr_filter(ls_scf_env%matrix_s,ls_scf_env%eps_filter)
@@ -725,19 +728,15 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: mu
     TYPE(enumeration_type), POINTER          :: enum
     TYPE(keyword_type), POINTER              :: keyword
     TYPE(section_type), POINTER              :: section
-    TYPE(section_vals_type), POINTER         :: chebyshev_section, &
-                                                curvy_section, &
-                                                ls_scf_section, &
-                                                mixing_section, pexsi_section
+    TYPE(section_vals_type), POINTER :: chebyshev_section, curvy_section, &
+      ls_scf_section, mixing_section, pao_section, pexsi_section
 
     CALL timeset(routineN,handle)
     CALL cite_reference(VandeVondele2012)
-    failure=.FALSE.
     ls_scf_section => section_vals_get_subs_vals(input,"DFT%LS_SCF")
     curvy_section => section_vals_get_subs_vals(ls_scf_section,"CURVY_STEPS")
 
@@ -801,7 +800,7 @@ CONTAINS
     CALL section_vals_val_get(mixing_section,"METHOD",i_val=ls_scf_env%density_mixing_method)
     CALL cp_assert(.NOT.(ls_scf_env%ls_diis.AND.ls_scf_env%do_rho_mixing),cp_failure_level,cp_assertion_failed,&
                    routineP,"LS_DIIS and RHO_MIXING are not compatible."//&
-                   CPSourceFileRef,only_ionode=.TRUE.)
+                   __LOCATION__,only_ionode=.TRUE.)
 
     pexsi_section => section_vals_get_subs_vals(input,"DFT%LS_SCF%PEXSI")
     CALL section_vals_get(pexsi_section)
@@ -858,11 +857,11 @@ CONTAINS
                        only_ionode=.TRUE.)
     CALL cp_assert(.NOT.(ls_scf_env%curvy_steps.AND.ls_scf_env%has_s_preconditioner),cp_failure_level,cp_assertion_failed,&
                       routineP,"S Preconditioning not implemented in combination with CURVY_STEPS. "//&
-                       CPSourceFileRef,&
+                       __LOCATION__,&
                        only_ionode=.TRUE.)
     CALL cp_assert(.NOT.(ls_scf_env%curvy_steps.AND..NOT.ls_scf_env%use_s_sqrt),cp_failure_level,cp_assertion_failed,&
                       routineP,"CURVY_STEPS requires the use of the sqrt inversion. "//&
-                       CPSourceFileRef,&
+                       __LOCATION__,&
                        only_ionode=.TRUE.)
 
     ! an undocumented feature ... allows for just doing the initial guess, no expensive stuff
@@ -870,6 +869,12 @@ CONTAINS
         ls_scf_env%needs_s_inv=.FALSE.
         ls_scf_env%use_s_sqrt=.FALSE.
       ls_scf_env%has_s_preconditioner=.FALSE.
+    ENDIF
+
+    pao_section => section_vals_get_subs_vals(input,"DFT%LS_SCF%PAO")
+    CALL section_vals_get(pao_section,explicit=ls_scf_env%do_pao)
+    IF (ls_scf_env%do_pao) THEN
+      ls_scf_env%ls_mstruct%cluster_type = ls_cluster_pao
     ENDIF
 
     IF (unit_nr>0) THEN
@@ -943,6 +948,10 @@ CONTAINS
            WRITE(unit_nr,'(T2,A,T38,A20)') "Cluster type","ATOMIC"
        CASE(ls_cluster_molecular)
            WRITE(unit_nr,'(T2,A,T38,A20)') "Cluster type","MOLECULAR"
+       CASE(ls_cluster_pao)
+           WRITE(unit_nr,'(T2,A,T38,A20)') "Cluster type","PAO"
+       CASE DEFAULT
+           CPABORT("Unkown cluster type")
        END SELECT
 
        IF (ls_scf_env%chebyshev%compute_chebyshev) THEN
@@ -952,6 +961,8 @@ CONTAINS
        ELSE
           WRITE(unit_nr,'(T2,A,T38,A20)') "Computing Chebyshev","FALSE"
        ENDIF
+
+       WRITE(unit_nr,'(T2,A,T38,L20)') "Using PAO", ls_scf_env%do_pao
 
        WRITE(unit_nr,'(T2,A)') REPEAT("-",79)
        WRITE(unit_nr,'()')
@@ -1054,7 +1065,8 @@ CONTAINS
       ! first get a copy of the current KS matrix
       CALL get_qs_env(qs_env, matrix_ks=matrix_ks)
       DO ispin=1,nspin
-         CALL matrix_qs_to_ls(ls_scf_env%matrix_ks(ispin),matrix_ks(ispin)%matrix,ls_scf_env%ls_mstruct)
+         CALL matrix_qs_to_ls(ls_scf_env%matrix_ks(ispin),matrix_ks(ispin)%matrix,&
+                              ls_scf_env%ls_mstruct,covariant=.TRUE.)
          IF (ls_scf_env%has_s_preconditioner) THEN
              CALL apply_matrix_preconditioner(ls_scf_env%matrix_ks(ispin),"forward", &
                             ls_scf_env%matrix_bs_sqrt,ls_scf_env%matrix_bs_sqrt_inv)
@@ -1136,11 +1148,10 @@ CONTAINS
             IF (ls_scf_env%nspins==1) nelectron_spin_real=nelectron_spin_real/2
 
             IF (do_transport) THEN
-               CALL cp_assert(.NOT.(ls_scf_env%has_s_preconditioner), cp_failure_level, cp_assertion_failed,&
-                              routineP, "NOT YET IMPLEMENTED with S preconditioner. ", only_ionode=.TRUE.)
-               CALL cp_assert(ls_scf_env%ls_mstruct%cluster_type .EQ. ls_cluster_atomic, cp_failure_level,&
-                              cp_assertion_failed, routineP, "NOT YET IMPLEMENTED with molecular clustering. ",& 
-                              only_ionode=.TRUE.)
+               IF(ls_scf_env%has_s_preconditioner)&
+                  CPABORT("NOT YET IMPLEMENTED with S preconditioner. ")
+               IF(ls_scf_env%ls_mstruct%cluster_type .NE. ls_cluster_atomic)&
+                  CPABORT("NOT YET IMPLEMENTED with molecular clustering. ")
 
                ! get the current Kohn-Sham matrix (ks) and return matrix_p evaluated using an external C routine
                CALL external_scf_method(transport_env, ls_scf_env%matrix_s, matrix_mixing_old(ispin), &
@@ -1165,14 +1176,12 @@ CONTAINS
                                           matrix_ks_deviation=matrix_ks_deviation(ispin), &
                                           eps_lanczos=ls_scf_env%eps_lanczos, max_iter_lanczos=ls_scf_env%max_iter_lanczos)
                CASE(ls_scf_pexsi)
-                 CALL cp_assert(.NOT.(ls_scf_env%has_s_preconditioner),cp_failure_level,cp_assertion_failed, routineP, &
-                                "S preconditioning not implemented in combination with the PEXSI library. ", &
-                                only_ionode=.TRUE.)
-                 CALL cp_assert(ls_scf_env%ls_mstruct%cluster_type .EQ. ls_cluster_atomic, cp_failure_level, cp_assertion_failed, & 
-                                routineP,"Molecular clustering not implemented in combination with the PEXSI library. ", &
-                                only_ionode=.TRUE.)
-                 CALL cp_assert(.NOT. ls_scf_env%ls_mstruct%single_precision,cp_failure_level,cp_assertion_failed, routineP, &
-                                "PEXSI library requires double precision datatype. ", only_ionode=.TRUE.)
+                 IF(ls_scf_env%has_s_preconditioner)&
+                    CPABORT("S preconditioning not implemented in combination with the PEXSI library. ")
+                 IF(ls_scf_env%ls_mstruct%cluster_type .NE. ls_cluster_atomic)&
+                    CPABORT("Molecular clustering not implemented in combination with the PEXSI library. ")
+                 IF(ls_scf_env%ls_mstruct%single_precision)&
+                    CPABORT("PEXSI library requires double precision datatype. ")
                  CALL density_matrix_pexsi(ls_scf_env%pexsi, ls_scf_env%matrix_p(ispin), ls_scf_env%pexsi%matrix_w(ispin),&
                                            ls_scf_env%pexsi%kTS(ispin), matrix_mixing_old(ispin), ls_scf_env%matrix_s,& 
                                            nelectron_spin_real,ls_scf_env%mu_spin(ispin),iscf,ispin)
@@ -1278,7 +1287,8 @@ CONTAINS
     ENDIF
 
     ! store the matrix for a next scf run
-    CALL ls_scf_store_result(ls_scf_env)
+    IF(.NOT.ls_scf_env%do_pao)&
+      CALL ls_scf_store_result(ls_scf_env)
 
     ! write homo and lumo energy (if not already part of the output)
     IF (ls_scf_env%curvy_steps) THEN
@@ -1305,7 +1315,7 @@ CONTAINS
 
     IF (ls_scf_env%chebyshev%compute_chebyshev) CALL compute_chebyshev(qs_env,ls_scf_env)
 
-    IF (.TRUE.) CALL post_scf_experiment(ls_scf_env)
+    IF (.TRUE.) CALL post_scf_experiment()
 
     CALL qs_scf_post_moments(qs_env%input, logger, qs_env, unit_nr)
 
@@ -1359,13 +1369,12 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, ispin, nspin, unit_nr
-    LOGICAL                                  :: converged, failure
+    LOGICAL                                  :: converged
     REAL(KIND=dp)                            :: eps_max, eps_min, homo, lumo
     TYPE(cp_dbcsr_type)                      :: matrix_k, matrix_p
     TYPE(cp_logger_type), POINTER            :: logger
 
     CALL timeset(routineN,handle)
-    failure=.FALSE.
 
     ! get a useful output_unit
     logger => cp_get_default_logger()
@@ -1698,7 +1707,7 @@ CONTAINS
                               0.0_dp, matrix_tmp1, filter_eps=ls_scf_env%eps_filter)
       CALL cp_dbcsr_multiply("N", "N", 1.0_dp, matrix_tmp1, ls_scf_env%matrix_p(ispin),&
                               0.0_dp, matrix_tmp2, filter_eps=ls_scf_env%eps_filter)
-      CALL matrix_ls_to_qs(matrix_w(ispin)%matrix, matrix_tmp2, ls_scf_env%ls_mstruct)
+      CALL matrix_ls_to_qs(matrix_w(ispin)%matrix, matrix_tmp2, ls_scf_env%ls_mstruct,covariant=.FALSE.)
     ENDDO
 
     CALL cp_dbcsr_release(matrix_tmp1)
@@ -1711,13 +1720,11 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief a place for quick experiments
-!> \param ls_scf_env ...
 !> \par History
 !>       2010.11 created [Joost VandeVondele]
 !> \author Joost VandeVondele
 ! *****************************************************************************
-  SUBROUTINE post_scf_experiment(ls_scf_env)
-    TYPE(ls_scf_env_type)                    :: ls_scf_env
+  SUBROUTINE post_scf_experiment()
 
     CHARACTER(len=*), PARAMETER :: routineN = 'post_scf_experiment', &
       routineP = moduleN//':'//routineN

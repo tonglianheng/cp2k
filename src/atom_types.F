@@ -241,6 +241,7 @@ MODULE atom_types
     TYPE(atom_energy_type)                        :: energy
     TYPE(atom_optimization_type)                  :: optimization
     TYPE(section_vals_type), POINTER              :: xc_section, zmp_section
+    TYPE(opmat_type), POINTER                     :: fmat
   END TYPE atom_type
 ! *****************************************************************************
   TYPE atom_p_type
@@ -320,7 +321,6 @@ CONTAINS
     INTEGER, DIMENSION(0:3)                  :: starti
     INTEGER, DIMENSION(:), POINTER           :: nqm, num_gto, num_slater, &
                                                 sindex
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: al, amax, aval, cval, ear, &
                                                 pf, rk
     REAL(KIND=dp), DIMENSION(:), POINTER     :: expo
@@ -331,15 +331,14 @@ CONTAINS
 !   btyp = AA : high accuracy all-electron basis
 !   btyp = AP : high accuracy pseudopotential basis
 
-    failure = .FALSE.
     NULLIFY(basis%am,basis%cm,basis%as,basis%ns,basis%bf,basis%dbf)
     ! get information on quadrature type and number of grid points
     ! allocate and initialize the atomic grid
     CALL allocate_grid_atom(basis%grid)
     CALL section_vals_val_get(basis_section,"QUADRATURE",i_val=quadtype)
     CALL section_vals_val_get(basis_section,"GRID_POINTS",i_val=ngp)
-    CALL cp_assert(ngp > 0,cp_failure_level,cp_assertion_failed,routineP,&
-                   "# point radial grid < 0",failure)
+    IF(ngp <= 0)&
+       CPABORT("# point radial grid < 0")
     CALL create_grid_atom(basis%grid,ngp,1,1,0,quadtype)
     basis%grid%nr = ngp
     basis%geometrical = .FALSE.
@@ -651,10 +650,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'release_atom_basis', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-    failure = .FALSE.
-
     IF(ASSOCIATED(basis%am)) THEN
        DEALLOCATE (basis%am)
     END IF
@@ -689,20 +684,17 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'create_atom_type', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-    failure = .FALSE.
-
     CPASSERT(.NOT.ASSOCIATED(atom))
 
     ALLOCATE(atom)
 
     NULLIFY(atom%zmp_section)
     NULLIFY(atom%xc_section)
-    atom%do_zmp = .FALSE.  
-    atom%doread = .FALSE. 
+    NULLIFY(atom%fmat)
+    atom%do_zmp = .FALSE.
+    atom%doread = .FALSE.
     atom%read_vxc = .FALSE.
-    atom%dm = .FALSE. 
+    atom%dm = .FALSE.
 
   END SUBROUTINE create_atom_type
 
@@ -716,10 +708,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'release_atom_type', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-    failure = .FALSE.
-
     CPASSERT(ASSOCIATED(atom))
 
     NULLIFY(atom%basis)
@@ -730,6 +718,8 @@ CONTAINS
     IF(ASSOCIATED(atom%orbitals)) THEN
       CALL release_atom_orbs(atom%orbitals)
     END IF
+
+    IF(ASSOCIATED(atom%fmat))  CALL release_opmat(atom%fmat)
 
     DEALLOCATE(atom)
 
@@ -753,9 +743,10 @@ CONTAINS
 !> \param relativistic ...
 !> \param coulomb_integral_type ...
 !> \param exchange_integral_type ...
+!> \param fmat ...
 ! *****************************************************************************
   SUBROUTINE set_atom(atom,basis,state,integrals,orbitals,potential,zcore,pp_calc,do_zmp,doread,&
-    read_vxc,method_type,relativistic,coulomb_integral_type,exchange_integral_type)
+    read_vxc,method_type,relativistic,coulomb_integral_type,exchange_integral_type,fmat)
     TYPE(atom_type), POINTER                 :: atom
     TYPE(atom_basis_type), OPTIONAL, POINTER :: basis
     TYPE(atom_state), OPTIONAL, POINTER      :: state
@@ -769,13 +760,10 @@ CONTAINS
     INTEGER, INTENT(IN), OPTIONAL            :: method_type, relativistic, &
                                                 coulomb_integral_type, &
                                                 exchange_integral_type
+    TYPE(opmat_type), OPTIONAL, POINTER      :: fmat
 
     CHARACTER(len=*), PARAMETER :: routineN = 'set_atom', &
       routineP = moduleN//':'//routineN
-
-    LOGICAL                                  :: failure
-
-    failure = .FALSE.
 
     CPASSERT(ASSOCIATED(atom))
 
@@ -796,6 +784,11 @@ CONTAINS
     IF(PRESENT(coulomb_integral_type)) atom%coulomb_integral_type = coulomb_integral_type
     IF(PRESENT(exchange_integral_type)) atom%exchange_integral_type = exchange_integral_type
 
+    IF(PRESENT(fmat)) THEN
+       IF(ASSOCIATED(atom%fmat)) CALL release_opmat(atom%fmat)
+       atom%fmat => fmat
+    ENDIF
+
   END SUBROUTINE set_atom
 
 ! *****************************************************************************
@@ -810,10 +803,6 @@ CONTAINS
 
     CHARACTER(len=*), PARAMETER :: routineN = 'create_atom_orbs', &
       routineP = moduleN//':'//routineN
-
-    LOGICAL                                  :: failure
-
-    failure = .FALSE.
 
     CPASSERT(.NOT.ASSOCIATED(orbs))
 
@@ -862,10 +851,6 @@ CONTAINS
 
     CHARACTER(len=*), PARAMETER :: routineN = 'release_atom_orbs', &
       routineP = moduleN//':'//routineN
-
-    LOGICAL                                  :: failure
-
-    failure = .FALSE.
 
     CPASSERT(ASSOCIATED(orbs))
 
@@ -929,9 +914,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: m
-    LOGICAL                                  :: failure
 
-    failure = .FALSE.
     m=MAXVAL(n)
 
     CPASSERT(.NOT.ASSOCIATED(opmat))
@@ -954,9 +937,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'release_opmat', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-    failure = .FALSE.
     CPASSERT(ASSOCIATED(opmat))
 
     opmat%n = 0
@@ -979,9 +959,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: nr
-    LOGICAL                                  :: failure
 
-    failure = .FALSE.
     CPASSERT(.NOT.ASSOCIATED(opgrid))
 
     ALLOCATE(opgrid)
@@ -1005,9 +983,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'release_opgrid', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-    failure = .FALSE.
     CPASSERT(ASSOCIATED(opgrid))
 
     NULLIFY(opgrid%grid)
@@ -1033,9 +1008,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'Clementi_geobas', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-    failure = .FALSE.
     ngto = 0
     ival = 0
     cval = 0._dp
@@ -1813,7 +1785,7 @@ CONTAINS
                                                 strlen2
     INTEGER, DIMENSION(maxpri, maxset)       :: l
     INTEGER, DIMENSION(maxset)               :: lmax, lmin, n, npgf, nshell
-    LOGICAL                                  :: failure, found, is_ok, match, &
+    LOGICAL                                  :: found, is_ok, match, &
                                                 read_from_input
     REAL(dp)                                 :: expzet, gcca, prefac, zeta
     REAL(dp), &
@@ -1822,8 +1794,6 @@ CONTAINS
     TYPE(cp_parser_type), POINTER            :: parser
     TYPE(cp_sll_val_type), POINTER           :: list
     TYPE(val_type), POINTER                  :: val
-
-    failure = .FALSE.
 
     bsname = basis_set_name
     symbol = element_symbol
@@ -2043,11 +2013,8 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=default_string_length)     :: pseudo_fn, pseudo_name
-    LOGICAL                                  :: failure
     REAL(dp), DIMENSION(:), POINTER          :: convals
     TYPE(section_vals_type), POINTER         :: gth_potential_section
-
-    failure = .FALSE.
 
     IF ( zval > 0 ) THEN
       CALL section_vals_val_get(potential_section,"PSEUDO_TYPE",i_val=potential%ppot_type)
@@ -2135,13 +2102,11 @@ CONTAINS
     INTEGER                                  :: i, ic, ipot, j, l, nlmax, &
                                                 strlen1, strlen2
     INTEGER, DIMENSION(0:4)                  :: elec_conf
-    LOGICAL                                  :: failure, found, is_ok, match, &
+    LOGICAL                                  :: found, is_ok, match, &
                                                 read_from_input
     TYPE(cp_parser_type), POINTER            :: parser
     TYPE(cp_sll_val_type), POINTER           :: list
     TYPE(val_type), POINTER                  :: val
-
-    failure = .FALSE.
 
     elec_conf = 0
 

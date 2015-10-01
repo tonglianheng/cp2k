@@ -74,11 +74,9 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i, ir, j, k, n_rep
-    LOGICAL                                  :: failure
     REAL(dp), DIMENSION(:), POINTER          :: list
     REAL(KIND=dp)                            :: a_scale
 
-    failure = .FALSE.
     NULLIFY(gle%nvt)
     NULLIFY(gle%gle_s)
     NULLIFY(gle%gle_t)
@@ -110,8 +108,7 @@ CONTAINS
       IF(ASSOCIATED(list)) THEN
          DO i = 1,SIZE(list)
             IF(j>gle%ndim) THEN
-               CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
-                  routineP,"GLE: Too many elements in A_LIST",failure)
+               CPABORT("GLE: Too many elements in A_LIST")
             END IF
             gle%a_mat(j,k) = list(i)
             k = k + 1
@@ -123,8 +120,7 @@ CONTAINS
       END IF
     END DO ! ir
     IF(j<gle%ndim+1) THEN
-       CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
-            routineP,"GLE: Too few elements in A_LIST",failure)
+       CPABORT("GLE: Too few elements in A_LIST")
     END IF
     gle%a_mat = gle%a_mat * a_scale
 
@@ -140,8 +136,7 @@ CONTAINS
         IF(ASSOCIATED(list)) THEN
           DO i = 1,SIZE(list)
             IF(j>gle%ndim) THEN
-                 CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
-                    routineP,"GLE: Too many elements in C_LIST",failure)
+                 CPABORT("GLE: Too many elements in C_LIST")
             END IF
             gle%c_mat(j,k) = list(i)
             k = k + 1
@@ -153,8 +148,7 @@ CONTAINS
         END IF
       END DO ! ir
       IF(j<gle%ndim+1) THEN
-         CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
-            routineP,"GLE: Too few elements in C_LIST",failure)
+         CPABORT("GLE: Too few elements in C_LIST")
       END IF
     ELSE
       gle%c_mat = 0.0_dp
@@ -180,12 +174,10 @@ CONTAINS
 
     CHARACTER(LEN=40)                        :: name
     INTEGER                                  :: i, ithermo, my_index
-    LOGICAL                                  :: failure
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :, :)                     :: seed
     REAL(KIND=dp), DIMENSION(3, 2)           :: initial_seed, my_seed
 
-    failure = .FALSE.
     CPASSERT(ASSOCIATED(gle))
     CPASSERT(.NOT.ASSOCIATED(gle%nvt))
 
@@ -237,9 +229,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i
-    LOGICAL                                  :: failure
-
-    failure = .FALSE.
 
     IF (ASSOCIATED(gle)) THEN
        IF ( ASSOCIATED(gle%a_mat)) THEN

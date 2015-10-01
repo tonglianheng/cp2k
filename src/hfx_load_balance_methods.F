@@ -190,7 +190,7 @@ MODULE hfx_load_balance_methods
                                                 tmp_pos, to_be_sorted
     INTEGER, DIMENSION(:), POINTER, SAVE     :: shm_distribution_vector
     INTEGER, SAVE                            :: shm_nblocks
-    LOGICAL                                  :: changed, failure, &
+    LOGICAL                                  :: changed, &
                                                 last_bin_needs_to_be_filled, &
                                                 optimized
     LOGICAL, DIMENSION(:, :), POINTER, SAVE  :: atomic_pair_list
@@ -217,7 +217,6 @@ MODULE hfx_load_balance_methods
 !$OMP END MASTER
 !$OMP BARRIER
 
-    failure=.FALSE.
 
     log10_eps_schwarz = LOG10(eps_schwarz)
     log_2 = LOG10(2.0_dp)
@@ -697,9 +696,7 @@ END IF
                 "Number of local quartets (", shm_local_quartet_counter, &
                 ") and number of global quartets (", shm_global_quartet_counter,&
                 ") are different. Please send in a bug report."
-          CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
-                         error_msg,&
-                         only_ionode=.TRUE.)
+          CPABORT(error_msg)
         END IF
       END IF
 !$OMP END MASTER
@@ -1557,14 +1554,11 @@ END SUBROUTINE hfx_permute_binning
       SAVE                                   :: bin_histogram
     INTEGER, DIMENSION(:), POINTER, SAVE     :: shm_distribution_vector
     INTEGER, SAVE                            :: max_bin_size
-    LOGICAL                                  :: failure
     TYPE(hfx_distribution), DIMENSION(:), &
       POINTER                                :: binned_dist, ptr_to_tmp_dist, &
                                                 tmp_dist
     TYPE(hfx_distribution), &
       DIMENSION(:, :), POINTER, SAVE         :: full_dist
-
-    failure=.FALSE.
 
 !$OMP BARRIER
 !$OMP MASTER
@@ -1901,10 +1895,7 @@ END SUBROUTINE hfx_permute_binning
     INTEGER(int_8), DIMENSION(:), POINTER    :: my_cost_cpu, tmp_cost, &
                                                 tmp_cpu_cost
     INTEGER, DIMENSION(:), POINTER           :: tmp_cpu_index, tmp_index
-    LOGICAL                                  :: failure
     TYPE(rng_stream_type), POINTER           :: rng_stream
-
-    failure = .FALSE.
 
     nstep=MAX(1,INT(number_of_processes)/2)
 
@@ -2431,10 +2422,6 @@ END SUBROUTINE hfx_permute_binning
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: bins_per_rank, rdispl, &
                                                 sort_idx
     INTEGER, ALLOCATABLE, DIMENSION(:), SAVE :: shm_bins_per_rank, shm_displ
-    LOGICAL                                  :: failure
-
-    failure = .FALSE.
-
 
     SELECT CASE (eval_type)
     CASE (hfx_do_eval_energy)

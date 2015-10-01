@@ -165,7 +165,7 @@ CONTAINS
     INTEGER :: ewald_type, handle, i, iatom, ii, ikind, iter, iw, iw2, j, &
       max_ipol_iter, natom_of_kind, natoms, nkind, ntot
     INTEGER, DIMENSION(:), POINTER           :: atom_list
-    LOGICAL                                  :: failure, iwarn
+    LOGICAL                                  :: iwarn
     REAL(KIND=dp)                            :: apol, cpol, eps_pol, &
                                                 pot_nonbond_local, rmsd, &
                                                 tmp_trace
@@ -175,7 +175,6 @@ CONTAINS
     TYPE(cp_logger_type), POINTER            :: logger
 
     CALL timeset(routineN,handle)
-    failure = .FALSE.
     NULLIFY(logger,atomic_kind)
     logger => cp_get_default_logger()
 
@@ -282,10 +281,8 @@ CONTAINS
 
        iwarn = ((rmsd > eps_pol) .AND. (iter == max_ipol_iter))
        IF (iwarn.AND.iw>0) WRITE(iw,FMT='(T5,"POL_SCF|",1X,"Self-consistent Polarization not converged!")')
-       CALL cp_assert(.NOT.iwarn,cp_warning_level,cp_assertion_failed,routineP,&
-            "Self-consistent Polarization not converged! "//&
-            CPSourceFileRef,&
-            only_ionode=.TRUE.)
+       IF(iwarn)&
+          CPWARN("Self-consistent Polarization not converged! ")
     END DO pol_scf
 
     ! Now evaluate after convergence to obtain forces and converged energies
@@ -385,7 +382,7 @@ CONTAINS
     INTEGER :: ewald_type, handle, i, iatom, ii, ikind, iter, iw, iw2, &
       max_ipol_iter, natom_of_kind, natoms, nkind, ntot
     INTEGER, DIMENSION(:), POINTER           :: atom_list
-    LOGICAL                                  :: failure, iwarn
+    LOGICAL                                  :: iwarn
     REAL(KIND=dp)                            :: alpha, apol, beta, denom, &
                                                 eps_pol, pot_nonbond_local, &
                                                 rmsd
@@ -397,7 +394,6 @@ CONTAINS
     TYPE(cp_logger_type), POINTER            :: logger
 
     CALL timeset(routineN,handle)
-    failure = .FALSE.
     NULLIFY(logger,atomic_kind)
     logger => cp_get_default_logger()
 
@@ -582,10 +578,8 @@ CONTAINS
        ! Print warning when not converged.
        iwarn = ((rmsd > eps_pol) .AND. (iter == max_ipol_iter))
        IF (iwarn.AND.iw>0) WRITE(iw,FMT='(T5,"POL_SCF|",1X,"Self-consistent Polarization not converged!")')
-       CALL cp_assert(.NOT.iwarn,cp_warning_level,cp_assertion_failed,routineP,&
-            "Self-consistent Polarization not converged! "//&
-            CPSourceFileRef,&
-            only_ionode=.TRUE.)
+       IF(iwarn)&
+          CPWARN("Self-consistent Polarization not converged! ")
     END DO pol_scf
 
     IF (debug_this_module) THEN
@@ -617,10 +611,7 @@ CONTAINS
        IF (iw>0) WRITE(iw,FMT='(T5,"POL_SCF|",1X,"Final RMSD of residual:",5X,E12.6)') rmsd
        ! Stop program when congergence is not reached after all
        IF ( rmsd > eps_pol ) THEN
-         CALL cp_assert(.FALSE.,cp_warning_level,cp_assertion_failed,routineP,&
-              "Error in the conjugate gradient method for self-consistent polarization! "//&
-              CPSourceFileRef,&
-              only_ionode=.TRUE.)
+         CPWARN("Error in the conjugate gradient method for self-consistent polarization! ")
        END IF
     ELSE
        ! Now evaluate after convergence to obtain forces and converged energies
@@ -721,10 +712,8 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle
-    LOGICAL                                  :: failure
 
     CALL timeset(routineN,handle)
-    failure = .FALSE.
 
     pot_nonbond = 0.0_dp ! Initialization..
     vg_coulomb  = 0.0_dp ! Initialization..

@@ -128,11 +128,10 @@ CONTAINS
       keys = (/"SCF%PRINT%RESTART_HISTORY","SCF%PRINT%RESTART        "/)
 
     INTEGER                                  :: handle, ikey, ires, ispin
-    LOGICAL                                  :: failure, write_kp
+    LOGICAL                                  :: write_kp
     TYPE(cp_logger_type), POINTER            :: logger
 
     CALL timeset(routineN,handle)
-    failure = .FALSE.
     logger => cp_get_default_logger()
 
     IF (BTEST(cp_print_key_should_output(logger%iter_info,&
@@ -197,14 +196,13 @@ CONTAINS
     INTEGER                                  :: handle, ic, ik, ikk, iogroup, &
                                                 is, mosource, nc, ns, &
                                                 request, tag
-    LOGICAL                                  :: failure, is_source, moalloc
+    LOGICAL                                  :: is_source, moalloc
     TYPE(cp_para_env_type), POINTER          :: para_env, para_env_inter_kp
     TYPE(mo_set_p_type), DIMENSION(:, :), &
       POINTER                                :: mos
     TYPE(mo_set_type), POINTER               :: mo_set, mop
 
     CALL timeset(routineN,handle)
-    failure = .FALSE.
 
     ! first we dump the kpoint info
     IF (ires > 0) THEN
@@ -328,11 +326,9 @@ CONTAINS
       "REAL_TIME_PROPAGATION%PRINT%RESTART        "/)
 
     INTEGER                                  :: handle, ikey, ires
-    LOGICAL                                  :: failure
     TYPE(cp_logger_type), POINTER            :: logger
 
     CALL timeset(routineN,handle)
-    failure = .FALSE.
     logger => cp_get_default_logger()
 
     IF (BTEST(cp_print_key_should_output(logger%iter_info,&
@@ -420,10 +416,7 @@ CONTAINS
              nset_max = MAX(nset_max,1)
              nshell_max = MAX(nshell_max,lmax+1)
           ELSE
-          CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
-          "Unknown basis type. "//&
-CPSourceFileRef,&
-               only_ionode=.TRUE.)
+          CPABORT("Unknown basis type. ")
           END IF
        END DO
 
@@ -463,10 +456,7 @@ CPSourceFileRef,&
                 nso_info(ishell,1,iatom) = nso(lshell)
              END DO
           ELSE
-          CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
-               "Unknown basis set type. "//&
-CPSourceFileRef,&
-               only_ionode=.TRUE.)
+          CPABORT("Unknown basis set type. ")
           END IF
        END DO
 
@@ -629,12 +619,11 @@ CPSourceFileRef,&
     CHARACTER(LEN=default_path_length)       :: file_name
     INTEGER                                  :: group, handle, ispin, natom, &
                                                 nspin, restart_unit, source
-    LOGICAL                                  :: exist, failure
+    LOGICAL                                  :: exist
     TYPE(cp_logger_type), POINTER            :: logger
 
     CALL timeset(routineN,handle)
     logger => cp_get_default_logger()
-    failure = .FALSE.
 
     nspin = SIZE(mo_array)
     restart_unit = -1
@@ -724,12 +713,11 @@ CPSourceFileRef,&
     CHARACTER(LEN=default_path_length)       :: file_name
     INTEGER                                  :: group, handle, ispin, natom, &
                                                 nspin, restart_unit, source
-    LOGICAL                                  :: exist, failure
+    LOGICAL                                  :: exist
     TYPE(cp_logger_type), POINTER            :: logger
 
     CALL timeset(routineN,handle)
     logger => cp_get_default_logger()
-    failure = .FALSE.
 
     nspin = SIZE(mo_array)
     restart_unit = -1
@@ -784,26 +772,25 @@ CPSourceFileRef,&
 
     INTEGER                                  :: handle, ic, ik, ikk, is, jc, &
                                                 jk, js, nc, nkp, ns
-    LOGICAL                                  :: failure, is_source, moalloc
+    LOGICAL                                  :: is_source, moalloc
     REAL(KIND=dp)                            :: dd, wkp, xkp(3)
     TYPE(mo_set_p_type), DIMENSION(:, :), &
       POINTER                                :: mos
     TYPE(mo_set_type), POINTER               :: mo_set, mop
 
     CALL timeset(routineN,handle)
-    failure = .FALSE.
 
     ! first we read the kpoint info
     IF (ires > 0) THEN
        READ (ires) 
        READ (ires) nkp
-       CALL cp_assert(nkp==kpoints%nkp,cp_fatal_level,cp_assertion_failed,routineP,&
-                      "Different number of kpoints",failure)
+       IF(nkp/=kpoints%nkp)&
+          CPABORT("Different number of kpoints")
        DO ik=1,kpoints%nkp
           READ (ires) wkp,xkp(1:3)
           dd = ABS(wkp-kpoints%wkp(ik)) + SUM(ABS(xkp(1:3)-kpoints%xkp(1:3,ik)))
-          CALL cp_assert(dd > 1.0e-12_dp,cp_fatal_level,cp_assertion_failed,routineP,&
-                         "Different order/position of kpoints",failure)
+          IF(dd <= 1.0e-12_dp)&
+             CPABORT("Different order/position of kpoints")
        END DO
     END IF
 
@@ -819,8 +806,8 @@ CPSourceFileRef,&
           READ (ires) jk,wkp,xkp(1:3)
           dd = ABS(ik-jk)
           dd = dd + ABS(wkp-kpoints%wkp(ik)) + SUM(ABS(xkp(1:3)-kpoints%xkp(1:3,ik)))
-          CALL cp_assert(dd > 1.0e-12_dp,cp_fatal_level,cp_assertion_failed,routineP,&
-                         "Different order/position of kpoints",failure)
+          IF(dd <= 1.0e-12_dp)&
+             CPABORT("Different order/position of kpoints")
        END IF
        is_source = .FALSE.
        IF (ik >= kpoints%kp_range(1) .AND. ik <= kpoints%kp_range(2)) THEN
@@ -836,7 +823,7 @@ CPSourceFileRef,&
                 IF (ires > 0) THEN
                    READ (ires) jc,js
                    CALL cp_assert((ic==jc .AND. is==js),cp_fatal_level,cp_assertion_failed,routineP,&
-                         "Different order/position/type of kpoints",failure)
+                         "Different order/position/type of kpoints")
                 END IF
                 mo_set => mos(ic,is)%mo_set
                 CALL read_mo_set_basic(mo_set, ires)
@@ -929,10 +916,7 @@ CPSourceFileRef,&
        READ (rst_unit) natom_read,nspin_read,nao_read,nset_max,nshell_max
        IF(PRESENT(rt_mos)) THEN
           IF (nspin_read /= nspin) THEN
-            CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
-                 "To change nspin is not possible. "//&
-                 CPSourceFileRef,&
-                 only_ionode=.TRUE.)
+            CPABORT("To change nspin is not possible. ")
          END IF
       ELSE
          ! we should allow for restarting with different spin settings
@@ -942,10 +926,7 @@ CPSourceFileRef,&
          END IF
          ! this case needs fixing of homo/lfomo/nelec/occupations ...
          IF (nspin_read > nspin) THEN
-            CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
-                 "Reducing nspin is not possible. "//&
-                 CPSourceFileRef,&
-                 only_ionode=.TRUE.)
+            CPABORT("Reducing nspin is not possible. ")
          ENDIF
       END IF
 
@@ -963,10 +944,7 @@ CPSourceFileRef,&
             WRITE(cp_logger_get_default_unit_nr(logger),*) &
                  " READ RESTART : WARNING : DIFFERENT # AOs ",nao,nao_read
             IF(PRESENT(rt_mos))&
-                 CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
-                    "To change basis is not possible. "//&
-                    CPSourceFileRef,&
-                    only_ionode=.TRUE.)
+                 CPABORT("To change basis is not possible. ")
          END IF
 
          READ (rst_unit) nset_info
@@ -998,10 +976,7 @@ CPSourceFileRef,&
               " READ RESTART : WARNING : DIFFERENT natom, returning ",natom,natom_read
          RETURN
       ELSE
-         CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
-              "Incorrect number of atoms in restart file. "//&
-              CPSourceFileRef,&
-              only_ionode=.TRUE.)
+         CPABORT("Incorrect number of atoms in restart file. ")
       ENDIF
    ENDIF
 
@@ -1024,16 +999,14 @@ CPSourceFileRef,&
          occ_read = 0.0_dp
 
          nmo = MIN(nmo,nmo_read)
-         CALL cp_assert((nmo_read >= nmo),cp_warning_level,cp_assertion_failed,routineP,&
-              "The number of MOs on the restart unit is smaller than the number of "//&
-              "the allocated MOs. The MO set will be padded with zeros!"//&
-              CPSourceFileRef,&
-              only_ionode=.TRUE.)
-        CALL cp_assert((nmo_read<=nmo),cp_warning_level,cp_assertion_failed,routineP,&
-             "The number of MOs on the restart unit is greater than the number of "//&
-             "the allocated MOs. The read MO set will be truncated!"//&
-             CPSourceFileRef,&
-             only_ionode=.TRUE.)
+         IF(nmo_read < nmo)&
+            CALL cp_warn(__LOCATION__,&
+                 "The number of MOs on the restart unit is smaller than the number of "//&
+                 "the allocated MOs. The MO set will be padded with zeros!")
+        IF(nmo_read>nmo)&
+           CALL cp_warn(__LOCATION__,&
+                "The number of MOs on the restart unit is greater than the number of "//&
+                "the allocated MOs. The read MO set will be truncated!")
 
         READ (rst_unit) eig_read(1:nmo_read), occ_read(1:nmo_read)
         mos(ispin)%mo_set%eigenvalues(1:nmo) = eig_read(1:nmo)
@@ -1044,19 +1017,14 @@ CPSourceFileRef,&
         mos(ispin)%mo_set%lfomo = lfomo_read
         IF (homo_read > nmo) THEN
           IF(nelectron_read==mos(ispin)%mo_set%nelectron) THEN
-             CALL cp_assert(.FALSE.,cp_warning_level,cp_assertion_failed,routineP,&
-                 "The number of occupied MOs on the restart unit is larger than "//&
-                 "the allocated MOs. The read MO set will be truncated and the occupation numbers recalculated!"//&
-CPSourceFileRef,&
-                 only_ionode=.TRUE.)
+             CALL cp_warn(__LOCATION__,&
+                  "The number of occupied MOs on the restart unit is larger than "//&
+                  "the allocated MOs. The read MO set will be truncated and the occupation numbers recalculated!")
              CALL set_mo_occupation(mo_set=mos(ispin)%mo_set)
           ELSE
               ! can not make this a warning i.e. homo must be smaller than nmo
               ! otherwise e.g. set_mo_occupation will go out of bounds
-              CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
-                "Number of occupied MOs on restart unit larger than allocated MOs. "//&
-CPSourceFileRef,&
-                 only_ionode=.TRUE.)
+              CPABORT("Number of occupied MOs on restart unit larger than allocated MOs. ")
           END IF
         END IF
       END IF
@@ -1103,10 +1071,7 @@ CPSourceFileRef,&
                      nset = 1
                      minbas=.TRUE.
                   ELSE
-                     CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
-                          "Unknown basis set type. "//&
-                          CPSourceFileRef,&
-                          only_ionode=.TRUE.)
+                     CPABORT("Unknown basis set type. ")
                   END IF
 
                   use_this = .TRUE.
@@ -1182,16 +1147,10 @@ CPSourceFileRef,&
           mos(ispin+1)%mo_set%lfomo = mos(ispin)%mo_set%lfomo
           nelectron = mos(ispin)%mo_set%nelectron
           IF (my_mult.NE.1) THEN
-             CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
-                  "Restarting an LSD calculation from an LDA wfn only works for multiplicity=1 (singlets)."//&
-                  CPSourceFileRef,&
-                  only_ionode=.TRUE.)
+             CPABORT("Restarting an LSD calculation from an LDA wfn only works for multiplicity=1 (singlets).")
           END IF
           IF(mos(ispin+1)%mo_set%nelectron < 0)THEN
-             CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
-                  "LSD: too few electrons for this multiplisity. "//&
-                  CPSourceFileRef,&
-                  only_ionode=.TRUE.)
+             CPABORT("LSD: too few electrons for this multiplisity. ")
           END IF
           mos(ispin+1)%mo_set%eigenvalues = mos(ispin)%mo_set%eigenvalues
           mos(ispin)%mo_set%occupation_numbers = mos(ispin)%mo_set%occupation_numbers/2.0_dp
@@ -1228,17 +1187,16 @@ CPSourceFileRef,&
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: mao, mmo, nao, nmo
-    LOGICAL                                  :: failure
 
     mao = mo_set%nao
     mmo = mo_set%nmo
 
     IF ((ires>0).AND.(nmo > 0)) THEN
        READ (ires) nao,nmo,mo_set%homo,mo_set%lfomo,mo_set%nelectron
-       CALL cp_assert(mao==nao,cp_fatal_level,cp_assertion_failed,routineP,&
-                         "Different size of basis set",failure)
-       CALL cp_assert(mmo==nmo,cp_fatal_level,cp_assertion_failed,routineP,&
-                         "Different number of MOs",failure)
+       IF(mao/=nao)&
+          CPABORT("Different size of basis set")
+       IF(mmo/=nmo)&
+          CPABORT("Different number of MOs")
        READ (ires) mo_set%eigenvalues(1:nmo),mo_set%occupation_numbers(1:nmo)
     END IF
     CALL cp_fm_read_unformatted(mo_set%mo_coeff,ires)
@@ -1299,9 +1257,9 @@ CPSourceFileRef,&
       scf_step, to, width
     INTEGER, DIMENSION(:), POINTER           :: mo_index_range, nshell
     INTEGER, DIMENSION(:, :), POINTER        :: l
-    LOGICAL                                  :: failure, ionode, my_last, &
-                                                p_cart, p_eval, p_evec, &
-                                                p_occ, should_output
+    LOGICAL                                  :: ionode, my_last, p_cart, &
+                                                p_eval, p_evec, p_occ, &
+                                                should_output
     REAL(KIND=dp)                            :: gap
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: cmatrix, smatrix
     TYPE(cp_logger_type), POINTER            :: logger
@@ -1316,7 +1274,6 @@ CPSourceFileRef,&
 
     logger => cp_get_default_logger()
     ionode = logger%para_env%mepos==logger%para_env%source
-    failure = .FALSE.
     CALL section_vals_val_get(dft_section,"PRINT%MO%EIGENVALUES",l_val=p_eval)
     CALL section_vals_val_get(dft_section,"PRINT%MO%EIGENVECTORS",l_val=p_evec)
     CALL section_vals_val_get(dft_section,"PRINT%MO%OCCUPATION_NUMBERS",l_val=p_occ)
@@ -1436,10 +1393,7 @@ CPSourceFileRef,&
                       isgf = isgf + nso(lshell)
                    END DO
                 ELSE
-                   CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
-                        "Unknown basis set type. "//&
-                        CPSourceFileRef,&
-                        only_ionode=.TRUE.)
+                   CPABORT("Unknown basis set type. ")
                 END IF
              END DO ! iatom
 
@@ -1556,10 +1510,7 @@ CPSourceFileRef,&
                          END DO
                       END DO
                    ELSE
-                      CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
-                           "Unknown basis set type. "//&
-                           CPSourceFileRef,&
-                           only_ionode=.TRUE.)
+                      CPABORT("Unknown basis set type. ")
                    END IF
 
                 ELSE
@@ -1599,10 +1550,7 @@ CPSourceFileRef,&
                          END DO
                       END DO
                    ELSE
-                      CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
-                           "Unknown basis type. "//&
-                           CPSourceFileRef,&
-                           only_ionode=.TRUE.)
+                      CPABORT("Unknown basis type. ")
                    END IF
 
                 END IF ! p_cart

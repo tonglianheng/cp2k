@@ -163,7 +163,7 @@ MODULE rpa_ri_gpw
       sizes_ia, sizes_ia_beta, sizes_nm_gw, starts_ia, starts_ia_beta, &
       starts_nm_gw, sub_proc_map
     LOGICAL                                  :: check_fit, do_minimax_quad, &
-                                                failure, my_open_shell, &
+                                                my_open_shell, &
                                                 skip_integ_group_opt
     REAL(KIND=dp) :: allowed_memory, avail_mem, E_Range, Emax, Emax_beta, &
       Emin, Emin_beta, ext_scaling, fermi_level_offset, mem_for_iaK, &
@@ -179,7 +179,6 @@ MODULE rpa_ri_gpw
     TYPE(cp_para_env_type), POINTER          :: para_env_RPA
 
     CALL timeset(routineN,handle)
-    failure=.FALSE.
   
     CALL cite_reference(DelBen2013)
     CALL cite_reference(DelBen2015)
@@ -228,10 +227,9 @@ MODULE rpa_ri_gpw
       input_integ_group_size=mp2_env%ri_rpa%rpa_integ_group_size
       do_minimax_quad=mp2_env%ri_rpa%minimax_quad
       IF(do_minimax_quad.AND.num_integ_points>20) THEN
-        CALL cp_assert(.FALSE.,cp_warning_level,cp_assertion_failed,routineP,&
-                       "The required number of quadrature point exceeds the maximum possible in the "//&
-                       "Minimax quadrature scheme. The number of quadrature point has been reset to 20.",&
-                       only_ionode=.TRUE.)
+        CALL cp_warn(__LOCATION__,&
+             "The required number of quadrature point exceeds the maximum possible in the "//&
+             "Minimax quadrature scheme. The number of quadrature point has been reset to 20.")
         num_integ_points=20
       END IF
     END IF
@@ -806,8 +804,8 @@ MODULE rpa_ri_gpw
       group_grid_2_mepos, mepos_2_grid, RPA_info_end, RPA_info_size, &
       RPA_info_start
     INTEGER, DIMENSION(:), POINTER           :: col_indices, row_indices
-    LOGICAL                                  :: failure, my_beta_case, &
-                                                my_blacs_ext, my_blacs_S_ext, &
+    LOGICAL                                  :: my_beta_case, my_blacs_ext, &
+                                                my_blacs_S_ext, &
                                                 my_gw_open_shell
     REAL(KIND=dp)                            :: part_ia, part_RI
     REAL(KIND=dp), ALLOCATABLE, &
@@ -819,7 +817,6 @@ MODULE rpa_ri_gpw
       ALLOCATABLE, DIMENSION(:)              :: buffer_rec, buffer_send
 
     CALL timeset(routineN,handle)
-    failure=.FALSE.
 
     my_beta_case=.FALSE.
     IF(PRESENT(beta_case)) my_beta_case=beta_case
@@ -1565,8 +1562,7 @@ MODULE rpa_ri_gpw
     INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: local_size_source, &
                                                 local_size_source_beta
     INTEGER, DIMENSION(:), POINTER           :: col_indices, row_indices
-    LOGICAL                                  :: failure, first_cycle, &
-                                                my_open_shell
+    LOGICAL                                  :: first_cycle, my_open_shell
     REAL(KIND=dp) :: a_scaling, actual_flop_rate, alpha, e_fermi, E_Range, &
       eigen_diff, Emax, Emax_beta, Emin, Emin_beta, FComega, my_flop_rate, &
       omega, omega_i, omega_old, sign_occ_virt, t_end, t_start
@@ -1583,7 +1579,6 @@ MODULE rpa_ri_gpw
                                                 buffer_send, buffer_send_beta
 
     CALL timeset(routineN,handle)
-    failure=.FALSE.
     
     my_open_shell=.FALSE.
     IF(PRESENT(homo_beta).AND.&
@@ -2468,7 +2463,7 @@ MODULE rpa_ri_gpw
     INTEGER, DIMENSION(:), POINTER           :: col_indices, &
                                                 col_indices_beta, &
                                                 row_indices, row_indices_beta
-    LOGICAL                                  :: failure, my_open_shell
+    LOGICAL                                  :: my_open_shell
     REAL(KIND=dp) :: a_high, a_low, a_scaling, conv_param, eigen_diff, eps, &
       first_deriv, four, left_term, one, pig, right_term, right_term_ref, &
       right_term_ref_beta, step, two, zero
@@ -2481,7 +2476,6 @@ MODULE rpa_ri_gpw
                                                 para_env_row_beta
 
     CALL timeset(routineN,handle)
-    failure=.FALSE.
 
     my_open_shell=.FALSE.
     IF(PRESENT(homo_beta).AND.&
@@ -3333,15 +3327,14 @@ MODULE rpa_ri_gpw
         n_level_gw_ref=n_level_gw+homo-gw_corr_lev_occ
         IF(iiter==max_iter_fit) THEN
           WRITE(MO_number, "(I3)")  n_level_gw_ref
-          CALL cp_assert(.FALSE.,cp_warning_level,cp_assertion_failed,routineP,&
-                         "The fit for corrected level n ="// MO_number// " did not converge. "//&
-                         "For levels close to HOMO or LUMO, this is normally no issue. "//&
-                         "To avoid this warning, you can (1) increase the "//&
-                         "number of fit iterations MAX_ITER_FIT, or you can (2) increase the number "//&
-                         "of RPA integration points (then, Sigma_c(i*omega) is more accurate) "//&
-                         "or  you can (3) decrease "//&
-                         "the fit range by setting the keyword OMEGA_MAX_FIT (in Hartree). ",&
-                         only_ionode=.TRUE.)
+          CALL cp_warn(__LOCATION__,&
+               "The fit for corrected level n ="// MO_number// " did not converge. "//&
+               "For levels close to HOMO or LUMO, this is normally no issue. "//&
+               "To avoid this warning, you can (1) increase the "//&
+               "number of fit iterations MAX_ITER_FIT, or you can (2) increase the number "//&
+               "of RPA integration points (then, Sigma_c(i*omega) is more accurate) "//&
+               "or  you can (3) decrease "//&
+               "the fit range by setting the keyword OMEGA_MAX_FIT (in Hartree). ")
 
         END IF
 
@@ -3745,10 +3738,9 @@ MODULE rpa_ri_gpw
       END IF
 
       IF((gw_corr_lev_occ==0 .OR. gw_corr_lev_virt==0) .AND. count_ev_sc_GW>1) THEN
-        CALL cp_assert(.FALSE.,cp_warning_level,cp_assertion_failed,routineP,&
-                       "Please increase for eigenvalue-self-consistent GW, the number of "//&
-                       "corrected occupied and/or virtual orbitals above 0.",&
-                       only_ionode=.TRUE.)
+        CALL cp_warn(__LOCATION__,&
+             "Please increase for eigenvalue-self-consistent GW, the number of "//&
+             "corrected occupied and/or virtual orbitals above 0.")
       END IF
 
 

@@ -60,9 +60,6 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'get_dot_file_name', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-    failure = .FALSE.
     filename = ""
 
     CPASSERT(ASSOCIATED(tmc_params))
@@ -91,9 +88,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: file_ptr, i
-    LOGICAL                                  :: failure
 
-    failure = .FALSE.
     CPASSERT(ASSOCIATED(tmc_params))
 
     ! global tree
@@ -127,9 +122,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: file_ptr, i
-    LOGICAL                                  :: failure
 
-    failure = .FALSE.
     CPASSERT(ASSOCIATED(tmc_params))
 
     ! global tree
@@ -158,9 +151,6 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'write_legend', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-    failure = .FALSE.
     CPASSERT(file_ptr.GT.0)
 
     WRITE(file_ptr,*)'//LEGEND'
@@ -214,9 +204,7 @@ CONTAINS
 
     CHARACTER(len=11)                        :: label
     INTEGER                                  :: file_ptr
-    LOGICAL                                  :: failure
 
-    failure = .FALSE.
     CPASSERT(filename.NE."")
     CPASSERT(node_nr.GE.0)
 
@@ -257,8 +245,7 @@ CONTAINS
     CASE(status_calculate_NMC_steps)
       WRITE(file_ptr,*) TRIM(label),'style=filled, color=peru]'
     CASE DEFAULT
-      CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
-              routineP,"element status"//cp_to_string(stat),failure)
+      CPABORT("element status"//cp_to_string(stat))
     END SELECT
     CALL close_file(unit_number=file_ptr, keep_preconnection=.TRUE.)
   END SUBROUTINE write_color
@@ -282,9 +269,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: file_ptr
-    LOGICAL                                  :: failure
 
-    failure = .FALSE.
     CPASSERT(ASSOCIATED(tmc_params))
 
     CALL open_file(file_name=get_dot_file_name(tmc_params, tree), &
@@ -313,9 +298,6 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'create_dot', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-    failure = .FALSE.
     CPASSERT(ASSOCIATED(new_element))
     CPASSERT(conf.GT.0)
     CPASSERT(ASSOCIATED(tmc_params))
@@ -342,10 +324,8 @@ CONTAINS
 
     CHARACTER(len=1000)                      :: list_of_nr
     INTEGER                                  :: file_ptr, i, ref_count
-    LOGICAL                                  :: failure
     TYPE(gt_elem_list_type), POINTER         :: tmp_pt_list_elem
 
-    failure = .FALSE.
     NULLIFY(tmp_pt_list_elem)
 
     CPASSERT(ASSOCIATED(new_element))
@@ -424,10 +404,8 @@ CONTAINS
 
     CHARACTER(len=1000)                      :: list_of_nr
     INTEGER                                  :: ref_count
-    LOGICAL                                  :: failure
     TYPE(gt_elem_list_type), POINTER         :: tmp_pt_list_elem
 
-    failure = .FALSE.
     CPASSERT(ASSOCIATED(tree_element))
     CPASSERT(ASSOCIATED(tmc_params))
 
@@ -468,9 +446,6 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'create_global_tree_dot_color', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-    failure = .FALSE.
     CPASSERT(ASSOCIATED(gt_tree_element))
     CPASSERT(ASSOCIATED(tmc_params))
 

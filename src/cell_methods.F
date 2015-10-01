@@ -80,12 +80,13 @@ CONTAINS
 
     INTEGER                                  :: my_per
     INTEGER, DIMENSION(:), POINTER           :: multiple_unit_cell
-    LOGICAL :: cell_read_a, cell_read_abc, cell_read_b, cell_read_c, &
-      cell_read_file, check, failure, my_check
+    LOGICAL                                  :: cell_read_a, cell_read_abc, &
+                                                cell_read_b, cell_read_c, &
+                                                cell_read_file, check, &
+                                                my_check
     REAL(KIND=dp), DIMENSION(:), POINTER     :: cell_angles, cell_par
     TYPE(section_vals_type), POINTER         :: cell_ref_section
 
-    failure  = .FALSE.
     my_check = .TRUE.
     NULLIFY(cell_ref_section, cell_par, multiple_unit_cell)
     IF (.NOT.ASSOCIATED(cell)) CALL cell_create(cell)
@@ -125,21 +126,19 @@ CONTAINS
        cell%hmat(:,3) = cell_par(:)
     END IF
     check = ((cell_read_a.EQV.cell_read_b).AND.(cell_read_b.EQV.cell_read_c))
-    CALL cp_assert(check,cp_warning_level,cp_assertion_failed,routineP,&
-         "Cell Information provided through vectors A, B and C. Not all three "//&
-         "vectors were provided! Cell setup may be incomplete!"//&
-CPSourceFileRef,&
-         only_ionode=.TRUE.)
+    IF(.NOT.check)&
+       CALL cp_warn(__LOCATION__,&
+            "Cell Information provided through vectors A, B and C. Not all three "//&
+            "vectors were provided! Cell setup may be incomplete!")
 
     ! Very last option.. Trying to read cell info from ABC keyword
     CALL section_vals_val_get(cell_section,"ABC",explicit=cell_read_abc)
     IF (cell_read_abc) THEN
        check = (cell_read_a.OR.cell_read_b.OR.cell_read_c)
-       CALL cp_assert(.NOT.check,cp_warning_level,cp_assertion_failed,routineP,&
-            "Cell Information provided through vectors A, B and C in conjunction with ABC."//&
-            " The definition of the ABC keyword will override the one provided by A,B and C."//&
-CPSourceFileRef,&
-            only_ionode=.TRUE.)
+       IF(check)&
+          CALL cp_warn(__LOCATION__,&
+               "Cell Information provided through vectors A, B and C in conjunction with ABC."//&
+               " The definition of the ABC keyword will override the one provided by A,B and C.")
        cell%hmat = 0.0_dp
        CALL section_vals_val_get(cell_section,"ABC",r_vals=cell_par)
        CALL section_vals_val_get(cell_section,"ALPHA_BETA_GAMMA",r_vals=cell_angles)
@@ -208,10 +207,9 @@ CPSourceFileRef,&
     CHARACTER(len=*), PARAMETER :: routineN = 'parsed_cp2k_input', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure, my_check
+    LOGICAL                                  :: my_check
     TYPE(section_vals_type), POINTER         :: glob_section
 
-    failure=.FALSE.
     my_check = .FALSE.
     IF (PRESENT(check_this_section)) my_check = check_this_section
     res=ASSOCIATED(input_file)
@@ -242,15 +240,11 @@ CPSourceFileRef,&
     CHARACTER(len=*), PARAMETER :: routineN = 'set_multiple_unit_cell', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
+! Fail is one of the value is set to zero..
 
-    failure = .FALSE.
-
-    ! Fail is one of the value is set to zero..
     CALL cp_assert(ALL(multiple_unit_cell>0),cp_fatal_level,cp_assertion_failed,routineP,&
          "CELL%MULTIPLE_UNIT_CELL accepts only integer values larger than 0! "//&
-         "A value of 0 or negative is meaningless!"//&
-CPSourceFileRef)
+         "A value of 0 or negative is meaningless!")
 
     ! scale abc accordingly user request
     cell%hmat(:,1) = cell%hmat(:,1)*multiple_unit_cell(1)
@@ -277,13 +271,12 @@ CPSourceFileRef)
 
     CHARACTER(LEN=default_path_length)       :: cell_file_name
     INTEGER                                  :: i, idum, j, my_format, n_rep
-    LOGICAL                                  :: explicit, failure, my_end
+    LOGICAL                                  :: explicit, my_end
     REAL(KIND=dp)                            :: xdum
     REAL(KIND=dp), DIMENSION(3, 3)           :: hmat
     REAL(KIND=dp), DIMENSION(:), POINTER     :: cell_par
     TYPE(cp_parser_type), POINTER            :: parser
 
-    failure = .FALSE.
     NULLIFY(parser)
     CALL section_vals_val_get(cell_section,"CELL_FILE_NAME",c_val=cell_file_name)
     CALL section_vals_val_get(cell_section,"CELL_FILE_FORMAT",i_val=my_format)
@@ -319,12 +312,11 @@ CPSourceFileRef)
     CALL section_vals_val_get(cell_section,"ABC",n_rep_val=n_rep)
     explicit = explicit .OR. (n_rep==1)
     ! Possibly print a warning
-    CALL cp_assert(.NOT.explicit,cp_warning_level,cp_assertion_failed,routineP,&
-         "Cell specification (A,B,C or ABC) provided together with the external "//&
-         "cell setup! Ignoring (A,B,C or ABC) and proceeding with info read from the "//&
-         "external file! "//&
-CPSourceFileRef,&
-         only_ionode=.TRUE.)
+    IF(explicit)&
+       CALL cp_warn(__LOCATION__,&
+            "Cell specification (A,B,C or ABC) provided together with the external "//&
+            "cell setup! Ignoring (A,B,C or ABC) and proceeding with info read from the "//&
+            "external file! ")
     ! Copy cell information in the A, B, C fields..(we may need them later on..)
     ALLOCATE(cell_par(3))
     cell_par = hmat(:,1)

@@ -39,18 +39,16 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: ind
-    LOGICAL                                  :: failure
 
-    failure = .FALSE.
     CPASSERT(ASSOCIATED(ilist))
     ind = INDEX(token,"..")
     READ (UNIT=token(:ind-1),FMT=*) ilist%istart
     READ (UNIT=token(ind+2:),FMT=*) ilist%iend
-    CALL cp_assert((ilist%istart <= ilist%iend),cp_failure_level,cp_assertion_failed,routineP,&
-                   "Invalid list range specified: "//&
-                   TRIM(ADJUSTL(cp_to_string(ilist%istart)))//".."//&
-                   TRIM(ADJUSTL(cp_to_string(ilist%iend))),&
-                   only_ionode=.TRUE.)
+    IF(ilist%istart > ilist%iend)&
+       CALL cp_abort(__LOCATION__,&
+            "Invalid list range specified: "//&
+            TRIM(ADJUSTL(cp_to_string(ilist%istart)))//".."//&
+            TRIM(ADJUSTL(cp_to_string(ilist%iend))))
     ilist%nel_list = ilist%iend - ilist%istart + 1
     ilist%ipresent = ilist%istart
     ilist%in_use   = .TRUE.
@@ -69,9 +67,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'ilist_update', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-    failure = .FALSE.
     CPASSERT(ASSOCIATED(ilist))
     ilist%ipresent = ilist%ipresent + 1
     IF (ilist%ipresent>ilist%iend) THEN
@@ -91,9 +86,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'ilist_reset', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-    failure = .FALSE.
     CPASSERT(ASSOCIATED(ilist))
     IF (ilist%ipresent==ilist%iend) THEN
        ilist%istart   = HUGE(0)

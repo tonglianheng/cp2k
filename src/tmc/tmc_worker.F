@@ -126,11 +126,10 @@ CONTAINS
     INTEGER                                  :: calc_stat, handle, i1, i2, &
                                                 ierr, itmp, num_dim, work_stat
     INTEGER, DIMENSION(:), POINTER           :: ana_restart_conf
-    LOGICAL                                  :: failure, flag, master
+    LOGICAL                                  :: flag, master
     TYPE(cp_para_env_type), POINTER          :: para_env_m_w
     TYPE(tree_type), POINTER                 :: conf
 
-    failure = .FALSE.
     master  = .FALSE.
     i1 = -1
     i2 = -1
@@ -276,16 +275,10 @@ CONTAINS
                      tmc_env=tmc_env, calc_status=calc_stat)
             ELSEIF(work_stat.EQ.TMC_STAT_MD_REQUEST) THEN
               !TODO Hybrid MC routine
-              CALL cp_assert(.FALSE.,&
-                     cp_failure_level,cp_assertion_failed,routineP,&
-                     "there is no Hybrid MC implemented yet.",&
-                     only_ionode=.TRUE.)
+              CPABORT("there is no Hybrid MC implemented yet.")
 
             ELSE
-              CALL cp_assert(.FALSE.,&
-                     cp_failure_level,cp_assertion_failed,routineP,&
-                     "unknown task type for workers.",&
-                     only_ionode=.TRUE.)
+              CPABORT("unknown task type for workers.")
             END IF
             !-- in case of cancelation send receipt
             itmp = MASTER_COMM_ID
@@ -302,18 +295,16 @@ CONTAINS
               CASE(TMC_STAT_NMC_REQUEST)
                 work_stat = TMC_STAT_NMC_RESULT
               CASE DEFAULT
-                CALL cp_assert(.FALSE., cp_failure_level,cp_assertion_failed,&
-                       routineP,&
-                       "unknown work status after possible NMC subgroup "//&
-                       "cancelation, work_stat="//cp_to_string(work_stat))
+                CALL cp_abort(__LOCATION__,&
+                     "unknown work status after possible NMC subgroup "//&
+                     "cancelation, work_stat="//cp_to_string(work_stat))
               END SELECT
             CASE(TMC_CANCELING_MESSAGE)
               work_stat = TMC_CANCELING_RECEIPT
             CASE DEFAULT
-              CALL cp_assert(.FALSE., cp_failure_level,cp_assertion_failed,&
-                       routineP,&
-                       "unknown calc status before sending NMC result "//&
-                       cp_to_string(calc_stat))
+              CALL cp_abort(__LOCATION__,&
+                   "unknown calc status before sending NMC result "//&
+                   cp_to_string(calc_stat))
             END SELECT
             ! send message back to master
             itmp = MASTER_COMM_ID
@@ -360,18 +351,16 @@ CONTAINS
                        "force environment.")
                 END IF
               CASE DEFAULT
-                CALL cp_assert(.FALSE., cp_failure_level,cp_assertion_failed,&
-                       routineP,&
-                       "energy worker should handle unknown stat "//&
-                       cp_to_string(work_stat))
+                CALL cp_abort(__LOCATION__,&
+                     "energy worker should handle unknown stat "//&
+                     cp_to_string(work_stat))
               END SELECT
             CASE(TMC_CANCELING_MESSAGE)
                work_stat = TMC_CANCELING_RECEIPT
             CASE DEFAULT
-               CALL cp_assert(.FALSE., cp_failure_level,cp_assertion_failed,&
-                       routineP,&
-                       "worker while energy calc is in unknown state "//&
-                       cp_to_string(work_stat))
+               CALL cp_abort(__LOCATION__,&
+                    "worker while energy calc is in unknown state "//&
+                    cp_to_string(work_stat))
             END SELECT
 
             !-- send information back to master
@@ -415,24 +404,20 @@ CONTAINS
                 flag = .TRUE.
                 i1 = 0
                 i2 = ana_restart_conf(itmp)
-                CALL cp_assert(.FALSE., &
-                       cp_warning_level,cp_assertion_failed,&
-                       routineP,&
-                       "analysis old trajectory up to "//&
-                       "elem "//cp_to_string(ana_restart_conf(itmp))//&
-                       ". Read trajectory file.")
+                CALL cp_warn(__LOCATION__,&
+                     "analysis old trajectory up to "//&
+                     "elem "//cp_to_string(ana_restart_conf(itmp))//&
+                     ". Read trajectory file.")
               ELSE IF(ASSOCIATED(ana_list(itmp)%temp%last_elem))THEN
                 IF(.NOT.(ana_list(itmp)%temp%last_elem%nr.EQ.ana_restart_conf(itmp))) THEN
                   flag = .TRUE.
                   i1 = ana_list(itmp)%temp%last_elem%nr
                   i2 = ana_restart_conf(itmp)
-                  CALL cp_assert(.FALSE., &
-                         cp_warning_level,cp_assertion_failed,&
-                         routineP,&
-                         "analysis restart with the incorrect configuration "//&
-                         "TMC "//cp_to_string(ana_restart_conf(itmp))//&
-                         " ana "//cp_to_string(ana_list(itmp)%temp%last_elem%nr)//&
-                         ". REread trajectory file.")
+                  CALL cp_warn(__LOCATION__,&
+                       "analysis restart with the incorrect configuration "//&
+                       "TMC "//cp_to_string(ana_restart_conf(itmp))//&
+                       " ana "//cp_to_string(ana_list(itmp)%temp%last_elem%nr)//&
+                       ". REread trajectory file.")
                 END IF
               END IF
               IF(flag) THEN
@@ -454,10 +439,9 @@ CONTAINS
                              para_env=para_env_m_w,&
                              tmc_params=tmc_env%params, elem=conf)
           CASE DEFAULT
-            CALL cp_assert(.FALSE., cp_failure_level,cp_assertion_failed,&
-                       routineP,&
-                       "worker received unknown message task type "//&
-                       cp_to_string(work_stat))
+            CALL cp_abort(__LOCATION__,&
+                 "worker received unknown message task type "//&
+                 cp_to_string(work_stat))
           END SELECT
 
           IF(DEBUG.GE.1.AND.work_stat.NE.TMC_STATUS_WAIT_FOR_NEW_TASK) &
@@ -499,10 +483,9 @@ CONTAINS
                                            tmc_env=tmc_env)
               END IF
             CASE DEFAULT
-              CALL cp_assert(.FALSE., cp_failure_level,cp_assertion_failed,&
-                             routineP,&
-                             "unknown task_type for participants in "//&
-                             "START_CONF_RESULT request ")
+              CALL cp_abort(__LOCATION__,&
+                   "unknown task_type for participants in "//&
+                   "START_CONF_RESULT request ")
             END SELECT
           !-- HMC - calculating MD steps
           CASE(TMC_STAT_NMC_REQUEST, TMC_STAT_MD_REQUEST)
@@ -514,16 +497,10 @@ CONTAINS
                      tmc_env=tmc_env, calc_status=calc_stat)
             ELSEIF(work_stat.EQ.TMC_STAT_MD_REQUEST) THEN
               !TODO Hybrid MC routine
-              CALL cp_assert(.FALSE.,&
-                     cp_failure_level,cp_assertion_failed,routineP,&
-                     "there is no Hybrid MC implemented yet.",&
-                     only_ionode=.TRUE.)
+              CPABORT("there is no Hybrid MC implemented yet.")
 
             ELSE
-              CALL cp_assert(.FALSE.,&
-                     cp_failure_level,cp_assertion_failed,routineP,&
-                     "unknown task type for workers.",&
-                     only_ionode=.TRUE.)
+              CPABORT("unknown task type for workers.")
             END IF
           !-- energy calculations
           CASE(TMC_STAT_APPROX_ENERGY_REQUEST)
@@ -541,10 +518,9 @@ CONTAINS
                                        exact_approx_pot=.TRUE., &
                                        tmc_env=tmc_env)
           CASE DEFAULT
-            CALL cp_assert(.FALSE., cp_failure_level,cp_assertion_failed,&
-                       routineP,&
-                       "group participant got unknown working type "//&
-                       cp_to_string(work_stat))
+            CALL cp_abort(__LOCATION__,&
+                 "group participant got unknown working type "//&
+                 cp_to_string(work_stat))
           END SELECT
           IF(ASSOCIATED(conf)) &
             CALL deallocate_sub_tree_node(tree_elem=conf)
@@ -686,9 +662,9 @@ CONTAINS
         ! nothing to do, because calculation CANCELING, exit with cancel status
         EXIT NMC_steps
       CASE DEFAULT
-        CALL cp_assert(.FALSE., cp_failure_level,cp_assertion_failed,routineP,&
-                         "unknown status "//cp_to_string(calc_status)//&
-                         "in the NMC routine, expect only caneling status. ")
+        CALL cp_abort(__LOCATION__,&
+             "unknown status "//cp_to_string(calc_status)//&
+             "in the NMC routine, expect only caneling status. ")
       END SELECT
 
       ! set move type
@@ -714,9 +690,9 @@ CONTAINS
         !TODO implement the MD part
         !CALL calc_MD_step(...)
         !CALL calc_calc_e_kin(...)
-        CALL cp_assert(.FALSE., cp_failure_level,cp_assertion_failed,routineP,&
-                       "Hybrid MC is not implemented yet, "//&
-                       "(no MD section in TMC yet). ")
+        CALL cp_abort(__LOCATION__,&
+             "Hybrid MC is not implemented yet, "//&
+             "(no MD section in TMC yet). ")
       END IF
 
       ! update the subbox acceptance probabilities
@@ -803,12 +779,10 @@ CONTAINS
 
     INTEGER                                  :: handle, ierr, mol, ndim, &
                                                 nr_atoms
-    LOGICAL                                  :: failure
     TYPE(cp_subsys_type), POINTER            :: subsys
     TYPE(f_env_type), POINTER                :: f_env
     TYPE(mol_new_list_type), POINTER         :: molecule_new
 
-    failure = .FALSE.
     CPASSERT(.NOT.ASSOCIATED(init_conf))
 
     ! start the timing
@@ -856,13 +830,11 @@ CONTAINS
 
     INTEGER                                  :: iparticle, nr_atoms, &
                                                 nunits_tot
-    LOGICAL                                  :: failure
     TYPE(cell_type), POINTER                 :: cell_tmp
     TYPE(cp_subsys_type), POINTER            :: subsys
     TYPE(f_env_type), POINTER                :: f_env
     TYPE(particle_list_type), POINTER        :: particles
 
-    failure = .FALSE.
     NULLIFY (f_env, subsys, particles)
     nr_atoms = 0
 
@@ -904,13 +876,11 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=default_string_length)     :: description
-    LOGICAL                                  :: failure
     REAL(KIND=dp), DIMENSION(3)              :: values
     TYPE(cp_result_type), POINTER            :: results
     TYPE(cp_subsys_type), POINTER            :: subsys
     TYPE(f_env_type), POINTER                :: f_env
 
-    failure = .FALSE.
     NULLIFY(results,subsys)
     CPASSERT(env_id.GT.0)
 
@@ -949,12 +919,10 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=default_string_length)     :: description
-    LOGICAL                                  :: failure
     TYPE(cp_result_type), POINTER            :: results
     TYPE(cp_subsys_type), POINTER            :: subsys
     TYPE(f_env_type), POINTER                :: f_env
 
-    failure = .FALSE.
     NULLIFY(subsys,results)
     CPASSERT(env_id.GT.0)
 
@@ -992,19 +960,16 @@ CONTAINS
 !    CHARACTER(LEN=*), PARAMETER :: routineN = 'get_mimal_distances', &
 !      routineP = moduleN//':'//routineN
 !
-!    LOGICAL                                  :: failure
 !    TYPE(f_env_type), POINTER                :: f_env
 !
-!    CPPrecondition(env_id.GT.0,cp_failure_level,routineP,failure)
-!    CPPrecondition(.NOT.ASSOCIATED(rlist_lowsq),cp_failure_level,routineP,failure)
+!    CPASSERT(env_id.GT.0)
+!    CPASSERT(.NOT.ASSOCIATED(rlist_lowsq))
 !
 !    CALL f_env_get_from_id(env_id,f_env)
-!    IF (.NOT.failure) THEN
-!      IF(ASSOCIATED(f_env%force_env)) THEN
-!        IF(ASSOCIATED(f_env%force_env%fist_env)) THEN
-!          CALL fist_nonbond_env_get(f_env%force_env%fist_env%fist_nonbond_env, &
-!                 rlist_lowsq=rlist_lowsq)
-!        END IF
+!    IF(ASSOCIATED(f_env%force_env)) THEN
+!      IF(ASSOCIATED(f_env%force_env%fist_env)) THEN
+!        CALL fist_nonbond_env_get(f_env%force_env%fist_env%fist_nonbond_env, &
+!               rlist_lowsq=rlist_lowsq)
 !      END IF
 !    END IF
 !    

@@ -90,15 +90,11 @@ CONTAINS
 
     INTEGER                                  :: ncol_local, npcol, nprow, &
                                                 nrow_local
-    LOGICAL                                  :: failure
     TYPE(cp_blacs_env_type), POINTER         :: context
 
-    failure=.FALSE.
 
 #if defined(__parallel) && ! defined(__SCALAPACK)
-     CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
-     routineP,"full matrixes need scalapack for parallel runs "//&
-CPSourceFileRef)
+     CPABORT("full matrixes need scalapack for parallel runs ")
 #endif
 
     CPASSERT(ASSOCIATED(matrix_struct))
@@ -139,10 +135,6 @@ CPSourceFileRef)
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_cfm_retain', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-    failure=.FALSE.
-
     CPASSERT(ASSOCIATED(matrix))
     CPASSERT(matrix%ref_count>0)
     matrix%ref_count=matrix%ref_count+1
@@ -157,10 +149,6 @@ CPSourceFileRef)
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_cfm_release', &
       routineP = moduleN//':'//routineN
-
-    LOGICAL                                  :: failure
-
-    failure=.FALSE.
 
     IF (ASSOCIATED(matrix)) THEN
        CPASSERT(matrix%ref_count>0)
@@ -348,12 +336,10 @@ CPSourceFileRef)
          routineP=moduleN//':'//routineN
     INTEGER i,nprow,npcol,myprow,mypcol
     TYPE(cp_blacs_env_type), POINTER :: ctxt
-    LOGICAL :: failure
 #if defined(__SCALAPACK)
     INTEGER , EXTERNAL :: indxl2g
 #endif
 
-    failure=.FALSE.
     IF (PRESENT(name)) name = matrix%name
     IF (PRESENT(nrow_global)) nrow_global = matrix%matrix_struct%nrow_global
     IF (PRESENT(ncol_global)) ncol_global = matrix%matrix_struct%ncol_global
@@ -434,9 +420,7 @@ CPSourceFileRef)
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: npcol, nprow
-    LOGICAL                                  :: failure
 
-    failure=.TRUE.
     nprow = source%matrix_struct%context%num_pe(1)
     npcol = source%matrix_struct%context%num_pe(2)
 
@@ -447,7 +431,7 @@ CPSourceFileRef)
          SIZE(source%local_data,2)==SIZE(destination%local_data,2),cp_failure_level,&
          cp_assertion_failed, routineP, &
          "internal local_data has different sizes"//&
-CPSourceFileRef)
+__LOCATION__)
       CALL dcopy(SIZE(source%local_data,1)*SIZE(source%local_data,2)*2,&
            source%local_data(1,1),1,destination%local_data(1,1),1)
    ELSE
@@ -456,13 +440,13 @@ CPSourceFileRef)
            cp_failure_level,&
            cp_assertion_failed, routineP, &
            "cannot copy between full matrixes of differen sizes"//&
-CPSourceFileRef)
+__LOCATION__)
       CALL cp_assert(source%matrix_struct%ncol_global==&
            destination%matrix_struct%ncol_global,&
            cp_failure_level,&
            cp_assertion_failed, routineP, &
            "cannot copy between full matrixes of differen sizes"//&
-CPSourceFileRef)
+__LOCATION__)
 #ifdef __SCALAPACK
       CALL pzcopy(source%matrix_struct%nrow_global*&
            source%matrix_struct%ncol_global,&
@@ -558,17 +542,17 @@ CPSourceFileRef)
          mtargetr%matrix_struct),cp_failure_level,&
          cp_assertion_failed, routineP, &
          "internal local_data has different sizes"//&
-CPSourceFileRef)
+__LOCATION__)
     CALL cp_assert(cp_fm_struct_equivalent(msource%matrix_struct,&
          mtargeti%matrix_struct),cp_failure_level,&
          cp_assertion_failed, routineP, &
          "internal local_data has different sizes"//&
-CPSourceFileRef)
+__LOCATION__)
     CALL cp_assert(SIZE(a,1)==SIZE(br,1).AND.SIZE(a,2)==SIZE(br,2)&
          .AND.SIZE(a,1)==SIZE(bi,1).AND.SIZE(a,2)==SIZE(bi,2),cp_failure_level,&
          cp_assertion_failed, routineP, &
          "internal local_data has different sizes"//&
-CPSourceFileRef)
+__LOCATION__)
 
     br = REAL(a)
     bi = AIMAG(a)

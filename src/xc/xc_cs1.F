@@ -160,7 +160,6 @@ CONTAINS
 
     INTEGER                                  :: handle, m, npoints
     INTEGER, DIMENSION(:, :), POINTER        :: bo
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: epsilon_rho
     REAL(KIND=dp), DIMENSION(:, :, :), POINTER :: e_0, e_ndrho, &
       e_ndrho_ndrho, e_ndrho_ndrho_ndrho, e_rho, e_rho_ndrho, &
@@ -169,7 +168,6 @@ CONTAINS
     TYPE(xc_derivative_type), POINTER        :: deriv
 
     CALL timeset(routineN,handle)
-    failure=.FALSE.
     NULLIFY(bo,rho, rho13, grho, e_0,e_rho,e_ndrho,&
          e_rho_rho, e_rho_ndrho, e_ndrho_ndrho,&
          e_rho_rho_rho, e_rho_rho_ndrho, e_rho_ndrho_ndrho, &
@@ -259,7 +257,6 @@ CONTAINS
 
     INTEGER                                  :: handle, npoints
     INTEGER, DIMENSION(:, :), POINTER        :: bo
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: epsilon_rho
     REAL(KIND=dp), DIMENSION(:, :, :), &
       POINTER                                :: e_0, e_ndrhoa, e_ndrhob, &
@@ -269,7 +266,6 @@ CONTAINS
     TYPE(xc_derivative_type), POINTER        :: deriv
 
     CALL timeset(routineN,handle)
-    failure=.FALSE.
     NULLIFY(bo)
 
     CPASSERT(ASSOCIATED(rho_set))
@@ -646,9 +642,7 @@ CONTAINS
 
 !FM IF ( .NOT. debug_flag ) CALL stop_program(routineN,moduleN,__LINE__,"Routine not tested")
 
-    CALL cp_assert(.FALSE.,cp_warning_level, cp_assertion_failed,routineP,&
-         "not tested!"//&
-         CPSourceFileRef)
+    CPWARN("not tested!")
 
     !$omp parallel do default(none) &
     !$omp             shared(npoints, rhoa, eps_rho, r13a, grhoa, rhob) &
@@ -726,9 +720,7 @@ CONTAINS
                                                 ocb, oda, odb, r3a, r3b, ra, &
                                                 rb
 
-    CALL cp_assert(.FALSE.,cp_warning_level, cp_assertion_failed,routineP,&
-         "not tested!"//&
-         CPSourceFileRef)
+    CPWARN("not tested!")
 
     !$omp parallel do default(none) &
     !$omp             shared(npoints, rhoa, eps_rho, r13a, grhoa, rhob) &
