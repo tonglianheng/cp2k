@@ -21,7 +21,6 @@ MODULE mulliken
   USE message_passing,                 ONLY: mp_sum
   USE particle_types,                  ONLY: particle_type
   USE qs_kind_types,                   ONLY: qs_kind_type
-  USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "./common/cp_common_uses.f90"
@@ -122,8 +121,7 @@ CONTAINS
                   row=iblock_row,col=iblock_col,BLOCK=ks_block,found=found)
 
              IF ( .NOT. (ASSOCIATED(s_block) .AND. ASSOCIATED(ks_block) ) ) THEN
-                CALL stop_program(routineN,moduleN,__LINE__,&
-                                  "Unexpected s / ks structure",para_env)
+                CPABORT("Unexpected s / ks structure")
              END IF
                 mult = 0.5_dp * charges_deriv(iblock_row,ispin) + &
                        0.5_dp * charges_deriv(iblock_col,ispin)
@@ -206,59 +204,6 @@ SUBROUTINE restraint_functional(mulliken_restraint_control,charges, &
        charges_deriv(mulliken_restraint_control%atoms(I),2)= -dum
     ENDDO
 END SUBROUTINE restraint_functional
-
-! *****************************************************************************
-!> \brief checks numerically the analytic derivative in restraint_functional
-!> \param mulliken_restraint_control ...
-!> \param charges (nblock,nspin)
-!> \par History
-!>      06.2004 created [Joost VandeVondele]
-!> \note
-!>       for testing only, uncomment the call in mulliken restraint
-! *****************************************************************************
-SUBROUTINE rf_deriv_check(mulliken_restraint_control,charges)
-    TYPE(mulliken_restraint_type), &
-      INTENT(IN)                             :: mulliken_restraint_control
-    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: charges
-
-    REAL(KIND=dp), PARAMETER                 :: stepsize = 0.00001_dp
-
-    INTEGER                                  :: I, J
-    REAL(KIND=dp)                            :: dum, energy1, energy2
-    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: charges_deriv, charges_local, &
-                                                deriv_num
-
-    ALLOCATE(charges_local(1:SIZE(charges,1),1:SIZE(charges,2)))
-    ALLOCATE(charges_deriv(1:SIZE(charges,1),1:SIZE(charges,2)))
-    ALLOCATE(deriv_num(1:SIZE(charges,1),1:SIZE(charges,2)))
-
-    ! finite difference check
-    charges_local=charges
-    do_i: DO I=1,SIZE(charges,1)
-      do_j: DO J=1,SIZE(charges,2)
-         ! x+dx
-         charges_local(I,J)=charges_local(I,J)+stepsize
-         CALL restraint_functional(mulliken_restraint_control,charges_local, &
-                                   charges_deriv,energy1,dum)
-         charges_local(I,J)=charges_local(I,J)-stepsize ! back to orig
-         ! x-dx
-         charges_local(I,J)=charges_local(I,J)-stepsize
-         CALL restraint_functional(mulliken_restraint_control,charges_local, &
-                                   charges_deriv,energy2,dum)
-         charges_local(I,J)=charges_local(I,J)+stepsize ! back to orig
-         ! num deriv
-         deriv_num(I,J)=(energy1-energy2)/(2*stepsize)
-      ENDDO do_j
-    ENDDO do_i
-    ! analytic results vs deriv_num
-    CALL restraint_functional(mulliken_restraint_control,charges, &
-                                   charges_deriv,energy2,dum)
-    WRITE(*,*) "deriv check : max abs diff, max abs", MAXVAL(ABS(charges_deriv-deriv_num)), &
-                                                      MAXVAL(ABS(charges_deriv))
-
-    DEALLOCATE(charges_local,charges_deriv,deriv_num)
-
-END SUBROUTINE rf_deriv_check
 
 ! *****************************************************************************
 !> \brief compute the mulliken charges

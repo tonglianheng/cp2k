@@ -48,7 +48,6 @@ MODULE qs_tddfpt_eigensolver
   USE qs_tddfpt_utils,                 ONLY: co_initial_guess,&
                                              normalize,&
                                              reorthogonalize
-  USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "./common/cp_common_uses.f90"
@@ -109,7 +108,7 @@ CONTAINS
        CALL co_initial_guess(t_env%evecs, ievals, n_ev, qs_env)
     ELSE
        IF (output_unit>0) WRITE (output_unit,*) "LUMOS are needed in TDDFPT!"
-       CPASSERT(.FALSE.)
+       CPABORT("")
     END IF
     DO restarts=1, dft_control%tddfpt_control%n_restarts
        IF (iterative_solver(ievals, t_env, p_env, qs_env, ievals)) EXIT
@@ -362,7 +361,7 @@ CONTAINS
 
              ELSE
                 IF (output_unit>0) WRITE (output_unit,*) "unknown mode"
-                CPASSERT(.FALSE.)
+                CPABORT("")
              END IF
 
           END IF
@@ -636,8 +635,7 @@ CONTAINS
           CALL cp_fm_create(vectors(index,spin)%matrix,  &
                fm_struct(spin)%struct, mat_name)
           IF (.NOT.ASSOCIATED(vectors(index,spin)%matrix)) &
-               CALL stop_program(routineN,moduleN,__LINE__,&
-                                 "Could not allocate "//TRIM(mat_name)//".")
+               CPABORT("Could not allocate "//TRIM(mat_name)//".")
        END DO
     END DO
 

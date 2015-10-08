@@ -87,7 +87,6 @@ MODULE pw_env_methods
        realspace_grid_input_type, realspace_grid_p_type, realspace_grid_type, &
        rs_grid_create, rs_grid_create_descriptor, rs_grid_print, &
        rs_grid_release, rs_grid_release_descriptor, rs_pw_transfer
-  USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE xc_input_constants,              ONLY: &
@@ -355,7 +354,7 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, external_para_env)
        xc_deriv_spline3_smooth,xc_deriv_nn10_smooth,xc_deriv_nn50_smooth)
       smooth_required=smooth_required.OR..TRUE.
   CASE DEFAULT
-      CPASSERT(.FALSE.)
+      CPABORT("")
   END SELECT
   SELECT CASE(xc_smooth_method_id)
   CASE(xc_rho_no_smooth)
@@ -363,7 +362,7 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, external_para_env)
   CASE(xc_rho_spline2_smooth,xc_rho_spline3_smooth,xc_rho_nn10,xc_rho_nn50)
       smooth_required=smooth_required.OR..TRUE.
   CASE DEFAULT
-      CPASSERT(.FALSE.)
+      CPABORT("")
   END SELECT
   ! EPR, NMR, EFG can require splines. If the linres/EFG section is present we assume
   ! it could be on and splines might be used (not quite sure if this is due to their use of splines or something else)
@@ -627,9 +626,7 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, external_para_env)
         WRITE (UNIT=iounit,FMT="(T2,A,T51,A30)")&
          "POISSON| Periodicity","XYZ"
       CASE DEFAULT
-        CALL stop_program(routineN,moduleN,__LINE__,&
-                          "Invalid periodicity for wavelet solver selected",&
-                          para_env)
+        CPABORT("Invalid periodicity for wavelet solver selected")
       END SELECT
     CASE(pw_poisson_implicit)
       WRITE (UNIT=iounit,FMT="(/,T2,A,T51,A30)")&
@@ -648,9 +645,7 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, external_para_env)
         WRITE (UNIT=iounit,FMT="(T2,A,T51,A30)")&
          "POISSON| Boundary Condition","NEUMANN"
       CASE DEFAULT
-        CALL stop_program(routineN,moduleN,__LINE__,&
-               "Invalid boundary conditions for the implicit (iterative) poisson solver.",&
-               para_env)
+        CPABORT("Invalid boundary conditions for the implicit (iterative) poisson solver.")
       END SELECT
       IF (poisson_params%dielectric_params%dielec_functiontype .EQ. rho_dependent) THEN
          WRITE (UNIT=iounit,FMT="(T2,A,T51,F30.2)")&
@@ -672,9 +667,7 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, external_para_env)
       WRITE (UNIT=iounit,FMT="(/,T2,A,T51,A30)")&
        "POISSON| Solver","NONE"
     CASE default
-      CALL stop_program(routineN,moduleN,__LINE__,&
-                        "Invalid Poisson solver selected",&
-                        para_env)
+      CPABORT("Invalid Poisson solver selected")
     END SELECT
     IF ((poisson_params%solver .NE. pw_poisson_wavelet) .AND. &
         (poisson_params%solver .NE. pw_poisson_implicit)) THEN
@@ -959,8 +952,7 @@ END SUBROUTINE compute_max_radius
        CALL pw_grid_create(mt_super_ref_pw_grid,para_env%group)
 
        IF (ASSOCIATED(xc_super_ref_pw_grid)) THEN
-          CALL cp_unimplemented_error(routineP,&
-               "special grid for mt and fine xc grid not compatible")
+          CPABORT("special grid for mt and fine xc grid not compatible")
        ELSE
           my_cutilev=cutilev*mt_rel_cutoff
 

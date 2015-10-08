@@ -138,9 +138,7 @@ CONTAINS
     SELECT CASE (dft_control%qs_control%method_id)
     CASE DEFAULT
        ! Abort if the parameterization is an unknown one..
-       CALL cp_unimplemented_error(fromWhere=routineP, &
-            message="Fock Matrix not available for the chosen parameterization! ", &
-            error_level=cp_failure_level)
+       CPABORT("Fock Matrix not available for the chosen parameterization! ")
 
     CASE (do_method_am1,do_method_rm1,do_method_mndo,do_method_pdg,&
          do_method_pm3,do_method_pm6,do_method_mndod, do_method_pnnl)
@@ -261,7 +259,7 @@ CONTAINS
              CALL get_mo_set(mo_set=mo_array(ispin)%mo_set, &
                   mo_coeff_b=mo_coeff, occupation_numbers=occupation_numbers )
              IF(.NOT.mo_array(ispin)%mo_set%use_mo_coeff_b) THEN
-                CPASSERT(.FALSE.)
+                CPABORT("")
              ENDIF
              CALL cp_dbcsr_get_info(mo_coeff,nfullcols_total=ncol_global)
              CALL cp_dbcsr_multiply('n','n',1.0_dp,ks_matrix(ispin)%matrix,mo_coeff,&

@@ -280,23 +280,17 @@ CONTAINS
        DEALLOCATE(work1,work2,work3,work4)
        !
     ELSE IF(PRESENT(ca) .AND. PRESENT(cb)) THEN
-       CALL cp_unimplemented_error(fromWhere=routineP, &
-            message="Not implemented",error_level=cp_failure_level)
+       CPABORT("Not implemented")
     ELSE IF(PRESENT(ca) .AND. PRESENT(cc)) THEN
-       CALL cp_unimplemented_error(fromWhere=routineP, &
-            message="Not implemented",error_level=cp_failure_level)
+       CPABORT("Not implemented")
     ELSE IF(PRESENT(cb) .AND. PRESENT(cc)) THEN
-       CALL cp_unimplemented_error(fromWhere=routineP, &
-            message="Not implemented",error_level=cp_failure_level)
+       CPABORT("Not implemented")
     ELSE IF(PRESENT(ca)) THEN
-       CALL cp_unimplemented_error(fromWhere=routineP, &
-            message="Not implemented",error_level=cp_failure_level)
+       CPABORT("Not implemented")
     ELSE IF(PRESENT(cb)) THEN
-       CALL cp_unimplemented_error(fromWhere=routineP, &
-            message="Not implemented",error_level=cp_failure_level)
+       CPABORT("Not implemented")
     ELSE IF(PRESENT(cc)) THEN
-       CALL cp_unimplemented_error(fromWhere=routineP, &
-            message="Not implemented",error_level=cp_failure_level)
+       CPABORT("Not implemented")
     ELSE
        ! Copy of arrays is not covered here
        CPABORT("Copy of arrays is not covered here")
@@ -472,7 +466,7 @@ CONTAINS
           sab(1:na,1:nb) = sab(1:na,1:nb) + qab(ia:ja,ib:jb)
        END IF
     ELSE
-       CPASSERT(.FALSE.)
+       CPABORT("")
     END IF
 
   END SUBROUTINE block_add_ab

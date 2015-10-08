@@ -118,9 +118,7 @@ CONTAINS
     unimplemented =      dft_control%qs_control%semi_empirical.OR.&
                          dft_control%qs_control%dftb
     IF (allocate_ddapc_env.AND.unimplemented) THEN
-       CALL cp_unimplemented_error(fromWhere=routineP, &
-            message="DDAP charges work only with GPW/GAPW code.", &
-            error_level=cp_failure_level)
+       CPABORT("DDAP charges work only with GPW/GAPW code.")
     END IF
     allocate_ddapc_env = allocate_ddapc_env .OR.&
                          qs_env%cp_ddapc_ewald%do_property
@@ -758,7 +756,7 @@ SUBROUTINE restraint_functional_potential(v_hartree_gspace,&
              IF (v0.GT.0.1_dp) THEN
                 WRITE(*,'(A,2I5,2F15.9)')"ERROR IN DERIVATIVE OF B VECTOR, IPARTICLE, ICOORD:",iparticle,i,&
                      dbv(kk,i),ddbv(kk)
-                CPASSERT(.FALSE.)
+                CPABORT("")
              END IF
           END IF
        END DO
@@ -842,7 +840,7 @@ SUBROUTINE restraint_functional_potential(v_hartree_gspace,&
                 IF (v0.GT.0.1_dp) THEN
                    WRITE(*,'(A,4I5,2F15.9)')"ERROR IN DERIVATIVE OF A MATRIX, IPARTICLE, ICOORD:",iparticle,i,kk,ll,&
                         dAm(kk,ll,i),ddAm(kk,ll)
-                   CPASSERT(.FALSE.)
+                   CPABORT("")
                 END IF
              END IF
           END DO

@@ -73,6 +73,7 @@ MODULE qs_scf
                                              section_vals_type
   USE kinds,                           ONLY: default_string_length,&
                                              dp
+  USE kpoint_io,                       ONLY: write_kpoints_restart
   USE kpoint_types,                    ONLY: kpoint_type
   USE machine,                         ONLY: m_flush,&
                                              m_walltime
@@ -131,7 +132,6 @@ MODULE qs_scf
        special_diag_method_nr
   USE qs_wf_history_methods,           ONLY: wfi_update
   USE scf_control_types,               ONLY: scf_control_type
-  USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "./common/cp_common_uses.f90"
@@ -200,6 +200,9 @@ CONTAINS
 
       CALL scf_env_do_scf(scf_env=scf_env, scf_control=scf_control, qs_env=qs_env,  &
                         converged=converged, should_stop=should_stop)
+
+      ! If SCF has not converged, then we should not start MP2                  
+      IF (ASSOCIATED(qs_env%mp2_env)) qs_env%mp2_env%hf_fail = .NOT. converged
 
       !   *** add the converged wavefunction to the wavefunction history
       IF ((ASSOCIATED(qs_env%wf_history)) .AND. &
@@ -312,7 +315,7 @@ CONTAINS
                     pw_env=pw_env,&
                     para_env=para_env)
 
-    CALL qs_rho_get(rho, rho_ao_kp=rho_ao_kp)
+    CALL qs_rho_get(rho,rho_ao_kp=rho_ao_kp)
 
     dft_section => section_vals_get_subs_vals(input,"DFT")
     scf_section => section_vals_get_subs_vals(dft_section,"SCF")
@@ -423,10 +426,13 @@ CONTAINS
 
           END IF
 
-          ! Write WaveFunction restart file
-          CALL write_mo_set(mos,particle_set,dft_section=dft_section,&
-                            atomic_kind_set=atomic_kind_set,qs_kind_set=qs_kind_set,&
-                            kpoints=kpoints)
+          IF(do_kpoints) THEN
+             CALL write_kpoints_restart(rho_ao_kp,kpoints,scf_env,dft_section,particle_set,qs_kind_set)
+          ELSE
+             ! Write Wavefunction restart file
+             CALL write_mo_set(mos,particle_set,dft_section=dft_section,&
+                               atomic_kind_set=atomic_kind_set,qs_kind_set=qs_kind_set)
+          END IF
 
           ! Exit if we have finished with the SCF inner loop
           IF (exit_inner_loop) THEN
@@ -475,7 +481,7 @@ CONTAINS
     DO ispin=1,SIZE(mos)!fm -> dbcsr
        IF(mos(ispin)%mo_set%use_mo_coeff_b) THEN!fm->dbcsr
           IF (.NOT.ASSOCIATED(mos(ispin)%mo_set%mo_coeff_b)) &!fm->dbcsr
-             CALL stop_program(routineN,moduleN,__LINE__,"mo_coeff_b is not allocated")!fm->dbcsr
+             CPABORT("mo_coeff_b is not allocated")!fm->dbcsr
           CALL copy_dbcsr_to_fm(mos(ispin)%mo_set%mo_coeff_b, &!fm->dbcsr
                mos(ispin)%mo_set%mo_coeff)!fm -> dbcsr
        ENDIF!fm->dbcsr

@@ -388,7 +388,7 @@ CONTAINS
              n = coset(2,2,2)
              pab(n,1) = 6._dp*cexp_ppl(4)
            CASE DEFAULT
-             CPASSERT(.FALSE.)
+             CPABORT("")
          END SELECT
        END DO
 
@@ -434,9 +434,7 @@ CONTAINS
 
          IF (use_virial) THEN
            virial%pv_virial = virial%pv_virial + my_virial_a*rho_rspace%pw%pw_grid%dvol
-           CALL cp_unimplemented_error(fromWhere=routineP, &
-                message="Virial not debuged for CORE_PPL", &
-                error_level=cp_failure_level)
+           CPABORT("Virial not debuged for CORE_PPL")
          END IF
        END DO
 
@@ -588,7 +586,7 @@ CONTAINS
                n = coset(2,2,2)
                pab(n,1) = 6._dp*cval_nlcc(4,iexp_nlcc)/alpha**6
              CASE DEFAULT
-               CPASSERT(.FALSE.)
+               CPABORT("")
            END SELECT
          END DO
          IF(dft_control%nspins==2)pab=pab*0.5_dp
