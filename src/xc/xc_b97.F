@@ -144,10 +144,10 @@ CONTAINS
              shortform = "wB97X-V, HFX+B97+VV10 functional (NOT TESTED)"//pol
           END IF
        ELSE
-         CPASSERT(.FALSE.)
+         CPABORT("")
        END IF
     CASE default
-       CPASSERT(.FALSE.)
+       CPABORT("")
     END SELECT
   END SUBROUTINE b97_ref
 
@@ -323,9 +323,7 @@ CONTAINS
        CALL xc_derivative_get(deriv,deriv_data=e_ndrho_ndrho_ndrho)
     END IF
     IF (grad_deriv>3.OR.grad_deriv<-3) THEN
-       CALL cp_unimplemented_error(fromWhere=routineP, &
-            message="derivatives bigger than 3 not implemented", &
-            error_level=cp_failure_level)
+       CPABORT("derivatives bigger than 3 not implemented")
     END IF
 
     CALL section_vals_val_get(b97_params,"parametrization",i_val=param)
@@ -534,7 +532,7 @@ CONTAINS
     CASE(xc_b97_mardirossian)
        res = params_b97_mardirossian
     CASE default
-       CPASSERT(.FALSE.)
+       CPABORT("")
        res=0.0_dp
     END SELECT
   END FUNCTION b97_coeffs

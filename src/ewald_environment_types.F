@@ -357,7 +357,7 @@ CONTAINS
        CASE (3)
           ewald_env%gmax = gmax_read
        CASE DEFAULT
-          CPASSERT(.FALSE.)
+          CPABORT("")
        END SELECT
        IF (ewald_env%ewald_type==do_ewald_spme) THEN
           CALL section_vals_val_get(ewald_section,"O_SPLINE",i_val=ewald_env%o_spline)
@@ -382,9 +382,7 @@ CONTAINS
           CALL section_vals_val_get(multipole_section,"MAX_MULTIPOLE_EXPANSION",i_val=ewald_env%max_multipole)
           CALL section_vals_val_get(multipole_section,"MAX_IPOL_ITER",i_val=ewald_env%max_ipol_iter)
        CASE DEFAULT
-          CALL cp_unimplemented_error(fromWhere=routineP, &
-               message="Multipole code works at the moment only with standard EWALD sums.", &
-               error_level=cp_failure_level)
+          CPABORT("Multipole code works at the moment only with standard EWALD sums.")
        END SELECT
     END IF
 
@@ -430,7 +428,7 @@ CONTAINS
              WRITE ( iw, '( T2,"EWALD| ",A,T71,I10 )' ) &
                   'Spline interpolation order ', ewald_env%o_spline
           CASE DEFAULT
-             CPASSERT(.FALSE.)
+             CPABORT("")
           END SELECT
        ELSE
           WRITE ( iw, '( T2,"EWALD| ",T73, A )' ) 'not used'

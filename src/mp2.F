@@ -176,6 +176,13 @@ MODULE mp2
     TYPE(section_vals_type), POINTER         :: hfx_sections, input
     TYPE(virial_type), POINTER               :: virial
 
+! If SCF has not converged we should abort MP2 calculation
+
+    IF (qs_env%mp2_env%hf_fail) THEN
+       CALL cp_abort(__LOCATION__,"SCF not converged: "//&
+                      "not possible to run MP2")
+    ENDIF
+
     NULLIFY(virial, dft_control, blacs_env)
     CALL timeset(routineN,handle)
     logger => cp_get_default_logger()
@@ -428,9 +435,7 @@ MODULE mp2
     t1=m_walltime()
     SELECT CASE(mp2_env%method)
      CASE(mp2_method_laplace)
-       CALL cp_unimplemented_error(fromWhere=routineP, &
-              message="laplace not implemented",&
-              error_level=cp_failure_level)
+       CPABORT("laplace not implemented")
      CASE (mp2_method_direct)
        !DO i=1,SIZE(mos)
        !   CALL get_mo_set( mo_set=mos(i)%mo_set,&
@@ -616,7 +621,7 @@ MODULE mp2
                           mos_mp2,para_env,unit_nr,calc_forces,calc_ex,do_ri_sos_laplace_mp2=.TRUE.)
 
      CASE DEFAULT
-       CPASSERT(.FALSE.)
+       CPABORT("")
    END SELECT
    t2=m_walltime()
    IF (unit_nr>0) WRITE(unit_nr,*)

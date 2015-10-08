@@ -268,7 +268,7 @@ CONTAINS
           CALL get_mo_set(mo_set=mo_array(ispin)%mo_set,&
                mo_coeff_b=mo_coeff, occupation_numbers=occupation_numbers )
           IF(.NOT.mo_array(ispin)%mo_set%use_mo_coeff_b) THEN
-             CPASSERT(.FALSE.)
+             CPABORT("")
           ENDIF
           CALL cp_dbcsr_multiply('n','n',1.0_dp,ks_matrixkp(1,ispin)%matrix,mo_coeff,&
                0.0_dp,mo_derivs(ispin)%matrix)
@@ -390,13 +390,13 @@ CONTAINS
                                   virial,use_virial,atprop)
           SELECT CASE(ewald_type)
           CASE DEFAULT
-            CALL cp_unimplemented_error(routineP,"Invalid Ewald type")
+            CPABORT("Invalid Ewald type")
           CASE(do_ewald_none)
             CPABORT("Not allowed with SCPTB")
           CASE(do_ewald_ewald)
-            CALL cp_unimplemented_error(routineP,"Standard Ewald not implemented in SCPTB")
+            CPABORT("Standard Ewald not implemented in SCPTB")
           CASE(do_ewald_pme)
-            CALL cp_unimplemented_error(routineP,"PME not implemented in SCPTB")
+            CPABORT("PME not implemented in SCPTB")
           CASE(do_ewald_spme)
             CALL dftb_spme_evaluate(ewald_env,ewald_pw,particle_set,cell,&
               gmcharge,mcharge,calculate_forces,virial,use_virial,atprop)
@@ -660,9 +660,7 @@ CONTAINS
        ELSE
          ! direct sum
          IF (nimg > 1) THEN
-            CALL cp_unimplemented_error(fromWhere=routineP, &
-                 message="SCPTB direct sum electrostatic cannot be used with k-points.", &
-                 error_level=cp_failure_level)
+            CPABORT("SCPTB direct sum electrostatic cannot be used with k-points.")
          END IF
          IF(.NOT.just_energy .OR. calculate_forces) THEN
             ALLOCATE(qcharge(natom))
@@ -856,9 +854,7 @@ CONTAINS
          energy=energy,force=force,para_env=para_env)
 
     IF(do_kpoints) THEN
-       CALL cp_unimplemented_error(fromWhere=routineP, &
-            message="SCPTB not implemented with k-points.", &
-            error_level=cp_failure_level)
+       CPABORT("SCPTB not implemented with k-points.")
     END IF
 
     NULLIFY(ks_matrix,matrix_s)
@@ -1104,33 +1100,6 @@ CONTAINS
     END DO
 
   END SUBROUTINE scp_set_charge
-
-! *****************************************************************************
-!> \brief ...
-!> \param vec ...
-!> \param message ...
-! *****************************************************************************
-  SUBROUTINE scp_print(vec,message)
-    TYPE(scp_vector_type)                    :: vec
-    CHARACTER(LEN=*), INTENT(IN)             :: message
-
-    INTEGER                                  :: iat, iba, ikind, natom, nbas, &
-                                                nkind
-
-    WRITE(*,*) message
-    nkind = SIZE(vec%vector)
-    DO ikind=1,nkind
-       nbas = SIZE(vec%vector(ikind)%vmat,1)
-       natom = SIZE(vec%vector(ikind)%vmat,2)
-       DO iat=1,natom
-          DO iba=1,nbas
-             WRITE(*,*) "Kind=",ikind,"  Atom=",iat," Pol=",vec%vector(ikind)%vmat(iba,iat) 
-          END DO
-       END DO
-    END DO
-
-  END SUBROUTINE scp_print
-! *****************************************************************************
 
 ! *****************************************************************************
 !> \brief ...

@@ -133,7 +133,7 @@ CONTAINS
        SELECT CASE(qmmm_coupl_type)
        CASE(do_qmmm_coulomb,do_qmmm_pcharge)
           ! Not yet implemented for this case
-          CPASSERT(.FALSE.)
+          CPABORT("")
        CASE(do_qmmm_gauss,do_qmmm_swave)
           ALLOCATE(Lg(Ndim))
           ALLOCATE(gx(Ndim))
@@ -149,7 +149,7 @@ CONTAINS
        SELECT CASE(qmmm_coupl_type)
        CASE(do_qmmm_coulomb,do_qmmm_pcharge)
           ! Not yet implemented for this case
-          CPASSERT(.FALSE.)
+          CPABORT("")
        CASE(do_qmmm_gauss,do_qmmm_swave)
           pgf => pgfs(K)%pgf
           idim = 0
@@ -203,7 +203,7 @@ CONTAINS
              box (2) = (qm_cell_small%hmat(2,2) - mm_cell%hmat(2,2))/2.0_dp
              box (3) = (qm_cell_small%hmat(3,3) - mm_cell%hmat(3,3))/2.0_dp
              IF (ANY(box > 0.0_dp)) THEN
-                CPASSERT(.FALSE.)
+                CPABORT("")
              END IF
              n_rep_real(1) = CEILING(( box(1) + mymaxradius ) / mm_cell%hmat(1,1))
              n_rep_real(2) = CEILING(( box(2) + mymaxradius ) / mm_cell%hmat(2,2))
@@ -370,24 +370,19 @@ CONTAINS
 
     CALL ewald_env_get(ewald_env,ewald_type=ewald_type,do_multipoles=do_multipoles,&
                        gmax=gmax,o_spline=o_spline,alpha=alpha,rcut=rcut)
-    IF(do_multipoles) CALL cp_unimplemented_error(fromWhere=routineP,&
-       message="No multipole force fields allowed in QM-QM Ewald long range correction",&
-       error_level=cp_fatal_level)
+    IF(do_multipoles)&
+       CPABORT("No multipole force fields allowed in QM-QM Ewald long range correction")
 
     SELECT CASE(qmmm_coupl_type)
        CASE(do_qmmm_coulomb)
-          CALL cp_unimplemented_error(fromWhere=routineP, &
-            message="QM-QM long range correction not possible with COULOMB coupling", &
-            error_level=cp_fatal_level)
+          CPABORT("QM-QM long range correction not possible with COULOMB coupling")
        CASE(do_qmmm_pcharge)
           ! OK
        CASE(do_qmmm_gauss,do_qmmm_swave)
-          CALL cp_unimplemented_error(fromWhere=routineP, &
-            message="QM-QM long range correction not possible with GAUSS/SWAVE coupling", &
-            error_level=cp_fatal_level)
+          CPABORT("QM-QM long range correction not possible with GAUSS/SWAVE coupling")
        CASE DEFAULT
           ! We should never get to this point
-          CPASSERT(.FALSE.)
+          CPABORT("")
     END SELECT
 
     iw=cp_print_key_unit_nr(logger,print_section,"PERIODIC_INFO",extension=".log")
@@ -398,17 +393,11 @@ CONTAINS
        WRITE (UNIT=iw,FMT="(T2,A)") REPEAT("-",79)
        SELECT CASE(ewald_type)
           CASE(do_ewald_none)
-             CALL cp_unimplemented_error(fromWhere=routineP, &
-               message="QM-QM long range correction not compatible with Ewald=NONE", &
-               error_level=cp_fatal_level)
+             CPABORT("QM-QM long range correction not compatible with Ewald=NONE")
           CASE(do_ewald_pme)
-             CALL cp_unimplemented_error(fromWhere=routineP, &
-               message="QM-QM long range correction not possible with Ewald=PME", &
-               error_level=cp_fatal_level)
+             CPABORT("QM-QM long range correction not possible with Ewald=PME")
           CASE(do_ewald_ewald)
-             CALL cp_unimplemented_error(fromWhere=routineP, &
-               message="QM-QM long range correction not possible with Ewald method", &
-               error_level=cp_fatal_level)
+             CPABORT("QM-QM long range correction not possible with Ewald method")
           CASE(do_ewald_spme)
              WRITE (UNIT=iw,FMT="(T2,A,T35,A,T75,A,T80,A)")"-","Ewald type","SPME","-"
              WRITE (UNIT=iw,FMT="(T2,A,T35,A,T61,3I6,T80,A)")"-","GMAX values",gmax,"-"

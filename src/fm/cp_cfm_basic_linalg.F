@@ -199,10 +199,9 @@ CONTAINS
           END IF
        ELSE
 #ifdef __SCALAPACK
-          CALL cp_unimplemented_error(fromWhere=routineP, &
-               message="to do (pdscal,pdcopy,pdaxpy)")
+          CPABORT("to do (pdscal,pdcopy,pdaxpy)")
 #else
-          CPASSERT(.FALSE.)
+          CPABORT("")
 #endif
        END IF
     END IF
@@ -284,10 +283,9 @@ CONTAINS
           END IF
        ELSE
 #ifdef __SCALAPACK
-          CALL cp_unimplemented_error(fromWhere=routineP, &
-               message="to do (pdscal,pdcopy,pdaxpy)")
+          CPABORT("to do (pdscal,pdcopy,pdaxpy)")
 #else
-          CPASSERT(.FALSE.)
+          CPABORT("")
 #endif
        END IF
     END IF

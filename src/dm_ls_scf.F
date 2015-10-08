@@ -143,7 +143,7 @@ CONTAINS
     pao_is_done = .FALSE.
     DO WHILE(.NOT. pao_is_done)
         CALL ls_scf_init_scf(qs_env, ls_scf_env)
-        CALL pao_scf_init(ls_scf_env)
+        CALL pao_scf_init(qs_env, ls_scf_env)
         CALL ls_scf_main(qs_env, ls_scf_env)
         CALL pao_update(qs_env, ls_scf_env, pao_is_done)
         CALL ls_scf_post(qs_env, ls_scf_env)
@@ -362,6 +362,8 @@ CONTAINS
     REAL(KIND=dp)                            :: alpha, cs_pos
     TYPE(cp_dbcsr_type)                      :: matrix_tmp1
     TYPE(cp_logger_type), POINTER            :: logger
+
+    IF(ls_scf_env%do_pao) RETURN ! pao has its own initial guess
 
     CALL timeset(routineN,handle)
 
@@ -838,7 +840,7 @@ CONTAINS
         ls_scf_env%needs_s_inv=.FALSE.
         ls_scf_env%use_s_sqrt=.FALSE.
     CASE DEFAULT
-        CPASSERT(.FALSE.)
+        CPABORT("")
     END SELECT
 
     SELECT CASE(ls_scf_env%s_preconditioner_type)
@@ -940,7 +942,7 @@ CONTAINS
            CALL cite_reference(Lin2013)
            WRITE(unit_nr,'(T2,A,T38,A20)') "Purification method","PEXSI"
        CASE DEFAULT
-           CPASSERT(.FALSE.)
+           CPABORT("")
        END SELECT
 
        SELECT CASE(ls_scf_env%ls_mstruct%cluster_type)

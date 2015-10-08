@@ -41,7 +41,6 @@ MODULE scf_control_types
   USE qs_ot_types,                     ONLY: ot_readwrite_input,&
                                              qs_ot_settings_init,&
                                              qs_ot_settings_type
-  USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "./common/cp_common_uses.f90"
@@ -434,7 +433,7 @@ CONTAINS
 
     IF (scf_control%level_shift /= 0.0_dp) scf_control%use_cholesky = .FALSE.
     IF (scf_control%use_ot.AND.(scf_control%density_guess == core_guess)) THEN
-       CALL stop_program(routineN,moduleN,__LINE__,"Use GUESS {ATOMIC,RESTART,RANDOM} with OT")
+       CPABORT("Use GUESS {ATOMIC,RESTART,RANDOM} with OT")
     END IF
 
     outer_scf_section => section_vals_get_subs_vals(scf_section,"OUTER_SCF")
@@ -681,7 +680,7 @@ CONTAINS
              CASE (outer_scf_becke_constraint)
                 WRITE (output_unit,'(T25,A)') "Becke weight population constraint enforced"
              CASE DEFAULT
-                CPASSERT(.FALSE.)
+                CPABORT("")
              END SELECT
              WRITE (output_unit,'(T25,A,T72,ES9.2)') "eps_scf",scf_control%outer_scf%eps_scf
              WRITE (output_unit,'(T25,A,T72,I9)') "max_scf",scf_control%outer_scf%max_scf
@@ -698,7 +697,7 @@ CONTAINS
                 WRITE (output_unit,'(T25,A,T72,I9)') "DIIS buffer length", &
                      scf_control%outer_scf%diis_buffer_length
              CASE DEFAULT
-                CPASSERT(.FALSE.)
+                CPABORT("")
              END SELECT
              WRITE (output_unit,'(T25,A,T72,ES9.2)') "step_size",scf_control%outer_scf%step_size
           ELSE

@@ -53,17 +53,10 @@ MODULE cp_control_utils
   USE kinds,                           ONLY: default_path_length,&
                                              default_string_length,&
                                              dp
-  USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE xc_derivatives,                  ONLY: xc_functionals_get_needs
-  USE xc_input_constants,              ONLY: &
-       xc_debug_new_routine, xc_deriv_collocate, xc_deriv_nn10_smooth, &
-       xc_deriv_nn50_smooth, xc_deriv_pw, xc_deriv_spline2, &
-       xc_deriv_spline2_smooth, xc_deriv_spline3, xc_deriv_spline3_smooth, &
-       xc_new_f_routine, xc_old_f_routine, xc_rho_nn10, xc_rho_nn50, &
-       xc_rho_no_smooth, xc_rho_spline2_smooth, xc_rho_spline3_smooth, &
-       xc_test_lsd_f_routine
+  USE xc_input_constants,              ONLY: xc_deriv_collocate
   USE xc_rho_cflags_types,             ONLY: xc_rho_cflags_type
   USE xc_write_output,                 ONLY: xc_write
 #include "./common/cp_common_uses.f90"
@@ -131,7 +124,7 @@ CONTAINS
     xc_section => section_vals_get_subs_vals(dft_section,"XC")
     CALL section_vals_get(xc_section,explicit=is_present)
     IF (.NOT.is_present.AND.not_SE) THEN
-       CALL stop_program(routineN,moduleN,__LINE__,"XC section missing.")
+       CPABORT("XC section missing.")
     END IF
     IF (is_present) THEN
        CALL section_vals_val_get(xc_section,"density_cutoff", r_val=density_cut)
@@ -163,7 +156,7 @@ __LOCATION__,&
     xc_fun_section => section_vals_get_subs_vals(xc_section,"XC_FUNCTIONAL")
     CALL section_vals_get(xc_fun_section,explicit=is_present)
     IF (.NOT.is_present.AND.not_SE) THEN
-       CALL stop_program(routineN,moduleN,__LINE__,"XC_FUNCTIONAL section missing.")
+       CPABORT("XC_FUNCTIONAL section missing.")
     END IF
     scf_section => section_vals_get_subs_vals(dft_section,"SCF")
     CALL section_vals_val_get(dft_section,"UKS",l_val=dft_control%uks)
@@ -183,9 +176,7 @@ __LOCATION__,&
     xc_deriv_method_id=section_get_ival(xc_section,"XC_GRID%XC_DERIV")
     dft_control%drho_by_collocation = (needs%norm_drho .AND. (xc_deriv_method_id==xc_deriv_collocate) )
     IF (dft_control%drho_by_collocation) THEN
-      CALL cp_unimplemented_error(fromWhere=routineP, &
-           message="derivatives by collocation not implemented", &
-           error_level=cp_failure_level)
+      CPABORT("derivatives by collocation not implemented")
     END IF
 
     !! check if we do wavefunction fitting
@@ -222,18 +213,15 @@ __LOCATION__,&
       IF( (dft_control%admm_control%method == do_admm_blocking_purify_full .OR. &
            dft_control%admm_control%method == do_admm_blocked_projection) &
            .AND. dft_control%admm_control%scaling_model == do_admm_exch_scaling_merlot ) THEN
-         CALL cp_unimplemented_error(fromWhere=routineP, &
-              message="ADMM: Blocking and Merlot scaling are mutually exclusive.", &
-                                        error_level=cp_failure_level)
+         CPABORT("ADMM: Blocking and Merlot scaling are mutually exclusive.")
       END IF
 
 
       IF( dft_control%admm_control%method == do_admm_charge_constrained_projection .AND. &
          dft_control%admm_control%purification_method /= do_admm_purify_none ) THEN
-         CALL cp_unimplemented_error(fromWhere=routineP, &
-              message="ADMM: In the case of METHOD=CHARGE_CONSTRAINED_PROJECTION, "//&
-                      "ADMM_PURIFICATION_METHOD=NONE has to be set.", &
-                                        error_level=cp_failure_level)
+         CALL cp_abort(__LOCATION__,&
+              "ADMM: In the case of METHOD=CHARGE_CONSTRAINED_PROJECTION, "//&
+              "ADMM_PURIFICATION_METHOD=NONE has to be set.")
       END IF
 
 
@@ -241,13 +229,9 @@ __LOCATION__,&
       IF(dft_control%admm_control%purification_method == do_admm_purify_mo_diag    .OR. &
          dft_control%admm_control%purification_method == do_admm_purify_mo_no_diag) THEN
           IF( dft_control%admm_control%method /= do_admm_basis_projection ) &
-            CALL cp_unimplemented_error(fromWhere=routineP, &
-              message="ADMM: Chosen purification requires BASIS_PROJECTION", &
-                                        error_level=cp_failure_level)
+            CPABORT("ADMM: Chosen purification requires BASIS_PROJECTION")
 
-           IF( .NOT. do_ot) CALL cp_unimplemented_error(fromWhere=routineP, &
-                               message="ADMM: MO-based purification requires OT.", &
-                               error_level=cp_failure_level)
+           IF( .NOT. do_ot) CPABORT("ADMM: MO-based purification requires OT.")
       END IF
 
       IF(dft_control%admm_control%purification_method == do_admm_purify_none_dm .OR. &
@@ -421,27 +405,23 @@ __LOCATION__,&
              CALL section_vals_val_get(tmp_section,"RHO_MIN",&
                                        r_val=dft_control%sccs_control%rho_min)
              IF (dft_control%sccs_control%rho_max < dft_control%sccs_control%rho_min) THEN
-                CALL stop_program(routineN,moduleN,__LINE__,&
-                                  "The SCCS parameter RHO_MAX is smaller than RHO_MIN. "//&
-                                  "Please, check your input!",&
-                                  logger%para_env)
+                CALL cp_abort(__LOCATION__,&
+                     "The SCCS parameter RHO_MAX is smaller than RHO_MIN. "//&
+                     "Please, check your input!")
              END IF
           CASE (sccs_fattebert_gygi)
              tmp_section => section_vals_get_subs_vals(sccs_section,"FATTEBERT-GYGI")
              CALL section_vals_val_get(tmp_section,"BETA",&
                                        r_val=dft_control%sccs_control%beta)
              IF (dft_control%sccs_control%beta < 0.5_dp) THEN
-                CALL stop_program(routineN,moduleN,__LINE__,&
-                                  "A value smaller than 0.5 for the SCCS parameter beta "//&
-                                  "causes numerical problems. Please, check your input!",&
-                                  logger%para_env)
+                CALL cp_abort(__LOCATION__,&
+                     "A value smaller than 0.5 for the SCCS parameter beta "//&
+                     "causes numerical problems. Please, check your input!")
              END IF
              CALL section_vals_val_get(tmp_section,"RHO_ZERO",&
                                        r_val=dft_control%sccs_control%rho_zero)
           CASE DEFAULT
-             CALL stop_program(routineN,moduleN,__LINE__,&
-                               "Invalid SCCS model specified. Please, check your input!",&
-                               logger%para_env)
+             CPABORT("Invalid SCCS model specified. Please, check your input!")
           END SELECT
           CALL cite_reference(Fattebert2002)
           CALL cite_reference(Andreussi2012)
@@ -524,8 +504,7 @@ __LOCATION__,&
     IF (multigrid_set) THEN
       ! Read the values from input
       IF (qs_control%commensurate_mgrids) THEN
-         CALL stop_program(routineN,moduleN,__LINE__,&
-                           "Do not specify cutoffs for the commensurate grids (NYI)")
+         CPABORT("Do not specify cutoffs for the commensurate grids (NYI)")
       END IF
 
       CALL section_vals_val_get(mgrid_section,"MULTIGRID_CUTOFF",r_vals=cutofflist)
@@ -560,7 +539,7 @@ __LOCATION__,&
     DO igrid_level=2,ngrid_level
       IF ( qs_control%e_cutoff(igrid_level) > &
            qs_control%e_cutoff(igrid_level-1) ) THEN
-         CALL stop_program(routineN,moduleN,__LINE__,"Multi-grids not ordered")
+         CPABORT("Multi-grids not ordered")
       END IF
     END DO
     CALL timestop(handle)
@@ -808,8 +787,7 @@ __LOCATION__,&
        END DO
        qs_control%mulliken_restraint_control%natoms = jj
        IF (qs_control%mulliken_restraint_control%natoms<1) &
-            CALL stop_program(routineN,moduleN,__LINE__,&
-                              "Need at least 1 atom to use mulliken contraints")
+            CPABORT("Need at least 1 atom to use mulliken contraints")
        ALLOCATE (qs_control%mulliken_restraint_control%atoms(qs_control%mulliken_restraint_control%natoms))
        jj = 0
        DO k = 1,n_rep
@@ -959,9 +937,7 @@ __LOCATION__,&
 
        ! Stop the execution for non-implemented features
        IF (qs_control%se_control%periodic_type==do_se_lr_ewald_r3) THEN
-          CALL cp_unimplemented_error(fromWhere=routineP, &
-               message="EWALD_R3 not implemented yet! ", &
-               error_level=cp_fatal_level)
+          CPABORT("EWALD_R3 not implemented yet!")
        END IF
 
        IF(  qs_control %method_id == do_method_mndo .OR. &
@@ -1173,7 +1149,7 @@ __LOCATION__,&
          tmpstr = "Explicit Orbital SIC"
        CASE DEFAULT
          ! fix throughout the cp2k for this option
-         CALL stop_program(routineN,moduleN,__LINE__,"SIC option unknown")
+         CPABORT("SIC option unknown")
        END SELECT
 
        WRITE (UNIT=output_unit,FMT="(T2,A,T61,A20)")&
@@ -1230,9 +1206,7 @@ __LOCATION__,&
 
        IF (dft_control%do_sccs) THEN
           IF (dft_control%qs_control%gapw) THEN
-             CALL cp_unimplemented_error(fromWhere=routineP,&
-                                         message="SCCS is not yet implemented with GAPW",&
-                                         error_level=cp_failure_level)
+             CPABORT("SCCS is not yet implemented with GAPW")
           END IF
           WRITE (UNIT=output_unit,FMT="(/,T2,A)")&
            "SCCS| Self-consistent continuum solvation model"
@@ -1248,9 +1222,7 @@ __LOCATION__,&
               "SCCS|  beta",dft_control%sccs_control%beta,&
               "SCCS|  rho_zero",dft_control%sccs_control%rho_zero
           CASE DEFAULT
-             CALL stop_program(routineN,moduleN,__LINE__,&
-                               "Invalid SCCS model specified. Please, check your input!",&
-                               logger%para_env)
+             CPABORT("Invalid SCCS model specified. Please, check your input!")
           END SELECT
           SELECT CASE (dft_control%sccs_control%derivative_method)
           CASE (sccs_derivative_fft)
@@ -1266,10 +1238,9 @@ __LOCATION__,&
              WRITE (UNIT=output_unit,FMT="(T2,A,T46,A35)") "SCCS| Numerical derivative calculation",&
               ADJUSTR("7-point stencil central differences")
           CASE DEFAULT
-             CALL stop_program(routineN,moduleN,__LINE__,&
-                               "Invalid derivative method specified for SCCS model. "//&
-                               "Please, check your input!",&
-                               logger%para_env)
+             CALL cp_abort(__LOCATION__,&
+                  "Invalid derivative method specified for SCCS model. "//&
+                  "Please, check your input!")
           END SELECT
           WRITE (UNIT=output_unit,FMT="(T2,A,T69,F12.3)")&
            "SCCS| Repulsion parameter alpha [mN/m] = [dyn/cm]",&
@@ -1472,7 +1443,7 @@ __LOCATION__,&
                 WRITE (UNIT=output_unit,FMT="(T2,A,T61,A20)")&
                      "QS| ddapc restraint functional form :","CONSTRAINT"
              CASE DEFAULT
-                CALL stop_program(routineN,moduleN,__LINE__,"Unknown ddapc restraint")
+                CPABORT("Unknown ddapc restraint")
              END SELECT
           END DO
        END IF
@@ -1485,12 +1456,12 @@ __LOCATION__,&
           CASE (do_s2_restraint)
              WRITE (UNIT=output_unit,FMT="(T2,A,T61,A20)")&
                   "QS| s2 restraint functional form :","RESTRAINT"
-             CALL stop_program(routineN,moduleN,__LINE__,"Not yet implemented")
+             CPABORT("Not yet implemented")
           CASE (do_s2_constraint)
              WRITE (UNIT=output_unit,FMT="(T2,A,T61,A20)")&
                   "QS| s2 restraint functional form :","CONSTRAINT"
           CASE DEFAULT
-             CALL stop_program(routineN,moduleN,__LINE__,"Unknown ddapc restraint")
+             CPABORT("Unknown ddapc restraint")
           END SELECT
        END IF
     END IF
@@ -1501,101 +1472,6 @@ __LOCATION__,&
     CALL timestop(handle)
 
   END SUBROUTINE write_qs_control
-
-! *****************************************************************************
-!> \brief returns a string that describes the smoothing of rho
-!> \param xc_rho_smooth_id the id that represent the smoothing
-!> \retval res ...
-!> \par History
-!>      05.2002 created [fawzi]
-!> \author Fawzi Mohamed
-! *****************************************************************************
-  FUNCTION xc_get_rho_smooth_label(xc_rho_smooth_id) RESULT(res)
-    INTEGER, INTENT(in)                      :: xc_rho_smooth_id
-    CHARACTER(len=10)                        :: res
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'xc_get_rho_smooth_label', &
-      routineP = moduleN//':'//routineN
-
-    SELECT CASE(xc_rho_smooth_id)
-    CASE (xc_rho_no_smooth)
-       res="NONE"
-    CASE (xc_rho_spline2_smooth)
-       res="SPLINE2"
-    CASE (xc_rho_spline3_smooth)
-       res="SPLINE3"
-    CASE (xc_rho_nn10)
-       res="NN10"
-    CASE (xc_rho_nn50)
-       res="NN50"
-    CASE default
-       WRITE (res,"('UKN',i6)") xc_rho_smooth_id
-    END SELECT
-  END FUNCTION xc_get_rho_smooth_label
-
-! *****************************************************************************
-!> \brief returns a string that describes the derivative used in the xc
-!>      calculation
-!> \param xc_deriv_method_id the id that represent the derivative method
-!> \retval res ...
-!> \par History
-!>      06.2002 created [fawzi]
-!> \author Fawzi Mohamed
-! *****************************************************************************
-  FUNCTION xc_get_deriv_method_label(xc_deriv_method_id) RESULT(res)
-    INTEGER, INTENT(in)                      :: xc_deriv_method_id
-    CHARACTER(len=20)                        :: res
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'xc_get_deriv_method_label', &
-      routineP = moduleN//':'//routineN
-
-    SELECT CASE(xc_deriv_method_id)
-    CASE (xc_deriv_pw)
-       res="PW"
-    CASE (xc_deriv_spline2)
-       res="SPLINE2"
-    CASE (xc_deriv_spline3)
-       res="SPLINE3"
-    CASE (xc_deriv_spline2_smooth)
-       res="SPLINE2_SMOOTH"
-    CASE (xc_deriv_spline3_smooth)
-       res="SPLINE3_SMOOTH"
-    CASE (xc_deriv_nn10_smooth)
-       res="NN10_SMOOTH"
-    CASE (xc_deriv_nn50_smooth)
-       res="NN50_SMOOTH"
-    CASE default
-       WRITE (res,"('UKN',i6)") xc_deriv_method_id
-    END SELECT
-  END FUNCTION xc_get_deriv_method_label
-
-! *****************************************************************************
-!> \brief returns a string that describes the functional routine used in the xc
-!>      calculation
-!> \param xc_func_id ...
-!> \retval res ...
-!> \author Fawzi Mohamed
-! *****************************************************************************
-  FUNCTION xc_get_routine_label(xc_func_id) RESULT(res)
-    INTEGER, INTENT(in)                      :: xc_func_id
-    CHARACTER(len=20)                        :: res
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'xc_get_routine_label', &
-      routineP = moduleN//':'//routineN
-
-    SELECT CASE(xc_func_id)
-    CASE(xc_old_f_routine)
-       res="OLD"
-    CASE(xc_new_f_routine)
-       res="NEW"
-    CASE(xc_test_lsd_f_routine)
-       res="TEST_LSD"
-    CASE(xc_debug_new_routine)
-       res="DEBUG_NEW"
-    CASE default
-       WRITE (res,"('UKN',i6)") xc_func_id
-    END SELECT
-  END FUNCTION xc_get_routine_label
 
 ! *****************************************************************************
 !> \brief reads the input parameters needed for ddapc.
@@ -1665,8 +1541,7 @@ __LOCATION__,&
              jj = jj+1
           END DO
        END DO
-       IF (jj < 1) CALL stop_program(routineN,moduleN,__LINE__,&
-                                     "Need at least 1 atom to use ddapc contraints")
+       IF (jj < 1) CPABORT("Need at least 1 atom to use ddapc contraints")
        ddapc_restraint_control%natoms=jj
        IF(ASSOCIATED(ddapc_restraint_control%atoms))&
             DEALLOCATE(ddapc_restraint_control%atoms)
@@ -1695,14 +1570,12 @@ __LOCATION__,&
           DO  j = 1,SIZE(rtmplist)
              jj = jj+1
              IF (jj>ddapc_restraint_control%natoms) &
-                CALL stop_program(routineN,moduleN,__LINE__,&
-                                  "Need the same number of coeff as there are atoms ")
+                CPABORT("Need the same number of coeff as there are atoms ")
              ddapc_restraint_control%coeff (jj) = rtmplist(j)
           END DO
        END DO
        IF (jj<ddapc_restraint_control%natoms .AND. jj.NE.0) &
-            CALL stop_program(routineN,moduleN,__LINE__,&
-                              "Need no or the same number of coeff as there are atoms.")
+            CPABORT("Need no or the same number of coeff as there are atoms.")
     END DO
     k=0
     DO i=1,SIZE(qs_control%ddapc_restraint_control)
@@ -1747,8 +1620,7 @@ __LOCATION__,&
           jj = jj+1
        END DO
     END DO
-    IF (jj < 1) CALL stop_program(routineN,moduleN,__LINE__,&
-                                  "Need at least 1 atom to use ddapc contraints.")
+    IF (jj < 1) CPABORT("Need at least 1 atom to use ddapc contraints.")
     qs_control%becke_control%natoms=jj
     IF(ASSOCIATED(qs_control%becke_control%atoms))DEALLOCATE(qs_control%becke_control%atoms)
     ALLOCATE(qs_control%becke_control%atoms(qs_control%becke_control%natoms))
@@ -1774,14 +1646,12 @@ __LOCATION__,&
        DO  j = 1,SIZE(rtmplist)
           jj = jj+1
           IF (jj>qs_control%becke_control%natoms) &
-               CALL stop_program(routineN,moduleN,__LINE__,&
-                                 "Need the same number of coeff as there are atoms.")
+               CPABORT("Need the same number of coeff as there are atoms.")
           qs_control%becke_control%coeff (jj) = rtmplist(j)
        END DO
     END DO
     IF (jj < qs_control%becke_control%natoms .AND. jj.NE.0) &
-       CALL stop_program(routineN,moduleN,__LINE__,&
-                         "Need no or the same number of coeff as there are atoms.")
+       CPABORT("Need no or the same number of coeff as there are atoms.")
   END SUBROUTINE read_becke_section
 
 ! *****************************************************************************

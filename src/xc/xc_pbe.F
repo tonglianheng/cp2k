@@ -150,7 +150,7 @@ CONTAINS
           END IF
        END IF
     CASE default
-       CPASSERT(.FALSE.)
+       CPABORT("")
     END SELECT
     IF (PRESENT(needs)) THEN
        needs%rho=.TRUE.
@@ -260,7 +260,7 @@ SUBROUTINE pbe_lsd_info(pbe_params,reference,shortform, needs, max_deriv)
           END IF
        END IF
     CASE default
-       CPASSERT(.FALSE.)
+       CPABORT("")
     END SELECT
   IF (PRESENT(needs)) THEN
      needs%rho_spin=.TRUE.
@@ -370,9 +370,7 @@ SUBROUTINE pbe_lda_eval(rho_set,deriv_set,grad_deriv,pbe_params)
      CALL xc_derivative_get(deriv,deriv_data=e_ndrho_ndrho_ndrho)
   END IF
   IF (grad_deriv>3.OR.grad_deriv<-3) THEN
-     CALL cp_unimplemented_error(fromWhere=routineP, &
-          message="derivatives bigger than 3 not implemented", &
-          error_level=cp_failure_level)
+     CPABORT("derivatives bigger than 3 not implemented")
   END IF
 
 
@@ -528,7 +526,7 @@ SUBROUTINE pbe_lda_calc(rho, norm_drho,&
      beta  = 0.46e-1_dp
      mu    = 0.1e2_dp / 0.81e2_dp
   CASE default
-     CPASSERT(.FALSE.)
+     CPABORT("")
   END SELECT
 
   gamma_var = (0.1e1_dp - LOG(0.2e1_dp)) / pi ** 2
@@ -1647,7 +1645,7 @@ SUBROUTINE pbe_lsd_calc(rhoa, rhob, norm_drho, norm_drhoa, norm_drhob,&
      beta  = 0.46e-1_dp
      mu    = 0.1e2_dp / 0.81e2_dp
   CASE default
-     CPASSERT(.FALSE.)
+     CPABORT("")
   END SELECT
 
   gamma_var = (0.1e1_dp - LOG(0.2e1_dp)) / pi ** 2

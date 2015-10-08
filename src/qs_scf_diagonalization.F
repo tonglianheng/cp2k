@@ -109,7 +109,6 @@ MODULE qs_scf_diagonalization
   USE qs_scf_types,                    ONLY: qs_scf_env_type,&
                                              subspace_env_type
   USE scf_control_types,               ONLY: scf_control_type
-  USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "./common/cp_common_uses.f90"
@@ -292,15 +291,14 @@ CONTAINS
     nspin = SIZE(matrix_ks)
 
     CALL general_eigenproblem(scf_env,mos,matrix_ks,&
-               matrix_s,scf_control,scf_section, diis_step)
+                              matrix_s,scf_control,scf_section, diis_step)
 
     CALL set_mo_occupation(mo_array=mos,&
-                             smear=scf_control%smear)
+                           smear=scf_control%smear)
 
     DO ispin=1,nspin
-      ! does not yet handle k-points
-      CALL calculate_density_matrix(mos(ispin)%mo_set,&
-                                    scf_env%p_mix_new(ispin,1)%matrix)
+       CALL calculate_density_matrix(mos(ispin)%mo_set,&
+                                     scf_env%p_mix_new(ispin,1)%matrix)
     END DO
 
   END SUBROUTINE do_general_diag
@@ -320,7 +318,6 @@ CONTAINS
 !> \par History
 !>      08.2014 created [JGH]
 ! *****************************************************************************
-
   SUBROUTINE do_general_diag_kp(scf_env,matrix_ks,matrix_s,kpoints,&
                                 scf_control,diis_step)
 
@@ -439,7 +436,8 @@ CONTAINS
                      xkp=xkp(1:3,ik),cell_to_index=cell_to_index,sab_nl=sab_nl)
                 CALL cp_dbcsr_desymmetrize(rmatrix,tmpmat)
                 CALL copy_dbcsr_to_fm(tmpmat,fmwork(1)%matrix)
-                CALL rskp_transform(rmatrix=rmatrix,rsmat=matrix_s,ispin=ispin,&
+                ! s matrix is not spin dependent
+                CALL rskp_transform(rmatrix=rmatrix,rsmat=matrix_s,ispin=1,&
                      xkp=xkp(1:3,ik),cell_to_index=cell_to_index,sab_nl=sab_nl)
                 CALL cp_dbcsr_desymmetrize(rmatrix,tmpmat)
                 CALL copy_dbcsr_to_fm(tmpmat,fmwork(3)%matrix)
@@ -451,7 +449,8 @@ CONTAINS
                 CALL copy_dbcsr_to_fm(tmpmat,fmwork(1)%matrix)
                 CALL cp_dbcsr_desymmetrize(cmatrix,tmpmat)
                 CALL copy_dbcsr_to_fm(tmpmat,fmwork(2)%matrix)
-                CALL rskp_transform(rmatrix=rmatrix,cmatrix=cmatrix,rsmat=matrix_s,ispin=ispin,&
+                ! s matrix is not spin dependent, double the work
+                CALL rskp_transform(rmatrix=rmatrix,cmatrix=cmatrix,rsmat=matrix_s,ispin=1,&
                      xkp=xkp(1:3,ik),cell_to_index=cell_to_index,sab_nl=sab_nl)
                 CALL cp_dbcsr_desymmetrize(rmatrix,tmpmat)
                 CALL copy_dbcsr_to_fm(tmpmat,fmwork(3)%matrix)
@@ -1147,8 +1146,7 @@ END SUBROUTINE diag_subspace_allocate
       ELSE IF (scf_control%roks_scheme == high_spin_roks) THEN
         CALL combine_ks_matrices(ksa,ksb,occa,occb,scf_control%roks_parameter)
       ELSE
-        CALL stop_program(routineN,moduleN,__LINE__,&
-                          "Unknown ROKS scheme requested")
+        CPABORT("Unknown ROKS scheme requested")
       END IF
 
       ! Back-transform the restricted open Kohn-Sham matrix from MO basis

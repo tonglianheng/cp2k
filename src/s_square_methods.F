@@ -31,7 +31,6 @@ MODULE s_square_methods
   USE message_passing,                 ONLY: mp_sum
   USE qs_mo_types,                     ONLY: get_mo_set,&
                                              mo_set_p_type
-  USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "./common/cp_common_uses.f90"
@@ -153,7 +152,7 @@ CONTAINS
             CALL cp_fm_release(matrix_overlap)
           ENDIF
     CASE DEFAULT
-          CALL stop_program(routineN,moduleN,__LINE__,"alpha, beta, what else ?")
+          CPABORT("alpha, beta, what else ?")
     END SELECT
 
     CALL timestop(handle)
@@ -203,9 +202,9 @@ CONTAINS
        energy= s2_restraint_control%strength*(s_square-s2_restraint_control%target)
        s2_restraint_control%s2_order_p=s_square
     CASE(do_s2_restraint) ! not yet implemented
-       CPASSERT(.FALSE.)
+       CPABORT("")
     CASE DEFAULT
-       CPASSERT(.FALSE.)
+       CPABORT("")
     END SELECT
 
     CALL timestop(handle)

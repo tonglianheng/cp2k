@@ -151,19 +151,17 @@ CONTAINS
     CALL section_vals_get(hfx_sections,explicit=do_hfx)
     !! ** ADMM can only be used with HFX
     IF ( .NOT. do_hfx )&
-       CPWARN("Wavefunction fitting requested without Hartree-Fock.")
+       CPABORT("Wavefunction fitting requested without Hartree-Fock.")
 
     ! ** Method only implemented for GPW
     IF( dft_control%qs_control%gapw ) THEN
-      CALL cp_unimplemented_error(fromWhere=routineP, &
-                               message="ADMM only implemented for GPW", &
-                               error_level=cp_failure_level)
+      CPABORT("ADMM only implemented for GPW")
     END IF
 
 
     CALL section_vals_get(hfx_sections,n_repetition=n_rep_hf)
     IF ( n_rep_hf > 1 )&
-       CPWARN("ADMM can handle only one HF section.")
+       CPABORT("ADMM can handle only one HF section.")
 
     IF (.NOT. ASSOCIATED(admm_env)) THEN
       ! setup admm environment
@@ -302,9 +300,7 @@ CONTAINS
     DO irep = 1,n_rep_hf
 
        IF( do_adiabatic_rescaling .AND. hfx_treat_lsd_in_core)&
-          CALL cp_unimplemented_error(fromWhere=routineP, &
-                  message="HFX_TREAT_LSD_IN_CORE not implemented for adiabatically rescaled hybrids",&
-                  error_level=cp_failure_level)
+          CPABORT("HFX_TREAT_LSD_IN_CORE not implemented for adiabatically rescaled hybrids")
        ! everything is calulated with adiabatic rescaling but the potential is not added in a first step
        distribute_fock_matrix=.NOT.do_adiabatic_rescaling
 
@@ -709,7 +705,7 @@ CONTAINS
           CALL section_vals_val_set(xc_fun_section,"XWPBE%SCALE_X0",&
                                     r_val=-hfx_fraction)
         CASE DEFAULT
-          CPASSERT(.FALSE.)
+          CPABORT("")
       END SELECT
 
       !** Now modify the functionals for the primary basis
