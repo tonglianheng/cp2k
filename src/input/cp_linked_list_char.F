@@ -56,30 +56,24 @@ MODULE cp_linked_list_char
 !API type
   PUBLIC :: cp_sll_char_type, cp_sll_char_p_type
 !API common methods
-  PUBLIC :: cp_create, cp_dealloc, cp_get, cp_set, cp_next
+  PUBLIC :: cp_create, cp_dealloc, cp_next
 !API special get
-  PUBLIC :: cp_get_first_el, cp_get_rest, cp_get_empty, cp_get_length,&
-       cp_get_element_at, cp_to_array
+  PUBLIC :: cp_get_first_el, cp_get_rest, cp_get_length, cp_get_element_at, cp_to_array
 !API special set
   PUBLIC :: cp_set_element_at
 !API structure manipulation
   PUBLIC :: cp_insert, cp_remove_first_el, cp_remove_el, cp_remove_all
-!API low level
-  PUBLIC :: cp_dealloc_node
 
   !API underlying routines
   PUBLIC :: cp_sll_char_create, cp_sll_char_dealloc,&
-       cp_sll_char_dealloc_node,cp_sll_char_set,&
-       cp_sll_char_get,cp_sll_char_next,&
-       cp_sll_char_get_first_el, cp_sll_char_get_rest,&
-       cp_sll_char_get_empty, cp_sll_char_get_length,&
+       cp_sll_char_next,&
+       cp_sll_char_get_length,&
        cp_sll_char_get_el_at, cp_sll_char_set_el_at,&
+       cp_sll_char_get_first_el, cp_sll_char_get_rest,&
        cp_sll_char_insert_el, cp_sll_char_insert_el_at,&
        cp_sll_char_rm_first_el, cp_sll_char_rm_el_at,&
        cp_sll_char_rm_all_el, &
-       cp_sll_char_to_array,&
-       cp_sll_char_from_array, cp_sll_char_insert_ordered,&
-       cp_sll_char_insert_ordered2
+       cp_sll_char_to_array
 
 ! creation of an object (from a pointer)
   INTERFACE cp_create
@@ -88,18 +82,6 @@ MODULE cp_linked_list_char
 ! destruction of an object (from a pointer)
   INTERFACE cp_dealloc
      MODULE PROCEDURE cp_sll_char_dealloc
-  END INTERFACE
-! destruction only of the node (low level)
-  INTERFACE cp_dealloc_node
-     MODULE PROCEDURE cp_sll_char_dealloc_node
-  END INTERFACE
-! modifies attributes of an object
-  INTERFACE cp_set
-     MODULE PROCEDURE cp_sll_char_set
-  END INTERFACE
-! returns attributes of an object
-  INTERFACE cp_get
-     MODULE PROCEDURE cp_sll_char_get
   END INTERFACE
 ! iterates to the next element
   INTERFACE cp_next
@@ -112,10 +94,6 @@ MODULE cp_linked_list_char
 ! returns the rest of the list
   INTERFACE cp_get_rest
      MODULE PROCEDURE cp_sll_char_get_rest
-  END INTERFACE
-! returns if the list is empty
-  INTERFACE cp_get_empty
-     MODULE PROCEDURE cp_sll_char_get_empty
   END INTERFACE
 ! returns the length of the list
   INTERFACE cp_get_length
@@ -133,10 +111,6 @@ MODULE cp_linked_list_char
   INTERFACE cp_insert
      MODULE PROCEDURE cp_sll_char_insert_el
   END INTERFACE
-!MK  INTERFACE cp_insert_ordered
-!MK     MODULE PROCEDURE cp_sll_char_insert_ordered,&
-!MK          cp_sll_char_insert_ordered2
-!MK  END INTERFACE
   INTERFACE cp_insert_at
      MODULE PROCEDURE cp_sll_char_insert_el_at
   END INTERFACE
@@ -198,18 +172,6 @@ MODULE cp_linked_list_char
 
 CONTAINS
 
-
-! *****************************************************************************
-!> \brief ...
-!> \param str ...
-!> \param unit_nr ...
-! *****************************************************************************
-SUBROUTINE write_string(str,unit_nr)
-    CHARACTER(len=*), INTENT(in)             :: str
-    INTEGER, INTENT(in)                      :: unit_nr
-
-  WRITE(unit_nr,"(a,a,a)") '"',TRIM(str),'"'
-END SUBROUTINE write_string
 
 ! =========== creation / distruction ========
 
@@ -284,76 +246,6 @@ END SUBROUTINE write_string
 ! ============= get/set ============
 
 ! *****************************************************************************
-!> \brief sets tha various attributes of a single linked list
-!>      It is an error to set the rest of an empty list without setting
-!>      the first_el (change and make it simply a sll=>rest ?)
-!> \param sll the single linked list to change
-!> \param first_el the element to replace the first element of this list
-!> \param rest the rest of the list (can be unassociated)
-!> \par History
-!>      none
-!> \author Fawzi Mohamed
-! *****************************************************************************
-  SUBROUTINE cp_sll_char_set(sll,first_el,rest)
-    TYPE(cp_sll_char_type), POINTER          :: sll
-    CHARACTER(len=default_string_length), &
-      INTENT(in), OPTIONAL                   :: first_el
-    TYPE(cp_sll_char_type), OPTIONAL, &
-      POINTER                                :: rest
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'cp_sll_char_set', &
-      routineP = moduleN//':'//routineN
-
-    IF (.NOT.ASSOCIATED(sll)) THEN
-       IF (PRESENT(first_el)) THEN
-          CALL cp_sll_char_create(sll,first_el,rest)
-       ELSE
-          CPASSERT(.NOT.PRESENT(rest))
-       END IF
-    ELSE
-       IF (PRESENT(first_el)) sll%first_el = first_el
-       IF (PRESENT(rest)) sll%rest => rest
-    END IF
-  END SUBROUTINE cp_sll_char_set
-
-! *****************************************************************************
-!> \brief returns various attributes from the linked list
-!> \param sll the single linked list to change
-!> \param first_el the first element of this list (can be unassociated)
-!> \param rest the rest of the list (can be unassociated)
-!> \param empty ...
-!> \param length the length of the list
-!> \par History
-!>      none
-!> \author Fawzi Mohamed
-! *****************************************************************************
-  SUBROUTINE cp_sll_char_get(sll,first_el,rest,empty,length)
-    TYPE(cp_sll_char_type), POINTER          :: sll
-    CHARACTER(len=default_string_length), &
-      INTENT(out), OPTIONAL                  :: first_el
-    TYPE(cp_sll_char_type), OPTIONAL, &
-      POINTER                                :: rest
-    LOGICAL, INTENT(out), OPTIONAL           :: empty
-    INTEGER, INTENT(out), OPTIONAL           :: length
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'cp_sll_char_get', &
-      routineP = moduleN//':'//routineN
-
-    IF (.NOT.ASSOCIATED(sll)) THEN
-       CPASSERT(.NOT.PRESENT(first_el))
-       IF (PRESENT(rest)) NULLIFY(rest)
-       IF (PRESENT(empty)) empty=.TRUE.
-       IF (PRESENT(length)) length=0
-    ELSE
-       IF (PRESENT(first_el)) first_el = sll%first_el
-       IF (PRESENT(rest)) rest => sll%rest
-       IF (PRESENT(empty)) empty = .FALSE.
-       IF (PRESENT(length)) &
-            length = cp_sll_char_get_length(sll)
-    END IF
-  END SUBROUTINE cp_sll_char_get
-
-! *****************************************************************************
 !> \brief returns the first element stored in the list
 !> \param sll the single linked list to get the element from
 !> \retval res ...
@@ -367,10 +259,6 @@ END SUBROUTINE write_string
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_sll_char_get_first_el', &
       routineP = moduleN//':'//routineN
-
-    IF (cp_debug) THEN
-       CPASSERT(ASSOCIATED(sll))
-    END IF
 
     res = sll%first_el
   END FUNCTION cp_sll_char_get_first_el
@@ -420,24 +308,6 @@ END SUBROUTINE write_string
        END IF
     END IF
   END FUNCTION cp_sll_char_get_rest
-
-! *****************************************************************************
-!> \brief ...
-!> \param sll the single linked list to get the rest from
-!> \retval res ...
-!> \par History
-!>      none
-!> \author Fawzi Mohamed
-! *****************************************************************************
-  FUNCTION cp_sll_char_get_empty(sll) RESULT(res)
-    TYPE(cp_sll_char_type), POINTER          :: sll
-    LOGICAL                                  :: res
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'cp_sll_char_get_empty', &
-      routineP = moduleN//':'//routineN
-
-    res = .NOT.ASSOCIATED(sll)
-  END FUNCTION cp_sll_char_get_empty
 
 ! *****************************************************************************
 !> \brief returns the length of the list
@@ -491,9 +361,6 @@ END SUBROUTINE write_string
 
     TYPE(cp_sll_char_type), POINTER          :: pos
 
-    IF (cp_debug) THEN
-       CPASSERT(index>0.OR.index==-1)
-    END IF
     IF (index==-1) THEN
        pos => cp_sll_char_get_rest(sll, iter=-1)
     ELSE
@@ -620,7 +487,7 @@ END SUBROUTINE write_string
        sll => sll%rest
        CALL cp_sll_char_dealloc_node(node_to_rm)
     ELSE
-       CPWARN("tried to remove first el of an empty list")
+       CPABORT("tried to remove first el of an empty list")
     END IF
   END SUBROUTINE cp_sll_char_rm_first_el
 
@@ -679,9 +546,6 @@ END SUBROUTINE write_string
 
     TYPE(cp_sll_char_type), POINTER          :: pos
 
-    IF (cp_debug) THEN
-       CPASSERT(index>0.OR.index==-1)
-    END IF
     IF (index==1) THEN
        CALL cp_sll_char_rm_first_el(sll)
     ELSE
@@ -751,190 +615,6 @@ FUNCTION cp_sll_char_to_array(sll) RESULT(res)
   END DO
 END FUNCTION cp_sll_char_to_array
 
-! *****************************************************************************
-!> \brief returns a linked list with the same contents as the given array
-!> \param array the array you want to copy
-!> \retval res ...
-!> \par History
-!>      07.2002 created [fawzi]
-!> \author Fawzi Mohamed
-! *****************************************************************************
-FUNCTION cp_sll_char_from_array(array) RESULT(res)
-    CHARACTER(len=default_string_length), &
-      DIMENSION(:), INTENT(in)               :: array
-    TYPE(cp_sll_char_type), POINTER          :: res
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'cp_sll_char_from_array', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: i
-    TYPE(cp_sll_char_type), POINTER          :: last_el
-
-  NULLIFY(res,last_el)
-  IF (SIZE(array)>0) THEN
-     CALL cp_sll_char_create(res,&
-          first_el=array(1))
-     last_el => res
-  END IF
-  DO i=2,SIZE(array)
-     CALL cp_sll_char_create(last_el%rest,&
-          first_el=array(i))
-     last_el => last_el%rest
-  END DO
-END FUNCTION cp_sll_char_from_array
-
-! *****************************************************************************
-!> \brief insert an element mantaining the order
-!> \param sll the list you want to insert in
-!> \param el the element that you want to insert
-!> \param insert_equals if equal elements should be inserted
-!>        (defaults to false)
-!> \param did_insert true if it did insert the element
-!> \param pos node where the element has been inserted (or of the same
-!>        element that was already in the list)
-!> \par History
-!>      07.2002 created [fawzi]
-!> \author Fawzi Mohamed
-! *****************************************************************************
-SUBROUTINE cp_sll_char_insert_ordered(sll,el,insert_equals,&
-     did_insert,pos)
-    TYPE(cp_sll_char_type), POINTER          :: sll
-    CHARACTER(len=default_string_length), &
-      INTENT(in)                             :: el
-    LOGICAL, INTENT(in), OPTIONAL            :: insert_equals
-    LOGICAL, INTENT(out), OPTIONAL           :: did_insert
-    TYPE(cp_sll_char_type), OPTIONAL, &
-      POINTER                                :: pos
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'cp_sll_char_insert_ordered', &
-      routineP = moduleN//':'//routineN
-
-    LOGICAL                                  :: i_eq
-    TYPE(cp_sll_char_type), POINTER          :: iter
-
-  i_eq=.FALSE.
-
-  IF (PRESENT(did_insert)) did_insert=.FALSE.
-  IF (PRESENT(pos)) NULLIFY(pos)
-
-  IF (PRESENT(insert_equals)) i_eq=insert_equals
-  IF (.NOT.ASSOCIATED(sll)) THEN
-     CALL cp_sll_char_create(sll,first_el=el)
-     IF (PRESENT(did_insert)) did_insert=.TRUE.
-     IF (PRESENT(pos)) pos=>sll
-  ELSE IF (.NOT.CP_SLL_C_LESS_Q(sll%first_el,el)) THEN
-     IF (PRESENT(pos)) pos=>sll
-     IF (i_eq.OR.CP_SLL_C_LESS_Q(el,sll%first_el)) THEN
-        CALL cp_sll_char_insert_el(sll,el)
-        IF (PRESENT(did_insert)) did_insert=.TRUE.
-        IF (PRESENT(pos)) pos=>sll
-     END IF
-  ELSE
-     iter => sll
-     DO
-        IF (.NOT.ASSOCIATED(iter%rest)) THEN
-           CALL cp_sll_char_insert_el(iter%rest,el)
-           IF (PRESENT(did_insert)) did_insert=.TRUE.
-           IF (PRESENT(pos)) pos=>iter%rest
-           EXIT
-        ELSE IF (.NOT.CP_SLL_C_LESS_Q(iter%rest%first_el,el)) THEN
-           IF (PRESENT(pos)) pos=>iter
-           IF (i_eq.OR. CP_SLL_C_LESS_Q(el,iter%rest%first_el)) THEN
-              CALL cp_sll_char_insert_el(iter%rest,el)
-              IF (PRESENT(did_insert)) did_insert=.TRUE.
-              IF (PRESENT(pos)) pos=>iter%rest
-           END IF
-           EXIT
-        END IF
-        CPASSERT(cp_sll_char_next(iter))
-     END DO
-     CPASSERT(ASSOCIATED(iter))
-  END IF
-END SUBROUTINE cp_sll_char_insert_ordered
-
-! *****************************************************************************
-!> \brief insert an element mantaining the order defined by a user given function
-!> \param sll the list you want to insert in
-!> \param el the element that you want to insert
-!> \param compare_function a function used to compare two elements,
-!>        it should return a negative number if the first argument is less
-!>        than the second, 0 if they are equal, otherwise a positive number
-!> \param insert_equals if equal elements should be inserted
-!>        (defaults to false)
-!> \param did_insert ...
-!> \param pos ...
-!> \par History
-!>      07.2002 created [fawzi]
-!> \author Fawzi Mohamed
-! *****************************************************************************
-SUBROUTINE cp_sll_char_insert_ordered2(sll,el,compare_function,&
-     insert_equals,did_insert,pos)
-    TYPE(cp_sll_char_type), POINTER          :: sll
-    CHARACTER(len=default_string_length), &
-      INTENT(in)                             :: el
-  INTERFACE
-! *****************************************************************************
-     FUNCTION compare_function(el1,el2)
-       USE kinds, ONLY: default_string_length
-       INTEGER :: compare_function
-       CHARACTER(len=default_string_length), INTENT(in) :: el1,el2
-     END FUNCTION compare_function
-  END INTERFACE
-    LOGICAL, INTENT(in), OPTIONAL            :: insert_equals
-    LOGICAL, INTENT(out), OPTIONAL           :: did_insert
-    TYPE(cp_sll_char_type), OPTIONAL, &
-      POINTER                                :: pos
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'cp_sll_char_insert_ordered2', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: comp
-    LOGICAL                                  :: i_eq
-    TYPE(cp_sll_char_type), POINTER          :: iter
-
-  i_eq=.FALSE.
-
-  IF (PRESENT(did_insert)) did_insert=.FALSE.
-  IF (PRESENT(pos)) NULLIFY(pos)
-
-  IF (PRESENT(insert_equals)) i_eq=insert_equals
-  IF (.NOT.ASSOCIATED(sll)) THEN
-     CALL cp_sll_char_create(sll,first_el=el)
-     IF (PRESENT(did_insert)) did_insert=.TRUE.
-     IF (PRESENT(pos)) pos=>sll%rest
-     RETURN
-  END IF
-  comp=compare_function(sll%first_el,el)
-  IF (comp>=0) THEN
-     IF (i_eq.OR.comp/=0) THEN
-        CALL cp_sll_char_insert_el(sll,el)
-        IF (PRESENT(did_insert)) did_insert=.TRUE.
-        IF (PRESENT(pos)) pos=>sll%rest
-     END IF
-  ELSE
-     iter => sll
-     DO
-        IF (.NOT.ASSOCIATED(iter%rest)) THEN
-           CALL cp_sll_char_insert_el(iter%rest,el)
-           IF (PRESENT(did_insert)) did_insert=.TRUE.
-           IF (PRESENT(pos)) pos=>iter%rest
-           EXIT
-        END IF
-        comp=compare_function(iter%rest%first_el,el)
-        IF (comp>=0) THEN
-           IF (i_eq.OR. comp/=0) THEN
-              CALL cp_sll_char_insert_el(iter%rest,el)
-              IF (PRESENT(did_insert)) did_insert=.TRUE.
-              IF (PRESENT(pos)) pos=>iter%rest
-           END IF
-           EXIT
-        END IF
-        CPASSERT(cp_sll_char_next(iter))
-     END DO
-     CPASSERT(ASSOCIATED(iter))
-  END IF
-END SUBROUTINE cp_sll_char_insert_ordered2
-
 ! template def put here so that line numbers in template and derived
 ! files are almost the same (multi-line use change it a bit)
 ! [template(defines,nametype1,type1,type1in,type1out,type1arrayEl,arrayEl,array=,=,USE,write_el,lessQ,equalQ,private_routines)]
@@ -951,20 +631,7 @@ END SUBROUTINE cp_sll_char_insert_ordered2
 !  equalQ = "CP_SLL_C_EQUAL_Q"
 !  lessQ = "CP_SLL_C_LESS_Q"
 !  nametype1 = "char"
-!  private_routines = 
-!    "
-!     ! *****************************************************************************
-!     !> \brief ...
-!     !> \param str ...
-!     !> \param unit_nr ...
-!     ! *****************************************************************************
-!     subroutine write_string(str,unit_nr)
-!       character(len=*),intent(in) :: str
-!       integer, intent(in) :: unit_nr
-!     
-!       write(unit_nr,"(a,a,a)") '"',trim(str),'"'
-!     end subroutine write_string
-!     "
+!  private_routines = ""
 !  template = "../common/cp_linked_list__nametype1_.template"
 !  type1 = "character(len=default_string_length)"
 !  type1arrayEl = "character(len=default_string_length)"

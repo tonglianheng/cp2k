@@ -572,6 +572,8 @@ MODULE hfx_energy_potential
     nneighbors = SIZE(actual_x_data%neighbor_cells)
     ALLOCATE(pgf_list_ij(max_pgf**2))
     ALLOCATE(pgf_list_kl(max_pgf**2))
+    ! TODO this is a memory sink, not obvious how to reduce the memory usage,
+    !      but typically most of them memory allocated here is never touched (i.e. remains virt not resident)
     ALLOCATE(pgf_product_list(nneighbors**3))
     ALLOCATE(nimages(max_pgf**2))
 
@@ -1124,10 +1126,12 @@ MODULE hfx_energy_potential
         IF( shm_task_counter <= shm_total_bins) THEN
           my_thread_id = shm_task_list(shm_task_counter)%thread_id
           my_bin_id = shm_task_list(shm_task_counter)%bin_id
-          maxval_cache => x_data(irep,my_thread_id)%maxval_cache(my_bin_id)
-          maxval_container => x_data(irep,my_thread_id)%maxval_container(my_bin_id)
-          integral_caches => x_data(irep,my_thread_id)%integral_caches(:,my_bin_id)
-          integral_containers => x_data(irep,my_thread_id)%integral_containers(:,my_bin_id)
+          IF (.NOT.  memory_parameter%do_all_on_the_fly) THEN
+             maxval_cache => x_data(irep,my_thread_id)%maxval_cache(my_bin_id)
+             maxval_container => x_data(irep,my_thread_id)%maxval_container(my_bin_id)
+             integral_caches => x_data(irep,my_thread_id)%integral_caches(:,my_bin_id)
+             integral_containers => x_data(irep,my_thread_id)%integral_containers(:,my_bin_id)
+          ENDIF
           distribution_energy => x_data(irep,my_thread_id)%distribution_energy(my_bin_id)
           do_it = .TRUE.
           bins_left = .TRUE.
@@ -1650,10 +1654,11 @@ MODULE hfx_energy_potential
                     END DO
                   END IF
                 END IF
-!!!  DEBUG, print out primitive integrals and indices. Only works serial no OMP  !!!
-!               CALL print_integrals(iatom,jatom,katom,latom,shm_set_offset,shm_atomic_block_offset,&
-!                    iset, jset, kset, lset,nsgfa(iset), nsgfb(jset), nsgfc(kset), nsgfd(lset),primitive_integrals)
-!!!  DEBUG END
+                !!!  DEBUG, print out primitive integrals and indices. Only works serial no OMP  !!!
+                IF (.FALSE.) THEN
+                  CALL print_integrals(iatom,jatom,katom,latom,shm_set_offset,shm_atomic_block_offset,&
+                       iset, jset, kset, lset,nsgfa(iset), nsgfb(jset), nsgfc(kset), nsgfd(lset),primitive_integrals)
+                ENDIF
                 IF(.NOT.is_anti_symmetric)THEN
                   !! Update Kohn-Sham matrix
                   CALL update_fock_matrix(nsgfa(iset), nsgfb(jset), nsgfc(kset), nsgfd(lset), &

@@ -23,7 +23,12 @@ from os import path
 from pprint import pformat
 from xml.dom import minidom
 from glob import glob
+import itertools
 
+import matplotlib as mpl
+mpl.use('Agg')  # change backend, to run without X11
+import matplotlib.pyplot as plt
+from matplotlib.ticker import AutoMinorLocator
 
 #===============================================================================
 def main():
@@ -148,12 +153,12 @@ def gen_archive(config, log, outdir, full_archive=False):
         print "Doing the full archive index pages"
         trunk_revision = None # trunk_version changes too quickly, leave it out.
         out_fn = "index_full.html"
-        full_index_link = ''
+        other_index_link = '<p>View <a href="index.html">recent archive</a></p>'
     else:
         print "Doing recent archive index pages"
         trunk_revision = log[0]['num']
         out_fn = "index.html"
-        full_index_link = '<p>View <a href="index_full.html">full archive</a></p>'
+        other_index_link = '<p>View <a href="index_full.html">full archive</a></p>'
 
     url_list = ""
     for s in config.sections():
@@ -162,16 +167,6 @@ def gen_archive(config, log, outdir, full_archive=False):
         report_type = config.get(s,"report_type")
         info_url    = config.get(s,"info_url") if(config.has_option(s,"info_url")) else None
 
-
-        # generate archive index
-        archive_output = html_header(title=name)
-        archive_output += '<p>Go back to <a href="../../index.html">main page</a></p>'
-        if(info_url):
-            archive_output += '<p>Get <a href="%s">more information</a></p>'%info_url
-        archive_output += full_index_link
-        archive_output += '<table border="1" cellspacing="3" cellpadding="5">\n'
-        archive_output += '<tr><th>Revision</th><th>Status</th><th>Summary</th><th>Author</th><th>Commit Message</th></tr>\n\n'
-
         # read all archived reports
         archive_reports = dict()
         for fn in sorted(glob(outdir+"archive/%s/rev_*.txt.gz"%s), reverse=True):
@@ -179,6 +174,17 @@ def gen_archive(config, log, outdir, full_archive=False):
             report = parse_report(report_txt, report_type)
             report['url'] = path.basename(fn)[:-3]
             archive_reports[report['revision']] = report
+
+        # generate archive index
+        archive_output = html_header(title=name)
+        archive_output += '<p>Go back to <a href="../../index.html">main page</a></p>\n'
+        if(info_url):
+            archive_output += '<p>Get <a href="%s">more information</a></p>\n'%info_url
+        if(report_type == "generic"):
+            archive_output += gen_plots(archive_reports, log, outdir+"archive/"+s+"/", full_archive)
+        archive_output += other_index_link
+        archive_output += '<table border="1" cellspacing="3" cellpadding="5">\n'
+        archive_output += '<tr><th>Revision</th><th>Status</th><th>Summary</th><th>Author</th><th>Commit Message</th></tr>\n\n'
 
         # loop over all relevant revisions
         rev_start = max(min(archive_reports.keys()), min(log_index.keys()))
@@ -199,12 +205,88 @@ def gen_archive(config, log, outdir, full_archive=False):
             archive_output += '</tr>\n\n'
 
         archive_output += '</table>\n'
-        archive_output += full_index_link
+        archive_output += other_index_link
         archive_output += html_footer()
         write_file(outdir+"archive/%s/%s"%(s,out_fn), archive_output)
 
     out_fn = "list_full.txt" if (full_archive) else "list_recent.txt"
     write_file(outdir+"archive/"+out_fn, url_list)
+
+#===============================================================================
+def gen_plots(all_reports, log, outdir, full_archive):
+    # collect plot data
+    plots = {}
+    for revision in sorted(all_reports.keys()):
+        report = all_reports[revision]
+        for p in report['plots']:
+            if(p['name'] not in plots.keys()):
+                plots[p['name']] = {'curves':{}}
+            plots[p['name']]['title'] = p['title'] # update title
+            plots[p['name']]['ylabel'] = p['ylabel'] # update label
+        for pp in report['plotpoints']:
+            p = plots[pp['plot']]
+            if(pp['name'] not in p['curves'].keys()):
+                p['curves'][pp['name']] = {'x':[], 'y':[], 'yerr':[]}
+            c = p['curves'][pp['name']]
+            c['x'].append(report['revision'])
+            c['y'].append(pp['y'])
+            c['yerr'].append(pp['yerr'])
+            c['label'] = pp['label'] # update label
+
+    # write raw data
+    tags = sorted([(pname, cname) for pname, p in plots.items() for cname in p['curves'].keys()])
+    raw_output = "#%9s"%"revision"
+    for pname, cname in tags:
+        raw_output += "   %18s   %22s"%(pname+"/"+cname,pname+"/"+cname+"_err")
+    raw_output += "\n"
+    for revision in sorted(all_reports.keys(), reverse=True):
+        report = all_reports[revision]
+        raw_output += "%10d"%revision
+        for pname, cname in tags:
+            pp = [pp for pp in report['plotpoints'] if(pp['plot']==pname and pp['name']==cname)]
+            assert(len(pp)<=1)
+            if(pp):
+                raw_output += "   %18f   %22f"%(pp[0]['y'],pp[0]['yerr'])
+            else:
+                raw_output += "   %18s   %22s"%("?","?")
+        raw_output += "\n"
+    write_file(outdir+"plot_data.txt", raw_output)
+
+    # create png images
+    fig_ext = "_full.png" if(full_archive) else ".png"
+    markers = itertools.cycle('os>^*')
+    rev_end = log[0]['num']
+    rev_start = min(all_reports.keys()) if(full_archive) else rev_end-100
+    for pname, p in plots.items():
+        print "Working on plot: "+pname
+        fig = plt.figure(figsize=(10,4))
+        fig.subplots_adjust(bottom=0.18, left=0.08, right=0.97)
+        fig.suptitle(p['title'], fontsize=14, fontweight='bold')
+        ax = fig.add_subplot(111)
+        ax.set_xlabel('SVN Revision')
+        ax.set_ylabel(p['ylabel'])
+        for cname, c in p['curves'].items():
+            if(full_archive):
+                ax.plot(c['x'], c['y'], label=c['label'], linewidth=2) # less crowded
+            else:
+                ax.errorbar(c['x'], c['y'], yerr=c['yerr'], label=c['label'],
+                            marker=markers.next(), linewidth=2, markersize=7)
+        ax.set_xlim(rev_start-1, rev_end+1)
+        ax.xaxis.set_minor_locator(AutoMinorLocator())
+        ax.legend(loc='upper center', numpoints=1, ncol=3, fancybox=True, shadow=True)
+        if(not full_archive): # protect against outlayers
+            ymin  = min([min(c['y']) for c in p['curves'].values()]) # lowest point from lowest curve
+            ymax1 = max([min(c['y']) for c in p['curves'].values()]) # lowest point from highest curve
+            # highest *visible* point from highest curve
+            ymax2 = max([max([y for x,y in zip(c['x'],c['y']) if x>=rev_start]) for c in p['curves'].values()])
+            ax.set_ylim(0.95*ymin, min(1.3*ymax1, 1.05*ymax2))
+        fig.savefig(outdir+pname+fig_ext)
+
+    # write html output
+    html_output = ""
+    for pname, p in plots.items():
+        html_output += '<p><a href="plot_data.txt"><img src="%s" alt="%s"></a></p>\n'%(pname+fig_ext, p['title'])
+    return(html_output)
 
 #===============================================================================
 def retrieve_report(report_url):
@@ -494,7 +576,9 @@ def parse_generic_report(report_txt):
     report['revision']  = int(re.search("(^|\n)Revision: (\d+)\n", report_txt).group(2))
     report['summary'] = re.search("(^|\n)Summary: (.+)\n", report_txt).group(2)
     report['status'] = re.search("(^|\n)Status: (.+)\n", report_txt).group(2)
-
+    report['plots'] = [eval("dict(%s)"%m[1]) for m in re.findall("(^|\n)Plot: (.+)(?=\n)", report_txt)]
+    report['plotpoints'] = [eval("dict(%s)"%m[1]) for m in re.findall("(^|\n)PlotPoint: (.+)(?=\n)", report_txt)]
+   
     return(report)
 
 #===============================================================================
