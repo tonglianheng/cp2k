@@ -5,6 +5,7 @@
 
 MODULE qs_fb_input
   USE bibliography,                    ONLY: Rayson2009
+  USE cp_units,                        ONLY: cp_unit_to_cp2k
   USE input_keyword_types,             ONLY: keyword_create,&
                                              keyword_release,&
                                              keyword_type
@@ -13,6 +14,8 @@ MODULE qs_fb_input
                                              section_type
   USE input_val_types,                 ONLY: logical_t,&
                                              real_t
+  USE kinds,                           ONLY: dp
+
 #include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
