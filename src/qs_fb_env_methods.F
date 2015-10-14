@@ -676,6 +676,7 @@ CONTAINS
 !> \param ndep : if the overlap is not positive definite, then ndep > 0,
 !>               and equals to the number of linear dependent basis functions
 !>               in the filtered basis set
+!> \param method : method for solving generalised eigenvalue problem
 !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
 ! *****************************************************************************
   SUBROUTINE fb_env_eigensolver(fm_KS, fm_S, mo_set, fm_ortho, &
