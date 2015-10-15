@@ -68,8 +68,6 @@
                                                default_string_length
     USE particle_list_types,             ONLY: particle_list_type
     USE particle_methods,                  ONLY: write_structure_data
-    USE timings,                         ONLY: timeset,&
-                                               timestop
     USE virial_methods,                  ONLY: virial_update
     USE virial_types,                    ONLY: cp_virial,&
                                                virial_create,&
@@ -77,6 +75,7 @@
                                                virial_type
 
 #include "../common/cp_common_uses.f90"
+#include "../base/base_uses.f90"
     IMPLICIT NONE
     TYPE(gopt_f_type), POINTER               :: gopt_env
     REAL(KIND=dp), DIMENSION(:), POINTER     :: x

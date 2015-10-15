@@ -26,8 +26,6 @@ MODULE atom_xc
                                              section_vals_val_get
   USE kinds,                           ONLY: dp
   USE mathconstants,                   ONLY: fourpi
-  USE timings,                         ONLY: timeset,&
-                                             timestop
   USE xc_atom,                         ONLY: xc_rho_set_atom_update
   USE xc_derivative_set_types,         ONLY: xc_derivative_set_type,&
                                              xc_dset_create,&
@@ -43,6 +41,7 @@ MODULE atom_xc
                                              xc_rho_set_release,&
                                              xc_rho_set_type
 #include "./common/cp_common_uses.f90"
+#include "./base/base_uses.f90"
 
   IMPLICIT NONE
 

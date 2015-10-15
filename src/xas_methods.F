@@ -102,8 +102,6 @@ MODULE xas_methods
                                              scf_c_read_parameters,&
                                              scf_c_release,&
                                              scf_control_type
-  USE timings,                         ONLY: timeset,&
-                                             timestop
   USE xas_control,                     ONLY: read_xas_control,&
                                              write_xas_control,&
                                              xas_control_create,&
@@ -117,6 +115,7 @@ MODULE xas_methods
   USE xas_tp_scf,                      ONLY: xas_do_tp_scf,&
                                              xes_scf_once
 #include "./common/cp_common_uses.f90"
+#include "./base/base_uses.f90"
 
   IMPLICIT NONE
   PRIVATE

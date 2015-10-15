@@ -18,14 +18,13 @@
 ! *****************************************************************************
 
 MODULE tmc_tree_references
-  USE timings,                         ONLY: timeset,&
-                                             timestop
   USE tmc_cancelation,                 ONLY: add_to_canceling_list
   USE tmc_tree_types,                  ONLY: global_tree_type,&
                                              gt_elem_list_type,&
                                              tree_type
   USE tmc_types,                       ONLY: tmc_env_type
 #include "../common/cp_common_uses.f90"
+#include "../base/base_uses.f90"
 
   IMPLICIT NONE
 

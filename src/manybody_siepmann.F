@@ -34,10 +34,9 @@ MODULE manybody_siepmann
                                              siepmann_pot_type,&
                                              siepmann_type
   USE particle_types,                  ONLY: particle_type
-  USE timings,                         ONLY: timeset,&
-                                             timestop
   USE util,                            ONLY: sort
 #include "./common/cp_common_uses.f90"
+#include "./base/base_uses.f90"
 
   IMPLICIT NONE
 

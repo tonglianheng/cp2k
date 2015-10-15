@@ -69,9 +69,8 @@ MODULE neb_utils
   USE replica_types,                   ONLY: rep_env_sync,&
                                              replica_env_type
   USE rmsd,                            ONLY: rmsd3
-  USE timings,                         ONLY: timeset,&
-                                             timestop
 #include "../common/cp_common_uses.f90"
+#include "../base/base_uses.f90"
 
   IMPLICIT NONE
   PRIVATE

@@ -18,10 +18,9 @@ MODULE topology_multiple_unit_cell
   USE kinds,                           ONLY: default_string_length,&
                                              dp
   USE memory_utilities,                ONLY: reallocate
-  USE timings,                         ONLY: timeset,&
-                                             timestop
   USE topology_types,                  ONLY: topology_parameters_type
 #include "./common/cp_common_uses.f90"
+#include "./base/base_uses.f90"
 
   IMPLICIT NONE
 

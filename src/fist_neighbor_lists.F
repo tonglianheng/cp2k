@@ -51,10 +51,9 @@ MODULE fist_neighbor_lists
                                              give_ijk_subcell,&
                                              reorder_atoms_subcell,&
                                              subcell_type
-  USE timings,                         ONLY: timeset,&
-                                             timestop
   USE util,                            ONLY: sort
 #include "./common/cp_common_uses.f90"
+#include "./base/base_uses.f90"
 
   IMPLICIT NONE
 

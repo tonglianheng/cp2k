@@ -13,8 +13,6 @@ MODULE xc_atom
   USE kinds,                           ONLY: dp
   USE pw_pool_types,                   ONLY: pw_pool_type
   USE pw_types,                        ONLY: pw_p_type
-  USE timings,                         ONLY: timeset,&
-                                             timestop
   USE xc,                              ONLY: divide_by_norm_drho,&
                                              xc_calc_2nd_deriv
   USE xc_derivative_set_types,         ONLY: xc_derivative_set_type,&
@@ -26,6 +24,7 @@ MODULE xc_atom
   USE xc_rho_set_types,                ONLY: xc_rho_set_get,&
                                              xc_rho_set_type
 #include "../common/cp_common_uses.f90"
+#include "../base/base_uses.f90"
 
  IMPLICIT NONE
 

@@ -36,8 +36,6 @@ MODULE tmc_types
                                              default_string_length,&
                                              dp
   USE parallel_rng_types,              ONLY: rng_stream_type
-  USE timings,                         ONLY: timeset,&
-                                             timestop
   USE tmc_move_types,                  ONLY: tmc_move_type
   USE tmc_stati,                       ONLY: task_type_MC
   USE tmc_tree_types,                  ONLY: clean_list,&
@@ -45,6 +43,7 @@ MODULE tmc_types
                                              elem_list_type,&
                                              global_tree_type
 #include "../common/cp_common_uses.f90"
+#include "../base/base_uses.f90"
 
   IMPLICIT NONE
 

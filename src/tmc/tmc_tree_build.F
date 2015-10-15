@@ -36,8 +36,6 @@ MODULE tmc_tree_build
                                              next_random_number,&
                                              reset_to_next_rng_substream,&
                                              set_rng_stream
-  USE timings,                         ONLY: timeset,&
-                                             timestop
   USE tmc_calculations,                ONLY: calc_e_kin,&
                                              init_vel
   USE tmc_dot_tree,                    ONLY: create_dot,&
@@ -77,6 +75,7 @@ MODULE tmc_tree_build
   USE tmc_types,                       ONLY: tmc_env_type,&
                                              tmc_param_type
 #include "../common/cp_common_uses.f90"
+#include "../base/base_uses.f90"
 
   IMPLICIT NONE
 

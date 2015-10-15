@@ -17,9 +17,8 @@
 
   USE kinds,                           ONLY: default_string_length,&
                                              dp
-  USE timings,                         ONLY: timeset,&
-                                             timestop
 #include "cp_common_uses.f90"
+#include "../base/base_uses.f90"
 
   IMPLICIT NONE
 

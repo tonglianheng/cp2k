@@ -32,8 +32,6 @@ MODULE tmc_analysis
                                              boltzmann,&
                                              joule,&
                                              massunit
-  USE timings,                         ONLY: timeset,&
-                                             timestop
   USE tmc_analysis_types,              ONLY: &
        ana_type_default, ana_type_ice, ana_type_sym_xyz, atom_pairs_type, &
        dipole_moment_type, pair_correl_type, search_pair_in_list, &
@@ -64,6 +62,7 @@ MODULE tmc_analysis
   USE tmc_types,                       ONLY: tmc_atom_type,&
                                              tmc_param_type
 #include "../common/cp_common_uses.f90"
+#include "../base/base_uses.f90"
 
   IMPLICIT NONE
 

@@ -87,14 +87,13 @@ MODULE pw_env_methods
        realspace_grid_input_type, realspace_grid_p_type, realspace_grid_type, &
        rs_grid_create, rs_grid_create_descriptor, rs_grid_print, &
        rs_grid_release, rs_grid_release_descriptor, rs_pw_transfer
-  USE timings,                         ONLY: timeset,&
-                                             timestop
   USE xc_input_constants,              ONLY: &
        xc_deriv_collocate, xc_deriv_nn10_smooth, xc_deriv_nn50_smooth, &
        xc_deriv_pw, xc_deriv_spline2, xc_deriv_spline2_smooth, &
        xc_deriv_spline3, xc_deriv_spline3_smooth, xc_rho_nn10, xc_rho_nn50, &
        xc_rho_no_smooth, xc_rho_spline2_smooth, xc_rho_spline3_smooth
 #include "./common/cp_common_uses.f90"
+#include "./base/base_uses.f90"
 
   IMPLICIT NONE
   PRIVATE
