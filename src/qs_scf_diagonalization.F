@@ -109,9 +109,8 @@ MODULE qs_scf_diagonalization
   USE qs_scf_types,                    ONLY: qs_scf_env_type,&
                                              subspace_env_type
   USE scf_control_types,               ONLY: scf_control_type
-  USE timings,                         ONLY: timeset,&
-                                             timestop
 #include "./common/cp_common_uses.f90"
+#include "./base/base_uses.f90"
 
   IMPLICIT NONE
 

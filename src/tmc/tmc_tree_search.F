@@ -12,8 +12,6 @@
 
 MODULE tmc_tree_search
   USE kinds,                           ONLY: dp
-  USE timings,                         ONLY: timeset,&
-                                             timestop
   USE tmc_stati,                       ONLY: TMC_STATUS_WAIT_FOR_NEW_TASK
   USE tmc_tree_references,             ONLY: add_to_references,&
                                              search_and_remove_reference_in_list
@@ -27,6 +25,7 @@ MODULE tmc_tree_search
        status_rejected_result, tree_type
   USE tmc_types,                       ONLY: tmc_env_type
 #include "../common/cp_common_uses.f90"
+#include "../base/base_uses.f90"
 
   IMPLICIT NONE
 

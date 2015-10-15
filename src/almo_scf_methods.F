@@ -41,10 +41,9 @@ MODULE almo_scf_methods
   USE iterate_matrix,                  ONLY: invert_Hotelling,&
                                              matrix_sqrt_Newton_Schulz
   USE kinds,                           ONLY: dp
-  USE timings,                         ONLY: timeset,&
-                                             timestop
   USE util,                            ONLY: sort
 #include "./common/cp_common_uses.f90"
+#include "./base/base_uses.f90"
 
   IMPLICIT NONE
 

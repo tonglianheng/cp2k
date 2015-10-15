@@ -45,8 +45,6 @@ MODULE cp_fm_diag
                                              mp_comm_split,&
                                              mp_comm_split_direct,&
                                              mp_sync
-  USE timings,                         ONLY: timeset,&
-                                             timestop
 #if defined (__HAS_IEEE_EXCEPTIONS)
   USE ieee_exceptions,                 ONLY: ieee_get_halting_mode,&
                                              ieee_set_halting_mode,&
@@ -58,6 +56,7 @@ MODULE cp_fm_diag
 #endif
 
 #include "../common/cp_common_uses.f90"
+#include "../base/base_uses.f90"
 
   IMPLICIT NONE
 

@@ -58,9 +58,8 @@ MODULE qs_localization_methods
                                              mp_sendrecv,&
                                              mp_sum,&
                                              mp_sync
-  USE timings,                         ONLY: timeset,&
-                                             timestop
 #include "./common/cp_common_uses.f90"
+#include "./base/base_uses.f90"
 
   IMPLICIT NONE
   PUBLIC :: initialize_weights, crazy_rotations,&

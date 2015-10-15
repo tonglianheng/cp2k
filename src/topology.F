@@ -48,8 +48,6 @@ MODULE topology
   USE string_table,                    ONLY: id2str,&
                                              s2s,&
                                              str2id
-  USE timings,                         ONLY: timeset,&
-                                             timestop
   USE topology_amber,                  ONLY: read_connectivity_amber,&
                                              read_coordinate_crd
   USE topology_cif,                    ONLY: read_coordinate_cif
@@ -87,6 +85,7 @@ MODULE topology
   USE topology_xtl,                    ONLY: read_coordinate_xtl
   USE topology_xyz,                    ONLY: read_coordinate_xyz
 #include "./common/cp_common_uses.f90"
+#include "./base/base_uses.f90"
 
   IMPLICIT NONE
 

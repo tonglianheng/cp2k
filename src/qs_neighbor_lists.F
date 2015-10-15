@@ -87,11 +87,10 @@ MODULE qs_neighbor_lists
                                              deallocate_subcell,&
                                              give_ijk_subcell,&
                                              subcell_type
-  USE timings,                         ONLY: timeset,&
-                                             timestop
   USE util,                            ONLY: locate,&
                                              sort
 #include "./common/cp_common_uses.f90"
+#include "./base/base_uses.f90"
 
   IMPLICIT NONE
 

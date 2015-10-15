@@ -57,11 +57,10 @@ MODULE se_core_core
   USE semi_empirical_utils,            ONLY: finalize_se_taper,&
                                              get_se_type,&
                                              initialize_se_taper
-  USE timings,                         ONLY: timeset,&
-                                             timestop
   USE virial_methods,                  ONLY: virial_pair_force
   USE virial_types,                    ONLY: virial_type
 #include "./common/cp_common_uses.f90"
+#include "./base/base_uses.f90"
 
   IMPLICIT NONE
   PRIVATE

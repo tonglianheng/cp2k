@@ -40,10 +40,9 @@ MODULE ipi_driver
                                              mp_send,&
                                              mp_sync,&
                                              mp_testany
-  USE timings,                         ONLY: timeset,&
-                                             timestop
   USE virial_types,                    ONLY: virial_type
 #include "./common/cp_common_uses.f90"
+#include "./base/base_uses.f90"
 
   IMPLICIT NONE
   

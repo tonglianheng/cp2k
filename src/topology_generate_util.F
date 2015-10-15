@@ -44,8 +44,6 @@ MODULE topology_generate_util
                                              str2id
   USE string_utilities,                ONLY: integer_to_string,&
                                              uppercase
-  USE timings,                         ONLY: timeset,&
-                                             timestop
   USE topology_types,                  ONLY: atom_info_type,&
                                              connectivity_info_type,&
                                              topology_parameters_type
@@ -58,6 +56,7 @@ MODULE topology_generate_util
   USE util,                            ONLY: find_boundary,&
                                              sort
 #include "./common/cp_common_uses.f90"
+#include "./base/base_uses.f90"
 
   IMPLICIT NONE
 

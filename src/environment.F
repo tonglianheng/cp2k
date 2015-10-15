@@ -92,8 +92,6 @@ MODULE environment
                                              stop_memory
   USE timings,                         ONLY: add_timer_env,&
                                              rm_timer_env,&
-                                             timeset,&
-                                             timestop,&
                                              timings_setup_tracing
   USE timings_report,                  ONLY: cost_type_energy,&
                                              cost_type_time,&
@@ -102,6 +100,7 @@ MODULE environment
 
   !$ USE OMP_LIB, ONLY: omp_get_max_threads, omp_get_thread_num, omp_get_num_threads
 #include "./common/cp_common_uses.f90"
+#include "./base/base_uses.f90"
 
   IMPLICIT NONE
 

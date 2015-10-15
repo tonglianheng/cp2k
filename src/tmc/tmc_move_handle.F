@@ -32,8 +32,6 @@ MODULE tmc_move_handle
   USE mathconstants,                   ONLY: pi
   USE physcon,                         ONLY: au2a => angstrom
   USE string_utilities,                ONLY: uppercase
-  USE timings,                         ONLY: timeset,&
-                                             timestop
   USE tmc_move_types,                  ONLY: &
        move_types_create, move_types_release, mv_type_MD, mv_type_NMC_moves, &
        mv_type_atom_swap, mv_type_atom_trans, mv_type_gausian_adapt, &
@@ -48,6 +46,7 @@ MODULE tmc_move_handle
                                              tree_type
   USE tmc_types,                       ONLY: tmc_param_type
 #include "../common/cp_common_uses.f90"
+#include "../base/base_uses.f90"
 
   IMPLICIT NONE
 

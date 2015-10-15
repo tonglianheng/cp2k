@@ -28,8 +28,6 @@ MODULE tmc_master
   USE machine,                         ONLY: m_flush,&
                                              m_memory,&
                                              m_walltime
-  USE timings,                         ONLY: timeset,&
-                                             timestop
   USE tmc_calculations,                ONLY: get_subtree_efficiency
   USE tmc_cancelation,                 ONLY: free_cancelation_list
   USE tmc_dot_tree,                    ONLY: create_dot_color,&
@@ -76,6 +74,7 @@ MODULE tmc_master
        status_rejected, tree_type
   USE tmc_types,                       ONLY: tmc_env_type
 #include "../common/cp_common_uses.f90"
+#include "../base/base_uses.f90"
 
   IMPLICIT NONE
 

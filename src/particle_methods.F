@@ -53,11 +53,10 @@ MODULE particle_methods
                                              shell_kind_type
   USE string_utilities,                ONLY: uppercase
   USE termination,                     ONLY: stop_memory
-  USE timings,                         ONLY: timeset,&
-                                             timestop
   USE util,                            ONLY: sort,&
                                              sort_unique
 #include "./common/cp_common_uses.f90"
+#include "./base/base_uses.f90"
 
   IMPLICIT NONE
 

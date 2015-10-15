@@ -51,8 +51,6 @@ MODULE xc
                                              pw_p_type,&
                                              pw_release,&
                                              pw_type
-  USE timings,                         ONLY: timeset,&
-                                             timestop
   USE xc_derivative_desc,              ONLY: MAX_DERIVATIVE_DESC_LENGTH,&
                                              MAX_LABEL_LENGTH
   USE xc_derivative_set_types,         ONLY: xc_derivative_set_type,&
@@ -75,6 +73,7 @@ MODULE xc
                                              xc_rho_set_type,&
                                              xc_rho_set_update
 #include "../common/cp_common_uses.f90"
+#include "../base/base_uses.f90"
 
   IMPLICIT NONE
   PRIVATE

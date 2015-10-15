@@ -24,8 +24,6 @@ MODULE tmc_moves
                                              set_rng_stream
   USE physcon,                         ONLY: boltzmann,&
                                              joule
-  USE timings,                         ONLY: timeset,&
-                                             timestop
   USE tmc_calculations,                ONLY: center_of_mass,&
                                              geometrical_center,&
                                              get_scaled_cell,&
@@ -40,6 +38,7 @@ MODULE tmc_moves
   USE tmc_types,                       ONLY: tmc_atom_type,&
                                              tmc_param_type
 #include "../common/cp_common_uses.f90"
+#include "../base/base_uses.f90"
 
   IMPLICIT NONE
 

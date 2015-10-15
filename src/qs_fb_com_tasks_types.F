@@ -20,10 +20,9 @@ MODULE qs_fb_com_tasks_types
                                              fb_matrix_data_get,&
                                              fb_matrix_data_has_data,&
                                              fb_matrix_data_obj
-  USE timings,                         ONLY: timeset,&
-                                             timestop
   USE util,                            ONLY: sort
 #include "./common/cp_common_uses.f90"
+#include "./base/base_uses.f90"
 
   IMPLICIT NONE
 

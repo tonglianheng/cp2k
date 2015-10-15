@@ -24,12 +24,11 @@ MODULE topology_gromos
   USE memory_utilities,                ONLY: reallocate
   USE string_table,                    ONLY: s2s,&
                                              str2id
-  USE timings,                         ONLY: timeset,&
-                                             timestop
   USE topology_types,                  ONLY: atom_info_type,&
                                              connectivity_info_type,&
                                              topology_parameters_type
 #include "./common/cp_common_uses.f90"
+#include "./base/base_uses.f90"
 
   IMPLICIT NONE
 
