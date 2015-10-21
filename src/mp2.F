@@ -16,6 +16,7 @@ MODULE mp2
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind_set
   USE bibliography,                    ONLY: DelBen2012,&
+                                             DelBen2015b,&
                                              cite_reference
   USE cp_blacs_env,                    ONLY: cp_blacs_env_type
   USE cp_control_types,                ONLY: dft_control_type
@@ -226,6 +227,7 @@ MODULE mp2
     ENDIF
 
     IF (calc_forces) THEN
+       CALL cite_reference(DelBen2015b)
        IF(mp2_env%method/=ri_mp2_method_gpw) THEN
          CPABORT("No forces/gradients for the selected method.")
        END IF
@@ -257,13 +259,6 @@ MODULE mp2
     IF (unit_nr>0) CALL m_flush(unit_nr)
 
     nspins=dft_control%nspins
-
-    !IF (calc_forces.AND.nspins/=1) THEN
-    !  CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
-    !                 "No forces/gradients for LSD."//&
-    !                 __LOCATION__, only_ionode=.TRUE.)
-    !END IF
-
     natom = SIZE(particle_set,1)
 
     ALLOCATE(kind_of(natom))
@@ -436,17 +431,6 @@ MODULE mp2
      CASE(mp2_method_laplace)
        CPABORT("laplace not implemented")
      CASE (mp2_method_direct)
-       !DO i=1,SIZE(mos)
-       !   CALL get_mo_set( mo_set=mos(i)%mo_set,&
-       !               nmo=nmo, nao=nao, mo_coeff=mo_coeff)
-       !   IF (nmo.NE.nao) THEN
-       !      CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
-       !          " Direct MP2 needs the full set of virtual MOs, use ADDED_MOS in the input"//&
-       !          __LOCATION__,&
-       !          only_ionode=.TRUE.)
-       !   ENDIF
-       !ENDDO
-
        IF (unit_nr>0) WRITE(unit_nr,*)
 
        IF(nspins==2) THEN
