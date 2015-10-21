@@ -497,8 +497,7 @@ CONTAINS
     CALL timeset(routineN,handle)
 
     IF(ANY(tmc_params%sub_box_size(:).LE.0.1_dp)) THEN
-      !CALL cp_assert(.FALSE.,cp_warning_level,cp_assertion_failed,routineP,&
-      !       "try to count elements in sub box without sub box.")
+      !CPWARN("try to count elements in sub box without sub box.")
       elem%elem_stat = status_ok
       nr_of_sub_box_elements = SIZE(elem%elem_stat)
     ELSE
@@ -748,9 +747,10 @@ CONTAINS
     counter = counter-k+1
 
     ! check if loop is minimum size of 6 molecules
-    CALL cp_assert(counter.GE.6,cp_warning_level,cp_assertion_failed,&
-                 routineP,"short proton loop with"//cp_to_string(counter)//&
-                 "molecules.",failure)
+    IF(counter.LT.6)&
+       CALL cp_warn(__LOCATION__,&
+            "short proton loop with"//cp_to_string(counter)//&
+            "molecules.")
     IF(failure) THEN
       tmp_chr=""
       WRITE(tmp_chr, *) mol_arr(1:counter)

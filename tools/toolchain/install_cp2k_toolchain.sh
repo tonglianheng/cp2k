@@ -20,7 +20,8 @@ mpichoice=mpich
 mpich_ver=3.1.2
 openmpi_ver=1.8.6
 openblas_ver=v0.2.14-0-gd0c51c4
-scalapack_ver=XXXXXX # no version numbering used.
+scalapack_ver=2.0.2
+lapack_ver=3.5.0
 libxc_ver=2.2.2
 libint_ver=1.1.4
 fftw_ver=3.3.4
@@ -327,6 +328,40 @@ if [ "$mpichoice" == "mpich" ]; then
    DFLAGS="${DFLAGS} IF_MPI(-D__parallel -D__MPI_VERSION=3,)"
 fi
 
+echo "================= Installing lapack ref ================="
+if [ -f lapack-${lapack_ver}.tgz ]; then
+   echo "Installation already started, skipping it."
+else
+   wget http://www.cp2k.org/static/downloads/lapack-${lapack_ver}.tgz
+   checksum lapack-${lapack_ver}.tgz
+   tar -xzf lapack-${lapack_ver}.tgz
+   cd lapack-${lapack_ver}
+cat << EOF > make.inc
+SHELL    = /bin/sh
+FORTRAN  = gfortran
+OPTS     = $FFLAGS -frecursive -fno-fast-math
+DRVOPTS  = $FFLAGS -frecursive -fno-fast-math
+NOOPT    = $FFLAGS -O0 -frecursive -fno-fast-math
+LOADER   = gfortran
+LOADOPTS = $FFLAGS
+TIMER    = INT_ETIME
+CC       = gcc
+CFLAGS   = $CFLAGS
+ARCH     = ar
+ARCHFLAGS= cr
+RANLIB   = ranlib
+XBLASLIB     =
+BLASLIB      = ../../librefblas.a
+LAPACKLIB    = libreflapack.a
+TMGLIB       = libreftmglib.a
+LAPACKELIB   = libreflapacke.a
+EOF
+   # lapack/blas build is *not* parallel safe (updates to the archive race)
+   make -j 1  lib blaslib >& make.log
+   cp librefblas.a libreflapack.a ${INSTALLDIR}/lib/
+   cd ..
+fi
+
 echo "================= Installing openblas ==================="
 if [ "x${openblas_ver}" == "x" ]; then
    echo "skipping openblas"
@@ -410,23 +445,36 @@ fi
 
 
 echo "================= Installing scalapack ==================="
-if [ -f scalapack_installer.tgz ]; then
+if [ -f scalapack-${scalapack_ver}.tgz ]; then
    echo "Installation already started, skipping it."
 else
-   wget http://www.cp2k.org/static/downloads/scalapack_installer.tgz
-   checksum scalapack_installer.tgz
-   tar -xzf scalapack_installer.tgz
+   wget http://www.cp2k.org/static/downloads/scalapack-${scalapack_ver}.tgz
+   checksum scalapack-${scalapack_ver}.tgz
+   tar -xzf scalapack-${scalapack_ver}.tgz
    # we dont know the version
-   cd scalapack_installer_*
-   SLROOT=${PWD}
-   # We use echo as mpirun command to avoid testing scalapack,
-   # (lapack is still tested, and the --notesting flag causes lapack/blas not to be build, seemingly.)
-   # yet download blas / lapack... whole installer is a bit serial as well (and fails with --make="make -j32")
-   # also, doesn't seem to stop if something goes wrong in the build process..
-   # finally, we should avoid -ffast-math as this seems to cause problems
-   ./setup.py --mpirun=echo --downblas --downlapack --fcflags="$FCFLAGS -fno-fast-math" --ccflags="$CFLAGS -fno-fast-math" --ldflags_c="$LDFLAGS -fno-fast-math" --ldflags_fc="$LDFLAGS -fno-fast-math" >& make.log
-   # copy libraries where we like them
-   cp install/lib/* ${INSTALLDIR}/lib/
+   cd scalapack-${scalapack_ver}
+cat << EOF > SLmake.inc
+CDEFS         = -DAdd_
+FC            = mpif90
+CC            = mpicc
+NOOPT         = ${FFLAGS} -O0 -fno-fast-math
+FCFLAGS       = ${FFLAGS} -fno-fast-math
+CCFLAGS       = ${CFLAGS} -fno-fast-math
+FCLOADER      = \$(FC)
+CCLOADER      = \$(CC)
+FCLOADFLAGS   = \$(FCFLAGS)
+CCLOADFLAGS   = \$(CCFLAGS)
+ARCH          = ar
+ARCHFLAGS     = cr
+RANLIB        = ranlib
+SCALAPACKLIB  = libscalapack.a
+BLASLIB       = -lrefblas
+LAPACKLIB     = -lreflapack
+LIBS          = \$(LAPACKLIB) \$(BLASLIB)
+EOF
+   # scalapack build not parallel safe (update to the archive race)
+   make -j 1 lib >& make.log
+   cp libscalapack.a ${INSTALLDIR}/lib/
    cd ..
 fi
 DFLAGS="${DFLAGS} IF_MPI(-D__SCALAPACK,)"
@@ -715,18 +763,19 @@ LIBS="${LIBS} -lstdc++ "
 BASEFLAGS="IF_OMP(-fopenmp,)"
 BASEFLAGS="${BASEFLAGS} -march=native -fno-omit-frame-pointer -g ${TSANFLAGS}"
 #BASEFLAGS="${BASEFLAGS} IF_VALGRIND(-mno-avx,)" #not supported by valgrind 3.10.1
-BASEFLAGS="${BASEFLAGS} IF_COVERAGE(-O0 -coverage, IF_DEBUG(-O1,-O3 -ffast-math))"
+#For gcc 6.0 use -O1 -coverage -fkeep-static-functions -D__NO_ABORT
+BASEFLAGS="${BASEFLAGS} IF_COVERAGE(-O0 -coverage -D__NO_ABORT, IF_DEBUG(-O1,-O3 -ffast-math))"
 BASEFLAGS="${BASEFLAGS} IF_DEBUG(-fsanitize=leak -ffpe-trap='invalid,zero,overflow' -finit-real=snan -fno-fast-math -D__HAS_IEEE_EXCEPTIONS,)"
 BASEFLAGS="${BASEFLAGS} \$(PROFOPT)"
 
 # Special flags for gfortran
 # https://gcc.gnu.org/onlinedocs/gfortran/Error-and-Warning-Options.html
 # we error out for these warnings
-WFLAGSERROR="-Werror=aliasing -Werror=ampersand -Werror=c-binding-type -Werror=intrinsic-shadow -Werror=intrinsics-std -Werror=line-truncation -Werror=tabs -Werror=realloc-lhs-all -Werror=target-lifetime -Werror=underflow -Werror=unused-but-set-variable -Werror=unused-variable -Werror=conversion"
+WFLAGSERROR="-Werror=aliasing -Werror=ampersand -Werror=c-binding-type -Werror=intrinsic-shadow -Werror=intrinsics-std -Werror=line-truncation -Werror=tabs -Werror=realloc-lhs-all -Werror=target-lifetime -Werror=underflow -Werror=unused-but-set-variable -Werror=unused-variable -Werror=conversion IF_OMP(-Werror=unused-dummy-argument,-Wunused-dummy-argument)"
 # we just warn for those (that eventually might be promoted to WFLAGSERROR). It is useless to put something here with 100s of warnings.
 WFLAGSWARN="-Wuse-without-only -Wzerotrip"
 # while here we collect all other warnings, some we'll ignore
-WFLAGSWARNALL="-pedantic -Wall -Wextra -Wsurprising -Wunused-dummy-argument -Wunused-parameter -Warray-temporaries -Wcharacter-truncation -Wconversion-extra -Wimplicit-interface -Wimplicit-procedure -Wreal-q-constant -Wunused-dummy-argument -Wunused-parameter -Walign-commons -Wfunction-elimination -Wrealloc-lhs -Wcompare-reals -Wzerotrip"
+WFLAGSWARNALL="-pedantic -Wall -Wextra -Wsurprising -Wunused-dummy-argument -Wunused-parameter -Warray-temporaries -Wcharacter-truncation -Wconversion-extra -Wimplicit-interface -Wimplicit-procedure -Wreal-q-constant -Wunused-parameter -Walign-commons -Wfunction-elimination -Wrealloc-lhs -Wcompare-reals -Wzerotrip"
 # combine warn/error flags
 WFLAGS="$WFLAGSERROR $WFLAGSWARN IF_WARNALL(${WFLAGSWARNALL},)"
 FCFLAGS="${BASEFLAGS} -I\$(CP2KINSTALLDIR)/include -std=f2003 -fimplicit-none -ffree-form IF_DEBUG(-fcheck='bounds,do,recursion,pointer',) ${WFLAGS} \$(DFLAGS)"

@@ -15,9 +15,12 @@ MODULE base_hooks
 
   IMPLICIT NONE
   PRIVATE
-
+  
+  !API
   PUBLIC :: cp_abort, cp_warn, timeset, timestop
+  !API
   PUBLIC :: cp_abort_hook, cp_warn_hook, timeset_hook, timestop_hook
+  !API
   PUBLIC :: cp__a, cp__b, cp__w, cp__l
 
   ! this interface (with subroutines in it) musst to be defined right before
@@ -115,7 +118,8 @@ CONTAINS
     IF(ASSOCIATED(timestop_hook)) THEN
        CALL timestop_hook(handle)
     ELSE
-       IF(handle/=-1) CALL cp_abort("base_hooks::timestop","Got wrong handle")
+       IF(handle/=-1) &
+          CALL cp_abort(cp__l("base_hooks.F",__LINE__),"Got wrong handle")
     ENDIF
   END SUBROUTINE timestop
 

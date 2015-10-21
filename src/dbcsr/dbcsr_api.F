@@ -72,9 +72,6 @@ MODULE dbcsr_api
                                              dbcsr_create_dist_block_cyclic,&
                                              dbcsr_create_dist_r_unrot,&
                                              dbcsr_get_stored_coordinates
-  USE dbcsr_error_handling,            ONLY: dbcsr_error_set,&
-                                             dbcsr_error_stop,&
-                                             dbcsr_error_type
   USE dbcsr_io,                        ONLY: dbcsr_binary_read,&
                                              dbcsr_binary_write,&
                                              dbcsr_print,&
@@ -216,9 +213,6 @@ MODULE dbcsr_api
             dbcsr_distribution_col_clusters,&
             dbcsr_distribution_has_row_clusters,&
             dbcsr_distribution_has_col_clusters,&
-            dbcsr_error_set,&
-            dbcsr_error_stop,&
-            dbcsr_error_type,&
             dbcsr_filter,&
             dbcsr_finalize,&
             dbcsr_finalize_lib,&
