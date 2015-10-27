@@ -36,12 +36,17 @@ MODULE cp_dbcsr_cp2k_link
        dbcsr_type_no_symmetry, has_acc, has_mpi, mm_driver_acc, &
        mm_driver_blas, mm_driver_matmul, mm_driver_smm, mm_name_acc, &
        mm_name_blas, mm_name_matmul, mm_name_smm, multrec_limit
+  USE cp_log_handling,                 ONLY: cp_get_default_logger,&
+                                             cp_logger_get_default_io_unit,&
+                                             cp_logger_type,&
+                                             cp_logger_would_log,&
+                                             cp_note_level
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type,&
                                              section_vals_val_get
   USE kinds,                           ONLY: default_string_length,&
                                              dp,&
-                                             real_4
+                                             real_8
   USE orbital_pointers,                ONLY: nso
   USE qs_integral_utils,               ONLY: basis_set_list_setup
   USE qs_kind_types,                   ONLY: qs_kind_type
@@ -54,7 +59,6 @@ MODULE cp_dbcsr_cp2k_link
                                              neighbor_list_iterator_p_type,&
                                              neighbor_list_iterator_release,&
                                              neighbor_list_set_p_type
-#include "./common/cp_common_uses.f90"
 #include "./base/base_uses.f90"
 
   IMPLICIT NONE
@@ -383,7 +387,7 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: rpgfa, rpgfb, zet_a, zet_b
     REAL(KIND=dp), DIMENSION(:, :, :), &
       POINTER                                :: gcc_a, gcc_b
-    REAL(KIND=real_4), DIMENSION(:, :), &
+    REAL(KIND=real_8), DIMENSION(:, :), &
       POINTER                                :: screen_blk
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set

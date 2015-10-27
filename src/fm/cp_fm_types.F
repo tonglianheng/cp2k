@@ -22,6 +22,7 @@ MODULE cp_fm_types
                                              cp_fm_struct_release,&
                                              cp_fm_struct_retain,&
                                              cp_fm_struct_type
+  USE cp_log_handling,                 ONLY: cp_to_string
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE kinds,                           ONLY: dp,&
                                              sp
@@ -38,7 +39,6 @@ MODULE cp_fm_types
                                              random_numbers,&
                                              reset_to_next_rng_substream,&
                                              rng_stream_type
-#include "../common/cp_common_uses.f90"
 #include "../base/base_uses.f90"
 
   IMPLICIT NONE
@@ -1415,6 +1415,7 @@ CONTAINS
        CALL pdgemr2d(m,n,smat,1,1,desca,dmat,1,1,descb,global_context)
 
 #else
+       MARK_USED(global_context)
        CPABORT("")
 #endif
     END IF
@@ -1695,6 +1696,11 @@ CONTAINS
    G2P = indxg2p( INDXGLOB, NB, IPROC, ISRCPROC, NPROCS )
 
 #else
+   MARK_USED(indxglob)
+   MARK_USED(iproc)
+   MARK_USED(isrcproc)
+   MARK_USED(nb)
+   MARK_USED(nprocs)
 
    G2P = 0
 
@@ -1752,6 +1758,11 @@ CONTAINS
    G2L = indxg2l( INDXGLOB, NB, IPROC, ISRCPROC, NPROCS )
 
 #else
+   MARK_USED(iproc)
+   MARK_USED(isrcproc)
+   MARK_USED(nb)
+   MARK_USED(nprocs)
+   MARK_USED(indxglob)
 
    G2L = INDXGLOB
 
@@ -1810,6 +1821,10 @@ CONTAINS
    L2G = indxl2g( INDXLOC, NB, IPROC, ISRCPROC, NPROCS )
 
 #else
+   MARK_USED(iproc)
+   MARK_USED(isrcproc)
+   MARK_USED(nb)
+   MARK_USED(nprocs)
 
    L2G = INDXLOC
 

@@ -15,6 +15,9 @@
 ! *****************************************************************************
 MODULE force_env_types
   USE cell_types,                      ONLY: cell_type
+  USE cp_log_handling,                 ONLY: cp_add_default_logger,&
+                                             cp_logger_type,&
+                                             cp_rm_default_logger
   USE cp_para_env,                     ONLY: cp_para_env_release
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_subsys_types,                 ONLY: cp_subsys_get,&
@@ -55,7 +58,6 @@ MODULE force_env_types
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_env_release,&
                                              qs_environment_type
-#include "./common/cp_common_uses.f90"
 #include "./base/base_uses.f90"
 
   IMPLICIT NONE

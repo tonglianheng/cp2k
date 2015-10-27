@@ -28,7 +28,6 @@
 MODULE cp_array_sort_i4
    
   USE kinds,                           ONLY: int_4
-#include "cp_common_uses.f90"
 #include "../base/base_uses.f90"
 
   IMPLICIT NONE

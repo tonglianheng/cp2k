@@ -37,7 +37,6 @@ MODULE input_cp2k_resp
                                              real_t
   USE kinds,                           ONLY: dp
   USE string_utilities,                ONLY: s2a
-#include "./common/cp_common_uses.f90"
 #include "./base/base_uses.f90"
 
   IMPLICIT NONE
@@ -117,7 +116,7 @@ CONTAINS
     CALL section_add_keyword(section,keyword)
     CALL keyword_release(keyword)
 
-    CALL keyword_create(keyword, name="CALCULATE_REPEAT_CHARGES",&
+    CALL keyword_create(keyword, name="USE_REPEAT_METHOD",&
          description="Fits the variance of the potential, i.e. the deviation "//&
                      "from the mean value of the potential within the selected "//&
                      "range. The evaluation of the potentials is still treated "//&
@@ -130,7 +129,7 @@ CONTAINS
                      "restraints. Note that by switching on this option, "//&
                      "RESTRAIN_HEAVIES_TO_ZERO will be switched off "//&
                      "automatically.",&
-         usage="CALCULATE_REPEAT_CHARGES",&
+         usage="USE_REPEAT_METHOD",&
          default_l_val=.FALSE.,lone_keyword_l_val=.TRUE.,&
          citations=(/Campana2009/))
     CALL section_add_keyword(section,keyword)

@@ -14,6 +14,10 @@ MODULE input_cp2k_binary_restarts
 
   USE cp_files,                        ONLY: close_file,&
                                              open_file
+  USE cp_log_handling,                 ONLY: cp_get_default_logger,&
+                                             cp_logger_get_default_io_unit,&
+                                             cp_logger_type,&
+                                             cp_to_string
   USE cp_output_handling,              ONLY: cp_print_key_unit_nr,&
                                              debug_print_level
   USE cp_para_types,                   ONLY: cp_para_env_type
@@ -32,11 +36,9 @@ MODULE input_cp2k_binary_restarts
                                              s2s,&
                                              str2id
   USE termination,                     ONLY: print_message,&
-                                             stop_memory,&
-                                             stop_read
+                                             stop_memory
   USE topology_types,                  ONLY: atom_info_type,&
                                              topology_parameters_type
-#include "./common/cp_common_uses.f90"
 #include "./base/base_uses.f90"
 
   IMPLICIT NONE
@@ -125,10 +127,9 @@ CONTAINS
        READ (UNIT=input_unit,IOSTAT=istat)&
          natomkind,natom,ncore,nshell,nmoleculekind,nmolecule
        IF (istat /= 0) THEN
-          CALL stop_read(routineN,moduleN,__LINE__,&
-                         "natomkind,natom,ncore,nshell,nmoleculekind,nmolecule "//&
+          CALL stop_read("natomkind,natom,ncore,nshell,nmoleculekind,nmolecule "//&
                          "(IOSTAT = "//TRIM(ADJUSTL(cp_to_string(istat)))//")",&
-                         input_unit,para_env)
+                         input_unit)
        END IF
        IF (iw > 0) THEN
           WRITE (UNIT=iw,FMT="(T2,A,T71,I10)")&
@@ -150,15 +151,14 @@ CONTAINS
 
     ALLOCATE (id_name(natomkind),STAT=istat)
     IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                     "id_name",int_size*natomkind,para_env)
+                                     "id_name",int_size*natomkind)
     ! Read atomic kind names
     DO ikind=1,natomkind
        IF (para_env%ionode) THEN
           READ (UNIT=input_unit,IOSTAT=istat) string
-          IF (istat /= 0) CALL stop_read(routineN,moduleN,__LINE__,&
-                                         "string (IOSTAT = "//&
+          IF (istat /= 0) CALL stop_read("string (IOSTAT = "//&
                                          TRIM(ADJUSTL(cp_to_string(istat)))//")",&
-                                         input_unit,para_env)
+                                         input_unit)
        END IF
        CALL mp_bcast(string,para_env%source,para_env%group)
        id_name(ikind) = str2id(string)
@@ -169,64 +169,63 @@ CONTAINS
     ALLOCATE (atom_info%id_molname(natom),STAT=istat)
     IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                      "atom_info%id_molname",&
-                                     int_size*natom,para_env)
+                                     int_size*natom)
     atom_info%id_molname(:) = 0
     ALLOCATE (atom_info%id_resname(natom),STAT=istat)
     IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                      "atom_info%id_resname",&
-                                     int_size*natom,para_env)
+                                     int_size*natom)
     atom_info%id_resname(:) = 0
     ALLOCATE (atom_info%resid(natom),STAT=istat)
     IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                      "atom_info%resid",&
-                                     int_size*natom,para_env)
+                                     int_size*natom)
     atom_info%resid = 1
     ALLOCATE (atom_info%id_atmname(natom),STAT=istat)
     IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                      "atom_info%id_atmname",&
-                                     int_size*natom,para_env)
+                                     int_size*natom)
     atom_info%id_atmname = 0
     ALLOCATE (atom_info%r(3,natom),STAT=istat)
     IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                      "atom_info%r",&
-                                     int_size*3*natom,para_env)
+                                     int_size*3*natom)
     atom_info%r(:,:) = 0.0_dp
     ALLOCATE (atom_info%atm_mass(natom),STAT=istat)
     IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                      "atom_info%atm_mass",&
-                                     dp_size*natom,para_env)
+                                     dp_size*natom)
     atom_info%atm_mass(:) = HUGE(0.0_dp)
     ALLOCATE (atom_info%atm_charge(natom),STAT=istat)
     IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                      "atom_info%atm_charge",&
-                                     dp_size*natom,para_env)
+                                     dp_size*natom)
     atom_info%atm_charge(:) = -HUGE(0.0_dp)
     ALLOCATE (atom_info%occup(natom),STAT=istat)
     IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                      "atom_info%occup",&
-                                     dp_size*natom,para_env)
+                                     dp_size*natom)
     atom_info%occup(:) = 0.0_dp
     ALLOCATE (atom_info%beta(natom),STAT=istat)
     IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                      "atom_info%id_beta",&
-                                     dp_size*natom,para_env)
+                                     dp_size*natom)
     atom_info%beta(:) = 0.0_dp
     ALLOCATE (atom_info%id_element(natom),STAT=istat)
     IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                      "atom_info%id_element",&
-                                     int_size*natom,para_env)
+                                     int_size*natom)
     atom_info%id_element(:) = 0
     ALLOCATE (ibuf(natom),STAT=istat)
     IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                     "ibuf",int_size*natom,para_env)
+                                     "ibuf",int_size*natom)
 
     ! Read atomic kind number of each atom
     IF (para_env%ionode) THEN
        READ (UNIT=input_unit,IOSTAT=istat) ibuf(1:natom)
-       IF (istat /= 0) CALL stop_read(routineN,moduleN,__LINE__,&
-                                      "ibuf (IOSTAT = "//&
+       IF (istat /= 0) CALL stop_read("ibuf (IOSTAT = "//&
                                       TRIM(ADJUSTL(cp_to_string(istat)))//")",&
-                                      input_unit,para_env)
+                                      input_unit)
     END IF
     CALL mp_bcast(ibuf,para_env%source,para_env%group)
     DO iatom=1,natom
@@ -239,10 +238,9 @@ CONTAINS
     ! Read atomic coordinates
     IF (para_env%ionode) THEN
        READ (UNIT=input_unit,IOSTAT=istat) atom_info%r(1:3,1:natom)
-       IF (istat /= 0) CALL stop_read(routineN,moduleN,__LINE__,&
-                                      "atom_info%r(1:3,1:natom) (IOSTAT = "//&
+       IF (istat /= 0) CALL stop_read("atom_info%r(1:3,1:natom) (IOSTAT = "//&
                                       TRIM(ADJUSTL(cp_to_string(istat)))//")",&
-                                      input_unit,para_env)
+                                      input_unit)
     END IF
     CALL mp_bcast(atom_info%r,para_env%source,para_env%group)
 
@@ -250,16 +248,14 @@ CONTAINS
     IF (nmolecule > 0) THEN
        ALLOCATE (id_name(nmoleculekind),STAT=istat)
        IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                        "id_name",nmoleculekind*int_size,&
-                                        para_env)
+                                        "id_name",nmoleculekind*int_size)
        ! Read molecule kind names
        DO ikind=1,nmoleculekind
           IF (para_env%ionode) THEN
              READ (UNIT=input_unit,IOSTAT=istat) string
-             IF (istat /= 0) CALL stop_read(routineN,moduleN,__LINE__,&
-                                            "string (IOSTAT = "//&
+             IF (istat /= 0) CALL stop_read("string (IOSTAT = "//&
                                             TRIM(ADJUSTL(cp_to_string(istat)))//")",&
-                                            input_unit,para_env)
+                                            input_unit)
           END IF
           CALL mp_bcast(string,para_env%source,para_env%group)
           id_name(ikind) = str2id(string)
@@ -267,10 +263,9 @@ CONTAINS
        ! Read molecule kind numbers
        IF (para_env%ionode) THEN
           READ (UNIT=input_unit,IOSTAT=istat) ibuf(1:natom)
-          IF (istat /= 0) CALL stop_read(routineN,moduleN,__LINE__,&
-                                         "ibuf(1:natom) (IOSTAT = "//&
+          IF (istat /= 0) CALL stop_read("ibuf(1:natom) (IOSTAT = "//&
                                          TRIM(ADJUSTL(cp_to_string(istat)))//")",&
-                                         input_unit,para_env)
+                                         input_unit)
        END IF
        CALL mp_bcast(ibuf,para_env%source,para_env%group)
        DO iatom=1,natom
@@ -281,10 +276,9 @@ CONTAINS
        ! Read molecule index which is used also as residue id
        IF (para_env%ionode) THEN
           READ (UNIT=input_unit,IOSTAT=istat) atom_info%resid(1:natom)
-          IF (istat /= 0) CALL stop_read(routineN,moduleN,__LINE__,&
-                                         "atom_info%resid(1:natom) (IOSTAT = "//&
+          IF (istat /= 0) CALL stop_read("atom_info%resid(1:natom) (IOSTAT = "//&
                                          TRIM(ADJUSTL(cp_to_string(istat)))//")",&
-                                         input_unit,para_env)
+                                         input_unit)
        END IF
        CALL mp_bcast(atom_info%resid,para_env%source,para_env%group)
        DO iatom=1,natom
@@ -402,12 +396,11 @@ CONTAINS
                       unit_number=input_unit,&
                       debug=iw)
        READ (UNIT=input_unit,IOSTAT=istat) section_label,nbuf
-       IF (istat /= 0) CALL stop_read(routineN,moduleN,__LINE__,&
-                                      "section_label, nbuf -> "//TRIM(section_label)//", "//&
+       IF (istat /= 0) CALL stop_read("section_label, nbuf -> "//TRIM(section_label)//", "//&
                                       TRIM(ADJUSTL(cp_to_string(nbuf)))//&
                                       " (IOSTAT = "//TRIM(ADJUSTL(cp_to_string(istat)))//"). "//&
                                       "Section "//TRIM(ADJUSTL(section_name))//" was expected.",&
-                                      input_unit,para_env)
+                                      input_unit)
        IF (TRIM(section_label) == TRIM(section_name)) THEN
           IF (nbuf /= nparticle) THEN
              IF (iw > 0) THEN
@@ -423,25 +416,21 @@ CONTAINS
                 ! Perform dummy read
                 ALLOCATE (rbuf(3,nbuf),STAT=istat)
                 IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                                 "rbuf",dp_size*3*nbuf,&
-                                                 para_env)
+                                                 "rbuf",dp_size*3*nbuf)
                 READ (UNIT=input_unit,IOSTAT=istat) rbuf(1:3,1:nbuf)
-                IF (istat /= 0) CALL stop_read(routineN,moduleN,__LINE__,&
-                                               "rbuf(1:3,1:nbuf) -> "//prefix//&
+                IF (istat /= 0) CALL stop_read("rbuf(1:3,1:nbuf) -> "//prefix//&
                                                " coordinates (IOSTAT = "//&
                                                TRIM(ADJUSTL(cp_to_string(istat)))//")",&
-                                               input_unit,para_env)
+                                               input_unit)
                 DEALLOCATE (rbuf)
                 ALLOCATE (ibuf(nbuf),STAT=istat)
                 IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                                 "ibuf",int_size*nbuf,&
-                                                 para_env)
+                                                 "ibuf",int_size*nbuf)
                 READ (UNIT=input_unit,IOSTAT=istat) ibuf(1:nbuf)
-                IF (istat /= 0) CALL stop_read(routineN,moduleN,__LINE__,&
-                                               "ibuf(1:nparticle) -> atomic indices of the "//&
+                IF (istat /= 0) CALL stop_read("ibuf(1:nparticle) -> atomic indices of the "//&
                                                TRIM(section_name)//" (IOSTAT = "//&
                                                TRIM(ADJUSTL(cp_to_string(istat)))//")",&
-                                               input_unit,para_env)
+                                               input_unit)
                 DEALLOCATE (ibuf)
              END IF
              exit_routine = .TRUE.
@@ -473,16 +462,14 @@ CONTAINS
 
     ALLOCATE (rbuf(3,nparticle),STAT=istat)
     IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                     "rbuf",dp_size*3*nparticle,&
-                                     para_env)
+                                     "rbuf",dp_size*3*nparticle)
 
     IF (para_env%ionode) THEN
        READ (UNIT=input_unit,IOSTAT=istat) rbuf(1:3,1:nparticle)
-       IF (istat /= 0) CALL stop_read(routineN,moduleN,__LINE__,&
-                                      "rbuf(1:3,1:nparticle) -> "//prefix//&
+       IF (istat /= 0) CALL stop_read("rbuf(1:3,1:nparticle) -> "//prefix//&
                                       " coordinates (IOSTAT = "//&
                                       TRIM(ADJUSTL(cp_to_string(istat)))//")",&
-                                      input_unit,para_env)
+                                      input_unit)
     END IF
     CALL mp_bcast(rbuf,para_env%source,para_env%group)
 
@@ -494,16 +481,14 @@ CONTAINS
 
     ALLOCATE (ibuf(nparticle),STAT=istat)
     IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                     "ibuf",int_size*nparticle,&
-                                     para_env)
+                                     "ibuf",int_size*nparticle)
 
     IF (para_env%ionode) THEN
        READ (UNIT=input_unit,IOSTAT=istat) ibuf(1:nparticle)
-       IF (istat /= 0) CALL stop_read(routineN,moduleN,__LINE__,&
-                                      "ibuf(1:nparticle) -> atomic indices of the "//&
+       IF (istat /= 0) CALL stop_read("ibuf(1:nparticle) -> atomic indices of the "//&
                                       TRIM(section_name)//" (IOSTAT = "//&
                                       TRIM(ADJUSTL(cp_to_string(istat)))//")",&
-                                      input_unit,para_env)
+                                      input_unit)
     END IF
 
     CALL mp_bcast(ibuf,para_env%source,para_env%group)
@@ -626,26 +611,24 @@ CONTAINS
                       debug=iw)
        DO
           READ (UNIT=input_unit,IOSTAT=istat) section_label,nbuf
-          IF (istat /= 0) CALL stop_read(routineN,moduleN,__LINE__,&
-                                         "section_label, nbuf -> "//TRIM(section_label)//", "//&
+          IF (istat /= 0) CALL stop_read("section_label, nbuf -> "//TRIM(section_label)//", "//&
                                          TRIM(ADJUSTL(cp_to_string(nbuf)))//&
                                          " (IOSTAT = "//TRIM(ADJUSTL(cp_to_string(istat)))//"). "//&
                                          "Section "//TRIM(ADJUSTL(section_name))//" was expected.",&
-                                         input_unit,para_env)
+                                         input_unit)
           IF (INDEX(section_label,"THERMOSTAT") > 0) THEN
              IF (nbuf > 0) THEN
                 ! Ignore thermostat information
                 ALLOCATE (rbuf(nbuf,1),STAT=istat)
                 IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                                 "rbuf",dp_size*nbuf,para_env)
+                                                 "rbuf",dp_size*nbuf)
                 ! Perform dummy read
                 DO i=1,4
                    READ (UNIT=input_unit,IOSTAT=istat) rbuf(1:nbuf,1)
-                   IF (istat /= 0) CALL stop_read(routineN,moduleN,__LINE__,&
-                                                  "rbuf(1:nbuf,1) -> "//&
+                   IF (istat /= 0) CALL stop_read("rbuf(1:nbuf,1) -> "//&
                                                   TRIM(ADJUSTL(section_label))//&
                                                   " (IOSTAT = "//TRIM(ADJUSTL(cp_to_string(istat)))//")",&
-                                                  input_unit,para_env)
+                                                  input_unit)
                 END DO
                 DEALLOCATE (rbuf)
                 IF (iw > 0) THEN
@@ -675,16 +658,14 @@ CONTAINS
 
        ALLOCATE (rbuf(3,nbuf),STAT=istat)
        IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                        "rbuf",dp_size*3*nbuf,&
-                                        para_env)
+                                        "rbuf",dp_size*3*nbuf)
 
        IF (para_env%ionode) THEN
           READ (UNIT=input_unit,IOSTAT=istat) rbuf(1:3,1:nbuf)
-          IF (istat /= 0) CALL stop_read(routineN,moduleN,__LINE__,&
-                                         "rbuf(1:3,1:nbuf) -> "//&
+          IF (istat /= 0) CALL stop_read("rbuf(1:3,1:nbuf) -> "//&
                                          TRIM(ADJUSTL(section_name))//&
                                          " (IOSTAT = "//TRIM(ADJUSTL(cp_to_string(istat)))//")",&
-                                         input_unit,para_env)
+                                         input_unit)
        END IF
 
        IF (nbuf == nparticle) THEN
@@ -800,10 +781,9 @@ CONTAINS
                       file_position="ASIS",&
                       unit_number=input_unit)
        READ (UNIT=input_unit,IOSTAT=istat) section_label,nhc_size
-       IF (istat /= 0) CALL stop_read(routineN,moduleN,__LINE__,&
-                                      "nhc_size (IOSTAT = "//&
+       IF (istat /= 0) CALL stop_read("nhc_size (IOSTAT = "//&
                                       TRIM(ADJUSTL(cp_to_string(istat)))//")",&
-                                      input_unit,para_env)
+                                      input_unit)
        IF (INDEX(section_label,"THERMOSTAT") == 0) THEN
           CALL cp_abort(__LOCATION__,&
                "Section label <"//TRIM(section_label)//"> read from the "//&
@@ -826,16 +806,15 @@ CONTAINS
 
        ALLOCATE (rbuf(nhc_size),STAT=istat)
        IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                     "rbuf",dp_size*nhc_size,para_env)
+                                     "rbuf",dp_size*nhc_size)
        rbuf(:) = 0.0_dp
 
        ! Read NHC section &COORD
        IF (para_env%ionode) THEN
           READ (UNIT=input_unit,IOSTAT=istat) rbuf(1:nhc_size)
-          IF (istat /= 0) CALL stop_read(routineN,moduleN,__LINE__,&
-                                         "eta -> rbuf (IOSTAT = "//&
+          IF (istat /= 0) CALL stop_read("eta -> rbuf (IOSTAT = "//&
                                          TRIM(ADJUSTL(cp_to_string(istat)))//")",&
-                                         input_unit,para_env)
+                                         input_unit)
           IF (debug .AND. output_unit > 0) THEN
              WRITE (UNIT=output_unit,FMT="(T2,A,/,(4(1X,ES25.16)))")&
                "&COORD",rbuf(1:nhc_size)
@@ -853,10 +832,9 @@ CONTAINS
        ! Read NHC section &VELOCITY
        IF (para_env%ionode) THEN
           READ (UNIT=input_unit,IOSTAT=istat) rbuf(1:nhc_size)
-          IF (istat /= 0) CALL stop_read(routineN,moduleN,__LINE__,&
-                                         "veta -> rbuf (IOSTAT = "//&
+          IF (istat /= 0) CALL stop_read("veta -> rbuf (IOSTAT = "//&
                                          TRIM(ADJUSTL(cp_to_string(istat)))//")",&
-                                         input_unit,para_env)
+                                         input_unit)
           IF (debug .AND. output_unit > 0) THEN
              WRITE (UNIT=output_unit,FMT="(T2,A,/,(4(1X,ES25.16)))")&
                "&VELOCITY",rbuf(1:nhc_size)
@@ -874,10 +852,9 @@ CONTAINS
        ! Read NHC section &MASS
        IF (para_env%ionode) THEN
           READ (UNIT=input_unit,IOSTAT=istat) rbuf(1:nhc_size)
-          IF (istat /= 0) CALL stop_read(routineN,moduleN,__LINE__,&
-                                         "mnhc -> rbuf (IOSTAT = "//&
+          IF (istat /= 0) CALL stop_read("mnhc -> rbuf (IOSTAT = "//&
                                          TRIM(ADJUSTL(cp_to_string(istat)))//")",&
-                                         input_unit,para_env)
+                                         input_unit)
           IF (debug .AND. output_unit > 0) THEN
              WRITE (UNIT=output_unit,FMT="(T2,A,/,(4(1X,ES25.16)))")&
                "&MASS:",rbuf(1:nhc_size)
@@ -895,10 +872,9 @@ CONTAINS
        ! Read NHC section &FORCE
        IF (para_env%ionode) THEN
           READ (UNIT=input_unit,IOSTAT=istat) rbuf(1:nhc_size)
-          IF (istat /= 0) CALL stop_read(routineN,moduleN,__LINE__,&
-                                         "fnhc -> rbuf (IOSTAT = "//&
+          IF (istat /= 0) CALL stop_read("fnhc -> rbuf (IOSTAT = "//&
                                          TRIM(ADJUSTL(cp_to_string(istat)))//")",&
-                                         input_unit,para_env)
+                                         input_unit)
           IF (debug .AND. output_unit > 0) THEN
              WRITE (UNIT=output_unit,FMT="(T2,A,/,(4(1X,ES25.16)))")&
                "&FORCE",rbuf(1:nhc_size)
@@ -933,5 +909,45 @@ CONTAINS
     CALL timestop(handle)
 
   END SUBROUTINE read_binary_thermostats_nose
+
+! *****************************************************************************
+!> \brief Print an error message and stop the program execution in case of a
+!>        read error.
+!> \param object ...
+!> \param unit_number ...
+!> \par History
+!>      - Creation (15.02.2011,MK)
+!> \author Matthias Krack (MK)
+!> \note
+!>      object     : Name of the data object for which I/O operation failed
+!>      unit_number: Logical unit number of the file read from
+! *****************************************************************************
+  SUBROUTINE stop_read(object,unit_number)
+    CHARACTER(LEN=*), INTENT(IN)             :: object
+    INTEGER, INTENT(IN)                      :: unit_number
+
+    CHARACTER(LEN=2*default_path_length)     :: message
+    CHARACTER(LEN=default_path_length)       :: file_name
+    LOGICAL                                  :: file_exists
+
+    IF (unit_number>=0) THEN
+       INQUIRE (UNIT=unit_number,EXIST=file_exists)
+    ELSE
+       file_exists=.FALSE.
+    ENDIF
+    IF (file_exists) THEN
+       INQUIRE (UNIT=unit_number,NAME=file_name)
+       WRITE (UNIT=message,FMT="(A)")&
+         "An error occurred reading data object <"//TRIM(ADJUSTL(object))//&
+         "> from file <"//TRIM(ADJUSTL(file_name))//">"
+    ELSE
+       WRITE (UNIT=message,FMT="(A,I0,A)")&
+         "Could not read data object <"//TRIM(ADJUSTL(object))//&
+         "> from logical unit ",unit_number,". The I/O unit does not exist."
+    END IF
+
+    CPABORT(message)
+
+  END SUBROUTINE stop_read
 
 END MODULE input_cp2k_binary_restarts

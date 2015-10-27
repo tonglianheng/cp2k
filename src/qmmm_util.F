@@ -10,6 +10,7 @@
 ! *****************************************************************************
 MODULE qmmm_util
   USE cell_types,                      ONLY: cell_type
+  USE cp_log_handling,                 ONLY: cp_logger_get_default_io_unit
   USE cp_subsys_types,                 ONLY: cp_subsys_type
   USE fist_environment_types,          ONLY: fist_env_get
   USE force_env_types,                 ONLY: force_env_type,&
@@ -31,7 +32,6 @@ MODULE qmmm_util
   USE qs_energy_types,                 ONLY: qs_energy_type
   USE qs_environment_types,            ONLY: get_qs_env
   USE qs_kind_types,                   ONLY: qs_kind_type
-#include "./common/cp_common_uses.f90"
 #include "./base/base_uses.f90"
 
   IMPLICIT NONE
@@ -332,7 +332,6 @@ CONTAINS
     REAL(dp)                                 :: r_lat(3)
 
     ALLOCATE(saved_pos(3,subsys_mm%particles%n_els))
-
     DO ip=1, subsys_mm%particles%n_els
        saved_pos(1:3,ip) = subsys_mm%particles%els(ip)%r(1:3)
        r_lat = MATMUL(mm_cell%h_inv, subsys_mm%particles%els(ip)%r)
@@ -512,6 +511,11 @@ CONTAINS
        DO ip=1,subsys_mm%particles%n_els
           particles_mm(ip)%r = particles_mm(ip)%r - transl_v
        END DO
+       IF(qmmm_env%qm%added_shells%num_mm_atoms .GT. 0) THEN
+          DO ip=1,qmmm_env%qm%added_shells%num_mm_atoms
+             qmmm_env%qm%added_shells%added_particles(ip)%r = qmmm_env%qm%added_shells%added_particles(ip)%r - transl_v
+          END DO
+       END IF
        unit_nr=cp_logger_get_default_io_unit()
        IF (unit_nr>0) WRITE (unit=unit_nr,fmt='(/1X,A)')&
             " Translating the system in order to center the QM fragment in the QM box."

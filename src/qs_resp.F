@@ -23,6 +23,8 @@ MODULE qs_resp
                                              use_perd_none,&
                                              use_perd_xyz
   USE cp_control_types,                ONLY: dft_control_type
+  USE cp_log_handling,                 ONLY: cp_get_default_logger,&
+                                             cp_logger_type
   USE cp_output_handling,              ONLY: cp_p_file,&
                                              cp_print_key_finished_output,&
                                              cp_print_key_generate_filename,&
@@ -83,7 +85,6 @@ MODULE qs_resp
   USE qs_kind_types,                   ONLY: qs_kind_type
   USE qs_subsys_types,                 ONLY: qs_subsys_get,&
                                              qs_subsys_type
-#include "./common/cp_common_uses.f90"
 #include "./base/base_uses.f90"
 
   IMPLICIT NONE
@@ -99,7 +100,7 @@ MODULE qs_resp
   TYPE resp_type
    LOGICAL                                :: equal_charges, itc,& 
                                              molecular_sys, rheavies,&
-                                             calculate_repeat_charges
+                                             use_repeat_method
    INTEGER                                :: nres, ncons,&
                                              nrest_sec, ncons_sec,&
                                              npoints, stride(3), my_fit,&
@@ -191,7 +192,7 @@ CONTAINS
                                      resp_env%matrix,resp_env%rhs,natom)   
        CASE(use_perd_xyz)
         CALL cite_reference(Golze2015)
-        IF(resp_env%calculate_repeat_charges) CALL cite_reference(Campana2009) 
+        IF(resp_env%use_repeat_method) CALL cite_reference(Campana2009) 
         CALL calc_resp_matrix_periodic(qs_env,resp_env,rep_sys,particles,cell,natom)
        CASE DEFAULT
         CALL cp_abort(__LOCATION__,&
@@ -218,7 +219,7 @@ CONTAINS
        CALL DGETRS('N',nvar,1,resp_env%matrix,nvar,ipiv,resp_env%rhs,nvar,info)
        CPASSERT(info==0)
 
-       IF(resp_env%calculate_repeat_charges) resp_env%offset = resp_env%rhs(natom+1)
+       IF(resp_env%use_repeat_method) resp_env%offset = resp_env%rhs(natom+1)
        CALL print_resp_charges(qs_env,resp_env,output_unit,natom)
        CALL print_fitting_points(qs_env,resp_env)
        CALL print_pot_from_resp_charges(qs_env,resp_env,particles,natom,output_unit)
@@ -261,7 +262,7 @@ CONTAINS
     resp_env%itc=.FALSE.
     resp_env%molecular_sys=.FALSE.
     resp_env%rheavies=.FALSE.
-    resp_env%calculate_repeat_charges=.FALSE.
+    resp_env%use_repeat_method=.FALSE.
  
     resp_env%box_hi=0.0_dp
     resp_env%box_low=0.0_dp
@@ -452,9 +453,9 @@ CONTAINS
     ENDIF
 
     !repeat charges, switch off RESTRAIN_HEAVIES
-    CALL section_vals_val_get(resp_section,"CALCULATE_REPEAT_CHARGES",&
-                              l_val=resp_env%calculate_repeat_charges)
-    IF (resp_env%calculate_repeat_charges) THEN
+    CALL section_vals_val_get(resp_section,"USE_REPEAT_METHOD",&
+                              l_val=resp_env%use_repeat_method)
+    IF (resp_env%use_repeat_method) THEN
        resp_env%rheavies = .FALSE.
        resp_env%ncons = resp_env%ncons + 1
     ENDIF
@@ -712,7 +713,7 @@ CONTAINS
              "Nonperiodic solution for RESP charges (i.e. nonperiodic"//&
              " Poisson solver) can only be used with section SPHERE_SAMPLING")
     ENDIF
-    IF(resp_env%calculate_repeat_charges) THEN
+    IF(resp_env%use_repeat_method) THEN
         CALL cp_abort(__LOCATION__,&
              "REPEAT method only reasonable for periodic RESP fitting")
     ENDIF
@@ -922,7 +923,7 @@ CONTAINS
     resp_env%rhs=resp_env%rhs/resp_env%npoints
 
     ! REPEAT stuff
-    IF(resp_env%calculate_repeat_charges) THEN
+    IF(resp_env%use_repeat_method) THEN
       ! sum over selected points of single Gaussian potential vpot 
       DO i=1,natom
         resp_env%sum_vpot(i)= 2.0_dp*accurate_sum(vpot(:,i))/resp_env%npoints
@@ -1129,7 +1130,7 @@ CONTAINS
        rhs = rhs + 2.0_dp*vhartree(ip)*vpot(ip)
     ENDDO
 
-    IF(resp_env%calculate_repeat_charges) THEN
+    IF(resp_env%use_repeat_method) THEN
       resp_env%sum_vhartree = accurate_sum(vhartree)
     ENDIF
 
@@ -1365,7 +1366,7 @@ CONTAINS
     ncons_v=ncons_v+natom
 
     ! REPEAT charges: treat the offset like a constraint
-    IF (resp_env%calculate_repeat_charges) THEN
+    IF (resp_env%use_repeat_method) THEN
        ncons_v=ncons_v+1
        resp_env%matrix(1:natom,ncons_v)=resp_env%sum_vpot(1:natom)
        resp_env%matrix(ncons_v,1:natom)=resp_env%sum_vpot(1:natom)
@@ -1450,7 +1451,7 @@ CONTAINS
 
     IF (output_unit>0) THEN
      WRITE(output_unit,'(/,1X,A,/)')      "STARTING RESP FIT"
-     IF(resp_env%calculate_repeat_charges) THEN
+     IF(resp_env%use_repeat_method) THEN
       WRITE(output_unit,'(T3,A)') "Fit the variance of the potential (REPEAT method)."
      ENDIF
      IF(.NOT.resp_env%equal_charges) THEN
@@ -1654,7 +1655,7 @@ CONTAINS
     CALL pw_scale(v_resp_rspace%pw,-normalize_factor)
     ! REPEAT: correct for offset, take into account that potentials have reverse sign 
     ! and are scaled by dvol
-    IF(resp_env%calculate_repeat_charges) THEN
+    IF(resp_env%use_repeat_method) THEN
       v_resp_rspace%pw%cr3d(:,:,:) = v_resp_rspace%pw%cr3d(:,:,:) - resp_env%offset*dvol
     ENDIF
     CALL pw_release(v_resp_gspace%pw)

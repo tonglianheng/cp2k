@@ -20,7 +20,6 @@ MODULE qmmm_types
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_env_release,&
                                              qs_environment_type
-#include "./common/cp_common_uses.f90"
 #include "./base/base_uses.f90"
 
   IMPLICIT NONE
@@ -96,8 +95,8 @@ CONTAINS
        qmmm_env%ref_count=qmmm_env%ref_count-1
        IF (qmmm_env%ref_count==0) THEN
           CALL qs_env_release(qmmm_env%qs_env)
-          CALL fist_env_release(qmmm_env%fist_env)
           CALL qmmm_env_qm_release(qmmm_env%qm)
+          CALL fist_env_release(qmmm_env%fist_env)
           DEALLOCATE(qmmm_env)
        END IF
     END IF

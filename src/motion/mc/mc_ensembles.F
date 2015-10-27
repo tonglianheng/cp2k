@@ -17,6 +17,7 @@ MODULE mc_ensembles
   USE cp_external_control,             ONLY: external_control
   USE cp_files,                        ONLY: close_file,&
                                              open_file
+  USE cp_log_handling,                 ONLY: cp_logger_get_default_io_unit
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_subsys_types,                 ONLY: cp_subsys_get,&
                                              cp_subsys_p_type,&
@@ -70,8 +71,7 @@ MODULE mc_ensembles
                                              mc_moves_p_type,&
                                              mc_simulation_parameters_p_type,&
                                              set_mc_par
-  USE message_passing,                 ONLY: mp_abort,&
-                                             mp_bcast
+  USE message_passing,                 ONLY: mp_bcast
   USE parallel_rng_types,              ONLY: next_random_number,&
                                              rng_stream_type
   USE particle_list_types,             ONLY: particle_list_p_type,&
@@ -81,7 +81,6 @@ MODULE mc_ensembles
                                              boltzmann,&
                                              joule,&
                                              n_avogadro
-#include "../../common/cp_common_uses.f90"
 #include "../../base/base_uses.f90"
 
   IMPLICIT NONE
@@ -1030,7 +1029,7 @@ CONTAINS
                    WRITE(iw,*) 'Box ',ibox
                    WRITE(iw,*) 'nchains ',nchains(:,ibox)
                 END IF
-                CALL mp_abort('!!!!!!! We have an energy problem. !!!!!!!!')
+                CPABORT('!!!!!!! We have an energy problem. !!!!!!!!')
              ENDIF
           ENDDO
        ENDIF

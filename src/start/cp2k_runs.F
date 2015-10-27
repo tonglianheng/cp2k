@@ -24,6 +24,12 @@ MODULE cp2k_runs
                                              cp_dbcsr_init_lib
   USE cp_files,                        ONLY: close_file,&
                                              open_file
+  USE cp_log_handling,                 ONLY: cp_failure_level,&
+                                             cp_get_default_logger,&
+                                             cp_logger_get_default_io_unit,&
+                                             cp_logger_type,&
+                                             cp_logger_would_log,&
+                                             cp_note_level
   USE cp_output_handling,              ONLY: cp_add_iter_level,&
                                              cp_print_key_finished_output,&
                                              cp_print_key_unit_nr,&
@@ -128,7 +134,6 @@ MODULE cp2k_runs
   USE tmc_setup,                       ONLY: do_analyze_files,&
                                              do_tmc
   USE vibrational_analysis,            ONLY: vb_anal
-#include "../common/cp_common_uses.f90"
 #include "../base/base_uses.f90"
 
   IMPLICIT NONE
