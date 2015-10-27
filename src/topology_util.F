@@ -9,6 +9,10 @@
 !>     jgh (23-05-2004) Last atom of molecule information added
 ! *****************************************************************************
 MODULE topology_util
+  USE cp_log_handling,                 ONLY: cp_get_default_logger,&
+                                             cp_logger_get_default_io_unit,&
+                                             cp_logger_type,&
+                                             cp_to_string
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
   USE graphcon,                        ONLY: graph_type,&
@@ -34,7 +38,6 @@ MODULE topology_util
                                              connectivity_info_type,&
                                              topology_parameters_type
   USE util,                            ONLY: sort
-#include "./common/cp_common_uses.f90"
 #include "./base/base_uses.f90"
 
   IMPLICIT NONE
@@ -1232,12 +1235,11 @@ CONTAINS
     ENDIF
 
     ! This is clearly a user error
-    CALL cp_assert(found.OR.(.NOT.defined_kind_section),cp_fatal_level,cp_assertion_failed,routineP,&
-         "Element <"//TRIM(element_symbol)//"> provided for KIND <"//TRIM(atom_name_in)//"> "//&
-         "which cannot be mapped with any standard element label. Please correct your "//&
-         "input file!"//&
-__LOCATION__,&
-         only_ionode=.TRUE.)
+    IF(.NOT.found.AND.defined_kind_section)&
+       CALL cp_abort(__LOCATION__, "Element <"//TRIM(element_symbol)//&
+            "> provided for KIND <"//TRIM(atom_name_in)//"> "//&
+            "which cannot be mapped with any standard element label. Please correct your "//&
+            "input file!")
 
     ! Last chance.. are these atom_kinds of AMBER or CHARMM or GROMOS FF ?
     CALL uppercase(element_symbol)

@@ -22,6 +22,8 @@ MODULE md_vel_utils
        use_perd_xz, use_perd_y, use_perd_yz, use_perd_z
   USE cp_linked_list_val,              ONLY: cp_sll_val_next,&
                                              cp_sll_val_type
+  USE cp_log_handling,                 ONLY: cp_get_default_logger,&
+                                             cp_logger_type
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
@@ -71,7 +73,6 @@ MODULE md_vel_utils
   USE simpar_types,                    ONLY: simpar_type
   USE thermal_region_types,            ONLY: thermal_region_type,&
                                              thermal_regions_type
-#include "../common/cp_common_uses.f90"
 #include "../base/base_uses.f90"
 
   IMPLICIT NONE
@@ -974,8 +975,8 @@ CONTAINS
 
     IF(simpar%soften_nsteps <= 0) RETURN !nothing todo
 
-    CALL cp_assert(ALL(is_fixed==use_perd_none), cp_fatal_level, cp_assertion_failed,&
-                 routineP,"Velocitiy softening with constraints is not supported.")
+    IF(ANY(is_fixed/=use_perd_none))&
+       CPABORT("Velocitiy softening with constraints is not supported.")
 
     !backup positions
     DO i = 1, SIZE(part)
@@ -2012,13 +2013,10 @@ CONTAINS
           no_read_error = .FALSE.
           READ (UNIT=line,FMT=*,ERR=999) atom_index(iatom),vatom(1:3,iatom),weight(iatom)
           no_read_error = .TRUE.
-999       CALL cp_assert(no_read_error,cp_fatal_level,cp_assertion_failed,routineP,&
-                         "Error occurred reading &CASCADE section. Last line read <"//&
-                         TRIM(line)//">",only_ionode=.TRUE.)
-          CALL cp_assert((atom_index(iatom) > 0).AND.((atom_index(iatom) <= nparticle)),&
-                         cp_fatal_level,cp_assertion_failed,routineP,&
-                         "Error occurred reading &CASCADE section: Invalid atom index found",&
-                         only_ionode=.TRUE.)
+999       IF(.NOT.no_read_error)&
+             CPABORT("Error occurred reading &CASCADE section. Last line read <"//TRIM(line)//">")
+          IF((atom_index(iatom) <= 0).OR.((atom_index(iatom) > nparticle)))&
+             CPABORT("Error occurred reading &CASCADE section: Invalid atom index found")
           IF(weight(iatom) < 0.0_dp)&
              CPABORT("Error occurred reading &CASCADE section: Negative weight found")
           IF (iw > 0) THEN

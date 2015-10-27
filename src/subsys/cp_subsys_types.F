@@ -54,7 +54,6 @@ MODULE cp_subsys_types
   USE particle_types,                  ONLY: particle_type
   USE virial_types,                    ONLY: virial_release,&
                                              virial_type
-#include "../common/cp_common_uses.f90"
 #include "../base/base_uses.f90"
 
   IMPLICIT NONE
@@ -522,7 +521,7 @@ CONTAINS
         ELSE
           DO i=1,3
             j = j + 1
-            f(j) = core_particles%els(shell_index)%f(i)
+            f(j) = core_particles%els(shell_index)%f(i) + particles%els(iatom)%f(i)
           END DO
           k = 3*(natom + shell_index - 1)
           DO i=1,3

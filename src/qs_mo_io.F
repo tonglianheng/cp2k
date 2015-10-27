@@ -29,11 +29,14 @@ MODULE qs_mo_io
   USE cp_fm_types,                     ONLY: cp_fm_get_info,&
                                              cp_fm_get_submatrix,&
                                              cp_fm_p_type,&
-                                             cp_fm_read_unformatted,&
                                              cp_fm_set_all,&
                                              cp_fm_set_submatrix,&
                                              cp_fm_to_fm,&
                                              cp_fm_write_unformatted
+  USE cp_log_handling,                 ONLY: cp_get_default_logger,&
+                                             cp_logger_get_default_unit_nr,&
+                                             cp_logger_type,&
+                                             cp_to_string
   USE cp_output_handling,              ONLY: cp_p_file,&
                                              cp_print_key_finished_output,&
                                              cp_print_key_generate_filename,&
@@ -65,7 +68,6 @@ MODULE qs_mo_io
   USE qs_mo_types,                     ONLY: mo_set_p_type,&
                                              mo_set_type
   USE string_utilities,                ONLY: compress
-#include "./common/cp_common_uses.f90"
 #include "./base/base_uses.f90"
 
   IMPLICIT NONE
@@ -95,19 +97,15 @@ CONTAINS
 !> \param mo_array ...
 !> \param particle_set ...
 !> \param dft_section ...
-!> \param atomic_kind_set ...
 !> \param qs_kind_set ...
 ! *****************************************************************************
-  SUBROUTINE write_mo_set_to_restart(mo_array,particle_set,dft_section,&
-                                     atomic_kind_set,qs_kind_set)
+  SUBROUTINE write_mo_set_to_restart(mo_array,particle_set,dft_section,qs_kind_set)
 
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mo_array
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(section_vals_type), POINTER         :: dft_section
-    TYPE(atomic_kind_type), DIMENSION(:), &
-      POINTER                                :: atomic_kind_set
     TYPE(qs_kind_type), DIMENSION(:), &
       POINTER                                :: qs_kind_set
 
@@ -359,37 +357,6 @@ CONTAINS
     CALL timestop(handle)
 
   END SUBROUTINE write_mo_set_low
-! *****************************************************************************
-
-! *****************************************************************************
-!> \brief ...
-!> \param mo_set ...
-!> \param ires ...
-! *****************************************************************************
-  SUBROUTINE write_mo_set_basic(mo_set, ires)
-
-    TYPE(mo_set_type), POINTER               :: mo_set
-    INTEGER                                  :: ires
-
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'write_mo_set_basic', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: handle, nao, nmo
-
-    CALL timeset(routineN,handle)
-
-    nao = mo_set%nao
-    nmo=mo_set%nmo
-
-    IF ((ires>0).AND.(nmo > 0)) THEN
-       WRITE (ires) nao,nmo,mo_set%homo,mo_set%lfomo,mo_set%nelectron
-       WRITE (ires) mo_set%eigenvalues(1:nmo),mo_set%occupation_numbers(1:nmo)
-    END IF
-    CALL cp_fm_write_unformatted(mo_set%mo_coeff,ires)
-
-    CALL timestop(handle)
-
-  END SUBROUTINE write_mo_set_basic
 
 ! *****************************************************************************
 !> \brief ...
@@ -938,36 +905,6 @@ CONTAINS
     END IF
 
   END SUBROUTINE read_mos_restart_low
-
-! *****************************************************************************
-!> \brief ...
-!> \param mo_set ...
-!> \param ires ...
-! *****************************************************************************
-  SUBROUTINE read_mo_set_basic (mo_set, ires)
-
-    TYPE(mo_set_type), POINTER               :: mo_set
-    INTEGER, INTENT(in)                      :: ires
-
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'read_mo_set_basic', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: mao, mmo, nao, nmo
-
-    mao = mo_set%nao
-    mmo = mo_set%nmo
-
-    IF ((ires>0).AND.(nmo > 0)) THEN
-       READ (ires) nao,nmo,mo_set%homo,mo_set%lfomo,mo_set%nelectron
-       IF(mao/=nao)&
-          CPABORT("Different size of basis set")
-       IF(mmo/=nmo)&
-          CPABORT("Different number of MOs")
-       READ (ires) mo_set%eigenvalues(1:nmo),mo_set%occupation_numbers(1:nmo)
-    END IF
-    CALL cp_fm_read_unformatted(mo_set%mo_coeff,ires)
-
-  END SUBROUTINE read_mo_set_basic
 
 ! *****************************************************************************
 !> \brief   Write the MO eigenvalues, MO occupation numbers and

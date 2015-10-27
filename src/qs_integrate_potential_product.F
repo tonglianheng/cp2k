@@ -73,7 +73,6 @@ MODULE qs_integrate_potential_product
 
   !$ USE OMP_LIB, ONLY: omp_get_max_threads, omp_get_thread_num, omp_get_num_threads
 
-#include "./common/cp_common_uses.f90"
 #include "./base/base_uses.f90"
 
   IMPLICIT NONE
@@ -485,9 +484,8 @@ CONTAINS
 
     DO img=1,nimages
        CALL cp_dbcsr_work_create(dhmat(img)%matrix,work_mutable=.TRUE.,n=nthread)
-!$  CALL cp_assert (dbcsr_distribution_has_threads(cp_dbcsr_distribution(dhmat(img)%matrix)),&
-!$       cp_fatal_level,cp_internal_error,routineN,"No thread distribution defined.")
-!$       
+!$  IF(.NOT.dbcsr_distribution_has_threads(cp_dbcsr_distribution(dhmat(img)%matrix)))&
+!$     CPABORT("No thread distribution defined.")
     END DO
 !$omp barrier
 

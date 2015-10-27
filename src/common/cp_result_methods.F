@@ -23,7 +23,6 @@ MODULE cp_result_methods
                                              dp
   USE memory_utilities,                ONLY: reallocate
   USE message_passing,                 ONLY: mp_bcast
-#include "cp_common_uses.f90"
 #include "../base/base_uses.f90"
 
   IMPLICIT NONE
@@ -501,8 +500,7 @@ CONTAINS
        CASE(result_type_logical)
           CALL mp_bcast(results%result_value(i)%value%logical_type, source, para_env%group)
        CASE DEFAULT
-          ! Type not implemented in cp_result_type
-          CPABORT("")
+          CPABORT("Type not implemented in cp_result_type")
        END SELECT
     END DO
     DEALLOCATE(type_in_use)

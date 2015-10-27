@@ -29,6 +29,9 @@ MODULE qs_scf_post_dftb
                                              cp_fm_release,&
                                              cp_fm_to_fm_submat,&
                                              cp_fm_type
+  USE cp_log_handling,                 ONLY: cp_get_default_logger,&
+                                             cp_logger_get_default_io_unit,&
+                                             cp_logger_type
   USE cp_output_handling,              ONLY: cp_p_file,&
                                              cp_print_key_finished_output,&
                                              cp_print_key_should_output,&
@@ -59,7 +62,6 @@ MODULE qs_scf_post_dftb
                                              qs_rho_type
   USE qs_scf_types,                    ONLY: qs_scf_env_type
   USE qs_scf_wfn_mix,                  ONLY: wfn_mix
-#include "./common/cp_common_uses.f90"
 #include "./base/base_uses.f90"
 
   IMPLICIT NONE
@@ -500,7 +502,7 @@ CONTAINS
     END DO
 
     output_unit= cp_logger_get_default_io_unit(logger)
-    CALL wfn_mix(mos, particle_set, dft_section, atomic_kind_set, qs_kind_set, &
+    CALL wfn_mix(mos, particle_set, dft_section, qs_kind_set, &
                  lumos, scf_env, matrix_s, output_unit)
 
     DO ispin=1,SIZE(mos)

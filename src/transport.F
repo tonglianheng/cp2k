@@ -28,7 +28,10 @@ MODULE transport
        cp_csr_create_from_dbcsr, cp_csr_print_sparsity, cp_dbcsr_copy, &
        cp_dbcsr_copy_into_existing, cp_dbcsr_create, cp_dbcsr_desymmetrize, &
        cp_dbcsr_has_symmetry, cp_dbcsr_init, cp_dbcsr_set, cp_dbcsr_type, &
-       csr_type, dbcsr_type_real_4
+       csr_type, dbcsr_type_real_8
+  USE cp_log_handling,                 ONLY: cp_get_default_logger,&
+                                             cp_logger_get_default_unit_nr,&
+                                             cp_logger_type
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type,&
                                              section_vals_val_get
@@ -45,7 +48,6 @@ MODULE transport
                                              csr_interop_matrix_get_info,&
                                              csr_interop_nullify,&
                                              transport_env_type
-#include "./common/cp_common_uses.f90"
 #include "./base/base_uses.f90"
 
   IMPLICIT NONE
@@ -211,7 +213,7 @@ CONTAINS
 
     CALL cp_dbcsr_create(transport_env%csr_sparsity, "CSR sparsity", &
                          template = transport_env%template_matrix_sym, &
-                         data_type=dbcsr_type_real_4)
+                         data_type=dbcsr_type_real_8)
     CALL cp_dbcsr_copy(transport_env%csr_sparsity, transport_env%template_matrix_sym)
 
     CALL cp_dbcsr_to_csr_screening(ks_env, transport_env%csr_sparsity)

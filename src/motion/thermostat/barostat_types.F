@@ -26,7 +26,6 @@ MODULE barostat_types
                                              section_vals_val_get
   USE kinds,                           ONLY: dp
   USE simpar_types,                    ONLY: simpar_type
-#include "../../common/cp_common_uses.f90"
 #include "../../base/base_uses.f90"
 
   IMPLICIT NONE
@@ -122,16 +121,14 @@ CONTAINS
        ! User defined virial screening
        CALL section_vals_val_get(barostat_section,"VIRIAL",i_val=barostat%virial_components)
        check = barostat%virial_components == do_clv_xyz .OR. simpar%ensemble == npt_f_ensemble
-       CALL cp_assert(check,cp_failure_level,cp_assertion_failed,routineP,&
-          "The screening of the components of the virial is available only with the NPT_F ensemble!"//&
-__LOCATION__,&
-          only_ionode=.TRUE.)
+       IF(.NOT.check)&
+          CALL cp_abort(__LOCATION__,"The screening of the components of "//&
+               "the virial is available only with the NPT_F ensemble!")
     ELSE
-       CALL cp_assert(.NOT.explicit,cp_warning_level,cp_assertion_failed,routineP,&
-          "A barostat has been defined with an MD ensemble which does not support barostat! "//&
-          "It's definition will be ignored!"//&
-__LOCATION__,&
-          only_ionode=.TRUE.)
+       IF(explicit)&
+          CALL cp_warn(__LOCATION__,&
+               "A barostat has been defined with an MD ensemble which does not support barostat! "//&
+               "It's definition will be ignored!")
     END IF
 
   END SUBROUTINE create_barostat_type

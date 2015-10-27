@@ -28,7 +28,6 @@ MODULE cp_dbcsr_cholesky
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE kinds,                           ONLY: dp,&
                                              sp
-#include "common/cp_common_uses.f90"
 #include "base/base_uses.f90"
 
   IMPLICIT NONE
@@ -290,10 +289,8 @@ CONTAINS
     mypcol=context%mepos(2)
     n = fm_matrix%matrix_struct%nrow_global
     itype = 1
-    CALL cp_assert(op == "SOLVE" .OR. op == "MULTIPLY",&
-         cp_failure_level,cp_assertion_failed,routineP,&
-         "wrong argument op"//&
-         __LOCATION__)
+    IF(op /= "SOLVE" .AND. op /= "MULTIPLY")&
+       CPABORT("wrong argument op")
 
     IF (PRESENT(pos)) THEN
        SELECT CASE(pos)
@@ -311,11 +308,8 @@ CONTAINS
     chol_transa='N'
     IF (PRESENT(transa)) chol_transa=transa
 
-    CALL cp_assert((fm_matrix%use_sp.EQV.fm_matrixb%use_sp).AND.(fm_matrix%use_sp.EQV.fm_matrixout%use_sp), &
-         cp_failure_level,cp_assertion_failed,&
-         routineP,&
-         "not the same precision"//&
-         __LOCATION__)
+    IF((fm_matrix%use_sp.NEQV.fm_matrixb%use_sp).OR.(fm_matrix%use_sp.NEQV.fm_matrixout%use_sp))&
+       CPABORT("not the same precision")
 
     ! notice b is the cholesky guy
     a => fm_matrix%local_data

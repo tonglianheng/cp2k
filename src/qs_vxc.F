@@ -53,7 +53,6 @@ MODULE qs_vxc
   USE virial_types,                    ONLY: virial_type
   USE xc,                              ONLY: xc_exc_calc,&
                                              xc_vxc_pw_create1
-#include "./common/cp_common_uses.f90"
 #include "./base/base_uses.f90"
 
   IMPLICIT NONE
@@ -185,9 +184,8 @@ CONTAINS
 
        ! test if the real space density is available
        CPASSERT(ASSOCIATED(rho_struct))
-       CALL cp_assert( dft_control%nspins == 1 .OR. dft_control%nspins == 2,&
-            cp_failure_level,cp_assertion_failed,routineP,&
-            "nspins must be 1 or 2")
+       IF(dft_control%nspins/=1 .AND. dft_control%nspins/=2)&
+          CPABORT("nspins must be 1 or 2")
        ! there are some options related to SIC here.
        ! Normal DFT computes E(rho_alpha,rho_beta) (or its variant E(2*rho_alpha) for non-LSD)
        ! SIC can             E(rho_alpha,rho_beta)-b*(E(rho_alpha,rho_beta)-E(rho_beta,rho_beta))

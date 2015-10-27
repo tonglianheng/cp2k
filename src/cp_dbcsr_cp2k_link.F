@@ -22,8 +22,7 @@ MODULE cp_dbcsr_cp2k_link
        accdrv_posterior_buffers, accdrv_posterior_streams, &
        accdrv_priority_buffers, accdrv_priority_streams, cp_dbcsr_finalize, &
        cp_dbcsr_get_block_p, cp_dbcsr_get_matrix_type, cp_dbcsr_has_symmetry, &
-       cp_dbcsr_reserve_blocks, cp_dbcsr_set, cp_dbcsr_type, dbcsr_error_set, &
-       dbcsr_error_stop, dbcsr_error_type, &
+       cp_dbcsr_reserve_blocks, cp_dbcsr_set, cp_dbcsr_type, &
        dbcsr_get_conf_avg_elements_images, dbcsr_get_conf_comm_thread_load, &
        dbcsr_get_conf_mm_driver, dbcsr_get_conf_mm_stacksize, &
        dbcsr_get_conf_mpi_mem, dbcsr_get_conf_nstacks, &
@@ -37,12 +36,17 @@ MODULE cp_dbcsr_cp2k_link
        dbcsr_type_no_symmetry, has_acc, has_mpi, mm_driver_acc, &
        mm_driver_blas, mm_driver_matmul, mm_driver_smm, mm_name_acc, &
        mm_name_blas, mm_name_matmul, mm_name_smm, multrec_limit
+  USE cp_log_handling,                 ONLY: cp_get_default_logger,&
+                                             cp_logger_get_default_io_unit,&
+                                             cp_logger_type,&
+                                             cp_logger_would_log,&
+                                             cp_note_level
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type,&
                                              section_vals_val_get
   USE kinds,                           ONLY: default_string_length,&
                                              dp,&
-                                             real_4
+                                             real_8
   USE orbital_pointers,                ONLY: nso
   USE qs_integral_utils,               ONLY: basis_set_list_setup
   USE qs_kind_types,                   ONLY: qs_kind_type
@@ -55,7 +59,6 @@ MODULE cp_dbcsr_cp2k_link
                                              neighbor_list_iterator_p_type,&
                                              neighbor_list_iterator_release,&
                                              neighbor_list_set_p_type
-#include "./common/cp_common_uses.f90"
 #include "./base/base_uses.f90"
 
   IMPLICIT NONE
@@ -88,10 +91,9 @@ CONTAINS
     INTEGER, DIMENSION(3)                    :: nstacks
     LOGICAL                                  :: use_comm_thread, &
                                                 use_mpi_filtering, use_mpi_rma
-    TYPE(dbcsr_error_type)                   :: dbcsr_error
     TYPE(section_vals_type), POINTER         :: dbcsr_section
 
-    CALL dbcsr_error_set (routineN, error_handle, dbcsr_error)
+    CALL timeset(routineN, error_handle)
     dbcsr_section => section_vals_get_subs_vals(root_section,&
       "GLOBAL%DBCSR")
     CALL section_vals_val_get(dbcsr_section,&
@@ -140,21 +142,21 @@ CONTAINS
     CALL section_vals_val_get(dbcsr_section,&
          "ACC%binning_binsize", i_val=accdrv_binning_binsize)
 
-    CALL dbcsr_set_conf_mm_driver (mm_driver, error=dbcsr_error)
-    CALL dbcsr_set_conf_max_ele_block (max_ele_block, error=dbcsr_error)
+    CALL dbcsr_set_conf_mm_driver (mm_driver)
+    CALL dbcsr_set_conf_max_ele_block (max_ele_block)
     IF(mm_ss > 0) &
-    CALL dbcsr_set_conf_mm_stacksize (mm_ss, error=dbcsr_error)
+    CALL dbcsr_set_conf_mm_stacksize (mm_ss)
     IF(avg_elements_images>0) &
-         CALL dbcsr_set_conf_avg_elements_images(avg_elements_images, error=dbcsr_error)
+         CALL dbcsr_set_conf_avg_elements_images(avg_elements_images)
     IF(nstacks(1) > 0) &
-    CALL dbcsr_set_conf_nstacks(nstacks, error=dbcsr_error)
-    CALL dbcsr_set_conf_use_mpi_filtering(use_mpi_filtering, error=dbcsr_error)
-    CALL dbcsr_set_conf_use_mpi_rma(use_mpi_rma, error=dbcsr_error)
-    CALL dbcsr_set_conf_use_comm_thread(use_comm_thread, error=dbcsr_error)
-    CALL dbcsr_set_conf_comm_thread_load(comm_thread_load, error=dbcsr_error)
-    CALL dbcsr_set_conf_randmat_seed(randmat_seed, error=dbcsr_error)
+    CALL dbcsr_set_conf_nstacks(nstacks)
+    CALL dbcsr_set_conf_use_mpi_filtering(use_mpi_filtering)
+    CALL dbcsr_set_conf_use_mpi_rma(use_mpi_rma)
+    CALL dbcsr_set_conf_use_comm_thread(use_comm_thread)
+    CALL dbcsr_set_conf_comm_thread_load(comm_thread_load)
+    CALL dbcsr_set_conf_randmat_seed(randmat_seed)
 
-    CALL dbcsr_error_stop (error_handle, dbcsr_error)
+    CALL timestop(error_handle)
   END SUBROUTINE cp_dbcsr_config
 
 
@@ -172,7 +174,6 @@ CONTAINS
     INTEGER                                  :: unit_num
     INTEGER, DIMENSION(3)                    :: n_mnk_stacks
     TYPE(cp_logger_type), POINTER            :: logger
-    TYPE(dbcsr_error_type)                   :: dbcsr_error
 
     logger => cp_get_default_logger()
     unit_num = cp_logger_get_default_io_unit(logger)
@@ -203,7 +204,7 @@ CONTAINS
        WRITE(UNIT=unit_num, FMT='(1X,A,T70,I11)')&
         "DBCSR| Randmat seed", dbcsr_get_conf_randmat_seed()
        
-       CALL dbcsr_get_conf_nstacks (n_mnk_stacks, error=dbcsr_error)
+       CALL dbcsr_get_conf_nstacks (n_mnk_stacks)
        IF (ALL(n_mnk_stacks .EQ. n_mnk_stacks(1))) THEN
            WRITE(UNIT=unit_num, FMT='(1X,A,T70,I11)')&
             "DBCSR| Multiplication size stacks", n_mnk_stacks(1)
@@ -386,7 +387,7 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: rpgfa, rpgfb, zet_a, zet_b
     REAL(KIND=dp), DIMENSION(:, :, :), &
       POINTER                                :: gcc_a, gcc_b
-    REAL(KIND=real_4), DIMENSION(:, :), &
+    REAL(KIND=real_8), DIMENSION(:, :), &
       POINTER                                :: screen_blk
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set

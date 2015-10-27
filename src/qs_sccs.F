@@ -27,6 +27,8 @@ MODULE qs_sccs
 
   USE cp_control_types,                ONLY: dft_control_type,&
                                              sccs_control_type
+  USE cp_log_handling,                 ONLY: cp_get_default_logger,&
+                                             cp_logger_type
   USE cp_output_handling,              ONLY: cp_p_file,&
                                              cp_print_key_finished_output,&
                                              cp_print_key_should_output,&
@@ -93,7 +95,6 @@ MODULE qs_sccs
   USE rs_methods,                      ONLY: derive_fdm_cd3,&
                                              derive_fdm_cd5,&
                                              derive_fdm_cd7
-#include "./common/cp_common_uses.f90"
 #include "./base/base_uses.f90"
 
   IMPLICIT NONE
@@ -422,11 +423,11 @@ CONTAINS
       ! Calculate the (quantum) surface of the solute cavity
       SELECT CASE (sccs_control%method_id)
       CASE (sccs_andreussi)
-        CALL surface_andreussi(rho_elec,norm_drho_elec,drho_elec,theta,eps0,&
+        CALL surface_andreussi(rho_elec,norm_drho_elec,theta,eps0,&
                                sccs_control%rho_max,sccs_control%rho_min,&
                                sccs_control%delta_rho)
       CASE (sccs_fattebert_gygi)
-        CALL surface_fattebert_gygi(rho_elec,norm_drho_elec,drho_elec,theta,eps0,&
+        CALL surface_fattebert_gygi(rho_elec,norm_drho_elec,theta,eps0,&
                                     sccs_control%beta,sccs_control%rho_zero,&
                                     sccs_control%delta_rho)
       CASE DEFAULT
@@ -1061,7 +1062,6 @@ CONTAINS
 !>             defining the quantum volume and surface of the cavity.
 !> \param rho_elec ...
 !> \param norm_drho_elec ...
-!> \param drho_elec ...
 !> \param dtheta ...
 !> \param epsilon_solvent ...
 !> \param rho_max ...
@@ -1072,13 +1072,11 @@ CONTAINS
 !> \author     Matthias Krack (MK)
 !> \version    1.0
 ! *****************************************************************************
-  SUBROUTINE surface_andreussi(rho_elec,norm_drho_elec,drho_elec,dtheta,&
+  SUBROUTINE surface_andreussi(rho_elec,norm_drho_elec,dtheta,&
                                epsilon_solvent,rho_max,rho_min,delta_rho)
 
-    TYPE(pw_type), POINTER                   :: rho_elec, norm_drho_elec
-    TYPE(pw_p_type), DIMENSION(3), &
-      INTENT(IN)                             :: drho_elec
-    TYPE(pw_type), POINTER                   :: dtheta
+    TYPE(pw_type), POINTER                   :: rho_elec, norm_drho_elec, &
+                                                dtheta
     REAL(KIND=dp), INTENT(IN)                :: epsilon_solvent, rho_max, &
                                                 rho_min, delta_rho
 
@@ -1110,7 +1108,7 @@ CONTAINS
     ! Calculate finite difference between two isosurfaces
     !$omp parallel do default(none) &
     !$omp             private(eps_elec,i,j,k,l,rho,t,theta,x,y) &
-    !$omp             shared(delta_rho,diff,drho_elec,dtheta,e,epsilon_solvent,f,lb) &
+    !$omp             shared(delta_rho,diff,dtheta,e,epsilon_solvent,f,lb) &
     !$omp             shared(ln_rho_max,norm_drho_elec,rho_elec,q,rho_max,rho_min,ub)
     DO k=lb(3),ub(3)
       DO j=lb(2),ub(2)
@@ -1150,7 +1148,6 @@ CONTAINS
 !>             defining the quantum volume and surface of the cavity.
 !> \param rho_elec ...
 !> \param norm_drho_elec ...
-!> \param drho_elec ...
 !> \param dtheta ...
 !> \param epsilon_solvent ...
 !> \param beta ...
@@ -1161,13 +1158,11 @@ CONTAINS
 !> \author     Matthias Krack (MK)
 !> \version    1.0
 ! *****************************************************************************
-  SUBROUTINE surface_fattebert_gygi(rho_elec,norm_drho_elec,drho_elec,dtheta,&
+  SUBROUTINE surface_fattebert_gygi(rho_elec,norm_drho_elec,dtheta,&
                                     epsilon_solvent,beta,rho_zero,delta_rho)
 
-    TYPE(pw_type), POINTER                   :: rho_elec, norm_drho_elec
-    TYPE(pw_p_type), DIMENSION(3), &
-      INTENT(IN)                             :: drho_elec
-    TYPE(pw_type), POINTER                   :: dtheta
+    TYPE(pw_type), POINTER                   :: rho_elec, norm_drho_elec, &
+                                                dtheta
     REAL(KIND=dp), INTENT(IN)                :: epsilon_solvent, beta, &
                                                 rho_zero, delta_rho
 
@@ -1194,7 +1189,7 @@ CONTAINS
     ! Calculate finite difference between two isosurfaces
     !$omp parallel do default(none) &
     !$omp             private(eps_elec,i,j,k,l,p,rho,s,t,theta) &
-    !$omp             shared(delta_rho,drho_elec,dtheta,e,epsilon_solvent,f,lb) &
+    !$omp             shared(delta_rho,dtheta,e,epsilon_solvent,f,lb) &
     !$omp             shared(norm_drho_elec,q,rho_elec,twobeta,ub)
     DO k=lb(3),ub(3)
       DO j=lb(2),ub(2)

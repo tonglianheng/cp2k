@@ -12,6 +12,7 @@ MODULE qs_scf_loop_utils
                                              cp_dbcsr_p_type,&
                                              cp_dbcsr_type
   USE cp_external_control,             ONLY: external_control
+  USE cp_log_handling,                 ONLY: cp_to_string
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE input_section_types,             ONLY: section_vals_type
   USE kinds,                           ONLY: dp
@@ -60,7 +61,6 @@ MODULE qs_scf_loop_utils
                                              special_diag_method_nr
   USE scf_control_types,               ONLY: scf_control_type,&
                                              smear_type
-#include "./common/cp_common_uses.f90"
 #include "./base/base_uses.f90"
 
   IMPLICIT NONE
@@ -405,14 +405,12 @@ CONTAINS
 !> \param rho       All data for the electron density
 !> \param para_env  Parallel environment
 !> \param diis_step Did we do a DIIS step?
-!> \param do_kpoints Is this a kpoint run?
 ! *****************************************************************************
- SUBROUTINE qs_scf_density_mixing(scf_env,rho,para_env,diis_step,do_kpoints)
+ SUBROUTINE qs_scf_density_mixing(scf_env,rho,para_env,diis_step)
     TYPE(qs_scf_env_type), POINTER           :: scf_env
     TYPE(qs_rho_type), POINTER               :: rho
     TYPE(cp_para_env_type), POINTER          :: para_env
     LOGICAL                                  :: diis_step
-    LOGICAL, INTENT(IN)                      :: do_kpoints
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'qs_scf_density_mixing', &
       routineP = moduleN//':'//routineN

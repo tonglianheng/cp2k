@@ -31,6 +31,7 @@
 ! *****************************************************************************
 
 MODULE tmc_tree_build
+  USE cp_log_handling,                 ONLY: cp_to_string
   USE kinds,                           ONLY: dp
   USE parallel_rng_types,              ONLY: get_rng_stream,&
                                              next_random_number,&
@@ -74,7 +75,6 @@ MODULE tmc_tree_build
        status_rejected_result, tree_type
   USE tmc_types,                       ONLY: tmc_env_type,&
                                              tmc_param_type
-#include "../common/cp_common_uses.f90"
 #include "../base/base_uses.f90"
 
   IMPLICIT NONE
@@ -375,11 +375,10 @@ CONTAINS
 
     ! simulated annealing start temperature
     global_tree%Temp = tmc_env%params%Temp(1)
-    CALL cp_assert(.NOT.(tmc_env%params%nr_temp.NE.1 .AND. tmc_env%m_env%temp_decrease.NE.1.0_dp),&
-                     cp_failure_level,cp_assertion_failed,routineP,&
-                     "there is no parallel tempering implementation for simulated annealing implemented "//&
-                     "(just one Temp per global tree element.",&
-                     only_ionode=.TRUE.)
+    IF(tmc_env%params%nr_temp.NE.1 .AND. tmc_env%m_env%temp_decrease.NE.1.0_dp)&
+       CALL cp_abort(__LOCATION__,&
+            "there is no parallel tempering implementation for simulated annealing implemented "//&
+            "(just one Temp per global tree element.")
 
     !-- IF program is restarted, read restart file
     IF(tmc_env%m_env%restart_in_file_name.NE."") THEN
@@ -585,12 +584,12 @@ CONTAINS
         CASE(mv_type_MD)
           new_elem%conf(new_elem%mv_conf)%elem%stat = status_calculate_MD
         CASE(mv_type_NMC_moves)
-          CALL cp_assert(new_elem%conf(new_elem%mv_conf)%elem%stat.EQ.&
-              status_canceled_nmc, cp_warning_level,cp_assertion_failed,&
-              routineP,"reactivating tree element with wrong status"//&
-              cp_to_string(new_elem%conf(new_elem%mv_conf)%elem%stat))
+          IF(new_elem%conf(new_elem%mv_conf)%elem%stat.NE.status_canceled_nmc)&
+             CALL cp_warn(__LOCATION__,&
+                  "reactivating tree element with wrong status"//&
+                  cp_to_string(new_elem%conf(new_elem%mv_conf)%elem%stat))
           new_elem%conf(new_elem%mv_conf)%elem%stat = status_calculate_NMC_steps
-          
+
           !IF(DEBUG.GE.1) WRITE(tmc_out_file_nr,*)"ATTENTION: reactivation of canceled subtree ", &
           !  new_elem%conf(new_elem%mv_conf)%elem%sub_tree_nr, "elem", new_elem%conf(new_elem%mv_conf)%elem%nr, &
           !  " of existing gt elem ",new_elem%nr,", again calculate NMC steps"
@@ -614,14 +613,12 @@ CONTAINS
         !-- set pointers to and from element one level up
         !-- paste new gt tree node element at right end
         IF(n_acc)THEN
-          CALL cp_assert(.NOT.ASSOCIATED(tmp_elem%acc),cp_failure_level,&
-              cp_assertion_failed, routineP,&
-              "creating new subtree element on an occupied acc branch")
+          IF(ASSOCIATED(tmp_elem%acc))&
+             CPABORT("creating new subtree element on an occupied acc branch")
           tmp_elem%acc => new_elem
         ELSE
-          CALL cp_assert(.NOT.ASSOCIATED(tmp_elem%nacc),cp_failure_level,&
-              cp_assertion_failed, routineP,&
-              "creating new subtree element on an occupied nacc branch")
+          IF(ASSOCIATED(tmp_elem%nacc))&
+             CPABORT("creating new subtree element on an occupied nacc branch")
           tmp_elem%nacc => new_elem
         END IF
         new_elem%parent   => tmp_elem
@@ -765,12 +762,11 @@ CONTAINS
 
 
     IF(keep_on) THEN ! status changes
-      CALL cp_assert(new_elem%stat.NE.status_accepted_result .AND. &
-                     new_elem%stat.NE.status_accepted .AND. &
-                     new_elem%stat.NE.status_rejected .AND. &
-                     new_elem%stat.NE.status_rejected_result, &
-                     cp_failure_level, cp_assertion_failed, routineP,&
-                     "selected existing RESULT gt node")
+      IF(new_elem%stat.EQ.status_accepted_result .OR. &
+         new_elem%stat.EQ.status_accepted .OR. &
+         new_elem%stat.EQ.status_rejected .OR. &
+         new_elem%stat.EQ.status_rejected_result)&
+           CPABORT("selected existing RESULT gt node")
       !-- set status of global tree element for decision in master routine
       SELECT CASE(new_elem%conf(new_elem%mv_conf)%elem%stat)
       CASE(status_rejected_result,status_rejected,status_accepted,&
@@ -1083,11 +1079,12 @@ CONTAINS
 
     ! if there is still e reference to a global tree pointer, do not deallocate element
     IF(ASSOCIATED(ptr%gt_nodes_references)) THEN
-      CALL cp_assert(.NOT.ASSOCIATED(ptr%parent),cp_warning_level,cp_assertion_failed,&
-                   routineP,"try to deallocate subtree element"//&
-                   cp_to_string(ptr%sub_tree_nr)//cp_to_string(ptr%nr)//&
-                   " still with global tree element references e.g."//&
-                   cp_to_string(ptr%gt_nodes_references%gt_elem%nr))
+      IF(ASSOCIATED(ptr%parent))&
+         CALL cp_warn(__LOCATION__,&
+              "try to deallocate subtree element"//&
+              cp_to_string(ptr%sub_tree_nr)//cp_to_string(ptr%nr)//&
+              " still with global tree element references e.g."//&
+              cp_to_string(ptr%gt_nodes_references%gt_elem%nr))
       CPASSERT(ASSOCIATED(ptr%gt_nodes_references%gt_elem))
     ELSE
       SELECT CASE(ptr%stat)
@@ -1302,12 +1299,12 @@ CONTAINS
         ! delete element
         IF(remove_this)THEN
           !-- mark as deleted and draw it in tree
-          CALL cp_assert(ASSOCIATED(begin_ptr%parent),cp_failure_level,&
-                         cp_assertion_failed,routineP,&
-                         "try to remove unused subtree element "//&
-                         cp_to_string(begin_ptr%sub_tree_nr)//" "//&
-                         cp_to_string(begin_ptr%nr)//&
-                         " but parent does not exist")
+          IF(.NOT.ASSOCIATED(begin_ptr%parent))&
+             CALL cp_abort(__LOCATION__,&
+                  "try to remove unused subtree element "//&
+                  cp_to_string(begin_ptr%sub_tree_nr)//" "//&
+                  cp_to_string(begin_ptr%nr)//&
+                  " but parent does not exist")
           tmp_ptr => begin_ptr
           ! check if a working group is still working on this element
           removed = .TRUE.

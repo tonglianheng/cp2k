@@ -21,6 +21,9 @@ MODULE md_energies
   USE barostat_utils,                  ONLY: print_barostat_status
   USE cell_types,                      ONLY: cell_type,&
                                              get_cell
+  USE cp_log_handling,                 ONLY: cp_get_default_logger,&
+                                             cp_logger_type,&
+                                             cp_to_string
   USE cp_output_handling,              ONLY: cp_p_file,&
                                              cp_print_key_finished_output,&
                                              cp_print_key_should_output,&
@@ -75,7 +78,6 @@ MODULE md_energies
   USE thermostat_types,                ONLY: thermostats_type
   USE thermostat_utils,                ONLY: print_thermostats_status
   USE virial_types,                    ONLY: virial_type
-#include "../common/cp_common_uses.f90"
 #include "../base/base_uses.f90"
 
   IMPLICIT NONE
@@ -483,13 +485,11 @@ CONTAINS
           CALL cp_print_key_finished_output(tempkind,logger,motion_section,"MD%PRINT%TEMP_KIND")
        ELSE
           print_key => section_vals_get_subs_vals(motion_section,"MD%PRINT%TEMP_KIND")
-          CALL cp_assert(.NOT.BTEST(cp_print_key_should_output(logger%iter_info,print_key),cp_p_file),&
-               cp_warning_level,cp_assertion_failed,routineP,&
-               "The print_key MD%PRINT%TEMP_KIND has been activated but the "//&
-               "calculation of the temperature per kind has not been requested. "//&
-               "Please switch on the keyword MD%TEMP_KIND. "//&
-__LOCATION__,&
-               only_ionode=.TRUE.)
+          IF(BTEST(cp_print_key_should_output(logger%iter_info,print_key),cp_p_file))&
+             CALL cp_warn(__LOCATION__,&
+                  "The print_key MD%PRINT%TEMP_KIND has been activated but the "//&
+                  "calculation of the temperature per kind has not been requested. "//&
+                  "Please switch on the keyword MD%TEMP_KIND.")
        END IF
        !Thermal Region
        CALL print_thermal_regions_temperature(thermal_regions,itimes,time*femtoseconds,my_pos,my_act)
@@ -555,13 +555,11 @@ __LOCATION__,&
                      "MD%PRINT%TEMP_SHELL_KIND")
              ELSE
                 print_key => section_vals_get_subs_vals(motion_section,"MD%PRINT%TEMP_SHELL_KIND")
-                CALL cp_assert(.NOT.BTEST(cp_print_key_should_output(logger%iter_info,print_key),cp_p_file),&
-                     cp_warning_level,cp_assertion_failed,routineP,&
-                     "The print_key MD%PRINT%TEMP_SHELL_KIND has been activated but the "//&
-                     "calculation of the temperature per kind has not been requested. "//&
-                     "Please switch on the keyword MD%TEMP_KIND. "//&
-__LOCATION__,&
-                     only_ionode=.TRUE.)
+                IF(BTEST(cp_print_key_should_output(logger%iter_info,print_key),cp_p_file))&
+                   CALL cp_warn(__LOCATION__,&
+                        "The print_key MD%PRINT%TEMP_SHELL_KIND has been activated but the "//&
+                        "calculation of the temperature per kind has not been requested. "//&
+                        "Please switch on the keyword MD%TEMP_KIND.")
              END IF
           END IF
        END IF

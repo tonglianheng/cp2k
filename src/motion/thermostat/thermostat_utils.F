@@ -11,6 +11,10 @@ MODULE thermostat_utils
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind
   USE cell_types,                      ONLY: cell_type
+  USE cp_log_handling,                 ONLY: cp_get_default_logger,&
+                                             cp_logger_get_default_io_unit,&
+                                             cp_logger_type,&
+                                             cp_to_string
   USE cp_output_handling,              ONLY: cp_p_file,&
                                              cp_print_key_finished_output,&
                                              cp_print_key_should_output,&
@@ -55,7 +59,6 @@ MODULE thermostat_utils
   USE thermostat_types,                ONLY: thermostat_info_type,&
                                              thermostat_type,&
                                              thermostats_type
-#include "../../common/cp_common_uses.f90"
 #include "../../base/base_uses.f90"
 
   IMPLICIT NONE
@@ -637,9 +640,9 @@ CONTAINS
              nointer = .FALSE.
              ! Determine the number of thermostats defined in the input
              CALL section_vals_get(region_sections, n_repetition=sum_of_thermostats)
-             CALL cp_assert((sum_of_thermostats>=1),cp_failure_level,cp_assertion_failed,routineP,&
-                  "Provide at least 1 region (&DEFINE_REGION) when using the thermostat type DEFINED"//&
-                  __LOCATION__)
+             IF(sum_of_thermostats<1)&
+                CALL cp_abort(__LOCATION__,&
+                     "Provide at least 1 region (&DEFINE_REGION) when using the thermostat type DEFINED")
           END SELECT
 
           ! Here we decide which parallel algorithm to use.

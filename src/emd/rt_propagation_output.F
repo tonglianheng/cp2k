@@ -34,6 +34,10 @@ MODULE rt_propagation_output
                                              cp_fm_set_all,&
                                              cp_fm_type
   USE cp_gemm_interface,               ONLY: cp_gemm
+  USE cp_log_handling,                 ONLY: cp_get_default_logger,&
+                                             cp_logger_get_default_io_unit,&
+                                             cp_logger_get_default_unit_nr,&
+                                             cp_logger_type
   USE cp_output_handling,              ONLY: cp_p_file,&
                                              cp_print_key_finished_output,&
                                              cp_print_key_should_output,&
@@ -83,7 +87,6 @@ MODULE rt_propagation_output
   USE rt_propagation_types,            ONLY: get_rtp,&
                                              rt_prop_type
   USE rt_propagation_utils,            ONLY: calculate_P_imaginary
-#include "../common/cp_common_uses.f90"
 #include "../base/base_uses.f90"
 
   IMPLICIT NONE
@@ -249,12 +252,12 @@ CONTAINS
                             dft_section,qs_kind_set)
        ENDIF
     ENDIF
-    
+
     rtp%energy_old=rtp%energy_new
-    
-    CALL cp_assert(rtp%converged.OR.rtp%iter<dft_control%rtp_control%max_iter,cp_failure_level,cp_assertion_failed,&
-         routineP,"EMD did not converge, either increase MAX_ITER "//&
-         "or use a smaller TIMESTEP")
+
+    IF(.NOT.rtp%converged .AND. rtp%iter>=dft_control%rtp_control%max_iter)&
+       CALL cp_abort(__LOCATION__,"EMD did not converge, either increase MAX_ITER "//&
+            "or use a smaller TIMESTEP")
 
   END SUBROUTINE rt_prop_output
 

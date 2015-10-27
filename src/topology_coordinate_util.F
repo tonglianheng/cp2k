@@ -12,6 +12,8 @@ MODULE topology_coordinate_util
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind,&
                                              set_atomic_kind
+  USE cp_log_handling,                 ONLY: cp_get_default_logger,&
+                                             cp_logger_type
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
   USE exclusion_types,                 ONLY: exclusion_type
@@ -48,7 +50,6 @@ MODULE topology_coordinate_util
                                              topology_parameters_type
   USE topology_util,                   ONLY: array1_list_type,&
                                              reorder_structure
-#include "./common/cp_common_uses.f90"
 #include "./base/base_uses.f90"
 
   IMPLICIT NONE
@@ -342,11 +343,9 @@ CONTAINS
     END DO
     my_ignore_outside_box = .FALSE.
     IF (PRESENT(ignore_outside_box)) my_ignore_outside_box = ignore_outside_box
-    CALL cp_assert(my_ignore_outside_box .OR. check,cp_failure_level,cp_assertion_failed,routineP,&
-         "A non-periodic calculation has been requested but the system size "//&
-         "exceeds the cell size in at least one of the non-periodic directions! "//&
-__LOCATION__,&
-         only_ionode=.TRUE.)
+    IF(.NOT.my_ignore_outside_box .AND. .NOT. check)&
+      CALL cp_abort(__LOCATION__, "A non-periodic calculation has been requested but the system size "//&
+           "exceeds the cell size in at least one of the non-periodic directions!")
     IF (do_center) THEN
        CALL section_vals_val_get(subsys_section,&
             "TOPOLOGY%CENTER_COORDINATES%CENTER_POINT",explicit=explicit)

@@ -11,6 +11,9 @@
 ! *****************************************************************************
 MODULE ps_implicit_methods
 
+  USE cp_log_handling,                 ONLY: cp_get_default_logger,&
+                                             cp_logger_get_default_unit_nr,&
+                                             cp_logger_type
   USE dct,                             ONLY: dct_type,&
                                              dct_type_init,&
                                              pw_adjust_bounds_local,&
@@ -53,7 +56,6 @@ MODULE ps_implicit_methods
                                              pw_type
   USE rs_methods,                      ONLY: pw_mollifier,&
                                              setup_grid_axes
-#include "../common/cp_common_uses.f90"
 #include "../base/base_uses.f90"
 
   IMPLICIT NONE
@@ -277,8 +279,8 @@ CONTAINS
        iter = iter + 1
        reached_max_iter = iter .GT. max_iter
        reached_tol = pres_error .LE. tol
-       IF (pres_error .GT. large_error) CALL cp_assert( .FALSE. , cp_failure_level, cp_assertion_failed, &
-                                                    routineP, "Poisson solver did not converge.") 
+       IF (pres_error .GT. large_error)&
+          CPABORT("Poisson solver did not converge.")
        ps_implicit_env%times_called = ps_implicit_env%times_called + 1
        IF (reached_max_iter .OR. reached_tol)  EXIT
 
@@ -427,8 +429,8 @@ CONTAINS
        iter = iter + 1
        reached_max_iter = iter .GT. max_iter
        reached_tol = pres_error .LE. tol
-       IF (pres_error .GT. large_error) CALL cp_assert( .FALSE. , cp_failure_level, cp_assertion_failed, &
-                                                    routineP, "Poisson solver did not converge.") 
+       IF (pres_error .GT. large_error)&
+          CPABORT("Poisson solver did not converge.")
        ps_implicit_env%times_called = ps_implicit_env%times_called + 1
        IF (reached_max_iter .OR. reached_tol)  EXIT
 
@@ -693,8 +695,8 @@ CONTAINS
        reached_max_iter = iter .GT. max_iter
        reached_tol = pres_error .LE. tol
        ps_implicit_env%times_called = ps_implicit_env%times_called + 1
-       IF (pres_error .GT. large_error) CALL cp_assert( .FALSE. , cp_failure_level, cp_assertion_failed, &
-                                                    routineP, "Poisson solver did not converge.") 
+       IF (pres_error .GT. large_error)&
+          CPABORT("Poisson solver did not converge.")
        IF (reached_max_iter .OR. reached_tol)  EXIT
 
 ! update
@@ -973,8 +975,8 @@ CONTAINS
        reached_max_iter = iter .GT. max_iter
        reached_tol = pres_error .LE. tol
        ps_implicit_env%times_called = ps_implicit_env%times_called + 1
-       IF (pres_error .GT. large_error) CALL cp_assert( .FALSE. , cp_failure_level, cp_assertion_failed, &
-                                                    routineP, "Poisson solver did not converge.") 
+       IF (pres_error .GT. large_error)&
+          CPABORT("Poisson solver did not converge.")
        IF (reached_max_iter .OR. reached_tol)  EXIT
 
 ! update
@@ -1237,12 +1239,13 @@ CONTAINS
 ! evaluate R^(-1)
        ps_implicit_env%Rinv = R
        CALL DGETRF(n_tiles_tot+1, n_tiles_tot+1, ps_implicit_env%Rinv, n_tiles_tot+1, ipiv, info)
-       IF (info .NE. 0) CALL cp_assert(.FALSE., cp_failure_level, cp_assertion_failed, routineP, &
-                        "R is (nearly) singular! Either two Dirichlet constraints are identical or "// &
-                        "you need to reduce the number of tiles.")
+       IF (info .NE. 0)&
+          CALL cp_abort(__LOCATION__,&
+               "R is (nearly) singular! Either two Dirichlet constraints are identical or "// &
+               "you need to reduce the number of tiles.")
        CALL DGETRI(n_tiles_tot+1, ps_implicit_env%Rinv, n_tiles_tot+1, ipiv, work_arr, n_tiles_tot+1, info)
-       IF (info .NE. 0) CALL cp_assert(.FALSE., cp_failure_level, cp_assertion_failed, routineP, &
-                        "Inversion of R failed!")
+       IF (info .NE. 0)&
+          CPABORT("Inversion of R failed!")
 
        DEALLOCATE(QAinvxBt, Bxunit_vec, R, work_arr, ipiv)
        CALL pw_pool_release(pw_pool_xpndd)
@@ -1355,12 +1358,13 @@ CONTAINS
 ! evaluate R^(-1)
        ps_implicit_env%Rinv = R
        CALL DGETRF(n_tiles_tot+1, n_tiles_tot+1, ps_implicit_env%Rinv, n_tiles_tot+1, ipiv, info)
-       IF (info .NE. 0) CALL cp_assert(.FALSE., cp_failure_level, cp_assertion_failed, routineP, &
-                        "R is (nearly) singular! Either two Dirichlet constraints are identical or "// &
-                        "you need to reduce the number of tiles.")
+       IF (info .NE. 0)&
+          CALL cp_abort(__LOCATION__,&
+               "R is (nearly) singular! Either two Dirichlet constraints are identical or "// &
+               "you need to reduce the number of tiles.")
        CALL DGETRI(n_tiles_tot+1, ps_implicit_env%Rinv, n_tiles_tot+1, ipiv, work_arr, n_tiles_tot+1, info)
-       IF (info .NE. 0) CALL cp_assert(.FALSE., cp_failure_level, cp_assertion_failed, routineP, &
-                        "Inversion of R failed!")
+       IF (info .NE. 0)&
+          CPABORT("Inversion of R failed!")
 
        DEALLOCATE(QAinvxBt, Bxunit_vec, R, work_arr, ipiv)
 

@@ -40,6 +40,10 @@ MODULE qs_scf_post_gpw
                                              cp_fm_to_fm,&
                                              cp_fm_type
   USE cp_fm_vect,                      ONLY: cp_fm_vect_dealloc
+  USE cp_log_handling,                 ONLY: cp_get_default_logger,&
+                                             cp_logger_get_default_io_unit,&
+                                             cp_logger_type,&
+                                             cp_to_string
   USE cp_output_handling,              ONLY: cp_iter_string,&
                                              cp_p_file,&
                                              cp_print_key_finished_output,&
@@ -174,7 +178,6 @@ MODULE qs_scf_post_gpw
   USE wannier_states_types,            ONLY: wannier_centres_type
   USE xray_diffraction,                ONLY: calculate_rhotot_elec_gspace,&
                                              xray_diffraction_spectrum
-#include "./common/cp_common_uses.f90"
 #include "./base/base_uses.f90"
 
   IMPLICIT NONE
@@ -624,7 +627,7 @@ CONTAINS
        ! nothing at the moment, not implemented
     ELSE
        CALL get_qs_env(qs_env,matrix_s=matrix_s)
-       CALL wfn_mix(mos, particle_set, dft_section, atomic_kind_set, qs_kind_set, &
+       CALL wfn_mix(mos, particle_set, dft_section, qs_kind_set, &
                     lumo_ptr, scf_env, matrix_s, output_unit, marked_states)
        IF(p_loc_lumo)CALL cp_fm_vect_dealloc(lumo_localized)
     END IF

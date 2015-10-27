@@ -37,7 +37,6 @@ MODULE pw_cuda
                                              RECIPROCALSPACE,&
                                              pw_type
   USE termination,                     ONLY: stop_memory
-#include "../common/cp_common_uses.f90"
 #include "../base/base_uses.f90"
 
   IMPLICIT NONE
@@ -293,7 +292,11 @@ END SUBROUTINE pw_cuda_finalize
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_cuda_r3dc1d_3d', &
       routineP = moduleN//':'//routineN
 
-#if defined (__PW_CUDA)
+#if ! defined (__PW_CUDA)
+    MARK_USED(pw1)
+    MARK_USED(pw2)
+    MARK_USED(scale)
+#else
     INTEGER                                  :: handle, ngpts
     INTEGER                                  :: l1, l2, l3
     INTEGER, DIMENSION(:), POINTER           :: npts
@@ -340,7 +343,11 @@ END SUBROUTINE pw_cuda_finalize
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_cuda_c1dr3d_3d', &
       routineP = moduleN//':'//routineN
 
-#if defined (__PW_CUDA)
+#if ! defined (__PW_CUDA)
+    MARK_USED(pw1)
+    MARK_USED(pw2)
+    MARK_USED(scale)
+#else
     INTEGER                                  :: handle, ngpts, nmaps
     INTEGER                                  :: l1, l2, l3
     INTEGER, DIMENSION(:), POINTER           :: npts
@@ -389,7 +396,11 @@ END SUBROUTINE pw_cuda_finalize
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_cuda_r3dc1d_3d_ps', &
       routineP = moduleN//':'//routineN
 
-#if defined (__PW_CUDA)
+#if ! defined (__PW_CUDA)
+    MARK_USED(pw1)
+    MARK_USED(pw2)
+    MARK_USED(scale)
+#else
     INTEGER                                  :: handle, ierr
     INTEGER                                  :: ngpts, iout
     INTEGER                                  :: lg, mg, mmax, lmax, rp, mx2, mz2, n1, n2, nmax
@@ -502,7 +513,7 @@ END SUBROUTINE pw_cuda_finalize
           CALL pw_cuda_cf(pw1, qbuf)
 
           ! Exchange data ( transpose of matrix )
-          CALL cube_transpose_2(qbuf, rs_group, bo(:,:,:,1), bo(:,:,:,2), rbuf, fft_scratch)
+          CALL cube_transpose_2(qbuf, bo(:,:,:,1), bo(:,:,:,2), rbuf, fft_scratch)
 
           ! FFT along y
           ! use the inbuild fft-lib
@@ -576,7 +587,11 @@ END SUBROUTINE pw_cuda_finalize
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_cuda_c1dr3d_3d_ps', &
       routineP = moduleN//':'//routineN
 
-#if defined (__PW_CUDA)
+#if ! defined (__PW_CUDA)
+    MARK_USED(pw1)
+    MARK_USED(pw2)
+    MARK_USED(scale)
+#else
     INTEGER                                  :: handle, ierr
 
     INTEGER                                  :: ngpts, iout
@@ -703,7 +718,7 @@ END SUBROUTINE pw_cuda_finalize
           ! Exchange data ( transpose of matrix )
           IF (pw1%pw_grid%grid_span /= FULLSPACE) CALL zero_c(sbuf)
 
-          CALL cube_transpose_1(rbuf, rs_group, bo(:,:,:,2), bo(:,:,:,1), sbuf, fft_scratch)
+          CALL cube_transpose_1(rbuf, bo(:,:,:,2), bo(:,:,:,1), sbuf, fft_scratch)
 
           ! FFT along z
           CALL pw_cuda_fc(sbuf, pw2)
@@ -767,7 +782,10 @@ END SUBROUTINE pw_cuda_finalize
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_cuda_cff', &
       routineP = moduleN//':'//routineN
 
-#if defined (__PW_CUDA)
+#if ! defined (__PW_CUDA)
+    MARK_USED(pw1)
+    MARK_USED(pwbuf)
+#else
     INTEGER                                  :: l1, l2, l3, handle
     INTEGER, DIMENSION(:), POINTER           :: npts
     REAL(KIND=dp), POINTER                   :: ptr_pwin
@@ -806,7 +824,10 @@ END SUBROUTINE pw_cuda_finalize
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_cuda_ffc', &
       routineP = moduleN//':'//routineN
 
-#if defined (__PW_CUDA)
+#if ! defined (__PW_CUDA)
+    MARK_USED(pwbuf)
+    MARK_USED(pw2)
+#else
     INTEGER                                  :: l1, l2, l3, handle
     INTEGER, DIMENSION(:), POINTER           :: npts
     COMPLEX(KIND=dp), POINTER                :: ptr_pwin
@@ -845,7 +866,10 @@ END SUBROUTINE pw_cuda_finalize
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_cuda_cf', &
       routineP = moduleN//':'//routineN
 
-#if defined (__PW_CUDA)
+#if ! defined (__PW_CUDA)
+    MARK_USED(pw1)
+    MARK_USED(pwbuf)
+#else
     INTEGER                                  :: l1, l2, l3, handle
     INTEGER, DIMENSION(:), POINTER           :: npts
     REAL(KIND=dp), POINTER                   :: ptr_pwin
@@ -884,7 +908,10 @@ END SUBROUTINE pw_cuda_finalize
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_cuda_fc', &
       routineP = moduleN//':'//routineN
 
-#if defined (__PW_CUDA)
+#if ! defined (__PW_CUDA)
+    MARK_USED(pwbuf)
+    MARK_USED(pw2)
+#else
     INTEGER                                  :: l1, l2, l3, handle
     INTEGER, DIMENSION(:), POINTER           :: npts
     COMPLEX(KIND=dp), POINTER                :: ptr_pwin
@@ -929,19 +956,27 @@ END SUBROUTINE pw_cuda_finalize
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_cuda_f', &
       routineP = moduleN//':'//routineN
 
-#if defined (__PW_CUDA)
+#if ! defined (__PW_CUDA)
+    MARK_USED(pwbuf1)
+    MARK_USED(pwbuf2)
+    MARK_USED(dir)
+    MARK_USED(n)
+    MARK_USED(m)
+#else
     INTEGER                                  :: handle
     COMPLEX(KIND=dp), POINTER                :: ptr_pwin
     COMPLEX(KIND=dp), POINTER                :: ptr_pwout
 
     CALL timeset(routineN,handle)
 
-   ! pointers to data arrays
-    ptr_pwin => pwbuf1(1,1)
-    ptr_pwout => pwbuf2(1,1)
+    IF (n * m /= 0) THEN
+      ! pointers to data arrays
+       ptr_pwin => pwbuf1(1,1)
+       ptr_pwout => pwbuf2(1,1)
 
-   ! invoke the combined transformation
-    CALL pw_cuda_f_cu(c_loc(ptr_pwin), c_loc(ptr_pwout), dir, n, m)
+      ! invoke the combined transformation
+       CALL pw_cuda_f_cu(c_loc(ptr_pwin), c_loc(ptr_pwout), dir, n, m)
+    END IF
 
     CALL timestop(handle)
 #endif
@@ -962,10 +997,13 @@ END SUBROUTINE pw_cuda_finalize
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_cuda_fg', &
       routineP = moduleN//':'//routineN
 
-#if defined (__PW_CUDA)
+#if ! defined (__PW_CUDA)
+    MARK_USED(pwbuf)
+    MARK_USED(pw2)
+    MARK_USED(scale)
+#else
     INTEGER                                  :: mmax, mg, handle, ngpts
     INTEGER, DIMENSION(:), POINTER           :: npts
-    
     COMPLEX(KIND=dp), POINTER                :: ptr_pwin
     COMPLEX(KIND=dp), POINTER                :: ptr_pwout
     INTEGER, POINTER                         :: ptr_ghatmap
@@ -975,18 +1013,20 @@ END SUBROUTINE pw_cuda_finalize
     ngpts = SIZE(pw2%pw_grid%gsq)
     npts => pw2%pw_grid%npts
 
-    mg = SIZE(pw2%pw_grid%grays, 2)
-    mmax = MAX(mg, 1)
+    IF ((npts(1) /= 0) .AND. (ngpts /= 0)) THEN
+       mg = SIZE(pw2%pw_grid%grays, 2)
+       mmax = MAX(mg, 1)
 
-   ! pointers to data arrays
-    ptr_pwin => pwbuf(1,1)
-    ptr_pwout => pw2%cc(1)
+      ! pointers to data arrays
+       ptr_pwin => pwbuf(1,1)
+       ptr_pwout => pw2%cc(1)
 
-   ! pointer to map array
-    ptr_ghatmap => pw2%pw_grid%g_hatmap(1,1)
+      ! pointer to map array
+       ptr_ghatmap => pw2%pw_grid%g_hatmap(1,1)
 
-   ! invoke the combined transformation
-    CALL pw_cuda_fg_cu(c_loc(ptr_pwin), c_loc(ptr_pwout), c_loc(ptr_ghatmap), npts, mmax, ngpts, scale)
+      ! invoke the combined transformation
+       CALL pw_cuda_fg_cu(c_loc(ptr_pwin), c_loc(ptr_pwout), c_loc(ptr_ghatmap), npts, mmax, ngpts, scale)
+    END IF
   
     CALL timestop(handle)
 #endif
@@ -1008,7 +1048,11 @@ END SUBROUTINE pw_cuda_finalize
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_cuda_sf', &
       routineP = moduleN//':'//routineN
 
-#if defined (__PW_CUDA)
+#if ! defined (__PW_CUDA)
+    MARK_USED(pw1)
+    MARK_USED(pwbuf)
+    MARK_USED(scale)
+#else
     INTEGER                                  :: mmax, mg, ngpts, handle, nmaps
     INTEGER, DIMENSION(:), POINTER           :: npts
 
@@ -1021,19 +1065,21 @@ END SUBROUTINE pw_cuda_finalize
     ngpts = SIZE(pw1%pw_grid%gsq)
     npts => pw1%pw_grid%npts
 
-    mg = SIZE(pw1%pw_grid%grays, 2)
-    mmax = MAX(mg, 1)
+    IF ((npts(1) /= 0) .AND. (ngpts /= 0)) THEN
+       mg = SIZE(pw1%pw_grid%grays, 2)
+       mmax = MAX(mg, 1)
 
-   ! pointers to data arrays
-    ptr_pwin => pw1%cc(1)
-    ptr_pwout => pwbuf(1,1)
+      ! pointers to data arrays
+       ptr_pwin => pw1%cc(1)
+       ptr_pwout => pwbuf(1,1)
 
-   ! pointer to map array
-    nmaps = SIZE(pw1%pw_grid%g_hatmap,2)
-    ptr_ghatmap => pw1%pw_grid%g_hatmap(1,1)
+      ! pointer to map array
+       nmaps = SIZE(pw1%pw_grid%g_hatmap,2)
+       ptr_ghatmap => pw1%pw_grid%g_hatmap(1,1)
 
-   ! invoke the combined transformation
-    CALL pw_cuda_sf_cu(c_loc(ptr_pwin), c_loc(ptr_pwout), c_loc(ptr_ghatmap), npts, mmax, ngpts, nmaps, scale)
+      ! invoke the combined transformation
+       CALL pw_cuda_sf_cu(c_loc(ptr_pwin), c_loc(ptr_pwout), c_loc(ptr_ghatmap), npts, mmax, ngpts, nmaps, scale)
+    END IF
   
     CALL timestop(handle)
 #endif

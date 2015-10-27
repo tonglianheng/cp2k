@@ -27,6 +27,9 @@ MODULE ct_methods
        cp_dbcsr_set_diag, cp_dbcsr_trace, cp_dbcsr_transposed, cp_dbcsr_type, &
        cp_dbcsr_work_create, dbcsr_distribution_mp, dbcsr_func_inverse, &
        dbcsr_mp_mynode, dbcsr_norm_maxabsnorm, dbcsr_type_no_symmetry
+  USE cp_log_handling,                 ONLY: cp_get_default_logger,&
+                                             cp_logger_get_default_unit_nr,&
+                                             cp_logger_type
   USE ct_types,                        ONLY: ct_step_env_type
   USE input_constants,                 ONLY: &
        cg_dai_yuan, cg_fletcher, cg_fletcher_reeves, cg_hager_zhang, &
@@ -35,7 +38,6 @@ MODULE ct_methods
   USE iterate_matrix,                  ONLY: matrix_sqrt_Newton_Schulz
   USE kinds,                           ONLY: dp
   USE machine,                         ONLY: m_walltime
-#include "./common/cp_common_uses.f90"
 #include "./base/base_uses.f90"
 
   IMPLICIT NONE
@@ -1289,7 +1291,7 @@ CONTAINS
           tr = .FALSE.
           iblock_row = row
           iblock_col = col
-          CALL cp_dbcsr_get_stored_coordinates(tmp,iblock_row,iblock_col,tr,hold)
+          CALL cp_dbcsr_get_stored_coordinates(tmp,iblock_row,iblock_col,hold)
           IF (hold.EQ.mynode) THEN
              NULLIFY (p_new_block)
              CALL cp_dbcsr_reserve_block2d(tmp,iblock_row,iblock_col,p_new_block)

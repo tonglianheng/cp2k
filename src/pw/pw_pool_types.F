@@ -34,6 +34,9 @@ MODULE pw_pool_types
                                              cp_sll_pw_next,&
                                              cp_sll_pw_rm_first_el,&
                                              cp_sll_pw_type
+  USE cp_log_handling,                 ONLY: cp_get_default_logger,&
+                                             cp_logger_get_default_unit_nr,&
+                                             cp_logger_type
   USE kinds,                           ONLY: dp
   USE pw_grid_types,                   ONLY: pw_grid_type
   USE pw_grids,                        ONLY: pw_grid_compare,&
@@ -49,7 +52,6 @@ MODULE pw_pool_types
                                              pw_release,&
                                              pw_type
   USE timings,                         ONLY: print_stack
-#include "../common/cp_common_uses.f90"
 #include "../base/base_uses.f90"
 
   IMPLICIT NONE
@@ -757,27 +759,5 @@ SUBROUTINE pw_pools_dealloc(pools)
   END IF
   NULLIFY(pools)
 END SUBROUTINE pw_pools_dealloc
-
-! *****************************************************************************
-!> \brief deallocates all the cached grids
-!> \param pools the pools to flush
-!> \par History
-!>      08.2002 created [fawzi]
-!> \author Fawzi Mohamed
-! *****************************************************************************
-SUBROUTINE pw_pools_flush_cache(pools)
-    TYPE(pw_pool_p_type), DIMENSION(:), &
-      POINTER                                :: pools
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'pw_pools_flush_cache', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: i
-
-  CPASSERT(ASSOCIATED(pools))
-  DO i=1,SIZE(pools)
-     CALL pw_pool_flush_cache(pools(i)%pool)
-  END DO
-END SUBROUTINE pw_pools_flush_cache
 
 END MODULE pw_pool_types

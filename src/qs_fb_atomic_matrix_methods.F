@@ -35,7 +35,6 @@ MODULE qs_fb_atomic_matrix_methods
   USE qs_fb_matrix_data_types,         ONLY: fb_matrix_data_get,&
                                              fb_matrix_data_has_data,&
                                              fb_matrix_data_obj
-#include "./common/cp_common_uses.f90"
 #include "./base/base_uses.f90"
 
   IMPLICIT NONE
@@ -516,7 +515,6 @@ CONTAINS
           CALL cp_dbcsr_get_stored_coordinates(dbcsr_mat, &
                                                iatom_global, &
                                                jatom_global, &
-                                               transpose=transpose, &
                                                processor=src)
           ! we must encode the global atom indices rather the halo atomic indices
           ! in each task, because halo atomic indices are local to each halo, and
@@ -719,7 +717,6 @@ CONTAINS
              CALL cp_dbcsr_get_stored_coordinates(dbcsr_mat, &
                                                   iatom_global, &
                                                   jatom_global, &
-                                                  transpose=transpose, &
                                                   processor=src)
              ! we must encode the global atom indices rather the halo
              ! atomic indices in each task, because halo atomic indices

@@ -5,69 +5,32 @@
 
 ! *****************************************************************************
 !> \brief Module that contains the routines for error handling
-!>      The idea is that in general routines have an optional
-!>      parameter that can be used to change the error behaviour.
-!> \note
-!>      In general 0 means no error, a negative error code means an internal
-!>      error (in the routine, postcondition failure), and a positive error
-!>      an error on the side of the caller (precondition failure).
-!>      Error numbers in the dange -1000..1000 are reserved for generic error
-!>      codes.
-!>      Inspired from the nag nl90 library.
-!>      Some help on this is also available in the high level dev notes on pao.
-!>
-!>      The following error levels are defined:
-!>      0 - note    : CP_NOTE_LEVEL
-!>      1 - warning : CP_WARNING_LEVEL
-!>      2 - failure : CP_FAILURE_LEVEL
-!>      3 - fatal   : CP_FATAL_LEVEL
-!>      You shouldn't use the numbers but the constants defined in
-!>      cp_log_handling
-!> \par History
-!>      none
-!> \author Fawzi Mohamed
-!>      @version 1.2002
+!> \author Ole Schuett
 ! *****************************************************************************
 MODULE cp_error_handling
   USE base_hooks,                      ONLY: cp_abort_hook,&
                                              cp_warn_hook
-  USE cp_log_handling,                 ONLY: CP_WARNING_LEVEL,&
-                                             cp_logger_get_default_io_unit
-  USE machine,                         ONLY: m_flush
+  USE cp_log_handling,                 ONLY: cp_logger_get_default_io_unit
+  USE kinds,                           ONLY: dp
+  USE machine,                         ONLY: default_output_unit,&
+                                             m_flush,&
+                                             m_walltime
   USE message_passing,                 ONLY: mp_abort
   USE termination,                     ONLY: print_message
   USE timings,                         ONLY: print_stack
-#include "../base/base_uses.f90"
+
+!$ USE OMP_LIB,                        ONLY: omp_get_thread_num
 
   IMPLICIT NONE
   PRIVATE
 
-  LOGICAL, PRIVATE, PARAMETER :: debug_this_module=.FALSE.
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cp_error_handling'
 
-  !API parameters var
-  PUBLIC :: cp_assertion_failed, cp_internal_error, cp_wrong_args_error,&
-            cp_precondition_failed, cp_caller_error
-
   !API public routines
-  PUBLIC :: cp_assert, cp_error_handling_setup
+  PUBLIC :: cp_error_handling_setup
 
-  !! error number: no error
-  INTEGER, PARAMETER :: cp_no_error = 0
-  !! error number: generic error on the side of the caller
-  INTEGER, PARAMETER :: cp_caller_error = 1
-  !! error number: one or more arguments have and invalid value
-  INTEGER, PARAMETER :: cp_wrong_args_error = 100
-  !! error number: precondition failed
-  INTEGER, PARAMETER :: cp_precondition_failed = 200
-  !! error number: generic error inside the routine
-  INTEGER, PARAMETER :: cp_internal_error = -1
-  !! error number: postcondition failed
-  INTEGER, PARAMETER :: cp_postcondition_failed = -200
-  !! error number: invariant failed
-  INTEGER, PARAMETER :: cp_invariant_failed = -100
-  !! error number: assertion failure
-  INTEGER, PARAMETER :: cp_assertion_failed = -300
+  !API (via pointer assignment to hook, PR67982, not meant to be called directly)
+  PUBLIC :: cp_abort_handler, cp_warn_handler
 
 CONTAINS
 
@@ -81,48 +44,6 @@ CONTAINS
   END SUBROUTINE cp_error_handling_setup
 
 ! *****************************************************************************
-!> \brief routine that checks an assertion, if it fails set the optional
-!>      argument failure is given sets it to true.
-!>      This can be used to do many assertion one fater the other and
-!>      check at the end if one failed.
-!> \param condition the condition to check, if true does nothing
-!> \param level the level of the error (cp_note_level, cp_warning_level,
-!> \param error_nr the number of the error
-!> \param fromWhere a string that contains the module name and routine name
-!>            where this test happened
-!> \param message the error message
-!> \param failure is set to true if the condition is false otherwise
-!>            it is not changed (optional)
-!> \param only_ionode ...
-!> \par History
-!>      none
-!> \author Fawzi Mohamed
-!>      @version 1.2002
-! *****************************************************************************
-  SUBROUTINE cp_assert(condition, level, error_nr, fromWhere, &
-       message,failure,only_ionode)
-    !! the condition that is checked, if false, an error did happen
-    LOGICAL, INTENT(in)                      :: condition
-    INTEGER, INTENT(in)                      :: level, error_nr
-    CHARACTER(len=*), INTENT(in)             :: fromWhere, message
-    LOGICAL, INTENT(inout), OPTIONAL         :: failure
-    LOGICAL, INTENT(in), OPTIONAL            :: only_ionode
-
-    INTEGER                                  :: dummy
-
-    IF (.NOT. condition) THEN
-       IF (PRESENT(failure)) failure=.TRUE.
-       IF (PRESENT(only_ionode)) dummy = 42 !pretend only_ionode is used.
-
-       IF(level > cp_warning_level) THEN
-          CALL cp_abort(fromWhere, message)
-       ELSE
-          CALL cp_warn(fromWhere, message)
-       ENDIF
-    ENDIF
-  END SUBROUTINE cp_assert
-
-! *****************************************************************************
 !> \brief Abort program with error message
 !> \param location ...
 !> \param message ...
@@ -134,14 +55,22 @@ CONTAINS
     INTEGER                                  :: unit_nr
 
     unit_nr = cp_logger_get_default_io_unit()
-    IF(unit_nr>0) THEN
-       CALL print_message("ABORT in "//TRIM(location)//' :: '//TRIM(ADJUSTL(message)),unit_nr,2,1,1)
-       CALL m_flush(unit_nr)
+    IF(unit_nr>0 .AND. unit_nr/=default_output_unit) THEN
+       ! write a copy of the error message to the default logger
+       CALL print_abort_message(message, location, unit_nr)
        CALL print_stack(unit_nr)
        CALL m_flush(unit_nr)
     ENDIF
 
-    CALL mp_abort(message)
+    ! delay output on non-master ranks/threads, for cleaner output
+    ! if all ranks call this subroutine at the same time.
+    CALL delay_non_master()
+
+    CALL print_abort_message(message, location, default_output_unit)
+    CALL print_stack(default_output_unit)
+    CALL m_flush(default_output_unit)
+
+    CALL mp_abort()
   END SUBROUTINE cp_abort_handler
 
 ! *****************************************************************************
@@ -161,5 +90,146 @@ CONTAINS
        CALL m_flush(unit_nr)
     ENDIF
   END SUBROUTINE cp_warn_handler
+
+! *****************************************************************************
+!> \brief Delay non-master ranks/threads, used by cp_abort_handler()
+!> \author Ole Schuett
+! *****************************************************************************
+ SUBROUTINE delay_non_master()
+    INTEGER                                  :: unit_nr
+    REAL(KIND=dp)                            :: t1, wait_time
+
+    wait_time = 0.0_dp
+
+    ! we (ab)use the logger to determine the first MPI rank
+    unit_nr = cp_logger_get_default_io_unit()
+    IF (unit_nr <= 0) &
+       wait_time = wait_time + 1.0_dp ! rank-0 gets a head start of one second.
+
+!$  IF (omp_get_thread_num() /= 0) &
+!$     wait_time = wait_time + 1.0_dp ! master threads gets another second
+
+    ! sleep
+    IF (wait_time > 0.0_dp) THEN
+       t1=m_walltime()
+       DO
+         IF (m_walltime()-t1 > wait_time .OR. t1<0) EXIT
+       ENDDO
+    ENDIF
+
+ END SUBROUTINE delay_non_master
+
+! *****************************************************************************
+!> \brief Prints a nicely formatted abort message box
+!> \param message ...
+!> \param location ...
+!> \param output_unit ...
+!> \author Ole Schuett
+! *****************************************************************************
+  SUBROUTINE print_abort_message(message, location, output_unit)
+    CHARACTER(LEN=*), INTENT(IN)             :: message, location
+    INTEGER, INTENT(IN)                      :: output_unit
+
+    CHARACTER(LEN=*), PARAMETER :: img = "   ___   "//"  /   \  "//" [ABORT] "&
+      //"  \___/  "//"    |    "//"  O/|    "//" /| |    "//" / \     "
+    INTEGER, PARAMETER :: img_height = 8, img_width = 9, screen_width = 80, &
+      txt_width = screen_width - img_width - 5
+
+    CHARACTER(LEN=screen_width)              :: msg_line
+    INTEGER                                  :: a, b, c, fill, i, img_start, &
+                                                indent, msg_height, msg_start
+
+! count message lines
+
+     a = 1; b = -1; msg_height = 0
+     DO WHILE(b < LEN_TRIM(message))
+        b = next_linebreak(message, a, txt_width)
+        a = b + 1
+        msg_height = msg_height + 1
+     ENDDO
+
+     ! calculate message and image starting lines
+     IF(img_height > msg_height) THEN
+        msg_start = (img_height-msg_height) / 2 + 1
+        img_start = 1
+     ELSE
+        msg_start = 1
+        img_start = msg_height-img_height+2
+     ENDIF
+
+     ! print empty line
+     WRITE (UNIT=output_unit, FMT="(A)") ""
+
+     ! print opening line
+     WRITE (UNIT=output_unit, FMT="(T2,A)") REPEAT("*",screen_width-1)
+
+     ! print body
+     a = 1; b = -1;  c = 1
+     DO i=1, MAX(img_height-1, msg_height)
+        WRITE (UNIT=output_unit, FMT="(A)", advance='no') " *"
+        IF(i < img_start) THEN
+           WRITE (UNIT=output_unit, FMT="(A)", advance='no') REPEAT(" ",img_width)
+        ELSE
+           WRITE (UNIT=output_unit, FMT="(A)", advance='no') img(c:c+img_width-1)
+           c = c + img_width
+        ENDIF
+        IF(i < msg_start) THEN
+           WRITE (UNIT=output_unit, FMT="(A)", advance='no') REPEAT(" ",txt_width+2)
+        ELSE
+           b = next_linebreak(message, a, txt_width)
+           msg_line = message(a:b)
+           a = b + 1
+           fill   = (txt_width - LEN_TRIM(msg_line))/2 + 1
+           indent = txt_width - LEN_TRIM(msg_line) - fill + 2
+           WRITE (UNIT=output_unit, FMT="(A)", advance='no') REPEAT(" ",indent)
+           WRITE (UNIT=output_unit, FMT="(A)", advance='no') TRIM(msg_line)
+           WRITE (UNIT=output_unit, FMT="(A)", advance='no') REPEAT(" ",fill)
+        ENDIF
+        WRITE (UNIT=output_unit, FMT="(A)", advance='yes') "*"
+     ENDDO
+
+     ! print location line
+     WRITE (UNIT=output_unit, FMT="(A)", advance='no') " *"
+     WRITE (UNIT=output_unit, FMT="(A)", advance='no') img(c:c+img_width-1)
+     indent = txt_width - LEN_TRIM(location) + 1
+     WRITE (UNIT=output_unit, FMT="(A)", advance='no') REPEAT(" ",indent)
+     WRITE (UNIT=output_unit, FMT="(A)", advance='no') TRIM(location)
+     WRITE (UNIT=output_unit, FMT="(A)", advance='yes') " *"
+
+     ! print closing line
+     WRITE (UNIT=output_unit, FMT="(T2,A)") REPEAT("*",screen_width-1)
+
+     ! print empty line
+     WRITE (UNIT=output_unit, FMT="(A)") ""
+
+  END SUBROUTINE print_abort_message
+
+! *****************************************************************************
+!> \brief Helper routine for print_abort_message()
+!> \param message ...
+!> \param pos ...
+!> \param rowlen ...
+!> \retval ibreak ...
+!> \author Ole Schuett
+! *****************************************************************************
+  FUNCTION next_linebreak(message, pos, rowlen) RESULT(ibreak)
+    CHARACTER(LEN=*), INTENT(IN)             :: message
+    INTEGER, INTENT(IN)                      :: pos, rowlen
+    INTEGER                                  :: ibreak
+
+    INTEGER                                  :: i, n
+
+     n = LEN_TRIM(message)
+     IF(n-pos <= rowlen) THEN
+        ibreak = n ! remaining message shorter than line
+     ELSE
+        i = INDEX(message(pos+1:pos+1+rowlen)," ",BACK=.TRUE.)
+        IF (i == 0) THEN
+           ibreak = pos + rowlen - 1 ! no space found, break mid-word
+        ELSE
+           ibreak = pos + i ! break at space closest to rowlen
+        ENDIF
+     ENDIF
+  END FUNCTION next_linebreak
 
 END MODULE cp_error_handling

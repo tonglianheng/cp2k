@@ -39,6 +39,9 @@ MODULE qs_linres_issc_utils
                                              cp_fm_set_all,&
                                              cp_fm_to_fm,&
                                              cp_fm_type
+  USE cp_log_handling,                 ONLY: cp_get_default_logger,&
+                                             cp_logger_get_default_io_unit,&
+                                             cp_logger_type
   USE cp_output_handling,              ONLY: cp_p_file,&
                                              cp_print_key_finished_output,&
                                              cp_print_key_should_output,&
@@ -73,7 +76,6 @@ MODULE qs_linres_issc_utils
   USE qs_neighbor_list_types,          ONLY: neighbor_list_set_p_type
   USE qs_p_env_types,                  ONLY: qs_p_env_type
   USE qs_spin_orbit,                   ONLY: build_pso_matrix
-#include "./common/cp_common_uses.f90"
 #include "./base/base_uses.f90"
 
   IMPLICIT NONE
@@ -869,10 +871,9 @@ CONTAINS
     natom = SIZE(particle_set,1)
     !
     ! check that the psi0 are localized and you have all the centers
-    CALL cp_assert(linres_control%localized_psi0, cp_warning_level, &
-                   cp_assertion_failed, routineP, &
-                   ' To get indirect spin-spin coupling parameters within PBC you need to localize zero order orbitals ',&
-                   only_ionode=.TRUE.)
+    IF(.NOT.linres_control%localized_psi0)&
+       CALL cp_warn(__LOCATION__,'To get indirect spin-spin coupling parameters within '//&
+                    'PBC you need to localize zero order orbitals')
     !
     !
     ! read terms need to be calculated

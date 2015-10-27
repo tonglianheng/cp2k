@@ -6,6 +6,9 @@ MODULE optimize_input
   USE cell_types,                      ONLY: parse_cell_line
   USE cp2k_info,                       ONLY: write_restart_header
   USE cp_external_control,             ONLY: external_control
+  USE cp_log_handling,                 ONLY: cp_get_default_logger,&
+                                             cp_logger_get_default_io_unit,&
+                                             cp_logger_type
   USE cp_output_handling,              ONLY: cp_add_iter_level,&
                                              cp_iterate,&
                                              cp_print_key_finished_output,&
@@ -49,7 +52,6 @@ MODULE optimize_input
   USE physcon,                         ONLY: bohr
   USE powell,                          ONLY: opt_state_type,&
                                              powell_optimize
-#include "./common/cp_common_uses.f90"
 #include "./base/base_uses.f90"
 
   IMPLICIT NONE
@@ -541,10 +543,8 @@ CONTAINS
     n_frames_current=0
     NULLIFY(local_parser,pos_traj,energy_traj,force_traj)
     filename=oi_env%fm_env%ref_traj_file_name
-    CALL cp_assert(filename.NE."",cp_fatal_level,cp_assertion_failed,routineP,&
-            "The reference trajectory file name is empty"//&
-            __LOCATION__,&
-            only_ionode=.TRUE.)
+    IF(filename.EQ."")&
+       CPABORT("The reference trajectory file name is empty")
     CALL parser_create(local_parser,filename,para_env=para_env)
     DO
        CALL parser_read_line(local_parser,1,at_end=at_end)
@@ -577,10 +577,8 @@ CONTAINS
 
     ! now force reference trajectory
     filename=oi_env%fm_env%ref_force_file_name
-    CALL cp_assert(filename.NE."",cp_fatal_level,cp_assertion_failed,routineP,&
-            "The reference force file name is empty"//&
-            __LOCATION__,&
-            only_ionode=.TRUE.)
+    IF(filename.EQ."")&
+       CPABORT("The reference force file name is empty")
     CALL parser_create(local_parser,filename,para_env=para_env)
     DO iframe=1,n_frames
        CALL parser_read_line(local_parser,1)

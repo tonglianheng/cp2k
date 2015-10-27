@@ -10,6 +10,7 @@
 ! *****************************************************************************
 MODULE pw_poisson_methods
 
+  USE cp_log_handling,                 ONLY: cp_to_string
   USE dielectric_methods,              ONLY: dielectric_compute
   USE kinds,                           ONLY: dp
   USE mathconstants,                   ONLY: fourpi
@@ -61,7 +62,6 @@ MODULE pw_poisson_methods
                                              RECIPROCALSPACE,&
                                              pw_p_type,&
                                              pw_type
-#include "../common/cp_common_uses.f90"
 #include "../base/base_uses.f90"
 
   IMPLICIT NONE
@@ -283,9 +283,8 @@ CONTAINS
     pw_grid => pw_pool % pw_grid
     IF ( PRESENT ( vhartree ) ) THEN
        CPASSERT(ASSOCIATED(vhartree))
-       CALL cp_assert(pw_grid_compare(pw_pool%pw_grid,vhartree%pw_grid),cp_assertion_failed,&
-            cp_failure_level,routineP,&
-            "vhartree has a different grid than the poisson solver")
+       IF(.NOT.pw_grid_compare(pw_pool%pw_grid,vhartree%pw_grid))&
+          CPABORT("vhartree has a different grid than the poisson solver")
     END IF
     ! density in G space
     CALL pw_pool_create_pw ( pw_pool, rhog, use_data=COMPLEXDATA1D,in_space = RECIPROCALSPACE)

@@ -9,6 +9,7 @@
 MODULE realspace_grid_cube
   USE cp_files,                        ONLY: close_file,&
                                              open_file
+  USE cp_log_handling,                 ONLY: cp_logger_get_default_io_unit
   USE kinds,                           ONLY: dp
   USE message_passing,                 ONLY: mp_maxloc,&
                                              mp_recv,&
@@ -17,7 +18,6 @@ MODULE realspace_grid_cube
                                              mp_sync
   USE pw_grid_types,                   ONLY: PW_MODE_LOCAL
   USE pw_types,                        ONLY: pw_type
-#include "../common/cp_common_uses.f90"
 #include "../base/base_uses.f90"
 
   IMPLICIT NONE
@@ -65,10 +65,9 @@ CONTAINS
     IF(PRESENT(zero_tails)) my_zero_tails = zero_tails
     my_stride=1
     IF (PRESENT(stride)) THEN
-       CALL cp_assert(SIZE(stride)==1.OR.SIZE(stride)==3,cp_fatal_level,cp_assertion_failed,routineP,&
-            "STRIDE keyword can accept only 1 (the same for X,Y,Z) or 3 values. Correct your input file."//&
-__LOCATION__,&
-            only_ionode=.TRUE.)
+       IF(SIZE(stride)/=1.AND.SIZE(stride)/=3)&
+          CALL cp_abort(__LOCATION__, "STRIDE keyword can accept only 1 "//&
+               "(the same for X,Y,Z) or 3 values. Correct your input file.")
        IF (SIZE(stride)==1) THEN
           DO i = 1,3
              my_stride(i) = stride(1)

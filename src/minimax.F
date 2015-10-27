@@ -12,7 +12,6 @@
 ! *****************************************************************************
  MODULE minimax
   USE kinds,                           ONLY: dp
-#include "./common/cp_common_uses.f90"
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -98,7 +97,7 @@
    SUBROUTINE get_minimax_coeff(k,Rc,aw,ierr)
     INTEGER                                  :: k
     REAL(KIND=dp)                            :: Rc
-    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: aw
+    REAL(KIND=dp), DIMENSION(:)              :: aw
     INTEGER                                  :: ierr
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'get_minimax_coeff', &

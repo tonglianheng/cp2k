@@ -9,7 +9,7 @@
 !>      * displ_in will be 1 by default (others not tested)
 !>      * the message array needs to be the same size on all processes
 ! *****************************************************************************
-  SUBROUTINE mp_shift_lm( msg, group, displ_in)
+  SUBROUTINE mp_shift_lm(msg, group, displ_in)
 
     INTEGER(KIND=int_8), INTENT(INOUT)                   :: msg( :, : )
     INTEGER, INTENT(IN)                      :: group
@@ -51,6 +51,10 @@
     IF ( ierror /= 0 ) CALL mp_stop ( ierror, "mpi_sendrecv_replace @ "//routineN )
     CALL add_perf(perf_id=7,count=1,time=t_end-t_start,msg_size=msglen*int_8_size)
     DEALLOCATE(status)
+#else
+    MARK_USED(msg)
+    MARK_USED(group)
+    MARK_USED(displ_in)
 #endif
     CALL mp_timestop(handle)
 
@@ -67,7 +71,7 @@
 !>      * displ_in will be 1 by default (others not tested)
 !>      * the message array needs to be the same size on all processes
 ! *****************************************************************************
-  SUBROUTINE mp_shift_l( msg, group, displ_in)
+  SUBROUTINE mp_shift_l(msg, group, displ_in)
 
     INTEGER(KIND=int_8), INTENT(INOUT)                   :: msg( : )
     INTEGER, INTENT(IN)                      :: group
@@ -109,6 +113,10 @@
     IF ( ierror /= 0 ) CALL mp_stop ( ierror, "mpi_sendrecv_replace @ "//routineN )
     CALL add_perf(perf_id=7,count=1,time=t_end-t_start,msg_size=msglen*int_8_size)
     DEALLOCATE(status)
+#else
+    MARK_USED(msg)
+    MARK_USED(group)
+    MARK_USED(displ_in)
 #endif
     CALL mp_timestop(handle)
 
@@ -163,6 +171,9 @@
     msglen = SUM ( scount ) + SUM ( rcount )
     CALL add_perf(perf_id=6,count=1,time=t_end-t_start,msg_size=msglen*int_8_size)
 #else
+    MARK_USED(group)
+    MARK_USED(scount)
+    MARK_USED(sdispl)
     !$OMP PARALLEL DO DEFAULT(NONE) PRIVATE(i) SHARED(rcount,rdispl,sdispl,rb,sb)
     DO i=1,rcount(1)
        rb(rdispl(1)+i)=sb(sdispl(1)+i)
@@ -215,6 +226,11 @@
     t_end = m_walltime ( )
     CALL add_perf(perf_id=6,count=1,time=t_end-t_start,msg_size=msglen*2*int_8_size)
 #else
+    MARK_USED(group)
+    MARK_USED(scount)
+    MARK_USED(sdispl)
+    MARK_USED(rcount)
+    MARK_USED(rdispl)
     rb=sb
 #endif
     CALL mp_timestop(handle)
@@ -264,6 +280,8 @@
     t_end = m_walltime ( )
     CALL add_perf(perf_id=6,count=1,time=t_end-t_start,msg_size=msglen*int_8_size)
 #else
+    MARK_USED(count)
+    MARK_USED(group)
     rb=sb
 #endif
     CALL mp_timestop(handle)
@@ -306,6 +324,8 @@
     t_end = m_walltime ( )
     CALL add_perf(perf_id=6,count=1,time=t_end-t_start,msg_size=msglen*int_8_size)
 #else
+    MARK_USED(count)
+    MARK_USED(group)
     rb=sb
 #endif
     CALL mp_timestop(handle)
@@ -348,6 +368,8 @@
     t_end = m_walltime ( )
     CALL add_perf(perf_id=6,count=1,time=t_end-t_start,msg_size=msglen*int_8_size)
 #else
+    MARK_USED(count)
+    MARK_USED(group)
     rb=sb
 #endif
     CALL mp_timestop(handle)
@@ -392,6 +414,8 @@
     t_end = m_walltime ( )
     CALL add_perf(perf_id=6,count=1,time=t_end-t_start,msg_size=msglen*int_8_size)
 #else
+    MARK_USED(count)
+    MARK_USED(group)
     rb=sb
 #endif
     CALL mp_timestop(handle)
@@ -436,6 +460,10 @@
     msglen = 2 * count * np
     t_end = m_walltime ( )
     CALL add_perf(perf_id=6,count=1,time=t_end-t_start,msg_size=msglen*int_8_size)
+#else
+    MARK_USED(count)
+    MARK_USED(group)
+    rb = RESHAPE(sb, SHAPE(rb))
 #endif
     CALL mp_timestop(handle)
 
@@ -479,6 +507,10 @@
     msglen = 2 * count * np
     t_end = m_walltime ( )
     CALL add_perf(perf_id=6,count=1,time=t_end-t_start,msg_size=msglen*int_8_size)
+#else
+    MARK_USED(count)
+    MARK_USED(group)
+    rb = RESHAPE(sb, SHAPE(rb))
 #endif
     CALL mp_timestop(handle)
 
@@ -522,6 +554,10 @@
     msglen = 2 * count * np
     t_end = m_walltime ( )
     CALL add_perf(perf_id=6,count=1,time=t_end-t_start,msg_size=msglen*int_8_size)
+#else
+    MARK_USED(count)
+    MARK_USED(group)
+    rb = RESHAPE(sb, SHAPE(rb))
 #endif
     CALL mp_timestop(handle)
 
@@ -555,6 +591,11 @@
     IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_send @ "//routineN )
     t_end = m_walltime ( )
     CALL add_perf(perf_id=13,count=1,time=t_end-t_start,msg_size=msglen*int_8_size)
+#else
+    MARK_USED(msg)
+    MARK_USED(dest)
+    MARK_USED(tag)
+    MARK_USED(gid)
 #endif
     CALL mp_timestop(handle)
   END SUBROUTINE mp_send_l
@@ -586,6 +627,11 @@
     IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_send @ "//routineN )
     t_end = m_walltime ( )
     CALL add_perf(perf_id=13,count=1,time=t_end-t_start,msg_size=msglen*int_8_size)
+#else
+    MARK_USED(msg)
+    MARK_USED(dest)
+    MARK_USED(tag)
+    MARK_USED(gid)
 #endif
     CALL mp_timestop(handle)
   END SUBROUTINE mp_send_lv
@@ -626,6 +672,11 @@
     source = status(MPI_SOURCE)
     tag = status(MPI_TAG)
     DEALLOCATE(status)
+#else
+    MARK_USED(msg)
+    MARK_USED(source)
+    MARK_USED(tag)
+    MARK_USED(gid)
 #endif
     CALL mp_timestop(handle)
   END SUBROUTINE mp_recv_l
@@ -665,6 +716,11 @@
     source = status(MPI_SOURCE)
     tag = status(MPI_TAG)
     DEALLOCATE(status)
+#else
+    MARK_USED(msg)
+    MARK_USED(source)
+    MARK_USED(tag)
+    MARK_USED(gid)
 #endif
     CALL mp_timestop(handle)
   END SUBROUTINE mp_recv_lv
@@ -696,6 +752,10 @@
     IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_bcast @ "//routineN )
     t_end = m_walltime ( )
     CALL add_perf(perf_id=2,count=1,time=t_end-t_start,msg_size=msglen*int_8_size)
+#else
+    MARK_USED(msg)
+    MARK_USED(source)
+    MARK_USED(gid)
 #endif
     CALL mp_timestop(handle)
   END SUBROUTINE mp_bcast_l
@@ -726,6 +786,9 @@
     IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_bcast @ "//routineN )
     t_end = m_walltime ( )
     CALL add_perf(perf_id=2,count=1,time=t_end-t_start,msg_size=msglen*int_8_size)
+#else
+    MARK_USED(source)
+    MARK_USED(gid)
 #endif
     CALL mp_timestop(handle)
   END SUBROUTINE mp_bcast_lv
@@ -756,6 +819,9 @@
     IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_bcast @ "//routineN )
     t_end = m_walltime ( )
     CALL add_perf(perf_id=2,count=1,time=t_end-t_start,msg_size=msglen*int_8_size)
+#else
+    MARK_USED(source)
+    MARK_USED(gid)
 #endif
     CALL mp_timestop(handle)
   END SUBROUTINE mp_bcast_lm
@@ -786,6 +852,9 @@
     IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_bcast @ "//routineN )
     t_end = m_walltime ( )
     CALL add_perf(perf_id=2,count=1,time=t_end-t_start,msg_size=msglen*int_8_size)
+#else
+    MARK_USED(source)
+    MARK_USED(gid)
 #endif
     CALL mp_timestop(handle)
   END SUBROUTINE mp_bcast_l3
@@ -816,6 +885,9 @@
     IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_allreduce @ "//routineN )
     t_end = m_walltime ( )
     CALL add_perf(perf_id=3,count=1,time=t_end-t_start,msg_size=msglen*int_8_size)
+#else
+    MARK_USED(msg)
+    MARK_USED(gid)
 #endif
     CALL mp_timestop(handle)
   END SUBROUTINE mp_sum_l
@@ -850,6 +922,9 @@
     END IF
     t_end = m_walltime ( )
     CALL add_perf(perf_id=3,count=1,time=t_end-t_start,msg_size=msglen*int_8_size)
+#else
+    MARK_USED(msg)
+    MARK_USED(gid)
 #endif
     CALL mp_timestop(handle)
   END SUBROUTINE mp_sum_lv
@@ -889,6 +964,9 @@
     ENDDO
     t_end = m_walltime ( )
     CALL add_perf(perf_id=3,count=1,time=t_end-t_start,msg_size=msglen*int_8_size)
+#else
+    MARK_USED(msg)
+    MARK_USED(gid)
 #endif
     CALL mp_timestop(handle)
   END SUBROUTINE mp_sum_lm
@@ -920,6 +998,8 @@
     END IF
     t_end = m_walltime ( )
     CALL add_perf(perf_id=3,count=1,time=t_end-t_start,msg_size=msglen*int_8_size)
+#else
+    MARK_USED(gid)
 #endif
     CALL mp_timestop(handle)
   END SUBROUTINE mp_sum_lm3
@@ -952,73 +1032,11 @@
     END IF
     t_end = m_walltime ( )
     CALL add_perf(perf_id=3,count=1,time=t_end-t_start,msg_size=msglen*int_8_size)
+#else
+    MARK_USED(gid)
 #endif
     CALL mp_timestop(handle)
   END SUBROUTINE mp_sum_lm4
-
-! *****************************************************************************
-!> \brief Element-wise sum of a rank-5 array on all processes.
-!> \param[in] msg             Arary to sum and result
-!> \param gid ...
-!> \note see mp_sum_l 
-! *****************************************************************************
-  SUBROUTINE mp_sum_lm5(msg,gid)
-    INTEGER(KIND=int_8), INTENT(INOUT)                   :: msg( :, :, :, :, : )
-    INTEGER, INTENT(IN)                      :: gid
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'mp_sum_lm5', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: handle, ierr, &
-                                                msglen
-
-    ierr = 0
-    CALL mp_timeset(routineN,handle)
-
-    msglen = SIZE(msg)
-#if defined(__parallel)
-    t_start = m_walltime ( )
-    IF (msglen>0) THEN
-      CALL mpi_allreduce(MPI_IN_PLACE,msg,msglen,MPI_INTEGER8,MPI_SUM,gid,ierr)
-      IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_allreduce @ "//routineN )
-    END IF
-    t_end = m_walltime ( )
-    CALL add_perf(perf_id=3,count=1,time=t_end-t_start,msg_size=msglen*int_8_size)
-#endif
-    CALL mp_timestop(handle)
-  END SUBROUTINE mp_sum_lm5
-
-! *****************************************************************************
-!> \brief Element-wise sum of a rank-6 array on all processes.
-!> \param[in] msg             Arary to sum and result
-!> \param gid ...
-!> \note see mp_sum_l 
-! *****************************************************************************
-  SUBROUTINE mp_sum_lm6(msg,gid)
-    INTEGER(KIND=int_8), INTENT(INOUT)                   :: msg( :, :, :, :, :, : )
-    INTEGER, INTENT(IN)                      :: gid
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'mp_sum_lm6', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: handle, ierr, &
-                                                msglen
-
-    ierr = 0
-    CALL mp_timeset(routineN,handle)
-
-    msglen = SIZE(msg)
-#if defined(__parallel)
-    t_start = m_walltime ( )
-    IF (msglen>0) THEN
-      CALL mpi_allreduce(MPI_IN_PLACE,msg,msglen,MPI_INTEGER8,MPI_SUM,gid,ierr)
-      IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_allreduce @ "//routineN )
-    END IF
-    t_end = m_walltime ( )
-    CALL add_perf(perf_id=3,count=1,time=t_end-t_start,msg_size=msglen*int_8_size)
-#endif
-    CALL mp_timestop(handle)
-  END SUBROUTINE mp_sum_lm6
 
 ! *****************************************************************************
 !> \brief Element-wise sum of data from all processes with result left only on
@@ -1064,6 +1082,9 @@
     END IF
     t_end = m_walltime ( )
     CALL add_perf(perf_id=3,count=1,time=t_end-t_start,msg_size=msglen*int_8_size)
+#else
+    MARK_USED(root)
+    MARK_USED(gid)
 #endif
     CALL mp_timestop(handle)
   END SUBROUTINE mp_sum_root_lv
@@ -1111,6 +1132,9 @@
     END IF
     t_end = m_walltime ( )
     CALL add_perf(perf_id=3,count=1,time=t_end-t_start,msg_size=msglen*int_8_size)
+#else
+    MARK_USED(root)
+    MARK_USED(gid)
 #endif
     CALL mp_timestop(handle)
   END SUBROUTINE mp_sum_root_lm
@@ -1142,6 +1166,9 @@
     IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_allreduce @ "//routineN )
     t_end = m_walltime ( )
     CALL add_perf(perf_id=3,count=1,time=t_end-t_start,msg_size=msglen*int_8_size)
+#else
+    MARK_USED(msg)
+    MARK_USED(gid)
 #endif
     CALL mp_timestop(handle)
   END SUBROUTINE mp_max_l
@@ -1173,6 +1200,8 @@
     IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_allreduce @ "//routineN )
     t_end = m_walltime ( )
     CALL add_perf(perf_id=3,count=1,time=t_end-t_start,msg_size=msglen*int_8_size)
+#else
+    MARK_USED(gid)
 #endif
     CALL mp_timestop(handle)
   END SUBROUTINE mp_max_lv
@@ -1204,6 +1233,9 @@
     IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_allreduce @ "//routineN )
     t_end = m_walltime ( )
     CALL add_perf(perf_id=3,count=1,time=t_end-t_start,msg_size=msglen*int_8_size)
+#else
+    MARK_USED(msg)
+    MARK_USED(gid)
 #endif
     CALL mp_timestop(handle)
   END SUBROUTINE mp_min_l
@@ -1237,6 +1269,8 @@
     IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_allreduce @ "//routineN )
     t_end = m_walltime ( )
     CALL add_perf(perf_id=3,count=1,time=t_end-t_start,msg_size=msglen*int_8_size)
+#else
+    MARK_USED(gid)
 #endif
     CALL mp_timestop(handle)
   END SUBROUTINE mp_min_lv
@@ -1273,6 +1307,8 @@
     t_end = m_walltime ( )
     CALL add_perf(perf_id=4,count=1,time=t_end-t_start,msg_size=msglen*int_8_size)
 #else
+    MARK_USED(root)
+    MARK_USED(gid)
     msg = msg_scatter
 #endif
     CALL mp_timestop(handle)
@@ -1309,6 +1345,8 @@
     t_end = m_walltime ( )
     CALL add_perf(perf_id=4,count=1,time=t_end-t_start,msg_size=msglen*int_8_size)
 #else
+    MARK_USED(root)
+    MARK_USED(gid)
     msg_gather = msg
 #endif
     CALL mp_timestop(handle)
@@ -1348,6 +1386,8 @@
     t_end = m_walltime ( )
     CALL add_perf(perf_id=4,count=1,time=t_end-t_start,msg_size=msglen*int_8_size)
 #else
+    MARK_USED(root)
+    MARK_USED(gid)
     msg_gather = msg
 #endif
     CALL mp_timestop(handle)
@@ -1387,6 +1427,8 @@
     t_end = m_walltime ( )
     CALL add_perf(perf_id=4,count=1,time=t_end-t_start,msg_size=msglen*int_8_size)
 #else
+    MARK_USED(root)
+    MARK_USED(gid)
     msg_gather = msg
 #endif
     CALL mp_timestop(handle)
@@ -1438,6 +1480,9 @@
          time=t_end-t_start,&
          msg_size=sendcount*int_8_size)
 #else
+    MARK_USED(recvcounts)
+    MARK_USED(root)
+    MARK_USED(comm)
     recvbuf(1+displs(1):) = sendbuf
 #endif
     CALL mp_timestop(handle)
@@ -1479,6 +1524,7 @@
                        gid, ierr )
     IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_allgather @ "//routineN )
 #else
+    MARK_USED(gid)
     msgin = msgout
 #endif
     CALL mp_timestop(handle)
@@ -1521,6 +1567,7 @@
                        gid, ierr )
     IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_allgather @ "//routineN )
 #else
+    MARK_USED(gid)
     msgin(:,1) = msgout(:)
 #endif
     CALL mp_timestop(handle)
@@ -1558,6 +1605,7 @@
                        gid, ierr )
     IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_allgather @ "//routineN )
 #else
+    MARK_USED(gid)
     msgin(:,:,1) = msgout(:,:)
 #endif
     CALL mp_timestop(handle)
@@ -1595,6 +1643,7 @@
                        gid, ierr )
     IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_allgather @ "//routineN )
 #else
+    MARK_USED(gid)
     msgin(:,:,:,1) = msgout(:,:,:)
 #endif
     CALL mp_timestop(handle)
@@ -1639,6 +1688,9 @@
                         rdispl, MPI_INTEGER8, gid, ierr )
     IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_allgatherv @ "//routineN )
 #else
+    MARK_USED(rcount)
+    MARK_USED(rdispl)
+    MARK_USED(gid)
     msgin = msgout
 #endif
     CALL mp_timestop(handle)
@@ -1675,6 +1727,8 @@
     CALL add_perf(perf_id=3,count=1,time=t_end-t_start,&
          msg_size=rcount(1)*2*int_8_size)
 #else
+    MARK_USED(rcount)
+    MARK_USED(gid)
     msgin = msgout
 #endif
     CALL mp_timestop(handle)
@@ -1723,6 +1777,9 @@
          msg_size=(msglen_in+msglen_out)*int_8_size/2)
     DEALLOCATE(status)
 #else
+    MARK_USED(dest)
+    MARK_USED(source)
+    MARK_USED(comm)
     msgout = msgin
 #endif
     CALL mp_timestop(handle)
@@ -1772,6 +1829,9 @@
          msg_size=(msglen_in+msglen_out)*int_8_size/2)
     DEALLOCATE(status)
 #else
+    MARK_USED(dest)
+    MARK_USED(source)
+    MARK_USED(comm)
     msgout = msgin
 #endif
     CALL mp_timestop(handle)
@@ -1821,6 +1881,9 @@
          msg_size=(msglen_in+msglen_out)*int_8_size/2)
     DEALLOCATE(status)
 #else
+    MARK_USED(dest)
+    MARK_USED(source)
+    MARK_USED(comm)
     msgout = msgin
 #endif
     CALL mp_timestop(handle)
@@ -1877,6 +1940,10 @@
     t_end = m_walltime ( )
     CALL add_perf(perf_id=8,count=1,time=t_end-t_start,msg_size=2*int_8_size)
 #else
+    MARK_USED(dest)
+    MARK_USED(source)
+    MARK_USED(comm)
+    MARK_USED(tag)
     send_request=0
     recv_request=0
     msgout = msgin
@@ -1954,90 +2021,16 @@
     t_end = m_walltime ( )
     CALL add_perf(perf_id=8,count=1,time=t_end-t_start,msg_size=msglen*int_8_size)
 #else
+    MARK_USED(dest)
+    MARK_USED(source)
+    MARK_USED(comm)
+    MARK_USED(tag)
     send_request=0
     recv_request=0
     msgout = msgin
 #endif
     CALL mp_timestop(handle)
   END SUBROUTINE mp_isendrecv_lv
-
-! *****************************************************************************
-!> \brief Non-blocking send and receieve of a matrix
-!> \param msgin ...
-!> \param dest ...
-!> \param msgout ...
-!> \param source ...
-!> \param comm ...
-!> \param send_request ...
-!> \param recv_request ...
-!> \param tag ...
-!> \par History
-!>      08.2003 created [f&j]
-!> \note see mp_isendrecv_lv 
-!> \note
-!>      The arguments must be pointers to be sure that we do not get
-!>      temporaries. They must point to contiguous memory.
-! *****************************************************************************
-  SUBROUTINE mp_isendrecv_lm2(msgin,dest,msgout,source,comm,send_request,&
-       recv_request,tag)
-    INTEGER(KIND=int_8), DIMENSION(:, :), POINTER        :: msgin
-    INTEGER, INTENT(IN)                      :: dest
-    INTEGER(KIND=int_8), DIMENSION(:, :), POINTER        :: msgout
-    INTEGER, INTENT(IN)                      :: source, comm
-    INTEGER, INTENT(out)                     :: send_request, recv_request
-    INTEGER, INTENT(in), OPTIONAL            :: tag
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'mp_isendrecv_lm2', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: handle, ierr
-#if defined(__parallel)
-    INTEGER                                  :: lower1, lower2, msglen, my_tag
-    INTEGER(KIND=int_8)                                  :: foo
-#endif
-
-    ierr = 0
-    CALL mp_timeset(routineN,handle)
-
-#if defined(__parallel)
-    t_start = m_walltime ( )
-    my_tag = 0
-    IF (PRESENT(tag)) my_tag=tag
-
-    msglen = SIZE(msgout,1)*SIZE(msgout,2)
-    IF (msglen>0) THEN
-       lower1=LBOUND(msgout,1)
-       lower2=LBOUND(msgout,2)
-       CALL mpi_irecv(msgout(lower1,lower2),msglen,MPI_INTEGER8,source, my_tag,&
-            comm,recv_request,ierr)
-    ELSE
-       CALL mpi_irecv(foo,msglen,MPI_INTEGER8,source, my_tag,&
-            comm,recv_request,ierr)
-    END IF
-    IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_irecv @ "//routineN )
-
-    msglen = SIZE(msgin,1)*SIZE(msgin,2)
-    IF (msglen>0) THEN
-       lower1=LBOUND(msgin,1)
-       lower2=LBOUND(msgin,2)
-       CALL mpi_isend(msgin(lower1,lower2),msglen,MPI_INTEGER8,dest,my_tag,&
-            comm,send_request,ierr)
-    ELSE
-       CALL mpi_isend(foo,msglen,MPI_INTEGER8,dest,my_tag,&
-            comm,send_request,ierr)
-    END IF
-    IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_isend @ mp_isendrecv_rm2" )
-
-    msglen = (msglen+SIZE(msgout,1)*SIZE(msgout,2)+1)/2
-    t_end = m_walltime ( )
-    CALL add_perf(perf_id=8,count=1,time=t_end-t_start,msg_size=msglen*int_8_size)
-#else
-    send_request=0
-    recv_request=0
-    msgout = msgin
-#endif
-    CALL mp_timestop(handle)
-  END SUBROUTINE mp_isendrecv_lm2
 
 ! *****************************************************************************
 !> \brief Non-blocking send of vector data
@@ -2090,6 +2083,11 @@
     t_end = m_walltime ( )
     CALL add_perf(perf_id=11,count=1,time=t_end-t_start,msg_size=msglen*int_8_size)
 #else
+    MARK_USED(msgin)
+    MARK_USED(dest)
+    MARK_USED(comm)
+    MARK_USED(request)
+    MARK_USED(tag)
     ierr=1
     CALL mp_stop( ierr, "mp_isend called in non parallel case" )
 #endif
@@ -2150,6 +2148,11 @@
     t_end = m_walltime ( )
     CALL add_perf(perf_id=11,count=1,time=t_end-t_start,msg_size=msglen*int_8_size)
 #else
+    MARK_USED(msgin)
+    MARK_USED(dest)
+    MARK_USED(comm)
+    MARK_USED(request)
+    MARK_USED(tag)
     ierr=1
     CALL mp_stop( ierr, "mp_isend called in non parallel case" )
 #endif
@@ -2215,6 +2218,11 @@
     t_end = m_walltime ( )
     CALL add_perf(perf_id=11,count=1,time=t_end-t_start,msg_size=msglen*int_8_size)
 #else
+    MARK_USED(msgin)
+    MARK_USED(dest)
+    MARK_USED(comm)
+    MARK_USED(request)
+    MARK_USED(tag)
     ierr=1
     CALL mp_stop( ierr, "mp_isend called in non parallel case" )
 #endif
@@ -2273,7 +2281,12 @@
     t_end = m_walltime ( )
     CALL add_perf(perf_id=12,count=1,time=t_end-t_start,msg_size=msglen*int_8_size)
 #else
-    CALL mp_abort( "mp_irecv called in non parallel case" )
+    CPABORT("mp_irecv called in non parallel case")
+    MARK_USED(msgout)
+    MARK_USED(source)
+    MARK_USED(comm)
+    MARK_USED(request)
+    MARK_USED(tag)
 #endif
     CALL mp_timestop(handle)
   END SUBROUTINE mp_irecv_lv
@@ -2332,7 +2345,12 @@
     t_end = m_walltime ( )
     CALL add_perf(perf_id=12,count=1,time=t_end-t_start,msg_size=msglen*int_8_size)
 #else
-    CALL mp_abort( "mp_irecv called in non parallel case" )
+    MARK_USED(msgout)
+    MARK_USED(source)
+    MARK_USED(comm)
+    MARK_USED(request)
+    MARK_USED(tag)
+    CPABORT("mp_irecv called in non parallel case")
 #endif
     CALL mp_timestop(handle)
   END SUBROUTINE mp_irecv_lm2
@@ -2396,7 +2414,12 @@
     t_end = m_walltime ( )
     CALL add_perf(perf_id=12,count=1,time=t_end-t_start,msg_size=msglen*int_8_size)
 #else
-    CALL mp_abort( "mp_irecv called in non parallel case" )
+    MARK_USED(msgout)
+    MARK_USED(source)
+    MARK_USED(comm)
+    MARK_USED(request)
+    MARK_USED(tag)
+    CPABORT("mp_irecv called in non parallel case")
 #endif
     CALL mp_timestop(handle)
   END SUBROUTINE mp_irecv_lm3
@@ -2445,7 +2468,10 @@
     t_end = m_walltime ( )
     CALL add_perf(perf_id=20,count=1,time=t_end-t_start)
 #else
-    CALL mp_abort( "mp_win_create called in non parallel case" )
+    MARK_USED(base)
+    MARK_USED(comm)
+    MARK_USED(win)
+    CPABORT("mp_win_create called in non parallel case")
 #endif
     CALL mp_timestop(handle)
   END SUBROUTINE mp_win_create_lv
@@ -2499,14 +2525,19 @@
     ENDIF
 #else
     request = 0
-    CALL mp_abort("mp_rget requires MPI-3 standard")
+    CPABORT("mp_rget requires MPI-3 standard")
 #endif
     IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_rget @ "//routineN )
 
     t_end = m_walltime ( )
     CALL add_perf(perf_id=17,count=1,time=t_end-t_start,msg_size=SIZE(base)*int_8_size)
 #else
-    CALL mp_abort( "mp_rget called in non parallel case" )
+    MARK_USED(base)
+    MARK_USED(source)
+    MARK_USED(win)
+    MARK_USED(disp)
+    MARK_USED(request)
+    CPABORT("mp_rget called in non parallel case")
 #endif
     CALL mp_timestop(handle)
   END SUBROUTINE mp_rget_lv
@@ -2579,6 +2610,7 @@
     CALL add_perf(perf_id=15, count=1, time=t_end-t_start)
 #else
     DEALLOCATE(DATA)
+    IF(PRESENT(stat)) stat = 0
 #endif
     CALL mp_timestop(handle)
   END SUBROUTINE mp_deallocate_l
@@ -2614,7 +2646,8 @@
 #if defined(__parallel)
     ALLOCATE(status(MPI_STATUS_SIZE))
     CALL MPI_FILE_WRITE_AT(fh, offset, msg, msg_len, MPI_INTEGER8, status, ierr)
-    IF (ierr .NE. 0) CALL mp_abort("mpi_file_write_at_lv @ "//routineN)
+    IF (ierr .NE. 0)&
+       CPABORT("mpi_file_write_at_lv @ "//routineN)
     DEALLOCATE(status)
 #else
     WRITE(UNIT=fh, POS=offset+1) msg(1:msg_len)
@@ -2644,7 +2677,8 @@
 #if defined(__parallel)
     ALLOCATE(status(MPI_STATUS_SIZE))
     CALL MPI_FILE_WRITE_AT(fh, offset, msg, 1, MPI_INTEGER8, status, ierr)
-    IF (ierr .NE. 0) CALL mp_abort("mpi_file_write_at_l @ "//routineN)
+    IF (ierr .NE. 0)&
+       CPABORT("mpi_file_write_at_l @ "//routineN)
     DEALLOCATE(status)
 #else
     WRITE(UNIT=fh, POS=offset+1) msg
@@ -2682,7 +2716,8 @@
 #if defined(__parallel)
     ALLOCATE(status(MPI_STATUS_SIZE))
     CALL MPI_FILE_WRITE_AT_ALL(fh, offset, msg, msg_len, MPI_INTEGER8, status, ierr)
-    IF (ierr .NE. 0) CALL mp_abort("mpi_file_write_at_all_lv @ "//routineN)
+    IF (ierr .NE. 0)&
+       CPABORT("mpi_file_write_at_all_lv @ "//routineN)
     DEALLOCATE(status)
 #else
     WRITE(UNIT=fh, POS=offset+1) msg(1:msg_len)
@@ -2712,7 +2747,8 @@
 #if defined(__parallel)
     ALLOCATE(status(MPI_STATUS_SIZE))
     CALL MPI_FILE_WRITE_AT_ALL(fh, offset, msg, 1, MPI_INTEGER8, status, ierr)
-    IF (ierr .NE. 0) CALL mp_abort("mpi_file_write_at_all_l @ "//routineN)
+    IF (ierr .NE. 0)&
+       CPABORT("mpi_file_write_at_all_l @ "//routineN)
     DEALLOCATE(status)
 #else
     WRITE(UNIT=fh, POS=offset+1) msg
@@ -2751,7 +2787,8 @@
 #if defined(__parallel)
     ALLOCATE(status(MPI_STATUS_SIZE))
     CALL MPI_FILE_READ_AT(fh, offset, msg, msg_len, MPI_INTEGER8, status, ierr)
-    IF (ierr .NE. 0) CALL mp_abort("mpi_file_read_at_lv @ "//routineN)
+    IF (ierr .NE. 0)&
+       CPABORT("mpi_file_read_at_lv @ "//routineN)
     DEALLOCATE(status)
 #else
     READ(UNIT=fh, POS=offset+1) msg(1:msg_len)
@@ -2782,7 +2819,8 @@
 #if defined(__parallel)
     ALLOCATE(status(MPI_STATUS_SIZE))
     CALL MPI_FILE_READ_AT(fh, offset, msg, 1, MPI_INTEGER8, status, ierr)
-    IF (ierr .NE. 0) CALL mp_abort("mpi_file_read_at_l @ "//routineN)
+    IF (ierr .NE. 0)&
+       CPABORT("mpi_file_read_at_l @ "//routineN)
     DEALLOCATE(status)
 #else
     READ(UNIT=fh, POS=offset+1) msg
@@ -2819,7 +2857,8 @@
 #if defined(__parallel)
     ALLOCATE(status(MPI_STATUS_SIZE))
     CALL MPI_FILE_READ_AT_ALL(fh, offset, msg, msg_len, MPI_INTEGER8, status, ierr)
-    IF (ierr .NE. 0) CALL mp_abort("mpi_file_read_at_all_lv @ "//routineN)
+    IF (ierr .NE. 0)&
+       CPABORT("mpi_file_read_at_all_lv @ "//routineN)
     DEALLOCATE(status)
 #else
     READ(UNIT=fh, POS=offset+1) msg(1:msg_len)
@@ -2849,7 +2888,8 @@
 #if defined(__parallel)
     ALLOCATE(status(MPI_STATUS_SIZE))
     CALL MPI_FILE_READ_AT_ALL(fh, offset, msg, 1, MPI_INTEGER8, status, ierr)
-    IF (ierr .NE. 0) CALL mp_abort("mpi_file_read_at_all_l @ "//routineN)
+    IF (ierr .NE. 0)&
+       CPABORT("mpi_file_read_at_all_l @ "//routineN)
     DEALLOCATE(status)
 #else
     READ(UNIT=fh, POS=offset+1) msg
@@ -2882,7 +2922,8 @@
 #if defined(__parallel)
     type_descriptor%type_handle = MPI_INTEGER8
     CALL MPI_Get_address (ptr, type_descriptor%base, ierr)
-    IF (ierr /= 0) CALL mp_abort("MPI_Get_address @ "//routineN)
+    IF (ierr /= 0)&
+       CPABORT("MPI_Get_address @ "//routineN)
 #else
     type_descriptor%type_handle = 19
 #endif
@@ -2890,7 +2931,7 @@
     type_descriptor%has_indexing = .FALSE.
     type_descriptor%data_l => ptr
     IF (PRESENT (vector_descriptor) .OR. PRESENT (index_descriptor)) THEN
-       CALL mp_abort (routineN//": Vectors and indices NYI")
+       CPABORT(routineN//": Vectors and indices NYI")
     ENDIF
   END FUNCTION mp_type_make_l
 

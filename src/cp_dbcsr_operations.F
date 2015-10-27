@@ -37,11 +37,11 @@ MODULE cp_dbcsr_operations
        dbcsr_distribution_nlocal_cols, dbcsr_distribution_nlocal_rows, &
        dbcsr_distribution_nrows, dbcsr_distribution_obj, &
        dbcsr_distribution_release, dbcsr_distribution_row_clusters, &
-       dbcsr_distribution_row_dist, dbcsr_error_set, dbcsr_error_stop, &
-       dbcsr_error_type, dbcsr_mp_hold, dbcsr_mp_npcols, dbcsr_mp_nprows, &
-       dbcsr_mp_obj, dbcsr_norm_frobenius, dbcsr_type_antisymmetric, &
-       dbcsr_type_complex_8, dbcsr_type_no_symmetry, dbcsr_type_real_4, &
-       dbcsr_type_real_8, dbcsr_type_symmetric
+       dbcsr_distribution_row_dist, dbcsr_mp_hold, dbcsr_mp_npcols, &
+       dbcsr_mp_nprows, dbcsr_mp_obj, dbcsr_norm_frobenius, &
+       dbcsr_type_antisymmetric, dbcsr_type_complex_8, &
+       dbcsr_type_no_symmetry, dbcsr_type_real_4, dbcsr_type_real_8, &
+       dbcsr_type_symmetric
   USE cp_fm_basic_linalg,              ONLY: cp_fm_gemm
   USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                              cp_fm_struct_release,&
@@ -59,7 +59,6 @@ MODULE cp_dbcsr_operations
                                              sp
 
   !$ USE OMP_LIB, ONLY: omp_get_max_threads, omp_get_thread_num, omp_get_num_threads
-#include "common/cp_common_uses.f90"
 #include "base/base_uses.f90"
 
   IMPLICIT NONE
@@ -473,8 +472,8 @@ CONTAINS
 
     n1 = SIZE(sizes1)
     n2 = SIZE(sizes2)
-    CALL cp_assert (n1 .EQ. n2, cp_fatal_level, cp_caller_error,&
-         "match_col_sizes", "distributions must be equal!")
+    IF(n1 .NE. n2)&
+       CPABORT("distributions must be equal!")
     sizes1(1:n1) = sizes2(1:n1)
     used = SUM (sizes1(1:n1))
     ! If sizes1 does not cover everything, then we increase the
@@ -541,8 +540,8 @@ CONTAINS
     NULLIFY(col_dist_left)
 
     IF (ncol .GT. 0) THEN
-       CALL cp_assert (cp_dbcsr_valid_index (sparse_matrix), cp_fatal_level,&
-            cp_caller_error, routineN, "sparse_matrix must pre-exist")
+       IF(.NOT.cp_dbcsr_valid_index (sparse_matrix))&
+          CPABORT("sparse_matrix must pre-exist")
        !
        ! Setup matrix_v
        CALL cp_fm_get_info(matrix_v, ncol_global=k)
@@ -682,11 +681,10 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'copy_fm_to_dbcsr', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: blk_p, col, col_l, col_size, error_handler, group, handle, &
-      nblkcols_local, nblkcols_total, nblkrows_local, nblkrows_total, &
-      ncol_block, ncol_global, nfullcols_local, nfullcols_total, &
-      nfullrows_local, nfullrows_total, nrow_block, nrow_global, nze, row, &
-      row_l, row_size
+    INTEGER :: blk_p, col, col_l, col_size, group, handle, nblkcols_local, &
+      nblkcols_total, nblkrows_local, nblkrows_total, ncol_block, &
+      ncol_global, nfullcols_local, nfullcols_total, nfullrows_local, &
+      nfullrows_total, nrow_block, nrow_global, nze, row, row_l, row_size
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: first_col, first_row, &
                                                 last_col, last_row, &
                                                 local_col_sizes, &
@@ -701,11 +699,9 @@ CONTAINS
     TYPE(cp_blacs_env_type), POINTER         :: context
     TYPE(cp_dbcsr_type)                      :: bc_mat
     TYPE(dbcsr_distribution_obj)             :: bc_dist
-    TYPE(dbcsr_error_type)                   :: dbcsr_error
 
 !   ---------------------------------------------------------------------------
 
-    CALL dbcsr_error_set(routineN, error_handler, dbcsr_error)
     CALL timeset(routineN,handle)
 
     NULLIFY(col_blk_size,row_blk_size)
@@ -727,12 +723,10 @@ CONTAINS
          nfullrows_total=nfullrows_total,&
          nfullcols_total=nfullcols_total)
 
-    CALL cp_assert (nrow_global.eq.nfullrows_total,&
-         cp_fatal_level, cp_caller_error, routineN,&
-         "FM and DBCSR matrix sizes do not match in rows")
-    CALL cp_assert (ncol_global.eq.nfullcols_total,&
-         cp_fatal_level, cp_caller_error, routineN,&
-         "FM and DBCSR matrix sizes do not match in columns")
+    IF(nrow_global.NE.nfullrows_total)&
+       CPABORT("FM and DBCSR matrix sizes do not match in rows")
+    IF(ncol_global.NE.nfullcols_total)&
+       CPABORT("FM and DBCSR matrix sizes do not match in columns")
 
     ! Create a block-cyclic distribution compatible with the FM matrix.
     CALL dbcsr_distribution_init (bc_dist)
@@ -803,7 +797,7 @@ CONTAINS
           col_size = col_blk_size(col)
           nze = row_size*col_size
           !WRITE(*,*)routineN//" Adding block",row,col,"size",nze
-          CALL cp_add_work_coordinate(bc_mat, 1, row, col, blk_p, error=dbcsr_error)
+          CALL cp_add_work_coordinate(bc_mat, 1, row, col, blk_p)
           IF (fm%use_sp) THEN
              !blk_1d_sp => bc_mat%m%wms(1)%data_area%d%r_sp(blk_p:blk_p+nze-1)
              blk_1d_sp => cp_dbcsr_get_data_p (bc_mat, 1,&
@@ -813,9 +807,8 @@ CONTAINS
              blk_1d_dp => cp_dbcsr_get_data_p (bc_mat, 1,&
                   select_data_type=REAL(0.0, KIND=dp), lb=blk_p, ub=blk_p+nze-1)
           ENDIF
-          CALL cp_assert (nze .EQ. (last_row(row)-first_row(row)+1)*(last_col(col)-first_col(col)+1),&
-               cp_fatal_level, cp_internal_error, routineN,&
-               "Block size does not match block row/col sizes")
+          IF(nze .NE. (last_row(row)-first_row(row)+1)*(last_col(col)-first_col(col)+1))&
+             CPABORT("Block size does not match block row/col sizes")
           IF (fm%use_sp) THEN
              blk_1d_sp(1:nze) = RESHAPE(&
                   fm_block_sp(&
@@ -843,7 +836,6 @@ CONTAINS
     CALL cp_dbcsr_release (bc_mat)
 
     CALL timestop(handle)
-    CALL dbcsr_error_stop(error_handler, dbcsr_error)
   END SUBROUTINE copy_fm_to_dbcsr
 
 ! *****************************************************************************
@@ -860,11 +852,11 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'copy_fm_to_dbcsr_bc', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: blk_p, col, col_l, col_size, data_type, error_handler, group, &
-      handle, my_blk, mypcol, myproc, myprow, nblkcols_local, nblkcols_total, &
-      nblkrows_local, nblkrows_total, ncol_block, ncol_global, &
-      nfullcols_local, nfullcols_total, nfullrows_local, nfullrows_total, &
-      nrow_block, nrow_global, numproc, nze, row, row_l, row_size
+    INTEGER :: blk_p, col, col_l, col_size, data_type, group, handle, my_blk, &
+      mypcol, myproc, myprow, nblkcols_local, nblkcols_total, nblkrows_local, &
+      nblkrows_total, ncol_block, ncol_global, nfullcols_local, &
+      nfullcols_total, nfullrows_local, nfullrows_total, nrow_block, &
+      nrow_global, numproc, nze, row, row_l, row_size
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: first_col, first_row, &
                                                 last_col, last_row, &
                                                 local_col_sizes, &
@@ -880,12 +872,10 @@ CONTAINS
     REAL(kind=sp), DIMENSION(:, :), POINTER  :: fm_block_sp
     TYPE(cp_blacs_env_type), POINTER         :: context
     TYPE(dbcsr_distribution_obj)             :: bc_dist
-    TYPE(dbcsr_error_type)                   :: dbcsr_error
     TYPE(dbcsr_mp_obj)                       :: mp_env
 
 !   ---------------------------------------------------------------------------
 
-    CALL dbcsr_error_set(routineN, error_handler, dbcsr_error)
     CALL timeset(routineN,handle)
 
     NULLIFY(col_blk_size,row_blk_size)
@@ -988,7 +978,7 @@ CONTAINS
           col_size = col_blk_size(col)
           my_blk=(row_l-1)*nblkcols_local+col_l-1
           nze = row_size*col_size
-          CALL cp_add_work_coordinate(bc_mat, 1, row, col, blk_map(my_blk), error=dbcsr_error)
+          CALL cp_add_work_coordinate(bc_mat, 1, row, col, blk_map(my_blk))
           blk_map(my_blk+1)=blk_map(my_blk)+nze
        ENDDO bc_cols
     ENDDO bc_rows
@@ -1011,9 +1001,8 @@ CONTAINS
              blk_1d_dp => cp_dbcsr_get_data_p (bc_mat, 1,&
                   select_data_type=REAL(0.0, KIND=dp), lb=blk_map(my_blk), ub=blk_map(my_blk)+nze-1)
           ENDIF
-          CALL cp_assert (nze .EQ. (last_row(row)-first_row(row)+1)*(last_col(col)-first_col(col)+1),&
-               cp_fatal_level, cp_internal_error, routineN,&
-               "Block size does not match block row/col sizes")
+          IF(nze .NE. (last_row(row)-first_row(row)+1)*(last_col(col)-first_col(col)+1))&
+             CPABORT("Block size does not match block row/col sizes")
           IF (fm%use_sp) THEN
              blk_1d_sp(1:nze) = RESHAPE(&
                   fm_block_sp(&
@@ -1033,7 +1022,6 @@ CONTAINS
     DEALLOCATE(blk_map)
 
     CALL timestop(handle)
-    CALL dbcsr_error_stop(error_handler, dbcsr_error)
   END SUBROUTINE copy_fm_to_dbcsr_bc
 ! *****************************************************************************
 !> \brief   Copy a BLACS matrix to a dbcsr matrix.
@@ -1061,11 +1049,10 @@ CONTAINS
     COMPLEX(KIND=dp), DIMENSION(:), POINTER  :: blk_1d
     COMPLEX(KIND=dp), DIMENSION(:, :), &
       POINTER                                :: fm_block
-    INTEGER :: blk_p, col, col_l, col_size, error_handler, group, handle, &
-      nblkcols_local, nblkcols_total, nblkrows_local, nblkrows_total, &
-      ncol_block, ncol_global, nfullcols_local, nfullcols_total, &
-      nfullrows_local, nfullrows_total, nrow_block, nrow_global, nze, row, &
-      row_l, row_size
+    INTEGER :: blk_p, col, col_l, col_size, group, handle, nblkcols_local, &
+      nblkcols_total, nblkrows_local, nblkrows_total, ncol_block, &
+      ncol_global, nfullcols_local, nfullcols_total, nfullrows_local, &
+      nfullrows_total, nrow_block, nrow_global, nze, row, row_l, row_size
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: first_col, first_row, &
                                                 last_col, last_row, &
                                                 local_col_sizes, &
@@ -1075,11 +1062,9 @@ CONTAINS
     TYPE(cp_blacs_env_type), POINTER         :: context
     TYPE(cp_dbcsr_type)                      :: bc_mat
     TYPE(dbcsr_distribution_obj)             :: bc_dist
-    TYPE(dbcsr_error_type)                   :: dbcsr_error
 
 !   ---------------------------------------------------------------------------
 
-    CALL dbcsr_error_set(routineN, error_handler, dbcsr_error)
     CALL timeset(routineN,handle)
 
     NULLIFY(col_blk_size,row_blk_size)
@@ -1095,12 +1080,10 @@ CONTAINS
          nfullrows_total=nfullrows_total,&
          nfullcols_total=nfullcols_total)
 
-    CALL cp_assert (nrow_global.eq.nfullrows_total,&
-         cp_fatal_level, cp_caller_error, routineN,&
-         "FM and DBCSR matrix sizes do not match in rows")
-    CALL cp_assert (ncol_global.eq.nfullcols_total,&
-         cp_fatal_level, cp_caller_error, routineN,&
-         "FM and DBCSR matrix sizes do not match in columns")
+    IF(nrow_global.NE.nfullrows_total)&
+       CPABORT("FM and DBCSR matrix sizes do not match in rows")
+    IF(ncol_global.NE.nfullcols_total)&
+       CPABORT("FM and DBCSR matrix sizes do not match in columns")
 
     ! Create a block-cyclic distribution compatible with the FM matrix.
     CALL dbcsr_distribution_init (bc_dist)
@@ -1168,13 +1151,12 @@ CONTAINS
           col_size = col_blk_size(col)
           nze = row_size*col_size
           !WRITE(*,*)routineN//" Adding block",row,col,"size",nze
-          CALL cp_add_work_coordinate(bc_mat, 1, row, col, blk_p, error=dbcsr_error)
+          CALL cp_add_work_coordinate(bc_mat, 1, row, col, blk_p)
           !blk_1d => bc_mat%m%wms(1)%data_area%d%c_dp(blk_p:blk_p+nze-1)
           blk_1d => cp_dbcsr_get_data_p (bc_mat, 1,&
                select_data_type=CMPLX(0.0, KIND=dp), lb=blk_p, ub=blk_p+nze-1)
-          CALL cp_assert (nze .EQ. (last_row(row)-first_row(row)+1)*(last_col(col)-first_col(col)+1),&
-               cp_fatal_level, cp_internal_error, routineN,&
-               "Block size does not match block row/col sizes")
+          IF(nze .NE. (last_row(row)-first_row(row)+1)*(last_col(col)-first_col(col)+1))&
+             CPABORT("Block size does not match block row/col sizes")
           blk_1d(1:nze) = RESHAPE(&
                fm_block(&
                first_row(row):last_row(row),first_col(col):last_col(col)&
@@ -1190,7 +1172,6 @@ CONTAINS
     CALL cp_dbcsr_release (bc_mat)
 
     CALL timestop(handle)
-    CALL dbcsr_error_stop(error_handler, dbcsr_error)
 
   END SUBROUTINE copy_cfm_to_dbcsr
 ! *****************************************************************************
@@ -1206,10 +1187,10 @@ CONTAINS
       routineP = moduleN//':'//routineN
     LOGICAL, PARAMETER                       :: dbg = .FALSE.
 
-    INTEGER :: col, error_handle, group, handle, mypcol, mype, myprow, &
-      nblkcols_local, nblkcols_total, nblkrows_local, nblkrows_total, &
-      ncol_block, ncol_global, nfullcols_total, nfullrows_total, npcol, npe, &
-      nprow, nrow_block, nrow_global, row
+    INTEGER :: col, group, handle, mypcol, mype, myprow, nblkcols_local, &
+      nblkcols_total, nblkrows_local, nblkrows_total, ncol_block, &
+      ncol_global, nfullcols_total, nfullrows_total, npcol, npe, nprow, &
+      nrow_block, nrow_global, row
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: first_col, first_row, &
                                                 last_col, last_row, &
                                                 local_col_sizes, &
@@ -1222,12 +1203,10 @@ CONTAINS
     TYPE(cp_dbcsr_iterator)                  :: iter
     TYPE(cp_dbcsr_type)                      :: bc_mat
     TYPE(dbcsr_distribution_obj)             :: bc_dist
-    TYPE(dbcsr_error_type)                   :: dbcsr_error
 
 !   ---------------------------------------------------------------------------
 
     CALL timeset(routineN,handle)
-    CALL dbcsr_error_set (routineN, error_handle, error=dbcsr_error)
 
     NULLIFY(col_blk_size,row_blk_size)
 
@@ -1332,7 +1311,6 @@ CONTAINS
     CALL cp_dbcsr_iterator_stop(iter)
 
     CALL cp_dbcsr_release (bc_mat)
-    CALL dbcsr_error_stop (error_handle, error=dbcsr_error)
 
     CALL timestop(handle)
   END SUBROUTINE copy_dbcsr_to_fm
@@ -1352,10 +1330,10 @@ CONTAINS
 
     COMPLEX(KIND=dp), DIMENSION(:, :), &
       POINTER                                :: blk_2d, fm_block
-    INTEGER :: col, error_handle, group, handle, mypcol, mype, myprow, &
-      nblkcols_local, nblkcols_total, nblkrows_local, nblkrows_total, &
-      ncol_block, ncol_global, nfullcols_total, nfullrows_total, npcol, npe, &
-      nprow, nrow_block, nrow_global, row
+    INTEGER :: col, group, handle, mypcol, mype, myprow, nblkcols_local, &
+      nblkcols_total, nblkrows_local, nblkrows_total, ncol_block, &
+      ncol_global, nfullcols_total, nfullrows_total, npcol, npe, nprow, &
+      nrow_block, nrow_global, row
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: first_col, first_row, &
                                                 last_col, last_row, &
                                                 local_col_sizes, &
@@ -1366,12 +1344,10 @@ CONTAINS
     TYPE(cp_dbcsr_iterator)                  :: iter
     TYPE(cp_dbcsr_type)                      :: bc_mat
     TYPE(dbcsr_distribution_obj)             :: bc_dist
-    TYPE(dbcsr_error_type)                   :: dbcsr_error
 
 !   ---------------------------------------------------------------------------
 
     CALL timeset(routineN,handle)
-    CALL dbcsr_error_set (routineN, error_handle, error=dbcsr_error)
 
     NULLIFY(col_blk_size,row_blk_size)
 
@@ -1466,7 +1442,6 @@ CONTAINS
     CALL cp_dbcsr_iterator_stop(iter)
 
     CALL cp_dbcsr_release (bc_mat)
-    CALL dbcsr_error_stop (error_handle, error=dbcsr_error)
 
     CALL timestop(handle)
   END SUBROUTINE copy_dbcsr_to_cfm
@@ -1483,10 +1458,10 @@ CONTAINS
       routineP = moduleN//':'//routineN
     LOGICAL, PARAMETER                       :: dbg = .FALSE.
 
-    INTEGER :: col, error_handle, group, handle, mypcol, mype, myprow, &
-      nblkcols_local, nblkcols_total, nblkrows_local, nblkrows_total, &
-      ncol_block, ncol_global, nfullcols_total, nfullrows_total, npcol, npe, &
-      nprow, nrow_block, nrow_global, row
+    INTEGER :: col, group, handle, mypcol, mype, myprow, nblkcols_local, &
+      nblkcols_total, nblkrows_local, nblkrows_total, ncol_block, &
+      ncol_global, nfullcols_total, nfullrows_total, npcol, npe, nprow, &
+      nrow_block, nrow_global, row
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: first_col, first_row, &
                                                 last_col, last_row, &
                                                 local_col_sizes, &
@@ -1498,12 +1473,10 @@ CONTAINS
     TYPE(cp_blacs_env_type), POINTER         :: context
     TYPE(cp_dbcsr_iterator)                  :: iter
     TYPE(dbcsr_distribution_obj)             :: bc_dist
-    TYPE(dbcsr_error_type)                   :: dbcsr_error
 
 !   ---------------------------------------------------------------------------
 
     CALL timeset(routineN,handle)
-    CALL dbcsr_error_set (routineN, error_handle, error=dbcsr_error)
 
     NULLIFY(col_blk_size,row_blk_size)
 
@@ -1598,7 +1571,6 @@ CONTAINS
     DEALLOCATE(row_blk_size, col_blk_size)
 
     CALL dbcsr_distribution_release (bc_dist)
-    CALL dbcsr_error_stop (error_handle, error=dbcsr_error)
 
     CALL timestop(handle)
   END SUBROUTINE copy_dbcsr_to_fm_bc

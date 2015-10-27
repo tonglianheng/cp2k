@@ -18,6 +18,9 @@ MODULE almo_scf_diis_types
                                              cp_dbcsr_set,&
                                              cp_dbcsr_trace,&
                                              cp_dbcsr_type
+  USE cp_log_handling,                 ONLY: cp_get_default_logger,&
+                                             cp_logger_get_default_unit_nr,&
+                                             cp_logger_type
   USE domain_submatrix_methods,        ONLY: add_submatrices,&
                                              copy_submatrices,&
                                              init_submatrices,&
@@ -25,7 +28,6 @@ MODULE almo_scf_diis_types
                                              set_submatrices
   USE domain_submatrix_types,          ONLY: domain_submatrix_type
   USE kinds,                           ONLY: dp
-#include "./common/cp_common_uses.f90"
 #include "./base/base_uses.f90"
 
   IMPLICIT NONE
@@ -150,19 +152,18 @@ CONTAINS
 !> \brief initializes the diis structure 
 !> \param diis_env ...
 !> \param sample_err ...
-!> \param sample_var ...
 !> \param error_type ...
 !> \param max_length ...
 !> \par History
 !>       2011.12 created [Rustam Z Khaliullin]
 !> \author Rustam Z Khaliullin
 ! *****************************************************************************
-  SUBROUTINE almo_scf_diis_init_domain(diis_env,sample_err,sample_var,error_type,&
+  SUBROUTINE almo_scf_diis_init_domain(diis_env,sample_err,error_type,&
     max_length)
 
     TYPE(almo_scf_diis_type), INTENT(INOUT)  :: diis_env
     TYPE(domain_submatrix_type), &
-      DIMENSION(:), INTENT(IN)               :: sample_err, sample_var
+      DIMENSION(:), INTENT(IN)               :: sample_err
     INTEGER, INTENT(IN)                      :: error_type, max_length
 
     CHARACTER(len=*), PARAMETER :: routineN = 'almo_scf_diis_init_domain', &

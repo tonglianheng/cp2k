@@ -15,6 +15,10 @@ MODULE pint_methods
 
   USE atomic_kind_types,               ONLY: get_atomic_kind
   USE cp_external_control,             ONLY: external_control
+  USE cp_log_handling,                 ONLY: cp_get_default_logger,&
+                                             cp_logger_get_default_io_unit,&
+                                             cp_logger_type,&
+                                             cp_to_string
   USE cp_output_handling,              ONLY: cp_add_iter_level,&
                                              cp_iterate,&
                                              cp_rm_iter_level
@@ -95,7 +99,6 @@ MODULE pint_methods
                                              rep_env_create
   USE replica_types,                   ONLY: rep_env_release,&
                                              replica_env_type
-#include "../common/cp_common_uses.f90"
 #include "../base/base_uses.f90"
 
   IMPLICIT NONE
@@ -816,11 +819,8 @@ CONTAINS
         CPASSERT(n_rep_val==1)
         CALL section_vals_val_get(input_section,"_DEFAULT_KEYWORD_",&
              r_vals=r_vals)
-        CALL cp_assert(SIZE(r_vals)==pint_env%p*pint_env%ndim,&
-             cp_failure_level,cp_assertion_failed,&
-             "Invalid size of MOTION%PINT%BEADS%COORD "//&
-             __LOCATION__,&
-             routineP)
+        IF(SIZE(r_vals)/=pint_env%p*pint_env%ndim)&
+           CPABORT("Invalid size of MOTION%PINT%BEADS%COORD")
         ic=0
         DO idim=1,pint_env%ndim
           DO ib=1,pint_env%p
@@ -937,11 +937,8 @@ CONTAINS
       WRITE(stmp,*) n_rep_val
       msg = "Invalid number of atoms in FORCE_EVAL%SUBSYS%VELOCITY ("//&
             TRIM(ADJUSTL(stmp))//")."
-      CALL cp_assert(3*n_rep_val==pint_env%ndim,&
-                     cp_failure_level, cp_assertion_failed,&
-                     routineP//" from "//&
-                     __LOCATION__,&
-                     msg)
+      IF(3*n_rep_val/=pint_env%ndim)&
+         CPABORT(msg)
       DO ia = 1, pint_env%ndim/3
         CALL section_vals_val_get(input_section, "_DEFAULT_KEYWORD_",&
              i_rep_val=ia, r_vals=r_vals)
@@ -950,11 +947,8 @@ CONTAINS
         WRITE(stmp,*) itmp
         msg = "Number of coordinates != 3 in FORCE_EVAL%SUBSYS%VELOCITY ("//&
               TRIM(ADJUSTL(stmp))//")."
-        CALL cp_assert(itmp==3,&
-                       cp_failure_level, cp_assertion_failed,&
-                       routineP//" from "//&
-                       __LOCATION__,&
-                       msg)
+        IF(itmp/=3)&
+           CPABORT(msg)
         DO ib = 1, pint_env%p
           DO ic = 1, 3
           idim = 3*(ia-1)+ic
@@ -1072,11 +1066,8 @@ CONTAINS
         CPASSERT(n_rep_val==1)
         CALL section_vals_val_get(input_section,"_DEFAULT_KEYWORD_",&
              r_vals=r_vals)
-        CALL cp_assert(SIZE(r_vals)==pint_env%p*pint_env%ndim,&
-                       cp_failure_level,cp_assertion_failed,&
-                       "Invalid size of MOTION%PINT%BEAD%VELOCITY "//&
-                       __LOCATION__,&
-                       routineP)
+        IF(SIZE(r_vals)/=pint_env%p*pint_env%ndim)&
+           CPABORT("Invalid size of MOTION%PINT%BEAD%VELOCITY")
         itmp=0
         DO idim=1,pint_env%ndim
           DO ib=1,pint_env%p
@@ -1179,11 +1170,8 @@ CONTAINS
           CPASSERT(n_rep_val==1)
           CALL section_vals_val_get(input_section,"_DEFAULT_KEYWORD_",&
                                     r_vals=r_vals)
-          CALL cp_assert(SIZE(r_vals)==pint_env%p*pint_env%ndim*pint_env%nnos,&
-                         cp_failure_level,cp_assertion_failed,&
-                         "Invalid size of MOTION%PINT%NOSE%COORD "//&
-                         __LOCATION__,&
-                         routineP)
+          IF(SIZE(r_vals)/=pint_env%p*pint_env%ndim*pint_env%nnos)&
+             CPABORT("Invalid size of MOTION%PINT%NOSE%COORD")
           ii=0
           DO idim=1,pint_env%ndim
             DO ib=1,pint_env%p
@@ -1207,11 +1195,8 @@ CONTAINS
           CPASSERT(n_rep_val==1)
           CALL section_vals_val_get(input_section,"_DEFAULT_KEYWORD_",&
                                     r_vals=r_vals)
-          CALL cp_assert(SIZE(r_vals)==pint_env%p*pint_env%ndim*pint_env%nnos,&
-                         cp_failure_level,cp_assertion_failed,&
-                         "Invalid size of MOTION%PINT%NOSE%VELOCITY "//&
-                         __LOCATION__,&
-                         routineP)
+          IF(SIZE(r_vals)/=pint_env%p*pint_env%ndim*pint_env%nnos)&
+             CPABORT("Invalid size of MOTION%PINT%NOSE%VELOCITY")
           ii=0
           DO idim=1,pint_env%ndim
             DO ib=1,pint_env%p
@@ -1558,11 +1543,8 @@ CONTAINS
 !          f_env=f_env,new_error=new_error, failure=failure)
 !     NULLIFY(logger)
 !     logger => cp_error_get_logger(new_error)
-!     CALL cp_assert(logger%iter_info%iteration(2)==pint_env%iter+1,&
-!          cp_failure_level,cp_assertion_failed,routineP,&
-!          "md & force_eval lost sychro "//&
-!          __LOCATION__,&
-!          failure)
+!     IF(logger%iter_info%iteration(2)/=pint_env%iter+1)&
+!        CPABORT("md & force_eval lost sychro")
 !     CALL f_env_rm_defaults(f_env,new_error,ierr)
 
 

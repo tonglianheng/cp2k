@@ -53,6 +53,9 @@ MODULE qs_scf
   USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm
   USE cp_fm_types,                     ONLY: cp_fm_release,&
                                              cp_fm_type
+  USE cp_log_handling,                 ONLY: cp_get_default_logger,&
+                                             cp_logger_type,&
+                                             cp_to_string
   USE cp_output_handling,              ONLY: cp_add_iter_level,&
                                              cp_iterate,&
                                              cp_p_file,&
@@ -132,7 +135,6 @@ MODULE qs_scf
        special_diag_method_nr
   USE qs_wf_history_methods,           ONLY: wfi_update
   USE scf_control_types,               ONLY: scf_control_type
-#include "./common/cp_common_uses.f90"
 #include "./base/base_uses.f90"
 
   IMPLICIT NONE
@@ -340,11 +342,10 @@ CONTAINS
       CALL get_results(results, description=description,&
                        values=res_val_3, n_entries=i_tmp)
       CPASSERT(i_tmp.EQ.3)
-      CALL cp_assert(ANY(res_val_3(:).GT.0.0),cp_failure_level,&
-             cp_assertion_failed,routineP,&
+      IF(ALL(res_val_3(:).LE.0.0))&
+         CALL cp_abort(__LOCATION__,&
              " Trying to access result ("//TRIM(description)//&
-             ") which is not correctly stored. ",&
-             only_ionode=.TRUE.)
+             ") which is not correctly stored.")
     END IF
     external_comm          = NINT(res_val_3(1))
     ext_master_id          = NINT(res_val_3(2))
@@ -395,7 +396,7 @@ CONTAINS
           ! another heavy weight print object, print controlled by dft_section
           CALL qs_scf_write_mos(mos,atomic_kind_set,qs_kind_set,particle_set,dft_section)
 
-          CALL qs_scf_density_mixing(scf_env,rho,para_env,diis_step,do_kpoints)
+          CALL qs_scf_density_mixing(scf_env,rho,para_env,diis_step)
 
           t2 = m_walltime()
 
@@ -429,8 +430,7 @@ CONTAINS
              CALL write_kpoints_restart(rho_ao_kp,kpoints,scf_env,dft_section,particle_set,qs_kind_set)
           ELSE
              ! Write Wavefunction restart file
-             CALL write_mo_set(mos,particle_set,dft_section=dft_section,&
-                               atomic_kind_set=atomic_kind_set,qs_kind_set=qs_kind_set)
+             CALL write_mo_set(mos,particle_set,dft_section=dft_section,qs_kind_set=qs_kind_set)
           END IF
 
           ! Exit if we have finished with the SCF inner loop

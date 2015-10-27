@@ -18,6 +18,7 @@ MODULE input_section_types
        cp_sll_val_get_length, cp_sll_val_get_rest, cp_sll_val_insert_el_at, &
        cp_sll_val_next, cp_sll_val_p_type, cp_sll_val_rm_el_at, &
        cp_sll_val_set_el_at, cp_sll_val_type
+  USE cp_log_handling,                 ONLY: cp_to_string
   USE input_keyword_types,             ONLY: keyword_describe,&
                                              keyword_describe_html,&
                                              keyword_p_type,&
@@ -46,7 +47,6 @@ MODULE input_section_types
                                              typo_match,&
                                              uppercase
   USE termination,                     ONLY: print_message
-#include "../common/cp_common_uses.f90"
 #include "../base/base_uses.f90"
 
   IMPLICIT NONE
@@ -641,42 +641,6 @@ CONTAINS
        END IF
     END IF
   END FUNCTION section_get_keyword
-
-! *****************************************************************************
-!> \brief returns various attibutes of a section object
-!> \param section the section you want informations about
-!> \param frozen ...
-!> \param repeats ...
-!> \param id_nr ...
-!> \param ref_count ...
-!> \param name ...
-!> \param description ...
-!> \param citations ...
-!> \author fawzi
-!> \note
-!>       give direct access to keywords and subsections?
-! *****************************************************************************
-  SUBROUTINE section_get(section,frozen, repeats,id_nr,ref_count, &
-       name,description,citations)
-    TYPE(section_type), POINTER              :: section
-    LOGICAL, INTENT(out), OPTIONAL           :: frozen, repeats
-    INTEGER, INTENT(out), OPTIONAL           :: id_nr, ref_count
-    CHARACTER(len=*), INTENT(out), OPTIONAL  :: name, description
-    INTEGER, DIMENSION(:), OPTIONAL, POINTER :: citations
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'section_get', &
-      routineP = moduleN//':'//routineN
-
-    CPASSERT(ASSOCIATED(section))
-    CPASSERT(section%ref_count>0)
-    IF (PRESENT(frozen)) frozen=section%frozen
-    IF (PRESENT(repeats)) repeats=section%repeats
-    IF (PRESENT(id_nr)) id_nr=section%id_nr
-    IF (PRESENT(ref_count)) ref_count=section%ref_count
-    IF (PRESENT(name)) name=section%name
-    IF (PRESENT(description)) description=a2s(section%description)
-    IF (PRESENT(citations)) citations=>section%citations
-  END SUBROUTINE section_get
 
 ! *****************************************************************************
 !> \brief adds a keyword to the given section

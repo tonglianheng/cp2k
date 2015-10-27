@@ -41,6 +41,9 @@ MODULE almo_scf_qs
        dbcsr_distribution_row_clusters, dbcsr_distribution_row_dist, &
        dbcsr_mp_group, dbcsr_mp_mynode, dbcsr_mp_numnodes, &
        dbcsr_type_no_symmetry
+  USE cp_log_handling,                 ONLY: cp_get_default_logger,&
+                                             cp_logger_get_default_unit_nr,&
+                                             cp_logger_type
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_units,                        ONLY: cp_unit_to_cp2k
   USE input_constants,                 ONLY: &
@@ -75,7 +78,6 @@ MODULE almo_scf_qs
   USE qs_rho_methods,                  ONLY: qs_rho_update_rho
   USE qs_rho_types,                    ONLY: qs_rho_get,&
                                              qs_rho_type
-#include "./common/cp_common_uses.f90"
 #include "./base/base_uses.f90"
 
   IMPLICIT NONE
@@ -374,7 +376,7 @@ CONTAINS
           tr = .FALSE.
           iblock_row = row
           iblock_col = row
-          CALL cp_dbcsr_get_stored_coordinates(matrix_new, iblock_row, iblock_col, tr, hold)
+          CALL cp_dbcsr_get_stored_coordinates(matrix_new, iblock_row, iblock_col, hold)
    
           IF(hold.EQ.mynode) THEN
           
@@ -1002,7 +1004,7 @@ CONTAINS
              !iblock_col = col
 !IF (unit_nr>0) WRITE(*,*) iblock_row, iblock_col
              CALL cp_dbcsr_get_stored_coordinates(almo_scf_env%quench_t(ispin),&
-                     iblock_row, iblock_col, tr, hold)
+                     iblock_row, iblock_col, hold)
 
              IF(hold.EQ.mynode) THEN
 

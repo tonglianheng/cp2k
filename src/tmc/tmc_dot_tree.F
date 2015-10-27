@@ -17,6 +17,7 @@
 MODULE tmc_dot_tree
   USE cp_files,                        ONLY: close_file,&
                                              open_file
+  USE cp_log_handling,                 ONLY: cp_to_string
   USE tmc_file_io,                     ONLY: expand_file_name_char,&
                                              expand_file_name_temp
   USE tmc_move_types,                  ONLY: mv_type_swap_conf
@@ -29,7 +30,6 @@ MODULE tmc_dot_tree
        status_deleted, status_deleted_result, status_rejected, &
        status_rejected_result, tree_type
   USE tmc_types,                       ONLY: tmc_param_type
-#include "../common/cp_common_uses.f90"
 #include "../base/base_uses.f90"
 
   IMPLICIT NONE
@@ -363,10 +363,10 @@ CONTAINS
     END IF
 
     IF(.NOT.ASSOCIATED(new_element%parent)) THEN
-      CALL cp_assert(new_element%nr.LE.1,&
-                    cp_warning_level,cp_assertion_failed,routineP,&
-                    "try to create dot, but no parent on node "//&
-                    cp_to_string(new_element%nr)//"exists")
+      IF(new_element%nr.GT.1)&
+         CALL cp_warn(__LOCATION__,&
+              "try to create dot, but no parent on node "//&
+              cp_to_string(new_element%nr)//"exists")
     ELSE
       CALL create_dot_branch(parent_nr=new_element%parent%nr,&
                              child_nr=new_element%nr,&

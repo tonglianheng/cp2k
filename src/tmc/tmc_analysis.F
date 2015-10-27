@@ -17,6 +17,7 @@ MODULE tmc_analysis
                                              pbc
   USE cp_files,                        ONLY: close_file,&
                                              open_file
+  USE cp_log_handling,                 ONLY: cp_to_string
   USE force_fields_input,              ONLY: read_chrg_section
   USE input_section_types,             ONLY: section_vals_get,&
                                              section_vals_get_subs_vals,&
@@ -61,7 +62,6 @@ MODULE tmc_analysis
                                              write_subtree_elem_unformated
   USE tmc_types,                       ONLY: tmc_atom_type,&
                                              tmc_param_type
-#include "../common/cp_common_uses.f90"
 #include "../base/base_uses.f90"
 
   IMPLICIT NONE
@@ -123,16 +123,13 @@ CONTAINS
         CALL section_vals_val_get(tmc_ana_section,"DENSITY",i_vals=i_arr_tmp)
 
         IF(SIZE(i_arr_tmp(:)).EQ.3)THEN
-          CALL cp_assert(ALL(i_arr_tmp(:).GT.0),&
-                 cp_failure_level,cp_assertion_failed,routineP,&
-                 "The amount of intervals in each direction has to be greater than 0.",&
-                 failure=flag, only_ionode=.TRUE.)
+          IF(ANY(i_arr_tmp(:).LE.0))&
+             CALL cp_abort(__LOCATION__, "The amount of intervals in each "//&
+                  "direction has to be greater than 0.")
           nr_bins(:) = i_arr_tmp(:)
         ELSE IF(SIZE(i_arr_tmp(:)).EQ.1) THEN
-          CALL cp_assert(ALL(i_arr_tmp(:).GT.0),&
-                 cp_failure_level,cp_assertion_failed,routineP,&
-                 "The amount of intervals has to be greater than 0.",&
-                 failure=flag, only_ionode=.TRUE.)
+          IF(ANY(i_arr_tmp(:).LE.0))&
+             CPABORT("The amount of intervals has to be greater than 0.")
           nr_bins(:) = i_arr_tmp(1)
         ELSE IF(SIZE(i_arr_tmp(:)).EQ.0) THEN
           nr_bins(:) = 1

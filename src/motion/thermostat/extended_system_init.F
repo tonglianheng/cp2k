@@ -46,7 +46,6 @@ MODULE extended_system_init
   USE simpar_types,                    ONLY: simpar_type
   USE thermostat_types,                ONLY: thermostat_info_type
   USE thermostat_utils,                ONLY: get_nhc_energies
-#include "../../common/cp_common_uses.f90"
 #include "../../base/base_uses.f90"
 
   IMPLICIT NONE
@@ -127,8 +126,9 @@ CONTAINS
           restart=explicit
           work_section2 => section_vals_get_subs_vals(work_section,"MASS")
           CALL section_vals_get(work_section2, explicit=explicit)
-          CALL cp_assert(restart.EQV.explicit,cp_failure_level,cp_assertion_failed,routineP,&
-               "You need to define both VELOCITY and MASS section (or none) in the BAROSTAT section")
+          IF(restart.NEQV.explicit)&
+             CALL cp_abort(__LOCATION__,"You need to define both VELOCITY and "//&
+                  "MASS section (or none) in the BAROSTAT section")
           restart=explicit.AND.restart
        END IF
 
@@ -626,18 +626,21 @@ CONTAINS
           restart=explicit
           work_section => section_vals_get_subs_vals(nose_section,"COORD")
           CALL section_vals_get(work_section, explicit=explicit)
-          CALL cp_assert(restart.or..not.explicit,cp_failure_level,cp_assertion_failed,routineP,&
-               "You need to define both VELOCITY and COORD and MASS and FORCE section (or none) in the NOSE section")
+          IF(.NOT.restart.AND.explicit)&
+             CALL cp_abort(__LOCATION__,"You need to define both VELOCITY and "//&
+                  "COORD and MASS and FORCE section (or none) in the NOSE section")
           restart=explicit.and.restart
           work_section => section_vals_get_subs_vals(nose_section,"MASS")
           CALL section_vals_get(work_section, explicit=explicit)
-          CALL cp_assert(restart.or..not.explicit,cp_failure_level,cp_assertion_failed,routineP,&
-               "You need to define both VELOCITY and COORD and MASS and FORCE section (or none) in the NOSE section")
+          IF(.NOT.restart.AND.explicit)&
+             CALL cp_abort(__LOCATION__,"You need to define both VELOCITY and "//&
+                  "COORD and MASS and FORCE section (or none) in the NOSE section")
           restart=explicit.and.restart
           work_section => section_vals_get_subs_vals(nose_section,"FORCE")
           CALL section_vals_get(work_section, explicit=explicit)
-          CALL cp_assert(restart.or..not.explicit,cp_failure_level,cp_assertion_failed,routineP,&
-               "You need to define both VELOCITY and COORD and MASS and FORCE section (or none) in the NOSE section")
+          IF(.NOT.restart.AND.explicit)&
+             CALL cp_abort(__LOCATION__,"You need to define both VELOCITY and "//&
+                  "COORD and MASS and FORCE section (or none) in the NOSE section")
           restart=explicit.and.restart
        END IF
 

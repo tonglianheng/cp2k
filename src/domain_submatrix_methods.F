@@ -22,6 +22,9 @@ MODULE domain_submatrix_methods
        cp_dbcsr_work_create, dbcsr_distribution_mp, dbcsr_mp_group, &
        dbcsr_mp_mynode, dbcsr_mp_numnodes, dbcsr_type_antisymmetric, &
        dbcsr_type_no_symmetry, dbcsr_type_symmetric
+  USE cp_log_handling,                 ONLY: cp_get_default_logger,&
+                                             cp_logger_get_default_unit_nr,&
+                                             cp_logger_type
   USE domain_submatrix_types,          ONLY: domain_map_type,&
                                              domain_submatrix_type,&
                                              select_row,&
@@ -30,7 +33,6 @@ MODULE domain_submatrix_methods
   USE message_passing,                 ONLY: mp_allgather,&
                                              mp_alltoall,&
                                              mp_sync
-#include "./common/cp_common_uses.f90"
 #include "./base/base_uses.f90"
 
   IMPLICIT NONE
@@ -959,7 +961,7 @@ CONTAINS
 
              transp=.FALSE.
              CALL cp_dbcsr_get_stored_coordinates(matrix,&
-                     row, col, transp, block_node)
+                     row, col, block_node)
              IF (block_node.eq.myNode) THEN
                 CALL cp_dbcsr_get_block_p(matrix,row,col,block_p,found,row_size,col_size)
                 IF (found) THEN
@@ -1092,7 +1094,7 @@ CONTAINS
 
              transp=.FALSE.
              CALL cp_dbcsr_get_stored_coordinates(matrix,&
-                     row, col, transp, block_node)
+                     row, col, block_node)
              IF (block_node.eq.myNode) THEN
                 CALL cp_dbcsr_get_block_p(matrix,row,col,block_p,found,row_size,col_size)
                 IF (found) THEN
@@ -1466,7 +1468,7 @@ CONTAINS
 
              transp=.FALSE.
              CALL cp_dbcsr_get_stored_coordinates(distr_pattern,&
-                     row, idomain, transp, dest_node)
+                     row, idomain, dest_node)
              
              send_descriptor(1,dest_node+1)=send_descriptor(1,dest_node+1)+1
              send_descriptor(2,dest_node+1)=send_descriptor(2,dest_node+1)+&
@@ -1550,7 +1552,7 @@ CONTAINS
 
              transp=.FALSE.
              CALL cp_dbcsr_get_stored_coordinates(distr_pattern,&
-                     row, idomain, transp, dest_node)
+                     row, idomain, dest_node)
             
              ! place the data appropriately
              col_offset=0

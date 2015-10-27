@@ -13,13 +13,16 @@ MODULE cp_fm_struct
   USE cp_blacs_env,                    ONLY: cp_blacs_env_release,&
                                              cp_blacs_env_retain,&
                                              cp_blacs_env_type
+  USE cp_log_handling,                 ONLY: cp_get_default_logger,&
+                                             cp_logger_get_default_unit_nr,&
+                                             cp_logger_type,&
+                                             cp_to_string
   USE cp_para_env,                     ONLY: cp_para_env_release,&
                                              cp_para_env_retain
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE kinds,                           ONLY: dp
   USE machine,                         ONLY: m_flush
   USE message_passing,                 ONLY: mp_sum
-#include "../common/cp_common_uses.f90"
 #include "../base/base_uses.f90"
 
   IMPLICIT NONE
@@ -247,14 +250,10 @@ SUBROUTINE cp_fm_struct_create(fmstruct,para_env,context, nrow_global,&
      CALL m_flush(iunit)
   ENDIF
 
-  CALL cp_assert(SUM(fmstruct%ncol_locals).EQ.fmstruct%ncol_global,&
-       cp_failure_level,cp_assertion_failed,routineP,&
-       "sum of local cols not equal global cols"//&
-__LOCATION__)
-  CALL cp_assert(SUM(fmstruct%nrow_locals).EQ.fmstruct%nrow_global,&
-       cp_failure_level,cp_assertion_failed,routineP,&
-       "sum of local row not equal global rows"//&
-__LOCATION__)
+  IF(SUM(fmstruct%ncol_locals).NE.fmstruct%ncol_global)&
+     CPABORT("sum of local cols not equal global cols")
+  IF(SUM(fmstruct%nrow_locals).NE.fmstruct%nrow_global)&
+     CPABORT("sum of local row not equal global rows")
 #else
   ! block = full matrix
   fmstruct%nrow_block=fmstruct%nrow_global
@@ -266,12 +265,10 @@ __LOCATION__)
   fmstruct%local_leading_dimension = MAX(fmstruct%local_leading_dimension,&
        fmstruct%nrow_locals(fmstruct%context%mepos(1)))
   IF (PRESENT(local_leading_dimension)) THEN
-     CALL cp_assert(MAX(1,fmstruct%nrow_locals(fmstruct%context%mepos(1)))&
-          <= local_leading_dimension,cp_failure_level,cp_assertion_failed,&
-          routineP,"local_leading_dimension too small ("//&
-          cp_to_string(local_leading_dimension)//"<"//&
-          cp_to_string(fmstruct%local_leading_dimension)//")"//&
-__LOCATION__)
+     IF(MAX(1,fmstruct%nrow_locals(fmstruct%context%mepos(1)))>local_leading_dimension)&
+        CALL cp_abort(__LOCATION__,"local_leading_dimension too small ("//&
+             cp_to_string(local_leading_dimension)//"<"//&
+             cp_to_string(fmstruct%local_leading_dimension)//")")
      fmstruct%local_leading_dimension=local_leading_dimension
   END IF
 

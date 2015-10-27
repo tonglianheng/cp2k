@@ -38,6 +38,9 @@ MODULE almo_scf
        cp_dbcsr_release, cp_dbcsr_reserve_block2d, cp_dbcsr_set, &
        cp_dbcsr_type, cp_dbcsr_work_create, dbcsr_distribution_mp, &
        dbcsr_mp_mynode, dbcsr_type_no_symmetry, dbcsr_type_symmetric
+  USE cp_log_handling,                 ONLY: cp_get_default_logger,&
+                                             cp_logger_get_default_unit_nr,&
+                                             cp_logger_type
   USE cp_para_env,                     ONLY: cp_para_env_release,&
                                              cp_para_env_retain
   USE domain_submatrix_methods,        ONLY: init_submatrices,&
@@ -62,7 +65,6 @@ MODULE almo_scf
                                              molecule_type
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
-#include "./common/cp_common_uses.f90"
 #include "./base/base_uses.f90"
 
   IMPLICIT NONE
@@ -1068,7 +1070,7 @@ CONTAINS
              iblock_row = row
              iblock_col = col
              CALL cp_dbcsr_get_stored_coordinates(no_quench(1),&
-                     iblock_row, iblock_col, tr, hold)
+                     iblock_row, iblock_col, hold)
              IF (hold.EQ.mynode) THEN
                 NULLIFY (p_new_block)
                 CALL cp_dbcsr_reserve_block2d(no_quench(1),&

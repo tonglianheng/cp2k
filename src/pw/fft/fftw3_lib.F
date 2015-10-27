@@ -20,7 +20,6 @@ MODULE fftw3_lib
 
   !$ USE OMP_LIB, ONLY: omp_get_max_threads, omp_get_thread_num, omp_get_num_threads
 
-#include "../../common/cp_common_uses.f90"
 #include "../../base/base_uses.f90"
 
   IMPLICIT NONE
@@ -63,6 +62,9 @@ SUBROUTINE fftw3_do_cleanup(wisdom_file,ionode)
     ENDIF
 
     CALL fftw_cleanup()
+#else
+   MARK_USED(wisdom_file)
+   MARK_USED(ionode)
 #endif
 
 END SUBROUTINE
@@ -140,6 +142,8 @@ SUBROUTINE fftw3_do_init(wisdom_file)
 !$              "Now exiting..."
 !$     ENDIF
 !$  ENDIF
+#else
+   MARK_USED(wisdom_file)
 #endif
 
 END SUBROUTINE
@@ -406,8 +410,20 @@ SUBROUTINE fftw3_create_guru_plan(plan, fft_rank, dim_n, &
   ENDIF
 
 #else
-  
-  valid = .FALSE. 
+  MARK_USED(plan)
+  MARK_USED(fft_rank)
+  MARK_USED(dim_n)
+  MARK_USED(dim_istride)
+  MARK_USED(dim_ostride)
+  MARK_USED(hm_rank)
+  MARK_USED(hm_n)
+  MARK_USED(hm_istride)
+  MARK_USED(hm_ostride)
+  MARK_USED(fft_direction)
+  MARK_USED(fftw_plan_type)
+  !MARK_USED does not work with assumed size arguments
+  IF(.FALSE.)THEN; DO; IF(ABS(zin(1))>ABS(zout(1)))EXIT; ENDDO; ENDIF
+  valid = .FALSE.
 
 #endif
 
@@ -735,6 +751,11 @@ SUBROUTINE fftw3_create_plan_3d(plan, zin, zout, plan_style)
   ENDIF
 
 
+#else
+   MARK_USED(plan)
+   MARK_USED(plan_style)
+   !MARK_USED does not work with assumed size arguments
+   IF(.FALSE.)THEN; DO; IF(ABS(zin(1))>ABS(zout(1)))EXIT; ENDDO; ENDIF
 #endif
 
 END SUBROUTINE fftw3_create_plan_3d
@@ -798,7 +819,15 @@ SUBROUTINE fftw3_workshare_execute_dft(plan, plan_r, split_dim, nt, tid, &
 
       ENDIF 
 #else
-
+   MARK_USED(plan)
+   MARK_USED(plan_r)
+   MARK_USED(split_dim)
+   MARK_USED(nt)
+   MARK_USED(tid)
+   MARK_USED(istride)
+   MARK_USED(ostride)
+   !MARK_USED does not work with assumed size arguments
+   IF(.FALSE.)THEN; DO; IF(ABS(input(1))>ABS(output(1)))EXIT; ENDDO; ENDIF
 #endif
 
 END SUBROUTINE
@@ -892,7 +921,10 @@ SUBROUTINE fftw33d ( plan, scale, zin, zout, stat )
   END IF
 
 #else
-
+  MARK_USED(plan)
+  MARK_USED(scale)
+  !MARK_USED does not work with assumed size arguments
+  IF(.FALSE.)THEN; DO; IF(ABS(zin(1))>ABS(zout(1)))EXIT; ENDDO; ENDIF
   stat = 0
 
 #endif
@@ -992,6 +1024,11 @@ num_rows = plan%m / num_threads
 !$  END IF
 !$ END IF
 
+#else
+   MARK_USED(plan)
+   MARK_USED(plan_style)
+   !MARK_USED does not work with assumed size arguments
+   IF(.FALSE.)THEN; DO; IF(ABS(zin(1))>ABS(zout(1)))EXIT; ENDDO; ENDIF
 #endif
 
 END SUBROUTINE fftw3_create_plan_1dm
@@ -1022,6 +1059,8 @@ SUBROUTINE fftw3_destroy_plan ( plan )
     CALL XFFTW_DESTROY_PLAN(plan%fftw_plan_nz_r)
   ENDIF
 
+#else
+   MARK_USED(plan)
 #endif
 
 END SUBROUTINE fftw3_destroy_plan
@@ -1099,7 +1138,10 @@ zscal_ptr => zout(scal_offset)
 !$ endif
 
 #else
-
+  MARK_USED(plan)
+  MARK_USED(scale)
+  !MARK_USED does not work with assumed size arguments
+  IF(.FALSE.)THEN; DO; IF(ABS(zin(1))>ABS(zout(1)))EXIT; ENDDO; ENDIF
   stat=0
 
 !$ else
@@ -1164,6 +1206,8 @@ END SUBROUTINE fftw31dm
 
 #if defined ( __FFTW3 )
          CALL dfftw_export_wisdom(fftw_write_char, iunit)
+#else
+   MARK_USED(iunit)
 #endif
       END SUBROUTINE
 
@@ -1214,6 +1258,8 @@ END SUBROUTINE fftw31dm
          isuccess=0
 #if defined ( __FFTW3 )
          CALL dfftw_import_wisdom(isuccess, fftw_read_char, iunit)
+#else
+   MARK_USED(iunit)
 #endif
       END SUBROUTINE
 

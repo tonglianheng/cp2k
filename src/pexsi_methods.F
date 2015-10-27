@@ -24,8 +24,11 @@ MODULE pexsi_methods
        cp_dbcsr_setup_arnoldi_data, cp_dbcsr_type, &
        cp_set_arnoldi_initial_vector, csr_eqrow_floor_dist, &
        dbcsr_arnoldi_data, dbcsr_distribution_mp, dbcsr_mp_mynode, &
-       dbcsr_type_no_symmetry, dbcsr_type_real_4, dbcsr_type_real_8, &
-       deallocate_arnoldi_data, get_selected_ritz_val, get_selected_ritz_vec
+       dbcsr_type_no_symmetry, dbcsr_type_real_8, deallocate_arnoldi_data, &
+       get_selected_ritz_val, get_selected_ritz_vec
+  USE cp_log_handling,                 ONLY: cp_get_default_logger,&
+                                             cp_logger_get_default_unit_nr,&
+                                             cp_logger_type
   USE dm_ls_scf_qs,                    ONLY: matrix_ls_to_qs
   USE dm_ls_scf_types,                 ONLY: ls_scf_env_type
   USE input_section_types,             ONLY: section_vals_type,&
@@ -48,7 +51,6 @@ MODULE pexsi_methods
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
   USE qs_ks_types,                     ONLY: qs_ks_env_type
-#include "./common/cp_common_uses.f90"
 #include "./base/base_uses.f90"
 
   IMPLICIT NONE
@@ -195,7 +197,7 @@ CONTAINS
 
     CALL cp_dbcsr_create(pexsi_env%csr_sparsity, "CSR sparsity", &
                          template = pexsi_env%dbcsr_template_matrix_sym, &
-                         data_type=dbcsr_type_real_4)
+                         data_type=dbcsr_type_real_8)
     CALL cp_dbcsr_copy(pexsi_env%csr_sparsity, pexsi_env%dbcsr_template_matrix_sym)
 
     CALL cp_dbcsr_to_csr_screening(ks_env, pexsi_env%csr_sparsity)
@@ -341,28 +343,20 @@ CONTAINS
     IF(first_call) THEN
       ! Assertion that matrices have the expected symmetry (both should be symmetric if no 
       ! S preconditioning and no molecular clustering)
-      CALL cp_assert(cp_dbcsr_has_symmetry (matrix_ks),&
-           cp_fatal_level, cp_internal_error, routineP,&
-           "PEXSI interface expects a non-symmetric DBCSR Kohn-Sham matrix",&
-           only_ionode=.TRUE.)
-      CALL cp_assert(cp_dbcsr_has_symmetry (matrix_s),&
-           cp_fatal_level, cp_internal_error, routineP,&
-           "PEXSI interface expects a non-symmetric DBCSR overlap matrix",&
-           only_ionode=.TRUE.)
-  
+      IF(.NOT.cp_dbcsr_has_symmetry (matrix_ks))&
+         CPABORT("PEXSI interface expects a non-symmetric DBCSR Kohn-Sham matrix")
+      IF(.NOT.cp_dbcsr_has_symmetry (matrix_s))&
+         CPABORT("PEXSI interface expects a non-symmetric DBCSR overlap matrix")
+
       ! Assertion on datatype
-      CALL cp_assert((pexsi_env%csr_mat_s%nzval_local%data_type .EQ. dbcsr_type_real_8) &
-           .AND. (pexsi_env%csr_mat_ks%nzval_local%data_type .EQ. dbcsr_type_real_8), &
-           cp_fatal_level,cp_wrong_args_error, routineP,&
-           "Complex data type not supported by PEXSI",&
-           only_ionode=.TRUE.)
-   
+      IF((pexsi_env%csr_mat_s%nzval_local%data_type .NE. dbcsr_type_real_8) &
+         .OR. (pexsi_env%csr_mat_ks%nzval_local%data_type .NE. dbcsr_type_real_8))&
+         CPABORT("Complex data type not supported by PEXSI")
+
       ! Assertion on number of non-zero elements 
       !(TODO: update when PEXSI changes to Long Int) 
-      CALL cp_assert(pexsi_env%csr_mat_s%nze_total .LT. INT(2,kind=int_8)**31,&
-           cp_fatal_level, cp_internal_error, routineP,&
-           "Total number of non-zero elements of CSR matrix is too large to be handled by PEXSI",&
-           only_ionode=.TRUE.)
+      IF(pexsi_env%csr_mat_s%nze_total .GE. INT(2,kind=int_8)**31)&
+         CPABORT("Total number of non-zero elements of CSR matrix is too large to be handled by PEXSI")
     ENDIF
 
     mynode = dbcsr_mp_mynode(dbcsr_distribution_mp(cp_dbcsr_distribution(matrix_ks)))

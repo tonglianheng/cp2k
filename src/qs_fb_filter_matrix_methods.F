@@ -53,7 +53,6 @@ MODULE qs_fb_filter_matrix_methods
                                              fb_trial_fns_obj
   USE string_utilities,                ONLY: compress,&
                                              uppercase
-#include "./common/cp_common_uses.f90"
 #include "./base/base_uses.f90"
 
   IMPLICIT NONE
@@ -1089,7 +1088,6 @@ CONTAINS
        CALL cp_dbcsr_get_stored_coordinates(filter_mat, &
                                             iatom_stored, &
                                             jatom_stored, &
-                                            transpose=transpose, &
                                             processor=dest)
        ! create the send tasks
        tasks_send(TASK_DEST,itask) = dest
@@ -1247,7 +1245,6 @@ CONTAINS
           CALL cp_dbcsr_get_stored_coordinates(filter_mat, &
                                                iatom_stored, &
                                                jatom_stored, &
-                                               transpose=transpose, &
                                                processor=dest)
           ! create the send tasks
           tasks_send(TASK_DEST,itask) = dest

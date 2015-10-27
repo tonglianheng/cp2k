@@ -21,6 +21,7 @@
 MODULE tmc_master
   USE cell_types,                      ONLY: init_cell
   USE cp_external_control,             ONLY: external_control
+  USE cp_log_handling,                 ONLY: cp_to_string
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE global_types,                    ONLY: global_environment_type
   USE kinds,                           ONLY: dp,&
@@ -73,7 +74,6 @@ MODULE tmc_master
        status_canceled_ener, status_canceled_nmc, status_created, &
        status_rejected, tree_type
   USE tmc_types,                       ONLY: tmc_env_type
-#include "../common/cp_common_uses.f90"
 #include "../base/base_uses.f90"
 
   IMPLICIT NONE
@@ -301,10 +301,10 @@ CONTAINS
                      para_env=tmc_env%tmc_comp_set%para_env_m_w,&
                      tmc_params=tmc_env%params, &
                      elem=init_conf, success=flag, wait_for_message=.TRUE.)
-    CALL cp_assert(stat.EQ.TMC_STAT_START_CONF_RESULT, cp_failure_level,&
-                   cp_assertion_failed,routineP,&
-                   "receiving start configuration failed, received stat "//&
-                   cp_to_string(stat),failure=failure)
+    IF(stat.NE.TMC_STAT_START_CONF_RESULT)&
+       CALL cp_abort(__LOCATION__,&
+            "receiving start configuration failed, received stat "//&
+            cp_to_string(stat))
     IF(failure)THEN
       CALL stop_whole_group(para_env=tmc_env%tmc_comp_set%para_env_m_w, &
                             worker_info=worker_info, &
@@ -427,11 +427,10 @@ CONTAINS
 
         ! in case of parallel tempering canceled element could be reactivated,
         !   calculated faster and deleted
-        CALL cp_assert(ASSOCIATED(worker_info(wg)%elem),&
-                       cp_failure_level,cp_assertion_failed,routineP,&
-                       "no tree elem exist when receiving stat "//&
-                       cp_to_string(stat)//"of group"//cp_to_string(wg),&
-                       failure=flag)
+        IF(.NOT.ASSOCIATED(worker_info(wg)%elem))&
+           CALL cp_abort(__LOCATION__,&
+                "no tree elem exist when receiving stat "//&
+                cp_to_string(stat)//"of group"//cp_to_string(wg))
 
         IF(DEBUG.GE.1) &
           WRITE(tmc_env%m_env%io_unit,*)&

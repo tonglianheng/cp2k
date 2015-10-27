@@ -23,6 +23,8 @@ MODULE atoms_input
                                              scaled_to_real
   USE cp_linked_list_val,              ONLY: cp_sll_val_next,&
                                              cp_sll_val_type
+  USE cp_log_handling,                 ONLY: cp_logger_get_default_io_unit,&
+                                             cp_to_string
   USE cp_parser_methods,               ONLY: read_float_object
   USE cp_units,                        ONLY: cp_unit_to_cp2k
   USE input_section_types,             ONLY: section_vals_get,&
@@ -44,7 +46,6 @@ MODULE atoms_input
   USE string_utilities,                ONLY: uppercase
   USE topology_types,                  ONLY: atom_info_type,&
                                              topology_parameters_type
-#include "./common/cp_common_uses.f90"
 #include "./base/base_uses.f90"
 
   IMPLICIT NONE
@@ -348,9 +349,8 @@ CONTAINS
                   EXIT
                END IF
             END DO
-            CALL cp_assert(wrd==5.OR.end_c<LEN(line_att)+1,cp_failure_level,&
-                 cp_assertion_failed,routineP,&
-                 "incorrectly formatted line in coord section'"//line_att//"'")
+            IF(wrd/=5.AND.end_c>=LEN(line_att)+1)&
+               CPABORT("incorrectly formatted line in coord section'"//line_att//"'")
             IF (wrd==1) THEN
                at_name(ishell)=line_att(start_c:end_c-1)
                CALL uppercase(at_name(ishell))
@@ -399,9 +399,8 @@ CONTAINS
                       EXIT
                    END IF
                 END DO
-                CALL cp_assert(wrd==5.OR.end_c<LEN(line_att)+1,cp_failure_level,&
-                     cp_assertion_failed,routineP,&
-                     "incorrectly formatted line in coord section'"//line_att//"'")
+                IF(wrd/=5.AND.end_c>=LEN(line_att)+1)&
+                   CPABORT("incorrectly formatted line in coord section'"//line_att//"'")
                 IF (wrd==1) THEN
                    at_name_c(ishell)=line_att(start_c:end_c-1)
                    CALL uppercase(at_name_c(ishell))

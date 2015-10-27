@@ -19,6 +19,8 @@ MODULE manybody_siepmann
   USE atomic_kind_types,               ONLY: get_atomic_kind
   USE cell_types,                      ONLY: cell_type,&
                                              pbc
+  USE cp_log_handling,                 ONLY: cp_get_default_logger,&
+                                             cp_logger_type
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
@@ -35,7 +37,6 @@ MODULE manybody_siepmann
                                              siepmann_type
   USE particle_types,                  ONLY: particle_type
   USE util,                            ONLY: sort
-#include "./common/cp_common_uses.f90"
 #include "./base/base_uses.f90"
 
   IMPLICIT NONE
@@ -57,7 +58,6 @@ CONTAINS
 !> \param atom_b ...
 !> \param nloc_size ...
 !> \param full_loc_list ...
-!> \param loc_cell_v ...
 !> \param cell_v ...
 !> \param cell ...
 !> \param drij ...
@@ -66,7 +66,7 @@ CONTAINS
 !> \author Dorothea Golze - 11.2012 - University of Zurich
 ! *****************************************************************************
   SUBROUTINE siepmann_energy(pot_loc, siepmann, r_last_update_pbc, atom_a, atom_b,&
-             nloc_size, full_loc_list,loc_cell_v, cell_v, cell, drij, particle_set,&
+             nloc_size, full_loc_list, cell_v, cell, drij, particle_set,&
              nr_oh)
 
     REAL(KIND=dp), INTENT(OUT)               :: pot_loc
@@ -74,7 +74,6 @@ CONTAINS
     TYPE(pos_type), DIMENSION(:), POINTER    :: r_last_update_pbc
     INTEGER, INTENT(IN)                      :: atom_a, atom_b, nloc_size
     INTEGER, DIMENSION(2, 1:nloc_size)       :: full_loc_list
-    REAL(KIND=dp), DIMENSION(3, 1:nloc_size) :: loc_cell_v
     REAL(KIND=dp), DIMENSION(3)              :: cell_v
     TYPE(cell_type), POINTER                 :: cell
     REAL(KIND=dp)                            :: drij
@@ -91,8 +90,9 @@ CONTAINS
     a_ij   = siep_a_ij(siepmann,r_last_update_pbc,atom_a,atom_b,nloc_size,&
              full_loc_list, cell_v, siepmann%rcutsq,particle_set,&
              cell)
-    Phi_ij  = siep_Phi_ij(siepmann,r_last_update_pbc,atom_a,atom_b,nloc_size,&
-              loc_cell_v, cell_v, cell, siepmann%rcutsq,&
+    Phi_ij  = siep_Phi_ij(siepmann,r_last_update_pbc,atom_a,atom_b,&
+              cell_v, cell, siepmann%rcutsq,&
+
               particle_set, nr_oh)
     f2     = siep_f2 (siepmann,drij)
     D = siepmann%D
@@ -226,11 +226,9 @@ CONTAINS
 !> \param iparticle ...
 !> \param jparticle ...
 !> \param f_nonbond ...
-!> \param pv_nonbond ...
 !> \param prefactor ...
 !> \param n_loc_size ...
 !> \param full_loc_list ...
-!> \param loc_cell_v ...
 !> \param cell_v ...
 !> \param cell ...
 !> \param rcutsq ...
@@ -239,18 +237,16 @@ CONTAINS
 !>       Using a local list of neighbors
 ! *****************************************************************************
   SUBROUTINE siep_a_ij_d(siepmann,r_last_update_pbc,iparticle,jparticle,f_nonbond,&
-                         pv_nonbond,prefactor,n_loc_size,full_loc_list,loc_cell_v,&
+                         prefactor,n_loc_size,full_loc_list,&
                          cell_v,cell,rcutsq,use_virial)
     TYPE(siepmann_pot_type), POINTER         :: siepmann
     TYPE(pos_type), DIMENSION(:), POINTER    :: r_last_update_pbc
     INTEGER, INTENT(IN)                      :: iparticle, jparticle
     REAL(KIND=dp), DIMENSION(:, :), &
-      INTENT(INOUT)                          :: f_nonbond, pv_nonbond
+      INTENT(INOUT)                          :: f_nonbond
     REAL(KIND=dp), INTENT(IN)                :: prefactor
     INTEGER, INTENT(IN)                      :: n_loc_size
     INTEGER, DIMENSION(2, 1:n_loc_size)      :: full_loc_list
-    REAL(KIND=dp), &
-      DIMENSION(3, 1:n_loc_size)             :: loc_cell_v
     REAL(KIND=dp), DIMENSION(3)              :: cell_v
     TYPE(cell_type), POINTER                 :: cell
     REAL(KIND=dp), INTENT(IN)                :: rcutsq
@@ -328,8 +324,6 @@ CONTAINS
 !> \param r_last_update_pbc ...
 !> \param iparticle ...
 !> \param jparticle ...
-!> \param n_loc_size ...
-!> \param loc_cell_v ...
 !> \param cell_v ...
 !> \param cell ...
 !> \param rcutsq ...
@@ -339,14 +333,11 @@ CONTAINS
 !> \par History
 !>      Using a local list of neighbors
 ! *****************************************************************************
-  FUNCTION siep_Phi_ij(siepmann,r_last_update_pbc,iparticle,jparticle,n_loc_size,&
-       loc_cell_v, cell_v, cell, rcutsq, particle_set,nr_oh)
+  FUNCTION siep_Phi_ij(siepmann,r_last_update_pbc,iparticle,jparticle,&
+       cell_v, cell, rcutsq, particle_set,nr_oh)
     TYPE(siepmann_pot_type), POINTER         :: siepmann
     TYPE(pos_type), DIMENSION(:), POINTER    :: r_last_update_pbc
-    INTEGER, INTENT(IN)                      :: iparticle, jparticle, &
-                                                n_loc_size
-    REAL(KIND=dp), &
-      DIMENSION(3, 1:n_loc_size)             :: loc_cell_v
+    INTEGER, INTENT(IN)                      :: iparticle, jparticle
     REAL(KIND=dp), DIMENSION(3)              :: cell_v
     TYPE(cell_type), POINTER                 :: cell
     REAL(KIND=dp), INTENT(IN)                :: rcutsq
@@ -430,9 +421,6 @@ CONTAINS
 !> \param jparticle ...
 !> \param f_nonbond ...
 !> \param prefactor ...
-!> \param n_loc_size ...
-!> \param full_loc_list ...
-!> \param loc_cell_v ...
 !> \param cell_v ...
 !> \param cell ...
 !> \param rcutsq ...
@@ -442,18 +430,13 @@ CONTAINS
 !>       Using a local list of neighbors
 ! *****************************************************************************
   SUBROUTINE siep_Phi_ij_d(siepmann,r_last_update_pbc,iparticle,jparticle,f_nonbond,&
-                           prefactor,n_loc_size,full_loc_list, loc_cell_v,&
-                           cell_v, cell, rcutsq,use_virial, particle_set)
+                           prefactor,cell_v, cell, rcutsq,use_virial, particle_set)
     TYPE(siepmann_pot_type), POINTER         :: siepmann
     TYPE(pos_type), DIMENSION(:), POINTER    :: r_last_update_pbc
     INTEGER, INTENT(IN)                      :: iparticle, jparticle
     REAL(KIND=dp), DIMENSION(:, :), &
       INTENT(INOUT)                          :: f_nonbond
     REAL(KIND=dp), INTENT(IN)                :: prefactor
-    INTEGER, INTENT(IN)                      :: n_loc_size
-    INTEGER, DIMENSION(2, 1:n_loc_size)      :: full_loc_list
-    REAL(KIND=dp), &
-      DIMENSION(3, 1:n_loc_size)             :: loc_cell_v
     REAL(KIND=dp), DIMENSION(3)              :: cell_v
     TYPE(cell_type), POINTER                 :: cell
     REAL(KIND=dp), INTENT(IN)                :: rcutsq
@@ -482,7 +465,7 @@ CONTAINS
     h_max_dist=2.27_dp ! 1.2 angstrom
     natom=SIZE(particle_set)
     Phi_ij = siep_Phi_ij(siepmann,r_last_update_pbc,iparticle,jparticle,&
-             n_loc_size, loc_cell_v, cell_v, cell, rcutsq,&
+             cell_v, cell, rcutsq,&
              particle_set) 
     rji(:) = -1.0_dp*(r_last_update_pbc(jparticle)%r(:)-r_last_update_pbc(iparticle)%r(:)+cell_v)
     drji = SQRT(DOT_PRODUCT(rji,rji))
@@ -565,11 +548,9 @@ CONTAINS
 !> \param cell_v ...
 !> \param n_loc_size ...
 !> \param full_loc_list ...
-!> \param loc_cell_v ...
 !> \param iparticle ...
 !> \param jparticle ...
 !> \param f_nonbond ...
-!> \param pv_nonbond ...
 !> \param use_virial ...
 !> \param rcutsq ...
 !> \param cell ...
@@ -578,18 +559,16 @@ CONTAINS
 !>       Using a local list of neighbors
 ! *****************************************************************************
   SUBROUTINE siepmann_forces_v3(siepmann,r_last_update_pbc, cell_v, n_loc_size,&
-       full_loc_list, loc_cell_v, iparticle,jparticle,f_nonbond,pv_nonbond,&
+       full_loc_list, iparticle,jparticle,f_nonbond,&
        use_virial, rcutsq, cell, particle_set)
     TYPE(siepmann_pot_type), POINTER         :: siepmann
     TYPE(pos_type), DIMENSION(:), POINTER    :: r_last_update_pbc
     REAL(KIND=dp), DIMENSION(3)              :: cell_v
     INTEGER, INTENT(IN)                      :: n_loc_size
     INTEGER, DIMENSION(2, 1:n_loc_size)      :: full_loc_list
-    REAL(KIND=dp), &
-      DIMENSION(3, 1:n_loc_size)             :: loc_cell_v
     INTEGER, INTENT(IN)                      :: iparticle, jparticle
     REAL(KIND=dp), DIMENSION(:, :), &
-      INTENT(INOUT)                          :: f_nonbond, pv_nonbond
+      INTENT(INOUT)                          :: f_nonbond
     LOGICAL, INTENT(IN)                      :: use_virial
     REAL(KIND=dp), INTENT(IN)                :: rcutsq
     TYPE(cell_type), POINTER                 :: cell
@@ -654,7 +633,7 @@ CONTAINS
     ! Lets do the f_A3 piece derivative: of a_ij
     prefactor = E * f2 * drji**(-beta) * fac  
     CALL siep_a_ij_d(siepmann, r_last_update_pbc, iparticle, jparticle, f_nonbond,&
-         pv_nonbond, prefactor, n_loc_size, full_loc_list,loc_cell_v, cell_v,&
+         prefactor, n_loc_size, full_loc_list, cell_v,&
          cell, rcutsq, use_virial)
 
   END SUBROUTINE siepmann_forces_v3
@@ -665,33 +644,24 @@ CONTAINS
 !> \param r_last_update_pbc ...
 !> \param cell_v ...
 !> \param cell ...
-!> \param n_loc_size ...
-!> \param full_loc_list ...
-!> \param loc_cell_v ...
 !> \param iparticle ...
 !> \param jparticle ...
 !> \param f_nonbond ...
-!> \param pv_nonbond ...
 !> \param use_virial ...
 !> \param rcutsq ...
 !> \param particle_set ...
 !> \par History
 !>       Using a local list of neighbors
 ! *****************************************************************************
-  SUBROUTINE siepmann_forces_v2(siepmann,r_last_update_pbc, cell_v, cell, n_loc_size,&
-       full_loc_list, loc_cell_v, iparticle,jparticle,f_nonbond,pv_nonbond,&
-       use_virial, rcutsq, particle_set)
+  SUBROUTINE siepmann_forces_v2(siepmann,r_last_update_pbc, cell_v, cell,&
+       iparticle,jparticle,f_nonbond,use_virial, rcutsq, particle_set)
     TYPE(siepmann_pot_type), POINTER         :: siepmann
     TYPE(pos_type), DIMENSION(:), POINTER    :: r_last_update_pbc
     REAL(KIND=dp), DIMENSION(3)              :: cell_v
     TYPE(cell_type), POINTER                 :: cell
-    INTEGER, INTENT(IN)                      :: n_loc_size
-    INTEGER, DIMENSION(2, 1:n_loc_size)      :: full_loc_list
-    REAL(KIND=dp), &
-      DIMENSION(3, 1:n_loc_size)             :: loc_cell_v
     INTEGER, INTENT(IN)                      :: iparticle, jparticle
     REAL(KIND=dp), DIMENSION(:, :), &
-      INTENT(INOUT)                          :: f_nonbond, pv_nonbond
+      INTENT(INOUT)                          :: f_nonbond
     LOGICAL, INTENT(IN)                      :: use_virial
     REAL(KIND=dp), INTENT(IN)                :: rcutsq
     TYPE(particle_type), DIMENSION(:), &
@@ -715,8 +685,8 @@ CONTAINS
     drji = SQRT(DOT_PRODUCT(rji,rji))
 
     fac = - 1.0_dp
-    Phi_ij = siep_Phi_ij(siepmann,r_last_update_pbc,iparticle,jparticle,n_loc_size,&
-             loc_cell_v, cell_v, cell, rcutsq,particle_set)
+    Phi_ij = siep_Phi_ij(siepmann,r_last_update_pbc,iparticle,jparticle,&
+             cell_v, cell, rcutsq,particle_set)
     f2   = siep_f2   (siepmann,drji)
     f2_d = siep_f2_d (siepmann,drji)
 
@@ -753,7 +723,7 @@ CONTAINS
     ! Lets do the f_A3 piece derivative: of Phi_ij
     prefactor = -D * f2 * drji**(-3) * fac  
     CALL siep_Phi_ij_d(siepmann, r_last_update_pbc, iparticle, jparticle, f_nonbond,&
-         prefactor, n_loc_size, full_loc_list, loc_cell_v,cell_v, cell,&
+         prefactor, cell_v, cell,&
          rcutsq, use_virial, particle_set)
 
   END SUBROUTINE siepmann_forces_v2

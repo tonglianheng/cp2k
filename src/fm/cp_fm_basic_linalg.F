@@ -16,13 +16,13 @@ MODULE cp_fm_basic_linalg
        cp_fm_create, cp_fm_get_element, cp_fm_get_info, cp_fm_get_submatrix, &
        cp_fm_release, cp_fm_set_all, cp_fm_set_submatrix, cp_fm_to_fm, &
        cp_fm_type
+  USE cp_log_handling,                 ONLY: cp_to_string
   USE kahan_sum,                       ONLY: accurate_sum
   USE kinds,                           ONLY: dp,&
                                              sp
   USE machine,                         ONLY: m_memory
   USE mathlib,                         ONLY: invert_matrix
   USE message_passing,                 ONLY: mp_sum
-#include "../common/cp_common_uses.f90"
 #include "../base/base_uses.f90"
 
   IMPLICIT NONE
@@ -93,11 +93,8 @@ CONTAINS
        CPASSERT(ASSOCIATED(matrix_b))
        CPASSERT(matrix_b%ref_count>0)
        IF (matrix_a%id_nr==matrix_b%id_nr) THEN
-          CALL cp_assert(matrix_a%id_nr/=matrix_b%id_nr, &
-                         cp_warning_level, cp_assertion_failed, &
-                         fromWhere=routineP, &
-                         message="Bad use of routine. Call cp_fm_scale instead: "// &
-                         __LOCATION__)
+          IF(matrix_a%id_nr==matrix_b%id_nr)&
+             CPWARN("Bad use of routine. Call cp_fm_scale instead")
           CALL cp_fm_scale(alpha+beta, matrix_a)
           CALL timestop(handle)
           RETURN
@@ -121,11 +118,8 @@ CONTAINS
        ENDIF
     ENDIF
     IF (my_beta.NE.0.0_dp) THEN
-       CALL cp_assert(matrix_a%matrix_struct%context%group==&
-            matrix_b%matrix_struct%context%group,cp_failure_level,&
-            cp_assertion_failed,fromWhere=routineP,&
-            message="matrixes must be in the same blacs context"//&
-            __LOCATION__)
+       IF(matrix_a%matrix_struct%context%group/=matrix_b%matrix_struct%context%group)&
+          CPABORT("matrixes must be in the same blacs context")
 
        IF (cp_fm_struct_equivalent(matrix_a%matrix_struct,&
             matrix_b%matrix_struct)) THEN
@@ -199,6 +193,7 @@ CONTAINS
     ALLOCATE (ipivot(n+matrix_a%matrix_struct%nrow_block))
 
 #if defined(__SCALAPACK)
+    MARK_USED(correct_sign)
     desca(:) = matrix_a%matrix_struct%descriptor(:)
     CALL pdgetrf(n,n,a(1,1),1,1,desca,ipivot,info)
 

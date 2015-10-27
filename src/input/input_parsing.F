@@ -28,6 +28,8 @@ MODULE input_parsing
                                              cp_to_array
   USE cp_linked_list_val,              ONLY: cp_sll_val_create,&
                                              cp_sll_val_type
+  USE cp_log_handling,                 ONLY: cp_logger_get_default_io_unit,&
+                                             cp_to_string
   USE cp_parser_methods,               ONLY: parser_get_object,&
                                              parser_location,&
                                              parser_skip_space,&
@@ -59,7 +61,6 @@ MODULE input_parsing
                                              max_line_length
   USE string_utilities,                ONLY: uppercase
   USE termination,                     ONLY: print_message
-#include "../common/cp_common_uses.f90"
 #include "../base/base_uses.f90"
 
   IMPLICIT NONE
@@ -129,11 +130,9 @@ CONTAINS
                  "Error 2: this routine must be called just after having parsed the start of the section "&
                  //TRIM(parser_location(parser)))
     END IF
-    CALL cp_assert(section%repeats.OR.SIZE(section_vals%values,2)==0,&
-         cp_failure_level,cp_assertion_failed,routineP,&
-         "Section "//TRIM(section%name)//&
-         " should not repeat "//TRIM(parser_location(parser)),&
-         failure)
+    IF(.NOT.section%repeats.AND.SIZE(section_vals%values,2)/=0)&
+       CALL cp_abort(__LOCATION__, "Section "//TRIM(section%name)//&
+         " should not repeat "//TRIM(parser_location(parser)))
     skip_description=.TRUE.
     skip_help=.TRUE.
     CALL section_vals_add_values(section_vals)
@@ -157,11 +156,10 @@ CONTAINS
        CALL parser_get_object(parser,token,newline=.TRUE.,&
             lower_to_upper=.TRUE.,at_end=at_end)
        IF (at_end) THEN
-          CALL cp_assert(.not.root_sect,cp_failure_level,&
-               cp_assertion_failed,routineP,&
-               "unexpected end of file while parsing section "//&
-               TRIM(section%name)//" "//TRIM(parser_location(parser)),&
-               failure)
+          IF(root_sect)&
+             CALL cp_abort(__LOCATION__,&
+                  "unexpected end of file while parsing section "//&
+                  TRIM(section%name)//" "//TRIM(parser_location(parser)))
           EXIT
        END IF
        IF (failure) EXIT
@@ -284,9 +282,10 @@ CONTAINS
                             last_val => last_val%rest
                          END DO
                       END IF
-                      CALL cp_assert(keyword%repeats,cp_failure_level,cp_assertion_failed,&
-                           routineP,"Keyword "//TRIM(token)//&
-                           " in section "//TRIM(section%name)//" should not repeat.",failure)
+                      IF(.NOT.keyword%repeats)&
+                         CALL cp_abort(__LOCATION__,&
+                              "Keyword "//TRIM(token)//&
+                              " in section "//TRIM(section%name)//" should not repeat.")
                       IF (ASSOCIATED(last_val,previous_list)) THEN
                          last_val=>previous_last
                       ELSE
@@ -539,14 +538,16 @@ CONTAINS
           END IF
        END IF
     CASE (lchar_t)
-       CALL cp_assert(.NOT.ASSOCIATED(default_value),cp_failure_level,cp_assertion_failed,&
-            routineP,"input variables of type lchar_t cannot have a lone keyword attribute,"//&
-            " no value is interpreted as empty string"//&
-            TRIM(parser_location(parser)),failure)
-       CALL cp_assert(n_var==1,cp_failure_level,cp_assertion_failed,&
-            routineP,"input variables of type lchar_t cannot be repeated,"//&
-            " one always represent a whole line, till the end"//&
-            TRIM(parser_location(parser)),failure)
+       IF(ASSOCIATED(default_value))&
+          CALL cp_abort(__LOCATION__,&
+               "input variables of type lchar_t cannot have a lone keyword attribute,"//&
+               " no value is interpreted as empty string"//&
+               TRIM(parser_location(parser)))
+       IF(n_var/=1)&
+          CALL cp_abort(__LOCATION__,&
+               "input variables of type lchar_t cannot be repeated,"//&
+               " one always represent a whole line, till the end"//&
+               TRIM(parser_location(parser)))
        IF (parser_test_next_token(parser)=="EOL") THEN
           ALLOCATE(c_val_p(1))
           c_val_p(1)=' '
@@ -664,10 +665,11 @@ CONTAINS
              my_unit => unit
           END IF
        END IF
-       CALL cp_assert(cp_unit_compatible(unit,my_unit),&
-            cp_failure_level,cp_assertion_failed,routineP,"Incompatible units. Defined as ("//&
-            TRIM(cp_unit_desc(unit))//") specified in input as ("//&
-            TRIM(cp_unit_desc(my_unit))//"). These units are incompatible!")
+       IF(.NOT.cp_unit_compatible(unit,my_unit))&
+          CALL cp_abort(__LOCATION__,&
+               "Incompatible units. Defined as ("//&
+               TRIM(cp_unit_desc(unit))//") specified in input as ("//&
+               TRIM(cp_unit_desc(my_unit))//"). These units are incompatible!")
     END IF
     CALL parser_get_object(parser,r_val)
     IF (ASSOCIATED(unit)) THEN

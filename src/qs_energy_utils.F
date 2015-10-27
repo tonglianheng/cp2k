@@ -87,7 +87,6 @@ MODULE qs_energy_utils
   USE se_core_core,                    ONLY: se_core_core_interaction
   USE se_core_matrix,                  ONLY: build_se_core_matrix
   USE xas_methods,                     ONLY: xas
-#include "./common/cp_common_uses.f90"
 #include "./base/base_uses.f90"
 
   IMPLICIT NONE
@@ -693,13 +692,6 @@ CONTAINS
        start_time = qs_env%start_time)
 
        CALL mp2_main(qs_env=qs_env,calc_forces=calc_forces)
-
-       ! no forces so far with MP2 (except one electron systems ;-)
-       ! IF (qs_env%energy%mp2.NE.0.0_dp .AND. calc_forces) THEN
-       !    CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
-       !         " No forces/gradients with MP2.... yet(?!) "//&
-       !          __LOCATION__, only_ionode=.TRUE.)
-       ! ENDIF
     ENDIF
 
   END SUBROUTINE qs_energies_mp2

@@ -24,6 +24,10 @@ MODULE environment
   USE cp_fm_diag,                      ONLY: diag_init
   USE cp_fm_struct,                    ONLY: cp_fm_struct_config
   USE cp_fm_types,                     ONLY: cp_fm_setup
+  USE cp_log_handling,                 ONLY: &
+       cp_add_default_logger, cp_get_default_logger, cp_logger_create, &
+       cp_logger_get_default_unit_nr, cp_logger_release, cp_logger_set, &
+       cp_logger_type, cp_rm_default_logger, cp_to_string
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr,&
                                              debug_print_level,&
@@ -68,8 +72,7 @@ MODULE environment
                                              m_procrun
   USE message_passing,                 ONLY: add_mp_perf_env,&
                                              describe_mp_perf_env,&
-                                             mp_external_timeset,&
-                                             mp_external_timestop,&
+                                             mp_collect_timings,&
                                              mp_max,&
                                              mp_sum,&
                                              rm_mp_perf_env
@@ -88,8 +91,7 @@ MODULE environment
   USE string_utilities,                ONLY: ascii_to_string,&
                                              integer_to_string,&
                                              string_to_ascii
-  USE termination,                     ONLY: set_error_unit,&
-                                             stop_memory
+  USE termination,                     ONLY: stop_memory
   USE timings,                         ONLY: add_timer_env,&
                                              rm_timer_env,&
                                              timings_setup_tracing
@@ -99,7 +101,6 @@ MODULE environment
                                              timings_report_print
 
   !$ USE OMP_LIB, ONLY: omp_get_max_threads, omp_get_thread_num, omp_get_num_threads
-#include "./common/cp_common_uses.f90"
 #include "./base/base_uses.f90"
 
   IMPLICIT NONE
@@ -148,14 +149,6 @@ CONTAINS
 
     ! message passing performance
     CALL add_mp_perf_env()
-
-    ! Set the default logical output and error unit number
-    ! write to screen in case of error on non-io nodes, and hope this is appropriate
-    IF (para_env%ionode) THEN
-       CALL set_error_unit(output_unit)
-    ELSE
-       CALL set_error_unit(6)
-    ENDIF
 
     ! Set flag if this is a development version
     dev_flag = ""
@@ -503,8 +496,7 @@ CONTAINS
       SReclaimable, SReclaimable_avr, SReclaimable_max, SReclaimable_min
     INTEGER, DIMENSION(:), POINTER           :: i_force_eval
     LOGICAL                                  :: ata, do_echo_all_hosts, efl, &
-                                                explicit, time_mpi, trace, &
-                                                trace_master
+                                                explicit, trace, trace_master
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(enumeration_type), POINTER          :: enum1, enum2
     TYPE(keyword_type), POINTER              :: keyword
@@ -563,11 +555,7 @@ CONTAINS
        END IF
     ENDIF 
    
-    CALL section_vals_val_get(global_section,"TIMINGS%TIME_MPI",l_val=time_mpi)
-    IF (time_mpi) THEN
-       mp_external_timeset=>timeset
-       mp_external_timestop=>timestop
-    ENDIF
+    CALL section_vals_val_get(global_section,"TIMINGS%TIME_MPI",l_val=mp_collect_timings)
 
     SELECT CASE(i_diag)
     CASE(do_diag_sl)
